@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --color-paper: #ffffff;
+  --color-ink: #0d2137;
+  --color-mist: #d6e4f5;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+}
+
+.dark {
+  color-scheme: dark;
+  --color-paper: #0a1628;
+  --color-ink: #e8eef5;
+  --color-mist: #1a3350;
+}
+
+body {
+  @apply bg-paper text-ink antialiased;
+}

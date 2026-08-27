@@ -1,0 +1,20 @@
+{
+  "name": "agentforge",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "test": "turbo test",
+    "db:push": "pnpm --filter @agentforge/db push",
+    "db:seed": "pnpm --filter @agentforge/db seed",
+    "db:studio": "pnpm --filter @agentforge/db studio"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.4",
+    "typescript": "^5.8.3"
+  },
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=20"
+  }
+}
