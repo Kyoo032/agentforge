@@ -48,6 +48,7 @@ export default function StudioAgentPage() {
 
   useEffect(() => {
     void reload();
+    router.refresh();
   }, [params.agentId]);
 
   function toggleProductMode(id: ProductMode) {

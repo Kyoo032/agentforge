@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { PRODUCT_MODES, type ProductMode } from "@agentforge/core/product-modes";
 import { ModelSelect } from "@/components/model-select";
 
@@ -42,7 +41,6 @@ const chipOn = "border-navy bg-navy text-white";
 const chipOff = "border-mist bg-paper text-ink hover:bg-mist";
 
 export default function NewAgentPage() {
-  const router = useRouter();
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [tools, setTools] = useState<Tool[]>([]);
   const [packs, setPacks] = useState<AgentPack[]>([]);
@@ -172,7 +170,7 @@ export default function NewAgentPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ versionId: created.version.id }),
     });
-    router.push(`/studio/${created.agent.id}`);
+    window.location.assign(`/studio/${created.agent.id}`);
   }
 
   return (
