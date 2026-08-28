@@ -1,5 +1,5 @@
 {
   "name": "agentforge",
-  "install": "corepack enable && corepack prepare pnpm@9.15.9 --activate && pnpm install && pnpm --filter @agentforge/web exec playwright install --with-deps chromium",
-  "start": "sudo service docker start && docker compose up -d && until docker compose exec -T postgres pg_isready -U agentforge; do sleep 1; done && pnpm db:push"
+  "install": "bash scripts/cloud-install.sh",
+  "start": "bash scripts/cloud-start.sh"
 }
