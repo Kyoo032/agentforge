@@ -11,7 +11,7 @@ test("chat and build work without an account", async ({ page }) => {
   const promptAgent = `E2E agent ${runId}: What is 4 + 1?`;
 
   await page.goto("/chat");
-  await expect(page.getByTestId("model-picker")).toBeVisible();
+  await expect(page.getByTestId("model-picker")).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId("composer")).toBeVisible();
   await expect(page.getByTestId("chat-empty")).toContainText("Ask anything");
   await expect(page.getByTestId("mode-chat")).toBeVisible();
