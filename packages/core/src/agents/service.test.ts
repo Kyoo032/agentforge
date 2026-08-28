@@ -21,7 +21,7 @@ describe("AgentService tenancy", () => {
     const service = new AgentService(repo);
     const created = await service.create(tenant(), {
       name: "Tutor",
-      systemPrompt: "Help with coursework",
+      systemPrompt: "Help with writing",
       model: "gpt-4o-mini",
     });
     const other = tenant({ organizationId: "org-b", workspaceId: "ws-b", userId: "user-b" });

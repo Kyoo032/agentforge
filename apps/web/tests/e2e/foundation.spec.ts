@@ -14,6 +14,8 @@ test("chat and build work without an account", async ({ page }) => {
   await expect(page.getByTestId("chat-empty")).toContainText("Ask anything");
   await expect(page.getByTestId("mode-chat")).toBeVisible();
   await expect(page.getByTestId("mode-agents")).toBeVisible();
+  await expect(page.getByTestId("mode-documents")).toHaveCount(0);
+  await expect(page.getByTestId("mode-research")).toHaveCount(0);
   await expect(page.getByTestId("mode-images")).toHaveCount(0);
   await expect(page.getByTestId("mode-videos")).toHaveCount(0);
   await expect(page.getByTestId("mode-presentations")).toHaveCount(0);
@@ -69,6 +71,8 @@ test("chat and build work without an account", async ({ page }) => {
   await expect(page.getByTestId("mode-images")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId("mode-videos")).toBeVisible();
   await expect(page.getByTestId("mode-presentations")).toBeVisible();
+  await expect(page.getByTestId("mode-documents")).toHaveCount(0);
+  await expect(page.getByTestId("mode-research")).toHaveCount(0);
 
   await page.getByTestId("share-workspace").click();
   await expect(page.getByTestId("visibility")).toContainText("workspace", { timeout: 15_000 });

@@ -50,11 +50,11 @@ describe("resolveProductModes", () => {
     ).toEqual(FALLBACK_PRODUCT_MODES);
   });
 
-  it("maps a Students-like agent", () => {
+  it("maps a writing-and-research desk", () => {
     expect(
       resolveProductModes([
         {
-          slug: "student",
+          slug: "notes-desk",
           productModes: ["chat", "documents", "research", "images", "presentations"],
         },
       ]),
@@ -64,7 +64,7 @@ describe("resolveProductModes", () => {
   it("maps a Marketing-like agent", () => {
     expect(
       resolveProductModes([
-        { slug: "marketing", productModes: ["chat", "documents", "images", "videos", "presentations"] },
+        { slug: "campaign-desk", productModes: ["chat", "documents", "images", "videos", "presentations"] },
       ]),
     ).toEqual(["chat", "documents", "images", "videos", "presentations"]);
   });
@@ -72,7 +72,7 @@ describe("resolveProductModes", () => {
   it("maps a Legal-like agent", () => {
     expect(
       resolveProductModes([
-        { slug: "legal", productModes: ["chat", "documents", "research", "presentations"] },
+        { slug: "memo-desk", productModes: ["chat", "documents", "research", "presentations"] },
       ]),
     ).toEqual(["chat", "documents", "research", "presentations"]);
   });
@@ -80,8 +80,8 @@ describe("resolveProductModes", () => {
   it("unions two custom agents in catalog order", () => {
     expect(
       resolveProductModes([
-        { slug: "student", productModes: ["chat", "documents", "presentations"] },
-        { slug: "marketing", productModes: ["images", "videos"] },
+        { slug: "notes-desk", productModes: ["chat", "documents", "presentations"] },
+        { slug: "campaign-desk", productModes: ["images", "videos"] },
       ]),
     ).toEqual(["chat", "documents", "images", "videos", "presentations"]);
   });
@@ -99,7 +99,7 @@ describe("resolveProductModes", () => {
     expect(
       resolveProductModes([
         { slug: DEFAULT_CHAT_SLUG, productModes: ["images", "videos"] },
-        { slug: "legal", productModes: ["documents"] },
+        { slug: "memo-desk", productModes: ["documents"] },
       ]),
     ).toEqual(["documents"]);
   });
