@@ -56,6 +56,7 @@ export default function NewAgentPage() {
   const [productModes, setProductModes] = useState<ProductMode[]>(["chat"]);
   const [selectedTools, setSelectedTools] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const selectedTemplate = useMemo(
     () => packs.flatMap((pack) => pack.templates).find((item) => item.key === templateKey),
@@ -136,11 +137,12 @@ export default function NewAgentPage() {
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (!workspaceId) {
-      setError("Workspace is still loading. Try again.");
+    if (!workspaceId || saving) {
+      setError(workspaceId ? null : "Workspace is still loading. Try again.");
       return;
     }
     setError(null);
+    setSaving(true);
     const created = await fetch(`/api/v1/workspaces/${workspaceId}/agents`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -154,6 +156,7 @@ export default function NewAgentPage() {
       }),
     }).then((res) => res.json());
     if (created.error) {
+      setSaving(false);
       setError(created.error.message);
       return;
     }
@@ -169,7 +172,6 @@ export default function NewAgentPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ versionId: created.version.id }),
     });
-    router.refresh();
     router.push(`/studio/${created.agent.id}`);
   }
 
@@ -335,7 +337,7 @@ export default function NewAgentPage() {
             type="submit"
             className="rounded-md bg-navy px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
             data-testid="create-agent"
-            disabled={!workspaceId || !model}
+            disabled={!workspaceId || !model || saving}
           >
             Create, bind, and publish
           </button>
