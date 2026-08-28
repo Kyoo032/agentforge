@@ -3,7 +3,7 @@ import { defineTool } from "../define-tool";
 
 export const datetimeTool = defineTool({
   key: "datetime",
-  name: "Current datetime",
+  name: "Date & time",
   description: "Return the current UTC timestamp",
   schema: z.object({}),
   execute: async () => ({

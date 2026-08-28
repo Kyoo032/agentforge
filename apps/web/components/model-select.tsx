@@ -1,12 +1,13 @@
 "use client";
 
-import { pickerGroups } from "@agentforge/core/preferred";
+import { formatContextLength, pickerGroups } from "@agentforge/core/preferred";
 
 type ChatModel = {
   id: string;
   label: string;
   provider?: string;
   inputModalities: string[];
+  contextLength?: number;
 };
 
 type Props = {
@@ -43,7 +44,11 @@ export function ModelSelect({
         <optgroup key={group.label} label={group.label}>
           {group.models.map((model) => (
             <option key={model.id} value={model.id}>
-              {showModalities ? `${model.label} (${model.inputModalities.join(" + ")})` : model.label}
+              {showModalities
+                ? `${model.label} (${model.inputModalities.join(" + ")})`
+                : model.contextLength
+                  ? `${model.label} · ${formatContextLength(model.contextLength)}`
+                  : model.label}
             </option>
           ))}
         </optgroup>

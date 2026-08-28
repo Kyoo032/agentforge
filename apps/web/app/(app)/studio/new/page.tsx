@@ -27,6 +27,7 @@ type ChatModel = {
   label: string;
   provider?: ModelProvider;
   inputModalities: string[];
+  contextLength?: number;
 };
 
 const BLANK_PROMPT = "You are a helpful assistant. Be clear and direct.";

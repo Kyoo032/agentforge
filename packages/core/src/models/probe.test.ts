@@ -73,6 +73,17 @@ describe("modelsFromOpenAIList", () => {
     expect(models.map((model) => model.id)).toEqual(["gpt-5-mini", "openai/gpt-4o"]);
     expect(models[0]?.provider).toBe("openai");
   });
+
+  it("copies a context window from the list payload", () => {
+    const models = modelsFromOpenAIList({
+      data: [{ id: "gpt-5-mini", context_length: 400000, max_tokens: 16384 }],
+    });
+    expect(models[0]).toMatchObject({
+      id: "gpt-5-mini",
+      contextLength: 400000,
+      contextSource: "endpoint",
+    });
+  });
 });
 
 describe("modelsFromGoogleList", () => {
@@ -93,6 +104,20 @@ describe("modelsFromGoogleList", () => {
     expect(models).toEqual([
       expect.objectContaining({ id: "gemini-3.5-flash", label: "Gemini 3.5 Flash", provider: "google" }),
     ]);
+  });
+
+  it("reads inputTokenLimit as the context window", () => {
+    const models = modelsFromGoogleList({
+      models: [
+        {
+          name: "models/gemini-3.5-flash",
+          displayName: "Gemini 3.5 Flash",
+          supportedGenerationMethods: ["generateContent"],
+          inputTokenLimit: 1048576,
+        },
+      ],
+    });
+    expect(models[0]).toMatchObject({ contextLength: 1048576, contextSource: "endpoint" });
   });
 });
 

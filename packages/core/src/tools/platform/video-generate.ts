@@ -102,7 +102,7 @@ async function generateWithSeedance(
 
 export const videoGenerateTool = defineTool({
   key: "video_generate",
-  name: "Video generate",
+  name: "Create video",
   description:
     "Create a video from a text prompt, or animate a still by passing image_url. Uses the Toko Token gateway by default (POST /v1/video/generations, then poll). Pass model to pick a catalog video id.",
   capability: "video_gen",

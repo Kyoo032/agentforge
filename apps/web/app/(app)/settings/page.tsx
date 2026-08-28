@@ -271,7 +271,8 @@ export default function SettingsPage() {
         <details className="rounded-xl border border-mist bg-paper">
           <summary className="cursor-pointer list-none px-5 py-4 font-medium text-ink marker:content-none [&::-webkit-details-marker]:hidden">
             Extras
-          </summary>          <div className="space-y-6 border-t border-mist px-5 py-5">
+          </summary>
+          <div className="space-y-6 border-t border-mist px-5 py-5">
             <p className="text-xs text-ink/50">
               Other providers are optional. Use them only if you want native Anthropic, Google, or Volcengine instead of
               models already on the gateway. Search still needs Tavily or Brave. FAL is optional if you want that backend

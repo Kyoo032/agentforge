@@ -60,6 +60,7 @@ describe("ensureDefaultChat", () => {
       "calculator",
       "datetime",
       "image_generate",
+      "past_sessions",
       "video_generate",
       "web_search",
     ]);
@@ -78,6 +79,7 @@ describe("ensureDefaultChat", () => {
       "calculator",
       "datetime",
       "image_generate",
+      "past_sessions",
       "video_generate",
       "web_search",
     ]);

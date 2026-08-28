@@ -1,160 +1,156 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { groupThreadsByDay } from "@/lib/thread-groups";
-import { THREADS_CHANGED_EVENT } from "@/lib/threads-events";
-
-export type RailAgent = {
-  id: string;
-  name: string;
-};
-
-type RailThread = {
-  id: string;
-  title: string;
-  agentId: string;
-  agentName: string;
-  createdAt: string;
-  isDefaultChat: boolean;
-};
+import { getRailCollapsed, setRailCollapsed } from "@/lib/rail-prefs";
 
 type Props = {
   workspaceName: string;
-  agents: RailAgent[];
 };
 
-function itemClass(active: boolean) {
+const MODES = [
+  { href: "/chat", label: "Chat", match: (path: string) => path === "/chat" || path.startsWith("/chat?") },
+  {
+    href: "/agents",
+    label: "Agents",
+    match: (path: string) => path.startsWith("/agents") || path.startsWith("/studio"),
+  },
+  { href: "/images", label: "Images", match: (path: string) => path.startsWith("/images") },
+  { href: "/videos", label: "Videos", match: (path: string) => path.startsWith("/videos") },
+  {
+    href: "/presentations",
+    label: "Presentation",
+    match: (path: string) => path.startsWith("/presentations"),
+  },
+] as const;
+
+function itemClass(active: boolean, compact = false) {
   return active
-    ? "block rounded-md bg-navy px-3 py-2 text-sm text-white"
-    : "block rounded-md px-3 py-2 text-sm text-ink hover:bg-mist";
+    ? `${compact ? "flex justify-center" : "block"} rounded-md bg-navy ${compact ? "px-2 py-2" : "px-2.5 py-1.5"} text-sm text-white`
+    : `${compact ? "flex justify-center" : "block"} rounded-md ${compact ? "px-2 py-2" : "px-2.5 py-1.5"} text-sm text-ink hover:bg-mist`;
 }
 
-function threadHref(thread: RailThread) {
-  return thread.isDefaultChat ? `/chat?thread=${thread.id}` : `/chat/${thread.agentId}?thread=${thread.id}`;
-}
-
-function AppRailInner({ workspaceName, agents }: Props) {
+export function AppRail({ workspaceName }: Props) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const activeThread = searchParams.get("thread");
-  const onBuild = pathname.startsWith("/studio");
   const onSettings = pathname.startsWith("/settings");
   const onWorkspaces = pathname.startsWith("/workspaces");
-  const [threads, setThreads] = useState<RailThread[]>([]);
+  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      const payload = await fetch("/api/v1/threads").then((res) => res.json());
-      if (cancelled) {
-        return;
-      }
-      setThreads(Array.isArray(payload.threads) ? payload.threads : []);
-    }
-    void load();
-    const onChange = () => {
-      void load();
-    };
-    window.addEventListener(THREADS_CHANGED_EVENT, onChange);
-    return () => {
-      cancelled = true;
-      window.removeEventListener(THREADS_CHANGED_EVENT, onChange);
-    };
-  }, [pathname, activeThread]);
+    setCollapsed(getRailCollapsed());
+  }, []);
 
-  const groups = groupThreadsByDay(threads);
+  function toggleCollapsed() {
+    setCollapsed((was) => {
+      const next = !was;
+      setRailCollapsed(next);
+      return next;
+    });
+  }
 
-  return (
-    <aside className="flex h-full w-64 shrink-0 flex-col rounded-xl border border-mist/80 bg-paper">
-      <div className="border-b border-mist px-3 py-4">
-        <Link href="/chat" className="block font-semibold tracking-tight text-ink">
-          Agentforge
-        </Link>
-        <p className="mt-1 truncate text-xs text-ink/50">{workspaceName}</p>
-      </div>
-
-      <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-4" aria-label="App">
-        <div className="space-y-1">
+  if (collapsed) {
+    return (
+      <aside
+        className="flex h-full w-11 shrink-0 flex-col items-center rounded-xl border border-mist/80 bg-paper py-3"
+        aria-label="Product modes"
+      >
+        <button
+          type="button"
+          className="rounded-md px-1.5 py-1 text-sm text-ink/60 hover:bg-mist hover:text-ink"
+          onClick={toggleCollapsed}
+          data-testid="rail-expand"
+          aria-label="Expand navigation"
+          title="Expand navigation"
+        >
+          »
+        </button>
+        <nav className="mt-3 flex flex-col items-center gap-1" aria-label="Modes">
+          {MODES.map((mode) => {
+            const isActive = mode.href === "/chat" ? pathname === "/chat" : mode.match(pathname);
+            return (
+              <Link
+                key={mode.href}
+                href={mode.href}
+                className={`${itemClass(isActive, true)} text-xs font-medium`}
+                title={mode.label}
+                aria-label={mode.label}
+                aria-current={isActive ? "page" : undefined}
+                data-testid={`mode-${mode.href.slice(1)}`}
+              >
+                {mode.label.slice(0, 1)}
+              </Link>
+            );
+          })}
+        </nav>
+        <div className="mt-auto flex flex-col items-center gap-1">
           <Link
-            href="/chat"
-            className="block rounded-md border border-mist px-3 py-2 text-sm font-medium text-ink hover:bg-mist"
-            data-testid="new-chat-link"
+            href="/settings"
+            className={`${itemClass(onSettings, true)} text-xs font-medium`}
+            data-testid="settings-link"
+            title="Settings"
+            aria-label="Settings"
+            aria-current={onSettings ? "page" : undefined}
           >
-            + New chat
+            Set
+          </Link>
+          <Link
+            href="/workspaces"
+            className={`${itemClass(onWorkspaces, true)} text-xs font-medium`}
+            title="Workspaces"
+            aria-label="Workspaces"
+            aria-current={onWorkspaces ? "page" : undefined}
+          >
+            Ws
           </Link>
         </div>
+      </aside>
+    );
+  }
 
-        <div data-testid="thread-list">
-          {groups.length === 0 ? (
-            <p className="px-3 text-xs text-ink/50">Sessions show up here after you send.</p>
-          ) : (
-            groups.map((group) => (
-              <div key={group.label} className="mb-4">
-                <p className="px-3 text-xs font-medium uppercase tracking-wide text-ink/50">{group.label}</p>
-                <div className="mt-1 space-y-1">
-                  {group.threads.map((thread) => {
-                    const href = threadHref(thread);
-                    const active = activeThread === thread.id;
-                    return (
-                      <Link
-                        key={thread.id}
-                        href={href}
-                        className={itemClass(active)}
-                        data-testid="thread-item"
-                        aria-current={active ? "page" : undefined}
-                      >
-                        <span className="block truncate">{thread.title}</span>
-                        {!thread.isDefaultChat ? (
-                          <span className={`block truncate text-xs ${active ? "text-white/80" : "text-ink/50"}`}>
-                            {thread.agentName}
-                          </span>
-                        ) : null}
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            ))
-          )}
+  return (
+    <aside className="flex h-full w-52 shrink-0 flex-col rounded-xl border border-mist/80 bg-paper" aria-label="Product modes">
+      <div className="flex items-start gap-1 border-b border-mist px-2 py-3">
+        <div className="min-w-0 flex-1">
+          <Link href="/chat" className="block truncate text-sm font-semibold tracking-tight text-ink">
+            Agentforge
+          </Link>
+          <p className="mt-0.5 truncate text-xs text-ink/50">{workspaceName}</p>
         </div>
+        <button
+          type="button"
+          className="shrink-0 rounded-md px-1.5 py-1 text-sm text-ink/60 hover:bg-mist hover:text-ink"
+          onClick={toggleCollapsed}
+          data-testid="rail-collapse"
+          aria-label="Collapse navigation"
+          title="Collapse navigation"
+        >
+          «
+        </button>
+      </div>
 
-        <div>
-          <p className="px-3 text-xs font-medium uppercase tracking-wide text-ink/50">Desks</p>
-          <div className="mt-1 space-y-1">
-            {agents.length === 0 ? (
-              <p className="px-3 py-2 text-xs text-ink/50">None yet. Build one when you want a specialist.</p>
-            ) : (
-              agents.map((agent) => {
-                const href = `/chat/${agent.id}`;
-                const active = pathname === href && !activeThread;
-                return (
-                  <Link
-                    key={agent.id}
-                    href={href}
-                    className={itemClass(active)}
-                    aria-current={active ? "page" : undefined}
-                  >
-                    {agent.name}
-                  </Link>
-                );
-              })
-            )}
-            <Link
-              href="/studio/new"
-              className={itemClass(onBuild)}
-              data-testid="new-agent-link"
-              aria-current={onBuild ? "page" : undefined}
-            >
-              Build
-            </Link>
-          </div>
+      <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 py-3" aria-label="Modes">
+        <div className="space-y-0.5">
+          {MODES.map((mode) => {
+            const isActive =
+              mode.href === "/chat" ? pathname === "/chat" : mode.match(pathname);
+            return (
+              <Link
+                key={mode.href}
+                href={mode.href}
+                className={itemClass(isActive)}
+                aria-current={isActive ? "page" : undefined}
+                data-testid={`mode-${mode.href.slice(1)}`}
+              >
+                {mode.label}
+              </Link>
+            );
+          })}
         </div>
       </nav>
 
-      <div className="space-y-1 border-t border-mist px-3 py-4">
+      <div className="space-y-0.5 border-t border-mist px-2 py-3">
         <Link
           href="/settings"
           className={itemClass(onSettings)}
@@ -173,13 +169,5 @@ function AppRailInner({ workspaceName, agents }: Props) {
         <ThemeToggle />
       </div>
     </aside>
-  );
-}
-
-export function AppRail(props: Props) {
-  return (
-    <Suspense fallback={<aside className="w-64 shrink-0 rounded-xl border border-mist/80 bg-paper" />}>
-      <AppRailInner {...props} />
-    </Suspense>
   );
 }

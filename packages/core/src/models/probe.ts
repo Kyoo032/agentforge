@@ -2,6 +2,7 @@ import { ApiError } from "../errors";
 import { GATEWAY_BASE_URL, isGatewayBaseUrl } from "../gateway";
 import { assertAllowedEndpointUrl } from "../security/tls";
 import { chatModelFromId, type ChatModel, type ModelProvider } from "./catalog";
+import { extractContextLength } from "./context-length";
 import { mediaKind } from "./media-kind";
 
 export type ApiDialect = ModelProvider;
@@ -156,7 +157,10 @@ function modelsFromListedItems(body: unknown, provider: ModelProvider): ChatMode
     }
     seen.add(id);
     const name = typeof item.display_name === "string" ? item.display_name : typeof item.name === "string" ? item.name : undefined;
-    models.push(chatModelFromId(id, labelFor(id, name), provider));
+    const contextLength = extractContextLength(item);
+    models.push(
+      chatModelFromId(id, labelFor(id, name), provider, contextLength ? { contextLength, contextSource: "endpoint" } : undefined),
+    );
   }
   return models;
 }
@@ -169,6 +173,7 @@ type GoogleListItem = {
   name?: unknown;
   displayName?: unknown;
   supportedGenerationMethods?: unknown;
+  inputTokenLimit?: unknown;
 };
 
 function readGoogleItems(body: unknown): GoogleListItem[] {
@@ -201,7 +206,15 @@ export function modelsFromGoogleList(body: unknown): ChatModel[] {
     }
     seen.add(id);
     const displayName = typeof item.displayName === "string" ? item.displayName : undefined;
-    models.push(chatModelFromId(id, labelFor(id, displayName), "google"));
+    const contextLength = extractContextLength(item);
+    models.push(
+      chatModelFromId(
+        id,
+        labelFor(id, displayName),
+        "google",
+        contextLength ? { contextLength, contextSource: "endpoint" } : undefined,
+      ),
+    );
   }
   return models;
 }

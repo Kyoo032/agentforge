@@ -1,0 +1,110 @@
+import { describe, expect, it } from "vitest";
+import { ApiError } from "@agentforge/core";
+import {
+  listStudioImageModels,
+  listStudioVideoModels,
+  parseImageGenerateBody,
+  parseVideoGenerateBody,
+} from "./studio-generate";
+import { mediaIdFromUrl } from "./media";
+
+describe("parseImageGenerateBody", () => {
+  it("requires a prompt", () => {
+    expect(() => parseImageGenerateBody({})).toThrow(ApiError);
+    expect(() => parseImageGenerateBody({ prompt: "  " })).toThrow(ApiError);
+  });
+
+  it("defaults aspect to square", () => {
+    expect(parseImageGenerateBody({ prompt: "a lantern" })).toEqual({
+      prompt: "a lantern",
+      aspect: "square",
+      model: undefined,
+      imageUrl: undefined,
+    });
+  });
+
+  it("accepts landscape and model", () => {
+    expect(
+      parseImageGenerateBody({
+        prompt: "a lantern",
+        aspect: "landscape",
+        model: "gpt-image-2",
+      }),
+    ).toMatchObject({
+      prompt: "a lantern",
+      aspect: "landscape",
+      model: "gpt-image-2",
+    });
+  });
+
+  it("rejects unknown aspects", () => {
+    expect(() => parseImageGenerateBody({ prompt: "x", aspect: "16:9" })).toThrow(ApiError);
+  });
+});
+
+describe("parseVideoGenerateBody", () => {
+  it("defaults aspect to 16:9", () => {
+    expect(parseVideoGenerateBody({ prompt: "waves" })).toEqual({
+      prompt: "waves",
+      aspect: "16:9",
+      model: undefined,
+      imageUrl: undefined,
+    });
+  });
+
+  it("accepts still imageUrl and 9:16", () => {
+    expect(
+      parseVideoGenerateBody({
+        prompt: "animate this",
+        aspect: "9:16",
+        imageUrl: "https://cdn.example/still.png",
+        model: "grok-imagine-video",
+      }),
+    ).toMatchObject({
+      prompt: "animate this",
+      aspect: "9:16",
+      imageUrl: "https://cdn.example/still.png",
+      model: "grok-imagine-video",
+    });
+  });
+
+  it("rejects square aspect used by images", () => {
+    expect(() => parseVideoGenerateBody({ prompt: "x", aspect: "square" })).toThrow(ApiError);
+  });
+});
+
+describe("studio model filters", () => {
+  const catalog = [
+    { id: "gpt-image-2", label: "GPT Image 2", provider: "openai" as const, inputModalities: ["text" as const] },
+    { id: "mj_imagine", label: "MJ", provider: "openai" as const, inputModalities: ["text" as const] },
+    {
+      id: "grok-imagine-video",
+      label: "Grok Video",
+      provider: "openai" as const,
+      inputModalities: ["text" as const],
+    },
+    {
+      id: "gpt-4o",
+      label: "GPT-4o",
+      provider: "openai" as const,
+      inputModalities: ["text" as const, "image" as const],
+    },
+  ];
+
+  it("keeps image models and skips mj_", () => {
+    expect(listStudioImageModels(catalog).map((m) => m.id)).toEqual(["gpt-image-2"]);
+  });
+
+  it("keeps video models and skips chat", () => {
+    expect(listStudioVideoModels(catalog).map((m) => m.id)).toEqual(["grok-imagine-video"]);
+  });
+});
+
+describe("mediaIdFromUrl", () => {
+  it("extracts uuid from local media urls", () => {
+    expect(mediaIdFromUrl("/api/v1/media/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/file")).toBe(
+      "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+    );
+    expect(mediaIdFromUrl("https://cdn.example/out.png")).toBeNull();
+  });
+});

@@ -67,7 +67,7 @@ export default function StudioAgentPage() {
         <button type="button" className="rounded-md border border-mist px-4 py-2 text-ink" onClick={() => void share("private")}>
           Make private
         </button>
-        <Link href={`/chat/${data.agent.id}`} className="rounded-md px-4 py-2 underline">
+        <Link href={`/agents/${data.agent.id}`} className="rounded-md px-4 py-2 underline">
           Open chat
         </Link>
       </div>

@@ -1,19 +1,20 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { AppRail, type RailAgent } from "@/components/app-rail";
+import { AppRail } from "@/components/app-rail";
 
 type Props = {
   workspaceName: string;
-  agents: RailAgent[];
   children: ReactNode;
 };
 
-export function AppShell({ workspaceName, agents, children }: Props) {
+export function AppShell({ workspaceName, children }: Props) {
   return (
-    <div className="flex h-screen gap-3 bg-mist p-3">
-      <AppRail workspaceName={workspaceName} agents={agents} />
-      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto rounded-xl bg-paper">{children}</div>
+    <div className="flex h-screen gap-2 bg-mist p-2">
+      <AppRail workspaceName={workspaceName} />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-paper">
+        <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+      </div>
     </div>
   );
 }

@@ -56,6 +56,17 @@ export {
 } from "./models/catalog";
 export type { ChatModel, ModelProvider } from "./models/catalog";
 export {
+  DEFAULT_FALLBACK_CONTEXT,
+  extractContextLength,
+  familyContextLength,
+  formatContextLength,
+  lookupModelsDevContext,
+  parseModelsDevRegistry,
+  resolveContextLength,
+  withContextLengths,
+} from "./models/context-length";
+export type { ContextSource, ModelsDevRegistry } from "./models/context-length";
+export {
   chooseDefaultModel,
   pickPreferredModel,
   pickerGroups,

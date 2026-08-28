@@ -4,6 +4,8 @@ A **local** agents workbench for the **Toko Token** OpenAI-compatible gateway at
 
 This file is the project source of truth for coding agents. Vault memory at `C:\Users\rizky\Documents\Obsidian` is for Kyo, not for this repo’s domain rules.
 
+Product modes (Chat / Agents / Images / Videos / Presentation): see [`docs/product-modes.md`](docs/product-modes.md).
+
 ## Product (locked 2026-08-26)
 
 - **Gateway-first.** Agentforge exists because the gateway has no easy agents app. Chat, model picker, and custom agents run on `api.tokotokenai.com/v1` by default. Native Anthropic / Google / Ark and a different base URL are optional extras, not the product identity.
@@ -80,9 +82,24 @@ The user pastes their gateway key into settings. The host process holds it. Runs
 
 ## Tests
 
-- Unit: Vitest in `packages/core`, `packages/university`, `apps/web`.
-- E2E: Playwright `apps/web/tests/e2e/foundation.spec.ts` (open `/chat` → send → settings → studio).
-- Verify UI in the browser (or Playwright if the IDE browser is unavailable).
+- Unit: Vitest in `packages/core`, `packages/university`, `apps/web`. Local coding agents run these. Do **not** run Playwright locally — `foundation.spec.ts` is a long serial pass (cold Next compile + stub chat + studio).
+- E2E: Playwright `apps/web/tests/e2e/foundation.spec.ts` (Chat → Settings → Agents/Build → Images/Videos/Presentation smoke). Owned by **Cursor Cloud Agents**, not the local Windows session. See **Cursor Cloud specific instructions** below.
+- Verify UI in the IDE browser when changing layout. Do not block on `pnpm test:e2e` on this machine.
+
+## Cursor Cloud specific instructions
+
+Cloud VMs use [`.cursor/environment.json`](.cursor/environment.json): `install` does pnpm + Chromium; `start` brings up Docker Postgres and `db:push`. Stub runtime only — no gateway key.
+
+```
+cd apps/web
+AGENTFORGE_RUNTIME=stub npx playwright test
+```
+
+Or from repo root: `pnpm test:e2e`. URL must be `http://127.0.0.1:3000` (Playwright `webServer` starts `pnpm dev` if needed). Do not use a LAN IP.
+
+Launch: Cursor **Cloud** agent dropdown, or `/in-cloud` from a local chat. Cloud clones GitHub — push the branch first; uncommitted local files are not on the VM.
+
+GitHub Actions (`.github/workflows/e2e.yml`) runs the same stub Playwright suite on push/PR to `main`. No gateway key.
 
 ## Known traps (prototype)
 

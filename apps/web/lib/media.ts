@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db, media } from "@agentforge/db";
 import type { TenantContext } from "@agentforge/core";
 import { ApiError } from "@agentforge/core";
@@ -15,6 +15,19 @@ export function mediaRoot(): string {
   return process.env.MEDIA_ROOT
     ? path.resolve(process.env.MEDIA_ROOT)
     : path.resolve(process.cwd(), "..", "..", "data", "media");
+}
+
+export function mediaIdFromUrl(url: string): string | null {
+  const match = url.match(/^\/api\/v1\/media\/([0-9a-f-]{36})\/file$/i);
+  return match?.[1] ?? null;
+}
+
+export async function listMediaByKind(tenant: TenantContext, kind: "image" | "video") {
+  return db
+    .select()
+    .from(media)
+    .where(and(eq(media.organizationId, tenant.organizationId), eq(media.kind, kind)))
+    .orderBy(desc(media.createdAt));
 }
 
 export async function saveMedia(tenant: TenantContext, file: File) {
@@ -104,6 +117,44 @@ export async function saveGeneratedImage(tenant: TenantContext, url: string): Pr
   }
   try {
     const saved = await saveMedia(tenant, new File([new Uint8Array(bytes)], `generated.${mime.split("/")[1] ?? "png"}`, { type: mime }));
+    return saved.url;
+  } catch {
+    return url;
+  }
+}
+
+export async function saveGeneratedVideo(tenant: TenantContext, url: string): Promise<string> {
+  if (url.startsWith("/api/v1/media/")) {
+    return url;
+  }
+  let mime = "video/mp4";
+  let bytes: Buffer;
+  if (url.startsWith("data:video/")) {
+    const match = url.match(/^data:(video\/[a-zA-Z0-9.+-]+);base64,(.+)$/s);
+    if (!match?.[1] || !match[2]) {
+      return url;
+    }
+    mime = match[1];
+    bytes = Buffer.from(match[2], "base64");
+  } else if (url.startsWith("https://") || url.startsWith("http://")) {
+    const response = await fetch(url);
+    if (!response.ok) {
+      return url;
+    }
+    const type = response.headers.get("content-type")?.split(";")[0]?.trim();
+    if (type && type.startsWith("video/")) {
+      mime = type;
+    }
+    bytes = Buffer.from(await response.arrayBuffer());
+  } else {
+    return url;
+  }
+  const ext = mime.split("/")[1] === "quicktime" ? "mov" : (mime.split("/")[1] ?? "mp4");
+  try {
+    const saved = await saveMedia(
+      tenant,
+      new File([new Uint8Array(bytes)], `generated.${ext}`, { type: mime }),
+    );
     return saved.url;
   } catch {
     return url;

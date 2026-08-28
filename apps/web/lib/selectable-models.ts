@@ -8,11 +8,13 @@ import {
   probeGoogleModels,
   probeVolcengineModels,
   redactSecrets,
+  withContextLengths,
   type ChatModel,
   type ModelProvider,
   type StoredSecrets,
 } from "@agentforge/core";
 import { loadModelCache, saveModelCache, type ModelCache } from "./model-cache";
+import { loadModelsDevRegistry, refreshModelsDevRegistry } from "./models-dev-cache";
 
 function liveModelIds(cache: ModelCache): string[] {
   return [
@@ -25,12 +27,15 @@ function liveModelIds(cache: ModelCache): string[] {
 
 export function listSelectableModels(): ChatModel[] {
   const cache = loadModelCache();
-  return mergeChatCatalog({
-    openai: cache.openai,
-    anthropic: cache.anthropic,
-    google: cache.google,
-    volcengine: cache.volcengine,
-  });
+  return withContextLengths(
+    mergeChatCatalog({
+      openai: cache.openai,
+      anthropic: cache.anthropic,
+      google: cache.google,
+      volcengine: cache.volcengine,
+    }),
+    loadModelsDevRegistry(),
+  );
 }
 
 export function defaultSelectableModel(models: ChatModel[] = listSelectableModels()): string {
@@ -61,6 +66,7 @@ export async function refreshModelCache(settings: StoredSecrets): Promise<ModelC
   const current = loadModelCache();
   const next: ModelCache = { ...current };
   const now = new Date().toISOString();
+  const registryPromise = refreshModelsDevRegistry();
 
   if (settings.openaiApiKey || settings.openaiBaseUrl) {
     try {
@@ -126,6 +132,13 @@ export async function refreshModelCache(settings: StoredSecrets): Promise<ModelC
       next.volcengineError = redactSecrets(
         error instanceof Error ? error.message : "Could not list Volcengine models",
       );
+    }
+  }
+
+  const registry = await registryPromise;
+  for (const dialect of ["openai", "anthropic", "google", "volcengine"] as const) {
+    if (next[dialect]) {
+      next[dialect] = withContextLengths(next[dialect], registry);
     }
   }
 

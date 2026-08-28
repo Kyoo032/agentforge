@@ -13,6 +13,7 @@ import {
   type ContentPart,
   type InputModality,
   type TenantContext,
+  type ToolBindingRecord,
 } from "@agentforge/core";
 import { ApiError } from "@agentforge/core";
 import { agentService } from "./tenant";
@@ -31,6 +32,8 @@ import { defaultSelectableModel, listSelectableModels } from "./selectable-model
 import { collectToolMediaParts } from "./tool-media";
 import { inlineLocalMediaParts, shouldInlineLocalMediaForProvider } from "./inline-local-media";
 import { saveGeneratedImage } from "./media";
+import { withRunContext } from "./run-context";
+import { formatPastSessionsHint } from "./session-recall";
 
 const parsers = {
   text: parseTextRunInput,
@@ -40,6 +43,23 @@ const parsers = {
 
 function hasVisibleText(parts: ContentPart[]): boolean {
   return parts.some((part) => part.type === "text" && part.text.trim().length > 0);
+}
+
+function withPastSessionsBinding(bindings: ToolBindingRecord[]): ToolBindingRecord[] {
+  if (bindings.some((binding) => binding.toolKey === "past_sessions" && binding.enabled)) {
+    return bindings;
+  }
+  return [
+    ...bindings,
+    {
+      id: "past-sessions-local",
+      agentVersionId: bindings[0]?.agentVersionId ?? "",
+      organizationId: bindings[0]?.organizationId ?? "",
+      toolKey: "past_sessions",
+      config: {},
+      enabled: true,
+    },
+  ];
 }
 
 export async function startModalityRun(options: {
@@ -60,7 +80,12 @@ export async function startModalityRun(options: {
     ? defaultSelectableModel(catalog)
     : published.version.model;
   const model = resolveChatModel(readOptionalModel(options.body), fallback, catalog);
-  const version = { ...published.version, model };
+  const pastHint = await formatPastSessionsHint(options.tenant, thread.agentId, thread.id);
+  const version = {
+    ...published.version,
+    model,
+    systemPrompt: published.version.systemPrompt + pastHint,
+  };
   assertAgentSupportsModality(published.version.inputModalities, options.modality);
   assertModelSupportsModality(version.model, options.modality);
 
@@ -123,48 +148,50 @@ export async function startModalityRun(options: {
         const runtime = createRuntime(settings);
         send({ type: "run.started", runId: run.id });
 
-        await runtime.execute({
-          tenant: options.tenant,
-          runId: run.id,
-          modality: options.modality,
-          version,
-          bindings: published.bindings,
-          history,
-          onEvent: async (event) => {
-            if (event.type === "run.failed") {
-              failedMessage = redactSecrets(event.message);
-              if (mediaParts.length === 0) {
-                send({ ...event, message: failedMessage });
-              }
-              return;
-            }
-            if (event.type === "run.completed") {
-              await persistAssistant();
-              send(event);
-              return;
-            }
-            send(event);
-            if (event.type === "assistant.delta") {
-              assistantText += event.text;
-            }
-            if (event.type === "assistant.thinking") {
-              thinkingText += event.text;
-            }
-            if (event.type === "tool.started") {
-              await insertToolInvocation(options.tenant, run.id, event.toolKey, event.input, null, "started");
-            }
-            if (event.type === "tool.completed") {
-              await insertToolInvocation(options.tenant, run.id, event.toolKey, null, event.output, "completed");
-              for (const part of collectToolMediaParts(event.output)) {
-                if (part.type === "image_url") {
-                  const stored = await saveGeneratedImage(options.tenant, part.image_url.url);
-                  mediaParts.push({ type: "image_url", image_url: { url: stored } });
-                  continue;
+        await withRunContext({ threadId: thread.id, agentId: thread.agentId }, async () => {
+          await runtime.execute({
+            tenant: options.tenant,
+            runId: run.id,
+            modality: options.modality,
+            version,
+            bindings: withPastSessionsBinding(published.bindings),
+            history,
+            onEvent: async (event) => {
+              if (event.type === "run.failed") {
+                failedMessage = redactSecrets(event.message);
+                if (mediaParts.length === 0) {
+                  send({ ...event, message: failedMessage });
                 }
-                mediaParts.push(part);
+                return;
               }
-            }
-          },
+              if (event.type === "run.completed") {
+                await persistAssistant();
+                send(event);
+                return;
+              }
+              send(event);
+              if (event.type === "assistant.delta") {
+                assistantText += event.text;
+              }
+              if (event.type === "assistant.thinking") {
+                thinkingText += event.text;
+              }
+              if (event.type === "tool.started") {
+                await insertToolInvocation(options.tenant, run.id, event.toolKey, event.input, null, "started");
+              }
+              if (event.type === "tool.completed") {
+                await insertToolInvocation(options.tenant, run.id, event.toolKey, null, event.output, "completed");
+                for (const part of collectToolMediaParts(event.output)) {
+                  if (part.type === "image_url") {
+                    const stored = await saveGeneratedImage(options.tenant, part.image_url.url);
+                    mediaParts.push({ type: "image_url", image_url: { url: stored } });
+                    continue;
+                  }
+                  mediaParts.push(part);
+                }
+              }
+            },
+          });
         });
         await persistAssistant();
         await finishRun(options.tenant, run.id, "completed");

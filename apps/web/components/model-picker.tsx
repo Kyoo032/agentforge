@@ -9,13 +9,14 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type RefObject,
 } from "react";
-import { pickerGroups } from "@agentforge/core/preferred";
+import { formatContextLength, pickerGroups } from "@agentforge/core/preferred";
 
 export type ChatModel = {
   id: string;
   label: string;
   provider?: string;
   inputModalities: string[];
+  contextLength?: number;
 };
 
 type Props = {
@@ -270,6 +271,13 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
                             {isSelected ? "✓" : ""}
                           </span>
                           <span className="min-w-0 flex-1 truncate">{model.label}</span>
+                          {model.contextLength ? (
+                            <span
+                              className={`shrink-0 text-xs tabular-nums ${isActive ? "text-white/80" : "text-ink/50"}`}
+                            >
+                              {formatContextLength(model.contextLength)}
+                            </span>
+                          ) : null}
                           {tags.length > 0 ? (
                             <span
                               className={`shrink-0 text-xs ${isActive ? "text-white/80" : "text-ink/50"}`}

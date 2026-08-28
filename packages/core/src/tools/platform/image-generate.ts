@@ -49,7 +49,7 @@ function usesGatewayImages(backend: string): boolean {
 
 export const imageGenerateTool = defineTool({
   key: "image_generate",
-  name: "Image generate",
+  name: "Create image",
   description:
     "Create an image from a text prompt. Uses the Toko Token gateway by default (POST /v1/images/generations). Pass model to pick a catalog image id. Pass image_url to edit when the backend supports it. If this tool errors after a long wait, do not call it again in the same turn — the image may already have been generated and billed on the gateway.",
   capability: "image_gen",

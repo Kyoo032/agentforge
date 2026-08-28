@@ -5,8 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChatComposer } from "@/components/chat-composer";
 import { isRenderableImageUrl, isRenderableVideoUrl } from "@/lib/composer-attach";
+import { showsToolActivity, toolActivityLabel } from "@/lib/tool-labels";
+import { collectToolMediaParts } from "@/lib/tool-media";
 import { notifyThreadsChanged } from "@/lib/threads-events";
 import { GATEWAY_NAME } from "@agentforge/core/gateway";
+import type { ContentPart } from "@agentforge/core";
 
 type Message = { id: string; role: string; content: unknown };
 
@@ -17,12 +20,7 @@ type ChatModel = {
   label: string;
   provider?: ModelProvider;
   inputModalities: string[];
-};
-
-type Specialist = {
-  id: string;
-  name: string;
-  description: string;
+  contextLength?: number;
 };
 
 type Props = {
@@ -39,11 +37,10 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
   const [agentModalities, setAgentModalities] = useState<string[]>(["text"]);
   const [models, setModels] = useState<ChatModel[]>([]);
   const [modelId, setModelId] = useState("");
-  const [specialists, setSpecialists] = useState<Specialist[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [streaming, setStreaming] = useState("");
   const [thinking, setThinking] = useState("");
-  const [tools, setTools] = useState<Array<{ key: string; status: "started" | "completed"; detail?: string }>>([]);
+  const [tools, setTools] = useState<Array<{ key: string; status: "started" | "completed"; output?: unknown }>>([]);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const toolsRef = useRef(tools);
@@ -60,7 +57,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
   }, [agentModalities, selectedModel]);
 
   function chatPath() {
-    return agentId ? `/chat/${agentId}` : "/chat";
+    return agentId ? `/agents/${agentId}` : "/chat";
   }
 
   function resetLive() {
@@ -135,7 +132,6 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           setAgentModalities(home.version?.inputModalities ?? ["text", "image", "video"]);
           setModels(home.models ?? []);
           setModelId(home.defaultModel ?? home.version?.model ?? "");
-          setSpecialists(home.specialists ?? []);
           readyId = home.agent.id;
           setAgentIdReady(home.agent.id);
         }
@@ -153,7 +149,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           }
           const threadAgentId = payload.thread?.agentId as string | undefined;
           if (threadAgentId && readyId && threadAgentId !== readyId && !agentId) {
-            router.replace(`/chat/${threadAgentId}?thread=${initialThreadId}`);
+            router.replace(`/agents/${threadAgentId}?thread=${initialThreadId}`);
             return;
           }
           threadIdRef.current = payload.thread.id;
@@ -183,7 +179,10 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
     setMessages(payload.messages ?? []);
   }
 
-  const empty = messages.length === 0 && !streaming && !thinking && !running && tools.length === 0;
+  const visibleTools = tools.filter(
+    (tool) => tool.status === "started" || collectToolMediaParts(tool.output).length > 0,
+  );
+  const empty = messages.length === 0 && !streaming && !thinking && !running && visibleTools.length === 0;
 
   return (
     <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-8" data-testid="chat-home">
@@ -200,29 +199,20 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
               type="button"
               className="rounded-md border border-mist px-3 py-2 text-sm"
               data-testid="new-chat"
-              onClick={() => router.push(chatPath())}
+              onClick={() => {
+                threadIdRef.current = null;
+                setThreadId(null);
+                setMessages([]);
+                resetLive();
+                setError(null);
+                router.push(chatPath());
+              }}
             >
               New chat
             </button>
           ) : null}
         </div>
       </div>
-
-      {isDefaultChat && specialists.length > 0 ? (
-        <div className="mt-4 flex flex-wrap gap-2" data-testid="specialist-list">
-          {specialists.map((specialist) => (
-            <Link
-              key={specialist.id}
-              href={`/chat/${specialist.id}`}
-              className="rounded-full border border-mist bg-mist/60 px-3 py-1.5 text-sm"
-              data-testid="specialist-chip"
-              title={specialist.description}
-            >
-              {specialist.name}
-            </Link>
-          ))}
-        </div>
-      ) : null}
 
       {error ? <p className="mt-6 text-sm text-red-700">{error}</p> : null}
 
@@ -255,9 +245,9 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
             <MessageContent content={message.content} />
           </article>
         ))}
-        {running || thinking || tools.length > 0 || streaming ? (
+        {running || thinking || visibleTools.length > 0 || streaming ? (
           <article className="mr-10 rounded-xl px-1 py-1" data-testid="assistant-live">
-            {running && !thinking && !streaming && tools.length === 0 ? (
+            {running && !thinking && !streaming && visibleTools.length === 0 ? (
               <p className="text-sm text-ink/50" data-testid="thinking-placeholder">
                 Thinking…
               </p>
@@ -270,22 +260,16 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
                 {thinking}
               </pre>
             ) : null}
-            {tools.length > 0 ? (
-              <ul className="mt-2 space-y-1 text-xs text-ink/60" data-testid="tool-status">
-                {tools.map((tool, index) => {
-                  const liveImage = tool.detail ? extractLiveToolImageUrl(tool.detail) : null;
+            {visibleTools.length > 0 ? (
+              <ul className="mt-2 space-y-2 text-sm text-ink/50" data-testid="tool-status">
+                {visibleTools.map((tool, index) => {
+                  const media = collectToolMediaParts(tool.output);
                   return (
                     <li key={`${tool.key}-${index}`}>
-                      {tool.status === "started" ? `Using ${tool.key}…` : `${tool.key} finished`}
-                      {tool.detail && !liveImage ? ` · ${tool.detail}` : ""}
-                      {liveImage ? (
-                        <img
-                          src={liveImage}
-                          alt=""
-                          className="mt-2 max-w-full rounded-lg"
-                          data-testid="message-image"
-                        />
+                      {tool.status === "started" ? (
+                        <p className="text-sm text-ink/50">{toolActivityLabel(tool.key)}</p>
                       ) : null}
+                      {media.length > 0 ? <ToolMediaParts parts={media} /> : null}
                     </li>
                   );
                 })}
@@ -328,6 +312,9 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           onTool={(event) => {
             setTools((current) => {
               if (event.phase === "started") {
+                if (!showsToolActivity(event.toolKey)) {
+                  return current;
+                }
                 return [...current, { key: event.toolKey, status: "started" }];
               }
               const next = [...current];
@@ -338,25 +325,21 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
                   break;
                 }
               }
-              const detail =
-                event.output && typeof event.output === "object"
-                  ? JSON.stringify(event.output)
-                  : event.output != null
-                    ? String(event.output)
-                    : undefined;
+              const completed = { key: event.toolKey, status: "completed" as const, output: event.output };
               if (index >= 0) {
-                next[index] = { key: event.toolKey, status: "completed", detail };
+                next[index] = completed;
                 return next;
               }
-              return [...next, { key: event.toolKey, status: "completed", detail }];
+              if (!showsToolActivity(event.toolKey) && collectToolMediaParts(event.output).length === 0) {
+                return current;
+              }
+              return [...next, completed];
             });
           }}
           onFailed={(message) => setError(message)}
           onComplete={async () => {
             notifyThreadsChanged();
-            const liveImages = toolsRef.current
-              .map((tool) => (tool.detail ? extractLiveToolImageUrl(tool.detail) : null))
-              .filter((url): url is string => Boolean(url));
+            const liveMedia = toolsRef.current.flatMap((tool) => collectToolMediaParts(tool.output));
             setStreaming("");
             setThinking("");
             setRunning(false);
@@ -364,23 +347,23 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
               await refreshMessages(threadIdRef.current);
             }
             setTools([]);
-            if (liveImages.length > 0) {
+            if (liveMedia.length > 0) {
               setMessages((current) => {
-                const hasImage = current.some(
+                const hasMedia = current.some(
                   (message) =>
                     message.role === "assistant" &&
                     Array.isArray(message.content) &&
-                    message.content.some((part) => partImageUrl(part)),
+                    message.content.some((part) => partImageUrl(part) || partVideoUrl(part)),
                 );
-                if (hasImage) {
+                if (hasMedia) {
                   return current;
                 }
                 return [
                   ...current,
                   {
-                    id: `local-image-${Date.now()}`,
+                    id: `local-media-${Date.now()}`,
                     role: "assistant",
-                    content: liveImages.map((url) => ({ type: "image_url", image_url: { url } })),
+                    content: liveMedia,
                   },
                 ];
               });
@@ -425,15 +408,38 @@ function messageHasDisplayableContent(content: unknown): boolean {
   });
 }
 
-function extractLiveToolImageUrl(detail: string): string | null {
-  try {
-    const parsed = JSON.parse(detail) as unknown;
-    if (!parsed || typeof parsed !== "object") return null;
-    const image = (parsed as { image?: unknown }).image;
-    return typeof image === "string" && isRenderableImageUrl(image) ? image : null;
-  } catch {
-    return null;
-  }
+function ToolMediaParts({ parts }: { parts: ContentPart[] }) {
+  return (
+    <div className="space-y-2">
+      {parts.map((part, index) => {
+        const imageUrl = partImageUrl(part);
+        if (imageUrl) {
+          return (
+            <img
+              key={index}
+              src={imageUrl}
+              alt=""
+              className="max-w-full rounded-lg"
+              data-testid="message-image"
+            />
+          );
+        }
+        const videoUrl = partVideoUrl(part);
+        if (videoUrl) {
+          return (
+            <video
+              key={index}
+              src={videoUrl}
+              controls
+              className="max-w-full rounded-lg"
+              data-testid="message-video"
+            />
+          );
+        }
+        return null;
+      })}
+    </div>
+  );
 }
 
 function MessageContent({ content }: { content: unknown }) {

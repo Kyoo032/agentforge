@@ -2,6 +2,7 @@ import { ApiError } from "../errors";
 import type { InputModality } from "../tenancy/types";
 import { INPUT_MODALITIES } from "../tenancy/types";
 import { getModelModalities } from "./capabilities";
+import type { ContextSource } from "./context-length";
 import { sortChatModels } from "./preferred";
 
 export type ModelProvider = "openai" | "anthropic" | "google" | "volcengine";
@@ -11,6 +12,8 @@ export type ChatModel = {
   label: string;
   provider: ModelProvider;
   inputModalities: InputModality[];
+  contextLength?: number;
+  contextSource?: ContextSource;
 };
 
 function modalitiesFor(id: string): InputModality[] {
@@ -18,8 +21,21 @@ function modalitiesFor(id: string): InputModality[] {
   return INPUT_MODALITIES.filter((modality) => caps[modality]);
 }
 
-export function chatModelFromId(id: string, label: string, provider: ModelProvider): ChatModel {
-  return { id, label, provider, inputModalities: modalitiesFor(id) };
+export function chatModelFromId(
+  id: string,
+  label: string,
+  provider: ModelProvider,
+  context?: { contextLength?: number; contextSource?: ContextSource },
+): ChatModel {
+  return {
+    id,
+    label,
+    provider,
+    inputModalities: modalitiesFor(id),
+    ...(context?.contextLength
+      ? { contextLength: context.contextLength, contextSource: context.contextSource ?? "endpoint" }
+      : {}),
+  };
 }
 
 function defineModel(id: string, label: string, provider: ModelProvider): ChatModel {

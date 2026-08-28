@@ -34,7 +34,14 @@ function asModels(value: unknown): ChatModel[] | undefined {
       return false;
     }
     const model = item as ChatModel;
-    return typeof model.id === "string" && typeof model.label === "string" && Array.isArray(model.inputModalities);
+    if (typeof model.id !== "string" || typeof model.label !== "string" || !Array.isArray(model.inputModalities)) {
+      return false;
+    }
+    if (model.contextLength !== undefined && (typeof model.contextLength !== "number" || model.contextLength < 1024)) {
+      delete (model as { contextLength?: number }).contextLength;
+      delete (model as { contextSource?: string }).contextSource;
+    }
+    return true;
   });
   return models.length > 0 ? models : undefined;
 }

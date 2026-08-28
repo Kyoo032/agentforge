@@ -1,6 +1,6 @@
-import { ChatSession } from "@/components/chat-session";
+import { redirect } from "next/navigation";
 
-export default async function ChatPage({
+export default async function LegacyAgentChatPage({
   params,
   searchParams,
 }: {
@@ -9,5 +9,6 @@ export default async function ChatPage({
 }) {
   const { agentId } = await params;
   const { thread } = await searchParams;
-  return <ChatSession agentId={agentId} initialThreadId={thread} />;
+  const qs = thread ? `?thread=${encodeURIComponent(thread)}` : "";
+  redirect(`/agents/${agentId}${qs}`);
 }

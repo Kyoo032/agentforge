@@ -35,13 +35,13 @@ export default function WorkspacesPage() {
       return;
     }
     setName("");
-    router.push("/workspace");
+    router.push("/agents");
     router.refresh();
   }
 
   async function openWorkspace(id: string) {
     await fetch(`/api/v1/workspaces/${id}/select`, { method: "POST" });
-    router.push("/workspace");
+    router.push("/agents");
     router.refresh();
   }
 

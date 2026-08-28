@@ -1,9 +1,14 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, ne } from "drizzle-orm";
 import { agents, db, messages, runs, threads, toolInvocations } from "@agentforge/db";
 import type { ContentPart, InputModality, TenantContext } from "@agentforge/core";
-import { ApiError, openPayload, sealPayload } from "@agentforge/core";
+import { ApiError, DEFAULT_CHAT_SLUG, isDefaultChatAgent, openPayload, sealPayload } from "@agentforge/core";
 import { getLocalVaultKey } from "@agentforge/db/vault-key";
 import { DEFAULT_THREAD_TITLE, titleFromParts } from "./thread-title";
+import { messageText } from "./message-text";
+
+const PREVIEW_MAX = 80;
+const READ_MESSAGE_MAX = 2_000;
+const READ_TRANSCRIPT_MAX = 12_000;
 
 function sealJson(value: unknown): unknown {
   if (value == null) {
@@ -62,8 +67,30 @@ export async function listThreads(tenant: TenantContext, agentId: string) {
     .orderBy(desc(threads.createdAt));
 }
 
-export async function listWorkspaceThreads(tenant: TenantContext, limit = 40) {
-  return db
+export type WorkspaceThreadScope = "chat" | "agent" | "all";
+
+export async function listWorkspaceThreads(
+  tenant: TenantContext,
+  options: {
+    limit?: number;
+    scope?: WorkspaceThreadScope;
+    agentId?: string;
+  } = {},
+) {
+  const limit = options.limit ?? 40;
+  const scope = options.scope ?? "all";
+  const conditions = [
+    eq(threads.organizationId, tenant.organizationId),
+    eq(threads.workspaceId, tenant.workspaceId),
+    eq(threads.userId, tenant.userId),
+  ];
+  if (scope === "agent" && options.agentId) {
+    conditions.push(eq(threads.agentId, options.agentId));
+  } else if (scope === "chat") {
+    conditions.push(eq(agents.slug, DEFAULT_CHAT_SLUG));
+  }
+
+  const rows = await db
     .select({
       id: threads.id,
       title: threads.title,
@@ -74,15 +101,119 @@ export async function listWorkspaceThreads(tenant: TenantContext, limit = 40) {
     })
     .from(threads)
     .innerJoin(agents, eq(agents.id, threads.agentId))
+    .where(and(...conditions))
+    .orderBy(desc(threads.createdAt))
+    .limit(limit);
+
+  if (scope === "agent" && !options.agentId) {
+    return rows.filter((row) => !isDefaultChatAgent({ slug: row.agentSlug }));
+  }
+  return rows;
+}
+
+export async function deleteThread(tenant: TenantContext, threadId: string): Promise<boolean> {
+  const thread = await getThread(tenant, threadId);
+  if (!thread) {
+    return false;
+  }
+  await db
+    .delete(threads)
     .where(
       and(
         eq(threads.organizationId, tenant.organizationId),
-        eq(threads.workspaceId, tenant.workspaceId),
         eq(threads.userId, tenant.userId),
+        eq(threads.id, threadId),
+      ),
+    );
+  return true;
+}
+
+export type PastSessionSummary = {
+  id: string;
+  title: string;
+  createdAt: Date;
+  preview: string | null;
+};
+
+export async function listPastSessionsForAgent(
+  tenant: TenantContext,
+  agentId: string,
+  excludeThreadId: string,
+  limit = 12,
+): Promise<PastSessionSummary[]> {
+  const rows = await db
+    .select({
+      id: threads.id,
+      title: threads.title,
+      createdAt: threads.createdAt,
+    })
+    .from(threads)
+    .where(
+      and(
+        eq(threads.organizationId, tenant.organizationId),
+        eq(threads.agentId, agentId),
+        eq(threads.userId, tenant.userId),
+        ne(threads.id, excludeThreadId),
+        ne(threads.title, DEFAULT_THREAD_TITLE),
       ),
     )
     .orderBy(desc(threads.createdAt))
     .limit(limit);
+
+  const summaries: PastSessionSummary[] = [];
+  for (const row of rows) {
+    const [firstUser] = await db
+      .select({ content: messages.content })
+      .from(messages)
+      .where(
+        and(
+          eq(messages.organizationId, tenant.organizationId),
+          eq(messages.threadId, row.id),
+          eq(messages.role, "user"),
+        ),
+      )
+      .orderBy(asc(messages.createdAt))
+      .limit(1);
+    const opened = firstUser ? openJson(firstUser.content) : null;
+    const previewSource = opened ? (titleFromParts(opened) ?? messageText(opened)) : null;
+    const preview =
+      previewSource && previewSource.length > PREVIEW_MAX
+        ? `${previewSource.slice(0, PREVIEW_MAX - 1).trimEnd()}…`
+        : previewSource;
+    summaries.push({ ...row, preview });
+  }
+  return summaries;
+}
+
+export async function readPastSessionMessages(
+  tenant: TenantContext,
+  agentId: string,
+  sessionId: string,
+): Promise<{ title: string; messages: Array<{ role: string; text: string }> } | null> {
+  const thread = await getThread(tenant, sessionId);
+  if (!thread || thread.agentId !== agentId) {
+    return null;
+  }
+  const rows = await listMessages(tenant, sessionId);
+  const transcript: Array<{ role: string; text: string }> = [];
+  let totalChars = 0;
+  for (const row of rows) {
+    if (row.role !== "user" && row.role !== "assistant") {
+      continue;
+    }
+    const text = messageText(row.content);
+    if (!text) {
+      continue;
+    }
+    const clipped =
+      text.length > READ_MESSAGE_MAX ? `${text.slice(0, READ_MESSAGE_MAX - 1).trimEnd()}…` : text;
+    if (totalChars + clipped.length > READ_TRANSCRIPT_MAX) {
+      break;
+    }
+    totalChars += clipped.length;
+    transcript.push({ role: row.role, text: clipped });
+  }
+  return { title: thread.title, messages: transcript };
 }
 
 export async function setThreadTitleFromParts(tenant: TenantContext, threadId: string, parts: unknown) {

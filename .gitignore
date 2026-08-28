@@ -9,6 +9,7 @@ data/settings.json
 data/settings.enc
 data/.master-key
 data/models-cache.json
+data/models-dev-cache.json
 data/*.db
 data/*.sqlite
 data/*.db-shm
