@@ -5,6 +5,7 @@ import {
   DEFAULT_CHAT_PROMPT,
   DEFAULT_CHAT_TOOLS,
 } from "./default-chat";
+import { LEGACY_PRODUCT_MODES, type ProductMode } from "./product-modes";
 
 export type AgentTemplate = {
   key: string;
@@ -15,6 +16,7 @@ export type AgentTemplate = {
   systemPrompt: string;
   model: string;
   inputModalities: InputModality[];
+  productModes: ProductMode[];
   toolKeys: string[];
 };
 
@@ -36,6 +38,7 @@ export const defaultAgentTemplate: AgentTemplate = {
   systemPrompt: DEFAULT_CHAT_PROMPT,
   model: DEFAULT_CHAT_MODEL,
   inputModalities: [...DEFAULT_CHAT_MODALITIES],
+  productModes: [...LEGACY_PRODUCT_MODES],
   toolKeys: [...DEFAULT_CHAT_TOOLS],
 };
 

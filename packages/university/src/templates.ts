@@ -1,22 +1,4 @@
-import type { InputModality } from "@agentforge/core";
-
-export type AgentTemplate = {
-  key: string;
-  pack: string;
-  packLabel: string;
-  name: string;
-  description: string;
-  systemPrompt: string;
-  model: string;
-  inputModalities: InputModality[];
-  toolKeys: string[];
-};
-
-export type AgentPack = {
-  id: string;
-  label: string;
-  templates: AgentTemplate[];
-};
+import type { AgentTemplate, AgentPack } from "@agentforge/core";
 
 export const STUDENTS_PACK_ID = "students";
 
@@ -30,6 +12,7 @@ const studentsTemplate: AgentTemplate = {
     "You are a student assistant. Explain clearly, do not complete graded work for the user, and use catalog or campus tools only when they help answer the question.",
   model: "gpt-5.6-sol",
   inputModalities: ["text", "image"],
+  productModes: ["chat", "documents", "research", "images", "presentations"],
   toolKeys: ["calculator", "datetime", "course_catalog.search", "campus_faq.lookup"],
 };
 

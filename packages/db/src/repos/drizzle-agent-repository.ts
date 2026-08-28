@@ -4,6 +4,7 @@ import type {
   AgentRepository,
   AgentVersionRecord,
   InputModality,
+  ProductMode,
   ToolBindingRecord,
   Visibility,
 } from "@agentforge/core";
@@ -52,6 +53,7 @@ function toVersion(row: typeof agentVersions.$inferSelect): AgentVersionRecord {
     systemPrompt: openText(row.systemPrompt),
     model: row.model,
     inputModalities: row.inputModalities as InputModality[],
+    productModes: Array.isArray(row.productModes) ? (row.productModes as ProductMode[]) : null,
     config: row.config,
     createdAt: row.createdAt,
   };
@@ -79,6 +81,7 @@ export class DrizzleAgentRepository implements AgentRepository {
     await this.db.insert(agentVersions).values({
       ...version,
       systemPrompt: sealText(version.systemPrompt),
+      productModes: version.productModes ?? null,
     });
   }
 
@@ -138,5 +141,16 @@ export class DrizzleAgentRepository implements AgentRepository {
       .update(agents)
       .set(patch)
       .where(and(eq(agents.organizationId, organizationId), eq(agents.id, agentId)));
+  }
+
+  async updateVersion(
+    organizationId: string,
+    versionId: string,
+    patch: Partial<Pick<AgentVersionRecord, "productModes">>,
+  ): Promise<void> {
+    await this.db
+      .update(agentVersions)
+      .set({ productModes: patch.productModes ?? null })
+      .where(and(eq(agentVersions.organizationId, organizationId), eq(agentVersions.id, versionId)));
   }
 }

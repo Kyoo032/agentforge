@@ -55,6 +55,7 @@ describe("ensureDefaultChat", () => {
     expect(created.agent.visibility).toBe("private");
     expect(created.agent.currentVersionId).toBe(created.version.id);
     expect(created.version.inputModalities).toEqual(["text", "image", "video"]);
+    expect(created.version.productModes).toEqual(["chat"]);
     expect(created.version.model).toBe(DEFAULT_CHAT_MODEL);
     expect(created.bindings.map((binding) => binding.toolKey).sort()).toEqual([
       "calculator",
@@ -123,5 +124,42 @@ describe("resolvePublishedVersion", () => {
     const published = resolvePublishedVersion(publishedAgent!, repo.versions);
     expect(published.id).toBe(created.version.id);
     expect(published.systemPrompt).toBe("v1 prompt");
+  });
+});
+
+describe("productModes", () => {
+  it("defaults a new agent to Chat and persists an explicit list", async () => {
+    const repo = new MemoryAgentRepository();
+    const service = new AgentService(repo);
+    const created = await service.create(tenant(), {
+      name: "Tutor",
+      systemPrompt: "Help",
+      model: "gpt-4o-mini",
+    });
+    expect(created.version.productModes).toEqual(["chat"]);
+
+    const marketing = await service.create(tenant(), {
+      name: "Campaign",
+      systemPrompt: "Ads",
+      model: "gpt-4o-mini",
+      productModes: ["images", "videos"],
+    });
+    await service.publish(tenant(), marketing.agent.id, marketing.version.id);
+    expect(await service.listVisibleProductModes(tenant())).toEqual(["images", "videos"]);
+  });
+
+  it("updates published product modes", async () => {
+    const repo = new MemoryAgentRepository();
+    const service = new AgentService(repo);
+    const created = await service.create(tenant(), {
+      name: "Desk",
+      systemPrompt: "Help",
+      model: "gpt-4o-mini",
+      productModes: ["chat"],
+    });
+    await service.publish(tenant(), created.agent.id, created.version.id);
+    const updated = await service.updateProductModes(tenant(), created.agent.id, ["documents", "research"]);
+    expect(updated.productModes).toEqual(["documents", "research"]);
+    expect(await service.listVisibleProductModes(tenant())).toEqual(["documents", "research"]);
   });
 });

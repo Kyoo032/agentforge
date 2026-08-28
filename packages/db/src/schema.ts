@@ -161,6 +161,7 @@ export const agentVersions = pgTable(
     systemPrompt: text("system_prompt").notNull(),
     model: text("model").notNull(),
     inputModalities: jsonb("input_modalities").$type<string[]>().notNull(),
+    productModes: jsonb("product_modes").$type<string[] | null>(),
     config: jsonb("config").$type<Record<string, unknown>>().notNull().default({}),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
   },
