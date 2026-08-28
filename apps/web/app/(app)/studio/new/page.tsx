@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { PRODUCT_MODES, type ProductMode } from "@agentforge/core/product-modes";
 import { ModelSelect } from "@/components/model-select";
 
 type Tool = { key: string; name: string; description: string; pack?: string };
@@ -15,6 +16,7 @@ type AgentTemplate = {
   systemPrompt: string;
   model: string;
   inputModalities: string[];
+  productModes: ProductMode[];
   toolKeys: string[];
 };
 
@@ -51,6 +53,7 @@ export default function NewAgentPage() {
   const [systemPrompt, setSystemPrompt] = useState(BLANK_PROMPT);
   const [model, setModel] = useState("");
   const [modalities, setModalities] = useState<string[]>(["text"]);
+  const [productModes, setProductModes] = useState<ProductMode[]>(["chat"]);
   const [selectedTools, setSelectedTools] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -93,6 +96,7 @@ export default function NewAgentPage() {
     setDescription("");
     setSystemPrompt(BLANK_PROMPT);
     setModalities(["text"]);
+    setProductModes(["chat"]);
     setSelectedTools([]);
   }
 
@@ -102,12 +106,23 @@ export default function NewAgentPage() {
     setDescription(template.description);
     setSystemPrompt(template.systemPrompt);
     setModalities(template.inputModalities);
+    setProductModes(template.productModes?.length ? template.productModes : ["chat"]);
     setSelectedTools(template.toolKeys);
     if (available.some((item) => item.id === template.model)) {
       setModel(template.model);
     } else if (available[0]) {
       setModel(available[0].id);
     }
+  }
+
+  function toggleProductMode(id: ProductMode) {
+    setProductModes((current) => {
+      if (current.includes(id)) {
+        const next = current.filter((item) => item !== id);
+        return next.length > 0 ? next : current;
+      }
+      return PRODUCT_MODES.map((mode) => mode.id).filter((item) => item === id || current.includes(item));
+    });
   }
 
   function toggleModality(value: string) {
@@ -135,6 +150,7 @@ export default function NewAgentPage() {
         systemPrompt,
         model,
         inputModalities: modalities,
+        productModes,
       }),
     }).then((res) => res.json());
     if (created.error) {
@@ -153,6 +169,7 @@ export default function NewAgentPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ versionId: created.version.id }),
     });
+    router.refresh();
     router.push(`/studio/${created.agent.id}`);
   }
 
@@ -239,6 +256,27 @@ export default function NewAgentPage() {
                 className={fieldClass}
               />
             </label>
+            <fieldset className="text-sm">
+              <legend className="font-medium text-ink">Product surfaces</legend>
+              <p className="mt-1 text-xs text-ink/50">These tabs appear on the left rail for this workspace.</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {PRODUCT_MODES.map((mode) => {
+                  const on = productModes.includes(mode.id);
+                  return (
+                    <button
+                      key={mode.id}
+                      type="button"
+                      className={`${chipBase} ${on ? chipOn : chipOff}`}
+                      aria-pressed={on}
+                      onClick={() => toggleProductMode(mode.id)}
+                      data-testid={`product-mode-${mode.id}`}
+                    >
+                      {mode.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
             <fieldset className="text-sm">
               <legend className="font-medium text-ink">Input modalities</legend>
               <div className="mt-2 flex flex-wrap gap-2">

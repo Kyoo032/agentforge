@@ -36,6 +36,7 @@ export async function POST(request: Request, context: RouteContext) {
         systemPrompt: body.systemPrompt,
         model: body.model ?? DEFAULT_CHAT_MODEL,
         inputModalities: body.inputModalities,
+        productModes: body.productModes,
         visibility: body.visibility,
       },
       listSelectableModels(),

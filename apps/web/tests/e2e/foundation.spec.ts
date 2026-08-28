@@ -12,6 +12,11 @@ test("chat and build work without an account", async ({ page }) => {
   await expect(page.getByTestId("model-picker")).toBeVisible();
   await expect(page.getByTestId("composer")).toBeVisible();
   await expect(page.getByTestId("chat-empty")).toContainText("Ask anything");
+  await expect(page.getByTestId("mode-chat")).toBeVisible();
+  await expect(page.getByTestId("mode-agents")).toBeVisible();
+  await expect(page.getByTestId("mode-images")).toHaveCount(0);
+  await expect(page.getByTestId("mode-videos")).toHaveCount(0);
+  await expect(page.getByTestId("mode-presentations")).toHaveCount(0);
 
   await page.getByTestId("composer-text").fill(promptOne);
   await page.getByTestId("composer-send").click();
@@ -39,6 +44,7 @@ test("chat and build work without an account", async ({ page }) => {
     "https://api.tokotokenai.com/v1",
   );
   await expect(page.getByTestId("runtime-status")).toContainText("stub", { timeout: 15_000 });
+  await expect(page.getByTestId("settings-build-link")).toBeVisible();
   await page.getByText("Extras", { exact: true }).click();
   await expect(page.getByTestId("anthropic-key")).toBeVisible();
   await expect(page.getByTestId("volcengine-key")).toBeVisible();
@@ -52,11 +58,17 @@ test("chat and build work without an account", async ({ page }) => {
   await expect(page.getByTestId("create-agent")).toBeEnabled({ timeout: 30_000 });
   await expect(page.getByTestId("template-blank")).toBeVisible();
   await expect(page.getByTestId("template-default")).toBeVisible();
+  await expect(page.getByTestId("template-students")).toBeVisible();
+  await expect(page.getByTestId("template-marketing")).toBeVisible();
+  await expect(page.getByTestId("template-legal")).toBeVisible();
   await expect(page.getByTestId("tool-course_catalog.search")).toHaveCount(0);
   await expect(page.getByTestId("agent-name")).toHaveValue("Assistant");
   await page.getByTestId("create-agent").click();
   await page.waitForURL(/\/studio\/[0-9a-f-]{36}/i, { timeout: 60_000 });
   await expect(page.getByTestId("studio-agent-name")).toHaveText("Assistant", { timeout: 30_000 });
+  await expect(page.getByTestId("mode-images")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("mode-videos")).toBeVisible();
+  await expect(page.getByTestId("mode-presentations")).toBeVisible();
 
   await page.getByTestId("share-workspace").click();
   await expect(page.getByTestId("visibility")).toContainText("workspace", { timeout: 15_000 });

@@ -4,7 +4,7 @@ A **local** agents workbench for the **Toko Token** OpenAI-compatible gateway at
 
 This file is the project source of truth for coding agents. Vault memory at `C:\Users\rizky\Documents\Obsidian` is for Kyo, not for this repo’s domain rules.
 
-Product modes (Chat / Agents / Images / Videos / Presentation): see [`docs/product-modes.md`](docs/product-modes.md).
+Product modes (Chat / Agents / Documents / Research / Images / Videos / Presentation): see [`docs/product-modes.md`](docs/product-modes.md). The left rail follows product surfaces on custom agents. Packs seed those surfaces.
 
 ## Product (locked 2026-08-26)
 
@@ -45,7 +45,9 @@ Harbor State seed as identity leftovers, Docker Postgres (SQLite next), desktop 
 apps/web                 Next.js 15 App Router (local owner, no product login)
 packages/core            Content parsers, tools, AgentRuntime, AgentService
 packages/db              Drizzle schema (Postgres today; SQLite is the product target)
-packages/university      Optional templates and mock campus tools
+packages/university      Optional Students templates and mock campus tools
+packages/marketing       Optional Marketing templates
+packages/legal           Optional Legal templates
 ```
 
 pnpm 9.15.9 + Turborepo. If corepack hits EPERM on Windows, use `npx pnpm@9.15.9`.
