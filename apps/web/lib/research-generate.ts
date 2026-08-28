@@ -14,7 +14,7 @@ import {
 import { loadSettings } from "./settings-store";
 import { defaultSelectableModel, listSelectableModels } from "./selectable-models";
 import { ensureToolsRegistered } from "./register-tools";
-import { parseResearchNotes, type ResearchNotes } from "./research-notes";
+import { parseResearchNotes, type ResearchNotes } from "./research-parse";
 
 const RESEARCH_SYSTEM = `You write sourced research notes for Agentforge.
 You are given a question and web search hits. Return ONLY valid JSON (no markdown fences) with this shape:

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { parseResearchNotes, researchNotesToMarkdown } from "./research-notes";
+import { parseResearchNotes } from "./research-parse";
+import { researchNotesToMarkdown } from "./research-notes";
 
 const valid = {
   title: "Open-source licenses",
