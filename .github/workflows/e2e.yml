@@ -1,3 +1,6 @@
+# Parked 2026-08-28: GHA job startup was failing. Cursor Cloud Agents own
+# the real stub Playwright suite (see AGENTS.md). Do not restore the full
+# Playwright job until Cloud start (native Postgres, no Docker) is reliable.
 name: e2e
 on:
   workflow_dispatch:
