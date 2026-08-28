@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+test.describe.configure({ retries: 0 });
+
 test.setTimeout(180_000);
 
 test("chat and build work without an account", async ({ page }) => {
@@ -80,6 +82,7 @@ test("chat and build work without an account", async ({ page }) => {
   await page.getByRole("link", { name: "Open chat" }).click();
   await page.waitForURL(/\/agents\/[0-9a-f-]{36}/i, { timeout: 30_000 });
   await expect(page.getByTestId("composer")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("model-picker")).toBeVisible({ timeout: 15_000 });
   await page.getByTestId("composer-text").fill(promptAgent);
   await page.getByTestId("composer-send").click();
   await expect(page.getByTestId("message-list")).toContainText(promptAgent, { timeout: 30_000 });

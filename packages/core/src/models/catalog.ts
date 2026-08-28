@@ -186,13 +186,17 @@ export function readOptionalModel(body: unknown): string | undefined {
     return undefined;
   }
   const model = (body as { model?: unknown }).model;
-  if (model === undefined) {
+  if (model === undefined || model === null) {
     return undefined;
   }
-  if (typeof model !== "string" || model.trim().length === 0) {
+  if (typeof model !== "string") {
     throw new ApiError("unknown_model", "model must be a non-empty string", 400);
   }
-  return model;
+  const trimmed = model.trim();
+  if (trimmed.length === 0) {
+    return undefined;
+  }
+  return trimmed;
 }
 
 export function intersectModalities(agent: InputModality[], model: InputModality[]): InputModality[] {
