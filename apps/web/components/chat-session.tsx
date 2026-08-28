@@ -160,6 +160,10 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           return;
         }
 
+        if (threadIdRef.current) {
+          return;
+        }
+
         threadIdRef.current = null;
         setThreadId(null);
         setMessages([]);
