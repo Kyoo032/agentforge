@@ -43,8 +43,9 @@ Harbor State seed as identity leftovers, Docker Postgres (SQLite next), desktop 
 
 ```
 apps/web                 Next.js 15 App Router (local owner, no product login)
+apps/desktop             Tauri 2 shell + Windows installer (loads 127.0.0.1:3000)
 packages/core            Content parsers, tools, AgentRuntime, AgentService
-packages/db              Drizzle schema (Postgres today; SQLite is the product target)
+packages/db              Drizzle schema (SQLite in the user data dir; Docker Postgres is legacy)
 packages/university      Optional Students templates and mock campus tools
 packages/marketing       Optional Marketing templates
 packages/legal           Optional Legal templates
@@ -52,15 +53,18 @@ packages/legal           Optional Legal templates
 
 pnpm 9.15.9 + Turborepo. If corepack hits EPERM on Windows, use `npx pnpm@9.15.9`.
 
-## How to run (prototype, until local desktop ships)
+## How to run (prototype)
 
 ```
-docker compose up -d
 npx pnpm@9.15.9 install
 npx pnpm@9.15.9 db:push
 npx pnpm@9.15.9 db:seed          # optional; first visit also creates the local owner
-npx pnpm@9.15.9 dev               # http://localhost:3000 → /chat, no login
+npx pnpm@9.15.9 dev               # http://127.0.0.1:3000 → /chat, no login
 ```
+
+SQLite file: `data/agentforge.sqlite` (or `AGENTFORGE_DATA_DIR`). Do **not** set `DATABASE_URL` to Postgres. `docker compose` remains in the repo as a legacy fallback for older checkouts only.
+
+Desktop (Windows installer / keychain wrap): `pnpm desktop:dev` from repo root (Tauri window on loopback). `pnpm desktop:build` produces an NSIS installer.
 
 No account. Workspaces and agents are local. Paste the gateway key in Settings. `AGENTFORGE_RUNTIME=stub` until a key is saved (then live models from the gateway). Env `AGENTFORGE_RUNTIME=ai` still uses `.env` keys.
 
@@ -75,7 +79,7 @@ No account. Workspaces and agents are local. Paste the gateway key in Settings. 
 
 The user pastes their gateway key into settings. The host process holds it. Runs use it. The UI never gets the raw key back after save. Optional extras: native Google / Anthropic / Ark, plus dedicated tool keys.
 
-- Keys live in an AES-256-GCM secrets file (`data/settings.enc`), wrapped by `AGENTFORGE_SECRETS_KEY` or a gitignored `data/.master-key`. Desktop OS keychain comes with the installer.
+- Keys live in an AES-256-GCM secrets file (`data/settings.enc`), wrapped by `AGENTFORGE_SECRETS_KEY`, the OS keychain (`Agentforge` / `wrap-key` via Tauri or keytar), or a gitignored `data/.master-key`.
 - Remote inference URLs must be HTTPS. `http://` is only for loopback (Ollama).
 - Agentforge does not log prompts. Message bodies, system prompts, and tool I/O are encrypted at rest. Gateway retention is Toko Token’s policy, not ours.
 - OpenRouter’s `provider.zdr: true` is sent only when the saved URL is OpenRouter. Do not send that field to Toko Token.
@@ -92,16 +96,16 @@ The user pastes their gateway key into settings. The host process holds it. Runs
 
 Cloud clones GitHub. Push the branch first; uncommitted local files are not on the VM. Launch from the Cursor **Cloud** agent dropdown, or `/in-cloud` from a local chat.
 
-Boot uses [`.cursor/environment.json`](.cursor/environment.json): `install` → `scripts/cloud-install.sh` (pnpm 9.15.9, Playwright Chromium, **native PostgreSQL 16**). `start` → `scripts/cloud-start.sh` (`pg_ctlcluster 16 main start`, role/db `agentforge`, `pnpm db:push`). Stub runtime only — no gateway key.
+Boot uses [`.cursor/environment.json`](.cursor/environment.json): `install` → `scripts/cloud-install.sh` (pnpm 9.15.9, Playwright Chromium). `start` → `scripts/cloud-start.sh` (SQLite `data/agentforge.sqlite`, `pnpm db:push`). Stub runtime only — no gateway key.
 
-This image has **no Docker**. `docker`, `dockerd`, and `sudo service docker start` fail (`docker: unrecognized service`). Do not run `docker compose`. Apt postinst often cannot start Postgres (`policy-rc.d`); `start` must call `pg_ctlcluster`. Default DB: `postgres://agentforge:agentforge@127.0.0.1:5432/agentforge`.
+This image has **no Docker**. `docker`, `dockerd`, and `sudo service docker start` fail (`docker: unrecognized service`). Do not run `docker compose`. Product DB is SQLite. Default file: `data/agentforge.sqlite`.
 
-The Windows prototype still uses Docker Postgres (`docker compose up -d`) until SQLite ships. Same app, two boot paths.
+The Windows prototype also uses SQLite (`pnpm db:push` then `pnpm dev`). Desktop/Tauri injects the wrap key from the OS keychain.
 
 ### What a Cloud Agent on this VM can do
 
 - Node 22 + pnpm 9.15.9 (corepack). Workspace `node_modules` after `install`.
-- Install/start native PostgreSQL 16 via apt + `pg_ctlcluster` (not Docker Compose).
+- Install/start SQLite via `pnpm db:push` (not Docker Compose, not required Postgres).
 - Run the stub Playwright suite against `http://127.0.0.1:3000` (`pnpm test:e2e` from repo root also works). Playwright `webServer` starts `pnpm dev` if needed. Do not use a LAN IP.
 
 ```

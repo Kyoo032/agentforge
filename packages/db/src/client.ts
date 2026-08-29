@@ -1,24 +1,30 @@
-import postgres from "postgres";
-import { drizzle } from "drizzle-orm/postgres-js";
 import { config } from "dotenv";
-import { resolve } from "node:path";
+import { mkdirSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import Database from "better-sqlite3";
+import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema";
+import { sqliteFilePath } from "./vault-key";
 
 config({ path: resolve(process.cwd(), "../../.env") });
 config({ path: resolve(process.cwd(), "../../.env.local") });
 config({ path: resolve(process.cwd(), ".env") });
 config({ path: resolve(process.cwd(), ".env.local") });
 
-const connectionString = process.env.DATABASE_URL ?? "postgres://agentforge:agentforge@localhost:5432/agentforge";
+const file = sqliteFilePath();
+mkdirSync(dirname(file), { recursive: true });
 
 const globalForDb = globalThis as unknown as {
-  postgres?: ReturnType<typeof postgres>;
+  sqlite?: Database.Database;
 };
 
-export const sql = globalForDb.postgres ?? postgres(connectionString, { max: 10 });
+export const sql = globalForDb.sqlite ?? new Database(file);
 if (process.env.NODE_ENV !== "production") {
-  globalForDb.postgres = sql;
+  globalForDb.sqlite = sql;
 }
+
+sql.pragma("journal_mode = WAL");
+sql.pragma("foreign_keys = ON");
 
 export const db = drizzle(sql, { schema });
 export type Database = typeof db;

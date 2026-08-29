@@ -1,3 +1,5 @@
+# Legacy local Postgres. Product default is SQLite (data/agentforge.sqlite).
+# Only useful if you check out a pre-SQLite commit and set DATABASE_URL.
 services:
   postgres:
     image: postgres:16

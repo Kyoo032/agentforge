@@ -16,11 +16,13 @@
   "dependencies": {
     "@agentforge/core": "workspace:*",
     "@agentforge/university": "workspace:*",
+    "better-sqlite3": "^13.0.3",
     "dotenv": "^16.5.0",
     "drizzle-orm": "^0.45.2",
-    "postgres": "^3.4.7"
+    "keytar": "^7.9.0"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^24.2.0",
     "drizzle-kit": "^0.31.4",
     "tsx": "^4.19.4",

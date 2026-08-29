@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
     "@agentforge/marketing",
     "@agentforge/legal",
   ],
-  serverExternalPackages: ["postgres"],
+  serverExternalPackages: ["better-sqlite3", "keytar"],
   webpack: (config, { isServer, webpack }) => {
     config.plugins.push(
       new webpack.NormalModuleReplacementPlugin(/^node:/, (resource: { request: string }) => {

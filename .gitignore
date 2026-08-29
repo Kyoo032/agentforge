@@ -12,8 +12,12 @@ data/models-cache.json
 data/models-dev-cache.json
 data/*.db
 data/*.sqlite
+data/*.sqlite-shm
+data/*.sqlite-wal
 data/*.db-shm
 data/*.db-wal
+apps/desktop/src-tauri/target
+apps/desktop/src-tauri/gen
 *.log
 coverage
 playwright-report
