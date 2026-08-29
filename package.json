@@ -8,7 +8,9 @@
     "test:e2e": "pnpm --filter @agentforge/web test:e2e",
     "db:push": "pnpm --filter @agentforge/db push",
     "db:seed": "pnpm --filter @agentforge/db seed",
-    "db:studio": "pnpm --filter @agentforge/db studio"
+    "db:studio": "pnpm --filter @agentforge/db studio",
+    "desktop:dev": "pnpm --filter @agentforge/desktop desktop-dev",
+    "desktop:build": "pnpm --filter @agentforge/desktop desktop-build"
   },
   "devDependencies": {
     "turbo": "^2.5.4",

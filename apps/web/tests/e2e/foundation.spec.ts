@@ -95,6 +95,7 @@ test("chat and build work without an account", async ({ page }) => {
   await page.getByTestId("mode-videos").click();
   await expect(page).toHaveURL(/\/videos/, { timeout: 15_000 });
   await expect(page.getByTestId("videos-studio")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("videos-studio-needs-key")).toBeVisible();
 
   await page.getByTestId("mode-presentations").click();
   await expect(page).toHaveURL(/\/presentations/, { timeout: 15_000 });

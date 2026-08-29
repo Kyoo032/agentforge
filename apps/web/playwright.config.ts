@@ -1,4 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
+import { resolve } from "node:path";
+
+delete process.env.DATABASE_URL;
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -15,7 +18,9 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     env: {
+      ...process.env,
       AGENTFORGE_RUNTIME: "stub",
+      AGENTFORGE_DATA_DIR: resolve(process.cwd(), "../../data"),
     },
   },
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ApiError } from "@agentforge/core";
+import { ApiError, studioVideoFailureStatus } from "@agentforge/core";
 import {
   listStudioImageModels,
   listStudioVideoModels,
@@ -96,7 +96,10 @@ describe("studio model filters", () => {
   });
 
   it("keeps video models and skips chat", () => {
-    expect(listStudioVideoModels(catalog).map((m) => m.id)).toEqual(["grok-imagine-video"]);
+    expect(listStudioVideoModels(catalog).map((m) => m.id)).toEqual([
+      "seedance-2.0-fast",
+      "grok-imagine-video",
+    ]);
   });
 });
 
@@ -106,5 +109,17 @@ describe("mediaIdFromUrl", () => {
       "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
     );
     expect(mediaIdFromUrl("https://cdn.example/out.png")).toBeNull();
+  });
+});
+
+describe("studioVideoFailureStatus", () => {
+  it("keeps 503 for missing video channels", () => {
+    expect(studioVideoFailureStatus("No available channel. This video model has no live gateway channel (HTTP 503).")).toBe(
+      503,
+    );
+  });
+
+  it("uses 400 when no gateway key is saved", () => {
+    expect(studioVideoFailureStatus("Add a Toko Token gateway key in Settings to generate videos.")).toBe(400);
   });
 });

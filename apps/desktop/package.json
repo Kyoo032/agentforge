@@ -1,0 +1,14 @@
+{
+  "name": "@agentforge/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tauri shell for Agentforge. Loads the local Next app at 127.0.0.1:3000.",
+  "scripts": {
+    "tauri": "tauri",
+    "desktop-dev": "tauri dev",
+    "desktop-build": "tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.8.4"
+  }
+}

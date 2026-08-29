@@ -1,0 +1,6 @@
+{
+  "identifier": "default",
+  "description": "Main window. Next.js stays on loopback.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

@@ -1,6 +1,3 @@
-# Parked 2026-08-28: GHA job startup was failing. Cursor Cloud Agents own
-# the real stub Playwright suite (see AGENTS.md). Do not restore the full
-# Playwright job until Cloud start (native Postgres, no Docker) is reliable.
 name: e2e
 
 on:
@@ -13,23 +10,9 @@ jobs:
   playwright:
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: agentforge
-          POSTGRES_PASSWORD: agentforge
-          POSTGRES_DB: agentforge
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     env:
-      DATABASE_URL: postgres://agentforge:agentforge@127.0.0.1:5432/agentforge
       AGENTFORGE_RUNTIME: stub
+      AGENTFORGE_DATA_DIR: ${{ github.workspace }}/data
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

@@ -99,8 +99,8 @@ const ANTHROPIC_MODELS: Array<[id: string, label: string]> = [
 const VOLCENGINE_MODELS: Array<[id: string, label: string]> = [
   ["doubao-seed-1-6-thinking", "Doubao Seed 1.6 Thinking"],
   ["doubao-seed-1-6-250615", "Doubao Seed 1.6"],
-  ["doubao-seedance-2-0-260128", "Seedance 2.0 (video)"],
   ["doubao-seedance-2-0-fast-260128", "Seedance 2.0 Fast (video)"],
+  ["doubao-seedance-2-0-260128", "Seedance 2.0 (video)"],
 ];
 
 export const CHAT_MODELS: ChatModel[] = [

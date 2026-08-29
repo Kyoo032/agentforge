@@ -305,4 +305,25 @@ describe("generateGatewayVideo", () => {
     ).rejects.toBeInstanceOf(ApiError);
     expect(String(fetchMock.mock.calls[0]?.[0])).not.toContain("/videos/generations");
   });
+
+  it("maps HTTP 503 to a visible no-channel message", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: async () => ({ error: { message: "No available channel" } }),
+    });
+    await expect(
+      generateGatewayVideo({
+        baseUrl: "https://api.tokotokenai.com/v1",
+        apiKey: "sk-test",
+        model: "happyhorse",
+        prompt: "rain",
+        fetchImpl: fetchMock as unknown as typeof fetch,
+        wait: async () => undefined,
+      }),
+    ).rejects.toMatchObject({
+      status: 503,
+      message: expect.stringMatching(/HTTP 503.*seedance-2\.0-fast/i),
+    });
+  });
 });

@@ -1,11 +1,11 @@
 export type MediaKind = "chat" | "image" | "video" | "audio" | "other";
 
 export const DEFAULT_GATEWAY_IMAGE_MODEL = "gpt-image-2";
-export const DEFAULT_GATEWAY_VIDEO_MODEL = "grok-imagine-video";
+export const DEFAULT_GATEWAY_VIDEO_MODEL = "seedance-2.0-fast";
 
 const IMAGE_PREF = ["gpt-image-2"];
 
-const VIDEO_PREF = ["grok-imagine-video", "seedance-2.0-fast"];
+const VIDEO_PREF = ["seedance-2.0-fast", "seedance-2.0-mini"];
 
 const OTHER =
   /(^|\/)(text-)?embedding|babbage|davinci|computer-use|omni-moderation|text-moderation|moderation/i;
@@ -54,5 +54,5 @@ export function pickPreferredImageModel(ids: string[]): string {
 
 export function pickPreferredVideoModel(ids: string[]): string {
   const usable = ids.filter((id) => mediaKind(id) === "video" && !id.toLowerCase().startsWith("mj_"));
-  return firstPresent(VIDEO_PREF, usable) ?? usable.find((id) => !/happyhorse/i.test(id)) ?? usable[0] ?? DEFAULT_GATEWAY_VIDEO_MODEL;
+  return firstPresent(VIDEO_PREF, usable) ?? DEFAULT_GATEWAY_VIDEO_MODEL;
 }

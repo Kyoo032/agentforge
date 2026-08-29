@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { DEFAULT_GATEWAY_IMAGE_MODEL, DEFAULT_GATEWAY_VIDEO_MODEL } from "@agentforge/core";
 import { GATEWAY_BASE_URL, GATEWAY_NAME } from "@agentforge/core/gateway";
 
 type Probe = {
@@ -28,8 +29,8 @@ const TOGGLEABLE_TOOLS = [
   { key: "datetime", label: "Date & time" },
 ] as const;
 
-const DEFAULT_IMAGE_MODELS = ["gpt-image-2"];
-const DEFAULT_VIDEO_MODELS = ["grok-imagine-video"];
+const DEFAULT_IMAGE_MODELS = [DEFAULT_GATEWAY_IMAGE_MODEL];
+const DEFAULT_VIDEO_MODELS = [DEFAULT_GATEWAY_VIDEO_MODEL, "seedance-2.0-mini"];
 
 const fieldClass = "mt-1 w-full rounded-md border border-mist bg-paper px-3 py-2 text-ink";
 
@@ -55,8 +56,8 @@ export default function SettingsPage() {
   const [toolCatalog, setToolCatalog] = useState<ToolCapability[]>([]);
   const [toolRoutes, setToolRoutes] = useState<Record<string, ToolRoute>>({});
   const [disabledTools, setDisabledTools] = useState<string[]>([]);
-  const [imageGenModel, setImageGenModel] = useState("gpt-image-2");
-  const [videoGenModel, setVideoGenModel] = useState("grok-imagine-video");
+  const [imageGenModel, setImageGenModel] = useState(DEFAULT_GATEWAY_IMAGE_MODEL);
+  const [videoGenModel, setVideoGenModel] = useState(DEFAULT_GATEWAY_VIDEO_MODEL);
   const [probe, setProbe] = useState<Probe | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -96,12 +97,12 @@ export default function SettingsPage() {
     setImageGenModel(
       typeof payload.imageGenModel === "string" && payload.imageGenModel.trim()
         ? payload.imageGenModel.trim()
-        : "gpt-image-2",
+        : DEFAULT_GATEWAY_IMAGE_MODEL,
     );
     setVideoGenModel(
       typeof payload.videoGenModel === "string" && payload.videoGenModel.trim()
         ? payload.videoGenModel.trim()
-        : "grok-imagine-video",
+        : DEFAULT_GATEWAY_VIDEO_MODEL,
     );
     if (payload.toolCatalog) {
       setToolCatalog(payload.toolCatalog);

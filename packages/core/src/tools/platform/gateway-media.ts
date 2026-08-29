@@ -35,6 +35,33 @@ function gatewayHeaders(apiKey: string): Record<string, string> {
   };
 }
 
+export function httpStatusForGatewayFailure(status: number): number {
+  if (status === 401 || status === 403 || status === 404 || status === 429 || status === 503) {
+    return status;
+  }
+  return 502;
+}
+
+export function formatVideoGatewayFailure(status: number, detail: string): string {
+  if (status === 503) {
+    return `${detail} This video model has no live gateway channel (HTTP 503). Prefer seedance-2.0-fast (or seedance-2.0-mini); grok-imagine-video and other catalog ids often fail on auto.`;
+  }
+  if (status === 401 || status === 403) {
+    return `${detail} Gateway rejected the API key (HTTP ${status}). Check Settings.`;
+  }
+  return detail;
+}
+
+export function studioVideoFailureStatus(message: string): number {
+  if (/HTTP 503/i.test(message) || /no live gateway channel/i.test(message)) {
+    return 503;
+  }
+  if (/HTTP 401|HTTP 403|rejected the API key/i.test(message)) {
+    return 401;
+  }
+  return 400;
+}
+
 export function readGatewayError(body: Record<string, unknown>, fallback: string): string {
   const error = body.error;
   if (typeof error === "string" && error.trim()) {
@@ -273,7 +300,14 @@ export async function generateGatewayVideo(options: GatewayMediaOptions): Promis
   });
   const createdBody = asRecord(await created.json().catch(() => ({})));
   if (!created.ok) {
-    throw new ApiError("tool_failed", readGatewayError(createdBody, `Gateway video returned HTTP ${created.status}`), 502);
+    throw new ApiError(
+      "tool_failed",
+      formatVideoGatewayFailure(
+        created.status,
+        readGatewayError(createdBody, `Gateway video returned HTTP ${created.status}`),
+      ),
+      httpStatusForGatewayFailure(created.status),
+    );
   }
   const immediate = extractGatewayVideoUrl(createdBody);
   const createdStatus = mediaStatus(createdBody);

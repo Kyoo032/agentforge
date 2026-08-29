@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   ApiError,
+  DEFAULT_GATEWAY_VIDEO_MODEL,
   buildToolSecretScope,
   imageGenerateTool,
   listToolRoutes,
@@ -8,6 +9,7 @@ import {
   pickPreferredImageModel,
   pickPreferredVideoModel,
   runWithToolSecrets,
+  studioVideoFailureStatus,
   videoGenerateTool,
   type ChatModel,
   type TenantContext,
@@ -61,7 +63,19 @@ export function listStudioImageModels(models: ChatModel[] = listSelectableModels
 }
 
 export function listStudioVideoModels(models: ChatModel[] = listSelectableModels()): ChatModel[] {
-  return models.filter((model) => mediaKind(model.id) === "video" && skipMj(model.id));
+  const listed = models.filter((model) => mediaKind(model.id) === "video" && skipMj(model.id));
+  if (listed.some((model) => model.id === DEFAULT_GATEWAY_VIDEO_MODEL)) {
+    return listed;
+  }
+  return [
+    {
+      id: DEFAULT_GATEWAY_VIDEO_MODEL,
+      label: "Seedance 2.0 Fast",
+      provider: "openai",
+      inputModalities: ["text"],
+    },
+    ...listed,
+  ];
 }
 
 export function defaultStudioImageModel(models: ChatModel[] = listStudioImageModels()): string {
@@ -175,6 +189,13 @@ export async function generateStudioVideo(
   tenant: TenantContext,
   body: VideoGenerateBody,
 ): Promise<StudioGenerateResult> {
+  if (!studioRouteReady("video_gen")) {
+    throw new ApiError(
+      "invalid_request",
+      "Add a Toko Token gateway key in Settings to generate videos.",
+      400,
+    );
+  }
   const settings = loadSettings();
   const scope = buildToolSecretScope(settings);
   const model = body.model || defaultStudioVideoModel();
@@ -191,7 +212,8 @@ export async function generateStudioVideo(
   );
   const url = toolSuccessUrl(output, "video");
   if (!url) {
-    throw new ApiError("tool_failed", toolFailureMessage(output, "Video generation failed"), 400);
+    const message = toolFailureMessage(output, "Video generation failed");
+    throw new ApiError("tool_failed", message, studioVideoFailureStatus(message));
   }
   const stored = await saveGeneratedVideo(tenant, url);
   const usedModel = toolModel(output, model);

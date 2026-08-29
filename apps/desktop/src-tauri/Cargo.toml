@@ -1,0 +1,16 @@
+[package]
+name = "agentforge-desktop"
+version = "0.1.0"
+description = "Agentforge desktop shell"
+authors = ["Kyo"]
+edition = "2021"
+rust-version = "1.85"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+keyring = "3"
+rand = "0.8"

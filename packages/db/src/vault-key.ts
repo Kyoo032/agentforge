@@ -4,14 +4,43 @@ import { randomBytes } from "crypto";
 import { wrappingKeyFromSecret } from "@agentforge/core";
 
 export function localDataDir(): string {
-  const override = process.env.AGENTFORGE_SETTINGS_PATH?.trim();
-  if (!override) {
-    return resolve(process.cwd(), "../../data");
+  const settingsPath = process.env.AGENTFORGE_SETTINGS_PATH?.trim();
+  if (settingsPath) {
+    if (/\.(json|enc)$/i.test(settingsPath)) {
+      return dirname(settingsPath);
+    }
+    return settingsPath;
   }
-  if (/\.(json|enc)$/i.test(override)) {
-    return dirname(override);
+  const dataDir = process.env.AGENTFORGE_DATA_DIR?.trim();
+  if (dataDir) {
+    return dataDir;
   }
-  return override;
+  return resolve(process.cwd(), "../../data");
+}
+
+export function sqliteFilePath(): string {
+  const url = process.env.DATABASE_URL?.trim();
+  if (url?.startsWith("postgres://") || url?.startsWith("postgresql://")) {
+    throw new Error(
+      "Postgres is no longer the product database. Unset DATABASE_URL (SQLite at data/agentforge.sqlite) or set DATABASE_URL=file:/path/to.sqlite. docker-compose.yml is a legacy local fallback only.",
+    );
+  }
+  if (url?.startsWith("file:")) {
+    return url.slice("file:".length);
+  }
+  if (url) {
+    return url;
+  }
+  return resolve(localDataDir(), "agentforge.sqlite");
+}
+
+function readOrCreateMasterKeyFile(): string {
+  const file = resolve(localDataDir(), ".master-key");
+  mkdirSync(dirname(file), { recursive: true });
+  if (!existsSync(file)) {
+    writeFileSync(file, randomBytes(32).toString("hex"), { encoding: "utf8", mode: 0o600 });
+  }
+  return readFileSync(file, "utf8").trim();
 }
 
 export function getLocalVaultKey(): Buffer {
@@ -19,10 +48,6 @@ export function getLocalVaultKey(): Buffer {
   if (fromEnv) {
     return wrappingKeyFromSecret(fromEnv);
   }
-  const file = resolve(localDataDir(), ".master-key");
-  mkdirSync(dirname(file), { recursive: true });
-  if (!existsSync(file)) {
-    writeFileSync(file, randomBytes(32).toString("hex"), { encoding: "utf8", mode: 0o600 });
-  }
-  return wrappingKeyFromSecret(readFileSync(file, "utf8").trim());
+  return wrappingKeyFromSecret(readOrCreateMasterKeyFile());
 }
+

@@ -73,7 +73,13 @@ export {
   recommendedChatModels,
   sortChatModels,
 } from "./models/preferred";
-export { mediaKind, pickPreferredImageModel, pickPreferredVideoModel } from "./models/media-kind";
+export {
+  mediaKind,
+  pickPreferredImageModel,
+  pickPreferredVideoModel,
+  DEFAULT_GATEWAY_IMAGE_MODEL,
+  DEFAULT_GATEWAY_VIDEO_MODEL,
+} from "./models/media-kind";
 export type { MediaKind } from "./models/media-kind";
 export {
   DEFAULT_OPENAI_BASE_URL,
@@ -134,6 +140,11 @@ export { datetimeTool } from "./tools/platform/datetime";
 export { webSearchTool } from "./tools/platform/web-search";
 export { imageGenerateTool } from "./tools/platform/image-generate";
 export { videoGenerateTool } from "./tools/platform/video-generate";
+export {
+  formatVideoGatewayFailure,
+  httpStatusForGatewayFailure,
+  studioVideoFailureStatus,
+} from "./tools/platform/gateway-media";
 export { runWithToolSecrets, getSecret, getDisabledTools } from "./tools/secret-scope";
 export {
   TOOL_CAPABILITIES,

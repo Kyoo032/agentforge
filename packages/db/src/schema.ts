@@ -1,79 +1,40 @@
-import {
-  boolean,
-  index,
-  integer,
-  jsonb,
-  pgTable,
-  text,
-  timestamp,
-  uniqueIndex,
-  uuid,
-} from "drizzle-orm/pg-core";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
-export const user = pgTable("user", {
+function uuidPk(name = "id") {
+  return text(name)
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID());
+}
+
+function createdAt(name = "created_at") {
+  return integer(name, { mode: "timestamp_ms" as const })
+    .notNull()
+    .$defaultFn(() => new Date());
+}
+
+export const user = sqliteTable("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
-  emailVerified: boolean("email_verified").notNull().default(false),
+  emailVerified: integer("email_verified", { mode: "boolean" }).notNull().default(false),
   image: text("image"),
-  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  createdAt: createdAt(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
 });
 
-export const session = pgTable("session", {
-  id: text("id").primaryKey(),
-  expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }).notNull(),
-  token: text("token").notNull().unique(),
-  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
-  ipAddress: text("ip_address"),
-  userAgent: text("user_agent"),
-  userId: text("user_id")
-    .notNull()
-    .references(() => user.id, { onDelete: "cascade" }),
-});
-
-export const account = pgTable("account", {
-  id: text("id").primaryKey(),
-  accountId: text("account_id").notNull(),
-  providerId: text("provider_id").notNull(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => user.id, { onDelete: "cascade" }),
-  accessToken: text("access_token"),
-  refreshToken: text("refresh_token"),
-  idToken: text("id_token"),
-  accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true, mode: "date" }),
-  refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true, mode: "date" }),
-  scope: text("scope"),
-  password: text("password"),
-  issuer: text("issuer"),
-  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
-});
-
-export const verification = pgTable("verification", {
-  id: text("id").primaryKey(),
-  identifier: text("identifier").notNull(),
-  value: text("value").notNull(),
-  expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).defaultNow(),
-});
-
-export const organizations = pgTable("organizations", {
-  id: uuid("id").primaryKey().defaultRandom(),
+export const organizations = sqliteTable("organizations", {
+  id: uuidPk(),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
   industryPack: text("industry_pack").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+  createdAt: createdAt(),
 });
 
-export const organizationMembers = pgTable(
+export const organizationMembers = sqliteTable(
   "organization_members",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    organizationId: uuid("organization_id")
+    id: uuidPk(),
+    organizationId: text("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     userId: text("user_id")
@@ -87,16 +48,16 @@ export const organizationMembers = pgTable(
   ],
 );
 
-export const workspaces = pgTable(
+export const workspaces = sqliteTable(
   "workspaces",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    organizationId: uuid("organization_id")
+    id: uuidPk(),
+    organizationId: text("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     slug: text("slug").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    createdAt: createdAt(),
   },
   (table) => [
     uniqueIndex("workspaces_org_slug").on(table.organizationId, table.slug),
@@ -104,14 +65,14 @@ export const workspaces = pgTable(
   ],
 );
 
-export const workspaceMembers = pgTable(
+export const workspaceMembers = sqliteTable(
   "workspace_members",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    workspaceId: uuid("workspace_id")
+    id: uuidPk(),
+    workspaceId: text("workspace_id")
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
-    organizationId: uuid("organization_id")
+    organizationId: text("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     userId: text("user_id")
@@ -125,14 +86,14 @@ export const workspaceMembers = pgTable(
   ],
 );
 
-export const agents = pgTable(
+export const agents = sqliteTable(
   "agents",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    organizationId: uuid("organization_id")
+    id: uuidPk(),
+    organizationId: text("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
-    workspaceId: uuid("workspace_id")
+    workspaceId: text("workspace_id")
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
@@ -140,148 +101,148 @@ export const agents = pgTable(
     description: text("description").notNull().default(""),
     visibility: text("visibility").notNull().default("private"),
     createdByUserId: text("created_by_user_id").notNull(),
-    currentVersionId: uuid("current_version_id"),
-    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    currentVersionId: text("current_version_id"),
+    createdAt: createdAt(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
   },
   (table) => [index("agents_org_ws_idx").on(table.organizationId, table.workspaceId)],
 );
 
-export const agentVersions = pgTable(
+export const agentVersions = sqliteTable(
   "agent_versions",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    agentId: uuid("agent_id")
+    id: uuidPk(),
+    agentId: text("agent_id")
       .notNull()
       .references(() => agents.id, { onDelete: "cascade" }),
-    organizationId: uuid("organization_id")
+    organizationId: text("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     version: integer("version").notNull(),
     systemPrompt: text("system_prompt").notNull(),
     model: text("model").notNull(),
-    inputModalities: jsonb("input_modalities").$type<string[]>().notNull(),
-    productModes: jsonb("product_modes").$type<string[] | null>(),
-    config: jsonb("config").$type<Record<string, unknown>>().notNull().default({}),
-    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    inputModalities: text("input_modalities", { mode: "json" }).$type<string[]>().notNull(),
+    productModes: text("product_modes", { mode: "json" }).$type<string[] | null>(),
+    config: text("config", { mode: "json" }).$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: createdAt(),
   },
   (table) => [index("agent_versions_org_agent_idx").on(table.organizationId, table.agentId)],
 );
 
-export const tools = pgTable(
+export const tools = sqliteTable(
   "tools",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    organizationId: uuid("organization_id"),
+    id: uuidPk(),
+    organizationId: text("organization_id"),
     key: text("key").notNull(),
     name: text("name").notNull(),
     description: text("description").notNull(),
-    jsonSchema: jsonb("json_schema").$type<Record<string, unknown>>().notNull(),
+    jsonSchema: text("json_schema", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
     handlerKey: text("handler_key").notNull(),
   },
   (table) => [index("tools_org_idx").on(table.organizationId), uniqueIndex("tools_key_unique").on(table.key)],
 );
 
-export const agentToolBindings = pgTable(
+export const agentToolBindings = sqliteTable(
   "agent_tool_bindings",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    agentVersionId: uuid("agent_version_id")
+    id: uuidPk(),
+    agentVersionId: text("agent_version_id")
       .notNull()
       .references(() => agentVersions.id, { onDelete: "cascade" }),
-    organizationId: uuid("organization_id")
+    organizationId: text("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     toolKey: text("tool_key").notNull(),
-    config: jsonb("config").$type<Record<string, unknown>>().notNull().default({}),
-    enabled: boolean("enabled").notNull().default(true),
+    config: text("config", { mode: "json" }).$type<Record<string, unknown>>().notNull().default({}),
+    enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
   },
   (table) => [index("agent_tool_bindings_org_idx").on(table.organizationId, table.agentVersionId)],
 );
 
-export const threads = pgTable(
+export const threads = sqliteTable(
   "threads",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    organizationId: uuid("organization_id")
+    id: uuidPk(),
+    organizationId: text("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
-    workspaceId: uuid("workspace_id")
+    workspaceId: text("workspace_id")
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
-    agentId: uuid("agent_id")
+    agentId: text("agent_id")
       .notNull()
       .references(() => agents.id, { onDelete: "cascade" }),
     userId: text("user_id").notNull(),
     title: text("title").notNull().default("New thread"),
-    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    createdAt: createdAt(),
   },
   (table) => [index("threads_org_user_idx").on(table.organizationId, table.userId)],
 );
 
-export const messages = pgTable(
+export const messages = sqliteTable(
   "messages",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    organizationId: uuid("organization_id")
+    id: uuidPk(),
+    organizationId: text("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
-    threadId: uuid("thread_id")
+    threadId: text("thread_id")
       .notNull()
       .references(() => threads.id, { onDelete: "cascade" }),
     role: text("role").notNull(),
-    content: jsonb("content").$type<unknown>().notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    content: text("content", { mode: "json" }).$type<unknown>().notNull(),
+    createdAt: createdAt(),
   },
   (table) => [index("messages_org_thread_idx").on(table.organizationId, table.threadId)],
 );
 
-export const runs = pgTable(
+export const runs = sqliteTable(
   "runs",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    organizationId: uuid("organization_id")
+    id: uuidPk(),
+    organizationId: text("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
-    threadId: uuid("thread_id")
+    threadId: text("thread_id")
       .notNull()
       .references(() => threads.id, { onDelete: "cascade" }),
-    agentVersionId: uuid("agent_version_id")
+    agentVersionId: text("agent_version_id")
       .notNull()
       .references(() => agentVersions.id),
     modality: text("modality").notNull(),
     status: text("status").notNull(),
-    usage: jsonb("usage").$type<Record<string, unknown>>(),
+    usage: text("usage", { mode: "json" }).$type<Record<string, unknown>>(),
     error: text("error"),
-    startedAt: timestamp("started_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
-    finishedAt: timestamp("finished_at", { withTimezone: true, mode: "date" }),
+    startedAt: integer("started_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
+    finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
   },
   (table) => [index("runs_org_thread_idx").on(table.organizationId, table.threadId)],
 );
 
-export const toolInvocations = pgTable(
+export const toolInvocations = sqliteTable(
   "tool_invocations",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    organizationId: uuid("organization_id")
+    id: uuidPk(),
+    organizationId: text("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
-    runId: uuid("run_id")
+    runId: text("run_id")
       .notNull()
       .references(() => runs.id, { onDelete: "cascade" }),
     toolKey: text("tool_key").notNull(),
-    input: jsonb("input").$type<unknown>(),
-    output: jsonb("output").$type<unknown>(),
+    input: text("input", { mode: "json" }).$type<unknown>(),
+    output: text("output", { mode: "json" }).$type<unknown>(),
     status: text("status").notNull(),
   },
   (table) => [index("tool_invocations_org_run_idx").on(table.organizationId, table.runId)],
 );
 
-export const media = pgTable(
+export const media = sqliteTable(
   "media",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    organizationId: uuid("organization_id")
+    id: uuidPk(),
+    organizationId: text("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     userId: text("user_id").notNull(),
@@ -290,7 +251,7 @@ export const media = pgTable(
     sizeBytes: integer("size_bytes").notNull(),
     storagePath: text("storage_path").notNull(),
     url: text("url").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
+    createdAt: createdAt(),
   },
   (table) => [index("media_org_idx").on(table.organizationId)],
 );

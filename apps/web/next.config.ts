@@ -13,14 +13,14 @@ const nextConfig: NextConfig = {
     "@agentforge/marketing",
     "@agentforge/legal",
   ],
-  serverExternalPackages: ["postgres"],
+  serverExternalPackages: ["better-sqlite3"],
   webpack: (config, { isServer, webpack }) => {
     config.plugins.push(
       new webpack.NormalModuleReplacementPlugin(/^node:/, (resource: { request: string }) => {
         resource.request = resource.request.replace(/^node:/, "");
       }),
     );
-    const nodeBuiltins = ["crypto", "fs", "path", "async_hooks", "os", "url"];
+    const nodeBuiltins = ["crypto", "fs", "path", "async_hooks", "os", "url", "module"];
     if (isServer) {
       const extraExternal = ({ request }: { request?: string }, cb: (err?: Error | null, result?: string) => void) => {
         const name = request?.replace(/^node:/, "");
@@ -47,6 +47,7 @@ const nextConfig: NextConfig = {
         async_hooks: false,
         os: false,
         url: false,
+        module: false,
       };
     }
     return config;
