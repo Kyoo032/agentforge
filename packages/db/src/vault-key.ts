@@ -3,8 +3,6 @@ import { dirname, resolve } from "node:path";
 import { randomBytes } from "crypto";
 import { wrappingKeyFromSecret } from "@agentforge/core";
 
-const KEYCHAIN_SERVICE = "Agentforge";
-const KEYCHAIN_ACCOUNT = "wrap-key";
 export function localDataDir(): string {
   const settingsPath = process.env.AGENTFORGE_SETTINGS_PATH?.trim();
   if (settingsPath) {
@@ -43,10 +41,6 @@ function readOrCreateMasterKeyFile(): string {
     writeFileSync(file, randomBytes(32).toString("hex"), { encoding: "utf8", mode: 0o600 });
   }
   return readFileSync(file, "utf8").trim();
-}
-
-export function ensureFileWrapSecret(): string {
-  return readOrCreateMasterKeyFile();
 }
 
 export function getLocalVaultKey(): Buffer {

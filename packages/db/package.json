@@ -5,8 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./vault-key": "./src/vault-key.ts",
-    "./keychain": "./src/keychain.ts"
+    "./vault-key": "./src/vault-key.ts"
   },
   "scripts": {
     "push": "drizzle-kit push",
@@ -19,8 +18,7 @@
     "@agentforge/university": "workspace:*",
     "better-sqlite3": "^13.0.3",
     "dotenv": "^16.5.0",
-    "drizzle-orm": "^0.45.2",
-    "keytar": "^7.9.0"
+    "drizzle-orm": "^0.45.2"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",
