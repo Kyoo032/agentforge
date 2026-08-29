@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Agentforge desktop shell"
 authors = ["Kyo"]
 edition = "2021"
-rust-version = "1.77"
+rust-version = "1.85"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
