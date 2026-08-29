@@ -37,7 +37,7 @@ describe("videoGenerateTool", () => {
       success: true,
       backend: "gateway",
       video: "https://cdn.example/clip.mp4",
-      model: "grok-imagine-video",
+      model: "seedance-2.0-fast",
     });
   });
 

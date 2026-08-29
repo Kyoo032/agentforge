@@ -96,7 +96,10 @@ describe("studio model filters", () => {
   });
 
   it("keeps video models and skips chat", () => {
-    expect(listStudioVideoModels(catalog).map((m) => m.id)).toEqual(["grok-imagine-video"]);
+    expect(listStudioVideoModels(catalog).map((m) => m.id)).toEqual([
+      "seedance-2.0-fast",
+      "grok-imagine-video",
+    ]);
   });
 });
 

@@ -10,7 +10,7 @@ import { generateGatewayVideo } from "./gateway-media";
 
 const FAL_VIDEO_TEXT = "fal-ai/pixverse/v6/text-to-video";
 const FAL_VIDEO_IMAGE = "fal-ai/pixverse/v6/image-to-video";
-const SEEDANCE_MODEL = "doubao-seedance-2-0-260128";
+const SEEDANCE_MODEL = "doubao-seedance-2-0-fast-260128";
 
 async function generateWithFal(
   prompt: string,

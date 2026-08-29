@@ -32,6 +32,7 @@ describe("mediaKind", () => {
   it("classifies Toko Token video catalog ids", () => {
     expect(mediaKind("grok-imagine-video")).toBe("video");
     expect(mediaKind("seedance-2.0-fast")).toBe("video");
+    expect(mediaKind("seedance-2.0-mini")).toBe("video");
     expect(mediaKind("doubao-seedance-2-0-260128")).toBe("video");
     expect(mediaKind("veo_3_1-fast")).toBe("video");
     expect(mediaKind("happyhorse-1.1-t2v")).toBe("video");
@@ -60,9 +61,13 @@ describe("pickPreferredImageModel", () => {
 });
 
 describe("pickPreferredVideoModel", () => {
-  it("prefers Grok Imagine video then Seedance Fast", () => {
+  it("prefers Seedance 2.0 Fast over Grok Imagine and full Seedance 2.0", () => {
     expect(pickPreferredVideoModel(["mj_video", "seedance-2.0-fast", "grok-imagine-video"])).toBe(
-      "grok-imagine-video",
+      "seedance-2.0-fast",
+    );
+    expect(pickPreferredVideoModel(["seedance-2.0-mini", "grok-imagine-video"])).toBe("seedance-2.0-mini");
+    expect(pickPreferredVideoModel(["doubao-seedance-2-0-260128", "doubao-seedance-2-0-fast-260128"])).toBe(
+      DEFAULT_GATEWAY_VIDEO_MODEL,
     );
     expect(pickPreferredVideoModel(["happyhorse-1.1-t2v", "seedance-2.0-fast"])).toBe("seedance-2.0-fast");
   });

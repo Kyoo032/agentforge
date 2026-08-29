@@ -44,7 +44,7 @@ export function httpStatusForGatewayFailure(status: number): number {
 
 export function formatVideoGatewayFailure(status: number, detail: string): string {
   if (status === 503) {
-    return `${detail} This video model has no live gateway channel (HTTP 503). Prefer grok-imagine-video; other catalog ids often fail on auto.`;
+    return `${detail} This video model has no live gateway channel (HTTP 503). Prefer seedance-2.0-fast (or seedance-2.0-mini); grok-imagine-video and other catalog ids often fail on auto.`;
   }
   if (status === 401 || status === 403) {
     return `${detail} Gateway rejected the API key (HTTP ${status}). Check Settings.`;

@@ -323,7 +323,7 @@ describe("generateGatewayVideo", () => {
       }),
     ).rejects.toMatchObject({
       status: 503,
-      message: expect.stringMatching(/HTTP 503.*grok-imagine-video/i),
+      message: expect.stringMatching(/HTTP 503.*seedance-2\.0-fast/i),
     });
   });
 });

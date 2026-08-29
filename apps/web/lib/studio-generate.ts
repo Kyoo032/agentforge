@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   ApiError,
+  DEFAULT_GATEWAY_VIDEO_MODEL,
   buildToolSecretScope,
   imageGenerateTool,
   listToolRoutes,
@@ -62,7 +63,19 @@ export function listStudioImageModels(models: ChatModel[] = listSelectableModels
 }
 
 export function listStudioVideoModels(models: ChatModel[] = listSelectableModels()): ChatModel[] {
-  return models.filter((model) => mediaKind(model.id) === "video" && skipMj(model.id));
+  const listed = models.filter((model) => mediaKind(model.id) === "video" && skipMj(model.id));
+  if (listed.some((model) => model.id === DEFAULT_GATEWAY_VIDEO_MODEL)) {
+    return listed;
+  }
+  return [
+    {
+      id: DEFAULT_GATEWAY_VIDEO_MODEL,
+      label: "Seedance 2.0 Fast",
+      provider: "openai",
+      inputModalities: ["text"],
+    },
+    ...listed,
+  ];
 }
 
 export function defaultStudioImageModel(models: ChatModel[] = listStudioImageModels()): string {

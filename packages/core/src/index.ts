@@ -73,7 +73,13 @@ export {
   recommendedChatModels,
   sortChatModels,
 } from "./models/preferred";
-export { mediaKind, pickPreferredImageModel, pickPreferredVideoModel } from "./models/media-kind";
+export {
+  mediaKind,
+  pickPreferredImageModel,
+  pickPreferredVideoModel,
+  DEFAULT_GATEWAY_IMAGE_MODEL,
+  DEFAULT_GATEWAY_VIDEO_MODEL,
+} from "./models/media-kind";
 export type { MediaKind } from "./models/media-kind";
 export {
   DEFAULT_OPENAI_BASE_URL,

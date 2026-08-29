@@ -33,7 +33,7 @@ Images / Videos studios must call generate helpers **directly** (new `/api/v1/im
 | `packages/core/src/tools/platform/image-generate.ts` | `image_generate` tool: prompt, aspect (`square` / `landscape` / `portrait`), optional `image_url`, optional model |
 | `packages/core/src/tools/platform/video-generate.ts` | `video_generate` tool: prompt, aspect, optional still `image_url`, optional model; FAL / Seedance / gateway |
 | `packages/core/src/tools/platform/gateway-media.ts` | `generateGatewayImage` / `generateGatewayVideo` — HTTP to gateway generations + poll |
-| `packages/core/src/models/media-kind.ts` | `mediaKind()`, defaults `gpt-image-2` / `grok-imagine-video`, prefer helpers that skip `mj_*` |
+| `packages/core/src/models/media-kind.ts` | `mediaKind()`, defaults `gpt-image-2` / `seedance-2.0-fast`, prefer helpers that skip `mj_*` |
 | `packages/core/src/agents/default-chat.ts` | Default chat binds `image_generate` and `video_generate` on **text** runs today (LLM-only generate UX) |
 | `apps/web/lib/media.ts` | Persist under `data/media/`; `saveGeneratedImage`; Drizzle `media` table |
 | Settings / credentials | Gateway key + sticky image/video backend picks (`resolveToolBackend` / secrets) |
@@ -43,7 +43,7 @@ Tests already cover gateway wire shapes: `gateway-media.test.ts`, `image-generat
 ### Generate defaults
 
 - Image model: `gpt-image-2` (`DEFAULT_GATEWAY_IMAGE_MODEL`)
-- Video model: `grok-imagine-video` (`DEFAULT_GATEWAY_VIDEO_MODEL`)
+- Video model: `seedance-2.0-fast` (`DEFAULT_GATEWAY_VIDEO_MODEL`). Next pick: `seedance-2.0-mini`. `grok-imagine-video` stays in the catalog but is not the default.
 - Image aspects in tool: square / landscape / portrait  
 - Video aspects planned for studios: 16:9 / 9:16 / 1:1 (align with tool / catalog when implementing pages)
 
@@ -53,7 +53,10 @@ Cloud Agents have **no gateway key**. Live generate cannot be proven on the VM. 
 
 | Model | Status |
 |---|---|
-| `grok-imagine-video` | Default. Prefer this. Unproven on Cloud (no key). |
+| `seedance-2.0-fast` | Default for live generate tests. Gateway catalog id. |
+| `seedance-2.0-mini` | Next pick if the live catalog lists it. |
+| `doubao-seedance-2-0-fast-260128` | Volcengine/Ark Seedance 2.0 Fast. Used when the video backend is Volcengine, not the Toko Token gateway. |
+| `grok-imagine-video` | Often HTTP 503 “no available channel” on auto. Do not default to this. |
 | `gpt-image-2` (image) | Live generate succeeded earlier. Not a video model. |
 | Other video catalog ids on `auto` | Often **HTTP 503** “no available channel”. Videos studio surfaces this; do not silently retry `/runs/video`. |
 
