@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { SecretPatch, StoredSecrets } from "@agentforge/core";
 import {
@@ -107,6 +107,28 @@ function assertSavedEndpoints(secrets: StoredSecrets): void {
   }
 }
 
+function quarantineUnreadableSettings(reason: unknown): void {
+  const file = encryptedSettingsPath();
+  if (!existsSync(file)) {
+    return;
+  }
+  const aside = `${file}.unreadable`;
+  try {
+    renameSync(file, aside);
+    console.warn(
+      "[agentforge] settings.enc could not be decrypted (wrap key changed or file is corrupt). Moved aside to",
+      aside,
+      reason instanceof Error ? reason.message : reason,
+    );
+  } catch (moveError) {
+    console.warn(
+      "[agentforge] settings.enc could not be decrypted and could not be moved aside.",
+      reason instanceof Error ? reason.message : reason,
+      moveError instanceof Error ? moveError.message : moveError,
+    );
+  }
+}
+
 function loadEncrypted(): StoredSecrets | null {
   try {
     const raw = readFileSync(encryptedSettingsPath(), "utf8");
@@ -119,7 +141,8 @@ function loadEncrypted(): StoredSecrets | null {
     if (isMissingFile(error)) {
       return null;
     }
-    throw error;
+    quarantineUnreadableSettings(error);
+    return null;
   }
 }
 

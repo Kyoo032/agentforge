@@ -2,6 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { encryptJson, wrappingKeyFromSecret } from "@agentforge/core";
 import { loadSettings, saveSettings } from "./settings-store";
 
 const SECRET = "a".repeat(64);
@@ -56,5 +57,17 @@ describe("settings-store", () => {
     expect(raw).not.toContain(PLAIN_KEY);
     expect(raw).not.toContain("openaiApiKey");
     expect(existsSync(join(dir, "settings.json"))).toBe(false);
+  });
+
+  it("returns empty settings when settings.enc cannot be decrypted with the current wrap key", () => {
+    const envelope = encryptJson({ openaiApiKey: PLAIN_KEY }, wrappingKeyFromSecret(SECRET));
+    writeFileSync(join(dir, "settings.enc"), `${JSON.stringify(envelope)}\n`, "utf8");
+    process.env.AGENTFORGE_SECRETS_KEY = "b".repeat(64);
+
+    const loaded = loadSettings();
+    expect(loaded.openaiApiKey).toBeUndefined();
+    expect(existsSync(join(dir, "settings.enc"))).toBe(false);
+    expect(existsSync(join(dir, "settings.enc.unreadable"))).toBe(true);
+    expect(readFileSync(join(dir, "settings.enc.unreadable"), "utf8")).not.toContain(PLAIN_KEY);
   });
 });
