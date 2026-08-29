@@ -47,6 +47,26 @@ Tests already cover gateway wire shapes: `gateway-media.test.ts`, `image-generat
 - Image aspects in tool: square / landscape / portrait  
 - Video aspects planned for studios: 16:9 / 9:16 / 1:1 (align with tool / catalog when implementing pages)
 
+### Live video channels (2026-08-29)
+
+Cloud Agents have **no gateway key**. Live generate cannot be proven on the VM. Prove on the Windows PC after pasting a Toko Token key in Settings.
+
+| Model | Status |
+|---|---|
+| `grok-imagine-video` | Default. Prefer this. Unproven on Cloud (no key). |
+| `gpt-image-2` (image) | Live generate succeeded earlier. Not a video model. |
+| Other video catalog ids on `auto` | Often **HTTP 503** “no available channel”. Videos studio surfaces this; do not silently retry `/runs/video`. |
+
+Without a saved gateway key, `POST /api/v1/videos` is **400** with a Settings link. HTTP 503 from the gateway stays **503** in the UI.
+
+Probe without committing secrets:
+
+```
+pnpm --filter @agentforge/web exec tsx ../../scripts/probe-gateway-video.ts
+```
+
+The script exits 2 if no key is saved. It does not print the key.
+
 ### What generate is not
 
 - No dedicated generate button in Chat today — only tool calls from the model.

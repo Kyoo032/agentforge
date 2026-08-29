@@ -189,7 +189,7 @@ export function VideosStudio() {
           <button
             type="submit"
             className="shrink-0 rounded-md bg-navy px-4 py-2 text-sm font-medium text-white disabled:bg-navy/40"
-            disabled={generating || !prompt.trim()}
+            disabled={generating || !ready || !prompt.trim()}
             data-testid="videos-studio-submit"
           >
             {generating ? "Generating…" : "Generate"}

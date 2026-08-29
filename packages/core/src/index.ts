@@ -134,6 +134,11 @@ export { datetimeTool } from "./tools/platform/datetime";
 export { webSearchTool } from "./tools/platform/web-search";
 export { imageGenerateTool } from "./tools/platform/image-generate";
 export { videoGenerateTool } from "./tools/platform/video-generate";
+export {
+  formatVideoGatewayFailure,
+  httpStatusForGatewayFailure,
+  studioVideoFailureStatus,
+} from "./tools/platform/gateway-media";
 export { runWithToolSecrets, getSecret, getDisabledTools } from "./tools/secret-scope";
 export {
   TOOL_CAPABILITIES,

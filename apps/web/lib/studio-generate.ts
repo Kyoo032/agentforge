@@ -8,6 +8,7 @@ import {
   pickPreferredImageModel,
   pickPreferredVideoModel,
   runWithToolSecrets,
+  studioVideoFailureStatus,
   videoGenerateTool,
   type ChatModel,
   type TenantContext,
@@ -175,6 +176,13 @@ export async function generateStudioVideo(
   tenant: TenantContext,
   body: VideoGenerateBody,
 ): Promise<StudioGenerateResult> {
+  if (!studioRouteReady("video_gen")) {
+    throw new ApiError(
+      "invalid_request",
+      "Add a Toko Token gateway key in Settings to generate videos.",
+      400,
+    );
+  }
   const settings = loadSettings();
   const scope = buildToolSecretScope(settings);
   const model = body.model || defaultStudioVideoModel();
@@ -191,7 +199,8 @@ export async function generateStudioVideo(
   );
   const url = toolSuccessUrl(output, "video");
   if (!url) {
-    throw new ApiError("tool_failed", toolFailureMessage(output, "Video generation failed"), 400);
+    const message = toolFailureMessage(output, "Video generation failed");
+    throw new ApiError("tool_failed", message, studioVideoFailureStatus(message));
   }
   const stored = await saveGeneratedVideo(tenant, url);
   const usedModel = toolModel(output, model);
