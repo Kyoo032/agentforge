@@ -109,6 +109,22 @@ export {
 } from "./agents/default-chat";
 export { defaultAgentPack, defaultAgentTemplate, DEFAULT_PACK_ID, DEFAULT_TEMPLATE_KEY } from "./agents/default-template";
 export type { AgentPack, AgentTemplate } from "./agents/default-template";
+export {
+  PRODUCT_MODES,
+  PRODUCT_MODE_IDS,
+  LEGACY_PRODUCT_MODES,
+  FALLBACK_PRODUCT_MODES,
+  isProductMode,
+  productModeHref,
+  productModeLabel,
+  productModeMatches,
+  sanitizeProductModes,
+  requireProductModes,
+  firstVisibleHref,
+  redirectIfHiddenMode,
+  resolveProductModes,
+} from "./agents/product-modes";
+export type { ProductMode, ProductModeSource } from "./agents/product-modes";
 export { defineTool, invokeTool } from "./tools/define-tool";
 export type { ToolDefinition } from "./tools/define-tool";
 export { registerTool, getTool, listTools, listStudioTools, resetToolRegistry } from "./tools/registry";

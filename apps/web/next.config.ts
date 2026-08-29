@@ -6,7 +6,13 @@ const configDir = path.dirname(fileURLToPath(import.meta.url));
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(configDir, "../.."),
-  transpilePackages: ["@agentforge/core", "@agentforge/db", "@agentforge/university"],
+  transpilePackages: [
+    "@agentforge/core",
+    "@agentforge/db",
+    "@agentforge/university",
+    "@agentforge/marketing",
+    "@agentforge/legal",
+  ],
   serverExternalPackages: ["postgres"],
   webpack: (config, { isServer, webpack }) => {
     config.plugins.push(

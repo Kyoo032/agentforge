@@ -3,28 +3,19 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  PRODUCT_MODES,
+  firstVisibleHref,
+  productModeMatches,
+  type ProductMode,
+} from "@agentforge/core/product-modes";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getRailCollapsed, setRailCollapsed } from "@/lib/rail-prefs";
 
 type Props = {
   workspaceName: string;
+  visibleModes: ProductMode[];
 };
-
-const MODES = [
-  { href: "/chat", label: "Chat", match: (path: string) => path === "/chat" || path.startsWith("/chat?") },
-  {
-    href: "/agents",
-    label: "Agents",
-    match: (path: string) => path.startsWith("/agents") || path.startsWith("/studio"),
-  },
-  { href: "/images", label: "Images", match: (path: string) => path.startsWith("/images") },
-  { href: "/videos", label: "Videos", match: (path: string) => path.startsWith("/videos") },
-  {
-    href: "/presentations",
-    label: "Presentation",
-    match: (path: string) => path.startsWith("/presentations"),
-  },
-] as const;
 
 function itemClass(active: boolean, compact = false) {
   return active
@@ -32,11 +23,13 @@ function itemClass(active: boolean, compact = false) {
     : `${compact ? "flex justify-center" : "block"} rounded-md ${compact ? "px-2 py-2" : "px-2.5 py-1.5"} text-sm text-ink hover:bg-mist`;
 }
 
-export function AppRail({ workspaceName }: Props) {
+export function AppRail({ workspaceName, visibleModes }: Props) {
   const pathname = usePathname();
   const onSettings = pathname.startsWith("/settings");
   const onWorkspaces = pathname.startsWith("/workspaces");
   const [collapsed, setCollapsed] = useState(false);
+  const modes = PRODUCT_MODES.filter((mode) => visibleModes.includes(mode.id));
+  const homeHref = firstVisibleHref(visibleModes);
 
   useEffect(() => {
     setCollapsed(getRailCollapsed());
@@ -67,8 +60,8 @@ export function AppRail({ workspaceName }: Props) {
           »
         </button>
         <nav className="mt-3 flex flex-col items-center gap-1" aria-label="Modes">
-          {MODES.map((mode) => {
-            const isActive = mode.href === "/chat" ? pathname === "/chat" : mode.match(pathname);
+          {modes.map((mode) => {
+            const isActive = productModeMatches(mode.id, pathname);
             return (
               <Link
                 key={mode.href}
@@ -113,7 +106,7 @@ export function AppRail({ workspaceName }: Props) {
     <aside className="flex h-full w-52 shrink-0 flex-col rounded-xl border border-mist/80 bg-paper" aria-label="Product modes">
       <div className="flex items-start gap-1 border-b border-mist px-2 py-3">
         <div className="min-w-0 flex-1">
-          <Link href="/chat" className="block truncate text-sm font-semibold tracking-tight text-ink">
+          <Link href={homeHref} className="block truncate text-sm font-semibold tracking-tight text-ink">
             Agentforge
           </Link>
           <p className="mt-0.5 truncate text-xs text-ink/50">{workspaceName}</p>
@@ -132,9 +125,8 @@ export function AppRail({ workspaceName }: Props) {
 
       <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 py-3" aria-label="Modes">
         <div className="space-y-0.5">
-          {MODES.map((mode) => {
-            const isActive =
-              mode.href === "/chat" ? pathname === "/chat" : mode.match(pathname);
+          {modes.map((mode) => {
+            const isActive = productModeMatches(mode.id, pathname);
             return (
               <Link
                 key={mode.href}

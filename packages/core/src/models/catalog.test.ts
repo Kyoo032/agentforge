@@ -116,6 +116,7 @@ describe("readOptionalModel", () => {
   it("reads model from a run body", () => {
     expect(readOptionalModel({ content: "hi", model: "gpt-5.6-terra" })).toBe("gpt-5.6-terra");
     expect(readOptionalModel({ content: "hi" })).toBeUndefined();
+    expect(readOptionalModel({ content: "hi", model: "" })).toBeUndefined();
   });
 });
 

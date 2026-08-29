@@ -55,4 +55,18 @@ export class MemoryAgentRepository implements AgentRepository {
     }
     this.agents[index] = { ...this.agents[index], ...patch };
   }
+
+  async updateVersion(
+    organizationId: string,
+    versionId: string,
+    patch: Partial<Pick<AgentVersionRecord, "productModes">>,
+  ): Promise<void> {
+    const index = this.versions.findIndex(
+      (version) => version.id === versionId && version.organizationId === organizationId,
+    );
+    if (index === -1) {
+      return;
+    }
+    this.versions[index] = { ...this.versions[index], ...patch };
+  }
 }

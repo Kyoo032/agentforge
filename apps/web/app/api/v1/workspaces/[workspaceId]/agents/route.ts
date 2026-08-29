@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { DEFAULT_CHAT_MODEL } from "@agentforge/core";
 import { jsonError } from "@/lib/http";
+import { revalidateAppShell } from "@/lib/revalidate-shell";
 import { agentService, getTenant } from "@/lib/tenant";
 import { listSelectableModels } from "@/lib/selectable-models";
 
@@ -36,10 +37,12 @@ export async function POST(request: Request, context: RouteContext) {
         systemPrompt: body.systemPrompt,
         model: body.model ?? DEFAULT_CHAT_MODEL,
         inputModalities: body.inputModalities,
+        productModes: body.productModes,
         visibility: body.visibility,
       },
       listSelectableModels(),
     );
+    revalidateAppShell();
     return NextResponse.json(created, { status: 201 });
   } catch (error) {
     return jsonError(error);

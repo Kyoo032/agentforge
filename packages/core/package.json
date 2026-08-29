@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./gateway": "./src/gateway.ts",
-    "./preferred": "./src/models/preferred.ts"
+    "./preferred": "./src/models/preferred.ts",
+    "./product-modes": "./src/agents/product-modes.ts"
   },
   "scripts": {
     "test": "vitest run",

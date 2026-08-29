@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { GATEWAY_BASE_URL, GATEWAY_NAME } from "@agentforge/core/gateway";
 
 type Probe = {
@@ -195,6 +196,15 @@ export default function SettingsPage() {
       <h1 className="text-3xl font-semibold text-ink">Settings</h1>
       <p className="mt-2 text-ink/60">
         Paste a {GATEWAY_NAME} gateway key to run chat, reasoning, tools, and image/video generation.
+      </p>
+      <p className="mt-2 text-sm text-ink/70">
+        <Link href="/studio/new" className="underline" data-testid="settings-build-link">
+          Build an agent
+        </Link>
+        {" · "}
+        <Link href="/agents" className="underline" data-testid="settings-agents-link">
+          Agents
+        </Link>
       </p>
 
       <form onSubmit={(event) => void onSubmit(event)} className="mt-8 space-y-6" data-testid="settings-form">

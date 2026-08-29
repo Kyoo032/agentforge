@@ -9,8 +9,10 @@ import {
   DEFAULT_CHAT_PROMPT,
   DEFAULT_CHAT_SLUG,
   DEFAULT_CHAT_TOOLS,
+  isDefaultChatAgent,
 } from "./default-chat";
 import { getChatModel, listChatModels, type ChatModel } from "../models/catalog";
+import { requireProductModes, resolveProductModes, type ProductMode } from "./product-modes";
 
 export type AgentRecord = {
   id: string;
@@ -34,6 +36,7 @@ export type AgentVersionRecord = {
   systemPrompt: string;
   model: string;
   inputModalities: InputModality[];
+  productModes?: ProductMode[] | null;
   config: Record<string, unknown>;
   createdAt: Date;
 };
@@ -53,6 +56,7 @@ export type CreateAgentInput = {
   systemPrompt: string;
   model: string;
   inputModalities?: InputModality[];
+  productModes?: ProductMode[];
   visibility?: Visibility;
 };
 
@@ -66,6 +70,11 @@ export interface AgentRepository {
   listVersions(organizationId: string, agentId: string): Promise<AgentVersionRecord[]>;
   listBindings(organizationId: string, agentVersionId: string): Promise<ToolBindingRecord[]>;
   updateAgent(organizationId: string, agentId: string, patch: Partial<AgentRecord>): Promise<void>;
+  updateVersion(
+    organizationId: string,
+    versionId: string,
+    patch: Partial<Pick<AgentVersionRecord, "productModes">>,
+  ): Promise<void>;
 }
 
 function slugify(name: string): string {
@@ -156,12 +165,45 @@ export class AgentService {
       systemPrompt: input.systemPrompt,
       model: input.model,
       inputModalities: ensureModalities(input.inputModalities),
+      productModes: requireProductModes(input.productModes),
       config: {},
       createdAt: timestamp,
     };
     await this.repo.insertAgent(agent);
     await this.repo.insertVersion(version);
     return { agent, version };
+  }
+
+  async listVisibleProductModes(tenant: TenantContext): Promise<ProductMode[]> {
+    const agents = await this.list(tenant);
+    const sources: Array<{ slug: string; productModes?: ProductMode[] | null }> = [];
+    for (const agent of agents) {
+      if (isDefaultChatAgent(agent) || !agent.currentVersionId) {
+        continue;
+      }
+      const version = await this.repo.findVersionById(tenant.organizationId, agent.currentVersionId);
+      sources.push({ slug: agent.slug, productModes: version?.productModes ?? null });
+    }
+    return resolveProductModes(sources);
+  }
+
+  async updateProductModes(
+    tenant: TenantContext,
+    agentId: string,
+    productModes: unknown,
+  ): Promise<AgentVersionRecord> {
+    const agent = await this.requireOwned(tenant, agentId);
+    if (!agent.currentVersionId) {
+      throw new ApiError("unpublished_agent", "Agent has no published version", 400);
+    }
+    const version = await this.repo.findVersionById(tenant.organizationId, agent.currentVersionId);
+    if (!version || version.agentId !== agent.id) {
+      throw new ApiError("not_found", "Version not found", 404);
+    }
+    const next = requireProductModes(productModes);
+    const updated: AgentVersionRecord = { ...version, productModes: next };
+    await this.repo.updateVersion(tenant.organizationId, version.id, { productModes: next });
+    return updated;
   }
 
   async get(tenant: TenantContext, agentId: string): Promise<AgentRecord | null> {
@@ -284,6 +326,7 @@ export class AgentService {
       systemPrompt: DEFAULT_CHAT_PROMPT,
       model: DEFAULT_CHAT_MODEL,
       inputModalities: [...DEFAULT_CHAT_MODALITIES],
+      productModes: ["chat"],
       config: {},
       createdAt: timestamp,
     };

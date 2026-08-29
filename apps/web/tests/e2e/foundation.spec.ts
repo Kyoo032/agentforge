@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+test.describe.configure({ retries: 0 });
+
 test.setTimeout(180_000);
 
 test("chat and build work without an account", async ({ page }) => {
@@ -9,9 +11,16 @@ test("chat and build work without an account", async ({ page }) => {
   const promptAgent = `E2E agent ${runId}: What is 4 + 1?`;
 
   await page.goto("/chat");
-  await expect(page.getByTestId("model-picker")).toBeVisible();
+  await expect(page.getByTestId("model-picker")).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId("composer")).toBeVisible();
   await expect(page.getByTestId("chat-empty")).toContainText("Ask anything");
+  await expect(page.getByTestId("mode-chat")).toBeVisible();
+  await expect(page.getByTestId("mode-agents")).toBeVisible();
+  await expect(page.getByTestId("mode-documents")).toHaveCount(0);
+  await expect(page.getByTestId("mode-research")).toHaveCount(0);
+  await expect(page.getByTestId("mode-images")).toHaveCount(0);
+  await expect(page.getByTestId("mode-videos")).toHaveCount(0);
+  await expect(page.getByTestId("mode-presentations")).toHaveCount(0);
 
   await page.getByTestId("composer-text").fill(promptOne);
   await page.getByTestId("composer-send").click();
@@ -39,6 +48,7 @@ test("chat and build work without an account", async ({ page }) => {
     "https://api.tokotokenai.com/v1",
   );
   await expect(page.getByTestId("runtime-status")).toContainText("stub", { timeout: 15_000 });
+  await expect(page.getByTestId("settings-build-link")).toBeVisible();
   await page.getByText("Extras", { exact: true }).click();
   await expect(page.getByTestId("anthropic-key")).toBeVisible();
   await expect(page.getByTestId("volcengine-key")).toBeVisible();
@@ -52,11 +62,19 @@ test("chat and build work without an account", async ({ page }) => {
   await expect(page.getByTestId("create-agent")).toBeEnabled({ timeout: 30_000 });
   await expect(page.getByTestId("template-blank")).toBeVisible();
   await expect(page.getByTestId("template-default")).toBeVisible();
+  await expect(page.getByTestId("template-students")).toBeVisible();
+  await expect(page.getByTestId("template-marketing")).toBeVisible();
+  await expect(page.getByTestId("template-legal")).toBeVisible();
   await expect(page.getByTestId("tool-course_catalog.search")).toHaveCount(0);
   await expect(page.getByTestId("agent-name")).toHaveValue("Assistant");
   await page.getByTestId("create-agent").click();
   await page.waitForURL(/\/studio\/[0-9a-f-]{36}/i, { timeout: 60_000 });
   await expect(page.getByTestId("studio-agent-name")).toHaveText("Assistant", { timeout: 30_000 });
+  await expect(page.getByTestId("mode-images")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("mode-videos")).toBeVisible();
+  await expect(page.getByTestId("mode-presentations")).toBeVisible();
+  await expect(page.getByTestId("mode-documents")).toHaveCount(0);
+  await expect(page.getByTestId("mode-research")).toHaveCount(0);
 
   await page.getByTestId("share-workspace").click();
   await expect(page.getByTestId("visibility")).toContainText("workspace", { timeout: 15_000 });
@@ -64,6 +82,7 @@ test("chat and build work without an account", async ({ page }) => {
   await page.getByRole("link", { name: "Open chat" }).click();
   await page.waitForURL(/\/agents\/[0-9a-f-]{36}/i, { timeout: 30_000 });
   await expect(page.getByTestId("composer")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("model-picker")).not.toHaveText("Model", { timeout: 15_000 });
   await page.getByTestId("composer-text").fill(promptAgent);
   await page.getByTestId("composer-send").click();
   await expect(page.getByTestId("message-list")).toContainText(promptAgent, { timeout: 30_000 });
