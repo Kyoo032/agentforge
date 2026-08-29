@@ -90,18 +90,38 @@ The user pastes their gateway key into settings. The host process holds it. Runs
 
 ## Cursor Cloud specific instructions
 
-Cloud VMs use [`.cursor/environment.json`](.cursor/environment.json): `install` does pnpm + Chromium; `start` brings up Docker Postgres and `db:push`. Stub runtime only — no gateway key.
+Cloud clones GitHub. Push the branch first; uncommitted local files are not on the VM. Launch from the Cursor **Cloud** agent dropdown, or `/in-cloud` from a local chat.
+
+Boot uses [`.cursor/environment.json`](.cursor/environment.json): `install` → `scripts/cloud-install.sh` (pnpm 9.15.9, Playwright Chromium, **native PostgreSQL 16**). `start` → `scripts/cloud-start.sh` (`pg_ctlcluster 16 main start`, role/db `agentforge`, `pnpm db:push`). Stub runtime only — no gateway key.
+
+This image has **no Docker**. `docker`, `dockerd`, and `sudo service docker start` fail (`docker: unrecognized service`). Do not run `docker compose`. Apt postinst often cannot start Postgres (`policy-rc.d`); `start` must call `pg_ctlcluster`. Default DB: `postgres://agentforge:agentforge@127.0.0.1:5432/agentforge`.
+
+The Windows prototype still uses Docker Postgres (`docker compose up -d`) until SQLite ships. Same app, two boot paths.
+
+### What a Cloud Agent on this VM can do
+
+- Node 22 + pnpm 9.15.9 (corepack). Workspace `node_modules` after `install`.
+- Install/start native PostgreSQL 16 via apt + `pg_ctlcluster` (not Docker Compose).
+- Run the stub Playwright suite against `http://127.0.0.1:3000` (`pnpm test:e2e` from repo root also works). Playwright `webServer` starts `pnpm dev` if needed. Do not use a LAN IP.
 
 ```
 cd apps/web
 AGENTFORGE_RUNTIME=stub npx playwright test
 ```
 
-Or from repo root: `pnpm test:e2e`. URL must be `http://127.0.0.1:3000` (Playwright `webServer` starts `pnpm dev` if needed). Do not use a LAN IP.
+- Run Vitest unit tests (`pnpm test` / package `vitest run`).
+- Browser / computer-use against the local app when those tools are available. Bind is `127.0.0.1:3000`.
+- Read GitHub with `gh` (PRs, Actions logs). Do not use `gh` to create PRs — use the Cursor PR tool.
 
-Launch: Cursor **Cloud** agent dropdown, or `/in-cloud` from a local chat. Cloud clones GitHub — push the branch first; uncommitted local files are not on the VM.
+### What a Cloud Agent on this VM cannot do
 
-GitHub Actions (`.github/workflows/e2e.yml`) runs the same stub Playwright suite on push/PR to `main`. No gateway key.
+- Docker Postgres / `docker compose` (not installed).
+- Live Toko Token / gateway inference. There is no gateway key. Keep `AGENTFORGE_RUNTIME=stub`. Do not paste keys into the VM or commit `.env`.
+- Product login, email, or session. There is none.
+- See the operator’s unpushed Windows working tree.
+- Merge PRs or enable auto-merge unless Kyo asks.
+
+GitHub Actions (`.github/workflows/e2e.yml`) runs the same stub Playwright suite on push/PR to `main`. No gateway key. Cloud Agents also own that suite on this VM. Do not park the GHA job.
 
 ## Known traps (prototype)
 
