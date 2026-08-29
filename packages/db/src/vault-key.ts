@@ -5,7 +5,6 @@ import { wrappingKeyFromSecret } from "@agentforge/core";
 
 const KEYCHAIN_SERVICE = "Agentforge";
 const KEYCHAIN_ACCOUNT = "wrap-key";
-
 export function localDataDir(): string {
   const settingsPath = process.env.AGENTFORGE_SETTINGS_PATH?.trim();
   if (settingsPath) {
@@ -37,24 +36,6 @@ export function sqliteFilePath(): string {
   return resolve(localDataDir(), "agentforge.sqlite");
 }
 
-type Keytar = {
-  getPassword: (service: string, account: string) => Promise<string | null>;
-  setPassword: (service: string, account: string, password: string) => Promise<void>;
-};
-
-async function loadKeytar(): Promise<Keytar | null> {
-  try {
-    const loaded = await import("keytar");
-    const keytar = (loaded as { default?: Keytar }).default ?? (loaded as Keytar);
-    if (typeof keytar.getPassword === "function") {
-      return keytar;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
 function readOrCreateMasterKeyFile(): string {
   const file = resolve(localDataDir(), ".master-key");
   mkdirSync(dirname(file), { recursive: true });
@@ -64,28 +45,8 @@ function readOrCreateMasterKeyFile(): string {
   return readFileSync(file, "utf8").trim();
 }
 
-/** Copy wrap key into the OS keychain when the native module is available (Windows Credential Manager via keytar). */
-export async function hydrateWrapKeyFromKeychain(): Promise<"env" | "keychain" | "file"> {
-  if (process.env.AGENTFORGE_SECRETS_KEY?.trim()) {
-    return "env";
-  }
-  const keytar = await loadKeytar();
-  if (keytar) {
-    try {
-      const stored = await keytar.getPassword(KEYCHAIN_SERVICE, KEYCHAIN_ACCOUNT);
-      if (stored?.trim()) {
-        process.env.AGENTFORGE_SECRETS_KEY = stored.trim();
-        return "keychain";
-      }
-      const secret = readOrCreateMasterKeyFile();
-      await keytar.setPassword(KEYCHAIN_SERVICE, KEYCHAIN_ACCOUNT, secret);
-      process.env.AGENTFORGE_SECRETS_KEY = secret;
-      return "keychain";
-    } catch {
-      // libsecret / Credential Manager missing — file fallback.
-    }
-  }
-  return "file";
+export function ensureFileWrapSecret(): string {
+  return readOrCreateMasterKeyFile();
 }
 
 export function getLocalVaultKey(): Buffer {
@@ -95,3 +56,4 @@ export function getLocalVaultKey(): Buffer {
   }
   return wrappingKeyFromSecret(readOrCreateMasterKeyFile());
 }
+
