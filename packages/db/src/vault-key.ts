@@ -1,5 +1,4 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { randomBytes } from "crypto";
 import { wrappingKeyFromSecret } from "@agentforge/core";
@@ -43,10 +42,14 @@ type Keytar = {
   setPassword: (service: string, account: string, password: string) => Promise<void>;
 };
 
-function loadKeytar(): Keytar | null {
+async function loadKeytar(): Promise<Keytar | null> {
   try {
-    const require = createRequire(import.meta.url);
-    return require("keytar") as Keytar;
+    const loaded = await import("keytar");
+    const keytar = (loaded as { default?: Keytar }).default ?? (loaded as Keytar);
+    if (typeof keytar.getPassword === "function") {
+      return keytar;
+    }
+    return null;
   } catch {
     return null;
   }
@@ -66,7 +69,7 @@ export async function hydrateWrapKeyFromKeychain(): Promise<"env" | "keychain" |
   if (process.env.AGENTFORGE_SECRETS_KEY?.trim()) {
     return "env";
   }
-  const keytar = loadKeytar();
+  const keytar = await loadKeytar();
   if (keytar) {
     try {
       const stored = await keytar.getPassword(KEYCHAIN_SERVICE, KEYCHAIN_ACCOUNT);
