@@ -6,7 +6,7 @@ import {
   parseImageGenerateBody,
   parseVideoGenerateBody,
 } from "./studio-generate";
-import { mediaIdFromUrl } from "./media";
+import { mediaIdFromUrl } from "./media-id";
 
 describe("parseImageGenerateBody", () => {
   it("requires a prompt", () => {
@@ -91,15 +91,12 @@ describe("studio model filters", () => {
     },
   ];
 
-  it("keeps image models and skips mj_", () => {
-    expect(listStudioImageModels(catalog).map((m) => m.id)).toEqual(["gpt-image-2"]);
+  it("keeps all image models including mj_", () => {
+    expect(listStudioImageModels(catalog).map((m) => m.id)).toEqual(["gpt-image-2", "mj_imagine"]);
   });
 
   it("keeps video models and skips chat", () => {
-    expect(listStudioVideoModels(catalog).map((m) => m.id)).toEqual([
-      "seedance-2.0-fast",
-      "grok-imagine-video",
-    ]);
+    expect(listStudioVideoModels(catalog).map((m) => m.id)).toEqual(["grok-imagine-video"]);
   });
 });
 
@@ -121,5 +118,13 @@ describe("studioVideoFailureStatus", () => {
 
   it("uses 400 when no gateway key is saved", () => {
     expect(studioVideoFailureStatus("Add a Toko Token gateway key in Settings to generate videos.")).toBe(400);
+  });
+
+  it("does not treat prepaid async-price 403 as a rejected key", () => {
+    expect(
+      studioVideoFailureStatus(
+        "代理预付账户的异步任务仅支持发送前可确定上限的固定按次价格 Seedance video on this gateway is billed by tokens after the job finishes, not a fixed per-call price.",
+      ),
+    ).toBe(400);
   });
 });

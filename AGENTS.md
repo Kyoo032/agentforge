@@ -20,7 +20,7 @@ Product modes (Chat / Agents / Documents / Research / Images / Videos / Presenta
 
 ### Desktop target
 
-Installer (Tauri preferred, Electron acceptable) + **SQLite** in the user data dir. No Docker Postgres for the product. Optional later: on-prem campus server. Do not wrap the current Docker stack in a Chromium window and call it local.
+Installer (**Electron**) + **SQLite** in the user data dir. No Docker Postgres for the product. Optional later: on-prem campus server. Do not wrap the current Docker stack in a Chromium window and call it local.
 
 ### What to keep from this repo
 
@@ -43,7 +43,7 @@ Harbor State seed as identity leftovers, Docker Postgres (SQLite next), desktop 
 
 ```
 apps/web                 Next.js 15 App Router (local owner, no product login)
-apps/desktop             Tauri 2 shell + Windows installer (loads 127.0.0.1:3000)
+apps/desktop             Electron shell + Windows installer (starts Next on 127.0.0.1:3000)
 packages/core            Content parsers, tools, AgentRuntime, AgentService
 packages/db              Drizzle schema (SQLite in the user data dir; Docker Postgres is legacy)
 packages/university      Optional Students templates and mock campus tools
@@ -64,7 +64,7 @@ npx pnpm@9.15.9 dev               # http://127.0.0.1:3000 → /chat, no login
 
 SQLite file: `data/agentforge.sqlite` (or `AGENTFORGE_DATA_DIR`). Do **not** set `DATABASE_URL` to Postgres. `docker compose` remains in the repo as a legacy fallback for older checkouts only.
 
-Desktop (Windows installer / keychain wrap): `pnpm desktop:dev` from repo root (Tauri window on loopback). `pnpm desktop:build` produces an NSIS installer.
+Desktop (Windows installer / keychain wrap): `pnpm desktop:dev` from repo root (Electron window; starts Next on loopback if needed). `pnpm desktop:build` produces an NSIS installer. Move log: [`docs/moves.md`](docs/moves.md).
 
 No account. Workspaces and agents are local. Paste the gateway key in Settings. `AGENTFORGE_RUNTIME=stub` until a key is saved (then live models from the gateway). Env `AGENTFORGE_RUNTIME=ai` still uses `.env` keys.
 
@@ -79,7 +79,7 @@ No account. Workspaces and agents are local. Paste the gateway key in Settings. 
 
 The user pastes their gateway key into settings. The host process holds it. Runs use it. The UI never gets the raw key back after save. Optional extras: native Google / Anthropic / Ark, plus dedicated tool keys.
 
-- Keys live in an AES-256-GCM secrets file (`data/settings.enc`), wrapped by `AGENTFORGE_SECRETS_KEY`, the OS keychain (`Agentforge` / `wrap-key` via Tauri or keytar), or a gitignored `data/.master-key`.
+- Keys live in an AES-256-GCM secrets file (`data/settings.enc`), wrapped by `AGENTFORGE_SECRETS_KEY`, the OS keychain (`Agentforge` / `wrap-key` via Electron keytar), or a gitignored `data/.master-key`.
 - Remote inference URLs must be HTTPS. `http://` is only for loopback (Ollama).
 - Agentforge does not log prompts. Message bodies, system prompts, and tool I/O are encrypted at rest. Gateway retention is Toko Token’s policy, not ours.
 - OpenRouter’s `provider.zdr: true` is sent only when the saved URL is OpenRouter. Do not send that field to Toko Token.
@@ -100,7 +100,7 @@ Boot uses [`.cursor/environment.json`](.cursor/environment.json): `install` → 
 
 This image has **no Docker**. `docker`, `dockerd`, and `sudo service docker start` fail (`docker: unrecognized service`). Do not run `docker compose`. Product DB is SQLite. Default file: `data/agentforge.sqlite`.
 
-The Windows prototype also uses SQLite (`pnpm db:push` then `pnpm dev`). Desktop/Tauri injects the wrap key from the OS keychain.
+The Windows prototype also uses SQLite (`pnpm db:push` then `pnpm dev`). Desktop Electron injects the wrap key from the OS keychain and may spawn Next on `127.0.0.1:3000`.
 
 ### What a Cloud Agent on this VM can do
 

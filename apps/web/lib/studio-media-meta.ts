@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { mediaRoot } from "./media";
+import { mediaRoot } from "./media-root";
 
 export type StudioMediaMeta = {
   mediaId: string;

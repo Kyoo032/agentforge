@@ -4,6 +4,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { db, media } from "@agentforge/db";
 import type { TenantContext } from "@agentforge/core";
 import { ApiError } from "@agentforge/core";
+import { mediaRoot } from "./media-root";
 
 const IMAGE_MAX = 10 * 1024 * 1024;
 const VIDEO_MAX = 50 * 1024 * 1024;
@@ -11,16 +12,8 @@ const VIDEO_MAX = 50 * 1024 * 1024;
 const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 const VIDEO_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime"]);
 
-export function mediaRoot(): string {
-  return process.env.MEDIA_ROOT
-    ? path.resolve(process.env.MEDIA_ROOT)
-    : path.resolve(process.cwd(), "..", "..", "data", "media");
-}
-
-export function mediaIdFromUrl(url: string): string | null {
-  const match = url.match(/^\/api\/v1\/media\/([0-9a-f-]{36})\/file$/i);
-  return match?.[1] ?? null;
-}
+export { mediaRoot } from "./media-root";
+export { mediaIdFromUrl } from "./media-id";
 
 export async function listMediaByKind(tenant: TenantContext, kind: "image" | "video") {
   return db

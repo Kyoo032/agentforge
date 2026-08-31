@@ -2,19 +2,41 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { DEFAULT_GATEWAY_IMAGE_MODEL, DEFAULT_GATEWAY_VIDEO_MODEL } from "@agentforge/core";
 import { GATEWAY_BASE_URL, GATEWAY_NAME } from "@agentforge/core/gateway";
+import { DEFAULT_GATEWAY_IMAGE_MODEL, DEFAULT_GATEWAY_VIDEO_MODEL } from "@agentforge/core/media-kind";
 
 type Probe = {
   openaiCount?: number;
   anthropicCount?: number;
   googleCount?: number;
   volcengineCount?: number;
+  totalCount?: number;
+  chatCount?: number;
+  imageCount?: number;
+  videoCount?: number;
   openaiError?: string;
   anthropicError?: string;
   googleError?: string;
   volcengineError?: string;
   detectedDialect?: string;
+};
+
+type CatalogModel = { id: string; label?: string };
+type ModeLists = {
+  chat?: CatalogModel[];
+  documents?: CatalogModel[];
+  research?: CatalogModel[];
+  presentations?: CatalogModel[];
+  image?: CatalogModel[];
+  video?: CatalogModel[];
+};
+type ModeDefaults = {
+  chat?: string;
+  documents?: string;
+  research?: string;
+  presentations?: string;
+  image?: string;
+  video?: string;
 };
 
 type ToolBackend = { id: string; label: string; envVars: string[]; urlVars: string[] };
@@ -28,9 +50,6 @@ const TOGGLEABLE_TOOLS = [
   { key: "calculator", label: "Calculator" },
   { key: "datetime", label: "Date & time" },
 ] as const;
-
-const DEFAULT_IMAGE_MODELS = [DEFAULT_GATEWAY_IMAGE_MODEL];
-const DEFAULT_VIDEO_MODELS = [DEFAULT_GATEWAY_VIDEO_MODEL, "seedance-2.0-mini"];
 
 const fieldClass = "mt-1 w-full rounded-md border border-mist bg-paper px-3 py-2 text-ink";
 
@@ -58,10 +77,16 @@ export default function SettingsPage() {
   const [disabledTools, setDisabledTools] = useState<string[]>([]);
   const [imageGenModel, setImageGenModel] = useState(DEFAULT_GATEWAY_IMAGE_MODEL);
   const [videoGenModel, setVideoGenModel] = useState(DEFAULT_GATEWAY_VIDEO_MODEL);
+  const [documentGenModel, setDocumentGenModel] = useState("");
+  const [researchGenModel, setResearchGenModel] = useState("");
+  const [presentationGenModel, setPresentationGenModel] = useState("");
+  const [modes, setModes] = useState<ModeLists>({});
+  const [defaults, setDefaults] = useState<ModeDefaults>({});
   const [probe, setProbe] = useState<Probe | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [extrasOpen, setExtrasOpen] = useState(false);
 
   function applyPayload(payload: {
     hasOpenai?: boolean;
@@ -80,7 +105,12 @@ export default function SettingsPage() {
     toolRoutes?: Record<string, ToolRoute>;
     imageGenModel?: string;
     videoGenModel?: string;
+    documentGenModel?: string;
+    researchGenModel?: string;
+    presentationGenModel?: string;
     disabledTools?: string[];
+    modes?: ModeLists;
+    defaults?: ModeDefaults;
   }) {
     setHasOpenai(Boolean(payload.hasOpenai));
     setHasGoogle(Boolean(payload.hasGoogle));
@@ -97,13 +127,34 @@ export default function SettingsPage() {
     setImageGenModel(
       typeof payload.imageGenModel === "string" && payload.imageGenModel.trim()
         ? payload.imageGenModel.trim()
-        : DEFAULT_GATEWAY_IMAGE_MODEL,
+        : payload.defaults?.image || DEFAULT_GATEWAY_IMAGE_MODEL,
     );
     setVideoGenModel(
       typeof payload.videoGenModel === "string" && payload.videoGenModel.trim()
         ? payload.videoGenModel.trim()
-        : DEFAULT_GATEWAY_VIDEO_MODEL,
+        : payload.defaults?.video || DEFAULT_GATEWAY_VIDEO_MODEL,
     );
+    setDocumentGenModel(
+      typeof payload.documentGenModel === "string" && payload.documentGenModel.trim()
+        ? payload.documentGenModel.trim()
+        : payload.defaults?.documents || "",
+    );
+    setResearchGenModel(
+      typeof payload.researchGenModel === "string" && payload.researchGenModel.trim()
+        ? payload.researchGenModel.trim()
+        : payload.defaults?.research || "",
+    );
+    setPresentationGenModel(
+      typeof payload.presentationGenModel === "string" && payload.presentationGenModel.trim()
+        ? payload.presentationGenModel.trim()
+        : payload.defaults?.presentations || "",
+    );
+    if (payload.modes) {
+      setModes(payload.modes);
+    }
+    if (payload.defaults) {
+      setDefaults(payload.defaults);
+    }
     if (payload.toolCatalog) {
       setToolCatalog(payload.toolCatalog);
     }
@@ -156,6 +207,9 @@ export default function SettingsPage() {
         toolBackends,
         imageGenModel,
         videoGenModel,
+        documentGenModel,
+        researchGenModel,
+        presentationGenModel,
         disabledTools,
       }),
     }).then((res) => res.json());
@@ -186,11 +240,39 @@ export default function SettingsPage() {
       return;
     }
     setProbe(refreshed.probe ?? null);
+    if (refreshed.modes) {
+      setModes(refreshed.modes);
+    }
+    if (refreshed.defaults) {
+      setDefaults(refreshed.defaults);
+      if (!imageGenModel) {
+        setImageGenModel(refreshed.defaults.image || DEFAULT_GATEWAY_IMAGE_MODEL);
+      }
+      if (!videoGenModel) {
+        setVideoGenModel(refreshed.defaults.video || DEFAULT_GATEWAY_VIDEO_MODEL);
+      }
+      if (!documentGenModel && refreshed.defaults.documents) {
+        setDocumentGenModel(refreshed.defaults.documents);
+      }
+      if (!researchGenModel && refreshed.defaults.research) {
+        setResearchGenModel(refreshed.defaults.research);
+      }
+      if (!presentationGenModel && refreshed.defaults.presentations) {
+        setPresentationGenModel(refreshed.defaults.presentations);
+      }
+    }
     setMessage(summarizeProbe(refreshed.probe));
   }
 
-  const imageModelOptions = modelOptions(DEFAULT_IMAGE_MODELS, imageGenModel);
-  const videoModelOptions = modelOptions(DEFAULT_VIDEO_MODELS, videoGenModel);
+  const imageModelOptions = optionIds(modes.image, imageGenModel, defaults.image || DEFAULT_GATEWAY_IMAGE_MODEL);
+  const videoModelOptions = optionIds(modes.video, videoGenModel, defaults.video || DEFAULT_GATEWAY_VIDEO_MODEL);
+  const documentOptions = optionIds(modes.documents ?? modes.chat, documentGenModel, defaults.documents || "");
+  const researchOptions = optionIds(modes.research ?? modes.chat, researchGenModel, defaults.research || "");
+  const presentationOptions = optionIds(
+    modes.presentations ?? modes.chat,
+    presentationGenModel,
+    defaults.presentations || "",
+  );
 
   return (
     <main className="mx-auto max-w-xl px-6 py-10 text-ink">
@@ -279,10 +361,14 @@ export default function SettingsPage() {
           {!hasOpenai && !hasGoogle && !hasAnthropic && !hasVolcengine ? " · no keys yet" : ""}
         </p>
 
-        <details className="rounded-xl border border-mist bg-paper">
+        <details
+          className="rounded-xl border border-mist bg-paper"
+          onToggle={(event) => setExtrasOpen(event.currentTarget.open)}
+        >
           <summary className="cursor-pointer list-none px-5 py-4 font-medium text-ink marker:content-none [&::-webkit-details-marker]:hidden">
             Extras
           </summary>
+          {extrasOpen ? (
           <div className="space-y-6 border-t border-mist px-5 py-5">
             <p className="text-xs text-ink/50">
               Other providers are optional. Use them only if you want native Anthropic, Google, or Volcengine instead of
@@ -399,6 +485,51 @@ export default function SettingsPage() {
                 })}
               </div>
               <label className="block text-sm text-ink">
+                Default Documents model
+                <select
+                  className={fieldClass}
+                  value={documentGenModel}
+                  onChange={(event) => setDocumentGenModel(event.target.value)}
+                  data-testid="document-gen-model"
+                >
+                  {documentOptions.map((model) => (
+                    <option key={model} value={model}>
+                      {model}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-sm text-ink">
+                Default Research model
+                <select
+                  className={fieldClass}
+                  value={researchGenModel}
+                  onChange={(event) => setResearchGenModel(event.target.value)}
+                  data-testid="research-gen-model"
+                >
+                  {researchOptions.map((model) => (
+                    <option key={model} value={model}>
+                      {model}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-sm text-ink">
+                Default Presentation model
+                <select
+                  className={fieldClass}
+                  value={presentationGenModel}
+                  onChange={(event) => setPresentationGenModel(event.target.value)}
+                  data-testid="presentation-gen-model"
+                >
+                  {presentationOptions.map((model) => (
+                    <option key={model} value={model}>
+                      {model}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-sm text-ink">
                 Default image model
                 <select
                   className={fieldClass}
@@ -497,18 +628,22 @@ export default function SettingsPage() {
               ))}
             </fieldset>
           </div>
+          ) : null}
         </details>
       </form>
     </main>
   );
 }
 
-function modelOptions(defaults: string[], current: string): string[] {
-  const trimmed = current.trim();
-  if (!trimmed || defaults.includes(trimmed)) {
-    return defaults;
+function optionIds(models: CatalogModel[] | undefined, current: string, fallback: string): string[] {
+  const ids: string[] = [];
+  for (const id of [current, fallback, ...(models ?? []).map((model) => model.id)]) {
+    const trimmed = id.trim();
+    if (trimmed && !ids.includes(trimmed)) {
+      ids.push(trimmed);
+    }
   }
-  return [trimmed, ...defaults];
+  return ids;
 }
 
 function routeStatus(id: string, route: ToolRoute | undefined, label: string): string {
@@ -532,12 +667,18 @@ function summarizeProbe(probe: Probe | undefined, prefix = ""): string {
   if (!probe) {
     return prefix ? `${prefix} Keys stay on this machine.` : "No models loaded.";
   }
-  const parts = [
-    probe.openaiCount ? `${probe.openaiCount} gateway` : null,
-    probe.anthropicCount ? `${probe.anthropicCount} Anthropic` : null,
-    probe.googleCount ? `${probe.googleCount} Google` : null,
-    probe.volcengineCount ? `${probe.volcengineCount} Volcengine` : null,
-  ].filter(Boolean);
+  const routed =
+    typeof probe.totalCount === "number" && probe.totalCount > 0
+      ? `${probe.totalCount} models · ${probe.chatCount ?? 0} chat · ${probe.imageCount ?? 0} image · ${probe.videoCount ?? 0} video`
+      : null;
+  const parts = routed
+    ? [routed]
+    : [
+        probe.openaiCount ? `${probe.openaiCount} gateway` : null,
+        probe.anthropicCount ? `${probe.anthropicCount} Anthropic` : null,
+        probe.googleCount ? `${probe.googleCount} Google` : null,
+        probe.volcengineCount ? `${probe.volcengineCount} Volcengine` : null,
+      ].filter(Boolean);
   const detected = probe.detectedDialect ? ` Detected ${probe.detectedDialect}.` : "";
   if (parts.length === 0) {
     return `${prefix} Keys stay on this machine.${detected}`.trim();

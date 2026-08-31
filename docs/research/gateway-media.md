@@ -33,12 +33,32 @@ Images / Videos studios must call generate helpers **directly** (new `/api/v1/im
 | `packages/core/src/tools/platform/image-generate.ts` | `image_generate` tool: prompt, aspect (`square` / `landscape` / `portrait`), optional `image_url`, optional model |
 | `packages/core/src/tools/platform/video-generate.ts` | `video_generate` tool: prompt, aspect, optional still `image_url`, optional model; FAL / Seedance / gateway |
 | `packages/core/src/tools/platform/gateway-media.ts` | `generateGatewayImage` / `generateGatewayVideo` — HTTP to gateway generations + poll |
-| `packages/core/src/models/media-kind.ts` | `mediaKind()`, defaults `gpt-image-2` / `seedance-2.0-fast`, prefer helpers that skip `mj_*` |
+| `packages/core/src/models/media-kind.ts` | `mediaKind()`, `routeModelsByKind()` — live catalog → chat / image / video / audio / other. Defaults `gpt-image-2` / `seedance-2.0-fast` skip `mj_*` for **default pick only**; pickers list every generate id. |
 | `packages/core/src/agents/default-chat.ts` | Default chat binds `image_generate` and `video_generate` on **text** runs today (LLM-only generate UX) |
 | `apps/web/lib/media.ts` | Persist under `data/media/`; `saveGeneratedImage`; Drizzle `media` table |
 | Settings / credentials | Gateway key + sticky image/video backend picks (`resolveToolBackend` / secrets) |
 
 Tests already cover gateway wire shapes: `gateway-media.test.ts`, `image-generate.test.ts`, `video-generate.test.ts`.
+
+### Catalog routing (2026-08-29)
+
+After the owner saves a gateway URL + key, Agentforge always `GET /v1/models`, then routes:
+
+- **Chat / Agents / Documents / Research / Presentation** — `mediaKind === "chat"`
+- **Images** — every image-classified id, including `mj_*` action ids
+- **Videos** — every video-classified id, including `mj_video`
+
+That list is the live Toko Token catalog, not a closed allowlist. Image families seen on the gateway include `gpt-image-2`, Seedream / `doubao-seedream-*`, Gemini image, `nano-banana`, Qwen image, `wan2.7-image`, `z-image-turbo`, Grok Imagine image, Midjourney `mj_*`. Video families include `seedance-*`, `doubao-seedance-*`, `dreamina-seedance-*`, Veo, Happyhorse, Grok Imagine video, `omni-fast-v2v`.
+
+Preferred **defaults** (first present in the live list):
+
+- Image: `gpt-image-2`
+- Video: `seedance-2.0-fast`, then `seedance-2.0-mini`
+- Documents: Claude Sonnet 5 → Opus 5 → Kimi K3 → GLM 5.3 → GPT-5.6 Sol
+- Research: DeepSeek V4 Pro → GPT-5.6 Sol → Claude Sonnet 5
+- Presentation: GPT-5.6 Sol → Claude Sonnet 5 → GLM 5.3
+
+If a preferred id is missing, the mode falls back to Chat’s default (or the kernel image/video default).
 
 ### Generate defaults
 
@@ -46,6 +66,8 @@ Tests already cover gateway wire shapes: `gateway-media.test.ts`, `image-generat
 - Video model: `seedance-2.0-fast` (`DEFAULT_GATEWAY_VIDEO_MODEL`). Next pick: `seedance-2.0-mini`. `grok-imagine-video` stays in the catalog but is not the default.
 - Image aspects in tool: square / landscape / portrait  
 - Video aspects planned for studios: 16:9 / 9:16 / 1:1 (align with tool / catalog when implementing pages)
+
+Gateway video POST body (Toko `POST /v1/video/generations`): Seedance-class ids send both OpenAI `prompt` (Toko returns `prompt is required` without it) and native `content: [{ type: "text", text }]` plus `duration`, `resolution: "720p"`, `ratio`, and `generate_audio: false`. Do not send OpenAI pixel `size` for Seedance. Pixel `prompt`/`size` stays for ids like `grok-imagine-video`. Live Toko pricing for Seedance is `tiered_expr` on completion tokens (`model_price: 0`); prepaid proxy keys return `prepaid_async_requires_fixed_price` even with wallet balance — that is an account/pricing mode, not a missing request field.
 
 ### Live video channels (2026-08-29)
 

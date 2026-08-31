@@ -12,7 +12,7 @@ import {
   type TenantContext,
 } from "@agentforge/core";
 import { loadSettings } from "./settings-store";
-import { defaultSelectableModel, listSelectableModels } from "./selectable-models";
+import { listSelectableModels, modeCatalogPayload } from "./selectable-models";
 import { ensureToolsRegistered } from "./register-tools";
 import { parseResearchNotes, type ResearchNotes } from "./research-parse";
 
@@ -139,7 +139,12 @@ export async function generateResearchNotes(tenant: TenantContext, body: unknown
   const searchOutput = await runWithToolSecrets(scope, () => webSearchTool.execute({ query: prompt }, tenant));
   const hits = hitsFromSearch(searchOutput);
   const catalog = listSelectableModels();
-  const model = resolveChatModel(readOptionalModel(body), defaultSelectableModel(catalog), catalog);
+  const { defaults } = modeCatalogPayload();
+  const model = resolveChatModel(
+    readOptionalModel(body),
+    settings.researchGenModel || defaults.research,
+    catalog,
+  );
   const userPrompt = `Question:\n${prompt}\n\nSearch hits:\n${JSON.stringify(hits, null, 2)}`;
   const raw = await collectAssistantText(tenant, model, userPrompt);
   if (!raw.trim()) {

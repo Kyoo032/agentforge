@@ -46,6 +46,9 @@ export function formatVideoGatewayFailure(status: number, detail: string): strin
   if (status === 503) {
     return `${detail} This video model has no live gateway channel (HTTP 503). Prefer seedance-2.0-fast (or seedance-2.0-mini); grok-imagine-video and other catalog ids often fail on auto.`;
   }
+  if (isPrepaidAsyncPriceError(detail)) {
+    return `${detail} Seedance video on this gateway is billed by tokens after the job finishes, not a fixed per-call price. Prepaid proxy keys (代理预付) cannot submit that async job even when the wallet has balance. Duration and resolution on the request cannot unlock it. This is not an invalid API key.`;
+  }
   if (status === 401 || status === 403) {
     return `${detail} Gateway rejected the API key (HTTP ${status}). Check Settings.`;
   }
@@ -56,10 +59,14 @@ export function studioVideoFailureStatus(message: string): number {
   if (/HTTP 503/i.test(message) || /no live gateway channel/i.test(message)) {
     return 503;
   }
-  if (/HTTP 401|HTTP 403|rejected the API key/i.test(message)) {
+  if (/rejected the API key/i.test(message)) {
     return 401;
   }
   return 400;
+}
+
+function isPrepaidAsyncPriceError(detail: string): boolean {
+  return /按次价格|预付账户|prepaid_async_requires_fixed_price|prepaid/i.test(detail);
 }
 
 export function readGatewayError(body: Record<string, unknown>, fallback: string): string {
@@ -76,7 +83,19 @@ export function readGatewayError(body: Record<string, unknown>, fallback: string
   if (typeof body.message === "string" && body.message.trim()) {
     return body.message.trim();
   }
-  return fallback;
+  return gatewayErrorCode(body) ?? fallback;
+}
+
+function gatewayErrorCode(body: Record<string, unknown>): string | undefined {
+  const top = asString(body.code);
+  if (top) {
+    return top;
+  }
+  const error = body.error;
+  if (error && typeof error === "object") {
+    return asString((error as { code?: unknown }).code);
+  }
+  return undefined;
 }
 
 export function openaiImageSize(aspectRatio?: string): string {
@@ -89,6 +108,9 @@ export function openaiImageSize(aspectRatio?: string): string {
   return "1024x1024";
 }
 
+export const GATEWAY_VIDEO_DURATION_SECONDS = 5;
+export const GATEWAY_VIDEO_RESOLUTION = "720p";
+
 export function gatewayVideoSize(aspectRatio?: string): string {
   if (aspectRatio === "9:16") {
     return "720x1280";
@@ -97,6 +119,59 @@ export function gatewayVideoSize(aspectRatio?: string): string {
     return "1024x1024";
   }
   return "1280x720";
+}
+
+export function gatewayVideoAspect(aspectRatio?: string): "16:9" | "9:16" | "1:1" {
+  if (aspectRatio === "9:16" || aspectRatio === "1:1") {
+    return aspectRatio;
+  }
+  return "16:9";
+}
+
+/** Seedance-class models bill by duration × resolution tier (`720p`), not OpenAI pixel `1280x720`. */
+export function usesSeedanceVideoWire(model: string): boolean {
+  return /seedance|dreamina-seedance|doubao-seedance|veo_|kling|sora/i.test(model);
+}
+
+export function buildGatewayVideoPayload(options: {
+  model: string;
+  prompt: string;
+  aspectRatio?: string;
+  imageUrl?: string;
+}): Record<string, unknown> {
+  const aspect = gatewayVideoAspect(options.aspectRatio);
+  const duration = GATEWAY_VIDEO_DURATION_SECONDS;
+  if (usesSeedanceVideoWire(options.model)) {
+    const content: Array<Record<string, unknown>> = [{ type: "text", text: options.prompt }];
+    if (options.imageUrl) {
+      content.push({
+        type: "image_url",
+        image_url: { url: options.imageUrl },
+        role: "first_frame",
+      });
+    }
+    return {
+      model: options.model,
+      prompt: options.prompt,
+      content,
+      duration,
+      resolution: GATEWAY_VIDEO_RESOLUTION,
+      ratio: aspect,
+      generate_audio: false,
+      watermark: false,
+    };
+  }
+  const payload: Record<string, unknown> = {
+    model: options.model,
+    prompt: options.prompt,
+    duration,
+    seconds: String(duration),
+    size: gatewayVideoSize(aspect),
+  };
+  if (options.imageUrl) {
+    payload.image = options.imageUrl;
+  }
+  return payload;
 }
 
 export function parseGatewayImage(body: Record<string, unknown>): string | undefined {
@@ -284,15 +359,12 @@ export async function generateGatewayImage(options: GatewayMediaOptions): Promis
 export async function generateGatewayVideo(options: GatewayMediaOptions): Promise<{ url: string; model: string }> {
   const fetchImpl = options.fetchImpl ?? globalThis.fetch;
   const wait = options.wait ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
-  const payload: Record<string, unknown> = {
+  const payload = buildGatewayVideoPayload({
     model: options.model,
     prompt: options.prompt,
-    duration: 5,
-    size: gatewayVideoSize(options.aspectRatio),
-  };
-  if (options.imageUrl) {
-    payload.image = options.imageUrl;
-  }
+    aspectRatio: options.aspectRatio,
+    imageUrl: options.imageUrl,
+  });
   const created = await fetchImpl(`${originFrom(options.baseUrl)}/video/generations`, {
     method: "POST",
     headers: gatewayHeaders(options.apiKey),

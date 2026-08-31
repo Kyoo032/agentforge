@@ -54,6 +54,9 @@ function normalizeSecrets(parsed: StoredSecrets): StoredSecrets {
     toolBackends: readStringMap(parsed.toolBackends),
     imageGenModel: readString(parsed.imageGenModel),
     videoGenModel: readString(parsed.videoGenModel),
+    documentGenModel: readString(parsed.documentGenModel),
+    researchGenModel: readString(parsed.researchGenModel),
+    presentationGenModel: readString(parsed.presentationGenModel),
     disabledTools,
   };
 }

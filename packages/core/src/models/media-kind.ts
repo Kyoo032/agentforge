@@ -1,5 +1,9 @@
 export type MediaKind = "chat" | "image" | "video" | "audio" | "other";
 
+export const MEDIA_KINDS: MediaKind[] = ["chat", "image", "video", "audio", "other"];
+
+export type RoutedModels<T extends { id: string }> = Record<MediaKind, T[]>;
+
 export const DEFAULT_GATEWAY_IMAGE_MODEL = "gpt-image-2";
 export const DEFAULT_GATEWAY_VIDEO_MODEL = "seedance-2.0-fast";
 
@@ -40,6 +44,20 @@ export function mediaKind(id: string): MediaKind {
     return "image";
   }
   return "chat";
+}
+
+export function routeModelsByKind<T extends { id: string }>(models: T[]): RoutedModels<T> {
+  const routed: RoutedModels<T> = {
+    chat: [],
+    image: [],
+    video: [],
+    audio: [],
+    other: [],
+  };
+  for (const model of models) {
+    routed[mediaKind(model.id)].push(model);
+  }
+  return routed;
 }
 
 function firstPresent(preferred: string[], ids: string[]): string | undefined {

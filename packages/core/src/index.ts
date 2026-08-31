@@ -75,12 +75,19 @@ export {
 } from "./models/preferred";
 export {
   mediaKind,
+  routeModelsByKind,
   pickPreferredImageModel,
   pickPreferredVideoModel,
   DEFAULT_GATEWAY_IMAGE_MODEL,
   DEFAULT_GATEWAY_VIDEO_MODEL,
 } from "./models/media-kind";
-export type { MediaKind } from "./models/media-kind";
+export type { MediaKind, RoutedModels } from "./models/media-kind";
+export {
+  pickPreferredJobModel,
+  resolveModeDefaults,
+  JOB_MODE_PREFERENCES,
+} from "./models/mode-defaults";
+export type { JobMode, ModeModelDefaults } from "./models/mode-defaults";
 export {
   DEFAULT_OPENAI_BASE_URL,
   DEFAULT_GOOGLE_BASE_URL,

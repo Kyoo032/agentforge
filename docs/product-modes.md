@@ -54,35 +54,35 @@ Packs live in their own packages. They seed `productModes` + tools + prompt. The
 
 ### Chat
 
-Default gateway chat: model picker, composer, its own sessions (`GET /api/v1/threads?scope=chat`). No specialist chips. No Build. Generate tools may remain bound so a sentence in Chat can still create media; that is not a substitute for the Images / Videos pages.
+Default gateway chat: model picker, composer, its own sessions (`GET /api/v1/threads?scope=chat`). Uses the **chat** bucket from the live `/v1/models` probe. No specialist chips. No Build. Generate tools may remain bound so a sentence in Chat can still create media; that is not a substitute for the Images / Videos pages.
 
 ### Agents
 
-Custom agents platform: catalog at `/agents`, Build at `/studio/new`, talk at `/agents/[agentId]`. Studio configures modalities, tools, and product surfaces.
+Custom agents platform: catalog at `/agents`, Build at `/studio/new`, talk at `/agents/[agentId]`. Studio configures modalities, tools, and product surfaces. Agent models come from the same **chat** bucket; each agent pins its own `version.model`.
 
 ### Documents
 
-Job, not a Word editor. Prompt → JSON sections → HTML preview → download `.docx`. Direct `/api/v1/documents` — not `/runs/*`.
+Job, not a Word editor. Prompt → JSON sections → HTML preview → download `.docx`. Direct `/api/v1/documents` — not `/runs/*`. Uses the chat catalog with a writing-first preferred default (Claude / Kimi / GLM / GPT-5 family when live). Settings can override the default.
 
 ### Research
 
-Job, not Westlaw / Harvey / Kimi Deep Research. Question → `web_search` hits → sourced notes preview → Markdown download. Fails visibly without a gateway key or a Tavily/Brave key.
+Job, not Westlaw / Harvey / Kimi Deep Research. Question → `web_search` hits → sourced notes preview → Markdown download. Fails visibly without a gateway key or a Tavily/Brave key. Uses the chat catalog with a tool/reasoning preferred default (DeepSeek / GPT-5.6 / Claude when live).
 
 ### Images
 
-Lumina-style **generate** studio: prompt bar + result gallery. Not a canvas editor. Calls generate helpers / gateway image APIs directly — not `/runs/image`.
+Lumina-style **generate** studio: prompt bar + result gallery. Not a canvas editor. Calls generate helpers / gateway image APIs directly — not `/runs/image`. The picker lists **every** gateway image id from `/v1/models` (including Midjourney `mj_*`). Default remains `gpt-image-2` when present.
 
 ### Videos
 
-Same pattern for video: prompt, aspect, optional still (`image_url`), gallery. Direct generate path — not `/runs/video`.
+Same pattern for video: prompt, aspect, optional still (`image_url`), gallery. Direct generate path — not `/runs/video`. The picker lists **every** gateway video id. Default remains `seedance-2.0-fast` when present.
 
 ### Presentation
 
-Kimi Slides **job** (topic → deck file), not Kimi Slides **product**. Prompt → JSON outline → HTML preview in-app → Download PPTX. No in-browser slide editor.
+Kimi Slides **job** (topic → deck file), not Kimi Slides **product**. Prompt → JSON outline → HTML preview in-app → Download PPTX. No in-browser slide editor. Uses the chat catalog with a structured-outline preferred default (`gpt-5.6-sol` / Claude / GLM when live).
 
 ### Settings
 
-Gateway API key and optional backends (FAL, Seedance, native providers). Empty generate studios fail visibly when there is no key. Includes a Build / Agents link so a desk without an Agents tab can still create another agent.
+Saving a gateway URL + API key always probes `GET /v1/models` first, then routes ids into Chat / Documents / Research / Presentation (chat bucket) and Images / Videos (generate buckets). Empty generate studios fail visibly when there is no key. Includes a Build / Agents link so a desk without an Agents tab can still create another agent.
 
 ## Later (not this pass)
 

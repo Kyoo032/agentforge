@@ -16,6 +16,12 @@ export type StoredSecrets = {
   imageGenModel?: string;
   /** Default model id for video_generate (not a secret). */
   videoGenModel?: string;
+  /** Default chat model for Documents jobs. */
+  documentGenModel?: string;
+  /** Default chat model for Research jobs. */
+  researchGenModel?: string;
+  /** Default chat model for Presentation jobs. */
+  presentationGenModel?: string;
   /** Tool keys disabled on this machine (e.g. "image_generate"). */
   disabledTools?: string[];
 };
@@ -35,11 +41,21 @@ export type MaskedSecrets = {
   toolBackends: Record<string, string>;
   imageGenModel?: string;
   videoGenModel?: string;
+  documentGenModel?: string;
+  researchGenModel?: string;
+  presentationGenModel?: string;
   disabledTools: string[];
 };
 
 const KEY_FIELDS = ["openaiApiKey", "googleApiKey", "anthropicApiKey", "volcengineApiKey"] as const;
 const URL_FIELDS = ["openaiBaseUrl", "googleBaseUrl", "anthropicBaseUrl", "volcengineBaseUrl"] as const;
+const MODEL_FIELDS = [
+  "imageGenModel",
+  "videoGenModel",
+  "documentGenModel",
+  "researchGenModel",
+  "presentationGenModel",
+] as const;
 
 export function mergeSecrets(current: StoredSecrets, patch: SecretPatch): StoredSecrets {
   const next: StoredSecrets = { ...current };
@@ -105,20 +121,16 @@ export function mergeSecrets(current: StoredSecrets, patch: SecretPatch): Stored
       delete next.toolBackends;
     }
   }
-  if (typeof patch.imageGenModel === "string") {
-    const trimmed = patch.imageGenModel.trim();
-    if (trimmed.length === 0) {
-      delete next.imageGenModel;
-    } else {
-      next.imageGenModel = trimmed;
+  for (const field of MODEL_FIELDS) {
+    const value = patch[field];
+    if (typeof value !== "string") {
+      continue;
     }
-  }
-  if (typeof patch.videoGenModel === "string") {
-    const trimmed = patch.videoGenModel.trim();
+    const trimmed = value.trim();
     if (trimmed.length === 0) {
-      delete next.videoGenModel;
+      delete next[field];
     } else {
-      next.videoGenModel = trimmed;
+      next[field] = trimmed;
     }
   }
   if (patch.disabledTools !== undefined) {
@@ -143,6 +155,9 @@ export function maskSecrets(current: StoredSecrets): MaskedSecrets {
     toolBackends: current.toolBackends ?? {},
     imageGenModel: current.imageGenModel,
     videoGenModel: current.videoGenModel,
+    documentGenModel: current.documentGenModel,
+    researchGenModel: current.researchGenModel,
+    presentationGenModel: current.presentationGenModel,
     disabledTools: current.disabledTools ?? [],
   };
 }

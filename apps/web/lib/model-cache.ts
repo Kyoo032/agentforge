@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import type { ChatModel, ModelProvider } from "@agentforge/core";
+import { mediaKind, type ChatModel, type ModelProvider } from "@agentforge/core";
 
 export type ModelCache = {
   openai?: ChatModel[];
@@ -77,11 +77,26 @@ export function saveModelCache(cache: ModelCache): ModelCache {
 }
 
 export function probeSummary(cache = loadModelCache()) {
+  const models = [
+    ...(cache.openai ?? []),
+    ...(cache.anthropic ?? []),
+    ...(cache.google ?? []),
+    ...(cache.volcengine ?? []),
+  ];
+  const routed = { chat: 0, image: 0, video: 0, audio: 0, other: 0 };
+  for (const model of models) {
+    routed[mediaKind(model.id)] += 1;
+  }
   return {
     openaiCount: cache.openai?.length ?? 0,
     anthropicCount: cache.anthropic?.length ?? 0,
     googleCount: cache.google?.length ?? 0,
     volcengineCount: cache.volcengine?.length ?? 0,
+    totalCount: models.length,
+    chatCount: routed.chat,
+    imageCount: routed.image,
+    videoCount: routed.video,
+    audioCount: routed.audio,
     openaiError: cache.openaiError,
     anthropicError: cache.anthropicError,
     googleError: cache.googleError,

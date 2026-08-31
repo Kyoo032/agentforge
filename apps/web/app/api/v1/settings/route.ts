@@ -10,7 +10,7 @@ import {
 import { jsonError } from "@/lib/http";
 import { getTenant } from "@/lib/tenant";
 import { loadSettings, saveSettings } from "@/lib/settings-store";
-import { refreshModelCache } from "@/lib/selectable-models";
+import { refreshModelCache, modeCatalogPayload } from "@/lib/selectable-models";
 import { probeSummary } from "@/lib/model-cache";
 
 function readUrl(value: unknown, fallback: "openai" | "anthropic" | "google" | "volcengine"): string | undefined {
@@ -52,6 +52,7 @@ function settingsPayload(settings: ReturnType<typeof loadSettings>) {
       envRuntime: process.env.AGENTFORGE_RUNTIME,
     }),
     probe: probeSummary(),
+    ...modeCatalogPayload(),
     toolCatalog: listToolCapabilities().map((capability) => ({
       id: capability.id,
       label: capability.label,
@@ -93,10 +94,18 @@ export async function POST(request: Request) {
       toolBackends: readStringMap(body.toolBackends),
       imageGenModel: readOptionalString(body.imageGenModel),
       videoGenModel: readOptionalString(body.videoGenModel),
+      documentGenModel: readOptionalString(body.documentGenModel),
+      researchGenModel: readOptionalString(body.researchGenModel),
+      presentationGenModel: readOptionalString(body.presentationGenModel),
       disabledTools: readStringArray(body.disabledTools),
     });
     await refreshModelCache(saved);
-    return NextResponse.json(settingsPayload(saved));
+    const catalog = modeCatalogPayload();
+    return NextResponse.json({
+      ...settingsPayload(saved),
+      modes: catalog.modes,
+      defaults: catalog.defaults,
+    });
   } catch (error) {
     return jsonError(error);
   }

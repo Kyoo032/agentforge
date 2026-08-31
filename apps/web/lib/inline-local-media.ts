@@ -5,7 +5,6 @@ import {
   type ContentPart,
   type TenantContext,
 } from "@agentforge/core";
-import { readMediaDataUrl } from "./media";
 
 /** Local files can be inlined for Ollama; a remote gateway cannot fetch loopback and may reject data URLs. */
 export function shouldInlineLocalMediaForProvider(baseUrl?: string): boolean {
@@ -32,6 +31,7 @@ export async function inlineLocalMediaParts(
       next.push(part);
       continue;
     }
+    const { readMediaDataUrl } = await import("./media");
     const dataUrl = await readMediaDataUrl(tenant, id);
     next.push(
       dataUrl
