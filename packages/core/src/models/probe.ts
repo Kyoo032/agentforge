@@ -140,7 +140,11 @@ function readListedItems(body: unknown): ListedItem[] {
   return Array.isArray(data) ? (data as ListedItem[]) : [];
 }
 
-function modelsFromListedItems(body: unknown, provider: ModelProvider): ChatModel[] {
+function modelsFromListedItems(
+  body: unknown,
+  provider: ModelProvider,
+  options: { chatOnly?: boolean } = {},
+): ChatModel[] {
   const seen = new Set<string>();
   const models: ChatModel[] = [];
   for (const item of readListedItems(body)) {
@@ -149,7 +153,7 @@ function modelsFromListedItems(body: unknown, provider: ModelProvider): ChatMode
       continue;
     }
     const id = rawId.startsWith("models/") ? rawId.slice("models/".length) : rawId;
-    if (!isChatModelId(id)) {
+    if (options.chatOnly && !isChatModelId(id)) {
       continue;
     }
     if (seen.has(id)) {
@@ -220,7 +224,7 @@ export function modelsFromGoogleList(body: unknown): ChatModel[] {
 }
 
 export function modelsFromAnthropicList(body: unknown): ChatModel[] {
-  return modelsFromListedItems(body, "anthropic");
+  return modelsFromListedItems(body, "anthropic", { chatOnly: true });
 }
 
 async function readJson(response: Response): Promise<unknown> {

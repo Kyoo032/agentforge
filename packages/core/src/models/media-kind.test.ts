@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   mediaKind,
+  routeModelsByKind,
   pickPreferredImageModel,
   pickPreferredVideoModel,
   DEFAULT_GATEWAY_IMAGE_MODEL,
@@ -74,5 +75,77 @@ describe("pickPreferredVideoModel", () => {
 
   it("falls back to the kernel default", () => {
     expect(pickPreferredVideoModel([])).toBe(DEFAULT_GATEWAY_VIDEO_MODEL);
+  });
+});
+
+const TOKO_IMAGE_IDS = [
+  "doubao-seedream-4-0-250828",
+  "doubao-seedream-4-5-251128",
+  "doubao-seedream-5-0-260128",
+  "doubao-seedream-5-0-pro-260628",
+  "gemini-2.5-flash-image",
+  "gemini-3-pro-image-preview",
+  "gemini-3.1-flash-image-preview",
+  "gemini-3.1-flash-lite-image",
+  "gpt-image-2",
+  "gpt-image-2-count",
+  "grok-imagine-image-quality",
+  "mj_blend",
+  "mj_imagine",
+  "mj_upscale",
+  "nano-banana-2",
+  "nano-banana-pro",
+  "qwen-image-2.0",
+  "qwen-image-2.0-pro",
+  "qwen-image-edit",
+  "seedream-4.0",
+  "seedream-4.5",
+  "seedream-5.0-pro",
+  "wan2.7-image",
+  "wan2.7-image-pro",
+  "z-image-turbo",
+];
+
+const TOKO_VIDEO_IDS = [
+  "doubao-seedance-2-0-260128",
+  "doubao-seedance-2-0-fast-260128",
+  "doubao-seedance-2-0-mini-260615",
+  "dreamina-seedance-2-0-260128",
+  "dreamina-seedance-2-0-fast-260128",
+  "grok-imagine-video",
+  "grok-imagine-video-1.5-preview",
+  "happyhorse-1.0-video-edit",
+  "happyhorse-1.1-i2v",
+  "happyhorse-1.1-r2v",
+  "happyhorse-1.1-t2v",
+  "mj_video",
+  "omni-fast-v2v",
+  "seedance-1.0-pro",
+  "seedance-1.5-pro",
+  "seedance-2.0",
+  "seedance-2.0-fast",
+  "seedance-2.0-mini",
+  "seedance-2.5",
+  "veo_3_1",
+  "veo_3_1-fast",
+];
+
+describe("routeModelsByKind", () => {
+  it("puts every Toko Token generate id in image or video, including mj_*", () => {
+    const models = [
+      { id: "gpt-5.6-sol" },
+      { id: "whisper-1" },
+      { id: "text-embedding-3-small" },
+      ...TOKO_IMAGE_IDS.map((id) => ({ id })),
+      ...TOKO_VIDEO_IDS.map((id) => ({ id })),
+    ];
+    const routed = routeModelsByKind(models);
+    expect(routed.chat.map((model) => model.id)).toEqual(["gpt-5.6-sol"]);
+    expect(routed.audio.map((model) => model.id)).toEqual(["whisper-1"]);
+    expect(routed.other.map((model) => model.id)).toEqual(["text-embedding-3-small"]);
+    expect(routed.image.map((model) => model.id)).toEqual(TOKO_IMAGE_IDS);
+    expect(routed.video.map((model) => model.id)).toEqual(TOKO_VIDEO_IDS);
+    expect(routed.image.some((model) => model.id === "mj_imagine")).toBe(true);
+    expect(routed.video.some((model) => model.id === "mj_video")).toBe(true);
   });
 });

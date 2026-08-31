@@ -5,6 +5,7 @@ dist
 .env
 .env.local
 data/media
+data/generated
 data/settings.json
 data/settings.enc
 data/settings.enc.unreadable
@@ -17,12 +18,14 @@ data/*.sqlite-shm
 data/*.sqlite-wal
 data/*.db-shm
 data/*.db-wal
-apps/desktop/src-tauri/target
-apps/desktop/src-tauri/gen
+apps/desktop/dist
+apps/desktop/out
 *.log
 coverage
 playwright-report
 test-results
+.cursor/skills/verify-agentforge/evidence/**
+!.cursor/skills/verify-agentforge/evidence/README.md
 .DS_Store
 *.tsbuildinfo
 .claude/

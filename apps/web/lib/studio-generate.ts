@@ -1,7 +1,6 @@
 import { z } from "zod";
 import {
   ApiError,
-  DEFAULT_GATEWAY_VIDEO_MODEL,
   buildToolSecretScope,
   imageGenerateTool,
   listToolRoutes,
@@ -15,8 +14,8 @@ import {
   type TenantContext,
 } from "@agentforge/core";
 import { loadSettings } from "./settings-store";
-import { listSelectableModels } from "./selectable-models";
-import { listMediaByKind, mediaIdFromUrl, saveGeneratedImage, saveGeneratedVideo } from "./media";
+import { listImageModels, listVideoModels } from "./selectable-models";
+import { mediaIdFromUrl } from "./media-id";
 import { getStudioMediaMeta, saveStudioMediaMeta, type StudioMediaMeta } from "./studio-media-meta";
 
 export const imageGenerateBodySchema = z.object({
@@ -54,28 +53,12 @@ export type StudioGenerateResult = {
   model: string;
 };
 
-function skipMj(id: string): boolean {
-  return !id.toLowerCase().startsWith("mj_");
+export function listStudioImageModels(models: ChatModel[] = listImageModels()): ChatModel[] {
+  return models.filter((model) => mediaKind(model.id) === "image");
 }
 
-export function listStudioImageModels(models: ChatModel[] = listSelectableModels()): ChatModel[] {
-  return models.filter((model) => mediaKind(model.id) === "image" && skipMj(model.id));
-}
-
-export function listStudioVideoModels(models: ChatModel[] = listSelectableModels()): ChatModel[] {
-  const listed = models.filter((model) => mediaKind(model.id) === "video" && skipMj(model.id));
-  if (listed.some((model) => model.id === DEFAULT_GATEWAY_VIDEO_MODEL)) {
-    return listed;
-  }
-  return [
-    {
-      id: DEFAULT_GATEWAY_VIDEO_MODEL,
-      label: "Seedance 2.0 Fast",
-      provider: "openai",
-      inputModalities: ["text"],
-    },
-    ...listed,
-  ];
+export function listStudioVideoModels(models: ChatModel[] = listVideoModels()): ChatModel[] {
+  return models.filter((model) => mediaKind(model.id) === "video");
 }
 
 export function defaultStudioImageModel(models: ChatModel[] = listStudioImageModels()): string {
@@ -153,7 +136,7 @@ export async function generateStudioImage(
 ): Promise<StudioGenerateResult> {
   const settings = loadSettings();
   const scope = buildToolSecretScope(settings);
-  const model = body.model || defaultStudioImageModel();
+  const model = body.model || settings.imageGenModel || defaultStudioImageModel();
   const output = await runWithToolSecrets(scope, () =>
     imageGenerateTool.execute(
       {
@@ -169,6 +152,7 @@ export async function generateStudioImage(
   if (!url) {
     throw new ApiError("tool_failed", toolFailureMessage(output, "Image generation failed"), 400);
   }
+  const { saveGeneratedImage } = await import("./media");
   const stored = await saveGeneratedImage(tenant, url);
   const usedModel = toolModel(output, model);
   const id = mediaIdFromUrl(stored);
@@ -198,7 +182,7 @@ export async function generateStudioVideo(
   }
   const settings = loadSettings();
   const scope = buildToolSecretScope(settings);
-  const model = body.model || defaultStudioVideoModel();
+  const model = body.model || settings.videoGenModel || defaultStudioVideoModel();
   const output = await runWithToolSecrets(scope, () =>
     videoGenerateTool.execute(
       {
@@ -215,6 +199,7 @@ export async function generateStudioVideo(
     const message = toolFailureMessage(output, "Video generation failed");
     throw new ApiError("tool_failed", message, studioVideoFailureStatus(message));
   }
+  const { saveGeneratedVideo } = await import("./media");
   const stored = await saveGeneratedVideo(tenant, url);
   const usedModel = toolModel(output, model);
   const id = mediaIdFromUrl(stored);
@@ -235,6 +220,7 @@ export async function listStudioGallery(
   tenant: TenantContext,
   kind: "image" | "video",
 ): Promise<StudioGalleryItem[]> {
+  const { listMediaByKind } = await import("./media");
   const rows = await listMediaByKind(tenant, kind);
   const items: StudioGalleryItem[] = [];
   for (const row of rows) {

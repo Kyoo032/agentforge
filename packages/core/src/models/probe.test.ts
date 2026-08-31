@@ -61,16 +61,27 @@ describe("normalizeProviderBaseUrl", () => {
 });
 
 describe("modelsFromOpenAIList", () => {
-  it("keeps chat ids and drops embeddings", () => {
+  it("keeps generate ids and still drops nothing from the OpenAI-compatible catalog", () => {
     const models = modelsFromOpenAIList({
       data: [
         { id: "gpt-5-mini", name: "GPT-5 mini" },
         { id: "text-embedding-3-large" },
         { id: "openai/gpt-4o" },
         { id: "whisper-1" },
+        { id: "gpt-image-2" },
+        { id: "mj_imagine" },
+        { id: "seedance-2.0-fast" },
       ],
     });
-    expect(models.map((model) => model.id)).toEqual(["gpt-5-mini", "openai/gpt-4o"]);
+    expect(models.map((model) => model.id)).toEqual([
+      "gpt-5-mini",
+      "text-embedding-3-large",
+      "openai/gpt-4o",
+      "whisper-1",
+      "gpt-image-2",
+      "mj_imagine",
+      "seedance-2.0-fast",
+    ]);
     expect(models[0]?.provider).toBe("openai");
   });
 

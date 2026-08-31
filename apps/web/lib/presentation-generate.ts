@@ -8,7 +8,7 @@ import {
   type TenantContext,
 } from "@agentforge/core";
 import { loadSettings } from "./settings-store";
-import { defaultSelectableModel, listSelectableModels } from "./selectable-models";
+import { listSelectableModels, modeCatalogPayload } from "./selectable-models";
 import { parsePresentationOutline, type PresentationOutline } from "./presentation-outline";
 
 const OUTLINE_SYSTEM = `You create presentation outlines for Agentforge.
@@ -111,7 +111,12 @@ export async function generatePresentationOutline(
   }
 
   const catalog = listSelectableModels();
-  const model = resolveChatModel(readOptionalModel(body), defaultSelectableModel(catalog), catalog);
+  const { defaults } = modeCatalogPayload();
+  const model = resolveChatModel(
+    readOptionalModel(body),
+    settings.presentationGenModel || defaults.presentations,
+    catalog,
+  );
   const raw = await collectAssistantText(tenant, model, prompt);
   if (!raw.trim()) {
     throw new ApiError("generation_failed", "Model returned an empty presentation outline", 502);

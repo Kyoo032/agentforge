@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+
+export const maxDuration = 180;
 import { jsonError } from "@/lib/http";
 import { getTenant } from "@/lib/tenant";
 import {

@@ -1,12 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 import { ApiError } from "../../errors";
 import {
+  buildGatewayVideoPayload,
   extractGatewayVideoUrl,
+  formatVideoGatewayFailure,
   generateGatewayImage,
   generateGatewayVideo,
   openaiImageSize,
   parseGatewayImage,
   readGatewayError,
+  studioVideoFailureStatus,
   videoTaskId,
 } from "./gateway-media";
 
@@ -50,10 +53,61 @@ describe("parse helpers", () => {
     ).toBe("No available channel");
   });
 
+  it("treats a prepaid code-only body as prepaid, not a rejected key", () => {
+    const detail = readGatewayError({ code: "prepaid_async_requires_fixed_price", data: null }, "HTTP 403");
+    expect(detail).toBe("prepaid_async_requires_fixed_price");
+    const message = formatVideoGatewayFailure(403, detail);
+    expect(message).not.toMatch(/rejected the API key/i);
+    expect(studioVideoFailureStatus(message)).toBe(400);
+  });
+
   it("maps aspect ratios to OpenAI image sizes", () => {
     expect(openaiImageSize("square")).toBe("1024x1024");
     expect(openaiImageSize("landscape")).toBe("1536x1024");
     expect(openaiImageSize("portrait")).toBe("1024x1536");
+  });
+
+  it("sends Seedance content + duration × 720p, not OpenAI prompt/size", () => {
+    expect(buildGatewayVideoPayload({ model: "seedance-2.0-fast", prompt: "hero", aspectRatio: "16:9" })).toEqual({
+      model: "seedance-2.0-fast",
+      prompt: "hero",
+      content: [{ type: "text", text: "hero" }],
+      duration: 5,
+      resolution: "720p",
+      ratio: "16:9",
+      generate_audio: false,
+      watermark: false,
+    });
+    expect(
+      buildGatewayVideoPayload({
+        model: "seedance-2.0-mini",
+        prompt: "hero",
+        aspectRatio: "9:16",
+        imageUrl: "https://cdn.example/still.png",
+      }),
+    ).toMatchObject({
+      content: [
+        { type: "text", text: "hero" },
+        { type: "image_url", image_url: { url: "https://cdn.example/still.png" }, role: "first_frame" },
+      ],
+      ratio: "9:16",
+    });
+    expect(buildGatewayVideoPayload({ model: "grok-imagine-video", prompt: "rain", aspectRatio: "16:9" })).toMatchObject({
+      prompt: "rain",
+      duration: 5,
+      seconds: "5",
+      size: "1280x720",
+    });
+  });
+
+  it("does not call a prepaid async-price 403 an invalid API key", () => {
+    const message = formatVideoGatewayFailure(
+      403,
+      "代理预付账户的异步任务仅支持发送前可确定上限的固定按次价格",
+    );
+    expect(message).not.toMatch(/rejected the API key/i);
+    expect(message).toMatch(/token-priced|fixed per-call/i);
+    expect(studioVideoFailureStatus(message)).toBe(400);
   });
 });
 
@@ -223,6 +277,7 @@ describe("generateGatewayVideo", () => {
       model: "grok-imagine-video",
       prompt: "rain on a window",
       duration: 5,
+      seconds: "5",
       size: "1280x720",
     });
     expect(fetchMock.mock.calls[1]?.[0]).toBe("https://api.tokotokenai.com/v1/video/generations/abcd");

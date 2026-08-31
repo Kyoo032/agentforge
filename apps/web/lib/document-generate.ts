@@ -8,7 +8,7 @@ import {
   type TenantContext,
 } from "@agentforge/core";
 import { loadSettings } from "./settings-store";
-import { defaultSelectableModel, listSelectableModels } from "./selectable-models";
+import { modeCatalogPayload, listSelectableModels } from "./selectable-models";
 import { parseDocumentDraft, type DocumentDraft } from "./document-outline";
 
 const DOCUMENT_SYSTEM = `You draft professional documents for Agentforge.
@@ -102,7 +102,12 @@ export async function generateDocumentDraft(tenant: TenantContext, body: unknown
   }
 
   const catalog = listSelectableModels();
-  const model = resolveChatModel(readOptionalModel(body), defaultSelectableModel(catalog), catalog);
+  const { defaults } = modeCatalogPayload();
+  const model = resolveChatModel(
+    readOptionalModel(body),
+    settings.documentGenModel || defaults.documents,
+    catalog,
+  );
   const raw = await collectAssistantText(tenant, model, prompt);
   if (!raw.trim()) {
     throw new ApiError("generation_failed", "Model returned an empty document draft", 502);

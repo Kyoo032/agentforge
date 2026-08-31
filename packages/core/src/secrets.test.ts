@@ -60,6 +60,16 @@ describe("mergeSecrets", () => {
     expect(cleared.videoGenModel).toBeUndefined();
   });
 
+  it("stores document/research/presentation job models", () => {
+    const set = mergeSecrets(
+      {},
+      { documentGenModel: "claude-sonnet-5", researchGenModel: "deepseek-v4-pro", presentationGenModel: "gpt-5.6-sol" },
+    );
+    expect(set.documentGenModel).toBe("claude-sonnet-5");
+    expect(set.researchGenModel).toBe("deepseek-v4-pro");
+    expect(set.presentationGenModel).toBe("gpt-5.6-sol");
+  });
+
   it("replaces disabledTools when the patch includes the array", () => {
     const set = mergeSecrets({}, { disabledTools: ["image_generate", "web_search"] });
     expect(set.disabledTools).toEqual(["image_generate", "web_search"]);
@@ -91,6 +101,9 @@ describe("maskSecrets", () => {
       toolBackends: {},
       imageGenModel: undefined,
       videoGenModel: undefined,
+      documentGenModel: undefined,
+      researchGenModel: undefined,
+      presentationGenModel: undefined,
       disabledTools: [],
     });
   });
@@ -106,10 +119,12 @@ describe("maskSecrets", () => {
     const masked = maskSecrets({
       imageGenModel: "gpt-image-2",
       videoGenModel: "grok-imagine-video",
+      documentGenModel: "claude-sonnet-5",
       disabledTools: ["calculator"],
     });
     expect(masked.imageGenModel).toBe("gpt-image-2");
     expect(masked.videoGenModel).toBe("grok-imagine-video");
+    expect(masked.documentGenModel).toBe("claude-sonnet-5");
     expect(masked.disabledTools).toEqual(["calculator"]);
   });
 });

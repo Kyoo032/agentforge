@@ -3,29 +3,38 @@ import {
   DEFAULT_OPENAI_BASE_URL,
   chooseDefaultModel,
   detectCompatibleApi,
+  mediaKind,
   mergeChatCatalog,
   probeAnthropicModels,
   probeGoogleModels,
   probeVolcengineModels,
   redactSecrets,
+  resolveModeDefaults,
+  routeModelsByKind,
   withContextLengths,
   type ChatModel,
+  type ModeModelDefaults,
   type ModelProvider,
+  type RoutedModels,
   type StoredSecrets,
 } from "@agentforge/core";
 import { loadModelCache, saveModelCache, type ModelCache } from "./model-cache";
 import { loadModelsDevRegistry, refreshModelsDevRegistry } from "./models-dev-cache";
 
-function liveModelIds(cache: ModelCache): string[] {
-  return [
+function liveModelIds(cache: ModelCache, kind?: "chat"): string[] {
+  const ids = [
     ...(cache.openai ?? []),
     ...(cache.anthropic ?? []),
     ...(cache.google ?? []),
     ...(cache.volcengine ?? []),
   ].map((model) => model.id);
+  if (kind === "chat") {
+    return ids.filter((id) => mediaKind(id) === "chat");
+  }
+  return ids;
 }
 
-export function listSelectableModels(): ChatModel[] {
+export function listCatalogModels(): ChatModel[] {
   const cache = loadModelCache();
   return withContextLengths(
     mergeChatCatalog({
@@ -38,8 +47,50 @@ export function listSelectableModels(): ChatModel[] {
   );
 }
 
+export function listRoutedModels(models: ChatModel[] = listCatalogModels()): RoutedModels<ChatModel> {
+  return routeModelsByKind(models);
+}
+
+export function listSelectableModels(): ChatModel[] {
+  return listRoutedModels().chat;
+}
+
+export function listImageModels(): ChatModel[] {
+  return listRoutedModels().image;
+}
+
+export function listVideoModels(): ChatModel[] {
+  return listRoutedModels().video;
+}
+
 export function defaultSelectableModel(models: ChatModel[] = listSelectableModels()): string {
-  return chooseDefaultModel(models, liveModelIds(loadModelCache()), DEFAULT_CHAT_MODEL);
+  return chooseDefaultModel(models, liveModelIds(loadModelCache(), "chat"), DEFAULT_CHAT_MODEL);
+}
+
+export function modeCatalogPayload(models: ChatModel[] = listCatalogModels()): {
+  modes: RoutedModels<ChatModel> & {
+    documents: ChatModel[];
+    research: ChatModel[];
+    presentations: ChatModel[];
+  };
+  defaults: ModeModelDefaults;
+} {
+  const routed = routeModelsByKind(models);
+  const chatDefault = defaultSelectableModel(routed.chat);
+  return {
+    modes: {
+      ...routed,
+      documents: routed.chat,
+      research: routed.chat,
+      presentations: routed.chat,
+    },
+    defaults: resolveModeDefaults({
+      chatIds: routed.chat.map((model) => model.id),
+      imageIds: routed.image.map((model) => model.id),
+      videoIds: routed.video.map((model) => model.id),
+      chatDefault,
+    }),
+  };
 }
 
 function putModels(next: ModelCache, dialect: ModelProvider, models: ChatModel[], now: string): void {
@@ -113,7 +164,9 @@ export async function refreshModelCache(settings: StoredSecrets): Promise<ModelC
         now,
       );
     } catch (error) {
-      next.googleError = redactSecrets(error instanceof Error ? error.message : "Could not list Gemini models");
+      next.googleError = redactSecrets(
+        error instanceof Error ? error.message : "Could not list Gemini models",
+      );
     }
   }
 

@@ -213,7 +213,17 @@ export function VideosStudio() {
             {items.map((item) => (
               <li key={item.id} className="overflow-hidden rounded-xl border border-mist bg-paper">
                 <video src={item.url} controls className="aspect-video w-full bg-black object-contain" />
-                {item.prompt ? <p className="truncate px-3 py-2 text-xs text-ink/60">{item.prompt}</p> : null}
+                <div className="flex items-center justify-between gap-2 px-3 py-2">
+                  {item.prompt ? <p className="min-w-0 truncate text-xs text-ink/60">{item.prompt}</p> : <span />}
+                  <a
+                    href={item.url}
+                    download={`agentforge-video-${item.id}.mp4`}
+                    className="shrink-0 text-xs underline text-ink/70"
+                    data-testid="videos-studio-download"
+                  >
+                    Download
+                  </a>
+                </div>
               </li>
             ))}
           </ul>

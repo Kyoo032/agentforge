@@ -5,7 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { db, media } from "@agentforge/db";
 import { jsonError } from "@/lib/http";
 import { getTenant } from "@/lib/tenant";
-import { mediaRoot } from "@/lib/media";
+import { mediaRoot } from "@/lib/media-root";
 
 type RouteContext = { params: Promise<{ mediaId: string }> };
 
