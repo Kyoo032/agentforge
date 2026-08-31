@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./gateway": "./src/gateway.ts",
+    "./media-kind": "./src/models/media-kind.ts",
     "./preferred": "./src/models/preferred.ts",
     "./product-modes": "./src/agents/product-modes.ts"
   },
