@@ -62,6 +62,7 @@ export default function SettingsPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [extrasOpen, setExtrasOpen] = useState(false);
 
   function applyPayload(payload: {
     hasOpenai?: boolean;
@@ -279,10 +280,14 @@ export default function SettingsPage() {
           {!hasOpenai && !hasGoogle && !hasAnthropic && !hasVolcengine ? " · no keys yet" : ""}
         </p>
 
-        <details className="rounded-xl border border-mist bg-paper">
+        <details
+          className="rounded-xl border border-mist bg-paper"
+          onToggle={(event) => setExtrasOpen(event.currentTarget.open)}
+        >
           <summary className="cursor-pointer list-none px-5 py-4 font-medium text-ink marker:content-none [&::-webkit-details-marker]:hidden">
             Extras
           </summary>
+          {extrasOpen ? (
           <div className="space-y-6 border-t border-mist px-5 py-5">
             <p className="text-xs text-ink/50">
               Other providers are optional. Use them only if you want native Anthropic, Google, or Volcengine instead of
@@ -497,6 +502,7 @@ export default function SettingsPage() {
               ))}
             </fieldset>
           </div>
+          ) : null}
         </details>
       </form>
     </main>
