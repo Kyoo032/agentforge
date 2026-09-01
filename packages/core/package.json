@@ -8,6 +8,9 @@
     "./gateway": "./src/gateway.ts",
     "./media-kind": "./src/models/media-kind.ts",
     "./preferred": "./src/models/preferred.ts",
+    "./curation": "./src/models/curation.ts",
+    "./templates": "./src/templates/library.ts",
+    "./pii": "./src/security/pii.ts",
     "./product-modes": "./src/agents/product-modes.ts"
   },
   "scripts": {
