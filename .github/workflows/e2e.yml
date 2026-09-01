@@ -24,8 +24,6 @@ jobs:
           cache: pnpm
       - name: Install
         run: pnpm install --frozen-lockfile
-      - name: Push schema
-        run: pnpm --filter "@agentforge/db" exec drizzle-kit push --force
       - name: Install Chromium
         run: pnpm --filter "@agentforge/web" exec playwright install --with-deps chromium
       - name: Playwright

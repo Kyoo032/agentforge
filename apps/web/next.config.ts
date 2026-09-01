@@ -5,7 +5,16 @@ import { fileURLToPath } from "node:url";
 const configDir = path.dirname(fileURLToPath(import.meta.url));
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   outputFileTracingRoot: path.join(configDir, "../.."),
+  outputFileTracingIncludes: {
+    "/*": [
+      "../../packages/db/drizzle/**",
+      // Next require-hook resolves styled-jsx next to `next`; pnpm standalone
+      // otherwise leaves it only under node_modules/.pnpm and the installer dies.
+      "../../node_modules/styled-jsx/**",
+    ],
+  },
   transpilePackages: [
     "@agentforge/core",
     "@agentforge/db",

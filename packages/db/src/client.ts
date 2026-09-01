@@ -3,6 +3,7 @@ import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
+import { ensureSchema } from "./ensure-schema";
 import * as schema from "./schema";
 import { sqliteFilePath } from "./vault-key";
 
@@ -25,6 +26,7 @@ if (process.env.NODE_ENV !== "production") {
 
 sql.pragma("journal_mode = WAL");
 sql.pragma("foreign_keys = ON");
+ensureSchema(sql);
 
 export const db = drizzle(sql, { schema });
 export type Database = typeof db;

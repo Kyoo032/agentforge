@@ -1,13 +1,31 @@
 ---
 name: verify-agentforge
-description: Drives Agentforge the way a user does — Next.js on 127.0.0.1:3000, data-testid handles, stub runtime, SQLite in the data dir. Launch, doctor, walk Chat/Settings/Build/Images/Videos, keep evidence. Use after UI or product-mode work, when refusing done from a compile, or before claiming a studio/settings/chat change works.
+description: Drives Agentforge the way a user does — webdev Next on 127.0.0.1:3000, packaged Electron on an ephemeral loopback port, data-testid handles, stub runtime, SQLite in the data dir. Launch, doctor, walk Chat/Settings/Build/Images/Videos, keep evidence. Use after UI or product-mode work, when refusing done from a compile, or before claiming a studio/settings/chat change works.
 ---
 
 # Verify Agentforge
 
+Agent guardrail, same class as `AGENTS.md`. Not part of the Agentforge app.
+
+- **Product** is `apps/`, `packages/`, the NSIS installer, Chat / Settings / Build.
+- **This directory** is how agents map and prove *this* repo (where to press, how to doctor, what counts as proof).
+- Original pstack skills stay in the Cursor pstack plugin. Call them. Do not copy them into product code or the desktop bundle.
+- **Map:** this `features/` map, then pstack `how` for how a subsystem works and where to fix.
+- **Verify:** Launch / Doctor / Drive below (from pstack `create-verification-skill`). Map rot → pstack `/maintain-verification-skill` (edits only this directory).
+- Keep Cursor explore/worker Task models. Do not adopt pstack Fable/GPT slugs.
+
 A cold agent reads this mid-task. Drive the real app. A green `tsc` or worker summary is not proof.
 
-**Surfaces.** Primary: Next.js web app (`apps/web`) at `http://127.0.0.1:3000`. Secondary: Electron desktop (`pnpm desktop:dev`) — starts Next when `:3000` is empty, wrap key via keytar, data in OS userData. APIs exist under `/api/v1/*` but proof is the user path, not an internal setter.
+**Surfaces.** Two products share UI code; they do **not** share a port.
+
+| Surface | How to reach it | Doctor | Port |
+|---|---|---|---|
+| **Webdev prototype** | `pnpm dev` → Chrome / IDE browser | `node .cursor/skills/verify-agentforge/scripts/doctor.mjs` | **3000 only** (`next dev --hostname 127.0.0.1 --port 3000`) |
+| **Packaged desktop** | Installed Agentforge / NSIS | `node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop` | Ephemeral loopback, **never 3000**. URL in `%APPDATA%\Agentforge\app-url.txt` |
+
+`pnpm desktop:dev` is the webdev prototype inside an Electron window (may reuse :3000). That is not packaged proof. APIs exist under `/api/v1/*` but proof is the user path, not an internal setter.
+
+Do **not** use Hermes CLI, Hermes dashboard session tokens, or Hermes `hermes:api`. Agentforge key handling is in **Keys** below.
 
 **Who runs which harness**
 
@@ -24,9 +42,11 @@ Read [features/README.md](features/README.md) before driving. The map is the sou
 
 ## Launch
 
-Ready signal: `GET http://127.0.0.1:3000/chat` returns 200, or the turbo line `@agentforge/web:dev:` is serving. Bind is `127.0.0.1:3000` only (`apps/web` script `next dev --hostname 127.0.0.1 --port 3000`). Drive `127.0.0.1`, not a LAN IP. `localhost` usually works but is not what Playwright and the Next bind use.
+Ready signal (webdev): `GET http://127.0.0.1:3000/chat` returns 200, or the turbo line `@agentforge/web:dev:` is serving. Bind is `127.0.0.1:3000` only (`apps/web` script `next dev --hostname 127.0.0.1 --port 3000`). Drive `127.0.0.1`, not a LAN IP. `localhost` usually works but is not what Playwright and the Next bind use.
 
-**If port 3000 already answers** — doctor that instance. Do not start a second Next process. Port 3000 is exclusive.
+Ready signal (packaged desktop): Electron window on Chat, and `doctor.mjs --desktop` exits 0 against the URL in `app-url.txt`. **Not** :3000.
+
+**If port 3000 already answers** — that is the **webdev** instance. Doctor that instance for Chat/Settings in the browser. Do not start a second `pnpm dev`. Do not call that the installed app.
 
 **If nothing is listening** (fresh Cloud VM or a stopped local checkout):
 
@@ -35,13 +55,14 @@ Ready signal: `GET http://127.0.0.1:3000/chat` returns 200, or the turbo line `@
 unset DATABASE_URL
 export AGENTFORGE_RUNTIME=stub
 export AGENTFORGE_DATA_DIR="${AGENTFORGE_DATA_DIR:-$PWD/data}"
-pnpm db:push
+# optional; Next migrates on open
+# pnpm db:push
 pnpm dev
 ```
 
 SQLite file: `$AGENTFORGE_DATA_DIR/agentforge.sqlite` (default `data/agentforge.sqlite`). First visit creates the local owner. Optional `pnpm db:seed` is not required for Chat.
 
-**Cloud boot** already runs `scripts/cloud-start.sh` (`mkdir data`, unset `DATABASE_URL`, `pnpm db:push`). Then `pnpm dev`. Playwright `webServer` in `apps/web/playwright.config.ts` starts `pnpm dev` with `AGENTFORGE_RUNTIME=stub` and `AGENTFORGE_DATA_DIR` resolved to repo `data/`. `reuseExistingServer` is on unless `CI`.
+**Cloud boot** already runs `scripts/cloud-start.sh` (data-dir prep only: `mkdir data`, unset `DATABASE_URL`). Then `pnpm dev`. Playwright `webServer` in `apps/web/playwright.config.ts` starts `pnpm dev` with `AGENTFORGE_RUNTIME=stub` and `AGENTFORGE_DATA_DIR` resolved to repo `data/`. `reuseExistingServer` is on unless `CI`.
 
 **Stub vs live.** `AGENTFORGE_RUNTIME=stub` until a gateway (or other provider) key is saved. A saved key makes `GET /api/v1/settings` report `runtime: "ai"`. Cloud and GHA force stub and have no key. This Windows machine may already be live — doctor first.
 
@@ -52,19 +73,40 @@ SQLite file: `$AGENTFORGE_DATA_DIR/agentforge.sqlite` (default `data/agentforge.
 Run this first whenever anything looks off, and before every drive:
 
 ```bash
+# webdev prototype
 node .cursor/skills/verify-agentforge/scripts/doctor.mjs
+
+# packaged desktop (reads %APPDATA%/Agentforge/app-url.txt)
+node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop
 ```
 
-It is read-only. It GETs `/chat` and `/api/v1/settings` on `http://127.0.0.1:3000` (override with `AGENTFORGE_VERIFY_URL`, still must be loopback). Exit `0` prints JSON: `url`, `chatStatus`, `runtime`, `hasOpenai`, `dataDir`. Exit `1` means do not drive.
+It is read-only. Default GETs `/chat` and `/api/v1/settings` on `http://127.0.0.1:3000`. `--desktop` uses the packaged URL (override either with `AGENTFORGE_VERIFY_URL`, still must be loopback). Exit `0` prints JSON: `url`, `surface`, `chatStatus`, `runtime`, `hasOpenai`, `dataDir`. Exit `1` means do not drive.
 
 Refuse to drive when:
 
 - The URL is not loopback
 - `/chat` does not connect or returns 4xx/5xx
 - Settings JSON is missing
-- You were about to start a second process on :3000
+- You were about to start a second process on :3000 (webdev)
+- You were about to treat :3000 as the packaged desktop app
+- `--desktop` reports port 3000
 
 `runtime: "stub"` — Chat send is a local stub reply. `runtime: "ai"` — Chat send and studio generate hit the live gateway. Do not call that stub proof. Do not paste or save keys during verification.
+
+## Keys (Agentforge only — do not use Hermes tools)
+
+The verify harness is this skill + `doctor.mjs`. Do not call Hermes CLI, mint Hermes dashboard session tokens, or talk to `hermes:api`.
+
+How each Agentforge secret is processed:
+
+| Secret | Entered | After save | Unlocks |
+|---|---|---|---|
+| Gateway key (`openai-key`) | Settings | Host process writes AES-256-GCM `settings.enc`. GET `/api/v1/settings` returns `hasOpenai: true`, never the raw key. Input shows “Saved — paste to replace”. | Chat + image/video on Toko Token (`/v1/chat/completions`, `/v1/images/generations`, `/v1/video/generations`) |
+| Wrap key | Never in UI | Electron: Windows Credential Manager `Agentforge` / `wrap-key` (keytar) injected as `AGENTFORGE_SECRETS_KEY` into the child. Webdev: gitignored `data/.master-key` or env `AGENTFORGE_SECRETS_KEY`. | Decrypts `settings.enc` |
+| Native extras (Google, Anthropic, Ark/Volcengine) | Settings → Extras (collapsed until opened) | Same `settings.enc`; UI booleans `hasGoogle` / `hasAnthropic` / `hasVolcengine` only | Optional non-gateway providers |
+| Tool keys (Tavily, Brave, FAL, …) | Settings → Extras | Same file, `hasToolKeys` map | Search / FAL generate |
+
+Do not type into `openai-key` on the operator’s desk unless they asked. Cloud/GHA have no gateway key — stub only.
 
 ## Drive
 
@@ -135,8 +177,8 @@ Standards:
 
 ## Helpers
 
-`scripts/doctor.mjs` is the only helper. Invoke it as shown under Doctor. Do not reverse-engineer it — it prints the fields you need.
+`scripts/doctor.mjs` is the only helper. Webdev: no args. Packaged: `--desktop`. Do not reverse-engineer it — it prints the fields you need.
 
 ## Isolate
 
-Two product instances cannot share port 3000. Playwright's data dir is the same repo `data/` as the Windows prototype. Isolation for E2E is the Cloud/GHA VM, not a second local port. Do not double-drive the operator's live window while Cloud Playwright is also pointed at this checkout. If you need a disposable tree, set `AGENTFORGE_DATA_DIR` to a new directory, `pnpm db:push` there, and optionally `AGENTFORGE_SETTINGS_PATH` so you do not touch the operator's `data/settings.enc`.
+Two **webdev** instances cannot share port 3000. The packaged app uses a different loopback port and a different data dir (`%APPDATA%\Agentforge`), so it can run while `pnpm dev` is up. Playwright’s data dir is the same repo `data/` as the Windows webdev prototype. Isolation for E2E is the Cloud/GHA VM, not a second local port. Do not double-drive the operator’s live window while Cloud Playwright is also pointed at this checkout. If you need a disposable tree, set `AGENTFORGE_DATA_DIR` to a new directory (optional `pnpm db:push`; Next migrates on open), and optionally `AGENTFORGE_SETTINGS_PATH` so you do not touch the operator’s `data/settings.enc`.

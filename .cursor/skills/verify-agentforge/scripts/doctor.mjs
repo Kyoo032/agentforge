@@ -1,9 +1,65 @@
 #!/usr/bin/env node
 /**
  * Read-only: is this Agentforge instance worth driving?
- * Usage: node .cursor/skills/verify-agentforge/scripts/doctor.mjs
+ * Usage:
+ *   node .cursor/skills/verify-agentforge/scripts/doctor.mjs
+ *       → webdev prototype at http://127.0.0.1:3000
+ *   node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop
+ *       → packaged app URL from %APPDATA%/Agentforge/app-url.txt
+ *   AGENTFORGE_VERIFY_URL=http://127.0.0.1:PORT node …/doctor.mjs
+ *       → explicit loopback (overrides both)
  */
-const BASE = (process.env.AGENTFORGE_VERIFY_URL || "http://127.0.0.1:3000").replace(/\/$/, "");
+import { readFileSync, existsSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+
+const WEBDEV_URL = "http://127.0.0.1:3000";
+const desktopFlag = process.argv.includes("--desktop");
+
+function desktopAppUrlCandidates() {
+  if (process.platform === "win32") {
+    const roaming = process.env.APPDATA?.trim();
+    if (roaming) {
+      return [
+        join(roaming, "Agentforge", "app-url.txt"),
+        // Pre-setName installs used the scoped npm package folder.
+        join(roaming, "@agentforge", "desktop", "app-url.txt"),
+      ];
+    }
+  }
+  return [join(homedir(), ".config", "Agentforge", "app-url.txt")];
+}
+
+function desktopAppUrlPath() {
+  const candidates = desktopAppUrlCandidates();
+  for (const file of candidates) {
+    if (existsSync(file)) {
+      return file;
+    }
+  }
+  return candidates[0];
+}
+
+function resolveBase() {
+  const fromEnv = process.env.AGENTFORGE_VERIFY_URL?.trim();
+  if (fromEnv) {
+    return fromEnv.replace(/\/$/, "");
+  }
+  if (desktopFlag) {
+    const file = desktopAppUrlPath();
+    if (!existsSync(file)) {
+      fail(
+        `packaged app-url.txt missing at ${file}. Launch the installed Agentforge once, or set AGENTFORGE_VERIFY_URL. Do not doctor :3000 as the desktop app — that is webdev only.`,
+      );
+    }
+    const text = readFileSync(file, "utf8").trim();
+    if (!text) {
+      fail(`app-url.txt at ${file} is empty`);
+    }
+    return text.replace(/\/$/, "");
+  }
+  return WEBDEV_URL;
+}
 
 function fail(message, extra) {
   console.error(`verify-agentforge doctor: FAIL — ${message}`);
@@ -21,6 +77,20 @@ function hostnameOf(url) {
   }
 }
 
+function portOf(url) {
+  try {
+    const parsed = new URL(url);
+    if (parsed.port) {
+      return Number(parsed.port);
+    }
+    return parsed.protocol === "https:" ? 443 : 80;
+  } catch {
+    return NaN;
+  }
+}
+
+const BASE = resolveBase();
+
 async function get(path) {
   const url = `${BASE}${path}`;
   const started = Date.now();
@@ -31,7 +101,13 @@ async function get(path) {
 
 const host = hostnameOf(BASE);
 if (host !== "127.0.0.1" && host !== "localhost") {
-  fail(`refusing non-loopback URL ${BASE}. Bind and drive http://127.0.0.1:3000 only.`);
+  fail(`refusing non-loopback URL ${BASE}. Drive loopback only.`);
+}
+
+if (desktopFlag && portOf(BASE) === 3000) {
+  fail(
+    `${BASE} is the webdev prototype port. Packaged Agentforge must not bind 3000. Check app-url.txt after launching the installed app.`,
+  );
 }
 
 let chat;
@@ -39,7 +115,12 @@ let settings;
 try {
   chat = await get("/chat");
 } catch (error) {
-  fail(`GET ${BASE}/chat did not connect. Start the app or reuse the existing 127.0.0.1:3000 process.`, String(error));
+  fail(
+    desktopFlag
+      ? `GET ${BASE}/chat did not connect. Launch the installed Agentforge (not pnpm dev).`
+      : `GET ${BASE}/chat did not connect. Start \`pnpm dev\` (webdev prototype on :3000).`,
+    String(error),
+  );
 }
 
 if (chat.status < 200 || chat.status >= 400) {
@@ -68,11 +149,14 @@ const hasOpenai = Boolean(payload.hasOpenai);
 const report = {
   ok: true,
   url: BASE,
+  surface: desktopFlag ? "desktop" : "webdev",
   chatStatus: chat.status,
   runtime,
   hasOpenai,
-  dataDir: process.env.AGENTFORGE_DATA_DIR || "unset (product default: <repo>/data)",
-  sqliteHint: "data/agentforge.sqlite under AGENTFORGE_DATA_DIR or repo data/",
+  dataDir: process.env.AGENTFORGE_DATA_DIR || "unset (webdev default: <repo>/data; packaged: Electron userData)",
+  sqliteHint: desktopFlag
+    ? "%APPDATA%/Agentforge/agentforge.sqlite"
+    : "data/agentforge.sqlite under AGENTFORGE_DATA_DIR or repo data/",
 };
 
 console.log(JSON.stringify(report, null, 2));
