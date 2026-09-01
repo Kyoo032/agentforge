@@ -67,7 +67,7 @@ If a preferred id is missing, the mode falls back to Chat’s default (or the ke
 - Image aspects in tool: square / landscape / portrait  
 - Video aspects planned for studios: 16:9 / 9:16 / 1:1 (align with tool / catalog when implementing pages)
 
-Gateway video POST body (Toko `POST /v1/video/generations`): Seedance-class ids send both OpenAI `prompt` (Toko returns `prompt is required` without it) and native `content: [{ type: "text", text }]` plus `duration`, `resolution: "720p"`, `ratio`, and `generate_audio: false`. Do not send OpenAI pixel `size` for Seedance. Pixel `prompt`/`size` stays for ids like `grok-imagine-video`. Live Toko pricing for Seedance is `tiered_expr` on completion tokens (`model_price: 0`); prepaid proxy keys return `prepaid_async_requires_fixed_price` even with wallet balance — that is an account/pricing mode, not a missing request field.
+Gateway video POST body (Toko `POST /v1/video/generations`): Seedance-class ids send both OpenAI `prompt` (Toko returns `prompt is required` without it) and native `content: [{ type: "text", text }]` plus `duration`, `resolution: "720p"`, `ratio`, and `generate_audio: false`. Do not send OpenAI pixel `size` — Toko rejects it (`json: unknown field "size"`) for grok-imagine-video as well. Non-Seedance ids send `prompt`, `duration`, `seconds`, and `ratio`. Live Toko pricing for Seedance is `tiered_expr` on completion tokens (`model_price: 0`); prepaid proxy keys return `prepaid_async_requires_fixed_price` even with wallet balance — that is an account/pricing mode, not a missing request field.
 
 ### Live video channels (2026-08-29)
 

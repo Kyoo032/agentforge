@@ -96,8 +96,9 @@ describe("parse helpers", () => {
       prompt: "rain",
       duration: 5,
       seconds: "5",
-      size: "1280x720",
+      ratio: "16:9",
     });
+    expect(buildGatewayVideoPayload({ model: "grok-imagine-video", prompt: "rain" })).not.toHaveProperty("size");
   });
 
   it("does not call a prepaid async-price 403 an invalid API key", () => {
@@ -278,8 +279,9 @@ describe("generateGatewayVideo", () => {
       prompt: "rain on a window",
       duration: 5,
       seconds: "5",
-      size: "1280x720",
+      ratio: "16:9",
     });
+    expect(JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body))).not.toHaveProperty("size");
     expect(fetchMock.mock.calls[1]?.[0]).toBe("https://api.tokotokenai.com/v1/video/generations/abcd");
     expect(result).toEqual({ url: "https://cdn.example/clip.mp4", model: "grok-imagine-video" });
   });
