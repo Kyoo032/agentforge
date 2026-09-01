@@ -1,6 +1,7 @@
 import {
   DEFAULT_CHAT_MODEL,
   DEFAULT_OPENAI_BASE_URL,
+  applyCuration,
   chooseDefaultModel,
   detectCompatibleApi,
   mediaKind,
@@ -13,6 +14,7 @@ import {
   routeModelsByKind,
   withContextLengths,
   type ChatModel,
+  type CuratedModelMeta,
   type ModeModelDefaults,
   type ModelProvider,
   type RoutedModels,
@@ -20,6 +22,9 @@ import {
 } from "@agentforge/core";
 import { loadModelCache, saveModelCache, type ModelCache } from "./model-cache";
 import { loadModelsDevRegistry, refreshModelsDevRegistry } from "./models-dev-cache";
+
+/** Catalog model with picker curation fields for API payloads. */
+export type SelectableModel = ChatModel & CuratedModelMeta;
 
 function liveModelIds(cache: ModelCache, kind?: "chat"): string[] {
   const ids = [
@@ -51,8 +56,8 @@ export function listRoutedModels(models: ChatModel[] = listCatalogModels()): Rou
   return routeModelsByKind(models);
 }
 
-export function listSelectableModels(): ChatModel[] {
-  return listRoutedModels().chat;
+export function listSelectableModels(): SelectableModel[] {
+  return applyCuration(listRoutedModels().chat);
 }
 
 export function listImageModels(): ChatModel[] {
@@ -63,31 +68,42 @@ export function listVideoModels(): ChatModel[] {
   return listRoutedModels().video;
 }
 
-export function defaultSelectableModel(models: ChatModel[] = listSelectableModels()): string {
+export function defaultSelectableModel(models: Array<{ id: string }> = listSelectableModels()): string {
   return chooseDefaultModel(models, liveModelIds(loadModelCache(), "chat"), DEFAULT_CHAT_MODEL);
 }
 
+function curateRouted(routed: RoutedModels<ChatModel>): RoutedModels<SelectableModel> {
+  return {
+    chat: applyCuration(routed.chat),
+    image: applyCuration(routed.image),
+    video: applyCuration(routed.video),
+    audio: applyCuration(routed.audio),
+    other: applyCuration(routed.other),
+  };
+}
+
 export function modeCatalogPayload(models: ChatModel[] = listCatalogModels()): {
-  modes: RoutedModels<ChatModel> & {
-    documents: ChatModel[];
-    research: ChatModel[];
-    presentations: ChatModel[];
+  modes: RoutedModels<SelectableModel> & {
+    documents: SelectableModel[];
+    research: SelectableModel[];
+    presentations: SelectableModel[];
   };
   defaults: ModeModelDefaults;
 } {
   const routed = routeModelsByKind(models);
-  const chatDefault = defaultSelectableModel(routed.chat);
+  const curated = curateRouted(routed);
+  const chatDefault = defaultSelectableModel(curated.chat);
   return {
     modes: {
-      ...routed,
-      documents: routed.chat,
-      research: routed.chat,
-      presentations: routed.chat,
+      ...curated,
+      documents: curated.chat,
+      research: curated.chat,
+      presentations: curated.chat,
     },
     defaults: resolveModeDefaults({
-      chatIds: routed.chat.map((model) => model.id),
-      imageIds: routed.image.map((model) => model.id),
-      videoIds: routed.video.map((model) => model.id),
+      chatIds: curated.chat.map((model) => model.id),
+      imageIds: curated.image.map((model) => model.id),
+      videoIds: curated.video.map((model) => model.id),
       chatDefault,
     }),
   };

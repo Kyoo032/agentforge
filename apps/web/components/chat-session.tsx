@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChatComposer } from "@/components/chat-composer";
+import { ChatUsageChip } from "@/components/chat-usage-chip";
 import { isRenderableImageUrl, isRenderableVideoUrl } from "@/lib/composer-attach";
 import { showsToolActivity, toolActivityLabel } from "@/lib/tool-labels";
 import { collectToolMediaParts } from "@/lib/tool-media";
@@ -199,6 +200,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           ) : null}
         </div>
         <div className="flex items-center gap-3">
+          <ChatUsageChip />
           {agentIdReady ? (
             <button
               type="button"

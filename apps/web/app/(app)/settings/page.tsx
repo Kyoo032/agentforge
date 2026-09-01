@@ -22,7 +22,7 @@ type Probe = {
   detectedDialect?: string;
 };
 
-type CatalogModel = { id: string; label?: string };
+type CatalogModel = { id: string; label?: string; friendlyLabel?: string };
 type ModeLists = {
   chat?: CatalogModel[];
   documents?: CatalogModel[];
@@ -55,6 +55,7 @@ const TOGGLEABLE_TOOLS = [
 const fieldClass = "mt-1 w-full rounded-md border border-mist bg-paper px-3 py-2 text-ink";
 
 export default function SettingsPage() {
+  const [tab, setTab] = useState<"simple" | "advanced">("simple");
   const [hasOpenai, setHasOpenai] = useState(false);
   const [hasGoogle, setHasGoogle] = useState(false);
   const [hasAnthropic, setHasAnthropic] = useState(false);
@@ -270,14 +271,30 @@ export default function SettingsPage() {
     setMessage(summarizeProbe(refreshed.probe));
   }
 
+  const documentModels = modes.documents ?? modes.chat;
+  const researchModels = modes.research ?? modes.chat;
+  const presentationModels = modes.presentations ?? modes.chat;
   const imageModelOptions = optionIds(modes.image, imageGenModel, defaults.image || DEFAULT_GATEWAY_IMAGE_MODEL);
   const videoModelOptions = optionIds(modes.video, videoGenModel, defaults.video || DEFAULT_GATEWAY_VIDEO_MODEL);
-  const documentOptions = optionIds(modes.documents ?? modes.chat, documentGenModel, defaults.documents || "");
-  const researchOptions = optionIds(modes.research ?? modes.chat, researchGenModel, defaults.research || "");
-  const presentationOptions = optionIds(
-    modes.presentations ?? modes.chat,
-    presentationGenModel,
-    defaults.presentations || "",
+  const documentOptions = optionIds(documentModels, documentGenModel, defaults.documents || "");
+  const researchOptions = optionIds(researchModels, researchGenModel, defaults.research || "");
+  const presentationOptions = optionIds(presentationModels, presentationGenModel, defaults.presentations || "");
+
+  const tabBtn = (id: "simple" | "advanced", label: string) => (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={tab === id}
+      data-testid={`settings-tab-${id}`}
+      className={
+        tab === id
+          ? "rounded-md bg-navy px-4 py-2 text-sm font-medium text-white"
+          : "rounded-md border border-mist bg-paper px-4 py-2 text-sm font-medium text-ink/60 hover:text-ink"
+      }
+      onClick={() => setTab(id)}
+    >
+      {label}
+    </button>
   );
 
   return (
@@ -296,347 +313,396 @@ export default function SettingsPage() {
         </Link>
       </p>
 
-      <form onSubmit={(event) => void onSubmit(event)} className="mt-8 space-y-6" data-testid="settings-form">
-        <section className="space-y-4 rounded-xl border border-mist bg-paper p-5">
-          <div>
-            <h2 className="font-medium text-ink">{GATEWAY_NAME} gateway</h2>
-            <p className="mt-1 text-xs text-ink/50">
-              Home path is {GATEWAY_BASE_URL}. Change the URL only if you are pointing at another OpenAI-compatible
-              host.
-            </p>
-          </div>
-          <label className="block text-sm text-ink">
-            Gateway URL
-            <input
-              className={fieldClass}
-              type="text"
-              autoComplete="off"
-              placeholder={GATEWAY_BASE_URL}
-              value={openaiBaseUrl}
-              onChange={(event) => setOpenaiBaseUrl(event.target.value)}
-              data-testid="openai-base-url"
-            />
-          </label>
-          <label className="block text-sm text-ink">
-            Gateway API key
-            <input
-              className={fieldClass}
-              type="password"
-              autoComplete="off"
-              placeholder={hasOpenai ? "Saved — paste to replace" : "From your gateway dashboard"}
-              value={openaiApiKey}
-              onChange={(event) => setOpenaiApiKey(event.target.value)}
-              data-testid="openai-key"
-            />
-          </label>
-          {probe?.openaiError ? <p className="text-sm text-red-700">{probe.openaiError}</p> : null}
-          {error ? <p className="text-sm text-red-700">{error}</p> : null}
-          {message ? <p className="text-sm text-ink/60">{message}</p> : null}
-          <UsagePanel usage={usage} />
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="submit"
-              className="rounded-md bg-navy px-4 py-2 text-white disabled:opacity-50"
-              data-testid="save-settings"
-              disabled={busy}
-            >
-              Save
-            </button>
-            <button
-              type="button"
-              className="rounded-md border border-mist bg-paper px-4 py-2 text-ink disabled:opacity-50"
-              data-testid="refresh-models"
-              disabled={busy}
-              onClick={() => void onRefresh()}
-            >
-              Detect models
-            </button>
-          </div>
-        </section>
+      <div className="mt-6 flex flex-wrap items-center gap-2" role="tablist" aria-label="Settings sections">
+        {tabBtn("simple", "Simple")}
+        {tabBtn("advanced", "Advanced")}
+      </div>
 
-        <p className="text-sm text-ink/50" data-testid="privacy-note">
-          Prompts leave this machine only over HTTPS to the saved endpoint. Agentforge does not log prompts. Keys and
-          threads are encrypted on disk. Toko Token retention is the gateway&apos;s policy.
-        </p>
-        <p className="text-sm text-ink/50" data-testid="runtime-status">
-          Runtime: {runtime}
-          {hasOpenai ? " · Gateway key saved" : ""}
-          {hasAnthropic ? " · Anthropic key saved" : ""}
-          {hasGoogle ? " · Google key saved" : ""}
-          {hasVolcengine ? " · Volcengine key saved" : ""}
-          {probe?.detectedDialect ? ` · detected ${probe.detectedDialect}` : ""}
-          {!hasOpenai && !hasGoogle && !hasAnthropic && !hasVolcengine ? " · no keys yet" : ""}
-        </p>
+      <p className="mt-3 text-sm text-ink/50" data-testid="runtime-status">
+        Runtime: {runtime}
+        {hasOpenai ? " · Gateway key saved" : ""}
+        {hasAnthropic ? " · Anthropic key saved" : ""}
+        {hasGoogle ? " · Google key saved" : ""}
+        {hasVolcengine ? " · Volcengine key saved" : ""}
+        {probe?.detectedDialect ? ` · detected ${probe.detectedDialect}` : ""}
+        {!hasOpenai && !hasGoogle && !hasAnthropic && !hasVolcengine ? " · no keys yet" : ""}
+      </p>
 
-        <details
-          className="rounded-xl border border-mist bg-paper"
-          onToggle={(event) => setExtrasOpen(event.currentTarget.open)}
-        >
-          <summary className="cursor-pointer list-none px-5 py-4 font-medium text-ink marker:content-none [&::-webkit-details-marker]:hidden">
-            Extras
-          </summary>
-          {extrasOpen ? (
-          <div className="space-y-6 border-t border-mist px-5 py-5">
-            <p className="text-xs text-ink/50">
-              Other providers are optional. Use them only if you want native Anthropic, Google, or Volcengine instead of
-              models already on the gateway. Search still needs Tavily or Brave. FAL is optional if you want that backend
-              instead.
-            </p>
-            <fieldset className="space-y-3">
-              <legend className="font-medium text-ink">Anthropic</legend>
-              <label className="block text-sm text-ink">
-                Endpoint URL
-                <input
-                  className={fieldClass}
-                  type="text"
-                  autoComplete="off"
-                  placeholder="https://api.anthropic.com/v1"
-                  value={anthropicBaseUrl}
-                  onChange={(event) => setAnthropicBaseUrl(event.target.value)}
-                  data-testid="anthropic-base-url"
-                />
-              </label>
-              <label className="block text-sm text-ink">
-                API key
-                <input
-                  className={fieldClass}
-                  type="password"
-                  autoComplete="off"
-                  placeholder={hasAnthropic ? "Saved — paste to replace" : "sk-ant-..."}
-                  value={anthropicApiKey}
-                  onChange={(event) => setAnthropicApiKey(event.target.value)}
-                  data-testid="anthropic-key"
-                />
-              </label>
-              {probe?.anthropicError ? <p className="text-sm text-red-700">{probe.anthropicError}</p> : null}
-            </fieldset>
-            <fieldset className="space-y-3">
-              <legend className="font-medium text-ink">Google</legend>
-              <label className="block text-sm text-ink">
-                Endpoint URL
-                <input
-                  className={fieldClass}
-                  type="text"
-                  autoComplete="off"
-                  placeholder="https://generativelanguage.googleapis.com/v1beta"
-                  value={googleBaseUrl}
-                  onChange={(event) => setGoogleBaseUrl(event.target.value)}
-                  data-testid="google-base-url"
-                />
-              </label>
-              <label className="block text-sm text-ink">
-                API key
-                <input
-                  className={fieldClass}
-                  type="password"
-                  autoComplete="off"
-                  placeholder={hasGoogle ? "Saved — paste to replace" : "For Gemini models"}
-                  value={googleApiKey}
-                  onChange={(event) => setGoogleApiKey(event.target.value)}
-                  data-testid="google-key"
-                />
-              </label>
-              {probe?.googleError ? <p className="text-sm text-red-700">{probe.googleError}</p> : null}
-            </fieldset>
-            <fieldset className="space-y-3">
-              <legend className="font-medium text-ink">Volcengine Ark</legend>
-              <p className="text-xs text-ink/50">
-                Doubao chat models and Seedance. Default endpoint is the Beijing Ark OpenAI-compatible API.
-              </p>
-              <label className="block text-sm text-ink">
-                Endpoint URL
-                <input
-                  className={fieldClass}
-                  type="text"
-                  autoComplete="off"
-                  placeholder="https://ark.cn-beijing.volces.com/api/v3"
-                  value={volcengineBaseUrl}
-                  onChange={(event) => setVolcengineBaseUrl(event.target.value)}
-                  data-testid="volcengine-base-url"
-                />
-              </label>
-              <label className="block text-sm text-ink">
-                API key
-                <input
-                  className={fieldClass}
-                  type="password"
-                  autoComplete="off"
-                  placeholder={hasVolcengine ? "Saved — paste to replace" : "ARK API key"}
-                  value={volcengineApiKey}
-                  onChange={(event) => setVolcengineApiKey(event.target.value)}
-                  data-testid="volcengine-key"
-                />
-              </label>
-              {probe?.volcengineError ? <p className="text-sm text-red-700">{probe.volcengineError}</p> : null}
-            </fieldset>
-            <fieldset className="space-y-3" data-testid="tool-keys">
-              <legend className="font-medium text-ink">Tools</legend>
-              <p className="text-xs text-ink/50">
-                Generation uses these tools from chat. Attach a photo or video in the composer to analyze it.
-              </p>
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-ink">Enable tools on this machine</p>
-                {TOGGLEABLE_TOOLS.map((tool) => {
-                  const enabled = !disabledTools.includes(tool.key);
-                  return (
-                    <label key={tool.key} className="flex items-center gap-2 text-sm text-ink">
-                      <input
-                        type="checkbox"
-                        checked={enabled}
-                        onChange={(event) => setToolEnabled(tool.key, event.target.checked)}
-                        data-testid={`tool-enabled-${tool.key}`}
-                      />
-                      {tool.label}
-                    </label>
-                  );
-                })}
+      <form onSubmit={(event) => void onSubmit(event)} className="mt-6 space-y-6" data-testid="settings-form">
+        {tab === "simple" ? (
+          <>
+            <section className="space-y-4 rounded-xl border border-mist bg-paper p-5">
+              <div>
+                <h2 className="font-medium text-ink">{GATEWAY_NAME} gateway</h2>
+                <p className="mt-1 text-xs text-ink/50">
+                  Paste your gateway API key. Base URLs, tool backends, and per-mode models live under Advanced.
+                </p>
               </div>
               <label className="block text-sm text-ink">
-                Default Documents model
-                <select
-                  className={fieldClass}
-                  value={documentGenModel}
-                  onChange={(event) => setDocumentGenModel(event.target.value)}
-                  data-testid="document-gen-model"
-                >
-                  {documentOptions.map((model) => (
-                    <option key={model} value={model}>
-                      {model}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block text-sm text-ink">
-                Default Research model
-                <select
-                  className={fieldClass}
-                  value={researchGenModel}
-                  onChange={(event) => setResearchGenModel(event.target.value)}
-                  data-testid="research-gen-model"
-                >
-                  {researchOptions.map((model) => (
-                    <option key={model} value={model}>
-                      {model}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block text-sm text-ink">
-                Default Presentation model
-                <select
-                  className={fieldClass}
-                  value={presentationGenModel}
-                  onChange={(event) => setPresentationGenModel(event.target.value)}
-                  data-testid="presentation-gen-model"
-                >
-                  {presentationOptions.map((model) => (
-                    <option key={model} value={model}>
-                      {model}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block text-sm text-ink">
-                Default image model
-                <select
-                  className={fieldClass}
-                  value={imageGenModel}
-                  onChange={(event) => setImageGenModel(event.target.value)}
-                  data-testid="image-gen-model"
-                >
-                  {imageModelOptions.map((model) => (
-                    <option key={model} value={model}>
-                      {model}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block text-sm text-ink">
-                Default video model
-                <select
-                  className={fieldClass}
-                  value={videoGenModel}
-                  onChange={(event) => setVideoGenModel(event.target.value)}
-                  data-testid="video-gen-model"
-                >
-                  {videoModelOptions.map((model) => (
-                    <option key={model} value={model}>
-                      {model}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <p className="text-xs text-ink/50">
-                Tool backends are sticky. Adding another key does not reroute. A missing key for the saved pick is an
-                error, not a silent fallback.
-              </p>
-              {toolCatalog.map((capability) => (
-                <label key={capability.id} className="block text-sm text-ink">
-                  {capability.label} provider
-                  <select
-                    className={fieldClass}
-                    value={toolBackends[capability.id] ?? ""}
-                    onChange={(event) =>
-                      setToolBackends((current) => ({ ...current, [capability.id]: event.target.value }))
-                    }
-                    data-testid={`${capability.id}-backend`}
-                  >
-                    <option value="">Auto (first dedicated key that is saved)</option>
-                    {capability.backends.map((backend) => (
-                      <option key={backend.id} value={backend.id}>
-                        {backend.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ))}
-              <label className="block text-sm text-ink">
-                Tavily API key
+                Gateway API key
                 <input
                   className={fieldClass}
                   type="password"
                   autoComplete="off"
-                  placeholder={hasToolKeys.TAVILY_API_KEY ? "Saved — paste to replace" : "tvly-..."}
-                  value={tavilyKey}
-                  onChange={(event) => setTavilyKey(event.target.value)}
-                  data-testid="tavily-key"
+                  placeholder={hasOpenai ? "Saved — paste to replace" : "From your gateway dashboard"}
+                  value={openaiApiKey}
+                  onChange={(event) => setOpenaiApiKey(event.target.value)}
+                  data-testid="openai-key"
                 />
               </label>
-              <label className="block text-sm text-ink">
-                Brave Search API key
-                <input
-                  className={fieldClass}
-                  type="password"
-                  autoComplete="off"
-                  placeholder={hasToolKeys.BRAVE_SEARCH_API_KEY ? "Saved — paste to replace" : "Optional"}
-                  value={braveKey}
-                  onChange={(event) => setBraveKey(event.target.value)}
-                  data-testid="brave-key"
-                />
-              </label>
-              <label className="block text-sm text-ink">
-                FAL API key
-                <input
-                  className={fieldClass}
-                  type="password"
-                  autoComplete="off"
-                  placeholder={
-                    hasToolKeys.FAL_KEY ? "Saved — paste to replace" : "Optional — only if you pick FAL for image/video"
-                  }
-                  value={falKey}
-                  onChange={(event) => setFalKey(event.target.value)}
-                  data-testid="fal-key"
-                />
-              </label>
-              {(["web", "image_gen", "video_gen"] as const).map((id) => (
-                <p key={id} className="text-xs text-ink/50" data-testid={`${id}-route`}>
-                  {routeStatus(id, toolRoutes[id], toolCatalog.find((item) => item.id === id)?.label ?? id)}
+              {error ? <p className="text-sm text-red-700">{error}</p> : null}
+              {message ? <p className="text-sm text-ink/60">{message}</p> : null}
+              <UsagePanel usage={usage} />
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="submit"
+                  className="rounded-md bg-navy px-4 py-2 text-white disabled:opacity-50"
+                  data-testid="save-settings"
+                  disabled={busy}
+                >
+                  Save
+                </button>
+              </div>
+            </section>
+
+            <p className="text-sm text-ink/50" data-testid="privacy-note">
+              Prompts leave this machine only over HTTPS to the saved endpoint. Agentforge does not log prompts. Keys and
+              threads are encrypted on disk. Toko Token retention is the gateway&apos;s policy.
+            </p>
+
+            <p className="text-sm text-ink/60">
+              Need base URLs, tool backends, or per-mode models?{" "}
+              <button
+                type="button"
+                className="underline"
+                onClick={() => setTab("advanced")}
+              >
+                Open Advanced
+              </button>
+              .
+            </p>
+          </>
+        ) : (
+          <>
+            <section className="space-y-4 rounded-xl border border-mist bg-paper p-5">
+              <div>
+                <h2 className="font-medium text-ink">Gateway endpoint</h2>
+                <p className="mt-1 text-xs text-ink/50">
+                  Home path is {GATEWAY_BASE_URL}. Change the URL only if you are pointing at another OpenAI-compatible
+                  host.
                 </p>
-              ))}
-            </fieldset>
-          </div>
-          ) : null}
-        </details>
+              </div>
+              <label className="block text-sm text-ink">
+                Gateway URL
+                <input
+                  className={fieldClass}
+                  type="text"
+                  autoComplete="off"
+                  placeholder={GATEWAY_BASE_URL}
+                  value={openaiBaseUrl}
+                  onChange={(event) => setOpenaiBaseUrl(event.target.value)}
+                  data-testid="openai-base-url"
+                />
+              </label>
+              {probe?.openaiError ? <p className="text-sm text-red-700">{probe.openaiError}</p> : null}
+              {error ? <p className="text-sm text-red-700">{error}</p> : null}
+              {message ? <p className="text-sm text-ink/60">{message}</p> : null}
+              {probe ? (
+                <p className="text-sm text-ink/60" data-testid="dialect-probe">
+                  {summarizeProbe(probe)}
+                </p>
+              ) : null}
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="submit"
+                  className="rounded-md bg-navy px-4 py-2 text-white disabled:opacity-50"
+                  disabled={busy}
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  className="rounded-md border border-mist bg-paper px-4 py-2 text-ink disabled:opacity-50"
+                  data-testid="refresh-models"
+                  disabled={busy}
+                  onClick={() => void onRefresh()}
+                >
+                  Detect models
+                </button>
+              </div>
+            </section>
+
+            <details
+              className="rounded-xl border border-mist bg-paper"
+              onToggle={(event) => setExtrasOpen(event.currentTarget.open)}
+            >
+              <summary className="cursor-pointer list-none px-5 py-4 font-medium text-ink marker:content-none [&::-webkit-details-marker]:hidden">
+                Extras
+              </summary>
+              {extrasOpen ? (
+              <div className="space-y-6 border-t border-mist px-5 py-5">
+                <p className="text-xs text-ink/50">
+                  Other providers are optional. Use them only if you want native Anthropic, Google, or Volcengine instead of
+                  models already on the gateway. Search still needs Tavily or Brave. FAL is optional if you want that backend
+                  instead.
+                </p>
+                <fieldset className="space-y-3">
+                  <legend className="font-medium text-ink">Anthropic</legend>
+                  <label className="block text-sm text-ink">
+                    Endpoint URL
+                    <input
+                      className={fieldClass}
+                      type="text"
+                      autoComplete="off"
+                      placeholder="https://api.anthropic.com/v1"
+                      value={anthropicBaseUrl}
+                      onChange={(event) => setAnthropicBaseUrl(event.target.value)}
+                      data-testid="anthropic-base-url"
+                    />
+                  </label>
+                  <label className="block text-sm text-ink">
+                    API key
+                    <input
+                      className={fieldClass}
+                      type="password"
+                      autoComplete="off"
+                      placeholder={hasAnthropic ? "Saved — paste to replace" : "sk-ant-..."}
+                      value={anthropicApiKey}
+                      onChange={(event) => setAnthropicApiKey(event.target.value)}
+                      data-testid="anthropic-key"
+                    />
+                  </label>
+                  {probe?.anthropicError ? <p className="text-sm text-red-700">{probe.anthropicError}</p> : null}
+                </fieldset>
+                <fieldset className="space-y-3">
+                  <legend className="font-medium text-ink">Google</legend>
+                  <label className="block text-sm text-ink">
+                    Endpoint URL
+                    <input
+                      className={fieldClass}
+                      type="text"
+                      autoComplete="off"
+                      placeholder="https://generativelanguage.googleapis.com/v1beta"
+                      value={googleBaseUrl}
+                      onChange={(event) => setGoogleBaseUrl(event.target.value)}
+                      data-testid="google-base-url"
+                    />
+                  </label>
+                  <label className="block text-sm text-ink">
+                    API key
+                    <input
+                      className={fieldClass}
+                      type="password"
+                      autoComplete="off"
+                      placeholder={hasGoogle ? "Saved — paste to replace" : "For Gemini models"}
+                      value={googleApiKey}
+                      onChange={(event) => setGoogleApiKey(event.target.value)}
+                      data-testid="google-key"
+                    />
+                  </label>
+                  {probe?.googleError ? <p className="text-sm text-red-700">{probe.googleError}</p> : null}
+                </fieldset>
+                <fieldset className="space-y-3">
+                  <legend className="font-medium text-ink">Volcengine Ark</legend>
+                  <p className="text-xs text-ink/50">
+                    Doubao chat models and Seedance. Default endpoint is the Beijing Ark OpenAI-compatible API.
+                  </p>
+                  <label className="block text-sm text-ink">
+                    Endpoint URL
+                    <input
+                      className={fieldClass}
+                      type="text"
+                      autoComplete="off"
+                      placeholder="https://ark.cn-beijing.volces.com/api/v3"
+                      value={volcengineBaseUrl}
+                      onChange={(event) => setVolcengineBaseUrl(event.target.value)}
+                      data-testid="volcengine-base-url"
+                    />
+                  </label>
+                  <label className="block text-sm text-ink">
+                    API key
+                    <input
+                      className={fieldClass}
+                      type="password"
+                      autoComplete="off"
+                      placeholder={hasVolcengine ? "Saved — paste to replace" : "ARK API key"}
+                      value={volcengineApiKey}
+                      onChange={(event) => setVolcengineApiKey(event.target.value)}
+                      data-testid="volcengine-key"
+                    />
+                  </label>
+                  {probe?.volcengineError ? <p className="text-sm text-red-700">{probe.volcengineError}</p> : null}
+                </fieldset>
+                <fieldset className="space-y-3" data-testid="tool-keys">
+                  <legend className="font-medium text-ink">Tools</legend>
+                  <p className="text-xs text-ink/50">
+                    Generation uses these tools from chat. Attach a photo or video in the composer to analyze it.
+                  </p>
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-ink">Enable tools on this machine</p>
+                    {TOGGLEABLE_TOOLS.map((tool) => {
+                      const enabled = !disabledTools.includes(tool.key);
+                      return (
+                        <label key={tool.key} className="flex items-center gap-2 text-sm text-ink">
+                          <input
+                            type="checkbox"
+                            checked={enabled}
+                            onChange={(event) => setToolEnabled(tool.key, event.target.checked)}
+                            data-testid={`tool-enabled-${tool.key}`}
+                          />
+                          {tool.label}
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <label className="block text-sm text-ink">
+                    Default Documents model
+                    <select
+                      className={fieldClass}
+                      value={documentGenModel}
+                      onChange={(event) => setDocumentGenModel(event.target.value)}
+                      data-testid="document-gen-model"
+                    >
+                      {documentOptions.map((model) => (
+                        <option key={model} value={model}>
+                          {modelOptionLabel(documentModels, model)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block text-sm text-ink">
+                    Default Research model
+                    <select
+                      className={fieldClass}
+                      value={researchGenModel}
+                      onChange={(event) => setResearchGenModel(event.target.value)}
+                      data-testid="research-gen-model"
+                    >
+                      {researchOptions.map((model) => (
+                        <option key={model} value={model}>
+                          {modelOptionLabel(researchModels, model)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block text-sm text-ink">
+                    Default Presentation model
+                    <select
+                      className={fieldClass}
+                      value={presentationGenModel}
+                      onChange={(event) => setPresentationGenModel(event.target.value)}
+                      data-testid="presentation-gen-model"
+                    >
+                      {presentationOptions.map((model) => (
+                        <option key={model} value={model}>
+                          {modelOptionLabel(presentationModels, model)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block text-sm text-ink">
+                    Default image model
+                    <select
+                      className={fieldClass}
+                      value={imageGenModel}
+                      onChange={(event) => setImageGenModel(event.target.value)}
+                      data-testid="image-gen-model"
+                    >
+                      {imageModelOptions.map((model) => (
+                        <option key={model} value={model}>
+                          {modelOptionLabel(modes.image, model)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block text-sm text-ink">
+                    Default video model
+                    <select
+                      className={fieldClass}
+                      value={videoGenModel}
+                      onChange={(event) => setVideoGenModel(event.target.value)}
+                      data-testid="video-gen-model"
+                    >
+                      {videoModelOptions.map((model) => (
+                        <option key={model} value={model}>
+                          {modelOptionLabel(modes.video, model)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <p className="text-xs text-ink/50">
+                    Tool backends are sticky. Adding another key does not reroute. A missing key for the saved pick is an
+                    error, not a silent fallback.
+                  </p>
+                  {toolCatalog.map((capability) => (
+                    <label key={capability.id} className="block text-sm text-ink">
+                      {capability.label} provider
+                      <select
+                        className={fieldClass}
+                        value={toolBackends[capability.id] ?? ""}
+                        onChange={(event) =>
+                          setToolBackends((current) => ({ ...current, [capability.id]: event.target.value }))
+                        }
+                        data-testid={`${capability.id}-backend`}
+                      >
+                        <option value="">Auto (first dedicated key that is saved)</option>
+                        {capability.backends.map((backend) => (
+                          <option key={backend.id} value={backend.id}>
+                            {backend.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ))}
+                  <label className="block text-sm text-ink">
+                    Tavily API key
+                    <input
+                      className={fieldClass}
+                      type="password"
+                      autoComplete="off"
+                      placeholder={hasToolKeys.TAVILY_API_KEY ? "Saved — paste to replace" : "tvly-..."}
+                      value={tavilyKey}
+                      onChange={(event) => setTavilyKey(event.target.value)}
+                      data-testid="tavily-key"
+                    />
+                  </label>
+                  <label className="block text-sm text-ink">
+                    Brave Search API key
+                    <input
+                      className={fieldClass}
+                      type="password"
+                      autoComplete="off"
+                      placeholder={hasToolKeys.BRAVE_SEARCH_API_KEY ? "Saved — paste to replace" : "Optional"}
+                      value={braveKey}
+                      onChange={(event) => setBraveKey(event.target.value)}
+                      data-testid="brave-key"
+                    />
+                  </label>
+                  <label className="block text-sm text-ink">
+                    FAL API key
+                    <input
+                      className={fieldClass}
+                      type="password"
+                      autoComplete="off"
+                      placeholder={
+                        hasToolKeys.FAL_KEY ? "Saved — paste to replace" : "Optional — only if you pick FAL for image/video"
+                      }
+                      value={falKey}
+                      onChange={(event) => setFalKey(event.target.value)}
+                      data-testid="fal-key"
+                    />
+                  </label>
+                  {(["web", "image_gen", "video_gen"] as const).map((id) => (
+                    <p key={id} className="text-xs text-ink/50" data-testid={`${id}-route`}>
+                      {routeStatus(id, toolRoutes[id], toolCatalog.find((item) => item.id === id)?.label ?? id)}
+                    </p>
+                  ))}
+                </fieldset>
+              </div>
+              ) : null}
+            </details>
+          </>
+        )}
       </form>
     </main>
   );
@@ -651,6 +717,11 @@ function optionIds(models: CatalogModel[] | undefined, current: string, fallback
     }
   }
   return ids;
+}
+
+function modelOptionLabel(models: CatalogModel[] | undefined, id: string): string {
+  const match = (models ?? []).find((model) => model.id === id);
+  return match?.friendlyLabel ?? match?.label ?? id;
 }
 
 function routeStatus(id: string, route: ToolRoute | undefined, label: string): string {

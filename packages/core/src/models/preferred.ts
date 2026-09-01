@@ -1,6 +1,12 @@
+import { isEverydayModel } from "./curation";
+
 type ModelRef = { id: string };
 
 export { formatContextLength } from "./context-length";
+
+function tierRank(id: string): number {
+  return isEverydayModel(id) ? 0 : 1;
+}
 
 const NOT_DEFAULT =
   /(mj_|suno_|veo_|seedance|imagine|embedding|whisper|tts|-i2v|-t2v|-r2v|image-edit|video-edit|omni-moderation)/i;
@@ -206,19 +212,21 @@ export function pickPreferredModel(models: ModelRef[]): string | undefined {
 
 export function recommendedChatModels<T extends ModelRef>(models: T[]): T[] {
   const eligible = models.filter((model) => isDefaultEligible(model.id));
+  const hasEveryday = eligible.some((model) => isEverydayModel(model.id));
+  const pool = hasEveryday ? eligible.filter((model) => isEverydayModel(model.id)) : eligible;
   const picks: T[] = [];
   const gatewayDefault = eligible.find((model) => model.id === "default");
   if (gatewayDefault) {
     picks.push(gatewayDefault);
   }
   for (const family of FAMILIES) {
-    const hits = eligible.filter((model) => family.match(model.id));
+    const hits = pool.filter((model) => family.match(model.id));
     if (hits.length === 0) {
       continue;
     }
     hits.sort((a, b) => family.variant(a.id) - family.variant(b.id));
     const best = hits[0];
-    if (best) {
+    if (best && !picks.some((pick) => pick.id === best.id)) {
       picks.push(best);
     }
   }
@@ -282,7 +290,13 @@ export function pickerGroups<T extends ModelRef>(models: T[]): Array<{ label: st
   for (const label of BRAND_GROUP_ORDER) {
     const items = rest
       .filter((model) => modelFamilyLabel(model.id) === label)
-      .sort((a, b) => comparePickerIds(a.id, b.id));
+      .sort((a, b) => {
+        const tier = tierRank(a.id) - tierRank(b.id);
+        if (tier !== 0) {
+          return tier;
+        }
+        return comparePickerIds(a.id, b.id);
+      });
     if (items.length > 0) {
       groups.push({ label, models: items });
     }
