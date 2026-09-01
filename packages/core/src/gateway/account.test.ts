@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { GATEWAY_BASE_URL, QUOTA_PER_USD, formatUsd, gatewayOriginFromBaseUrl, quotaToUsd } from "../gateway";
 import {
   asRunUsageRecord,
+  estimateDeskByModel,
   estimateDeskUsd,
   estimateRunUsd,
   fetchThisKeyUsage,
@@ -128,6 +129,34 @@ describe("estimateDeskUsd", () => {
     expect(desk.pricedCount).toBe(1);
     expect(desk.unknownCount).toBe(2);
     expect(desk.usd).toBeCloseTo(0.008, 6);
+  });
+});
+
+describe("estimateDeskByModel", () => {
+  it("sums USD and tokens per model and keeps unpriced models without inventing a number", () => {
+    const rows = estimateDeskByModel(
+      [
+        { model: "gpt-5.6-sol", inputTokens: 1000, outputTokens: 200 },
+        { model: "gpt-5.6-sol", inputTokens: 1000, outputTokens: 200 },
+        { model: "fixed-image", inputTokens: 0, outputTokens: 0 },
+        { model: "seedance-2.0-fast", inputTokens: 1, outputTokens: 1 },
+      ],
+      catalog,
+    );
+    expect(rows.map((row) => row.model)).toEqual(["fixed-image", "gpt-5.6-sol", "seedance-2.0-fast"]);
+    expect(rows[0]).toMatchObject({ model: "fixed-image", usd: 0.04, runCount: 1, unknown: false });
+    expect(rows[1].model).toBe("gpt-5.6-sol");
+    expect(rows[1].runCount).toBe(2);
+    expect(rows[1].inputTokens).toBe(2000);
+    expect(rows[1].outputTokens).toBe(400);
+    expect(rows[1].usd).toBeCloseTo(0.016, 6);
+    expect(rows[1].unknown).toBe(false);
+    expect(rows[2]).toMatchObject({
+      model: "seedance-2.0-fast",
+      usd: 0,
+      runCount: 1,
+      unknown: true,
+    });
   });
 });
 

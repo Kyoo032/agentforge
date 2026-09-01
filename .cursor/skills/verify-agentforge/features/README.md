@@ -40,7 +40,7 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 ## Features
 
 - [Chat](./chat.md) — composer send, new thread, switch sessions, stub reply.
-- [Settings](./settings.md) — form, privacy note, stub/live runtime, Usage panel (this key vs desk estimate in USD), extras keys hidden until opened.
+- [Settings](./settings.md) — form, privacy note, stub/live runtime, Usage panel (this key vs desk estimate in USD, spend-by-model bars), extras keys hidden until opened.
 - [Build](./build.md) — blank/default templates, studio UUID, share workspace, agent chat.
 - [Images](./images.md) — studio shell after an agent unlocks the tab; needs-key without a gateway key.
 - [Videos](./videos.md) — studio shell and `videos-studio-needs-key` without a key.

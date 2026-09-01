@@ -1,9 +1,11 @@
 import {
   asRunUsageRecord,
+  estimateDeskByModel,
   estimateDeskUsd,
   fetchPricingCatalog,
   formatUsd,
   loadThisKeyState,
+  type DeskModelSpend,
   type PricingCatalog,
   type RunUsageRecord,
   type StoredSecrets,
@@ -17,6 +19,16 @@ const PRICING_TTL_MS = 10 * 60 * 1000;
 
 let pricingCache: { at: number; baseURL: string; catalog: PricingCatalog } | null = null;
 
+export type DeskModelSpendPayload = {
+  model: string;
+  usd: number;
+  display: string;
+  runCount: number;
+  inputTokens: number;
+  outputTokens: number;
+  unknown: boolean;
+};
+
 export type AccountUsagePayload = {
   thisKey: ThisKeyState;
   desk: {
@@ -24,9 +36,22 @@ export type AccountUsagePayload = {
     display: string;
     unknownCount: number;
     pricedCount: number;
+    byModel: DeskModelSpendPayload[];
     error?: string;
   };
 };
+
+function serializeByModel(rows: DeskModelSpend[]): DeskModelSpendPayload[] {
+  return rows.map((row) => ({
+    model: row.model,
+    usd: row.usd,
+    display: row.usd > 0 ? formatUsd(row.usd) : row.unknown ? "—" : formatUsd(0),
+    runCount: row.runCount,
+    inputTokens: row.inputTokens,
+    outputTokens: row.outputTokens,
+    unknown: row.unknown,
+  }));
+}
 
 async function pricingFor(baseURL: string | undefined): Promise<PricingCatalog> {
   const key = baseURL?.trim() || "";
@@ -67,6 +92,7 @@ export async function loadAccountUsage(
         display: formatUsd(desk.usd),
         unknownCount: desk.unknownCount,
         pricedCount: desk.pricedCount,
+        byModel: serializeByModel(estimateDeskByModel(records, catalog)),
       },
     };
   } catch (error) {
@@ -77,6 +103,7 @@ export async function loadAccountUsage(
         display: formatUsd(0),
         unknownCount: 0,
         pricedCount: 0,
+        byModel: [],
         error: error instanceof Error ? error.message : "Could not load Toko Token prices",
       },
     };

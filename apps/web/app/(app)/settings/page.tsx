@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { GATEWAY_BASE_URL, GATEWAY_NAME, formatUsd } from "@agentforge/core/gateway";
+import { GATEWAY_BASE_URL, GATEWAY_NAME } from "@agentforge/core/gateway";
 import { DEFAULT_GATEWAY_IMAGE_MODEL, DEFAULT_GATEWAY_VIDEO_MODEL } from "@agentforge/core/media-kind";
+import { UsagePanel, type AccountUsage } from "./usage-panel";
 
 type Probe = {
   openaiCount?: number;
@@ -52,49 +53,6 @@ const TOGGLEABLE_TOOLS = [
 ] as const;
 
 const fieldClass = "mt-1 w-full rounded-md border border-mist bg-paper px-3 py-2 text-ink";
-
-type AccountUsage = {
-  thisKey?:
-    | { status: "needs_key" }
-    | { status: "ok"; data: { usedUsd: number; remainingUsd: number | null; unlimited: boolean; name?: string } }
-    | { status: "error"; message: string };
-  desk?: {
-    usd: number;
-    display: string;
-    unknownCount: number;
-    pricedCount: number;
-    error?: string;
-  };
-};
-
-function thisKeyLine(usage: AccountUsage | null): string {
-  const thisKey = usage?.thisKey;
-  if (!thisKey || thisKey.status === "needs_key") {
-    return "Paste a gateway key to see spend.";
-  }
-  if (thisKey.status === "error") {
-    return thisKey.message;
-  }
-  const used = formatUsd(thisKey.data.usedUsd);
-  if (thisKey.data.unlimited) {
-    return `${used} used · Unlimited`;
-  }
-  const left = thisKey.data.remainingUsd == null ? "—" : formatUsd(thisKey.data.remainingUsd);
-  return `${used} used · ${left} left`;
-}
-
-function deskLine(usage: AccountUsage | null): string {
-  if (!usage?.desk) {
-    return formatUsd(0);
-  }
-  if (usage.desk.error) {
-    return usage.desk.error;
-  }
-  if (usage.desk.unknownCount > 0) {
-    return `${usage.desk.display} · ${usage.desk.unknownCount} job${usage.desk.unknownCount === 1 ? "" : "s"} billed after they finish`;
-  }
-  return usage.desk.display;
-}
 
 export default function SettingsPage() {
   const [hasOpenai, setHasOpenai] = useState(false);
@@ -374,19 +332,7 @@ export default function SettingsPage() {
           {probe?.openaiError ? <p className="text-sm text-red-700">{probe.openaiError}</p> : null}
           {error ? <p className="text-sm text-red-700">{error}</p> : null}
           {message ? <p className="text-sm text-ink/60">{message}</p> : null}
-          <div className="rounded-lg border border-mist px-4 py-3" data-testid="usage-panel">
-            <h3 className="text-sm font-medium text-ink">Usage</h3>
-            <p className="mt-2 text-sm text-ink" data-testid="usage-this-key">
-              This key: {thisKeyLine(usage)}
-            </p>
-            <p className="mt-1 text-sm text-ink" data-testid="usage-desk-estimate">
-              This desk (estimate): {deskLine(usage)}
-            </p>
-            <p className="mt-2 text-xs text-ink/50">
-              Desk estimate uses Agentforge input and output tokens and Toko Token catalog prices. Other apps on the
-              same key are not included. Image and video jobs billed after they finish are omitted.
-            </p>
-          </div>
+          <UsagePanel usage={usage} />
           <div className="flex flex-wrap gap-3">
             <button
               type="submit"

@@ -51,6 +51,7 @@ test("chat and build work without an account", async ({ page }) => {
   await expect(page.getByTestId("usage-panel")).toBeVisible();
   await expect(page.getByTestId("usage-this-key")).toContainText("Paste a gateway key");
   await expect(page.getByTestId("usage-desk-estimate")).toBeVisible();
+  await expect(page.getByTestId("usage-by-model")).toBeVisible();
   await expect(page.getByTestId("settings-build-link")).toBeVisible();
   await page.getByText("Extras", { exact: true }).click();
   await expect(page.getByTestId("anthropic-key")).toBeVisible();

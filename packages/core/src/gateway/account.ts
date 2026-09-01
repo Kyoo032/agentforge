@@ -44,6 +44,15 @@ export type DeskEstimate = {
   pricedCount: number;
 };
 
+export type DeskModelSpend = {
+  model: string;
+  usd: number;
+  runCount: number;
+  inputTokens: number;
+  outputTokens: number;
+  unknown: boolean;
+};
+
 function asNumber(value: unknown): number | undefined {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;
@@ -155,6 +164,44 @@ export function estimateDeskUsd(
     pricedCount += 1;
   }
   return { usd, unknownCount, pricedCount };
+}
+
+/** Group desk runs by model id and price each group the same way as `estimateDeskUsd`. */
+export function estimateDeskByModel(
+  records: RunUsageRecord[],
+  catalog: PricingCatalog,
+  groupRatio = DEFAULT_GROUP_RATIO,
+): DeskModelSpend[] {
+  const groups = new Map<string, DeskModelSpend>();
+  for (const record of records) {
+    const existing = groups.get(record.model) ?? {
+      model: record.model,
+      usd: 0,
+      runCount: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      unknown: false,
+    };
+    existing.runCount += 1;
+    existing.inputTokens += record.inputTokens;
+    existing.outputTokens += record.outputTokens;
+    const value = estimateRunUsd(record, catalog, groupRatio);
+    if (value == null) {
+      existing.unknown = true;
+    } else {
+      existing.usd += value;
+    }
+    groups.set(record.model, existing);
+  }
+  return [...groups.values()].sort((left, right) => {
+    if (right.usd !== left.usd) {
+      return right.usd - left.usd;
+    }
+    if (right.runCount !== left.runCount) {
+      return right.runCount - left.runCount;
+    }
+    return left.model.localeCompare(right.model);
+  });
 }
 
 export function parsePricingCatalog(body: unknown): PricingCatalog {

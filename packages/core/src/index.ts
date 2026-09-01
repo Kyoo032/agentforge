@@ -17,12 +17,21 @@ export {
   parseTokenUsage,
   estimateRunUsd,
   estimateDeskUsd,
+  estimateDeskByModel,
   isUnpricedBilling,
   fetchPricingCatalog,
   fetchThisKeyUsage,
   loadThisKeyState,
 } from "./gateway/account";
-export type { RunUsageRecord, PricingCatalog, PricingModel, ThisKeyUsage, ThisKeyState, DeskEstimate } from "./gateway/account";
+export type {
+  RunUsageRecord,
+  PricingCatalog,
+  PricingModel,
+  ThisKeyUsage,
+  ThisKeyState,
+  DeskEstimate,
+  DeskModelSpend,
+} from "./gateway/account";
 export { ApiError, ContentParseError } from "./errors";
 export {
   wrappingKeyFromSecret,
