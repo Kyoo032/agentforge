@@ -4,9 +4,11 @@ import type { PresentationOutline } from "@/lib/presentation-outline";
 
 type Props = {
   outline: PresentationOutline;
+  regeneratingIndex?: number | null;
+  onRegenerate?: (index: number) => void;
 };
 
-export function PresentationPreview({ outline }: Props) {
+export function PresentationPreview({ outline, regeneratingIndex = null, onRegenerate }: Props) {
   return (
     <div className="flex flex-col gap-4" data-testid="presentations-preview">
       <article
@@ -29,9 +31,22 @@ export function PresentationPreview({ outline }: Props) {
         >
           <div className="absolute inset-y-0 left-0 w-1.5 bg-navy" />
           <div className="flex h-full flex-col px-8 py-7 sm:px-12 sm:py-10">
-            <p className="text-xs font-medium uppercase tracking-wide text-ink/45">
-              Slide {index + 1} of {outline.slides.length}
-            </p>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-ink/45">
+                Slide {index + 1} of {outline.slides.length}
+              </p>
+              {onRegenerate ? (
+                <button
+                  type="button"
+                  className="rounded-md border border-mist px-3 py-1 text-xs font-medium text-ink disabled:opacity-50"
+                  onClick={() => onRegenerate(index)}
+                  disabled={regeneratingIndex !== null}
+                  data-testid="presentations-regen"
+                >
+                  {regeneratingIndex === index ? "Regenerating…" : "Regenerate"}
+                </button>
+              ) : null}
+            </div>
             <h3 className="mt-2 text-xl font-semibold text-ink sm:text-3xl">{slide.heading}</h3>
             {slide.bullets.length > 0 ? (
               <ul className="mt-5 max-w-3xl list-disc space-y-2 pl-5 text-sm text-ink/85 sm:text-base">

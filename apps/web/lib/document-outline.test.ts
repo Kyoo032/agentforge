@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ApiError } from "@agentforge/core";
-import { parseDocumentDraft, parseDocumentDraftBody } from "./document-outline";
+import { parseDocumentDraft, parseDocumentDraftBody, mergeDocumentSection } from "./document-outline";
 import { buildDocumentDocx } from "./document-docx";
 
 const valid = {
@@ -34,5 +34,13 @@ describe("buildDocumentDocx", () => {
     expect(buffer.byteLength).toBeGreaterThan(1000);
     expect(buffer[0]).toBe(0x50);
     expect(buffer[1]).toBe(0x4b);
+  });
+});
+
+describe("mergeDocumentSection", () => {
+  it("replaces one section by index", () => {
+    const next = mergeDocumentSection(valid, 1, { heading: "Ask", body: "New ask." });
+    expect(next.sections[1]).toEqual({ heading: "Ask", body: "New ask." });
+    expect(next.sections[0]).toEqual(valid.sections[0]);
   });
 });

@@ -13,6 +13,7 @@ import {
 } from "./default-chat";
 import { getChatModel, listChatModels, type ChatModel } from "../models/catalog";
 import { requireProductModes, resolveProductModes, type ProductMode } from "./product-modes";
+import { mergeGeneratePins } from "./generate-defaults";
 
 export type AgentRecord = {
   id: string;
@@ -58,6 +59,7 @@ export type CreateAgentInput = {
   inputModalities?: InputModality[];
   productModes?: ProductMode[];
   visibility?: Visibility;
+  config?: Record<string, unknown>;
 };
 
 export interface AgentRepository {
@@ -73,7 +75,7 @@ export interface AgentRepository {
   updateVersion(
     organizationId: string,
     versionId: string,
-    patch: Partial<Pick<AgentVersionRecord, "productModes">>,
+    patch: Partial<Pick<AgentVersionRecord, "productModes" | "config">>,
   ): Promise<void>;
 }
 
@@ -166,7 +168,7 @@ export class AgentService {
       model: input.model,
       inputModalities: ensureModalities(input.inputModalities),
       productModes: requireProductModes(input.productModes),
-      config: {},
+      config: input.config ?? {},
       createdAt: timestamp,
     };
     await this.repo.insertAgent(agent);
@@ -187,6 +189,36 @@ export class AgentService {
     return resolveProductModes(sources);
   }
 
+  async listGenerateDefaultSources(tenant: TenantContext): Promise<
+    Array<{
+      slug: string;
+      createdAt: Date;
+      productModes?: ProductMode[] | null;
+      config?: Record<string, unknown> | null;
+    }>
+  > {
+    const agents = await this.list(tenant);
+    const sources: Array<{
+      slug: string;
+      createdAt: Date;
+      productModes?: ProductMode[] | null;
+      config?: Record<string, unknown> | null;
+    }> = [];
+    for (const agent of agents) {
+      if (!agent.currentVersionId) {
+        continue;
+      }
+      const version = await this.repo.findVersionById(tenant.organizationId, agent.currentVersionId);
+      sources.push({
+        slug: agent.slug,
+        createdAt: agent.createdAt,
+        productModes: version?.productModes ?? null,
+        config: version?.config ?? {},
+      });
+    }
+    return sources;
+  }
+
   async updateProductModes(
     tenant: TenantContext,
     agentId: string,
@@ -203,6 +235,25 @@ export class AgentService {
     const next = requireProductModes(productModes);
     const updated: AgentVersionRecord = { ...version, productModes: next };
     await this.repo.updateVersion(tenant.organizationId, version.id, { productModes: next });
+    return updated;
+  }
+
+  async updateGenerateDefaults(
+    tenant: TenantContext,
+    agentId: string,
+    patch: { imageGenModel?: string | null; videoGenModel?: string | null },
+  ): Promise<AgentVersionRecord> {
+    const agent = await this.requireOwned(tenant, agentId);
+    if (!agent.currentVersionId) {
+      throw new ApiError("unpublished_agent", "Agent has no published version", 400);
+    }
+    const version = await this.repo.findVersionById(tenant.organizationId, agent.currentVersionId);
+    if (!version || version.agentId !== agent.id) {
+      throw new ApiError("not_found", "Version not found", 404);
+    }
+    const config = mergeGeneratePins(version.config, patch);
+    const updated: AgentVersionRecord = { ...version, config };
+    await this.repo.updateVersion(tenant.organizationId, version.id, { config });
     return updated;
   }
 

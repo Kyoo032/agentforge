@@ -9,6 +9,7 @@ Build creates a custom agent from a template (or blank), then opens Studio at a 
 - `build-create` lands on `/studio/<uuid>` with `studio-agent-name` `Assistant` for the Default path.
 - `build-share` sets visibility to workspace.
 - `build-chat` opens `/agents/<uuid>` and can send through the same composer.
+- `build-generate-defaults` shows `agent-image-model` / `agent-video-model` when Images / Videos surfaces are on.
 
 ## How to get to it (user POV)
 
@@ -28,6 +29,7 @@ Preconditions:
 - **Templates.** `create-agent` is enabled (30s). `template-blank`, `template-default`, `template-students`, `template-marketing`, `template-legal` are visible. `tool-course_catalog.search` has count 0. `agent-name` value is `Assistant`.
 - **Create.** Click `create-agent`. Wait for URL `/studio/[0-9a-f-]{36}` (60s). Do not treat `/studio/new` as success. `studio-agent-name` reads `Assistant` (30s).
 - **Rail unlock.** After a Default (or legacy-five) agent exists, `mode-images`, `mode-videos`, and `mode-presentations` become visible. `mode-documents` and `mode-research` stay count 0 unless that template unlocked them.
+- **Generate defaults.** On `/studio/<uuid>` with Images on, `agent-image-model` is visible. Save with `save-generate-defaults`.
 - **Share.** Click `share-workspace`. `visibility` contains `workspace` (15s).
 - **Agent chat.** Click the link named `Open chat`. URL is `/agents/<uuid>`. `composer` is visible. `model-picker` is not the bare word `Model` (15s). Send a unique prompt; `message-list` contains it (30s); `composer-send` returns to `Send`.
 - **IDE proof.** Screenshot of Studio with the UUID in the URL and `studio-agent-name`. Cloud owns the create+share smoke.

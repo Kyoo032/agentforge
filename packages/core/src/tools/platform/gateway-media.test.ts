@@ -92,12 +92,14 @@ describe("parse helpers", () => {
       ],
       ratio: "9:16",
     });
-    expect(buildGatewayVideoPayload({ model: "grok-imagine-video", prompt: "rain", aspectRatio: "16:9" })).toMatchObject({
+    expect(buildGatewayVideoPayload({ model: "grok-imagine-video", prompt: "rain", aspectRatio: "16:9" })).toEqual({
+      model: "grok-imagine-video",
       prompt: "rain",
       duration: 5,
       seconds: "5",
-      size: "1280x720",
     });
+    expect(buildGatewayVideoPayload({ model: "grok-imagine-video", prompt: "rain" })).not.toHaveProperty("size");
+    expect(buildGatewayVideoPayload({ model: "grok-imagine-video", prompt: "rain" })).not.toHaveProperty("ratio");
   });
 
   it("does not call a prepaid async-price 403 an invalid API key", () => {
@@ -273,12 +275,11 @@ describe("generateGatewayVideo", () => {
       wait: async () => undefined,
     });
     expect(fetchMock.mock.calls[0]?.[0]).toBe("https://api.tokotokenai.com/v1/video/generations");
-    expect(JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body))).toMatchObject({
+    expect(JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body))).toEqual({
       model: "grok-imagine-video",
       prompt: "rain on a window",
       duration: 5,
       seconds: "5",
-      size: "1280x720",
     });
     expect(fetchMock.mock.calls[1]?.[0]).toBe("https://api.tokotokenai.com/v1/video/generations/abcd");
     expect(result).toEqual({ url: "https://cdn.example/clip.mp4", model: "grok-imagine-video" });

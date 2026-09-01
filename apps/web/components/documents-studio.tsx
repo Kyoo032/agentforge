@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { DocumentPreview } from "@/components/document-preview";
 import type { DocumentDraft } from "@/lib/document-outline";
+import { DOCUMENT_STARTERS } from "@/lib/job-starters";
 
 function errorMessage(payload: unknown, fallback: string): string {
   if (payload && typeof payload === "object") {
@@ -15,14 +16,15 @@ function errorMessage(payload: unknown, fallback: string): string {
   return fallback;
 }
 
-function needsSettingsHint(message: string): boolean {
-  return /gateway|api key|settings|runtime_stub|live gateway/i.test(message);
+function needsSettingsHint(message: string): string {
+  return /gateway|api key|settings|runtime_stub|live gateway/i.test(message) ? message : message;
 }
 
 export function DocumentsStudio() {
   const [prompt, setPrompt] = useState("");
   const [draft, setDraft] = useState<DocumentDraft | null>(null);
-  const [busy, setBusy] = useState<"generate" | "download" | null>(null);
+  const [busy, setBusy] = useState<"generate" | "download" | "regen" | null>(null);
+  const [regenIndex, setRegenIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function onGenerate(event: FormEvent) {
@@ -49,6 +51,32 @@ export function DocumentsStudio() {
       setError(err instanceof Error ? err.message : "Could not generate the document");
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function onRegenerate(index: number) {
+    if (!draft || busy) {
+      return;
+    }
+    setBusy("regen");
+    setRegenIndex(index);
+    setError(null);
+    try {
+      const res = await fetch("/api/v1/documents/regenerate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ draft, sectionIndex: index, prompt }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(errorMessage(data, "Could not regenerate that section"));
+      }
+      setDraft(data as DocumentDraft);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not regenerate that section");
+    } finally {
+      setBusy(null);
+      setRegenIndex(null);
     }
   }
 
@@ -113,8 +141,8 @@ export function DocumentsStudio() {
           role="alert"
           data-testid="documents-error"
         >
-          {error}
-          {needsSettingsHint(error) && !/settings/i.test(error) ? (
+          {needsSettingsHint(error)}
+          {/gateway|api key|settings|runtime_stub|live gateway/i.test(error) && !/settings/i.test(error) ? (
             <>
               {" "}
               Open{" "}
@@ -129,14 +157,34 @@ export function DocumentsStudio() {
 
       <div className="mt-8 flex-1">
         {draft ? (
-          <DocumentPreview draft={draft} />
+          <DocumentPreview
+            draft={draft}
+            regeneratingIndex={regenIndex}
+            onRegenerate={(index) => void onRegenerate(index)}
+          />
         ) : (
-          <div
-            className="rounded-2xl border border-mist bg-mist/30 px-4 py-10 text-center"
-            data-testid="documents-studio-empty"
-          >
-            <p className="text-lg font-medium">No document yet</p>
-            <p className="mt-2 text-sm text-ink/60">Enter a topic below. Preview stays in-app; download gives you a DOCX.</p>
+          <div className="rounded-2xl border border-mist bg-mist/30 px-4 py-10" data-testid="documents-studio-empty">
+            <p className="text-center text-lg font-medium">No document yet</p>
+            <p className="mt-2 text-center text-sm text-ink/60">
+              Enter a topic below, or load a starter and download a DOCX without a live generate.
+            </p>
+            <div className="mx-auto mt-6 grid max-w-2xl gap-3 sm:grid-cols-2">
+              {DOCUMENT_STARTERS.map((starter) => (
+                <button
+                  key={starter.id}
+                  type="button"
+                  className="rounded-xl border border-mist bg-paper px-4 py-3 text-left hover:border-navy"
+                  onClick={() => {
+                    setDraft(starter.draft);
+                    setError(null);
+                  }}
+                  data-testid="documents-starter"
+                >
+                  <p className="text-sm font-medium text-ink">{starter.label}</p>
+                  <p className="mt-1 text-xs text-ink/60">{starter.description}</p>
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>

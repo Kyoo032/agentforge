@@ -17,6 +17,7 @@ import {
   shouldFallbackFromResponses,
   shouldUpgradeToResponses,
 } from "./api-mode";
+import { applyMinimaxRequest, isMinimaxChatModel, wrapMinimaxResponse } from "./minimax-compat";
 import { readLanguageModelUsage, addTokenUsage } from "../gateway/account";
 import type { AgentRuntime, RunUsage } from "./types";
 import {
@@ -147,17 +148,22 @@ export class AiSdkRuntime implements AgentRuntime {
 
     const zdrBaseUrl = openaiBaseUrl;
     const wrappedFetch: typeof fetch = async (url, init) => {
+      let outgoing: RequestInit = (init as RequestInit) ?? {};
+      let minimax = isMinimaxChatModel(modelName);
       if (init?.body && typeof init.body === "string") {
         try {
           const parsed = JSON.parse(init.body) as unknown;
           const scrubbed = rewriteUnreachableMediaInJson(parsed);
-          const modified = mergeOpenRouterZdr(scrubbed, zdrBaseUrl);
-          return await fetch(url, { ...init, body: JSON.stringify(modified) });
+          const withZdr = mergeOpenRouterZdr(scrubbed, zdrBaseUrl);
+          const modified = applyMinimaxRequest(withZdr);
+          minimax = minimax || isMinimaxChatModel((modified as { model?: unknown }).model);
+          outgoing = { ...init, body: JSON.stringify(modified) };
         } catch {
           // fall through to unmodified request on parse error
         }
       }
-      return fetch(url, init as RequestInit);
+      const response = await fetch(url, outgoing);
+      return minimax ? wrapMinimaxResponse(response) : response;
     };
 
     const openai = createOpenAI({
@@ -260,6 +266,7 @@ export class AiSdkRuntime implements AgentRuntime {
     }
     if (!result.text && result.thinking) {
       await input.onEvent({ type: "assistant.delta", text: result.thinking });
+      result.text = true;
     }
     // Tool-only success (e.g. image_generate with no prose) must still complete so mediaParts persist.
     if (shouldFailEmptyAssistant({ text: result.text, thinking: Boolean(result.thinking), tooled: result.tooled })) {

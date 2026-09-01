@@ -162,4 +162,23 @@ describe("productModes", () => {
     expect(updated.productModes).toEqual(["documents", "research"]);
     expect(await service.listVisibleProductModes(tenant())).toEqual(["documents", "research"]);
   });
+
+  it("stores per-agent image and video generate pins on version config", async () => {
+    const repo = new MemoryAgentRepository();
+    const service = new AgentService(repo);
+    const created = await service.create(tenant(), {
+      name: "Desk",
+      systemPrompt: "Help",
+      model: "gpt-4o-mini",
+      productModes: ["chat", "images", "videos"],
+    });
+    await service.publish(tenant(), created.agent.id, created.version.id);
+    const updated = await service.updateGenerateDefaults(tenant(), created.agent.id, {
+      imageGenModel: "gpt-image-2",
+      videoGenModel: "seedance-2.0-fast",
+    });
+    expect(updated.config).toEqual({ imageGenModel: "gpt-image-2", videoGenModel: "seedance-2.0-fast" });
+    const sources = await service.listGenerateDefaultSources(tenant());
+    expect(sources[0]?.config).toEqual({ imageGenModel: "gpt-image-2", videoGenModel: "seedance-2.0-fast" });
+  });
 });

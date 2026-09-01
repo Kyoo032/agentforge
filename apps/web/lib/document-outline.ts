@@ -37,6 +37,36 @@ export function parseDocumentDraft(raw: unknown): DocumentDraft {
   return result.data;
 }
 
+export function parseDocumentSection(raw: unknown): DocumentSection {
+  if (typeof raw === "string") {
+    const jsonText = extractJsonObject(raw);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(jsonText);
+    } catch {
+      throw new ApiError("invalid_document", "Model returned invalid JSON for the section", 502);
+    }
+    raw = parsed;
+  }
+  const result = documentSectionSchema.safeParse(raw);
+  if (!result.success) {
+    throw new ApiError(
+      "invalid_document",
+      `Document section failed validation: ${result.error.issues.map((issue) => issue.message).join("; ")}`,
+      502,
+    );
+  }
+  return result.data;
+}
+
+export function mergeDocumentSection(draft: DocumentDraft, index: number, section: DocumentSection): DocumentDraft {
+  if (!Number.isInteger(index) || index < 0 || index >= draft.sections.length) {
+    throw new ApiError("invalid_request", "sectionIndex is out of range", 400);
+  }
+  const sections = draft.sections.map((item, itemIndex) => (itemIndex === index ? section : item));
+  return { ...draft, sections };
+}
+
 export function parseDocumentDraftBody(body: unknown): DocumentDraft {
   const result = documentDraftSchema.safeParse(body);
   if (!result.success) {

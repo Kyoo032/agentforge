@@ -111,16 +111,6 @@ export function openaiImageSize(aspectRatio?: string): string {
 export const GATEWAY_VIDEO_DURATION_SECONDS = 5;
 export const GATEWAY_VIDEO_RESOLUTION = "720p";
 
-export function gatewayVideoSize(aspectRatio?: string): string {
-  if (aspectRatio === "9:16") {
-    return "720x1280";
-  }
-  if (aspectRatio === "1:1") {
-    return "1024x1024";
-  }
-  return "1280x720";
-}
-
 export function gatewayVideoAspect(aspectRatio?: string): "16:9" | "9:16" | "1:1" {
   if (aspectRatio === "9:16" || aspectRatio === "1:1") {
     return aspectRatio;
@@ -161,12 +151,14 @@ export function buildGatewayVideoPayload(options: {
       watermark: false,
     };
   }
+  // Toko `/v1/video/generations` uses a strict JSON decoder per upstream.
+  // grok-imagine-video rejected OpenAI pixel `size`, then `ratio` (`json: unknown field`).
+  // Seedance still needs `ratio` + `resolution`. Keep this branch to prompt/duration only.
   const payload: Record<string, unknown> = {
     model: options.model,
     prompt: options.prompt,
     duration,
     seconds: String(duration),
-    size: gatewayVideoSize(aspect),
   };
   if (options.imageUrl) {
     payload.image = options.imageUrl;
