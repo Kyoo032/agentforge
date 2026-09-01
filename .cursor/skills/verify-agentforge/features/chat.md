@@ -39,5 +39,6 @@ Preconditions:
 - Wait for `composer-send` text `Send`, not a fixed sleep. Stub and live both hold the button in a busy state.
 - Cursor's Next overlay can inject `data-cursor-ref` and eat clicks. Report it; do not retry by coordinates forever.
 - Sending on `runtime: "ai"` spends the operator's gateway. Do not do that as a silent stub check.
+- MiniMax M3 (`minimax-m3`) streams thinking in `reasoning_content` / `reasoning_details` unless Agentforge rewrites the chunk. Live proof is the operator desktop against Toko Token, **not** Hermes serve. Stub Chat does not exercise MiniMax.
 - Arithmetic in the prompt (`2 + 3`) can fire the calculator tool in stub if that binding is on. Assert the user prompt and `Send`, not a fixed assistant sentence.
 - Do not POST `/api/v1/chat` as a substitute for the composer.

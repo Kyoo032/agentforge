@@ -198,12 +198,24 @@ export {
 export type { ToolCapabilitySpec, ToolBackendSpec, ToolRoute } from "./tools/credentials";
 export { AgentService, resolvePublishedVersion } from "./agents/service";
 export { MemoryAgentRepository } from "./agents/memory-repo";
+export {
+  readGeneratePin,
+  mergeGeneratePins,
+  resolveStudioGenerateDefault,
+} from "./agents/generate-defaults";
+export type { GeneratePinKind, GenerateDefaultSource } from "./agents/generate-defaults";
 export type { AgentRecord, AgentVersionRecord, ToolBindingRecord, AgentRepository, CreateAgentInput } from "./agents/service";
 export { createRuntime } from "./runtime/create-runtime";
 export { StubRuntime } from "./runtime/stub-runtime";
 export { AiSdkRuntime } from "./runtime/ai-sdk-runtime";
 export type { AgentRuntime, RuntimeEvent, RunUsage } from "./runtime/types";
 export { mapStreamPart } from "./runtime/stream-parts";
+export {
+  isMinimaxChatModel,
+  applyMinimaxRequest,
+  normalizeMinimaxDelta,
+  normalizeMinimaxPayload,
+} from "./runtime/minimax-compat";
 export { shouldRetryWithoutTools, shouldFailEmptyAssistant, shouldKeepToolTurn } from "./runtime/retry";
 export { preferredOpenAiWire, usesResponsesApi } from "./runtime/api-mode";
 export { encodeSse } from "./sse";
