@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { PresentationPreview } from "@/components/presentation-preview";
 import type { PresentationOutline } from "@/lib/presentation-outline";
+import { PRESENTATION_STARTERS } from "@/lib/job-starters";
 
 function errorMessage(payload: unknown, fallback: string): string {
   if (payload && typeof payload === "object") {
@@ -15,14 +16,11 @@ function errorMessage(payload: unknown, fallback: string): string {
   return fallback;
 }
 
-function needsSettingsHint(message: string): boolean {
-  return /gateway|api key|settings|runtime_stub|live gateway/i.test(message);
-}
-
 export function PresentationsStudio() {
   const [prompt, setPrompt] = useState("");
   const [outline, setOutline] = useState<PresentationOutline | null>(null);
-  const [busy, setBusy] = useState<"generate" | "download" | null>(null);
+  const [busy, setBusy] = useState<"generate" | "download" | "regen" | null>(null);
+  const [regenIndex, setRegenIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function onGenerate(event: FormEvent) {
@@ -49,6 +47,32 @@ export function PresentationsStudio() {
       setError(err instanceof Error ? err.message : "Could not generate the presentation outline");
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function onRegenerate(index: number) {
+    if (!outline || busy) {
+      return;
+    }
+    setBusy("regen");
+    setRegenIndex(index);
+    setError(null);
+    try {
+      const res = await fetch("/api/v1/presentations/regenerate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ outline, slideIndex: index, prompt }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(errorMessage(data, "Could not regenerate that slide"));
+      }
+      setOutline(data as PresentationOutline);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not regenerate that slide");
+    } finally {
+      setBusy(null);
+      setRegenIndex(null);
     }
   }
 
@@ -114,7 +138,7 @@ export function PresentationsStudio() {
           data-testid="presentations-error"
         >
           {error}
-          {needsSettingsHint(error) && !/settings/i.test(error) ? (
+          {/gateway|api key|settings|runtime_stub|live gateway/i.test(error) && !/settings/i.test(error) ? (
             <>
               {" "}
               Open{" "}
@@ -129,16 +153,34 @@ export function PresentationsStudio() {
 
       <div className="mt-8 flex-1">
         {outline ? (
-          <PresentationPreview outline={outline} />
+          <PresentationPreview
+            outline={outline}
+            regeneratingIndex={regenIndex}
+            onRegenerate={(index) => void onRegenerate(index)}
+          />
         ) : (
-          <div
-            className="rounded-2xl border border-mist bg-mist/30 px-4 py-10 text-center"
-            data-testid="presentations-studio-empty"
-          >
-            <p className="text-lg font-medium">No deck yet</p>
-            <p className="mt-2 text-sm text-ink/60">
-              Enter a topic below. Preview stays in-app; download gives you an editable PPTX.
+          <div className="rounded-2xl border border-mist bg-mist/30 px-4 py-10" data-testid="presentations-studio-empty">
+            <p className="text-center text-lg font-medium">No deck yet</p>
+            <p className="mt-2 text-center text-sm text-ink/60">
+              Enter a topic below, or load a starter and download a PPTX without a live generate.
             </p>
+            <div className="mx-auto mt-6 grid max-w-2xl gap-3 sm:grid-cols-2">
+              {PRESENTATION_STARTERS.map((starter) => (
+                <button
+                  key={starter.id}
+                  type="button"
+                  className="rounded-xl border border-mist bg-paper px-4 py-3 text-left hover:border-navy"
+                  onClick={() => {
+                    setOutline(starter.outline);
+                    setError(null);
+                  }}
+                  data-testid="presentations-starter"
+                >
+                  <p className="text-sm font-medium text-ink">{starter.label}</p>
+                  <p className="mt-1 text-xs text-ink/60">{starter.description}</p>
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>

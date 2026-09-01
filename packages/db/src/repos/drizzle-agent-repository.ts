@@ -146,11 +146,14 @@ export class DrizzleAgentRepository implements AgentRepository {
   async updateVersion(
     organizationId: string,
     versionId: string,
-    patch: Partial<Pick<AgentVersionRecord, "productModes">>,
+    patch: Partial<Pick<AgentVersionRecord, "productModes" | "config">>,
   ): Promise<void> {
     await this.db
       .update(agentVersions)
-      .set({ productModes: patch.productModes ?? null })
+      .set({
+        ...(patch.productModes !== undefined ? { productModes: patch.productModes ?? null } : {}),
+        ...(patch.config !== undefined ? { config: patch.config } : {}),
+      })
       .where(and(eq(agentVersions.organizationId, organizationId), eq(agentVersions.id, versionId)));
   }
 }

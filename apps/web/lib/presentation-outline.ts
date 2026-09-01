@@ -55,6 +55,40 @@ export function parsePresentationOutline(raw: unknown): PresentationOutline {
   return result.data;
 }
 
+export function parsePresentationSlide(raw: unknown): PresentationSlide {
+  if (typeof raw === "string") {
+    const jsonText = extractJsonObject(raw);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(jsonText);
+    } catch {
+      throw new ApiError("invalid_outline", "Model returned invalid JSON for the slide", 502);
+    }
+    raw = parsed;
+  }
+  const result = presentationSlideSchema.safeParse(raw);
+  if (!result.success) {
+    throw new ApiError(
+      "invalid_outline",
+      `Presentation slide failed validation: ${result.error.issues.map((i) => i.message).join("; ")}`,
+      502,
+    );
+  }
+  return result.data;
+}
+
+export function mergePresentationSlide(
+  outline: PresentationOutline,
+  index: number,
+  slide: PresentationSlide,
+): PresentationOutline {
+  if (!Number.isInteger(index) || index < 0 || index >= outline.slides.length) {
+    throw new ApiError("invalid_request", "slideIndex is out of range", 400);
+  }
+  const slides = outline.slides.map((item, itemIndex) => (itemIndex === index ? slide : item));
+  return { ...outline, slides };
+}
+
 export function parsePresentationOutlineBody(body: unknown): PresentationOutline {
   const result = presentationOutlineSchema.safeParse(body);
   if (!result.success) {

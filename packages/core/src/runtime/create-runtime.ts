@@ -4,11 +4,24 @@ import type { AgentRuntime } from "./types";
 import { resolveProviderKeys, resolveRuntimeMode, hasLiveProvider, type StoredSecrets } from "../secrets";
 import { buildToolSecretScope } from "../tools/credentials";
 import { runWithToolSecrets } from "../tools/secret-scope";
+import { readGeneratePin } from "../agents/generate-defaults";
 
 function withToolSecrets(runtime: AgentRuntime, settings: StoredSecrets): AgentRuntime {
   const scope = buildToolSecretScope(settings);
   return {
-    execute: (input) => runWithToolSecrets(scope, () => runtime.execute(input)),
+    execute: (input) => {
+      const image = readGeneratePin(input.version.config, "image");
+      const video = readGeneratePin(input.version.config, "video");
+      const next = {
+        ...scope,
+        secrets: {
+          ...scope.secrets,
+          ...(image ? { IMAGE_GEN_MODEL: image } : {}),
+          ...(video ? { VIDEO_GEN_MODEL: video } : {}),
+        },
+      };
+      return runWithToolSecrets(next, () => runtime.execute(input));
+    },
   };
 }
 

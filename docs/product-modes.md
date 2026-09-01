@@ -91,7 +91,6 @@ Saving a gateway URL + API key always probes `GET /v1/models` first, then routes
 - Lumina Home hub, Audio, Avatar
 - Kimi Sheets / Websites / Design
 - Full canvas media editors
-- Per-agent generate defaults (studios stay workspace-level)
 
 ## What we refuse to copy
 

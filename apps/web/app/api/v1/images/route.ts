@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { jsonError } from "@/lib/http";
-import { getTenant } from "@/lib/tenant";
+import { agentService, getTenant } from "@/lib/tenant";
+import { loadSettings } from "@/lib/settings-store";
+import { resolveStudioGenerateDefault } from "@agentforge/core";
 import {
   defaultStudioImageModel,
   generateStudioImage,
@@ -15,10 +17,18 @@ export async function GET() {
     const tenant = await getTenant();
     const models = listStudioImageModels();
     const items = await listStudioGallery(tenant, "image");
+    const settings = loadSettings();
+    const sources = await agentService.listGenerateDefaultSources(tenant);
+    const defaultModel = resolveStudioGenerateDefault({
+      kind: "image",
+      sources,
+      settingsModel: settings.imageGenModel,
+      catalogPreferred: defaultStudioImageModel(models),
+    });
     return NextResponse.json({
       items,
       models,
-      defaultModel: defaultStudioImageModel(models),
+      defaultModel,
       ready: studioRouteReady("image_gen"),
     });
   } catch (error) {

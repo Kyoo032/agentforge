@@ -9,7 +9,13 @@ import {
 } from "@agentforge/core";
 import { loadSettings } from "./settings-store";
 import { modeCatalogPayload, listSelectableModels } from "./selectable-models";
-import { parseDocumentDraft, type DocumentDraft } from "./document-outline";
+import {
+  mergeDocumentSection,
+  parseDocumentDraft,
+  parseDocumentDraftBody,
+  parseDocumentSection,
+  type DocumentDraft,
+} from "./document-outline";
 import { rememberJobUsage } from "./job-usage";
 
 const DOCUMENT_SYSTEM = `You draft professional documents for Agentforge.
@@ -45,7 +51,12 @@ function readOptionalModel(body: unknown): string | undefined {
   return typeof model === "string" && model.trim() ? model.trim() : undefined;
 }
 
-async function collectAssistantText(tenant: TenantContext, model: string, prompt: string): Promise<string> {
+async function collectAssistantTextWithSystem(
+  tenant: TenantContext,
+  model: string,
+  systemPrompt: string,
+  prompt: string,
+): Promise<string> {
   const settings = loadSettings();
   const runtime = createRuntime(settings);
   const version: AgentVersionRecord = {
@@ -53,7 +64,7 @@ async function collectAssistantText(tenant: TenantContext, model: string, prompt
     agentId: "document",
     organizationId: tenant.organizationId,
     version: 1,
-    systemPrompt: DOCUMENT_SYSTEM,
+    systemPrompt,
     model,
     inputModalities: ["text"],
     config: {},
@@ -87,14 +98,16 @@ async function collectAssistantText(tenant: TenantContext, model: string, prompt
   return assistantText;
 }
 
-export async function generateDocumentDraft(tenant: TenantContext, body: unknown): Promise<DocumentDraft> {
-  const prompt = readPrompt(body);
+async function collectAssistantText(tenant: TenantContext, model: string, prompt: string): Promise<string> {
+  return collectAssistantTextWithSystem(tenant, model, DOCUMENT_SYSTEM, prompt);
+}
+
+function requireLiveDocumentRuntime(): ReturnType<typeof loadSettings> {
   const settings = loadSettings();
   const mode = resolveRuntimeMode({
     settingsHasKey: hasLiveProvider(settings),
     envRuntime: process.env.AGENTFORGE_RUNTIME,
   });
-
   if (mode === "stub") {
     throw new ApiError(
       "runtime_stub",
@@ -102,17 +115,78 @@ export async function generateDocumentDraft(tenant: TenantContext, body: unknown
       503,
     );
   }
+  return settings;
+}
 
+function resolveDocumentModel(body: unknown, settings: ReturnType<typeof loadSettings>): string {
   const catalog = listSelectableModels();
   const { defaults } = modeCatalogPayload();
-  const model = resolveChatModel(
+  return resolveChatModel(
     readOptionalModel(body),
     settings.documentGenModel || defaults.documents,
     catalog,
   );
+}
+
+export async function generateDocumentDraft(tenant: TenantContext, body: unknown): Promise<DocumentDraft> {
+  const prompt = readPrompt(body);
+  const settings = requireLiveDocumentRuntime();
+  const model = resolveDocumentModel(body, settings);
   const raw = await collectAssistantText(tenant, model, prompt);
   if (!raw.trim()) {
     throw new ApiError("generation_failed", "Model returned an empty document draft", 502);
   }
   return parseDocumentDraft(raw);
+}
+
+const SECTION_SYSTEM = `You rewrite one section of an Agentforge document.
+Return ONLY valid JSON (no markdown fences, no commentary) with this exact shape:
+{ "heading": string, "body": string }
+Rules:
+- body is plain paragraphs. Use \\n\\n between paragraphs. No markdown headings.
+- Stay on the same topic as the rest of the document.
+- No campus / student / course nouns unless the topic itself requires them.`;
+
+function readSectionIndex(body: unknown, length: number): number {
+  if (!body || typeof body !== "object") {
+    throw new ApiError("invalid_request", "Request body must be a JSON object", 400);
+  }
+  const index = (body as { sectionIndex?: unknown }).sectionIndex;
+  if (typeof index !== "number" || !Number.isInteger(index) || index < 0 || index >= length) {
+    throw new ApiError("invalid_request", "sectionIndex is out of range", 400);
+  }
+  return index;
+}
+
+export async function regenerateDocumentSection(tenant: TenantContext, body: unknown): Promise<DocumentDraft> {
+  if (!body || typeof body !== "object") {
+    throw new ApiError("invalid_request", "Request body must be a JSON object", 400);
+  }
+  const draft = parseDocumentDraftBody((body as { draft?: unknown }).draft);
+  const index = readSectionIndex(body, draft.sections.length);
+  const topic = typeof (body as { prompt?: unknown }).prompt === "string" ? (body as { prompt: string }).prompt.trim() : "";
+  const current = draft.sections[index];
+  if (!current) {
+    throw new ApiError("invalid_request", "sectionIndex is out of range", 400);
+  }
+  const settings = requireLiveDocumentRuntime();
+  const model = resolveDocumentModel(body, settings);
+  const others = draft.sections
+    .map((section, itemIndex) => (itemIndex === index ? null : `- ${section.heading}`))
+    .filter(Boolean)
+    .join("\n");
+  const prompt = [
+    topic ? `Original topic: ${topic}` : null,
+    `Document title: ${draft.title}`,
+    others ? `Other sections:\n${others}` : null,
+    `Rewrite this section only.\nHeading: ${current.heading}\nBody:\n${current.body}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  const raw = await collectAssistantTextWithSystem(tenant, model, SECTION_SYSTEM, prompt);
+  if (!raw.trim()) {
+    throw new ApiError("generation_failed", "Model returned an empty document section", 502);
+  }
+  return mergeDocumentSection(draft, index, parseDocumentSection(raw));
 }

@@ -4,6 +4,7 @@ import {
   extractJsonObject,
   parsePresentationOutline,
   parsePresentationOutlineBody,
+  mergePresentationSlide,
 } from "./presentation-outline";
 
 describe("extractJsonObject", () => {
@@ -74,5 +75,20 @@ describe("parsePresentationOutlineBody", () => {
     expect(() =>
       parsePresentationOutlineBody({ slides: [{ heading: "H", bullets: [], notes: "" }] }),
     ).toThrow(ApiError);
+  });
+});
+
+describe("mergePresentationSlide", () => {
+  it("replaces one slide by index", () => {
+    const outline = parsePresentationOutlineBody({
+      title: "Body deck",
+      slides: [
+        { heading: "One", bullets: ["a"], notes: "" },
+        { heading: "Two", bullets: ["b"], notes: "" },
+      ],
+    });
+    const next = mergePresentationSlide(outline, 0, { heading: "New", bullets: ["c"], notes: "" });
+    expect(next.slides[0]?.heading).toBe("New");
+    expect(next.slides[1]?.heading).toBe("Two");
   });
 });

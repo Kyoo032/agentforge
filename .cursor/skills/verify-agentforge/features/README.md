@@ -4,7 +4,7 @@ Agent-facing map (where to press). Not product. Pair with pstack `how` for how a
 
 This directory is the maintained source for verifying user-facing Agentforge behavior. Read this index before driving, then use the matching feature file as the recipe.
 
-Documents and Research exist as product modes (`/documents`, `/research`) but are **not** seeded here. `foundation.spec.ts` asserts `mode-documents` and `mode-research` have count 0 on a default desk. Add them with `/maintain-verification-skill` if they stay in the rail.
+Documents, Research, Images, Videos, and Presentation are product modes. Default desks only unlock Images/Videos/Presentation after a Default agent exists. Documents unlocks when an agent publishes that surface (`product-mode-documents`).
 
 ## Baseline preconditions
 
@@ -41,7 +41,9 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 
 - [Chat](./chat.md) — composer send, new thread, switch sessions, stub reply.
 - [Settings](./settings.md) — form, privacy note, stub/live runtime, Usage panel (this key vs desk estimate in USD, spend-by-model bars), extras keys hidden until opened.
-- [Build](./build.md) — blank/default templates, studio UUID, share workspace, agent chat.
+- [Build](./build.md) — blank/default templates, studio UUID, share workspace, agent chat, generate default pickers when Images/Videos are on.
+- [Documents](./documents.md) — starters, preview, section regen (503 without a key), DOCX download from a starter.
 - [Images](./images.md) — studio shell after an agent unlocks the tab; needs-key without a gateway key.
 - [Videos](./videos.md) — studio shell and `videos-studio-needs-key` without a key.
+- [Presentation](./presentations.md) — starters, preview, slide regen (503 without a key), PPTX download from a starter.
 - [Desktop](./desktop.md) — Electron one-window launch, splash → Chat, child teardown on quit.

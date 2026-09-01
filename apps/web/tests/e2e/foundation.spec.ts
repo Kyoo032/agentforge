@@ -73,6 +73,7 @@ test("chat and build work without an account", async ({ page }) => {
   await expect(page.getByTestId("agent-name")).toHaveValue("Assistant");
   await page.getByTestId("create-agent").click();
   await page.waitForURL(/\/studio\/[0-9a-f-]{36}/i, { timeout: 60_000 });
+  const studioUrl = page.url();
   await expect(page.getByTestId("studio-agent-name")).toHaveText("Assistant", { timeout: 30_000 });
   await expect(page.getByTestId("mode-images")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId("mode-videos")).toBeVisible();
@@ -104,4 +105,27 @@ test("chat and build work without an account", async ({ page }) => {
   await page.getByTestId("mode-presentations").click();
   await expect(page).toHaveURL(/\/presentations/, { timeout: 15_000 });
   await expect(page.getByTestId("presentations-studio")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("presentations-starter")).toHaveCount(2);
+  await page.getByTestId("presentations-starter").first().click();
+  await expect(page.getByTestId("presentations-preview")).toBeVisible();
+  await expect(page.getByTestId("presentations-regen").first()).toBeVisible();
+  await page.getByTestId("presentations-regen").first().click();
+  await expect(page.getByTestId("presentations-error")).toContainText(/gateway|Settings|API key/i, { timeout: 15_000 });
+
+  await page.goto(studioUrl);
+  await expect(page.getByTestId("studio-agent-name")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("agent-image-model")).toBeVisible();
+  await page.getByTestId("product-mode-documents").click();
+  await page.getByTestId("save-product-modes").click();
+  await expect(page.getByText("Product surfaces saved")).toBeVisible({ timeout: 15_000 });
+
+  await page.getByTestId("mode-documents").click();
+  await expect(page).toHaveURL(/\/documents/, { timeout: 15_000 });
+  await expect(page.getByTestId("documents-studio")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("documents-starter")).toHaveCount(2);
+  await page.getByTestId("documents-starter").first().click();
+  await expect(page.getByTestId("documents-preview")).toBeVisible();
+  await expect(page.getByTestId("documents-regen").first()).toBeVisible();
+  await page.getByTestId("documents-regen").first().click();
+  await expect(page.getByTestId("documents-error")).toContainText(/gateway|Settings|API key/i, { timeout: 15_000 });
 });

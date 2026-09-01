@@ -39,6 +39,17 @@ export async function POST(request: Request, context: RouteContext) {
         inputModalities: body.inputModalities,
         productModes: body.productModes,
         visibility: body.visibility,
+        config:
+          body.imageGenModel || body.videoGenModel
+            ? {
+                ...(typeof body.imageGenModel === "string" && body.imageGenModel.trim()
+                  ? { imageGenModel: body.imageGenModel.trim() }
+                  : {}),
+                ...(typeof body.videoGenModel === "string" && body.videoGenModel.trim()
+                  ? { videoGenModel: body.videoGenModel.trim() }
+                  : {}),
+              }
+            : undefined,
       },
       listSelectableModels(),
     );

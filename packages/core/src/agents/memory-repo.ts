@@ -59,7 +59,7 @@ export class MemoryAgentRepository implements AgentRepository {
   async updateVersion(
     organizationId: string,
     versionId: string,
-    patch: Partial<Pick<AgentVersionRecord, "productModes">>,
+    patch: Partial<Pick<AgentVersionRecord, "productModes" | "config">>,
   ): Promise<void> {
     const index = this.versions.findIndex(
       (version) => version.id === versionId && version.organizationId === organizationId,
