@@ -44,7 +44,7 @@ export {
 export type { EncryptedEnvelope } from "./crypto/envelope";
 export { isLoopbackHost, assertAllowedEndpointUrl } from "./security/tls";
 export { redactSecrets } from "./security/redact";
-export { scanPii, piiWarning, passesLuhn } from "./security/pii";
+export { scanPii, piiWarning } from "./security/pii";
 export type { PiiKind, PiiFinding } from "./security/pii";
 export { isOpenRouterBaseUrl, openRouterZdrBody } from "./privacy/openrouter";
 export { mergeOpenRouterZdr } from "./runtime/ai-sdk-runtime";
@@ -108,7 +108,7 @@ export {
   recommendedChatModels,
   sortChatModels,
 } from "./models/preferred";
-export { curateModel, applyCuration, isEverydayModel, friendlyModelLabel } from "./models/curation";
+export { curateModel, applyCuration, isEverydayModel } from "./models/curation";
 export type { ModelTier, CuratedModelMeta } from "./models/curation";
 export {
   mediaKind,
