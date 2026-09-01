@@ -15,6 +15,7 @@ import { loadSettings } from "./settings-store";
 import { listSelectableModels, modeCatalogPayload } from "./selectable-models";
 import { ensureToolsRegistered } from "./register-tools";
 import { parseResearchNotes, type ResearchNotes } from "./research-parse";
+import { rememberJobUsage } from "./job-usage";
 
 const RESEARCH_SYSTEM = `You write sourced research notes for Agentforge.
 You are given a question and web search hits. Return ONLY valid JSON (no markdown fences) with this shape:
@@ -100,6 +101,7 @@ async function collectAssistantText(
       if (event.type === "run.failed") {
         failedMessage = event.message;
       }
+      rememberJobUsage(event);
     },
   });
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { GATEWAY_BASE_URL, GATEWAY_NAME } from "@agentforge/core/gateway";
 import { DEFAULT_GATEWAY_IMAGE_MODEL, DEFAULT_GATEWAY_VIDEO_MODEL } from "@agentforge/core/media-kind";
+import { UsagePanel, type AccountUsage } from "./usage-panel";
 
 type Probe = {
   openaiCount?: number;
@@ -87,6 +88,7 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [extrasOpen, setExtrasOpen] = useState(false);
+  const [usage, setUsage] = useState<AccountUsage | null>(null);
 
   function applyPayload(payload: {
     hasOpenai?: boolean;
@@ -111,6 +113,7 @@ export default function SettingsPage() {
     disabledTools?: string[];
     modes?: ModeLists;
     defaults?: ModeDefaults;
+    usage?: AccountUsage;
   }) {
     setHasOpenai(Boolean(payload.hasOpenai));
     setHasGoogle(Boolean(payload.hasGoogle));
@@ -163,6 +166,9 @@ export default function SettingsPage() {
     }
     if (payload.probe) {
       setProbe(payload.probe);
+    }
+    if (payload.usage) {
+      setUsage(payload.usage);
     }
   }
 
@@ -326,6 +332,7 @@ export default function SettingsPage() {
           {probe?.openaiError ? <p className="text-sm text-red-700">{probe.openaiError}</p> : null}
           {error ? <p className="text-sm text-red-700">{error}</p> : null}
           {message ? <p className="text-sm text-ink/60">{message}</p> : null}
+          <UsagePanel usage={usage} />
           <div className="flex flex-wrap gap-3">
             <button
               type="submit"

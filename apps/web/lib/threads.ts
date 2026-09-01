@@ -280,11 +280,29 @@ export async function insertRun(
   return row;
 }
 
-export async function finishRun(tenant: TenantContext, runId: string, status: "completed" | "failed", error?: string) {
+export async function finishRun(
+  tenant: TenantContext,
+  runId: string,
+  status: "completed" | "failed",
+  error?: string,
+  usage?: Record<string, unknown> | null,
+) {
   await db
     .update(runs)
-    .set({ status, error: error ?? null, finishedAt: new Date() })
+    .set({
+      status,
+      error: error ?? null,
+      finishedAt: new Date(),
+      ...(usage ? { usage } : {}),
+    })
     .where(and(eq(runs.organizationId, tenant.organizationId), eq(runs.id, runId)));
+}
+
+export async function listRunUsage(tenant: TenantContext) {
+  return db
+    .select({ usage: runs.usage })
+    .from(runs)
+    .where(eq(runs.organizationId, tenant.organizationId));
 }
 
 export async function insertToolInvocation(

@@ -1,4 +1,37 @@
-export { GATEWAY_NAME, GATEWAY_HOST, GATEWAY_BASE_URL, isGatewayBaseUrl } from "./gateway";
+export {
+  GATEWAY_NAME,
+  GATEWAY_HOST,
+  GATEWAY_BASE_URL,
+  QUOTA_PER_USD,
+  DEFAULT_GROUP_RATIO,
+  isGatewayBaseUrl,
+  gatewayOriginFromBaseUrl,
+  quotaToUsd,
+  formatUsd,
+} from "./gateway";
+export {
+  readLanguageModelUsage,
+  asRunUsageRecord,
+  addTokenUsage,
+  parsePricingCatalog,
+  parseTokenUsage,
+  estimateRunUsd,
+  estimateDeskUsd,
+  estimateDeskByModel,
+  isUnpricedBilling,
+  fetchPricingCatalog,
+  fetchThisKeyUsage,
+  loadThisKeyState,
+} from "./gateway/account";
+export type {
+  RunUsageRecord,
+  PricingCatalog,
+  PricingModel,
+  ThisKeyUsage,
+  ThisKeyState,
+  DeskEstimate,
+  DeskModelSpend,
+} from "./gateway/account";
 export { ApiError, ContentParseError } from "./errors";
 export {
   wrappingKeyFromSecret,
@@ -169,7 +202,7 @@ export type { AgentRecord, AgentVersionRecord, ToolBindingRecord, AgentRepositor
 export { createRuntime } from "./runtime/create-runtime";
 export { StubRuntime } from "./runtime/stub-runtime";
 export { AiSdkRuntime } from "./runtime/ai-sdk-runtime";
-export type { AgentRuntime, RuntimeEvent } from "./runtime/types";
+export type { AgentRuntime, RuntimeEvent, RunUsage } from "./runtime/types";
 export { mapStreamPart } from "./runtime/stream-parts";
 export { shouldRetryWithoutTools, shouldFailEmptyAssistant, shouldKeepToolTurn } from "./runtime/retry";
 export { preferredOpenAiWire, usesResponsesApi } from "./runtime/api-mode";

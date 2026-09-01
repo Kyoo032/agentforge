@@ -17,7 +17,8 @@ import {
   shouldFallbackFromResponses,
   shouldUpgradeToResponses,
 } from "./api-mode";
-import type { AgentRuntime } from "./types";
+import { readLanguageModelUsage, addTokenUsage } from "../gateway/account";
+import type { AgentRuntime, RunUsage } from "./types";
 import {
   imagePartForProvider,
   rewriteUnreachableMediaInJson,
@@ -243,10 +244,15 @@ export class AiSdkRuntime implements AgentRuntime {
     const result = shouldRetryBare
       ? await this.consume(activeModel, input, messages, undefined, { responses: wire === "responses" })
       : first;
+    const usage = addTokenUsage(first.usage, shouldRetryBare ? result.usage : { inputTokens: 0, outputTokens: 0 });
+    const completedUsage: RunUsage | undefined =
+      usage.inputTokens > 0 || usage.outputTokens > 0
+        ? { model: input.version.model, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens }
+        : undefined;
 
     if (result.failed) {
       if (shouldKeepToolTurn({ tooled: result.toolCompleted, failed: result.failed })) {
-        await input.onEvent({ type: "run.completed", runId: input.runId });
+        await input.onEvent({ type: "run.completed", runId: input.runId, usage: completedUsage });
         return;
       }
       await input.onEvent({ type: "run.failed", message: result.failed });
@@ -259,7 +265,7 @@ export class AiSdkRuntime implements AgentRuntime {
     if (shouldFailEmptyAssistant({ text: result.text, thinking: Boolean(result.thinking), tooled: result.tooled })) {
       throw new Error("The model returned no text. Try another model, or turn off tools if this endpoint rejects them.");
     }
-    await input.onEvent({ type: "run.completed", runId: input.runId });
+    await input.onEvent({ type: "run.completed", runId: input.runId, usage: completedUsage });
   }
 
   private async consume(
@@ -274,6 +280,7 @@ export class AiSdkRuntime implements AgentRuntime {
     tooled: boolean;
     toolCompleted: boolean;
     failed: string;
+    usage: { inputTokens: number; outputTokens: number };
   }> {
     const providerOptions = openaiCompatProviderOptions(options);
     const result = streamText({
@@ -287,6 +294,7 @@ export class AiSdkRuntime implements AgentRuntime {
     let tooled = false;
     let toolCompleted = false;
     let failed = "";
+    let usage = { inputTokens: 0, outputTokens: 0 };
 
     for await (const part of result.fullStream) {
       const event = mapStreamPart(part);
@@ -321,6 +329,12 @@ export class AiSdkRuntime implements AgentRuntime {
       }
     }
 
-    return { text, thinking, tooled, toolCompleted, failed };
+    try {
+      usage = readLanguageModelUsage(await result.usage);
+    } catch {
+      usage = { inputTokens: 0, outputTokens: 0 };
+    }
+
+    return { text, thinking, tooled, toolCompleted, failed, usage };
   }
 }

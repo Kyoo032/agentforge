@@ -11,6 +11,7 @@ import { jsonError } from "@/lib/http";
 import { getTenant } from "@/lib/tenant";
 import { loadSettings, saveSettings } from "@/lib/settings-store";
 import { refreshModelCache, modeCatalogPayload } from "@/lib/selectable-models";
+import { loadAccountUsage } from "@/lib/account-usage";
 import { probeSummary } from "@/lib/model-cache";
 
 function readUrl(value: unknown, fallback: "openai" | "anthropic" | "google" | "volcengine"): string | undefined {
@@ -68,10 +69,20 @@ function settingsPayload(settings: ReturnType<typeof loadSettings>) {
   };
 }
 
+async function settingsPayloadWithUsage(
+  settings: ReturnType<typeof loadSettings>,
+  tenant: Awaited<ReturnType<typeof getTenant>>,
+) {
+  return {
+    ...settingsPayload(settings),
+    usage: await loadAccountUsage(settings, tenant),
+  };
+}
+
 export async function GET() {
   try {
-    await getTenant();
-    return NextResponse.json(settingsPayload(loadSettings()));
+    const tenant = await getTenant();
+    return NextResponse.json(await settingsPayloadWithUsage(loadSettings(), tenant));
   } catch (error) {
     return jsonError(error);
   }
@@ -79,7 +90,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    await getTenant();
+    const tenant = await getTenant();
     const body = (await request.json()) as Record<string, unknown>;
     const saved = saveSettings({
       openaiApiKey: typeof body.openaiApiKey === "string" ? body.openaiApiKey : undefined,
@@ -102,7 +113,7 @@ export async function POST(request: Request) {
     await refreshModelCache(saved);
     const catalog = modeCatalogPayload();
     return NextResponse.json({
-      ...settingsPayload(saved),
+      ...(await settingsPayloadWithUsage(saved, tenant)),
       modes: catalog.modes,
       defaults: catalog.defaults,
     });

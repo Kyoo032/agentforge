@@ -103,6 +103,7 @@ export async function startModalityRun(options: {
       controller.enqueue(encoder.encode(": connected\n\n"));
       let runId: string | null = null;
       let persisted = false;
+      let runUsage: Record<string, unknown> | null = null;
       const persistAssistant = async () => {
         const reply = assistantText.trim() || thinkingText.trim();
         const assistantParts: ContentPart[] = [];
@@ -165,6 +166,9 @@ export async function startModalityRun(options: {
                 return;
               }
               if (event.type === "run.completed") {
+                if (event.usage) {
+                  runUsage = event.usage;
+                }
                 await persistAssistant();
                 send(event);
                 return;
@@ -194,12 +198,18 @@ export async function startModalityRun(options: {
           });
         });
         await persistAssistant();
-        await finishRun(options.tenant, run.id, "completed");
+        await finishRun(options.tenant, run.id, "completed", undefined, runUsage);
       } catch (error) {
         const message = redactSecrets(error instanceof Error ? error.message : "run_failed");
         const saved = mediaParts.length > 0 ? await persistAssistant() : false;
         if (runId) {
-          await finishRun(options.tenant, runId, saved ? "completed" : "failed", saved ? undefined : message);
+          await finishRun(
+            options.tenant,
+            runId,
+            saved ? "completed" : "failed",
+            saved ? undefined : message,
+            runUsage,
+          );
         }
         if (!saved && !failedMessage) {
           send({ type: "run.failed", message });
