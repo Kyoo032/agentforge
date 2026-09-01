@@ -146,6 +146,43 @@ try {
 
 const runtime = payload.runtime ?? "(missing)";
 const hasOpenai = Boolean(payload.hasOpenai);
+
+let models;
+try {
+  models = await get("/api/v1/models");
+} catch (error) {
+  fail(`GET ${BASE}/api/v1/models failed`, String(error));
+}
+
+if (models.status !== 200) {
+  fail(`GET /api/v1/models returned ${models.status}`, models.text.slice(0, 400));
+}
+
+let modelsPayload;
+try {
+  modelsPayload = JSON.parse(models.text);
+} catch {
+  fail("models response was not JSON", models.text.slice(0, 400));
+}
+
+const modesObj =
+  modelsPayload.modes && typeof modelsPayload.modes === "object" && !Array.isArray(modelsPayload.modes)
+    ? modelsPayload.modes
+    : {};
+const modeKeys = Object.keys(modesObj);
+const modelsList = Array.isArray(modelsPayload.models) ? modelsPayload.models : [];
+const chatCount = modelsList.length;
+const hasTopLevelCuration =
+  modelsPayload.curation != null &&
+  (typeof modelsPayload.curation === "object" || typeof modelsPayload.curation === "boolean");
+const hasPerModelCuration = modelsList.some(
+  (entry) =>
+    entry &&
+    typeof entry === "object" &&
+    ("bestFor" in entry || "tier" in entry || "curation" in entry),
+);
+const curation = Boolean(hasTopLevelCuration || hasPerModelCuration);
+
 const report = {
   ok: true,
   url: BASE,
@@ -153,6 +190,9 @@ const report = {
   chatStatus: chat.status,
   runtime,
   hasOpenai,
+  modeKeys,
+  chatCount,
+  curation,
   dataDir: process.env.AGENTFORGE_DATA_DIR || "unset (webdev default: <repo>/data; packaged: Electron userData)",
   sqliteHint: desktopFlag
     ? "%APPDATA%/Agentforge/agentforge.sqlite"
