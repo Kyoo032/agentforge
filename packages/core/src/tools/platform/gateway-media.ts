@@ -151,14 +151,14 @@ export function buildGatewayVideoPayload(options: {
       watermark: false,
     };
   }
-  // Toko `/v1/video/generations` rejects OpenAI pixel `size` (`json: unknown field "size"`).
-  // Send `ratio` like Seedance. Keep duration/seconds for models that still read those.
+  // Toko `/v1/video/generations` uses a strict JSON decoder per upstream.
+  // grok-imagine-video rejected OpenAI pixel `size`, then `ratio` (`json: unknown field`).
+  // Seedance still needs `ratio` + `resolution`. Keep this branch to prompt/duration only.
   const payload: Record<string, unknown> = {
     model: options.model,
     prompt: options.prompt,
     duration,
     seconds: String(duration),
-    ratio: aspect,
   };
   if (options.imageUrl) {
     payload.image = options.imageUrl;
