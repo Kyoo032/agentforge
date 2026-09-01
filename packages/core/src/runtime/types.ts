@@ -2,6 +2,12 @@ import type { ContentPart } from "../content/types";
 import type { InputModality, TenantContext } from "../tenancy/types";
 import type { AgentVersionRecord, ToolBindingRecord } from "../agents/service";
 
+export type RunUsage = {
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+};
+
 export type RuntimeEvent =
   | { type: "run.started"; runId: string }
   | { type: "assistant.delta"; text: string }
@@ -9,7 +15,7 @@ export type RuntimeEvent =
   | { type: "tool.started"; toolKey: string; input: unknown }
   | { type: "tool.completed"; toolKey: string; output: unknown }
   | { type: "run.failed"; message: string }
-  | { type: "run.completed"; runId: string };
+  | { type: "run.completed"; runId: string; usage?: RunUsage };
 
 export type AgentRuntime = {
   execute(input: {

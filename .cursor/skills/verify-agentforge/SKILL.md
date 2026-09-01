@@ -139,7 +139,7 @@ Use `page.getByTestId("<id>")` exactly as the spec. Wait for `/studio/<uuid>`, n
 | `settings-link` | Rail → Settings |
 | `model-picker`, `composer`, `composer-text`, `composer-send` | Chat |
 | `chat-empty`, `message-list`, `thread-list`, `thread-item`, `new-chat` | Threads |
-| `settings-form`, `openai-base-url`, `openai-key`, `runtime-status`, `privacy-note` | Settings |
+| `settings-form`, `openai-base-url`, `openai-key`, `runtime-status`, `privacy-note`, `usage-panel`, `usage-this-key`, `usage-desk-estimate` | Settings |
 | `create-agent`, `template-blank`, `template-default`, `template-students`, `template-marketing`, `template-legal`, `studio-agent-name` | Build |
 | `images-studio`, `images-studio-needs-key`, `videos-studio`, `videos-studio-needs-key` | Studios |
 

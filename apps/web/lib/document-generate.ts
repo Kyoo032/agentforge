@@ -10,6 +10,7 @@ import {
 import { loadSettings } from "./settings-store";
 import { modeCatalogPayload, listSelectableModels } from "./selectable-models";
 import { parseDocumentDraft, type DocumentDraft } from "./document-outline";
+import { rememberJobUsage } from "./job-usage";
 
 const DOCUMENT_SYSTEM = `You draft professional documents for Agentforge.
 Return ONLY valid JSON (no markdown fences, no commentary) with this exact shape:
@@ -76,6 +77,7 @@ async function collectAssistantText(tenant: TenantContext, model: string, prompt
       if (event.type === "run.failed") {
         failedMessage = event.message;
       }
+      rememberJobUsage(event);
     },
   });
 

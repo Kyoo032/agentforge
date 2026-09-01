@@ -10,6 +10,7 @@ import {
 import { loadSettings } from "./settings-store";
 import { listSelectableModels, modeCatalogPayload } from "./selectable-models";
 import { parsePresentationOutline, type PresentationOutline } from "./presentation-outline";
+import { rememberJobUsage } from "./job-usage";
 
 const OUTLINE_SYSTEM = `You create presentation outlines for Agentforge.
 Return ONLY valid JSON (no markdown fences, no commentary) with this exact shape:
@@ -81,6 +82,7 @@ async function collectAssistantText(
       if (event.type === "run.failed") {
         failedMessage = event.message;
       }
+      rememberJobUsage(event);
     },
   });
 
