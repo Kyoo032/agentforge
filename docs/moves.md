@@ -15,6 +15,21 @@ Format:
 
 ---
 
+## 2026-08-31 — Packaged app does not use port 3000
+
+- **What:** Packaged Electron loopback bind
+- **From:** Hardcoded `127.0.0.1:3000`; reuse whatever was already on that port (including `pnpm dev`)
+- **To:** Packaged process allocates an ephemeral loopback port ≠ 3000, writes `%APPDATA%\Agentforge\app-url.txt`, always spawns bundled `node.exe`. `pnpm dev` / `pnpm desktop:dev` keep :3000 as the webdev prototype.
+- **Why:** 3000 is the webdev prototype only. The installed app must not steal or share it. Verifier: `doctor.mjs --desktop` refuses :3000.
+- **Build proof (this machine):** `apps/desktop/dist/Agentforge Setup 0.1.0.exe`; staged-server smoke on :3011 (not 3000) returned `/chat` 200 and created a Home workspace.
+
+## 2026-08-31 — in-process drizzle migrations + Developer Mode for standalone
+
+- **What:** Runtime schema creation and desktop standalone build preflight
+- **From:** Hand-written `ensureSchema` DDL and/or `drizzle-kit push` at boot (cloud-start, GHA e2e, optional Electron path); desktop build assumed symlink create worked
+- **To:** Committed `packages/db/drizzle` SQL executed by `ensureSchema` via migrate-equivalent on first SQLite open; no runtime `drizzle-kit push` in cloud-start or GHA e2e. `pnpm desktop:build` runs `check-symlink.mjs` first (Windows Developer Mode or elevated shell required because Next standalone tracing recreates pnpm symlinks).
+- **Why:** Installer and Cloud/GHA must not depend on drizzle-kit at runtime; schema lives in committed migrations. Symlink EPERM on Windows without Developer Mode fails the standalone stage mid-build.
+
 ## 2026-08-31 — Desktop shell: Tauri → Electron
 
 - **What:** Desktop window and local server ownership
@@ -25,6 +40,15 @@ Format:
 - **Installer:** electron-builder NSIS (current user), replaces Tauri NSIS output path.
 - **Not in this move:** bundled Node in installer; full verify map for Documents/Research; eval harness.
 - **Follow-up in same pass:** Electron runs `drizzle-kit push --force` against `userData` before spawning Next when it owns the server (fresh OS data dir has no tables otherwise).
+
+## 2026-08-31 — Installer bundles Next + Node (Phase 2d)
+
+- **What:** Packaged Windows runtime for Chat
+- **From:** NSIS shell only; spawn `pnpm --filter @agentforge/web start` and `drizzle-kit push` (needed Node + pnpm on PATH and a checkout)
+- **To:** `output: 'standalone'` Next server + build-machine `node.exe` in `extraResources/web`. Packaged Electron spawns that Node on `server.js`. Schema via in-process `ensureSchema` in `@agentforge/db` (no drizzle-kit at runtime).
+- **Why:** Phase 2d — fresh install → paste gateway key → Chat, no Docker, no PATH Node.
+- **Dev unchanged:** `pnpm desktop:dev` still starts `pnpm --filter @agentforge/web dev`.
+- **Not in this move:** Electron-as-Node (`ELECTRON_RUN_AS_NODE`); shipping a separate Node download; Phase 3 wallet.
 
 ## 2026-08-31 — Demo surface is Chrome + `pnpm dev`; desktop shell parked
 

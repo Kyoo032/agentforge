@@ -1,18 +1,20 @@
 # Agentforge verification map
 
+Agent-facing map (where to press). Not product. Pair with pstack `how` for how a subsystem works; keep this directory honest with `/maintain-verification-skill`.
+
 This directory is the maintained source for verifying user-facing Agentforge behavior. Read this index before driving, then use the matching feature file as the recipe.
 
 Documents and Research exist as product modes (`/documents`, `/research`) but are **not** seeded here. `foundation.spec.ts` asserts `mode-documents` and `mode-research` have count 0 on a default desk. Add them with `/maintain-verification-skill` if they stay in the rail.
 
 ## Baseline preconditions
 
-- App answers at `http://127.0.0.1:3000` (never a LAN IP).
-- `node .cursor/skills/verify-agentforge/scripts/doctor.mjs` exits 0.
-- SQLite is `data/agentforge.sqlite` (or `$AGENTFORGE_DATA_DIR/agentforge.sqlite`).
+- **Webdev:** app answers at `http://127.0.0.1:3000` (never a LAN IP). Doctor with no args.
+- **Packaged desktop:** Electron window; doctor `--desktop`; URL is **not** :3000.
+- SQLite is `data/agentforge.sqlite` (webdev) or `%APPDATA%\Agentforge\agentforge.sqlite` (packaged).
 - No product login. A gateway key is optional; stub Chat works without one.
-- Windows: drive with the IDE browser. Do not run Playwright.
-- Cloud / GHA: `AGENTFORGE_RUNTIME=stub` and Playwright `foundation.spec.ts`.
-- Never drive an instance this run did not doctor. Never start a second process on :3000.
+- Windows: drive webdev with the IDE browser. Drive packaged in the Electron window. Do not run Playwright.
+- Cloud / GHA: `AGENTFORGE_RUNTIME=stub` and Playwright `foundation.spec.ts` against **webdev** :3000.
+- Never drive an instance this run did not doctor. Never start a second process on :3000. Never treat :3000 as the installed app.
 
 ## Driving conventions
 

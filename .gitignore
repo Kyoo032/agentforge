@@ -20,6 +20,7 @@ data/*.db-shm
 data/*.db-wal
 apps/desktop/dist
 apps/desktop/out
+apps/desktop/resources/web
 *.log
 coverage
 playwright-report

@@ -8,6 +8,7 @@
     "./vault-key": "./src/vault-key.ts"
   },
   "scripts": {
+    "generate": "drizzle-kit generate",
     "push": "drizzle-kit push",
     "studio": "drizzle-kit studio",
     "seed": "tsx src/seed.ts",

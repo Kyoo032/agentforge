@@ -4,6 +4,8 @@ A **local** agents workbench for the **Toko Token** OpenAI-compatible gateway at
 
 This file is the project source of truth for coding agents. Vault memory at `C:\Users\rizky\Documents\Obsidian` is for Kyo, not for this repo’s domain rules.
 
+**Harness, not product.** PStack (`how` / `why` mapper, `create-verification-skill` / `maintain-verification-skill` verifier) and `.cursor/skills/verify-agentforge` are agent guardrails, like this file. They are not Agentforge features. Call the original pstack plugin skills from the project verify skill. Do not vendor pstack into `apps/`, `packages/`, the installer, or the UI. Task models stay Cursor explore/worker, not pstack Fable/GPT slugs.
+
 Product modes (Chat / Agents / Documents / Research / Images / Videos / Presentation): see [`docs/product-modes.md`](docs/product-modes.md). The left rail follows product surfaces on custom agents. Packs seed those surfaces.
 
 ## Product (locked 2026-08-26)
@@ -37,13 +39,13 @@ Harbor State seed as identity leftovers, Docker Postgres (SQLite next), desktop 
 - Never commit `.env`, API keys, or passwords.
 - Do not commit or push unless Kyo asks.
 - Do not reintroduce login “for later multiplayer” unless Kyo asks. This is a personal local app.
-- Local process only: bind `127.0.0.1`. Mutating `/api` accepts localhost Origin only. No email/session package.
+- Local process only: bind `127.0.0.1`. Webdev prototype is `:3000`. Packaged Electron picks an ephemeral loopback port and **must not** bind or reuse `:3000`. Mutating `/api` accepts localhost Origin only. No email/session package.
 
 ## Layout (today’s prototype)
 
 ```
 apps/web                 Next.js 15 App Router (local owner, no product login)
-apps/desktop             Electron shell + Windows installer (starts Next on 127.0.0.1:3000)
+apps/desktop             Electron shell + Windows installer (packaged: ephemeral loopback, never :3000)
 packages/core            Content parsers, tools, AgentRuntime, AgentService
 packages/db              Drizzle schema (SQLite in the user data dir; Docker Postgres is legacy)
 packages/university      Optional Students templates and mock campus tools
@@ -57,14 +59,26 @@ pnpm 9.15.9 + Turborepo. If corepack hits EPERM on Windows, use `npx pnpm@9.15.9
 
 ```
 npx pnpm@9.15.9 install
-npx pnpm@9.15.9 db:push
 npx pnpm@9.15.9 db:seed          # optional; first visit also creates the local owner
 npx pnpm@9.15.9 dev               # http://127.0.0.1:3000 → /chat, no login
 ```
 
+Optional prototyping: `npx pnpm@9.15.9 db:push` (`drizzle-kit push` escape hatch). Canonical path is `drizzle-kit generate` in `packages/db` + app-side migrate on SQLite open.
+
 SQLite file: `data/agentforge.sqlite` (or `AGENTFORGE_DATA_DIR`). Do **not** set `DATABASE_URL` to Postgres. `docker compose` remains in the repo as a legacy fallback for older checkouts only.
 
-Desktop (Windows installer / keychain wrap): `pnpm desktop:dev` from repo root (Electron window; starts Next on loopback if needed). `pnpm desktop:build` produces an NSIS installer. Move log: [`docs/moves.md`](docs/moves.md).
+Desktop:
+
+- **Webdev window:** `pnpm desktop:dev` — Electron around the prototype. May reuse `pnpm dev` on `:3000`. Not the installed product.
+- **Packaged app:** `pnpm desktop:build` → NSIS. Needs Windows Developer Mode (or an elevated shell) because Next standalone tracing creates symlinks. The installer bundles Next standalone + Node — no PATH Node required. On launch it **allocates a free loopback port ≠ 3000**, writes it to `%APPDATA%\Agentforge\app-url.txt`, and never attaches to `pnpm dev`. Move log: [`docs/moves.md`](docs/moves.md).
+
+**Phase 2d already built on this Windows checkout (2026-08-31).** Do not claim the installer does not exist.
+
+- Artifact: `apps/desktop/dist/Agentforge Setup 0.1.0.exe` (~168 MB, unsigned, gitignored).
+- `next build` standalone tracing succeeded (Developer Mode on).
+- `stage-web.mjs` asserted `server.js`, `node.exe`, `.next/static`, `better-sqlite3` `.node`, `packages/db/drizzle`.
+- Smoke: staged `node.exe` + `server.js` on **port 3011** (not 3000) with a fresh temp `AGENTFORGE_DATA_DIR` — `GET /chat` 200, `GET /api/v1/workspaces` returned Home. Schema via in-process migrations.
+- NSIS rebuilt the same day after the port split: same path, now ships `main.cjs` that allocates an ephemeral loopback port ≠ 3000 and writes `app-url.txt`. Reinstall that exe to pick up the split.
 
 No account. Workspaces and agents are local. Paste the gateway key in Settings. `AGENTFORGE_RUNTIME=stub` until a key is saved (then live models from the gateway). Env `AGENTFORGE_RUNTIME=ai` still uses `.env` keys.
 
@@ -77,9 +91,12 @@ No account. Workspaces and agents are local. Paste the gateway key in Settings. 
 
 ## Secrets and prompt security
 
-The user pastes their gateway key into settings. The host process holds it. Runs use it. The UI never gets the raw key back after save. Optional extras: native Google / Anthropic / Ark, plus dedicated tool keys.
+The user pastes their gateway key into settings. The host process holds it. Runs use it. The UI never gets the raw key back after save (`hasOpenai` only). Optional extras: native Google / Anthropic / Ark, plus dedicated tool keys (Tavily/Brave/FAL) in Settings Extras.
 
-- Keys live in an AES-256-GCM secrets file (`data/settings.enc`), wrapped by `AGENTFORGE_SECRETS_KEY`, the OS keychain (`Agentforge` / `wrap-key` via Electron keytar), or a gitignored `data/.master-key`.
+Do not use Hermes tools or Hermes dashboard tokens to process Agentforge keys.
+
+- **Gateway key** → `settings.enc` (AES-256-GCM).
+- **Wrap key** → Electron keytar `Agentforge` / `wrap-key` (injected as `AGENTFORGE_SECRETS_KEY`), or webdev `data/.master-key` / env. Never in the renderer, never in git, never in `NEXT_PUBLIC_*`.
 - Remote inference URLs must be HTTPS. `http://` is only for loopback (Ollama).
 - Agentforge does not log prompts. Message bodies, system prompts, and tool I/O are encrypted at rest. Gateway retention is Toko Token’s policy, not ours.
 - OpenRouter’s `provider.zdr: true` is sent only when the saved URL is OpenRouter. Do not send that field to Toko Token.
@@ -96,17 +113,17 @@ The user pastes their gateway key into settings. The host process holds it. Runs
 
 Cloud clones GitHub. Push the branch first; uncommitted local files are not on the VM. Launch from the Cursor **Cloud** agent dropdown, or `/in-cloud` from a local chat.
 
-Boot uses [`.cursor/environment.json`](.cursor/environment.json): `install` → `scripts/cloud-install.sh` (pnpm 9.15.9, Playwright Chromium). `start` → `scripts/cloud-start.sh` (SQLite `data/agentforge.sqlite`, `pnpm db:push`). Stub runtime only — no gateway key.
+Boot uses [`.cursor/environment.json`](.cursor/environment.json): `install` → `scripts/cloud-install.sh` (pnpm 9.15.9, Playwright Chromium). `start` → `scripts/cloud-start.sh` (prepares the data dir only; Next creates schema on first open). Stub runtime only — no gateway key.
 
 This image has **no Docker**. `docker`, `dockerd`, and `sudo service docker start` fail (`docker: unrecognized service`). Do not run `docker compose`. Product DB is SQLite. Default file: `data/agentforge.sqlite`.
 
-The Windows prototype also uses SQLite (`pnpm db:push` then `pnpm dev`). Desktop Electron injects the wrap key from the OS keychain and may spawn Next on `127.0.0.1:3000`.
+The Windows prototype also uses SQLite (Next/`ensureSchema` migrates on open; `pnpm db:push` is optional). Desktop Electron injects the wrap key from the OS keychain. Packaged binds an ephemeral loopback port, not `:3000`.
 
 ### What a Cloud Agent on this VM can do
 
 - Node 22 + pnpm 9.15.9 (corepack). Workspace `node_modules` after `install`.
-- Install/start SQLite via `pnpm db:push` (not Docker Compose, not required Postgres).
-- Run the stub Playwright suite against `http://127.0.0.1:3000` (`pnpm test:e2e` from repo root also works). Playwright `webServer` starts `pnpm dev` if needed. Do not use a LAN IP.
+- SQLite via Next/`ensureSchema` on open (not Docker Compose, not required Postgres). `pnpm db:push` is optional.
+- Run the stub Playwright suite against `http://127.0.0.1:3000` (`pnpm test:e2e` from repo root also works). That is **webdev**, not the packaged app. Playwright `webServer` starts `pnpm dev` if needed. Do not use a LAN IP.
 
 ```
 cd apps/web
@@ -114,7 +131,7 @@ AGENTFORGE_RUNTIME=stub npx playwright test
 ```
 
 - Run Vitest unit tests (`pnpm test` / package `vitest run`).
-- Browser / computer-use against the local app when those tools are available. Bind is `127.0.0.1:3000`.
+- Browser / computer-use against the local **webdev** app when those tools are available. Bind is `127.0.0.1:3000`. Packaged desktop is not on this VM.
 - Read GitHub with `gh` (PRs, Actions logs). Do not use `gh` to create PRs — use the Cursor PR tool.
 
 ### What a Cloud Agent on this VM cannot do
@@ -131,4 +148,4 @@ GitHub Actions (`.github/workflows/e2e.yml`) runs the same stub Playwright suite
 
 - Next.js overlay in Cursor’s browser can inject `data-cursor-ref` and block clicks. Use Chrome or Playwright.
 - Playwright `/studio/**` also matches `/studio/new`. Wait for `/studio/<uuid>`.
-- Dev server binds `127.0.0.1`. Playwright and the browser must use `http://127.0.0.1:3000` (not a LAN IP).
+- Dev server binds `127.0.0.1:3000` (webdev only). Playwright and the IDE browser must use `http://127.0.0.1:3000` (not a LAN IP). Packaged Agentforge uses a different loopback port; `doctor.mjs --desktop` reads `%APPDATA%\Agentforge\app-url.txt`.

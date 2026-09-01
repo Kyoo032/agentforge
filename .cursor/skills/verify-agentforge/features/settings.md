@@ -13,7 +13,7 @@ Settings is where the owner pastes a Toko Token gateway URL and key. There is no
 ## How to get to it (user POV)
 
 - Choose Settings on the left rail (`settings-link`).
-- Open `http://127.0.0.1:3000/settings`.
+- Webdev: open `http://127.0.0.1:3000/settings`. Packaged: Settings in the Electron window (not :3000).
 - From Chat empty-state copy, follow the Settings link.
 
 ## Driving it with the Agentforge harness
@@ -36,5 +36,5 @@ Preconditions:
 - Saving probes `GET /v1/models` against the pasted URL. A typo or `http://` non-loopback URL is a product 400, not a harness bug.
 - The raw key never comes back after save. A filled `openai-key` on reload means you are looking at the empty replace-placeholder, not the secret.
 - `runtime-status` is the user-visible doctor. Trust that text over env `AGENTFORGE_RUNTIME` once a key exists — `resolveRuntimeMode` prefers a saved key.
-- Mutating `/api` from a non-localhost Origin is rejected. Drive only `127.0.0.1`.
+- Mutating `/api` from a non-localhost Origin is rejected. Webdev: drive `127.0.0.1:3000`. Packaged: any loopback Origin on the ephemeral port is allowed; do not doctor :3000 as the app.
 - Settings is not a product mode. The rail control is `settings-link`, not `mode-settings`.
