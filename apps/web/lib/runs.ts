@@ -13,6 +13,8 @@ import {
   resolveChatModel,
   hasModelVisibleContent,
   modelHistoryParts,
+  redactAttachedParts,
+  takeLastToolIo,
   type ContentPart,
   type InputModality,
   type TenantContext,
@@ -70,6 +72,9 @@ export async function startModalityRun(options: {
 }): Promise<Response> {
   ensureToolsRegistered();
   const parsed = parsers[options.modality](options.body as { content?: unknown; stream?: unknown });
+  const settings = loadSettings();
+  const userParts =
+    settings.injectionGuardBypass === true ? parsed.parts : redactAttachedParts(parsed.parts);
   const thinkingEnabled = readOptionalThinking(options.body);
   const thread = await getThread(options.tenant, options.threadId);
   if (!thread) {
@@ -129,12 +134,11 @@ export async function startModalityRun(options: {
         return true;
       };
       try {
-        await insertMessage(options.tenant, thread.id, "user", parsed.parts);
-        await setThreadTitleFromParts(options.tenant, thread.id, parsed.parts);
+        await insertMessage(options.tenant, thread.id, "user", userParts);
+        await setThreadTitleFromParts(options.tenant, thread.id, userParts);
         const run = await insertRun(options.tenant, thread.id, published.version.id, options.modality);
         runId = run.id;
         const historyRows = await listMessages(options.tenant, thread.id);
-        const settings = loadSettings();
         const inlineLocal = shouldInlineLocalMediaForProvider(settings.openaiBaseUrl);
         const history: Array<{ role: "user" | "assistant"; parts: ContentPart[] }> = [];
         for (const row of historyRows) {
@@ -199,6 +203,8 @@ export async function startModalityRun(options: {
                 await insertToolInvocation(options.tenant, run.id, event.toolKey, event.input, null, "started");
               }
               if (event.type === "tool.completed") {
+                const recorded = takeLastToolIo(event.toolKey);
+                const persistOutput = recorded?.full ?? event.output;
                 const last = [...toolTrace].reverse().find((item) => item.toolKey === event.toolKey && item.status === "started");
                 if (last) {
                   last.status = "completed";
@@ -211,8 +217,8 @@ export async function startModalityRun(options: {
                     output: event.output,
                   });
                 }
-                await insertToolInvocation(options.tenant, run.id, event.toolKey, null, event.output, "completed");
-                for (const part of collectToolMediaParts(event.output)) {
+                await insertToolInvocation(options.tenant, run.id, event.toolKey, null, persistOutput, "completed");
+                for (const part of collectToolMediaParts(persistOutput)) {
                   if (part.type === "image_url") {
                     const stored = await saveGeneratedImage(options.tenant, part.image_url.url);
                     mediaParts.push({ type: "image_url", image_url: { url: stored } });

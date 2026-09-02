@@ -1,7 +1,7 @@
 import { getTool } from "../tools/registry";
-import { invokeTool } from "../tools/define-tool";
 import { summarizeParts } from "../content/parse-run-input";
 import type { AgentRuntime, RuntimeEvent } from "./types";
+import { invokeToolGuarded } from "./invoke-guarded";
 
 function hasEnabledBinding(
   bindings: Parameters<AgentRuntime["execute"]>[0]["bindings"],
@@ -65,7 +65,7 @@ export class StubRuntime implements AgentRuntime {
         const match = summary.match(/(\d+\s*[+\-*/]\s*\d+)/);
         const expression = match?.[1] ?? "1+1";
         await input.onEvent({ type: "tool.started", toolKey: "calculator", input: { expression } });
-        const output = await invokeTool(tool, { expression }, input.tenant);
+        const output = await invokeToolGuarded(tool, { expression }, input.tenant);
         await input.onEvent({ type: "tool.completed", toolKey: "calculator", output });
         const result = calculatorResult(output);
         answers.push(result ? `${expression} = ${result}` : JSON.stringify(output));
@@ -76,7 +76,7 @@ export class StubRuntime implements AgentRuntime {
       const tool = getTool("datetime");
       if (tool) {
         await input.onEvent({ type: "tool.started", toolKey: "datetime", input: {} });
-        const output = await invokeTool(tool, {}, input.tenant);
+        const output = await invokeToolGuarded(tool, {}, input.tenant);
         await input.onEvent({ type: "tool.completed", toolKey: "datetime", output });
         const result = datetimeResult(output);
         answers.push(result ? result : JSON.stringify(output));

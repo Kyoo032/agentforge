@@ -175,8 +175,8 @@ export function ChatComposer({
       let composedText = text;
       for (const held of textFiles) {
         const body = await readTextFile(held.file);
-        const block = `\n\n--- ${held.file.name} ---\n${body}`;
-        composedText = composedText ? `${composedText}${block}` : body;
+        const block = `--- ${held.file.name} ---\n${body}`;
+        composedText = composedText.trim().length > 0 ? `${composedText}\n\n${block}` : block;
       }
 
       const outgoing = composedText.trim();

@@ -25,6 +25,8 @@ export type StoredSecrets = {
   presentationGenModel?: string;
   /** Tool keys disabled on this machine (e.g. "image_generate"). */
   disabledTools?: string[];
+  /** Advanced-only: skip injection scans. Thinning still runs. Default absent = protected. */
+  injectionGuardBypass?: boolean;
 };
 
 export type SecretPatch = StoredSecrets;
@@ -51,6 +53,7 @@ export type MaskedSecrets = {
   researchGenModel?: string;
   presentationGenModel?: string;
   disabledTools: string[];
+  injectionGuardBypass: boolean;
 };
 
 const KEY_FIELDS = ["openaiApiKey", "googleApiKey", "anthropicApiKey", "volcengineApiKey"] as const;
@@ -144,6 +147,13 @@ export function mergeSecrets(current: StoredSecrets, patch: SecretPatch): Stored
       ? patch.disabledTools.filter((item): item is string => typeof item === "string" && item.trim().length > 0).map((item) => item.trim())
       : [];
   }
+  if (typeof patch.injectionGuardBypass === "boolean") {
+    if (patch.injectionGuardBypass) {
+      next.injectionGuardBypass = true;
+    } else {
+      delete next.injectionGuardBypass;
+    }
+  }
   return next;
 }
 
@@ -169,6 +179,7 @@ export function maskSecrets(current: StoredSecrets): MaskedSecrets {
     researchGenModel: current.researchGenModel,
     presentationGenModel: current.presentationGenModel,
     disabledTools: current.disabledTools ?? [],
+    injectionGuardBypass: current.injectionGuardBypass === true,
   };
 }
 

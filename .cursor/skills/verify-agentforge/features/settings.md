@@ -9,7 +9,7 @@ Settings is where the owner pastes a Toko Token gateway key. There is no login. 
 - `settings-privacy` shows the retention / no-log note on Simple (`privacy-note`).
 - `settings-runtime` reports `stub` or live status on `runtime-status` (visible on both tabs).
 - `settings-placeholder` keeps the gateway URL placeholder `https://api.tokotokenai.com/v1` on `openai-base-url` (Advanced only).
-- `settings-extras` reveals optional keys only after Advanced is selected and the Extras disclosure is opened (tavily / brave / fal, plus Anthropic / Volcengine / backends).
+- `settings-extras` reveals optional keys only after Advanced is selected and the Extras disclosure is opened (tavily / brave / fal, plus Anthropic / Volcengine / backends). Tool enable checkboxes (`tool-enabled-calculator` and siblings) stay here. `injection-guard-bypass` is Advanced-only, unchecked by default — do not turn it on unless the operator asked.
 - `settings-usage-empty` shows `usage-panel` on Simple with `usage-this-key` asking to paste a gateway key when none is saved. `usage-by-model` is visible (empty copy until this desk has priced runs).
 - `settings-usage-this-key` shows billed spend/remaining in USD on `usage-this-key` when a key is saved (host reads Toko `/api/usage/token` with the saved `sk-`; never an Access Token). `usage-key-meter` is the used vs remaining bar.
 - `settings-usage-desk-estimate` shows `usage-desk-estimate` in USD from recorded input/output tokens × public `/api/pricing`. Old threads stay `$0.00` until new runs land.
@@ -36,7 +36,7 @@ Preconditions:
 - **Usage empty (Cloud / no key).** On Simple, `usage-panel` is visible. `usage-this-key` contains `Paste a gateway key`. `usage-desk-estimate` is visible (usually `$0.00`). `usage-by-model` is visible. `usage-key-meter` and `usage-model-chart` are absent until a key / priced desk runs exist.
 - **Usage live (Windows, key already saved, read-only).** Do not paste a key. On Simple, `usage-this-key` contains `$` used (or Unlimited, or a visible fail pointing at the dashboard). `usage-key-meter` is visible when this-key status is ok. `usage-desk-estimate` contains `$`. If this desk has priced runs, `usage-model-chart` shows one bar per model and `usage-model-row-<model-id>` lists USD. This key ≠ this desk.
 - **Advanced.** Click `settings-tab-advanced`. `openai-base-url` is visible and its `placeholder` is `https://api.tokotokenai.com/v1`. Dialect probe text may appear on `dialect-probe` after a prior save/detect. Per-mode selects and tool backends live here.
-- **Extras (read-only).** Still on Advanced, click the text `Extras` (exact). `anthropic-key`, `volcengine-key`, `tavily-key`, `brave-key`, `fal-key`, `image_gen-backend`, and `video_gen-backend` become visible. Do not fill them.
+- **Extras (read-only).** Still on Advanced, click the text `Extras` (exact). `anthropic-key`, `volcengine-key`, `tavily-key`, `brave-key`, `fal-key`, `image_gen-backend`, and `video_gen-backend` become visible. `tool-enabled-calculator` (and the other tool enable boxes) are visible. `injection-guard-bypass` is visible and **unchecked**. Do not fill keys. Do not check the bypass.
 - **IDE proof.** Screenshot + snapshot under `evidence/settings/<run-id>/` with Simple (form, privacy note, runtime, usage) and at least one Advanced/Extras shot.
 - **Cloud.** Same empty-state assertions in `foundation.spec.ts` (click `settings-tab-advanced` before `openai-base-url` / Extras). Do not paste a gateway key.
 

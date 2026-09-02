@@ -58,6 +58,7 @@ function normalizeSecrets(parsed: StoredSecrets): StoredSecrets {
     researchGenModel: readString(parsed.researchGenModel),
     presentationGenModel: readString(parsed.presentationGenModel),
     disabledTools,
+    injectionGuardBypass: parsed.injectionGuardBypass === true ? true : undefined,
   };
 }
 

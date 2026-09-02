@@ -32,6 +32,7 @@ export type ToolSecretStore = {
   imageGenModel?: string;
   videoGenModel?: string;
   disabledTools?: string[];
+  injectionGuardBypass?: boolean;
 };
 
 export type ToolBackendSpec = {
@@ -290,7 +291,12 @@ export function buildToolSecretScope(settings: ToolSecretStore, env: NodeJS.Proc
   const disabledTools = (settings.disabledTools ?? [])
     .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
     .map((item) => item.trim());
-  return { secrets: secretMapFromSettings(settings, env), backends, disabledTools };
+  return {
+    secrets: secretMapFromSettings(settings, env),
+    backends,
+    disabledTools,
+    injectionGuardBypass: settings.injectionGuardBypass === true,
+  };
 }
 
 export function listToolRoutes(settings: ToolSecretStore, env: NodeJS.ProcessEnv = process.env): Record<string, ToolRoute> {

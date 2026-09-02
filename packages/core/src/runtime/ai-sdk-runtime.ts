@@ -4,12 +4,12 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import type { ContentPart } from "../content/types";
 import { getTool } from "../tools/registry";
-import { invokeTool } from "../tools/define-tool";
 import { resolveModelProvider } from "../models/catalog";
 import { DEFAULT_OPENAI_BASE_URL, isOfficialOpenAIBaseUrl } from "../models/probe";
 import { isOpenRouterBaseUrl } from "../privacy/openrouter";
 import { getDisabledTools } from "../tools/secret-scope";
 import { mapStreamPart } from "./stream-parts";
+import { invokeToolGuarded } from "./invoke-guarded";
 import { shouldFailEmptyAssistant, shouldKeepToolTurn, shouldRetryWithoutTools } from "./retry";
 import {
   openaiCompatProviderOptions,
@@ -205,7 +205,7 @@ export class AiSdkRuntime implements AgentRuntime {
         description: definition.description,
         parameters: definition.schema,
         execute: async (args: unknown) =>
-          invokeTool(definition, scrubUnreachableMediaArgs(args), input.tenant),
+          invokeToolGuarded(definition, scrubUnreachableMediaArgs(args), input.tenant),
       });
     }
 
