@@ -12,7 +12,7 @@ You need the installer, not a clone of this repo. Node and pnpm are not required
 
 | OS | Installer |
 |----|-----------|
-| **Windows** | [Agentforge Setup 0.1.0.exe](https://github.com/Kyoo032/agentforge/releases/download/v0.1.0/Agentforge%20Setup%200.1.0.exe) (~168 MB, unsigned) |
+| **Windows** | [Agentforge Setup 0.1.0.exe](https://github.com/Kyoo032/agentforge/releases/download/v0.1.0/Agentforge.Setup.0.1.0.exe) (~168 MB, unsigned) |
 | **macOS** | `.dmg` not published yet. It must be built on a Mac; it will land on the [same Releases page](https://github.com/Kyoo032/agentforge/releases/tag/v0.1.0) when it exists. |
 
 Windows: run the Setup exe, then open **Agentforge** from the Start menu.
