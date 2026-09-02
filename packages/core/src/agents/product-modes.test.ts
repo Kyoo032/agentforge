@@ -4,10 +4,13 @@ import { DEFAULT_CHAT_SLUG } from "./default-chat";
 import {
   FALLBACK_PRODUCT_MODES,
   LEGACY_PRODUCT_MODES,
+  WORK_PRODUCT_MODES,
   firstVisibleHref,
+  isParkedAgentPath,
   redirectIfHiddenMode,
   requireProductModes,
   resolveProductModes,
+  resolveWorkspaceModes,
   sanitizeProductModes,
 } from "./product-modes";
 
@@ -17,8 +20,8 @@ describe("sanitizeProductModes", () => {
     expect(sanitizeProductModes(null)).toBeUndefined();
   });
 
-  it("keeps catalog order and drops unknown ids", () => {
-    expect(sanitizeProductModes(["videos", "chat", "nope", "chat"])).toEqual(["chat", "videos"]);
+  it("keeps catalog order and drops unknown ids including agents", () => {
+    expect(sanitizeProductModes(["videos", "chat", "nope", "agents", "chat"])).toEqual(["chat", "videos"]);
   });
 
   it("preserves an explicit empty list", () => {
@@ -42,8 +45,42 @@ describe("requireProductModes", () => {
   });
 });
 
+describe("resolveWorkspaceModes", () => {
+  it("falls back to all work modes when stored is missing or empty", () => {
+    expect(resolveWorkspaceModes(undefined)).toEqual(WORK_PRODUCT_MODES);
+    expect(resolveWorkspaceModes(null)).toEqual(WORK_PRODUCT_MODES);
+    expect(resolveWorkspaceModes([])).toEqual(WORK_PRODUCT_MODES);
+  });
+
+  it("keeps catalog order and always includes chat", () => {
+    expect(resolveWorkspaceModes(["research", "documents"])).toEqual(["chat", "documents", "research"]);
+    expect(resolveWorkspaceModes(["chat", "documents", "research", "presentations"])).toEqual([
+      "chat",
+      "documents",
+      "research",
+      "presentations",
+    ]);
+  });
+
+  it("maps Legal and Marketing presets", () => {
+    expect(resolveWorkspaceModes(["chat", "documents", "research", "presentations"])).toEqual([
+      "chat",
+      "documents",
+      "research",
+      "presentations",
+    ]);
+    expect(resolveWorkspaceModes(["chat", "documents", "images", "videos", "presentations"])).toEqual([
+      "chat",
+      "documents",
+      "images",
+      "videos",
+      "presentations",
+    ]);
+  });
+});
+
 describe("resolveProductModes", () => {
-  it("falls back to Chat + Agents when there are no custom agents", () => {
+  it("falls back to all work modes when there are no custom agents", () => {
     expect(resolveProductModes([])).toEqual(FALLBACK_PRODUCT_MODES);
     expect(
       resolveProductModes([{ slug: DEFAULT_CHAT_SLUG, productModes: ["images", "videos"] }]),
@@ -86,7 +123,7 @@ describe("resolveProductModes", () => {
     ).toEqual(["chat", "documents", "images", "videos", "presentations"]);
   });
 
-  it("treats missing productModes as the original five", () => {
+  it("treats missing productModes as the original generate set", () => {
     expect(resolveProductModes([{ slug: "old-desk" }])).toEqual(LEGACY_PRODUCT_MODES);
     expect(resolveProductModes([{ slug: "old-desk", productModes: null }])).toEqual(LEGACY_PRODUCT_MODES);
   });
@@ -111,25 +148,26 @@ describe("firstVisibleHref and hidden redirects", () => {
     expect(firstVisibleHref(["images", "videos"])).toBe("/images");
   });
 
-  it("redirects hidden generate studios but never core surfaces", () => {
+  it("redirects parked Agents and Studio plus hidden generate studios", () => {
     const visible = ["chat", "documents"] as const;
+    expect(isParkedAgentPath("/studio/new")).toBe(true);
     expect(redirectIfHiddenMode("/videos", [...visible])).toBe("/chat");
     expect(redirectIfHiddenMode("/images", [...visible])).toBe("/chat");
     expect(redirectIfHiddenMode("/research", [...visible])).toBe("/chat");
     expect(redirectIfHiddenMode("/presentations", [...visible])).toBe("/chat");
     expect(redirectIfHiddenMode("/documents", [...visible])).toBeNull();
     expect(redirectIfHiddenMode("/chat", [...visible])).toBeNull();
-    expect(redirectIfHiddenMode("/studio/new", [...visible])).toBeNull();
-    expect(redirectIfHiddenMode("/agents/abc", [...visible])).toBeNull();
-    expect(redirectIfHiddenMode("/agents", [...visible])).toBeNull();
+    expect(redirectIfHiddenMode("/studio/new", [...visible])).toBe("/chat");
+    expect(redirectIfHiddenMode("/agents/abc", [...visible])).toBe("/chat");
+    expect(redirectIfHiddenMode("/agents", [...visible])).toBe("/chat");
     expect(redirectIfHiddenMode("/settings", [...visible])).toBeNull();
     expect(redirectIfHiddenMode("/workspaces", [...visible])).toBeNull();
   });
 
-  it("keeps /chat and /agents even when those tabs are off the rail", () => {
+  it("keeps /chat even when that tab is off the rail", () => {
     const visible = ["documents"] as const;
     expect(redirectIfHiddenMode("/chat", [...visible])).toBeNull();
-    expect(redirectIfHiddenMode("/agents", [...visible])).toBeNull();
+    expect(redirectIfHiddenMode("/agents", [...visible])).toBe("/documents");
     expect(redirectIfHiddenMode("/images", [...visible])).toBe("/documents");
   });
 });

@@ -40,7 +40,7 @@ function genericStarter(templatePack: string): {
     name: `${label} assistant`,
     description: `Starter agent for the ${label} workspace.`,
     systemPrompt: defaultAgentTemplate.systemPrompt,
-    productModes: ["chat", "agents"],
+    productModes: ["chat"],
     inputModalities: [...defaultAgentTemplate.inputModalities],
     toolKeys: [...defaultAgentTemplate.toolKeys],
   };
@@ -60,7 +60,7 @@ function resolveStarter(templatePack: string): {
       name: fromPack.name,
       description: fromPack.description,
       systemPrompt: fromPack.systemPrompt,
-      productModes: fromPack.productModes?.length ? fromPack.productModes : ["chat", "agents"],
+      productModes: fromPack.productModes?.length ? fromPack.productModes : ["chat"],
       inputModalities: fromPack.inputModalities?.length ? fromPack.inputModalities : ["text"],
       toolKeys: [...fromPack.toolKeys],
     };

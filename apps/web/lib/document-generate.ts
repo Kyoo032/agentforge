@@ -21,7 +21,7 @@ import {
   readOptionalInstruction,
 } from "./job-regen";
 
-const DOCUMENT_SYSTEM = `You draft professional documents for Agentforge.
+const DOCUMENT_SYSTEM = `You draft finished professional documents for Agentforge — not skeletons.
 Return ONLY valid JSON (no markdown fences, no commentary) with this exact shape:
 {
   "title": string,
@@ -30,9 +30,12 @@ Return ONLY valid JSON (no markdown fences, no commentary) with this exact shape
   ]
 }
 Rules:
-- 3 to 8 sections unless the topic clearly needs fewer or more (max 12).
-- body is plain paragraphs. Use \\n\\n between paragraphs. No markdown headings.
-- Keep the writing specific to the prompt. Do not invent citations.
+- Honor the user's requested section list and length. Default 5–8 sections (max 12).
+- Each section is finished writing: 2–4 short paragraphs, or a tight list. Use \\n\\n between paragraphs. No markdown headings.
+- Headings are claims or jobs ("What I need from you"), not labels ("Introduction").
+- Use the sample scenario in the prompt. Keep bracketed fields if the user left them. Tag invented figures [sample].
+- No TBD, "lorem", "replace this paragraph", "we should consider exploring", or "in today's landscape".
+- Do not invent citations, customers, statutes, or quotes.
 - No campus / student / course nouns unless the topic itself requires them.`;
 
 function readPrompt(body: unknown): string {

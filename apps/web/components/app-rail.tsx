@@ -10,6 +10,7 @@ import {
   type ProductMode,
 } from "@agentforge/core/product-modes";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { WorkspaceSwitcher } from "@/components/workspace-switcher";
 import { getRailCollapsed, setRailCollapsed } from "@/lib/rail-prefs";
 
 type Props = {
@@ -78,16 +79,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
           })}
         </nav>
         <div className="mt-auto flex flex-col items-center gap-1">
-          <Link
-            href="/settings"
-            className={`${itemClass(onSettings, true)} text-xs font-medium`}
-            data-testid="settings-link"
-            title="Settings"
-            aria-label="Settings"
-            aria-current={onSettings ? "page" : undefined}
-          >
-            Set
-          </Link>
+          <WorkspaceSwitcher workspaceName={workspaceName} compact />
           <Link
             href="/workspaces"
             className={`${itemClass(onWorkspaces, true)} text-xs font-medium`}
@@ -97,6 +89,16 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
             aria-current={onWorkspaces ? "page" : undefined}
           >
             Ws
+          </Link>
+          <Link
+            href="/settings"
+            className={`${itemClass(onSettings, true)} text-xs font-medium`}
+            data-testid="settings-link"
+            title="Settings"
+            aria-label="Settings"
+            aria-current={onSettings ? "page" : undefined}
+          >
+            Set
           </Link>
         </div>
       </aside>
@@ -144,14 +146,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
       </nav>
 
       <div className="space-y-0.5 border-t border-mist px-2 py-3">
-        <Link
-          href="/settings"
-          className={itemClass(onSettings)}
-          data-testid="settings-link"
-          aria-current={onSettings ? "page" : undefined}
-        >
-          Settings
-        </Link>
+        <WorkspaceSwitcher workspaceName={workspaceName} />
         <Link
           href="/workspaces"
           className={itemClass(onWorkspaces)}
@@ -159,6 +154,14 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
           aria-current={onWorkspaces ? "page" : undefined}
         >
           Workspaces
+        </Link>
+        <Link
+          href="/settings"
+          className={itemClass(onSettings)}
+          data-testid="settings-link"
+          aria-current={onSettings ? "page" : undefined}
+        >
+          Settings
         </Link>
         <ThemeToggle />
       </div>

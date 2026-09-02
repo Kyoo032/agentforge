@@ -1,24 +1,25 @@
 # Agentforge
 
-A **local** agents workbench for the **Toko Token** OpenAI-compatible gateway at `https://api.tokotokenai.com/v1`. Same idea as Hermes: the person who installs it owns it. You are not signing up for a campus tenant. You paste a **gateway API key**, keep **workspaces** on disk, and get chat plus agents that are easy to use and easy to build.
+A **local** Toko Token client at `https://api.tokotokenai.com/v1`. The person who installs it owns it. You paste a **gateway API key**, keep **workspaces** on disk, and work in Chat plus job modes (Documents, Research, Images, Videos, Presentation). Custom-agent Build is parked — not the product identity. Hermes remains the tinkering surface for people who want to build agents.
 
 This file is the project source of truth for coding agents. Vault memory at `C:\Users\rizky\Documents\Obsidian` is for Kyo, not for this repo’s domain rules.
 
 **Harness, not product.** PStack (`how` / `why` mapper, `create-verification-skill` / `maintain-verification-skill` verifier) and `.cursor/skills/verify-agentforge` are agent guardrails, like this file. They are not Agentforge features. Call the original pstack plugin skills from the project verify skill. Do not vendor pstack into `apps/`, `packages/`, the installer, or the UI. Task models stay Cursor explore/worker, not pstack Fable/GPT slugs.
 
-Product modes (Chat / Agents / Documents / Research / Images / Videos / Presentation): see [`docs/product-modes.md`](docs/product-modes.md). The left rail follows product surfaces on custom agents. Packs seed those surfaces.
+Product modes (Chat / Documents / Research / Images / Videos / Presentation): see [`docs/product-modes.md`](docs/product-modes.md). The left rail follows **workspace** `productModes`. Home has every work tab. Packs are workspace presets, not a custom-agent builder.
 
-## Product (locked 2026-08-26)
+## Product (locked 2026-09-02 GTM)
 
-- **Gateway-first.** Agentforge exists because the gateway has no easy agents app. Chat, model picker, and custom agents run on `api.tokotokenai.com/v1` by default. Native Anthropic / Google / Ark and a different base URL are optional extras, not the product identity.
+- **Gateway-first.** Agentforge exists because buying a key at `api.tokotokenai.com` leaves the question “where do I use this?” Install, paste the key, work. Native Anthropic / Google / Ark stay in the settings store, unexposed.
 - **No login.** No email, no Better Auth in the product UX, no “join Harbor State.”
 - **Single owner on the machine.** Data lives on disk. Everyone who installs it has their own copy.
 - **First-run needs:** a gateway API key (and later optional local models such as Ollama). Store keys in the OS keychain / a local secrets file, never in the renderer, never in git, never in `NEXT_PUBLIC_*`.
-- **Workspaces** are the user’s own projects (groups of agents, threads, tools) — not an org membership table they must join.
-- Chat is ready immediately after a gateway key is saved. Model picker + composer. Building custom agents is optional, not a gate.
-- Pack templates (Students first; more later) are optional starters on Build. Default chat never uses a pack template.
+- **Workspaces** are the user’s own desks (which tabs they need) — not an org membership table they must join. Home already has every work mode. Creating another desk (Legal, Marketing, Students, or custom checkboxes) is optional.
+- Chat is ready immediately. Model picker + composer. Building custom agents is parked, not a gate.
+- Pack templates are optional workspace presets. Default Chat never uses a pack template.
 - University/Harbor State is an **optional pack of templates**, not the identity of the app. Kernel stays industry-neutral (`student` / `course` do not belong in core schema).
 - Do not merge **Toko Token** with **TokenKu** in copy or catalogs.
+- Custom agents / Studio stay in the tree and redirect to Chat. Do not add a GTM “hidden Build” door.
 
 ### Desktop target
 
@@ -26,11 +27,11 @@ Installer (**Electron**) + **SQLite** in the user data dir. No Docker Postgres f
 
 ### What to keep from this repo
 
-Agent versions, tool bindings, modality-fail-closed run APIs, chat composer, studio/build flow, pack-based templates. OpenAI-compatible wire (`/v1/chat/completions` + `/v1/responses`) against the gateway.
+Chat composer, job-mode studios, workspace templates, modality-fail-closed run APIs, OpenAI-compatible wire (`/v1/chat/completions` + `/v1/responses`) against the gateway. Agent tables and Studio files stay for a later “show Build again” pass — they are not GTM surfaces.
 
 ### What to remove from the product (later)
 
-Harbor State seed as identity leftovers, Docker Postgres (SQLite next), desktop shell. Better Auth is deleted, not upgraded.
+Harbor State seed as identity leftovers, Docker Postgres (SQLite next). Better Auth is deleted, not upgraded. Public rename / UI redesign / customer-only ship is parked until GTM is done.
 
 ## Non-negotiables
 
@@ -105,8 +106,8 @@ Do not use Hermes tools or Hermes dashboard tokens to process Agentforge keys.
 
 ## Tests
 
-- Unit: Vitest in `packages/core`, `packages/university`, `apps/web`. Local coding agents run these. Do **not** run Playwright locally — `foundation.spec.ts` is a long serial pass (cold Next compile + stub chat + studio).
-- E2E: Playwright `apps/web/tests/e2e/foundation.spec.ts` (Chat → Settings → Agents/Build → Images/Videos/Presentation smoke). Owned by **Cursor Cloud Agents**, not the local Windows session. See **Cursor Cloud specific instructions** below.
+- Unit: Vitest in `packages/core`, `packages/university`, `apps/web`. Local coding agents run these. Do **not** run Playwright locally — `foundation.spec.ts` is a long serial pass (cold Next compile + stub chat + workspaces).
+- E2E: Playwright `apps/web/tests/e2e/foundation.spec.ts` (Chat → Settings → job modes → Legal workspace smoke). Owned by **Cursor Cloud Agents**, not the local Windows session. See **Cursor Cloud specific instructions** below.
 - Verify UI in the IDE browser when changing layout. Do not block on `pnpm test:e2e` on this machine.
 
 ## Cursor Cloud specific instructions
@@ -147,5 +148,5 @@ GitHub Actions (`.github/workflows/e2e.yml`) runs the same stub Playwright suite
 ## Known traps (prototype)
 
 - Next.js overlay in Cursor’s browser can inject `data-cursor-ref` and block clicks. Use Chrome or Playwright.
-- Playwright `/studio/**` also matches `/studio/new`. Wait for `/studio/<uuid>`.
+- Playwright `/studio/**` redirects to Chat (Build is parked).
 - Dev server binds `127.0.0.1:3000` (webdev only). Playwright and the IDE browser must use `http://127.0.0.1:3000` (not a LAN IP). Packaged Agentforge uses a different loopback port; `doctor.mjs --desktop` reads Electron userData `app-url.txt` (Windows `%APPDATA%\Agentforge`, Linux `$XDG_CONFIG_HOME/Agentforge` or `~/.config/Agentforge`, macOS `~/Library/Application Support/Agentforge`). A phone on a LAN `:3000` is not a product surface — see [`docs/mobile.md`](docs/mobile.md).

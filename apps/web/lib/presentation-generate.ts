@@ -21,7 +21,7 @@ import {
   readOptionalInstruction,
 } from "./job-regen";
 
-const OUTLINE_SYSTEM = `You create presentation outlines for Agentforge.
+const OUTLINE_SYSTEM = `You create presentation outlines a stranger can present from — not title-only skeletons.
 Return ONLY valid JSON (no markdown fences, no commentary) with this exact shape:
 {
   "title": string,
@@ -30,10 +30,13 @@ Return ONLY valid JSON (no markdown fences, no commentary) with this exact shape
   ]
 }
 Rules:
-- 5 to 10 slides unless the topic clearly needs fewer or more (max 14).
-- Each slide needs a clear heading and 2–5 concise bullets.
-- notes is optional speaker notes (empty string if none).
-- Keep content professional and specific to the topic.
+- Honor the user's requested slide count and arc. Default 7–9 slides (max 14).
+- Heading is a claim, not a topic label.
+- 3–5 bullets per slide. Each bullet is a complete thought (roughly 8–18 words), not a one-word stub.
+- notes is required: what the speaker argues if the room pushes back. Not "keep it short."
+- Use the sample story in the prompt. Tag invented figures [sample].
+- No "team / traction / vision" filler. No "excited to share." No empty TBD slides.
+- Do not invent revenue, logos, or uptime.
 - No campus / student / course nouns unless the topic itself requires them.`;
 
 function readPrompt(body: unknown): string {

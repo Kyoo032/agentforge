@@ -58,6 +58,7 @@ export const workspaces = sqliteTable(
     name: text("name").notNull(),
     slug: text("slug").notNull(),
     templatePack: text("template_pack"),
+    productModes: text("product_modes", { mode: "json" }).$type<string[] | null>(),
     createdAt: createdAt(),
   },
   (table) => [
