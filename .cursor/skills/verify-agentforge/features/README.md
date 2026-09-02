@@ -44,7 +44,7 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 - [Build](./build.md) — blank/default templates, studio UUID, share workspace, agent chat, generate default pickers when Images/Videos are on.
 - [Models](./models.md) — curated Chat picker, doctor modeKeys/chatCount/curation, Advanced disclosure (Phase 1 ids optional until present).
 - [Workspaces](./workspaces.md) — rail `workspaces-link` (both states), template chips, create/list/open desks, pack seeding.
-- [Templates](./templates.md) — mode example galleries (Images first); Phase 2B gallery testids; skip until present.
+- [Templates](./templates.md) — example galleries on all five mode studios; click pre-fills the prompt.
 - [PII](./pii.md) — Chat warn-on-send banner and send-anyway; Phase 3; skip until present.
 - [Studio advanced](./studio-advanced.md) — post-create soul/tools/model edit; `save-soul` publishes a new version.
 - [Documents](./documents.md) — starters, preview, section regen (503 without a key), DOCX download from a starter.
