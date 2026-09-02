@@ -34,16 +34,16 @@ describe("videoGenerateTool", () => {
     );
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe("https://api.tokotokenai.com/v1/video/generations");
     expect(JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body))).toMatchObject({
-      model: "seedance-2.0-fast",
+      model: "grok-imagine-video",
       duration: 5,
-      resolution: "720p",
-      ratio: "16:9",
     });
+    expect(JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body))).not.toHaveProperty("resolution");
+    expect(JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body))).not.toHaveProperty("ratio");
     expect(result).toMatchObject({
       success: true,
       backend: "gateway",
       video: "https://cdn.example/clip.mp4",
-      model: "seedance-2.0-fast",
+      model: "grok-imagine-video",
     });
   });
 
