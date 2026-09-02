@@ -9,11 +9,15 @@ import {
   parseTextRunInput,
   parseVideoRunInput,
   readOptionalModel,
+  readOptionalThinking,
   resolveChatModel,
+  hasModelVisibleContent,
+  modelHistoryParts,
   type ContentPart,
   type InputModality,
   type TenantContext,
   type ToolBindingRecord,
+  type ToolCallPart,
 } from "@agentforge/core";
 import { ApiError } from "@agentforge/core";
 import { agentService } from "./tenant";
@@ -41,10 +45,6 @@ const parsers = {
   video: parseVideoRunInput,
 } as const;
 
-function hasVisibleText(parts: ContentPart[]): boolean {
-  return parts.some((part) => part.type === "text" && part.text.trim().length > 0);
-}
-
 function withPastSessionsBinding(bindings: ToolBindingRecord[]): ToolBindingRecord[] {
   if (bindings.some((binding) => binding.toolKey === "past_sessions" && binding.enabled)) {
     return bindings;
@@ -70,6 +70,7 @@ export async function startModalityRun(options: {
 }): Promise<Response> {
   ensureToolsRegistered();
   const parsed = parsers[options.modality](options.body as { content?: unknown; stream?: unknown });
+  const thinkingEnabled = readOptionalThinking(options.body);
   const thread = await getThread(options.tenant, options.threadId);
   if (!thread) {
     throw new ApiError("not_found", "Thread not found", 404);
@@ -94,6 +95,7 @@ export async function startModalityRun(options: {
   let thinkingText = "";
   let failedMessage = "";
   const mediaParts: ContentPart[] = [];
+  const toolTrace: ToolCallPart[] = [];
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -105,10 +107,15 @@ export async function startModalityRun(options: {
       let persisted = false;
       let runUsage: Record<string, unknown> | null = null;
       const persistAssistant = async () => {
-        const reply = assistantText.trim() || thinkingText.trim();
         const assistantParts: ContentPart[] = [];
-        if (reply) {
-          assistantParts.push({ type: "text", text: reply });
+        if (thinkingText.trim()) {
+          assistantParts.push({ type: "thinking", text: thinkingText.trim() });
+        }
+        for (const tool of toolTrace) {
+          assistantParts.push(tool);
+        }
+        if (assistantText.trim()) {
+          assistantParts.push({ type: "text", text: assistantText.trim() });
         }
         assistantParts.push(...mediaParts);
         if (persisted) {
@@ -135,15 +142,16 @@ export async function startModalityRun(options: {
             continue;
           }
           const parts = row.content as ContentPart[];
-          if (row.role === "assistant" && !hasVisibleText(parts)) {
+          if (row.role === "assistant" && !hasModelVisibleContent(parts)) {
             continue;
           }
+          const historyParts = modelHistoryParts(parts);
           history.push({
             role: row.role as "user" | "assistant",
             parts:
               row.role === "user" && inlineLocal
-                ? await inlineLocalMediaParts(options.tenant, parts)
-                : parts,
+                ? await inlineLocalMediaParts(options.tenant, historyParts)
+                : historyParts,
           });
         }
         const runtime = createRuntime(settings);
@@ -157,6 +165,7 @@ export async function startModalityRun(options: {
             version,
             bindings: withPastSessionsBinding(published.bindings),
             history,
+            thinking: thinkingEnabled,
             onEvent: async (event) => {
               if (event.type === "run.failed") {
                 failedMessage = redactSecrets(event.message);
@@ -181,9 +190,27 @@ export async function startModalityRun(options: {
                 thinkingText += event.text;
               }
               if (event.type === "tool.started") {
+                toolTrace.push({
+                  type: "tool_call",
+                  toolKey: event.toolKey,
+                  status: "started",
+                  input: event.input,
+                });
                 await insertToolInvocation(options.tenant, run.id, event.toolKey, event.input, null, "started");
               }
               if (event.type === "tool.completed") {
+                const last = [...toolTrace].reverse().find((item) => item.toolKey === event.toolKey && item.status === "started");
+                if (last) {
+                  last.status = "completed";
+                  last.output = event.output;
+                } else {
+                  toolTrace.push({
+                    type: "tool_call",
+                    toolKey: event.toolKey,
+                    status: "completed",
+                    output: event.output,
+                  });
+                }
                 await insertToolInvocation(options.tenant, run.id, event.toolKey, null, event.output, "completed");
                 for (const part of collectToolMediaParts(event.output)) {
                   if (part.type === "image_url") {
@@ -201,7 +228,7 @@ export async function startModalityRun(options: {
         await finishRun(options.tenant, run.id, "completed", undefined, runUsage);
       } catch (error) {
         const message = redactSecrets(error instanceof Error ? error.message : "run_failed");
-        const saved = mediaParts.length > 0 ? await persistAssistant() : false;
+        const saved = await persistAssistant();
         if (runId) {
           await finishRun(
             options.tenant,

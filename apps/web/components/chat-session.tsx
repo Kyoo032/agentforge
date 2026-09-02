@@ -5,12 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChatComposer } from "@/components/chat-composer";
 import { ChatUsageChip } from "@/components/chat-usage-chip";
-import { isRenderableImageUrl, isRenderableVideoUrl } from "@/lib/composer-attach";
-import { showsToolActivity, toolActivityLabel } from "@/lib/tool-labels";
+import { ChatTurn, messageHasDisplayableContent, type LiveTool } from "@/components/chat-turn";
 import { collectToolMediaParts } from "@/lib/tool-media";
 import { notifyThreadsChanged } from "@/lib/threads-events";
 import { GATEWAY_NAME } from "@agentforge/core/gateway";
-import type { ContentPart } from "@agentforge/core";
 
 type Message = { id: string; role: string; content: unknown };
 
@@ -41,13 +39,34 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [streaming, setStreaming] = useState("");
   const [thinking, setThinking] = useState("");
-  const [tools, setTools] = useState<Array<{ key: string; status: "started" | "completed"; output?: unknown }>>([]);
+  const [tools, setTools] = useState<LiveTool[]>([]);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [thinkingEnabled, setThinkingEnabled] = useState(true);
   const toolsRef = useRef(tools);
   toolsRef.current = tools;
   const threadIdRef = useRef(threadId);
   threadIdRef.current = threadId;
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem("agentforge-chat-thinking");
+      if (stored === "off") {
+        setThinkingEnabled(false);
+      }
+    } catch {
+      // private mode
+    }
+  }, []);
+
+  function setThinkingPref(next: boolean) {
+    setThinkingEnabled(next);
+    try {
+      window.localStorage.setItem("agentforge-chat-thinking", next ? "on" : "off");
+    } catch {
+      // private mode
+    }
+  }
 
   const selectedModel = models.find((model) => model.id === modelId);
   const modalities = useMemo(() => {
@@ -185,10 +204,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
     setMessages(payload.messages ?? []);
   }
 
-  const visibleTools = tools.filter(
-    (tool) => tool.status === "started" || collectToolMediaParts(tool.output).length > 0,
-  );
-  const empty = messages.length === 0 && !streaming && !thinking && !running && visibleTools.length === 0;
+  const empty = messages.length === 0 && !streaming && !thinking && !running && tools.length === 0;
 
   return (
     <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-8" data-testid="chat-home">
@@ -240,54 +256,15 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
         {messages
           .filter((message) => message.role === "user" || messageHasDisplayableContent(message.content))
           .map((message) => (
-          <article
-            key={message.id}
-            className={
-              message.role === "user"
-                ? "ml-10 rounded-2xl rounded-br-md bg-mist px-4 py-3"
-                : "mr-10 rounded-xl px-1 py-1"
-            }
-            data-testid="message"
-          >
-            <MessageContent content={message.content} />
-          </article>
-        ))}
-        {running || thinking || visibleTools.length > 0 || streaming ? (
-          <article className="mr-10 rounded-xl px-1 py-1" data-testid="assistant-live">
-            {running && !thinking && !streaming && visibleTools.length === 0 ? (
-              <p className="text-sm text-ink/50" data-testid="thinking-placeholder">
-                Thinking…
-              </p>
-            ) : null}
-            {thinking ? (
-              <pre
-                className="max-h-40 overflow-auto whitespace-pre-wrap rounded-lg bg-mist/60 px-3 py-2 text-xs text-ink/60"
-                data-testid="thinking-text"
-              >
-                {thinking}
-              </pre>
-            ) : null}
-            {visibleTools.length > 0 ? (
-              <ul className="mt-2 space-y-2 text-sm text-ink/50" data-testid="tool-status">
-                {visibleTools.map((tool, index) => {
-                  const media = collectToolMediaParts(tool.output);
-                  return (
-                    <li key={`${tool.key}-${index}`}>
-                      {tool.status === "started" ? (
-                        <p className="text-sm text-ink/50">{toolActivityLabel(tool.key)}</p>
-                      ) : null}
-                      {media.length > 0 ? <ToolMediaParts parts={media} /> : null}
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : null}
-            {streaming ? (
-              <p className="mt-2 whitespace-pre-wrap text-sm" data-testid="streaming-text">
-                {streaming}
-              </p>
-            ) : null}
-          </article>
+            <ChatTurn key={message.id} role={message.role} content={message.content} />
+          ))}
+        {running || thinking || tools.length > 0 || streaming ? (
+          <div data-testid="assistant-live">
+            <ChatTurn
+              role="assistant"
+              live={{ thinking, tools, streaming, running }}
+            />
+          </div>
         ) : null}
       </div>
       {agentIdReady ? (
@@ -298,6 +275,8 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           model={modelId}
           models={models}
           onModelChange={setModelId}
+          thinkingEnabled={thinkingEnabled}
+          onThinkingChange={setThinkingPref}
           onUserSend={(payload) => {
             setError(null);
             setRunning(true);
@@ -319,10 +298,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           onTool={(event) => {
             setTools((current) => {
               if (event.phase === "started") {
-                if (!showsToolActivity(event.toolKey)) {
-                  return current;
-                }
-                return [...current, { key: event.toolKey, status: "started" }];
+                return [...current, { key: event.toolKey, status: "started", input: event.input }];
               }
               const next = [...current];
               let index = -1;
@@ -332,13 +308,15 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
                   break;
                 }
               }
-              const completed = { key: event.toolKey, status: "completed" as const, output: event.output };
+              const completed = {
+                key: event.toolKey,
+                status: "completed" as const,
+                input: index >= 0 ? next[index]?.input : event.input,
+                output: event.output,
+              };
               if (index >= 0) {
                 next[index] = completed;
                 return next;
-              }
-              if (!showsToolActivity(event.toolKey) && collectToolMediaParts(event.output).length === 0) {
-                return current;
               }
               return [...next, completed];
             });
@@ -360,7 +338,13 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
                   (message) =>
                     message.role === "assistant" &&
                     Array.isArray(message.content) &&
-                    message.content.some((part) => partImageUrl(part) || partVideoUrl(part)),
+                    message.content.some(
+                      (part) =>
+                        part &&
+                        typeof part === "object" &&
+                        ((part as { type?: unknown }).type === "image_url" ||
+                          (part as { type?: unknown }).type === "video_url"),
+                    ),
                 );
                 if (hasMedia) {
                   return current;
@@ -381,120 +365,5 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
         <p className="mt-6 text-sm text-ink/50">Starting chat…</p>
       )}
     </main>
-  );
-}
-
-function partImageUrl(part: unknown): string | null {
-  if (!part || typeof part !== "object") return null;
-  const record = part as { type?: unknown; image_url?: { url?: unknown } };
-  if (record.type !== "image_url") return null;
-  const url = record.image_url?.url;
-  return typeof url === "string" && isRenderableImageUrl(url) ? url : null;
-}
-
-function partVideoUrl(part: unknown): string | null {
-  if (!part || typeof part !== "object") return null;
-  const record = part as { type?: unknown; video_url?: { url?: unknown } };
-  if (record.type !== "video_url") return null;
-  const url = record.video_url?.url;
-  return typeof url === "string" && isRenderableVideoUrl(url) ? url : null;
-}
-
-function messageHasDisplayableContent(content: unknown): boolean {
-  if (typeof content === "string") {
-    return content.trim().length > 0;
-  }
-  if (!Array.isArray(content)) {
-    return content != null;
-  }
-  return content.some((part) => {
-    if (part && typeof part === "object" && "text" in part) {
-      return String((part as { text: string }).text).trim().length > 0;
-    }
-    return partImageUrl(part) != null || partVideoUrl(part) != null;
-  });
-}
-
-function ToolMediaParts({ parts }: { parts: ContentPart[] }) {
-  return (
-    <div className="space-y-2">
-      {parts.map((part, index) => {
-        const imageUrl = partImageUrl(part);
-        if (imageUrl) {
-          return (
-            <img
-              key={index}
-              src={imageUrl}
-              alt=""
-              className="max-w-full rounded-lg"
-              data-testid="message-image"
-            />
-          );
-        }
-        const videoUrl = partVideoUrl(part);
-        if (videoUrl) {
-          return (
-            <video
-              key={index}
-              src={videoUrl}
-              controls
-              className="max-w-full rounded-lg"
-              data-testid="message-video"
-            />
-          );
-        }
-        return null;
-      })}
-    </div>
-  );
-}
-
-function MessageContent({ content }: { content: unknown }) {
-  if (typeof content === "string") {
-    return <p className="whitespace-pre-wrap text-sm">{content}</p>;
-  }
-  if (!Array.isArray(content)) {
-    return <p className="whitespace-pre-wrap text-sm">{JSON.stringify(content)}</p>;
-  }
-
-  return (
-    <div className="space-y-2">
-      {content.map((part, index) => {
-        const imageUrl = partImageUrl(part);
-        if (imageUrl) {
-          return (
-            <img
-              key={index}
-              src={imageUrl}
-              alt=""
-              className="mt-2 max-w-full rounded-lg"
-              data-testid="message-image"
-            />
-          );
-        }
-        const videoUrl = partVideoUrl(part);
-        if (videoUrl) {
-          return (
-            <video
-              key={index}
-              src={videoUrl}
-              controls
-              className="mt-2 max-w-full rounded-lg"
-              data-testid="message-video"
-            />
-          );
-        }
-        if (part && typeof part === "object" && "text" in part) {
-          const text = String((part as { text: string }).text);
-          if (!text.trim()) return null;
-          return (
-            <p key={index} className="whitespace-pre-wrap text-sm">
-              {text}
-            </p>
-          );
-        }
-        return null;
-      })}
-    </div>
   );
 }

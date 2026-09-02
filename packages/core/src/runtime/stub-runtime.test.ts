@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { registerPlatformTools } from "../tools/platform/register";
 import { StubRuntime } from "./stub-runtime";
 import type { AgentVersionRecord, ToolBindingRecord } from "../agents/service";
+import type { RuntimeEvent } from "./types";
 
 registerPlatformTools();
 
@@ -30,9 +31,15 @@ function binding(toolKey: string): ToolBindingRecord {
   };
 }
 
-async function run(prompt: string, toolKeys: string[]): Promise<string> {
+async function run(
+  prompt: string,
+  toolKeys: string[],
+  thinking = true,
+): Promise<{ answer: string; thinking: string; tools: string[] }> {
   const runtime = new StubRuntime();
-  let seen = "";
+  let answer = "";
+  let thought = "";
+  const tools: string[] = [];
   await runtime.execute({
     tenant,
     runId: "run-stub",
@@ -40,37 +47,51 @@ async function run(prompt: string, toolKeys: string[]): Promise<string> {
     version,
     bindings: toolKeys.map(binding),
     history: [{ role: "user", parts: [{ type: "text", text: prompt }] }],
-    onEvent: (event) => {
+    thinking,
+    onEvent: (event: RuntimeEvent) => {
       if (event.type === "assistant.delta") {
-        seen += event.text;
+        answer += event.text;
+      }
+      if (event.type === "assistant.thinking") {
+        thought += event.text;
+      }
+      if (event.type === "tool.started") {
+        tools.push(event.toolKey);
       }
     },
   });
-  return seen;
+  return { answer, thinking: thought, tools };
 }
 
 describe("StubRuntime answers", () => {
-  it("returns the calculator result instead of echoing the question", async () => {
+  it("returns only the calculator result as the answer", async () => {
     const prompt = "What is 2 + 3?";
     const seen = await run(prompt, ["calculator"]);
-    expect(seen.startsWith("Stub reply (text / stub-model):")).toBe(true);
-    expect(seen).toContain("2 + 3 = 5");
-    expect(seen).not.toBe(`Stub reply (text / stub-model): ${prompt}`);
-    expect(seen).not.toContain(prompt);
+    expect(seen.answer).toBe("2 + 3 = 5");
+    expect(seen.answer).not.toMatch(/Stub reply/i);
+    expect(seen.answer).not.toContain(prompt);
+    expect(seen.thinking).toMatch(/calculator/i);
+    expect(seen.tools).toEqual(["calculator"]);
   });
 
   it("does not copy-paste a general question as the reply", async () => {
     const prompt = "Write a haiku about rain.";
     const seen = await run(prompt, []);
-    expect(seen.startsWith("Stub reply (text / stub-model):")).toBe(true);
-    expect(seen).toMatch(/gateway key|Settings/i);
-    expect(seen).not.toBe(`Stub reply (text / stub-model): ${prompt}`);
-    expect(seen).not.toContain(prompt);
+    expect(seen.answer).not.toContain(prompt);
+    expect(seen.answer).not.toMatch(/Stub reply/i);
+    expect(seen.thinking.length).toBeGreaterThan(0);
+  });
+
+  it("skips thinking events when thinking is off", async () => {
+    const seen = await run("What is 2 + 3?", ["calculator"], false);
+    expect(seen.thinking).toBe("");
+    expect(seen.answer).toBe("2 + 3 = 5");
   });
 
   it("answers a clock question with datetime output", async () => {
     const seen = await run("What time is it now?", ["datetime"]);
-    expect(seen).toMatch(/Current time is \d{4}-\d{2}-\d{2}T/);
-    expect(seen).not.toContain("What time is it now?");
+    expect(seen.answer).toMatch(/\d{4}-\d{2}-\d{2}T/);
+    expect(seen.answer).not.toContain("What time is it now?");
+    expect(seen.tools).toEqual(["datetime"]);
   });
 });

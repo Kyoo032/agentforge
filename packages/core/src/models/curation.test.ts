@@ -37,6 +37,8 @@ describe("curateModel", () => {
     expect(curateModel("deepseek-coder-v2").bestFor).toBe("Coding");
     expect(curateModel("claude-haiku-4").bestFor).toBe("Fast drafts");
     expect(curateModel("gemini-1.5-pro-long").bestFor).toBe("Long documents");
+    expect(curateModel("o3").bestFor).toBe("Deep reasoning");
+    expect(curateModel("minimax-m3").bestFor).toBe("Deep reasoning");
   });
 });
 

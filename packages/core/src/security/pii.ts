@@ -172,7 +172,12 @@ export function maskPii(text: string): string {
 }
 
 export function maskPiiInParts(parts: ContentPart[]): ContentPart[] {
-  return parts.map((part) => (part.type === "text" ? { ...part, text: maskPii(part.text) } : part));
+  return parts.map((part) => {
+    if (part.type === "text" || part.type === "thinking") {
+      return { ...part, text: maskPii(part.text) };
+    }
+    return part;
+  });
 }
 
 export function maskOutboundRunInput<

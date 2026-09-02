@@ -10,6 +10,7 @@ import {
   type RefObject,
 } from "react";
 import { formatContextLength, pickerGroups } from "@agentforge/core/preferred";
+import { isThinkingModel } from "@agentforge/core/curation";
 
 export type ChatModel = {
   id: string;
@@ -297,6 +298,16 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
             </span>
           ) : null}
         </span>
+        {isThinkingModel(model.id) ? (
+          <span
+            data-testid="model-thinking-badge"
+            className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${
+              isActive ? "bg-white/20 text-white" : "bg-mist text-ink/60"
+            }`}
+          >
+            Think
+          </span>
+        ) : null}
         {model.contextLength ? (
           <span
             className={`shrink-0 text-xs tabular-nums ${isActive ? "text-white/80" : "text-ink/50"}`}
@@ -378,7 +389,6 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
                       aria-expanded={showAdvanced}
                       className="flex w-full items-center justify-between px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-ink/50 hover:bg-mist"
                       onMouseDown={(event) => {
-                        // Keep search focus; do not select a model.
                         event.preventDefault();
                       }}
                       onClick={() => setAdvancedOpen((was) => !was)}

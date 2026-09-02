@@ -30,6 +30,8 @@ type Props = {
   onTool?: (event: { phase: "started" | "completed"; toolKey: string; input?: unknown; output?: unknown }) => void;
   onFailed?: (message: string) => void;
   onComplete: () => Promise<void> | void;
+  thinkingEnabled?: boolean;
+  onThinkingChange?: (enabled: boolean) => void;
 };
 
 type HeldFile = {
@@ -70,6 +72,8 @@ export function ChatComposer({
   onTool,
   onFailed,
   onComplete,
+  thinkingEnabled = true,
+  onThinkingChange,
 }: Props) {
   const [text, setText] = useState("");
   const [files, setFiles] = useState<HeldFile[]>([]);
@@ -194,7 +198,7 @@ export function ChatComposer({
         const response = await fetch(`/api/v1/threads/${id}/runs/text`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content: outgoing, model }),
+          body: JSON.stringify({ content: outgoing, model, thinking: thinkingEnabled }),
         });
         if (!response.ok) {
           const payload = await response.json();
@@ -248,7 +252,7 @@ export function ChatComposer({
       const response = await fetch(`/api/v1/threads/${id}/runs/${decision.route}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: parts, model }),
+        body: JSON.stringify({ content: parts, model, thinking: thinkingEnabled }),
       });
       if (!response.ok) {
         const payload = await response.json();
@@ -331,6 +335,20 @@ export function ChatComposer({
             disabled={modelDisabled || busy}
             returnFocusRef={textAreaRef}
           />
+        ) : null}
+        {onThinkingChange ? (
+          <button
+            type="button"
+            className={`rounded-full border px-3 py-1.5 text-sm ${
+              thinkingEnabled ? "border-navy bg-navy text-white" : "border-mist text-ink"
+            }`}
+            data-testid="thinking-toggle"
+            aria-pressed={thinkingEnabled}
+            onClick={() => onThinkingChange(!thinkingEnabled)}
+            disabled={busy}
+          >
+            Thinking
+          </button>
         ) : null}
         <button
           type="button"

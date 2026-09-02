@@ -59,13 +59,20 @@ export {
   canAdminister,
 } from "./tenancy/types";
 export type { MembershipRole, IndustryPack, Visibility, InputModality, TenantContext } from "./tenancy/types";
-export type { ContentPart, TextPart, ImageUrlPart, VideoUrlPart, RunInputBody } from "./content/types";
+export type { ContentPart, TextPart, ImageUrlPart, VideoUrlPart, ThinkingPart, ToolCallPart, RunInputBody } from "./content/types";
 export {
   parseTextRunInput,
   parseImageRunInput,
   parseVideoRunInput,
   summarizeParts,
 } from "./content/parse-run-input";
+export {
+  visibleAnswerText,
+  thinkingTextFromParts,
+  toolCallsFromParts,
+  modelHistoryParts,
+  hasModelVisibleContent,
+} from "./content/transcript";
 export {
   localMediaId,
   isUnreachableProviderMediaUrl,
@@ -97,6 +104,7 @@ export {
   resolveModelProvider,
   resolveChatModel,
   readOptionalModel,
+  readOptionalThinking,
   intersectModalities,
 } from "./models/catalog";
 export type { ChatModel, ModelProvider } from "./models/catalog";
@@ -118,7 +126,7 @@ export {
   recommendedChatModels,
   sortChatModels,
 } from "./models/preferred";
-export { curateModel, applyCuration, isEverydayModel } from "./models/curation";
+export { curateModel, applyCuration, isEverydayModel, isThinkingModel } from "./models/curation";
 export type { ModelTier, CuratedModelMeta } from "./models/curation";
 export {
   mediaKind,

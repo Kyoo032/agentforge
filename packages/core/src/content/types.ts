@@ -18,7 +18,22 @@ export type VideoUrlPart = {
   };
 };
 
-export type ContentPart = TextPart | ImageUrlPart | VideoUrlPart;
+/** Assistant-only: chain-of-thought. Never accepted on user run input. */
+export type ThinkingPart = {
+  type: "thinking";
+  text: string;
+};
+
+/** Assistant-only: a tool call in the transcript. Never accepted on user run input. */
+export type ToolCallPart = {
+  type: "tool_call";
+  toolKey: string;
+  status: "started" | "completed";
+  input?: unknown;
+  output?: unknown;
+};
+
+export type ContentPart = TextPart | ImageUrlPart | VideoUrlPart | ThinkingPart | ToolCallPart;
 
 export type RunInputBody = {
   content?: unknown;

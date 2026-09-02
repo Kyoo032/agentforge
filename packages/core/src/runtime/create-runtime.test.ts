@@ -38,9 +38,10 @@ describe("createRuntime outbound PII mask", () => {
           }
         },
       });
-      expect(seen.startsWith("Stub reply (text / stub-model):")).toBe(true);
+      expect(seen.startsWith("I need a Toko Token gateway key")).toBe(true);
       expect(seen).not.toContain("alex.rivera@example.com");
       expect(seen).not.toContain("Contact me at");
+      expect(seen).not.toMatch(/Stub reply/i);
     } finally {
       if (previous === undefined) {
         delete process.env.AGENTFORGE_RUNTIME;

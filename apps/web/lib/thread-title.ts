@@ -8,7 +8,7 @@ export function titleFromParts(parts: unknown): string | null {
     text = parts;
   } else if (Array.isArray(parts)) {
     for (const part of parts) {
-      if (part && typeof part === "object" && "text" in part && typeof (part as { text: unknown }).text === "string") {
+      if (part && typeof part === "object" && (part as { type?: unknown }).type === "text" && "text" in part && typeof (part as { text: unknown }).text === "string") {
         text = (part as { text: string }).text;
         break;
       }

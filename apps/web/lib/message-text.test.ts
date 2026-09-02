@@ -15,7 +15,12 @@ describe("messageText", () => {
     ).toBe("Line one\nLine two");
   });
 
-  it("ignores non-text parts", () => {
-    expect(messageText([{ type: "image_url", image_url: { url: "https://example.com/a.png" } }])).toBe("");
+  it("ignores thinking parts in the visible transcript text", () => {
+    expect(
+      messageText([
+        { type: "thinking", text: "plan" },
+        { type: "text", text: "2 + 3 = 5" },
+      ]),
+    ).toBe("2 + 3 = 5");
   });
 });

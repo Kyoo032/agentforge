@@ -1,6 +1,6 @@
 # Models
 
-The Chat model picker lists curated everyday models first (`model-group-recommended`) with per-model `bestFor` hints (`model-best-for`), plus a collapsed Advanced models disclosure (`model-picker-all`) for the rest. Doctor probes `GET /api/v1/models` so a drive knows mode keys, chat-list size, and that curation metadata is present.
+- The Chat model picker lists curated everyday models first (`model-group-recommended`) with per-model `bestFor` hints (`model-best-for`), plus a collapsed Advanced models disclosure (`model-picker-all`) for the rest. Reasoning ids show a `model-thinking-badge`. Doctor probes `GET /api/v1/models` so a drive knows mode keys, chat-list size, and that curation metadata is present.
 
 ## Sub-features
 

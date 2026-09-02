@@ -211,10 +211,12 @@ export class AiSdkRuntime implements AgentRuntime {
 
     const messages = toCoreMessages(input.version.systemPrompt, input.history);
     const hasTools = Object.keys(tools).length > 0;
+    const wantThinking = input.thinking !== false;
     let activeModel = model;
     let wire = openaiWire?.wire;
     let first = await this.consume(activeModel, input, messages, hasTools ? tools : undefined, {
       responses: wire === "responses",
+      forceReasoningNone: !wantThinking,
     });
 
     if (
@@ -237,7 +239,7 @@ export class AiSdkRuntime implements AgentRuntime {
       wire = "chat_completions";
       first = await this.consume(activeModel, input, messages, hasTools ? tools : undefined, {
         responses: false,
-        forceReasoningNone: hasTools,
+        forceReasoningNone: hasTools && !wantThinking,
       });
     }
 
@@ -264,11 +266,7 @@ export class AiSdkRuntime implements AgentRuntime {
       await input.onEvent({ type: "run.failed", message: result.failed });
       throw new Error(result.failed);
     }
-    if (!result.text && result.thinking) {
-      await input.onEvent({ type: "assistant.delta", text: result.thinking });
-      result.text = true;
-    }
-    // Tool-only success (e.g. image_generate with no prose) must still complete so mediaParts persist.
+    // Tool-only or thinking-only success must still complete so the transcript persists.
     if (shouldFailEmptyAssistant({ text: result.text, thinking: Boolean(result.thinking), tooled: result.tooled })) {
       throw new Error("The model returned no text. Try another model, or turn off tools if this endpoint rejects them.");
     }

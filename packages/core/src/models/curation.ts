@@ -74,16 +74,22 @@ function bestForFromId(id: string): string {
   if (/long|opus|pro|ultra|32k|128k|200k|1m|document/.test(n)) {
     return "Long documents";
   }
+  if (isThinkingModel(id)) {
+    return "Deep reasoning";
+  }
   if (/flash|mini|nano|lite|fast|turbo|instant|haiku|tiny/.test(n)) {
     return "Fast drafts";
-  }
-  if (/reasoning|o1|o3|o4|think|r1/.test(n)) {
-    return "Deep reasoning";
   }
   if (EVERYDAY_PREFIX.test(n) || EVERYDAY_PREFIX.test(id)) {
     return "Everyday chat";
   }
   return "General chat";
+}
+
+/** Models that stream a reasoning channel (o-series, R1, MiniMax think tags, *thinking* ids). */
+export function isThinkingModel(id: string): boolean {
+  const n = leafId(id).toLowerCase();
+  return /reasoning|o1|o3|o4|think|r1|minimax-m3/.test(n);
 }
 
 export function isEverydayModel(id: string): boolean {

@@ -12,7 +12,8 @@
     "./templates": "./src/templates/library.ts",
     "./pii": "./src/security/pii.ts",
     "./product-modes": "./src/agents/product-modes.ts",
-    "./video-capabilities": "./src/models/video-capabilities.ts"
+    "./video-capabilities": "./src/models/video-capabilities.ts",
+    "./content": "./src/content/transcript.ts"
   },
   "scripts": {
     "test": "vitest run",
