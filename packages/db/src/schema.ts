@@ -57,6 +57,7 @@ export const workspaces = sqliteTable(
       .references(() => organizations.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     slug: text("slug").notNull(),
+    templatePack: text("template_pack"),
     createdAt: createdAt(),
   },
   (table) => [

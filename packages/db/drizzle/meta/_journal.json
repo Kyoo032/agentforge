@@ -8,6 +8,13 @@
       "when": 1788185879757,
       "tag": "0000_smiling_skin",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1788295685770,
+      "tag": "0001_mysterious_ricochet",
+      "breakpoints": true
     }
   ]
 }

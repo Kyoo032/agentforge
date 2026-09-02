@@ -1,0 +1,1 @@
+ALTER TABLE `workspaces` ADD `template_pack` text;

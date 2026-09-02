@@ -93,7 +93,12 @@ export async function listLocalWorkspaces(db: Database, organizationId: string) 
   return db.select().from(workspaces).where(eq(workspaces.organizationId, organizationId));
 }
 
-export async function createLocalWorkspace(db: Database, organizationId: string, name: string) {
+export async function createLocalWorkspace(
+  db: Database,
+  organizationId: string,
+  name: string,
+  templatePack?: string,
+) {
   const base = slugifyWorkspace(name);
   let slug = base;
   for (let attempt = 0; attempt < 8; attempt += 1) {
@@ -113,6 +118,7 @@ export async function createLocalWorkspace(db: Database, organizationId: string,
       organizationId,
       name: name.trim() || "Workspace",
       slug,
+      templatePack: templatePack ?? null,
     })
     .returning();
   await db.insert(workspaceMembers).values({
