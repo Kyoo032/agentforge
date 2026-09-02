@@ -1,9 +1,15 @@
 import { redirect } from "next/navigation";
-import { firstVisibleHref } from "@agentforge/core";
-import { agentService, getTenant } from "@/lib/tenant";
+import { firstVisibleHref, resolveWorkspaceModes } from "@agentforge/core";
+import { db, workspaces } from "@agentforge/db";
+import { eq } from "drizzle-orm";
+import { getTenant } from "@/lib/tenant";
 
 export default async function HomePage() {
   const tenant = await getTenant();
-  const visibleModes = await agentService.listVisibleProductModes(tenant);
-  redirect(firstVisibleHref(visibleModes));
+  const [workspace] = await db
+    .select()
+    .from(workspaces)
+    .where(eq(workspaces.id, tenant.workspaceId))
+    .limit(1);
+  redirect(firstVisibleHref(resolveWorkspaceModes(workspace?.productModes)));
 }

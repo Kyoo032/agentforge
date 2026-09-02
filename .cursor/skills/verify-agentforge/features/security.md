@@ -1,6 +1,6 @@
 # Security
 
-Settings Simple can confirm which gateway key is saved without ever showing the raw secret. The host hashes the trimmed key (SHA-256) and returns a short `sha256:` prefix. TLS and at-rest seal are already in product; this file maps those surfaces, it does not claim a new envelope.
+Settings can confirm which gateway key is saved without ever showing the raw secret. The host hashes the trimmed key (SHA-256) and returns a short `sha256:` prefix. TLS and at-rest seal are already in product; this file maps those surfaces, it does not claim a new envelope.
 
 ## Sub-features
 
@@ -11,7 +11,7 @@ Settings Simple can confirm which gateway key is saved without ever showing the 
 
 ## How to get to it (user POV)
 
-- Open Settings (`settings-link` or `/settings`). Simple is the default tab (`settings-tab-simple`).
+- Open Settings (`settings-link` or `/settings`).
 - After a gateway key is saved, the line under the key field names the fingerprint. The password field stays empty / replace-placeholder.
 - With no key (Cloud, GHA, fresh desk), that line is absent. The privacy note is still on Simple.
 
@@ -23,7 +23,7 @@ Preconditions:
 - Do **not** paste or save a gateway key unless the operator asked.
 - Cloud / GHA force stub and have no key.
 
-- **Open Settings Simple.** Click `settings-link` or go to `/settings`. `settings-form` and `settings-tab-simple` are visible. Stay on Simple.
+- **Open Settings.** Click `settings-link` or go to `/settings`. `settings-form` is visible. Stay on this page.
 - **With a saved key** (`doctor.hasOpenai === true`). `key-fingerprint` is visible (10s). Its text starts with `Saved key fingerprint sha256:` (12 hex chars after the prefix). `openai-key` does not contain the fingerprint or the raw secret.
 - **With no key** (`doctor.hasOpenai === false`). `key-fingerprint` count is 0. `privacy-note` is still visible. Doctor `keyFingerprint` is `false`.
 - **API.** `GET /api/v1/settings` may include `openaiKeyFingerprint` (and optional extra-provider fingerprints). The JSON must not contain the raw key. When no key, the fingerprint field is null / absent from the UI — not a leaked secret.

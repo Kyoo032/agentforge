@@ -4,7 +4,7 @@ Agent-facing map (where to press). Not product. Pair with pstack `how` for how a
 
 This directory is the maintained source for verifying user-facing Agentforge behavior. Read this index before driving, then use the matching feature file as the recipe.
 
-Documents, Research, Images, Videos, and Presentation are product modes. Default desks only unlock Images/Videos/Presentation after a Default agent exists. Documents unlocks when an agent publishes that surface (`product-mode-documents`).
+Documents, Research, Images, Videos, and Presentation are product modes. **Home already unlocks all of them.** A Legal (or other) workspace can hide some tabs. Custom agents do not unlock the rail.
 
 ## Baseline preconditions
 
@@ -20,17 +20,18 @@ Documents, Research, Images, Videos, and Presentation are product modes. Default
 
 - Start from the feature file's preconditions.
 - Use `data-testid` handles. Treat testid strings as literal.
-- Rail tabs are the union of custom-agent product surfaces. Chat + Agents only until a Default (or other) agent exists.
+- Rail tabs are the current workspace `productModes`. Home has every work mode. `mode-agents` count is 0.
 - Restore nothing on the operator's Windows SQLite. Cloud isolation is the VM.
 - Keep proof artifacts under `evidence/<feature>/<run-id>/`.
 
 ## Proof and skip reporting
 
 - Capture the user action and the resulting state.
-- UI proof: snapshot + screenshot with Chat / Settings / studio identity visible.
-- Mutation proof: a second user-facing view (thread list, studio URL, gallery).
+- UI proof: snapshot + screenshot with Chat / Settings / workspace identity visible.
+- Mutation proof: a second user-facing view (thread list, workspace list, gallery).
 - Record the feature ID and entry point on every artifact.
-- An unreachable rail tab (`mode-images` missing) is a skip with the unmet precondition — not a pass via a hidden URL unless the feature file says that URL is a valid entry.
+- An unreachable rail tab (`mode-images` missing on a Legal desk) is expected — not a skip. On Home, missing Images is a fail.
+- `/studio` and `/agents` redirect to Chat. That is parked GTM, not a harness bug.
 - Do not report Settings saved or a live generate unless the operator asked and doctor reported `runtime: "ai"`.
 
 ## Feature entry contract
@@ -39,18 +40,18 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 
 ## Features
 
-- [Chat](./chat.md) — composer send, new thread, switch sessions, stub reply.
-- [Settings](./settings.md) — form, privacy note, stub/live runtime, Usage panel (this key vs desk estimate in USD, spend-by-model bars), extras keys hidden until opened.
-- [Build](./build.md) — blank/default templates, studio UUID, share workspace, agent chat, generate default pickers when Images/Videos are on.
+- [Chat](./chat.md) — composer send, new thread, switch sessions, stub reply. Home rail shows every work mode.
+- [Settings](./settings.md) — gateway key, privacy note, stub/live runtime, Usage panel. No Advanced tab.
+- [Workspaces](./workspaces.md) — rail switcher + `/workspaces` create/edit, presets and mode checkboxes, open → Chat.
 - [Models](./models.md) — curated Chat picker, doctor modeKeys/chatCount/curation, Advanced disclosure (Phase 1 ids optional until present).
-- [Workspaces](./workspaces.md) — rail `workspaces-link` (both states), template chips, create/list/open desks, pack seeding.
 - [Templates](./templates.md) — example galleries on all five mode studios; click pre-fills the prompt.
 - [PII](./pii.md) — host masks outbound prompts (`[email]` / `[phone]` / …); the transcript keeps the typed text.
-- [Security](./security.md) — saved-key fingerprint on Simple Settings (`key-fingerprint`); TLS note on `privacy-note`; at-rest envelope is existing work.
-- [Studio advanced](./studio-advanced.md) — post-create soul/tools/model edit; `save-soul` publishes a new version.
-- [Documents](./documents.md) — starters, preview, section regen (503 without a key), DOCX download from a starter.
-- [Images](./images.md) — studio shell after an agent unlocks the tab; needs-key without a gateway key.
+- [Security](./security.md) — saved-key fingerprint on Settings (`key-fingerprint`); TLS note on `privacy-note`; at-rest envelope is existing work.
+- [Documents](./documents.md) — starters, preview, section regen (503 without a key), DOCX download from a starter. Home has the tab.
+- [Images](./images.md) — studio shell on Home; needs-key without a gateway key.
 - [Videos](./videos.md) — studio shell and `videos-studio-needs-key` without a key.
 - [Presentation](./presentations.md) — starters, preview, slide regen (503 without a key), PPTX download from a starter.
 - [Desktop](./desktop.md) — Electron one-window launch, splash → Chat, child teardown on quit. Windows NSIS exists; mac/linux are builder targets.
 - [Mobile](./mobile.md) — docs only. No iOS/Android build, no stores, no Capacitor. A phone on LAN `:3000` is not a product surface.
+- [Build](./build.md) — **parked / verified-unreachable.** `/studio` redirects to Chat.
+- [Studio advanced](./studio-advanced.md) — **parked / verified-unreachable.** Same redirect.

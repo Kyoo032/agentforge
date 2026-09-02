@@ -1,7 +1,8 @@
 import { db, workspaces } from "@agentforge/db";
 import { eq } from "drizzle-orm";
+import { resolveWorkspaceModes } from "@agentforge/core";
 import { AppShell } from "@/components/app-shell";
-import { agentService, getTenant } from "@/lib/tenant";
+import { getTenant } from "@/lib/tenant";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     .from(workspaces)
     .where(eq(workspaces.id, tenant.workspaceId))
     .limit(1);
-  const visibleModes = await agentService.listVisibleProductModes(tenant);
+  const visibleModes = resolveWorkspaceModes(workspace?.productModes);
 
   return (
     <AppShell workspaceName={workspace?.name ?? "Home"} visibleModes={visibleModes}>

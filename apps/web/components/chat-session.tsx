@@ -244,12 +244,11 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           <div className="text-center" data-testid="chat-empty">
             <p className="text-2xl font-semibold">You're in. Ask anything.</p>
             <p className="mt-2 text-ink/60">
-              The Default assistant is already here — pick a model and start chatting. This is yours, no account.
               Paste a {GATEWAY_NAME} gateway key in{" "}
               <Link href="/settings" className="underline">
                 Settings
               </Link>{" "}
-              when you want a live model.
+              to talk to live models. Ask anything.
             </p>
           </div>
         ) : null}

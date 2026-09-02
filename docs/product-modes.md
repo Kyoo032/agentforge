@@ -1,6 +1,6 @@
 # Product modes
 
-Agentforge’s left nav is **mode-first**. Tabs come from a kernel catalog. **Which tabs appear** is the union of product surfaces on custom agents in the workspace. Packs only seed those checkboxes. Custom agents pick their own.
+Agentforge’s left nav is **mode-first**. Tabs come from a kernel catalog. **Which tabs appear** is the current workspace’s `productModes`. Home stores every work mode. Creating another desk (Legal, Marketing, Students, or custom checkboxes) can shrink or grow that rail. Packs are workspace presets. Custom agents do not drive the rail.
 
 Gateway identity stays **Toko Token** (`api.tokotokenai.com/v1`). Do not merge Toko Token with TokenKu in copy or catalogs. Kernel stays industry-neutral: no `student` / `course` / campus nouns outside `packages/university`.
 
@@ -9,43 +9,41 @@ Gateway identity stays **Toko Token** (`api.tokotokenai.com/v1`). Do not merge T
 | Nav label     | Id             | Route              | Role |
 |---------------|----------------|--------------------|------|
 | Chat          | `chat`         | `/chat`            | Default assistant |
-| Agents        | `agents`       | `/agents`          | Catalog + talk to custom agents; Build at `/studio/new` |
 | Documents     | `documents`    | `/documents`       | Prompt → preview → download DOCX |
 | Research      | `research`     | `/research`        | Question → web search → sourced notes → Markdown |
 | Images        | `images`       | `/images`          | Prompt → generate images → gallery |
 | Videos        | `videos`       | `/videos`          | Prompt → generate videos → gallery |
 | Presentation  | `presentations`| `/presentations`   | Prompt → outline → HTML preview + PPTX |
-| Settings      | —              | `/settings`        | Gateway key, backends, extras (not a surface) |
+| Settings      | —              | `/settings`        | Gateway key, usage, privacy (not a surface) |
 
-Bottom of the rail (not modes): Settings, Workspaces, theme. Collapse prefs stay on `apps/web/lib/rail-prefs.ts`.
+Bottom of the rail (not modes): workspace switcher, Workspaces, Settings, theme. Collapse prefs stay on `apps/web/lib/rail-prefs.ts`.
 
-Build stays reachable from Settings when the Agents tab is off. `/studio/**` and `/agents/[id]` stay valid URLs.
+Agents / Studio are parked. `/agents` and `/studio/**` redirect to Chat. Files stay in the tree for a later pass.
 
 ## How the rail is computed
 
-`resolveProductModes` in `packages/core/src/agents/product-modes.ts`:
+`resolveWorkspaceModes` in `packages/core/src/agents/product-modes.ts`:
 
-- Default Chat (`quick-chat`) never contributes.
-- No custom agents, or every custom agent unlocks nothing → **Chat + Agents**.
-- Otherwise: union of each custom agent’s published `productModes`, in catalog order.
-- Missing / `null` `productModes` on an old agent → original five (`chat`, `agents`, `images`, `videos`, `presentations`).
-- Explicit `[]` unlocks nothing from that agent.
+- Stored workspace `productModes` in catalog order, always including Chat.
+- Missing / `null` / empty → all work modes (Home default).
+- Unknown ids including parked `agents` are dropped.
 - Hidden generate-studio URLs redirect to the first visible mode (Chat if present). `/` does the same.
+- `/agents` and `/studio` redirect like hidden modes.
 
-Session lists live **inside** Chat (and inside an agent). They are never the global nav.
+Session lists live **inside** Chat. They are never the global nav.
 
 Redirects:
 
 - `/` → first visible mode
-- `/workspace` → `/agents`
-- `/chat/[agentId]` → `/agents/[agentId]`
+- `/workspace` → `/chat`
+- `/agents`, `/studio/**` → `/chat`
 
 ## Pack seeds
 
-Packs live in their own packages. They seed `productModes` + tools + prompt. They do not change kernel schema.
+Packs live in their own packages. They seed workspace **preset mode lists**. They do not change kernel schema.
 
-- **Blank** — `chat` (user adds chips; at least one required)
-- **Default** (`packages/core`) — original five (full current workbench)
+- **Blank** — `chat` (user adds chips; Chat always required)
+- **General / Home** — every work mode
 - **Students** (`packages/university`) — `chat`, `documents`, `research`, `images`, `presentations`
 - **Marketing** (`packages/marketing`) — `chat`, `documents`, `images`, `videos`, `presentations`
 - **Legal** (`packages/legal`) — `chat`, `documents`, `research`, `presentations`
@@ -55,10 +53,6 @@ Packs live in their own packages. They seed `productModes` + tools + prompt. The
 ### Chat
 
 Default gateway chat: model picker, composer, its own sessions (`GET /api/v1/threads?scope=chat`). Uses the **chat** bucket from the live `/v1/models` probe. Default / Recommended are small everyday models (`gpt-5.6-luna`, `deepseek-v4-flash`, MiniMax M3) when live — not Sol/Pro. No specialist chips. No Build. Generate tools may remain bound so a sentence in Chat can still create media; that is not a substitute for the Images / Videos pages.
-
-### Agents
-
-Custom agents platform: catalog at `/agents`, Build at `/studio/new`, talk at `/agents/[agentId]`. Studio configures modalities, tools, and product surfaces. Agent models come from the same **chat** bucket; each agent pins its own `version.model`.
 
 ### Documents
 
@@ -82,7 +76,7 @@ Kimi Slides **job** (topic → deck file), not Kimi Slides **product**. Prompt �
 
 ### Settings
 
-Saving a gateway URL + API key always probes `GET /v1/models` first, then routes ids into Chat / Documents / Research / Presentation (chat bucket) and Images / Videos (generate buckets). Empty generate studios fail visibly when there is no key. Includes a Build / Agents link so a desk without an Agents tab can still create another agent.
+Saving a gateway API key always probes `GET /v1/models` first, then routes ids into Chat / Documents / Research / Presentation (chat bucket) and Images / Videos (generate buckets). Empty generate studios fail visibly when there is no key. No Advanced tab, no Build / Agents links.
 
 ## Later (not this pass)
 
@@ -96,7 +90,7 @@ Saving a gateway URL + API key always probes `GET /v1/models` first, then routes
 
 | Reference | We take | We refuse |
 |-----------|---------|-----------|
-| Lumina left modes | First-class Image / Video / Agent / Chat in the catalog | Home, Audio, Avatar; infinite canvas; their full agent orchestration |
+| Lumina left modes | First-class Image / Video / Chat in the catalog | Home, Audio, Avatar; infinite canvas; their full agent orchestration |
 | Kimi Work / Slides | Prompt → structured deck → preview + editable PPTX download | Adaptive/Visual modes, online slide editor, research-heavy Adaptive pass, multi-format upload suite as a gate |
 | ChatGPT-style global thread rail | — | Mixing all sessions into the global nav; burying generate only inside Chat |
 

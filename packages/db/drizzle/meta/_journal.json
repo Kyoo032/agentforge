@@ -15,6 +15,13 @@
       "when": 1788295685770,
       "tag": "0001_mysterious_ricochet",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1788380000000,
+      "tag": "0002_workspace_product_modes",
+      "breakpoints": true
     }
   ]
 }

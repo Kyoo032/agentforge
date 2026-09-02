@@ -18,7 +18,7 @@ import { ensureToolsRegistered } from "./register-tools";
 import { parseResearchNotes, type ResearchNotes } from "./research-parse";
 import { rememberJobUsage } from "./job-usage";
 
-const RESEARCH_SYSTEM = `You write sourced research notes for Agentforge.
+const RESEARCH_SYSTEM = `You write sourced research a skeptic can use — not a listicle.
 You are given a question and web search hits. Return ONLY valid JSON (no markdown fences) with this shape:
 {
   "title": string,
@@ -28,9 +28,12 @@ You are given a question and web search hits. Return ONLY valid JSON (no markdow
   ]
 }
 Rules:
-- 3 to 8 notes.
-- Only cite URLs that appear in the search hits. If hits are thin, say so in the summary.
-- Do not invent cases, statutes, or quotations.
+- Honor the user's requested structure (landscape, claim check, matrix, diligence). Default 5–8 notes.
+- Summary is the argument (8–12 lines) plus confidence (high/med/low). If hits are thin, say so and do not pad.
+- Each note is one claim or cluster: evidence, disagreement or gap, and what it implies. Not a heading plus one sentence.
+- Only cite URLs that appear in the search hits. If a fact is unpublished, write "not published".
+- Do not invent cases, statutes, quotations, funding rounds, user counts, or SLAs.
+- No "the market is rapidly evolving" or "more research is needed" without naming the next measurement.
 - No campus / student / course nouns unless the question itself requires them.`;
 
 type SearchHit = { title?: string; url?: string; description?: string; position?: number };

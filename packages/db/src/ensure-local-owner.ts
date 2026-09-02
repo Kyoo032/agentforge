@@ -3,8 +3,10 @@ import {
   HOME_WORKSPACE_SLUG,
   LOCAL_OWNER_ID,
   PERSONAL_ORG_SLUG,
+  WORK_PRODUCT_MODES,
   pickWorkspaceId,
   slugifyWorkspace,
+  type ProductMode,
   type TenantContext,
 } from "@agentforge/core";
 import type { Database } from "./client";
@@ -42,6 +44,7 @@ export async function ensureLocalOwner(db: Database, preferredWorkspaceId?: stri
         organizationId: org.id,
         name: "Home",
         slug: HOME_WORKSPACE_SLUG,
+        productModes: [...WORK_PRODUCT_MODES],
       })
       .returning();
     ownedWorkspaces = inserted;
@@ -98,6 +101,7 @@ export async function createLocalWorkspace(
   organizationId: string,
   name: string,
   templatePack?: string,
+  productModes?: ProductMode[],
 ) {
   const base = slugifyWorkspace(name);
   let slug = base;
@@ -112,6 +116,7 @@ export async function createLocalWorkspace(
     }
     slug = `${base}-${crypto.randomUUID().slice(0, 8)}`;
   }
+  const modes = productModes?.length ? productModes : [...WORK_PRODUCT_MODES];
   const [row] = await db
     .insert(workspaces)
     .values({
@@ -119,6 +124,7 @@ export async function createLocalWorkspace(
       name: name.trim() || "Workspace",
       slug,
       templatePack: templatePack ?? null,
+      productModes: modes,
     })
     .returning();
   await db.insert(workspaceMembers).values({
@@ -128,4 +134,29 @@ export async function createLocalWorkspace(
     role: "owner",
   });
   return row;
+}
+
+export async function updateLocalWorkspace(
+  db: Database,
+  organizationId: string,
+  workspaceId: string,
+  patch: { name?: string; productModes?: ProductMode[] },
+) {
+  const [existing] = await db
+    .select()
+    .from(workspaces)
+    .where(and(eq(workspaces.id, workspaceId), eq(workspaces.organizationId, organizationId)))
+    .limit(1);
+  if (!existing) {
+    return null;
+  }
+  const [row] = await db
+    .update(workspaces)
+    .set({
+      ...(typeof patch.name === "string" && patch.name.trim() ? { name: patch.name.trim() } : {}),
+      ...(patch.productModes ? { productModes: patch.productModes } : {}),
+    })
+    .where(eq(workspaces.id, workspaceId))
+    .returning();
+  return row ?? existing;
 }
