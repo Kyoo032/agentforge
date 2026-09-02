@@ -62,7 +62,7 @@ export default async function AgentsPage() {
                   <Link href={`/agents/${agent.id}`} className="underline" data-testid="open-chat">
                     Chat
                   </Link>
-                  <Link href={`/studio/${agent.id}`} className="underline">
+                  <Link href={`/studio/${agent.id}`} className="underline" data-testid="open-studio">
                     Studio
                   </Link>
                 </div>
