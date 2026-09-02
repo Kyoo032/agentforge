@@ -37,6 +37,7 @@ Contract:
 ## Gotchas
 
 - Warn-on-send must not fire on every `@`. Bare mentions without an email/phone shape are not PII hits. `scanPii("hello @ world")` is empty.
+- Long digit runs in a verify id (e.g. `p3-1788314364511`) can also match ID/phone. That is still warn-only — do not treat extra kinds as a fail if the email/phone you planted is mentioned.
 - `pii-send-anyway` must actually send. A banner that traps the user is a product bug.
 - This is warn-only — never treat a missing hard-block as a fail.
 - Do not paste real personal data into Cloud evidence. Use synthetic `example.com` addresses and fake numbers.
