@@ -2,7 +2,7 @@
 
 Two media paths already exist. **Do not mix them.**
 
-Canonical product IA: [../product-modes.md](../product-modes.md).
+Canonical product IA: [../../product-modes.md](../../product-modes.md).
 
 ---
 

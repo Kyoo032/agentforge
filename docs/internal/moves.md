@@ -27,8 +27,8 @@ Format:
 
 - **What:** Packaged Electron loopback bind
 - **From:** Hardcoded `127.0.0.1:3000`; reuse whatever was already on that port (including `pnpm dev`)
-- **To:** Packaged process allocates an ephemeral loopback port ≠ 3000, writes `%APPDATA%\Agentforge\app-url.txt`, always spawns bundled `node.exe`. `pnpm dev` / `pnpm desktop:dev` keep :3000 as the webdev prototype.
-- **Why:** 3000 is the webdev prototype only. The installed app must not steal or share it. Verifier: `doctor.mjs --desktop` refuses :3000.
+- **To:** Packaged process allocates an ephemeral loopback port ≠ 3000, writes `%APPDATA%\Agentforge\app-url.txt`, always spawns bundled `node.exe`. `pnpm dev` / `pnpm desktop:dev` keep :3000 as local webdev.
+- **Why:** 3000 is local webdev only. The installed app must not steal or share it. Verifier: `doctor.mjs --desktop` refuses :3000.
 - **Build proof (this machine):** `apps/desktop/dist/Agentforge Setup 0.1.0.exe`; staged-server smoke on :3011 (not 3000) returned `/chat` 200 and created a Home workspace.
 
 ## 2026-08-31 — in-process drizzle migrations + Developer Mode for standalone
@@ -61,7 +61,7 @@ Format:
 ## 2026-08-31 — Demo surface is Chrome + `pnpm dev`; desktop shell parked
 
 - **What:** The demo/presentation surface for the product.
-- **From:** Desktop shell window (Electron on the Windows working tree; `apps/desktop` in this repo still carries the Tauri prototype at the time of this entry).
-- **To:** Chrome at `http://127.0.0.1:3000` served by `pnpm dev`. Runbook: [docs/demo.md](demo.md).
+- **From:** Desktop shell window (Electron on the Windows working tree).
+- **To:** Chrome at `http://127.0.0.1:3000` served by `pnpm dev`. Runbook: [docs/closed-beta.md](../closed-beta.md).
 - **Why:** The desktop shell had click-death issues (Next dev error overlay + GPU/sandbox input quirks on Windows). Chrome bypasses the shell problem entirely and is the surface the web app is actually built for. The desktop shell stays in the repo — now Electron, not deleted.
 - **Rode along:** Settings Extras now renders its inner fields (provider keys, tool toggles, model/backend selects) only when the `<details>` is open, so a closed Settings page no longer mounts hundreds of hidden nodes. `AppShell` split: the shell chrome is a server component again; only `AppRail` and a tiny `ModeRedirect` stay client.

@@ -7,7 +7,7 @@ Settings is where the owner pastes a Toko Token gateway key. There is no login. 
 - `settings-open` shows the gateway form and Build / Agents links.
 - `settings-tabs` defaults to Simple (`settings-tab-simple`); Advanced is `settings-tab-advanced`.
 - `settings-privacy` shows the retention / no-log note on Simple (`privacy-note`).
-- `settings-runtime` reports `stub` or live status on `runtime-status` (visible on both tabs).
+- `settings-runtime` reports offline demo or live status on `runtime-status` (visible on both tabs).
 - `settings-placeholder` keeps the gateway URL placeholder `https://api.tokotokenai.com/v1` on `openai-base-url` (Advanced only).
 - `settings-extras` reveals optional keys only after Advanced is selected and the Extras disclosure is opened (tavily / brave / fal, plus Anthropic / Volcengine / backends). Tool enable checkboxes (`tool-enabled-calculator` and siblings) stay here. `injection-guard-bypass` is Advanced-only, unchecked by default — do not turn it on unless the operator asked.
 - `settings-usage-empty` shows `usage-panel` on Simple with `usage-this-key` asking to paste a gateway key when none is saved. `usage-by-model` is visible (empty copy until this desk has priced runs).
@@ -32,7 +32,7 @@ Preconditions:
 
 - **Open Settings.** Click `settings-link` or go to `/settings`. URL matches `/settings`. `settings-form` is visible (15s). `settings-tab-simple` and `settings-tab-advanced` are visible; Simple is selected by default.
 - **Simple identity.** `openai-key`, `save-settings`, and `privacy-note` are visible. `settings-build-link` and `settings-agents-link` are visible. `openai-base-url` is **absent** until Advanced is opened.
-- **Runtime.** With no provider key, `runtime-status` contains `stub` and `no keys yet` (15s). If a key is already saved, the line contains `Runtime: ai` and `Gateway key saved` — record that; it is not a stub fail. Stay on either tab; the line does not hide.
+- **Runtime.** With no provider key, `runtime-status` contains `Offline demo` and `no keys yet` (15s). If a key is already saved, the line contains `Status: Live` and `Gateway key saved` — record that; it is not an offline fail. Stay on either tab; the line does not hide.
 - **Usage empty (Cloud / no key).** On Simple, `usage-panel` is visible. `usage-this-key` contains `Paste a gateway key`. `usage-desk-estimate` is visible (usually `$0.00`). `usage-by-model` is visible. `usage-key-meter` and `usage-model-chart` are absent until a key / priced desk runs exist.
 - **Usage live (Windows, key already saved, read-only).** Do not paste a key. On Simple, `usage-this-key` contains `$` used (or Unlimited, or a visible fail pointing at the dashboard). `usage-key-meter` is visible when this-key status is ok. `usage-desk-estimate` contains `$`. If this desk has priced runs, `usage-model-chart` shows one bar per model and `usage-model-row-<model-id>` lists USD. This key ≠ this desk.
 - **Advanced.** Click `settings-tab-advanced`. `openai-base-url` is visible and its `placeholder` is `https://api.tokotokenai.com/v1`. Dialect probe text may appear on `dialect-probe` after a prior save/detect. Per-mode selects and tool backends live here.

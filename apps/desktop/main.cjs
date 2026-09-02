@@ -6,7 +6,7 @@ const net = require("node:net");
 const path = require("node:path");
 
 const LOOPBACK = "127.0.0.1";
-/** Webdev prototype only (`pnpm dev`). Packaged Electron must never bind or reuse this. */
+/** Local webdev only (`pnpm dev`). Packaged Electron must never bind or reuse this. */
 const WEBDEV_PORT = 3000;
 const PRODUCT_NAME = "Agentforge";
 const KEYCHAIN_SERVICE = PRODUCT_NAME;

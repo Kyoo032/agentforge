@@ -1,36 +1,38 @@
 # Agentforge
 
-A **local** agents workbench for the **Toko Token** OpenAI-compatible gateway at `https://api.tokotokenai.com/v1`. Same idea as Hermes: the person who installs it owns it. You are not signing up for a campus tenant. You paste a **gateway API key**, keep **workspaces** on disk, and get chat plus agents that are easy to use and easy to build.
+A **local** workbench for the **Toko Token** OpenAI-compatible gateway at `https://api.tokotokenai.com/v1`. The person who installs it owns it. Paste a **gateway API key**, keep **workspaces** on disk, and work in Chat plus job modes (Documents, Research, Images, Videos, Presentation).
+
+**Status: closed beta** (not prototype). Public entry point: [`README.md`](README.md).
 
 This file is the project source of truth for coding agents. Vault memory at `C:\Users\rizky\Documents\Obsidian` is for Kyo, not for this repo’s domain rules.
 
 **Harness, not product.** PStack (`how` / `why` mapper, `create-verification-skill` / `maintain-verification-skill` verifier) and `.cursor/skills/verify-agentforge` are agent guardrails, like this file. They are not Agentforge features. Call the original pstack plugin skills from the project verify skill. Do not vendor pstack into `apps/`, `packages/`, the installer, or the UI. Task models stay Cursor explore/worker, not pstack Fable/GPT slugs.
 
-Product modes (Chat / Agents / Documents / Research / Images / Videos / Presentation): see [`docs/product-modes.md`](docs/product-modes.md). The left rail follows product surfaces on custom agents. Packs seed those surfaces.
+Product modes: see [`docs/product-modes.md`](docs/product-modes.md). The left rail follows workspace `productModes`. Home has every work tab. Packs are workspace presets.
 
-## Product (locked 2026-08-26)
+## Product (locked 2026-09-02 GTM; closed beta)
 
-- **Gateway-first.** Agentforge exists because the gateway has no easy agents app. Chat, model picker, and custom agents run on `api.tokotokenai.com/v1` by default. Native Anthropic / Google / Ark and a different base URL are optional extras, not the product identity.
+- **Gateway-first.** Agentforge exists because buying a key at `api.tokotokenai.com` leaves the question “where do I use this?” Install, paste the key, work. Native Anthropic / Google / Ark stay in the settings store, unexposed.
 - **No login.** No email, no Better Auth in the product UX, no “join Harbor State.”
 - **Single owner on the machine.** Data lives on disk. Everyone who installs it has their own copy.
 - **First-run needs:** a gateway API key (and later optional local models such as Ollama). Store keys in the OS keychain / a local secrets file, never in the renderer, never in git, never in `NEXT_PUBLIC_*`.
-- **Workspaces** are the user’s own projects (groups of agents, threads, tools) — not an org membership table they must join.
-- Chat is ready immediately after a gateway key is saved. Model picker + composer. Building custom agents is optional, not a gate.
-- Pack templates (Students first; more later) are optional starters on Build. Default chat never uses a pack template.
+- **Workspaces** are the user’s own desks (which tabs they need) — not an org membership table they must join. Home already has every work mode. Creating another desk (Legal, Marketing, Students, or custom checkboxes) is optional.
+- Chat is ready immediately. Model picker + composer. Custom-agent Build stays in the tree for now; it is not the closed-beta identity.
+- Pack templates are optional workspace presets. Default Chat never uses a pack template.
 - University/Harbor State is an **optional pack of templates**, not the identity of the app. Kernel stays industry-neutral (`student` / `course` do not belong in core schema).
 - Do not merge **Toko Token** with **TokenKu** in copy or catalogs.
 
 ### Desktop target
 
-Installer (**Electron**) + **SQLite** in the user data dir. No Docker Postgres for the product. Optional later: on-prem campus server. Do not wrap the current Docker stack in a Chromium window and call it local.
+Installer (**Electron**) + **SQLite** in the user data dir. No Docker Postgres. Optional later: on-prem campus server.
 
 ### What to keep from this repo
 
-Agent versions, tool bindings, modality-fail-closed run APIs, chat composer, studio/build flow, pack-based templates. OpenAI-compatible wire (`/v1/chat/completions` + `/v1/responses`) against the gateway.
+Chat composer, job-mode studios, workspace templates, modality-fail-closed run APIs, OpenAI-compatible wire (`/v1/chat/completions` + `/v1/responses`) against the gateway. Agent tables and Studio files stay for a later pass — they are not the closed-beta marketing surface.
 
 ### What to remove from the product (later)
 
-Harbor State seed as identity leftovers, Docker Postgres (SQLite next), desktop shell. Better Auth is deleted, not upgraded.
+Harbor State seed as identity leftovers. Better Auth is deleted, not upgraded. Public rename / UI redesign / customer-only ship is parked until closed beta feedback lands.
 
 ## Non-negotiables
 
@@ -39,23 +41,24 @@ Harbor State seed as identity leftovers, Docker Postgres (SQLite next), desktop 
 - Never commit `.env`, API keys, or passwords.
 - Do not commit or push unless Kyo asks.
 - Do not reintroduce login “for later multiplayer” unless Kyo asks. This is a personal local app.
-- Local process only: bind `127.0.0.1`. Webdev prototype is `:3000`. Packaged Electron picks an ephemeral loopback port and **must not** bind or reuse `:3000`. Mutating `/api` accepts localhost Origin only. No email/session package.
+- Local process only: bind `127.0.0.1`. Local webdev is `:3000`. Packaged Electron picks an ephemeral loopback port and **must not** bind or reuse `:3000`. Mutating `/api` accepts localhost Origin only. No email/session package.
 
-## Layout (today’s prototype)
+## Layout
 
 ```
 apps/web                 Next.js 15 App Router (local owner, no product login)
 apps/desktop             Electron shell + Windows installer (packaged: ephemeral loopback, never :3000)
 packages/core            Content parsers, tools, AgentRuntime, AgentService
-packages/db              Drizzle schema (SQLite in the user data dir; Docker Postgres is legacy)
+packages/db              Drizzle schema (SQLite in the user data dir)
 packages/university      Optional Students templates and mock campus tools
 packages/marketing       Optional Marketing templates
 packages/legal           Optional Legal templates
+docs/                    Product docs + docs/internal engineering notes
 ```
 
 pnpm 9.15.9 + Turborepo. If corepack hits EPERM on Windows, use `npx pnpm@9.15.9`.
 
-## How to run (prototype)
+## How to run
 
 ```
 npx pnpm@9.15.9 install
@@ -63,14 +66,14 @@ npx pnpm@9.15.9 db:seed          # optional; first visit also creates the local 
 npx pnpm@9.15.9 dev               # http://127.0.0.1:3000 → /chat, no login
 ```
 
-Optional prototyping: `npx pnpm@9.15.9 db:push` (`drizzle-kit push` escape hatch). Canonical path is `drizzle-kit generate` in `packages/db` + app-side migrate on SQLite open.
+Optional: `npx pnpm@9.15.9 db:push` (`drizzle-kit push` escape hatch). Canonical path is `drizzle-kit generate` in `packages/db` + app-side migrate on SQLite open.
 
-SQLite file: `data/agentforge.sqlite` (or `AGENTFORGE_DATA_DIR`). Do **not** set `DATABASE_URL` to Postgres. `docker compose` remains in the repo as a legacy fallback for older checkouts only.
+SQLite file: `data/agentforge.sqlite` (or `AGENTFORGE_DATA_DIR`). Do **not** set `DATABASE_URL` to Postgres.
 
 Desktop:
 
-- **Webdev window:** `pnpm desktop:dev` — Electron around the prototype. May reuse `pnpm dev` on `:3000`. Not the installed product.
-- **Packaged app:** `pnpm desktop:build` → NSIS x64 (Windows product path). Needs Windows Developer Mode (or an elevated shell) because Next standalone tracing creates symlinks. The installer bundles Next standalone + Node — no PATH Node required. On launch it **allocates a free loopback port ≠ 3000**, writes it to Electron userData `app-url.txt`, and never attaches to `pnpm dev`. mac/linux: `pnpm desktop:build:mac` / `pnpm desktop:build:linux` on that OS (unsigned; notarization is not done). Cloud cannot prove packaged Windows and must not run `pnpm desktop:build`. Move log: [`docs/moves.md`](docs/moves.md).
+- **Webdev window:** `pnpm desktop:dev` — Electron around local webdev. May reuse `pnpm dev` on `:3000`. Not the installed product.
+- **Packaged app:** `pnpm desktop:build` → NSIS x64 (Windows product path). Needs Windows Developer Mode (or an elevated shell) because Next standalone tracing creates symlinks. The installer bundles Next standalone + Node — no PATH Node required. On launch it **allocates a free loopback port ≠ 3000**, writes it to Electron userData `app-url.txt`, and never attaches to `pnpm dev`. mac/linux: `pnpm desktop:build:mac` / `pnpm desktop:build:linux` on that OS (unsigned; notarization is not done). Cloud cannot prove packaged Windows and must not run `pnpm desktop:build`. Move log: [`docs/internal/moves.md`](docs/internal/moves.md).
 
 **Phase 2d already built on this Windows checkout (2026-08-31).** Do not claim the installer does not exist.
 
@@ -80,7 +83,7 @@ Desktop:
 - Smoke: staged `node.exe` + `server.js` on **port 3011** (not 3000) with a fresh temp `AGENTFORGE_DATA_DIR` — `GET /chat` 200, `GET /api/v1/workspaces` returned Home. Schema via in-process migrations.
 - NSIS rebuilt the same day after the port split: same path, now ships `main.cjs` that allocates an ephemeral loopback port ≠ 3000 and writes `app-url.txt`. Reinstall that exe to pick up the split.
 
-No account. Workspaces and agents are local. Paste the gateway key in Settings. `AGENTFORGE_RUNTIME=stub` until a key is saved (then live models from the gateway). Env `AGENTFORGE_RUNTIME=ai` still uses `.env` keys.
+No account. Workspaces are local. Paste the gateway key in Settings. `AGENTFORGE_RUNTIME=stub` until a key is saved (then live models from the gateway). Env `AGENTFORGE_RUNTIME=ai` still uses `.env` keys.
 
 ## Runtime and tools
 
@@ -105,8 +108,8 @@ Do not use Hermes tools or Hermes dashboard tokens to process Agentforge keys.
 
 ## Tests
 
-- Unit: Vitest in `packages/core`, `packages/university`, `apps/web`. Local coding agents run these. Do **not** run Playwright locally — `foundation.spec.ts` is a long serial pass (cold Next compile + stub chat + studio).
-- E2E: Playwright `apps/web/tests/e2e/foundation.spec.ts` (Chat → Settings → Agents/Build → Images/Videos/Presentation smoke). Owned by **Cursor Cloud Agents**, not the local Windows session. See **Cursor Cloud specific instructions** below.
+- Unit: Vitest in `packages/core`, `packages/university`, `apps/web`. Local coding agents run these. Do **not** run Playwright locally — `foundation.spec.ts` is a long serial pass (cold Next compile + stub chat + workspaces).
+- E2E: Playwright `apps/web/tests/e2e/foundation.spec.ts` (Chat → Settings → job modes → Legal workspace smoke). Owned by **Cursor Cloud Agents**, not the local Windows session. See **Cursor Cloud specific instructions** below.
 - Verify UI in the IDE browser when changing layout. Do not block on `pnpm test:e2e` on this machine.
 
 ## Cursor Cloud specific instructions
@@ -117,7 +120,7 @@ Boot uses [`.cursor/environment.json`](.cursor/environment.json): `install` → 
 
 This image has **no Docker**. `docker`, `dockerd`, and `sudo service docker start` fail (`docker: unrecognized service`). Do not run `docker compose`. Product DB is SQLite. Default file: `data/agentforge.sqlite`.
 
-The Windows prototype also uses SQLite (Next/`ensureSchema` migrates on open; `pnpm db:push` is optional). Desktop Electron injects the wrap key from the OS keychain. Packaged binds an ephemeral loopback port, not `:3000`.
+The Windows closed-beta checkout also uses SQLite (Next/`ensureSchema` migrates on open; `pnpm db:push` is optional). Desktop Electron injects the wrap key from the OS keychain. Packaged binds an ephemeral loopback port, not `:3000`.
 
 ### What a Cloud Agent on this VM can do
 
@@ -144,8 +147,7 @@ AGENTFORGE_RUNTIME=stub npx playwright test
 
 GitHub Actions (`.github/workflows/e2e.yml`) runs the same stub Playwright suite on push/PR to `main`. No gateway key. Cloud Agents also own that suite on this VM. Do not park the GHA job.
 
-## Known traps (prototype)
+## Known traps
 
 - Next.js overlay in Cursor’s browser can inject `data-cursor-ref` and block clicks. Use Chrome or Playwright.
-- Playwright `/studio/**` also matches `/studio/new`. Wait for `/studio/<uuid>`.
 - Dev server binds `127.0.0.1:3000` (webdev only). Playwright and the IDE browser must use `http://127.0.0.1:3000` (not a LAN IP). Packaged Agentforge uses a different loopback port; `doctor.mjs --desktop` reads Electron userData `app-url.txt` (Windows `%APPDATA%\Agentforge`, Linux `$XDG_CONFIG_HOME/Agentforge` or `~/.config/Agentforge`, macOS `~/Library/Application Support/Agentforge`). A phone on a LAN `:3000` is not a product surface — see [`docs/mobile.md`](docs/mobile.md).

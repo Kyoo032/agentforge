@@ -22,7 +22,7 @@ export function sqliteFilePath(): string {
   const url = process.env.DATABASE_URL?.trim();
   if (url?.startsWith("postgres://") || url?.startsWith("postgresql://")) {
     throw new Error(
-      "Postgres is no longer the product database. Unset DATABASE_URL (SQLite at data/agentforge.sqlite) or set DATABASE_URL=file:/path/to.sqlite. docker-compose.yml is a legacy local fallback only.",
+      "Postgres is not supported. Unset DATABASE_URL (SQLite at data/agentforge.sqlite) or set DATABASE_URL=file:/path/to.sqlite.",
     );
   }
   if (url?.startsWith("file:")) {

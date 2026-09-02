@@ -1,6 +1,6 @@
 # Desktop
 
-Electron is the installed local app. Packaged builds bind an **ephemeral loopback port** (never 3000). Port 3000 is the **webdev prototype** (`pnpm dev`) only. Wrap key: keytar `Agentforge` / `wrap-key`. SQLite and `app-url.txt` live in Electron `userData`.
+Electron is the installed local app. Packaged builds bind an **ephemeral loopback port** (never 3000). Port 3000 is the **local webdev** (`pnpm dev`) only. Wrap key: keytar `Agentforge` / `wrap-key`. SQLite and `app-url.txt` live in Electron `userData`.
 
 ## Sub-features
 
@@ -10,7 +10,7 @@ Electron is the installed local app. Packaged builds bind an **ephemeral loopbac
   - macOS: `~/Library/Application Support/Agentforge/app-url.txt`
 - `desktop-splash` shows the splash page until that private URL answers `/chat`.
 - `desktop-chat` loads Chat in the window (not in Chrome on :3000).
-- `desktop-dev` (`pnpm desktop:dev`) is the **webdev prototype in a window**. It may reuse `pnpm dev` on :3000. That is not packaged proof.
+- `desktop-dev` (`pnpm desktop:dev`) is the **local webdev in a window**. It may reuse `pnpm dev` on :3000. That is not packaged proof.
 - `desktop-quit` kills the bundled child only if this Electron process spawned it. Closing the installed app must not stop `pnpm dev` on :3000.
 - No mobile Electron/Capacitor/RN target. See [mobile.md](./mobile.md).
 
@@ -18,7 +18,7 @@ Electron is the installed local app. Packaged builds bind an **ephemeral loopbac
 
 - **Packaged Windows (the product on the Windows checkout):** install `apps/desktop/dist/Agentforge Setup 0.1.0.exe` (local build artifact, gitignored; built 2026-08-31), then Start menu → Agentforge. No Node/pnpm on PATH. No :3000.
 - **Packaged mac/linux:** operator runs `pnpm desktop:build:mac` or `pnpm desktop:build:linux` **on that OS**. Those are electron-builder targets (mac: unsigned dmg+zip x64/arm64; linux: AppImage+deb x64). Notarization is not done. Cloud Linux cannot produce or prove the Windows NSIS exe and must not run `pnpm desktop:build` (that is the Windows NSIS path).
-- **Webdev window:** from repo root `pnpm desktop:dev`. That still talks to the prototype on :3000.
+- **Webdev window:** from repo root `pnpm desktop:dev`. That still talks to local webdev on :3000.
 
 ## Driving it with the Agentforge harness
 
@@ -41,7 +41,7 @@ Preconditions:
 - **Windows installer already exists (2026-08-31, Windows checkout):** `apps/desktop/dist/Agentforge Setup 0.1.0.exe` (~168 MB, unsigned). Smoke: staged `node.exe` + `server.js` on a **non-3000** port with a fresh temp `AGENTFORGE_DATA_DIR` — `GET /chat` 200 and `GET /api/v1/workspaces` returned Home. Dist is gitignored; do not claim Phase 2d “not built.”
 - Cloud / Linux VM: cannot run or rebuild that NSIS exe. Do not run `pnpm desktop:build` here. mac/linux scripts skip `check-symlink.mjs` (that preflight is Windows Developer Mode). A missing Cloud `.exe` is not a product fail.
 - Packaged Electron **must not** `loadURL('http://127.0.0.1:3000')` and **must not** reuse an existing :3000 process. If doctor `--desktop` reports port 3000, that is a fail.
-- `pnpm desktop:dev` is still the webdev prototype in a Chromium frame. It is allowed to use :3000. Do not sell that as installer proof.
+- `pnpm desktop:dev` is still the local webdev in a Chromium frame. It is allowed to use :3000. Do not sell that as installer proof.
 - Schema is created in-process on first SQLite open (`ensureSchema` / committed drizzle migrations).
 - keytar may fall back to a session-only wrap key if the OS keychain is unavailable — doctor still works; note it in evidence.
 - Never put `AGENTFORGE_SECRETS_KEY` or the gateway key in the renderer or `NEXT_PUBLIC_*`.
