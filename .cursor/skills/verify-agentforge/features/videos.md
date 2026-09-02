@@ -36,6 +36,6 @@ Preconditions:
 - `videos-studio-needs-key` is the stub pass. A missing banner on a keyless Cloud run is a product fail.
 - The studio posts to `/api/v1/videos` (gateway `POST /v1/video/generations` plus poll), not `/runs/video`. A keyless submit is a 400.
 - Live Seedance-class jobs on this prepaid test key are **403** (`prepaid_async_requires_fixed_price`). That is a billing/proxy class, not a knob or key-format fail. Grok Imagine video is the live generate proof on this key.
-- Do not save the test key to shared `:3000` Settings. That flips the whole prototype to live.
+- Do not save the test key to shared `:3000` Settings. That flips the whole local webdev to live.
 - Optional still uses `videos-studio-still`. Leave it empty for the shell proof.
 - `videos-studio-resolution` is a Seedance-class field. grok-imagine / default OpenAI-like models keep seconds + still and must not send `ratio` / `resolution` on the wire. The live matrix confirmed grok rejects `ratio`.

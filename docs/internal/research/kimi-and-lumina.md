@@ -2,7 +2,7 @@
 
 Notes for product modes. **Claims** are labeled by source. **Ship** lines are Agentforge decisions from the locked plan — not guarantees about third-party products.
 
-Canonical IA: [../product-modes.md](../product-modes.md).
+Canonical IA: [../../product-modes.md](../../product-modes.md).
 
 ---
 

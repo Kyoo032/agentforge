@@ -20,10 +20,10 @@ A cold agent reads this mid-task. Drive the real app. A green `tsc` or worker su
 
 | Surface | How to reach it | Doctor | Port |
 |---|---|---|---|
-| **Webdev prototype** | `pnpm dev` → Chrome / IDE browser | `node .cursor/skills/verify-agentforge/scripts/doctor.mjs` | **3000 only** (`next dev --hostname 127.0.0.1 --port 3000`) |
+| **Local webdev** | `pnpm dev` → Chrome / IDE browser | `node .cursor/skills/verify-agentforge/scripts/doctor.mjs` | **3000 only** (`next dev --hostname 127.0.0.1 --port 3000`) |
 | **Packaged desktop** | Installed Agentforge (Windows NSIS; mac/linux operator-built) | `node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop` | Ephemeral loopback, **never 3000**. URL in userData `app-url.txt` (Windows `%APPDATA%\Agentforge`; Linux `$XDG_CONFIG_HOME/Agentforge` or `~/.config/Agentforge`; macOS `~/Library/Application Support/Agentforge`) |
 
-`pnpm desktop:dev` is the webdev prototype inside an Electron window (may reuse :3000). That is not packaged proof. APIs exist under `/api/v1/*` but proof is the user path, not an internal setter.
+`pnpm desktop:dev` is the local webdev inside an Electron window (may reuse :3000). That is not packaged proof. APIs exist under `/api/v1/*` but proof is the user path, not an internal setter.
 
 Do **not** use Hermes CLI, Hermes dashboard session tokens, or Hermes `hermes:api`. Agentforge key handling is in **Keys** below.
 
@@ -73,7 +73,7 @@ SQLite file: `$AGENTFORGE_DATA_DIR/agentforge.sqlite` (default `data/agentforge.
 Run this first whenever anything looks off, and before every drive:
 
 ```bash
-# webdev prototype
+# local webdev
 node .cursor/skills/verify-agentforge/scripts/doctor.mjs
 
 # packaged desktop (reads OS userData app-url.txt — not :3000)
@@ -183,4 +183,4 @@ Standards:
 
 ## Isolate
 
-Two **webdev** instances cannot share port 3000. The packaged app uses a different loopback port and a different data dir (Electron userData: `%APPDATA%\Agentforge` / `~/.config/Agentforge` / `~/Library/Application Support/Agentforge`), so it can run while `pnpm dev` is up. Playwright’s data dir is the same repo `data/` as the Windows webdev prototype. Isolation for E2E is the Cloud/GHA VM, not a second local port. Do not double-drive the operator’s live window while Cloud Playwright is also pointed at this checkout. If you need a disposable tree, set `AGENTFORGE_DATA_DIR` to a new directory (optional `pnpm db:push`; Next migrates on open), and optionally `AGENTFORGE_SETTINGS_PATH` so you do not touch the operator’s `data/settings.enc`.
+Two **webdev** instances cannot share port 3000. The packaged app uses a different loopback port and a different data dir (Electron userData: `%APPDATA%\Agentforge` / `~/.config/Agentforge` / `~/Library/Application Support/Agentforge`), so it can run while `pnpm dev` is up. Playwright’s data dir is the same repo `data/` as the Windows local webdev. Isolation for E2E is the Cloud/GHA VM, not a second local port. Do not double-drive the operator’s live window while Cloud Playwright is also pointed at this checkout. If you need a disposable tree, set `AGENTFORGE_DATA_DIR` to a new directory (optional `pnpm db:push`; Next migrates on open), and optionally `AGENTFORGE_SETTINGS_PATH` so you do not touch the operator’s `data/settings.enc`.

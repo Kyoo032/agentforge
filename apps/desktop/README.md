@@ -4,7 +4,7 @@ Electron shell around the local Next UI. **Two modes:**
 
 | Mode | Command / install | Loopback | Data |
 |---|---|---|---|
-| Webdev prototype | `pnpm dev` or `pnpm desktop:dev` | **:3000 only** | repo `data/` |
+| Local webdev | `pnpm dev` or `pnpm desktop:dev` | **:3000 only** | repo `data/` |
 | Packaged app | NSIS / dmg / AppImage (see below) | **ephemeral port ≠ 3000** | Electron `userData` |
 
 Packaged Electron never attaches to whatever is already on :3000. `pnpm desktop:dev` may reuse :3000 — that is the webdev window, not packaged proof.
@@ -32,7 +32,7 @@ pnpm install
 pnpm desktop:dev
 ```
 
-Electron opens a splash, then loads the **prototype** at `http://127.0.0.1:3000`. If `pnpm dev` is already serving, it reuses that process. Schema is created in-process on first SQLite open (`ensureSchema` / committed drizzle migrations). Paste a Toko Token gateway key in Settings. No login.
+Electron opens a splash, then loads local webdev at `http://127.0.0.1:3000`. If `pnpm dev` is already serving, it reuses that process. Schema is created in-process on first SQLite open (`ensureSchema` / committed drizzle migrations). Paste a Toko Token gateway key in Settings. No login.
 
 ## Web-only (no Electron)
 
@@ -93,4 +93,4 @@ Never commit `.env`, `data/settings.enc`, or `data/.master-key`.
 
 ## Move log
 
-Desktop shell changes are recorded in [`docs/moves.md`](../../docs/moves.md).
+Desktop shell changes are recorded in [`docs/internal/moves.md`](../../docs/internal/moves.md).

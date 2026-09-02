@@ -1,6 +1,7 @@
 {
   "name": "agentforge",
   "private": true,
+  "description": "Closed-beta local workbench for the Toko Token AI gateway",
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",

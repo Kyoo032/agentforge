@@ -19,6 +19,10 @@ type Probe = {
 
 const fieldClass = "mt-1 w-full rounded-md border border-mist bg-paper px-3 py-2 text-ink";
 
+function runtimeStatusLabel(mode: "ai" | "stub"): string {
+  return mode === "ai" ? "Live" : "Offline demo";
+}
+
 export default function SettingsPage() {
   const [hasOpenai, setHasOpenai] = useState(false);
   const [hasGoogle, setHasGoogle] = useState(false);
@@ -193,7 +197,7 @@ export default function SettingsPage() {
       </p>
 
       <p className="mt-3 text-sm text-ink/50" data-testid="runtime-status">
-        Runtime: {runtime}
+        Status: {runtimeStatusLabel(runtime)}
         {hasOpenai ? " · Gateway key saved" : ""}
         {hasAnthropic ? " · Anthropic key saved" : ""}
         {hasGoogle ? " · Google key saved" : ""}

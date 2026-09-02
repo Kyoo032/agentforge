@@ -3,7 +3,7 @@
  * Read-only: is this Agentforge instance worth driving?
  * Usage:
  *   node .cursor/skills/verify-agentforge/scripts/doctor.mjs
- *       → webdev prototype at http://127.0.0.1:3000
+ *       → local webdev at http://127.0.0.1:3000
  *   node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop
  *       → packaged app URL from Electron userData app-url.txt:
  *         Windows: %APPDATA%/Agentforge/app-url.txt
@@ -96,7 +96,7 @@ if (host !== "127.0.0.1" && host !== "localhost") {
 
 if (desktopFlag && portOf(BASE) === 3000) {
   fail(
-    `${BASE} is the webdev prototype port. Packaged Agentforge must not bind 3000. Check app-url.txt after launching the installed app.`,
+    `${BASE} is the local webdev port. Packaged Agentforge must not bind 3000. Check app-url.txt after launching the installed app.`,
   );
 }
 
@@ -108,7 +108,7 @@ try {
   fail(
     desktopFlag
       ? `GET ${BASE}/chat did not connect. Launch the installed Agentforge (not pnpm dev).`
-      : `GET ${BASE}/chat did not connect. Start \`pnpm dev\` (webdev prototype on :3000).`,
+      : `GET ${BASE}/chat did not connect. Start \`pnpm dev\` (local webdev on :3000).`,
     String(error),
   );
 }
