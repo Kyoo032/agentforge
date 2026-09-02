@@ -3,8 +3,10 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { ExampleGallery } from "@/components/example-gallery";
+import { ModelSelect } from "@/components/model-select";
 import { ResearchPreview } from "@/components/research-preview";
 import { researchNotesToMarkdown, type ResearchNotes } from "@/lib/research-notes";
+import { useJobModel } from "@/lib/use-job-model";
 
 function errorMessage(payload: unknown, fallback: string): string {
   if (payload && typeof payload === "object") {
@@ -21,6 +23,7 @@ function needsSettingsHint(message: string): boolean {
 }
 
 export function ResearchStudio() {
+  const { models, model, setModel } = useJobModel("research");
   const [prompt, setPrompt] = useState("");
   const [notes, setNotes] = useState<ResearchNotes | null>(null);
   const [busy, setBusy] = useState<"generate" | "download" | null>(null);
@@ -38,7 +41,7 @@ export function ResearchStudio() {
       const res = await fetch("/api/v1/research", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: topic }),
+        body: JSON.stringify({ prompt: topic, model: model || undefined }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
@@ -129,28 +132,38 @@ export function ResearchStudio() {
       </div>
 
       <form
-        className="sticky bottom-4 mt-8 flex gap-2 rounded-xl border border-mist bg-paper p-2 shadow-sm"
+        className="sticky bottom-4 mt-8 space-y-2 rounded-xl border border-mist bg-paper p-2 shadow-sm"
         onSubmit={(event) => void onGenerate(event)}
         data-testid="research-studio-prompt-bar"
       >
-        <input
-          type="text"
-          value={prompt}
-          onChange={(event) => setPrompt(event.target.value)}
-          className="min-w-0 flex-1 rounded-md bg-transparent px-3 py-2 text-sm text-ink outline-none placeholder:text-ink/40"
-          placeholder="What should we look up?"
-          disabled={busy !== null}
-          data-testid="research-prompt"
-          aria-label="Research question"
+        <ModelSelect
+          models={models}
+          value={model}
+          onChange={setModel}
+          disabled={busy !== null || models.length === 0}
+          testId="research-studio-model"
+          className="w-full rounded-md border border-mist bg-paper px-3 py-2 text-sm text-ink"
         />
-        <button
-          type="submit"
-          className="shrink-0 rounded-md bg-navy px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-          disabled={busy !== null || !prompt.trim()}
-          data-testid="research-generate"
-        >
-          {busy === "generate" ? "Searching…" : "Generate"}
-        </button>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={prompt}
+            onChange={(event) => setPrompt(event.target.value)}
+            className="min-w-0 flex-1 rounded-md bg-transparent px-3 py-2 text-sm text-ink outline-none placeholder:text-ink/40"
+            placeholder="What should we look up?"
+            disabled={busy !== null}
+            data-testid="research-prompt"
+            aria-label="Research question"
+          />
+          <button
+            type="submit"
+            className="shrink-0 rounded-md bg-navy px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            disabled={busy !== null || !prompt.trim()}
+            data-testid="research-generate"
+          >
+            {busy === "generate" ? "Searching…" : "Generate"}
+          </button>
+        </div>
       </form>
     </main>
   );

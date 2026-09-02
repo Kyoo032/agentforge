@@ -4,8 +4,11 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { DocumentPreview } from "@/components/document-preview";
 import { ExampleGallery } from "@/components/example-gallery";
+import { ModelSelect } from "@/components/model-select";
+import type { JobRegenSubmit } from "@/components/job-regen-panel";
 import type { DocumentDraft } from "@/lib/document-outline";
 import { DOCUMENT_STARTERS } from "@/lib/job-starters";
+import { useJobModel } from "@/lib/use-job-model";
 
 function errorMessage(payload: unknown, fallback: string): string {
   if (payload && typeof payload === "object") {
@@ -22,6 +25,7 @@ function needsSettingsHint(message: string): string {
 }
 
 export function DocumentsStudio() {
+  const { models, model, setModel } = useJobModel("documents");
   const [prompt, setPrompt] = useState("");
   const [draft, setDraft] = useState<DocumentDraft | null>(null);
   const [busy, setBusy] = useState<"generate" | "download" | "regen" | null>(null);
@@ -40,7 +44,7 @@ export function DocumentsStudio() {
       const res = await fetch("/api/v1/documents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: topic }),
+        body: JSON.stringify({ prompt: topic, model: model || undefined }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
@@ -55,7 +59,7 @@ export function DocumentsStudio() {
     }
   }
 
-  async function onRegenerate(index: number) {
+  async function onRegenerate(index: number, payload: JobRegenSubmit) {
     if (!draft || busy) {
       return;
     }
@@ -66,7 +70,14 @@ export function DocumentsStudio() {
       const res = await fetch("/api/v1/documents/regenerate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ draft, sectionIndex: index, prompt }),
+        body: JSON.stringify({
+          draft,
+          sectionIndex: index,
+          prompt,
+          instruction: payload.instruction || undefined,
+          model: payload.model || model || undefined,
+          attachments: payload.attachments.length > 0 ? payload.attachments : undefined,
+        }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
@@ -162,8 +173,10 @@ export function DocumentsStudio() {
         {draft ? (
           <DocumentPreview
             draft={draft}
+            models={models}
+            defaultModel={model}
             regeneratingIndex={regenIndex}
-            onRegenerate={(index) => void onRegenerate(index)}
+            onRegenerate={(index, payload) => void onRegenerate(index, payload)}
           />
         ) : (
           <div className="rounded-2xl border border-mist bg-mist/30 px-4 py-10" data-testid="documents-studio-empty">
@@ -193,28 +206,38 @@ export function DocumentsStudio() {
       </div>
 
       <form
-        className="sticky bottom-4 mt-8 flex gap-2 rounded-xl border border-mist bg-paper p-2 shadow-sm"
+        className="sticky bottom-4 mt-8 space-y-2 rounded-xl border border-mist bg-paper p-2 shadow-sm"
         onSubmit={(event) => void onGenerate(event)}
         data-testid="documents-studio-prompt-bar"
       >
-        <input
-          type="text"
-          value={prompt}
-          onChange={(event) => setPrompt(event.target.value)}
-          className="min-w-0 flex-1 rounded-md bg-transparent px-3 py-2 text-sm text-ink outline-none placeholder:text-ink/40"
-          placeholder="Describe a document…"
-          disabled={busy !== null}
-          data-testid="documents-prompt"
-          aria-label="Document topic"
+        <ModelSelect
+          models={models}
+          value={model}
+          onChange={setModel}
+          disabled={busy !== null || models.length === 0}
+          testId="documents-studio-model"
+          className="w-full rounded-md border border-mist bg-paper px-3 py-2 text-sm text-ink"
         />
-        <button
-          type="submit"
-          className="shrink-0 rounded-md bg-navy px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-          disabled={busy !== null || !prompt.trim()}
-          data-testid="documents-generate"
-        >
-          {busy === "generate" ? "Generating…" : "Generate"}
-        </button>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={prompt}
+            onChange={(event) => setPrompt(event.target.value)}
+            className="min-w-0 flex-1 rounded-md bg-transparent px-3 py-2 text-sm text-ink outline-none placeholder:text-ink/40"
+            placeholder="Describe a document…"
+            disabled={busy !== null}
+            data-testid="documents-prompt"
+            aria-label="Document topic"
+          />
+          <button
+            type="submit"
+            className="shrink-0 rounded-md bg-navy px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            disabled={busy !== null || !prompt.trim()}
+            data-testid="documents-generate"
+          >
+            {busy === "generate" ? "Generating…" : "Generate"}
+          </button>
+        </div>
       </form>
     </main>
   );

@@ -29,6 +29,20 @@ export const COMPOSER_FILE_ACCEPT = [
   ".json",
 ].join(",");
 
+/** accept= for job regen (images + text files; no video). */
+export const JOB_REGEN_FILE_ACCEPT = [
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/gif",
+  "text/*",
+  "application/json",
+  ".txt",
+  ".md",
+  ".csv",
+  ".json",
+].join(",");
+
 function extensionOf(name: string): string {
   const idx = name.lastIndexOf(".");
   return idx >= 0 ? name.slice(idx).toLowerCase() : "";

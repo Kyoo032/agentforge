@@ -1,10 +1,8 @@
 import {
   ApiError,
-  createRuntime,
   hasLiveProvider,
   resolveChatModel,
   resolveRuntimeMode,
-  type AgentVersionRecord,
   type TenantContext,
 } from "@agentforge/core";
 import { loadSettings } from "./settings-store";
@@ -16,7 +14,12 @@ import {
   parseDocumentSection,
   type DocumentDraft,
 } from "./document-outline";
-import { rememberJobUsage } from "./job-usage";
+import {
+  appendRegenInstruction,
+  collectJobAssistantText,
+  readJobRegenAttachments,
+  readOptionalInstruction,
+} from "./job-regen";
 
 const DOCUMENT_SYSTEM = `You draft professional documents for Agentforge.
 Return ONLY valid JSON (no markdown fences, no commentary) with this exact shape:
@@ -51,55 +54,16 @@ function readOptionalModel(body: unknown): string | undefined {
   return typeof model === "string" && model.trim() ? model.trim() : undefined;
 }
 
-async function collectAssistantTextWithSystem(
-  tenant: TenantContext,
-  model: string,
-  systemPrompt: string,
-  prompt: string,
-): Promise<string> {
-  const settings = loadSettings();
-  const runtime = createRuntime(settings);
-  const version: AgentVersionRecord = {
-    id: "document-draft",
-    agentId: "document",
-    organizationId: tenant.organizationId,
-    version: 1,
-    systemPrompt,
-    model,
-    inputModalities: ["text"],
-    config: {},
-    createdAt: new Date(),
-  };
-
-  let assistantText = "";
-  let failedMessage = "";
-
-  await runtime.execute({
-    tenant,
-    runId: `document-${Date.now()}`,
-    modality: "text",
-    version,
-    bindings: [],
-    history: [{ role: "user", parts: [{ type: "text", text: prompt }] }],
-    onEvent: (event) => {
-      if (event.type === "assistant.delta") {
-        assistantText += event.text;
-      }
-      if (event.type === "run.failed") {
-        failedMessage = event.message;
-      }
-      rememberJobUsage(event);
-    },
-  });
-
-  if (failedMessage) {
-    throw new ApiError("generation_failed", failedMessage, 502);
-  }
-  return assistantText;
-}
-
 async function collectAssistantText(tenant: TenantContext, model: string, prompt: string): Promise<string> {
-  return collectAssistantTextWithSystem(tenant, model, DOCUMENT_SYSTEM, prompt);
+  return collectJobAssistantText({
+    tenant,
+    model,
+    systemPrompt: DOCUMENT_SYSTEM,
+    runPrefix: "document",
+    agentId: "document",
+    versionId: "document-draft",
+    prompt,
+  });
 }
 
 function requireLiveDocumentRuntime(): ReturnType<typeof loadSettings> {
@@ -171,20 +135,33 @@ export async function regenerateDocumentSection(tenant: TenantContext, body: unk
   }
   const settings = requireLiveDocumentRuntime();
   const model = resolveDocumentModel(body, settings);
+  const attachments = readJobRegenAttachments(body);
   const others = draft.sections
     .map((section, itemIndex) => (itemIndex === index ? null : `- ${section.heading}`))
     .filter(Boolean)
     .join("\n");
-  const prompt = [
-    topic ? `Original topic: ${topic}` : null,
-    `Document title: ${draft.title}`,
-    others ? `Other sections:\n${others}` : null,
-    `Rewrite this section only.\nHeading: ${current.heading}\nBody:\n${current.body}`,
-  ]
-    .filter(Boolean)
-    .join("\n\n");
+  const prompt = appendRegenInstruction(
+    [
+      topic ? `Original topic: ${topic}` : null,
+      `Document title: ${draft.title}`,
+      others ? `Other sections:\n${others}` : null,
+      `Rewrite this section only.\nHeading: ${current.heading}\nBody:\n${current.body}`,
+    ]
+      .filter(Boolean)
+      .join("\n\n"),
+    readOptionalInstruction(body),
+  );
 
-  const raw = await collectAssistantTextWithSystem(tenant, model, SECTION_SYSTEM, prompt);
+  const raw = await collectJobAssistantText({
+    tenant,
+    model,
+    systemPrompt: SECTION_SYSTEM,
+    runPrefix: "document-section",
+    agentId: "document",
+    versionId: "document-section",
+    prompt,
+    attachments,
+  });
   if (!raw.trim()) {
     throw new ApiError("generation_failed", "Model returned an empty document section", 502);
   }
