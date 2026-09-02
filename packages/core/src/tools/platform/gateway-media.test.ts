@@ -10,6 +10,7 @@ import {
   parseGatewayImage,
   readGatewayError,
   studioVideoFailureStatus,
+  videoCapabilities,
   videoTaskId,
 } from "./gateway-media";
 
@@ -100,6 +101,59 @@ describe("parse helpers", () => {
     });
     expect(buildGatewayVideoPayload({ model: "grok-imagine-video", prompt: "rain" })).not.toHaveProperty("size");
     expect(buildGatewayVideoPayload({ model: "grok-imagine-video", prompt: "rain" })).not.toHaveProperty("ratio");
+    expect(buildGatewayVideoPayload({ model: "grok-imagine-video", prompt: "rain" })).not.toHaveProperty("resolution");
+  });
+
+  it("applies seconds and resolution knobs only where the wire supports them", () => {
+    expect(
+      buildGatewayVideoPayload({
+        model: "seedance-2.0-fast",
+        prompt: "hero",
+        aspectRatio: "16:9",
+        seconds: 10,
+        resolution: "1080p",
+      }),
+    ).toMatchObject({
+      duration: 10,
+      resolution: "1080p",
+      ratio: "16:9",
+    });
+    expect(
+      buildGatewayVideoPayload({
+        model: "seedance-2.0-fast",
+        prompt: "hero",
+        seconds: 1,
+        resolution: "4k",
+      }),
+    ).toMatchObject({ duration: 2, resolution: "720p" });
+    expect(
+      buildGatewayVideoPayload({
+        model: "grok-imagine-video",
+        prompt: "rain",
+        aspectRatio: "9:16",
+        seconds: 8,
+        resolution: "1080p",
+        imageUrl: "https://cdn.example/still.png",
+      }),
+    ).toEqual({
+      model: "grok-imagine-video",
+      prompt: "rain",
+      duration: 8,
+      seconds: "8",
+      image: "https://cdn.example/still.png",
+    });
+    expect(videoCapabilities("seedance-2.0-fast")).toEqual({
+      ratio: true,
+      resolution: true,
+      seconds: true,
+      still: true,
+    });
+    expect(videoCapabilities("grok-imagine-video")).toEqual({
+      ratio: false,
+      resolution: false,
+      seconds: true,
+      still: true,
+    });
   });
 
   it("does not call a prepaid async-price 403 an invalid API key", () => {

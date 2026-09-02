@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { videoCapabilities } from "@agentforge/core/video-capabilities";
 import { ExampleGallery } from "@/components/example-gallery";
 import { ModelSelect } from "@/components/model-select";
 
@@ -36,11 +37,16 @@ const ASPECTS = [
   { id: "1:1", label: "1:1" },
 ] as const;
 
+const SECONDS = [5, 8, 10] as const;
+const RESOLUTIONS = ["480p", "720p", "1080p"] as const;
+
 export function VideosStudio() {
   const [items, setItems] = useState<GalleryItem[]>([]);
   const [models, setModels] = useState<StudioModel[]>([]);
   const [model, setModel] = useState("");
   const [aspect, setAspect] = useState<(typeof ASPECTS)[number]["id"]>("16:9");
+  const [seconds, setSeconds] = useState<(typeof SECONDS)[number]>(5);
+  const [resolution, setResolution] = useState<(typeof RESOLUTIONS)[number]>("720p");
   const [prompt, setPrompt] = useState("");
   const [stillUrl, setStillUrl] = useState("");
   const [ready, setReady] = useState(true);
@@ -93,6 +99,8 @@ export function VideosStudio() {
           aspect,
           model: model || undefined,
           imageUrl: stillUrl.trim() || undefined,
+          seconds,
+          ...(videoCapabilities(model).resolution ? { resolution } : {}),
         }),
       });
       const data = (await response.json().catch(() => ({}))) as GalleryItem & {
@@ -111,6 +119,8 @@ export function VideosStudio() {
       setGenerating(false);
     }
   }
+
+  const caps = videoCapabilities(model);
 
   return (
     <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-10 text-ink" data-testid="videos-studio">
@@ -158,6 +168,32 @@ export function VideosStudio() {
             {ASPECTS.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.label}
+              </option>
+            ))}
+          </select>
+          <select
+            className="rounded-md border border-mist bg-paper px-3 py-2 text-sm text-ink"
+            value={seconds}
+            onChange={(event) => setSeconds(Number(event.target.value) as (typeof SECONDS)[number])}
+            disabled={generating || !caps.seconds}
+            data-testid="videos-studio-seconds"
+          >
+            {SECONDS.map((value) => (
+              <option key={value} value={value}>
+                {value}s
+              </option>
+            ))}
+          </select>
+          <select
+            className="rounded-md border border-mist bg-paper px-3 py-2 text-sm text-ink disabled:opacity-50"
+            value={resolution}
+            onChange={(event) => setResolution(event.target.value as (typeof RESOLUTIONS)[number])}
+            disabled={generating || !caps.resolution}
+            data-testid="videos-studio-resolution"
+          >
+            {RESOLUTIONS.map((value) => (
+              <option key={value} value={value}>
+                {value}
               </option>
             ))}
           </select>

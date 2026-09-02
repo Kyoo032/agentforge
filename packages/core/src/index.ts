@@ -80,6 +80,15 @@ export {
   RUN_PATHS,
 } from "./models/capabilities";
 export {
+  usesSeedanceVideoWire,
+  videoCapabilities,
+  clampVideoSeconds,
+  normalizeVideoResolution,
+  GATEWAY_VIDEO_DURATION_SECONDS,
+  GATEWAY_VIDEO_RESOLUTION,
+} from "./models/video-capabilities";
+export type { VideoCapabilities, GatewayVideoResolution } from "./models/video-capabilities";
+export {
   CHAT_MODELS,
   listChatModels,
   getChatModel,

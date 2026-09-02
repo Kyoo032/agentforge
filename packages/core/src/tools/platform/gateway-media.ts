@@ -1,4 +1,17 @@
 import { ApiError } from "../../errors";
+import {
+  clampVideoSeconds,
+  normalizeVideoResolution,
+  usesSeedanceVideoWire,
+} from "../../models/video-capabilities";
+
+export {
+  GATEWAY_VIDEO_DURATION_SECONDS,
+  GATEWAY_VIDEO_RESOLUTION,
+  usesSeedanceVideoWire,
+  videoCapabilities,
+} from "../../models/video-capabilities";
+export type { GatewayVideoResolution, VideoCapabilities } from "../../models/video-capabilities";
 
 const BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36";
 
@@ -9,6 +22,8 @@ export type GatewayMediaOptions = {
   prompt: string;
   aspectRatio?: string;
   imageUrl?: string;
+  seconds?: number;
+  resolution?: string;
   fetchImpl?: typeof fetch;
   wait?: (ms: number) => Promise<void>;
   pollMs?: number;
@@ -108,9 +123,6 @@ export function openaiImageSize(aspectRatio?: string): string {
   return "1024x1024";
 }
 
-export const GATEWAY_VIDEO_DURATION_SECONDS = 5;
-export const GATEWAY_VIDEO_RESOLUTION = "720p";
-
 export function gatewayVideoAspect(aspectRatio?: string): "16:9" | "9:16" | "1:1" {
   if (aspectRatio === "9:16" || aspectRatio === "1:1") {
     return aspectRatio;
@@ -118,19 +130,16 @@ export function gatewayVideoAspect(aspectRatio?: string): "16:9" | "9:16" | "1:1
   return "16:9";
 }
 
-/** Seedance-class models bill by duration × resolution tier (`720p`), not OpenAI pixel `1280x720`. */
-export function usesSeedanceVideoWire(model: string): boolean {
-  return /seedance|dreamina-seedance|doubao-seedance|veo_|kling|sora/i.test(model);
-}
-
 export function buildGatewayVideoPayload(options: {
   model: string;
   prompt: string;
   aspectRatio?: string;
   imageUrl?: string;
+  seconds?: number;
+  resolution?: string;
 }): Record<string, unknown> {
   const aspect = gatewayVideoAspect(options.aspectRatio);
-  const duration = GATEWAY_VIDEO_DURATION_SECONDS;
+  const duration = clampVideoSeconds(options.seconds);
   if (usesSeedanceVideoWire(options.model)) {
     const content: Array<Record<string, unknown>> = [{ type: "text", text: options.prompt }];
     if (options.imageUrl) {
@@ -145,7 +154,7 @@ export function buildGatewayVideoPayload(options: {
       prompt: options.prompt,
       content,
       duration,
-      resolution: GATEWAY_VIDEO_RESOLUTION,
+      resolution: normalizeVideoResolution(options.resolution),
       ratio: aspect,
       generate_audio: false,
       watermark: false,
@@ -153,7 +162,7 @@ export function buildGatewayVideoPayload(options: {
   }
   // Toko `/v1/video/generations` uses a strict JSON decoder per upstream.
   // grok-imagine-video rejected OpenAI pixel `size`, then `ratio` (`json: unknown field`).
-  // Seedance still needs `ratio` + `resolution`. Keep this branch to prompt/duration only.
+  // Seedance still needs `ratio` + `resolution`. Keep this branch to prompt/duration/seconds.
   const payload: Record<string, unknown> = {
     model: options.model,
     prompt: options.prompt,
@@ -356,6 +365,8 @@ export async function generateGatewayVideo(options: GatewayMediaOptions): Promis
     prompt: options.prompt,
     aspectRatio: options.aspectRatio,
     imageUrl: options.imageUrl,
+    seconds: options.seconds,
+    resolution: options.resolution,
   });
   const created = await fetchImpl(`${originFrom(options.baseUrl)}/video/generations`, {
     method: "POST",

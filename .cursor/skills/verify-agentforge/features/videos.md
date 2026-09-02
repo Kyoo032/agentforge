@@ -1,6 +1,6 @@
 # Videos
 
-Videos is a generate studio (prompt, aspect, optional still, gallery). Without a gateway key the expected state is `videos-studio-needs-key`. Live video is unproven on Cloud and must not run there.
+Videos is a generate studio (prompt, aspect, duration, optional resolution, optional still, gallery). Without a gateway key the expected state is `videos-studio-needs-key`. Live video is unproven on Cloud and must not run there.
 
 ## Sub-features
 
@@ -8,6 +8,7 @@ Videos is a generate studio (prompt, aspect, optional still, gallery). Without a
 - `videos-shell` shows `videos-studio`.
 - `videos-needs-key` shows `videos-studio-needs-key` when no key is ready.
 - `videos-empty` shows `videos-studio-empty` when the gallery has no clips.
+- `videos-knobs` shows `videos-studio-aspect`, `videos-studio-seconds` (5 / 8 / 10), `videos-studio-resolution` (480p / 720p / 1080p), and `videos-studio-still`. Resolution is disabled when the selected model is not Seedance-class (for example `grok-imagine-video`).
 
 ## How to get to it (user POV)
 
@@ -25,8 +26,9 @@ Preconditions:
 - **Open Videos.** Click `mode-videos`. URL matches `/videos` (15s). `videos-studio` is visible (15s).
 - **No-key state.** `videos-studio-needs-key` is visible when the studio is not ready (no key). Copy points at Settings.
 - **Empty gallery.** `videos-studio-empty` reads that nothing is here yet when there are no clips.
+- **Knobs.** `videos-studio-seconds` and `videos-studio-resolution` are present with aspect + still. Example gallery stays. Do not generate.
 - **IDE proof.** Screenshot of the shell and needs-key banner under `evidence/videos/<run-id>/`.
-- **Cloud.** `foundation.spec.ts` asserts `videos-studio` and `videos-studio-needs-key`. That is the stub contract.
+- **Cloud.** `foundation.spec.ts` asserts `videos-studio` and `videos-studio-needs-key`. That is the stub contract. Cloud still must not submit a live generate.
 
 ## Gotchas
 
@@ -34,3 +36,4 @@ Preconditions:
 - The studio posts to `/api/v1/videos` (gateway `POST /v1/video/generations` plus poll), not `/runs/video`. A keyless submit is a 400.
 - Live video quality and poll time are not in the smoke. One operator generate on this PC is the only live proof.
 - Optional still uses `videos-studio-still`. Leave it empty for the shell proof.
+- `videos-studio-resolution` is a Seedance-class field. grok-imagine / default OpenAI-like models keep seconds + still and must not send `ratio` / `resolution` on the wire.
