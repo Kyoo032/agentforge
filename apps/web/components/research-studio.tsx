@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import Link from "next/link";
+import { Link } from "@/lib/nav";
 import { ExampleGallery } from "@/components/example-gallery";
 import { ModelSelect } from "@/components/model-select";
 import { ResearchPreview } from "@/components/research-preview";
 import { researchNotesToMarkdown, type ResearchNotes } from "@/lib/research-notes";
 import { useJobModel } from "@/lib/use-job-model";
+import { apiFetch } from "@/lib/api-client";
 
 function errorMessage(payload: unknown, fallback: string): string {
   if (payload && typeof payload === "object") {
@@ -38,7 +39,7 @@ export function ResearchStudio() {
     setBusy("generate");
     setError(null);
     try {
-      const res = await fetch("/api/v1/research", {
+      const res = await apiFetch("/api/v1/research", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: topic, model: model || undefined }),

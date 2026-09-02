@@ -9,6 +9,7 @@ import {
   type AttachmentKind,
 } from "@/lib/composer-attach";
 import { ModelPicker, type ChatModel } from "@/components/model-picker";
+import { apiFetch } from "@/lib/api-client";
 
 export type ComposerUserSendPayload = {
   text: string;
@@ -43,7 +44,7 @@ type HeldFile = {
 async function uploadMedia(file: File): Promise<{ url: string }> {
   const form = new FormData();
   form.set("file", file);
-  const uploaded = await fetch("/api/v1/media", { method: "POST", body: form }).then((res) => res.json());
+  const uploaded = await apiFetch("/api/v1/media", { method: "POST", body: form }).then((res) => res.json());
   if (uploaded.error) {
     throw new Error(uploaded.error.message ?? "Upload failed");
   }
@@ -195,7 +196,7 @@ export function ChatComposer({
           text: outgoing,
           parts: outgoing ? [{ type: "text", text: outgoing }] : [],
         });
-        const response = await fetch(`/api/v1/threads/${id}/runs/text`, {
+        const response = await apiFetch(`/api/v1/threads/${id}/runs/text`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ content: outgoing, model, thinking: thinkingEnabled }),
@@ -249,7 +250,7 @@ export function ChatComposer({
         throw new Error("Could not start a chat");
       }
 
-      const response = await fetch(`/api/v1/threads/${id}/runs/${decision.route}`, {
+      const response = await apiFetch(`/api/v1/threads/${id}/runs/${decision.route}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: parts, model, thinking: thinkingEnabled }),

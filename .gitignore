@@ -21,7 +21,10 @@ data/*.db-shm
 data/*.db-wal
 apps/desktop/dist
 apps/desktop/out
+apps/desktop/host.cjs
 apps/desktop/resources/web
+apps/desktop/resources/renderer
+apps/desktop/resources/drizzle
 *.log
 coverage
 playwright-report

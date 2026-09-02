@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { formatUsd } from "@agentforge/core/gateway";
+import { apiFetch } from "@/lib/api-client";
 
 type ThisKeyUsage =
   | { status: "needs_key" }
@@ -33,7 +34,7 @@ export function ChatUsageChip() {
     let cancelled = false;
     void (async () => {
       try {
-        const res = await fetch("/api/v1/settings");
+        const res = await apiFetch("/api/v1/settings");
         if (!res.ok) {
           if (!cancelled) setHidden(true);
           return;

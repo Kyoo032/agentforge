@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link } from "@/lib/nav";
+import { usePathname } from "@/lib/nav";
 import {
   PRODUCT_MODES,
   firstVisibleHref,

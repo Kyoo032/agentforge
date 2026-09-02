@@ -1,6 +1,6 @@
 ---
 name: verify-agentforge
-description: Drives Agentforge the way a user does — webdev Next on 127.0.0.1:3000, packaged Electron on an ephemeral loopback port, data-testid handles, stub runtime, SQLite in the data dir. Launch, doctor, walk Chat/Settings/Workspaces/Images/Videos, keep evidence. Use after UI or product-mode work, when refusing done from a compile, or before claiming a settings/chat/workspace change works.
+description: Drives Agentforge the way a user does — webdev Vite/Express on 127.0.0.1:3000, packaged Electron over IPC (no loopback HTTP), data-testid handles, stub runtime, SQLite in the data dir. Launch, doctor, walk Chat/Settings/Workspaces/Images/Videos, keep evidence. Use after UI or product-mode work, when refusing done from a compile, or before claiming a settings/chat/workspace change works.
 ---
 
 # Verify Agentforge
@@ -20,8 +20,8 @@ A cold agent reads this mid-task. Drive the real app. A green `tsc` or worker su
 
 | Surface | How to reach it | Doctor | Port |
 |---|---|---|---|
-| **Local webdev** | `pnpm dev` → Chrome / IDE browser | `node .cursor/skills/verify-agentforge/scripts/doctor.mjs` | **3000 only** (`next dev --hostname 127.0.0.1 --port 3000`) |
-| **Packaged desktop** | Installed Agentforge (Windows NSIS; mac/linux operator-built) | `node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop` | Ephemeral loopback, **never 3000**. URL in userData `app-url.txt` (Windows `%APPDATA%\Agentforge`; Linux `$XDG_CONFIG_HOME/Agentforge` or `~/.config/Agentforge`; macOS `~/Library/Application Support/Agentforge`) |
+| **Local webdev** | `pnpm dev` → Chrome / IDE browser | `node .cursor/skills/verify-agentforge/scripts/doctor.mjs` | **3000 only** (`tsx server.ts` → Express + Vite on `127.0.0.1:3000`) |
+| **Packaged desktop** | Installed Agentforge (Windows NSIS; mac/linux operator-built) | `node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop` | **None.** IPC only. Status in userData `host-status.json` (Windows `%APPDATA%\Agentforge`; Linux `$XDG_CONFIG_HOME/Agentforge` or `~/.config/Agentforge`; macOS `~/Library/Application Support/Agentforge`) |
 
 `pnpm desktop:dev` is the local webdev inside an Electron window (may reuse :3000). That is not packaged proof. APIs exist under `/api/v1/*` but proof is the user path, not an internal setter.
 
@@ -34,7 +34,7 @@ Do **not** use Hermes CLI, Hermes dashboard session tokens, or Hermes `hermes:ap
 | This Windows session | `cursor-ide-browser` + `scripts/doctor.mjs`; Electron for desktop changes | `pnpm test:e2e`, `playwright test` |
 | Cursor Cloud + GHA | Playwright `apps/web/tests/e2e/foundation.spec.ts` | Paste a gateway key; start Docker |
 
-Cloud and `.github/workflows/e2e.yml` own the serial stub smoke. Local coding agents do not run Playwright here (cold Next compile + long serial pass).
+Cloud and `.github/workflows/e2e.yml` own the serial stub smoke. Local coding agents do not run Playwright here (long serial pass).
 
 **Delegation.** Explore with Composer 2.5 (`explore` / `composer-2.5-fast`). Implementation workers are Grok 4.5 (`worker` / `cursor-grok-4.5-high`). Do not use pstack Fable/GPT Task slugs. Fan-out stays at 2.
 
@@ -42,9 +42,9 @@ Read [features/README.md](features/README.md) before driving. The map is the sou
 
 ## Launch
 
-Ready signal (webdev): `GET http://127.0.0.1:3000/chat` returns 200, or the turbo line `@agentforge/web:dev:` is serving. Bind is `127.0.0.1:3000` only (`apps/web` script `next dev --hostname 127.0.0.1 --port 3000`). Drive `127.0.0.1`, not a LAN IP. `localhost` usually works but is not what Playwright and the Next bind use.
+Ready signal (webdev): `GET http://127.0.0.1:3000/chat` returns 200, or the turbo line `@agentforge/web:dev:` is serving. Bind is `127.0.0.1:3000` only. Drive `127.0.0.1`, not a LAN IP.
 
-Ready signal (packaged desktop): Electron window on Chat, and `doctor.mjs --desktop` exits 0 against the URL in `app-url.txt`. **Not** :3000.
+Ready signal (packaged desktop): Electron window on Chat (or onboarding if no key), and `doctor.mjs --desktop` exits 0 against `host-status.json` (`transport: "ipc"`). **Not** :3000. **Not** `app-url.txt`.
 
 **If port 3000 already answers** — that is the **webdev** instance. Doctor that instance for Chat/Settings in the browser. Do not start a second `pnpm dev`. Do not call that the installed app.
 
@@ -76,11 +76,11 @@ Run this first whenever anything looks off, and before every drive:
 # local webdev
 node .cursor/skills/verify-agentforge/scripts/doctor.mjs
 
-# packaged desktop (reads OS userData app-url.txt — not :3000)
+# packaged desktop (reads OS userData host-status.json — not :3000, not HTTP)
 node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop
 ```
 
-It is read-only. Default GETs `/chat` and `/api/v1/settings` on `http://127.0.0.1:3000`. `--desktop` uses the packaged URL (override either with `AGENTFORGE_VERIFY_URL`, still must be loopback). Exit `0` prints JSON: `url`, `surface`, `chatStatus`, `runtime`, `hasOpenai`, `keyFingerprint`, `dataDir`. Exit `1` means do not drive. `keyFingerprint` is `true` only when a gateway key is saved and `openaiKeyFingerprint` is a non-empty `sha256:` string. Cloud/GHA have no key — expect `false`, do not fail.
+It is read-only. Default GETs `/chat` and `/api/v1/settings` on `http://127.0.0.1:3000`. `--desktop` reads `host-status.json` (IPC; no HTTP). Override webdev with `AGENTFORGE_VERIFY_URL` (still must be loopback). Exit `0` prints JSON. Webdev: `url`, `surface`, `chatStatus`, `runtime`, `hasOpenai`, `keyFingerprint`, `dataDir`. Desktop: `url: "ipc"`, `transport: "ipc"`, `pid`, `dataDir`. Exit `1` means do not drive. `keyFingerprint` is `true` only on webdev when a gateway key is saved and `openaiKeyFingerprint` is a non-empty `sha256:` string. Cloud/GHA have no key — expect `false`, do not fail.
 
 Refuse to drive when:
 
@@ -89,7 +89,7 @@ Refuse to drive when:
 - Settings JSON is missing
 - You were about to start a second process on :3000 (webdev)
 - You were about to treat :3000 as the packaged desktop app
-- `--desktop` reports port 3000
+- `--desktop` is missing `host-status.json`, or `transport` is not `"ipc"`
 
 `runtime: "stub"` — Chat send is a local stub reply. `runtime: "ai"` — Chat send and studio generate hit the live gateway. Do not call that stub proof. Do not paste or save keys during verification.
 

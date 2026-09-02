@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Link } from "@/lib/nav";
+import { useRouter } from "@/lib/nav";
 import { ChatComposer } from "@/components/chat-composer";
 import { ChatUsageChip } from "@/components/chat-usage-chip";
 import { ChatTurn, messageHasDisplayableContent, type LiveTool } from "@/components/chat-turn";
 import { collectToolMediaParts } from "@/lib/tool-media";
 import { notifyThreadsChanged } from "@/lib/threads-events";
 import { GATEWAY_NAME } from "@agentforge/core/gateway";
+import { apiFetch } from "@/lib/api-client";
 
 type Message = { id: string; role: string; content: unknown };
 
@@ -94,7 +95,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
     if (!agentIdReady) {
       throw new Error("Chat is still loading");
     }
-    const created = await fetch("/api/v1/threads", {
+    const created = await apiFetch("/api/v1/threads", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ agentId: agentIdReady }),
@@ -119,9 +120,9 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
         let readyId = agentId ?? null;
         if (agentId) {
           const [agentPayload, caps, modelPayload] = await Promise.all([
-            fetch(`/api/v1/agents/${agentId}`).then((res) => res.json()),
-            fetch(`/api/v1/agents/${agentId}/capabilities`).then((res) => res.json()),
-            fetch("/api/v1/models").then((res) => res.json()),
+            apiFetch(`/api/v1/agents/${agentId}`).then((res) => res.json()),
+            apiFetch(`/api/v1/agents/${agentId}/capabilities`).then((res) => res.json()),
+            apiFetch("/api/v1/models").then((res) => res.json()),
           ]);
           if (agentPayload.error) {
             throw new Error(agentPayload.error.message ?? "Agent not found");
@@ -141,7 +142,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           readyId = agentId;
           setAgentIdReady(agentId);
         } else {
-          const home = await fetch("/api/v1/chat").then((res) => res.json());
+          const home = await apiFetch("/api/v1/chat").then((res) => res.json());
           if (home.error) {
             throw new Error(home.error.message ?? "Could not open chat");
           }
@@ -161,7 +162,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           if (initialThreadId === threadIdRef.current) {
             return;
           }
-          const payload = await fetch(`/api/v1/threads/${initialThreadId}`).then((res) => res.json());
+          const payload = await apiFetch(`/api/v1/threads/${initialThreadId}`).then((res) => res.json());
           if (payload.error) {
             throw new Error(payload.error.message ?? "Thread not found");
           }
@@ -200,7 +201,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
   }, [agentId, initialThreadId, router]);
 
   async function refreshMessages(id: string) {
-    const payload = await fetch(`/api/v1/threads/${id}`).then((res) => res.json());
+    const payload = await apiFetch(`/api/v1/threads/${id}`).then((res) => res.json());
     setMessages(payload.messages ?? []);
   }
 

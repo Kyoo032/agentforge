@@ -1,10 +1,11 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/lib/nav";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { videoCapabilities } from "@agentforge/core/video-capabilities";
 import { ExampleGallery } from "@/components/example-gallery";
 import { ModelSelect } from "@/components/model-select";
+import { apiFetch, mediaSrc } from "@/lib/api-client";
 
 type StudioModel = {
   id: string;
@@ -58,7 +59,7 @@ export function VideosStudio() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/v1/videos");
+      const response = await apiFetch("/api/v1/videos");
       const data = (await response.json().catch(() => ({}))) as GalleryResponse & {
         error?: { message?: string };
       };
@@ -91,7 +92,7 @@ export function VideosStudio() {
     setGenerating(true);
     setError(null);
     try {
-      const response = await fetch("/api/v1/videos", {
+      const response = await apiFetch("/api/v1/videos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -251,11 +252,11 @@ export function VideosStudio() {
           <ul className="grid gap-4 sm:grid-cols-2">
             {items.map((item) => (
               <li key={item.id} className="overflow-hidden rounded-xl border border-mist bg-paper">
-                <video src={item.url} controls className="aspect-video w-full bg-black object-contain" />
+                <video src={mediaSrc(item.url)} controls className="aspect-video w-full bg-black object-contain" />
                 <div className="flex items-center justify-between gap-2 px-3 py-2">
                   {item.prompt ? <p className="min-w-0 truncate text-xs text-ink/60">{item.prompt}</p> : <span />}
                   <a
-                    href={item.url}
+                    href={mediaSrc(item.url)}
                     download={`agentforge-video-${item.id}.mp4`}
                     className="shrink-0 text-xs underline text-ink/70"
                     data-testid="videos-studio-download"

@@ -1,6 +1,7 @@
 "use client";
 
 import { isRenderableImageUrl, isRenderableVideoUrl } from "@/lib/composer-attach";
+import { mediaSrc } from "@/lib/api-client";
 import { collectToolMediaParts } from "@/lib/tool-media";
 import { showsToolSpinner, toolActivityLabel, toolCallSummary } from "@/lib/tool-labels";
 import type { ContentPart, ToolCallPart } from "@agentforge/core/content";
@@ -229,7 +230,7 @@ function partImageUrl(part: unknown): string | null {
   const record = part as { type?: unknown; image_url?: { url?: unknown } };
   if (record.type !== "image_url") return null;
   const url = record.image_url?.url;
-  return typeof url === "string" && isRenderableImageUrl(url) ? url : null;
+  return typeof url === "string" && isRenderableImageUrl(url) ? mediaSrc(url) : null;
 }
 
 function partVideoUrl(part: unknown): string | null {
@@ -237,5 +238,5 @@ function partVideoUrl(part: unknown): string | null {
   const record = part as { type?: unknown; video_url?: { url?: unknown } };
   if (record.type !== "video_url") return null;
   const url = record.video_url?.url;
-  return typeof url === "string" && isRenderableVideoUrl(url) ? url : null;
+  return typeof url === "string" && isRenderableVideoUrl(url) ? mediaSrc(url) : null;
 }

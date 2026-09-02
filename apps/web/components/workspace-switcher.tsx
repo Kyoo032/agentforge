@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Link } from "@/lib/nav";
+import { useRouter } from "@/lib/nav";
+import { apiFetch } from "@/lib/api-client";
 
 type Workspace = { id: string; name: string; slug: string };
 
@@ -18,7 +19,7 @@ export function WorkspaceSwitcher({ workspaceName, compact = false }: Props) {
   const [currentId, setCurrentId] = useState<string | null>(null);
 
   useEffect(() => {
-    void fetch("/api/v1/workspaces")
+    void apiFetch("/api/v1/workspaces")
       .then((res) => res.json())
       .then((payload) => {
         setWorkspaces(payload.workspaces ?? []);
@@ -27,7 +28,7 @@ export function WorkspaceSwitcher({ workspaceName, compact = false }: Props) {
   }, [workspaceName]);
 
   async function openWorkspace(id: string) {
-    await fetch(`/api/v1/workspaces/${id}/select`, { method: "POST" });
+    await apiFetch(`/api/v1/workspaces/${id}/select`, { method: "POST" });
     setOpen(false);
     router.push("/chat");
     router.refresh();

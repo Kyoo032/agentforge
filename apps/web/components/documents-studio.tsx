@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import Link from "next/link";
+import { Link } from "@/lib/nav";
 import { DocumentPreview } from "@/components/document-preview";
 import { ExampleGallery } from "@/components/example-gallery";
 import { ModelSelect } from "@/components/model-select";
@@ -9,6 +9,7 @@ import type { JobRegenSubmit } from "@/components/job-regen-panel";
 import type { DocumentDraft } from "@/lib/document-outline";
 import { DOCUMENT_STARTERS } from "@/lib/job-starters";
 import { useJobModel } from "@/lib/use-job-model";
+import { apiFetch } from "@/lib/api-client";
 
 function errorMessage(payload: unknown, fallback: string): string {
   if (payload && typeof payload === "object") {
@@ -41,7 +42,7 @@ export function DocumentsStudio() {
     setBusy("generate");
     setError(null);
     try {
-      const res = await fetch("/api/v1/documents", {
+      const res = await apiFetch("/api/v1/documents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: topic, model: model || undefined }),
@@ -67,7 +68,7 @@ export function DocumentsStudio() {
     setRegenIndex(index);
     setError(null);
     try {
-      const res = await fetch("/api/v1/documents/regenerate", {
+      const res = await apiFetch("/api/v1/documents/regenerate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -99,7 +100,7 @@ export function DocumentsStudio() {
     setBusy("download");
     setError(null);
     try {
-      const res = await fetch("/api/v1/documents/docx", {
+      const res = await apiFetch("/api/v1/documents/docx", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(draft),

@@ -9,7 +9,7 @@ Documents, Research, Images, Videos, and Presentation are product modes. **Home 
 ## Baseline preconditions
 
 - **Webdev:** app answers at `http://127.0.0.1:3000` (never a LAN IP). Doctor with no args.
-- **Packaged desktop:** Electron window; doctor `--desktop`; URL is **not** :3000.
+- **Packaged desktop:** Electron window; doctor `--desktop` reads `host-status.json` (`transport: "ipc"`). No HTTP port.
 - SQLite is `data/agentforge.sqlite` (webdev) or Electron userData (packaged: `%APPDATA%\Agentforge`, `$XDG_CONFIG_HOME/Agentforge` or `~/.config/Agentforge`, `~/Library/Application Support/Agentforge`).
 - No product login. A gateway key is optional; stub Chat works without one.
 - Windows: drive webdev with the IDE browser. Drive packaged in the Electron window. Do not run Playwright.
@@ -47,11 +47,12 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 - [Templates](./templates.md) — example galleries on all five mode studios; click pre-fills the prompt.
 - [PII](./pii.md) — host masks outbound prompts (`[email]` / `[phone]` / …); the transcript keeps the typed text.
 - [Security](./security.md) — saved-key fingerprint on Settings (`key-fingerprint`); TLS note on `privacy-note`; at-rest envelope is existing work.
+- [Research](./research.md) — studio shell on Home; live generate needs a key (and search backends).
 - [Documents](./documents.md) — starters, preview, section regen (503 without a key), DOCX download from a starter. Home has the tab.
 - [Images](./images.md) — studio shell on Home; needs-key without a gateway key.
 - [Videos](./videos.md) — studio shell and `videos-studio-needs-key` without a key.
 - [Presentation](./presentations.md) — starters, preview, slide regen (503 without a key), PPTX download from a starter.
-- [Desktop](./desktop.md) — Electron one-window launch, splash → Chat, child teardown on quit. Windows NSIS exists; mac/linux are builder targets.
+- [Desktop](./desktop.md) — Electron one-window launch, splash → Chat, IPC host (no loopback HTTP). Windows NSIS exists; mac/linux are builder targets.
 - [Mobile](./mobile.md) — docs only. No iOS/Android build, no stores, no Capacitor. A phone on LAN `:3000` is not a product surface.
 - [Build](./build.md) — **parked / verified-unreachable.** `/studio` redirects to Chat.
 - [Studio advanced](./studio-advanced.md) — **parked / verified-unreachable.** Same redirect.

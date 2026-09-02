@@ -42,13 +42,14 @@ Harbor State seed as identity leftovers. Better Auth is deleted, not upgraded. P
 - Never commit `.env`, API keys, or passwords.
 - Do not commit or push unless Kyo asks.
 - Do not reintroduce login “for later multiplayer” unless Kyo asks. This is a personal local app.
-- Local process only: bind `127.0.0.1`. Local webdev is `:3000`. Packaged Electron picks an ephemeral loopback port and **must not** bind or reuse `:3000`. Mutating `/api` accepts localhost Origin only. No email/session package.
+- Local process only. Local webdev binds `127.0.0.1:3000`. Packaged Electron has **no HTTP server** — the renderer talks to the host over IPC (`window.agentforge`). Mutating `/api` on webdev accepts localhost Origin only. No email/session package.
 
 ## Layout
 
 ```
-apps/web                 Next.js 15 App Router (local owner, no product login)
-apps/desktop             Electron shell + Windows installer (packaged: ephemeral loopback, never :3000)
+apps/web                 Vite + React Router renderer; Express on :3000 for webdev (local owner, no product login)
+apps/desktop             Electron shell + Windows installer (packaged: IPC host, no loopback HTTP)
+packages/host            Local API dispatch (webdev HTTP adapter + Electron IPC)
 packages/core            Content parsers, tools, AgentRuntime, AgentService
 packages/db              Drizzle schema (SQLite in the user data dir)
 packages/university      Optional Students templates and mock campus tools
@@ -73,16 +74,13 @@ SQLite file: `data/agentforge.sqlite` (or `AGENTFORGE_DATA_DIR`). Do **not** set
 
 Desktop:
 
-- **Webdev window:** `pnpm desktop:dev` — Electron around local webdev. May reuse `pnpm dev` on `:3000`. Not the installed product.
-- **Packaged app:** `pnpm desktop:build` → NSIS x64 (Windows product path). Needs Windows Developer Mode (or an elevated shell) because Next standalone tracing creates symlinks. The installer bundles Next standalone + Node — no PATH Node required. On launch it **allocates a free loopback port ≠ 3000**, writes it to Electron userData `app-url.txt`, and never attaches to `pnpm dev`. mac/linux: `pnpm desktop:build:mac` / `pnpm desktop:build:linux` on that OS (unsigned; notarization is not done). Cloud cannot prove packaged Windows and must not run `pnpm desktop:build`. Move log: [`docs/internal/moves.md`](docs/internal/moves.md).
+- **Webdev window:** `pnpm desktop:dev` — Electron around local Vite/Express on `:3000` (no preload / no IPC). Not the installed product.
+- **Packaged app:** `pnpm desktop:build` → NSIS x64 (Windows product path). Stages the Vite renderer + esbuild `host.cjs` (no Next, no bundled `node.exe`, no loopback port). Native modules (`better-sqlite3`, `keytar`) need `@electron/rebuild` **on Windows** — do not run that on Cloud. On launch the main process loads the renderer from `extraResources` and dispatches APIs over IPC. Writes `host-status.json` under Electron userData. Uninstall kills `Agentforge.exe`, deletes `%APPDATA%\Agentforge`, and removes Credential Manager `Agentforge` / `wrap-key`. mac/linux: `pnpm desktop:build:mac` / `pnpm desktop:build:linux` on that OS (unsigned; notarization is not done). Cloud cannot prove packaged Windows and must not run `pnpm desktop:build`. Move log: [`docs/internal/moves.md`](docs/internal/moves.md).
 
-**Phase 2d already built on this Windows checkout (2026-08-31).** Do not claim the installer does not exist.
+**Packaged Windows installer exists** (rebuild on Windows after the IPC host rewrite). Cloud Linux must not run `pnpm desktop:build`.
 
-- Artifact: `apps/desktop/dist/Agentforge Setup 0.1.0.exe` (~168 MB, unsigned, gitignored).
-- `next build` standalone tracing succeeded (Developer Mode on).
-- `stage-web.mjs` asserted `server.js`, `node.exe`, `.next/static`, `better-sqlite3` `.node`, `packages/db/drizzle`.
-- Smoke: staged `node.exe` + `server.js` on **port 3011** (not 3000) with a fresh temp `AGENTFORGE_DATA_DIR` — `GET /chat` 200, `GET /api/v1/workspaces` returned Home. Schema via in-process migrations.
-- NSIS rebuilt the same day after the port split: same path, now ships `main.cjs` that allocates an ephemeral loopback port ≠ 3000 and writes `app-url.txt`. Reinstall that exe to pick up the split.
+- Artifact: `apps/desktop/dist/Agentforge Setup 0.1.0.exe` (gitignored). Rebuild on Windows after this IPC host rewrite — do not treat the 2026-08-31 Next-child exe as current.
+- Packaged proof is an Electron window + `doctor.mjs --desktop` reading `host-status.json` (`transport: "ipc"`). There is no `app-url.txt` and no child `node.exe`.
 
 No account. Workspaces are local. Paste the gateway key in Settings. `AGENTFORGE_RUNTIME=stub` until a key is saved (then live models from the gateway). Env `AGENTFORGE_RUNTIME=ai` still uses `.env` keys.
 
@@ -121,7 +119,7 @@ Boot uses [`.cursor/environment.json`](.cursor/environment.json): `install` → 
 
 This image has **no Docker**. `docker`, `dockerd`, and `sudo service docker start` fail (`docker: unrecognized service`). Do not run `docker compose`. Product DB is SQLite. Default file: `data/agentforge.sqlite`.
 
-The Windows closed-beta checkout also uses SQLite (Next/`ensureSchema` migrates on open; `pnpm db:push` is optional). Desktop Electron injects the wrap key from the OS keychain. Packaged binds an ephemeral loopback port, not `:3000`.
+The Windows closed-beta checkout also uses SQLite (`ensureSchema` migrates on open; `pnpm db:push` is optional). Desktop Electron injects the wrap key from the OS keychain. Packaged uses IPC in-process — no loopback HTTP server.
 
 ### What a Cloud Agent on this VM can do
 
@@ -150,6 +148,6 @@ GitHub Actions (`.github/workflows/e2e.yml`) runs the same stub Playwright suite
 
 ## Known traps
 
-- Next.js overlay in Cursor’s browser can inject `data-cursor-ref` and block clicks. Use Chrome or Playwright.
+- Cursor’s browser can inject `data-cursor-ref` and block clicks. Use Chrome or Playwright.
 - Playwright `/studio/**` redirects to Chat (Build is parked).
-- Dev server binds `127.0.0.1:3000` (webdev only). Playwright and the IDE browser must use `http://127.0.0.1:3000` (not a LAN IP). Packaged Agentforge uses a different loopback port; `doctor.mjs --desktop` reads Electron userData `app-url.txt` (Windows `%APPDATA%\Agentforge`, Linux `$XDG_CONFIG_HOME/Agentforge` or `~/.config/Agentforge`, macOS `~/Library/Application Support/Agentforge`). A phone on a LAN `:3000` is not a product surface — see [`docs/mobile.md`](docs/mobile.md).
+- Dev server binds `127.0.0.1:3000` (webdev only: Vite + Express + `@agentforge/host`). Playwright and the IDE browser must use `http://127.0.0.1:3000` (not a LAN IP). Packaged Agentforge has no HTTP port; `doctor.mjs --desktop` reads Electron userData `host-status.json` (Windows `%APPDATA%\Agentforge`, Linux `$XDG_CONFIG_HOME/Agentforge` or `~/.config/Agentforge`, macOS `~/Library/Application Support/Agentforge`). A phone on a LAN `:3000` is not a product surface — see [`docs/mobile.md`](docs/mobile.md).

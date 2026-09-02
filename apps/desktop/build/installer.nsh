@@ -1,6 +1,12 @@
-; Force-kill a leftover Agentforge.exe (and its bundled node.exe tree).
-; Default electron-builder "please close it manually" fails when X hides the
-; window but the main process is still waiting on the Next child.
+; Kill leftover Agentforge.exe (and any old bundled node.exe tree from pre-IPC installs).
 !macro customCheckAppRunning
   nsExec::Exec 'taskkill /F /IM Agentforge.exe /T'
+!macroend
+
+; Wipe local data + Credential Manager wrap key so a reinstall shows onboarding again.
+!macro customUnInstall
+  nsExec::Exec 'taskkill /F /IM Agentforge.exe /T'
+  RMDir /r "$APPDATA\Agentforge"
+  RMDir /r "$APPDATA\@agentforge"
+  nsExec::Exec 'cmdkey /delete:Agentforge/wrap-key'
 !macroend
