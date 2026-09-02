@@ -97,16 +97,22 @@ export function firstVisibleHref(visible: ProductMode[]): string {
   return first ? productModeHref(first) : productModeHref("chat");
 }
 
-/** `/studio`, Settings, Workspaces, and agent talk routes stay reachable even when their tab is off. */
+/**
+ * Core surfaces stay reachable even when their rail tab is off.
+ * Optional generate / job modes (`/images`, `/videos`, `/documents`,
+ * `/research`, `/presentations`) stay fail-closed.
+ */
 export function redirectIfHiddenMode(path: string, visible: ProductMode[]): string | null {
   if (
+    path === "/chat" ||
+    path.startsWith("/chat/") ||
+    path.startsWith("/chat?") ||
+    path === "/agents" ||
+    path.startsWith("/agents/") ||
     path.startsWith("/studio") ||
     path.startsWith("/settings") ||
     path.startsWith("/workspaces")
   ) {
-    return null;
-  }
-  if (path.startsWith("/agents/")) {
     return null;
   }
   const hit = PRODUCT_MODES.find((mode) => productModeMatches(mode.id, path));

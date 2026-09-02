@@ -62,6 +62,13 @@ export type CreateAgentInput = {
   config?: Record<string, unknown>;
 };
 
+export type CreateRevisionInput = {
+  systemPrompt?: string;
+  model?: string;
+  inputModalities?: InputModality[];
+  toolKeys?: string[];
+};
+
 export interface AgentRepository {
   insertAgent(agent: AgentRecord): Promise<void>;
   insertVersion(version: AgentVersionRecord): Promise<void>;
@@ -282,6 +289,72 @@ export class AgentService {
       updatedAt: updated.updatedAt,
     });
     return updated;
+  }
+
+  async createRevision(
+    tenant: TenantContext,
+    agentId: string,
+    input: CreateRevisionInput,
+    knownModels: ChatModel[] = listChatModels(),
+  ): Promise<{ version: AgentVersionRecord }> {
+    const agent = await this.requireOwned(tenant, agentId);
+    if (isDefaultChatAgent(agent)) {
+      throw new ApiError("default_agent_soul", "Default chat agent soul cannot be edited", 400);
+    }
+    const versions = await this.repo.listVersions(tenant.organizationId, agentId);
+    const published = resolvePublishedVersion(agent, versions);
+    const model = input.model ?? published.model;
+    if (!getChatModel(model, knownModels)) {
+      throw new ApiError("unknown_model", `Model '${model}' is not available`, 400);
+    }
+    const nextNumber = Math.max(...versions.map((version) => version.version), 0) + 1;
+    const versionId = this.id();
+    const version: AgentVersionRecord = {
+      id: versionId,
+      agentId,
+      organizationId: tenant.organizationId,
+      version: nextNumber,
+      systemPrompt: input.systemPrompt ?? published.systemPrompt,
+      model,
+      inputModalities: input.inputModalities
+        ? ensureModalities(input.inputModalities)
+        : [...published.inputModalities],
+      productModes: published.productModes ? [...published.productModes] : published.productModes,
+      config: { ...published.config },
+      createdAt: this.now(),
+    };
+    await this.repo.insertVersion(version);
+
+    if (input.toolKeys !== undefined) {
+      for (const toolKey of input.toolKeys) {
+        await this.repo.insertBinding({
+          id: this.id(),
+          agentVersionId: versionId,
+          organizationId: tenant.organizationId,
+          toolKey,
+          config: {},
+          enabled: true,
+        });
+      }
+    } else {
+      const publishedBindings = await this.repo.listBindings(tenant.organizationId, published.id);
+      for (const binding of publishedBindings) {
+        await this.repo.insertBinding({
+          id: this.id(),
+          agentVersionId: versionId,
+          organizationId: tenant.organizationId,
+          toolKey: binding.toolKey,
+          config: { ...binding.config },
+          enabled: binding.enabled,
+        });
+      }
+    }
+
+    await this.repo.updateAgent(tenant.organizationId, agentId, {
+      currentVersionId: versionId,
+      updatedAt: this.now(),
+    });
+    return { version };
   }
 
   async share(tenant: TenantContext, agentId: string, visibility: Visibility): Promise<AgentRecord> {

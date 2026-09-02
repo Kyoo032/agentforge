@@ -127,6 +127,125 @@ describe("resolvePublishedVersion", () => {
   });
 });
 
+describe("createRevision", () => {
+  it("creates v2 with edited systemPrompt and publishes it", async () => {
+    const repo = new MemoryAgentRepository();
+    const service = new AgentService(repo);
+    const created = await service.create(tenant(), {
+      name: "Tutor",
+      systemPrompt: "v1 prompt",
+      model: "gpt-4o-mini",
+    });
+    await service.publish(tenant(), created.agent.id, created.version.id);
+    const { version } = await service.createRevision(tenant(), created.agent.id, {
+      systemPrompt: "v2 soul",
+    });
+    expect(version.version).toBe(2);
+    expect(version.systemPrompt).toBe("v2 soul");
+    expect(version.model).toBe("gpt-4o-mini");
+    const agent = await service.get(tenant(), created.agent.id);
+    expect(agent?.currentVersionId).toBe(version.id);
+  });
+
+  it("leaves the published v1 row unchanged", async () => {
+    const repo = new MemoryAgentRepository();
+    const service = new AgentService(repo);
+    const created = await service.create(tenant(), {
+      name: "Tutor",
+      systemPrompt: "v1 prompt",
+      model: "gpt-4o-mini",
+    });
+    await service.publish(tenant(), created.agent.id, created.version.id);
+    await service.createRevision(tenant(), created.agent.id, { systemPrompt: "v2 soul" });
+    const v1 = repo.versions.find((version) => version.id === created.version.id);
+    expect(v1?.systemPrompt).toBe("v1 prompt");
+    expect(v1?.version).toBe(1);
+  });
+
+  it("clones bindings onto v2 when toolKeys are omitted", async () => {
+    const repo = new MemoryAgentRepository();
+    const service = new AgentService(repo);
+    const created = await service.create(tenant(), {
+      name: "Tutor",
+      systemPrompt: "v1 prompt",
+      model: "gpt-4o-mini",
+    });
+    await service.publish(tenant(), created.agent.id, created.version.id);
+    await service.bindTool(tenant(), created.agent.id, created.version.id, "calculator");
+    await service.bindTool(tenant(), created.agent.id, created.version.id, "datetime");
+    const { version } = await service.createRevision(tenant(), created.agent.id, {
+      systemPrompt: "v2 soul",
+    });
+    const bindings = await repo.listBindings("org-a", version.id);
+    expect(bindings.map((binding) => binding.toolKey).sort()).toEqual(["calculator", "datetime"]);
+    const v1Bindings = await repo.listBindings("org-a", created.version.id);
+    expect(v1Bindings).toHaveLength(2);
+  });
+
+  it("replaces bindings when toolKeys are provided", async () => {
+    const repo = new MemoryAgentRepository();
+    const service = new AgentService(repo);
+    const created = await service.create(tenant(), {
+      name: "Tutor",
+      systemPrompt: "v1 prompt",
+      model: "gpt-4o-mini",
+    });
+    await service.publish(tenant(), created.agent.id, created.version.id);
+    await service.bindTool(tenant(), created.agent.id, created.version.id, "calculator");
+    await service.bindTool(tenant(), created.agent.id, created.version.id, "datetime");
+    const { version } = await service.createRevision(tenant(), created.agent.id, {
+      toolKeys: ["web_search"],
+    });
+    const bindings = await repo.listBindings("org-a", version.id);
+    expect(bindings.map((binding) => binding.toolKey)).toEqual(["web_search"]);
+  });
+
+  it("rejects the default chat agent", async () => {
+    const repo = new MemoryAgentRepository();
+    const service = new AgentService(repo);
+    const created = await service.ensureDefaultChat(tenant());
+    try {
+      await service.createRevision(tenant(), created.agent.id, { systemPrompt: "nope" });
+      throw new Error("expected throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApiError);
+      expect((error as ApiError).code).toBe("default_agent_soul");
+    }
+  });
+
+  it("rejects an unpublished agent", async () => {
+    const repo = new MemoryAgentRepository();
+    const service = new AgentService(repo);
+    const created = await service.create(tenant(), {
+      name: "Tutor",
+      systemPrompt: "v1 prompt",
+      model: "gpt-4o-mini",
+    });
+    try {
+      await service.createRevision(tenant(), created.agent.id, { systemPrompt: "v2" });
+      throw new Error("expected throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApiError);
+      expect((error as ApiError).code).toBe("unpublished_agent");
+    }
+  });
+
+  it("getPublishedForRun returns the new soul", async () => {
+    const repo = new MemoryAgentRepository();
+    const service = new AgentService(repo);
+    const created = await service.create(tenant(), {
+      name: "Tutor",
+      systemPrompt: "v1 prompt",
+      model: "gpt-4o-mini",
+    });
+    await service.publish(tenant(), created.agent.id, created.version.id);
+    await service.createRevision(tenant(), created.agent.id, { systemPrompt: "v2 soul" });
+    const published = await service.getPublishedForRun(tenant(), created.agent.id);
+    expect(published.version.version).toBe(2);
+    expect(published.version.systemPrompt).toBe("v2 soul");
+  });
+});
+
 describe("productModes", () => {
   it("defaults a new agent to Chat and persists an explicit list", async () => {
     const repo = new MemoryAgentRepository();
