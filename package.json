@@ -10,7 +10,9 @@
     "db:seed": "pnpm --filter @agentforge/db seed",
     "db:studio": "pnpm --filter @agentforge/db studio",
     "desktop:dev": "pnpm --filter @agentforge/desktop desktop-dev",
-    "desktop:build": "pnpm --filter @agentforge/desktop desktop-build"
+    "desktop:build": "pnpm --filter @agentforge/desktop desktop-build",
+    "desktop:build:mac": "pnpm --filter @agentforge/desktop desktop-build-mac",
+    "desktop:build:linux": "pnpm --filter @agentforge/desktop desktop-build-linux"
   },
   "devDependencies": {
     "turbo": "^2.5.4",

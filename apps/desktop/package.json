@@ -7,7 +7,10 @@
   "scripts": {
     "desktop-dev": "electron .",
     "desktop-build": "node scripts/check-symlink.mjs && pnpm --filter @agentforge/web build && node scripts/stage-web.mjs && electron-builder --win nsis",
-    "desktop-build-dir": "node scripts/check-symlink.mjs && pnpm --filter @agentforge/web build && node scripts/stage-web.mjs && electron-builder --win nsis --dir"
+    "desktop-build-dir": "node scripts/check-symlink.mjs && pnpm --filter @agentforge/web build && node scripts/stage-web.mjs && electron-builder --win nsis --dir",
+    "desktop-build-mac": "pnpm --filter @agentforge/web build && node scripts/stage-web.mjs && electron-builder --mac",
+    "desktop-build-linux": "pnpm --filter @agentforge/web build && node scripts/stage-web.mjs && electron-builder --linux",
+    "desktop-build-linux-dir": "pnpm --filter @agentforge/web build && node scripts/stage-web.mjs && electron-builder --linux --dir"
   },
   "dependencies": {
     "keytar": "^7.9.0"
@@ -41,6 +44,41 @@
       "target": [
         {
           "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "mac": {
+      "identity": null,
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
           "arch": [
             "x64"
           ]
