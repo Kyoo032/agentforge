@@ -1,8 +1,12 @@
 import { isEverydayModel } from "./curation";
+import { firstLiveId } from "./media-kind";
 
 type ModelRef = { id: string };
 
 export { formatContextLength } from "./context-length";
+
+/** Small everyday chat defaults, in order. Live catalog spelling may differ (e.g. MiniMax-M3). */
+export const CHAT_DEFAULT_PREFERENCES = ["gpt-5.6-luna", "deepseek-v4-flash", "MiniMax-M3", "minimax-m3"];
 
 function tierRank(id: string): number {
   return isEverydayModel(id) ? 0 : 1;
@@ -23,35 +27,41 @@ const FAMILIES: Family[] = [
     label: "DeepSeek V4",
     rank: 0,
     match: (id) => /deepseek-v4/i.test(id),
-    variant: (id) => (/pro/i.test(id) ? 0 : /flash/i.test(id) ? 1 : 2),
+    variant: (id) => (/flash/i.test(id) ? 0 : /pro/i.test(id) ? 1 : 2),
   },
   {
     label: "GPT-5.6",
     rank: 1,
     match: (id) => /gpt-5\.6/i.test(id),
-    variant: (id) => (/sol/i.test(id) ? 0 : /terra/i.test(id) ? 1 : /luna/i.test(id) ? 2 : 3),
+    variant: (id) => (/luna/i.test(id) ? 0 : /terra/i.test(id) ? 1 : /sol/i.test(id) ? 2 : 3),
+  },
+  {
+    label: "MiniMax",
+    rank: 2,
+    match: (id) => /minimax/i.test(id),
+    variant: (id) => (/m3(?:$|[.-])/i.test(id) ? 0 : 1),
   },
   {
     label: "Claude 5",
-    rank: 2,
+    rank: 3,
     match: (id) => /claude-(sonnet|opus)-5(?:$|[^\d])/i.test(id),
     variant: (id) => (/opus/i.test(id) ? 0 : 1),
   },
   {
     label: "Kimi",
-    rank: 3,
+    rank: 4,
     match: (id) => /kimi/i.test(id),
     variant: (id) => (/kimi-k3/i.test(id) ? 0 : /kimi-k2\.7/i.test(id) ? 1 : /kimi-k2\.6/i.test(id) ? 2 : 3),
   },
   {
     label: "GLM",
-    rank: 4,
+    rank: 5,
     match: (id) => /glm-5/i.test(id),
     variant: (id) => (/glm-5\.3/i.test(id) ? 0 : /glm-5\.2/i.test(id) ? 1 : 2),
   },
 ];
 
-const DEFAULT_FAMILY_ORDER = ["GPT-5.6", "DeepSeek V4", "Claude 5", "Kimi", "GLM"];
+const DEFAULT_FAMILY_ORDER = ["GPT-5.6", "DeepSeek V4", "MiniMax", "Claude 5", "Kimi", "GLM"];
 
 /** Stable picker buckets. One brand per group — no GPT-5.6 vs OpenAI split. */
 const BRAND_GROUP_ORDER = [
@@ -219,6 +229,16 @@ export function recommendedChatModels<T extends ModelRef>(models: T[]): T[] {
   if (gatewayDefault) {
     picks.push(gatewayDefault);
   }
+  const byLower = new Map(pool.map((model) => [model.id.toLowerCase(), model]));
+  for (const want of CHAT_DEFAULT_PREFERENCES) {
+    const hit = byLower.get(want.toLowerCase());
+    if (hit && !picks.some((pick) => pick.id === hit.id)) {
+      picks.push(hit);
+    }
+  }
+  if (picks.length > (gatewayDefault ? 1 : 0)) {
+    return picks;
+  }
   for (const family of FAMILIES) {
     const hits = pool.filter((model) => family.match(model.id));
     if (hits.length === 0) {
@@ -268,13 +288,13 @@ export function chooseDefaultModel(models: ModelRef[], liveIds: string[] | undef
   if (gatewayDefault) {
     return gatewayDefault.id;
   }
-  if (liveIds && liveIds.length > 0) {
-    const liveSet = new Set(liveIds);
-    const liveModels = models.filter((model) => liveSet.has(model.id));
-    return pickPreferredModel(liveModels.length > 0 ? liveModels : models) ?? fallback;
-  }
-  const gpt56 = models.filter((model) => /gpt-5\.6/i.test(model.id));
-  return pickPreferredModel(gpt56) ?? fallback;
+  const liveSet = liveIds && liveIds.length > 0 ? new Set(liveIds) : undefined;
+  const liveModels = liveSet ? models.filter((model) => liveSet.has(model.id)) : models;
+  const pool = liveModels.length > 0 ? liveModels : models;
+  return firstLiveId(
+    CHAT_DEFAULT_PREFERENCES,
+    pool.map((model) => model.id),
+  ) ?? pickPreferredModel(pool) ?? fallback;
 }
 
 export function pickerGroups<T extends ModelRef>(models: T[]): Array<{ label: string; models: T[] }> {

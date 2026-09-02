@@ -3,22 +3,30 @@ import { pickPreferredJobModel, resolveModeDefaults } from "./mode-defaults";
 import { DEFAULT_GATEWAY_IMAGE_MODEL, DEFAULT_GATEWAY_VIDEO_MODEL } from "./media-kind";
 
 describe("pickPreferredJobModel", () => {
-  it("picks the first preferred documents id that is live", () => {
-    expect(pickPreferredJobModel("documents", ["gpt-5.6-sol", "kimi-k3", "glm-5.3"], "gpt-5.6-sol")).toBe(
-      "kimi-k3",
-    );
+  it("picks DeepSeek V4 Flash for documents when hy3 is absent", () => {
+    expect(
+      pickPreferredJobModel("documents", ["gpt-5.6-sol", "kimi-k3", "deepseek-v4-flash", "glm-5.3"], "gpt-5.6-sol"),
+    ).toBe("deepseek-v4-flash");
   });
 
-  it("prefers DeepSeek for research when present", () => {
-    expect(
-      pickPreferredJobModel("research", ["glm-5.3", "deepseek-v4-pro", "gpt-5.6-sol"], "gpt-5.6-sol"),
-    ).toBe("deepseek-v4-pro");
+  it("picks hy3 for documents when it is live", () => {
+    expect(pickPreferredJobModel("documents", ["hy3", "deepseek-v4-flash"], "gpt-5.6-luna")).toBe("hy3");
   });
 
-  it("prefers gpt-5.6-sol for presentations when present", () => {
+  it("prefers GPT-5.6 Luna for research when present", () => {
     expect(
-      pickPreferredJobModel("presentations", ["kimi-k3", "gpt-5.6-sol", "claude-sonnet-5"], "kimi-k3"),
-    ).toBe("gpt-5.6-sol");
+      pickPreferredJobModel("research", ["glm-5.3", "deepseek-v4-pro", "gpt-5.6-luna", "MiniMax-M3"], "gpt-5.6-sol"),
+    ).toBe("gpt-5.6-luna");
+  });
+
+  it("prefers GLM 5.2 Fast for presentations when live, ahead of Kimi K3", () => {
+    expect(
+      pickPreferredJobModel(
+        "presentations",
+        ["kimi-k3", "gpt-5.6-sol", "glm-5.2-fast-preview", "claude-sonnet-5"],
+        "kimi-k3",
+      ),
+    ).toBe("glm-5.2-fast-preview");
   });
 
   it("falls back to the chat default when no hint is live", () => {
@@ -29,17 +37,17 @@ describe("pickPreferredJobModel", () => {
 describe("resolveModeDefaults", () => {
   it("keeps chat default and routes media prefs independently", () => {
     const defaults = resolveModeDefaults({
-      chatIds: ["gpt-5.6-sol", "claude-sonnet-5", "deepseek-v4-pro"],
-      imageIds: ["mj_imagine", "gpt-image-2", "z-image-turbo"],
-      videoIds: ["mj_video", "grok-imagine-video", "seedance-2.0-fast"],
-      chatDefault: "gpt-5.6-sol",
+      chatIds: ["gpt-5.6-luna", "gpt-5.6-sol", "claude-sonnet-5", "deepseek-v4-flash", "glm-5.2-fast-preview"],
+      imageIds: ["mj_imagine", "gpt-image-2", "seedream-5.0-pro", "z-image-turbo"],
+      videoIds: ["mj_video", "grok-imagine-video", "seedance-2.5", "seedance-2.0-fast"],
+      chatDefault: "gpt-5.6-luna",
     });
-    expect(defaults.chat).toBe("gpt-5.6-sol");
-    expect(defaults.documents).toBe("claude-sonnet-5");
-    expect(defaults.research).toBe("deepseek-v4-pro");
-    expect(defaults.presentations).toBe("gpt-5.6-sol");
+    expect(defaults.chat).toBe("gpt-5.6-luna");
+    expect(defaults.documents).toBe("deepseek-v4-flash");
+    expect(defaults.research).toBe("gpt-5.6-luna");
+    expect(defaults.presentations).toBe("glm-5.2-fast-preview");
     expect(defaults.image).toBe("gpt-image-2");
-    expect(defaults.video).toBe("seedance-2.0-fast");
+    expect(defaults.video).toBe("grok-imagine-video");
   });
 
   it("falls back to kernel media defaults when buckets are empty", () => {
