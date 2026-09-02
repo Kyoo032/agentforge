@@ -35,6 +35,7 @@ describe("scanPii", () => {
   it("ignores random 4-digit numbers and plain prose", () => {
     expect(scanPii("Room 2042 opens at 9am")).toEqual([]);
     expect(scanPii("Please summarize the attached brief for the team.")).toEqual([]);
+    expect(scanPii("hello @ world")).toEqual([]);
   });
 });
 
