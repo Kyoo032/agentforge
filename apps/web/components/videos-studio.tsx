@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { ExampleGallery } from "@/components/example-gallery";
 import { ModelSelect } from "@/components/model-select";
 
 type StudioModel = {
@@ -138,6 +139,8 @@ export function VideosStudio() {
           {error}
         </div>
       ) : null}
+
+      <ExampleGallery mode="videos" onSelect={(entry) => setPrompt(entry.prompt)} />
 
       <form
         className="mt-8 space-y-3 rounded-xl border border-mist bg-paper p-3 shadow-sm"

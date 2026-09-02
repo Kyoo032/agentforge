@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
+import { ExampleGallery } from "@/components/example-gallery";
 import { ResearchPreview } from "@/components/research-preview";
 import { researchNotesToMarkdown, type ResearchNotes } from "@/lib/research-notes";
 
@@ -108,6 +109,8 @@ export function ResearchStudio() {
           ) : null}
         </div>
       ) : null}
+
+      <ExampleGallery mode="research" onSelect={(entry) => setPrompt(entry.prompt)} />
 
       <div className="mt-8 flex-1">
         {notes ? (

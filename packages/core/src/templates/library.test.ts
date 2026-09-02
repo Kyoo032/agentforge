@@ -9,11 +9,28 @@ import {
 
 const MODES: LibraryMode[] = ["images", "videos", "documents", "research", "presentations"];
 
+const EXPECTED_COUNTS: Record<LibraryMode, number> = {
+  images: 10,
+  videos: 6,
+  documents: 6,
+  research: 6,
+  presentations: 6,
+};
+
 describe("TEMPLATE_LIBRARY", () => {
-  it("seeds three realistic entries per mode", () => {
-    expect(TEMPLATE_LIBRARY).toHaveLength(15);
+  it("seeds the expanded library by mode", () => {
+    expect(TEMPLATE_LIBRARY).toHaveLength(34);
     for (const mode of MODES) {
-      expect(libraryForMode(mode)).toHaveLength(3);
+      expect(libraryForMode(mode)).toHaveLength(EXPECTED_COUNTS[mode]);
+    }
+  });
+
+  it("stays industry-neutral in seed copy", () => {
+    const banned = /\b(student|course|campus)\b/i;
+    for (const entry of TEMPLATE_LIBRARY) {
+      expect(entry.title).not.toMatch(banned);
+      expect(entry.prompt).not.toMatch(banned);
+      expect(entry.resultSummary).not.toMatch(banned);
     }
   });
 
