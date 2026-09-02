@@ -4,7 +4,7 @@ Videos is a generate studio (prompt, aspect, duration, optional resolution, opti
 
 ## Sub-features
 
-- `videos-rail` reaches `/videos` from `mode-videos` after an agent unlocks the surface.
+- `videos-rail` reaches `/videos` from `mode-videos` on Home.
 - `videos-shell` shows `videos-studio`.
 - `videos-needs-key` shows `videos-studio-needs-key` when no key is ready.
 - `videos-empty` shows `videos-studio-empty` when the gallery has no clips.
@@ -12,7 +12,7 @@ Videos is a generate studio (prompt, aspect, duration, optional resolution, opti
 
 ## How to get to it (user POV)
 
-- Choose Videos on the left rail (`mode-videos`) after Build (Default template unlocks it).
+- Choose Videos on the left rail (`mode-videos`). Home already has the tab.
 - Open `http://127.0.0.1:3000/videos` when the tab is unlocked.
 
 ## Driving it with the Agentforge harness

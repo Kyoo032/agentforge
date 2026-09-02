@@ -19,8 +19,10 @@ export function ExampleGallery({ mode, onSelect }: ExampleGalleryProps) {
 
   return (
     <section className="mt-6" data-testid="example-gallery">
-      <h2 className="text-sm font-medium text-ink">Try an example</h2>
-      <p className="mt-1 text-xs text-ink/55">Click a card to fill the prompt. You can edit it after.</p>
+      <h2 className="text-sm font-medium text-ink">Start from a template</h2>
+      <p className="mt-1 text-xs text-ink/55">
+        Click a card to load a full brief. Replace the sample details, then generate.
+      </p>
       <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {entries.map((entry) => {
           const id = exampleId(entry);

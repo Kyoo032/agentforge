@@ -1,6 +1,6 @@
 # Chat
 
-Chat is the default assistant: model picker, composer, thinking toggle, usage chip, and its own sessions. The same `ChatSession` powers `/chat` and `/agents/<uuid>`. Stub replies without a gateway key; a saved key uses the live Toko Token gateway.
+Chat is the default assistant: model picker, composer, thinking toggle, usage chip, and its own sessions at `/chat`. Stub replies without a gateway key; a saved key uses the live Toko Token gateway.
 
 A turn is three layers: **Thinking** (collapsible), **tools** (one row per call), **output** (the answer only — never a copy of the prompt, never a `Stub reply` prefix).
 
@@ -12,28 +12,28 @@ A turn is three layers: **Thinking** (collapsible), **tools** (one row per call)
 - `chat-send` puts the user prompt in the transcript and returns the send button to `Send`.
 - `chat-new` starts a blank session from `new-chat` without losing the previous thread in the list.
 - `chat-switch` reopens the first thread from `thread-list`.
-- `chat-rail` keeps `mode-chat` visible; Documents/Research/Images/Videos/Presentation stay absent until an agent unlocks them.
+- `chat-rail` keeps `mode-chat` visible. On Home, Documents/Research/Images/Videos/Presentation are also visible. `mode-agents` count is 0.
 
 ## How to get to it (user POV)
 
 - Open `http://127.0.0.1:3000/chat`.
 - Choose `Chat` on the left rail (`mode-chat`).
-- Open a custom agent from Agents (`/agents/<uuid>`) — same composer, thinking, tools, and output.
-- `/` redirects to the first visible mode (Chat on a default desk).
+- `/` redirects to the first visible mode (Chat on Home).
+- `/agents/<uuid>` redirects to Chat (Build is parked).
 
 ## Driving it with the Agentforge harness
 
 Preconditions:
 
 - Doctor exits 0 against `http://127.0.0.1:3000`.
-- You are proving Chat, not a specialist agent (`/agents/<uuid>` is Build) unless the step says agent chat.
+- You are proving Chat at `/chat`.
 - Unique prompt text, e.g. `VERIFY chat <run-id>: What is 2 + 3?`.
 - `runtime: "stub"` for a stub-proof send. If doctor says `ai`, say so and treat the reply as live.
 
-- **Open Chat.** Go to `/chat`. `model-picker`, `composer`, `thinking-toggle`, and `chat-empty` are visible. `chat-empty` contains `Ask anything`. `mode-chat` and `mode-agents` are visible.
+- **Open Chat.** Go to `/chat`. `model-picker`, `composer`, `thinking-toggle`, and `chat-empty` are visible. `chat-empty` contains `Ask anything`. `mode-chat` plus the other work modes are visible. `mode-agents` count is 0.
 - **Usage chip.** `chat-usage` is visible in the Chat header (next to `new-chat`). On stub / no key, it settles on `No key saved`.
 - **Send (short).** Fill `composer-text` with the unique prompt. Click `composer-send`. `message-list` contains that prompt (20s). On stub with thinking on, `message-thinking` is present. Arithmetic like `What is 2 + 3?` shows `message-tools` (Calculator) and `message-output` equal to `2 + 3 = 5` — not the question, not `Stub reply`. `composer-send` reads `Send` again (30s). After refresh, thinking + tool + output stay on the turn (they do not vanish).
-- **Longer task.** Same transcript layout if several tools fire (search, then calculator, then prose): stacked `message-tool` rows, then `message-output`. Agent chat at `/agents/<uuid>` uses the same components.
+- **Longer task.** Same transcript layout if several tools fire (search, then calculator, then prose): stacked `message-tool` rows, then `message-output`.
 - **New session.** Click `new-chat`. `chat-empty` contains `Ask anything` again (10s).
 - **Second send.** Fill and send a second unique prompt. `message-list` and `thread-list` contain it.
 - **Switch.** Click the `thread-item` whose text is the first prompt. `message-list` contains the first prompt and its answer.

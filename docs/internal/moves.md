@@ -15,6 +15,14 @@ Format:
 
 ---
 
+## 2026-09-02 — GTM workspace-first rail
+
+- **What:** Workspace owns product modes; Agents/Studio parked; Settings is key-only
+- **From:** Rail = union of custom-agent `productModes` (Home = Chat + Agents until Build). Settings Simple/Advanced + Extras. Create workspace seeds a starter agent and opens `/agents`.
+- **To:** `workspaces.product_modes` JSON. Home default = all work modes. `resolveWorkspaceModes` drives the rail. Workspace dropdown above Settings; create/edit presets + mode checkboxes, open → Chat. `/agents` and `/studio/**` redirect to Chat. Settings: paste gateway key, usage, privacy. PStack verify map rewritten for the same surfaces.
+- **Why:** GTM answer to “where do I use this Toko Token key?” — not a Hermes-style agent builder.
+- **Not in this move:** product rename, public deploy, deleting agent kernel/Studio files, exposing Advanced settings.
+
 ## 2026-09-02 — mac/linux desktop targets + mobile docs only
 
 - **What:** electron-builder targets and honest surface docs

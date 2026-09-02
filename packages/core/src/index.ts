@@ -181,6 +181,7 @@ export {
   WORKSPACE_TEMPLATES,
   libraryForMode,
   isWorkspaceTemplateId,
+  productModesForTemplate,
 } from "./templates/library";
 export type { LibraryMode, LibraryEntry, WorkspaceTemplate } from "./templates/library";
 export {
@@ -198,15 +199,18 @@ export type { AgentPack, AgentTemplate } from "./agents/default-template";
 export {
   PRODUCT_MODES,
   PRODUCT_MODE_IDS,
+  WORK_PRODUCT_MODES,
   LEGACY_PRODUCT_MODES,
   FALLBACK_PRODUCT_MODES,
   isProductMode,
   productModeHref,
   productModeLabel,
   productModeMatches,
+  isParkedAgentPath,
   sanitizeProductModes,
   requireProductModes,
   firstVisibleHref,
+  resolveWorkspaceModes,
   redirectIfHiddenMode,
   resolveProductModes,
 } from "./agents/product-modes";

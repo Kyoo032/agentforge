@@ -4,23 +4,25 @@ test.describe.configure({ retries: 0 });
 
 test.setTimeout(180_000);
 
-test("chat and build work without an account", async ({ page }) => {
+test("chat and workspaces work without an account", async ({ page }) => {
   const runId = Date.now().toString(36);
   const promptOne = `E2E one ${runId}: What is 2 + 3?`;
   const promptTwo = `E2E two ${runId}: Session two check`;
-  const promptAgent = `E2E agent ${runId}: What is 4 + 1?`;
+  const deskName = `Legal desk ${runId}`;
 
   await page.goto("/chat");
   await expect(page.getByTestId("model-picker")).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId("composer")).toBeVisible();
   await expect(page.getByTestId("chat-empty")).toContainText("Ask anything");
   await expect(page.getByTestId("mode-chat")).toBeVisible();
-  await expect(page.getByTestId("mode-agents")).toBeVisible();
-  await expect(page.getByTestId("mode-documents")).toHaveCount(0);
-  await expect(page.getByTestId("mode-research")).toHaveCount(0);
-  await expect(page.getByTestId("mode-images")).toHaveCount(0);
-  await expect(page.getByTestId("mode-videos")).toHaveCount(0);
-  await expect(page.getByTestId("mode-presentations")).toHaveCount(0);
+  await expect(page.getByTestId("mode-documents")).toBeVisible();
+  await expect(page.getByTestId("mode-research")).toBeVisible();
+  await expect(page.getByTestId("mode-images")).toBeVisible();
+  await expect(page.getByTestId("mode-videos")).toBeVisible();
+  await expect(page.getByTestId("mode-presentations")).toBeVisible();
+  await expect(page.getByTestId("mode-agents")).toHaveCount(0);
+  await expect(page.getByTestId("workspaces-switcher")).toBeVisible();
+  await expect(page.getByTestId("workspaces-link")).toBeVisible();
 
   await page.getByTestId("composer-text").fill(promptOne);
   await page.getByTestId("composer-send").click();
@@ -41,7 +43,6 @@ test("chat and build work without an account", async ({ page }) => {
   await page.getByTestId("settings-link").click();
   await expect(page).toHaveURL(/\/settings/, { timeout: 30_000 });
   await expect(page.getByTestId("settings-form")).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByTestId("settings-tab-simple")).toBeVisible();
   await expect(page.getByTestId("privacy-note")).toBeVisible();
   await expect(page.getByTestId("key-fingerprint")).toHaveCount(0);
   await expect(page.getByTestId("runtime-status")).toContainText("Offline demo", { timeout: 15_000 });
@@ -49,55 +50,11 @@ test("chat and build work without an account", async ({ page }) => {
   await expect(page.getByTestId("usage-this-key")).toContainText("Paste a gateway key");
   await expect(page.getByTestId("usage-desk-estimate")).toBeVisible();
   await expect(page.getByTestId("usage-by-model")).toBeVisible();
-  await expect(page.getByTestId("settings-build-link")).toBeVisible();
-  await page.getByTestId("settings-tab-advanced").click();
-  await expect(page.getByTestId("openai-base-url")).toBeVisible();
-  await expect(page.getByTestId("openai-base-url")).toHaveAttribute(
-    "placeholder",
-    "https://api.tokotokenai.com/v1",
-  );
-  await page.getByText("Extras", { exact: true }).click();
-  await expect(page.getByTestId("anthropic-key")).toBeVisible();
-  await expect(page.getByTestId("volcengine-key")).toBeVisible();
-  await expect(page.getByTestId("fal-key")).toBeVisible();
-  await expect(page.getByTestId("image_gen-backend")).toBeVisible();
-  await expect(page.getByTestId("video_gen-backend")).toBeVisible();
-  await expect(page.getByTestId("tool-enabled-calculator")).toBeVisible();
-  await expect(page.getByTestId("injection-guard-bypass")).toBeVisible();
-  await expect(page.getByTestId("injection-guard-bypass")).not.toBeChecked();
-
-  await page.getByTestId("mode-agents").click();
-  await page.getByTestId("new-agent-link").click();
-  await expect(page).toHaveURL(/\/studio\/new/, { timeout: 30_000 });
-  await expect(page.getByTestId("create-agent")).toBeEnabled({ timeout: 30_000 });
-  await expect(page.getByTestId("template-blank")).toBeVisible();
-  await expect(page.getByTestId("template-default")).toBeVisible();
-  await expect(page.getByTestId("template-students")).toBeVisible();
-  await expect(page.getByTestId("template-marketing")).toBeVisible();
-  await expect(page.getByTestId("template-legal")).toBeVisible();
-  await expect(page.getByTestId("tool-course_catalog.search")).toHaveCount(0);
-  await expect(page.getByTestId("agent-name")).toHaveValue("Assistant");
-  await page.getByTestId("create-agent").click();
-  await page.waitForURL(/\/studio\/[0-9a-f-]{36}/i, { timeout: 60_000 });
-  const studioUrl = page.url();
-  await expect(page.getByTestId("studio-agent-name")).toHaveText("Assistant", { timeout: 30_000 });
-  await expect(page.getByTestId("mode-images")).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByTestId("mode-videos")).toBeVisible();
-  await expect(page.getByTestId("mode-presentations")).toBeVisible();
-  await expect(page.getByTestId("mode-documents")).toHaveCount(0);
-  await expect(page.getByTestId("mode-research")).toHaveCount(0);
-
-  await page.getByTestId("share-workspace").click();
-  await expect(page.getByTestId("visibility")).toContainText("workspace", { timeout: 15_000 });
-
-  await page.getByRole("link", { name: "Open chat" }).click();
-  await page.waitForURL(/\/agents\/[0-9a-f-]{36}/i, { timeout: 30_000 });
-  await expect(page.getByTestId("composer")).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByTestId("model-picker")).not.toHaveText("Model", { timeout: 15_000 });
-  await page.getByTestId("composer-text").fill(promptAgent);
-  await page.getByTestId("composer-send").click();
-  await expect(page.getByTestId("message-list")).toContainText(promptAgent, { timeout: 30_000 });
-  await expect(page.getByTestId("composer-send")).toHaveText("Send", { timeout: 30_000 });
+  await expect(page.getByTestId("settings-tab-simple")).toHaveCount(0);
+  await expect(page.getByTestId("settings-tab-advanced")).toHaveCount(0);
+  await expect(page.getByTestId("settings-build-link")).toHaveCount(0);
+  await expect(page.getByTestId("openai-base-url")).toHaveCount(0);
+  await expect(page.getByTestId("injection-guard-bypass")).toHaveCount(0);
 
   await page.getByTestId("mode-images").click();
   await expect(page).toHaveURL(/\/images/, { timeout: 15_000 });
@@ -124,13 +81,6 @@ test("chat and build work without an account", async ({ page }) => {
   await page.getByTestId("presentations-regen-submit").click();
   await expect(page.getByTestId("presentations-error")).toContainText(/gateway|Settings|API key/i, { timeout: 15_000 });
 
-  await page.goto(studioUrl);
-  await expect(page.getByTestId("studio-agent-name")).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByTestId("agent-image-model")).toBeVisible();
-  await page.getByTestId("product-mode-documents").click();
-  await page.getByTestId("save-product-modes").click();
-  await expect(page.getByText("Product surfaces saved")).toBeVisible({ timeout: 15_000 });
-
   await page.getByTestId("mode-documents").click();
   await expect(page).toHaveURL(/\/documents/, { timeout: 15_000 });
   await expect(page.getByTestId("documents-studio")).toBeVisible({ timeout: 15_000 });
@@ -146,4 +96,19 @@ test("chat and build work without an account", async ({ page }) => {
   await expect(page.getByTestId("documents-regen-attach")).toBeVisible();
   await page.getByTestId("documents-regen-submit").click();
   await expect(page.getByTestId("documents-error")).toContainText(/gateway|Settings|API key/i, { timeout: 15_000 });
+
+  await page.getByTestId("workspaces-link").click();
+  await expect(page).toHaveURL(/\/workspaces/, { timeout: 15_000 });
+  await expect(page.getByTestId("workspace-template-picker")).toBeVisible();
+  await page.getByTestId("workspace-template-legal").click();
+  await page.getByTestId("workspace-name").fill(deskName);
+  await page.getByTestId("create-workspace").click();
+  await expect(page).toHaveURL(/\/chat/, { timeout: 15_000 });
+  await expect(page.getByTestId("mode-chat")).toBeVisible();
+  await expect(page.getByTestId("mode-documents")).toBeVisible();
+  await expect(page.getByTestId("mode-research")).toBeVisible();
+  await expect(page.getByTestId("mode-presentations")).toBeVisible();
+  await expect(page.getByTestId("mode-images")).toHaveCount(0);
+  await expect(page.getByTestId("mode-videos")).toHaveCount(0);
+  await expect(page.getByTestId("mode-agents")).toHaveCount(0);
 });

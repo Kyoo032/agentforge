@@ -4,7 +4,7 @@ Presentation is a job: prompt or starter → slide preview → PPTX download. It
 
 ## Sub-features
 
-- `presentations-rail` reaches `/presentations` from `mode-presentations` after an agent unlocks the surface (Default template does).
+- `presentations-rail` reaches `/presentations` from `mode-presentations` on Home.
 - `presentations-shell` shows `presentations-studio` with empty copy and starter cards.
 - `presentations-starter` loads a preview (`presentations-preview`) without a live generate.
 - `presentations-studio-model` is the generate-bar chat-catalog dropdown.
@@ -13,7 +13,7 @@ Presentation is a job: prompt or starter → slide preview → PPTX download. It
 
 ## How to get to it (user POV)
 
-- Choose Presentation on the left rail (`mode-presentations`) after Build has created an agent with that surface.
+- Choose Presentation on the left rail (`mode-presentations`). Home already has the tab.
 - Open `http://127.0.0.1:3000/presentations` when the tab is unlocked.
 
 ## Driving it with the Agentforge harness
@@ -21,7 +21,7 @@ Presentation is a job: prompt or starter → slide preview → PPTX download. It
 Preconditions:
 
 - Doctor exits 0.
-- `mode-presentations` is visible (Default Assistant unlocks it).
+- `mode-presentations` is visible on Home.
 - Stub proof stops at starters + regen 503. Live generate only if the operator asked and doctor reports `ai`.
 
 - **Open Presentation.** Click `mode-presentations`. URL matches `/presentations`. `presentations-studio` and `presentations-studio-model` are visible.

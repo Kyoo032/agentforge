@@ -7,4 +7,5 @@ export {
   ensureLocalOwner,
   listLocalWorkspaces,
   createLocalWorkspace,
+  updateLocalWorkspace,
 } from "./ensure-local-owner";

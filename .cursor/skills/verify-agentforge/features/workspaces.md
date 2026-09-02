@@ -1,22 +1,24 @@
 # Workspaces
 
-Workspaces is the owner's local project switcher: list desks on disk, create another from a template (or blank), and open one. The left-rail Workspaces control must be reachable from both collapsed and expanded rail states via `workspaces-link`. Creating with a template seeds one starter agent.
+Workspaces is the owner's local desk switcher: dropdown on the rail (above Settings), a list of desks on disk, and create/edit from a template or mode checkboxes. The left-rail Workspaces control must be reachable from both collapsed and expanded rail states via `workspaces-link`. `workspaces-switcher` lists desks and opens one. Creating no longer seeds a starter agent. Open/Create navigates to Chat.
 
 ## Sub-features
 
 - `workspaces-open` reaches `/workspaces` via `workspaces-link` from both collapsed and expanded rail states.
-- `workspaces-templates` picks Blank (`workspace-template-blank`) or a pack chip (`workspace-template-organisation`, `workspace-template-students`, `workspace-template-office`, `workspace-template-legal`, `workspace-template-sales`, `workspace-template-marketing`, `workspace-template-product`).
-- `workspaces-create` creates a desk with `workspace-name` + `create-workspace`. A selected pack is posted as `templatePack`; Blank omits it.
-- `workspaces-seed` — a pack create returns `seeded: true` and publishes one starter (e.g. office → "Office assistant"). Blank returns `seeded: false`.
-- `workspaces-list` shows desks on `workspace-list` with the pack label next to the name.
-- `workspaces-switch` opens a desk via `open-workspace` (selects it, then navigates to `/agents`).
+- `workspaces-switcher` is the footer dropdown (`workspaces-switcher`) with `open-workspace` rows.
+- `workspaces-templates` picks Blank (`workspace-template-blank`) or a pack chip (`workspace-template-general`, `workspace-template-legal`, …).
+- `workspaces-modes` toggles tabs on `workspace-mode-picker` / `workspace-mode-<id>` (Chat stays on).
+- `workspaces-create` creates a desk with `workspace-name` + `create-workspace`. Selected pack is posted as `templatePack`; `productModes` follow the chips.
+- `workspaces-list` shows desks on `workspace-list` with the pack label and mode summary.
+- `workspaces-switch` opens a desk via `open-workspace` (selects it, then navigates to `/chat`).
+- `workspaces-edit` PATCHes modes on an existing desk (`edit-workspace-modes`, `save-workspace-modes`).
 
 ## How to get to it (user POV)
 
-- Choose Workspaces on the left rail footer (`workspaces-link`).
+- Choose Workspaces on the left rail footer (`workspaces-link`) or open the switcher (`workspaces-switcher`).
 - Webdev: open `http://127.0.0.1:3000/workspaces`. Packaged: same path on the ephemeral loopback URL.
 - Collapse or expand the rail first if you need to prove both chrome states.
-- After Create or Open the app goes to `/agents` for that desk. `/agents` is a core surface — it must not bounce to `/chat` even when the Agents rail tab is off.
+- After Create or Open the app goes to `/chat` for that desk.
 
 ## Driving it with the Agentforge harness
 
@@ -25,19 +27,19 @@ Preconditions:
 - Doctor exits 0.
 - Prefer Cloud / throwaway SQLite when creating a workspace. On the operator's Windows desk, creating another workspace mutates their data — say so before clicking Create.
 
-- **Expanded open.** With the rail expanded (`rail-collapse` visible), click `workspaces-link`. URL is `/workspaces` (15s). `workspace-template-picker`, `workspace-name`, `create-workspace`, and `workspace-list` are visible. Blank plus the seven pack chips above are visible.
+- **Expanded open.** With the rail expanded (`rail-collapse` visible), click `workspaces-link`. URL is `/workspaces` (15s). `workspace-template-picker`, `workspace-mode-picker`, `workspace-name`, `create-workspace`, and `workspace-list` are visible. Blank plus pack chips (including Legal) are visible.
 - **Collapsed open.** Click `rail-collapse` if needed so the rail is collapsed (`rail-expand` visible). Click `workspaces-link` again. URL is still `/workspaces` (15s). Both rail branches must expose the same testid.
-- **Create (optional / Cloud).** Fill `workspace-name` with a unique name. Click `workspace-template-office` (or another pack). Click `create-workspace`. URL becomes `/agents` and stays there (do not accept a bounce to `/chat`). `agent-catalog` lists the seeded starter (office → "Office assistant"). Open Studio via the card's `open-studio` link (the name is not a link). Return to `/workspaces`; `workspace-list` contains that name and an Office label.
-- **Blank create.** Name + `workspace-template-blank` + Create. `/agents` may be empty of custom agents; list still shows the new desk with no pack label.
-- **Open.** Click an `open-workspace` control. The desk switches (rail workspace name updates) and `/agents` loads for that desk.
+- **Switcher.** Click `workspaces-switcher`. `open-workspace` rows are visible.
+- **Create (optional / Cloud).** Fill `workspace-name` with a unique name. Click `workspace-template-legal`. Confirm `workspace-mode-documents` and `workspace-mode-research` are selected; Images is off. Click `create-workspace`. URL becomes `/chat`. Rail shows Chat, Documents, Research, Presentation. `mode-images` and `mode-videos` count 0. `mode-agents` count 0.
+- **Open.** Click an `open-workspace` control. The desk switches (rail workspace name updates) and `/chat` loads for that desk.
 - **IDE proof.** Screenshot under `evidence/workspaces/<run-id>/` with `/workspaces` in the URL, chips visible, and the list showing the new desk.
 - **Cloud.** Same steps via `page.getByTestId`.
 
 ## Gotchas
 
-- Both collapsed and expanded `AppRail` branches must carry `data-testid="workspaces-link"`. A single branch only is a harness bug.
-- Workspaces is not a product mode. The control is `workspaces-link`, not `mode-workspaces`.
-- Create/Open navigate to `/agents`. `ModeRedirect` must leave `/agents` alone; only `/images`, `/videos`, `/documents`, `/research`, `/presentations` bounce when hidden.
-- Playwright cookie/workspace context: listing agents without the workspace cookie shows the previous desk. Drive through the UI (or `page.request` in the same browser context) so the cookie sticks.
+- Both collapsed and expanded `AppRail` branches must carry `data-testid="workspaces-link"` and `workspaces-switcher`. A single branch only is a harness bug.
+- Workspaces is not a product mode. The page control is `workspaces-link`, not `mode-workspaces`.
+- Create/Open navigate to `/chat`, not `/agents`.
 - Kernel forbids `student` / `course` nouns in core schema. The Students chip is a pack id (`students`), not a kernel table.
 - Do not create throwaway desks on the operator's Windows SQLite without asking.
+- Home with null `productModes` after migrate is all work modes — not Chat-only.

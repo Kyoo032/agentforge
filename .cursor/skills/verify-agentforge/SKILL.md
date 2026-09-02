@@ -1,13 +1,13 @@
 ---
 name: verify-agentforge
-description: Drives Agentforge the way a user does — webdev Next on 127.0.0.1:3000, packaged Electron on an ephemeral loopback port, data-testid handles, stub runtime, SQLite in the data dir. Launch, doctor, walk Chat/Settings/Build/Images/Videos, keep evidence. Use after UI or product-mode work, when refusing done from a compile, or before claiming a studio/settings/chat change works.
+description: Drives Agentforge the way a user does — webdev Next on 127.0.0.1:3000, packaged Electron on an ephemeral loopback port, data-testid handles, stub runtime, SQLite in the data dir. Launch, doctor, walk Chat/Settings/Workspaces/Images/Videos, keep evidence. Use after UI or product-mode work, when refusing done from a compile, or before claiming a settings/chat/workspace change works.
 ---
 
 # Verify Agentforge
 
 Agent guardrail, same class as `AGENTS.md`. Not part of the Agentforge app.
 
-- **Product** is `apps/`, `packages/`, the NSIS installer, Chat / Settings / Build.
+- **Product** is `apps/`, `packages/`, the NSIS installer, Chat / Settings / Workspaces / job modes.
 - **This directory** is how agents map and prove *this* repo (where to press, how to doctor, what counts as proof).
 - Original pstack skills stay in the Cursor pstack plugin. Call them. Do not copy them into product code or the desktop bundle.
 - **Map:** this `features/` map, then pstack `how` for how a subsystem works and where to fix.
@@ -103,8 +103,8 @@ How each Agentforge secret is processed:
 |---|---|---|---|
 | Gateway key (`openai-key`) | Settings | Host process writes AES-256-GCM `settings.enc`. GET `/api/v1/settings` returns `hasOpenai: true`, never the raw key. Input shows “Saved — paste to replace”. | Chat + image/video on Toko Token (`/v1/chat/completions`, `/v1/images/generations`, `/v1/video/generations`) |
 | Wrap key | Never in UI | Electron: Windows Credential Manager `Agentforge` / `wrap-key` (keytar) injected as `AGENTFORGE_SECRETS_KEY` into the child. Webdev: gitignored `data/.master-key` or env `AGENTFORGE_SECRETS_KEY`. | Decrypts `settings.enc` |
-| Native extras (Google, Anthropic, Ark/Volcengine) | Settings → Extras (collapsed until opened) | Same `settings.enc`; UI booleans `hasGoogle` / `hasAnthropic` / `hasVolcengine` only | Optional non-gateway providers |
-| Tool keys (Tavily, Brave, FAL, …) | Settings → Extras | Same file, `hasToolKeys` map | Search / FAL generate |
+| Native extras (Google, Anthropic, Ark/Volcengine) | Not in GTM Settings UI (store still holds them) | Same `settings.enc`; UI booleans `hasGoogle` / `hasAnthropic` / `hasVolcengine` only | Optional non-gateway providers |
+| Tool keys (Tavily, Brave, FAL, …) | Not in GTM Settings UI | Same file, `hasToolKeys` map | Search / FAL generate |
 
 Do not type into `openai-key` on the operator’s desk unless they asked. Cloud/GHA have no gateway key — stub only.
 
@@ -128,26 +128,26 @@ AGENTFORGE_RUNTIME=stub npx playwright test
 # or from repo root: pnpm test:e2e
 ```
 
-Use `page.getByTestId("<id>")` exactly as the spec. Wait for `/studio/<uuid>`, not `/studio/new`, after create.
+Use `page.getByTestId("<id>")` exactly as the spec.
 
 **Shared handles**
 
 | testid | Surface |
 |---|---|
-| `mode-chat`, `mode-agents`, `mode-images`, `mode-videos`, `mode-presentations` | Left rail (only modes the workspace has unlocked) |
-| `mode-documents`, `mode-research` | Not in the default rail; count 0 until a pack/agent unlocks them |
+| `mode-chat`, `mode-documents`, `mode-research`, `mode-images`, `mode-videos`, `mode-presentations` | Left rail (Home has all of these) |
+| `mode-agents` | Parked. Count 0. `/agents` and `/studio` redirect to Chat |
+| `workspaces-switcher`, `workspaces-link`, `open-workspace`, `workspace-template-picker`, `workspace-mode-picker`, `create-workspace` | Workspaces |
 | `settings-link` | Rail → Settings |
 | `model-picker`, `composer`, `composer-text`, `composer-send` | Chat |
 | `chat-empty`, `message-list`, `thread-list`, `thread-item`, `new-chat` | Threads |
-| `settings-form`, `openai-base-url`, `openai-key`, `key-fingerprint`, `runtime-status`, `privacy-note`, `usage-panel`, `usage-this-key`, `usage-desk-estimate`, `usage-key-meter`, `usage-by-model`, `usage-model-chart` | Settings |
-| `create-agent`, `template-blank`, `template-default`, `template-students`, `template-marketing`, `template-legal`, `studio-agent-name` | Build |
-| `images-studio`, `images-studio-needs-key`, `videos-studio`, `videos-studio-needs-key` | Studios |
+| `settings-form`, `openai-key`, `key-fingerprint`, `runtime-status`, `privacy-note`, `usage-panel`, `usage-this-key`, `usage-desk-estimate`, `usage-key-meter`, `usage-by-model`, `usage-model-chart` | Settings (key-only; no Advanced tab) |
+| `images-studio`, `images-studio-needs-key`, `videos-studio`, `videos-studio-needs-key` | Generate studios |
 | `documents-studio-model`, `research-studio-model`, `presentations-studio-model` | Job generate-bar model dropdowns |
 | `documents-regen-panel`, `presentations-regen-panel`, `*-regen-prompt`, `*-regen-model`, `*-regen-attach`, `*-regen-submit` | Section/slide regen composer |
 
-Rail testids are `mode-${href.slice(1)}` (`/chat` → `mode-chat`). Images/Videos/Presentation tabs appear only after a custom agent unlocks those surfaces (Default template = original five). A Chat-only desk has `mode-images` count 0.
+Rail testids are `mode-${href.slice(1)}` (`/chat` → `mode-chat`). Home already shows every work mode. A Legal desk has Chat + Documents + Research + Presentation and `mode-images` count 0.
 
-Recipes: [features/chat.md](features/chat.md), [features/settings.md](features/settings.md), [features/build.md](features/build.md), [features/images.md](features/images.md), [features/videos.md](features/videos.md), [features/desktop.md](features/desktop.md), [features/mobile.md](features/mobile.md).
+Recipes: [features/chat.md](features/chat.md), [features/settings.md](features/settings.md), [features/workspaces.md](features/workspaces.md), [features/images.md](features/images.md), [features/videos.md](features/videos.md), [features/desktop.md](features/desktop.md), [features/mobile.md](features/mobile.md). Build and Studio advanced are parked.
 
 ## Evidence
 
@@ -159,7 +159,7 @@ A proof includes:
 2. **Result** — the named end state from the feature file (URL, visible testid, text)
 3. **Capture** — IDE screenshot + accessibility snapshot, or Playwright trace on Cloud retry
 4. **Doctor JSON** from this run
-5. **Side effect** when the feature mutates: thread title in `thread-list`, studio UUID in the URL, `visibility` text. Settings save is out of bounds unless the operator asked to change keys.
+5. **Side effect** when the feature mutates: thread title in `thread-list`, new workspace name in `workspace-list`. Settings save is out of bounds unless the operator asked to change keys.
 
 Standards:
 
@@ -175,7 +175,7 @@ Standards:
 - Do not delete `data/agentforge.sqlite`, `data/settings.enc`, or the operator's threads.
 - Do not delete evidence.
 - A Chat send on the shared Windows instance leaves a real thread. Leave it unless the operator wants it removed (`thread-delete`).
-- Do not create a second agent "just to unlock Images" on the operator's desk without saying so. Cloud Playwright already creates one Assistant in its own pass.
+- Do not create a custom agent on the operator's desk. Home already has job modes. Cloud Playwright no longer creates an Assistant.
 
 ## Helpers
 
