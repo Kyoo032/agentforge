@@ -37,3 +37,6 @@ Preconditions:
 - Hashing is server-side (`maskSecrets` → `openaiKeyFingerprint`). The Settings client must not import `keyFingerprint` or hash in the browser.
 - `privacy-note` already covers TLS. A fingerprint change does not add or rewrite the at-rest envelope.
 - Doctor must not exit 1 when `keyFingerprint` is `false`. That is the Cloud stub default.
+- At-rest inventory (existing AES-256-GCM envelope: `v` / `alg` / `n` / `ct` / `tag` via `sealPayload` / `openPayload` + vault key). **Sealed:** `settings.enc` (gateway, extras, tool keys); `agent_versions.system_prompt`; `messages.content`; `tool_invocations.input` / `output`. Legacy plaintext still opens (`openPayload` returns the value when it is not an envelope).
+- **Stays plaintext on purpose:** thread `title` (short UX label); agent name / slug / description; model ids (`agent_versions.model`, version `config` generate pins, Settings model picks); binding `config` (empty or copied flags — product does not store keys there); `runs.usage` / `runs.error`; tool key names and status; key fingerprints (`sha256:` + 12 hex — hashes, not secrets).
+- This is the product envelope, not a new crypto stack and not an ISO 27001 claim.
