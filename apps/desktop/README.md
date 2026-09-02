@@ -5,9 +5,23 @@ Electron shell around the local Next UI. **Two modes:**
 | Mode | Command / install | Loopback | Data |
 |---|---|---|---|
 | Webdev prototype | `pnpm dev` or `pnpm desktop:dev` | **:3000 only** | repo `data/` |
-| Packaged app | NSIS / Start menu | **ephemeral port ≠ 3000** | `%APPDATA%\Agentforge` |
+| Packaged app | NSIS / dmg / AppImage (see below) | **ephemeral port ≠ 3000** | Electron `userData` |
 
-Packaged Electron never attaches to whatever is already on :3000.
+Packaged Electron never attaches to whatever is already on :3000. `pnpm desktop:dev` may reuse :3000 — that is the webdev window, not packaged proof.
+
+There is no mobile Electron/Capacitor/RN target. See [`docs/mobile.md`](../../docs/mobile.md).
+
+## userData (`app-url.txt`, SQLite, `settings.enc`)
+
+`app.setName("Agentforge")` + `extraMetadata.name: "agentforge"`:
+
+| OS | userData |
+|---|---|
+| Windows | `%APPDATA%\Agentforge` (legacy fallback `%APPDATA%\@agentforge\desktop`) |
+| Linux | `$XDG_CONFIG_HOME/Agentforge` or `~/.config/Agentforge` |
+| macOS | `~/Library/Application Support/Agentforge` |
+
+Packaged launch writes `app-url.txt` there. Doctor `--desktop` reads that file and **fails** if the URL is `:3000`.
 
 ## Dev (webdev window)
 
@@ -47,6 +61,27 @@ A fresh install does **not** need Node or pnpm on PATH. On first run:
 3. Child process: bundled `node.exe` running Next `server.js` on `127.0.0.1:<ephemeral>`. Schema is created when that process opens the database.
 
 If Setup says **Agentforge cannot be closed**, the previous run is still in Task Manager (window X does not always kill the process). End **Agentforge** there, then Retry. Newer builds force-kill `Agentforge.exe` at install time.
+
+Cloud Linux cannot run or rebuild that NSIS exe. Do not run `pnpm desktop:build` on Cloud (Windows NSIS path).
+
+## macOS and Linux packages (operator builds on that OS)
+
+Builder targets exist. Run them **on the OS you are packaging**. Unsigned is fine. Notarization is not done.
+
+```
+pnpm desktop:build:mac
+pnpm desktop:build:linux
+```
+
+Package scripts (`desktop-build-mac`, `desktop-build-linux`, `desktop-build-linux-dir`) do **not** run `check-symlink.mjs` — that preflight is Windows Developer Mode only.
+
+| Script | electron-builder | Artifacts |
+|---|---|---|
+| `pnpm desktop:build` | `--win nsis` | NSIS x64 (Windows product path; `check-symlink` first) |
+| `pnpm desktop:build:mac` | `--mac` | dmg + zip, x64 + arm64, unsigned |
+| `pnpm desktop:build:linux` | `--linux` | AppImage + deb, x64 |
+
+`stage-web.mjs` copies `node.exe` on win32 and `node` otherwise into `resources/web`.
 
 Doctor the packaged app with:
 

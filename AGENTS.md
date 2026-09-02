@@ -70,7 +70,7 @@ SQLite file: `data/agentforge.sqlite` (or `AGENTFORGE_DATA_DIR`). Do **not** set
 Desktop:
 
 - **Webdev window:** `pnpm desktop:dev` — Electron around the prototype. May reuse `pnpm dev` on `:3000`. Not the installed product.
-- **Packaged app:** `pnpm desktop:build` → NSIS. Needs Windows Developer Mode (or an elevated shell) because Next standalone tracing creates symlinks. The installer bundles Next standalone + Node — no PATH Node required. On launch it **allocates a free loopback port ≠ 3000**, writes it to `%APPDATA%\Agentforge\app-url.txt`, and never attaches to `pnpm dev`. Move log: [`docs/moves.md`](docs/moves.md).
+- **Packaged app:** `pnpm desktop:build` → NSIS x64 (Windows product path). Needs Windows Developer Mode (or an elevated shell) because Next standalone tracing creates symlinks. The installer bundles Next standalone + Node — no PATH Node required. On launch it **allocates a free loopback port ≠ 3000**, writes it to Electron userData `app-url.txt`, and never attaches to `pnpm dev`. mac/linux: `pnpm desktop:build:mac` / `pnpm desktop:build:linux` on that OS (unsigned; notarization is not done). Cloud cannot prove packaged Windows and must not run `pnpm desktop:build`. Move log: [`docs/moves.md`](docs/moves.md).
 
 **Phase 2d already built on this Windows checkout (2026-08-31).** Do not claim the installer does not exist.
 
@@ -148,4 +148,4 @@ GitHub Actions (`.github/workflows/e2e.yml`) runs the same stub Playwright suite
 
 - Next.js overlay in Cursor’s browser can inject `data-cursor-ref` and block clicks. Use Chrome or Playwright.
 - Playwright `/studio/**` also matches `/studio/new`. Wait for `/studio/<uuid>`.
-- Dev server binds `127.0.0.1:3000` (webdev only). Playwright and the IDE browser must use `http://127.0.0.1:3000` (not a LAN IP). Packaged Agentforge uses a different loopback port; `doctor.mjs --desktop` reads `%APPDATA%\Agentforge\app-url.txt`.
+- Dev server binds `127.0.0.1:3000` (webdev only). Playwright and the IDE browser must use `http://127.0.0.1:3000` (not a LAN IP). Packaged Agentforge uses a different loopback port; `doctor.mjs --desktop` reads Electron userData `app-url.txt` (Windows `%APPDATA%\Agentforge`, Linux `$XDG_CONFIG_HOME/Agentforge` or `~/.config/Agentforge`, macOS `~/Library/Application Support/Agentforge`). A phone on a LAN `:3000` is not a product surface — see [`docs/mobile.md`](docs/mobile.md).

@@ -10,7 +10,7 @@ Documents, Research, Images, Videos, and Presentation are product modes. Default
 
 - **Webdev:** app answers at `http://127.0.0.1:3000` (never a LAN IP). Doctor with no args.
 - **Packaged desktop:** Electron window; doctor `--desktop`; URL is **not** :3000.
-- SQLite is `data/agentforge.sqlite` (webdev) or `%APPDATA%\Agentforge\agentforge.sqlite` (packaged).
+- SQLite is `data/agentforge.sqlite` (webdev) or Electron userData (packaged: `%APPDATA%\Agentforge`, `$XDG_CONFIG_HOME/Agentforge` or `~/.config/Agentforge`, `~/Library/Application Support/Agentforge`).
 - No product login. A gateway key is optional; stub Chat works without one.
 - Windows: drive webdev with the IDE browser. Drive packaged in the Electron window. Do not run Playwright.
 - Cloud / GHA: `AGENTFORGE_RUNTIME=stub` and Playwright `foundation.spec.ts` against **webdev** :3000.
@@ -52,4 +52,5 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 - [Images](./images.md) — studio shell after an agent unlocks the tab; needs-key without a gateway key.
 - [Videos](./videos.md) — studio shell and `videos-studio-needs-key` without a key.
 - [Presentation](./presentations.md) — starters, preview, slide regen (503 without a key), PPTX download from a starter.
-- [Desktop](./desktop.md) — Electron one-window launch, splash → Chat, child teardown on quit.
+- [Desktop](./desktop.md) — Electron one-window launch, splash → Chat, child teardown on quit. Windows NSIS exists; mac/linux are builder targets.
+- [Mobile](./mobile.md) — docs only. No iOS/Android build, no stores, no Capacitor. A phone on LAN `:3000` is not a product surface.

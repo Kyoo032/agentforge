@@ -21,7 +21,7 @@ A cold agent reads this mid-task. Drive the real app. A green `tsc` or worker su
 | Surface | How to reach it | Doctor | Port |
 |---|---|---|---|
 | **Webdev prototype** | `pnpm dev` → Chrome / IDE browser | `node .cursor/skills/verify-agentforge/scripts/doctor.mjs` | **3000 only** (`next dev --hostname 127.0.0.1 --port 3000`) |
-| **Packaged desktop** | Installed Agentforge / NSIS | `node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop` | Ephemeral loopback, **never 3000**. URL in `%APPDATA%\Agentforge\app-url.txt` |
+| **Packaged desktop** | Installed Agentforge (Windows NSIS; mac/linux operator-built) | `node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop` | Ephemeral loopback, **never 3000**. URL in userData `app-url.txt` (Windows `%APPDATA%\Agentforge`; Linux `$XDG_CONFIG_HOME/Agentforge` or `~/.config/Agentforge`; macOS `~/Library/Application Support/Agentforge`) |
 
 `pnpm desktop:dev` is the webdev prototype inside an Electron window (may reuse :3000). That is not packaged proof. APIs exist under `/api/v1/*` but proof is the user path, not an internal setter.
 
@@ -76,7 +76,7 @@ Run this first whenever anything looks off, and before every drive:
 # webdev prototype
 node .cursor/skills/verify-agentforge/scripts/doctor.mjs
 
-# packaged desktop (reads %APPDATA%/Agentforge/app-url.txt)
+# packaged desktop (reads OS userData app-url.txt — not :3000)
 node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop
 ```
 
@@ -145,7 +145,7 @@ Use `page.getByTestId("<id>")` exactly as the spec. Wait for `/studio/<uuid>`, n
 
 Rail testids are `mode-${href.slice(1)}` (`/chat` → `mode-chat`). Images/Videos/Presentation tabs appear only after a custom agent unlocks those surfaces (Default template = original five). A Chat-only desk has `mode-images` count 0.
 
-Recipes: [features/chat.md](features/chat.md), [features/settings.md](features/settings.md), [features/build.md](features/build.md), [features/images.md](features/images.md), [features/videos.md](features/videos.md), [features/desktop.md](features/desktop.md).
+Recipes: [features/chat.md](features/chat.md), [features/settings.md](features/settings.md), [features/build.md](features/build.md), [features/images.md](features/images.md), [features/videos.md](features/videos.md), [features/desktop.md](features/desktop.md), [features/mobile.md](features/mobile.md).
 
 ## Evidence
 
@@ -181,4 +181,4 @@ Standards:
 
 ## Isolate
 
-Two **webdev** instances cannot share port 3000. The packaged app uses a different loopback port and a different data dir (`%APPDATA%\Agentforge`), so it can run while `pnpm dev` is up. Playwright’s data dir is the same repo `data/` as the Windows webdev prototype. Isolation for E2E is the Cloud/GHA VM, not a second local port. Do not double-drive the operator’s live window while Cloud Playwright is also pointed at this checkout. If you need a disposable tree, set `AGENTFORGE_DATA_DIR` to a new directory (optional `pnpm db:push`; Next migrates on open), and optionally `AGENTFORGE_SETTINGS_PATH` so you do not touch the operator’s `data/settings.enc`.
+Two **webdev** instances cannot share port 3000. The packaged app uses a different loopback port and a different data dir (Electron userData: `%APPDATA%\Agentforge` / `~/.config/Agentforge` / `~/Library/Application Support/Agentforge`), so it can run while `pnpm dev` is up. Playwright’s data dir is the same repo `data/` as the Windows webdev prototype. Isolation for E2E is the Cloud/GHA VM, not a second local port. Do not double-drive the operator’s live window while Cloud Playwright is also pointed at this checkout. If you need a disposable tree, set `AGENTFORGE_DATA_DIR` to a new directory (optional `pnpm db:push`; Next migrates on open), and optionally `AGENTFORGE_SETTINGS_PATH` so you do not touch the operator’s `data/settings.enc`.
