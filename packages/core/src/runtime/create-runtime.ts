@@ -6,6 +6,7 @@ import { buildToolSecretScope } from "../tools/credentials";
 import { runWithToolSecrets } from "../tools/secret-scope";
 import { readGeneratePin } from "../agents/generate-defaults";
 import { maskOutboundRunInput } from "../security/pii";
+import { runWithToolIoSink } from "./tool-io";
 
 function withToolSecrets(runtime: AgentRuntime, settings: StoredSecrets): AgentRuntime {
   const scope = buildToolSecretScope(settings);
@@ -21,7 +22,9 @@ function withToolSecrets(runtime: AgentRuntime, settings: StoredSecrets): AgentR
           ...(video ? { VIDEO_GEN_MODEL: video } : {}),
         },
       };
-      return runWithToolSecrets(next, () => runtime.execute(maskOutboundRunInput(input)));
+      return runWithToolSecrets(next, () =>
+        runWithToolIoSink(() => runtime.execute(maskOutboundRunInput(input))),
+      );
     },
   };
 }

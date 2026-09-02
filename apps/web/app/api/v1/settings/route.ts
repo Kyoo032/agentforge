@@ -45,6 +45,10 @@ function readStringArray(value: unknown): string[] | undefined {
   return value.filter((item): item is string => typeof item === "string");
 }
 
+function readOptionalBoolean(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
+}
+
 function settingsPayload(settings: ReturnType<typeof loadSettings>) {
   return {
     ...maskSecrets(settings),
@@ -109,6 +113,7 @@ export async function POST(request: Request) {
       researchGenModel: readOptionalString(body.researchGenModel),
       presentationGenModel: readOptionalString(body.presentationGenModel),
       disabledTools: readStringArray(body.disabledTools),
+      injectionGuardBypass: readOptionalBoolean(body.injectionGuardBypass),
     });
     await refreshModelCache(saved);
     const catalog = modeCatalogPayload();

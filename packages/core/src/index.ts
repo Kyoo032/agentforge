@@ -47,6 +47,15 @@ export { redactSecrets } from "./security/redact";
 export { keyFingerprint, keyFingerprintOrNull } from "./security/fingerprint";
 export { scanPii, maskPii, maskPiiInParts, maskOutboundRunInput, piiWarning, PII_MASK } from "./security/pii";
 export type { PiiKind, PiiFinding } from "./security/pii";
+export { thinToolOutput } from "./security/tool-thin";
+export {
+  scanInjection,
+  scanJson,
+  blockedInjectionOutput,
+  redactAttachedText,
+  redactAttachedParts,
+} from "./security/injection-guard";
+export type { InjectionHit, InjectionSeverity } from "./security/injection-guard";
 export { isOpenRouterBaseUrl, openRouterZdrBody } from "./privacy/openrouter";
 export { mergeOpenRouterZdr } from "./runtime/ai-sdk-runtime";
 export {
@@ -216,7 +225,7 @@ export {
   httpStatusForGatewayFailure,
   studioVideoFailureStatus,
 } from "./tools/platform/gateway-media";
-export { runWithToolSecrets, getSecret, getDisabledTools } from "./tools/secret-scope";
+export { runWithToolSecrets, getSecret, getDisabledTools, getInjectionGuardBypass } from "./tools/secret-scope";
 export {
   TOOL_CAPABILITIES,
   CHAT_INFERENCE_ENV_VARS,
@@ -239,6 +248,9 @@ export type { AgentRecord, AgentVersionRecord, ToolBindingRecord, AgentRepositor
 export { createRuntime } from "./runtime/create-runtime";
 export { StubRuntime } from "./runtime/stub-runtime";
 export { AiSdkRuntime } from "./runtime/ai-sdk-runtime";
+export { invokeToolGuarded } from "./runtime/invoke-guarded";
+export { runWithToolIoSink, reportToolIo, takeLastToolIo } from "./runtime/tool-io";
+export type { ToolIoRecord } from "./runtime/tool-io";
 export type { AgentRuntime, RuntimeEvent, RunUsage } from "./runtime/types";
 export { mapStreamPart } from "./runtime/stream-parts";
 export {

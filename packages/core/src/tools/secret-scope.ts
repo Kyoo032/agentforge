@@ -4,6 +4,7 @@ export type ToolSecretScope = {
   secrets: Record<string, string>;
   backends: Record<string, string>;
   disabledTools?: string[];
+  injectionGuardBypass?: boolean;
 };
 
 const storage = new AsyncLocalStorage<ToolSecretScope>();
@@ -28,4 +29,8 @@ export function getToolSelection(capability: string): string | undefined {
 
 export function getDisabledTools(): string[] {
   return storage.getStore()?.disabledTools ?? [];
+}
+
+export function getInjectionGuardBypass(): boolean {
+  return storage.getStore()?.injectionGuardBypass === true;
 }

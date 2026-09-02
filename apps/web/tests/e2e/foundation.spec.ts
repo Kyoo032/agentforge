@@ -62,6 +62,9 @@ test("chat and build work without an account", async ({ page }) => {
   await expect(page.getByTestId("fal-key")).toBeVisible();
   await expect(page.getByTestId("image_gen-backend")).toBeVisible();
   await expect(page.getByTestId("video_gen-backend")).toBeVisible();
+  await expect(page.getByTestId("tool-enabled-calculator")).toBeVisible();
+  await expect(page.getByTestId("injection-guard-bypass")).toBeVisible();
+  await expect(page.getByTestId("injection-guard-bypass")).not.toBeChecked();
 
   await page.getByTestId("mode-agents").click();
   await page.getByTestId("new-agent-link").click();

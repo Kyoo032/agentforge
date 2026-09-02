@@ -79,6 +79,15 @@ describe("mergeSecrets", () => {
     const untouched = mergeSecrets(set, { openaiApiKey: "sk-x" });
     expect(untouched.disabledTools).toEqual(["image_generate", "web_search"]);
   });
+
+  it("stores injectionGuardBypass only when true (default absent = protected)", () => {
+    const enabled = mergeSecrets({}, { injectionGuardBypass: true });
+    expect(enabled.injectionGuardBypass).toBe(true);
+    const cleared = mergeSecrets(enabled, { injectionGuardBypass: false });
+    expect(cleared.injectionGuardBypass).toBeUndefined();
+    const untouched = mergeSecrets(enabled, { openaiApiKey: "sk-x" });
+    expect(untouched.injectionGuardBypass).toBe(true);
+  });
 });
 
 describe("maskSecrets", () => {
@@ -110,6 +119,7 @@ describe("maskSecrets", () => {
       researchGenModel: undefined,
       presentationGenModel: undefined,
       disabledTools: [],
+      injectionGuardBypass: false,
     });
   });
 
@@ -159,6 +169,11 @@ describe("maskSecrets", () => {
     expect(masked.videoGenModel).toBe("grok-imagine-video");
     expect(masked.documentGenModel).toBe("claude-sonnet-5");
     expect(masked.disabledTools).toEqual(["calculator"]);
+  });
+
+  it("masks injectionGuardBypass as false when absent", () => {
+    expect(maskSecrets({}).injectionGuardBypass).toBe(false);
+    expect(maskSecrets({ injectionGuardBypass: true }).injectionGuardBypass).toBe(true);
   });
 });
 

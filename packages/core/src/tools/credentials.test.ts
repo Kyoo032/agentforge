@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildToolSecretScope, resolveToolBackend, secretMapFromSettings } from "./credentials";
-import { getDisabledTools, runWithToolSecrets } from "./secret-scope";
+import { getDisabledTools, getInjectionGuardBypass, runWithToolSecrets } from "./secret-scope";
 
 describe("resolveToolBackend", () => {
   it("keeps a stored selection even when another vendor key is present", () => {
@@ -147,5 +147,16 @@ describe("buildToolSecretScope / getDisabledTools", () => {
       expect(getDisabledTools()).toEqual(["image_generate", "web_search"]);
     });
     expect(getDisabledTools()).toEqual([]);
+  });
+
+  it("copies injectionGuardBypass into the ALS scope (default false)", () => {
+    expect(getInjectionGuardBypass()).toBe(false);
+    const protectedScope = buildToolSecretScope({}, {} as NodeJS.ProcessEnv);
+    expect(protectedScope.injectionGuardBypass).toBe(false);
+    const open = buildToolSecretScope({ injectionGuardBypass: true }, {} as NodeJS.ProcessEnv);
+    runWithToolSecrets(open, () => {
+      expect(getInjectionGuardBypass()).toBe(true);
+    });
+    expect(getInjectionGuardBypass()).toBe(false);
   });
 });

@@ -78,6 +78,7 @@ export default function SettingsPage() {
   const [toolCatalog, setToolCatalog] = useState<ToolCapability[]>([]);
   const [toolRoutes, setToolRoutes] = useState<Record<string, ToolRoute>>({});
   const [disabledTools, setDisabledTools] = useState<string[]>([]);
+  const [injectionGuardBypass, setInjectionGuardBypass] = useState(false);
   const [imageGenModel, setImageGenModel] = useState(DEFAULT_GATEWAY_IMAGE_MODEL);
   const [videoGenModel, setVideoGenModel] = useState(DEFAULT_GATEWAY_VIDEO_MODEL);
   const [documentGenModel, setDocumentGenModel] = useState("");
@@ -114,6 +115,7 @@ export default function SettingsPage() {
     researchGenModel?: string;
     presentationGenModel?: string;
     disabledTools?: string[];
+    injectionGuardBypass?: boolean;
     modes?: ModeLists;
     defaults?: ModeDefaults;
     usage?: AccountUsage;
@@ -135,6 +137,7 @@ export default function SettingsPage() {
     setHasToolKeys(payload.hasToolKeys ?? {});
     setToolBackends(payload.toolBackends ?? {});
     setDisabledTools(Array.isArray(payload.disabledTools) ? payload.disabledTools : []);
+    setInjectionGuardBypass(payload.injectionGuardBypass === true);
     setImageGenModel(
       typeof payload.imageGenModel === "string" && payload.imageGenModel.trim()
         ? payload.imageGenModel.trim()
@@ -225,6 +228,7 @@ export default function SettingsPage() {
         researchGenModel,
         presentationGenModel,
         disabledTools,
+        injectionGuardBypass,
       }),
     }).then((res) => res.json());
     setBusy(false);
@@ -566,6 +570,21 @@ export default function SettingsPage() {
                         </label>
                       );
                     })}
+                    <label className="flex items-start gap-2 text-sm text-ink">
+                      <input
+                        type="checkbox"
+                        className="mt-1"
+                        checked={injectionGuardBypass}
+                        onChange={(event) => setInjectionGuardBypass(event.target.checked)}
+                        data-testid="injection-guard-bypass"
+                      />
+                      <span>
+                        Allow untrusted tool content (bypass injection checks)
+                        <span className="mt-0.5 block text-xs text-ink/50">
+                          Off by default. Turn this on only if you trust every tool result and attached file.
+                        </span>
+                      </span>
+                    </label>
                   </div>
                   <label className="block text-sm text-ink">
                     Default Documents model
