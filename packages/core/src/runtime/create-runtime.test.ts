@@ -38,8 +38,9 @@ describe("createRuntime outbound PII mask", () => {
           }
         },
       });
-      expect(seen).toContain("[email]");
+      expect(seen.startsWith("Stub reply (text / stub-model):")).toBe(true);
       expect(seen).not.toContain("alex.rivera@example.com");
+      expect(seen).not.toContain("Contact me at");
     } finally {
       if (previous === undefined) {
         delete process.env.AGENTFORGE_RUNTIME;

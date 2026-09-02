@@ -28,7 +28,7 @@ Preconditions:
 
 - **Open Chat.** Go to `/chat`. `model-picker`, `composer`, and `chat-empty` are visible. `chat-empty` contains `Ask anything`. `mode-chat` and `mode-agents` are visible. `mode-images`, `mode-videos`, `mode-presentations`, `mode-documents`, `mode-research` have count 0 unless this workspace already has a custom agent.
 - **Usage chip.** `chat-usage` is visible in the Chat header (next to `new-chat`). On stub / no key, it settles on `No key saved` (may briefly show `…` while loading). With a live key saved, expect `Unlimited` or `<used> used · <left> left` (USD); `Usage unavailable` means the host could not read this-key usage — record it, do not treat as a Chat send fail.
-- **Send.** Fill `composer-text` with the unique prompt. Click `composer-send`. `message-list` contains that prompt (20s). On stub, the assistant text starts with `Stub reply (text /` and includes the prompt (or `ready`). `composer-send` reads `Send` again (30s). `thread-list` contains the prompt.
+- **Send.** Fill `composer-text` with the unique prompt. Click `composer-send`. `message-list` contains that prompt (20s). On stub, the assistant text starts with `Stub reply (text /` and is an **answer**, not a copy of the prompt. Arithmetic like `What is 2 + 3?` must include `2 + 3 = 5`. `composer-send` reads `Send` again (30s). `thread-list` contains the prompt.
 - **New session.** Click `new-chat`. `chat-empty` contains `Ask anything` again (10s).
 - **Second send.** Fill and send a second unique prompt. `message-list` and `thread-list` contain it.
 - **Switch.** Click the `thread-item` whose text is the first prompt. `message-list` contains the first prompt.
@@ -43,5 +43,5 @@ Preconditions:
 - Cursor's Next overlay can inject `data-cursor-ref` and eat clicks. Report it; do not retry by coordinates forever.
 - Sending on `runtime: "ai"` spends the operator's gateway. Do not do that as a silent stub check.
 - MiniMax M3 (`minimax-m3`) streams thinking in `reasoning_content` / `reasoning_details` unless Agentforge rewrites the chunk. Live proof is the operator desktop against Toko Token, **not** Hermes serve. Stub Chat does not exercise MiniMax.
-- Arithmetic in the prompt (`2 + 3`) can fire the calculator tool in stub if that binding is on. Assert the user prompt and `Send`, not a fixed assistant sentence.
+- Arithmetic in the prompt (`2 + 3`) fires the silent calculator tool on default Chat. The **assistant bubble** must show `2 + 3 = 5`, not echo `What is 2 + 3?`. The tool chip stays hidden (`calculator` is a silent tool).
 - Do not POST `/api/v1/chat` as a substitute for the composer.
