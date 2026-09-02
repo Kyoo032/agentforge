@@ -43,10 +43,10 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 - [Settings](./settings.md) — form, privacy note, stub/live runtime, Usage panel (this key vs desk estimate in USD, spend-by-model bars), extras keys hidden until opened.
 - [Build](./build.md) — blank/default templates, studio UUID, share workspace, agent chat, generate default pickers when Images/Videos are on.
 - [Models](./models.md) — curated Chat picker, doctor modeKeys/chatCount/curation, Advanced disclosure (Phase 1 ids optional until present).
-- [Workspaces](./workspaces.md) — rail `workspaces-link` (both states), create/list/open desks.
+- [Workspaces](./workspaces.md) — rail `workspaces-link` (both states), template chips, create/list/open desks, pack seeding.
 - [Templates](./templates.md) — mode example galleries (Images first); Phase 2B gallery testids; skip until present.
 - [PII](./pii.md) — Chat warn-on-send banner and send-anyway; Phase 3; skip until present.
-- [Studio advanced](./studio-advanced.md) — post-create soul/tools/model edit; Save publishes a new version; Phase 2A; skip until present.
+- [Studio advanced](./studio-advanced.md) — post-create soul/tools/model edit; `save-soul` publishes a new version.
 - [Documents](./documents.md) — starters, preview, section regen (503 without a key), DOCX download from a starter.
 - [Images](./images.md) — studio shell after an agent unlocks the tab; needs-key without a gateway key.
 - [Videos](./videos.md) — studio shell and `videos-studio-needs-key` without a key.
