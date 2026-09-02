@@ -1,9 +1,9 @@
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "@/lib/nav";
 import { ChatThreadList } from "@/components/chat-thread-list";
 import { ChatSession } from "@/components/chat-session";
 
 export function ChatPage() {
-  const [params] = useSearchParams();
+  const params = useSearchParams();
   const thread = params.get("thread") ?? undefined;
   return (
     <div className="flex h-full min-h-0 overflow-hidden">

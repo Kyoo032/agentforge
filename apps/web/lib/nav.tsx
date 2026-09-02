@@ -3,11 +3,17 @@ import {
   useLocation,
   useNavigate,
   useParams,
-  useSearchParams,
+  useSearchParams as useRrSearchParams,
   type LinkProps as RouterLinkProps,
 } from "react-router-dom";
+import { useMemo, useRef } from "react";
 
-export { useParams, useSearchParams };
+export { useParams };
+
+export function useSearchParams(): URLSearchParams {
+  const [params] = useRrSearchParams();
+  return params;
+}
 
 type LinkProps = Omit<RouterLinkProps, "to"> & {
   href?: string;
@@ -24,15 +30,20 @@ export function usePathname(): string {
 
 export function useRouter() {
   const navigate = useNavigate();
-  return {
-    push: (to: string) => {
-      void navigate(to);
-    },
-    replace: (to: string) => {
-      void navigate(to, { replace: true });
-    },
-    refresh: () => {
-      window.dispatchEvent(new Event("agentforge-shell-refresh"));
-    },
-  };
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
+  return useMemo(
+    () => ({
+      push: (to: string) => {
+        void navigateRef.current(to);
+      },
+      replace: (to: string) => {
+        void navigateRef.current(to, { replace: true });
+      },
+      refresh: () => {
+        window.dispatchEvent(new Event("agentforge-shell-refresh"));
+      },
+    }),
+    [],
+  );
 }

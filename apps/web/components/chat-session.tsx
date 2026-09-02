@@ -106,8 +106,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
     const id = created.thread.id as string;
     threadIdRef.current = id;
     setThreadId(id);
-    const next = `${chatPath()}?thread=${id}`;
-    window.history.replaceState(window.history.state, "", next);
+    router.replace(`${chatPath()}?thread=${id}`);
     notifyThreadsChanged();
     return id;
   }
