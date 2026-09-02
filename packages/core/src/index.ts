@@ -120,6 +120,7 @@ export {
 } from "./models/context-length";
 export type { ContextSource, ModelsDevRegistry } from "./models/context-length";
 export {
+  CHAT_DEFAULT_PREFERENCES,
   chooseDefaultModel,
   pickPreferredModel,
   pickerGroups,
@@ -133,6 +134,7 @@ export {
   routeModelsByKind,
   pickPreferredImageModel,
   pickPreferredVideoModel,
+  firstLiveId,
   DEFAULT_GATEWAY_IMAGE_MODEL,
   DEFAULT_GATEWAY_VIDEO_MODEL,
 } from "./models/media-kind";

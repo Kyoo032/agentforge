@@ -49,10 +49,11 @@ describe("mediaKind", () => {
 });
 
 describe("pickPreferredImageModel", () => {
-  it("prefers gpt-image-2 over Midjourney action ids", () => {
+  it("prefers gpt-image-2, then Seedream 5.0 Pro", () => {
     expect(
-      pickPreferredImageModel(["mj_imagine", "z-image-turbo", "gpt-image-2", "gpt-image-2-count"]),
+      pickPreferredImageModel(["mj_imagine", "z-image-turbo", "gpt-image-2", "seedream-5.0-pro", "gpt-image-2-count"]),
     ).toBe("gpt-image-2");
+    expect(pickPreferredImageModel(["mj_imagine", "seedream-5.0-pro", "z-image-turbo"])).toBe("seedream-5.0-pro");
   });
 
   it("falls back to the kernel default", () => {
@@ -62,15 +63,15 @@ describe("pickPreferredImageModel", () => {
 });
 
 describe("pickPreferredVideoModel", () => {
-  it("prefers Seedance 2.0 Fast over Grok Imagine and full Seedance 2.0", () => {
-    expect(pickPreferredVideoModel(["mj_video", "seedance-2.0-fast", "grok-imagine-video"])).toBe(
-      "seedance-2.0-fast",
+  it("prefers cheap Grok Imagine over Seedance quality ids", () => {
+    expect(pickPreferredVideoModel(["mj_video", "seedance-2.5", "seedance-2.0-fast", "grok-imagine-video"])).toBe(
+      "grok-imagine-video",
     );
-    expect(pickPreferredVideoModel(["seedance-2.0-mini", "grok-imagine-video"])).toBe("seedance-2.0-mini");
+    expect(pickPreferredVideoModel(["omni-fast-v2v", "seedance-2.5"])).toBe("omni-fast-v2v");
+    expect(pickPreferredVideoModel(["seedance-2.0-mini", "seedance-2.0-fast"])).toBe("seedance-2.0-mini");
     expect(pickPreferredVideoModel(["doubao-seedance-2-0-260128", "doubao-seedance-2-0-fast-260128"])).toBe(
-      DEFAULT_GATEWAY_VIDEO_MODEL,
+      "doubao-seedance-2-0-260128",
     );
-    expect(pickPreferredVideoModel(["happyhorse-1.1-t2v", "seedance-2.0-fast"])).toBe("seedance-2.0-fast");
   });
 
   it("falls back to the kernel default", () => {

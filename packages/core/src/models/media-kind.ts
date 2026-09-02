@@ -5,11 +5,12 @@ export const MEDIA_KINDS: MediaKind[] = ["chat", "image", "video", "audio", "oth
 export type RoutedModels<T extends { id: string }> = Record<MediaKind, T[]>;
 
 export const DEFAULT_GATEWAY_IMAGE_MODEL = "gpt-image-2";
-export const DEFAULT_GATEWAY_VIDEO_MODEL = "seedance-2.0-fast";
+export const DEFAULT_GATEWAY_VIDEO_MODEL = "grok-imagine-video";
 
-const IMAGE_PREF = ["gpt-image-2"];
+const IMAGE_PREF = ["gpt-image-2", "seedream-5.0-pro", "doubao-seedream-5-0-pro-260628"];
 
-const VIDEO_PREF = ["seedance-2.0-fast", "seedance-2.0-mini"];
+/** Cheap t2v first. Seedance 2.5 stays in the picker as the quality option. */
+const VIDEO_PREF = ["grok-imagine-video", "omni-fast-v2v", "grok-imagine-video-1.5-preview"];
 
 const OTHER =
   /(^|\/)(text-)?embedding|babbage|davinci|computer-use|omni-moderation|text-moderation|moderation/i;
@@ -60,17 +61,24 @@ export function routeModelsByKind<T extends { id: string }>(models: T[]): Routed
   return routed;
 }
 
-function firstPresent(preferred: string[], ids: string[]): string | undefined {
-  const available = new Set(ids);
-  return preferred.find((id) => available.has(id));
+/** Return the live catalog spelling of the first preferred id (case-insensitive). */
+export function firstLiveId(preferred: string[], ids: string[]): string | undefined {
+  const byLower = new Map(ids.map((id) => [id.toLowerCase(), id]));
+  for (const want of preferred) {
+    const hit = byLower.get(want.toLowerCase());
+    if (hit) {
+      return hit;
+    }
+  }
+  return undefined;
 }
 
 export function pickPreferredImageModel(ids: string[]): string {
   const usable = ids.filter((id) => mediaKind(id) === "image" && !id.toLowerCase().startsWith("mj_"));
-  return firstPresent(IMAGE_PREF, usable) ?? usable[0] ?? DEFAULT_GATEWAY_IMAGE_MODEL;
+  return firstLiveId(IMAGE_PREF, usable) ?? usable[0] ?? DEFAULT_GATEWAY_IMAGE_MODEL;
 }
 
 export function pickPreferredVideoModel(ids: string[]): string {
   const usable = ids.filter((id) => mediaKind(id) === "video" && !id.toLowerCase().startsWith("mj_"));
-  return firstPresent(VIDEO_PREF, usable) ?? DEFAULT_GATEWAY_VIDEO_MODEL;
+  return firstLiveId(VIDEO_PREF, usable) ?? usable[0] ?? DEFAULT_GATEWAY_VIDEO_MODEL;
 }

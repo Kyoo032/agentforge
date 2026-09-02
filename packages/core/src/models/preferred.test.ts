@@ -7,7 +7,21 @@ function model(id: string): ChatModel {
 }
 
 describe("pickPreferredModel", () => {
-  it("defaults to GPT-5.6 when the live list also has DeepSeek V4", () => {
+  it("defaults to GPT-5.6 Luna when the live list also has Sol and DeepSeek", () => {
+    expect(
+      pickPreferredModel([
+        model("gpt-4o-mini"),
+        model("gpt-5-mini"),
+        model("gpt-5.6-sol"),
+        model("gpt-5.6-luna"),
+        model("deepseek-v4-flash"),
+        model("deepseek-v4-pro"),
+        model("claude-sonnet-5"),
+      ]),
+    ).toBe("gpt-5.6-luna");
+  });
+
+  it("defaults to GPT-5.6 Sol when Luna is absent", () => {
     expect(
       pickPreferredModel([
         model("gpt-4o-mini"),
@@ -20,10 +34,11 @@ describe("pickPreferredModel", () => {
     ).toBe("gpt-5.6-sol");
   });
 
-  it("falls through to DeepSeek V4, Claude 5, Kimi, then GLM", () => {
+  it("falls through to DeepSeek V4 Flash, MiniMax M3, Claude 5, Kimi, then GLM", () => {
     expect(pickPreferredModel([model("gpt-4o-mini"), model("deepseek-v4-flash"), model("claude-sonnet-5")])).toBe(
       "deepseek-v4-flash",
     );
+    expect(pickPreferredModel([model("gpt-4o-mini"), model("MiniMax-M3"), model("claude-sonnet-5")])).toBe("MiniMax-M3");
     expect(pickPreferredModel([model("gpt-4o-mini"), model("claude-opus-5"), model("kimi-k2.6")])).toBe("claude-opus-5");
     expect(pickPreferredModel([model("kimi-k2.6"), model("kimi-k3"), model("glm-5.2")])).toBe("kimi-k3");
     expect(pickPreferredModel([model("glm-5"), model("glm-5.3"), model("gpt-4o-mini")])).toBe("glm-5.3");
@@ -44,21 +59,18 @@ describe("sortChatModels", () => {
 });
 
 describe("recommendedChatModels", () => {
-  it("returns one pick per preferred family", () => {
+  it("recommends Luna, Flash, and MiniMax M3 when they are live", () => {
     const picks = recommendedChatModels([
       model("deepseek-v4-flash"),
       model("gpt-5.6-sol"),
+      model("gpt-5.6-luna"),
       model("claude-sonnet-5"),
+      model("MiniMax-M3"),
       model("kimi-k2.6"),
       model("glm-5.2"),
       model("gpt-4o-mini"),
     ]);
-    expect(picks.map((item) => item.id)).toEqual([
-      "deepseek-v4-flash",
-      "gpt-5.6-sol",
-      "claude-sonnet-5",
-      "kimi-k2.6",
-    ]);
+    expect(picks.map((item) => item.id)).toEqual(["gpt-5.6-luna", "deepseek-v4-flash", "MiniMax-M3"]);
   });
 
   it("contains only everyday models when everyday models exist", () => {
@@ -69,7 +81,7 @@ describe("recommendedChatModels", () => {
       model("deepseek-v4-flash"),
       model("weird-lab-model"),
     ]);
-    expect(picks.map((item) => item.id)).toEqual(["deepseek-v4-flash", "gpt-5.6-sol"]);
+    expect(picks.map((item) => item.id)).toEqual(["deepseek-v4-flash"]);
     expect(picks.every((item) => item.id === "default" || /^(gpt-|deepseek-|claude-|kimi-|gemini-|grok-|minimax-)/i.test(item.id))).toBe(
       true,
     );
@@ -188,7 +200,37 @@ describe("chooseDefaultModel", () => {
     ).toBe("default");
   });
 
-  it("uses GPT-5.6 when the live endpoint listed it, even if DeepSeek is also listed", () => {
+  it("uses GPT-5.6 Luna over Sol when both are live", () => {
+    expect(
+      chooseDefaultModel(
+        [model("gpt-5.6-sol"), model("gpt-5.6-luna"), model("deepseek-v4-pro")],
+        ["gpt-5.6-sol", "gpt-5.6-luna", "deepseek-v4-pro"],
+        "gpt-5.6-sol",
+      ),
+    ).toBe("gpt-5.6-luna");
+  });
+
+  it("uses DeepSeek V4 Flash when Luna is absent, even if Sol is live", () => {
+    expect(
+      chooseDefaultModel(
+        [model("gpt-5.6-sol"), model("deepseek-v4-flash"), model("deepseek-v4-pro")],
+        ["gpt-5.6-sol", "deepseek-v4-flash", "deepseek-v4-pro"],
+        "gpt-5.6-sol",
+      ),
+    ).toBe("deepseek-v4-flash");
+  });
+
+  it("matches MiniMax M3 case-insensitively", () => {
+    expect(
+      chooseDefaultModel(
+        [model("gpt-5.6-sol"), model("MiniMax-M3")],
+        ["gpt-5.6-sol", "MiniMax-M3"],
+        "gpt-5.6-sol",
+      ),
+    ).toBe("MiniMax-M3");
+  });
+
+  it("uses GPT-5.6 when the live endpoint listed it, even if DeepSeek Pro is also listed", () => {
     expect(chooseDefaultModel(catalog, ["deepseek-v4-pro", "gpt-5.6-sol", "gpt-4o-mini"], "gpt-5.6-sol")).toBe(
       "gpt-5.6-sol",
     );

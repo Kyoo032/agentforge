@@ -54,7 +54,7 @@ Packs live in their own packages. They seed `productModes` + tools + prompt. The
 
 ### Chat
 
-Default gateway chat: model picker, composer, its own sessions (`GET /api/v1/threads?scope=chat`). Uses the **chat** bucket from the live `/v1/models` probe. No specialist chips. No Build. Generate tools may remain bound so a sentence in Chat can still create media; that is not a substitute for the Images / Videos pages.
+Default gateway chat: model picker, composer, its own sessions (`GET /api/v1/threads?scope=chat`). Uses the **chat** bucket from the live `/v1/models` probe. Default / Recommended are small everyday models (`gpt-5.6-luna`, `deepseek-v4-flash`, MiniMax M3) when live — not Sol/Pro. No specialist chips. No Build. Generate tools may remain bound so a sentence in Chat can still create media; that is not a substitute for the Images / Videos pages.
 
 ### Agents
 
@@ -62,23 +62,23 @@ Custom agents platform: catalog at `/agents`, Build at `/studio/new`, talk at `/
 
 ### Documents
 
-Job, not a Word editor. Prompt → JSON sections → HTML preview → download `.docx`. Direct `/api/v1/documents` — not `/runs/*`. Uses the chat catalog with a writing-first preferred default (Claude / Kimi / GLM / GPT-5 family when live). Settings can override the default.
+Job, not a Word editor. Prompt → JSON sections → HTML preview → download `.docx`. Direct `/api/v1/documents` — not `/runs/*`. Uses the chat catalog with a cheap writing default (`hy3` when live, else `deepseek-v4-flash`). Settings can override the default.
 
 ### Research
 
-Job, not Westlaw / Harvey / Kimi Deep Research. Question → `web_search` hits → sourced notes preview → Markdown download. Fails visibly without a gateway key or a Tavily/Brave key. Uses the chat catalog with a tool/reasoning preferred default (DeepSeek / GPT-5.6 / Claude when live).
+Job, not Westlaw / Harvey / Kimi Deep Research. Question → `web_search` hits → sourced notes preview → Markdown download. Fails visibly without a gateway key or a Tavily/Brave key. Uses the chat catalog with a cheap default (`gpt-5.6-luna` or MiniMax M3 when live).
 
 ### Images
 
-Lumina-style **generate** studio: prompt bar + result gallery. Not a canvas editor. Calls generate helpers / gateway image APIs directly — not `/runs/image`. The picker lists **every** gateway image id from `/v1/models` (including Midjourney `mj_*`). Default remains `gpt-image-2` when present.
+Lumina-style **generate** studio: prompt bar + result gallery. Not a canvas editor. Calls generate helpers / gateway image APIs directly — not `/runs/image`. The picker lists **every** gateway image id from `/v1/models` (including Midjourney `mj_*`). Default is `gpt-image-2` when present, then Seedream 5.0 Pro.
 
 ### Videos
 
-Same pattern for video: prompt, aspect, optional still (`image_url`), gallery. Direct generate path — not `/runs/video`. The picker lists **every** gateway video id. Default remains `seedance-2.0-fast` when present.
+Same pattern for video: prompt, aspect, optional still (`image_url`), gallery. Direct generate path — not `/runs/video`. The picker lists **every** gateway video id. Cheap default is `grok-imagine-video` (or `omni-fast-v2v`); Seedance 2.5 stays in the picker as the quality option.
 
 ### Presentation
 
-Kimi Slides **job** (topic → deck file), not Kimi Slides **product**. Prompt → JSON outline → HTML preview in-app → Download PPTX. No in-browser slide editor. Uses the chat catalog with a structured-outline preferred default (`gpt-5.6-sol` / Claude / GLM when live).
+Kimi Slides **job** (topic → deck file), not Kimi Slides **product**. Prompt → JSON outline → HTML preview in-app → Download PPTX. No in-browser slide editor. Uses the chat catalog with a cheap GLM default (`glm-5.2-fast-preview` / `glm-5.2` when live; Kimi K3 is the quality pick in the picker).
 
 ### Settings
 

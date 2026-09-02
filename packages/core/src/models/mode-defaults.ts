@@ -1,4 +1,4 @@
-import { pickPreferredImageModel, pickPreferredVideoModel } from "./media-kind";
+import { firstLiveId, pickPreferredImageModel, pickPreferredVideoModel } from "./media-kind";
 
 export type JobMode = "documents" | "research" | "presentations";
 
@@ -13,22 +13,20 @@ export type ModeModelDefaults = {
 
 /** Ranked hints against the live chat catalog — not a closed allowlist. */
 export const JOB_MODE_PREFERENCES: Record<JobMode, string[]> = {
-  documents: [
-    "claude-sonnet-5",
-    "claude-opus-5",
-    "kimi-k3",
+  documents: ["hy3", "hy-3", "hunyuan-3", "hunyuan3", "deepseek-v4-flash"],
+  research: ["gpt-5.6-luna", "MiniMax-M3", "minimax-m3"],
+  presentations: [
+    "glm-5.3-flash",
+    "glm-5.3-flash-preview",
+    "glm-5.2-fast-preview",
+    "glm-5.2",
     "glm-5.3",
-    "gpt-5.6-sol",
-    "gpt-5.5",
-    "gpt-5",
+    "kimi-k3",
   ],
-  research: ["deepseek-v4-pro", "gpt-5.6-sol", "claude-sonnet-5", "kimi-k3", "glm-5.3"],
-  presentations: ["gpt-5.6-sol", "claude-sonnet-5", "glm-5.3", "gemini-3.5-flash", "kimi-k3"],
 };
 
 export function pickPreferredJobModel(mode: JobMode, chatIds: string[], fallback: string): string {
-  const available = new Set(chatIds);
-  return JOB_MODE_PREFERENCES[mode].find((id) => available.has(id)) ?? fallback;
+  return firstLiveId(JOB_MODE_PREFERENCES[mode], chatIds) ?? fallback;
 }
 
 export function resolveModeDefaults(input: {
