@@ -4,6 +4,32 @@
 
 Install it on your machine, paste a gateway API key, and work. No account. No cloud tenant. Your chats, workspaces, and media stay on disk.
 
+> Do not confuse **Toko Token** (`api.tokotokenai.com`) with TokenKu.
+
+## Download and install
+
+You need the installer, not a clone of this repo. Node and pnpm are not required.
+
+| OS | Installer |
+|----|-----------|
+| **Windows** | [Agentforge Setup 0.1.0.exe](https://github.com/Kyoo032/agentforge/releases/download/v0.1.0/Agentforge%20Setup%200.1.0.exe) (~168 MB, unsigned) |
+| **macOS** | `.dmg` not published yet. It must be built on a Mac; it will land on the [same Releases page](https://github.com/Kyoo032/agentforge/releases/tag/v0.1.0) when it exists. |
+
+Windows: run the Setup exe, then open **Agentforge** from the Start menu.
+
+The installer is unsigned. Windows SmartScreen may warn; that is expected in closed beta. Choose **More info** → **Run anyway** if you trust the operator who sent you this build.
+
+All current builds: [Releases](https://github.com/Kyoo032/agentforge/releases).
+
+## After install
+
+1. Open Agentforge
+2. Open **Settings**
+3. Paste your Toko Token gateway API key
+4. Start in **Chat**
+
+Until a key is saved, Chat still works in offline demo mode.
+
 ## What you get
 
 | Mode | What it does |
@@ -16,88 +42,22 @@ Install it on your machine, paste a gateway API key, and work. No account. No cl
 | **Presentation** | Prompt → outline → HTML preview + PPTX |
 | **Workspaces** | Optional desks (Legal, Marketing, Students, or custom tabs) |
 
-Settings holds the gateway key (and optional extras). Keys never leave the host process after save.
+Settings holds the gateway key. The raw key never comes back after save.
 
-> Do not confuse **Toko Token** (`api.tokotokenai.com`) with TokenKu.
-
-## Requirements
-
-- Node.js 20+
-- pnpm 9.15.9
-- A Toko Token gateway API key for live models (optional for stub/offline smoke)
-- **Windows installer builds:** Developer Mode (or an elevated shell) for Next standalone symlinks
-
-## Quick start (webdev)
-
-```bash
-npx pnpm@9.15.9 install
-npx pnpm@9.15.9 dev
-```
-
-Open [http://127.0.0.1:3000/chat](http://127.0.0.1:3000/chat). No login.
-
-1. Open **Settings**
-2. Paste your gateway API key
-3. Start in **Chat**
-
-Until a key is saved, the app runs in stub mode so the UI is usable offline.
-
-```bash
-# optional seed data
-npx pnpm@9.15.9 db:seed
-```
-
-SQLite lives at `data/agentforge.sqlite` (or `AGENTFORGE_DATA_DIR`). Do not set `DATABASE_URL` to Postgres.
-
-## Desktop app
-
-| Mode | Command | Bind | Data |
-|------|---------|------|------|
-| Webdev window | `pnpm desktop:dev` | `:3000` (may reuse `pnpm dev`) | repo `data/` |
-| Packaged install | `pnpm desktop:build` | ephemeral loopback **≠ 3000** | Electron userData |
-
-```bash
-pnpm desktop:dev          # Electron around local webdev
-pnpm desktop:build        # Windows NSIS (product path)
-pnpm desktop:build:mac    # run on macOS
-pnpm desktop:build:linux  # run on Linux
-```
-
-Packaged Agentforge never reuses port 3000. Details: [`apps/desktop/README.md`](apps/desktop/README.md).
-
-## Repo layout
-
-```
-apps/web            Next.js UI + /api/v1 (local owner, loopback only)
-apps/desktop        Electron shell + installer
-packages/core       Runtime, tools, product modes
-packages/db         SQLite schema + migrations
-packages/legal      Optional Legal workspace pack
-packages/marketing  Optional Marketing workspace pack
-packages/university Optional Students workspace pack
-docs/               Product docs (see below)
-```
-
-## Docs
-
-- [`docs/product-modes.md`](docs/product-modes.md) — nav modes and packs
-- [`docs/mobile.md`](docs/mobile.md) — desktop / loopback only (no mobile app)
-- [`docs/closed-beta.md`](docs/closed-beta.md) — tester checklist
-- [`apps/desktop/README.md`](apps/desktop/README.md) — installer and ports
-
-Engineering notes live under [`docs/internal/`](docs/internal/).
+Invited testers: [`docs/closed-beta.md`](docs/closed-beta.md). There is no mobile app — [`docs/mobile.md`](docs/mobile.md).
 
 ## Privacy (closed beta)
 
 - Gateway key → encrypted `settings.enc` (AES-256-GCM)
-- Wrap key → OS keychain (Electron) or local `data/.master-key` (webdev)
+- Wrap key → OS keychain
 - Message bodies and tool I/O encrypted at rest on your machine
 - Remote inference URLs must be HTTPS (loopback `http://` only for local models such as Ollama)
-- Never commit `.env`, `data/settings.enc`, or `data/.master-key`
+
+Never share `.env`, `settings.enc`, or your gateway key.
 
 ## Status
 
-This repository is in **closed beta**. Expect sharp edges, unsigned Windows installs, and APIs that may still change. Feedback from invited testers goes to the operator — this is not a public support channel yet.
+Closed beta. Unsigned Windows installs, sharp edges, APIs that may change. Feedback from invited testers goes to the operator — this is not a public support channel yet.
 
 ## License
 

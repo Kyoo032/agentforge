@@ -1,14 +1,16 @@
 # Closed beta checklist
 
-For invited testers. Primary surface: **Chrome** at `http://127.0.0.1:3000` (`pnpm dev`), or the packaged Windows installer when you have it.
+For invited testers. Use the **installed app** — Windows Setup exe or macOS dmg from [Releases](https://github.com/Kyoo032/agentforge/releases). Do not clone the repo or run a local web server.
 
 ## Before you start
 
-1. From the repo root: `npx pnpm@9.15.9 install` then `npx pnpm@9.15.9 dev`
-2. Open Chrome (not Cursor’s IDE browser — the Next overlay can steal clicks) at `http://127.0.0.1:3000/chat`
+1. Download the installer for your OS from [v0.1.0](https://github.com/Kyoo032/agentforge/releases/tag/v0.1.0) (Windows exe is up; macOS dmg when published)
+2. Install and open **Agentforge** from the Start menu (Windows) or Applications (macOS)
 3. Paste your Toko Token gateway key in **Settings** when you want live models
 
-Stub mode (no key) still exercises Chat, threads, and most UI offline.
+Without a key, Chat still works in offline demo mode.
+
+Windows SmartScreen may warn because the installer is unsigned. **More info** → **Run anyway** if you trust this build.
 
 ## What to try
 
@@ -19,10 +21,9 @@ Stub mode (no key) still exercises Chat, threads, and most UI offline.
 
 ## Notes
 
-- First visit to a route in webdev can be cold (Next compile). Click through once before a timed walkthrough.
-- Packaged Electron uses a different loopback port and its own data dir — do not treat `pnpm desktop:dev` on `:3000` as installer proof. See [`apps/desktop/README.md`](../apps/desktop/README.md).
-- There is no mobile app. A phone on the LAN cannot reach Chat by design — [`docs/mobile.md`](mobile.md).
+- There is no mobile app. Agentforge is local to your machine — [`docs/mobile.md`](mobile.md).
+- First launch can take up to a minute while the bundled server starts.
 
 ## Secrets
 
-Never paste a production gateway key into a shared Cloud VM, a PR comment, or git. Keep keys on the machine you own.
+Never paste a production gateway key into a shared machine, a PR comment, or git. Keep keys on the machine you own.
