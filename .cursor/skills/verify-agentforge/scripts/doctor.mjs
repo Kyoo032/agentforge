@@ -146,6 +146,11 @@ try {
 
 const runtime = payload.runtime ?? "(missing)";
 const hasOpenai = Boolean(payload.hasOpenai);
+const openaiKeyFingerprint =
+  typeof payload.openaiKeyFingerprint === "string" ? payload.openaiKeyFingerprint.trim() : "";
+const keyFingerprint = Boolean(
+  hasOpenai && openaiKeyFingerprint.startsWith("sha256:") && openaiKeyFingerprint.length > "sha256:".length,
+);
 
 let models;
 try {
@@ -190,6 +195,7 @@ const report = {
   chatStatus: chat.status,
   runtime,
   hasOpenai,
+  keyFingerprint,
   modeKeys,
   chatCount,
   curation,

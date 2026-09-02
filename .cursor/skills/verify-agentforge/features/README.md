@@ -45,7 +45,8 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 - [Models](./models.md) — curated Chat picker, doctor modeKeys/chatCount/curation, Advanced disclosure (Phase 1 ids optional until present).
 - [Workspaces](./workspaces.md) — rail `workspaces-link` (both states), template chips, create/list/open desks, pack seeding.
 - [Templates](./templates.md) — example galleries on all five mode studios; click pre-fills the prompt.
-- [PII](./pii.md) — Chat warn-on-send banner and send-anyway; Phase 3; skip until present.
+- [PII](./pii.md) — Chat warn-on-send banner (`pii-warning`) and send-anyway (`pii-send-anyway`).
+- [Security](./security.md) — saved-key fingerprint on Simple Settings (`key-fingerprint`); TLS note on `privacy-note`; at-rest envelope is existing work.
 - [Studio advanced](./studio-advanced.md) — post-create soul/tools/model edit; `save-soul` publishes a new version.
 - [Documents](./documents.md) — starters, preview, section regen (503 without a key), DOCX download from a starter.
 - [Images](./images.md) — studio shell after an agent unlocks the tab; needs-key without a gateway key.

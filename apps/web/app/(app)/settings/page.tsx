@@ -60,6 +60,7 @@ export default function SettingsPage() {
   const [hasGoogle, setHasGoogle] = useState(false);
   const [hasAnthropic, setHasAnthropic] = useState(false);
   const [hasVolcengine, setHasVolcengine] = useState(false);
+  const [openaiKeyFingerprint, setOpenaiKeyFingerprint] = useState<string | null>(null);
   const [runtime, setRuntime] = useState<"ai" | "stub">("stub");
   const [openaiApiKey, setOpenaiApiKey] = useState("");
   const [googleApiKey, setGoogleApiKey] = useState("");
@@ -96,6 +97,7 @@ export default function SettingsPage() {
     hasGoogle?: boolean;
     hasAnthropic?: boolean;
     hasVolcengine?: boolean;
+    openaiKeyFingerprint?: string | null;
     runtime?: string;
     openaiBaseUrl?: string;
     googleBaseUrl?: string;
@@ -120,6 +122,11 @@ export default function SettingsPage() {
     setHasGoogle(Boolean(payload.hasGoogle));
     setHasAnthropic(Boolean(payload.hasAnthropic));
     setHasVolcengine(Boolean(payload.hasVolcengine));
+    setOpenaiKeyFingerprint(
+      typeof payload.openaiKeyFingerprint === "string" && payload.openaiKeyFingerprint.trim()
+        ? payload.openaiKeyFingerprint.trim()
+        : null,
+    );
     setRuntime(payload.runtime === "ai" ? "ai" : "stub");
     setOpenaiBaseUrl(typeof payload.openaiBaseUrl === "string" ? payload.openaiBaseUrl : "");
     setGoogleBaseUrl(typeof payload.googleBaseUrl === "string" ? payload.googleBaseUrl : "");
@@ -350,6 +357,11 @@ export default function SettingsPage() {
                   data-testid="openai-key"
                 />
               </label>
+              {hasOpenai && openaiKeyFingerprint ? (
+                <p className="mt-1 text-xs text-ink/50" data-testid="key-fingerprint">
+                  Saved key fingerprint {openaiKeyFingerprint}
+                </p>
+              ) : null}
               {error ? <p className="text-sm text-red-700">{error}</p> : null}
               {message ? <p className="text-sm text-ink/60">{message}</p> : null}
               <UsagePanel usage={usage} />

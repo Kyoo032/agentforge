@@ -43,6 +43,7 @@ test("chat and build work without an account", async ({ page }) => {
   await expect(page.getByTestId("settings-form")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId("settings-tab-simple")).toBeVisible();
   await expect(page.getByTestId("privacy-note")).toBeVisible();
+  await expect(page.getByTestId("key-fingerprint")).toHaveCount(0);
   await expect(page.getByTestId("runtime-status")).toContainText("stub", { timeout: 15_000 });
   await expect(page.getByTestId("usage-panel")).toBeVisible();
   await expect(page.getByTestId("usage-this-key")).toContainText("Paste a gateway key");

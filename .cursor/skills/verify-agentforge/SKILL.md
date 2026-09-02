@@ -80,7 +80,7 @@ node .cursor/skills/verify-agentforge/scripts/doctor.mjs
 node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop
 ```
 
-It is read-only. Default GETs `/chat` and `/api/v1/settings` on `http://127.0.0.1:3000`. `--desktop` uses the packaged URL (override either with `AGENTFORGE_VERIFY_URL`, still must be loopback). Exit `0` prints JSON: `url`, `surface`, `chatStatus`, `runtime`, `hasOpenai`, `dataDir`. Exit `1` means do not drive.
+It is read-only. Default GETs `/chat` and `/api/v1/settings` on `http://127.0.0.1:3000`. `--desktop` uses the packaged URL (override either with `AGENTFORGE_VERIFY_URL`, still must be loopback). Exit `0` prints JSON: `url`, `surface`, `chatStatus`, `runtime`, `hasOpenai`, `keyFingerprint`, `dataDir`. Exit `1` means do not drive. `keyFingerprint` is `true` only when a gateway key is saved and `openaiKeyFingerprint` is a non-empty `sha256:` string. Cloud/GHA have no key — expect `false`, do not fail.
 
 Refuse to drive when:
 
@@ -139,7 +139,7 @@ Use `page.getByTestId("<id>")` exactly as the spec. Wait for `/studio/<uuid>`, n
 | `settings-link` | Rail → Settings |
 | `model-picker`, `composer`, `composer-text`, `composer-send` | Chat |
 | `chat-empty`, `message-list`, `thread-list`, `thread-item`, `new-chat` | Threads |
-| `settings-form`, `openai-base-url`, `openai-key`, `runtime-status`, `privacy-note`, `usage-panel`, `usage-this-key`, `usage-desk-estimate`, `usage-key-meter`, `usage-by-model`, `usage-model-chart` | Settings |
+| `settings-form`, `openai-base-url`, `openai-key`, `key-fingerprint`, `runtime-status`, `privacy-note`, `usage-panel`, `usage-this-key`, `usage-desk-estimate`, `usage-key-meter`, `usage-by-model`, `usage-model-chart` | Settings |
 | `create-agent`, `template-blank`, `template-default`, `template-students`, `template-marketing`, `template-legal`, `studio-agent-name` | Build |
 | `images-studio`, `images-studio-needs-key`, `videos-studio`, `videos-studio-needs-key` | Studios |
 

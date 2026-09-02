@@ -1,4 +1,5 @@
 import { guessDialectFromKey, guessDialectFromUrl, DEFAULT_OPENAI_BASE_URL, isDefaultOpenAIBaseUrl, resolvedOpenAIBaseUrl } from "./models/probe";
+import { keyFingerprintOrNull } from "./security/fingerprint";
 import { maskToolKeys } from "./tools/credentials";
 
 export type StoredSecrets = {
@@ -33,6 +34,11 @@ export type MaskedSecrets = {
   hasGoogle: boolean;
   hasAnthropic: boolean;
   hasVolcengine: boolean;
+  /** SHA-256 prefix of the saved gateway key, or null when none. Never the raw secret. */
+  openaiKeyFingerprint: string | null;
+  googleKeyFingerprint: string | null;
+  anthropicKeyFingerprint: string | null;
+  volcengineKeyFingerprint: string | null;
   openaiBaseUrl?: string;
   googleBaseUrl?: string;
   anthropicBaseUrl?: string;
@@ -147,6 +153,10 @@ export function maskSecrets(current: StoredSecrets): MaskedSecrets {
     hasGoogle: Boolean(current.googleApiKey),
     hasAnthropic: Boolean(current.anthropicApiKey),
     hasVolcengine: Boolean(current.volcengineApiKey),
+    openaiKeyFingerprint: keyFingerprintOrNull(current.openaiApiKey),
+    googleKeyFingerprint: keyFingerprintOrNull(current.googleApiKey),
+    anthropicKeyFingerprint: keyFingerprintOrNull(current.anthropicApiKey),
+    volcengineKeyFingerprint: keyFingerprintOrNull(current.volcengineApiKey),
     openaiBaseUrl: current.openaiBaseUrl || DEFAULT_OPENAI_BASE_URL,
     googleBaseUrl: current.googleBaseUrl,
     anthropicBaseUrl: current.anthropicBaseUrl,
