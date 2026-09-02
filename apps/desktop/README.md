@@ -1,5 +1,7 @@
 # Agentforge desktop
 
+Operator / agent only. Humans install from [GitHub Releases](https://github.com/Kyoo032/agentforge/releases), not this file.
+
 Electron shell around the local Next UI. **Two modes:**
 
 | Mode | Command / install | Loopback | Data |
