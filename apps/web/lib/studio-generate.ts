@@ -4,6 +4,7 @@ import {
   buildToolSecretScope,
   imageGenerateTool,
   listToolRoutes,
+  maskPii,
   mediaKind,
   pickPreferredImageModel,
   pickPreferredVideoModel,
@@ -140,7 +141,7 @@ export async function generateStudioImage(
   const output = await runWithToolSecrets(scope, () =>
     imageGenerateTool.execute(
       {
-        prompt: body.prompt,
+        prompt: maskPii(body.prompt),
         aspect_ratio: body.aspect,
         image_url: body.imageUrl,
         model,
@@ -186,7 +187,7 @@ export async function generateStudioVideo(
   const output = await runWithToolSecrets(scope, () =>
     videoGenerateTool.execute(
       {
-        prompt: body.prompt,
+        prompt: maskPii(body.prompt),
         aspect_ratio: body.aspect,
         image_url: body.imageUrl,
         model,

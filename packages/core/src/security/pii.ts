@@ -1,4 +1,13 @@
+import type { ContentPart } from "../content/types";
+
 export type PiiKind = "email" | "phone" | "id" | "card";
+
+export const PII_MASK: Record<PiiKind, string> = {
+  email: "[email]",
+  phone: "[phone]",
+  id: "[id]",
+  card: "[card]",
+};
 
 export type PiiFinding = {
   kind: PiiKind;
@@ -141,6 +150,43 @@ const KIND_LABEL: Record<PiiKind, string> = {
   id: "ID numbers",
   card: "card numbers",
 };
+
+/** Replace findings with stable tokens. The original string is not mutated. */
+export function maskPii(text: string): string {
+  const findings = scanPii(text);
+  if (findings.length === 0) {
+    return text;
+  }
+  const ordered = [...findings].sort((left, right) => {
+    if (right.index !== left.index) {
+      return right.index - left.index;
+    }
+    return right.match.length - left.match.length;
+  });
+  let result = text;
+  for (const finding of ordered) {
+    result =
+      result.slice(0, finding.index) + PII_MASK[finding.kind] + result.slice(finding.index + finding.match.length);
+  }
+  return result;
+}
+
+export function maskPiiInParts(parts: ContentPart[]): ContentPart[] {
+  return parts.map((part) => (part.type === "text" ? { ...part, text: maskPii(part.text) } : part));
+}
+
+export function maskOutboundRunInput<
+  T extends {
+    version: { systemPrompt: string };
+    history: Array<{ role: "user" | "assistant"; parts: ContentPart[] }>;
+  },
+>(input: T): T {
+  return {
+    ...input,
+    version: { ...input.version, systemPrompt: maskPii(input.version.systemPrompt) },
+    history: input.history.map((item) => ({ ...item, parts: maskPiiInParts(item.parts) })),
+  };
+}
 
 export function piiWarning(findings: PiiFinding[]): string | null {
   if (findings.length === 0) {

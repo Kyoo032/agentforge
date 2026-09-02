@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { piiWarning, scanPii } from "@agentforge/core/pii";
 import { consumeSse } from "@/lib/sse-client";
 import {
   COMPOSER_FILE_ACCEPT,
@@ -76,34 +75,8 @@ export function ChatComposer({
   const [files, setFiles] = useState<HeldFile[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [piiBanner, setPiiBanner] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
-  const confirmedPiiTextRef = useRef<string | null>(null);
-  const pendingPiiTextRef = useRef<string | null>(null);
-
-  function clearPiiConfirm() {
-    confirmedPiiTextRef.current = null;
-    pendingPiiTextRef.current = null;
-    setPiiBanner(null);
-  }
-
-  /** Warn-only: abort unless this exact text was confirmed via send-anyway. */
-  function abortIfUnconfirmedPii(scanText: string): boolean {
-    const findings = scanPii(scanText);
-    if (findings.length === 0) {
-      setPiiBanner(null);
-      return false;
-    }
-    if (confirmedPiiTextRef.current === scanText) {
-      setPiiBanner(null);
-      return false;
-    }
-    pendingPiiTextRef.current = scanText;
-    setPiiBanner(piiWarning(findings));
-    setBusy(false);
-    return true;
-  }
 
   const pickerModels = models ?? [];
   const showPicker = typeof onModelChange === "function";
@@ -161,7 +134,6 @@ export function ChatComposer({
     }
     setFiles(next);
     setError(null);
-    clearPiiConfirm();
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -169,7 +141,6 @@ export function ChatComposer({
 
   function removeFile(id: string) {
     setFiles((current) => current.filter((item) => item.id !== id));
-    clearPiiConfirm();
   }
 
   async function send() {
@@ -211,11 +182,6 @@ export function ChatComposer({
         return;
       }
 
-      const scanText = decision.route === "text" ? outgoing : composedText;
-      if (abortIfUnconfirmedPii(scanText)) {
-        return;
-      }
-
       if (decision.route === "text") {
         const id = onEnsureThread ? await onEnsureThread() : threadId;
         if (!id) {
@@ -240,7 +206,6 @@ export function ChatComposer({
         }
         setText("");
         setFiles([]);
-        clearPiiConfirm();
         await readSse(response);
         await onComplete();
         return;
@@ -295,7 +260,6 @@ export function ChatComposer({
       }
       setText("");
       setFiles([]);
-      clearPiiConfirm();
       await readSse(response);
       await onComplete();
     } catch (err) {
@@ -324,7 +288,6 @@ export function ChatComposer({
         value={text}
         onChange={(event) => {
           setText(event.target.value);
-          clearPiiConfirm();
         }}
         data-testid="composer-text"
       />
@@ -357,25 +320,6 @@ export function ChatComposer({
             </li>
           ))}
         </ul>
-      ) : null}
-      {piiBanner ? (
-        <div className="mt-2 flex flex-wrap items-start gap-2 rounded-lg border border-mist bg-mist/40 px-3 py-2">
-          <p className="min-w-0 flex-1 text-sm text-ink" data-testid="pii-warning" role="status">
-            {piiBanner}
-          </p>
-          <button
-            type="button"
-            className="shrink-0 rounded-md border border-mist bg-paper px-3 py-1.5 text-sm text-ink"
-            data-testid="pii-send-anyway"
-            disabled={busy}
-            onClick={() => {
-              confirmedPiiTextRef.current = pendingPiiTextRef.current;
-              void send();
-            }}
-          >
-            Send anyway
-          </button>
-        </div>
       ) : null}
       {error ? <p className="mt-2 text-sm text-red-700">{error}</p> : null}
       <div className="mt-3 flex items-center gap-2">

@@ -45,7 +45,7 @@ export type { EncryptedEnvelope } from "./crypto/envelope";
 export { isLoopbackHost, assertAllowedEndpointUrl } from "./security/tls";
 export { redactSecrets } from "./security/redact";
 export { keyFingerprint, keyFingerprintOrNull } from "./security/fingerprint";
-export { scanPii, piiWarning } from "./security/pii";
+export { scanPii, maskPii, maskPiiInParts, maskOutboundRunInput, piiWarning, PII_MASK } from "./security/pii";
 export type { PiiKind, PiiFinding } from "./security/pii";
 export { isOpenRouterBaseUrl, openRouterZdrBody } from "./privacy/openrouter";
 export { mergeOpenRouterZdr } from "./runtime/ai-sdk-runtime";

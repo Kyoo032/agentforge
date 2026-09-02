@@ -1,43 +1,37 @@
 # PII
 
-Chat composer warns on send when the prompt looks like it contains personal data (email, phone, ID, card). Scanning is local regex (`@agentforge/core/pii`), warn-only — never a hard block.
+Chat (and other model runs) keep the prompt the owner typed. Before that text becomes the model/tool prompt, the host replaces local PII matches with `[email]`, `[phone]`, `[id]`, or `[card]`. There is no warn banner and no Send anyway — the system handles it.
 
 ## Sub-features
 
-- `pii-warning` shows the warn-on-send banner when the composer text matches local PII patterns. Banner copy is `piiWarning(findings)`.
-- `pii-send-anyway` is the control that confirms this exact text and actually sends.
-- `pii-local-scan` runs in the client with regex only — no remote classifier. Import `@agentforge/core/pii`, not the core barrel.
-- `pii-warn-only` never hard-blocks send; the user can always proceed via send-anyway.
+- `pii-keep-original` the composer and `message-list` show the exact text the owner sent.
+- `pii-mask-outbound` `createRuntime()` masks `systemPrompt` and history text parts before stub or live execute. Image/video studio tools and research search queries use the same `maskPii`.
+- `pii-local-scan` is regex only (`scanPii` / `maskPii` in `@agentforge/core/pii`). No remote classifier.
+- `pii-no-banner` `pii-warning` and `pii-send-anyway` are gone. A lone `@` is not PII.
 
 ## How to get to it (user POV)
 
 - Open Chat (`/chat` or `mode-chat`).
-- Type an email or phone number into the composer (`composer-text`).
-- Attempt send; read the warning and choose Send anyway if you mean it.
+- Type a prompt that includes an email (or phone). Send as usual.
+- Your bubble still has the email. The model only sees `[email]` (stub reply includes that token).
 
 ## Driving it with the Agentforge harness
 
 Preconditions:
 
 - Doctor exits 0.
-- `runtime: "stub"` for a stub-proof send (or record live if doctor says `ai`).
-- `pii-warning` and `pii-send-anyway` are landed on the composer.
+- `runtime: "stub"` for a stub-proof send.
 
-Contract:
-
-- **Open Chat.** Go to `/chat`. `composer-text` and `composer-send` are visible.
-- **Trigger warn.** Fill `composer-text` with a unique prompt that includes a clear email (e.g. `VERIFY pii <run-id> contact me at verify@example.com`). Click `composer-send`. `pii-warning` is visible (10s). The message is not yet in `message-list` as a committed send until send-anyway.
-- **Send anyway.** Click `pii-send-anyway`. `message-list` contains the prompt (20s). `composer-send` returns to `Send`.
-- **Re-warn.** After a successful send, or when the composer text changes, the next PII-shaped prompt warns again. Confirm is per exact text, not a session-wide dismiss.
-- **Non-trigger.** A prompt with a lone `@` that is not an email (`hello @ world`) must not show `pii-warning` on send.
-- **Routes.** The same warn applies to every composer send that posts user text (text / image / video), not only the text branch.
-- **IDE proof.** Screenshot under `evidence/pii/<run-id>/` with the banner visible, then after send-anyway with the prompt in the transcript.
-- **Cloud.** Same steps in the stub suite; existing foundation sends have no email/phone and must keep working without the banner.
+- **Open Chat.** Go to `/chat`. `composer-text` and `composer-send` are visible. `pii-warning` count is 0.
+- **Send original.** Fill `composer-text` with `VERIFY pii <run-id> contact me at verify@example.com`. Click `composer-send`. `message-list` contains that exact email (20s). `composer-send` returns to `Send`.
+- **Outbound mask.** The stub assistant line contains `[email]` and does not repeat `verify@example.com`.
+- **Non-trigger.** `hello @ world` sends with no mask token and no banner.
+- **IDE proof.** Screenshot under `evidence/pii/<run-id>/` with the original email in the user bubble and `[email]` in the stub reply.
+- **Cloud.** Foundation sends have no email — they must still pass. Do not add a banner assert.
 
 ## Gotchas
 
-- Warn-on-send must not fire on every `@`. Bare mentions without an email/phone shape are not PII hits. `scanPii("hello @ world")` is empty.
-- Long digit runs in a verify id (e.g. `p3-1788314364511`) can also match ID/phone. That is still warn-only — do not treat extra kinds as a fail if the email/phone you planted is mentioned.
-- `pii-send-anyway` must actually send. A banner that traps the user is a product bug.
-- This is warn-only — never treat a missing hard-block as a fail.
-- Do not paste real personal data into Cloud evidence. Use synthetic `example.com` addresses and fake numbers.
+- Masking is host-side, on the way into the model. Do not look for a Chat banner.
+- Long digit runs in a verify id can also become `[id]` / `[phone]` in the stub reply. The user bubble still has the original id.
+- Do not paste real personal data into Cloud evidence. Use `example.com` addresses.
+- `scanPii("hello @ world")` is empty — no mask.
