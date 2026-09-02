@@ -1,16 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { showsToolActivity, toolActivityLabel } from "./tool-labels";
+import { showsToolActivity, showsToolSpinner, toolActivityLabel, toolCallSummary } from "./tool-labels";
 
 describe("tool-labels", () => {
-  it("hides activity for fast silent tools", () => {
-    expect(showsToolActivity("calculator")).toBe(false);
-    expect(showsToolActivity("datetime")).toBe(false);
-  });
-
-  it("shows activity for slower or visible tools", () => {
-    expect(showsToolActivity("web_search")).toBe(true);
-    expect(showsToolActivity("image_generate")).toBe(true);
-    expect(showsToolActivity("video_generate")).toBe(true);
+  it("shows every tool in the transcript, with a compact spinner for calculator", () => {
+    expect(showsToolActivity("calculator")).toBe(true);
+    expect(showsToolSpinner("calculator")).toBe(false);
+    expect(showsToolSpinner("web_search")).toBe(true);
   });
 
   it("uses plain-language activity labels", () => {
@@ -19,5 +14,11 @@ describe("tool-labels", () => {
     expect(toolActivityLabel("video_generate")).toBe("Creating video…");
     expect(toolActivityLabel("past_sessions")).toBe("Looking up past chats…");
     expect(toolActivityLabel("custom_pack_tool")).toBe("Working…");
+  });
+
+  it("summarizes calculator input and output", () => {
+    expect(toolCallSummary("calculator", { expression: "2 + 3" }, { result: 5 })).toBe(
+      "Calculator · 2 + 3 → 5",
+    );
   });
 });

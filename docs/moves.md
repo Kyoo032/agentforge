@@ -15,6 +15,14 @@ Format:
 
 ---
 
+## 2026-09-02 — mac/linux desktop targets + mobile docs only
+
+- **What:** electron-builder targets and honest surface docs
+- **From:** Windows-only `desktop-build` (`--win nsis` + `check-symlink.mjs`); doctor `--desktop` treated non-Windows as `~/.config/Agentforge/app-url.txt` (wrong on macOS); no mobile map
+- **To:** Keep `pnpm desktop:build` as Windows NSIS x64. Add `pnpm desktop:build:mac` (dmg+zip, x64+arm64, unsigned, no notarization) and `pnpm desktop:build:linux` (AppImage+deb x64). mac/linux scripts skip `check-symlink.mjs`. Doctor `--desktop` reads Windows `%APPDATA%\Agentforge` (+ legacy scoped folder), Linux `$XDG_CONFIG_HOME/Agentforge` or `~/.config/Agentforge`, macOS `~/Library/Application Support/Agentforge`. Mobile is docs only (`docs/mobile.md` + verify `features/mobile.md`): no iOS/Android/Capacitor; a phone on LAN `:3000` is not a product surface.
+- **Why:** Packaged userData is OS-specific. Cloud cannot prove the existing Windows NSIS exe. Phones are not this week's product.
+- **Not in this move:** a Cloud/Linux NSIS rebuild; notarized Mac builds; any mobile binary.
+
 ## 2026-08-31 — Packaged app does not use port 3000
 
 - **What:** Packaged Electron loopback bind

@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { DocumentPreview } from "@/components/document-preview";
+import { ExampleGallery } from "@/components/example-gallery";
 import type { DocumentDraft } from "@/lib/document-outline";
 import { DOCUMENT_STARTERS } from "@/lib/job-starters";
 
@@ -154,6 +155,8 @@ export function DocumentsStudio() {
           ) : null}
         </div>
       ) : null}
+
+      <ExampleGallery mode="documents" onSelect={(entry) => setPrompt(entry.prompt)} />
 
       <div className="mt-8 flex-1">
         {draft ? (

@@ -5,30 +5,20 @@
  *   node .cursor/skills/verify-agentforge/scripts/doctor.mjs
  *       → webdev prototype at http://127.0.0.1:3000
  *   node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop
- *       → packaged app URL from %APPDATA%/Agentforge/app-url.txt
+ *       → packaged app URL from Electron userData app-url.txt:
+ *         Windows: %APPDATA%/Agentforge/app-url.txt
+ *                  (legacy: %APPDATA%/@agentforge/desktop/app-url.txt)
+ *         Linux:   $XDG_CONFIG_HOME/Agentforge/app-url.txt
+ *                  or ~/.config/Agentforge/app-url.txt
+ *         macOS:   ~/Library/Application Support/Agentforge/app-url.txt
  *   AGENTFORGE_VERIFY_URL=http://127.0.0.1:PORT node …/doctor.mjs
  *       → explicit loopback (overrides both)
  */
 import { readFileSync, existsSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
+import { desktopAppUrlCandidates, packagedSqliteHint } from "./desktop-app-url.mjs";
 
 const WEBDEV_URL = "http://127.0.0.1:3000";
 const desktopFlag = process.argv.includes("--desktop");
-
-function desktopAppUrlCandidates() {
-  if (process.platform === "win32") {
-    const roaming = process.env.APPDATA?.trim();
-    if (roaming) {
-      return [
-        join(roaming, "Agentforge", "app-url.txt"),
-        // Pre-setName installs used the scoped npm package folder.
-        join(roaming, "@agentforge", "desktop", "app-url.txt"),
-      ];
-    }
-  }
-  return [join(homedir(), ".config", "Agentforge", "app-url.txt")];
-}
 
 function desktopAppUrlPath() {
   const candidates = desktopAppUrlCandidates();
@@ -146,6 +136,48 @@ try {
 
 const runtime = payload.runtime ?? "(missing)";
 const hasOpenai = Boolean(payload.hasOpenai);
+const openaiKeyFingerprint =
+  typeof payload.openaiKeyFingerprint === "string" ? payload.openaiKeyFingerprint.trim() : "";
+const keyFingerprint = Boolean(
+  hasOpenai && openaiKeyFingerprint.startsWith("sha256:") && openaiKeyFingerprint.length > "sha256:".length,
+);
+
+let models;
+try {
+  models = await get("/api/v1/models");
+} catch (error) {
+  fail(`GET ${BASE}/api/v1/models failed`, String(error));
+}
+
+if (models.status !== 200) {
+  fail(`GET /api/v1/models returned ${models.status}`, models.text.slice(0, 400));
+}
+
+let modelsPayload;
+try {
+  modelsPayload = JSON.parse(models.text);
+} catch {
+  fail("models response was not JSON", models.text.slice(0, 400));
+}
+
+const modesObj =
+  modelsPayload.modes && typeof modelsPayload.modes === "object" && !Array.isArray(modelsPayload.modes)
+    ? modelsPayload.modes
+    : {};
+const modeKeys = Object.keys(modesObj);
+const modelsList = Array.isArray(modelsPayload.models) ? modelsPayload.models : [];
+const chatCount = modelsList.length;
+const hasTopLevelCuration =
+  modelsPayload.curation != null &&
+  (typeof modelsPayload.curation === "object" || typeof modelsPayload.curation === "boolean");
+const hasPerModelCuration = modelsList.some(
+  (entry) =>
+    entry &&
+    typeof entry === "object" &&
+    ("bestFor" in entry || "tier" in entry || "curation" in entry),
+);
+const curation = Boolean(hasTopLevelCuration || hasPerModelCuration);
+
 const report = {
   ok: true,
   url: BASE,
@@ -153,9 +185,13 @@ const report = {
   chatStatus: chat.status,
   runtime,
   hasOpenai,
+  keyFingerprint,
+  modeKeys,
+  chatCount,
+  curation,
   dataDir: process.env.AGENTFORGE_DATA_DIR || "unset (webdev default: <repo>/data; packaged: Electron userData)",
   sqliteHint: desktopFlag
-    ? "%APPDATA%/Agentforge/agentforge.sqlite"
+    ? packagedSqliteHint()
     : "data/agentforge.sqlite under AGENTFORGE_DATA_DIR or repo data/",
 };
 

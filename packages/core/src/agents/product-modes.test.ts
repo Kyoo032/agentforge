@@ -111,13 +111,25 @@ describe("firstVisibleHref and hidden redirects", () => {
     expect(firstVisibleHref(["images", "videos"])).toBe("/images");
   });
 
-  it("redirects hidden generate studios but keeps Build and agent talk", () => {
+  it("redirects hidden generate studios but never core surfaces", () => {
     const visible = ["chat", "documents"] as const;
     expect(redirectIfHiddenMode("/videos", [...visible])).toBe("/chat");
+    expect(redirectIfHiddenMode("/images", [...visible])).toBe("/chat");
+    expect(redirectIfHiddenMode("/research", [...visible])).toBe("/chat");
+    expect(redirectIfHiddenMode("/presentations", [...visible])).toBe("/chat");
+    expect(redirectIfHiddenMode("/documents", [...visible])).toBeNull();
     expect(redirectIfHiddenMode("/chat", [...visible])).toBeNull();
     expect(redirectIfHiddenMode("/studio/new", [...visible])).toBeNull();
     expect(redirectIfHiddenMode("/agents/abc", [...visible])).toBeNull();
-    expect(redirectIfHiddenMode("/agents", [...visible])).toBe("/chat");
+    expect(redirectIfHiddenMode("/agents", [...visible])).toBeNull();
     expect(redirectIfHiddenMode("/settings", [...visible])).toBeNull();
+    expect(redirectIfHiddenMode("/workspaces", [...visible])).toBeNull();
+  });
+
+  it("keeps /chat and /agents even when those tabs are off the rail", () => {
+    const visible = ["documents"] as const;
+    expect(redirectIfHiddenMode("/chat", [...visible])).toBeNull();
+    expect(redirectIfHiddenMode("/agents", [...visible])).toBeNull();
+    expect(redirectIfHiddenMode("/images", [...visible])).toBe("/documents");
   });
 });

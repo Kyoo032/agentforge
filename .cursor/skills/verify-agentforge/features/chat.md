@@ -1,10 +1,14 @@
 # Chat
 
-Chat is the default assistant: model picker, composer, and its own sessions. No account. Stub replies without a gateway key; a saved key uses the live Toko Token gateway.
+Chat is the default assistant: model picker, composer, thinking toggle, usage chip, and its own sessions. The same `ChatSession` powers `/chat` and `/agents/<uuid>`. Stub replies without a gateway key; a saved key uses the live Toko Token gateway.
+
+A turn is three layers: **Thinking** (collapsible), **tools** (one row per call), **output** (the answer only — never a copy of the prompt, never a `Stub reply` prefix).
 
 ## Sub-features
 
 - `chat-open` shows the empty Chat home with composer and model picker.
+- `chat-usage` shows the Chat header chip (`chat-usage`): loading (`…`), then `No key saved` (stub / needs_key), `Unlimited`, `<used> used · <left> left`, or `Usage unavailable`.
+- `chat-thinking` shows `thinking-toggle` next to the model picker. On by default. Off skips reasoning events. Reasoning models also carry a `model-thinking-badge` in the picker.
 - `chat-send` puts the user prompt in the transcript and returns the send button to `Send`.
 - `chat-new` starts a blank session from `new-chat` without losing the previous thread in the list.
 - `chat-switch` reopens the first thread from `thread-list`.
@@ -14,6 +18,7 @@ Chat is the default assistant: model picker, composer, and its own sessions. No 
 
 - Open `http://127.0.0.1:3000/chat`.
 - Choose `Chat` on the left rail (`mode-chat`).
+- Open a custom agent from Agents (`/agents/<uuid>`) — same composer, thinking, tools, and output.
 - `/` redirects to the first visible mode (Chat on a default desk).
 
 ## Driving it with the Agentforge harness
@@ -21,24 +26,28 @@ Chat is the default assistant: model picker, composer, and its own sessions. No 
 Preconditions:
 
 - Doctor exits 0 against `http://127.0.0.1:3000`.
-- You are proving Chat, not a specialist agent (`/agents/<uuid>` is Build).
+- You are proving Chat, not a specialist agent (`/agents/<uuid>` is Build) unless the step says agent chat.
 - Unique prompt text, e.g. `VERIFY chat <run-id>: What is 2 + 3?`.
 - `runtime: "stub"` for a stub-proof send. If doctor says `ai`, say so and treat the reply as live.
 
-- **Open Chat.** Go to `/chat`. `model-picker`, `composer`, and `chat-empty` are visible. `chat-empty` contains `Ask anything`. `mode-chat` and `mode-agents` are visible. `mode-images`, `mode-videos`, `mode-presentations`, `mode-documents`, `mode-research` have count 0 unless this workspace already has a custom agent.
-- **Send.** Fill `composer-text` with the unique prompt. Click `composer-send`. `message-list` contains that prompt (20s). On stub, the assistant text starts with `Stub reply (text /` and includes the prompt (or `ready`). `composer-send` reads `Send` again (30s). `thread-list` contains the prompt.
+- **Open Chat.** Go to `/chat`. `model-picker`, `composer`, `thinking-toggle`, and `chat-empty` are visible. `chat-empty` contains `Ask anything`. `mode-chat` and `mode-agents` are visible.
+- **Usage chip.** `chat-usage` is visible in the Chat header (next to `new-chat`). On stub / no key, it settles on `No key saved`.
+- **Send (short).** Fill `composer-text` with the unique prompt. Click `composer-send`. `message-list` contains that prompt (20s). On stub with thinking on, `message-thinking` is present. Arithmetic like `What is 2 + 3?` shows `message-tools` (Calculator) and `message-output` equal to `2 + 3 = 5` — not the question, not `Stub reply`. `composer-send` reads `Send` again (30s). After refresh, thinking + tool + output stay on the turn (they do not vanish).
+- **Longer task.** Same transcript layout if several tools fire (search, then calculator, then prose): stacked `message-tool` rows, then `message-output`. Agent chat at `/agents/<uuid>` uses the same components.
 - **New session.** Click `new-chat`. `chat-empty` contains `Ask anything` again (10s).
 - **Second send.** Fill and send a second unique prompt. `message-list` and `thread-list` contain it.
-- **Switch.** Click the `thread-item` whose text is the first prompt. `message-list` contains the first prompt.
-- **IDE proof.** Screenshot + snapshot under `evidence/chat/<run-id>/` showing the prompt in the transcript and the thread list.
+- **Switch.** Click the `thread-item` whose text is the first prompt. `message-list` contains the first prompt and its answer.
+- **IDE proof.** Screenshot under `evidence/chat/<run-id>/` showing thinking, a tool row, and output.
 - **Cloud.** Same steps via `page.getByTestId` in `foundation.spec.ts` (do not run that spec on Windows).
 
 ## Gotchas
 
 - `new-chat` is the header button on the Chat page. `new-chat-link` is the `+ New chat` control in the session rail. The smoke uses `new-chat`.
 - Wait for `composer-send` text `Send`, not a fixed sleep. Stub and live both hold the button in a busy state.
+- `chat-usage` loads asynchronously from `/api/v1/settings`. Assert the settled label, not the initial `…`.
 - Cursor's Next overlay can inject `data-cursor-ref` and eat clicks. Report it; do not retry by coordinates forever.
 - Sending on `runtime: "ai"` spends the operator's gateway. Do not do that as a silent stub check.
-- MiniMax M3 (`minimax-m3`) streams thinking in `reasoning_content` / `reasoning_details` unless Agentforge rewrites the chunk. Live proof is the operator desktop against Toko Token, **not** Hermes serve. Stub Chat does not exercise MiniMax.
-- Arithmetic in the prompt (`2 + 3`) can fire the calculator tool in stub if that binding is on. Assert the user prompt and `Send`, not a fixed assistant sentence.
+- MiniMax M3 (`minimax-m3`) streams thinking in `reasoning_content`. That belongs in `message-thinking`, not in `message-output`.
+- Arithmetic fires calculator. The **output** is `2 + 3 = 5`. The tool row stays visible after the run.
 - Do not POST `/api/v1/chat` as a substitute for the composer.
+- Documents / Research / Presentation collect `assistant.delta` only (JSON/markdown output). They ignore thinking events on purpose so drafts are not polluted with chain-of-thought.

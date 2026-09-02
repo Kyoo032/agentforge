@@ -10,7 +10,7 @@ Documents, Research, Images, Videos, and Presentation are product modes. Default
 
 - **Webdev:** app answers at `http://127.0.0.1:3000` (never a LAN IP). Doctor with no args.
 - **Packaged desktop:** Electron window; doctor `--desktop`; URL is **not** :3000.
-- SQLite is `data/agentforge.sqlite` (webdev) or `%APPDATA%\Agentforge\agentforge.sqlite` (packaged).
+- SQLite is `data/agentforge.sqlite` (webdev) or Electron userData (packaged: `%APPDATA%\Agentforge`, `$XDG_CONFIG_HOME/Agentforge` or `~/.config/Agentforge`, `~/Library/Application Support/Agentforge`).
 - No product login. A gateway key is optional; stub Chat works without one.
 - Windows: drive webdev with the IDE browser. Drive packaged in the Electron window. Do not run Playwright.
 - Cloud / GHA: `AGENTFORGE_RUNTIME=stub` and Playwright `foundation.spec.ts` against **webdev** :3000.
@@ -42,8 +42,15 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 - [Chat](./chat.md) — composer send, new thread, switch sessions, stub reply.
 - [Settings](./settings.md) — form, privacy note, stub/live runtime, Usage panel (this key vs desk estimate in USD, spend-by-model bars), extras keys hidden until opened.
 - [Build](./build.md) — blank/default templates, studio UUID, share workspace, agent chat, generate default pickers when Images/Videos are on.
+- [Models](./models.md) — curated Chat picker, doctor modeKeys/chatCount/curation, Advanced disclosure (Phase 1 ids optional until present).
+- [Workspaces](./workspaces.md) — rail `workspaces-link` (both states), template chips, create/list/open desks, pack seeding.
+- [Templates](./templates.md) — example galleries on all five mode studios; click pre-fills the prompt.
+- [PII](./pii.md) — host masks outbound prompts (`[email]` / `[phone]` / …); the transcript keeps the typed text.
+- [Security](./security.md) — saved-key fingerprint on Simple Settings (`key-fingerprint`); TLS note on `privacy-note`; at-rest envelope is existing work.
+- [Studio advanced](./studio-advanced.md) — post-create soul/tools/model edit; `save-soul` publishes a new version.
 - [Documents](./documents.md) — starters, preview, section regen (503 without a key), DOCX download from a starter.
 - [Images](./images.md) — studio shell after an agent unlocks the tab; needs-key without a gateway key.
 - [Videos](./videos.md) — studio shell and `videos-studio-needs-key` without a key.
 - [Presentation](./presentations.md) — starters, preview, slide regen (503 without a key), PPTX download from a starter.
-- [Desktop](./desktop.md) — Electron one-window launch, splash → Chat, child teardown on quit.
+- [Desktop](./desktop.md) — Electron one-window launch, splash → Chat, child teardown on quit. Windows NSIS exists; mac/linux are builder targets.
+- [Mobile](./mobile.md) — docs only. No iOS/Android build, no stores, no Capacitor. A phone on LAN `:3000` is not a product surface.

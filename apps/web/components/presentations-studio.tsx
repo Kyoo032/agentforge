@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
+import { ExampleGallery } from "@/components/example-gallery";
 import { PresentationPreview } from "@/components/presentation-preview";
 import type { PresentationOutline } from "@/lib/presentation-outline";
 import { PRESENTATION_STARTERS } from "@/lib/job-starters";
@@ -150,6 +151,8 @@ export function PresentationsStudio() {
           ) : null}
         </div>
       ) : null}
+
+      <ExampleGallery mode="presentations" onSelect={(entry) => setPrompt(entry.prompt)} />
 
       <div className="mt-8 flex-1">
         {outline ? (

@@ -4,6 +4,7 @@ import {
   createRuntime,
   hasLiveProvider,
   listToolRoutes,
+  maskPii,
   resolveChatModel,
   resolveRuntimeMode,
   runWithToolSecrets,
@@ -138,7 +139,9 @@ export async function generateResearchNotes(tenant: TenantContext, body: unknown
   }
 
   const scope = buildToolSecretScope(settings);
-  const searchOutput = await runWithToolSecrets(scope, () => webSearchTool.execute({ query: prompt }, tenant));
+  const searchOutput = await runWithToolSecrets(scope, () =>
+    webSearchTool.execute({ query: maskPii(prompt) }, tenant),
+  );
   const hits = hitsFromSearch(searchOutput);
   const catalog = listSelectableModels();
   const { defaults } = modeCatalogPayload();

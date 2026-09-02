@@ -25,6 +25,8 @@ export type AgentRuntime = {
     version: AgentVersionRecord;
     bindings: ToolBindingRecord[];
     history: Array<{ role: "user" | "assistant"; parts: ContentPart[] }>;
+    /** When false, skip reasoning events (stub) and prefer reasoningEffort none (live). Default true. */
+    thinking?: boolean;
     onEvent: (event: RuntimeEvent) => Promise<void> | void;
   }): Promise<void>;
 };

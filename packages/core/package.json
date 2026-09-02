@@ -8,7 +8,12 @@
     "./gateway": "./src/gateway.ts",
     "./media-kind": "./src/models/media-kind.ts",
     "./preferred": "./src/models/preferred.ts",
-    "./product-modes": "./src/agents/product-modes.ts"
+    "./curation": "./src/models/curation.ts",
+    "./templates": "./src/templates/library.ts",
+    "./pii": "./src/security/pii.ts",
+    "./product-modes": "./src/agents/product-modes.ts",
+    "./video-capabilities": "./src/models/video-capabilities.ts",
+    "./content": "./src/content/transcript.ts"
   },
   "scripts": {
     "test": "vitest run",

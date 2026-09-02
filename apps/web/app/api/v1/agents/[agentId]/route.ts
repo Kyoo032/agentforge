@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isDefaultChatAgent } from "@agentforge/core";
 import { jsonError } from "@/lib/http";
 import { agentService, getTenant } from "@/lib/tenant";
 import { DrizzleAgentRepository, db } from "@agentforge/db";
@@ -20,7 +21,13 @@ export async function GET(_request: Request, context: RouteContext) {
       : [];
     const latest = versions.sort((a, b) => b.version - a.version)[0];
     const draftBindings = latest ? await repo.listBindings(tenant.organizationId, latest.id) : [];
-    return NextResponse.json({ agent, versions, publishedBindings, draftBindings });
+    return NextResponse.json({
+      agent,
+      versions,
+      publishedBindings,
+      draftBindings,
+      isDefaultChat: isDefaultChatAgent(agent),
+    });
   } catch (error) {
     return jsonError(error);
   }

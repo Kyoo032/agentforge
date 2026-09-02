@@ -199,6 +199,20 @@ export function readOptionalModel(body: unknown): string | undefined {
   return trimmed;
 }
 
+export function readOptionalThinking(body: unknown): boolean {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    return true;
+  }
+  const thinking = (body as { thinking?: unknown }).thinking;
+  if (thinking === undefined || thinking === null) {
+    return true;
+  }
+  if (typeof thinking !== "boolean") {
+    throw new ApiError("invalid_request", "thinking must be a boolean", 400);
+  }
+  return thinking;
+}
+
 export function intersectModalities(agent: InputModality[], model: InputModality[]): InputModality[] {
   return INPUT_MODALITIES.filter((modality) => agent.includes(modality) && model.includes(modality));
 }

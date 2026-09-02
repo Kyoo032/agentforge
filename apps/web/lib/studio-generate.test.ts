@@ -49,6 +49,8 @@ describe("parseVideoGenerateBody", () => {
       aspect: "16:9",
       model: undefined,
       imageUrl: undefined,
+      seconds: undefined,
+      resolution: undefined,
     });
   });
 
@@ -70,6 +72,22 @@ describe("parseVideoGenerateBody", () => {
 
   it("rejects square aspect used by images", () => {
     expect(() => parseVideoGenerateBody({ prompt: "x", aspect: "square" })).toThrow(ApiError);
+  });
+
+  it("accepts seconds and resolution knobs", () => {
+    expect(
+      parseVideoGenerateBody({
+        prompt: "waves",
+        seconds: 8,
+        resolution: "1080p",
+      }),
+    ).toMatchObject({
+      prompt: "waves",
+      seconds: 8,
+      resolution: "1080p",
+    });
+    expect(() => parseVideoGenerateBody({ prompt: "x", seconds: 1 })).toThrow(ApiError);
+    expect(() => parseVideoGenerateBody({ prompt: "x", resolution: "4k" })).toThrow(ApiError);
   });
 });
 

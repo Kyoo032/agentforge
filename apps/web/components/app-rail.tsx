@@ -91,6 +91,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
           <Link
             href="/workspaces"
             className={`${itemClass(onWorkspaces, true)} text-xs font-medium`}
+            data-testid="workspaces-link"
             title="Workspaces"
             aria-label="Workspaces"
             aria-current={onWorkspaces ? "page" : undefined}
@@ -154,6 +155,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
         <Link
           href="/workspaces"
           className={itemClass(onWorkspaces)}
+          data-testid="workspaces-link"
           aria-current={onWorkspaces ? "page" : undefined}
         >
           Workspaces

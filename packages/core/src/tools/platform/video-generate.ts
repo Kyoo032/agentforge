@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { GATEWAY_BASE_URL } from "../../gateway";
 import { DEFAULT_GATEWAY_VIDEO_MODEL } from "../../models/media-kind";
+import { clampVideoSeconds } from "../../models/video-capabilities";
 import { ApiError } from "../../errors";
 import { defineTool } from "../define-tool";
 import { missingToolRouteMessage, resolveToolBackend } from "../credentials";
@@ -45,10 +46,12 @@ async function generateWithSeedance(
   apiKey: string,
   baseUrl: string,
   fetchImpl: typeof fetch,
+  seconds?: number,
 ): Promise<{ url: string; model: string; modality: "text" | "image" }> {
   const origin = baseUrl.replace(/\/+$/, "");
+  const duration = clampVideoSeconds(seconds);
   const content: Array<Record<string, unknown>> = [
-    { type: "text", text: `${prompt} --rt ${aspectRatio} --dur 5` },
+    { type: "text", text: `${prompt} --rt ${aspectRatio} --dur ${duration}` },
   ];
   if (imageUrl) {
     content.push({ type: "image_url", image_url: { url: imageUrl } });
@@ -111,8 +114,10 @@ export const videoGenerateTool = defineTool({
     aspect_ratio: z.enum(["16:9", "9:16", "1:1"]).optional().describe("Output aspect ratio"),
     image_url: z.string().url().optional().describe("Optional still image to animate"),
     model: z.string().min(1).optional().describe("Optional catalog video model id"),
+    seconds: z.number().int().min(2).max(12).optional().describe("Clip length in seconds (2–12)"),
+    resolution: z.enum(["480p", "720p", "1080p"]).optional().describe("Output resolution for Seedance-class models"),
   }),
-  execute: async ({ prompt, aspect_ratio, image_url, model }) => {
+  execute: async ({ prompt, aspect_ratio, image_url, model, seconds, resolution }) => {
     const route = resolveToolBackend("video_gen");
     if (!route.ready || !route.envVar) {
       return {
@@ -136,6 +141,8 @@ export const videoGenerateTool = defineTool({
               prompt,
               aspectRatio: aspect,
               imageUrl: image_url,
+              seconds,
+              resolution,
               apiKey,
               model: model || getSecret("VIDEO_GEN_MODEL") || DEFAULT_GATEWAY_VIDEO_MODEL,
               baseUrl: getSecret("OPENAI_BASE_URL") || GATEWAY_BASE_URL,
@@ -149,6 +156,7 @@ export const videoGenerateTool = defineTool({
                 apiKey,
                 getSecret("ARK_BASE_URL") || "https://ark.cn-beijing.volces.com/api/v3",
                 fetchImpl,
+                seconds,
               )
             : await generateWithFal(prompt, image_url, aspect, apiKey, fetchImpl);
       return {

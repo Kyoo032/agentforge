@@ -10,6 +10,7 @@ import {
   type RefObject,
 } from "react";
 import { formatContextLength, pickerGroups } from "@agentforge/core/preferred";
+import { isThinkingModel } from "@agentforge/core/curation";
 
 export type ChatModel = {
   id: string;
@@ -17,6 +18,10 @@ export type ChatModel = {
   provider?: string;
   inputModalities: string[];
   contextLength?: number;
+  /** Optional curation — when present on any model, Everyday/Advanced UI activates. */
+  friendlyLabel?: string;
+  bestFor?: string;
+  tier?: "everyday" | "advanced";
 };
 
 type Props = {
@@ -33,15 +38,35 @@ type FlatEntry = {
   optionId: string;
 };
 
+type DisplayGroup = {
+  label: string;
+  models: ChatModel[];
+};
+
 function modalityTags(mods: string[]): string[] {
   const extra = mods.filter((m) => m !== "text");
   return extra.length > 0 ? extra : [];
 }
 
+function hasCurationFields(models: ChatModel[]): boolean {
+  return models.some(
+    (model) => model.tier != null || model.friendlyLabel != null || model.bestFor != null,
+  );
+}
+
+function displayName(model: ChatModel): string {
+  return model.friendlyLabel ?? model.label;
+}
+
 function matchesQuery(model: ChatModel, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
-  return model.label.toLowerCase().includes(q) || model.id.toLowerCase().includes(q);
+  return (
+    model.label.toLowerCase().includes(q) ||
+    model.id.toLowerCase().includes(q) ||
+    (model.friendlyLabel?.toLowerCase().includes(q) ?? false) ||
+    (model.bestFor?.toLowerCase().includes(q) ?? false)
+  );
 }
 
 export function ModelPicker({ models, value, onChange, disabled, returnFocusRef }: Props) {
@@ -49,24 +74,66 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [highlight, setHighlight] = useState(0);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
+  const curated = useMemo(() => hasCurationFields(models), [models]);
   const selected = models.find((m) => m.id === value) ?? models[0];
   const selectedId = selected?.id ?? "";
 
-  const groups = useMemo(() => {
-    const all = pickerGroups(models);
-    const q = query.trim();
-    if (!q) return all;
-    return all
-      .map((group) => ({
-        ...group,
-        models: group.models.filter((m) => matchesQuery(m, q)),
-      }))
-      .filter((group) => group.models.length > 0);
-  }, [models, query]);
+  const everydayAll = useMemo(
+    () => (curated ? models.filter((m) => m.tier === "everyday") : []),
+    [curated, models],
+  );
+  const advancedAll = useMemo(
+    () => (curated ? models.filter((m) => m.tier !== "everyday") : []),
+    [curated, models],
+  );
+
+  const everydayFiltered = useMemo(
+    () => everydayAll.filter((m) => matchesQuery(m, query)),
+    [everydayAll, query],
+  );
+  const advancedFiltered = useMemo(
+    () => advancedAll.filter((m) => matchesQuery(m, query)),
+    [advancedAll, query],
+  );
+
+  /** Expand Advanced automatically when the query only hits advanced models. */
+  const forceAdvanced =
+    curated &&
+    query.trim().length > 0 &&
+    everydayFiltered.length === 0 &&
+    advancedFiltered.length > 0;
+
+  const showAdvanced = !curated || advancedOpen || forceAdvanced;
+
+  const groups = useMemo((): DisplayGroup[] => {
+    if (!curated) {
+      const all = pickerGroups(models);
+      const q = query.trim();
+      const filtered = q
+        ? all
+            .map((group) => ({
+              ...group,
+              models: group.models.filter((m) => matchesQuery(m, q)),
+            }))
+            .filter((group) => group.models.length > 0)
+        : all;
+      return filtered;
+    }
+
+    const next: DisplayGroup[] = [];
+    if (everydayFiltered.length > 0) {
+      next.push({ label: "Everyday", models: everydayFiltered });
+    }
+    if (showAdvanced && advancedFiltered.length > 0) {
+      next.push({ label: "Advanced", models: advancedFiltered });
+    }
+    return next;
+  }, [curated, models, query, everydayFiltered, advancedFiltered, showAdvanced]);
 
   const flat = useMemo(() => {
     const entries: FlatEntry[] = [];
@@ -85,6 +152,7 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
     setOpen(false);
     setQuery("");
     setHighlight(0);
+    setAdvancedOpen(false);
     if (returnFocus) {
       queueMicrotask(() => {
         returnFocusRef?.current?.focus();
@@ -95,6 +163,7 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
   function openPalette() {
     if (disabled || models.length === 0) return;
     setOpen(true);
+    setAdvancedOpen(selected?.tier === "advanced");
     const idx = Math.max(
       0,
       flat.findIndex((entry) => entry.model.id === selectedId),
@@ -122,17 +191,19 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
         if (wasOpen) {
           setQuery("");
           setHighlight(0);
+          setAdvancedOpen(false);
           queueMicrotask(() => returnFocusRef?.current?.focus());
           return false;
         }
         setQuery("");
+        setAdvancedOpen(selected?.tier === "advanced");
         queueMicrotask(() => searchRef.current?.focus());
         return true;
       });
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [disabled, models.length, returnFocusRef]);
+  }, [disabled, models.length, returnFocusRef, selected?.tier]);
 
   // Sync highlight when opening or when the filter changes; prefer current selection
   useEffect(() => {
@@ -140,7 +211,7 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
     const selectedIndex = flat.findIndex((entry) => entry.model.id === selectedId);
     setHighlight(selectedIndex >= 0 ? selectedIndex : 0);
     // flat is derived from query/models; query is the intentional trigger so arrow keys are not reset
-  }, [open, query, selectedId, models]);
+  }, [open, query, selectedId, models, showAdvanced]);
 
   // Click outside closes
   useEffect(() => {
@@ -188,7 +259,70 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
     }
   }
 
-  const triggerLabel = selected?.label ?? "Model";
+  const triggerLabel = selected ? displayName(selected) : "Model";
+  const showAdvancedToggle = curated && advancedAll.length > 0;
+
+  function renderModelOption(model: ChatModel, showBestFor: boolean) {
+    const optionId = `${listId}-opt-${model.id}`;
+    const flatIndex = flat.findIndex((e) => e.model.id === model.id);
+    const isActive = flatIndex === highlight;
+    const isSelected = model.id === selectedId;
+    const tags = modalityTags(model.inputModalities);
+    const name = displayName(model);
+    return (
+      <li
+        key={model.id}
+        id={optionId}
+        role="option"
+        aria-selected={isSelected}
+        className={`flex cursor-pointer items-center gap-2 px-3 py-2 text-sm ${
+          isActive ? "bg-navy text-white" : "text-ink hover:bg-mist"
+        }`}
+        onMouseEnter={() => setHighlight(flatIndex)}
+        onMouseDown={(event) => {
+          event.preventDefault();
+          selectModel(model.id);
+        }}
+      >
+        <span className="w-4 shrink-0 text-center" aria-hidden="true">
+          {isSelected ? "✓" : ""}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate">{name}</span>
+          {showBestFor && model.bestFor ? (
+            <span
+              data-testid="model-best-for"
+              className={`block truncate text-xs ${isActive ? "text-white/80" : "text-ink/50"}`}
+            >
+              {model.bestFor}
+            </span>
+          ) : null}
+        </span>
+        {isThinkingModel(model.id) ? (
+          <span
+            data-testid="model-thinking-badge"
+            className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${
+              isActive ? "bg-white/20 text-white" : "bg-mist text-ink/60"
+            }`}
+          >
+            Think
+          </span>
+        ) : null}
+        {model.contextLength ? (
+          <span
+            className={`shrink-0 text-xs tabular-nums ${isActive ? "text-white/80" : "text-ink/50"}`}
+          >
+            {formatContextLength(model.contextLength)}
+          </span>
+        ) : null}
+        {tags.length > 0 ? (
+          <span className={`shrink-0 text-xs ${isActive ? "text-white/80" : "text-ink/50"}`}>
+            {tags.join(" · ")}
+          </span>
+        ) : null}
+      </li>
+    );
+  }
 
   return (
     <div className="relative">
@@ -235,7 +369,47 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
             className="max-h-72 overflow-y-auto py-1"
             aria-label="Models"
           >
-            {flat.length === 0 ? (
+            {curated ? (
+              <>
+                {everydayFiltered.length > 0 ? (
+                  <li key="everyday" role="presentation" data-testid="model-group-recommended">
+                    <div className="px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wide text-ink/50">
+                      Everyday
+                    </div>
+                    <ul role="group" aria-label="Everyday">
+                      {everydayFiltered.map((model) => renderModelOption(model, true))}
+                    </ul>
+                  </li>
+                ) : null}
+                {showAdvancedToggle ? (
+                  <li role="presentation">
+                    <button
+                      type="button"
+                      data-testid="model-picker-all"
+                      aria-expanded={showAdvanced}
+                      className="flex w-full items-center justify-between px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-ink/50 hover:bg-mist"
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                      }}
+                      onClick={() => setAdvancedOpen((was) => !was)}
+                    >
+                      <span>Advanced models</span>
+                      <span aria-hidden="true">{showAdvanced ? "▾" : "▸"}</span>
+                    </button>
+                    {showAdvanced && advancedFiltered.length > 0 ? (
+                      <ul role="group" aria-label="Advanced models">
+                        {advancedFiltered.map((model) => renderModelOption(model, true))}
+                      </ul>
+                    ) : null}
+                  </li>
+                ) : null}
+                {everydayFiltered.length === 0 && advancedFiltered.length === 0 ? (
+                  <li className="px-3 py-4 text-sm text-ink/60" role="presentation">
+                    No models matching {query.trim() ? `“${query.trim()}”` : "your search"}
+                  </li>
+                ) : null}
+              </>
+            ) : flat.length === 0 ? (
               <li className="px-3 py-4 text-sm text-ink/60" role="presentation">
                 No models matching {query.trim() ? `“${query.trim()}”` : "your search"}
               </li>
@@ -246,48 +420,7 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
                     {group.label}
                   </div>
                   <ul role="group" aria-label={group.label}>
-                    {group.models.map((model) => {
-                      const optionId = `${listId}-opt-${model.id}`;
-                      const flatIndex = flat.findIndex((e) => e.model.id === model.id);
-                      const isActive = flatIndex === highlight;
-                      const isSelected = model.id === selectedId;
-                      const tags = modalityTags(model.inputModalities);
-                      return (
-                        <li
-                          key={model.id}
-                          id={optionId}
-                          role="option"
-                          aria-selected={isSelected}
-                          className={`flex cursor-pointer items-center gap-2 px-3 py-2 text-sm ${
-                            isActive ? "bg-navy text-white" : "text-ink hover:bg-mist"
-                          }`}
-                          onMouseEnter={() => setHighlight(flatIndex)}
-                          onMouseDown={(event) => {
-                            event.preventDefault();
-                            selectModel(model.id);
-                          }}
-                        >
-                          <span className="w-4 shrink-0 text-center" aria-hidden="true">
-                            {isSelected ? "✓" : ""}
-                          </span>
-                          <span className="min-w-0 flex-1 truncate">{model.label}</span>
-                          {model.contextLength ? (
-                            <span
-                              className={`shrink-0 text-xs tabular-nums ${isActive ? "text-white/80" : "text-ink/50"}`}
-                            >
-                              {formatContextLength(model.contextLength)}
-                            </span>
-                          ) : null}
-                          {tags.length > 0 ? (
-                            <span
-                              className={`shrink-0 text-xs ${isActive ? "text-white/80" : "text-ink/50"}`}
-                            >
-                              {tags.join(" · ")}
-                            </span>
-                          ) : null}
-                        </li>
-                      );
-                    })}
+                    {group.models.map((model) => renderModelOption(model, false))}
                   </ul>
                 </li>
               ))

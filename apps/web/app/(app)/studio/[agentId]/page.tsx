@@ -12,12 +12,18 @@ type StudioModel = {
   provider?: string;
   inputModalities: string[];
   contextLength?: number;
+  friendlyLabel?: string;
+  bestFor?: string;
+  tier?: "everyday" | "advanced";
 };
+
+type Tool = { key: string; name: string; description: string; pack?: string };
 
 type AgentPayload = {
   agent: {
     id: string;
     name: string;
+    slug: string;
     description: string;
     visibility: "private" | "workspace";
     currentVersionId: string | null;
@@ -25,15 +31,22 @@ type AgentPayload = {
   versions: Array<{
     id: string;
     version: number;
+    systemPrompt: string;
+    model: string;
+    inputModalities: string[];
     productModes?: ProductMode[] | null;
     config?: { imageGenModel?: string; videoGenModel?: string };
   }>;
+  publishedBindings: Array<{ toolKey: string }>;
   draftBindings: Array<{ toolKey: string }>;
+  isDefaultChat?: boolean;
 };
 
 const chipBase = "rounded-full border px-3 py-1.5 text-sm transition-colors";
 const chipOn = "border-navy bg-navy text-white";
 const chipOff = "border-mist bg-paper text-ink hover:bg-mist";
+const fieldClass =
+  "mt-1 w-full rounded-md border border-mist bg-paper px-3 py-2 text-ink outline-none focus:border-navy";
 
 export default function StudioAgentPage() {
   const params = useParams<{ agentId: string }>();
@@ -44,8 +57,16 @@ export default function StudioAgentPage() {
   const [savingModes, setSavingModes] = useState(false);
   const [imageModels, setImageModels] = useState<StudioModel[]>([]);
   const [videoModels, setVideoModels] = useState<StudioModel[]>([]);
+  const [chatModels, setChatModels] = useState<StudioModel[]>([]);
   const [imageGenModel, setImageGenModel] = useState("");
   const [videoGenModel, setVideoGenModel] = useState("");
+  const [tools, setTools] = useState<Tool[]>([]);
+  const [systemPrompt, setSystemPrompt] = useState("");
+  const [model, setModel] = useState("");
+  const [selectedTools, setSelectedTools] = useState<string[]>([]);
+  const [savingSoul, setSavingSoul] = useState(false);
+  const [soulMessage, setSoulMessage] = useState<string | null>(null);
+  const [soulError, setSoulError] = useState<string | null>(null);
 
   const published = useMemo(() => {
     if (!data?.agent.currentVersionId) {
@@ -54,16 +75,34 @@ export default function StudioAgentPage() {
     return data.versions.find((version) => version.id === data.agent.currentVersionId) ?? null;
   }, [data]);
 
+  const isDefaultChat = Boolean(data?.isDefaultChat);
+
+  function applySoulFromPayload(payload: AgentPayload) {
+    const current = payload.versions?.find(
+      (version) => version.id === payload.agent?.currentVersionId,
+    );
+    setSystemPrompt(typeof current?.systemPrompt === "string" ? current.systemPrompt : "");
+    setModel(typeof current?.model === "string" ? current.model : "");
+    setSelectedTools(
+      Array.isArray(payload.publishedBindings)
+        ? payload.publishedBindings.map((binding) => binding.toolKey)
+        : [],
+    );
+  }
+
   async function reload() {
-    const payload = await fetch(`/api/v1/agents/${params.agentId}`).then((res) => res.json());
+    const payload = (await fetch(`/api/v1/agents/${params.agentId}`).then((res) =>
+      res.json(),
+    )) as AgentPayload;
     setData(payload);
     const current = payload.versions?.find(
-      (version: { id: string }) => version.id === payload.agent?.currentVersionId,
+      (version) => version.id === payload.agent?.currentVersionId,
     );
     const stored = current?.productModes;
     setProductModes(Array.isArray(stored) && stored.length > 0 ? stored : ["chat"]);
     setImageGenModel(typeof current?.config?.imageGenModel === "string" ? current.config.imageGenModel : "");
     setVideoGenModel(typeof current?.config?.videoGenModel === "string" ? current.config.videoGenModel : "");
+    applySoulFromPayload(payload);
   }
 
   useEffect(() => {
@@ -73,9 +112,14 @@ export default function StudioAgentPage() {
 
   useEffect(() => {
     void (async () => {
-      const payload = await fetch("/api/v1/models").then((res) => res.json());
-      setImageModels(payload.modes?.image ?? []);
-      setVideoModels(payload.modes?.video ?? []);
+      const [modelPayload, toolCatalog] = await Promise.all([
+        fetch("/api/v1/models").then((res) => res.json()),
+        fetch("/api/v1/tools").then((res) => res.json()),
+      ]);
+      setImageModels(modelPayload.modes?.image ?? []);
+      setVideoModels(modelPayload.modes?.video ?? []);
+      setChatModels(modelPayload.models ?? []);
+      setTools(toolCatalog.tools ?? []);
     })();
   }, []);
 
@@ -87,6 +131,36 @@ export default function StudioAgentPage() {
       }
       return PRODUCT_MODES.map((mode) => mode.id).filter((item) => item === id || current.includes(item));
     });
+  }
+
+  function toggleTool(key: string) {
+    setSelectedTools((current) =>
+      current.includes(key) ? current.filter((item) => item !== key) : [...current, key],
+    );
+  }
+
+  async function saveSoul() {
+    setSavingSoul(true);
+    setSoulMessage(null);
+    setSoulError(null);
+    const saved = await fetch(`/api/v1/agents/${params.agentId}/soul`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        systemPrompt,
+        model,
+        toolKeys: selectedTools,
+      }),
+    }).then((res) => res.json());
+    setSavingSoul(false);
+    if (saved.error) {
+      setSoulError(saved.error.message ?? "Failed to save soul");
+      return;
+    }
+    const versionNumber = saved.version?.version;
+    setSoulMessage(typeof versionNumber === "number" ? `Published v${versionNumber}` : "Published");
+    router.refresh();
+    await reload();
   }
 
   async function saveModes() {
@@ -152,6 +226,68 @@ export default function StudioAgentPage() {
       </p>
       <p className="text-sm text-ink">Published: {data.agent.currentVersionId ? "yes" : "no"}</p>
       <p className="mt-2 text-sm text-ink">Tools: {data.draftBindings.map((binding) => binding.toolKey).join(", ") || "none"}</p>
+
+      {!isDefaultChat ? (
+        <fieldset className="mt-8 text-sm">
+          <legend className="font-medium text-ink">Soul</legend>
+          <p className="mt-1 text-xs text-ink/50">
+            Instructions, model, and tools. Save publishes a new version — it does not rewrite the current one in
+            place.
+          </p>
+          <label className="mt-3 block text-ink">
+            Instructions
+            <textarea
+              className={`${fieldClass} min-h-32`}
+              value={systemPrompt}
+              onChange={(event) => setSystemPrompt(event.target.value)}
+              data-testid="agent-prompt"
+            />
+          </label>
+          <label className="mt-3 block text-ink">
+            Model
+            <ModelSelect
+              models={chatModels}
+              value={model}
+              onChange={setModel}
+              testId="studio-model-picker"
+              showModalities
+              className={fieldClass}
+            />
+          </label>
+          <div className="mt-3">
+            <p className="font-medium text-ink">Tools</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {tools.map((tool) => {
+                const on = selectedTools.includes(tool.key);
+                return (
+                  <button
+                    key={tool.key}
+                    type="button"
+                    className={`${chipBase} ${on ? chipOn : chipOff}`}
+                    aria-pressed={on}
+                    title={tool.description}
+                    onClick={() => toggleTool(tool.key)}
+                    data-testid={`tool-${tool.key}`}
+                  >
+                    {tool.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <button
+            type="button"
+            className="mt-3 rounded-md bg-navy px-4 py-2 text-white disabled:opacity-50"
+            onClick={() => void saveSoul()}
+            disabled={savingSoul || !published || !model}
+            data-testid="save-soul"
+          >
+            {savingSoul ? "Saving…" : "Save soul"}
+          </button>
+          {soulMessage ? <p className="mt-2 text-sm text-ink">{soulMessage}</p> : null}
+          {soulError ? <p className="mt-2 text-sm text-red-700">{soulError}</p> : null}
+        </fieldset>
+      ) : null}
 
       <fieldset className="mt-8 text-sm">
         <legend className="font-medium text-ink">Product surfaces</legend>

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { maskSecrets, mergeSecrets, hasLiveProvider, resolveProviderKeys, resolveRuntimeMode } from "./secrets";
+import { keyFingerprint } from "./security/fingerprint";
 import { DEFAULT_OPENAI_BASE_URL } from "./models/probe";
 
 describe("mergeSecrets", () => {
@@ -88,6 +89,10 @@ describe("maskSecrets", () => {
       hasGoogle: false,
       hasAnthropic: false,
       hasVolcengine: false,
+      openaiKeyFingerprint: keyFingerprint("sk-secret"),
+      googleKeyFingerprint: null,
+      anthropicKeyFingerprint: null,
+      volcengineKeyFingerprint: null,
       openaiBaseUrl: "https://api.openai.com/v1",
       googleBaseUrl: undefined,
       anthropicBaseUrl: undefined,
@@ -106,6 +111,34 @@ describe("maskSecrets", () => {
       presentationGenModel: undefined,
       disabledTools: [],
     });
+  });
+
+  it("exposes sha256 fingerprints and never embeds the raw keys in JSON", () => {
+    const secrets = {
+      openaiApiKey: "sk-secret",
+      googleApiKey: "google-secret",
+      anthropicApiKey: "sk-ant-secret",
+      volcengineApiKey: "ark-secret",
+    };
+    const masked = maskSecrets(secrets);
+    expect(masked.openaiKeyFingerprint).toBe(keyFingerprint("sk-secret"));
+    expect(masked.googleKeyFingerprint).toBe(keyFingerprint("google-secret"));
+    expect(masked.anthropicKeyFingerprint).toBe(keyFingerprint("sk-ant-secret"));
+    expect(masked.volcengineKeyFingerprint).toBe(keyFingerprint("ark-secret"));
+    expect(masked.openaiKeyFingerprint).toMatch(/^sha256:[0-9a-f]{12}$/);
+    const json = JSON.stringify(masked);
+    expect(json).not.toContain("sk-secret");
+    expect(json).not.toContain("google-secret");
+    expect(json).not.toContain("sk-ant-secret");
+    expect(json).not.toContain("ark-secret");
+  });
+
+  it("returns null fingerprints when no provider keys are saved", () => {
+    const masked = maskSecrets({});
+    expect(masked.openaiKeyFingerprint).toBeNull();
+    expect(masked.googleKeyFingerprint).toBeNull();
+    expect(masked.anthropicKeyFingerprint).toBeNull();
+    expect(masked.volcengineKeyFingerprint).toBeNull();
   });
 
   it("masks tool keys without returning them", () => {

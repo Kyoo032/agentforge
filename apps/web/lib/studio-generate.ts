@@ -4,6 +4,7 @@ import {
   buildToolSecretScope,
   imageGenerateTool,
   listToolRoutes,
+  maskPii,
   mediaKind,
   pickPreferredImageModel,
   pickPreferredVideoModel,
@@ -30,6 +31,8 @@ export const videoGenerateBodySchema = z.object({
   aspect: z.enum(["16:9", "9:16", "1:1"]).optional().default("16:9"),
   model: z.string().trim().min(1).optional(),
   imageUrl: z.string().url().optional(),
+  seconds: z.number().int().min(2).max(12).optional(),
+  resolution: z.enum(["480p", "720p", "1080p"]).optional(),
 });
 
 export type ImageGenerateBody = z.infer<typeof imageGenerateBodySchema>;
@@ -140,7 +143,7 @@ export async function generateStudioImage(
   const output = await runWithToolSecrets(scope, () =>
     imageGenerateTool.execute(
       {
-        prompt: body.prompt,
+        prompt: maskPii(body.prompt),
         aspect_ratio: body.aspect,
         image_url: body.imageUrl,
         model,
@@ -186,10 +189,12 @@ export async function generateStudioVideo(
   const output = await runWithToolSecrets(scope, () =>
     videoGenerateTool.execute(
       {
-        prompt: body.prompt,
+        prompt: maskPii(body.prompt),
         aspect_ratio: body.aspect,
         image_url: body.imageUrl,
         model,
+        seconds: body.seconds,
+        resolution: body.resolution,
       },
       tenant,
     ),

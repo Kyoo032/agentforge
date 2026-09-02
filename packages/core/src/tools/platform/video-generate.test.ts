@@ -33,11 +33,52 @@ describe("videoGenerateTool", () => {
       () => invokeTool(videoGenerateTool, { prompt: "rain on a window" }, tenant),
     );
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe("https://api.tokotokenai.com/v1/video/generations");
+    expect(JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body))).toMatchObject({
+      model: "seedance-2.0-fast",
+      duration: 5,
+      resolution: "720p",
+      ratio: "16:9",
+    });
     expect(result).toMatchObject({
       success: true,
       backend: "gateway",
       video: "https://cdn.example/clip.mp4",
       model: "seedance-2.0-fast",
+    });
+  });
+
+  it("forwards seconds and omits Seedance-only fields for grok-imagine-video", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: "video_123", task_id: "abcd", status: "processing" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: { status: "SUCCESS", result_url: "https://cdn.example/clip.mp4" } }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    await runWithToolSecrets(
+      { secrets: { OPENAI_API_KEY: "sk-model", OPENAI_BASE_URL: "https://api.tokotokenai.com/v1" }, backends: {} },
+      () =>
+        invokeTool(
+          videoGenerateTool,
+          {
+            prompt: "rain on a window",
+            model: "grok-imagine-video",
+            seconds: 8,
+            resolution: "1080p",
+            aspect_ratio: "9:16",
+          },
+          tenant,
+        ),
+    );
+    expect(JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body))).toEqual({
+      model: "grok-imagine-video",
+      prompt: "rain on a window",
+      duration: 8,
+      seconds: "8",
     });
   });
 
