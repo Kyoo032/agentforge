@@ -7,7 +7,8 @@ Presentation is a job: prompt or starter → slide preview → PPTX download. It
 - `presentations-rail` reaches `/presentations` from `mode-presentations` after an agent unlocks the surface (Default template does).
 - `presentations-shell` shows `presentations-studio` with empty copy and starter cards.
 - `presentations-starter` loads a preview (`presentations-preview`) without a live generate.
-- `presentations-regen` on a slide posts regenerate; stub/no-key shows `presentations-error` with a Settings hint.
+- `presentations-studio-model` is the generate-bar chat-catalog dropdown.
+- `presentations-regen` on a slide opens `presentations-regen-panel` (prompt, model, attach). Confirm with `presentations-regen-submit`; stub/no-key shows `presentations-error` with a Settings hint.
 - `presentations-download` builds a PPTX from the in-memory outline.
 
 ## How to get to it (user POV)
@@ -23,14 +24,14 @@ Preconditions:
 - `mode-presentations` is visible (Default Assistant unlocks it).
 - Stub proof stops at starters + regen 503. Live generate only if the operator asked and doctor reports `ai`.
 
-- **Open Presentation.** Click `mode-presentations`. URL matches `/presentations`. `presentations-studio` is visible.
+- **Open Presentation.** Click `mode-presentations`. URL matches `/presentations`. `presentations-studio` and `presentations-studio-model` are visible.
 - **Starter.** `presentations-starter` count is 2. Click the first. `presentations-preview` and `presentations-regen` are visible.
-- **Regen without a key.** Click `presentations-regen`. `presentations-error` mentions gateway / Settings / API key.
+- **Regen without a key.** Click `presentations-regen`. `presentations-regen-panel`, `presentations-regen-prompt`, `presentations-regen-model`, and `presentations-regen-attach` are visible. Click `presentations-regen-submit`. `presentations-error` mentions gateway / Settings / API key.
 - **Download.** Click `presentations-download` to get a PPTX from the starter (no live model).
 - **Cloud.** `foundation.spec.ts` covers starter + regen 503 on the Default Assistant path.
 
 ## Gotchas
 
 - The title card is not a slide. Regen buttons sit on `presentations-slide` rows only.
-- Regen uses `/api/v1/presentations/regenerate`. Stub is HTTP 503.
+- Regen opens a panel; it does not POST until `presentations-regen-submit`. Stub is HTTP 503.
 - Do not POST `/api/v1/presentations` as a substitute for the prompt bar on a live proof.

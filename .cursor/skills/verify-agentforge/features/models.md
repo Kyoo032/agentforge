@@ -32,7 +32,7 @@ Preconditions:
 ## Gotchas
 
 - `curation: false` is a regression now that Phase 1 curation ships on `/api/v1/models`. Do not soft-pass it.
-- The Chat list is chat-kind only. Image/video model pickers on Generate surfaces are separate features.
+- The Chat list is chat-kind only. Image/video model pickers on Generate surfaces are separate features. Documents / Research / Presentation generate bars use `*-studio-model` (`model-select.tsx`). Section/slide regen uses `*-regen-model` on the regen panel.
 - `model-group-recommended`, `model-best-for`, and `model-picker-all` are real — assert them; do not skip or substitute coordinate clicks.
 - Settings / studio `<select>` paths (`model-select.tsx`) use Everyday / Advanced optgroups with `friendlyLabel — bestFor` option text; Chat uses the palette above.
 - Doctor must hit loopback only. Packaged: use `--desktop` / `AGENTFORGE_VERIFY_URL`, never treat :3000 as the installed app.

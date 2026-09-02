@@ -1,14 +1,27 @@
 "use client";
 
+import { useState } from "react";
+import { JobRegenPanel, type JobRegenSubmit } from "@/components/job-regen-panel";
 import type { DocumentDraft } from "@/lib/document-outline";
+import type { JobStudioModel } from "@/lib/use-job-model";
 
 type Props = {
   draft: DocumentDraft;
+  models?: JobStudioModel[];
+  defaultModel?: string;
   regeneratingIndex?: number | null;
-  onRegenerate?: (index: number) => void;
+  onRegenerate?: (index: number, payload: JobRegenSubmit) => void;
 };
 
-export function DocumentPreview({ draft, regeneratingIndex = null, onRegenerate }: Props) {
+export function DocumentPreview({
+  draft,
+  models = [],
+  defaultModel = "",
+  regeneratingIndex = null,
+  onRegenerate,
+}: Props) {
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+
   return (
     <article className="rounded-xl border border-mist bg-paper px-8 py-10 shadow-sm" data-testid="documents-preview">
       <p className="text-xs font-medium uppercase tracking-[0.16em] text-ink/45">Document</p>
@@ -22,8 +35,9 @@ export function DocumentPreview({ draft, regeneratingIndex = null, onRegenerate 
                 <button
                   type="button"
                   className="rounded-md border border-mist px-3 py-1 text-xs font-medium text-ink disabled:opacity-50"
-                  onClick={() => onRegenerate(index)}
+                  onClick={() => setOpenIndex(openIndex === index ? null : index)}
                   disabled={regeneratingIndex !== null}
+                  aria-expanded={openIndex === index}
                   data-testid="documents-regen"
                 >
                   {regeneratingIndex === index ? "Regenerating…" : "Regenerate"}
@@ -35,6 +49,18 @@ export function DocumentPreview({ draft, regeneratingIndex = null, onRegenerate 
                 {para}
               </p>
             ))}
+            {onRegenerate && openIndex === index ? (
+              <JobRegenPanel
+                key={index}
+                testIdPrefix="documents"
+                models={models}
+                defaultModel={defaultModel}
+                submitting={regeneratingIndex === index}
+                disabled={regeneratingIndex !== null && regeneratingIndex !== index}
+                onCancel={() => setOpenIndex(null)}
+                onSubmit={(payload) => onRegenerate(index, payload)}
+              />
+            ) : null}
           </section>
         ))}
       </div>

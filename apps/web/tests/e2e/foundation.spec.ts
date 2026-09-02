@@ -108,11 +108,17 @@ test("chat and build work without an account", async ({ page }) => {
   await page.getByTestId("mode-presentations").click();
   await expect(page).toHaveURL(/\/presentations/, { timeout: 15_000 });
   await expect(page.getByTestId("presentations-studio")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("presentations-studio-model")).toBeVisible();
   await expect(page.getByTestId("presentations-starter")).toHaveCount(2);
   await page.getByTestId("presentations-starter").first().click();
   await expect(page.getByTestId("presentations-preview")).toBeVisible();
   await expect(page.getByTestId("presentations-regen").first()).toBeVisible();
   await page.getByTestId("presentations-regen").first().click();
+  await expect(page.getByTestId("presentations-regen-panel")).toBeVisible();
+  await expect(page.getByTestId("presentations-regen-prompt")).toBeVisible();
+  await expect(page.getByTestId("presentations-regen-model")).toBeVisible();
+  await expect(page.getByTestId("presentations-regen-attach")).toBeVisible();
+  await page.getByTestId("presentations-regen-submit").click();
   await expect(page.getByTestId("presentations-error")).toContainText(/gateway|Settings|API key/i, { timeout: 15_000 });
 
   await page.goto(studioUrl);
@@ -125,10 +131,16 @@ test("chat and build work without an account", async ({ page }) => {
   await page.getByTestId("mode-documents").click();
   await expect(page).toHaveURL(/\/documents/, { timeout: 15_000 });
   await expect(page.getByTestId("documents-studio")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("documents-studio-model")).toBeVisible();
   await expect(page.getByTestId("documents-starter")).toHaveCount(2);
   await page.getByTestId("documents-starter").first().click();
   await expect(page.getByTestId("documents-preview")).toBeVisible();
   await expect(page.getByTestId("documents-regen").first()).toBeVisible();
   await page.getByTestId("documents-regen").first().click();
+  await expect(page.getByTestId("documents-regen-panel")).toBeVisible();
+  await expect(page.getByTestId("documents-regen-prompt")).toBeVisible();
+  await expect(page.getByTestId("documents-regen-model")).toBeVisible();
+  await expect(page.getByTestId("documents-regen-attach")).toBeVisible();
+  await page.getByTestId("documents-regen-submit").click();
   await expect(page.getByTestId("documents-error")).toContainText(/gateway|Settings|API key/i, { timeout: 15_000 });
 });

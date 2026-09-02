@@ -1,10 +1,8 @@
 import {
   ApiError,
-  createRuntime,
   hasLiveProvider,
   resolveChatModel,
   resolveRuntimeMode,
-  type AgentVersionRecord,
   type TenantContext,
 } from "@agentforge/core";
 import { loadSettings } from "./settings-store";
@@ -16,7 +14,12 @@ import {
   parsePresentationSlide,
   type PresentationOutline,
 } from "./presentation-outline";
-import { rememberJobUsage } from "./job-usage";
+import {
+  appendRegenInstruction,
+  collectJobAssistantText,
+  readJobRegenAttachments,
+  readOptionalInstruction,
+} from "./job-regen";
 
 const OUTLINE_SYSTEM = `You create presentation outlines for Agentforge.
 Return ONLY valid JSON (no markdown fences, no commentary) with this exact shape:
@@ -52,55 +55,16 @@ function readOptionalModel(body: unknown): string | undefined {
   return typeof model === "string" && model.trim() ? model.trim() : undefined;
 }
 
-async function collectAssistantTextWithSystem(
-  tenant: TenantContext,
-  model: string,
-  systemPrompt: string,
-  prompt: string,
-): Promise<string> {
-  const settings = loadSettings();
-  const runtime = createRuntime(settings);
-  const version: AgentVersionRecord = {
-    id: "presentation-outline",
-    agentId: "presentation",
-    organizationId: tenant.organizationId,
-    version: 1,
-    systemPrompt,
-    model,
-    inputModalities: ["text"],
-    config: {},
-    createdAt: new Date(),
-  };
-
-  let assistantText = "";
-  let failedMessage = "";
-
-  await runtime.execute({
-    tenant,
-    runId: `presentation-${Date.now()}`,
-    modality: "text",
-    version,
-    bindings: [],
-    history: [{ role: "user", parts: [{ type: "text", text: prompt }] }],
-    onEvent: (event) => {
-      if (event.type === "assistant.delta") {
-        assistantText += event.text;
-      }
-      if (event.type === "run.failed") {
-        failedMessage = event.message;
-      }
-      rememberJobUsage(event);
-    },
-  });
-
-  if (failedMessage) {
-    throw new ApiError("generation_failed", failedMessage, 502);
-  }
-  return assistantText;
-}
-
 async function collectAssistantText(tenant: TenantContext, model: string, prompt: string): Promise<string> {
-  return collectAssistantTextWithSystem(tenant, model, OUTLINE_SYSTEM, prompt);
+  return collectJobAssistantText({
+    tenant,
+    model,
+    systemPrompt: OUTLINE_SYSTEM,
+    runPrefix: "presentation",
+    agentId: "presentation",
+    versionId: "presentation-outline",
+    prompt,
+  });
 }
 
 function requireLivePresentationRuntime(): ReturnType<typeof loadSettings> {
@@ -180,19 +144,32 @@ export async function regeneratePresentationSlide(
   }
   const settings = requireLivePresentationRuntime();
   const model = resolvePresentationModel(body, settings);
+  const attachments = readJobRegenAttachments(body);
   const others = outline.slides
     .map((slide, itemIndex) => (itemIndex === index ? null : `- ${slide.heading}`))
     .filter(Boolean)
     .join("\n");
-  const prompt = [
-    topic ? `Original topic: ${topic}` : null,
-    `Deck title: ${outline.title}`,
-    others ? `Other slides:\n${others}` : null,
-    `Rewrite this slide only.\nHeading: ${current.heading}\nBullets:\n${current.bullets.map((item) => `- ${item}`).join("\n")}\nNotes: ${current.notes}`,
-  ]
-    .filter(Boolean)
-    .join("\n\n");
-  const raw = await collectAssistantTextWithSystem(tenant, model, SLIDE_SYSTEM, prompt);
+  const prompt = appendRegenInstruction(
+    [
+      topic ? `Original topic: ${topic}` : null,
+      `Deck title: ${outline.title}`,
+      others ? `Other slides:\n${others}` : null,
+      `Rewrite this slide only.\nHeading: ${current.heading}\nBullets:\n${current.bullets.map((item) => `- ${item}`).join("\n")}\nNotes: ${current.notes}`,
+    ]
+      .filter(Boolean)
+      .join("\n\n"),
+    readOptionalInstruction(body),
+  );
+  const raw = await collectJobAssistantText({
+    tenant,
+    model,
+    systemPrompt: SLIDE_SYSTEM,
+    runPrefix: "presentation-slide",
+    agentId: "presentation",
+    versionId: "presentation-slide",
+    prompt,
+    attachments,
+  });
   if (!raw.trim()) {
     throw new ApiError("generation_failed", "Model returned an empty slide", 502);
   }

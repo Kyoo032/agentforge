@@ -142,6 +142,8 @@ Use `page.getByTestId("<id>")` exactly as the spec. Wait for `/studio/<uuid>`, n
 | `settings-form`, `openai-base-url`, `openai-key`, `key-fingerprint`, `runtime-status`, `privacy-note`, `usage-panel`, `usage-this-key`, `usage-desk-estimate`, `usage-key-meter`, `usage-by-model`, `usage-model-chart` | Settings |
 | `create-agent`, `template-blank`, `template-default`, `template-students`, `template-marketing`, `template-legal`, `studio-agent-name` | Build |
 | `images-studio`, `images-studio-needs-key`, `videos-studio`, `videos-studio-needs-key` | Studios |
+| `documents-studio-model`, `research-studio-model`, `presentations-studio-model` | Job generate-bar model dropdowns |
+| `documents-regen-panel`, `presentations-regen-panel`, `*-regen-prompt`, `*-regen-model`, `*-regen-attach`, `*-regen-submit` | Section/slide regen composer |
 
 Rail testids are `mode-${href.slice(1)}` (`/chat` → `mode-chat`). Images/Videos/Presentation tabs appear only after a custom agent unlocks those surfaces (Default template = original five). A Chat-only desk has `mode-images` count 0.
 
