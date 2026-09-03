@@ -1,4 +1,5 @@
 const { app, BrowserWindow, Menu, dialog, ipcMain, protocol } = require("electron");
+const { execFile } = require("node:child_process");
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -24,6 +25,28 @@ protocol.registerSchemesAsPrivileged([
 /** @type {BrowserWindow | null} */
 let mainWindow = null;
 let hostReady = false;
+let exiting = false;
+
+function shouldQuitOnLastWindow() {
+  return process.platform !== "darwin";
+}
+
+function exitApp() {
+  if (exiting) {
+    return;
+  }
+  exiting = true;
+  hostReady = false;
+  mainWindow = null;
+  if (process.platform === "win32") {
+    execFile("taskkill", ["/F", "/PID", String(process.pid), "/T"], () => {
+      app.exit(0);
+    });
+    setTimeout(() => app.exit(0), 1500).unref();
+    return;
+  }
+  app.exit(0);
+}
 
 function splashPath() {
   return path.join(__dirname, "splash", "index.html");
@@ -91,18 +114,28 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: false,
-      backgroundThrottling: false,
     },
   });
   mainWindow.once("ready-to-show", () => {
-    if (mainWindow && !mainWindow.isVisible()) {
+    if (exiting || !mainWindow || mainWindow.isDestroyed()) {
+      return;
+    }
+    if (!mainWindow.isVisible()) {
       mainWindow.show();
       mainWindow.focus();
     }
   });
   mainWindow.loadFile(splashPath());
+  mainWindow.on("close", () => {
+    if (shouldQuitOnLastWindow()) {
+      exitApp();
+    }
+  });
   mainWindow.on("closed", () => {
     mainWindow = null;
+    if (shouldQuitOnLastWindow()) {
+      exitApp();
+    }
   });
 }
 
@@ -191,7 +224,7 @@ function registerMediaProtocol(host) {
 }
 
 async function navigateToUi() {
-  if (!mainWindow) {
+  if (exiting || !mainWindow || mainWindow.isDestroyed()) {
     return;
   }
   if (app.isPackaged) {
@@ -311,7 +344,7 @@ if (!gotLock) {
       }
     } catch (error) {
       console.error(error);
-      if (mainWindow) {
+      if (!exiting && mainWindow && !mainWindow.isDestroyed()) {
         const folder = app.getPath("userData");
         const safe = JSON.stringify(String(folder));
         await mainWindow.webContents.executeJavaScript(
@@ -321,15 +354,24 @@ if (!gotLock) {
     }
 
     app.on("activate", () => {
+      if (exiting) {
+        return;
+      }
       if (BrowserWindow.getAllWindows().length === 0) {
         createWindow();
       }
     });
   });
 
+  app.on("before-quit", () => {
+    if (shouldQuitOnLastWindow()) {
+      exitApp();
+    }
+  });
+
   app.on("window-all-closed", () => {
-    if (process.platform !== "darwin") {
-      app.exit(0);
+    if (shouldQuitOnLastWindow()) {
+      exitApp();
     }
   });
 }

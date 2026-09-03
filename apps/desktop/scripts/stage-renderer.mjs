@@ -19,6 +19,7 @@ if (!existsSync(join(webDist, "index.html"))) {
 await build({
   entryPoints: [join(desktopRoot, "src", "host-entry.ts")],
   bundle: true,
+  minify: true,
   platform: "node",
   format: "cjs",
   outfile: join(desktopRoot, "host.cjs"),
@@ -27,7 +28,10 @@ await build({
 
 rmSync(rendererDest, { recursive: true, force: true });
 mkdirSync(rendererDest, { recursive: true });
-cpSync(webDist, rendererDest, { recursive: true });
+cpSync(webDist, rendererDest, {
+  recursive: true,
+  filter: (src) => !src.endsWith(".map"),
+});
 
 rmSync(drizzleDest, { recursive: true, force: true });
 mkdirSync(dirname(drizzleDest), { recursive: true });
