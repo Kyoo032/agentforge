@@ -41,7 +41,8 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 ## Features
 
 - [Chat](./chat.md) — composer send, new thread, switch sessions, stub reply. Home rail shows every work mode.
-- [Settings](./settings.md) — gateway key, privacy note, stub/live runtime, Usage panel. No Advanced tab.
+- [Settings](./settings.md) — gateway key, privacy note, stub/live runtime, compact this-key + Open Usage. No Advanced tab.
+- [Usage](./usage.md) — bottom-rail `/usage` Day/Week/Month stacked spend, this-key strip, desk by-model. Not a product mode.
 - [Workspaces](./workspaces.md) — rail switcher + `/workspaces` create/edit, presets and mode checkboxes, open → Chat.
 - [Models](./models.md) — curated Chat picker, doctor modeKeys/chatCount/curation, Advanced disclosure (Phase 1 ids optional until present).
 - [Templates](./templates.md) — example galleries on all five mode studios; click pre-fills the prompt.

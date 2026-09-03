@@ -138,16 +138,19 @@ Use `page.getByTestId("<id>")` exactly as the spec.
 | `mode-agents` | Parked. Count 0. `/agents` and `/studio` redirect to Chat |
 | `workspaces-switcher`, `workspaces-link`, `open-workspace`, `workspace-template-picker`, `workspace-mode-picker`, `create-workspace` | Workspaces |
 | `settings-link` | Rail → Settings |
+| `usage-link`, `usage-open`, `usage-range`, `usage-range-chart` | Rail / Settings → Usage (`/usage`); range toggle + stacked chart |
 | `model-picker`, `composer`, `composer-text`, `composer-send` | Chat |
+| `chat-usage`, `chat-context` | Chat header chips (wallet spend, thread tokens vs window) |
 | `chat-empty`, `message-list`, `thread-list`, `thread-item`, `new-chat` | Threads |
-| `settings-form`, `openai-key`, `key-fingerprint`, `runtime-status`, `privacy-note`, `usage-panel`, `usage-this-key`, `usage-desk-estimate`, `usage-key-meter`, `usage-by-model`, `usage-model-chart` | Settings (key-only; no Advanced tab) |
+| `settings-form`, `openai-key`, `key-fingerprint`, `runtime-status`, `privacy-note`, `usage-this-key` | Settings (key-only; no Advanced tab; Open Usage for charts) |
+| `usage-range-empty`, `usage-desk-range`, `usage-by-model`, `usage-key-meter` | Usage page (by-model + desk range; empty chart copy) |
 | `images-studio`, `images-studio-needs-key`, `videos-studio`, `videos-studio-needs-key` | Generate studios |
 | `documents-studio-model`, `research-studio-model`, `presentations-studio-model` | Job generate-bar model dropdowns |
 | `documents-regen-panel`, `presentations-regen-panel`, `*-regen-prompt`, `*-regen-model`, `*-regen-attach`, `*-regen-submit` | Section/slide regen composer |
 
 Rail testids are `mode-${href.slice(1)}` (`/chat` → `mode-chat`). Home already shows every work mode. A Legal desk has Chat + Documents + Research + Presentation and `mode-images` count 0.
 
-Recipes: [features/chat.md](features/chat.md), [features/settings.md](features/settings.md), [features/workspaces.md](features/workspaces.md), [features/images.md](features/images.md), [features/videos.md](features/videos.md), [features/desktop.md](features/desktop.md), [features/mobile.md](features/mobile.md). Build and Studio advanced are parked.
+Recipes: [features/chat.md](features/chat.md), [features/settings.md](features/settings.md), [features/usage.md](features/usage.md), [features/workspaces.md](features/workspaces.md), [features/images.md](features/images.md), [features/videos.md](features/videos.md), [features/desktop.md](features/desktop.md), [features/mobile.md](features/mobile.md). Build and Studio advanced are parked.
 
 ## Evidence
 

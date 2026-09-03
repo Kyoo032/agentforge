@@ -1,6 +1,7 @@
 import type { HostHandler, HostRequest, HostResult } from "./types";
 import { jsonOk } from "./errors";
 import { handleGetSettings, handlePostSettings } from "./handlers/settings";
+import { handleGetUsage } from "./handlers/usage";
 import { handleGetChat } from "./handlers/chat";
 import {
   handleGetWorkspaces,
@@ -60,6 +61,7 @@ const routes: Route[] = [
   compile("GET", "/api/v1/ping", () => handlePing()),
   compile("GET", "/api/v1/settings", handleGetSettings),
   compile("POST", "/api/v1/settings", handlePostSettings),
+  compile("GET", "/api/v1/usage", handleGetUsage),
   compile("GET", "/api/v1/chat", handleGetChat),
   compile("GET", "/api/v1/workspaces", handleGetWorkspaces),
   compile("POST", "/api/v1/workspaces", handlePostWorkspaces),

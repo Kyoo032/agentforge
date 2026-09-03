@@ -27,6 +27,7 @@ function itemClass(active: boolean, compact = false) {
 export function AppRail({ workspaceName, visibleModes }: Props) {
   const pathname = usePathname();
   const onSettings = pathname.startsWith("/settings");
+  const onUsage = pathname.startsWith("/usage");
   const onWorkspaces = pathname.startsWith("/workspaces");
   const [collapsed, setCollapsed] = useState(false);
   const modes = PRODUCT_MODES.filter((mode) => visibleModes.includes(mode.id));
@@ -89,6 +90,16 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
             aria-current={onWorkspaces ? "page" : undefined}
           >
             Ws
+          </Link>
+          <Link
+            href="/usage"
+            className={`${itemClass(onUsage, true)} text-xs font-medium`}
+            data-testid="usage-link"
+            title="Usage"
+            aria-label="Usage"
+            aria-current={onUsage ? "page" : undefined}
+          >
+            Use
           </Link>
           <Link
             href="/settings"
@@ -154,6 +165,14 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
           aria-current={onWorkspaces ? "page" : undefined}
         >
           Workspaces
+        </Link>
+        <Link
+          href="/usage"
+          className={itemClass(onUsage)}
+          data-testid="usage-link"
+          aria-current={onUsage ? "page" : undefined}
+        >
+          Usage
         </Link>
         <Link
           href="/settings"

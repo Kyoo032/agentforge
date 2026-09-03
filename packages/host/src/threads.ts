@@ -300,7 +300,7 @@ export async function finishRun(
 
 export async function listRunUsage(tenant: TenantContext) {
   return db
-    .select({ usage: runs.usage })
+    .select({ usage: runs.usage, startedAt: runs.startedAt })
     .from(runs)
     .where(eq(runs.organizationId, tenant.organizationId));
 }

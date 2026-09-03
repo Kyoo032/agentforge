@@ -22,6 +22,11 @@ export {
   fetchPricingCatalog,
   fetchThisKeyUsage,
   loadThisKeyState,
+  parseUsageRange,
+  usageBucketKey,
+  listUsageBucketFrames,
+  buildUsageBuckets,
+  summarizeUsageDesk,
 } from "./gateway/account";
 export type {
   RunUsageRecord,
@@ -31,6 +36,13 @@ export type {
   ThisKeyState,
   DeskEstimate,
   DeskModelSpend,
+  UsageRange,
+  TimestampedRunUsage,
+  UsageBucketModel,
+  UsageBucket,
+  UsageBucketFrame,
+  UsageDeskByModel,
+  UsageDeskSummary,
 } from "./gateway/account";
 export { ApiError, ContentParseError } from "./errors";
 export {

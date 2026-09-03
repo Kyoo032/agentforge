@@ -41,9 +41,11 @@ Schema is created in-process on first SQLite open (`ensureSchema` / committed dr
 
 ```
 pnpm desktop:build
+# one flavor (default public): AGENTFORGE_BRAND=agentforge|kemenkeu|metranet pnpm --filter @agentforge/desktop desktop-pack
+# all three NSIS flavors: pnpm desktop:build:all
 ```
 
-Builds the Vite renderer, esbuild-bundles `host.cjs` (externals: `better-sqlite3`, `keytar`), copies drizzle migrations, then packages Electron. Output: `apps/desktop/dist/` (NSIS, current user).
+Builds the Vite renderer, esbuild-bundles `host.cjs` (externals: `better-sqlite3`, `keytar`), copies drizzle migrations, then packages Electron. Output: `apps/desktop/dist/` (NSIS, current user). Flavor is icon + splash only (`branding/{agentforge,kemenkeu,metranet}/`); same `appId` / productName **Agentforge**.
 
 Native modules must be rebuilt for Electron’s Node **on Windows**:
 

@@ -52,6 +52,11 @@ function splashPath() {
   return path.join(__dirname, "splash", "index.html");
 }
 
+function windowIconPath() {
+  const icon = path.join(__dirname, "splash", "icon.ico");
+  return fs.existsSync(icon) ? icon : undefined;
+}
+
 function rendererIndex() {
   return path.join(process.resourcesPath, "renderer", "index.html");
 }
@@ -107,6 +112,7 @@ function createWindow() {
     width: 1280,
     height: 800,
     title: "Agentforge",
+    icon: windowIconPath(),
     show: false,
     autoHideMenuBar: true,
     webPreferences: {

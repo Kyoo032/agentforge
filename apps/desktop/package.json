@@ -1,12 +1,14 @@
 {
   "name": "@agentforge/desktop",
-  "version": "0.1.0",
+  "version": "0.12.0",
   "private": true,
   "description": "Electron shell for Agentforge. Packaged builds use IPC (no loopback HTTP server).",
   "main": "main.cjs",
   "scripts": {
     "desktop-dev": "electron .",
-    "desktop-build": "pnpm --filter @agentforge/web build && node scripts/stage-renderer.mjs && electron-builder --win nsis",
+    "desktop-build": "pnpm --filter @agentforge/web build && node scripts/stage-renderer.mjs && node scripts/pack-brand.mjs",
+    "desktop-build-all": "node scripts/pack-all-brands.mjs",
+    "desktop-pack": "node scripts/pack-brand.mjs",
     "desktop-build-dir": "pnpm --filter @agentforge/web build && node scripts/stage-renderer.mjs && electron-builder --win nsis --dir",
     "desktop-build-mac": "pnpm --filter @agentforge/web build && node scripts/stage-renderer.mjs && electron-builder --mac",
     "desktop-build-linux": "pnpm --filter @agentforge/web build && node scripts/stage-renderer.mjs && electron-builder --linux",
@@ -26,12 +28,14 @@
     "appId": "com.tokotoken.agentforge",
     "productName": "Agentforge",
     "extraMetadata": {
-      "name": "agentforge"
+      "name": "agentforge",
+      "version": "0.12.0"
     },
     "directories": {
       "output": "dist",
       "buildResources": "build"
     },
+    "artifactName": "Agentforge Setup ${version}.${ext}",
     "compression": "maximum",
     "electronLanguages": [
       "en-US"
@@ -63,6 +67,7 @@
       "**/node_modules/keytar/**"
     ],
     "win": {
+      "icon": "icon.ico",
       "target": [
         {
           "target": "nsis",

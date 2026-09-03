@@ -14,9 +14,10 @@ Gateway identity stays **Toko Token** (`api.tokotokenai.com/v1`). Do not merge T
 | Images        | `images`       | `/images`          | Prompt → generate images → gallery |
 | Videos        | `videos`       | `/videos`          | Prompt → generate videos → gallery |
 | Presentation  | `presentations`| `/presentations`   | Prompt → outline → HTML preview + PPTX |
-| Settings      | —              | `/settings`        | Gateway key, usage, privacy (not a surface) |
+| Settings      | —              | `/settings`        | Gateway key, privacy (not a surface) |
+| Usage         | —              | `/usage`           | This-key + desk spend by range (not a surface) |
 
-Bottom of the rail (not modes): workspace switcher, Workspaces, Settings, theme. Collapse prefs stay on `apps/web/lib/rail-prefs.ts`.
+Bottom of the rail (not modes): workspace switcher, Workspaces, Settings, Usage, theme. Collapse prefs stay on `apps/web/lib/rail-prefs.ts`.
 
 Agents / Studio are parked. `/agents` and `/studio/**` redirect to Chat. Files stay in the tree for a later pass.
 
@@ -76,7 +77,11 @@ Kimi Slides **job** (topic → deck file), not Kimi Slides **product**. Prompt �
 
 ### Settings
 
-Saving a gateway API key always probes `GET /v1/models` first, then routes ids into Chat / Documents / Research / Presentation (chat bucket) and Images / Videos (generate buckets). Empty generate studios fail visibly when there is no key. No Advanced tab, no Build / Agents links.
+Saving a gateway API key always probes `GET /v1/models` first, then routes ids into Chat / Documents / Research / Presentation (chat bucket) and Images / Videos (generate buckets). Empty generate studios fail visibly when there is no key. No Advanced tab, no Build / Agents links. Compact this-key spend + Open Usage link; full Day/Week/Month charts live on Usage (bottom rail, not a work mode).
+
+### Usage
+
+Not a product mode. Bottom-rail page at `/usage`: this-key wallet, desk estimate for the selected Day / Week / Month range, stacked spend-by-model chart, and by-model list. Fetches `GET /api/v1/usage?range=day|week|month`. Desk estimate and this-key wallet will not match.
 
 ## Later (not this pass)
 

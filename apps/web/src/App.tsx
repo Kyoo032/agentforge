@@ -6,6 +6,7 @@ import { apiFetch } from "@/lib/api-client";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { ChatPage } from "@/src/pages/chat-page";
 import { SettingsPage } from "@/components/settings-page";
+import { UsagePage } from "@/components/usage-page";
 import { WorkspacesPage } from "@/components/workspaces-page";
 import { DocumentsStudio } from "@/components/documents-studio";
 import { ResearchStudio } from "@/components/research-studio";
@@ -114,6 +115,7 @@ export function App() {
         <Route path="/" element={<HomeRedirect />} />
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/usage" element={<UsagePage />} />
         <Route path="/workspaces" element={<WorkspacesPage />} />
         <Route path="/documents" element={<DocumentsStudio />} />
         <Route path="/research" element={<ResearchStudio />} />

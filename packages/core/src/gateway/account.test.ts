@@ -2,14 +2,19 @@ import { describe, expect, it } from "vitest";
 import { GATEWAY_BASE_URL, QUOTA_PER_USD, formatUsd, gatewayOriginFromBaseUrl, quotaToUsd } from "../gateway";
 import {
   asRunUsageRecord,
+  buildUsageBuckets,
   estimateDeskByModel,
   estimateDeskUsd,
   estimateRunUsd,
   fetchThisKeyUsage,
+  listUsageBucketFrames,
   loadThisKeyState,
   parsePricingCatalog,
   parseTokenUsage,
+  parseUsageRange,
   readLanguageModelUsage,
+  summarizeUsageDesk,
+  usageBucketKey,
 } from "./account";
 
 const catalog = parsePricingCatalog({
@@ -232,5 +237,92 @@ describe("fetchThisKeyUsage", () => {
 describe("loadThisKeyState", () => {
   it("is needs_key without a secret", async () => {
     expect(await loadThisKeyState({})).toEqual({ status: "needs_key" });
+  });
+});
+
+describe("usage bucketing", () => {
+  // Thursday 2026-09-03 local — ISO week 36.
+  const now = new Date(2026, 8, 3, 15, 30, 0);
+
+  it("parseUsageRange defaults invalid or missing to day", () => {
+    expect(parseUsageRange(undefined)).toBe("day");
+    expect(parseUsageRange("")).toBe("day");
+    expect(parseUsageRange("year")).toBe("day");
+    expect(parseUsageRange("week")).toBe("week");
+    expect(parseUsageRange("month")).toBe("month");
+  });
+
+  it("maps a run on day 0 into the matching day/week/month keys", () => {
+    expect(usageBucketKey(now, "day")).toBe("2026-09-03");
+    expect(usageBucketKey(now, "week")).toBe("2026-W36");
+    expect(usageBucketKey(now, "month")).toBe("2026-09");
+  });
+
+  it("lists empty day frames oldest → newest including today", () => {
+    const frames = listUsageBucketFrames("day", now);
+    expect(frames).toHaveLength(14);
+    expect(frames[0]?.key).toBe("2026-08-21");
+    expect(frames.at(-1)?.key).toBe("2026-09-03");
+    expect(listUsageBucketFrames("week", now)).toHaveLength(8);
+    expect(listUsageBucketFrames("month", now)).toHaveLength(6);
+    expect(listUsageBucketFrames("month", now).at(-1)?.key).toBe("2026-09");
+  });
+
+  it("keeps empty day buckets and prices the day-0 run", () => {
+    const buckets = buildUsageBuckets(
+      [{ model: "gpt-5.6-sol", inputTokens: 1000, outputTokens: 200, startedAt: now }],
+      "day",
+      catalog,
+      now,
+    );
+    expect(buckets).toHaveLength(14);
+    expect(buckets.filter((bucket) => bucket.usd === 0 && bucket.models.length === 0)).toHaveLength(13);
+    const today = buckets.at(-1);
+    expect(today?.key).toBe("2026-09-03");
+    expect(today?.usd).toBeCloseTo(0.008, 6);
+    expect(today?.models).toHaveLength(1);
+    expect(today?.models[0]).toMatchObject({
+      model: "gpt-5.6-sol",
+      runCount: 1,
+      inputTokens: 1000,
+      outputTokens: 200,
+    });
+    expect(today?.models[0]?.usd).toBeCloseTo(0.008, 6);
+  });
+
+  it("lands the same run in week and month buckets with empty siblings", () => {
+    const run = { model: "gpt-5.6-sol", inputTokens: 1000, outputTokens: 200, startedAt: now };
+    const weeks = buildUsageBuckets([run], "week", catalog, now);
+    expect(weeks).toHaveLength(8);
+    expect(weeks.at(-1)?.key).toBe("2026-W36");
+    expect(weeks.at(-1)?.usd).toBeCloseTo(0.008, 6);
+    expect(weeks.slice(0, -1).every((bucket) => bucket.usd === 0)).toBe(true);
+
+    const months = buildUsageBuckets([run], "month", catalog, now);
+    expect(months).toHaveLength(6);
+    expect(months.map((bucket) => bucket.key)).toEqual([
+      "2026-04",
+      "2026-05",
+      "2026-06",
+      "2026-07",
+      "2026-08",
+      "2026-09",
+    ]);
+    expect(months.at(-1)?.usd).toBeCloseTo(0.008, 6);
+  });
+
+  it("summarizes desk byModel usd desc then model name", () => {
+    const desk = summarizeUsageDesk(
+      [
+        { model: "gpt-5.6-sol", inputTokens: 1000, outputTokens: 200, startedAt: now },
+        { model: "fixed-image", inputTokens: 0, outputTokens: 0, startedAt: now },
+        { model: "aaa-unknown", inputTokens: 1, outputTokens: 1, startedAt: now },
+      ],
+      catalog,
+    );
+    expect(desk.modelCount).toBe(3);
+    expect(desk.byModel.map((row) => row.model)).toEqual(["fixed-image", "gpt-5.6-sol", "aaa-unknown"]);
+    expect(desk.pricedCount).toBe(2);
+    expect(desk.unknownCount).toBe(1);
   });
 });

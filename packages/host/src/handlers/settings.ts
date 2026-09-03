@@ -12,7 +12,7 @@ import { jsonError, jsonOk } from "../errors";
 import { getTenant } from "../tenant";
 import { loadSettings, saveSettings } from "../settings-store";
 import { refreshModelCache, modeCatalogPayload } from "../selectable-models";
-import { loadLocalAccountUsage } from "../account-usage";
+import { loadAccountUsage } from "../account-usage";
 import { probeSummary } from "../model-cache";
 
 function readStringMap(value: unknown): Record<string, string> | undefined {
@@ -65,7 +65,7 @@ async function settingsPayload(settings: ReturnType<typeof loadSettings>, tenant
       })),
     })),
     toolRoutes: listToolRoutes(settings),
-    usage: await loadLocalAccountUsage(settings, tenant),
+    usage: await loadAccountUsage(settings, tenant),
   };
 }
 

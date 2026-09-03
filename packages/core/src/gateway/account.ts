@@ -379,3 +379,265 @@ export async function loadThisKeyState(input: {
     return { status: "error", message };
   }
 }
+
+export type UsageRange = "day" | "week" | "month";
+
+export type TimestampedRunUsage = RunUsageRecord & {
+  startedAt: Date;
+};
+
+export type UsageBucketModel = {
+  model: string;
+  usd: number;
+  runCount: number;
+  inputTokens: number;
+  outputTokens: number;
+};
+
+export type UsageBucket = {
+  key: string;
+  label: string;
+  usd: number;
+  models: UsageBucketModel[];
+};
+
+export type UsageBucketFrame = {
+  key: string;
+  label: string;
+};
+
+export type UsageDeskByModel = {
+  model: string;
+  usd: number;
+  runCount: number;
+  inputTokens: number;
+  outputTokens: number;
+  unknown: boolean;
+};
+
+export type UsageDeskSummary = {
+  usd: number;
+  unknownCount: number;
+  pricedCount: number;
+  modelCount: number;
+  byModel: UsageDeskByModel[];
+};
+
+const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
+
+const MS_PER_DAY = 86_400_000;
+
+export function parseUsageRange(value: unknown): UsageRange {
+  if (value === "week" || value === "month" || value === "day") {
+    return value;
+  }
+  return "day";
+}
+
+function startOfLocalDay(at: Date): Date {
+  return new Date(at.getFullYear(), at.getMonth(), at.getDate());
+}
+
+function formatYmd(at: Date): string {
+  const y = at.getFullYear();
+  const m = String(at.getMonth() + 1).padStart(2, "0");
+  const d = String(at.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function formatYm(at: Date): string {
+  const y = at.getFullYear();
+  const m = String(at.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
+}
+
+/** Local Monday (ISO week start) for the calendar day of `at`. */
+function mondayOfLocal(at: Date): Date {
+  const day = startOfLocalDay(at);
+  const dayNum = day.getDay() || 7;
+  day.setDate(day.getDate() - (dayNum - 1));
+  return day;
+}
+
+/** Local-calendar ISO week year + week number (Monday-based). */
+function localIsoWeek(at: Date): { year: number; week: number } {
+  const thursday = mondayOfLocal(at);
+  thursday.setDate(thursday.getDate() + 3);
+  const year = thursday.getFullYear();
+  const week1Monday = mondayOfLocal(new Date(year, 0, 4));
+  const week = 1 + Math.round((mondayOfLocal(at).getTime() - week1Monday.getTime()) / (7 * MS_PER_DAY));
+  return { year, week };
+}
+
+function formatIsoWeekKey(at: Date): string {
+  const { year, week } = localIsoWeek(at);
+  return `${year}-W${String(week).padStart(2, "0")}`;
+}
+
+function dayLabel(at: Date): string {
+  return `${MONTH_LABELS[at.getMonth()]} ${at.getDate()}`;
+}
+
+function weekLabel(at: Date): string {
+  return `W${localIsoWeek(at).week}`;
+}
+
+function monthLabel(at: Date): string {
+  return MONTH_LABELS[at.getMonth()] ?? "Jan";
+}
+
+/** Sortable bucket key for a local calendar instant. */
+export function usageBucketKey(at: Date, range: UsageRange): string {
+  if (range === "day") {
+    return formatYmd(at);
+  }
+  if (range === "month") {
+    return formatYm(at);
+  }
+  return formatIsoWeekKey(at);
+}
+
+/** Empty axis frames oldest → newest (day: 14, week: 8, month: 6). */
+export function listUsageBucketFrames(range: UsageRange, now = new Date()): UsageBucketFrame[] {
+  if (range === "day") {
+    const today = startOfLocalDay(now);
+    const frames: UsageBucketFrame[] = [];
+    for (let i = 13; i >= 0; i -= 1) {
+      const day = new Date(today);
+      day.setDate(day.getDate() - i);
+      frames.push({ key: formatYmd(day), label: dayLabel(day) });
+    }
+    return frames;
+  }
+  if (range === "week") {
+    const thisMonday = mondayOfLocal(now);
+    const frames: UsageBucketFrame[] = [];
+    for (let i = 7; i >= 0; i -= 1) {
+      const monday = new Date(thisMonday);
+      monday.setDate(monday.getDate() - i * 7);
+      frames.push({ key: formatIsoWeekKey(monday), label: weekLabel(monday) });
+    }
+    return frames;
+  }
+  const frames: UsageBucketFrame[] = [];
+  for (let i = 5; i >= 0; i -= 1) {
+    const month = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    frames.push({ key: formatYm(month), label: monthLabel(month) });
+  }
+  return frames;
+}
+
+function priceOrNull(
+  usage: RunUsageRecord,
+  catalog: PricingCatalog | null,
+  groupRatio: number,
+): number | null {
+  if (!catalog) {
+    return null;
+  }
+  return estimateRunUsd(usage, catalog, groupRatio);
+}
+
+function sortByUsdThenModel<T extends { usd: number; model: string }>(rows: T[]): T[] {
+  return [...rows].sort((left, right) => {
+    if (right.usd !== left.usd) {
+      return right.usd - left.usd;
+    }
+    return left.model.localeCompare(right.model);
+  });
+}
+
+/** Price timestamped runs into fixed calendar buckets (empty buckets kept at usd 0). */
+export function buildUsageBuckets(
+  runs: TimestampedRunUsage[],
+  range: UsageRange,
+  catalog: PricingCatalog | null,
+  now = new Date(),
+  groupRatio = DEFAULT_GROUP_RATIO,
+): UsageBucket[] {
+  const frames = listUsageBucketFrames(range, now);
+  const keySet = new Set(frames.map((frame) => frame.key));
+  const byKey = new Map<string, Map<string, UsageBucketModel>>();
+
+  for (const run of runs) {
+    const key = usageBucketKey(run.startedAt, range);
+    if (!keySet.has(key)) {
+      continue;
+    }
+    let models = byKey.get(key);
+    if (!models) {
+      models = new Map();
+      byKey.set(key, models);
+    }
+    const existing = models.get(run.model) ?? {
+      model: run.model,
+      usd: 0,
+      runCount: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+    };
+    existing.runCount += 1;
+    existing.inputTokens += run.inputTokens;
+    existing.outputTokens += run.outputTokens;
+    const priced = priceOrNull(run, catalog, groupRatio);
+    if (priced != null) {
+      existing.usd += priced;
+    }
+    models.set(run.model, existing);
+  }
+
+  return frames.map((frame) => {
+    const models = sortByUsdThenModel([...(byKey.get(frame.key)?.values() ?? [])]);
+    const usd = models.reduce((sum, row) => sum + row.usd, 0);
+    return {
+      key: frame.key,
+      label: frame.label,
+      usd,
+      models,
+    };
+  });
+}
+
+/** Desk totals for runs already filtered to the selected range window. */
+export function summarizeUsageDesk(
+  runs: TimestampedRunUsage[],
+  catalog: PricingCatalog | null,
+  groupRatio = DEFAULT_GROUP_RATIO,
+): UsageDeskSummary {
+  const groups = new Map<string, UsageDeskByModel>();
+  let usd = 0;
+  let unknownCount = 0;
+  let pricedCount = 0;
+
+  for (const run of runs) {
+    const existing = groups.get(run.model) ?? {
+      model: run.model,
+      usd: 0,
+      runCount: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      unknown: false,
+    };
+    existing.runCount += 1;
+    existing.inputTokens += run.inputTokens;
+    existing.outputTokens += run.outputTokens;
+    const priced = priceOrNull(run, catalog, groupRatio);
+    if (priced == null) {
+      existing.unknown = true;
+      unknownCount += 1;
+    } else {
+      existing.usd += priced;
+      usd += priced;
+      pricedCount += 1;
+    }
+    groups.set(run.model, existing);
+  }
+
+  return {
+    usd,
+    unknownCount,
+    pricedCount,
+    modelCount: groups.size,
+    byModel: sortByUsdThenModel([...groups.values()]),
+  };
+}

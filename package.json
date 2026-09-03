@@ -12,6 +12,7 @@
     "db:studio": "pnpm --filter @agentforge/db studio",
     "desktop:dev": "pnpm --filter @agentforge/desktop desktop-dev",
     "desktop:build": "pnpm --filter @agentforge/desktop desktop-build",
+    "desktop:build:all": "pnpm --filter @agentforge/desktop desktop-build-all",
     "desktop:build:mac": "pnpm --filter @agentforge/desktop desktop-build-mac",
     "desktop:build:linux": "pnpm --filter @agentforge/desktop desktop-build-linux"
   },

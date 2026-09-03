@@ -46,15 +46,24 @@ test("chat and workspaces work without an account", async ({ page }) => {
   await expect(page.getByTestId("privacy-note")).toBeVisible();
   await expect(page.getByTestId("key-fingerprint")).toHaveCount(0);
   await expect(page.getByTestId("runtime-status")).toContainText("Offline demo", { timeout: 15_000 });
-  await expect(page.getByTestId("usage-panel")).toBeVisible();
   await expect(page.getByTestId("usage-this-key")).toContainText("Paste a gateway key");
-  await expect(page.getByTestId("usage-desk-estimate")).toBeVisible();
-  await expect(page.getByTestId("usage-by-model")).toBeVisible();
+  await expect(page.getByTestId("usage-open")).toBeVisible();
+  await expect(page.getByTestId("usage-by-model")).toHaveCount(0);
+  await expect(page.getByTestId("usage-desk-estimate")).toHaveCount(0);
   await expect(page.getByTestId("settings-tab-simple")).toHaveCount(0);
   await expect(page.getByTestId("settings-tab-advanced")).toHaveCount(0);
   await expect(page.getByTestId("settings-build-link")).toHaveCount(0);
   await expect(page.getByTestId("openai-base-url")).toHaveCount(0);
   await expect(page.getByTestId("injection-guard-bypass")).toHaveCount(0);
+
+  await expect(page.getByTestId("usage-link")).toBeVisible();
+  await page.getByTestId("usage-open").click();
+  await expect(page).toHaveURL(/\/usage/, { timeout: 30_000 });
+  await expect(page.getByTestId("usage-range")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("usage-this-key")).toContainText("Paste a gateway key");
+  await expect(
+    page.getByTestId("usage-range-empty").or(page.getByTestId("usage-range-chart")),
+  ).toBeVisible({ timeout: 15_000 });
 
   await page.getByTestId("mode-images").click();
   await expect(page).toHaveURL(/\/images/, { timeout: 15_000 });
