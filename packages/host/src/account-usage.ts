@@ -167,7 +167,7 @@ export async function loadAccountUsage(
         unknownCount: 0,
         pricedCount: 0,
         byModel: [],
-        error: error instanceof Error ? error.message : "Could not load Toko Token prices",
+        error: error instanceof Error ? error.message : "Could not load gateway prices",
       },
     };
   }
@@ -245,7 +245,7 @@ export async function loadRangeUsage(
   try {
     catalog = await pricingFor(settings.openaiBaseUrl);
   } catch (error) {
-    pricingError = error instanceof Error ? error.message : "Could not load Toko Token prices";
+    pricingError = error instanceof Error ? error.message : "Could not load gateway prices";
   }
 
   const desk = summarizeUsageDesk(timed, catalog);

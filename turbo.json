@@ -1,5 +1,14 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalPassThroughEnv": [
+    "AGENTFORGE_RUNTIME",
+    "AGENTFORGE_DATA_DIR",
+    "AGENTFORGE_PRODUCT_NAME",
+    "AGENTFORGE_GATEWAY_NAME",
+    "AGENTFORGE_GATEWAY_URL",
+    "AGENTFORGE_SECRETS_KEY",
+    "AGENTFORGE_VERIFY_URL"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -7,7 +16,15 @@
     },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "passThroughEnv": [
+        "AGENTFORGE_RUNTIME",
+        "AGENTFORGE_DATA_DIR",
+        "AGENTFORGE_PRODUCT_NAME",
+        "AGENTFORGE_GATEWAY_NAME",
+        "AGENTFORGE_GATEWAY_URL",
+        "AGENTFORGE_SECRETS_KEY"
+      ]
     },
     "test": {}
   }

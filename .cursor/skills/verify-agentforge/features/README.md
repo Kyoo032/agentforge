@@ -54,6 +54,7 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 - [Videos](./videos.md) — studio shell and `videos-studio-needs-key` without a key.
 - [Presentation](./presentations.md) — starters, preview, slide regen (503 without a key), PPTX download from a starter.
 - [Desktop](./desktop.md) — Electron one-window launch, splash → Chat, IPC host (no loopback HTTP). Windows NSIS exists; mac/linux are builder targets.
+- [Desktop brands](./desktop-brands.md) — packaged Kemenkeu AI / AIHub Metranet vs public Agentforge. Rail `product-brand` + `product-logo` must match the installed flavor, not leftover Agentforge copy.
 - [Mobile](./mobile.md) — docs only. No iOS/Android build, no stores, no Capacitor. A phone on LAN `:3000` is not a product surface.
 - [Build](./build.md) — **parked / verified-unreachable.** `/studio` redirects to Chat.
 - [Studio advanced](./studio-advanced.md) — **parked / verified-unreachable.** Same redirect.

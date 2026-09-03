@@ -15,13 +15,7 @@ There is no mobile Electron/Capacitor/RN target. See [`docs/mobile.md`](../../do
 
 ## userData (`host-status.json`, SQLite, `settings.enc`)
 
-`app.setName("Agentforge")` + `extraMetadata.name: "agentforge"`:
-
-| OS | userData |
-|---|---|
-| Windows | `%APPDATA%\Agentforge` (legacy fallback `%APPDATA%\@agentforge\desktop`) |
-| Linux | `$XDG_CONFIG_HOME/Agentforge` or `~/.config/Agentforge` |
-| macOS | `~/Library/Application Support/Agentforge` |
+`app.setName(productName)` + flavor `brand.json` (`userData` is `%APPDATA%\<productName>`). Git tracks **Agentforge** only (`%APPDATA%\Agentforge`, legacy `%APPDATA%\@agentforge\desktop`). Other Windows flavors are local/gitignored.
 
 Packaged launch writes `host-status.json` there (`transport: "ipc"`). Doctor `--desktop` reads that file and **fails** if it is missing. It does **not** GET `:3000`.
 
@@ -41,11 +35,12 @@ Schema is created in-process on first SQLite open (`ensureSchema` / committed dr
 
 ```
 pnpm desktop:build
-# one flavor (default public): AGENTFORGE_BRAND=agentforge|kemenkeu|metranet pnpm --filter @agentforge/desktop desktop-pack
-# all three NSIS flavors: pnpm desktop:build:all
+# default public flavor: AGENTFORGE_BRAND=agentforge pnpm --filter @agentforge/desktop desktop-pack
 ```
 
-Builds the Vite renderer, esbuild-bundles `host.cjs` (externals: `better-sqlite3`, `keytar`), copies drizzle migrations, then packages Electron. Output: `apps/desktop/dist/` (NSIS, current user). Flavor is icon + splash only (`branding/{agentforge,kemenkeu,metranet}/`); same `appId` / productName **Agentforge**.
+Builds the Vite renderer, esbuild-bundles `host.cjs` (externals: `better-sqlite3`, `keytar`), copies drizzle migrations, then packages Electron. Output: `apps/desktop/dist/` (NSIS, current user). Git has `branding/agentforge/` (Toko Token, `appId` `com.tokotoken.agentforge`). Extra local flavors under `branding/` are gitignored and must not be committed or uploaded.
+
+In-app rail name and logo come from extraResources `brand/brand.json` + `brand/logo.png` via preload (`window.agentforge.brand`). Changing splash/exe names alone is not enough.
 
 Native modules must be rebuilt for Electron’s Node **on Windows**:
 

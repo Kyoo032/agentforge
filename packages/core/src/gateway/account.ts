@@ -1,4 +1,4 @@
-import { GATEWAY_BASE_URL, DEFAULT_GROUP_RATIO, gatewayOriginFromBaseUrl, quotaToUsd } from "../gateway";
+import { DEFAULT_GROUP_RATIO, gatewayOriginFromBaseUrl, quotaToUsd, resolvedGatewayBaseUrl } from "../gateway";
 import { redactSecrets } from "../security/redact";
 import { assertAllowedEndpointUrl } from "../security/tls";
 
@@ -311,14 +311,14 @@ export async function fetchPricingCatalog(input: {
   baseURL?: string;
   fetch?: typeof fetch;
 }): Promise<PricingCatalog> {
-  const origin = gatewayOriginFromBaseUrl(input.baseURL ?? GATEWAY_BASE_URL);
+  const origin = gatewayOriginFromBaseUrl(input.baseURL ?? resolvedGatewayBaseUrl());
   const result = await getJson(`${origin}/api/pricing`, { Accept: "application/json" }, input.fetch ?? fetch);
   if (!result.ok) {
-    throw new Error(`Could not load Toko Token prices (${result.status})`);
+    throw new Error(`Could not load gateway prices (${result.status})`);
   }
   const catalog = parsePricingCatalog(result.body);
   if (catalog.models.length === 0) {
-    throw new Error("Toko Token price list was empty");
+    throw new Error("Gateway price list was empty");
   }
   return catalog;
 }
@@ -328,7 +328,7 @@ export async function fetchThisKeyUsage(input: {
   apiKey: string;
   fetch?: typeof fetch;
 }): Promise<ThisKeyUsage> {
-  const origin = gatewayOriginFromBaseUrl(input.baseURL ?? GATEWAY_BASE_URL);
+  const origin = gatewayOriginFromBaseUrl(input.baseURL ?? resolvedGatewayBaseUrl());
   const headers = {
     Accept: "application/json",
     Authorization: `Bearer ${input.apiKey}`,

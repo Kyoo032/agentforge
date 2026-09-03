@@ -6,7 +6,7 @@
  *       → local webdev at http://127.0.0.1:3000
  *   node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop
  *       → packaged IPC host from Electron userData host-status.json:
- *         Windows: %APPDATA%/Agentforge/host-status.json
+ *         Windows: %APPDATA%/Agentforge|Kemenkeu AI|AIHub Metranet/host-status.json
  *                  (legacy: %APPDATA%/@agentforge/desktop/host-status.json)
  *         Linux:   $XDG_CONFIG_HOME/Agentforge/host-status.json
  *                  or ~/.config/Agentforge/host-status.json
@@ -14,7 +14,7 @@
  *   AGENTFORGE_VERIFY_URL=http://127.0.0.1:PORT node …/doctor.mjs
  *       → explicit loopback for **webdev only** (ignored with --desktop)
  */
-import { readFileSync, existsSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { desktopHostStatusCandidates, packagedSqliteHint } from "./desktop-app-url.mjs";
 
 const WEBDEV_URL = "http://127.0.0.1:3000";
@@ -50,12 +50,23 @@ function portOf(url) {
 
 function desktopStatusPath() {
   const candidates = desktopHostStatusCandidates();
+  let newest = "";
+  let newestMtime = -1;
   for (const file of candidates) {
-    if (existsSync(file)) {
-      return file;
+    if (!existsSync(file)) {
+      continue;
+    }
+    try {
+      const mtime = statSync(file).mtimeMs;
+      if (mtime >= newestMtime) {
+        newest = file;
+        newestMtime = mtime;
+      }
+    } catch {
+      // unreadable candidate
     }
   }
-  return candidates[0];
+  return newest || candidates[0];
 }
 
 async function doctorDesktop() {
@@ -105,6 +116,9 @@ async function doctorDesktop() {
     modeKeys: [],
     chatCount: 0,
     curation: false,
+    productName: typeof status.productName === "string" ? status.productName : "",
+    gatewayName: typeof status.gatewayName === "string" ? status.gatewayName : "",
+    gatewayBaseUrl: typeof status.gatewayBaseUrl === "string" ? status.gatewayBaseUrl : "",
     dataDir,
     sqliteHint: packagedSqliteHint(),
     statusFile: file,

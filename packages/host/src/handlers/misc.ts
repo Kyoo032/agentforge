@@ -1,4 +1,11 @@
-import { defaultAgentPack, listToolRoutes, listTools } from "@agentforge/core";
+import {
+  defaultAgentPack,
+  listToolRoutes,
+  listTools,
+  resolvedGatewayBaseUrl,
+  resolvedGatewayName,
+  resolvedProductName,
+} from "@agentforge/core";
 import { legalAgentPacks } from "@agentforge/legal";
 import { marketingAgentPacks } from "@agentforge/marketing";
 import { agentPacks } from "@agentforge/university";
@@ -79,5 +86,11 @@ export async function handleGetOrganizations(request: HostRequest): Promise<Host
 }
 
 export async function handlePing(): Promise<HostResult> {
-  return jsonOk({ ok: true, transport: "host" });
+  return jsonOk({
+    ok: true,
+    transport: "host",
+    productName: resolvedProductName(),
+    gatewayName: resolvedGatewayName(),
+    gatewayBaseUrl: resolvedGatewayBaseUrl(),
+  });
 }

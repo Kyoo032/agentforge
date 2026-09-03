@@ -4,10 +4,50 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 
-const PRODUCT_NAME = "Agentforge";
+const DEFAULT_BRAND = {
+  productName: "Agentforge",
+  gatewayName: "Toko Token",
+  gatewayBaseUrl: "https://api.tokotokenai.com/v1",
+};
+
+function loadBrandConfig() {
+  if (!app.isPackaged) {
+    return DEFAULT_BRAND;
+  }
+  const file = path.join(process.resourcesPath, "brand", "brand.json");
+  try {
+    if (!fs.existsSync(file)) {
+      return DEFAULT_BRAND;
+    }
+    const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
+    const productName =
+      typeof parsed.productName === "string" && parsed.productName.trim()
+        ? parsed.productName.trim()
+        : DEFAULT_BRAND.productName;
+    const gatewayName =
+      typeof parsed.gatewayName === "string" && parsed.gatewayName.trim()
+        ? parsed.gatewayName.trim()
+        : DEFAULT_BRAND.gatewayName;
+    const gatewayBaseUrl =
+      typeof parsed.gatewayBaseUrl === "string" && parsed.gatewayBaseUrl.trim()
+        ? parsed.gatewayBaseUrl.trim().replace(/\/+$/, "")
+        : DEFAULT_BRAND.gatewayBaseUrl;
+    return { productName, gatewayName, gatewayBaseUrl };
+  } catch (err) {
+    console.warn("brand.json unreadable, using Agentforge defaults:", err.message);
+    return DEFAULT_BRAND;
+  }
+}
+
+const brand = loadBrandConfig();
+const PRODUCT_NAME = brand.productName;
 const KEYCHAIN_SERVICE = PRODUCT_NAME;
 const KEYCHAIN_ACCOUNT = "wrap-key";
 const WEBDEV_URL = "http://127.0.0.1:3000";
+
+process.env.AGENTFORGE_PRODUCT_NAME = brand.productName;
+process.env.AGENTFORGE_GATEWAY_NAME = brand.gatewayName;
+process.env.AGENTFORGE_GATEWAY_URL = brand.gatewayBaseUrl;
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -101,6 +141,9 @@ function writeHostStatus(dataDir, extra) {
     dataDir,
     transport: "ipc",
     surface: "desktop",
+    productName: PRODUCT_NAME,
+    gatewayName: brand.gatewayName,
+    gatewayBaseUrl: brand.gatewayBaseUrl,
     ...extra,
   };
   fs.writeFileSync(path.join(dataDir, "host-status.json"), `${JSON.stringify(payload, null, 2)}\n`, "utf8");
@@ -111,7 +154,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
-    title: "Agentforge",
+    title: PRODUCT_NAME,
     icon: windowIconPath(),
     show: false,
     autoHideMenuBar: true,

@@ -1,0 +1,9 @@
+{
+  "id": "agentforge",
+  "productName": "Agentforge",
+  "appId": "com.tokotoken.agentforge",
+  "artifactName": "Agentforge Setup ${version}.exe",
+  "gatewayName": "Toko Token",
+  "gatewayBaseUrl": "https://api.tokotokenai.com/v1",
+  "splashBlurb": "Starting the local app. Paste your Toko Token gateway key in Settings, then Chat is ready."
+}

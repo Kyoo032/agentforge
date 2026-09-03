@@ -13,7 +13,13 @@ describe("host router", () => {
     expect(result).toEqual({
       type: "json",
       status: 200,
-      body: { ok: true, transport: "host" },
+      body: {
+        ok: true,
+        transport: "host",
+        productName: "Agentforge",
+        gatewayName: "Toko Token",
+        gatewayBaseUrl: "https://api.tokotokenai.com/v1",
+      },
     });
   });
 

@@ -16,6 +16,8 @@ declare global {
   interface Window {
     agentforge?: {
       isElectron: true;
+      brand?: { productName?: string; gatewayName?: string; gatewayBaseUrl?: string };
+      brandLogo?: string;
       invoke: (payload: IpcHostRequest) => Promise<IpcHostResponse>;
       stream: (requestId: string, onChunk: (chunk: string) => void) => Promise<void>;
       saveBytes?: (filename: string, bytes: number[]) => Promise<void>;

@@ -10,8 +10,8 @@ import { estimateConversationTokens } from "@/lib/estimate-tokens";
 import { ChatTurn, messageHasDisplayableContent, type LiveTool } from "@/components/chat-turn";
 import { collectToolMediaParts } from "@/lib/tool-media";
 import { notifyThreadsChanged } from "@/lib/threads-events";
-import { GATEWAY_NAME } from "@agentforge/core/gateway";
 import { apiFetch } from "@/lib/api-client";
+import { useProductBrand } from "@/lib/product-brand";
 
 type Message = { id: string; role: string; content: unknown };
 
@@ -32,6 +32,7 @@ type Props = {
 
 export function ChatSession({ agentId, initialThreadId }: Props) {
   const router = useRouter();
+  const { gatewayName } = useProductBrand();
   const [agentName, setAgentName] = useState("Chat");
   const [isDefaultChat, setIsDefaultChat] = useState(!agentId);
   const [threadId, setThreadId] = useState<string | null>(null);
@@ -248,7 +249,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           <div className="text-center" data-testid="chat-empty">
             <p className="text-2xl font-semibold">You're in. Ask anything.</p>
             <p className="mt-2 text-ink/60">
-              Paste a {GATEWAY_NAME} gateway key in{" "}
+              Paste a {gatewayName} gateway key in{" "}
               <Link href="/settings" className="underline">
                 Settings
               </Link>{" "}

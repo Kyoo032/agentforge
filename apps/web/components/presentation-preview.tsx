@@ -4,6 +4,7 @@ import { useState } from "react";
 import { JobRegenPanel, type JobRegenSubmit } from "@/components/job-regen-panel";
 import type { PresentationOutline } from "@/lib/presentation-outline";
 import type { JobStudioModel } from "@/lib/use-job-model";
+import { useProductBrand } from "@/lib/product-brand";
 
 type Props = {
   outline: PresentationOutline;
@@ -20,6 +21,7 @@ export function PresentationPreview({
   regeneratingIndex = null,
   onRegenerate,
 }: Props) {
+  const { productName } = useProductBrand();
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
@@ -32,7 +34,7 @@ export function PresentationPreview({
         <div className="relative flex h-full flex-col justify-center px-8 py-10 sm:px-12">
           <p className="text-xs font-medium uppercase tracking-[0.16em] text-white/70">Presentation</p>
           <h2 className="mt-3 max-w-3xl text-2xl font-semibold leading-tight sm:text-4xl">{outline.title}</h2>
-          <p className="absolute bottom-4 left-8 text-xs font-medium text-ink sm:left-12">Agentforge</p>
+          <p className="absolute bottom-4 left-8 text-xs font-medium text-ink sm:left-12">{productName}</p>
         </div>
       </article>
 

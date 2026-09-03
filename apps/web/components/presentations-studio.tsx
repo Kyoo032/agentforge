@@ -10,6 +10,7 @@ import type { PresentationOutline } from "@/lib/presentation-outline";
 import { PRESENTATION_STARTERS } from "@/lib/job-starters";
 import { useJobModel } from "@/lib/use-job-model";
 import { apiFetch } from "@/lib/api-client";
+import { useProductBrand } from "@/lib/product-brand";
 
 function errorMessage(payload: unknown, fallback: string): string {
   if (payload && typeof payload === "object") {
@@ -22,6 +23,7 @@ function errorMessage(payload: unknown, fallback: string): string {
 }
 
 export function PresentationsStudio() {
+  const { productName } = useProductBrand();
   const { models, model, setModel } = useJobModel("presentations");
   const [prompt, setPrompt] = useState("");
   const [outline, setOutline] = useState<PresentationOutline | null>(null);
@@ -128,7 +130,7 @@ export function PresentationsStudio() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Presentation</h1>
           <p className="mt-2 max-w-xl text-sm text-ink/60">
-            Describe a topic. Agentforge drafts an outline, shows an HTML preview, and downloads a PPTX.
+            Describe a topic. {productName} drafts an outline, shows an HTML preview, and downloads a PPTX.
           </p>
         </div>
         {outline ? (

@@ -33,7 +33,7 @@ Preconditions:
 
 ## Gotchas
 
-- Saving probes `GET /v1/models` against the locked Toko Token URL. A missing key is a product 400/offline demo, not a harness bug.
+- Saving probes `GET /v1/models` against the locked gateway URL (Toko Token on webdev; AIHub on Kemenkeu / Metranet flavors). A missing key is a product 400/offline demo, not a harness bug.
 - GET Settings may still embed a this-key snapshot for the slim strip. Full range charts use `GET /api/v1/usage` on the Usage page.
 - The raw key never comes back after save. A filled `openai-key` on reload means you are looking at the empty replace-placeholder, not the secret.
 - Advanced fields remain in the host store (guard on, tools on) but are not in the GTM UI. Hunting for `injection-guard-bypass` and finding count 0 is a pass.

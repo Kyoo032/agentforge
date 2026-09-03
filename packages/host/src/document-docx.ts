@@ -1,4 +1,5 @@
 import { Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
+import { resolvedProductName } from "@agentforge/core";
 import type { DocumentDraft } from "./document-outline";
 
 function safeFilename(title: string): string {
@@ -48,7 +49,7 @@ export async function buildDocumentDocx(draft: DocumentDraft): Promise<{ buffer:
   }
 
   const doc = new Document({
-    creator: "Agentforge",
+    creator: resolvedProductName(),
     title: draft.title,
     sections: [{ children }],
   });

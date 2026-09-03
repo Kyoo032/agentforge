@@ -49,16 +49,26 @@ export function desktopUserDataDirs(
     if (roaming) {
       return [
         join(roaming, "Agentforge"),
+        join(roaming, "Kemenkeu AI"),
+        join(roaming, "AIHub Metranet"),
         join(roaming, "@agentforge", "desktop"),
       ];
     }
   }
   if (platform === "darwin") {
-    return [join(home, "Library", "Application Support", "Agentforge")];
+    return [
+      join(home, "Library", "Application Support", "Agentforge"),
+      join(home, "Library", "Application Support", "Kemenkeu AI"),
+      join(home, "Library", "Application Support", "AIHub Metranet"),
+    ];
   }
   const xdg = typeof env.XDG_CONFIG_HOME === "string" ? env.XDG_CONFIG_HOME.trim() : "";
   const configHome = xdg || join(home, ".config");
-  return [join(configHome, "Agentforge")];
+  return [
+    join(configHome, "Agentforge"),
+    join(configHome, "Kemenkeu AI"),
+    join(configHome, "AIHub Metranet"),
+  ];
 }
 
 /**

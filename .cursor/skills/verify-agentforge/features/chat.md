@@ -47,6 +47,7 @@ Preconditions:
 - `new-chat` is the header button on the Chat page. `new-chat-link` is the `+ New chat` control in the session rail. The smoke uses `new-chat`.
 - Wait for `composer-send` text `Send`, not a fixed sleep. Stub and live both hold the button in a busy state.
 - `chat-usage` loads asynchronously from `/api/v1/settings`. Assert the settled label, not the initial `…`.
+- Empty-state “paste a … key” uses ping `gatewayName` (Toko Token on webdev). Local flavor windows say AIHub — [desktop-brands.md](./desktop-brands.md).
 - `chat-context` is a local estimate (~4 characters per token) from visible text and thinking, not the gateway tokenizer.
 - Cursor's Next overlay can inject `data-cursor-ref` and eat clicks. Report it; do not retry by coordinates forever.
 - Sending on `runtime: "ai"` spends the operator's gateway. Do not do that as a silent stub check.
