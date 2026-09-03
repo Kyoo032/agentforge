@@ -4,7 +4,7 @@ For invited testers. Use the **installed app** — Windows Setup exe or macOS dm
 
 ## Before you start
 
-1. Download the installer for your OS from [v0.1.0](https://github.com/Kyoo032/agentforge/releases/tag/v0.1.0) (Windows exe is up; macOS dmg when published)
+1. Download the installer for your OS from [v0.11.0](https://github.com/Kyoo032/agentforge/releases/tag/v0.11.0) (Windows exe is up; macOS dmg when published)
 2. Install and open **Agentforge** from the Start menu (Windows) or Applications (macOS)
 3. Paste your Toko Token gateway key in **Settings** when you want live models
 

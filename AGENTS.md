@@ -79,7 +79,7 @@ Desktop:
 
 **Packaged Windows installer exists** (rebuild on Windows after the IPC host rewrite). Cloud Linux must not run `pnpm desktop:build`.
 
-- Artifact: `apps/desktop/dist/Agentforge Setup 0.1.0.exe` (gitignored). Rebuild on Windows after this IPC host rewrite — do not treat the 2026-08-31 Next-child exe as current.
+- Artifact: `apps/desktop/dist/Agentforge.Setup.0.11.0.exe` (gitignored). Rebuild on Windows after this IPC host rewrite — do not treat the v0.1.0 Next-child exe as current.
 - Packaged proof is an Electron window + `doctor.mjs --desktop` reading `host-status.json` (`transport: "ipc"`). There is no `app-url.txt` and no child `node.exe`.
 
 No account. Workspaces are local. Paste the gateway key in Settings. `AGENTFORGE_RUNTIME=stub` until a key is saved (then live models from the gateway). Env `AGENTFORGE_RUNTIME=ai` still uses `.env` keys.
