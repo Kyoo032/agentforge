@@ -27,7 +27,7 @@ function itemClass(active: boolean, compact = false) {
 
 export function AppRail({ workspaceName, visibleModes }: Props) {
   const pathname = usePathname();
-  const { productName } = useProductBrand();
+  const { productName, logoSrc } = useProductBrand();
   const onSettings = pathname.startsWith("/settings");
   const onUsage = pathname.startsWith("/usage");
   const onWorkspaces = pathname.startsWith("/workspaces");
@@ -53,6 +53,14 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
         className="flex h-full w-11 shrink-0 flex-col items-center rounded-xl border border-mist/80 bg-paper py-3"
         aria-label="Product modes"
       >
+        {logoSrc ? (
+          <img
+            src={logoSrc}
+            alt=""
+            className="mb-2 h-7 w-7 object-contain"
+            data-testid="product-logo"
+          />
+        ) : null}
         <button
           type="button"
           className="rounded-md px-1.5 py-1 text-sm text-ink/60 hover:bg-mist hover:text-ink"
@@ -121,8 +129,20 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
   return (
     <aside className="flex h-full w-52 shrink-0 flex-col rounded-xl border border-mist/80 bg-paper" aria-label="Product modes">
       <div className="flex items-start gap-1 border-b border-mist px-2 py-3">
+        {logoSrc ? (
+          <img
+            src={logoSrc}
+            alt=""
+            className="mt-0.5 h-7 w-7 shrink-0 object-contain"
+            data-testid="product-logo"
+          />
+        ) : null}
         <div className="min-w-0 flex-1">
-          <Link href={homeHref} className="block truncate text-sm font-semibold tracking-tight text-ink">
+          <Link
+            href={homeHref}
+            className="block truncate text-sm font-semibold tracking-tight text-ink"
+            data-testid="product-brand"
+          >
             {productName}
           </Link>
           <p className="mt-0.5 truncate text-xs text-ink/50">{workspaceName}</p>

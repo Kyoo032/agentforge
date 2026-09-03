@@ -3,8 +3,11 @@
  * Copy one flavor into build/ + splash/ + brand.json, then run electron-builder NSIS.
  *
  *   AGENTFORGE_BRAND=agentforge|kemenkeu|metranet node scripts/pack-brand.mjs
+ *   node scripts/pack-brand.mjs --restore-public
  *
  * Requires apps/web dist + stage-renderer.mjs already run (or call via desktop-build).
+ * After a non-Agentforge pack, the working tree is always restored to branding/agentforge
+ * so splash/icon leftovers cannot leak into the next public build or a git commit.
  */
 import { spawnSync } from "node:child_process";
 import {
@@ -22,34 +25,14 @@ import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
 const desktopRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
-const brandId = (process.env.AGENTFORGE_BRAND || "agentforge").trim().toLowerCase();
+const restoreOnly = process.argv.includes("--restore-public");
+const brandId = restoreOnly
+  ? "agentforge"
+  : (process.env.AGENTFORGE_BRAND || "agentforge").trim().toLowerCase();
 const brands = new Set(["agentforge", "kemenkeu", "metranet"]);
 
 if (!brands.has(brandId)) {
   console.error(`Unknown AGENTFORGE_BRAND=${brandId}. Use agentforge | kemenkeu | metranet.`);
-  process.exit(1);
-}
-
-const brandDir = join(desktopRoot, "branding", brandId);
-const brandFile = join(brandDir, "brand.json");
-if (!existsSync(brandFile)) {
-  console.error(`Missing ${brandFile}`);
-  process.exit(1);
-}
-
-const brand = JSON.parse(readFileSync(brandFile, "utf8"));
-if (!brand.productName || !brand.appId || !brand.artifactName || !brand.gatewayBaseUrl) {
-  console.error(`brand.json for ${brandId} is missing productName, appId, artifactName, or gatewayBaseUrl`);
-  process.exit(1);
-}
-
-const iconSrc = join(brandDir, "icon.ico");
-const logoPng = join(brandDir, "logo.png");
-const logoSvg = join(brandDir, "logo.svg");
-const splashPng = join(brandDir, "splash.png");
-
-if (!existsSync(iconSrc)) {
-  console.error(`Missing ${iconSrc}`);
   process.exit(1);
 }
 
@@ -59,26 +42,6 @@ const brandResourceDir = join(desktopRoot, "resources", "brand");
 mkdirSync(buildDir, { recursive: true });
 mkdirSync(splashDir, { recursive: true });
 mkdirSync(brandResourceDir, { recursive: true });
-
-for (const name of readdirSync(splashDir)) {
-  if (/^(logo|icon|splash)\./i.test(name)) {
-    unlinkSync(join(splashDir, name));
-  }
-}
-
-copyFileSync(iconSrc, join(buildDir, "icon.ico"));
-copyFileSync(iconSrc, join(splashDir, "icon.ico"));
-copyFileSync(brandFile, join(brandResourceDir, "brand.json"));
-
-const splashImg = existsSync(logoPng) ? logoPng : existsSync(splashPng) ? splashPng : null;
-if (!splashImg) {
-  console.error(`Missing logo.png/splash.png in ${brandDir}`);
-  process.exit(1);
-}
-copyFileSync(splashImg, join(splashDir, "logo.png"));
-if (existsSync(logoSvg)) {
-  copyFileSync(logoSvg, join(splashDir, "logo.svg"));
-}
 
 function escapeHtml(value) {
   return String(value)
@@ -148,8 +111,59 @@ function writeSplash(config) {
   );
 }
 
-writeSplash(brand);
+function applyBrandToWorkingTree(id) {
+  const brandDir = join(desktopRoot, "branding", id);
+  const brandFile = join(brandDir, "brand.json");
+  if (!existsSync(brandFile)) {
+    console.error(`Missing ${brandFile}`);
+    process.exit(1);
+  }
+  const brand = JSON.parse(readFileSync(brandFile, "utf8"));
+  if (!brand.productName || !brand.appId || !brand.artifactName || !brand.gatewayBaseUrl) {
+    console.error(`brand.json for ${id} is missing productName, appId, artifactName, or gatewayBaseUrl`);
+    process.exit(1);
+  }
+  const iconSrc = join(brandDir, "icon.ico");
+  const logoPng = join(brandDir, "logo.png");
+  const logoSvg = join(brandDir, "logo.svg");
+  const splashPng = join(brandDir, "splash.png");
+  if (!existsSync(iconSrc)) {
+    console.error(`Missing ${iconSrc}`);
+    process.exit(1);
+  }
+  for (const name of readdirSync(splashDir)) {
+    if (/^(logo|icon|splash)\./i.test(name)) {
+      unlinkSync(join(splashDir, name));
+    }
+  }
+  copyFileSync(iconSrc, join(buildDir, "icon.ico"));
+  copyFileSync(iconSrc, join(splashDir, "icon.ico"));
+  copyFileSync(brandFile, join(brandResourceDir, "brand.json"));
+  const splashImg = existsSync(logoPng) ? logoPng : existsSync(splashPng) ? splashPng : null;
+  if (!splashImg) {
+    console.error(`Missing logo.png/splash.png in ${brandDir}`);
+    process.exit(1);
+  }
+  copyFileSync(splashImg, join(splashDir, "logo.png"));
+  copyFileSync(splashImg, join(brandResourceDir, "logo.png"));
+  if (existsSync(logoSvg)) {
+    copyFileSync(logoSvg, join(splashDir, "logo.svg"));
+  }
+  writeSplash(brand);
+  return brand;
+}
 
+function restorePublicBrand() {
+  const brand = applyBrandToWorkingTree("agentforge");
+  console.log(`pack-brand: restored public working tree to "${brand.productName}"`);
+}
+
+if (restoreOnly) {
+  restorePublicBrand();
+  process.exit(0);
+}
+
+const brand = applyBrandToWorkingTree(brandId);
 console.log(
   `pack-brand: flavor=${brandId} product="${brand.productName}" gateway=${brand.gatewayBaseUrl} artifact="${brand.artifactName}"`,
 );
@@ -177,11 +191,7 @@ const result = spawnSync(process.execPath, args, {
   },
 });
 
-const agentforgeBrand = JSON.parse(
-  readFileSync(join(desktopRoot, "branding", "agentforge", "brand.json"), "utf8"),
-);
-copyFileSync(join(desktopRoot, "branding", "agentforge", "brand.json"), join(brandResourceDir, "brand.json"));
-writeSplash(agentforgeBrand);
+restorePublicBrand();
 
 if (result.status !== 0) {
   process.exit(result.status ?? 1);

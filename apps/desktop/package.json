@@ -43,6 +43,7 @@
     "files": [
       "main.cjs",
       "preload.cjs",
+      "brand-read.cjs",
       "host.cjs",
       "splash/**/*",
       "package.json",

@@ -21,7 +21,7 @@ A cold agent reads this mid-task. Drive the real app. A green `tsc` or worker su
 | Surface | How to reach it | Doctor | Port |
 |---|---|---|---|
 | **Local webdev** | `pnpm dev` → Chrome / IDE browser | `node .cursor/skills/verify-agentforge/scripts/doctor.mjs` | **3000 only** (`tsx server.ts` → Express + Vite on `127.0.0.1:3000`) |
-| **Packaged desktop** | Installed Agentforge (Windows NSIS; mac/linux operator-built) | `node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop` | **None.** IPC only. Status in userData `host-status.json` (Windows `%APPDATA%\Agentforge`; Linux `$XDG_CONFIG_HOME/Agentforge` or `~/.config/Agentforge`; macOS `~/Library/Application Support/Agentforge`) |
+| **Packaged desktop** | Installed Agentforge, or local Kemenkeu AI / AIHub Metranet (Windows NSIS; mac/linux operator-built) | `node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop` | **None.** IPC only. Status in userData `host-status.json` (Windows `%APPDATA%\Agentforge` or `%APPDATA%\Kemenkeu AI` / `%APPDATA%\AIHub Metranet`; Linux `$XDG_CONFIG_HOME/Agentforge` or `~/.config/Agentforge`; macOS `~/Library/Application Support/Agentforge`) |
 
 `pnpm desktop:dev` is the local webdev inside an Electron window (may reuse :3000). That is not packaged proof. APIs exist under `/api/v1/*` but proof is the user path, not an internal setter.
 
@@ -135,6 +135,7 @@ Use `page.getByTestId("<id>")` exactly as the spec.
 | testid | Surface |
 |---|---|
 | `mode-chat`, `mode-documents`, `mode-research`, `mode-images`, `mode-videos`, `mode-presentations` | Left rail (Home has all of these) |
+| `product-brand`, `product-logo` | Rail product name and mark. Packaged flavors must not stay Agentforge — [desktop-brands.md](features/desktop-brands.md) |
 | `mode-agents` | Parked. Count 0. `/agents` and `/studio` redirect to Chat |
 | `workspaces-switcher`, `workspaces-link`, `open-workspace`, `workspace-template-picker`, `workspace-mode-picker`, `create-workspace` | Workspaces |
 | `settings-link` | Rail → Settings |
@@ -150,7 +151,7 @@ Use `page.getByTestId("<id>")` exactly as the spec.
 
 Rail testids are `mode-${href.slice(1)}` (`/chat` → `mode-chat`). Home already shows every work mode. A Legal desk has Chat + Documents + Research + Presentation and `mode-images` count 0.
 
-Recipes: [features/chat.md](features/chat.md), [features/settings.md](features/settings.md), [features/usage.md](features/usage.md), [features/workspaces.md](features/workspaces.md), [features/images.md](features/images.md), [features/videos.md](features/videos.md), [features/desktop.md](features/desktop.md), [features/mobile.md](features/mobile.md). Build and Studio advanced are parked.
+Recipes: [features/chat.md](features/chat.md), [features/settings.md](features/settings.md), [features/usage.md](features/usage.md), [features/workspaces.md](features/workspaces.md), [features/images.md](features/images.md), [features/videos.md](features/videos.md), [features/desktop.md](features/desktop.md), [features/desktop-brands.md](features/desktop-brands.md), [features/mobile.md](features/mobile.md). Build and Studio advanced are parked.
 
 ## Evidence
 

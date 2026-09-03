@@ -8,6 +8,7 @@ import { ResearchPreview } from "@/components/research-preview";
 import { researchNotesToMarkdown, type ResearchNotes } from "@/lib/research-notes";
 import { useJobModel } from "@/lib/use-job-model";
 import { apiFetch } from "@/lib/api-client";
+import { useProductBrand } from "@/lib/product-brand";
 
 function errorMessage(payload: unknown, fallback: string): string {
   if (payload && typeof payload === "object") {
@@ -24,6 +25,7 @@ function needsSettingsHint(message: string): boolean {
 }
 
 export function ResearchStudio() {
+  const { productName } = useProductBrand();
   const { models, model, setModel } = useJobModel("research");
   const [prompt, setPrompt] = useState("");
   const [notes, setNotes] = useState<ResearchNotes | null>(null);
@@ -78,7 +80,7 @@ export function ResearchStudio() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Research</h1>
           <p className="mt-2 max-w-xl text-sm text-ink/60">
-            Ask a question. Agentforge searches the web, drafts sourced notes, and downloads Markdown.
+            Ask a question. {productName} searches the web, drafts sourced notes, and downloads Markdown.
           </p>
         </div>
         {notes ? (

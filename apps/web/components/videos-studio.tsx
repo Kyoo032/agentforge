@@ -6,6 +6,7 @@ import { videoCapabilities } from "@agentforge/core/video-capabilities";
 import { ExampleGallery } from "@/components/example-gallery";
 import { ModelSelect } from "@/components/model-select";
 import { apiFetch, mediaSrc } from "@/lib/api-client";
+import { useProductBrand } from "@/lib/product-brand";
 
 type StudioModel = {
   id: string;
@@ -42,6 +43,7 @@ const SECONDS = [5, 8, 10] as const;
 const RESOLUTIONS = ["480p", "720p", "1080p"] as const;
 
 export function VideosStudio() {
+  const { gatewayName } = useProductBrand();
   const [items, setItems] = useState<GalleryItem[]>([]);
   const [models, setModels] = useState<StudioModel[]>([]);
   const [model, setModel] = useState("");
@@ -133,7 +135,7 @@ export function VideosStudio() {
           className="mt-6 rounded-xl border border-mist bg-mist/30 px-4 py-3 text-sm text-ink/70"
           data-testid="videos-studio-needs-key"
         >
-          Add a Toko Token gateway key in{" "}
+          Add a {gatewayName} gateway key in{" "}
           <Link href="/settings" className="underline">
             Settings
           </Link>{" "}

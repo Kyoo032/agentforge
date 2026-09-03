@@ -40,6 +40,8 @@ pnpm desktop:build
 
 Builds the Vite renderer, esbuild-bundles `host.cjs` (externals: `better-sqlite3`, `keytar`), copies drizzle migrations, then packages Electron. Output: `apps/desktop/dist/` (NSIS, current user). Git has `branding/agentforge/` (Toko Token, `appId` `com.tokotoken.agentforge`). Extra local flavors under `branding/` are gitignored and must not be committed or uploaded.
 
+In-app rail name and logo come from extraResources `brand/brand.json` + `brand/logo.png` via preload (`window.agentforge.brand`). Changing splash/exe names alone is not enough.
+
 Native modules must be rebuilt for Electron’s Node **on Windows**:
 
 ```

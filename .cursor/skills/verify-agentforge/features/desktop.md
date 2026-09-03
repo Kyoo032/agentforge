@@ -1,6 +1,6 @@
 # Desktop
 
-Electron is the installed local app. Packaged builds have **no HTTP server**. The renderer talks to the host over IPC. Port 3000 is the **local webdev** (`pnpm dev`) only. Wrap key: keytar `Agentforge` / `wrap-key`. SQLite and `host-status.json` live in Electron `userData`.
+Electron is the installed local app. Packaged builds have **no HTTP server**. The renderer talks to the host over IPC. Port 3000 is the **local webdev** (`pnpm dev`) only. Wrap key: keytar uses the product name (`Agentforge` / `Kemenkeu AI` / `AIHub Metranet`) plus account `wrap-key`. SQLite and `host-status.json` live in that product's Electron `userData`. Flavor rail names: [desktop-brands.md](./desktop-brands.md).
 
 ## Sub-features
 

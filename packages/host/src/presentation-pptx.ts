@@ -1,4 +1,5 @@
 import PptxGenJS from "pptxgenjs";
+import { resolvedProductName } from "@agentforge/core";
 import type { PresentationOutline } from "./presentation-outline";
 
 /** Agentforge slide tokens (navy / mist / paper / ink) — not purple-gradient AI defaults. */
@@ -24,10 +25,11 @@ export async function buildPresentationPptx(outline: PresentationOutline): Promi
   buffer: ArrayBuffer;
   filename: string;
 }> {
+  const productName = resolvedProductName();
   const pptx = new PptxGenJS();
   pptx.defineLayout({ name: "AGENTFORGE_WIDE", width: 13.333, height: 7.5 });
   pptx.layout = "AGENTFORGE_WIDE";
-  pptx.author = "Agentforge";
+  pptx.author = productName;
   pptx.title = outline.title;
 
   // Title slide
@@ -59,7 +61,7 @@ export async function buildPresentationPptx(outline: PresentationOutline): Promi
       align: "left",
       valign: "middle",
     });
-    slide.addText("Agentforge", {
+    slide.addText(productName, {
       x: 0.8,
       y: 6.75,
       w: 11.7,

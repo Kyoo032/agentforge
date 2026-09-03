@@ -1,17 +1,19 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { GATEWAY_BASE_URL, GATEWAY_NAME } from "@agentforge/core/gateway";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, isElectron } from "@/lib/api-client";
 
 export type ProductBrand = {
   productName: string;
   gatewayName: string;
   gatewayBaseUrl: string;
+  logoSrc: string;
 };
 
 export const DEFAULT_PRODUCT_BRAND: ProductBrand = {
   productName: "Agentforge",
   gatewayName: GATEWAY_NAME,
   gatewayBaseUrl: GATEWAY_BASE_URL,
+  logoSrc: "",
 };
 
 const BrandContext = createContext<ProductBrand>(DEFAULT_PRODUCT_BRAND);
@@ -28,29 +30,72 @@ export function gatewayHostLabel(url: string): string {
   }
 }
 
+export function brandFromUnknown(payload: unknown, fallback: ProductBrand): ProductBrand {
+  if (!payload || typeof payload !== "object") {
+    return fallback;
+  }
+  const record = payload as Record<string, unknown>;
+  const nested =
+    record.body && typeof record.body === "object" ? (record.body as Record<string, unknown>) : record;
+  const productName =
+    typeof nested.productName === "string" && nested.productName.trim()
+      ? nested.productName.trim()
+      : fallback.productName;
+  const gatewayName =
+    typeof nested.gatewayName === "string" && nested.gatewayName.trim()
+      ? nested.gatewayName.trim()
+      : fallback.gatewayName;
+  const gatewayBaseUrl =
+    typeof nested.gatewayBaseUrl === "string" && nested.gatewayBaseUrl.trim()
+      ? nested.gatewayBaseUrl.trim()
+      : fallback.gatewayBaseUrl;
+  return { ...fallback, productName, gatewayName, gatewayBaseUrl };
+}
+
+export function mergePingBrand(current: ProductBrand, payload: unknown): ProductBrand {
+  const next = brandFromUnknown(payload, current);
+  const keepPreloadName =
+    current.productName !== DEFAULT_PRODUCT_BRAND.productName &&
+    next.productName === DEFAULT_PRODUCT_BRAND.productName;
+  const keepPreloadGateway =
+    current.gatewayName !== DEFAULT_PRODUCT_BRAND.gatewayName &&
+    next.gatewayName === DEFAULT_PRODUCT_BRAND.gatewayName;
+  return {
+    ...next,
+    productName: keepPreloadName ? current.productName : next.productName,
+    gatewayName: keepPreloadGateway ? current.gatewayName : next.gatewayName,
+    gatewayBaseUrl: keepPreloadName ? current.gatewayBaseUrl : next.gatewayBaseUrl,
+    logoSrc: current.logoSrc || next.logoSrc,
+  };
+}
+
+function preloadBrand(): ProductBrand {
+  if (!isElectron() || !window.agentforge) {
+    return DEFAULT_PRODUCT_BRAND;
+  }
+  const fromPreload = brandFromUnknown(window.agentforge.brand, DEFAULT_PRODUCT_BRAND);
+  const logoSrc =
+    typeof window.agentforge.brandLogo === "string" && window.agentforge.brandLogo.startsWith("data:image/")
+      ? window.agentforge.brandLogo
+      : "";
+  return { ...fromPreload, logoSrc };
+}
+
 export function ProductBrandProvider({ children }: { children: ReactNode }) {
-  const [brand, setBrand] = useState(DEFAULT_PRODUCT_BRAND);
+  const [brand, setBrand] = useState(preloadBrand);
+
+  useEffect(() => {
+    document.title = brand.productName;
+  }, [brand.productName]);
 
   useEffect(() => {
     void apiFetch("/api/v1/ping")
       .then((res) => res.json())
       .then((payload) => {
-        const productName =
-          typeof payload.productName === "string" && payload.productName.trim()
-            ? payload.productName.trim()
-            : DEFAULT_PRODUCT_BRAND.productName;
-        const gatewayName =
-          typeof payload.gatewayName === "string" && payload.gatewayName.trim()
-            ? payload.gatewayName.trim()
-            : DEFAULT_PRODUCT_BRAND.gatewayName;
-        const gatewayBaseUrl =
-          typeof payload.gatewayBaseUrl === "string" && payload.gatewayBaseUrl.trim()
-            ? payload.gatewayBaseUrl.trim()
-            : DEFAULT_PRODUCT_BRAND.gatewayBaseUrl;
-        setBrand({ productName, gatewayName, gatewayBaseUrl });
+        setBrand((current) => mergePingBrand(current, payload));
       })
       .catch(() => {
-        // first boot before the host answers
+        // packaged preload already supplied the flavor; webdev keeps defaults
       });
   }, []);
 

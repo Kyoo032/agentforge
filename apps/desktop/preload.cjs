@@ -1,7 +1,13 @@
 const { contextBridge, ipcRenderer } = require("electron");
+const { loadBrandFromResources, loadBrandLogo } = require("./brand-read.cjs");
+
+const brand = loadBrandFromResources(process.resourcesPath, __dirname);
+const brandLogo = loadBrandLogo(process.resourcesPath, __dirname);
 
 contextBridge.exposeInMainWorld("agentforge", {
   isElectron: true,
+  brand,
+  brandLogo,
   invoke: (payload) => ipcRenderer.invoke("host:request", payload),
   stream: (requestId, onChunk) =>
     new Promise((resolve, reject) => {

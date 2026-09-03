@@ -10,6 +10,7 @@ import type { DocumentDraft } from "@/lib/document-outline";
 import { DOCUMENT_STARTERS } from "@/lib/job-starters";
 import { useJobModel } from "@/lib/use-job-model";
 import { apiFetch } from "@/lib/api-client";
+import { useProductBrand } from "@/lib/product-brand";
 
 function errorMessage(payload: unknown, fallback: string): string {
   if (payload && typeof payload === "object") {
@@ -26,6 +27,7 @@ function needsSettingsHint(message: string): string {
 }
 
 export function DocumentsStudio() {
+  const { productName } = useProductBrand();
   const { models, model, setModel } = useJobModel("documents");
   const [prompt, setPrompt] = useState("");
   const [draft, setDraft] = useState<DocumentDraft | null>(null);
@@ -132,7 +134,7 @@ export function DocumentsStudio() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Documents</h1>
           <p className="mt-2 max-w-xl text-sm text-ink/60">
-            Describe a memo, brief, or report. Agentforge drafts sections, shows a preview, and downloads a DOCX.
+            Describe a memo, brief, or report. {productName} drafts sections, shows a preview, and downloads a DOCX.
           </p>
         </div>
         {draft ? (

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { ExampleGallery } from "@/components/example-gallery";
 import { ModelSelect } from "@/components/model-select";
 import { apiFetch, mediaSrc } from "@/lib/api-client";
+import { useProductBrand } from "@/lib/product-brand";
 
 type StudioModel = {
   id: string;
@@ -38,6 +39,7 @@ const ASPECTS = [
 ] as const;
 
 export function ImagesStudio() {
+  const { gatewayName } = useProductBrand();
   const [items, setItems] = useState<GalleryItem[]>([]);
   const [models, setModels] = useState<StudioModel[]>([]);
   const [model, setModel] = useState("");
@@ -116,7 +118,7 @@ export function ImagesStudio() {
           className="mt-6 rounded-xl border border-mist bg-mist/30 px-4 py-3 text-sm text-ink/70"
           data-testid="images-studio-needs-key"
         >
-          Add a Toko Token gateway key in{" "}
+          Add a {gatewayName} gateway key in{" "}
           <Link href="/settings" className="underline">
             Settings
           </Link>{" "}
