@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "@/lib/nav";
 import { DocumentPreview } from "@/components/document-preview";
+import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { ExampleGallery } from "@/components/example-gallery";
 import { ModelSelect } from "@/components/model-select";
 import type { JobRegenSubmit } from "@/components/job-regen-panel";
@@ -222,6 +223,7 @@ export function DocumentsStudio() {
           className="w-full rounded-md border border-mist bg-paper px-3 py-2 text-sm text-ink"
         />
         <div className="flex gap-2">
+          <EnhancePromptButton text={prompt} surface="documents" model={model} disabled={busy !== null} testId="documents-enhance" onApply={setPrompt} />
           <input
             type="text"
             value={prompt}

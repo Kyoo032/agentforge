@@ -46,6 +46,8 @@ describe("resolveModeDefaults", () => {
     expect(defaults.documents).toBe("deepseek-v4-flash");
     expect(defaults.research).toBe("gpt-5.6-luna");
     expect(defaults.presentations).toBe("glm-5.2-fast-preview");
+    expect(defaults.finance).toBe("deepseek-v4-flash");
+    expect(defaults.data).toBe("gpt-5.6-luna");
     expect(defaults.image).toBe("gpt-image-2");
     expect(defaults.video).toBe("grok-imagine-video");
   });
@@ -60,6 +62,8 @@ describe("resolveModeDefaults", () => {
     expect(defaults.documents).toBe("minimax-m3");
     expect(defaults.research).toBe("minimax-m3");
     expect(defaults.presentations).toBe("minimax-m3");
+    expect(defaults.finance).toBe("minimax-m3");
+    expect(defaults.data).toBe("minimax-m3");
     expect(defaults.image).toBe(DEFAULT_GATEWAY_IMAGE_MODEL);
     expect(defaults.video).toBe(DEFAULT_GATEWAY_VIDEO_MODEL);
   });

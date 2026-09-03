@@ -299,3 +299,12 @@ export {
   hasLiveProvider,
 } from "./secrets";
 export type { StoredSecrets, SecretPatch, MaskedSecrets } from "./secrets";
+export {
+  ENHANCE_SURFACES,
+  isEnhanceSurface,
+  enhanceSystemPrompt,
+  enhanceUserPrompt,
+  stripWrappingQuotes,
+  stubEnhancePrompt,
+} from "./enhance-prompt";
+export type { EnhanceSurface } from "./enhance-prompt";

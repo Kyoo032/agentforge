@@ -1,0 +1,115 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import type { EnhanceSurface } from "@agentforge/core";
+import { apiFetch } from "@/lib/api-client";
+
+type Props = {
+  text: string;
+  surface: EnhanceSurface;
+  model?: string;
+  disabled?: boolean;
+  testId?: string;
+  onApply: (next: string) => void;
+  onBusyChange?: (busy: boolean) => void;
+};
+
+export function EnhancePromptButton({
+  text,
+  surface,
+  model,
+  disabled,
+  testId = "composer-enhance",
+  onApply,
+  onBusyChange,
+}: Props) {
+  const [busy, setBusy] = useState(false);
+  const [enhanced, setEnhanced] = useState(false);
+  const originalRef = useRef<string | null>(null);
+  const appliedRef = useRef<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    if (enhanced && appliedRef.current !== null && text !== appliedRef.current) {
+      originalRef.current = null;
+      appliedRef.current = null;
+      setEnhanced(false);
+    }
+  }, [text, enhanced]);
+
+  function setBusyState(next: boolean) {
+    setBusy(next);
+    onBusyChange?.(next);
+  }
+
+  async function onClick() {
+    if (disabled) {
+      return;
+    }
+    if (busy) {
+      abortRef.current?.abort();
+      return;
+    }
+    if (enhanced && originalRef.current !== null) {
+      onApply(originalRef.current);
+      originalRef.current = null;
+      appliedRef.current = null;
+      setEnhanced(false);
+      return;
+    }
+    const seed = text.trim();
+    if (!seed) {
+      return;
+    }
+    const abort = new AbortController();
+    abortRef.current = abort;
+    setBusyState(true);
+    try {
+      const res = await apiFetch("/api/v1/prompts/enhance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: seed, surface, model: model || undefined }),
+        signal: abort.signal,
+      });
+      const data = (await res.json().catch(() => null)) as { text?: unknown; error?: { message?: string } } | null;
+      if (abort.signal.aborted) {
+        return;
+      }
+      if (!res.ok || !data || typeof data.text !== "string") {
+        throw new Error(data?.error?.message ?? "Could not enhance the prompt");
+      }
+      originalRef.current = text;
+      appliedRef.current = data.text;
+      onApply(data.text);
+      setEnhanced(true);
+    } catch (error) {
+      if (abort.signal.aborted || (error instanceof DOMException && error.name === "AbortError")) {
+        return;
+      }
+    } finally {
+      if (abortRef.current === abort) {
+        abortRef.current = null;
+      }
+      setBusyState(false);
+    }
+  }
+
+  const empty = !enhanced && !text.trim();
+  return (
+    <button
+      type="button"
+      className="btn btn-secondary btn-icon h-[30px] w-[30px] rounded-full hover:border-accent hover:text-accent"
+      data-tip={busy ? "Cancel enhance" : enhanced ? "Revert prompt" : "Enhance prompt"}
+      aria-label={busy ? "Cancel enhance" : enhanced ? "Revert enhanced prompt" : "Enhance prompt"}
+      aria-pressed={enhanced}
+      data-testid={enhanced ? `${testId}-revert` : testId}
+      disabled={disabled || empty}
+      onClick={() => void onClick()}
+    >
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+        <path d="M12 3.5 13.7 8l4.5 1.7-4.5 1.7L12 15.9l-1.7-4.5L5.8 9.7 10.3 8 12 3.5Z" />
+        <path d="M18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7.7-1.8Z" />
+      </svg>
+    </button>
+  );
+}

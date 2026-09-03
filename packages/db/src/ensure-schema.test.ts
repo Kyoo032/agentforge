@@ -30,7 +30,16 @@ describe("ensureSchema", () => {
   it("creates kernel tables on an empty database", () => {
     const sqlite = new Database(":memory:");
     ensureSchema(sqlite);
-    expect(listKernelTables(sqlite)).toEqual([...KERNEL_TABLES]);
+    const tables = listKernelTables(sqlite);
+    expect(KERNEL_TABLES.every((name) => tables.includes(name))).toBe(true);
+    expect(tables).toEqual(
+      expect.arrayContaining([
+        ...KERNEL_TABLES,
+        "knowledge_soul",
+        "knowledge_memories",
+        "knowledge_sources",
+      ]),
+    );
     assertKernelTables(sqlite);
     sqlite.close();
   });

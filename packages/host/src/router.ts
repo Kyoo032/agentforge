@@ -40,6 +40,18 @@ import {
   handlePostWorkspaceAgents,
 } from "./handlers/agents";
 import { handleGetContext, handleGetOrganizations, handleGetTemplates, handleGetTools, handlePing } from "./handlers/misc";
+import { handlePostEnhancePrompt } from "./handlers/enhance-prompt";
+import {
+  handleDeleteKnowledgeMemory,
+  handleDeleteKnowledgeSource,
+  handleGetKnowledge,
+  handleGetKnowledgeContext,
+  handlePostKnowledgeMemory,
+  handlePostKnowledgeSource,
+  handlePostKnowledgeSourceUrl,
+  handlePutKnowledgeSoul,
+} from "./handlers/knowledge";
+import { handlePostData } from "./handlers/jobs";
 
 type Route = {
   method: string;
@@ -91,6 +103,16 @@ const routes: Route[] = [
   compile("POST", "/api/v1/presentations/regenerate", handlePostPresentationsRegen),
   compile("POST", "/api/v1/presentations/pptx", handlePostPresentationsPptx),
   compile("POST", "/api/v1/research", handlePostResearch),
+  compile("POST", "/api/v1/data", handlePostData),
+  compile("POST", "/api/v1/prompts/enhance", handlePostEnhancePrompt),
+  compile("GET", "/api/v1/knowledge", handleGetKnowledge),
+  compile("GET", "/api/v1/knowledge/context", handleGetKnowledgeContext),
+  compile("PUT", "/api/v1/knowledge/soul", handlePutKnowledgeSoul),
+  compile("POST", "/api/v1/knowledge/memories", handlePostKnowledgeMemory),
+  compile("DELETE", "/api/v1/knowledge/memories/:memoryId", handleDeleteKnowledgeMemory),
+  compile("POST", "/api/v1/knowledge/sources", handlePostKnowledgeSource),
+  compile("POST", "/api/v1/knowledge/sources/url", handlePostKnowledgeSourceUrl),
+  compile("DELETE", "/api/v1/knowledge/sources/:sourceId", handleDeleteKnowledgeSource),
   compile("GET", "/api/v1/agents/:agentId", handleGetAgent),
   compile("GET", "/api/v1/agents/:agentId/capabilities", handleGetAgentCapabilities),
   compile("GET", "/api/v1/agents/:agentId/threads", handleGetAgentThreads),

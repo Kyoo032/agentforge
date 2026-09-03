@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { Link } from "@/lib/nav";
+import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { ExampleGallery } from "@/components/example-gallery";
 import { ModelSelect } from "@/components/model-select";
 import { ResearchPreview } from "@/components/research-preview";
@@ -148,6 +149,7 @@ export function ResearchStudio() {
           className="w-full rounded-md border border-mist bg-paper px-3 py-2 text-sm text-ink"
         />
         <div className="flex gap-2">
+          <EnhancePromptButton text={prompt} surface="research" model={model} disabled={busy !== null} testId="research-enhance" onApply={setPrompt} />
           <input
             type="text"
             value={prompt}

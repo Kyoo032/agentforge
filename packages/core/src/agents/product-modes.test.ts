@@ -162,6 +162,10 @@ describe("firstVisibleHref and hidden redirects", () => {
     expect(redirectIfHiddenMode("/agents", [...visible])).toBe("/chat");
     expect(redirectIfHiddenMode("/settings", [...visible])).toBeNull();
     expect(redirectIfHiddenMode("/workspaces", [...visible])).toBeNull();
+    expect(redirectIfHiddenMode("/usage", [...visible])).toBeNull();
+    expect(redirectIfHiddenMode("/knowledge", [...visible])).toBeNull();
+    expect(redirectIfHiddenMode("/finance", [...visible])).toBe("/chat");
+    expect(redirectIfHiddenMode("/data", [...visible])).toBe("/chat");
   });
 
   it("keeps /chat even when that tab is off the rail", () => {

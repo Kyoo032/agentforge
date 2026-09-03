@@ -22,6 +22,7 @@ import { generatePresentationOutline, regeneratePresentationSlide } from "../pre
 import { parsePresentationOutlineBody } from "../presentation-outline";
 import { buildPresentationPptx } from "../presentation-pptx";
 import { generateResearchNotes } from "../research-generate";
+import { generateDataNotes } from "../data-generate";
 
 export async function handleGetImages(request: HostRequest): Promise<HostResult> {
   try {
@@ -153,6 +154,15 @@ export async function handlePostResearch(request: HostRequest): Promise<HostResu
   try {
     const tenant = await getTenant(request.workspaceId);
     return jsonOk(await generateResearchNotes(tenant, request.body ?? null));
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+export async function handlePostData(request: HostRequest): Promise<HostResult> {
+  try {
+    const tenant = await getTenant(request.workspaceId);
+    return jsonOk(await generateDataNotes(tenant, request.body ?? null));
   } catch (error) {
     return jsonError(error);
   }

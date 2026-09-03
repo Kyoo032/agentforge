@@ -240,6 +240,42 @@ export const toolInvocations = sqliteTable(
   (table) => [index("tool_invocations_org_run_idx").on(table.organizationId, table.runId)],
 );
 
+export const knowledgeSoul = sqliteTable("knowledge_soul", {
+  workspaceId: text("workspace_id").primaryKey(),
+  name: text("name").notNull(),
+  role: text("role").notNull(),
+  voice: text("voice").notNull(),
+  rules: text("rules").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
+
+export const knowledgeMemories = sqliteTable(
+  "knowledge_memories",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    text: text("text").notNull(),
+    pinned: integer("pinned").notNull().default(0),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [index("knowledge_memories_ws_idx").on(table.workspaceId)],
+);
+
+export const knowledgeSources = sqliteTable(
+  "knowledge_sources",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    name: text("name").notNull(),
+    type: text("type").notNull(),
+    status: text("status").notNull(),
+    chunks: integer("chunks").notNull().default(0),
+    error: text("error"),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [index("knowledge_sources_ws_idx").on(table.workspaceId)],
+);
+
 export const media = sqliteTable(
   "media",
   {

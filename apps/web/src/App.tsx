@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useState } from "react";
-import { firstVisibleHref, resolveWorkspaceModes, type ProductMode } from "@agentforge/core/product-modes";
+import { firstVisibleHref, resolveWorkspaceModes, WORK_PRODUCT_MODES, type ProductMode } from "@agentforge/core/product-modes";
 import { AppShell } from "@/components/app-shell";
 import { apiFetch } from "@/lib/api-client";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
@@ -10,9 +10,12 @@ import { UsagePage } from "@/components/usage-page";
 import { WorkspacesPage } from "@/components/workspaces-page";
 import { DocumentsStudio } from "@/components/documents-studio";
 import { ResearchStudio } from "@/components/research-studio";
+import { FinanceStudio } from "@/components/finance-studio";
+import { DataStudio } from "@/components/data-studio";
 import { ImagesStudio } from "@/components/images-studio";
 import { VideosStudio } from "@/components/videos-studio";
 import { PresentationsStudio } from "@/components/presentations-studio";
+import { KnowledgePage } from "@/components/knowledge-page";
 import { OnboardingScreen } from "@/components/onboarding-screen";
 import { isElectron } from "@/lib/api-client";
 import { useProductBrand } from "@/lib/product-brand";
@@ -20,14 +23,7 @@ import { useProductBrand } from "@/lib/product-brand";
 function Shell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [workspaceName, setWorkspaceName] = useState("Home");
-  const [visibleModes, setVisibleModes] = useState<ProductMode[]>([
-    "chat",
-    "documents",
-    "research",
-    "images",
-    "videos",
-    "presentations",
-  ]);
+  const [visibleModes, setVisibleModes] = useState<ProductMode[]>([...WORK_PRODUCT_MODES]);
 
   const reload = useCallback(() => {
     void apiFetch("/api/v1/workspaces")
@@ -89,8 +85,13 @@ export function App() {
 
   if (gate === "loading") {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-mist text-ink">
-        <p>Starting {productName}…</p>
+      <main className="flex min-h-screen items-center justify-center bg-app text-inkbase">
+        <div className="flex w-[280px] flex-col items-center gap-4">
+          <p className="font-heading text-[17px] font-semibold tracking-[.01em]">Starting {productName}…</p>
+          <div className="h-0.5 w-full overflow-hidden bg-[color-mix(in_srgb,var(--color-text)_12%,transparent)]">
+            <div className="h-full w-1/3 bg-accent" style={{ animation: "af-sweep 1.5s linear infinite" }} />
+          </div>
+        </div>
       </main>
     );
   }
@@ -121,9 +122,12 @@ export function App() {
         <Route path="/workspaces" element={<WorkspacesPage />} />
         <Route path="/documents" element={<DocumentsStudio />} />
         <Route path="/research" element={<ResearchStudio />} />
+        <Route path="/finance" element={<FinanceStudio />} />
+        <Route path="/data" element={<DataStudio />} />
         <Route path="/images" element={<ImagesStudio />} />
         <Route path="/videos" element={<VideosStudio />} />
         <Route path="/presentations" element={<PresentationsStudio />} />
+        <Route path="/knowledge" element={<KnowledgePage />} />
         <Route path="/studio/*" element={<Navigate to="/chat" replace />} />
         <Route path="/agents/*" element={<Navigate to="/chat" replace />} />
         <Route path="/workspace" element={<Navigate to="/chat" replace />} />
@@ -134,5 +138,5 @@ export function App() {
 }
 
 function HomeRedirect() {
-  return <Navigate to={firstVisibleHref(["chat", "documents", "research", "images", "videos", "presentations"])} replace />;
+  return <Navigate to={firstVisibleHref([...WORK_PRODUCT_MODES])} replace />;
 }

@@ -30,6 +30,22 @@ export function textFromMessageContent(content: unknown): string {
   return chunks.join("\n");
 }
 
+export function estimateContextParts(input: {
+  conversation: number;
+  attachments?: number;
+  knowledge?: Array<{ label: string; detail?: string; tokens: number }>;
+}): Array<{ label: string; detail?: string; tokens: number }> {
+  const knowledge =
+    input.knowledge && input.knowledge.length > 0
+      ? input.knowledge
+      : [{ label: "Knowledge", detail: "pinned + retrieved", tokens: 0 }];
+  return [
+    { label: "Conversation", detail: "messages in this thread", tokens: input.conversation },
+    { label: "Attachments", detail: "files in this turn", tokens: input.attachments ?? 0 },
+    ...knowledge,
+  ];
+}
+
 export function estimateConversationTokens(
   messages: Array<{ content?: unknown }>,
   extra: string[] = [],

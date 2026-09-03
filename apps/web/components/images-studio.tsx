@@ -2,6 +2,7 @@
 
 import { Link } from "@/lib/nav";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { ExampleGallery } from "@/components/example-gallery";
 import { ModelSelect } from "@/components/model-select";
 import { apiFetch, mediaSrc } from "@/lib/api-client";
@@ -167,6 +168,7 @@ export function ImagesStudio() {
           />
         </div>
         <div className="flex gap-2">
+          <EnhancePromptButton text={prompt} surface="images" model={model} disabled={generating} testId="images-enhance" onApply={setPrompt} />
           <input
             type="text"
             className="min-w-0 flex-1 rounded-md border border-mist bg-transparent px-3 py-2 text-sm text-ink outline-none placeholder:text-ink/40"

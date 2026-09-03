@@ -24,6 +24,7 @@ import {
 } from "@agentforge/core";
 import { ApiError } from "@agentforge/core";
 import { agentService } from "./tenant";
+import { knowledgeInjection } from "./knowledge";
 import {
   finishRun,
   getThread,
@@ -132,10 +133,14 @@ export async function* startModalityRun(options: {
     : published.version.model;
   const model = resolveChatModel(readOptionalModel(options.body), fallback, catalog);
   const pastHint = await formatPastSessionsHint(options.tenant, thread.agentId, thread.id);
+  const userText = userParts
+    .map((part) => (part.type === "text" && typeof part.text === "string" ? part.text : ""))
+    .join("\n");
+  const knowledge = knowledgeInjection(options.tenant, userText);
   const version = {
     ...published.version,
     model,
-    systemPrompt: published.version.systemPrompt + pastHint,
+    systemPrompt: published.version.systemPrompt + pastHint + knowledge.prompt,
   };
   assertAgentSupportsModality(published.version.inputModalities, options.modality);
   assertModelSupportsModality(version.model, options.modality);

@@ -6,7 +6,8 @@ import { useRouter } from "@/lib/nav";
 import { ChatComposer } from "@/components/chat-composer";
 import { ChatContextChip } from "@/components/chat-context-chip";
 import { ChatUsageChip } from "@/components/chat-usage-chip";
-import { estimateConversationTokens } from "@/lib/estimate-tokens";
+import { estimateContextParts, estimateConversationTokens, textFromMessageContent } from "@/lib/estimate-tokens";
+import type { ContextPart } from "@/components/chat-context-chip";
 import { ChatTurn, messageHasDisplayableContent, type LiveTool } from "@/components/chat-turn";
 import { collectToolMediaParts } from "@/lib/tool-media";
 import { notifyThreadsChanged } from "@/lib/threads-events";
@@ -47,6 +48,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [thinkingEnabled, setThinkingEnabled] = useState(true);
+  const [knowledgeParts, setKnowledgeParts] = useState<ContextPart[]>([]);
   const toolsRef = useRef(tools);
   toolsRef.current = tools;
   const threadIdRef = useRef(threadId);
@@ -208,7 +210,31 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
   }
 
   const empty = messages.length === 0 && !streaming && !thinking && !running && tools.length === 0;
-  const contextTokens = estimateConversationTokens(messages, [thinking, streaming]);
+  const conversationTokens = estimateConversationTokens(messages, [thinking, streaming]);
+  const knowledgeTokens = knowledgeParts.reduce((sum, part) => sum + part.tokens, 0);
+  const contextTokens = conversationTokens + knowledgeTokens;
+  const contextParts = estimateContextParts({ conversation: conversationTokens, knowledge: knowledgeParts });
+
+  useEffect(() => {
+    const lastUser = [...messages].reverse().find((message) => message.role === "user");
+    const query = lastUser ? textFromMessageContent(lastUser.content) : "";
+    const href = query
+      ? `/api/v1/knowledge/context?query=${encodeURIComponent(query.slice(0, 400))}`
+      : "/api/v1/knowledge/context";
+    void apiFetch(href)
+      .then((res) => res.json())
+      .then((payload) => {
+        const parts = Array.isArray(payload.parts) ? payload.parts : [];
+        setKnowledgeParts(
+          parts.filter((part: unknown): part is ContextPart => {
+            return Boolean(part && typeof part === "object" && typeof (part as ContextPart).label === "string");
+          }),
+        );
+      })
+      .catch(() => {
+        setKnowledgeParts([]);
+      });
+  }, [messages]);
 
   return (
     <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-8" data-testid="chat-home">
@@ -220,7 +246,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           ) : null}
         </div>
         <div className="flex min-w-0 flex-wrap items-center justify-end gap-3">
-          <ChatContextChip usedTokens={contextTokens} contextLength={selectedModel?.contextLength} />
+          <ChatContextChip usedTokens={contextTokens} contextLength={selectedModel?.contextLength} parts={contextParts} />
           <ChatUsageChip />
           {agentIdReady ? (
             <button
