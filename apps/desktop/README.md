@@ -15,15 +15,9 @@ There is no mobile Electron/Capacitor/RN target. See [`docs/mobile.md`](../../do
 
 ## userData (`host-status.json`, SQLite, `settings.enc`)
 
-`app.setName(productName)` + flavor `brand.json` (`userData` is `%APPDATA%\<productName>`):
+`app.setName(productName)` + flavor `brand.json` (`userData` is `%APPDATA%\<productName>`). Git tracks **Agentforge** only (`%APPDATA%\Agentforge`, legacy `%APPDATA%\@agentforge\desktop`). Other Windows flavors are local/gitignored.
 
-| Flavor | Windows userData |
-|---|---|
-| Agentforge | `%APPDATA%\Agentforge` (legacy `%APPDATA%\@agentforge\desktop`) |
-| Kemenkeu AI | `%APPDATA%\Kemenkeu AI` |
-| AIHub Metranet | `%APPDATA%\AIHub Metranet` |
-
-Packaged launch writes `host-status.json` there (`transport: "ipc"`). Doctor `--desktop` reads that file and **fails** if it is missing. It does **not** GET `:3000`. Branded Windows flavors use `%APPDATA%\Kemenkeu AI` and `%APPDATA%\AIHub Metranet`.
+Packaged launch writes `host-status.json` there (`transport: "ipc"`). Doctor `--desktop` reads that file and **fails** if it is missing. It does **not** GET `:3000`.
 
 ## Dev (webdev window)
 
@@ -41,17 +35,10 @@ Schema is created in-process on first SQLite open (`ensureSchema` / committed dr
 
 ```
 pnpm desktop:build
-# one flavor (default public): AGENTFORGE_BRAND=agentforge|kemenkeu|metranet pnpm --filter @agentforge/desktop desktop-pack
-# all three NSIS flavors: pnpm desktop:build:all
+# default public flavor: AGENTFORGE_BRAND=agentforge pnpm --filter @agentforge/desktop desktop-pack
 ```
 
-Builds the Vite renderer, esbuild-bundles `host.cjs` (externals: `better-sqlite3`, `keytar`), copies drizzle migrations, then packages Electron. Output: `apps/desktop/dist/` (NSIS, current user). Flavors under `branding/{agentforge,kemenkeu,metranet}/`:
-
-- **Agentforge** — Toko Token (`https://api.tokotokenai.com/v1`), `appId` `com.tokotoken.agentforge`
-- **Kemenkeu AI** — AIHub (`https://aihub.metranet.co.id/v1`), separate `appId` / userData
-- **AIHub Metranet** — same AIHub URL, separate `appId` / userData
-
-Do not upload the Kemenkeu / Metranet exes to GitHub.
+Builds the Vite renderer, esbuild-bundles `host.cjs` (externals: `better-sqlite3`, `keytar`), copies drizzle migrations, then packages Electron. Output: `apps/desktop/dist/` (NSIS, current user). Git has `branding/agentforge/` (Toko Token, `appId` `com.tokotoken.agentforge`). Extra local flavors under `branding/` are gitignored and must not be committed or uploaded.
 
 Native modules must be rebuilt for Electron’s Node **on Windows**:
 

@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 /**
- * Build Vite renderer once, stage host, then pack all three Windows flavors.
+ * Build Vite renderer once, stage host, then pack every flavor that exists on disk.
+ * Git tracks branding/agentforge only; other flavor folders are local/gitignored.
  */
+import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,8 +27,14 @@ function run(cmd, args, env = {}) {
 run("npx", ["pnpm@9.15.9", "--filter", "@agentforge/web", "build"]);
 run("node", ["scripts/stage-renderer.mjs"]);
 
-for (const brand of brands) {
+const present = brands.filter((brand) => existsSync(join(desktopRoot, "branding", brand, "brand.json")));
+if (present.length === 0) {
+  console.error("pack-all-brands: no branding/*/brand.json found");
+  process.exit(1);
+}
+
+for (const brand of present) {
   run("node", ["scripts/pack-brand.mjs"], { AGENTFORGE_BRAND: brand });
 }
 
-console.log("\npack-all-brands: done (agentforge + kemenkeu + metranet)");
+console.log(`\npack-all-brands: done (${present.join(" + ")})`);

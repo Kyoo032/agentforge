@@ -25,6 +25,10 @@ apps/desktop/host.cjs
 apps/desktop/resources/web
 apps/desktop/resources/renderer
 apps/desktop/resources/drizzle
+apps/desktop/branding/kemenkeu/
+apps/desktop/branding/metranet/
+apps/desktop/branding/_raw/
+apps/desktop/logo.png
 *.log
 coverage
 playwright-report
