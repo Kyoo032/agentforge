@@ -1,9 +1,10 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/lib/nav";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { ExampleGallery } from "@/components/example-gallery";
 import { ModelSelect } from "@/components/model-select";
+import { apiFetch, mediaSrc } from "@/lib/api-client";
 
 type StudioModel = {
   id: string;
@@ -51,7 +52,7 @@ export function ImagesStudio() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/v1/images");
+      const response = await apiFetch("/api/v1/images");
       const data = (await response.json().catch(() => ({}))) as GalleryResponse & {
         error?: { message?: string };
       };
@@ -84,7 +85,7 @@ export function ImagesStudio() {
     setGenerating(true);
     setError(null);
     try {
-      const response = await fetch("/api/v1/images", {
+      const response = await apiFetch("/api/v1/images", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: prompt.trim(), aspect, model: model || undefined }),
@@ -200,7 +201,7 @@ export function ImagesStudio() {
             {items.map((item) => (
               <li key={item.id} className="overflow-hidden rounded-xl border border-mist bg-paper">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={item.url} alt={item.prompt || "Generated image"} className="aspect-square w-full object-cover" />
+                <img src={mediaSrc(item.url)} alt={item.prompt || "Generated image"} className="aspect-square w-full object-cover" />
                 {item.prompt ? <p className="truncate px-3 py-2 text-xs text-ink/60">{item.prompt}</p> : null}
               </li>
             ))}

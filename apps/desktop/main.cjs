@@ -1,64 +1,43 @@
-const { app, BrowserWindow, Menu } = require("electron");
-const { spawn, spawnSync } = require("node:child_process");
+const { app, BrowserWindow, Menu, dialog, ipcMain, protocol } = require("electron");
 const crypto = require("node:crypto");
 const fs = require("node:fs");
-const net = require("node:net");
 const path = require("node:path");
 
-const LOOPBACK = "127.0.0.1";
-/** Local webdev only (`pnpm dev`). Packaged Electron must never bind or reuse this. */
-const WEBDEV_PORT = 3000;
 const PRODUCT_NAME = "Agentforge";
 const KEYCHAIN_SERVICE = PRODUCT_NAME;
 const KEYCHAIN_ACCOUNT = "wrap-key";
-const PNPM = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+const WEBDEV_URL = "http://127.0.0.1:3000";
 
-/** @type {number} */
-let appPort = WEBDEV_PORT;
-/** @type {string} */
-let appUrl = `http://${LOOPBACK}:${WEBDEV_PORT}`;
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: "agentforge",
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+      stream: true,
+    },
+  },
+]);
 
-/** @type {import('node:child_process').ChildProcess | null} */
-let webChild = null;
-/** @type {boolean} */
-let spawnedWeb = false;
 /** @type {BrowserWindow | null} */
 let mainWindow = null;
-/** @type {boolean} */
-let shuttingDown = false;
-
-function repoRoot() {
-  return path.resolve(__dirname, "..", "..");
-}
-
-function packagedWebRoot() {
-  return path.join(process.resourcesPath, "web");
-}
-
-function packagedNodeBin() {
-  const name = process.platform === "win32" ? "node.exe" : "node";
-  return path.join(packagedWebRoot(), name);
-}
-
-function packagedServerJs() {
-  const root = packagedWebRoot();
-  const nested = path.join(root, "apps", "web", "server.js");
-  const flat = path.join(root, "server.js");
-  if (fs.existsSync(nested)) {
-    return nested;
-  }
-  if (fs.existsSync(flat)) {
-    return flat;
-  }
-  return nested;
-}
+let hostReady = false;
 
 function splashPath() {
   return path.join(__dirname, "splash", "index.html");
 }
 
-function randomHex(bytes = 32) {
-  return crypto.randomBytes(bytes).toString("hex");
+function rendererIndex() {
+  return path.join(process.resourcesPath, "renderer", "index.html");
+}
+
+function drizzleDir() {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, "drizzle");
+  }
+  return path.join(__dirname, "..", "..", "packages", "db", "drizzle");
 }
 
 async function loadKeytar() {
@@ -77,202 +56,30 @@ async function wrapKey() {
       if (existing && existing.trim()) {
         return existing.trim();
       }
-      const secret = randomHex();
+      const secret = crypto.randomBytes(32).toString("hex");
       await keytar.setPassword(KEYCHAIN_SERVICE, KEYCHAIN_ACCOUNT, secret);
       return secret;
     } catch (err) {
       console.warn("keytar unavailable, using session wrap key:", err.message);
     }
   }
-  return randomHex();
+  return crypto.randomBytes(32).toString("hex");
 }
 
-function portOpen(port) {
-  return new Promise((resolve) => {
-    const socket = net.createConnection({ host: LOOPBACK, port }, () => {
-      socket.end();
-      resolve(true);
-    });
-    socket.on("error", () => resolve(false));
-    socket.setTimeout(500, () => {
-      socket.destroy();
-      resolve(false);
-    });
-  });
-}
-
-function allocateLoopbackPort() {
-  return new Promise((resolve, reject) => {
-    const tryOnce = () => {
-      const server = net.createServer();
-      server.unref();
-      server.on("error", reject);
-      server.listen(0, LOOPBACK, () => {
-        const address = server.address();
-        const port = typeof address === "object" && address ? address.port : 0;
-        server.close((err) => {
-          if (err) {
-            reject(err);
-            return;
-          }
-          if (!port || port === WEBDEV_PORT) {
-            tryOnce();
-            return;
-          }
-          resolve(port);
-        });
-      });
-    };
-    tryOnce();
-  });
-}
-
-async function waitForChatReady(url, port, maxAttempts = 120, intervalMs = 500) {
-  for (let i = 0; i < maxAttempts; i += 1) {
-    if (shuttingDown) {
-      return false;
-    }
-    if (await portOpen(port)) {
-      try {
-        const response = await fetch(`${url}/chat`, { redirect: "follow" });
-        if (response.ok) {
-          return true;
-        }
-      } catch {
-        // Next still compiling or serving an error overlay
-      }
-    }
-    await new Promise((r) => setTimeout(r, intervalMs));
-  }
-  return false;
-}
-
-function childEnv(secret, dataDir, port) {
-  const env = {
-    ...process.env,
-    AGENTFORGE_SECRETS_KEY: secret,
-    AGENTFORGE_DATA_DIR: dataDir,
-    HOST: LOOPBACK,
-    HOSTNAME: LOOPBACK,
-    PORT: String(port),
+function writeHostStatus(dataDir, extra) {
+  const payload = {
+    ready: true,
+    pid: process.pid,
+    dataDir,
+    transport: "ipc",
+    surface: "desktop",
+    ...extra,
   };
-  delete env.DATABASE_URL;
-  return env;
-}
-
-function writeAppUrl(dataDir, url) {
-  fs.writeFileSync(path.join(dataDir, "app-url.txt"), `${url}\n`, "utf8");
-}
-
-function spawnPackagedWeb(secret, dataDir, port) {
-  const serverJs = packagedServerJs();
-  const nodeBin = packagedNodeBin();
-
-  if (!fs.existsSync(nodeBin)) {
-    console.error(`Bundled Node binary missing: ${nodeBin}`);
-    throw new Error(`Bundled Node binary missing: ${nodeBin}`);
-  }
-  if (!fs.existsSync(serverJs)) {
-    console.error(`Bundled Next server.js missing: ${serverJs}`);
-    throw new Error(`Bundled Next server.js missing: ${serverJs}`);
-  }
-
-  const cwd = path.dirname(serverJs);
-  const logsDir = path.join(dataDir, "logs");
-  fs.mkdirSync(logsDir, { recursive: true });
-  const logPath = path.join(logsDir, "web.log");
-  const logFd = fs.openSync(logPath, "a");
-
-  const env = childEnv(secret, dataDir, port);
-  env.NODE_ENV = "production";
-
-  const child = spawn(nodeBin, [serverJs], {
-    cwd,
-    env,
-    stdio: ["ignore", logFd, logFd],
-    detached: false,
-    windowsHide: true,
-  });
-
-  child.on("error", (err) => {
-    console.error("Failed to spawn bundled Next.js:", err.message);
-  });
-
-  child.on("exit", () => {
-    try {
-      fs.closeSync(logFd);
-    } catch {
-      // already closed
-    }
-  });
-
-  return child;
-}
-
-function spawnDevWeb(secret, dataDir) {
-  const env = childEnv(secret, dataDir, WEBDEV_PORT);
-  const child = spawn(PNPM, ["--filter", "@agentforge/web", "dev"], {
-    cwd: repoRoot(),
-    env,
-    stdio: "ignore",
-    shell: process.platform === "win32",
-    detached: false,
-  });
-
-  child.on("error", (err) => {
-    console.error("Failed to spawn Next.js:", err.message);
-  });
-
-  return child;
-}
-
-function spawnWeb(secret, dataDir, port) {
-  if (app.isPackaged) {
-    return spawnPackagedWeb(secret, dataDir, port);
-  }
-  return spawnDevWeb(secret, dataDir);
-}
-
-function killWebChild() {
-  if (!webChild || !spawnedWeb) {
-    return;
-  }
-  const pid = webChild.pid;
-  try {
-    if (process.platform === "win32" && pid) {
-      // Sync: async taskkill returned before the child died, so Agentforge.exe
-      // stayed in Task Manager after X and NSIS could not overwrite the install.
-      spawnSync("taskkill", ["/pid", String(pid), "/T", "/F"], {
-        stdio: "ignore",
-        shell: true,
-        timeout: 8000,
-        windowsHide: true,
-      });
-    } else if (webChild) {
-      webChild.kill("SIGTERM");
-    }
-  } catch {
-    // best effort
-  }
-  webChild = null;
-  spawnedWeb = false;
-}
-
-function beginShutdown() {
-  if (shuttingDown) {
-    return;
-  }
-  shuttingDown = true;
-  killWebChild();
-}
-
-async function ensureDataDir(dir) {
-  await fs.promises.mkdir(dir, { recursive: true });
+  fs.writeFileSync(path.join(dataDir, "host-status.json"), `${JSON.stringify(payload, null, 2)}\n`, "utf8");
 }
 
 function createWindow() {
   Menu.setApplicationMenu(null);
-
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -280,97 +87,175 @@ function createWindow() {
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
+      preload: app.isPackaged ? path.join(__dirname, "preload.cjs") : undefined,
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: false,
       backgroundThrottling: false,
     },
   });
-
   mainWindow.once("ready-to-show", () => {
     if (mainWindow && !mainWindow.isVisible()) {
       mainWindow.show();
       mainWindow.focus();
     }
   });
-
   mainWindow.loadFile(splashPath());
-
-  mainWindow.on("close", () => {
-    beginShutdown();
-  });
-
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
 }
 
-function bumpCompositor(win) {
-  if (process.platform !== "win32") {
-    return;
-  }
-  const [width, height] = win.getSize();
-  win.setSize(width, height + 1);
-  win.setSize(width, height);
+function registerIpc(host) {
+  ipcMain.handle("host:ping", () => ({ ok: true }));
+  ipcMain.handle("host:request", async (event, payload) => {
+    const files = Array.isArray(payload.files)
+      ? payload.files.map((file) => ({
+          field: file.field,
+          filename: file.filename,
+          mime: file.mime,
+          bytes: Uint8Array.from(file.bytes ?? []),
+        }))
+      : undefined;
+    const result = await host.dispatch({
+      method: payload.method,
+      path: payload.path,
+      query: payload.query ?? {},
+      params: {},
+      headers: {},
+      body: payload.body,
+      files,
+      workspaceId: host.readSelectedWorkspaceId() ?? null,
+    });
+    if (result.type === "stream") {
+      const requestId = payload.requestId;
+      void (async () => {
+        try {
+          for await (const chunk of result.events) {
+            event.sender.send("host:stream-chunk", { requestId, chunk });
+          }
+        } catch (error) {
+          event.sender.send("host:stream-error", {
+            requestId,
+            message: error instanceof Error ? error.message : "stream failed",
+          });
+        } finally {
+          event.sender.send("host:stream-end", { requestId });
+        }
+      })();
+      return { type: "stream", status: 200, requestId };
+    }
+    if (result.type === "bytes") {
+      return {
+        type: "bytes",
+        status: result.status,
+        bytes: Array.from(result.bytes),
+        contentType: result.contentType,
+        filename: result.filename,
+      };
+    }
+    return result;
+  });
+  ipcMain.handle("host:save-bytes", async (_event, payload) => {
+    const save = await dialog.showSaveDialog({ defaultPath: payload.filename });
+    if (save.canceled || !save.filePath) {
+      return { ok: false };
+    }
+    fs.writeFileSync(save.filePath, Buffer.from(payload.bytes));
+    return { ok: true };
+  });
 }
 
-async function navigateToApp() {
+function registerMediaProtocol(host) {
+  protocol.handle("agentforge", async (request) => {
+    const url = new URL(request.url);
+    if (url.hostname === "media") {
+      const mediaId = url.pathname.replace(/^\//, "");
+      const result = await host.dispatch({
+        method: "GET",
+        path: `/api/v1/media/${mediaId}/file`,
+        query: {},
+        params: {},
+        headers: {},
+        workspaceId: host.readSelectedWorkspaceId() ?? null,
+      });
+      if (result.type === "bytes") {
+        return new Response(result.bytes, {
+          headers: { "Content-Type": result.contentType, "Cache-Control": "private, max-age=3600" },
+        });
+      }
+      return new Response("Not found", { status: 404 });
+    }
+    return new Response("Not found", { status: 404 });
+  });
+}
+
+async function navigateToUi() {
   if (!mainWindow) {
     return;
   }
-  await mainWindow.loadURL(appUrl);
+  if (app.isPackaged) {
+    await mainWindow.loadFile(rendererIndex());
+  } else {
+    await mainWindow.loadURL(WEBDEV_URL);
+  }
   if (!mainWindow.isVisible()) {
     mainWindow.show();
   }
-  bumpCompositor(mainWindow);
   mainWindow.focus();
-  mainWindow.webContents.focus();
 }
 
-async function bootstrap() {
+async function bootstrapPackaged() {
   const secret = await wrapKey();
   const dataDir = app.getPath("userData");
-  await ensureDataDir(dataDir);
+  fs.mkdirSync(dataDir, { recursive: true });
+  process.env.AGENTFORGE_DATA_DIR = dataDir;
+  process.env.AGENTFORGE_SECRETS_KEY = secret;
+  process.env.AGENTFORGE_MIGRATIONS_DIR = drizzleDir();
+  delete process.env.DATABASE_URL;
 
-  if (app.isPackaged) {
-    appPort = await allocateLoopbackPort();
-    appUrl = `http://${LOOPBACK}:${appPort}`;
-    writeAppUrl(dataDir, appUrl);
-    try {
-      webChild = spawnWeb(secret, dataDir, appPort);
-      spawnedWeb = true;
-    } catch (err) {
-      console.error(`Could not spawn bundled Next.js: ${err.message}`);
-    }
-  } else {
-    appPort = WEBDEV_PORT;
-    appUrl = `http://${LOOPBACK}:${WEBDEV_PORT}`;
-    const alreadyUp = await portOpen(WEBDEV_PORT);
-    if (!alreadyUp) {
-      try {
-        webChild = spawnWeb(secret, dataDir, appPort);
-        spawnedWeb = true;
-      } catch (err) {
-        console.error(`Could not spawn Next.js: ${err.message}. Run \`pnpm dev\` then reopen Agentforge.`);
-      }
-    }
+  const host = require("./host.cjs");
+  registerIpc(host);
+  registerMediaProtocol(host);
+  const ping = await host.dispatch({
+    method: "GET",
+    path: "/api/v1/ping",
+    query: {},
+    params: {},
+    headers: {},
+    workspaceId: host.readSelectedWorkspaceId() ?? null,
+  });
+  if (!ping || ping.type !== "json" || ping.status !== 200) {
+    throw new Error("host ping failed");
   }
-
-  const ready = await waitForChatReady(appUrl, appPort);
-  if (ready) {
-    await navigateToApp();
-  } else if (mainWindow) {
-    const failHint = app.isPackaged
-      ? "The bundled server failed to start. See logs/web.log in the app data folder."
-      : "Start Next with `pnpm dev` then reopen Agentforge.";
-    mainWindow.webContents.executeJavaScript(
-      `document.querySelector('p').textContent = 'Could not reach ${appUrl}. ${failHint}';`,
-    );
-  }
+  hostReady = true;
+  const settings = host.loadSettings();
+  writeHostStatus(dataDir, {
+    runtime: settings.openaiApiKey ? "ai" : process.env.AGENTFORGE_RUNTIME || "stub",
+    hasOpenai: Boolean(settings.openaiApiKey),
+  });
+  await navigateToUi();
 }
 
-if (process.platform === "win32") {
-  app.disableHardwareAcceleration();
+async function waitForWebdev(attempts = 60) {
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      const response = await fetch(`${WEBDEV_URL}/api/v1/ping`);
+      if (response.ok) {
+        return;
+      }
+    } catch {
+      // not up yet
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  throw new Error("Local webdev is not running at http://127.0.0.1:3000. Start `pnpm dev` first.");
+}
+
+async function bootstrapDev() {
+  await waitForWebdev();
+  hostReady = true;
+  await navigateToUi();
 }
 
 function applyProductPaths() {
@@ -396,6 +281,10 @@ function migrateLegacyScopedUserData() {
   fs.cpSync(legacy, dest, { recursive: true, force: false });
 }
 
+if (process.platform === "win32") {
+  app.disableHardwareAcceleration();
+}
+
 applyProductPaths();
 migrateLegacyScopedUserData();
 
@@ -414,24 +303,33 @@ if (!gotLock) {
 
   app.whenReady().then(async () => {
     createWindow();
-    await bootstrap();
+    try {
+      if (app.isPackaged) {
+        await bootstrapPackaged();
+      } else {
+        await bootstrapDev();
+      }
+    } catch (error) {
+      console.error(error);
+      if (mainWindow) {
+        const folder = app.getPath("userData");
+        const safe = JSON.stringify(String(folder));
+        await mainWindow.webContents.executeJavaScript(
+          `document.querySelector('p').textContent = 'Could not start the local app. See the data folder: ' + ${safe};`,
+        );
+      }
+    }
 
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) {
         createWindow();
-        void bootstrap();
       }
     });
   });
 
   app.on("window-all-closed", () => {
-    beginShutdown();
     if (process.platform !== "darwin") {
       app.exit(0);
     }
-  });
-
-  app.on("before-quit", () => {
-    beginShutdown();
   });
 }

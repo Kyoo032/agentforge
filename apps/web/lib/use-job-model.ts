@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { JobMode } from "@agentforge/core";
+import { apiFetch } from "./api-client";
 
 export type JobStudioModel = {
   id: string;
@@ -59,8 +60,8 @@ export function useJobModel(mode: JobMode): {
   useEffect(() => {
     let cancelled = false;
     void Promise.all([
-      fetch("/api/v1/models").then((response) => response.json().catch(() => ({}))),
-      fetch("/api/v1/settings").then((response) => response.json().catch(() => ({}))),
+      apiFetch("/api/v1/models").then((response) => response.json().catch(() => ({}))),
+      apiFetch("/api/v1/settings").then((response) => response.json().catch(() => ({}))),
     ]).then(([catalog, settings]) => {
       if (cancelled) {
         return;

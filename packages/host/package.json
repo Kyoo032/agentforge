@@ -1,0 +1,29 @@
+{
+  "name": "@agentforge/host",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./http": "./src/http-adapter.ts"
+  },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@agentforge/core": "workspace:*",
+    "@agentforge/db": "workspace:*",
+    "@agentforge/legal": "workspace:*",
+    "@agentforge/marketing": "workspace:*",
+    "@agentforge/university": "workspace:*",
+    "docx": "^9.5.1",
+    "drizzle-orm": "^0.45.2",
+    "pptxgenjs": "^4.0.1",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.2.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

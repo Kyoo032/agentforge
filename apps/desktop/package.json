@@ -2,22 +2,25 @@
   "name": "@agentforge/desktop",
   "version": "0.1.0",
   "private": true,
-  "description": "Electron shell for Agentforge. Packaged builds bind an ephemeral loopback port, never 3000.",
+  "description": "Electron shell for Agentforge. Packaged builds use IPC (no loopback HTTP server).",
   "main": "main.cjs",
   "scripts": {
     "desktop-dev": "electron .",
-    "desktop-build": "node scripts/check-symlink.mjs && pnpm --filter @agentforge/web build && node scripts/stage-web.mjs && electron-builder --win nsis",
-    "desktop-build-dir": "node scripts/check-symlink.mjs && pnpm --filter @agentforge/web build && node scripts/stage-web.mjs && electron-builder --win nsis --dir",
-    "desktop-build-mac": "pnpm --filter @agentforge/web build && node scripts/stage-web.mjs && electron-builder --mac",
-    "desktop-build-linux": "pnpm --filter @agentforge/web build && node scripts/stage-web.mjs && electron-builder --linux",
-    "desktop-build-linux-dir": "pnpm --filter @agentforge/web build && node scripts/stage-web.mjs && electron-builder --linux --dir"
+    "desktop-build": "pnpm --filter @agentforge/web build && node scripts/stage-renderer.mjs && electron-builder --win nsis",
+    "desktop-build-dir": "pnpm --filter @agentforge/web build && node scripts/stage-renderer.mjs && electron-builder --win nsis --dir",
+    "desktop-build-mac": "pnpm --filter @agentforge/web build && node scripts/stage-renderer.mjs && electron-builder --mac",
+    "desktop-build-linux": "pnpm --filter @agentforge/web build && node scripts/stage-renderer.mjs && electron-builder --linux",
+    "desktop-build-linux-dir": "pnpm --filter @agentforge/web build && node scripts/stage-renderer.mjs && electron-builder --linux --dir",
+    "rebuild-natives": "echo 'Run on Windows (not Cloud): npx @electron/rebuild -f -w better-sqlite3 -w keytar'"
   },
   "dependencies": {
+    "better-sqlite3": "^13.0.3",
     "keytar": "^7.9.0"
   },
   "devDependencies": {
     "electron": "^35.1.5",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^25.1.8",
+    "esbuild": "^0.25.9"
   },
   "build": {
     "appId": "com.tokotoken.agentforge",
@@ -31,14 +34,24 @@
     },
     "files": [
       "main.cjs",
+      "preload.cjs",
+      "host.cjs",
       "splash/**/*",
       "package.json"
     ],
     "extraResources": [
       {
-        "from": "resources/web",
-        "to": "web"
+        "from": "resources/renderer",
+        "to": "renderer"
+      },
+      {
+        "from": "resources/drizzle",
+        "to": "drizzle"
       }
+    ],
+    "asarUnpack": [
+      "**/node_modules/better-sqlite3/**",
+      "**/node_modules/keytar/**"
     ],
     "win": {
       "target": [
@@ -89,6 +102,7 @@
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": true,
       "include": "installer.nsh"
     }
   }

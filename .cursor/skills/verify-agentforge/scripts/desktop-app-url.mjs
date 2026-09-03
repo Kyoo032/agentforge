@@ -2,19 +2,44 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 /**
- * Packaged Electron writes app-url.txt under userData
+ * Packaged Electron writes host-status.json under userData
  * (`app.setName("Agentforge")` + `extraMetadata.name: "agentforge"`):
- *   Windows: %APPDATA%\Agentforge\app-url.txt
- *            (legacy fallback: %APPDATA%\@agentforge\desktop\app-url.txt)
- *   Linux:   $XDG_CONFIG_HOME/Agentforge/app-url.txt or ~/.config/Agentforge/app-url.txt
- *   macOS:   ~/Library/Application Support/Agentforge/app-url.txt
+ *   Windows: %APPDATA%\Agentforge\host-status.json
+ *            (legacy fallback: %APPDATA%\@agentforge\desktop\host-status.json)
+ *   Linux:   $XDG_CONFIG_HOME/Agentforge/host-status.json or ~/.config/Agentforge/host-status.json
+ *   macOS:   ~/Library/Application Support/Agentforge/host-status.json
+ *
+ * Older installers wrote app-url.txt (HTTP child). Doctor --desktop must not require that file.
  *
  * @param {{ APPDATA?: string, XDG_CONFIG_HOME?: string }} [env]
  * @param {NodeJS.Platform} [platform]
  * @param {string} [home]
  * @returns {string[]}
  */
+export function desktopHostStatusCandidates(
+  env = process.env,
+  platform = process.platform,
+  home = homedir(),
+) {
+  return desktopUserDataDirs(env, platform, home).map((dir) => join(dir, "host-status.json"));
+}
+
+/** @deprecated HTTP child leftover. Packaged Agentforge no longer writes this. */
 export function desktopAppUrlCandidates(
+  env = process.env,
+  platform = process.platform,
+  home = homedir(),
+) {
+  return desktopUserDataDirs(env, platform, home).map((dir) => join(dir, "app-url.txt"));
+}
+
+/**
+ * @param {{ APPDATA?: string, XDG_CONFIG_HOME?: string }} [env]
+ * @param {NodeJS.Platform} [platform]
+ * @param {string} [home]
+ * @returns {string[]}
+ */
+export function desktopUserDataDirs(
   env = process.env,
   platform = process.platform,
   home = homedir(),
@@ -23,18 +48,17 @@ export function desktopAppUrlCandidates(
     const roaming = typeof env.APPDATA === "string" ? env.APPDATA.trim() : "";
     if (roaming) {
       return [
-        join(roaming, "Agentforge", "app-url.txt"),
-        // Pre-setName installs used the scoped npm package folder.
-        join(roaming, "@agentforge", "desktop", "app-url.txt"),
+        join(roaming, "Agentforge"),
+        join(roaming, "@agentforge", "desktop"),
       ];
     }
   }
   if (platform === "darwin") {
-    return [join(home, "Library", "Application Support", "Agentforge", "app-url.txt")];
+    return [join(home, "Library", "Application Support", "Agentforge")];
   }
   const xdg = typeof env.XDG_CONFIG_HOME === "string" ? env.XDG_CONFIG_HOME.trim() : "";
   const configHome = xdg || join(home, ".config");
-  return [join(configHome, "Agentforge", "app-url.txt")];
+  return [join(configHome, "Agentforge")];
 }
 
 /**

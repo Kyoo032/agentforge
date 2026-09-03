@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import Link from "next/link";
+import { Link } from "@/lib/nav";
 import { ExampleGallery } from "@/components/example-gallery";
 import { ModelSelect } from "@/components/model-select";
 import type { JobRegenSubmit } from "@/components/job-regen-panel";
@@ -9,6 +9,7 @@ import { PresentationPreview } from "@/components/presentation-preview";
 import type { PresentationOutline } from "@/lib/presentation-outline";
 import { PRESENTATION_STARTERS } from "@/lib/job-starters";
 import { useJobModel } from "@/lib/use-job-model";
+import { apiFetch } from "@/lib/api-client";
 
 function errorMessage(payload: unknown, fallback: string): string {
   if (payload && typeof payload === "object") {
@@ -37,7 +38,7 @@ export function PresentationsStudio() {
     setBusy("generate");
     setError(null);
     try {
-      const res = await fetch("/api/v1/presentations", {
+      const res = await apiFetch("/api/v1/presentations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: topic, model: model || undefined }),
@@ -63,7 +64,7 @@ export function PresentationsStudio() {
     setRegenIndex(index);
     setError(null);
     try {
-      const res = await fetch("/api/v1/presentations/regenerate", {
+      const res = await apiFetch("/api/v1/presentations/regenerate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -95,7 +96,7 @@ export function PresentationsStudio() {
     setBusy("download");
     setError(null);
     try {
-      const res = await fetch("/api/v1/presentations/pptx", {
+      const res = await apiFetch("/api/v1/presentations/pptx", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(outline),

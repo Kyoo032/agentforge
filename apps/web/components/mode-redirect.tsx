@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter } from "@/lib/nav";
 import { redirectIfHiddenMode, type ProductMode } from "@agentforge/core/product-modes";
 
 export function ModeRedirect({ visibleModes }: { visibleModes: ProductMode[] }) {

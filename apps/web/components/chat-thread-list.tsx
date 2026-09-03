@@ -1,10 +1,11 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { Link } from "@/lib/nav";
+import { useRouter, useSearchParams } from "@/lib/nav";
 import { groupThreadsByDay } from "@/lib/thread-groups";
 import { THREADS_CHANGED_EVENT } from "@/lib/threads-events";
+import { apiFetch } from "@/lib/api-client";
 
 type RailThread = {
   id: string;
@@ -44,7 +45,7 @@ function ChatThreadListInner({ basePath, scope, agentId }: Props) {
       if (scope === "agent" && agentId) {
         params.set("agentId", agentId);
       }
-      const payload = await fetch(`/api/v1/threads?${params}`).then((res) => res.json());
+      const payload = await apiFetch(`/api/v1/threads?${params}`).then((res) => res.json());
       if (cancelled) {
         return;
       }
@@ -71,7 +72,7 @@ function ChatThreadListInner({ basePath, scope, agentId }: Props) {
     }
     setDeletingId(thread.id);
     try {
-      const response = await fetch(`/api/v1/threads/${thread.id}`, { method: "DELETE" });
+      const response = await apiFetch(`/api/v1/threads/${thread.id}`, { method: "DELETE" });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(payload.error?.message ?? "Could not delete session");

@@ -15,7 +15,7 @@ Settings is where the owner pastes a Toko Token gateway key from api.tokotokenai
 ## How to get to it (user POV)
 
 - Choose Settings on the left rail (`settings-link`).
-- Webdev: open `http://127.0.0.1:3000/settings`. Packaged: Settings in the Electron window (not :3000).
+- Packaged: Settings in the Electron window (not :3000; no HTTP).
 - From Chat empty-state copy, follow the Settings link.
 
 ## Driving it with the Agentforge harness
@@ -36,11 +36,12 @@ Preconditions:
 
 ## Gotchas
 
-- Saving probes `GET /v1/models` against the saved URL. A typo or `http://` non-loopback URL is a product 400, not a harness bug.
+- Saving probes `GET /v1/models` against the locked Toko Token URL. A missing key is a product 400/offline demo, not a harness bug.
+- GET Settings does **not** call Toko Token. Usage “this key” is local (`needs_key` or a generate-later note). Do not expect a live wallet fetch on page load.
 - The raw key never comes back after save. A filled `openai-key` on reload means you are looking at the empty replace-placeholder, not the secret.
 - Advanced fields remain in the host store (guard on, tools on) but are not in the GTM UI. Hunting for `injection-guard-bypass` and finding count 0 is a pass.
 - `runtime-status` is the user-visible doctor. Trust that text over env `AGENTFORGE_RUNTIME` once a key exists — `resolveRuntimeMode` prefers a saved key.
-- Mutating `/api` from a non-localhost Origin is rejected. Webdev: drive `127.0.0.1:3000`. Packaged: any loopback Origin on the ephemeral port is allowed; do not doctor :3000 as the app.
+- Mutating `/api` from a non-localhost Origin is rejected on **webdev**. Packaged has no HTTP API; the renderer uses IPC. Do not doctor :3000 as the app.
 - Settings is not a product mode. The rail control is `settings-link`, not `mode-settings`.
 - This key is gateway-billed spend for that `sk-` (all clients). This desk is an Agentforge estimate from local tokens × catalog prices. They will not match.
 - There is no Access Token field and no key create/revoke UI. Do not hunt for one.

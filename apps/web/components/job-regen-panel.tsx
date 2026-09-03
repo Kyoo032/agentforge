@@ -4,6 +4,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { ModelSelect } from "@/components/model-select";
 import { JOB_REGEN_FILE_ACCEPT, classifyAttachment, type AttachmentKind } from "@/lib/composer-attach";
 import type { JobStudioModel } from "@/lib/use-job-model";
+import { apiFetch } from "@/lib/api-client";
 
 export type JobRegenSubmit = {
   instruction: string;
@@ -30,7 +31,7 @@ type Props = {
 async function uploadMedia(file: File): Promise<string> {
   const form = new FormData();
   form.set("file", file);
-  const uploaded = await fetch("/api/v1/media", { method: "POST", body: form }).then((response) =>
+  const uploaded = await apiFetch("/api/v1/media", { method: "POST", body: form }).then((response) =>
     response.json(),
   );
   if (uploaded.error) {

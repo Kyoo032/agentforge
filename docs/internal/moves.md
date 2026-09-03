@@ -15,7 +15,16 @@ Format:
 
 ---
 
-## 2026-09-02 — GTM workspace-first rail
+## 2026-09-02 — Packaged app is IPC, not a Next HTTP child
+
+- **What:** Local Electron host. Main process owns DB, secrets, and media.
+- **From:** Packaged Electron spawned bundled `node.exe` + Next `server.js` on an ephemeral loopback port, wrote `app-url.txt`. `stage-web.mjs` copied Next standalone. Doctor `--desktop` HTTP-GETed that URL.
+- **To:** `@agentforge/host` dispatch. Vite renderer. Webdev: Express on `127.0.0.1:3000`. Packaged: `host.cjs` in-process + IPC (`window.agentforge`) + `agentforge://media`. `host-status.json` (`transport: "ipc"`). No child Node, no loopback port, no `app-url.txt`. Uninstall wipes `%APPDATA%\Agentforge` and Credential Manager `Agentforge` / `wrap-key`. Native rebuild for `better-sqlite3`/`keytar` is a Windows step, not Cloud.
+- **Why:** The installed app died waiting on a Next child (`styled-jsx` / `@swc/helpers`). The product is a local offline desktop app; the only outbound HTTPS is Toko Token on prompt/generate.
+- **Not in this move:** a Cloud/Linux NSIS rebuild; Windows unpackaged walk; live product-page Drive.
+
+---
+
 
 - **What:** Workspace owns product modes; Agents/Studio parked; Settings is key-only
 - **From:** Rail = union of custom-agent `productModes` (Home = Chat + Agents until Build). Settings Simple/Advanced + Extras. Create workspace seeds a starter agent and opens `/agents`.
