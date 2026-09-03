@@ -4,6 +4,7 @@ import { BAR_COLORS, type RangeUsage } from "./usage-panel";
 
 type Props = {
   buckets: RangeUsage["buckets"];
+  productName?: string;
 };
 
 const CHART_W = 560;
@@ -14,12 +15,12 @@ const PAD_T = 12;
 const PAD_B = 36;
 
 /** Hand-rolled stacked bars by bucket × model. No chart library. */
-export function UsageRangeChart({ buckets }: Props) {
+export function UsageRangeChart({ buckets, productName = "Agentforge" }: Props) {
   const hasSpend = buckets.some((b) => b.usd > 0 || b.models.some((m) => m.usd > 0));
   if (buckets.length === 0 || !hasSpend) {
     return (
       <p className="mt-4 text-sm text-ink/50" data-testid="usage-range-empty">
-        No Agentforge runs in this range.
+        No {productName} runs in this range.
       </p>
     );
   }

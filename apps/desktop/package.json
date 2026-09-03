@@ -60,6 +60,10 @@
       {
         "from": "resources/drizzle",
         "to": "drizzle"
+      },
+      {
+        "from": "resources/brand",
+        "to": "brand"
       }
     ],
     "asarUnpack": [

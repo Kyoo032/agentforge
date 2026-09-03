@@ -12,6 +12,7 @@ import {
 import { ThemeToggle } from "@/components/theme-toggle";
 import { WorkspaceSwitcher } from "@/components/workspace-switcher";
 import { getRailCollapsed, setRailCollapsed } from "@/lib/rail-prefs";
+import { useProductBrand } from "@/lib/product-brand";
 
 type Props = {
   workspaceName: string;
@@ -26,6 +27,7 @@ function itemClass(active: boolean, compact = false) {
 
 export function AppRail({ workspaceName, visibleModes }: Props) {
   const pathname = usePathname();
+  const { productName } = useProductBrand();
   const onSettings = pathname.startsWith("/settings");
   const onUsage = pathname.startsWith("/usage");
   const onWorkspaces = pathname.startsWith("/workspaces");
@@ -121,7 +123,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
       <div className="flex items-start gap-1 border-b border-mist px-2 py-3">
         <div className="min-w-0 flex-1">
           <Link href={homeHref} className="block truncate text-sm font-semibold tracking-tight text-ink">
-            Agentforge
+            {productName}
           </Link>
           <p className="mt-0.5 truncate text-xs text-ink/50">{workspaceName}</p>
         </div>

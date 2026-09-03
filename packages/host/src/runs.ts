@@ -15,7 +15,7 @@ import {
   modelHistoryParts,
   redactAttachedParts,
   takeLastToolIo,
-  GATEWAY_BASE_URL,
+  resolvedGatewayBaseUrl,
   type ContentPart,
   type InputModality,
   type TenantContext,
@@ -183,7 +183,7 @@ export async function* startModalityRun(options: {
       const run = await insertRun(options.tenant, thread.id, published.version.id, options.modality);
       runId = run.id;
       const historyRows = await listMessages(options.tenant, thread.id);
-      const inlineLocal = shouldInlineLocalMediaForProvider(settings.openaiBaseUrl || GATEWAY_BASE_URL);
+      const inlineLocal = shouldInlineLocalMediaForProvider(settings.openaiBaseUrl || resolvedGatewayBaseUrl());
       const history: Array<{ role: "user" | "assistant"; parts: ContentPart[] }> = [];
       for (const row of historyRows) {
         if (row.role !== "user" && row.role !== "assistant") {

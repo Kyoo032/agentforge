@@ -1,9 +1,10 @@
 import {
-  GATEWAY_NAME,
   hasLiveProvider,
   listToolCapabilities,
   listToolRoutes,
   maskSecrets,
+  resolvedGatewayName,
+  resolvedProductName,
   resolveRuntimeMode,
   type SecretPatch,
 } from "@agentforge/core";
@@ -46,7 +47,8 @@ function readOptionalBoolean(value: unknown): boolean | undefined {
 async function settingsPayload(settings: ReturnType<typeof loadSettings>, tenant: Awaited<ReturnType<typeof getTenant>>) {
   return {
     ...maskSecrets(settings),
-    gatewayName: GATEWAY_NAME,
+    productName: resolvedProductName(),
+    gatewayName: resolvedGatewayName(),
     runtime: resolveRuntimeMode({
       settingsHasKey: hasLiveProvider(settings),
       envRuntime: process.env.AGENTFORGE_RUNTIME,

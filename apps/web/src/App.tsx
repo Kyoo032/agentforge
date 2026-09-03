@@ -15,6 +15,7 @@ import { VideosStudio } from "@/components/videos-studio";
 import { PresentationsStudio } from "@/components/presentations-studio";
 import { OnboardingScreen } from "@/components/onboarding-screen";
 import { isElectron } from "@/lib/api-client";
+import { useProductBrand } from "@/lib/product-brand";
 
 function Shell({ children }: { children: ReactNode }) {
   const location = useLocation();
@@ -63,6 +64,7 @@ function Shell({ children }: { children: ReactNode }) {
 
 export function App() {
   const [gate, setGate] = useState<"loading" | "onboarding" | "app">("loading");
+  const { productName } = useProductBrand();
 
   useEffect(() => {
     if (!isElectron()) {
@@ -88,7 +90,7 @@ export function App() {
   if (gate === "loading") {
     return (
       <main className="flex min-h-screen items-center justify-center bg-mist text-ink">
-        <p>Starting Agentforge…</p>
+        <p>Starting {productName}…</p>
       </main>
     );
   }

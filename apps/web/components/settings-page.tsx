@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { GATEWAY_NAME } from "@agentforge/core/gateway";
 import { DEFAULT_GATEWAY_IMAGE_MODEL, DEFAULT_GATEWAY_VIDEO_MODEL } from "@agentforge/core/media-kind";
 import { UsagePanel, type AccountUsage } from "./usage-panel";
 import { apiFetch } from "@/lib/api-client";
+import { gatewayHostLabel, useProductBrand } from "@/lib/product-brand";
 
 type Probe = {
   openaiCount?: number;
@@ -25,6 +25,7 @@ function runtimeStatusLabel(mode: "ai" | "stub"): string {
 }
 
 export function SettingsPage() {
+  const { productName, gatewayName, gatewayBaseUrl } = useProductBrand();
   const [hasOpenai, setHasOpenai] = useState(false);
   const [hasGoogle, setHasGoogle] = useState(false);
   const [hasAnthropic, setHasAnthropic] = useState(false);
@@ -173,8 +174,8 @@ export function SettingsPage() {
     <main className="mx-auto max-w-xl px-6 py-10 text-ink">
       <h1 className="text-3xl font-semibold text-ink">Settings</h1>
       <p className="mt-2 text-ink/60">
-        Paste your {GATEWAY_NAME} API key from api.tokotokenai.com to use chat, documents, research, images, videos,
-        and presentation on this machine.
+        Paste your {gatewayName} API key from {gatewayHostLabel(openaiBaseUrl || gatewayBaseUrl)} to use chat,
+        documents, research, images, videos, and presentation on this machine.
       </p>
 
       <p className="mt-3 text-sm text-ink/50" data-testid="runtime-status">
@@ -190,7 +191,7 @@ export function SettingsPage() {
       <form onSubmit={(event) => void onSubmit(event)} className="mt-6 space-y-6" data-testid="settings-form">
         <section className="space-y-4 rounded-xl border border-mist bg-paper p-5">
           <div>
-            <h2 className="font-medium text-ink">{GATEWAY_NAME} gateway</h2>
+            <h2 className="font-medium text-ink">{gatewayName} gateway</h2>
             <p className="mt-1 text-xs text-ink/50">Paste your gateway API key. It never comes back after save.</p>
           </div>
           <label className="block text-sm text-ink">
@@ -226,8 +227,8 @@ export function SettingsPage() {
         </section>
 
         <p className="text-sm text-ink/50" data-testid="privacy-note">
-          Prompts leave this machine only over HTTPS to the saved endpoint. Agentforge does not log prompts. Keys and
-          threads are encrypted on disk. Toko Token retention is the gateway&apos;s policy.
+          Prompts leave this machine only over HTTPS to the saved endpoint. {productName} does not log prompts. Keys and
+          threads are encrypted on disk. {gatewayName} retention is the gateway&apos;s policy.
         </p>
       </form>
     </main>

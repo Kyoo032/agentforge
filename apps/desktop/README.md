@@ -15,15 +15,15 @@ There is no mobile Electron/Capacitor/RN target. See [`docs/mobile.md`](../../do
 
 ## userData (`host-status.json`, SQLite, `settings.enc`)
 
-`app.setName("Agentforge")` + `extraMetadata.name: "agentforge"`:
+`app.setName(productName)` + flavor `brand.json` (`userData` is `%APPDATA%\<productName>`):
 
-| OS | userData |
+| Flavor | Windows userData |
 |---|---|
-| Windows | `%APPDATA%\Agentforge` (legacy fallback `%APPDATA%\@agentforge\desktop`) |
-| Linux | `$XDG_CONFIG_HOME/Agentforge` or `~/.config/Agentforge` |
-| macOS | `~/Library/Application Support/Agentforge` |
+| Agentforge | `%APPDATA%\Agentforge` (legacy `%APPDATA%\@agentforge\desktop`) |
+| Kemenkeu AI | `%APPDATA%\Kemenkeu AI` |
+| AIHub Metranet | `%APPDATA%\AIHub Metranet` |
 
-Packaged launch writes `host-status.json` there (`transport: "ipc"`). Doctor `--desktop` reads that file and **fails** if it is missing. It does **not** GET `:3000`.
+Packaged launch writes `host-status.json` there (`transport: "ipc"`). Doctor `--desktop` reads that file and **fails** if it is missing. It does **not** GET `:3000`. Branded Windows flavors use `%APPDATA%\Kemenkeu AI` and `%APPDATA%\AIHub Metranet`.
 
 ## Dev (webdev window)
 
@@ -45,7 +45,13 @@ pnpm desktop:build
 # all three NSIS flavors: pnpm desktop:build:all
 ```
 
-Builds the Vite renderer, esbuild-bundles `host.cjs` (externals: `better-sqlite3`, `keytar`), copies drizzle migrations, then packages Electron. Output: `apps/desktop/dist/` (NSIS, current user). Flavor is icon + splash only (`branding/{agentforge,kemenkeu,metranet}/`); same `appId` / productName **Agentforge**.
+Builds the Vite renderer, esbuild-bundles `host.cjs` (externals: `better-sqlite3`, `keytar`), copies drizzle migrations, then packages Electron. Output: `apps/desktop/dist/` (NSIS, current user). Flavors under `branding/{agentforge,kemenkeu,metranet}/`:
+
+- **Agentforge** — Toko Token (`https://api.tokotokenai.com/v1`), `appId` `com.tokotoken.agentforge`
+- **Kemenkeu AI** — AIHub (`https://aihub.metranet.co.id/v1`), separate `appId` / userData
+- **AIHub Metranet** — same AIHub URL, separate `appId` / userData
+
+Do not upload the Kemenkeu / Metranet exes to GitHub.
 
 Native modules must be rebuilt for Electron’s Node **on Windows**:
 

@@ -11,6 +11,7 @@ import {
   type UsageRange,
 } from "./usage-panel";
 import { UsageRangeChart } from "./usage-range-chart";
+import { useProductBrand } from "@/lib/product-brand";
 
 const RANGES: Array<{ id: UsageRange; label: string }> = [
   { id: "day", label: "Day" },
@@ -47,6 +48,7 @@ function parseUsage(payload: unknown, range: UsageRange): RangeUsage | null {
 }
 
 export function UsagePage() {
+  const { productName, gatewayName } = useProductBrand();
   const [range, setRange] = useState<UsageRange>("day");
   const [usage, setUsage] = useState<RangeUsage | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -129,13 +131,13 @@ export function UsagePage() {
         {loading && !usage ? (
           <p className="mt-4 text-sm text-ink/50">Loading…</p>
         ) : (
-          <UsageRangeChart buckets={usage?.buckets ?? []} />
+          <UsageRangeChart buckets={usage?.buckets ?? []} productName={productName} />
         )}
 
         <div className="mt-6" data-testid="usage-by-model">
           <p className="text-sm font-medium text-ink">Spend by model (this range)</p>
           {byModel.length === 0 ? (
-            <p className="mt-2 text-xs text-ink/50">No Agentforge runs in this range.</p>
+            <p className="mt-2 text-xs text-ink/50">No {productName} runs in this range.</p>
           ) : (
             <ul className="mt-3 space-y-3">
               {priced.map((row, index) => (
@@ -174,7 +176,7 @@ export function UsagePage() {
         </div>
 
         <p className="mt-6 text-xs text-ink/50">
-          Desk estimate uses Agentforge input and output tokens and Toko Token catalog prices. This-key wallet spend
+          Desk estimate uses {productName} input and output tokens and {gatewayName} catalog prices. This-key wallet spend
           includes other apps on the same key and will not match the desk total.
         </p>
       </section>

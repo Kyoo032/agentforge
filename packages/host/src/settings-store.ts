@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, statSync, unlinkSync, 
 import { resolve } from "node:path";
 import type { SecretPatch, StoredSecrets } from "@agentforge/core";
 import {
-  GATEWAY_BASE_URL,
+  resolvedGatewayBaseUrl,
   assertAllowedEndpointUrl,
   decryptJson,
   encryptJson,
@@ -155,7 +155,7 @@ type SettingsCache = { path: string; mtimeMs: number; secrets: StoredSecrets };
 let settingsCache: SettingsCache | null = null;
 
 function lockGateway(secrets: StoredSecrets): StoredSecrets {
-  return { ...secrets, openaiBaseUrl: GATEWAY_BASE_URL };
+  return { ...secrets, openaiBaseUrl: resolvedGatewayBaseUrl() };
 }
 
 function rememberSettings(path: string, mtimeMs: number, secrets: StoredSecrets): StoredSecrets {
@@ -197,7 +197,7 @@ export function loadSettings(): StoredSecrets {
 
 export function saveSettings(patch: SecretPatch): StoredSecrets {
   settingsCache = null;
-  const next = lockGateway(mergeSecrets(loadSettings(), { ...patch, openaiBaseUrl: GATEWAY_BASE_URL }));
+  const next = lockGateway(mergeSecrets(loadSettings(), { ...patch, openaiBaseUrl: resolvedGatewayBaseUrl() }));
   assertSavedEndpoints(next);
   persistEncrypted(next);
   tryDeleteLegacyPlaintext();

@@ -1,0 +1,9 @@
+{
+  "id": "metranet",
+  "productName": "AIHub Metranet",
+  "appId": "id.co.metranet.aihub",
+  "artifactName": "AIHub Metranet Setup ${version}.exe",
+  "gatewayName": "AIHub",
+  "gatewayBaseUrl": "https://aihub.metranet.co.id/v1",
+  "splashBlurb": "Starting the local app. Paste your AIHub gateway key in Settings, then Chat is ready."
+}

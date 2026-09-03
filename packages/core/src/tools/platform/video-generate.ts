@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { GATEWAY_BASE_URL } from "../../gateway";
+import { resolvedGatewayBaseUrl } from "../../gateway";
 import { DEFAULT_GATEWAY_VIDEO_MODEL } from "../../models/media-kind";
 import { clampVideoSeconds } from "../../models/video-capabilities";
 import { ApiError } from "../../errors";
@@ -145,7 +145,7 @@ export const videoGenerateTool = defineTool({
               resolution,
               apiKey,
               model: model || getSecret("VIDEO_GEN_MODEL") || DEFAULT_GATEWAY_VIDEO_MODEL,
-              baseUrl: getSecret("OPENAI_BASE_URL") || GATEWAY_BASE_URL,
+              baseUrl: getSecret("OPENAI_BASE_URL") || resolvedGatewayBaseUrl(),
               fetchImpl,
             })
           : route.backend === "volcengine"

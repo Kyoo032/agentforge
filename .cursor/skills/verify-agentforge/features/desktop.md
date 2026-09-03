@@ -8,11 +8,11 @@ Electron is the installed local app. Packaged builds have **no HTTP server**. Th
   - Windows: `%APPDATA%\Agentforge\host-status.json`
   - Linux: `$XDG_CONFIG_HOME/Agentforge/host-status.json` or `~/.config/Agentforge/host-status.json`
   - macOS: `~/Library/Application Support/Agentforge/host-status.json`
-- `desktop-onboarding` (packaged, no saved key): endpoint URL locked to Toko Token, API key field, optional “Use offline demo”. Skipped once a key exists. Webdev/Playwright is **not** gated.
+- `desktop-onboarding` (packaged, no saved key): endpoint URL locked to that flavor’s gateway (Toko Token, or AIHub `https://aihub.metranet.co.id/v1` for Kemenkeu AI and AIHub Metranet), API key field, optional “Use offline demo”. Skipped once a key exists. Webdev/Playwright is **not** gated.
 - `desktop-splash` shows the splash page until the host is ready, then loads the renderer (`loadFile`, not a loopback URL).
 - `desktop-chat` loads Chat in the window (not in Chrome on :3000).
 - `desktop-dev` (`pnpm desktop:dev`) is the **local webdev in a window**. It waits for `GET /api/v1/ping` on :3000 and does **not** attach preload. That is not packaged proof.
-- `desktop-quit` exits `Agentforge.exe` (whole process tree) on window close. No tray, no hidden window. Threads and the saved key stay. Uninstall wipes userData + Credential Manager wrap key. Upgrade (same `appId`) kills the running app, overwrites Program Files / per-user install, and **keeps** `%APPDATA%\Agentforge`.
+- `desktop-quit` exits the product exe (Agentforge / Kemenkeu AI / AIHub Metranet) on window close. No tray, no hidden window. Threads and the saved key stay. Uninstall wipes that flavor’s userData + Credential Manager wrap key. Upgrade (same `appId`) kills the running app, overwrites the install, and **keeps** that flavor’s `%APPDATA%` folder.
 - No mobile Electron/Capacitor/RN target. See [mobile.md](./mobile.md).
 
 ## How to get to it (user POV)
@@ -48,6 +48,6 @@ Preconditions:
 - Single-instance: a second launch focuses the existing window.
 - Cursor browser overlay can steal clicks; the Electron window itself is the primary proof surface for desktop.
 - **Uninstall:** NSIS `customUnInstall` taskkills `Agentforge.exe`, `RMDir` `%APPDATA%\Agentforge`, and `cmdkey /delete:Agentforge/wrap-key` — only when it is **not** an upgrade (`${isUpdated}`). Reinstall after uninstall must show onboarding. Running setup.exe while the app is open kills `Agentforge.exe` then overwrites the existing install.
-- **Upgrade:** same `appId` `com.tokotoken.agentforge`. Desk data and the wrap key stay. Do not treat a missing onboarding screen after upgrade as a fail.
+- **Upgrade:** public Agentforge keeps `appId` `com.tokotoken.agentforge`. Kemenkeu AI and AIHub Metranet are separate apps (different `appId` and `%APPDATA%` folders). Desk data and the wrap key stay for that flavor. Do not treat a missing onboarding screen after upgrade as a fail.
 - **userData folder:** packaged `package.json` name used to be `@agentforge/desktop`, so Windows Electron wrote `%APPDATA%\@agentforge\desktop`. Product path is `%APPDATA%\Agentforge`. Doctor `--desktop` still falls back to the Windows scoped folder if that is all that exists.
 - Native rebuild: on Windows, `npx @electron/rebuild -f -w better-sqlite3 -w keytar` after install. Not a Cloud step.

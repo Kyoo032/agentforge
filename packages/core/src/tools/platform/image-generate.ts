@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { GATEWAY_BASE_URL } from "../../gateway";
+import { resolvedGatewayBaseUrl } from "../../gateway";
 import { DEFAULT_GATEWAY_IMAGE_MODEL } from "../../models/media-kind";
 import { ApiError } from "../../errors";
 import { defineTool } from "../define-tool";
@@ -84,7 +84,7 @@ export const imageGenerateTool = defineTool({
             imageUrl: image_url,
             apiKey,
             model: model || getSecret("IMAGE_GEN_MODEL") || DEFAULT_GATEWAY_IMAGE_MODEL,
-            baseUrl: getSecret("OPENAI_BASE_URL") || GATEWAY_BASE_URL,
+            baseUrl: getSecret("OPENAI_BASE_URL") || resolvedGatewayBaseUrl(),
             fetchImpl,
           })
         : await generateWithFal(prompt, aspect, image_url, apiKey, fetchImpl);

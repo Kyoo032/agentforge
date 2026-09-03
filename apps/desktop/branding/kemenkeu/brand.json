@@ -1,0 +1,9 @@
+{
+  "id": "kemenkeu",
+  "productName": "Kemenkeu AI",
+  "appId": "id.go.kemenkeu.ai",
+  "artifactName": "Kemenkeu AI Setup ${version}.exe",
+  "gatewayName": "AIHub",
+  "gatewayBaseUrl": "https://aihub.metranet.co.id/v1",
+  "splashBlurb": "Starting the local app. Paste your AIHub gateway key in Settings, then Chat is ready."
+}
