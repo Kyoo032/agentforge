@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "@/lib/nav";
 import { usePathname } from "@/lib/nav";
 import {
@@ -13,27 +13,181 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { WorkspaceSwitcher } from "@/components/workspace-switcher";
 import { getRailCollapsed, setRailCollapsed } from "@/lib/rail-prefs";
 import { useProductBrand } from "@/lib/product-brand";
+import { productMonogram } from "@/components/app-shell";
 
 type Props = {
   workspaceName: string;
   visibleModes: ProductMode[];
 };
 
-function itemClass(active: boolean, compact = false) {
-  return active
-    ? `${compact ? "flex justify-center" : "block"} rounded-md bg-navy ${compact ? "px-2 py-2" : "px-2.5 py-1.5"} text-sm text-white`
-    : `${compact ? "flex justify-center" : "block"} rounded-md ${compact ? "px-2 py-2" : "px-2.5 py-1.5"} text-sm text-ink hover:bg-mist`;
+type IconName =
+  | "chat"
+  | "documents"
+  | "research"
+  | "finance"
+  | "data"
+  | "images"
+  | "videos"
+  | "presentations"
+  | "knowledge"
+  | "workspaces"
+  | "usage"
+  | "settings";
+
+const RAIL_ICON_PATHS: Record<IconName, ReactNode> = {
+  chat: <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />,
+  documents: (
+    <>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2v6h6" />
+      <path d="M16 13H8M16 17H8" />
+    </>
+  ),
+  research: (
+    <>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m21 21-4.3-4.3" />
+    </>
+  ),
+  finance: (
+    <>
+      <path d="m3 17 6-6 4 4 8-8" />
+      <path d="M17 7h4v4" />
+      <path d="M3 21h18" />
+    </>
+  ),
+  data: (
+    <>
+      <ellipse cx="12" cy="5" rx="8" ry="3" />
+      <path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5" />
+      <path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" />
+    </>
+  ),
+  images: (
+    <>
+      <rect x="3" y="3" width="18" height="18" />
+      <circle cx="8.5" cy="8.5" r="1.5" />
+      <path d="m21 15-5-5L5 21" />
+    </>
+  ),
+  videos: (
+    <>
+      <path d="m22 8-6 4 6 4V8Z" />
+      <rect x="2" y="6" width="14" height="12" />
+    </>
+  ),
+  presentations: (
+    <>
+      <path d="M2 3h20" />
+      <path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3" />
+      <path d="m7 21 5-5 5 5" />
+    </>
+  ),
+  knowledge: (
+    <>
+      <path d="M4 19.5V5a2 2 0 0 1 2-2h13v18H6.2A2.2 2.2 0 0 1 4 18.8Z" />
+      <path d="M8 7h7M8 11h7" />
+    </>
+  ),
+  workspaces: (
+    <>
+      <rect x="3" y="3" width="7" height="7" />
+      <rect x="14" y="3" width="7" height="7" />
+      <rect x="3" y="14" width="7" height="7" />
+      <rect x="14" y="14" width="7" height="7" />
+    </>
+  ),
+  usage: (
+    <>
+      <path d="M3.34 19a10 10 0 1 1 17.32 0" />
+      <path d="m12 14 4-4" />
+    </>
+  ),
+  settings: (
+    <>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.1 14.6a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3h.1a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8v.1a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z" />
+    </>
+  ),
+};
+
+function RailIcon({ name }: { name: IconName }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      aria-hidden="true"
+    >
+      {RAIL_ICON_PATHS[name]}
+    </svg>
+  );
+}
+
+function RailItem({
+  href,
+  label,
+  icon,
+  active,
+  collapsed,
+  testId,
+}: {
+  href: string;
+  label: string;
+  icon: IconName;
+  active: boolean;
+  collapsed: boolean;
+  testId: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`flex items-center gap-2.5 px-2.5 py-[7px] text-[13.5px] ${
+        active
+          ? "bg-[color-mix(in_srgb,var(--color-accent)_16%,transparent)] text-accent-800"
+          : "text-inkbase hover:bg-[color-mix(in_srgb,var(--color-text)_7%,transparent)]"
+      } ${collapsed ? "justify-center" : ""}`}
+      aria-current={active ? "page" : undefined}
+      aria-label={label}
+      title={label}
+      data-testid={testId}
+    >
+      <RailIcon name={icon} />
+      {collapsed ? null : <span className="truncate">{label}</span>}
+    </Link>
+  );
+}
+
+function RailGroupLabel({
+  children,
+  collapsed,
+  first,
+}: {
+  children: ReactNode;
+  collapsed: boolean;
+  first?: boolean;
+}) {
+  if (collapsed) {
+    return <div className={`${first ? "mt-1" : "mt-2"} mx-auto h-px w-6 bg-divider`} />;
+  }
+  return (
+    <p className={`${first ? "mt-1" : "mt-3"} mb-0.5 px-2.5 text-[10px] font-heading font-semibold uppercase tracking-[.14em] text-[color-mix(in_srgb,var(--color-text)_48%,transparent)]`}>
+      {children}
+    </p>
+  );
 }
 
 export function AppRail({ workspaceName, visibleModes }: Props) {
   const pathname = usePathname();
   const { productName, logoSrc } = useProductBrand();
-  const onSettings = pathname.startsWith("/settings");
-  const onUsage = pathname.startsWith("/usage");
-  const onWorkspaces = pathname.startsWith("/workspaces");
   const [collapsed, setCollapsed] = useState(false);
   const modes = PRODUCT_MODES.filter((mode) => visibleModes.includes(mode.id));
   const homeHref = firstVisibleHref(visibleModes);
+  const chatMode = modes.find((mode) => mode.id === "chat");
+  const jobModes = modes.filter((mode) => mode.id !== "chat");
 
   useEffect(() => {
     setCollapsed(getRailCollapsed());
@@ -47,164 +201,119 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
     });
   }
 
-  if (collapsed) {
-    return (
-      <aside
-        className="flex h-full w-11 shrink-0 flex-col items-center overflow-hidden rounded-xl border border-mist/80 bg-paper py-3"
-        aria-label="Product modes"
-      >
-        {logoSrc ? (
-          <img
-            src={logoSrc}
-            alt=""
-            className="mb-2 h-7 w-7 object-contain"
-            data-testid="product-logo"
-          />
-        ) : null}
-        <button
-          type="button"
-          className="rounded-md px-1.5 py-1 text-sm text-ink/60 hover:bg-mist hover:text-ink"
-          onClick={toggleCollapsed}
-          data-testid="rail-expand"
-          aria-label="Expand navigation"
-          title="Expand navigation"
-        >
-          »
-        </button>
-        <nav className="mt-3 flex flex-col items-center gap-1" aria-label="Modes">
-          {modes.map((mode) => {
-            const isActive = productModeMatches(mode.id, pathname);
-            return (
-              <Link
-                key={mode.href}
-                href={mode.href}
-                className={`${itemClass(isActive, true)} text-xs font-medium`}
-                title={mode.label}
-                aria-label={mode.label}
-                aria-current={isActive ? "page" : undefined}
-                data-testid={`mode-${mode.href.slice(1)}`}
-              >
-                {mode.label.slice(0, 1)}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="mt-auto flex flex-col items-center gap-1">
-          <WorkspaceSwitcher workspaceName={workspaceName} compact />
-          <Link
-            href="/workspaces"
-            className={`${itemClass(onWorkspaces, true)} text-xs font-medium`}
-            data-testid="workspaces-link"
-            title="Workspaces"
-            aria-label="Workspaces"
-            aria-current={onWorkspaces ? "page" : undefined}
-          >
-            Ws
-          </Link>
-          <Link
-            href="/usage"
-            className={`${itemClass(onUsage, true)} text-xs font-medium`}
-            data-testid="usage-link"
-            title="Usage"
-            aria-label="Usage"
-            aria-current={onUsage ? "page" : undefined}
-          >
-            Use
-          </Link>
-          <Link
-            href="/settings"
-            className={`${itemClass(onSettings, true)} text-xs font-medium`}
-            data-testid="settings-link"
-            title="Settings"
-            aria-label="Settings"
-            aria-current={onSettings ? "page" : undefined}
-          >
-            Set
-          </Link>
-        </div>
-      </aside>
-    );
-  }
-
   return (
-    <aside className="flex h-full w-52 shrink-0 flex-col overflow-hidden rounded-xl border border-mist/80 bg-paper" aria-label="Product modes">
-      <div className="flex items-start gap-1 border-b border-mist px-3 py-3">
+    <aside
+      className="blueprint flex h-full shrink-0 flex-col overflow-hidden bg-app"
+      style={{ width: collapsed ? 68 : 236 }}
+      aria-label="Product modes"
+      data-rail={collapsed ? "min" : "full"}
+    >
+      <i className="corner tl" />
+      <i className="corner tr" />
+      <i className="corner bl" />
+      <i className="corner br" />
+      <div className={`flex shrink-0 items-start gap-2 border-b border-divider ${collapsed ? "justify-center px-1.5 py-3" : "px-3 py-3"}`}>
         {logoSrc ? (
-          <img
-            src={logoSrc}
-            alt=""
-            className="mt-0.5 h-7 w-7 shrink-0 object-contain"
-            data-testid="product-logo"
-          />
-        ) : null}
-        <div className="min-w-0 flex-1">
-          <Link
-            href={homeHref}
-            className="block truncate text-sm font-semibold tracking-tight text-ink"
-            data-testid="product-brand"
-          >
-            {productName}
-          </Link>
-          <p className="mt-0.5 truncate text-xs text-ink/50">{workspaceName}</p>
-        </div>
-        <button
-          type="button"
-          className="shrink-0 rounded-md px-1.5 py-1 text-sm text-ink/60 hover:bg-mist hover:text-ink"
-          onClick={toggleCollapsed}
-          data-testid="rail-collapse"
-          aria-label="Collapse navigation"
-          title="Collapse navigation"
-        >
-          «
-        </button>
+          <img src={logoSrc} alt="" className="mt-0.5 h-7 w-7 shrink-0 object-contain" data-testid="product-logo" />
+        ) : (
+          <span className="grid h-7 w-7 shrink-0 place-items-center border border-accent font-heading text-sm font-semibold text-accent">
+            {productMonogram(productName)}
+          </span>
+        )}
+        {collapsed ? null : (
+          <div className="min-w-0 flex-1">
+            <Link href={homeHref} className="block truncate font-heading text-[15px] font-semibold tracking-tight" data-testid="product-brand">
+              {productName}
+            </Link>
+            <p className="mt-0.5 truncate text-[11px] text-[color-mix(in_srgb,var(--color-text)_50%,transparent)]">
+              {workspaceName}
+            </p>
+          </div>
+        )}
       </div>
 
-      <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-3" aria-label="Modes">
-        <div className="space-y-0.5">
-          {modes.map((mode) => {
-            const isActive = productModeMatches(mode.id, pathname);
-            return (
-              <Link
-                key={mode.href}
-                href={mode.href}
-                className={itemClass(isActive)}
-                aria-current={isActive ? "page" : undefined}
-                data-testid={`mode-${mode.href.slice(1)}`}
-              >
-                {mode.label}
-              </Link>
-            );
-          })}
-        </div>
+      <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-2" aria-label="Modes">
+        {chatMode ? (
+          <>
+            <RailGroupLabel collapsed={collapsed} first>
+              Converse
+            </RailGroupLabel>
+            <RailItem
+              href={chatMode.href}
+              label={chatMode.label}
+              icon="chat"
+              active={productModeMatches(chatMode.id, pathname)}
+              collapsed={collapsed}
+              testId={`mode-${chatMode.href.slice(1)}`}
+            />
+          </>
+        ) : null}
+
+        {jobModes.length > 0 ? <RailGroupLabel collapsed={collapsed}>Home · job modes</RailGroupLabel> : null}
+        {jobModes.map((mode) => (
+          <RailItem
+            key={mode.href}
+            href={mode.href}
+            label={mode.label}
+            icon={(mode.id in RAIL_ICON_PATHS ? mode.id : "documents") as IconName}
+            active={productModeMatches(mode.id, pathname)}
+            collapsed={collapsed}
+            testId={`mode-${mode.href.slice(1)}`}
+          />
+        ))}
+
+        <RailGroupLabel collapsed={collapsed}>Account</RailGroupLabel>
+        <RailItem
+          href="/knowledge"
+          label="Knowledge"
+          icon="knowledge"
+          active={pathname.startsWith("/knowledge")}
+          collapsed={collapsed}
+          testId="mode-knowledge"
+        />
+        <RailItem
+          href="/workspaces"
+          label="Workspaces"
+          icon="workspaces"
+          active={pathname.startsWith("/workspaces")}
+          collapsed={collapsed}
+          testId="workspaces-link"
+        />
+        <RailItem
+          href="/usage"
+          label="Usage"
+          icon="usage"
+          active={pathname.startsWith("/usage")}
+          collapsed={collapsed}
+          testId="usage-link"
+        />
+        <RailItem
+          href="/settings"
+          label="Settings"
+          icon="settings"
+          active={pathname.startsWith("/settings")}
+          collapsed={collapsed}
+          testId="settings-link"
+        />
       </nav>
 
-      <div className="space-y-0.5 border-t border-mist px-3 py-3">
-        <WorkspaceSwitcher workspaceName={workspaceName} />
-        <Link
-          href="/workspaces"
-          className={itemClass(onWorkspaces)}
-          data-testid="workspaces-link"
-          aria-current={onWorkspaces ? "page" : undefined}
+      <div className="flex shrink-0 items-center justify-center gap-2 border-t border-divider p-2.5">
+        {collapsed ? null : (
+          <ThemeToggle className="min-w-0 flex-1 justify-start gap-2 px-2 py-[7px] text-[13px]" />
+        )}
+        <button
+          type="button"
+          className="btn btn-secondary btn-icon h-[30px] w-[30px] shrink-0"
+          onClick={toggleCollapsed}
+          data-testid={collapsed ? "rail-expand" : "rail-collapse"}
+          aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
+          title={collapsed ? "Expand navigation" : "Collapse navigation"}
         >
-          Workspaces
-        </Link>
-        <Link
-          href="/usage"
-          className={itemClass(onUsage)}
-          data-testid="usage-link"
-          aria-current={onUsage ? "page" : undefined}
-        >
-          Usage
-        </Link>
-        <Link
-          href="/settings"
-          className={itemClass(onSettings)}
-          data-testid="settings-link"
-          aria-current={onSettings ? "page" : undefined}
-        >
-          Settings
-        </Link>
-        <ThemeToggle />
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+            <rect x="3" y="3" width="18" height="18" />
+            <path d="M9 3v18" />
+          </svg>
+        </button>
       </div>
     </aside>
   );

@@ -36,8 +36,8 @@ export function ExampleGallery({ mode, onSelect }: ExampleGalleryProps) {
                 aria-pressed={isSelected}
                 className={`w-full rounded-xl border px-3 py-2.5 text-left text-sm transition-colors ${
                   isSelected
-                    ? "border-navy bg-navy/5 text-ink"
-                    : "border-mist bg-paper text-ink hover:border-navy"
+                    ? "border-accent bg-accent/5 text-ink"
+                    : "border-mist bg-paper text-ink hover:border-accent"
                 }`}
                 onClick={() => {
                   setSelectedId(id);

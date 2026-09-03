@@ -9,7 +9,7 @@ import {
   type Theme,
 } from "@/lib/theme";
 
-export function ThemeToggle() {
+export function ThemeToggle({ className }: { className?: string }) {
   const [theme, setTheme] = useState<Theme>(() => resolveTheme(getStoredTheme()));
 
   useEffect(() => {
@@ -30,7 +30,7 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={toggle}
-      className="block w-full rounded-md px-3 py-2 text-left text-sm text-ink hover:bg-mist"
+      className={className ?? "block w-full rounded-md px-3 py-2 text-left text-sm text-ink hover:bg-mist"}
       aria-label={label}
     >
       {label}
