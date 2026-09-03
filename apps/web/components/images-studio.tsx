@@ -192,7 +192,7 @@ export function ImagesStudio() {
           <p className="text-sm text-ink/50">Loading gallery…</p>
         ) : items.length === 0 ? (
           <div
-            className="rounded-2xl border border-mist bg-mist/30 px-4 py-10 text-center"
+            className="rounded-lg border border-mist bg-mist/30 px-4 py-10 text-center"
             data-testid="images-studio-empty"
           >
             <p className="text-lg font-medium">Nothing here yet</p>

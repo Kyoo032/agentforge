@@ -123,7 +123,7 @@ export function ResearchStudio() {
           <ResearchPreview notes={notes} />
         ) : (
           <div
-            className="rounded-2xl border border-mist bg-mist/30 px-4 py-10 text-center"
+            className="rounded-lg border border-mist bg-mist/30 px-4 py-10 text-center"
             data-testid="research-studio-empty"
           >
             <p className="text-lg font-medium">No notes yet</p>

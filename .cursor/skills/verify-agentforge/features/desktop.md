@@ -41,6 +41,7 @@ Preconditions:
 
 - Cloud / Linux VM: cannot run or rebuild that NSIS exe. Do not run `pnpm desktop:build` here. A missing Cloud `.exe` is not a product fail.
 - Packaged Electron **must not** `loadURL('http://127.0.0.1:3000')` and **must not** spawn `node.exe`. If doctor `--desktop` reports an HTTP URL or port 3000, that is a fail.
+- Icon/splash flavors: [desktop-brands.md](./desktop-brands.md). Webdev is never a flavor.
 - `pnpm desktop:dev` is still the local webdev in a Chromium frame. It is allowed to use :3000. Do not sell that as installer proof.
 - Schema is created in-process on first SQLite open (`ensureSchema` / committed drizzle migrations).
 - keytar may fall back to a session-only wrap key if the OS keychain is unavailable — doctor still works; note it in evidence.

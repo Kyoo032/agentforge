@@ -55,7 +55,7 @@ Ready signal (packaged desktop): Electron window on Chat (or onboarding if no ke
 unset DATABASE_URL
 export AGENTFORGE_RUNTIME=stub
 export AGENTFORGE_DATA_DIR="${AGENTFORGE_DATA_DIR:-$PWD/data}"
-# optional; Next migrates on open
+# optional; ensureSchema migrates on SQLite open
 # pnpm db:push
 pnpm dev
 ```
@@ -80,7 +80,7 @@ node .cursor/skills/verify-agentforge/scripts/doctor.mjs
 node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop
 ```
 
-It is read-only. Default GETs `/chat` and `/api/v1/settings` on `http://127.0.0.1:3000`. `--desktop` reads `host-status.json` (IPC; no HTTP). Override webdev with `AGENTFORGE_VERIFY_URL` (still must be loopback). Exit `0` prints JSON. Webdev: `url`, `surface`, `chatStatus`, `runtime`, `hasOpenai`, `keyFingerprint`, `dataDir`. Desktop: `url: "ipc"`, `transport: "ipc"`, `pid`, `dataDir`. Exit `1` means do not drive. `keyFingerprint` is `true` only on webdev when a gateway key is saved and `openaiKeyFingerprint` is a non-empty `sha256:` string. Cloud/GHA have no key — expect `false`, do not fail.
+It is read-only. Default GETs `/chat`, `/api/v1/settings`, and `/api/v1/models` on `http://127.0.0.1:3000`. `--desktop` reads `host-status.json` (IPC; no HTTP). Override webdev with `AGENTFORGE_VERIFY_URL` (still must be loopback). Exit `0` prints JSON. Webdev: `url`, `surface`, `chatStatus`, `runtime`, `hasOpenai`, `keyFingerprint`, `modeKeys`, `chatCount`, `curation`, `gatewayName`, `dataDir`. Desktop: `url: "ipc"`, `transport: "ipc"`, `pid`, `dataDir`. Exit `1` means do not drive. `keyFingerprint` is `true` only on webdev when a gateway key is saved and `openaiKeyFingerprint` is a non-empty `sha256:` string. Cloud/GHA have no key — expect `false`, do not fail. `gatewayName` is Toko Token on public webdev.
 
 Refuse to drive when:
 
@@ -171,7 +171,7 @@ Standards:
 - Capture before and after for mutations (empty chat → prompt in `message-list`).
 - Stub is the product's own test mode (`resolveRuntimeMode`). It is not a mock you invented. Live generate stays on this machine with the operator's key — never on Cloud.
 - A screenshot of the final screen with no action record is not proof.
-- Next.js overlay in the Cursor browser can inject `data-cursor-ref` and steal clicks. If clicks no-op, say so and use Chrome or Cloud Playwright — do not invent a CSS workaround.
+- Cursor’s browser overlay can inject `data-cursor-ref` and steal clicks. If clicks no-op, say so and use Chrome or Cloud Playwright — do not invent a CSS workaround.
 
 ## Cleanup
 
@@ -187,4 +187,4 @@ Standards:
 
 ## Isolate
 
-Two **webdev** instances cannot share port 3000. The packaged app uses a different loopback port and a different data dir (Electron userData: `%APPDATA%\Agentforge` / `~/.config/Agentforge` / `~/Library/Application Support/Agentforge`), so it can run while `pnpm dev` is up. Playwright’s data dir is the same repo `data/` as the Windows local webdev. Isolation for E2E is the Cloud/GHA VM, not a second local port. Do not double-drive the operator’s live window while Cloud Playwright is also pointed at this checkout. If you need a disposable tree, set `AGENTFORGE_DATA_DIR` to a new directory (optional `pnpm db:push`; Next migrates on open), and optionally `AGENTFORGE_SETTINGS_PATH` so you do not touch the operator’s `data/settings.enc`.
+Two **webdev** instances cannot share port 3000. The packaged app has **no HTTP port** and a different data dir (Electron userData: `%APPDATA%\Agentforge` / `~/.config/Agentforge` / `~/Library/Application Support/Agentforge`), so it can run while `pnpm dev` is up. Playwright’s data dir is the same repo `data/` as the Windows local webdev. Isolation for E2E is the Cloud/GHA VM, not a second local port. Do not double-drive the operator’s live window while Cloud Playwright is also pointed at this checkout. If you need a disposable tree, set `AGENTFORGE_DATA_DIR` to a new directory (optional `pnpm db:push`; `ensureSchema` migrates on SQLite open), and optionally `AGENTFORGE_SETTINGS_PATH` so you do not touch the operator’s `data/settings.enc`.

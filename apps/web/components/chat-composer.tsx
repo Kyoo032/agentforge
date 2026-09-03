@@ -310,7 +310,7 @@ export function ChatComposer({
           {files.map((item) => (
             <li
               key={item.id}
-              className="flex items-center gap-2 rounded-full border border-mist px-3 py-1 text-sm text-ink"
+              className="flex items-center gap-2 rounded-md border border-mist px-3 py-1 text-sm text-ink"
               data-testid="composer-attachment"
             >
               <span className="max-w-[12rem] truncate">{item.file.name}</span>
@@ -327,7 +327,7 @@ export function ChatComposer({
         </ul>
       ) : null}
       {error ? <p className="mt-2 text-sm text-red-700">{error}</p> : null}
-      <div className="mt-3 flex items-center gap-2">
+      <div className="mt-3 flex flex-wrap items-center gap-2" data-testid="composer-toolbar">
         {showPicker ? (
           <ModelPicker
             models={pickerModels}
@@ -340,7 +340,7 @@ export function ChatComposer({
         {onThinkingChange ? (
           <button
             type="button"
-            className={`rounded-full border px-3 py-1.5 text-sm ${
+            className={`rounded-md border px-3 py-1.5 text-sm ${
               thinkingEnabled ? "border-navy bg-navy text-white" : "border-mist text-ink"
             }`}
             data-testid="thinking-toggle"
@@ -362,7 +362,7 @@ export function ChatComposer({
         </button>
         <button
           type="submit"
-          className="rounded-xl bg-navy px-4 py-2 text-white disabled:opacity-50"
+          className="rounded-md bg-navy px-4 py-2 text-white disabled:opacity-50"
           disabled={busy || (!text.trim() && files.length === 0)}
           data-testid="composer-send"
         >

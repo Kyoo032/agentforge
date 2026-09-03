@@ -7,12 +7,12 @@
 - `models-doctor` prints `modeKeys`, `chatCount`, and `curation` from doctor. `curation: true` is expected; `false` is a regression.
 - `models-everyday` shows the Everyday group (`model-group-recommended`) — chat-kind only, `tier: "everyday"`, with `friendlyLabel` and `bestFor` (`model-best-for`) on each row.
 - `models-advanced` reveals non-everyday entries via the Advanced models disclosure (`model-picker-all`). Search auto-expands Advanced when matches are only in that tier.
-- `models-picker` opens from Chat via `model-picker`; the trigger pill shows `friendlyLabel` (not the bare slug) once models load.
+- `models-picker` opens from Chat via `model-picker`; the trigger button shows `friendlyLabel` (not the bare slug) once models load.
 
 ## How to get to it (user POV)
 
 - Open `http://127.0.0.1:3000/chat`.
-- Click the model control (`model-picker`) in the Chat header / composer chrome. The pill shows the selected model's friendly label.
+- Click the model control (`model-picker`) in the composer toolbar (`composer-toolbar`). The button shows the selected model's friendly label.
 - Expand Advanced models when you need a model outside the everyday list, or type in Search to surface advanced matches.
 
 ## Driving it with the Agentforge harness

@@ -212,14 +212,14 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
 
   return (
     <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-8" data-testid="chat-home">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-4" data-testid="chat-header">
         <div>
           <h1 className="text-2xl font-semibold">{isDefaultChat ? "Chat" : agentName}</h1>
           {!isDefaultChat ? (
             <p className="mt-1 text-sm text-ink/50">Specialist agent · pick any model for this thread</p>
           ) : null}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-3">
           <ChatContextChip usedTokens={contextTokens} contextLength={selectedModel?.contextLength} />
           <ChatUsageChip />
           {agentIdReady ? (

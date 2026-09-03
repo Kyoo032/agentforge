@@ -14,7 +14,10 @@ export function AppShell({ workspaceName, visibleModes, children }: Props) {
     <div className="flex h-screen gap-2 bg-mist p-2">
       <ModeRedirect visibleModes={visibleModes} />
       <AppRail workspaceName={workspaceName} visibleModes={visibleModes} />
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-paper">
+      <div
+        className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-paper"
+        data-testid="app-main-panel"
+      >
         <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
       </div>
     </div>

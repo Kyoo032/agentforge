@@ -50,7 +50,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
   if (collapsed) {
     return (
       <aside
-        className="flex h-full w-11 shrink-0 flex-col items-center rounded-xl border border-mist/80 bg-paper py-3"
+        className="flex h-full w-11 shrink-0 flex-col items-center overflow-hidden rounded-xl border border-mist/80 bg-paper py-3"
         aria-label="Product modes"
       >
         {logoSrc ? (
@@ -127,8 +127,8 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
   }
 
   return (
-    <aside className="flex h-full w-52 shrink-0 flex-col rounded-xl border border-mist/80 bg-paper" aria-label="Product modes">
-      <div className="flex items-start gap-1 border-b border-mist px-2 py-3">
+    <aside className="flex h-full w-52 shrink-0 flex-col overflow-hidden rounded-xl border border-mist/80 bg-paper" aria-label="Product modes">
+      <div className="flex items-start gap-1 border-b border-mist px-3 py-3">
         {logoSrc ? (
           <img
             src={logoSrc}
@@ -159,7 +159,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
         </button>
       </div>
 
-      <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 py-3" aria-label="Modes">
+      <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-3" aria-label="Modes">
         <div className="space-y-0.5">
           {modes.map((mode) => {
             const isActive = productModeMatches(mode.id, pathname);
@@ -178,7 +178,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
         </div>
       </nav>
 
-      <div className="space-y-0.5 border-t border-mist px-2 py-3">
+      <div className="space-y-0.5 border-t border-mist px-3 py-3">
         <WorkspaceSwitcher workspaceName={workspaceName} />
         <Link
           href="/workspaces"

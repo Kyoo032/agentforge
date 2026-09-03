@@ -178,7 +178,7 @@ export function PresentationsStudio() {
             onRegenerate={(index, payload) => void onRegenerate(index, payload)}
           />
         ) : (
-          <div className="rounded-2xl border border-mist bg-mist/30 px-4 py-10" data-testid="presentations-studio-empty">
+          <div className="rounded-lg border border-mist bg-mist/30 px-4 py-10" data-testid="presentations-studio-empty">
             <p className="text-center text-lg font-medium">No deck yet</p>
             <p className="mt-2 text-center text-sm text-ink/60">
               Enter a topic below, or load a starter and download a PPTX without a live generate.

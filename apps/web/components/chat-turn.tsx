@@ -35,7 +35,7 @@ export function ChatTurn({ role, content, live }: Props) {
 
   return (
     <article
-      className={isUser ? "ml-10 rounded-2xl rounded-br-md bg-mist px-4 py-3" : "mr-10 rounded-xl px-1 py-1"}
+      className={isUser ? "ml-10 rounded-lg rounded-br-md bg-mist px-4 py-3" : "mr-10 rounded-lg px-1 py-1"}
       data-testid="message"
     >
       {isUser ? (

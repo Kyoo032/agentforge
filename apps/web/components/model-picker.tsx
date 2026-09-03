@@ -301,7 +301,7 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
         {isThinkingModel(model.id) ? (
           <span
             data-testid="model-thinking-badge"
-            className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${
+            className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${
               isActive ? "bg-white/20 text-white" : "bg-mist text-ink/60"
             }`}
           >
@@ -329,7 +329,7 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
       <button
         ref={triggerRef}
         type="button"
-        className="max-w-[14rem] truncate rounded-full border border-mist bg-paper px-3 py-1.5 text-left text-sm text-ink disabled:opacity-50"
+        className="max-w-[14rem] truncate rounded-md border border-mist bg-paper px-3 py-1.5 text-left text-sm text-ink disabled:opacity-50"
         data-testid="model-picker"
         aria-haspopup="listbox"
         aria-expanded={open}

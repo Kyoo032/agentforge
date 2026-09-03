@@ -149,7 +149,7 @@ export function JobRegenPanel({
           {files.map((item) => (
             <li
               key={item.id}
-              className="flex items-center gap-2 rounded-full border border-mist bg-paper px-3 py-1 text-xs text-ink"
+              className="flex items-center gap-2 rounded-md border border-mist bg-paper px-3 py-1 text-xs text-ink"
             >
               <span className="max-w-[12rem] truncate">{item.file.name}</span>
               <button

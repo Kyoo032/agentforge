@@ -239,6 +239,7 @@ async function doctorWebdev() {
     modeKeys,
     chatCount,
     curation,
+    gatewayName: typeof payload.gatewayName === "string" ? payload.gatewayName : undefined,
     dataDir: process.env.AGENTFORGE_DATA_DIR || "unset (webdev default: <repo>/data)",
     sqliteHint: "data/agentforge.sqlite under AGENTFORGE_DATA_DIR or repo data/",
   };

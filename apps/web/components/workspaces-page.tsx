@@ -14,7 +14,7 @@ type Workspace = {
   productModes?: ProductMode[];
 };
 
-const chipBase = "rounded-full border px-3 py-1.5 text-sm transition-colors";
+const chipBase = "rounded-md border px-3 py-1.5 text-sm transition-colors";
 const chipOn = "border-navy bg-navy text-white";
 const chipOff = "border-mist bg-paper text-ink hover:bg-mist";
 

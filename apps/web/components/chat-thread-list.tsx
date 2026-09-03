@@ -92,10 +92,10 @@ function ChatThreadListInner({ basePath, scope, agentId }: Props) {
 
   return (
     <aside
-      className="flex h-full w-52 shrink-0 flex-col border-r border-mist bg-paper"
+      className="flex h-full w-52 shrink-0 flex-col overflow-hidden border-r border-mist bg-paper"
       aria-label="Sessions"
     >
-      <div className="border-b border-mist px-2 py-3">
+      <div className="border-b border-mist px-3 py-3">
         <Link
           href={basePath}
           className="block rounded-md border border-mist px-2.5 py-1.5 text-sm font-medium text-ink hover:bg-mist"
@@ -105,7 +105,7 @@ function ChatThreadListInner({ basePath, scope, agentId }: Props) {
         </Link>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 py-3" data-testid="thread-list">
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3" data-testid="thread-list">
         {groups.length === 0 ? (
           <p className="px-1 text-xs text-ink/50">Sessions show up here after you send.</p>
         ) : (
