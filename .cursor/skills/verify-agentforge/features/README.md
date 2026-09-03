@@ -4,7 +4,7 @@ Agent-facing map (where to press). Not product. Pair with pstack `how` for how a
 
 This directory is the maintained source for verifying user-facing Agentforge behavior. Read this index before driving, then use the matching feature file as the recipe.
 
-Documents, Research, Images, Videos, and Presentation are product modes. **Home already unlocks all of them.** A Legal (or other) workspace can hide some tabs. Custom agents do not unlock the rail.
+Documents, Research, Finance, Data, Images, Videos, and Presentation are product modes. **Home already unlocks all of them.** A Legal (or other) workspace can hide some tabs. Knowledge is Account-rail, not a mode checkbox. Custom agents do not unlock the rail.
 
 ## Baseline preconditions
 
@@ -50,6 +50,9 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 - [Security](./security.md) — saved-key fingerprint on Settings (`key-fingerprint`); TLS note on `privacy-note`; at-rest envelope is existing work.
 - [Research](./research.md) — studio shell on Home; live generate needs a key (and search backends).
 - [Documents](./documents.md) — starters, preview, section regen (503 without a key), DOCX download from a starter. Home has the tab.
+- [Finance](./finance.md) — figures-only brief, starter + DOCX without a key, generate 503 without a key. Home has the tab.
+- [Data](./data.md) — pasted CSV + table notes, no web search, generate 503 without a key. Home has the tab.
+- [Knowledge](./knowledge.md) — Account-rail Soul / Memory / Sources; Chat injects FTS chunks. Not a product mode.
 - [Images](./images.md) — studio shell on Home; needs-key without a gateway key.
 - [Videos](./videos.md) — studio shell and `videos-studio-needs-key` without a key.
 - [Presentation](./presentations.md) — starters, preview, slide regen (503 without a key), PPTX download from a starter.
