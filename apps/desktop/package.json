@@ -32,17 +32,26 @@
       "output": "dist",
       "buildResources": "build"
     },
+    "compression": "maximum",
+    "electronLanguages": [
+      "en-US"
+    ],
     "files": [
       "main.cjs",
       "preload.cjs",
       "host.cjs",
       "splash/**/*",
-      "package.json"
+      "package.json",
+      "!**/*.map"
     ],
     "extraResources": [
       {
         "from": "resources/renderer",
-        "to": "renderer"
+        "to": "renderer",
+        "filter": [
+          "**/*",
+          "!**/*.map"
+        ]
       },
       {
         "from": "resources/drizzle",

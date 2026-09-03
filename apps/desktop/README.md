@@ -61,7 +61,9 @@ A fresh install does **not** need Node or pnpm on PATH. On first run:
 3. If no gateway key is saved, onboarding (endpoint locked to Toko Token + API key, or “Use offline demo”).
 4. Window close (`X`) exits `Agentforge.exe`. Threads and the saved key stay.
 
-**Uninstall** kills `Agentforge.exe`, deletes `%APPDATA%\Agentforge`, and removes Credential Manager `Agentforge` / `wrap-key`. Reinstall shows onboarding again.
+Window close (`X`) calls `app.exit(0)` so `Agentforge.exe` and Chromium helpers die. Threads and the saved key stay.
+
+Running `Agentforge Setup *.exe` again **replaces** the existing install: it taskkills `Agentforge.exe`, overwrites the app files, and keeps `%APPDATA%\Agentforge`. Uninstall (not upgrade) kills the process, deletes that folder, and removes Credential Manager `Agentforge` / `wrap-key`. Reinstall after uninstall shows onboarding again.
 
 Doctor the packaged app with:
 
