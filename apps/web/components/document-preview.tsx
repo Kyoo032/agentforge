@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { FormattedText } from "@/components/formatted-text";
 import { JobRegenPanel, type JobRegenSubmit } from "@/components/job-regen-panel";
 import type { DocumentDraft } from "@/lib/document-outline";
 import type { JobStudioModel } from "@/lib/use-job-model";
@@ -44,11 +45,7 @@ export function DocumentPreview({
                 </button>
               ) : null}
             </div>
-            {section.body.split(/\n{2,}/).map((para) => (
-              <p key={para.slice(0, 24)} className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-ink/85">
-                {para}
-              </p>
-            ))}
+            <FormattedText text={section.body} className="mt-3 text-sm leading-relaxed text-ink/85" />
             {onRegenerate && openIndex === index ? (
               <JobRegenPanel
                 key={index}

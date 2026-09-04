@@ -21,6 +21,43 @@ declare global {
       invoke: (payload: IpcHostRequest) => Promise<IpcHostResponse>;
       stream: (requestId: string, onChunk: (chunk: string) => void) => Promise<void>;
       saveBytes?: (filename: string, bytes: number[]) => Promise<void>;
+      updates?: {
+        supported: boolean;
+        state: () => Promise<{
+          supported: boolean;
+          status?: string;
+          currentVersion?: string;
+          version?: string;
+          percent?: number;
+          message?: string;
+        }>;
+        check: () => Promise<{
+          supported: boolean;
+          status?: string;
+          currentVersion?: string;
+          version?: string;
+          message?: string;
+        }>;
+        download: () => Promise<{
+          supported: boolean;
+          status?: string;
+          currentVersion?: string;
+          version?: string;
+          percent?: number;
+          message?: string;
+        }>;
+        install: () => Promise<void>;
+        onStatus?: (
+          callback: (state: {
+            supported: boolean;
+            status?: string;
+            currentVersion?: string;
+            version?: string;
+            percent?: number;
+            message?: string;
+          }) => void,
+        ) => () => void;
+      };
     };
   }
 }

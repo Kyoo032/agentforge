@@ -1,9 +1,20 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { sql } from "@agentforge/db";
-import { ApiError, assertAllowedEndpointUrl, type TenantContext } from "@agentforge/core";
+import {
+  ApiError,
+  assertAllowedEndpointUrl,
+  type KnowledgeModels,
+  type TenantContext,
+} from "@agentforge/core";
 import { mediaRoot } from "./media-root";
 import { chunkKnowledgeText, knowledgeFtsQuery } from "./knowledge-text";
+import {
+  deleteVectorsForSource,
+  indexSourceVectors,
+  retrieveVectorChunks,
+} from "./knowledge-embed";
+import { modeCatalogPayload } from "./selectable-models";
 
 export { chunkKnowledgeText, knowledgeFtsQuery } from "./knowledge-text";
 
@@ -40,6 +51,63 @@ const DEFAULT_SOUL: KnowledgeSoul = {
 
 function workspaceId(tenant: TenantContext): string {
   return tenant.workspaceId;
+}
+
+function catalogKnowledgeDefaults(): KnowledgeModels {
+  const { defaults } = modeCatalogPayload();
+  return {
+    embeddingModel: defaults.embedding,
+    brainModel: defaults.knowledgeBrain,
+    verifierModel: defaults.knowledgeVerifier,
+  };
+}
+
+export function getKnowledgeModels(tenant: TenantContext): KnowledgeModels {
+  const row = sql
+    .prepare(
+      "SELECT embedding_model, brain_model, verifier_model FROM knowledge_settings WHERE workspace_id = ?",
+    )
+    .get(workspaceId(tenant)) as
+    | { embedding_model: string; brain_model: string; verifier_model: string }
+    | undefined;
+  if (!row) {
+    return catalogKnowledgeDefaults();
+  }
+  return {
+    embeddingModel: row.embedding_model,
+    brainModel: row.brain_model,
+    verifierModel: row.verifier_model,
+  };
+}
+
+export function putKnowledgeModels(
+  tenant: TenantContext,
+  input: Partial<KnowledgeModels>,
+): KnowledgeModels {
+  const current = getKnowledgeModels(tenant);
+  const next: KnowledgeModels = {
+    embeddingModel: (input.embeddingModel?.trim() || current.embeddingModel).trim(),
+    brainModel: (input.brainModel?.trim() || current.brainModel).trim(),
+    verifierModel: (input.verifierModel?.trim() || current.verifierModel).trim(),
+  };
+  sql
+    .prepare(
+      `INSERT INTO knowledge_settings (workspace_id, embedding_model, brain_model, verifier_model, updated_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(workspace_id) DO UPDATE SET
+         embedding_model = excluded.embedding_model,
+         brain_model = excluded.brain_model,
+         verifier_model = excluded.verifier_model,
+         updated_at = excluded.updated_at`,
+    )
+    .run(
+      workspaceId(tenant),
+      next.embeddingModel,
+      next.brainModel,
+      next.verifierModel,
+      Date.now(),
+    );
+  return next;
 }
 
 export function getSoul(tenant: TenantContext): KnowledgeSoul {
@@ -143,7 +211,13 @@ function extractText(name: string, mime: string, bytes: Buffer): string {
   return bytes.toString("utf8");
 }
 
-function indexSource(tenant: TenantContext, id: string, name: string, type: string, text: string): KnowledgeSource {
+async function indexSource(
+  tenant: TenantContext,
+  id: string,
+  name: string,
+  type: string,
+  text: string,
+): Promise<KnowledgeSource> {
   const chunks = chunkKnowledgeText(text);
   const createdAt = Date.now();
   if (chunks.length === 0) {
@@ -162,6 +236,8 @@ function indexSource(tenant: TenantContext, id: string, name: string, type: stri
     }
   });
   tx();
+  const models = getKnowledgeModels(tenant);
+  await indexSourceVectors(tenant, id, chunks, models.embeddingModel);
   return { id, name, type, status: "Indexed", chunks: chunks.length, createdAt };
 }
 
@@ -194,16 +270,17 @@ export async function addUrlSource(tenant: TenantContext, url: string): Promise<
   return indexSource(tenant, crypto.randomUUID(), trimmed, "URL", text);
 }
 
-export function addPastedSource(tenant: TenantContext, name: string, text: string): KnowledgeSource {
+export async function addPastedSource(tenant: TenantContext, name: string, text: string): Promise<KnowledgeSource> {
   return indexSource(tenant, crypto.randomUUID(), name.trim() || "Pasted notes", "Paste", text);
 }
 
 export function deleteSource(tenant: TenantContext, id: string): void {
+  deleteVectorsForSource(tenant, id);
   sql.prepare("DELETE FROM knowledge_chunks WHERE workspace_id = ? AND source_id = ?").run(workspaceId(tenant), id);
   sql.prepare("DELETE FROM knowledge_sources WHERE workspace_id = ? AND id = ?").run(workspaceId(tenant), id);
 }
 
-export function retrieveChunks(tenant: TenantContext, query: string, limit = 4): string[] {
+function retrieveFtsChunks(tenant: TenantContext, query: string, limit = 4): string[] {
   const q = knowledgeFtsQuery(query);
   if (!q) {
     return [];
@@ -220,15 +297,36 @@ export function retrieveChunks(tenant: TenantContext, query: string, limit = 4):
   }
 }
 
-export function knowledgeInjection(tenant: TenantContext, query = ""): { prompt: string; parts: { label: string; detail: string; tokens: number }[] } {
+export async function retrieveChunks(
+  tenant: TenantContext,
+  query: string,
+  limit = 4,
+): Promise<{ bodies: string[]; mode: "rag" | "fts" | "none" }> {
+  const trimmed = query.trim();
+  if (!trimmed) {
+    return { bodies: [], mode: "none" };
+  }
+  const models = getKnowledgeModels(tenant);
+  const vectorHits = await retrieveVectorChunks(tenant, trimmed, models, limit);
+  if (vectorHits.length > 0) {
+    return { bodies: vectorHits.map((hit) => hit.body), mode: "rag" };
+  }
+  const fts = retrieveFtsChunks(tenant, trimmed, limit);
+  return { bodies: fts, mode: fts.length > 0 ? "fts" : "none" };
+}
+
+export async function knowledgeInjection(
+  tenant: TenantContext,
+  query = "",
+): Promise<{ prompt: string; parts: { label: string; detail: string; tokens: number }[] }> {
   const soul = getSoul(tenant);
   const memories = listMemories(tenant).filter((item) => item.pinned);
-  const retrieved = query ? retrieveChunks(tenant, query) : [];
+  const retrieved = query ? await retrieveChunks(tenant, query) : { bodies: [] as string[], mode: "none" as const };
   const soulBlock = [`Name: ${soul.name}`, `Role: ${soul.role}`, `Voice: ${soul.voice}`, soul.rules.length ? `Rules:\n- ${soul.rules.join("\n- ")}` : ""]
     .filter(Boolean)
     .join("\n");
   const memoryBlock = memories.map((item) => `- ${item.text}`).join("\n");
-  const retrievedBlock = retrieved.map((chunk, index) => `[${index + 1}] ${chunk}`).join("\n\n");
+  const retrievedBlock = retrieved.bodies.map((chunk, index) => `[${index + 1}] ${chunk}`).join("\n\n");
   const sections = [
     soulBlock ? `## Soul\n${soulBlock}` : "",
     memoryBlock ? `## Pinned memories\n${memoryBlock}` : "",
@@ -236,12 +334,18 @@ export function knowledgeInjection(tenant: TenantContext, query = ""): { prompt:
   ].filter(Boolean);
   const prompt = sections.length ? `\n\n# Workspace knowledge\n${sections.join("\n\n")}` : "";
   const est = (text: string) => Math.ceil(text.trim().length / 4);
+  const sourcesDetail =
+    retrieved.mode === "rag"
+      ? `${retrieved.bodies.length} chunks · rag`
+      : retrieved.mode === "fts"
+        ? `${retrieved.bodies.length} chunks · fts`
+        : `${retrieved.bodies.length} chunks`;
   return {
     prompt,
     parts: [
       { label: "Soul", detail: soul.name, tokens: est(soulBlock) },
       { label: "Memories", detail: `${memories.length} pinned`, tokens: est(memoryBlock) },
-      { label: "Sources", detail: `${retrieved.length} chunks`, tokens: est(retrievedBlock) },
+      { label: "Sources", detail: sourcesDetail, tokens: est(retrievedBlock) },
     ],
   };
 }

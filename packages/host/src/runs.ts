@@ -136,7 +136,7 @@ export async function* startModalityRun(options: {
   const userText = userParts
     .map((part) => (part.type === "text" && typeof part.text === "string" ? part.text : ""))
     .join("\n");
-  const knowledge = knowledgeInjection(options.tenant, userText);
+  const knowledge = await knowledgeInjection(options.tenant, userText);
   const version = {
     ...published.version,
     model,

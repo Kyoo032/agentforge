@@ -4,8 +4,11 @@ import {
   routeModelsByKind,
   pickPreferredImageModel,
   pickPreferredVideoModel,
+  pickPreferredEmbeddingModel,
+  isEmbeddingModelId,
   DEFAULT_GATEWAY_IMAGE_MODEL,
   DEFAULT_GATEWAY_VIDEO_MODEL,
+  DEFAULT_EMBEDDING_MODEL,
 } from "./media-kind";
 
 describe("mediaKind", () => {
@@ -45,6 +48,8 @@ describe("mediaKind", () => {
     expect(mediaKind("suno_music")).toBe("audio");
     expect(mediaKind("whisper-1")).toBe("audio");
     expect(mediaKind("text-embedding-3-small")).toBe("other");
+    expect(isEmbeddingModelId("text-embedding-3-small")).toBe(true);
+    expect(isEmbeddingModelId("gpt-5.6-luna")).toBe(false);
   });
 });
 
@@ -148,5 +153,17 @@ describe("routeModelsByKind", () => {
     expect(routed.video.map((model) => model.id)).toEqual(TOKO_VIDEO_IDS);
     expect(routed.image.some((model) => model.id === "mj_imagine")).toBe(true);
     expect(routed.video.some((model) => model.id === "mj_video")).toBe(true);
+  });
+});
+
+describe("pickPreferredEmbeddingModel", () => {
+  it("prefers text-embedding-3-small when live", () => {
+    expect(pickPreferredEmbeddingModel(["text-embedding-3-large", "text-embedding-3-small"])).toBe(
+      "text-embedding-3-small",
+    );
+  });
+
+  it("falls back to the kernel default", () => {
+    expect(pickPreferredEmbeddingModel([])).toBe(DEFAULT_EMBEDDING_MODEL);
   });
 });

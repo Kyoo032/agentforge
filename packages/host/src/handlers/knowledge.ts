@@ -9,12 +9,15 @@ import {
   addUrlSource,
   deleteMemory,
   deleteSource,
+  getKnowledgeModels,
   getSoul,
   knowledgeInjection,
   listMemories,
   listSources,
+  putKnowledgeModels,
   putSoul,
 } from "../knowledge";
+import { getKnowledgeMap, mapKnowledge } from "../knowledge-map";
 
 export async function handleGetKnowledge(request: HostRequest): Promise<HostResult> {
   try {
@@ -23,7 +26,49 @@ export async function handleGetKnowledge(request: HostRequest): Promise<HostResu
       soul: getSoul(tenant),
       memories: listMemories(tenant),
       sources: listSources(tenant),
+      models: getKnowledgeModels(tenant),
+      map: getKnowledgeMap(tenant),
     });
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+export async function handlePutKnowledgeModels(request: HostRequest): Promise<HostResult> {
+  try {
+    const tenant = await getTenant(request.workspaceId);
+    const body = (request.body ?? {}) as {
+      embeddingModel?: unknown;
+      brainModel?: unknown;
+      verifierModel?: unknown;
+    };
+    return jsonOk(
+      putKnowledgeModels(tenant, {
+        embeddingModel: typeof body.embeddingModel === "string" ? body.embeddingModel : undefined,
+        brainModel: typeof body.brainModel === "string" ? body.brainModel : undefined,
+        verifierModel: typeof body.verifierModel === "string" ? body.verifierModel : undefined,
+      }),
+    );
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+export async function handlePostKnowledgeMap(request: HostRequest): Promise<HostResult> {
+  try {
+    const tenant = await getTenant(request.workspaceId);
+    const body = (request.body ?? {}) as {
+      embeddingModel?: unknown;
+      brainModel?: unknown;
+      verifierModel?: unknown;
+    };
+    return jsonOk(
+      await mapKnowledge(tenant, {
+        embeddingModel: typeof body.embeddingModel === "string" ? body.embeddingModel : undefined,
+        brainModel: typeof body.brainModel === "string" ? body.brainModel : undefined,
+        verifierModel: typeof body.verifierModel === "string" ? body.verifierModel : undefined,
+      }),
+    );
   } catch (error) {
     return jsonError(error);
   }
@@ -33,7 +78,7 @@ export async function handleGetKnowledgeContext(request: HostRequest): Promise<H
   try {
     const tenant = await getTenant(request.workspaceId);
     const query = typeof request.query.query === "string" ? request.query.query : "";
-    return jsonOk(knowledgeInjection(tenant, query));
+    return jsonOk(await knowledgeInjection(tenant, query));
   } catch (error) {
     return jsonError(error);
   }
@@ -89,7 +134,10 @@ export async function handlePostKnowledgeSource(request: HostRequest): Promise<H
     }
     const body = (request.body ?? {}) as { name?: unknown; text?: unknown };
     if (typeof body.text === "string") {
-      return jsonOk(addPastedSource(tenant, typeof body.name === "string" ? body.name : "Pasted notes", body.text), 201);
+      return jsonOk(
+        await addPastedSource(tenant, typeof body.name === "string" ? body.name : "Pasted notes", body.text),
+        201,
+      );
     }
     throw new ApiError("invalid_request", "file or text is required", 400);
   } catch (error) {

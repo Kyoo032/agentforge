@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { ChatModel } from "./catalog";
-import { chooseDefaultModel, pickPreferredModel, pickerGroups, recommendedChatModels, sortChatModels } from "./preferred";
+import {
+  chooseDefaultModel,
+  isPickerHidden,
+  pickPreferredModel,
+  pickerGroups,
+  recommendedChatModels,
+  sortChatModels,
+} from "./preferred";
 
 function model(id: string): ChatModel {
   return { id, label: id, provider: "openai", inputModalities: ["text"] };
@@ -80,11 +87,21 @@ describe("recommendedChatModels", () => {
       model("qwen3.7-plus"),
       model("deepseek-v4-flash"),
       model("weird-lab-model"),
+      model("gpt-4o-mini"),
     ]);
     expect(picks.map((item) => item.id)).toEqual(["deepseek-v4-flash"]);
-    expect(picks.every((item) => item.id === "default" || /^(gpt-|deepseek-|claude-|kimi-|gemini-|grok-|minimax-)/i.test(item.id))).toBe(
-      true,
-    );
+  });
+
+  it("keeps Recommended to the small preference set even when older gpt ids are live", () => {
+    const picks = recommendedChatModels([
+      model("gpt-5.6-luna"),
+      model("deepseek-v4-flash"),
+      model("MiniMax-M3"),
+      model("gpt-4o-mini"),
+      model("gpt-5.4"),
+      model("gpt-5.6-sol"),
+    ]);
+    expect(picks.map((item) => item.id)).toEqual(["gpt-5.6-luna", "deepseek-v4-flash", "MiniMax-M3"]);
   });
 
   it("puts the gateway default model first in Recommended", () => {
@@ -93,11 +110,22 @@ describe("recommendedChatModels", () => {
   });
 });
 
+describe("isPickerHidden", () => {
+  it("hides embedding, rerank, moderation, OCR, and livetranslate ids", () => {
+    expect(isPickerHidden("gemini-embedding-001")).toBe(true);
+    expect(isPickerHidden("text-moderation-latest")).toBe(true);
+    expect(isPickerHidden("foo-ocr-bar")).toBe(true);
+    expect(isPickerHidden("livetranslate-v1")).toBe(true);
+    expect(isPickerHidden("gpt-5.6-luna")).toBe(false);
+  });
+});
+
 describe("pickerGroups", () => {
   it("leads with a Recommended group", () => {
     const groups = pickerGroups([model("gpt-4o-mini"), model("gpt-5.6-sol"), model("deepseek-v4-pro")]);
     expect(groups[0]?.label).toBe("Recommended");
-    expect(groups[0]?.models.map((item) => item.id)).toEqual(["deepseek-v4-pro", "gpt-5.6-sol"]);
+    // deepseek-v4-pro is advanced, so only the live everyday GPT-5.6 id is recommended here
+    expect(groups[0]?.models.map((item) => item.id)).toEqual(["gpt-5.6-sol"]);
   });
 
   it("puts the gateway default model first in Recommended", () => {
@@ -121,13 +149,25 @@ describe("pickerGroups", () => {
       model("gemini-embedding-001"),
       model("openai/gpt-4.1"),
     ]);
-    expect(groups.map((group) => group.label)).toEqual(["Recommended", "GPT", "Claude", "Grok", "Qwen"]);
+    expect(groups.map((group) => group.label)).toEqual([
+      "Recommended",
+      "GPT",
+      "Claude",
+      "DeepSeek",
+      "Grok",
+      "Qwen",
+    ]);
     expect(groups.find((group) => group.label === "GPT")?.models.map((item) => item.id)).toEqual([
       "gpt-5.2",
       "openai/gpt-4.1",
       "gpt-4o-mini",
     ]);
+    expect(groups.find((group) => group.label === "DeepSeek")?.models.map((item) => item.id)).toEqual([
+      "deepseek-v4-pro",
+    ]);
+    expect(groups.find((group) => group.label === "Grok")?.models.map((item) => item.id)).toEqual(["grok-4.5"]);
     expect(groups.find((group) => group.label === "Claude")?.models.map((item) => item.id)).toEqual([
+      "claude-opus-5",
       "claude-sonnet-4-6",
       "claude-haiku-4-5",
     ]);
@@ -167,17 +207,26 @@ describe("pickerGroups", () => {
 
   it("ranks everyday models before advanced within a brand group", () => {
     const groups = pickerGroups([
-      model("o3"),
-      model("o3-pro"),
+      model("gpt-5.6-luna"),
+      model("deepseek-v4-flash"),
+      model("MiniMax-M3"),
+      // leftover everyday GPT (not in Recommended prefs) must still sort above advanced cousins
+      model("gpt-5.6-sol"),
+      model("gpt-5.4"),
       model("gpt-4o-mini"),
-      model("gpt-5.2"),
+      model("o3"),
     ]);
-    // gpt-* are everyday; o3* share the GPT brand but are advanced.
+    expect(groups[0]?.models.map((item) => item.id)).toEqual([
+      "gpt-5.6-luna",
+      "deepseek-v4-flash",
+      "MiniMax-M3",
+    ]);
+    // gpt-5.6-sol is everyday; older gpt / o3 share the brand but are advanced
     expect(groups.find((group) => group.label === "GPT")?.models.map((item) => item.id)).toEqual([
-      "gpt-5.2",
-      "gpt-4o-mini",
-      "o3-pro",
+      "gpt-5.6-sol",
       "o3",
+      "gpt-5.4",
+      "gpt-4o-mini",
     ]);
   });
 });

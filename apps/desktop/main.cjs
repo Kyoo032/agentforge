@@ -1,4 +1,5 @@
 const { app, BrowserWindow, Menu, dialog, ipcMain, protocol } = require("electron");
+const { registerAutoUpdate } = require("./auto-update.cjs");
 const { execFile } = require("node:child_process");
 const crypto = require("node:crypto");
 const fs = require("node:fs");
@@ -385,6 +386,7 @@ if (!gotLock) {
 
   app.whenReady().then(async () => {
     createWindow();
+    registerAutoUpdate({ app, ipcMain, BrowserWindow, productName: PRODUCT_NAME });
     try {
       if (app.isPackaged) {
         await bootstrapPackaged();

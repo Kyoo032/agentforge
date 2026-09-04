@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { DEFAULT_GATEWAY_IMAGE_MODEL, DEFAULT_GATEWAY_VIDEO_MODEL } from "@agentforge/core/media-kind";
+import { AppUpdates } from "./app-updates";
 import { UsagePanel, type AccountUsage } from "./usage-panel";
 import { apiFetch } from "@/lib/api-client";
 import { gatewayHostLabel, useProductBrand } from "@/lib/product-brand";
@@ -232,6 +233,9 @@ export function SettingsPage() {
           threads are encrypted on disk. {gatewayName} retention is the gateway&apos;s policy.
         </p>
       </form>
+      <div className="mt-6">
+        <AppUpdates />
+      </div>
     </main>
   );
 }

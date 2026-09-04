@@ -1,6 +1,6 @@
 {
   "name": "@agentforge/desktop",
-  "version": "0.12.0",
+  "version": "0.13.3",
   "private": true,
   "description": "Electron shell for Agentforge. Packaged builds use IPC (no loopback HTTP server).",
   "main": "main.cjs",
@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",
+    "electron-updater": "^6.8.9",
     "keytar": "^7.9.0"
   },
   "devDependencies": {
@@ -29,7 +30,7 @@
     "productName": "Agentforge",
     "extraMetadata": {
       "name": "agentforge",
-      "version": "0.12.0"
+      "version": "0.13.3"
     },
     "directories": {
       "output": "dist",
@@ -44,6 +45,7 @@
       "main.cjs",
       "preload.cjs",
       "brand-read.cjs",
+      "auto-update.cjs",
       "host.cjs",
       "splash/**/*",
       "package.json",
@@ -116,6 +118,12 @@
           ]
         }
       ]
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "Kyoo032",
+      "repo": "agentforge",
+      "releaseType": "release"
     },
     "nsis": {
       "oneClick": false,

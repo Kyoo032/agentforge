@@ -21,7 +21,11 @@ function openJson(value: unknown): unknown {
   if (value == null) {
     return value;
   }
-  return openPayload(value, getLocalVaultKey());
+  try {
+    return openPayload(value, getLocalVaultKey());
+  } catch {
+    return value;
+  }
 }
 
 export async function createThread(tenant: TenantContext, agentId: string, title?: string) {

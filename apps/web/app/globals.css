@@ -237,64 +237,67 @@ h6 {
   color: var(--color-accent-800);
 }
 
-.blueprint {
-  position: relative;
-  border: 1px solid var(--color-divider);
-  background: transparent;
-}
+@layer components {
+  /* Stay in @layer components so Tailwind position/bg utilities win. */
+  .blueprint {
+    position: relative;
+    border: 1px solid var(--color-divider);
+    background: transparent;
+  }
 
-.blueprint > .corner {
-  position: absolute;
-  width: 7px;
-  height: 7px;
-  pointer-events: none;
-}
+  .blueprint > .corner {
+    position: absolute;
+    width: 7px;
+    height: 7px;
+    pointer-events: none;
+  }
 
-.blueprint > .corner::before,
-.blueprint > .corner::after {
-  content: "";
-  position: absolute;
-  background: var(--color-accent);
-}
+  .blueprint > .corner::before,
+  .blueprint > .corner::after {
+    content: "";
+    position: absolute;
+    background: var(--color-accent);
+  }
 
-.blueprint > .corner::before {
-  width: 7px;
-  height: 1px;
-}
+  .blueprint > .corner::before {
+    width: 7px;
+    height: 1px;
+  }
 
-.blueprint > .corner::after {
-  width: 1px;
-  height: 7px;
-}
+  .blueprint > .corner::after {
+    width: 1px;
+    height: 7px;
+  }
 
-.blueprint > .corner.tl {
-  top: -1px;
-  left: -1px;
-}
+  .blueprint > .corner.tl {
+    top: -1px;
+    left: -1px;
+  }
 
-.blueprint > .corner.tr {
-  top: -1px;
-  right: -1px;
-}
+  .blueprint > .corner.tr {
+    top: -1px;
+    right: -1px;
+  }
 
-.blueprint > .corner.bl {
-  bottom: -1px;
-  left: -1px;
-}
+  .blueprint > .corner.bl {
+    bottom: -1px;
+    left: -1px;
+  }
 
-.blueprint > .corner.br {
-  bottom: -1px;
-  right: -1px;
-}
+  .blueprint > .corner.br {
+    bottom: -1px;
+    right: -1px;
+  }
 
-.blueprint > .corner.tr::before,
-.blueprint > .corner.br::before {
-  right: 0;
-}
+  .blueprint > .corner.tr::before,
+  .blueprint > .corner.br::before {
+    right: 0;
+  }
 
-.blueprint > .corner.bl::after,
-.blueprint > .corner.br::after {
-  bottom: 0;
+  .blueprint > .corner.bl::after,
+  .blueprint > .corner.br::after {
+    bottom: 0;
+  }
 }
 
 .elev-sm {
@@ -307,6 +310,107 @@ h6 {
 
 .elev-lg {
   box-shadow: var(--shadow-lg);
+}
+
+.formatted-md > :first-child {
+  margin-top: 0;
+}
+
+.formatted-md > :last-child {
+  margin-bottom: 0;
+}
+
+.formatted-md p,
+.formatted-md ul,
+.formatted-md ol,
+.formatted-md pre,
+.formatted-md blockquote {
+  margin: 0.55em 0;
+}
+
+.formatted-md ul,
+.formatted-md ol {
+  padding-left: 1.25rem;
+}
+
+.formatted-md ul {
+  list-style: disc;
+}
+
+.formatted-md ol {
+  list-style: decimal;
+}
+
+.formatted-md li {
+  margin: 0.2em 0;
+}
+
+.formatted-md strong {
+  font-weight: 600;
+}
+
+.formatted-md em {
+  font-style: italic;
+}
+
+.formatted-md a {
+  color: var(--color-accent-700);
+  text-decoration: underline;
+}
+
+.formatted-md code {
+  font-size: 0.9em;
+  padding: 0.1em 0.35em;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-sm);
+}
+
+.formatted-md pre {
+  overflow: auto;
+  padding: 0.7em 0.85em;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-sm);
+  font-size: 0.85em;
+  white-space: pre-wrap;
+}
+
+.formatted-md pre code {
+  padding: 0;
+  border: 0;
+}
+
+.formatted-md img {
+  display: block;
+  max-width: 100%;
+  margin: 0.55em 0;
+  border-radius: var(--radius-md);
+}
+
+.formatted-md h1,
+.formatted-md h2,
+.formatted-md h3 {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  line-height: 1.2;
+  margin: 0.8em 0 0.35em;
+}
+
+.formatted-md h1 {
+  font-size: 1.35em;
+}
+
+.formatted-md h2 {
+  font-size: 1.2em;
+}
+
+.formatted-md h3 {
+  font-size: 1.05em;
+}
+
+.formatted-md blockquote {
+  padding-left: 0.85em;
+  border-left: 2px solid var(--color-divider);
+  color: color-mix(in srgb, var(--color-text) 72%, transparent);
 }
 
 @keyframes af-sweep {

@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { shouldFailEmptyAssistant, shouldKeepToolTurn, shouldRetryWithoutTools } from "./retry";
+import {
+  MODEL_CONTACT_ATTEMPTS,
+  formatModelContactError,
+  isRetryableModelFailure,
+  shouldFailEmptyAssistant,
+  shouldKeepToolTurn,
+  shouldRetryModelContact,
+  shouldRetryWithoutTools,
+} from "./retry";
 
 describe("shouldRetryWithoutTools", () => {
   it("retries when tools were sent and the reply was empty", () => {
@@ -42,6 +50,45 @@ describe("shouldFailEmptyAssistant", () => {
   it("does not fail when thinking or text is present", () => {
     expect(shouldFailEmptyAssistant({ text: false, thinking: true, tooled: false })).toBe(false);
     expect(shouldFailEmptyAssistant({ text: true, thinking: false, tooled: false })).toBe(false);
+  });
+});
+
+describe("shouldRetryModelContact", () => {
+  it("retries channel and network misses up to three attempts", () => {
+    expect(MODEL_CONTACT_ATTEMPTS).toBe(3);
+    expect(isRetryableModelFailure("No available channel for model deepseek-v4-pro")).toBe(true);
+    expect(isRetryableModelFailure("fetch failed")).toBe(true);
+    expect(isRetryableModelFailure("Gateway 503")).toBe(true);
+    expect(
+      shouldRetryModelContact({
+        failed: "No available channel for model gpt-5.6-sol",
+        text: false,
+        tooled: false,
+        attempts: 1,
+      }),
+    ).toBe(true);
+    expect(
+      shouldRetryModelContact({
+        failed: "No available channel for model gpt-5.6-sol",
+        text: false,
+        tooled: false,
+        attempts: 3,
+      }),
+    ).toBe(false);
+  });
+
+  it("does not retry auth, missing models, or a turn that already streamed", () => {
+    expect(isRetryableModelFailure("401 Unauthorized")).toBe(false);
+    expect(isRetryableModelFailure("model_not_found: nope")).toBe(false);
+    expect(
+      shouldRetryModelContact({ failed: "fetch failed", text: true, tooled: false, attempts: 1 }),
+    ).toBe(false);
+  });
+
+  it("names the model after the last failed try", () => {
+    expect(formatModelContactError("gpt-5.6-sol", 3, "No available channel for model gpt-5.6-sol")).toBe(
+      "Could not reach gpt-5.6-sol after 3 tries. No available channel for model gpt-5.6-sol",
+    );
   });
 });
 

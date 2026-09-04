@@ -47,6 +47,16 @@ function parseUsage(payload: unknown, range: UsageRange): RangeUsage | null {
   };
 }
 
+function chartMinKeep(range: UsageRange): number {
+  if (range === "week") {
+    return 4;
+  }
+  if (range === "month") {
+    return 4;
+  }
+  return 7;
+}
+
 export function UsagePage() {
   const { productName, gatewayName } = useProductBrand();
   const [range, setRange] = useState<UsageRange>("day");
@@ -86,30 +96,23 @@ export function UsagePage() {
     load(range);
   }, [load, range]);
 
+  const ready = usage != null;
   const desk = usage?.desk ?? emptyDesk();
   const byModel = desk.byModel ?? [];
   const priced = byModel.filter((row) => row.usd > 0);
+  const maxPriced = Math.max(...priced.map((row) => row.usd), 0.0001);
 
   return (
-    <main className="mx-auto max-w-2xl px-[30px] py-10 text-inkbase">
-      <div className="kicker">Account</div>
-      <h1 className="mt-2 font-heading text-[25px] font-semibold">Usage</h1>
-      <p className="mt-2 text-[13px] text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">
-        This-key wallet and desk spend for the selected range.
-      </p>
-
-      <section className="blueprint mt-6 p-5">
-        <p className="text-sm text-ink" data-testid="usage-this-key">
-          This key: {loading && !usage ? "…" : thisKeyLine(usage)}
-        </p>
-        <KeyQuotaMeter usage={usage} />
-        {loadError ? <p className="mt-2 text-sm text-ink/50">{loadError}</p> : null}
-
-        <p className="mt-3 text-sm text-ink" data-testid="usage-desk-range">
-          This desk (this range): {desk.display} · {desk.modelCount} model{desk.modelCount === 1 ? "" : "s"}
-        </p>
-
-        <div className="seg mt-4" data-testid="usage-range" role="group" aria-label="Usage range">
+    <main className="px-[30px] pb-10 pt-[26px] text-inkbase" data-testid="usage-page">
+      <div className="mb-5 flex flex-wrap items-end gap-4">
+        <div>
+          <div className="kicker">Account</div>
+          <h3 className="mt-2 text-[25px]">Usage</h3>
+          <p className="mt-1 text-[13px] text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">
+            This-key wallet and desk spend for the selected range.
+          </p>
+        </div>
+        <div className="seg ml-auto" data-testid="usage-range" role="group" aria-label="Usage range">
           {RANGES.map((option) => {
             const active = range === option.id;
             return (
@@ -127,59 +130,97 @@ export function UsagePage() {
             );
           })}
         </div>
+      </div>
 
-        {loading && !usage ? (
-          <p className="mt-4 text-sm text-ink/50">Loading…</p>
+      {loadError ? <p className="mb-4 text-sm text-red-700">{loadError}</p> : null}
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <section className="blueprint p-[18px]">
+          <p className="panel-label">This key</p>
+          <p className="mt-2 text-[22px] font-heading font-semibold tabular-nums" data-testid="usage-this-key">
+            {loading && !ready ? "Loading…" : thisKeyLine(usage)}
+          </p>
+          <KeyQuotaMeter usage={usage} />
+        </section>
+        <section className="blueprint p-[18px]">
+          <p className="panel-label">This desk</p>
+          <p className="mt-2 text-[22px] font-heading font-semibold tabular-nums" data-testid="usage-desk-range">
+            {loading && !ready
+              ? "Loading…"
+              : `${desk.display} · ${desk.modelCount} model${desk.modelCount === 1 ? "" : "s"}`}
+          </p>
+          <p className="mt-2 text-[13px] text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">
+            {ready ? `${desk.pricedCount} priced run${desk.pricedCount === 1 ? "" : "s"} in this range.` : "Fetching desk spend…"}
+          </p>
+        </section>
+      </div>
+
+      <section className="blueprint mt-4 p-[18px]">
+        <p className="panel-label">Spend over time</p>
+        {loading && !ready ? (
+          <p className="mt-4 text-sm text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">Loading…</p>
         ) : (
-          <UsageRangeChart buckets={usage?.buckets ?? []} productName={productName} />
+          <UsageRangeChart
+            buckets={usage?.buckets ?? []}
+            productName={productName}
+            minKeep={chartMinKeep(range)}
+          />
         )}
+      </section>
 
-        <div className="mt-6" data-testid="usage-by-model">
-          <p className="text-sm font-medium text-ink">Spend by model (this range)</p>
-          {byModel.length === 0 ? (
-            <p className="mt-2 text-xs text-ink/50">No {productName} runs in this range.</p>
-          ) : (
-            <ul className="mt-3 space-y-3">
-              {priced.map((row, index) => (
-                <li key={row.model} data-testid={`usage-model-row-${row.model}`}>
-                  <div className="flex items-baseline justify-between gap-2 text-sm text-ink">
-                    <span className="min-w-0 truncate font-medium" title={row.model}>
-                      {row.model}
-                    </span>
-                    <span className="shrink-0 tabular-nums">{row.display}</span>
-                  </div>
-                  <div className="mt-1 h-2 overflow-hidden rounded-full bg-mist">
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${Math.max(6, (row.usd / Math.max(...priced.map((r) => r.usd), 0.0001)) * 100)}%`,
-                        backgroundColor: BAR_COLORS[index % BAR_COLORS.length],
-                      }}
-                    />
-                  </div>
-                  <p className="mt-1 text-[11px] text-ink/50">
-                    {row.runCount} run{row.runCount === 1 ? "" : "s"} · {tokenLabel(row.inputTokens)} in ·{" "}
-                    {tokenLabel(row.outputTokens)} out
-                  </p>
+      <section className="blueprint mt-4 p-[18px]" data-testid="usage-by-model">
+        <p className="panel-label">Spend by model</p>
+        {!ready && loading ? (
+          <p className="mt-3 text-sm text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">Loading…</p>
+        ) : byModel.length === 0 ? (
+          <p className="mt-3 text-sm text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">
+            No {productName} runs in this range.
+          </p>
+        ) : (
+          <ul className="mt-4 space-y-4">
+            {priced.map((row, index) => (
+              <li key={row.model} data-testid={`usage-model-row-${row.model}`}>
+                <div className="flex items-baseline justify-between gap-2 text-sm text-inkbase">
+                  <span className="min-w-0 truncate font-medium" title={row.model}>
+                    {row.model}
+                  </span>
+                  <span className="shrink-0 tabular-nums">{row.display}</span>
+                </div>
+                <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--color-text)_8%,transparent)]">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${Math.max(3, (row.usd / maxPriced) * 100)}%`,
+                      backgroundColor: BAR_COLORS[index % BAR_COLORS.length],
+                    }}
+                  />
+                </div>
+                <p className="mt-1 text-[12px] text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">
+                  {row.runCount} run{row.runCount === 1 ? "" : "s"} · {tokenLabel(row.inputTokens)} in ·{" "}
+                  {tokenLabel(row.outputTokens)} out
+                </p>
+              </li>
+            ))}
+            {byModel
+              .filter((row) => row.usd <= 0)
+              .map((row) => (
+                <li
+                  key={row.model}
+                  className="text-[12px] text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]"
+                  data-testid={`usage-model-row-${row.model}`}
+                >
+                  {row.model}: {row.unknown ? "billed after they finish" : row.display} · {row.runCount} run
+                  {row.runCount === 1 ? "" : "s"}
                 </li>
               ))}
-              {byModel
-                .filter((row) => row.usd <= 0)
-                .map((row) => (
-                  <li key={row.model} className="text-[11px] text-ink/50" data-testid={`usage-model-row-${row.model}`}>
-                    {row.model}: {row.unknown ? "billed after they finish" : row.display} · {row.runCount} run
-                    {row.runCount === 1 ? "" : "s"}
-                  </li>
-                ))}
-            </ul>
-          )}
-        </div>
-
-        <p className="mt-6 text-xs text-ink/50">
-          Desk estimate uses {productName} input and output tokens and {gatewayName} catalog prices. This-key wallet spend
-          includes other apps on the same key and will not match the desk total.
-        </p>
+          </ul>
+        )}
       </section>
+
+      <p className="mt-4 text-[12px] text-[color-mix(in_srgb,var(--color-text)_48%,transparent)]">
+        Desk estimate uses {productName} input and output tokens and {gatewayName} catalog prices. This-key wallet spend
+        includes other apps on the same key and will not match the desk total.
+      </p>
     </main>
   );
 }

@@ -46,9 +46,11 @@ import {
   handleDeleteKnowledgeSource,
   handleGetKnowledge,
   handleGetKnowledgeContext,
+  handlePostKnowledgeMap,
   handlePostKnowledgeMemory,
   handlePostKnowledgeSource,
   handlePostKnowledgeSourceUrl,
+  handlePutKnowledgeModels,
   handlePutKnowledgeSoul,
 } from "./handlers/knowledge";
 import { handlePostData } from "./handlers/jobs";
@@ -107,6 +109,8 @@ const routes: Route[] = [
   compile("POST", "/api/v1/prompts/enhance", handlePostEnhancePrompt),
   compile("GET", "/api/v1/knowledge", handleGetKnowledge),
   compile("GET", "/api/v1/knowledge/context", handleGetKnowledgeContext),
+  compile("PUT", "/api/v1/knowledge/models", handlePutKnowledgeModels),
+  compile("POST", "/api/v1/knowledge/map", handlePostKnowledgeMap),
   compile("PUT", "/api/v1/knowledge/soul", handlePutKnowledgeSoul),
   compile("POST", "/api/v1/knowledge/memories", handlePostKnowledgeMemory),
   compile("DELETE", "/api/v1/knowledge/memories/:memoryId", handleDeleteKnowledgeMemory),

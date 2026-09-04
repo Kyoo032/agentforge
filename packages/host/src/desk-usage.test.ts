@@ -28,6 +28,7 @@ describe("desk-usage", () => {
     appendDeskUsage({ model: "skip-me", inputTokens: 0, outputTokens: 0 });
     expect(listDeskUsage()).toEqual([{ model: "gpt-5.6-sol", inputTokens: 10, outputTokens: 4 }]);
     const raw = readFileSync(join(dir, "desk-usage.json"), "utf8");
+    expect(raw).toMatch(/"at":"/);
     expect(raw).not.toMatch(/sk-/);
     expect(raw).not.toMatch(/systemPrompt/);
   });

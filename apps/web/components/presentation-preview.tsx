@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { FormattedText } from "@/components/formatted-text";
 import { JobRegenPanel, type JobRegenSubmit } from "@/components/job-regen-panel";
 import type { PresentationOutline } from "@/lib/presentation-outline";
 import type { JobStudioModel } from "@/lib/use-job-model";
@@ -67,14 +68,18 @@ export function PresentationPreview({
               {slide.bullets.length > 0 ? (
                 <ul className="mt-5 max-w-3xl list-disc space-y-2 pl-5 text-sm text-ink/85 sm:text-base">
                   {slide.bullets.map((bullet) => (
-                    <li key={bullet}>{bullet}</li>
+                    <li key={bullet}>
+                      <FormattedText text={bullet} inline />
+                    </li>
                   ))}
                 </ul>
               ) : (
                 <p className="mt-5 text-sm text-ink/50">No bullets on this slide.</p>
               )}
               {slide.notes.trim() ? (
-                <p className="mt-auto pt-4 text-xs text-ink/45">Notes: {slide.notes}</p>
+                <p className="mt-auto pt-4 text-xs text-ink/45">
+                  Notes: <FormattedText text={slide.notes} inline />
+                </p>
               ) : null}
             </div>
           </article>

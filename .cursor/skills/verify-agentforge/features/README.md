@@ -44,7 +44,7 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 - [Settings](./settings.md) — gateway key, privacy note, stub/live runtime, compact this-key + Open Usage. No Advanced tab.
 - [Usage](./usage.md) — bottom-rail `/usage` Day/Week/Month stacked spend, this-key strip, desk by-model. Not a product mode.
 - [Workspaces](./workspaces.md) — rail switcher + `/workspaces` create/edit, presets and mode checkboxes, open → Chat.
-- [Models](./models.md) — curated Chat picker, doctor modeKeys/chatCount/curation, Advanced disclosure (Phase 1 ids optional until present).
+- [Models](./models.md) — curated Chat picker (Recommended + brand groups), doctor modeKeys/chatCount/curation on webdev. No `model-picker-all`.
 - [Templates](./templates.md) — example galleries on all five mode studios; click pre-fills the prompt.
 - [PII](./pii.md) — host masks outbound prompts (`[email]` / `[phone]` / …); the transcript keeps the typed text.
 - [Security](./security.md) — saved-key fingerprint on Settings (`key-fingerprint`); TLS note on `privacy-note`; at-rest envelope is existing work.
@@ -52,7 +52,7 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 - [Documents](./documents.md) — starters, preview, section regen (503 without a key), DOCX download from a starter. Home has the tab.
 - [Finance](./finance.md) — figures-only brief, starter + DOCX without a key, generate 503 without a key. Home has the tab.
 - [Data](./data.md) — pasted CSV + table notes, no web search, generate 503 without a key. Home has the tab.
-- [Knowledge](./knowledge.md) — Account-rail Soul / Memory / Sources; Chat injects FTS chunks. Not a product mode.
+- [Knowledge](./knowledge.md) — Account-rail Soul / Memory / Sources / Map + choosable embedding/brain/verifier; Chat injects RAG retrieve. Not a product mode.
 - [Images](./images.md) — studio shell on Home; needs-key without a gateway key.
 - [Videos](./videos.md) — studio shell and `videos-studio-needs-key` without a key.
 - [Presentation](./presentations.md) — starters, preview, slide regen (503 without a key), PPTX download from a starter.

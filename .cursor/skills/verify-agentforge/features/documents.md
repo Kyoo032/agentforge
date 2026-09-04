@@ -8,7 +8,7 @@ Documents is a job: prompt or starter → section preview → DOCX download. It 
 - `documents-shell` shows `documents-studio` with empty copy and starter cards.
 - `documents-starter` loads a preview (`documents-preview`) without a live generate.
 - `documents-studio-model` is the generate-bar chat-catalog dropdown.
-- `documents-enhance` rewrites the topic via the shared Enhance host.
+- `documents-enhance` rewrites the topic via the shared Enhance host. Preview bodies (`documents-preview`, research/data notes, presentation bullets) render markdown the same way Chat `message-output` does.
 - `documents-regen` on a section opens `documents-regen-panel` (prompt, model, attach). Confirm with `documents-regen-submit`; stub/no-key shows `documents-error` with a Settings hint.
 - `documents-download` builds a DOCX from the in-memory draft.
 
@@ -26,7 +26,7 @@ Preconditions:
 - Stub proof stops at starters + regen 503. Live generate only if the operator asked and doctor reports `ai`.
 
 - **Open Documents.** Click `mode-documents`. URL matches `/documents`. `documents-studio`, `documents-studio-empty`, and `documents-studio-model` are visible.
-- **Starter.** `documents-starter` count is 2. Click the first. `documents-preview` and `documents-regen` are visible.
+- **Starter.** `documents-starter` count is 2. Click the first. `documents-preview`, `documents-section`, and `documents-regen` are visible. Section bodies show formatted markdown (no extra preview testid).
 - **Regen without a key.** Click `documents-regen`. `documents-regen-panel`, `documents-regen-prompt`, `documents-regen-model`, and `documents-regen-attach` are visible. Click `documents-regen-submit`. `documents-error` mentions gateway / Settings / API key.
 - **Download.** Click `documents-download` to get a DOCX from the starter (no live model).
 - **Cloud.** `foundation.spec.ts` covers starter + regen 503 on Home (no Studio unlock).

@@ -8,7 +8,7 @@ type ChatModel = {
   provider?: string;
   inputModalities: string[];
   contextLength?: number;
-  /** Optional curation — when present on any model, Everyday/Advanced optgroups activate. */
+  /** Optional curation metadata (friendly label / best-for hint). */
   friendlyLabel?: string;
   bestFor?: string;
   tier?: "everyday" | "advanced";
@@ -22,13 +22,9 @@ type Props = {
   testId?: string;
   showModalities?: boolean;
   className?: string;
+  /** Skip chat hide-lists so embedding ids stay visible. */
+  flat?: boolean;
 };
-
-function hasCurationFields(models: ChatModel[]): boolean {
-  return models.some(
-    (model) => model.tier != null || model.friendlyLabel != null || model.bestFor != null,
-  );
-}
 
 function optionLabel(model: ChatModel, showModalities: boolean): string {
   const name = model.friendlyLabel ?? model.label;
@@ -49,22 +45,13 @@ export function ModelSelect({
   disabled,
   testId = "model-picker",
   showModalities = false,
-  className = "rounded-md border border-mist bg-paper px-3 py-2 text-ink",
+  className = "rounded-md border border-divider bg-[color-mix(in_srgb,var(--color-text)_10%,var(--color-bg))] px-3 py-2 font-medium text-ink",
+  flat = false,
 }: Props) {
-  const curated = hasCurationFields(models);
   const selected = models.some((model) => model.id === value) ? value : (models[0]?.id ?? "");
 
-  const groups = curated
-    ? [
-        {
-          label: "Everyday",
-          models: models.filter((model) => model.tier === "everyday"),
-        },
-        {
-          label: "Advanced",
-          models: models.filter((model) => model.tier !== "everyday"),
-        },
-      ].filter((group) => group.models.length > 0)
+  const groups = flat
+    ? [{ label: "Embeddings", models }]
     : pickerGroups(models);
 
   return (

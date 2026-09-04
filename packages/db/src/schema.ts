@@ -276,6 +276,37 @@ export const knowledgeSources = sqliteTable(
   (table) => [index("knowledge_sources_ws_idx").on(table.workspaceId)],
 );
 
+export const knowledgeSettings = sqliteTable("knowledge_settings", {
+  workspaceId: text("workspace_id").primaryKey(),
+  embeddingModel: text("embedding_model").notNull(),
+  brainModel: text("brain_model").notNull(),
+  verifierModel: text("verifier_model").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
+
+export const knowledgeVectors = sqliteTable(
+  "knowledge_vectors",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    sourceId: text("source_id").notNull(),
+    chunkIndex: integer("chunk_index").notNull(),
+    body: text("body").notNull(),
+    embedding: text("embedding").notNull(),
+    model: text("model").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [index("knowledge_vectors_ws_source_idx").on(table.workspaceId, table.sourceId)],
+);
+
+export const knowledgeMaps = sqliteTable("knowledge_maps", {
+  workspaceId: text("workspace_id").primaryKey(),
+  payload: text("payload").notNull(),
+  status: text("status").notNull(),
+  error: text("error"),
+  createdAt: integer("created_at").notNull(),
+});
+
 export const media = sqliteTable(
   "media",
   {

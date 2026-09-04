@@ -8,6 +8,7 @@ Settings is where the owner pastes a Toko Token gateway key from api.tokotokenai
 - `settings-privacy` shows the retention / no-log note (`privacy-note`).
 - `settings-runtime` reports offline demo or live status on `runtime-status`.
 - `settings-usage-empty` shows `usage-this-key` asking to paste a gateway key when none is saved, plus `usage-open` → `/usage`. Full by-model chart and desk estimate live on Usage — see [usage.md](./usage.md).
+- `settings-updates` shows `app-updates` on Agentforge only (`app-updates-check`). Webdev: button disabled, copy says the installed app downloads GitHub releases. Packaged Agentforge: check / update-and-restart. Flavors hide the block.
 
 ## How to get to it (user POV)
 

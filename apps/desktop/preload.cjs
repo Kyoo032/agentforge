@@ -8,6 +8,20 @@ contextBridge.exposeInMainWorld("agentforge", {
   isElectron: true,
   brand,
   brandLogo,
+  updates: {
+    supported: brand.productName === "Agentforge",
+    state: () => ipcRenderer.invoke("updates:state"),
+    check: () => ipcRenderer.invoke("updates:check"),
+    download: () => ipcRenderer.invoke("updates:download"),
+    install: () => ipcRenderer.invoke("updates:install"),
+    onStatus: (callback) => {
+      const listener = (_event, payload) => {
+        callback(payload);
+      };
+      ipcRenderer.on("updates:status", listener);
+      return () => ipcRenderer.removeListener("updates:status", listener);
+    },
+  },
   invoke: (payload) => ipcRenderer.invoke("host:request", payload),
   stream: (requestId, onChunk) =>
     new Promise((resolve, reject) => {

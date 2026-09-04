@@ -2,6 +2,7 @@
 
 import { isRenderableImageUrl, isRenderableVideoUrl } from "@/lib/composer-attach";
 import { mediaSrc } from "@/lib/api-client";
+import { FormattedText } from "@/components/formatted-text";
 import { collectToolMediaParts } from "@/lib/tool-media";
 import { showsToolSpinner, toolActivityLabel, toolCallSummary } from "@/lib/tool-labels";
 import type { ContentPart, ToolCallPart } from "@agentforge/core/content";
@@ -74,9 +75,7 @@ export function ChatTurn({ role, content, live }: Props) {
             </ul>
           ) : null}
           {live?.streaming ? (
-            <p className="whitespace-pre-wrap text-sm" data-testid="message-output">
-              {live.streaming}
-            </p>
+            <FormattedText text={live.streaming} className="text-sm" testId="message-output" />
           ) : (
             <MessageBody content={content} outputOnly />
           )}
@@ -142,10 +141,10 @@ function MessageBody({ content, outputOnly = false }: { content?: unknown; outpu
     if (outputOnly && !content.trim()) {
       return null;
     }
-    return (
-      <p className="whitespace-pre-wrap text-sm" data-testid={outputOnly ? "message-output" : undefined}>
-        {content}
-      </p>
+    return outputOnly ? (
+      <FormattedText text={content} className="text-sm" testId="message-output" />
+    ) : (
+      <p className="whitespace-pre-wrap text-sm">{content}</p>
     );
   }
   if (!Array.isArray(content)) {
@@ -193,8 +192,10 @@ function MessageBody({ content, outputOnly = false }: { content?: unknown; outpu
         if (part && typeof part === "object" && (part as { type?: unknown }).type === "text" && "text" in part) {
           const text = String((part as { text: string }).text);
           if (!text.trim()) return null;
-          return (
-            <p key={index} className="whitespace-pre-wrap text-sm" data-testid={outputOnly ? "message-output" : undefined}>
+          return outputOnly ? (
+            <FormattedText key={index} text={text} className="text-sm" testId="message-output" />
+          ) : (
+            <p key={index} className="whitespace-pre-wrap text-sm">
               {text}
             </p>
           );

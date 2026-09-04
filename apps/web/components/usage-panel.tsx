@@ -59,7 +59,7 @@ export type RangeUsage = {
   }>;
 };
 
-export const BAR_COLORS = ["#1565c0", "#0d47a1", "#00838f", "#5e35b1", "#0277bd"];
+export const BAR_COLORS = ["#5980a6", "#2c455d", "#94bce3", "#416180", "#749dc4"];
 
 export function thisKeyLine(usage: { thisKey?: ThisKeyStatus } | null): string {
   const thisKey = usage?.thisKey;
@@ -101,7 +101,7 @@ export function KeyQuotaMeter({ usage }: { usage: { thisKey?: ThisKeyStatus } | 
             : `This key used ${formatUsd(used)} of ${formatUsd(total)}`
         }
       >
-        <div className="h-full rounded-full bg-navy" style={{ width: `${usedPct}%` }} />
+        <div className="h-full rounded-full bg-accent" style={{ width: `${usedPct}%` }} />
       </div>
     </div>
   );
@@ -110,14 +110,14 @@ export function KeyQuotaMeter({ usage }: { usage: { thisKey?: ThisKeyStatus } | 
 /** Compact Settings strip: this-key + Open Usage. */
 export function UsagePanel({ usage }: { usage: AccountUsage | null }) {
   return (
-    <div className="rounded-lg border border-mist px-4 py-3" data-testid="usage-panel">
-      <h3 className="text-sm font-medium text-ink">Usage</h3>
-      <p className="mt-2 text-sm text-ink" data-testid="usage-this-key">
+    <div className="blueprint p-[18px]" data-testid="usage-panel">
+      <p className="panel-label">Usage</p>
+      <p className="mt-2 text-sm text-inkbase" data-testid="usage-this-key">
         This key: {thisKeyLine(usage)}
       </p>
       <KeyQuotaMeter usage={usage} />
       <p className="mt-3">
-        <Link href="/usage" className="text-sm text-navy underline underline-offset-2" data-testid="usage-open">
+        <Link href="/usage" className="text-sm text-accent-800 underline underline-offset-2" data-testid="usage-open">
           Open Usage
         </Link>
       </p>

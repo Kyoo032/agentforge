@@ -83,6 +83,11 @@ type BrandGroup = (typeof BRAND_GROUP_ORDER)[number];
 const PICKER_HIDE = /embedding|rerank|omni-moderation|text-moderation|-ocr(?:$|-)|livetranslate/i;
 const DATED_SNAPSHOT = /-\d{8}$/;
 
+/** True when the model id should stay out of the chat picker (embeddings, moderation, OCR, …). */
+export function isPickerHidden(id: string): boolean {
+  return PICKER_HIDE.test(id);
+}
+
 function familyFor(id: string): Family | undefined {
   return FAMILIES.find((family) => family.match(id));
 }
@@ -299,7 +304,7 @@ export function chooseDefaultModel(models: ModelRef[], liveIds: string[] | undef
 
 export function pickerGroups<T extends ModelRef>(models: T[]): Array<{ label: string; models: T[] }> {
   const allIds = new Set(models.map((model) => model.id));
-  const visible = models.filter((model) => !PICKER_HIDE.test(model.id) && !isDatedSnapshot(model.id, allIds));
+  const visible = models.filter((model) => !isPickerHidden(model.id) && !isDatedSnapshot(model.id, allIds));
   const recommended = recommendedChatModels(visible);
   const used = new Set(recommended.map((model) => model.id));
   const groups: Array<{ label: string; models: T[] }> = [];

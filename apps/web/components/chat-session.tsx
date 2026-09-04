@@ -268,7 +268,11 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
         </div>
       </div>
 
-      {error ? <p className="mt-6 text-sm text-red-700">{error}</p> : null}
+      {error ? (
+        <p className="mt-6 text-sm text-red-700" data-testid="chat-error" role="alert">
+          {error}
+        </p>
+      ) : null}
 
       <div className={`mt-6 flex-1 space-y-4 ${empty ? "flex flex-col justify-center" : ""}`} data-testid="message-list">
         {empty && !error ? (

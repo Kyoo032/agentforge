@@ -6,6 +6,10 @@ export type RoutedModels<T extends { id: string }> = Record<MediaKind, T[]>;
 
 export const DEFAULT_GATEWAY_IMAGE_MODEL = "gpt-image-2";
 export const DEFAULT_GATEWAY_VIDEO_MODEL = "grok-imagine-video";
+export const DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small";
+
+const EMBEDDING = /embedding/i;
+const EMBEDDING_PREF = ["text-embedding-3-small", "text-embedding-3-large", "text-embedding-004"];
 
 const IMAGE_PREF = ["gpt-image-2", "seedream-5.0-pro", "doubao-seedream-5-0-pro-260628"];
 
@@ -81,4 +85,13 @@ export function pickPreferredImageModel(ids: string[]): string {
 export function pickPreferredVideoModel(ids: string[]): string {
   const usable = ids.filter((id) => mediaKind(id) === "video" && !id.toLowerCase().startsWith("mj_"));
   return firstLiveId(VIDEO_PREF, usable) ?? usable[0] ?? DEFAULT_GATEWAY_VIDEO_MODEL;
+}
+
+export function isEmbeddingModelId(id: string): boolean {
+  return EMBEDDING.test(id.trim());
+}
+
+export function pickPreferredEmbeddingModel(ids: string[]): string {
+  const usable = ids.filter((id) => isEmbeddingModelId(id));
+  return firstLiveId(EMBEDDING_PREF, usable) ?? usable[0] ?? DEFAULT_EMBEDDING_MODEL;
 }

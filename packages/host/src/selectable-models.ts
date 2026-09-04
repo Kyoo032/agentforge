@@ -1,9 +1,11 @@
 import {
   DEFAULT_CHAT_MODEL,
+  DEFAULT_EMBEDDING_MODEL,
   DEFAULT_OPENAI_BASE_URL,
   applyCuration,
   chooseDefaultModel,
   detectCompatibleApi,
+  isEmbeddingModelId,
   mediaKind,
   mergeChatCatalog,
   probeAnthropicModels,
@@ -68,6 +70,22 @@ export function listVideoModels(): ChatModel[] {
   return listRoutedModels().video;
 }
 
+/** Embedding ids are never curated — PICKER_HIDE strips them from chat. */
+export function listEmbeddingModels(models: ChatModel[] = listCatalogModels()): ChatModel[] {
+  const embeddings = models.filter((model) => isEmbeddingModelId(model.id));
+  if (embeddings.length > 0) {
+    return embeddings;
+  }
+  return [
+    {
+      id: DEFAULT_EMBEDDING_MODEL,
+      label: DEFAULT_EMBEDDING_MODEL,
+      provider: "openai",
+      inputModalities: ["text"],
+    },
+  ];
+}
+
 export function defaultSelectableModel(models: Array<{ id: string }> = listSelectableModels()): string {
   return chooseDefaultModel(models, liveModelIds(loadModelCache(), "chat"), DEFAULT_CHAT_MODEL);
 }
@@ -89,11 +107,13 @@ export function modeCatalogPayload(models: ChatModel[] = listCatalogModels()): {
     presentations: SelectableModel[];
     finance: SelectableModel[];
     data: SelectableModel[];
+    embedding: ChatModel[];
   };
   defaults: ModeModelDefaults;
 } {
   const routed = routeModelsByKind(models);
   const curated = curateRouted(routed);
+  const embedding = listEmbeddingModels(models);
   const chatDefault = defaultSelectableModel(curated.chat);
   return {
     modes: {
@@ -103,11 +123,13 @@ export function modeCatalogPayload(models: ChatModel[] = listCatalogModels()): {
       presentations: curated.chat,
       finance: curated.chat,
       data: curated.chat,
+      embedding,
     },
     defaults: resolveModeDefaults({
       chatIds: curated.chat.map((model) => model.id),
       imageIds: curated.image.map((model) => model.id),
       videoIds: curated.video.map((model) => model.id),
+      embeddingIds: embedding.map((model) => model.id),
       chatDefault,
     }),
   };

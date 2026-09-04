@@ -80,7 +80,7 @@ node .cursor/skills/verify-agentforge/scripts/doctor.mjs
 node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop
 ```
 
-It is read-only. Default GETs `/chat`, `/api/v1/settings`, and `/api/v1/models` on `http://127.0.0.1:3000`. `--desktop` reads `host-status.json` (IPC; no HTTP). Override webdev with `AGENTFORGE_VERIFY_URL` (still must be loopback). Exit `0` prints JSON. Webdev: `url`, `surface`, `chatStatus`, `runtime`, `hasOpenai`, `keyFingerprint`, `modeKeys`, `chatCount`, `curation`, `gatewayName`, `dataDir`. Desktop: `url: "ipc"`, `transport: "ipc"`, `pid`, `dataDir`. Exit `1` means do not drive. `keyFingerprint` is `true` only on webdev when a gateway key is saved and `openaiKeyFingerprint` is a non-empty `sha256:` string. Cloud/GHA have no key — expect `false`, do not fail. `gatewayName` is Toko Token on public webdev.
+It is read-only. Default GETs `/chat`, `/api/v1/settings`, and `/api/v1/models` on `http://127.0.0.1:3000`. `--desktop` reads `host-status.json` (IPC; no HTTP). Override webdev with `AGENTFORGE_VERIFY_URL` (still must be loopback). Exit `0` prints JSON. Webdev: `url`, `surface`, `chatStatus`, `runtime`, `hasOpenai`, `keyFingerprint`, `modeKeys`, `chatCount`, `curation`, `knowledge`, `gatewayName`, `dataDir`. Desktop: `url: "ipc"`, `transport: "ipc"`, `pid`, `dataDir`, `productName`, `gatewayName`, `gatewayBaseUrl`. Desktop `curation` / `modeKeys` / `chatCount` stay empty — no HTTP models probe. Exit `1` means do not drive. `keyFingerprint` is `true` only on webdev when a gateway key is saved and `openaiKeyFingerprint` is a non-empty `sha256:` string. Cloud/GHA have no key — expect `false`, do not fail. `gatewayName` is Toko Token on public webdev. Webdev `knowledge: true` means `GET /api/v1/knowledge` returned 200; `false` is not a doctor fail — skip the Knowledge drive if it is false.
 
 Refuse to drive when:
 
@@ -135,22 +135,23 @@ Use `page.getByTestId("<id>")` exactly as the spec.
 | testid | Surface |
 |---|---|
 | `mode-chat`, `mode-documents`, `mode-research`, `mode-finance`, `mode-data`, `mode-images`, `mode-videos`, `mode-presentations` | Left rail work modes (Home has all of these) |
-| `mode-knowledge` | Account rail → Knowledge (`/knowledge`). Always visible; not a product mode |
+| `mode-knowledge` | Account rail → Knowledge Base (`/knowledge`). Always visible; not a product mode |
 | `product-brand`, `product-logo` | Rail product name and mark. Packaged flavors must not stay Agentforge — [desktop-brands.md](features/desktop-brands.md) |
 | `mode-agents` | Parked. Count 0. `/agents` and `/studio` redirect to Chat |
 | `workspaces-switcher`, `workspaces-link`, `open-workspace`, `workspace-template-picker`, `workspace-mode-picker`, `create-workspace` | Workspaces |
 | `settings-link` | Rail → Settings |
 | `usage-link`, `usage-open`, `usage-range`, `usage-range-chart` | Rail / Settings → Usage (`/usage`); range toggle + stacked chart |
 | `model-picker`, `composer`, `composer-text`, `composer-send`, `composer-enhance` | Chat |
-| `chat-usage`, `chat-context` | Chat header chips (wallet spend, thread tokens vs window) |
-| `chat-empty`, `message-list`, `thread-list`, `thread-item`, `new-chat` | Threads |
-| `settings-form`, `openai-key`, `key-fingerprint`, `runtime-status`, `privacy-note`, `usage-this-key` | Settings (key-only; no Advanced tab; Open Usage for charts) |
+| `chat-usage`, `chat-context` | Chat header chips (wallet spend; ring + `left`/`used`) |
+| `chat-empty`, `message-list`, `message-output`, `thread-list`, `thread-item`, `new-chat`, `chat-error`, `composer-error` | Threads + assistant markdown output; live contact fail after 3 tries |
+| `settings-form`, `openai-key`, `key-fingerprint`, `runtime-status`, `privacy-note`, `usage-this-key`, `app-updates`, `app-updates-check` | Settings (key-only; Open Usage; Agentforge update strip) |
 | `usage-range-empty`, `usage-desk-range`, `usage-by-model`, `usage-key-meter` | Usage page (by-model + desk range; empty chart copy) |
 | `images-studio`, `images-studio-needs-key`, `videos-studio`, `videos-studio-needs-key` | Generate studios |
 | `finance-studio`, `finance-starters`, `finance-download`, `finance-generate` | Finance job |
 | `data-studio`, `data-csv`, `data-starter`, `data-download`, `data-generate` | Data job |
-| `knowledge-page`, `knowledge-tabs`, `knowledge-paste`, `knowledge-soul-save`, `knowledge-memory-add` | Knowledge |
+| `knowledge-page`, `knowledge-tabs`, `knowledge-models`, `knowledge-sources`, `knowledge-paste`, `knowledge-soul-save`, `knowledge-memory-add`, `knowledge-model-embedding`, `knowledge-model-brain`, `knowledge-model-verifier`, `knowledge-tab-map`, `knowledge-map-panel`, `knowledge-map-run`, `knowledge-map` | Knowledge Base |
 | `documents-studio-model`, `research-studio-model`, `presentations-studio-model` | Job generate-bar model dropdowns |
+| `documents-section`, `research-preview`, `research-note` | Job preview bodies (markdown via `FormattedText`) |
 | `documents-regen-panel`, `presentations-regen-panel`, `*-regen-prompt`, `*-regen-model`, `*-regen-attach`, `*-regen-submit` | Section/slide regen composer |
 
 Rail testids are `mode-${href.slice(1)}` (`/chat` → `mode-chat`). Home already shows every work mode. A Legal desk has Chat + Documents + Research + Presentation and `mode-images` count 0.

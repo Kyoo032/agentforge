@@ -13,6 +13,7 @@ Electron is the installed local app. Packaged builds have **no HTTP server**. Th
 - `desktop-chat` loads Chat in the window (not in Chrome on :3000).
 - `desktop-dev` (`pnpm desktop:dev`) is the **local webdev in a window**. It waits for `GET /api/v1/ping` on :3000 and does **not** attach preload. That is not packaged proof.
 - `desktop-quit` exits `Agentforge.exe` (whole process tree) on window close. No tray, no hidden window. Threads and the saved key stay. Uninstall wipes userData + Credential Manager wrap key. Upgrade (same `appId`) kills the running app, overwrites Program Files / per-user install, and **keeps** `%APPDATA%\Agentforge`.
+- `desktop-updates` (packaged Agentforge only): Settings `app-updates` checks GitHub Releases (`Kyoo032/agentforge`). **Update and restart** downloads `latest.yml` + the Setup exe and relaunches. Flavors have no button. Webdev shows the strip disabled. A release without `latest.yml` is “no update”, not a harness fail.
 - No mobile Electron/Capacitor/RN target. See [mobile.md](./mobile.md).
 
 ## How to get to it (user POV)

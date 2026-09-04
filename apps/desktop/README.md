@@ -70,6 +70,12 @@ node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop
 
 Never commit `.env`, `data/settings.enc`, or `data/.master-key`.
 
+## In-app updates (Agentforge only)
+
+Packaged Agentforge checks [GitHub Releases](https://github.com/Kyoo032/agentforge/releases) from Settings → **Check for updates**. If a newer version is out, **Update and restart** downloads it and relaunches. Kemenkeu / Metranet builds do not get this button.
+
+`electron-builder` writes `latest.yml` next to the Setup exe when the Agentforge flavor is packed. A GitHub release must include the exe, `latest.yml`, and the nsis blockmap — not just the Setup file. Do not attach flavor exes to the public repo.
+
 ## macOS and Linux packages (operator builds on that OS)
 
 ```

@@ -7,7 +7,7 @@ Usage is the desk spend and this-key wallet page at `/usage`. It is a bottom-rai
 - `usage-open-rail` opens Usage from the left rail (`usage-link`) or Settings (`usage-open`). Collapsed rail shows `Use`. Active when the path starts with `/usage`.
 - `usage-range` toggles Day / Week / Month (`usage-range-day` | `usage-range-week` | `usage-range-month`). Default Day. Changing the range refetches `GET /api/v1/usage?range=…`.
 - `usage-chart` shows stacked spend-by-model bars (`usage-range-chart`) or empty copy (`usage-range-empty`: “No {productName} runs in this range.”). No chart library.
-- `usage-this-key` shows the this-key strip + meter on `/usage` (and the slim strip on Settings). Cloud / no key: “Paste a gateway key…”. Desk line is `usage-desk-range`; by-model list is `usage-by-model` on this page only.
+- `usage-this-key` shows the this-key wallet card on `/usage` (and the slim strip on Settings). Cloud / no key: “Paste a gateway key…”. Desk card is `usage-desk-range`; by-model list is `usage-by-model` on this page only. Range toggle sits in the page header (`usage-range`). Do not treat the first-paint “Loading…” as empty spend.
 
 ## How to get to it (user POV)
 

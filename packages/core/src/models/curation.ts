@@ -6,12 +6,20 @@ export type CuratedModelMeta = {
   tier: ModelTier;
 };
 
-const EVERYDAY_PREFIX =
-  /^(?:openai\/|anthropic\/|google\/|x-ai\/|xai\/|deepseek\/|moonshot\/|minimax\/)?(gpt-|chatgpt|claude-|gemini-|deepseek-|kimi-|grok-|minimax-)/i;
-
 const VENDOR_PREFIX = /^(openai|anthropic|google|x-ai|xai|deepseek|moonshot|minimax|meta-llama|mistralai)\//i;
 const DATED_SUFFIX = /-\d{8}$/;
 const SNAPSHOT_NOISE = /-(?:latest|preview|exp|experimental|instruct)$/i;
+
+/** Generation-locked everyday allowlist (not brand-wide prefixes). */
+const EVERYDAY_MATCHERS: RegExp[] = [
+  /^gpt-5\.6(?:$|-)/i,
+  /^deepseek-v4-flash(?:$|-)/i,
+  /^minimax-m3(?:$|-)/i,
+  /^claude-sonnet-5(?:$|[^\d])/i,
+  /^gemini-3(?:\.\d+)?-(?:flash|lite)(?:$|-)/i,
+  /^kimi-k3(?:$|-)/i,
+  /^grok-4(?:\.5|\.6)?(?:$|-)/i,
+];
 
 function leafId(id: string): string {
   const slash = id.lastIndexOf("/");
@@ -80,7 +88,7 @@ function bestForFromId(id: string): string {
   if (/flash|mini|nano|lite|fast|turbo|instant|haiku|tiny/.test(n)) {
     return "Fast drafts";
   }
-  if (EVERYDAY_PREFIX.test(n) || EVERYDAY_PREFIX.test(id)) {
+  if (isEverydayModel(id)) {
     return "Everyday chat";
   }
   return "General chat";
@@ -98,7 +106,7 @@ export function isEverydayModel(id: string): boolean {
     return false;
   }
   const n = leafId(trimmed);
-  return EVERYDAY_PREFIX.test(n) || EVERYDAY_PREFIX.test(trimmed);
+  return EVERYDAY_MATCHERS.some((re) => re.test(n));
 }
 
 export function curateModel(id: string): CuratedModelMeta {

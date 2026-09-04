@@ -10,7 +10,14 @@ import { isOpenRouterBaseUrl } from "../privacy/openrouter";
 import { getDisabledTools } from "../tools/secret-scope";
 import { mapStreamPart } from "./stream-parts";
 import { invokeToolGuarded } from "./invoke-guarded";
-import { shouldFailEmptyAssistant, shouldKeepToolTurn, shouldRetryWithoutTools } from "./retry";
+import {
+  formatModelContactError,
+  isRetryableModelFailure,
+  shouldFailEmptyAssistant,
+  shouldKeepToolTurn,
+  shouldRetryModelContact,
+  shouldRetryWithoutTools,
+} from "./retry";
 import {
   openaiCompatProviderOptions,
   preferredOpenAiWire,
@@ -214,7 +221,13 @@ export class AiSdkRuntime implements AgentRuntime {
     const wantThinking = input.thinking !== false;
     let activeModel = model;
     let wire = openaiWire?.wire;
-    let first = await this.consume(activeModel, input, messages, hasTools ? tools : undefined, {
+    const consumeOnce = (
+      nextModel: Parameters<typeof streamText>[0]["model"],
+      nextTools: Record<string, any> | undefined,
+      options: { responses?: boolean; forceReasoningNone?: boolean } = {},
+    ) => this.consumeSafe(nextModel, input, messages, nextTools, options);
+
+    let first = await consumeOnce(activeModel, hasTools ? tools : undefined, {
       responses: wire === "responses",
       forceReasoningNone: !wantThinking,
     });
@@ -228,7 +241,7 @@ export class AiSdkRuntime implements AgentRuntime {
     ) {
       activeModel = openaiWire.responsesModel;
       wire = "responses";
-      first = await this.consume(activeModel, input, messages, tools, { responses: true });
+      first = await consumeOnce(activeModel, tools, { responses: true });
     } else if (
       first.failed &&
       openaiWire &&
@@ -237,7 +250,7 @@ export class AiSdkRuntime implements AgentRuntime {
     ) {
       activeModel = openaiWire.chatModel;
       wire = "chat_completions";
-      first = await this.consume(activeModel, input, messages, hasTools ? tools : undefined, {
+      first = await consumeOnce(activeModel, hasTools ? tools : undefined, {
         responses: false,
         forceReasoningNone: hasTools && !wantThinking,
       });
@@ -249,10 +262,32 @@ export class AiSdkRuntime implements AgentRuntime {
       failed: first.failed,
       tooled: first.tooled,
     });
-    const result = shouldRetryBare
-      ? await this.consume(activeModel, input, messages, undefined, { responses: wire === "responses" })
+    let result = shouldRetryBare
+      ? await consumeOnce(activeModel, undefined, { responses: wire === "responses" })
       : first;
-    const usage = addTokenUsage(first.usage, shouldRetryBare ? result.usage : { inputTokens: 0, outputTokens: 0 });
+    let contactAttempts = 1;
+    const retryTools = shouldRetryBare ? undefined : hasTools ? tools : undefined;
+    while (
+      shouldRetryModelContact({
+        failed: result.failed || (shouldFailEmptyAssistant({
+          text: result.text,
+          thinking: Boolean(result.thinking),
+          tooled: result.tooled,
+        })
+          ? "The model returned no text"
+          : ""),
+        text: result.text,
+        tooled: result.tooled,
+        attempts: contactAttempts,
+      })
+    ) {
+      contactAttempts += 1;
+      result = await consumeOnce(activeModel, retryTools, {
+        responses: wire === "responses",
+        forceReasoningNone: Boolean(retryTools) && !wantThinking,
+      });
+    }
+    const usage = addTokenUsage(first.usage, result === first ? { inputTokens: 0, outputTokens: 0 } : result.usage);
     const completedUsage: RunUsage | undefined =
       usage.inputTokens > 0 || usage.outputTokens > 0
         ? { model: input.version.model, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens }
@@ -263,14 +298,44 @@ export class AiSdkRuntime implements AgentRuntime {
         await input.onEvent({ type: "run.completed", runId: input.runId, usage: completedUsage });
         return;
       }
-      await input.onEvent({ type: "run.failed", message: result.failed });
-      throw new Error(result.failed);
+      const message = isRetryableModelFailure(result.failed)
+        ? formatModelContactError(input.version.model, contactAttempts, result.failed)
+        : result.failed;
+      await input.onEvent({ type: "run.failed", message });
+      throw new Error(message);
     }
     // Tool-only or thinking-only success must still complete so the transcript persists.
     if (shouldFailEmptyAssistant({ text: result.text, thinking: Boolean(result.thinking), tooled: result.tooled })) {
-      throw new Error("The model returned no text. Try another model, or turn off tools if this endpoint rejects them.");
+      const message = formatModelContactError(
+        input.version.model,
+        contactAttempts,
+        "The model returned no text. Try another model, or turn off tools if this endpoint rejects them.",
+      );
+      await input.onEvent({ type: "run.failed", message });
+      throw new Error(message);
     }
     await input.onEvent({ type: "run.completed", runId: input.runId, usage: completedUsage });
+  }
+
+  private async consumeSafe(
+    model: Parameters<typeof streamText>[0]["model"],
+    input: Parameters<AgentRuntime["execute"]>[0],
+    messages: CoreMessage[],
+    tools: Record<string, any> | undefined,
+    options: { responses?: boolean; forceReasoningNone?: boolean } = {},
+  ) {
+    try {
+      return await this.consume(model, input, messages, tools, options);
+    } catch (error) {
+      return {
+        text: false,
+        thinking: "",
+        tooled: false,
+        toolCompleted: false,
+        failed: error instanceof Error && error.message.trim() ? error.message : "The model could not be contacted.",
+        usage: { inputTokens: 0, outputTokens: 0 },
+      };
+    }
   }
 
   private async consume(

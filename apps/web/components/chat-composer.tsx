@@ -328,7 +328,11 @@ export function ChatComposer({
           ))}
         </ul>
       ) : null}
-      {error ? <p className="mt-2 text-sm text-red-700">{error}</p> : null}
+      {error ? (
+        <p className="mt-2 text-sm text-red-700" data-testid="composer-error" role="alert">
+          {error}
+        </p>
+      ) : null}
       <div className="mt-3 flex flex-wrap items-center gap-2" data-testid="composer-toolbar">
         {showPicker ? (
           <ModelPicker

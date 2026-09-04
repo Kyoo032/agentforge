@@ -19,12 +19,41 @@ import {
   type UsageRange,
 } from "@agentforge/core";
 import type { TenantContext } from "@agentforge/core";
-import { listDeskUsage } from "./desk-usage";
+import { createHash } from "node:crypto";
+import { listDeskUsage, listTimedDeskUsage } from "./desk-usage";
 import { listRunUsage } from "./threads";
 
 const PRICING_TTL_MS = 10 * 60 * 1000;
+const THIS_KEY_TTL_MS = 2 * 60 * 1000;
 
 let pricingCache: { at: number; baseURL: string; catalog: PricingCatalog } | null = null;
+let thisKeyCache: { at: number; id: string; state: ThisKeyState } | null = null;
+
+function thisKeyCacheId(baseURL: string | undefined, apiKey: string | undefined): string {
+  const key = apiKey?.trim() ?? "";
+  const url = baseURL?.trim() ?? "";
+  if (!key) {
+    return `${url}::needs_key`;
+  }
+  return `${url}::${createHash("sha256").update(key).digest("hex").slice(0, 16)}`;
+}
+
+export function clearThisKeyCache(): void {
+  thisKeyCache = null;
+}
+
+async function thisKeyFor(settings: StoredSecrets): Promise<ThisKeyState> {
+  const id = thisKeyCacheId(settings.openaiBaseUrl, settings.openaiApiKey);
+  if (thisKeyCache && thisKeyCache.id === id && Date.now() - thisKeyCache.at < THIS_KEY_TTL_MS) {
+    return thisKeyCache.state;
+  }
+  const state = await loadThisKeyState({
+    baseURL: settings.openaiBaseUrl,
+    apiKey: settings.openaiApiKey,
+  });
+  thisKeyCache = { at: Date.now(), id, state };
+  return state;
+}
 
 export type DeskModelSpendPayload = {
   model: string;
@@ -117,12 +146,7 @@ export async function loadAccountUsage(
   settings: StoredSecrets,
   tenant: TenantContext,
 ): Promise<AccountUsagePayload> {
-  const thisKey = await loadThisKeyState({
-    baseURL: settings.openaiBaseUrl,
-    apiKey: settings.openaiApiKey,
-  });
-
-  const runRows = await listRunUsage(tenant);
+  const [thisKey, runRows] = await Promise.all([thisKeyFor(settings), listRunUsage(tenant)]);
   const fromRuns: RunUsageRecord[] = [];
   for (const row of runRows) {
     const record = asRunUsageRecord(row.usage);
@@ -182,6 +206,18 @@ function emptyBuckets(range: UsageRange, now: Date): UsageBucket[] {
   }));
 }
 
+function timedDeskInRange(range: UsageRange, now: Date): TimestampedRunUsage[] {
+  const keySet = new Set(listUsageBucketFrames(range, now).map((frame) => frame.key));
+  const timed: TimestampedRunUsage[] = [];
+  for (const row of listTimedDeskUsage()) {
+    if (!keySet.has(usageBucketKey(row.startedAt, range))) {
+      continue;
+    }
+    timed.push(row);
+  }
+  return timed;
+}
+
 function timedRunsInRange(
   rows: Array<{ usage: unknown; startedAt: Date | null }>,
   range: UsageRange,
@@ -209,20 +245,15 @@ function timedRunsInRange(
   return timed;
 }
 
-/** Timestamped SQLite runs only — no desk-usage.json. */
+/** Timestamped SQLite runs plus desk-usage.json rows that stored `at`. */
 export async function loadRangeUsage(
   settings: StoredSecrets,
   tenant: TenantContext,
   range: UsageRange,
   now = new Date(),
 ): Promise<RangeUsagePayload> {
-  const thisKey = await loadThisKeyState({
-    baseURL: settings.openaiBaseUrl,
-    apiKey: settings.openaiApiKey,
-  });
-
-  const runRows = await listRunUsage(tenant);
-  const timed = timedRunsInRange(runRows, range, now);
+  const [thisKey, runRows] = await Promise.all([thisKeyFor(settings), listRunUsage(tenant)]);
+  const timed = [...timedRunsInRange(runRows, range, now), ...timedDeskInRange(range, now)];
 
   if (!settings.openaiApiKey && timed.length === 0) {
     return {

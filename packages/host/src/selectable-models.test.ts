@@ -41,6 +41,8 @@ describe("modeCatalogPayload", () => {
       model("grok-imagine-video"),
       model("seedance-2.5"),
       model("whisper-1"),
+      model("text-embedding-3-small"),
+      model("text-embedding-3-large"),
     ]);
 
     expect(payload.modes.chat.map((item) => item.id)).toEqual([
@@ -60,6 +62,10 @@ describe("modeCatalogPayload", () => {
     expect(payload.modes.image.map((item) => item.id)).toEqual(["mj_imagine", "gpt-image-2"]);
     expect(payload.modes.video.map((item) => item.id)).toEqual(["mj_video", "grok-imagine-video", "seedance-2.5"]);
     expect(payload.modes.audio.map((item) => item.id)).toEqual(["whisper-1"]);
+    expect(payload.modes.embedding.map((item) => item.id)).toEqual([
+      "text-embedding-3-small",
+      "text-embedding-3-large",
+    ]);
 
     expect(payload.defaults.chat).toBe("gpt-5.6-luna");
     expect(payload.defaults.documents).toBe("deepseek-v4-flash");
@@ -69,6 +75,9 @@ describe("modeCatalogPayload", () => {
     expect(payload.defaults.data).toBe("gpt-5.6-luna");
     expect(payload.defaults.image).toBe("gpt-image-2");
     expect(payload.defaults.video).toBe("grok-imagine-video");
+    expect(payload.defaults.embedding).toBe("text-embedding-3-small");
+    expect(payload.defaults.knowledgeBrain).toBe("gpt-5.6-luna");
+    expect(payload.defaults.knowledgeVerifier).toBe("gpt-5.6-luna");
   });
 
   it("falls job defaults back to the chat default when preferred ids are missing", () => {
@@ -78,5 +87,9 @@ describe("modeCatalogPayload", () => {
     expect(payload.defaults.presentations).toBe(payload.defaults.chat);
     expect(payload.defaults.finance).toBe(payload.defaults.chat);
     expect(payload.defaults.data).toBe(payload.defaults.chat);
+    expect(payload.modes.embedding.map((item) => item.id)).toEqual(["text-embedding-3-small"]);
+    expect(payload.defaults.embedding).toBe("text-embedding-3-small");
+    expect(payload.defaults.knowledgeBrain).toBe(payload.defaults.chat);
+    expect(payload.defaults.knowledgeVerifier).toBe(payload.defaults.chat);
   });
 });

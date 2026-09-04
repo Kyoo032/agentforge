@@ -170,6 +170,16 @@ function applyPendingMigrations(
  * Apply drizzle-kit migrations synchronously (better-sqlite3 has no top-level await at DB open).
  * Existing DBs that already have all kernel tables but no journal rows are baseline-stamped.
  */
+function workspaceColumns(sqlite: Database.Database): string[] {
+  try {
+    return (sqlite.prepare("PRAGMA table_info(workspaces)").all() as Array<{ name: string }>).map(
+      (column) => column.name,
+    );
+  } catch {
+    return [];
+  }
+}
+
 export function ensureSchema(sqlite: Database.Database): void {
   const folder = migrationsFolder();
   const migrations = readMigrations(folder);
@@ -204,7 +214,21 @@ export function ensureSchema(sqlite: Database.Database): void {
 
   sqlite.pragma("foreign_keys = ON");
   ensureKnowledgeTables(sqlite);
+  ensureWorkspaceColumns(sqlite);
   assertKernelTables(sqlite);
+}
+
+function ensureWorkspaceColumns(sqlite: Database.Database): void {
+  const have = new Set(workspaceColumns(sqlite));
+  if (have.size === 0) {
+    return;
+  }
+  if (!have.has("template_pack")) {
+    sqlite.exec("ALTER TABLE `workspaces` ADD `template_pack` text");
+  }
+  if (!have.has("product_modes")) {
+    sqlite.exec("ALTER TABLE `workspaces` ADD `product_modes` text");
+  }
 }
 
 function ensureKnowledgeTables(sqlite: Database.Database): void {
@@ -240,6 +264,31 @@ function ensureKnowledgeTables(sqlite: Database.Database): void {
       source_id,
       workspace_id,
       body
+    );
+    CREATE TABLE IF NOT EXISTS knowledge_settings (
+      workspace_id text PRIMARY KEY NOT NULL,
+      embedding_model text NOT NULL,
+      brain_model text NOT NULL,
+      verifier_model text NOT NULL,
+      updated_at integer NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS knowledge_vectors (
+      id text PRIMARY KEY NOT NULL,
+      workspace_id text NOT NULL,
+      source_id text NOT NULL,
+      chunk_index integer NOT NULL,
+      body text NOT NULL,
+      embedding text NOT NULL,
+      model text NOT NULL,
+      created_at integer NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS knowledge_vectors_ws_source_idx ON knowledge_vectors (workspace_id, source_id);
+    CREATE TABLE IF NOT EXISTS knowledge_maps (
+      workspace_id text PRIMARY KEY NOT NULL,
+      payload text NOT NULL,
+      status text NOT NULL,
+      error text,
+      created_at integer NOT NULL
     );
   `);
 }

@@ -13,7 +13,7 @@ import { jsonError, jsonOk } from "../errors";
 import { getTenant } from "../tenant";
 import { loadSettings, saveSettings } from "../settings-store";
 import { refreshModelCache, modeCatalogPayload } from "../selectable-models";
-import { loadAccountUsage } from "../account-usage";
+import { clearThisKeyCache, loadAccountUsage } from "../account-usage";
 import { probeSummary } from "../model-cache";
 
 function readStringMap(value: unknown): Record<string, string> | undefined {
@@ -100,6 +100,7 @@ export async function handlePostSettings(request: HostRequest): Promise<HostResu
       injectionGuardBypass: readOptionalBoolean(body.injectionGuardBypass),
     };
     const saved = saveSettings(patch);
+    clearThisKeyCache();
     try {
       await refreshModelCache(saved);
     } catch {

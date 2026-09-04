@@ -40,6 +40,7 @@ describe("resolveModeDefaults", () => {
       chatIds: ["gpt-5.6-luna", "gpt-5.6-sol", "claude-sonnet-5", "deepseek-v4-flash", "glm-5.2-fast-preview"],
       imageIds: ["mj_imagine", "gpt-image-2", "seedream-5.0-pro", "z-image-turbo"],
       videoIds: ["mj_video", "grok-imagine-video", "seedance-2.5", "seedance-2.0-fast"],
+      embeddingIds: ["text-embedding-3-small", "text-embedding-3-large"],
       chatDefault: "gpt-5.6-luna",
     });
     expect(defaults.chat).toBe("gpt-5.6-luna");
@@ -50,6 +51,9 @@ describe("resolveModeDefaults", () => {
     expect(defaults.data).toBe("gpt-5.6-luna");
     expect(defaults.image).toBe("gpt-image-2");
     expect(defaults.video).toBe("grok-imagine-video");
+    expect(defaults.embedding).toBe("text-embedding-3-small");
+    expect(defaults.knowledgeBrain).toBe("gpt-5.6-luna");
+    expect(defaults.knowledgeVerifier).toBe("gpt-5.6-luna");
   });
 
   it("falls back to kernel media defaults when buckets are empty", () => {
@@ -66,5 +70,8 @@ describe("resolveModeDefaults", () => {
     expect(defaults.data).toBe("minimax-m3");
     expect(defaults.image).toBe(DEFAULT_GATEWAY_IMAGE_MODEL);
     expect(defaults.video).toBe(DEFAULT_GATEWAY_VIDEO_MODEL);
+    expect(defaults.embedding).toBe("text-embedding-3-small");
+    expect(defaults.knowledgeBrain).toBe("minimax-m3");
+    expect(defaults.knowledgeVerifier).toBe("minimax-m3");
   });
 });

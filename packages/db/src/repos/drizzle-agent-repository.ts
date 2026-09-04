@@ -24,8 +24,12 @@ function openText(value: string): string {
   } catch {
     candidate = value;
   }
-  const opened = openPayload<unknown>(candidate, getLocalVaultKey());
-  return typeof opened === "string" ? opened : value;
+  try {
+    const opened = openPayload<unknown>(candidate, getLocalVaultKey());
+    return typeof opened === "string" ? opened : value;
+  } catch {
+    return "";
+  }
 }
 
 function toAgent(row: typeof agents.$inferSelect): AgentRecord {

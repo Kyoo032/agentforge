@@ -30,10 +30,6 @@ export function AppShell({ workspaceName, visibleModes, children }: Props) {
         className="blueprint flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-app"
         data-testid="app-main-panel"
       >
-        <i className="corner tl" />
-        <i className="corner tr" />
-        <i className="corner bl" />
-        <i className="corner br" />
         <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
       </div>
     </div>

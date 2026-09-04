@@ -48,7 +48,10 @@ export function ChatContextChip({ usedTokens, contextLength, parts }: Props) {
   return (
     <div ref={rootRef} className="relative ml-auto flex-none">
       {open ? (
-        <div className="blueprint elev-lg absolute bottom-full right-0 z-10 mb-2 w-[404px] max-w-[80vw] bg-app p-4" data-testid="chat-context-breakdown">
+        <div
+          className="blueprint elev-lg absolute right-0 top-full z-20 mt-2 w-80 max-w-[calc(100vw-14rem)] bg-app p-4"
+          data-testid="chat-context-breakdown"
+        >
           <div className="mb-3 flex items-baseline gap-2">
             <span className="panel-label">Context window</span>
             <span className="ml-auto font-heading text-[15px] font-semibold">

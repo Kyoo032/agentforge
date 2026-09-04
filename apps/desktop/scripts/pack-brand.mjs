@@ -175,11 +175,22 @@ const args = [
   electronBuilderCli,
   "--win",
   "nsis",
+  `--publish`,
+  `never`,
   `-c.artifactName=${brand.artifactName}`,
   `-c.productName=${brand.productName}`,
   `-c.appId=${brand.appId}`,
   "-c.win.icon=icon.ico",
 ];
+if (brandId === "agentforge") {
+  args.push(
+    "-c.publish.provider=github",
+    "-c.publish.owner=Kyoo032",
+    "-c.publish.repo=agentforge",
+  );
+} else {
+  args.push("-c.publish.provider=generic", "-c.publish.url=https://localhost/disabled-updates");
+}
 
 const result = spawnSync(process.execPath, args, {
   cwd: desktopRoot,

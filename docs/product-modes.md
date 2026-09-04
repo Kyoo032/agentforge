@@ -16,11 +16,11 @@ Gateway identity stays **Toko Token** (`api.tokotokenai.com/v1`). Do not merge T
 | Images        | `images`       | `/images`          | Prompt → generate images → gallery |
 | Videos        | `videos`       | `/videos`          | Prompt → generate videos → gallery |
 | Presentation  | `presentations`| `/presentations`   | Prompt → outline → HTML preview + PPTX |
-| Knowledge     | —              | `/knowledge`       | Account-rail Soul / Memory / Sources (not a product mode) |
+| Knowledge Base | —             | `/knowledge`       | Account-rail Soul / Memory / Sources / Map + models (not a product mode) |
 | Settings      | —              | `/settings`        | Gateway key, privacy (not a surface) |
 | Usage         | —              | `/usage`           | This-key + desk spend by range (not a surface) |
 
-Account rail (not modes): Knowledge, Workspaces, Usage, Settings, theme. Collapse prefs stay on `apps/web/lib/rail-prefs.ts`. Legal / Marketing / Students presets stay as seeded — they do not gain Finance or Data unless the owner checks those boxes.
+Account rail (not modes): Knowledge Base, Workspaces, Usage, Settings, theme. Collapse prefs stay on `apps/web/lib/rail-prefs.ts`. Legal / Marketing / Students presets stay as seeded — they do not gain Finance or Data unless the owner checks those boxes.
 
 Agents / Studio are parked. `/agents` and `/studio/**` redirect to Chat. Files stay in the tree for a later pass.
 
@@ -74,9 +74,9 @@ Job, not a spreadsheet. Prompt plus optional pasted figures → JSON sections �
 
 Table analyst, not Research. Paste a parseable CSV, ask a question, get sourced notes and a Markdown download. Host is `POST /api/v1/data` — no `web_search`. Empty or invalid CSV does not generate. Live generate is 503 without a key.
 
-### Knowledge
+### Knowledge Base
 
-Not a product mode. Account-rail page at `/knowledge`: Soul (name, role, voice, rules), pinned Memory, and Sources (paste / file / HTTPS URL). Text extract is `.txt` / `.md` / `.csv` / `.json` in v1. Chat injects soul + pinned memories + FTS-retrieved chunks. GET settings still never returns the gateway key.
+Not a product mode. Account-rail page at `/knowledge`: Soul (name, role, voice, rules), pinned Memory, Sources (paste / file / HTTPS URL), and Map. The owner picks Embedding / Brain / Verifier models (saved on the desk). Indexing uses local SQLite vectors with FTS fallback. Map reviews the knowledge base with those models (stub map is valid without a live key). Chat injects soul + pinned memories + RAG retrieve now; other job modes will share the same retrieve later. Text extract is `.txt` / `.md` / `.csv` / `.json` in v1. GET settings still never returns the gateway key.
 
 ### Images
 

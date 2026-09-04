@@ -148,6 +148,7 @@ export type { ContextSource, ModelsDevRegistry } from "./models/context-length";
 export {
   CHAT_DEFAULT_PREFERENCES,
   chooseDefaultModel,
+  isPickerHidden,
   pickPreferredModel,
   pickerGroups,
   recommendedChatModels,
@@ -160,11 +161,24 @@ export {
   routeModelsByKind,
   pickPreferredImageModel,
   pickPreferredVideoModel,
+  pickPreferredEmbeddingModel,
+  isEmbeddingModelId,
   firstLiveId,
   DEFAULT_GATEWAY_IMAGE_MODEL,
   DEFAULT_GATEWAY_VIDEO_MODEL,
+  DEFAULT_EMBEDDING_MODEL,
 } from "./models/media-kind";
 export type { MediaKind, RoutedModels } from "./models/media-kind";
+export {
+  cosineSimilarity,
+  stubEmbed,
+  parseEmbeddingResponse,
+  parseKnowledgeMap,
+  stubKnowledgeMap,
+  knowledgeBrainPrompt,
+  knowledgeVerifierPrompt,
+} from "./knowledge/rag";
+export type { KnowledgeMap, KnowledgeMapTopic, KnowledgeModels } from "./knowledge/rag";
 export {
   pickPreferredJobModel,
   resolveModeDefaults,
@@ -280,7 +294,15 @@ export {
   normalizeMinimaxDelta,
   normalizeMinimaxPayload,
 } from "./runtime/minimax-compat";
-export { shouldRetryWithoutTools, shouldFailEmptyAssistant, shouldKeepToolTurn } from "./runtime/retry";
+export {
+  MODEL_CONTACT_ATTEMPTS,
+  formatModelContactError,
+  isRetryableModelFailure,
+  shouldFailEmptyAssistant,
+  shouldKeepToolTurn,
+  shouldRetryModelContact,
+  shouldRetryWithoutTools,
+} from "./runtime/retry";
 export { preferredOpenAiWire, usesResponsesApi } from "./runtime/api-mode";
 export { encodeSse } from "./sse";
 export {

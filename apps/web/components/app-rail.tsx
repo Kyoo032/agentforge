@@ -208,10 +208,6 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
       aria-label="Product modes"
       data-rail={collapsed ? "min" : "full"}
     >
-      <i className="corner tl" />
-      <i className="corner tr" />
-      <i className="corner bl" />
-      <i className="corner br" />
       <div className={`flex shrink-0 items-start gap-2 border-b border-divider ${collapsed ? "justify-center px-1.5 py-3" : "px-3 py-3"}`}>
         {logoSrc ? (
           <img src={logoSrc} alt="" className="mt-0.5 h-7 w-7 shrink-0 object-contain" data-testid="product-logo" />
@@ -265,7 +261,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
         <RailGroupLabel collapsed={collapsed}>Account</RailGroupLabel>
         <RailItem
           href="/knowledge"
-          label="Knowledge"
+          label="Knowledge Base"
           icon="knowledge"
           active={pathname.startsWith("/knowledge")}
           collapsed={collapsed}

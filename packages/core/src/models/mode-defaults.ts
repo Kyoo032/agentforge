@@ -1,4 +1,9 @@
-import { firstLiveId, pickPreferredImageModel, pickPreferredVideoModel } from "./media-kind";
+import {
+  firstLiveId,
+  pickPreferredEmbeddingModel,
+  pickPreferredImageModel,
+  pickPreferredVideoModel,
+} from "./media-kind";
 
 export type JobMode = "documents" | "research" | "presentations" | "finance" | "data";
 
@@ -11,6 +16,9 @@ export type ModeModelDefaults = {
   data: string;
   image: string;
   video: string;
+  embedding: string;
+  knowledgeBrain: string;
+  knowledgeVerifier: string;
 };
 
 /** Ranked hints against the live chat catalog — not a closed allowlist. */
@@ -37,6 +45,7 @@ export function resolveModeDefaults(input: {
   chatIds: string[];
   imageIds: string[];
   videoIds: string[];
+  embeddingIds?: string[];
   chatDefault: string;
 }): ModeModelDefaults {
   return {
@@ -48,5 +57,8 @@ export function resolveModeDefaults(input: {
     data: pickPreferredJobModel("data", input.chatIds, input.chatDefault),
     image: pickPreferredImageModel(input.imageIds),
     video: pickPreferredVideoModel(input.videoIds),
+    embedding: pickPreferredEmbeddingModel(input.embeddingIds ?? []),
+    knowledgeBrain: input.chatDefault,
+    knowledgeVerifier: pickPreferredJobModel("research", input.chatIds, input.chatDefault),
   };
 }

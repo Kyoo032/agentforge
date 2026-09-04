@@ -5,8 +5,9 @@ Research is a job: question → sourced notes → Markdown. It is not a citation
 ## Sub-features
 
 - `research-rail` reaches `/research` from `mode-research` on Home (and any workspace that includes Research).
-- `research-shell` shows `research-studio` with empty copy.
+- `research-shell` shows `research-studio` with empty copy. There are no offline starter cards (prompt-only studio).
 - `research-studio-model` is the generate-bar chat-catalog dropdown.
+- `research-preview` / `research-note` appear after a generate. Note bodies render markdown via `FormattedText` (same as Chat `message-output` and Documents preview).
 - Live generate POSTs `/api/v1/research`. Stub/no-key shows an error with a Settings hint.
 
 ## How to get to it (user POV)
@@ -20,9 +21,10 @@ Preconditions:
 
 - Doctor exits 0.
 - `mode-research` is visible on Home. If count is 0, you are on a desk that hid Research — switch to Home or add the tab in Workspaces.
-- Stub proof stops at the studio shell. Live generate only if the operator asked and doctor reports `ai`.
+- Stub proof stops at the studio shell. Live generate (and `research-preview` markdown) only if the operator asked and doctor reports `ai`.
 
 - **Open Research.** Click `mode-research`. URL matches `/research`. `research-studio` and `research-studio-model` are visible.
+- **Live preview (operator-asked only).** After a generate, `research-preview` and `research-note` are visible; note text is formatted markdown, not raw `**`.
 - **Cloud.** `foundation.spec.ts` covers the Home rail tab. Do not paste a gateway key.
 
 ## Gotchas

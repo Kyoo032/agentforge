@@ -228,6 +228,14 @@ async function doctorWebdev() {
   );
   const curation = Boolean(hasTopLevelCuration || hasPerModelCuration);
 
+  let knowledgeStatus = 0;
+  try {
+    const knowledge = await get(BASE, "/api/v1/knowledge");
+    knowledgeStatus = knowledge.status;
+  } catch {
+    knowledgeStatus = 0;
+  }
+
   const report = {
     ok: true,
     url: BASE,
@@ -239,6 +247,7 @@ async function doctorWebdev() {
     modeKeys,
     chatCount,
     curation,
+    knowledge: knowledgeStatus === 200,
     gatewayName: typeof payload.gatewayName === "string" ? payload.gatewayName : undefined,
     dataDir: process.env.AGENTFORGE_DATA_DIR || "unset (webdev default: <repo>/data)",
     sqliteHint: "data/agentforge.sqlite under AGENTFORGE_DATA_DIR or repo data/",

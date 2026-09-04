@@ -38,6 +38,9 @@ describe("ensureSchema", () => {
         "knowledge_soul",
         "knowledge_memories",
         "knowledge_sources",
+        "knowledge_settings",
+        "knowledge_vectors",
+        "knowledge_maps",
       ]),
     );
     assertKernelTables(sqlite);
@@ -94,6 +97,61 @@ describe("ensureSchema", () => {
       .prepare("SELECT count(*) AS n FROM __drizzle_migrations")
       .get() as { n: number };
     expect(journal.n).toBeGreaterThan(0);
+    const cols = sqlite.prepare("PRAGMA table_info(workspaces)").all() as Array<{ name: string }>;
+    expect(cols.map((column) => column.name)).toEqual(
+      expect.arrayContaining(["id", "template_pack", "product_modes"]),
+    );
+    sqlite.close();
+  });
+
+  it("heals template_pack when the journal already stamped 0001", () => {
+    const sqlite = new Database(":memory:");
+    sqlite.exec(`
+      CREATE TABLE workspaces (
+        id text PRIMARY KEY NOT NULL,
+        organization_id text NOT NULL,
+        name text NOT NULL,
+        slug text NOT NULL,
+        created_at integer NOT NULL
+      );
+    `);
+    for (const name of KERNEL_TABLES) {
+      if (name === "workspaces") {
+        continue;
+      }
+      if (name === "user") {
+        sqlite.exec(
+          `CREATE TABLE "user" (
+            id text PRIMARY KEY NOT NULL,
+            name text NOT NULL,
+            email text NOT NULL,
+            email_verified integer NOT NULL,
+            image text,
+            created_at integer NOT NULL,
+            updated_at integer NOT NULL
+          )`,
+        );
+      } else {
+        sqlite.exec(`CREATE TABLE "${name}" (id text PRIMARY KEY NOT NULL)`);
+      }
+    }
+    sqlite.exec(`
+      CREATE TABLE __drizzle_migrations (
+        id INTEGER PRIMARY KEY,
+        hash text NOT NULL,
+        created_at numeric
+      );
+    `);
+    sqlite
+      .prepare(`INSERT INTO __drizzle_migrations (hash, created_at) VALUES (?, ?)`)
+      .run("already-stamped-0001", 1788560000000);
+
+    ensureSchema(sqlite);
+    const row = sqlite.prepare("SELECT template_pack FROM workspaces LIMIT 1").get();
+    expect(row).toBeUndefined();
+    const cols = sqlite.prepare("PRAGMA table_info(workspaces)").all() as Array<{ name: string }>;
+    expect(cols.some((column) => column.name === "template_pack")).toBe(true);
+    expect(cols.some((column) => column.name === "product_modes")).toBe(true);
     sqlite.close();
   });
 
