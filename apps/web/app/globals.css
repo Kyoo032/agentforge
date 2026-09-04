@@ -1,25 +1,319 @@
+@import url("https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;700&family=Barlow+Condensed:wght@400;600&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Industry design system — tokens from the Agentforge UI pass (claude.ai/design Sheet 01). */
 :root {
   color-scheme: light;
-  --color-paper: #ffffff;
-  --color-ink: #0d2137;
-  --color-mist: #d6e4f5;
+  --color-bg: #f6f8fb;
+  --color-surface: #e9eff6;
+  --color-text: #1d1f20;
+  --color-accent: #5980a6;
+  --color-divider: color-mix(in srgb, #1d1f20 16%, transparent);
+
+  --color-neutral-100: #f5f5f8;
+  --color-neutral-200: #e7e7ea;
+  --color-neutral-300: #d4d4d7;
+  --color-neutral-400: #b7b7ba;
+  --color-neutral-500: #98989b;
+  --color-neutral-600: #7a7a7d;
+  --color-neutral-700: #5d5d60;
+  --color-neutral-800: #424244;
+  --color-neutral-900: #2b2b2d;
+
+  --color-accent-100: #eef6ff;
+  --color-accent-200: #d6ebff;
+  --color-accent-300: #b5d9fd;
+  --color-accent-400: #94bce3;
+  --color-accent-500: #749dc4;
+  --color-accent-600: #597ea3;
+  --color-accent-700: #416180;
+  --color-accent-800: #2c455d;
+  --color-accent-900: #1d2d3d;
+
+  --font-heading: "Barlow Condensed", system-ui, sans-serif;
+  --font-body: "Barlow", system-ui, sans-serif;
+
+  --r: 4px;
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
   --radius-xl: 12px;
+
+  --shadow-sm: 0 1px 2px color-mix(in srgb, #2b2b2d 14%, transparent);
+  --shadow-md: 0 3px 10px color-mix(in srgb, #2b2b2d 16%, transparent);
+  --shadow-lg: 0 12px 32px color-mix(in srgb, #2b2b2d 22%, transparent);
+
+  /* Legacy aliases — older components still reference paper/ink/mist. */
+  --color-paper: var(--color-bg);
+  --color-ink: var(--color-text);
+  --color-mist: var(--color-surface);
 }
 
 .dark {
   color-scheme: dark;
-  --color-paper: #0a1628;
-  --color-ink: #e8eef5;
-  --color-mist: #1a3350;
+  --color-bg: #2b2b2d;
+  --color-surface: #424244;
+  --color-text: #f5f5f8;
+  --color-accent: #94bce3;
+  --color-divider: color-mix(in srgb, #f5f5f8 20%, transparent);
 }
 
 body {
-  @apply bg-paper text-ink antialiased;
+  @apply bg-app text-inkbase antialiased;
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  line-height: 1.12;
+  letter-spacing: -0.015em;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-accent) 28%, transparent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.kicker {
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 48%, transparent);
+}
+
+.panel-label {
+  font-family: var(--font-heading);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 50%, transparent);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--color-divider);
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.btn:hover {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #f6f8fb;
+}
+
+.dark .btn-primary {
+  color: #1d1f20;
+}
+
+.btn-primary:hover {
+  background: var(--color-accent-600);
+  border-color: var(--color-accent-600);
+}
+
+.btn-secondary {
+  background: transparent;
+}
+
+.btn-ghost {
+  border-color: transparent;
+}
+
+.btn-icon {
+  padding: 0;
+  width: 30px;
+  height: 30px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-sm);
+}
+
+.tag-accent {
+  border-color: color-mix(in srgb, var(--color-accent) 45%, transparent);
+  color: var(--color-accent-700);
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+
+.tag-neutral {
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
+
+.tag-outline {
+  background: transparent;
+}
+
+.field label,
+.field .label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 12px;
+  color: color-mix(in srgb, var(--color-text) 70%, transparent);
+}
+
+.input,
+.field textarea,
+.field input:not([type="checkbox"]):not([type="radio"]):not([type="file"]) {
+  width: 100%;
+  border: 1px solid var(--color-divider);
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+}
+
+.input:focus,
+.field textarea:focus,
+.field input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.seg-opt {
+  padding: 6px 11px;
+  font-size: 12.5px;
+  background: transparent;
+  border: 0;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.seg-opt[data-on="true"],
+.seg-opt[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+  color: var(--color-accent-800);
+}
+
+.blueprint {
+  position: relative;
+  border: 1px solid var(--color-divider);
+  background: transparent;
+}
+
+.blueprint > .corner {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  pointer-events: none;
+}
+
+.blueprint > .corner::before,
+.blueprint > .corner::after {
+  content: "";
+  position: absolute;
+  background: var(--color-accent);
+}
+
+.blueprint > .corner::before {
+  width: 7px;
+  height: 1px;
+}
+
+.blueprint > .corner::after {
+  width: 1px;
+  height: 7px;
+}
+
+.blueprint > .corner.tl {
+  top: -1px;
+  left: -1px;
+}
+
+.blueprint > .corner.tr {
+  top: -1px;
+  right: -1px;
+}
+
+.blueprint > .corner.bl {
+  bottom: -1px;
+  left: -1px;
+}
+
+.blueprint > .corner.br {
+  bottom: -1px;
+  right: -1px;
+}
+
+.blueprint > .corner.tr::before,
+.blueprint > .corner.br::before {
+  right: 0;
+}
+
+.blueprint > .corner.bl::after,
+.blueprint > .corner.br::after {
+  bottom: 0;
+}
+
+.elev-sm {
+  box-shadow: var(--shadow-sm);
+}
+
+.elev-md {
+  box-shadow: var(--shadow-md);
+}
+
+.elev-lg {
+  box-shadow: var(--shadow-lg);
+}
+
+@keyframes af-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
 }

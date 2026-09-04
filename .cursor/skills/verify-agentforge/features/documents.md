@@ -8,6 +8,7 @@ Documents is a job: prompt or starter → section preview → DOCX download. It 
 - `documents-shell` shows `documents-studio` with empty copy and starter cards.
 - `documents-starter` loads a preview (`documents-preview`) without a live generate.
 - `documents-studio-model` is the generate-bar chat-catalog dropdown.
+- `documents-enhance` rewrites the topic via the shared Enhance host.
 - `documents-regen` on a section opens `documents-regen-panel` (prompt, model, attach). Confirm with `documents-regen-submit`; stub/no-key shows `documents-error` with a Settings hint.
 - `documents-download` builds a DOCX from the in-memory draft.
 

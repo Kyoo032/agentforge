@@ -203,7 +203,45 @@ export function ensureSchema(sqlite: Database.Database): void {
   }
 
   sqlite.pragma("foreign_keys = ON");
+  ensureKnowledgeTables(sqlite);
   assertKernelTables(sqlite);
+}
+
+function ensureKnowledgeTables(sqlite: Database.Database): void {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS knowledge_soul (
+      workspace_id text PRIMARY KEY NOT NULL,
+      name text NOT NULL,
+      role text NOT NULL,
+      voice text NOT NULL,
+      rules text NOT NULL,
+      updated_at integer NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS knowledge_memories (
+      id text PRIMARY KEY NOT NULL,
+      workspace_id text NOT NULL,
+      text text NOT NULL,
+      pinned integer NOT NULL DEFAULT 0,
+      created_at integer NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS knowledge_memories_ws_idx ON knowledge_memories (workspace_id);
+    CREATE TABLE IF NOT EXISTS knowledge_sources (
+      id text PRIMARY KEY NOT NULL,
+      workspace_id text NOT NULL,
+      name text NOT NULL,
+      type text NOT NULL,
+      status text NOT NULL,
+      chunks integer NOT NULL DEFAULT 0,
+      error text,
+      created_at integer NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS knowledge_sources_ws_idx ON knowledge_sources (workspace_id);
+    CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_chunks USING fts5(
+      source_id,
+      workspace_id,
+      body
+    );
+  `);
 }
 
 export function listKernelTables(sqlite: Database.Database): string[] {

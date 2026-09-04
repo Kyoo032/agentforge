@@ -55,6 +55,8 @@ describe("modeCatalogPayload", () => {
     expect(payload.modes.presentations.map((item) => item.id)).toEqual(
       payload.modes.chat.map((item) => item.id),
     );
+    expect(payload.modes.finance.map((item) => item.id)).toEqual(payload.modes.chat.map((item) => item.id));
+    expect(payload.modes.data.map((item) => item.id)).toEqual(payload.modes.chat.map((item) => item.id));
     expect(payload.modes.image.map((item) => item.id)).toEqual(["mj_imagine", "gpt-image-2"]);
     expect(payload.modes.video.map((item) => item.id)).toEqual(["mj_video", "grok-imagine-video", "seedance-2.5"]);
     expect(payload.modes.audio.map((item) => item.id)).toEqual(["whisper-1"]);
@@ -63,6 +65,8 @@ describe("modeCatalogPayload", () => {
     expect(payload.defaults.documents).toBe("deepseek-v4-flash");
     expect(payload.defaults.research).toBe("gpt-5.6-luna");
     expect(payload.defaults.presentations).toBe("glm-5.2-fast-preview");
+    expect(payload.defaults.finance).toBe("deepseek-v4-flash");
+    expect(payload.defaults.data).toBe("gpt-5.6-luna");
     expect(payload.defaults.image).toBe("gpt-image-2");
     expect(payload.defaults.video).toBe("grok-imagine-video");
   });
@@ -72,5 +76,7 @@ describe("modeCatalogPayload", () => {
     expect(payload.defaults.documents).toBe(payload.defaults.chat);
     expect(payload.defaults.research).toBe(payload.defaults.chat);
     expect(payload.defaults.presentations).toBe(payload.defaults.chat);
+    expect(payload.defaults.finance).toBe(payload.defaults.chat);
+    expect(payload.defaults.data).toBe(payload.defaults.chat);
   });
 });

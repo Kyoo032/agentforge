@@ -171,9 +171,10 @@ export function SettingsPage() {
   }
 
   return (
-    <main className="mx-auto max-w-xl px-6 py-10 text-ink">
-      <h1 className="text-3xl font-semibold text-ink">Settings</h1>
-      <p className="mt-2 text-ink/60">
+    <main className="mx-auto max-w-xl px-[30px] py-10 text-inkbase">
+      <div className="kicker">Account</div>
+      <h1 className="mt-2 font-heading text-[25px] font-semibold">Settings</h1>
+      <p className="mt-2 text-[13px] text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">
         Paste your {gatewayName} API key from {gatewayHostLabel(openaiBaseUrl || gatewayBaseUrl)} to use chat,
         documents, research, images, videos, and presentation on this machine.
       </p>

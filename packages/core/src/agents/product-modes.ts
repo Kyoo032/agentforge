@@ -5,6 +5,8 @@ export const PRODUCT_MODES = [
   { id: "chat", label: "Chat", href: "/chat" },
   { id: "documents", label: "Documents", href: "/documents" },
   { id: "research", label: "Research", href: "/research" },
+  { id: "finance", label: "Finance", href: "/finance" },
+  { id: "data", label: "Data", href: "/data" },
   { id: "images", label: "Images", href: "/images" },
   { id: "videos", label: "Videos", href: "/videos" },
   { id: "presentations", label: "Presentation", href: "/presentations" },
@@ -126,7 +128,9 @@ export function redirectIfHiddenMode(path: string, visible: ProductMode[]): stri
     path.startsWith("/chat/") ||
     path.startsWith("/chat?") ||
     path.startsWith("/settings") ||
-    path.startsWith("/workspaces")
+    path.startsWith("/workspaces") ||
+    path.startsWith("/usage") ||
+    path.startsWith("/knowledge")
   ) {
     return null;
   }

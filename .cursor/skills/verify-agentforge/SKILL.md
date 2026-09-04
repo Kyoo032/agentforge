@@ -34,7 +34,7 @@ Do **not** use Hermes CLI, Hermes dashboard session tokens, or Hermes `hermes:ap
 | This Windows session | `cursor-ide-browser` + `scripts/doctor.mjs`; Electron for desktop changes | `pnpm test:e2e`, `playwright test` |
 | Cursor Cloud + GHA | Playwright `apps/web/tests/e2e/foundation.spec.ts` | Paste a gateway key; start Docker |
 
-Cloud and `.github/workflows/e2e.yml` own the serial stub smoke. Local coding agents do not run Playwright here (long serial pass).
+Cloud and `.github/workflows/e2e.yml` own the serial stub smoke. Local coding agents do not run Playwright here (long serial pass). Cloud may use a secret gateway key for live Enhance / Finance / Data proof after doctor `ai`; GHA stays stub.
 
 **Delegation.** Explore with Composer 2.5 (`explore` / `composer-2.5-fast`). Implementation workers are Grok 4.5 (`worker` / `cursor-grok-4.5-high`). Do not use pstack Fable/GPT Task slugs. Fan-out stays at 2.
 
@@ -64,7 +64,7 @@ SQLite file: `$AGENTFORGE_DATA_DIR/agentforge.sqlite` (default `data/agentforge.
 
 **Cloud boot** already runs `scripts/cloud-start.sh` (data-dir prep only: `mkdir data`, unset `DATABASE_URL`). Then `pnpm dev`. Playwright `webServer` in `apps/web/playwright.config.ts` starts `pnpm dev` with `AGENTFORGE_RUNTIME=stub` and `AGENTFORGE_DATA_DIR` resolved to repo `data/`. `reuseExistingServer` is on unless `CI`.
 
-**Stub vs live.** `AGENTFORGE_RUNTIME=stub` until a gateway (or other provider) key is saved. A saved key makes `GET /api/v1/settings` report `runtime: "ai"`. Cloud and GHA force stub and have no key. This Windows machine may already be live — doctor first.
+**Stub vs live.** `AGENTFORGE_RUNTIME=stub` until a gateway (or other provider) key is saved. A saved key makes `GET /api/v1/settings` report `runtime: "ai"`. GHA stays stub with no key. Cursor Cloud may have a secret `OPENAI_API_KEY` for live loop proof — doctor `runtime: "ai"` and `hasOpenai: true` before a live send; if the env is missing, stay stub. This Windows machine may already be live — doctor first. Never echo the key.
 
 **Teardown.** Only if this run started `pnpm dev`: stop that PID (Ctrl+C / kill the shell job). Never `taskkill` by image name. Never stop a server you did not start.
 
@@ -106,7 +106,7 @@ How each Agentforge secret is processed:
 | Native extras (Google, Anthropic, Ark/Volcengine) | Not in GTM Settings UI (store still holds them) | Same `settings.enc`; UI booleans `hasGoogle` / `hasAnthropic` / `hasVolcengine` only | Optional non-gateway providers |
 | Tool keys (Tavily, Brave, FAL, …) | Not in GTM Settings UI | Same file, `hasToolKeys` map | Search / FAL generate |
 
-Do not type into `openai-key` on the operator’s desk unless they asked. Cloud/GHA have no gateway key — stub only.
+Do not type into `openai-key` on the operator’s desk unless they asked. GHA stays stub (`AGENTFORGE_RUNTIME=stub`) and has no key. Cursor Cloud Agents may have a provisioned `OPENAI_API_KEY` secret for live Enhance / Finance / Data proof on that VM only — save it into Settings / `settings.enc` or set `AGENTFORGE_RUNTIME=ai` after doctoring; never print, commit, or screenshot the key. If the env is missing, stay fail-closed on stub. Never paste the Cloud secret on the Windows desk.
 
 ## Drive
 
@@ -134,24 +134,28 @@ Use `page.getByTestId("<id>")` exactly as the spec.
 
 | testid | Surface |
 |---|---|
-| `mode-chat`, `mode-documents`, `mode-research`, `mode-images`, `mode-videos`, `mode-presentations` | Left rail (Home has all of these) |
+| `mode-chat`, `mode-documents`, `mode-research`, `mode-finance`, `mode-data`, `mode-images`, `mode-videos`, `mode-presentations` | Left rail work modes (Home has all of these) |
+| `mode-knowledge` | Account rail → Knowledge (`/knowledge`). Always visible; not a product mode |
 | `product-brand`, `product-logo` | Rail product name and mark. Packaged flavors must not stay Agentforge — [desktop-brands.md](features/desktop-brands.md) |
 | `mode-agents` | Parked. Count 0. `/agents` and `/studio` redirect to Chat |
 | `workspaces-switcher`, `workspaces-link`, `open-workspace`, `workspace-template-picker`, `workspace-mode-picker`, `create-workspace` | Workspaces |
 | `settings-link` | Rail → Settings |
 | `usage-link`, `usage-open`, `usage-range`, `usage-range-chart` | Rail / Settings → Usage (`/usage`); range toggle + stacked chart |
-| `model-picker`, `composer`, `composer-text`, `composer-send` | Chat |
+| `model-picker`, `composer`, `composer-text`, `composer-send`, `composer-enhance` | Chat |
 | `chat-usage`, `chat-context` | Chat header chips (wallet spend, thread tokens vs window) |
 | `chat-empty`, `message-list`, `thread-list`, `thread-item`, `new-chat` | Threads |
 | `settings-form`, `openai-key`, `key-fingerprint`, `runtime-status`, `privacy-note`, `usage-this-key` | Settings (key-only; no Advanced tab; Open Usage for charts) |
 | `usage-range-empty`, `usage-desk-range`, `usage-by-model`, `usage-key-meter` | Usage page (by-model + desk range; empty chart copy) |
 | `images-studio`, `images-studio-needs-key`, `videos-studio`, `videos-studio-needs-key` | Generate studios |
+| `finance-studio`, `finance-starters`, `finance-download`, `finance-generate` | Finance job |
+| `data-studio`, `data-csv`, `data-starter`, `data-download`, `data-generate` | Data job |
+| `knowledge-page`, `knowledge-tabs`, `knowledge-paste`, `knowledge-soul-save`, `knowledge-memory-add` | Knowledge |
 | `documents-studio-model`, `research-studio-model`, `presentations-studio-model` | Job generate-bar model dropdowns |
 | `documents-regen-panel`, `presentations-regen-panel`, `*-regen-prompt`, `*-regen-model`, `*-regen-attach`, `*-regen-submit` | Section/slide regen composer |
 
 Rail testids are `mode-${href.slice(1)}` (`/chat` → `mode-chat`). Home already shows every work mode. A Legal desk has Chat + Documents + Research + Presentation and `mode-images` count 0.
 
-Recipes: [features/chat.md](features/chat.md), [features/settings.md](features/settings.md), [features/usage.md](features/usage.md), [features/workspaces.md](features/workspaces.md), [features/images.md](features/images.md), [features/videos.md](features/videos.md), [features/desktop.md](features/desktop.md), [features/desktop-brands.md](features/desktop-brands.md), [features/mobile.md](features/mobile.md). Build and Studio advanced are parked.
+Recipes: [features/chat.md](features/chat.md), [features/settings.md](features/settings.md), [features/usage.md](features/usage.md), [features/workspaces.md](features/workspaces.md), [features/documents.md](features/documents.md), [features/research.md](features/research.md), [features/finance.md](features/finance.md), [features/data.md](features/data.md), [features/knowledge.md](features/knowledge.md), [features/images.md](features/images.md), [features/videos.md](features/videos.md), [features/desktop.md](features/desktop.md), [features/desktop-brands.md](features/desktop-brands.md), [features/mobile.md](features/mobile.md). Build and Studio advanced are parked.
 
 ## Evidence
 

@@ -91,11 +91,14 @@ export function UsagePage() {
   const priced = byModel.filter((row) => row.usd > 0);
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-10 text-ink">
-      <h1 className="text-3xl font-semibold text-ink">Usage</h1>
-      <p className="mt-2 text-ink/60">This-key wallet and desk spend for the selected range.</p>
+    <main className="mx-auto max-w-2xl px-[30px] py-10 text-inkbase">
+      <div className="kicker">Account</div>
+      <h1 className="mt-2 font-heading text-[25px] font-semibold">Usage</h1>
+      <p className="mt-2 text-[13px] text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">
+        This-key wallet and desk spend for the selected range.
+      </p>
 
-      <section className="mt-6 rounded-xl border border-mist bg-paper p-5">
+      <section className="blueprint mt-6 p-5">
         <p className="text-sm text-ink" data-testid="usage-this-key">
           This key: {loading && !usage ? "…" : thisKeyLine(usage)}
         </p>
@@ -106,18 +109,15 @@ export function UsagePage() {
           This desk (this range): {desk.display} · {desk.modelCount} model{desk.modelCount === 1 ? "" : "s"}
         </p>
 
-        <div className="mt-4 flex flex-wrap gap-2" data-testid="usage-range" role="group" aria-label="Usage range">
+        <div className="seg mt-4" data-testid="usage-range" role="group" aria-label="Usage range">
           {RANGES.map((option) => {
             const active = range === option.id;
             return (
               <button
                 key={option.id}
                 type="button"
-                className={
-                  active
-                    ? "rounded-md bg-navy px-3 py-1.5 text-sm text-white"
-                    : "rounded-md border border-mist px-3 py-1.5 text-sm text-ink hover:bg-mist"
-                }
+                className="seg-opt"
+                data-on={active ? "true" : "false"}
                 aria-pressed={active}
                 data-testid={`usage-range-${option.id}`}
                 onClick={() => setRange(option.id)}

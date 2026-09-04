@@ -87,6 +87,8 @@ export function modeCatalogPayload(models: ChatModel[] = listCatalogModels()): {
     documents: SelectableModel[];
     research: SelectableModel[];
     presentations: SelectableModel[];
+    finance: SelectableModel[];
+    data: SelectableModel[];
   };
   defaults: ModeModelDefaults;
 } {
@@ -99,6 +101,8 @@ export function modeCatalogPayload(models: ChatModel[] = listCatalogModels()): {
       documents: curated.chat,
       research: curated.chat,
       presentations: curated.chat,
+      finance: curated.chat,
+      data: curated.chat,
     },
     defaults: resolveModeDefaults({
       chatIds: curated.chat.map((model) => model.id),

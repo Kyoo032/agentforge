@@ -15,7 +15,7 @@ type Workspace = {
 };
 
 const chipBase = "rounded-md border px-3 py-1.5 text-sm transition-colors";
-const chipOn = "border-navy bg-navy text-white";
+const chipOn = "border-accent bg-accent text-white";
 const chipOff = "border-mist bg-paper text-ink hover:bg-mist";
 
 function templateLabel(id: string | null | undefined): string | null {

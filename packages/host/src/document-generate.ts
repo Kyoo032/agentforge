@@ -21,6 +21,21 @@ import {
   readOptionalInstruction,
 } from "./job-regen";
 
+const FINANCE_SYSTEM = `You draft finished finance documents for Agentforge — not skeletons.
+Return ONLY valid JSON (no markdown fences, no commentary) with this exact shape:
+{
+  "title": string,
+  "sections": [
+    { "heading": string, "body": string }
+  ]
+}
+Rules:
+- Use only figures the user pasted. Never invent numbers, rates, or balances.
+- If a figure is missing, say it is missing. Do not fill it in.
+- Each section is finished writing: 2–4 short paragraphs. Use \\n\\n between paragraphs.
+- Headings are claims or jobs, not labels.
+- No campus / student / course nouns unless the topic itself requires them.`;
+
 const DOCUMENT_SYSTEM = `You draft finished professional documents for Agentforge — not skeletons.
 Return ONLY valid JSON (no markdown fences, no commentary) with this exact shape:
 {
@@ -57,14 +72,22 @@ function readOptionalModel(body: unknown): string | undefined {
   return typeof model === "string" && model.trim() ? model.trim() : undefined;
 }
 
-async function collectAssistantText(tenant: TenantContext, model: string, prompt: string): Promise<string> {
+export function isFinanceJob(body: unknown): boolean {
+  return Boolean(body && typeof body === "object" && (body as { job?: unknown }).job === "finance");
+}
+
+export function documentJobSystemPrompt(finance: boolean): string {
+  return finance ? FINANCE_SYSTEM : DOCUMENT_SYSTEM;
+}
+
+async function collectAssistantText(tenant: TenantContext, model: string, prompt: string, finance: boolean): Promise<string> {
   return collectJobAssistantText({
     tenant,
     model,
-    systemPrompt: DOCUMENT_SYSTEM,
-    runPrefix: "document",
-    agentId: "document",
-    versionId: "document-draft",
+    systemPrompt: documentJobSystemPrompt(finance),
+    runPrefix: finance ? "finance" : "document",
+    agentId: finance ? "finance" : "document",
+    versionId: finance ? "finance-draft" : "document-draft",
     prompt,
   });
 }
@@ -90,7 +113,7 @@ function resolveDocumentModel(body: unknown, settings: ReturnType<typeof loadSet
   const { defaults } = modeCatalogPayload();
   return resolveChatModel(
     readOptionalModel(body),
-    settings.documentGenModel || defaults.documents,
+    settings.documentGenModel || (isFinanceJob(body) ? defaults.finance : defaults.documents),
     catalog,
   );
 }
@@ -99,7 +122,7 @@ export async function generateDocumentDraft(tenant: TenantContext, body: unknown
   const prompt = readPrompt(body);
   const settings = requireLiveDocumentRuntime();
   const model = resolveDocumentModel(body, settings);
-  const raw = await collectAssistantText(tenant, model, prompt);
+  const raw = await collectAssistantText(tenant, model, prompt, isFinanceJob(body));
   if (!raw.trim()) {
     throw new ApiError("generation_failed", "Model returned an empty document draft", 502);
   }

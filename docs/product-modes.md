@@ -11,13 +11,16 @@ Gateway identity stays **Toko Token** (`api.tokotokenai.com/v1`). Do not merge T
 | Chat          | `chat`         | `/chat`            | Default assistant |
 | Documents     | `documents`    | `/documents`       | Prompt → preview → download DOCX |
 | Research      | `research`     | `/research`        | Question → web search → sourced notes → Markdown |
+| Finance       | `finance`      | `/finance`         | Figures-only brief → preview → download DOCX |
+| Data          | `data`         | `/data`            | Pasted CSV → table notes (no web search) → Markdown |
 | Images        | `images`       | `/images`          | Prompt → generate images → gallery |
 | Videos        | `videos`       | `/videos`          | Prompt → generate videos → gallery |
 | Presentation  | `presentations`| `/presentations`   | Prompt → outline → HTML preview + PPTX |
+| Knowledge     | —              | `/knowledge`       | Account-rail Soul / Memory / Sources (not a product mode) |
 | Settings      | —              | `/settings`        | Gateway key, privacy (not a surface) |
 | Usage         | —              | `/usage`           | This-key + desk spend by range (not a surface) |
 
-Bottom of the rail (not modes): workspace switcher, Workspaces, Settings, Usage, theme. Collapse prefs stay on `apps/web/lib/rail-prefs.ts`.
+Account rail (not modes): Knowledge, Workspaces, Usage, Settings, theme. Collapse prefs stay on `apps/web/lib/rail-prefs.ts`. Legal / Marketing / Students presets stay as seeded — they do not gain Finance or Data unless the owner checks those boxes.
 
 Agents / Studio are parked. `/agents` and `/studio/**` redirect to Chat. Files stay in the tree for a later pass.
 
@@ -62,6 +65,18 @@ Job, not a Word editor. Prompt → JSON sections → HTML preview → download `
 ### Research
 
 Job, not Westlaw / Harvey / Kimi Deep Research. Question → `web_search` hits → sourced notes preview → Markdown download. Fails visibly without a gateway key or a Tavily/Brave key. Uses the chat catalog with a cheap default (`gpt-5.6-luna` or MiniMax M3 when live).
+
+### Finance
+
+Job, not a spreadsheet. Prompt plus optional pasted figures → JSON sections → HTML preview → download `.docx`. Host uses `POST /api/v1/documents` with `job: "finance"`. The finance system prompt may use only pasted figures and must never invent numbers. Starters load without a key; live generate is 503 without a key.
+
+### Data
+
+Table analyst, not Research. Paste a parseable CSV, ask a question, get sourced notes and a Markdown download. Host is `POST /api/v1/data` — no `web_search`. Empty or invalid CSV does not generate. Live generate is 503 without a key.
+
+### Knowledge
+
+Not a product mode. Account-rail page at `/knowledge`: Soul (name, role, voice, rules), pinned Memory, and Sources (paste / file / HTTPS URL). Text extract is `.txt` / `.md` / `.csv` / `.json` in v1. Chat injects soul + pinned memories + FTS-retrieved chunks. GET settings still never returns the gateway key.
 
 ### Images
 

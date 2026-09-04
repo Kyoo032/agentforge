@@ -82,6 +82,65 @@ export const DOCUMENT_STARTERS: DocumentStarter[] = [
   },
 ];
 
+export const FINANCE_STARTERS: DocumentStarter[] = [
+  {
+    id: "cashflow-spread",
+    label: "Monthly cash-flow spread",
+    description: "A four-week personal cash-flow sheet with fixed, variable, and surplus lines.",
+    draft: {
+      title: "Monthly cash-flow spread — September",
+      sections: [
+        {
+          heading: "Opening position",
+          body: "Start-of-month balance Rp 18.400.000 across two accounts. Salary Rp 14.000.000 credited on the 25th; freelance invoice Rp 3.500.000 expected 8 Sep, not confirmed. Treat the freelance line as pending until it clears.",
+        },
+        {
+          heading: "Fixed outflows",
+          body: "Rent 5.000.000 (due 1st), internet 400.000, phone 150.000, transit pass 300.000, insurance 650.000. Fixed total: 6.500.000, or 46% of confirmed monthly income.",
+        },
+        {
+          heading: "Variable outflows",
+          body: "Groceries 2.200.000 (actual last month 2.430.000 — hold 2.400.000, not the wish number). Fuel and ride-hail 700.000. Eating out 600.000. Misc 400.000. Variable total: 4.300.000.",
+        },
+        {
+          heading: "Surplus and buffers",
+          body: "Confirmed income 14.000.000 minus 10.800.000 total outflows leaves 3.200.000 planned surplus. Buffer rule: keep 6.000.000 in checking before surplus moves to savings.",
+        },
+        {
+          heading: "Breakeven check",
+          body: "The month breaks even at 10.800.000 of inflow against a 14.000.000 baseline. Watch line: eating out. It is the only category running above plan two months in a row.",
+        },
+      ],
+    },
+  },
+  {
+    id: "breakeven-equipment",
+    label: "Breakeven — equipment purchase",
+    description: "Unit economics, breakeven volume, and downside exposure for a cart upgrade.",
+    draft: {
+      title: "Breakeven and exposure — espresso cart upgrade",
+      sections: [
+        {
+          heading: "The purchase",
+          body: "Two-group machine plus grinder: 48.000.000. Cash on hand 20.000.000; remaining 28.000.000 is 24-month financing at 670.000/month. Install: 2.400.000 one-time.",
+        },
+        {
+          heading: "Unit economics per cup",
+          body: "Average ticket 28.000. Beans, milk, cup, and overhead per cup: 11.200. Contribution margin: 16.800 per cup.",
+        },
+        {
+          heading: "Breakeven volume",
+          body: "Financing alone needs 670.000 / 16.800 = 40 cups/month over the current baseline. If Saturday foot traffic holds, breakeven lands in month one.",
+        },
+        {
+          heading: "Exposure",
+          body: "Downside is bounded: resale at roughly 60% of list covers remaining financing. The unbounded risk is losing the market slot during the 5-day install.",
+        },
+      ],
+    },
+  },
+];
+
 export const PRESENTATION_STARTERS: PresentationStarter[] = [
   {
     id: "project-update",

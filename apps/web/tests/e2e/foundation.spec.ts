@@ -17,9 +17,12 @@ test("chat and workspaces work without an account", async ({ page }) => {
   await expect(page.getByTestId("mode-chat")).toBeVisible();
   await expect(page.getByTestId("mode-documents")).toBeVisible();
   await expect(page.getByTestId("mode-research")).toBeVisible();
+  await expect(page.getByTestId("mode-finance")).toBeVisible();
+  await expect(page.getByTestId("mode-data")).toBeVisible();
   await expect(page.getByTestId("mode-images")).toBeVisible();
   await expect(page.getByTestId("mode-videos")).toBeVisible();
   await expect(page.getByTestId("mode-presentations")).toBeVisible();
+  await expect(page.getByTestId("mode-knowledge")).toBeVisible();
   await expect(page.getByTestId("mode-agents")).toHaveCount(0);
   await expect(page.getByTestId("workspaces-switcher")).toBeVisible();
   await expect(page.getByTestId("workspaces-link")).toBeVisible();
@@ -119,5 +122,8 @@ test("chat and workspaces work without an account", async ({ page }) => {
   await expect(page.getByTestId("mode-presentations")).toBeVisible();
   await expect(page.getByTestId("mode-images")).toHaveCount(0);
   await expect(page.getByTestId("mode-videos")).toHaveCount(0);
+  await expect(page.getByTestId("mode-finance")).toHaveCount(0);
+  await expect(page.getByTestId("mode-data")).toHaveCount(0);
+  await expect(page.getByTestId("mode-knowledge")).toBeVisible();
   await expect(page.getByTestId("mode-agents")).toHaveCount(0);
 });

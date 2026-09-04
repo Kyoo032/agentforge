@@ -1,12 +1,14 @@
 import { firstLiveId, pickPreferredImageModel, pickPreferredVideoModel } from "./media-kind";
 
-export type JobMode = "documents" | "research" | "presentations";
+export type JobMode = "documents" | "research" | "presentations" | "finance" | "data";
 
 export type ModeModelDefaults = {
   chat: string;
   documents: string;
   research: string;
   presentations: string;
+  finance: string;
+  data: string;
   image: string;
   video: string;
 };
@@ -23,6 +25,8 @@ export const JOB_MODE_PREFERENCES: Record<JobMode, string[]> = {
     "glm-5.3",
     "kimi-k3",
   ],
+  finance: ["hy3", "hy-3", "hunyuan-3", "deepseek-v4-flash"],
+  data: ["gpt-5.6-luna", "MiniMax-M3", "minimax-m3"],
 };
 
 export function pickPreferredJobModel(mode: JobMode, chatIds: string[], fallback: string): string {
@@ -40,6 +44,8 @@ export function resolveModeDefaults(input: {
     documents: pickPreferredJobModel("documents", input.chatIds, input.chatDefault),
     research: pickPreferredJobModel("research", input.chatIds, input.chatDefault),
     presentations: pickPreferredJobModel("presentations", input.chatIds, input.chatDefault),
+    finance: pickPreferredJobModel("finance", input.chatIds, input.chatDefault),
+    data: pickPreferredJobModel("data", input.chatIds, input.chatDefault),
     image: pickPreferredImageModel(input.imageIds),
     video: pickPreferredVideoModel(input.videoIds),
   };
