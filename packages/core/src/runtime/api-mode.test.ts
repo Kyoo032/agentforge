@@ -55,9 +55,31 @@ describe("openaiCompatProviderOptions", () => {
     expect(openaiCompatProviderOptions({ responses: true })).toEqual({
       openai: {
         strictSchemas: false,
-        reasoningEffort: "low",
+        reasoningEffort: "medium",
         reasoningSummary: "auto",
       },
+    });
+  });
+
+  it("sends the chosen effort on chat completions", () => {
+    expect(openaiCompatProviderOptions({ reasoningEffort: "ultra" })).toEqual({
+      openai: { reasoningEffort: "ultra" },
+    });
+  });
+
+  it("maps ultra to xhigh on Responses", () => {
+    expect(openaiCompatProviderOptions({ responses: true, reasoningEffort: "ultra" })).toEqual({
+      openai: {
+        strictSchemas: false,
+        reasoningEffort: "xhigh",
+        reasoningSummary: "auto",
+      },
+    });
+  });
+
+  it("forces none when thinking is off", () => {
+    expect(openaiCompatProviderOptions({ forceReasoningNone: true, reasoningEffort: "high" })).toEqual({
+      openai: { reasoningEffort: "none" },
     });
   });
 });

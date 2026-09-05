@@ -13,6 +13,7 @@ import { collectToolMediaParts } from "@/lib/tool-media";
 import { notifyThreadsChanged } from "@/lib/threads-events";
 import { apiFetch } from "@/lib/api-client";
 import { useProductBrand } from "@/lib/product-brand";
+import { isReasoningEffort, type ReasoningEffort } from "@agentforge/core/reasoning-effort";
 
 type Message = { id: string; role: string; content: unknown };
 
@@ -48,6 +49,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [thinkingEnabled, setThinkingEnabled] = useState(true);
+  const [reasoningEffort, setReasoningEffort] = useState<ReasoningEffort>("medium");
   const [knowledgeParts, setKnowledgeParts] = useState<ContextPart[]>([]);
   const toolsRef = useRef(tools);
   toolsRef.current = tools;
@@ -56,19 +58,28 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
 
   useEffect(() => {
     try {
+      const storedEffort = window.localStorage.getItem("agentforge-chat-reasoning-effort");
+      if (isReasoningEffort(storedEffort)) {
+        setReasoningEffort(storedEffort);
+        setThinkingEnabled(storedEffort !== "none");
+        return;
+      }
       const stored = window.localStorage.getItem("agentforge-chat-thinking");
       if (stored === "off") {
         setThinkingEnabled(false);
+        setReasoningEffort("none");
       }
     } catch {
       // private mode
     }
   }, []);
 
-  function setThinkingPref(next: boolean) {
-    setThinkingEnabled(next);
+  function setReasoningPref(next: ReasoningEffort) {
+    setReasoningEffort(next);
+    setThinkingEnabled(next !== "none");
     try {
-      window.localStorage.setItem("agentforge-chat-thinking", next ? "on" : "off");
+      window.localStorage.setItem("agentforge-chat-reasoning-effort", next);
+      window.localStorage.setItem("agentforge-chat-thinking", next === "none" ? "off" : "on");
     } catch {
       // private mode
     }
@@ -310,7 +321,8 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           models={models}
           onModelChange={setModelId}
           thinkingEnabled={thinkingEnabled}
-          onThinkingChange={setThinkingPref}
+          reasoningEffort={reasoningEffort}
+          onReasoningEffortChange={setReasoningPref}
           onUserSend={(payload) => {
             setError(null);
             setRunning(true);

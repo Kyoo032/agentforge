@@ -13,7 +13,9 @@
     "./pii": "./src/security/pii.ts",
     "./product-modes": "./src/agents/product-modes.ts",
     "./video-capabilities": "./src/models/video-capabilities.ts",
-    "./content": "./src/content/transcript.ts"
+    "./content": "./src/content/transcript.ts",
+    "./reasoning-effort": "./src/models/reasoning-effort.ts",
+    "./stream-watchdog": "./src/runtime/stream-watchdog.ts"
   },
   "scripts": {
     "test": "vitest run",

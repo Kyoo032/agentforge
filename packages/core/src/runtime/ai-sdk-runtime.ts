@@ -25,6 +25,14 @@ import {
   shouldUpgradeToResponses,
 } from "./api-mode";
 import { applyMinimaxRequest, isMinimaxChatModel, wrapMinimaxResponse } from "./minimax-compat";
+import {
+  applyReasoningEffortToChatBody,
+  isChatCompletionsUrl,
+  resolveRequestReasoningEffort,
+  toWireReasoningEffort,
+} from "../models/reasoning-effort";
+import type { ReasoningEffort } from "../models/reasoning-effort";
+import { abortErrorMessage, armStreamWatchdog, watchAsyncIterable } from "./stream-watchdog";
 import { readLanguageModelUsage, addTokenUsage } from "../gateway/account";
 import type { AgentRuntime, RunUsage } from "./types";
 import {
@@ -154,6 +162,10 @@ export class AiSdkRuntime implements AgentRuntime {
     }
 
     const zdrBaseUrl = openaiBaseUrl;
+    const requestEffort = resolveRequestReasoningEffort(input);
+    const wireEffort = toWireReasoningEffort(requestEffort, {
+      officialOpenAI: isOfficialOpenAIBaseUrl(openaiBaseUrl),
+    });
     const wrappedFetch: typeof fetch = async (url, init) => {
       let outgoing: RequestInit = (init as RequestInit) ?? {};
       let minimax = isMinimaxChatModel(modelName);
@@ -162,7 +174,10 @@ export class AiSdkRuntime implements AgentRuntime {
           const parsed = JSON.parse(init.body) as unknown;
           const scrubbed = rewriteUnreachableMediaInJson(parsed);
           const withZdr = mergeOpenRouterZdr(scrubbed, zdrBaseUrl);
-          const modified = applyMinimaxRequest(withZdr);
+          const minimaxBody = applyMinimaxRequest(withZdr);
+          const modified = isChatCompletionsUrl(url)
+            ? applyReasoningEffortToChatBody(minimaxBody, wireEffort)
+            : minimaxBody;
           minimax = minimax || isMinimaxChatModel((modified as { model?: unknown }).model);
           outgoing = { ...init, body: JSON.stringify(modified) };
         } catch {
@@ -218,14 +233,19 @@ export class AiSdkRuntime implements AgentRuntime {
 
     const messages = toCoreMessages(input.version.systemPrompt, input.history);
     const hasTools = Object.keys(tools).length > 0;
-    const wantThinking = input.thinking !== false;
+    const requestEffort = resolveRequestReasoningEffort(input);
+    const wantThinking = requestEffort !== "none";
     let activeModel = model;
     let wire = openaiWire?.wire;
     const consumeOnce = (
       nextModel: Parameters<typeof streamText>[0]["model"],
       nextTools: Record<string, any> | undefined,
-      options: { responses?: boolean; forceReasoningNone?: boolean } = {},
-    ) => this.consumeSafe(nextModel, input, messages, nextTools, options);
+      options: { responses?: boolean; forceReasoningNone?: boolean; reasoningEffort?: ReasoningEffort } = {},
+    ) =>
+      this.consumeSafe(nextModel, input, messages, nextTools, {
+        ...options,
+        reasoningEffort: options.reasoningEffort ?? requestEffort,
+      });
 
     let first = await consumeOnce(activeModel, hasTools ? tools : undefined, {
       responses: wire === "responses",
@@ -322,7 +342,7 @@ export class AiSdkRuntime implements AgentRuntime {
     input: Parameters<AgentRuntime["execute"]>[0],
     messages: CoreMessage[],
     tools: Record<string, any> | undefined,
-    options: { responses?: boolean; forceReasoningNone?: boolean } = {},
+    options: { responses?: boolean; forceReasoningNone?: boolean; reasoningEffort?: ReasoningEffort } = {},
   ) {
     try {
       return await this.consume(model, input, messages, tools, options);
@@ -343,7 +363,7 @@ export class AiSdkRuntime implements AgentRuntime {
     input: Parameters<AgentRuntime["execute"]>[0],
     messages: CoreMessage[],
     tools: Record<string, any> | undefined,
-    options: { responses?: boolean; forceReasoningNone?: boolean } = {},
+    options: { responses?: boolean; forceReasoningNone?: boolean; reasoningEffort?: ReasoningEffort } = {},
   ): Promise<{
     text: boolean;
     thinking: string;
@@ -353,9 +373,12 @@ export class AiSdkRuntime implements AgentRuntime {
     usage: { inputTokens: number; outputTokens: number };
   }> {
     const providerOptions = openaiCompatProviderOptions(options);
+    const abort = new AbortController();
+    const watchdog = armStreamWatchdog(input.version.model, abort);
     const result = streamText({
       model,
       messages,
+      abortSignal: abort.signal,
       ...(tools ? { tools, maxSteps: 6 } : {}),
       ...(providerOptions ? { providerOptions } : {}),
     });
@@ -366,45 +389,55 @@ export class AiSdkRuntime implements AgentRuntime {
     let failed = "";
     let usage = { inputTokens: 0, outputTokens: 0 };
 
-    for await (const part of result.fullStream) {
+    try {
+      for await (const part of watchAsyncIterable(result.fullStream, abort, () => watchdog.touch())) {
       const event = mapStreamPart(part);
       if (!event) {
         continue;
       }
-      if (event.type === "run.failed") {
-        failed = event.message;
-        break;
+        if (event.type === "run.failed") {
+          failed = event.message;
+          break;
+        }
+        if (event.type === "assistant.delta") {
+          text = true;
+        }
+        if (event.type === "assistant.thinking") {
+          thinking += event.text;
+        }
+        if (event.type === "tool.started") {
+          tooled = true;
+        }
+        if (event.type === "tool.completed") {
+          tooled = true;
+          toolCompleted = true;
+        }
+        await input.onEvent(event);
       }
-      if (event.type === "assistant.delta") {
-        text = true;
-      }
-      if (event.type === "assistant.thinking") {
-        thinking += event.text;
-      }
-      if (event.type === "tool.started") {
-        tooled = true;
-      }
-      if (event.type === "tool.completed") {
-        tooled = true;
-        toolCompleted = true;
-      }
-      await input.onEvent(event);
-    }
 
-    if (!text && !failed) {
-      const fallback = await result.text.catch(() => "");
-      if (fallback && fallback.trim().length > 0) {
-        text = true;
-        await input.onEvent({ type: "assistant.delta", text: fallback });
+      if (!text && !failed) {
+        const fallback = await result.text.catch(() => "");
+        if (fallback && fallback.trim().length > 0) {
+          text = true;
+          await input.onEvent({ type: "assistant.delta", text: fallback });
+        }
       }
-    }
 
-    try {
-      usage = readLanguageModelUsage(await result.usage);
-    } catch {
-      usage = { inputTokens: 0, outputTokens: 0 };
-    }
+      try {
+        usage = readLanguageModelUsage(await result.usage);
+      } catch {
+        usage = { inputTokens: 0, outputTokens: 0 };
+      }
 
-    return { text, thinking, tooled, toolCompleted, failed, usage };
+      return { text, thinking, tooled, toolCompleted, failed, usage };
+    } catch (error) {
+      const message = abortErrorMessage(error);
+      if (!failed) {
+        failed = message;
+      }
+      return { text, thinking, tooled, toolCompleted, failed, usage };
+    } finally {
+      watchdog.close();
+    }
   }
 }

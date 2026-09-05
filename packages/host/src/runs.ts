@@ -9,7 +9,7 @@ import {
   parseTextRunInput,
   parseVideoRunInput,
   readOptionalModel,
-  readOptionalThinking,
+  readOptionalReasoningEffort,
   resolveChatModel,
   hasModelVisibleContent,
   modelHistoryParts,
@@ -121,7 +121,8 @@ export async function* startModalityRun(options: {
   const settings = loadSettings();
   const userParts =
     settings.injectionGuardBypass === true ? parsed.parts : redactAttachedParts(parsed.parts);
-  const thinkingEnabled = readOptionalThinking(options.body);
+  const reasoningEffort = readOptionalReasoningEffort(options.body);
+  const thinkingEnabled = reasoningEffort !== "none";
   const thread = await getThread(options.tenant, options.threadId);
   if (!thread) {
     throw new ApiError("not_found", "Thread not found", 404);
@@ -131,7 +132,8 @@ export async function* startModalityRun(options: {
   const fallback = isDefaultChatAgent(published.agent)
     ? defaultSelectableModel(catalog)
     : published.version.model;
-  const model = resolveChatModel(readOptionalModel(options.body), fallback, catalog);
+  const requestedModel = readOptionalModel(options.body);
+  const model = resolveChatModel(requestedModel, fallback, catalog);
   const pastHint = await formatPastSessionsHint(options.tenant, thread.agentId, thread.id);
   const userText = userParts
     .map((part) => (part.type === "text" && typeof part.text === "string" ? part.text : ""))
@@ -219,6 +221,7 @@ export async function* startModalityRun(options: {
           bindings: withPastSessionsBinding(published.bindings),
           history,
           thinking: thinkingEnabled,
+          reasoningEffort,
           onEvent: async (event) => {
             if (event.type === "run.failed") {
               failedMessage = redactSecrets(event.message);

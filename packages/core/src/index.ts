@@ -135,6 +135,13 @@ export {
 } from "./models/catalog";
 export type { ChatModel, ModelProvider } from "./models/catalog";
 export {
+  REASONING_EFFORTS,
+  isReasoningEffort,
+  readOptionalReasoningEffort,
+  resolveRequestReasoningEffort,
+} from "./models/reasoning-effort";
+export type { ReasoningEffort } from "./models/reasoning-effort";
+export {
   DEFAULT_FALLBACK_CONTEXT,
   extractContextLength,
   familyContextLength,
@@ -303,6 +310,13 @@ export {
   shouldRetryModelContact,
   shouldRetryWithoutTools,
 } from "./runtime/retry";
+export {
+  armStreamWatchdog,
+  abortErrorMessage,
+  formatStreamWatchdogError,
+  streamWatchdogLimits,
+  isWatchdogReasoningModel,
+} from "./runtime/stream-watchdog";
 export { preferredOpenAiWire, usesResponsesApi } from "./runtime/api-mode";
 export { encodeSse } from "./sse";
 export {

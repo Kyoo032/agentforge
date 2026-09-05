@@ -18,6 +18,9 @@ export function isRetryableModelFailure(failed: string): boolean {
   if (/\b400\b|invalid_request/i.test(text) && !/\b(429|502|503|504)\b/.test(text)) {
     return false;
   }
+  if (/no first token from |no stream events from /i.test(text)) {
+    return false;
+  }
   return /no available channel|could not be contacted|could not reach|econnrefused|enotfound|etimedout|econnreset|socket hang up|fetch failed|failed to fetch|networkerror|network|timed? ?out|overloaded|unavailable|\b429\b|\b502\b|\b503\b|\b504\b|the model stream failed|terminated|aborted|connect/i.test(
     text,
   );

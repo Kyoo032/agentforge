@@ -77,9 +77,14 @@ describe("shouldRetryModelContact", () => {
     ).toBe(false);
   });
 
-  it("does not retry auth, missing models, or a turn that already streamed", () => {
+  it("does not retry auth, missing models, stream watchdogs, or a turn that already streamed", () => {
     expect(isRetryableModelFailure("401 Unauthorized")).toBe(false);
     expect(isRetryableModelFailure("model_not_found: nope")).toBe(false);
+    expect(
+      isRetryableModelFailure(
+        "No first token from claude-opus-5 after 240s (timeout). Try a smaller prompt, another model, or send again.",
+      ),
+    ).toBe(false);
     expect(
       shouldRetryModelContact({ failed: "fetch failed", text: true, tooled: false, attempts: 1 }),
     ).toBe(false);
