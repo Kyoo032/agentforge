@@ -1,3 +1,5 @@
+import type { ReasoningEffort } from "../models/reasoning-effort";
+
 /**
  * Wire-protocol picks stripped from Hermes (Copilot/OpenCode rule +
  * host-mandated Responses on official OpenAI) and Pi (`api: openai-responses`
@@ -46,23 +48,31 @@ export function shouldFallbackFromResponses(message: string): boolean {
  * Hermes Responses tools send `strict: false`. AI SDK 4 defaults
  * `strictSchemas` to true, which some OpenAI-compatible gateways then reject unless every
  * JSON-schema property is listed in `required`.
+ *
+ * Chat-completions also gets `reasoningEffort` when the user picked a level, so
+ * Claude / gateway models actually receive it (not only GPT-5 on /responses).
  */
 export function openaiCompatProviderOptions(options: {
   responses?: boolean;
   forceReasoningNone?: boolean;
+  reasoningEffort?: ReasoningEffort;
 }): { openai: Record<string, string | boolean> } | undefined {
-  if (!options.responses && !options.forceReasoningNone) {
+  const effort: ReasoningEffort | undefined = options.forceReasoningNone
+    ? "none"
+    : options.reasoningEffort ?? (options.responses ? "medium" : undefined);
+  if (!options.responses && !effort) {
     return undefined;
   }
+  const providerEffort = effort === "ultra" && options.responses ? "xhigh" : effort;
   return {
     openai: {
-      strictSchemas: false,
-      ...(options.forceReasoningNone
-        ? { reasoningEffort: "none" }
-        : {
-            reasoningEffort: "low",
-            reasoningSummary: "auto",
-          }),
+      ...(options.responses ? { strictSchemas: false } : {}),
+      ...(providerEffort
+        ? {
+            reasoningEffort: providerEffort,
+            ...(providerEffort !== "none" && options.responses ? { reasoningSummary: "auto" } : {}),
+          }
+        : {}),
     },
   };
 }

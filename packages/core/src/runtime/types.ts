@@ -1,6 +1,7 @@
 import type { ContentPart } from "../content/types";
 import type { InputModality, TenantContext } from "../tenancy/types";
 import type { AgentVersionRecord, ToolBindingRecord } from "../agents/service";
+import type { ReasoningEffort } from "../models/reasoning-effort";
 
 export type RunUsage = {
   model: string;
@@ -27,6 +28,8 @@ export type AgentRuntime = {
     history: Array<{ role: "user" | "assistant"; parts: ContentPart[] }>;
     /** When false, skip reasoning events (stub) and prefer reasoningEffort none (live). Default true. */
     thinking?: boolean;
+    /** None skips reasoning. Default medium when omitted. */
+    reasoningEffort?: ReasoningEffort;
     onEvent: (event: RuntimeEvent) => Promise<void> | void;
   }): Promise<void>;
 };

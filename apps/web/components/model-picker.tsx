@@ -278,7 +278,7 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
       <button
         ref={triggerRef}
         type="button"
-        className="max-w-[14rem] truncate rounded-md border border-divider bg-[color-mix(in_srgb,var(--color-text)_10%,var(--color-bg))] px-3 py-1.5 text-left text-sm font-medium text-ink disabled:opacity-50"
+        className="btn btn-secondary max-w-[8.75rem] justify-start truncate px-2 py-1.5 text-left text-[12.5px] font-medium"
         data-testid="model-picker"
         aria-haspopup="listbox"
         aria-expanded={open}

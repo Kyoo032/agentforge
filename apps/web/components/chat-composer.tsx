@@ -11,6 +11,8 @@ import {
 import { ModelPicker, type ChatModel } from "@/components/model-picker";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { apiFetch } from "@/lib/api-client";
+import { abortErrorMessage, armStreamWatchdog } from "@agentforge/core/stream-watchdog";
+import { REASONING_EFFORTS, type ReasoningEffort } from "@agentforge/core/reasoning-effort";
 
 export type ComposerUserSendPayload = {
   text: string;
@@ -34,6 +36,8 @@ type Props = {
   onComplete: () => Promise<void> | void;
   thinkingEnabled?: boolean;
   onThinkingChange?: (enabled: boolean) => void;
+  reasoningEffort?: ReasoningEffort;
+  onReasoningEffortChange?: (effort: ReasoningEffort) => void;
 };
 
 type HeldFile = {
@@ -76,6 +80,8 @@ export function ChatComposer({
   onComplete,
   thinkingEnabled = true,
   onThinkingChange,
+  reasoningEffort = "medium",
+  onReasoningEffortChange,
 }: Props) {
   const [text, setText] = useState("");
   const [files, setFiles] = useState<HeldFile[]>([]);
@@ -88,13 +94,17 @@ export function ChatComposer({
   const pickerModels = models ?? [];
   const showPicker = typeof onModelChange === "function";
 
-  async function readSse(response: Response) {
+  async function readSse(response: Response, onActivity?: () => void) {
     if (!response.body) {
       throw new Error("No stream");
     }
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
+    const types: string[] = [];
+    let deltaChars = 0;
+    let thinkingChars = 0;
+    let failedMessage = "";
     while (true) {
       const { done, value } = await reader.read();
       if (done) {
@@ -104,13 +114,17 @@ export function ChatComposer({
       const consumed = consumeSse(buffer);
       buffer = consumed.rest;
       for (const event of consumed.events) {
+        onActivity?.();
+        types.push(event.type);
         if (event.type === "run.started") {
           onStarted?.();
         }
         if (event.type === "assistant.delta" && event.text) {
+          deltaChars += event.text.length;
           onDelta(event.text);
         }
         if (event.type === "assistant.thinking" && event.text) {
+          thinkingChars += event.text.length;
           onThinking?.(event.text);
         }
         if (event.type === "tool.started" && event.toolKey) {
@@ -120,6 +134,7 @@ export function ChatComposer({
           onTool?.({ phase: "completed", toolKey: event.toolKey, output: event.output });
         }
         if (event.type === "run.failed" && event.message) {
+          failedMessage = event.message;
           onFailed?.(event.message);
           setError(event.message);
         }
@@ -189,7 +204,10 @@ export function ChatComposer({
         return;
       }
 
-      if (decision.route === "text") {
+      const abort = new AbortController();
+      const dog = armStreamWatchdog(model ?? "this model", abort);
+      try {
+        if (decision.route === "text") {
         const id = onEnsureThread ? await onEnsureThread() : threadId;
         if (!id) {
           throw new Error("Could not start a chat");
@@ -201,7 +219,13 @@ export function ChatComposer({
         const response = await apiFetch(`/api/v1/threads/${id}/runs/text`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content: outgoing, model, thinking: thinkingEnabled }),
+          body: JSON.stringify({
+            content: outgoing,
+            model,
+            thinking: reasoningEffort !== "none",
+            reasoningEffort,
+          }),
+          signal: abort.signal,
         });
         if (!response.ok) {
           const payload = await response.json();
@@ -213,7 +237,7 @@ export function ChatComposer({
         }
         setText("");
         setFiles([]);
-        await readSse(response);
+        await readSse(response, () => dog.touch());
         await onComplete();
         return;
       }
@@ -255,7 +279,13 @@ export function ChatComposer({
       const response = await apiFetch(`/api/v1/threads/${id}/runs/${decision.route}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: parts, model, thinking: thinkingEnabled }),
+        body: JSON.stringify({
+          content: parts,
+          model,
+          thinking: reasoningEffort !== "none",
+          reasoningEffort,
+        }),
+        signal: abort.signal,
       });
       if (!response.ok) {
         const payload = await response.json();
@@ -267,10 +297,13 @@ export function ChatComposer({
       }
       setText("");
       setFiles([]);
-      await readSse(response);
+      await readSse(response, () => dog.touch());
       await onComplete();
+      } finally {
+        dog.close();
+      }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Run failed";
+      const message = abortErrorMessage(err);
       setError(message);
       onFailed?.(message);
       await onComplete();
@@ -343,19 +376,30 @@ export function ChatComposer({
             returnFocusRef={textAreaRef}
           />
         ) : null}
-        {onThinkingChange ? (
-          <button
-            type="button"
-            className={`btn btn-secondary px-2.5 py-1.5 text-[12.5px] ${
-              thinkingEnabled ? "border-accent text-accent" : ""
-            }`}
-            data-testid="thinking-toggle"
-            aria-pressed={thinkingEnabled}
-            onClick={() => onThinkingChange(!thinkingEnabled)}
-            disabled={busy}
-          >
-            Thinking
-          </button>
+        {onReasoningEffortChange || onThinkingChange ? (
+          <label className="inline-flex items-center" data-testid="thinking-toggle">
+            <span className="sr-only">Reasoning effort</span>
+            <select
+              className={`rounded-md border bg-transparent px-2 py-1.5 text-[12.5px] text-ink disabled:opacity-45 ${
+                reasoningEffort !== "none" ? "border-accent text-accent" : "border-divider"
+              }`}
+              data-testid="reasoning-effort"
+              aria-label="Reasoning effort"
+              value={reasoningEffort}
+              disabled={busy}
+              onChange={(event) => {
+                const next = event.target.value as ReasoningEffort;
+                onReasoningEffortChange?.(next);
+                onThinkingChange?.(next !== "none");
+              }}
+            >
+              {REASONING_EFFORTS.map((effort) => (
+                <option key={effort} value={effort}>
+                  {effort === "medium" ? "Med" : effort[0].toUpperCase() + effort.slice(1)}
+                </option>
+              ))}
+            </select>
+          </label>
         ) : null}
         <button
           type="button"

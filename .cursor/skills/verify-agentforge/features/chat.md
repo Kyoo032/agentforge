@@ -10,7 +10,7 @@ A turn is three layers: **Thinking** (collapsible), **tools** (one row per call)
 - `chat-usage` shows the Chat header chip (`chat-usage`): loading (`…`), then `No key saved` (stub / needs_key), `Unlimited`, `<used> used · <left> left`, or `Usage unavailable`.
 - `chat-context` shows the Chat header context chip (`chat-context`): a ring plus a short label (`<N> left` or `<N> used`). Click opens `chat-context-breakdown` with Conversation, Attachments, Knowledge (Soul / Memories / Sources, including RAG `N chunks · rag` or `fts` when retrieve ran), and Free. The `used / window` (empty: `0 / window`) line lives **inside the breakdown**, not on the closed chip.
 - `chat-enhance` rewrites the composer draft via `composer-enhance` (`POST /api/v1/prompts/enhance`). Stub rewrites locally. `composer-enhance-revert` / `aria-pressed` restores the pre-enhance text. A second sparkle after an edit treats the box as a new seed. Cancel aborts and does not replace the box.
-- `chat-thinking` shows `thinking-toggle` next to the model picker. On by default. Off skips reasoning events. Reasoning models also carry a `model-thinking-badge` in the picker.
+- `chat-thinking` shows `reasoning-effort` next to the model picker (`None` / `Low` / `Med` / `High` / `Ultra`). Default `Med`. `None` skips reasoning events. Reasoning models also carry a `model-thinking-badge` in the picker.
 - `chat-send` puts the user prompt in the transcript and returns the send button to `Send`.
 - `chat-new` starts a blank session from `new-chat` without losing the previous thread in the list.
 - `chat-switch` reopens the first thread from `thread-list`.
@@ -32,7 +32,7 @@ Preconditions:
 - Unique prompt text, e.g. `VERIFY chat <run-id>: What is 2 + 3?`.
 - `runtime: "stub"` for a stub-proof send. If doctor says `ai`, say so and treat the reply as live.
 
-- **Open Chat.** Go to `/chat`. `model-picker`, `composer`, `composer-toolbar`, `thinking-toggle`, and `chat-empty` are visible. `chat-empty` headline is `You're in. Ask anything.` `mode-chat` plus the other work modes are visible. `mode-agents` count is 0.
+- **Open Chat.** Go to `/chat`. `model-picker`, `composer`, `composer-toolbar`, `reasoning-effort`, and `chat-empty` are visible. `chat-empty` headline is `You're in. Ask anything.` `mode-chat` plus the other work modes are visible. `mode-agents` count is 0.
 - **Usage chip.** `chat-usage` is visible in the Chat header (next to `new-chat`). On stub / no key, it settles on `No key saved`.
 - **Context chip.** `chat-context` is visible in the Chat header. Closed chip text includes `left` or `used` (not `0 / window`). Click it: `chat-context-breakdown` shows Conversation / Attachments / Knowledge / Free, and the `used / window` line (empty thread: `0 / <window>`). After messages exist, used tokens are greater than 0.
 - **Enhance.** Fill `composer-text`. Click `composer-enhance`. The box is rewritten (stub: same language, no “Enhanced prompt:” preface). Click again (`composer-enhance-revert` or `aria-pressed`) to restore. Send stays disabled while enhance is busy.
