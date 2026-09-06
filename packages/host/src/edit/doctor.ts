@@ -1,4 +1,5 @@
 import { resolveFfmpeg } from "./ffmpeg-binary";
+import { resolveAsrCapability } from "./asr";
 
 export type EditDoctorAsr = {
   available: boolean;
@@ -17,14 +18,6 @@ export type EditDoctorReport = {
   fonts: string[];
 };
 
-function resolveAsr(): EditDoctorAsr {
-  const model = process.env.AGENTFORGE_EDIT_ASR_MODEL?.trim();
-  if (!model) {
-    return { available: false, backend: null, model: null };
-  }
-  return { available: true, backend: "gateway", model };
-}
-
 export function getEditDoctor(): EditDoctorReport {
   const ffmpeg = resolveFfmpeg();
   return {
@@ -34,7 +27,7 @@ export function getEditDoctor(): EditDoctorReport {
       version: ffmpeg.version,
       ...(ffmpeg.reason ? { reason: ffmpeg.reason } : {}),
     },
-    asr: resolveAsr(),
+    asr: resolveAsrCapability(),
     fonts: [],
   };
 }

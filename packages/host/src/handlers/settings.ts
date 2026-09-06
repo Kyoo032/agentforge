@@ -44,6 +44,17 @@ function readOptionalBoolean(value: unknown): boolean | undefined {
   return typeof value === "boolean" ? value : undefined;
 }
 
+function readOptionalNumber(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+}
+
 async function settingsPayload(settings: ReturnType<typeof loadSettings>, tenant: Awaited<ReturnType<typeof getTenant>>) {
   return {
     ...maskSecrets(settings),
@@ -98,6 +109,7 @@ export async function handlePostSettings(request: HostRequest): Promise<HostResu
       presentationGenModel: readOptionalString(body.presentationGenModel),
       disabledTools: readStringArray(body.disabledTools),
       injectionGuardBypass: readOptionalBoolean(body.injectionGuardBypass),
+      editTurnCapUsd: readOptionalNumber(body.editTurnCapUsd),
     };
     const saved = saveSettings(patch);
     clearThisKeyCache();

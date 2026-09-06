@@ -74,7 +74,7 @@ function parseMultipart(buffer: Buffer, boundary: string): { body?: unknown; fil
   const rawBoundary = `--${boundary}`;
   const parts = buffer.toString("latin1").split(rawBoundary);
   for (const part of parts) {
-    if (part === "--" || part === "--\r\n" || !part.includes("Content-Disposition")) {
+    if (part === "--" || part === "--\r\n" || !part.toLowerCase().includes("content-disposition")) {
       continue;
     }
     const splitAt = part.indexOf("\r\n\r\n");
@@ -172,6 +172,7 @@ export async function handleNodeRequest(req: IncomingMessage, res: ServerRespons
       origin: header(req, "origin"),
       referer: header(req, "referer"),
       "content-type": header(req, "content-type"),
+      "x-agentforge-transport": "http",
     },
     body,
     files,

@@ -216,7 +216,7 @@ function registerIpc(host) {
       path: payload.path,
       query: payload.query ?? {},
       params: {},
-      headers: {},
+      headers: { "x-agentforge-transport": "ipc" },
       body: payload.body,
       files,
       workspaceId: host.readSelectedWorkspaceId() ?? null,
@@ -260,6 +260,18 @@ function registerIpc(host) {
     fs.writeFileSync(save.filePath, Buffer.from(payload.bytes));
     return { ok: true };
   });
+  ipcMain.handle("agentforge:pick-media", async () => {
+    const picked = await dialog.showOpenDialog({
+      properties: ["openFile", "multiSelections"],
+      filters: [
+        { name: "Media", extensions: ["mp4", "webm", "mov", "png", "jpg", "jpeg", "webp", "gif", "mp3", "wav", "aac", "m4a"] },
+      ],
+    });
+    if (picked.canceled) {
+      return [];
+    }
+    return picked.filePaths ?? [];
+  });
 }
 
 function registerMediaProtocol(host) {
@@ -272,7 +284,7 @@ function registerMediaProtocol(host) {
         path: `/api/v1/media/${mediaId}/file`,
         query: {},
         params: {},
-        headers: {},
+        headers: { "x-agentforge-transport": "ipc" },
         workspaceId: host.readSelectedWorkspaceId() ?? null,
       });
       if (result.type === "bytes") {

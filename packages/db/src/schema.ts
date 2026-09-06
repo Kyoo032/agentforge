@@ -1,4 +1,4 @@
-import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 function uuidPk(name = "id") {
   return text(name)
@@ -323,4 +323,132 @@ export const media = sqliteTable(
     createdAt: createdAt(),
   },
   (table) => [index("media_org_idx").on(table.organizationId)],
+);
+
+export const editProjects = sqliteTable(
+  "edit_projects",
+  {
+    id: uuidPk(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    fps: integer("fps").notNull(),
+    width: integer("width").notNull(),
+    height: integer("height").notNull(),
+    seq: integer("seq").notNull().default(0),
+    reviewJson: text("review_json", { mode: "json" })
+      .$type<{ lastAgentSeq: number; ackSeq: number }>()
+      .notNull(),
+    createdAt: createdAt(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
+  },
+  (table) => [index("edit_projects_org_ws_idx").on(table.organizationId, table.workspaceId)],
+);
+
+export const editOps = sqliteTable(
+  "edit_ops",
+  {
+    id: uuidPk(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => editProjects.id, { onDelete: "cascade" }),
+    seq: integer("seq").notNull(),
+    parent: text("parent"),
+    clock: integer("clock").notNull(),
+    actor: text("actor").notNull(),
+    type: text("type").notNull(),
+    payloadJson: text("payload_json", { mode: "json" }).$type<unknown>().notNull(),
+    inverseJson: text("inverse_json", { mode: "json" }).$type<unknown>(),
+    cardId: text("card_id"),
+    undoOf: text("undo_of"),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("edit_ops_project_seq").on(table.projectId, table.seq),
+  ],
+);
+
+export const editSnapshots = sqliteTable(
+  "edit_snapshots",
+  {
+    id: uuidPk(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => editProjects.id, { onDelete: "cascade" }),
+    upToSeq: integer("up_to_seq").notNull(),
+    docJson: text("doc_json", { mode: "json" }).$type<unknown>().notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [index("edit_snapshots_project_seq_idx").on(table.projectId, table.upToSeq)],
+);
+
+export const editJobs = sqliteTable(
+  "edit_jobs",
+  {
+    id: uuidPk(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => editProjects.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    status: text("status").notNull(),
+    targetClipIdsJson: text("target_clip_ids_json", { mode: "json" }).$type<string[]>().notNull(),
+    cardId: text("card_id"),
+    requestJson: text("request_json", { mode: "json" }).$type<unknown>().notNull(),
+    model: text("model"),
+    tier: text("tier"),
+    estimateUsd: real("estimate_usd"),
+    actualUsd: real("actual_usd"),
+    progress: real("progress").notNull().default(0),
+    outputAssetIdsJson: text("output_asset_ids_json", { mode: "json" }).$type<string[]>(),
+    error: text("error"),
+    createdAt: createdAt(),
+    startedAt: integer("started_at", { mode: "timestamp_ms" }),
+    finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
+    cancelRequestedAt: integer("cancel_requested_at", { mode: "timestamp_ms" }),
+  },
+  (table) => [index("edit_jobs_project_status_idx").on(table.projectId, table.status)],
+);
+
+export const editCards = sqliteTable(
+  "edit_cards",
+  {
+    id: uuidPk(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => editProjects.id, { onDelete: "cascade" }),
+    runId: text("run_id").notNull(),
+    toolKey: text("tool_key").notNull(),
+    verb: text("verb").notNull(),
+    object: text("object").notNull(),
+    opIdsJson: text("op_ids_json", { mode: "json" }).$type<string[]>().notNull(),
+    jobId: text("job_id"),
+    status: text("status").notNull(),
+    thumbsJson: text("thumbs_json", { mode: "json" }).$type<string[]>().notNull(),
+    estimateUsd: real("estimate_usd"),
+    tier: text("tier"),
+    createdAt: createdAt(),
+    decidedAt: integer("decided_at", { mode: "timestamp_ms" }),
+  },
+  (table) => [index("edit_cards_project_status_idx").on(table.projectId, table.status)],
+);
+
+export const editUnplaced = sqliteTable(
+  "edit_unplaced",
+  {
+    id: uuidPk(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => editProjects.id, { onDelete: "cascade" }),
+    jobId: text("job_id").notNull(),
+    assetId: text("asset_id").notNull(),
+    prompt: text("prompt"),
+    createdAt: createdAt(),
+    placedClipId: text("placed_clip_id"),
+    discardedAt: integer("discarded_at", { mode: "timestamp_ms" }),
+  },
+  (table) => [index("edit_unplaced_project_idx").on(table.projectId)],
 );

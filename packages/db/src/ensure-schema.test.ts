@@ -41,6 +41,12 @@ describe("ensureSchema", () => {
         "knowledge_settings",
         "knowledge_vectors",
         "knowledge_maps",
+        "edit_projects",
+        "edit_ops",
+        "edit_snapshots",
+        "edit_jobs",
+        "edit_cards",
+        "edit_unplaced",
       ]),
     );
     assertKernelTables(sqlite);

@@ -20,7 +20,26 @@ const REQUIRED_TABLES = [
   "runs",
   "tool_invocations",
   "media",
+  "edit_projects",
+  "edit_ops",
+  "edit_snapshots",
+  "edit_jobs",
+  "edit_cards",
+  "edit_unplaced",
 ] as const;
+
+const EDIT_TABLES = [
+  "edit_projects",
+  "edit_ops",
+  "edit_snapshots",
+  "edit_jobs",
+  "edit_cards",
+  "edit_unplaced",
+] as const;
+
+function missingOnlyEditTables(missing: string[]): boolean {
+  return missing.length > 0 && missing.every((name) => (EDIT_TABLES as readonly string[]).includes(name));
+}
 
 type JournalEntry = {
   idx: number;
@@ -185,7 +204,7 @@ export function ensureSchema(sqlite: Database.Database): void {
   const migrations = readMigrations(folder);
   const { present, missing } = countKernelTables(sqlite);
 
-  if (present.length > 0 && missing.length > 0) {
+  if (present.length > 0 && missing.length > 0 && !missingOnlyEditTables(missing)) {
     throw new Error(
       `SQLite schema is partially initialized (${present.length}/${REQUIRED_TABLES.length} kernel tables). ` +
         `Missing: ${missing.join(", ")}. Refusing to migrate or baseline-stamp.`,
@@ -196,7 +215,7 @@ export function ensureSchema(sqlite: Database.Database): void {
   // migrations are not topologically ordered. Apply DDL with FKs off, then re-enable.
   sqlite.pragma("foreign_keys = OFF");
 
-  if (present.length === REQUIRED_TABLES.length) {
+  if (present.length === REQUIRED_TABLES.length || missingOnlyEditTables(missing)) {
     if (migrationRowCount(sqlite) === 0) {
       const stamp = sqlite.transaction(() => {
         stampMigrations(sqlite, migrations);
@@ -214,6 +233,7 @@ export function ensureSchema(sqlite: Database.Database): void {
 
   sqlite.pragma("foreign_keys = ON");
   ensureKnowledgeTables(sqlite);
+  ensureEditTables(sqlite);
   ensureWorkspaceColumns(sqlite);
   assertKernelTables(sqlite);
 }
@@ -229,6 +249,104 @@ function ensureWorkspaceColumns(sqlite: Database.Database): void {
   if (!have.has("product_modes")) {
     sqlite.exec("ALTER TABLE `workspaces` ADD `product_modes` text");
   }
+}
+
+function ensureEditTables(sqlite: Database.Database): void {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS edit_projects (
+      id text PRIMARY KEY NOT NULL,
+      organization_id text NOT NULL,
+      workspace_id text NOT NULL,
+      name text NOT NULL,
+      fps integer NOT NULL,
+      width integer NOT NULL,
+      height integer NOT NULL,
+      seq integer DEFAULT 0 NOT NULL,
+      review_json text NOT NULL,
+      created_at integer NOT NULL,
+      updated_at integer NOT NULL,
+      FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE cascade,
+      FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE cascade
+    );
+    CREATE INDEX IF NOT EXISTS edit_projects_org_ws_idx ON edit_projects (organization_id, workspace_id);
+    CREATE TABLE IF NOT EXISTS edit_ops (
+      id text PRIMARY KEY NOT NULL,
+      project_id text NOT NULL,
+      seq integer NOT NULL,
+      parent text,
+      clock integer NOT NULL,
+      actor text NOT NULL,
+      type text NOT NULL,
+      payload_json text NOT NULL,
+      inverse_json text,
+      card_id text,
+      undo_of text,
+      created_at integer NOT NULL,
+      FOREIGN KEY (project_id) REFERENCES edit_projects(id) ON DELETE cascade
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS edit_ops_project_seq ON edit_ops (project_id, seq);
+    CREATE TABLE IF NOT EXISTS edit_snapshots (
+      id text PRIMARY KEY NOT NULL,
+      project_id text NOT NULL,
+      up_to_seq integer NOT NULL,
+      doc_json text NOT NULL,
+      created_at integer NOT NULL,
+      FOREIGN KEY (project_id) REFERENCES edit_projects(id) ON DELETE cascade
+    );
+    CREATE INDEX IF NOT EXISTS edit_snapshots_project_seq_idx ON edit_snapshots (project_id, up_to_seq);
+    CREATE TABLE IF NOT EXISTS edit_jobs (
+      id text PRIMARY KEY NOT NULL,
+      project_id text NOT NULL,
+      kind text NOT NULL,
+      status text NOT NULL,
+      target_clip_ids_json text NOT NULL,
+      card_id text,
+      request_json text NOT NULL,
+      model text,
+      tier text,
+      estimate_usd real,
+      actual_usd real,
+      progress real DEFAULT 0 NOT NULL,
+      output_asset_ids_json text,
+      error text,
+      created_at integer NOT NULL,
+      started_at integer,
+      finished_at integer,
+      cancel_requested_at integer,
+      FOREIGN KEY (project_id) REFERENCES edit_projects(id) ON DELETE cascade
+    );
+    CREATE INDEX IF NOT EXISTS edit_jobs_project_status_idx ON edit_jobs (project_id, status);
+    CREATE TABLE IF NOT EXISTS edit_cards (
+      id text PRIMARY KEY NOT NULL,
+      project_id text NOT NULL,
+      run_id text NOT NULL,
+      tool_key text NOT NULL,
+      verb text NOT NULL,
+      object text NOT NULL,
+      op_ids_json text NOT NULL,
+      job_id text,
+      status text NOT NULL,
+      thumbs_json text NOT NULL,
+      estimate_usd real,
+      tier text,
+      created_at integer NOT NULL,
+      decided_at integer,
+      FOREIGN KEY (project_id) REFERENCES edit_projects(id) ON DELETE cascade
+    );
+    CREATE INDEX IF NOT EXISTS edit_cards_project_status_idx ON edit_cards (project_id, status);
+    CREATE TABLE IF NOT EXISTS edit_unplaced (
+      id text PRIMARY KEY NOT NULL,
+      project_id text NOT NULL,
+      job_id text NOT NULL,
+      asset_id text NOT NULL,
+      prompt text,
+      created_at integer NOT NULL,
+      placed_clip_id text,
+      discarded_at integer,
+      FOREIGN KEY (project_id) REFERENCES edit_projects(id) ON DELETE cascade
+    );
+    CREATE INDEX IF NOT EXISTS edit_unplaced_project_idx ON edit_unplaced (project_id);
+  `);
 }
 
 function ensureKnowledgeTables(sqlite: Database.Database): void {

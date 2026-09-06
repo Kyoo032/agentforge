@@ -27,6 +27,8 @@ export type StoredSecrets = {
   disabledTools?: string[];
   /** Advanced-only: skip injection scans. Thinning still runs. Default absent = protected. */
   injectionGuardBypass?: boolean;
+  /** Per-turn Edit spend cap in USD. Host defaults to 2 when absent. */
+  editTurnCapUsd?: number;
 };
 
 export type SecretPatch = StoredSecrets;
@@ -54,6 +56,7 @@ export type MaskedSecrets = {
   presentationGenModel?: string;
   disabledTools: string[];
   injectionGuardBypass: boolean;
+  editTurnCapUsd?: number;
 };
 
 const KEY_FIELDS = ["openaiApiKey", "googleApiKey", "anthropicApiKey", "volcengineApiKey"] as const;
@@ -154,6 +157,17 @@ export function mergeSecrets(current: StoredSecrets, patch: SecretPatch): Stored
       delete next.injectionGuardBypass;
     }
   }
+  if (patch.editTurnCapUsd !== undefined) {
+    const raw =
+      typeof patch.editTurnCapUsd === "number"
+        ? patch.editTurnCapUsd
+        : typeof patch.editTurnCapUsd === "string"
+          ? Number(patch.editTurnCapUsd)
+          : Number.NaN;
+    if (Number.isFinite(raw)) {
+      next.editTurnCapUsd = Math.min(50, Math.max(0.5, raw));
+    }
+  }
   return next;
 }
 
@@ -180,6 +194,7 @@ export function maskSecrets(current: StoredSecrets): MaskedSecrets {
     presentationGenModel: current.presentationGenModel,
     disabledTools: current.disabledTools ?? [],
     injectionGuardBypass: current.injectionGuardBypass === true,
+    editTurnCapUsd: current.editTurnCapUsd,
   };
 }
 

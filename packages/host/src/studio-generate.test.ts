@@ -70,6 +70,21 @@ describe("parseVideoGenerateBody", () => {
     });
   });
 
+  it("rejects a still for t2v-only models (G-20)", () => {
+    try {
+      parseVideoGenerateBody({
+        prompt: "animate",
+        imageUrl: "https://cdn.example/still.png",
+        model: "omni-fast-v2v",
+      });
+      throw new Error("expected throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApiError);
+      expect((error as ApiError).code).toBe("video_still_unsupported");
+      expect((error as ApiError).status).toBe(400);
+    }
+  });
+
   it("rejects square aspect used by images", () => {
     expect(() => parseVideoGenerateBody({ prompt: "x", aspect: "square" })).toThrow(ApiError);
   });

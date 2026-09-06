@@ -44,6 +44,7 @@ type DesktopBridge = {
   stream: (requestId: string, onChunk: (chunk: string) => void) => Promise<void>;
   abortStream?: (requestId: string) => void;
   saveBytes?: (filename: string, bytes: number[]) => Promise<void>;
+  pickMedia?: () => Promise<string[]>;
   updates?: DesktopUpdatesApi;
 };
 
@@ -104,4 +105,12 @@ export async function saveDesktopBytes(filename: string, bytes: number[]): Promi
     return;
   }
   await save(filename, bytes);
+}
+
+export async function pickMedia(): Promise<string[]> {
+  const pick = desktopBridge()?.pickMedia;
+  if (!pick) {
+    return [];
+  }
+  return pick();
 }
