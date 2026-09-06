@@ -126,8 +126,22 @@ export {
   normalizeVideoResolution,
   GATEWAY_VIDEO_DURATION_SECONDS,
   GATEWAY_VIDEO_RESOLUTION,
+  imageToVideoForModel,
 } from "./models/video-capabilities";
 export type { VideoCapabilities, GatewayVideoResolution } from "./models/video-capabilities";
+export {
+  emptyProject,
+  projectSchema,
+  titleStyleSchema,
+  applyOp,
+  computeInverse,
+  assertAgentOpHasCard,
+  foldOps,
+  validateDoc,
+  routeEditModel,
+  estimateJobUsd,
+} from "./edit";
+export { registerEditTools, setEditToolBackend, getEditToolBackend } from "./tools/edit";
 export {
   CHAT_MODELS,
   listChatModels,

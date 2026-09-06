@@ -147,12 +147,14 @@ describe("parse helpers", () => {
       resolution: true,
       seconds: true,
       still: true,
+      imageToVideo: true,
     });
     expect(videoCapabilities("grok-imagine-video")).toEqual({
       ratio: false,
       resolution: false,
       seconds: true,
       still: true,
+      imageToVideo: true,
     });
   });
 
