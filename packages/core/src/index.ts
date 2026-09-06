@@ -140,8 +140,18 @@ export {
   validateDoc,
   routeEditModel,
   estimateJobUsd,
+  framesToSeconds,
+  secondsToFrames,
+  buildAssDocument,
+  layoutTitle,
+  parseOpPayload,
+  OP_TYPES,
+  ASPECT_SIZE,
 } from "./edit";
-export { registerEditTools, setEditToolBackend, getEditToolBackend } from "./tools/edit";
+export type { EditProject, Asset, Clip, ApplyableOp, EditOp, AspectRatio, OpType } from "./edit";
+export { registerEditTools, setEditToolBackend, getEditToolBackend, editToolRefusal } from "./tools/edit";
+export type { EditToolBackend, EditToolRefusal, EditJobKind, EditStartJobInput, EditPlanInput } from "./tools/edit";
+export { matchStubEditScenario, STUB_EDIT_SCENARIOS } from "./runtime/stub-edit-scenarios";
 export {
   CHAT_MODELS,
   listChatModels,

@@ -21,6 +21,7 @@ test("chat and workspaces work without an account", async ({ page }) => {
   await expect(page.getByTestId("mode-data")).toBeVisible();
   await expect(page.getByTestId("mode-images")).toBeVisible();
   await expect(page.getByTestId("mode-videos")).toBeVisible();
+  await expect(page.getByTestId("mode-edit")).toBeVisible();
   await expect(page.getByTestId("mode-presentations")).toBeVisible();
   await expect(page.getByTestId("mode-knowledge")).toBeVisible();
   await expect(page.getByTestId("mode-agents")).toHaveCount(0);
@@ -122,6 +123,7 @@ test("chat and workspaces work without an account", async ({ page }) => {
   await expect(page.getByTestId("mode-presentations")).toBeVisible();
   await expect(page.getByTestId("mode-images")).toHaveCount(0);
   await expect(page.getByTestId("mode-videos")).toHaveCount(0);
+  await expect(page.getByTestId("mode-edit")).toHaveCount(0);
   await expect(page.getByTestId("mode-finance")).toHaveCount(0);
   await expect(page.getByTestId("mode-data")).toHaveCount(0);
   await expect(page.getByTestId("mode-knowledge")).toBeVisible();

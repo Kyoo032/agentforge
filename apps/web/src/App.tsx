@@ -119,6 +119,7 @@ export function App() {
           <Route path="/data" element={null} />
           <Route path="/images" element={null} />
           <Route path="/videos" element={null} />
+          <Route path="/edit" element={null} />
           <Route path="/presentations" element={null} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/usage" element={<UsagePage />} />

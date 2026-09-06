@@ -52,6 +52,7 @@ export function SettingsPage() {
   const [documentGenModel, setDocumentGenModel] = useState("");
   const [researchGenModel, setResearchGenModel] = useState("");
   const [presentationGenModel, setPresentationGenModel] = useState("");
+  const [editTurnCapUsd, setEditTurnCapUsd] = useState(2);
   const [probe, setProbe] = useState<Probe | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -76,6 +77,7 @@ export function SettingsPage() {
     documentGenModel?: string;
     researchGenModel?: string;
     presentationGenModel?: string;
+    editTurnCapUsd?: number;
     disabledTools?: string[];
     injectionGuardBypass?: boolean;
     defaults?: {
@@ -129,6 +131,11 @@ export function SettingsPage() {
         ? payload.presentationGenModel.trim()
         : payload.defaults?.presentations || "",
     );
+    setEditTurnCapUsd(
+      typeof payload.editTurnCapUsd === "number" && Number.isFinite(payload.editTurnCapUsd)
+        ? Math.min(50, Math.max(0.5, payload.editTurnCapUsd))
+        : 2,
+    );
     if (payload.probe) {
       setProbe(payload.probe);
     }
@@ -153,6 +160,7 @@ export function SettingsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         openaiApiKey,
+        editTurnCapUsd,
       }),
     }).then((res) => res.json());
     setBusy(false);
@@ -177,7 +185,7 @@ export function SettingsPage() {
       <h1 className="mt-2 font-heading text-[25px] font-semibold">Settings</h1>
       <p className="mt-2 text-[13px] text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">
         Paste your {gatewayName} API key from {gatewayHostLabel(openaiBaseUrl || gatewayBaseUrl)} to use chat,
-        documents, research, images, videos, and presentation on this machine.
+        documents, research, images, videos, presentation, and edit on this machine.
       </p>
 
       <p className="mt-3 text-sm text-ink/50" data-testid="runtime-status">
@@ -206,6 +214,25 @@ export function SettingsPage() {
               value={openaiApiKey}
               onChange={(event) => setOpenaiApiKey(event.target.value)}
               data-testid="openai-key"
+            />
+          </label>
+          <label className="block text-sm text-ink">
+            Edit turn spend cap (USD)
+            <input
+              className={fieldClass}
+              type="number"
+              min={0.5}
+              max={50}
+              step={0.5}
+              value={editTurnCapUsd}
+              onChange={(event) => {
+                const next = Number(event.target.value);
+                if (!Number.isFinite(next)) {
+                  return;
+                }
+                setEditTurnCapUsd(Math.min(50, Math.max(0.5, next)));
+              }}
+              data-testid="settings-edit-turn-cap"
             />
           </label>
           {hasOpenai && openaiKeyFingerprint ? (

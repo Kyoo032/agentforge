@@ -28,6 +28,7 @@ type IconName =
   | "data"
   | "images"
   | "videos"
+  | "edit"
   | "presentations"
   | "knowledge"
   | "workspaces"
@@ -74,6 +75,14 @@ const RAIL_ICON_PATHS: Record<IconName, ReactNode> = {
     <>
       <path d="m22 8-6 4 6 4V8Z" />
       <rect x="2" y="6" width="14" height="12" />
+    </>
+  ),
+  edit: (
+    <>
+      <circle cx="6" cy="6" r="3" />
+      <circle cx="6" cy="18" r="3" />
+      <path d="m8.5 7.5 12 9" />
+      <path d="m8.5 16.5 12-9" />
     </>
   ),
   presentations: (
@@ -221,9 +230,9 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
             <Link href={homeHref} className="block truncate font-heading text-[15px] font-semibold tracking-tight" data-testid="product-brand">
               {productName}
             </Link>
-            <p className="mt-0.5 truncate text-[11px] text-[color-mix(in_srgb,var(--color-text)_50%,transparent)]">
-              {workspaceName}
-            </p>
+            <div className="mt-0.5 -mx-1 text-[11px] text-[color-mix(in_srgb,var(--color-text)_50%,transparent)] [&_button]:py-0.5 [&_button]:text-[11px]">
+              <WorkspaceSwitcher workspaceName={workspaceName} />
+            </div>
           </div>
         )}
       </div>

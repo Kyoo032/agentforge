@@ -87,6 +87,15 @@ export function VideosStudio() {
     void load();
   }, [load]);
 
+  const caps = videoCapabilities(model);
+  const imageToVideo = caps.imageToVideo;
+
+  useEffect(() => {
+    if (!imageToVideo) {
+      setStillUrl("");
+    }
+  }, [imageToVideo]);
+
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     if (!prompt.trim() || generating) {
@@ -102,7 +111,7 @@ export function VideosStudio() {
           prompt: prompt.trim(),
           aspect,
           model: model || undefined,
-          imageUrl: stillUrl.trim() || undefined,
+          imageUrl: imageToVideo ? stillUrl.trim() || undefined : undefined,
           seconds,
           ...(videoCapabilities(model).resolution ? { resolution } : {}),
         }),
@@ -123,8 +132,6 @@ export function VideosStudio() {
       setGenerating(false);
     }
   }
-
-  const caps = videoCapabilities(model);
 
   return (
     <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-10 text-ink" data-testid="videos-studio">
@@ -210,15 +217,19 @@ export function VideosStudio() {
             className="min-w-[12rem] flex-1 rounded-md border border-mist bg-paper px-3 py-2 text-sm text-ink"
           />
         </div>
-        <input
-          type="url"
-          className="w-full rounded-md border border-mist bg-transparent px-3 py-2 text-sm text-ink outline-none placeholder:text-ink/40"
-          placeholder="Optional still image URL…"
-          value={stillUrl}
-          onChange={(event) => setStillUrl(event.target.value)}
-          disabled={generating}
-          data-testid="videos-studio-still"
-        />
+        {imageToVideo ? (
+          <input
+            type="url"
+            className="w-full rounded-md border border-mist bg-transparent px-3 py-2 text-sm text-ink outline-none placeholder:text-ink/40"
+            placeholder="Optional still image URL…"
+            value={stillUrl}
+            onChange={(event) => setStillUrl(event.target.value)}
+            disabled={generating}
+            data-testid="videos-studio-still"
+          />
+        ) : model ? (
+          <p className="text-xs text-ink/50">This model is text-to-video only</p>
+        ) : null}
         <div className="flex gap-2">
           <EnhancePromptButton text={prompt} surface="videos" model={model} disabled={generating} testId="videos-enhance" onApply={setPrompt} />
           <input

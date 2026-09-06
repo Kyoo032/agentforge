@@ -7,6 +7,7 @@ import { FinanceStudio } from "@/components/finance-studio";
 import { DataStudio } from "@/components/data-studio";
 import { ImagesStudio } from "@/components/images-studio";
 import { VideosStudio } from "@/components/videos-studio";
+import { EditStudio } from "@/components/edit-studio";
 import { PresentationsStudio } from "@/components/presentations-studio";
 
 const WORK_MODE_COMPONENTS: Record<string, ComponentType> = {
@@ -17,6 +18,7 @@ const WORK_MODE_COMPONENTS: Record<string, ComponentType> = {
   "/data": DataStudio,
   "/images": ImagesStudio,
   "/videos": VideosStudio,
+  "/edit": EditStudio,
   "/presentations": PresentationsStudio,
 };
 
