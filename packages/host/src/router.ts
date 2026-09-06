@@ -1,31 +1,4 @@
-import type { HostHandler, HostRequest, HostResult } from "./types";
 import { jsonOk } from "./errors";
-import { handleGetSettings, handlePostSettings } from "./handlers/settings";
-import { handleGetUsage } from "./handlers/usage";
-import { handleGetChat } from "./handlers/chat";
-import {
-  handleGetWorkspaces,
-  handlePatchWorkspace,
-  handlePostWorkspaces,
-  handleSelectWorkspace,
-} from "./handlers/workspaces";
-import { handleDeleteThread, handleGetThread, handleGetThreads, handlePostThreads } from "./handlers/threads";
-import { handleRun } from "./handlers/runs";
-import { handleGetModels, handlePostModels } from "./handlers/models";
-import { handleGetMediaFile, handlePostMedia } from "./handlers/media";
-import {
-  handleGetImages,
-  handleGetVideos,
-  handlePostDocuments,
-  handlePostDocumentsDocx,
-  handlePostDocumentsRegen,
-  handlePostImages,
-  handlePostPresentations,
-  handlePostPresentationsPptx,
-  handlePostPresentationsRegen,
-  handlePostResearch,
-  handlePostVideos,
-} from "./handlers/jobs";
 import {
   handleGetAgent,
   handleGetAgentCapabilities,
@@ -39,8 +12,23 @@ import {
   handlePostAgentTools,
   handlePostWorkspaceAgents,
 } from "./handlers/agents";
-import { handleGetContext, handleGetOrganizations, handleGetTemplates, handleGetTools, handlePing } from "./handlers/misc";
+import { handleGetChat } from "./handlers/chat";
+import { handleGetEditDoctor } from "./handlers/edit";
 import { handlePostEnhancePrompt } from "./handlers/enhance-prompt";
+import {
+  handleGetImages,
+  handleGetVideos,
+  handlePostData,
+  handlePostDocuments,
+  handlePostDocumentsDocx,
+  handlePostDocumentsRegen,
+  handlePostImages,
+  handlePostPresentations,
+  handlePostPresentationsPptx,
+  handlePostPresentationsRegen,
+  handlePostResearch,
+  handlePostVideos,
+} from "./handlers/jobs";
 import {
   handleDeleteKnowledgeMemory,
   handleDeleteKnowledgeSource,
@@ -53,7 +41,26 @@ import {
   handlePutKnowledgeModels,
   handlePutKnowledgeSoul,
 } from "./handlers/knowledge";
-import { handlePostData } from "./handlers/jobs";
+import { handleGetMediaFile, handlePostMedia } from "./handlers/media";
+import {
+  handleGetContext,
+  handleGetOrganizations,
+  handleGetTemplates,
+  handleGetTools,
+  handlePing,
+} from "./handlers/misc";
+import { handleGetModels, handlePostModels } from "./handlers/models";
+import { handleRun } from "./handlers/runs";
+import { handleGetSettings, handlePostSettings } from "./handlers/settings";
+import { handleDeleteThread, handleGetThread, handleGetThreads, handlePostThreads } from "./handlers/threads";
+import { handleGetUsage } from "./handlers/usage";
+import {
+  handleGetWorkspaces,
+  handlePatchWorkspace,
+  handlePostWorkspaces,
+  handleSelectWorkspace,
+} from "./handlers/workspaces";
+import type { HostHandler, HostRequest, HostResult } from "./types";
 
 type Route = {
   method: string;
@@ -73,6 +80,7 @@ function compile(method: string, path: string, handler: HostHandler): Route {
 
 const routes: Route[] = [
   compile("GET", "/api/v1/ping", () => handlePing()),
+  compile("GET", "/api/v1/edit/doctor", () => handleGetEditDoctor()),
   compile("GET", "/api/v1/settings", handleGetSettings),
   compile("POST", "/api/v1/settings", handlePostSettings),
   compile("GET", "/api/v1/usage", handleGetUsage),
