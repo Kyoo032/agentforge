@@ -4,18 +4,11 @@ import { firstVisibleHref, resolveWorkspaceModes, WORK_PRODUCT_MODES, type Produ
 import { AppShell } from "@/components/app-shell";
 import { apiFetch } from "@/lib/api-client";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { ChatPage } from "@/src/pages/chat-page";
 import { SettingsPage } from "@/components/settings-page";
 import { UsagePage } from "@/components/usage-page";
 import { WorkspacesPage } from "@/components/workspaces-page";
-import { DocumentsStudio } from "@/components/documents-studio";
-import { ResearchStudio } from "@/components/research-studio";
-import { FinanceStudio } from "@/components/finance-studio";
-import { DataStudio } from "@/components/data-studio";
-import { ImagesStudio } from "@/components/images-studio";
-import { VideosStudio } from "@/components/videos-studio";
-import { PresentationsStudio } from "@/components/presentations-studio";
 import { KnowledgePage } from "@/components/knowledge-page";
+import { WorkModeKeepAlive } from "@/components/work-mode-keep-alive";
 import { OnboardingScreen } from "@/components/onboarding-screen";
 import { isElectron } from "@/lib/api-client";
 import { useProductBrand } from "@/lib/product-brand";
@@ -114,25 +107,29 @@ export function App() {
 
   return (
     <Shell>
-      <Routes>
-        <Route path="/" element={<HomeRedirect />} />
-        <Route path="/chat" element={<ChatPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/usage" element={<UsagePage />} />
-        <Route path="/workspaces" element={<WorkspacesPage />} />
-        <Route path="/documents" element={<DocumentsStudio />} />
-        <Route path="/research" element={<ResearchStudio />} />
-        <Route path="/finance" element={<FinanceStudio />} />
-        <Route path="/data" element={<DataStudio />} />
-        <Route path="/images" element={<ImagesStudio />} />
-        <Route path="/videos" element={<VideosStudio />} />
-        <Route path="/presentations" element={<PresentationsStudio />} />
-        <Route path="/knowledge" element={<KnowledgePage />} />
-        <Route path="/studio/*" element={<Navigate to="/chat" replace />} />
-        <Route path="/agents/*" element={<Navigate to="/chat" replace />} />
-        <Route path="/workspace" element={<Navigate to="/chat" replace />} />
-        <Route path="*" element={<Navigate to="/chat" replace />} />
-      </Routes>
+      <div className="relative h-full min-h-0 overflow-y-auto">
+        <WorkModeKeepAlive />
+        <Routes>
+          <Route path="/" element={<HomeRedirect />} />
+          {/* Work modes render via WorkModeKeepAlive — null here avoids double-mount. */}
+          <Route path="/chat" element={null} />
+          <Route path="/documents" element={null} />
+          <Route path="/research" element={null} />
+          <Route path="/finance" element={null} />
+          <Route path="/data" element={null} />
+          <Route path="/images" element={null} />
+          <Route path="/videos" element={null} />
+          <Route path="/presentations" element={null} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/usage" element={<UsagePage />} />
+          <Route path="/workspaces" element={<WorkspacesPage />} />
+          <Route path="/knowledge" element={<KnowledgePage />} />
+          <Route path="/studio/*" element={<Navigate to="/chat" replace />} />
+          <Route path="/agents/*" element={<Navigate to="/chat" replace />} />
+          <Route path="/workspace" element={<Navigate to="/chat" replace />} />
+          <Route path="*" element={<Navigate to="/chat" replace />} />
+        </Routes>
+      </div>
     </Shell>
   );
 }

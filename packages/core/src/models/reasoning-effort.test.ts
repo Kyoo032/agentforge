@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ApiError } from "../errors";
 import {
   applyReasoningEffortToChatBody,
+  coerceReasoningEffortForModel,
   isChatCompletionsUrl,
   readOptionalReasoningEffort,
   resolveRequestReasoningEffort,
@@ -42,6 +43,21 @@ describe("resolveRequestReasoningEffort", () => {
   it("keeps ultra when thinking is on", () => {
     expect(resolveRequestReasoningEffort({ thinking: true, reasoningEffort: "ultra" })).toBe("ultra");
     expect(resolveRequestReasoningEffort({})).toBe("medium");
+  });
+});
+
+describe("coerceReasoningEffortForModel", () => {
+  it("lifts none to low on GPT-5.6 Luna", () => {
+    expect(coerceReasoningEffortForModel("gpt-5.6-luna", "none")).toBe("low");
+    expect(coerceReasoningEffortForModel("openai/gpt-5.6-luna", "none")).toBe("low");
+  });
+
+  it("keeps none on ordinary chat models", () => {
+    expect(coerceReasoningEffortForModel("deepseek-v4-flash", "none")).toBe("none");
+  });
+
+  it("keeps an explicit low", () => {
+    expect(coerceReasoningEffortForModel("gpt-5.6-luna", "low")).toBe("low");
   });
 });
 

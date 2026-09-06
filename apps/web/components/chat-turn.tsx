@@ -22,6 +22,7 @@ type Props = {
     tools: LiveTool[];
     streaming: string;
     running: boolean;
+    probe?: string;
   };
 };
 
@@ -56,7 +57,7 @@ export function ChatTurn({ role, content, live }: Props) {
             </details>
           ) : live?.running && !live.streaming && visibleTools.length === 0 ? (
             <p className="text-sm text-ink/50" data-testid="thinking-placeholder">
-              Thinking…
+              {live.probe || "Thinking…"}
             </p>
           ) : null}
           {visibleTools.length > 0 ? (

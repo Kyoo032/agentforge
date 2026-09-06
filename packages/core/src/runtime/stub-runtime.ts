@@ -3,6 +3,7 @@ import { summarizeParts } from "../content/parse-run-input";
 import type { AgentRuntime, RuntimeEvent } from "./types";
 import { invokeToolGuarded } from "./invoke-guarded";
 import { resolveRequestReasoningEffort } from "../models/reasoning-effort";
+import { MODEL_CONTACT_ATTEMPTS, formatContactProbe } from "./retry";
 
 function hasEnabledBinding(
   bindings: Parameters<AgentRuntime["execute"]>[0]["bindings"],
@@ -45,6 +46,13 @@ export class StubRuntime implements AgentRuntime {
     const last = input.history[input.history.length - 1];
     const summary = last ? summarizeParts(last.parts) : "";
     const showThinking = resolveRequestReasoningEffort(input) !== "none";
+    await input.onEvent({
+      type: "run.probing",
+      model: input.version.model,
+      attempt: 1,
+      attempts: MODEL_CONTACT_ATTEMPTS,
+      message: formatContactProbe(input.version.model, 1),
+    });
     const answers: string[] = [];
 
     const wantsCalc = hasEnabledBinding(input.bindings, "calculator") && /\d+\s*[+\-*/]\s*\d+/.test(summary);

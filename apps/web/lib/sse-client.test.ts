@@ -6,6 +6,7 @@ describe("consumeSse", () => {
     const { events, rest } = consumeSse(
       [
         "event: run.started\ndata: {\"type\":\"run.started\",\"runId\":\"r1\"}\n\n",
+        "event: run.probing\ndata: {\"type\":\"run.probing\",\"model\":\"gpt-5.6-luna\",\"attempt\":2,\"attempts\":3,\"message\":\"2nd try · gpt-5.6-luna\"}\n\n",
         "event: assistant.thinking\ndata: {\"type\":\"assistant.thinking\",\"text\":\"hmm\"}\n\n",
         "event: tool.started\ndata: {\"type\":\"tool.started\",\"toolKey\":\"calculator\",\"input\":{}}\n\n",
         "event: assistant.delta\ndata: {\"type\":\"assistant.delta\",\"text\":\"hi\"}\n\n",
@@ -15,13 +16,16 @@ describe("consumeSse", () => {
     expect(rest).toBe("partial");
     expect(events.map((event) => event.type)).toEqual([
       "run.started",
+      "run.probing",
       "assistant.thinking",
       "tool.started",
       "assistant.delta",
       "run.failed",
     ]);
-    expect(events[1]?.text).toBe("hmm");
-    expect(events[4]?.message).toBe("nope");
+    expect(events[1]?.message).toBe("2nd try · gpt-5.6-luna");
+    expect(events[1]?.attempt).toBe(2);
+    expect(events[2]?.text).toBe("hmm");
+    expect(events[5]?.message).toBe("nope");
   });
 
   it("skips a malformed data line instead of aborting the stream", () => {

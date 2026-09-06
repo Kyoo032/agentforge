@@ -5,6 +5,7 @@ import { ModelSelect } from "@/components/model-select";
 import { JOB_REGEN_FILE_ACCEPT, classifyAttachment, type AttachmentKind } from "@/lib/composer-attach";
 import type { JobStudioModel } from "@/lib/use-job-model";
 import { apiFetch } from "@/lib/api-client";
+import { submitOnEnter } from "@/lib/composer-enter";
 
 export type JobRegenSubmit = {
   instruction: string;
@@ -122,6 +123,14 @@ export function JobRegenPanel({
         rows={3}
         value={instruction}
         onChange={(event) => setInstruction(event.target.value)}
+        onKeyDown={(event) => {
+          submitOnEnter(event, () => {
+            const form = event.currentTarget.form;
+            if (form) {
+              form.requestSubmit();
+            }
+          });
+        }}
         placeholder="Optional: what should change?"
         disabled={busy}
         data-testid={`${testIdPrefix}-regen-prompt`}

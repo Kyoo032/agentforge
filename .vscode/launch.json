@@ -1,0 +1,33 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "winapp",
+      "request": "launch",
+      "name": "WinApp: Installed Agentforge (NSIS)",
+      "debuggerType": "node",
+      "inputFolder": "C:/Program Files/Agentforge",
+      "workingDirectory": "C:/Program Files/Agentforge",
+      "args": "--remote-debugging-port=9222",
+      "preLaunchTask": "verify-installed-exe"
+    },
+    {
+      "type": "winapp",
+      "request": "launch",
+      "name": "WinApp: win-unpacked Agentforge",
+      "debuggerType": "node",
+      "inputFolder": "${workspaceFolder}/apps/desktop/dist/win-unpacked",
+      "workingDirectory": "${workspaceFolder}/apps/desktop/dist/win-unpacked",
+      "args": "--remote-debugging-port=9222"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Packaged Agentforge + CDP",
+      "runtimeExecutable": "C:/Program Files/Agentforge/Agentforge.exe",
+      "runtimeArgs": ["--remote-debugging-port=9222"],
+      "cwd": "C:/Program Files/Agentforge",
+      "console": "integratedTerminal"
+    }
+  ]
+}

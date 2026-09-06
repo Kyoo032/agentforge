@@ -4,6 +4,9 @@ import {
   createRuntime,
   encodeSse,
   redactSecrets,
+  abortErrorMessage,
+  formatStreamWatchdogError,
+  streamWatchdogLimits,
   isDefaultChatAgent,
   parseImageRunInput,
   parseTextRunInput,
@@ -115,6 +118,7 @@ export async function* startModalityRun(options: {
   threadId: string;
   modality: InputModality;
   body: unknown;
+  abortSignal?: AbortSignal;
 }): AsyncIterable<string> {
   ensureToolsRegistered();
   const parsed = parsers[options.modality](options.body as { content?: unknown; stream?: unknown });
@@ -148,10 +152,35 @@ export async function* startModalityRun(options: {
   assertModelSupportsModality(version.model, options.modality);
 
   const queue = new StringQueue();
+  let queueClosed = false;
+  const closeQueue = () => {
+    queueClosed = true;
+    queue.close();
+  };
   const send = (event: Parameters<typeof encodeSse>[0]) => {
     queue.push(encodeSse(event));
   };
   queue.push(": connected\n\n");
+  const limits = streamWatchdogLimits(model);
+  const runStartedAt = Date.now();
+  const failsafe = setTimeout(() => {
+    if (queueClosed) {
+      return;
+    }
+    const message = formatStreamWatchdogError(model, "ttfb", Date.now() - runStartedAt);
+    send({ type: "run.failed", message });
+    send({ type: "run.completed", runId: "unknown" });
+    closeQueue();
+  }, limits.ttfbMs);
+  const onClientAbort = () => {
+    if (queueClosed) {
+      return;
+    }
+    send({ type: "run.failed", message: abortErrorMessage(options.abortSignal?.reason) });
+    send({ type: "run.completed", runId: "unknown" });
+    closeQueue();
+  };
+  options.abortSignal?.addEventListener("abort", onClientAbort, { once: true });
 
   const work = (async () => {
     let assistantText = "";
@@ -225,9 +254,7 @@ export async function* startModalityRun(options: {
           onEvent: async (event) => {
             if (event.type === "run.failed") {
               failedMessage = redactSecrets(event.message);
-              if (mediaParts.length === 0) {
-                send({ ...event, message: failedMessage });
-              }
+              send({ ...event, message: failedMessage });
               return;
             }
             if (event.type === "run.completed") {
@@ -301,13 +328,17 @@ export async function* startModalityRun(options: {
       }
       send({ type: "run.completed", runId: runId ?? "unknown" });
     } finally {
-      queue.close();
+      clearTimeout(failsafe);
+      options.abortSignal?.removeEventListener("abort", onClientAbort);
+      closeQueue();
     }
   })();
 
   try {
     yield* queue;
   } finally {
-    await work;
+    // Do not await `work` here. A wedged model call would block host:stream-end
+    // and leave the packaged composer on Running forever.
+    void work.catch(() => undefined);
   }
 }

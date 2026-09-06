@@ -1,6 +1,36 @@
 /** First try plus this many follow-ups. Three contact attempts, then a hard error. */
 export const MODEL_CONTACT_ATTEMPTS = 3;
 
+export function contactAttemptOrdinal(attempt: number): string {
+  if (attempt === 1) {
+    return "1st";
+  }
+  if (attempt === 2) {
+    return "2nd";
+  }
+  if (attempt === 3) {
+    return "3rd";
+  }
+  return `${attempt}th`;
+}
+
+export function formatContactProbe(
+  model: string,
+  attempt: number,
+  attempts: number = MODEL_CONTACT_ATTEMPTS,
+): string {
+  const name = model.trim() || "this model";
+  const ordinal = contactAttemptOrdinal(attempt);
+  if (attempt <= 1) {
+    return `Probing ${name} · ${ordinal} try`;
+  }
+  return `${ordinal} try · ${name}`;
+}
+
+export function formatContactProbeButton(attempt: number): string {
+  return `${contactAttemptOrdinal(Math.max(1, attempt))} try…`;
+}
+
 export function isRetryableModelFailure(failed: string): boolean {
   const text = failed.trim();
   if (!text) {
@@ -65,6 +95,9 @@ export function shouldRetryWithoutTools(options: {
   }
   if (!options.text && !options.failed) {
     return true;
+  }
+  if (/temperature|must be omitted|top_p|topP|\bn\b must/i.test(options.failed)) {
+    return false;
   }
   return /function tools|reasoning_effort/i.test(options.failed);
 }

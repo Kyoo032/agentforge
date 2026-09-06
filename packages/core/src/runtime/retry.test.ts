@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   MODEL_CONTACT_ATTEMPTS,
+  formatContactProbe,
+  formatContactProbeButton,
   formatModelContactError,
   isRetryableModelFailure,
   shouldFailEmptyAssistant,
@@ -8,6 +10,17 @@ import {
   shouldRetryModelContact,
   shouldRetryWithoutTools,
 } from "./retry";
+
+describe("formatContactProbe", () => {
+  it("labels the three contact attempts", () => {
+    expect(formatContactProbe("gpt-5.6-luna", 1)).toBe("Probing gpt-5.6-luna · 1st try");
+    expect(formatContactProbe("gpt-5.6-luna", 2)).toBe("2nd try · gpt-5.6-luna");
+    expect(formatContactProbe("deepseek-v4-flash", 3)).toBe("3rd try · deepseek-v4-flash");
+    expect(formatContactProbeButton(1)).toBe("1st try…");
+    expect(formatContactProbeButton(2)).toBe("2nd try…");
+    expect(formatContactProbeButton(3)).toBe("3rd try…");
+  });
+});
 
 describe("shouldRetryWithoutTools", () => {
   it("retries when tools were sent and the reply was empty", () => {
@@ -23,6 +36,17 @@ describe("shouldRetryWithoutTools", () => {
         tooled: false,
       }),
     ).toBe(true);
+  });
+
+  it("does not strip tools on a temperature sanitize 400", () => {
+    expect(
+      shouldRetryWithoutTools({
+        hasTools: true,
+        text: false,
+        failed: "'temperature' must be omitted or set to 1 for claude-sonnet-5 (status_code=400)",
+        tooled: false,
+      }),
+    ).toBe(false);
   });
 
   it("does not retry after a real tool call or a channel error", () => {

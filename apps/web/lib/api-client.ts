@@ -1,3 +1,5 @@
+import { errorFromAbortSignal, onAbort, throwIfAborted } from "./ipc-abort";
+
 export type IpcHostRequest = {
   requestId: string;
   method: string;
@@ -20,6 +22,7 @@ declare global {
       brandLogo?: string;
       invoke: (payload: IpcHostRequest) => Promise<IpcHostResponse>;
       stream: (requestId: string, onChunk: (chunk: string) => void) => Promise<void>;
+      abortStream?: (requestId: string) => void;
       saveBytes?: (filename: string, bytes: number[]) => Promise<void>;
       updates?: {
         supported: boolean;
@@ -116,6 +119,7 @@ export async function apiFetch(input: string, init: RequestInit = {}): Promise<R
   if (!isElectron() || !window.agentforge) {
     return fetch(input, init);
   }
+  throwIfAborted(init.signal);
   const { path, query } = parsePath(input);
   const method = (init.method ?? "GET").toUpperCase();
   const requestId = crypto.randomUUID();
@@ -128,6 +132,7 @@ export async function apiFetch(input: string, init: RequestInit = {}): Promise<R
     files: await filesFromBody(init.body),
   };
   const result = await window.agentforge.invoke(payload);
+  throwIfAborted(init.signal);
   if (result.type === "json") {
     return new Response(JSON.stringify(result.body), {
       status: result.status,
@@ -140,12 +145,41 @@ export async function apiFetch(input: string, init: RequestInit = {}): Promise<R
     }
     return bytesResponse(result);
   }
+  const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
-      const encoder = new TextEncoder();
+      const fail = () => {
+        window.agentforge?.abortStream?.(requestId);
+        try {
+          controller.error(errorFromAbortSignal(init.signal));
+        } catch {
+          // already closed
+        }
+      };
+      const stop = onAbort(init.signal, fail);
       void window.agentforge!.stream(requestId, (chunk) => {
         controller.enqueue(encoder.encode(chunk));
-      }).then(() => controller.close(), (error) => controller.error(error));
+      }).then(
+        () => {
+          stop();
+          try {
+            controller.close();
+          } catch {
+            // already errored
+          }
+        },
+        (error) => {
+          stop();
+          try {
+            controller.error(error);
+          } catch {
+            // already errored
+          }
+        },
+      );
+    },
+    cancel() {
+      window.agentforge?.abortStream?.(requestId);
     },
   });
   return new Response(stream, {

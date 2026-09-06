@@ -17,6 +17,8 @@ export type HostRequest = {
   files?: HostFile[];
   /** Cookie or host-process selected workspace. */
   workspaceId?: string | null;
+  /** Packaged IPC / client disconnect. Closes a wedged run stream. */
+  abortSignal?: AbortSignal;
 };
 
 export type HostJsonResult = {

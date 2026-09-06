@@ -11,7 +11,10 @@ A turn is three layers: **Thinking** (collapsible), **tools** (one row per call)
 - `chat-context` shows the Chat header context chip (`chat-context`): a ring plus a short label (`<N> left` or `<N> used`). Click opens `chat-context-breakdown` with Conversation, Attachments, Knowledge (Soul / Memories / Sources, including RAG `N chunks · rag` or `fts` when retrieve ran), and Free. The `used / window` (empty: `0 / window`) line lives **inside the breakdown**, not on the closed chip.
 - `chat-enhance` rewrites the composer draft via `composer-enhance` (`POST /api/v1/prompts/enhance`). Stub rewrites locally. `composer-enhance-revert` / `aria-pressed` restores the pre-enhance text. A second sparkle after an edit treats the box as a new seed. Cancel aborts and does not replace the box.
 - `chat-thinking` shows `reasoning-effort` next to the model picker (`None` / `Low` / `Med` / `High` / `Ultra`). Default `Med`. `None` skips reasoning events. Reasoning models also carry a `model-thinking-badge` in the picker.
-- `chat-send` puts the user prompt in the transcript and returns the send button to `Send`.
+- `chat-send` puts the user prompt in the transcript and returns the send button to `Send`. **Enter** sends (`submitOnEnter`); Shift+Enter stays newline. Packaged window must do this, not only `:3000`.
+- `chat-keep-alive` — switching Chat ↔ Documents (or any rail job mode) must not unmount the visited mode. Drafts and in-flight runs survive. `WorkModeKeepAlive` keeps visited modes mounted.
+- `chat-fail-closed` — a gateway 400/403 (illegal `temperature`, no access, quota) surfaces on `chat-error` / `composer-error`. Running/Thinking must clear (`onFailed` sets `running` false). Do not hang.
+- `chat-probe` — while the host contacts the model (up to 3 tries), `composer-send` reads `1st try…` / `2nd try…` / `3rd try…` and `thinking-placeholder` shows `Probing {model} · 1st try` (then `2nd try` / `3rd try`). Not a frozen `Running…`. Packaged window must do this, not only `:3000`.
 - `chat-new` starts a blank session from `new-chat` without losing the previous thread in the list.
 - `chat-switch` reopens the first thread from `thread-list`.
 - `chat-rail` keeps `mode-chat` visible. On Home, Documents/Research/Images/Videos/Presentation are also visible. `mode-agents` count is 0.
@@ -36,7 +39,7 @@ Preconditions:
 - **Usage chip.** `chat-usage` is visible in the Chat header (next to `new-chat`). On stub / no key, it settles on `No key saved`.
 - **Context chip.** `chat-context` is visible in the Chat header. Closed chip text includes `left` or `used` (not `0 / window`). Click it: `chat-context-breakdown` shows Conversation / Attachments / Knowledge / Free, and the `used / window` line (empty thread: `0 / <window>`). After messages exist, used tokens are greater than 0.
 - **Enhance.** Fill `composer-text`. Click `composer-enhance`. The box is rewritten (stub: same language, no “Enhanced prompt:” preface). Click again (`composer-enhance-revert` or `aria-pressed`) to restore. Send stays disabled while enhance is busy.
-- **Send (short).** Fill `composer-text` with the unique prompt. Click `composer-send`. `message-list` contains that prompt (20s). On stub with thinking on, `message-thinking` is present. Arithmetic like `What is 2 + 3?` shows `message-tools` (Calculator) and `message-output` text `2 + 3 = 5` — not the question, not `Stub reply`. Assistant `message-output` renders markdown (bold/lists/links/images); user bubbles stay plain. `composer-send` reads `Send` again (30s). After refresh, thinking + tool + output stay on the turn (they do not vanish).
+- **Send (short).** Fill `composer-text` with the unique prompt. Press Enter (or click `composer-send`). Before tokens, `composer-send` or `thinking-placeholder` shows a probe label (`1st try` / `Probing`). `message-list` contains that prompt (20s). Shift+Enter must not send. On stub with thinking on, `message-thinking` is present. Arithmetic like `What is 2 + 3?` shows `message-tools` (Calculator) and `message-output` text `2 + 3 = 5` — not the question, not `Stub reply`. Assistant `message-output` renders markdown (bold/lists/links/images); user bubbles stay plain. `composer-send` reads `Send` again (30s). After refresh, thinking + tool + output stay on the turn (they do not vanish).
 - **Longer task.** Same transcript layout if several tools fire (search, then calculator, then prose): stacked `message-tool` rows, then `message-output`.
 - **New session.** Click `new-chat`. `chat-empty` shows `You're in. Ask anything.` again (10s).
 - **Second send.** Fill and send a second unique prompt. `message-list` and `thread-list` contain it.
@@ -48,7 +51,9 @@ Preconditions:
 
 - `new-chat` is the header button on the Chat page. `new-chat-link` is the `+ New chat` control in the session rail. The smoke uses `new-chat`.
 - Wait for `composer-send` text `Send`, not a fixed sleep. Stub and live both hold the button in a busy state.
-- Live contact miss (no channel, 502/503, network): host retries the same model up to 3 times, then `chat-error` / `composer-error` reads `Could not reach {model} after 3 tries`. Do not treat that as a harness fail if the gateway is down.
+- Live contact miss (no channel, 502/503, network): host retries the same model up to 3 times. The UI must show `1st try` then `2nd try` then `3rd try` on `composer-send` / `thinking-placeholder`. Then `chat-error` / `composer-error` reads `Could not reach {model} after 3 tries`. Do not treat that as a harness fail if the gateway is down.
+- GPT-5.6 Luna/Sol/Terra with effort **None** is coerced to **Low** on the wire. The picker can still say None.
+- A 403 (`no access` / quota) must fail closed in seconds, not sit on Running until the 60s idle watchdog.
 - `chat-usage` loads asynchronously from `/api/v1/settings`. Assert the settled label, not the initial `…`.
 - Empty-state “paste a … key” uses ping `gatewayName` (Toko Token on webdev). Local flavor windows say AIHub — [desktop-brands.md](./desktop-brands.md).
 - `chat-context` is a local estimate (~4 characters per token) from visible text and thinking, not the gateway tokenizer.

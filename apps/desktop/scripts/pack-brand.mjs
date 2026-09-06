@@ -207,3 +207,20 @@ restorePublicBrand();
 if (result.status !== 0) {
   process.exit(result.status ?? 1);
 }
+
+if (brandId === "agentforge") {
+  const latestPath = join(desktopRoot, "dist", "latest.yml");
+  if (existsSync(latestPath)) {
+    const pkg = JSON.parse(readFileSync(join(desktopRoot, "package.json"), "utf8"));
+    const version = typeof pkg.version === "string" ? pkg.version : "0.14.0";
+    const spaced = `Agentforge Setup ${version}.exe`;
+    const raw = readFileSync(latestPath, "utf8");
+    const next = raw
+      .replace(/Agentforge-Setup-[0-9.]+\\.exe/g, spaced)
+      .replace(/^path: .+$/m, `path: ${spaced}`);
+    if (next !== raw) {
+      writeFileSync(latestPath, next);
+      console.log(`pack-brand: rewrote latest.yml artifact to "${spaced}"`);
+    }
+  }
+}

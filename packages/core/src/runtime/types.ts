@@ -11,6 +11,7 @@ export type RunUsage = {
 
 export type RuntimeEvent =
   | { type: "run.started"; runId: string }
+  | { type: "run.probing"; model: string; attempt: number; attempts: number; message: string }
   | { type: "assistant.delta"; text: string }
   | { type: "assistant.thinking"; text: string }
   | { type: "tool.started"; toolKey: string; input: unknown }

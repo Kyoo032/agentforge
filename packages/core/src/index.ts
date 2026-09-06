@@ -76,6 +76,13 @@ export type { InjectionHit, InjectionSeverity } from "./security/injection-guard
 export { isOpenRouterBaseUrl, openRouterZdrBody } from "./privacy/openrouter";
 export { mergeOpenRouterZdr } from "./runtime/ai-sdk-runtime";
 export {
+  sanitizeGatewayRequestBody,
+  applyZeroRetention,
+  parseGatewayHttpError,
+  readHttpErrorBody,
+  temperatureMustBeOneOrOmitted,
+} from "./models/request-constraints";
+export {
   MEMBERSHIP_ROLES,
   INDUSTRY_PACKS,
   VISIBILITIES,
@@ -139,6 +146,7 @@ export {
   isReasoningEffort,
   readOptionalReasoningEffort,
   resolveRequestReasoningEffort,
+  coerceReasoningEffortForModel,
 } from "./models/reasoning-effort";
 export type { ReasoningEffort } from "./models/reasoning-effort";
 export {
@@ -303,6 +311,9 @@ export {
 } from "./runtime/minimax-compat";
 export {
   MODEL_CONTACT_ATTEMPTS,
+  contactAttemptOrdinal,
+  formatContactProbe,
+  formatContactProbeButton,
   formatModelContactError,
   isRetryableModelFailure,
   shouldFailEmptyAssistant,

@@ -190,6 +190,12 @@ function createWindow() {
 }
 
 function registerIpc(host) {
+  /** @type {Map<string, AbortController>} */
+  const streamAborts = new Map();
+  ipcMain.on("host:stream-abort", (_event, payload) => {
+    const requestId = typeof payload?.requestId === "string" ? payload.requestId : "";
+    streamAborts.get(requestId)?.abort();
+  });
   ipcMain.handle("host:ping", () => ({ ok: true }));
   ipcMain.handle("host:request", async (event, payload) => {
     const files = Array.isArray(payload.files)
@@ -200,6 +206,11 @@ function registerIpc(host) {
           bytes: Uint8Array.from(file.bytes ?? []),
         }))
       : undefined;
+    const abort = new AbortController();
+    const requestId = typeof payload.requestId === "string" ? payload.requestId : "";
+    if (requestId) {
+      streamAborts.set(requestId, abort);
+    }
     const result = await host.dispatch({
       method: payload.method,
       path: payload.path,
@@ -209,9 +220,9 @@ function registerIpc(host) {
       body: payload.body,
       files,
       workspaceId: host.readSelectedWorkspaceId() ?? null,
+      abortSignal: abort.signal,
     });
     if (result.type === "stream") {
-      const requestId = payload.requestId;
       void (async () => {
         try {
           for await (const chunk of result.events) {
@@ -223,11 +234,13 @@ function registerIpc(host) {
             message: error instanceof Error ? error.message : "stream failed",
           });
         } finally {
+          streamAborts.delete(requestId);
           event.sender.send("host:stream-end", { requestId });
         }
       })();
       return { type: "stream", status: 200, requestId };
     }
+    streamAborts.delete(requestId);
     if (result.type === "bytes") {
       return {
         type: "bytes",

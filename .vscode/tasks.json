@@ -1,0 +1,16 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "verify-installed-exe",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-Command",
+        "if (-not (Test-Path 'C:\\Program Files\\Agentforge\\Agentforge.exe')) { throw 'Installed Agentforge.exe missing' }; (Get-Item 'C:\\Program Files\\Agentforge\\Agentforge.exe').VersionInfo.ProductVersion"
+      ],
+      "problemMatcher": []
+    }
+  ]
+}

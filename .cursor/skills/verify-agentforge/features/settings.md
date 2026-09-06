@@ -24,7 +24,7 @@ Preconditions:
 - Do **not** click `save-settings` or paste a key unless the operator asked.
 - Do **not** type into `openai-key` on the operator's desk.
 
-- **Open Settings.** Click `settings-link` or go to `/settings`. URL matches `/settings`. `settings-form` is visible (15s). `settings-tab-simple`, `settings-tab-advanced`, `settings-build-link`, `openai-base-url`, and `injection-guard-bypass` have count 0.
+- **Open Settings.** Click `settings-link` or go to `/settings`. URL matches `/settings`. `settings-form` is visible (15s). `settings-tab-simple`, `settings-tab-advanced`, `settings-build-link`, `openai-base-url`, and `injection-guard-bypass` have count 0. Packaged: prove this in the Electron window. When a key is saved, `key-fingerprint` is `Saved key fingerprint sha256:` plus 12 hex (hash is host-side). Desktop doctor does not print `keyFingerprint`.
 - **Identity.** `openai-key`, `save-settings`, and `privacy-note` are visible.
 - **Runtime.** With no provider key, `runtime-status` contains `Offline demo` and `no keys yet` (15s). If a key is already saved, the line contains `Status: Live` and `Gateway key saved` — record that; it is not an offline fail.
 - **Usage strip (Cloud / no key).** `usage-this-key` contains `Paste a gateway key`. `usage-open` is visible. Do not assert `usage-by-model` or `usage-desk-estimate` on Settings.

@@ -15,7 +15,8 @@
     "./video-capabilities": "./src/models/video-capabilities.ts",
     "./content": "./src/content/transcript.ts",
     "./reasoning-effort": "./src/models/reasoning-effort.ts",
-    "./stream-watchdog": "./src/runtime/stream-watchdog.ts"
+    "./stream-watchdog": "./src/runtime/stream-watchdog.ts",
+    "./retry": "./src/runtime/retry.ts"
   },
   "scripts": {
     "test": "vitest run",

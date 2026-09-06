@@ -14,6 +14,7 @@ import { notifyThreadsChanged } from "@/lib/threads-events";
 import { apiFetch } from "@/lib/api-client";
 import { useProductBrand } from "@/lib/product-brand";
 import { isReasoningEffort, type ReasoningEffort } from "@agentforge/core/reasoning-effort";
+import { formatContactProbe } from "@agentforge/core/retry";
 
 type Message = { id: string; role: string; content: unknown };
 
@@ -47,6 +48,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
   const [thinking, setThinking] = useState("");
   const [tools, setTools] = useState<LiveTool[]>([]);
   const [running, setRunning] = useState(false);
+  const [probe, setProbe] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [thinkingEnabled, setThinkingEnabled] = useState(true);
   const [reasoningEffort, setReasoningEffort] = useState<ReasoningEffort>("medium");
@@ -101,6 +103,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
     setStreaming("");
     setThinking("");
     setTools([]);
+    setProbe("");
     setRunning(false);
   }
 
@@ -307,7 +310,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           <div data-testid="assistant-live">
             <ChatTurn
               role="assistant"
-              live={{ thinking, tools, streaming, running }}
+              live={{ thinking, tools, streaming, running, probe }}
             />
           </div>
         ) : null}
@@ -326,6 +329,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           onUserSend={(payload) => {
             setError(null);
             setRunning(true);
+            setProbe(formatContactProbe(modelId || "this model", 1));
             setThinking("");
             setTools([]);
             setStreaming("");
@@ -339,6 +343,10 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
             ]);
           }}
           onStarted={() => setRunning(true)}
+          onProbing={(info) => {
+            setRunning(true);
+            setProbe(info.message);
+          }}
           onDelta={(text) => setStreaming((current) => current + text)}
           onThinking={(text) => setThinking((current) => current + text)}
           onTool={(event) => {
@@ -367,12 +375,17 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
               return [...next, completed];
             });
           }}
-          onFailed={(message) => setError(message)}
+          onFailed={(message) => {
+            setError(message);
+            setProbe("");
+            setRunning(false);
+          }}
           onComplete={async () => {
             notifyThreadsChanged();
             const liveMedia = toolsRef.current.flatMap((tool) => collectToolMediaParts(tool.output));
             setStreaming("");
             setThinking("");
+            setProbe("");
             setRunning(false);
             if (threadIdRef.current) {
               await refreshMessages(threadIdRef.current);

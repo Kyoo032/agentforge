@@ -11,6 +11,8 @@ import { getDisabledTools } from "../tools/secret-scope";
 import { mapStreamPart } from "./stream-parts";
 import { invokeToolGuarded } from "./invoke-guarded";
 import {
+  MODEL_CONTACT_ATTEMPTS,
+  formatContactProbe,
   formatModelContactError,
   isRetryableModelFailure,
   shouldFailEmptyAssistant,
@@ -27,6 +29,7 @@ import {
 import { applyMinimaxRequest, isMinimaxChatModel, wrapMinimaxResponse } from "./minimax-compat";
 import {
   applyReasoningEffortToChatBody,
+  coerceReasoningEffortForModel,
   isChatCompletionsUrl,
   resolveRequestReasoningEffort,
   toWireReasoningEffort,
@@ -40,6 +43,12 @@ import {
   rewriteUnreachableMediaInJson,
   scrubUnreachableMediaArgs,
 } from "../content/provider-media";
+import {
+  applyZeroRetention,
+  parseGatewayHttpError,
+  readHttpErrorBody,
+  sanitizeGatewayRequestBody,
+} from "../models/request-constraints";
 
 /**
  * Merges `provider.zdr = true` into the request body for OpenRouter endpoints.
@@ -173,18 +182,28 @@ export class AiSdkRuntime implements AgentRuntime {
         try {
           const parsed = JSON.parse(init.body) as unknown;
           const scrubbed = rewriteUnreachableMediaInJson(parsed);
-          const withZdr = mergeOpenRouterZdr(scrubbed, zdrBaseUrl);
+          const retained = applyZeroRetention(scrubbed, zdrBaseUrl);
+          const withZdr = mergeOpenRouterZdr(retained, zdrBaseUrl);
           const minimaxBody = applyMinimaxRequest(withZdr);
-          const modified = isChatCompletionsUrl(url)
+          const withEffort = isChatCompletionsUrl(url)
             ? applyReasoningEffortToChatBody(minimaxBody, wireEffort)
             : minimaxBody;
-          minimax = minimax || isMinimaxChatModel((modified as { model?: unknown }).model);
-          outgoing = { ...init, body: JSON.stringify(modified) };
+          const bodyModel =
+            typeof (withEffort as { model?: unknown }).model === "string"
+              ? ((withEffort as { model: string }).model)
+              : modelName;
+          minimax = minimax || isMinimaxChatModel(bodyModel);
+          const sanitized = sanitizeGatewayRequestBody(withEffort, bodyModel, url);
+          outgoing = { ...init, body: JSON.stringify(sanitized) };
         } catch {
           // fall through to unmodified request on parse error
         }
       }
       const response = await fetch(url, outgoing);
+      if (!response.ok) {
+        const text = await readHttpErrorBody(response);
+        throw new Error(parseGatewayHttpError(response.status, text));
+      }
       return minimax ? wrapMinimaxResponse(response) : response;
     };
 
@@ -233,7 +252,10 @@ export class AiSdkRuntime implements AgentRuntime {
 
     const messages = toCoreMessages(input.version.systemPrompt, input.history);
     const hasTools = Object.keys(tools).length > 0;
-    const requestEffort = resolveRequestReasoningEffort(input);
+    const requestEffort = coerceReasoningEffortForModel(
+      input.version.model,
+      resolveRequestReasoningEffort(input),
+    );
     const wantThinking = requestEffort !== "none";
     let activeModel = model;
     let wire = openaiWire?.wire;
@@ -247,6 +269,17 @@ export class AiSdkRuntime implements AgentRuntime {
         reasoningEffort: options.reasoningEffort ?? requestEffort,
       });
 
+    const probe = async (attempt: number) => {
+      await input.onEvent({
+        type: "run.probing",
+        model: input.version.model,
+        attempt,
+        attempts: MODEL_CONTACT_ATTEMPTS,
+        message: formatContactProbe(input.version.model, attempt),
+      });
+    };
+
+    await probe(1);
     let first = await consumeOnce(activeModel, hasTools ? tools : undefined, {
       responses: wire === "responses",
       forceReasoningNone: !wantThinking,
@@ -302,6 +335,7 @@ export class AiSdkRuntime implements AgentRuntime {
       })
     ) {
       contactAttempts += 1;
+      await probe(contactAttempts);
       result = await consumeOnce(activeModel, retryTools, {
         responses: wire === "responses",
         forceReasoningNone: Boolean(retryTools) && !wantThinking,

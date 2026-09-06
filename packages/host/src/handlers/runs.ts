@@ -31,6 +31,7 @@ export async function handleRun(request: HostRequest, modality: InputModality): 
         threadId: request.params.threadId,
         modality,
         body: request.body,
+        abortSignal: request.abortSignal,
       }),
     );
   } catch (error) {

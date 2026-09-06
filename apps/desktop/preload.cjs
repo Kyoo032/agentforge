@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld("agentforge", {
     },
   },
   invoke: (payload) => ipcRenderer.invoke("host:request", payload),
+  abortStream: (requestId) => ipcRenderer.send("host:stream-abort", { requestId }),
   stream: (requestId, onChunk) =>
     new Promise((resolve, reject) => {
       const onChunkMsg = (_event, message) => {

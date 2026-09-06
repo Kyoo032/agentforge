@@ -1,6 +1,6 @@
 {
   "name": "@agentforge/desktop",
-  "version": "0.13.5",
+  "version": "0.14.0",
   "private": true,
   "description": "Electron shell for Agentforge. Packaged builds use IPC (no loopback HTTP server).",
   "main": "main.cjs",
@@ -30,7 +30,7 @@
     "productName": "Agentforge",
     "extraMetadata": {
       "name": "agentforge",
-      "version": "0.13.5"
+      "version": "0.14.0"
     },
     "directories": {
       "output": "dist",

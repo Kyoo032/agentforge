@@ -6,6 +6,9 @@ export type ClientRuntimeEvent = {
   output?: unknown;
   message?: string;
   runId?: string;
+  model?: string;
+  attempt?: number;
+  attempts?: number;
 };
 
 export function consumeSse(buffer: string): { events: ClientRuntimeEvent[]; rest: string } {

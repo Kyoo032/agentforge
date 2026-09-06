@@ -12,7 +12,9 @@ import { ModelPicker, type ChatModel } from "@/components/model-picker";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { apiFetch } from "@/lib/api-client";
 import { abortErrorMessage, armStreamWatchdog } from "@agentforge/core/stream-watchdog";
+import { formatContactProbeButton } from "@agentforge/core/retry";
 import { REASONING_EFFORTS, type ReasoningEffort } from "@agentforge/core/reasoning-effort";
+import { submitOnEnter } from "@/lib/composer-enter";
 
 export type ComposerUserSendPayload = {
   text: string;
@@ -33,6 +35,7 @@ type Props = {
   onThinking?: (text: string) => void;
   onTool?: (event: { phase: "started" | "completed"; toolKey: string; input?: unknown; output?: unknown }) => void;
   onFailed?: (message: string) => void;
+  onProbing?: (info: { attempt: number; attempts: number; message: string }) => void;
   onComplete: () => Promise<void> | void;
   thinkingEnabled?: boolean;
   onThinkingChange?: (enabled: boolean) => void;
@@ -77,6 +80,7 @@ export function ChatComposer({
   onThinking,
   onTool,
   onFailed,
+  onProbing,
   onComplete,
   thinkingEnabled = true,
   onThinkingChange,
@@ -88,6 +92,7 @@ export function ChatComposer({
   const [busy, setBusy] = useState(false);
   const [enhancing, setEnhancing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [probeAttempt, setProbeAttempt] = useState(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -118,6 +123,15 @@ export function ChatComposer({
         types.push(event.type);
         if (event.type === "run.started") {
           onStarted?.();
+        }
+        if (event.type === "run.probing") {
+          const attempt = typeof event.attempt === "number" && event.attempt > 0 ? event.attempt : 1;
+          setProbeAttempt(attempt);
+          onProbing?.({
+            attempt,
+            attempts: typeof event.attempts === "number" ? event.attempts : 3,
+            message: event.message || formatContactProbeButton(attempt),
+          });
         }
         if (event.type === "assistant.delta" && event.text) {
           deltaChars += event.text.length;
@@ -167,6 +181,7 @@ export function ChatComposer({
 
   async function send() {
     setBusy(true);
+    setProbeAttempt(1);
     setError(null);
     try {
       const decision = routeDecision(files.map((item) => item.kind));
@@ -329,6 +344,11 @@ export function ChatComposer({
         onChange={(event) => {
           setText(event.target.value);
         }}
+        onKeyDown={(event) => {
+          submitOnEnter(event, () => {
+            void send();
+          });
+        }}
         data-testid="composer-text"
       />
       <input
@@ -424,7 +444,7 @@ export function ChatComposer({
           disabled={busy || enhancing || (!text.trim() && files.length === 0)}
           data-testid="composer-send"
         >
-          {busy ? "Running…" : "Send"}
+          {busy ? formatContactProbeButton(probeAttempt) : "Send"}
         </button>
       </div>
     </form>

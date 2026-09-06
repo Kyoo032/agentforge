@@ -63,6 +63,19 @@ export function readOptionalReasoningEffort(body: unknown): ReasoningEffort {
 }
 
 /** Official OpenAI uses xhigh; the gateway keeps ultra. */
+/** GPT-5.6 family hangs on Toko Token when reasoning_effort is none. */
+export function coerceReasoningEffortForModel(modelId: string, effort: ReasoningEffort): ReasoningEffort {
+  if (effort !== "none") {
+    return effort;
+  }
+  const id = modelId.trim().toLowerCase();
+  const leaf = id.includes("/") ? id.slice(id.lastIndexOf("/") + 1) : id;
+  if (/^gpt-5\.6|luna|sol|terra/.test(leaf) || /gpt-5\.6/.test(id)) {
+    return "low";
+  }
+  return effort;
+}
+
 export function toWireReasoningEffort(
   effort: ReasoningEffort,
   options: { officialOpenAI?: boolean } = {},
