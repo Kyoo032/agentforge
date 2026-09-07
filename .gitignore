@@ -19,6 +19,8 @@ data/*.sqlite-shm
 data/*.sqlite-wal
 data/*.db-shm
 data/*.db-wal
+data/edit/
+.cursor-artifacts/
 apps/desktop/dist
 apps/desktop/dist-*
 apps/desktop/out
