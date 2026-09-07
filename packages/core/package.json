@@ -13,6 +13,7 @@
     "./pii": "./src/security/pii.ts",
     "./product-modes": "./src/agents/product-modes.ts",
     "./video-capabilities": "./src/models/video-capabilities.ts",
+    "./edit": "./src/edit/index.ts",
     "./content": "./src/content/transcript.ts",
     "./reasoning-effort": "./src/models/reasoning-effort.ts",
     "./stream-watchdog": "./src/runtime/stream-watchdog.ts",
@@ -31,6 +32,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.2.0",
+    "fast-check": "^4.9.0",
     "typescript": "^5.8.3",
     "vitest": "^3.2.4"
   }

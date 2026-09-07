@@ -14,7 +14,7 @@ afterEach(() => {
 describe("sqliteFilePath", () => {
   it("rejects leftover Postgres URLs", () => {
     process.env.DATABASE_URL = "postgres://agentforge:agentforge@127.0.0.1:5432/agentforge";
-    expect(() => sqliteFilePath()).toThrow(/no longer the product database/i);
+    expect(() => sqliteFilePath()).toThrow(/Postgres is not supported|no longer the product database/i);
   });
 
   it("reads file: URLs", () => {

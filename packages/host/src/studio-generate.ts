@@ -10,6 +10,7 @@ import {
   pickPreferredVideoModel,
   runWithToolSecrets,
   studioVideoFailureStatus,
+  videoCapabilities,
   videoGenerateTool,
   type ChatModel,
   type TenantContext,
@@ -84,6 +85,9 @@ export function parseVideoGenerateBody(raw: unknown): VideoGenerateBody {
   const parsed = videoGenerateBodySchema.safeParse(raw);
   if (!parsed.success) {
     throw new ApiError("invalid_content_part", parsed.error.issues[0]?.message ?? "Invalid body", 400);
+  }
+  if (parsed.data.imageUrl && parsed.data.model && !videoCapabilities(parsed.data.model).imageToVideo) {
+    throw new ApiError("video_still_unsupported", "This model does not accept a still image", 400);
   }
   return parsed.data;
 }
@@ -186,6 +190,9 @@ export async function generateStudioVideo(
   const settings = loadSettings();
   const scope = buildToolSecretScope(settings);
   const model = body.model || settings.videoGenModel || defaultStudioVideoModel();
+  if (body.imageUrl && !videoCapabilities(model).imageToVideo) {
+    throw new ApiError("video_still_unsupported", "This model does not accept a still image", 400);
+  }
   const output = await runWithToolSecrets(scope, () =>
     videoGenerateTool.execute(
       {

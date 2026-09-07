@@ -80,7 +80,7 @@ node .cursor/skills/verify-agentforge/scripts/doctor.mjs
 node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop
 ```
 
-It is read-only. Default GETs `/chat`, `/api/v1/settings`, and `/api/v1/models` on `http://127.0.0.1:3000`. `--desktop` reads `host-status.json` (IPC; no HTTP). Override webdev with `AGENTFORGE_VERIFY_URL` (still must be loopback). Exit `0` prints JSON. Webdev: `url`, `surface`, `chatStatus`, `runtime`, `hasOpenai`, `keyFingerprint`, `modeKeys`, `chatCount`, `curation`, `knowledge`, `gatewayName`, `dataDir`. Desktop: `url: "ipc"`, `transport: "ipc"`, `pid`, `dataDir`, `productName`, `gatewayName`, `gatewayBaseUrl`. Desktop `curation` / `modeKeys` / `chatCount` stay empty — no HTTP models probe. Exit `1` means do not drive. `keyFingerprint` is `true` only on webdev when a gateway key is saved and `openaiKeyFingerprint` is a non-empty `sha256:` string. Cloud/GHA have no key — expect `false`, do not fail. `gatewayName` is Toko Token on public webdev. Webdev `knowledge: true` means `GET /api/v1/knowledge` returned 200; `false` is not a doctor fail — skip the Knowledge drive if it is false.
+It is read-only. Default GETs `/chat`, `/api/v1/settings`, `/api/v1/models`, and `GET /api/v1/edit/doctor` on `http://127.0.0.1:3000`. `--desktop` reads `host-status.json` (IPC; no HTTP). Override webdev with `AGENTFORGE_VERIFY_URL` (still must be loopback). Exit `0` prints JSON. Webdev: `url`, `surface`, `chatStatus`, `runtime`, `hasOpenai`, `keyFingerprint`, `modeKeys`, `chatCount`, `curation`, `knowledge`, `gatewayName`, `dataDir`, `edit` (`ffmpeg` / `asr`, or `{ available: false }` when the endpoint is missing). Desktop: `url: "ipc"`, `transport: "ipc"`, `pid`, `dataDir`, `productName`, `gatewayName`, `gatewayBaseUrl`, `edit.ffmpeg` from `host-status.json` `editFfmpeg` when present. Desktop `curation` / `modeKeys` / `chatCount` stay empty — no HTTP models probe. Exit `1` means do not drive. A missing edit endpoint is a note, not a fail. `keyFingerprint` is `true` only on webdev when a gateway key is saved and `openaiKeyFingerprint` is a non-empty `sha256:` string. Cloud/GHA have no key — expect `false`, do not fail. `gatewayName` is Toko Token on public webdev. Webdev `knowledge: true` means `GET /api/v1/knowledge` returned 200; `false` is not a doctor fail — skip the Knowledge drive if it is false.
 
 Refuse to drive when:
 
@@ -134,7 +134,7 @@ Use `page.getByTestId("<id>")` exactly as the spec.
 
 | testid | Surface |
 |---|---|
-| `mode-chat`, `mode-documents`, `mode-research`, `mode-finance`, `mode-data`, `mode-images`, `mode-videos`, `mode-presentations` | Left rail work modes (Home has all of these) |
+| `mode-chat`, `mode-documents`, `mode-research`, `mode-finance`, `mode-data`, `mode-images`, `mode-videos`, `mode-presentations`, `mode-edit` | Left rail work modes (Home has all of these). `mode-edit` is Phase 1 |
 | `mode-knowledge` | Account rail → Knowledge Base (`/knowledge`). Always visible; not a product mode |
 | `product-brand`, `product-logo` | Rail product name and mark. Packaged flavors must not stay Agentforge — [desktop-brands.md](features/desktop-brands.md) |
 | `mode-agents` | Parked. Count 0. `/agents` and `/studio` redirect to Chat |
@@ -147,6 +147,7 @@ Use `page.getByTestId("<id>")` exactly as the spec.
 | `settings-form`, `openai-key`, `key-fingerprint`, `runtime-status`, `privacy-note`, `usage-this-key`, `app-updates`, `app-updates-check` | Settings (key-only; Open Usage; Agentforge update strip) |
 | `usage-range-empty`, `usage-desk-range`, `usage-by-model`, `usage-key-meter` | Usage page (by-model + desk range; empty chart copy) |
 | `images-studio`, `images-studio-needs-key`, `videos-studio`, `videos-studio-needs-key` | Generate studios |
+| `edit-studio`, `edit-timeline`, `edit-preview`, `edit-agent-panel`, `edit-composer`, `edit-card`, `edit-card-keep`, `edit-card-undo`, `edit-card-tweak`, `edit-export`, `edit-needs-ffmpeg`, `edit-needs-key` | Edit studio (Phase 1) |
 | `finance-studio`, `finance-starters`, `finance-download`, `finance-generate` | Finance job |
 | `data-studio`, `data-csv`, `data-starter`, `data-download`, `data-generate` | Data job |
 | `knowledge-page`, `knowledge-tabs`, `knowledge-models`, `knowledge-sources`, `knowledge-paste`, `knowledge-soul-save`, `knowledge-memory-add`, `knowledge-model-embedding`, `knowledge-model-brain`, `knowledge-model-verifier`, `knowledge-tab-map`, `knowledge-map-panel`, `knowledge-map-run`, `knowledge-map` | Knowledge Base |
@@ -156,7 +157,7 @@ Use `page.getByTestId("<id>")` exactly as the spec.
 
 Rail testids are `mode-${href.slice(1)}` (`/chat` → `mode-chat`). Home already shows every work mode. A Legal desk has Chat + Documents + Research + Presentation and `mode-images` count 0.
 
-Recipes: [features/chat.md](features/chat.md), [features/settings.md](features/settings.md), [features/usage.md](features/usage.md), [features/workspaces.md](features/workspaces.md), [features/documents.md](features/documents.md), [features/research.md](features/research.md), [features/finance.md](features/finance.md), [features/data.md](features/data.md), [features/knowledge.md](features/knowledge.md), [features/images.md](features/images.md), [features/videos.md](features/videos.md), [features/desktop.md](features/desktop.md), [features/desktop-brands.md](features/desktop-brands.md), [features/mobile.md](features/mobile.md). Build and Studio advanced are parked.
+Recipes: [features/chat.md](features/chat.md), [features/settings.md](features/settings.md), [features/usage.md](features/usage.md), [features/workspaces.md](features/workspaces.md), [features/documents.md](features/documents.md), [features/research.md](features/research.md), [features/finance.md](features/finance.md), [features/data.md](features/data.md), [features/knowledge.md](features/knowledge.md), [features/images.md](features/images.md), [features/videos.md](features/videos.md), [features/edit.md](features/edit.md), [features/desktop.md](features/desktop.md), [features/desktop-brands.md](features/desktop-brands.md), [features/mobile.md](features/mobile.md). Build and Studio advanced are parked.
 
 ## Evidence
 

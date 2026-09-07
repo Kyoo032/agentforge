@@ -9,6 +9,7 @@ export const PRODUCT_MODES = [
   { id: "data", label: "Data", href: "/data" },
   { id: "images", label: "Images", href: "/images" },
   { id: "videos", label: "Videos", href: "/videos" },
+  { id: "edit", label: "Edit", href: "/edit" },
   { id: "presentations", label: "Presentation", href: "/presentations" },
 ] as const;
 

@@ -1,0 +1,105 @@
+import { execFile as execFileCb, type ExecFileException } from "node:child_process";
+import { unlink } from "node:fs/promises";
+import { promisify } from "node:util";
+import { ApiError } from "@agentforge/core";
+import { resolveFfmpeg, resolveFfprobe } from "../ffmpeg-binary";
+
+const defaultExecFile = promisify(execFileCb);
+
+export type ExecFileFn = (
+  file: string,
+  args: readonly string[] | string[] | undefined,
+  options: {
+    timeout?: number;
+    windowsHide?: boolean;
+    env?: NodeJS.ProcessEnv;
+    signal?: AbortSignal;
+    encoding?: BufferEncoding | "buffer";
+    maxBuffer?: number;
+  },
+) => Promise<{ stdout: string | Buffer; stderr: string | Buffer }>;
+
+export type FfmpegProgress = { outTimeUs?: number; progress?: number };
+
+export type RunFfmpegOptions = {
+  timeoutMs: number;
+  signal?: AbortSignal;
+  onProgress?: (progress: FfmpegProgress) => void;
+  bin?: "ffmpeg" | "ffprobe";
+  outputPath?: string;
+};
+
+const SECRET_ENV = /^(AGENTFORGE_SECRETS_KEY|OPENAI_|ANTHROPIC_|GOOGLE_|ARK_|VOLCENGINE_|FAL_)/i;
+
+export function minimalEnv(source: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = {};
+  for (const key of ["PATH", "TMP", "TEMP", "TMPDIR", "SystemRoot", "SYSTEMROOT", "ComSpec", "PATHEXT"]) {
+    if (source[key]) {
+      env[key] = source[key];
+    }
+  }
+  for (const key of Object.keys(source)) {
+    if (SECRET_ENV.test(key)) {
+      continue;
+    }
+  }
+  return env;
+}
+
+let execFileImpl: ExecFileFn = defaultExecFile as ExecFileFn;
+
+export function setExecFileForTests(next: ExecFileFn | null): void {
+  execFileImpl = next ?? (defaultExecFile as ExecFileFn);
+}
+
+function parseProgress(chunk: string): FfmpegProgress {
+  const outTime = chunk.match(/out_time_us=(\d+)/);
+  const ratio = chunk.match(/progress=(\w+)/);
+  return {
+    ...(outTime ? { outTimeUs: Number(outTime[1]) } : {}),
+    ...(ratio ? { progress: ratio[1] === "end" ? 1 : undefined } : {}),
+  };
+}
+
+export async function runFfmpeg(argv: string[], options: RunFfmpegOptions): Promise<{ stdout: string; stderr: string }> {
+  const resolved = options.bin === "ffprobe" ? resolveFfprobe() : resolveFfmpeg();
+  if (!resolved.found || !resolved.path) {
+    throw new ApiError("ffmpeg_missing", "ffmpeg is not available on this machine", 400);
+  }
+  const args = [...argv];
+  if (options.bin !== "ffprobe" && options.onProgress && !args.includes("-progress")) {
+    args.push("-progress", "pipe:1", "-nostats");
+  }
+  try {
+    const result = await execFileImpl(resolved.path, args, {
+      timeout: options.timeoutMs,
+      windowsHide: true,
+      env: minimalEnv(),
+      signal: options.signal,
+      encoding: "utf8",
+      maxBuffer: 32 * 1024 * 1024,
+    });
+    const stdout = typeof result.stdout === "string" ? result.stdout : result.stdout.toString("utf8");
+    const stderr = typeof result.stderr === "string" ? result.stderr : result.stderr.toString("utf8");
+    if (options.onProgress) {
+      options.onProgress(parseProgress(stdout));
+    }
+    return { stdout, stderr };
+  } catch (error) {
+    if (options.outputPath) {
+      try {
+        await unlink(options.outputPath);
+      } catch {
+        // partial may not exist
+      }
+    }
+    const err = error as ExecFileException & { stdout?: string; stderr?: string };
+    if (err.code === "ABORT_ERR" || options.signal?.aborted) {
+      throw new ApiError("job_cancelled", "ffmpeg cancelled", 400);
+    }
+    if (typeof err.code === "number" && err.killed) {
+      throw new ApiError("ffmpeg_timeout", "ffmpeg timed out", 400);
+    }
+    throw new ApiError("ffmpeg_failed", "ffmpeg recipe failed", 400);
+  }
+}

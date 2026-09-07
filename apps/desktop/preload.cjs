@@ -55,4 +55,5 @@ contextBridge.exposeInMainWorld("agentforge", {
       ipcRenderer.on("host:stream-error", onError);
     }),
   saveBytes: (filename, bytes) => ipcRenderer.invoke("host:save-bytes", { filename, bytes }),
+  pickMedia: () => ipcRenderer.invoke("agentforge:pick-media"),
 });

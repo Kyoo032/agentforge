@@ -122,11 +122,14 @@ async function doctorDesktop() {
     dataDir,
     sqliteHint: packagedSqliteHint(),
     statusFile: file,
+    edit: { ffmpeg: status.editFfmpeg ?? null },
   };
   console.log(JSON.stringify(report, null, 2));
   console.log("");
   if (runtime === "stub") {
-    console.log("verify-agentforge doctor: OK — packaged IPC host, stub runtime. Safe for Chat send without a live gateway.");
+    console.log(
+      "verify-agentforge doctor: OK — packaged IPC host, stub runtime. Safe for Chat send without a live gateway.",
+    );
   } else if (runtime === "ai") {
     console.log(
       "verify-agentforge doctor: OK — packaged IPC host, live runtime (a gateway key is saved). Do not treat Chat send or studio generate as stub proof.",
@@ -221,12 +224,30 @@ async function doctorWebdev() {
     modelsPayload.curation != null &&
     (typeof modelsPayload.curation === "object" || typeof modelsPayload.curation === "boolean");
   const hasPerModelCuration = modelsList.some(
-    (entry) =>
-      entry &&
-      typeof entry === "object" &&
-      ("bestFor" in entry || "tier" in entry || "curation" in entry),
+    (entry) => entry && typeof entry === "object" && ("bestFor" in entry || "tier" in entry || "curation" in entry),
   );
   const curation = Boolean(hasTopLevelCuration || hasPerModelCuration);
+
+  let edit = { available: false };
+  let editNote = "";
+  try {
+    const editRes = await get(BASE, "/api/v1/edit/doctor");
+    if (editRes.status === 200) {
+      try {
+        const editPayload = JSON.parse(editRes.text);
+        edit = {
+          ffmpeg: editPayload.ffmpeg ?? null,
+          asr: editPayload.asr ?? null,
+        };
+      } catch {
+        editNote = "verify-agentforge doctor: note — GET /api/v1/edit/doctor was not JSON (pre-Phase-1).";
+      }
+    } else {
+      editNote = `verify-agentforge doctor: note — GET /api/v1/edit/doctor returned ${editRes.status} (pre-Phase-1).`;
+    }
+  } catch {
+    editNote = "verify-agentforge doctor: note — GET /api/v1/edit/doctor did not connect (pre-Phase-1).";
+  }
 
   let knowledgeStatus = 0;
   try {
@@ -251,10 +272,14 @@ async function doctorWebdev() {
     gatewayName: typeof payload.gatewayName === "string" ? payload.gatewayName : undefined,
     dataDir: process.env.AGENTFORGE_DATA_DIR || "unset (webdev default: <repo>/data)",
     sqliteHint: "data/agentforge.sqlite under AGENTFORGE_DATA_DIR or repo data/",
+    edit,
   };
 
   console.log(JSON.stringify(report, null, 2));
   console.log("");
+  if (editNote) {
+    console.log(editNote);
+  }
   if (runtime === "stub") {
     console.log("verify-agentforge doctor: OK — stub runtime. Safe for Chat send without a live gateway.");
   } else if (runtime === "ai") {
@@ -262,7 +287,9 @@ async function doctorWebdev() {
       "verify-agentforge doctor: OK — live runtime (a provider key is saved). Do not treat Chat send or studio generate as stub proof. Settings view and needs-key checks are still valid only when those UI states actually appear.",
     );
   } else {
-    console.log(`verify-agentforge doctor: OK — unexpected runtime ${runtime}. Read GET /api/v1/settings before driving.`);
+    console.log(
+      `verify-agentforge doctor: OK — unexpected runtime ${runtime}. Read GET /api/v1/settings before driving.`,
+    );
   }
 }
 

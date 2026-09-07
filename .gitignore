@@ -19,6 +19,8 @@ data/*.sqlite-shm
 data/*.sqlite-wal
 data/*.db-shm
 data/*.db-wal
+data/edit/
+.cursor-artifacts/
 apps/desktop/dist
 apps/desktop/dist-*
 apps/desktop/out
@@ -36,6 +38,8 @@ playwright-report
 test-results
 .cursor/skills/verify-agentforge/evidence/**
 !.cursor/skills/verify-agentforge/evidence/README.md
+apps/web/tests/fixtures/edit/*.mp4
+apps/web/tests/fixtures/edit/*.png
 .DS_Store
 *.tsbuildinfo
 .claude/

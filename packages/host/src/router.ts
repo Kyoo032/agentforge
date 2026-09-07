@@ -1,31 +1,4 @@
-import type { HostHandler, HostRequest, HostResult } from "./types";
 import { jsonOk } from "./errors";
-import { handleGetSettings, handlePostSettings } from "./handlers/settings";
-import { handleGetUsage } from "./handlers/usage";
-import { handleGetChat } from "./handlers/chat";
-import {
-  handleGetWorkspaces,
-  handlePatchWorkspace,
-  handlePostWorkspaces,
-  handleSelectWorkspace,
-} from "./handlers/workspaces";
-import { handleDeleteThread, handleGetThread, handleGetThreads, handlePostThreads } from "./handlers/threads";
-import { handleRun } from "./handlers/runs";
-import { handleGetModels, handlePostModels } from "./handlers/models";
-import { handleGetMediaFile, handlePostMedia } from "./handlers/media";
-import {
-  handleGetImages,
-  handleGetVideos,
-  handlePostDocuments,
-  handlePostDocumentsDocx,
-  handlePostDocumentsRegen,
-  handlePostImages,
-  handlePostPresentations,
-  handlePostPresentationsPptx,
-  handlePostPresentationsRegen,
-  handlePostResearch,
-  handlePostVideos,
-} from "./handlers/jobs";
 import {
   handleGetAgent,
   handleGetAgentCapabilities,
@@ -39,8 +12,44 @@ import {
   handlePostAgentTools,
   handlePostWorkspaceAgents,
 } from "./handlers/agents";
-import { handleGetContext, handleGetOrganizations, handleGetTemplates, handleGetTools, handlePing } from "./handlers/misc";
+import { handleGetChat } from "./handlers/chat";
+import {
+  handleGetEditDoctor,
+  handleGetEditEvents,
+  handleGetEditExportFile,
+  handleGetEditJob,
+  handleGetEditMetrics,
+  handleGetEditProject,
+  handleGetEditProjects,
+  handlePostEditAgent,
+  handlePostEditExport,
+  handlePostEditGenerate,
+  handlePostEditImport,
+  handlePostEditJobCancel,
+  handlePostEditJobs,
+  handlePostEditKeep,
+  handlePostEditOps,
+  handlePostEditParity,
+  handlePostEditProjects,
+  handlePostEditUndo,
+  handlePostEditUnplacedDiscard,
+  handlePostEditUnplacedPlace,
+} from "./handlers/edit";
 import { handlePostEnhancePrompt } from "./handlers/enhance-prompt";
+import {
+  handleGetImages,
+  handleGetVideos,
+  handlePostData,
+  handlePostDocuments,
+  handlePostDocumentsDocx,
+  handlePostDocumentsRegen,
+  handlePostImages,
+  handlePostPresentations,
+  handlePostPresentationsPptx,
+  handlePostPresentationsRegen,
+  handlePostResearch,
+  handlePostVideos,
+} from "./handlers/jobs";
 import {
   handleDeleteKnowledgeMemory,
   handleDeleteKnowledgeSource,
@@ -53,7 +62,26 @@ import {
   handlePutKnowledgeModels,
   handlePutKnowledgeSoul,
 } from "./handlers/knowledge";
-import { handlePostData } from "./handlers/jobs";
+import { handleGetMediaFile, handlePostMedia } from "./handlers/media";
+import {
+  handleGetContext,
+  handleGetOrganizations,
+  handleGetTemplates,
+  handleGetTools,
+  handlePing,
+} from "./handlers/misc";
+import { handleGetModels, handlePostModels } from "./handlers/models";
+import { handleRun } from "./handlers/runs";
+import { handleGetSettings, handlePostSettings } from "./handlers/settings";
+import { handleDeleteThread, handleGetThread, handleGetThreads, handlePostThreads } from "./handlers/threads";
+import { handleGetUsage } from "./handlers/usage";
+import {
+  handleGetWorkspaces,
+  handlePatchWorkspace,
+  handlePostWorkspaces,
+  handleSelectWorkspace,
+} from "./handlers/workspaces";
+import type { HostHandler, HostRequest, HostResult } from "./types";
 
 type Route = {
   method: string;
@@ -73,6 +101,26 @@ function compile(method: string, path: string, handler: HostHandler): Route {
 
 const routes: Route[] = [
   compile("GET", "/api/v1/ping", () => handlePing()),
+  compile("GET", "/api/v1/edit/doctor", () => handleGetEditDoctor()),
+  compile("GET", "/api/v1/edit/metrics", handleGetEditMetrics),
+  compile("GET", "/api/v1/edit/projects", handleGetEditProjects),
+  compile("POST", "/api/v1/edit/projects", handlePostEditProjects),
+  compile("GET", "/api/v1/edit/projects/:projectId", handleGetEditProject),
+  compile("POST", "/api/v1/edit/projects/:projectId/ops", handlePostEditOps),
+  compile("POST", "/api/v1/edit/projects/:projectId/undo", handlePostEditUndo),
+  compile("POST", "/api/v1/edit/projects/:projectId/cards/:cardId/keep", handlePostEditKeep),
+  compile("POST", "/api/v1/edit/projects/:projectId/import", handlePostEditImport),
+  compile("POST", "/api/v1/edit/projects/:projectId/generate", handlePostEditGenerate),
+  compile("POST", "/api/v1/edit/projects/:projectId/agent", handlePostEditAgent),
+  compile("GET", "/api/v1/edit/projects/:projectId/events", handleGetEditEvents),
+  compile("POST", "/api/v1/edit/projects/:projectId/jobs", handlePostEditJobs),
+  compile("GET", "/api/v1/edit/projects/:projectId/jobs/:jobId", handleGetEditJob),
+  compile("POST", "/api/v1/edit/projects/:projectId/jobs/:jobId/cancel", handlePostEditJobCancel),
+  compile("POST", "/api/v1/edit/projects/:projectId/export", handlePostEditExport),
+  compile("GET", "/api/v1/edit/projects/:projectId/export/:jobId/file", handleGetEditExportFile),
+  compile("POST", "/api/v1/edit/projects/:projectId/unplaced/:itemId/place", handlePostEditUnplacedPlace),
+  compile("POST", "/api/v1/edit/projects/:projectId/unplaced/:itemId/discard", handlePostEditUnplacedDiscard),
+  compile("POST", "/api/v1/edit/projects/:projectId/parity", handlePostEditParity),
   compile("GET", "/api/v1/settings", handleGetSettings),
   compile("POST", "/api/v1/settings", handlePostSettings),
   compile("GET", "/api/v1/usage", handleGetUsage),

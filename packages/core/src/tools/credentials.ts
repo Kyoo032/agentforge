@@ -129,6 +129,20 @@ export const TOOL_CAPABILITIES: ToolCapabilitySpec[] = [
     ],
     autodectOrder: ["gateway", "fal"],
   },
+  {
+    id: "asr",
+    label: "Speech to text",
+    description: "Edit captions via gateway POST /v1/audio/transcriptions when a whisper/transcribe model is live.",
+    backends: [
+      {
+        id: "gateway",
+        label: "Toko Token gateway",
+        envVars: ["OPENAI_API_KEY"],
+        urlVars: ["OPENAI_BASE_URL"],
+      },
+    ],
+    autodectOrder: ["gateway"],
+  },
 ];
 
 /** Chat/inference secrets. Never shown as tool-key fields; reused only when a backend lists them. */

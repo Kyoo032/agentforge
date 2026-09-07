@@ -4,7 +4,7 @@ Agent-facing map (where to press). Not product. Pair with pstack `how` for how a
 
 This directory is the maintained source for verifying user-facing Agentforge behavior. Read this index before driving, then use the matching feature file as the recipe.
 
-Documents, Research, Finance, Data, Images, Videos, and Presentation are product modes. **Home already unlocks all of them.** A Legal (or other) workspace can hide some tabs. Knowledge is Account-rail, not a mode checkbox. Custom agents do not unlock the rail.
+Documents, Research, Finance, Data, Images, Videos, Presentation, and Edit are product modes. **Home already unlocks all of them.** A Legal (or other) workspace can hide some tabs. Knowledge is Account-rail, not a mode checkbox. Custom agents do not unlock the rail. Edit rail `mode-edit` lands in Phase 1; Loop 0 only ships the map + doctor + fixtures.
 
 ## Baseline preconditions
 
@@ -55,6 +55,7 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 - [Knowledge](./knowledge.md) — Account-rail Soul / Memory / Sources / Map + choosable embedding/brain/verifier; Chat injects RAG retrieve. Not a product mode.
 - [Images](./images.md) — studio shell on Home; needs-key without a gateway key.
 - [Videos](./videos.md) — studio shell and `videos-studio-needs-key` without a key.
+- [Edit](./edit.md) — CapCut-style timeline + agent panel (`mode-edit`). Loop 0 harness (fixtures, doctor, stub S1–S10); studio ships in Phase 1.
 - [Presentation](./presentations.md) — starters, preview, slide regen (503 without a key), PPTX download from a starter.
 - [Desktop](./desktop.md) — Electron one-window launch, splash → Chat, IPC host (no loopback HTTP). Windows NSIS exists; mac/linux are builder targets.
 - [Desktop brands](./desktop-brands.md) — packaged Kemenkeu AI / AIHub Metranet vs public Agentforge. Rail `product-brand` + `product-logo` must match the installed flavor, not leftover Agentforge copy.

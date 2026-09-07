@@ -88,6 +88,14 @@ describe("mergeSecrets", () => {
     const untouched = mergeSecrets(enabled, { openaiApiKey: "sk-x" });
     expect(untouched.injectionGuardBypass).toBe(true);
   });
+
+  it("clamps editTurnCapUsd to 0.5–50 and leaves it absent when unpatched", () => {
+    const set = mergeSecrets({}, { editTurnCapUsd: 2 });
+    expect(set.editTurnCapUsd).toBe(2);
+    expect(mergeSecrets({}, { editTurnCapUsd: 0.1 }).editTurnCapUsd).toBe(0.5);
+    expect(mergeSecrets({}, { editTurnCapUsd: 99 }).editTurnCapUsd).toBe(50);
+    expect(mergeSecrets(set, { openaiApiKey: "sk-x" }).editTurnCapUsd).toBe(2);
+  });
 });
 
 describe("maskSecrets", () => {
@@ -120,6 +128,7 @@ describe("maskSecrets", () => {
       presentationGenModel: undefined,
       disabledTools: [],
       injectionGuardBypass: false,
+      editTurnCapUsd: undefined,
     });
   });
 
@@ -174,6 +183,10 @@ describe("maskSecrets", () => {
   it("masks injectionGuardBypass as false when absent", () => {
     expect(maskSecrets({}).injectionGuardBypass).toBe(false);
     expect(maskSecrets({ injectionGuardBypass: true }).injectionGuardBypass).toBe(true);
+  });
+
+  it("exposes editTurnCapUsd when stored", () => {
+    expect(maskSecrets({ editTurnCapUsd: 2 }).editTurnCapUsd).toBe(2);
   });
 });
 

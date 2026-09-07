@@ -14,18 +14,21 @@ describe("videoCapabilities", () => {
       resolution: true,
       seconds: true,
       still: true,
+      imageToVideo: true,
     });
     expect(videoCapabilities("doubao-seedance-2-0-260128")).toEqual({
       ratio: true,
       resolution: true,
       seconds: true,
       still: true,
+      imageToVideo: true,
     });
     expect(videoCapabilities("kling-v1")).toEqual({
       ratio: true,
       resolution: true,
       seconds: true,
       still: true,
+      imageToVideo: true,
     });
   });
 
@@ -36,13 +39,25 @@ describe("videoCapabilities", () => {
       resolution: false,
       seconds: true,
       still: true,
+      imageToVideo: true,
     });
     expect(videoCapabilities("unknown-video-model")).toEqual({
       ratio: false,
       resolution: false,
       seconds: true,
       still: true,
+      imageToVideo: false,
     });
+  });
+
+  it("sets imageToVideo fail-closed (G-20)", () => {
+    expect(videoCapabilities("dreamina-seedance-2-0-260128").imageToVideo).toBe(true);
+    expect(videoCapabilities("veo_3_1").imageToVideo).toBe(true);
+    expect(videoCapabilities("sora-2").imageToVideo).toBe(true);
+    expect(videoCapabilities("grok-imagine-video-1.5-preview").imageToVideo).toBe(true);
+    expect(videoCapabilities("omni-fast-v2v").imageToVideo).toBe(false);
+    expect(videoCapabilities("mj_video").imageToVideo).toBe(false);
+    expect(videoCapabilities("totally-unknown").imageToVideo).toBe(false);
   });
 
   it("clamps seconds to 2–12 and resolution to 480p|720p|1080p", () => {

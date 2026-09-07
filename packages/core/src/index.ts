@@ -126,8 +126,47 @@ export {
   normalizeVideoResolution,
   GATEWAY_VIDEO_DURATION_SECONDS,
   GATEWAY_VIDEO_RESOLUTION,
+  imageToVideoForModel,
 } from "./models/video-capabilities";
 export type { VideoCapabilities, GatewayVideoResolution } from "./models/video-capabilities";
+export {
+  emptyProject,
+  projectSchema,
+  titleStyleSchema,
+  DEFAULT_TITLE_STYLE,
+  DEFAULT_CAPTION_STYLE,
+  applyOp,
+  computeInverse,
+  assertAgentOpHasCard,
+  foldOps,
+  validateDoc,
+  routeEditModel,
+  estimateJobUsd,
+  framesToSeconds,
+  secondsToFrames,
+  buildAssDocument,
+  layoutTitle,
+  parseOpPayload,
+  OP_TYPES,
+  ASPECT_SIZE,
+} from "./edit";
+export type { EditProject, Asset, Clip, ApplyableOp, EditOp, AspectRatio, OpType } from "./edit";
+export { registerEditTools, setEditToolBackend, getEditToolBackend, editToolRefusal } from "./tools/edit";
+export type {
+  EditToolBackend,
+  EditToolRefusal,
+  EditJobKind,
+  EditStartJobInput,
+  EditStartGenerateJobInput,
+  EditStartGenerateJobResult,
+  EditPlanInput,
+} from "./tools/edit";
+export { matchStubEditScenario, STUB_EDIT_SCENARIOS } from "./runtime/stub-edit-scenarios";
+export {
+  matchStubFillScenario,
+  matchStubGenerateScenario,
+  STUB_FILL_SCENARIOS,
+} from "./runtime/stub-edit-fill";
 export {
   CHAT_MODELS,
   listChatModels,

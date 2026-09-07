@@ -23,6 +23,26 @@ describe("host router", () => {
     });
   });
 
+  it("answers GET /api/v1/edit/doctor without a gateway key", async () => {
+    const result = await dispatch({
+      method: "GET",
+      path: "/api/v1/edit/doctor",
+      query: {},
+      params: {},
+      headers: {},
+    });
+    expect(result.type).toBe("json");
+    if (result.type !== "json") {
+      return;
+    }
+    expect(result.status).toBe(200);
+    expect(result.body).toMatchObject({
+      ffmpeg: expect.objectContaining({ found: expect.any(Boolean) }),
+      asr: expect.objectContaining({ available: expect.any(Boolean) }),
+      fonts: [],
+    });
+  });
+
   it("returns not_found JSON for unknown routes", async () => {
     const result = await dispatch({
       method: "GET",

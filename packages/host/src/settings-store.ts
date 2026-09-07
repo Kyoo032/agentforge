@@ -60,6 +60,10 @@ function normalizeSecrets(parsed: StoredSecrets): StoredSecrets {
     presentationGenModel: readString(parsed.presentationGenModel),
     disabledTools,
     injectionGuardBypass: parsed.injectionGuardBypass === true ? true : undefined,
+    editTurnCapUsd:
+      typeof parsed.editTurnCapUsd === "number" && Number.isFinite(parsed.editTurnCapUsd)
+        ? Math.min(50, Math.max(0.5, parsed.editTurnCapUsd))
+        : undefined,
   };
 }
 
