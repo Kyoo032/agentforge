@@ -338,9 +338,26 @@ async function bootstrapPackaged() {
   }
   hostReady = true;
   const settings = host.loadSettings();
+  let editFfmpeg = null;
+  try {
+    const doctor = await host.dispatch({
+      method: "GET",
+      path: "/api/v1/edit/doctor",
+      query: {},
+      params: {},
+      headers: {},
+      workspaceId: host.readSelectedWorkspaceId() ?? null,
+    });
+    if (doctor?.type === "json" && doctor.body?.ffmpeg) {
+      editFfmpeg = doctor.body.ffmpeg;
+    }
+  } catch {
+    // edit doctor optional during boot
+  }
   writeHostStatus(dataDir, {
     runtime: settings.openaiApiKey ? "ai" : process.env.AGENTFORGE_RUNTIME || "stub",
     hasOpenai: Boolean(settings.openaiApiKey),
+    editFfmpeg,
   });
   await navigateToUi();
 }

@@ -6,6 +6,7 @@ import { editEvents } from "./events";
 import { appendEditMetric } from "./metrics";
 import { mapJob } from "./projects";
 import { runGenerateJob } from "./generate";
+import { ensureGenerateSubmitWired, loadMediaRow } from "./wire-generate";
 import { assetAbsPath, extractAudio, render, silenceDetect } from "./ffmpeg/recipes";
 import { transcribeAudioChunks } from "./asr";
 
@@ -134,8 +135,15 @@ async function defaultRunner(
     return { outputAssetIds: extracted.files };
   }
   if (job.kind === "ffmpeg_op") {
-    const request = job.requestJson as { recipe?: string; assetId?: string };
+    const request = job.requestJson as { recipe?: string; assetId?: string; clipId?: string; note?: string };
     const doc = await foldProject(job.projectId);
+    if (request.recipe === "matchLook") {
+      onProgress(1);
+      const clipId = request.clipId;
+      const clip = clipId ? doc.clips.find((item) => item.id === clipId) : undefined;
+      const assetId = clip?.source?.assetId;
+      return { outputAssetIds: assetId ? [assetId] : [] };
+    }
     const asset = request.assetId ? doc.assets[request.assetId] : undefined;
     if (request.recipe === "silenceDetect" && asset) {
       await silenceDetect(assetAbsPath(asset), job.projectId, doc.fps);
@@ -146,24 +154,69 @@ async function defaultRunner(
   return { outputAssetIds: [] };
 }
 
-async function completeSucceeded(job: JobRow, outputAssetIds: string[]): Promise<void> {
-  const doc = await foldProject(job.projectId);
-  const existing = job.targetClipIdsJson.filter((id) => doc.clips.some((clip) => clip.id === id));
-  if (existing.length > 0) {
-    const assetId = outputAssetIds[0] ?? `asset-${job.id}`;
-    const ensureAsset: Array<{ type: "add_asset"; payload: unknown } | { type: "set_source"; payload: unknown } | { type: "set_clip_status"; payload: unknown }> = [];
-    if (!doc.assets[assetId]) {
-      ensureAsset.push({
+async function resolveGenerateAsset(
+  job: JobRow,
+  doc: Awaited<ReturnType<typeof foldProject>>,
+  outputId: string | undefined,
+): Promise<{ assetId: string; addOps: Array<{ type: "add_asset"; payload: unknown }> }> {
+  if (outputId && doc.assets[outputId]) {
+    return { assetId: outputId, addOps: [] };
+  }
+  if (outputId && (job.kind === "generate_image" || job.kind === "generate_video")) {
+    const row = await loadMediaRow(outputId);
+    if (row) {
+      const assetId = crypto.randomUUID();
+      const kind = row.kind === "image" || row.kind === "audio" ? row.kind : "video";
+      return {
+        assetId,
+        addOps: [
+          {
+            type: "add_asset",
+            payload: {
+              asset: {
+                id: assetId,
+                mediaId: row.id,
+                kind,
+                storagePath: row.storagePath,
+              },
+            },
+          },
+        ],
+      };
+    }
+  }
+  const assetId = outputId ?? `asset-${job.id}`;
+  if (doc.assets[assetId]) {
+    return { assetId, addOps: [] };
+  }
+  const kind = job.kind === "generate_image" ? "image" : "video";
+  const ext = kind === "image" ? "png" : "mp4";
+  return {
+    assetId,
+    addOps: [
+      {
         type: "add_asset",
         payload: {
           asset: {
             id: assetId,
-            kind: "video",
-            storagePath: `edit/${job.projectId}/${assetId}.mp4`,
+            kind,
+            storagePath: `edit/${job.projectId}/${assetId}.${ext}`,
           },
         },
-      });
-    }
+      },
+    ],
+  };
+}
+
+async function completeSucceeded(job: JobRow, outputAssetIds: string[]): Promise<void> {
+  const doc = await foldProject(job.projectId);
+  const existing = job.targetClipIdsJson.filter((id) => doc.clips.some((clip) => clip.id === id));
+  if (existing.length > 0) {
+    const resolved = await resolveGenerateAsset(job, doc, outputAssetIds[0]);
+    const assetId = resolved.assetId;
+    const ensureAsset: Array<{ type: "add_asset"; payload: unknown } | { type: "set_source"; payload: unknown } | { type: "set_clip_status"; payload: unknown }> = [
+      ...resolved.addOps,
+    ];
     const ops = [
       ...ensureAsset,
       ...existing.flatMap((clipId) => [
@@ -173,7 +226,11 @@ async function completeSucceeded(job: JobRow, outputAssetIds: string[]): Promise
     ];
     await appendOps(job.projectId, ops, { actor: "owner" });
   } else if (outputAssetIds.length > 0) {
-    const assetId = outputAssetIds[0]!;
+    const resolved = await resolveGenerateAsset(job, doc, outputAssetIds[0]);
+    if (resolved.addOps.length > 0) {
+      await appendOps(job.projectId, resolved.addOps, { actor: "owner" });
+    }
+    const assetId = resolved.assetId;
     const [item] = await db
       .insert(editUnplaced)
       .values({
@@ -262,6 +319,7 @@ async function processJob(jobId: string): Promise<void> {
 }
 
 export async function enqueueEditJob(projectId: string, input: EnqueueJobInput): Promise<JobRow> {
+  ensureGenerateSubmitWired();
   await interruptRunningJobsOnBoot();
   const [row] = await db
     .insert(editJobs)

@@ -67,6 +67,10 @@
       {
         "from": "resources/brand",
         "to": "brand"
+      },
+      {
+        "from": "resources/ffmpeg",
+        "to": "ffmpeg"
       }
     ],
     "asarUnpack": [
