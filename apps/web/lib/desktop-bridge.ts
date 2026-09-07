@@ -18,6 +18,10 @@ export type DesktopBrandHint = {
   gatewayBaseUrl?: string;
 };
 
+/**
+ * Loose snapshot from the Electron main process. `status` stays a plain string here so this module has no
+ * dependency on the renderer copy module; use `normalizeUpdateSnapshot` from `./app-updates-copy` to narrow it.
+ */
 export type DesktopUpdateSnapshot = {
   supported: boolean;
   status?: string;

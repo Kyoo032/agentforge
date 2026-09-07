@@ -16,6 +16,7 @@
     "edit:starters:check": "node scripts/edit-starters.mjs --check",
     "desktop:dev": "pnpm --filter @agentforge/desktop desktop-dev",
     "desktop:build": "pnpm --filter @agentforge/desktop desktop-build",
+    "desktop:release": "pnpm --filter @agentforge/desktop desktop-release",
     "desktop:build:all": "pnpm --filter @agentforge/desktop desktop-build-all",
     "desktop:build:mac": "pnpm --filter @agentforge/desktop desktop-build-mac",
     "desktop:build:mac:dir": "pnpm --filter @agentforge/desktop desktop-build-mac-dir",

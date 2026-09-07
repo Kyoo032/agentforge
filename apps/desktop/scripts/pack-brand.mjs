@@ -168,6 +168,27 @@ console.log(
   `pack-brand: flavor=${brandId} product="${brand.productName}" gateway=${brand.gatewayBaseUrl} artifact="${brand.artifactName}"`,
 );
 
+/**
+ * brand.json "updates" is the single source of truth for where packaged Agentforge
+ * looks for latest.yml. It must agree with build.publish in package.json.
+ */
+function publishArgsFromBrand(config) {
+  const updates = config.updates;
+  const owner = typeof updates?.owner === "string" ? updates.owner.trim() : "";
+  const repo = typeof updates?.repo === "string" ? updates.repo.trim() : "";
+  if (updates?.provider !== "github" || !owner || !repo) {
+    console.error(
+      'brand.json "updates" must be { provider: "github", owner, repo } with non-empty owner/repo',
+    );
+    process.exit(1);
+  }
+  return [
+    "-c.publish.provider=github",
+    `-c.publish.owner=${owner}`,
+    `-c.publish.repo=${repo}`,
+  ];
+}
+
 const electronBuilderCli = require.resolve("electron-builder/cli.js", {
   paths: [desktopRoot],
 });
@@ -183,11 +204,7 @@ const args = [
   "-c.win.icon=icon.ico",
 ];
 if (brandId === "agentforge") {
-  args.push(
-    "-c.publish.provider=github",
-    "-c.publish.owner=Kyoo032",
-    "-c.publish.repo=agentforge",
-  );
+  args.push(...publishArgsFromBrand(brand));
 } else {
   args.push("-c.publish.provider=generic", "-c.publish.url=https://localhost/disabled-updates");
 }
@@ -206,21 +223,4 @@ restorePublicBrand();
 
 if (result.status !== 0) {
   process.exit(result.status ?? 1);
-}
-
-if (brandId === "agentforge") {
-  const latestPath = join(desktopRoot, "dist", "latest.yml");
-  if (existsSync(latestPath)) {
-    const pkg = JSON.parse(readFileSync(join(desktopRoot, "package.json"), "utf8"));
-    const version = typeof pkg.version === "string" ? pkg.version : "0.14.0";
-    const spaced = `Agentforge Setup ${version}.exe`;
-    const raw = readFileSync(latestPath, "utf8");
-    const next = raw
-      .replace(/Agentforge-Setup-[0-9.]+\\.exe/g, spaced)
-      .replace(/^path: .+$/m, `path: ${spaced}`);
-    if (next !== raw) {
-      writeFileSync(latestPath, next);
-      console.log(`pack-brand: rewrote latest.yml artifact to "${spaced}"`);
-    }
-  }
 }

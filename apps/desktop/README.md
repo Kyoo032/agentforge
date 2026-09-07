@@ -72,9 +72,18 @@ Never commit `.env`, `data/settings.enc`, or `data/.master-key`.
 
 ## In-app updates (Agentforge only)
 
-Packaged Agentforge checks [GitHub Releases](https://github.com/Kyoo032/agentforge/releases) from Settings → **Check for updates**. If a newer version is out, **Update and restart** downloads it and relaunches. Kemenkeu / Metranet builds do not get this button.
+Packaged Agentforge checks [GitHub Releases](https://github.com/Kyoo032/DPS-Agent-Platform/releases) in the **public** `Kyoo032/DPS-Agent-Platform` repo from Settings → **Check for updates**. If a newer version is out, **Update and restart** downloads it and relaunches. Kemenkeu / Metranet builds do not get this button. The source repo (`Kyoo032/agentforge`) stays private: electron-updater's GitHub provider is unauthenticated, so release assets have to live somewhere public.
 
-`electron-builder` writes `latest.yml` next to the Setup exe when the Agentforge flavor is packed. A GitHub release must include the exe, `latest.yml`, and the nsis blockmap — not just the Setup file. Do not attach flavor exes to the public repo.
+The update target is written in two places that must agree: `branding/agentforge/brand.json` `updates` (read by `scripts/pack-brand.mjs`, which is what `pnpm desktop:build` runs) and `package.json` `build.publish` (used by the plain `electron-builder --dir/--mac/--linux` scripts). `pnpm desktop:release` refuses to run when they differ. The version comes from `package.json` `version` only.
+
+Cut a release:
+
+```
+pnpm desktop:build
+pnpm desktop:release          # --dry-run prints the gh command and uploads nothing; --draft, --notes <file>
+```
+
+`electron-builder` writes `latest.yml` next to the Setup exe when the Agentforge flavor is packed. The local files keep the spaced `artifactName` (`Agentforge Setup 0.14.0.exe`), but `latest.yml` and the GitHub assets use the hyphenated form (`Agentforge-Setup-0.14.0.exe`). That is electron-builder's rule for GitHub and the updater re-hyphenates anyway, so never rewrite `latest.yml`. `desktop:release` checks version, size and sha512 against `latest.yml`, refuses a dirty tree or a `dist/` holding stale Setup exes (`--allow-dirty`, `--allow-stale`), then runs `gh release create v<version>` uploading the exe, its blockmap and `latest.yml` under the hyphenated names. Flavor exes (Kemenkeu / Metranet) must never be attached to the public repo.
 
 ## macOS and Linux packages (operator builds on that OS)
 

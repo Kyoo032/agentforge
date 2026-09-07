@@ -2,35 +2,39 @@
 
 import { useEffect, useState } from "react";
 import { getDesktopUpdates, isElectron } from "@/lib/api-client";
+import {
+  normalizeUpdateSnapshot,
+  shortUpdateMessage,
+  type UpdateState,
+  updateStatusLine,
+  updateVersionLine,
+} from "@/lib/app-updates-copy";
 import { useProductBrand } from "@/lib/product-brand";
 
-type UpdateStatus = "idle" | "checking" | "current" | "available" | "downloading" | "ready" | "error" | "unavailable";
-
-type UpdateState = {
-  supported: boolean;
-  status: UpdateStatus;
-  currentVersion?: string;
-  version?: string;
-  percent?: number;
-  message?: string;
-};
+const AGENTFORGE_PRODUCT_NAME = "Agentforge";
+const CHECK_FAILED_MESSAGE = "Could not check for updates.";
+const INSTALL_FAILED_MESSAGE = "Could not install the update.";
 
 function desktopUpdates() {
   return getDesktopUpdates();
 }
 
+function initialUpdateState(): UpdateState {
+  return {
+    supported: Boolean(desktopUpdates()?.supported),
+    status: isElectron() ? "idle" : "unavailable",
+  };
+}
+
 export function AppUpdates() {
   const { productName } = useProductBrand();
-  const [state, setState] = useState<UpdateState>({
-    supported: false,
-    status: isElectron() ? "idle" : "unavailable",
-  });
+  const [state, setState] = useState<UpdateState>(initialUpdateState);
   const [busy, setBusy] = useState(false);
 
-  const supported = productName === "Agentforge" && Boolean(desktopUpdates()?.supported);
+  const supported = productName === AGENTFORGE_PRODUCT_NAME && state.supported;
 
   useEffect(() => {
-    if (productName !== "Agentforge") {
+    if (productName !== AGENTFORGE_PRODUCT_NAME) {
       return;
     }
     const api = desktopUpdates();
@@ -38,16 +42,25 @@ export function AppUpdates() {
       setState({ supported: false, status: "unavailable" });
       return;
     }
-    void api.state().then((next) => setState({ ...next, status: next.status ?? "idle" }));
+    void api
+      .state()
+      .then((next) => setState(normalizeUpdateSnapshot(next, "idle")))
+      .catch((error: unknown) => {
+        setState((current) => ({
+          ...current,
+          status: "error",
+          message: shortUpdateMessage(error, CHECK_FAILED_MESSAGE),
+        }));
+      });
     const stop = api.onStatus?.((next) => {
-      setState((current) => ({ ...current, ...next }));
+      setState((current) => ({ ...current, ...normalizeUpdateSnapshot(next, current.status) }));
     });
     return () => {
       stop?.();
     };
   }, [productName]);
 
-  if (productName !== "Agentforge") {
+  if (productName !== AGENTFORGE_PRODUCT_NAME) {
     return null;
   }
 
@@ -59,12 +72,12 @@ export function AppUpdates() {
     setBusy(true);
     try {
       const next = await api.check();
-      setState({ ...next, status: next.status ?? "idle" });
+      setState(normalizeUpdateSnapshot(next, "idle"));
     } catch (error) {
       setState((current) => ({
         ...current,
         status: "error",
-        message: error instanceof Error ? error.message : "Could not check for updates.",
+        message: shortUpdateMessage(error, CHECK_FAILED_MESSAGE),
       }));
     } finally {
       setBusy(false);
@@ -80,42 +93,33 @@ export function AppUpdates() {
     try {
       if (state.status !== "ready") {
         const downloaded = await api.download();
-        setState({ ...downloaded, status: downloaded.status ?? "ready" });
+        const next = normalizeUpdateSnapshot(downloaded, "ready");
+        setState(next);
+        if (next.status === "error") {
+          setBusy(false);
+          return;
+        }
       }
       await api.install();
     } catch (error) {
       setState((current) => ({
         ...current,
         status: "error",
-        message: error instanceof Error ? error.message : "Could not install the update.",
+        message: shortUpdateMessage(error, INSTALL_FAILED_MESSAGE),
       }));
       setBusy(false);
     }
   }
 
-  const versionLine = state.currentVersion ? `This install is ${state.currentVersion}.` : "This install.";
-  const statusLine =
-    state.status === "checking"
-      ? "Checking GitHub Releases…"
-      : state.status === "current"
-        ? "You are on the latest Agentforge."
-        : state.status === "available"
-          ? `Version ${state.version ?? ""} is ready to download.`
-          : state.status === "downloading"
-            ? `Downloading${state.percent != null ? ` ${Math.round(state.percent)}%` : "…"}`
-            : state.status === "ready"
-              ? `Version ${state.version ?? ""} is downloaded. Restart to finish.`
-              : state.status === "error"
-                ? state.message ?? "Update check failed."
-                : supported
-                  ? "New GitHub releases download here, then Agentforge restarts."
-                  : "Available in the installed Agentforge app. New GitHub releases download and restart the app.";
+  const statusText = [updateVersionLine(state.currentVersion), updateStatusLine(state, supported)]
+    .filter((part) => part.length > 0)
+    .join(" ");
 
   return (
     <section className="blueprint p-[18px]" data-testid="app-updates">
       <p className="panel-label">Updates</p>
-      <p className="mt-2 text-sm text-inkbase" data-testid="app-updates-status">
-        {versionLine} {statusLine}
+      <p className="mt-2 break-words text-sm text-inkbase" data-testid="app-updates-status">
+        {statusText}
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         {supported && (state.status === "available" || state.status === "ready" || state.status === "downloading") ? (

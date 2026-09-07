@@ -67,6 +67,8 @@ protocol.registerSchemesAsPrivileged([
 let mainWindow = null;
 let hostReady = false;
 let exiting = false;
+/** Set by the updater right before quitAndInstall spawns the NSIS installer. */
+let installingUpdate = false;
 
 function shouldQuitOnLastWindow() {
   return process.platform !== "darwin";
@@ -79,6 +81,14 @@ function exitApp() {
   exiting = true;
   hostReady = false;
   mainWindow = null;
+  if (installingUpdate) {
+    // quitAndInstall has already spawned the NSIS installer as a detached child of this process.
+    // The taskkill /T tree walk below would take the installer down with us, so exit plainly here.
+    // Leftover helpers are handled by build/installer.nsh: its customInit inserts killRunningAgentforge,
+    // which taskkills any remaining Agentforge.exe tree before setup overwrites files.
+    app.exit(0);
+    return;
+  }
   if (process.platform === "win32") {
     execFile("taskkill", ["/F", "/PID", String(process.pid), "/T"], () => {
       app.exit(0);
@@ -428,7 +438,15 @@ if (!gotLock) {
 
   app.whenReady().then(async () => {
     createWindow();
-    registerAutoUpdate({ app, ipcMain, BrowserWindow, productName: PRODUCT_NAME });
+    registerAutoUpdate({
+      app,
+      ipcMain,
+      BrowserWindow,
+      productName: PRODUCT_NAME,
+      onInstallStart: () => {
+        installingUpdate = true;
+      },
+    });
     try {
       if (app.isPackaged) {
         await bootstrapPackaged();

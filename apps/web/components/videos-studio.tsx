@@ -3,6 +3,8 @@
 import { Link } from "@/lib/nav";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { videoCapabilities } from "@agentforge/core/video-capabilities";
+import type { PromptTemplate } from "@agentforge/core/edit";
+import { EditPromptTemplates } from "@/components/edit-prompt-templates";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { ExampleGallery } from "@/components/example-gallery";
 import { ModelSelect } from "@/components/model-select";
@@ -52,6 +54,7 @@ export function VideosStudio() {
   const [seconds, setSeconds] = useState<(typeof SECONDS)[number]>(5);
   const [resolution, setResolution] = useState<(typeof RESOLUTIONS)[number]>("720p");
   const [prompt, setPrompt] = useState("");
+  const [templateId, setTemplateId] = useState<string | null>(null);
   const [stillUrl, setStillUrl] = useState("");
   const [ready, setReady] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -95,6 +98,23 @@ export function VideosStudio() {
       setStillUrl("");
     }
   }, [imageToVideo]);
+
+  function pickTemplate(template: PromptTemplate) {
+    setPrompt(template.prompt);
+    setAspect(template.aspect);
+    setSeconds(
+      SECONDS.reduce<(typeof SECONDS)[number]>(
+        (best, value) => (Math.abs(value - template.seconds) < Math.abs(best - template.seconds) ? value : best),
+        SECONDS[0],
+      ),
+    );
+    setTemplateId(template.id);
+  }
+
+  function changePrompt(next: string) {
+    setPrompt(next);
+    setTemplateId(null);
+  }
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -237,7 +257,7 @@ export function VideosStudio() {
             className="min-w-0 flex-1 rounded-md border border-mist bg-transparent px-3 py-2 text-sm text-ink outline-none placeholder:text-ink/40"
             placeholder="Describe a video…"
             value={prompt}
-            onChange={(event) => setPrompt(event.target.value)}
+            onChange={(event) => changePrompt(event.target.value)}
             disabled={generating}
             data-testid="videos-studio-prompt"
           />
@@ -250,6 +270,7 @@ export function VideosStudio() {
             {generating ? "Generating…" : "Generate"}
           </button>
         </div>
+        <EditPromptTemplates onPick={pickTemplate} selectedId={templateId} />
       </form>
 
       <section className="mt-8" data-testid="videos-studio-gallery">
