@@ -4,16 +4,16 @@ import { sql } from "@agentforge/db";
 import {
   ApiError,
   assertAllowedEndpointUrl,
+  htmlToText,
+  isHtmlContent,
+  plainToText,
   type KnowledgeModels,
   type TenantContext,
 } from "@agentforge/core";
 import { mediaRoot } from "./media-root";
+import { fetchPublicHttps } from "./safe-fetch";
 import { chunkKnowledgeText, knowledgeFtsQuery } from "./knowledge-text";
-import {
-  deleteVectorsForSource,
-  indexSourceVectors,
-  retrieveVectorChunks,
-} from "./knowledge-embed";
+import { deleteVectorsForSource, indexSourceVectors, retrieveVectorChunks } from "./knowledge-embed";
 import { modeCatalogPayload } from "./selectable-models";
 
 export { chunkKnowledgeText, knowledgeFtsQuery } from "./knowledge-text";
@@ -64,12 +64,8 @@ function catalogKnowledgeDefaults(): KnowledgeModels {
 
 export function getKnowledgeModels(tenant: TenantContext): KnowledgeModels {
   const row = sql
-    .prepare(
-      "SELECT embedding_model, brain_model, verifier_model FROM knowledge_settings WHERE workspace_id = ?",
-    )
-    .get(workspaceId(tenant)) as
-    | { embedding_model: string; brain_model: string; verifier_model: string }
-    | undefined;
+    .prepare("SELECT embedding_model, brain_model, verifier_model FROM knowledge_settings WHERE workspace_id = ?")
+    .get(workspaceId(tenant)) as { embedding_model: string; brain_model: string; verifier_model: string } | undefined;
   if (!row) {
     return catalogKnowledgeDefaults();
   }
@@ -80,10 +76,7 @@ export function getKnowledgeModels(tenant: TenantContext): KnowledgeModels {
   };
 }
 
-export function putKnowledgeModels(
-  tenant: TenantContext,
-  input: Partial<KnowledgeModels>,
-): KnowledgeModels {
+export function putKnowledgeModels(tenant: TenantContext, input: Partial<KnowledgeModels>): KnowledgeModels {
   const current = getKnowledgeModels(tenant);
   const next: KnowledgeModels = {
     embeddingModel: (input.embeddingModel?.trim() || current.embeddingModel).trim(),
@@ -100,13 +93,7 @@ export function putKnowledgeModels(
          verifier_model = excluded.verifier_model,
          updated_at = excluded.updated_at`,
     )
-    .run(
-      workspaceId(tenant),
-      next.embeddingModel,
-      next.brainModel,
-      next.verifierModel,
-      Date.now(),
-    );
+    .run(workspaceId(tenant), next.embeddingModel, next.brainModel, next.verifierModel, Date.now());
   return next;
 }
 
@@ -146,7 +133,9 @@ export function putSoul(tenant: TenantContext, input: KnowledgeSoul): KnowledgeS
 
 export function listMemories(tenant: TenantContext): KnowledgeMemory[] {
   const rows = sql
-    .prepare("SELECT id, text, pinned, created_at FROM knowledge_memories WHERE workspace_id = ? ORDER BY pinned DESC, created_at DESC")
+    .prepare(
+      "SELECT id, text, pinned, created_at FROM knowledge_memories WHERE workspace_id = ? ORDER BY pinned DESC, created_at DESC",
+    )
     .all(workspaceId(tenant)) as Array<{ id: string; text: string; pinned: number; created_at: number }>;
   return rows.map((row) => ({
     id: row.id,
@@ -175,7 +164,9 @@ export function deleteMemory(tenant: TenantContext, id: string): void {
 
 export function listSources(tenant: TenantContext): KnowledgeSource[] {
   const rows = sql
-    .prepare("SELECT id, name, type, status, chunks, error, created_at FROM knowledge_sources WHERE workspace_id = ? ORDER BY created_at DESC")
+    .prepare(
+      "SELECT id, name, type, status, chunks, error, created_at FROM knowledge_sources WHERE workspace_id = ? ORDER BY created_at DESC",
+    )
     .all(workspaceId(tenant)) as Array<{
     id: string;
     name: string;
@@ -222,14 +213,18 @@ async function indexSource(
   const createdAt = Date.now();
   if (chunks.length === 0) {
     sql
-      .prepare("INSERT INTO knowledge_sources (id, workspace_id, name, type, status, chunks, error, created_at) VALUES (?, ?, ?, ?, ?, 0, ?, ?)")
+      .prepare(
+        "INSERT INTO knowledge_sources (id, workspace_id, name, type, status, chunks, error, created_at) VALUES (?, ?, ?, ?, ?, 0, ?, ?)",
+      )
       .run(id, workspaceId(tenant), name, type, "Failed", "No extractable text", createdAt);
     return { id, name, type, status: "Failed", chunks: 0, error: "No extractable text", createdAt };
   }
   const insertChunk = sql.prepare("INSERT INTO knowledge_chunks (source_id, workspace_id, body) VALUES (?, ?, ?)");
   const tx = sql.transaction(() => {
     sql
-      .prepare("INSERT INTO knowledge_sources (id, workspace_id, name, type, status, chunks, error, created_at) VALUES (?, ?, ?, ?, ?, ?, NULL, ?)")
+      .prepare(
+        "INSERT INTO knowledge_sources (id, workspace_id, name, type, status, chunks, error, created_at) VALUES (?, ?, ?, ?, ?, ?, NULL, ?)",
+      )
       .run(id, workspaceId(tenant), name, type, "Indexed", chunks.length, createdAt);
     for (const chunk of chunks) {
       insertChunk.run(id, workspaceId(tenant), chunk);
@@ -241,15 +236,21 @@ async function indexSource(
   return { id, name, type, status: "Indexed", chunks: chunks.length, createdAt };
 }
 
-export async function addFileSource(tenant: TenantContext, file: { filename: string; mime: string; bytes: Uint8Array }): Promise<KnowledgeSource> {
+export async function addFileSource(
+  tenant: TenantContext,
+  file: { filename: string; mime: string; bytes: Uint8Array },
+): Promise<KnowledgeSource> {
   const id = crypto.randomUUID();
   const text = extractText(file.filename, file.mime, Buffer.from(file.bytes));
-  const relative = `knowledge/${tenant.organizationId}/${id}-${file.filename.replace(/[^\w.\-]+/g, "_")}`;
+  const relative = `knowledge/${tenant.organizationId}/${id}-${file.filename.replace(/[^\w.-]+/g, "_")}`;
   const full = path.join(mediaRoot(), relative);
   await mkdir(path.dirname(full), { recursive: true });
   await writeFile(full, Buffer.from(file.bytes));
   return indexSource(tenant, id, file.filename, "File", text);
 }
+
+/** Whole page for indexing; the 1.5 MB fetch cap already bounds it. */
+const URL_SOURCE_MAX_CHARS = 2_000_000;
 
 export async function addUrlSource(tenant: TenantContext, url: string): Promise<KnowledgeSource> {
   const trimmed = url.trim();
@@ -258,20 +259,39 @@ export async function addUrlSource(tenant: TenantContext, url: string): Promise<
   if (parsed.protocol !== "https:") {
     throw new ApiError("invalid_endpoint", "Knowledge URLs must be HTTPS", 400);
   }
-  const res = await fetch(trimmed, { redirect: "follow" });
-  if (!res.ok) {
+  // Redirects are followed by hand so every hop stays public HTTPS (no loopback / private ranges).
+  const res = await fetchPublicHttps(trimmed);
+  if (res.status < 200 || res.status >= 300) {
     throw new ApiError("invalid_request", `Could not fetch URL (${res.status})`, 400);
   }
-  const buf = Buffer.from(await res.arrayBuffer());
-  if (buf.length > 1_500_000) {
-    throw new ApiError("invalid_request", "URL body exceeds 1.5 MB", 400);
-  }
-  const text = buf.toString("utf8").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-  return indexSource(tenant, crypto.randomUUID(), trimmed, "URL", text);
+  const raw = res.body.toString("utf8");
+  const page = isHtmlContent(res.contentType, raw)
+    ? htmlToText(raw, { maxChars: URL_SOURCE_MAX_CHARS })
+    : plainToText(raw, { maxChars: URL_SOURCE_MAX_CHARS });
+  return indexSource(tenant, crypto.randomUUID(), page.title || trimmed, "URL", page.text);
 }
 
-export async function addPastedSource(tenant: TenantContext, name: string, text: string): Promise<KnowledgeSource> {
-  return indexSource(tenant, crypto.randomUUID(), name.trim() || "Pasted notes", "Paste", text);
+/** Source type labels a caller may set on pasted text. Anything else falls back to "Paste". */
+export const PASTED_SOURCE_TYPES = ["Paste", "Dossier", "Analysis", "Brief"] as const;
+export type PastedSourceType = (typeof PASTED_SOURCE_TYPES)[number];
+export const PASTED_SOURCE_MAX_CHARS = 2_000_000;
+
+export function pastedSourceType(value: unknown): PastedSourceType {
+  return typeof value === "string" && (PASTED_SOURCE_TYPES as readonly string[]).includes(value)
+    ? (value as PastedSourceType)
+    : "Paste";
+}
+
+export async function addPastedSource(
+  tenant: TenantContext,
+  name: string,
+  text: string,
+  type: PastedSourceType = "Paste",
+): Promise<KnowledgeSource> {
+  if (text.length > PASTED_SOURCE_MAX_CHARS) {
+    throw new ApiError("invalid_request", "Pasted text exceeds the 2 MB cap", 413);
+  }
+  return indexSource(tenant, crypto.randomUUID(), name.trim() || "Pasted notes", type, text);
 }
 
 export function deleteSource(tenant: TenantContext, id: string): void {
@@ -287,9 +307,7 @@ function retrieveFtsChunks(tenant: TenantContext, query: string, limit = 4): str
   }
   try {
     const rows = sql
-      .prepare(
-        `SELECT body FROM knowledge_chunks WHERE workspace_id = ? AND knowledge_chunks MATCH ? LIMIT ?`,
-      )
+      .prepare(`SELECT body FROM knowledge_chunks WHERE workspace_id = ? AND knowledge_chunks MATCH ? LIMIT ?`)
       .all(workspaceId(tenant), q, limit) as Array<{ body: string }>;
     return rows.map((row) => row.body);
   } catch {
@@ -322,7 +340,12 @@ export async function knowledgeInjection(
   const soul = getSoul(tenant);
   const memories = listMemories(tenant).filter((item) => item.pinned);
   const retrieved = query ? await retrieveChunks(tenant, query) : { bodies: [] as string[], mode: "none" as const };
-  const soulBlock = [`Name: ${soul.name}`, `Role: ${soul.role}`, `Voice: ${soul.voice}`, soul.rules.length ? `Rules:\n- ${soul.rules.join("\n- ")}` : ""]
+  const soulBlock = [
+    `Name: ${soul.name}`,
+    `Role: ${soul.role}`,
+    `Voice: ${soul.voice}`,
+    soul.rules.length ? `Rules:\n- ${soul.rules.join("\n- ")}` : "",
+  ]
     .filter(Boolean)
     .join("\n");
   const memoryBlock = memories.map((item) => `- ${item.text}`).join("\n");

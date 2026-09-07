@@ -36,17 +36,13 @@ export function OnboardingScreen({ onDone, onOffline }: Props) {
     <main className="mx-auto flex min-h-screen max-w-lg flex-col justify-center px-6 py-10 text-ink">
       <h1 className="text-3xl font-semibold">Welcome to {productName}</h1>
       <p className="mt-2 text-ink/60">
-        Paste your {gatewayName} API key. Chat and job modes run on this machine. The gateway is locked to {gatewayName}.
+        Paste your {gatewayName} API key. Chat and job modes run on this machine. You can change the endpoint later in
+        Settings.
       </p>
       <form onSubmit={(event) => void onSubmit(event)} className="mt-8 space-y-4" data-testid="onboarding-form">
         <label className="block text-sm">
           Endpoint URL
-          <input
-            className={fieldClass}
-            value={gatewayBaseUrl}
-            readOnly
-            data-testid="onboarding-endpoint"
-          />
+          <input className={fieldClass} value={gatewayBaseUrl} readOnly data-testid="onboarding-endpoint" />
         </label>
         <p className="text-xs text-ink/50">{gatewayHostLabel(gatewayBaseUrl)}</p>
         <label className="block text-sm">

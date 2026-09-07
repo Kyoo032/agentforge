@@ -1,4 +1,4 @@
-import { IncomingMessage, ServerResponse } from "node:http";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import { WORKSPACE_COOKIE } from "@agentforge/core";
 import { dispatch } from "./router";
 import { readSelectedWorkspaceId } from "./workspace";
@@ -6,6 +6,10 @@ import { isAllowedMutatingApiRequest } from "./local-request";
 import type { HostFile, HostRequest, HostResult } from "./types";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+/** Largest accepted request body (dataset uploads are 25 MB plus multipart framing). */
+export const MAX_BODY_BYTES = 26 * 1024 * 1024;
+
+class BodyTooLarge extends Error {}
 
 function header(req: IncomingMessage, name: string): string | undefined {
   const value = req.headers[name.toLowerCase()];
@@ -45,8 +49,15 @@ async function readBody(req: IncomingMessage): Promise<{ body?: unknown; files?:
     return {};
   }
   const chunks: Buffer[] = [];
+  let total = 0;
   for await (const chunk of req) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    const piece = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    total += piece.byteLength;
+    if (total > MAX_BODY_BYTES) {
+      req.destroy();
+      throw new BodyTooLarge("Request body exceeds the 26 MB cap");
+    }
+    chunks.push(piece);
   }
   const buffer = Buffer.concat(chunks);
   if (buffer.length === 0) {
@@ -109,7 +120,8 @@ function applyCookies(res: ServerResponse, result: HostResult): void {
     return;
   }
   const values = result.cookies.map(
-    (cookie) => `${cookie.name}=${encodeURIComponent(cookie.value)}; Path=${cookie.path ?? "/"}; SameSite=Strict; HttpOnly`,
+    (cookie) =>
+      `${cookie.name}=${encodeURIComponent(cookie.value)}; Path=${cookie.path ?? "/"}; SameSite=Strict; HttpOnly`,
   );
   if (values.length > 0) {
     res.setHeader("Set-Cookie", values);
@@ -169,7 +181,19 @@ export async function handleNodeRequest(req: IncomingMessage, res: ServerRespons
     }
   }
   const cookies = parseCookies(req);
-  const { body, files } = await readBody(req);
+  let parsed: { body?: unknown; files?: HostFile[] };
+  try {
+    parsed = await readBody(req);
+  } catch (error) {
+    if (error instanceof BodyTooLarge) {
+      res.statusCode = 413;
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.end(JSON.stringify({ error: { code: "payload_too_large", message: error.message } }));
+      return true;
+    }
+    throw error;
+  }
+  const { body, files } = parsed;
   const request: HostRequest = {
     method,
     path,

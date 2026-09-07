@@ -14,6 +14,7 @@ import {
   knowledgeInjection,
   listMemories,
   listSources,
+  pastedSourceType,
   putKnowledgeModels,
   putSoul,
 } from "../knowledge";
@@ -88,7 +89,9 @@ export async function handlePutKnowledgeSoul(request: HostRequest): Promise<Host
   try {
     const tenant = await getTenant(request.workspaceId);
     const body = (request.body ?? {}) as { name?: unknown; role?: unknown; voice?: unknown; rules?: unknown };
-    const rules = Array.isArray(body.rules) ? body.rules.filter((item): item is string => typeof item === "string") : [];
+    const rules = Array.isArray(body.rules)
+      ? body.rules.filter((item): item is string => typeof item === "string")
+      : [];
     return jsonOk(
       putSoul(tenant, {
         name: typeof body.name === "string" ? body.name : "",
@@ -132,10 +135,15 @@ export async function handlePostKnowledgeSource(request: HostRequest): Promise<H
     if (file) {
       return jsonOk(await addFileSource(tenant, file), 201);
     }
-    const body = (request.body ?? {}) as { name?: unknown; text?: unknown };
+    const body = (request.body ?? {}) as { name?: unknown; text?: unknown; type?: unknown };
     if (typeof body.text === "string") {
       return jsonOk(
-        await addPastedSource(tenant, typeof body.name === "string" ? body.name : "Pasted notes", body.text),
+        await addPastedSource(
+          tenant,
+          typeof body.name === "string" ? body.name : "Pasted notes",
+          body.text,
+          pastedSourceType(body.type),
+        ),
         201,
       );
     }

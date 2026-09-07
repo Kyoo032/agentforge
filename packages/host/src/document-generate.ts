@@ -1,10 +1,4 @@
-import {
-  ApiError,
-  hasLiveProvider,
-  resolveChatModel,
-  resolveRuntimeMode,
-  type TenantContext,
-} from "@agentforge/core";
+import { ApiError, hasLiveProvider, resolveChatModel, resolveRuntimeMode, type TenantContext } from "@agentforge/core";
 import { loadSettings } from "./settings-store";
 import { modeCatalogPayload, listSelectableModels } from "./selectable-models";
 import {
@@ -20,6 +14,7 @@ import {
   readJobRegenAttachments,
   readOptionalInstruction,
 } from "./job-regen";
+import { readSourceText, withSourceMaterial, withSourceRule } from "./job-source";
 
 const FINANCE_SYSTEM = `You draft finished finance documents for Agentforge — not skeletons.
 Return ONLY valid JSON (no markdown fences, no commentary) with this exact shape:
@@ -80,15 +75,21 @@ export function documentJobSystemPrompt(finance: boolean): string {
   return finance ? FINANCE_SYSTEM : DOCUMENT_SYSTEM;
 }
 
-async function collectAssistantText(tenant: TenantContext, model: string, prompt: string, finance: boolean): Promise<string> {
+async function collectAssistantText(
+  tenant: TenantContext,
+  model: string,
+  prompt: string,
+  finance: boolean,
+  sourceText: string,
+): Promise<string> {
   return collectJobAssistantText({
     tenant,
     model,
-    systemPrompt: documentJobSystemPrompt(finance),
+    systemPrompt: withSourceRule(documentJobSystemPrompt(finance), sourceText),
     runPrefix: finance ? "finance" : "document",
     agentId: finance ? "finance" : "document",
     versionId: finance ? "finance-draft" : "document-draft",
-    prompt,
+    prompt: withSourceMaterial(prompt, sourceText),
   });
 }
 
@@ -121,8 +122,9 @@ function resolveDocumentModel(body: unknown, settings: ReturnType<typeof loadSet
 export async function generateDocumentDraft(tenant: TenantContext, body: unknown): Promise<DocumentDraft> {
   const prompt = readPrompt(body);
   const settings = requireLiveDocumentRuntime();
+  const sourceText = readSourceText(body, { injectionGuardBypass: settings.injectionGuardBypass === true });
   const model = resolveDocumentModel(body, settings);
-  const raw = await collectAssistantText(tenant, model, prompt, isFinanceJob(body));
+  const raw = await collectAssistantText(tenant, model, prompt, isFinanceJob(body), sourceText);
   if (!raw.trim()) {
     throw new ApiError("generation_failed", "Model returned an empty document draft", 502);
   }
@@ -154,7 +156,8 @@ export async function regenerateDocumentSection(tenant: TenantContext, body: unk
   }
   const draft = parseDocumentDraftBody((body as { draft?: unknown }).draft);
   const index = readSectionIndex(body, draft.sections.length);
-  const topic = typeof (body as { prompt?: unknown }).prompt === "string" ? (body as { prompt: string }).prompt.trim() : "";
+  const topic =
+    typeof (body as { prompt?: unknown }).prompt === "string" ? (body as { prompt: string }).prompt.trim() : "";
   const current = draft.sections[index];
   if (!current) {
     throw new ApiError("invalid_request", "sectionIndex is out of range", 400);
@@ -162,6 +165,7 @@ export async function regenerateDocumentSection(tenant: TenantContext, body: unk
   const settings = requireLiveDocumentRuntime();
   const model = resolveDocumentModel(body, settings);
   const attachments = readJobRegenAttachments(body);
+  const sourceText = readSourceText(body, { injectionGuardBypass: settings.injectionGuardBypass === true });
   const others = draft.sections
     .map((section, itemIndex) => (itemIndex === index ? null : `- ${section.heading}`))
     .filter(Boolean)
@@ -181,11 +185,11 @@ export async function regenerateDocumentSection(tenant: TenantContext, body: unk
   const raw = await collectJobAssistantText({
     tenant,
     model,
-    systemPrompt: SECTION_SYSTEM,
+    systemPrompt: withSourceRule(SECTION_SYSTEM, sourceText),
     runPrefix: "document-section",
     agentId: "document",
     versionId: "document-section",
-    prompt,
+    prompt: withSourceMaterial(prompt, sourceText),
     attachments,
   });
   if (!raw.trim()) {

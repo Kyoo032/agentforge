@@ -40,7 +40,9 @@ function readStringMap(value: unknown): Record<string, string> | undefined {
 
 function normalizeSecrets(parsed: StoredSecrets): StoredSecrets {
   const disabledTools = Array.isArray(parsed.disabledTools)
-    ? parsed.disabledTools.filter((item): item is string => typeof item === "string" && item.trim().length > 0).map((item) => item.trim())
+    ? parsed.disabledTools
+        .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+        .map((item) => item.trim())
     : undefined;
   return {
     openaiApiKey: readString(parsed.openaiApiKey),
@@ -158,14 +160,23 @@ function loadEncrypted(): StoredSecrets | null {
 type SettingsCache = { path: string; mtimeMs: number; secrets: StoredSecrets };
 let settingsCache: SettingsCache | null = null;
 
-function lockGateway(secrets: StoredSecrets): StoredSecrets {
-  return { ...secrets, openaiBaseUrl: resolvedGatewayBaseUrl() };
+function normalizeEndpoint(url: string | undefined): string | undefined {
+  const trimmed = url?.trim().replace(/\/+$/, "");
+  return trimmed ? trimmed : undefined;
+}
+
+/**
+ * The gateway endpoint defaults to the branded gateway (Toko Token, or the flavor's URL) but the owner may
+ * point it elsewhere from Settings. An empty value means "back to the default". Onboarding never edits it.
+ */
+function withGatewayDefault(secrets: StoredSecrets): StoredSecrets {
+  return { ...secrets, openaiBaseUrl: normalizeEndpoint(secrets.openaiBaseUrl) ?? resolvedGatewayBaseUrl() };
 }
 
 function rememberSettings(path: string, mtimeMs: number, secrets: StoredSecrets): StoredSecrets {
-  const locked = lockGateway(secrets);
-  settingsCache = { path, mtimeMs, secrets: locked };
-  return locked;
+  const resolved = withGatewayDefault(secrets);
+  settingsCache = { path, mtimeMs, secrets: resolved };
+  return resolved;
 }
 
 export function loadSettings(): StoredSecrets {
@@ -187,7 +198,7 @@ export function loadSettings(): StoredSecrets {
   settingsCache = null;
   const legacy = readLegacyPlaintext();
   if (!legacy) {
-    return lockGateway({});
+    return withGatewayDefault({});
   }
   persistEncrypted(legacy);
   tryDeleteLegacyPlaintext();
@@ -195,13 +206,13 @@ export function loadSettings(): StoredSecrets {
     const stats = statSync(file);
     return rememberSettings(file, stats.mtimeMs, legacy);
   } catch {
-    return lockGateway(legacy);
+    return withGatewayDefault(legacy);
   }
 }
 
 export function saveSettings(patch: SecretPatch): StoredSecrets {
   settingsCache = null;
-  const next = lockGateway(mergeSecrets(loadSettings(), { ...patch, openaiBaseUrl: resolvedGatewayBaseUrl() }));
+  const next = withGatewayDefault(mergeSecrets(loadSettings(), patch));
   assertSavedEndpoints(next);
   persistEncrypted(next);
   tryDeleteLegacyPlaintext();

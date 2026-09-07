@@ -60,6 +60,23 @@ export {
 } from "./crypto/envelope";
 export type { EncryptedEnvelope } from "./crypto/envelope";
 export { isLoopbackHost, assertAllowedEndpointUrl } from "./security/tls";
+export {
+  SAFE_FETCH_DEFAULT_MAX_BYTES,
+  SAFE_FETCH_DEFAULT_TIMEOUT_MS,
+  SAFE_FETCH_MAX_HOPS,
+  assertPublicHttpsUrl,
+  fetchPublicHttps,
+  nextHopUrl,
+} from "./security/safe-fetch";
+export type { SafeFetchOptions, SafeFetchResult } from "./security/safe-fetch";
+export {
+  HTML_TEXT_DEFAULT_MAX_CHARS,
+  htmlToText,
+  plainToText,
+  isHtmlContent,
+  extractHtmlTitle,
+} from "./content/html-text";
+export type { HtmlTextResult } from "./content/html-text";
 export { redactSecrets } from "./security/redact";
 export { keyFingerprint, keyFingerprintOrNull } from "./security/fingerprint";
 export { scanPii, maskPii, maskPiiInParts, maskOutboundRunInput, piiWarning, PII_MASK } from "./security/pii";
@@ -92,7 +109,15 @@ export {
   canAdminister,
 } from "./tenancy/types";
 export type { MembershipRole, IndustryPack, Visibility, InputModality, TenantContext } from "./tenancy/types";
-export type { ContentPart, TextPart, ImageUrlPart, VideoUrlPart, ThinkingPart, ToolCallPart, RunInputBody } from "./content/types";
+export type {
+  ContentPart,
+  TextPart,
+  ImageUrlPart,
+  VideoUrlPart,
+  ThinkingPart,
+  ToolCallPart,
+  RunInputBody,
+} from "./content/types";
 export {
   parseTextRunInput,
   parseImageRunInput,
@@ -279,7 +304,12 @@ export {
   DEFAULT_CHAT_TOOLS,
   isDefaultChatAgent,
 } from "./agents/default-chat";
-export { defaultAgentPack, defaultAgentTemplate, DEFAULT_PACK_ID, DEFAULT_TEMPLATE_KEY } from "./agents/default-template";
+export {
+  defaultAgentPack,
+  defaultAgentTemplate,
+  DEFAULT_PACK_ID,
+  DEFAULT_TEMPLATE_KEY,
+} from "./agents/default-template";
 export type { AgentPack, AgentTemplate } from "./agents/default-template";
 export {
   PRODUCT_MODES,
@@ -307,6 +337,8 @@ export { registerPlatformTools } from "./tools/platform/register";
 export { calculatorTool } from "./tools/platform/calculator";
 export { datetimeTool } from "./tools/platform/datetime";
 export { webSearchTool } from "./tools/platform/web-search";
+export { webFetchTool, fetchPageText, WEB_FETCH_MAX_CHARS_CAP } from "./tools/platform/web-fetch";
+export type { WebFetchPage, WebFetchOutput } from "./tools/platform/web-fetch";
 export { imageGenerateTool } from "./tools/platform/image-generate";
 export { videoGenerateTool } from "./tools/platform/video-generate";
 export {
@@ -333,7 +365,13 @@ export {
   resolveStudioGenerateDefault,
 } from "./agents/generate-defaults";
 export type { GeneratePinKind, GenerateDefaultSource } from "./agents/generate-defaults";
-export type { AgentRecord, AgentVersionRecord, ToolBindingRecord, AgentRepository, CreateAgentInput } from "./agents/service";
+export type {
+  AgentRecord,
+  AgentVersionRecord,
+  ToolBindingRecord,
+  AgentRepository,
+  CreateAgentInput,
+} from "./agents/service";
 export { createRuntime } from "./runtime/create-runtime";
 export { StubRuntime } from "./runtime/stub-runtime";
 export { AiSdkRuntime } from "./runtime/ai-sdk-runtime";

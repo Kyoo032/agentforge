@@ -1,5 +1,6 @@
 const { app, BrowserWindow, Menu, dialog, ipcMain, protocol } = require("electron");
 const { registerAutoUpdate } = require("./auto-update.cjs");
+const { installApplicationMenu, attachContextMenu } = require("./edit-menu.cjs");
 const { execFile } = require("node:child_process");
 const crypto = require("node:crypto");
 const fs = require("node:fs");
@@ -161,7 +162,9 @@ function writeHostStatus(dataDir, extra) {
 }
 
 function createWindow() {
-  Menu.setApplicationMenu(null);
+  // A null application menu drops the Edit roles that back Ctrl/Cmd+V, so users could not paste
+  // the API key during onboarding. Keep a real Edit menu; autoHideMenuBar keeps it out of sight.
+  installApplicationMenu({ Menu, platform: process.platform, productName: PRODUCT_NAME });
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -176,6 +179,7 @@ function createWindow() {
       sandbox: false,
     },
   });
+  attachContextMenu({ Menu, window: mainWindow });
   mainWindow.once("ready-to-show", () => {
     if (exiting || !mainWindow || mainWindow.isDestroyed()) {
       return;

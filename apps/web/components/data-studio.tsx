@@ -1,49 +1,146 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { Link } from "@/lib/nav";
+import { ArtifactActions } from "@/components/artifact-actions";
+import { DataAnalysisView } from "@/components/data-analysis-view";
+import { DataGrid } from "@/components/data-grid";
+import { DatasetProfile } from "@/components/dataset-profile";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
+import { JobProgressList } from "@/components/job-progress";
 import { ModelSelect } from "@/components/model-select";
-import { ResearchPreview } from "@/components/research-preview";
-import { researchNotesToMarkdown, type ResearchNotes } from "@/lib/research-notes";
-import { csvSample, parseCsv } from "@/lib/parse-csv";
+import {
+  DATASET_ACCEPT,
+  createPastedDataset,
+  formatBytes,
+  getDataset,
+  listDatasets,
+  uploadDatasetFile,
+  type DataAnalysisResult,
+  type DatasetPayload,
+  type DatasetSummary,
+} from "@/lib/data-client";
 import { useJobModel } from "@/lib/use-job-model";
-import { apiFetch } from "@/lib/api-client";
+import { useJobStream } from "@/lib/use-job-stream";
 import { useProductBrand } from "@/lib/product-brand";
-
-function errorMessage(payload: unknown, fallback: string): string {
-  if (payload && typeof payload === "object") {
-    const error = (payload as { error?: { message?: unknown } }).error;
-    if (error && typeof error.message === "string" && error.message.trim()) {
-      return error.message;
-    }
-  }
-  return fallback;
-}
 
 const DATA_STARTERS = [
   {
     id: "vendor-concentration",
     label: "Vendor concentration",
     prompt:
-      "Analyze the attached spend/vendor table for concentration: top vendors by share of total, whether any single vendor exceeds 30% of spend, and where switching leverage exists.",
+      "Analyze this table for concentration: top rows by share of the total, whether any single one exceeds 30%, and where switching leverage exists.",
   },
   {
     id: "anomaly-scan",
     label: "Anomaly scan",
     prompt:
-      "Scan the attached dataset for anomalies: duplicate key rows, values far outside the column distribution, negatives where impossible, and missing cells.",
+      "Scan this dataset for anomalies: duplicate key rows, values far outside the column distribution, negatives where impossible, and missing cells.",
+  },
+  {
+    id: "trend",
+    label: "Trend over time",
+    prompt: "If there is a date column, show how the main numeric column moves over time and name the biggest change.",
   },
 ];
+
+const HISTORY_MAX = 5;
+
+type Shown = { result: DataAnalysisResult };
+type HistoryItem = { question: string; summary: string };
+
+function needsSettingsHint(message: string): boolean {
+  return /gateway|api key|settings|runtime_stub|live gateway/i.test(message);
+}
 
 export function DataStudio() {
   const { productName } = useProductBrand();
   const { models, model, setModel } = useJobModel("data");
+  const job = useJobStream<DataAnalysisResult>();
+  const fileInput = useRef<HTMLInputElement | null>(null);
   const [prompt, setPrompt] = useState("");
-  const [csvText, setCsvText] = useState("vendor,spend\nAcme,12000\nBeta,4100\nGamma,800\n");
-  const [notes, setNotes] = useState<ResearchNotes | null>(null);
-  const [busy, setBusy] = useState<"generate" | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const table = useMemo(() => (csvText.trim() ? parseCsv(csvText) : null), [csvText]);
+  const [pasted, setPasted] = useState("");
+  const [dataset, setDataset] = useState<DatasetPayload | null>(null);
+  const [saved, setSaved] = useState<DatasetSummary[]>([]);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [shown, setShown] = useState<Shown | null>(null);
+  const [loading, setLoading] = useState<"upload" | "paste" | "open" | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+
+  const error = localError ?? job.error?.message ?? null;
+  const busy = job.busy || loading !== null;
+
+  useEffect(() => {
+    let cancelled = false;
+    listDatasets().then(
+      (items) => {
+        if (!cancelled) {
+          setSaved(items);
+        }
+      },
+      () => undefined,
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function adopt(next: DatasetPayload) {
+    setDataset(next);
+    setHistory([]);
+    setShown(null);
+    setLocalError(null);
+    setSaved((items) => (items.some((item) => item.id === next.id) ? items : [next, ...items]));
+  }
+
+  async function onUpload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) {
+      return;
+    }
+    setLoading("upload");
+    setLocalError(null);
+    try {
+      adopt(await uploadDatasetFile(file));
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : "Could not upload that file");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function onUsePasted() {
+    if (!pasted.trim()) {
+      return;
+    }
+    setLoading("paste");
+    setLocalError(null);
+    try {
+      adopt(await createPastedDataset("Pasted table", pasted));
+      setPasted("");
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : "Could not read the pasted text as a table");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function onOpenSaved(id: string) {
+    if (!id) {
+      return;
+    }
+    setLoading("open");
+    setLocalError(null);
+    try {
+      adopt(await getDataset(id));
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : "Could not open that dataset");
+    } finally {
+      setLoading(null);
+    }
+  }
 
   async function onGenerate(event: FormEvent) {
     event.preventDefault();
@@ -51,42 +148,22 @@ export function DataStudio() {
     if (!question || busy) {
       return;
     }
-    if (!table) {
-      setError("Paste a parseable CSV table before generating.");
+    if (!dataset) {
+      setLocalError("Upload a file or paste a table first.");
       return;
     }
-    setBusy("generate");
-    setError(null);
-    try {
-      const res = await apiFetch("/api/v1/data", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: question, csv: csvSample(table), model: model || undefined }),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        throw new Error(errorMessage(data, "Could not analyze the data"));
-      }
-      setNotes(data as ResearchNotes);
-    } catch (err) {
-      setNotes(null);
-      setError(err instanceof Error ? err.message : "Could not analyze the data");
-    } finally {
-      setBusy(null);
+    setLocalError(null);
+    const result = await job.run("/api/v1/data/stream", {
+      datasetId: dataset.id,
+      prompt: question,
+      model: model || undefined,
+      history,
+    });
+    if (result) {
+      setShown({ result });
+      setHistory((items) => [...items, { question, summary: result.analysis.summary }].slice(-HISTORY_MAX));
+      setPrompt("");
     }
-  }
-
-  function onDownload() {
-    if (!notes) {
-      return;
-    }
-    const blob = new Blob([researchNotesToMarkdown(notes)], { type: "text/markdown;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "data-analysis.md";
-    anchor.click();
-    URL.revokeObjectURL(url);
   }
 
   return (
@@ -96,40 +173,139 @@ export function DataStudio() {
         <div>
           <h3 className="mt-2 text-[25px]">Data</h3>
           <p className="mt-1.5 max-w-xl text-sm text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">
-            Paste a CSV, then ask a question. {productName} reads the sample — it does not search the web.
+            Upload a CSV or XLSX, or paste a table. {productName} profiles it, queries it with SQL, and shows every
+            number's query. Nothing leaves this machine except the question and the profile.
           </p>
         </div>
-        {notes ? (
-          <button type="button" onClick={onDownload} className="btn btn-primary ml-auto" data-testid="data-download">
-            Download Markdown
-          </button>
-        ) : null}
       </div>
-      {error ? <p className="mb-4 text-sm text-red-700" data-testid="data-error">{error}</p> : null}
-      <div className="grid items-start gap-5 lg:[grid-template-columns:360px_minmax(0,1fr)]">
-        <section className="blueprint p-4">
-          <label htmlFor="data-csv" className="panel-label">CSV</label>
-          <textarea
-            id="data-csv"
-            rows={10}
-            value={csvText}
-            onChange={(event) => setCsvText(event.target.value)}
-            className="input mt-2 font-mono text-[12px]"
-            data-testid="data-csv"
-          />
-          <p className="mt-2 text-[11px] text-[color-mix(in_srgb,var(--color-text)_45%,transparent)]">
-            {table ? `${table.rows.length} rows × ${table.headers.length} cols` : "Not a parseable table yet"}
-          </p>
+      {error ? (
+        <p className="mb-4 text-sm text-red-700" role="alert" data-testid="data-error">
+          {error}
+          {needsSettingsHint(error) && !/settings/i.test(error) ? (
+            <>
+              {" "}
+              Open{" "}
+              <Link href="/settings" className="underline">
+                Settings
+              </Link>
+              .
+            </>
+          ) : null}
+        </p>
+      ) : null}
+      <div className="grid items-start gap-5 lg:[grid-template-columns:380px_minmax(0,1fr)]">
+        <section className="blueprint space-y-3 p-4" data-testid="data-source">
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              ref={fileInput}
+              type="file"
+              accept={DATASET_ACCEPT}
+              className="hidden"
+              onChange={(event) => void onUpload(event)}
+              data-testid="data-file-input"
+            />
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => fileInput.current?.click()}
+              disabled={busy}
+              data-testid="data-upload"
+            >
+              {loading === "upload" ? "Reading…" : "Upload CSV / XLSX"}
+            </button>
+            {saved.length > 0 ? (
+              <select
+                className="input"
+                value={dataset?.id ?? ""}
+                onChange={(event) => void onOpenSaved(event.target.value)}
+                disabled={busy}
+                aria-label="Saved datasets"
+                data-testid="data-saved"
+              >
+                <option value="">Saved datasets…</option>
+                {saved.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name} ({item.rows} rows)
+                  </option>
+                ))}
+              </select>
+            ) : null}
+          </div>
+          <div>
+            <label htmlFor="data-csv" className="panel-label">
+              Or paste a table
+            </label>
+            <textarea
+              id="data-csv"
+              rows={6}
+              value={pasted}
+              onChange={(event) => setPasted(event.target.value)}
+              className="input mt-2 font-mono text-[12px]"
+              placeholder={"vendor,spend\nAcme,12000\nBeta,4100"}
+              disabled={busy}
+              data-testid="data-csv"
+            />
+            <button
+              type="button"
+              className="btn mt-2"
+              onClick={() => void onUsePasted()}
+              disabled={busy || !pasted.trim()}
+              data-testid="data-use-pasted"
+            >
+              {loading === "paste" ? "Reading…" : "Use pasted table"}
+            </button>
+          </div>
+          {dataset ? (
+            <div className="space-y-2" data-testid="data-dataset">
+              <p className="text-sm font-medium" data-testid="data-dataset-name">
+                {dataset.name}
+              </p>
+              <p className="text-[11px] text-[color-mix(in_srgb,var(--color-text)_45%,transparent)]">
+                {dataset.rows} rows × {dataset.cols} cols · {formatBytes(dataset.sizeBytes)}
+              </p>
+              <DatasetProfile profile={dataset.profile} testId="data-profile" />
+              <button
+                type="button"
+                className="text-xs underline-offset-2 hover:underline"
+                onClick={() => setShowPreview((value) => !value)}
+                data-testid="data-preview-toggle"
+              >
+                {showPreview ? "Hide rows" : "Show first rows"}
+              </button>
+              {showPreview ? (
+                <DataGrid
+                  columns={dataset.preview.columns}
+                  rows={dataset.preview.rows}
+                  maxRows={100}
+                  testId="data-preview"
+                  caption={`${dataset.preview.total} rows`}
+                />
+              ) : null}
+            </div>
+          ) : null}
         </section>
-        <div>
-          {notes ? (
-            <ResearchPreview notes={notes} />
-          ) : (
+        <div className="space-y-4">
+          {job.busy || (job.progress.phases.length > 0 && !shown) ? (
+            <JobProgressList progress={job.progress} busy={job.busy} testId="data-progress" />
+          ) : null}
+          {shown ? (
+            <>
+              <ArtifactActions
+                title={shown.result.analysis.title}
+                markdown={shown.result.markdown}
+                artifactId={shown.result.artifactId}
+                kbType="Analysis"
+                disabled={busy}
+                testIdPrefix="data"
+              />
+              <DataAnalysisView analysis={shown.result.analysis} testIdPrefix="data" />
+            </>
+          ) : job.busy ? null : (
             <div className="blueprint px-4 py-8 text-center" data-testid="data-studio-empty">
-              <p>Paste a table, then generate.</p>
+              <p>{dataset ? "Ask a question about the table." : "Upload or paste a table, then ask a question."}</p>
             </div>
           )}
-          <div className="mt-4 flex flex-col gap-2" data-testid="data-starters">
+          <div className="flex flex-col gap-2" data-testid="data-starters">
             {DATA_STARTERS.map((starter) => (
               <button
                 key={starter.id}
@@ -137,6 +313,7 @@ export function DataStudio() {
                 className="blueprint p-3 text-left"
                 data-testid="data-starter"
                 onClick={() => setPrompt(starter.prompt)}
+                disabled={busy}
               >
                 {starter.label}
               </button>
@@ -144,21 +321,51 @@ export function DataStudio() {
           </div>
         </div>
       </div>
-      <form className="blueprint mt-5 p-4" onSubmit={(event) => void onGenerate(event)} data-testid="data-studio-prompt-bar">
+      <form
+        className="blueprint mt-5 p-4"
+        onSubmit={(event) => void onGenerate(event)}
+        data-testid="data-studio-prompt-bar"
+      >
         <div className="mb-2 flex items-center gap-2">
-          <EnhancePromptButton text={prompt} surface="data" model={model} disabled={busy !== null} testId="data-enhance" onApply={setPrompt} />
-          <ModelSelect models={models} value={model} onChange={setModel} disabled={busy !== null} testId="data-studio-model" />
+          <EnhancePromptButton
+            text={prompt}
+            surface="data"
+            model={model}
+            disabled={busy}
+            testId="data-enhance"
+            onApply={setPrompt}
+          />
+          <ModelSelect models={models} value={model} onChange={setModel} disabled={busy} testId="data-studio-model" />
+          {history.length > 0 ? (
+            <span
+              className="text-[11px] text-[color-mix(in_srgb,var(--color-text)_45%,transparent)]"
+              data-testid="data-history"
+            >
+              Follow-up {history.length + 1} on this dataset
+            </span>
+          ) : null}
         </div>
         <div className="flex gap-2">
           <input
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
             className="input min-w-0 flex-1"
-            placeholder="Ask a question about the table…"
+            placeholder={dataset ? "Ask a question about the table…" : "Add a table first…"}
+            disabled={busy}
             data-testid="data-prompt"
           />
-          <button type="submit" className="btn btn-primary" disabled={busy !== null || !prompt.trim()} data-testid="data-generate">
-            {busy === "generate" ? "Analyzing…" : "Generate"}
+          {job.busy ? (
+            <button type="button" className="btn" onClick={job.cancel} data-testid="data-cancel">
+              Cancel
+            </button>
+          ) : null}
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={busy || !prompt.trim()}
+            data-testid="data-generate"
+          >
+            {job.busy ? "Working…" : "Analyze"}
           </button>
         </div>
       </form>

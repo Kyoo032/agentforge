@@ -12,7 +12,14 @@ import {
   handlePostAgentTools,
   handlePostWorkspaceAgents,
 } from "./handlers/agents";
+import {
+  handleDeleteArtifact,
+  handleGetArtifact,
+  handleGetArtifactFile,
+  handleGetArtifacts,
+} from "./handlers/artifacts";
 import { handleGetChat } from "./handlers/chat";
+import { handleDeleteDataset, handleGetDataset, handleGetDatasets, handlePostDatasets } from "./handlers/datasets";
 import {
   handleGetEditDoctor,
   handleGetEditEvents,
@@ -37,9 +44,17 @@ import {
 } from "./handlers/edit";
 import { handlePostEnhancePrompt } from "./handlers/enhance-prompt";
 import {
+  handlePostFinance,
+  handlePostFinanceDocx,
+  handlePostFinanceParse,
+  handlePostFinanceRegen,
+  handlePostFinanceStream,
+} from "./handlers/finance";
+import {
   handleGetImages,
   handleGetVideos,
   handlePostData,
+  handlePostDataStream,
   handlePostDocuments,
   handlePostDocumentsDocx,
   handlePostDocumentsRegen,
@@ -48,6 +63,7 @@ import {
   handlePostPresentationsPptx,
   handlePostPresentationsRegen,
   handlePostResearch,
+  handlePostResearchStream,
   handlePostVideos,
 } from "./handlers/jobs";
 import {
@@ -153,8 +169,23 @@ const routes: Route[] = [
   compile("POST", "/api/v1/presentations/regenerate", handlePostPresentationsRegen),
   compile("POST", "/api/v1/presentations/pptx", handlePostPresentationsPptx),
   compile("POST", "/api/v1/research", handlePostResearch),
+  compile("POST", "/api/v1/research/stream", handlePostResearchStream),
+  compile("POST", "/api/v1/finance", handlePostFinance),
+  compile("POST", "/api/v1/finance/stream", handlePostFinanceStream),
+  compile("POST", "/api/v1/finance/parse", handlePostFinanceParse),
+  compile("POST", "/api/v1/finance/regenerate", handlePostFinanceRegen),
+  compile("POST", "/api/v1/finance/docx", handlePostFinanceDocx),
   compile("POST", "/api/v1/data", handlePostData),
+  compile("POST", "/api/v1/data/stream", handlePostDataStream),
+  compile("GET", "/api/v1/datasets", handleGetDatasets),
+  compile("POST", "/api/v1/datasets", handlePostDatasets),
+  compile("GET", "/api/v1/datasets/:datasetId", handleGetDataset),
+  compile("DELETE", "/api/v1/datasets/:datasetId", handleDeleteDataset),
   compile("POST", "/api/v1/prompts/enhance", handlePostEnhancePrompt),
+  compile("GET", "/api/v1/artifacts", handleGetArtifacts),
+  compile("GET", "/api/v1/artifacts/:artifactId", handleGetArtifact),
+  compile("DELETE", "/api/v1/artifacts/:artifactId", handleDeleteArtifact),
+  compile("GET", "/api/v1/artifacts/:artifactId/file", handleGetArtifactFile),
   compile("GET", "/api/v1/knowledge", handleGetKnowledge),
   compile("GET", "/api/v1/knowledge/context", handleGetKnowledgeContext),
   compile("PUT", "/api/v1/knowledge/models", handlePutKnowledgeModels),

@@ -413,6 +413,30 @@ h6 {
   color: color-mix(in srgb, var(--color-text) 72%, transparent);
 }
 
+.formatted-md .formatted-table {
+  overflow-x: auto;
+  margin: 0.75rem 0;
+}
+
+.formatted-md .formatted-table table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.875rem;
+}
+
+.formatted-md .formatted-table th,
+.formatted-md .formatted-table td {
+  border: 1px solid color-mix(in srgb, var(--color-text) 14%, transparent);
+  padding: 0.35rem 0.6rem;
+  vertical-align: top;
+}
+
+.formatted-md .formatted-table th {
+  font-weight: 600;
+  background: color-mix(in srgb, var(--color-text) 5%, transparent);
+  text-align: left;
+}
+
 @keyframes af-sweep {
   0% {
     transform: translateX(-100%);

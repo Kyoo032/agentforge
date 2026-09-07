@@ -5,7 +5,9 @@ import {
   type AgentVersionRecord,
   type ContentPart,
   type ImageUrlPart,
+  type RuntimeEvent,
   type TenantContext,
+  type ToolBindingRecord,
 } from "@agentforge/core";
 import { isRenderableImageUrl } from "./composer-attach";
 import { inlineLocalMediaParts } from "./inline-local-media";
@@ -66,6 +68,10 @@ export async function collectJobAssistantText(options: {
   versionId: string;
   prompt: string;
   attachments?: ImageUrlPart[];
+  /** Tool keys the model may call (registered tools only). Empty by default. */
+  toolKeys?: string[];
+  /** Observe runtime events (tool calls, deltas) while the job runs. */
+  onEvent?: (event: RuntimeEvent) => void;
 }): Promise<string> {
   const settings = loadSettings();
   const runtime = createRuntime(settings);
@@ -73,8 +79,7 @@ export async function collectJobAssistantText(options: {
   if (attachments.length > 0) {
     assertModelSupportsModality(options.model, "image");
   }
-  const imageParts =
-    attachments.length > 0 ? await inlineLocalMediaParts(options.tenant, attachments) : [];
+  const imageParts = attachments.length > 0 ? await inlineLocalMediaParts(options.tenant, attachments) : [];
   const version: AgentVersionRecord = {
     id: options.versionId,
     agentId: options.agentId,
@@ -90,13 +95,21 @@ export async function collectJobAssistantText(options: {
   let assistantText = "";
   let failedMessage = "";
   const parts: ContentPart[] = [{ type: "text", text: options.prompt }, ...imageParts];
+  const bindings: ToolBindingRecord[] = (options.toolKeys ?? []).map((toolKey) => ({
+    id: `${options.versionId}-${toolKey}`,
+    agentVersionId: options.versionId,
+    organizationId: options.tenant.organizationId,
+    toolKey,
+    config: {},
+    enabled: true,
+  }));
 
   await runtime.execute({
     tenant: options.tenant,
     runId: `${options.runPrefix}-${Date.now()}`,
     modality: "text",
     version,
-    bindings: [],
+    bindings,
     history: [{ role: "user", parts }],
     onEvent: (event) => {
       if (event.type === "assistant.delta") {
@@ -105,6 +118,7 @@ export async function collectJobAssistantText(options: {
       if (event.type === "run.failed") {
         failedMessage = event.message;
       }
+      options.onEvent?.(event);
       rememberJobUsage(event);
     },
   });

@@ -2,78 +2,72 @@
 
 import { useState, type FormEvent } from "react";
 import { Link } from "@/lib/nav";
+import { ArtifactActions } from "@/components/artifact-actions";
+import { ArtifactPicker } from "@/components/artifact-picker";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { ExampleGallery } from "@/components/example-gallery";
+import { FormattedText } from "@/components/formatted-text";
+import { JobProgressList } from "@/components/job-progress";
 import { ModelSelect } from "@/components/model-select";
 import { ResearchPreview } from "@/components/research-preview";
 import { researchNotesToMarkdown, type ResearchNotes } from "@/lib/research-notes";
 import { useJobModel } from "@/lib/use-job-model";
-import { apiFetch } from "@/lib/api-client";
+import { useJobStream } from "@/lib/use-job-stream";
 import { useProductBrand } from "@/lib/product-brand";
 
-function errorMessage(payload: unknown, fallback: string): string {
-  if (payload && typeof payload === "object") {
-    const error = (payload as { error?: { message?: unknown } }).error;
-    if (error && typeof error.message === "string" && error.message.trim()) {
-      return error.message;
-    }
-  }
-  return fallback;
-}
+type ResearchResult = ResearchNotes & {
+  artifactId: string | null;
+  dossierId?: string | null;
+  dossier?: { title: string; markdown: string };
+};
+
+/** What the studio shows: a fresh run (notes + dossier), or a reopened saved dossier (Markdown only). */
+type Shown =
+  | { kind: "run"; notes: ResearchNotes; dossierMarkdown: string; artifactId: string | null }
+  | { kind: "saved"; title: string; markdown: string; artifactId: string };
+
+type Tab = "notes" | "dossier";
 
 function needsSettingsHint(message: string): boolean {
   return /gateway|api key|settings|runtime_stub|live gateway|tavily|brave/i.test(message);
 }
 
+function tabClass(active: boolean): string {
+  return active
+    ? "rounded-md bg-navy px-3 py-1 text-xs font-medium text-white"
+    : "rounded-md border border-mist px-3 py-1 text-xs font-medium text-ink/70 hover:text-ink";
+}
+
 export function ResearchStudio() {
   const { productName } = useProductBrand();
   const { models, model, setModel } = useJobModel("research");
+  const job = useJobStream<ResearchResult>();
   const [prompt, setPrompt] = useState("");
-  const [notes, setNotes] = useState<ResearchNotes | null>(null);
-  const [busy, setBusy] = useState<"generate" | "download" | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [shown, setShown] = useState<Shown | null>(null);
+  const [tab, setTab] = useState<Tab>("notes");
+  const error = job.error?.message ?? null;
 
   async function onGenerate(event: FormEvent) {
     event.preventDefault();
     const topic = prompt.trim();
-    if (!topic || busy) {
+    if (!topic || job.busy) {
       return;
     }
-    setBusy("generate");
-    setError(null);
-    try {
-      const res = await apiFetch("/api/v1/research", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: topic, model: model || undefined }),
+    const result = await job.run("/api/v1/research/stream", { prompt: topic, model: model || undefined });
+    if (result) {
+      const { artifactId, dossierId, dossier, ...notes } = result;
+      setShown({
+        kind: "run",
+        notes,
+        dossierMarkdown: dossier?.markdown ?? researchNotesToMarkdown(notes),
+        artifactId: dossierId ?? artifactId,
       });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        throw new Error(errorMessage(data, "Could not generate research notes"));
-      }
-      setNotes(data as ResearchNotes);
-    } catch (err) {
-      setNotes(null);
-      setError(err instanceof Error ? err.message : "Could not generate research notes");
-    } finally {
-      setBusy(null);
+      setTab("notes");
     }
   }
 
-  function onDownload() {
-    if (!notes || busy) {
-      return;
-    }
-    const markdown = researchNotesToMarkdown(notes);
-    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    const slug = notes.title.replace(/[^\w\s-]+/g, "").replace(/\s+/g, "-").slice(0, 60) || "research";
-    anchor.href = url;
-    anchor.download = `${slug}.md`;
-    anchor.click();
-    URL.revokeObjectURL(url);
-  }
+  const title = shown?.kind === "run" ? shown.notes.title : (shown?.title ?? "");
+  const markdown = shown?.kind === "run" ? shown.dossierMarkdown : (shown?.markdown ?? "");
 
   return (
     <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-10 text-ink" data-testid="research-studio">
@@ -81,20 +75,20 @@ export function ResearchStudio() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Research</h1>
           <p className="mt-2 max-w-xl text-sm text-ink/60">
-            Ask a question. {productName} searches the web, drafts sourced notes, and downloads Markdown.
+            Ask a question. {productName} plans sub-queries, reads the pages behind the hits, and builds a cited dossier
+            you can send to Documents, Presentation, or the Knowledge Base.
           </p>
         </div>
-        {notes ? (
-          <button
-            type="button"
-            onClick={onDownload}
-            disabled={busy !== null}
-            className="rounded-md bg-navy px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-            data-testid="research-download"
-          >
-            Download Markdown
-          </button>
-        ) : null}
+        <ArtifactPicker
+          mode="research"
+          label="Reopen saved research…"
+          disabled={job.busy}
+          testId="research-saved"
+          onPick={(artifact) => {
+            setShown({ kind: "saved", title: artifact.title, markdown: artifact.body, artifactId: artifact.id });
+            setTab("dossier");
+          }}
+        />
       </div>
 
       {error ? (
@@ -119,17 +113,66 @@ export function ResearchStudio() {
 
       <ExampleGallery mode="research" onSelect={(entry) => setPrompt(entry.prompt)} />
 
+      {job.busy || (job.progress.phases.length > 0 && !shown) ? (
+        <div className="mt-6">
+          <JobProgressList progress={job.progress} busy={job.busy} testId="research-progress" />
+        </div>
+      ) : null}
+
       <div className="mt-8 flex-1">
-        {notes ? (
-          <ResearchPreview notes={notes} />
-        ) : (
+        {shown ? (
+          <div className="space-y-4">
+            <ArtifactActions
+              title={title}
+              markdown={markdown}
+              artifactId={shown.artifactId}
+              kbType="Dossier"
+              disabled={job.busy}
+              testIdPrefix="research"
+            />
+            {shown.kind === "run" ? (
+              <div className="flex gap-2" role="tablist" data-testid="research-tabs">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === "notes"}
+                  className={tabClass(tab === "notes")}
+                  onClick={() => setTab("notes")}
+                  data-testid="research-tab-notes"
+                >
+                  Notes
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === "dossier"}
+                  className={tabClass(tab === "dossier")}
+                  onClick={() => setTab("dossier")}
+                  data-testid="research-tab-dossier"
+                >
+                  Dossier
+                </button>
+              </div>
+            ) : null}
+            {shown.kind === "run" && tab === "notes" ? (
+              <ResearchPreview notes={shown.notes} />
+            ) : (
+              <article
+                className="rounded-xl border border-mist bg-paper px-8 py-10 shadow-sm"
+                data-testid="research-dossier-preview"
+              >
+                <FormattedText text={markdown} className="text-sm leading-relaxed text-ink/85" />
+              </article>
+            )}
+          </div>
+        ) : job.busy ? null : (
           <div
             className="rounded-lg border border-mist bg-mist/30 px-4 py-10 text-center"
             data-testid="research-studio-empty"
           >
-            <p className="text-lg font-medium">No notes yet</p>
+            <p className="text-lg font-medium">No dossier yet</p>
             <p className="mt-2 text-sm text-ink/60">
-              Enter a question below. Search uses your Tavily or Brave key from Settings.
+              Enter a question below. Search uses your Tavily or Brave key from Settings; pages are read over HTTPS.
             </p>
           </div>
         )}
@@ -144,29 +187,46 @@ export function ResearchStudio() {
           models={models}
           value={model}
           onChange={setModel}
-          disabled={busy !== null || models.length === 0}
+          disabled={job.busy || models.length === 0}
           testId="research-studio-model"
           className="w-full rounded-md border border-mist bg-paper px-3 py-2 text-sm text-ink"
         />
         <div className="flex gap-2">
-          <EnhancePromptButton text={prompt} surface="research" model={model} disabled={busy !== null} testId="research-enhance" onApply={setPrompt} />
+          <EnhancePromptButton
+            text={prompt}
+            surface="research"
+            model={model}
+            disabled={job.busy}
+            testId="research-enhance"
+            onApply={setPrompt}
+          />
           <input
             type="text"
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
             className="min-w-0 flex-1 rounded-md bg-transparent px-3 py-2 text-sm text-ink outline-none placeholder:text-ink/40"
             placeholder="What should we look up?"
-            disabled={busy !== null}
+            disabled={job.busy}
             data-testid="research-prompt"
             aria-label="Research question"
           />
+          {job.busy ? (
+            <button
+              type="button"
+              className="shrink-0 rounded-md border border-mist px-3 py-2 text-sm"
+              onClick={job.cancel}
+              data-testid="research-cancel"
+            >
+              Cancel
+            </button>
+          ) : null}
           <button
             type="submit"
             className="shrink-0 rounded-md bg-navy px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-            disabled={busy !== null || !prompt.trim()}
+            disabled={job.busy || !prompt.trim()}
             data-testid="research-generate"
           >
-            {busy === "generate" ? "Searching…" : "Generate"}
+            {job.busy ? "Working…" : "Generate"}
           </button>
         </div>
       </form>

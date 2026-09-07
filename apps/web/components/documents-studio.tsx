@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "@/lib/nav";
 import { DocumentPreview } from "@/components/document-preview";
+import { SourceMaterialField } from "@/components/source-material-field";
+import { subscribeModeHandoff } from "@/lib/mode-handoff";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { ExampleGallery } from "@/components/example-gallery";
 import { ModelSelect } from "@/components/model-select";
@@ -31,10 +33,23 @@ export function DocumentsStudio() {
   const { productName } = useProductBrand();
   const { models, model, setModel } = useJobModel("documents");
   const [prompt, setPrompt] = useState("");
+  const [sourceText, setSourceText] = useState("");
+  const [sourceTitle, setSourceTitle] = useState<string | null>(null);
   const [draft, setDraft] = useState<DocumentDraft | null>(null);
   const [busy, setBusy] = useState<"generate" | "download" | "regen" | null>(null);
   const [regenIndex, setRegenIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(
+    () =>
+      subscribeModeHandoff("documents", (handoff) => {
+        setSourceText(handoff.sourceText);
+        setSourceTitle(handoff.title ?? null);
+        setPrompt(handoff.prompt);
+        setError(null);
+      }),
+    [],
+  );
 
   async function onGenerate(event: FormEvent) {
     event.preventDefault();
@@ -48,7 +63,7 @@ export function DocumentsStudio() {
       const res = await apiFetch("/api/v1/documents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: topic, model: model || undefined }),
+        body: JSON.stringify({ prompt: topic, model: model || undefined, sourceText: sourceText.trim() || undefined }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
@@ -81,6 +96,7 @@ export function DocumentsStudio() {
           instruction: payload.instruction || undefined,
           model: payload.model || model || undefined,
           attachments: payload.attachments.length > 0 ? payload.attachments : undefined,
+          sourceText: sourceText.trim() || undefined,
         }),
       });
       const data = await res.json().catch(() => null);
@@ -214,6 +230,14 @@ export function DocumentsStudio() {
         onSubmit={(event) => void onGenerate(event)}
         data-testid="documents-studio-prompt-bar"
       >
+        <SourceMaterialField
+          value={sourceText}
+          onChange={setSourceText}
+          title={sourceTitle}
+          onTitle={setSourceTitle}
+          disabled={busy !== null}
+          testIdPrefix="documents"
+        />
         <ModelSelect
           models={models}
           value={model}
@@ -223,7 +247,14 @@ export function DocumentsStudio() {
           className="w-full rounded-md border border-mist bg-paper px-3 py-2 text-sm text-ink"
         />
         <div className="flex gap-2">
-          <EnhancePromptButton text={prompt} surface="documents" model={model} disabled={busy !== null} testId="documents-enhance" onApply={setPrompt} />
+          <EnhancePromptButton
+            text={prompt}
+            surface="documents"
+            model={model}
+            disabled={busy !== null}
+            testId="documents-enhance"
+            onApply={setPrompt}
+          />
           <input
             type="text"
             value={prompt}

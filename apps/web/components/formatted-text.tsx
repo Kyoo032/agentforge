@@ -1,11 +1,8 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { mediaSrc } from "@/lib/api-client";
-import {
-  parseInline,
-  parseMarkdown,
-  type MdBlock,
-  type MdInline,
-} from "@/lib/parse-markdown";
+import { parseInline, parseMarkdown, type MdBlock, type MdInline, type MdTableAlign } from "@/lib/parse-markdown";
+
+type MdTable = Extract<MdBlock, { type: "table" }>;
 
 type Props = {
   text: string;
@@ -36,7 +33,7 @@ function BlockView({ block }: { block: MdBlock }) {
     return <p>{renderInline(block.children)}</p>;
   }
   if (block.type === "h") {
-    const Tag = (`h${block.level}` as "h1" | "h2" | "h3");
+    const Tag = `h${block.level}` as "h1" | "h2" | "h3";
     return <Tag>{renderInline(block.children)}</Tag>;
   }
   if (block.type === "ul") {
@@ -60,11 +57,47 @@ function BlockView({ block }: { block: MdBlock }) {
   if (block.type === "quote") {
     return <blockquote>{renderInline(block.children)}</blockquote>;
   }
+  if (block.type === "table") {
+    return <TableView block={block} />;
+  }
   return (
     <pre>
       <code>{block.value}</code>
     </pre>
   );
+}
+
+function TableView({ block }: { block: MdTable }) {
+  return (
+    <div className="formatted-table">
+      <table>
+        <thead>
+          <tr>
+            {block.header.map((cell, index) => (
+              <th key={index} style={cellStyle(block.align[index])}>
+                {renderInline(cell)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {block.rows.map((row, rowIndex) => (
+            <tr key={rowIndex}>
+              {row.map((cell, index) => (
+                <td key={index} style={cellStyle(block.align[index])}>
+                  {renderInline(cell)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function cellStyle(align: MdTableAlign | undefined): CSSProperties | undefined {
+  return align ? { textAlign: align } : undefined;
 }
 
 function renderInline(nodes: MdInline[]): ReactNode[] {
@@ -83,7 +116,12 @@ function renderInline(nodes: MdInline[]): ReactNode[] {
     }
     if (node.type === "link") {
       return (
-        <a key={index} href={node.href} target={node.href.startsWith("http") ? "_blank" : undefined} rel="noreferrer">
+        <a
+          key={index}
+          href={node.href}
+          target={node.href.startsWith("http") ? "_blank" : undefined}
+          rel="noopener noreferrer"
+        >
           {renderInline(node.children)}
         </a>
       );

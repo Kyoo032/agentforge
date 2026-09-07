@@ -3,12 +3,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "@/lib/nav";
 import { usePathname } from "@/lib/nav";
-import {
-  PRODUCT_MODES,
-  firstVisibleHref,
-  productModeMatches,
-  type ProductMode,
-} from "@agentforge/core/product-modes";
+import { PRODUCT_MODES, firstVisibleHref, productModeMatches, type ProductMode } from "@agentforge/core/product-modes";
+import { AppUpdatesButton } from "@/components/app-updates";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { WorkspaceSwitcher } from "@/components/workspace-switcher";
 import { getRailCollapsed, setRailCollapsed } from "@/lib/rail-prefs";
@@ -170,20 +166,14 @@ function RailItem({
   );
 }
 
-function RailGroupLabel({
-  children,
-  collapsed,
-  first,
-}: {
-  children: ReactNode;
-  collapsed: boolean;
-  first?: boolean;
-}) {
+function RailGroupLabel({ children, collapsed, first }: { children: ReactNode; collapsed: boolean; first?: boolean }) {
   if (collapsed) {
     return <div className={`${first ? "mt-1" : "mt-2"} mx-auto h-px w-6 bg-divider`} />;
   }
   return (
-    <p className={`${first ? "mt-1" : "mt-3"} mb-0.5 px-2.5 text-[10px] font-heading font-semibold uppercase tracking-[.14em] text-[color-mix(in_srgb,var(--color-text)_48%,transparent)]`}>
+    <p
+      className={`${first ? "mt-1" : "mt-3"} mb-0.5 px-2.5 text-[10px] font-heading font-semibold uppercase tracking-[.14em] text-[color-mix(in_srgb,var(--color-text)_48%,transparent)]`}
+    >
       {children}
     </p>
   );
@@ -217,7 +207,9 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
       aria-label="Product modes"
       data-rail={collapsed ? "min" : "full"}
     >
-      <div className={`flex shrink-0 items-start gap-2 border-b border-divider ${collapsed ? "justify-center px-1.5 py-3" : "px-3 py-3"}`}>
+      <div
+        className={`flex shrink-0 items-start gap-2 border-b border-divider ${collapsed ? "justify-center px-1.5 py-3" : "px-3 py-3"}`}
+      >
         {logoSrc ? (
           <img src={logoSrc} alt="" className="mt-0.5 h-7 w-7 shrink-0 object-contain" data-testid="product-logo" />
         ) : (
@@ -227,7 +219,11 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
         )}
         {collapsed ? null : (
           <div className="min-w-0 flex-1">
-            <Link href={homeHref} className="block truncate font-heading text-[15px] font-semibold tracking-tight" data-testid="product-brand">
+            <Link
+              href={homeHref}
+              className="block truncate font-heading text-[15px] font-semibold tracking-tight"
+              data-testid="product-brand"
+            >
               {productName}
             </Link>
             <div className="mt-0.5 -mx-1 text-[11px] text-[color-mix(in_srgb,var(--color-text)_50%,transparent)] [&_button]:py-0.5 [&_button]:text-[11px]">
@@ -302,10 +298,12 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
         />
       </nav>
 
-      <div className="flex shrink-0 items-center justify-center gap-2 border-t border-divider p-2.5">
-        {collapsed ? null : (
-          <ThemeToggle className="min-w-0 flex-1 justify-start gap-2 px-2 py-[7px] text-[13px]" />
-        )}
+      <div
+        className={`flex shrink-0 items-center justify-center gap-2 border-t border-divider p-2.5 ${collapsed ? "flex-col" : ""}`}
+        data-testid="rail-footer"
+      >
+        {collapsed ? null : <ThemeToggle className="min-w-0 flex-1 justify-start gap-2 px-2 py-[7px] text-[13px]" />}
+        <AppUpdatesButton />
         <button
           type="button"
           className="btn btn-secondary btn-icon h-[30px] w-[30px] shrink-0"
@@ -314,7 +312,15 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
           aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
           title={collapsed ? "Expand navigation" : "Collapse navigation"}
         >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            aria-hidden="true"
+          >
             <rect x="3" y="3" width="18" height="18" />
             <path d="M9 3v18" />
           </svg>

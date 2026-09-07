@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./vault-key": "./src/vault-key.ts"
+    "./vault-key": "./src/vault-key.ts",
+    "./ensure-schema": "./src/ensure-schema.ts"
   },
   "scripts": {
     "generate": "drizzle-kit generate",

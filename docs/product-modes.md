@@ -11,8 +11,8 @@ Gateway identity stays **Toko Token** (`api.tokotokenai.com/v1`). Do not merge T
 | Chat          | `chat`         | `/chat`            | Default assistant |
 | Documents     | `documents`    | `/documents`       | Prompt → preview → download DOCX |
 | Research      | `research`     | `/research`        | Question → web search → sourced notes → Markdown |
-| Finance       | `finance`      | `/finance`         | Figures-only brief → preview → download DOCX |
-| Data          | `data`         | `/data`            | Pasted CSV → table notes (no web search) → Markdown |
+| Finance       | `finance`      | `/finance`         | Line items → metrics computed in code → guarded brief → DOCX with tables |
+| Data          | `data`         | `/data`            | Upload / paste table → SQL-backed analysis with evidence tables + charts → Markdown |
 | Images        | `images`       | `/images`          | Prompt → generate images → gallery |
 | Videos        | `videos`       | `/videos`          | Prompt → generate videos → gallery |
 | Presentation  | `presentations`| `/presentations`   | Prompt → outline → HTML preview + PPTX |
@@ -60,19 +60,19 @@ Default gateway chat: model picker, composer, its own sessions (`GET /api/v1/thr
 
 ### Documents
 
-Job, not a Word editor. Prompt → JSON sections → HTML preview → download `.docx`. Direct `/api/v1/documents` — not `/runs/*`. Uses the chat catalog with a cheap writing default (`hy3` when live, else `deepseek-v4-flash`). Settings can override the default.
+Job, not a Word editor. Prompt → JSON sections → HTML preview → download `.docx`. Direct `/api/v1/documents` — not `/runs/*`. Uses the chat catalog with a cheap writing default (`hy3` when live, else `deepseek-v4-flash`). Settings can override the default. Optional **Source material** (`sourceText`, capped at 120k chars) on generate and regenerate: when present the model may use only that material for facts. The field has a "Use a saved artifact…" picker and is prefilled by Research's **Make a document** handoff.
 
 ### Research
 
-Job, not Westlaw / Harvey / Kimi Deep Research. Question → `web_search` hits → sourced notes preview → Markdown download. Fails visibly without a gateway key or a Tavily/Brave key. Uses the chat catalog with a cheap default (`gpt-5.6-luna` or MiniMax M3 when live).
+Job, not Westlaw / Harvey / Kimi Deep Research. Question → `web_search` hits → sourced notes preview → Markdown. Fails visibly without a gateway key or a Tavily/Brave key. Uses the chat catalog with a cheap default (`gpt-5.6-luna` or MiniMax M3 when live). Since 0.14.22 a run is a **dossier pipeline** (`packages/host/src/research-dossier.ts`): plan 3–5 sub-queries → `web_search` each (5 hits) → dedupe → read up to 10 pages over public HTTPS with the `web_fetch` tool (8k chars/page, 1.5 MB, 10 s, injection-guarded; unreachable pages are kept as snippet-only sources, never dropped) → per-source verbatim passages → one synthesis call for findings that cite `[S#]`, contradictions, and open questions. The dossier is a fixed-skeleton Markdown artifact (`kind: dossier`; frontmatter + Question / Queries run / Sources / Findings / Contradictions / Open questions) and the notes preview is derived from it, so every citation resolves to a real source. The studio streams progress (`POST /api/v1/research/stream`, `job.*` SSE: planning → searching n/m → reading n/m → drafting → saving) with a Cancel that stops the work, shows **Notes** and **Dossier** tabs, and offers **Download Markdown**, **Send to Knowledge Base** (source type `Dossier`), **Make a document**, **Make a presentation**, and **Reopen saved research…**. The JSON `POST /api/v1/research` endpoint returns the same payload.
 
 ### Finance
 
-Job, not a spreadsheet. Prompt plus optional pasted figures → JSON sections → HTML preview → download `.docx`. Host uses `POST /api/v1/documents` with `job: "finance"`. The finance system prompt may use only pasted figures and must never invent numbers. Starters load without a key; live generate is 503 without a key.
+Job, not a spreadsheet. Inputs are **line items** (label, period, amount, currency, category): pasted text goes through `POST /api/v1/finance/parse` and the user confirms the rows before anything is computed; rows can also be typed by hand or mapped from a saved Data dataset. `@agentforge/core/finance` computes margins, growth, burn and runway, ratios, breakeven, and NPV / IRR in code (`computeFinance`), the model writes sections from a table of inputs and metrics (`POST /api/v1/finance` + `/stream`), and a **number guard** replaces any figure in the prose that does not trace to an input or a computed metric with “[unverified figure]” (count shown in the preview). Per-section rewrite via `/api/v1/finance/regenerate` runs the same guard. `POST /api/v1/finance/docx` builds a DOCX with real tables (line items, computed metrics, totals by period) and an assumptions appendix. Output is a `FinanceBrief` artifact (`kind: brief`) with the same action row as Research. Live parse / generate are 503 without a key; the line-item editor and params work without one.
 
 ### Data
 
-Table analyst, not Research. Paste a parseable CSV, ask a question, get sourced notes and a Markdown download. Host is `POST /api/v1/data` — no `web_search`. Empty or invalid CSV does not generate. Live generate is 503 without a key.
+Table analyst, not Research. Upload a CSV / TSV / XLSX (25 MB cap) or paste a table; the host parses and profiles it in code (`@agentforge/core/tabular`), stores the file under `localDataDir()/datasets`, and loads it into a per-dataset in-memory SQLite (`packages/host/src/datasets.ts`). The model gets the column identifiers, the profile, and 20 sample rows, and answers through the `run_sql` tool (SELECT-only guard, 8 queries, 500 rows, table `data`). Every evidence table and chart is produced by re-running the model's SQL in code (`data-analysis-build.ts`); the SQL is shown under each finding. Output is a `DataAnalysis` artifact (`kind: analysis`) with the same action row as Research; follow-up questions reuse the dataset. Routes: `POST /api/v1/datasets` (file or text), `GET /api/v1/datasets[/:id]`, `DELETE`, `POST /api/v1/data` (+ `/stream`). No `web_search`. Live analyze is 503 without a key; upload and profile work without one.
 
 ### Knowledge Base
 
@@ -87,6 +87,8 @@ Lumina-style **generate** studio: prompt bar + result gallery. Not a canvas edit
 Same pattern for video: prompt, aspect, optional still (`image_url`), gallery. Direct generate path — not `/runs/video`. The picker lists **every** gateway video id. Cheap default is `grok-imagine-video` (or `omni-fast-v2v`); Seedance 2.5 stays in the picker as the quality option.
 
 ### Presentation
+
+Prompt → outline → HTML preview → PPTX. Same optional **Source material** field and handoff as Documents (`sourceText` on `/api/v1/presentations` and `/regenerate`).
 
 Kimi Slides **job** (topic → deck file), not Kimi Slides **product**. Prompt → JSON outline → HTML preview in-app → Download PPTX. No in-browser slide editor. Uses the chat catalog with a cheap GLM default (`glm-5.2-fast-preview` / `glm-5.2` when live; Kimi K3 is the quality pick in the picker).
 

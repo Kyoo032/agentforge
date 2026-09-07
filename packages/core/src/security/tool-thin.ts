@@ -78,6 +78,16 @@ function thinWebSearch(value: unknown): unknown {
  * Shrink tool results before they go back to the model.
  * Full output is persisted separately. Errors are never thinned. Fail-open.
  */
+const WEB_FETCH_CHAT_MAX_CHARS = 6_000;
+
+/** Chat agents get a bounded page body; the research reader uses fetchPageText directly with its own cap. */
+function thinWebFetch(output: unknown): void {
+  const data = (output as { data?: { text?: unknown } } | null)?.data;
+  if (data && typeof data.text === "string" && data.text.length > WEB_FETCH_CHAT_MAX_CHARS) {
+    data.text = `${data.text.slice(0, WEB_FETCH_CHAT_MAX_CHARS)}\n[truncated]`;
+  }
+}
+
 export function thinToolOutput(toolKey: string, output: unknown): unknown {
   try {
     if (looksLikeError(output)) {
@@ -86,6 +96,9 @@ export function thinToolOutput(toolKey: string, output: unknown): unknown {
     const cloned = JSON.parse(JSON.stringify(output)) as unknown;
     if (toolKey === "web_search") {
       thinWebSearch(cloned);
+    }
+    if (toolKey === "web_fetch") {
+      thinWebFetch(cloned);
     }
     stripBlobs(cloned);
     return cloned;
