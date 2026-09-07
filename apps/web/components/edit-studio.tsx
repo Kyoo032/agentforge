@@ -542,24 +542,66 @@ export function EditStudio() {
     }
     setExporting(true);
     setError(null);
+    setExportJobId(null);
     const response = await apiFetch(`/api/v1/edit/projects/${project.id}/export`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ preset: "h264-1080p" }),
     });
     const payload = await readJson(response);
-    setExporting(false);
     if (!response.ok) {
+      setExporting(false);
       setError(errorMessage(payload, "Export blocked"));
       return;
     }
     const jobId = typeof payload.id === "string" ? payload.id : typeof payload.jobId === "string" ? payload.jobId : null;
     setExportJobId(jobId);
+    if (!jobId) {
+      setExporting(false);
+    }
+  }
+
+  async function onDownloadExport() {
+    if (!project || !exportJobId) {
+      return;
+    }
+    setError(null);
+    try {
+      const response = await apiFetch(`/api/v1/edit/projects/${project.id}/export/${exportJobId}/file`);
+      if (!response.ok) {
+        setError(errorMessage(await readJson(response), "Export is not ready"));
+        return;
+      }
+      const blob = await response.blob();
+      const disposition = response.headers.get("Content-Disposition") ?? "";
+      const match = disposition.match(/filename="([^"]+)"/);
+      const filename = match?.[1] ?? "export.mp4";
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not download export");
+    }
   }
 
   const reviewOpen = isReviewOpen(project);
   const jobsLive = activeJobs(jobs);
   const spent = turnSpendUsd(cards, jobs);
+  const exportJob = exportJobId ? jobs.find((job) => job.id === exportJobId) : undefined;
+  const exportReady = exportJob?.status === "succeeded";
+  const exportBusy = Boolean(exportJobId) && !exportReady && exportJob?.status !== "failed" && exportJob?.status !== "cancelled";
+
+  useEffect(() => {
+    if (!exportJobId) {
+      return;
+    }
+    if (exportJob?.status === "succeeded" || exportJob?.status === "failed" || exportJob?.status === "cancelled") {
+      setExporting(false);
+    }
+  }, [exportJob?.status, exportJobId]);
 
   return (
     <main className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-app text-ink" data-testid="edit-studio">
@@ -601,19 +643,20 @@ export function EditStudio() {
           </button>
         </span>
       </header>
-      {exporting ? (
+      {exporting || exportBusy ? (
         <p className="px-4 text-xs text-ink/50" data-testid="edit-export-progress">
           Exporting…
         </p>
       ) : null}
-      {exportJobId ? (
-        <a
-          className="px-4 text-xs underline"
-          href={`/api/v1/edit/export/${exportJobId}/file`}
+      {exportReady ? (
+        <button
+          type="button"
+          className="px-4 text-left text-xs underline"
           data-testid="edit-export-download"
+          onClick={() => void onDownloadExport()}
         >
           Download export
-        </a>
+        </button>
       ) : null}
       {error ? (
         <p className="px-4 py-1 text-xs text-red-700" role="alert">

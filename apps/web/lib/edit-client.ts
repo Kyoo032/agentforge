@@ -98,11 +98,17 @@ export function activeJobs(jobs: EditJob[]): EditJob[] {
 export function turnSpendUsd(cards: OpCard[], jobs: EditJob[]): number {
   let sum = 0;
   for (const card of cards) {
+    if (card.status === "undone") {
+      continue;
+    }
     if (typeof card.estimateUsd === "number") {
       sum += card.estimateUsd;
     }
   }
   for (const job of jobs) {
+    if (job.status === "cancelled" || job.status === "interrupted") {
+      continue;
+    }
     if (typeof job.actualUsd === "number") {
       sum += job.actualUsd;
     }
