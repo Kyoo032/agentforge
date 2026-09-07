@@ -320,7 +320,6 @@ async function processJob(jobId: string): Promise<void> {
 
 export async function enqueueEditJob(projectId: string, input: EnqueueJobInput): Promise<JobRow> {
   ensureGenerateSubmitWired();
-  await interruptRunningJobsOnBoot();
   const [row] = await db
     .insert(editJobs)
     .values({

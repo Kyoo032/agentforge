@@ -146,10 +146,17 @@ export async function writeHostResult(res: ServerResponse, result: HostResult): 
   res.end();
 }
 
+let editBooted = false;
+
 export async function handleNodeRequest(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
   const { path, query } = pathnameOf(req);
   if (!path.startsWith("/api/")) {
     return false;
+  }
+  if (!editBooted) {
+    editBooted = true;
+    const { handleBootEditJobs } = await import("./handlers/edit");
+    void handleBootEditJobs();
   }
   const method = req.method ?? "GET";
   if (!SAFE_METHODS.has(method)) {
