@@ -6,7 +6,7 @@
   "main": "main.cjs",
   "scripts": {
     "desktop-dev": "electron .",
-    "desktop-build": "pnpm --filter @agentforge/web build && node scripts/stage-renderer.mjs && node scripts/pack-brand.mjs",
+    "desktop-build": "node ../../scripts/edit-starters.mjs --check && pnpm --filter @agentforge/web build && node scripts/stage-renderer.mjs && node scripts/pack-brand.mjs",
     "desktop-build-all": "node scripts/pack-all-brands.mjs",
     "desktop-pack": "node scripts/pack-brand.mjs",
     "desktop-build-dir": "pnpm --filter @agentforge/web build && node scripts/stage-renderer.mjs && electron-builder --win nsis --dir",
@@ -73,6 +73,15 @@
       {
         "from": "resources/ffmpeg",
         "to": "ffmpeg"
+      },
+      {
+        "from": "resources/starters",
+        "to": "starters",
+        "filter": [
+          "*.mp4",
+          "*.m4a",
+          "README.md"
+        ]
       }
     ],
     "asarUnpack": [

@@ -681,6 +681,9 @@ export function EditStudio() {
                   </option>
                 ))}
               </select>
+              <p className="text-xs text-ink/55" data-testid="edit-starter-description">
+                {STARTER_PROJECTS.find((starter) => starter.id === starterId)?.description ?? ""}
+              </p>
               <div className="flex gap-2">
               <input
                 className="rounded-md border border-mist bg-paper px-3 py-2 text-sm"

@@ -40,6 +40,8 @@ test-results
 !.cursor/skills/verify-agentforge/evidence/README.md
 apps/web/tests/fixtures/edit/*.mp4
 apps/web/tests/fixtures/edit/*.png
+apps/desktop/resources/starters/*.mp4
+apps/desktop/resources/starters/*.m4a
 .DS_Store
 *.tsbuildinfo
 .claude/

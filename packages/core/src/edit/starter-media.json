@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "files": {
+    "promo-skyline-16x9.mp4": {
+      "kind": "video",
+      "mime": "video/mp4",
+      "label": "Skyline drift",
+      "durationSeconds": 6,
+      "width": 1280,
+      "height": 720,
+      "fps": 30,
+      "hasAudio": false,
+      "generate": {
+        "video": "gradients=size=1280x720:rate=30:speed=0.03:nb_colors=3:c0=0x0b1d3a:c1=0x2a6f97:c2=0xf6c945"
+      }
+    },
+    "promo-detail-16x9.mp4": {
+      "kind": "video",
+      "mime": "video/mp4",
+      "label": "Product detail",
+      "durationSeconds": 6,
+      "width": 1280,
+      "height": 720,
+      "fps": 30,
+      "hasAudio": false,
+      "generate": {
+        "video": "mandelbrot=size=1280x720:rate=30:start_scale=2.5:end_scale=0.3:maxiter=60"
+      }
+    },
+    "promo-motion-16x9.mp4": {
+      "kind": "video",
+      "mime": "video/mp4",
+      "label": "Motion texture",
+      "durationSeconds": 6,
+      "width": 1280,
+      "height": 720,
+      "fps": 30,
+      "hasAudio": false,
+      "generate": {
+        "video": "testsrc2=size=1280x720:rate=30",
+        "videoFilter": "hue=h=200:s=1.4,boxblur=2:1"
+      }
+    },
+    "music-bed-18s.m4a": {
+      "kind": "audio",
+      "mime": "audio/mp4",
+      "label": "Music bed",
+      "durationSeconds": 18,
+      "hasAudio": true,
+      "generate": {
+        "audio": "sine=frequency=220:sample_rate=48000:duration=18",
+        "audioFilter": "tremolo=f=2:d=0.4,volume=0.5"
+      }
+    },
+    "talk-20s-16x9.mp4": {
+      "kind": "video",
+      "mime": "video/mp4",
+      "label": "Talking head",
+      "durationSeconds": 20,
+      "width": 1280,
+      "height": 720,
+      "fps": 30,
+      "hasAudio": true,
+      "generate": {
+        "video": "testsrc2=size=1280x720:rate=30",
+        "videoFilter": "hue=h=20:s=0.6",
+        "audio": "sine=frequency=440:sample_rate=48000:duration=20",
+        "audioFilter": "volume=0:enable='between(t,6,7.5)+between(t,13,14)'"
+      }
+    },
+    "reel-10s-9x16.mp4": {
+      "kind": "video",
+      "mime": "video/mp4",
+      "label": "Vertical reel",
+      "durationSeconds": 10,
+      "width": 720,
+      "height": 1280,
+      "fps": 30,
+      "hasAudio": false,
+      "generate": {
+        "video": "gradients=size=720x1280:rate=30:speed=0.05:nb_colors=2:c0=0xff5e5b:c1=0x17143f"
+      }
+    },
+    "square-8s-1x1.mp4": {
+      "kind": "video",
+      "mime": "video/mp4",
+      "label": "Square loop",
+      "durationSeconds": 8,
+      "width": 720,
+      "height": 720,
+      "fps": 30,
+      "hasAudio": false,
+      "generate": {
+        "video": "gradients=size=720x720:rate=30:speed=0.04:nb_colors=3:c0=0x1b998b:c1=0x2d3047:c2=0xfffd82"
+      }
+    }
+  }
+}

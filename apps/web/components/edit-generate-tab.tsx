@@ -1,6 +1,7 @@
-import { estimateJobUsd, routeEditModel } from "@agentforge/core/edit";
+import { estimateJobUsd, routeEditModel, type PromptTemplate } from "@agentforge/core/edit";
 import { formatUsd } from "@agentforge/core/gateway";
 import { videoCapabilities } from "@agentforge/core/video-capabilities";
+import { EditPromptTemplates } from "@/components/edit-prompt-templates";
 import { ModelSelect } from "@/components/model-select";
 import { Link } from "@/lib/nav";
 import { apiFetch } from "@/lib/api-client";
@@ -25,6 +26,15 @@ const STUB_IMAGE: StudioModel[] = [
 
 const TIERS = ["draft", "standard", "cinematic"] as const;
 const SECONDS = [5, 8, 10] as const;
+
+type Seconds = (typeof SECONDS)[number];
+
+function nearestSeconds(target: number): Seconds {
+  return SECONDS.reduce<Seconds>(
+    (best, value) => (Math.abs(value - target) < Math.abs(best - target) ? value : best),
+    SECONDS[0],
+  );
+}
 
 type Props = {
   project: { id: string; fps?: number } | null;
@@ -60,7 +70,8 @@ export function EditGenerateTab({
   const [model, setModel] = useState("");
   const [prompt, setPrompt] = useState("");
   const [stillUrl, setStillUrl] = useState("");
-  const [seconds, setSeconds] = useState<(typeof SECONDS)[number]>(5);
+  const [seconds, setSeconds] = useState<Seconds>(5);
+  const [templateId, setTemplateId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -96,6 +107,17 @@ export function EditGenerateTab({
     resolution: "720p",
   });
 
+  function pickTemplate(template: PromptTemplate) {
+    setPrompt(template.prompt);
+    setSeconds(nearestSeconds(template.seconds));
+    setTemplateId(template.id);
+  }
+
+  function changePrompt(next: string) {
+    setPrompt(next);
+    setTemplateId(null);
+  }
+
   function changeTier(next: (typeof TIERS)[number]) {
     setTier(next);
     onTierChange?.(next);
@@ -130,6 +152,7 @@ export function EditGenerateTab({
       }
       setPrompt("");
       setStillUrl("");
+      setTemplateId(null);
       onSubmitted?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generation failed");
@@ -205,7 +228,7 @@ export function EditGenerateTab({
             <select
               className="min-w-0 w-full rounded-md border border-mist bg-paper px-2 py-1 text-xs"
               value={seconds}
-              onChange={(event) => setSeconds(Number(event.target.value) as (typeof SECONDS)[number])}
+              onChange={(event) => setSeconds(Number(event.target.value) as Seconds)}
               data-testid="edit-generate-seconds"
             >
               {SECONDS.map((value) => (
@@ -231,7 +254,7 @@ export function EditGenerateTab({
             className="min-h-[72px] min-w-0 w-full rounded-md border border-mist bg-transparent px-2 py-1 text-xs"
             placeholder={sub === "image" ? "Describe an image…" : "Describe a video…"}
             value={prompt}
-            onChange={(event) => setPrompt(event.target.value)}
+            onChange={(event) => changePrompt(event.target.value)}
             data-testid="edit-generate-prompt"
           />
           {error ? (
@@ -247,6 +270,7 @@ export function EditGenerateTab({
           >
             {submitting ? "Generating…" : "Generate"}
           </button>
+          {sub === "video" ? <EditPromptTemplates onPick={pickTemplate} selectedId={templateId} /> : null}
         </>
       )}
     </form>

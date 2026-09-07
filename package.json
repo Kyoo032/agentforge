@@ -12,6 +12,8 @@
     "db:push": "pnpm --filter @agentforge/db push",
     "db:seed": "pnpm --filter @agentforge/db seed",
     "db:studio": "pnpm --filter @agentforge/db studio",
+    "edit:starters": "node scripts/edit-starters.mjs",
+    "edit:starters:check": "node scripts/edit-starters.mjs --check",
     "desktop:dev": "pnpm --filter @agentforge/desktop desktop-dev",
     "desktop:build": "pnpm --filter @agentforge/desktop desktop-build",
     "desktop:build:all": "pnpm --filter @agentforge/desktop desktop-build-all",

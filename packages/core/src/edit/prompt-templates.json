@@ -1,0 +1,258 @@
+{
+  "version": 1,
+  "categories": [
+    { "id": "promo", "label": "Product promo" },
+    { "id": "talking-head", "label": "Talking head" },
+    { "id": "reel", "label": "Vertical reel" },
+    { "id": "square", "label": "Square social" }
+  ],
+  "guideRules": [
+    {
+      "id": "subject-action-timeline",
+      "text": "Start with subject and action; describe multiple actions in timeline order.",
+      "source": { "site": "BytePlus", "title": "Seedance-1.0-pro&pro-fast prompt guide", "url": "https://docs.byteplus.com/en/docs/ModelArk/1631633" }
+    },
+    {
+      "id": "camera-move-names",
+      "text": "Name the camera move: push, pull, pan, circle, follow, rise, zoom, or tracking.",
+      "source": { "site": "BytePlus", "title": "Seedance-1.0-pro&pro-fast prompt guide", "url": "https://docs.byteplus.com/en/docs/ModelArk/1631633" }
+    },
+    {
+      "id": "shot-size-names",
+      "text": "Name the shot size: long, full, medium, close-up, macro, aerial, low or high angle.",
+      "source": { "site": "BytePlus", "title": "Seedance-1.0-pro&pro-fast prompt guide", "url": "https://docs.byteplus.com/en/docs/ModelArk/1631633" }
+    },
+    {
+      "id": "style-words",
+      "text": "Use style words such as voxel, felt, clay, or manga for stylized output.",
+      "source": { "site": "BytePlus", "title": "Seedance-1.0-pro&pro-fast prompt guide", "url": "https://docs.byteplus.com/en/docs/ModelArk/1631633" }
+    },
+    {
+      "id": "prompt-order",
+      "text": "Order the prompt as subject, movement, environment, camera movement, aesthetic, then sound.",
+      "source": { "site": "BytePlus", "title": "Seedance-1.5-pro prompt guide", "url": "https://docs.byteplus.com/en/docs/ModelArk/2168087" }
+    },
+    {
+      "id": "camera-start-end",
+      "text": "Describe camera as starting composition, movement, amplitude, then ending composition.",
+      "source": { "site": "BytePlus", "title": "Seedance-1.5-pro prompt guide", "url": "https://docs.byteplus.com/en/docs/ModelArk/2168087" }
+    },
+    {
+      "id": "dialogue-quotes",
+      "text": "Put dialogue in quotes and state emotion, tone, and pace.",
+      "source": { "site": "BytePlus", "title": "Seedance-1.5-pro prompt guide", "url": "https://docs.byteplus.com/en/docs/ModelArk/2168087" }
+    },
+    {
+      "id": "one-move-per-shot",
+      "text": "Use one camera move per shot; label shots Shot 1, Shot 2, Shot 3.",
+      "source": { "site": "BytePlus", "title": "Dreamina Seedance 2.0 series prompt guide", "url": "https://docs.byteplus.com/en/docs/ModelArk/2222480" }
+    },
+    {
+      "id": "no-text-constraint",
+      "text": "Add constraints such as avoid generating text or subtitles, and no logo or watermark.",
+      "source": { "site": "BytePlus", "title": "Dreamina Seedance 2.0 series prompt guide", "url": "https://docs.byteplus.com/en/docs/ModelArk/2222480" }
+    },
+    {
+      "id": "negatives-audio",
+      "text": "Use negatives only for subtitles or audio, for example No subtitles or No BGM.",
+      "source": { "site": "BytePlus", "title": "Dreamina Seedance 2.5 prompt guide", "url": "https://docs.byteplus.com/en/docs/ModelArk/2607689" }
+    },
+    {
+      "id": "camera-presets",
+      "text": "Camera preset names work as prompt phrases: crash zoom in, dolly in, 360 orbit, whip pan.",
+      "source": { "site": "Higgsfield", "title": "Camera controls", "url": "https://higgsfield.ai/camera-controls" }
+    }
+  ],
+  "templates": [
+    {
+      "id": "promo-product-stone",
+      "title": "Product on stone counter",
+      "category": "promo",
+      "aspect": "16:9",
+      "seconds": 6,
+      "prompt": "@product sits on a dark stone surface in a minimal kitchen, warm side lighting from a single window, camera pushing in slowly from medium to close, clean and premium. No people, no text, no logos.",
+      "tips": ["Replace @product with your item.", "Name the camera move: push in slowly."],
+      "source": { "site": "Higgsfield", "title": "Generating with Seedance 2.0", "url": "https://higgsfield.ai/blog/generating-with-seedance-2-0", "section": "What Prompt Templates Actually Work for Seedance 2.0? > Product visualization", "note": "Replace @product with your item." }
+    },
+    {
+      "id": "promo-daisy-macro",
+      "title": "Daisy field macro",
+      "category": "promo",
+      "aspect": "16:9",
+      "seconds": 5,
+      "prompt": "Photorealistic style: Under a clear blue sky, a vast expanse of white daisy fields stretches out. The camera gradually zooms in and finally fixates on a close - up of a single daisy, with several glistening dewdrops resting on its petals.",
+      "tips": ["Start with the subject before the action.", "Name the shot size: macro close-up."],
+      "source": { "site": "BytePlus", "title": "Seedance 1.0 Pro Explained: Guide, API, Pricing", "url": "https://www.byteplus.com/en/blog/seedance-1-0-pro-guide-api-pricing", "section": "Request Example" }
+    },
+    {
+      "id": "promo-caterpillar-macro",
+      "title": "Caterpillar macro crawl",
+      "category": "promo",
+      "aspect": "16:9",
+      "seconds": 5,
+      "prompt": "Macro photography: A caterpillar crawls on a petal, and the hairs on its body can be clearly seen.",
+      "tips": ["Name the shot size: macro photography.", "Describe fine texture detail for macro realism."],
+      "source": { "site": "BytePlus", "title": "Seedance-1.0-pro&pro-fast prompt guide", "url": "https://docs.byteplus.com/en/docs/ModelArk/1631633", "section": "Control of Shot Sizes and Perspectives" }
+    },
+    {
+      "id": "promo-drone-broll",
+      "title": "Drone obstacle flythrough",
+      "category": "promo",
+      "aspect": "16:9",
+      "seconds": 5,
+      "prompt": "At breakneck speed, drones thread through intricate obstacles or stunning natural wonders, delivering an immersive, heart-pounding flying experience.",
+      "tips": ["Name the camera move: drone tracking through obstacles.", "Keep pacing fast with breakneck speed language."],
+      "source": { "site": "BytePlus", "title": "Seedance-1.0-pro&pro-fast prompt guide", "url": "https://docs.byteplus.com/en/docs/ModelArk/1631633", "section": "Prompt parameters" }
+    },
+    {
+      "id": "promo-rooftop-dolly-out",
+      "title": "Rooftop dolly out",
+      "category": "promo",
+      "aspect": "16:9",
+      "seconds": 8,
+      "prompt": "A woman, wearing a white long windbreaker, with short hair and a well-proportioned posture, stands on the edge of the city rooftop, overlooking the night view with her back to the camera. The camera starts from her close-up back view and gradually zooms back, allowing more rooftop and city lights to enter the frame. The camera is required to be dolly out steadily and the light should not be overexposed. The woman's windbreaker moves gently with the environmental breeze, but her posture remains unchanged.",
+      "tips": ["Describe camera as start, movement, amplitude, end composition.", "Order prompt as subject, movement, environment, camera, aesthetic."],
+      "source": { "site": "BytePlus", "title": "Seedance-1.5-pro prompt guide", "url": "https://docs.byteplus.com/en/docs/ModelArk/2168087", "section": "Lens control > Subject Angle > Back view" }
+    },
+    {
+      "id": "promo-chip-macro",
+      "title": "Chip macro spin",
+      "category": "promo",
+      "aspect": "16:9",
+      "seconds": 8,
+      "prompt": "Extreme macro of ridged potato chip with salt grains. Hyper-detailed textures: sour cream dollop, chopped chives, onion rings. Background shifts through amber-green gradients with floating dill, onions, milk splashes. Fast cuts, spinning vortex of onion rings, lands on \"SNAPI sour cream and onion\" bag with dramatic zoom.",
+      "tips": ["Use macro shot size for hyper-detailed textures.", "End on the product with a dramatic zoom."],
+      "source": { "site": "Higgsfield", "title": "AI product video generator", "url": "https://higgsfield.ai/ai-product-video-generator" }
+    },
+    {
+      "id": "talk-neon-frontal",
+      "title": "Neon street frontal",
+      "category": "talking-head",
+      "aspect": "16:9",
+      "seconds": 8,
+      "prompt": "A man around thirty-five years old with slightly wavy black hair stands in front of neon lights on a city street, facing the camera directly. He wears a knee-length black trench coat, a dark gray turtleneck sweater, and leather gloves with metal buckles. His expression is calm yet oppressive. Neon reflections from the nighttime cityscape trace the contours of his face. The camera maintains a frontal perspective and slowly dolly in from a medium shot to a close-up, with smooth motion, stable composition, steady lighting, and a natural rise and fall of his chest as he breathes.",
+      "tips": ["Name the camera move: dolly in from medium to close-up.", "Order prompt as subject, movement, environment, camera, aesthetic."],
+      "source": { "site": "BytePlus", "title": "Seedance-1.5-pro prompt guide", "url": "https://docs.byteplus.com/en/docs/ModelArk/2168087", "section": "Lens control > Subject Angle > Frontal perspective" }
+    },
+    {
+      "id": "talk-calm-line",
+      "title": "Calm voiceover line",
+      "category": "talking-head",
+      "aspect": "16:9",
+      "seconds": 5,
+      "prompt": "In a calm emotional state, with an even tone and a normal speaking pace, say: \"Let's begin with what matters most.\"",
+      "tips": ["Put dialogue in quotes and state emotion, tone, pace."],
+      "source": { "site": "BytePlus", "title": "Seedance-1.5-pro prompt guide", "url": "https://docs.byteplus.com/en/docs/ModelArk/2168087", "section": "Dialogue/voiceover > 1. High voice timbre stability" }
+    },
+    {
+      "id": "talk-bookstore-dialogue",
+      "title": "Bookstore two-person dialogue",
+      "category": "talking-head",
+      "aspect": "16:9",
+      "seconds": 8,
+      "prompt": "In a warm, softly lit independent bookstore, two Americans—a man and a woman—stand shoulder to shoulder, flipping through the same book. The light falls across the pages and their faces. The camera makes an extremely subtle dolly-in, creating a quiet and intimate atmosphere. English dialogue: Man: \"Did you ever read this one before?\" Woman: \"No, but… I think I want to, with you.\"",
+      "tips": ["Put dialogue in quotes and state emotion, tone, pace.", "Name the camera move: extremely subtle dolly-in."],
+      "source": { "site": "BytePlus", "title": "Seedance-1.5-pro prompt guide", "url": "https://docs.byteplus.com/en/docs/ModelArk/2168087", "section": "Dialogue/voiceover > 3 > Two-person dialogue" }
+    },
+    {
+      "id": "talk-keyboard-review",
+      "title": "Keyboard review",
+      "category": "talking-head",
+      "aspect": "16:9",
+      "seconds": 8,
+      "prompt": "A young man is showing and talking about a keyboard, in a bright, well-furnished apartment.",
+      "tips": ["Start with subject and action, then describe the setting."],
+      "source": { "site": "Higgsfield", "title": "How to make AI UGC videos", "url": "https://higgsfield.ai/blog/how-to-make-ai-ugc-videos" }
+    },
+    {
+      "id": "reel-runway-pan",
+      "title": "Runway pan",
+      "category": "reel",
+      "aspect": "9:16",
+      "seconds": 5,
+      "prompt": "At a fashion show scene, the camera pans right to shoot a gorgeously dressed model walking the runway in profile.",
+      "tips": ["Name the camera move: pan right.", "Name the shot size: profile shot."],
+      "source": { "site": "BytePlus", "title": "Seedance-1.0-pro&pro-fast prompt guide", "url": "https://docs.byteplus.com/en/docs/ModelArk/1631633", "section": "Basic camera movements > Pan" }
+    },
+    {
+      "id": "reel-cheongsam",
+      "title": "Cheongsam showcase",
+      "category": "reel",
+      "aspect": "9:16",
+      "seconds": 5,
+      "prompt": "A model gracefully showcases the cheongsam she is wearing, exuding elegance and highlighting the garment's refined allure.",
+      "tips": ["Order prompt as subject, movement, environment, camera, aesthetic."],
+      "source": { "site": "BytePlus", "title": "Seedance-1.5-pro prompt guide", "url": "https://docs.byteplus.com/en/docs/ModelArk/2168087", "section": "Basic principles" }
+    },
+    {
+      "id": "reel-tokyo-selfie",
+      "title": "Tokyo selfie manga",
+      "category": "reel",
+      "aspect": "9:16",
+      "seconds": 5,
+      "prompt": "Japanese manga: A beautiful woman wearing sunglasses takes a selfie on the streets of Tokyo.",
+      "tips": ["Use style words such as manga for stylized output."],
+      "source": { "site": "BytePlus", "title": "Seedance-1.0-pro&pro-fast prompt guide", "url": "https://docs.byteplus.com/en/docs/ModelArk/1631633", "section": "Multi-stylized videos" }
+    },
+    {
+      "id": "reel-skateboard",
+      "title": "Skateboard follow shot",
+      "category": "reel",
+      "aspect": "9:16",
+      "seconds": 5,
+      "prompt": "A medium shot from a flat position follows a skateboarding teenager, with a 45mm wide-angle lens level with his shoulder. When the front wheel rolls over a puddle, water splashes horizontally across the frame.",
+      "tips": ["Name the camera move: follow at eye-level.", "Add lens detail like a 45mm wide angle."],
+      "source": { "site": "BytePlus", "title": "Seedance-1.5-pro prompt guide", "url": "https://docs.byteplus.com/en/docs/ModelArk/2168087", "section": "Lens control > Perspective > Eye-level" }
+    },
+    {
+      "id": "reel-ugc-airplane",
+      "title": "Airplane UGC vlog",
+      "category": "reel",
+      "aspect": "9:16",
+      "seconds": 12,
+      "prompt": "Vertical 9:16 UGC video, 30 seconds total, 24fps, shot on iPhone 14 Pro, authentic phone-camera look, handheld selfie framing from her seat for the whole video, arm's-length wobble, tiny refocus moments, soft even cabin lighting, natural vlog pacing, 8 shots, one consistent framing with small variations, the first shots shake with real turbulence",
+      "tips": ["Shorten the duration to fit your model.", "Use one camera move per shot across multiple shots."],
+      "source": { "site": "Higgsfield", "title": "Seedance 2.5 prompting guide", "url": "https://higgsfield.ai/blog/seedance-2-5-prompting-guide", "note": "Opening of a longer 8-shot prompt on the page; shorten the duration to fit your model." }
+    },
+    {
+      "id": "square-poppies",
+      "title": "Poppies backlit",
+      "category": "square",
+      "aspect": "1:1",
+      "seconds": 5,
+      "prompt": "Bright poppies are swaying, arranged in a staggered pattern in white, yellow, and vivid red. Sunlight filters through the petals from behind, making them appear translucent.",
+      "tips": ["Start with subject and action, then lighting detail."],
+      "source": { "site": "BytePlus", "title": "Seedance 1.0 Pro Explained: Guide, API, Pricing", "url": "https://www.byteplus.com/en/blog/seedance-1-0-pro-guide-api-pricing", "section": "Precise Instruction Following" }
+    },
+    {
+      "id": "square-kitten-yawn",
+      "title": "Kitten yawn",
+      "category": "square",
+      "aspect": "1:1",
+      "seconds": 5,
+      "prompt": "The kitten yawns at the camera.",
+      "tips": ["Start with subject and action; keep it simple."],
+      "source": { "site": "BytePlus", "title": "Seedance-1.0-pro&pro-fast prompt guide", "url": "https://docs.byteplus.com/en/docs/ModelArk/1631633", "section": "Fundamental actions" }
+    },
+    {
+      "id": "square-voxel-robot",
+      "title": "Voxel robot on rocket",
+      "category": "square",
+      "aspect": "1:1",
+      "seconds": 5,
+      "prompt": "Voxel style, a robot sitting on a rocket.",
+      "tips": ["Use style words such as voxel for stylized output."],
+      "source": { "site": "BytePlus", "title": "Seedance-1.0-pro&pro-fast prompt guide", "url": "https://docs.byteplus.com/en/docs/ModelArk/1631633", "section": "Multi-stylized videos" }
+    },
+    {
+      "id": "square-gummies-selfie",
+      "title": "Gummies selfie review",
+      "category": "square",
+      "aspect": "1:1",
+      "seconds": 8,
+      "prompt": "Selfie-style close-up of woman with wavy brown hair, black leather jacket over white tee, pink nails, in car with sunroof showing blue sky. Stationary frame, bright natural light. She holds up pink \"früns Superfood Heart Gummies\" pouch, points to label, pulls out translucent red heart gummy, shows it to lens, eats it, nods approvingly, reseals bag.",
+      "tips": ["Use one camera move per shot; keep it stationary.", "List actions in timeline order for the reveal."],
+      "source": { "site": "Higgsfield", "title": "AI product video generator", "url": "https://higgsfield.ai/ai-product-video-generator" }
+    }
+  ]
+}
