@@ -6,6 +6,7 @@ import {
   type Ingredient,
   type TenantContext,
   type EditStartJobInput,
+  type EditStartGenerateJobInput,
   type EditPlanInput,
   type EditToolBackend,
 } from "@agentforge/core";
@@ -13,6 +14,7 @@ import { db, editCards } from "@agentforge/db";
 import { requireEditToolContext } from "./context";
 import { appendOps, foldProject, writeSnapshot } from "./ops";
 import { cancelEditJob, enqueueEditJob } from "./jobs";
+import { startGenerateJob } from "./start-generate";
 import { reviewGateOpen } from "./review";
 import { resolveAsrCapability } from "./asr";
 import { assetAbsPath, probe as probeFile, sceneDetect, silenceDetect } from "./ffmpeg/recipes";
@@ -141,9 +143,14 @@ export const hostEditBackend: EditToolBackend = {
       request: job.request,
       targetClipIds: job.targetClipIds ?? [],
       cardId: job.cardId,
+      tier: job.tier,
     });
     void tenant;
     return { job: row };
+  },
+  async startGenerateJob(tenant, job: EditStartGenerateJobInput) {
+    const ctx = requireEditToolContext();
+    return startGenerateJob(tenant, ctx.projectId, job, { runId: ctx.runId });
   },
   async proposePlan(tenant, plan: EditPlanInput) {
     const ctx = requireEditToolContext();

@@ -160,7 +160,11 @@ export async function fetchEditProjects(): Promise<{ items: EditProjectRow[]; st
   return { items, status: response.status };
 }
 
-export async function createEditProject(name: string, aspect: "16:9" | "9:16" | "1:1" = "16:9"): Promise<{
+export async function createEditProject(
+  name: string,
+  aspect: "16:9" | "9:16" | "1:1" = "16:9",
+  starterId?: string,
+): Promise<{
   project: EditProject | null;
   status: number;
   error?: string;
@@ -168,7 +172,7 @@ export async function createEditProject(name: string, aspect: "16:9" | "9:16" | 
   const response = await apiFetch("/api/v1/edit/projects", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, aspect, fps: 30 }),
+    body: JSON.stringify({ name, aspect, fps: 30, starterId }),
   });
   const payload = await readJson(response);
   if (!response.ok) {

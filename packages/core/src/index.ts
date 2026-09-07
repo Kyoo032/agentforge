@@ -150,8 +150,21 @@ export {
 } from "./edit";
 export type { EditProject, Asset, Clip, ApplyableOp, EditOp, AspectRatio, OpType } from "./edit";
 export { registerEditTools, setEditToolBackend, getEditToolBackend, editToolRefusal } from "./tools/edit";
-export type { EditToolBackend, EditToolRefusal, EditJobKind, EditStartJobInput, EditPlanInput } from "./tools/edit";
+export type {
+  EditToolBackend,
+  EditToolRefusal,
+  EditJobKind,
+  EditStartJobInput,
+  EditStartGenerateJobInput,
+  EditStartGenerateJobResult,
+  EditPlanInput,
+} from "./tools/edit";
 export { matchStubEditScenario, STUB_EDIT_SCENARIOS } from "./runtime/stub-edit-scenarios";
+export {
+  matchStubFillScenario,
+  matchStubGenerateScenario,
+  STUB_FILL_SCENARIOS,
+} from "./runtime/stub-edit-fill";
 export {
   CHAT_MODELS,
   listChatModels,

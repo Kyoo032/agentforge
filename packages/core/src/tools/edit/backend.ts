@@ -11,6 +11,31 @@ export type EditStartJobInput = {
   request: unknown;
   targetClipIds?: string[];
   cardId?: string;
+  tier?: string;
+};
+
+export type EditStartGenerateJobInput = {
+  kind: "generate_image" | "generate_video";
+  prompt: string;
+  aspect?: string;
+  tier?: "draft" | "standard" | "cinematic";
+  model?: string;
+  seconds?: number;
+  imageUrl?: string;
+  imageAssetId?: string;
+  count?: number;
+  placeAt?: { trackId: string; timelineStartFrame: number };
+  clipId?: string;
+  addSeconds?: number;
+  toolKey?: string;
+  ingredientIds?: string[];
+};
+
+export type EditStartGenerateJobResult = {
+  job: unknown;
+  clips: Clip[];
+  estimateUsd: number | null;
+  card: unknown;
 };
 
 export type EditPlanInput = {
@@ -41,6 +66,7 @@ export type EditToolBackend = {
   reviewGateOpen(projectId: string): Promise<boolean>;
   applyAgentOps(tenant: TenantContext, ops: ApplyableOp[]): Promise<ApplyAgentOpsResult>;
   startJob(tenant: TenantContext, job: EditStartJobInput): Promise<{ job: unknown }>;
+  startGenerateJob(tenant: TenantContext, job: EditStartGenerateJobInput): Promise<EditStartGenerateJobResult>;
   proposePlan(tenant: TenantContext, plan: EditPlanInput): Promise<{ card: unknown }>;
   cancelJob(tenant: TenantContext, jobId: string): Promise<unknown>;
 };

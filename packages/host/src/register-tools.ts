@@ -16,4 +16,7 @@ export function ensureToolsRegistered(): void {
   void import("./edit/backend").then((mod) => {
     setEditToolBackend(mod.hostEditBackend);
   });
+  void import("./edit/wire-generate").then((mod) => {
+    mod.ensureGenerateSubmitWired();
+  });
 }

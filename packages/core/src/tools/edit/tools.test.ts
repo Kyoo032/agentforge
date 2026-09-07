@@ -41,6 +41,10 @@ function fakeBackend(overrides: Partial<EditToolBackend> = {}): {
       jobs.push(job);
       return { job: { id: "job-1", ...job } };
     },
+    startGenerateJob: async (_tenant, job) => {
+      jobs.push(job);
+      return { job: { id: "job-1", ...job }, clips: [], estimateUsd: 0.04, card: { id: "card-1" } };
+    },
     proposePlan: async (_tenant, plan) => ({ card: { id: "plan-1", ...plan } }),
     cancelJob: async (_tenant, jobId) => ({ id: jobId, status: "cancelled" }),
     ...overrides,
@@ -144,5 +148,38 @@ describe("edit tools", () => {
   it("uses a structured refusal shape including still_unsupported", () => {
     expect(editToolRefusal("still_unsupported")).toEqual({ success: false, refused: "still_unsupported" });
     expect(editToolRefusal("confirm_required", "need confirm").success).toBe(false);
+  });
+
+  it("registers generate tools", () => {
+    expect(getTool("generate_image")?.key).toBe("generate_image");
+    expect(getTool("generate_video")?.key).toBe("generate_video");
+    expect(getTool("regenerate_clip")?.key).toBe("regenerate_clip");
+    expect(getTool("variations")?.key).toBe("variations");
+    expect(getTool("extend_clip")?.key).toBe("extend_clip");
+  });
+
+  it("refuses generate_video stills on t2v-only models", async () => {
+    const { backend, jobs } = fakeBackend();
+    setEditToolBackend(backend);
+    await expect(
+      invokeTool(
+        tool("generate_video"),
+        { prompt: "still", imageUrl: "https://cdn.example/a.png", model: "mj_video" },
+        tenant,
+      ),
+    ).resolves.toEqual({
+      success: false,
+      refused: "still_unsupported",
+      message: "This model does not accept a still image",
+    });
+    expect(jobs).toHaveLength(0);
+  });
+
+  it("starts generate_image through startGenerateJob", async () => {
+    const { backend, jobs } = fakeBackend();
+    setEditToolBackend(backend);
+    const result = await invokeTool(tool("generate_image"), { prompt: "a cat", aspect: "16:9", tier: "draft" }, tenant);
+    expect(result).toMatchObject({ success: true, job: { kind: "generate_image" } });
+    expect(jobs[0]).toMatchObject({ kind: "generate_image", prompt: "a cat" });
   });
 });

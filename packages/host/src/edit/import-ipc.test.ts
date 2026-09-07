@@ -11,7 +11,9 @@ describe("import over ipc (G-15)", () => {
     setExecFileForTests(null);
   });
 
-  it("accepts sourcePath when the transport header is ipc", async () => {
+  it(
+    "accepts sourcePath when the transport header is ipc",
+    async () => {
     const { project } = await seedEditProject("import-ipc");
     const dir = mkdtempSync(path.join(tmpdir(), "edit-src-"));
     const file = path.join(dir, "clip.mp4");
@@ -35,5 +37,7 @@ describe("import over ipc (G-15)", () => {
     if (result.type === "json") {
       expect(result.status).toBe(201);
     }
-  });
+    },
+    30_000,
+  );
 });

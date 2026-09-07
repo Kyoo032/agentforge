@@ -1,7 +1,7 @@
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { eq } from "drizzle-orm";
-import { ApiError, secondsToFrames, type TenantContext } from "@agentforge/core";
+import { ApiError, secondsToFrames, videoCapabilities, type TenantContext } from "@agentforge/core";
 import { db, editUnplaced, media } from "@agentforge/db";
 import { jsonError, jsonOk } from "../errors";
 import { getTenant } from "../tenant";
@@ -12,6 +12,8 @@ import { createEditProject, getEditProjectBundle, listEditProjects, mapJob, mapU
 import { appendOps, foldProject } from "../edit/ops";
 import { keepCard, undoCard } from "../edit/undo";
 import { cancelEditJob, enqueueEditJob, getEditJob, interruptRunningJobsOnBoot } from "../edit/jobs";
+import { ensureGenerateSubmitWired } from "../edit/wire-generate";
+import { startGenerateJob } from "../edit/start-generate";
 import { runEditAgent } from "../edit/agent-run";
 import { encodeEditSse, subscribeProjectEvents } from "../edit/events";
 import { reviewGateOpen } from "../edit/review";
@@ -111,6 +113,7 @@ export async function handlePostEditProjects(request: HostRequest): Promise<Host
       name: typeof body.name === "string" ? body.name : undefined,
       aspect: typeof body.aspect === "string" ? body.aspect : undefined,
       fps: typeof body.fps === "number" ? body.fps : undefined,
+      starterId: typeof body.starterId === "string" ? body.starterId : undefined,
     });
     return jsonOk(project, 201);
   } catch (error) {
@@ -490,7 +493,59 @@ export async function handleGetEditMetrics(request: HostRequest): Promise<HostRe
   return jsonOk(foldEditMetrics(range));
 }
 
+export async function handlePostEditGenerate(request: HostRequest): Promise<HostResult> {
+  try {
+    const tenant = await getTenant(request.workspaceId);
+    const projectId = request.params.projectId;
+    await foldProject(projectId, tenant.workspaceId);
+    const body = asRecord(request.body);
+    const kind = body.kind === "image" || body.kind === "generate_image" ? "generate_image" : "generate_video";
+    const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
+    if (!prompt) {
+      return jsonOk({ error: { code: "invalid_request", message: "prompt is required" } }, 400);
+    }
+    const imageUrl = typeof body.imageUrl === "string" ? body.imageUrl : undefined;
+    const model = typeof body.model === "string" ? body.model : undefined;
+    if (kind === "generate_video" && imageUrl && model && !videoCapabilities(model).imageToVideo) {
+      return jsonOk({ error: { code: "video_still_unsupported", message: "This model does not accept a still image" } }, 400);
+    }
+    const placeAt =
+      body.placeAt && typeof body.placeAt === "object"
+        ? {
+            trackId: String((body.placeAt as { trackId?: unknown }).trackId ?? "v1"),
+            timelineStartFrame:
+              typeof (body.placeAt as { timelineStartFrame?: unknown }).timelineStartFrame === "number"
+                ? (body.placeAt as { timelineStartFrame: number }).timelineStartFrame
+                : 0,
+          }
+        : undefined;
+    const result = await startGenerateJob(
+      tenant,
+      projectId,
+      {
+        kind,
+        prompt,
+        aspect: typeof body.aspect === "string" ? body.aspect : undefined,
+        tier:
+          body.tier === "draft" || body.tier === "standard" || body.tier === "cinematic" ? body.tier : undefined,
+        model,
+        seconds: typeof body.seconds === "number" ? body.seconds : undefined,
+        imageUrl,
+        imageAssetId: typeof body.imageAssetId === "string" ? body.imageAssetId : undefined,
+        count: typeof body.count === "number" ? body.count : undefined,
+        placeAt,
+        toolKey: kind,
+      },
+      { runId: "owner" },
+    );
+    return jsonOk(result, 201);
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
 export async function handleBootEditJobs(): Promise<void> {
+  ensureGenerateSubmitWired();
   await interruptRunningJobsOnBoot();
 }
 

@@ -6,6 +6,8 @@ import {
   hasLiveProvider,
   invokeToolGuarded,
   matchStubEditScenario,
+  matchStubFillScenario,
+  matchStubGenerateScenario,
   resolveRuntimeMode,
   type RuntimeEvent,
   type TenantContext,
@@ -35,7 +37,16 @@ const MUTATING = new Set([
   "clear_timeline",
 ]);
 
-const GENERATION = new Set(["generate_image", "generate_video", "transcribe"]);
+const GENERATION = new Set([
+  "generate_image",
+  "generate_video",
+  "regenerate_clip",
+  "variations",
+  "extend_clip",
+  "generate_storyboard",
+  "animate_storyboard",
+  "transcribe",
+]);
 
 class StringQueue {
   private items: string[] = [];
@@ -171,7 +182,10 @@ async function runStub(
   budget: ReturnType<typeof createTurnBudget>,
   queue: StringQueue,
 ): Promise<void> {
-  const scenario = matchStubEditScenario(input.text);
+  const scenario =
+    matchStubEditScenario(input.text) ??
+    matchStubFillScenario(input.text) ??
+    matchStubGenerateScenario(input.text);
   if (!scenario) {
     queue.push(encodeSse({ type: "assistant.delta", text: "I can help trim, split, caption, and title this timeline." }));
     queue.push(encodeSse({ type: "run.completed", runId }));
@@ -179,6 +193,18 @@ async function runStub(
   }
   if (scenario.toolKey === "__undo__") {
     queue.push(encodeSse({ type: "assistant.delta", text: "Undo is available on the last card." }));
+    queue.push(encodeSse({ type: "run.completed", runId }));
+    return;
+  }
+  if (scenario.toolKey === "run_recipe") {
+    const tool = getTool("run_recipe");
+    const args = "buildArgs" in scenario ? scenario.buildArgs(input.text) : scenario.args;
+    queue.push(encodeEditSse({ type: "tool.started", toolKey: "run_recipe", touching: [] }));
+    const output = tool ? await invokeToolGuarded(tool, args, input.tenant) : { error: "missing_tool" };
+    queue.push(encodeSse({ type: "tool.completed", toolKey: "run_recipe", output }));
+    if (output && typeof output === "object" && "card" in output) {
+      queue.push(encodeEditSse({ type: "edit.plan", card: (output as { card: unknown }).card }));
+    }
     queue.push(encodeSse({ type: "run.completed", runId }));
     return;
   }
@@ -208,12 +234,27 @@ async function runStub(
     return;
   }
   if (GENERATION.has(scenario.toolKey)) {
-    const estimate = scenario.toolKey === "transcribe" ? 0.02 : estimateEditJobUsd("whisper-1", { seconds: 60 });
+    const seconds = typeof scenario.args.seconds === "number" ? scenario.args.seconds : 5;
+    const count = typeof scenario.args.count === "number" ? scenario.args.count : 1;
+    const model =
+      typeof scenario.args.model === "string"
+        ? scenario.args.model
+        : scenario.toolKey === "generate_image"
+          ? "gpt-image-2"
+          : "grok-imagine-video";
+    const estimate =
+      scenario.toolKey === "transcribe" ? 0.02 : estimateEditJobUsd(model, { seconds, count });
     const charged = chargeTurnBudget(budget, estimate);
     if (!charged.ok) {
       queue.push(encodeSse({ type: "tool.completed", toolKey: scenario.toolKey, output: charged.refusal }));
       const plan = await hostEditBackend.proposePlan(input.tenant, {
-        steps: [{ tool: scenario.toolKey, args: scenario.args, estimateUsd: estimate ?? undefined }],
+        steps: [
+          {
+            tool: scenario.toolKey,
+            args: "buildArgs" in scenario ? scenario.buildArgs(input.text) : scenario.args,
+            estimateUsd: estimate ?? undefined,
+          },
+        ],
         totalUsd: estimate ?? 0,
       });
       queue.push(encodeEditSse({ type: "edit.plan", card: plan.card }));
@@ -222,9 +263,31 @@ async function runStub(
     }
   }
 
-  const args = { ...scenario.args };
+  const args = "buildArgs" in scenario ? { ...scenario.buildArgs(input.text) } : { ...scenario.args };
   if (!args.clipId && firstClipId(doc)) {
     args.clipId = firstClipId(doc);
+  }
+  if (scenario.toolKey === "match_look" && firstClipId(doc)) {
+    const clips = doc.clips.filter((clip) => clip.trackId === "v1");
+    args.clipId = clips[0]?.id ?? firstClipId(doc);
+    args.referenceClipId = clips[1]?.id ?? clips[0]?.id ?? args.referenceClipId;
+  }
+  if (scenario.toolKey === "propose_alt_cut") {
+    args.clipIds = doc.clips.filter((clip) => clip.trackId === "v1").map((clip) => clip.id).slice(0, 4);
+    if (!Array.isArray(args.clipIds) || args.clipIds.length === 0) {
+      args.clipIds = ["stub-a"];
+    }
+  }
+  if (scenario.toolKey === "animate_storyboard" && Array.isArray(args.clipIds)) {
+    const stills = doc.clips
+      .filter((clip) => {
+        const assetId = clip.source?.assetId;
+        return clip.trackId === "v1" && assetId && doc.assets[assetId]?.kind === "image";
+      })
+      .map((clip) => clip.id);
+    if (stills.length > 0) {
+      args.clipIds = stills;
+    }
   }
   const ASSET_TOOLS = new Set(["transcribe", "detect_silence", "detect_scenes", "probe_asset"]);
   if (ASSET_TOOLS.has(scenario.toolKey) && !args.assetId && firstAssetId(doc)) {
@@ -265,7 +328,14 @@ async function runStub(
   if (output && typeof output === "object" && "job" in output) {
     queue.push(encodeEditSse({ type: "edit.job", job: (output as { job: unknown }).job }));
   }
-  queue.push(encodeSse({ type: "assistant.delta", text: `${scenario.cardVerb} · ${scenario.cardObject}` }));
+  if (output && typeof output === "object" && "jobs" in output && Array.isArray((output as { jobs: unknown }).jobs)) {
+    for (const job of (output as { jobs: unknown[] }).jobs) {
+      queue.push(encodeEditSse({ type: "edit.job", job }));
+    }
+  }
+  const cardVerb = "cardVerb" in scenario ? scenario.cardVerb : "Edit";
+  const cardObject = "cardObject" in scenario ? scenario.cardObject : scenario.toolKey;
+  queue.push(encodeSse({ type: "assistant.delta", text: `${cardVerb} · ${cardObject}` }));
   const completed: RuntimeEvent = { type: "run.completed", runId };
   rememberJobUsage(completed);
   queue.push(encodeSse(completed));

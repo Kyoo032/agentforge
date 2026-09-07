@@ -1,5 +1,14 @@
 import { and, desc, eq } from "drizzle-orm";
-import { ApiError, ASPECT_SIZE, emptyProject, type AspectRatio, type TenantContext } from "@agentforge/core";
+import {
+  ApiError,
+  ASPECT_SIZE,
+  applyOp,
+  emptyProject,
+  DEFAULT_TITLE_STYLE,
+  type AspectRatio,
+  type TenantContext,
+} from "@agentforge/core";
+import { STARTER_PROJECTS } from "@agentforge/core/edit";
 import { db, editCards, editJobs, editProjects, editUnplaced } from "@agentforge/db";
 import { foldProject, writeSnapshot } from "./ops";
 
@@ -7,9 +16,11 @@ const ASPECTS = new Set(["16:9", "9:16", "1:1"]);
 
 export async function createEditProject(
   tenant: TenantContext,
-  input: { name?: string; aspect?: string; fps?: number },
+  input: { name?: string; aspect?: string; fps?: number; starterId?: string },
 ) {
-  const aspect = (ASPECTS.has(input.aspect ?? "") ? input.aspect : "16:9") as AspectRatio;
+  const starter = STARTER_PROJECTS.find((item) => item.id === input.starterId);
+  const aspect = (starter?.aspect ??
+    (ASPECTS.has(input.aspect ?? "") ? input.aspect : "16:9")) as AspectRatio;
   const fps = input.fps === 24 || input.fps === 25 || input.fps === 30 || input.fps === 60 ? input.fps : 30;
   const id = crypto.randomUUID();
   const name = input.name?.trim() || "Untitled";
@@ -29,9 +40,65 @@ export async function createEditProject(
     createdAt: now,
     updatedAt: now,
   });
-  const doc = emptyProject({ id, workspaceId: tenant.workspaceId, name, aspect, fps });
+  const doc = seedStarterProject(
+    emptyProject({ id, workspaceId: tenant.workspaceId, name, aspect, fps }),
+    starter,
+  );
   await writeSnapshot(id, 0, doc);
   return doc;
+}
+
+function seedStarterProject(
+  doc: ReturnType<typeof emptyProject>,
+  starter: (typeof STARTER_PROJECTS)[number] | undefined,
+) {
+  if (!starter) {
+    return doc;
+  }
+  let next = doc;
+  if (starter.seedTitle) {
+    next = applyOp(next, {
+      type: "add_clip",
+      payload: {
+        clip: {
+          id: crypto.randomUUID(),
+          trackId: "v1",
+          timelineStartFrame: 0,
+          durationFrames: next.fps * 3,
+          status: "ready",
+          title: { text: "Title", style: DEFAULT_TITLE_STYLE },
+        },
+      },
+    });
+  }
+  if (starter.seedCaption) {
+    next = applyOp(next, {
+      type: "add_clip",
+      payload: {
+        clip: {
+          id: crypto.randomUUID(),
+          trackId: "c1",
+          timelineStartFrame: 0,
+          durationFrames: next.fps * 5,
+          status: "ready",
+          caption: { text: "Sample caption" },
+        },
+      },
+    });
+  }
+  if (starter.seedMusic) {
+    next = applyOp(next, {
+      type: "add_ingredient",
+      payload: {
+        ingredient: {
+          id: crypto.randomUUID(),
+          name: "@music-bed",
+          text: "Drop a music track here",
+        },
+      },
+    });
+  }
+  return next;
 }
 
 export async function listEditProjects(tenant: TenantContext) {

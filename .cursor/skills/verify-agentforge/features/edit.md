@@ -10,8 +10,8 @@ Edit is the CapCut-style timeline with an agent panel (`/edit`, rail `mode-edit`
 - `edit-cards` Keep / Undo / Tweak; pending cards cancel on Undo.
 - `edit-review-gate` `edit-export` disabled until scrub or `edit-review-ok`.
 - `edit-titles` ASS-subset title + `edit-parity-check`.
-- `edit-generate` (Phase 2) placeholders, `edit-tray`.
-- `edit-keep-scenarios` S1–S10 results table (owner runs).
+- `edit-generate` Generate tab (image / video / storyboard), `edit-tray`, `edit-recipes`, `edit-starter`.
+- `edit-keep-scenarios` S1–S10 and Fill F1–F5 results tables (owner runs).
 
 ## How to get to it (user POV)
 
@@ -45,6 +45,16 @@ Keep scenarios S1–S10 (owner runs; Result filled in Loop 3):
 | S8 | "Move the second clip to the start" | 1 × move_clip | |
 | S9 | "Delete everything" | plan / confirm card, **zero ops** | |
 | S10 | "Undo the last change" | previous card → `undone` | |
+
+Fill scenarios F1–F5 (owner runs; Result filled in Loop 3):
+
+| Id | Prompt (fixture) | Expected card(s) | Result |
+|---|---|---|---|
+| F1 | Storyboard: 4 shots from scene textarea (`edit-storyboard-generate`) | 1 × `generate_storyboard`, 4 pending stills + image jobs | |
+| F2 | `Animate all` on storyboard stills (`edit-storyboard-animate-all`) | 1 × `animate_storyboard`, video jobs per still | |
+| F3 | Recipe picker → Podcast clean-up (`edit-recipe-podcast-clean-up`) | 1 × `run_recipe` plan card; Go runs steps as cards | |
+| F4 | "Match look to the second clip" (two v1 clips) | 1 × `match_look` ffmpeg_op card, completes with note | |
+| F5 | "Propose an alternate cut" | 1 × `propose_alt_cut`, clips on `v_compare` only | |
 
 ## Gotchas
 

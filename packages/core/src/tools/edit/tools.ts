@@ -1,8 +1,21 @@
 import { z } from "zod";
+import { ApiError } from "../../errors";
 import { ASPECT_SIZE, titleStyleSchema, type Clip } from "../../edit/document";
+import { RECIPES } from "../../edit/recipes";
+import { imageToVideoForModel } from "../../models/video-capabilities";
+import type { TenantContext } from "../../tenancy/types";
 import { defineTool } from "../define-tool";
-import { requireEditToolBackend } from "./backend";
+import { requireEditToolBackend, type EditStartGenerateJobInput } from "./backend";
 import { editToolRefusal } from "./refusals";
+import {
+  animateStoryboardSchema,
+  generateStoryboardSchema,
+  imageAspectForEdit,
+  splitSceneToShots,
+  stillClipDurationFrames,
+  tierOrDefault,
+  timelineTailFrame,
+} from "./storyboard";
 
 function newId(): string {
   return crypto.randomUUID();
@@ -418,6 +431,420 @@ export const cancelJobTool = defineTool({
   },
 });
 
+async function runGenerateTool(tenant: TenantContext, input: EditStartGenerateJobInput) {
+  try {
+    const result = await requireEditToolBackend().startGenerateJob(tenant, input);
+    return { success: true, ...result };
+  } catch (error) {
+    if (error instanceof ApiError && (error.code === "video_still_unsupported" || error.code === "still_unsupported")) {
+      return editToolRefusal("still_unsupported", error.message);
+    }
+    throw error;
+  }
+}
+
+export const generateImageTool = defineTool({
+  key: "generate_image",
+  name: "Generate image",
+  description: "Refused with `turn_cap_exceeded` or `price_unknown`; then propose a plan.",
+  schema: z
+    .object({
+      prompt: z.string().min(1).max(2000),
+      aspect: z.enum(["16:9", "9:16", "1:1"]).optional(),
+      tier: z.enum(["draft", "standard", "cinematic"]).optional(),
+      count: z.number().int().min(1).max(4).optional(),
+      ingredientIds: z.array(z.string().min(1)).max(8).optional(),
+      placeAt: z
+        .object({
+          trackId: z.string().min(1),
+          timelineStartFrame: z.number().int().nonnegative(),
+        })
+        .strict()
+        .optional(),
+      trackId: z.string().min(1).optional(),
+      startFrame: z.number().int().nonnegative().optional(),
+      model: z.string().min(1).optional(),
+    })
+    .strict(),
+  execute: async (args, tenant) => {
+    return runGenerateTool(tenant, {
+      kind: "generate_image",
+      toolKey: "generate_image",
+      prompt: args.prompt,
+      aspect: args.aspect,
+      tier: args.tier,
+      count: args.count,
+      ingredientIds: args.ingredientIds,
+      placeAt:
+        args.placeAt ??
+        (args.trackId != null || args.startFrame != null
+          ? { trackId: args.trackId ?? "v1", timelineStartFrame: args.startFrame ?? 0 }
+          : undefined),
+      model: args.model,
+    });
+  },
+});
+
+export const generateVideoTool = defineTool({
+  key: "generate_video",
+  name: "Generate video",
+  description: "Refuses a still when the routed model has `imageToVideo: false`.",
+  schema: z
+    .object({
+      prompt: z.string().min(1).max(2000),
+      aspect: z.enum(["16:9", "9:16", "1:1"]).optional(),
+      tier: z.enum(["draft", "standard", "cinematic"]).optional(),
+      seconds: z.number().int().min(2).max(12).optional(),
+      imageAssetId: z.string().min(1).optional(),
+      imageUrl: z.string().min(1).optional(),
+      clipId: z.string().min(1).optional(),
+      ingredientIds: z.array(z.string().min(1)).optional(),
+      placeAt: z
+        .object({
+          trackId: z.string().min(1),
+          timelineStartFrame: z.number().int().nonnegative(),
+        })
+        .strict()
+        .optional(),
+      model: z.string().min(1).optional(),
+    })
+    .strict(),
+  execute: async (args, tenant) => {
+    const still = args.imageAssetId ?? args.imageUrl;
+    if (still && args.model && !imageToVideoForModel(args.model)) {
+      return editToolRefusal("still_unsupported", "This model does not accept a still image");
+    }
+    return runGenerateTool(tenant, {
+      kind: "generate_video",
+      toolKey: "generate_video",
+      prompt: args.prompt,
+      aspect: args.aspect,
+      tier: args.tier,
+      seconds: args.seconds,
+      imageAssetId: args.imageAssetId,
+      imageUrl: args.imageUrl,
+      clipId: args.clipId,
+      ingredientIds: args.ingredientIds,
+      placeAt: args.placeAt,
+      model: args.model,
+    });
+  },
+});
+
+export const regenerateClipTool = defineTool({
+  key: "regenerate_clip",
+  name: "Regenerate clip",
+  description: "Regenerate a clip. Lineage is carried on the new job.",
+  schema: z
+    .object({
+      clipId: z.string().min(1),
+      prompt: z.string().min(1).optional(),
+      tier: z.enum(["draft", "standard", "cinematic"]).optional(),
+      model: z.string().min(1).optional(),
+    })
+    .strict(),
+  execute: async (args, tenant) => {
+    const backend = requireEditToolBackend();
+    const project = await backend.getProject(tenant);
+    const clip = project.clips.find((item) => item.id === args.clipId);
+    return runGenerateTool(tenant, {
+      kind: "generate_video",
+      toolKey: "regenerate_clip",
+      prompt: args.prompt ?? clip?.lineage?.prompt ?? "Regenerate this clip",
+      clipId: args.clipId,
+      tier: args.tier ?? clip?.lineage?.tier,
+      model: args.model ?? clip?.lineage?.model,
+    });
+  },
+});
+
+export const variationsTool = defineTool({
+  key: "variations",
+  name: "Variations",
+  description: "Create up to 4 variations of a clip. Lineage is carried.",
+  schema: z
+    .object({
+      clipId: z.string().min(1),
+      prompt: z.string().min(1).optional(),
+      tier: z.enum(["draft", "standard", "cinematic"]).optional(),
+      count: z.number().int().min(1).max(4).optional(),
+      model: z.string().min(1).optional(),
+    })
+    .strict(),
+  execute: async (args, tenant) => {
+    const backend = requireEditToolBackend();
+    const project = await backend.getProject(tenant);
+    const clip = project.clips.find((item) => item.id === args.clipId);
+    return runGenerateTool(tenant, {
+      kind: "generate_video",
+      toolKey: "variations",
+      prompt: args.prompt ?? clip?.lineage?.prompt ?? "Variations of this clip",
+      clipId: args.clipId,
+      count: args.count ?? 2,
+      tier: args.tier ?? clip?.lineage?.tier,
+      model: args.model ?? clip?.lineage?.model,
+    });
+  },
+});
+
+export const extendClipTool = defineTool({
+  key: "extend_clip",
+  name: "Extend clip",
+  description: "Extend a clip by addSeconds. Lineage is carried.",
+  schema: z
+    .object({
+      clipId: z.string().min(1),
+      addSeconds: z.number().int().min(1).max(12),
+      prompt: z.string().min(1).optional(),
+      tier: z.enum(["draft", "standard", "cinematic"]).optional(),
+      model: z.string().min(1).optional(),
+    })
+    .strict(),
+  execute: async (args, tenant) => {
+    const backend = requireEditToolBackend();
+    const project = await backend.getProject(tenant);
+    const clip = project.clips.find((item) => item.id === args.clipId);
+    return runGenerateTool(tenant, {
+      kind: "generate_video",
+      toolKey: "extend_clip",
+      prompt: args.prompt ?? clip?.lineage?.prompt ?? "Extend this clip",
+      clipId: args.clipId,
+      addSeconds: args.addSeconds,
+      tier: args.tier ?? clip?.lineage?.tier,
+      model: args.model ?? clip?.lineage?.model,
+    });
+  },
+});
+
+export const generateStoryboardTool = defineTool({
+  key: "generate_storyboard",
+  name: "Generate storyboard",
+  description: "Split a scene into still shots, add pending image clips, and queue image jobs.",
+  schema: generateStoryboardSchema,
+  execute: async (args, tenant) => {
+    const backend = requireEditToolBackend();
+    const project = await backend.getProject(tenant);
+    const prompts = splitSceneToShots(args.scene, args.shots);
+    const durationFrames = stillClipDurationFrames(project);
+    let cursor = timelineTailFrame(project);
+    const clipIds: string[] = [];
+    const ops = prompts.map((prompt) => {
+      const clipId = newId();
+      clipIds.push(clipId);
+      const clip: Clip = {
+        id: clipId,
+        trackId: "v1",
+        timelineStartFrame: cursor,
+        durationFrames,
+        status: "pending",
+        lineage: {
+          prompt,
+          tier: args.tier,
+          ingredientIds: args.ingredientIds,
+        },
+      };
+      cursor += durationFrames;
+      return { type: "add_clip" as const, payload: { clip } };
+    });
+    const applied = await backend.applyAgentOps(tenant, ops);
+    const cardId = (applied.card as { id?: string }).id;
+    const jobs = [];
+    for (let index = 0; index < clipIds.length; index += 1) {
+      const clipId = clipIds[index]!;
+      const prompt = prompts[index]!;
+      const job = await backend.startJob(tenant, {
+        kind: "generate_image",
+        request: {
+          prompt,
+          aspect: imageAspectForEdit(args.aspect),
+          tier: args.tier,
+          ingredientIds: args.ingredientIds,
+          tenant,
+        },
+        targetClipIds: [clipId],
+        cardId,
+        tier: args.tier,
+      });
+      jobs.push(job.job);
+    }
+    return { success: true, ...applied, clipIds, jobs };
+  },
+});
+
+export const animateStoryboardTool = defineTool({
+  key: "animate_storyboard",
+  name: "Animate storyboard",
+  description: "Turn still storyboard clips into video generation jobs (image-to-video).",
+  schema: animateStoryboardSchema,
+  execute: async (args, tenant) => {
+    const backend = requireEditToolBackend();
+    const project = await backend.getProject(tenant);
+    const tier = tierOrDefault(args.tier);
+    const aspect = args.aspect ?? ("16:9" as const);
+    const ops = args.clipIds
+      .filter((clipId) => project.clips.some((clip) => clip.id === clipId))
+      .map((clipId) => ({ type: "set_clip_status" as const, payload: { clipId, status: "pending" as const } }));
+    const applied = ops.length > 0 ? await backend.applyAgentOps(tenant, ops) : null;
+    const cardId = applied ? (applied.card as { id?: string }).id : undefined;
+    const jobs = [];
+    for (const clipId of args.clipIds) {
+      const clip = project.clips.find((item) => item.id === clipId);
+      const imageAssetId = clip?.source?.assetId;
+      if (!clip || !imageAssetId) {
+        continue;
+      }
+      const asset = project.assets[imageAssetId];
+      if (asset?.kind !== "image") {
+        continue;
+      }
+      const job = await backend.startJob(tenant, {
+        kind: "generate_video",
+        request: {
+          prompt: clip.lineage?.prompt ?? "Animate this still",
+          aspect,
+          tier,
+          imageAssetId,
+          imageUrl: undefined,
+          seconds: 4,
+          tenant,
+        },
+        targetClipIds: [clipId],
+        cardId,
+        tier,
+      });
+      jobs.push(job.job);
+    }
+    if (jobs.length === 0) {
+      return editToolRefusal("still_unsupported", "No ready still clips with image sources to animate");
+    }
+    return { success: true, ...(applied ?? {}), jobs };
+  },
+});
+
+export const matchLookTool = defineTool({
+  key: "match_look",
+  name: "Match look",
+  description: "Queue a color-match pass from a reference clip onto a target clip.",
+  schema: z
+    .object({
+      clipId: z.string().min(1),
+      referenceClipId: z.string().min(1),
+    })
+    .strict(),
+  execute: async ({ clipId, referenceClipId }, tenant) => {
+    const backend = requireEditToolBackend();
+    const project = await backend.getProject(tenant);
+    const clip = project.clips.find((item) => item.id === clipId);
+    const reference = project.clips.find((item) => item.id === referenceClipId);
+    if (!clip?.source?.assetId || !reference?.source?.assetId) {
+      return editToolRefusal("still_unsupported", "Both clips need media sources to match look");
+    }
+    const applied = await backend.applyAgentOps(tenant, [
+      { type: "set_clip_status", payload: { clipId, status: "pending" } },
+    ]);
+    const cardId = (applied.card as { id?: string }).id;
+    const job = await backend.startJob(tenant, {
+      kind: "ffmpeg_op",
+      request: {
+        recipe: "matchLook",
+        clipId,
+        referenceClipId,
+        note: "Color match queued; mild EQ will be applied when sources allow.",
+      },
+      targetClipIds: [clipId],
+      cardId,
+    });
+    return { success: true, ...applied, ...job, note: "Color match queued" };
+  },
+});
+
+export const proposeAltCutTool = defineTool({
+  key: "propose_alt_cut",
+  name: "Propose alt cut",
+  description: "Place alternate cuts on v_compare only; v1 is never mutated.",
+  schema: z
+    .object({
+      clipIds: z.array(z.string().min(1)).min(1).max(24),
+    })
+    .strict(),
+  execute: async ({ clipIds }, tenant) => {
+    const backend = requireEditToolBackend();
+    const project = await backend.getProject(tenant);
+    const ops: Array<{ type: "add_track" | "add_clip"; payload: unknown }> = [];
+    if (!project.tracks.some((track) => track.id === "v_compare")) {
+      ops.push({
+        type: "add_track",
+        payload: { track: { id: "v_compare", kind: "video", name: "Compare" } },
+      });
+    }
+    let cursor = 0;
+    for (const clipId of clipIds) {
+      const source = project.clips.find((clip) => clip.id === clipId);
+      if (!source) {
+        continue;
+      }
+      const alt: Clip = {
+        id: newId(),
+        trackId: "v_compare",
+        timelineStartFrame: cursor,
+        durationFrames: source.durationFrames,
+        status: source.status,
+        source: source.source ? { ...source.source } : undefined,
+        volume: source.volume,
+        title: source.title,
+        caption: source.caption,
+        lineage: {
+          parentClipId: source.id,
+          prompt: source.lineage?.prompt,
+        },
+      };
+      cursor += source.durationFrames;
+      ops.push({ type: "add_clip", payload: { clip: alt } });
+    }
+    if (ops.length === 0) {
+      return editToolRefusal("still_unsupported", "No clips found for alternate cut");
+    }
+    return backend.applyAgentOps(tenant, ops);
+  },
+});
+
+export const runRecipeTool = defineTool({
+  key: "run_recipe",
+  name: "Run recipe",
+  description: "Propose a multi-step recipe plan; nothing runs until the user presses Go.",
+  schema: z
+    .object({
+      recipeId: z.string().min(1),
+      vars: z.record(z.string(), z.unknown()).optional(),
+    })
+    .strict(),
+  execute: async ({ recipeId, vars }, tenant) => {
+    const recipe = RECIPES.find((item) => item.id === recipeId);
+    if (!recipe) {
+      return editToolRefusal("still_unsupported", `Unknown recipe: ${recipeId}`);
+    }
+    const steps = recipe.steps.map((step) => ({
+      tool: step.tool,
+      args: substituteRecipeVars(step.args, vars ?? {}),
+    }));
+    const result = await requireEditToolBackend().proposePlan(tenant, { steps, totalUsd: 0 });
+    return { success: true, recipeId, ...result };
+  },
+});
+
+function substituteRecipeVars(args: Record<string, unknown>, vars: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(args)) {
+    if (typeof value === "string" && value.startsWith("{{") && value.endsWith("}}")) {
+      const name = value.slice(2, -2);
+      out[key] = vars[name] ?? value;
+    } else {
+      out[key] = value;
+    }
+  }
+  return out;
+}
+
 export const exportTool = defineTool({
   key: "export",
   name: "Export",
@@ -481,6 +908,16 @@ export const EDIT_TOOLS = [
   reframeTool,
   setClipVolumeTool,
   clearTimelineTool,
+  generateImageTool,
+  generateVideoTool,
+  regenerateClipTool,
+  variationsTool,
+  extendClipTool,
+  generateStoryboardTool,
+  animateStoryboardTool,
+  matchLookTool,
+  proposeAltCutTool,
+  runRecipeTool,
   proposePlanTool,
   cancelJobTool,
   exportTool,

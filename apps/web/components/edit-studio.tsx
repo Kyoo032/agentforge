@@ -1,9 +1,10 @@
 "use client";
 
-import { applyOp, emptyProject, type ApplyableOp, type EditOp, type EditProject } from "@agentforge/core/edit";
+import { applyOp, emptyProject, STARTER_PROJECTS, type ApplyableOp, type EditOp, type EditProject } from "@agentforge/core/edit";
 import { formatUsd } from "@agentforge/core/gateway";
 import { EditAgentPanel } from "@/components/edit-agent-panel";
 import { EditGenerateTab } from "@/components/edit-generate-tab";
+import { EditRecipesPanel } from "@/components/edit-recipes-panel";
 import { EditPreview } from "@/components/edit-preview";
 import { EditTimeline } from "@/components/edit-timeline";
 import { apiFetch } from "@/lib/api-client";
@@ -73,6 +74,7 @@ export function EditStudio() {
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const [tool, setTool] = useState<ToolId>("upload");
   const [projectName, setProjectName] = useState("Loop 1");
+  const [starterId, setStarterId] = useState(STARTER_PROJECTS[0]?.id ?? "blank-16x9");
   const [tier, setTier] = useState("standard");
   const [hasKey, setHasKey] = useState(true);
   const [ffmpegFound, setFfmpegFound] = useState(true);
@@ -240,7 +242,7 @@ export function EditStudio() {
 
   async function onNewProject() {
     const name = projectName.trim() || "Untitled";
-    const created = await createEditProject(name);
+    const created = await createEditProject(name, projectAspectFromStarter(starterId), starterId);
     if (created.error || !created.project) {
       if (created.status === 404) {
         const local = emptyProject({
@@ -623,7 +625,20 @@ export function EditStudio() {
         <div className="flex min-h-0 flex-1">
           <div className="flex min-h-0 flex-1 flex-col p-6" data-testid="edit-project-list">
             <h2 className="font-heading text-xl">Projects</h2>
-            <div className="mt-4 flex gap-2">
+            <div className="mt-4 flex flex-col gap-2">
+              <select
+                className="rounded-md border border-mist bg-paper px-3 py-2 text-sm"
+                value={starterId}
+                onChange={(event) => setStarterId(event.target.value)}
+                data-testid="edit-starter"
+              >
+                {STARTER_PROJECTS.map((starter) => (
+                  <option key={starter.id} value={starter.id}>
+                    {starter.name}
+                  </option>
+                ))}
+              </select>
+              <div className="flex gap-2">
               <input
                 className="rounded-md border border-mist bg-paper px-3 py-2 text-sm"
                 value={projectName}
@@ -633,6 +648,7 @@ export function EditStudio() {
               <button type="button" className="btn btn-primary px-3 py-2 text-sm" data-testid="edit-new-project" onClick={() => void onNewProject()}>
                 New project
               </button>
+              </div>
             </div>
             <ul className="mt-4 space-y-1">
               {items.map((item) => (
@@ -687,7 +703,19 @@ export function EditStudio() {
               </button>
             ))}
             {tool === "generate" ? (
-              <EditGenerateTab models={models} needsKey={!hasKey} gatewayName={gatewayName} />
+              <EditGenerateTab
+                project={project}
+                playhead={playhead}
+                models={models}
+                needsKey={!hasKey}
+                gatewayName={gatewayName}
+                tier={tier}
+                onTierChange={setTier}
+                onSubmitted={() => void reloadProject(project.id)}
+                onAgentPrompt={(text) => void sendAgent(text)}
+              />
+            ) : tool === "recipes" ? (
+              <EditRecipesPanel onRun={(recipeId) => void sendAgent(`Run recipe ${recipeId}`)} />
             ) : tool !== "upload" ? (
               <p className="px-2 text-xs text-ink/50">
                 {tool === "captions" ? (
@@ -781,4 +809,9 @@ function mergeCards(current: OpCard[], incoming: OpCard[]): OpCard[] {
 
 function itemLabel(id: ToolId): string {
   return TOOLS.find((item) => item.id === id)?.label ?? id;
+}
+
+function projectAspectFromStarter(starterId: string): "16:9" | "9:16" | "1:1" {
+  const starter = STARTER_PROJECTS.find((item) => item.id === starterId);
+  return starter?.aspect ?? "16:9";
 }
