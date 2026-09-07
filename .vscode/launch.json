@@ -28,6 +28,25 @@
       "runtimeArgs": ["--remote-debugging-port=9222"],
       "cwd": "C:/Program Files/Agentforge",
       "console": "integratedTerminal"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Packaged Agentforge (macOS .app unpacked)",
+      "runtimeExecutable": "${workspaceFolder}/apps/desktop/dist/mac/Agentforge.app/Contents/MacOS/Agentforge",
+      "runtimeArgs": ["--remote-debugging-port=9222"],
+      "cwd": "${workspaceFolder}/apps/desktop/dist/mac",
+      "console": "integratedTerminal",
+      "preLaunchTask": "verify-macos-app"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Packaged Agentforge (macOS /Applications)",
+      "runtimeExecutable": "/Applications/Agentforge.app/Contents/MacOS/Agentforge",
+      "runtimeArgs": ["--remote-debugging-port=9222"],
+      "cwd": "/Applications/Agentforge.app/Contents/MacOS",
+      "console": "integratedTerminal"
     }
   ]
 }

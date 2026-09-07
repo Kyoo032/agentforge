@@ -8,6 +8,6 @@ Agentforge is a **local desktop / loopback** workbench. There is no iOS or Andro
 
 A phone or tablet browser hitting a LAN `:3000` is **not** a product surface. Webdev binds `127.0.0.1:3000`. Packaged Electron has no HTTP server (IPC only). Other devices on the network cannot reach Chat, and that is intentional.
 
-A later phone/tablet surface would be a new optional pack, not a kernel change and not part of the current desktop installer work.
+A later phone/tablet surface would be a new optional pack (prefer Expo if the UI is still React), not a kernel change and not part of the current desktop installer work. Do not add Xcode / iOS Simulator / React Native to this repo until that sibling exists. This Windows checkout cannot run Apple’s Simulator.
 
 See the desktop shell: [`apps/desktop/README.md`](../apps/desktop/README.md). Verification map: [`.cursor/skills/verify-agentforge/features/mobile.md`](../.cursor/skills/verify-agentforge/features/mobile.md).
