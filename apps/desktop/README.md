@@ -80,8 +80,12 @@ Packaged Agentforge checks [GitHub Releases](https://github.com/Kyoo032/agentfor
 
 ```
 pnpm desktop:build:mac
+pnpm desktop:build:mac:dir
+pnpm desktop:mac
 pnpm desktop:build:linux
 ```
+
+`desktop:build:mac:dir` writes an unpacked `.app` (same idea as `win-unpacked`). `pnpm desktop:mac` launches it with CDP `9222`. Both require **macOS**. This Windows checkout cannot run Apple’s Simulator or a `.app` — use WinApp F5 here. iOS Simulator / Expo stay parked.
 
 Unsigned is fine. Notarization is not done.
 

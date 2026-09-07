@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.3.5/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.5.12/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -14,23 +14,39 @@
       "!!**/coverage",
       "!!**/playwright-report",
       "!!**/test-results",
-      "!!**/.cursor/skills/verify-agentforge/evidence",
+      "!!**/.cursor",
       "!!**/packages/db/drizzle",
       "!!**/apps/desktop/resources",
       "!!**/apps/desktop/host.cjs",
+      "!!**/apps/web/app",
       "!!**/pnpm-lock.yaml"
     ]
+  },
+  "assist": {
+    "enabled": false
   },
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
     "indentWidth": 2,
-    "lineWidth": 120
+    "lineWidth": 120,
+    "lineEnding": "crlf"
   },
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true
+      "preset": "recommended",
+      "a11y": {
+        "recommended": false
+      },
+      "correctness": {
+        "useExhaustiveDependencies": "warn",
+        "noUnsafeOptionalChaining": "warn"
+      },
+      "suspicious": {
+        "noArrayIndexKey": "warn",
+        "noUndeclaredEnvVars": "off"
+      }
     }
   },
   "javascript": {

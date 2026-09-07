@@ -59,6 +59,20 @@ Never share `.env`, `settings.enc`, or your gateway key.
 
 Closed beta. Unsigned Windows installs, sharp edges, APIs that may change. Feedback from invited testers goes to the operator — this is not a public support channel yet.
 
+## Develop
+
+Repo and agent rules: [`AGENTS.md`](AGENTS.md).
+
+```
+pnpm install
+pnpm dev          # http://127.0.0.1:3000
+pnpm test         # Vitest
+pnpm lint         # Biome
+pnpm desktop:build
+```
+
+`pnpm desktop:build:mac` and `pnpm desktop:mac` need a Mac. There is no mobile app.
+
 ## License
 
 Proprietary / closed beta. All rights reserved unless a LICENSE file is added later.

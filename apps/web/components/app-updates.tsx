@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { isElectron } from "@/lib/api-client";
+import { getDesktopUpdates, isElectron } from "@/lib/api-client";
 import { useProductBrand } from "@/lib/product-brand";
 
 type UpdateStatus = "idle" | "checking" | "current" | "available" | "downloading" | "ready" | "error" | "unavailable";
@@ -16,7 +16,7 @@ type UpdateState = {
 };
 
 function desktopUpdates() {
-  return window.agentforge?.updates;
+  return getDesktopUpdates();
 }
 
 export function AppUpdates() {

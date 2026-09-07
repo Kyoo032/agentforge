@@ -11,6 +11,7 @@ import {
 import { STARTER_PROJECTS } from "@agentforge/core/edit";
 import { db, editCards, editJobs, editProjects, editUnplaced } from "@agentforge/db";
 import { foldProject, writeSnapshot } from "./ops";
+import { seedStarterMedia } from "./starter-media";
 
 const ASPECTS = new Set(["16:9", "9:16", "1:1"]);
 
@@ -40,10 +41,24 @@ export async function createEditProject(
     createdAt: now,
     updatedAt: now,
   });
-  const doc = seedStarterProject(
+  const seeded = seedStarterProject(
     emptyProject({ id, workspaceId: tenant.workspaceId, name, aspect, fps }),
     starter,
   );
+  let doc: typeof seeded;
+  let missing: string[];
+  try {
+    ({ doc, missing } = await seedStarterMedia(tenant, seeded, starter));
+  } catch (error) {
+    await db.delete(editProjects).where(eq(editProjects.id, id));
+    console.warn(`[edit] starter "${starter?.id}" seeding failed for project ${id}; project row removed: ${String(error)}`);
+    throw error;
+  }
+  if (missing.length > 0) {
+    console.warn(
+      `[edit] starter "${starter?.id}" skipped ${missing.length} bundled file(s) not found in the starter media dir: ${missing.join(", ")}`,
+    );
+  }
   await writeSnapshot(id, 0, doc);
   return doc;
 }

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { build } from "esbuild";
+import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -37,9 +38,12 @@ rmSync(drizzleDest, { recursive: true, force: true });
 mkdirSync(dirname(drizzleDest), { recursive: true });
 cpSync(drizzleSrc, drizzleDest, { recursive: true });
 
+// Bundled starter media must exist before packaging; the generator script owns the check.
+execFileSync(process.execPath, [join(repoRoot, "scripts", "edit-starters.mjs"), "--check"], { stdio: "inherit" });
+
 if (!existsSync(join(drizzleDest, "meta", "_journal.json"))) {
   console.error("stage-renderer: packages/db/drizzle/meta/_journal.json missing");
   process.exit(1);
 }
 
-console.log("staged renderer + host.cjs + drizzle");
+console.log("staged renderer + host.cjs + drizzle + starters");

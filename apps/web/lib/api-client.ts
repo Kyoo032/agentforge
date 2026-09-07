@@ -1,73 +1,21 @@
+import {
+  abortDesktopStream,
+  invokeDesktop,
+  isElectron,
+  saveDesktopBytes,
+  streamDesktop,
+  type IpcHostRequest,
+  type IpcHostResponse,
+} from "./desktop-bridge";
 import { errorFromAbortSignal, onAbort, throwIfAborted } from "./ipc-abort";
 
-export type IpcHostRequest = {
-  requestId: string;
-  method: string;
-  path: string;
-  query: Record<string, string>;
-  body?: unknown;
-  files?: Array<{ field: string; filename: string; mime: string; bytes: number[] }>;
-};
-
-export type IpcHostResponse =
-  | { type: "json"; status: number; body: unknown }
-  | { type: "bytes"; status: number; bytes: number[]; contentType: string; filename?: string }
-  | { type: "stream"; status: number; requestId: string };
-
-declare global {
-  interface Window {
-    agentforge?: {
-      isElectron: true;
-      brand?: { productName?: string; gatewayName?: string; gatewayBaseUrl?: string };
-      brandLogo?: string;
-      invoke: (payload: IpcHostRequest) => Promise<IpcHostResponse>;
-      stream: (requestId: string, onChunk: (chunk: string) => void) => Promise<void>;
-      abortStream?: (requestId: string) => void;
-      saveBytes?: (filename: string, bytes: number[]) => Promise<void>;
-      updates?: {
-        supported: boolean;
-        state: () => Promise<{
-          supported: boolean;
-          status?: string;
-          currentVersion?: string;
-          version?: string;
-          percent?: number;
-          message?: string;
-        }>;
-        check: () => Promise<{
-          supported: boolean;
-          status?: string;
-          currentVersion?: string;
-          version?: string;
-          message?: string;
-        }>;
-        download: () => Promise<{
-          supported: boolean;
-          status?: string;
-          currentVersion?: string;
-          version?: string;
-          percent?: number;
-          message?: string;
-        }>;
-        install: () => Promise<void>;
-        onStatus?: (
-          callback: (state: {
-            supported: boolean;
-            status?: string;
-            currentVersion?: string;
-            version?: string;
-            percent?: number;
-            message?: string;
-          }) => void,
-        ) => () => void;
-      };
-    };
-  }
-}
-
-export function isElectron(): boolean {
-  return typeof window !== "undefined" && Boolean(window.agentforge?.isElectron);
-}
+export type { IpcHostRequest, IpcHostResponse };
+export {
+  getDesktopBrand,
+  getDesktopBrandLogo,
+  getDesktopUpdates,
+  isElectron,
+} from "./desktop-bridge";
 
 function parsePath(input: string): { path: string; query: Record<string, string> } {
   const url = new URL(input, "http://agentforge.local");
@@ -116,7 +64,7 @@ function bytesResponse(payload: Extract<IpcHostResponse, { type: "bytes" }>): Re
 }
 
 export async function apiFetch(input: string, init: RequestInit = {}): Promise<Response> {
-  if (!isElectron() || !window.agentforge) {
+  if (!isElectron()) {
     return fetch(input, init);
   }
   throwIfAborted(init.signal);
@@ -131,7 +79,7 @@ export async function apiFetch(input: string, init: RequestInit = {}): Promise<R
     body: jsonBody(init.body),
     files: await filesFromBody(init.body),
   };
-  const result = await window.agentforge.invoke(payload);
+  const result = await invokeDesktop(payload);
   throwIfAborted(init.signal);
   if (result.type === "json") {
     return new Response(JSON.stringify(result.body), {
@@ -140,8 +88,8 @@ export async function apiFetch(input: string, init: RequestInit = {}): Promise<R
     });
   }
   if (result.type === "bytes") {
-    if (result.filename && window.agentforge.saveBytes) {
-      await window.agentforge.saveBytes(result.filename, result.bytes);
+    if (result.filename) {
+      await saveDesktopBytes(result.filename, result.bytes);
     }
     return bytesResponse(result);
   }
@@ -149,7 +97,7 @@ export async function apiFetch(input: string, init: RequestInit = {}): Promise<R
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       const fail = () => {
-        window.agentforge?.abortStream?.(requestId);
+        abortDesktopStream(requestId);
         try {
           controller.error(errorFromAbortSignal(init.signal));
         } catch {
@@ -157,7 +105,7 @@ export async function apiFetch(input: string, init: RequestInit = {}): Promise<R
         }
       };
       const stop = onAbort(init.signal, fail);
-      void window.agentforge!.stream(requestId, (chunk) => {
+      void streamDesktop(requestId, (chunk) => {
         controller.enqueue(encoder.encode(chunk));
       }).then(
         () => {
@@ -179,7 +127,7 @@ export async function apiFetch(input: string, init: RequestInit = {}): Promise<R
       );
     },
     cancel() {
-      window.agentforge?.abortStream?.(requestId);
+      abortDesktopStream(requestId);
     },
   });
   return new Response(stream, {

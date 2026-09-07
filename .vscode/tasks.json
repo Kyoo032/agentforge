@@ -11,6 +11,16 @@
         "if (-not (Test-Path 'C:\\Program Files\\Agentforge\\Agentforge.exe')) { throw 'Installed Agentforge.exe missing' }; (Get-Item 'C:\\Program Files\\Agentforge\\Agentforge.exe').VersionInfo.ProductVersion"
       ],
       "problemMatcher": []
+    },
+    {
+      "label": "verify-macos-app",
+      "type": "shell",
+      "command": "node",
+      "args": ["apps/desktop/scripts/macos-app.mjs", "--check"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
     }
   ]
 }

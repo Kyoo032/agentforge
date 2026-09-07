@@ -40,3 +40,26 @@ export { PRICE_TABLE, estimateJobUsd } from "./price-table";
 export type { PriceRow } from "./price-table";
 export { RECIPES, STARTER_PROJECTS } from "./recipes";
 export type { Recipe, StarterProject } from "./recipes";
+export {
+  STARTER_MEDIA,
+  STARTER_TRACKS,
+  starterMediaFile,
+  starterMediaFileNames,
+  starterTrackFor,
+} from "./starter-media";
+export type { StarterMediaFile, StarterMediaManifest, StarterTrack } from "./starter-media";
+export {
+  PROMPT_TEMPLATES,
+  PROMPT_GUIDE_RULES,
+  PROMPT_TEMPLATE_CATEGORIES,
+  promptTemplatesFor,
+  promptTemplateById,
+} from "./prompt-templates";
+export type {
+  PromptTemplateCategory,
+  PromptTemplateAspect,
+  PromptTemplateSource,
+  PromptTemplate,
+  PromptGuideRule,
+  PromptTemplateCategoryInfo,
+} from "./prompt-templates";

@@ -45,6 +45,11 @@ if (!binary) {
   );
 }
 
+if (process.argv.includes("--check")) {
+  console.log(binary);
+  process.exit(0);
+}
+
 const child = spawn(binary, ["--remote-debugging-port=9222"], {
   stdio: "inherit",
   detached: true,

@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { GATEWAY_BASE_URL, GATEWAY_NAME } from "@agentforge/core/gateway";
-import { apiFetch, isElectron } from "@/lib/api-client";
+import { apiFetch, getDesktopBrand, getDesktopBrandLogo, isElectron } from "@/lib/api-client";
 
 export type ProductBrand = {
   productName: string;
@@ -70,15 +70,13 @@ export function mergePingBrand(current: ProductBrand, payload: unknown): Product
 }
 
 function preloadBrand(): ProductBrand {
-  if (!isElectron() || !window.agentforge) {
+  if (!isElectron()) {
     return DEFAULT_PRODUCT_BRAND;
   }
-  const fromPreload = brandFromUnknown(window.agentforge.brand, DEFAULT_PRODUCT_BRAND);
-  const logoSrc =
-    typeof window.agentforge.brandLogo === "string" && window.agentforge.brandLogo.startsWith("data:image/")
-      ? window.agentforge.brandLogo
-      : "";
-  return { ...fromPreload, logoSrc };
+  return {
+    ...brandFromUnknown(getDesktopBrand(), DEFAULT_PRODUCT_BRAND),
+    logoSrc: getDesktopBrandLogo() ?? "",
+  };
 }
 
 export function ProductBrandProvider({ children }: { children: ReactNode }) {

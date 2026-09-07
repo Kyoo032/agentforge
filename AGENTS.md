@@ -58,6 +58,8 @@ packages/legal           Optional Legal templates
 docs/                    Product docs + docs/internal engineering notes
 ```
 
+**Shell vs app (locked).** UI lives in `apps/web`. Do not edit `apps/desktop` for features. Do not import `electron` from the renderer. The only file that may read `window.agentforge` is `apps/web/lib/desktop-bridge.ts`; everything else goes through `@/lib/api-client`. Lint/format is **Biome** (`pnpm lint`) — do not add ESLint or Prettier. Agents use `pnpm dev` for features. Packaged Windows: `pnpm desktop:build` + WinApp F5. Packaged Mac: on a Mac, `pnpm desktop:build:mac` / `desktop:build:mac:dir` then F5 the `.app` or `pnpm desktop:mac`. This Windows checkout cannot run Apple’s Simulator or a `.app`. Expo / iOS Simulator stay parked until a mobile repo exists.
+
 pnpm 9.15.9 + Turborepo. If corepack hits EPERM on Windows, use `npx pnpm@9.15.9`.
 
 ## How to run
@@ -76,6 +78,7 @@ Desktop:
 
 - **Webdev window:** `pnpm desktop:dev` — Electron around local Vite/Express on `:3000` (no preload / no IPC). Not the installed product.
 - **Packaged app:** `pnpm desktop:build` → NSIS x64 (Windows product path). Stages the Vite renderer + esbuild `host.cjs` (no Next, no bundled `node.exe`, no loopback port). Native modules (`better-sqlite3`, `keytar`) need `@electron/rebuild` **on Windows** — do not run that on Cloud. On launch the main process loads the renderer from `extraResources` and dispatches APIs over IPC. Writes `host-status.json` under Electron userData. Window close exits the whole process tree. Running setup.exe again replaces the existing install and keeps `%APPDATA%\Agentforge`. Uninstall (not upgrade) kills `Agentforge.exe`, deletes `%APPDATA%\Agentforge`, and removes Credential Manager `Agentforge` / `wrap-key`. mac/linux: `pnpm desktop:build:mac` / `pnpm desktop:build:linux` on that OS (unsigned; notarization is not done). Cloud cannot prove packaged Windows and must not run `pnpm desktop:build`. Move log: [`docs/internal/moves.md`](docs/internal/moves.md).
+- **Ship list for 0.14.1:** [`docs/internal/0.14.1-changelog.md`](docs/internal/0.14.1-changelog.md) is the reference of everything that must be inside the 0.14.1 `setup.exe`. Development and quick testing happen on **webdev** (`pnpm dev`, `:3000`), so a feature that works there is *not shipped* until it is staged into `host.cjs` + the renderer, packed, and driven on the installed app (`doctor --desktop`). Every agent that changes product code after 0.14.0 appends to that changelog; the pack step reads it back as the checklist.
 
 **Packaged Windows installer exists** (rebuild on Windows after the IPC host rewrite). Cloud Linux must not run `pnpm desktop:build`.
 

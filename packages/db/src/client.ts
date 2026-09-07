@@ -1,7 +1,7 @@
 import { config } from "dotenv";
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import Database from "better-sqlite3";
+import SqliteDatabase from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { ensureSchema } from "./ensure-schema";
 import * as schema from "./schema";
@@ -16,10 +16,10 @@ const file = sqliteFilePath();
 mkdirSync(dirname(file), { recursive: true });
 
 const globalForDb = globalThis as unknown as {
-  sqlite?: Database.Database;
+  sqlite?: SqliteDatabase.Database;
 };
 
-export const sql = globalForDb.sqlite ?? new Database(file);
+export const sql = globalForDb.sqlite ?? new SqliteDatabase(file);
 if (process.env.NODE_ENV !== "production") {
   globalForDb.sqlite = sql;
 }
