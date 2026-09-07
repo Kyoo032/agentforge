@@ -19,7 +19,9 @@ export const user = sqliteTable("user", {
   emailVerified: integer("email_verified", { mode: "boolean" }).notNull().default(false),
   image: text("image"),
   createdAt: createdAt(),
-  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
 });
 
 export const organizations = sqliteTable("organizations", {
@@ -105,7 +107,9 @@ export const agents = sqliteTable(
     createdByUserId: text("created_by_user_id").notNull(),
     currentVersionId: text("current_version_id"),
     createdAt: createdAt(),
-    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
   },
   (table) => [index("agents_org_ws_idx").on(table.organizationId, table.workspaceId)],
 );
@@ -216,7 +220,9 @@ export const runs = sqliteTable(
     status: text("status").notNull(),
     usage: text("usage", { mode: "json" }).$type<Record<string, unknown>>(),
     error: text("error"),
-    startedAt: integer("started_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
+    startedAt: integer("started_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
     finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
   },
   (table) => [index("runs_org_thread_idx").on(table.organizationId, table.threadId)],
@@ -340,11 +346,11 @@ export const editProjects = sqliteTable(
     width: integer("width").notNull(),
     height: integer("height").notNull(),
     seq: integer("seq").notNull().default(0),
-    reviewJson: text("review_json", { mode: "json" })
-      .$type<{ lastAgentSeq: number; ackSeq: number }>()
-      .notNull(),
+    reviewJson: text("review_json", { mode: "json" }).$type<{ lastAgentSeq: number; ackSeq: number }>().notNull(),
     createdAt: createdAt(),
-    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
   },
   (table) => [index("edit_projects_org_ws_idx").on(table.organizationId, table.workspaceId)],
 );
@@ -367,9 +373,7 @@ export const editOps = sqliteTable(
     undoOf: text("undo_of"),
     createdAt: createdAt(),
   },
-  (table) => [
-    uniqueIndex("edit_ops_project_seq").on(table.projectId, table.seq),
-  ],
+  (table) => [uniqueIndex("edit_ops_project_seq").on(table.projectId, table.seq)],
 );
 
 export const editSnapshots = sqliteTable(
@@ -451,4 +455,41 @@ export const editUnplaced = sqliteTable(
     discardedAt: integer("discarded_at", { mode: "timestamp_ms" }),
   },
   (table) => [index("edit_unplaced_project_idx").on(table.projectId)],
+);
+
+/** Kernel-neutral job outputs (research dossiers, data analyses, finance briefs, drafts). Body is sealed at rest. */
+export const artifacts = sqliteTable(
+  "artifacts",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    mode: text("mode").notNull(),
+    kind: text("kind").notNull(),
+    title: text("title").notNull(),
+    mime: text("mime").notNull(),
+    body: text("body").notNull(),
+    meta: text("meta").notNull(),
+    sizeBytes: integer("size_bytes").notNull().default(0),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [index("artifacts_ws_mode_idx").on(table.workspaceId, table.mode, table.createdAt)],
+);
+
+/** Uploaded tables for the Data / Finance analyst modes. Raw file lives under localDataDir()/datasets. */
+export const datasets = sqliteTable(
+  "datasets",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    name: text("name").notNull(),
+    filename: text("filename").notNull(),
+    rows: integer("rows").notNull(),
+    cols: integer("cols").notNull(),
+    columns: text("columns").notNull(),
+    storagePath: text("storage_path").notNull(),
+    sizeBytes: integer("size_bytes").notNull().default(0),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [index("datasets_ws_idx").on(table.workspaceId, table.createdAt)],
 );

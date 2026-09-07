@@ -1,10 +1,4 @@
-import {
-  ApiError,
-  hasLiveProvider,
-  resolveChatModel,
-  resolveRuntimeMode,
-  type TenantContext,
-} from "@agentforge/core";
+import { ApiError, hasLiveProvider, resolveChatModel, resolveRuntimeMode, type TenantContext } from "@agentforge/core";
 import { loadSettings } from "./settings-store";
 import { listSelectableModels, modeCatalogPayload } from "./selectable-models";
 import {
@@ -20,6 +14,7 @@ import {
   readJobRegenAttachments,
   readOptionalInstruction,
 } from "./job-regen";
+import { readSourceText, withSourceMaterial, withSourceRule } from "./job-source";
 
 const OUTLINE_SYSTEM = `You create presentation outlines a stranger can present from — not title-only skeletons.
 Return ONLY valid JSON (no markdown fences, no commentary) with this exact shape:
@@ -58,15 +53,20 @@ function readOptionalModel(body: unknown): string | undefined {
   return typeof model === "string" && model.trim() ? model.trim() : undefined;
 }
 
-async function collectAssistantText(tenant: TenantContext, model: string, prompt: string): Promise<string> {
+async function collectAssistantText(
+  tenant: TenantContext,
+  model: string,
+  prompt: string,
+  sourceText: string,
+): Promise<string> {
   return collectJobAssistantText({
     tenant,
     model,
-    systemPrompt: OUTLINE_SYSTEM,
+    systemPrompt: withSourceRule(OUTLINE_SYSTEM, sourceText),
     runPrefix: "presentation",
     agentId: "presentation",
     versionId: "presentation-outline",
-    prompt,
+    prompt: withSourceMaterial(prompt, sourceText),
   });
 }
 
@@ -89,22 +89,16 @@ function requireLivePresentationRuntime(): ReturnType<typeof loadSettings> {
 function resolvePresentationModel(body: unknown, settings: ReturnType<typeof loadSettings>): string {
   const catalog = listSelectableModels();
   const { defaults } = modeCatalogPayload();
-  return resolveChatModel(
-    readOptionalModel(body),
-    settings.presentationGenModel || defaults.presentations,
-    catalog,
-  );
+  return resolveChatModel(readOptionalModel(body), settings.presentationGenModel || defaults.presentations, catalog);
 }
 
 /** Generate a validated presentation outline via the same runtime path as chat. */
-export async function generatePresentationOutline(
-  tenant: TenantContext,
-  body: unknown,
-): Promise<PresentationOutline> {
+export async function generatePresentationOutline(tenant: TenantContext, body: unknown): Promise<PresentationOutline> {
   const prompt = readPrompt(body);
   const settings = requireLivePresentationRuntime();
+  const sourceText = readSourceText(body, { injectionGuardBypass: settings.injectionGuardBypass === true });
   const model = resolvePresentationModel(body, settings);
-  const raw = await collectAssistantText(tenant, model, prompt);
+  const raw = await collectAssistantText(tenant, model, prompt, sourceText);
   if (!raw.trim()) {
     throw new ApiError("generation_failed", "Model returned an empty presentation outline", 502);
   }
@@ -131,16 +125,14 @@ function readSlideIndex(body: unknown, length: number): number {
   return index;
 }
 
-export async function regeneratePresentationSlide(
-  tenant: TenantContext,
-  body: unknown,
-): Promise<PresentationOutline> {
+export async function regeneratePresentationSlide(tenant: TenantContext, body: unknown): Promise<PresentationOutline> {
   if (!body || typeof body !== "object") {
     throw new ApiError("invalid_request", "Request body must be a JSON object", 400);
   }
   const outline = parsePresentationOutlineBody((body as { outline?: unknown }).outline);
   const index = readSlideIndex(body, outline.slides.length);
-  const topic = typeof (body as { prompt?: unknown }).prompt === "string" ? (body as { prompt: string }).prompt.trim() : "";
+  const topic =
+    typeof (body as { prompt?: unknown }).prompt === "string" ? (body as { prompt: string }).prompt.trim() : "";
   const current = outline.slides[index];
   if (!current) {
     throw new ApiError("invalid_request", "slideIndex is out of range", 400);
@@ -148,6 +140,7 @@ export async function regeneratePresentationSlide(
   const settings = requireLivePresentationRuntime();
   const model = resolvePresentationModel(body, settings);
   const attachments = readJobRegenAttachments(body);
+  const sourceText = readSourceText(body, { injectionGuardBypass: settings.injectionGuardBypass === true });
   const others = outline.slides
     .map((slide, itemIndex) => (itemIndex === index ? null : `- ${slide.heading}`))
     .filter(Boolean)
@@ -166,11 +159,11 @@ export async function regeneratePresentationSlide(
   const raw = await collectJobAssistantText({
     tenant,
     model,
-    systemPrompt: SLIDE_SYSTEM,
+    systemPrompt: withSourceRule(SLIDE_SYSTEM, sourceText),
     runPrefix: "presentation-slide",
     agentId: "presentation",
     versionId: "presentation-slide",
-    prompt,
+    prompt: withSourceMaterial(prompt, sourceText),
     attachments,
   });
   if (!raw.trim()) {

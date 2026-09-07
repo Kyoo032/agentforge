@@ -22,7 +22,8 @@ import { generatePresentationOutline, regeneratePresentationSlide } from "../pre
 import { parsePresentationOutlineBody } from "../presentation-outline";
 import { buildPresentationPptx } from "../presentation-pptx";
 import { generateResearchNotes } from "../research-generate";
-import { generateDataNotes } from "../data-generate";
+import { streamJob } from "../job-stream";
+import { analyzeDataset } from "../data-generate";
 
 export async function handleGetImages(request: HostRequest): Promise<HostResult> {
   try {
@@ -159,10 +160,34 @@ export async function handlePostResearch(request: HostRequest): Promise<HostResu
   }
 }
 
+/** Same job as POST /api/v1/research, streamed as job.* SSE events (phase → step → source → done). */
+export async function handlePostResearchStream(request: HostRequest): Promise<HostResult> {
+  try {
+    const tenant = await getTenant(request.workspaceId);
+    return streamJob((emit, abortSignal) => generateResearchNotes(tenant, request.body ?? null, emit, abortSignal), {
+      abortSignal: request.abortSignal,
+    });
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
 export async function handlePostData(request: HostRequest): Promise<HostResult> {
   try {
     const tenant = await getTenant(request.workspaceId);
-    return jsonOk(await generateDataNotes(tenant, request.body ?? null));
+    return jsonOk(await analyzeDataset(tenant, request.body ?? null));
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+/** Same job as POST /api/v1/data, streamed: profiling -> analyzing (one step per SQL query) -> verifying -> saving. */
+export async function handlePostDataStream(request: HostRequest): Promise<HostResult> {
+  try {
+    const tenant = await getTenant(request.workspaceId);
+    return streamJob((emit, abortSignal) => analyzeDataset(tenant, request.body ?? null, emit, abortSignal), {
+      abortSignal: request.abortSignal,
+    });
   } catch (error) {
     return jsonError(error);
   }

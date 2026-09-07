@@ -11,7 +11,9 @@ Electron **is** the packaged product. The main process owns SQLite, secrets, and
 
 `pnpm desktop:dev` loads webdev `:3000` **without** preload (fetch, not IPC). That is not packaged proof.
 
-There is no mobile Electron/Capacitor/RN target. See [`docs/mobile.md`](../../docs/mobile.md).
+There is no mobile Electron/Capacitor/RN target. See [`docs/mobile.md`](../../docs/mobile.md) and [`apps/mobile/AGENTS.md`](../mobile/AGENTS.md).
+
+**Per-OS rules:** [`platform/README.md`](platform/README.md) (matrix), [`platform/windows/AGENTS.md`](platform/windows/AGENTS.md), [`platform/macos/AGENTS.md`](platform/macos/AGENTS.md). Read the folder for every OS a `main.cjs` change touches.
 
 ## userData (`host-status.json`, SQLite, `settings.enc`)
 

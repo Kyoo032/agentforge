@@ -152,3 +152,29 @@ export function normalizeUpdateSnapshot(next: DesktopUpdateSnapshot, fallbackSta
     status: isUpdateStatus(next.status) ? next.status : fallbackStatus,
   };
 }
+
+export type UpdateBadge = "available" | "busy" | null;
+
+/** Dot on the rail icon: accent when something is downloadable/installable, pulsing while the updater works. */
+export function updateBadge(state: UpdateState): UpdateBadge {
+  switch (state.status) {
+    case "available":
+    case "ready":
+      return "available";
+    case "checking":
+    case "downloading":
+      return "busy";
+    default:
+      return null;
+  }
+}
+
+/** True when the primary action should download + restart instead of checking again. */
+export function isInstallAction(state: UpdateState): boolean {
+  return state.status === "available" || state.status === "ready" || state.status === "downloading";
+}
+
+/** Tooltip for the rail icon: the same line the panel shows, prefixed so the icon reads as "Updates". */
+export function updateButtonTitle(state: UpdateState, supported: boolean): string {
+  return `Updates: ${updateStatusLine(state, supported)}`;
+}

@@ -47,6 +47,8 @@ describe("ensureSchema", () => {
         "edit_jobs",
         "edit_cards",
         "edit_unplaced",
+        "artifacts",
+        "datasets",
       ]),
     );
     assertKernelTables(sqlite);
@@ -58,9 +60,7 @@ describe("ensureSchema", () => {
     ensureSchema(sqlite);
     ensureSchema(sqlite);
     sqlite
-      .prepare(
-        "INSERT INTO user (id, name, email, email_verified, created_at, updated_at) VALUES (?, ?, ?, 1, 1, 1)",
-      )
+      .prepare("INSERT INTO user (id, name, email, email_verified, created_at, updated_at) VALUES (?, ?, ?, 1, 1, 1)")
       .run("u1", "You", "local@agentforge.local");
     const count = sqlite.prepare("SELECT count(*) AS n FROM user").get() as { n: number };
     expect(count.n).toBe(1);
@@ -87,26 +87,18 @@ describe("ensureSchema", () => {
       }
     }
     sqlite
-      .prepare(
-        "INSERT INTO user (id, name, email, email_verified, created_at, updated_at) VALUES (?, ?, ?, 1, 1, 1)",
-      )
+      .prepare("INSERT INTO user (id, name, email, email_verified, created_at, updated_at) VALUES (?, ?, ?, 1, 1, 1)")
       .run("u-baseline", "Baseline", "baseline@agentforge.local");
 
     expect(() => ensureSchema(sqlite)).not.toThrow();
     const count = sqlite.prepare("SELECT count(*) AS n FROM user").get() as { n: number };
     expect(count.n).toBe(1);
-    const row = sqlite.prepare("SELECT id FROM user WHERE id = ?").get("u-baseline") as
-      | { id: string }
-      | undefined;
+    const row = sqlite.prepare("SELECT id FROM user WHERE id = ?").get("u-baseline") as { id: string } | undefined;
     expect(row?.id).toBe("u-baseline");
-    const journal = sqlite
-      .prepare("SELECT count(*) AS n FROM __drizzle_migrations")
-      .get() as { n: number };
+    const journal = sqlite.prepare("SELECT count(*) AS n FROM __drizzle_migrations").get() as { n: number };
     expect(journal.n).toBeGreaterThan(0);
     const cols = sqlite.prepare("PRAGMA table_info(workspaces)").all() as Array<{ name: string }>;
-    expect(cols.map((column) => column.name)).toEqual(
-      expect.arrayContaining(["id", "template_pack", "product_modes"]),
-    );
+    expect(cols.map((column) => column.name)).toEqual(expect.arrayContaining(["id", "template_pack", "product_modes"]));
     sqlite.close();
   });
 
@@ -170,18 +162,14 @@ describe("ensureSchema", () => {
       from: string;
       to: string;
     }>;
-    expect(
-      versionFks.some((fk) => fk.from === "organization_id" && fk.table === "organizations"),
-    ).toBe(true);
+    expect(versionFks.some((fk) => fk.from === "organization_id" && fk.table === "organizations")).toBe(true);
 
     const bindingFks = sqlite.pragma("foreign_key_list('agent_tool_bindings')") as Array<{
       table: string;
       from: string;
       to: string;
     }>;
-    expect(
-      bindingFks.some((fk) => fk.from === "organization_id" && fk.table === "organizations"),
-    ).toBe(true);
+    expect(bindingFks.some((fk) => fk.from === "organization_id" && fk.table === "organizations")).toBe(true);
     sqlite.close();
   });
 

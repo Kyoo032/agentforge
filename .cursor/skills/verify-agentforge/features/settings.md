@@ -8,7 +8,8 @@ Settings is where the owner pastes a Toko Token gateway key from api.tokotokenai
 - `settings-privacy` shows the retention / no-log note (`privacy-note`).
 - `settings-runtime` reports offline demo or live status on `runtime-status`.
 - `settings-usage-empty` shows `usage-this-key` asking to paste a gateway key when none is saved, plus `usage-open` → `/usage`. Full by-model chart and desk estimate live on Usage — see [usage.md](./usage.md).
-- `settings-updates` shows `app-updates` on Agentforge only (`app-updates-check`). Webdev: button disabled, copy says the installed app downloads GitHub releases. Packaged Agentforge: check / update-and-restart. Flavors hide the block.
+- `settings-endpoint` (0.14.21): **Endpoint URL** above the key. Default is the branded gateway; `settings-endpoint-reset` appears only when the value differs and restores it. Save posts `openaiBaseUrl`; remote `http://` is rejected with `invalid_endpoint`, loopback `http://127.0.0.1` is allowed.
+- `settings-updates` moved to the rail in 0.14.21: `app-updates-toggle` in `rail-footer` opens `app-updates-panel` (`app-updates-status`, `app-updates-check` / `app-updates-install`, `app-updates-close`). Agentforge only. Webdev: check button disabled, copy says the installed app downloads GitHub releases. Packaged Agentforge: check / update-and-restart. Flavors render no icon.
 
 ## How to get to it (user POV)
 

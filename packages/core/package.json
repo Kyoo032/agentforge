@@ -17,7 +17,11 @@
     "./content": "./src/content/transcript.ts",
     "./reasoning-effort": "./src/models/reasoning-effort.ts",
     "./stream-watchdog": "./src/runtime/stream-watchdog.ts",
-    "./retry": "./src/runtime/retry.ts"
+    "./retry": "./src/runtime/retry.ts",
+    "./tabular": "./src/tabular/index.ts",
+    "./artifacts": "./src/artifacts/index.ts",
+    "./jobs": "./src/jobs/index.ts",
+    "./finance": "./src/finance/index.ts"
   },
   "scripts": {
     "test": "vitest run",
@@ -28,6 +32,7 @@
     "@ai-sdk/google": "^1.2.18",
     "@ai-sdk/openai": "^1.3.22",
     "ai": "^4.3.16",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zod": "^3.24.2"
   },
   "devDependencies": {

@@ -6,13 +6,16 @@ export type MdInline =
   | { type: "link"; href: string; children: MdInline[] }
   | { type: "image"; src: string; alt: string };
 
+export type MdTableAlign = "left" | "center" | "right" | null;
+
 export type MdBlock =
   | { type: "p"; children: MdInline[] }
   | { type: "h"; level: 1 | 2 | 3; children: MdInline[] }
   | { type: "ul"; items: MdInline[][] }
   | { type: "ol"; items: MdInline[][] }
   | { type: "pre"; value: string }
-  | { type: "quote"; children: MdInline[] };
+  | { type: "quote"; children: MdInline[] }
+  | { type: "table"; header: MdInline[][]; align: MdTableAlign[]; rows: MdInline[][][] };
 
 const UL = /^\s{0,3}[-*+]\s+(.*)$/;
 const OL = /^\s{0,3}\d+\.\s+(.*)$/;
@@ -20,6 +23,18 @@ const HEADING = /^\s{0,3}(#{1,3})\s+(.+)$/;
 const QUOTE = /^\s{0,3}>\s?(.*)$/;
 const FENCE = /^\s{0,3}```/;
 const AUTOLINK = /^(https?:\/\/[^\s<>[\]()]+)/i;
+const TABLE_DELIM = /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/;
+const TRAILING_PIPE = /(^|[^\\])\|$/;
+
+/** A GFM table starts on a line containing `|` whose next line is a delimiter row of the same width. */
+const TABLE_START = (lines: readonly string[], index: number): boolean => {
+  const line = lines[index] ?? "";
+  const next = lines[index + 1] ?? "";
+  if (!line.includes("|") || !TABLE_DELIM.test(next)) {
+    return false;
+  }
+  return splitTableCells(line).length === splitTableCells(next).length;
+};
 
 export function safeHref(href: string): string | null {
   const trimmed = href.trim();
@@ -241,11 +256,28 @@ export function parseMarkdown(text: string): MdBlock[] {
       continue;
     }
 
+    if (TABLE_START(lines, i)) {
+      const table = parseTable(lines, i);
+      blocks.push(table.block);
+      i = table.end;
+      continue;
+    }
+
     const para: string[] = [line];
     i += 1;
     while (i < lines.length) {
       const next = lines[i] ?? "";
-      if (!next.trim() || UL.test(next) || OL.test(next) || HEADING.test(next) || FENCE.test(next) || QUOTE.test(next)) {
+      if (
+        !next.trim() ||
+        UL.test(next) ||
+        OL.test(next) ||
+        HEADING.test(next) ||
+        FENCE.test(next) ||
+        QUOTE.test(next)
+      ) {
+        break;
+      }
+      if (TABLE_START(lines, i)) {
         break;
       }
       para.push(next);
@@ -257,11 +289,71 @@ export function parseMarkdown(text: string): MdBlock[] {
   return blocks;
 }
 
+function parseTable(lines: readonly string[], start: number): { block: MdBlock; end: number } {
+  const header = splitTableCells(lines[start] ?? "").map(parseInline);
+  const width = header.length;
+  const align = fitRow(splitTableCells(lines[start + 1] ?? ""), width).map(parseAlign);
+  const rows: MdInline[][][] = [];
+  let i = start + 2;
+  while (i < lines.length) {
+    const line = lines[i] ?? "";
+    if (!line.trim() || !line.includes("|")) {
+      break;
+    }
+    rows.push(fitRow(splitTableCells(line), width).map(parseInline));
+    i += 1;
+  }
+  return { block: { type: "table", header, align, rows }, end: i };
+}
+
+/** Split a table row on unescaped `|`, honouring `\|` as a literal pipe, and drop the outer-pipe empties. */
+function splitTableCells(line: string): string[] {
+  const cells: string[] = [];
+  let current = "";
+  let i = 0;
+  while (i < line.length) {
+    const ch = line[i] ?? "";
+    if (ch === "\\" && line[i + 1] === "|") {
+      current += "|";
+      i += 2;
+      continue;
+    }
+    if (ch === "|") {
+      cells.push(current.trim());
+      current = "";
+    } else {
+      current += ch;
+    }
+    i += 1;
+  }
+  cells.push(current.trim());
+  return stripOuterCells(cells, line.trim());
+}
+
+function stripOuterCells(cells: readonly string[], trimmedLine: string): string[] {
+  const start = trimmedLine.startsWith("|") ? 1 : 0;
+  const end = TRAILING_PIPE.test(trimmedLine) && cells.length > start ? cells.length - 1 : cells.length;
+  return cells.slice(start, end);
+}
+
+function fitRow(cells: readonly string[], width: number): string[] {
+  return Array.from({ length: width }, (_, index) => cells[index] ?? "");
+}
+
+function parseAlign(cell: string): MdTableAlign {
+  const left = cell.startsWith(":");
+  const right = cell.endsWith(":");
+  if (left && right) {
+    return "center";
+  }
+  if (left) {
+    return "left";
+  }
+  return right ? "right" : null;
+}
+
 export function markdownPlainText(text: string): string {
-  return flatten(parseMarkdown(text))
-    .join(" ")
-    .replace(/\s+/g, " ")
-    .trim();
+  return flatten(parseMarkdown(text)).join(" ").replace(/\s+/g, " ").trim();
 }
 
 function flatten(blocks: MdBlock[]): string[] {
@@ -271,6 +363,9 @@ function flatten(blocks: MdBlock[]): string[] {
     }
     if (block.type === "ul" || block.type === "ol") {
       return block.items.map((item) => inlineText(item));
+    }
+    if (block.type === "table") {
+      return [block.header, ...block.rows].map((row) => row.map(inlineText).join(" "));
     }
     return [inlineText(block.children)];
   });

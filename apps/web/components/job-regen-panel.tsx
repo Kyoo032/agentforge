@@ -20,7 +20,7 @@ type HeldFile = {
 };
 
 type Props = {
-  testIdPrefix: "documents" | "presentations";
+  testIdPrefix: "documents" | "presentations" | "finance";
   models: JobStudioModel[];
   defaultModel: string;
   submitting?: boolean;

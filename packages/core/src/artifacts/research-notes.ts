@@ -17,7 +17,13 @@ export const researchNotesSchema = z.object({
   notes: z.array(researchNoteSchema).min(1),
 });
 
+export type ResearchSource = z.infer<typeof researchSourceSchema>;
+export type ResearchNote = z.infer<typeof researchNoteSchema>;
 export type ResearchNotes = z.infer<typeof researchNotesSchema>;
+
+function sourceLine(source: ResearchSource): string {
+  return `- ${source.title || source.url}${source.url ? ` (${source.url})` : ""}`;
+}
 
 export function researchNotesToMarkdown(notes: ResearchNotes): string {
   const lines = [`# ${notes.title}`, "", notes.summary, ""];
@@ -25,12 +31,8 @@ export function researchNotesToMarkdown(notes: ResearchNotes): string {
     lines.push(`## ${note.heading}`, "", note.body, "");
     const sources = note.sources.filter((source) => source.url || source.title);
     if (sources.length > 0) {
-      lines.push("Sources:");
-      for (const source of sources) {
-        lines.push(`- ${source.title || source.url}${source.url ? ` (${source.url})` : ""}`);
-      }
-      lines.push("");
+      lines.push("Sources:", ...sources.map(sourceLine), "");
     }
   }
-  return lines.join("\n").trim() + "\n";
+  return `${lines.join("\n").trim()}\n`;
 }

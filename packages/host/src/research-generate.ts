@@ -1,42 +1,35 @@
 import {
   ApiError,
   buildToolSecretScope,
-  createRuntime,
+  fetchPageText,
   hasLiveProvider,
   listToolRoutes,
   maskPii,
   resolveChatModel,
   resolveRuntimeMode,
   runWithToolSecrets,
+  scanInjection,
   webSearchTool,
-  type AgentVersionRecord,
   type TenantContext,
 } from "@agentforge/core";
+import { dossierToMarkdown, type Dossier, type ResearchNotes } from "@agentforge/core/artifacts";
+import type { JobEmitter } from "@agentforge/core/jobs";
 import { loadSettings } from "./settings-store";
 import { listSelectableModels, modeCatalogPayload } from "./selectable-models";
 import { ensureToolsRegistered } from "./register-tools";
-import { parseResearchNotes, type ResearchNotes } from "./research-parse";
-import { rememberJobUsage } from "./job-usage";
+import { artifactStore } from "./artifacts";
+import { collectJobAssistantText } from "./job-regen";
+import { throwIfJobAborted } from "./job-stream";
+import { RESEARCH_CAPS, runResearchDossier, type SearchHit } from "./research-dossier";
 
-const RESEARCH_SYSTEM = `You write sourced research a skeptic can use — not a listicle.
-You are given a question and web search hits. Return ONLY valid JSON (no markdown fences) with this shape:
-{
-  "title": string,
-  "summary": string,
-  "notes": [
-    { "heading": string, "body": string, "sources": [{ "title": string, "url": string }] }
-  ]
-}
-Rules:
-- Honor the user's requested structure (landscape, claim check, matrix, diligence). Default 5–8 notes.
-- Summary is the argument (8–12 lines) plus confidence (high/med/low). If hits are thin, say so and do not pad.
-- Each note is one claim or cluster: evidence, disagreement or gap, and what it implies. Not a heading plus one sentence.
-- Only cite URLs that appear in the search hits. If a fact is unpublished, write "not published".
-- Do not invent cases, statutes, quotations, funding rounds, user counts, or SLAs.
-- No "the market is rapidly evolving" or "more research is needed" without naming the next measurement.
-- No campus / student / course nouns unless the question itself requires them.`;
+/** Notes (existing preview shape) plus the saved dossier. `artifactId` mirrors `dossierId` for older callers. */
+export type ResearchResult = ResearchNotes & {
+  artifactId: string | null;
+  dossierId: string | null;
+  dossier: { title: string; markdown: string };
+};
 
-type SearchHit = { title?: string; url?: string; description?: string; position?: number };
+const NO_EMIT: JobEmitter = () => {};
 
 function readPrompt(body: unknown): string {
   if (!body || typeof body !== "object") {
@@ -69,61 +62,11 @@ function hitsFromSearch(output: unknown): SearchHit[] {
   return Array.isArray(record.data?.web) ? record.data.web : [];
 }
 
-async function collectAssistantText(
-  tenant: TenantContext,
-  model: string,
-  prompt: string,
-): Promise<string> {
-  const settings = loadSettings();
-  const runtime = createRuntime(settings);
-  const version: AgentVersionRecord = {
-    id: "research-notes",
-    agentId: "research",
-    organizationId: tenant.organizationId,
-    version: 1,
-    systemPrompt: RESEARCH_SYSTEM,
-    model,
-    inputModalities: ["text"],
-    config: {},
-    createdAt: new Date(),
-  };
-
-  let assistantText = "";
-  let failedMessage = "";
-
-  await runtime.execute({
-    tenant,
-    runId: `research-${Date.now()}`,
-    modality: "text",
-    version,
-    bindings: [],
-    history: [{ role: "user", parts: [{ type: "text", text: prompt }] }],
-    onEvent: (event) => {
-      if (event.type === "assistant.delta") {
-        assistantText += event.text;
-      }
-      if (event.type === "run.failed") {
-        failedMessage = event.message;
-      }
-      rememberJobUsage(event);
-    },
-  });
-
-  if (failedMessage) {
-    throw new ApiError("generation_failed", failedMessage, 502);
-  }
-  return assistantText;
-}
-
-export async function generateResearchNotes(tenant: TenantContext, body: unknown): Promise<ResearchNotes> {
-  ensureToolsRegistered();
-  const prompt = readPrompt(body);
-  const settings = loadSettings();
+function requireLiveResearch(settings: ReturnType<typeof loadSettings>): void {
   const mode = resolveRuntimeMode({
     settingsHasKey: hasLiveProvider(settings),
     envRuntime: process.env.AGENTFORGE_RUNTIME,
   });
-
   if (mode === "stub") {
     throw new ApiError(
       "runtime_stub",
@@ -131,32 +74,88 @@ export async function generateResearchNotes(tenant: TenantContext, body: unknown
       503,
     );
   }
-
-  const routes = listToolRoutes(settings);
-  if (!routes.web?.ready) {
+  if (!listToolRoutes(settings).web?.ready) {
     throw new ApiError(
       "tool_failed",
       "Research needs a Tavily or Brave Search API key. Add it in Settings, then try again.",
       503,
     );
   }
+}
 
-  const scope = buildToolSecretScope(settings);
-  const searchOutput = await runWithToolSecrets(scope, () =>
-    webSearchTool.execute({ query: maskPii(prompt) }, tenant),
-  );
-  const hits = hitsFromSearch(searchOutput);
+function persistDossier(tenant: TenantContext, dossier: Dossier, markdown: string, model: string): string | null {
+  try {
+    return artifactStore().create(tenant, {
+      mode: "research",
+      kind: "dossier",
+      title: dossier.title,
+      mime: "text/markdown",
+      body: markdown,
+      meta: {
+        question: dossier.question,
+        queries: dossier.queries,
+        sourceCount: dossier.sources.length,
+        model,
+        models: dossier.models,
+      },
+    }).id;
+  } catch (error) {
+    // Persistence must never fail the job; the notes are still returned. Log the code only, never the body.
+    const code = error instanceof ApiError ? error.code : "internal_error";
+    console.warn(`research: could not save dossier (${code})`);
+    return null;
+  }
+}
+
+export async function generateResearchNotes(
+  tenant: TenantContext,
+  body: unknown,
+  emit: JobEmitter = NO_EMIT,
+  abortSignal?: AbortSignal,
+): Promise<ResearchResult> {
+  ensureToolsRegistered();
+  const question = readPrompt(body);
+  const settings = loadSettings();
+  requireLiveResearch(settings);
   const catalog = listSelectableModels();
   const { defaults } = modeCatalogPayload();
-  const model = resolveChatModel(
-    readOptionalModel(body),
-    settings.researchGenModel || defaults.research,
-    catalog,
+  const model = resolveChatModel(readOptionalModel(body), settings.researchGenModel || defaults.research, catalog);
+  const scope = buildToolSecretScope(settings);
+  const guardBypass = settings.injectionGuardBypass === true;
+
+  const { dossier, notes } = await runResearchDossier(
+    { question, models: [model] },
+    {
+      emit,
+      abortSignal,
+      caps: RESEARCH_CAPS,
+      ask: (system, prompt) =>
+        collectJobAssistantText({
+          tenant,
+          model,
+          systemPrompt: system,
+          runPrefix: "research",
+          agentId: "research",
+          versionId: "research-dossier",
+          prompt,
+        }),
+      search: async (query) =>
+        hitsFromSearch(await runWithToolSecrets(scope, () => webSearchTool.execute({ query: maskPii(query) }, tenant))),
+      readPage: async (url) => {
+        const page = await fetchPageText(url, { maxChars: RESEARCH_CAPS.pageChars, signal: abortSignal });
+        const hit = guardBypass ? null : scanInjection(page.text);
+        if (hit) {
+          throw new ApiError("injection_blocked", `blocked by injection guard (rule: ${hit.rule})`, 400);
+        }
+        return page;
+      },
+    },
   );
-  const userPrompt = `Question:\n${prompt}\n\nSearch hits:\n${JSON.stringify(hits, null, 2)}`;
-  const raw = await collectAssistantText(tenant, model, userPrompt);
-  if (!raw.trim()) {
-    throw new ApiError("generation_failed", "Model returned empty research notes", 502);
-  }
-  return parseResearchNotes(raw);
+
+  // A cancelled run is not saved: the user asked for it to stop.
+  throwIfJobAborted(abortSignal);
+  emit({ type: "job.phase", phase: "saving", label: "Saving dossier" });
+  const markdown = dossierToMarkdown(dossier);
+  const dossierId = persistDossier(tenant, dossier, markdown, model);
+  return { ...notes, artifactId: dossierId, dossierId, dossier: { title: dossier.title, markdown } };
 }

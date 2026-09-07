@@ -8,12 +8,12 @@ Electron is the installed local app. Packaged builds have **no HTTP server**. Th
   - Windows: `%APPDATA%\Agentforge\host-status.json`
   - Linux: `$XDG_CONFIG_HOME/Agentforge/host-status.json` or `~/.config/Agentforge/host-status.json`
   - macOS: `~/Library/Application Support/Agentforge/host-status.json`
-- `desktop-onboarding` (packaged, no saved key): endpoint URL locked to Toko Token, API key field, optional “Use offline demo”. Skipped once a key exists. Webdev/Playwright is **not** gated.
+- `desktop-onboarding` (packaged, no saved key): endpoint URL shown read-only (Toko Token; editable later in Settings), API key field accepts Ctrl+V **and** right-click → Paste (0.14.21 fix: Electron Edit menu + context menu in `edit-menu.cjs`), optional “Use offline demo”. Skipped once a key exists. Webdev/Playwright is **not** gated.
 - `desktop-splash` shows the splash page until the host is ready, then loads the renderer (`loadFile`, not a loopback URL).
 - `desktop-chat` loads Chat in the window (not in Chrome on :3000).
 - `desktop-dev` (`pnpm desktop:dev`) is the **local webdev in a window**. It waits for `GET /api/v1/ping` on :3000 and does **not** attach preload. That is not packaged proof.
 - `desktop-quit` exits `Agentforge.exe` (whole process tree) on window close. No tray, no hidden window. Threads and the saved key stay. Uninstall wipes userData + Credential Manager wrap key. Upgrade (same `appId`) kills the running app, overwrites Program Files / per-user install, and **keeps** `%APPDATA%\Agentforge`.
-- `desktop-updates` (packaged Agentforge only): Settings `app-updates` checks GitHub Releases in the public `Kyoo032/DPS-Agent-Platform` repo (source stays private). **Update and restart** downloads `latest.yml` + the hyphenated Setup exe and relaunches. Flavors have no button. Webdev shows the strip disabled. An unreachable feed or a release without `latest.yml` is an error state: a short message is shown on `app-updates-status`.
+- `desktop-updates` (packaged Agentforge only): the rail footer icon `app-updates-toggle` (between the theme toggle and `rail-collapse`; dot `app-updates-badge` when a version is downloadable) opens `app-updates-panel`, which checks GitHub Releases in the public `Kyoo032/DPS-Agent-Platform` repo (source stays private). **Update and restart** downloads `latest.yml` + the hyphenated Setup exe and relaunches. Flavors have no button. Webdev shows the strip disabled. An unreachable feed or a release without `latest.yml` is an error state: a short message is shown on `app-updates-status`.
 - No mobile Electron/Capacitor/RN target. See [mobile.md](./mobile.md).
 
 ## How to get to it (user POV)

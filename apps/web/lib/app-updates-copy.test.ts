@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  isInstallAction,
   normalizeUpdateSnapshot,
   shortUpdateMessage,
+  SUPPORTED_IDLE_STATUS_LINE,
+  UNSUPPORTED_STATUS_LINE,
   type UpdateState,
+  updateBadge,
+  updateButtonTitle,
   updateStatusLine,
   updateVersionLine,
 } from "./app-updates-copy";
@@ -164,5 +169,43 @@ describe("normalizeUpdateSnapshot", () => {
       typeof normalizeUpdateSnapshot
     >[0];
     expect(normalizeUpdateSnapshot(loose, "idle")).toEqual({ supported: false, status: "current" });
+  });
+});
+
+describe("updateBadge", () => {
+  it("shows the accent dot only when something can be installed", () => {
+    expect(updateBadge(state({ status: "available", version: "0.14.21" }))).toBe("available");
+    expect(updateBadge(state({ status: "ready", version: "0.14.21" }))).toBe("available");
+  });
+
+  it("pulses while checking or downloading", () => {
+    expect(updateBadge(state({ status: "checking" }))).toBe("busy");
+    expect(updateBadge(state({ status: "downloading", percent: 40 }))).toBe("busy");
+  });
+
+  it("stays quiet for idle, current, error, and unavailable", () => {
+    for (const status of ["idle", "current", "error", "unavailable"] as const) {
+      expect(updateBadge(state({ status }))).toBeNull();
+    }
+  });
+});
+
+describe("isInstallAction", () => {
+  it("switches the primary action to install once a version is downloadable", () => {
+    expect(isInstallAction(state({ status: "available" }))).toBe(true);
+    expect(isInstallAction(state({ status: "ready" }))).toBe(true);
+    expect(isInstallAction(state({ status: "downloading" }))).toBe(true);
+    expect(isInstallAction(state({ status: "idle" }))).toBe(false);
+    expect(isInstallAction(state({ status: "error" }))).toBe(false);
+  });
+});
+
+describe("updateButtonTitle", () => {
+  it("prefixes the status line so the icon reads as Updates", () => {
+    expect(updateButtonTitle(state({ status: "idle" }), true)).toBe(`Updates: ${SUPPORTED_IDLE_STATUS_LINE}`);
+    expect(updateButtonTitle(state({ status: "idle" }), false)).toBe(`Updates: ${UNSUPPORTED_STATUS_LINE}`);
+    expect(updateButtonTitle(state({ status: "available", version: "0.14.21" }), true)).toBe(
+      "Updates: Version 0.14.21 is ready to download.",
+    );
   });
 });

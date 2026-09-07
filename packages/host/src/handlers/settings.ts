@@ -55,7 +55,10 @@ function readOptionalNumber(value: unknown): number | undefined {
   return undefined;
 }
 
-async function settingsPayload(settings: ReturnType<typeof loadSettings>, tenant: Awaited<ReturnType<typeof getTenant>>) {
+async function settingsPayload(
+  settings: ReturnType<typeof loadSettings>,
+  tenant: Awaited<ReturnType<typeof getTenant>>,
+) {
   return {
     ...maskSecrets(settings),
     productName: resolvedProductName(),
@@ -100,6 +103,7 @@ export async function handlePostSettings(request: HostRequest): Promise<HostResu
       googleApiKey: typeof body.googleApiKey === "string" ? body.googleApiKey : undefined,
       anthropicApiKey: typeof body.anthropicApiKey === "string" ? body.anthropicApiKey : undefined,
       volcengineApiKey: typeof body.volcengineApiKey === "string" ? body.volcengineApiKey : undefined,
+      openaiBaseUrl: readOptionalString(body.openaiBaseUrl),
       toolKeys: readStringMap(body.toolKeys),
       toolBackends: readStringMap(body.toolBackends),
       imageGenModel: readOptionalString(body.imageGenModel),

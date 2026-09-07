@@ -43,6 +43,20 @@
       "when": 1788714366602,
       "tag": "0005_overconfident_bromley",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1788800000000,
+      "tag": "0006_artifacts",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1788810000000,
+      "tag": "0007_datasets",
+      "breakpoints": true
     }
   ]
 }

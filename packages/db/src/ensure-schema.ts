@@ -75,9 +75,7 @@ export function migrationsFolder(): string {
   if (existsSync(relative)) {
     return relative;
   }
-  throw new Error(
-    `Agentforge migrations folder not found. Tried:\n${tried.map((p) => `  - ${p}`).join("\n")}`,
-  );
+  throw new Error(`Agentforge migrations folder not found. Tried:\n${tried.map((p) => `  - ${p}`).join("\n")}`);
 }
 
 function readMigrations(folder: string): Migration[] {
@@ -117,9 +115,7 @@ function ensureMigrationsTable(sqlite: Database.Database): void {
 
 function lastAppliedCreatedAt(sqlite: Database.Database): number | undefined {
   const row = sqlite
-    .prepare(
-      `SELECT id, hash, created_at FROM \`${MIGRATIONS_TABLE}\` ORDER BY created_at DESC LIMIT 1`,
-    )
+    .prepare(`SELECT id, hash, created_at FROM \`${MIGRATIONS_TABLE}\` ORDER BY created_at DESC LIMIT 1`)
     .get() as { id: number; hash: string; created_at: number | string } | undefined;
   if (!row) {
     return undefined;
@@ -129,9 +125,7 @@ function lastAppliedCreatedAt(sqlite: Database.Database): number | undefined {
 
 function migrationRowCount(sqlite: Database.Database): number {
   const table = sqlite
-    .prepare(
-      `SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`,
-    )
+    .prepare(`SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`)
     .get(MIGRATIONS_TABLE) as { ok: number } | undefined;
   if (!table) {
     return 0;
@@ -151,9 +145,7 @@ function countKernelTables(sqlite: Database.Database): { present: string[]; miss
 
 function stampMigrations(sqlite: Database.Database, migrations: Migration[]): void {
   ensureMigrationsTable(sqlite);
-  const insert = sqlite.prepare(
-    `INSERT INTO \`${MIGRATIONS_TABLE}\` ("hash", "created_at") VALUES(?, ?)`,
-  );
+  const insert = sqlite.prepare(`INSERT INTO \`${MIGRATIONS_TABLE}\` ("hash", "created_at") VALUES(?, ?)`);
   for (const migration of migrations) {
     insert.run(migration.hash, migration.folderMillis);
   }
@@ -165,9 +157,7 @@ function applyPendingMigrations(
   lastCreatedAt: number | undefined,
 ): void {
   ensureMigrationsTable(sqlite);
-  const insert = sqlite.prepare(
-    `INSERT INTO \`${MIGRATIONS_TABLE}\` ("hash", "created_at") VALUES(?, ?)`,
-  );
+  const insert = sqlite.prepare(`INSERT INTO \`${MIGRATIONS_TABLE}\` ("hash", "created_at") VALUES(?, ?)`);
   const run = sqlite.transaction(() => {
     for (const migration of migrations) {
       if (lastCreatedAt !== undefined && !(lastCreatedAt < migration.folderMillis)) {
@@ -234,8 +224,49 @@ export function ensureSchema(sqlite: Database.Database): void {
   sqlite.pragma("foreign_keys = ON");
   ensureKnowledgeTables(sqlite);
   ensureEditTables(sqlite);
+  ensureArtifactTables(sqlite);
+  ensureDatasetTables(sqlite);
   ensureWorkspaceColumns(sqlite);
   assertKernelTables(sqlite);
+}
+
+/** Uploaded tables for analyst modes. Mirrors drizzle/0007_datasets.sql for DBs stamped before it existed. */
+function ensureDatasetTables(sqlite: Database.Database): void {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS datasets (
+      id text PRIMARY KEY NOT NULL,
+      workspace_id text NOT NULL,
+      name text NOT NULL,
+      filename text NOT NULL,
+      rows integer NOT NULL,
+      cols integer NOT NULL,
+      columns text NOT NULL,
+      storage_path text NOT NULL,
+      size_bytes integer DEFAULT 0 NOT NULL,
+      created_at integer NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS datasets_ws_idx ON datasets (workspace_id, created_at);
+  `);
+}
+
+/** Kernel-neutral job outputs. Mirrors drizzle/0006_artifacts.sql for DBs stamped before it existed. */
+function ensureArtifactTables(sqlite: Database.Database): void {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS artifacts (
+      id text PRIMARY KEY NOT NULL,
+      workspace_id text NOT NULL,
+      mode text NOT NULL,
+      kind text NOT NULL,
+      title text NOT NULL,
+      mime text NOT NULL,
+      body text NOT NULL,
+      meta text NOT NULL,
+      size_bytes integer DEFAULT 0 NOT NULL,
+      created_at integer NOT NULL,
+      updated_at integer NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS artifacts_ws_mode_idx ON artifacts (workspace_id, mode, created_at);
+  `);
 }
 
 function ensureWorkspaceColumns(sqlite: Database.Database): void {

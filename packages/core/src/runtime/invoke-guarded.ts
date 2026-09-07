@@ -14,6 +14,9 @@ function disabledOutput(toolKey: string): { success: false; error: string } {
  * One choke for live + stub tool calls: disabled-tools, injection scan, execute, thin.
  * Full output is reported to the ALS sink; the return value is thinned for the model.
  */
+/** Tools whose output is attacker-reachable text: scanned for injection before the model sees it. */
+const NETWORK_SOURCED_TOOLS = new Set(["web_search", "web_fetch"]);
+
 export async function invokeToolGuarded(
   tool: ToolDefinition<ZodTypeAny>,
   rawArgs: unknown,
@@ -37,7 +40,7 @@ export async function invokeToolGuarded(
   const full = await invokeTool(tool, rawArgs, tenant);
   let thin = thinToolOutput(tool.key, full);
 
-  if (!getInjectionGuardBypass() && tool.key === "web_search") {
+  if (!getInjectionGuardBypass() && NETWORK_SOURCED_TOOLS.has(tool.key)) {
     const searchHit = scanJson(thin);
     if (searchHit) {
       thin = blockedInjectionOutput(searchHit);

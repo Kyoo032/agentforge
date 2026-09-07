@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { DEFAULT_GATEWAY_IMAGE_MODEL, DEFAULT_GATEWAY_VIDEO_MODEL } from "@agentforge/core/media-kind";
-import { AppUpdates } from "./app-updates";
 import { UsagePanel, type AccountUsage } from "./usage-panel";
 import { apiFetch } from "@/lib/api-client";
 import { gatewayHostLabel, useProductBrand } from "@/lib/product-brand";
@@ -20,6 +19,11 @@ type Probe = {
 };
 
 const fieldClass = "mt-1 w-full rounded-md border border-mist bg-paper px-3 py-2 text-ink";
+
+function isCustomEndpoint(value: string, gatewayBaseUrl: string): boolean {
+  const trimmed = value.trim().replace(/\/+$/, "").toLowerCase();
+  return trimmed.length > 0 && trimmed !== gatewayBaseUrl.replace(/\/+$/, "").toLowerCase();
+}
 
 function runtimeStatusLabel(mode: "ai" | "stub"): string {
   return mode === "ai" ? "Live" : "Offline demo";
@@ -160,6 +164,7 @@ export function SettingsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         openaiApiKey,
+        openaiBaseUrl,
         editTurnCapUsd,
       }),
     }).then((res) => res.json());
@@ -203,6 +208,33 @@ export function SettingsPage() {
           <div>
             <h2 className="font-medium text-ink">{gatewayName} gateway</h2>
             <p className="mt-1 text-xs text-ink/50">Paste your gateway API key. It never comes back after save.</p>
+          </div>
+          <label className="block text-sm text-ink">
+            Endpoint URL
+            <input
+              className={fieldClass}
+              type="text"
+              inputMode="url"
+              autoComplete="off"
+              spellCheck={false}
+              placeholder={gatewayBaseUrl}
+              value={openaiBaseUrl}
+              onChange={(event) => setOpenaiBaseUrl(event.target.value)}
+              data-testid="settings-endpoint"
+            />
+          </label>
+          <div className="-mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink/50">
+            <span>HTTPS only. Plain http:// works for a local model server on 127.0.0.1.</span>
+            {isCustomEndpoint(openaiBaseUrl, gatewayBaseUrl) ? (
+              <button
+                type="button"
+                className="underline underline-offset-2 hover:text-ink"
+                onClick={() => setOpenaiBaseUrl(gatewayBaseUrl)}
+                data-testid="settings-endpoint-reset"
+              >
+                Use {gatewayName} ({gatewayHostLabel(gatewayBaseUrl)})
+              </button>
+            ) : null}
           </div>
           <label className="block text-sm text-ink">
             Gateway API key
@@ -260,9 +292,6 @@ export function SettingsPage() {
           threads are encrypted on disk. {gatewayName} retention is the gateway&apos;s policy.
         </p>
       </form>
-      <div className="mt-6">
-        <AppUpdates />
-      </div>
     </main>
   );
 }
