@@ -1,7 +1,7 @@
 import { DEFAULT_CAPTION_STYLE, formatTimecode, layoutTitle, type Clip, type EditProject, type TitleStyle } from "@agentforge/core/edit";
 import { mediaSrc } from "@/lib/api-client";
 import { timelineEndFrame } from "@/lib/edit-client";
-import { useEffect, useMemo, useRef, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
 type Props = {
   project: EditProject | null;
@@ -94,10 +94,38 @@ export function EditPreview({ project, playhead, playing, onPlayhead, onPlaying,
   }, [project, active]);
   const primaryRef = useRef<HTMLVideoElement>(null);
   const bufferRef = useRef<HTMLVideoElement>(null);
-  const stageRef = useRef<HTMLDivElement>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
+  const [fit, setFit] = useState({ w: 0, h: 0 });
   const url = project ? assetUrl(project, active) : null;
   const nextUrl = project ? assetUrl(project, nextClip) : null;
-  const aspect = `${width} / ${height}`;
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) {
+      return;
+    }
+    const measure = (cw: number, ch: number) => {
+      if (cw <= 0 || ch <= 0 || width <= 0 || height <= 0) {
+        return;
+      }
+      let nextW = cw;
+      let nextH = Math.round((nextW * height) / width);
+      if (nextH > ch) {
+        nextH = ch;
+        nextW = Math.round((nextH * width) / height);
+      }
+      setFit((prev) => (prev.w === nextW && prev.h === nextH ? prev : { w: nextW, h: nextH }));
+    };
+    measure(frame.clientWidth, frame.clientHeight);
+    const observer = new ResizeObserver((entries) => {
+      const box = entries[0]?.contentRect;
+      if (box) {
+        measure(box.width, box.height);
+      }
+    });
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, [height, width]);
 
   useEffect(() => {
     const video = primaryRef.current;
@@ -149,8 +177,7 @@ export function EditPreview({ project, playhead, playing, onPlayhead, onPlaying,
     return () => cancelAnimationFrame(raf);
   }, [end, fps, onPlayhead, onPlaying, onScrubBucket, playing]);
 
-  const stageWidth = stageRef.current?.clientWidth ?? 640;
-  const scale = stageWidth / width;
+  const scale = fit.w > 0 ? fit.w / width : 0;
   const titleClip = project ? clipAtPlayhead(project, playhead, "video") : undefined;
   const captionClip = project
     ? project.clips.find(
@@ -175,12 +202,17 @@ export function EditPreview({ project, playhead, playing, onPlayhead, onPlaying,
   }
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col bg-[color-mix(in_srgb,var(--color-text)_4%,transparent)]" data-testid="edit-preview">
-      <div className="flex min-h-0 flex-1 items-center justify-center p-3">
+    <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[color-mix(in_srgb,var(--color-text)_4%,transparent)]" data-testid="edit-preview">
+      <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden p-3">
+        <div ref={frameRef} className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden">
         <div
-          ref={stageRef}
-          className="relative max-h-full w-full overflow-hidden bg-black"
-          style={{ aspectRatio: aspect, maxWidth: "100%" }}
+          className="relative shrink-0 overflow-hidden bg-black"
+          style={{
+            width: fit.w > 0 ? fit.w : "100%",
+            maxWidth: "100%",
+            maxHeight: "100%",
+            aspectRatio: `${width} / ${height}`,
+          }}
         >
           <video
             ref={primaryRef}
@@ -211,23 +243,24 @@ export function EditPreview({ project, playhead, playing, onPlayhead, onPlaying,
             </div>
           ) : null}
         </div>
+        </div>
       </div>
-      <div className="flex shrink-0 items-center gap-2 border-t border-divider px-3 py-2">
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-divider px-3 py-2">
         <button
           type="button"
-          className="btn btn-secondary px-3 py-1 text-sm"
+          className="btn btn-secondary shrink-0 px-3 py-1 text-sm"
           data-testid="edit-play"
           onClick={() => onPlaying(!playing)}
         >
           {playing ? "Pause" : "Play"}
         </button>
-        <button type="button" className="btn btn-ghost px-2 py-1 text-xs" onClick={() => step(-1)} aria-label="Previous frame">
+        <button type="button" className="btn btn-ghost shrink-0 px-2 py-1 text-xs" onClick={() => step(-1)} aria-label="Previous frame">
           {"<"}
         </button>
-        <button type="button" className="btn btn-ghost px-2 py-1 text-xs" onClick={() => step(1)} aria-label="Next frame">
+        <button type="button" className="btn btn-ghost shrink-0 px-2 py-1 text-xs" onClick={() => step(1)} aria-label="Next frame">
           {">"}
         </button>
-        <span className="font-mono text-xs text-ink/70" data-testid="edit-time">
+        <span className="shrink-0 font-mono text-xs text-ink/70" data-testid="edit-time">
           {formatTimecode(playhead, fps)} / {formatTimecode(end, fps)}
         </span>
         <input

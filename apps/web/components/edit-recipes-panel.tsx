@@ -8,7 +8,7 @@ type Props = {
 
 export function EditRecipesPanel({ onRun }: Props) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2 p-2 text-sm">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-y-auto p-3 text-sm">
       <p className="text-xs text-ink/50">Each step becomes its own card after Go.</p>
       <ul className="space-y-1">
         {RECIPES.map((recipe) => (

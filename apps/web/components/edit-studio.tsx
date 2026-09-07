@@ -562,7 +562,7 @@ export function EditStudio() {
   const spent = turnSpendUsd(cards, jobs);
 
   return (
-    <main className="flex h-full min-h-0 flex-col bg-app text-ink" data-testid="edit-studio">
+    <main className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-app text-ink" data-testid="edit-studio">
       {!ffmpegFound ? (
         <p className="border-b border-divider px-4 py-2 text-xs text-ink/70" data-testid="edit-needs-ffmpeg">
           ffmpeg was not found. Probe, cut, and export jobs need it on PATH.
@@ -669,8 +669,8 @@ export function EditStudio() {
           </aside>
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1">
-          <nav className="flex w-[132px] shrink-0 flex-col border-r border-divider bg-paper py-2">
+        <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+          <nav className="flex w-[112px] shrink-0 flex-col overflow-y-auto border-r border-divider bg-paper py-2">
             <input
               ref={fileRef}
               type="file"
@@ -688,7 +688,7 @@ export function EditStudio() {
               <button
                 key={item.id}
                 type="button"
-                className={`mx-2 mb-1 rounded-md px-2 py-1.5 text-left text-sm ${
+                className={`mx-1.5 mb-1 rounded-md px-2 py-1.5 text-left text-sm ${
                   tool === item.id ? "bg-[color-mix(in_srgb,var(--color-accent)_16%,transparent)]" : "hover:bg-mist/40"
                 }`}
                 data-testid={item.id === "upload" ? "edit-import" : item.id === "generate" ? "edit-generate-tab" : undefined}
@@ -702,33 +702,37 @@ export function EditStudio() {
                 {item.label}
               </button>
             ))}
-            {tool === "generate" ? (
-              <EditGenerateTab
-                project={project}
-                playhead={playhead}
-                models={models}
-                needsKey={!hasKey}
-                gatewayName={gatewayName}
-                tier={tier}
-                onTierChange={setTier}
-                onSubmitted={() => void reloadProject(project.id)}
-                onAgentPrompt={(text) => void sendAgent(text)}
-              />
-            ) : tool === "recipes" ? (
-              <EditRecipesPanel onRun={(recipeId) => void sendAgent(`Run recipe ${recipeId}`)} />
-            ) : tool !== "upload" ? (
-              <p className="px-2 text-xs text-ink/50">
-                {tool === "captions" ? (
-                  <Link href="/settings" className="underline">
-                    Captions
-                  </Link>
-                ) : (
-                  `${itemLabel(tool)} (Phase 2+)`
-                )}
-              </p>
-            ) : null}
           </nav>
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          {tool !== "upload" ? (
+            <aside className="flex min-h-0 w-[260px] min-w-[180px] max-w-[280px] shrink flex-col overflow-hidden border-r border-divider bg-paper">
+              {tool === "generate" ? (
+                <EditGenerateTab
+                  project={project}
+                  playhead={playhead}
+                  models={models}
+                  needsKey={!hasKey}
+                  gatewayName={gatewayName}
+                  tier={tier}
+                  onTierChange={setTier}
+                  onSubmitted={() => void reloadProject(project.id)}
+                  onAgentPrompt={(text) => void sendAgent(text)}
+                />
+              ) : tool === "recipes" ? (
+                <EditRecipesPanel onRun={(recipeId) => void sendAgent(`Run recipe ${recipeId}`)} />
+              ) : (
+                <p className="p-3 text-xs text-ink/50">
+                  {tool === "captions" ? (
+                    <Link href="/settings" className="underline">
+                      Captions
+                    </Link>
+                  ) : (
+                    `${itemLabel(tool)} (Phase 2+)`
+                  )}
+                </p>
+              )}
+            </aside>
+          ) : null}
+          <div className="flex min-h-0 min-w-[200px] flex-1 flex-col overflow-hidden">
             <EditPreview
               project={project}
               playhead={playhead}

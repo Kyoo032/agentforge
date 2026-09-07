@@ -139,11 +139,11 @@ export function EditGenerateTab({
   }
 
   return (
-    <form className="flex min-h-0 flex-1 flex-col gap-2 p-2 text-sm" onSubmit={onSubmit} data-testid="edit-generate">
-      <div className="flex gap-1">
+    <form className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-y-auto p-3 text-sm" onSubmit={onSubmit} data-testid="edit-generate">
+      <div className="flex min-w-0 flex-col gap-1">
         <button
           type="button"
-          className={`btn px-2 py-1 text-xs ${sub === "image" ? "btn-primary" : "btn-secondary"}`}
+          className={`btn w-full whitespace-nowrap px-2 py-1.5 text-xs ${sub === "image" ? "btn-primary" : "btn-secondary"}`}
           data-testid="edit-generate-image"
           onClick={() => setSub("image")}
         >
@@ -151,7 +151,7 @@ export function EditGenerateTab({
         </button>
         <button
           type="button"
-          className={`btn px-2 py-1 text-xs ${sub === "video" ? "btn-primary" : "btn-secondary"}`}
+          className={`btn w-full whitespace-nowrap px-2 py-1.5 text-xs ${sub === "video" ? "btn-primary" : "btn-secondary"}`}
           data-testid="edit-generate-video"
           onClick={() => setSub("video")}
         >
@@ -159,7 +159,7 @@ export function EditGenerateTab({
         </button>
         <button
           type="button"
-          className={`btn px-2 py-1 text-xs ${sub === "storyboard" ? "btn-primary" : "btn-secondary"}`}
+          className={`btn w-full whitespace-nowrap px-2 py-1.5 text-xs ${sub === "storyboard" ? "btn-primary" : "btn-secondary"}`}
           data-testid="edit-generate-storyboard"
           onClick={() => setSub("storyboard")}
         >
@@ -179,12 +179,12 @@ export function EditGenerateTab({
         <p className="text-xs text-ink/50">Storyboard lands in Phase 3.</p>
       ) : (
         <>
-          <div className="flex flex-wrap gap-1" data-testid="edit-tier">
+          <div className="flex min-w-0 flex-col gap-1" data-testid="edit-generate-tier">
             {TIERS.map((id) => (
               <button
                 key={id}
                 type="button"
-                className={`btn px-2 py-0.5 text-[11px] capitalize ${tier === id ? "btn-primary" : "btn-secondary"}`}
+                className={`btn w-full px-2 py-1.5 text-[11px] capitalize ${tier === id ? "btn-primary" : "btn-secondary"}`}
                 onClick={() => changeTier(id)}
               >
                 {id}
@@ -199,11 +199,11 @@ export function EditGenerateTab({
             value={activeModel}
             onChange={setModel}
             testId="edit-generate-model"
-            className="w-full rounded-md border border-mist bg-paper px-2 py-1 text-xs"
+            className="min-w-0 w-full rounded-md border border-mist bg-paper px-2 py-1 text-xs"
           />
           {sub === "video" ? (
             <select
-              className="w-full rounded-md border border-mist bg-paper px-2 py-1 text-xs"
+              className="min-w-0 w-full rounded-md border border-mist bg-paper px-2 py-1 text-xs"
               value={seconds}
               onChange={(event) => setSeconds(Number(event.target.value) as (typeof SECONDS)[number])}
               data-testid="edit-generate-seconds"
@@ -218,7 +218,7 @@ export function EditGenerateTab({
           {sub === "video" && imageToVideo ? (
             <input
               type="url"
-              className="w-full rounded-md border border-mist bg-transparent px-2 py-1 text-xs"
+              className="min-w-0 w-full rounded-md border border-mist bg-transparent px-2 py-1 text-xs"
               placeholder="Still image URL"
               value={stillUrl}
               onChange={(event) => setStillUrl(event.target.value)}
@@ -228,7 +228,7 @@ export function EditGenerateTab({
             <p className="text-xs text-ink/50">This model is text-to-video only</p>
           ) : null}
           <textarea
-            className="min-h-[64px] w-full rounded-md border border-mist bg-transparent px-2 py-1 text-xs"
+            className="min-h-[72px] min-w-0 w-full rounded-md border border-mist bg-transparent px-2 py-1 text-xs"
             placeholder={sub === "image" ? "Describe an image…" : "Describe a video…"}
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
@@ -241,7 +241,7 @@ export function EditGenerateTab({
           ) : null}
           <button
             type="submit"
-            className="btn btn-primary px-2 py-1 text-xs"
+            className="btn btn-primary w-full px-2 py-1.5 text-xs"
             disabled={needsKey || submitting || !prompt.trim() || !projectId}
             data-testid="edit-generate-submit"
           >

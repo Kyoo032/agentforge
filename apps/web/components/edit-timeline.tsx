@@ -145,8 +145,8 @@ export function EditTimeline({
 
   return (
     <section className="shrink-0 border-t border-divider bg-paper" data-testid="edit-timeline">
-      <div className="flex items-center gap-3 border-b border-divider px-3 py-1.5 text-xs text-ink/60">
-        <label className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-divider px-3 py-1.5 text-xs text-ink/60">
+        <label className="flex shrink-0 items-center gap-2">
           Zoom
           <input
             type="range"
@@ -158,7 +158,7 @@ export function EditTimeline({
             data-testid="edit-zoom"
           />
         </label>
-        <span>snap: frame · S split · Del delete</span>
+        <span className="whitespace-nowrap">snap: frame · S split · Del delete</span>
       </div>
       <div className="relative overflow-x-auto" onClick={onTrackClick}>
         <div className="relative min-h-[132px]" style={{ width }}>
