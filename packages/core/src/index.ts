@@ -133,6 +133,8 @@ export {
   emptyProject,
   projectSchema,
   titleStyleSchema,
+  DEFAULT_TITLE_STYLE,
+  DEFAULT_CAPTION_STYLE,
   applyOp,
   computeInverse,
   assertAgentOpHasCard,
