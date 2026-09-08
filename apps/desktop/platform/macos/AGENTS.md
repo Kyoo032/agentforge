@@ -16,6 +16,8 @@ Status: **port in progress**. Code for the shell rows landed on 2026-09-08 (merg
 
 ## Building without a Mac (`pnpm desktop:build:mac:docker`)
 
+Step-by-step guide, the failures hit on 2026-09-08 and their fixes, and the proof carried by the artifacts: [`BUILD-DMG-ON-WINDOWS.md`](BUILD-DMG-ON-WINDOWS.md).
+
 `scripts/mac-build-docker.mjs` builds the image from [`docker/Dockerfile`](docker/Dockerfile) and runs [`docker/build-mac.sh`](docker/build-mac.sh) with the checkout mounted read-only at `/src`, `apps/desktop/dist` at `/out`, and a named cache volume. Only **committed** content is built (the container clones HEAD); starter media is copied from the working tree. Per arch the container:
 
 1. `pnpm install` (Linux), web build, `stage-renderer.mjs`, `pack-brand.mjs --restore-public`.
