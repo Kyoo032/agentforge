@@ -18,6 +18,8 @@ import { loadSettings } from "./settings-store";
 import { listSelectableModels, modeCatalogPayload } from "./selectable-models";
 import { ensureToolsRegistered } from "./register-tools";
 import { artifactStore } from "./artifacts";
+import { upsertWorkSource } from "./knowledge-ingest";
+import { artifactWorkCard } from "./work-cards";
 import { collectJobAssistantText } from "./job-regen";
 import { throwIfJobAborted } from "./job-stream";
 import { RESEARCH_CAPS, runResearchDossier, type SearchHit } from "./research-dossier";
@@ -157,5 +159,11 @@ export async function generateResearchNotes(
   emit({ type: "job.phase", phase: "saving", label: "Saving dossier" });
   const markdown = dossierToMarkdown(dossier);
   const dossierId = persistDossier(tenant, dossier, markdown, model);
+  if (dossierId) {
+    await upsertWorkSource(
+      tenant,
+      artifactWorkCard({ type: "Research", artifactId: dossierId, title: dossier.title, prompt: question, markdown, model }),
+    );
+  }
   return { ...notes, artifactId: dossierId, dossierId, dossier: { title: dossier.title, markdown } };
 }

@@ -9,6 +9,7 @@ import {
   openaiImageSize,
   parseGatewayImage,
   readGatewayError,
+  readVideoJobFailure,
   studioVideoFailureStatus,
   videoCapabilities,
   videoTaskId,
@@ -437,5 +438,66 @@ describe("generateGatewayVideo", () => {
       status: 503,
       message: expect.stringMatching(/HTTP 503.*seedance-2\.0-fast/i),
     });
+  });
+});
+
+describe("video job failure parsing", () => {
+  const upstreamRejected = {
+    code: "success",
+    message: "",
+    data: {
+      status: "FAILURE",
+      fail_reason: "上游拒绝了该请求，请稍后重试",
+      result_url: "上游拒绝了该请求，请稍后重试",
+      data: {
+        status: "failed",
+        error: { code: "service_unavailable", message: "上游拒绝了该请求，请稍后重试" },
+      },
+    },
+  };
+
+  it("prefers the job fail reason over a top-level success code", () => {
+    expect(readVideoJobFailure(upstreamRejected, "fallback")).toBe("上游拒绝了该请求，请稍后重试 (service_unavailable)");
+    expect(readVideoJobFailure({ data: { status: "failed", fail_reason: "quota" } }, "fallback")).toBe("quota");
+    expect(readVideoJobFailure({ data: { status: "failed" } }, "fallback")).toBe("fallback");
+  });
+
+  it("never reports a success code as the error text", () => {
+    expect(readGatewayError({ code: "success", message: "" }, "fallback")).toBe("fallback");
+    expect(readGatewayError({ code: "ok" }, "fallback")).toBe("fallback");
+    expect(readGatewayError({ code: "insufficient_quota" }, "fallback")).toBe("insufficient_quota");
+  });
+
+  it("does not mistake a failure message in result_url for a video url", () => {
+    expect(extractGatewayVideoUrl({ data: { result_url: "上游拒绝了该请求" } })).toBeUndefined();
+    expect(extractGatewayVideoUrl({ data: { result_url: "https://cdn.example/a.mp4" } })).toBe("https://cdn.example/a.mp4");
+    expect(extractGatewayVideoUrl({ video: "data:video/mp4;base64,AAAA" })).toBe("data:video/mp4;base64,AAAA");
+  });
+
+  it("surfaces the upstream rejection from the poll instead of 'success'", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ task_id: "abcd", status: "queued" }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => upstreamRejected });
+    let caught: unknown;
+    try {
+      await generateGatewayVideo({
+        baseUrl: "https://api.tokotokenai.com/v1",
+        apiKey: "sk-test",
+        model: "grok-imagine-video",
+        prompt: "rain",
+        fetchImpl: fetchMock as unknown as typeof fetch,
+        wait: async () => undefined,
+      });
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(ApiError);
+    const message = (caught as ApiError).message;
+    expect(message).not.toBe("success");
+    expect(message).toContain("上游拒绝了该请求，请稍后重试");
+    expect(message).toMatch(/upstream/i);
+    expect((caught as ApiError).status).toBe(503);
+    expect(studioVideoFailureStatus(message)).toBe(503);
   });
 });

@@ -22,6 +22,7 @@ type IconName =
   | "research"
   | "finance"
   | "data"
+  | "legal"
   | "images"
   | "videos"
   | "edit"
@@ -58,6 +59,15 @@ const RAIL_ICON_PATHS: Record<IconName, ReactNode> = {
       <ellipse cx="12" cy="5" rx="8" ry="3" />
       <path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5" />
       <path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" />
+    </>
+  ),
+  legal: (
+    <>
+      <path d="M12 3v18" />
+      <path d="M5 7h14" />
+      <path d="m5 7-3 7a3 3 0 0 0 6 0z" />
+      <path d="m19 7-3 7a3 3 0 0 0 6 0z" />
+      <path d="M8 21h8" />
     </>
   ),
   images: (

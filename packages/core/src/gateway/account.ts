@@ -1,8 +1,10 @@
 import { DEFAULT_GROUP_RATIO, gatewayOriginFromBaseUrl, quotaToUsd, resolvedGatewayBaseUrl } from "../gateway";
+import { isNetworkUnreachableError } from "../models/probe";
 import { redactSecrets } from "../security/redact";
 import { assertAllowedEndpointUrl } from "../security/tls";
 
-const FETCH_MS = 8_000;
+/** GET /api/v1/settings awaits these; the app shell waits on that request, so keep it short offline. */
+const FETCH_MS = 3_000;
 
 export type RunUsageRecord = {
   model: string;
@@ -375,7 +377,9 @@ export async function loadThisKeyState(input: {
     });
     return { status: "ok", data };
   } catch (error) {
-    const message = redactSecrets(error instanceof Error ? error.message : "Could not read this key’s usage");
+    const message = isNetworkUnreachableError(error)
+      ? "Gateway unreachable. Local features keep working; usage updates when the connection is back."
+      : redactSecrets(error instanceof Error ? error.message : "Could not read this key’s usage");
     return { status: "error", message };
   }
 }

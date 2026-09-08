@@ -91,7 +91,7 @@ describe("WORKSPACE_TEMPLATES", () => {
 
   it("maps preset ids to productModes and blank to chat", () => {
     expect(productModesForTemplate(null)).toEqual(["chat"]);
-    expect(productModesForTemplate("legal")).toEqual(["chat", "documents", "research", "presentations"]);
+    expect(productModesForTemplate("legal")).toEqual(["chat", "documents", "research", "legal", "presentations"]);
     expect(productModesForTemplate("general")[0]).toBe("chat");
     expect(productModesForTemplate("general")).toContain("videos");
   });

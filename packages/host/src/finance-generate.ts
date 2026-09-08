@@ -3,6 +3,8 @@ import { financeBriefSchema, financeBriefToMarkdown, type FinanceBrief } from "@
 import { lineItemsFromTable, parseLineItems, type LineItem } from "@agentforge/core/finance";
 import type { JobEmitter } from "@agentforge/core/jobs";
 import { artifactStore } from "./artifacts";
+import { upsertWorkSource } from "./knowledge-ingest";
+import { artifactWorkCard } from "./work-cards";
 import { requireDataset } from "./datasets";
 import {
   buildFinanceBrief,
@@ -232,6 +234,12 @@ export async function generateFinanceBrief(
     itemCount: inputs.items.length,
     flagged: guard.total,
   });
+  if (artifactId) {
+    await upsertWorkSource(
+      tenant,
+      artifactWorkCard({ type: "Finance", artifactId, title: brief.title, prompt: question, markdown, model }),
+    );
+  }
   return { brief, artifactId, markdown, guard, items: inputs.items };
 }
 

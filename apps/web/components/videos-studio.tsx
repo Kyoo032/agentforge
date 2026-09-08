@@ -7,6 +7,7 @@ import type { PromptTemplate } from "@agentforge/core/edit";
 import { EditPromptTemplates } from "@/components/edit-prompt-templates";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { ExampleGallery } from "@/components/example-gallery";
+import { VideoExamples } from "@/components/video-examples";
 import { ModelSelect } from "@/components/model-select";
 import { apiFetch, mediaSrc } from "@/lib/api-client";
 import { useProductBrand } from "@/lib/product-brand";
@@ -182,6 +183,8 @@ export function VideosStudio() {
       ) : null}
 
       <ExampleGallery mode="videos" onSelect={(entry) => setPrompt(entry.prompt)} />
+
+      <VideoExamples onPick={pickTemplate} selectedId={templateId} />
 
       <form
         className="mt-8 space-y-3 rounded-xl border border-mist bg-paper p-3 shadow-sm"

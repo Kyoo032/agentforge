@@ -29,12 +29,16 @@ export function ensureGenerateSubmitWired(): void {
             : aspectRaw === "9:16" || aspectRaw === "portrait"
               ? "portrait"
               : "square";
-        const result = await generateStudioImage(tenant, {
-          prompt: String(body.prompt ?? ""),
-          aspect,
-          model: typeof body.model === "string" ? body.model : undefined,
-          imageUrl: typeof body.imageUrl === "string" ? body.imageUrl : undefined,
-        });
+        const result = await generateStudioImage(
+          tenant,
+          {
+            prompt: String(body.prompt ?? ""),
+            aspect,
+            model: typeof body.model === "string" ? body.model : undefined,
+            imageUrl: typeof body.imageUrl === "string" ? body.imageUrl : undefined,
+          },
+          { workType: "Edit" },
+        );
         const mediaId = result.id ?? mediaIdFromUrl(result.url);
         return {
           status: 200,
@@ -42,14 +46,18 @@ export function ensureGenerateSubmitWired(): void {
           outputAssetIds: mediaId ? [mediaId] : [],
         };
       }
-      const result = await generateStudioVideo(tenant, {
-        prompt: String(body.prompt ?? ""),
-        aspect: (body.aspect as "16:9" | "9:16" | "1:1") ?? "16:9",
-        model: typeof body.model === "string" ? body.model : undefined,
-        imageUrl: typeof body.imageUrl === "string" ? body.imageUrl : undefined,
-        seconds: typeof body.seconds === "number" ? body.seconds : undefined,
-        resolution: body.resolution as "480p" | "720p" | "1080p" | undefined,
-      });
+      const result = await generateStudioVideo(
+        tenant,
+        {
+          prompt: String(body.prompt ?? ""),
+          aspect: (body.aspect as "16:9" | "9:16" | "1:1") ?? "16:9",
+          model: typeof body.model === "string" ? body.model : undefined,
+          imageUrl: typeof body.imageUrl === "string" ? body.imageUrl : undefined,
+          seconds: typeof body.seconds === "number" ? body.seconds : undefined,
+          resolution: body.resolution as "480p" | "720p" | "1080p" | undefined,
+        },
+        { workType: "Edit" },
+      );
       const mediaId = result.id ?? mediaIdFromUrl(result.url);
       return {
         status: 200,

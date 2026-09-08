@@ -7,6 +7,7 @@ import {
   htmlToText,
   isHtmlContent,
   plainToText,
+  scanInjection,
   type KnowledgeModels,
   type TenantContext,
 } from "@agentforge/core";
@@ -15,6 +16,7 @@ import { fetchPublicHttps } from "./safe-fetch";
 import { chunkKnowledgeText, knowledgeFtsQuery } from "./knowledge-text";
 import { deleteVectorsForSource, indexSourceVectors, retrieveVectorChunks } from "./knowledge-embed";
 import { modeCatalogPayload } from "./selectable-models";
+import { loadSettings } from "./settings-store";
 
 export { chunkKnowledgeText, knowledgeFtsQuery } from "./knowledge-text";
 
@@ -32,6 +34,11 @@ export type KnowledgeMemory = {
   createdAt: number;
 };
 
+/** Where a work card came from. `thread` = Chat, `media` = Images / Videos / Edit, `artifact` = job outputs. */
+export type SourceOriginKind = "thread" | "media" | "artifact";
+
+export type SourceOrigin = { kind: SourceOriginKind; id: string };
+
 export type KnowledgeSource = {
   id: string;
   name: string;
@@ -40,7 +47,38 @@ export type KnowledgeSource = {
   chunks: number;
   error?: string | null;
   createdAt: number;
+  origin?: SourceOrigin | null;
 };
+
+type SourceRow = {
+  id: string;
+  name: string;
+  type: string;
+  status: KnowledgeSource["status"];
+  chunks: number;
+  error: string | null;
+  created_at: number;
+  origin_kind: string | null;
+  origin_id: string | null;
+};
+
+const SOURCE_COLUMNS = "id, name, type, status, chunks, error, created_at, origin_kind, origin_id";
+
+function sourceFromRow(row: SourceRow): KnowledgeSource {
+  return {
+    id: row.id,
+    name: row.name,
+    type: row.type,
+    status: row.status,
+    chunks: row.chunks,
+    error: row.error,
+    createdAt: row.created_at,
+    origin:
+      row.origin_kind !== null && row.origin_id !== null
+        ? { kind: row.origin_kind as SourceOriginKind, id: row.origin_id }
+        : null,
+  };
+}
 
 const DEFAULT_SOUL: KnowledgeSoul = {
   name: "Forge",
@@ -164,27 +202,19 @@ export function deleteMemory(tenant: TenantContext, id: string): void {
 
 export function listSources(tenant: TenantContext): KnowledgeSource[] {
   const rows = sql
+    .prepare(`SELECT ${SOURCE_COLUMNS} FROM knowledge_sources WHERE workspace_id = ? ORDER BY created_at DESC`)
+    .all(workspaceId(tenant)) as SourceRow[];
+  return rows.map(sourceFromRow);
+}
+
+/** The source a piece of work already produced, if any (idempotent ingest key). */
+export function findSourceByOrigin(tenant: TenantContext, origin: SourceOrigin): KnowledgeSource | null {
+  const row = sql
     .prepare(
-      "SELECT id, name, type, status, chunks, error, created_at FROM knowledge_sources WHERE workspace_id = ? ORDER BY created_at DESC",
+      `SELECT ${SOURCE_COLUMNS} FROM knowledge_sources WHERE workspace_id = ? AND origin_kind = ? AND origin_id = ?`,
     )
-    .all(workspaceId(tenant)) as Array<{
-    id: string;
-    name: string;
-    type: string;
-    status: KnowledgeSource["status"];
-    chunks: number;
-    error: string | null;
-    created_at: number;
-  }>;
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    type: row.type,
-    status: row.status,
-    chunks: row.chunks,
-    error: row.error,
-    createdAt: row.created_at,
-  }));
+    .get(workspaceId(tenant), origin.kind, origin.id) as SourceRow | undefined;
+  return row ? sourceFromRow(row) : null;
 }
 
 function extractText(name: string, mime: string, bytes: Buffer): string {
@@ -202,38 +232,141 @@ function extractText(name: string, mime: string, bytes: Buffer): string {
   return bytes.toString("utf8");
 }
 
-async function indexSource(
+export type IndexSourceInput = {
+  /** Reusing an existing id replaces that source's row, chunks, and vectors (work-card re-index). */
+  id: string;
+  name: string;
+  type: string;
+  text: string;
+  origin?: SourceOrigin | null;
+};
+
+const INSERT_SOURCE = `INSERT INTO knowledge_sources
+  (id, workspace_id, name, type, status, chunks, error, created_at, origin_kind, origin_id)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+const NO_TEXT = "No extractable text";
+
+let lastCreatedAt = 0;
+
+/** Strictly increasing so two writes in one millisecond never share a version stamp (vector guard). */
+function nextCreatedAt(): number {
+  const next = Math.max(Date.now(), lastCreatedAt + 1);
+  lastCreatedAt = next;
+  return next;
+}
+
+/** One transaction: drop the old row + chunks for this id, write the new row + chunks. */
+function replaceSourceRows(
+  tenant: TenantContext,
+  input: Omit<IndexSourceInput, "text">,
+  chunks: string[],
+  error: string | null,
+  createdAt: number,
+): void {
+  const ws = workspaceId(tenant);
+  const status: KnowledgeSource["status"] = error ? "Failed" : "Indexed";
+  const insertChunk = sql.prepare("INSERT INTO knowledge_chunks (source_id, workspace_id, body) VALUES (?, ?, ?)");
+  const tx = sql.transaction(() => {
+    if (input.origin) {
+      // Another row may already own this origin (a concurrent writer for the same thread / media).
+      // Fold it into this write so the unique origin index never throws and no card is lost.
+      const owner = sql
+        .prepare("SELECT id FROM knowledge_sources WHERE workspace_id = ? AND origin_kind = ? AND origin_id = ? AND id != ?")
+        .get(ws, input.origin.kind, input.origin.id, input.id) as { id: string } | undefined;
+      if (owner) {
+        sql.prepare("DELETE FROM knowledge_vectors WHERE workspace_id = ? AND source_id = ?").run(ws, owner.id);
+        sql.prepare("DELETE FROM knowledge_chunks WHERE workspace_id = ? AND source_id = ?").run(ws, owner.id);
+        sql.prepare("DELETE FROM knowledge_sources WHERE workspace_id = ? AND id = ?").run(ws, owner.id);
+      }
+    }
+    sql.prepare("DELETE FROM knowledge_chunks WHERE workspace_id = ? AND source_id = ?").run(ws, input.id);
+    sql.prepare("DELETE FROM knowledge_sources WHERE workspace_id = ? AND id = ?").run(ws, input.id);
+    sql
+      .prepare(INSERT_SOURCE)
+      .run(
+        input.id,
+        ws,
+        input.name,
+        input.type,
+        status,
+        chunks.length,
+        error,
+        createdAt,
+        input.origin?.kind ?? null,
+        input.origin?.id ?? null,
+      );
+    for (const chunk of chunks) {
+      insertChunk.run(input.id, ws, chunk);
+    }
+  });
+  tx();
+}
+
+/** Chunk, store, and embed one source. Replaces any earlier source with the same id. */
+export async function indexKnowledgeSource(tenant: TenantContext, input: IndexSourceInput): Promise<KnowledgeSource> {
+  const chunks = chunkKnowledgeText(input.text);
+  const createdAt = nextCreatedAt();
+  const base = { id: input.id, name: input.name, type: input.type, createdAt, origin: input.origin ?? null };
+  if (chunks.length === 0) {
+    replaceSourceRows(tenant, input, [], NO_TEXT, createdAt);
+    deleteVectorsForSource(tenant, input.id);
+    return { ...base, status: "Failed", chunks: 0, error: NO_TEXT };
+  }
+  replaceSourceRows(tenant, input, chunks, null, createdAt);
+  const models = getKnowledgeModels(tenant);
+  // `createdAt` ties the vectors to this exact row version: a delete or re-index that lands while
+  // the (possibly remote) embed is in flight makes the vector write a no-op instead of an orphan.
+  await indexSourceVectors(tenant, input.id, chunks, models.embeddingModel, createdAt);
+  return { ...base, status: "Indexed", chunks: chunks.length };
+}
+
+/** Record a source that could not be indexed. The work that produced it still succeeded. */
+export function markSourceFailed(
+  tenant: TenantContext,
+  input: Omit<IndexSourceInput, "text">,
+  reason: string,
+): KnowledgeSource {
+  const createdAt = nextCreatedAt();
+  replaceSourceRows(tenant, input, [], reason, createdAt);
+  deleteVectorsForSource(tenant, input.id);
+  return {
+    id: input.id,
+    name: input.name,
+    type: input.type,
+    status: "Failed",
+    chunks: 0,
+    error: reason,
+    createdAt,
+    origin: input.origin ?? null,
+  };
+}
+
+function injectionGuardBypass(): boolean {
+  try {
+    return loadSettings().injectionGuardBypass === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Manual sources (paste, upload, URL) go through the same injection guard as auto-ingested cards:
+ * anything indexed here is served back as trusted `## Retrieved sources` to every later Chat. A hit
+ * records a `Failed` row with the rule instead of indexing; the owner bypass in Settings still applies.
+ */
+function indexSource(
   tenant: TenantContext,
   id: string,
   name: string,
   type: string,
   text: string,
 ): Promise<KnowledgeSource> {
-  const chunks = chunkKnowledgeText(text);
-  const createdAt = Date.now();
-  if (chunks.length === 0) {
-    sql
-      .prepare(
-        "INSERT INTO knowledge_sources (id, workspace_id, name, type, status, chunks, error, created_at) VALUES (?, ?, ?, ?, ?, 0, ?, ?)",
-      )
-      .run(id, workspaceId(tenant), name, type, "Failed", "No extractable text", createdAt);
-    return { id, name, type, status: "Failed", chunks: 0, error: "No extractable text", createdAt };
+  const hit = injectionGuardBypass() ? null : scanInjection(text);
+  if (hit) {
+    return Promise.resolve(markSourceFailed(tenant, { id, name, type }, `injection_blocked (rule: ${hit.rule})`));
   }
-  const insertChunk = sql.prepare("INSERT INTO knowledge_chunks (source_id, workspace_id, body) VALUES (?, ?, ?)");
-  const tx = sql.transaction(() => {
-    sql
-      .prepare(
-        "INSERT INTO knowledge_sources (id, workspace_id, name, type, status, chunks, error, created_at) VALUES (?, ?, ?, ?, ?, ?, NULL, ?)",
-      )
-      .run(id, workspaceId(tenant), name, type, "Indexed", chunks.length, createdAt);
-    for (const chunk of chunks) {
-      insertChunk.run(id, workspaceId(tenant), chunk);
-    }
-  });
-  tx();
-  const models = getKnowledgeModels(tenant);
-  await indexSourceVectors(tenant, id, chunks, models.embeddingModel);
-  return { id, name, type, status: "Indexed", chunks: chunks.length, createdAt };
+  return indexKnowledgeSource(tenant, { id, name, type, text });
 }
 
 export async function addFileSource(
@@ -272,9 +405,29 @@ export async function addUrlSource(tenant: TenantContext, url: string): Promise<
 }
 
 /** Source type labels a caller may set on pasted text. Anything else falls back to "Paste". */
-export const PASTED_SOURCE_TYPES = ["Paste", "Dossier", "Analysis", "Brief"] as const;
+export const PASTED_SOURCE_TYPES = ["Paste", "Dossier", "Analysis", "Brief", "Memo", "Playbook"] as const;
+
+/** Source types written automatically when a mode finishes a piece of work (the ingest loop). */
+export const WORK_SOURCE_TYPES = [
+  "Chat",
+  "Documents",
+  "Research",
+  "Finance",
+  "Data",
+  "Images",
+  "Videos",
+  "Presentation",
+  "Edit",
+  "Legal",
+] as const;
+export type WorkSourceType = (typeof WORK_SOURCE_TYPES)[number];
+
+/** Every source type the Sources list can show. */
+export const KNOWLEDGE_SOURCE_TYPES = ["File", "URL", ...PASTED_SOURCE_TYPES, ...WORK_SOURCE_TYPES] as const;
 export type PastedSourceType = (typeof PASTED_SOURCE_TYPES)[number];
 export const PASTED_SOURCE_MAX_CHARS = 2_000_000;
+/** Source names show in the Sources list; a pasted name is trimmed to this many characters. */
+export const PASTED_SOURCE_NAME_MAX = 200;
 
 export function pastedSourceType(value: unknown): PastedSourceType {
   return typeof value === "string" && (PASTED_SOURCE_TYPES as readonly string[]).includes(value)
@@ -291,24 +444,70 @@ export async function addPastedSource(
   if (text.length > PASTED_SOURCE_MAX_CHARS) {
     throw new ApiError("invalid_request", "Pasted text exceeds the 2 MB cap", 413);
   }
-  return indexSource(tenant, crypto.randomUUID(), name.trim() || "Pasted notes", type, text);
+  const trimmedName = name.trim().slice(0, PASTED_SOURCE_NAME_MAX).trim() || "Pasted notes";
+  return indexSource(tenant, crypto.randomUUID(), trimmedName, type, text);
 }
 
-export function deleteSource(tenant: TenantContext, id: string): void {
-  deleteVectorsForSource(tenant, id);
-  sql.prepare("DELETE FROM knowledge_chunks WHERE workspace_id = ? AND source_id = ?").run(workspaceId(tenant), id);
-  sql.prepare("DELETE FROM knowledge_sources WHERE workspace_id = ? AND id = ?").run(workspaceId(tenant), id);
+export function deleteSource(tenant: TenantContext, id: string): boolean {
+  const ws = workspaceId(tenant);
+  const tx = sql.transaction(() => {
+    sql.prepare("DELETE FROM knowledge_vectors WHERE workspace_id = ? AND source_id = ?").run(ws, id);
+    sql.prepare("DELETE FROM knowledge_chunks WHERE workspace_id = ? AND source_id = ?").run(ws, id);
+    return sql.prepare("DELETE FROM knowledge_sources WHERE workspace_id = ? AND id = ?").run(ws, id).changes > 0;
+  });
+  return tx();
 }
 
-function retrieveFtsChunks(tenant: TenantContext, query: string, limit = 4): string[] {
+/**
+ * Drop Chat cards whose thread is gone (a delete that raced the cascade, or rows left by older builds).
+ * Cheap, workspace-scoped, one transaction; called from GET /api/v1/knowledge.
+ */
+export function sweepOrphanThreadSources(tenant: TenantContext): number {
+  const ws = workspaceId(tenant);
+  const tx = sql.transaction(() => {
+    const orphans = sql
+      .prepare(
+        `SELECT id FROM knowledge_sources
+         WHERE workspace_id = ? AND origin_kind = 'thread'
+           AND origin_id NOT IN (SELECT id FROM threads WHERE workspace_id = ?)`,
+      )
+      .all(ws, ws) as Array<{ id: string }>;
+    for (const row of orphans) {
+      sql.prepare("DELETE FROM knowledge_vectors WHERE workspace_id = ? AND source_id = ?").run(ws, row.id);
+      sql.prepare("DELETE FROM knowledge_chunks WHERE workspace_id = ? AND source_id = ?").run(ws, row.id);
+      sql.prepare("DELETE FROM knowledge_sources WHERE workspace_id = ? AND id = ?").run(ws, row.id);
+    }
+    return orphans.length;
+  });
+  return tx();
+}
+
+/** Remove the work card of a thread / media / artifact that was deleted, so it is never retrieved again. */
+export function deleteSourceByOrigin(tenant: TenantContext, origin: SourceOrigin): boolean {
+  const existing = findSourceByOrigin(tenant, origin);
+  return existing ? deleteSource(tenant, existing.id) : false;
+}
+
+export type RetrieveOptions = {
+  /** Sources never returned, e.g. the card written from the thread that is asking. */
+  excludeSourceIds?: string[];
+};
+
+function notInClause(ids: string[]): string {
+  return ids.length > 0 ? ` AND source_id NOT IN (${ids.map(() => "?").join(", ")})` : "";
+}
+
+function retrieveFtsChunks(tenant: TenantContext, query: string, limit = 4, exclude: string[] = []): string[] {
   const q = knowledgeFtsQuery(query);
   if (!q) {
     return [];
   }
   try {
     const rows = sql
-      .prepare(`SELECT body FROM knowledge_chunks WHERE workspace_id = ? AND knowledge_chunks MATCH ? LIMIT ?`)
-      .all(workspaceId(tenant), q, limit) as Array<{ body: string }>;
+      .prepare(
+        `SELECT body FROM knowledge_chunks WHERE workspace_id = ? AND knowledge_chunks MATCH ?${notInClause(exclude)} LIMIT ?`,
+      )
+      .all(workspaceId(tenant), q, ...exclude, limit) as Array<{ body: string }>;
     return rows.map((row) => row.body);
   } catch {
     return [];
@@ -319,27 +518,45 @@ export async function retrieveChunks(
   tenant: TenantContext,
   query: string,
   limit = 4,
+  options: RetrieveOptions = {},
 ): Promise<{ bodies: string[]; mode: "rag" | "fts" | "none" }> {
   const trimmed = query.trim();
   if (!trimmed) {
     return { bodies: [], mode: "none" };
   }
+  const exclude = options.excludeSourceIds ?? [];
   const models = getKnowledgeModels(tenant);
-  const vectorHits = await retrieveVectorChunks(tenant, trimmed, models, limit);
+  const vectorHits = await retrieveVectorChunks(tenant, trimmed, models, limit, exclude);
   if (vectorHits.length > 0) {
     return { bodies: vectorHits.map((hit) => hit.body), mode: "rag" };
   }
-  const fts = retrieveFtsChunks(tenant, trimmed, limit);
+  const fts = retrieveFtsChunks(tenant, trimmed, limit, exclude);
   return { bodies: fts, mode: fts.length > 0 ? "fts" : "none" };
+}
+
+export type KnowledgeInjectionOptions = {
+  /** The Chat thread asking. Its own work card is never retrieved back into it (anti-loop). */
+  excludeThreadId?: string;
+};
+
+function excludedSourceIds(tenant: TenantContext, options: KnowledgeInjectionOptions): string[] {
+  if (!options.excludeThreadId) {
+    return [];
+  }
+  const own = findSourceByOrigin(tenant, { kind: "thread", id: options.excludeThreadId });
+  return own ? [own.id] : [];
 }
 
 export async function knowledgeInjection(
   tenant: TenantContext,
   query = "",
+  options: KnowledgeInjectionOptions = {},
 ): Promise<{ prompt: string; parts: { label: string; detail: string; tokens: number }[] }> {
   const soul = getSoul(tenant);
   const memories = listMemories(tenant).filter((item) => item.pinned);
-  const retrieved = query ? await retrieveChunks(tenant, query) : { bodies: [] as string[], mode: "none" as const };
+  const retrieved = query
+    ? await retrieveChunks(tenant, query, 4, { excludeSourceIds: excludedSourceIds(tenant, options) })
+    : { bodies: [] as string[], mode: "none" as const };
   const soulBlock = [
     `Name: ${soul.name}`,
     `Role: ${soul.role}`,

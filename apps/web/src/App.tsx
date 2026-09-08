@@ -1,6 +1,11 @@
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useState } from "react";
-import { firstVisibleHref, resolveWorkspaceModes, WORK_PRODUCT_MODES, type ProductMode } from "@agentforge/core/product-modes";
+import {
+  firstVisibleHref,
+  resolveWorkspaceModes,
+  WORK_PRODUCT_MODES,
+  type ProductMode,
+} from "@agentforge/core/product-modes";
 import { AppShell } from "@/components/app-shell";
 import { apiFetch } from "@/lib/api-client";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
@@ -121,6 +126,7 @@ export function App() {
           <Route path="/videos" element={null} />
           <Route path="/edit" element={null} />
           <Route path="/presentations" element={null} />
+          <Route path="/legal" element={null} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/usage" element={<UsagePage />} />
           <Route path="/workspaces" element={<WorkspacesPage />} />

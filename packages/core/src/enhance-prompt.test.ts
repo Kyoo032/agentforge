@@ -10,6 +10,7 @@ describe("enhance-prompt", () => {
   it("accepts known surfaces", () => {
     expect(isEnhanceSurface("chat")).toBe(true);
     expect(isEnhanceSurface("finance")).toBe(true);
+    expect(isEnhanceSurface("legal")).toBe(true);
     expect(isEnhanceSurface("agents")).toBe(false);
   });
 

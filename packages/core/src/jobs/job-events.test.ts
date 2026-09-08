@@ -50,6 +50,16 @@ describe("job events", () => {
     expect(state.text).toBe("abc");
   });
 
+  it("tracks the latest round for looping jobs", () => {
+    expect(EMPTY_JOB_PROGRESS.round).toBeNull();
+    const state = fold([
+      { type: "job.round", round: 1, total: 3, label: "Verify round 1" },
+      { type: "job.round", round: 2, total: 3, label: "Verify round 2" },
+    ]);
+    expect(state.round).toEqual({ round: 2, total: 3, label: "Verify round 2" });
+    expect(isJobEvent({ type: "job.round", round: 1, total: 3, label: "x" })).toBe(true);
+  });
+
   it("marks done and error without mutating the previous state", () => {
     const active = fold([{ type: "job.phase", phase: "drafting", label: "Drafting" }]);
     const done = reduceJobProgress(active, { type: "job.done", result: { ok: true } });

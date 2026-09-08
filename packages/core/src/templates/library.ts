@@ -698,8 +698,8 @@ export const WORKSPACE_TEMPLATES: WorkspaceTemplate[] = [
   {
     id: "legal",
     label: "Legal",
-    description: "Memos and review: chat, documents, research, and presentation.",
-    productModes: ["chat", "documents", "research", "presentations"],
+    description: "Matter review, memos, and redlines: chat, documents, research, legal, and presentation.",
+    productModes: ["chat", "documents", "research", "legal", "presentations"],
   },
   {
     id: "sales",

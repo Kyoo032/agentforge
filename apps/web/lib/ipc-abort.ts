@@ -1,4 +1,4 @@
-export function errorFromAbortSignal(signal?: AbortSignal): Error {
+export function errorFromAbortSignal(signal?: AbortSignal | null): Error {
   const reason = signal?.reason;
   if (reason instanceof Error && reason.message.trim()) {
     return reason;
@@ -9,13 +9,13 @@ export function errorFromAbortSignal(signal?: AbortSignal): Error {
   return new DOMException("The operation was aborted.", "AbortError");
 }
 
-export function throwIfAborted(signal?: AbortSignal): void {
+export function throwIfAborted(signal?: AbortSignal | null): void {
   if (signal?.aborted) {
     throw errorFromAbortSignal(signal);
   }
 }
 
-export function onAbort(signal: AbortSignal | undefined, fn: () => void): () => void {
+export function onAbort(signal: AbortSignal | null | undefined, fn: () => void): () => void {
   if (!signal) {
     return () => undefined;
   }
