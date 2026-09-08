@@ -27,6 +27,11 @@ const WORK_MODE_PATHS = Object.keys(WORK_MODE_COMPONENTS);
 /**
  * Keep visited work-mode pages mounted (hidden when inactive) so in-flight
  * UI/SSE state survives rail switches. No product session cap.
+ *
+ * The active pane is `absolute inset-0` so Chat/Edit can `h-full` and scroll
+ * internally. It must be `overflow-y-auto`, not `overflow-hidden`: Research,
+ * Finance, Data, Documents, Images, Videos, and Presentation grow past the
+ * pane and have no inner scroller.
  */
 export function WorkModeKeepAlive() {
   const { pathname } = useLocation();
@@ -52,7 +57,7 @@ export function WorkModeKeepAlive() {
           <div
             key={path}
             hidden={!active}
-            className={active ? "absolute inset-0 min-h-0 overflow-hidden" : "hidden"}
+            className={active ? "absolute inset-0 min-h-0 overflow-y-auto" : "hidden"}
             aria-hidden={!active}
           >
             <Page />

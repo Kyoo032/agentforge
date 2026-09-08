@@ -152,7 +152,7 @@ function RailItem({
       href={href}
       className={`flex items-center gap-2.5 px-2.5 py-[7px] text-[13.5px] ${
         active
-          ? "bg-[color-mix(in_srgb,var(--color-accent)_16%,transparent)] text-accent-800"
+          ? "bg-[color-mix(in_srgb,var(--color-accent)_16%,transparent)] text-accent"
           : "text-inkbase hover:bg-[color-mix(in_srgb,var(--color-text)_7%,transparent)]"
       } ${collapsed ? "justify-center" : ""}`}
       aria-current={active ? "page" : undefined}
@@ -299,32 +299,34 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
       </nav>
 
       <div
-        className={`flex shrink-0 items-center justify-center gap-2 border-t border-divider p-2.5 ${collapsed ? "flex-col" : ""}`}
+        className={`flex shrink-0 items-center border-t border-divider p-2.5 ${collapsed ? "flex-col gap-2" : "justify-between gap-2"}`}
         data-testid="rail-footer"
       >
-        {collapsed ? null : <ThemeToggle className="min-w-0 flex-1 justify-start gap-2 px-2 py-[7px] text-[13px]" />}
-        <AppUpdatesButton />
-        <button
-          type="button"
-          className="btn btn-secondary btn-icon h-[30px] w-[30px] shrink-0"
-          onClick={toggleCollapsed}
-          data-testid={collapsed ? "rail-expand" : "rail-collapse"}
-          aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
-          title={collapsed ? "Expand navigation" : "Collapse navigation"}
-        >
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            aria-hidden="true"
+        <ThemeToggle />
+        <div className={`flex items-center gap-2 ${collapsed ? "flex-col" : ""}`}>
+          <AppUpdatesButton />
+          <button
+            type="button"
+            className="btn btn-secondary btn-icon h-[30px] w-[30px] shrink-0"
+            onClick={toggleCollapsed}
+            data-testid={collapsed ? "rail-expand" : "rail-collapse"}
+            aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
+            title={collapsed ? "Expand navigation" : "Collapse navigation"}
           >
-            <rect x="3" y="3" width="18" height="18" />
-            <path d="M9 3v18" />
-          </svg>
-        </button>
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              aria-hidden="true"
+            >
+              <rect x="3" y="3" width="18" height="18" />
+              <path d="M9 3v18" />
+            </svg>
+          </button>
+        </div>
       </div>
     </aside>
   );

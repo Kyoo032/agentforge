@@ -59,6 +59,16 @@
   --color-text: #f5f5f8;
   --color-accent: #94bce3;
   --color-divider: color-mix(in srgb, #f5f5f8 20%, transparent);
+  /* Flip the accent ladder so 700/800 stay readable as text on dark surfaces. */
+  --color-accent-100: #1d2d3d;
+  --color-accent-200: #2c455d;
+  --color-accent-300: #416180;
+  --color-accent-400: #597ea3;
+  --color-accent-500: #749dc4;
+  --color-accent-600: #94bce3;
+  --color-accent-700: #b5d9fd;
+  --color-accent-800: #d6ebff;
+  --color-accent-900: #eef6ff;
 }
 
 body {
