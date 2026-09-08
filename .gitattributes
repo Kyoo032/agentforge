@@ -1,0 +1,4 @@
+# Container and shell scripts must stay LF: they run from the read-only /src mount inside the mac builder container.
+*.sh text eol=lf
+*.py text eol=lf
+Dockerfile text eol=lf
