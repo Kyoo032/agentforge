@@ -23,7 +23,7 @@ One Electron shell (`apps/desktop/main.cjs`, `preload.cjs`, `edit-menu.cjs`, `au
 | Installer | NSIS x64, `build/installer.nsh`; uninstall kills the exe and deletes userData | dmg + zip per arch (`Agentforge-<v>-mac-<arch>`), `identity: null` (unsigned, not notarized); first launch needs the Gatekeeper step from the public notes | `package.json` `build` |
 | Updater | electron-updater against `latest.yml` on DPS Agent Platform; public Agentforge flavor only | Off: `updatesEnabled` is false on darwin and the state carries a "download the .dmg" message the renderer shows; no `latest-mac.yml` is published | `auto-update.cjs` `updatesEnabled`, `unsupportedMessage` |
 | Native modules | `@electron/rebuild -f -w better-sqlite3 -w keytar` on Windows | Same command on a Mac, per arch | `package.json` `rebuild-natives` |
-| Packaged proof | `doctor.mjs --desktop` reads `host-status.json` in userData | Same, after `pnpm desktop:build:mac:dir` + `pnpm desktop:mac` | `.cursor/skills/verify-agentforge/scripts/doctor.mjs` |
+| Packaged proof | `doctor.mjs --desktop` reads `host-status.json` in userData | Same, after `pnpm desktop:build:mac:dir` + `pnpm desktop:mac` on a Mac. Without a Mac, `pnpm desktop:build:mac:docker` gives static proof only (`macos/docker/verify-bundle.py`) | `.cursor/skills/verify-agentforge/scripts/doctor.mjs`, `macos/docker/` |
 | Media | `agentforge://media/<id>` protocol, IPC transport only | Same | `main.cjs` `registerMediaProtocol` |
 
 ## Shared rules
@@ -33,4 +33,4 @@ One Electron shell (`apps/desktop/main.cjs`, `preload.cjs`, `edit-menu.cjs`, `au
 - New platform-only logic goes in a small `.cjs` module with pure, testable functions and a `node:assert` test next to it (see `edit-menu.cjs` / `edit-menu.test.cjs`). Register the test in `apps/desktop/package.json` `test` and add the module to `build.files`, or the packaged app crashes on `require`.
 - Do not move `installer.nsh`, entitlements, or brand files without updating the electron-builder paths in `package.json`.
 - Every shell change is appended to the current ship list in `docs/internal/` per the root `AGENTS.md`, and is not "shipped" until packed and driven on the installed app for the platform it targets.
-- Cloud Linux agents never run `pnpm desktop:build*` or `@electron/rebuild`. This Windows checkout cannot build or run a `.app`.
+- Cloud Linux agents never run `pnpm desktop:build*` or `@electron/rebuild`. This Windows checkout cannot run a `.app`; it can build one only through the container in `macos/docker/` (`pnpm desktop:build:mac:docker`), never with electron-builder directly.

@@ -20,6 +20,7 @@
     "desktop:build:all": "pnpm --filter @agentforge/desktop desktop-build-all",
     "desktop:build:mac": "pnpm --filter @agentforge/desktop desktop-build-mac",
     "desktop:build:mac:dir": "pnpm --filter @agentforge/desktop desktop-build-mac-dir",
+    "desktop:build:mac:docker": "pnpm --filter @agentforge/desktop desktop-build-mac-docker",
     "desktop:mac": "node apps/desktop/scripts/macos-app.mjs",
     "desktop:build:linux": "pnpm --filter @agentforge/desktop desktop-build-linux"
   },

@@ -1,10 +1,11 @@
 # macOS — shell rules
 
-Status: **port in progress**. Code for the shell rows landed on 2026-09-08 (branch `feat/macos-port-0.14.22`, targets 0.14.22); **nothing has been driven on a real Mac yet**. electron-builder has a `mac` target (dmg + zip, x64 + arm64, `identity: null`) and `scripts/macos-app.mjs` launches a built `.app`. Read [`../README.md`](../README.md) first for the cross-platform matrix; this file adds what is macOS-specific.
+Status: **port in progress**. Code for the shell rows landed on 2026-09-08 (merged to main in PR #24, targets 0.14.22). The dmg + zip are **built on the Windows box through Docker** (see "Building without a Mac"); **nothing has been launched on a real Mac yet**. `scripts/macos-app.mjs` launches a built `.app` on a Mac. Read [`../README.md`](../README.md) first for the cross-platform matrix; this file adds what is macOS-specific.
 
 ## Hard constraints
 
-- **Needs a Mac.** `pnpm desktop:build:mac`, `pnpm desktop:build:mac:dir`, `pnpm desktop:mac`, `@electron/rebuild`, and every smoke step below run on macOS only. This Windows checkout cannot build, sign, or run a `.app`, and Cloud Linux must not try either.
+- **Two build paths, one rule set.** On a Mac: `pnpm desktop:build:mac` (electron-builder's own dmg via hdiutil). Anywhere else: `pnpm desktop:build:mac:docker`, which runs the Linux container in [`docker/`](docker/) (electron-builder allows the mac target on Linux, not on Windows). Both produce `Agentforge-<version>-mac-<arch>.dmg|zip`. Whatever the path, the *rules in this file* apply: the bundle must pass [`docker/verify-bundle.py`](docker/verify-bundle.py) and the smoke list below still needs a Mac. Never build the mac target directly on the Windows host, and Cloud Linux must not run either path.
+- **Launching needs a Mac.** `pnpm desktop:mac`, the Keychain prompt, Cmd+Q, and every smoke step below run on macOS only.
 - **The application menu is mandatory.** On macOS Cmd+C/V/X/A/Q exist only as Edit/App menu roles. `edit-menu.cjs` installs App + Edit + Window menus; never set the menu to `null` and never remove the Edit roles. A menu change is tested on both Windows and macOS.
 - **Window lifecycle is Dock-style.** `lifecycle.cjs` `shouldQuitOnLastWindow("darwin")` is false: closing the window destroys it, the app stays in the Dock, and `activate` recreates the window. Cmd+Q (the `quit` role) is the only quit path. `exitApp()` and its `taskkill` tree walk never run on macOS.
 - **Helpers die with the app.** `before-quit` calls the host's `killTrackedChildren()` (`packages/host/src/child-processes.ts`); `runFfmpeg` registers every ffmpeg / ffprobe it spawns. Anything else the host spawns in future must go through `trackChild`, or it survives Cmd+Q.
@@ -12,6 +13,19 @@ Status: **port in progress**. Code for the shell rows landed on 2026-09-08 (bran
 - **Paths.** userData is `~/Library/Application Support/<productName>`. `doctor.mjs --desktop` reads `host-status.json` there. Logs go to `~/Library/Logs/<productName>` (`updater.log` is not written on macOS because the updater is off).
 - **Updater is off until signing exists.** `auto-update.cjs` `updatesEnabled(..., "darwin")` is false; the state carries the message "Updates on macOS are manual for now. Download the new .dmg from GitHub Releases." and the renderer shows it in the Updates panel. Never publish a `latest-mac.yml`.
 - **Hardware acceleration stays on.** The win32-only `app.disableHardwareAcceleration()` guard must not widen.
+
+## Building without a Mac (`pnpm desktop:build:mac:docker`)
+
+`scripts/mac-build-docker.mjs` builds the image from [`docker/Dockerfile`](docker/Dockerfile) and runs [`docker/build-mac.sh`](docker/build-mac.sh) with the checkout mounted read-only at `/src`, `apps/desktop/dist` at `/out`, and a named cache volume. Only **committed** content is built (the container clones HEAD); starter media is copied from the working tree. Per arch the container:
+
+1. `pnpm install` (Linux), web build, `stage-renderer.mjs`, `pack-brand.mjs --restore-public`.
+2. Swaps in darwin natives: better-sqlite3 13 ships N-API `prebuilds/darwin-<arch>.node` in its tarball (only that one is kept, `build/` is deleted); keytar's official `napi-v3-darwin-<arch>` prebuild replaces `build/Release/keytar.node`.
+3. `electron-builder --mac --dir --<arch> -c.npmRebuild=false` → `dist/mac[-arm64]/Agentforge.app`.
+4. `rcodesign sign Agentforge.app` (ad-hoc, whole bundle). Required: electron-builder rewrites Info.plist after Electron's own ad-hoc signature, and Apple silicon kills binaries whose signature no longer matches.
+5. `verify-bundle.py`: every Mach-O is the requested arch, no ELF/PE leaked from the Linux install, darwin natives present, framework symlinks intact, Info.plist, app.asar holds every shell module, ADHOC CodeDirectory on the main binary / framework / helper.
+6. `zip -r -y` (symlinks kept) and [`docker/make-dmg.py`](docker/make-dmg.py): `mkfs.hfsplus` volume, populated entry by entry with `hfsplus` from libdmg-hfsplus (symlinks recreated, execute bits carried), `/Applications` link, `dmg build` → zlib-compressed UDIF. Then `verify-bundle.py --dmg --zip` reads both back with 7-Zip / zipinfo and compares files, sizes, symlinks and the execute bit.
+
+What this path cannot prove: that the app launches. Static checks pass; smoke steps 1 to 7 below are still owed on hardware. Known differences from a Mac build: no `.icns` from `iconutil` (electron-builder converts `build/icon.png` itself, same as on a Mac), HFS+ instead of APFS inside the dmg (mounts on every macOS since 10.12), no bundled ffmpeg (Edit uses a PATH ffmpeg, e.g. Homebrew).
 
 ## Port checklist (state on 2026-09-08)
 
@@ -23,11 +37,12 @@ Status: **port in progress**. Code for the shell rows landed on 2026-09-08 (bran
 | 4 | Native modules per arch | electron-builder rebuilds `better-sqlite3` and `keytar` for each arch during `--mac` (`npmRebuild` default). If a build was made with a mismatched ABI, run `npx @electron/rebuild -f -w better-sqlite3 -w keytar` on the Mac and rebuild | pending: both arches launch, `hasOpenai: true` after relaunch |
 | 5 | Entitlements / hardened runtime | not added; only needed once signing starts | — |
 | 6 | Reopen from the Dock | done: `lifecycle.reopenTarget({ hostReady })` → `createWindow()` loads the renderer directly after boot; `activate` is registered before the host boots | pending: smoke step 3 |
-| 7 | Bundled ffmpeg | operator step: drop `ffmpeg` and `ffprobe` (no extension, `chmod +x`, matching arch or universal) into `apps/desktop/resources/ffmpeg/` before each arch build; see [`../../resources/ffmpeg/README.md`](../../resources/ffmpeg/README.md) | pending: `editFfmpeg.found` true in `host-status.json` |
-| 8 | Icon | done: `build/icon.png` (1024², rasterized from `branding/agentforge/logo.svg`); electron-builder converts it to `.icns` | pending: Dock shows the mark, not the Electron default |
-| 9 | Artifacts | done: `Agentforge-<version>-mac-<arch>.dmg` / `.zip` (`mac.artifactName`), so x64 and arm64 no longer overwrite each other | pending: `dist/` holds four files after `pnpm desktop:build:mac` |
+| 7 | Bundled ffmpeg | not bundled in the preview (no LGPL static mac build to ship); Edit falls back to a PATH ffmpeg (`brew install ffmpeg`), which the public notes say. Mac-built path: see [`../../resources/ffmpeg/README.md`](../../resources/ffmpeg/README.md) | pending: `editFfmpeg.found` true in `host-status.json` with Homebrew ffmpeg |
+| 8 | Icon | done: `build/icon.png` (1024², 8-bit, rasterized from `branding/agentforge/logo.svg`); electron-builder converts it to `.icns` | pending: Dock shows the mark, not the Electron default |
+| 9 | Artifacts | done: `Agentforge-<version>-mac-<arch>.dmg` / `.zip` from `pnpm desktop:build:mac:docker` (both arches, static checks green, sha256 manifest in `dist/`) | pending: install from the dmg on a Mac |
+| 10 | Ad-hoc signature | done: `rcodesign sign` in the container; verifier requires an ADHOC CodeDirectory on main / framework / helper | pending: app is not "Killed: 9" on Apple silicon at launch |
 
-`pnpm desktop:release` runs on the Windows box (it validates `latest.yml`) and attaches any `Agentforge-<version>-mac-<arch>.dmg|zip` it finds in `apps/desktop/dist/` next to the Windows exe (`scripts/release-artifacts.mjs` picks them; `--require-mac` fails when an arch is missing; `latest-mac.yml` and mac blockmaps are never uploaded). Build on the Mac, copy the four files into `dist/` on the Windows box, then release. Do this only after every "pending" cell above is proven.
+`pnpm desktop:release` runs on the Windows box (it validates `latest.yml`) and attaches any `Agentforge-<version>-mac-<arch>.dmg|zip` it finds in `apps/desktop/dist/` next to the Windows exe (`scripts/release-artifacts.mjs` picks them; `--require-mac` fails when an arch is missing; `latest-mac.yml` and mac blockmaps are never uploaded). `--attach-mac` adds them to an already-published release and refreshes the notes. Mac artifacts go out labelled **preview** until the smoke list is proven; the notes carry the Gatekeeper and Keychain steps.
 
 ## Manual smoke on a Mac after any shell change
 

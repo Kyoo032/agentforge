@@ -13,6 +13,7 @@
     "desktop-build-dir": "pnpm --filter @agentforge/web build && node scripts/stage-renderer.mjs && electron-builder --win nsis --dir",
     "desktop-build-mac": "pnpm --filter @agentforge/web build && node scripts/stage-renderer.mjs && node scripts/pack-brand.mjs --restore-public && electron-builder --mac",
     "desktop-build-mac-dir": "pnpm --filter @agentforge/web build && node scripts/stage-renderer.mjs && node scripts/pack-brand.mjs --restore-public && electron-builder --mac --dir",
+    "desktop-build-mac-docker": "node scripts/mac-build-docker.mjs",
     "desktop-mac": "node scripts/macos-app.mjs",
     "desktop-build-linux": "pnpm --filter @agentforge/web build && node scripts/stage-renderer.mjs && electron-builder --linux",
     "desktop-build-linux-dir": "pnpm --filter @agentforge/web build && node scripts/stage-renderer.mjs && electron-builder --linux --dir",

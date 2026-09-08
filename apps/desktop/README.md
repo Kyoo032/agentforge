@@ -100,7 +100,9 @@ pnpm desktop:build:linux
 
 The mac scripts run `pack-brand.mjs --restore-public` before electron-builder, so the splash, `resources/brand/brand.json`, and `build/icon.png` (1024², converted to `.icns` by electron-builder) are always the public Agentforge flavor. Output: `Agentforge-<version>-mac-x64.dmg|zip` and `-arm64`. Native modules are rebuilt per arch by electron-builder; bundled ffmpeg goes in `resources/ffmpeg/` per [`resources/ffmpeg/README.md`](resources/ffmpeg/README.md).
 
-Unsigned is fine. Notarization is not done, so in-app updates are off on macOS (the Updates panel says so) and first launch needs right-click → Open. To ship: build on the Mac, copy `Agentforge-<version>-mac-{x64,arm64}.{dmg,zip}` into `apps/desktop/dist/` on the Windows box, and `pnpm desktop:release` attaches them next to the exe (`--require-mac` to insist on both arches; `latest-mac.yml` is never uploaded). Only after the smoke list in [`platform/macos/AGENTS.md`](platform/macos/AGENTS.md) passes.
+**No Mac?** `pnpm desktop:build:mac:docker` builds the same four files on this Windows box inside a Linux container (Docker Desktop must be running): electron-builder packs the `.app` on Linux, `rcodesign` ad-hoc signs it, libdmg-hfsplus writes the dmg, and `verify-bundle.py` checks arch, natives, symlinks, plist, asar and signatures before anything lands in `dist/`. Details and limits in [`platform/macos/AGENTS.md`](platform/macos/AGENTS.md). First run builds the image (a few minutes); later runs reuse the cache volume.
+
+Unsigned is fine. Notarization is not done, so in-app updates are off on macOS (the Updates panel says so) and first launch needs the Gatekeeper step from the public notes. To ship: with the four files in `apps/desktop/dist/`, `pnpm desktop:release` attaches them next to the exe (`--require-mac` to insist on both arches; `--attach-mac` for an already-published release; `latest-mac.yml` is never uploaded). Mac artifacts are labelled preview until the smoke list in [`platform/macos/AGENTS.md`](platform/macos/AGENTS.md) passes on hardware.
 
 ## Move log
 
