@@ -46,3 +46,7 @@ apps/desktop/resources/starters/*.m4a
 *.tsbuildinfo
 .claude/
 _ref/
+
+# Python bytecode from the mac build tooling
+__pycache__/
+*.pyc
