@@ -1,1 +1,1 @@
-export { dispatch, loadSettings, readSelectedWorkspaceId } from "@agentforge/host";
+export { dispatch, killTrackedChildren, loadSettings, readSelectedWorkspaceId } from "@agentforge/host";

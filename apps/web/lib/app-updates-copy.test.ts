@@ -131,6 +131,17 @@ describe("updateStatusLine", () => {
       "Available in the installed Agentforge app. New GitHub releases download and restart the app.",
     );
   });
+
+  it("shows the shell's own reason when updates are unsupported, never when supported", () => {
+    const macReason = "Updates on macOS are manual for now. Download the new .dmg from GitHub Releases.";
+    expect(updateStatusLine(state({ status: "unavailable", message: macReason }), false)).toBe(macReason);
+    expect(updateStatusLine(state({ status: "unavailable", message: "   " }), false)).toBe(
+      "Available in the installed Agentforge app. New GitHub releases download and restart the app.",
+    );
+    expect(updateStatusLine(state({ status: "idle", message: macReason }), true)).toBe(
+      "New GitHub releases download here, then Agentforge restarts.",
+    );
+  });
 });
 
 describe("updateVersionLine", () => {

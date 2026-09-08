@@ -4,18 +4,34 @@ Desktop releases for **Agentforge**, the local-first agent workspace by DPS. Thi
 
 ## Download
 
-Grab the newest `Agentforge-Setup-<version>.exe` from the [latest release](https://github.com/Kyoo032/DPS-Agent-Platform/releases/latest).
+From the [latest release](https://github.com/Kyoo032/DPS-Agent-Platform/releases/latest):
 
-## Install
+| Platform | File |
+|---|---|
+| Windows 10 / 11, 64-bit | `Agentforge-Setup-<version>.exe` |
+| macOS, Apple silicon (M1 and later) | `Agentforge-<version>-mac-arm64.dmg` |
+| macOS, Intel | `Agentforge-<version>-mac-x64.dmg` |
 
-- Windows 10 or 11, 64-bit.
+A release without `.dmg` files is Windows-only; the macOS build is a preview and is not attached to every release.
+
+## Install on Windows
+
 - The installer is not code-signed yet. If SmartScreen shows "Windows protected your PC", choose **More info → Run anyway**.
 - Installing over an existing copy upgrades it in place. Your threads, settings, and saved key are kept.
 - The app updates itself from this repository: **Settings → Check for updates** inside Agentforge downloads new releases from here.
 
+## Install on macOS (preview)
+
+- Open the `.dmg` and drag **Agentforge** to Applications.
+- The app is not signed by Apple yet. On first launch, right-click (or Control-click) **Agentforge.app** in Applications, choose **Open**, then **Open** again. If it still refuses, run `xattr -d com.apple.quarantine /Applications/Agentforge.app` in Terminal and try again.
+- When macOS asks about the Keychain, choose **Always Allow**.
+- Updates on macOS are manual: download the new `.dmg` from here and drag it over the old app. Your data stays in `~/Library/Application Support/Agentforge`.
+
 ## Uninstall
 
-Uninstalling removes the app, its local data folder, and the saved gateway key. Reinstalling afterwards starts fresh with onboarding.
+Windows: uninstalling removes the app, its local data folder, and the saved gateway key. Reinstalling afterwards starts fresh with onboarding.
+
+macOS: drag **Agentforge.app** to the Trash. To start fresh, also delete `~/Library/Application Support/Agentforge` and the `Agentforge` item in Keychain Access.
 
 ## Feedback
 

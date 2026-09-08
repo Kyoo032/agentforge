@@ -11,13 +11,13 @@
     "desktop-pack": "node scripts/pack-brand.mjs",
     "desktop-release": "node scripts/release-desktop.mjs",
     "desktop-build-dir": "pnpm --filter @agentforge/web build && node scripts/stage-renderer.mjs && electron-builder --win nsis --dir",
-    "desktop-build-mac": "pnpm --filter @agentforge/web build && node scripts/stage-renderer.mjs && electron-builder --mac",
-    "desktop-build-mac-dir": "pnpm --filter @agentforge/web build && node scripts/stage-renderer.mjs && electron-builder --mac --dir",
+    "desktop-build-mac": "pnpm --filter @agentforge/web build && node scripts/stage-renderer.mjs && node scripts/pack-brand.mjs --restore-public && electron-builder --mac",
+    "desktop-build-mac-dir": "pnpm --filter @agentforge/web build && node scripts/stage-renderer.mjs && node scripts/pack-brand.mjs --restore-public && electron-builder --mac --dir",
     "desktop-mac": "node scripts/macos-app.mjs",
     "desktop-build-linux": "pnpm --filter @agentforge/web build && node scripts/stage-renderer.mjs && electron-builder --linux",
     "desktop-build-linux-dir": "pnpm --filter @agentforge/web build && node scripts/stage-renderer.mjs && electron-builder --linux --dir",
-    "rebuild-natives": "echo 'Run on Windows (not Cloud): npx @electron/rebuild -f -w better-sqlite3 -w keytar'",
-    "test": "node brand-read.test.cjs && node auto-update.test.cjs && node edit-menu.test.cjs"
+    "rebuild-natives": "echo 'Run on the target OS, never Cloud (macOS: once per arch): npx @electron/rebuild -f -w better-sqlite3 -w keytar'",
+    "test": "node brand-read.test.cjs && node auto-update.test.cjs && node edit-menu.test.cjs && node lifecycle.test.cjs && node scripts/release-artifacts.test.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",
@@ -50,6 +50,7 @@
       "brand-read.cjs",
       "auto-update.cjs",
       "edit-menu.cjs",
+      "lifecycle.cjs",
       "host.cjs",
       "splash/**/*",
       "package.json",
@@ -103,6 +104,9 @@
     },
     "mac": {
       "identity": null,
+      "icon": "icon.png",
+      "category": "public.app-category.productivity",
+      "artifactName": "Agentforge-${version}-mac-${arch}.${ext}",
       "target": [
         {
           "target": "dmg",

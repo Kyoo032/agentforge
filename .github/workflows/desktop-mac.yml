@@ -1,0 +1,89 @@
+name: desktop-mac
+
+# Builds the unsigned macOS preview (dmg + zip, x64 + arm64) on a GitHub-hosted Mac and
+# boot-checks the arm64 .app (host-status.json + doctor --desktop). Artifacts are downloaded
+# by the operator into apps/desktop/dist/ and attached to the public release with
+# `pnpm desktop:release --attach-mac`. See apps/desktop/platform/macos/AGENTS.md.
+#
+# ffmpeg is NOT bundled on macOS (no LGPL static build to ship); Edit falls back to a PATH
+# ffmpeg. Homebrew ffmpeg here only renders the starter media that stage-renderer checks.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["feat/macos-port-*"]
+    paths-ignore: ["docs/**", "**/*.md"]
+
+concurrency:
+  group: desktop-mac-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "9.15.9"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: ffmpeg for starter media (build-time only, not bundled)
+        run: |
+          brew install ffmpeg
+          ffmpeg -version | head -1
+      - name: Render starter media
+        run: node scripts/edit-starters.mjs
+      - name: Version
+        id: version
+        run: echo "version=$(node -p "require('./apps/desktop/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Build mac (dmg + zip, x64 + arm64)
+        run: pnpm desktop:build:mac
+      - name: List artifacts
+        run: |
+          ls -la apps/desktop/dist
+          test -f "apps/desktop/dist/Agentforge-${{ steps.version.outputs.version }}-mac-arm64.dmg"
+          test -f "apps/desktop/dist/Agentforge-${{ steps.version.outputs.version }}-mac-x64.dmg"
+      - name: Boot check (arm64 .app writes host-status.json, doctor --desktop)
+        run: |
+          set -euo pipefail
+          BIN="$(node apps/desktop/scripts/macos-app.mjs --check)"
+          echo "launching $BIN"
+          "$BIN" --remote-debugging-port=9222 > app.log 2>&1 &
+          APP_PID=$!
+          STATUS="$HOME/Library/Application Support/Agentforge/host-status.json"
+          for i in $(seq 1 90); do
+            if [ -f "$STATUS" ]; then break; fi
+            sleep 1
+          done
+          echo "--- app.log ---"; cat app.log || true
+          echo "--- host-status.json ---"; cat "$STATUS"
+          node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop
+          kill "$APP_PID" || true
+      - name: Upload mac artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentforge-mac-${{ steps.version.outputs.version }}
+          path: |
+            apps/desktop/dist/Agentforge-*-mac-*.dmg
+            apps/desktop/dist/Agentforge-*-mac-*.zip
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload app log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-mac-logs
+          path: |
+            app.log
+            apps/desktop/dist/builder-debug.yml
+          if-no-files-found: ignore
+          retention-days: 7

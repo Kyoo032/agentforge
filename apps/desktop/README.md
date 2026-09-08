@@ -98,7 +98,9 @@ pnpm desktop:build:linux
 
 `desktop:build:mac:dir` writes an unpacked `.app` (same idea as `win-unpacked`). `pnpm desktop:mac` launches it with CDP `9222`. Both require **macOS**. This Windows checkout cannot run Apple’s Simulator or a `.app` — use WinApp F5 here. iOS Simulator / Expo stay parked.
 
-Unsigned is fine. Notarization is not done.
+The mac scripts run `pack-brand.mjs --restore-public` before electron-builder, so the splash, `resources/brand/brand.json`, and `build/icon.png` (1024², converted to `.icns` by electron-builder) are always the public Agentforge flavor. Output: `Agentforge-<version>-mac-x64.dmg|zip` and `-arm64`. Native modules are rebuilt per arch by electron-builder; bundled ffmpeg goes in `resources/ffmpeg/` per [`resources/ffmpeg/README.md`](resources/ffmpeg/README.md).
+
+Unsigned is fine. Notarization is not done, so in-app updates are off on macOS (the Updates panel says so) and first launch needs right-click → Open. To ship: build on the Mac, copy `Agentforge-<version>-mac-{x64,arm64}.{dmg,zip}` into `apps/desktop/dist/` on the Windows box, and `pnpm desktop:release` attaches them next to the exe (`--require-mac` to insist on both arches; `latest-mac.yml` is never uploaded). Only after the smoke list in [`platform/macos/AGENTS.md`](platform/macos/AGENTS.md) passes.
 
 ## Move log
 
