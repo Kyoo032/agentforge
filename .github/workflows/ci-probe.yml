@@ -1,0 +1,9 @@
+name: ci-probe
+on:
+  push:
+    branches: ["feat/macos-port-*"]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo probe ok
