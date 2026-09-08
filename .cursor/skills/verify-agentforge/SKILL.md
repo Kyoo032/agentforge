@@ -145,7 +145,7 @@ Use `page.getByTestId("<id>")` exactly as the spec.
 | `chat-usage`, `chat-context` | Chat header chips (wallet spend; ring + `left`/`used`) |
 | `chat-empty`, `message-list`, `message-output`, `thread-list`, `thread-item`, `new-chat`, `chat-error`, `composer-error` | Threads + assistant markdown output; live contact fail after 3 tries |
 | `settings-form`, `settings-endpoint`, `settings-endpoint-reset`, `openai-key`, `key-fingerprint`, `runtime-status`, `privacy-note`, `usage-this-key` | Settings (endpoint + key; Open Usage) |
-| `rail-footer`, `app-updates-toggle`, `app-updates-badge`, `app-updates-panel`, `app-updates-status`, `app-updates-check`, `app-updates-install`, `app-updates-close` | Rail footer updates icon (Agentforge only) |
+| `rail-footer`, `theme-toggle`, `app-updates-toggle`, `app-updates-badge`, `app-updates-panel`, `app-updates-status`, `app-updates-check`, `app-updates-install`, `app-updates-close` | Rail footer: theme icon, updates icon (Agentforge only), collapse |
 | `usage-range-empty`, `usage-desk-range`, `usage-by-model`, `usage-key-meter` | Usage page (by-model + desk range; empty chart copy) |
 | `images-studio`, `images-studio-needs-key`, `videos-studio`, `videos-studio-needs-key` | Generate studios |
 | `edit-studio`, `edit-timeline`, `edit-preview`, `edit-agent-panel`, `edit-composer`, `edit-card`, `edit-card-keep`, `edit-card-undo`, `edit-card-tweak`, `edit-export`, `edit-needs-ffmpeg`, `edit-needs-key` | Edit studio (Phase 1) |

@@ -9,6 +9,42 @@ import {
   type Theme,
 } from "@/lib/theme";
 
+function ThemeIcon({ theme }: { theme: Theme }) {
+  if (theme === "dark") {
+    return (
+      <svg
+        width="15"
+        height="15"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 3v1.5M12 19.5V21M4.9 4.9l1.1 1.1M18 18l1.1 1.1M3 12h1.5M19.5 12H21M4.9 19.1 6 18M18 6l1.1-1.1" />
+      </svg>
+    );
+  }
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4 7 7 0 0 0 20 14.5z" />
+    </svg>
+  );
+}
+
 export function ThemeToggle({ className }: { className?: string }) {
   const [theme, setTheme] = useState<Theme>(() => resolveTheme(getStoredTheme()));
 
@@ -30,10 +66,12 @@ export function ThemeToggle({ className }: { className?: string }) {
     <button
       type="button"
       onClick={toggle}
-      className={className ?? "block w-full rounded-md px-3 py-2 text-left text-sm text-ink hover:bg-mist"}
+      className={className ?? "btn btn-secondary btn-icon h-[30px] w-[30px] shrink-0"}
       aria-label={label}
+      title={label}
+      data-testid="theme-toggle"
     >
-      {label}
+      <ThemeIcon theme={theme} />
     </button>
   );
 }
