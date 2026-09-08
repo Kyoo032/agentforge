@@ -5,8 +5,13 @@
  * `pnpm desktop:build`. Uploaded asset names are hyphenated (what electron-updater's
  * GitHub provider requests); the local files keep the spaced artifactName.
  *
+ * macOS artifacts (`Agentforge-<version>-mac-<arch>.dmg|zip`, built on a Mac with
+ * `pnpm desktop:build:mac` and copied into dist/) are attached to the same release when
+ * present. `latest-mac.yml` and mac blockmaps are never uploaded: the mac app is unsigned
+ * and its updater is off. `--require-mac` fails when either arch is missing.
+ *
  *   node scripts/release-desktop.mjs [--dry-run] [--draft] [--allow-dirty] [--allow-stale]
- *                                    [--dist <dir>] [--notes <file>]
+ *                                    [--require-mac] [--dist <dir>] [--notes <file>]
  */
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -14,6 +19,7 @@ import { copyFileSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSyn
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { describeMacCoverage, selectMacArtifacts } from "./release-artifacts.mjs";
 
 const desktopRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const repoRoot = join(desktopRoot, "..", "..");
@@ -30,9 +36,23 @@ function ok(message) {
 }
 
 function parseArgs(argv) {
-  const defaults = { dryRun: false, draft: false, allowDirty: false, allowStale: false, dist: "dist", notes: null };
+  const defaults = {
+    dryRun: false,
+    draft: false,
+    allowDirty: false,
+    allowStale: false,
+    requireMac: false,
+    dist: "dist",
+    notes: null,
+  };
   const valueFlags = { "--dist": "dist", "--notes": "notes" };
-  const boolFlags = { "--dry-run": "dryRun", "--draft": "draft", "--allow-dirty": "allowDirty", "--allow-stale": "allowStale" };
+  const boolFlags = {
+    "--dry-run": "dryRun",
+    "--draft": "draft",
+    "--allow-dirty": "allowDirty",
+    "--allow-stale": "allowStale",
+    "--require-mac": "requireMac",
+  };
   const pairs = argv.flatMap((arg, i) => {
     if (boolFlags[arg]) return [[boolFlags[arg], true]];
     if (valueFlags[arg]) {
@@ -109,7 +129,24 @@ function checkDist(distDir, version, flags) {
   const latest = join(distDir, "latest.yml");
   for (const f of [exe, blockmap, latest]) if (!existsSync(f)) fail(`missing ${f}`);
   ok(`found ${exeName}, blockmap, latest.yml (${setups.length} Setup exe(s) in dist)`);
-  return { exeName, exe, blockmap, latest };
+  const mac = checkMacArtifacts(distDir, version, flags);
+  return { exeName, exe, blockmap, latest, macNames: mac.uploads, mac: mac.uploads.map((name) => join(distDir, name)) };
+}
+
+/** Mac dmg/zip for this version ride along with the Windows assets; feeds and stale builds do not. */
+function checkMacArtifacts(distDir, version, flags) {
+  const selection = selectMacArtifacts(readdirSync(distDir), version);
+  if (selection.stale.length > 0 && !flags.allowStale) {
+    fail(`${distDir} holds mac artifacts from another version (${selection.stale.join(", ")}); clean them or pass --allow-stale`);
+  }
+  if (selection.forbidden.length > 0) {
+    ok(`${selection.forbidden.join(", ")} present but never uploaded (mac updater is off)`);
+  }
+  if (flags.requireMac && selection.missingArches.length > 0) {
+    fail(`--require-mac: missing mac artifacts for ${selection.missingArches.join(", ")} (expected Agentforge-${version}-mac-<arch>.dmg)`);
+  }
+  ok(describeMacCoverage(selection));
+  return selection;
 }
 
 function checkLatest(files, version) {
@@ -155,6 +192,8 @@ function stageUploads(files) {
     [files.exe, exeName],
     [files.blockmap, `${exeName}.blockmap`],
     [files.latest, "latest.yml"],
+    // Mac names are already hyphenated by mac.artifactName; they upload as-is.
+    ...files.mac.map((source, i) => [source, files.macNames[i]]),
   ].map(([source, name]) => {
     const staged = join(stageDir, name);
     copyFileSync(source, staged);
@@ -171,8 +210,8 @@ function ghArgs(target, uploads, flags) {
   ];
 }
 
-function verifyAssetNames(target, exeName) {
-  const expected = [hyphenate(exeName), `${hyphenate(exeName)}.blockmap`, "latest.yml"];
+function verifyAssetNames(target, exeName, macNames) {
+  const expected = [hyphenate(exeName), `${hyphenate(exeName)}.blockmap`, "latest.yml", ...macNames];
   const view = spawnSync(
     process.platform === "win32" ? "gh.exe" : "gh",
     ["api", `repos/${target.owner}/${target.repo}/releases/tags/v${target.version}`, "-q", ".assets[].name"],
@@ -181,9 +220,9 @@ function verifyAssetNames(target, exeName) {
   if (view.status !== 0) fail("could not read back the release assets");
   const names = view.stdout.split(/\r?\n/).filter(Boolean).sort();
   if (names.join(",") !== [...expected].sort().join(",")) {
-    fail(`uploaded asset names [${names.join(", ")}] do not match latest.yml (${expected[0]})`);
+    fail(`uploaded asset names [${names.join(", ")}] do not match the expected set [${expected.join(", ")}]`);
   }
-  ok("uploaded asset names match latest.yml");
+  ok(`uploaded asset names match (${expected.length} assets)`);
 }
 
 function main() {
@@ -202,7 +241,7 @@ function main() {
     const gh = spawnSync(process.platform === "win32" ? "gh.exe" : "gh", args, { cwd: desktopRoot, stdio: "inherit" });
     if (gh.error) fail(`could not start gh: ${gh.error.message}`);
     if (gh.status !== 0) fail(`gh release create exited ${gh.status}`);
-    verifyAssetNames(target, files.exeName);
+    verifyAssetNames(target, files.exeName, files.macNames);
     ok(`published v${target.version} to ${target.owner}/${target.repo}`);
   } finally {
     rmSync(stageDir, { recursive: true, force: true });

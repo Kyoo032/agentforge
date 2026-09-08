@@ -17,7 +17,7 @@
     "desktop-build-linux": "pnpm --filter @agentforge/web build && node scripts/stage-renderer.mjs && electron-builder --linux",
     "desktop-build-linux-dir": "pnpm --filter @agentforge/web build && node scripts/stage-renderer.mjs && electron-builder --linux --dir",
     "rebuild-natives": "echo 'Run on the target OS, never Cloud (macOS: once per arch): npx @electron/rebuild -f -w better-sqlite3 -w keytar'",
-    "test": "node brand-read.test.cjs && node auto-update.test.cjs && node edit-menu.test.cjs && node lifecycle.test.cjs"
+    "test": "node brand-read.test.cjs && node auto-update.test.cjs && node edit-menu.test.cjs && node lifecycle.test.cjs && node scripts/release-artifacts.test.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",

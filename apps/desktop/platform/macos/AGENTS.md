@@ -27,7 +27,7 @@ Status: **port in progress**. Code for the shell rows landed on 2026-09-08 (bran
 | 8 | Icon | done: `build/icon.png` (1024², rasterized from `branding/agentforge/logo.svg`); electron-builder converts it to `.icns` | pending: Dock shows the mark, not the Electron default |
 | 9 | Artifacts | done: `Agentforge-<version>-mac-<arch>.dmg` / `.zip` (`mac.artifactName`), so x64 and arm64 no longer overwrite each other | pending: `dist/` holds four files after `pnpm desktop:build:mac` |
 
-`pnpm desktop:release` is Windows-only (it validates `latest.yml`). Mac artifacts are attached to a DPS Agent Platform release by hand, and only after every "pending" cell above is proven.
+`pnpm desktop:release` runs on the Windows box (it validates `latest.yml`) and attaches any `Agentforge-<version>-mac-<arch>.dmg|zip` it finds in `apps/desktop/dist/` next to the Windows exe (`scripts/release-artifacts.mjs` picks them; `--require-mac` fails when an arch is missing; `latest-mac.yml` and mac blockmaps are never uploaded). Build on the Mac, copy the four files into `dist/` on the Windows box, then release. Do this only after every "pending" cell above is proven.
 
 ## Manual smoke on a Mac after any shell change
 
