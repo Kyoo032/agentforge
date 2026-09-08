@@ -36,6 +36,8 @@ export {
 export { summarizeNumbers } from "./stats";
 export type { NumberSummary } from "./stats";
 export { MAX_WORKBOOK_BYTES, XLSX_DELIMITER, isWorkbookBytes, listXlsxSheets, parseXlsx } from "./xlsx";
+export { MAX_SHEET_NAME_CHARS, sanitizeSheetName, writeWorkbook } from "./xlsx-write";
+export type { WorkbookCell, WorkbookSheet } from "./xlsx-write";
 
 const WORKBOOK_EXTENSIONS = [".xlsx", ".xlsm", ".xls"];
 const DEFAULT_SAMPLE_ROWS = 20;

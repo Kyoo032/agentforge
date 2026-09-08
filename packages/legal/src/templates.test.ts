@@ -5,7 +5,7 @@ describe("legal pack", () => {
   it("seeds document and research surfaces without image or video tabs", () => {
     expect(legalAgentPacks).toHaveLength(1);
     expect(legalAgentPacks[0]?.id).toBe("legal");
-    expect(legalTemplates[0]?.productModes).toEqual(["chat", "documents", "research", "presentations"]);
+    expect(legalTemplates[0]?.productModes).toEqual(["chat", "documents", "research", "legal", "presentations"]);
     expect(legalTemplates[0]?.productModes).not.toContain("images");
     expect(legalTemplates[0]?.productModes).not.toContain("videos");
     expect(legalTemplates[0]?.productModes).not.toContain("agents");

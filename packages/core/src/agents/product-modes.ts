@@ -7,6 +7,7 @@ export const PRODUCT_MODES = [
   { id: "research", label: "Research", href: "/research" },
   { id: "finance", label: "Finance", href: "/finance" },
   { id: "data", label: "Data", href: "/data" },
+  { id: "legal", label: "Legal", href: "/legal" },
   { id: "images", label: "Images", href: "/images" },
   { id: "videos", label: "Videos", href: "/videos" },
   { id: "edit", label: "Edit", href: "/edit" },
