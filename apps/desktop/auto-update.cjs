@@ -29,8 +29,25 @@ const UPDATER_MESSAGES = Object.freeze({
   ERR_CHECKSUM_MISMATCH: VERIFY_FAILED_MESSAGE,
 });
 
-function updatesEnabled(productName, isPackaged) {
-  return Boolean(isPackaged && productName === "Agentforge");
+/**
+ * electron-updater refuses to install on macOS unless the app is code-signed, and the mac build
+ * ships with `identity: null`. Offering a download there would end in an install that cannot run,
+ * so darwin reports unsupported until signing exists (apps/desktop/platform/macos/AGENTS.md).
+ */
+const UNSIGNED_PLATFORMS = new Set(["darwin"]);
+const MAC_MANUAL_MESSAGE = "Updates on macOS are manual for now. Download the new .dmg from GitHub Releases.";
+const NOT_INSTALLED_MESSAGE = "Updates are available in the installed Agentforge app.";
+
+function updatesEnabled(productName, isPackaged, platform = process.platform) {
+  return Boolean(isPackaged && productName === "Agentforge" && !UNSIGNED_PLATFORMS.has(platform));
+}
+
+/** Why updates are off for this build, in user-facing words; undefined when the generic line fits. */
+function unsupportedMessage(productName, isPackaged, platform = process.platform) {
+  if (isPackaged && productName === "Agentforge" && UNSIGNED_PLATFORMS.has(platform)) {
+    return MAC_MANUAL_MESSAGE;
+  }
+  return undefined;
 }
 
 function loadAutoUpdater() {
@@ -146,17 +163,27 @@ function resolveUpdateLogPath(app) {
   }
 }
 
-function registerAutoUpdate({ app, ipcMain, BrowserWindow, productName, onInstallStart, autoUpdaterOverride }) {
+function registerAutoUpdate({
+  app,
+  ipcMain,
+  BrowserWindow,
+  productName,
+  onInstallStart,
+  autoUpdaterOverride,
+  platform = process.platform,
+}) {
   const currentVersion = app.getVersion();
-  const supported = updatesEnabled(productName, app.isPackaged);
+  const supported = updatesEnabled(productName, app.isPackaged, platform);
   const autoUpdater = supported ? autoUpdaterOverride ?? loadAutoUpdater() : null;
   const logger = createUpdateLogger(autoUpdater ? resolveUpdateLogPath(app) : null);
+  const unsupportedReason = unsupportedMessage(productName, app.isPackaged, platform);
 
   /** @type {{ supported: boolean, status: string, currentVersion: string, version?: string, percent?: number, message?: string }} */
   let state = {
     supported: Boolean(supported && autoUpdater),
     status: supported && autoUpdater ? "idle" : "unavailable",
     currentVersion,
+    ...(supported && autoUpdater ? {} : { message: unsupportedReason }),
   };
 
   function broadcast() {
@@ -193,7 +220,7 @@ function registerAutoUpdate({ app, ipcMain, BrowserWindow, productName, onInstal
     ipcMain.handle("updates:check", () => state);
     ipcMain.handle("updates:download", () => state);
     ipcMain.handle("updates:install", () => {
-      throw new Error("Updates are available in the installed Agentforge app.");
+      throw new Error(unsupportedReason ?? NOT_INSTALLED_MESSAGE);
     });
     return { supported: false };
   }
@@ -270,6 +297,7 @@ function registerAutoUpdate({ app, ipcMain, BrowserWindow, productName, onInstal
 
 module.exports = {
   updatesEnabled,
+  unsupportedMessage,
   describeUpdateError,
   createUpdateLogger,
   resolveUpdateLogPath,

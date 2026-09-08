@@ -1,6 +1,7 @@
 const { app, BrowserWindow, Menu, dialog, ipcMain, protocol } = require("electron");
 const { registerAutoUpdate } = require("./auto-update.cjs");
 const { installApplicationMenu, attachContextMenu } = require("./edit-menu.cjs");
+const lifecycle = require("./lifecycle.cjs");
 const { execFile } = require("node:child_process");
 const crypto = require("node:crypto");
 const fs = require("node:fs");
@@ -70,9 +71,29 @@ let hostReady = false;
 let exiting = false;
 /** Set by the updater right before quitAndInstall spawns the NSIS installer. */
 let installingUpdate = false;
+/** The bundled host once bootstrapPackaged() required it; null in dev and before boot. */
+let hostModule = null;
 
 function shouldQuitOnLastWindow() {
-  return process.platform !== "darwin";
+  return lifecycle.shouldQuitOnLastWindow(process.platform);
+}
+
+/**
+ * Signal every helper the host spawned (ffmpeg / ffprobe). Windows does not need this because
+ * exitApp() walks the process tree with taskkill; macOS and Linux have no such walk.
+ */
+function terminateHostChildren() {
+  if (!hostModule || typeof hostModule.killTrackedChildren !== "function") {
+    return;
+  }
+  try {
+    const stopped = hostModule.killTrackedChildren();
+    if (stopped > 0) {
+      console.info(`stopped ${stopped} helper process(es) on quit`);
+    }
+  } catch (err) {
+    console.warn("could not stop helper processes:", err.message);
+  }
 }
 
 function exitApp() {
@@ -82,7 +103,8 @@ function exitApp() {
   exiting = true;
   hostReady = false;
   mainWindow = null;
-  if (installingUpdate) {
+  const strategy = lifecycle.exitStrategy({ platform: process.platform, installingUpdate });
+  if (strategy === "plain") {
     // quitAndInstall has already spawned the NSIS installer as a detached child of this process.
     // The taskkill /T tree walk below would take the installer down with us, so exit plainly here.
     // Leftover helpers are handled by build/installer.nsh: its customInit inserts killRunningAgentforge,
@@ -90,13 +112,14 @@ function exitApp() {
     app.exit(0);
     return;
   }
-  if (process.platform === "win32") {
+  if (strategy === "taskkill-tree") {
     execFile("taskkill", ["/F", "/PID", String(process.pid), "/T"], () => {
       app.exit(0);
     });
     setTimeout(() => app.exit(0), 1500).unref();
     return;
   }
+  terminateHostChildren();
   app.exit(0);
 }
 
@@ -189,7 +212,12 @@ function createWindow() {
       mainWindow.focus();
     }
   });
-  mainWindow.loadFile(splashPath());
+  if (lifecycle.reopenTarget({ hostReady }) === "ui") {
+    // Dock reopen on macOS after the host booted: the splash would never advance, so load the UI.
+    void navigateToUi();
+  } else {
+    mainWindow.loadFile(splashPath());
+  }
   mainWindow.on("close", () => {
     if (shouldQuitOnLastWindow()) {
       exitApp();
@@ -337,6 +365,7 @@ async function bootstrapPackaged() {
   delete process.env.DATABASE_URL;
 
   const host = require("./host.cjs");
+  hostModule = host;
   registerIpc(host);
   registerMediaProtocol(host);
   const ping = await host.dispatch({
@@ -442,11 +471,22 @@ if (!gotLock) {
 
   app.whenReady().then(async () => {
     createWindow();
+    // Registered before boot so a Dock click during a slow start still gets a window (macOS only
+    // emits this; on Windows/Linux the app has exited by the time all windows are gone).
+    app.on("activate", () => {
+      if (exiting) {
+        return;
+      }
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow();
+      }
+    });
     registerAutoUpdate({
       app,
       ipcMain,
       BrowserWindow,
       productName: PRODUCT_NAME,
+      platform: process.platform,
       onInstallStart: () => {
         installingUpdate = true;
       },
@@ -467,20 +507,19 @@ if (!gotLock) {
         );
       }
     }
-
-    app.on("activate", () => {
-      if (exiting) {
-        return;
-      }
-      if (BrowserWindow.getAllWindows().length === 0) {
-        createWindow();
-      }
-    });
   });
 
   app.on("before-quit", () => {
     if (shouldQuitOnLastWindow()) {
       exitApp();
+      return;
+    }
+    // macOS: Cmd+Q (the `quit` role) is the only exit. Nothing walks the process tree here, so stop
+    // the host's helpers before Electron tears the process down, and refuse new windows meanwhile.
+    exiting = true;
+    hostReady = false;
+    if (lifecycle.quitKillsChildren(process.platform)) {
+      terminateHostChildren();
     }
   });
 

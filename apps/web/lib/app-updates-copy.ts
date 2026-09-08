@@ -120,7 +120,12 @@ export function updateStatusLine(state: UpdateState, supported: boolean): string
     case "error":
       return shortUpdateMessage(state.message, CHECK_FAILED_FALLBACK);
     default:
-      return supported ? SUPPORTED_IDLE_STATUS_LINE : UNSUPPORTED_STATUS_LINE;
+      if (supported) {
+        return SUPPORTED_IDLE_STATUS_LINE;
+      }
+      // The shell may say why updates are off (e.g. unsigned macOS build); the renderer never
+      // reads the platform itself, so the reason travels in the snapshot.
+      return shortUpdateMessage(state.message, UNSUPPORTED_STATUS_LINE);
   }
 }
 

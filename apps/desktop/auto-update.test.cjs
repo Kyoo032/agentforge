@@ -4,6 +4,7 @@ const os = require("node:os");
 const path = require("node:path");
 const {
   updatesEnabled,
+  unsupportedMessage,
   describeUpdateError,
   createUpdateLogger,
   resolveUpdateLogPath,
@@ -98,6 +99,7 @@ function setup(options = {}) {
     ipcMain,
     BrowserWindow: windows.BrowserWindow,
     productName: options.productName ?? "Agentforge",
+    platform: options.platform ?? "win32",
     autoUpdaterOverride: autoUpdater,
     onInstallStart: () => installs.push(autoUpdater.calls.length),
   });
@@ -106,11 +108,21 @@ function setup(options = {}) {
 
 // ---------- updatesEnabled ----------
 
-assert.equal(updatesEnabled("Agentforge", true), true);
-assert.equal(updatesEnabled("Agentforge", false), false);
-assert.equal(updatesEnabled("Kemenkeu AI", true), false);
-assert.equal(updatesEnabled("AIHub Metranet", true), false);
-assert.equal(updatesEnabled(undefined, true), false);
+assert.equal(updatesEnabled("Agentforge", true, "win32"), true);
+assert.equal(updatesEnabled("Agentforge", true, "linux"), true);
+assert.equal(updatesEnabled("Agentforge", false, "win32"), false);
+assert.equal(updatesEnabled("Kemenkeu AI", true, "win32"), false);
+assert.equal(updatesEnabled("AIHub Metranet", true, "win32"), false);
+assert.equal(updatesEnabled(undefined, true, "win32"), false);
+assert.equal(updatesEnabled("Agentforge", true, "darwin"), false, "unsigned mac build never offers an install");
+
+// ---------- unsupportedMessage ----------
+
+const MAC_MANUAL = "Updates on macOS are manual for now. Download the new .dmg from GitHub Releases.";
+assert.equal(unsupportedMessage("Agentforge", true, "darwin"), MAC_MANUAL);
+assert.equal(unsupportedMessage("Agentforge", false, "darwin"), undefined, "dev build keeps the generic line");
+assert.equal(unsupportedMessage("Kemenkeu AI", true, "darwin"), undefined, "flavors never mention releases");
+assert.equal(unsupportedMessage("Agentforge", true, "win32"), undefined);
 
 // ---------- describeUpdateError ----------
 
@@ -183,9 +195,28 @@ async function main() {
   {
     const { ipcMain, result, autoUpdater } = setup({ app: { isPackaged: false } });
     assert.deepEqual(result, { supported: false });
-    assert.equal(ipcMain.invoke("updates:state").status, "unavailable");
-    assert.throws(() => ipcMain.invoke("updates:install"));
+    const state = ipcMain.invoke("updates:state");
+    assert.equal(state.status, "unavailable");
+    assert.equal(state.message, undefined, "dev build carries no platform reason");
+    assert.throws(() => ipcMain.invoke("updates:install"), /installed Agentforge app/);
     assert.deepEqual(autoUpdater.calls, []);
+  }
+
+  // ---------- unsupported: packaged macOS (unsigned) ----------
+  {
+    const { ipcMain, result, autoUpdater, windows } = setup({ platform: "darwin" });
+    await settle();
+    assert.deepEqual(result, { supported: false });
+    const state = ipcMain.invoke("updates:state");
+    assert.equal(state.supported, false);
+    assert.equal(state.status, "unavailable");
+    assert.equal(state.message, MAC_MANUAL, "mac tells the user where releases live");
+    assert.equal(state.currentVersion, CURRENT);
+    assert.equal(ipcMain.invoke("updates:check"), state, "check is a no-op on mac");
+    assert.equal(ipcMain.invoke("updates:download"), state);
+    assert.throws(() => ipcMain.invoke("updates:install"), /macOS/);
+    assert.deepEqual(autoUpdater.calls, [], "mac never touches electron-updater");
+    assert.equal(windows.sent.length, 0, "nothing to broadcast when the updater is off");
   }
 
   // ---------- supported: wiring + error event ----------

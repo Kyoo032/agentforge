@@ -2,6 +2,7 @@ import { execFile as execFileCb, type ExecFileException } from "node:child_proce
 import { unlink } from "node:fs/promises";
 import { promisify } from "node:util";
 import { ApiError } from "@agentforge/core";
+import { trackChild, type TrackableChild } from "../../child-processes";
 import { resolveFfmpeg, resolveFfprobe } from "../ffmpeg-binary";
 
 const defaultExecFile = promisify(execFileCb);
@@ -71,7 +72,7 @@ export async function runFfmpeg(argv: string[], options: RunFfmpegOptions): Prom
     args.push("-progress", "pipe:1", "-nostats");
   }
   try {
-    const result = await execFileImpl(resolved.path, args, {
+    const pending = execFileImpl(resolved.path, args, {
       timeout: options.timeoutMs,
       windowsHide: true,
       env: minimalEnv(),
@@ -79,6 +80,13 @@ export async function runFfmpeg(argv: string[], options: RunFfmpegOptions): Prom
       encoding: "utf8",
       maxBuffer: 32 * 1024 * 1024,
     });
+    // util.promisify(execFile) attaches the ChildProcess as `child`; register it so the shell can
+    // signal it on quit (macOS / Linux have no process-tree kill, see child-processes.ts).
+    const child = (pending as { child?: TrackableChild }).child;
+    if (child) {
+      trackChild(child);
+    }
+    const result = await pending;
     const stdout = typeof result.stdout === "string" ? result.stdout : result.stdout.toString("utf8");
     const stderr = typeof result.stderr === "string" ? result.stderr : result.stderr.toString("utf8");
     if (options.onProgress) {

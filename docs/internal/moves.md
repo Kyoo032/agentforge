@@ -15,6 +15,13 @@ Format:
 
 ---
 
+## 2026-09-08 — macOS shell rows: lifecycle module, tracked helpers, updater off on darwin
+
+- **What:** Per-platform exit / reopen decisions and the fate of spawned helpers on quit.
+- **From:** `main.cjs` inlined `process.platform` checks; on macOS / Linux `app.quit()` left `ffmpeg` running; a Dock reopen after boot loaded a splash that never advanced; `auto-update.cjs` would have offered a download the unsigned mac app cannot install; both mac arches wrote the same `Agentforge Setup <v>.dmg`.
+- **To:** `apps/desktop/lifecycle.cjs` (pure, tested) decides `shouldQuitOnLastWindow` / `exitStrategy` / `reopenTarget`; `packages/host/src/child-processes.ts` tracks every `runFfmpeg` child and the shell's `before-quit` calls `killTrackedChildren()`; `updatesEnabled(..., platform)` is false on darwin with a user-facing reason in the state `message`; `mac.artifactName` is `Agentforge-<v>-mac-<arch>`; `desktop-build-mac*` run `pack-brand.mjs --restore-public` first; `build/icon.png` (1024²) is the mac icon source.
+- **Why:** macOS port rows 1, 3, 6 in `apps/desktop/platform/macos/AGENTS.md`. Windows `exitApp` semantics are unchanged (`taskkill /T`, plain exit during an update install). Unproven on hardware: this checkout cannot run a `.app`.
+
 ## 2026-09-02 — Packaged app is IPC, not a Next HTTP child
 
 - **What:** Local Electron host. Main process owns DB, secrets, and media.
