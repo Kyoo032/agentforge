@@ -316,25 +316,35 @@ function registerIpc(host) {
   });
 }
 
+/**
+ * Host GET paths served behind the agentforge:// scheme, by hostname. `media` is the user's own
+ * gallery; `video-example` is a bundled clip from resources/examples/videos. Both are local bytes.
+ */
+const PROTOCOL_HOST_PATHS = Object.freeze({
+  media: (id) => `/api/v1/media/${id}/file`,
+  "video-example": (name) => `/api/v1/videos/examples/${name}/file`,
+});
+
 function registerMediaProtocol(host) {
   protocol.handle("agentforge", async (request) => {
     const url = new URL(request.url);
-    if (url.hostname === "media") {
-      const mediaId = url.pathname.replace(/^\//, "");
-      const result = await host.dispatch({
-        method: "GET",
-        path: `/api/v1/media/${mediaId}/file`,
-        query: {},
-        params: {},
-        headers: { "x-agentforge-transport": "ipc" },
-        workspaceId: host.readSelectedWorkspaceId() ?? null,
-      });
-      if (result.type === "bytes") {
-        return new Response(result.bytes, {
-          headers: { "Content-Type": result.contentType, "Cache-Control": "private, max-age=3600" },
-        });
-      }
+    const toHostPath = PROTOCOL_HOST_PATHS[url.hostname];
+    if (!toHostPath) {
       return new Response("Not found", { status: 404 });
+    }
+    const key = url.pathname.replace(/^\//, "");
+    const result = await host.dispatch({
+      method: "GET",
+      path: toHostPath(key),
+      query: {},
+      params: {},
+      headers: { "x-agentforge-transport": "ipc" },
+      workspaceId: host.readSelectedWorkspaceId() ?? null,
+    });
+    if (result.type === "bytes") {
+      return new Response(result.bytes, {
+        headers: { "Content-Type": result.contentType, "Cache-Control": "private, max-age=3600" },
+      });
     }
     return new Response("Not found", { status: 404 });
   });

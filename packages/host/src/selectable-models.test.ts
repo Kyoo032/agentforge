@@ -3,7 +3,20 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { ChatModel } from "@agentforge/core";
-import { modeCatalogPayload } from "./selectable-models";
+import { listCatalogModels, modeCatalogPayload, resetCatalogMemo } from "./selectable-models";
+
+describe("listCatalogModels memo", () => {
+  it("returns the memoized catalog until a cache file changes", () => {
+    resetCatalogMemo();
+    const first = listCatalogModels();
+    const second = listCatalogModels();
+    expect(second).toBe(first);
+    resetCatalogMemo();
+    const third = listCatalogModels();
+    expect(third).not.toBe(first);
+    expect(third).toEqual(first);
+  });
+});
 
 function model(id: string): ChatModel {
   return { id, label: id, provider: "openai", inputModalities: ["text"] };

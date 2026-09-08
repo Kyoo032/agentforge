@@ -278,8 +278,14 @@ export const knowledgeSources = sqliteTable(
     chunks: integer("chunks").notNull().default(0),
     error: text("error"),
     createdAt: integer("created_at").notNull(),
+    /** Work that produced this source (thread / media / artifact); null for File, URL, Paste. */
+    originKind: text("origin_kind"),
+    originId: text("origin_id"),
   },
-  (table) => [index("knowledge_sources_ws_idx").on(table.workspaceId)],
+  (table) => [
+    index("knowledge_sources_ws_idx").on(table.workspaceId),
+    uniqueIndex("knowledge_sources_origin_idx").on(table.workspaceId, table.originKind, table.originId),
+  ],
 );
 
 export const knowledgeSettings = sqliteTable("knowledge_settings", {

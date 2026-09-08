@@ -48,6 +48,13 @@ describe("knowledge-embed", () => {
     const model = DEFAULT_EMBEDDING_MODEL;
     const hit = "vendor concentration risk in the spend table";
     const miss = "a recipe for tomato soup with basil";
+    // Retrieval only serves vectors whose source row exists, so seed the two rows.
+    const insertSource = sql.prepare(
+      `INSERT INTO knowledge_sources (id, workspace_id, name, type, status, chunks, error, created_at)
+       VALUES (?, ?, ?, 'Paste', 'Indexed', 1, NULL, ?)`,
+    );
+    insertSource.run("src-hit", ctx.workspaceId, "hit", Date.now());
+    insertSource.run("src-miss", ctx.workspaceId, "miss", Date.now());
     await indexSourceVectors(ctx, "src-hit", [hit], model);
     await indexSourceVectors(ctx, "src-miss", [miss], model);
 
@@ -68,6 +75,7 @@ describe("knowledge-embed", () => {
     expect(ranked[0]?.score ?? 0).toBeGreaterThan(ranked.find((row) => row.body.includes("tomato"))?.score ?? 0);
 
     sql.prepare("DELETE FROM knowledge_vectors WHERE workspace_id = ?").run(ctx.workspaceId);
+    sql.prepare("DELETE FROM knowledge_sources WHERE workspace_id = ?").run(ctx.workspaceId);
   });
 
   it("returns empty retrieve for blank query", async () => {

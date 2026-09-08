@@ -16,6 +16,7 @@ import {
   type ThisKeyState,
   type TimestampedRunUsage,
   type UsageBucket,
+  redactSecrets,
   type UsageRange,
 } from "@agentforge/core";
 import type { TenantContext } from "@agentforge/core";
@@ -104,14 +105,27 @@ function serializeByModel(rows: DeskModelSpend[]): DeskModelSpendPayload[] {
   }));
 }
 
+/** A failed pricing fetch is remembered too, so an offline desk pays the timeout once, not per request. */
+const PRICING_FAIL_TTL_MS = 2 * 60 * 1000;
+let pricingFailure: { at: number; baseURL: string; error: unknown } | null = null;
+
 async function pricingFor(baseURL: string | undefined): Promise<PricingCatalog> {
   const key = baseURL?.trim() || "";
   if (pricingCache && pricingCache.baseURL === key && Date.now() - pricingCache.at < PRICING_TTL_MS) {
     return pricingCache.catalog;
   }
-  const catalog = await fetchPricingCatalog({ baseURL });
-  pricingCache = { at: Date.now(), baseURL: key, catalog };
-  return catalog;
+  if (pricingFailure && pricingFailure.baseURL === key && Date.now() - pricingFailure.at < PRICING_FAIL_TTL_MS) {
+    throw pricingFailure.error;
+  }
+  try {
+    const catalog = await fetchPricingCatalog({ baseURL });
+    pricingCache = { at: Date.now(), baseURL: key, catalog };
+    pricingFailure = null;
+    return catalog;
+  } catch (error) {
+    pricingFailure = { at: Date.now(), baseURL: key, error };
+    throw error;
+  }
 }
 
 export async function loadLocalAccountUsage(
@@ -146,6 +160,14 @@ export async function loadAccountUsage(
   settings: StoredSecrets,
   tenant: TenantContext,
 ): Promise<AccountUsagePayload> {
+  // With a key both gateway calls are needed; start pricing alongside this-key so an offline desk pays
+  // one timeout, not two in a row (this sits on GET /settings, which the app shell waits for).
+  const pricingEarly = settings.openaiApiKey
+    ? pricingFor(settings.openaiBaseUrl).then(
+        (catalog) => ({ catalog, error: null as unknown }),
+        (error: unknown) => ({ catalog: null, error }),
+      )
+    : null;
   const [thisKey, runRows] = await Promise.all([thisKeyFor(settings), listRunUsage(tenant)]);
   const fromRuns: RunUsageRecord[] = [];
   for (const row of runRows) {
@@ -170,7 +192,11 @@ export async function loadAccountUsage(
   }
 
   try {
-    const catalog = await pricingFor(settings.openaiBaseUrl);
+    const early = pricingEarly ? await pricingEarly : null;
+    if (early?.error) {
+      throw early.error;
+    }
+    const catalog = early?.catalog ?? (await pricingFor(settings.openaiBaseUrl));
     const desk = estimateDeskUsd(records, catalog);
     return {
       thisKey,
@@ -276,7 +302,7 @@ export async function loadRangeUsage(
   try {
     catalog = await pricingFor(settings.openaiBaseUrl);
   } catch (error) {
-    pricingError = error instanceof Error ? error.message : "Could not load gateway prices";
+    pricingError = redactSecrets(error instanceof Error ? error.message : "Could not load gateway prices");
   }
 
   const desk = summarizeUsageDesk(timed, catalog);

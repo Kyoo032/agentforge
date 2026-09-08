@@ -9,7 +9,7 @@ type Props = {
   title: string;
   markdown: string;
   artifactId: string | null;
-  kbType: "Dossier" | "Analysis" | "Brief";
+  kbType: "Dossier" | "Analysis" | "Brief" | "Memo";
   disabled?: boolean;
   testIdPrefix: string;
 };
@@ -42,8 +42,12 @@ export function ArtifactActions({ title, markdown, artifactId, kbType, disabled 
     setBusy("kb");
     setNote(null);
     try {
-      await sendTextToKnowledgeBase({ name: title, text: markdown, type: kbType });
-      setNote("Added to the Knowledge Base.");
+      const result = await sendTextToKnowledgeBase({ name: title, text: markdown, type: kbType, artifactId });
+      if (result.status === "Failed") {
+        setNote(`Knowledge Base could not index this: ${result.error ?? "unknown reason"}`);
+      } else {
+        setNote(result.alreadyIndexed ? "Already in the Knowledge Base." : "Added to the Knowledge Base.");
+      }
     } catch (err) {
       setNote(err instanceof Error ? err.message : "Could not add to the Knowledge Base");
     } finally {

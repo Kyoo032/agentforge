@@ -44,26 +44,43 @@ const RULES: InjectionRule[] = [
   },
 ];
 
-const META_DISCUSSION_RE = /\b(security analysis|false positive|injection guard)\b/i;
-const BASE64_HINT_RE = /base64|[A-Za-z0-9+/]{40,}={0,2}/i;
-const PATH_HINT_RE = /(?:[A-Za-z]:\\|\/)[^\s]{1,160}\.\w{1,8}\b|\b[\w.-]+\.(txt|md|csv|json|png|jpe?g|webp)\b/i;
+/** Zero-width and joiner characters that split a trigger word without changing how it reads. */
+const ZERO_WIDTH_RE = /[\u200B-\u200F\u2060-\u2064\uFEFF\u00AD]/g;
 
-function isFalsePositiveContext(text: string): boolean {
-  if (META_DISCUSSION_RE.test(text)) {
-    return true;
-  }
-  return BASE64_HINT_RE.test(text) && PATH_HINT_RE.test(text);
+/** Cyrillic / Greek letters that render like Latin ones, folded so "Ignоre" (Cyrillic о) reads "Ignore". */
+const HOMOGLYPHS: Record<string, string> = {
+  а: "a", е: "e", о: "o", р: "p", с: "c", у: "y", х: "x", і: "i", ѕ: "s", ј: "j", һ: "h", ԁ: "d", ԛ: "q", ԝ: "w",
+  ɡ: "g", ց: "g", ո: "n", ս: "u",
+  А: "A", В: "B", Е: "E", К: "K", М: "M", Н: "H", О: "O", Р: "P", С: "C", Т: "T", Х: "X", І: "I", Ѕ: "S", Ј: "J",
+  α: "a", ο: "o", ν: "v", ι: "i", κ: "k", ρ: "p", τ: "t", υ: "u", χ: "x", Α: "A", Β: "B", Ε: "E", Ζ: "Z", Η: "H",
+  Ι: "I", Κ: "K", Μ: "M", Ν: "N", Ο: "O", Ρ: "P", Τ: "T", Υ: "Y", Χ: "X",
+};
+const HOMOGLYPH_RE = new RegExp(`[${Object.keys(HOMOGLYPHS).join("")}]`, "g");
+
+/**
+ * The text the rules see: NFKC (fullwidth → ASCII), zero-width characters removed, look-alike
+ * letters folded to Latin. Latin text is unchanged, so hits map back to the original one-to-one.
+ */
+export function normalizeForScan(text: string): string {
+  return text
+    .normalize("NFKC")
+    .replace(ZERO_WIDTH_RE, "")
+    .replace(HOMOGLYPH_RE, (char) => HOMOGLYPHS[char] ?? char);
 }
 
+/**
+ * Rule match on the normalized text. There is deliberately no text-wide "this looks like a security
+ * discussion / base64 blob, skip it" shortcut: any such shortcut is a one-line bypass (append
+ * `notes.txt` and a base64 run, or the words "false positive"). Owners who paste legitimate material
+ * that trips a rule use the injectionGuardBypass setting.
+ */
 export function scanInjection(text: string): InjectionHit | null {
   if (!text) {
     return null;
   }
-  if (isFalsePositiveContext(text)) {
-    return null;
-  }
+  const normalized = normalizeForScan(text);
   for (const rule of RULES) {
-    if (rule.pattern.test(text)) {
+    if (rule.pattern.test(normalized)) {
       return { hit: true, rule: rule.rule, severity: rule.severity };
     }
   }

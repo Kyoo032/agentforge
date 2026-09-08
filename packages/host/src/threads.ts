@@ -4,6 +4,7 @@ import type { ContentPart, InputModality, TenantContext } from "@agentforge/core
 import { ApiError, DEFAULT_CHAT_SLUG, isDefaultChatAgent, openPayload, sealPayload } from "@agentforge/core";
 import { getLocalVaultKey } from "@agentforge/db/vault-key";
 import { DEFAULT_THREAD_TITLE, titleFromParts } from "./thread-title";
+import { deleteSourceByOrigin } from "./knowledge";
 import { messageText } from "./message-text";
 
 const PREVIEW_MAX = 80;
@@ -49,6 +50,8 @@ export async function getThread(tenant: TenantContext, threadId: string) {
     .where(
       and(
         eq(threads.organizationId, tenant.organizationId),
+        // Workspaces are desks; a thread is only visible from the desk that owns it.
+        eq(threads.workspaceId, tenant.workspaceId),
         eq(threads.userId, tenant.userId),
         eq(threads.id, threadId),
       ),
@@ -125,10 +128,17 @@ export async function deleteThread(tenant: TenantContext, threadId: string): Pro
     .where(
       and(
         eq(threads.organizationId, tenant.organizationId),
+        eq(threads.workspaceId, tenant.workspaceId),
         eq(threads.userId, tenant.userId),
         eq(threads.id, threadId),
       ),
     );
+  // The thread's Knowledge work card goes with it; otherwise a deleted conversation keeps being retrieved.
+  try {
+    deleteSourceByOrigin(tenant, { kind: "thread", id: threadId });
+  } catch (error) {
+    console.warn(`threads: could not drop knowledge card for ${threadId} (${error instanceof Error ? error.message : "unknown"})`);
+  }
   return true;
 }
 
@@ -284,14 +294,19 @@ export async function insertRun(
   return row;
 }
 
+/**
+ * Terminal transition for a run. Only a `streaming` row is updated, so whichever of the watchdog,
+ * the client abort, or the model completion settles first wins and the others are no-ops.
+ * Returns whether this call performed the transition.
+ */
 export async function finishRun(
   tenant: TenantContext,
   runId: string,
   status: "completed" | "failed",
   error?: string,
   usage?: Record<string, unknown> | null,
-) {
-  await db
+): Promise<boolean> {
+  const rows = await db
     .update(runs)
     .set({
       status,
@@ -299,7 +314,9 @@ export async function finishRun(
       finishedAt: new Date(),
       ...(usage ? { usage } : {}),
     })
-    .where(and(eq(runs.organizationId, tenant.organizationId), eq(runs.id, runId)));
+    .where(and(eq(runs.organizationId, tenant.organizationId), eq(runs.id, runId), eq(runs.status, "streaming")))
+    .returning({ id: runs.id });
+  return rows.length > 0;
 }
 
 export async function listRunUsage(tenant: TenantContext) {

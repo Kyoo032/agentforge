@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { mediaKind, type ChatModel, type ModelProvider } from "@agentforge/core";
 
@@ -22,6 +22,11 @@ function cachePath(): string {
   if (process.env.AGENTFORGE_MODELS_CACHE_PATH) {
     return process.env.AGENTFORGE_MODELS_CACHE_PATH;
   }
+  // Packaged app: the data dir is userData, not cwd/../../data (which would be outside the install).
+  const dataDir = process.env.AGENTFORGE_DATA_DIR?.trim();
+  if (dataDir) {
+    return resolve(dataDir, "models-cache.json");
+  }
   return resolve(process.cwd(), "../../data/models-cache.json");
 }
 
@@ -44,6 +49,16 @@ function asModels(value: unknown): ChatModel[] | undefined {
     return true;
   });
   return models.length > 0 ? models : undefined;
+}
+
+/** Cheap change key for memoizing derived catalogs: the cache file's mtime + size, or "missing". */
+export function modelCacheStamp(): string {
+  try {
+    const stat = statSync(cachePath());
+    return `${stat.mtimeMs}:${stat.size}`;
+  } catch {
+    return "missing";
+  }
 }
 
 export function loadModelCache(): ModelCache {
