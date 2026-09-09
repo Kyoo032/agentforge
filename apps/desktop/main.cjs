@@ -1,5 +1,6 @@
 const { app, BrowserWindow, Menu, dialog, ipcMain, protocol } = require("electron");
 const { registerAutoUpdate } = require("./auto-update.cjs");
+const { PUBLIC_PRODUCT_NAME } = require("./brand-read.cjs");
 const { installApplicationMenu, attachContextMenu } = require("./edit-menu.cjs");
 const lifecycle = require("./lifecycle.cjs");
 const { execFile } = require("node:child_process");
@@ -8,7 +9,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const DEFAULT_BRAND = {
-  productName: "Agentforge",
+  productName: "DPSBuddy",
   gatewayName: "Toko Token",
   gatewayBaseUrl: "https://api.tokotokenai.com/v1",
 };
@@ -37,7 +38,7 @@ function loadBrandConfig() {
         : DEFAULT_BRAND.gatewayBaseUrl;
     return { productName, gatewayName, gatewayBaseUrl };
   } catch (err) {
-    console.warn("brand.json unreadable, using Agentforge defaults:", err.message);
+    console.warn("brand.json unreadable, using DPSBuddy defaults:", err.message);
     return DEFAULT_BRAND;
   }
 }
@@ -46,6 +47,8 @@ const brand = loadBrandConfig();
 const PRODUCT_NAME = brand.productName;
 const KEYCHAIN_SERVICE = PRODUCT_NAME;
 const KEYCHAIN_ACCOUNT = "wrap-key";
+/** Names the public build carried before the DPSBuddy rename. Read once and copied forward; never deleted here. */
+const LEGACY_PUBLIC_NAMES = PRODUCT_NAME === PUBLIC_PRODUCT_NAME ? ["Agentforge"] : [];
 const WEBDEV_URL = "http://127.0.0.1:3000";
 
 process.env.AGENTFORGE_PRODUCT_NAME = brand.productName;
@@ -107,8 +110,8 @@ function exitApp() {
   if (strategy === "plain") {
     // quitAndInstall has already spawned the NSIS installer as a detached child of this process.
     // The taskkill /T tree walk below would take the installer down with us, so exit plainly here.
-    // Leftover helpers are handled by build/installer.nsh: its customInit inserts killRunningAgentforge,
-    // which taskkills any remaining Agentforge.exe tree before setup overwrites files.
+    // Leftover helpers are handled by build/installer.nsh: its customInit inserts killRunningApp,
+    // which taskkills any remaining app exe tree (DPSBuddy.exe, legacy Agentforge.exe) before setup overwrites files.
     app.exit(0);
     return;
   }
@@ -151,6 +154,17 @@ async function loadKeytar() {
   }
 }
 
+/** Wrap key saved under a pre-rename service name, so an upgraded install can still open its saved gateway key. */
+async function readLegacyWrapKey(keytar) {
+  for (const service of LEGACY_PUBLIC_NAMES) {
+    const legacy = await keytar.getPassword(service, KEYCHAIN_ACCOUNT);
+    if (legacy?.trim()) {
+      return legacy.trim();
+    }
+  }
+  return null;
+}
+
 async function wrapKey() {
   const keytar = await loadKeytar();
   if (keytar) {
@@ -159,7 +173,7 @@ async function wrapKey() {
       if (existing && existing.trim()) {
         return existing.trim();
       }
-      const secret = crypto.randomBytes(32).toString("hex");
+      const secret = (await readLegacyWrapKey(keytar)) ?? crypto.randomBytes(32).toString("hex");
       await keytar.setPassword(KEYCHAIN_SERVICE, KEYCHAIN_ACCOUNT, secret);
       return secret;
     } catch (err) {
@@ -431,22 +445,30 @@ function applyProductPaths() {
   app.setPath("userData", path.join(app.getPath("appData"), PRODUCT_NAME));
 }
 
-function migrateLegacyScopedUserData() {
+/** Older data folders, oldest first: the pre-0.14 scoped folder, then the pre-rename product folder. */
+function legacyUserDataDirs() {
+  const appData = app.getPath("appData");
+  return [
+    path.join(appData, "@agentforge", "desktop"),
+    ...LEGACY_PUBLIC_NAMES.map((name) => path.join(appData, name)),
+  ];
+}
+
+/** First launch after an upgrade copies the newest legacy desk into the current userData; nothing is deleted. */
+function migrateLegacyUserData() {
   const dest = app.getPath("userData");
-  const legacy = path.join(app.getPath("appData"), "@agentforge", "desktop");
-  if (!fs.existsSync(legacy)) {
+  if (fs.existsSync(path.join(dest, "agentforge.sqlite"))) {
     return;
   }
-  if (path.resolve(dest) === path.resolve(legacy)) {
-    return;
-  }
-  const destSqlite = path.join(dest, "agentforge.sqlite");
-  const legacySqlite = path.join(legacy, "agentforge.sqlite");
-  if (fs.existsSync(destSqlite) || !fs.existsSync(legacySqlite)) {
+  const sources = legacyUserDataDirs().filter(
+    (dir) => path.resolve(dir) !== path.resolve(dest) && fs.existsSync(path.join(dir, "agentforge.sqlite")),
+  );
+  const source = sources.at(-1);
+  if (!source) {
     return;
   }
   fs.mkdirSync(dest, { recursive: true });
-  fs.cpSync(legacy, dest, { recursive: true, force: false });
+  fs.cpSync(source, dest, { recursive: true, force: false });
 }
 
 if (process.platform === "win32") {
@@ -454,7 +476,7 @@ if (process.platform === "win32") {
 }
 
 applyProductPaths();
-migrateLegacyScopedUserData();
+migrateLegacyUserData();
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {

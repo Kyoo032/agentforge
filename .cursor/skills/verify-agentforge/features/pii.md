@@ -15,7 +15,7 @@ Chat (and other model runs) keep the prompt the owner typed. Before that text be
 - Type a prompt that includes an email (or phone). Send as usual.
 - Your bubble still has the email. The model only sees `[email]` (stub reply includes that token).
 
-## Driving it with the Agentforge harness
+## Driving it with the DPSBuddy harness
 
 Preconditions:
 

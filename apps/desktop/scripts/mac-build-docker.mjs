@@ -10,7 +10,7 @@
  *
  * Builds only what is committed (the container clones HEAD); starter media is copied from the
  * working tree because it is generated. Output lands in apps/desktop/dist/ as
- * Agentforge-<version>-mac-<arch>.dmg|zip plus a sha256 manifest, ready for
+ * DPSBuddy-<version>-mac-<arch>.dmg|zip plus a sha256 manifest, ready for
  * `pnpm desktop:release --attach-mac`.
  */
 import { spawnSync } from "node:child_process";
@@ -118,7 +118,7 @@ function main() {
   }
 
   const v = version();
-  const produced = readdirSync(distDir).filter((n) => n.startsWith(`Agentforge-${v}-mac-`)).sort();
+  const produced = readdirSync(distDir).filter((n) => n.startsWith(`DPSBuddy-${v}-mac-`)).sort();
   console.log(`mac-build-docker: artifacts in apps/desktop/dist:\n${produced.map((n) => `  ${n}`).join("\n")}`);
   console.log("mac-build-docker: next: node scripts/release-desktop.mjs --attach-mac --dry-run");
 }

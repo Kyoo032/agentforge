@@ -1,6 +1,6 @@
 # Mobile
 
-There is no Agentforge iOS or Android app. No App Store / Play listing, no Capacitor, no React Native, no mobile electron-builder target. A phone browser pointed at a LAN `:3000` is **not** a product surface — the product binds `127.0.0.1` only. A later phone/tablet surface would be a new pack, not this week.
+There is no DPSBuddy iOS or Android app. No App Store / Play listing, no Capacitor, no React Native, no mobile electron-builder target. A phone browser pointed at a LAN `:3000` is **not** a product surface — the product binds `127.0.0.1` only. A later phone/tablet surface would be a new pack, not this week.
 
 ## Sub-features
 
@@ -11,7 +11,7 @@ There is no Agentforge iOS or Android app. No App Store / Play listing, no Capac
 
 - You cannot. There is no mobile install path. Use webdev (`http://127.0.0.1:3000`) or packaged desktop (ephemeral loopback ≠ 3000). Product copy and catalogs stay Toko Token; do not invent a TokenKu mobile app.
 
-## Driving it with the Agentforge harness
+## Driving it with the DPSBuddy harness
 
 Preconditions:
 

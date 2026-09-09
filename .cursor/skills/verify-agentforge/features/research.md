@@ -15,7 +15,7 @@ Research is a job: question → sourced notes → Markdown. It is not a citation
 - Choose Research on the left rail (`mode-research`). Home already has the tab.
 - Open `http://127.0.0.1:3000/research` when the tab is unlocked.
 
-## Driving it with the Agentforge harness
+## Driving it with the DPSBuddy harness
 
 Preconditions:
 

@@ -9,7 +9,7 @@ Settings is where the owner pastes a Toko Token gateway key from api.tokotokenai
 - `settings-runtime` reports offline demo or live status on `runtime-status`.
 - `settings-usage-empty` shows `usage-this-key` asking to paste a gateway key when none is saved, plus `usage-open` → `/usage`. Full by-model chart and desk estimate live on Usage — see [usage.md](./usage.md).
 - `settings-endpoint` (0.14.21): **Endpoint URL** above the key. Default is the branded gateway; `settings-endpoint-reset` appears only when the value differs and restores it. Save posts `openaiBaseUrl`; remote `http://` is rejected with `invalid_endpoint`, loopback `http://127.0.0.1` is allowed.
-- `settings-updates` moved to the rail in 0.14.21: `app-updates-toggle` in `rail-footer` opens `app-updates-panel` (`app-updates-status`, `app-updates-check` / `app-updates-install`, `app-updates-close`). Agentforge only. Webdev: check button disabled, copy says the installed app downloads GitHub releases. Packaged Agentforge: check / update-and-restart. Flavors render no icon.
+- `settings-updates` moved to the rail in 0.14.21: `app-updates-toggle` in `rail-footer` opens `app-updates-panel` (`app-updates-status`, `app-updates-check` / `app-updates-install`, `app-updates-close`). DPSBuddy only. Webdev: check button disabled, copy says the installed app downloads GitHub releases. Packaged DPSBuddy: check / update-and-restart. Flavors render no icon.
 
 ## How to get to it (user POV)
 
@@ -17,7 +17,7 @@ Settings is where the owner pastes a Toko Token gateway key from api.tokotokenai
 - Packaged: Settings in the Electron window (not :3000; no HTTP).
 - From Chat empty-state copy, follow the Settings link.
 
-## Driving it with the Agentforge harness
+## Driving it with the DPSBuddy harness
 
 Preconditions:
 

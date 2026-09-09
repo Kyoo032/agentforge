@@ -26,7 +26,7 @@ A turn is three layers: **Thinking** (collapsible), **tools** (one row per call)
 - `/` redirects to the first visible mode (Chat on Home).
 - `/agents/<uuid>` redirects to Chat (Build is parked).
 
-## Driving it with the Agentforge harness
+## Driving it with the DPSBuddy harness
 
 Preconditions:
 

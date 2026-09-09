@@ -93,7 +93,7 @@ describe("updateStatusLine", () => {
   });
 
   it("describes current", () => {
-    expect(updateStatusLine(state({ status: "current" }), true)).toBe("You are on the latest Agentforge.");
+    expect(updateStatusLine(state({ status: "current" }), true)).toBe("You are on the latest DPSBuddy.");
   });
 
   it("describes available with and without a version", () => {
@@ -122,13 +122,13 @@ describe("updateStatusLine", () => {
 
   it("describes idle and unavailable based on support", () => {
     expect(updateStatusLine(state({ status: "idle" }), true)).toBe(
-      "New GitHub releases download here, then Agentforge restarts.",
+      "New GitHub releases download here, then DPSBuddy restarts.",
     );
     expect(updateStatusLine(state({ status: "idle" }), false)).toBe(
-      "Available in the installed Agentforge app. New GitHub releases download and restart the app.",
+      "Available in the installed DPSBuddy app. New GitHub releases download and restart the app.",
     );
     expect(updateStatusLine(state({ status: "unavailable" }), false)).toBe(
-      "Available in the installed Agentforge app. New GitHub releases download and restart the app.",
+      "Available in the installed DPSBuddy app. New GitHub releases download and restart the app.",
     );
   });
 
@@ -136,10 +136,10 @@ describe("updateStatusLine", () => {
     const macReason = "Updates on macOS are manual for now. Download the new .dmg from GitHub Releases.";
     expect(updateStatusLine(state({ status: "unavailable", message: macReason }), false)).toBe(macReason);
     expect(updateStatusLine(state({ status: "unavailable", message: "   " }), false)).toBe(
-      "Available in the installed Agentforge app. New GitHub releases download and restart the app.",
+      "Available in the installed DPSBuddy app. New GitHub releases download and restart the app.",
     );
     expect(updateStatusLine(state({ status: "idle", message: macReason }), true)).toBe(
-      "New GitHub releases download here, then Agentforge restarts.",
+      "New GitHub releases download here, then DPSBuddy restarts.",
     );
   });
 });

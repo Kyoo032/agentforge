@@ -1,6 +1,6 @@
 # Bundled ffmpeg
 
-Packaged Agentforge resolves `ffmpeg` / `ffprobe` from `resources/ffmpeg/` via Electron `extraResources` (`process.resourcesPath/ffmpeg/`). Webdev and dev builds still fall back to PATH or `AGENTFORGE_FFMPEG_PATH`. Drop official LGPL builds here before packaging; the folder is gitignored apart from this file.
+Packaged DPSBuddy resolves `ffmpeg` / `ffprobe` from `resources/ffmpeg/` via Electron `extraResources` (`process.resourcesPath/ffmpeg/`). Webdev and dev builds still fall back to PATH or `AGENTFORGE_FFMPEG_PATH`. Drop official LGPL builds here before packaging; the folder is gitignored apart from this file.
 
 ## Windows
 

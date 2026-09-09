@@ -7,7 +7,7 @@ export const SAFE_FETCH_DEFAULT_TIMEOUT_MS = 15_000;
 
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 const PRIVATE_IPV4 = [/^10\./, /^127\./, /^169\.254\./, /^192\.168\./, /^172\.(1[6-9]|2\d|3[01])\./, /^0\./];
-const USER_AGENT = "Agentforge/1.0 (local research reader)";
+const USER_AGENT = "DPSBuddy/1.0 (local research reader)";
 
 export type SafeFetchOptions = {
   fetchImpl?: typeof fetch;

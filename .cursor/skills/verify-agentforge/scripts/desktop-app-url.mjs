@@ -3,11 +3,11 @@ import { join } from "node:path";
 
 /**
  * Packaged Electron writes host-status.json under userData
- * (`app.setName("Agentforge")` + `extraMetadata.name: "agentforge"`):
- *   Windows: %APPDATA%\Agentforge\host-status.json
+ * (`app.setName("DPSBuddy")` + `extraMetadata.name: "agentforge"`):
+ *   Windows: %APPDATA%\DPSBuddy\host-status.json
  *            (legacy fallback: %APPDATA%\@agentforge\desktop\host-status.json)
- *   Linux:   $XDG_CONFIG_HOME/Agentforge/host-status.json or ~/.config/Agentforge/host-status.json
- *   macOS:   ~/Library/Application Support/Agentforge/host-status.json
+ *   Linux:   $XDG_CONFIG_HOME/DPSBuddy/host-status.json or ~/.config/DPSBuddy/host-status.json
+ *   macOS:   ~/Library/Application Support/DPSBuddy/host-status.json
  *
  * Older installers wrote app-url.txt (HTTP child). Doctor --desktop must not require that file.
  *
@@ -24,7 +24,7 @@ export function desktopHostStatusCandidates(
   return desktopUserDataDirs(env, platform, home).map((dir) => join(dir, "host-status.json"));
 }
 
-/** @deprecated HTTP child leftover. Packaged Agentforge no longer writes this. */
+/** @deprecated HTTP child leftover. Packaged DPSBuddy no longer writes this. */
 export function desktopAppUrlCandidates(
   env = process.env,
   platform = process.platform,
@@ -48,7 +48,7 @@ export function desktopUserDataDirs(
     const roaming = typeof env.APPDATA === "string" ? env.APPDATA.trim() : "";
     if (roaming) {
       return [
-        join(roaming, "Agentforge"),
+        join(roaming, "DPSBuddy"),
         join(roaming, "Kemenkeu AI"),
         join(roaming, "AIHub Metranet"),
         join(roaming, "@agentforge", "desktop"),
@@ -57,7 +57,7 @@ export function desktopUserDataDirs(
   }
   if (platform === "darwin") {
     return [
-      join(home, "Library", "Application Support", "Agentforge"),
+      join(home, "Library", "Application Support", "DPSBuddy"),
       join(home, "Library", "Application Support", "Kemenkeu AI"),
       join(home, "Library", "Application Support", "AIHub Metranet"),
     ];
@@ -65,7 +65,7 @@ export function desktopUserDataDirs(
   const xdg = typeof env.XDG_CONFIG_HOME === "string" ? env.XDG_CONFIG_HOME.trim() : "";
   const configHome = xdg || join(home, ".config");
   return [
-    join(configHome, "Agentforge"),
+    join(configHome, "DPSBuddy"),
     join(configHome, "Kemenkeu AI"),
     join(configHome, "AIHub Metranet"),
   ];
@@ -77,10 +77,10 @@ export function desktopUserDataDirs(
  */
 export function packagedSqliteHint(platform = process.platform) {
   if (platform === "win32") {
-    return "%APPDATA%/Agentforge/agentforge.sqlite";
+    return "%APPDATA%/DPSBuddy/agentforge.sqlite";
   }
   if (platform === "darwin") {
-    return "~/Library/Application Support/Agentforge/agentforge.sqlite";
+    return "~/Library/Application Support/DPSBuddy/agentforge.sqlite";
   }
-  return "$XDG_CONFIG_HOME/Agentforge/agentforge.sqlite or ~/.config/Agentforge/agentforge.sqlite";
+  return "$XDG_CONFIG_HOME/DPSBuddy/agentforge.sqlite or ~/.config/DPSBuddy/agentforge.sqlite";
 }

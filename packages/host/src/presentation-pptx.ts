@@ -2,7 +2,7 @@ import PptxGenJS from "pptxgenjs";
 import { resolvedProductName } from "@agentforge/core";
 import type { PresentationOutline } from "./presentation-outline";
 
-/** Agentforge slide tokens (navy / mist / paper / ink) — not purple-gradient AI defaults. */
+/** DPSBuddy slide tokens (navy / mist / paper / ink) — not purple-gradient AI defaults. */
 const COLORS = {
   navy: "1565C0",
   mist: "D6E4F5",

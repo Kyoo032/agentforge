@@ -16,7 +16,7 @@ import {
 } from "./job-regen";
 import { readSourceText, withSourceMaterial, withSourceRule } from "./job-source";
 
-const FINANCE_SYSTEM = `You draft finished finance documents for Agentforge — not skeletons.
+const FINANCE_SYSTEM = `You draft finished finance documents for DPSBuddy — not skeletons.
 Return ONLY valid JSON (no markdown fences, no commentary) with this exact shape:
 {
   "title": string,
@@ -31,7 +31,7 @@ Rules:
 - Headings are claims or jobs, not labels.
 - No campus / student / course nouns unless the topic itself requires them.`;
 
-const DOCUMENT_SYSTEM = `You draft finished professional documents for Agentforge — not skeletons.
+const DOCUMENT_SYSTEM = `You draft finished professional documents for DPSBuddy — not skeletons.
 Return ONLY valid JSON (no markdown fences, no commentary) with this exact shape:
 {
   "title": string,
@@ -131,7 +131,7 @@ export async function generateDocumentDraft(tenant: TenantContext, body: unknown
   return parseDocumentDraft(raw);
 }
 
-const SECTION_SYSTEM = `You rewrite one section of an Agentforge document.
+const SECTION_SYSTEM = `You rewrite one section of an DPSBuddy document.
 Return ONLY valid JSON (no markdown fences, no commentary) with this exact shape:
 { "heading": string, "body": string }
 Rules:

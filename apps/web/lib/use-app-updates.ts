@@ -8,8 +8,8 @@ import {
   updateVersionLine,
 } from "@/lib/app-updates-copy";
 
-/** Only the public Agentforge flavor reads the GitHub release feed; Kemenkeu / Metranet never do. */
-export const AGENTFORGE_PRODUCT_NAME = "Agentforge";
+/** Only the public DPSBuddy flavor reads the GitHub release feed; Kemenkeu / Metranet never do. */
+export const PUBLIC_PRODUCT_NAME = "DPSBuddy";
 const CHECK_FAILED_MESSAGE = "Could not check for updates.";
 const INSTALL_FAILED_MESSAGE = "Could not install the update.";
 
@@ -38,7 +38,7 @@ function errorState(current: UpdateState, error: unknown, fallback: string): Upd
 
 /** Desktop updater state + actions, shared by whichever surface renders the Updates control. */
 export function useAppUpdates(productName: string): AppUpdatesController {
-  const visible = productName === AGENTFORGE_PRODUCT_NAME;
+  const visible = productName === PUBLIC_PRODUCT_NAME;
   const [state, setState] = useState<UpdateState>(initialUpdateState);
   const [busy, setBusy] = useState(false);
   const supported = visible && state.supported;

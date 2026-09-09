@@ -20,7 +20,7 @@ Knowledge is an Account-rail page (like Usage), not a `PRODUCT_MODES` id. Soul, 
 - Choose Knowledge Base on the Account rail (`mode-knowledge`).
 - Open `http://127.0.0.1:3000/knowledge`.
 
-## Driving it with the Agentforge harness
+## Driving it with the DPSBuddy harness
 
 Preconditions:
 

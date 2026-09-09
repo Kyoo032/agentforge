@@ -18,7 +18,7 @@ Data is a table analyst job: paste CSV → ask a question → sourced notes → 
 - Open `http://127.0.0.1:3000/data` when the tab is unlocked.
 - Legal / Marketing / Students presets do not add this tab unless the owner checks it.
 
-## Driving it with the Agentforge harness
+## Driving it with the DPSBuddy harness
 
 Preconditions:
 

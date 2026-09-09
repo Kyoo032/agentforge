@@ -1,9 +1,10 @@
 /**
- * GitHub Releases updater for the public Agentforge build only.
+ * GitHub Releases updater for the public DPSBuddy build only.
  * Flavors (Kemenkeu / Metranet) must not call this.
  */
 const fs = require("node:fs");
 const path = require("node:path");
+const { PUBLIC_PRODUCT_NAME } = require("./brand-read.cjs");
 
 const MAX_MESSAGE_CHARS = 160;
 const GENERIC_MESSAGE = "Could not check for updates.";
@@ -36,15 +37,15 @@ const UPDATER_MESSAGES = Object.freeze({
  */
 const UNSIGNED_PLATFORMS = new Set(["darwin"]);
 const MAC_MANUAL_MESSAGE = "Updates on macOS are manual for now. Download the new .dmg from GitHub Releases.";
-const NOT_INSTALLED_MESSAGE = "Updates are available in the installed Agentforge app.";
+const NOT_INSTALLED_MESSAGE = "Updates are available in the installed DPSBuddy app.";
 
 function updatesEnabled(productName, isPackaged, platform = process.platform) {
-  return Boolean(isPackaged && productName === "Agentforge" && !UNSIGNED_PLATFORMS.has(platform));
+  return Boolean(isPackaged && productName === PUBLIC_PRODUCT_NAME && !UNSIGNED_PLATFORMS.has(platform));
 }
 
 /** Why updates are off for this build, in user-facing words; undefined when the generic line fits. */
 function unsupportedMessage(productName, isPackaged, platform = process.platform) {
-  if (isPackaged && productName === "Agentforge" && UNSIGNED_PLATFORMS.has(platform)) {
+  if (isPackaged && productName === PUBLIC_PRODUCT_NAME && UNSIGNED_PLATFORMS.has(platform)) {
     return MAC_MANUAL_MESSAGE;
   }
   return undefined;

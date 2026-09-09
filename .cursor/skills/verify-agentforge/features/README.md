@@ -1,8 +1,8 @@
-# Agentforge verification map
+# DPSBuddy verification map
 
 Agent-facing map (where to press). Not product. Pair with pstack `how` for how a subsystem works; keep this directory honest with `/maintain-verification-skill`.
 
-This directory is the maintained source for verifying user-facing Agentforge behavior. Read this index before driving, then use the matching feature file as the recipe.
+This directory is the maintained source for verifying user-facing DPSBuddy behavior. Read this index before driving, then use the matching feature file as the recipe.
 
 Documents, Research, Finance, Data, Images, Videos, Presentation, and Edit are product modes. **Home already unlocks all of them.** A Legal (or other) workspace can hide some tabs. Knowledge is Account-rail, not a mode checkbox. Custom agents do not unlock the rail. Edit rail `mode-edit` lands in Phase 1; Loop 0 only ships the map + doctor + fixtures.
 
@@ -10,7 +10,7 @@ Documents, Research, Finance, Data, Images, Videos, Presentation, and Edit are p
 
 - **Webdev:** app answers at `http://127.0.0.1:3000` (never a LAN IP). Doctor with no args.
 - **Packaged desktop:** Electron window; doctor `--desktop` reads `host-status.json` (`transport: "ipc"`). No HTTP port.
-- SQLite is `data/agentforge.sqlite` (webdev) or Electron userData (packaged: `%APPDATA%\Agentforge`, `$XDG_CONFIG_HOME/Agentforge` or `~/.config/Agentforge`, `~/Library/Application Support/Agentforge`).
+- SQLite is `data/agentforge.sqlite` (webdev) or Electron userData (packaged: `%APPDATA%\DPSBuddy`, `$XDG_CONFIG_HOME/DPSBuddy` or `~/.config/DPSBuddy`, `~/Library/Application Support/DPSBuddy`).
 - No product login. A gateway key is optional; stub Chat works without one.
 - Windows: drive webdev with the IDE browser. Drive packaged in the Electron window. Do not run Playwright.
 - Cloud / GHA: `AGENTFORGE_RUNTIME=stub` and Playwright `foundation.spec.ts` against **webdev** :3000.
@@ -36,7 +36,7 @@ Documents, Research, Finance, Data, Images, Videos, Presentation, and Edit are p
 
 ## Feature entry contract
 
-Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to get to it (user POV)`, `Driving it with the Agentforge harness`, `Gotchas`.
+Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to get to it (user POV)`, `Driving it with the DPSBuddy harness`, `Gotchas`.
 
 ## Features
 
@@ -58,7 +58,7 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 - [Edit](./edit.md) — CapCut-style timeline + agent panel (`mode-edit`). Loop 0 harness (fixtures, doctor, stub S1–S10); studio ships in Phase 1.
 - [Presentation](./presentations.md) — starters, preview, slide regen (503 without a key), PPTX download from a starter.
 - [Desktop](./desktop.md) — Electron one-window launch, splash → Chat, IPC host (no loopback HTTP). Windows NSIS exists; mac/linux are builder targets.
-- [Desktop brands](./desktop-brands.md) — packaged Kemenkeu AI / AIHub Metranet vs public Agentforge. Rail `product-brand` + `product-logo` must match the installed flavor, not leftover Agentforge copy.
+- [Desktop brands](./desktop-brands.md) — packaged Kemenkeu AI / AIHub Metranet vs public DPSBuddy. Rail `product-brand` + `product-logo` must match the installed flavor, not leftover DPSBuddy copy.
 - [Mobile](./mobile.md) — docs only. No iOS/Android build, no stores, no Capacitor. A phone on LAN `:3000` is not a product surface.
 - [Build](./build.md) — **parked / verified-unreachable.** `/studio` redirects to Chat.
 - [Studio advanced](./studio-advanced.md) — **parked / verified-unreachable.** Same redirect.

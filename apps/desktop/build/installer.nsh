@@ -1,7 +1,7 @@
 ; Kill the running app (and its Chromium helpers) so setup can overwrite files.
 ; /T ends the process tree. Do not taskkill node.exe by name — that hits Cursor/dev.
 ; Old pre-IPC installs left a bundled node.exe under resources\web — kill only that path.
-!macro killRunningAgentforge
+!macro killRunningApp
   nsExec::Exec 'taskkill /F /IM "${APP_EXECUTABLE_FILENAME}" /T'
   nsExec::Exec 'taskkill /F /IM Agentforge.exe /T'
   nsExec::Exec 'taskkill /F /IM "Kemenkeu AI.exe" /T'
@@ -13,18 +13,19 @@
 !macroend
 
 !macro customCheckAppRunning
-  !insertmacro killRunningAgentforge
+  !insertmacro killRunningApp
 !macroend
 
 !macro customInit
-  !insertmacro killRunningAgentforge
+  !insertmacro killRunningApp
 !macroend
 
 ; Upgrade must replace binaries only. Wipe desk data only on a real uninstall.
 !macro customUnInstall
-  !insertmacro killRunningAgentforge
+  !insertmacro killRunningApp
   ${ifNot} ${isUpdated}
     RMDir /r "$APPDATA\${PRODUCT_NAME}"
+    RMDir /r "$APPDATA\Agentforge"
     RMDir /r "$APPDATA\@agentforge"
     nsExec::Exec 'cmdkey /delete:${PRODUCT_NAME}/wrap-key'
     nsExec::Exec 'cmdkey /delete:Agentforge/wrap-key'

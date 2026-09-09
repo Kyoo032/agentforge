@@ -4,17 +4,17 @@
     {
       "type": "winapp",
       "request": "launch",
-      "name": "WinApp: Installed Agentforge (NSIS)",
+      "name": "WinApp: Installed DPSBuddy (NSIS)",
       "debuggerType": "node",
-      "inputFolder": "C:/Program Files/Agentforge",
-      "workingDirectory": "C:/Program Files/Agentforge",
+      "inputFolder": "C:/Program Files/DPSBuddy",
+      "workingDirectory": "C:/Program Files/DPSBuddy",
       "args": "--remote-debugging-port=9222",
       "preLaunchTask": "verify-installed-exe"
     },
     {
       "type": "winapp",
       "request": "launch",
-      "name": "WinApp: win-unpacked Agentforge",
+      "name": "WinApp: win-unpacked DPSBuddy",
       "debuggerType": "node",
       "inputFolder": "${workspaceFolder}/apps/desktop/dist/win-unpacked",
       "workingDirectory": "${workspaceFolder}/apps/desktop/dist/win-unpacked",
@@ -23,17 +23,17 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Packaged Agentforge + CDP",
-      "runtimeExecutable": "C:/Program Files/Agentforge/Agentforge.exe",
+      "name": "Packaged DPSBuddy + CDP",
+      "runtimeExecutable": "C:/Program Files/DPSBuddy/DPSBuddy.exe",
       "runtimeArgs": ["--remote-debugging-port=9222"],
-      "cwd": "C:/Program Files/Agentforge",
+      "cwd": "C:/Program Files/DPSBuddy",
       "console": "integratedTerminal"
     },
     {
       "type": "node",
       "request": "launch",
-      "name": "Packaged Agentforge (macOS .app unpacked)",
-      "runtimeExecutable": "${workspaceFolder}/apps/desktop/dist/mac/Agentforge.app/Contents/MacOS/Agentforge",
+      "name": "Packaged DPSBuddy (macOS .app unpacked)",
+      "runtimeExecutable": "${workspaceFolder}/apps/desktop/dist/mac/DPSBuddy.app/Contents/MacOS/DPSBuddy",
       "runtimeArgs": ["--remote-debugging-port=9222"],
       "cwd": "${workspaceFolder}/apps/desktop/dist/mac",
       "console": "integratedTerminal",
@@ -42,10 +42,10 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Packaged Agentforge (macOS /Applications)",
-      "runtimeExecutable": "/Applications/Agentforge.app/Contents/MacOS/Agentforge",
+      "name": "Packaged DPSBuddy (macOS /Applications)",
+      "runtimeExecutable": "/Applications/DPSBuddy.app/Contents/MacOS/DPSBuddy",
       "runtimeArgs": ["--remote-debugging-port=9222"],
-      "cwd": "/Applications/Agentforge.app/Contents/MacOS",
+      "cwd": "/Applications/DPSBuddy.app/Contents/MacOS",
       "console": "integratedTerminal"
     }
   ]
