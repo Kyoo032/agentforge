@@ -15,6 +15,9 @@ import {
   readOptionalInstruction,
 } from "./job-regen";
 import { readSourceText, withSourceMaterial, withSourceRule } from "./job-source";
+import { artifactStore } from "./artifacts";
+import { upsertWorkSource } from "./knowledge-ingest";
+import { artifactWorkCard, presentationOutlineMarkdown } from "./work-cards";
 
 const OUTLINE_SYSTEM = `You create presentation outlines a stranger can present from — not title-only skeletons.
 Return ONLY valid JSON (no markdown fences, no commentary) with this exact shape:
@@ -92,6 +95,29 @@ function resolvePresentationModel(body: unknown, settings: ReturnType<typeof loa
   return resolveChatModel(readOptionalModel(body), settings.presentationGenModel || defaults.presentations, catalog);
 }
 
+/** Save the outline as a `presentations / draft` artifact. Never fails the job. */
+function persistOutline(
+  tenant: TenantContext,
+  outline: PresentationOutline,
+  markdown: string,
+  meta: Record<string, unknown>,
+): string | null {
+  try {
+    return artifactStore().create(tenant, {
+      mode: "presentations",
+      kind: "draft",
+      title: outline.title,
+      mime: "text/markdown",
+      body: markdown,
+      meta,
+    }).id;
+  } catch (error) {
+    const code = error instanceof ApiError ? error.code : "internal_error";
+    console.warn(`presentations: could not save outline (${code})`);
+    return null;
+  }
+}
+
 /** Generate a validated presentation outline via the same runtime path as chat. */
 export async function generatePresentationOutline(tenant: TenantContext, body: unknown): Promise<PresentationOutline> {
   const prompt = readPrompt(body);
@@ -102,7 +128,16 @@ export async function generatePresentationOutline(tenant: TenantContext, body: u
   if (!raw.trim()) {
     throw new ApiError("generation_failed", "Model returned an empty presentation outline", 502);
   }
-  return parsePresentationOutline(raw);
+  const outline = parsePresentationOutline(raw);
+  const markdown = presentationOutlineMarkdown(outline);
+  const artifactId = persistOutline(tenant, outline, markdown, { question: prompt, model, slides: outline.slides.length });
+  if (artifactId) {
+    await upsertWorkSource(
+      tenant,
+      artifactWorkCard({ type: "Presentation", artifactId, title: outline.title, prompt, markdown, model }),
+    );
+  }
+  return outline;
 }
 
 const SLIDE_SYSTEM = `You rewrite one slide of an DPSBuddy presentation.

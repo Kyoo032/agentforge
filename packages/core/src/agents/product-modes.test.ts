@@ -166,6 +166,8 @@ describe("firstVisibleHref and hidden redirects", () => {
     expect(redirectIfHiddenMode("/knowledge", [...visible])).toBeNull();
     expect(redirectIfHiddenMode("/finance", [...visible])).toBe("/chat");
     expect(redirectIfHiddenMode("/data", [...visible])).toBe("/chat");
+    expect(redirectIfHiddenMode("/legal", [...visible])).toBe("/chat");
+    expect(redirectIfHiddenMode("/legal", ["chat", "legal"])).toBeNull();
   });
 
   it("keeps /chat even when that tab is off the rail", () => {

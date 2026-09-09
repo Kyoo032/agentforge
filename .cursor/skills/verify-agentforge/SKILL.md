@@ -152,13 +152,14 @@ Use `page.getByTestId("<id>")` exactly as the spec.
 | `finance-studio`, `finance-starters`, `finance-download`, `finance-generate` | Finance job |
 | `data-studio`, `data-csv`, `data-starter`, `data-download`, `data-generate` | Data job |
 | `knowledge-page`, `knowledge-tabs`, `knowledge-models`, `knowledge-sources`, `knowledge-paste`, `knowledge-soul-save`, `knowledge-memory-add`, `knowledge-model-embedding`, `knowledge-model-brain`, `knowledge-model-verifier`, `knowledge-tab-map`, `knowledge-map-panel`, `knowledge-map-run`, `knowledge-map` | Knowledge Base |
+| `knowledge-loop`, `knowledge-loop-cycle`, `knowledge-loop-summary`, `knowledge-loop-work`, `knowledge-loop-count-<Type>`, `knowledge-loop-empty`, `knowledge-source-type` | Knowledge ingest loop (Sources tab) — [knowledge-ingest.md](features/knowledge-ingest.md) |
 | `documents-studio-model`, `research-studio-model`, `presentations-studio-model` | Job generate-bar model dropdowns |
 | `documents-section`, `research-preview`, `research-note` | Job preview bodies (markdown via `FormattedText`) |
 | `documents-regen-panel`, `presentations-regen-panel`, `*-regen-prompt`, `*-regen-model`, `*-regen-attach`, `*-regen-submit` | Section/slide regen composer |
 
 Rail testids are `mode-${href.slice(1)}` (`/chat` → `mode-chat`). Home already shows every work mode. A Legal desk has Chat + Documents + Research + Presentation and `mode-images` count 0.
 
-Recipes: [features/chat.md](features/chat.md), [features/settings.md](features/settings.md), [features/usage.md](features/usage.md), [features/workspaces.md](features/workspaces.md), [features/documents.md](features/documents.md), [features/research.md](features/research.md), [features/finance.md](features/finance.md), [features/data.md](features/data.md), [features/knowledge.md](features/knowledge.md), [features/images.md](features/images.md), [features/videos.md](features/videos.md), [features/edit.md](features/edit.md), [features/desktop.md](features/desktop.md), [features/desktop-brands.md](features/desktop-brands.md), [features/mobile.md](features/mobile.md). Build and Studio advanced are parked.
+Recipes: [features/chat.md](features/chat.md), [features/settings.md](features/settings.md), [features/usage.md](features/usage.md), [features/workspaces.md](features/workspaces.md), [features/documents.md](features/documents.md), [features/research.md](features/research.md), [features/finance.md](features/finance.md), [features/data.md](features/data.md), [features/legal.md](features/legal.md), [features/knowledge.md](features/knowledge.md), [features/knowledge-ingest.md](features/knowledge-ingest.md), [features/images.md](features/images.md), [features/videos.md](features/videos.md), [features/edit.md](features/edit.md), [features/desktop.md](features/desktop.md), [features/desktop-brands.md](features/desktop-brands.md), [features/mobile.md](features/mobile.md). Build and Studio advanced are parked.
 
 ## Evidence
 

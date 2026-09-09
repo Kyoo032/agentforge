@@ -1,12 +1,12 @@
 {
   "name": "@agentforge/desktop",
-  "version": "0.14.22",
+  "version": "0.14.23",
   "private": true,
   "description": "Electron shell for DPSBuddy. Packaged builds use IPC (no loopback HTTP server).",
   "main": "main.cjs",
   "scripts": {
     "desktop-dev": "electron .",
-    "desktop-build": "node ../../scripts/edit-starters.mjs --check && pnpm --filter @agentforge/web build && node scripts/stage-renderer.mjs && node scripts/pack-brand.mjs",
+    "desktop-build": "node ../../scripts/edit-starters.mjs --check && node ../../scripts/video-examples.mjs --check && pnpm --filter @agentforge/web build && node scripts/stage-renderer.mjs && node scripts/pack-brand.mjs",
     "desktop-build-all": "node scripts/pack-all-brands.mjs",
     "desktop-pack": "node scripts/pack-brand.mjs",
     "desktop-release": "node scripts/release-desktop.mjs",
@@ -84,6 +84,14 @@
         "filter": [
           "*.mp4",
           "*.m4a",
+          "README.md"
+        ]
+      },
+      {
+        "from": "resources/examples/videos",
+        "to": "examples/videos",
+        "filter": [
+          "*.mp4",
           "README.md"
         ]
       }

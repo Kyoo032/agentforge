@@ -43,8 +43,11 @@ async function main() {
     app.use(vite.middlewares);
   }
 
-  server.listen(3000, "127.0.0.1", () => {
-    console.log("@agentforge/web:dev: http://127.0.0.1:3000");
+  // Webdev is :3000. PORT only exists so a verification run can bring up an isolated second
+  // instance (own AGENTFORGE_DATA_DIR) without touching the operator's desk; never LAN-bind.
+  const port = Number(process.env.PORT) || 3000;
+  server.listen(port, "127.0.0.1", () => {
+    console.log(`@agentforge/web:dev: http://127.0.0.1:${port}`);
   });
 }
 

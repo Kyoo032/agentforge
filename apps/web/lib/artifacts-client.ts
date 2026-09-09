@@ -63,15 +63,38 @@ export function saveBlob(blob: Blob, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
+export type SendToKnowledgeResult = {
+  /** True when the job's auto-ingest already wrote this artifact's card; nothing new was added. */
+  alreadyIndexed: boolean;
+  status?: "Indexed" | "Indexing" | "Failed";
+  error?: string | null;
+};
+
+/**
+ * Send to Knowledge Base. With `artifactId` the host answers idempotently against the work card
+ * the job already indexed; without it the text is indexed as a fresh pasted source.
+ */
 export async function sendTextToKnowledgeBase(input: {
   name: string;
   text: string;
-  type: "Dossier" | "Analysis" | "Brief" | "Paste";
-}): Promise<void> {
+  type: "Dossier" | "Analysis" | "Brief" | "Memo" | "Playbook" | "Paste";
+  artifactId?: string | null;
+}): Promise<SendToKnowledgeResult> {
+  const payload = input.artifactId
+    ? { name: input.name, type: input.type, artifactId: input.artifactId }
+    : { name: input.name, text: input.text, type: input.type };
   const res = await apiFetch("/api/v1/knowledge/sources", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
+    body: JSON.stringify(payload),
   });
-  await readJson(res, "Could not add that to the Knowledge Base");
+  const data = await readJson<{ alreadyIndexed?: unknown; status?: unknown; error?: unknown }>(
+    res,
+    "Could not add that to the Knowledge Base",
+  );
+  return {
+    alreadyIndexed: data?.alreadyIndexed === true,
+    status: typeof data?.status === "string" ? (data.status as SendToKnowledgeResult["status"]) : undefined,
+    error: typeof data?.error === "string" ? data.error : null,
+  };
 }

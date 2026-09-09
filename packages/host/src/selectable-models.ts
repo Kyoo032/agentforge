@@ -13,6 +13,7 @@ import {
   probeVolcengineModels,
   redactSecrets,
   resolveModeDefaults,
+  resolvedGatewayBaseUrl,
   routeModelsByKind,
   withContextLengths,
   type ChatModel,
@@ -22,8 +23,8 @@ import {
   type RoutedModels,
   type StoredSecrets,
 } from "@agentforge/core";
-import { loadModelCache, saveModelCache, type ModelCache } from "./model-cache";
-import { loadModelsDevRegistry, refreshModelsDevRegistry } from "./models-dev-cache";
+import { loadModelCache, modelCacheStamp, saveModelCache, type ModelCache } from "./model-cache";
+import { loadModelsDevRegistry, modelsDevCacheStamp, refreshModelsDevRegistry } from "./models-dev-cache";
 
 /** Catalog model with picker curation fields for API payloads. */
 export type SelectableModel = ChatModel & CuratedModelMeta;
@@ -41,9 +42,21 @@ function liveModelIds(cache: ModelCache, kind?: "chat"): string[] {
   return ids;
 }
 
+let catalogMemo: { key: string; models: ChatModel[] } | null = null;
+
+/**
+ * Merged catalog with context lengths. Building it costs ~230 ms of synchronous work (every model ×
+ * the models.dev registry) and it was rebuilt on every Chat run and every knowledge lookup, which
+ * serialised all requests. Memoized on the two cache files' mtime/size, so a probe or registry refresh
+ * (both rewrite their file) invalidates it without any explicit hook.
+ */
 export function listCatalogModels(): ChatModel[] {
+  const key = `${modelCacheStamp()}|${modelsDevCacheStamp()}`;
+  if (catalogMemo && catalogMemo.key === key) {
+    return catalogMemo.models;
+  }
   const cache = loadModelCache();
-  return withContextLengths(
+  const models = withContextLengths(
     mergeChatCatalog({
       openai: cache.openai,
       anthropic: cache.anthropic,
@@ -52,6 +65,13 @@ export function listCatalogModels(): ChatModel[] {
     }),
     loadModelsDevRegistry(),
   );
+  catalogMemo = { key, models };
+  return models;
+}
+
+/** Test hook: drop the memoized catalog. */
+export function resetCatalogMemo(): void {
+  catalogMemo = null;
 }
 
 export function listRoutedModels(models: ChatModel[] = listCatalogModels()): RoutedModels<ChatModel> {
@@ -107,6 +127,7 @@ export function modeCatalogPayload(models: ChatModel[] = listCatalogModels()): {
     presentations: SelectableModel[];
     finance: SelectableModel[];
     data: SelectableModel[];
+    legal: SelectableModel[];
     embedding: ChatModel[];
   };
   defaults: ModeModelDefaults;
@@ -123,6 +144,7 @@ export function modeCatalogPayload(models: ChatModel[] = listCatalogModels()): {
       presentations: curated.chat,
       finance: curated.chat,
       data: curated.chat,
+      legal: curated.chat,
       embedding,
     },
     defaults: resolveModeDefaults({
@@ -155,13 +177,28 @@ function putModels(next: ModelCache, dialect: ModelProvider, models: ChatModel[]
   }
 }
 
-export async function refreshModelCache(settings: StoredSecrets): Promise<ModelCache> {
+export type RefreshModelCacheOptions = {
+  /** Re-download the models.dev registry even if the weekly cache is fresh (user pressed Refresh). */
+  forceRegistry?: boolean;
+};
+
+/** A base URL the user typed, as opposed to the gateway default every settings save fills in. */
+function hasCustomGateway(settings: StoredSecrets): boolean {
+  const base = settings.openaiBaseUrl?.trim();
+  return Boolean(base) && base !== resolvedGatewayBaseUrl();
+}
+
+export async function refreshModelCache(
+  settings: StoredSecrets,
+  options: RefreshModelCacheOptions = {},
+): Promise<ModelCache> {
   const current = loadModelCache();
   const next: ModelCache = { ...current };
   const now = new Date().toISOString();
-  const registryPromise = refreshModelsDevRegistry();
+  const registryPromise = refreshModelsDevRegistry(fetch, { force: options.forceRegistry === true });
 
-  if (settings.openaiApiKey || settings.openaiBaseUrl) {
+  // Stub desks (no key, default gateway) never call out: there is nothing to list.
+  if (settings.openaiApiKey || hasCustomGateway(settings)) {
     try {
       const detected = await detectCompatibleApi({
         url: settings.openaiBaseUrl || DEFAULT_OPENAI_BASE_URL,
@@ -174,6 +211,10 @@ export async function refreshModelCache(settings: StoredSecrets): Promise<ModelC
         error instanceof Error ? error.message : "Could not list models from the gateway",
       );
     }
+  } else {
+    // Key cleared: a stale "unreachable" banner from the last live save must not survive into stub.
+    delete next.openaiError;
+    delete next.detectedDialect;
   }
 
   if (settings.anthropicApiKey || settings.anthropicBaseUrl) {

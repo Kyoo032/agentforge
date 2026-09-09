@@ -19,6 +19,14 @@ import { loadSettings } from "./settings-store";
 import { listImageModels, listVideoModels } from "./selectable-models";
 import { mediaIdFromUrl } from "./media-id";
 import { getStudioMediaMeta, saveStudioMediaMeta, type StudioMediaMeta } from "./studio-media-meta";
+import { upsertWorkSource } from "./knowledge-ingest";
+import { mediaWorkCard } from "./work-cards";
+import type { WorkSourceType } from "./knowledge";
+
+export type StudioGenerateOptions = {
+  /** Knowledge source type for the work card. Defaults to Images / Videos; Edit passes "Edit". */
+  workType?: Extract<WorkSourceType, "Images" | "Videos" | "Edit">;
+};
 
 export const imageGenerateBodySchema = z.object({
   prompt: z.string().trim().min(1, "prompt is required"),
@@ -140,6 +148,7 @@ export function studioRouteReady(capability: "image_gen" | "video_gen"): boolean
 export async function generateStudioImage(
   tenant: TenantContext,
   body: ImageGenerateBody,
+  options: StudioGenerateOptions = {},
 ): Promise<StudioGenerateResult> {
   const settings = loadSettings();
   const scope = buildToolSecretScope(settings);
@@ -172,6 +181,18 @@ export async function generateStudioImage(
       model: usedModel,
       createdAt: new Date().toISOString(),
     });
+    await upsertWorkSource(
+      tenant,
+      mediaWorkCard({
+        kind: "image",
+        mediaId: id,
+        prompt: body.prompt,
+        aspect: body.aspect,
+        model: usedModel,
+        url: stored,
+        type: options.workType,
+      }),
+    );
   }
   return { id, url: stored, prompt: body.prompt, aspect: body.aspect, model: usedModel };
 }
@@ -179,6 +200,7 @@ export async function generateStudioImage(
 export async function generateStudioVideo(
   tenant: TenantContext,
   body: VideoGenerateBody,
+  options: StudioGenerateOptions = {},
 ): Promise<StudioGenerateResult> {
   if (!studioRouteReady("video_gen")) {
     throw new ApiError(
@@ -224,6 +246,20 @@ export async function generateStudioVideo(
       model: usedModel,
       createdAt: new Date().toISOString(),
     });
+    await upsertWorkSource(
+      tenant,
+      mediaWorkCard({
+        kind: "video",
+        mediaId: id,
+        prompt: body.prompt,
+        aspect: body.aspect,
+        model: usedModel,
+        url: stored,
+        seconds: body.seconds,
+        resolution: body.resolution,
+        type: options.workType,
+      }),
+    );
   }
   return { id, url: stored, prompt: body.prompt, aspect: body.aspect, model: usedModel };
 }

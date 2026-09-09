@@ -52,7 +52,9 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 - [Documents](./documents.md) — starters, preview, section regen (503 without a key), DOCX download from a starter. Home has the tab.
 - [Finance](./finance.md) — figures-only brief, starter + DOCX without a key, generate 503 without a key. Home has the tab.
 - [Data](./data.md) — pasted CSV + table notes, no web search, generate 503 without a key. Home has the tab.
+- [Legal](./legal.md) — .docx matter review with a verify/edit loop; uploads and roles without a key, run 503 without one. Home and the Legal preset have the tab.
 - [Knowledge](./knowledge.md) — Account-rail Soul / Memory / Sources / Map + choosable embedding/brain/verifier; Chat injects RAG retrieve. Not a product mode.
+- [Knowledge ingest loop](./knowledge-ingest.md) — every finished Chat turn / job writes a text work card (pointer, not bytes); `knowledge-loop` chart on Sources; Chat skips its own card; example clips never ingest.
 - [Images](./images.md) — studio shell on Home; needs-key without a gateway key.
 - [Videos](./videos.md) — studio shell and `videos-studio-needs-key` without a key.
 - [Edit](./edit.md) — CapCut-style timeline + agent panel (`mode-edit`). Loop 0 harness (fixtures, doctor, stub S1–S10); studio ships in Phase 1.

@@ -51,6 +51,16 @@ function unsupportedMessage(productName, isPackaged, platform = process.platform
   return undefined;
 }
 
+/** Electron's net.isOnline() when available (main process); tests and non-Electron hosts count as online. */
+function isOffline() {
+  try {
+    const { net } = require("electron");
+    return Boolean(net && typeof net.isOnline === "function" && !net.isOnline());
+  } catch {
+    return false;
+  }
+}
+
 function loadAutoUpdater() {
   try {
     return require("electron-updater").autoUpdater;
@@ -288,10 +298,15 @@ function registerAutoUpdate({
     return state;
   });
 
-  void autoUpdater.checkForUpdates().catch((error) => {
-    // First launch / no latest.yml yet is not a product fail; keep the detail on disk only.
-    logger.warn(`startup check skipped: ${rawErrorDetail(error)}`);
-  });
+  if (isOffline()) {
+    // No network: the manual Check button still works later; nothing to log as an error.
+    logger.info("startup check skipped: offline");
+  } else {
+    void autoUpdater.checkForUpdates().catch((error) => {
+      // First launch / no latest.yml yet is not a product fail; keep the detail on disk only.
+      logger.warn(`startup check skipped: ${rawErrorDetail(error)}`);
+    });
+  }
 
   return { supported: true };
 }

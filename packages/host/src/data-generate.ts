@@ -10,6 +10,8 @@ import { dataAnalysisToMarkdown, type DataAnalysis } from "@agentforge/core/arti
 import type { JobEmitter } from "@agentforge/core/jobs";
 import { profileToMarkdown, tableSample } from "@agentforge/core/tabular";
 import { artifactStore } from "./artifacts";
+import { upsertWorkSource } from "./knowledge-ingest";
+import { artifactWorkCard } from "./work-cards";
 import { materializeAnalysis, parseAnalysisDraft } from "./data-analysis-build";
 import { datasetStore, requireDataset, type DatasetSummary, type LoadedDataset } from "./datasets";
 import { collectJobAssistantText } from "./job-regen";
@@ -274,5 +276,11 @@ export async function analyzeDataset(
     datasetName: dataset.name,
     queries: steps.used,
   });
+  if (artifactId) {
+    await upsertWorkSource(
+      tenant,
+      artifactWorkCard({ type: "Data", artifactId, title: analysis.title, prompt: question, markdown, model }),
+    );
+  }
   return { analysis, artifactId, dataset: summaryOf(dataset), markdown };
 }

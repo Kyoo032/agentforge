@@ -1,3 +1,4 @@
+/** OR of the first meaningful words, each quoted as an FTS5 string so keywords and operators are literal. */
 export function knowledgeFtsQuery(query: string): string {
   return query
     .trim()
@@ -5,6 +6,7 @@ export function knowledgeFtsQuery(query: string): string {
     .split(/\s+/)
     .filter((word) => word.length > 2)
     .slice(0, 8)
+    .map((word) => `"${word}"`)
     .join(" OR ");
 }
 

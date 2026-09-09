@@ -236,12 +236,32 @@ async function readJson(response: Response): Promise<unknown> {
   }
 }
 
+/** One probe request. Offline, undici's default headers timeout is 300 s per dialect. */
+const PROBE_TIMEOUT_MS = 5_000;
+
+/** Network-level failure (refused, DNS, timeout): no other dialect on the same host will fare better. */
+export function isNetworkUnreachableError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  const record = error as { name?: unknown; message?: unknown; cause?: { code?: unknown; name?: unknown } };
+  if (record.name === "TimeoutError" || record.name === "AbortError") {
+    return true;
+  }
+  const code = typeof record.cause?.code === "string" ? record.cause.code : "";
+  if (/^(ECONNREFUSED|ENOTFOUND|EAI_AGAIN|ECONNRESET|ETIMEDOUT|EHOSTUNREACH|ENETUNREACH|UND_ERR_)/.test(code)) {
+    return true;
+  }
+  const message = typeof record.message === "string" ? record.message : "";
+  return /fetch failed|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|network|timed? ?out/i.test(message);
+}
+
 async function getJson(
   url: string,
   headers: Record<string, string>,
   fetchFn: typeof fetch,
 ): Promise<unknown> {
-  const response = await fetchFn(url, { headers });
+  const response = await fetchFn(url, { headers, signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) });
   if (!response.ok) {
     throw new ApiError("probe_failed", `Could not list models from ${url} (${response.status})`, 502);
   }
@@ -351,6 +371,14 @@ export async function detectCompatibleApi(input: {
       return await probeDialect(dialect, input);
     } catch (error) {
       errors.push(`${dialect}: ${error instanceof Error ? error.message : "failed"}`);
+      if (isNetworkUnreachableError(error)) {
+        // Same host, same outcome: do not wait out three more dialects offline.
+        throw new ApiError(
+          "probe_failed",
+          `Gateway unreachable (${errors[errors.length - 1]}). Check the connection or the endpoint URL.`,
+          502,
+        );
+      }
     }
   }
   throw new ApiError("probe_failed", `Could not detect a compatible API. ${errors.join(" · ")}`, 502);

@@ -100,6 +100,43 @@ function toCoreMessages(
   return messages;
 }
 
+const USAGE_SETTLE_MS = 5_000;
+/** Response headers must arrive within this; a black-holed gateway otherwise sits until the 120 s watchdog. */
+const HEADERS_TIMEOUT_MS = 10_000;
+
+async function fetchWithHeaderTimeout(url: string | URL | Request, init: RequestInit): Promise<Response> {
+  const headers = new AbortController();
+  const timer = setTimeout(
+    () => headers.abort(new Error(`Gateway unreachable: no response within ${HEADERS_TIMEOUT_MS / 1000}s`)),
+    HEADERS_TIMEOUT_MS,
+  );
+  const signals = [headers.signal, init.signal].filter((signal): signal is AbortSignal => Boolean(signal));
+  const signal = signals.length > 1 ? AbortSignal.any(signals) : signals[0];
+  try {
+    // Only header arrival is bounded here; once the response resolves the timer is cleared and the
+    // body stream stays under the runtime's own idle watchdog.
+    return await fetch(url, { ...init, signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function settleWithin<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("usage did not settle")), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
 export class AiSdkRuntime implements AgentRuntime {
   constructor(
     private readonly keys: {
@@ -199,7 +236,7 @@ export class AiSdkRuntime implements AgentRuntime {
           // fall through to unmodified request on parse error
         }
       }
-      const response = await fetch(url, outgoing);
+      const response = await fetchWithHeaderTimeout(url, outgoing);
       if (!response.ok) {
         const text = await readHttpErrorBody(response);
         throw new Error(parseGatewayHttpError(response.status, text));
@@ -413,6 +450,8 @@ export class AiSdkRuntime implements AgentRuntime {
       model,
       messages,
       abortSignal: abort.signal,
+      // The contact loop below already retries; SDK retries would triple every offline wait.
+      maxRetries: 0,
       ...(tools ? { tools, maxSteps: 6 } : {}),
       ...(providerOptions ? { providerOptions } : {}),
     });
@@ -457,10 +496,15 @@ export class AiSdkRuntime implements AgentRuntime {
         }
       }
 
-      try {
-        usage = readLanguageModelUsage(await result.usage);
-      } catch {
-        usage = { inputTokens: 0, outputTokens: 0 };
+      // After an `error` stream part the SDK's `usage` promise never settles (ai 4.3): a refused or
+      // black-holed gateway used to sit here until the 120 s host watchdog. Skip it on failure and
+      // never wait more than a few seconds for it otherwise.
+      if (!failed) {
+        try {
+          usage = readLanguageModelUsage(await settleWithin(result.usage, USAGE_SETTLE_MS));
+        } catch {
+          usage = { inputTokens: 0, outputTokens: 0 };
+        }
       }
 
       return { text, thinking, tooled, toolCompleted, failed, usage };

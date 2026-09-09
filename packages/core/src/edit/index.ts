@@ -55,6 +55,8 @@ export {
   promptTemplatesFor,
   promptTemplateById,
 } from "./prompt-templates";
+export { VIDEO_EXAMPLES, videoExampleByFile, videoExampleFileNames, videoExampleTemplate } from "./video-examples";
+export type { VideoExample, VideoExamplesManifest } from "./video-examples";
 export type {
   PromptTemplateCategory,
   PromptTemplateAspect,

@@ -14,6 +14,8 @@
     "db:studio": "pnpm --filter @agentforge/db studio",
     "edit:starters": "node scripts/edit-starters.mjs",
     "edit:starters:check": "node scripts/edit-starters.mjs --check",
+    "videos:examples": "node scripts/video-examples.mjs",
+    "videos:examples:check": "node scripts/video-examples.mjs --check",
     "desktop:dev": "pnpm --filter @agentforge/desktop desktop-dev",
     "desktop:build": "pnpm --filter @agentforge/desktop desktop-build",
     "desktop:release": "pnpm --filter @agentforge/desktop desktop-release",

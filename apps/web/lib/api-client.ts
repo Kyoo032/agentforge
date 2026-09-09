@@ -8,6 +8,7 @@ import {
   type IpcHostResponse,
 } from "./desktop-bridge";
 import { errorFromAbortSignal, onAbort, throwIfAborted } from "./ipc-abort";
+import { desktopMediaSrc } from "./media-src";
 
 export type { IpcHostRequest, IpcHostResponse };
 export {
@@ -137,12 +138,5 @@ export async function apiFetch(input: string, init: RequestInit = {}): Promise<R
 }
 
 export function mediaSrc(url: string): string {
-  if (!isElectron()) {
-    return url;
-  }
-  const match = url.match(/\/api\/v1\/media\/([^/]+)\/file/);
-  if (match) {
-    return `agentforge://media/${match[1]}`;
-  }
-  return url;
+  return desktopMediaSrc(url, isElectron());
 }

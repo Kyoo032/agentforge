@@ -42,6 +42,7 @@ apps/web/tests/fixtures/edit/*.mp4
 apps/web/tests/fixtures/edit/*.png
 apps/desktop/resources/starters/*.mp4
 apps/desktop/resources/starters/*.m4a
+apps/desktop/resources/examples/videos/*.mp4
 .DS_Store
 *.tsbuildinfo
 .claude/

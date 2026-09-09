@@ -19,6 +19,7 @@ const MODE_LABEL: Record<ArtifactMode, string> = {
   finance: "Finance",
   documents: "Documents",
   presentations: "Presentation",
+  legal: "Legal",
 };
 
 function formatWhen(ms: number): string {

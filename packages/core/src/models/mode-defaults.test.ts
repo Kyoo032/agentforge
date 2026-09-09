@@ -49,6 +49,8 @@ describe("resolveModeDefaults", () => {
     expect(defaults.presentations).toBe("glm-5.2-fast-preview");
     expect(defaults.finance).toBe("deepseek-v4-flash");
     expect(defaults.data).toBe("gpt-5.6-luna");
+    expect(defaults.legal).toBe("gpt-5.6-sol");
+    expect(defaults.legalVerifier).toBe("gpt-5.6-luna");
     expect(defaults.image).toBe("gpt-image-2");
     expect(defaults.video).toBe("grok-imagine-video");
     expect(defaults.embedding).toBe("text-embedding-3-small");
@@ -68,6 +70,8 @@ describe("resolveModeDefaults", () => {
     expect(defaults.presentations).toBe("minimax-m3");
     expect(defaults.finance).toBe("minimax-m3");
     expect(defaults.data).toBe("minimax-m3");
+    expect(defaults.legal).toBe("minimax-m3");
+    expect(defaults.legalVerifier).toBe("minimax-m3");
     expect(defaults.image).toBe(DEFAULT_GATEWAY_IMAGE_MODEL);
     expect(defaults.video).toBe(DEFAULT_GATEWAY_VIDEO_MODEL);
     expect(defaults.embedding).toBe("text-embedding-3-small");

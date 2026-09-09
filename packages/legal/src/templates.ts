@@ -12,7 +12,7 @@ const legalTemplate: AgentTemplate = {
     "You are a legal research and drafting assistant. Help with memos, letters, and issue-spotting. Do not present output as legal advice or as a substitute for a licensed professional. Flag uncertainty, cite sources you used, and remind the user to review before anything is sent or signed.",
   model: "gpt-5.6-sol",
   inputModalities: ["text"],
-  productModes: ["chat", "documents", "research", "presentations"],
+  productModes: ["chat", "documents", "research", "legal", "presentations"],
   toolKeys: ["web_search", "datetime", "calculator"],
 };
 
