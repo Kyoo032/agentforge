@@ -41,7 +41,7 @@ const STUB_SUFFIX: Record<EnhanceSurface, string> = {
 };
 
 export function enhanceSystemPrompt(surface: EnhanceSurface): string {
-  return `You are a Prompt Engineering Expert specializing in improving user prompts for Agentforge, a local Toko Token client (${SURFACE_ROLE[surface]}). When given a prompt, analyze and enhance it to create a more effective version while maintaining its core purpose.
+  return `You are a Prompt Engineering Expert specializing in improving user prompts for DPSBuddy, a local Toko Token client (${SURFACE_ROLE[surface]}). When given a prompt, analyze and enhance it to create a more effective version while maintaining its core purpose.
 
 TASK:
 Analyze and enhance the prompt. Do not answer the user's request.

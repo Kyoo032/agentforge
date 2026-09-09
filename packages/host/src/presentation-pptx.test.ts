@@ -4,13 +4,13 @@ import { buildPresentationPptx } from "./presentation-pptx";
 describe("buildPresentationPptx", () => {
   it("returns a non-empty pptx buffer and a .pptx filename", async () => {
     const { buffer, filename } = await buildPresentationPptx({
-      title: "Agentforge Demo",
+      title: "DPSBuddy Demo",
       slides: [
         { heading: "Why", bullets: ["Local owner", "Gateway-first"], notes: "Open strong" },
         { heading: "How", bullets: ["Prompt", "Preview", "Download"], notes: "" },
       ],
     });
-    expect(filename).toBe("Agentforge-Demo.pptx");
+    expect(filename).toBe("DPSBuddy-Demo.pptx");
     expect(buffer.byteLength).toBeGreaterThan(1000);
     // ZIP / PPTX magic
     const bytes = new Uint8Array(buffer);

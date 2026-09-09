@@ -1,5 +1,5 @@
 const { contextBridge, ipcRenderer } = require("electron");
-const { loadBrandFromResources, loadBrandLogo } = require("./brand-read.cjs");
+const { PUBLIC_PRODUCT_NAME, loadBrandFromResources, loadBrandLogo } = require("./brand-read.cjs");
 
 const brand = loadBrandFromResources(process.resourcesPath, __dirname);
 const brandLogo = loadBrandLogo(process.resourcesPath, __dirname);
@@ -9,7 +9,7 @@ contextBridge.exposeInMainWorld("agentforge", {
   brand,
   brandLogo,
   updates: {
-    supported: brand.productName === "Agentforge",
+    supported: brand.productName === PUBLIC_PRODUCT_NAME,
     state: () => ipcRenderer.invoke("updates:state"),
     check: () => ipcRenderer.invoke("updates:check"),
     download: () => ipcRenderer.invoke("updates:download"),

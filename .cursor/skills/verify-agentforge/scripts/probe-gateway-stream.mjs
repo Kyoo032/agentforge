@@ -10,8 +10,8 @@ import { join } from "node:path";
 const require = createRequire(import.meta.url);
 
 const DATA_DIR = process.env.APPDATA
-  ? join(process.env.APPDATA, "Agentforge")
-  : join(process.env.HOME || "", ".config", "Agentforge");
+  ? join(process.env.APPDATA, "DPSBuddy")
+  : join(process.env.HOME || "", ".config", "DPSBuddy");
 const SETTINGS = join(DATA_DIR, "settings.enc");
 const TIMEOUT_MS = 12_000;
 const BASE = "https://api.tokotokenai.com/v1";
@@ -82,7 +82,7 @@ async function resolveKey() {
     return { key: fromEnv, source: "env" };
   }
   const keytar = require("../../../../apps/desktop/node_modules/keytar");
-  const wrap = await keytar.getPassword("Agentforge", "wrap-key");
+  const wrap = await keytar.getPassword("DPSBuddy", "wrap-key");
   if (!wrap) {
     throw new Error("no wrap-key in keytar");
   }

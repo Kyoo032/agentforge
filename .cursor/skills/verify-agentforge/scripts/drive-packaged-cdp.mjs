@@ -1,6 +1,6 @@
 /**
  * Drive the packaged Electron window over Chromium CDP.
- * Prerequisite: Agentforge.exe launched with --remote-debugging-port=9222
+ * Prerequisite: DPSBuddy.exe launched with --remote-debugging-port=9222
  * Usage: node .cursor/skills/verify-agentforge/scripts/drive-packaged-cdp.mjs
  */
 import { mkdirSync, writeFileSync } from "node:fs";

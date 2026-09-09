@@ -50,8 +50,8 @@ jobs:
       - name: List artifacts
         run: |
           ls -la apps/desktop/dist
-          test -f "apps/desktop/dist/Agentforge-${{ steps.version.outputs.version }}-mac-arm64.dmg"
-          test -f "apps/desktop/dist/Agentforge-${{ steps.version.outputs.version }}-mac-x64.dmg"
+          test -f "apps/desktop/dist/DPSBuddy-${{ steps.version.outputs.version }}-mac-arm64.dmg"
+          test -f "apps/desktop/dist/DPSBuddy-${{ steps.version.outputs.version }}-mac-x64.dmg"
       - name: Boot check (arm64 .app writes host-status.json, doctor --desktop)
         run: |
           set -euo pipefail
@@ -59,7 +59,7 @@ jobs:
           echo "launching $BIN"
           "$BIN" --remote-debugging-port=9222 > app.log 2>&1 &
           APP_PID=$!
-          STATUS="$HOME/Library/Application Support/Agentforge/host-status.json"
+          STATUS="$HOME/Library/Application Support/DPSBuddy/host-status.json"
           for i in $(seq 1 90); do
             if [ -f "$STATUS" ]; then break; fi
             sleep 1
@@ -73,8 +73,8 @@ jobs:
         with:
           name: agentforge-mac-${{ steps.version.outputs.version }}
           path: |
-            apps/desktop/dist/Agentforge-*-mac-*.dmg
-            apps/desktop/dist/Agentforge-*-mac-*.zip
+            apps/desktop/dist/DPSBuddy-*-mac-*.dmg
+            apps/desktop/dist/DPSBuddy-*-mac-*.zip
           if-no-files-found: error
           retention-days: 14
       - name: Upload app log on failure

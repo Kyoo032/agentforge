@@ -15,7 +15,7 @@ Usage is the desk spend and this-key wallet page at `/usage`. It is a bottom-rai
 - From Settings, follow Open Usage (`usage-open`).
 - Open `/usage` directly.
 
-## Driving it with the Agentforge harness
+## Driving it with the DPSBuddy harness
 
 Preconditions:
 

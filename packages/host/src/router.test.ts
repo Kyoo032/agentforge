@@ -16,7 +16,7 @@ describe("host router", () => {
       body: {
         ok: true,
         transport: "host",
-        productName: "Agentforge",
+        productName: "DPSBuddy",
         gatewayName: "Toko Token",
         gatewayBaseUrl: "https://api.tokotokenai.com/v1",
       },

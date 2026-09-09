@@ -6,7 +6,7 @@
  *   node scripts/pack-brand.mjs --restore-public
  *
  * Requires apps/web dist + stage-renderer.mjs already run (or call via desktop-build).
- * After a non-Agentforge pack, the working tree is always restored to branding/agentforge
+ * After a non-DPSBuddy pack, the working tree is always restored to branding/agentforge
  * so splash/icon leftovers cannot leak into the next public build or a git commit.
  */
 import { spawnSync } from "node:child_process";
@@ -137,6 +137,10 @@ function applyBrandToWorkingTree(id) {
     }
   }
   copyFileSync(iconSrc, join(buildDir, "icon.ico"));
+  const iconPng = join(brandDir, "icon.png");
+  if (existsSync(iconPng)) {
+    copyFileSync(iconPng, join(buildDir, "icon.png"));
+  }
   copyFileSync(iconSrc, join(splashDir, "icon.ico"));
   copyFileSync(brandFile, join(brandResourceDir, "brand.json"));
   const splashImg = existsSync(logoPng) ? logoPng : existsSync(splashPng) ? splashPng : null;
@@ -169,7 +173,7 @@ console.log(
 );
 
 /**
- * brand.json "updates" is the single source of truth for where packaged Agentforge
+ * brand.json "updates" is the single source of truth for where packaged DPSBuddy
  * looks for latest.yml. It must agree with build.publish in package.json.
  */
 function publishArgsFromBrand(config) {

@@ -19,11 +19,11 @@ const metranet = parseBrand({
 assert.equal(metranet.productName, "AIHub Metranet");
 
 const empty = parseBrand({}, DEFAULT_BRAND);
-assert.equal(empty.productName, "Agentforge");
+assert.equal(empty.productName, "DPSBuddy");
 assert.equal(empty.gatewayName, "Toko Token");
 
 const fromDisk = loadBrandFromResources(join(__dirname, "resources"), __dirname);
-assert.equal(fromDisk.productName, "Agentforge");
+assert.equal(fromDisk.productName, "DPSBuddy");
 assert.equal(fromDisk.gatewayName, "Toko Token");
 
 console.log("brand-read.test.cjs: ok");

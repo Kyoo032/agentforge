@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { GATEWAY_BASE_URL, GATEWAY_NAME } from "@agentforge/core/gateway";
+import { DEFAULT_PRODUCT_NAME, GATEWAY_BASE_URL, GATEWAY_NAME } from "@agentforge/core/gateway";
 import { apiFetch, getDesktopBrand, getDesktopBrandLogo, isElectron } from "@/lib/api-client";
 
 export type ProductBrand = {
@@ -10,7 +10,7 @@ export type ProductBrand = {
 };
 
 export const DEFAULT_PRODUCT_BRAND: ProductBrand = {
-  productName: "Agentforge",
+  productName: DEFAULT_PRODUCT_NAME,
   gatewayName: GATEWAY_NAME,
   gatewayBaseUrl: GATEWAY_BASE_URL,
   logoSrc: "",

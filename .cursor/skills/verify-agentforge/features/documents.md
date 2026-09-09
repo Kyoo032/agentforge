@@ -17,7 +17,7 @@ Documents is a job: prompt or starter → section preview → DOCX download. It 
 - Choose Documents on the left rail (`mode-documents`). Home already has the tab.
 - Open `http://127.0.0.1:3000/documents` when the tab is unlocked.
 
-## Driving it with the Agentforge harness
+## Driving it with the DPSBuddy harness
 
 Preconditions:
 

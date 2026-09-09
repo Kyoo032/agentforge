@@ -75,7 +75,7 @@ export function migrationsFolder(): string {
   if (existsSync(relative)) {
     return relative;
   }
-  throw new Error(`Agentforge migrations folder not found. Tried:\n${tried.map((p) => `  - ${p}`).join("\n")}`);
+  throw new Error(`DPSBuddy migrations folder not found. Tried:\n${tried.map((p) => `  - ${p}`).join("\n")}`);
 }
 
 function readMigrations(folder: string): Migration[] {

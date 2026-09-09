@@ -1,4 +1,4 @@
-# Agentforge desktop
+# DPSBuddy desktop
 
 Operator / agent only. Humans install from [GitHub Releases](https://github.com/Kyoo032/agentforge/releases), not this file.
 
@@ -17,7 +17,7 @@ There is no mobile Electron/Capacitor/RN target. See [`docs/mobile.md`](../../do
 
 ## userData (`host-status.json`, SQLite, `settings.enc`)
 
-`app.setName(productName)` + flavor `brand.json` (`userData` is `%APPDATA%\<productName>`). Git tracks **Agentforge** only (`%APPDATA%\Agentforge`, legacy `%APPDATA%\@agentforge\desktop`). Other Windows flavors are local/gitignored.
+`app.setName(productName)` + flavor `brand.json` (`userData` is `%APPDATA%\<productName>`). Git tracks **DPSBuddy** only (`%APPDATA%\DPSBuddy`, legacy `%APPDATA%\@agentforge\desktop`). Other Windows flavors are local/gitignored.
 
 Packaged launch writes `host-status.json` there (`transport: "ipc"`). Doctor `--desktop` reads that file and **fails** if it is missing. It does **not** GET `:3000`.
 
@@ -55,14 +55,14 @@ Do **not** run `pnpm desktop:build` or `@electron/rebuild` on Cloud Linux.
 
 A fresh install does **not** need Node or pnpm on PATH. On first run:
 
-1. Wrap key in Windows Credential Manager (`Agentforge` / `wrap-key`) via keytar.
+1. Wrap key in Windows Credential Manager (`DPSBuddy` / `wrap-key`) via keytar.
 2. SQLite, `settings.enc`, and `host-status.json` under Electron `userData`.
 3. If no gateway key is saved, onboarding (endpoint locked to Toko Token + API key, or “Use offline demo”).
-4. Window close (`X`) exits `Agentforge.exe`. Threads and the saved key stay.
+4. Window close (`X`) exits `DPSBuddy.exe`. Threads and the saved key stay.
 
-Window close (`X`) calls `app.exit(0)` so `Agentforge.exe` and Chromium helpers die. Threads and the saved key stay.
+Window close (`X`) calls `app.exit(0)` so `DPSBuddy.exe` and Chromium helpers die. Threads and the saved key stay.
 
-Running `Agentforge Setup *.exe` again **replaces** the existing install: it taskkills `Agentforge.exe`, overwrites the app files, and keeps `%APPDATA%\Agentforge`. Uninstall (not upgrade) kills the process, deletes that folder, and removes Credential Manager `Agentforge` / `wrap-key`. Reinstall after uninstall shows onboarding again.
+Running `DPSBuddy Setup *.exe` again **replaces** the existing install: it taskkills `DPSBuddy.exe`, overwrites the app files, and keeps `%APPDATA%\DPSBuddy`. Uninstall (not upgrade) kills the process, deletes that folder, and removes Credential Manager `DPSBuddy` / `wrap-key`. Reinstall after uninstall shows onboarding again.
 
 Doctor the packaged app with:
 
@@ -72,9 +72,9 @@ node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop
 
 Never commit `.env`, `data/settings.enc`, or `data/.master-key`.
 
-## In-app updates (Agentforge only)
+## In-app updates (DPSBuddy only)
 
-Packaged Agentforge checks [GitHub Releases](https://github.com/Kyoo032/DPS-Agent-Platform/releases) in the **public** `Kyoo032/DPS-Agent-Platform` repo from Settings → **Check for updates**. If a newer version is out, **Update and restart** downloads it and relaunches. Kemenkeu / Metranet builds do not get this button. The source repo (`Kyoo032/agentforge`) stays private: electron-updater's GitHub provider is unauthenticated, so release assets have to live somewhere public.
+Packaged DPSBuddy checks [GitHub Releases](https://github.com/Kyoo032/DPSBuddy/releases) in the **public** `Kyoo032/DPSBuddy` repo from Settings → **Check for updates**. If a newer version is out, **Update and restart** downloads it and relaunches. Kemenkeu / Metranet builds do not get this button. The source repo (`Kyoo032/agentforge`) stays private: electron-updater's GitHub provider is unauthenticated, so release assets have to live somewhere public.
 
 The update target is written in two places that must agree: `branding/agentforge/brand.json` `updates` (read by `scripts/pack-brand.mjs`, which is what `pnpm desktop:build` runs) and `package.json` `build.publish` (used by the plain `electron-builder --dir/--mac/--linux` scripts). `pnpm desktop:release` refuses to run when they differ. The version comes from `package.json` `version` only.
 
@@ -85,7 +85,7 @@ pnpm desktop:build
 pnpm desktop:release          # --dry-run prints the gh command and uploads nothing; --draft, --notes <file>
 ```
 
-`electron-builder` writes `latest.yml` next to the Setup exe when the Agentforge flavor is packed. The local files keep the spaced `artifactName` (`Agentforge Setup 0.14.0.exe`), but `latest.yml` and the GitHub assets use the hyphenated form (`Agentforge-Setup-0.14.0.exe`). That is electron-builder's rule for GitHub and the updater re-hyphenates anyway, so never rewrite `latest.yml`. `desktop:release` checks version, size and sha512 against `latest.yml`, refuses a dirty tree or a `dist/` holding stale Setup exes (`--allow-dirty`, `--allow-stale`), then runs `gh release create v<version>` uploading the exe, its blockmap and `latest.yml` under the hyphenated names. Flavor exes (Kemenkeu / Metranet) must never be attached to the public repo.
+`electron-builder` writes `latest.yml` next to the Setup exe when the DPSBuddy flavor is packed. The local files keep the spaced `artifactName` (`DPSBuddy Setup 0.14.0.exe`), but `latest.yml` and the GitHub assets use the hyphenated form (`DPSBuddy-Setup-0.14.0.exe`). That is electron-builder's rule for GitHub and the updater re-hyphenates anyway, so never rewrite `latest.yml`. `desktop:release` checks version, size and sha512 against `latest.yml`, refuses a dirty tree or a `dist/` holding stale Setup exes (`--allow-dirty`, `--allow-stale`), then runs `gh release create v<version>` uploading the exe, its blockmap and `latest.yml` under the hyphenated names. Flavor exes (Kemenkeu / Metranet) must never be attached to the public repo.
 
 ## macOS and Linux packages (operator builds on that OS)
 
@@ -98,7 +98,7 @@ pnpm desktop:build:linux
 
 `desktop:build:mac:dir` writes an unpacked `.app` (same idea as `win-unpacked`). `pnpm desktop:mac` launches it with CDP `9222`. Both require **macOS**. This Windows checkout cannot run Apple’s Simulator or a `.app` — use WinApp F5 here. iOS Simulator / Expo stay parked.
 
-The mac scripts run `pack-brand.mjs --restore-public` before electron-builder, so the splash, `resources/brand/brand.json`, and `build/icon.png` (1024², converted to `.icns` by electron-builder) are always the public Agentforge flavor. Output: `Agentforge-<version>-mac-x64.dmg|zip` and `-arm64`. Native modules are rebuilt per arch by electron-builder; bundled ffmpeg goes in `resources/ffmpeg/` per [`resources/ffmpeg/README.md`](resources/ffmpeg/README.md).
+The mac scripts run `pack-brand.mjs --restore-public` before electron-builder, so the splash, `resources/brand/brand.json`, and `build/icon.png` (1024², converted to `.icns` by electron-builder) are always the public DPSBuddy flavor. Output: `DPSBuddy-<version>-mac-x64.dmg|zip` and `-arm64`. Native modules are rebuilt per arch by electron-builder; bundled ffmpeg goes in `resources/ffmpeg/` per [`resources/ffmpeg/README.md`](resources/ffmpeg/README.md).
 
 **No Mac?** `pnpm desktop:build:mac:docker` builds the same four files on this Windows box inside a Linux container (Docker Desktop must be running): electron-builder packs the `.app` on Linux, `rcodesign` ad-hoc signs it, libdmg-hfsplus writes the dmg, and `verify-bundle.py` checks arch, natives, symlinks, plist, asar and signatures before anything lands in `dist/`. Details and limits in [`platform/macos/AGENTS.md`](platform/macos/AGENTS.md). First run builds the image (a few minutes); later runs reuse the cache volume.
 

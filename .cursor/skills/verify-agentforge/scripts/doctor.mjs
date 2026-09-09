@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 /**
- * Read-only: is this Agentforge instance worth driving?
+ * Read-only: is this DPSBuddy instance worth driving?
  * Usage:
  *   node .cursor/skills/verify-agentforge/scripts/doctor.mjs
  *       → local webdev at http://127.0.0.1:3000
  *   node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop
  *       → packaged IPC host from Electron userData host-status.json:
- *         Windows: %APPDATA%/Agentforge|Kemenkeu AI|AIHub Metranet/host-status.json
+ *         Windows: %APPDATA%/DPSBuddy|Kemenkeu AI|AIHub Metranet/host-status.json
  *                  (legacy: %APPDATA%/@agentforge/desktop/host-status.json)
- *         Linux:   $XDG_CONFIG_HOME/Agentforge/host-status.json
- *                  or ~/.config/Agentforge/host-status.json
- *         macOS:   ~/Library/Application Support/Agentforge/host-status.json
+ *         Linux:   $XDG_CONFIG_HOME/DPSBuddy/host-status.json
+ *                  or ~/.config/DPSBuddy/host-status.json
+ *         macOS:   ~/Library/Application Support/DPSBuddy/host-status.json
  *   AGENTFORGE_VERIFY_URL=http://127.0.0.1:PORT node …/doctor.mjs
  *       → explicit loopback for **webdev only** (ignored with --desktop)
  */
@@ -73,7 +73,7 @@ async function doctorDesktop() {
   const file = desktopStatusPath();
   if (!existsSync(file)) {
     fail(
-      `packaged host-status.json missing at ${file}. Launch the installed Agentforge once. Do not doctor :3000 as the desktop app — that is webdev only. Packaged Agentforge has no loopback HTTP server.`,
+      `packaged host-status.json missing at ${file}. Launch the installed DPSBuddy once. Do not doctor :3000 as the desktop app — that is webdev only. Packaged DPSBuddy has no loopback HTTP server.`,
     );
   }
   let status;

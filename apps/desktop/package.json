@@ -1,8 +1,8 @@
 {
   "name": "@agentforge/desktop",
-  "version": "0.14.23",
+  "version": "0.14.24",
   "private": true,
-  "description": "Electron shell for Agentforge. Packaged builds use IPC (no loopback HTTP server).",
+  "description": "Electron shell for DPSBuddy. Packaged builds use IPC (no loopback HTTP server).",
   "main": "main.cjs",
   "scripts": {
     "desktop-dev": "electron .",
@@ -32,7 +32,7 @@
   },
   "build": {
     "appId": "com.tokotoken.agentforge",
-    "productName": "Agentforge",
+    "productName": "DPSBuddy",
     "extraMetadata": {
       "name": "agentforge"
     },
@@ -40,7 +40,7 @@
       "output": "dist",
       "buildResources": "build"
     },
-    "artifactName": "Agentforge Setup ${version}.${ext}",
+    "artifactName": "DPSBuddy Setup ${version}.${ext}",
     "compression": "maximum",
     "electronLanguages": [
       "en-US"
@@ -115,7 +115,7 @@
       "identity": null,
       "icon": "icon.png",
       "category": "public.app-category.productivity",
-      "artifactName": "Agentforge-${version}-mac-${arch}.${ext}",
+      "artifactName": "DPSBuddy-${version}-mac-${arch}.${ext}",
       "target": [
         {
           "target": "dmg",
@@ -152,7 +152,7 @@
     "publish": {
       "provider": "github",
       "owner": "Kyoo032",
-      "repo": "DPS-Agent-Platform",
+      "repo": "DPSBuddy",
       "releaseType": "release"
     },
     "nsis": {

@@ -19,7 +19,7 @@ Every finished piece of work becomes a **text work card** in the Knowledge Base 
 - Send anything in Chat, or finish any job mode, then open Knowledge Base on the Account rail (`mode-knowledge`) → Sources.
 - Open `http://127.0.0.1:3000/knowledge` after a send.
 
-## Driving it with the Agentforge harness
+## Driving it with the DPSBuddy harness
 
 Preconditions:
 

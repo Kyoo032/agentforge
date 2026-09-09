@@ -3,7 +3,7 @@
  * Generate the bundled Videos example clips into apps/desktop/resources/examples/videos/.
  *
  * The manifest (packages/core/src/edit/video-examples.json) lists one clip per prompt template.
- * Each clip is generated once through a running Agentforge host (the dev desk on :3000 or any
+ * Each clip is generated once through a running DPSBuddy host (the dev desk on :3000 or any
  * host URL) with that template's prompt, then re-encoded small (H.264, <= 1280 px, faststart)
  * so it plays instantly from disk. The app never fetches these at runtime: they ship inside the
  * installer next to the Edit starters. After a clip is written the manifest entry gets the

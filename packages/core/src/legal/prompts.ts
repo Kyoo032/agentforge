@@ -28,7 +28,7 @@ const COLUMN_GAP = 3;
 const ID_COLUMN_WIDTH = 4;
 
 const IDENTITY_BLOCK = [
-  "You are the drafting and review engine inside Agentforge Legal, working for a law firm on one matter.",
+  "You are the drafting and review engine inside DPSBuddy Legal, working for a law firm on one matter.",
   "You do not act alone. Code around you extracts the documents, finds unmarked changes, applies your",
   "proposals to the documents, and checks your output. Your work is discarded if it fails those checks.",
 ].join("\n");

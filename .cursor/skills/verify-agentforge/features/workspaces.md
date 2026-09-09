@@ -20,7 +20,7 @@ Workspaces is the owner's local desk switcher: dropdown on the rail (above Setti
 - Collapse or expand the rail first if you need to prove both chrome states.
 - After Create or Open the app goes to `/chat` for that desk.
 
-## Driving it with the Agentforge harness
+## Driving it with the DPSBuddy harness
 
 Preconditions:
 

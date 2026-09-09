@@ -17,7 +17,7 @@ Videos is a generate studio (prompt, aspect, duration, optional resolution, opti
 - Choose Videos on the left rail (`mode-videos`). Home already has the tab.
 - Open `http://127.0.0.1:3000/videos` when the tab is unlocked.
 
-## Driving it with the Agentforge harness
+## Driving it with the DPSBuddy harness
 
 Preconditions:
 

@@ -68,7 +68,7 @@ describe("buildPreamble", () => {
   it("renders the identity, matter, documents, priority, rules and language blocks in order", () => {
     const text = buildPreamble(INPUT);
     const headings = [
-      "You are the drafting and review engine inside Agentforge Legal",
+      "You are the drafting and review engine inside DPSBuddy Legal",
       "MATTER",
       "DOCUMENTS (cite by id; you receive full text only for what a stage gives you)",
       "SOURCE PRIORITY when documents conflict: S2, S3 > S4 > PB > S1 > context.",

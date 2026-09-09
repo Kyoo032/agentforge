@@ -57,7 +57,7 @@ REQUIRED_RESOURCES = [
     "Contents/Resources/app.asar.unpacked/node_modules/keytar/build/Release/keytar.node",
 ]
 FRAMEWORK = "Contents/Frameworks/Electron Framework.framework"
-HELPERS = ["Agentforge Helper", "Agentforge Helper (GPU)", "Agentforge Helper (Plugin)", "Agentforge Helper (Renderer)"]
+HELPERS = ["DPSBuddy Helper", "DPSBuddy Helper (GPU)", "DPSBuddy Helper (Plugin)", "DPSBuddy Helper (Renderer)"]
 
 
 class Report:
@@ -160,11 +160,11 @@ def check_layout(report: Report, app: Path, version: str) -> None:
             report.ok(f"present: {rel}")
         else:
             report.fail(f"missing: {rel}")
-    main = app / "Contents/MacOS/Agentforge"
+    main = app / "Contents/MacOS/DPSBuddy"
     if main.is_file() and os.access(main, os.X_OK):
         report.ok("main executable is executable")
     else:
-        report.fail("Contents/MacOS/Agentforge missing or not executable")
+        report.fail("Contents/MacOS/DPSBuddy missing or not executable")
     for helper in HELPERS:
         exe = app / f"Contents/Frameworks/{helper}.app/Contents/MacOS/{helper}"
         if not exe.is_file():
@@ -190,10 +190,10 @@ def check_layout(report: Report, app: Path, version: str) -> None:
         report.fail(f"Info.plist unreadable: {error}")
         return
     expected = {
-        "CFBundleExecutable": "Agentforge",
+        "CFBundleExecutable": "DPSBuddy",
         "CFBundleIdentifier": "com.tokotoken.agentforge",
         "CFBundleShortVersionString": version,
-        "CFBundleName": "Agentforge",
+        "CFBundleName": "DPSBuddy",
     }
     for key, value in expected.items():
         if plist.get(key) == value:
@@ -232,7 +232,7 @@ def check_signatures(report: Report, app: Path) -> None:
     # Apple silicon enforces the signature on every Mach-O it loads, so all four helpers and the
     # framework are checked, not just the main binary.
     targets = [
-        app / "Contents/MacOS/Agentforge",
+        app / "Contents/MacOS/DPSBuddy",
         app / FRAMEWORK / "Versions/A/Electron Framework",
         *[app / f"Contents/Frameworks/{helper}.app/Contents/MacOS/{helper}" for helper in HELPERS],
     ]
@@ -288,7 +288,7 @@ def parse_7z_listing(text: str) -> tuple[dict[str, int], dict[str, str], dict[st
 
 
 def compare_manifest(report: Report, label: str, source: dict[str, int], listed: dict[str, int], attrs: dict[str, str]) -> None:
-    app_key = "Agentforge.app/"
+    app_key = "DPSBuddy.app/"
     inside: dict[str, int] = {}
     for path, size in listed.items():
         index = path.find(app_key)
@@ -380,8 +380,8 @@ def check_dmg_catalog(report: Report, app: Path, dmg: Path) -> None:
             report.fail(f"dmg catalog: execute bit lost on {len(lost)} files: {lost[:5]}")
         else:
             report.ok(f"dmg catalog: execute bit kept on all {len(executables)} executables")
-        main_mode = catalog.mode(f"{root}/Contents/MacOS/Agentforge")
-        report.note(f"dmg catalog: Contents/MacOS/Agentforge mode {main_mode}")
+        main_mode = catalog.mode(f"{root}/Contents/MacOS/DPSBuddy")
+        report.note(f"dmg catalog: Contents/MacOS/DPSBuddy mode {main_mode}")
     finally:
         catalog.close()
 
@@ -396,7 +396,7 @@ def check_dmg(report: Report, app: Path, dmg: Path) -> None:
         return
     sizes, attrs, _links = parse_7z_listing(result.stdout)
     # 7-Zip lists HFS+ symlinks as files whose size is the target length; drop those before comparing.
-    app_key = "Agentforge.app/"
+    app_key = "DPSBuddy.app/"
     expected_links = source_symlinks(app)
     files_only: dict[str, int] = {}
     link_size_mismatch = []
@@ -439,7 +439,7 @@ def check_zip(report: Report, app: Path, zip_path: Path) -> None:
         report.ok("zip stores Versions/Current as a symlink")
     else:
         report.fail(f"zip does not store Versions/Current as a symlink (mode {current})")
-    main_mode = next((mode for name, mode in modes.items() if name.endswith("Contents/MacOS/Agentforge")), "")
+    main_mode = next((mode for name, mode in modes.items() if name.endswith("Contents/MacOS/DPSBuddy")), "")
     if "x" in main_mode:
         report.ok("zip keeps the execute bit on the main binary")
     else:

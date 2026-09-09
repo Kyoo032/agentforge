@@ -17,7 +17,7 @@ function editMenu(template) {
 // ---------- applicationMenuTemplate ----------
 
 for (const platform of ["win32", "linux"]) {
-  const template = applicationMenuTemplate(platform, "Agentforge");
+  const template = applicationMenuTemplate(platform, "DPSBuddy");
   assert.equal(template.length, 1, `${platform}: only an Edit menu`);
   assert.deepEqual(roles(editMenu(template).submenu), ["undo", "redo", "cut", "copy", "paste", "selectAll"]);
 }
@@ -61,7 +61,7 @@ function makeMenu() {
 
 {
   const { Menu, calls } = makeMenu();
-  installApplicationMenu({ Menu, platform: "win32", productName: "Agentforge" });
+  installApplicationMenu({ Menu, platform: "win32", productName: "DPSBuddy" });
   assert.equal(calls.set.length, 1);
   assert.ok(calls.set[0], "application menu is a real menu, never null");
   assert.deepEqual(roles(editMenu(calls.set[0].template).submenu), [

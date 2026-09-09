@@ -31,7 +31,7 @@ describe("brandFromUnknown", () => {
 });
 
 describe("mergePingBrand", () => {
-  it("does not let a late Agentforge ping clobber a preload flavor", () => {
+  it("does not let a late DPSBuddy ping clobber a preload flavor", () => {
     const current = {
       productName: "Kemenkeu AI",
       gatewayName: "AIHub",
@@ -39,7 +39,7 @@ describe("mergePingBrand", () => {
       logoSrc: "data:image/png;base64,abc",
     };
     const merged = mergePingBrand(current, {
-      productName: "Agentforge",
+      productName: "DPSBuddy",
       gatewayName: "Toko Token",
       gatewayBaseUrl: "https://api.tokotokenai.com/v1",
     });
