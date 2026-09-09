@@ -7,6 +7,7 @@ export const PRODUCT_MODES = [
   { id: "research", label: "Research", href: "/research" },
   { id: "finance", label: "Finance", href: "/finance" },
   { id: "data", label: "Data", href: "/data" },
+  { id: "market", label: "Market", href: "/market" },
   { id: "images", label: "Images", href: "/images" },
   { id: "videos", label: "Videos", href: "/videos" },
   { id: "edit", label: "Edit", href: "/edit" },
@@ -17,7 +18,7 @@ export type ProductMode = (typeof PRODUCT_MODES)[number]["id"];
 
 export const PRODUCT_MODE_IDS: ProductMode[] = PRODUCT_MODES.map((mode) => mode.id);
 
-/** Home / General desk — every work mode, no Agents tab. */
+/** Default / General desk — every work mode, no Agents tab. */
 export const WORK_PRODUCT_MODES: ProductMode[] = [...PRODUCT_MODE_IDS];
 
 /** Original v1 rail minus Agents — used for legacy agents that never stored productModes. */

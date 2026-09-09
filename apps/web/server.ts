@@ -43,8 +43,9 @@ async function main() {
     app.use(vite.middlewares);
   }
 
-  server.listen(3000, "127.0.0.1", () => {
-    console.log("@agentforge/web:dev: http://127.0.0.1:3000");
+  const port = Number(process.env.PORT) || 3000;
+  server.listen(port, "127.0.0.1", () => {
+    console.log(`@agentforge/web:dev: http://127.0.0.1:${port}`);
   });
 }
 

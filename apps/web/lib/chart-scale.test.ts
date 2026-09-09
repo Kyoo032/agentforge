@@ -222,3 +222,16 @@ describe("buildScatterLayout", () => {
     expect(layout.points.every((point) => Number.isFinite(point.x) && Number.isFinite(point.y))).toBe(true);
   });
 });
+
+describe("thinXLabels", () => {
+  it("keeps short label lists and thins long ones to the first, last, and evenly spaced picks", async () => {
+    const { thinXLabels, MAX_X_LABELS } = await import("./chart-scale");
+    const few = Array.from({ length: 5 }, (_, i) => ({ x: i, label: `d${i}` }));
+    expect(thinXLabels(few)).toEqual(few);
+    const many = Array.from({ length: 120 }, (_, i) => ({ x: i, label: `d${i}` }));
+    const thinned = thinXLabels(many);
+    expect(thinned).toHaveLength(MAX_X_LABELS);
+    expect(thinned[0]?.label).toBe("d0");
+    expect(thinned.at(-1)?.label).toBe("d119");
+  });
+});

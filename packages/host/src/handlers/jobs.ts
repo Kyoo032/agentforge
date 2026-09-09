@@ -30,7 +30,7 @@ export async function handleGetImages(request: HostRequest): Promise<HostResult>
     const tenant = await getTenant(request.workspaceId);
     const models = listStudioImageModels();
     const items = await listStudioGallery(tenant, "image");
-    const settings = loadSettings();
+    const settings = loadSettings(tenant.workspaceId);
     const sources = await agentService.listGenerateDefaultSources(tenant);
     const defaultModel = resolveStudioGenerateDefault({
       kind: "image",
@@ -59,7 +59,7 @@ export async function handleGetVideos(request: HostRequest): Promise<HostResult>
     const tenant = await getTenant(request.workspaceId);
     const models = listStudioVideoModels();
     const items = await listStudioGallery(tenant, "video");
-    const settings = loadSettings();
+    const settings = loadSettings(tenant.workspaceId);
     const sources = await agentService.listGenerateDefaultSources(tenant);
     const defaultModel = resolveStudioGenerateDefault({
       kind: "video",

@@ -1,4 +1,5 @@
 import { ApiError, maskPii } from "@agentforge/core";
+import { generateFailureMessage } from "./generate-failure";
 
 export type GenerateSubmitResult = {
   status: number;
@@ -62,12 +63,12 @@ export async function runGenerateJob(
     throw new ApiError("prepaid_async_requires_fixed_price", "Prepaid async generation is not retried", 403);
   }
   if (result.status >= 400 && result.status < 500) {
-    throw new ApiError("generate_failed", `Generation failed (${result.status})`, 400);
+    throw new ApiError("generate_failed", generateFailureMessage(result.status, result.body), 400);
   }
   if (result.status >= 500) {
     const retry = await attempt();
     if (retry.status >= 400) {
-      throw new ApiError("generate_failed", `Generation failed (${retry.status})`, 400);
+      throw new ApiError("generate_failed", generateFailureMessage(retry.status, retry.body), 400);
     }
     return { outputAssetIds: retry.outputAssetIds ?? [] };
   }

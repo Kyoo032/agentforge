@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./local-owner": "./src/local-owner.ts",
     "./gateway": "./src/gateway.ts",
     "./media-kind": "./src/models/media-kind.ts",
     "./preferred": "./src/models/preferred.ts",
@@ -21,7 +22,8 @@
     "./tabular": "./src/tabular/index.ts",
     "./artifacts": "./src/artifacts/index.ts",
     "./jobs": "./src/jobs/index.ts",
-    "./finance": "./src/finance/index.ts"
+    "./finance": "./src/finance/index.ts",
+    "./market": "./src/market/index.ts"
   },
   "scripts": {
     "test": "vitest run",

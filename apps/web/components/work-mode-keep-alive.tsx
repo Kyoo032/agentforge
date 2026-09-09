@@ -5,10 +5,12 @@ import { DocumentsStudio } from "@/components/documents-studio";
 import { ResearchStudio } from "@/components/research-studio";
 import { FinanceStudio } from "@/components/finance-studio";
 import { DataStudio } from "@/components/data-studio";
+import { MarketStudio } from "@/components/market-studio";
 import { ImagesStudio } from "@/components/images-studio";
 import { VideosStudio } from "@/components/videos-studio";
 import { EditStudio } from "@/components/edit-studio";
 import { PresentationsStudio } from "@/components/presentations-studio";
+import { useWorkspaceScope } from "@/lib/workspace-scope";
 
 const WORK_MODE_COMPONENTS: Record<string, ComponentType> = {
   "/chat": ChatPage,
@@ -16,6 +18,7 @@ const WORK_MODE_COMPONENTS: Record<string, ComponentType> = {
   "/research": ResearchStudio,
   "/finance": FinanceStudio,
   "/data": DataStudio,
+  "/market": MarketStudio,
   "/images": ImagesStudio,
   "/videos": VideosStudio,
   "/edit": EditStudio,
@@ -34,6 +37,11 @@ const WORK_MODE_PATHS = Object.keys(WORK_MODE_COMPONENTS);
  * pane and have no inner scroller.
  */
 export function WorkModeKeepAlive() {
+  const { id } = useWorkspaceScope();
+  return <WorkModePanes key={id ?? "boot"} />;
+}
+
+function WorkModePanes() {
   const { pathname } = useLocation();
   const [visited, setVisited] = useState<string[]>(() =>
     WORK_MODE_PATHS.includes(pathname) ? [pathname] : [],

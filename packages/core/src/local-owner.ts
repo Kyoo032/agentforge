@@ -1,6 +1,8 @@
 export const LOCAL_OWNER_ID = "local-owner";
 export const PERSONAL_ORG_SLUG = "personal";
 export const HOME_WORKSPACE_SLUG = "home";
+export const HOME_WORKSPACE_NAME = "Default";
+export const LEGACY_HOME_WORKSPACE_NAME = "Home";
 export const WORKSPACE_COOKIE = "agentforge_workspace";
 
 export function slugifyWorkspace(name: string): string {

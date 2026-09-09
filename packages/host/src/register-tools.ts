@@ -1,5 +1,6 @@
 import { registerPlatformTools, registerTool, registerEditTools, setEditToolBackend } from "@agentforge/core";
 import { registerUniversityTools } from "@agentforge/university";
+import { marketTools } from "./market/tools";
 import { pastSessionsTool } from "./session-tools";
 import { runSqlTool } from "./sql-tool";
 
@@ -13,6 +14,9 @@ export function ensureToolsRegistered(): void {
   registerUniversityTools();
   registerTool(pastSessionsTool);
   registerTool(runSqlTool);
+  for (const tool of marketTools.all) {
+    registerTool(tool);
+  }
   registerEditTools();
   registered = true;
   void import("./edit/backend").then((mod) => {

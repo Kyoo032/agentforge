@@ -1,13 +1,17 @@
+import path from "node:path";
 import { eq } from "drizzle-orm";
-import { ApiError, type EditJobKind } from "@agentforge/core";
+import { ApiError, secondsToFrames, type Asset, type EditJobKind, type TenantContext } from "@agentforge/core";
 import { db, editCards, editJobs, editUnplaced } from "@agentforge/db";
+import { readMediaDataUrl } from "../media";
+import { mediaRoot } from "../media-root";
+import { withInlinedStill } from "./still-source";
 import { appendOps, foldProject } from "./ops";
 import { editEvents } from "./events";
 import { appendEditMetric } from "./metrics";
 import { mapJob } from "./projects";
 import { runGenerateJob } from "./generate";
 import { ensureGenerateSubmitWired, loadMediaRow } from "./wire-generate";
-import { assetAbsPath, extractAudio, render, silenceDetect } from "./ffmpeg/recipes";
+import { assetAbsPath, extractAudio, probe, render, silenceDetect } from "./ffmpeg/recipes";
 import { transcribeAudioChunks } from "./asr";
 
 export type EnqueueJobInput = {
@@ -113,7 +117,11 @@ async function defaultRunner(
 ): Promise<{ outputAssetIds: string[] }> {
   onProgress(0.1);
   if (job.kind === "generate_image" || job.kind === "generate_video") {
-    return runGenerateJob(job.kind, job.requestJson, signal);
+    const request = await withInlinedStill(job.requestJson as Record<string, unknown>, (mediaId) => {
+      const tenant = (job.requestJson as { tenant?: TenantContext }).tenant;
+      return tenant ? readMediaDataUrl(tenant, mediaId) : Promise.resolve(null);
+    });
+    return runGenerateJob(job.kind, request, signal);
   }
   if (job.kind === "render") {
     const doc = await foldProject(job.projectId);
@@ -167,6 +175,7 @@ async function resolveGenerateAsset(
     if (row) {
       const assetId = crypto.randomUUID();
       const kind = row.kind === "image" || row.kind === "audio" ? row.kind : "video";
+      const meta = kind === "video" ? await probeGeneratedMeta(row.storagePath, job.projectId) : {};
       return {
         assetId,
         addOps: [
@@ -178,6 +187,7 @@ async function resolveGenerateAsset(
                 mediaId: row.id,
                 kind,
                 storagePath: row.storagePath,
+                ...meta,
               },
             },
           },
@@ -279,8 +289,48 @@ async function failJob(job: JobRow, status: "failed" | "cancelled" | "interrupte
       editEvents.emitEvent({ type: "card.updated", projectId: job.projectId, card: cards[0] });
     }
   }
+  await markPendingTargetsFailed(job);
   editEvents.emitEvent({ type: "job.done", projectId: job.projectId, job: mapJob(finished) });
   return finished;
+}
+
+/** A failed generation must not leave its placeholder clips shimmering "pending" forever. */
+async function markPendingTargetsFailed(job: JobRow): Promise<void> {
+  try {
+    const doc = await foldProject(job.projectId);
+    const pending = job.targetClipIdsJson.filter((id) =>
+      doc.clips.some((clip) => clip.id === id && clip.status === "pending"),
+    );
+    if (pending.length === 0) {
+      return;
+    }
+    await appendOps(
+      job.projectId,
+      pending.map((clipId) => ({ type: "set_clip_status" as const, payload: { clipId, status: "failed" as const } })),
+      { actor: "owner" },
+    );
+  } catch (error) {
+    console.warn(`[edit] could not mark clips failed for job ${job.id}:`, error);
+  }
+}
+
+/** Real dimensions and length of a generated video, when ffprobe is available. */
+async function probeGeneratedMeta(
+  storagePath: string,
+  projectId: string,
+): Promise<Partial<Pick<Asset, "durationFrames" | "width" | "height" | "fps" | "hasAudio">>> {
+  try {
+    const probed = await probe(path.join(mediaRoot(), storagePath), projectId);
+    return {
+      durationFrames: Math.max(1, secondsToFrames(probed.durationSeconds || 1 / 30, probed.fps || 30)),
+      width: probed.width,
+      height: probed.height,
+      fps: probed.fps,
+      hasAudio: probed.hasAudio,
+    };
+  } catch {
+    return {};
+  }
 }
 
 async function processJob(jobId: string): Promise<void> {

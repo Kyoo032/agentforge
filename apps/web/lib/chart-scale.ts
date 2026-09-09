@@ -233,10 +233,12 @@ export function buildBarLayout(chart: DataChart, layout: ChartLayout = DEFAULT_C
       ];
     }),
   );
-  const xLabels = chart.x.values.map((category, index) => ({
-    x: outer.position(index) + outer.bandWidth / 2,
-    label: String(category),
-  }));
+  const xLabels = thinXLabels(
+    chart.x.values.map((category, index) => ({
+      x: outer.position(index) + outer.bandWidth / 2,
+      label: String(category),
+    })),
+  );
   return { bars, ticks: yTicks(axis), xLabels };
 }
 
@@ -260,8 +262,18 @@ export function buildLineLayout(chart: DataChart, layout: ChartLayout = DEFAULT_
     });
     return { seriesIndex, points, path: pathFor(points) };
   });
-  const xLabels = chart.x.values.map((category, index) => ({ x: xScale(index), label: String(category) }));
+  const xLabels = thinXLabels(chart.x.values.map((category, index) => ({ x: xScale(index), label: String(category) })));
   return { lines, ticks: yTicks(axis), xLabels };
+}
+
+/** More labels than this overlap on a 600px plot; keep the first, the last, and evenly spaced ones between. */
+export const MAX_X_LABELS = 8;
+
+export function thinXLabels(labels: XTick[], max = MAX_X_LABELS): XTick[] {
+  if (labels.length <= max) return labels;
+  const last = labels.length - 1;
+  const picked = new Set(Array.from({ length: max }, (_, i) => Math.round((i * last) / (max - 1))));
+  return labels.filter((_, index) => picked.has(index));
 }
 
 function numericX(value: string | number): number | null {

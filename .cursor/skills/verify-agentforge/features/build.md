@@ -23,5 +23,5 @@ Preconditions:
 ## Gotchas
 
 - Playwright `/studio/**` matching `/studio/new` is irrelevant while the layout redirects.
-- Home already has job modes. Missing Images on Home is a fail, not a reason to open Studio.
+- Default already has job modes. Missing Images on Default is a fail, not a reason to open Studio.
 - A later “show Build again” pass should un-park this file instead of inventing a new feature id.

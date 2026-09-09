@@ -4,9 +4,12 @@ import { DEFAULT_CHAT_SLUG } from "./default-chat";
 import {
   FALLBACK_PRODUCT_MODES,
   LEGACY_PRODUCT_MODES,
+  PRODUCT_MODE_IDS,
   WORK_PRODUCT_MODES,
   firstVisibleHref,
   isParkedAgentPath,
+  productModeHref,
+  productModeLabel,
   redirectIfHiddenMode,
   requireProductModes,
   resolveProductModes,
@@ -166,6 +169,15 @@ describe("firstVisibleHref and hidden redirects", () => {
     expect(redirectIfHiddenMode("/knowledge", [...visible])).toBeNull();
     expect(redirectIfHiddenMode("/finance", [...visible])).toBe("/chat");
     expect(redirectIfHiddenMode("/data", [...visible])).toBe("/chat");
+    expect(redirectIfHiddenMode("/market", [...visible])).toBe("/chat");
+  });
+
+  it("lists Market after Data in catalog order and on the Home desk", () => {
+    expect(PRODUCT_MODE_IDS.indexOf("market")).toBe(PRODUCT_MODE_IDS.indexOf("data") + 1);
+    expect(WORK_PRODUCT_MODES).toContain("market");
+    expect(productModeHref("market")).toBe("/market");
+    expect(productModeLabel("market")).toBe("Market");
+    expect(resolveWorkspaceModes(["market", "chat"])).toEqual(["chat", "market"]);
   });
 
   it("keeps /chat even when that tab is off the rail", () => {

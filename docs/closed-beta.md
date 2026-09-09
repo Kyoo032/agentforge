@@ -17,7 +17,7 @@ Windows SmartScreen may warn because the installer is unsigned. **More info** �
 - **Chat** — send a message, switch models, open a second thread
 - **Settings** — save gateway key, confirm the UI does not echo the raw key back
 - **Documents / Research / Images / Videos / Presentation** — one happy-path generate each (live key required for media)
-- **Workspaces** — create a desk, switch tabs, return to Home
+- **Workspaces** — create a desk, switch tabs, return to Default
 
 ## Notes
 

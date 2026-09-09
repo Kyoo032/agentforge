@@ -153,6 +153,8 @@ export function buildGatewayVideoPayload(options: {
       model: options.model,
       prompt: options.prompt,
       content,
+      // Generic `/v1/video/generations` field (docs: http(s) URL or base64 data URL); Veo/Kling read this one.
+      ...(options.imageUrl ? { image: options.imageUrl } : {}),
       duration,
       resolution: normalizeVideoResolution(options.resolution),
       ratio: aspect,
@@ -222,6 +224,8 @@ export function extractGatewayVideoUrl(body: Record<string, unknown>): string | 
     asString(data.result_url) ??
     asString(data.url) ??
     asString(body.url) ??
+    asString(body.content_url) ??
+    asString(data.content_url) ??
     asString(nested.url) ??
     asString(metadata.url) ??
     asString(asRecord(video).url) ??

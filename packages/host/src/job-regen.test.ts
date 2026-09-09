@@ -1,5 +1,61 @@
-import { describe, expect, it } from "vitest";
-import { appendRegenInstruction, readJobRegenAttachments, readOptionalInstruction } from "./job-regen";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { AgentRuntime, TenantContext } from "@agentforge/core";
+import {
+  appendRegenInstruction,
+  collectJobAssistantText,
+  readJobRegenAttachments,
+  readOptionalInstruction,
+} from "./job-regen";
+
+type ExecuteInput = Parameters<AgentRuntime["execute"]>[0];
+
+const executed: ExecuteInput[] = [];
+
+vi.mock("@agentforge/core", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@agentforge/core")>();
+  return {
+    ...actual,
+    createRuntime: (): AgentRuntime => ({
+      async execute(input) {
+        executed.push(input);
+        await input.onEvent({ type: "assistant.delta", text: "hello" });
+      },
+    }),
+  };
+});
+
+vi.mock("./settings-store", () => ({ loadSettings: () => ({}) }));
+
+const tenant: TenantContext = { organizationId: "org", workspaceId: "ws-1", userId: "local", role: "owner" };
+
+describe("collectJobAssistantText", () => {
+  beforeEach(() => {
+    executed.length = 0;
+  });
+
+  const base = {
+    tenant,
+    model: "deepseek-v4-flash",
+    systemPrompt: "system",
+    runPrefix: "market",
+    agentId: "market",
+    versionId: "market-briefing",
+    prompt: "draft",
+  };
+
+  it("forwards a per-run streamWatchdog override into the runtime run input", async () => {
+    const text = await collectJobAssistantText({ ...base, streamWatchdog: { ttfbMs: 180_000, idleMs: 150_000 } });
+    expect(text).toBe("hello");
+    expect(executed).toHaveLength(1);
+    expect(executed[0]?.streamWatchdog).toEqual({ ttfbMs: 180_000, idleMs: 150_000 });
+    expect(executed[0]?.version.model).toBe("deepseek-v4-flash");
+  });
+
+  it("leaves streamWatchdog unset so the model defaults apply when no override is given", async () => {
+    await collectJobAssistantText(base);
+    expect(executed[0]?.streamWatchdog).toBeUndefined();
+  });
+});
 
 describe("readOptionalInstruction", () => {
   it("trims a string instruction and ignores missing values", () => {

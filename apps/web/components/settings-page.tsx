@@ -5,6 +5,7 @@ import { DEFAULT_GATEWAY_IMAGE_MODEL, DEFAULT_GATEWAY_VIDEO_MODEL } from "@agent
 import { UsagePanel, type AccountUsage } from "./usage-panel";
 import { apiFetch } from "@/lib/api-client";
 import { gatewayHostLabel, useProductBrand } from "@/lib/product-brand";
+import { useWorkspaceScope } from "@/lib/workspace-scope";
 
 type Probe = {
   openaiCount?: number;
@@ -31,6 +32,7 @@ function runtimeStatusLabel(mode: "ai" | "stub"): string {
 
 export function SettingsPage() {
   const { productName, gatewayName, gatewayBaseUrl } = useProductBrand();
+  const { name: workspaceName } = useWorkspaceScope();
   const [hasOpenai, setHasOpenai] = useState(false);
   const [hasGoogle, setHasGoogle] = useState(false);
   const [hasAnthropic, setHasAnthropic] = useState(false);
@@ -181,16 +183,17 @@ export function SettingsPage() {
     setBraveKey("");
     setFalKey("");
     applyPayload(saved);
-    setMessage("Saved. Keys stay on this machine.");
+    setMessage("Saved. Keys stay on this desk.");
   }
 
   return (
     <main className="mx-auto max-w-xl px-[30px] py-10 text-inkbase">
-      <div className="kicker">Account</div>
+      <div className="kicker">Account · {workspaceName}</div>
       <h1 className="mt-2 font-heading text-[25px] font-semibold">Settings</h1>
       <p className="mt-2 text-[13px] text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">
-        Paste your {gatewayName} API key from {gatewayHostLabel(openaiBaseUrl || gatewayBaseUrl)} to use chat,
-        documents, research, images, videos, presentation, and edit on this machine.
+        Gateway key, extras, and defaults for the {workspaceName} desk. Other workspaces keep their own keys and
+        setup. Paste your {gatewayName} API key from {gatewayHostLabel(openaiBaseUrl || gatewayBaseUrl)} to use chat
+        and job modes on this desk.
       </p>
 
       <p className="mt-3 text-sm text-ink/50" data-testid="runtime-status">
@@ -207,7 +210,9 @@ export function SettingsPage() {
         <section className="space-y-4 rounded-xl border border-mist bg-paper p-5">
           <div>
             <h2 className="font-medium text-ink">{gatewayName} gateway</h2>
-            <p className="mt-1 text-xs text-ink/50">Paste your gateway API key. It never comes back after save.</p>
+            <p className="mt-1 text-xs text-ink/50">
+              Paste your gateway API key for this desk. It never comes back after save.
+            </p>
           </div>
           <label className="block text-sm text-ink">
             Endpoint URL

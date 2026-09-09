@@ -4,7 +4,7 @@ Agent-facing map (where to press). Not product. Pair with pstack `how` for how a
 
 This directory is the maintained source for verifying user-facing Agentforge behavior. Read this index before driving, then use the matching feature file as the recipe.
 
-Documents, Research, Finance, Data, Images, Videos, Presentation, and Edit are product modes. **Home already unlocks all of them.** A Legal (or other) workspace can hide some tabs. Knowledge is Account-rail, not a mode checkbox. Custom agents do not unlock the rail. Edit rail `mode-edit` lands in Phase 1; Loop 0 only ships the map + doctor + fixtures.
+Documents, Research, Finance, Data, Market, Images, Videos, Presentation, and Edit are product modes. **Default already unlocks all of them.** A Legal (or other) workspace can hide some tabs. Knowledge is Account-rail, not a mode checkbox. Custom agents do not unlock the rail. Edit rail `mode-edit` lands in Phase 1; Loop 0 only ships the map + doctor + fixtures.
 
 ## Baseline preconditions
 
@@ -20,7 +20,7 @@ Documents, Research, Finance, Data, Images, Videos, Presentation, and Edit are p
 
 - Start from the feature file's preconditions.
 - Use `data-testid` handles. Treat testid strings as literal.
-- Rail tabs are the current workspace `productModes`. Home has every work mode. `mode-agents` count is 0.
+- Rail tabs are the current workspace `productModes`. Default has every work mode. `mode-agents` count is 0.
 - Restore nothing on the operator's Windows SQLite. Cloud isolation is the VM.
 - Keep proof artifacts under `evidence/<feature>/<run-id>/`.
 
@@ -30,7 +30,7 @@ Documents, Research, Finance, Data, Images, Videos, Presentation, and Edit are p
 - UI proof: snapshot + screenshot with Chat / Settings / workspace identity visible.
 - Mutation proof: a second user-facing view (thread list, workspace list, gallery).
 - Record the feature ID and entry point on every artifact.
-- An unreachable rail tab (`mode-images` missing on a Legal desk) is expected — not a skip. On Home, missing Images is a fail.
+- An unreachable rail tab (`mode-images` missing on a Legal desk) is expected — not a skip. On Default, missing Images is a fail.
 - `/studio` and `/agents` redirect to Chat. That is parked GTM, not a harness bug.
 - Do not report Settings saved or a live generate unless the operator asked and doctor reported `runtime: "ai"`.
 
@@ -40,7 +40,7 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 
 ## Features
 
-- [Chat](./chat.md) — composer send, new thread, switch sessions, stub reply. Home rail shows every work mode.
+- [Chat](./chat.md) — composer send, new thread, switch sessions, stub reply. Default rail shows every work mode.
 - [Settings](./settings.md) — gateway key, privacy note, stub/live runtime, compact this-key + Open Usage. No Advanced tab.
 - [Usage](./usage.md) — bottom-rail `/usage` Day/Week/Month stacked spend, this-key strip, desk by-model. Not a product mode.
 - [Workspaces](./workspaces.md) — rail switcher + `/workspaces` create/edit, presets and mode checkboxes, open → Chat.
@@ -48,12 +48,13 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 - [Templates](./templates.md) — example galleries on all five mode studios; click pre-fills the prompt.
 - [PII](./pii.md) — host masks outbound prompts (`[email]` / `[phone]` / …); the transcript keeps the typed text.
 - [Security](./security.md) — saved-key fingerprint on Settings (`key-fingerprint`); TLS note on `privacy-note`; at-rest envelope is existing work.
-- [Research](./research.md) — studio shell on Home; live generate needs a key (and search backends).
-- [Documents](./documents.md) — starters, preview, section regen (503 without a key), DOCX download from a starter. Home has the tab.
-- [Finance](./finance.md) — figures-only brief, starter + DOCX without a key, generate 503 without a key. Home has the tab.
-- [Data](./data.md) — pasted CSV + table notes, no web search, generate 503 without a key. Home has the tab.
+- [Research](./research.md) — studio shell on Default; live generate needs a key (and search backends).
+- [Documents](./documents.md) — starters, preview, section regen (503 without a key), DOCX download from a starter. Default has the tab.
+- [Finance](./finance.md) — figures-only brief, starter + DOCX without a key, generate 503 without a key. Default has the tab.
+- [Data](./data.md) — pasted CSV + table notes, no web search, generate 503 without a key. Default has the tab.
+- [Market](./market.md) — watchlist ≤15 tickers → briefing → guarded brief + DOCX, disclaimer always, generate 503 without a key. Default has the tab.
 - [Knowledge](./knowledge.md) — Account-rail Soul / Memory / Sources / Map + choosable embedding/brain/verifier; Chat injects RAG retrieve. Not a product mode.
-- [Images](./images.md) — studio shell on Home; needs-key without a gateway key.
+- [Images](./images.md) — studio shell on Default; needs-key without a gateway key.
 - [Videos](./videos.md) — studio shell and `videos-studio-needs-key` without a key.
 - [Edit](./edit.md) — CapCut-style timeline + agent panel (`mode-edit`). Loop 0 harness (fixtures, doctor, stub S1–S10); studio ships in Phase 1.
 - [Presentation](./presentations.md) — starters, preview, slide regen (503 without a key), PPTX download from a starter.

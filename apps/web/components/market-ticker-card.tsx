@@ -1,0 +1,148 @@
+"use client";
+
+import { SvgChart } from "@/components/svg-chart";
+import {
+  formatNumber,
+  formatObservedAt,
+  formatPercent,
+  percentVsSma200,
+  type TickerPacket,
+  type WatchNewsItem,
+} from "@/lib/market-client";
+import { safeLinkHref } from "@/lib/safe-link";
+
+type Props = { ticker: TickerPacket; testIdPrefix: string };
+
+type Fact = { label: string; value: string };
+
+function quoteFacts(ticker: TickerPacket): Fact[] {
+  const q = ticker.quote;
+  const tech = ticker.technical;
+  const facts: Fact[] = [
+    { label: "Price", value: q ? `${formatNumber(q.price)} ${q.currency}`.trim() : "" },
+    { label: "Change", value: formatPercent(q?.changePercent) },
+    { label: "Prev close", value: formatNumber(q?.previousClose) },
+    {
+      label: "Pre-market",
+      value: [formatNumber(q?.preMarketPrice), formatPercent(q?.preMarketChangePercent)].filter(Boolean).join(" · "),
+    },
+    {
+      label: "After hours",
+      value: [formatNumber(q?.postMarketPrice), formatPercent(q?.postMarketChangePercent)].filter(Boolean).join(" · "),
+    },
+    { label: "Volume", value: formatNumber(q?.volume, 0) },
+    { label: "Market cap", value: formatNumber(q?.marketCap, 0) },
+    { label: "State", value: q?.marketState ?? "" },
+    { label: "TradingView", value: tech?.tradingview?.label ?? "" },
+    { label: "TV summary", value: formatNumber(tech?.tradingview?.summary) },
+    { label: "RSI14", value: formatNumber(tech?.rsi14, 1) },
+    { label: "SMA50", value: formatNumber(tech?.sma50) },
+    { label: "SMA200", value: formatNumber(tech?.sma200) },
+    { label: "vs SMA200", value: formatPercent(percentVsSma200(q, tech)) },
+    { label: "MACD", value: [formatNumber(tech?.macd), formatNumber(tech?.macdSignal)].filter(Boolean).join(" / ") },
+    {
+      label: "5d / 1m",
+      value: [formatPercent(tech?.change5dPercent), formatPercent(tech?.change1mPercent)].filter(Boolean).join(" / "),
+    },
+    {
+      label: "52w range",
+      value: [formatNumber(tech?.low52w), formatNumber(tech?.high52w)].filter(Boolean).join(" – "),
+    },
+  ];
+  return facts.filter((fact) => fact.value !== "");
+}
+
+function Headline({ item, testId }: { item: WatchNewsItem; testId: string }) {
+  const href = safeLinkHref(item.link);
+  const meta = [item.publisher || item.ref.source, item.publishedAt ? formatObservedAt(item.publishedAt) : ""]
+    .filter(Boolean)
+    .join(" · ");
+  return (
+    <li className="text-sm text-ink/85" data-testid={testId}>
+      {href ? (
+        <a href={href} target="_blank" rel="noreferrer" className="underline-offset-2 hover:underline">
+          {item.title}
+        </a>
+      ) : (
+        <span>{item.title}</span>
+      )}
+      {meta ? <span className="ml-2 text-xs text-ink/50">{meta}</span> : null}
+      {item.summary ? <p className="mt-0.5 text-xs text-ink/65">{item.summary}</p> : null}
+    </li>
+  );
+}
+
+/** One watchlist entry: chart, quote and technical facts, headlines, and what could not be fetched. */
+export function MarketTickerCard({ ticker, testIdPrefix }: Props) {
+  const facts = quoteFacts(ticker);
+  const news = ticker.news.filter((item) => !item.injectionSuspect);
+  const hidden = ticker.news.length - news.length;
+  const subtitle = [ticker.symbol.name, ticker.symbol.exchange, ticker.symbol.tradingview].filter(Boolean).join(" · ");
+  return (
+    <section
+      className="rounded-xl border border-mist bg-paper p-4"
+      data-testid={`${testIdPrefix}-ticker-card`}
+      data-symbol={ticker.symbol.yahoo}
+    >
+      <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h4 className="font-mono text-base font-semibold text-ink">{ticker.symbol.yahoo}</h4>
+        {subtitle ? <span className="text-xs text-ink/55">{subtitle}</span> : null}
+        {ticker.symbol.input !== ticker.symbol.yahoo ? (
+          <span className="text-[11px] text-ink/45">typed as {ticker.symbol.input}</span>
+        ) : null}
+      </header>
+      <div className="mt-3 grid gap-4 lg:[grid-template-columns:minmax(0,3fr)_minmax(0,2fr)]">
+        {ticker.chart ? (
+          <SvgChart chart={ticker.chart} testId={`${testIdPrefix}-chart`} />
+        ) : (
+          <p className="rounded-xl border border-dashed border-mist p-4 text-sm text-ink/55">
+            No price history to chart.
+          </p>
+        )}
+        {facts.length > 0 ? (
+          <table className="self-start text-sm" data-testid={`${testIdPrefix}-ticker-facts`}>
+            <tbody>
+              {facts.map((fact) => (
+                <tr key={fact.label} className="border-t border-mist first:border-t-0">
+                  <th
+                    scope="row"
+                    className="py-1 pr-3 text-left text-[11px] font-medium uppercase tracking-wide text-ink/50"
+                  >
+                    {fact.label}
+                  </th>
+                  <td className="py-1 text-right tabular-nums text-ink/85">{fact.value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="text-sm text-ink/55">No quote or technical data.</p>
+        )}
+      </div>
+      {news.length > 0 ? (
+        <ul className="mt-4 space-y-1.5" data-testid={`${testIdPrefix}-headlines`}>
+          {news.map((item) => (
+            <Headline key={item.link} item={item} testId={`${testIdPrefix}-headline`} />
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-4 text-xs text-ink/50">No headlines fetched.</p>
+      )}
+      {hidden > 0 ? (
+        <p className="mt-1 text-[11px] text-amber-900">
+          {hidden} headline{hidden === 1 ? "" : "s"} hidden because the text looked like an instruction, not news.
+        </p>
+      ) : null}
+      {ticker.failures.length > 0 ? (
+        <ul
+          className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+          data-testid={`${testIdPrefix}-ticker-failures`}
+        >
+          {ticker.failures.map((failure) => (
+            <li key={failure}>{failure}</li>
+          ))}
+        </ul>
+      ) : null}
+    </section>
+  );
+}

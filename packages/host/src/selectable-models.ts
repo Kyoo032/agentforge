@@ -107,6 +107,7 @@ export function modeCatalogPayload(models: ChatModel[] = listCatalogModels()): {
     presentations: SelectableModel[];
     finance: SelectableModel[];
     data: SelectableModel[];
+    market: SelectableModel[];
     embedding: ChatModel[];
   };
   defaults: ModeModelDefaults;
@@ -123,6 +124,7 @@ export function modeCatalogPayload(models: ChatModel[] = listCatalogModels()): {
       presentations: curated.chat,
       finance: curated.chat,
       data: curated.chat,
+      market: curated.chat,
       embedding,
     },
     defaults: resolveModeDefaults({

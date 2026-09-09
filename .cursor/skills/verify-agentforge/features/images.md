@@ -4,14 +4,14 @@ Images is a generate studio (prompt → gallery), not a canvas editor. It lists 
 
 ## Sub-features
 
-- `images-rail` reaches `/images` from `mode-images` on Home.
+- `images-rail` reaches `/images` from `mode-images` on Default.
 - `images-shell` shows `images-studio` (heading Images, prompt bar, gallery).
 - `images-needs-key` shows `images-studio-needs-key` when no gateway key is ready.
 - `images-empty` shows `images-studio-empty` ("Nothing here yet") when the gallery has no items.
 
 ## How to get to it (user POV)
 
-- Choose Images on the left rail (`mode-images`). Home already has the tab.
+- Choose Images on the left rail (`mode-images`). Default already has the tab.
 - Open `http://127.0.0.1:3000/images` when the tab is unlocked. A hidden generate URL redirects to the first visible mode.
 
 ## Driving it with the Agentforge harness
@@ -19,14 +19,14 @@ Images is a generate studio (prompt → gallery), not a canvas editor. It lists 
 Preconditions:
 
 - Doctor exits 0.
-- `mode-images` is visible on Home. If count is 0, you are on a desk that hid Images (e.g. Legal) — not a missing agent.
+- `mode-images` is visible on Default. If count is 0, you are on a desk that hid Images (e.g. Legal) — not a missing agent.
 - Stub / no-key proof stops at the shell. Do not click `images-studio-submit` unless the operator asked for a live generate and doctor reports `ai`.
 
 - **Open Images.** Click `mode-images`. URL matches `/images` (15s). `images-studio` is visible (15s).
 - **No-key state.** If doctor `hasOpenai` is false, `images-studio-needs-key` is visible and mentions Settings.
 - **Empty gallery.** When there are no saved images, `images-studio-empty` is visible.
 - **IDE proof.** Screenshot of the studio shell (and needs-key if shown) under `evidence/images/<run-id>/`.
-- **Cloud.** `foundation.spec.ts` asserts `images-studio` on Home. It does not generate an image.
+- **Cloud.** `foundation.spec.ts` asserts `images-studio` on Default. It does not generate an image.
 
 ## Gotchas
 

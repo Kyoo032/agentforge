@@ -45,7 +45,7 @@ function pathnameOf(req: IncomingMessage): { path: string; query: Record<string,
 
 async function readBody(req: IncomingMessage): Promise<{ body?: unknown; files?: HostFile[] }> {
   const contentType = header(req, "content-type") ?? "";
-  if (req.method === "GET" || req.method === "HEAD" || req.method === "DELETE") {
+  if (req.method === "GET" || req.method === "HEAD") {
     return {};
   }
   const chunks: Buffer[] = [];
@@ -143,6 +143,9 @@ export async function writeHostResult(res: ServerResponse, result: HostResult): 
     if (result.filename) {
       res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
     }
+    for (const [name, value] of Object.entries(result.headers ?? {})) {
+      res.setHeader(name, value);
+    }
     res.end(Buffer.from(result.bytes));
     return;
   }
@@ -203,6 +206,7 @@ export async function handleNodeRequest(req: IncomingMessage, res: ServerRespons
       origin: header(req, "origin"),
       referer: header(req, "referer"),
       "content-type": header(req, "content-type"),
+      range: header(req, "range"),
       "x-agentforge-transport": "http",
     },
     body,

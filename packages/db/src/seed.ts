@@ -30,7 +30,7 @@ async function seed() {
   }
 
   await ensureLocalOwner(db);
-  console.log("Seeded local owner, Home workspace, and tools.");
+  console.log("Seeded local owner, Default workspace, and tools.");
   process.exit(0);
 }
 

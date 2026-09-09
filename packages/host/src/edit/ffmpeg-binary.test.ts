@@ -1,13 +1,32 @@
 import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getEditDoctor } from "./doctor";
+import { getEditDoctor, RECHECK_MIN_INTERVAL_MS, resetDoctorRecheckThrottle } from "./doctor";
 import { parseFfmpegVersion, resetFfmpegBinaryCache, resolveFfmpeg, resolveFfprobe } from "./ffmpeg-binary";
 
 vi.mock("node:child_process", () => ({
   execFileSync: vi.fn(),
 }));
 
+vi.mock("node:fs", () => ({
+  existsSync: vi.fn(() => false),
+  readdirSync: vi.fn(() => []),
+}));
+
 const mockedExec = vi.mocked(execFileSync);
+const mockedExists = vi.mocked(existsSync);
+
+function withPlatform(platform: string, run: () => void): void {
+  const original = Object.getOwnPropertyDescriptor(process, "platform");
+  Object.defineProperty(process, "platform", { value: platform, configurable: true });
+  try {
+    run();
+  } finally {
+    if (original) {
+      Object.defineProperty(process, "platform", original);
+    }
+  }
+}
 
 function versionStdout(version: string): string {
   return `ffmpeg version ${version} Copyright (c) 2000-2023 the FFmpeg developers\n`;
@@ -34,6 +53,8 @@ describe("resolveFfmpeg", () => {
   beforeEach(() => {
     resetFfmpegBinaryCache();
     mockedExec.mockReset();
+    mockedExists.mockReset();
+    mockedExists.mockReturnValue(false);
     delete process.env.AGENTFORGE_FFMPEG_PATH;
     delete process.env.AGENTFORGE_FFPROBE_PATH;
     delete process.env.AGENTFORGE_EDIT_ASR_MODEL;
@@ -82,10 +103,52 @@ describe("resolveFfmpeg", () => {
   });
 
   it("reports found:false when PATH lookup fails", () => {
+    mockedExists.mockReturnValue(false);
     mockedExec.mockImplementation(() => {
       throw new Error("not found");
     });
     expect(resolveFfmpeg()).toEqual({ found: false, path: null, version: null, reason: "missing" });
+  });
+
+  it("falls back to the Homebrew prefix when a Finder-launched app has a bare PATH", () => {
+    withPlatform("darwin", () => {
+      mockedExists.mockImplementation((candidate) => String(candidate) === "/opt/homebrew/bin/ffmpeg");
+      mockedExec.mockImplementation((file) => {
+        if (file === "which") {
+          throw new Error("ffmpeg not on PATH");
+        }
+        return versionStdout("7.1");
+      });
+      expect(resolveFfmpeg()).toEqual({ found: true, path: "/opt/homebrew/bin/ffmpeg", version: "7.1" });
+    });
+  });
+
+  it("skips a broken well-known candidate and keeps probing the rest", () => {
+    withPlatform("darwin", () => {
+      mockedExists.mockImplementation((candidate) =>
+        String(candidate) === "/opt/homebrew/bin/ffmpeg" || String(candidate) === "/usr/local/bin/ffmpeg",
+      );
+      mockedExec.mockImplementation((file) => {
+        if (file === "which" || file === "/opt/homebrew/bin/ffmpeg") {
+          throw new Error("dangling symlink");
+        }
+        return versionStdout("6.1");
+      });
+      expect(resolveFfmpeg()).toEqual({ found: true, path: "/usr/local/bin/ffmpeg", version: "6.1" });
+    });
+  });
+
+  it("falls back to well-known locations when the PATH ffmpeg is too old", () => {
+    withPlatform("darwin", () => {
+      mockedExists.mockImplementation((candidate) => String(candidate) === "/opt/homebrew/bin/ffmpeg");
+      mockedExec.mockImplementation((file) => {
+        if (file === "which") {
+          return "/usr/bin/ffmpeg\n";
+        }
+        return file === "/usr/bin/ffmpeg" ? versionStdout("4.4") : versionStdout("7.0");
+      });
+      expect(resolveFfmpeg()).toEqual({ found: true, path: "/opt/homebrew/bin/ffmpeg", version: "7.0" });
+    });
   });
 
   it("caches the first probe", () => {
@@ -130,6 +193,49 @@ describe("getEditDoctor", () => {
       asr: { available: false, backend: null, model: null },
       fonts: [],
     });
+  });
+
+  it("adds platform setup guidance when ffmpeg is missing", () => {
+    delete process.env.AGENTFORGE_FFMPEG_PATH;
+    mockedExists.mockReturnValue(false);
+    mockedExec.mockImplementation(() => {
+      throw new Error("missing");
+    });
+    withPlatform("darwin", () => {
+      const report = getEditDoctor();
+      expect(report.ffmpeg.found).toBe(false);
+      expect(report.ffmpeg.setup?.platform).toBe("macos");
+      expect(report.ffmpeg.setup?.installCommand).toBe("brew install ffmpeg");
+    });
+  });
+
+  it("recheck drops the cached probe so a fresh install is seen", () => {
+    resetDoctorRecheckThrottle();
+    delete process.env.AGENTFORGE_FFMPEG_PATH;
+    mockedExists.mockReturnValue(false);
+    mockedExec.mockImplementation(() => {
+      throw new Error("missing");
+    });
+    expect(getEditDoctor().ffmpeg.found).toBe(false);
+    mockedExec.mockReset();
+    mockedExec.mockImplementation((file) => (file === "which" || file === "where" ? "/usr/local/bin/ffmpeg\n" : versionStdout("7.0")));
+    expect(getEditDoctor().ffmpeg.found).toBe(false);
+    expect(getEditDoctor({ recheck: true }).ffmpeg.found).toBe(true);
+  });
+
+  it("throttles back-to-back rechecks so a local page cannot hammer the probe", () => {
+    delete process.env.AGENTFORGE_FFMPEG_PATH;
+    mockedExists.mockReturnValue(false);
+    mockedExec.mockImplementation(() => {
+      throw new Error("missing");
+    });
+    resetDoctorRecheckThrottle();
+    expect(getEditDoctor({ recheck: true }, 10_000).ffmpeg.found).toBe(false);
+    const probesAfterFirst = mockedExec.mock.calls.length;
+    mockedExec.mockImplementation((file) => (file === "which" || file === "where" ? "/usr/local/bin/ffmpeg\n" : versionStdout("7.0")));
+    expect(getEditDoctor({ recheck: true }, 10_000 + RECHECK_MIN_INTERVAL_MS - 1).ffmpeg.found).toBe(false);
+    expect(mockedExec.mock.calls.length).toBe(probesAfterFirst);
+    expect(getEditDoctor({ recheck: true }, 10_000 + RECHECK_MIN_INTERVAL_MS).ffmpeg.found).toBe(true);
   });
 
   it("reports ASR when AGENTFORGE_EDIT_ASR_MODEL is set", () => {

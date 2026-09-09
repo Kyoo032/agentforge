@@ -1,0 +1,95 @@
+{
+  "_fixture": "Recorded-shape fixture for yahoo-finance2 v4 chart(symbol, { period1, interval: '1d' }) for MU. Includes an out-of-order row, a null-OHLC holiday row, and a null-volume row. Tests only; never shipped as data.",
+  "meta": {
+    "currency": "USD",
+    "symbol": "MU",
+    "exchangeName": "NMS",
+    "instrumentType": "EQUITY",
+    "gmtoffset": -14400,
+    "timezone": "EDT",
+    "regularMarketPrice": 1000.26
+  },
+  "quotes": [
+    {
+      "date": "2026-08-27T13:30:00.000Z",
+      "open": 960.1,
+      "high": 972.4,
+      "low": 955.3,
+      "close": 968.2,
+      "volume": 21000000
+    },
+    {
+      "date": "2026-08-26T13:30:00.000Z",
+      "open": 950.0,
+      "high": 963.9,
+      "low": 948.7,
+      "close": 961.4,
+      "volume": 19800000
+    },
+    {
+      "date": "2026-08-28T13:30:00.000Z",
+      "open": 969.0,
+      "high": 981.2,
+      "low": 966.5,
+      "close": 979.8,
+      "volume": 23400000
+    },
+    {
+      "date": "2026-08-31T13:30:00.000Z",
+      "open": 980.5,
+      "high": 991.0,
+      "low": 974.2,
+      "close": 985.3,
+      "volume": 20100000
+    },
+    {
+      "date": "2026-09-01T13:30:00.000Z",
+      "open": 986.0,
+      "high": 998.7,
+      "low": 983.1,
+      "close": 996.4,
+      "volume": 24800000
+    },
+    {
+      "date": "2026-09-02T13:30:00.000Z",
+      "open": 997.2,
+      "high": 1010.5,
+      "low": 992.8,
+      "close": 1005.9,
+      "volume": 27300000
+    },
+    {
+      "date": "2026-09-03T13:30:00.000Z",
+      "open": 1006.0,
+      "high": 1019.3,
+      "low": 1001.4,
+      "close": 1012.7,
+      "volume": 25100000
+    },
+    {
+      "date": "2026-09-04T13:30:00.000Z",
+      "open": 1013.1,
+      "high": 1024.8,
+      "low": 1008.9,
+      "close": 1018.2,
+      "volume": 22600000
+    },
+    { "date": "2026-09-07T13:30:00.000Z", "open": null, "high": null, "low": null, "close": null, "volume": null },
+    {
+      "date": "2026-09-08T13:30:00.000Z",
+      "open": 1017.5,
+      "high": 1021.0,
+      "low": 1009.3,
+      "close": 1016.52,
+      "volume": null
+    },
+    {
+      "date": "2026-09-09T13:30:00.000Z",
+      "open": 1015.0,
+      "high": 1018.6,
+      "low": 995.2,
+      "close": 1000.26,
+      "volume": 26603800
+    }
+  ]
+}

@@ -10,19 +10,20 @@ export type EditTierConfig = {
 };
 
 export const EDIT_TIERS: Record<EditTier, EditTierConfig> = {
+  // Veo is the gateway model that reliably completes (2026-09); Seedance and Grok stay as fallbacks.
   draft: {
     id: "draft",
-    video: ["grok-imagine-video", "seedance-2.0-mini"],
+    video: ["veo_3_1-fast", "grok-imagine-video", "seedance-2.0-mini"],
     image: ["gpt-image-2", "seedream-*"],
   },
   standard: {
     id: "standard",
-    video: ["seedance-2.0-fast", "grok-imagine-video-1.5-preview"],
+    video: ["veo_3_1-fast", "seedance-2.0-fast", "grok-imagine-video-1.5-preview"],
     image: ["gpt-image-2", "seedream-5.0-pro"],
   },
   cinematic: {
     id: "cinematic",
-    video: ["seedance-2.5", "doubao-seedance-*", "veo_*", "kling*", "sora*"],
+    video: ["veo_3_1", "veo_*", "seedance-2.5", "doubao-seedance-*", "kling*", "sora*"],
     image: ["gpt-image-2"],
   },
 };

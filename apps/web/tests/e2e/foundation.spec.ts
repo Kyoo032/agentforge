@@ -19,6 +19,7 @@ test("chat and workspaces work without an account", async ({ page }) => {
   await expect(page.getByTestId("mode-research")).toBeVisible();
   await expect(page.getByTestId("mode-finance")).toBeVisible();
   await expect(page.getByTestId("mode-data")).toBeVisible();
+  await expect(page.getByTestId("mode-market")).toBeVisible();
   await expect(page.getByTestId("mode-images")).toBeVisible();
   await expect(page.getByTestId("mode-videos")).toBeVisible();
   await expect(page.getByTestId("mode-edit")).toBeVisible();
@@ -112,6 +113,9 @@ test("chat and workspaces work without an account", async ({ page }) => {
 
   await page.getByTestId("workspaces-link").click();
   await expect(page).toHaveURL(/\/workspaces/, { timeout: 15_000 });
+  await expect(page.getByTestId("create-new-workspace")).toBeVisible();
+  await expect(page.getByTestId("workspace-template-picker")).toHaveCount(0);
+  await page.getByTestId("create-new-workspace").click();
   await expect(page.getByTestId("workspace-template-picker")).toBeVisible();
   await page.getByTestId("workspace-template-legal").click();
   await page.getByTestId("workspace-name").fill(deskName);
@@ -126,6 +130,7 @@ test("chat and workspaces work without an account", async ({ page }) => {
   await expect(page.getByTestId("mode-edit")).toHaveCount(0);
   await expect(page.getByTestId("mode-finance")).toHaveCount(0);
   await expect(page.getByTestId("mode-data")).toHaveCount(0);
+  await expect(page.getByTestId("mode-market")).toHaveCount(0);
   await expect(page.getByTestId("mode-knowledge")).toBeVisible();
   await expect(page.getByTestId("mode-agents")).toHaveCount(0);
 });

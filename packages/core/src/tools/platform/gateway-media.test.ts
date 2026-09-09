@@ -40,6 +40,9 @@ describe("parse helpers", () => {
     expect(extractGatewayVideoUrl({ data: { result_url: "https://cdn.example/a.mp4" } })).toBe(
       "https://cdn.example/a.mp4",
     );
+    expect(extractGatewayVideoUrl({ status: "succeeded", content_url: "https://cdn.example/c.mp4" })).toBe(
+      "https://cdn.example/c.mp4",
+    );
     expect(extractGatewayVideoUrl({ status: "succeeded", url: "https://cdn.example/b.mp4" })).toBe(
       "https://cdn.example/b.mp4",
     );
@@ -91,8 +94,18 @@ describe("parse helpers", () => {
         { type: "text", text: "hero" },
         { type: "image_url", image_url: { url: "https://cdn.example/still.png" }, role: "first_frame" },
       ],
+      image: "https://cdn.example/still.png",
       ratio: "9:16",
     });
+    expect(buildGatewayVideoPayload({ model: "veo_3_1-fast", prompt: "hero", aspectRatio: "16:9" })).not.toHaveProperty("image");
+    expect(
+      buildGatewayVideoPayload({
+        model: "veo_3_1-fast",
+        prompt: "hero",
+        imageUrl: "data:image/png;base64,AAAA",
+        seconds: 4,
+      }),
+    ).toMatchObject({ image: "data:image/png;base64,AAAA", duration: 4 });
     expect(buildGatewayVideoPayload({ model: "grok-imagine-video", prompt: "rain", aspectRatio: "16:9" })).toEqual({
       model: "grok-imagine-video",
       prompt: "rain",

@@ -3,10 +3,18 @@ import {
   productModesForTemplate,
   requireProductModes,
   resolveWorkspaceModes,
+  HOME_WORKSPACE_SLUG,
 } from "@agentforge/core";
-import { createLocalWorkspace, db, listLocalWorkspaces, updateLocalWorkspace } from "@agentforge/db";
+import {
+  createLocalWorkspace,
+  db,
+  deleteLocalWorkspace,
+  listLocalWorkspaces,
+  updateLocalWorkspace,
+} from "@agentforge/db";
 import type { HostRequest, HostResult } from "../types";
 import { jsonError, jsonOk } from "../errors";
+import { dropWorkspaceSettings } from "../settings-store";
 import { getTenant } from "../tenant";
 import { writeSelectedWorkspaceId, workspaceCookie } from "../workspace";
 
@@ -23,6 +31,7 @@ function serializeWorkspace(row: {
     slug: row.slug,
     templatePack: row.templatePack ?? null,
     productModes: resolveWorkspaceModes(row.productModes),
+    protected: row.slug === HOME_WORKSPACE_SLUG,
   };
 }
 
@@ -116,9 +125,52 @@ export async function handlePatchWorkspace(request: HostRequest): Promise<HostRe
             slug: updated.slug,
             templatePack: updated.templatePack ?? null,
             productModes: resolveWorkspaceModes(updated.productModes),
+            protected: updated.slug === HOME_WORKSPACE_SLUG,
           }
         : null,
     });
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+export async function handleDeleteWorkspace(request: HostRequest): Promise<HostResult> {
+  try {
+    const tenant = await getTenant(request.workspaceId);
+    const workspaceId = request.params.workspaceId;
+    const rows = await listLocalWorkspaces(db, tenant.organizationId);
+    const found = rows.find((row) => row.id === workspaceId);
+    if (!found) {
+      return jsonOk({ error: { code: "not_found", message: "Workspace not found" } }, 404);
+    }
+    if (found.slug === HOME_WORKSPACE_SLUG) {
+      return jsonOk({ error: { code: "protected", message: "The Default desk cannot be deleted" } }, 403);
+    }
+    const body = (request.body ?? {}) as { confirmName?: unknown };
+    const confirmName = typeof body.confirmName === "string" ? body.confirmName.trim() : "";
+    if (!confirmName || confirmName !== found.name) {
+      return jsonOk(
+        { error: { code: "confirm_required", message: "Type the desk name to confirm deletion" } },
+        400,
+      );
+    }
+    const result = await deleteLocalWorkspace(db, tenant.organizationId, workspaceId);
+    if (!result.ok) {
+      const status = result.code === "protected" ? 403 : 404;
+      const message =
+        result.code === "protected" ? "The Default desk cannot be deleted" : "Workspace not found";
+      return jsonOk({ error: { code: result.code, message } }, status);
+    }
+    dropWorkspaceSettings(workspaceId);
+    if (tenant.workspaceId !== workspaceId) {
+      return jsonOk({ ok: true });
+    }
+    const home = rows.find((row) => row.slug === HOME_WORKSPACE_SLUG && row.id !== workspaceId);
+    if (!home) {
+      return jsonOk({ ok: true });
+    }
+    writeSelectedWorkspaceId(home.id);
+    return jsonOk({ ok: true, currentWorkspaceId: home.id }, 200, [workspaceCookie(home.id)]);
   } catch (error) {
     return jsonError(error);
   }

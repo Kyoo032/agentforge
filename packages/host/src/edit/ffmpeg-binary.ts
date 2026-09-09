@@ -1,6 +1,8 @@
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { wellKnownBinaryPaths, wingetPackageBinaryPaths } from "./ffmpeg-locations";
 
 export type BinaryStatus = {
   found: boolean;
@@ -95,6 +97,36 @@ function siblingBinary(ffmpegPath: string, name: "ffprobe"): string | null {
   return existsSync(candidate) ? candidate : null;
 }
 
+function listDirSafe(dir: string): string[] {
+  try {
+    return readdirSync(dir);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Probe package-manager install locations for GUI apps with a bare PATH.
+ * Every existing candidate is tried, so a dangling leftover (e.g. after `brew uninstall`)
+ * does not hide a working build further down the list.
+ */
+function probeWellKnown(kind: "ffmpeg" | "ffprobe"): BinaryStatus {
+  const ctx = { platform: process.platform, env: process.env, home: os.homedir() };
+  const candidates = [...wellKnownBinaryPaths(kind, ctx), ...wingetPackageBinaryPaths(kind, ctx, listDirSafe)];
+  let lastFailure: BinaryStatus | null = null;
+  for (const candidate of candidates) {
+    if (!existsSync(candidate)) {
+      continue;
+    }
+    const status = probeBinary(candidate);
+    if (status.found) {
+      return status;
+    }
+    lastFailure = status;
+  }
+  return lastFailure ?? { found: false, path: null, version: null, reason: "missing" };
+}
+
 function resolveNamed(kind: "ffmpeg" | "ffprobe"): BinaryStatus {
   const envKey = kind === "ffmpeg" ? "AGENTFORGE_FFMPEG_PATH" : "AGENTFORGE_FFPROBE_PATH";
   const fromEnv = process.env[envKey]?.trim();
@@ -115,10 +147,13 @@ function resolveNamed(kind: "ffmpeg" | "ffprobe"): BinaryStatus {
     return probeBinary(packaged);
   }
   const onPath = whichOnPath(kind);
-  if (!onPath) {
-    return { found: false, path: null, version: null, reason: "missing" };
+  if (onPath) {
+    const status = probeBinary(onPath);
+    if (status.found) {
+      return status;
+    }
   }
-  return probeBinary(onPath);
+  return probeWellKnown(kind);
 }
 
 export function resolveFfmpeg(): BinaryStatus {

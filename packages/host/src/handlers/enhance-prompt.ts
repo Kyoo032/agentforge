@@ -32,7 +32,8 @@ export async function handlePostEnhancePrompt(request: HostRequest): Promise<Hos
     const text = readText(request.body ?? null);
     const rawSurface = request.body && typeof request.body === "object" ? (request.body as { surface?: unknown }).surface : "chat";
     const surface = isEnhanceSurface(rawSurface) ? rawSurface : "chat";
-    const settings = loadSettings();
+    const tenant = await getTenant(request.workspaceId);
+    const settings = loadSettings(tenant.workspaceId);
     const mode = resolveRuntimeMode({
       settingsHasKey: hasLiveProvider(settings),
       envRuntime: process.env.AGENTFORGE_RUNTIME,
@@ -40,7 +41,6 @@ export async function handlePostEnhancePrompt(request: HostRequest): Promise<Hos
     if (mode === "stub") {
       return jsonOk({ text: stubEnhancePrompt(text, surface), source: "stub" });
     }
-    const tenant = await getTenant(request.workspaceId);
     const catalog = listSelectableModels();
     const { defaults } = modeCatalogPayload();
     const requested =

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-export const ARTIFACT_MODES = ["research", "data", "finance", "documents", "presentations"] as const;
-export const ARTIFACT_KINDS = ["dossier", "analysis", "brief", "draft"] as const;
+export const ARTIFACT_MODES = ["research", "data", "finance", "market", "documents", "presentations"] as const;
+export const ARTIFACT_KINDS = ["dossier", "analysis", "brief", "briefing", "draft"] as const;
 export const ARTIFACT_MIMES = ["text/markdown", "application/json"] as const;
 
 export type ArtifactMode = (typeof ARTIFACT_MODES)[number];

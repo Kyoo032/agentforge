@@ -1,6 +1,8 @@
 import { and, eq } from "drizzle-orm";
 import {
+  HOME_WORKSPACE_NAME,
   HOME_WORKSPACE_SLUG,
+  LEGACY_HOME_WORKSPACE_NAME,
   LOCAL_OWNER_ID,
   PERSONAL_ORG_SLUG,
   WORK_PRODUCT_MODES,
@@ -42,12 +44,18 @@ export async function ensureLocalOwner(db: Database, preferredWorkspaceId?: stri
       .insert(workspaces)
       .values({
         organizationId: org.id,
-        name: "Home",
+        name: HOME_WORKSPACE_NAME,
         slug: HOME_WORKSPACE_SLUG,
         productModes: [...WORK_PRODUCT_MODES],
       })
       .returning();
     ownedWorkspaces = inserted;
+  }
+
+  const homeRow = ownedWorkspaces.find((row) => row.slug === HOME_WORKSPACE_SLUG);
+  if (homeRow?.name === LEGACY_HOME_WORKSPACE_NAME) {
+    await db.update(workspaces).set({ name: HOME_WORKSPACE_NAME }).where(eq(workspaces.id, homeRow.id));
+    homeRow.name = HOME_WORKSPACE_NAME;
   }
 
   const [membership] = await db
@@ -159,4 +167,44 @@ export async function updateLocalWorkspace(
     .where(eq(workspaces.id, workspaceId))
     .returning();
   return row ?? existing;
+}
+
+export type DeleteWorkspaceResult =
+  | { ok: true }
+  | { ok: false; code: "not_found" | "protected" };
+
+function wipeKnowledgeForWorkspace(db: Database, workspaceId: string): void {
+  const sqlite = db.$client;
+  sqlite.prepare("DELETE FROM knowledge_soul WHERE workspace_id = ?").run(workspaceId);
+  sqlite.prepare("DELETE FROM knowledge_memories WHERE workspace_id = ?").run(workspaceId);
+  sqlite.prepare("DELETE FROM knowledge_sources WHERE workspace_id = ?").run(workspaceId);
+  sqlite.prepare("DELETE FROM knowledge_settings WHERE workspace_id = ?").run(workspaceId);
+  sqlite.prepare("DELETE FROM knowledge_vectors WHERE workspace_id = ?").run(workspaceId);
+  sqlite.prepare("DELETE FROM knowledge_maps WHERE workspace_id = ?").run(workspaceId);
+  try {
+    sqlite.prepare("DELETE FROM knowledge_chunks WHERE workspace_id = ?").run(workspaceId);
+  } catch {
+    // FTS5 table may be missing in a stripped test schema
+  }
+}
+
+export async function deleteLocalWorkspace(
+  db: Database,
+  organizationId: string,
+  workspaceId: string,
+): Promise<DeleteWorkspaceResult> {
+  const [existing] = await db
+    .select()
+    .from(workspaces)
+    .where(and(eq(workspaces.id, workspaceId), eq(workspaces.organizationId, organizationId)))
+    .limit(1);
+  if (!existing) {
+    return { ok: false, code: "not_found" };
+  }
+  if (existing.slug === HOME_WORKSPACE_SLUG) {
+    return { ok: false, code: "protected" };
+  }
+  wipeKnowledgeForWorkspace(db, workspaceId);
+  await db.delete(workspaces).where(eq(workspaces.id, workspaceId));
+  return { ok: true };
 }

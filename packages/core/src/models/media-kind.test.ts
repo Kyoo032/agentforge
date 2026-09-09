@@ -68,7 +68,10 @@ describe("pickPreferredImageModel", () => {
 });
 
 describe("pickPreferredVideoModel", () => {
-  it("prefers cheap Grok Imagine over Seedance quality ids", () => {
+  it("prefers Veo fast, then cheap Grok Imagine, over Seedance quality ids", () => {
+    expect(
+      pickPreferredVideoModel(["mj_video", "seedance-2.5", "seedance-2.0-fast", "grok-imagine-video", "veo_3_1-fast"]),
+    ).toBe("veo_3_1-fast");
     expect(pickPreferredVideoModel(["mj_video", "seedance-2.5", "seedance-2.0-fast", "grok-imagine-video"])).toBe(
       "grok-imagine-video",
     );

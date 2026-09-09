@@ -326,12 +326,17 @@ function registerMediaProtocol(host) {
         path: `/api/v1/media/${mediaId}/file`,
         query: {},
         params: {},
-        headers: { "x-agentforge-transport": "ipc" },
+        headers: { "x-agentforge-transport": "ipc", range: request.headers.get("range") ?? undefined },
         workspaceId: host.readSelectedWorkspaceId() ?? null,
       });
       if (result.type === "bytes") {
         return new Response(result.bytes, {
-          headers: { "Content-Type": result.contentType, "Cache-Control": "private, max-age=3600" },
+          status: result.status,
+          headers: {
+            "Content-Type": result.contentType,
+            "Cache-Control": "private, max-age=3600",
+            ...(result.headers ?? {}),
+          },
         });
       }
       return new Response("Not found", { status: 404 });

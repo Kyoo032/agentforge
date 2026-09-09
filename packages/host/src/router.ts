@@ -51,6 +51,12 @@ import {
   handlePostFinanceStream,
 } from "./handlers/finance";
 import {
+  handlePostMarket,
+  handlePostMarketDocx,
+  handlePostMarketRegen,
+  handlePostMarketStream,
+} from "./handlers/market";
+import {
   handleGetImages,
   handleGetVideos,
   handlePostData,
@@ -92,6 +98,7 @@ import { handleGetSettings, handlePostSettings } from "./handlers/settings";
 import { handleDeleteThread, handleGetThread, handleGetThreads, handlePostThreads } from "./handlers/threads";
 import { handleGetUsage } from "./handlers/usage";
 import {
+  handleDeleteWorkspace,
   handleGetWorkspaces,
   handlePatchWorkspace,
   handlePostWorkspaces,
@@ -117,7 +124,7 @@ function compile(method: string, path: string, handler: HostHandler): Route {
 
 const routes: Route[] = [
   compile("GET", "/api/v1/ping", () => handlePing()),
-  compile("GET", "/api/v1/edit/doctor", () => handleGetEditDoctor()),
+  compile("GET", "/api/v1/edit/doctor", handleGetEditDoctor),
   compile("GET", "/api/v1/edit/metrics", handleGetEditMetrics),
   compile("GET", "/api/v1/edit/projects", handleGetEditProjects),
   compile("POST", "/api/v1/edit/projects", handlePostEditProjects),
@@ -145,6 +152,7 @@ const routes: Route[] = [
   compile("POST", "/api/v1/workspaces", handlePostWorkspaces),
   compile("POST", "/api/v1/workspaces/:workspaceId/select", handleSelectWorkspace),
   compile("PATCH", "/api/v1/workspaces/:workspaceId", handlePatchWorkspace),
+  compile("DELETE", "/api/v1/workspaces/:workspaceId", handleDeleteWorkspace),
   compile("GET", "/api/v1/workspaces/:workspaceId/agents", handleGetWorkspaceAgents),
   compile("POST", "/api/v1/workspaces/:workspaceId/agents", handlePostWorkspaceAgents),
   compile("GET", "/api/v1/threads", handleGetThreads),
@@ -175,6 +183,10 @@ const routes: Route[] = [
   compile("POST", "/api/v1/finance/parse", handlePostFinanceParse),
   compile("POST", "/api/v1/finance/regenerate", handlePostFinanceRegen),
   compile("POST", "/api/v1/finance/docx", handlePostFinanceDocx),
+  compile("POST", "/api/v1/market", handlePostMarket),
+  compile("POST", "/api/v1/market/stream", handlePostMarketStream),
+  compile("POST", "/api/v1/market/regenerate", handlePostMarketRegen),
+  compile("POST", "/api/v1/market/docx", handlePostMarketDocx),
   compile("POST", "/api/v1/data", handlePostData),
   compile("POST", "/api/v1/data/stream", handlePostDataStream),
   compile("GET", "/api/v1/datasets", handleGetDatasets),

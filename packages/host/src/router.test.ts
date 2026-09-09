@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { dispatch } from "./router";
 
 describe("host router", () => {
@@ -41,6 +41,35 @@ describe("host router", () => {
       asr: expect.objectContaining({ available: expect.any(Boolean) }),
       fonts: [],
     });
+  });
+
+  it("routes the Market job: 503 runtime_stub without a gateway key, 400 for a malformed brief", async () => {
+    vi.stubEnv("AGENTFORGE_RUNTIME", "stub");
+    try {
+      const generate = await dispatch({
+        method: "POST",
+        path: "/api/v1/market",
+        query: {},
+        params: {},
+        headers: {},
+        body: { ticker: "BBCA" },
+      });
+      expect(generate.type).toBe("json");
+      if (generate.type === "json") {
+        expect(generate.status).toBe(503);
+        expect(generate.body).toMatchObject({ error: { code: "runtime_stub" } });
+      }
+      for (const path of ["/api/v1/market/regenerate", "/api/v1/market/docx"]) {
+        const result = await dispatch({ method: "POST", path, query: {}, params: {}, headers: {}, body: { brief: {} } });
+        expect(result.type).toBe("json");
+        if (result.type === "json") {
+          expect(result.status).toBe(400);
+          expect(result.body).toMatchObject({ error: { code: "invalid_request" } });
+        }
+      }
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("returns not_found JSON for unknown routes", async () => {

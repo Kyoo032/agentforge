@@ -17,6 +17,7 @@ import { loadSettings } from "../settings-store";
 import { ensureToolsRegistered } from "../register-tools";
 import { withEditToolContext } from "./context";
 import { foldProject } from "./ops";
+import { getEditDoctor } from "./doctor";
 import { encodeEditSse } from "./events";
 import { createTurnBudget, chargeTurnBudget, estimateEditJobUsd } from "./budget";
 import { hostEditBackend } from "./backend";
@@ -92,6 +93,19 @@ class StringQueue {
   }
 }
 
+function ffmpegPromptLine(): string {
+  const { ffmpeg } = getEditDoctor();
+  if (ffmpeg.found) {
+    return `ffmpeg ${ffmpeg.version ?? ""} is installed. Export and ffmpeg are free. Never call ffmpeg yourself.`;
+  }
+  const setup = ffmpeg.setup;
+  return [
+    `ffmpeg is NOT available on this ${setup?.platform ?? "machine"}: ${setup?.summary ?? "not found"}`,
+    `If the owner asks for probe, cut, captions or export, or asks why video tools fail, tell them to run \`${setup?.installCommand ?? "install ffmpeg"}\` in a terminal, then press "Check again" in the Edit banner. No restart needed.`,
+    "Do not queue ffmpeg jobs until it is installed.",
+  ].join(" ");
+}
+
 function compactPrompt(doc: Awaited<ReturnType<typeof foldProject>>, budgetUsd: number): string {
   return [
     "You are the Agentforge Edit agent. Share one ops log with the owner. Every mutation is a card.",
@@ -99,7 +113,7 @@ function compactPrompt(doc: Awaited<ReturnType<typeof foldProject>>, budgetUsd: 
     `Tracks: ${doc.tracks.map((track) => `${track.id}:${track.kind}`).join(", ")}`,
     `Clips: ${doc.clips.map((clip) => `${clip.id}@${clip.trackId}:${clip.timelineStartFrame}+${clip.durationFrames}`).join("; ") || "(none)"}`,
     `Ingredients: ${doc.ingredients.map((item) => item.name).join(", ") || "(none)"}`,
-    `Turn cap USD: ${budgetUsd}. Export and ffmpeg are free. Never call ffmpeg yourself.`,
+    `Turn cap USD: ${budgetUsd}. ${ffmpegPromptLine()}`,
     "clear_timeline requires an explicit user ask AND confirm:true.",
   ].join("\n");
 }

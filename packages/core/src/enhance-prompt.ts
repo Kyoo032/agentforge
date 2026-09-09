@@ -4,6 +4,7 @@ export const ENHANCE_SURFACES = [
   "research",
   "finance",
   "data",
+  "market",
   "presentations",
   "images",
   "videos",
@@ -21,6 +22,8 @@ const SURFACE_ROLE: Record<EnhanceSurface, string> = {
   research: "a Research job that writes sourced notes from a question",
   finance: "a Finance job that writes a figures-only brief; never invent numbers",
   data: "a Data job that answers questions about an attached table",
+  market:
+    "a market evidence brief request: one Indonesian listed company ticker and what the reader wants to understand; never ask for a recommendation",
   presentations: "a Presentation job that outlines a deck for PPTX download",
   images: "an Images studio that generates pictures from a prompt",
   videos: "a Videos studio that generates clips from a prompt",
@@ -32,6 +35,8 @@ const STUB_SUFFIX: Record<EnhanceSurface, string> = {
   research: "Name the claim to check, which sources count, and the output shape.",
   finance: "Use only the figures already given. Do not invent numbers. State the decision.",
   data: "Name the columns that matter, the check to run, and the output table or list.",
+  market:
+    "Name the ticker and what you want to understand from the filings, prices, and headlines. Do not ask for a recommendation.",
   presentations: "Name the audience, slide count, and the one ask on the last slide.",
   images: "Name subject, framing, and what must stay out of the frame.",
   videos: "Name subject, motion, duration, and what must stay out of frame.",

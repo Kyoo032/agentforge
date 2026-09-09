@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { FormattedText } from "@/components/formatted-text";
 import { ModelSelect } from "@/components/model-select";
 import { apiFetch } from "@/lib/api-client";
+import { useWorkspaceScope } from "@/lib/workspace-scope";
 
 type KnowledgeTab = "sources" | "soul" | "memory" | "map";
 
@@ -92,6 +93,7 @@ function verdictTagClass(verdict: KnowledgeMapTopic["verdict"]): string {
 }
 
 export function KnowledgePage() {
+  const { id: workspaceId, name: workspaceName } = useWorkspaceScope();
   const [tab, setTab] = useState<KnowledgeTab>("sources");
   const [sources, setSources] = useState<SourceRow[]>([]);
   const [soul, setSoul] = useState({ name: "Forge", role: "", voice: "", rules: [] as string[] });
@@ -153,7 +155,7 @@ export function KnowledgePage() {
     void reload().catch((err: unknown) => {
       setError(err instanceof Error ? err.message : "Could not load knowledge");
     });
-  }, []);
+  }, [workspaceId]);
 
   async function persistModels(next: KnowledgeModels) {
     setEmbeddingModel(next.embeddingModel);
@@ -265,10 +267,10 @@ export function KnowledgePage() {
     <main className="px-[30px] pb-10 pt-[26px] text-inkbase" data-testid="knowledge-page">
       <div className="mb-5 flex flex-wrap items-end gap-4">
         <div>
-          <div className="kicker">Workspace › Knowledge Base</div>
+          <div className="kicker">{workspaceName} › Knowledge Base</div>
           <h3 className="mt-2 text-[25px]">Knowledge Base</h3>
           <p className="mt-1 text-[13px] text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">
-            What this agent knows, how it behaves, and what it remembers between sessions.
+            Soul, memory, and sources for the {workspaceName} desk. Other workspaces keep their own knowledge.
           </p>
         </div>
         <div className="seg ml-auto" data-testid="knowledge-tabs">

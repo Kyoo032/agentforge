@@ -89,3 +89,10 @@ Format:
 - **To:** Chrome at `http://127.0.0.1:3000` served by `pnpm dev`. Runbook: [docs/closed-beta.md](../closed-beta.md).
 - **Why:** The desktop shell had click-death issues (Next dev error overlay + GPU/sandbox input quirks on Windows). Chrome bypasses the shell problem entirely and is the surface the web app is actually built for. The desktop shell stays in the repo — now Electron, not deleted.
 - **Rode along:** Settings Extras now renders its inner fields (provider keys, tool toggles, model/backend selects) only when the `<details>` is open, so a closed Settings page no longer mounts hundreds of hidden nodes. `AppShell` split: the shell chrome is a server component again; only `AppRail` and a tiny `ModeRedirect` stay client.
+
+## 2026-09-09 — Market mode joins the rail catalog
+
+- **What:** A new job mode, Market (`market`, `/market`), in `PRODUCT_MODES` after Data.
+- **From:** A proposed hosted Python MCP server (`dps-market-mcp`, Postgres + Docker), then a bundled local sidecar.
+- **To:** In-process TypeScript in the host: `packages/core/src/market`, `packages/host/src/market`, tools `market_evidence` / `market_news` / `market_search`, SQLite cache. No server, no port, no MCP (later). The Python repo stays as the reference spec at `C:/Users/rizky/dps-market-mcp`.
+- **Why:** Owner decision 2026-09-09: local Electron only, no HTTP dependency, no exception to the desktop rules. PStack verify map rewritten for the new surface (`features/market.md`).

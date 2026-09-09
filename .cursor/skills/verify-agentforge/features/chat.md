@@ -17,13 +17,13 @@ A turn is three layers: **Thinking** (collapsible), **tools** (one row per call)
 - `chat-probe` — while the host contacts the model (up to 3 tries), `composer-send` reads `1st try…` / `2nd try…` / `3rd try…` and `thinking-placeholder` shows `Probing {model} · 1st try` (then `2nd try` / `3rd try`). Not a frozen `Running…`. Packaged window must do this, not only `:3000`.
 - `chat-new` starts a blank session from `new-chat` without losing the previous thread in the list.
 - `chat-switch` reopens the first thread from `thread-list`.
-- `chat-rail` keeps `mode-chat` visible. On Home, Documents/Research/Images/Videos/Presentation are also visible. `mode-agents` count is 0.
+- `chat-rail` keeps `mode-chat` visible. On Default, Documents/Research/Images/Videos/Presentation are also visible. `mode-agents` count is 0.
 
 ## How to get to it (user POV)
 
 - Open `http://127.0.0.1:3000/chat`.
 - Choose `Chat` on the left rail (`mode-chat`).
-- `/` redirects to the first visible mode (Chat on Home).
+- `/` redirects to the first visible mode (Chat on Default).
 - `/agents/<uuid>` redirects to Chat (Build is parked).
 
 ## Driving it with the Agentforge harness

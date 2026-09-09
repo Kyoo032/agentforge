@@ -25,7 +25,7 @@ A release without `.dmg` files is Windows-only; the macOS build is a preview and
 - Open the `.dmg` and drag **Agentforge** to Applications.
 - The app is not signed by Apple yet. On macOS 15 and later: double-click it, dismiss the warning, then **System Settings → Privacy & Security → Open Anyway**. On macOS 14 and earlier: right-click **Agentforge.app**, choose **Open**, then **Open** again. If it still refuses, run `xattr -dr com.apple.quarantine /Applications/Agentforge.app` in Terminal.
 - When macOS asks about the Keychain, choose **Always Allow**.
-- Video editing needs ffmpeg on macOS: `brew install ffmpeg`. Everything else works without it.
+- Video editing needs ffmpeg on macOS: `brew install ffmpeg`. Everything else works without it. The app finds the Homebrew install on its own (both `/opt/homebrew/bin` and `/usr/local/bin`); if Edit still shows the setup banner, press **Check again** in it. No restart needed. On Windows the installer bundles ffmpeg; `winget install --id Gyan.FFmpeg -e` also works and is picked up automatically.
 - Updates on macOS are manual: download the new `.dmg` from here and drag it over the old app. Your data stays in `~/Library/Application Support/Agentforge`.
 
 ## Uninstall

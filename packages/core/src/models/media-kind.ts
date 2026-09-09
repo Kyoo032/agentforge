@@ -13,8 +13,8 @@ const EMBEDDING_PREF = ["text-embedding-3-small", "text-embedding-3-large", "tex
 
 const IMAGE_PREF = ["gpt-image-2", "seedream-5.0-pro", "doubao-seedream-5-0-pro-260628"];
 
-/** Cheap t2v first. Seedance 2.5 stays in the picker as the quality option. */
-const VIDEO_PREF = ["grok-imagine-video", "omni-fast-v2v", "grok-imagine-video-1.5-preview"];
+/** Veo fast completes reliably on the gateway (2026-09); cheap t2v ids follow as fallbacks. */
+const VIDEO_PREF = ["veo_3_1-fast", "grok-imagine-video", "omni-fast-v2v", "grok-imagine-video-1.5-preview"];
 
 const OTHER =
   /(^|\/)(text-)?embedding|babbage|davinci|computer-use|omni-moderation|text-moderation|moderation/i;

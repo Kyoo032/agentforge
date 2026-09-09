@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { encryptJson, wrappingKeyFromSecret } from "@agentforge/core";
-import { loadSettings, saveSettings } from "./settings-store";
+import { loadSettings, saveSettings, adoptLegacySettings, dropWorkspaceSettings } from "./settings-store";
 
 const SECRET = "a".repeat(64);
 const PLAIN_KEY = "sk-test-plaintext-should-not-appear";
@@ -69,5 +69,32 @@ describe("settings-store", () => {
     expect(existsSync(join(dir, "settings.enc"))).toBe(false);
     expect(existsSync(join(dir, "settings.enc.unreadable"))).toBe(true);
     expect(readFileSync(join(dir, "settings.enc.unreadable"), "utf8")).not.toContain(PLAIN_KEY);
+  });
+
+  it("keeps gateway keys isolated per workspace", () => {
+    saveSettings({ openaiApiKey: "sk-home-desk" }, "ws-home");
+    saveSettings({ openaiApiKey: "sk-legal-desk" }, "ws-legal");
+    expect(loadSettings("ws-home").openaiApiKey).toBe("sk-home-desk");
+    expect(loadSettings("ws-legal").openaiApiKey).toBe("sk-legal-desk");
+    expect(loadSettings("ws-new").openaiApiKey).toBeUndefined();
+  });
+
+  it("adopts a pre-isolation key onto Default and leaves other desks empty", () => {
+    const envelope = encryptJson({ openaiApiKey: PLAIN_KEY }, wrappingKeyFromSecret(SECRET));
+    writeFileSync(join(dir, "settings.enc"), `${JSON.stringify(envelope)}\n`, "utf8");
+
+    expect(loadSettings("ws-home").openaiApiKey).toBeUndefined();
+    expect(loadSettings().openaiApiKey).toBe(PLAIN_KEY);
+
+    adoptLegacySettings("ws-home");
+    expect(loadSettings("ws-home").openaiApiKey).toBe(PLAIN_KEY);
+    expect(loadSettings("ws-other").openaiApiKey).toBeUndefined();
+  });
+
+  it("drops a deleted desk's saved key", () => {
+    saveSettings({ openaiApiKey: "sk-scratch" }, "ws-scratch");
+    expect(loadSettings("ws-scratch").openaiApiKey).toBe("sk-scratch");
+    dropWorkspaceSettings("ws-scratch");
+    expect(loadSettings("ws-scratch").openaiApiKey).toBeUndefined();
   });
 });

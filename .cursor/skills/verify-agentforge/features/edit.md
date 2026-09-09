@@ -17,7 +17,7 @@ Edit is the CapCut-style timeline with an agent panel (`/edit`, rail `mode-edit`
 
 ## How to get to it (user POV)
 
-- Left rail `mode-edit` on Home, or `http://127.0.0.1:3000/edit` when unlocked.
+- Left rail `mode-edit` on Default, or `http://127.0.0.1:3000/edit` when unlocked.
 
 ## Driving it with the Agentforge harness
 

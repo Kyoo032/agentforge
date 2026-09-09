@@ -58,6 +58,27 @@ export function videoCapabilities(model: string): VideoCapabilities {
   return { ...base, imageToVideo: imageToVideoForModel(model) };
 }
 
+/** Clip lengths the UI offers by default. */
+export const DEFAULT_VIDEO_SECONDS_OPTIONS: readonly number[] = [5, 8, 10];
+
+/** Veo only renders 4, 6 or 8 second clips; 5 s is rejected upstream. */
+const VEO_SECONDS: readonly number[] = [4, 6, 8];
+
+/** Clip lengths a model accepts, for pickers and server-side snapping. */
+export function allowedVideoSeconds(model: string): readonly number[] {
+  if (/veo[_-]/i.test(model)) {
+    return VEO_SECONDS;
+  }
+  return DEFAULT_VIDEO_SECONDS_OPTIONS;
+}
+
+/** Nearest length the model accepts (ties go to the shorter clip). */
+export function snapVideoSeconds(model: string, seconds?: number): number {
+  const options = allowedVideoSeconds(model);
+  const target = clampVideoSeconds(seconds);
+  return options.reduce((best, value) => (Math.abs(value - target) < Math.abs(best - target) ? value : best), options[0]);
+}
+
 export function clampVideoSeconds(seconds?: number): number {
   if (typeof seconds !== "number" || !Number.isFinite(seconds)) {
     return GATEWAY_VIDEO_DURATION_SECONDS;

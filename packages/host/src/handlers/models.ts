@@ -23,8 +23,8 @@ export async function handleGetModels(request: HostRequest): Promise<HostResult>
 
 export async function handlePostModels(request: HostRequest): Promise<HostResult> {
   try {
-    await getTenant(request.workspaceId);
-    const probe = await refreshModelCache(loadSettings());
+    const tenant = await getTenant(request.workspaceId);
+    const probe = await refreshModelCache(loadSettings(tenant.workspaceId));
     const models = listSelectableModels();
     const catalog = modeCatalogPayload();
     return jsonOk({

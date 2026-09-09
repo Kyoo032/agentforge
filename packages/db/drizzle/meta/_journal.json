@@ -57,6 +57,13 @@
       "when": 1788810000000,
       "tag": "0007_datasets",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1788820000000,
+      "tag": "0008_market",
+      "breakpoints": true
     }
   ]
 }
