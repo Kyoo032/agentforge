@@ -154,9 +154,16 @@ export async function indexSourceVectors(
         );
       }
     });
-    tx();
-  } catch {
-    // Embed failure must not fail the source — FTS already indexed.
+    // BEGIN IMMEDIATE: this transaction reads then writes. A deferred transaction would take the
+    // write lock only at the first write, and that read-to-write upgrade fails instantly with
+    // SQLITE_BUSY under a second writer. IMMEDIATE takes the write lock up front, so a busy
+    // database makes it wait on the busy handler instead of failing.
+    tx.immediate();
+  } catch (error) {
+    // Embed / write failure must not fail the source — FTS already indexed it — but it is never silent.
+    console.warn(
+      `knowledge-embed: vectors not written for ${sourceId} (${error instanceof Error ? error.message.slice(0, 120) : "error"})`,
+    );
   }
 }
 
@@ -185,8 +192,11 @@ export function countVectorsForModel(tenant: TenantContext, model: string): numb
   return row.n;
 }
 
-export type RetrievedChunk = {
+/** A cosine hit from `knowledge_vectors`. The backend adds the source name before serving it. */
+export type VectorHit = {
   body: string;
+  sourceId: string;
+  chunkIndex: number;
   score: number;
   source: "rag" | "fts";
 };
@@ -199,7 +209,7 @@ export async function retrieveVectorChunks(
   models: KnowledgeModels,
   limit = 4,
   excludeSourceIds: string[] = [],
-): Promise<RetrievedChunk[]> {
+): Promise<VectorHit[]> {
   const trimmed = query.trim();
   if (!trimmed) {
     return [];
@@ -214,11 +224,16 @@ export async function retrieveVectorChunks(
   // Only vectors whose source row still exists: a vector orphaned by a mid-embed delete is never served.
   const rows = sql
     .prepare(
-      `SELECT body, embedding FROM knowledge_vectors
+      `SELECT body, embedding, source_id, chunk_index FROM knowledge_vectors
        WHERE workspace_id = ? AND model = ?
          AND source_id IN (SELECT id FROM knowledge_sources WHERE workspace_id = ?)${skip}`,
     )
-    .all(ws, models.embeddingModel, ws, ...excludeSourceIds) as Array<{ body: string; embedding: string }>;
+    .all(ws, models.embeddingModel, ws, ...excludeSourceIds) as Array<{
+    body: string;
+    embedding: string;
+    source_id: string;
+    chunk_index: number;
+  }>;
 
   const ranked = rows
     .map((row) => {
@@ -231,10 +246,15 @@ export async function retrieveVectorChunks(
       } catch {
         embedding = [];
       }
-      return { body: row.body, score: cosineSimilarity(queryVec, embedding) };
+      return {
+        body: row.body,
+        sourceId: row.source_id,
+        chunkIndex: row.chunk_index,
+        score: cosineSimilarity(queryVec, embedding),
+      };
     })
     .filter((item) => item.score >= MIN_COSINE)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
-  return ranked.map((item) => ({ body: item.body, score: item.score, source: "rag" as const }));
+  return ranked.map((item) => ({ ...item, source: "rag" as const }));
 }

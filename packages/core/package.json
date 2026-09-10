@@ -25,6 +25,9 @@
     "./finance": "./src/finance/index.ts",
     "./market": "./src/market/index.ts",
     "./docx": "./src/docx/index.ts",
+    "./docx/test-fixtures": "./src/docx/__fixtures__/build-zip.ts",
+    "./pdf": "./src/pdf/index.ts",
+    "./pdf/test-fixtures": "./src/pdf/__fixtures__/build-pdf.ts",
     "./legal": "./src/legal/index.ts"
   },
   "scripts": {
@@ -38,6 +41,7 @@
     "@xmldom/xmldom": "^0.9.12",
     "ai": "^4.3.16",
     "jszip": "^3.10.1",
+    "pdfjs-dist": "^6.3.289",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zod": "^3.24.2"
   },

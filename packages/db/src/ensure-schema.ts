@@ -224,12 +224,35 @@ export function ensureSchema(sqlite: Database.Database): void {
   sqlite.pragma("foreign_keys = ON");
   ensureKnowledgeTables(sqlite);
   ensureKnowledgeSourceOrigin(sqlite);
+  ensureKnowledgeRetrievals(sqlite);
   ensureEditTables(sqlite);
   ensureArtifactTables(sqlite);
   ensureDatasetTables(sqlite);
   ensureMarketTables(sqlite);
   ensureWorkspaceColumns(sqlite);
   assertKernelTables(sqlite);
+}
+
+/**
+ * One row per chunk a run was given (the measured Retrieved stage of the knowledge loop).
+ * Mirrors drizzle/0010_knowledge_retrievals.sql for DBs stamped before it existed.
+ */
+function ensureKnowledgeRetrievals(sqlite: Database.Database): void {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS knowledge_retrievals (
+      id text PRIMARY KEY NOT NULL,
+      workspace_id text NOT NULL,
+      thread_id text,
+      run_id text,
+      source_id text NOT NULL,
+      chunk_index integer NOT NULL,
+      score real NOT NULL,
+      backend text NOT NULL,
+      created_at integer NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS knowledge_retrievals_ws_created_idx ON knowledge_retrievals (workspace_id, created_at);
+    CREATE INDEX IF NOT EXISTS knowledge_retrievals_ws_source_idx ON knowledge_retrievals (workspace_id, source_id);
+  `);
 }
 
 /** Market mode cache + headline search. Mirrors drizzle/0009_market.sql for DBs stamped before it existed. */

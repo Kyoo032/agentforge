@@ -359,7 +359,7 @@ export function KnowledgePage() {
                 <input
                   className="sr-only"
                   type="file"
-                  accept=".txt,.md,.csv,.json,text/plain,text/markdown,text/csv,application/json"
+                  accept=".txt,.md,.csv,.json,.pdf,.docx,text/plain,text/markdown,text/csv,application/json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                   data-testid="knowledge-file"
                   onChange={(event) => {
                     const file = event.target.files?.[0];

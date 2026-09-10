@@ -71,6 +71,13 @@
       "when": 1788820000001,
       "tag": "0009_market",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1788820000002,
+      "tag": "0010_knowledge_retrievals",
+      "breakpoints": true
     }
   ]
 }

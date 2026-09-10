@@ -23,6 +23,7 @@ import {
   type WorkSourceType,
 } from "../knowledge";
 import { getKnowledgeMap, mapKnowledge } from "../knowledge-map";
+import { countRetrievals } from "../knowledge-retrievals";
 import { upsertWorkSource } from "../knowledge-ingest";
 import { requireArtifact } from "../artifacts";
 import { getThread } from "../threads";
@@ -92,6 +93,8 @@ export async function handleGetKnowledge(request: HostRequest): Promise<HostResu
       sources: (sweepOrphanThreadSources(tenant), listSources(tenant)),
       models: getKnowledgeModels(tenant),
       map: getKnowledgeMap(tenant),
+      // Retrieved stage of the knowledge loop: chunks this workspace has been served, all time.
+      retrievals: countRetrievals(tenant),
     });
   } catch (error) {
     return jsonError(error);
@@ -145,7 +148,9 @@ export async function handleGetKnowledgeContext(request: HostRequest): Promise<H
     const threadId = typeof request.query.threadId === "string" ? request.query.threadId.trim() : "";
     // Only the caller's own thread (workspace-scoped lookup) can be excluded from its Sources.
     const own = threadId ? await getThread(tenant, threadId) : null;
-    return jsonOk(await knowledgeInjection(tenant, query, own ? { excludeThreadId: own.id } : {}));
+    // `chunks` stays server-side (it is the retrieval record); the popover payload is unchanged.
+    const { prompt, parts } = await knowledgeInjection(tenant, query, own ? { excludeThreadId: own.id } : {});
+    return jsonOk({ prompt, parts });
   } catch (error) {
     return jsonError(error);
   }

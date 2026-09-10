@@ -14,7 +14,7 @@ Knowledge is an Account-rail page (like Usage), not a `PRODUCT_MODES` id. Soul, 
 - `knowledge-soul-name` / `knowledge-soul-role` / `knowledge-soul-voice` + `knowledge-soul-save` persist the soul.
 - `knowledge-memory-input` + `knowledge-memory-add` pins a memory (`knowledge-memory-row`).
 - `knowledge-map-run` ("Map knowledge") builds a map; result under `knowledge-map` (overview, topics with Ready / Not ready + source tags, gaps). Stub map is a valid proof. Overview text may be markdown (`FormattedText`).
-- Chat send injects that knowledge. Stub Chat still replies. Context popover (`chat-context` → `chat-context-breakdown`) lists Soul / Memories / Sources; Sources may show `N chunks · rag` or `fts`.
+- Chat send injects that knowledge. Stub Chat still replies. Context popover (`chat-context` → `chat-context-breakdown`) lists Soul / Memories / Sources; Sources reads `<k> chunks · rag` or `· fts` (`· hybrid` is not in this build). Each injected chunk is rendered `[n] <source name>` so a reply can cite it, and every injected chunk is recorded in `knowledge_retrievals` — `GET /api/v1/knowledge` reports the running total as `retrievals`.
 
 ## How to get to it (user POV)
 
@@ -33,17 +33,25 @@ Preconditions:
 - **Soul.** Click `knowledge-tab-soul`. Change `knowledge-soul-name`. Click `knowledge-soul-save`. Reload still shows the name.
 - **Memory.** Click `knowledge-tab-memory`. Fill `knowledge-memory-input`. Click `knowledge-memory-add`. A pinned `knowledge-memory-row` appears.
 - **Map.** Click `knowledge-tab-map`. `knowledge-map-panel` is visible. Click `knowledge-map-run`. `knowledge-map` shows overview / topics (Ready or Not ready + source) / gaps (stub is fine).
-- **Chat inject.** Open Chat. Click `chat-context`. `chat-context-breakdown` lists Soul / Memories / Sources. Send a stub prompt. Chat still replies.
+- **Chat inject (planted fact).** This is the retrieval proof; do not settle for "Sources is listed".
+  1. On the Sources tab paste a note containing a token that exists nowhere else, e.g. name it `Planted note` with body `The internal code name is zorblatt7731.` Click `knowledge-add-paste`; the row is `Indexed` with `chunks 1`.
+  2. Open Chat in a **new thread** (a thread never retrieves its own card) and ask `What is the internal code name?`.
+  3. Click `chat-context`. `chat-context-breakdown` → Sources reads `1 chunks · fts` (or `· rag` when vectors answer first). `0 chunks` here means retrieval did not fire — that is a fail, not a stub quirk.
+  4. The reply names the source: the injected block is `[1] Planted note`, so a citing answer says `[1]` / `Planted note`. A stub reply that ignores the fact is acceptable only if step 3 showed `1 chunks`.
+  5. `GET /api/v1/knowledge` now reports `retrievals >= 1` (webdev doctor surfaces it as `knowledgeRetrievals`). It counts one row per injected chunk per completed run, so it only grows after the turn finishes.
 
 ## Gotchas
 
 - Knowledge is not a workspace mode checkbox. Hiding Finance/Data must not hide Knowledge.
-- v1 extract is text-like only. PDF/Word should be Failed with a reason, not Indexed.
+- Extract handles text-like files (.txt/.md/.csv/.json), text-layer PDFs, and .docx. A PDF with a text layer and a Word file both reach `Indexed` with `chunks > 0`; PDF text keeps `<!-- page N -->` markers, so a chunk may start with one.
+- A scanned (image-only) PDF is the failure case: it comes back 400 `pdf_no_text_layer` — "This PDF has no text layer (scanned image). OCR is not supported yet." No OCR in this build.
+- PDF caps: 25 MB (`pdf_too_large`), 20 s (`pdf_timeout`), 500 pages (extra pages are dropped, not an error). Damaged files give `pdf_invalid`; damaged Word files give `docx_invalid`. Anything else (.png, .xlsx, .pptx) is still `unsupported_content_type`.
 - URL fetch is HTTPS only, existing TLS rules, size-capped. GET settings still never returns the gateway key.
 - Do not POST `/api/v1/knowledge/*` as a substitute for the page on a live proof.
 - Only Map triggers a generate; picking models only PUTs the saved ids.
 - Pasted / uploaded / URL text goes through the injection guard like auto cards: "Ignore all previous instructions…" pasted into `knowledge-paste` gives a `Failed` row (`injection_blocked`), not `Indexed`. That is correct; the owner bypass in Settings lifts it.
 - Offline with a saved key: the first KB write after the gateway goes dark takes ~4 s, then everything is instant for 5 min (local vectors + FTS). Chat fails within ~10 s with "Gateway unreachable"; Settings save within ~8 s. Nothing here needs the internet.
-- Work cards never copy files into `data/media/knowledge/`; only `knowledge-file` uploads write there. `addFileSource` is text extract only.
-- Chat's context popover `Sources` count excludes the current thread's own card (anti-loop). A thread that only has its own card shows `0 chunks`.
+- Work cards never copy files into `data/media/knowledge/`; only `knowledge-file` uploads write there. `addFileSource` stores the original bytes and indexes the extracted text.
+- Chat's context popover `Sources` count excludes the current thread's own card (anti-loop). A thread that only has its own card shows `0 chunks` — that is why the planted-fact recipe uses a fresh thread.
+- `retrievals` only counts **completed** runs. A run that failed, was aborted, or retrieved nothing adds no rows, so a flat counter after a failed Chat send is correct.
 - Webdev doctor reports `knowledge: true` when `GET /api/v1/knowledge` is 200. If `false`, do not treat Chat as broken — skip this feature.

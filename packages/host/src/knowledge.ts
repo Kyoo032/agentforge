@@ -13,12 +13,14 @@ import {
 } from "@agentforge/core";
 import { mediaRoot } from "./media-root";
 import { fetchPublicHttps } from "./safe-fetch";
-import { chunkKnowledgeText, knowledgeFtsQuery } from "./knowledge-text";
-import { deleteVectorsForSource, indexSourceVectors, retrieveVectorChunks } from "./knowledge-embed";
+import { KNOWLEDGE_TEXT_MAX_CHARS, SOURCE_NAME_MAX, chunkKnowledgeText, sanitizeSourceName } from "./knowledge-text";
+import { getKnowledgeBackend } from "./knowledge/registry";
+import type { RetrievedChunk, RetrieveResult } from "./knowledge/backend";
 import { modeCatalogPayload } from "./selectable-models";
 import { loadSettings } from "./settings-store";
 
-export { chunkKnowledgeText, knowledgeFtsQuery } from "./knowledge-text";
+export { chunkKnowledgeText, knowledgeFtsQuery, sanitizeSourceName } from "./knowledge-text";
+export type { RetrievedChunk, RetrieveResult } from "./knowledge/backend";
 
 export type KnowledgeSoul = {
   name: string;
@@ -217,20 +219,9 @@ export function findSourceByOrigin(tenant: TenantContext, origin: SourceOrigin):
   return row ? sourceFromRow(row) : null;
 }
 
-function extractText(name: string, mime: string, bytes: Buffer): string {
-  const lower = name.toLowerCase();
-  const textLike =
-    mime.startsWith("text/") ||
-    mime === "application/json" ||
-    lower.endsWith(".txt") ||
-    lower.endsWith(".md") ||
-    lower.endsWith(".csv") ||
-    lower.endsWith(".json");
-  if (!textLike) {
-    throw new ApiError("unsupported_content_type", "v1 indexes .txt, .md, .csv, and .json only", 400);
-  }
-  return bytes.toString("utf8");
-}
+// Extraction (text, PDF, DOCX) with its own size/time caps and `pdf_*` / `docx_*` error codes moved to
+// `knowledge-extract.ts`; the import sits here, where the old inline parser was, to keep that visible.
+import { extractText } from "./knowledge-extract";
 
 export type IndexSourceInput = {
   /** Reusing an existing id replaces that source's row, chunks, and vectors (work-card re-index). */
@@ -300,36 +291,72 @@ function replaceSourceRows(
       insertChunk.run(input.id, ws, chunk);
     }
   });
-  tx();
+  // Reads then writes, so it takes the write lock up front (a deferred upgrade races other writers).
+  tx.immediate();
 }
 
-/** Chunk, store, and embed one source. Replaces any earlier source with the same id. */
-export async function indexKnowledgeSource(tenant: TenantContext, input: IndexSourceInput): Promise<KnowledgeSource> {
+/**
+ * Forget one source in the retrieval backend. SQLite rows are dropped by the caller's transaction;
+ * this is the index side, which is remote (and therefore async) from Phase 3 on. Never throws.
+ */
+function forgetInBackend(tenant: TenantContext, sourceId: string): void {
+  const warn = (error: unknown) => {
+    console.warn(
+      `knowledge: backend delete failed for ${sourceId} (${error instanceof Error ? error.message.slice(0, 120) : "error"})`,
+    );
+  };
+  try {
+    // `.catch` alone is not enough: a backend whose delete is not `async` throws before it returns a
+    // promise, and that throw would surface out of `deleteSource` / the orphan sweep.
+    void getKnowledgeBackend().deleteSource(tenant, sourceId).catch(warn);
+  } catch (error) {
+    warn(error);
+  }
+}
+
+const UNTITLED_SOURCE = "Untitled source";
+
+/**
+ * Every entry point (file, URL, paste, work card) funnels its name through here before it reaches
+ * a row, so the `[n] <name>` citation marker can never be forged from an upload filename or a
+ * remote `<title>`. Returns a new object; the caller's input is never mutated.
+ */
+function withSafeName<T extends { name: string }>(input: T): T {
+  return { ...input, name: sanitizeSourceName(input.name) || UNTITLED_SOURCE };
+}
+
+/** Chunk, store, and index one source. Replaces any earlier source with the same id. */
+export async function indexKnowledgeSource(tenant: TenantContext, raw: IndexSourceInput): Promise<KnowledgeSource> {
+  const input = withSafeName(raw);
   const chunks = chunkKnowledgeText(input.text);
   const createdAt = nextCreatedAt();
   const base = { id: input.id, name: input.name, type: input.type, createdAt, origin: input.origin ?? null };
   if (chunks.length === 0) {
     replaceSourceRows(tenant, input, [], NO_TEXT, createdAt);
-    deleteVectorsForSource(tenant, input.id);
+    forgetInBackend(tenant, input.id);
     return { ...base, status: "Failed", chunks: 0, error: NO_TEXT };
   }
   replaceSourceRows(tenant, input, chunks, null, createdAt);
   const models = getKnowledgeModels(tenant);
-  // `createdAt` ties the vectors to this exact row version: a delete or re-index that lands while
-  // the (possibly remote) embed is in flight makes the vector write a no-op instead of an orphan.
-  await indexSourceVectors(tenant, input.id, chunks, models.embeddingModel, createdAt);
+  await getKnowledgeBackend().indexSource(
+    tenant,
+    { id: input.id, name: input.name, createdAt },
+    chunks,
+    models.embeddingModel,
+  );
   return { ...base, status: "Indexed", chunks: chunks.length };
 }
 
 /** Record a source that could not be indexed. The work that produced it still succeeded. */
 export function markSourceFailed(
   tenant: TenantContext,
-  input: Omit<IndexSourceInput, "text">,
+  raw: Omit<IndexSourceInput, "text">,
   reason: string,
 ): KnowledgeSource {
+  const input = withSafeName(raw);
   const createdAt = nextCreatedAt();
   replaceSourceRows(tenant, input, [], reason, createdAt);
-  deleteVectorsForSource(tenant, input.id);
+  forgetInBackend(tenant, input.id);
   return {
     id: input.id,
     name: input.name,
@@ -354,6 +381,9 @@ function injectionGuardBypass(): boolean {
  * Manual sources (paste, upload, URL) go through the same injection guard as auto-ingested cards:
  * anything indexed here is served back as trusted `## Retrieved sources` to every later Chat. A hit
  * records a `Failed` row with the rule instead of indexing; the owner bypass in Settings still applies.
+ *
+ * The name is scanned too: it becomes the `[n] <name>` citation line, and an upload filename or a
+ * remote `<title>` is attacker-controlled in exactly the same way the body is.
  */
 function indexSource(
   tenant: TenantContext,
@@ -362,7 +392,10 @@ function indexSource(
   type: string,
   text: string,
 ): Promise<KnowledgeSource> {
-  const hit = injectionGuardBypass() ? null : scanInjection(text);
+  const bypass = injectionGuardBypass();
+  // The raw name, not the sanitized one: stripping a leading `###` must not also strip the rule that
+  // would have caught it.
+  const hit = bypass ? null : (scanInjection(name) ?? scanInjection(text));
   if (hit) {
     return Promise.resolve(markSourceFailed(tenant, { id, name, type }, `injection_blocked (rule: ${hit.rule})`));
   }
@@ -374,7 +407,17 @@ export async function addFileSource(
   file: { filename: string; mime: string; bytes: Uint8Array },
 ): Promise<KnowledgeSource> {
   const id = crypto.randomUUID();
-  const text = extractText(file.filename, file.mime, Buffer.from(file.bytes));
+  let text: string;
+  try {
+    text = await extractText(file.filename, file.mime, Buffer.from(file.bytes));
+  } catch (error) {
+    // A supported format that fails to parse (pdf_* / docx_*) is a Failed source with a human
+    // reason, like injection_blocked; an unsupported type stays a 400 so the picker can say so.
+    if (error instanceof ApiError && /^(pdf|docx)_/.test(error.code)) {
+      return markSourceFailed(tenant, { id, name: file.filename, type: "File" }, `${error.code}: ${error.message}`);
+    }
+    throw error;
+  }
   const relative = `knowledge/${tenant.organizationId}/${id}-${file.filename.replace(/[^\w.-]+/g, "_")}`;
   const full = path.join(mediaRoot(), relative);
   await mkdir(path.dirname(full), { recursive: true });
@@ -382,8 +425,8 @@ export async function addFileSource(
   return indexSource(tenant, id, file.filename, "File", text);
 }
 
-/** Whole page for indexing; the 1.5 MB fetch cap already bounds it. */
-const URL_SOURCE_MAX_CHARS = 2_000_000;
+/** Whole page for indexing; the 1.5 MB fetch cap already bounds it. Shared with paste and file text. */
+const URL_SOURCE_MAX_CHARS = KNOWLEDGE_TEXT_MAX_CHARS;
 
 export async function addUrlSource(tenant: TenantContext, url: string): Promise<KnowledgeSource> {
   const trimmed = url.trim();
@@ -425,9 +468,12 @@ export type WorkSourceType = (typeof WORK_SOURCE_TYPES)[number];
 /** Every source type the Sources list can show. */
 export const KNOWLEDGE_SOURCE_TYPES = ["File", "URL", ...PASTED_SOURCE_TYPES, ...WORK_SOURCE_TYPES] as const;
 export type PastedSourceType = (typeof PASTED_SOURCE_TYPES)[number];
-export const PASTED_SOURCE_MAX_CHARS = 2_000_000;
-/** Source names show in the Sources list; a pasted name is trimmed to this many characters. */
-export const PASTED_SOURCE_NAME_MAX = 200;
+export const PASTED_SOURCE_MAX_CHARS = KNOWLEDGE_TEXT_MAX_CHARS;
+/**
+ * Source names show in the Sources list and become the `[n] <name>` citation marker, so the pasted
+ * cap is the same one every other entry point gets (`sanitizeSourceName`).
+ */
+export const PASTED_SOURCE_NAME_MAX = SOURCE_NAME_MAX;
 
 export function pastedSourceType(value: unknown): PastedSourceType {
   return typeof value === "string" && (PASTED_SOURCE_TYPES as readonly string[]).includes(value)
@@ -455,7 +501,13 @@ export function deleteSource(tenant: TenantContext, id: string): boolean {
     sql.prepare("DELETE FROM knowledge_chunks WHERE workspace_id = ? AND source_id = ?").run(ws, id);
     return sql.prepare("DELETE FROM knowledge_sources WHERE workspace_id = ? AND id = ?").run(ws, id).changes > 0;
   });
-  return tx();
+  const removed = tx.immediate();
+  if (removed) {
+    // The SQLite rows are gone; tell the retrieval index too (a no-op repeat for the builtin backend,
+    // a network call once the index lives outside this file).
+    forgetInBackend(tenant, id);
+  }
+  return removed;
 }
 
 /**
@@ -477,9 +529,13 @@ export function sweepOrphanThreadSources(tenant: TenantContext): number {
       sql.prepare("DELETE FROM knowledge_chunks WHERE workspace_id = ? AND source_id = ?").run(ws, row.id);
       sql.prepare("DELETE FROM knowledge_sources WHERE workspace_id = ? AND id = ?").run(ws, row.id);
     }
-    return orphans.length;
+    return orphans.map((row) => row.id);
   });
-  return tx();
+  const removed = tx.immediate();
+  for (const id of removed) {
+    forgetInBackend(tenant, id);
+  }
+  return removed.length;
 }
 
 /** Remove the work card of a thread / media / artifact that was deleted, so it is never retrieved again. */
@@ -493,45 +549,17 @@ export type RetrieveOptions = {
   excludeSourceIds?: string[];
 };
 
-function notInClause(ids: string[]): string {
-  return ids.length > 0 ? ` AND source_id NOT IN (${ids.map(() => "?").join(", ")})` : "";
-}
-
-function retrieveFtsChunks(tenant: TenantContext, query: string, limit = 4, exclude: string[] = []): string[] {
-  const q = knowledgeFtsQuery(query);
-  if (!q) {
-    return [];
-  }
-  try {
-    const rows = sql
-      .prepare(
-        `SELECT body FROM knowledge_chunks WHERE workspace_id = ? AND knowledge_chunks MATCH ?${notInClause(exclude)} LIMIT ?`,
-      )
-      .all(workspaceId(tenant), q, ...exclude, limit) as Array<{ body: string }>;
-    return rows.map((row) => row.body);
-  } catch {
-    return [];
-  }
-}
-
-export async function retrieveChunks(
+/** Chunks that answer this query, each carrying its source id / name / score so it can be cited. */
+export function retrieveChunks(
   tenant: TenantContext,
   query: string,
   limit = 4,
   options: RetrieveOptions = {},
-): Promise<{ bodies: string[]; mode: "rag" | "fts" | "none" }> {
-  const trimmed = query.trim();
-  if (!trimmed) {
-    return { bodies: [], mode: "none" };
-  }
-  const exclude = options.excludeSourceIds ?? [];
-  const models = getKnowledgeModels(tenant);
-  const vectorHits = await retrieveVectorChunks(tenant, trimmed, models, limit, exclude);
-  if (vectorHits.length > 0) {
-    return { bodies: vectorHits.map((hit) => hit.body), mode: "rag" };
-  }
-  const fts = retrieveFtsChunks(tenant, trimmed, limit, exclude);
-  return { bodies: fts, mode: fts.length > 0 ? "fts" : "none" };
+): Promise<RetrieveResult> {
+  return getKnowledgeBackend().retrieve(tenant, query, {
+    limit,
+    excludeSourceIds: options.excludeSourceIds ?? [],
+  });
 }
 
 export type KnowledgeInjectionOptions = {
@@ -547,16 +575,23 @@ function excludedSourceIds(tenant: TenantContext, options: KnowledgeInjectionOpt
   return own ? [own.id] : [];
 }
 
+export type KnowledgeInjection = {
+  prompt: string;
+  parts: { label: string; detail: string; tokens: number }[];
+  /** What the prompt was actually given, in citation order. Recorded as the Retrieved loop edge. */
+  chunks: RetrievedChunk[];
+};
+
 export async function knowledgeInjection(
   tenant: TenantContext,
   query = "",
   options: KnowledgeInjectionOptions = {},
-): Promise<{ prompt: string; parts: { label: string; detail: string; tokens: number }[] }> {
+): Promise<KnowledgeInjection> {
   const soul = getSoul(tenant);
   const memories = listMemories(tenant).filter((item) => item.pinned);
-  const retrieved = query
+  const retrieved: RetrieveResult = query
     ? await retrieveChunks(tenant, query, 4, { excludeSourceIds: excludedSourceIds(tenant, options) })
-    : { bodies: [] as string[], mode: "none" as const };
+    : { chunks: [], mode: "none" };
   const soulBlock = [
     `Name: ${soul.name}`,
     `Role: ${soul.role}`,
@@ -566,7 +601,12 @@ export async function knowledgeInjection(
     .filter(Boolean)
     .join("\n");
   const memoryBlock = memories.map((item) => `- ${item.text}`).join("\n");
-  const retrievedBlock = retrieved.bodies.map((chunk, index) => `[${index + 1}] ${chunk}`).join("\n\n");
+  // `[n] <sourceName>` on its own line: the default Soul rule asks for a citation, so the marker has
+  // to name the source, not just number it. Names are already normalized at index time; sanitizing
+  // again here keeps rows written by older builds (or by a future backend) from forging a line.
+  const retrievedBlock = retrieved.chunks
+    .map((chunk, index) => `[${index + 1}] ${sanitizeSourceName(chunk.sourceName) || chunk.sourceId}\n${chunk.body}`)
+    .join("\n\n");
   const sections = [
     soulBlock ? `## Soul\n${soulBlock}` : "",
     memoryBlock ? `## Pinned memories\n${memoryBlock}` : "",
@@ -574,12 +614,8 @@ export async function knowledgeInjection(
   ].filter(Boolean);
   const prompt = sections.length ? `\n\n# Workspace knowledge\n${sections.join("\n\n")}` : "";
   const est = (text: string) => Math.ceil(text.trim().length / 4);
-  const sourcesDetail =
-    retrieved.mode === "rag"
-      ? `${retrieved.bodies.length} chunks · rag`
-      : retrieved.mode === "fts"
-        ? `${retrieved.bodies.length} chunks · fts`
-        : `${retrieved.bodies.length} chunks`;
+  const count = retrieved.chunks.length;
+  const sourcesDetail = retrieved.mode === "none" ? `${count} chunks` : `${count} chunks · ${retrieved.mode}`;
   return {
     prompt,
     parts: [
@@ -587,5 +623,6 @@ export async function knowledgeInjection(
       { label: "Memories", detail: `${memories.length} pinned`, tokens: est(memoryBlock) },
       { label: "Sources", detail: sourcesDetail, tokens: est(retrievedBlock) },
     ],
+    chunks: retrieved.chunks,
   };
 }

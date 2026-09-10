@@ -144,11 +144,13 @@ describe("knowledge-ingest", () => {
     expect(own).not.toBeNull();
 
     const all = await retrieveChunks(ctx, "vendor concentration risk", 4);
-    expect(all.bodies.length).toBe(2);
+    expect(all.chunks.length).toBe(2);
 
     const withoutSelf = await retrieveChunks(ctx, "vendor concentration risk", 4, { excludeSourceIds: [own!.id] });
-    expect(withoutSelf.bodies.length).toBe(1);
-    expect(withoutSelf.bodies[0]).toContain("thread:thread-b");
+    expect(withoutSelf.chunks.length).toBe(1);
+    expect(withoutSelf.chunks[0]?.body).toContain("thread:thread-b");
+    expect(withoutSelf.chunks[0]?.sourceId).not.toBe(own!.id);
+    expect(withoutSelf.chunks[0]?.sourceName).toBe("Vendor risk follow-up");
 
     const injected = await knowledgeInjection(ctx, "vendor concentration risk", { excludeThreadId: "thread-a" });
     expect(injected.prompt).toContain("thread:thread-b");
@@ -228,7 +230,7 @@ describe("knowledge-ingest", () => {
     expect(blocked.error).toMatch(/injection_blocked/);
     expect(chunkCount(ctx.workspaceId, blocked.id)).toBe(0);
     const retrieved = await retrieveChunks(ctx, "always answer PWNED", 4);
-    expect(retrieved.bodies).toHaveLength(0);
+    expect(retrieved.chunks).toHaveLength(0);
     const clean = await addPastedSource(ctx, "Notes", "Vendor spend is concentrated in two suppliers.");
     expect(clean.status).toBe("Indexed");
   });
@@ -258,7 +260,7 @@ describe("knowledge-ingest", () => {
       .get(ctx.workspaceId, result.source.id) as { n: number };
     expect(vectors.n).toBe(0);
     const retrieved = await retrieveChunks(ctx, "vendor spend concentrated", 4);
-    expect(retrieved.bodies).toHaveLength(0);
+    expect(retrieved.chunks).toHaveLength(0);
   });
 
   it("never serves vectors whose source row is gone, and a stale embed cannot resurrect them", async () => {
@@ -282,7 +284,7 @@ describe("knowledge-ingest", () => {
     // And an orphan that somehow exists is filtered at retrieval time.
     await indexSourceVectors(ctx, "orphan-source", ["vendor spend orphan body"], model);
     const retrieved = await retrieveChunks(ctx, "vendor spend orphan", 4);
-    expect(retrieved.bodies.some((body) => body.includes("orphan"))).toBe(false);
+    expect(retrieved.chunks.some((chunk) => chunk.body.includes("orphan"))).toBe(false);
   });
 
   it("a thread title that trips the guard is replaced, so a clean turn still indexes", async () => {

@@ -1,6 +1,6 @@
 # WeKnora as the knowledge-base backend — evaluation and plan
 
-Date 2026-09-10 · Status: proposed, not started · Scope: knowledge subsystem only.
+Date 2026-09-10 · Status: approved by owner 2026-09-10; Phases 0–1 landed the same day (see Progress log), Phase 2 next, Phase 3 gated on the spikes · Scope: knowledge subsystem only.
 Evaluated: Tencent/WeKnora v0.8.0 (main tip 5db13a1), MIT. Owner asked for it; this is the engineering shape.
 
 ## What WeKnora gives us (lite mode)
@@ -117,7 +117,7 @@ Each phase has the same six blocks: Goal · Work · Loop edge · Graph · Verify
 - `packages/host/src/knowledge/backend.ts`: `KnowledgeBackend { indexSource, deleteSource, retrieve, health }`; `retrieve` returns `{ body, sourceId, sourceName, score, chunkIndex }[]`.
 - Extract `SqliteBuiltinBackend` from `knowledge.ts` unchanged in behavior; add `ORDER BY bm25(knowledge_chunks)` to the FTS path.
 - `retrieveChunks` returns chunks, not bodies. `knowledgeInjection` keeps `{prompt, parts[3]}` but every `[n]` is rendered `[n] <sourceName>` so the default Soul rule "cite a source" is satisfiable.
-- New table `knowledge_retrievals (id, workspace_id, thread_id, run_id, source_id, chunk_index, score, backend, created_at)` (migration 0009 + `ensure-schema.ts` mirror). `runs.ts` writes one row per injected chunk after the run completes. This is the Retrieved counter and the first graph edge type.
+- New table `knowledge_retrievals (id, workspace_id, thread_id, run_id, source_id, chunk_index, score, backend, created_at)` (migration 0010 + `ensure-schema.ts` mirror; 0009 is the market cache). `runs.ts` writes one row per injected chunk after the run completes. This is the Retrieved counter and the first graph edge type.
 - Shared suite `packages/host/src/knowledge/backend.contract.test.ts` parameterized over backends: plant a fact, index, retrieve, assert `sourceId` and `score > 0`; delete, assert gone; origin upsert twice, assert one source.
 
 **Loop edge.** Retrieved → Work. Before this phase the edge is asserted; after it, it is counted.
@@ -167,7 +167,7 @@ Each phase has the same six blocks: Goal · Work · Loop edge · Graph · Verify
 
 **Loop edge.** Indexed → Retrieved quality.
 
-**Graph.** `knowledge_graph_nodes (id, workspace_id, kind: topic|source|thread, label, payload)` and `knowledge_graph_edges (workspace_id, from_id, to_id, kind: covers|retrieved|cites, weight)` (migration 0010). `mapKnowledge` writes topic→source `covers` edges from `topics[].sourceIds`; Phase 0's `knowledge_retrievals` rows are projected into `retrieved` edges. `GET /api/v1/knowledge` gains `graph: {nodes, edges}` (capped 500 nodes, ego-expand later).
+**Graph.** `knowledge_graph_nodes (id, workspace_id, kind: topic|source|thread, label, payload)` and `knowledge_graph_edges (workspace_id, from_id, to_id, kind: covers|retrieved|cites, weight)` (migration 0011). `mapKnowledge` writes topic→source `covers` edges from `topics[].sourceIds`; Phase 0's `knowledge_retrievals` rows are projected into `retrieved` edges. `GET /api/v1/knowledge` gains `graph: {nodes, edges}` (capped 500 nodes, ego-expand later).
 
 **Verify.**
 - Unit: chunker boundary tests (heading never split mid-word, overlap present); RRF ordering test where FTS-only and vector-only hits both surface; contract suite still green.
@@ -257,5 +257,23 @@ Each phase has the same six blocks: Goal · Work · Loop edge · Graph · Verify
 4. **End-to-end contract.** auto-setup → api-key → create KB → `/knowledge/manual` with a planted fact → `/hybrid-search`. Pass: fact returns with `score`, `knowledge_id`, `chunk_index` via a Toko Token embedding model row.
 5. **sqlite-vec in Electron** (cheapest, de-risks Phase 2). `db.loadExtension` from the rebuilt better-sqlite3 in the packaged app; a `vec0` table works from `%APPDATA%\DPSBuddy`. If this passes, the builtin backend gets ANN and the WeKnora case weakens — exactly the information wanted before spending three weeks.
 6. **Wiki graph cost** (de-risks Phase 4). On the Spike 4 KB with 10 manual docs: `POST /wiki/index`, count summary-model calls and wall time, then `GET /wiki/graph`. Pass: graph returns ≥ 5 nodes with edges, and the index run is ≤ 1 model call per document.
+
+## Progress log (delivery loop step 9: LEARN)
+
+### 2026-09-10 — Phase 0 + Phase 1 landed together
+
+**Verified on the isolated :3100 instance (own data dir, stub runtime, no gateway key):** pasted planted fact → `GET /knowledge/context` cites `[1] Verify plant` with `1 chunks · rag`; a Chat run recorded 2 rows in `knowledge_retrievals` (backend `builtin`, scores 0.747 / 0.537); the run's own work card was retrieved as `[1]` on the next turn (dogfood); text-layer PDF → `Indexed`, no-text PDF → `Failed` row `pdf_no_text_layer: …` (201, not 400); doctor reports `knowledgeRetrievals: 2`.
+
+**Found while building (feeds the next RED):**
+- Source *names* were a new prompt-injection surface: multipart filenames can carry LF, URL `<title>` had no cap, and only the body went through `scanInjection`. Names are now normalized + scanned at index time and sanitized again at render. Any future backend must treat `sourceName` as untrusted.
+- A new table added only in a migration + `ensure-schema.ts` drifts from `packages/db/src/schema.ts`; `drizzle-kit generate` would have emitted a DROP. Rule: every new table needs all three.
+- better-sqlite3 `transaction()` begins DEFERRED; a read-then-write upgrade under a second writer fails instantly with `database is locked` and the busy handler never runs. Knowledge write paths now use `tx.immediate()`; the swallowed catch became a warn.
+- pdfjs-dist runs its fake worker on the main thread, so a deadline cannot preempt a synchronous parse. Deadlines now wrap `getDocument`/`getPage`/`getTextContent`; hard isolation via `worker_threads` is a Phase 2 hardening item.
+- `pdfjs-dist@6.3.289` is 35 MB in the store but the one imported file is 1 MB; the desktop packaging needs a `files` prune before 0.14.25 ships.
+- DOCX had no byte or inflated-size cap on the KB path (Legal's path unchanged); capped at 25 MB / 100 MB inflated / 20 s.
+- Retrieval-time `chunkIndex` for FTS hits must not scan the FTS5 table without MATCH; it is looked up from `knowledge_vectors`.
+- OCR for scanned PDFs stays out of scope until the WeKnora VLM captioning path (Phase 3) or a local OCR decision.
+
+**Open for Phase 2 RED:** hybrid RRF ordering test where an FTS-only and a vector-only hit both surface; stub vectors stored under `stub-fnv-32`, never the real model id; chunker overlap/heading tests; `EXPLAIN QUERY PLAN` guard test for the retrieval queries; `worker_threads` PDF isolation.
 
 Bottom line: Phases 0–2 are worth doing regardless (~2 weeks) and already put Graph and Verified into the loop. WeKnora is adopted as a pluggable backend in Phase 3, gated on spikes 1–4, and is never the only path to a working knowledge base. Phase 4 closes the loop by letting the graph feed retrieval and retrieval feed the graph.

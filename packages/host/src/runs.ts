@@ -28,6 +28,8 @@ import {
 import { ApiError } from "@agentforge/core";
 import { agentService } from "./tenant";
 import { knowledgeInjection } from "./knowledge";
+import { getKnowledgeBackend } from "./knowledge/registry";
+import { recordRetrievals, recordsRetrievals } from "./knowledge-retrievals";
 import { ingestWorkSource } from "./knowledge-ingest";
 import { chatWorkCard } from "./work-cards";
 import {
@@ -340,6 +342,16 @@ export async function* startModalityRun(options: {
       }
       await persistAssistant();
       const finished = await finishRun(options.tenant, run.id, "completed", undefined, runUsage);
+      // The Retrieved edge of the knowledge loop: one row per chunk this run was actually given.
+      // Counted only for a completed run, and never allowed to fail one.
+      if (recordsRetrievals(finished, "completed")) {
+        recordRetrievals(options.tenant, {
+          threadId: thread.id,
+          runId: run.id,
+          backend: getKnowledgeBackend().id,
+          chunks: knowledge.chunks,
+        });
+      }
       if (finished && assistantText.trim()) {
         // Fire-and-forget: indexing must not delay stream end. One card per thread, latest exchange only.
         // Anything that goes wrong here is a knowledge concern, never a run failure.
@@ -366,13 +378,19 @@ export async function* startModalityRun(options: {
       const message = redactSecrets(error instanceof Error ? error.message : "run_failed");
       const saved = await persistAssistant();
       if (runId) {
-        await finishRun(
-          options.tenant,
-          runId,
-          saved ? "completed" : "failed",
-          saved ? undefined : message,
-          runUsage,
-        );
+        const status = saved ? "completed" : "failed";
+        const finished = await finishRun(options.tenant, runId, status, saved ? undefined : message, runUsage);
+        // A run that broke mid-stream but still saved partial text ends `completed`, and it was
+        // given the same chunks the happy path was. Counting it there and not here would undercount
+        // the Retrieved edge exactly when retrieval is most worth measuring.
+        if (recordsRetrievals(finished, status)) {
+          recordRetrievals(options.tenant, {
+            threadId: thread.id,
+            runId,
+            backend: getKnowledgeBackend().id,
+            chunks: knowledge.chunks,
+          });
+        }
       }
       if (!saved && !failedMessage) {
         send({ type: "run.failed", message });

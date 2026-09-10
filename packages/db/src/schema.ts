@@ -311,6 +311,30 @@ export const knowledgeVectors = sqliteTable(
   (table) => [index("knowledge_vectors_ws_source_idx").on(table.workspaceId, table.sourceId)],
 );
 
+/**
+ * One row per chunk a run was actually given: the measured "Retrieved" edge of the knowledge loop
+ * and the first retrieval graph edge (source -> thread). `backend` records which engine served it.
+ * Written by `recordRetrievals`; never on the critical path of a run (see drizzle/0010).
+ */
+export const knowledgeRetrievals = sqliteTable(
+  "knowledge_retrievals",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    threadId: text("thread_id"),
+    runId: text("run_id"),
+    sourceId: text("source_id").notNull(),
+    chunkIndex: integer("chunk_index").notNull(),
+    score: real("score").notNull(),
+    backend: text("backend").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [
+    index("knowledge_retrievals_ws_created_idx").on(table.workspaceId, table.createdAt),
+    index("knowledge_retrievals_ws_source_idx").on(table.workspaceId, table.sourceId),
+  ],
+);
+
 export const knowledgeMaps = sqliteTable("knowledge_maps", {
   workspaceId: text("workspace_id").primaryKey(),
   payload: text("payload").notNull(),

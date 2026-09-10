@@ -51,3 +51,6 @@ _ref/
 # Python bytecode from the mac build tooling
 __pycache__/
 *.pyc
+
+# isolated verification instance data (PORT=3100)
+.verify-*/

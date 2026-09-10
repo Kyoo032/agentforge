@@ -250,9 +250,18 @@ async function doctorWebdev() {
   }
 
   let knowledgeStatus = 0;
+  let knowledgeRetrievals = null;
   try {
     const knowledge = await get(BASE, "/api/v1/knowledge");
     knowledgeStatus = knowledge.status;
+    try {
+      const knowledgePayload = JSON.parse(knowledge.text);
+      // Retrieved stage of the knowledge loop: chunks served to runs, all time. null on older builds.
+      knowledgeRetrievals =
+        typeof knowledgePayload.retrievals === "number" ? knowledgePayload.retrievals : null;
+    } catch {
+      knowledgeRetrievals = null;
+    }
   } catch {
     knowledgeStatus = 0;
   }
@@ -269,6 +278,7 @@ async function doctorWebdev() {
     chatCount,
     curation,
     knowledge: knowledgeStatus === 200,
+    knowledgeRetrievals,
     gatewayName: typeof payload.gatewayName === "string" ? payload.gatewayName : undefined,
     dataDir: process.env.AGENTFORGE_DATA_DIR || "unset (webdev default: <repo>/data)",
     sqliteHint: "data/agentforge.sqlite under AGENTFORGE_DATA_DIR or repo data/",

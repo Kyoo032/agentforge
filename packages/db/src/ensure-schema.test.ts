@@ -4,8 +4,10 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
+import { getTableConfig } from "drizzle-orm/sqlite-core";
 import { describe, expect, it } from "vitest";
 import { assertKernelTables, ensureSchema, listKernelTables } from "./ensure-schema";
+import { knowledgeRetrievals } from "./schema";
 
 const KERNEL_TABLES = [
   "agent_tool_bindings",
@@ -41,6 +43,7 @@ describe("ensureSchema", () => {
         "knowledge_settings",
         "knowledge_vectors",
         "knowledge_maps",
+        "knowledge_retrievals",
         "edit_projects",
         "edit_ops",
         "edit_snapshots",
@@ -190,6 +193,61 @@ describe("ensureSchema", () => {
     const indexes = sqlite.prepare("PRAGMA index_list(knowledge_sources)").all() as Array<{ name: string; unique: number }>;
     expect(indexes.some((row) => row.name === "knowledge_sources_origin_idx" && row.unique === 1)).toBe(true);
     sqlite.close();
+  });
+
+  it("creates knowledge_retrievals with its workspace indexes", () => {
+    const sqlite = new Database(":memory:");
+    ensureSchema(sqlite);
+    const cols = (sqlite.prepare("PRAGMA table_info(knowledge_retrievals)").all() as Array<{ name: string }>).map(
+      (column) => column.name,
+    );
+    expect(cols).toEqual(
+      expect.arrayContaining([
+        "id",
+        "workspace_id",
+        "thread_id",
+        "run_id",
+        "source_id",
+        "chunk_index",
+        "score",
+        "backend",
+        "created_at",
+      ]),
+    );
+    const indexes = (sqlite.prepare("PRAGMA index_list(knowledge_retrievals)").all() as Array<{ name: string }>).map(
+      (row) => row.name,
+    );
+    expect(indexes).toEqual(
+      expect.arrayContaining(["knowledge_retrievals_ws_created_idx", "knowledge_retrievals_ws_source_idx"]),
+    );
+    sqlite
+      .prepare(
+        `INSERT INTO knowledge_retrievals
+           (id, workspace_id, thread_id, run_id, source_id, chunk_index, score, backend, created_at)
+         VALUES (?, 'ws', 't1', 'r1', 's1', 0, 0.5, 'builtin', 1)`,
+      )
+      .run("kr-1");
+    const row = sqlite.prepare("SELECT score FROM knowledge_retrievals WHERE id = ?").get("kr-1") as { score: number };
+    expect(row.score).toBeCloseTo(0.5);
+    sqlite.close();
+  });
+
+  it("declares knowledge_retrievals in the drizzle schema, matching the migration", () => {
+    // Drift guard: the table exists in drizzle/0010 and in ensureSchema, so it has to exist in
+    // schema.ts too or `drizzle-kit generate` would emit a CREATE TABLE for it all over again.
+    const config = getTableConfig(knowledgeRetrievals);
+    expect(config.name).toBe("knowledge_retrievals");
+    expect(config.columns.map((column) => column.name).sort()).toEqual(
+      ["backend", "chunk_index", "created_at", "id", "run_id", "score", "source_id", "thread_id", "workspace_id"],
+    );
+    const notNull = config.columns.filter((column) => column.notNull).map((column) => column.name).sort();
+    expect(notNull).toEqual(["backend", "chunk_index", "created_at", "id", "score", "source_id", "workspace_id"]);
+    expect(config.columns.find((column) => column.name === "score")?.getSQLType()).toBe("real");
+    expect(config.indexes.map((entry) => entry.config.name).sort()).toEqual([
+      "knowledge_retrievals_ws_created_idx",
+      "knowledge_retrievals_ws_source_idx",
+    ]);
+    expect(config.indexes.every((entry) => entry.config.unique !== true)).toBe(true);
   });
 
   it("records organization_id FKs on agent_versions and agent_tool_bindings", () => {
