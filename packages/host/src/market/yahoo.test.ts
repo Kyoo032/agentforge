@@ -6,6 +6,7 @@ import searchFixture from "./__fixtures__/yahoo-search-mu.json";
 import { AdapterSchemaError } from "./errors";
 import {
   HISTORY_MONTHS_DEFAULT,
+  HISTORY_MONTHS_MAX,
   fetchHistory,
   fetchNewsFor,
   fetchQuotes,
@@ -204,18 +205,24 @@ describe("parseHistory", () => {
 });
 
 describe("fetchHistory", () => {
-  it("asks for the default 24 months ending now and clamps months to 1..24", async () => {
+  it("asks for the default 36 months ending now and clamps months to 1..36", async () => {
     const client = fakeClient();
     await fetchHistory("MU", { client, now });
     const range = client.calls[0]?.args[1] as { period1: Date; period2: Date };
     expect(client.calls[0]?.args[0]).toBe("MU");
     expect(range.period2).toEqual(NOW);
     expect(range.period1).toEqual(historyRange(NOW, HISTORY_MONTHS_DEFAULT).period1);
-    expect(range.period1.toISOString()).toBe("2024-09-09T03:00:00.000Z");
+    // 36 months, not 24: the 2Y chart window needs 199 extra bars for SMA200.
+    expect(range.period1.toISOString()).toBe("2023-09-09T03:00:00.000Z");
 
     await fetchHistory("MU", { client, now, months: 40 });
     const clamped = client.calls[1]?.args[1] as { period1: Date };
-    expect(clamped.period1).toEqual(historyRange(NOW, 24).period1);
+    expect(clamped.period1).toEqual(historyRange(NOW, HISTORY_MONTHS_MAX).period1);
+  });
+
+  it("keeps the widened window inside the schema's bar cap", () => {
+    // ~21 trading days a month; the parser also slices to HISTORY_BARS_MAX.
+    expect(HISTORY_MONTHS_DEFAULT * 21).toBeLessThanOrEqual(HISTORY_BARS_MAX);
   });
 
   it("propagates vendor errors", async () => {

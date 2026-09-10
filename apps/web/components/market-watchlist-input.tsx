@@ -34,8 +34,15 @@ export function MarketWatchlistInput({ tickers, onChange, disabled = false, test
     if (!text.trim()) {
       return;
     }
-    const { tickers: next, rejected } = mergeTickersReporting(tickers, text);
-    setNotice(rejected.length > 0 ? rejectionMessage(rejected) : null);
+    const { tickers: next, rejected, overflow } = mergeTickersReporting(tickers, text);
+    // Say why a symbol did not appear. Silently dropping one is worse than refusing it.
+    setNotice(
+      rejected.length > 0
+        ? rejectionMessage(rejected)
+        : overflow
+          ? `The watchlist holds ${WATCHLIST_MAX} tickers, so the extra ones were not added.`
+          : null,
+    );
     if (next.length !== tickers.length || next.some((item, index) => item !== tickers[index])) {
       onChange(next);
     }
@@ -73,7 +80,7 @@ export function MarketWatchlistInput({ tickers, onChange, disabled = false, test
             {ticker}
             <button
               type="button"
-              className="inline-flex h-5 w-5 items-center justify-center rounded text-ink/50 hover:bg-mist hover:text-ink disabled:opacity-50"
+              className="inline-flex h-6 w-6 items-center justify-center rounded text-ink/50 hover:bg-mist hover:text-ink disabled:opacity-50"
               aria-label={`Remove ${ticker}`}
               disabled={disabled}
               onClick={() => {

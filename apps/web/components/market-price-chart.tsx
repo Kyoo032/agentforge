@@ -21,7 +21,7 @@ type Props = {
 };
 
 const RANGE_BUTTON =
-  "rounded-md border px-2 py-0.5 text-[11px] font-medium transition-colors disabled:opacity-50 aria-pressed:border-navy aria-pressed:bg-navy aria-pressed:text-paper border-mist text-ink/70 hover:bg-mist/40";
+  "min-h-6 rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors disabled:opacity-50 aria-pressed:border-navy aria-pressed:bg-navy aria-pressed:text-paper border-mist text-ink/70 hover:bg-mist/40";
 
 /** Close, SMA50, and SMA200 over 1M to 2Y, with the range switch above the plot. */
 export function MarketPriceChart({ history, fallback = null, symbol, testId }: Props) {

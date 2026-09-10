@@ -95,4 +95,20 @@ describe("chart ranges", () => {
   it("passes the title through", () => {
     expect(buildRangeChart(makeHistory("MU", 300), "6m", "MU close").title).toBe("MU close");
   });
+
+  it("keeps close, SMA50, and SMA200 at every range when the host's 36-month fetch is present", () => {
+    // 36 months is ~756 bars; 2Y plots 504 and SMA200 needs 199 more.
+    const history = makeHistory("MU", 756);
+    for (const range of CHART_RANGES) {
+      const chart = buildRangeChart(history, range.id);
+      expect(chart.series.map((series) => series.name)).toEqual(["close", "SMA50", "SMA200"]);
+      for (const series of chart.series) {
+        expect(series.values.every((value) => Number.isFinite(value))).toBe(true);
+      }
+    }
+  });
+
+  it("would have lost the averages at 2Y on the old 24-month fetch, which is why it was widened", () => {
+    expect(buildRangeChart(makeHistory("MU", 500), "2y").series.map((s) => s.name)).toEqual(["close"]);
+  });
 });

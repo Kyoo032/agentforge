@@ -1,6 +1,7 @@
 "use client";
 
 import { MarketPriceChart } from "@/components/market-price-chart";
+import { headlineOf } from "@/lib/market-headline";
 import {
   formatNumber,
   formatObservedAt,
@@ -23,27 +24,14 @@ type Props = {
 };
 
 const CARD = "rounded-xl border border-mist bg-paper p-4";
-const NOTE = "rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900";
+const NOTE =
+  "rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-500/50 dark:bg-amber-500/10 dark:text-amber-200";
 
 function changeTone(value: number | null | undefined): string {
   if (value === null || value === undefined) {
     return "text-ink/60";
   }
-  return value >= 0 ? "text-emerald-700" : "text-red-700";
-}
-
-/** "Pre-market 101.20 (+1.10%)" or "After hours ..." when the quote carries an extended-session print. */
-function extendedSession(quote: Quote | null): string {
-  if (!quote) {
-    return "";
-  }
-  if (quote.preMarketPrice !== null) {
-    return `Pre-market ${formatNumber(quote.preMarketPrice)} (${formatPercent(quote.preMarketChangePercent) || "n/a"})`;
-  }
-  if (quote.postMarketPrice !== null) {
-    return `After hours ${formatNumber(quote.postMarketPrice)} (${formatPercent(quote.postMarketChangePercent) || "n/a"})`;
-  }
-  return "";
+  return value >= 0 ? "text-emerald-700 dark:text-emerald-300" : "text-red-700 dark:text-red-300";
 }
 
 function trendWord(price: number | null | undefined, average: number | null | undefined, days: number): string {
@@ -65,8 +53,7 @@ function readings(quote: Quote | null, tech: Technical | null): string[] {
 
 function BoardCard({ ticker, testIdPrefix }: { ticker: TickerPacket; testIdPrefix: string }) {
   const quote = ticker.quote;
-  const price = quote?.price !== null && quote?.price !== undefined ? `${formatNumber(quote.price)} ${quote.currency}` : "";
-  const session = extendedSession(quote);
+  const headline = headlineOf(quote);
   const facts = readings(quote, ticker.technical);
   return (
     <section className={CARD} data-testid={`${testIdPrefix}-board-card`} data-symbol={ticker.symbol.yahoo}>
@@ -77,17 +64,19 @@ function BoardCard({ ticker, testIdPrefix }: { ticker: TickerPacket; testIdPrefi
         </div>
         <div className="text-right">
           <p className="text-xl font-semibold tabular-nums text-ink" data-testid={`${testIdPrefix}-board-price`}>
-            {price || "No quote"}
+            {headline.price || "No quote"}
           </p>
-          <p className={`text-sm tabular-nums ${changeTone(quote?.changePercent)}`}>
-            {formatPercent(quote?.changePercent) || (quote ? "unchanged" : "")}
-            {quote?.marketState && quote.marketState !== "UNKNOWN" ? (
-              <span className="ml-2 text-xs text-ink/50">{quote.marketState.toLowerCase()}</span>
-            ) : null}
+          <p className={`text-sm tabular-nums ${changeTone(headline.percent)}`}>
+            {formatPercent(headline.percent) || (quote ? "unchanged" : "")}
+            {headline.caption ? <span className="ml-2 text-xs text-ink/55">{headline.caption}</span> : null}
           </p>
         </div>
       </header>
-      {session ? <p className="mt-1 text-xs text-ink/65">{session}</p> : null}
+      {headline.note ? (
+        <p className="mt-1 text-xs text-ink/65" data-testid={`${testIdPrefix}-board-close`}>
+          {headline.note}
+        </p>
+      ) : null}
       {facts.length > 0 ? (
         <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink/65" data-testid={`${testIdPrefix}-board-facts`}>
           {facts.map((fact) => (

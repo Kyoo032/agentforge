@@ -32,8 +32,14 @@ import { errorMessage, withTimeout } from "./abort";
 import { AdapterSchemaError } from "./errors";
 import { sanitizeExternalText } from "./sanitize";
 
-export const HISTORY_MONTHS_DEFAULT = 24;
-export const HISTORY_MONTHS_MAX = 24;
+/**
+ * 36 months, not 24. The 2Y chart window is 504 bars and SMA200 needs 199
+ * bars of lead-in before the first plotted point, so a 24-month fetch (~500
+ * bars) leaves the 2Y window without its moving averages. 36 months is ~756
+ * bars, inside HISTORY_BARS_MAX (800), and covers 504 + 199 with room to spare.
+ */
+export const HISTORY_MONTHS_DEFAULT = 36;
+export const HISTORY_MONTHS_MAX = 36;
 export const NEWS_COUNT_DEFAULT = NEWS_PER_TICKER_MAX;
 
 const ADAPTER_QUOTE = "yahoo.quote";

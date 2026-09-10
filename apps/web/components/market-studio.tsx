@@ -63,12 +63,20 @@ export function MarketStudio() {
   const [busy, setBusy] = useState<"download" | "regen" | null>(null);
   const [regenIndex, setRegenIndex] = useState<number | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
+  // A finished job keeps its error forever; this hides it once the user edits the watchlist.
+  const [errorStale, setErrorStale] = useState(false);
   const board = useMarketBoard(tickers);
 
-  const rawError = localError ?? job.error?.message ?? null;
+  const rawError = errorStale ? null : (localError ?? job.error?.message ?? null);
   const error = rawError ? friendlyMarketError(rawError) : null;
   const locked = job.busy || busy !== null;
   const ready = tickers.length > 0 && prompt.trim().length > 0;
+
+  function changeTickers(next: string[]): void {
+    setTickers(next);
+    setLocalError(null);
+    setErrorStale(true);
+  }
 
   function onLanguageChange(next: string): void {
     if (!isLanguage(next)) {
@@ -87,6 +95,7 @@ export function MarketStudio() {
       return;
     }
     setLocalError(null);
+    setErrorStale(false);
     const body: MarketWatchRequest = {
       prompt: (prompt.trim() || DEFAULT_PROMPT[language]).trim(),
       tickers,
@@ -140,8 +149,7 @@ export function MarketStudio() {
   }
 
   function applyStarter(starter: MarketStarter) {
-    setTickers([...starter.tickers]);
-    setLocalError(null);
+    changeTickers([...starter.tickers]);
   }
 
   return (
@@ -168,8 +176,8 @@ export function MarketStudio() {
         ) : null}
       </div>
 
-      {error ? (
-        <p className="mb-4 text-sm text-red-700" role="alert" data-testid="market-error">
+      {error && tickers.length === 0 ? (
+        <p className="mb-4 text-sm text-red-700 dark:text-red-300" role="alert" data-testid="market-error">
           {error}
           {needsKey(rawError ?? "") ? (
             <>
@@ -185,7 +193,7 @@ export function MarketStudio() {
 
       <form className="space-y-4" onSubmit={(event) => void onGenerate(event)} data-testid="market-inputs">
         <div className="blueprint p-4">
-          <MarketWatchlistInput tickers={tickers} onChange={setTickers} disabled={locked} />
+          <MarketWatchlistInput tickers={tickers} onChange={changeTickers} disabled={locked} />
           {tickers.length === 0 ? (
             <div className="mt-3" data-testid="market-starters">
               <p className={`text-[11px] ${FAINT}`}>Or start from a ready-made list:</p>
@@ -210,17 +218,21 @@ export function MarketStudio() {
         </div>
 
         {tickers.length > 0 ? (
-          <MarketBoard
-            board={board.board}
-            loading={board.loading}
-            error={board.error}
-            tickers={tickers}
-            onRefresh={board.refresh}
-          />
-        ) : null}
-
-        {tickers.length > 0 ? (
           <div className="blueprint space-y-3 p-4">
+            {error ? (
+              <p className="text-sm text-red-700 dark:text-red-300" role="alert" data-testid="market-error">
+                {error}
+                {needsKey(rawError ?? "") ? (
+                  <>
+                    {" "}
+                    <Link href="/settings" className="underline" data-testid="market-error-settings">
+                      Open Settings
+                    </Link>
+                    .
+                  </>
+                ) : null}
+              </p>
+            ) : null}
             <div className="flex flex-wrap items-center gap-3">
               <button
                 type="submit"
@@ -237,7 +249,8 @@ export function MarketStudio() {
               ) : null}
               <select
                 aria-label="Briefing language"
-                className="input w-auto"
+                className="input"
+                style={{ width: "auto" }}
                 value={language}
                 onChange={(event) => onLanguageChange(event.target.value)}
                 disabled={locked}
@@ -345,6 +358,17 @@ export function MarketStudio() {
             ) : null}
           </div>
         ) : null}
+
+        {tickers.length > 0 ? (
+          <MarketBoard
+            board={board.board}
+            loading={board.loading}
+            error={board.error}
+            tickers={tickers}
+            onRefresh={board.refresh}
+          />
+        ) : null}
+
       </form>
 
       <div className="mt-5 space-y-4">

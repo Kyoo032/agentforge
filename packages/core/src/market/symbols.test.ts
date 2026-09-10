@@ -138,6 +138,19 @@ describe("isValidTicker / partitionTickerInput", () => {
     }
   });
 
+  it("refuses a bare quantity but keeps numeric tickers that carry a venue suffix", () => {
+    for (const quantity of ["100", "7", "2026"]) {
+      expect(isValidTicker(quantity)).toBe(false);
+    }
+    for (const symbol of ["0700.HK", "7203.T"]) {
+      expect(isValidTicker(symbol)).toBe(true);
+    }
+    expect(partitionTickerInput("buy 100 shares")).toEqual({
+      tickers: ["BUY", "SHARES"],
+      rejected: ["100"],
+    });
+  });
+
   it("splits typed text into what is a ticker and what is not", () => {
     expect(partitionTickerInput("mu, hello!!, nvda")).toEqual({ tickers: ["MU", "NVDA"], rejected: ["HELLO!!"] });
   });

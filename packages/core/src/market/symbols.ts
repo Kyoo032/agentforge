@@ -61,8 +61,15 @@ export const TV_SELL_MIN = -0.5;
  */
 export const TICKER_PATTERN = /^\^?[A-Z0-9][A-Z0-9.=-]{0,19}$/;
 
+/**
+ * A bare run of digits is a quantity, not a symbol: "buy 100 shares" must not
+ * put a chip called 100 on the watchlist. Numeric tickers do exist, but only
+ * with a venue suffix (`0700.HK`, `7203.T`), which this still allows.
+ */
+const BARE_DIGITS = /^\d+$/;
+
 export function isValidTicker(symbol: string): boolean {
-  return TICKER_PATTERN.test(symbol);
+  return TICKER_PATTERN.test(symbol) && !BARE_DIGITS.test(symbol);
 }
 
 /** One typed token, cleaned: `$mu ` → `MU`. Not necessarily a valid symbol. */
