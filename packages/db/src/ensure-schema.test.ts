@@ -155,6 +155,43 @@ describe("ensureSchema", () => {
     sqlite.close();
   });
 
+  it("adds work-origin columns and a unique origin index to knowledge_sources", () => {
+    const sqlite = new Database(":memory:");
+    ensureSchema(sqlite);
+    const cols = (sqlite.prepare("PRAGMA table_info(knowledge_sources)").all() as Array<{ name: string }>).map(
+      (column) => column.name,
+    );
+    expect(cols).toEqual(expect.arrayContaining(["origin_kind", "origin_id"]));
+    const insert = sqlite.prepare(
+      `INSERT INTO knowledge_sources (id, workspace_id, name, type, status, chunks, error, created_at, origin_kind, origin_id)
+       VALUES (?, 'ws', 'card', 'Chat', 'Indexed', 1, NULL, 1, ?, ?)`,
+    );
+    insert.run("s1", "thread", "t1");
+    expect(() => insert.run("s2", "thread", "t1")).toThrow(/UNIQUE/);
+    // File / URL / Paste sources have no origin; NULLs never collide.
+    insert.run("s3", null, null);
+    insert.run("s4", null, null);
+    sqlite.close();
+  });
+
+  it("heals knowledge_sources origin columns on a table created before 0008", () => {
+    const sqlite = new Database(":memory:");
+    ensureSchema(sqlite);
+    sqlite.exec(`
+      DROP INDEX IF EXISTS knowledge_sources_origin_idx;
+      ALTER TABLE knowledge_sources DROP COLUMN origin_id;
+      ALTER TABLE knowledge_sources DROP COLUMN origin_kind;
+    `);
+    ensureSchema(sqlite);
+    const cols = (sqlite.prepare("PRAGMA table_info(knowledge_sources)").all() as Array<{ name: string }>).map(
+      (column) => column.name,
+    );
+    expect(cols).toEqual(expect.arrayContaining(["origin_kind", "origin_id"]));
+    const indexes = sqlite.prepare("PRAGMA index_list(knowledge_sources)").all() as Array<{ name: string; unique: number }>;
+    expect(indexes.some((row) => row.name === "knowledge_sources_origin_idx" && row.unique === 1)).toBe(true);
+    sqlite.close();
+  });
+
   it("records organization_id FKs on agent_versions and agent_tool_bindings", () => {
     const sqlite = new Database(":memory:");
     ensureSchema(sqlite);

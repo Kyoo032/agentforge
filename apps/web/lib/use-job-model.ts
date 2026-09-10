@@ -22,6 +22,7 @@ const SETTINGS_KEY: Record<JobMode, "documentGenModel" | "researchGenModel" | "p
   finance: "documentGenModel",
   data: "researchGenModel",
   market: "documentGenModel",
+  legal: "documentGenModel",
 };
 
 export function seedJobModel(input: {

@@ -47,7 +47,7 @@ function axisUsd(value: number): string {
 }
 
 /** Hand-rolled stacked bars by bucket × model. No chart library. */
-export function UsageRangeChart({ buckets, productName = "Agentforge", minKeep = 7 }: Props) {
+export function UsageRangeChart({ buckets, productName = "DPSBuddy", minKeep = 7 }: Props) {
   const visible = trimLeadingEmptyBuckets(buckets, minKeep);
   const hasSpend = visible.some((bucket) => bucket.usd > 0 || bucket.models.some((row) => row.usd > 0));
   const hasRuns = visible.some((bucket) => bucket.models.length > 0);

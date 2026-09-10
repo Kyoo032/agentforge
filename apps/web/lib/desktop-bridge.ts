@@ -86,7 +86,7 @@ export function getDesktopUpdates(): DesktopUpdatesApi | undefined {
 export async function invokeDesktop(payload: IpcHostRequest): Promise<IpcHostResponse> {
   const bridge = desktopBridge();
   if (!bridge) {
-    throw new Error("Agentforge desktop bridge is not available");
+    throw new Error("DPSBuddy desktop bridge is not available");
   }
   return bridge.invoke(payload);
 }
@@ -94,7 +94,7 @@ export async function invokeDesktop(payload: IpcHostRequest): Promise<IpcHostRes
 export function streamDesktop(requestId: string, onChunk: (chunk: string) => void): Promise<void> {
   const bridge = desktopBridge();
   if (!bridge) {
-    return Promise.reject(new Error("Agentforge desktop bridge is not available"));
+    return Promise.reject(new Error("DPSBuddy desktop bridge is not available"));
   }
   return bridge.stream(requestId, onChunk);
 }

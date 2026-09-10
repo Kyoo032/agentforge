@@ -34,17 +34,28 @@ export type JobSourceEvent = {
 
 export type JobDeltaEvent = { type: "job.delta"; text: string };
 
+/** Verify / edit loop counter for modes that iterate (Legal). */
+export type JobRoundEvent = { type: "job.round"; round: number; total: number; label: string };
+
 export type JobDoneEvent = { type: "job.done"; result: unknown };
 
 export type JobErrorEvent = { type: "job.error"; code: string; message: string; status: number };
 
-export type JobEvent = JobPhaseEvent | JobStepEvent | JobSourceEvent | JobDeltaEvent | JobDoneEvent | JobErrorEvent;
+export type JobEvent =
+  | JobPhaseEvent
+  | JobStepEvent
+  | JobSourceEvent
+  | JobDeltaEvent
+  | JobRoundEvent
+  | JobDoneEvent
+  | JobErrorEvent;
 
 export const JOB_EVENT_TYPES = new Set<JobEvent["type"]>([
   "job.phase",
   "job.step",
   "job.source",
   "job.delta",
+  "job.round",
   "job.done",
   "job.error",
 ]);
@@ -70,6 +81,8 @@ export type JobProgress = {
   phases: JobPhaseState[];
   sources: JobSourceEvent[];
   text: string;
+  /** Latest round announced by a looping job, or null for single-pass jobs. */
+  round: { round: number; total: number; label: string } | null;
   done: boolean;
   error: JobErrorEvent | null;
 };
@@ -78,6 +91,7 @@ export const EMPTY_JOB_PROGRESS: JobProgress = {
   phases: [],
   sources: [],
   text: "",
+  round: null,
   done: false,
   error: null,
 };
@@ -117,6 +131,8 @@ export function reduceJobProgress(state: JobProgress, event: JobEvent): JobProgr
       return { ...state, sources: upsertSource(state.sources, event) };
     case "job.delta":
       return { ...state, text: state.text + event.text };
+    case "job.round":
+      return { ...state, round: { round: event.round, total: event.total, label: event.label } };
     case "job.done":
       return { ...state, phases: closeActive(state.phases), done: true };
     case "job.error":

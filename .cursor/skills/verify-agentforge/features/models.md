@@ -15,7 +15,7 @@
 - Click the model control (`model-picker`) in the composer toolbar (`composer-toolbar`). The button shows the selected model's friendly label.
 - Scroll or search past Recommended to reach a brand-group model.
 
-## Driving it with the Agentforge harness
+## Driving it with the DPSBuddy harness
 
 Preconditions:
 

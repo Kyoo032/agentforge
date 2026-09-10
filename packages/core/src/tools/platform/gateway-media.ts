@@ -70,8 +70,18 @@ export function formatVideoGatewayFailure(status: number, detail: string): strin
   return detail;
 }
 
+const UPSTREAM_REJECTED = /service_unavailable|上游拒绝|upstream (?:rejected|refused|unavailable)/i;
+
+/** A job that the gateway accepted but its upstream provider then refused. Not a key or knob problem. */
+export function formatVideoJobFailure(detail: string): string {
+  if (UPSTREAM_REJECTED.test(detail)) {
+    return `${detail} The gateway's upstream for this video model rejected the job. Try again later or pick another video model.`;
+  }
+  return detail;
+}
+
 export function studioVideoFailureStatus(message: string): number {
-  if (/HTTP 503/i.test(message) || /no live gateway channel/i.test(message)) {
+  if (/HTTP 503/i.test(message) || /no live gateway channel/i.test(message) || UPSTREAM_REJECTED.test(message)) {
     return 503;
   }
   if (/rejected the API key/i.test(message)) {
@@ -101,9 +111,28 @@ export function readGatewayError(body: Record<string, unknown>, fallback: string
   return gatewayErrorCode(body) ?? fallback;
 }
 
+/** NewAPI wraps every reply in `code: "success"`; that is an envelope, never the error. */
+const SUCCESS_CODES = /^(success|ok|0|200)$/i;
+
+/**
+ * Why a polled video job failed. NewAPI reports it as `data.fail_reason` and mirrors the upstream
+ * error under `data.data.error`; the envelope's `code` stays "success", so read the job first.
+ */
+export function readVideoJobFailure(body: Record<string, unknown>, fallback: string): string {
+  const data = asRecord(body.data);
+  const jobError = asRecord(data.error);
+  const upstreamError = asRecord(asRecord(data.data).error);
+  const reason = asString(data.fail_reason) ?? asString(upstreamError.message) ?? asString(jobError.message);
+  const code = asString(upstreamError.code) ?? asString(jobError.code);
+  if (reason) {
+    return code && code !== reason ? `${reason} (${code})` : reason;
+  }
+  return readGatewayError(body, fallback);
+}
+
 function gatewayErrorCode(body: Record<string, unknown>): string | undefined {
   const top = asString(body.code);
-  if (top) {
+  if (top && !SUCCESS_CODES.test(top)) {
     return top;
   }
   const error = body.error;
@@ -215,12 +244,17 @@ export function videoTaskId(body: Record<string, unknown>): string | undefined {
   return asString(body.task_id) ?? asString(body.id) ?? asString(data.task_id) ?? asString(data.id);
 }
 
+/** A failed NewAPI job copies its fail reason into `result_url`; only http(s) or data URLs are results. */
+function looksLikeMediaUrl(value: string | undefined): string | undefined {
+  return value && /^(https?:\/\/|data:)/i.test(value) ? value : undefined;
+}
+
 export function extractGatewayVideoUrl(body: Record<string, unknown>): string | undefined {
   const data = asRecord(body.data);
   const nested = asRecord(data.data);
   const metadata = asRecord(body.metadata ?? data.metadata);
   const video = body.video;
-  return (
+  return looksLikeMediaUrl(
     asString(data.result_url) ??
     asString(data.url) ??
     asString(body.url) ??
@@ -229,8 +263,8 @@ export function extractGatewayVideoUrl(body: Record<string, unknown>): string | 
     asString(nested.url) ??
     asString(metadata.url) ??
     asString(asRecord(video).url) ??
-    asString(asRecord(video).public_url) ??
-    asString(video)
+      asString(asRecord(video).public_url) ??
+      asString(video),
   );
 }
 
@@ -410,11 +444,8 @@ export async function generateGatewayVideo(options: GatewayMediaOptions): Promis
       return { url, model: options.model };
     }
     if (isMediaFailure(status) || !statusRes.ok) {
-      throw new ApiError(
-        "tool_failed",
-        readGatewayError(statusBody, asString(asRecord(statusBody.data).fail_reason) ?? "Gateway video job failed"),
-        502,
-      );
+      const detail = formatVideoJobFailure(readVideoJobFailure(statusBody, "Gateway video job failed"));
+      throw new ApiError("tool_failed", detail, UPSTREAM_REJECTED.test(detail) ? 503 : 502);
     }
     await wait(pollMs);
   }

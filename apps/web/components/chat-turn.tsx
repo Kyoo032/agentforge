@@ -22,7 +22,7 @@ type Props = {
     tools: LiveTool[];
     streaming: string;
     running: boolean;
-    probe?: string;
+    thinkingEnabled?: boolean;
   };
 };
 
@@ -34,6 +34,9 @@ export function ChatTurn({ role, content, live }: Props) {
   const liveMedia = live
     ? live.tools.flatMap((tool) => collectToolMediaParts(tool.output))
     : [];
+  const thinkingEnabled = live?.thinkingEnabled !== false;
+  const showThinkingPlaceholder =
+    Boolean(live?.running) && thinkingEnabled && !thinking && !live?.streaming && visibleTools.length === 0;
 
   return (
     <article
@@ -44,21 +47,26 @@ export function ChatTurn({ role, content, live }: Props) {
         <MessageBody content={content} />
       ) : (
         <div className="space-y-2">
-          {thinking ? (
+          {(thinking && thinkingEnabled) || showThinkingPlaceholder ? (
             <details
               className="rounded-lg border border-mist bg-mist/40 px-3 py-2"
               data-testid="message-thinking"
               open={Boolean(live)}
             >
               <summary className="cursor-pointer text-xs font-medium text-ink/60">Thinking</summary>
-              <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap text-xs text-ink/70" data-testid="thinking-text">
-                {thinking}
-              </pre>
+              {thinking ? (
+                <pre
+                  className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap text-xs text-ink/70"
+                  data-testid="thinking-text"
+                >
+                  {thinking}
+                </pre>
+              ) : (
+                <p className="mt-2 text-xs text-ink/70" data-testid="thinking-placeholder">
+                  Thinking…
+                </p>
+              )}
             </details>
-          ) : live?.running && !live.streaming && visibleTools.length === 0 ? (
-            <p className="text-sm text-ink/50" data-testid="thinking-placeholder">
-              {live.probe || "Thinking…"}
-            </p>
           ) : null}
           {visibleTools.length > 0 ? (
             <ul className="space-y-1" data-testid="message-tools">

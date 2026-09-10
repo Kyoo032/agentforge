@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Legal mode mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;700&family=Barlow+Condensed:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f6f8fb; --surface: #e9eff6; --text: #1d1f20; --accent: #5980a6;
+    --divider: color-mix(in srgb, #1d1f20 16%, transparent);
+    --a100:#eef6ff; --a200:#d6ebff; --a600:#597ea3; --a700:#416180; --a800:#2c455d;
+    --fh: "Barlow Condensed", system-ui, sans-serif; --fb: "Barlow", system-ui, sans-serif;
+    --dim: color-mix(in srgb, var(--text) 52%, transparent);
+    --dim2: color-mix(in srgb, var(--text) 45%, transparent);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 var(--fb); }
+  h1,h2,h3,h4 { font-family: var(--fh); font-weight: 600; line-height: 1.12; letter-spacing: -0.015em; margin: 0; }
+  .screen { width: 1280px; min-height: 860px; display: grid; grid-template-columns: 220px 1fr; background: var(--bg); overflow: hidden; border-bottom: 8px solid #cfd6df; }
+  #s3 table.issues td, #s3 table.issues th { padding: 6px 6px; font-size: 12px; }
+  #s3 table.issues td.q { font-size: 11.5px; }
+  .kicker { font-family: var(--fh); font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: color-mix(in srgb, var(--text) 48%, transparent); }
+  .panel-label { font-family: var(--fh); font-size: 10px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: color-mix(in srgb, var(--text) 50%, transparent); }
+  .btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--divider); background: transparent; color: var(--text); font: 13px/1 var(--fb); padding: 8px 12px; border-radius: 4px; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #f6f8fb; }
+  .btn-ghost { border-color: transparent; }
+  .tag { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; letter-spacing: .04em; padding: 2px 7px; border: 1px solid var(--divider); border-radius: 4px; white-space: nowrap; }
+  .tag-accent { border-color: color-mix(in srgb, var(--accent) 45%, transparent); color: var(--a700); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  .tag-neutral { color: color-mix(in srgb, var(--text) 62%, transparent); }
+  .tag-red { border-color: #e2a1a1; color: #8b1e1e; background: #fbeaea; }
+  .tag-amber { border-color: #e3c78a; color: #7a5200; background: #fbf3df; }
+  .tag-green { border-color: #9fcfae; color: #1d5a31; background: #e6f5ea; }
+  .input { width: 100%; border: 1px solid var(--divider); background: transparent; color: var(--text); font: 14px var(--fb); padding: 8px 10px; border-radius: 4px; }
+  .seg { display: inline-flex; border: 1px solid var(--divider); border-radius: 4px; overflow: hidden; }
+  .seg-opt { padding: 6px 11px; font-size: 12.5px; border: 0; background: transparent; color: var(--text); border-right: 1px solid var(--divider); }
+  .seg-opt:last-child { border-right: 0; }
+  .seg-opt.on { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--a800); font-weight: 500; }
+  .blueprint { position: relative; border: 1px solid var(--divider); }
+  .blueprint > .corner { position: absolute; width: 7px; height: 7px; pointer-events: none; }
+  .blueprint > .corner::before, .blueprint > .corner::after { content: ""; position: absolute; background: var(--accent); }
+  .blueprint > .corner::before { width: 7px; height: 1px; } .blueprint > .corner::after { width: 1px; height: 7px; }
+  .corner.tl { top: -1px; left: -1px; } .corner.tr { top: -1px; right: -1px; transform: scaleX(-1); }
+  .corner.bl { bottom: -1px; left: -1px; transform: scaleY(-1); } .corner.br { bottom: -1px; right: -1px; transform: scale(-1); }
+  .dim { color: var(--dim); } .dim2 { color: var(--dim2); } .xs { font-size: 11px; } .sm { font-size: 12.5px; }
+  .mono { font-family: ui-monospace, Consolas, monospace; font-size: 11.5px; }
+
+  /* rail */
+  .rail { border-right: 1px solid var(--divider); display: flex; flex-direction: column; }
+  .rail-head { display: flex; gap: 8px; align-items: center; padding: 12px; border-bottom: 1px solid var(--divider); }
+  .logo { width: 28px; height: 28px; border: 1px solid var(--accent); display: grid; place-items: center; font-family: var(--fh); font-weight: 600; color: var(--accent); }
+  .rail-nav { padding: 6px 8px; flex: 1; }
+  .rail-group { margin: 10px 0 2px; padding: 0 10px; font-family: var(--fh); font-size: 10px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: color-mix(in srgb, var(--text) 48%, transparent); }
+  .rail-item { display: flex; align-items: center; gap: 10px; padding: 7px 10px; font-size: 13.5px; border-radius: 4px; color: color-mix(in srgb, var(--text) 80%, transparent); }
+  .rail-item .ic { width: 14px; height: 14px; border: 1.5px solid currentColor; border-radius: 3px; opacity: .7; }
+  .rail-item.active { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--a800); font-weight: 500; }
+  .rail-item.active .ic { opacity: 1; }
+  .rail-foot { border-top: 1px solid var(--divider); padding: 10px; font-size: 11px; color: var(--dim); }
+
+  /* main */
+  main { padding: 26px 30px 30px; overflow: hidden; }
+  .head { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 18px; }
+  .head h3 { font-size: 25px; margin-top: 6px; }
+  .head p { margin: 4px 0 0; max-width: 620px; font-size: 13.5px; color: var(--dim); }
+  .grid { display: grid; grid-template-columns: 420px minmax(0,1fr); gap: 20px; align-items: start; }
+  .panel { padding: 16px; }
+  .panel + .panel, .stack > * + * { margin-top: 14px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .drop { border: 1px dashed color-mix(in srgb, var(--accent) 55%, transparent); background: color-mix(in srgb, var(--accent) 5%, transparent); padding: 12px; border-radius: 4px; text-align: center; font-size: 13px; }
+  ul.files { list-style: none; margin: 8px 0 0; padding: 0; font-size: 12.5px; }
+  ul.files li { display: flex; gap: 8px; align-items: center; padding: 4px 0; border-bottom: 1px solid color-mix(in srgb, var(--text) 7%, transparent); }
+  ul.files li .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ext { display: inline-block; width: 38px; text-align: center; font-family: var(--fh); font-size: 10px; letter-spacing: .08em; border: 1px solid var(--divider); border-radius: 3px; padding: 1px 0; color: var(--dim); }
+  label.chk { display: flex; gap: 8px; align-items: center; font-size: 13px; padding: 3px 0; }
+  label.chk .box { width: 14px; height: 14px; border: 1px solid var(--divider); border-radius: 3px; }
+  label.chk .box.on { background: var(--accent); border-color: var(--accent); position: relative; }
+  label.chk .box.on::after { content: ""; position: absolute; left: 4px; top: 1px; width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th { text-align: left; font-family: var(--fh); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--divider); }
+  td { padding: 7px 8px; border-bottom: 1px solid color-mix(in srgb, var(--text) 8%, transparent); vertical-align: top; }
+  td.q { font-style: italic; color: color-mix(in srgb, var(--text) 78%, transparent); }
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--divider); margin-bottom: 14px; }
+  .tab { padding: 8px 12px; font-size: 13px; color: var(--dim); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tab.on { color: var(--a800); border-bottom-color: var(--accent); font-weight: 500; }
+  .tab .n { margin-left: 6px; font-size: 11px; color: var(--dim2); }
+  ol.phases { list-style: none; margin: 0; padding: 0; font-size: 13.5px; }
+  ol.phases li { display: flex; gap: 10px; align-items: baseline; padding: 5px 0; }
+  ol.phases .mk { width: 14px; text-align: center; color: var(--dim2); }
+  ol.phases .done .mk { color: #1d5a31; } ol.phases .act .mk { color: var(--a700); }
+  ol.phases .act .lbl { font-weight: 500; } ol.phases .todo { color: var(--dim2); }
+  ol.phases .detail { font-size: 12px; color: var(--dim); }
+  .loop { margin-left: 24px; border-left: 2px solid color-mix(in srgb, var(--accent) 40%, transparent); padding-left: 12px; }
+  .bar { height: 6px; background: color-mix(in srgb, var(--text) 8%, transparent); border-radius: 3px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--accent); }
+  .stat { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; font-size: 12.5px; }
+  .stat b { font-weight: 500; }
+  ins { background: #dff3e6; color: #1d5a31; text-decoration: underline; }
+  del { background: #fbe3e3; color: #8b1e1e; }
+  .doc { font-family: Georgia, "Times New Roman", serif; font-size: 12.5px; line-height: 1.6; padding: 18px 22px; background: #fff; border: 1px solid var(--divider); }
+  .doc h5 { font-family: Georgia, serif; font-size: 12.5px; margin: 0 0 8px; }
+  .comment { border-left: 3px solid var(--accent); background: var(--a100); padding: 6px 10px; font-size: 11.5px; margin-top: 6px; font-family: var(--fb); }
+  .comment b { font-weight: 600; color: var(--a800); }
+  .foot-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .caption { font-family: var(--fh); font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: #fff; background: #416180; padding: 6px 30px; }
+</style>
+</head>
+<body>
+
+<!-- ============ SCREEN 1: New matter ============ -->
+<section class="screen" id="s1">
+  <aside class="rail">
+    <div class="rail-head"><div class="logo">A</div><div><div style="font-family:var(--fh);font-weight:600;font-size:15px">Agentforge</div><div class="xs dim">Ashford Kendrick · Legal desk</div></div></div>
+    <nav class="rail-nav">
+      <div class="rail-group">Converse</div>
+      <div class="rail-item"><span class="ic"></span>Chat</div>
+      <div class="rail-group">Legal desk · job modes</div>
+      <div class="rail-item active"><span class="ic"></span>Legal</div>
+      <div class="rail-item"><span class="ic"></span>Documents</div>
+      <div class="rail-item"><span class="ic"></span>Research</div>
+      <div class="rail-item"><span class="ic"></span>Presentation</div>
+      <div class="rail-group">Account</div>
+      <div class="rail-item"><span class="ic"></span>Knowledge Base</div>
+      <div class="rail-item"><span class="ic"></span>Workspaces</div>
+      <div class="rail-item"><span class="ic"></span>Usage</div>
+      <div class="rail-item"><span class="ic"></span>Settings</div>
+    </nav>
+    <div class="rail-foot">Local only · nothing leaves this machine except gateway calls</div>
+  </aside>
+  <main>
+    <div class="kicker">Workspace · Legal desk</div>
+    <div class="head">
+      <div>
+        <h3>Legal</h3>
+        <p>Load a matter, confirm the client's position and select the work. Every number, quotation and cross-reference is checked in code before the draft is presented. Draft work product only; review before release.</p>
+      </div>
+      <div style="margin-left:auto" class="row"><span class="btn btn-ghost">Reopen matter ▾</span><span class="btn btn-primary">Run matter</span></div>
+    </div>
+
+    <div class="grid">
+      <section class="blueprint panel"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <div class="panel-label">Matter</div>
+        <div class="drop" style="margin-top:8px">Drop a matter folder or choose files<br /><span class="xs dim">docx · xlsx · pdf · eml · pptx · txt — 29 files, 41 MB</span></div>
+        <ul class="files">
+          <li><span class="ext">DOCX</span><span class="name">credit-agreement-draft-v3-lender-turn.docx</span><span class="tag tag-accent">counterparty draft</span></li>
+          <li><span class="ext">DOCX</span><span class="name">executed-term-sheet.docx</span><span class="tag tag-accent">executed</span></li>
+          <li><span class="ext">DOCX</span><span class="name">commitment-letter.docx</span><span class="tag tag-accent">executed</span></li>
+          <li><span class="ext">DOCX</span><span class="name">credit-agreement-v2-our-markup.docx</span><span class="tag tag-neutral">prior turn</span></li>
+          <li><span class="ext">XLSX</span><span class="name">covenant-model-q2.xlsx</span><span class="tag tag-neutral">figures</span></li>
+          <li><span class="ext">EML</span><span class="name">re-no-flex-confirmation.eml</span><span class="tag tag-neutral">instruction</span></li>
+          <li><span class="ext">EML</span><span class="name">partner-notes-on-baskets.eml</span><span class="tag tag-neutral">instruction</span></li>
+          <li><span class="ext">PPTX</span><span class="name">lender-presentation-march.pptx</span><span class="tag tag-neutral">context</span></li>
+          <li class="dim xs" style="border:0">+ 21 more · roles guessed from content, click a tag to change</li>
+        </ul>
+
+        <div style="margin-top:14px" class="panel-label">We act for</div>
+        <div class="row" style="margin-top:6px"><div class="seg"><span class="seg-opt on">Borrower</span><span class="seg-opt">Lender</span><span class="seg-opt">Other…</span></div><span class="sm dim">Meridian Industrial Holdings</span></div>
+
+        <div style="margin-top:14px" class="panel-label">Work</div>
+        <div class="seg" style="margin-top:6px"><span class="seg-opt on">Review</span><span class="seg-opt">Markup</span><span class="seg-opt">Draft</span><span class="seg-opt">Analyze</span></div>
+
+        <div style="margin-top:14px" class="panel-label">Deliverables</div>
+        <div style="margin-top:4px">
+          <label class="chk"><span class="box on"></span>Issues memo <span class="ext">DOCX</span></label>
+          <label class="chk"><span class="box on"></span>Redlined credit agreement, tracked changes <span class="ext">DOCX</span></label>
+          <label class="chk"><span class="box on"></span>Deviation report <span class="ext">XLSX</span></label>
+          <label class="chk"><span class="box"></span>Executive summary for client <span class="ext">DOCX</span></label>
+        </div>
+
+        <div style="margin-top:14px" class="panel-label">Playbook and checklist</div>
+        <div class="row" style="margin-top:6px"><span class="input" style="width:auto;flex:1">Firm playbook · Credit agreements, borrower side v3</span><span class="btn">Change</span></div>
+        <div class="xs dim" style="margin-top:4px">From Knowledge Base · Sources · Playbooks. Checklist: 22 required clauses, 14 fallback positions.</div>
+
+        <div style="margin-top:14px" class="panel-label">Instructions</div>
+        <div class="input" style="margin-top:6px;min-height:64px;font-size:13px">Compare the lender's v3 against the executed term sheet, the commitment letter and the no-flex email. Flag every deviation from the agreed terms and every provision adverse to the Borrower. Baskets per Priya's email. Leave the MFN point open for the partner.</div>
+      </section>
+
+      <div class="stack">
+        <section class="blueprint panel"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div class="row"><div class="panel-label">Matter map</div><span class="xs dim" style="margin-left:auto">built from the files, editable</span></div>
+          <table style="margin-top:8px">
+            <tr><th>Role</th><th>Document</th><th>Wins on conflict</th><th>Notes</th></tr>
+            <tr><td><span class="tag tag-accent">counterparty draft</span></td><td>credit-agreement-draft-v3-lender-turn.docx</td><td class="dim">—</td><td class="dim">Turn 3 · 14 unmarked changes vs our v2</td></tr>
+            <tr><td><span class="tag tag-accent">executed</span></td><td>executed-term-sheet.docx · commitment-letter.docx</td><td>1st</td><td class="dim">Signed 14 Feb 2026</td></tr>
+            <tr><td><span class="tag tag-neutral">instruction</span></td><td>6 emails · latest 3 Mar 2026</td><td>2nd</td><td class="dim">Priya Chakravarti (partner) · David Rennick (client)</td></tr>
+            <tr><td><span class="tag tag-neutral">figures</span></td><td>covenant-model-q2.xlsx · 3 sheets</td><td>—</td><td class="dim">Leverage, coverage, EBITDA add-backs</td></tr>
+            <tr><td><span class="tag tag-neutral">context</span></td><td>lender-presentation-march.pptx + 18 more</td><td>last</td><td class="dim">Read, cited where useful</td></tr>
+          </table>
+        </section>
+
+        <section class="blueprint panel"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div class="panel-label">What will happen</div>
+          <ol class="phases" style="margin-top:8px">
+            <li><span class="mk">1</span><span>Ingest 29 files, classify roles, extract numbers from the spreadsheet</span></li>
+            <li><span class="mk">2</span><span>Review v3 against the term sheet, commitment letter, emails and the playbook, from the borrower's side</span></li>
+            <li><span class="mk">3</span><span>Draft the memo, the tracked-changes redline and the deviation report</span></li>
+            <li><span class="mk">4</span><span>Verify in code: defined terms, cross-references, numbers traced, quotes verbatim, docx valid</span></li>
+            <li><span class="mk">5</span><span>Verify with a second model as opposing counsel and against the checklist, then edit and re-verify. Up to 3 rounds.</span></li>
+            <li><span class="mk">6</span><span>Deliver the adverse provisions, the missing provisions, the verification report and the files</span></li>
+          </ol>
+          <div class="row" style="margin-top:10px"><span class="tag tag-neutral">Model · gpt-5.6-sol</span><span class="tag tag-neutral">Verifier · claude-opus-5</span><span class="tag tag-neutral">Est. 6–9 min</span><span class="tag tag-neutral">Est. $1.40</span></div>
+        </section>
+
+        <section class="blueprint panel"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div class="panel-label">Previous matters</div>
+          <table style="margin-top:8px">
+            <tr><td>Meridian · credit agreement · turn 2</td><td class="dim">Markup · 2 files</td><td class="dim">28 Feb 2026</td><td><span class="btn btn-ghost sm">Open</span></td></tr>
+            <tr><td>Crescent / Triton · antitrust risk memo</td><td class="dim">Analyze · 4 files</td><td class="dim">21 Feb 2026</td><td><span class="btn btn-ghost sm">Open</span></td></tr>
+          </table>
+        </section>
+      </div>
+    </div>
+  </main>
+</section>
+
+<!-- ============ SCREEN 2: Running ============ -->
+<section class="screen" id="s2">
+  <aside class="rail">
+    <div class="rail-head"><div class="logo">A</div><div><div style="font-family:var(--fh);font-weight:600;font-size:15px">Agentforge</div><div class="xs dim">Ashford Kendrick · Legal desk</div></div></div>
+    <nav class="rail-nav">
+      <div class="rail-group">Converse</div>
+      <div class="rail-item"><span class="ic"></span>Chat</div>
+      <div class="rail-group">Legal desk · job modes</div>
+      <div class="rail-item active"><span class="ic"></span>Legal</div>
+      <div class="rail-item"><span class="ic"></span>Documents</div>
+      <div class="rail-item"><span class="ic"></span>Research</div>
+      <div class="rail-item"><span class="ic"></span>Presentation</div>
+      <div class="rail-group">Account</div>
+      <div class="rail-item"><span class="ic"></span>Knowledge Base</div>
+      <div class="rail-item"><span class="ic"></span>Workspaces</div>
+      <div class="rail-item"><span class="ic"></span>Usage</div>
+      <div class="rail-item"><span class="ic"></span>Settings</div>
+    </nav>
+    <div class="rail-foot">Local only · nothing leaves this machine except gateway calls</div>
+  </aside>
+  <main>
+    <div class="kicker">Workspace · Legal desk · Meridian credit agreement, turn 3</div>
+    <div class="head">
+      <div><h3>Reviewing v3 for the borrower</h3><p>Review · Issues memo, redline, deviation report · playbook Credit agreements v3</p></div>
+      <div style="margin-left:auto" class="row"><span class="tag tag-accent">Round 2 of 3</span><span class="btn">Cancel</span></div>
+    </div>
+
+    <div class="grid" style="grid-template-columns: 480px minmax(0,1fr)">
+      <section class="blueprint panel"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <div class="panel-label">Progress</div>
+        <div class="bar" style="margin:8px 0 12px"><i style="width:68%"></i></div>
+        <ol class="phases">
+          <li class="done"><span class="mk">✓</span><span class="lbl">Ingest</span><span class="detail">29/29 files · 1 skipped (image-only slides)</span></li>
+          <li class="done"><span class="mk">✓</span><span class="lbl">Classify roles and source priority</span><span class="detail">2 executed · 6 instructions · 1 counterparty draft</span></li>
+          <li class="done"><span class="mk">✓</span><span class="lbl">Unmarked-change comparison v2 → v3</span><span class="detail">14 unmarked changes found</span></li>
+          <li class="done"><span class="mk">✓</span><span class="lbl">Review against playbook</span><span class="detail">22/22 clauses · 12 issues · 5 missing</span></li>
+          <li class="done"><span class="mk">✓</span><span class="lbl">Draft deliverables</span><span class="detail">memo · redline · xlsx</span></li>
+        </ol>
+        <div class="loop" style="margin-top:6px">
+          <div class="panel-label">Verify · edit loop</div>
+          <ol class="phases">
+            <li class="done"><span class="mk">✓</span><span class="lbl">Round 1 · code checks</span><span class="detail">2 failed: cross-ref §9.3, quote S4 not verbatim</span></li>
+            <li class="done"><span class="mk">✓</span><span class="lbl">Round 1 · checklist + opposing counsel</span><span class="detail">29/33 pass · 3 concessions found</span></li>
+            <li class="done"><span class="mk">✓</span><span class="lbl">Edit</span><span class="detail">7 fixes applied</span></li>
+            <li class="act"><span class="mk">●</span><span class="lbl">Round 2 · code checks</span><span class="detail">numbers traced 17/17 · quotes 23/23 · validating docx…</span></li>
+            <li class="todo"><span class="mk">○</span><span class="lbl">Round 2 · checklist + opposing counsel</span></li>
+          </ol>
+        </div>
+        <ol class="phases" style="margin-top:6px">
+          <li class="todo"><span class="mk">○</span><span class="lbl">Package and audit trail</span></li>
+        </ol>
+      </section>
+
+      <div class="stack">
+        <section class="blueprint panel"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div class="row"><div class="panel-label">Findings so far</div><span class="xs dim" style="margin-left:auto">streaming · final list after round 2</span></div>
+          <table style="margin-top:8px">
+            <tr><th>Clause</th><th>Finding</th><th>Severity</th><th>Source</th></tr>
+            <tr><td>§7.2(b) Indemnity</td><td>Uncapped; extends to the Lender's own negligence. Term sheet provides a mutual cap at fees.</td><td><span class="tag tag-red">High</span></td><td class="mono">TS §11 · v3 p.41</td></tr>
+            <tr><td>§9.3 Change of control</td><td>Threshold lowered from 50% to 35% without markup.</td><td><span class="tag tag-red">High</span></td><td class="mono">v2→v3 diff</td></tr>
+            <tr><td>§6.1 Leverage covenant</td><td>4.25x in v3 against 4.50x in the commitment letter and model.</td><td><span class="tag tag-red">High</span></td><td class="mono">CL §3 · xlsx Cov!B7</td></tr>
+            <tr><td>§10.4 Assignment</td><td>Lender may assign without Borrower consent.</td><td><span class="tag tag-amber">Medium</span></td><td class="mono">playbook 10.4-fallback</td></tr>
+            <tr><td>Missing · cure period</td><td>No equity cure right on the financial covenant. Playbook requires an equity cure, two per term.</td><td><span class="tag tag-amber">Medium</span></td><td class="mono">playbook 6.4</td></tr>
+          </table>
+        </section>
+        <section class="blueprint panel"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div class="panel-label">Documents</div>
+          <ul class="files">
+            <li><span class="mono">S1</span><span class="name">credit-agreement-draft-v3-lender-turn.docx</span><span class="tag tag-green">read · 63 passages cited</span></li>
+            <li><span class="mono">S2</span><span class="name">executed-term-sheet.docx</span><span class="tag tag-green">read · 18 cited</span></li>
+            <li><span class="mono">S3</span><span class="name">commitment-letter.docx</span><span class="tag tag-green">read · 9 cited</span></li>
+            <li><span class="mono">S4</span><span class="name">re-no-flex-confirmation.eml</span><span class="tag tag-green">read · 2 cited</span></li>
+            <li><span class="mono">S5</span><span class="name">covenant-model-q2.xlsx</span><span class="tag tag-green">parsed · 3 sheets · 11 numbers used</span></li>
+            <li><span class="mono">S9</span><span class="name">lender-presentation-march.pptx</span><span class="tag tag-amber">skipped · slides are images, no text layer</span></li>
+            <li class="dim xs" style="border:0">+ 23 more</li>
+          </ul>
+        </section>
+      </div>
+    </div>
+  </main>
+</section>
+
+<!-- ============ SCREEN 3: Results ============ -->
+<section class="screen" id="s3">
+  <aside class="rail">
+    <div class="rail-head"><div class="logo">A</div><div><div style="font-family:var(--fh);font-weight:600;font-size:15px">Agentforge</div><div class="xs dim">Ashford Kendrick · Legal desk</div></div></div>
+    <nav class="rail-nav">
+      <div class="rail-group">Converse</div>
+      <div class="rail-item"><span class="ic"></span>Chat</div>
+      <div class="rail-group">Legal desk · job modes</div>
+      <div class="rail-item active"><span class="ic"></span>Legal</div>
+      <div class="rail-item"><span class="ic"></span>Documents</div>
+      <div class="rail-item"><span class="ic"></span>Research</div>
+      <div class="rail-item"><span class="ic"></span>Presentation</div>
+      <div class="rail-group">Account</div>
+      <div class="rail-item"><span class="ic"></span>Knowledge Base</div>
+      <div class="rail-item"><span class="ic"></span>Workspaces</div>
+      <div class="rail-item"><span class="ic"></span>Usage</div>
+      <div class="rail-item"><span class="ic"></span>Settings</div>
+    </nav>
+    <div class="rail-foot">Local only · nothing leaves this machine except gateway calls</div>
+  </aside>
+  <main>
+    <div class="kicker">Workspace · Legal desk · Meridian credit agreement, turn 3</div>
+    <div class="head">
+      <div><h3>Review complete · 12 adverse provisions, 5 missing provisions, 2 items for partner decision</h3><p>Verified in 2 rounds. Every quotation checked verbatim against its source and every figure traced. Review the verification report before release.</p></div>
+      <div style="margin-left:auto" class="row"><span class="btn">Redline .docx</span><span class="btn">Memo .docx</span><span class="btn">Deviations .xlsx</span><span class="btn btn-primary">Next turn</span></div>
+    </div>
+
+    <div class="tabs">
+      <span class="tab on">Adverse provisions<span class="n">12</span></span>
+      <span class="tab">Missing provisions<span class="n">5</span></span>
+      <span class="tab">Unmarked changes<span class="n">14</span></span>
+      <span class="tab">Verification</span>
+      <span class="tab">Redline</span>
+      <span class="tab">Memo</span>
+      <span class="tab">Audit trail</span>
+    </div>
+
+    <div class="stack">
+      <section class="blueprint panel"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <div class="row"><div class="panel-label">Provisions adverse to the Borrower</div><span class="xs dim" style="margin-left:auto">sorted by severity · click a row to jump to the redline</span></div>
+        <table class="issues" style="margin-top:8px">
+          <tr><th style="width:96px">Clause</th><th style="width:210px">What it says</th><th>Why it is adverse</th><th style="width:70px">Severity</th><th style="width:230px">Proposed language</th><th style="width:104px">Basis</th></tr>
+          <tr>
+            <td>§7.2(b)<br /><span class="xs dim">Indemnity</span></td>
+            <td class="q">"…shall indemnify each Lender Party against all losses… howsoever arising."</td>
+            <td>Uncapped and extends to the Lender's own negligence. Executed term sheet §11 provides a mutual cap at one year's fees.</td>
+            <td><span class="tag tag-red">High</span></td>
+            <td class="q">"…excluding losses arising from such Lender Party's gross negligence or wilful misconduct, and in aggregate not exceeding the Fee Cap."</td>
+            <td class="mono">S2 TS §11<br />PB 7.2-preferred</td>
+          </tr>
+          <tr>
+            <td>§9.3<br /><span class="xs dim">Change of control</span></td>
+            <td class="q">"…any person acquires 35% or more of the voting shares…"</td>
+            <td>Threshold was 50% in the Borrower's v2 and was changed without markup. At 35% the provision would be triggered by the sponsor's planned secondary sale.</td>
+            <td><span class="tag tag-red">High</span></td>
+            <td class="q">"…more than 50% of the voting shares…"</td>
+            <td class="mono">v2 §9.3<br />S7 email 3 Mar</td>
+          </tr>
+          <tr>
+            <td>§6.1<br /><span class="xs dim">Leverage</span></td>
+            <td class="q">"…Total Net Leverage Ratio shall not exceed 4.25:1.00"</td>
+            <td>Commitment letter provides 4.50x. The covenant model shows Q4 at 4.31x, so 4.25x would be breached at the first test date. Computed from covenant-model-q2.xlsx.</td>
+            <td><span class="tag tag-red">High</span></td>
+            <td class="q">"…shall not exceed 4.50:1.00"</td>
+            <td class="mono">S3 CL §3<br />S5 Cov!B7</td>
+          </tr>
+          <tr>
+            <td>§10.4<br /><span class="xs dim">Assignment</span></td>
+            <td class="q">"Each Lender may assign… without the consent of the Borrower."</td>
+            <td>Borrower consent right deleted, permitting assignment to distressed investors. Playbook fallback: consent not to be unreasonably withheld, deemed given after 10 Business Days.</td>
+            <td><span class="tag tag-amber">Medium</span></td>
+            <td class="q">"…with the prior consent of the Borrower (not to be unreasonably withheld, and deemed given after ten Business Days)…"</td>
+            <td class="mono">PB 10.4-fallback</td>
+          </tr>
+          <tr>
+            <td>§1.1<br /><span class="xs dim">"Material Adverse Effect"</span></td>
+            <td class="q">"…could reasonably be expected to…"</td>
+            <td>Standard lowered from "would" to "could". The definition is used in the §4.2 drawstop and the §12.1 Event of Default, so the change lowers the threshold in three places.</td>
+            <td><span class="tag tag-amber">Medium</span></td>
+            <td class="q">"…would reasonably be expected to…"</td>
+            <td class="mono">v2 §1.1<br />PB defs</td>
+          </tr>
+          <tr>
+            <td>§13.7<br /><span class="xs dim">MFN</span></td>
+            <td class="q">"…any Incremental Facility priced more than 50 bps above…"</td>
+            <td>MFN sunset removed. Per the partner's instruction this point is reserved; no language proposed.</td>
+            <td><span class="tag tag-amber">Open</span></td>
+            <td class="dim">[Reserved for partner decision]</td>
+            <td class="mono">S7 email 3 Mar</td>
+          </tr>
+          <tr><td colspan="6" class="dim xs">+ 6 more · low severity · in the memo and the deviation report</td></tr>
+        </table>
+      </section>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 300px;gap:14px;align-items:start">
+        <section class="blueprint panel"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div class="panel-label">Verification report</div>
+          <div class="stat" style="margin-top:8px">
+            <span>Defined terms used consistently</span><b><span class="tag tag-green">41/41</span></b>
+            <span>Cross-references resolve</span><b><span class="tag tag-green">88/88</span></b>
+            <span>Numbers traced to a source cell or computation</span><b><span class="tag tag-green">17/17</span></b>
+            <span>Quotes verbatim in the cited document</span><b><span class="tag tag-green">23/23</span></b>
+            <span>Names, dates, parties match sources</span><b><span class="tag tag-green">pass</span></b>
+            <span>Redline .docx opens and validates</span><b><span class="tag tag-green">pass</span></b>
+            <span>Checklist, second model</span><b><span class="tag tag-green">33/33</span></b>
+            <span>Opposing-counsel pass</span><b><span class="tag tag-amber">1 concession left</span></b>
+            <span>Documents skipped</span><b><span class="tag tag-amber">1</span></b>
+            <span>Requires partner decision</span><b><span class="tag tag-amber">2</span></b>
+          </div>
+          <div class="xs dim" style="margin-top:10px">Round 1 failed 2 code checks and 4 checklist items. Round 2 passed. Concession left: §8.5 information covenant still gives the lender monthly management accounts, playbook says quarterly. The verifier assessed this as market for a sponsor of this size. Requires partner decision.</div>
+        </section>
+
+        <section class="blueprint panel"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div class="row"><div class="panel-label">Redline preview · §7.2(b)</div><span class="xs dim" style="margin-left:auto">tracked changes as Samuel Roth</span></div>
+          <div class="doc" style="margin-top:8px">
+            <h5>7.2 Indemnities</h5>
+            (b) The Borrower shall indemnify each Lender Party against all losses, liabilities and costs incurred by it <del>howsoever arising</del><ins>arising</ins> in connection with the Finance Documents<ins>, excluding losses arising from such Lender Party's gross negligence or wilful misconduct, and in aggregate not exceeding the Fee Cap</ins>.
+            <div class="comment"><b>SR:</b> Per executed term sheet §11 (mutual cap at one year's fees). Carve-out follows firm playbook 7.2 preferred position.</div>
+          </div>
+        </section>
+
+        <section class="blueprint panel"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div class="panel-label">Hand off</div>
+          <div class="foot-actions" style="margin-top:8px">
+            <span class="btn">Send memo to Knowledge Base</span>
+            <span class="btn">Make a client presentation</span>
+            <span class="btn">Open memo in Documents</span>
+          </div>
+          <div class="xs dim" style="margin-top:10px">Draft work product for review by a qualified lawyer. Not yet reviewed. Files remain in this workspace until exported.</div>
+        </section>
+      </div>
+    </div>
+  </main>
+</section>
+
+</body>
+</html>

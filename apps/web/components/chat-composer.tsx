@@ -12,7 +12,6 @@ import { ModelPicker, type ChatModel } from "@/components/model-picker";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { apiFetch } from "@/lib/api-client";
 import { abortErrorMessage, armStreamWatchdog } from "@agentforge/core/stream-watchdog";
-import { formatContactProbeButton } from "@agentforge/core/retry";
 import { REASONING_EFFORTS, type ReasoningEffort } from "@agentforge/core/reasoning-effort";
 import { submitOnEnter } from "@/lib/composer-enter";
 
@@ -80,7 +79,6 @@ export function ChatComposer({
   onThinking,
   onTool,
   onFailed,
-  onProbing,
   onComplete,
   thinkingEnabled = true,
   onThinkingChange,
@@ -92,7 +90,6 @@ export function ChatComposer({
   const [busy, setBusy] = useState(false);
   const [enhancing, setEnhancing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [probeAttempt, setProbeAttempt] = useState(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -125,13 +122,7 @@ export function ChatComposer({
           onStarted?.();
         }
         if (event.type === "run.probing") {
-          const attempt = typeof event.attempt === "number" && event.attempt > 0 ? event.attempt : 1;
-          setProbeAttempt(attempt);
-          onProbing?.({
-            attempt,
-            attempts: typeof event.attempts === "number" ? event.attempts : 3,
-            message: event.message || formatContactProbeButton(attempt),
-          });
+          onStarted?.();
         }
         if (event.type === "assistant.delta" && event.text) {
           deltaChars += event.text.length;
@@ -181,7 +172,6 @@ export function ChatComposer({
 
   async function send() {
     setBusy(true);
-    setProbeAttempt(1);
     setError(null);
     try {
       const decision = routeDecision(files.map((item) => item.kind));
@@ -444,7 +434,7 @@ export function ChatComposer({
           disabled={busy || enhancing || (!text.trim() && files.length === 0)}
           data-testid="composer-send"
         >
-          {busy ? formatContactProbeButton(probeAttempt) : "Send"}
+          {busy ? "Sending…" : "Send"}
         </button>
       </div>
     </form>

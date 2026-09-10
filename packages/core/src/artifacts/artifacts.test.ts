@@ -31,6 +31,8 @@ describe("artifact meta", () => {
   it("guards modes and kinds", () => {
     expect(isArtifactMode("research")).toBe(true);
     expect(isArtifactMode("student")).toBe(false);
+    expect(isArtifactMode("legal")).toBe(true);
+    expect(isArtifactKind("redline")).toBe(true);
     expect(isArtifactKind("dossier")).toBe(true);
     expect(isArtifactKind("")).toBe(false);
   });

@@ -278,8 +278,14 @@ export const knowledgeSources = sqliteTable(
     chunks: integer("chunks").notNull().default(0),
     error: text("error"),
     createdAt: integer("created_at").notNull(),
+    /** Work that produced this source (thread / media / artifact); null for File, URL, Paste. */
+    originKind: text("origin_kind"),
+    originId: text("origin_id"),
   },
-  (table) => [index("knowledge_sources_ws_idx").on(table.workspaceId)],
+  (table) => [
+    index("knowledge_sources_ws_idx").on(table.workspaceId),
+    uniqueIndex("knowledge_sources_origin_idx").on(table.workspaceId, table.originKind, table.originId),
+  ],
 );
 
 export const knowledgeSettings = sqliteTable("knowledge_settings", {
@@ -499,7 +505,7 @@ export const datasets = sqliteTable(
  * fetched payload (JSON) and its SourceRef (JSON). `kind` is one of
  * fundamentals | prices | analysts | news. The companion FTS5 table
  * `market_news_fts(ticker, title, summary, link UNINDEXED, published_at UNINDEXED)`
- * is SQL-only (drizzle/0008_market.sql), like knowledge_chunks.
+ * is SQL-only (drizzle/0009_market.sql), like knowledge_chunks.
  */
 export const marketCache = sqliteTable(
   "market_cache",

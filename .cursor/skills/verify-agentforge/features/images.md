@@ -14,7 +14,7 @@ Images is a generate studio (prompt → gallery), not a canvas editor. It lists 
 - Choose Images on the left rail (`mode-images`). Default already has the tab.
 - Open `http://127.0.0.1:3000/images` when the tab is unlocked. A hidden generate URL redirects to the first visible mode.
 
-## Driving it with the Agentforge harness
+## Driving it with the DPSBuddy harness
 
 Preconditions:
 

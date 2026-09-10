@@ -15,7 +15,7 @@ Example galleries on Images, Videos, Documents, Research, and Presentation load 
 - The gallery sits above the prompt bar under “Start from a template”.
 - Click a card. A full brief fills the prompt; replace the sample details, then generate if you want.
 
-## Driving it with the Agentforge harness
+## Driving it with the DPSBuddy harness
 
 Preconditions:
 

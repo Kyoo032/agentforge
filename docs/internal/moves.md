@@ -90,9 +90,20 @@ Format:
 - **Why:** The desktop shell had click-death issues (Next dev error overlay + GPU/sandbox input quirks on Windows). Chrome bypasses the shell problem entirely and is the surface the web app is actually built for. The desktop shell stays in the repo — now Electron, not deleted.
 - **Rode along:** Settings Extras now renders its inner fields (provider keys, tool toggles, model/backend selects) only when the `<details>` is open, so a closed Settings page no longer mounts hundreds of hidden nodes. `AppShell` split: the shell chrome is a server component again; only `AppRail` and a tiny `ModeRedirect` stay client.
 
+## 2026-09-08 — Public product and release repo renamed to DPSBuddy
+
+- **What:** The public flavor's product name, installer, icons, and the GitHub releases repo.
+- **From:** "Agentforge" (`Agentforge Setup <v>.exe`, `Agentforge-<v>-mac-<arch>.dmg`, `%APPDATA%\Agentforge`, Keychain service `Agentforge`), releases in `Kyoo032/DPS-Agent-Platform`.
+- **To:** "DPSBuddy" with the DPS chevron mark (`branding/agentforge/icon.png|icon.ico|logo.png`, `mark.png` is the transparent glyph), `DPSBuddy Setup <v>.exe`, `DPSBuddy-<v>-mac-<arch>.dmg`, releases in `Kyoo032/DPSBuddy` (renamed in place; GitHub 301-redirects the old name, so installed 0.14.23 updaters still resolve `latest.yml`).
+- **Kept:** `appId` `com.tokotoken.agentforge` (so NSIS upgrades replace the old install instead of adding a second app), the internal flavor id `agentforge` / `AGENTFORGE_*` env vars / `@agentforge/*` packages, and the private source repo name.
+- **Carry-over on first launch after upgrade (`main.cjs`):** `migrateLegacyUserData()` copies `%APPDATA%\Agentforge` into `%APPDATA%\DPSBuddy` when the new desk has no database; `wrapKey()` reads the `Agentforge/wrap-key` Keychain entry and re-saves it under `DPSBuddy` so the stored gateway key stays decryptable. Nothing legacy is deleted until a real uninstall (`installer.nsh` now also removes `%APPDATA%\Agentforge`).
+- **Gate:** the updater / preload / renderer no longer compare against a literal; they use `PUBLIC_PRODUCT_NAME` from `brand-read.cjs` (desktop) and `use-app-updates.ts` (renderer), `DEFAULT_PRODUCT_NAME` in `@agentforge/core`.
+- **Not in this move:** a version bump or release (next release needs one, since the artifact names changed); dated changelogs / release notes keep the old name; `.cursor` evidence folders are untouched history.
+
 ## 2026-09-09 — Market mode joins the rail catalog
 
 - **What:** A new job mode, Market (`market`, `/market`), in `PRODUCT_MODES` after Data.
 - **From:** A proposed hosted Python MCP server (`dps-market-mcp`, Postgres + Docker), then a bundled local sidecar.
 - **To:** In-process TypeScript in the host: `packages/core/src/market`, `packages/host/src/market`, tools `market_evidence` / `market_news` / `market_search`, SQLite cache. No server, no port, no MCP (later). The Python repo stays as the reference spec at `C:/Users/rizky/dps-market-mcp`.
 - **Why:** Owner decision 2026-09-09: local Electron only, no HTTP dependency, no exception to the desktop rules. PStack verify map rewritten for the new surface (`features/market.md`).
+

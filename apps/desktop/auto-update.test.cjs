@@ -98,7 +98,7 @@ function setup(options = {}) {
     app: makeApp(options.app),
     ipcMain,
     BrowserWindow: windows.BrowserWindow,
-    productName: options.productName ?? "Agentforge",
+    productName: options.productName ?? "DPSBuddy",
     platform: options.platform ?? "win32",
     autoUpdaterOverride: autoUpdater,
     onInstallStart: () => installs.push(autoUpdater.calls.length),
@@ -108,21 +108,21 @@ function setup(options = {}) {
 
 // ---------- updatesEnabled ----------
 
-assert.equal(updatesEnabled("Agentforge", true, "win32"), true);
-assert.equal(updatesEnabled("Agentforge", true, "linux"), true);
-assert.equal(updatesEnabled("Agentforge", false, "win32"), false);
+assert.equal(updatesEnabled("DPSBuddy", true, "win32"), true);
+assert.equal(updatesEnabled("DPSBuddy", true, "linux"), true);
+assert.equal(updatesEnabled("DPSBuddy", false, "win32"), false);
 assert.equal(updatesEnabled("Kemenkeu AI", true, "win32"), false);
 assert.equal(updatesEnabled("AIHub Metranet", true, "win32"), false);
 assert.equal(updatesEnabled(undefined, true, "win32"), false);
-assert.equal(updatesEnabled("Agentforge", true, "darwin"), false, "unsigned mac build never offers an install");
+assert.equal(updatesEnabled("DPSBuddy", true, "darwin"), false, "unsigned mac build never offers an install");
 
 // ---------- unsupportedMessage ----------
 
 const MAC_MANUAL = "Updates on macOS are manual for now. Download the new .dmg from GitHub Releases.";
-assert.equal(unsupportedMessage("Agentforge", true, "darwin"), MAC_MANUAL);
-assert.equal(unsupportedMessage("Agentforge", false, "darwin"), undefined, "dev build keeps the generic line");
+assert.equal(unsupportedMessage("DPSBuddy", true, "darwin"), MAC_MANUAL);
+assert.equal(unsupportedMessage("DPSBuddy", false, "darwin"), undefined, "dev build keeps the generic line");
 assert.equal(unsupportedMessage("Kemenkeu AI", true, "darwin"), undefined, "flavors never mention releases");
-assert.equal(unsupportedMessage("Agentforge", true, "win32"), undefined);
+assert.equal(unsupportedMessage("DPSBuddy", true, "win32"), undefined);
 
 // ---------- describeUpdateError ----------
 
@@ -187,7 +187,7 @@ async function main() {
     assert.equal(state.currentVersion, CURRENT);
     assert.equal(ipcMain.invoke("updates:check"), state);
     assert.equal(ipcMain.invoke("updates:download"), state);
-    assert.throws(() => ipcMain.invoke("updates:install"), /installed Agentforge app/);
+    assert.throws(() => ipcMain.invoke("updates:install"), /installed DPSBuddy app/);
     assert.deepEqual(autoUpdater.calls, [], "flavor never touches the updater");
   }
 
@@ -198,7 +198,7 @@ async function main() {
     const state = ipcMain.invoke("updates:state");
     assert.equal(state.status, "unavailable");
     assert.equal(state.message, undefined, "dev build carries no platform reason");
-    assert.throws(() => ipcMain.invoke("updates:install"), /installed Agentforge app/);
+    assert.throws(() => ipcMain.invoke("updates:install"), /installed DPSBuddy app/);
     assert.deepEqual(autoUpdater.calls, []);
   }
 

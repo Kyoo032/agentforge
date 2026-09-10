@@ -12,9 +12,15 @@ import { ChatTurn, messageHasDisplayableContent, type LiveTool } from "@/compone
 import { collectToolMediaParts } from "@/lib/tool-media";
 import { notifyThreadsChanged } from "@/lib/threads-events";
 import { apiFetch } from "@/lib/api-client";
+import {
+  pickChatModel,
+  readLastChatModel,
+  readThreadChatModel,
+  writeLastChatModel,
+  writeThreadChatModel,
+} from "@/lib/chat-model-pref";
 import { useProductBrand } from "@/lib/product-brand";
 import { isReasoningEffort, type ReasoningEffort } from "@agentforge/core/reasoning-effort";
-import { formatContactProbe } from "@agentforge/core/retry";
 
 type Message = { id: string; role: string; content: unknown };
 
@@ -43,12 +49,12 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
   const [agentModalities, setAgentModalities] = useState<string[]>(["text"]);
   const [models, setModels] = useState<ChatModel[]>([]);
   const [modelId, setModelId] = useState("");
+  const [catalogDefault, setCatalogDefault] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [streaming, setStreaming] = useState("");
   const [thinking, setThinking] = useState("");
   const [tools, setTools] = useState<LiveTool[]>([]);
   const [running, setRunning] = useState(false);
-  const [probe, setProbe] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [thinkingEnabled, setThinkingEnabled] = useState(true);
   const [reasoningEffort, setReasoningEffort] = useState<ReasoningEffort>("medium");
@@ -99,11 +105,27 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
     return agentId ? `/agents/${agentId}` : "/chat";
   }
 
+  function rememberModel(id: string, forThreadId?: string | null) {
+    const next = id.trim();
+    if (!next) {
+      return;
+    }
+    writeLastChatModel(next);
+    const thread = forThreadId ?? threadIdRef.current;
+    if (thread) {
+      writeThreadChatModel(thread, next);
+    }
+  }
+
+  function handleModelChange(id: string) {
+    setModelId(id);
+    rememberModel(id);
+  }
+
   function resetLive() {
     setStreaming("");
     setThinking("");
     setTools([]);
-    setProbe("");
     setRunning(false);
   }
 
@@ -125,6 +147,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
     const id = created.thread.id as string;
     threadIdRef.current = id;
     setThreadId(id);
+    rememberModel(modelId, id);
     router.replace(`${chatPath()}?thread=${id}`);
     notifyThreadsChanged();
     return id;
@@ -152,7 +175,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           setIsDefaultChat(agentPayload.agent?.slug === "quick-chat");
           setAgentModalities(caps.inputModalities ?? ["text"]);
           setModels(modelPayload.models ?? []);
-          setModelId(
+          setCatalogDefault(
             agentPayload.agent?.slug === "quick-chat"
               ? (modelPayload.defaultModel ?? caps.model ?? "")
               : (caps.model ?? modelPayload.defaultModel ?? ""),
@@ -171,7 +194,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           setIsDefaultChat(true);
           setAgentModalities(home.version?.inputModalities ?? ["text", "image", "video"]);
           setModels(home.models ?? []);
-          setModelId(home.defaultModel ?? home.version?.model ?? "");
+          setCatalogDefault(home.defaultModel ?? home.version?.model ?? "");
           readyId = home.agent.id;
           setAgentIdReady(home.agent.id);
         }
@@ -218,6 +241,22 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
     };
   }, [agentId, initialThreadId, router]);
 
+  useEffect(() => {
+    if (models.length === 0) {
+      return;
+    }
+    const threadKey = initialThreadId ?? threadId ?? "";
+    setModelId((current) =>
+      pickChatModel({
+        models,
+        current,
+        threadModel: threadKey ? readThreadChatModel(threadKey) : "",
+        lastModel: readLastChatModel(),
+        catalogDefault,
+      }),
+    );
+  }, [models, catalogDefault, initialThreadId, threadId]);
+
   async function refreshMessages(id: string) {
     const payload = await apiFetch(`/api/v1/threads/${id}`).then((res) => res.json());
     setMessages(payload.messages ?? []);
@@ -232,9 +271,16 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
   useEffect(() => {
     const lastUser = [...messages].reverse().find((message) => message.role === "user");
     const query = lastUser ? textFromMessageContent(lastUser.content) : "";
-    const href = query
-      ? `/api/v1/knowledge/context?query=${encodeURIComponent(query.slice(0, 400))}`
-      : "/api/v1/knowledge/context";
+    const params = new URLSearchParams();
+    if (query) {
+      params.set("query", query.slice(0, 400));
+    }
+    if (threadIdRef.current) {
+      // Same anti-loop rule as the host run: the thread's own card is not "Sources" for itself.
+      params.set("threadId", threadIdRef.current);
+    }
+    const search = params.toString();
+    const href = search ? `/api/v1/knowledge/context?${search}` : "/api/v1/knowledge/context";
     void apiFetch(href)
       .then((res) => res.json())
       .then((payload) => {
@@ -310,7 +356,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           <div data-testid="assistant-live">
             <ChatTurn
               role="assistant"
-              live={{ thinking, tools, streaming, running, probe }}
+              live={{ thinking, tools, streaming, running, thinkingEnabled }}
             />
           </div>
         ) : null}
@@ -322,14 +368,14 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           modalities={modalities.length > 0 ? modalities : ["text"]}
           model={modelId}
           models={models}
-          onModelChange={setModelId}
+          onModelChange={handleModelChange}
           thinkingEnabled={thinkingEnabled}
           reasoningEffort={reasoningEffort}
           onReasoningEffortChange={setReasoningPref}
           onUserSend={(payload) => {
             setError(null);
             setRunning(true);
-            setProbe(formatContactProbe(modelId || "this model", 1));
+            rememberModel(modelId);
             setThinking("");
             setTools([]);
             setStreaming("");
@@ -343,10 +389,6 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
             ]);
           }}
           onStarted={() => setRunning(true)}
-          onProbing={(info) => {
-            setRunning(true);
-            setProbe(info.message);
-          }}
           onDelta={(text) => setStreaming((current) => current + text)}
           onThinking={(text) => setThinking((current) => current + text)}
           onTool={(event) => {
@@ -377,7 +419,6 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           }}
           onFailed={(message) => {
             setError(message);
-            setProbe("");
             setRunning(false);
           }}
           onComplete={async () => {
@@ -385,7 +426,6 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
             const liveMedia = toolsRef.current.flatMap((tool) => collectToolMediaParts(tool.output));
             setStreaming("");
             setThinking("");
-            setProbe("");
             setRunning(false);
             if (threadIdRef.current) {
               await refreshMessages(threadIdRef.current);

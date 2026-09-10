@@ -10,6 +10,7 @@ import { ImagesStudio } from "@/components/images-studio";
 import { VideosStudio } from "@/components/videos-studio";
 import { EditStudio } from "@/components/edit-studio";
 import { PresentationsStudio } from "@/components/presentations-studio";
+import { LegalStudio } from "@/components/legal-studio";
 import { useWorkspaceScope } from "@/lib/workspace-scope";
 
 const WORK_MODE_COMPONENTS: Record<string, ComponentType> = {
@@ -23,6 +24,7 @@ const WORK_MODE_COMPONENTS: Record<string, ComponentType> = {
   "/videos": VideosStudio,
   "/edit": EditStudio,
   "/presentations": PresentationsStudio,
+  "/legal": LegalStudio,
 };
 
 const WORK_MODE_PATHS = Object.keys(WORK_MODE_COMPONENTS);
@@ -43,9 +45,7 @@ export function WorkModeKeepAlive() {
 
 function WorkModePanes() {
   const { pathname } = useLocation();
-  const [visited, setVisited] = useState<string[]>(() =>
-    WORK_MODE_PATHS.includes(pathname) ? [pathname] : [],
-  );
+  const [visited, setVisited] = useState<string[]>(() => (WORK_MODE_PATHS.includes(pathname) ? [pathname] : []));
 
   let shown = visited;
   if (WORK_MODE_PATHS.includes(pathname) && !visited.includes(pathname)) {

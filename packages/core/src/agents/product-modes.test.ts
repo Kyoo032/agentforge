@@ -170,6 +170,8 @@ describe("firstVisibleHref and hidden redirects", () => {
     expect(redirectIfHiddenMode("/finance", [...visible])).toBe("/chat");
     expect(redirectIfHiddenMode("/data", [...visible])).toBe("/chat");
     expect(redirectIfHiddenMode("/market", [...visible])).toBe("/chat");
+    expect(redirectIfHiddenMode("/legal", [...visible])).toBe("/chat");
+    expect(redirectIfHiddenMode("/legal", ["chat", "legal"])).toBeNull();
   });
 
   it("lists Market after Data in catalog order and on the Home desk", () => {
@@ -178,6 +180,14 @@ describe("firstVisibleHref and hidden redirects", () => {
     expect(productModeHref("market")).toBe("/market");
     expect(productModeLabel("market")).toBe("Market");
     expect(resolveWorkspaceModes(["market", "chat"])).toEqual(["chat", "market"]);
+  });
+
+  it("lists Legal after Market in catalog order", () => {
+    expect(PRODUCT_MODE_IDS.indexOf("legal")).toBe(PRODUCT_MODE_IDS.indexOf("market") + 1);
+    expect(WORK_PRODUCT_MODES).toContain("legal");
+    expect(productModeHref("legal")).toBe("/legal");
+    expect(productModeLabel("legal")).toBe("Legal");
+    expect(resolveWorkspaceModes(["legal", "chat"])).toEqual(["chat", "legal"]);
   });
 
   it("keeps /chat even when that tab is off the rail", () => {

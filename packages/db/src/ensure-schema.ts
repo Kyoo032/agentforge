@@ -75,7 +75,7 @@ export function migrationsFolder(): string {
   if (existsSync(relative)) {
     return relative;
   }
-  throw new Error(`Agentforge migrations folder not found. Tried:\n${tried.map((p) => `  - ${p}`).join("\n")}`);
+  throw new Error(`DPSBuddy migrations folder not found. Tried:\n${tried.map((p) => `  - ${p}`).join("\n")}`);
 }
 
 function readMigrations(folder: string): Migration[] {
@@ -223,6 +223,7 @@ export function ensureSchema(sqlite: Database.Database): void {
 
   sqlite.pragma("foreign_keys = ON");
   ensureKnowledgeTables(sqlite);
+  ensureKnowledgeSourceOrigin(sqlite);
   ensureEditTables(sqlite);
   ensureArtifactTables(sqlite);
   ensureDatasetTables(sqlite);
@@ -231,7 +232,7 @@ export function ensureSchema(sqlite: Database.Database): void {
   assertKernelTables(sqlite);
 }
 
-/** Market mode cache + headline search. Mirrors drizzle/0008_market.sql for DBs stamped before it existed. */
+/** Market mode cache + headline search. Mirrors drizzle/0009_market.sql for DBs stamped before it existed. */
 function ensureMarketTables(sqlite: Database.Database): void {
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS market_cache (
@@ -290,6 +291,36 @@ function ensureArtifactTables(sqlite: Database.Database): void {
     );
     CREATE INDEX IF NOT EXISTS artifacts_ws_mode_idx ON artifacts (workspace_id, mode, created_at);
   `);
+}
+
+function tableColumns(sqlite: Database.Database, table: string): string[] {
+  try {
+    return (sqlite.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map(
+      (column) => column.name,
+    );
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Work-origin columns on knowledge_sources. Mirrors drizzle/0008_knowledge_source_origin.sql for
+ * DBs whose journal was stamped past it before the columns existed (same healing as workspaces).
+ */
+function ensureKnowledgeSourceOrigin(sqlite: Database.Database): void {
+  const have = new Set(tableColumns(sqlite, "knowledge_sources"));
+  if (have.size === 0) {
+    return;
+  }
+  if (!have.has("origin_kind")) {
+    sqlite.exec("ALTER TABLE `knowledge_sources` ADD `origin_kind` text");
+  }
+  if (!have.has("origin_id")) {
+    sqlite.exec("ALTER TABLE `knowledge_sources` ADD `origin_id` text");
+  }
+  sqlite.exec(
+    "CREATE UNIQUE INDEX IF NOT EXISTS knowledge_sources_origin_idx ON knowledge_sources (workspace_id, origin_kind, origin_id)",
+  );
 }
 
 function ensureWorkspaceColumns(sqlite: Database.Database): void {
@@ -429,7 +460,9 @@ function ensureKnowledgeTables(sqlite: Database.Database): void {
       status text NOT NULL,
       chunks integer NOT NULL DEFAULT 0,
       error text,
-      created_at integer NOT NULL
+      created_at integer NOT NULL,
+      origin_kind text,
+      origin_id text
     );
     CREATE INDEX IF NOT EXISTS knowledge_sources_ws_idx ON knowledge_sources (workspace_id);
     CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_chunks USING fts5(

@@ -84,6 +84,18 @@ import {
   handlePutKnowledgeModels,
   handlePutKnowledgeSoul,
 } from "./handlers/knowledge";
+import {
+  handleDeleteLegalMatter,
+  handleDeleteLegalMatterFile,
+  handleGetLegalMatter,
+  handleGetLegalMatters,
+  handleGetLegalPlaybooks,
+  handleGetLegalRun,
+  handlePatchLegalMatter,
+  handlePostLegalMatterFile,
+  handlePostLegalMatters,
+  handlePostLegalRunStream,
+} from "./handlers/legal";
 import { handleGetMediaFile, handlePostMedia } from "./handlers/media";
 import {
   handleGetContext,
@@ -97,6 +109,7 @@ import { handleRun } from "./handlers/runs";
 import { handleGetSettings, handlePostSettings } from "./handlers/settings";
 import { handleDeleteThread, handleGetThread, handleGetThreads, handlePostThreads } from "./handlers/threads";
 import { handleGetUsage } from "./handlers/usage";
+import { handleGetVideoExampleFile, handleGetVideoExamples } from "./handlers/video-examples";
 import {
   handleDeleteWorkspace,
   handleGetWorkspaces,
@@ -170,6 +183,8 @@ const routes: Route[] = [
   compile("POST", "/api/v1/images", handlePostImages),
   compile("GET", "/api/v1/videos", handleGetVideos),
   compile("POST", "/api/v1/videos", handlePostVideos),
+  compile("GET", "/api/v1/videos/examples", handleGetVideoExamples),
+  compile("GET", "/api/v1/videos/examples/:name/file", handleGetVideoExampleFile),
   compile("POST", "/api/v1/documents", handlePostDocuments),
   compile("POST", "/api/v1/documents/regenerate", handlePostDocumentsRegen),
   compile("POST", "/api/v1/documents/docx", handlePostDocumentsDocx),
@@ -193,6 +208,16 @@ const routes: Route[] = [
   compile("POST", "/api/v1/datasets", handlePostDatasets),
   compile("GET", "/api/v1/datasets/:datasetId", handleGetDataset),
   compile("DELETE", "/api/v1/datasets/:datasetId", handleDeleteDataset),
+  compile("GET", "/api/v1/legal/playbooks", handleGetLegalPlaybooks),
+  compile("GET", "/api/v1/legal/matters", handleGetLegalMatters),
+  compile("POST", "/api/v1/legal/matters", handlePostLegalMatters),
+  compile("GET", "/api/v1/legal/matters/:matterId", handleGetLegalMatter),
+  compile("PATCH", "/api/v1/legal/matters/:matterId", handlePatchLegalMatter),
+  compile("DELETE", "/api/v1/legal/matters/:matterId", handleDeleteLegalMatter),
+  compile("POST", "/api/v1/legal/matters/:matterId/files", handlePostLegalMatterFile),
+  compile("DELETE", "/api/v1/legal/matters/:matterId/files/:docId", handleDeleteLegalMatterFile),
+  compile("POST", "/api/v1/legal/matters/:matterId/run/stream", handlePostLegalRunStream),
+  compile("GET", "/api/v1/legal/matters/:matterId/runs/:runId", handleGetLegalRun),
   compile("POST", "/api/v1/prompts/enhance", handlePostEnhancePrompt),
   compile("GET", "/api/v1/artifacts", handleGetArtifacts),
   compile("GET", "/api/v1/artifacts/:artifactId", handleGetArtifact),

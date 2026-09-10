@@ -14,6 +14,7 @@ Gateway identity stays **Toko Token** (`api.tokotokenai.com/v1`). Do not merge T
 | Finance       | `finance`      | `/finance`         | Line items → metrics computed in code → guarded brief → DOCX with tables |
 | Data          | `data`         | `/data`            | Upload / paste table → SQL-backed analysis with evidence tables + charts → Markdown |
 | Market        | `market`       | `/market`          | Watchlist ≤15 tickers → briefing → guarded brief → DOCX |
+| Legal         | `legal`        | `/legal`           | Matter of .docx files → position-aware review → verified memo, tracked-changes redline, deviation report |
 | Images        | `images`       | `/images`          | Prompt → generate images → gallery |
 | Videos        | `videos`       | `/videos`          | Prompt → generate videos → gallery |
 | Presentation  | `presentations`| `/presentations`   | Prompt → outline → HTML preview + PPTX |
@@ -21,7 +22,7 @@ Gateway identity stays **Toko Token** (`api.tokotokenai.com/v1`). Do not merge T
 | Settings      | —              | `/settings`        | Gateway key, privacy (not a surface) |
 | Usage         | —              | `/usage`           | This-key + desk spend by range (not a surface) |
 
-Account rail (not modes): Knowledge Base, Workspaces, Usage, Settings, theme. Collapse prefs stay on `apps/web/lib/rail-prefs.ts`. Legal / Marketing / Students presets stay as seeded — they do not gain Finance or Data unless the owner checks those boxes.
+Account rail (not modes): Knowledge Base, Workspaces, Usage, Settings, theme. Collapse prefs stay on `apps/web/lib/rail-prefs.ts`. Marketing / Students presets stay as seeded — they do not gain Finance, Data, or Legal unless the owner checks those boxes. The Legal preset seeds the Legal mode.
 
 Agents / Studio are parked. `/agents` and `/studio/**` redirect to Chat. Files stay in the tree for a later pass.
 
@@ -51,7 +52,7 @@ Packs live in their own packages. They seed workspace **preset mode lists**. The
 - **General / Default** — every work mode
 - **Students** (`packages/university`) — `chat`, `documents`, `research`, `images`, `presentations`
 - **Marketing** (`packages/marketing`) — `chat`, `documents`, `images`, `videos`, `presentations`
-- **Legal** (`packages/legal`) — `chat`, `documents`, `research`, `presentations`
+- **Legal** (`packages/legal`) — `chat`, `documents`, `research`, `legal`, `presentations`
 
 ## What each mode is for
 
@@ -70,6 +71,10 @@ Job, not Westlaw / Harvey / Kimi Deep Research. Question → `web_search` hits �
 ### Finance
 
 Job, not a spreadsheet. Inputs are **line items** (label, period, amount, currency, category): pasted text goes through `POST /api/v1/finance/parse` and the user confirms the rows before anything is computed; rows can also be typed by hand or mapped from a saved Data dataset. `@agentforge/core/finance` computes margins, growth, burn and runway, ratios, breakeven, and NPV / IRR in code (`computeFinance`), the model writes sections from a table of inputs and metrics (`POST /api/v1/finance` + `/stream`), and a **number guard** replaces any figure in the prose that does not trace to an input or a computed metric with “[unverified figure]” (count shown in the preview). Per-section rewrite via `/api/v1/finance/regenerate` runs the same guard. `POST /api/v1/finance/docx` builds a DOCX with real tables (line items, computed metrics, totals by period) and an assumptions appendix. Output is a `FinanceBrief` artifact (`kind: brief`) with the same action row as Research. Live parse / generate are 503 without a key; the line-item editor and params work without one.
+
+### Legal
+
+Matter review, not a chatbot with a contract pasted in. v1 accepts **.docx only** (PDF and other formats must be converted first). The user creates a matter (`POST /api/v1/legal/matters`: title, the side the firm acts for, work type review / markup / draft / analyze, deliverables, instructions, playbook), uploads one document per request (`POST /api/v1/legal/matters/:id/files`, 25 MB per file, 60 files, 100 MB per matter, magic-sniffed), and can change the role the classifier guessed for each file (counterparty draft, executed, instruction, prior turn, playbook, figures, precedent, context). Files, the cached reader output, and run records live under `localDataDir()/legal/<workspace>/<matter>`. A run (`POST /api/v1/legal/matters/:id/run/stream`, `job.*` SSE incl. `job.round`) is the pipeline in `packages/host/src/legal/run.ts`: classify → compare with the prior turn in code (unmarked changes) → review clause by clause against the playbook checklist and the executed documents (concurrency 3, strict JSON, non-verbatim quotes dropped in code) → missing-provision and interaction passes → draft → **verify** (eight code checks: quotes verbatim, numbers traced, cross-references, defined terms, facts, instructions obeyed, docx valid, coverage; then a second model grades the checklist and reviews as opposing counsel) → targeted edit → verify again, at most three rounds. Deliverables are artifacts under `mode: legal`: issues memorandum (`kind: memo`, docx with real tables), redline (`kind: redline`, tracked changes and margin comments in the author's name, written by `@agentforge/core/docx`), deviation report (`kind: report`, xlsx), red-flags Markdown (`kind: red-flags`), plus the run manifest (`kind: matter`). The studio shows Adverse provisions / Missing provisions / Unmarked changes / Verification / Redline / Memo / Audit trail, downloads, **Send to Knowledge Base** (source type `Memo`), **Open in Documents**, and **Next turn**. Formal register only. Every deliverable ends with the draft-work-product line. Live runs are 503 without a key; matter intake and role editing work without one.
 
 ### Data
 
@@ -126,5 +131,7 @@ Two different media paths exist in this repo. Details: [research/gateway-media.m
 
 ## Related docs
 
+- [internal/legal-mode-flow.md](./internal/legal-mode-flow.md) — Legal pipeline, concurrency, harness preamble, register rules
+- [internal/legal-mode-contracts.md](./internal/legal-mode-contracts.md) — Legal module APIs, routes, storage layout, testids
 - [research/kimi-and-lumina.md](./research/kimi-and-lumina.md) — sourced reference notes vs what we ship
 - [research/gateway-media.md](./research/gateway-media.md) — existing generate vs understand files to reuse

@@ -10,7 +10,7 @@
 
 - You cannot. There is no Agents tab and no Build link in Settings.
 
-## Driving it with the Agentforge harness
+## Driving it with the DPSBuddy harness
 
 Preconditions:
 

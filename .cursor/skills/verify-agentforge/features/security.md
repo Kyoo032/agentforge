@@ -5,7 +5,7 @@ Settings can confirm which gateway key is saved without ever showing the raw sec
 ## Sub-features
 
 - `key-fingerprint` shows `Saved key fingerprint sha256:…` on Simple Settings (`data-testid="key-fingerprint"`) when `hasOpenai` and `openaiKeyFingerprint` are present. Hidden when no gateway key. Never put the prefix in the password input.
-- `privacy-note` already states HTTPS-only remote endpoints and that Agentforge does not log prompts. That is the TLS / retention note — do not add a second TLS banner.
+- `privacy-note` already states HTTPS-only remote endpoints and that DPSBuddy does not log prompts. That is the TLS / retention note — do not add a second TLS banner.
 - At-rest seal is the existing AES-256-GCM envelope on `settings.enc` (`sealPayload` / `openPayload`). Do not claim new seal work from a fingerprint change.
 - Doctor prints `keyFingerprint: true` only when `hasOpenai` and `openaiKeyFingerprint` is a non-empty `sha256:` string; otherwise `false`. Missing key is not a doctor fail.
 
@@ -15,7 +15,7 @@ Settings can confirm which gateway key is saved without ever showing the raw sec
 - After a gateway key is saved, the line under the key field names the fingerprint. The password field stays empty / replace-placeholder.
 - With no key (Cloud, GHA, fresh desk), that line is absent. The privacy note is still on Simple.
 
-## Driving it with the Agentforge harness
+## Driving it with the DPSBuddy harness
 
 Preconditions:
 

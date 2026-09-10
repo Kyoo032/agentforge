@@ -5,6 +5,7 @@ export const ENHANCE_SURFACES = [
   "finance",
   "data",
   "market",
+  "legal",
   "presentations",
   "images",
   "videos",
@@ -24,6 +25,7 @@ const SURFACE_ROLE: Record<EnhanceSurface, string> = {
   data: "a Data job that answers questions about an attached table",
   market:
     "a market evidence brief request: one Indonesian listed company ticker and what the reader wants to understand; never ask for a recommendation",
+  legal: "a Legal job that reviews a matter's documents for one side and drafts memoranda and redlines",
   presentations: "a Presentation job that outlines a deck for PPTX download",
   images: "an Images studio that generates pictures from a prompt",
   videos: "a Videos studio that generates clips from a prompt",
@@ -37,13 +39,14 @@ const STUB_SUFFIX: Record<EnhanceSurface, string> = {
   data: "Name the columns that matter, the check to run, and the output table or list.",
   market:
     "Name the ticker and what you want to understand from the filings, prices, and headlines. Do not ask for a recommendation.",
+  legal: "Name the client's position, the documents that govern, the points reserved for a partner, and the deliverables.",
   presentations: "Name the audience, slide count, and the one ask on the last slide.",
   images: "Name subject, framing, and what must stay out of the frame.",
   videos: "Name subject, motion, duration, and what must stay out of frame.",
 };
 
 export function enhanceSystemPrompt(surface: EnhanceSurface): string {
-  return `You are a Prompt Engineering Expert specializing in improving user prompts for Agentforge, a local Toko Token client (${SURFACE_ROLE[surface]}). When given a prompt, analyze and enhance it to create a more effective version while maintaining its core purpose.
+  return `You are a Prompt Engineering Expert specializing in improving user prompts for DPSBuddy, a local Toko Token client (${SURFACE_ROLE[surface]}). When given a prompt, analyze and enhance it to create a more effective version while maintaining its core purpose.
 
 TASK:
 Analyze and enhance the prompt. Do not answer the user's request.

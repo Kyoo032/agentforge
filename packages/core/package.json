@@ -23,7 +23,9 @@
     "./artifacts": "./src/artifacts/index.ts",
     "./jobs": "./src/jobs/index.ts",
     "./finance": "./src/finance/index.ts",
-    "./market": "./src/market/index.ts"
+    "./market": "./src/market/index.ts",
+    "./docx": "./src/docx/index.ts",
+    "./legal": "./src/legal/index.ts"
   },
   "scripts": {
     "test": "vitest run",
@@ -33,7 +35,9 @@
     "@ai-sdk/anthropic": "^1.2.12",
     "@ai-sdk/google": "^1.2.18",
     "@ai-sdk/openai": "^1.3.22",
+    "@xmldom/xmldom": "^0.9.12",
     "ai": "^4.3.16",
+    "jszip": "^3.10.1",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zod": "^3.24.2"
   },

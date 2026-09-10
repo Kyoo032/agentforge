@@ -1,14 +1,14 @@
 {
   "id": "agentforge",
-  "productName": "Agentforge",
+  "productName": "DPSBuddy",
   "appId": "com.tokotoken.agentforge",
-  "artifactName": "Agentforge Setup ${version}.exe",
+  "artifactName": "DPSBuddy Setup ${version}.exe",
   "gatewayName": "Toko Token",
   "gatewayBaseUrl": "https://api.tokotokenai.com/v1",
   "splashBlurb": "Starting the local app. Paste your Toko Token gateway key in Settings, then Chat is ready.",
   "updates": {
     "provider": "github",
     "owner": "Kyoo032",
-    "repo": "DPS-Agent-Platform"
+    "repo": "DPSBuddy"
   }
 }

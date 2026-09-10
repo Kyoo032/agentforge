@@ -8,6 +8,7 @@ export const PRODUCT_MODES = [
   { id: "finance", label: "Finance", href: "/finance" },
   { id: "data", label: "Data", href: "/data" },
   { id: "market", label: "Market", href: "/market" },
+  { id: "legal", label: "Legal", href: "/legal" },
   { id: "images", label: "Images", href: "/images" },
   { id: "videos", label: "Videos", href: "/videos" },
   { id: "edit", label: "Edit", href: "/edit" },

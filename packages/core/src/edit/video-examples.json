@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "examples": [
+    {
+      "file": "daisy-macro.mp4",
+      "templateId": "promo-daisy-macro",
+      "width": 1280,
+      "height": 720,
+      "durationSeconds": 4,
+      "model": "veo_3_1-fast",
+      "generatedAt": "2026-09-08"
+    },
+    {
+      "file": "caterpillar-macro.mp4",
+      "templateId": "promo-caterpillar-macro",
+      "width": 1280,
+      "height": 720,
+      "durationSeconds": 6,
+      "model": "veo_3_1-fast",
+      "generatedAt": "2026-09-08"
+    },
+    {
+      "file": "drone-flythrough.mp4",
+      "templateId": "promo-drone-broll",
+      "width": 1280,
+      "height": 720,
+      "durationSeconds": 4,
+      "model": "veo_3_1-fast",
+      "generatedAt": "2026-09-08"
+    },
+    {
+      "file": "talk-calm-line.mp4",
+      "templateId": "talk-calm-line",
+      "width": 1280,
+      "height": 720,
+      "durationSeconds": 4,
+      "model": "veo_3_1-fast",
+      "generatedAt": "2026-09-08"
+    },
+    {
+      "file": "talk-keyboard-review.mp4",
+      "templateId": "talk-keyboard-review",
+      "width": 1280,
+      "height": 720,
+      "durationSeconds": 8,
+      "model": "veo_3_1-fast",
+      "generatedAt": "2026-09-08"
+    },
+    {
+      "file": "talk-bookstore-dialogue.mp4",
+      "templateId": "talk-bookstore-dialogue",
+      "width": 1280,
+      "height": 720,
+      "durationSeconds": 8,
+      "model": "veo_3_1-fast",
+      "generatedAt": "2026-09-08"
+    }
+  ]
+}

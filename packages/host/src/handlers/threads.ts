@@ -3,7 +3,7 @@ import type { HostRequest, HostResult } from "../types";
 import { jsonError, jsonOk } from "../errors";
 import { agentService, getTenant } from "../tenant";
 import { createThread, deleteThread, getThread, listMessages, listWorkspaceThreads, type WorkspaceThreadScope } from "../threads";
-import { DEFAULT_THREAD_TITLE } from "../thread-title";
+import { DEFAULT_THREAD_TITLE, THREAD_TITLE_MAX } from "../thread-title";
 
 function parseScope(value: string | undefined): WorkspaceThreadScope {
   if (value === "chat" || value === "agent") {
@@ -44,12 +44,19 @@ export async function handleGetThreads(request: HostRequest): Promise<HostResult
 export async function handlePostThreads(request: HostRequest): Promise<HostResult> {
   try {
     const tenant = await getTenant(request.workspaceId);
-    const body = (request.body ?? {}) as { agentId?: string; title?: string };
+    const body = (request.body ?? {}) as { agentId?: unknown; title?: unknown };
+    if (body.agentId !== undefined && typeof body.agentId !== "string") {
+      throw new ApiError("invalid_request", "agentId must be a string", 400);
+    }
+    if (body.title !== undefined && typeof body.title !== "string") {
+      throw new ApiError("invalid_request", "title must be a string", 400);
+    }
     const agent = await agentService.get(tenant, body.agentId ?? "");
     if (!agent) {
       throw new ApiError("not_found", "Agent not found", 404);
     }
-    const thread = await createThread(tenant, agent.id, body.title);
+    const title = typeof body.title === "string" ? body.title.trim().slice(0, THREAD_TITLE_MAX) : undefined;
+    const thread = await createThread(tenant, agent.id, title || undefined);
     return jsonOk({ thread }, 201);
   } catch (error) {
     return jsonError(error);

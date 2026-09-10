@@ -10,6 +10,7 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 export const MAX_BODY_BYTES = 26 * 1024 * 1024;
 
 class BodyTooLarge extends Error {}
+class BodyInvalidJson extends Error {}
 
 function header(req: IncomingMessage, name: string): string | undefined {
   const value = req.headers[name.toLowerCase()];
@@ -74,7 +75,7 @@ async function readBody(req: IncomingMessage): Promise<{ body?: unknown; files?:
     try {
       return { body: JSON.parse(buffer.toString("utf8")) };
     } catch {
-      return { body: null };
+      throw new BodyInvalidJson();
     }
   }
   return { body: buffer.toString("utf8") };
@@ -194,9 +195,23 @@ export async function handleNodeRequest(req: IncomingMessage, res: ServerRespons
       res.end(JSON.stringify({ error: { code: "payload_too_large", message: error.message } }));
       return true;
     }
+    if (error instanceof BodyInvalidJson) {
+      res.statusCode = 400;
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.end(JSON.stringify({ error: { code: "invalid_json", message: "Request body is not valid JSON" } }));
+      return true;
+    }
     throw error;
   }
   const { body, files } = parsed;
+  // A client that goes away mid-stream aborts the run (same as the desktop IPC path), so a live model
+  // call is not left running for nobody and `res.write` never hits a destroyed socket.
+  const abort = new AbortController();
+  res.on("close", () => {
+    if (!res.writableFinished) {
+      abort.abort(new Error("client_disconnected"));
+    }
+  });
   const request: HostRequest = {
     method,
     path,
@@ -212,6 +227,7 @@ export async function handleNodeRequest(req: IncomingMessage, res: ServerRespons
     body,
     files,
     workspaceId: cookies[WORKSPACE_COOKIE] || readSelectedWorkspaceId() || null,
+    abortSignal: abort.signal,
   };
   const result = await dispatch(request);
   await writeHostResult(res, result);

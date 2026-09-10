@@ -1,8 +1,10 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
+const PUBLIC_PRODUCT_NAME = "DPSBuddy";
+
 const DEFAULT_BRAND = {
-  productName: "Agentforge",
+  productName: PUBLIC_PRODUCT_NAME,
   gatewayName: "Toko Token",
   gatewayBaseUrl: "https://api.tokotokenai.com/v1",
 };
@@ -61,6 +63,7 @@ function loadBrandLogo(resourcesPath, dirname) {
 }
 
 module.exports = {
+  PUBLIC_PRODUCT_NAME,
   DEFAULT_BRAND,
   parseBrand,
   loadBrandFromResources,

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { FormattedText } from "@/components/formatted-text";
+import { KnowledgeLoop } from "@/components/knowledge-loop";
 import { ModelSelect } from "@/components/model-select";
 import { apiFetch } from "@/lib/api-client";
 import { useWorkspaceScope } from "@/lib/workspace-scope";
@@ -14,6 +15,7 @@ type SourceRow = {
   type: string;
   chunks: number;
   status: "Indexed" | "Indexing" | "Failed";
+  error?: string | null;
 };
 
 type Memory = { id: string; text: string; pinned: boolean };
@@ -338,6 +340,7 @@ export function KnowledgePage() {
 
       {tab === "sources" ? (
         <div className="flex flex-col gap-4" data-testid="knowledge-sources">
+          <KnowledgeLoop sources={sources} />
           <section className="blueprint p-[18px]">
             <p className="panel-label">Add a source</p>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -385,9 +388,14 @@ export function KnowledgePage() {
             {sources.map((row) => (
               <li key={row.id} className="flex items-center gap-3 px-4 py-3" data-testid="knowledge-source-row">
                 <span className="min-w-0 flex-1 truncate">{row.name}</span>
-                <span className="tag tag-neutral">{row.type}</span>
+                <span className="tag tag-neutral" data-testid="knowledge-source-type">{row.type}</span>
                 <span className="text-[12px]">{row.chunks} chunks</span>
-                <span className={row.status === "Indexed" ? "tag tag-accent" : "tag tag-outline"}>{row.status}</span>
+                <span
+                  className={row.status === "Indexed" ? "tag tag-accent" : "tag tag-outline"}
+                  title={row.status === "Failed" && row.error ? row.error : undefined}
+                >
+                  {row.status}
+                </span>
                 <button
                   type="button"
                   className="btn btn-ghost text-[12px]"

@@ -8,7 +8,7 @@
       "args": [
         "-NoProfile",
         "-Command",
-        "if (-not (Test-Path 'C:\\Program Files\\Agentforge\\Agentforge.exe')) { throw 'Installed Agentforge.exe missing' }; (Get-Item 'C:\\Program Files\\Agentforge\\Agentforge.exe').VersionInfo.ProductVersion"
+        "if (-not (Test-Path 'C:\\Program Files\\DPSBuddy\\DPSBuddy.exe')) { throw 'Installed DPSBuddy.exe missing' }; (Get-Item 'C:\\Program Files\\DPSBuddy\\DPSBuddy.exe').VersionInfo.ProductVersion"
       ],
       "problemMatcher": []
     },

@@ -108,7 +108,7 @@ function ffmpegPromptLine(): string {
 
 function compactPrompt(doc: Awaited<ReturnType<typeof foldProject>>, budgetUsd: number): string {
   return [
-    "You are the Agentforge Edit agent. Share one ops log with the owner. Every mutation is a card.",
+    "You are the DPSBuddy Edit agent. Share one ops log with the owner. Every mutation is a card.",
     `Project ${doc.name} ${doc.width}x${doc.height} @${doc.fps}fps seq=${doc.seq} review=${JSON.stringify(doc.review)}`,
     `Tracks: ${doc.tracks.map((track) => `${track.id}:${track.kind}`).join(", ")}`,
     `Clips: ${doc.clips.map((clip) => `${clip.id}@${clip.trackId}:${clip.timelineStartFrame}+${clip.durationFrames}`).join("; ") || "(none)"}`,

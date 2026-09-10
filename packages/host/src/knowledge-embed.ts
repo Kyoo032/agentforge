@@ -12,6 +12,19 @@ import { sql } from "@agentforge/db";
 import { loadSettings } from "./settings-store";
 
 const EMBED_BATCH = 16;
+/**
+ * Embeddings sit on the hot path of every chat message and every KB write. Offline, a black-holed
+ * endpoint must cost one short wait, not one per call: after a failure the endpoint is treated as
+ * down for EMBED_DOWN_MS and every batch goes straight to local stub vectors.
+ */
+const EMBED_TIMEOUT_MS = 4_000;
+const EMBED_DOWN_MS = 5 * 60 * 1000;
+let embedDownUntil = 0;
+
+/** Test hook. */
+export function resetEmbedCircuit(): void {
+  embedDownUntil = 0;
+}
 
 function workspaceId(tenant: TenantContext): string {
   return tenant.workspaceId;
@@ -41,6 +54,7 @@ async function liveEmbedBatch(texts: string[], model: string): Promise<number[][
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ model, input: texts }),
+    signal: AbortSignal.timeout(EMBED_TIMEOUT_MS),
   });
   if (!res.ok) {
     throw new Error(`embeddings ${res.status}`);
@@ -59,13 +73,24 @@ export async function embedTexts(texts: string[], model: string): Promise<number
   if (isStubEmbedding()) {
     return texts.map((text) => stubEmbed(text));
   }
+  if (Date.now() < embedDownUntil) {
+    return texts.map((text) => stubEmbed(text));
+  }
   const out: number[][] = [];
   for (let i = 0; i < texts.length; i += EMBED_BATCH) {
     const batch = texts.slice(i, i + EMBED_BATCH);
     try {
       out.push(...(await liveEmbedBatch(batch, model)));
-    } catch {
+    } catch (error) {
+      embedDownUntil = Date.now() + EMBED_DOWN_MS;
+      console.warn(
+        `knowledge-embed: embeddings unavailable, using local vectors for ${EMBED_DOWN_MS / 60_000} min (${error instanceof Error ? error.message.slice(0, 80) : "error"})`,
+      );
       out.push(...batch.map((text) => stubEmbed(text)));
+      for (let j = i + EMBED_BATCH; j < texts.length; j += EMBED_BATCH) {
+        out.push(...texts.slice(j, j + EMBED_BATCH).map((text) => stubEmbed(text)));
+      }
+      break;
     }
   }
   return out;
@@ -87,6 +112,8 @@ export async function indexSourceVectors(
   sourceId: string,
   chunks: string[],
   model: string,
+  /** When given, vectors are written only if the source row still exists with this created_at. */
+  expectSourceCreatedAt?: number,
 ): Promise<void> {
   if (chunks.length === 0) {
     return;
@@ -100,6 +127,15 @@ export async function indexSourceVectors(
     const createdAt = Date.now();
     const ws = workspaceId(tenant);
     const tx = sql.transaction(() => {
+      if (expectSourceCreatedAt !== undefined) {
+        const row = sql
+          .prepare("SELECT created_at FROM knowledge_sources WHERE workspace_id = ? AND id = ?")
+          .get(ws, sourceId) as { created_at: number } | undefined;
+        if (!row || row.created_at !== expectSourceCreatedAt) {
+          // Deleted or re-indexed while we were embedding: the newer version owns the vectors.
+          return;
+        }
+      }
       sql.prepare("DELETE FROM knowledge_vectors WHERE workspace_id = ? AND source_id = ?").run(ws, sourceId);
       for (let i = 0; i < chunks.length; i += 1) {
         const embedding = embeddings[i];
@@ -162,6 +198,7 @@ export async function retrieveVectorChunks(
   query: string,
   models: KnowledgeModels,
   limit = 4,
+  excludeSourceIds: string[] = [],
 ): Promise<RetrievedChunk[]> {
   const trimmed = query.trim();
   if (!trimmed) {
@@ -171,9 +208,17 @@ export async function retrieveVectorChunks(
     return [];
   }
   const queryVec = await embedQuery(trimmed, models.embeddingModel);
+  const skip =
+    excludeSourceIds.length > 0 ? ` AND source_id NOT IN (${excludeSourceIds.map(() => "?").join(", ")})` : "";
+  const ws = workspaceId(tenant);
+  // Only vectors whose source row still exists: a vector orphaned by a mid-embed delete is never served.
   const rows = sql
-    .prepare("SELECT body, embedding FROM knowledge_vectors WHERE workspace_id = ? AND model = ?")
-    .all(workspaceId(tenant), models.embeddingModel) as Array<{ body: string; embedding: string }>;
+    .prepare(
+      `SELECT body, embedding FROM knowledge_vectors
+       WHERE workspace_id = ? AND model = ?
+         AND source_id IN (SELECT id FROM knowledge_sources WHERE workspace_id = ?)${skip}`,
+    )
+    .all(ws, models.embeddingModel, ws, ...excludeSourceIds) as Array<{ body: string; embedding: string }>;
 
   const ranked = rows
     .map((row) => {

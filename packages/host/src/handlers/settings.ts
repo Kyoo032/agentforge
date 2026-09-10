@@ -17,6 +17,7 @@ import { refreshModelCache, modeCatalogPayload } from "../selectable-models";
 import { clearThisKeyCache, loadAccountUsage } from "../account-usage";
 import { probeSummary } from "../model-cache";
 import { db, listLocalWorkspaces } from "@agentforge/db";
+import { resetEmbedCircuit } from "../knowledge-embed";
 
 function readStringMap(value: unknown): Record<string, string> | undefined {
   if (!value || typeof value !== "object") {
@@ -123,6 +124,8 @@ export async function handlePostSettings(request: HostRequest): Promise<HostResu
     };
     const saved = saveSettings(patch, tenant.workspaceId);
     clearThisKeyCache();
+    // A fixed key / URL must take effect now, not after the 5-minute embeddings breaker expires.
+    resetEmbedCircuit();
     try {
       await refreshModelCache(saved);
     } catch {

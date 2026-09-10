@@ -1,4 +1,6 @@
 export const DEFAULT_THREAD_TITLE = "New thread";
+/** Caller-supplied titles (POST /threads) are trimmed to this length; derived titles use MAX_TITLE below. */
+export const THREAD_TITLE_MAX = 200;
 
 const MAX_TITLE = 48;
 

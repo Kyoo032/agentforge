@@ -1,10 +1,10 @@
 import { assertAllowedEndpointUrl } from "./security/tls";
 
-/** Toko Token OpenAI-compatible gateway. Public Agentforge’s home inference path. */
+/** Toko Token OpenAI-compatible gateway. Public DPSBuddy’s home inference path. */
 export const GATEWAY_NAME = "Toko Token";
 export const GATEWAY_HOST = "api.tokotokenai.com";
 export const GATEWAY_BASE_URL = "https://api.tokotokenai.com/v1";
-export const DEFAULT_PRODUCT_NAME = "Agentforge";
+export const DEFAULT_PRODUCT_NAME = "DPSBuddy";
 
 function envTrim(name: string): string {
   const value = process.env[name];

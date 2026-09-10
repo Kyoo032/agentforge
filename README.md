@@ -1,4 +1,4 @@
-# Agentforge
+# DPSBuddy
 
 **Closed beta.** A local workbench for the [Toko Token](https://api.tokotokenai.com) OpenAI-compatible gateway.
 
@@ -12,10 +12,10 @@ You need the installer, not a clone of this repo. Node and pnpm are not required
 
 | OS | Installer |
 |----|-----------|
-| **Windows** | [Agentforge Setup 0.1.0.exe](https://github.com/Kyoo032/agentforge/releases/download/v0.1.0/Agentforge.Setup.0.1.0.exe) (~168 MB, unsigned) |
+| **Windows** | [DPSBuddy Setup 0.1.0.exe](https://github.com/Kyoo032/agentforge/releases/download/v0.1.0/DPSBuddy.Setup.0.1.0.exe) (~168 MB, unsigned) |
 | **macOS** | `.dmg` not published yet. It must be built on a Mac; it will land on the [same Releases page](https://github.com/Kyoo032/agentforge/releases/tag/v0.1.0) when it exists. |
 
-Windows: run the Setup exe, then open **Agentforge** from the Start menu.
+Windows: run the Setup exe, then open **DPSBuddy** from the Start menu.
 
 The installer is unsigned. Windows SmartScreen may warn; that is expected in closed beta. Choose **More info** → **Run anyway** if you trust the operator who sent you this build.
 
@@ -23,7 +23,7 @@ All current builds: [Releases](https://github.com/Kyoo032/agentforge/releases).
 
 ## After install
 
-1. Open Agentforge
+1. Open DPSBuddy
 2. Open **Settings**
 3. Paste your Toko Token gateway API key
 4. Start in **Chat**

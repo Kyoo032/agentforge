@@ -1,11 +1,11 @@
 ---
 name: verify-agentforge
-description: Drives Agentforge the way a user does — webdev Vite/Express on 127.0.0.1:3000, packaged Electron over IPC (no loopback HTTP), data-testid handles, stub runtime, SQLite in the data dir. Launch, doctor, walk Chat/Settings/Workspaces/Images/Videos, keep evidence. Use after UI or product-mode work, when refusing done from a compile, or before claiming a settings/chat/workspace change works.
+description: Drives DPSBuddy the way a user does — webdev Vite/Express on 127.0.0.1:3000, packaged Electron over IPC (no loopback HTTP), data-testid handles, stub runtime, SQLite in the data dir. Launch, doctor, walk Chat/Settings/Workspaces/Images/Videos, keep evidence. Use after UI or product-mode work, when refusing done from a compile, or before claiming a settings/chat/workspace change works.
 ---
 
-# Verify Agentforge
+# Verify DPSBuddy
 
-Agent guardrail, same class as `AGENTS.md`. Not part of the Agentforge app.
+Agent guardrail, same class as `AGENTS.md`. Not part of the DPSBuddy app.
 
 - **Product** is `apps/`, `packages/`, the NSIS installer, Chat / Settings / Workspaces / job modes.
 - **This directory** is how agents map and prove *this* repo (where to press, how to doctor, what counts as proof).
@@ -21,11 +21,11 @@ A cold agent reads this mid-task. Drive the real app. A green `tsc` or worker su
 | Surface | How to reach it | Doctor | Port |
 |---|---|---|---|
 | **Local webdev** | `pnpm dev` → Chrome / IDE browser | `node .cursor/skills/verify-agentforge/scripts/doctor.mjs` | **3000 only** (`tsx server.ts` → Express + Vite on `127.0.0.1:3000`) |
-| **Packaged desktop** | Installed Agentforge, or local Kemenkeu AI / AIHub Metranet (Windows NSIS; mac/linux operator-built) | `node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop` | **None.** IPC only. Status in userData `host-status.json` (Windows `%APPDATA%\Agentforge` or `%APPDATA%\Kemenkeu AI` / `%APPDATA%\AIHub Metranet`; Linux `$XDG_CONFIG_HOME/Agentforge` or `~/.config/Agentforge`; macOS `~/Library/Application Support/Agentforge`) |
+| **Packaged desktop** | Installed DPSBuddy, or local Kemenkeu AI / AIHub Metranet (Windows NSIS; mac/linux operator-built) | `node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop` | **None.** IPC only. Status in userData `host-status.json` (Windows `%APPDATA%\DPSBuddy` or `%APPDATA%\Kemenkeu AI` / `%APPDATA%\AIHub Metranet`; Linux `$XDG_CONFIG_HOME/DPSBuddy` or `~/.config/DPSBuddy`; macOS `~/Library/Application Support/DPSBuddy`) |
 
 `pnpm desktop:dev` is the local webdev inside an Electron window (may reuse :3000). That is not packaged proof. APIs exist under `/api/v1/*` but proof is the user path, not an internal setter.
 
-Do **not** use Hermes CLI, Hermes dashboard session tokens, or Hermes `hermes:api`. Agentforge key handling is in **Keys** below.
+Do **not** use Hermes CLI, Hermes dashboard session tokens, or Hermes `hermes:api`. DPSBuddy key handling is in **Keys** below.
 
 **Who runs which harness**
 
@@ -93,16 +93,16 @@ Refuse to drive when:
 
 `runtime: "stub"` — Chat send is a local stub reply. `runtime: "ai"` — Chat send and studio generate hit the live gateway. Do not call that stub proof. Do not paste or save keys during verification.
 
-## Keys (Agentforge only — do not use Hermes tools)
+## Keys (DPSBuddy only — do not use Hermes tools)
 
 The verify harness is this skill + `doctor.mjs`. Do not call Hermes CLI, mint Hermes dashboard session tokens, or talk to `hermes:api`.
 
-How each Agentforge secret is processed:
+How each DPSBuddy secret is processed:
 
 | Secret | Entered | After save | Unlocks |
 |---|---|---|---|
 | Gateway key (`openai-key`) | Settings | Host process writes AES-256-GCM `settings.enc`. GET `/api/v1/settings` returns `hasOpenai: true`, never the raw key. Input shows “Saved — paste to replace”. | Chat + image/video on Toko Token (`/v1/chat/completions`, `/v1/images/generations`, `/v1/video/generations`) |
-| Wrap key | Never in UI | Electron: Windows Credential Manager `Agentforge` / `wrap-key` (keytar) injected as `AGENTFORGE_SECRETS_KEY` into the child. Webdev: gitignored `data/.master-key` or env `AGENTFORGE_SECRETS_KEY`. | Decrypts `settings.enc` |
+| Wrap key | Never in UI | Electron: Windows Credential Manager `DPSBuddy` / `wrap-key` (keytar) injected as `AGENTFORGE_SECRETS_KEY` into the child. Webdev: gitignored `data/.master-key` or env `AGENTFORGE_SECRETS_KEY`. | Decrypts `settings.enc` |
 | Native extras (Google, Anthropic, Ark/Volcengine) | Not in GTM Settings UI (store still holds them) | Same `settings.enc`; UI booleans `hasGoogle` / `hasAnthropic` / `hasVolcengine` only | Optional non-gateway providers |
 | Tool keys (Tavily, Brave, FAL, …) | Not in GTM Settings UI | Same file, `hasToolKeys` map | Search / FAL generate |
 
@@ -136,7 +136,7 @@ Use `page.getByTestId("<id>")` exactly as the spec.
 |---|---|
 | `mode-chat`, `mode-documents`, `mode-research`, `mode-finance`, `mode-data`, `mode-images`, `mode-videos`, `mode-presentations`, `mode-edit` | Left rail work modes (Default has all of these). `mode-edit` is Phase 1 |
 | `mode-knowledge` | Account rail → Knowledge Base (`/knowledge`). Always visible; not a product mode |
-| `product-brand`, `product-logo` | Rail product name and mark. Packaged flavors must not stay Agentforge — [desktop-brands.md](features/desktop-brands.md) |
+| `product-brand`, `product-logo` | Rail product name and mark. Packaged flavors must not stay DPSBuddy — [desktop-brands.md](features/desktop-brands.md) |
 | `mode-agents` | Parked. Count 0. `/agents` and `/studio` redirect to Chat |
 | `workspaces-switcher`, `workspaces-link`, `open-workspace`, `create-new-workspace`, `workspace-template-picker`, `workspace-mode-picker`, `create-workspace`, `edit-workspace-modes`, `workspace-edit-name`, `save-workspace-modes`, `delete-workspace`, `delete-workspace-confirm-name`, `delete-workspace-confirm-submit` | Workspaces |
 | `settings-link` | Rail → Settings |
@@ -145,20 +145,21 @@ Use `page.getByTestId("<id>")` exactly as the spec.
 | `chat-usage`, `chat-context` | Chat header chips (wallet spend; ring + `left`/`used`) |
 | `chat-empty`, `message-list`, `message-output`, `thread-list`, `thread-item`, `new-chat`, `chat-error`, `composer-error` | Threads + assistant markdown output; live contact fail after 3 tries |
 | `settings-form`, `settings-endpoint`, `settings-endpoint-reset`, `openai-key`, `key-fingerprint`, `runtime-status`, `privacy-note`, `usage-this-key` | Settings (endpoint + key; Open Usage) |
-| `rail-footer`, `theme-toggle`, `app-updates-toggle`, `app-updates-badge`, `app-updates-panel`, `app-updates-status`, `app-updates-check`, `app-updates-install`, `app-updates-close` | Rail footer: theme icon, updates icon (Agentforge only), collapse |
+| `rail-footer`, `theme-toggle`, `app-updates-toggle`, `app-updates-badge`, `app-updates-panel`, `app-updates-status`, `app-updates-check`, `app-updates-install`, `app-updates-close` | Rail footer: theme icon, updates icon (DPSBuddy only), collapse |
 | `usage-range-empty`, `usage-desk-range`, `usage-by-model`, `usage-key-meter` | Usage page (by-model + desk range; empty chart copy) |
 | `images-studio`, `images-studio-needs-key`, `videos-studio`, `videos-studio-needs-key` | Generate studios |
 | `edit-studio`, `edit-timeline`, `edit-preview`, `edit-agent-panel`, `edit-composer`, `edit-card`, `edit-card-keep`, `edit-card-undo`, `edit-card-tweak`, `edit-export`, `edit-needs-ffmpeg`, `edit-needs-key` | Edit studio (Phase 1) |
 | `finance-studio`, `finance-starters`, `finance-download`, `finance-generate` | Finance job |
 | `data-studio`, `data-csv`, `data-starter`, `data-download`, `data-generate` | Data job |
 | `knowledge-page`, `knowledge-tabs`, `knowledge-models`, `knowledge-sources`, `knowledge-paste`, `knowledge-soul-save`, `knowledge-memory-add`, `knowledge-model-embedding`, `knowledge-model-brain`, `knowledge-model-verifier`, `knowledge-tab-map`, `knowledge-map-panel`, `knowledge-map-run`, `knowledge-map` | Knowledge Base |
+| `knowledge-loop`, `knowledge-loop-cycle`, `knowledge-loop-summary`, `knowledge-loop-work`, `knowledge-loop-count-<Type>`, `knowledge-loop-empty`, `knowledge-source-type` | Knowledge ingest loop (Sources tab) — [knowledge-ingest.md](features/knowledge-ingest.md) |
 | `documents-studio-model`, `research-studio-model`, `presentations-studio-model` | Job generate-bar model dropdowns |
 | `documents-section`, `research-preview`, `research-note` | Job preview bodies (markdown via `FormattedText`) |
 | `documents-regen-panel`, `presentations-regen-panel`, `*-regen-prompt`, `*-regen-model`, `*-regen-attach`, `*-regen-submit` | Section/slide regen composer |
 
 Rail testids are `mode-${href.slice(1)}` (`/chat` → `mode-chat`). Default already shows every work mode. A Legal desk has Chat + Documents + Research + Presentation and `mode-images` count 0.
 
-Recipes: [features/chat.md](features/chat.md), [features/settings.md](features/settings.md), [features/usage.md](features/usage.md), [features/workspaces.md](features/workspaces.md), [features/documents.md](features/documents.md), [features/research.md](features/research.md), [features/finance.md](features/finance.md), [features/data.md](features/data.md), [features/knowledge.md](features/knowledge.md), [features/images.md](features/images.md), [features/videos.md](features/videos.md), [features/edit.md](features/edit.md), [features/desktop.md](features/desktop.md), [features/desktop-brands.md](features/desktop-brands.md), [features/mobile.md](features/mobile.md). Build and Studio advanced are parked.
+Recipes: [features/chat.md](features/chat.md), [features/settings.md](features/settings.md), [features/usage.md](features/usage.md), [features/workspaces.md](features/workspaces.md), [features/documents.md](features/documents.md), [features/research.md](features/research.md), [features/finance.md](features/finance.md), [features/data.md](features/data.md), [features/legal.md](features/legal.md), [features/knowledge.md](features/knowledge.md), [features/knowledge-ingest.md](features/knowledge-ingest.md), [features/images.md](features/images.md), [features/videos.md](features/videos.md), [features/edit.md](features/edit.md), [features/desktop.md](features/desktop.md), [features/desktop-brands.md](features/desktop-brands.md), [features/mobile.md](features/mobile.md). Build and Studio advanced are parked.
 
 ## Evidence
 
@@ -194,4 +195,4 @@ Standards:
 
 ## Isolate
 
-Two **webdev** instances cannot share port 3000. The packaged app has **no HTTP port** and a different data dir (Electron userData: `%APPDATA%\Agentforge` / `~/.config/Agentforge` / `~/Library/Application Support/Agentforge`), so it can run while `pnpm dev` is up. Playwright’s data dir is the same repo `data/` as the Windows local webdev. Isolation for E2E is the Cloud/GHA VM, not a second local port. Do not double-drive the operator’s live window while Cloud Playwright is also pointed at this checkout. If you need a disposable tree, set `AGENTFORGE_DATA_DIR` to a new directory (optional `pnpm db:push`; `ensureSchema` migrates on SQLite open), and optionally `AGENTFORGE_SETTINGS_PATH` so you do not touch the operator’s `data/settings.enc`.
+Two **webdev** instances cannot share port 3000. The packaged app has **no HTTP port** and a different data dir (Electron userData: `%APPDATA%\DPSBuddy` / `~/.config/DPSBuddy` / `~/Library/Application Support/DPSBuddy`), so it can run while `pnpm dev` is up. Playwright’s data dir is the same repo `data/` as the Windows local webdev. Isolation for E2E is the Cloud/GHA VM, not a second local port. Do not double-drive the operator’s live window while Cloud Playwright is also pointed at this checkout. If you need a disposable tree, set `AGENTFORGE_DATA_DIR` to a new directory (optional `pnpm db:push`; `ensureSchema` migrates on SQLite open), and optionally `AGENTFORGE_SETTINGS_PATH` so you do not touch the operator’s `data/settings.enc`.

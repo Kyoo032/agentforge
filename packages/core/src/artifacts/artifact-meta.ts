@@ -1,8 +1,36 @@
 import { z } from "zod";
 
-export const ARTIFACT_MODES = ["research", "data", "finance", "market", "documents", "presentations"] as const;
-export const ARTIFACT_KINDS = ["dossier", "analysis", "brief", "briefing", "draft"] as const;
-export const ARTIFACT_MIMES = ["text/markdown", "application/json"] as const;
+export const ARTIFACT_MODES = [
+  "research",
+  "data",
+  "finance",
+  "market",
+  "documents",
+  "presentations",
+  "legal",
+] as const;
+export const ARTIFACT_KINDS = [
+  "dossier",
+  "analysis",
+  "brief",
+  "briefing",
+  "draft",
+  "memo",
+  "redline",
+  "report",
+  "summary",
+  "red-flags",
+  "matter",
+] as const;
+export const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+export const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+export const ARTIFACT_MIMES = ["text/markdown", "application/json", DOCX_MIME, XLSX_MIME] as const;
+/** Binary bodies are stored base64-encoded; the file route decodes them. */
+export const BINARY_ARTIFACT_MIMES: ReadonlySet<string> = new Set([DOCX_MIME, XLSX_MIME]);
+
+export function isBinaryArtifactMime(mime: string): boolean {
+  return BINARY_ARTIFACT_MIMES.has(mime);
+}
 
 export type ArtifactMode = (typeof ARTIFACT_MODES)[number];
 export type ArtifactKind = (typeof ARTIFACT_KINDS)[number];
@@ -65,8 +93,15 @@ export function artifactSlug(title: string, fallback = "artifact"): string {
   return slug || fallback;
 }
 
+const MIME_EXTENSION: Readonly<Record<ArtifactMime, string>> = {
+  "text/markdown": "md",
+  "application/json": "json",
+  [DOCX_MIME]: "docx",
+  [XLSX_MIME]: "xlsx",
+};
+
 export function artifactExtension(mime: ArtifactMime): string {
-  return mime === "application/json" ? "json" : "md";
+  return MIME_EXTENSION[mime] ?? "md";
 }
 
 export function artifactFilename(title: string, mime: ArtifactMime, fallback = "artifact"): string {

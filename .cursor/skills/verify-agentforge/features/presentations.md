@@ -16,7 +16,7 @@ Presentation is a job: prompt or starter → slide preview → PPTX download. It
 - Choose Presentation on the left rail (`mode-presentations`). Default already has the tab.
 - Open `http://127.0.0.1:3000/presentations` when the tab is unlocked.
 
-## Driving it with the Agentforge harness
+## Driving it with the DPSBuddy harness
 
 Preconditions:
 

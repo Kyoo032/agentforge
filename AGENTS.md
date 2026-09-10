@@ -1,4 +1,4 @@
-# Agentforge
+# DPSBuddy
 
 A **local** Toko Token client at `https://api.tokotokenai.com/v1`. The person who installs it owns it. You paste a **gateway API key**, keep **workspaces** on disk, and work in Chat plus job modes (Documents, Research, Images, Videos, Presentation). Custom-agent Build is parked — not the product identity. Hermes remains the tinkering surface for people who want to build agents.
 
@@ -6,13 +6,13 @@ A **local** Toko Token client at `https://api.tokotokenai.com/v1`. The person wh
 
 This file is the project source of truth for coding agents. Vault memory at `C:\Users\rizky\Documents\Obsidian` is for Kyo, not for this repo’s domain rules.
 
-**Harness, not product.** PStack (`how` / `why` mapper, `create-verification-skill` / `maintain-verification-skill` verifier) and `.cursor/skills/verify-agentforge` are agent guardrails, like this file. They are not Agentforge features. Call the original pstack plugin skills from the project verify skill. Do not vendor pstack into `apps/`, `packages/`, the installer, or the UI. Task models stay Cursor explore/worker, not pstack Fable/GPT slugs.
+**Harness, not product.** PStack (`how` / `why` mapper, `create-verification-skill` / `maintain-verification-skill` verifier) and `.cursor/skills/verify-agentforge` are agent guardrails, like this file. They are not DPSBuddy features. Call the original pstack plugin skills from the project verify skill. Do not vendor pstack into `apps/`, `packages/`, the installer, or the UI. Task models stay Cursor explore/worker, not pstack Fable/GPT slugs.
 
 Product modes (Chat / Documents / Research / Market / Images / Videos / Presentation): see [`docs/product-modes.md`](docs/product-modes.md). The left rail follows **workspace** `productModes`. Default has every work tab. Packs are workspace presets, not a custom-agent builder.
 
 ## Product (locked 2026-09-02 GTM; closed beta)
 
-- **Gateway-first.** Agentforge exists because buying a key at `api.tokotokenai.com` leaves the question “where do I use this?” Install, paste the key, work. Native Anthropic / Google / Ark stay in the settings store, unexposed. Since 0.14.21 the owner may change the **Endpoint URL** in Settings (own gateway or loopback model server, HTTPS otherwise); onboarding still shows the branded endpoint read-only.
+- **Gateway-first.** DPSBuddy exists because buying a key at `api.tokotokenai.com` leaves the question “where do I use this?” Install, paste the key, work. Native Anthropic / Google / Ark stay in the settings store, unexposed. Since 0.14.21 the owner may change the **Endpoint URL** in Settings (own gateway or loopback model server, HTTPS otherwise); onboarding still shows the branded endpoint read-only.
 - **No login.** No email, no Better Auth in the product UX, no “join Harbor State.”
 - **Single owner on the machine.** Data lives on disk. Everyone who installs it has their own copy.
 - **First-run needs:** a gateway API key (and later optional local models such as Ollama). Store keys in the OS keychain / a local secrets file, never in the renderer, never in git, never in `NEXT_PUBLIC_*`.
@@ -79,19 +79,19 @@ SQLite file: `data/agentforge.sqlite` (or `AGENTFORGE_DATA_DIR`). Do **not** set
 Desktop:
 
 - **Webdev window:** `pnpm desktop:dev` — Electron around local Vite/Express on `:3000` (no preload / no IPC). Not the installed product.
-- **Packaged app:** `pnpm desktop:build` → NSIS x64 (Windows product path). Stages the Vite renderer + esbuild `host.cjs` (no Next, no bundled `node.exe`, no loopback port). Native modules (`better-sqlite3`, `keytar`) need `@electron/rebuild` **on Windows** — do not run that on Cloud. On launch the main process loads the renderer from `extraResources` and dispatches APIs over IPC. Writes `host-status.json` under Electron userData. Window close exits the whole process tree. Running setup.exe again replaces the existing install and keeps `%APPDATA%\Agentforge`. Uninstall (not upgrade) kills `Agentforge.exe`, deletes `%APPDATA%\Agentforge`, and removes Credential Manager `Agentforge` / `wrap-key`. mac/linux: `pnpm desktop:build:mac` / `pnpm desktop:build:linux` on that OS (unsigned; notarization is not done). Cloud cannot prove packaged Windows and must not run `pnpm desktop:build`. Move log: [`docs/internal/moves.md`](docs/internal/moves.md).
-- **Ship list for 0.14.21 (current Windows patch):** [`docs/internal/0.14.21-changelog.md`](docs/internal/0.14.21-changelog.md). Next: [`docs/internal/0.14.22-changelog.md`](docs/internal/0.14.22-changelog.md) (Research dossier / Data / Finance foundations; plan in [`docs/internal/research-dossier-analyst-modes-plan.md`](docs/internal/research-dossier-analyst-modes-plan.md)). Earlier: [`docs/internal/0.14.1-changelog.md`](docs/internal/0.14.1-changelog.md) is the reference of everything that must be inside the 0.14.1 `setup.exe`. Development and quick testing happen on **webdev** (`pnpm dev`, `:3000`), so a feature that works there is *not shipped* until it is staged into `host.cjs` + the renderer, packed, and driven on the installed app (`doctor --desktop`). Every agent that changes product code after 0.14.0 appends to that changelog; the pack step reads it back as the checklist.
+- **Packaged app:** `pnpm desktop:build` → NSIS x64 (Windows product path). Stages the Vite renderer + esbuild `host.cjs` (no Next, no bundled `node.exe`, no loopback port). Native modules (`better-sqlite3`, `keytar`) need `@electron/rebuild` **on Windows** — do not run that on Cloud. On launch the main process loads the renderer from `extraResources` and dispatches APIs over IPC. Writes `host-status.json` under Electron userData. Window close exits the whole process tree. Running setup.exe again replaces the existing install and keeps `%APPDATA%\DPSBuddy`. Uninstall (not upgrade) kills `DPSBuddy.exe`, deletes `%APPDATA%\DPSBuddy`, and removes Credential Manager `DPSBuddy` / `wrap-key`. mac/linux: `pnpm desktop:build:mac` / `pnpm desktop:build:linux` on that OS (unsigned; notarization is not done). Cloud cannot prove packaged Windows and must not run `pnpm desktop:build`. Move log: [`docs/internal/moves.md`](docs/internal/moves.md).
+- **Ship list for 0.14.24 (current patch, version bumped 2026-09-09, not yet published):** the DPSBuddy rebrand (PR #29) plus PR #24 to #27, listed in [`docs/internal/unreleased.md`](docs/internal/unreleased.md); public notes in [`docs/public/0.14.24-notes.md`](docs/public/0.14.24-notes.md). Previous: [`docs/internal/0.14.23-changelog.md`](docs/internal/0.14.23-changelog.md) (published 2026-09-08); what is on `main` but not in the public installers is tracked in [`docs/internal/unreleased.md`](docs/internal/unreleased.md). Shipped: [`docs/internal/0.14.22-changelog.md`](docs/internal/0.14.22-changelog.md) (Research dossier / Data / Finance, macOS preview; plan in [`docs/internal/research-dossier-analyst-modes-plan.md`](docs/internal/research-dossier-analyst-modes-plan.md)), [`docs/internal/0.14.21-changelog.md`](docs/internal/0.14.21-changelog.md). Earlier: [`docs/internal/0.14.1-changelog.md`](docs/internal/0.14.1-changelog.md) is the reference of everything that must be inside the 0.14.1 `setup.exe`. Development and quick testing happen on **webdev** (`pnpm dev`, `:3000`), so a feature that works there is *not shipped* until it is staged into `host.cjs` + the renderer, packed, and driven on the installed app (`doctor --desktop`). Every agent that changes product code after 0.14.0 appends to that changelog; the pack step reads it back as the checklist.
 
-### Two repos: verify in agentforge, release in DPS Agent Platform
+### Two repos: verify in agentforge, release in DPSBuddy
 
 - **`Kyoo032/agentforge` (private, this repo)** is where all work happens: source, branches, webdev, packing, and the full verify pass. Nothing leaves it until proven — staged into `host.cjs` + renderer, packed, installed, and driven on the packaged app (`doctor --desktop`).
-- **`Kyoo032/DPS-Agent-Platform` (public, "DPS Agent Platform")** is releases only: README + `Agentforge-Setup-<v>.exe` + `.blockmap` + `latest.yml`, published with `pnpm desktop:release` (never by hand, never `git push`). The packaged app's updater reads this repo unauthenticated. Never put source, flavor exes, `docs/internal/` notes, or any AI/agent marks there — release notes come from `docs/public/<version>-notes.md`, commits and releases are authored as Kyo, plain messages.
-- Order is fixed: work → verify inside agentforge → only when everything on the ship list is proven, cut the release into DPS Agent Platform.
+- **`Kyoo032/DPSBuddy` (public, "DPSBuddy")** is releases only: README + `DPSBuddy-Setup-<v>.exe` + `.blockmap` + `latest.yml`, published with `pnpm desktop:release` (never by hand, never `git push`). The packaged app's updater reads this repo unauthenticated. Never put source, flavor exes, `docs/internal/` notes, or any AI/agent marks there — release notes come from `docs/public/<version>-notes.md`, commits and releases are authored as Kyo, plain messages.
+- Order is fixed: work → verify inside agentforge → only when everything on the ship list is proven, cut the release into DPSBuddy.
 - **Versioning (Kyo, 2026-09-07):** after 0.14.2 the next releases are `0.14.21`, `0.14.22`, … — do not use `0.14.3+` and do not bump to `0.15` until Kyo says so. Semver orders these correctly for the updater (21 > 2).
 
 **Packaged Windows installer exists** (rebuild on Windows after the IPC host rewrite). Cloud Linux must not run `pnpm desktop:build`.
 
-- Artifact: `apps/desktop/dist/Agentforge Setup 0.1.0.exe` (gitignored). Rebuild on Windows after this IPC host rewrite — do not treat the 2026-08-31 Next-child exe as current.
+- Artifact: `apps/desktop/dist/DPSBuddy Setup 0.1.0.exe` (gitignored). Rebuild on Windows after this IPC host rewrite — do not treat the 2026-08-31 Next-child exe as current.
 - Packaged proof is an Electron window + `doctor.mjs --desktop` reading `host-status.json` (`transport: "ipc"`). There is no `app-url.txt` and no child `node.exe`.
 
 No account. Workspaces are local. Paste the gateway key in Settings. `AGENTFORGE_RUNTIME=stub` until a key is saved (then live models from the gateway). Env `AGENTFORGE_RUNTIME=ai` still uses `.env` keys.
@@ -107,12 +107,12 @@ No account. Workspaces are local. Paste the gateway key in Settings. `AGENTFORGE
 
 The user pastes their gateway key into settings. The host process holds it. Runs use it. The UI never gets the raw key back after save (`hasOpenai` only). Optional extras: native Google / Anthropic / Ark, plus dedicated tool keys (Tavily/Brave/FAL) in Settings Extras.
 
-Do not use Hermes tools or Hermes dashboard tokens to process Agentforge keys.
+Do not use Hermes tools or Hermes dashboard tokens to process DPSBuddy keys.
 
 - **Gateway key** → `settings.enc` (AES-256-GCM).
-- **Wrap key** → Electron keytar `Agentforge` / `wrap-key` (injected as `AGENTFORGE_SECRETS_KEY`), or webdev `data/.master-key` / env. Never in the renderer, never in git, never in `NEXT_PUBLIC_*`.
+- **Wrap key** → Electron keytar `DPSBuddy` / `wrap-key` (injected as `AGENTFORGE_SECRETS_KEY`), or webdev `data/.master-key` / env. Never in the renderer, never in git, never in `NEXT_PUBLIC_*`.
 - Remote inference URLs must be HTTPS. `http://` is only for loopback (Ollama).
-- Agentforge does not log prompts. Message bodies, system prompts, and tool I/O are encrypted at rest. Gateway retention is Toko Token’s policy, not ours.
+- DPSBuddy does not log prompts. Message bodies, system prompts, and tool I/O are encrypted at rest. Gateway retention is Toko Token’s policy, not ours.
 - OpenRouter’s `provider.zdr: true` is sent only when the saved URL is OpenRouter. Do not send that field to Toko Token.
 - Wallet / usage / key-admin on the gateway stay parked until this privacy pass is solid.
 - Never commit `.env`, `data/settings.enc`, `data/.master-key`, or API keys.
@@ -162,4 +162,4 @@ GitHub Actions (`.github/workflows/e2e.yml`) runs the same stub Playwright suite
 
 - Cursor’s browser can inject `data-cursor-ref` and block clicks. Use Chrome or Playwright.
 - Playwright `/studio/**` redirects to Chat (Build is parked).
-- Dev server binds `127.0.0.1:3000` (webdev only: Vite + Express + `@agentforge/host`). Playwright and the IDE browser must use `http://127.0.0.1:3000` (not a LAN IP). Packaged Agentforge has no HTTP port; `doctor.mjs --desktop` reads Electron userData `host-status.json` (Windows `%APPDATA%\Agentforge`, Linux `$XDG_CONFIG_HOME/Agentforge` or `~/.config/Agentforge`, macOS `~/Library/Application Support/Agentforge`). A phone on a LAN `:3000` is not a product surface — see [`docs/mobile.md`](docs/mobile.md).
+- Dev server binds `127.0.0.1:3000` (webdev only: Vite + Express + `@agentforge/host`). Playwright and the IDE browser must use `http://127.0.0.1:3000` (not a LAN IP). Packaged DPSBuddy has no HTTP port; `doctor.mjs --desktop` reads Electron userData `host-status.json` (Windows `%APPDATA%\DPSBuddy`, Linux `$XDG_CONFIG_HOME/DPSBuddy` or `~/.config/DPSBuddy`, macOS `~/Library/Application Support/DPSBuddy`). A phone on a LAN `:3000` is not a product surface — see [`docs/mobile.md`](docs/mobile.md).

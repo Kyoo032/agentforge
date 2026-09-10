@@ -1,6 +1,6 @@
 # Mobile
 
-Agentforge is a **local desktop / loopback** workbench. There is no iOS or Android app.
+DPSBuddy is a **local desktop / loopback** workbench. There is no iOS or Android app.
 
 - No App Store or Play Store listing.
 - No Capacitor, React Native, or Cordova project in this repo.

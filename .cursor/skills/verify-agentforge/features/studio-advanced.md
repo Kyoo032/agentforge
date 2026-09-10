@@ -10,7 +10,7 @@
 
 - You cannot. Build is hidden.
 
-## Driving it with the Agentforge harness
+## Driving it with the DPSBuddy harness
 
 Preconditions:
 

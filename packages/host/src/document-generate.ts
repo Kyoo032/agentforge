@@ -15,8 +15,11 @@ import {
   readOptionalInstruction,
 } from "./job-regen";
 import { readSourceText, withSourceMaterial, withSourceRule } from "./job-source";
+import { artifactStore } from "./artifacts";
+import { upsertWorkSource } from "./knowledge-ingest";
+import { artifactWorkCard, documentDraftMarkdown } from "./work-cards";
 
-const FINANCE_SYSTEM = `You draft finished finance documents for Agentforge — not skeletons.
+const FINANCE_SYSTEM = `You draft finished finance documents for DPSBuddy — not skeletons.
 Return ONLY valid JSON (no markdown fences, no commentary) with this exact shape:
 {
   "title": string,
@@ -31,7 +34,7 @@ Rules:
 - Headings are claims or jobs, not labels.
 - No campus / student / course nouns unless the topic itself requires them.`;
 
-const DOCUMENT_SYSTEM = `You draft finished professional documents for Agentforge — not skeletons.
+const DOCUMENT_SYSTEM = `You draft finished professional documents for DPSBuddy — not skeletons.
 Return ONLY valid JSON (no markdown fences, no commentary) with this exact shape:
 {
   "title": string,
@@ -119,6 +122,24 @@ function resolveDocumentModel(body: unknown, settings: ReturnType<typeof loadSet
   );
 }
 
+/** Save the draft as a `documents / draft` artifact. Never fails the job; returns null when it cannot save. */
+function persistDraft(tenant: TenantContext, draft: DocumentDraft, markdown: string, meta: Record<string, unknown>): string | null {
+  try {
+    return artifactStore().create(tenant, {
+      mode: "documents",
+      kind: "draft",
+      title: draft.title,
+      mime: "text/markdown",
+      body: markdown,
+      meta,
+    }).id;
+  } catch (error) {
+    const code = error instanceof ApiError ? error.code : "internal_error";
+    console.warn(`documents: could not save draft (${code})`);
+    return null;
+  }
+}
+
 export async function generateDocumentDraft(tenant: TenantContext, body: unknown): Promise<DocumentDraft> {
   const prompt = readPrompt(body);
   const settings = requireLiveDocumentRuntime();
@@ -128,10 +149,19 @@ export async function generateDocumentDraft(tenant: TenantContext, body: unknown
   if (!raw.trim()) {
     throw new ApiError("generation_failed", "Model returned an empty document draft", 502);
   }
-  return parseDocumentDraft(raw);
+  const draft = parseDocumentDraft(raw);
+  const markdown = documentDraftMarkdown(draft);
+  const artifactId = persistDraft(tenant, draft, markdown, { question: prompt, model, finance: isFinanceJob(body) });
+  if (artifactId) {
+    await upsertWorkSource(
+      tenant,
+      artifactWorkCard({ type: "Documents", artifactId, title: draft.title, prompt, markdown, model }),
+    );
+  }
+  return draft;
 }
 
-const SECTION_SYSTEM = `You rewrite one section of an Agentforge document.
+const SECTION_SYSTEM = `You rewrite one section of an DPSBuddy document.
 Return ONLY valid JSON (no markdown fences, no commentary) with this exact shape:
 { "heading": string, "body": string }
 Rules:

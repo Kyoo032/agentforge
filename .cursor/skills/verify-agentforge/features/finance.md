@@ -18,7 +18,7 @@ Finance is a job: brief plus optional pasted figures → section preview → DOC
 - Open `http://127.0.0.1:3000/finance` when the tab is unlocked.
 - Legal / Marketing / Students presets do not add this tab unless the owner checks it.
 
-## Driving it with the Agentforge harness
+## Driving it with the DPSBuddy harness
 
 Preconditions:
 

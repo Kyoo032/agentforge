@@ -28,6 +28,8 @@ import {
 import { ApiError } from "@agentforge/core";
 import { agentService } from "./tenant";
 import { knowledgeInjection } from "./knowledge";
+import { ingestWorkSource } from "./knowledge-ingest";
+import { chatWorkCard } from "./work-cards";
 import {
   finishRun,
   getThread,
@@ -142,7 +144,8 @@ export async function* startModalityRun(options: {
   const userText = userParts
     .map((part) => (part.type === "text" && typeof part.text === "string" ? part.text : ""))
     .join("\n");
-  const knowledge = await knowledgeInjection(options.tenant, userText);
+  // The thread's own work card is skipped so Chat never retrieves its last reply back into itself.
+  const knowledge = await knowledgeInjection(options.tenant, userText, { excludeThreadId: thread.id });
   const version = {
     ...published.version,
     model,
@@ -163,22 +166,41 @@ export async function* startModalityRun(options: {
   queue.push(": connected\n\n");
   const limits = streamWatchdogLimits(model);
   const runStartedAt = Date.now();
+  // Shared with `work` so the watchdog / client-abort paths can finalize the run row. Without this a
+  // run whose model call never answers stays `streaming` forever (observed under a hung gateway).
+  let runId: string | null = null;
+  // True once the watchdog or a client abort reported failure. The user has seen `run.failed`, so a
+  // model answer that arrives later is dropped instead of being persisted as a completed turn.
+  let settled = false;
+  let settledMessage = "";
+  const settleRun = (message: string) => {
+    settled = true;
+    settledMessage = message;
+    if (!runId) {
+      // The row does not exist yet; `work` finalizes it right after insertRun (see below).
+      return;
+    }
+    void finishRun(options.tenant, runId, "failed", message, null).catch(() => undefined);
+  };
   const failsafe = setTimeout(() => {
     if (queueClosed) {
       return;
     }
     const message = formatStreamWatchdogError(model, "ttfb", Date.now() - runStartedAt);
     send({ type: "run.failed", message });
-    send({ type: "run.completed", runId: "unknown" });
+    send({ type: "run.completed", runId: runId ?? "unknown" });
     closeQueue();
+    settleRun(message);
   }, limits.ttfbMs);
   const onClientAbort = () => {
     if (queueClosed) {
       return;
     }
-    send({ type: "run.failed", message: abortErrorMessage(options.abortSignal?.reason) });
-    send({ type: "run.completed", runId: "unknown" });
+    const message = abortErrorMessage(options.abortSignal?.reason);
+    send({ type: "run.failed", message });
+    send({ type: "run.completed", runId: runId ?? "unknown" });
     closeQueue();
+    settleRun(message);
   };
   options.abortSignal?.addEventListener("abort", onClientAbort, { once: true });
 
@@ -188,7 +210,6 @@ export async function* startModalityRun(options: {
     let failedMessage = "";
     const mediaParts: ContentPart[] = [];
     const toolTrace: ToolCallPart[] = [];
-    let runId: string | null = null;
     let persisted = false;
     let runUsage: Record<string, unknown> | null = null;
     const persistAssistant = async () => {
@@ -218,6 +239,11 @@ export async function* startModalityRun(options: {
       await setThreadTitleFromParts(options.tenant, thread.id, userParts);
       const run = await insertRun(options.tenant, thread.id, published.version.id, options.modality);
       runId = run.id;
+      if (settled) {
+        // Client went away (or the watchdog fired) while the user message was being stored.
+        await finishRun(options.tenant, run.id, "failed", settledMessage || "client_disconnected", null);
+        return;
+      }
       const historyRows = await listMessages(options.tenant, thread.id);
       const inlineLocal = shouldInlineLocalMediaForProvider(settings.openaiBaseUrl || resolvedGatewayBaseUrl());
       const history: Array<{ role: "user" | "assistant"; parts: ContentPart[] }> = [];
@@ -309,9 +335,34 @@ export async function* startModalityRun(options: {
           },
         });
       });
+      if (settled) {
+        return;
+      }
       await persistAssistant();
-      await finishRun(options.tenant, run.id, "completed", undefined, runUsage);
+      const finished = await finishRun(options.tenant, run.id, "completed", undefined, runUsage);
+      if (finished && assistantText.trim()) {
+        // Fire-and-forget: indexing must not delay stream end. One card per thread, latest exchange only.
+        // Anything that goes wrong here is a knowledge concern, never a run failure.
+        try {
+          const fresh = await getThread(options.tenant, thread.id).catch(() => null);
+          ingestWorkSource(
+            options.tenant,
+            chatWorkCard({
+              threadId: thread.id,
+              title: fresh?.title ?? "",
+              userText,
+              assistantText,
+              model,
+            }),
+          );
+        } catch (error) {
+          console.warn(`knowledge-ingest: chat card skipped (${error instanceof Error ? error.message : "unknown"})`);
+        }
+      }
     } catch (error) {
+      if (settled) {
+        return;
+      }
       const message = redactSecrets(error instanceof Error ? error.message : "run_failed");
       const saved = await persistAssistant();
       if (runId) {

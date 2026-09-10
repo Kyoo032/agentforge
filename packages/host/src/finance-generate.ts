@@ -3,6 +3,8 @@ import { financeBriefSchema, financeBriefToMarkdown, type FinanceBrief } from "@
 import { lineItemsFromTable, parseLineItems, type LineItem } from "@agentforge/core/finance";
 import type { JobEmitter } from "@agentforge/core/jobs";
 import { artifactStore } from "./artifacts";
+import { upsertWorkSource } from "./knowledge-ingest";
+import { artifactWorkCard } from "./work-cards";
 import { requireDataset } from "./datasets";
 import {
   buildFinanceBrief,
@@ -31,7 +33,7 @@ Rules:
 - currency is the ISO code when stated or clearly implied (Rp → IDR, $ → USD), else "".
 - Never add figures that are not in the text. Do not compute totals or averages.`;
 
-const BRIEF_SYSTEM = `You write a finished finance brief for Agentforge from line items and metrics that were computed in code.
+const BRIEF_SYSTEM = `You write a finished finance brief for DPSBuddy from line items and metrics that were computed in code.
 Return ONLY valid JSON (no markdown fences) with this exact shape:
 {
   "title": string,
@@ -46,7 +48,7 @@ Rules:
 - assumptions: what the reader must accept for the brief to hold (periods, currency, what is excluded).
 - No campus / student / course nouns unless the topic itself requires them.`;
 
-const SECTION_SYSTEM = `You rewrite one section of an Agentforge finance brief.
+const SECTION_SYSTEM = `You rewrite one section of an DPSBuddy finance brief.
 Return ONLY valid JSON: { "heading": string, "body": string, "metrics": [string] }
 Rules: same as the brief. Only line-item amounts and computed metric values may appear as numbers; metrics lists the keys used. Stay on the same topic as the rest of the brief.`;
 
@@ -232,6 +234,12 @@ export async function generateFinanceBrief(
     itemCount: inputs.items.length,
     flagged: guard.total,
   });
+  if (artifactId) {
+    await upsertWorkSource(
+      tenant,
+      artifactWorkCard({ type: "Finance", artifactId, title: brief.title, prompt: question, markdown, model }),
+    );
+  }
   return { brief, artifactId, markdown, guard, items: inputs.items };
 }
 
