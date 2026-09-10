@@ -1,7 +1,7 @@
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { eq } from "drizzle-orm";
-import { ApiError, secondsToFrames, videoCapabilities, type TenantContext } from "@agentforge/core";
+import { ApiError, videoCapabilities, type TenantContext } from "@agentforge/core";
 import { db, editUnplaced, media } from "@agentforge/db";
 import { jsonError, jsonOk } from "../errors";
 import { getTenant } from "../tenant";
@@ -20,6 +20,7 @@ import { reviewGateOpen } from "../edit/review";
 import { foldEditMetrics } from "../edit/metrics";
 import { renderParityFrame } from "../edit/parity";
 import { probe } from "../edit/ffmpeg/recipes";
+import { importedClipDurationFrames, STILL_IMAGE_SECONDS } from "../edit/import-duration";
 
 export const EDIT_UPLOAD_MAX = 500 * 1024 * 1024;
 
@@ -92,8 +93,9 @@ async function saveEditFile(
   return { id, kind, storagePath: relative, url, sizeBytes: bytes.byteLength };
 }
 
-export async function handleGetEditDoctor(): Promise<HostResult> {
-  return jsonOk(getEditDoctor());
+export async function handleGetEditDoctor(request?: HostRequest): Promise<HostResult> {
+  const recheck = request?.query.recheck === "1" || request?.query.recheck === "true";
+  return jsonOk(getEditDoctor({ recheck }));
 }
 
 export async function handleGetEditProjects(request: HostRequest): Promise<HostResult> {
@@ -186,7 +188,7 @@ export async function handlePostEditImport(request: HostRequest): Promise<HostRe
   try {
     const tenant = await getTenant(request.workspaceId);
     const projectId = request.params.projectId;
-    await foldProject(projectId, tenant.workspaceId);
+    const doc = await foldProject(projectId, tenant.workspaceId);
     const body = asRecord(request.body);
     let bytes: Uint8Array | undefined;
     let mime = "application/octet-stream";
@@ -244,7 +246,12 @@ export async function handlePostEditImport(request: HostRequest): Promise<HostRe
     }
     const assetId = crypto.randomUUID();
     const clipId = crypto.randomUUID();
-    const durationFrames = Math.max(1, secondsToFrames(probed.durationSeconds || 1 / 30, probed.fps || 30));
+    const durationFrames = importedClipDurationFrames({
+      kind: saved.kind,
+      probedSeconds: probed.durationSeconds,
+      probedFps: probed.fps,
+      projectFps: doc.fps,
+    });
     const trackId = saved.kind === "audio" ? "a1" : "v1";
     const applied = await appendOps(
       projectId,
@@ -415,7 +422,7 @@ export async function handlePostEditUnplacedPlace(request: HostRequest): Promise
   try {
     const tenant = await getTenant(request.workspaceId);
     const projectId = request.params.projectId;
-    await foldProject(projectId, tenant.workspaceId);
+    const doc = await foldProject(projectId, tenant.workspaceId);
     const body = asRecord(request.body);
     const rows = await db.select().from(editUnplaced).where(eq(editUnplaced.id, request.params.itemId)).limit(1);
     const item = rows[0];
@@ -423,6 +430,8 @@ export async function handlePostEditUnplacedPlace(request: HostRequest): Promise
       return jsonOk({ error: { code: "not_found", message: "Unplaced item not found" } }, 404);
     }
     const clipId = crypto.randomUUID();
+    const placedAsset = doc.assets[item.assetId];
+    const durationFrames = placedAsset?.durationFrames ?? Math.max(1, Math.round(doc.fps * STILL_IMAGE_SECONDS));
     const applied = await appendOps(
       projectId,
       [
@@ -433,7 +442,7 @@ export async function handlePostEditUnplacedPlace(request: HostRequest): Promise
               id: clipId,
               trackId: typeof body.trackId === "string" ? body.trackId : "v1",
               timelineStartFrame: typeof body.timelineStartFrame === "number" ? body.timelineStartFrame : 0,
-              durationFrames: 30,
+              durationFrames,
               source: { assetId: item.assetId, inFrame: 0 },
               status: "ready",
             },

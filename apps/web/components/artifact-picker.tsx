@@ -17,6 +17,7 @@ const MODE_LABEL: Record<ArtifactMode, string> = {
   research: "Research",
   data: "Data",
   finance: "Finance",
+  market: "Market",
   documents: "Documents",
   presentations: "Presentation",
   legal: "Legal",

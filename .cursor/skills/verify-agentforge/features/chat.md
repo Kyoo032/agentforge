@@ -18,13 +18,13 @@ A turn is three layers: **Thinking** (collapsible), **tools** (one row per call)
 - `chat-probe` — host still retries contacting the model up to 3 times internally. The UI stays `Thinking…` (`thinking-placeholder` inside `message-thinking`) and `Sending…` on `composer-send`. Probe copy (`Probing`, `1st try`) must not appear on the frontend. After 3 failed tries, `chat-error` / `composer-error` reads `Could not reach {model} after 3 tries`. Packaged window must do this, not only `:3000`.
 - `chat-new` starts a blank session from `new-chat` without losing the previous thread in the list. The model picker keeps its current value (does not snap to the catalog default).
 - `chat-switch` reopens the first thread from `thread-list`. The picker restores that thread's last model from localStorage. If the destination thread has no stored model (or the stored id left the catalog), the picker keeps its current value — never the catalog default. First Chat load uses last-used (`agentforge-chat-model`), then catalog default.
-- `chat-rail` keeps `mode-chat` visible. On Home, Documents/Research/Images/Videos/Presentation are also visible. `mode-agents` count is 0.
+- `chat-rail` keeps `mode-chat` visible. On Default, Documents/Research/Images/Videos/Presentation are also visible. `mode-agents` count is 0.
 
 ## How to get to it (user POV)
 
 - Open `http://127.0.0.1:3000/chat`.
 - Choose `Chat` on the left rail (`mode-chat`).
-- `/` redirects to the first visible mode (Chat on Home).
+- `/` redirects to the first visible mode (Chat on Default).
 - `/agents/<uuid>` redirects to Chat (Build is parked).
 
 ## Driving it with the DPSBuddy harness

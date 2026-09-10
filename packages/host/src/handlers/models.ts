@@ -23,9 +23,9 @@ export async function handleGetModels(request: HostRequest): Promise<HostResult>
 
 export async function handlePostModels(request: HostRequest): Promise<HostResult> {
   try {
-    await getTenant(request.workspaceId);
+    const tenant = await getTenant(request.workspaceId);
     // Explicit refresh from the UI: also re-download the models.dev registry.
-    const probe = await refreshModelCache(loadSettings(), { forceRegistry: true });
+    const probe = await refreshModelCache(loadSettings(tenant.workspaceId), { forceRegistry: true });
     const models = listSelectableModels();
     const catalog = modeCatalogPayload();
     return jsonOk({

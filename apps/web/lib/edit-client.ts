@@ -51,8 +51,17 @@ export type EditProjectRow = {
   updatedAt?: string;
 };
 
+export type FfmpegSetup = {
+  platform: "macos" | "windows" | "linux";
+  summary: string;
+  installCommand: string;
+  installUrl: string;
+  steps: string[];
+  envVar: string;
+};
+
 export type EditDoctor = {
-  ffmpeg?: { found?: boolean; path?: string; version?: string };
+  ffmpeg?: { found?: boolean; path?: string | null; version?: string | null; reason?: string; setup?: FfmpegSetup };
   asr?: { available?: boolean };
 };
 
@@ -147,9 +156,9 @@ export function parseLoadedProject(payload: Record<string, unknown>): LoadedProj
   };
 }
 
-export async function fetchEditDoctor(): Promise<EditDoctor | null> {
+export async function fetchEditDoctor(options: { recheck?: boolean } = {}): Promise<EditDoctor | null> {
   try {
-    const response = await apiFetch("/api/v1/edit/doctor");
+    const response = await apiFetch(options.recheck ? "/api/v1/edit/doctor?recheck=1" : "/api/v1/edit/doctor");
     if (!response.ok) {
       return null;
     }

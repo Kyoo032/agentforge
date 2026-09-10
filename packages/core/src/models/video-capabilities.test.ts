@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  allowedVideoSeconds,
+  snapVideoSeconds,
   clampVideoSeconds,
   normalizeVideoResolution,
   usesSeedanceVideoWire,
@@ -68,5 +70,22 @@ describe("videoCapabilities", () => {
     expect(normalizeVideoResolution()).toBe("720p");
     expect(normalizeVideoResolution("1080p")).toBe("1080p");
     expect(normalizeVideoResolution("4k")).toBe("720p");
+  });
+});
+
+describe("allowedVideoSeconds / snapVideoSeconds", () => {
+  it("limits Veo to 4, 6 and 8 seconds", () => {
+    expect(allowedVideoSeconds("veo_3_1-fast")).toEqual([4, 6, 8]);
+    expect(allowedVideoSeconds("veo_3_1")).toEqual([4, 6, 8]);
+    expect(allowedVideoSeconds("seedance-2.0-fast")).toEqual([5, 8, 10]);
+  });
+
+  it("snaps a requested length to the nearest accepted one", () => {
+    expect(snapVideoSeconds("veo_3_1-fast", 5)).toBe(4);
+    expect(snapVideoSeconds("veo_3_1-fast", 7)).toBe(6);
+    expect(snapVideoSeconds("veo_3_1-fast", 10)).toBe(8);
+    expect(snapVideoSeconds("veo_3_1-fast", undefined)).toBe(4);
+    expect(snapVideoSeconds("seedance-2.0-fast", 5)).toBe(5);
+    expect(snapVideoSeconds("seedance-2.0-fast", 12)).toBe(10);
   });
 });

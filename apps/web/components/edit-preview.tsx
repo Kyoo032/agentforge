@@ -1,6 +1,7 @@
 import { DEFAULT_CAPTION_STYLE, formatTimecode, layoutTitle, type Clip, type EditProject, type TitleStyle } from "@agentforge/core/edit";
 import { mediaSrc } from "@/lib/api-client";
 import { timelineEndFrame } from "@/lib/edit-client";
+import { previewMediaForClip, videoClipAt, type PreviewMedia } from "@/lib/edit-preview-media";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
 type Props = {
@@ -24,28 +25,8 @@ function hex8ToCss(hex8: string): string {
   return `rgba(${r}, ${g}, ${b}, ${a})`;
 }
 
-function clipAtPlayhead(project: EditProject, playhead: number, kind: "video" | "caption"): Clip | undefined {
-  return project.clips.find(
-    (clip) =>
-      project.tracks.find((track) => track.id === clip.trackId)?.kind === kind &&
-      playhead >= clip.timelineStartFrame &&
-      playhead < clip.timelineStartFrame + clip.durationFrames,
-  );
-}
-
-function assetUrl(project: EditProject, clip: Clip | undefined): string | null {
-  if (!clip) {
-    return null;
-  }
-  const assetId = clip.source?.assetId ?? clip.fallbackAssetId;
-  if (!assetId) {
-    return null;
-  }
-  const asset = project.assets[assetId];
-  if (!asset?.mediaId) {
-    return null;
-  }
-  return mediaSrc(`/api/v1/media/${asset.mediaId}/file`);
+function mediaUrl(media: PreviewMedia | null): string | null {
+  return media ? mediaSrc(`/api/v1/media/${media.mediaId}/file`) : null;
 }
 
 function overlayStyle(style: TitleStyle, canvas: { width: number; height: number }, scale: number): CSSProperties {
@@ -79,7 +60,8 @@ export function EditPreview({ project, playhead, playing, onPlayhead, onPlaying,
   const width = project?.width ?? 1920;
   const height = project?.height ?? 1080;
   const end = project ? timelineEndFrame(project) : fps * 10;
-  const active = project ? clipAtPlayhead(project, playhead, "video") : undefined;
+  const active = project ? videoClipAt(project, playhead) : undefined;
+  const media = project ? previewMediaForClip(project, active, playhead) : null;
   const nextClip = useMemo(() => {
     if (!project || !active) {
       return undefined;
@@ -96,8 +78,11 @@ export function EditPreview({ project, playhead, playing, onPlayhead, onPlaying,
   const bufferRef = useRef<HTMLVideoElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const [fit, setFit] = useState({ w: 0, h: 0 });
-  const url = project ? assetUrl(project, active) : null;
-  const nextUrl = project ? assetUrl(project, nextClip) : null;
+  const nextMedia = project && nextClip ? previewMediaForClip(project, nextClip, nextClip.timelineStartFrame) : null;
+  const url = mediaUrl(media);
+  const videoUrl = media?.kind === "video" ? url : null;
+  const imageUrl = media?.kind === "image" ? url : null;
+  const nextVideoUrl = nextMedia?.kind === "video" ? mediaUrl(nextMedia) : null;
 
   useEffect(() => {
     const frame = frameRef.current;
@@ -129,11 +114,10 @@ export function EditPreview({ project, playhead, playing, onPlayhead, onPlaying,
 
   useEffect(() => {
     const video = primaryRef.current;
-    if (!video || !active || !project) {
+    if (!video || !media || media.kind !== "video") {
       return;
     }
-    const local = playhead - active.timelineStartFrame + (active.source?.inFrame ?? 0);
-    const seconds = local / fps;
+    const seconds = media.localFrame / fps;
     if (Math.abs(video.currentTime - seconds) > 1 / fps) {
       video.currentTime = Math.max(0, seconds);
     }
@@ -142,15 +126,15 @@ export function EditPreview({ project, playhead, playing, onPlayhead, onPlaying,
     } else {
       video.pause();
     }
-  }, [active, fps, playhead, playing, project, url]);
+  }, [fps, media, playing, videoUrl]);
 
   useEffect(() => {
     const video = bufferRef.current;
-    if (!video || !nextClip) {
+    if (!video || !nextMedia || nextMedia.kind !== "video") {
       return;
     }
-    video.currentTime = (nextClip.source?.inFrame ?? 0) / fps;
-  }, [fps, nextClip, nextUrl]);
+    video.currentTime = nextMedia.localFrame / fps;
+  }, [fps, nextMedia, nextVideoUrl]);
 
   const playheadRef = useRef(playhead);
   playheadRef.current = playhead;
@@ -178,7 +162,7 @@ export function EditPreview({ project, playhead, playing, onPlayhead, onPlaying,
   }, [end, fps, onPlayhead, onPlaying, onScrubBucket, playing]);
 
   const scale = fit.w > 0 ? fit.w / width : 0;
-  const titleClip = project ? clipAtPlayhead(project, playhead, "video") : undefined;
+  const titleClip = active;
   const captionClip = project
     ? project.clips.find(
         (clip) =>
@@ -214,17 +198,27 @@ export function EditPreview({ project, playhead, playing, onPlayhead, onPlaying,
             aspectRatio: `${width} / ${height}`,
           }}
         >
+          {imageUrl ? (
+            <img
+              className="absolute inset-0 h-full w-full object-contain"
+              src={imageUrl}
+              alt=""
+              draggable={false}
+              data-testid="edit-preview-image"
+            />
+          ) : null}
           <video
             ref={primaryRef}
-            className="absolute inset-0 h-full w-full object-contain"
-            src={url ?? undefined}
+            className={`absolute inset-0 h-full w-full object-contain${videoUrl ? "" : " hidden"}`}
+            src={videoUrl ?? undefined}
             muted
             playsInline
+            data-testid="edit-preview-video"
           />
           <video
             ref={bufferRef}
             className="pointer-events-none absolute inset-0 h-full w-full object-contain opacity-0"
-            src={nextUrl ?? undefined}
+            src={nextVideoUrl ?? undefined}
             muted
             playsInline
             aria-hidden="true"

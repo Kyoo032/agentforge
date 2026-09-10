@@ -22,6 +22,7 @@ type IconName =
   | "research"
   | "finance"
   | "data"
+  | "market"
   | "legal"
   | "images"
   | "videos"
@@ -59,6 +60,15 @@ const RAIL_ICON_PATHS: Record<IconName, ReactNode> = {
       <ellipse cx="12" cy="5" rx="8" ry="3" />
       <path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5" />
       <path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" />
+    </>
+  ),
+  market: (
+    <>
+      <rect x="4" y="9" width="4" height="7" />
+      <path d="M6 5v4M6 16v3" />
+      <rect x="14" y="6" width="4" height="8" />
+      <path d="M16 3v3M16 14v5" />
+      <path d="M3 21h18" />
     </>
   ),
   legal: (
@@ -218,7 +228,9 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
       data-rail={collapsed ? "min" : "full"}
     >
       <div
-        className={`flex shrink-0 items-start gap-2 border-b border-divider ${collapsed ? "justify-center px-1.5 py-3" : "px-3 py-3"}`}
+        className={`flex shrink-0 border-b border-divider ${
+          collapsed ? "flex-col items-center gap-1 px-1.5 py-3" : "items-start gap-2 px-3 py-3"
+        }`}
       >
         {logoSrc ? (
           <img src={logoSrc} alt="" className="mt-0.5 h-7 w-7 shrink-0 object-contain" data-testid="product-logo" />
@@ -227,7 +239,9 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
             {productMonogram(productName)}
           </span>
         )}
-        {collapsed ? null : (
+        {collapsed ? (
+          <WorkspaceSwitcher workspaceName={workspaceName} compact />
+        ) : (
           <div className="min-w-0 flex-1">
             <Link
               href={homeHref}
@@ -260,7 +274,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
           </>
         ) : null}
 
-        {jobModes.length > 0 ? <RailGroupLabel collapsed={collapsed}>Home · job modes</RailGroupLabel> : null}
+        {jobModes.length > 0 ? <RailGroupLabel collapsed={collapsed}>Job modes</RailGroupLabel> : null}
         {jobModes.map((mode) => (
           <RailItem
             key={mode.href}

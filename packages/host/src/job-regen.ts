@@ -6,6 +6,7 @@ import {
   type ContentPart,
   type ImageUrlPart,
   type RuntimeEvent,
+  type StreamWatchdogLimits,
   type TenantContext,
   type ToolBindingRecord,
 } from "@agentforge/core";
@@ -72,6 +73,8 @@ export async function collectJobAssistantText(options: {
   toolKeys?: string[];
   /** Observe runtime events (tool calls, deltas) while the job runs. */
   onEvent?: (event: RuntimeEvent) => void;
+  /** Raise the stream watchdog above the model defaults for this run (never lowers them). */
+  streamWatchdog?: Partial<StreamWatchdogLimits>;
 }): Promise<string> {
   const settings = loadSettings();
   const runtime = createRuntime(settings);
@@ -111,6 +114,7 @@ export async function collectJobAssistantText(options: {
     version,
     bindings,
     history: [{ role: "user", parts }],
+    ...(options.streamWatchdog ? { streamWatchdog: options.streamWatchdog } : {}),
     onEvent: (event) => {
       if (event.type === "assistant.delta") {
         assistantText += event.text;

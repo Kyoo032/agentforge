@@ -2,7 +2,7 @@
 
 import { Link } from "@/lib/nav";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { videoCapabilities } from "@agentforge/core/video-capabilities";
+import { allowedVideoSeconds, snapVideoSeconds, videoCapabilities } from "@agentforge/core/video-capabilities";
 import type { PromptTemplate } from "@agentforge/core/edit";
 import { EditPromptTemplates } from "@/components/edit-prompt-templates";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
@@ -43,7 +43,6 @@ const ASPECTS = [
   { id: "1:1", label: "1:1" },
 ] as const;
 
-const SECONDS = [5, 8, 10] as const;
 const RESOLUTIONS = ["480p", "720p", "1080p"] as const;
 
 export function VideosStudio() {
@@ -52,7 +51,7 @@ export function VideosStudio() {
   const [models, setModels] = useState<StudioModel[]>([]);
   const [model, setModel] = useState("");
   const [aspect, setAspect] = useState<(typeof ASPECTS)[number]["id"]>("16:9");
-  const [seconds, setSeconds] = useState<(typeof SECONDS)[number]>(5);
+  const [seconds, setSeconds] = useState<number>(5);
   const [resolution, setResolution] = useState<(typeof RESOLUTIONS)[number]>("720p");
   const [prompt, setPrompt] = useState("");
   const [templateId, setTemplateId] = useState<string | null>(null);
@@ -95,6 +94,10 @@ export function VideosStudio() {
   const imageToVideo = caps.imageToVideo;
 
   useEffect(() => {
+    setSeconds((current) => snapVideoSeconds(model, current));
+  }, [model]);
+
+  useEffect(() => {
     if (!imageToVideo) {
       setStillUrl("");
     }
@@ -103,12 +106,7 @@ export function VideosStudio() {
   function pickTemplate(template: PromptTemplate) {
     setPrompt(template.prompt);
     setAspect(template.aspect);
-    setSeconds(
-      SECONDS.reduce<(typeof SECONDS)[number]>(
-        (best, value) => (Math.abs(value - template.seconds) < Math.abs(best - template.seconds) ? value : best),
-        SECONDS[0],
-      ),
-    );
+    setSeconds(snapVideoSeconds(model, template.seconds));
     setTemplateId(template.id);
   }
 
@@ -208,11 +206,11 @@ export function VideosStudio() {
           <select
             className="rounded-md border border-mist bg-paper px-3 py-2 text-sm text-ink"
             value={seconds}
-            onChange={(event) => setSeconds(Number(event.target.value) as (typeof SECONDS)[number])}
+            onChange={(event) => setSeconds(Number(event.target.value))}
             disabled={generating || !caps.seconds}
             data-testid="videos-studio-seconds"
           >
-            {SECONDS.map((value) => (
+            {allowedVideoSeconds(model).map((value) => (
               <option key={value} value={value}>
                 {value}s
               </option>

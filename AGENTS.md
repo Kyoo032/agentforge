@@ -8,7 +8,7 @@ This file is the project source of truth for coding agents. Vault memory at `C:\
 
 **Harness, not product.** PStack (`how` / `why` mapper, `create-verification-skill` / `maintain-verification-skill` verifier) and `.cursor/skills/verify-agentforge` are agent guardrails, like this file. They are not DPSBuddy features. Call the original pstack plugin skills from the project verify skill. Do not vendor pstack into `apps/`, `packages/`, the installer, or the UI. Task models stay Cursor explore/worker, not pstack Fable/GPT slugs.
 
-Product modes (Chat / Documents / Research / Images / Videos / Presentation): see [`docs/product-modes.md`](docs/product-modes.md). The left rail follows **workspace** `productModes`. Home has every work tab. Packs are workspace presets, not a custom-agent builder.
+Product modes (Chat / Documents / Research / Market / Images / Videos / Presentation): see [`docs/product-modes.md`](docs/product-modes.md). The left rail follows **workspace** `productModes`. Default has every work tab. Packs are workspace presets, not a custom-agent builder.
 
 ## Product (locked 2026-09-02 GTM; closed beta)
 
@@ -16,7 +16,7 @@ Product modes (Chat / Documents / Research / Images / Videos / Presentation): se
 - **No login.** No email, no Better Auth in the product UX, no “join Harbor State.”
 - **Single owner on the machine.** Data lives on disk. Everyone who installs it has their own copy.
 - **First-run needs:** a gateway API key (and later optional local models such as Ollama). Store keys in the OS keychain / a local secrets file, never in the renderer, never in git, never in `NEXT_PUBLIC_*`.
-- **Workspaces** are the user’s own desks (which tabs they need) — not an org membership table they must join. Home already has every work mode. Creating another desk (Legal, Marketing, Students, or custom checkboxes) is optional.
+- **Workspaces** are the user’s own desks (which tabs they need) — not an org membership table they must join. Default already has every work mode. Creating another desk (Legal, Marketing, Students, or custom checkboxes) is optional.
 - Chat is ready immediately. Model picker + composer. Building custom agents is parked, not a gate.
 - Pack templates are optional workspace presets. Default Chat never uses a pack template.
 - University/Harbor State is an **optional pack of templates**, not the identity of the app. Kernel stays industry-neutral (`student` / `course` do not belong in core schema).

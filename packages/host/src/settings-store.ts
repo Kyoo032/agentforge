@@ -10,8 +10,14 @@ import {
   mergeSecrets,
 } from "@agentforge/core";
 import { getLocalVaultKey, localDataDir } from "@agentforge/db/vault-key";
+import { readSelectedWorkspaceId } from "./workspace";
 
 export { getLocalVaultKey, localDataDir } from "@agentforge/db/vault-key";
+
+/** Machine-wide v1 payload, claimed onto Default on first boot after upgrade. */
+export const LEGACY_SETTINGS_WORKSPACE = "__legacy__";
+/** Used only when no desk is selected (unit tests, first boot). */
+export const FALLBACK_SETTINGS_WORKSPACE = "__default__";
 
 function encryptedSettingsPath(): string {
   return resolve(localDataDir(), "settings.enc");
@@ -98,11 +104,79 @@ function tryDeleteLegacyPlaintext(): void {
     );
   }
 }
-function persistEncrypted(secrets: StoredSecrets): void {
-  const file = encryptedSettingsPath();
+type SettingsFileV2 = {
+  version: 2;
+  workspaces: Record<string, StoredSecrets>;
+};
+
+type FileCache = { path: string; mtimeMs: number; file: SettingsFileV2 };
+let fileCache: FileCache | null = null;
+
+function emptySettingsFile(): SettingsFileV2 {
+  return { version: 2, workspaces: {} };
+}
+
+function isSettingsFileV2(value: unknown): value is SettingsFileV2 {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const record = value as { version?: unknown; workspaces?: unknown };
+  return (
+    record.version === 2 &&
+    record.workspaces !== null &&
+    typeof record.workspaces === "object" &&
+    !Array.isArray(record.workspaces)
+  );
+}
+
+function secretsMap(workspaces: Record<string, unknown>): Record<string, StoredSecrets> {
+  const next: Record<string, StoredSecrets> = {};
+  for (const [id, value] of Object.entries(workspaces)) {
+    if (value && typeof value === "object") {
+      next[id] = normalizeSecrets(value as StoredSecrets);
+    }
+  }
+  return next;
+}
+
+function parseSettingsFile(decrypted: unknown): { file: SettingsFileV2; migrated: boolean } {
+  if (isSettingsFileV2(decrypted)) {
+    return { file: { version: 2, workspaces: secretsMap(decrypted.workspaces as Record<string, unknown>) }, migrated: false };
+  }
+  if (decrypted && typeof decrypted === "object") {
+    return {
+      file: { version: 2, workspaces: { [LEGACY_SETTINGS_WORKSPACE]: normalizeSecrets(decrypted as StoredSecrets) } },
+      migrated: true,
+    };
+  }
+  return { file: emptySettingsFile(), migrated: false };
+}
+
+function persistEncrypted(file: SettingsFileV2): void {
+  const path = encryptedSettingsPath();
   mkdirSync(localDataDir(), { recursive: true });
-  const envelope = encryptJson(secrets, getLocalVaultKey());
-  writeFileSync(file, `${JSON.stringify(envelope)}\n`, "utf8");
+  const envelope = encryptJson(file, getLocalVaultKey());
+  writeFileSync(path, `${JSON.stringify(envelope)}\n`, "utf8");
+  fileCache = null;
+}
+
+export function resolveSettingsWorkspaceId(workspaceId?: string | null): string {
+  const explicit = workspaceId?.trim();
+  if (explicit) {
+    return explicit;
+  }
+  return readSelectedWorkspaceId() ?? FALLBACK_SETTINGS_WORKSPACE;
+}
+
+function sliceFor(file: SettingsFileV2, workspaceId: string): StoredSecrets {
+  const own = file.workspaces[workspaceId];
+  if (own) {
+    return own;
+  }
+  if (workspaceId === FALLBACK_SETTINGS_WORKSPACE && file.workspaces[LEGACY_SETTINGS_WORKSPACE]) {
+    return file.workspaces[LEGACY_SETTINGS_WORKSPACE]!;
+  }
+  return {};
 }
 
 function assertSavedEndpoints(secrets: StoredSecrets): void {
@@ -140,14 +214,14 @@ function quarantineUnreadableSettings(reason: unknown): void {
   }
 }
 
-function loadEncrypted(): StoredSecrets | null {
+function loadEncryptedPayload(): unknown | null {
   try {
     const raw = readFileSync(encryptedSettingsPath(), "utf8");
     const parsed: unknown = JSON.parse(raw);
     if (!isEnvelope(parsed)) {
       throw new Error("settings.enc is not a valid envelope");
     }
-    return normalizeSecrets(decryptJson<StoredSecrets>(parsed, getLocalVaultKey()));
+    return decryptJson<unknown>(parsed, getLocalVaultKey());
   } catch (error) {
     if (isMissingFile(error)) {
       return null;
@@ -156,9 +230,6 @@ function loadEncrypted(): StoredSecrets | null {
     return null;
   }
 }
-
-type SettingsCache = { path: string; mtimeMs: number; secrets: StoredSecrets };
-let settingsCache: SettingsCache | null = null;
 
 function normalizeEndpoint(url: string | undefined): string | undefined {
   const trimmed = url?.trim().replace(/\/+$/, "");
@@ -173,53 +244,103 @@ function withGatewayDefault(secrets: StoredSecrets): StoredSecrets {
   return { ...secrets, openaiBaseUrl: normalizeEndpoint(secrets.openaiBaseUrl) ?? resolvedGatewayBaseUrl() };
 }
 
-function rememberSettings(path: string, mtimeMs: number, secrets: StoredSecrets): StoredSecrets {
-  const resolved = withGatewayDefault(secrets);
-  settingsCache = { path, mtimeMs, secrets: resolved };
-  return resolved;
+function rememberFile(path: string, mtimeMs: number, file: SettingsFileV2): SettingsFileV2 {
+  fileCache = { path, mtimeMs, file };
+  return file;
 }
 
-export function loadSettings(): StoredSecrets {
-  const file = encryptedSettingsPath();
+function loadSettingsFile(): SettingsFileV2 {
+  const path = encryptedSettingsPath();
   try {
-    const stats = statSync(file);
-    if (settingsCache && settingsCache.path === file && settingsCache.mtimeMs === stats.mtimeMs) {
-      return settingsCache.secrets;
+    const stats = statSync(path);
+    if (fileCache && fileCache.path === path && fileCache.mtimeMs === stats.mtimeMs) {
+      return fileCache.file;
     }
-    const encrypted = loadEncrypted();
-    if (encrypted) {
-      return rememberSettings(file, stats.mtimeMs, encrypted);
+    const payload = loadEncryptedPayload();
+    if (payload != null) {
+      const parsed = parseSettingsFile(payload);
+      if (parsed.migrated) {
+        persistEncrypted(parsed.file);
+        try {
+          return rememberFile(path, statSync(path).mtimeMs, parsed.file);
+        } catch {
+          return parsed.file;
+        }
+      }
+      return rememberFile(path, stats.mtimeMs, parsed.file);
     }
   } catch (error) {
     if (!isMissingFile(error)) {
       throw error;
     }
   }
-  settingsCache = null;
+  fileCache = null;
   const legacy = readLegacyPlaintext();
   if (!legacy) {
-    return withGatewayDefault({});
+    return emptySettingsFile();
   }
-  persistEncrypted(legacy);
+  const migrated: SettingsFileV2 = {
+    version: 2,
+    workspaces: { [LEGACY_SETTINGS_WORKSPACE]: legacy },
+  };
+  persistEncrypted(migrated);
   tryDeleteLegacyPlaintext();
   try {
-    const stats = statSync(file);
-    return rememberSettings(file, stats.mtimeMs, legacy);
+    return rememberFile(path, statSync(path).mtimeMs, migrated);
   } catch {
-    return withGatewayDefault(legacy);
+    return migrated;
   }
 }
 
-export function saveSettings(patch: SecretPatch): StoredSecrets {
-  settingsCache = null;
-  const next = withGatewayDefault(mergeSecrets(loadSettings(), patch));
+export function loadSettings(workspaceId?: string | null): StoredSecrets {
+  const id = resolveSettingsWorkspaceId(workspaceId);
+  return withGatewayDefault(sliceFor(loadSettingsFile(), id));
+}
+
+export function saveSettings(patch: SecretPatch, workspaceId?: string | null): StoredSecrets {
+  const id = resolveSettingsWorkspaceId(workspaceId);
+  const file = loadSettingsFile();
+  const next = withGatewayDefault(mergeSecrets(sliceFor(file, id), patch));
   assertSavedEndpoints(next);
-  persistEncrypted(next);
+  persistEncrypted({
+    version: 2,
+    workspaces: { ...file.workspaces, [id]: next },
+  });
   tryDeleteLegacyPlaintext();
-  try {
-    const file = encryptedSettingsPath();
-    return rememberSettings(file, statSync(file).mtimeMs, next);
-  } catch {
-    return next;
+  return next;
+}
+
+/**
+ * Move a pre-isolation machine-wide key onto Default. Other desks stay empty until the owner pastes a key there.
+ */
+export function adoptLegacySettings(homeWorkspaceId: string): void {
+  const id = homeWorkspaceId.trim();
+  if (!id) {
+    return;
   }
+  const file = loadSettingsFile();
+  const legacy = file.workspaces[LEGACY_SETTINGS_WORKSPACE];
+  if (!legacy) {
+    return;
+  }
+  const rest = { ...file.workspaces };
+  delete rest[LEGACY_SETTINGS_WORKSPACE];
+  if (!rest[id]) {
+    rest[id] = legacy;
+  }
+  persistEncrypted({ version: 2, workspaces: rest });
+}
+
+export function dropWorkspaceSettings(workspaceId: string): void {
+  const id = workspaceId.trim();
+  if (!id) {
+    return;
+  }
+  const file = loadSettingsFile();
+  if (!file.workspaces[id]) {
+    return;
+  }
+  const rest = { ...file.workspaces };
+  delete rest[id];
+  persistEncrypted({ version: 2, workspaces: rest });
 }

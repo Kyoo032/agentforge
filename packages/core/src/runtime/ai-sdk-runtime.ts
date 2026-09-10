@@ -445,7 +445,7 @@ export class AiSdkRuntime implements AgentRuntime {
   }> {
     const providerOptions = openaiCompatProviderOptions(options);
     const abort = new AbortController();
-    const watchdog = armStreamWatchdog(input.version.model, abort);
+    const watchdog = armStreamWatchdog(input.version.model, abort, input.streamWatchdog);
     const result = streamText({
       model,
       messages,

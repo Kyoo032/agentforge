@@ -2,6 +2,7 @@ import type { ContentPart } from "../content/types";
 import type { InputModality, TenantContext } from "../tenancy/types";
 import type { AgentVersionRecord, ToolBindingRecord } from "../agents/service";
 import type { ReasoningEffort } from "../models/reasoning-effort";
+import type { StreamWatchdogLimits } from "./stream-watchdog";
 
 export type RunUsage = {
   model: string;
@@ -31,6 +32,12 @@ export type AgentRuntime = {
     thinking?: boolean;
     /** None skips reasoning. Default medium when omitted. */
     reasoningEffort?: ReasoningEffort;
+    /**
+     * Per-run stream watchdog limits, merged over the model defaults (a value
+     * below the default is ignored). For long-prefill jobs that sit quiet
+     * before the first token.
+     */
+    streamWatchdog?: Partial<StreamWatchdogLimits>;
     onEvent: (event: RuntimeEvent) => Promise<void> | void;
   }): Promise<void>;
 };

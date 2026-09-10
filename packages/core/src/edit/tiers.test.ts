@@ -19,6 +19,13 @@ describe("routeEditModel G-19", () => {
     ).toBe("seedance-2.0-fast");
   });
 
+  it("prefers Veo in every tier when the gateway lists it", () => {
+    const live = ["seedance-2.0-fast", "seedance-2.5", "grok-imagine-video", "veo_3_1", "veo_3_1-fast"];
+    expect(routeEditModel({ kind: "video", tier: "draft", liveModelIds: live })).toBe("veo_3_1-fast");
+    expect(routeEditModel({ kind: "video", tier: "standard", liveModelIds: live })).toBe("veo_3_1-fast");
+    expect(routeEditModel({ kind: "video", tier: "cinematic", liveModelIds: live })).toBe("veo_3_1");
+  });
+
   it("skips missing ids and never crosses tiers", () => {
     expect(
       routeEditModel({
@@ -52,7 +59,7 @@ describe("routeEditModel G-19", () => {
         requireImageToVideo: true,
       }),
     ).toBe("grok-imagine-video");
-    expect(EDIT_TIERS.cinematic.video[0]).toBe("seedance-2.5");
+    expect(EDIT_TIERS.cinematic.video[0]).toBe("veo_3_1");
     expect(
       routeEditModel({
         kind: "video",

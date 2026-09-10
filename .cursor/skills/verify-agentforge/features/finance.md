@@ -4,7 +4,7 @@ Finance is a job: brief plus optional pasted figures → section preview → DOC
 
 ## Sub-features
 
-- `finance-rail` reaches `/finance` from `mode-finance` on Home (and any workspace that includes Finance).
+- `finance-rail` reaches `/finance` from `mode-finance` on Default (and any workspace that includes Finance).
 - `finance-shell` shows `finance-studio` with empty copy and starter cards (`finance-starters`).
 - `finance-starter` loads a preview without a live generate.
 - `finance-studio-model` is the generate-bar chat-catalog dropdown.
@@ -14,7 +14,7 @@ Finance is a job: brief plus optional pasted figures → section preview → DOC
 
 ## How to get to it (user POV)
 
-- Choose Finance on the left rail (`mode-finance`). Home already has the tab.
+- Choose Finance on the left rail (`mode-finance`). Default already has the tab.
 - Open `http://127.0.0.1:3000/finance` when the tab is unlocked.
 - Legal / Marketing / Students presets do not add this tab unless the owner checks it.
 
@@ -23,7 +23,7 @@ Finance is a job: brief plus optional pasted figures → section preview → DOC
 Preconditions:
 
 - Doctor exits 0.
-- `mode-finance` is visible on Home. If count is 0, you are on a desk that hid Finance — switch to Home or add the tab in Workspaces.
+- `mode-finance` is visible on Default. If count is 0, you are on a desk that hid Finance — switch to Default or add the tab in Workspaces.
 - Stub proof stops at starters + generate 503. Live generate only if the operator asked and doctor reports `runtime: "ai"` and `hasOpenai: true`.
 
 - **Open Finance.** Click `mode-finance`. URL matches `/finance`. `finance-studio`, `finance-studio-empty`, and `finance-starters` are visible.
@@ -34,6 +34,6 @@ Preconditions:
 
 ## Gotchas
 
-- Default Home unlocks Finance. Seeded Legal / Marketing / Students desks do not.
+- Default desk unlocks Finance. Seeded Legal / Marketing / Students desks do not.
 - Generate is the documents pipeline with `job: "finance"`. Do not invent a second DOCX path.
 - Do not POST `/api/v1/documents` as a substitute for the prompt bar on a live proof.

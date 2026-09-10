@@ -15,7 +15,15 @@ function disabledOutput(toolKey: string): { success: false; error: string } {
  * Full output is reported to the ALS sink; the return value is thinned for the model.
  */
 /** Tools whose output is attacker-reachable text: scanned for injection before the model sees it. */
-const NETWORK_SOURCED_TOOLS = new Set(["web_search", "web_fetch"]);
+const NETWORK_SOURCED_TOOLS = new Set([
+  "web_search",
+  "web_fetch",
+  "market_quotes",
+  "market_history",
+  "market_technical",
+  "market_news",
+  "market_macro",
+]);
 
 export async function invokeToolGuarded(
   tool: ToolDefinition<ZodTypeAny>,

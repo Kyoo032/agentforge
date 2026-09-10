@@ -499,3 +499,23 @@ export const datasets = sqliteTable(
   },
   (table) => [index("datasets_ws_idx").on(table.workspaceId, table.createdAt)],
 );
+
+/**
+ * Market mode read-through cache: one row per (ticker, kind) holding the latest
+ * fetched payload (JSON) and its SourceRef (JSON). `kind` is one of
+ * fundamentals | prices | analysts | news. The companion FTS5 table
+ * `market_news_fts(ticker, title, summary, link UNINDEXED, published_at UNINDEXED)`
+ * is SQL-only (drizzle/0009_market.sql), like knowledge_chunks.
+ */
+export const marketCache = sqliteTable(
+  "market_cache",
+  {
+    id: text("id").primaryKey(),
+    ticker: text("ticker").notNull(),
+    kind: text("kind").notNull(),
+    payload: text("payload").notNull(),
+    sourceRef: text("source_ref").notNull(),
+    observedAt: text("observed_at").notNull(),
+  },
+  (table) => [index("market_cache_ticker_kind_idx").on(table.ticker, table.kind, table.observedAt)],
+);

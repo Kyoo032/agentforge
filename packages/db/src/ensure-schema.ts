@@ -227,8 +227,31 @@ export function ensureSchema(sqlite: Database.Database): void {
   ensureEditTables(sqlite);
   ensureArtifactTables(sqlite);
   ensureDatasetTables(sqlite);
+  ensureMarketTables(sqlite);
   ensureWorkspaceColumns(sqlite);
   assertKernelTables(sqlite);
+}
+
+/** Market mode cache + headline search. Mirrors drizzle/0009_market.sql for DBs stamped before it existed. */
+function ensureMarketTables(sqlite: Database.Database): void {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS market_cache (
+      id text PRIMARY KEY NOT NULL,
+      ticker text NOT NULL,
+      kind text NOT NULL,
+      payload text NOT NULL,
+      source_ref text NOT NULL,
+      observed_at text NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS market_cache_ticker_kind_idx ON market_cache (ticker, kind, observed_at);
+    CREATE VIRTUAL TABLE IF NOT EXISTS market_news_fts USING fts5(
+      ticker,
+      title,
+      summary,
+      link UNINDEXED,
+      published_at UNINDEXED
+    );
+  `);
 }
 
 /** Uploaded tables for analyst modes. Mirrors drizzle/0007_datasets.sql for DBs stamped before it existed. */

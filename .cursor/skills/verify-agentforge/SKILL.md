@@ -134,11 +134,11 @@ Use `page.getByTestId("<id>")` exactly as the spec.
 
 | testid | Surface |
 |---|---|
-| `mode-chat`, `mode-documents`, `mode-research`, `mode-finance`, `mode-data`, `mode-images`, `mode-videos`, `mode-presentations`, `mode-edit` | Left rail work modes (Home has all of these). `mode-edit` is Phase 1 |
+| `mode-chat`, `mode-documents`, `mode-research`, `mode-finance`, `mode-data`, `mode-images`, `mode-videos`, `mode-presentations`, `mode-edit` | Left rail work modes (Default has all of these). `mode-edit` is Phase 1 |
 | `mode-knowledge` | Account rail → Knowledge Base (`/knowledge`). Always visible; not a product mode |
 | `product-brand`, `product-logo` | Rail product name and mark. Packaged flavors must not stay DPSBuddy — [desktop-brands.md](features/desktop-brands.md) |
 | `mode-agents` | Parked. Count 0. `/agents` and `/studio` redirect to Chat |
-| `workspaces-switcher`, `workspaces-link`, `open-workspace`, `workspace-template-picker`, `workspace-mode-picker`, `create-workspace` | Workspaces |
+| `workspaces-switcher`, `workspaces-link`, `open-workspace`, `create-new-workspace`, `workspace-template-picker`, `workspace-mode-picker`, `create-workspace`, `edit-workspace-modes`, `workspace-edit-name`, `save-workspace-modes`, `delete-workspace`, `delete-workspace-confirm-name`, `delete-workspace-confirm-submit` | Workspaces |
 | `settings-link` | Rail → Settings |
 | `usage-link`, `usage-open`, `usage-range`, `usage-range-chart` | Rail / Settings → Usage (`/usage`); range toggle + stacked chart |
 | `model-picker`, `composer`, `composer-text`, `composer-send`, `composer-enhance` | Chat |
@@ -157,7 +157,7 @@ Use `page.getByTestId("<id>")` exactly as the spec.
 | `documents-section`, `research-preview`, `research-note` | Job preview bodies (markdown via `FormattedText`) |
 | `documents-regen-panel`, `presentations-regen-panel`, `*-regen-prompt`, `*-regen-model`, `*-regen-attach`, `*-regen-submit` | Section/slide regen composer |
 
-Rail testids are `mode-${href.slice(1)}` (`/chat` → `mode-chat`). Home already shows every work mode. A Legal desk has Chat + Documents + Research + Presentation and `mode-images` count 0.
+Rail testids are `mode-${href.slice(1)}` (`/chat` → `mode-chat`). Default already shows every work mode. A Legal desk has Chat + Documents + Research + Presentation and `mode-images` count 0.
 
 Recipes: [features/chat.md](features/chat.md), [features/settings.md](features/settings.md), [features/usage.md](features/usage.md), [features/workspaces.md](features/workspaces.md), [features/documents.md](features/documents.md), [features/research.md](features/research.md), [features/finance.md](features/finance.md), [features/data.md](features/data.md), [features/legal.md](features/legal.md), [features/knowledge.md](features/knowledge.md), [features/knowledge-ingest.md](features/knowledge-ingest.md), [features/images.md](features/images.md), [features/videos.md](features/videos.md), [features/edit.md](features/edit.md), [features/desktop.md](features/desktop.md), [features/desktop-brands.md](features/desktop-brands.md), [features/mobile.md](features/mobile.md). Build and Studio advanced are parked.
 
@@ -187,7 +187,7 @@ Standards:
 - Do not delete `data/agentforge.sqlite`, `data/settings.enc`, or the operator's threads.
 - Do not delete evidence.
 - A Chat send on the shared Windows instance leaves a real thread. Leave it unless the operator wants it removed (`thread-delete`).
-- Do not create a custom agent on the operator's desk. Home already has job modes. Cloud Playwright no longer creates an Assistant.
+- Do not create a custom agent on the operator's desk. Default already has job modes. Cloud Playwright no longer creates an Assistant.
 
 ## Helpers
 

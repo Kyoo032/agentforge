@@ -4,7 +4,7 @@ Data is a table analyst job: paste CSV → ask a question → sourced notes → 
 
 ## Sub-features
 
-- `data-rail` reaches `/data` from `mode-data` on Home (and any workspace that includes Data).
+- `data-rail` reaches `/data` from `mode-data` on Default (and any workspace that includes Data).
 - `data-shell` shows `data-studio` with a CSV box (`data-csv`) and starter cards (`data-starters`).
 - `data-starter` pre-fills `data-prompt`.
 - `data-studio-model` is the generate-bar chat-catalog dropdown.
@@ -14,7 +14,7 @@ Data is a table analyst job: paste CSV → ask a question → sourced notes → 
 
 ## How to get to it (user POV)
 
-- Choose Data on the left rail (`mode-data`). Home already has the tab.
+- Choose Data on the left rail (`mode-data`). Default already has the tab.
 - Open `http://127.0.0.1:3000/data` when the tab is unlocked.
 - Legal / Marketing / Students presets do not add this tab unless the owner checks it.
 
@@ -23,7 +23,7 @@ Data is a table analyst job: paste CSV → ask a question → sourced notes → 
 Preconditions:
 
 - Doctor exits 0.
-- `mode-data` is visible on Home. If count is 0, switch to Home or add the tab in Workspaces.
+- `mode-data` is visible on Default. If count is 0, switch to Default or add the tab in Workspaces.
 - Stub proof: paste CSV + starter + generate 503. Live generate only if the operator asked and doctor reports `runtime: "ai"` and `hasOpenai: true`.
 
 - **Open Data.** Click `mode-data`. URL matches `/data`. `data-studio` and `data-csv` are visible.
@@ -34,6 +34,6 @@ Preconditions:
 
 ## Gotchas
 
-- Default Home unlocks Data. Seeded Legal / Marketing / Students desks do not.
+- Default desk unlocks Data. Seeded Legal / Marketing / Students desks do not.
 - This is not `/api/v1/research`. A network call to Tavily/Brave is a fail.
 - Do not POST `/api/v1/data` as a substitute for the prompt bar on a live proof.

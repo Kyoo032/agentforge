@@ -40,6 +40,8 @@ export type HostBytesResult = {
   bytes: Uint8Array;
   contentType: string;
   filename?: string;
+  /** Extra response headers, e.g. Accept-Ranges / Content-Range for media seeking. */
+  headers?: Record<string, string>;
 };
 
 export type HostResult = HostJsonResult | HostStreamResult | HostBytesResult;

@@ -61,3 +61,10 @@ export {
   formatMetricValue,
 } from "./finance-brief";
 export type { FinanceBrief, FinanceComputed, FinanceMetric, FinanceSection } from "./finance-brief";
+export {
+  briefingSectionSchema,
+  briefingSourceSchema,
+  marketBriefingSchema,
+  marketBriefingToMarkdown,
+} from "./market-briefing";
+export type { BriefingSection, BriefingSource, MarketBriefing } from "./market-briefing";

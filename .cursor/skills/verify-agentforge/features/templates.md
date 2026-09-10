@@ -11,7 +11,7 @@ Example galleries on Images, Videos, Documents, Research, and Presentation load 
 
 ## How to get to it (user POV)
 
-- Open a job mode on Home (Images first: rail `mode-images` or `/images`). A Legal desk may hide some of these tabs.
+- Open a job mode on Default (Images first: rail `mode-images` or `/images`). A Legal desk may hide some of these tabs.
 - The gallery sits above the prompt bar under “Start from a template”.
 - Click a card. A full brief fills the prompt; replace the sample details, then generate if you want.
 
@@ -20,7 +20,7 @@ Example galleries on Images, Videos, Documents, Research, and Presentation load 
 Preconditions:
 
 - Doctor exits 0.
-- `mode-images` (or the target mode tab) is visible on this workspace. Home already has every work mode. If the tab is missing, you are on a desk that hid it — switch to Home or add the tab in Workspaces.
+- `mode-images` (or the target mode tab) is visible on this workspace. Default already has every work mode. If the tab is missing, you are on a desk that hid it — switch to Default or add the tab in Workspaces.
 
 - **Open Images.** Click `mode-images` (or go to `/images` only if the rail tab is visible). `images-studio` is visible. `example-gallery` is visible.
 - **Gallery.** Images: 10 `example-card` entries. Videos / Documents / Research / Presentations: 6 each.
@@ -31,7 +31,7 @@ Preconditions:
 
 ## Gotchas
 
-- Home already has job-mode tabs. Missing `mode-images` on Home is a fail. On a Legal desk it is expected — switch to Home or add the tab in Workspaces.
+- Default already has job-mode tabs. Missing `mode-images` on Default is a fail. On a Legal desk it is expected — switch to Default or add the tab in Workspaces.
 - `images-studio-gallery` / `videos-studio-gallery` are generated-result galleries, not the example cards.
 - Documents / Presentations starters load a worked offline draft/outline. Template cards only prefill the prompt.
 - Prefill targets the mode studio prompt, not Chat `composer-text`.

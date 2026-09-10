@@ -148,6 +148,8 @@ export {
   usesSeedanceVideoWire,
   videoCapabilities,
   clampVideoSeconds,
+  allowedVideoSeconds,
+  snapVideoSeconds,
   normalizeVideoResolution,
   GATEWAY_VIDEO_DURATION_SECONDS,
   GATEWAY_VIDEO_RESOLUTION,
@@ -405,12 +407,15 @@ export {
   streamWatchdogLimits,
   isWatchdogReasoningModel,
 } from "./runtime/stream-watchdog";
+export type { StreamWatchdogLimits } from "./runtime/stream-watchdog";
 export { preferredOpenAiWire, usesResponsesApi } from "./runtime/api-mode";
 export { encodeSse } from "./sse";
 export {
   LOCAL_OWNER_ID,
   PERSONAL_ORG_SLUG,
   HOME_WORKSPACE_SLUG,
+  HOME_WORKSPACE_NAME,
+  LEGACY_HOME_WORKSPACE_NAME,
   WORKSPACE_COOKIE,
   slugifyWorkspace,
   pickWorkspaceId,

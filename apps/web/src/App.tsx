@@ -6,6 +6,7 @@ import {
   WORK_PRODUCT_MODES,
   type ProductMode,
 } from "@agentforge/core/product-modes";
+import { HOME_WORKSPACE_NAME } from "@agentforge/core/local-owner";
 import { AppShell } from "@/components/app-shell";
 import { apiFetch } from "@/lib/api-client";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
@@ -17,10 +18,12 @@ import { WorkModeKeepAlive } from "@/components/work-mode-keep-alive";
 import { OnboardingScreen } from "@/components/onboarding-screen";
 import { isElectron } from "@/lib/api-client";
 import { useProductBrand } from "@/lib/product-brand";
+import { WorkspaceScope } from "@/lib/workspace-scope";
 
 function Shell({ children }: { children: ReactNode }) {
   const location = useLocation();
-  const [workspaceName, setWorkspaceName] = useState("Home");
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [workspaceName, setWorkspaceName] = useState(HOME_WORKSPACE_NAME);
   const [visibleModes, setVisibleModes] = useState<ProductMode[]>([...WORK_PRODUCT_MODES]);
 
   const reload = useCallback(() => {
@@ -34,7 +37,8 @@ function Shell({ children }: { children: ReactNode }) {
           productModes?: ProductMode[];
         }>;
         const current = rows.find((row) => row.id === currentId) ?? rows[0];
-        setWorkspaceName(current?.name ?? "Home");
+        setWorkspaceId(current?.id ?? null);
+        setWorkspaceName(current?.name ?? HOME_WORKSPACE_NAME);
         setVisibleModes(resolveWorkspaceModes(current?.productModes));
       })
       .catch(() => {
@@ -50,9 +54,11 @@ function Shell({ children }: { children: ReactNode }) {
   }, [reload, location.pathname]);
 
   return (
-    <AppShell workspaceName={workspaceName} visibleModes={visibleModes}>
-      {children}
-    </AppShell>
+    <WorkspaceScope.Provider value={{ id: workspaceId, name: workspaceName }}>
+      <AppShell workspaceName={workspaceName} visibleModes={visibleModes}>
+        {children}
+      </AppShell>
+    </WorkspaceScope.Provider>
   );
 }
 
@@ -122,6 +128,7 @@ export function App() {
           <Route path="/research" element={null} />
           <Route path="/finance" element={null} />
           <Route path="/data" element={null} />
+          <Route path="/market" element={null} />
           <Route path="/images" element={null} />
           <Route path="/videos" element={null} />
           <Route path="/edit" element={null} />

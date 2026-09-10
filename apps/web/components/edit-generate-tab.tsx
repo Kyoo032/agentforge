@@ -1,10 +1,11 @@
 import { estimateJobUsd, routeEditModel, type PromptTemplate } from "@agentforge/core/edit";
 import { formatUsd } from "@agentforge/core/gateway";
-import { videoCapabilities } from "@agentforge/core/video-capabilities";
+import { allowedVideoSeconds, snapVideoSeconds, videoCapabilities } from "@agentforge/core/video-capabilities";
 import { EditPromptTemplates } from "@/components/edit-prompt-templates";
 import { ModelSelect } from "@/components/model-select";
 import { Link } from "@/lib/nav";
 import { apiFetch } from "@/lib/api-client";
+import type { StillClip } from "@/lib/edit-preview-media";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 type StudioModel = {
@@ -25,20 +26,14 @@ const STUB_IMAGE: StudioModel[] = [
 ];
 
 const TIERS = ["draft", "standard", "cinematic"] as const;
-const SECONDS = [5, 8, 10] as const;
 
-type Seconds = (typeof SECONDS)[number];
-
-function nearestSeconds(target: number): Seconds {
-  return SECONDS.reduce<Seconds>(
-    (best, value) => (Math.abs(value - target) < Math.abs(best - target) ? value : best),
-    SECONDS[0],
-  );
-}
+type Seconds = number;
 
 type Props = {
   project: { id: string; fps?: number } | null;
   playhead?: number;
+  /** Image clip under the playhead; offered as the still for "Video from image". */
+  stillClip?: StillClip | null;
   models: StudioModel[];
   imageModels?: StudioModel[];
   needsKey: boolean;
@@ -52,6 +47,7 @@ type Props = {
 export function EditGenerateTab({
   project,
   playhead = 0,
+  stillClip = null,
   models,
   imageModels,
   needsKey,
@@ -61,6 +57,8 @@ export function EditGenerateTab({
   onSubmitted,
 }: Props) {
   const projectId = project?.id;
+  const [useClipStill, setUseClipStill] = useState(true);
+  const clipStill = useClipStill ? stillClip : null;
   const [sub, setSub] = useState<"image" | "video" | "storyboard">("video");
   const [tier, setTier] = useState<(typeof TIERS)[number]>(
     tierProp === "draft" || tierProp === "cinematic" ? tierProp : "standard",
@@ -89,17 +87,22 @@ export function EditGenerateTab({
     kind: sub === "image" ? "image" : "video",
     tier,
     liveModelIds: liveIds,
-    requireImageToVideo: sub === "video" && Boolean(stillUrl.trim()),
+    requireImageToVideo: sub === "video" && (Boolean(clipStill) || Boolean(stillUrl.trim())),
   });
   const activeModel = model || routed || liveIds[0] || "";
   const caps = videoCapabilities(activeModel);
   const imageToVideo = caps.imageToVideo;
+  const secondsOptions = allowedVideoSeconds(activeModel);
 
   useEffect(() => {
     if (!imageToVideo) {
       setStillUrl("");
     }
   }, [imageToVideo]);
+
+  useEffect(() => {
+    setSeconds((current) => snapVideoSeconds(activeModel, current));
+  }, [activeModel]);
 
   const estimate = estimateJobUsd(activeModel, {
     seconds: sub === "video" ? seconds : undefined,
@@ -109,7 +112,7 @@ export function EditGenerateTab({
 
   function pickTemplate(template: PromptTemplate) {
     setPrompt(template.prompt);
-    setSeconds(nearestSeconds(template.seconds));
+    setSeconds(snapVideoSeconds(activeModel, template.seconds));
     setTemplateId(template.id);
   }
 
@@ -141,7 +144,8 @@ export function EditGenerateTab({
           tier,
           model: activeModel || undefined,
           seconds: sub === "video" ? seconds : undefined,
-          imageUrl: sub === "video" && imageToVideo ? stillUrl.trim() || undefined : undefined,
+          imageAssetId: sub === "video" && imageToVideo && clipStill ? clipStill.assetId : undefined,
+          imageUrl: sub === "video" && imageToVideo && !clipStill ? stillUrl.trim() || undefined : undefined,
           placeAt: { trackId: "v1", timelineStartFrame: playhead },
         }),
       });
@@ -231,23 +235,29 @@ export function EditGenerateTab({
               onChange={(event) => setSeconds(Number(event.target.value) as Seconds)}
               data-testid="edit-generate-seconds"
             >
-              {SECONDS.map((value) => (
+              {secondsOptions.map((value) => (
                 <option key={value} value={value}>
                   {value}s
                 </option>
               ))}
             </select>
           ) : null}
-          {sub === "video" && imageToVideo ? (
+          {sub === "video" && imageToVideo && stillClip ? (
+            <label className="flex items-center gap-2 text-xs" data-testid="edit-generate-still-clip">
+              <input type="checkbox" checked={useClipStill} onChange={(event) => setUseClipStill(event.target.checked)} />
+              Animate the image clip under the playhead
+            </label>
+          ) : null}
+          {sub === "video" && imageToVideo && !clipStill ? (
             <input
-              type="url"
+              type="text"
               className="min-w-0 w-full rounded-md border border-mist bg-transparent px-2 py-1 text-xs"
-              placeholder="Still image URL"
+              placeholder={stillClip ? "…or paste a still image URL" : "Still image URL, or move the playhead onto an image clip"}
               value={stillUrl}
               onChange={(event) => setStillUrl(event.target.value)}
               data-testid="edit-generate-still"
             />
-          ) : sub === "video" ? (
+          ) : sub === "video" && !imageToVideo ? (
             <p className="text-xs text-ink/50">This model is text-to-video only</p>
           ) : null}
           <textarea

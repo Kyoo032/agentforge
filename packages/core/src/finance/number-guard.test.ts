@@ -53,3 +53,36 @@ describe("guardNumbers", () => {
     expect(matchesAllowed(31.3, [31.25])).toBe(true);
   });
 });
+
+describe("three-decimal tokens (4.804 is 4,804 in id-ID and 4.804 in en-US)", () => {
+  it("keeps both readings so either one can be verified", () => {
+    const [token] = extractNumbers("US 10Y at 4.804");
+    expect(token).toMatchObject({ value: 4804, alternate: 4.804, unit: "" });
+    expect(guardNumbers("US 10Y at 4.804 and DXY 98.658", [4.804, 98.658]).flagged).toEqual([]);
+    expect(guardNumbers("Rp 12.000 spent", [12_000]).flagged).toEqual([]);
+    expect(guardNumbers("US 10Y at 4.804", [4.2]).flagged.map((hit) => hit.text)).toEqual(["4.804"]);
+  });
+
+  it("reads signed, percent, and leading-zero tokens as decimals first", () => {
+    const tokens = extractNumbers("pre-market -0.056% then +3.731%, MACD -2.145 vs 0.790");
+    expect(tokens.map((token) => [token.value, token.unit])).toEqual([
+      [-0.056, "%"],
+      [3.731, "%"],
+      [-2.145, ""],
+      [0.79, ""],
+    ]);
+    expect(tokens[0]?.alternate).toBeUndefined();
+    expect(tokens[2]?.alternate).toBe(-2145);
+    expect(guardNumbers("pre-market -0.056%", [-0.055985]).flagged).toEqual([]);
+  });
+
+  it("leaves multi-group and 4+ digit numbers unambiguous", () => {
+    expect(
+      extractNumbers("1,250,000 and 6678.201 and 935.6381").map((token) => [token.value, token.alternate]),
+    ).toEqual([
+      [1_250_000, undefined],
+      [6678.201, undefined],
+      [935.6381, undefined],
+    ]);
+  });
+});

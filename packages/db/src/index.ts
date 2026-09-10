@@ -8,4 +8,5 @@ export {
   listLocalWorkspaces,
   createLocalWorkspace,
   updateLocalWorkspace,
+  deleteLocalWorkspace,
 } from "./ensure-local-owner";

@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api-client";
+import { FfmpegSetupNotice } from "@/components/ffmpeg-setup-notice";
+import { fetchEditDoctor, type EditDoctor } from "@/lib/edit-client";
 import { gatewayHostLabel, useProductBrand } from "@/lib/product-brand";
 
 type Props = {
@@ -14,6 +16,15 @@ export function OnboardingScreen({ onDone, onOffline }: Props) {
   const [openaiApiKey, setOpenaiApiKey] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [doctor, setDoctor] = useState<EditDoctor | null>(null);
+
+  useEffect(() => {
+    void fetchEditDoctor().then((report) => {
+      if (report) {
+        setDoctor(report);
+      }
+    });
+  }, []);
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -39,6 +50,15 @@ export function OnboardingScreen({ onDone, onOffline }: Props) {
         Paste your {gatewayName} API key. Chat and job modes run on this machine. You can change the endpoint later in
         Settings.
       </p>
+      {doctor?.ffmpeg?.found === false ? (
+        <section className="mt-6 overflow-hidden rounded-md border border-mist" data-testid="onboarding-setup-check">
+          <h2 className="border-b border-divider px-4 py-2 text-sm font-semibold">Setup check</h2>
+          <FfmpegSetupNotice doctor={doctor} onDoctor={setDoctor} variant="full" />
+          <p className="px-4 py-2 text-xs text-ink/60">
+            You can continue now and install ffmpeg later; the Edit studio shows the same guide until it is found.
+          </p>
+        </section>
+      ) : null}
       <form onSubmit={(event) => void onSubmit(event)} className="mt-8 space-y-4" data-testid="onboarding-form">
         <label className="block text-sm">
           Endpoint URL

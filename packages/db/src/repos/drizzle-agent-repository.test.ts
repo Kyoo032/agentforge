@@ -62,7 +62,7 @@ describe("DrizzleAgentRepository at-rest seal", () => {
     await db.insert(workspaces).values({
       id: workspaceId,
       organizationId: orgId,
-      name: "Home",
+      name: "Default",
       slug: "home",
       createdAt: now,
     });

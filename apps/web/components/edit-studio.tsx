@@ -4,6 +4,8 @@ import { applyOp, emptyProject, STARTER_PROJECTS, type ApplyableOp, type EditOp,
 import { formatUsd } from "@agentforge/core/gateway";
 import { EditAgentPanel } from "@/components/edit-agent-panel";
 import { EditGenerateTab } from "@/components/edit-generate-tab";
+import { FfmpegSetupNotice } from "@/components/ffmpeg-setup-notice";
+import { imageClipAt } from "@/lib/edit-preview-media";
 import { EditRecipesPanel } from "@/components/edit-recipes-panel";
 import { EditPreview } from "@/components/edit-preview";
 import { EditTimeline } from "@/components/edit-timeline";
@@ -13,6 +15,7 @@ import {
   createEditProject,
   errorMessage,
   fetchEditDoctor,
+  type EditDoctor,
   fetchEditProject,
   fetchEditProjects,
   foldApplied,
@@ -77,9 +80,10 @@ export function EditStudio() {
   const [starterId, setStarterId] = useState(STARTER_PROJECTS[0]?.id ?? "blank-16x9");
   const [tier, setTier] = useState("standard");
   const [hasKey, setHasKey] = useState(true);
-  const [ffmpegFound, setFfmpegFound] = useState(true);
+  const [doctor, setDoctor] = useState<EditDoctor | null>(null);
   const [spendCap, setSpendCap] = useState(2);
   const [models, setModels] = useState<StudioModel[]>([]);
+  const [imageModels, setImageModels] = useState<StudioModel[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [composerPrefill, setComposerPrefill] = useState("");
   const [exporting, setExporting] = useState(false);
@@ -120,9 +124,9 @@ export function EditStudio() {
 
   useEffect(() => {
     void loadList();
-    void fetchEditDoctor().then((doctor) => {
-      if (doctor?.ffmpeg && doctor.ffmpeg.found === false) {
-        setFfmpegFound(false);
+    void fetchEditDoctor().then((report) => {
+      if (report) {
+        setDoctor(report);
       }
     });
     void apiFetch("/api/v1/settings")
@@ -142,6 +146,14 @@ export function EditStudio() {
         }
         if (payload.ready === false) {
           setHasKey(false);
+        }
+      })
+      .catch(() => undefined);
+    void apiFetch("/api/v1/images")
+      .then((res) => res.json())
+      .then((payload) => {
+        if (Array.isArray(payload.models)) {
+          setImageModels(payload.models);
         }
       })
       .catch(() => undefined);
@@ -605,11 +617,7 @@ export function EditStudio() {
 
   return (
     <main className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-app text-ink" data-testid="edit-studio">
-      {!ffmpegFound ? (
-        <p className="border-b border-divider px-4 py-2 text-xs text-ink/70" data-testid="edit-needs-ffmpeg">
-          ffmpeg was not found. Probe, cut, and export jobs need it on PATH.
-        </p>
-      ) : null}
+      {doctor ? <FfmpegSetupNotice doctor={doctor} onDoctor={setDoctor} /> : null}
       <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-divider px-4 py-2">
         <h1 className="font-heading text-lg font-semibold">{project?.name ?? "Edit"}</h1>
         <select
@@ -755,7 +763,9 @@ export function EditStudio() {
                 <EditGenerateTab
                   project={project}
                   playhead={playhead}
+                  stillClip={imageClipAt(project, playhead)}
                   models={models}
+                  imageModels={imageModels}
                   needsKey={!hasKey}
                   gatewayName={gatewayName}
                   tier={tier}

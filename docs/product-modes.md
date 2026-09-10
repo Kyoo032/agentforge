@@ -1,6 +1,6 @@
 # Product modes
 
-Agentforge’s left nav is **mode-first**. Tabs come from a kernel catalog. **Which tabs appear** is the current workspace’s `productModes`. Home stores every work mode. Creating another desk (Legal, Marketing, Students, or custom checkboxes) can shrink or grow that rail. Packs are workspace presets. Custom agents do not drive the rail.
+Agentforge’s left nav is **mode-first**. Tabs come from a kernel catalog. **Which tabs appear** is the current workspace’s `productModes`. Default stores every work mode. Creating another desk (Legal, Marketing, Students, or custom checkboxes) can shrink or grow that rail. Packs are workspace presets. Custom agents do not drive the rail.
 
 Gateway identity stays **Toko Token** (`api.tokotokenai.com/v1`). Do not merge Toko Token with TokenKu in copy or catalogs. Kernel stays industry-neutral: no `student` / `course` / campus nouns outside `packages/university`.
 
@@ -13,6 +13,7 @@ Gateway identity stays **Toko Token** (`api.tokotokenai.com/v1`). Do not merge T
 | Research      | `research`     | `/research`        | Question → web search → sourced notes → Markdown |
 | Finance       | `finance`      | `/finance`         | Line items → metrics computed in code → guarded brief → DOCX with tables |
 | Data          | `data`         | `/data`            | Upload / paste table → SQL-backed analysis with evidence tables + charts → Markdown |
+| Market        | `market`       | `/market`          | Watchlist ≤15 tickers → briefing → guarded brief → DOCX |
 | Legal         | `legal`        | `/legal`           | Matter of .docx files → position-aware review → verified memo, tracked-changes redline, deviation report |
 | Images        | `images`       | `/images`          | Prompt → generate images → gallery |
 | Videos        | `videos`       | `/videos`          | Prompt → generate videos → gallery |
@@ -30,7 +31,7 @@ Agents / Studio are parked. `/agents` and `/studio/**` redirect to Chat. Files s
 `resolveWorkspaceModes` in `packages/core/src/agents/product-modes.ts`:
 
 - Stored workspace `productModes` in catalog order, always including Chat.
-- Missing / `null` / empty → all work modes (Home default).
+- Missing / `null` / empty → all work modes (Default desk).
 - Unknown ids including parked `agents` are dropped.
 - Hidden generate-studio URLs redirect to the first visible mode (Chat if present). `/` does the same.
 - `/agents` and `/studio` redirect like hidden modes.
@@ -48,7 +49,7 @@ Redirects:
 Packs live in their own packages. They seed workspace **preset mode lists**. They do not change kernel schema.
 
 - **Blank** — `chat` (user adds chips; Chat always required)
-- **General / Home** — every work mode
+- **General / Default** — every work mode
 - **Students** (`packages/university`) — `chat`, `documents`, `research`, `images`, `presentations`
 - **Marketing** (`packages/marketing`) — `chat`, `documents`, `images`, `videos`, `presentations`
 - **Legal** (`packages/legal`) — `chat`, `documents`, `research`, `legal`, `presentations`

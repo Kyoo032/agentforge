@@ -5,7 +5,7 @@ import {
   pickPreferredVideoModel,
 } from "./media-kind";
 
-export type JobMode = "documents" | "research" | "presentations" | "finance" | "data" | "legal";
+export type JobMode = "documents" | "research" | "presentations" | "finance" | "data" | "market" | "legal";
 
 export type ModeModelDefaults = {
   chat: string;
@@ -14,6 +14,7 @@ export type ModeModelDefaults = {
   presentations: string;
   finance: string;
   data: string;
+  market: string;
   legal: string;
   /** Second model for the Legal verify pass: checklist grading and the opposing-counsel review. */
   legalVerifier: string;
@@ -38,6 +39,7 @@ export const JOB_MODE_PREFERENCES: Record<JobMode, string[]> = {
   ],
   finance: ["hy3", "hy-3", "hunyuan-3", "deepseek-v4-flash"],
   data: ["gpt-5.6-luna", "MiniMax-M3", "minimax-m3"],
+  market: ["hy3", "hy-3", "hunyuan-3", "deepseek-v4-flash"],
   /** Long contracts and strict JSON: prefer the larger everyday models. */
   legal: ["gpt-5.6-sol", "gpt-5.6-luna", "kimi-k3", "deepseek-v4-flash"],
 };
@@ -60,6 +62,7 @@ export function resolveModeDefaults(input: {
     presentations: pickPreferredJobModel("presentations", input.chatIds, input.chatDefault),
     finance: pickPreferredJobModel("finance", input.chatIds, input.chatDefault),
     data: pickPreferredJobModel("data", input.chatIds, input.chatDefault),
+    market: pickPreferredJobModel("market", input.chatIds, input.chatDefault),
     legal: pickPreferredJobModel("legal", input.chatIds, input.chatDefault),
     legalVerifier: pickPreferredJobModel("research", input.chatIds, input.chatDefault),
     image: pickPreferredImageModel(input.imageIds),

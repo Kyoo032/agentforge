@@ -1,5 +1,6 @@
 import {
   hasLiveProvider,
+  HOME_WORKSPACE_NAME,
   listToolCapabilities,
   listToolRoutes,
   maskSecrets,
@@ -15,6 +16,7 @@ import { loadSettings, saveSettings } from "../settings-store";
 import { refreshModelCache, modeCatalogPayload } from "../selectable-models";
 import { clearThisKeyCache, loadAccountUsage } from "../account-usage";
 import { probeSummary } from "../model-cache";
+import { db, listLocalWorkspaces } from "@agentforge/db";
 import { resetEmbedCircuit } from "../knowledge-embed";
 
 function readStringMap(value: unknown): Record<string, string> | undefined {
@@ -60,8 +62,12 @@ async function settingsPayload(
   settings: ReturnType<typeof loadSettings>,
   tenant: Awaited<ReturnType<typeof getTenant>>,
 ) {
+  const rows = await listLocalWorkspaces(db, tenant.organizationId);
+  const current = rows.find((row) => row.id === tenant.workspaceId);
   return {
     ...maskSecrets(settings),
+    workspaceId: tenant.workspaceId,
+    workspaceName: current?.name ?? HOME_WORKSPACE_NAME,
     productName: resolvedProductName(),
     gatewayName: resolvedGatewayName(),
     runtime: resolveRuntimeMode({
@@ -89,7 +95,7 @@ async function settingsPayload(
 export async function handleGetSettings(request: HostRequest): Promise<HostResult> {
   try {
     const tenant = await getTenant(request.workspaceId);
-    return jsonOk(await settingsPayload(loadSettings(), tenant));
+    return jsonOk(await settingsPayload(loadSettings(tenant.workspaceId), tenant));
   } catch (error) {
     return jsonError(error);
   }
@@ -116,7 +122,7 @@ export async function handlePostSettings(request: HostRequest): Promise<HostResu
       injectionGuardBypass: readOptionalBoolean(body.injectionGuardBypass),
       editTurnCapUsd: readOptionalNumber(body.editTurnCapUsd),
     };
-    const saved = saveSettings(patch);
+    const saved = saveSettings(patch, tenant.workspaceId);
     clearThisKeyCache();
     // A fixed key / URL must take effect now, not after the 5-minute embeddings breaker expires.
     resetEmbedCircuit();

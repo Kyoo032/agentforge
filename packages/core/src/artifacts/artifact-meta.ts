@@ -1,10 +1,19 @@
 import { z } from "zod";
 
-export const ARTIFACT_MODES = ["research", "data", "finance", "documents", "presentations", "legal"] as const;
+export const ARTIFACT_MODES = [
+  "research",
+  "data",
+  "finance",
+  "market",
+  "documents",
+  "presentations",
+  "legal",
+] as const;
 export const ARTIFACT_KINDS = [
   "dossier",
   "analysis",
   "brief",
+  "briefing",
   "draft",
   "memo",
   "redline",

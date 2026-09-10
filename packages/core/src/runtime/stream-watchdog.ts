@@ -36,11 +36,32 @@ export function isWatchdogReasoningModel(modelId: string): boolean {
   return /^(claude-(?:opus|sonnet|fable)-5|claude-opus-4|claude-4)/.test(id);
 }
 
-export function streamWatchdogLimits(modelId: string): StreamWatchdogLimits {
+function modelWatchdogLimits(modelId: string): StreamWatchdogLimits {
   if (isWatchdogReasoningModel(modelId)) {
     return { ttfbMs: STREAM_REASONING_TTFB_MS, idleMs: STREAM_REASONING_IDLE_MS };
   }
   return { ttfbMs: STREAM_TTFB_MS, idleMs: STREAM_IDLE_MS };
+}
+
+/** The larger of the model floor and a requested limit; a missing or malformed request keeps the floor. */
+function raisedLimit(floor: number, wanted: number | undefined): number {
+  return typeof wanted === "number" && Number.isFinite(wanted) && wanted > floor ? wanted : floor;
+}
+
+/**
+ * Limits for one run: the model defaults, raised by an optional per-run
+ * override. An override can only lengthen a limit, never shorten it below
+ * what the model would get anyway.
+ */
+export function streamWatchdogLimits(modelId: string, override?: Partial<StreamWatchdogLimits>): StreamWatchdogLimits {
+  const defaults = modelWatchdogLimits(modelId);
+  if (!override) {
+    return defaults;
+  }
+  return {
+    ttfbMs: raisedLimit(defaults.ttfbMs, override.ttfbMs),
+    idleMs: raisedLimit(defaults.idleMs, override.idleMs),
+  };
 }
 
 export function checkStreamWatchdog(
@@ -54,11 +75,7 @@ export function checkStreamWatchdog(
   return now - state.lastEventAt >= limits.idleMs ? "idle" : null;
 }
 
-export function formatStreamWatchdogError(
-  modelId: string,
-  kind: StreamWatchdogKind,
-  waitedMs: number,
-): string {
+export function formatStreamWatchdogError(modelId: string, kind: StreamWatchdogKind, waitedMs: number): string {
   const name = modelId.trim() || "this model";
   const seconds = Math.max(1, Math.round(waitedMs / 1000));
   if (kind === "ttfb") {
@@ -70,9 +87,10 @@ export function formatStreamWatchdogError(
 export function armStreamWatchdog(
   modelId: string,
   abort: AbortController,
+  override?: Partial<StreamWatchdogLimits>,
   now: () => number = Date.now,
 ): { touch: () => void; close: () => void } {
-  const limits = streamWatchdogLimits(modelId);
+  const limits = streamWatchdogLimits(modelId, override);
   let lastEventAt: number | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
 
@@ -121,9 +139,7 @@ function rejectOnAbort(abort: AbortController): Promise<never> {
   return new Promise((_, reject) => {
     const fail = () =>
       reject(
-        abort.signal.reason instanceof Error
-          ? abort.signal.reason
-          : new Error(abortErrorMessage(abort.signal.reason)),
+        abort.signal.reason instanceof Error ? abort.signal.reason : new Error(abortErrorMessage(abort.signal.reason)),
       );
     if (abort.signal.aborted) {
       fail();

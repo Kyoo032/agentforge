@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { mediaSrc } from "@/lib/api-client";
 import { parseInline, parseMarkdown, type MdBlock, type MdInline, type MdTableAlign } from "@/lib/parse-markdown";
+import { safeLinkHref } from "@/lib/safe-link";
 
 type MdTable = Extract<MdBlock, { type: "table" }>;
 
@@ -115,13 +116,13 @@ function renderInline(nodes: MdInline[]): ReactNode[] {
       return <em key={index}>{renderInline(node.children)}</em>;
     }
     if (node.type === "link") {
+      const href = safeLinkHref(node.href);
+      if (!href) {
+        // Anything that is not http(s) is shown as text, never as a clickable target.
+        return <span key={index}>{renderInline(node.children)}</span>;
+      }
       return (
-        <a
-          key={index}
-          href={node.href}
-          target={node.href.startsWith("http") ? "_blank" : undefined}
-          rel="noopener noreferrer"
-        >
+        <a key={index} href={href} target="_blank" rel="noopener noreferrer">
           {renderInline(node.children)}
         </a>
       );

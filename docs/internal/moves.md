@@ -99,3 +99,11 @@ Format:
 - **Carry-over on first launch after upgrade (`main.cjs`):** `migrateLegacyUserData()` copies `%APPDATA%\Agentforge` into `%APPDATA%\DPSBuddy` when the new desk has no database; `wrapKey()` reads the `Agentforge/wrap-key` Keychain entry and re-saves it under `DPSBuddy` so the stored gateway key stays decryptable. Nothing legacy is deleted until a real uninstall (`installer.nsh` now also removes `%APPDATA%\Agentforge`).
 - **Gate:** the updater / preload / renderer no longer compare against a literal; they use `PUBLIC_PRODUCT_NAME` from `brand-read.cjs` (desktop) and `use-app-updates.ts` (renderer), `DEFAULT_PRODUCT_NAME` in `@agentforge/core`.
 - **Not in this move:** a version bump or release (next release needs one, since the artifact names changed); dated changelogs / release notes keep the old name; `.cursor` evidence folders are untouched history.
+
+## 2026-09-09 — Market mode joins the rail catalog
+
+- **What:** A new job mode, Market (`market`, `/market`), in `PRODUCT_MODES` after Data.
+- **From:** A proposed hosted Python MCP server (`dps-market-mcp`, Postgres + Docker), then a bundled local sidecar.
+- **To:** In-process TypeScript in the host: `packages/core/src/market`, `packages/host/src/market`, tools `market_evidence` / `market_news` / `market_search`, SQLite cache. No server, no port, no MCP (later). The Python repo stays as the reference spec at `C:/Users/rizky/dps-market-mcp`.
+- **Why:** Owner decision 2026-09-09: local Electron only, no HTTP dependency, no exception to the desktop rules. PStack verify map rewritten for the new surface (`features/market.md`).
+

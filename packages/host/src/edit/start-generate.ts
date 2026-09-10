@@ -5,6 +5,7 @@ import {
   imageToVideoForModel,
   routeEditModel,
   secondsToFrames,
+  snapVideoSeconds,
   type Clip,
   type EditProject,
   type EditStartGenerateJobInput,
@@ -18,6 +19,7 @@ import { enqueueEditJob } from "./jobs";
 import { mapCard, mapJob } from "./projects";
 import { editEvents } from "./events";
 import { loadMediaRow } from "./wire-generate";
+import { resolveStillSource, type StillSource } from "./still-source";
 
 function imageAspectForEdit(aspect: "16:9" | "9:16" | "1:1"): "square" | "landscape" | "portrait" {
   if (aspect === "9:16") {
@@ -50,18 +52,6 @@ function projectAspect(doc: EditProject): "16:9" | "9:16" | "1:1" {
   return doc.width > doc.height ? "16:9" : "9:16";
 }
 
-function asSubmitUrl(url?: string): string | undefined {
-  if (!url) {
-    return undefined;
-  }
-  try {
-    new URL(url);
-    return url;
-  } catch {
-    return undefined;
-  }
-}
-
 function liveModelIds(extra?: string): string[] {
   const ids = [...listImageModels(), ...listVideoModels()].map((model) => model.id);
   if (extra && !ids.includes(extra)) {
@@ -82,27 +72,32 @@ function routeModel(input: EditStartGenerateJobInput, requireImageToVideo: boole
   return routed ?? input.model ?? (kind === "image" ? "gpt-image-2" : "grok-imagine-video");
 }
 
-async function resolveStillUrl(doc: EditProject, input: EditStartGenerateJobInput): Promise<string | undefined> {
-  const direct = asSubmitUrl(input.imageUrl);
-  if (direct) {
-    return direct;
+const STILL_NOT_FOUND = new ApiError(
+  "still_not_found",
+  "The still image could not be used. Import it into this project or paste a public https URL.",
+  400,
+);
+
+/**
+ * Local media is inlined as a data URL at submit time (see `withInlinedStill`) because a
+ * remote gateway cannot fetch this machine; here we only confirm the media row exists.
+ */
+async function assertStillAvailable(still: StillSource): Promise<void> {
+  if (still.kind === "local" && !(await loadMediaRow(still.mediaId))) {
+    throw STILL_NOT_FOUND;
   }
-  if (!input.imageAssetId) {
-    return undefined;
-  }
-  const asset = doc.assets[input.imageAssetId];
-  if (!asset?.mediaId) {
-    return undefined;
-  }
-  const row = await loadMediaRow(asset.mediaId);
-  return asSubmitUrl(row?.url) ?? asSubmitUrl(`https://local.invalid/api/v1/media/${asset.mediaId}/file`);
 }
 
 function nextClipId(): string {
   return crypto.randomUUID();
 }
 
-function placeholderClips(doc: EditProject, input: EditStartGenerateJobInput, model: string): Clip[] {
+function placeholderClips(
+  doc: EditProject,
+  input: EditStartGenerateJobInput,
+  model: string,
+  stillAssetId: string | undefined,
+): Clip[] {
   const toolKey = input.toolKey ?? input.kind;
   const count = Math.min(4, Math.max(1, input.count ?? 1));
   const aspectTrack = input.placeAt?.trackId ?? "v1";
@@ -144,7 +139,7 @@ function placeholderClips(doc: EditProject, input: EditStartGenerateJobInput, mo
       timelineStartFrame: start,
       durationFrames: duration,
       status: "pending",
-      fallbackAssetId: input.imageAssetId,
+      fallbackAssetId: stillAssetId,
       lineage: {
         parentClipId: parent?.id,
         prompt: input.prompt,
@@ -165,21 +160,33 @@ export async function startGenerateJob(
   options: { runId?: string } = {},
 ): Promise<EditStartGenerateJobResult> {
   const doc = await foldProject(projectId, tenant.workspaceId);
-  const hasStill = Boolean(input.imageUrl || input.imageAssetId);
+  const still = input.kind === "generate_video" ? resolveStillSource(doc, input) : null;
+  if (still === "unresolvable") {
+    throw STILL_NOT_FOUND;
+  }
+  const hasStill = still !== null;
   const model = routeModel(input, input.kind === "generate_video" && hasStill);
   if (input.kind === "generate_video" && hasStill && !imageToVideoForModel(model)) {
     throw new ApiError("video_still_unsupported", "This model does not accept a still image", 400);
   }
-  const imageUrl = hasStill ? await resolveStillUrl(doc, input) : undefined;
+  if (still) {
+    await assertStillAvailable(still);
+  }
+  const imageUrl = still?.kind === "remote" ? still.url : undefined;
+  const stillMediaId = still?.kind === "local" ? still.mediaId : undefined;
+  const stillAssetId = still?.kind === "local" ? still.assetId : undefined;
   const aspect = input.aspect && ["16:9", "9:16", "1:1"].includes(input.aspect) ? input.aspect : projectAspect(doc);
   const count = Math.min(4, Math.max(1, input.count ?? 1));
-  const seconds = input.addSeconds ?? input.seconds ?? (input.kind === "generate_video" ? 5 : undefined);
+  const requestedSeconds = input.addSeconds ?? input.seconds ?? (input.kind === "generate_video" ? 5 : undefined);
+  // Veo only renders 4/6/8 s; snap here so the job, the placeholder and the price agree.
+  const seconds = input.kind === "generate_video" ? snapVideoSeconds(model, requestedSeconds) : requestedSeconds;
+  const timedInput = input.kind === "generate_video" ? { ...input, seconds, addSeconds: input.addSeconds ? seconds : undefined } : input;
   const estimateUsd = estimateJobUsd(model, {
     seconds,
     count,
     resolution: "720p",
   });
-  const clips = placeholderClips(doc, input, model);
+  const clips = placeholderClips(doc, timedInput, model, stillAssetId);
   const cardId = crypto.randomUUID();
   const runId = options.runId ?? "owner";
   const actor = runId === "owner" ? ("owner" as const) : (`agent:${runId}` as const);
@@ -220,7 +227,8 @@ export async function startGenerateJob(
       aspect: input.kind === "generate_image" ? imageAspectForEdit(aspect as "16:9" | "9:16" | "1:1") : aspect,
       model,
       imageUrl,
-      imageAssetId: input.imageAssetId,
+      stillMediaId,
+      imageAssetId: stillAssetId,
       seconds: seconds ?? 5,
       resolution: "720p",
       projectId,

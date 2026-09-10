@@ -49,6 +49,8 @@ describe("ensureSchema", () => {
         "edit_unplaced",
         "artifacts",
         "datasets",
+        "market_cache",
+        "market_news_fts",
       ]),
     );
     assertKernelTables(sqlite);
