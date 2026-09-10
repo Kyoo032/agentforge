@@ -52,6 +52,7 @@ import {
 } from "./handlers/finance";
 import {
   handlePostMarket,
+  handlePostMarketBoard,
   handlePostMarketDocx,
   handlePostMarketRegen,
   handlePostMarketStream,
@@ -199,6 +200,7 @@ const routes: Route[] = [
   compile("POST", "/api/v1/finance/regenerate", handlePostFinanceRegen),
   compile("POST", "/api/v1/finance/docx", handlePostFinanceDocx),
   compile("POST", "/api/v1/market", handlePostMarket),
+  compile("POST", "/api/v1/market/board", handlePostMarketBoard),
   compile("POST", "/api/v1/market/stream", handlePostMarketStream),
   compile("POST", "/api/v1/market/regenerate", handlePostMarketRegen),
   compile("POST", "/api/v1/market/docx", handlePostMarketDocx),

@@ -246,10 +246,17 @@ function pathFor(points: LinePoint[]): string {
   return points.map((point, index) => `${index === 0 ? "M" : "L"}${point.x} ${point.y}`).join(" ");
 }
 
-/** Lines over evenly spaced categories (index-based x). */
-export function buildLineLayout(chart: DataChart, layout: ChartLayout = DEFAULT_CHART_LAYOUT): LineLayout {
+/**
+ * Lines over evenly spaced categories (index-based x). `includeZero` anchors the
+ * y axis at zero; price charts pass false so a 900-dollar stock is not a flat line.
+ */
+export function buildLineLayout(
+  chart: DataChart,
+  layout: ChartLayout = DEFAULT_CHART_LAYOUT,
+  includeZero = true,
+): LineLayout {
   const plot = plotArea(layout);
-  const axis = axisFor(seriesExtent(chart.series, true), [plot.y1, plot.y0]);
+  const axis = axisFor(seriesExtent(chart.series, includeZero), [plot.y1, plot.y0]);
   const count = chart.x.values.length;
   const xScale = linearScale([0, Math.max(0, count - 1)], [plot.x0, plot.x1]);
   const lines = chart.series.map((series, seriesIndex) => {

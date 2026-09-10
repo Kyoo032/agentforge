@@ -189,7 +189,8 @@ export function briefingPrompt(packet: MarketWatchPacket, instruction: string): 
   return `${packetToPromptBlock(packet)}\n\n${USER_INSTRUCTION_HEADING}\n${instruction.trim()}`;
 }
 
-function requireTickers(packet: MarketWatchPacket, failures: readonly string[]): void {
+/** 400 when every input was an unknown symbol, 502 when a source was down for all of them. */
+export function requireTickers(packet: MarketWatchPacket, failures: readonly string[]): void {
   if (packet.tickers.length > 0) {
     return;
   }
@@ -372,8 +373,9 @@ export async function generateMarketBriefing(
   abortSignal?: AbortSignal,
   deps: MarketGenerateDeps = {},
 ): Promise<MarketWatchResult> {
-  const settings = requireLive();
+  // A malformed client payload is a 400 whatever the runtime; the gateway check comes once the body is sound.
   const request = parseWatchRequest(body);
+  const settings = requireLive();
   const run: WatchRun = {
     tenant,
     request,

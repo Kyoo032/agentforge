@@ -6,6 +6,13 @@ import {
   collectFailures,
   formatNumber,
   formatPercent,
+  friendlyMarketError,
+  humanRating,
+  mergeTickersReporting,
+  needsKey,
+  KEY_HINT,
+  NO_TICKER_HINT,
+  OFFLINE_HINT,
   isGuardedSection,
   mergeTickers,
   parseTickers,
@@ -221,5 +228,54 @@ describe("applyRegeneratedSection", () => {
     expect(next.briefing.guardedSections).toBe(2);
     expect(next.guard.flagged).toEqual([{ section: 1, text: "9.5%" }]);
     expect(next.guard.adviceReplaced).toBe(2);
+  });
+});
+
+describe("friendlyMarketError / needsKey", () => {
+  it("turns the gateway refusal into a sentence that says charts still work", () => {
+    const message = "Market needs a live gateway. Paste a Toko Token API key in Settings, then try again.";
+    expect(needsKey(message)).toBe(true);
+    expect(friendlyMarketError(message)).toBe(KEY_HINT);
+    expect(KEY_HINT).toMatch(/without a key/i);
+  });
+
+  it("explains an unresolvable watchlist and an unreachable network in plain words", () => {
+    expect(friendlyMarketError("No ticker resolved: ZZZZ: unknown symbol")).toBe(NO_TICKER_HINT);
+    expect(friendlyMarketError("Market data could not be fetched: MU: quote: timeout")).toBe(OFFLINE_HINT);
+    expect(friendlyMarketError("fetch failed")).toBe(OFFLINE_HINT);
+  });
+
+  it("passes anything it does not recognise straight through and calls it no key", () => {
+    expect(friendlyMarketError("Something else broke")).toBe("Something else broke");
+    expect(needsKey("Something else broke")).toBe(false);
+  });
+});
+
+describe("humanRating", () => {
+  it("reads TradingView's shouting as words", () => {
+    expect(humanRating("STRONG_BUY")).toBe("Strong buy");
+    expect(humanRating("NEUTRAL")).toBe("Neutral");
+    expect(humanRating("")).toBe("");
+  });
+});
+
+describe("mergeTickersReporting", () => {
+  it("adds what is a ticker and reports what is not", () => {
+    expect(mergeTickersReporting(["MU"], "nvda, hello!!")).toEqual({
+      tickers: ["MU", "NVDA"],
+      rejected: ["HELLO!!"],
+      overflow: false,
+    });
+  });
+
+  it("keeps the existing chips when nothing typed was usable", () => {
+    const result = mergeTickersReporting(["MU"], "!!!");
+    expect(result.tickers).toEqual(["MU"]);
+    expect(result.rejected).toEqual(["!!!"]);
+  });
+
+  it("never exceeds the watchlist cap", () => {
+    const full = Array.from({ length: WATCHLIST_MAX }, (_, index) => `T${index}`);
+    expect(mergeTickersReporting(full, "MU").tickers).toHaveLength(WATCHLIST_MAX);
   });
 });

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  isValidTicker,
   normalizeTickerInput,
+  partitionTickerInput,
   toTradingViewSymbol,
   toYahooSymbol,
   tradingViewLabel,
@@ -120,5 +122,34 @@ describe("tradingViewLabel", () => {
 
   it("is empty for null", () => {
     expect(tradingViewLabel(null)).toBe("");
+  });
+});
+
+describe("isValidTicker / partitionTickerInput", () => {
+  it("accepts the symbol shapes every supported venue uses", () => {
+    for (const symbol of ["MU", "BRK-B", "BBCA.JK", "^VIX", "ES=F", "IDR=X", "DX-Y.NYB", "0700.HK", "7203.T"]) {
+      expect(isValidTicker(symbol)).toBe(true);
+    }
+  });
+
+  it("refuses punctuation, spaces, and anything past the 20-character API cap", () => {
+    for (const symbol of ["HELLO!!", "MU$", "A B", "", "^", "ABCDEFGHIJKLMNOPQRSTUVWXY"]) {
+      expect(isValidTicker(symbol)).toBe(false);
+    }
+  });
+
+  it("splits typed text into what is a ticker and what is not", () => {
+    expect(partitionTickerInput("mu, hello!!, nvda")).toEqual({ tickers: ["MU", "NVDA"], rejected: ["HELLO!!"] });
+  });
+
+  it("reports each bad token once and keeps normalizeTickerInput free of them", () => {
+    expect(partitionTickerInput("oops! oops! MU").rejected).toEqual(["OOPS!"]);
+    expect(normalizeTickerInput("oops! MU")).toEqual(["MU"]);
+  });
+
+  it("caps the accepted list and tolerates a non-string", () => {
+    const many = Array.from({ length: WATCHLIST_MAX + 5 }, (_, index) => `T${index}`).join(" ");
+    expect(partitionTickerInput(many).tickers).toHaveLength(WATCHLIST_MAX);
+    expect(partitionTickerInput(undefined as unknown as string)).toEqual({ tickers: [], rejected: [] });
   });
 });

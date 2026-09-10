@@ -52,12 +52,40 @@ describe("host router", () => {
         query: {},
         params: {},
         headers: {},
-        body: { ticker: "BBCA" },
+        body: { prompt: "Pre-market briefing", tickers: ["BBCA"] },
       });
       expect(generate.type).toBe("json");
       if (generate.type === "json") {
         expect(generate.status).toBe(503);
         expect(generate.body).toMatchObject({ error: { code: "runtime_stub" } });
+      }
+      // The same route answers 400 for a body the schema rejects, key or no key.
+      const malformed = await dispatch({
+        method: "POST",
+        path: "/api/v1/market",
+        query: {},
+        params: {},
+        headers: {},
+        body: { ticker: "BBCA" },
+      });
+      expect(malformed.type).toBe("json");
+      if (malformed.type === "json") {
+        expect(malformed.status).toBe(400);
+        expect(malformed.body).toMatchObject({ error: { code: "invalid_request" } });
+      }
+      // The keyless watch board is routed and validates its own body.
+      const board = await dispatch({
+        method: "POST",
+        path: "/api/v1/market/board",
+        query: {},
+        params: {},
+        headers: {},
+        body: { tickers: [] },
+      });
+      expect(board.type).toBe("json");
+      if (board.type === "json") {
+        expect(board.status).toBe(400);
+        expect(board.body).toMatchObject({ error: { code: "invalid_request" } });
       }
       for (const path of ["/api/v1/market/regenerate", "/api/v1/market/docx"]) {
         const result = await dispatch({ method: "POST", path, query: {}, params: {}, headers: {}, body: { brief: {} } });

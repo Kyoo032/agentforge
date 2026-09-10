@@ -168,13 +168,31 @@ export const marketWatchPacketSchema = z.object({
 });
 export type MarketWatchPacket = z.infer<typeof marketWatchPacketSchema>;
 
+/** Watchlist entries as typed in the studio, before resolution. */
+export const tickerListSchema = z.array(z.string().min(1).max(20)).min(1).max(WATCHLIST_MAX);
+
 /* Request from the studio. */
 export const marketWatchRequestSchema = z.object({
   prompt: z.string().min(1).max(12_000),
-  tickers: z.array(z.string().min(1).max(20)).min(1).max(WATCHLIST_MAX),
+  tickers: tickerListSchema,
   positionContext: z.string().max(4000).default(""),
   language: z.enum(["id", "en"]).default("id"),
   maxChars: z.number().int().min(1000).max(20_000).default(6000),
   model: z.string().optional(),
 });
 export type MarketWatchRequest = z.infer<typeof marketWatchRequestSchema>;
+
+/*
+ * Watch board: the keyless view of a watchlist. Quotes, bars, technicals, and
+ * a chart per ticker; no headlines, no macro, no model, no API key.
+ */
+export const marketBoardRequestSchema = z.object({ tickers: tickerListSchema });
+export type MarketBoardRequest = z.infer<typeof marketBoardRequestSchema>;
+
+export const marketBoardSchema = z.object({
+  tickers: z.array(tickerPacketSchema).max(WATCHLIST_MAX),
+  clock: marketClockSchema,
+  /** Inputs that resolved to nothing, one note each. */
+  failures: z.array(z.string()).default([]),
+});
+export type MarketBoard = z.infer<typeof marketBoardSchema>;

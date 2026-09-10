@@ -53,16 +53,44 @@ export const TV_BUY_MIN = 0.1;
 export const TV_NEUTRAL_MIN = -0.1;
 export const TV_SELL_MIN = -0.5;
 
+/**
+ * The shape every venue we support agrees on: an optional `^` for an index,
+ * then letters/digits, then the punctuation used by suffixes and pairs
+ * (`BBCA.JK`, `ES=F`, `DX-Y.NYB`, `BRK-B`). Anything else is a typo, not a
+ * symbol, and is better refused in the studio than sent to Yahoo.
+ */
+export const TICKER_PATTERN = /^\^?[A-Z0-9][A-Z0-9.=-]{0,19}$/;
+
+export function isValidTicker(symbol: string): boolean {
+  return TICKER_PATTERN.test(symbol);
+}
+
+/** One typed token, cleaned: `$mu ` → `MU`. Not necessarily a valid symbol. */
+function cleanToken(token: string): string {
+  return token.replace(LEADING_DOLLAR, "").trim().toUpperCase();
+}
+
+/**
+ * Split free text into tickers and the tokens that could not be one.
+ * Separators are commas, whitespace, and semicolons; `$` is stripped;
+ * duplicates collapse; the watchlist cap applies to what survives.
+ */
+export function partitionTickerInput(raw: string): { tickers: string[]; rejected: string[] } {
+  if (typeof raw !== "string") {
+    return { tickers: [], rejected: [] };
+  }
+  const tokens = raw
+    .split(INPUT_SEPARATOR)
+    .map(cleanToken)
+    .filter((token) => token !== "");
+  const tickers = [...new Set(tokens.filter(isValidTicker))].slice(0, WATCHLIST_MAX);
+  const rejected = [...new Set(tokens.filter((token) => !isValidTicker(token)))];
+  return { tickers, rejected };
+}
+
 /** Split free text into tickers: commas, whitespace, semicolons; strip `$`; uppercase; dedupe; cap. */
 export function normalizeTickerInput(raw: string): string[] {
-  if (typeof raw !== "string") {
-    return [];
-  }
-  const tickers = raw
-    .split(INPUT_SEPARATOR)
-    .map((token) => token.replace(LEADING_DOLLAR, "").trim().toUpperCase())
-    .filter((token) => token !== "");
-  return [...new Set(tickers)].slice(0, WATCHLIST_MAX);
+  return partitionTickerInput(raw).tickers;
 }
 
 /** Futures (`=F`), FX (`=X`), and indices (`^`) have no TradingView equity symbol. */

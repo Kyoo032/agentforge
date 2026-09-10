@@ -3,7 +3,9 @@ import {
   ADVICE_MARKER,
   WATCHLIST_MAX,
   normalizeTickerInput,
+  partitionTickerInput,
   type MacroSnapshot,
+  type MarketBoard,
   type MarketClock,
   type MarketWatchPacket,
   type MarketWatchRequest,
@@ -18,6 +20,7 @@ import { saveBlob } from "./artifacts-client";
 export type {
   BriefingSection,
   MacroSnapshot,
+  MarketBoard,
   MarketBriefing,
   MarketClock,
   MarketWatchPacket,
@@ -96,6 +99,20 @@ export function mergeTickers(current: ReadonlyArray<string>, input: string): str
   return parseTickers([...current, input].join(","));
 }
 
+/** Like `mergeTickers`, but also reports what was dropped so the studio can say why. */
+export function mergeTickersReporting(
+  current: ReadonlyArray<string>,
+  input: string,
+): { tickers: string[]; rejected: string[]; overflow: boolean } {
+  const { rejected } = partitionTickerInput(input);
+  const all = partitionTickerInput([...current, input].join(","));
+  return {
+    tickers: all.tickers,
+    rejected,
+    overflow: all.tickers.length >= WATCHLIST_MAX && current.length + 1 > WATCHLIST_MAX,
+  };
+}
+
 /** True when the advice guard replaced the heading or a sentence of the body in this section. */
 export function isGuardedSection(section: BriefingSection): boolean {
   return section.heading.includes(ADVICE_MARKER) || section.body.includes(ADVICE_MARKER);
@@ -117,6 +134,48 @@ async function readJson<T>(res: Response, fallback: string): Promise<T> {
     throw new Error(errorMessage(data, fallback));
   }
   return data as T;
+}
+
+/** Quotes, bars, technicals, and a chart per ticker. No gateway key involved. */
+export async function fetchMarketBoard(tickers: readonly string[], signal?: AbortSignal): Promise<MarketBoard> {
+  const res = await apiFetch("/api/v1/market/board", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tickers }),
+    signal,
+  });
+  return readJson<MarketBoard>(res, "Could not load the watchlist");
+}
+
+/** What the studio says when the briefing needs a key the user has not saved yet. */
+export const KEY_HINT =
+  "Quotes and charts work without a key. To write the briefing, add your API key in Settings.";
+export const NO_TICKER_HINT = "None of those tickers could be found. Check the spelling, for example MU, NVDA, or BBCA.";
+export const OFFLINE_HINT = "Market data is not reachable right now. Check your internet connection and try again.";
+
+/** True when the host refused because no gateway API key is saved yet. */
+export function needsKey(message: string): boolean {
+  return /runtime_stub|live gateway|api key/i.test(message);
+}
+
+/** Host error text → one plain sentence a trader can act on; anything unknown passes through. */
+export function friendlyMarketError(message: string): string {
+  if (needsKey(message)) {
+    return KEY_HINT;
+  }
+  if (/no ticker resolved|unknown symbol/i.test(message)) {
+    return NO_TICKER_HINT;
+  }
+  if (/could not be fetched|fetch failed|ENOTFOUND|ECONNREFUSED|timed? ?out/i.test(message)) {
+    return OFFLINE_HINT;
+  }
+  return message;
+}
+
+/** TradingView's STRONG_BUY … STRONG_SELL as words: "Strong buy". Empty stays empty. */
+export function humanRating(label: string): string {
+  const words = label.trim().toLowerCase().replace(/_/g, " ");
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : "";
 }
 
 /** Rewrite one section; the host runs the number guard and the advice guard again. */

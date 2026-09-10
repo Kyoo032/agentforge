@@ -100,9 +100,18 @@ describe("generateMarketBriefing", () => {
     events.push(event);
   };
 
-  it("refuses with 503 runtime_stub before validating the body", async () => {
+  it("validates the body before the runtime: a malformed payload is a 400 even on the stub", async () => {
     vi.stubEnv("AGENTFORGE_RUNTIME", "stub");
     const error = await generateMarketBriefing(tenant, { nope: true }, emit, undefined, deps()).catch((e) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ code: "invalid_request", status: 400 });
+    expect(built).toEqual([]);
+    expect(asked).toEqual([]);
+  });
+
+  it("refuses a sound request with 503 runtime_stub when no gateway key is saved", async () => {
+    vi.stubEnv("AGENTFORGE_RUNTIME", "stub");
+    const error = await generateMarketBriefing(tenant, REQUEST, emit, undefined, deps()).catch((e) => e);
     expect(error).toBeInstanceOf(ApiError);
     expect(error).toMatchObject({ code: "runtime_stub", status: 503 });
     expect(built).toEqual([]);

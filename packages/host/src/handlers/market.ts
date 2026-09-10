@@ -2,6 +2,7 @@ import { ApiError } from "@agentforge/core";
 import { marketBriefingSchema } from "@agentforge/core/artifacts";
 import { jsonError, jsonOk } from "../errors";
 import { streamJob } from "../job-stream";
+import { buildMarketBoard } from "../market-board";
 import { assertBriefingHasNoAdvice } from "../market-briefing-build";
 import { buildMarketBriefingDocx } from "../market-docx";
 import { generateMarketBriefing, regenerateBriefingSection } from "../market-generate";
@@ -9,6 +10,15 @@ import { getTenant } from "../tenant";
 import type { HostRequest, HostResult } from "../types";
 
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+/** `POST /api/v1/market/board` — body: { tickers }; result: MarketBoard. Needs no gateway key. */
+export async function handlePostMarketBoard(request: HostRequest): Promise<HostResult> {
+  try {
+    return jsonOk(await buildMarketBoard(request.body ?? null, {}, request.abortSignal));
+  } catch (error) {
+    return jsonError(error);
+  }
+}
 
 /** `POST /api/v1/market` — body: MarketWatchRequest; result: MarketWatchResult. */
 export async function handlePostMarket(request: HostRequest): Promise<HostResult> {

@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { dataChartSchema } from "../artifacts/data-analysis";
-import { CHART_BARS_DEFAULT, buildPriceChart } from "./chart-builder";
+import {
+  CHART_BARS_DEFAULT,
+  CHART_RANGE_DEFAULT,
+  CHART_RANGES,
+  buildPriceChart,
+  buildRangeChart,
+  chartRange,
+} from "./chart-builder";
 import { makeHistory } from "./watch-fixtures";
 
 describe("buildPriceChart", () => {
@@ -59,5 +66,33 @@ describe("buildPriceChart", () => {
     const snapshot = JSON.stringify(reversed);
     expect(buildPriceChart(reversed).x.values).toEqual(history.bars.map((b) => b.date));
     expect(JSON.stringify(reversed)).toBe(snapshot);
+  });
+});
+
+describe("chart ranges", () => {
+  it("offers 1M to 2Y, ascending, with 6M as the default", () => {
+    expect(CHART_RANGES.map((range) => range.id)).toEqual(["1m", "3m", "6m", "1y", "2y"]);
+    const bars = CHART_RANGES.map((range) => range.bars);
+    expect([...bars].sort((a, b) => a - b)).toEqual(bars);
+    expect(CHART_RANGES.some((range) => range.id === CHART_RANGE_DEFAULT)).toBe(true);
+  });
+
+  it("looks a range up by id and falls back to the default for an unknown one", () => {
+    expect(chartRange("1m").bars).toBe(22);
+    expect(chartRange("nope").id).toBe(CHART_RANGE_DEFAULT);
+  });
+
+  it("cuts the chart to the requested window", () => {
+    const history = makeHistory("MU", 600);
+    expect(buildRangeChart(history, "1m").x.values).toHaveLength(22);
+    expect(buildRangeChart(history, "1y").x.values).toHaveLength(252);
+  });
+
+  it("returns every bar it has when the history is shorter than the window", () => {
+    expect(buildRangeChart(makeHistory("MU", 30), "2y").x.values).toHaveLength(30);
+  });
+
+  it("passes the title through", () => {
+    expect(buildRangeChart(makeHistory("MU", 300), "6m", "MU close").title).toBe("MU close");
   });
 });

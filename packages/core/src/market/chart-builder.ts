@@ -43,3 +43,25 @@ export function buildPriceChart(history: PriceHistory, opts: PriceChartOptions =
     series: [{ name: CLOSE_SERIES, values: closes.slice(from) }, ...overlays],
   };
 }
+
+/** Windows the studio offers, in trading days: 1M ≈ 22, 3M ≈ 66, 6M ≈ 126, 1Y ≈ 252, 2Y ≈ 504. */
+export const CHART_RANGES = [
+  { id: "1m", label: "1M", bars: 22 },
+  { id: "3m", label: "3M", bars: 66 },
+  { id: "6m", label: "6M", bars: 126 },
+  { id: "1y", label: "1Y", bars: 252 },
+  { id: "2y", label: "2Y", bars: 504 },
+] as const;
+export type ChartRange = (typeof CHART_RANGES)[number];
+export type ChartRangeId = ChartRange["id"];
+export const CHART_RANGE_DEFAULT: ChartRangeId = "6m";
+
+/** The named range, or the default for an id that is not one of ours. */
+export function chartRange(id: string): ChartRange {
+  return CHART_RANGES.find((range) => range.id === id) ?? chartRange(CHART_RANGE_DEFAULT);
+}
+
+/** The price chart cut to one named window; shorter when the history runs out of bars. */
+export function buildRangeChart(history: PriceHistory, id: ChartRangeId, title?: string): DataChart {
+  return buildPriceChart(history, { bars: chartRange(id).bars, title });
+}

@@ -15,9 +15,16 @@ import {
   truncateLabel,
 } from "@/lib/chart-scale";
 
-type Props = { chart: DataChart; testId?: string };
+type Props = {
+  chart: DataChart;
+  testId?: string;
+  /** Anchor the y axis at zero (default). Price charts pass false so the plot follows the data. */
+  zeroBaseline?: boolean;
+};
 
 const ROTATE_FROM = 8;
+/** Beyond this many points a marker per point is clutter; the line alone reads better. */
+const MAX_MARKER_POINTS = 40;
 const TICK_FONT = 10;
 const LABEL_FONT = 11;
 const LINE_WIDTH = 2;
@@ -28,7 +35,7 @@ const TEXT_OPACITY = 0.6;
 const layout = DEFAULT_CHART_LAYOUT;
 const plot = plotArea(layout);
 
-export function SvgChart({ chart, testId }: Props) {
+export function SvgChart({ chart, testId, zeroBaseline = true }: Props) {
   const caption = chart.title || `${chart.type} chart`;
   return (
     <figure className="rounded-xl border border-mist bg-paper p-4 text-ink" data-testid={testId}>
@@ -42,19 +49,19 @@ export function SvgChart({ chart, testId }: Props) {
         role="img"
         aria-label={`${caption}, ${chart.type} chart`}
       >
-        <ChartBody chart={chart} />
+        <ChartBody chart={chart} zeroBaseline={zeroBaseline} />
       </svg>
       {chart.series.length > 1 ? <Legend names={chart.series.map((series) => series.name)} /> : null}
     </figure>
   );
 }
 
-function ChartBody({ chart }: { chart: DataChart }) {
+function ChartBody({ chart, zeroBaseline }: { chart: DataChart; zeroBaseline: boolean }) {
   if (chart.type === "bar") {
     return <BarChart chart={chart} />;
   }
   if (chart.type === "line") {
-    return <LineChart chart={chart} />;
+    return <LineChart chart={chart} zeroBaseline={zeroBaseline} />;
   }
   return <ScatterChart chart={chart} />;
 }
@@ -82,8 +89,8 @@ function BarChart({ chart }: { chart: DataChart }) {
   );
 }
 
-function LineChart({ chart }: { chart: DataChart }) {
-  const { lines, ticks, xLabels } = buildLineLayout(chart, layout);
+function LineChart({ chart, zeroBaseline }: { chart: DataChart; zeroBaseline: boolean }) {
+  const { lines, ticks, xLabels } = buildLineLayout(chart, layout, zeroBaseline);
   return (
     <>
       <YAxis ticks={ticks} plot={plot} />
@@ -103,19 +110,21 @@ function LineChart({ chart }: { chart: DataChart }) {
                 strokeLinecap="round"
               />
             ) : null}
-            {line.points.map((point) => (
-              <circle
-                key={point.label}
-                cx={point.x}
-                cy={point.y}
-                r={MARKER_RADIUS}
-                fill={color}
-                stroke="var(--color-paper)"
-                strokeWidth={2}
-              >
-                <title>{`${name}: ${formatTick(point.value)} (${point.label})`}</title>
-              </circle>
-            ))}
+            {line.points.length <= MAX_MARKER_POINTS
+              ? line.points.map((point) => (
+                  <circle
+                    key={point.label}
+                    cx={point.x}
+                    cy={point.y}
+                    r={MARKER_RADIUS}
+                    fill={color}
+                    stroke="var(--color-paper)"
+                    strokeWidth={2}
+                  >
+                    <title>{`${name}: ${formatTick(point.value)} (${point.label})`}</title>
+                  </circle>
+                ))
+              : null}
           </g>
         );
       })}

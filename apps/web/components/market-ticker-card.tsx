@@ -1,10 +1,11 @@
 "use client";
 
-import { SvgChart } from "@/components/svg-chart";
+import { MarketPriceChart } from "@/components/market-price-chart";
 import {
   formatNumber,
   formatObservedAt,
   formatPercent,
+  humanRating,
   percentVsSma200,
   type TickerPacket,
   type WatchNewsItem,
@@ -33,7 +34,7 @@ function quoteFacts(ticker: TickerPacket): Fact[] {
     { label: "Volume", value: formatNumber(q?.volume, 0) },
     { label: "Market cap", value: formatNumber(q?.marketCap, 0) },
     { label: "State", value: q?.marketState ?? "" },
-    { label: "TradingView", value: tech?.tradingview?.label ?? "" },
+    { label: "TradingView", value: humanRating(tech?.tradingview?.label ?? "") },
     { label: "TV summary", value: formatNumber(tech?.tradingview?.summary) },
     { label: "RSI14", value: formatNumber(tech?.rsi14, 1) },
     { label: "SMA50", value: formatNumber(tech?.sma50) },
@@ -92,13 +93,12 @@ export function MarketTickerCard({ ticker, testIdPrefix }: Props) {
         ) : null}
       </header>
       <div className="mt-3 grid gap-4 lg:[grid-template-columns:minmax(0,3fr)_minmax(0,2fr)]">
-        {ticker.chart ? (
-          <SvgChart chart={ticker.chart} testId={`${testIdPrefix}-chart`} />
-        ) : (
-          <p className="rounded-xl border border-dashed border-mist p-4 text-sm text-ink/55">
-            No price history to chart.
-          </p>
-        )}
+        <MarketPriceChart
+          history={ticker.history}
+          fallback={ticker.chart}
+          symbol={ticker.symbol.yahoo}
+          testId={`${testIdPrefix}-chart`}
+        />
         {facts.length > 0 ? (
           <table className="self-start text-sm" data-testid={`${testIdPrefix}-ticker-facts`}>
             <tbody>

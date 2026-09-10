@@ -87,8 +87,10 @@ export {
   mergeTechnical,
   packetContext,
 } from "./packet";
+export { ALL_SECTIONS } from "./packet";
 export type {
   BuildPacketOptions,
+  PacketSections,
   LoadedHistory,
   LoadedMacro,
   LoadedNews,

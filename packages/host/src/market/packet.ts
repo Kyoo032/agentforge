@@ -60,6 +60,17 @@ export const PACKET_PHASES = ["resolving", "quotes", "technicals", "charts", "ne
 export type PacketPhase = (typeof PACKET_PHASES)[number];
 export type PacketProgress = (phase: PacketPhase, label: string) => void;
 
+/** Which optional sections a packet fetches. The watch board skips headlines and macro. */
+export type PacketSections = { news: boolean; macro: boolean };
+export const ALL_SECTIONS: PacketSections = { news: true, macro: true };
+
+const NO_NEWS: LoadedNews = { news: [], failure: null };
+const NO_MACRO: LoadedMacro = { macro: { quotes: [], failures: [] }, failure: null };
+
+function skipped<T>(value: T): PromiseSettledResult<T> {
+  return { status: "fulfilled", value };
+}
+
 export type PacketClients = {
   yahoo?: YahooClient;
   fetchImpl?: typeof fetch;
@@ -73,6 +84,8 @@ export type BuildPacketOptions = {
   onProgress?: PacketProgress;
   /** Fetches in flight per kind. */
   concurrency?: number;
+  /** Sections to fetch; defaults to all. */
+  include?: Partial<PacketSections>;
 };
 
 export type PacketBuild = {
@@ -90,6 +103,7 @@ export type PacketContext = {
   fetchImpl: typeof fetch;
   signal?: AbortSignal;
   concurrency: number;
+  include: PacketSections;
 };
 
 export function packetContext(db: Database.Database, opts: BuildPacketOptions = {}): PacketContext {
@@ -102,6 +116,7 @@ export function packetContext(db: Database.Database, opts: BuildPacketOptions = 
     fetchImpl: opts.clients?.fetchImpl ?? fetch,
     signal: opts.signal,
     concurrency: opts.concurrency ?? MAP_LIMIT_DEFAULT,
+    include: { news: opts.include?.news ?? ALL_SECTIONS.news, macro: opts.include?.macro ?? ALL_SECTIONS.macro },
   };
 }
 
@@ -395,8 +410,10 @@ async function loadSections(
 ): Promise<LoadedSections> {
   throwIfJobAborted(ctx.signal);
   const historiesPending = mapLimit(symbols, ctx.concurrency, (symbol) => loadHistory(symbol.yahoo, ctx));
-  const newsPending = mapLimit(symbols, ctx.concurrency, (symbol) => loadNews(symbol, ctx));
-  const macroPending = loadMacro(ctx);
+  const newsPending = ctx.include.news
+    ? mapLimit(symbols, ctx.concurrency, (symbol) => loadNews(symbol, ctx))
+    : Promise.resolve(symbols.map(() => skipped(NO_NEWS)));
+  const macroPending = ctx.include.macro ? loadMacro(ctx) : Promise.resolve(NO_MACRO);
 
   const historyResults = await historiesPending;
   const histories = new Map(
@@ -414,10 +431,14 @@ async function loadSections(
     symbols.map((symbol) => [symbol.yahoo, chartFor(symbol, histories.get(symbol.yahoo) ?? null)]),
   );
 
-  progress("news", "Reading headlines");
+  if (ctx.include.news) {
+    progress("news", "Reading headlines");
+  }
   const newsResults = await newsPending;
 
-  progress("macro", "Reading macro levels");
+  if (ctx.include.macro) {
+    progress("macro", "Reading macro levels");
+  }
   const macro = await macroPending;
   return { historyResults, histories, technicals, charts, newsResults, macro };
 }
@@ -450,7 +471,7 @@ export function assembleTickerPackets(loaded: LoadedQuotes, sections: LoadedSect
 
 export async function buildMarketWatchPacket(
   db: Database.Database,
-  request: MarketWatchRequest,
+  request: Pick<MarketWatchRequest, "tickers" | "positionContext">,
   opts: BuildPacketOptions = {},
 ): Promise<PacketBuild> {
   const ctx = packetContext(db, opts);

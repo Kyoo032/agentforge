@@ -7,6 +7,7 @@ import { ArtifactActions } from "@/components/artifact-actions";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { JobProgressList } from "@/components/job-progress";
 import type { JobRegenSubmit } from "@/components/job-regen-panel";
+import { MarketBoard } from "@/components/market-board";
 import { MarketBriefingView } from "@/components/market-briefing-view";
 import { MarketWatchlistInput } from "@/components/market-watchlist-input";
 import { ModelSelect } from "@/components/model-select";
@@ -18,6 +19,8 @@ import {
   POSITION_PLACEHOLDER,
   applyRegeneratedSection,
   downloadMarketDocx,
+  friendlyMarketError,
+  needsKey,
   regenerateBriefingSection,
   type MarketStarter,
   type MarketWatchRequest,
@@ -26,14 +29,14 @@ import {
 } from "@/lib/market-client";
 import { useJobModel } from "@/lib/use-job-model";
 import { useJobStream } from "@/lib/use-job-stream";
+import { useMarketBoard } from "@/lib/use-market-board";
 import { useProductBrand } from "@/lib/product-brand";
 
 const DEFAULT_PROMPT: Record<WatchLanguage, string> = { id: DEFAULT_WATCH_PROMPT_ID, en: DEFAULT_WATCH_PROMPT_EN };
 const DEFAULT_PROMPTS = new Set<string>([DEFAULT_WATCH_PROMPT_ID, DEFAULT_WATCH_PROMPT_EN]);
 
-function needsSettingsHint(message: string): boolean {
-  return /gateway|api key|settings|runtime_stub|live gateway/i.test(message);
-}
+const MUTED = "text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]";
+const FAINT = "text-[color-mix(in_srgb,var(--color-text)_45%,transparent)]";
 
 function isLanguage(value: string): value is WatchLanguage {
   return value === "id" || value === "en";
@@ -55,12 +58,15 @@ export function MarketStudio() {
   const [prompt, setPrompt] = useState<string>(DEFAULT_WATCH_PROMPT_ID);
   const [position, setPosition] = useState("");
   const [maxChars, setMaxChars] = useState<number>(DEFAULT_MAX_CHARS);
+  const [showOptions, setShowOptions] = useState(false);
   const [result, setResult] = useState<MarketWatchResult | null>(null);
   const [busy, setBusy] = useState<"download" | "regen" | null>(null);
   const [regenIndex, setRegenIndex] = useState<number | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
+  const board = useMarketBoard(tickers);
 
-  const error = localError ?? job.error?.message ?? null;
+  const rawError = localError ?? job.error?.message ?? null;
+  const error = rawError ? friendlyMarketError(rawError) : null;
   const locked = job.busy || busy !== null;
   const ready = tickers.length > 0 && prompt.trim().length > 0;
 
@@ -77,20 +83,12 @@ export function MarketStudio() {
 
   async function onGenerate(event: FormEvent) {
     event.preventDefault();
-    if (locked) {
-      return;
-    }
-    if (tickers.length === 0) {
-      setLocalError("Add at least one ticker to the watchlist, for example MU or BBCA.JK.");
-      return;
-    }
-    if (!prompt.trim()) {
-      setLocalError("Write what the briefing should cover, or keep the default instruction.");
+    if (locked || tickers.length === 0) {
       return;
     }
     setLocalError(null);
     const body: MarketWatchRequest = {
-      prompt: prompt.trim(),
+      prompt: (prompt.trim() || DEFAULT_PROMPT[language]).trim(),
       tickers,
       positionContext: position.trim(),
       language,
@@ -152,9 +150,9 @@ export function MarketStudio() {
       <div className="mb-5 flex flex-wrap items-end gap-4">
         <div>
           <h3 className="mt-2 text-[25px]">Market Watch</h3>
-          <p className="mt-1.5 max-w-xl text-sm text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">
-            What quotes, TradingView ratings, headlines, and macro say about your watchlist. Analysis, not investment
-            advice.
+          <p className={`mt-1.5 max-w-xl text-sm ${MUTED}`}>
+            Type the stocks you follow. You get live prices and a chart for each one, and can ask for a written
+            briefing. Analysis, not investment advice.
           </p>
         </div>
         {result ? (
@@ -169,36 +167,77 @@ export function MarketStudio() {
           </button>
         ) : null}
       </div>
+
       {error ? (
         <p className="mb-4 text-sm text-red-700" role="alert" data-testid="market-error">
           {error}
-          {needsSettingsHint(error) && !/settings/i.test(error) ? (
+          {needsKey(rawError ?? "") ? (
             <>
               {" "}
-              Open{" "}
-              <Link href="/settings" className="underline">
-                Settings
+              <Link href="/settings" className="underline" data-testid="market-error-settings">
+                Open Settings
               </Link>
               .
             </>
           ) : null}
         </p>
       ) : null}
-      <div className="grid items-start gap-5 lg:[grid-template-columns:420px_minmax(0,1fr)]">
-        <form
-          className="blueprint space-y-4 p-4"
-          onSubmit={(event) => void onGenerate(event)}
-          data-testid="market-inputs"
-        >
+
+      <form className="space-y-4" onSubmit={(event) => void onGenerate(event)} data-testid="market-inputs">
+        <div className="blueprint p-4">
           <MarketWatchlistInput tickers={tickers} onChange={setTickers} disabled={locked} />
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label htmlFor="market-language-select" className="panel-label">
-                Language
-              </label>
+          {tickers.length === 0 ? (
+            <div className="mt-3" data-testid="market-starters">
+              <p className={`text-[11px] ${FAINT}`}>Or start from a ready-made list:</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {MARKET_STARTERS.map((starter) => (
+                  <button
+                    key={starter.id}
+                    type="button"
+                    className="rounded-md border border-mist px-3 py-1.5 text-left text-xs hover:bg-mist/40"
+                    data-testid="market-starter"
+                    title={starter.tickers.join(", ")}
+                    onClick={() => applyStarter(starter)}
+                    disabled={locked}
+                  >
+                    <span className="font-medium">{starter.label}</span>
+                    <span className={`ml-2 ${FAINT}`}>{starter.hint}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        {tickers.length > 0 ? (
+          <MarketBoard
+            board={board.board}
+            loading={board.loading}
+            error={board.error}
+            tickers={tickers}
+            onRefresh={board.refresh}
+          />
+        ) : null}
+
+        {tickers.length > 0 ? (
+          <div className="blueprint space-y-3 p-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={locked || !ready}
+                data-testid="market-generate"
+              >
+                {job.busy ? "Writing…" : "Write a briefing"}
+              </button>
+              {job.busy ? (
+                <button type="button" className="btn" onClick={job.cancel} data-testid="market-cancel">
+                  Cancel
+                </button>
+              ) : null}
               <select
-                id="market-language-select"
-                className="input mt-2"
+                aria-label="Briefing language"
+                className="input w-auto"
                 value={language}
                 onChange={(event) => onLanguageChange(event.target.value)}
                 disabled={locked}
@@ -207,136 +246,136 @@ export function MarketStudio() {
                 <option value="id">Bahasa Indonesia</option>
                 <option value="en">English</option>
               </select>
-            </div>
-            <div>
-              <label htmlFor="market-maxchars-input" className="panel-label">
-                Max characters
-              </label>
-              <input
-                id="market-maxchars-input"
-                type="number"
-                min={MIN_MAX_CHARS}
-                max={MAX_MAX_CHARS}
-                step={500}
-                className="input mt-2"
-                value={maxChars}
-                onChange={(event) => setMaxChars(Number(event.target.value))}
-                onBlur={() => setMaxChars(clampMaxChars(maxChars))}
-                disabled={locked}
-                data-testid="market-maxchars"
-              />
-            </div>
-          </div>
-          <div>
-            <label htmlFor="market-prompt-input" className="panel-label">
-              Instruction
-            </label>
-            <textarea
-              id="market-prompt-input"
-              rows={7}
-              value={prompt}
-              onChange={(event) => setPrompt(event.target.value)}
-              className="input mt-2 text-[13px]"
-              disabled={locked}
-              data-testid="market-prompt"
-            />
-          </div>
-          <div>
-            <label htmlFor="market-position-input" className="panel-label">
-              Position context (optional)
-            </label>
-            <textarea
-              id="market-position-input"
-              rows={3}
-              value={position}
-              onChange={(event) => setPosition(event.target.value)}
-              className="input mt-2 text-[13px]"
-              placeholder={POSITION_PLACEHOLDER}
-              disabled={locked}
-              data-testid="market-position"
-            />
-            <p className="mt-1 text-[11px] text-[color-mix(in_srgb,var(--color-text)_45%,transparent)]">
-              Your own entries and targets. These figures may appear in the briefing; nothing else outside the fetched
-              data may.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <EnhancePromptButton
-              text={prompt}
-              surface="market"
-              model={model}
-              disabled={locked}
-              testId="market-enhance"
-              onApply={setPrompt}
-            />
-            <ModelSelect
-              models={models}
-              value={model}
-              onChange={setModel}
-              disabled={locked}
-              testId="market-studio-model"
-            />
-          </div>
-          <div className="flex gap-2">
-            {job.busy ? (
-              <button type="button" className="btn" onClick={job.cancel} data-testid="market-cancel">
-                Cancel
-              </button>
-            ) : null}
-            <button type="submit" className="btn btn-primary" disabled={locked || !ready} data-testid="market-generate">
-              {job.busy ? "Working…" : "Generate briefing"}
-            </button>
-          </div>
-          <p className="text-[11px] text-[color-mix(in_srgb,var(--color-text)_45%,transparent)]">
-            {productName} fetches quotes, price history, TradingView ratings, headlines, and macro levels on this
-            machine; the model writes the briefing over that packet and any figure it cannot trace is removed.
-          </p>
-        </form>
-        <div className="space-y-4">
-          {job.busy || (job.progress.phases.length > 0 && !result) ? (
-            <JobProgressList progress={job.progress} busy={job.busy} testId="market-progress" />
-          ) : null}
-          {result ? (
-            <>
-              <ArtifactActions
-                title={result.briefing.title}
-                markdown={result.markdown}
-                artifactId={result.artifactId}
-                kbType="Brief"
-                disabled={locked}
-                testIdPrefix="market"
-              />
-              <MarketBriefingView
-                briefing={result.briefing}
-                guard={result.guard}
-                models={models}
-                defaultModel={model}
-                regeneratingIndex={regenIndex}
-                onRegenerate={(index, payload) => void onRegenerate(index, payload)}
-              />
-            </>
-          ) : job.busy ? null : (
-            <div className="blueprint px-4 py-8 text-center" data-testid="market-studio-empty">
-              <p>Add tickers, keep or edit the instruction, then generate a briefing.</p>
-            </div>
-          )}
-          <div className="flex flex-col gap-2" data-testid="market-starters">
-            {MARKET_STARTERS.map((starter) => (
               <button
-                key={starter.id}
                 type="button"
-                className="blueprint p-3 text-left"
-                data-testid="market-starter"
-                onClick={() => applyStarter(starter)}
-                disabled={locked}
+                className={`text-xs underline ${MUTED}`}
+                onClick={() => setShowOptions(!showOptions)}
+                aria-expanded={showOptions}
+                data-testid="market-options-toggle"
               >
-                <span className="font-medium">{starter.label}</span>
-                <span className="ml-2 text-xs text-ink/55">{starter.hint}</span>
-                <span className="mt-1 block font-mono text-xs text-ink/55">{starter.tickers.join(", ")}</span>
+                {showOptions ? "Hide options" : "Options"}
               </button>
-            ))}
+            </div>
+            <p className={`text-[11px] ${FAINT}`}>
+              {productName} reads prices, charts, ratings, headlines, and market levels on this machine, then writes a
+              briefing over them. Any figure it cannot trace back to that data is removed.
+            </p>
+
+            {showOptions ? (
+              <div className="space-y-4 border-t border-mist pt-4" data-testid="market-options">
+                <div>
+                  <label htmlFor="market-position-input" className="panel-label">
+                    Your positions (optional)
+                  </label>
+                  <textarea
+                    id="market-position-input"
+                    rows={3}
+                    value={position}
+                    onChange={(event) => setPosition(event.target.value)}
+                    className="input mt-2 text-[13px]"
+                    placeholder={POSITION_PLACEHOLDER}
+                    disabled={locked}
+                    data-testid="market-position"
+                  />
+                  <p className={`mt-1 text-[11px] ${FAINT}`}>
+                    What you own and at what price. The briefing may use these numbers; it invents nothing else.
+                  </p>
+                </div>
+                <div>
+                  <label htmlFor="market-prompt-input" className="panel-label">
+                    What the briefing should cover
+                  </label>
+                  <textarea
+                    id="market-prompt-input"
+                    rows={7}
+                    value={prompt}
+                    onChange={(event) => setPrompt(event.target.value)}
+                    className="input mt-2 text-[13px]"
+                    disabled={locked}
+                    data-testid="market-prompt"
+                  />
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      className="btn text-xs"
+                      onClick={() => setPrompt(DEFAULT_PROMPT[language])}
+                      disabled={locked || prompt === DEFAULT_PROMPT[language]}
+                      data-testid="market-prompt-reset"
+                    >
+                      Reset to default
+                    </button>
+                    <EnhancePromptButton
+                      text={prompt}
+                      surface="market"
+                      model={model}
+                      disabled={locked}
+                      testId="market-enhance"
+                      onApply={setPrompt}
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-end gap-4">
+                  <div>
+                    <label htmlFor="market-maxchars-input" className="panel-label">
+                      Length limit (characters)
+                    </label>
+                    <input
+                      id="market-maxchars-input"
+                      type="number"
+                      min={MIN_MAX_CHARS}
+                      max={MAX_MAX_CHARS}
+                      step={500}
+                      className="input mt-2 w-40"
+                      value={maxChars}
+                      onChange={(event) => setMaxChars(Number(event.target.value))}
+                      onBlur={() => setMaxChars(clampMaxChars(maxChars))}
+                      disabled={locked}
+                      data-testid="market-maxchars"
+                    />
+                  </div>
+                  <ModelSelect
+                    models={models}
+                    value={model}
+                    onChange={setModel}
+                    disabled={locked}
+                    testId="market-studio-model"
+                  />
+                </div>
+              </div>
+            ) : null}
           </div>
-        </div>
+        ) : null}
+      </form>
+
+      <div className="mt-5 space-y-4">
+        {job.busy || (job.progress.phases.length > 0 && !result) ? (
+          <JobProgressList progress={job.progress} busy={job.busy} testId="market-progress" />
+        ) : null}
+        {result ? (
+          <>
+            <ArtifactActions
+              title={result.briefing.title}
+              markdown={result.markdown}
+              artifactId={result.artifactId}
+              kbType="Brief"
+              disabled={locked}
+              testIdPrefix="market"
+            />
+            <MarketBriefingView
+              briefing={result.briefing}
+              guard={result.guard}
+              models={models}
+              defaultModel={model}
+              regeneratingIndex={regenIndex}
+              onRegenerate={(index, payload) => void onRegenerate(index, payload)}
+            />
+          </>
+        ) : null}
+        {tickers.length === 0 && !job.busy ? (
+          <div className="blueprint px-4 py-8 text-center" data-testid="market-studio-empty">
+            <p>Add a ticker above to see its price and chart.</p>
+          </div>
+        ) : null}
       </div>
     </main>
   );

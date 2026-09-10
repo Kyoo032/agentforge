@@ -47,20 +47,31 @@ export {
   computeTechnical,
 } from "./technicals";
 export {
+  TICKER_PATTERN,
   TV_BUY_MIN,
   TV_NEUTRAL_MIN,
   TV_SELL_MIN,
   TV_STRONG_BUY_MIN,
   isNonEquitySymbol,
+  isValidTicker,
   normalizeTickerInput,
+  partitionTickerInput,
   toTradingViewSymbol,
   toYahooSymbol,
   tradingViewLabel,
   tradingViewMarket,
 } from "./symbols";
 export { US_MARKET_TIMEZONE, WEEKEND_NOTE, WIB_TIMEZONE, marketClock } from "./market-clock";
-export { CHART_BARS_DEFAULT, CHART_SMA_PERIODS, buildPriceChart } from "./chart-builder";
-export type { PriceChartOptions } from "./chart-builder";
+export {
+  CHART_BARS_DEFAULT,
+  CHART_RANGE_DEFAULT,
+  CHART_RANGES,
+  CHART_SMA_PERIODS,
+  buildPriceChart,
+  buildRangeChart,
+  chartRange,
+} from "./chart-builder";
+export type { ChartRange, ChartRangeId, PriceChartOptions } from "./chart-builder";
 export {
   DEFAULT_WATCH_PROMPT_EN,
   DEFAULT_WATCH_PROMPT_ID,
