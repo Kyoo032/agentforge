@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,6 +13,7 @@ import {
   knowledgeRetrievals,
   knowledgeVectors,
   knowledgeVerify,
+  knowledgeWorkspaceBackend,
 } from "./schema";
 
 const KERNEL_TABLES = [
@@ -372,6 +373,43 @@ describe("ensureSchema", () => {
       "ok",
       "workspace_id",
     ]);
+  });
+
+  it("applies the weknora backend migration twice without throwing", () => {
+    // SQLite has no `ADD COLUMN IF NOT EXISTS`, so a bare ALTER in a migration is a hard failure the
+    // second time the file is applied — a re-stamped journal, a repaired install, or this test.
+    const sqlite = new Database(":memory:");
+    ensureSchema(sqlite);
+    const file = path.join(packageDir, "drizzle", "0013_knowledge_weknora.sql");
+    const statements = readFileSync(file, "utf8")
+      .split("--> statement-breakpoint")
+      .map((part) => part.trim())
+      .filter((part) => part.length > 0);
+    for (let pass = 0; pass < 2; pass += 1) {
+      for (const statement of statements) {
+        expect(() => sqlite.exec(statement)).not.toThrow();
+      }
+    }
+    // And the column 0013 deliberately leaves to ensure-schema is there, exactly once.
+    const columns = (sqlite.pragma("table_info(knowledge_sources)") as Array<{ name: string }>).map(
+      (column) => column.name,
+    );
+    expect(columns.filter((name) => name === "external_id")).toEqual(["external_id"]);
+    sqlite.close();
+  });
+
+  it("carries the gateway credential fingerprint on the workspace binding", () => {
+    // Drift guard: migration 0013 + ensureSchema + schema.ts, or `drizzle-kit generate` re-emits it.
+    const sqlite = new Database(":memory:");
+    ensureSchema(sqlite);
+    const columns = (sqlite.pragma("table_info(knowledge_workspace_backend)") as Array<{ name: string }>).map(
+      (column) => column.name,
+    );
+    expect(columns).toEqual(expect.arrayContaining(["gateway_base_url", "gateway_key_fp"]));
+    expect(getTableConfig(knowledgeWorkspaceBackend).columns.map((column) => column.name)).toEqual(
+      expect.arrayContaining(["gateway_base_url", "gateway_key_fp"]),
+    );
+    sqlite.close();
   });
 
   it("records organization_id FKs on agent_versions and agent_tool_bindings", () => {

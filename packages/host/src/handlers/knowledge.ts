@@ -23,6 +23,10 @@ import {
   type WorkSourceType,
 } from "../knowledge";
 import { getKnowledgeMap, mapKnowledge } from "../knowledge-map";
+import { backendPayload, parseBackendId, selectKnowledgeBackend } from "../knowledge/backend-api";
+import { drainKnowledgeOutbox } from "../knowledge/registry";
+import { sidecarStatus } from "../knowledge/backends/weknora/supervisor";
+import { startBackfill } from "../knowledge/backfill";
 import { countRetrievals } from "../knowledge-retrievals";
 import { getGraph, graphCounts } from "../knowledge-graph";
 import {
@@ -96,7 +100,7 @@ export async function handleGetKnowledge(request: HostRequest): Promise<HostResu
     return jsonOk({
       soul: getSoul(tenant),
       memories: listMemories(tenant),
-      sources: (sweepOrphanThreadSources(tenant), listSources(tenant)),
+      sources: (sweepOrphanThreadSources(tenant), drainOnRead(tenant), listSources(tenant)),
       models: getKnowledgeModels(tenant),
       map: getKnowledgeMap(tenant),
       // Retrieved stage of the knowledge loop: chunks this workspace has been served, all time.
@@ -105,7 +109,52 @@ export async function handleGetKnowledge(request: HostRequest): Promise<HostResu
       // so the page that only draws the loop chart never pays for the node list.
       graph: graphCounts(tenant),
       verified: getKnowledgeVerify(tenant),
+      // Which engine answers this desk, and what it still owes. Health is reported only when the
+      // sidecar is already up, so rendering the page never triggers a cold start.
+      backend: await backendPayload(tenant),
     });
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+/**
+ * Replay anything the retrieval backend still owes, without making the read wait for it. The
+ * Knowledge page is the one screen that is opened after a sidecar comes back, so it is the natural
+ * place to notice — but a drain that is slow or failing must not slow the page down.
+ */
+function drainOnRead(tenant: Parameters<typeof drainKnowledgeOutbox>[0]): void {
+  // Only ever a piggy-back on a sidecar that is *already* up and ready. Draining unconditionally
+  // made opening the Knowledge page start the sidecar — a 20 s cold start, a spawned process and a
+  // gateway-key-bearing bootstrap, all triggered by a read that asked for none of it. A desk with a
+  // queue and no sidecar keeps its queue; the next real knowledge call drains it.
+  if (!sidecarStatus().ready) {
+    return;
+  }
+  void drainKnowledgeOutbox(tenant).catch(() => {
+    // `drainKnowledgeOutbox` already logs; a failed replay leaves the rows queued for next time.
+  });
+}
+
+/** Which retrieval engine this desk uses. `409` when WeKnora is chosen but not installed. */
+export async function handlePutKnowledgeBackend(request: HostRequest): Promise<HostResult> {
+  try {
+    const tenant = await getTenant(request.workspaceId);
+    return jsonOk(await selectKnowledgeBackend(tenant, parseBackendId(request.body)));
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+/**
+ * Start (or resume) a backfill of every source the selected backend does not hold yet. Answers
+ * immediately with how much work was queued; progress shows up as `backend.outbox` falling on
+ * later reads of `GET /api/v1/knowledge`.
+ */
+export async function handlePostKnowledgeBackendReindex(request: HostRequest): Promise<HostResult> {
+  try {
+    const tenant = await getTenant(request.workspaceId);
+    return jsonOk(startBackfill(tenant), 202);
   } catch (error) {
     return jsonError(error);
   }

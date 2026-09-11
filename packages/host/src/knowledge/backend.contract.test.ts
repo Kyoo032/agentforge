@@ -4,25 +4,55 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { sql } from "@agentforge/db";
 import type { TenantContext } from "@agentforge/core";
-import {
-  addPastedSource,
-  deleteSource,
-  knowledgeInjection,
-  listSources,
-  retrieveChunks,
-} from "../knowledge";
+import { addPastedSource, deleteSource, knowledgeInjection, listSources, retrieveChunks } from "../knowledge";
 import { upsertWorkSource } from "../knowledge-ingest";
 import { chatWorkCard } from "../work-cards";
 import { getKnowledgeBackend } from "./registry";
-import type { KnowledgeBackend } from "./backend";
+import { startWeKnoraHarness } from "./backends/weknora/__fixtures__/harness";
 
 /**
- * The shared backend contract. Phase 0 has one implementation (builtin); Phase 3 adds WeKnora to
- * this list and every assertion below has to hold for it unchanged.
+ * The shared backend contract. Every assertion below is about behaviour the *caller* depends on —
+ * a planted fact comes back, it knows which source it came from, a delete really forgets, one
+ * origin means one row — and it has to hold for whichever engine is answering.
+ *
+ * Phase 0 had one implementation; Phase 3 adds WeKnora, running against a fake sidecar so the suite
+ * still passes on a machine with no Go build. The gated `weknora.integration.test.ts` runs the same
+ * ground against a real binary.
  */
-const BACKENDS: Array<{ id: string; make: () => KnowledgeBackend }> = [
-  { id: "builtin", make: () => getKnowledgeBackend() },
+
+/** Teardown for one backend's world: env, settings, and any fake server it started. */
+type Teardown = () => Promise<void>;
+
+const BACKENDS: Array<{ id: string; setup: () => Promise<Teardown> }> = [
+  { id: "builtin", setup: setupBuiltin },
+  { id: "weknora", setup: setupWeknora },
 ];
+
+async function setupBuiltin(): Promise<Teardown> {
+  const previousRuntime = process.env.AGENTFORGE_RUNTIME;
+  const previousSettings = process.env.AGENTFORGE_SETTINGS_PATH;
+  const settingsDir = mkdtempSync(join(tmpdir(), "af-knowledge-contract-"));
+  process.env.AGENTFORGE_RUNTIME = "stub";
+  process.env.AGENTFORGE_SETTINGS_PATH = settingsDir;
+  return async () => {
+    restore("AGENTFORGE_RUNTIME", previousRuntime);
+    restore("AGENTFORGE_SETTINGS_PATH", previousSettings);
+    rmSync(settingsDir, { recursive: true, force: true });
+  };
+}
+
+async function setupWeknora(): Promise<Teardown> {
+  const harness = await startWeKnoraHarness();
+  return harness.teardown;
+}
+
+function restore(name: string, value: string | undefined): void {
+  if (value === undefined) {
+    delete process.env[name];
+  } else {
+    process.env[name] = value;
+  }
+}
 
 /** A token that cannot appear anywhere else in the workspace, so a hit proves retrieval. */
 function plantedToken(): string {
@@ -38,35 +68,24 @@ function tenant(): TenantContext {
   };
 }
 
-describe.each(BACKENDS)("knowledge backend contract: $id", ({ id, make }) => {
-  let previousRuntime: string | undefined;
-  let previousSettings: string | undefined;
-  let settingsDir: string;
+/** Deletes reach the index asynchronously (it is a network call for a remote backend). */
+async function settle(): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 100));
+}
 
-  beforeEach(() => {
-    previousRuntime = process.env.AGENTFORGE_RUNTIME;
-    previousSettings = process.env.AGENTFORGE_SETTINGS_PATH;
-    settingsDir = mkdtempSync(join(tmpdir(), "af-knowledge-contract-"));
-    process.env.AGENTFORGE_RUNTIME = "stub";
-    process.env.AGENTFORGE_SETTINGS_PATH = settingsDir;
+describe.each(BACKENDS)("knowledge backend contract: $id", ({ id, setup }) => {
+  let teardown: Teardown;
+
+  beforeEach(async () => {
+    teardown = await setup();
   });
 
-  afterEach(() => {
-    if (previousRuntime === undefined) {
-      delete process.env.AGENTFORGE_RUNTIME;
-    } else {
-      process.env.AGENTFORGE_RUNTIME = previousRuntime;
-    }
-    if (previousSettings === undefined) {
-      delete process.env.AGENTFORGE_SETTINGS_PATH;
-    } else {
-      process.env.AGENTFORGE_SETTINGS_PATH = previousSettings;
-    }
-    rmSync(settingsDir, { recursive: true, force: true });
+  afterEach(async () => {
+    await teardown();
   });
 
   it("reports its id and health", async () => {
-    const backend = make();
+    const backend = getKnowledgeBackend();
     expect(backend.id).toBe(id);
     await expect(backend.health()).resolves.toEqual(expect.objectContaining({ ok: true }));
   });
@@ -78,14 +97,75 @@ describe.each(BACKENDS)("knowledge backend contract: $id", ({ id, make }) => {
     expect(source.status).toBe("Indexed");
 
     const result = await retrieveChunks(ctx, token, 4);
-    expect(["fts", "rag", "hybrid"]).toContain(result.mode);
+    expect(["fts", "rag", "hybrid", "weknora"]).toContain(result.mode);
+    expect(result.backend).toBe(id);
     expect(result.chunks.length).toBeGreaterThan(0);
     const hit = result.chunks.find((chunk) => chunk.body.includes(token));
     expect(hit).toBeDefined();
     expect(hit?.sourceId).toBe(source.id);
     expect(hit?.sourceName).toBe("Planted notes");
     expect(hit?.score ?? 0).toBeGreaterThan(0);
+    expect(hit?.score ?? 0).toBeLessThanOrEqual(1);
     expect(hit?.chunkIndex).toBe(0);
+  }, 30_000);
+
+  it("stops retrieving a source once it is deleted", async () => {
+    const ctx = tenant();
+    const token = plantedToken();
+    const source = await addPastedSource(ctx, "Doomed notes", `The code name is ${token}.`);
+    expect((await retrieveChunks(ctx, token, 4)).chunks.length).toBeGreaterThan(0);
+
+    expect(deleteSource(ctx, source.id)).toBe(true);
+    await settle();
+    const after = await retrieveChunks(ctx, token, 4);
+    expect(after.chunks).toHaveLength(0);
+    expect(after.mode).toBe("none");
+    const vectors = sql
+      .prepare("SELECT count(*) AS n FROM knowledge_vectors WHERE workspace_id = ? AND source_id = ?")
+      .get(ctx.workspaceId, source.id) as { n: number };
+    expect(vectors.n).toBe(0);
+  }, 30_000);
+
+  it("keeps exactly one source row when the same origin is upserted twice", async () => {
+    const ctx = tenant();
+    const card = (assistantText: string) =>
+      chatWorkCard({ threadId: "thread-contract", title: "Contract", userText: "code name?", assistantText });
+    const first = await upsertWorkSource(ctx, card("The code name is alpha."));
+    const second = await upsertWorkSource(ctx, card("The code name is beta."));
+    if (first.status === "skipped" || second.status === "skipped") {
+      throw new Error("unexpected skip");
+    }
+    expect(second.source.id).toBe(first.source.id);
+    expect(listSources(ctx)).toHaveLength(1);
+  }, 30_000);
+
+  it("renders every injected chunk as [n] <sourceName> so a reply can cite it", async () => {
+    const ctx = tenant();
+    const token = plantedToken();
+    await addPastedSource(ctx, "Citable notes", `The code name is ${token}.`);
+    const injected = await knowledgeInjection(ctx, token);
+    expect(injected.prompt).toContain("[1] Citable notes");
+    expect(injected.prompt).toContain(token);
+    expect(injected.chunks.length).toBeGreaterThan(0);
+    expect(injected.backend).toBe(id);
+    const sourcesPart = injected.parts.find((part) => part.label === "Sources");
+    expect(sourcesPart?.detail).toMatch(/^\d+ chunks · (rag|fts|hybrid|weknora)$/);
+  }, 30_000);
+});
+
+/**
+ * bm25 ordering is the built-in backend's own contract: WeKnora ranks with its own fusion, and
+ * asserting our scoring rules against someone else's engine would be testing them, not us.
+ */
+describe("builtin backend ranking", () => {
+  let teardown: Teardown;
+
+  beforeEach(async () => {
+    teardown = await setupBuiltin();
+  });
+
+  afterEach(async () => {
+    await teardown();
   });
 
   it("ranks FTS hits by bm25 and scores them in (0, 1]", async () => {
@@ -109,46 +189,5 @@ describe.each(BACKENDS)("knowledge backend contract: $id", ({ id, make }) => {
       expect(chunk.score).toBeLessThanOrEqual(1);
     }
     expect(result.chunks[0]?.score ?? 0).toBeGreaterThanOrEqual(result.chunks[1]?.score ?? 0);
-  });
-
-  it("stops retrieving a source once it is deleted", async () => {
-    const ctx = tenant();
-    const token = plantedToken();
-    const source = await addPastedSource(ctx, "Doomed notes", `The code name is ${token}.`);
-    expect((await retrieveChunks(ctx, token, 4)).chunks.length).toBeGreaterThan(0);
-
-    expect(deleteSource(ctx, source.id)).toBe(true);
-    const after = await retrieveChunks(ctx, token, 4);
-    expect(after.chunks).toHaveLength(0);
-    expect(after.mode).toBe("none");
-    const vectors = sql
-      .prepare("SELECT count(*) AS n FROM knowledge_vectors WHERE workspace_id = ? AND source_id = ?")
-      .get(ctx.workspaceId, source.id) as { n: number };
-    expect(vectors.n).toBe(0);
-  });
-
-  it("keeps exactly one source row when the same origin is upserted twice", async () => {
-    const ctx = tenant();
-    const card = (assistantText: string) =>
-      chatWorkCard({ threadId: "thread-contract", title: "Contract", userText: "code name?", assistantText });
-    const first = await upsertWorkSource(ctx, card("The code name is alpha."));
-    const second = await upsertWorkSource(ctx, card("The code name is beta."));
-    if (first.status === "skipped" || second.status === "skipped") {
-      throw new Error("unexpected skip");
-    }
-    expect(second.source.id).toBe(first.source.id);
-    expect(listSources(ctx)).toHaveLength(1);
-  });
-
-  it("renders every injected chunk as [n] <sourceName> so a reply can cite it", async () => {
-    const ctx = tenant();
-    const token = plantedToken();
-    await addPastedSource(ctx, "Citable notes", `The code name is ${token}.`);
-    const injected = await knowledgeInjection(ctx, token);
-    expect(injected.prompt).toContain("[1] Citable notes");
-    expect(injected.prompt).toContain(token);
-    expect(injected.chunks.length).toBeGreaterThan(0);
-    const sourcesPart = injected.parts.find((part) => part.label === "Sources");
-    expect(sourcesPart?.detail).toMatch(/^\d+ chunks · (rag|fts|hybrid)$/);
-  });
+  }, 30_000);
 });

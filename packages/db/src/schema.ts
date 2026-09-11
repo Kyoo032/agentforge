@@ -281,11 +281,59 @@ export const knowledgeSources = sqliteTable(
     /** Work that produced this source (thread / media / artifact); null for File, URL, Paste. */
     originKind: text("origin_kind"),
     originId: text("origin_id"),
+    /**
+     * The retrieval backend's own handle on this source (a WeKnora `knowledge_id`), or null when
+     * the backend holds nothing for it. Derived state: losing it costs a re-index, never a card.
+     */
+    externalId: text("external_id"),
   },
   (table) => [
     index("knowledge_sources_ws_idx").on(table.workspaceId),
     uniqueIndex("knowledge_sources_origin_idx").on(table.workspaceId, table.originKind, table.originId),
+    index("knowledge_sources_external_idx").on(table.workspaceId, table.externalId),
   ],
+);
+
+/**
+ * Which backend owns a workspace's vectors, and the handles it answers under. One row per desk:
+ * one WeKnora knowledge base per agentforge workspace, bound to one backend-side model row.
+ */
+export const knowledgeWorkspaceBackend = sqliteTable("knowledge_workspace_backend", {
+  workspaceId: text("workspace_id").primaryKey(),
+  backendId: text("backend_id").notNull(),
+  /** Backend-side knowledge base id. */
+  kbId: text("kb_id"),
+  /** Backend-side embedding model row id. */
+  modelId: text("model_id"),
+  /** Our embedding model id the row was created for; a change forces an explicit re-index. */
+  embeddingModel: text("embedding_model"),
+  /** The gateway base URL the backend-side model row was created against. */
+  gatewayBaseUrl: text("gateway_base_url"),
+  /** sha256 of the gateway key that model row holds, so a key change is detectable without it. */
+  gatewayKeyFp: text("gateway_key_fp"),
+  updatedAt: integer("updated_at").notNull(),
+});
+
+/**
+ * Writes the retrieval backend could not accept (it was down, or degraded). Drained on the next
+ * health-OK transition and on `GET /api/v1/knowledge`, so the Saved -> Indexed edge of the loop
+ * survives a dead sidecar instead of silently dropping an ingest or a delete.
+ */
+export const knowledgeBackendOutbox = sqliteTable(
+  "knowledge_backend_outbox",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    /** index | delete */
+    op: text("op").notNull(),
+    sourceId: text("source_id").notNull(),
+    externalId: text("external_id"),
+    /** JSON detail for an `index` op (the embedding model it was queued for). Never prompt surface. */
+    payload: text("payload"),
+    attempts: integer("attempts").notNull().default(0),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [index("knowledge_backend_outbox_ws_idx").on(table.workspaceId, table.createdAt)],
 );
 
 export const knowledgeSettings = sqliteTable("knowledge_settings", {

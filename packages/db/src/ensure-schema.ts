@@ -226,6 +226,7 @@ export function ensureSchema(sqlite: Database.Database): void {
   ensureKnowledgeSourceOrigin(sqlite);
   ensureKnowledgeRetrievals(sqlite);
   ensureKnowledgeGraph(sqlite);
+  ensureKnowledgeBackendTables(sqlite);
   ensureEditTables(sqlite);
   ensureArtifactTables(sqlite);
   ensureDatasetTables(sqlite);
@@ -288,6 +289,50 @@ function ensureKnowledgeGraph(sqlite: Database.Database): void {
       created_at integer NOT NULL
     );
   `);
+}
+
+/**
+ * Backend binding + outbox for a remote retrieval backend, and `knowledge_sources.external_id`.
+ * Mirrors drizzle/0013_knowledge_weknora.sql for DBs stamped before it existed.
+ */
+function ensureKnowledgeBackendTables(sqlite: Database.Database): void {
+  const have = new Set(tableColumns(sqlite, "knowledge_sources"));
+  if (have.size > 0 && !have.has("external_id")) {
+    sqlite.exec("ALTER TABLE `knowledge_sources` ADD `external_id` text");
+  }
+  sqlite.exec(`
+    CREATE INDEX IF NOT EXISTS knowledge_sources_external_idx ON knowledge_sources (workspace_id, external_id);
+    CREATE TABLE IF NOT EXISTS knowledge_workspace_backend (
+      workspace_id text PRIMARY KEY NOT NULL,
+      backend_id text NOT NULL,
+      kb_id text,
+      model_id text,
+      embedding_model text,
+      gateway_base_url text,
+      gateway_key_fp text,
+      updated_at integer NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS knowledge_backend_outbox (
+      id text PRIMARY KEY NOT NULL,
+      workspace_id text NOT NULL,
+      op text NOT NULL,
+      source_id text NOT NULL,
+      external_id text,
+      payload text,
+      attempts integer DEFAULT 0 NOT NULL,
+      created_at integer NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS knowledge_backend_outbox_ws_idx ON knowledge_backend_outbox (workspace_id, created_at);
+  `);
+  // The binding table predates the gateway columns on desks that ran an earlier build of 0013;
+  // `CREATE TABLE IF NOT EXISTS` above is a no-op for them, so the columns are added explicitly.
+  const binding = new Set(tableColumns(sqlite, "knowledge_workspace_backend"));
+  if (!binding.has("gateway_base_url")) {
+    sqlite.exec("ALTER TABLE `knowledge_workspace_backend` ADD `gateway_base_url` text");
+  }
+  if (!binding.has("gateway_key_fp")) {
+    sqlite.exec("ALTER TABLE `knowledge_workspace_backend` ADD `gateway_key_fp` text");
+  }
 }
 
 /** Market mode cache + headline search. Mirrors drizzle/0009_market.sql for DBs stamped before it existed. */

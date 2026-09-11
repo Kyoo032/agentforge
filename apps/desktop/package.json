@@ -79,6 +79,10 @@
         "to": "ffmpeg"
       },
       {
+        "from": "resources/weknora",
+        "to": "weknora"
+      },
+      {
         "from": "resources/starters",
         "to": "starters",
         "filter": [

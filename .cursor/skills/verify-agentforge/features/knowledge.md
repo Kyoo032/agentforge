@@ -16,7 +16,7 @@ Knowledge is an Account-rail page (like Usage), not a `PRODUCT_MODES` id. Soul, 
 - `knowledge-soul-name` / `knowledge-soul-role` / `knowledge-soul-voice` + `knowledge-soul-save` persist the soul.
 - `knowledge-memory-input` + `knowledge-memory-add` pins a memory (`knowledge-memory-row`).
 - `knowledge-map-run` ("Map knowledge") builds a map; result under `knowledge-map` (overview, topics with Ready / Not ready + source tags, gaps). Stub map is a valid proof. Overview text may be markdown (`FormattedText`).
-- Chat send injects that knowledge. Stub Chat still replies. Context popover (`chat-context` → `chat-context-breakdown`) lists Soul / Memories / Sources; Sources reads `<k> chunks · rag` or `· fts` (`· hybrid` is not in this build). Each injected chunk is rendered `[n] <source name>` so a reply can cite it, and every injected chunk is recorded in `knowledge_retrievals` — `GET /api/v1/knowledge` reports the running total as `retrievals`.
+- Chat send injects that knowledge. Stub Chat still replies. Context popover (`chat-context` → `chat-context-breakdown`) lists Soul / Memories / Sources; Sources reads `<k> chunks · hybrid` when both engines answered (`· rag` vector-only, `· fts` keyword-only, `· none`); with the WeKnora backend selected it reads `· weknora`, or `· fts (degraded)` while the sidecar is down (see [knowledge-backend.md](./knowledge-backend.md)). Each injected chunk is rendered `[n] <source name>` so a reply can cite it, and every injected chunk is recorded in `knowledge_retrievals` — `GET /api/v1/knowledge` reports the running total as `retrievals`.
 
 ## How to get to it (user POV)
 

@@ -253,6 +253,7 @@ async function doctorWebdev() {
   let knowledgeRetrievals = null;
   let knowledgeGraph = null;
   let knowledgeVerified = null;
+  let knowledgeBackend = null;
   try {
     const knowledge = await get(BASE, "/api/v1/knowledge");
     knowledgeStatus = knowledge.status;
@@ -270,10 +271,23 @@ async function doctorWebdev() {
       // Verified stage: the last planted-fact self-check. null when it has never run.
       const verified = knowledgePayload.verified;
       knowledgeVerified = verified && typeof verified.ok === "boolean" ? verified.ok : null;
+      // Which retrieval engine answers this desk. null on builds before Phase 3.
+      const backend = knowledgePayload.backend;
+      knowledgeBackend =
+        backend && typeof backend.id === "string"
+          ? {
+              id: backend.id,
+              selected: typeof backend.selected === "string" ? backend.selected : backend.id,
+              available: backend.available === true,
+              health: backend.health && typeof backend.health.ok === "boolean" ? backend.health.ok : null,
+              outbox: typeof backend.outbox === "number" ? backend.outbox : null,
+            }
+          : null;
     } catch {
       knowledgeRetrievals = null;
       knowledgeGraph = null;
       knowledgeVerified = null;
+      knowledgeBackend = null;
     }
   } catch {
     knowledgeStatus = 0;
@@ -294,6 +308,7 @@ async function doctorWebdev() {
     knowledgeRetrievals,
     knowledgeGraph,
     knowledgeVerified,
+    knowledgeBackend,
     gatewayName: typeof payload.gatewayName === "string" ? payload.gatewayName : undefined,
     dataDir: process.env.AGENTFORGE_DATA_DIR || "unset (webdev default: <repo>/data)",
     sqliteHint: "data/agentforge.sqlite under AGENTFORGE_DATA_DIR or repo data/",

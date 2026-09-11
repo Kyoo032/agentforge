@@ -18,6 +18,7 @@ import { clearThisKeyCache, loadAccountUsage } from "../account-usage";
 import { probeSummary } from "../model-cache";
 import { db, listLocalWorkspaces } from "@agentforge/db";
 import { resetEmbedCircuit } from "../knowledge-embed";
+import { revokeKnowledgeGatewayModel } from "../knowledge/backend-api";
 
 function readStringMap(value: unknown): Record<string, string> | undefined {
   if (!value || typeof value !== "object") {
@@ -126,6 +127,10 @@ export async function handlePostSettings(request: HostRequest): Promise<HostResu
     clearThisKeyCache();
     // A fixed key / URL must take effect now, not after the 5-minute embeddings breaker expires.
     resetEmbedCircuit();
+    // The retrieval sidecar holds a *copy* of the gateway key, inside the model row it embeds with.
+    // A key that has been changed here but left in that database has not been rotated, so the row
+    // is revoked; the next knowledge call mints a fresh one against the new credentials.
+    await revokeKnowledgeGatewayModel(tenant);
     try {
       await refreshModelCache(saved);
     } catch {

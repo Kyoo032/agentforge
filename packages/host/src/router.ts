@@ -86,6 +86,8 @@ import {
   handlePostKnowledgeVerify,
   handlePutKnowledgeModels,
   handlePutKnowledgeSoul,
+  handlePutKnowledgeBackend,
+  handlePostKnowledgeBackendReindex,
 } from "./handlers/knowledge";
 import {
   handleDeleteLegalMatter,
@@ -230,6 +232,8 @@ const routes: Route[] = [
   compile("GET", "/api/v1/knowledge", handleGetKnowledge),
   compile("GET", "/api/v1/knowledge/context", handleGetKnowledgeContext),
   compile("GET", "/api/v1/knowledge/graph", handleGetKnowledgeGraph),
+  compile("PUT", "/api/v1/knowledge/backend", handlePutKnowledgeBackend),
+  compile("POST", "/api/v1/knowledge/backend/reindex", handlePostKnowledgeBackendReindex),
   compile("POST", "/api/v1/knowledge/verify", handlePostKnowledgeVerify),
   compile("PUT", "/api/v1/knowledge/models", handlePutKnowledgeModels),
   compile("POST", "/api/v1/knowledge/map", handlePostKnowledgeMap),

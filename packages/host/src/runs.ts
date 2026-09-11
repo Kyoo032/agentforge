@@ -28,7 +28,6 @@ import {
 import { ApiError } from "@agentforge/core";
 import { agentService } from "./tenant";
 import { knowledgeInjection } from "./knowledge";
-import { getKnowledgeBackend } from "./knowledge/registry";
 import { recordRetrievals, recordsRetrievals } from "./knowledge-retrievals";
 import { ingestWorkSource } from "./knowledge-ingest";
 import { chatWorkCard } from "./work-cards";
@@ -348,7 +347,7 @@ export async function* startModalityRun(options: {
         recordRetrievals(options.tenant, {
           threadId: thread.id,
           runId: run.id,
-          backend: getKnowledgeBackend().id,
+          backend: knowledge.backend,
           chunks: knowledge.chunks,
         });
       }
@@ -387,7 +386,7 @@ export async function* startModalityRun(options: {
           recordRetrievals(options.tenant, {
             threadId: thread.id,
             runId,
-            backend: getKnowledgeBackend().id,
+            backend: knowledge.backend,
             chunks: knowledge.chunks,
           });
         }

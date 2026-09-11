@@ -426,8 +426,10 @@ export {
   resolveRuntimeMode,
   resolveProviderKeys,
   hasLiveProvider,
+  knowledgeBackendSetting,
+  KNOWLEDGE_BACKEND_IDS,
 } from "./secrets";
-export type { StoredSecrets, SecretPatch, MaskedSecrets } from "./secrets";
+export type { StoredSecrets, SecretPatch, MaskedSecrets, KnowledgeBackendSetting } from "./secrets";
 export {
   ENHANCE_SURFACES,
   isEnhanceSurface,

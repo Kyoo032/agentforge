@@ -249,7 +249,7 @@ export class SqliteBuiltinBackend implements KnowledgeBackend {
   async retrieve(tenant: TenantContext, query: string, opts: BackendRetrieveOptions): Promise<RetrieveResult> {
     const trimmed = query.trim();
     if (!trimmed) {
-      return { chunks: [], mode: "none", vectorModel: null };
+      return { chunks: [], mode: "none", backend: this.id, vectorModel: null };
     }
     const exclude = opts.excludeSourceIds ?? [];
     // Settings and the vector model are resolved once per query and handed down: each
@@ -264,6 +264,7 @@ export class SqliteBuiltinBackend implements KnowledgeBackend {
     return {
       chunks: fuseRrf([ftsHits, vectors.chunks], opts.limit),
       mode: fusedMode(ftsHits.length, vectors.chunks.length),
+      backend: this.id,
       // The model whose rows were actually searched, which is null when the query's own geometry
       // has no rows here — not the model the workspace merely wishes it had.
       vectorModel: vectors.model,

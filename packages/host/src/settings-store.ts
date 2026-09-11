@@ -7,6 +7,7 @@ import {
   decryptJson,
   encryptJson,
   isEnvelope,
+  knowledgeBackendSetting,
   mergeSecrets,
 } from "@agentforge/core";
 import { getLocalVaultKey, localDataDir } from "@agentforge/db/vault-key";
@@ -72,6 +73,14 @@ function normalizeSecrets(parsed: StoredSecrets): StoredSecrets {
       typeof parsed.editTurnCapUsd === "number" && Number.isFinite(parsed.editTurnCapUsd)
         ? Math.min(50, Math.max(0.5, parsed.editTurnCapUsd))
         : undefined,
+    // An unknown id on disk (an older / newer build, a hand-edited file) reads as absent, which
+    // means builtin: a desk can never be locked out of retrieval by a value nothing can serve.
+    knowledgeBackend: knowledgeBackendSetting(parsed.knowledgeBackend),
+    weknoraApiKey: readString(parsed.weknoraApiKey),
+    weknoraTenantId: readString(parsed.weknoraTenantId),
+    weknoraAesKey: readString(parsed.weknoraAesKey),
+    weknoraJwtSecret: readString(parsed.weknoraJwtSecret),
+    weknoraRevokedModelIds: readString(parsed.weknoraRevokedModelIds),
   };
 }
 

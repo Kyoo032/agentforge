@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { FormattedText } from "@/components/formatted-text";
+import { KnowledgeBackendCard } from "@/components/knowledge-backend-card";
 import { KnowledgeGraphPanel } from "@/components/knowledge-graph-panel";
 import { KnowledgeLoop } from "@/components/knowledge-loop";
 import { ModelSelect } from "@/components/model-select";
 import { apiFetch } from "@/lib/api-client";
+import { type KnowledgeBackendState, normalizeBackend } from "@/lib/knowledge-backend";
 import { useWorkspaceScope } from "@/lib/workspace-scope";
 
 type KnowledgeTab = "sources" | "soul" | "memory" | "map";
@@ -145,12 +147,10 @@ export function KnowledgePage() {
   const [retrievals, setRetrievals] = useState(0);
   const [graphCounts, setGraphCounts] = useState<GraphCounts | null>(null);
   const [verified, setVerified] = useState<VerifiedCheck | null>(null);
+  const [backend, setBackend] = useState<KnowledgeBackendState | null>(null);
 
   async function reload() {
-    const [knowledgeRes, modelsRes] = await Promise.all([
-      apiFetch("/api/v1/knowledge"),
-      apiFetch("/api/v1/models"),
-    ]);
+    const [knowledgeRes, modelsRes] = await Promise.all([apiFetch("/api/v1/knowledge"), apiFetch("/api/v1/models")]);
     const payload = await knowledgeRes.json().catch(() => ({}));
     const catalog = await modelsRes.json().catch(() => ({}));
 
@@ -162,11 +162,13 @@ export function KnowledgePage() {
     setRetrievals(asCount(payload.retrievals));
     setGraphCounts(asGraphCounts(payload.graph));
     setVerified(asVerified(payload.verified));
+    setBackend(normalizeBackend(payload.backend));
     if (payload.map) {
       setKnowledgeMap(payload.map as KnowledgeMap);
     }
 
-    const modes = catalog && typeof catalog === "object" ? (catalog as { modes?: Record<string, unknown> }).modes : undefined;
+    const modes =
+      catalog && typeof catalog === "object" ? (catalog as { modes?: Record<string, unknown> }).modes : undefined;
     const defaults =
       catalog && typeof catalog === "object" ? (catalog as { defaults?: Record<string, unknown> }).defaults : undefined;
     const chatList = asModels(modes?.chat);
@@ -175,18 +177,10 @@ export function KnowledgePage() {
     setEmbeddingModels(embeddingList);
 
     const saved =
-      payload.models && typeof payload.models === "object"
-        ? (payload.models as Partial<KnowledgeModels>)
-        : {};
-    setEmbeddingModel(
-      seedModel(embeddingList, asString(saved.embeddingModel), asString(defaults?.embedding)),
-    );
-    setBrainModel(
-      seedModel(chatList, asString(saved.brainModel), asString(defaults?.knowledgeBrain)),
-    );
-    setVerifierModel(
-      seedModel(chatList, asString(saved.verifierModel), asString(defaults?.knowledgeVerifier)),
-    );
+      payload.models && typeof payload.models === "object" ? (payload.models as Partial<KnowledgeModels>) : {};
+    setEmbeddingModel(seedModel(embeddingList, asString(saved.embeddingModel), asString(defaults?.embedding)));
+    setBrainModel(seedModel(chatList, asString(saved.brainModel), asString(defaults?.knowledgeBrain)));
+    setVerifierModel(seedModel(chatList, asString(saved.verifierModel), asString(defaults?.knowledgeVerifier)));
   }
 
   useEffect(() => {
@@ -336,9 +330,7 @@ export function KnowledgePage() {
             <ModelSelect
               models={embeddingModels}
               value={embeddingModel}
-              onChange={(id) =>
-                void persistModels({ embeddingModel: id, brainModel, verifierModel })
-              }
+              onChange={(id) => void persistModels({ embeddingModel: id, brainModel, verifierModel })}
               disabled={mapping || embeddingModels.length === 0}
               testId="knowledge-model-embedding"
               className="input"
@@ -350,9 +342,7 @@ export function KnowledgePage() {
             <ModelSelect
               models={chatModels}
               value={brainModel}
-              onChange={(id) =>
-                void persistModels({ embeddingModel, brainModel: id, verifierModel })
-              }
+              onChange={(id) => void persistModels({ embeddingModel, brainModel: id, verifierModel })}
               disabled={mapping || chatModels.length === 0}
               testId="knowledge-model-brain"
               className="input"
@@ -363,9 +353,7 @@ export function KnowledgePage() {
             <ModelSelect
               models={chatModels}
               value={verifierModel}
-              onChange={(id) =>
-                void persistModels({ embeddingModel, brainModel, verifierModel: id })
-              }
+              onChange={(id) => void persistModels({ embeddingModel, brainModel, verifierModel: id })}
               disabled={mapping || chatModels.length === 0}
               testId="knowledge-model-verifier"
               className="input"
@@ -373,6 +361,15 @@ export function KnowledgePage() {
           </label>
         </div>
       </section>
+
+      <KnowledgeBackendCard
+        backend={backend}
+        onReload={() =>
+          reload().catch((err: unknown) => {
+            setError(err instanceof Error ? err.message : "Could not load knowledge");
+          })
+        }
+      />
 
       {tab === "sources" ? (
         <div className="flex flex-col gap-4" data-testid="knowledge-sources">
@@ -394,14 +391,37 @@ export function KnowledgePage() {
           <section className="blueprint p-[18px]">
             <p className="panel-label">Add a source</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <input className="input min-w-[240px] flex-1" placeholder="https://…" value={urlDraft} onChange={(event) => setUrlDraft(event.target.value)} data-testid="knowledge-url" />
-              <button type="button" className="btn btn-primary" onClick={() => void addUrl()} data-testid="knowledge-add-url">
+              <input
+                className="input min-w-[240px] flex-1"
+                placeholder="https://…"
+                value={urlDraft}
+                onChange={(event) => setUrlDraft(event.target.value)}
+                data-testid="knowledge-url"
+              />
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => void addUrl()}
+                data-testid="knowledge-add-url"
+              >
                 Add URL
               </button>
             </div>
-            <textarea className="input mt-3" rows={4} placeholder="Paste notes…" value={pasteDraft} onChange={(event) => setPasteDraft(event.target.value)} data-testid="knowledge-paste" />
+            <textarea
+              className="input mt-3"
+              rows={4}
+              placeholder="Paste notes…"
+              value={pasteDraft}
+              onChange={(event) => setPasteDraft(event.target.value)}
+              data-testid="knowledge-paste"
+            />
             <div className="mt-2 flex flex-wrap gap-2">
-              <button type="button" className="btn btn-secondary" onClick={() => void addPaste()} data-testid="knowledge-add-paste">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => void addPaste()}
+                data-testid="knowledge-add-paste"
+              >
                 Index paste
               </button>
               <label className="btn btn-secondary cursor-pointer">
@@ -438,7 +458,9 @@ export function KnowledgePage() {
             {sources.map((row) => (
               <li key={row.id} className="flex items-center gap-3 px-4 py-3" data-testid="knowledge-source-row">
                 <span className="min-w-0 flex-1 truncate">{row.name}</span>
-                <span className="tag tag-neutral" data-testid="knowledge-source-type">{row.type}</span>
+                <span className="tag tag-neutral" data-testid="knowledge-source-type">
+                  {row.type}
+                </span>
                 <span className="text-[12px]">{row.chunks} chunks</span>
                 <span
                   className={row.status === "Indexed" ? "tag tag-accent" : "tag tag-outline"}
@@ -449,7 +471,9 @@ export function KnowledgePage() {
                 <button
                   type="button"
                   className="btn btn-ghost text-[12px]"
-                  onClick={() => void apiFetch(`/api/v1/knowledge/sources/${row.id}`, { method: "DELETE" }).then(() => reload())}
+                  onClick={() =>
+                    void apiFetch(`/api/v1/knowledge/sources/${row.id}`, { method: "DELETE" }).then(() => reload())
+                  }
                 >
                   Remove
                 </button>
@@ -462,18 +486,39 @@ export function KnowledgePage() {
       {tab === "soul" ? (
         <div className="flex flex-col gap-3" data-testid="knowledge-soul">
           <label className="panel-label">Name</label>
-          <input className="input" value={soul.name} onChange={(event) => setSoul({ ...soul, name: event.target.value })} data-testid="knowledge-soul-name" />
+          <input
+            className="input"
+            value={soul.name}
+            onChange={(event) => setSoul({ ...soul, name: event.target.value })}
+            data-testid="knowledge-soul-name"
+          />
           <label className="panel-label">Role</label>
-          <input className="input" value={soul.role} onChange={(event) => setSoul({ ...soul, role: event.target.value })} data-testid="knowledge-soul-role" />
+          <input
+            className="input"
+            value={soul.role}
+            onChange={(event) => setSoul({ ...soul, role: event.target.value })}
+            data-testid="knowledge-soul-role"
+          />
           <label className="panel-label">Voice</label>
-          <textarea className="input" rows={3} value={soul.voice} onChange={(event) => setSoul({ ...soul, voice: event.target.value })} data-testid="knowledge-soul-voice" />
+          <textarea
+            className="input"
+            rows={3}
+            value={soul.voice}
+            onChange={(event) => setSoul({ ...soul, voice: event.target.value })}
+            data-testid="knowledge-soul-voice"
+          />
           <ul className="text-sm">
             {soul.rules.map((rule, index) => (
               <li key={`${rule}-${index}`}>{rule}</li>
             ))}
           </ul>
           <div className="flex gap-2">
-            <input className="input flex-1" value={ruleDraft} onChange={(event) => setRuleDraft(event.target.value)} placeholder="Add a rule" />
+            <input
+              className="input flex-1"
+              value={ruleDraft}
+              onChange={(event) => setRuleDraft(event.target.value)}
+              placeholder="Add a rule"
+            />
             <button
               type="button"
               className="btn btn-secondary"
@@ -487,7 +532,12 @@ export function KnowledgePage() {
               Add rule
             </button>
           </div>
-          <button type="button" className="btn btn-primary w-fit" onClick={() => void saveSoul()} data-testid="knowledge-soul-save">
+          <button
+            type="button"
+            className="btn btn-primary w-fit"
+            onClick={() => void saveSoul()}
+            data-testid="knowledge-soul-save"
+          >
             Save soul
           </button>
         </div>
@@ -496,20 +546,37 @@ export function KnowledgePage() {
       {tab === "memory" ? (
         <div className="flex flex-col gap-3" data-testid="knowledge-memory">
           <div className="flex gap-2">
-            <input className="input flex-1" value={memoryDraft} onChange={(event) => setMemoryDraft(event.target.value)} data-testid="knowledge-memory-input" placeholder="Pin a memory" />
-            <button type="button" className="btn btn-primary" onClick={() => void addMemory()} data-testid="knowledge-memory-add">
+            <input
+              className="input flex-1"
+              value={memoryDraft}
+              onChange={(event) => setMemoryDraft(event.target.value)}
+              data-testid="knowledge-memory-input"
+              placeholder="Pin a memory"
+            />
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => void addMemory()}
+              data-testid="knowledge-memory-add"
+            >
               Pin
             </button>
           </div>
           <ul>
             {memories.map((item) => (
-              <li key={item.id} className="flex items-center gap-2 border-b border-divider py-2" data-testid="knowledge-memory-row">
+              <li
+                key={item.id}
+                className="flex items-center gap-2 border-b border-divider py-2"
+                data-testid="knowledge-memory-row"
+              >
                 <span className="flex-1">{item.text}</span>
                 {item.pinned ? <span className="tag tag-accent">Pinned</span> : null}
                 <button
                   type="button"
                   className="btn btn-ghost"
-                  onClick={() => void apiFetch(`/api/v1/knowledge/memories/${item.id}`, { method: "DELETE" }).then(() => reload())}
+                  onClick={() =>
+                    void apiFetch(`/api/v1/knowledge/memories/${item.id}`, { method: "DELETE" }).then(() => reload())
+                  }
                 >
                   Forget
                 </button>
@@ -524,8 +591,8 @@ export function KnowledgePage() {
           <section className="blueprint p-[18px]">
             <p className="panel-label">Map</p>
             <p className="mt-2 text-[13px] text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">
-              This desk memory is what Chat retrieves now. Job modes will call the same retrieve later.
-              Map reviews sources with your embedding, brain, and verifier models.
+              This desk memory is what Chat retrieves now. Job modes will call the same retrieve later. Map reviews
+              sources with your embedding, brain, and verifier models.
             </p>
             <button
               type="button"

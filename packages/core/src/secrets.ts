@@ -29,7 +29,35 @@ export type StoredSecrets = {
   injectionGuardBypass?: boolean;
   /** Per-turn Edit spend cap in USD. Host defaults to 2 when absent. */
   editTurnCapUsd?: number;
+  /**
+   * Which engine answers retrieval for this desk. Absent = `builtin` (in-process FTS5 + vectors).
+   * `weknora` is honoured only when the sidecar is present and healthy; see knowledge/registry.ts.
+   */
+  knowledgeBackend?: KnowledgeBackendSetting;
+  /** WeKnora sidecar credentials, generated locally on first bootstrap. They never leave this machine. */
+  weknoraApiKey?: string;
+  weknoraTenantId?: string;
+  /** 32-char AES key the sidecar encrypts its own stored model keys with. */
+  weknoraAesKey?: string;
+  weknoraJwtSecret?: string;
+  /**
+   * Backend-side model rows whose gateway key must be deleted, comma separated. Queued here when
+   * the sidecar was down at the moment the key was revoked, and replayed on the next connect: a
+   * revoked key that is still sitting in a third-party database has not actually been revoked.
+   */
+  weknoraRevokedModelIds?: string;
 };
+
+/** The retrieval engines a desk may select. */
+export const KNOWLEDGE_BACKEND_IDS = ["builtin", "weknora"] as const;
+export type KnowledgeBackendSetting = (typeof KNOWLEDGE_BACKEND_IDS)[number];
+
+/** `value` when it names a known backend, otherwise undefined (the caller falls back to builtin). */
+export function knowledgeBackendSetting(value: unknown): KnowledgeBackendSetting | undefined {
+  return typeof value === "string" && (KNOWLEDGE_BACKEND_IDS as readonly string[]).includes(value)
+    ? (value as KnowledgeBackendSetting)
+    : undefined;
+}
 
 export type SecretPatch = StoredSecrets;
 
@@ -61,6 +89,15 @@ export type MaskedSecrets = {
 
 const KEY_FIELDS = ["openaiApiKey", "googleApiKey", "anthropicApiKey", "volcengineApiKey"] as const;
 const URL_FIELDS = ["openaiBaseUrl", "googleBaseUrl", "anthropicBaseUrl", "volcengineBaseUrl"] as const;
+/** Opaque local strings: stored verbatim, cleared by an empty patch value. */
+const WEKNORA_FIELDS = [
+  "weknoraApiKey",
+  "weknoraTenantId",
+  "weknoraAesKey",
+  "weknoraJwtSecret",
+  "weknoraRevokedModelIds",
+] as const;
+
 const MODEL_FIELDS = [
   "imageGenModel",
   "videoGenModel",
@@ -131,6 +168,26 @@ export function mergeSecrets(current: StoredSecrets, patch: SecretPatch): Stored
       next.toolBackends = toolBackends;
     } else {
       delete next.toolBackends;
+    }
+  }
+  for (const field of WEKNORA_FIELDS) {
+    const value = patch[field];
+    if (typeof value !== "string") {
+      continue;
+    }
+    const trimmed = value.trim();
+    if (trimmed.length === 0) {
+      delete next[field];
+    } else {
+      next[field] = trimmed;
+    }
+  }
+  if (patch.knowledgeBackend !== undefined) {
+    const backend = knowledgeBackendSetting(patch.knowledgeBackend);
+    if (backend) {
+      next.knowledgeBackend = backend;
+    } else {
+      delete next.knowledgeBackend;
     }
   }
   for (const field of MODEL_FIELDS) {

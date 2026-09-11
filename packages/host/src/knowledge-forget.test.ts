@@ -15,11 +15,20 @@ const failing: KnowledgeBackend = {
   deleteSource: (() => {
     throw new Error("backend index unreachable");
   }) as KnowledgeBackend["deleteSource"],
-  retrieve: () => Promise.resolve({ chunks: [], mode: "none" as const, vectorModel: null }),
+  retrieve: () =>
+    Promise.resolve({ chunks: [], mode: "none" as const, backend: "builtin" as const, vectorModel: null }),
   health: () => Promise.resolve({ ok: true }),
 };
 
-vi.mock("./knowledge/registry", () => ({ getKnowledgeBackend: () => failing }));
+// `deleteThroughBackend` is what `forgetInBackend` calls now; it stands in for the registry's
+// "ask every backend that could hold this source" step, and here the first one throws synchronously.
+vi.mock("./knowledge/registry", () => ({
+  getKnowledgeBackend: () => failing,
+  deleteThroughBackend: (tenant: TenantContext, sourceId: string) => failing.deleteSource(tenant, sourceId),
+  indexThroughBackend: () => Promise.resolve(),
+  retrieveThroughBackend: () =>
+    Promise.resolve({ chunks: [], mode: "none" as const, backend: "builtin" as const, vectorModel: null }),
+}));
 
 function tenant(): TenantContext {
   return {

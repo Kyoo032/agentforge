@@ -14,8 +14,8 @@ import {
 import { mediaRoot } from "./media-root";
 import { fetchPublicHttps } from "./safe-fetch";
 import { KNOWLEDGE_TEXT_MAX_CHARS, SOURCE_NAME_MAX, chunkKnowledgeText, sanitizeSourceName } from "./knowledge-text";
-import { getKnowledgeBackend } from "./knowledge/registry";
-import type { RetrievedChunk, RetrieveResult } from "./knowledge/backend";
+import { deleteThroughBackend, indexThroughBackend, retrieveThroughBackend } from "./knowledge/registry";
+import type { KnowledgeBackendId, RetrievedChunk, RetrieveResult } from "./knowledge/backend";
 import { modeCatalogPayload } from "./selectable-models";
 import { loadSettings } from "./settings-store";
 
@@ -233,8 +233,26 @@ export type IndexSourceInput = {
 };
 
 const INSERT_SOURCE = `INSERT INTO knowledge_sources
-  (id, workspace_id, name, type, status, chunks, error, created_at, origin_kind, origin_id)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+  (id, workspace_id, name, type, status, chunks, error, created_at, origin_kind, origin_id, external_id)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+/**
+ * The retrieval backend's handle on a source, read before the row is replaced or deleted.
+ *
+ * A re-index rewrites the row, and a delete drops it, but the backend's own document outlives both
+ * — it is a separate store, reached by a later (possibly remote) call. Losing the handle in between
+ * would leave that document orphaned: still holding the old text, no longer reachable from here.
+ */
+function externalIdOf(workspaceId: string, sourceId: string): string | null {
+  try {
+    const row = sql
+      .prepare("SELECT external_id FROM knowledge_sources WHERE workspace_id = ? AND id = ?")
+      .get(workspaceId, sourceId) as { external_id: string | null } | undefined;
+    return row?.external_id ?? null;
+  } catch {
+    return null;
+  }
+}
 
 const NO_TEXT = "No extractable text";
 
@@ -258,6 +276,12 @@ function replaceSourceRows(
   const ws = workspaceId(tenant);
   const status: KnowledgeSource["status"] = error ? "Failed" : "Indexed";
   const insertChunk = sql.prepare("INSERT INTO knowledge_chunks (source_id, workspace_id, body) VALUES (?, ?, ?)");
+  // Carried across the replace so the backend can delete-then-create its own document. A folded
+  // duplicate's handle is used only when this id has none; when *both* rows had one the folded
+  // document would be left behind in the backend, holding our text and reachable by nothing, so it
+  // is collected here and deleted after the transaction commits.
+  let carriedExternalId = externalIdOf(ws, input.id);
+  let orphanedExternalId: string | null = null;
   const tx = sql.transaction(() => {
     if (input.origin) {
       // Another row may already own this origin (a concurrent writer for the same thread / media).
@@ -266,6 +290,12 @@ function replaceSourceRows(
         .prepare("SELECT id FROM knowledge_sources WHERE workspace_id = ? AND origin_kind = ? AND origin_id = ? AND id != ?")
         .get(ws, input.origin.kind, input.origin.id, input.id) as { id: string } | undefined;
       if (owner) {
+        const ownerExternalId = externalIdOf(ws, owner.id);
+        if (carriedExternalId === null) {
+          carriedExternalId = ownerExternalId;
+        } else if (ownerExternalId && ownerExternalId !== carriedExternalId) {
+          orphanedExternalId = ownerExternalId;
+        }
         sql.prepare("DELETE FROM knowledge_vectors WHERE workspace_id = ? AND source_id = ?").run(ws, owner.id);
         sql.prepare("DELETE FROM knowledge_chunks WHERE workspace_id = ? AND source_id = ?").run(ws, owner.id);
         sql.prepare("DELETE FROM knowledge_sources WHERE workspace_id = ? AND id = ?").run(ws, owner.id);
@@ -286,6 +316,7 @@ function replaceSourceRows(
         createdAt,
         input.origin?.kind ?? null,
         input.origin?.id ?? null,
+        carriedExternalId,
       );
     for (const chunk of chunks) {
       insertChunk.run(input.id, ws, chunk);
@@ -293,13 +324,18 @@ function replaceSourceRows(
   });
   // Reads then writes, so it takes the write lock up front (a deferred upgrade races other writers).
   tx.immediate();
+  if (orphanedExternalId) {
+    // The folded row is gone from SQLite, so nothing here can ever look this handle up again. The
+    // delete is queued now or never — and "never" means the old card keeps answering searches.
+    forgetInBackend(tenant, input.id, orphanedExternalId);
+  }
 }
 
 /**
  * Forget one source in the retrieval backend. SQLite rows are dropped by the caller's transaction;
  * this is the index side, which is remote (and therefore async) from Phase 3 on. Never throws.
  */
-function forgetInBackend(tenant: TenantContext, sourceId: string): void {
+function forgetInBackend(tenant: TenantContext, sourceId: string, externalId?: string | null): void {
   const warn = (error: unknown) => {
     console.warn(
       `knowledge: backend delete failed for ${sourceId} (${error instanceof Error ? error.message.slice(0, 120) : "error"})`,
@@ -308,7 +344,7 @@ function forgetInBackend(tenant: TenantContext, sourceId: string): void {
   try {
     // `.catch` alone is not enough: a backend whose delete is not `async` throws before it returns a
     // promise, and that throw would surface out of `deleteSource` / the orphan sweep.
-    void getKnowledgeBackend().deleteSource(tenant, sourceId).catch(warn);
+    void deleteThroughBackend(tenant, sourceId, externalId).catch(warn);
   } catch (error) {
     warn(error);
   }
@@ -338,12 +374,9 @@ export async function indexKnowledgeSource(tenant: TenantContext, raw: IndexSour
   }
   replaceSourceRows(tenant, input, chunks, null, createdAt);
   const models = getKnowledgeModels(tenant);
-  await getKnowledgeBackend().indexSource(
-    tenant,
-    { id: input.id, name: input.name, createdAt },
-    chunks,
-    models.embeddingModel,
-  );
+  // FTS rows are already committed above, for every backend: the dual write is what keeps a card
+  // findable when the selected engine is down. Only the vector / hybrid half is delegated.
+  await indexThroughBackend(tenant, { id: input.id, name: input.name, createdAt }, chunks, models.embeddingModel);
   return { ...base, status: "Indexed", chunks: chunks.length };
 }
 
@@ -496,6 +529,9 @@ export async function addPastedSource(
 
 export function deleteSource(tenant: TenantContext, id: string): boolean {
   const ws = workspaceId(tenant);
+  // Read before the transaction: afterwards there is no row left to read it from, and the index
+  // side of the delete has not run yet.
+  const externalId = externalIdOf(ws, id);
   const tx = sql.transaction(() => {
     sql.prepare("DELETE FROM knowledge_vectors WHERE workspace_id = ? AND source_id = ?").run(ws, id);
     sql.prepare("DELETE FROM knowledge_chunks WHERE workspace_id = ? AND source_id = ?").run(ws, id);
@@ -505,7 +541,7 @@ export function deleteSource(tenant: TenantContext, id: string): boolean {
   if (removed) {
     // The SQLite rows are gone; tell the retrieval index too (a no-op repeat for the builtin backend,
     // a network call once the index lives outside this file).
-    forgetInBackend(tenant, id);
+    forgetInBackend(tenant, id, externalId);
   }
   return removed;
 }
@@ -519,21 +555,21 @@ export function sweepOrphanThreadSources(tenant: TenantContext): number {
   const tx = sql.transaction(() => {
     const orphans = sql
       .prepare(
-        `SELECT id FROM knowledge_sources
+        `SELECT id, external_id FROM knowledge_sources
          WHERE workspace_id = ? AND origin_kind = 'thread'
            AND origin_id NOT IN (SELECT id FROM threads WHERE workspace_id = ?)`,
       )
-      .all(ws, ws) as Array<{ id: string }>;
+      .all(ws, ws) as Array<{ id: string; external_id: string | null }>;
     for (const row of orphans) {
       sql.prepare("DELETE FROM knowledge_vectors WHERE workspace_id = ? AND source_id = ?").run(ws, row.id);
       sql.prepare("DELETE FROM knowledge_chunks WHERE workspace_id = ? AND source_id = ?").run(ws, row.id);
       sql.prepare("DELETE FROM knowledge_sources WHERE workspace_id = ? AND id = ?").run(ws, row.id);
     }
-    return orphans.map((row) => row.id);
+    return orphans;
   });
   const removed = tx.immediate();
-  for (const id of removed) {
-    forgetInBackend(tenant, id);
+  for (const row of removed) {
+    forgetInBackend(tenant, row.id, row.external_id);
   }
   return removed.length;
 }
@@ -556,7 +592,7 @@ export function retrieveChunks(
   limit = 4,
   options: RetrieveOptions = {},
 ): Promise<RetrieveResult> {
-  return getKnowledgeBackend().retrieve(tenant, query, {
+  return retrieveThroughBackend(tenant, query, {
     limit,
     excludeSourceIds: options.excludeSourceIds ?? [],
   });
@@ -580,7 +616,23 @@ export type KnowledgeInjection = {
   parts: { label: string; detail: string; tokens: number }[];
   /** What the prompt was actually given, in citation order. Recorded as the Retrieved loop edge. */
   chunks: RetrievedChunk[];
+  /** Which engine served them. Written to `knowledge_retrievals.backend` by the run that used them. */
+  backend: KnowledgeBackendId;
 };
+
+/**
+ * The Sources line in the context popover. It names the engine that actually answered, and says so
+ * when that was not the one the desk selected — `3 chunks · weknora` versus
+ * `2 chunks · fts (degraded)` — because a silently degraded knowledge base looks exactly like a
+ * knowledge base that has stopped knowing things.
+ */
+export function sourcesDetail(result: RetrieveResult): string {
+  const count = result.chunks.length;
+  if (result.degraded) {
+    return `${count} chunks · ${result.mode === "none" ? "fts" : result.mode} (degraded)`;
+  }
+  return result.mode === "none" ? `${count} chunks` : `${count} chunks · ${result.mode}`;
+}
 
 export async function knowledgeInjection(
   tenant: TenantContext,
@@ -591,7 +643,7 @@ export async function knowledgeInjection(
   const memories = listMemories(tenant).filter((item) => item.pinned);
   const retrieved: RetrieveResult = query
     ? await retrieveChunks(tenant, query, 4, { excludeSourceIds: excludedSourceIds(tenant, options) })
-    : { chunks: [], mode: "none", vectorModel: null };
+    : { chunks: [], mode: "none", backend: "builtin", vectorModel: null };
   const soulBlock = [
     `Name: ${soul.name}`,
     `Role: ${soul.role}`,
@@ -614,15 +666,14 @@ export async function knowledgeInjection(
   ].filter(Boolean);
   const prompt = sections.length ? `\n\n# Workspace knowledge\n${sections.join("\n\n")}` : "";
   const est = (text: string) => Math.ceil(text.trim().length / 4);
-  const count = retrieved.chunks.length;
-  const sourcesDetail = retrieved.mode === "none" ? `${count} chunks` : `${count} chunks · ${retrieved.mode}`;
   return {
     prompt,
     parts: [
       { label: "Soul", detail: soul.name, tokens: est(soulBlock) },
       { label: "Memories", detail: `${memories.length} pinned`, tokens: est(memoryBlock) },
-      { label: "Sources", detail: sourcesDetail, tokens: est(retrievedBlock) },
+      { label: "Sources", detail: sourcesDetail(retrieved), tokens: est(retrievedBlock) },
     ],
     chunks: retrieved.chunks,
+    backend: retrieved.backend,
   };
 }
