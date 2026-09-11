@@ -1,6 +1,6 @@
 # WeKnora as the knowledge-base backend — evaluation and plan
 
-Date 2026-09-10 · Status: approved by owner 2026-09-10; Phases 0–1 landed the same day (see Progress log), Phase 2 next, Phase 3 gated on the spikes · Scope: knowledge subsystem only.
+Date 2026-09-10 · Status: approved by owner 2026-09-10; Phases 0–3 code landed by 2026-09-11 (see Progress log); Phase 3 runs against fakes until the sidecar binary is built — build lane blocked on private-repo Actions (owner decision pending); Phase 4 not started · Scope: knowledge subsystem only.
 Evaluated: Tencent/WeKnora v0.8.0 (main tip 5db13a1), MIT. Owner asked for it; this is the engineering shape.
 
 ## What WeKnora gives us (lite mode)
