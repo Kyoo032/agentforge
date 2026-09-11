@@ -225,6 +225,7 @@ export function ensureSchema(sqlite: Database.Database): void {
   ensureKnowledgeTables(sqlite);
   ensureKnowledgeSourceOrigin(sqlite);
   ensureKnowledgeRetrievals(sqlite);
+  ensureKnowledgeGraph(sqlite);
   ensureEditTables(sqlite);
   ensureArtifactTables(sqlite);
   ensureDatasetTables(sqlite);
@@ -252,6 +253,40 @@ function ensureKnowledgeRetrievals(sqlite: Database.Database): void {
     );
     CREATE INDEX IF NOT EXISTS knowledge_retrievals_ws_created_idx ON knowledge_retrievals (workspace_id, created_at);
     CREATE INDEX IF NOT EXISTS knowledge_retrievals_ws_source_idx ON knowledge_retrievals (workspace_id, source_id);
+  `);
+}
+
+/**
+ * Graph (topics / sources / threads and the edges between them) plus the Verified self-check row.
+ * Mirrors drizzle/0011_knowledge_graph.sql for DBs stamped before it existed.
+ */
+function ensureKnowledgeGraph(sqlite: Database.Database): void {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS knowledge_graph_nodes (
+      id text PRIMARY KEY NOT NULL,
+      workspace_id text NOT NULL,
+      kind text NOT NULL,
+      label text NOT NULL,
+      payload text,
+      updated_at integer NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS knowledge_graph_nodes_ws_kind_idx ON knowledge_graph_nodes (workspace_id, kind);
+    CREATE TABLE IF NOT EXISTS knowledge_graph_edges (
+      workspace_id text NOT NULL,
+      from_id text NOT NULL,
+      to_id text NOT NULL,
+      kind text NOT NULL,
+      weight real DEFAULT 1 NOT NULL,
+      updated_at integer NOT NULL,
+      PRIMARY KEY (workspace_id, from_id, to_id, kind)
+    );
+    CREATE INDEX IF NOT EXISTS knowledge_graph_edges_ws_kind_idx ON knowledge_graph_edges (workspace_id, kind);
+    CREATE TABLE IF NOT EXISTS knowledge_verify (
+      workspace_id text PRIMARY KEY NOT NULL,
+      ok integer NOT NULL,
+      detail text NOT NULL,
+      created_at integer NOT NULL
+    );
   `);
 }
 
@@ -511,6 +546,8 @@ function ensureKnowledgeTables(sqlite: Database.Database): void {
       created_at integer NOT NULL
     );
     CREATE INDEX IF NOT EXISTS knowledge_vectors_ws_source_idx ON knowledge_vectors (workspace_id, source_id);
+    -- Mirrors drizzle/0012_knowledge_vectors_model_idx.sql for DBs stamped before it existed.
+    CREATE INDEX IF NOT EXISTS knowledge_vectors_ws_model_idx ON knowledge_vectors (workspace_id, model);
     CREATE TABLE IF NOT EXISTS knowledge_maps (
       workspace_id text PRIMARY KEY NOT NULL,
       payload text NOT NULL,

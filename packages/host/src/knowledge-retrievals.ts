@@ -1,6 +1,7 @@
 import { sql } from "@agentforge/db";
 import type { TenantContext } from "@agentforge/core";
 import type { RetrievedChunk } from "./knowledge/backend";
+import { projectRetrievalsToGraph } from "./knowledge-graph";
 
 /**
  * The measured Retrieved stage of the knowledge loop: one row per chunk a run was actually given.
@@ -57,6 +58,9 @@ export function recordRetrievals(tenant: TenantContext, event: RetrievalEvent): 
       }
     });
     tx.immediate();
+    // The rows are the record; the graph is a projection of them. Recomputed for the sources this
+    // event touched, so the `retrieved` edge weight is a count and never double-adds on a retry.
+    projectRetrievalsToGraph(tenant, [...new Set(event.chunks.map((chunk) => chunk.sourceId))]);
     return event.chunks.length;
   } catch (error) {
     console.warn(

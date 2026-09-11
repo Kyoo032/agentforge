@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { FormattedText } from "@/components/formatted-text";
+import { KnowledgeGraphPanel } from "@/components/knowledge-graph-panel";
 import { KnowledgeLoop } from "@/components/knowledge-loop";
 import { ModelSelect } from "@/components/model-select";
 import { apiFetch } from "@/lib/api-client";
@@ -19,6 +20,10 @@ type SourceRow = {
 };
 
 type Memory = { id: string; text: string; pinned: boolean };
+
+type GraphCounts = { nodes: number; edges: number };
+
+type VerifiedCheck = { ok: boolean; at: number; detail: string };
 
 type PickerModel = {
   id: string;
@@ -70,6 +75,31 @@ function asString(value: unknown): string {
   return typeof value === "string" && value.trim() ? value.trim() : "";
 }
 
+function asCount(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? Math.trunc(value) : 0;
+}
+
+/** `graph` is absent on hosts older than this build; the loop chart then reads 0. */
+function asGraphCounts(value: unknown): GraphCounts | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const row = value as { nodes?: unknown; edges?: unknown };
+  return { nodes: asCount(row.nodes), edges: asCount(row.edges) };
+}
+
+/** `verified` is absent (or null) until a self-check has run; the loop chart then reads "never". */
+function asVerified(value: unknown): VerifiedCheck | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const row = value as { ok?: unknown; at?: unknown; detail?: unknown };
+  if (typeof row.ok !== "boolean") {
+    return null;
+  }
+  return { ok: row.ok, at: asCount(row.at), detail: asString(row.detail) };
+}
+
 function seedModel(models: PickerModel[], preferred: string, fallback: string): string {
   const ids = new Set(models.map((model) => model.id));
   if (preferred && ids.has(preferred)) {
@@ -112,6 +142,9 @@ export function KnowledgePage() {
   const [verifierModel, setVerifierModel] = useState("");
   const [knowledgeMap, setKnowledgeMap] = useState<KnowledgeMap | null>(null);
   const [mapping, setMapping] = useState(false);
+  const [retrievals, setRetrievals] = useState(0);
+  const [graphCounts, setGraphCounts] = useState<GraphCounts | null>(null);
+  const [verified, setVerified] = useState<VerifiedCheck | null>(null);
 
   async function reload() {
     const [knowledgeRes, modelsRes] = await Promise.all([
@@ -126,6 +159,9 @@ export function KnowledgePage() {
     }
     setMemories(payload.memories ?? []);
     setSources(payload.sources ?? []);
+    setRetrievals(asCount(payload.retrievals));
+    setGraphCounts(asGraphCounts(payload.graph));
+    setVerified(asVerified(payload.verified));
     if (payload.map) {
       setKnowledgeMap(payload.map as KnowledgeMap);
     }
@@ -340,7 +376,21 @@ export function KnowledgePage() {
 
       {tab === "sources" ? (
         <div className="flex flex-col gap-4" data-testid="knowledge-sources">
-          <KnowledgeLoop sources={sources} />
+          <KnowledgeLoop
+            sources={sources}
+            retrievals={retrievals}
+            graph={graphCounts}
+            verified={verified}
+            onRefresh={() =>
+              reload().catch((err: unknown) => {
+                setError(err instanceof Error ? err.message : "Could not load knowledge");
+              })
+            }
+          />
+          <KnowledgeGraphPanel
+            key={`${workspaceId}:${graphCounts?.nodes ?? 0}:${graphCounts?.edges ?? 0}`}
+            counts={graphCounts}
+          />
           <section className="blueprint p-[18px]">
             <p className="panel-label">Add a source</p>
             <div className="mt-3 flex flex-wrap gap-2">

@@ -15,7 +15,7 @@ const failing: KnowledgeBackend = {
   deleteSource: (() => {
     throw new Error("backend index unreachable");
   }) as KnowledgeBackend["deleteSource"],
-  retrieve: () => Promise.resolve({ chunks: [], mode: "none" as const }),
+  retrieve: () => Promise.resolve({ chunks: [], mode: "none" as const, vectorModel: null }),
   health: () => Promise.resolve({ ok: true }),
 };
 
@@ -52,7 +52,9 @@ describe("forgetting a source when the backend is broken", () => {
     expect(() => deleteSource(ctx, source.id)).not.toThrow();
     expect(listSources(ctx).map((item) => item.id)).not.toContain(source.id);
     expect(warn).toHaveBeenCalled();
-  });
+    // The dynamic import above pulls the whole knowledge module graph (pdfjs-dist included) inside
+    // the test body, so this budget is module loading under a loaded machine, not the assertion.
+  }, 30_000);
 
   it("keeps the builtin backend's delete rejecting rather than throwing synchronously", async () => {
     const { SqliteBuiltinBackend } = await import("./knowledge/backends/builtin");
@@ -61,7 +63,7 @@ describe("forgetting a source when the backend is broken", () => {
     const result = backend.deleteSource({ ...tenant(), workspaceId: {} as unknown as string }, "s1");
     expect(result).toBeInstanceOf(Promise);
     await expect(result).rejects.toThrow();
-  });
+  }, 30_000);
 });
 
 function restore(name: string, value: string | undefined): void {

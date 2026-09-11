@@ -591,7 +591,7 @@ export async function knowledgeInjection(
   const memories = listMemories(tenant).filter((item) => item.pinned);
   const retrieved: RetrieveResult = query
     ? await retrieveChunks(tenant, query, 4, { excludeSourceIds: excludedSourceIds(tenant, options) })
-    : { chunks: [], mode: "none" };
+    : { chunks: [], mode: "none", vectorModel: null };
   const soulBlock = [
     `Name: ${soul.name}`,
     `Role: ${soul.role}`,

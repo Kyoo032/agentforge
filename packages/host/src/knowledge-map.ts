@@ -14,6 +14,7 @@ import { sql } from "@agentforge/db";
 import { collectJobAssistantText } from "./job-regen";
 import { getKnowledgeModels, listSources, putKnowledgeModels } from "./knowledge";
 import { reembedWorkspaceChunks } from "./knowledge-embed";
+import { projectMapToGraph } from "./knowledge-graph";
 import { loadSettings } from "./settings-store";
 
 function workspaceId(tenant: TenantContext): string {
@@ -140,6 +141,18 @@ export async function mapKnowledge(
     }
 
     saveMap(tenant, "Mapped", map, null);
+    // Graph stage of the loop: the map already *is* topic → source edges, so project it. Recomputed
+    // from the blob that was just saved, so it is idempotent; a graph failure never fails the map.
+    // NOTE(phase 2): sources indexed before the overlapping chunker are not re-chunked here. A
+    // rechunk pass belongs with a re-index (it has to rewrite FTS rows and vectors together), so it
+    // is deliberately out of this projection; existing sources keep their fixed-stride chunks.
+    try {
+      projectMapToGraph(tenant, map);
+    } catch (error) {
+      console.warn(
+        `knowledge-map: graph projection skipped (${error instanceof Error ? error.message.slice(0, 120) : "error"})`,
+      );
+    }
     return map;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Map failed";

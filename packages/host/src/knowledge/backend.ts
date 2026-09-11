@@ -19,14 +19,20 @@ export type RetrievedChunk = {
 };
 
 /**
- * How the chunks were found. `hybrid` is Phase 2 (bm25 + cosine fused); Phase 0 returns the strict
- * fallback modes only.
+ * How the chunks were found: `hybrid` when bm25 and cosine both returned something, `rag` or `fts`
+ * when only one engine did, `none` when neither did.
  */
 export type RetrieveMode = "rag" | "fts" | "hybrid" | "none";
 
 export type RetrieveResult = {
   chunks: RetrievedChunk[];
   mode: RetrieveMode;
+  /**
+   * The embedding model id whose vectors were searched — the configured model, the local
+   * `stub-fnv-32` fallback, or null when the workspace has no vectors at all. Diagnostic only:
+   * `mode` still describes which engines answered.
+   */
+  vectorModel: string | null;
 };
 
 /** The source row a backend is indexing, as it exists in SQLite. */
@@ -57,4 +63,4 @@ export type KnowledgeBackend = {
   health(): Promise<BackendHealth>;
 };
 
-export const EMPTY_RETRIEVAL: RetrieveResult = { chunks: [], mode: "none" };
+export const EMPTY_RETRIEVAL: RetrieveResult = { chunks: [], mode: "none", vectorModel: null };

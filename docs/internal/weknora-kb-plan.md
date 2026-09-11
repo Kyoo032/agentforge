@@ -276,4 +276,18 @@ Each phase has the same six blocks: Goal · Work · Loop edge · Graph · Verify
 
 **Open for Phase 2 RED:** hybrid RRF ordering test where an FTS-only and a vector-only hit both surface; stub vectors stored under `stub-fnv-32`, never the real model id; chunker overlap/heading tests; `EXPLAIN QUERY PLAN` guard test for the retrieval queries; `worker_threads` PDF isolation.
 
+### 2026-09-11 — Phase 2 landed (host + web in parallel)
+
+**Verified on :3100:** `parts[2].detail` reads `3 chunks · hybrid`; `POST /knowledge/verify` → `{ok:true, detail:"retrieved in 7 ms · mode hybrid"}` and the temporary `Self-check` source is gone afterwards; `POST /knowledge/map` (stub) → graph of 11 nodes / 6 `covers` edges; a Chat run adds `retrieved` edges; doctor reports `knowledgeGraph` and `knowledgeVerified: true`; the loop chart shows six stages with `Run self-check`, and the graph panel renders under it.
+
+**Found while building:**
+- Re-chunking existing sources with the new overlapping chunker must rewrite FTS rows and vectors together, so it belongs to an explicit re-index, not the map projection. Old sources keep their old chunk boundaries until re-indexed (follow-up: a "Re-index" action per source or on model change, Phase 3 already needs it).
+- `knowledge-forget.test.ts` dragged pdfjs-dist into its dynamic import and hit the 5 s vitest default once router tests loaded the new handlers; budgets raised to 30 s. Watch for that pattern in any test that imports `./knowledge` lazily.
+- `resolveVectorModel` runs twice per query (backend + `retrieveVectorChunks`); two indexed counts, acceptable, but fold it when the WeKnora backend lands.
+- Two `worker_threads` items remain open from Phase 1 (PDF isolation) and the `sqlite-vec` ANN spike is scaffolding only (`annAvailable()` returns false; no dependency added).
+- Running four vitest suites and two `tsc` passes concurrently in one shell exhausted Git Bash's fork budget on this machine. Run them in batches.
+- Review caught two things the tests did not: (a) the *query* embedding fell back to a 32-dim stub while the search still targeted real-model rows, and `cosineSimilarity` truncates to the shorter vector, so 32 of 1536 dims produced noise above `MIN_COSINE`. Rule: the query must be searched against rows of the model it was actually embedded with. (b) Duplicate chunk bodies inside one source collapsed to one fuse key, so RRF double-added and the normalized score exceeded 1. Rule: dedupe each engine's list by key before fusion and clamp to (0,1]. Both now have tests; the self-check endpoint is throttled to one run per 10 s per workspace; `knowledge_vectors` gains a `(workspace_id, model)` index (migration 0012).
+
+**Open for Phase 3 RED:** `KnowledgeBackend` contract suite against a fake WeKnora client; supervisor spawn/kill/pid-reap; outbox drain; degraded-mode fallback to builtin; env allowlist assertion; the four spikes.
+
 Bottom line: Phases 0–2 are worth doing regardless (~2 weeks) and already put Graph and Verified into the loop. WeKnora is adopted as a pluggable backend in Phase 3, gated on spikes 1–4, and is never the only path to a working knowledge base. Phase 4 closes the loop by letting the graph feed retrieval and retrieval feed the graph.

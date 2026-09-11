@@ -78,6 +78,20 @@
       "when": 1788820000002,
       "tag": "0010_knowledge_retrievals",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1788820000003,
+      "tag": "0011_knowledge_graph",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1788820000004,
+      "tag": "0012_knowledge_vectors_model_idx",
+      "breakpoints": true
     }
   ]
 }

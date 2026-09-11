@@ -251,6 +251,8 @@ async function doctorWebdev() {
 
   let knowledgeStatus = 0;
   let knowledgeRetrievals = null;
+  let knowledgeGraph = null;
+  let knowledgeVerified = null;
   try {
     const knowledge = await get(BASE, "/api/v1/knowledge");
     knowledgeStatus = knowledge.status;
@@ -259,8 +261,19 @@ async function doctorWebdev() {
       // Retrieved stage of the knowledge loop: chunks served to runs, all time. null on older builds.
       knowledgeRetrievals =
         typeof knowledgePayload.retrievals === "number" ? knowledgePayload.retrievals : null;
+      // Graph stage: node / edge counts after a map run. null on builds before Phase 2.
+      const graph = knowledgePayload.graph;
+      knowledgeGraph =
+        graph && typeof graph.nodes === "number" && typeof graph.edges === "number"
+          ? { nodes: graph.nodes, edges: graph.edges }
+          : null;
+      // Verified stage: the last planted-fact self-check. null when it has never run.
+      const verified = knowledgePayload.verified;
+      knowledgeVerified = verified && typeof verified.ok === "boolean" ? verified.ok : null;
     } catch {
       knowledgeRetrievals = null;
+      knowledgeGraph = null;
+      knowledgeVerified = null;
     }
   } catch {
     knowledgeStatus = 0;
@@ -279,6 +292,8 @@ async function doctorWebdev() {
     curation,
     knowledge: knowledgeStatus === 200,
     knowledgeRetrievals,
+    knowledgeGraph,
+    knowledgeVerified,
     gatewayName: typeof payload.gatewayName === "string" ? payload.gatewayName : undefined,
     dataDir: process.env.AGENTFORGE_DATA_DIR || "unset (webdev default: <repo>/data)",
     sqliteHint: "data/agentforge.sqlite under AGENTFORGE_DATA_DIR or repo data/",

@@ -14,7 +14,8 @@ describe("knowledge retrieve helpers", () => {
   });
 
   it("chunks long source text", () => {
-    const chunks = chunkKnowledgeText("abcdef", 2);
+    // Boundary and overlap rules live in knowledge-chunk.test.ts; this pins the plain stride.
+    const chunks = chunkKnowledgeText("abcdef", 2, 0);
     expect(chunks).toEqual(["ab", "cd", "ef"]);
     expect(chunkKnowledgeText("   ")).toEqual([]);
   });

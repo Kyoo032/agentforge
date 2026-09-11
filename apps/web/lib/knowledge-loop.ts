@@ -1,4 +1,4 @@
-/** Pure helpers for the Knowledge loop chart (Work → Saved → Indexed → Retrieved → Work). */
+/** Pure helpers for the Knowledge loop chart (Work → Saved → Indexed → Graph → Retrieved → Verified → Work). */
 
 export type LoopSource = {
   type: string;
@@ -27,7 +27,9 @@ export const WORK_SOURCE_ORDER = [
   "Edit",
 ] as const;
 
-export const LOOP_STAGES = ["Work", "Saved", "Indexed", "Retrieved"] as const;
+export const LOOP_STAGES = ["Work", "Saved", "Indexed", "Graph", "Retrieved", "Verified"] as const;
+
+export type LoopStage = (typeof LOOP_STAGES)[number];
 
 const workRank = new Map<string, number>(WORK_SOURCE_ORDER.map((type, index) => [type, index]));
 
@@ -94,4 +96,123 @@ export function barFraction(total: number, max: number): number {
     return 0;
   }
   return Math.min(1, total / max);
+}
+
+/** Last planted-fact self-check reported by the host. Older hosts omit it entirely. */
+export type LoopVerified = { ok: boolean; at: number; detail: string } | null | undefined;
+
+/** Graph size reported by the host. Older hosts omit it entirely. */
+export type LoopGraphCounts = { nodes: number; edges: number } | null | undefined;
+
+export type LoopStageState = "neutral" | "ok" | "fail" | "idle";
+
+export type LoopStageCount = {
+  stage: LoopStage;
+  /** The number behind the stage; 0 when the host does not report it. */
+  value: number;
+  /** What the node shows: a count, or pass / fail / never for Verified. */
+  label: string;
+  /** The sub-label under the node. */
+  detail: string;
+  /** Colour hint. Only Verified ever goes ok / fail. */
+  state: LoopStageState;
+};
+
+export type LoopStageInput = {
+  sources: readonly LoopSource[];
+  retrievals?: number | null;
+  graph?: LoopGraphCounts;
+  verified?: LoopVerified;
+};
+
+const MINUTE = 60_000;
+const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
+const JUST_NOW = 45_000;
+
+function count(value: number | null | undefined): number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? Math.trunc(value) : 0;
+}
+
+function plural(value: number, noun: string): string {
+  return `${value} ${noun}${value === 1 ? "" : "s"}`;
+}
+
+/** Sub-label for the Verified stage: when the last self-check ran, or that none has. */
+export function formatVerified(verified: LoopVerified, now: number = Date.now()): string {
+  if (!verified || typeof verified !== "object") {
+    return "no self-check yet";
+  }
+  const at = verified.at;
+  if (typeof at !== "number" || !Number.isFinite(at) || at <= 0) {
+    return "time unknown";
+  }
+  const elapsed = now - at;
+  if (elapsed < JUST_NOW) {
+    return "just now";
+  }
+  if (elapsed < HOUR) {
+    return `${Math.floor(elapsed / MINUTE)}m ago`;
+  }
+  if (elapsed < DAY) {
+    return `${Math.floor(elapsed / HOUR)}h ago`;
+  }
+  return `${Math.floor(elapsed / DAY)}d ago`;
+}
+
+/**
+ * One row per loop stage, in `LOOP_STAGES` order. Every field is optional on purpose: a host
+ * older than the graph/verify build simply reports 0 / never instead of breaking the chart.
+ */
+export function loopStageCounts(input: LoopStageInput, now: number = Date.now()): LoopStageCount[] {
+  const sources = Array.isArray(input.sources) ? input.sources : [];
+  const summary = summarizeLoop(sources);
+  const nodes = count(input.graph?.nodes);
+  const edges = count(input.graph?.edges);
+  const retrievals = count(input.retrievals);
+  const verified = input.verified && typeof input.verified === "object" ? input.verified : null;
+  return [
+    {
+      stage: "Work",
+      value: summary.work,
+      label: String(summary.work),
+      detail: "Chat or a job mode",
+      state: "neutral",
+    },
+    {
+      stage: "Saved",
+      value: sources.length,
+      label: String(sources.length),
+      detail: `${summary.manual} added by hand`,
+      state: "neutral",
+    },
+    {
+      stage: "Indexed",
+      value: summary.indexed,
+      label: String(summary.indexed),
+      detail: summary.failed > 0 ? `${summary.failed} failed` : "text cards in KB",
+      state: "neutral",
+    },
+    {
+      stage: "Graph",
+      value: nodes,
+      label: String(nodes),
+      detail: nodes > 0 ? plural(edges, "edge") : "build map to create links",
+      state: nodes > 0 ? "neutral" : "idle",
+    },
+    {
+      stage: "Retrieved",
+      value: retrievals,
+      label: String(retrievals),
+      detail: retrievals > 0 ? "chunks cited in runs" : "nothing retrieved yet",
+      state: retrievals > 0 ? "neutral" : "idle",
+    },
+    {
+      stage: "Verified",
+      value: verified?.ok ? 1 : 0,
+      label: verified ? (verified.ok ? "pass" : "fail") : "never",
+      detail: formatVerified(verified, now),
+      state: verified ? (verified.ok ? "ok" : "fail") : "idle",
+    },
+  ];
 }

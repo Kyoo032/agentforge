@@ -1,4 +1,4 @@
-import { index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 function uuidPk(name = "id") {
   return text(name)
@@ -308,7 +308,12 @@ export const knowledgeVectors = sqliteTable(
     model: text("model").notNull(),
     createdAt: integer("created_at").notNull(),
   },
-  (table) => [index("knowledge_vectors_ws_source_idx").on(table.workspaceId, table.sourceId)],
+  (table) => [
+    index("knowledge_vectors_ws_source_idx").on(table.workspaceId, table.sourceId),
+    // Retrieval asks "which model's rows does this workspace hold, and give me them": both halves
+    // are (workspace_id, model), and both scanned the table until 0012 (see drizzle/0012).
+    index("knowledge_vectors_ws_model_idx").on(table.workspaceId, table.model),
+  ],
 );
 
 /**
@@ -325,6 +330,12 @@ export const knowledgeRetrievals = sqliteTable(
     runId: text("run_id"),
     sourceId: text("source_id").notNull(),
     chunkIndex: integer("chunk_index").notNull(),
+    /**
+     * Since Phase 2 this is the *fused* RRF score of the chunk (see knowledge/backends/builtin.ts),
+     * normalized into (0, 1] within one query. Rows written before Phase 2 hold a raw bm25-derived
+     * or cosine score instead, so values are not comparable across that boundary — aggregate them
+     * per period, never as one all-time average.
+     */
     score: real("score").notNull(),
     backend: text("backend").notNull(),
     createdAt: integer("created_at").notNull(),
@@ -334,6 +345,54 @@ export const knowledgeRetrievals = sqliteTable(
     index("knowledge_retrievals_ws_source_idx").on(table.workspaceId, table.sourceId),
   ],
 );
+
+/**
+ * Graph stage of the knowledge loop. A node is a `topic` (from the knowledge map), a `source`
+ * (a `knowledge_sources` row) or a `thread`. Ids are globally unique so an edge needs no kind.
+ */
+export const knowledgeGraphNodes = sqliteTable(
+  "knowledge_graph_nodes",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    /** topic | source | thread */
+    kind: text("kind").notNull(),
+    label: text("label").notNull(),
+    /** Optional JSON detail (topic verdict, source type). Never prompt surface. */
+    payload: text("payload"),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [index("knowledge_graph_nodes_ws_kind_idx").on(table.workspaceId, table.kind)],
+);
+
+/**
+ * Edges are aggregated, not appended: one row per `(workspace, from, to, kind)` whose `weight` is
+ * the count (or strength) behind it, which is what keeps the table from growing per retrieval event.
+ */
+export const knowledgeGraphEdges = sqliteTable(
+  "knowledge_graph_edges",
+  {
+    workspaceId: text("workspace_id").notNull(),
+    fromId: text("from_id").notNull(),
+    toId: text("to_id").notNull(),
+    /** covers | retrieved | cites */
+    kind: text("kind").notNull(),
+    weight: real("weight").notNull().default(1),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.workspaceId, table.fromId, table.toId, table.kind] }),
+    index("knowledge_graph_edges_ws_kind_idx").on(table.workspaceId, table.kind),
+  ],
+);
+
+/** Last planted-fact self-check for a workspace: the Verified stage of the loop chart. */
+export const knowledgeVerify = sqliteTable("knowledge_verify", {
+  workspaceId: text("workspace_id").primaryKey(),
+  ok: integer("ok").notNull(),
+  detail: text("detail").notNull(),
+  createdAt: integer("created_at").notNull(),
+});
 
 export const knowledgeMaps = sqliteTable("knowledge_maps", {
   workspaceId: text("workspace_id").primaryKey(),

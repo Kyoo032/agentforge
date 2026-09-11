@@ -7,7 +7,13 @@ import Database from "better-sqlite3";
 import { getTableConfig } from "drizzle-orm/sqlite-core";
 import { describe, expect, it } from "vitest";
 import { assertKernelTables, ensureSchema, listKernelTables } from "./ensure-schema";
-import { knowledgeRetrievals } from "./schema";
+import {
+  knowledgeGraphEdges,
+  knowledgeGraphNodes,
+  knowledgeRetrievals,
+  knowledgeVectors,
+  knowledgeVerify,
+} from "./schema";
 
 const KERNEL_TABLES = [
   "agent_tool_bindings",
@@ -44,6 +50,9 @@ describe("ensureSchema", () => {
         "knowledge_vectors",
         "knowledge_maps",
         "knowledge_retrievals",
+        "knowledge_graph_nodes",
+        "knowledge_graph_edges",
+        "knowledge_verify",
         "edit_projects",
         "edit_ops",
         "edit_snapshots",
@@ -248,6 +257,121 @@ describe("ensureSchema", () => {
       "knowledge_retrievals_ws_source_idx",
     ]);
     expect(config.indexes.every((entry) => entry.config.unique !== true)).toBe(true);
+  });
+
+  it("indexes knowledge_vectors by workspace and model", () => {
+    // Every query resolves which embedding model's rows to search with COUNT(*) per model, and
+    // retrieval then reads those rows: without (workspace_id, model) both scan the whole table.
+    const sqlite = new Database(":memory:");
+    ensureSchema(sqlite);
+    const indexes = (sqlite.prepare("PRAGMA index_list(knowledge_vectors)").all() as Array<{ name: string }>).map(
+      (row) => row.name,
+    );
+    expect(indexes).toEqual(
+      expect.arrayContaining(["knowledge_vectors_ws_source_idx", "knowledge_vectors_ws_model_idx"]),
+    );
+    const columns = (
+      sqlite.prepare("PRAGMA index_info(knowledge_vectors_ws_model_idx)").all() as Array<{ name: string }>
+    ).map((row) => row.name);
+    expect(columns).toEqual(["workspace_id", "model"]);
+    sqlite.close();
+  });
+
+  it("declares the knowledge_vectors indexes in the drizzle schema, matching the migration", () => {
+    // Drift guard: migration 0012 + ensureSchema + schema.ts, or `drizzle-kit generate` re-emits it.
+    const config = getTableConfig(knowledgeVectors);
+    expect(config.indexes.map((entry) => entry.config.name).sort()).toEqual([
+      "knowledge_vectors_ws_model_idx",
+      "knowledge_vectors_ws_source_idx",
+    ]);
+    const model = config.indexes.find((entry) => entry.config.name === "knowledge_vectors_ws_model_idx");
+    expect(model?.config.columns.map((column) => (column as { name: string }).name)).toEqual([
+      "workspace_id",
+      "model",
+    ]);
+    expect(config.indexes.every((entry) => entry.config.unique !== true)).toBe(true);
+  });
+
+  it("creates the knowledge graph tables with their workspace indexes", () => {
+    const sqlite = new Database(":memory:");
+    ensureSchema(sqlite);
+    const nodeCols = (
+      sqlite.prepare("PRAGMA table_info(knowledge_graph_nodes)").all() as Array<{ name: string }>
+    ).map((column) => column.name);
+    expect(nodeCols).toEqual(
+      expect.arrayContaining(["id", "workspace_id", "kind", "label", "payload", "updated_at"]),
+    );
+    const edgeCols = (
+      sqlite.prepare("PRAGMA table_info(knowledge_graph_edges)").all() as Array<{ name: string; pk: number }>
+    ).filter((column) => column.pk > 0);
+    expect(edgeCols.map((column) => column.name).sort()).toEqual(["from_id", "kind", "to_id", "workspace_id"]);
+
+    const nodeIndexes = (
+      sqlite.prepare("PRAGMA index_list(knowledge_graph_nodes)").all() as Array<{ name: string }>
+    ).map((row) => row.name);
+    expect(nodeIndexes).toEqual(expect.arrayContaining(["knowledge_graph_nodes_ws_kind_idx"]));
+    const edgeIndexes = (
+      sqlite.prepare("PRAGMA index_list(knowledge_graph_edges)").all() as Array<{ name: string }>
+    ).map((row) => row.name);
+    expect(edgeIndexes).toEqual(expect.arrayContaining(["knowledge_graph_edges_ws_kind_idx"]));
+
+    // The composite key is what makes an edge upsert idempotent instead of an append.
+    const insert = sqlite.prepare(
+      `INSERT INTO knowledge_graph_edges (workspace_id, from_id, to_id, kind, weight, updated_at)
+       VALUES ('ws', 'a', 'b', 'covers', 1, 1)`,
+    );
+    insert.run();
+    expect(() => insert.run()).toThrow(/UNIQUE/);
+    sqlite.close();
+  });
+
+  it("creates knowledge_verify keyed by workspace", () => {
+    const sqlite = new Database(":memory:");
+    ensureSchema(sqlite);
+    sqlite
+      .prepare(
+        `INSERT INTO knowledge_verify (workspace_id, ok, detail, created_at) VALUES ('ws', 1, 'retrieved in 4 ms', 7)
+         ON CONFLICT(workspace_id) DO UPDATE SET ok = excluded.ok`,
+      )
+      .run();
+    const row = sqlite.prepare("SELECT ok, detail, created_at FROM knowledge_verify WHERE workspace_id = 'ws'").get() as {
+      ok: number;
+      detail: string;
+      created_at: number;
+    };
+    expect(row).toEqual({ ok: 1, detail: "retrieved in 4 ms", created_at: 7 });
+    sqlite.close();
+  });
+
+  it("declares the graph and verify tables in the drizzle schema, matching the migration", () => {
+    // Same drift guard as knowledge_retrievals: migration + ensureSchema + schema.ts, or nothing.
+    expect(getTableConfig(knowledgeGraphNodes).name).toBe("knowledge_graph_nodes");
+    expect(getTableConfig(knowledgeGraphNodes).columns.map((column) => column.name).sort()).toEqual([
+      "id",
+      "kind",
+      "label",
+      "payload",
+      "updated_at",
+      "workspace_id",
+    ]);
+    const edges = getTableConfig(knowledgeGraphEdges);
+    expect(edges.name).toBe("knowledge_graph_edges");
+    expect(edges.primaryKeys[0]?.columns.map((column) => column.name)).toEqual([
+      "workspace_id",
+      "from_id",
+      "to_id",
+      "kind",
+    ]);
+    expect(edges.columns.find((column) => column.name === "weight")?.getSQLType()).toBe("real");
+    expect(edges.indexes.map((entry) => entry.config.name)).toEqual(["knowledge_graph_edges_ws_kind_idx"]);
+    const verify = getTableConfig(knowledgeVerify);
+    expect(verify.name).toBe("knowledge_verify");
+    expect(verify.columns.map((column) => column.name).sort()).toEqual([
+      "created_at",
+      "detail",
+      "ok",
+      "workspace_id",
+    ]);
   });
 
   it("records organization_id FKs on agent_versions and agent_tool_bindings", () => {

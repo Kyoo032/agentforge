@@ -12,6 +12,17 @@ import { sql } from "@agentforge/db";
 import { loadSettings } from "./settings-store";
 
 const EMBED_BATCH = 16;
+
+/**
+ * Model id every locally-computed fallback vector is stored under. `stubEmbed` is a 32-dim FNV-1a
+ * word hash — a different geometry from any real embedding model — so filing it under the configured
+ * model id would make a workspace look embedded when it is not, and would mix two incompatible
+ * spaces under one id the day the real endpoint comes back. It gets its own id instead.
+ */
+export const STUB_EMBED_MODEL = "stub-fnv-32";
+
+/** Vectors plus the model id they must be stored (and later queried) under. */
+export type EmbeddedTexts = { vectors: number[][]; model: string };
 /**
  * Embeddings sit on the hot path of every chat message and every KB write. Offline, a black-holed
  * endpoint must cost one short wait, not one per call: after a failure the endpoint is treated as
@@ -66,15 +77,20 @@ async function liveEmbedBatch(texts: string[], model: string): Promise<number[][
   return parsed;
 }
 
-export async function embedTexts(texts: string[], model: string): Promise<number[][]> {
+function allStubbed(texts: string[]): EmbeddedTexts {
+  return { vectors: texts.map((text) => stubEmbed(text)), model: STUB_EMBED_MODEL };
+}
+
+/**
+ * Embed a batch and say which model id the result belongs to. A run that falls back part-way is
+ * re-stubbed whole: one source's vectors must share one geometry, or cosine across them is noise.
+ */
+export async function embedTextsWithModel(texts: string[], model: string): Promise<EmbeddedTexts> {
   if (texts.length === 0) {
-    return [];
+    return { vectors: [], model };
   }
-  if (isStubEmbedding()) {
-    return texts.map((text) => stubEmbed(text));
-  }
-  if (Date.now() < embedDownUntil) {
-    return texts.map((text) => stubEmbed(text));
+  if (isStubEmbedding() || Date.now() < embedDownUntil) {
+    return allStubbed(texts);
   }
   const out: number[][] = [];
   for (let i = 0; i < texts.length; i += EMBED_BATCH) {
@@ -86,19 +102,34 @@ export async function embedTexts(texts: string[], model: string): Promise<number
       console.warn(
         `knowledge-embed: embeddings unavailable, using local vectors for ${EMBED_DOWN_MS / 60_000} min (${error instanceof Error ? error.message.slice(0, 80) : "error"})`,
       );
-      out.push(...batch.map((text) => stubEmbed(text)));
-      for (let j = i + EMBED_BATCH; j < texts.length; j += EMBED_BATCH) {
-        out.push(...texts.slice(j, j + EMBED_BATCH).map((text) => stubEmbed(text)));
-      }
-      break;
+      return allStubbed(texts);
     }
   }
-  return out;
+  return { vectors: out, model };
 }
 
-export async function embedQuery(query: string, model: string): Promise<number[]> {
-  const [vec] = await embedTexts([query], model);
-  return vec ?? stubEmbed(query);
+export async function embedTexts(texts: string[], model: string): Promise<number[][]> {
+  return (await embedTextsWithModel(texts, model)).vectors;
+}
+
+/** A query vector plus the model id it was actually produced by. */
+export type EmbeddedQuery = { vector: number[]; model: string };
+
+/**
+ * Embed one query and say which model produced the vector.
+ *
+ * The model id is the whole point: offline (no key, or the circuit open) the answer is a 32-dim
+ * `stub-fnv-32` vector, and `cosineSimilarity` truncates to the shorter side — so comparing it
+ * against 1536-dim rows would score 32 of 1536 dimensions and call the noise a match. Callers use
+ * the returned id to pick the rows this vector may legally be compared against.
+ */
+export async function embedQuery(query: string, model: string): Promise<EmbeddedQuery> {
+  if (model === STUB_EMBED_MODEL) {
+    return { vector: stubEmbed(query), model: STUB_EMBED_MODEL };
+  }
+  const { vectors, model: used } = await embedTextsWithModel([query], model);
+  const vec = vectors[0];
+  return vec ? { vector: vec, model: used } : { vector: stubEmbed(query), model: STUB_EMBED_MODEL };
 }
 
 export function deleteVectorsForSource(tenant: TenantContext, sourceId: string): void {
@@ -119,7 +150,9 @@ export async function indexSourceVectors(
     return;
   }
   try {
-    const embeddings = await embedTexts(chunks, model);
+    // The id the vectors are *stored* under is the one the embedder actually used, which is
+    // `stub-fnv-32` whenever the live endpoint was unavailable — never the configured model.
+    const { vectors: embeddings, model: storedModel } = await embedTextsWithModel(chunks, model);
     const insert = sql.prepare(
       `INSERT INTO knowledge_vectors (id, workspace_id, source_id, chunk_index, body, embedding, model, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -149,7 +182,7 @@ export async function indexSourceVectors(
           i,
           chunks[i],
           JSON.stringify(embedding),
-          model,
+          storedModel,
           createdAt,
         );
       }
@@ -192,6 +225,20 @@ export function countVectorsForModel(tenant: TenantContext, model: string): numb
   return row.n;
 }
 
+/**
+ * Which set of vectors answers a query for `model`: its own rows when it has any, otherwise the
+ * local `stub-fnv-32` rows so an offline workspace still retrieves, and null when there are neither.
+ */
+export function resolveVectorModel(tenant: TenantContext, model: string): string | null {
+  if (countVectorsForModel(tenant, model) > 0) {
+    return model;
+  }
+  if (model !== STUB_EMBED_MODEL && countVectorsForModel(tenant, STUB_EMBED_MODEL) > 0) {
+    return STUB_EMBED_MODEL;
+  }
+  return null;
+}
+
 /** A cosine hit from `knowledge_vectors`. The backend adds the source name before serving it. */
 export type VectorHit = {
   body: string;
@@ -203,21 +250,42 @@ export type VectorHit = {
 
 const MIN_COSINE = 0.12;
 
-export async function retrieveVectorChunks(
+/** Vector hits plus the model id whose rows were searched (null when none were). */
+export type VectorSearch = { hits: VectorHit[]; model: string | null };
+
+/**
+ * Cosine search over `knowledge_vectors`, answered from one geometry only.
+ *
+ * The model the query *asked* for and the model it was *embedded* with are two different things
+ * offline. Rows are chosen by the latter: a stub query searches stub rows or nothing at all, and a
+ * real-model query searches that model's rows or nothing at all. Mixing them compares a truncated
+ * prefix of two unrelated spaces, which reliably clears the cosine floor with pure noise.
+ *
+ * `preferredModel` lets a caller that already paid for `resolveVectorModel` skip the second lookup.
+ */
+export async function searchVectors(
   tenant: TenantContext,
   query: string,
   models: KnowledgeModels,
   limit = 4,
   excludeSourceIds: string[] = [],
-): Promise<VectorHit[]> {
+  preferredModel?: string | null,
+): Promise<VectorSearch> {
   const trimmed = query.trim();
   if (!trimmed) {
-    return [];
+    return { hits: [], model: null };
   }
-  if (countVectorsForModel(tenant, models.embeddingModel) === 0) {
-    return [];
+  const preferred =
+    preferredModel === undefined ? resolveVectorModel(tenant, models.embeddingModel) : preferredModel;
+  if (!preferred) {
+    return { hits: [], model: null };
   }
-  const queryVec = await embedQuery(trimmed, models.embeddingModel);
+  const { vector: queryVec, model } = await embedQuery(trimmed, preferred);
+  // The embedder fell back (or was already down) while this workspace holds rows of another model:
+  // there is nothing here this vector can be compared against, so the answer is "no vector hits".
+  if (model !== preferred && countVectorsForModel(tenant, model) === 0) {
+    return { hits: [], model: null };
+  }
   const skip =
     excludeSourceIds.length > 0 ? ` AND source_id NOT IN (${excludeSourceIds.map(() => "?").join(", ")})` : "";
   const ws = workspaceId(tenant);
@@ -228,7 +296,7 @@ export async function retrieveVectorChunks(
        WHERE workspace_id = ? AND model = ?
          AND source_id IN (SELECT id FROM knowledge_sources WHERE workspace_id = ?)${skip}`,
     )
-    .all(ws, models.embeddingModel, ws, ...excludeSourceIds) as Array<{
+    .all(ws, model, ws, ...excludeSourceIds) as Array<{
     body: string;
     embedding: string;
     source_id: string;
@@ -256,5 +324,16 @@ export async function retrieveVectorChunks(
     .filter((item) => item.score >= MIN_COSINE)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
-  return ranked.map((item) => ({ ...item, source: "rag" as const }));
+  return { hits: ranked.map((item) => ({ ...item, source: "rag" as const })), model };
+}
+
+/** `searchVectors` for callers that only want the hits. */
+export async function retrieveVectorChunks(
+  tenant: TenantContext,
+  query: string,
+  models: KnowledgeModels,
+  limit = 4,
+  excludeSourceIds: string[] = [],
+): Promise<VectorHit[]> {
+  return (await searchVectors(tenant, query, models, limit, excludeSourceIds)).hits;
 }

@@ -100,6 +100,61 @@ describe("host router", () => {
     }
   });
 
+  it("routes the knowledge graph and self-check, and reports both on GET /api/v1/knowledge", async () => {
+    vi.stubEnv("AGENTFORGE_RUNTIME", "stub");
+    try {
+      const graph = await dispatch({
+        method: "GET",
+        path: "/api/v1/knowledge/graph",
+        query: { limit: "200" },
+        params: {},
+        headers: {},
+      });
+      expect(graph.type).toBe("json");
+      if (graph.type === "json") {
+        expect(graph.status).toBe(200);
+        expect(graph.body).toMatchObject({ nodes: expect.any(Array), edges: expect.any(Array) });
+      }
+
+      const verify = await dispatch({
+        method: "POST",
+        path: "/api/v1/knowledge/verify",
+        query: {},
+        params: {},
+        headers: {},
+        body: {},
+      });
+      expect(verify.type).toBe("json");
+      if (verify.type === "json") {
+        expect(verify.status).toBe(200);
+        expect(verify.body).toMatchObject({
+          ok: expect.any(Boolean),
+          at: expect.any(Number),
+          detail: expect.any(String),
+        });
+      }
+
+      const knowledge = await dispatch({
+        method: "GET",
+        path: "/api/v1/knowledge",
+        query: {},
+        params: {},
+        headers: {},
+      });
+      expect(knowledge.type).toBe("json");
+      if (knowledge.type === "json") {
+        expect(knowledge.status).toBe(200);
+        expect(knowledge.body).toMatchObject({
+          retrievals: expect.any(Number),
+          graph: { nodes: expect.any(Number), edges: expect.any(Number) },
+          verified: { ok: expect.any(Boolean), at: expect.any(Number), detail: expect.any(String) },
+        });
+      }
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("returns not_found JSON for unknown routes", async () => {
     const result = await dispatch({
       method: "GET",

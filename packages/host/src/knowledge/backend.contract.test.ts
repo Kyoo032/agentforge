@@ -78,7 +78,7 @@ describe.each(BACKENDS)("knowledge backend contract: $id", ({ id, make }) => {
     expect(source.status).toBe("Indexed");
 
     const result = await retrieveChunks(ctx, token, 4);
-    expect(["fts", "rag"]).toContain(result.mode);
+    expect(["fts", "rag", "hybrid"]).toContain(result.mode);
     expect(result.chunks.length).toBeGreaterThan(0);
     const hit = result.chunks.find((chunk) => chunk.body.includes(token));
     expect(hit).toBeDefined();
@@ -149,6 +149,6 @@ describe.each(BACKENDS)("knowledge backend contract: $id", ({ id, make }) => {
     expect(injected.prompt).toContain(token);
     expect(injected.chunks.length).toBeGreaterThan(0);
     const sourcesPart = injected.parts.find((part) => part.label === "Sources");
-    expect(sourcesPart?.detail).toMatch(/^\d+ chunks · (rag|fts)$/);
+    expect(sourcesPart?.detail).toMatch(/^\d+ chunks · (rag|fts|hybrid)$/);
   });
 });

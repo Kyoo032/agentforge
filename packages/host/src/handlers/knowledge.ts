@@ -24,6 +24,12 @@ import {
 } from "../knowledge";
 import { getKnowledgeMap, mapKnowledge } from "../knowledge-map";
 import { countRetrievals } from "../knowledge-retrievals";
+import { getGraph, graphCounts } from "../knowledge-graph";
+import {
+  getKnowledgeVerify,
+  runKnowledgeSelfCheck,
+  type KnowledgeVerifyRecord,
+} from "../knowledge-verify";
 import { upsertWorkSource } from "../knowledge-ingest";
 import { requireArtifact } from "../artifacts";
 import { getThread } from "../threads";
@@ -95,7 +101,62 @@ export async function handleGetKnowledge(request: HostRequest): Promise<HostResu
       map: getKnowledgeMap(tenant),
       // Retrieved stage of the knowledge loop: chunks this workspace has been served, all time.
       retrievals: countRetrievals(tenant),
+      // Graph and Verified stages. Counts only — the graph itself is GET /api/v1/knowledge/graph,
+      // so the page that only draws the loop chart never pays for the node list.
+      graph: graphCounts(tenant),
+      verified: getKnowledgeVerify(tenant),
     });
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+/** The knowledge graph for drawing: highest-degree nodes first, edges wholly inside that set. */
+export async function handleGetKnowledgeGraph(request: HostRequest): Promise<HostResult> {
+  try {
+    const tenant = await getTenant(request.workspaceId);
+    const raw = typeof request.query.limit === "string" ? Number.parseInt(request.query.limit, 10) : Number.NaN;
+    const limit = Number.isFinite(raw) && raw > 0 ? raw : undefined;
+    return jsonOk(getGraph(tenant, { limit }));
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+/**
+ * How close together two self-checks of one workspace may run. The check plants a real source,
+ * retrieves it and deletes it again, so a held button — or a page that re-mounts in a loop — would
+ * otherwise churn the live knowledge base as fast as the endpoint answers.
+ */
+export const SELF_CHECK_MIN_INTERVAL_MS = 10_000;
+
+/**
+ * The stored record when it is young enough to serve as-is, otherwise null (run a fresh check).
+ * A record stamped in the future — the clock moved backwards — is never considered fresh, or a
+ * workspace could be locked out of checking itself for as long as the skew lasts.
+ */
+export function throttledSelfCheck(
+  recent: KnowledgeVerifyRecord | null,
+  now: number,
+): KnowledgeVerifyRecord | null {
+  if (!recent || recent.at > now) {
+    return null;
+  }
+  return now - recent.at < SELF_CHECK_MIN_INTERVAL_MS ? recent : null;
+}
+
+/**
+ * Run the planted-fact self-check now. Answers with the record it wrote; a failed check is a 200,
+ * and so is a throttled one — the caller gets the last real result, flagged as not freshly run.
+ */
+export async function handlePostKnowledgeVerify(request: HostRequest): Promise<HostResult> {
+  try {
+    const tenant = await getTenant(request.workspaceId);
+    const recent = throttledSelfCheck(getKnowledgeVerify(tenant), Date.now());
+    if (recent) {
+      return jsonOk({ ...recent, throttled: true });
+    }
+    return jsonOk({ ...(await runKnowledgeSelfCheck(tenant)), throttled: false });
   } catch (error) {
     return jsonError(error);
   }
