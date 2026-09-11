@@ -1,0 +1,196 @@
+# Builds the WeKnora-lite sidecar that DPSBuddy bundles under resources/weknora/.
+#
+# WeKnora needs CGO (sqlite-vec + FTS5), so every platform is built natively on its own runner —
+# no cross-compiling. Upstream publishes no Windows headless build, which is why this exists.
+# Manual dispatch only: the pinned ref changes rarely, and macOS minutes cost 10x on a private repo.
+#
+# Output: one archive per platform, named for the layout apps/desktop/scripts expect
+#   WeKnora-lite_<ref>_win32-x64.zip · WeKnora-lite_<ref>_darwin-arm64.tar.gz · ..._darwin-x64.tar.gz
+# each containing WeKnora-lite(.exe), migrations/sqlite/, config/, LICENSE, THIRD_PARTY_NOTICES.md,
+# licenses/, .env.lite.example, VERSION, BUILD.json. With publish=true they are attached to a
+# GitHub release tagged weknora-lite-<short ref> on this repo; scripts/stage-weknora.mjs pulls
+# that release into the desktop resources before packaging.
+name: weknora-lite
+
+on:
+  workflow_dispatch:
+    inputs:
+      weknora_ref:
+        description: "Tencent/WeKnora commit or tag to build (pinned in apps/desktop/weknora.lock.json)"
+        required: true
+        default: "1edcd54b43606d9079bb36650efe3f68707a79ea"
+      publish:
+        description: "Attach the archives to a release tagged weknora-lite-<short ref>"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+env:
+  EDITION: lite
+  CGO_ENABLED: "1"
+  CGO_CFLAGS: "-Wno-deprecated-declarations"
+
+jobs:
+  build:
+    name: build ${{ matrix.platform }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win32-x64
+            goos: windows
+            goarch: amd64
+            binary: WeKnora-lite.exe
+          - os: macos-14
+            platform: darwin-arm64
+            goos: darwin
+            goarch: arm64
+            binary: WeKnora-lite
+          - os: macos-14
+            platform: darwin-x64
+            goos: darwin
+            goarch: amd64
+            binary: WeKnora-lite
+    steps:
+      - name: Check out WeKnora at the pinned ref
+        uses: actions/checkout@v4
+        with:
+          repository: Tencent/WeKnora
+          ref: ${{ inputs.weknora_ref }}
+          fetch-depth: 1
+          path: weknora
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: weknora/go.mod
+          cache-dependency-path: weknora/go.sum
+
+      - name: Toolchain report
+        shell: bash
+        run: |
+          go version
+          gcc --version | head -1 || true
+          clang --version | head -1 || true
+
+      - name: Build
+        shell: bash
+        working-directory: weknora
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          set -euo pipefail
+          SHORT="$(git rev-parse --short=12 HEAD)"
+          export VERSION="${{ inputs.weknora_ref }}"
+          export COMMIT_ID="$SHORT"
+          export BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          export GO_VERSION="$(go version | awk '{print $3}')"
+          LDFLAGS="-w -s $(bash ./scripts/get_version.sh ldflags) -X 'google.golang.org/protobuf/reflect/protoregistry.conflictPolicy=warn'"
+          if [ "$GOOS" = "darwin" ]; then
+            export CGO_LDFLAGS="-Wl,-no_warn_duplicate_libraries"
+          fi
+          echo "building $GOOS/$GOARCH edition=$EDITION ref=$VERSION"
+          go build -buildvcs=false -tags "sqlite_fts5" -ldflags="$LDFLAGS" -o "${{ matrix.binary }}" ./cmd/server
+          ls -la "${{ matrix.binary }}"
+
+      - name: Smoke test (binary starts and answers /health)
+        shell: bash
+        working-directory: weknora
+        run: |
+          set -euo pipefail
+          mkdir -p smoke/data/files
+          export GIN_MODE=release LOG_LEVEL=warn
+          export DB_DRIVER=sqlite DB_PATH=smoke/data/weknora.db RETRIEVE_DRIVER=sqlite
+          export STORAGE_TYPE=local LOCAL_STORAGE_BASE_DIR=smoke/data/files STREAM_MANAGER_TYPE=memory
+          export REDIS_ADDR= NEO4J_ENABLE=false ENABLE_GRAPH_RAG=false WEKNORA_SANDBOX_MODE=disabled
+          export DUCKDB_SKIP_EXTENSION_LOAD=1 DISABLE_REGISTRATION=true
+          export TENANT_AES_KEY=smoke-test-key-32-chars-long!!!! JWT_SECRET=smoke-jwt-secret
+          ./"${{ matrix.binary }}" > smoke/stdout.log 2> smoke/stderr.log &
+          PID=$!
+          ok=0
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8080/health >/dev/null 2>&1; then ok=1; break; fi
+            sleep 1
+          done
+          echo "--- stdout ---"; tail -20 smoke/stdout.log || true
+          echo "--- stderr ---"; tail -20 smoke/stderr.log || true
+          if [ "$ok" = "1" ]; then
+            echo "health ok after ${i}s"
+            curl -fsS -X POST http://127.0.0.1:8080/api/v1/auth/auto-setup -H 'content-type: application/json' -d '{}' | head -c 400 || true
+            echo
+          fi
+          kill $PID || true
+          wait $PID 2>/dev/null || true
+          [ "$ok" = "1" ]
+
+      - name: Package
+        shell: bash
+        working-directory: weknora
+        run: |
+          set -euo pipefail
+          SHORT="$(git rev-parse --short=12 HEAD)"
+          NAME="WeKnora-lite_${SHORT}_${{ matrix.platform }}"
+          OUT="../dist/$NAME"
+          mkdir -p "$OUT/migrations/sqlite" "$OUT/licenses"
+          cp "${{ matrix.binary }}" "$OUT/"
+          cp -r migrations/sqlite/. "$OUT/migrations/sqlite/"
+          [ -d config ] && cp -r config "$OUT/config"
+          cp LICENSE THIRD_PARTY_NOTICES.md .env.lite.example VERSION "$OUT/" 2>/dev/null || true
+          [ -d licenses ] && cp -r licenses/. "$OUT/licenses/"
+          cat > "$OUT/BUILD.json" <<EOF
+          {"ref":"${{ inputs.weknora_ref }}","commit":"$SHORT","platform":"${{ matrix.platform }}","edition":"lite","go":"$(go version | awk '{print $3}')","builtAt":"$(date -u +%Y-%m-%dT%H:%M:%SZ)"}
+          EOF
+          cd ../dist
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            7z a -tzip "$NAME.zip" "$NAME" >/dev/null
+            ARCHIVE="$NAME.zip"
+          else
+            chmod +x "$NAME/WeKnora-lite"
+            tar -czf "$NAME.tar.gz" "$NAME"
+            ARCHIVE="$NAME.tar.gz"
+          fi
+          shasum -a 256 "$ARCHIVE" > "$ARCHIVE.sha256" 2>/dev/null || sha256sum "$ARCHIVE" > "$ARCHIVE.sha256"
+          ls -la
+          cat "$ARCHIVE.sha256"
+          du -sh "$NAME/${{ matrix.binary }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: weknora-lite-${{ matrix.platform }}
+          path: |
+            dist/*.zip
+            dist/*.tar.gz
+            dist/*.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    if: ${{ inputs.publish }}
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Publish release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          SHORT="$(echo '${{ inputs.weknora_ref }}' | cut -c1-12)"
+          TAG="weknora-lite-$SHORT"
+          ls -la artifacts
+          if gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" artifacts/* -R "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$TAG" artifacts/* -R "$GITHUB_REPOSITORY" \
+              --title "WeKnora-lite sidecar ($SHORT)" \
+              --notes "WeKnora-lite built from Tencent/WeKnora@${{ inputs.weknora_ref }} (MIT; see THIRD_PARTY_NOTICES.md inside each archive). Consumed by scripts/stage-weknora.mjs. Not an app release."
+          fi
