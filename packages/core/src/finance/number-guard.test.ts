@@ -23,6 +23,15 @@ describe("extractNumbers", () => {
     expect(isFreeNumber({ text: "3%", value: 3, unit: "%", index: 0 })).toBe(false);
     expect(isFreeNumber({ text: "250", value: 250, unit: "", index: 0 })).toBe(false);
   });
+
+  it("skips index names, 24/7 publisher clocks, and day-count labels", () => {
+    expect(
+      extractNumbers("S&P 500 futures and Nasdaq 100 held the 50-day average; 24/7 Wall St. and SMA 200.").map(
+        (token) => token.text,
+      ),
+    ).toEqual([]);
+    expect(extractNumbers("Russell 2000 and 200-hari, EMA 50.").map((token) => token.text)).toEqual([]);
+  });
 });
 
 describe("guardNumbers", () => {
@@ -51,6 +60,15 @@ describe("guardNumbers", () => {
     expect(matchesAllowed(4.5, [4.667])).toBe(false);
     expect(matchesAllowed(4.7, [4.667])).toBe(true);
     expect(matchesAllowed(31.3, [31.25])).toBe(true);
+  });
+
+  it("does not flag label text, and still replaces a real unverified figure", () => {
+    const text = "S&P 500 held the 50-day; 24/7 Wall St. cited Nasdaq 100. Fair value is 1234.5.";
+    const result = guardNumbers(text, []);
+    expect(result.flagged.map((token) => token.text)).toEqual(["1234.5"]);
+    expect(result.text).toBe(
+      `S&P 500 held the 50-day; 24/7 Wall St. cited Nasdaq 100. Fair value is ${UNVERIFIED_MARKER}.`,
+    );
   });
 });
 

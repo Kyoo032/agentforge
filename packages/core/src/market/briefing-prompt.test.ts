@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { maskPii } from "../security/pii";
 import { ADVICE_PATTERN } from "./advice-guard";
 import {
   DEFAULT_WATCH_PROMPT_EN,
@@ -162,6 +163,19 @@ describe("packetToPromptBlock", () => {
     expect(text).toContain("yahoo quote: 429");
   });
 
+  it("keeps unformatted market caps when the outbound PII masker runs", () => {
+    const cap = 1_129_686_761_472;
+    const text = packetToPromptBlock(
+      makePacket({
+        positionContext: "",
+        tickers: [makeTickerPacket("MU", { quote: makeQuote("MU", { marketCap: cap }) })],
+      }),
+    );
+    expect(text).toContain(String(cap));
+    expect(maskPii(text)).toContain(String(cap));
+    expect(maskPii(text)).not.toMatch(/\[phone\]|\[id\]/);
+  });
+
   it("caps headlines per ticker and skips injection suspects", () => {
     const news = Array.from({ length: PROMPT_HEADLINES_MAX + 2 }, (_, index) =>
       makeNews(`Headline ${index}`, "Reuters", `https://example.test/n/${index}`),
@@ -247,7 +261,6 @@ describe("packetNumbers", () => {
     expect(only).toEqual([]);
   });
 });
-
 
 describe("packetNumbers headline figures", () => {
   it("allows a price target quoted in a headline the model saw", () => {

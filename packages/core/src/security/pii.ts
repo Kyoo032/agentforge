@@ -18,15 +18,13 @@ export type PiiFinding = {
 const EMAIL_RE = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g;
 
 /** Intl-ish phones: optional +, country code, groups of digits with spaces/dashes/parens. */
-const PHONE_RE =
-  /(?:(?:\+|00)\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-]?)\d{3,4}[\s.-]?\d{3,4}(?:[\s.-]?\d{1,4})?/g;
+const PHONE_RE = /(?:(?:\+|00)\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-]?)\d{3,4}[\s.-]?\d{3,4}(?:[\s.-]?\d{1,4})?/g;
 
 /** 13–19 digit runs, allowing common separators. */
 const CARD_CANDIDATE_RE = /\b(?:\d[ -]*?){13,19}\b/g;
 
-/** Long ID-like numbers: SSN / national-id style with separators, or 9+ continuous digits. */
-const ID_RE =
-  /\b(?:\d{3}[-\s]\d{2}[-\s]\d{4}|\d{2}[-\s]\d{2}[-\s]\d{2}[-\s]\d{2,4}|\d{9,})\b/g;
+/** Long ID-like numbers: SSN / national-id style with separators. Bare digit runs are quantities. */
+const ID_RE = /\b(?:\d{3}[-\s]\d{2}[-\s]\d{4}|\d{2}[-\s]\d{2}[-\s]\d{2}[-\s]\d{2,4})\b/g;
 
 function digitsOnly(value: string): string {
   return value.replace(/\D/g, "");
@@ -62,10 +60,13 @@ function pushUnique(findings: PiiFinding[], finding: PiiFinding): void {
   }
 }
 
-function overlapsCard(findings: PiiFinding[], index: number, length: number): boolean {
-  return findings.some(
-    (item) => item.kind === "card" && index < item.index + item.match.length && index + length > item.index,
-  );
+function overlapsFinding(findings: PiiFinding[], index: number, length: number): boolean {
+  return findings.some((item) => index < item.index + item.match.length && index + length > item.index);
+}
+
+/** Bare digit runs are quantities (market cap, volume), not phones. Require + / 00 or separators. */
+function hasPhoneFormatting(raw: string): boolean {
+  return /^(?:\+|00)/.test(raw.trim()) || /[\s().-]/.test(raw);
 }
 
 export function scanPii(text: string): PiiFinding[] {
@@ -88,16 +89,11 @@ export function scanPii(text: string): PiiFinding[] {
     }
     const raw = match[0];
     const digits = digitsOnly(raw);
-    // Avoid short numbers (years, codes) and bare digit runs handled as cards/ids.
-    if (digits.length < 10 || digits.length > 15) {
+    // Avoid short numbers (years, codes) and unformatted quantities (market cap).
+    if (digits.length < 10 || digits.length > 15 || !hasPhoneFormatting(raw)) {
       continue;
     }
-    // Skip if this span is mostly inside an email we already found.
-    const insideEmail = findings.some(
-      (item) =>
-        item.kind === "email" && match.index >= item.index && match.index < item.index + item.match.length,
-    );
-    if (insideEmail) {
+    if (overlapsFinding(findings, match.index, raw.length)) {
       continue;
     }
     pushUnique(findings, { kind: "phone", match: raw, index: match.index });
@@ -128,13 +124,12 @@ export function scanPii(text: string): PiiFinding[] {
     if (passesLuhn(digits) && digits.length >= 13 && digits.length <= 19) {
       continue;
     }
-    if (overlapsCard(findings, match.index, raw.length)) {
+    if (overlapsFinding(findings, match.index, raw.length)) {
       continue;
     }
-    // Continuous 9–12 digit runs without separators are weak; require separators
-    // for SSN-like, or 9+ with separators / longer continuous national-id style.
-    const hasSep = /[-\s]/.test(raw);
-    if (!hasSep && digits.length < 11) {
+    // Bare digit runs are quantities (market cap, volume), not IDs. Cards use Luhn.
+    // SSN / national-id style needs separators.
+    if (!/[-\s]/.test(raw)) {
       continue;
     }
     pushUnique(findings, { kind: "id", match: raw, index: match.index });
@@ -164,9 +159,14 @@ export function maskPii(text: string): string {
     return right.match.length - left.match.length;
   });
   let result = text;
+  const consumed: Array<{ index: number; end: number }> = [];
   for (const finding of ordered) {
-    result =
-      result.slice(0, finding.index) + PII_MASK[finding.kind] + result.slice(finding.index + finding.match.length);
+    const end = finding.index + finding.match.length;
+    if (consumed.some((span) => finding.index < span.end && end > span.index)) {
+      continue;
+    }
+    result = result.slice(0, finding.index) + PII_MASK[finding.kind] + result.slice(end);
+    consumed.push({ index: finding.index, end });
   }
   return result;
 }
