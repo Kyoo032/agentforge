@@ -4,9 +4,7 @@ import { maskOutboundRunInput, maskPii, maskPiiInParts, passesLuhn, piiWarning, 
 describe("scanPii", () => {
   it("finds email addresses", () => {
     const findings = scanPii("Contact me at alex.rivera@example.com please");
-    expect(findings).toEqual([
-      { kind: "email", match: "alex.rivera@example.com", index: expect.any(Number) },
-    ]);
+    expect(findings).toEqual([{ kind: "email", match: "alex.rivera@example.com", index: expect.any(Number) }]);
     expect(findings[0]?.index).toBe("Contact me at ".length);
   });
 
@@ -36,6 +34,21 @@ describe("scanPii", () => {
     expect(scanPii("Room 2042 opens at 9am")).toEqual([]);
     expect(scanPii("Please summarize the attached brief for the team.")).toEqual([]);
     expect(scanPii("hello @ world")).toEqual([]);
+  });
+
+  it("does not treat unformatted market caps as phones or ids", () => {
+    const line = "volume 26367138, mkt cap 1129686761472, (yahoo, observed 2026-09-09T13:19Z)";
+    expect(scanPii(line)).toEqual([]);
+    expect(maskPii(line)).toBe(line);
+    const idx = "mkt cap 1189000000000000, (yahoo)";
+    expect(scanPii(idx)).toEqual([]);
+    expect(maskPii(idx)).toBe(idx);
+  });
+
+  it("still masks a formatted phone next to a market cap", () => {
+    const line = "mkt cap 1129686761472 call +1 (415) 555-2671";
+    expect(maskPii(line)).toBe("mkt cap 1129686761472 call [phone]");
+    expect(line).toContain("1129686761472");
   });
 });
 

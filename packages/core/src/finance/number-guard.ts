@@ -80,15 +80,24 @@ function readNumber(raw: string, percent: boolean): NumberReading {
 
 /** Every numeric token in the text with its normalized value. */
 const ISO_DATE = /\b\d{4}-\d{2}-\d{2}(?:T[\d:.]+Z?)?\b/g;
+/**
+ * Labels that contain digits but are not figures: index names, 24/7 publisher
+ * clocks, and moving-average day counts. Blanked at equal length so token
+ * indexes still point into the original text.
+ */
+const LABEL_TOKEN =
+  /S\s*&\s*P\s*500\b|Nasdaq[-\s]?100\b|Russell[-\s]?2000\b|\b24\/7\b|\b\d{1,3}-(?:day|hari)\b|\b(?:SMA|EMA)\s+(?:50|200)\b/gi;
 
-/** Dates are not figures: blank them at equal length so token indexes still point into the original text. */
-function maskDates(text: string): string {
-  return text.replace(ISO_DATE, (date) => " ".repeat(date.length));
+/** Dates and label tokens are not figures. */
+function maskNonFigures(text: string): string {
+  return text
+    .replace(ISO_DATE, (date) => " ".repeat(date.length))
+    .replace(LABEL_TOKEN, (label) => " ".repeat(label.length));
 }
 
 export function extractNumbers(text: string): NumberToken[] {
   const out: NumberToken[] = [];
-  for (const match of maskDates(text).matchAll(NUMBER_TOKEN)) {
+  for (const match of maskNonFigures(text).matchAll(NUMBER_TOKEN)) {
     const whole = match[0];
     const suffix = (match[2] ?? "").toLowerCase();
     const numericPart = whole.replace(/\s?(%|percent|k|m|bn|million|billion|thousand|x)$/i, "");

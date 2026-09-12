@@ -95,6 +95,16 @@ describe("guardBriefingSection", () => {
       `Momentum: 1m +13.98%, 5d +4.33%, 1d -1.61%, 1w flat, 52w 138.34-1255; volume ${UNVERIFIED_MARKER}, stake ${UNVERIFIED_MARKER}.`,
     );
   });
+
+  it("does not flag S&P 500, Nasdaq 100, 50-day, or 24/7 Wall St. as unverified figures", () => {
+    const body =
+      "S&P 500 futures held the 50-day average; 24/7 Wall St. and Nasdaq 100 were quiet. Fair value is 1234.5.";
+    const guarded = guardBriefingSection({ heading: "Macro", body }, []);
+    expect(guarded.flagged).toEqual(["1234.5"]);
+    expect(guarded.section.body).toBe(
+      `S&P 500 futures held the 50-day average; 24/7 Wall St. and Nasdaq 100 were quiet. Fair value is ${UNVERIFIED_MARKER}.`,
+    );
+  });
 });
 
 describe("live briefing fixture (2026-09-09)", () => {
