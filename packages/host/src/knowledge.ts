@@ -16,6 +16,7 @@ import { fetchPublicHttps } from "./safe-fetch";
 import { KNOWLEDGE_TEXT_MAX_CHARS, SOURCE_NAME_MAX, chunkKnowledgeText, sanitizeSourceName } from "./knowledge-text";
 import { deleteThroughBackend, indexThroughBackend, retrieveThroughBackend } from "./knowledge/registry";
 import type { KnowledgeBackendId, RetrievedChunk, RetrieveResult } from "./knowledge/backend";
+import { expandRetrievedChunks } from "./knowledge-expand";
 import { modeCatalogPayload } from "./selectable-models";
 import { loadSettings } from "./settings-store";
 
@@ -258,8 +259,11 @@ const NO_TEXT = "No extractable text";
 
 let lastCreatedAt = 0;
 
-/** Strictly increasing so two writes in one millisecond never share a version stamp (vector guard). */
-function nextCreatedAt(): number {
+/**
+ * Strictly increasing so two writes in one millisecond never share a version stamp (vector guard).
+ * Exported for the re-index rewrite, which stamps a source row and its vectors in one transaction.
+ */
+export function nextCreatedAt(): number {
   const next = Math.max(Date.now(), lastCreatedAt + 1);
   lastCreatedAt = next;
   return next;
@@ -583,18 +587,27 @@ export function deleteSourceByOrigin(tenant: TenantContext, origin: SourceOrigin
 export type RetrieveOptions = {
   /** Sources never returned, e.g. the card written from the thread that is asking. */
   excludeSourceIds?: string[];
+  /**
+   * Phase 4 graph expansion. Off unless true: one hop over `covers` may add up to 2 sibling
+   * chunks when the top hit is weak. Chat does not pass this yet.
+   */
+  expand?: boolean;
 };
 
 /** Chunks that answer this query, each carrying its source id / name / score so it can be cited. */
-export function retrieveChunks(
+export async function retrieveChunks(
   tenant: TenantContext,
   query: string,
   limit = 4,
   options: RetrieveOptions = {},
 ): Promise<RetrieveResult> {
-  return retrieveThroughBackend(tenant, query, {
+  const result = await retrieveThroughBackend(tenant, query, {
     limit,
     excludeSourceIds: options.excludeSourceIds ?? [],
+  });
+  return expandRetrievedChunks(tenant, result, {
+    expand: options.expand === true,
+    excludeSourceIds: options.excludeSourceIds,
   });
 }
 

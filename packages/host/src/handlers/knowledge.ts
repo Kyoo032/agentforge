@@ -24,11 +24,9 @@ import {
 } from "../knowledge";
 import { getKnowledgeMap, mapKnowledge } from "../knowledge-map";
 import { backendPayload, parseBackendId, selectKnowledgeBackend } from "../knowledge/backend-api";
-import { drainKnowledgeOutbox } from "../knowledge/registry";
-import { sidecarStatus } from "../knowledge/backends/weknora/supervisor";
-import { startBackfill } from "../knowledge/backfill";
 import { countRetrievals } from "../knowledge-retrievals";
 import { getGraph, graphCounts } from "../knowledge-graph";
+import { reindexSource, reindexWorkspace } from "../knowledge-reindex";
 import {
   getKnowledgeVerify,
   runKnowledgeSelfCheck,
@@ -123,20 +121,11 @@ export async function handleGetKnowledge(request: HostRequest): Promise<HostResu
  * Knowledge page is the one screen that is opened after a sidecar comes back, so it is the natural
  * place to notice — but a drain that is slow or failing must not slow the page down.
  */
-function drainOnRead(tenant: Parameters<typeof drainKnowledgeOutbox>[0]): void {
-  // Only ever a piggy-back on a sidecar that is *already* up and ready. Draining unconditionally
-  // made opening the Knowledge page start the sidecar — a 20 s cold start, a spawned process and a
-  // gateway-key-bearing bootstrap, all triggered by a read that asked for none of it. A desk with a
-  // queue and no sidecar keeps its queue; the next real knowledge call drains it.
-  if (!sidecarStatus().ready) {
-    return;
-  }
-  void drainKnowledgeOutbox(tenant).catch(() => {
-    // `drainKnowledgeOutbox` already logs; a failed replay leaves the rows queued for next time.
-  });
+function drainOnRead(_tenant: { workspaceId: string }): void {
+  // Sidecar outbox is gone.
 }
 
-/** Which retrieval engine this desk uses. `409` when WeKnora is chosen but not installed. */
+/** Builtin retrieval engine. `400` if a sidecar id is sent. */
 export async function handlePutKnowledgeBackend(request: HostRequest): Promise<HostResult> {
   try {
     const tenant = await getTenant(request.workspaceId);
@@ -154,7 +143,36 @@ export async function handlePutKnowledgeBackend(request: HostRequest): Promise<H
 export async function handlePostKnowledgeBackendReindex(request: HostRequest): Promise<HostResult> {
   try {
     const tenant = await getTenant(request.workspaceId);
-    return jsonOk(startBackfill(tenant), 202);
+    return jsonOk(await reindexWorkspace(tenant));
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+/**
+ * Explicit re-index of one source for the built-in engine: re-read the stored body, run the
+ * current chunker, replace chunks and vectors together. A source that cannot produce a body is a
+ * 200 with a `Failed` outcome — the row records why, and `addFileSource` set the precedent.
+ * `404` only when the id is not this workspace's (or was deleted mid-call).
+ */
+export async function handlePostKnowledgeSourceReindex(request: HostRequest): Promise<HostResult> {
+  try {
+    const tenant = await getTenant(request.workspaceId);
+    const outcome = await reindexSource(tenant, request.params.sourceId);
+    if (outcome.status === "missing") {
+      throw new ApiError("not_found", "Source not found", 404);
+    }
+    return jsonOk(outcome);
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+/** Re-index every `Indexed` source of one workspace; answers with the per-source outcomes. */
+export async function handlePostKnowledgeReindex(request: HostRequest): Promise<HostResult> {
+  try {
+    const tenant = await getTenant(request.workspaceId);
+    return jsonOk(await reindexWorkspace(tenant));
   } catch (error) {
     return jsonError(error);
   }

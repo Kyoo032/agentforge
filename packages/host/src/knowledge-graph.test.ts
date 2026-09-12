@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { sql } from "@agentforge/db";
 import type { KnowledgeMap, TenantContext } from "@agentforge/core";
+import { citedSources } from "./knowledge-cites";
 import { mapKnowledge } from "./knowledge-map";
 import { recordRetrievals } from "./knowledge-retrievals";
 import {
@@ -13,6 +14,7 @@ import {
   graphCounts,
   projectMapToGraph,
   projectRetrievalsToGraph,
+  recordCites,
   topicNodeId,
   upsertEdges,
   upsertNodes,
@@ -261,5 +263,83 @@ describe("knowledge graph", () => {
     const counts = graphCounts(ctx);
     expect(counts.nodes).toBe(3);
     expect(counts.edges).toBe(1);
+  });
+
+  it("records a cites edge for each source a reply points at, distinct from retrieved", () => {
+    const ctx = tenant();
+    const spend = crypto.randomUUID();
+    const memo = crypto.randomUUID();
+    const threadId = crypto.randomUUID();
+    seedSource(ctx, spend, "Spend table");
+    seedSource(ctx, memo, "Vendor memo");
+    const chunks = [
+      { body: "Spend is concentrated.", sourceId: spend, sourceName: "Spend table", score: 0.9, chunkIndex: 0 },
+      { body: "The memo agrees.", sourceId: memo, sourceName: "Vendor memo", score: 0.8, chunkIndex: 0 },
+    ];
+
+    const written = recordCites(ctx, {
+      threadId,
+      sourceIds: citedSources("Concentration is high [1]; the memo agrees [2].", chunks),
+    });
+    expect(written).toBe(2);
+
+    const graph = getGraph(ctx, { limit: 50 });
+    const cites = graph.edges
+      .filter((edge) => edge.kind === "cites")
+      .sort((a, b) => a.from.localeCompare(b.from));
+    const expected = [
+      { from: spend, to: threadId, kind: "cites" as const, weight: 1 },
+      { from: memo, to: threadId, kind: "cites" as const, weight: 1 },
+    ].sort((a, b) => a.from.localeCompare(b.from));
+    expect(cites).toEqual(expected);
+    // A citation is the reply's own signal; a `retrieved` edge is what was merely offered.
+    expect(graph.edges.some((edge) => edge.kind === "retrieved")).toBe(false);
+    // Both ends of every edge are drawable: the projection writes the nodes it points at.
+    const ids = new Set(graph.nodes.map((node) => node.id));
+    expect([...ids].filter((id) => id === spend || id === memo || id === threadId)).toHaveLength(3);
+    expect(graph.nodes.find((node) => node.id === spend)?.label).toBe("Spend table");
+  });
+
+  it("counts one cites edge per source per reply: a second reply raises the weight", () => {
+    const ctx = tenant();
+    const sourceId = crypto.randomUUID();
+    const threadId = crypto.randomUUID();
+    seedSource(ctx, sourceId, "Spend table");
+
+    recordCites(ctx, { threadId, sourceIds: [sourceId] });
+    // Naming the same source twice in one reply is one citation; the row aggregates by reply.
+    recordCites(ctx, { threadId, sourceIds: [sourceId, sourceId] });
+
+    const edges = getGraph(ctx, { limit: 50 }).edges.filter((edge) => edge.kind === "cites");
+    expect(edges).toEqual([{ from: sourceId, to: threadId, kind: "cites", weight: 2 }]);
+  });
+
+  it("keeps cites and retrieved as separate rows for the same source -> thread pair", () => {
+    const ctx = tenant();
+    const sourceId = crypto.randomUUID();
+    const threadId = crypto.randomUUID();
+    seedSource(ctx, sourceId, "Spend table");
+    recordRetrieval(ctx, sourceId, threadId);
+    projectRetrievalsToGraph(ctx, [sourceId]);
+    recordCites(ctx, { threadId, sourceIds: [sourceId] });
+
+    const edges = getGraph(ctx, { limit: 50 })
+      .edges.filter((edge) => edge.from === sourceId && edge.to === threadId)
+      .sort((a, b) => a.kind.localeCompare(b.kind));
+    expect(edges).toEqual([
+      { from: sourceId, to: threadId, kind: "cites", weight: 1 },
+      { from: sourceId, to: threadId, kind: "retrieved", weight: 1 },
+    ]);
+  });
+
+  it("writes nothing for a reply that cited nothing and never throws", () => {
+    const ctx = tenant();
+    const threadId = crypto.randomUUID();
+    const before = graphCounts(ctx);
+    expect(recordCites(ctx, { threadId, sourceIds: [] })).toBe(0);
+    expect(graphCounts(ctx)).toEqual(before);
+
+    // A cited source can be deleted between injection and the reply landing; that must not crash a run.
+    expect(() => recordCites(tenant(), { threadId, sourceIds: [crypto.randomUUID()] })).not.toThrow();
   });
 });

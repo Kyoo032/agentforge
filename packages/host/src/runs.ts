@@ -28,6 +28,8 @@ import {
 import { ApiError } from "@agentforge/core";
 import { agentService } from "./tenant";
 import { knowledgeInjection } from "./knowledge";
+import { citedSources } from "./knowledge-cites";
+import { recordCites } from "./knowledge-graph";
 import { recordRetrievals, recordsRetrievals } from "./knowledge-retrievals";
 import { ingestWorkSource } from "./knowledge-ingest";
 import { chatWorkCard } from "./work-cards";
@@ -350,6 +352,13 @@ export async function* startModalityRun(options: {
           backend: knowledge.backend,
           chunks: knowledge.chunks,
         });
+        // The Cited edge of the loop: what the reply itself pointed at with its `[n]` markers, as
+        // opposed to what it was offered above. Same once-per-completed-turn discipline, and just
+        // as unable to fail the run — an empty citation set writes nothing.
+        recordCites(options.tenant, {
+          threadId: thread.id,
+          sourceIds: citedSources(assistantText, knowledge.chunks),
+        });
       }
       if (finished && assistantText.trim()) {
         // Fire-and-forget: indexing must not delay stream end. One card per thread, latest exchange only.
@@ -388,6 +397,12 @@ export async function* startModalityRun(options: {
             runId,
             backend: knowledge.backend,
             chunks: knowledge.chunks,
+          });
+          // A run that broke mid-stream but still saved partial text was given the same chunks and
+          // may cite the same sources; its Cited edge is counted here or not at all.
+          recordCites(options.tenant, {
+            threadId: thread.id,
+            sourceIds: citedSources(assistantText, knowledge.chunks),
           });
         }
       }

@@ -6,10 +6,12 @@ import { sanitizeSourceName } from "./knowledge-text";
 /**
  * The Graph stage of the knowledge loop: topics, sources and threads, and the edges between them.
  *
- * Both projections are *recomputed* from their system of record — the knowledge map blob for
+ * The two projections are *recomputed* from their system of record — the knowledge map blob for
  * `covers`, `knowledge_retrievals` for `retrieved` — so they are idempotent by construction and the
  * edge table stays aggregated (one row per pair, `weight` carries the count) instead of per event.
- * Nothing here is on a critical path; every entry point is safe to call and cheap to skip.
+ * `cites` is the one edge with no event table behind it: a citation exists only in the reply text,
+ * so `recordCites` adds one to its edge per citing turn. Nothing here is on a critical path; every
+ * entry point is safe to call and cheap to skip.
  */
 
 export type GraphNodeKind = "topic" | "source" | "thread";
@@ -201,6 +203,61 @@ export function projectRetrievalsToGraph(
       `knowledge-graph: retrieval projection skipped (${error instanceof Error ? error.message.slice(0, 120) : "error"})`,
     );
     return { nodes: 0, edges: 0 };
+  }
+}
+
+/**
+ * `cites` edges (source → thread) for one completed Chat reply.
+ *
+ * The `[n]` markers are the only signal that a chunk was *used* rather than merely offered, and the
+ * plan records them separately from `retrieved` for exactly that reason. There is no event table
+ * behind this edge — a citation exists only in the reply text, which is never re-scanned — so the
+ * aggregation happens here: each call adds 1 to the stored weight of every source it names. Call it
+ * exactly once per completed turn (`runs.ts` does, next to `recordRetrievals`); a reply naming three
+ * sources adds one to each of them, not three to one. Never throws: the reply is already on screen.
+ */
+const UPSERT_CITE = `INSERT INTO knowledge_graph_edges (workspace_id, from_id, to_id, kind, weight, updated_at)
+  VALUES (?, ?, ?, 'cites', 1, ?)
+  ON CONFLICT(workspace_id, from_id, to_id, kind) DO UPDATE SET
+    weight = weight + 1,
+    updated_at = excluded.updated_at`;
+
+export type CiteInput = {
+  /** The Chat thread the reply belongs to. */
+  threadId: string;
+  /** Source ids the reply cited, from `citedSources` / `parseCiteMarkers` in `knowledge-cites`. */
+  sourceIds: readonly string[];
+};
+
+export function recordCites(tenant: TenantContext, cite: CiteInput): number {
+  const sourceIds = [...new Set(cite.sourceIds)].filter((id) => id.length > 0);
+  if (!cite.threadId || sourceIds.length === 0) {
+    return 0;
+  }
+  try {
+    const updatedAt = Date.now();
+    const names = sourceLabels(tenant.workspaceId, sourceIds);
+    const titles = threadLabels(tenant.workspaceId, [cite.threadId]);
+    // The nodes are written first so the edge is always drawable (`getGraph` only returns edges
+    // whose ends are in the node set). Missing rows fall back to the id, like the retrieval
+    // projection: the graph is a view, never the system of record.
+    upsertNodes(tenant, [
+      ...sourceIds.map((id): GraphNodeInput => ({ id, kind: "source", label: names.get(id) ?? id })),
+      { id: cite.threadId, kind: "thread", label: titles.get(cite.threadId) ?? cite.threadId },
+    ]);
+    const statement = sql.prepare(UPSERT_CITE);
+    const tx = sql.transaction(() => {
+      for (const id of sourceIds) {
+        statement.run(tenant.workspaceId, id, cite.threadId, updatedAt);
+      }
+    });
+    tx.immediate();
+    return sourceIds.length;
+  } catch (error) {
+    console.warn(
+      `knowledge-graph: cites not recorded (${error instanceof Error ? error.message.slice(0, 120) : "error"})`,
+    );
+    return 0;
   }
 }
 

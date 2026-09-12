@@ -55,8 +55,9 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 - [Market](./market.md) — watchlist ≤15 tickers → briefing → guarded brief + DOCX, disclaimer always, generate 503 without a key. Default has the tab.
 - [Legal](./legal.md) — .docx matter review with a verify/edit loop; uploads and roles without a key, run 503 without one. Default and the Legal preset have the tab.
 - [Knowledge](./knowledge.md) — Account-rail Soul / Memory / Sources / Map + choosable embedding/brain/verifier; Chat injects RAG retrieve. Not a product mode.
+- [Knowledge phases](./knowledge-phases.md) — **Cloud testing path** for builtin Phases 0–4 (Vitest + stub webdev). No WeKnora sidecar. Live `[n]` cites are Windows-only.
 - [Knowledge ingest loop](./knowledge-ingest.md) — every finished Chat turn / job writes a text work card (pointer, not bytes); `knowledge-loop` chart on Sources; Chat skips its own card; example clips never ingest.
-- [Knowledge backend](./knowledge-backend.md) — `knowledge-backend` card: built-in vs bundled WeKnora sidecar, degraded mode, outbox, re-index. Drive it on the isolated :3100 instance only.
+- [Knowledge graph](./knowledge-graph.md) — Phase 4 builtin: completed Chat replies with `[n]` markers add `cites` edges; one-hop `covers` expansion is behind `knowledge.graphExpand` (off in Chat); panel is the existing Phase 2 base. Drive on webdev :3000.
 - [Images](./images.md) — studio shell on Default; needs-key without a gateway key.
 - [Videos](./videos.md) — studio shell and `videos-studio-needs-key` without a key.
 - [Edit](./edit.md) — CapCut-style timeline + agent panel (`mode-edit`). Loop 0 harness (fixtures, doctor, stub S1–S10); studio ships in Phase 1.

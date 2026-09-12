@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildGarbagePdf, buildTextPdf } from "./__fixtures__/build-pdf";
+import { liveWorkers, waitUntil } from "./__fixtures__/worker-count";
 import { PdfExtractError, extractPdfText, pdfPageMarker, readPages } from "./index";
 
 const PLANTED = "ZORBLAX-7719-PLANTED";
@@ -94,5 +95,18 @@ describe("extractPdfText", () => {
     const error = await extractPdfText(threePagePdf(), { timeoutMs: 1 }).catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(PdfExtractError);
     expect((error as PdfExtractError).code).toBe("timeout");
+  });
+
+  it("runs the parse on a worker thread and releases it when done", async () => {
+    const baseline = liveWorkers();
+    const pages = Array.from({ length: 300 }, (_, index) => `page ${index + 1} body text`);
+    const pending = extractPdfText(buildTextPdf(pages));
+    const spawned = await waitUntil(() => liveWorkers() > baseline, 2_000);
+    expect(spawned).toBe(true);
+    const result = await pending;
+    expect(result.pages).toBe(300);
+    expect(result.truncated).toBe(false);
+    expect(result.text).toContain("page 300 body text");
+    expect(await waitUntil(() => liveWorkers() <= baseline, 3_000)).toBe(true);
   });
 });

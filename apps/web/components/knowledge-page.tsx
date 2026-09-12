@@ -2,12 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { FormattedText } from "@/components/formatted-text";
-import { KnowledgeBackendCard } from "@/components/knowledge-backend-card";
 import { KnowledgeGraphPanel } from "@/components/knowledge-graph-panel";
 import { KnowledgeLoop } from "@/components/knowledge-loop";
 import { ModelSelect } from "@/components/model-select";
 import { apiFetch } from "@/lib/api-client";
-import { type KnowledgeBackendState, normalizeBackend } from "@/lib/knowledge-backend";
 import { useWorkspaceScope } from "@/lib/workspace-scope";
 
 type KnowledgeTab = "sources" | "soul" | "memory" | "map";
@@ -147,7 +145,6 @@ export function KnowledgePage() {
   const [retrievals, setRetrievals] = useState(0);
   const [graphCounts, setGraphCounts] = useState<GraphCounts | null>(null);
   const [verified, setVerified] = useState<VerifiedCheck | null>(null);
-  const [backend, setBackend] = useState<KnowledgeBackendState | null>(null);
 
   async function reload() {
     const [knowledgeRes, modelsRes] = await Promise.all([apiFetch("/api/v1/knowledge"), apiFetch("/api/v1/models")]);
@@ -162,7 +159,6 @@ export function KnowledgePage() {
     setRetrievals(asCount(payload.retrievals));
     setGraphCounts(asGraphCounts(payload.graph));
     setVerified(asVerified(payload.verified));
-    setBackend(normalizeBackend(payload.backend));
     if (payload.map) {
       setKnowledgeMap(payload.map as KnowledgeMap);
     }
@@ -361,15 +357,6 @@ export function KnowledgePage() {
           </label>
         </div>
       </section>
-
-      <KnowledgeBackendCard
-        backend={backend}
-        onReload={() =>
-          reload().catch((err: unknown) => {
-            setError(err instanceof Error ? err.message : "Could not load knowledge");
-          })
-        }
-      />
 
       {tab === "sources" ? (
         <div className="flex flex-col gap-4" data-testid="knowledge-sources">

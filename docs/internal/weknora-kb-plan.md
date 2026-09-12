@@ -1,6 +1,6 @@
 # WeKnora as the knowledge-base backend — evaluation and plan
 
-Date 2026-09-10 · Status: approved by owner 2026-09-10; Phases 0–3 code landed by 2026-09-11 (see Progress log); Phase 3 runs against fakes until the sidecar binary is built — build lane blocked on private-repo Actions (owner decision pending); Phase 4 not started · Scope: knowledge subsystem only.
+Date 2026-09-10 · Status: Phase 3 sidecar **stripped 2026-09-12** (binary never built; private-repo Actions blocked). Builtin Phases 0–2 + Phase 4 (`cites` / expand-off / reindex / PDF worker) ship. **Testing path for Cloud:** [`.cursor/skills/verify-agentforge/features/knowledge-phases.md`](../../.cursor/skills/verify-agentforge/features/knowledge-phases.md). Scope: knowledge subsystem only.
 Evaluated: Tencent/WeKnora v0.8.0 (main tip 5db13a1), MIT. Owner asked for it; this is the engineering shape.
 
 ## What WeKnora gives us (lite mode)
@@ -304,4 +304,23 @@ Each phase has the same six blocks: Goal · Work · Loop edge · Graph · Verify
 
 **Open for the spikes (need the binary):** size / RSS / cold start; offline proof with egress blocked; end-to-end auto-setup → ingest → hybrid-search with a Toko Token model row; `AGENTFORGE_WEKNORA_BIN` integration run on Windows and mac.
 
-Bottom line: Phases 0–2 are worth doing regardless (~2 weeks) and already put Graph and Verified into the loop. WeKnora is adopted as a pluggable backend in Phase 3, gated on spikes 1–4, and is never the only path to a working knowledge base. Phase 4 closes the loop by letting the graph feed retrieval and retrieval feed the graph.
+### 2026-09-12 — Phase 4 builtin cites + expand (no sidecar)
+
+**Unit (parent re-ran):** host knowledge + weknora suites **122 passed / 3 skipped** (integration still needs `AGENTFORGE_WEKNORA_BIN`). Not driven on :3100 this pass. Chat path does not pass `expand: true`.
+
+**Landed:**
+- `knowledge-cites.ts` — `[n]` parser skips fenced code; `runs.ts` writes `cites` edges after a completed turn.
+- `knowledge-expand.ts` — one hop over `covers`, cap 2, score 0 extras labelled `via: graph`; wired in `retrieveChunks` behind `options.expand` (default false).
+- WeKnora client `wikiGraph` (GET, DTO-guarded) + `wikiIndex` (POST). Upstream v0.8.0 has **no POST /wiki/index** — 404 is surfaced, overlay stays off.
+
+**Still scaffolding / blocked:** `ann.ts` Spike 5 (`annAvailable()` false, sqlite-vec not a dep); PDF `worker_threads` TODO; no Go/gcc on this machine; private-repo Actions still locked; `resources/weknora/` README-only.
+
+### 2026-09-12 — Phase 3 sidecar stripped; builtin-only product
+
+**Why:** the lite binary was never built (private-repo Actions locked). Shipping a flag and empty `resources/weknora/` would lie in the installer. Owner cut is builtin Phases 0–2 + 4.
+
+**Removed:** `packages/host/src/knowledge/backends/weknora/**`, `scripts/stage-weknora.mjs`, `.github/workflows/weknora-lite.yml`, desktop `extraResources` weknora, web backend card, `features/knowledge-backend.md`. Registry always returns builtin. `PUT /api/v1/knowledge/backend` `{id:"weknora"}` → 400.
+
+**Kept / added:** Phase 4 cites / expand / reindex; PDF `worker_threads`; Cloud testing path `.cursor/skills/verify-agentforge/features/knowledge-phases.md`.
+
+Bottom line: Phases 0–2 + 4 are the product Knowledge Base. WeKnora stays an evaluation note in this file, not a runtime. Wiki overlay and sqlite-vec ANN remain future spikes, not 0.14.25.

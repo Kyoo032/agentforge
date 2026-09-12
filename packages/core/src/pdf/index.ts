@@ -1,24 +1,29 @@
 /**
  * Offline PDF text extraction.
  *
- * pdfjs-dist is pure JavaScript: no native module, no worker download, no network at runtime. Workers,
- * `eval`, font faces and remote font data are all switched off below so a parse is a bounded, local,
- * CPU-only operation. Every call is capped three ways — bytes, wall clock, page count — because the
- * bytes come from an upload.
+ * pdfjs-dist is pure JavaScript: no native module, no worker download, no network at runtime.
+ * Workers, `eval`, font faces and remote font data are all switched off inside the parse so it is a
+ * bounded, local, CPU-only operation. Every call is capped three ways — bytes, wall clock, page
+ * count — because the bytes come from an upload.
  *
  * Page markers (`<!-- page N -->`) stay in the returned text so a later citation can name the page it
  * came from; the knowledge chunker treats them as ordinary text.
  *
- * Limits of the deadline: with workers disabled pdfjs runs its "fake worker" on this thread, so the
- * timeout below can only fire between awaits. A parse that hangs inside one synchronous stretch of
- * pdfjs cannot be preempted from here — the event loop never gets back to the timer. Every
- * `await`-able step (document load, page load, text content) is wrapped so the common cases are
- * bounded, and the caller still gets a `timeout` rather than an open-ended wait.
+ * Isolation: the parse runs in a fresh worker thread (`./worker.ts` + `./worker-source.ts`) and the
+ * deadline lives in the parent, so a hang inside one synchronous stretch of pdfjs is still killable —
+ * `terminate()` stops the worker mid-instruction at the deadline instead of waiting for an event loop
+ * the parse is hogging. The worker checks the same deadline between pages too, so a normal overrun
+ * exits on its own before the parent's kill lands.
  *
- * TODO(phase-2): worker_threads isolation with hard terminate, so a synchronous hang is killable.
+ * Fallback: when no pdfjs module exists on disk for a worker to import (the packaged host bundle
+ * inlines it), extraction falls back to reading the document on the calling thread — the
+ * pre-isolation behaviour, bounded between awaits and killable only there. Tests, dev and any host
+ * that ships pdfjs on disk get the worker.
  */
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { PdfExtractError } from "./errors";
+import { pdfjsEntryUrl, runWorkerTask } from "./worker";
+import { PDF_WORKER_SOURCE } from "./worker-source";
 
 export { PdfExtractError, isPdfExtractError, type PdfExtractErrorCode } from "./errors";
 
@@ -111,7 +116,8 @@ type PdfPage = {
 
 /**
  * Reads every page under one shared deadline. Exported so a test can prove that a page load which
- * never resolves rejects with `timeout` instead of hanging the upload.
+ * never resolves rejects with `timeout` instead of hanging the upload. Also the engine of the
+ * fallback path below.
  */
 export async function readPages(
   doc: { numPages: number; getPage: (n: number) => Promise<unknown> },
@@ -134,8 +140,31 @@ export async function readPages(
 export async function extractPdfText(bytes: Uint8Array, opts: PdfExtractOptions = {}): Promise<PdfExtractResult> {
   const maxBytes = opts.maxBytes ?? PDF_MAX_BYTES;
   const maxPages = opts.maxPages ?? PDF_MAX_PAGES;
-  const deadline = Date.now() + (opts.timeoutMs ?? PDF_TIMEOUT_MS);
+  const timeoutMs = opts.timeoutMs ?? PDF_TIMEOUT_MS;
   const data = checkedCopy(bytes, maxBytes);
+  const deadline = Date.now() + timeoutMs;
+  const moduleUrl = pdfjsEntryUrl();
+  if (moduleUrl) {
+    // Fresh worker per call: nothing is shared between uploads, and a worker that had to be killed
+    // can never be handed the next parse.
+    return (await runWorkerTask({
+      source: PDF_WORKER_SOURCE,
+      workerData: { moduleUrl, data, maxPages, deadline, minTextChars: PDF_MIN_TEXT_CHARS },
+      timeoutMs,
+      // The private copy is transferred rather than cloned: pdfjs owns it from here and this thread
+      // keeps no handle on it. `checkedCopy` already saw to it that the caller's array is untouched.
+      transferList: [data.buffer as ArrayBuffer],
+    })) as PdfExtractResult;
+  }
+  return readOnThisThread(data, maxPages, deadline);
+}
+
+/**
+ * The pre-isolation pipeline, kept as the fallback for hosts where pdfjs is not on disk to import
+ * (the packaged bundle inlines it). Bounded between awaits: a synchronous hang inside pdfjs cannot
+ * be preempted from this thread.
+ */
+async function readOnThisThread(data: Uint8Array, maxPages: number, deadline: number): Promise<PdfExtractResult> {
   const task = getDocument({
     data,
     // No fetch for worker/CMap data, no font data URL: nothing here may touch the network.

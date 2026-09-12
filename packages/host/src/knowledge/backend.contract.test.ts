@@ -8,25 +8,14 @@ import { addPastedSource, deleteSource, knowledgeInjection, listSources, retriev
 import { upsertWorkSource } from "../knowledge-ingest";
 import { chatWorkCard } from "../work-cards";
 import { getKnowledgeBackend } from "./registry";
-import { startWeKnoraHarness } from "./backends/weknora/__fixtures__/harness";
 
 /**
- * The shared backend contract. Every assertion below is about behaviour the *caller* depends on —
- * a planted fact comes back, it knows which source it came from, a delete really forgets, one
- * origin means one row — and it has to hold for whichever engine is answering.
- *
- * Phase 0 had one implementation; Phase 3 adds WeKnora, running against a fake sidecar so the suite
- * still passes on a machine with no Go build. The gated `weknora.integration.test.ts` runs the same
- * ground against a real binary.
+ * Shared backend contract for the builtin engine.
  */
 
-/** Teardown for one backend's world: env, settings, and any fake server it started. */
 type Teardown = () => Promise<void>;
 
-const BACKENDS: Array<{ id: string; setup: () => Promise<Teardown> }> = [
-  { id: "builtin", setup: setupBuiltin },
-  { id: "weknora", setup: setupWeknora },
-];
+const BACKENDS: Array<{ id: string; setup: () => Promise<Teardown> }> = [{ id: "builtin", setup: setupBuiltin }];
 
 async function setupBuiltin(): Promise<Teardown> {
   const previousRuntime = process.env.AGENTFORGE_RUNTIME;
@@ -39,11 +28,6 @@ async function setupBuiltin(): Promise<Teardown> {
     restore("AGENTFORGE_SETTINGS_PATH", previousSettings);
     rmSync(settingsDir, { recursive: true, force: true });
   };
-}
-
-async function setupWeknora(): Promise<Teardown> {
-  const harness = await startWeKnoraHarness();
-  return harness.teardown;
 }
 
 function restore(name: string, value: string | undefined): void {
@@ -97,7 +81,7 @@ describe.each(BACKENDS)("knowledge backend contract: $id", ({ id, setup }) => {
     expect(source.status).toBe("Indexed");
 
     const result = await retrieveChunks(ctx, token, 4);
-    expect(["fts", "rag", "hybrid", "weknora"]).toContain(result.mode);
+    expect(["fts", "rag", "hybrid"]).toContain(result.mode);
     expect(result.backend).toBe(id);
     expect(result.chunks.length).toBeGreaterThan(0);
     const hit = result.chunks.find((chunk) => chunk.body.includes(token));
@@ -149,7 +133,7 @@ describe.each(BACKENDS)("knowledge backend contract: $id", ({ id, setup }) => {
     expect(injected.chunks.length).toBeGreaterThan(0);
     expect(injected.backend).toBe(id);
     const sourcesPart = injected.parts.find((part) => part.label === "Sources");
-    expect(sourcesPart?.detail).toMatch(/^\d+ chunks · (rag|fts|hybrid|weknora)$/);
+    expect(sourcesPart?.detail).toMatch(/^\d+ chunks · (rag|fts|hybrid)$/);
   }, 30_000);
 });
 

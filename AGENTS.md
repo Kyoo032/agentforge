@@ -145,6 +145,7 @@ AGENTFORGE_RUNTIME=stub npx playwright test
 ```
 
 - Run Vitest unit tests (`pnpm test` / package `vitest run`).
+- **Knowledge Base (builtin only).** Prove Phases 0–4 with [`.cursor/skills/verify-agentforge/features/knowledge-phases.md`](.cursor/skills/verify-agentforge/features/knowledge-phases.md). No WeKnora sidecar, no `AGENTFORGE_WEKNORA_BIN`, no `:3100`. Stub Chat injects chunks but cannot write `cites`; skip live cites on this VM.
 - Browser / computer-use against the local **webdev** app when those tools are available. Bind is `127.0.0.1:3000`. Packaged desktop is not on this VM.
 - Read GitHub with `gh` (PRs, Actions logs). Do not use `gh` to create PRs — use the Cursor PR tool.
 
