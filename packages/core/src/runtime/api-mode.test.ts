@@ -9,7 +9,7 @@ import {
 
 describe("usesResponsesApi", () => {
   it("matches Hermes/OpenCode: GPT-5+ except gpt-5-mini, plus o-series", () => {
-    expect(usesResponsesApi("gpt-5.6-sol")).toBe(true);
+    expect(usesResponsesApi("gpt-6-astra")).toBe(true);
     expect(usesResponsesApi("gpt-5.6-luna")).toBe(true);
     expect(usesResponsesApi("openai/gpt-5")).toBe(true);
     expect(usesResponsesApi("gpt-5-mini")).toBe(false);
@@ -90,7 +90,7 @@ describe("openaiCompatProviderOptions", () => {
     });
   });
 
-  it("maps ultra to xhigh only on official OpenAI Responses, not max", () => {
+  it("maps ultra to max on official OpenAI Completions and Responses, not xhigh", () => {
     expect(
       openaiCompatProviderOptions({
         responses: true,
@@ -100,9 +100,17 @@ describe("openaiCompatProviderOptions", () => {
     ).toEqual({
       openai: {
         strictSchemas: false,
-        reasoningEffort: "xhigh",
+        reasoningEffort: "max",
         reasoningSummary: "auto",
       },
+    });
+    expect(
+      openaiCompatProviderOptions({
+        officialOpenAI: true,
+        reasoningEffort: "ultra",
+      }),
+    ).toEqual({
+      openai: { reasoningEffort: "max" },
     });
     expect(
       openaiCompatProviderOptions({

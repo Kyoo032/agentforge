@@ -1,12 +1,28 @@
 import { ApiError } from "../errors";
 
+/** Host ladder including snap-only `minimal`. Do not alias xhigh/max → ultra. */
+export const REASONING_LADDER = ["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"] as const;
+export type ReasoningEffort = (typeof REASONING_LADDER)[number];
+
+/** Chat Thinking options. `minimal` is internal snap-only. */
 export const REASONING_EFFORTS = ["none", "low", "medium", "high", "xhigh", "max", "ultra"] as const;
-export type ReasoningEffort = (typeof REASONING_EFFORTS)[number];
+export type ChatReasoningEffort = (typeof REASONING_EFFORTS)[number];
 
-const EFFORT_LIST = "none, low, medium, high, xhigh, max, or ultra";
+const EFFORT_LIST = "none, minimal, low, medium, high, xhigh, max, or ultra";
 
-/** Chat Thinking labels. Values on the wire stay the kernel strings. */
-export const THINKING_LABELS: Record<ReasoningEffort, string> = {
+const LADDER_INDEX: Record<ReasoningEffort, number> = {
+  none: 0,
+  minimal: 1,
+  low: 2,
+  medium: 3,
+  high: 4,
+  xhigh: 5,
+  max: 6,
+  ultra: 7,
+};
+
+/** Chat Thinking labels. Picker keeps all seven; the host snaps silently per model. */
+export const THINKING_LABELS: Record<ChatReasoningEffort, string> = {
   none: "Off",
   low: "Light",
   medium: "Normal",
@@ -16,13 +32,12 @@ export const THINKING_LABELS: Record<ReasoningEffort, string> = {
   ultra: "Ultra",
 };
 
-const EFFORTS = new Set<string>(REASONING_EFFORTS);
+const EFFORTS = new Set<string>(REASONING_LADDER);
 
-/** UI words only. Kernel members `xhigh`, `max`, and `ultra` are not aliases. */
+/** UI words only. Kernel members `minimal`, `xhigh`, `max`, and `ultra` are not aliases. */
 const ALIASES: Record<string, ReasoningEffort> = {
   off: "none",
   light: "low",
-  minimal: "low",
   normal: "medium",
   med: "medium",
   deep: "high",
@@ -77,29 +92,63 @@ export function readOptionalReasoningEffort(body: unknown): ReasoningEffort {
   return "medium";
 }
 
-/** GPT-5.6 family hangs on Toko Token when reasoning_effort is none. */
+/**
+ * Closest allowed effort on the ladder. Tie → lower (cheaper).
+ * Never upgrades Off to a thinking-on level when `none` is allowed.
+ */
+export function closestReasoningEffort(
+  requested: ReasoningEffort,
+  allowed: readonly ReasoningEffort[],
+): ReasoningEffort {
+  if (allowed.length === 0) {
+    return requested;
+  }
+  if (allowed.includes(requested)) {
+    return requested;
+  }
+  if (requested === "none" && allowed.includes("none")) {
+    return "none";
+  }
+  const req = LADDER_INDEX[requested];
+  const first = allowed[0];
+  if (first === undefined) {
+    return requested;
+  }
+  let best = first;
+  let bestDist = Math.abs(LADDER_INDEX[best] - req);
+  for (const candidate of allowed) {
+    const dist = Math.abs(LADDER_INDEX[candidate] - req);
+    if (dist < bestDist || (dist === bestDist && LADDER_INDEX[candidate] < LADDER_INDEX[best])) {
+      best = candidate;
+      bestDist = dist;
+    }
+  }
+  return best;
+}
+
+/** GPT-6 does not support `none`. Per-model allowlists live in `effort-allowlist.ts`. */
 export function coerceReasoningEffortForModel(modelId: string, effort: ReasoningEffort): ReasoningEffort {
   if (effort !== "none") {
     return effort;
   }
   const id = modelId.trim().toLowerCase();
   const leaf = id.includes("/") ? id.slice(id.lastIndexOf("/") + 1) : id;
-  if (/^gpt-5\.6|luna|sol|terra/.test(leaf) || /gpt-5\.6/.test(id)) {
+  if (/^gpt-6/.test(leaf) || leaf.includes("astra") || /gpt-6/.test(id)) {
     return "low";
   }
   return effort;
 }
 
 /**
- * Completions send the kernel string as-is (including xhigh, max, ultra).
- * Official OpenAI Responses still maps ultra → xhigh. `max` is never remapped.
+ * Completions send the kernel string as-is after snap.
+ * Official OpenAI never receives `ultra` — Codex maps it to `max`.
  */
 export function toWireReasoningEffort(
   effort: ReasoningEffort,
   options: { officialOpenAI?: boolean; responses?: boolean } = {},
 ): string {
-  if (effort === "ultra" && options.officialOpenAI && options.responses) {
-    return "xhigh";
+  if (effort === "ultra" && options.officialOpenAI) {
+    return "max";
   }
   return effort;
 }

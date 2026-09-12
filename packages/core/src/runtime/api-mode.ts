@@ -6,9 +6,9 @@ import { toWireReasoningEffort, type ReasoningEffort } from "../models/reasoning
  * for GPT-5 / o-series). Some OpenAI-compatible gateways 400 GPT-5.6 + tools on
  * /v1/chat/completions and tell the client to use /v1/responses.
  *
- * Chat send-time `wire` (`auto` | completions | responses | messages) lives in
- * `chat-wire.ts`. `preferredOpenAiWire` is GPT-5 / o-series → Responses. Auto also
- * routes Claude 5 / Opus 4.7 / 4.8 to Messages.
+ * Chat send-time `wire` (`auto` | completions | responses | messages | generateContent)
+ * lives in `chat-wire.ts`. `preferredOpenAiWire` is GPT-5 / GPT-6 / o-series → Responses.
+ * Auto also routes Claude 5 / Opus 4.7 / 4.8 / Sonnet 4.6 to Messages and Gemini chat to generateContent.
  */
 
 export type OpenAiWire = "responses" | "chat_completions";

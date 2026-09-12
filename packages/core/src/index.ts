@@ -208,14 +208,17 @@ export {
 } from "./models/catalog";
 export type { ChatModel, ModelProvider } from "./models/catalog";
 export {
+  REASONING_LADDER,
   REASONING_EFFORTS,
   THINKING_LABELS,
   isReasoningEffort,
   readOptionalReasoningEffort,
   resolveRequestReasoningEffort,
+  closestReasoningEffort,
   coerceReasoningEffortForModel,
+  toWireReasoningEffort,
 } from "./models/reasoning-effort";
-export type { ReasoningEffort } from "./models/reasoning-effort";
+export type { ReasoningEffort, ChatReasoningEffort } from "./models/reasoning-effort";
 export {
   CHAT_WIRES,
   CHAT_WIRE_LABELS,
@@ -225,14 +228,28 @@ export {
   readOptionalChatWire,
   resolveChatWire,
   usesAnthropicMessages,
+  usesGeminiGenerateContent,
   chatWireHeaders,
   isAnthropicMessagesUrl,
+  isGeminiGenerateContentUrl,
+  geminiGenerateContentBaseUrl,
   isMissingWireEndpoint,
   shouldFallbackFromMessages,
   toAnthropicOutputEffort,
   applyAnthropicMessagesBody,
+  applyGeminiGenerateContentBody,
 } from "./runtime/chat-wire";
 export type { ChatWire, ResolvedChatWire, AnthropicOutputEffort } from "./runtime/chat-wire";
+export {
+  snapReasoningEffort,
+  allowedReasoningEfforts,
+  TOKO_COMPLETIONS_EFFORTS,
+  OFFICIAL_OPENAI_EFFORTS,
+  GPT_56_EFFORTS,
+  GPT_6_EFFORTS,
+  ANTHROPIC_MESSAGES_EFFORTS,
+  GEMINI_EFFORTS,
+} from "./runtime/effort-allowlist";
 export {
   DEFAULT_FALLBACK_CONTEXT,
   extractContextLength,

@@ -1,4 +1,5 @@
 import { ApiError } from "../errors";
+import { mediaKind } from "../models/media-kind";
 import { bareModelId } from "../models/request-constraints";
 import type { ReasoningEffort } from "../models/reasoning-effort";
 import { usesResponsesApi } from "./api-mode";
@@ -7,7 +8,13 @@ import { usesResponsesApi } from "./api-mode";
  * Send-time Chat wire on the saved Endpoint URL. Probe stays GET /v1/models.
  * Catalog id does not lock the POST path.
  */
-export const CHAT_WIRES = ["auto", "chat_completions", "responses", "anthropic_messages"] as const;
+export const CHAT_WIRES = [
+  "auto",
+  "chat_completions",
+  "responses",
+  "anthropic_messages",
+  "google_generate_content",
+] as const;
 export type ChatWire = (typeof CHAT_WIRES)[number];
 export type ResolvedChatWire = Exclude<ChatWire, "auto">;
 
@@ -16,15 +23,26 @@ export const CHAT_WIRE_LABELS: Record<ChatWire, string> = {
   chat_completions: "Completions",
   responses: "Responses",
   anthropic_messages: "Messages",
+  google_generate_content: "GenerateContent",
 };
 
 const WIRES = new Set<string>(CHAT_WIRES);
+const WIRE_LIST = "auto, chat_completions, responses, anthropic_messages, or google_generate_content";
 
 export const ANTHROPIC_API_VERSION = "2023-06-01";
 /** Hard cap on thinking + text for Anthropic Messages. */
 export const ANTHROPIC_MESSAGES_MAX_TOKENS = 16_384;
 
-export type AnthropicOutputEffort = Exclude<ReasoningEffort, "none">;
+export type AnthropicOutputEffort = "low" | "medium" | "high" | "xhigh" | "max";
+
+const GEMINI_THINKING_BUDGET: Record<Exclude<ReasoningEffort, "none" | "minimal">, number> = {
+  low: 1024,
+  medium: 4096,
+  high: 8192,
+  xhigh: 8192,
+  max: 8192,
+  ultra: 8192,
+};
 
 export function isChatWire(value: unknown): value is ChatWire {
   return typeof value === "string" && WIRES.has(value);
@@ -39,31 +57,43 @@ export function readOptionalChatWire(body: unknown): ChatWire {
     return "auto";
   }
   if (typeof record.wire !== "string") {
-    throw new ApiError("invalid_request", "wire must be auto, chat_completions, responses, or anthropic_messages", 400);
+    throw new ApiError("invalid_request", `wire must be ${WIRE_LIST}`, 400);
   }
   const normalized = record.wire.trim().toLowerCase();
   if (!isChatWire(normalized)) {
-    throw new ApiError("invalid_request", "wire must be auto, chat_completions, responses, or anthropic_messages", 400);
+    throw new ApiError("invalid_request", `wire must be ${WIRE_LIST}`, 400);
   }
   return normalized;
 }
 
 /**
- * Claude 5 family plus Opus 4.7 / 4.8 → Anthropic Messages.
- * Haiku 4.5 / Sonnet 4.6 and other Claude 4.x stay Completions.
+ * Claude 5 family, Opus 4.7 / 4.8, and Sonnet 4.6 → Anthropic Messages.
+ * Haiku 4.5 stays Completions.
  */
 export function usesAnthropicMessages(modelId: string): boolean {
   const id = bareModelId(modelId);
   if (/^claude-(?:opus|sonnet|haiku|fable)-5(?:$|[^0-9])/.test(id)) {
     return true;
   }
+  if (/^claude-sonnet-4[.-]6(?:$|[^0-9])/.test(id)) {
+    return true;
+  }
   return /^claude-opus-4[.-][78](?:$|[^0-9])/.test(id);
 }
 
+/** Gemini chat ids → generateContent. Image/video Gemini stay job modes. */
+export function usesGeminiGenerateContent(modelId: string): boolean {
+  const id = bareModelId(modelId);
+  if (!id.startsWith("gemini")) {
+    return false;
+  }
+  return mediaKind(id) === "chat";
+}
+
 /**
- * Product Chat always sends `auto`. GPT-5 / o-series → Responses;
- * Claude 5 / Opus 4.7 / 4.8 → Messages; else Completions.
- * Explicit wires stay for host/tests.
+ * Product Chat always sends `auto`. GPT-5 / GPT-6 / o-series → Responses;
+ * Claude 5 / Opus 4.7 / 4.8 / Sonnet 4.6 → Messages; Gemini chat → generateContent;
+ * else Completions.
  */
 export function resolveChatWire(wire: ChatWire | undefined, modelId: string): ResolvedChatWire {
   if (!wire || wire === "auto") {
@@ -72,6 +102,9 @@ export function resolveChatWire(wire: ChatWire | undefined, modelId: string): Re
     }
     if (usesAnthropicMessages(modelId)) {
       return "anthropic_messages";
+    }
+    if (usesGeminiGenerateContent(modelId)) {
+      return "google_generate_content";
     }
     return "chat_completions";
   }
@@ -99,11 +132,24 @@ export function isAnthropicMessagesUrl(url: unknown): boolean {
   return /\/messages(?:\?|$)/.test(value);
 }
 
+export function isGeminiGenerateContentUrl(url: unknown): boolean {
+  return /:generatecontent(?:\?|$)/i.test(String(url)) || /\/v1beta\/models\//i.test(String(url));
+}
+
+/** Saved Endpoint `/v1` → generateContent `/v1beta`. */
+export function geminiGenerateContentBaseUrl(openaiBaseUrl: string): string {
+  const trimmed = openaiBaseUrl.replace(/\/+$/, "");
+  if (/\/v1$/i.test(trimmed)) {
+    return trimmed.replace(/\/v1$/i, "/v1beta");
+  }
+  return `${trimmed}/v1beta`;
+}
+
 /** 404 / unknown-url only. A thinking 400 is not a missing wire. */
 export function isMissingWireEndpoint(message: string): boolean {
   return (
     /(404|not found|unknown url|does not exist|no such endpoint)/i.test(message) ||
-    /invalid url.*(responses|messages|chat\/completions)/i.test(message)
+    /invalid url.*(responses|messages|chat\/completions|generatecontent)/i.test(message)
   );
 }
 
@@ -113,11 +159,17 @@ export function shouldFallbackFromMessages(message: string): boolean {
 
 /**
  * `none` has no effort string — thinking is sent as `{ type: "disabled" }`.
- * Every other kernel string is passed through, including `ultra` (do not remap ultra → max).
+ * Messages have no `ultra` — snap Ultra → max. `minimal` is not an Anthropic effort.
  */
 export function toAnthropicOutputEffort(effort: ReasoningEffort): AnthropicOutputEffort | undefined {
   if (effort === "none") {
     return undefined;
+  }
+  if (effort === "ultra") {
+    return "max";
+  }
+  if (effort === "minimal") {
+    return "low";
   }
   return effort;
 }
@@ -172,5 +224,29 @@ export function applyAnthropicMessagesBody(body: unknown, effort: ReasoningEffor
 
   next.max_tokens = ANTHROPIC_MESSAGES_MAX_TOKENS;
 
+  return next;
+}
+
+/**
+ * Gemini generateContent: Off disables thinking; other levels set thinkingBudget + includeThoughts.
+ * Never `reasoning_effort`.
+ */
+export function applyGeminiGenerateContentBody(body: unknown, effort: ReasoningEffort): unknown {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    return body;
+  }
+  const next: Record<string, unknown> = { ...(body as Record<string, unknown>) };
+  delete next.reasoning_effort;
+  delete next.reasoningEffort;
+  const generation = asRecord(next.generationConfig) ?? asRecord(next.generation_config) ?? {};
+  const thinkingConfig =
+    effort === "none"
+      ? { thinkingBudget: 0, includeThoughts: false }
+      : {
+          thinkingBudget: GEMINI_THINKING_BUDGET[effort === "minimal" ? "low" : effort],
+          includeThoughts: true,
+        };
+  next.generationConfig = { ...generation, thinkingConfig };
+  delete next.generation_config;
   return next;
 }

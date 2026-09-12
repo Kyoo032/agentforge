@@ -1,15 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { ApiError } from "../errors";
 import {
   applyReasoningEffortToChatBody,
+  closestReasoningEffort,
   coerceReasoningEffortForModel,
   isChatCompletionsUrl,
   readOptionalReasoningEffort,
   REASONING_EFFORTS,
+  REASONING_LADDER,
   resolveRequestReasoningEffort,
   THINKING_LABELS,
   toWireReasoningEffort,
 } from "./reasoning-effort";
+import { ApiError } from "../errors";
 
 describe("readOptionalReasoningEffort", () => {
   it("defaults to medium when omitted", () => {
@@ -18,6 +20,7 @@ describe("readOptionalReasoningEffort", () => {
   });
 
   it("maps Chat Thinking labels onto the kernel scale", () => {
+    expect(REASONING_LADDER).toEqual(["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"]);
     expect(REASONING_EFFORTS).toEqual(["none", "low", "medium", "high", "xhigh", "max", "ultra"]);
     expect(THINKING_LABELS).toEqual({
       none: "Off",
@@ -30,15 +33,15 @@ describe("readOptionalReasoningEffort", () => {
     });
   });
 
-  it("reads every kernel string as itself", () => {
+  it("reads every kernel string as itself, including minimal", () => {
     expect(readOptionalReasoningEffort({ reasoningEffort: "none" })).toBe("none");
-    expect(readOptionalReasoningEffort({ reasoningEffort: "low" })).toBe("low");
+    expect(readOptionalReasoningEffort({ reasoningEffort: "minimal" })).toBe("minimal");
     expect(readOptionalReasoningEffort({ reasoningEffort: "xhigh" })).toBe("xhigh");
     expect(readOptionalReasoningEffort({ reasoningEffort: "max" })).toBe("max");
     expect(readOptionalReasoningEffort({ reasoningEffort: "ultra" })).toBe("ultra");
   });
 
-  it("maps UI-word aliases, not max or xhigh", () => {
+  it("maps UI-word aliases, not max, xhigh, or minimal", () => {
     expect(readOptionalReasoningEffort({ reasoningEffort: "light" })).toBe("low");
     expect(readOptionalReasoningEffort({ reasoningEffort: "normal" })).toBe("medium");
     expect(readOptionalReasoningEffort({ reasoningEffort: "deep" })).toBe("high");
@@ -67,18 +70,39 @@ describe("resolveRequestReasoningEffort", () => {
   });
 });
 
+describe("closestReasoningEffort", () => {
+  it("returns an allowed value unchanged", () => {
+    expect(closestReasoningEffort("max", ["none", "low", "max"])).toBe("max");
+  });
+
+  it("picks the nearest ladder neighbor; tie goes lower (cheaper)", () => {
+    expect(closestReasoningEffort("xhigh", ["high", "ultra"])).toBe("high");
+    expect(closestReasoningEffort("medium", ["low", "high"])).toBe("low");
+  });
+
+  it("does not alias max or xhigh to ultra when those are allowed", () => {
+    expect(closestReasoningEffort("max", ["none", "low", "medium", "high", "xhigh", "max", "ultra"])).toBe("max");
+    expect(closestReasoningEffort("xhigh", ["none", "low", "medium", "high", "xhigh", "max", "ultra"])).toBe("xhigh");
+  });
+
+  it("never upgrades Off when none is allowed", () => {
+    expect(closestReasoningEffort("none", ["none", "low", "medium"])).toBe("none");
+  });
+
+  it("lifts Off to the cheapest thinking-on level when none is forbidden", () => {
+    expect(closestReasoningEffort("none", ["low", "medium", "high", "xhigh", "max"])).toBe("low");
+  });
+});
+
 describe("coerceReasoningEffortForModel", () => {
-  it("lifts none to low on GPT-5.6 Luna", () => {
-    expect(coerceReasoningEffortForModel("gpt-5.6-luna", "none")).toBe("low");
-    expect(coerceReasoningEffortForModel("openai/gpt-5.6-luna", "none")).toBe("low");
+  it("lifts none to low on GPT-6", () => {
+    expect(coerceReasoningEffortForModel("gpt-6-astra", "none")).toBe("low");
+    expect(coerceReasoningEffortForModel("openai/gpt-6", "none")).toBe("low");
   });
 
-  it("keeps none on ordinary chat models", () => {
+  it("keeps none on GPT-5.6 Luna and ordinary chat models", () => {
+    expect(coerceReasoningEffortForModel("gpt-5.6-luna", "none")).toBe("none");
     expect(coerceReasoningEffortForModel("deepseek-v4-flash", "none")).toBe("none");
-  });
-
-  it("keeps an explicit low", () => {
-    expect(coerceReasoningEffortForModel("gpt-5.6-luna", "low")).toBe("low");
   });
 });
 
@@ -87,30 +111,24 @@ describe("toWireReasoningEffort", () => {
     expect(toWireReasoningEffort("ultra")).toBe("ultra");
     expect(toWireReasoningEffort("max")).toBe("max");
     expect(toWireReasoningEffort("xhigh")).toBe("xhigh");
-    expect(toWireReasoningEffort("high")).toBe("high");
-    expect(toWireReasoningEffort("ultra", { officialOpenAI: true })).toBe("ultra");
-    expect(toWireReasoningEffort("max", { officialOpenAI: true, responses: true })).toBe("max");
   });
 
-  it("maps ultra to xhigh only on official OpenAI Responses", () => {
-    expect(toWireReasoningEffort("ultra", { officialOpenAI: true, responses: true })).toBe("xhigh");
-    expect(toWireReasoningEffort("ultra", { responses: true })).toBe("ultra");
+  it("maps ultra to max on official OpenAI, never xhigh, and never remaps max", () => {
+    expect(toWireReasoningEffort("ultra", { officialOpenAI: true })).toBe("max");
+    expect(toWireReasoningEffort("ultra", { officialOpenAI: true, responses: true })).toBe("max");
+    expect(toWireReasoningEffort("max", { officialOpenAI: true, responses: true })).toBe("max");
   });
 });
 
 describe("applyReasoningEffortToChatBody", () => {
   it("sets reasoning_effort on a chat body", () => {
-    expect(applyReasoningEffortToChatBody({ model: "claude-opus-5" }, "ultra")).toEqual({
-      model: "claude-opus-5",
+    expect(applyReasoningEffortToChatBody({ model: "kimi-k2.5" }, "ultra")).toEqual({
+      model: "kimi-k2.5",
       reasoning_effort: "ultra",
     });
     expect(applyReasoningEffortToChatBody({ model: "kimi-k2.5" }, "max")).toEqual({
       model: "kimi-k2.5",
       reasoning_effort: "max",
-    });
-    expect(applyReasoningEffortToChatBody({ model: "deepseek-v4-flash" }, "xhigh")).toEqual({
-      model: "deepseek-v4-flash",
-      reasoning_effort: "xhigh",
     });
   });
 

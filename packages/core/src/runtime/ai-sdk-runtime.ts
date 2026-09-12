@@ -23,15 +23,18 @@ import {
 import { openaiCompatProviderOptions } from "./api-mode";
 import {
   applyAnthropicMessagesBody,
+  applyGeminiGenerateContentBody,
+  geminiGenerateContentBaseUrl,
+  isGeminiGenerateContentUrl,
   isMissingWireEndpoint,
   resolveChatWire,
   type ChatWire,
   type ResolvedChatWire,
 } from "./chat-wire";
+import { snapReasoningEffort } from "./effort-allowlist";
 import { applyMinimaxRequest, isMinimaxChatModel, wrapMinimaxResponse } from "./minimax-compat";
 import {
   applyReasoningEffortToChatBody,
-  coerceReasoningEffortForModel,
   isChatCompletionsUrl,
   resolveRequestReasoningEffort,
   toWireReasoningEffort,
@@ -166,10 +169,26 @@ export class AiSdkRuntime implements AgentRuntime {
     const provider = resolveModelProvider(modelName);
 
     const openaiLooksCustom = !isOfficialOpenAIBaseUrl(openaiBaseUrl);
+    const officialOpenAI = isOfficialOpenAIBaseUrl(openaiBaseUrl);
     const requestedWire: ChatWire = input.wire ?? "auto";
     const resolvedWire = resolveChatWire(requestedWire, modelName);
+    const rawEffort = resolveRequestReasoningEffort(input);
+    const snappedEffort = snapReasoningEffort(modelName, rawEffort, {
+      wire: resolvedWire,
+      officialOpenAI,
+    });
+    const wireEffort = toWireReasoningEffort(snappedEffort, {
+      officialOpenAI,
+      responses: resolvedWire === "responses",
+    });
 
-    if (provider === "google" && googleKey) {
+    // Parked extras Google (unexposed GTM). Gemini chat auto uses gateway generateContent.
+    if (
+      requestedWire === "auto" &&
+      resolvedWire !== "google_generate_content" &&
+      provider === "google" &&
+      googleKey
+    ) {
       const google = createGoogleGenerativeAI({
         apiKey: googleKey,
         ...(googleBaseUrl ? { baseURL: googleBaseUrl } : {}),
@@ -218,10 +237,6 @@ export class AiSdkRuntime implements AgentRuntime {
     }
 
     const zdrBaseUrl = openaiBaseUrl;
-    const rawEffort = resolveRequestReasoningEffort(input);
-    // GPT-5.6 none→low is completions/responses-only, not Messages.
-    const openaiEffort = coerceReasoningEffortForModel(modelName, rawEffort);
-    const wireEffort = toWireReasoningEffort(openaiEffort);
     const wrappedFetch: typeof fetch = async (url, init) => {
       let outgoing: RequestInit = (init as RequestInit) ?? {};
       let minimax = isMinimaxChatModel(modelName);
@@ -267,6 +282,7 @@ export class AiSdkRuntime implements AgentRuntime {
       wire: resolvedWire,
       chatModel,
       responsesModel,
+      snappedEffort,
     };
 
     if (resolvedWire === "anthropic_messages") {
@@ -276,7 +292,7 @@ export class AiSdkRuntime implements AgentRuntime {
           try {
             const parsed = JSON.parse(init.body) as unknown;
             const scrubbed = rewriteUnreachableMediaInJson(parsed);
-            const withThinking = applyAnthropicMessagesBody(scrubbed, rawEffort);
+            const withThinking = applyAnthropicMessagesBody(scrubbed, snappedEffort);
             const bodyModel =
               typeof (withThinking as { model?: unknown }).model === "string"
                 ? ((withThinking as { model: string }).model)
@@ -303,6 +319,42 @@ export class AiSdkRuntime implements AgentRuntime {
       return;
     }
 
+    if (resolvedWire === "google_generate_content") {
+      const geminiFetch: typeof fetch = async (url, init) => {
+        let outgoing: RequestInit = (init as RequestInit) ?? {};
+        if (init?.body && typeof init.body === "string") {
+          try {
+            const parsed = JSON.parse(init.body) as unknown;
+            const scrubbed = rewriteUnreachableMediaInJson(parsed);
+            const withThinking = isGeminiGenerateContentUrl(url)
+              ? applyGeminiGenerateContentBody(scrubbed, snappedEffort)
+              : scrubbed;
+            const bodyModel =
+              typeof (withThinking as { model?: unknown }).model === "string"
+                ? ((withThinking as { model: string }).model)
+                : modelName;
+            const sanitized = sanitizeGatewayRequestBody(withThinking, bodyModel, url);
+            outgoing = { ...init, body: JSON.stringify(sanitized) };
+          } catch {
+            // fall through to unmodified request on parse error
+          }
+        }
+        const response = await fetchWithHeaderTimeout(url, outgoing);
+        if (!response.ok) {
+          const text = await readHttpErrorBody(response);
+          throw new Error(parseGatewayHttpError(response.status, text));
+        }
+        return response;
+      };
+      const google = createGoogleGenerativeAI({
+        apiKey: openaiKey || "ollama",
+        baseURL: geminiGenerateContentBaseUrl(openaiBaseUrl),
+        fetch: geminiFetch,
+      });
+      await this.stream(google(modelName), input, openaiWire);
+      return;
+    }
+
     await this.stream(resolvedWire === "responses" ? responsesModel : chatModel, input, openaiWire);
   }
 
@@ -314,6 +366,7 @@ export class AiSdkRuntime implements AgentRuntime {
       wire: ResolvedChatWire;
       chatModel: Parameters<typeof streamText>[0]["model"];
       responsesModel: Parameters<typeof streamText>[0]["model"];
+      snappedEffort: ReasoningEffort;
     },
   ): Promise<void> {
     const disabled = new Set(getDisabledTools());
@@ -336,26 +389,33 @@ export class AiSdkRuntime implements AgentRuntime {
 
     const messages = toCoreMessages(input.version.systemPrompt, input.history);
     const hasTools = Object.keys(tools).length > 0;
+    const officialOpenAI = isOfficialOpenAIBaseUrl(
+      this.keys.openaiBaseUrl ?? process.env.OPENAI_BASE_URL ?? DEFAULT_OPENAI_BASE_URL,
+    );
     const rawEffort = resolveRequestReasoningEffort(input);
-    const openaiEffort = coerceReasoningEffortForModel(input.version.model, rawEffort);
     let activeModel = model;
     let wire = openaiWire?.wire;
-    const effortForWire = (next: ResolvedChatWire | undefined) =>
-      next === "anthropic_messages" ? rawEffort : openaiEffort;
-    const wantThinking = effortForWire(wire) !== "none";
+    const snappedEffort =
+      openaiWire?.snappedEffort ??
+      snapReasoningEffort(input.version.model, rawEffort, {
+        wire: wire ?? resolveChatWire(input.wire ?? "auto", input.version.model),
+        officialOpenAI,
+      });
+    const wantThinking = snappedEffort !== "none";
     const consumeOnce = (
       nextModel: Parameters<typeof streamText>[0]["model"],
       nextTools: Record<string, any> | undefined,
       options: {
         responses?: boolean;
         messages?: boolean;
+        google?: boolean;
         forceReasoningNone?: boolean;
         reasoningEffort?: ReasoningEffort;
       } = {},
     ) =>
       this.consumeSafe(nextModel, input, messages, nextTools, {
         ...options,
-        reasoningEffort: options.reasoningEffort ?? effortForWire(wire),
+        reasoningEffort: options.reasoningEffort ?? snappedEffort,
       });
 
     const probe = async (attempt: number) => {
@@ -372,6 +432,7 @@ export class AiSdkRuntime implements AgentRuntime {
     let first = await consumeOnce(activeModel, hasTools ? tools : undefined, {
       responses: wire === "responses",
       messages: wire === "anthropic_messages",
+        google: wire === "google_generate_content",
       forceReasoningNone: !wantThinking,
     });
 
@@ -399,6 +460,7 @@ export class AiSdkRuntime implements AgentRuntime {
       ? await consumeOnce(activeModel, undefined, {
           responses: wire === "responses",
           messages: wire === "anthropic_messages",
+        google: wire === "google_generate_content",
         })
       : first;
     let contactAttempts = 1;
@@ -422,6 +484,7 @@ export class AiSdkRuntime implements AgentRuntime {
       result = await consumeOnce(activeModel, retryTools, {
         responses: wire === "responses",
         messages: wire === "anthropic_messages",
+        google: wire === "google_generate_content",
         forceReasoningNone: Boolean(retryTools) && !wantThinking,
       });
     }
@@ -463,6 +526,7 @@ export class AiSdkRuntime implements AgentRuntime {
     options: {
       responses?: boolean;
       messages?: boolean;
+      google?: boolean;
       forceReasoningNone?: boolean;
       reasoningEffort?: ReasoningEffort;
     } = {},
@@ -489,6 +553,7 @@ export class AiSdkRuntime implements AgentRuntime {
     options: {
       responses?: boolean;
       messages?: boolean;
+      google?: boolean;
       forceReasoningNone?: boolean;
       reasoningEffort?: ReasoningEffort;
     } = {},
@@ -503,9 +568,10 @@ export class AiSdkRuntime implements AgentRuntime {
     const officialOpenAI = isOfficialOpenAIBaseUrl(
       this.keys.openaiBaseUrl ?? process.env.OPENAI_BASE_URL ?? DEFAULT_OPENAI_BASE_URL,
     );
-    const providerOptions = options.messages
-      ? undefined
-      : openaiCompatProviderOptions({ ...options, officialOpenAI });
+    const providerOptions =
+      options.messages || options.google
+        ? undefined
+        : openaiCompatProviderOptions({ ...options, officialOpenAI });
     const abort = new AbortController();
     const watchdog = armStreamWatchdog(input.version.model, abort, input.streamWatchdog);
     const result = streamText({

@@ -5,8 +5,10 @@ import {
   ANTHROPIC_MESSAGES_MAX_TOKENS,
   applyAnthropicMessagesBody,
   chatWireHeaders,
+  geminiGenerateContentBaseUrl,
   isAnthropicMessagesUrl,
   isChatWire,
+  isGeminiGenerateContentUrl,
   isMissingWireEndpoint,
   readOptionalChatWire,
   resolveChatWire,
@@ -22,11 +24,12 @@ describe("readOptionalChatWire", () => {
     expect(readOptionalChatWire({ wire: "" })).toBe("auto");
   });
 
-  it("reads the four send-time wires", () => {
+  it("reads the send-time wires", () => {
     expect(readOptionalChatWire({ wire: "auto" })).toBe("auto");
     expect(readOptionalChatWire({ wire: "chat_completions" })).toBe("chat_completions");
     expect(readOptionalChatWire({ wire: "responses" })).toBe("responses");
     expect(readOptionalChatWire({ wire: "anthropic_messages" })).toBe("anthropic_messages");
+    expect(readOptionalChatWire({ wire: "google_generate_content" })).toBe("google_generate_content");
   });
 
   it("rejects unknown values", () => {
@@ -36,16 +39,18 @@ describe("readOptionalChatWire", () => {
 });
 
 describe("resolveChatWire", () => {
-  it("auto-routes GPT-5 to Responses, Claude 5 / Opus 4.7/4.8 to Messages, else Completions", () => {
+  it("auto-routes GPT-5/6 to Responses, Claude 5 / Opus 4.7/4.8 / Sonnet 4.6 to Messages, Gemini to generateContent, else Completions", () => {
     expect(resolveChatWire("auto", "gpt-5.6-sol")).toBe("responses");
+    expect(resolveChatWire("auto", "gpt-6-astra")).toBe("responses");
     expect(resolveChatWire("auto", "o3")).toBe("responses");
     expect(resolveChatWire("auto", "claude-sonnet-5")).toBe("anthropic_messages");
     expect(resolveChatWire(undefined, "claude-opus-5")).toBe("anthropic_messages");
     expect(resolveChatWire("auto", "anthropic/claude-sonnet-5-20250514")).toBe("anthropic_messages");
     expect(resolveChatWire("auto", "claude-opus-4-8")).toBe("anthropic_messages");
     expect(resolveChatWire("auto", "claude-opus-4-7")).toBe("anthropic_messages");
+    expect(resolveChatWire("auto", "claude-sonnet-4-6")).toBe("anthropic_messages");
     expect(resolveChatWire("auto", "claude-haiku-4-5")).toBe("chat_completions");
-    expect(resolveChatWire("auto", "claude-sonnet-4-6")).toBe("chat_completions");
+    expect(resolveChatWire("auto", "gemini-3.5-flash")).toBe("google_generate_content");
     expect(resolveChatWire("auto", "deepseek-v4-pro")).toBe("chat_completions");
   });
 
@@ -80,8 +85,8 @@ describe("chatWireHeaders", () => {
 });
 
 describe("toAnthropicOutputEffort", () => {
-  it("passes every thinking-on string through, including ultra", () => {
-    expect(toAnthropicOutputEffort("ultra")).toBe("ultra");
+  it("maps Messages Ultra to max and passes Anthropic efforts through", () => {
+    expect(toAnthropicOutputEffort("ultra")).toBe("max");
     expect(toAnthropicOutputEffort("max")).toBe("max");
     expect(toAnthropicOutputEffort("xhigh")).toBe("xhigh");
     expect(toAnthropicOutputEffort("high")).toBe("high");
@@ -115,19 +120,19 @@ describe("applyAnthropicMessagesBody", () => {
     expect(JSON.stringify(body)).not.toContain("zdr");
   });
 
-  it("sends adaptive thinking + output_config.effort ultra on ultra", () => {
+  it("sends adaptive thinking + output_config.effort max on ultra", () => {
     const body = applyAnthropicMessagesBody({ model: "claude-sonnet-5", messages: [] }, "ultra") as Record<
       string,
       unknown
     >;
     expect(body.thinking).toEqual({ type: "adaptive" });
-    expect(body.output_config).toEqual({ effort: "ultra" });
+    expect(body.output_config).toEqual({ effort: "max" });
     expect(body.max_tokens).toBe(ANTHROPIC_MESSAGES_MAX_TOKENS);
     expect(JSON.stringify(body)).not.toContain("budget_tokens");
     expect(JSON.stringify(body)).not.toContain('"enabled"');
+    expect(JSON.stringify(body)).not.toContain('"ultra"');
     expect(JSON.stringify(body)).not.toContain("reasoning_effort");
     expect((body.output_config as { effort: string }).effort).not.toBe("adaptive");
-    expect((body.output_config as { effort: string }).effort).not.toBe("max");
   });
 
   it("sends max and xhigh as themselves on Messages", () => {
@@ -173,6 +178,7 @@ describe("404-only fallback", () => {
   it("treats 404 / unknown-url as a missing wire", () => {
     expect(isMissingWireEndpoint("404 Not Found")).toBe(true);
     expect(isMissingWireEndpoint("Unknown url")).toBe(true);
+    expect(isMissingWireEndpoint("invalid url generateContent")).toBe(true);
     expect(shouldFallbackFromMessages("404 Not Found (status_code=404)")).toBe(true);
   });
 
@@ -187,9 +193,27 @@ describe("404-only fallback", () => {
 });
 
 describe("isChatWire", () => {
-  it("accepts the four wires only", () => {
+  it("accepts the known wires only", () => {
     expect(isChatWire("auto")).toBe(true);
     expect(isChatWire("anthropic_messages")).toBe(true);
+    expect(isChatWire("google_generate_content")).toBe(true);
     expect(isChatWire("grpc")).toBe(false);
+  });
+});
+
+describe("gemini generateContent helpers", () => {
+  it("rewrites the saved /v1 prefix to /v1beta", () => {
+    expect(geminiGenerateContentBaseUrl("https://api.tokotokenai.com/v1")).toBe(
+      "https://api.tokotokenai.com/v1beta",
+    );
+  });
+
+  it("matches generateContent URLs", () => {
+    expect(
+      isGeminiGenerateContentUrl(
+        "https://api.tokotokenai.com/v1beta/models/gemini-3.5-flash:generateContent",
+      ),
+    ).toBe(true);
+    expect(isGeminiGenerateContentUrl("https://api.tokotokenai.com/v1/chat/completions")).toBe(false);
   });
 });
