@@ -32,6 +32,6 @@ Preconditions:
 ## Gotchas
 
 - Masking is host-side, on the way into the model. Do not look for a Chat banner.
-- Long digit runs in a verify id can also become `[id]` / `[phone]` in the stub reply. The user bubble still has the original id.
+- Bare digit runs (market cap, volume) are not phones or IDs. Formatted phones (`+1 (415) 555-2671`) and SSN-style IDs still mask. The user bubble still has the original text.
 - Do not paste real personal data into Cloud evidence. Use `example.com` addresses.
 - `scanPii("hello @ world")` is empty — no mask.

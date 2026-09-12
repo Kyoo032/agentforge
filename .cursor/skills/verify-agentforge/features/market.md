@@ -42,7 +42,7 @@ Preconditions:
 ## Gotchas
 
 - A briefing that reads "beli sekarang", "jual sekarang", "buy now", "sell now", "you should buy" is a C1 leak: the sentence is replaced with `[removed: directive language]` and counted in `market-guard`; the API rejects such a briefing on `/market/docx` and `/market/regenerate` with 502 `advice_leak`. Ranking, sentiment, targets, and levels are allowed.
-- `[unverified figure]` in a section means the model wrote a number that is not in the packet, the headlines, or the position context. One or two on a long briefing is a note; many is a fail (check the packet block rounding).
+- `[unverified figure]` in a section means the model wrote a number that is not in the packet, the headlines, or the position context. Index names (`S&P 500`, `Nasdaq 100`), `50-day` / `200-hari` labels, and `24/7` publisher clocks are not figures. One or two real flags on a long briefing is a note; many is a fail (check the packet block rounding).
 - A run outside 04:00–09:30 ET is labelled by `market-clock`; the default prompt tells the model to say so. That is correct behaviour, not a bug.
 - Yahoo or TradingView being down is a note when the briefing still builds from the rest; a fail only when the studio hangs or invents figures.
 - Do not POST `/api/v1/market` as a substitute for the studio on a live proof.
