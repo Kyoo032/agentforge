@@ -221,9 +221,7 @@ export class AiSdkRuntime implements AgentRuntime {
     const rawEffort = resolveRequestReasoningEffort(input);
     // GPT-5.6 none→low is completions/responses-only, not Messages.
     const openaiEffort = coerceReasoningEffortForModel(modelName, rawEffort);
-    const wireEffort = toWireReasoningEffort(openaiEffort, {
-      officialOpenAI: isOfficialOpenAIBaseUrl(openaiBaseUrl),
-    });
+    const wireEffort = toWireReasoningEffort(openaiEffort);
     const wrappedFetch: typeof fetch = async (url, init) => {
       let outgoing: RequestInit = (init as RequestInit) ?? {};
       let minimax = isMinimaxChatModel(modelName);
@@ -502,7 +500,12 @@ export class AiSdkRuntime implements AgentRuntime {
     failed: string;
     usage: { inputTokens: number; outputTokens: number };
   }> {
-    const providerOptions = options.messages ? undefined : openaiCompatProviderOptions(options);
+    const officialOpenAI = isOfficialOpenAIBaseUrl(
+      this.keys.openaiBaseUrl ?? process.env.OPENAI_BASE_URL ?? DEFAULT_OPENAI_BASE_URL,
+    );
+    const providerOptions = options.messages
+      ? undefined
+      : openaiCompatProviderOptions({ ...options, officialOpenAI });
     const abort = new AbortController();
     const watchdog = armStreamWatchdog(input.version.model, abort, input.streamWatchdog);
     const result = streamText({

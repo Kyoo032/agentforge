@@ -1,19 +1,24 @@
 import { ApiError } from "../errors";
 
-export const REASONING_EFFORTS = ["none", "low", "medium", "high", "ultra"] as const;
+export const REASONING_EFFORTS = ["none", "low", "medium", "high", "xhigh", "max", "ultra"] as const;
 export type ReasoningEffort = (typeof REASONING_EFFORTS)[number];
 
-/** Chat Thinking labels. Values on the wire stay none / low / medium / high / ultra. */
+const EFFORT_LIST = "none, low, medium, high, xhigh, max, or ultra";
+
+/** Chat Thinking labels. Values on the wire stay the kernel strings. */
 export const THINKING_LABELS: Record<ReasoningEffort, string> = {
   none: "Off",
   low: "Light",
   medium: "Normal",
   high: "Deep",
-  ultra: "Max",
+  xhigh: "Extra",
+  max: "Max",
+  ultra: "Ultra",
 };
 
 const EFFORTS = new Set<string>(REASONING_EFFORTS);
 
+/** UI words only. Kernel members `xhigh`, `max`, and `ultra` are not aliases. */
 const ALIASES: Record<string, ReasoningEffort> = {
   off: "none",
   light: "low",
@@ -21,9 +26,7 @@ const ALIASES: Record<string, ReasoningEffort> = {
   normal: "medium",
   med: "medium",
   deep: "high",
-  max: "ultra",
-  xhigh: "ultra",
-  extra: "ultra",
+  extra: "xhigh",
 };
 
 export function isReasoningEffort(value: unknown): value is ReasoningEffort {
@@ -53,7 +56,7 @@ export function readOptionalReasoningEffort(body: unknown): ReasoningEffort {
   const record = body as { reasoningEffort?: unknown; thinking?: unknown };
   if (record.reasoningEffort !== undefined && record.reasoningEffort !== null) {
     if (typeof record.reasoningEffort !== "string") {
-      throw new ApiError("invalid_request", "reasoningEffort must be none, low, medium, high, or ultra", 400);
+      throw new ApiError("invalid_request", `reasoningEffort must be ${EFFORT_LIST}`, 400);
     }
     const normalized = record.reasoningEffort.trim().toLowerCase();
     const aliased = ALIASES[normalized];
@@ -61,7 +64,7 @@ export function readOptionalReasoningEffort(body: unknown): ReasoningEffort {
       return aliased;
     }
     if (!isReasoningEffort(normalized)) {
-      throw new ApiError("invalid_request", "reasoningEffort must be none, low, medium, high, or ultra", 400);
+      throw new ApiError("invalid_request", `reasoningEffort must be ${EFFORT_LIST}`, 400);
     }
     if (record.thinking === false && normalized !== "none") {
       return "none";
@@ -74,7 +77,6 @@ export function readOptionalReasoningEffort(body: unknown): ReasoningEffort {
   return "medium";
 }
 
-/** Official OpenAI uses xhigh; the gateway keeps ultra. */
 /** GPT-5.6 family hangs on Toko Token when reasoning_effort is none. */
 export function coerceReasoningEffortForModel(modelId: string, effort: ReasoningEffort): ReasoningEffort {
   if (effort !== "none") {
@@ -88,11 +90,15 @@ export function coerceReasoningEffortForModel(modelId: string, effort: Reasoning
   return effort;
 }
 
+/**
+ * Completions send the kernel string as-is (including xhigh, max, ultra).
+ * Official OpenAI Responses still maps ultra → xhigh. `max` is never remapped.
+ */
 export function toWireReasoningEffort(
   effort: ReasoningEffort,
-  options: { officialOpenAI?: boolean } = {},
+  options: { officialOpenAI?: boolean; responses?: boolean } = {},
 ): string {
-  if (effort === "ultra" && options.officialOpenAI) {
+  if (effort === "ultra" && options.officialOpenAI && options.responses) {
     return "xhigh";
   }
   return effort;

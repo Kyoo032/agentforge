@@ -5,6 +5,7 @@ import {
   coerceReasoningEffortForModel,
   isChatCompletionsUrl,
   readOptionalReasoningEffort,
+  REASONING_EFFORTS,
   resolveRequestReasoningEffort,
   THINKING_LABELS,
   toWireReasoningEffort,
@@ -16,28 +17,32 @@ describe("readOptionalReasoningEffort", () => {
     expect(readOptionalReasoningEffort(null)).toBe("medium");
   });
 
-  it("maps Chat Thinking labels onto the backend scale", () => {
+  it("maps Chat Thinking labels onto the kernel scale", () => {
+    expect(REASONING_EFFORTS).toEqual(["none", "low", "medium", "high", "xhigh", "max", "ultra"]);
     expect(THINKING_LABELS).toEqual({
       none: "Off",
       low: "Light",
       medium: "Normal",
       high: "Deep",
-      ultra: "Max",
+      xhigh: "Extra",
+      max: "Max",
+      ultra: "Ultra",
     });
   });
 
-  it("reads the none-to-ultra scale", () => {
+  it("reads every kernel string as itself", () => {
     expect(readOptionalReasoningEffort({ reasoningEffort: "none" })).toBe("none");
     expect(readOptionalReasoningEffort({ reasoningEffort: "low" })).toBe("low");
+    expect(readOptionalReasoningEffort({ reasoningEffort: "xhigh" })).toBe("xhigh");
+    expect(readOptionalReasoningEffort({ reasoningEffort: "max" })).toBe("max");
     expect(readOptionalReasoningEffort({ reasoningEffort: "ultra" })).toBe("ultra");
   });
 
-  it("maps aliases onto the product scale", () => {
-    expect(readOptionalReasoningEffort({ reasoningEffort: "max" })).toBe("ultra");
-    expect(readOptionalReasoningEffort({ reasoningEffort: "xhigh" })).toBe("ultra");
+  it("maps UI-word aliases, not max or xhigh", () => {
     expect(readOptionalReasoningEffort({ reasoningEffort: "light" })).toBe("low");
     expect(readOptionalReasoningEffort({ reasoningEffort: "normal" })).toBe("medium");
     expect(readOptionalReasoningEffort({ reasoningEffort: "deep" })).toBe("high");
+    expect(readOptionalReasoningEffort({ reasoningEffort: "extra" })).toBe("xhigh");
     expect(readOptionalReasoningEffort({ reasoningEffort: "off" })).toBe("none");
   });
 
@@ -55,8 +60,9 @@ describe("resolveRequestReasoningEffort", () => {
     expect(resolveRequestReasoningEffort({ thinking: false, reasoningEffort: "high" })).toBe("none");
   });
 
-  it("keeps ultra when thinking is on", () => {
+  it("keeps max and ultra when thinking is on", () => {
     expect(resolveRequestReasoningEffort({ thinking: true, reasoningEffort: "ultra" })).toBe("ultra");
+    expect(resolveRequestReasoningEffort({ thinking: true, reasoningEffort: "max" })).toBe("max");
     expect(resolveRequestReasoningEffort({})).toBe("medium");
   });
 });
@@ -77,10 +83,18 @@ describe("coerceReasoningEffortForModel", () => {
 });
 
 describe("toWireReasoningEffort", () => {
-  it("sends ultra to the gateway and xhigh to official OpenAI", () => {
+  it("sends Completions the kernel string, including xhigh, max, and ultra", () => {
     expect(toWireReasoningEffort("ultra")).toBe("ultra");
-    expect(toWireReasoningEffort("ultra", { officialOpenAI: true })).toBe("xhigh");
+    expect(toWireReasoningEffort("max")).toBe("max");
+    expect(toWireReasoningEffort("xhigh")).toBe("xhigh");
     expect(toWireReasoningEffort("high")).toBe("high");
+    expect(toWireReasoningEffort("ultra", { officialOpenAI: true })).toBe("ultra");
+    expect(toWireReasoningEffort("max", { officialOpenAI: true, responses: true })).toBe("max");
+  });
+
+  it("maps ultra to xhigh only on official OpenAI Responses", () => {
+    expect(toWireReasoningEffort("ultra", { officialOpenAI: true, responses: true })).toBe("xhigh");
+    expect(toWireReasoningEffort("ultra", { responses: true })).toBe("ultra");
   });
 });
 
@@ -89,6 +103,14 @@ describe("applyReasoningEffortToChatBody", () => {
     expect(applyReasoningEffortToChatBody({ model: "claude-opus-5" }, "ultra")).toEqual({
       model: "claude-opus-5",
       reasoning_effort: "ultra",
+    });
+    expect(applyReasoningEffortToChatBody({ model: "kimi-k2.5" }, "max")).toEqual({
+      model: "kimi-k2.5",
+      reasoning_effort: "max",
+    });
+    expect(applyReasoningEffortToChatBody({ model: "deepseek-v4-flash" }, "xhigh")).toEqual({
+      model: "deepseek-v4-flash",
+      reasoning_effort: "xhigh",
     });
   });
 

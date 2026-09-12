@@ -80,8 +80,10 @@ describe("chatWireHeaders", () => {
 });
 
 describe("toAnthropicOutputEffort", () => {
-  it("maps product ultra to max, not xhigh or ultra", () => {
-    expect(toAnthropicOutputEffort("ultra")).toBe("max");
+  it("passes every thinking-on string through, including ultra", () => {
+    expect(toAnthropicOutputEffort("ultra")).toBe("ultra");
+    expect(toAnthropicOutputEffort("max")).toBe("max");
+    expect(toAnthropicOutputEffort("xhigh")).toBe("xhigh");
     expect(toAnthropicOutputEffort("high")).toBe("high");
     expect(toAnthropicOutputEffort("medium")).toBe("medium");
     expect(toAnthropicOutputEffort("low")).toBe("low");
@@ -113,19 +115,26 @@ describe("applyAnthropicMessagesBody", () => {
     expect(JSON.stringify(body)).not.toContain("zdr");
   });
 
-  it("sends adaptive thinking + output_config.effort max on ultra", () => {
+  it("sends adaptive thinking + output_config.effort ultra on ultra", () => {
     const body = applyAnthropicMessagesBody({ model: "claude-sonnet-5", messages: [] }, "ultra") as Record<
       string,
       unknown
     >;
     expect(body.thinking).toEqual({ type: "adaptive" });
-    expect(body.output_config).toEqual({ effort: "max" });
+    expect(body.output_config).toEqual({ effort: "ultra" });
     expect(body.max_tokens).toBe(ANTHROPIC_MESSAGES_MAX_TOKENS);
     expect(JSON.stringify(body)).not.toContain("budget_tokens");
     expect(JSON.stringify(body)).not.toContain('"enabled"');
-    expect(JSON.stringify(body)).not.toContain('"ultra"');
     expect(JSON.stringify(body)).not.toContain("reasoning_effort");
     expect((body.output_config as { effort: string }).effort).not.toBe("adaptive");
+    expect((body.output_config as { effort: string }).effort).not.toBe("max");
+  });
+
+  it("sends max and xhigh as themselves on Messages", () => {
+    const maxBody = applyAnthropicMessagesBody({ model: "claude-sonnet-5" }, "max") as Record<string, unknown>;
+    expect(maxBody.output_config).toEqual({ effort: "max" });
+    const extra = applyAnthropicMessagesBody({ model: "claude-sonnet-5" }, "xhigh") as Record<string, unknown>;
+    expect(extra.output_config).toEqual({ effort: "xhigh" });
   });
 
   it("maps mid-scale product effort onto output_config.effort", () => {

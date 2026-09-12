@@ -24,7 +24,7 @@ export const ANTHROPIC_API_VERSION = "2023-06-01";
 /** Hard cap on thinking + text for Anthropic Messages. */
 export const ANTHROPIC_MESSAGES_MAX_TOKENS = 16_384;
 
-export type AnthropicOutputEffort = "low" | "medium" | "high" | "xhigh" | "max";
+export type AnthropicOutputEffort = Exclude<ReasoningEffort, "none">;
 
 export function isChatWire(value: unknown): value is ChatWire {
   return typeof value === "string" && WIRES.has(value);
@@ -112,15 +112,12 @@ export function shouldFallbackFromMessages(message: string): boolean {
 }
 
 /**
- * Product ultra → Anthropic `max` (there is no `ultra`; `xhigh` is the step under `max`).
  * `none` has no effort string — thinking is sent as `{ type: "disabled" }`.
+ * Every other kernel string is passed through, including `ultra` (do not remap ultra → max).
  */
 export function toAnthropicOutputEffort(effort: ReasoningEffort): AnthropicOutputEffort | undefined {
   if (effort === "none") {
     return undefined;
-  }
-  if (effort === "ultra") {
-    return "max";
   }
   return effort;
 }

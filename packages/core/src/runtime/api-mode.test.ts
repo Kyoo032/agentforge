@@ -65,13 +65,55 @@ describe("openaiCompatProviderOptions", () => {
     expect(openaiCompatProviderOptions({ reasoningEffort: "ultra" })).toEqual({
       openai: { reasoningEffort: "ultra" },
     });
+    expect(openaiCompatProviderOptions({ reasoningEffort: "max" })).toEqual({
+      openai: { reasoningEffort: "max" },
+    });
+    expect(openaiCompatProviderOptions({ reasoningEffort: "xhigh" })).toEqual({
+      openai: { reasoningEffort: "xhigh" },
+    });
   });
 
-  it("maps ultra to xhigh on Responses", () => {
+  it("keeps ultra and max on Toko Responses", () => {
     expect(openaiCompatProviderOptions({ responses: true, reasoningEffort: "ultra" })).toEqual({
       openai: {
         strictSchemas: false,
+        reasoningEffort: "ultra",
+        reasoningSummary: "auto",
+      },
+    });
+    expect(openaiCompatProviderOptions({ responses: true, reasoningEffort: "max" })).toEqual({
+      openai: {
+        strictSchemas: false,
+        reasoningEffort: "max",
+        reasoningSummary: "auto",
+      },
+    });
+  });
+
+  it("maps ultra to xhigh only on official OpenAI Responses, not max", () => {
+    expect(
+      openaiCompatProviderOptions({
+        responses: true,
+        officialOpenAI: true,
+        reasoningEffort: "ultra",
+      }),
+    ).toEqual({
+      openai: {
+        strictSchemas: false,
         reasoningEffort: "xhigh",
+        reasoningSummary: "auto",
+      },
+    });
+    expect(
+      openaiCompatProviderOptions({
+        responses: true,
+        officialOpenAI: true,
+        reasoningEffort: "max",
+      }),
+    ).toEqual({
+      openai: {
+        strictSchemas: false,
+        reasoningEffort: "max",
         reasoningSummary: "auto",
       },
     });

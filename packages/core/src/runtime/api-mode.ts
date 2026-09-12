@@ -1,4 +1,4 @@
-import type { ReasoningEffort } from "../models/reasoning-effort";
+import { toWireReasoningEffort, type ReasoningEffort } from "../models/reasoning-effort";
 
 /**
  * Wire-protocol picks stripped from Hermes (Copilot/OpenCode rule +
@@ -58,6 +58,7 @@ export function shouldFallbackFromResponses(message: string): boolean {
  */
 export function openaiCompatProviderOptions(options: {
   responses?: boolean;
+  officialOpenAI?: boolean;
   forceReasoningNone?: boolean;
   reasoningEffort?: ReasoningEffort;
 }): { openai: Record<string, string | boolean> } | undefined {
@@ -67,7 +68,12 @@ export function openaiCompatProviderOptions(options: {
   if (!options.responses && !effort) {
     return undefined;
   }
-  const providerEffort = effort === "ultra" && options.responses ? "xhigh" : effort;
+  const providerEffort = effort
+    ? toWireReasoningEffort(effort, {
+        officialOpenAI: options.officialOpenAI,
+        responses: options.responses,
+      })
+    : effort;
   return {
     openai: {
       ...(options.responses ? { strictSchemas: false } : {}),

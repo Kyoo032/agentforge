@@ -142,7 +142,7 @@ Use `page.getByTestId("<id>")` exactly as the spec.
 | `settings-link` | Rail → Settings |
 | `usage-link`, `usage-open`, `usage-range`, `usage-range-chart` | Rail / Settings → Usage (`/usage`); range toggle + stacked chart |
 | `model-picker`, `composer`, `composer-text`, `composer-send`, `composer-enhance` | Chat |
-| `reasoning-effort` | Chat Thinking: Off / Light / Normal / Deep / Max (values `none` / `low` / `medium` / `high` / `ultra`). No `chat-wire`. |
+| `reasoning-effort` | Chat Thinking: Off / Light / Normal / Deep / Extra / Max / Ultra (values `none` / `low` / `medium` / `high` / `xhigh` / `max` / `ultra`). No `chat-wire`. |
 | `chat-usage`, `chat-context` | Chat header chips (wallet spend; ring + `left`/`used`) |
 | `chat-empty`, `message-list`, `message-output`, `thread-list`, `thread-item`, `new-chat`, `chat-error`, `composer-error` | Threads + assistant markdown output; live contact fail after 3 tries |
 | `settings-form`, `settings-endpoint`, `settings-endpoint-reset`, `openai-key`, `key-fingerprint`, `runtime-status`, `privacy-note`, `usage-this-key` | Settings (endpoint + key; Open Usage) |
