@@ -36,18 +36,24 @@ describe("readOptionalChatWire", () => {
 });
 
 describe("resolveChatWire", () => {
-  it("keeps today's family pick on auto — Claude stays completions", () => {
-    expect(resolveChatWire("auto", "claude-sonnet-5")).toBe("chat_completions");
-    expect(resolveChatWire(undefined, "claude-sonnet-5")).toBe("chat_completions");
+  it("auto-routes GPT-5 to Responses, Claude 5 / Opus 4.7/4.8 to Messages, else Completions", () => {
     expect(resolveChatWire("auto", "gpt-5.6-sol")).toBe("responses");
+    expect(resolveChatWire("auto", "o3")).toBe("responses");
+    expect(resolveChatWire("auto", "claude-sonnet-5")).toBe("anthropic_messages");
+    expect(resolveChatWire(undefined, "claude-opus-5")).toBe("anthropic_messages");
+    expect(resolveChatWire("auto", "anthropic/claude-sonnet-5-20250514")).toBe("anthropic_messages");
+    expect(resolveChatWire("auto", "claude-opus-4-8")).toBe("anthropic_messages");
+    expect(resolveChatWire("auto", "claude-opus-4-7")).toBe("anthropic_messages");
+    expect(resolveChatWire("auto", "claude-haiku-4-5")).toBe("chat_completions");
+    expect(resolveChatWire("auto", "claude-sonnet-4-6")).toBe("chat_completions");
     expect(resolveChatWire("auto", "deepseek-v4-pro")).toBe("chat_completions");
   });
 
-  it("does not lock a model to one POST path", () => {
+  it("keeps an explicit wire for host/tests", () => {
     expect(resolveChatWire("anthropic_messages", "gpt-5.6-sol")).toBe("anthropic_messages");
     expect(resolveChatWire("chat_completions", "gpt-5.6-sol")).toBe("chat_completions");
     expect(resolveChatWire("responses", "claude-sonnet-5")).toBe("responses");
-    expect(resolveChatWire("anthropic_messages", "claude-sonnet-5")).toBe("anthropic_messages");
+    expect(resolveChatWire("chat_completions", "claude-sonnet-5")).toBe("chat_completions");
   });
 });
 

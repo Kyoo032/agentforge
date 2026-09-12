@@ -7,7 +7,8 @@ import type { ReasoningEffort } from "../models/reasoning-effort";
  * /v1/chat/completions and tell the client to use /v1/responses.
  *
  * Chat send-time `wire` (`auto` | completions | responses | messages) lives in
- * `chat-wire.ts`. `preferredOpenAiWire` is only the `auto` family pick.
+ * `chat-wire.ts`. `preferredOpenAiWire` is GPT-5 / o-series → Responses. Auto also
+ * routes Claude 5 / Opus 4.7 / 4.8 to Messages.
  */
 
 export type OpenAiWire = "responses" | "chat_completions";

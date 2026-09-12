@@ -3,12 +3,24 @@ import { ApiError } from "../errors";
 export const REASONING_EFFORTS = ["none", "low", "medium", "high", "ultra"] as const;
 export type ReasoningEffort = (typeof REASONING_EFFORTS)[number];
 
+/** Chat Thinking labels. Values on the wire stay none / low / medium / high / ultra. */
+export const THINKING_LABELS: Record<ReasoningEffort, string> = {
+  none: "Off",
+  low: "Light",
+  medium: "Normal",
+  high: "Deep",
+  ultra: "Max",
+};
+
 const EFFORTS = new Set<string>(REASONING_EFFORTS);
 
 const ALIASES: Record<string, ReasoningEffort> = {
   off: "none",
+  light: "low",
   minimal: "low",
+  normal: "medium",
   med: "medium",
+  deep: "high",
   max: "ultra",
   xhigh: "ultra",
   extra: "ultra",

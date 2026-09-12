@@ -12,8 +12,7 @@ import { ModelPicker, type ChatModel } from "@/components/model-picker";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { apiFetch } from "@/lib/api-client";
 import { abortErrorMessage, armStreamWatchdog } from "@agentforge/core/stream-watchdog";
-import { REASONING_EFFORTS, type ReasoningEffort } from "@agentforge/core/reasoning-effort";
-import { CHAT_WIRES, CHAT_WIRE_LABELS, isChatWire, type ChatWire } from "@agentforge/core/chat-wire";
+import { REASONING_EFFORTS, THINKING_LABELS, type ReasoningEffort } from "@agentforge/core/reasoning-effort";
 import { submitOnEnter } from "@/lib/composer-enter";
 
 export type ComposerUserSendPayload = {
@@ -41,8 +40,6 @@ type Props = {
   onThinkingChange?: (enabled: boolean) => void;
   reasoningEffort?: ReasoningEffort;
   onReasoningEffortChange?: (effort: ReasoningEffort) => void;
-  wire?: ChatWire;
-  onWireChange?: (wire: ChatWire) => void;
 };
 
 type HeldFile = {
@@ -87,8 +84,6 @@ export function ChatComposer({
   onThinkingChange,
   reasoningEffort = "medium",
   onReasoningEffortChange,
-  wire = "auto",
-  onWireChange,
 }: Props) {
   const [text, setText] = useState("");
   const [files, setFiles] = useState<HeldFile[]>([]);
@@ -234,7 +229,6 @@ export function ChatComposer({
             model,
             thinking: reasoningEffort !== "none",
             reasoningEffort,
-            wire,
           }),
           signal: abort.signal,
         });
@@ -295,7 +289,6 @@ export function ChatComposer({
           model,
           thinking: reasoningEffort !== "none",
           reasoningEffort,
-          wire,
         }),
         signal: abort.signal,
       });
@@ -395,13 +388,13 @@ export function ChatComposer({
         ) : null}
         {onReasoningEffortChange || onThinkingChange ? (
           <label className="inline-flex items-center" data-testid="thinking-toggle">
-            <span className="sr-only">Reasoning effort</span>
+            <span className="sr-only">Thinking</span>
             <select
               className={`rounded-md border bg-transparent px-2 py-1.5 text-[12.5px] text-ink disabled:opacity-45 ${
                 reasoningEffort !== "none" ? "border-accent text-accent" : "border-divider"
               }`}
               data-testid="reasoning-effort"
-              aria-label="Reasoning effort"
+              aria-label="Thinking"
               value={reasoningEffort}
               disabled={busy}
               onChange={(event) => {
@@ -412,33 +405,7 @@ export function ChatComposer({
             >
               {REASONING_EFFORTS.map((effort) => (
                 <option key={effort} value={effort}>
-                  {effort === "medium" ? "Med" : effort[0].toUpperCase() + effort.slice(1)}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : null}
-        {onWireChange ? (
-          <label className="inline-flex items-center" data-testid="chat-wire-toggle">
-            <span className="sr-only">API wire</span>
-            <select
-              className={`rounded-md border bg-transparent px-2 py-1.5 text-[12.5px] text-ink disabled:opacity-45 ${
-                wire !== "auto" ? "border-accent text-accent" : "border-divider"
-              }`}
-              data-testid="chat-wire"
-              aria-label="API wire"
-              value={wire}
-              disabled={busy}
-              onChange={(event) => {
-                const next = event.target.value;
-                if (isChatWire(next)) {
-                  onWireChange(next);
-                }
-              }}
-            >
-              {CHAT_WIRES.map((item) => (
-                <option key={item} value={item}>
-                  {CHAT_WIRE_LABELS[item]}
+                  {THINKING_LABELS[effort]}
                 </option>
               ))}
             </select>

@@ -6,6 +6,7 @@ import {
   isChatCompletionsUrl,
   readOptionalReasoningEffort,
   resolveRequestReasoningEffort,
+  THINKING_LABELS,
   toWireReasoningEffort,
 } from "./reasoning-effort";
 
@@ -13,6 +14,16 @@ describe("readOptionalReasoningEffort", () => {
   it("defaults to medium when omitted", () => {
     expect(readOptionalReasoningEffort({ content: "hi" })).toBe("medium");
     expect(readOptionalReasoningEffort(null)).toBe("medium");
+  });
+
+  it("maps Chat Thinking labels onto the backend scale", () => {
+    expect(THINKING_LABELS).toEqual({
+      none: "Off",
+      low: "Light",
+      medium: "Normal",
+      high: "Deep",
+      ultra: "Max",
+    });
   });
 
   it("reads the none-to-ultra scale", () => {
@@ -24,6 +35,10 @@ describe("readOptionalReasoningEffort", () => {
   it("maps aliases onto the product scale", () => {
     expect(readOptionalReasoningEffort({ reasoningEffort: "max" })).toBe("ultra");
     expect(readOptionalReasoningEffort({ reasoningEffort: "xhigh" })).toBe("ultra");
+    expect(readOptionalReasoningEffort({ reasoningEffort: "light" })).toBe("low");
+    expect(readOptionalReasoningEffort({ reasoningEffort: "normal" })).toBe("medium");
+    expect(readOptionalReasoningEffort({ reasoningEffort: "deep" })).toBe("high");
+    expect(readOptionalReasoningEffort({ reasoningEffort: "off" })).toBe("none");
   });
 
   it("treats thinking false as none when effort is omitted", () => {

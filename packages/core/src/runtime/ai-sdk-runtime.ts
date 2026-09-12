@@ -20,16 +20,11 @@ import {
   shouldRetryModelContact,
   shouldRetryWithoutTools,
 } from "./retry";
-import {
-  openaiCompatProviderOptions,
-  shouldFallbackFromResponses,
-  shouldUpgradeToResponses,
-} from "./api-mode";
+import { openaiCompatProviderOptions } from "./api-mode";
 import {
   applyAnthropicMessagesBody,
   isMissingWireEndpoint,
   resolveChatWire,
-  shouldFallbackFromMessages,
   type ChatWire,
   type ResolvedChatWire,
 } from "./chat-wire";
@@ -183,8 +178,13 @@ export class AiSdkRuntime implements AgentRuntime {
       return;
     }
 
-    // Parked extras Anthropic (unexposed GTM). Product Messages uses the gateway key below.
-    if (requestedWire === "auto" && provider === "anthropic" && anthropicKey) {
+    // Parked extras Anthropic (unexposed GTM). Claude 5 auto uses the gateway Messages path.
+    if (
+      requestedWire === "auto" &&
+      resolvedWire !== "anthropic_messages" &&
+      provider === "anthropic" &&
+      anthropicKey
+    ) {
       const anthropic = createAnthropic({
         apiKey: anthropicKey,
         ...(anthropicBaseUrl ? { baseURL: anthropicBaseUrl } : {}),
@@ -379,34 +379,9 @@ export class AiSdkRuntime implements AgentRuntime {
 
     if (
       first.failed &&
-      hasTools &&
       openaiWire &&
-      openaiWire.requested === "auto" &&
-      wire === "chat_completions" &&
-      shouldUpgradeToResponses(first.failed)
-    ) {
-      activeModel = openaiWire.responsesModel;
-      wire = "responses";
-      first = await consumeOnce(activeModel, tools, { responses: true });
-    } else if (
-      first.failed &&
-      openaiWire &&
-      wire === "responses" &&
-      (openaiWire.requested === "auto"
-        ? shouldFallbackFromResponses(first.failed)
-        : isMissingWireEndpoint(first.failed))
-    ) {
-      activeModel = openaiWire.chatModel;
-      wire = "chat_completions";
-      first = await consumeOnce(activeModel, hasTools ? tools : undefined, {
-        responses: false,
-        forceReasoningNone: hasTools && !wantThinking,
-      });
-    } else if (
-      first.failed &&
-      openaiWire &&
-      wire === "anthropic_messages" &&
-      shouldFallbackFromMessages(first.failed)
+      wire !== "chat_completions" &&
+      isMissingWireEndpoint(first.failed)
     ) {
       activeModel = openaiWire.chatModel;
       wire = "chat_completions";
@@ -414,16 +389,6 @@ export class AiSdkRuntime implements AgentRuntime {
         responses: false,
         forceReasoningNone: !wantThinking,
       });
-    } else if (
-      first.failed &&
-      openaiWire &&
-      wire === "chat_completions" &&
-      openaiWire.requested === "chat_completions" &&
-      isMissingWireEndpoint(first.failed)
-    ) {
-      activeModel = openaiWire.responsesModel;
-      wire = "responses";
-      first = await consumeOnce(activeModel, hasTools ? tools : undefined, { responses: true });
     }
 
     const shouldRetryBare = shouldRetryWithoutTools({

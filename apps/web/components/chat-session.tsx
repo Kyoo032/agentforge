@@ -21,7 +21,6 @@ import {
 } from "@/lib/chat-model-pref";
 import { useProductBrand } from "@/lib/product-brand";
 import { isReasoningEffort, type ReasoningEffort } from "@agentforge/core/reasoning-effort";
-import { isChatWire, type ChatWire } from "@agentforge/core/chat-wire";
 
 type Message = { id: string; role: string; content: unknown };
 
@@ -59,7 +58,6 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [thinkingEnabled, setThinkingEnabled] = useState(true);
   const [reasoningEffort, setReasoningEffort] = useState<ReasoningEffort>("medium");
-  const [wire, setWire] = useState<ChatWire>("auto");
   const [knowledgeParts, setKnowledgeParts] = useState<ContextPart[]>([]);
   const toolsRef = useRef(tools);
   toolsRef.current = tools;
@@ -79,10 +77,6 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           setReasoningEffort("none");
         }
       }
-      const storedWire = window.localStorage.getItem("agentforge-chat-wire");
-      if (isChatWire(storedWire)) {
-        setWire(storedWire);
-      }
     } catch {
       // private mode
     }
@@ -94,15 +88,6 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
     try {
       window.localStorage.setItem("agentforge-chat-reasoning-effort", next);
       window.localStorage.setItem("agentforge-chat-thinking", next === "none" ? "off" : "on");
-    } catch {
-      // private mode
-    }
-  }
-
-  function setWirePref(next: ChatWire) {
-    setWire(next);
-    try {
-      window.localStorage.setItem("agentforge-chat-wire", next);
     } catch {
       // private mode
     }
@@ -387,8 +372,6 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           thinkingEnabled={thinkingEnabled}
           reasoningEffort={reasoningEffort}
           onReasoningEffortChange={setReasoningPref}
-          wire={wire}
-          onWireChange={setWirePref}
           onUserSend={(payload) => {
             setError(null);
             setRunning(true);

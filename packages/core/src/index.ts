@@ -209,6 +209,7 @@ export {
 export type { ChatModel, ModelProvider } from "./models/catalog";
 export {
   REASONING_EFFORTS,
+  THINKING_LABELS,
   isReasoningEffort,
   readOptionalReasoningEffort,
   resolveRequestReasoningEffort,
@@ -223,6 +224,7 @@ export {
   isChatWire,
   readOptionalChatWire,
   resolveChatWire,
+  usesAnthropicMessages,
   chatWireHeaders,
   isAnthropicMessagesUrl,
   isMissingWireEndpoint,

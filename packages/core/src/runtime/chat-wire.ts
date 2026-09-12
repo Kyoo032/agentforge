@@ -1,6 +1,7 @@
 import { ApiError } from "../errors";
+import { bareModelId } from "../models/request-constraints";
 import type { ReasoningEffort } from "../models/reasoning-effort";
-import { preferredOpenAiWire } from "./api-mode";
+import { usesResponsesApi } from "./api-mode";
 
 /**
  * Send-time Chat wire on the saved Endpoint URL. Probe stays GET /v1/models.
@@ -48,12 +49,31 @@ export function readOptionalChatWire(body: unknown): ChatWire {
 }
 
 /**
- * `auto` keeps today's family pick: GPT-5 / o-series → Responses, else Completions.
- * Claude stays Completions until the owner picks Messages.
+ * Claude 5 family plus Opus 4.7 / 4.8 → Anthropic Messages.
+ * Haiku 4.5 / Sonnet 4.6 and other Claude 4.x stay Completions.
+ */
+export function usesAnthropicMessages(modelId: string): boolean {
+  const id = bareModelId(modelId);
+  if (/^claude-(?:opus|sonnet|haiku|fable)-5(?:$|[^0-9])/.test(id)) {
+    return true;
+  }
+  return /^claude-opus-4[.-][78](?:$|[^0-9])/.test(id);
+}
+
+/**
+ * Product Chat always sends `auto`. GPT-5 / o-series → Responses;
+ * Claude 5 / Opus 4.7 / 4.8 → Messages; else Completions.
+ * Explicit wires stay for host/tests.
  */
 export function resolveChatWire(wire: ChatWire | undefined, modelId: string): ResolvedChatWire {
   if (!wire || wire === "auto") {
-    return preferredOpenAiWire(modelId);
+    if (usesResponsesApi(modelId)) {
+      return "responses";
+    }
+    if (usesAnthropicMessages(modelId)) {
+      return "anthropic_messages";
+    }
+    return "chat_completions";
   }
   return wire;
 }
