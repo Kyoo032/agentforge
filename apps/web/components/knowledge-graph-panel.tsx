@@ -78,11 +78,14 @@ export function KnowledgeGraphPanel({ counts }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [graph, setGraph] = useState<KnowledgeGraph>(EMPTY_GRAPH);
   const [focus, setFocus] = useState<string | null>(null);
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
-    if (!open || status !== "idle") {
+    if (!open) {
       return;
     }
+    // Do not gate on status === "idle": React Strict Mode remounts this effect after the first
+    // fetch is cancelled, and a leftover "loading" state would never start a second request.
     let cancelled = false;
     setStatus("loading");
     setError(null);
@@ -110,7 +113,7 @@ export function KnowledgeGraphPanel({ counts }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [open, status]);
+  }, [open, reload]);
 
   const capped = capGraph(graph, GRAPH_NODE_LIMIT);
   const shown = focus ? egoSubgraph(capped, focus) : capped;
@@ -167,7 +170,7 @@ export function KnowledgeGraphPanel({ counts }: Props) {
               <button
                 type="button"
                 className="btn btn-ghost text-[12px]"
-                onClick={() => setStatus("idle")}
+                onClick={() => setReload((n) => n + 1)}
                 data-testid="knowledge-graph-retry"
               >
                 Try again
