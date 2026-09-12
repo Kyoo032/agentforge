@@ -22,10 +22,17 @@ import {
 } from "./retry";
 import {
   openaiCompatProviderOptions,
-  preferredOpenAiWire,
   shouldFallbackFromResponses,
   shouldUpgradeToResponses,
 } from "./api-mode";
+import {
+  applyAnthropicMessagesBody,
+  isMissingWireEndpoint,
+  resolveChatWire,
+  shouldFallbackFromMessages,
+  type ChatWire,
+  type ResolvedChatWire,
+} from "./chat-wire";
 import { applyMinimaxRequest, isMinimaxChatModel, wrapMinimaxResponse } from "./minimax-compat";
 import {
   applyReasoningEffortToChatBody,
@@ -164,6 +171,8 @@ export class AiSdkRuntime implements AgentRuntime {
     const provider = resolveModelProvider(modelName);
 
     const openaiLooksCustom = !isOfficialOpenAIBaseUrl(openaiBaseUrl);
+    const requestedWire: ChatWire = input.wire ?? "auto";
+    const resolvedWire = resolveChatWire(requestedWire, modelName);
 
     if (provider === "google" && googleKey) {
       const google = createGoogleGenerativeAI({
@@ -174,7 +183,8 @@ export class AiSdkRuntime implements AgentRuntime {
       return;
     }
 
-    if (provider === "anthropic" && anthropicKey) {
+    // Parked extras Anthropic (unexposed GTM). Product Messages uses the gateway key below.
+    if (requestedWire === "auto" && provider === "anthropic" && anthropicKey) {
       const anthropic = createAnthropic({
         apiKey: anthropicKey,
         ...(anthropicBaseUrl ? { baseURL: anthropicBaseUrl } : {}),
@@ -208,8 +218,10 @@ export class AiSdkRuntime implements AgentRuntime {
     }
 
     const zdrBaseUrl = openaiBaseUrl;
-    const requestEffort = resolveRequestReasoningEffort(input);
-    const wireEffort = toWireReasoningEffort(requestEffort, {
+    const rawEffort = resolveRequestReasoningEffort(input);
+    // GPT-5.6 none→low is completions/responses-only, not Messages.
+    const openaiEffort = coerceReasoningEffortForModel(modelName, rawEffort);
+    const wireEffort = toWireReasoningEffort(openaiEffort, {
       officialOpenAI: isOfficialOpenAIBaseUrl(openaiBaseUrl),
     });
     const wrappedFetch: typeof fetch = async (url, init) => {
@@ -250,21 +262,58 @@ export class AiSdkRuntime implements AgentRuntime {
       compatibility: isOfficialOpenAIBaseUrl(openaiBaseUrl) ? "strict" : "compatible",
       fetch: wrappedFetch,
     });
-    const wire = preferredOpenAiWire(modelName);
     const chatModel = openai(modelName);
     const responsesModel = openai.responses(modelName);
-    await this.stream(wire === "responses" ? responsesModel : chatModel, input, {
-      wire,
+    const openaiWire = {
+      requested: requestedWire,
+      wire: resolvedWire,
       chatModel,
       responsesModel,
-    });
+    };
+
+    if (resolvedWire === "anthropic_messages") {
+      const messagesFetch: typeof fetch = async (url, init) => {
+        let outgoing: RequestInit = (init as RequestInit) ?? {};
+        if (init?.body && typeof init.body === "string") {
+          try {
+            const parsed = JSON.parse(init.body) as unknown;
+            const scrubbed = rewriteUnreachableMediaInJson(parsed);
+            const withThinking = applyAnthropicMessagesBody(scrubbed, rawEffort);
+            const bodyModel =
+              typeof (withThinking as { model?: unknown }).model === "string"
+                ? ((withThinking as { model: string }).model)
+                : modelName;
+            const sanitized = sanitizeGatewayRequestBody(withThinking, bodyModel, url);
+            outgoing = { ...init, body: JSON.stringify(sanitized) };
+          } catch {
+            // fall through to unmodified request on parse error
+          }
+        }
+        const response = await fetchWithHeaderTimeout(url, outgoing);
+        if (!response.ok) {
+          const text = await readHttpErrorBody(response);
+          throw new Error(parseGatewayHttpError(response.status, text));
+        }
+        return response;
+      };
+      const anthropic = createAnthropic({
+        apiKey: openaiKey || "ollama",
+        baseURL: openaiBaseUrl,
+        fetch: messagesFetch,
+      });
+      await this.stream(anthropic(modelName, { sendReasoning: true }), input, openaiWire);
+      return;
+    }
+
+    await this.stream(resolvedWire === "responses" ? responsesModel : chatModel, input, openaiWire);
   }
 
   private async stream(
     model: Parameters<typeof streamText>[0]["model"],
     input: Parameters<AgentRuntime["execute"]>[0],
     openaiWire?: {
-      wire: "responses" | "chat_completions";
+      requested: ChatWire;
+      wire: ResolvedChatWire;
       chatModel: Parameters<typeof streamText>[0]["model"];
       responsesModel: Parameters<typeof streamText>[0]["model"];
     },
@@ -289,21 +338,26 @@ export class AiSdkRuntime implements AgentRuntime {
 
     const messages = toCoreMessages(input.version.systemPrompt, input.history);
     const hasTools = Object.keys(tools).length > 0;
-    const requestEffort = coerceReasoningEffortForModel(
-      input.version.model,
-      resolveRequestReasoningEffort(input),
-    );
-    const wantThinking = requestEffort !== "none";
+    const rawEffort = resolveRequestReasoningEffort(input);
+    const openaiEffort = coerceReasoningEffortForModel(input.version.model, rawEffort);
     let activeModel = model;
     let wire = openaiWire?.wire;
+    const effortForWire = (next: ResolvedChatWire | undefined) =>
+      next === "anthropic_messages" ? rawEffort : openaiEffort;
+    const wantThinking = effortForWire(wire) !== "none";
     const consumeOnce = (
       nextModel: Parameters<typeof streamText>[0]["model"],
       nextTools: Record<string, any> | undefined,
-      options: { responses?: boolean; forceReasoningNone?: boolean; reasoningEffort?: ReasoningEffort } = {},
+      options: {
+        responses?: boolean;
+        messages?: boolean;
+        forceReasoningNone?: boolean;
+        reasoningEffort?: ReasoningEffort;
+      } = {},
     ) =>
       this.consumeSafe(nextModel, input, messages, nextTools, {
         ...options,
-        reasoningEffort: options.reasoningEffort ?? requestEffort,
+        reasoningEffort: options.reasoningEffort ?? effortForWire(wire),
       });
 
     const probe = async (attempt: number) => {
@@ -319,6 +373,7 @@ export class AiSdkRuntime implements AgentRuntime {
     await probe(1);
     let first = await consumeOnce(activeModel, hasTools ? tools : undefined, {
       responses: wire === "responses",
+      messages: wire === "anthropic_messages",
       forceReasoningNone: !wantThinking,
     });
 
@@ -326,6 +381,7 @@ export class AiSdkRuntime implements AgentRuntime {
       first.failed &&
       hasTools &&
       openaiWire &&
+      openaiWire.requested === "auto" &&
       wire === "chat_completions" &&
       shouldUpgradeToResponses(first.failed)
     ) {
@@ -336,7 +392,9 @@ export class AiSdkRuntime implements AgentRuntime {
       first.failed &&
       openaiWire &&
       wire === "responses" &&
-      shouldFallbackFromResponses(first.failed)
+      (openaiWire.requested === "auto"
+        ? shouldFallbackFromResponses(first.failed)
+        : isMissingWireEndpoint(first.failed))
     ) {
       activeModel = openaiWire.chatModel;
       wire = "chat_completions";
@@ -344,6 +402,28 @@ export class AiSdkRuntime implements AgentRuntime {
         responses: false,
         forceReasoningNone: hasTools && !wantThinking,
       });
+    } else if (
+      first.failed &&
+      openaiWire &&
+      wire === "anthropic_messages" &&
+      shouldFallbackFromMessages(first.failed)
+    ) {
+      activeModel = openaiWire.chatModel;
+      wire = "chat_completions";
+      first = await consumeOnce(activeModel, hasTools ? tools : undefined, {
+        responses: false,
+        forceReasoningNone: !wantThinking,
+      });
+    } else if (
+      first.failed &&
+      openaiWire &&
+      wire === "chat_completions" &&
+      openaiWire.requested === "chat_completions" &&
+      isMissingWireEndpoint(first.failed)
+    ) {
+      activeModel = openaiWire.responsesModel;
+      wire = "responses";
+      first = await consumeOnce(activeModel, hasTools ? tools : undefined, { responses: true });
     }
 
     const shouldRetryBare = shouldRetryWithoutTools({
@@ -353,7 +433,10 @@ export class AiSdkRuntime implements AgentRuntime {
       tooled: first.tooled,
     });
     let result = shouldRetryBare
-      ? await consumeOnce(activeModel, undefined, { responses: wire === "responses" })
+      ? await consumeOnce(activeModel, undefined, {
+          responses: wire === "responses",
+          messages: wire === "anthropic_messages",
+        })
       : first;
     let contactAttempts = 1;
     const retryTools = shouldRetryBare ? undefined : hasTools ? tools : undefined;
@@ -375,6 +458,7 @@ export class AiSdkRuntime implements AgentRuntime {
       await probe(contactAttempts);
       result = await consumeOnce(activeModel, retryTools, {
         responses: wire === "responses",
+        messages: wire === "anthropic_messages",
         forceReasoningNone: Boolean(retryTools) && !wantThinking,
       });
     }
@@ -413,7 +497,12 @@ export class AiSdkRuntime implements AgentRuntime {
     input: Parameters<AgentRuntime["execute"]>[0],
     messages: CoreMessage[],
     tools: Record<string, any> | undefined,
-    options: { responses?: boolean; forceReasoningNone?: boolean; reasoningEffort?: ReasoningEffort } = {},
+    options: {
+      responses?: boolean;
+      messages?: boolean;
+      forceReasoningNone?: boolean;
+      reasoningEffort?: ReasoningEffort;
+    } = {},
   ) {
     try {
       return await this.consume(model, input, messages, tools, options);
@@ -434,7 +523,12 @@ export class AiSdkRuntime implements AgentRuntime {
     input: Parameters<AgentRuntime["execute"]>[0],
     messages: CoreMessage[],
     tools: Record<string, any> | undefined,
-    options: { responses?: boolean; forceReasoningNone?: boolean; reasoningEffort?: ReasoningEffort } = {},
+    options: {
+      responses?: boolean;
+      messages?: boolean;
+      forceReasoningNone?: boolean;
+      reasoningEffort?: ReasoningEffort;
+    } = {},
   ): Promise<{
     text: boolean;
     thinking: string;
@@ -443,7 +537,7 @@ export class AiSdkRuntime implements AgentRuntime {
     failed: string;
     usage: { inputTokens: number; outputTokens: number };
   }> {
-    const providerOptions = openaiCompatProviderOptions(options);
+    const providerOptions = options.messages ? undefined : openaiCompatProviderOptions(options);
     const abort = new AbortController();
     const watchdog = armStreamWatchdog(input.version.model, abort, input.streamWatchdog);
     const result = streamText({

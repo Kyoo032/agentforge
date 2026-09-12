@@ -5,6 +5,9 @@ import type { ReasoningEffort } from "../models/reasoning-effort";
  * host-mandated Responses on official OpenAI) and Pi (`api: openai-responses`
  * for GPT-5 / o-series). Some OpenAI-compatible gateways 400 GPT-5.6 + tools on
  * /v1/chat/completions and tell the client to use /v1/responses.
+ *
+ * Chat send-time `wire` (`auto` | completions | responses | messages) lives in
+ * `chat-wire.ts`. `preferredOpenAiWire` is only the `auto` family pick.
  */
 
 export type OpenAiWire = "responses" | "chat_completions";

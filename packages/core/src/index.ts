@@ -216,6 +216,22 @@ export {
 } from "./models/reasoning-effort";
 export type { ReasoningEffort } from "./models/reasoning-effort";
 export {
+  CHAT_WIRES,
+  CHAT_WIRE_LABELS,
+  ANTHROPIC_API_VERSION,
+  ANTHROPIC_MESSAGES_MAX_TOKENS,
+  isChatWire,
+  readOptionalChatWire,
+  resolveChatWire,
+  chatWireHeaders,
+  isAnthropicMessagesUrl,
+  isMissingWireEndpoint,
+  shouldFallbackFromMessages,
+  toAnthropicOutputEffort,
+  applyAnthropicMessagesBody,
+} from "./runtime/chat-wire";
+export type { ChatWire, ResolvedChatWire, AnthropicOutputEffort } from "./runtime/chat-wire";
+export {
   DEFAULT_FALLBACK_CONTEXT,
   extractContextLength,
   familyContextLength,
@@ -408,7 +424,7 @@ export {
   isWatchdogReasoningModel,
 } from "./runtime/stream-watchdog";
 export type { StreamWatchdogLimits } from "./runtime/stream-watchdog";
-export { preferredOpenAiWire, usesResponsesApi } from "./runtime/api-mode";
+export { preferredOpenAiWire, usesResponsesApi, shouldFallbackFromResponses } from "./runtime/api-mode";
 export { encodeSse } from "./sse";
 export {
   LOCAL_OWNER_ID,

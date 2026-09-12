@@ -12,6 +12,7 @@ A turn is three layers: **Thinking** (collapsible), **tools** (one row per call)
 - `chat-ingest` — every completed assistant turn rewrites one `Chat` work card per thread in the Knowledge Base (latest user + assistant, capped). `/knowledge` shows a `Chat` row named after the thread. Retrieval for that thread skips it. See [knowledge-ingest.md](./knowledge-ingest.md).
 - `chat-enhance` rewrites the composer draft via `composer-enhance` (`POST /api/v1/prompts/enhance`). Stub rewrites locally. `composer-enhance-revert` / `aria-pressed` restores the pre-enhance text. A second sparkle after an edit treats the box as a new seed. Cancel aborts and does not replace the box.
 - `chat-thinking` shows `reasoning-effort` next to the model picker (`None` / `Low` / `Med` / `High` / `Ultra`). Default `Med`. `None` skips reasoning events. Reasoning models also carry a `model-thinking-badge` in the picker.
+- `chat-wire` shows `chat-wire` next to reasoning (`Auto` / `Completions` / `Responses` / `Messages`). Default `Auto` (GPT-5 → `/v1/responses`, else `/v1/chat/completions`; Claude stays Completions until Messages is chosen). Independent of the model picker. Probe is still only `GET /v1/models`.
 - `chat-send` puts the user prompt in the transcript and returns the send button to `Send`. **Enter** sends (`submitOnEnter`); Shift+Enter stays newline. Packaged window must do this, not only `:3000`.
 - `chat-keep-alive` — switching Chat ↔ Documents (or any rail job mode) must not unmount the visited mode. Drafts and in-flight runs survive. `WorkModeKeepAlive` keeps visited modes mounted.
 - `chat-fail-closed` — a gateway 400/403 (illegal `temperature`, no access, quota) surfaces on `chat-error` / `composer-error`. Running/Thinking must clear (`onFailed` sets `running` false). Do not hang.
@@ -36,7 +37,8 @@ Preconditions:
 - Unique prompt text, e.g. `VERIFY chat <run-id>: What is 2 + 3?`.
 - `runtime: "stub"` for a stub-proof send. If doctor says `ai`, say so and treat the reply as live.
 
-- **Open Chat.** Go to `/chat`. `model-picker`, `composer`, `composer-toolbar`, `reasoning-effort`, and `chat-empty` are visible. `chat-empty` headline is `You're in. Ask anything.` `mode-chat` plus the other work modes are visible. `mode-agents` count is 0.
+- **Open Chat.** Go to `/chat`. `model-picker`, `composer`, `composer-toolbar`, `reasoning-effort`, `chat-wire`, and `chat-empty` are visible. `chat-wire` value is `auto` (label Auto). `chat-empty` headline is `You're in. Ask anything.` `mode-chat` plus the other work modes are visible. `mode-agents` count is 0.
+- **Wire picker.** Change `chat-wire` to `anthropic_messages` (label Messages). Stub send still completes. Restore `auto` on a shared desk. Do not treat this as live Toko proof.
 - **Usage chip.** `chat-usage` is visible in the Chat header (next to `new-chat`). On stub / no key, it settles on `No key saved`.
 - **Context chip.** `chat-context` is visible in the Chat header. Closed chip text includes `left` or `used` (not `0 / window`). Click it: `chat-context-breakdown` shows Conversation / Attachments / Knowledge / Free, and the `used / window` line (empty thread: `0 / <window>`). After messages exist, used tokens are greater than 0.
 - **Enhance.** Fill `composer-text`. Click `composer-enhance`. The box is rewritten (stub: same language, no “Enhanced prompt:” preface). Click again (`composer-enhance-revert` or `aria-pressed`) to restore. Send stays disabled while enhance is busy.
@@ -54,7 +56,9 @@ Preconditions:
 - `new-chat` is the header button on the Chat page. `new-chat-link` is the `+ New chat` control in the session rail. The smoke uses `new-chat`.
 - Wait for `composer-send` text `Send`, not a fixed sleep. Stub and live both hold the button in a busy state.
 - Live contact miss (no channel, 502/503, network): host retries the same model up to 3 times internally. The UI stays `Sending…` / `Thinking…` — do not require `1st try` labels on the frontend. Then `chat-error` / `composer-error` reads `Could not reach {model} after 3 tries`. Do not treat that as a harness fail if the gateway is down.
-- GPT-5.6 Luna/Sol/Terra with effort **None** is coerced to **Low** on the wire. The picker can still say None.
+- GPT-5.6 Luna/Sol/Terra with effort **None** is coerced to **Low** on Completions/Responses. The picker can still say None. Messages does not coerce.
+- Wire `Messages` posts `{endpoint}/v1/messages` with the gateway key as `x-api-key` + `anthropic-version: 2023-06-01` (not extras Anthropic, not a second host). Completions/Responses keep `Authorization: Bearer`. Claude 5 never sends `thinking: { type: "enabled", budget_tokens }`. None → `thinking: { type: "disabled" }`; thinking on → `thinking: { type: "adaptive" }` + `output_config.effort` (product ultra → `max`).
+- A thinking **400** is a bad request for that send — not a signal to try another wire. Fallback is 404-only.
 - A 403 (`no access` / quota) must fail closed in seconds, not sit on Running until the 60s idle watchdog.
 - `chat-usage` loads asynchronously from `/api/v1/settings`. Assert the settled label, not the initial `…`.
 - Empty-state “paste a … key” uses ping `gatewayName` (Toko Token on webdev). Local flavor windows say AIHub — [desktop-brands.md](./desktop-brands.md).

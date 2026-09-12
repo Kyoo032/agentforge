@@ -17,6 +17,7 @@
     "./edit": "./src/edit/index.ts",
     "./content": "./src/content/transcript.ts",
     "./reasoning-effort": "./src/models/reasoning-effort.ts",
+    "./chat-wire": "./src/runtime/chat-wire.ts",
     "./stream-watchdog": "./src/runtime/stream-watchdog.ts",
     "./retry": "./src/runtime/retry.ts",
     "./tabular": "./src/tabular/index.ts",

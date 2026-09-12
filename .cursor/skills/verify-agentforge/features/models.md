@@ -33,6 +33,7 @@ Preconditions:
 
 - `curation: false` on webdev is a regression now that Phase 1 curation ships on `/api/v1/models`. Do not soft-pass it. On `--desktop`, `curation: false` is the doctor limit (no HTTP models probe).
 - The Chat list is chat-kind only. Image/video model pickers on Generate surfaces are separate features. Documents / Research / Presentation generate bars use `*-studio-model` (`model-select.tsx`). Section/slide regen uses `*-regen-model` on the regen panel. Knowledge embedding uses a flat `Embeddings` group when `flat`.
+- The Chat **wire** picker (`chat-wire`) is independent of the model: picking Claude does not force Messages, and picking Messages does not force a Claude id.
 - `model-group-recommended` and `model-best-for` are real — assert them. `model-picker-all` was removed; do not invent it.
 - Settings / studio / Knowledge `<select>` paths (`model-select.tsx`) use **Recommended + brand** optgroups (`GPT`, `Claude`, …) with `friendlyLabel — bestFor` option text, not Everyday / Advanced optgroups. Chat uses the palette above.
 - Doctor must hit loopback only. Packaged: use `--desktop`, never treat :3000 as the installed app.

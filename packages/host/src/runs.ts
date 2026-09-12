@@ -13,6 +13,7 @@ import {
   parseVideoRunInput,
   readOptionalModel,
   readOptionalReasoningEffort,
+  readOptionalChatWire,
   resolveChatModel,
   hasModelVisibleContent,
   modelHistoryParts,
@@ -132,6 +133,7 @@ export async function* startModalityRun(options: {
     settings.injectionGuardBypass === true ? parsed.parts : redactAttachedParts(parsed.parts);
   const reasoningEffort = readOptionalReasoningEffort(options.body);
   const thinkingEnabled = reasoningEffort !== "none";
+  const wire = readOptionalChatWire(options.body);
   const thread = await getThread(options.tenant, options.threadId);
   if (!thread) {
     throw new ApiError("not_found", "Thread not found", 404);
@@ -280,6 +282,7 @@ export async function* startModalityRun(options: {
           history,
           thinking: thinkingEnabled,
           reasoningEffort,
+          wire,
           onEvent: async (event) => {
             if (event.type === "run.failed") {
               failedMessage = redactSecrets(event.message);
