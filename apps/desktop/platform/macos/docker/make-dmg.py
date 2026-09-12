@@ -38,6 +38,18 @@ class VolumeFullError(Exception):
     """hfsplus mkdir/add returned 0 but the catalog did not grow."""
 
 
+def parse_hfs_ls_name(line: str) -> str | None:
+    """Return the entry name from one `hfsplus ls` row, or None for headers."""
+    parts = line.split()
+    if len(parts) < 5 or not parts[0].isdigit():
+        return None
+    if "/" in parts[4]:
+        fields = line.split(None, 6)
+        return fields[6] if len(fields) >= 7 else None
+    fields = line.split(None, 7)
+    return fields[7] if len(fields) >= 8 else None
+
+
 def fail(message: str) -> "NoReturn":
     print(f"make-dmg: ERROR: {message}", file=sys.stderr, flush=True)
     sys.exit(1)
@@ -86,14 +98,16 @@ class HfsImage:
     def names(self, dest: str) -> set[str]:
         """Entry names in a directory, parsed from `ls`.
 
-        libdmg-hfsplus prints either a ctime date (`Jan 01 1980`, 8 columns) or a
-        numeric date (`8/12/2026 12:17`, 7 columns). The name is always the last field.
+        libdmg-hfsplus prints either a ctime date (`Jan 01 1980`, name starts at
+        column 8) or a numeric date (`8/12/2026 12:17`, name starts at column 7).
+        Helper apps have spaces, so the name is the remainder of the line, not the
+        last whitespace token.
         """
         found: set[str] = set()
         for line in self.ls(dest).splitlines():
-            parts = line.split()
-            if len(parts) >= 5 and parts[0].isdigit():
-                found.add(parts[-1])
+            name = parse_hfs_ls_name(line)
+            if name:
+                found.add(name)
         return found
 
     def expect(self, dest_dir: str, names: list[str]) -> None:
