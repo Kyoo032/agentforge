@@ -208,13 +208,48 @@ export {
 } from "./models/catalog";
 export type { ChatModel, ModelProvider } from "./models/catalog";
 export {
+  REASONING_LADDER,
   REASONING_EFFORTS,
+  THINKING_LABELS,
   isReasoningEffort,
   readOptionalReasoningEffort,
   resolveRequestReasoningEffort,
+  closestReasoningEffort,
   coerceReasoningEffortForModel,
+  toWireReasoningEffort,
 } from "./models/reasoning-effort";
-export type { ReasoningEffort } from "./models/reasoning-effort";
+export type { ReasoningEffort, ChatReasoningEffort } from "./models/reasoning-effort";
+export {
+  CHAT_WIRES,
+  CHAT_WIRE_LABELS,
+  ANTHROPIC_API_VERSION,
+  ANTHROPIC_MESSAGES_MAX_TOKENS,
+  isChatWire,
+  readOptionalChatWire,
+  resolveChatWire,
+  usesAnthropicMessages,
+  usesGeminiGenerateContent,
+  chatWireHeaders,
+  isAnthropicMessagesUrl,
+  isGeminiGenerateContentUrl,
+  geminiGenerateContentBaseUrl,
+  isMissingWireEndpoint,
+  shouldFallbackFromMessages,
+  toAnthropicOutputEffort,
+  applyAnthropicMessagesBody,
+  applyGeminiGenerateContentBody,
+} from "./runtime/chat-wire";
+export type { ChatWire, ResolvedChatWire, AnthropicOutputEffort } from "./runtime/chat-wire";
+export {
+  snapReasoningEffort,
+  allowedReasoningEfforts,
+  TOKO_COMPLETIONS_EFFORTS,
+  OFFICIAL_OPENAI_EFFORTS,
+  GPT_56_EFFORTS,
+  GPT_6_EFFORTS,
+  ANTHROPIC_MESSAGES_EFFORTS,
+  GEMINI_EFFORTS,
+} from "./runtime/effort-allowlist";
 export {
   DEFAULT_FALLBACK_CONTEXT,
   extractContextLength,
@@ -408,7 +443,7 @@ export {
   isWatchdogReasoningModel,
 } from "./runtime/stream-watchdog";
 export type { StreamWatchdogLimits } from "./runtime/stream-watchdog";
-export { preferredOpenAiWire, usesResponsesApi } from "./runtime/api-mode";
+export { preferredOpenAiWire, usesResponsesApi, shouldFallbackFromResponses } from "./runtime/api-mode";
 export { encodeSse } from "./sse";
 export {
   LOCAL_OWNER_ID,

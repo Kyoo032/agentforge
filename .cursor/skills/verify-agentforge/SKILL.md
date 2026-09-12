@@ -101,7 +101,7 @@ How each DPSBuddy secret is processed:
 
 | Secret | Entered | After save | Unlocks |
 |---|---|---|---|
-| Gateway key (`openai-key`) | Settings | Host process writes AES-256-GCM `settings.enc`. GET `/api/v1/settings` returns `hasOpenai: true`, never the raw key. Input shows “Saved — paste to replace”. | Chat + image/video on Toko Token (`/v1/chat/completions`, `/v1/images/generations`, `/v1/video/generations`) |
+| Gateway key (`openai-key`) | Settings | Host process writes AES-256-GCM `settings.enc`. GET `/api/v1/settings` returns `hasOpenai: true`, never the raw key. Input shows “Saved — paste to replace”. | Chat + image/video on Toko Token. Probe is `GET /v1/models` (Bearer). Host auto-routes Chat: GPT-5/GPT-6/o → `/v1/responses`, Claude 5 / Opus 4.7/4.8 / Sonnet 4.6 → `/v1/messages` (`x-api-key` + `anthropic-version`), Gemini chat → generateContent, else `/v1/chat/completions`. Same key. |
 | Wrap key | Never in UI | Electron: Windows Credential Manager `DPSBuddy` / `wrap-key` (keytar) injected as `AGENTFORGE_SECRETS_KEY` into the child. Webdev: gitignored `data/.master-key` or env `AGENTFORGE_SECRETS_KEY`. | Decrypts `settings.enc` |
 | Native extras (Google, Anthropic, Ark/Volcengine) | Not in GTM Settings UI (store still holds them) | Same `settings.enc`; UI booleans `hasGoogle` / `hasAnthropic` / `hasVolcengine` only | Optional non-gateway providers |
 | Tool keys (Tavily, Brave, FAL, …) | Not in GTM Settings UI | Same file, `hasToolKeys` map | Search / FAL generate |
@@ -142,6 +142,7 @@ Use `page.getByTestId("<id>")` exactly as the spec.
 | `settings-link` | Rail → Settings |
 | `usage-link`, `usage-open`, `usage-range`, `usage-range-chart` | Rail / Settings → Usage (`/usage`); range toggle + stacked chart |
 | `model-picker`, `composer`, `composer-text`, `composer-send`, `composer-enhance` | Chat |
+| `reasoning-effort` | Chat Thinking: Off / Light / Normal / Deep / Extra / Max / Ultra (values `none` / `low` / `medium` / `high` / `xhigh` / `max` / `ultra`). Host snaps silently per model. No `chat-wire`. |
 | `chat-usage`, `chat-context` | Chat header chips (wallet spend; ring + `left`/`used`) |
 | `chat-empty`, `message-list`, `message-output`, `thread-list`, `thread-item`, `new-chat`, `chat-error`, `composer-error` | Threads + assistant markdown output; live contact fail after 3 tries |
 | `settings-form`, `settings-endpoint`, `settings-endpoint-reset`, `openai-key`, `key-fingerprint`, `runtime-status`, `privacy-note`, `usage-this-key` | Settings (endpoint + key; Open Usage) |

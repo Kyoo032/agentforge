@@ -13,6 +13,13 @@ test("chat and workspaces work without an account", async ({ page }) => {
   await page.goto("/chat");
   await expect(page.getByTestId("model-picker")).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId("composer")).toBeVisible();
+  await expect(page.getByTestId("reasoning-effort")).toBeVisible();
+  await expect(page.getByTestId("reasoning-effort")).toHaveValue("medium");
+  await expect(page.getByTestId("reasoning-effort")).toContainText("Normal");
+  await expect(page.getByTestId("reasoning-effort").locator("option[value=xhigh]")).toHaveText("Extra");
+  await expect(page.getByTestId("reasoning-effort").locator("option[value=max]")).toHaveText("Max");
+  await expect(page.getByTestId("reasoning-effort").locator("option[value=ultra]")).toHaveText("Ultra");
+  await expect(page.getByTestId("chat-wire")).toHaveCount(0);
   await expect(page.getByTestId("chat-empty")).toContainText("Ask anything");
   await expect(page.getByTestId("mode-chat")).toBeVisible();
   await expect(page.getByTestId("mode-documents")).toBeVisible();

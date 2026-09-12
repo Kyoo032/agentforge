@@ -1,10 +1,14 @@
-import type { ReasoningEffort } from "../models/reasoning-effort";
+import { toWireReasoningEffort, type ReasoningEffort } from "../models/reasoning-effort";
 
 /**
  * Wire-protocol picks stripped from Hermes (Copilot/OpenCode rule +
  * host-mandated Responses on official OpenAI) and Pi (`api: openai-responses`
  * for GPT-5 / o-series). Some OpenAI-compatible gateways 400 GPT-5.6 + tools on
  * /v1/chat/completions and tell the client to use /v1/responses.
+ *
+ * Chat send-time `wire` (`auto` | completions | responses | messages | generateContent)
+ * lives in `chat-wire.ts`. `preferredOpenAiWire` is GPT-5 / GPT-6 / o-series → Responses.
+ * Auto also routes Claude 5 / Opus 4.7 / 4.8 / Sonnet 4.6 to Messages and Gemini chat to generateContent.
  */
 
 export type OpenAiWire = "responses" | "chat_completions";
@@ -54,6 +58,7 @@ export function shouldFallbackFromResponses(message: string): boolean {
  */
 export function openaiCompatProviderOptions(options: {
   responses?: boolean;
+  officialOpenAI?: boolean;
   forceReasoningNone?: boolean;
   reasoningEffort?: ReasoningEffort;
 }): { openai: Record<string, string | boolean> } | undefined {
@@ -63,7 +68,12 @@ export function openaiCompatProviderOptions(options: {
   if (!options.responses && !effort) {
     return undefined;
   }
-  const providerEffort = effort === "ultra" && options.responses ? "xhigh" : effort;
+  const providerEffort = effort
+    ? toWireReasoningEffort(effort, {
+        officialOpenAI: options.officialOpenAI,
+        responses: options.responses,
+      })
+    : effort;
   return {
     openai: {
       ...(options.responses ? { strictSchemas: false } : {}),

@@ -9,7 +9,7 @@ import {
 
 describe("usesResponsesApi", () => {
   it("matches Hermes/OpenCode: GPT-5+ except gpt-5-mini, plus o-series", () => {
-    expect(usesResponsesApi("gpt-5.6-sol")).toBe(true);
+    expect(usesResponsesApi("gpt-6-astra")).toBe(true);
     expect(usesResponsesApi("gpt-5.6-luna")).toBe(true);
     expect(usesResponsesApi("openai/gpt-5")).toBe(true);
     expect(usesResponsesApi("gpt-5-mini")).toBe(false);
@@ -65,13 +65,63 @@ describe("openaiCompatProviderOptions", () => {
     expect(openaiCompatProviderOptions({ reasoningEffort: "ultra" })).toEqual({
       openai: { reasoningEffort: "ultra" },
     });
+    expect(openaiCompatProviderOptions({ reasoningEffort: "max" })).toEqual({
+      openai: { reasoningEffort: "max" },
+    });
+    expect(openaiCompatProviderOptions({ reasoningEffort: "xhigh" })).toEqual({
+      openai: { reasoningEffort: "xhigh" },
+    });
   });
 
-  it("maps ultra to xhigh on Responses", () => {
+  it("keeps ultra and max on Toko Responses", () => {
     expect(openaiCompatProviderOptions({ responses: true, reasoningEffort: "ultra" })).toEqual({
       openai: {
         strictSchemas: false,
-        reasoningEffort: "xhigh",
+        reasoningEffort: "ultra",
+        reasoningSummary: "auto",
+      },
+    });
+    expect(openaiCompatProviderOptions({ responses: true, reasoningEffort: "max" })).toEqual({
+      openai: {
+        strictSchemas: false,
+        reasoningEffort: "max",
+        reasoningSummary: "auto",
+      },
+    });
+  });
+
+  it("maps ultra to max on official OpenAI Completions and Responses, not xhigh", () => {
+    expect(
+      openaiCompatProviderOptions({
+        responses: true,
+        officialOpenAI: true,
+        reasoningEffort: "ultra",
+      }),
+    ).toEqual({
+      openai: {
+        strictSchemas: false,
+        reasoningEffort: "max",
+        reasoningSummary: "auto",
+      },
+    });
+    expect(
+      openaiCompatProviderOptions({
+        officialOpenAI: true,
+        reasoningEffort: "ultra",
+      }),
+    ).toEqual({
+      openai: { reasoningEffort: "max" },
+    });
+    expect(
+      openaiCompatProviderOptions({
+        responses: true,
+        officialOpenAI: true,
+        reasoningEffort: "max",
+      }),
+    ).toEqual({
+      openai: {
+        strictSchemas: false,
+        reasoningEffort: "max",
         reasoningSummary: "auto",
       },
     });

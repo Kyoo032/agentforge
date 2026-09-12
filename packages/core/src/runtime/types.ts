@@ -2,6 +2,7 @@ import type { ContentPart } from "../content/types";
 import type { InputModality, TenantContext } from "../tenancy/types";
 import type { AgentVersionRecord, ToolBindingRecord } from "../agents/service";
 import type { ReasoningEffort } from "../models/reasoning-effort";
+import type { ChatWire } from "./chat-wire";
 import type { StreamWatchdogLimits } from "./stream-watchdog";
 
 export type RunUsage = {
@@ -32,6 +33,11 @@ export type AgentRuntime = {
     thinking?: boolean;
     /** None skips reasoning. Default medium when omitted. */
     reasoningEffort?: ReasoningEffort;
+    /**
+     * Per-send POST path on the saved Endpoint URL.
+     * `auto` keeps today's family pick (GPT-5 → Responses, else Completions).
+     */
+    wire?: ChatWire;
     /**
      * Per-run stream watchdog limits, merged over the model defaults (a value
      * below the default is ignored). For long-prefill jobs that sit quiet

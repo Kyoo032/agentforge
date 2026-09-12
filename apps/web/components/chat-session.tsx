@@ -67,15 +67,15 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
   useEffect(() => {
     try {
       const storedEffort = window.localStorage.getItem("agentforge-chat-reasoning-effort");
-      if (isReasoningEffort(storedEffort)) {
+      if (isReasoningEffort(storedEffort) && storedEffort !== "minimal") {
         setReasoningEffort(storedEffort);
         setThinkingEnabled(storedEffort !== "none");
-        return;
-      }
-      const stored = window.localStorage.getItem("agentforge-chat-thinking");
-      if (stored === "off") {
-        setThinkingEnabled(false);
-        setReasoningEffort("none");
+      } else {
+        const stored = window.localStorage.getItem("agentforge-chat-thinking");
+        if (stored === "off") {
+          setThinkingEnabled(false);
+          setReasoningEffort("none");
+        }
       }
     } catch {
       // private mode

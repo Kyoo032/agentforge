@@ -12,7 +12,7 @@ import { ModelPicker, type ChatModel } from "@/components/model-picker";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { apiFetch } from "@/lib/api-client";
 import { abortErrorMessage, armStreamWatchdog } from "@agentforge/core/stream-watchdog";
-import { REASONING_EFFORTS, type ReasoningEffort } from "@agentforge/core/reasoning-effort";
+import { REASONING_EFFORTS, THINKING_LABELS, type ReasoningEffort } from "@agentforge/core/reasoning-effort";
 import { submitOnEnter } from "@/lib/composer-enter";
 
 export type ComposerUserSendPayload = {
@@ -388,13 +388,13 @@ export function ChatComposer({
         ) : null}
         {onReasoningEffortChange || onThinkingChange ? (
           <label className="inline-flex items-center" data-testid="thinking-toggle">
-            <span className="sr-only">Reasoning effort</span>
+            <span className="sr-only">Thinking</span>
             <select
               className={`rounded-md border bg-transparent px-2 py-1.5 text-[12.5px] text-ink disabled:opacity-45 ${
                 reasoningEffort !== "none" ? "border-accent text-accent" : "border-divider"
               }`}
               data-testid="reasoning-effort"
-              aria-label="Reasoning effort"
+              aria-label="Thinking"
               value={reasoningEffort}
               disabled={busy}
               onChange={(event) => {
@@ -405,7 +405,7 @@ export function ChatComposer({
             >
               {REASONING_EFFORTS.map((effort) => (
                 <option key={effort} value={effort}>
-                  {effort === "medium" ? "Med" : effort[0].toUpperCase() + effort.slice(1)}
+                  {THINKING_LABELS[effort]}
                 </option>
               ))}
             </select>
