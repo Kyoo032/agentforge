@@ -44,6 +44,7 @@ Why signing matters even though the app is "unsigned": Electron's prebuilt binar
 | asar listing failed at `asar.js:252` | relative path resolved against `/work`, not `apps/desktop`; `listPackage` also needs `{ isPack: false }` | absolute path + options |
 | 7-Zip shows dmg symlinks as regular files, "14 files not in the source bundle" | 7-Zip's HFS+ reader presents a symlink as a file whose bytes are the target path | prove symlinks from the catalog instead: `dmg extract <dmg> vol.hfs` then `hfsplus vol.hfs ls <dir>` shows mode `120644` (S_IFLNK); treat 7-Zip entries at symlink paths as links when size == len(target) |
 | `hfsplus` prints nothing and exits 0 when the catalog cannot grow | tool design | per-directory `ls` read-back in `make-dmg.py`; the final `verify-bundle.py --dmg` diff is the second net |
+| `make-dmg: ERROR: /DPSBuddy.app: … ['Contents']` on 0.14.25 at 362 MB, 1 GB, 2 GB and 4 GB | `names()` required 8 `ls` columns (`Jan 01 1980`). This image prints `8/12/2026 12:17` (7 columns), so every directory looked empty | parse the last field when the mode is octal digits; keep a double-and-retry only for a true catalog-full |
 | `rcodesign sign` on a 7-Zip-extracted stock `Electron.app` fails ("size is smaller than a magical number") | 7-Zip turned the framework symlinks into tiny files | only a lab artifact; electron-builder unpacks Electron with symlinks intact and signing the real bundle works |
 
 ## What the verifier proves (both arches, commit `ce7b25b`)

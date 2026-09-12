@@ -26,10 +26,16 @@ from pathlib import Path
 MIN_SIZE_MB = 64
 SLACK_RATIO = 0.25
 PER_ENTRY_OVERHEAD = 8192
+MAX_SIZE_MB = 2048
+MAX_ATTEMPTS = 3
 
 
 def log(message: str) -> None:
     print(f"make-dmg: {message}", flush=True)
+
+
+class VolumeFullError(Exception):
+    """hfsplus mkdir/add returned 0 but the catalog did not grow."""
 
 
 def fail(message: str) -> "NoReturn":
@@ -78,12 +84,16 @@ class HfsImage:
         return self._cmd("ls", dest)
 
     def names(self, dest: str) -> set[str]:
-        """Entry names in a directory, parsed from `ls` (mode, uid, gid, size, date, time, name)."""
+        """Entry names in a directory, parsed from `ls`.
+
+        libdmg-hfsplus prints either a ctime date (`Jan 01 1980`, 8 columns) or a
+        numeric date (`8/12/2026 12:17`, 7 columns). The name is always the last field.
+        """
         found: set[str] = set()
         for line in self.ls(dest).splitlines():
-            parts = line.split(None, 7)
-            if len(parts) == 8 and parts[0].isdigit() and len(parts[0]) == 6:
-                found.add(parts[7])
+            parts = line.split()
+            if len(parts) >= 5 and parts[0].isdigit():
+                found.add(parts[-1])
         return found
 
     def expect(self, dest_dir: str, names: list[str]) -> None:
@@ -92,7 +102,9 @@ class HfsImage:
         present = self.names(dest_dir)
         missing = [name for name in names if name not in present]
         if missing:
-            fail(f"{dest_dir}: {len(missing)} entries did not land in the image (volume full?): {missing[:5]}")
+            raise VolumeFullError(
+                f"{dest_dir}: {len(missing)} entries did not land in the image (volume full?): {missing[:5]}"
+            )
 
 
 def bundle_size(app: Path) -> tuple[int, int]:
@@ -174,34 +186,47 @@ def main() -> None:
         args.out.unlink()
 
     size = image_size_bytes(app)
+    max_size = MAX_SIZE_MB * 1024 * 1024
     workdir = Path(tempfile.mkdtemp(prefix="make-dmg-"))
     raw = workdir / "volume.hfs"
     try:
-        log(f"creating {size // (1024 * 1024)} MB HFS+ image for {app.name}")
-        with raw.open("wb") as handle:
-            handle.truncate(size)
-        run(["mkfs.hfsplus", "-v", args.volume, str(raw)])
+        for attempt in range(1, MAX_ATTEMPTS + 1):
+            if raw.exists():
+                raw.unlink()
+            log(f"creating {size // (1024 * 1024)} MB HFS+ image for {app.name} (attempt {attempt})")
+            with raw.open("wb") as handle:
+                handle.truncate(size)
+            run(["mkfs.hfsplus", "-v", args.volume, str(raw)])
 
-        image = HfsImage(raw)
-        counts = populate(image, app, "")
-        image.symlink("/Applications", "/Applications")
-        counts["symlinks"] += 1
-        log(
-            "populated: {dirs} dirs, {files} files, {symlinks} symlinks, {executables} executables "
-            "({calls} hfsplus calls)".format(**counts, calls=image.calls)
-        )
+            image = HfsImage(raw)
+            try:
+                counts = populate(image, app, "")
+            except VolumeFullError as err:
+                if attempt == MAX_ATTEMPTS or size >= max_size:
+                    fail(str(err))
+                size = min(size * 2, max_size)
+                log(f"volume full; retrying at {size // (1024 * 1024)} MB ({err})")
+                continue
 
-        listing = image.ls("/")
-        if app.name not in listing or "Applications" not in listing:
-            fail(f"volume root does not list {app.name} and Applications:\n{listing}")
+            image.symlink("/Applications", "/Applications")
+            counts["symlinks"] += 1
+            log(
+                "populated: {dirs} dirs, {files} files, {symlinks} symlinks, {executables} executables "
+                "({calls} hfsplus calls)".format(**counts, calls=image.calls)
+            )
 
-        log(f"building UDZO dmg -> {args.out}")
-        run(["dmg", "build", str(raw), str(args.out)])
-        if not args.out.exists() or args.out.stat().st_size < 1024 * 1024:
-            fail("dmg build produced no usable file")
-        log(f"dmg size {args.out.stat().st_size // (1024 * 1024)} MB")
-        if args.keep_image:
-            shutil.copy2(raw, args.out.with_suffix(".hfs"))
+            listing = image.ls("/")
+            if app.name not in listing or "Applications" not in listing:
+                fail(f"volume root does not list {app.name} and Applications:\n{listing}")
+
+            log(f"building UDZO dmg -> {args.out}")
+            run(["dmg", "build", str(raw), str(args.out)])
+            if not args.out.exists() or args.out.stat().st_size < 1024 * 1024:
+                fail("dmg build produced no usable file")
+            log(f"dmg size {args.out.stat().st_size // (1024 * 1024)} MB")
+            if args.keep_image:
+                shutil.copy2(raw, args.out.with_suffix(".hfs"))
+            break
     finally:
         shutil.rmtree(workdir, ignore_errors=True)
 
