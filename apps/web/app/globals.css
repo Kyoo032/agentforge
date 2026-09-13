@@ -202,7 +202,7 @@ h6 {
   background: transparent;
   color: var(--color-text);
   font-family: var(--font-body);
-  font-size: 13px;
+  font-size: var(--fs-13);
   line-height: 1;
   padding: 8px 12px;
   border-radius: var(--radius-sm);
@@ -277,7 +277,7 @@ h6 {
 .field .label {
   display: block;
   margin-bottom: 5px;
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: color-mix(in srgb, var(--color-text) 70%, transparent);
 }
 
@@ -289,7 +289,7 @@ h6 {
   background: transparent;
   color: var(--color-text);
   font-family: var(--font-body);
-  font-size: 14px;
+  font-size: var(--fs-14);
   padding: 8px 10px;
   border-radius: var(--radius-sm);
 }
@@ -445,7 +445,7 @@ h6 {
 }
 
 .formatted-md code {
-  font-size: 0.9em;
+  font-size: var(--fs-12);
   padding: 0.1em 0.35em;
   border: 1px solid var(--color-divider);
   border-radius: var(--radius-sm);
@@ -456,7 +456,7 @@ h6 {
   padding: 0.7em 0.85em;
   border: 1px solid var(--color-divider);
   border-radius: var(--radius-sm);
-  font-size: 0.85em;
+  font-size: var(--fs-12);
   white-space: pre-wrap;
 }
 
@@ -507,7 +507,7 @@ h6 {
 .formatted-md .formatted-table table {
   border-collapse: collapse;
   width: 100%;
-  font-size: 0.875rem;
+  font-size: var(--fs-14);
 }
 
 .formatted-md .formatted-table th,
