@@ -222,8 +222,10 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
         id={optionId}
         role="option"
         aria-selected={isSelected}
-        className={`flex cursor-pointer items-center gap-2 px-3 py-2 text-sm ${
-          isActive ? "bg-[var(--accent-soft)] text-[var(--text)]" : "text-[var(--text)] hover:bg-[var(--accent-soft)]"
+        className={`wash flex cursor-pointer items-center gap-2 px-3 py-2 text-sm ${
+          isActive
+            ? "select-row bg-[var(--accent-soft)] text-[var(--text)]"
+            : "text-[var(--text)] hover:bg-[var(--accent-soft)]"
         }`}
         onMouseEnter={() => setHighlight(flatIndex)}
         onMouseDown={(event) => {
@@ -276,7 +278,7 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
       <button
         ref={triggerRef}
         type="button"
-        className="inline-flex h-8 max-w-[8.75rem] items-center truncate rounded-lg border border-[var(--line)] bg-transparent px-2 text-left text-xs font-medium text-[var(--text)] disabled:opacity-45"
+        className="wash inline-flex h-8 max-w-[8.75rem] items-center truncate rounded-lg border border-[var(--line)] bg-transparent px-2 text-left text-xs font-medium text-[var(--text)] hover:bg-[var(--accent-soft)] disabled:opacity-45"
         data-testid="model-picker"
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -290,14 +292,14 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
       {open ? (
         <div
           ref={panelRef}
-          className="absolute bottom-full left-0 z-50 mb-2 w-[min(100vw-2rem,22rem)] overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface)]"
+          className="raise absolute bottom-full left-0 z-50 mb-2 w-[min(100vw-2rem,22rem)] overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface)]"
           role="presentation"
         >
           <div className="border-b border-[var(--line)] p-2">
             <input
               ref={searchRef}
               type="search"
-              className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)] outline-none"
+              className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)]"
               placeholder="Search models"
               value={query}
               onChange={(event) => setQuery(event.target.value)}

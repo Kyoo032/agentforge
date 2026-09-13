@@ -324,7 +324,7 @@ export function ChatComposer({
 
   return (
     <form
-      className="mx-auto mb-6 mt-6 w-full max-w-[var(--composer-max)] rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 pb-3 pt-2"
+      className="composer-shell mx-auto mb-6 mt-6 w-full max-w-[var(--composer-max)] rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 pb-3 pt-2"
       data-testid="composer"
       onSubmit={(event) => {
         event.preventDefault();
@@ -396,7 +396,7 @@ export function ChatComposer({
           <label className="inline-flex items-center" data-testid="thinking-toggle">
             <span className="sr-only">Thinking</span>
             <select
-              className="h-8 rounded-lg border border-[var(--line)] bg-transparent px-2 text-xs text-[var(--text-2)] disabled:opacity-45"
+              className="h-8 rounded-lg border border-[var(--line)] bg-transparent px-2 text-xs text-[var(--text-2)] disabled:opacity-45 wash"
               data-testid="reasoning-effort"
               aria-label="Thinking"
               value={reasoningEffort}
@@ -417,7 +417,7 @@ export function ChatComposer({
         ) : null}
         <button
           type="button"
-          className="inline-flex h-8 items-center rounded-lg border border-[var(--line)] bg-transparent px-3 text-xs text-[var(--text)] disabled:opacity-45"
+          className="wash inline-flex h-8 items-center rounded-lg border border-[var(--line)] bg-transparent px-3 text-xs text-[var(--text)] hover:bg-[var(--accent-soft)] disabled:opacity-45"
           data-testid="composer-attach"
           onClick={() => fileInputRef.current?.click()}
           disabled={busy}
@@ -434,7 +434,7 @@ export function ChatComposer({
         />
         <button
           type="submit"
-          className={`ml-auto inline-flex h-8 items-center rounded-pill px-4 text-sm ${
+          className={`wash ml-auto inline-flex h-8 items-center rounded-pill px-4 text-sm ${
             sendDisabled ? "bg-[var(--line)] text-[var(--text-3)]" : "bg-[var(--accent)] text-white"
           }`}
           disabled={sendDisabled}

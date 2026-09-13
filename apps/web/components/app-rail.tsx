@@ -174,8 +174,8 @@ function RailItem({
       href={href}
       className={`flex h-8 items-center gap-2 rounded-lg px-2 text-sm tracking-[var(--track)] ${
         active
-          ? "bg-[var(--accent-soft)] text-[var(--accent)]"
-          : "text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+          ? "select-row bg-[var(--accent-soft)] text-[var(--accent)]"
+          : "wash text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
       } ${collapsed ? "justify-center" : ""}`}
       aria-current={active ? "page" : undefined}
       aria-label={label}
@@ -332,7 +332,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
           <AppUpdatesButton />
           <button
             type="button"
-            className="btn btn-ghost btn-icon h-8 w-8 shrink-0"
+            className="btn btn-ghost btn-icon h-8 w-8 shrink-0 wash"
             onClick={toggleCollapsed}
             data-testid={collapsed ? "rail-expand" : "rail-collapse"}
             aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}

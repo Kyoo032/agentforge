@@ -72,7 +72,7 @@ export function ChatUsageChip() {
   return (
     <Link
       href="/usage"
-      className="text-xs text-[var(--text-3)] hover:text-[var(--text)]"
+      className="text-xs text-[var(--text-3)] wash hover:text-[var(--text)]"
       data-testid="chat-usage"
       title={title}
     >

@@ -83,15 +83,15 @@ export function WorkspaceSwitcher({ workspaceName, compact = false }: Props) {
   }
 
   const triggerClass = compact
-    ? "flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium text-[var(--text)] hover:bg-[var(--accent-soft)]"
-    : "flex w-full items-center gap-1 truncate rounded-lg py-0 text-left text-xs text-[var(--text-3)] hover:text-[var(--text)]";
+    ? "wash flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium text-[var(--text)] hover:bg-[var(--accent-soft)]"
+    : "wash flex w-full items-center gap-1 truncate rounded-lg py-0 text-left text-xs text-[var(--text-3)] hover:text-[var(--text)]";
 
   const menu =
     open && menuPos
       ? createPortal(
           <div
             ref={menuRef}
-            className="fixed z-[80] rounded-lg border border-[var(--line)] bg-[var(--surface)] p-1"
+            className="raise fixed z-[80] rounded-xl border border-[var(--line)] bg-[var(--surface)] p-1"
             role="listbox"
             style={{ top: menuPos.top, left: menuPos.left, width: menuPos.width }}
           >
@@ -101,7 +101,7 @@ export function WorkspaceSwitcher({ workspaceName, compact = false }: Props) {
                 type="button"
                 role="option"
                 aria-selected={workspace.id === currentId}
-                className="block w-full truncate rounded-lg px-2 py-1.5 text-left text-sm text-[var(--text)] hover:bg-[var(--accent-soft)]"
+                className="wash block w-full truncate rounded-lg px-2 py-1.5 text-left text-sm text-[var(--text)] hover:bg-[var(--accent-soft)]"
                 onClick={() => void openWorkspace(workspace.id)}
                 data-testid="open-workspace"
               >
@@ -111,7 +111,7 @@ export function WorkspaceSwitcher({ workspaceName, compact = false }: Props) {
             ))}
             <Link
               href="/workspaces"
-              className="mt-1 block rounded-lg px-2 py-1.5 text-sm text-[var(--accent)] hover:bg-[var(--accent-soft)]"
+              className="wash mt-1 block rounded-lg px-2 py-1.5 text-sm text-[var(--accent)] hover:bg-[var(--accent-soft)]"
               data-testid="workspace-new-link"
               onClick={() => setOpen(false)}
             >
@@ -152,8 +152,8 @@ export function WorkspaceSwitcher({ workspaceName, compact = false }: Props) {
         <span className="min-w-0 flex-1 truncate">{compact ? workspaceName.slice(0, 1) : workspaceName}</span>
         {compact ? null : (
           <svg
-            width="12"
-            height="12"
+            width="14"
+            height="14"
             viewBox="0 0 12 12"
             fill="none"
             aria-hidden="true"

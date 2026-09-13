@@ -78,6 +78,12 @@
   --thread: 268px;
   --composer-max: 720px;
 
+  --motion-hover: 120ms ease;
+  --motion-select: 180ms ease;
+  --motion-focus: 120ms ease;
+  --motion-fade: 120ms ease;
+  --shadow-raise: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px rgb(0 0 0 / 0.06);
+
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-text: var(--text);
@@ -173,6 +179,7 @@ h6 {
 :focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
+  transition: outline-color var(--motion-focus);
 }
 
 .kicker {
@@ -207,6 +214,7 @@ h6 {
   padding: 8px 12px;
   border-radius: var(--radius-sm);
   cursor: pointer;
+  transition: background-color var(--motion-hover), border-color var(--motion-hover), color var(--motion-hover);
 }
 
 .btn:hover {
@@ -244,8 +252,8 @@ h6 {
 
 .btn-icon {
   padding: 0;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
 }
 
 .tag {
@@ -396,6 +404,42 @@ h6 {
 
 .elev-lg {
   box-shadow: var(--shadow-lg);
+}
+
+.raise {
+  box-shadow: var(--shadow-raise);
+}
+
+.wash {
+  transition: background-color var(--motion-hover), color var(--motion-hover), border-color var(--motion-hover);
+}
+
+.select-row {
+  transition: background-color var(--motion-select), color var(--motion-select);
+}
+
+.composer-shell {
+  box-shadow: var(--shadow-raise);
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition: outline-color var(--motion-focus);
+}
+
+.composer-shell:focus-within {
+  outline-color: var(--accent);
+}
+
+@keyframes stage-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.stage-fade {
+  animation: stage-fade var(--motion-fade);
 }
 
 .formatted-md > :first-child {

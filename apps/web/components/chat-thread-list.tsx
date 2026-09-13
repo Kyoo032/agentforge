@@ -28,8 +28,8 @@ type Props = {
 
 function itemClass(active: boolean) {
   return active
-    ? "flex h-11 min-w-0 flex-1 flex-col justify-center rounded-lg bg-[var(--accent-soft)] px-2 text-sm tracking-[var(--track)] text-[var(--text)]"
-    : "flex h-11 min-w-0 flex-1 flex-col justify-center rounded-lg px-2 text-sm tracking-[var(--track)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]";
+    ? "select-row flex h-11 min-w-0 flex-1 flex-col justify-center rounded-lg bg-[var(--accent-soft)] px-2 text-sm tracking-[var(--track)] text-[var(--text)]"
+    : "wash flex h-11 min-w-0 flex-1 flex-col justify-center rounded-lg px-2 text-sm tracking-[var(--track)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]";
 }
 
 function ChatThreadListInner({ basePath, scope, agentId }: Props) {
@@ -100,7 +100,7 @@ function ChatThreadListInner({ basePath, scope, agentId }: Props) {
       <div className="px-3 py-3">
         <Link
           href={basePath}
-          className="flex h-8 w-full items-center justify-center rounded-pill border border-[var(--line)] text-sm font-medium text-[var(--text)] hover:bg-[var(--accent-soft)]"
+          className="wash flex h-8 w-full items-center justify-center rounded-pill border border-[var(--line)] text-sm font-medium text-[var(--text)] hover:bg-[var(--accent-soft)]"
           data-testid="new-chat-link"
         >
           + New chat
@@ -135,7 +135,7 @@ function ChatThreadListInner({ basePath, scope, agentId }: Props) {
                       </Link>
                       <button
                         type="button"
-                        className={`shrink-0 rounded-lg px-1.5 py-1 text-sm text-[var(--text-3)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:text-[var(--danger)] ${
+                        className={`wash shrink-0 rounded-lg px-1.5 py-1 text-sm text-[var(--text-3)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:text-[var(--danger)] ${
                           deleting ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
                         }`}
                         onClick={() => void removeThread(thread)}

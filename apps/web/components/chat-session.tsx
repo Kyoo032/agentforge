@@ -350,7 +350,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           {agentIdReady ? (
             <button
               type="button"
-              className="rounded-lg px-3 py-1.5 text-xs text-[var(--text)] hover:bg-[var(--accent-soft)]"
+              className="wash rounded-lg px-3 py-1.5 text-xs text-[var(--text)] hover:bg-[var(--accent-soft)]"
               data-testid="new-chat"
               onClick={() => {
                 threadIdRef.current = null;
@@ -374,7 +374,8 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
       ) : null}
 
       <div
-        className={`min-h-0 flex-1 overflow-y-auto px-6 ${empty ? "" : "space-y-4 py-4"}`}
+        key={threadId ?? "empty"}
+        className={`stage-fade min-h-0 flex-1 overflow-y-auto px-6 ${empty ? "" : "space-y-4 py-4"}`}
         data-testid="message-list"
       >
         {empty && !error ? (
@@ -401,7 +402,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
                 <Link
                   key={card.href}
                   href={card.href}
-                  className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-3 text-left hover:bg-[var(--accent-soft)]"
+                  className="wash rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-3 text-left hover:bg-[var(--accent-soft)]"
                 >
                   <span className="text-[var(--text-3)]">
                     <EmptyCardIcon name={card.icon} />

@@ -5,7 +5,7 @@ import { formatContextLength } from "@agentforge/core/preferred";
 
 const RING_RADIUS = 7;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
-const MUTED = "text-[color-mix(in_srgb,var(--color-text)_50%,transparent)]";
+const MUTED = "text-[var(--text-3)]";
 
 export type ContextPart = {
   label: string;
@@ -50,7 +50,7 @@ export function ChatContextChip({ usedTokens, contextLength, parts }: Props) {
     <div ref={rootRef} className="relative ml-auto flex-none">
       {open ? (
         <div
-          className="absolute right-0 top-full z-20 mt-2 w-80 max-w-[calc(100vw-14rem)] rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4"
+          className="raise absolute right-0 top-full z-20 mt-2 w-80 max-w-[calc(100vw-14rem)] rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4"
           data-testid="chat-context-breakdown"
         >
           <div className="mb-3 flex items-baseline gap-2">
@@ -67,14 +67,14 @@ export function ChatContextChip({ usedTokens, contextLength, parts }: Props) {
           <div className="flex flex-col">
             {rows.map((row) => (
               <div key={row.label} className="flex items-center gap-2 border-b border-[var(--line)] py-1.5 text-xs">
-                <span className="h-[9px] w-[9px] flex-none rounded-[2px] bg-accent" aria-hidden="true" />
+                <span className="h-2 w-2 flex-none rounded-sm bg-accent" aria-hidden="true" />
                 <span>{row.label}</span>
                 {row.detail ? <span className={`ml-auto ${MUTED}`}>{row.detail}</span> : <span className="ml-auto" />}
                 <span className="w-[52px] text-right tabular-nums">{formatContextLength(row.tokens)}</span>
               </div>
             ))}
             <div className={`flex items-center gap-2 py-1.5 text-xs ${MUTED}`}>
-              <span className="h-[9px] w-[9px] flex-none rounded-[2px] border border-divider" aria-hidden="true" />
+              <span className="h-2 w-2 flex-none rounded-sm border border-divider" aria-hidden="true" />
               <span>Free</span>
               <span className="ml-auto w-[52px] text-right tabular-nums">
                 {left != null ? formatContextLength(left) : "—"}
@@ -90,7 +90,7 @@ export function ChatContextChip({ usedTokens, contextLength, parts }: Props) {
       ) : null}
       <button
         type="button"
-        className="flex items-center gap-2 whitespace-nowrap rounded-lg border border-[var(--line)] bg-[var(--surface)] py-1 pl-1.5 pr-2.5 text-xs text-[var(--text-3)]"
+        className="wash flex items-center gap-2 whitespace-nowrap rounded-lg border border-[var(--line)] bg-[var(--surface)] py-1 pl-1.5 pr-2.5 text-xs text-[var(--text-3)] hover:bg-[var(--accent-soft)]"
         data-testid="chat-context"
         title={title}
         aria-expanded={open}

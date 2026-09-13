@@ -98,7 +98,7 @@ export function EnhancePromptButton({
   return (
     <button
       type="button"
-      className="inline-flex h-8 w-8 items-center justify-center rounded-pill border border-[var(--line)] bg-transparent text-[var(--text-2)] disabled:opacity-45"
+      className="wash inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--line)] bg-transparent text-[var(--text-2)] hover:bg-[var(--accent-soft)] disabled:opacity-45"
       data-tip={busy ? "Cancel enhance" : enhanced ? "Revert prompt" : "Enhance prompt"}
       aria-label={busy ? "Cancel enhance" : enhanced ? "Revert enhanced prompt" : "Enhance prompt"}
       aria-pressed={enhanced}
