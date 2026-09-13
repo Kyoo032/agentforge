@@ -28,7 +28,7 @@ export type ModeModelDefaults = {
 /** Ranked hints against the live chat catalog — not a closed allowlist. */
 export const JOB_MODE_PREFERENCES: Record<JobMode, string[]> = {
   documents: ["hy3", "hy-3", "hunyuan-3", "hunyuan3", "deepseek-v4-flash"],
-  research: ["gpt-5.6-luna", "MiniMax-M3", "minimax-m3"],
+  research: ["gpt-5.6-luna", "MiniMax-M3", "minimax-m3", "gpt-5.6-terra"],
   presentations: [
     "glm-5.3-flash",
     "glm-5.3-flash-preview",
@@ -38,7 +38,7 @@ export const JOB_MODE_PREFERENCES: Record<JobMode, string[]> = {
     "kimi-k3",
   ],
   finance: ["hy3", "hy-3", "hunyuan-3", "deepseek-v4-flash"],
-  data: ["gpt-5.6-luna", "MiniMax-M3", "minimax-m3"],
+  data: ["gpt-5.6-luna", "MiniMax-M3", "minimax-m3", "gpt-5.6-terra"],
   market: ["hy3", "hy-3", "hunyuan-3", "deepseek-v4-flash"],
   /** Long contracts and strict JSON: prefer the larger everyday models. */
   legal: ["gpt-5.6-sol", "gpt-5.6-luna", "kimi-k3", "deepseek-v4-flash"],

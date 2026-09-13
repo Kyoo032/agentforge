@@ -9,7 +9,7 @@ type Props = {
   testId?: string;
 };
 
-const CELL = "input px-2 py-1 text-[12px]";
+const CELL = "input px-2 py-1 text-xs";
 
 /** Editable line items. Every figure the brief may use comes from these rows. */
 export function LineItemEditor({ items, onChange, disabled = false, testId = "finance-items" }: Props) {
@@ -20,9 +20,9 @@ export function LineItemEditor({ items, onChange, disabled = false, testId = "fi
   return (
     <div className="space-y-2" data-testid={testId}>
       <div className="overflow-x-auto">
-        <table className="w-full text-[12px]">
+        <table className="w-full text-xs">
           <thead>
-            <tr className="text-left text-[11px] uppercase tracking-wide text-[color-mix(in_srgb,var(--color-text)_50%,transparent)]">
+            <tr className="text-left text-xs uppercase tracking-wide text-[var(--text-3)]">
               <th className="pr-2 font-medium">Label</th>
               <th className="pr-2 font-medium">Period</th>
               <th className="pr-2 font-medium">Amount</th>
@@ -93,7 +93,7 @@ export function LineItemEditor({ items, onChange, disabled = false, testId = "fi
                 <td className="py-0.5">
                   <button
                     type="button"
-                    className="text-xs text-red-700 hover:underline disabled:opacity-50"
+                    className="text-xs text-[var(--danger)] hover:underline disabled:opacity-50"
                     onClick={() => onChange(items.filter((_, at) => at !== index))}
                     disabled={disabled}
                     aria-label="Remove line item"

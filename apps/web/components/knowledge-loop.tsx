@@ -38,7 +38,7 @@ const NODE_R = 6;
 const GAP = (W - STAGE_COUNT * NODE_W) / (STAGE_COUNT + 1);
 const LABEL_FONT = 12;
 const VALUE_FONT = 12;
-const CAPTION_FONT = 10;
+const CAPTION_FONT = 12;
 const TEXT_OPACITY = 0.6;
 const STROKE_OPACITY = 0.3;
 const IDLE_OPACITY = 0.18;
@@ -97,10 +97,10 @@ export function KnowledgeLoop({ sources, retrievals, graph, verified, onRefresh 
   }
 
   return (
-    <section className="blueprint p-[18px]" data-testid="knowledge-loop" aria-label="Knowledge loop">
+    <section className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4" data-testid="knowledge-loop" aria-label="Knowledge loop">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <p className="panel-label">Loop</p>
-        <p className="text-[12px] text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">
+        <p className="text-xs text-[var(--text-2)]">
           Every finished piece of work becomes a text card here. Files stay in their gallery.
         </p>
       </div>
@@ -143,9 +143,9 @@ export function KnowledgeLoop({ sources, retrievals, graph, verified, onRefresh 
         />
       </svg>
 
-      <div className="mt-2 flex flex-wrap items-center justify-end gap-2 text-[12px]">
+      <div className="mt-2 flex flex-wrap items-center justify-end gap-2 text-xs">
         <span
-          className="text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]"
+          className="text-[var(--text-2)]"
           title={verified?.detail || undefined}
           data-testid="knowledge-loop-verified"
           data-state={verifiedStage?.state ?? "idle"}
@@ -154,7 +154,7 @@ export function KnowledgeLoop({ sources, retrievals, graph, verified, onRefresh 
         </span>
         <button
           type="button"
-          className="btn btn-secondary text-[12px]"
+          className="btn btn-secondary text-xs"
           disabled={checking}
           onClick={() => void runSelfCheck()}
           data-testid="knowledge-loop-verify"
@@ -163,12 +163,12 @@ export function KnowledgeLoop({ sources, retrievals, graph, verified, onRefresh 
         </button>
       </div>
       {checkError ? (
-        <p className="mt-1 text-right text-[12px] text-red-700" data-testid="knowledge-loop-verify-error">
+        <p className="mt-1 text-right text-xs text-red-700" data-testid="knowledge-loop-verify-error">
           {checkError}
         </p>
       ) : null}
 
-      <dl className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-[12px]" data-testid="knowledge-loop-summary">
+      <dl className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs" data-testid="knowledge-loop-summary">
         <Stat label="From work" value={summary.work} testId="knowledge-loop-work" />
         <Stat label="Added by hand" value={summary.manual} testId="knowledge-loop-manual" />
         <Stat label="Indexed" value={summary.indexed} testId="knowledge-loop-indexed" />
@@ -178,7 +178,7 @@ export function KnowledgeLoop({ sources, retrievals, graph, verified, onRefresh 
 
       {counts.length === 0 ? (
         <p
-          className="mt-3 text-[12px] text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]"
+          className="mt-3 text-xs text-[var(--text-2)]"
           data-testid="knowledge-loop-empty"
         >
           Nothing indexed yet. Send a Chat message or run a job mode and a card appears here.
@@ -188,19 +188,19 @@ export function KnowledgeLoop({ sources, retrievals, graph, verified, onRefresh 
           {counts.map((row) => (
             <li
               key={row.type}
-              className="grid grid-cols-[104px_1fr_auto] items-center gap-3 text-[12px]"
+              className="grid grid-cols-[104px_1fr_auto] items-center gap-3 text-xs"
               data-testid={`knowledge-loop-count-${row.type}`}
               data-count={row.total}
             >
               <span className="flex items-center gap-1.5 truncate" title={row.type}>
                 <span className="truncate">{row.type}</span>
                 {isWorkSourceType(row.type) ? (
-                  <span className="text-[10px] uppercase tracking-wide opacity-60" aria-label="written by the loop">
+                  <span className="text-xs uppercase tracking-wide opacity-60" aria-label="written by the loop">
                     auto
                   </span>
                 ) : null}
               </span>
-              <span className="relative h-2.5 overflow-hidden rounded-[4px] bg-[color-mix(in_srgb,var(--color-text)_8%,transparent)]">
+              <span className="relative h-2.5 overflow-hidden rounded-[4px] bg-[var(--line)]/40">
                 <span
                   className="absolute inset-y-0 left-0 rounded-[4px]"
                   style={{ width: `${Math.round(barFraction(row.total, max) * 100)}%`, backgroundColor: fill }}
@@ -287,7 +287,7 @@ function LoopStageNode({ stage, index, title }: { stage: LoopStageCount; index: 
 function Stat({ label, value, testId }: { label: string; value: number; testId: string }) {
   return (
     <div className="flex items-baseline gap-1.5" data-testid={testId} data-value={value}>
-      <dt className="text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">{label}</dt>
+      <dt className="text-[var(--text-2)]">{label}</dt>
       <dd className="font-medium tabular-nums">{value}</dd>
     </div>
   );

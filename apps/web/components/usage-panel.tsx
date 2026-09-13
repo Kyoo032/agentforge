@@ -59,7 +59,8 @@ export type RangeUsage = {
   }>;
 };
 
-export const BAR_COLORS = ["#5980a6", "#2c455d", "#94bce3", "#416180", "#749dc4"];
+/** Token-safe series only: accent, ok, danger, text-2, text-3, text. */
+export const BAR_COLORS = ["#0f766e", "#2f6f4e", "#c4453c", "#5d5d5d", "#9e9e9e", "#292929"];
 
 export function thisKeyLine(usage: { thisKey?: ThisKeyStatus } | null): string {
   const thisKey = usage?.thisKey;
@@ -110,7 +111,7 @@ export function KeyQuotaMeter({ usage }: { usage: { thisKey?: ThisKeyStatus } | 
 /** Compact Settings strip: this-key + Open Usage. */
 export function UsagePanel({ usage }: { usage: AccountUsage | null }) {
   return (
-    <div className="blueprint p-[18px]" data-testid="usage-panel">
+    <div className="raise rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4" data-testid="usage-panel">
       <p className="panel-label">Usage</p>
       <p className="mt-2 text-sm text-inkbase" data-testid="usage-this-key">
         This key: {thisKeyLine(usage)}

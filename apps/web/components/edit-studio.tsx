@@ -616,12 +616,12 @@ export function EditStudio() {
   }, [exportJob?.status, exportJobId]);
 
   return (
-    <main className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-app text-ink" data-testid="edit-studio">
+    <main className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-app text-[var(--text)]" data-testid="edit-studio">
       {doctor ? <FfmpegSetupNotice doctor={doctor} onDoctor={setDoctor} /> : null}
-      <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-divider px-4 py-2">
+      <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-[var(--line)] px-4 py-2">
         <h1 className="font-heading text-lg font-semibold">{project?.name ?? "Edit"}</h1>
         <select
-          className="rounded-md border border-mist bg-paper px-2 py-1 text-sm"
+          className="rounded-md border border-[var(--line)] bg-[var(--surface)] px-2 py-1 text-sm"
           value={tier}
           onChange={(event) => setTier(event.target.value)}
           data-testid="edit-tier"
@@ -630,10 +630,10 @@ export function EditStudio() {
           <option value="standard">Standard</option>
           <option value="cinematic">Cinematic</option>
         </select>
-        <span className="text-xs text-ink/60" data-testid="edit-jobs">
+        <span className="text-xs text-[var(--text-2)]" data-testid="edit-jobs">
           jobs {jobsLive.length > 0 ? `~${jobsLive.length}` : "0"}
         </span>
-        <span className="text-xs text-ink/60">
+        <span className="text-xs text-[var(--text-2)]">
           turn {formatUsd(spent)} / {formatUsd(spendCap)}
         </span>
         <span className="ml-auto flex items-center gap-2">
@@ -652,7 +652,7 @@ export function EditStudio() {
         </span>
       </header>
       {exporting || exportBusy ? (
-        <p className="px-4 text-xs text-ink/50" data-testid="edit-export-progress">
+        <p className="px-4 text-xs text-[var(--text-3)]" data-testid="edit-export-progress">
           Exporting…
         </p>
       ) : null}
@@ -678,7 +678,7 @@ export function EditStudio() {
             <h2 className="font-heading text-xl">Projects</h2>
             <div className="mt-4 flex flex-col gap-2">
               <select
-                className="rounded-md border border-mist bg-paper px-3 py-2 text-sm"
+                className="rounded-md border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm"
                 value={starterId}
                 onChange={(event) => setStarterId(event.target.value)}
                 data-testid="edit-starter"
@@ -689,12 +689,12 @@ export function EditStudio() {
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-ink/55" data-testid="edit-starter-description">
+              <p className="text-xs text-[var(--text-2)]" data-testid="edit-starter-description">
                 {STARTER_PROJECTS.find((starter) => starter.id === starterId)?.description ?? ""}
               </p>
               <div className="flex gap-2">
               <input
-                className="rounded-md border border-mist bg-paper px-3 py-2 text-sm"
+                className="rounded-md border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm"
                 value={projectName}
                 onChange={(event) => setProjectName(event.target.value)}
                 data-testid="edit-project-name"
@@ -714,17 +714,17 @@ export function EditStudio() {
               ))}
             </ul>
           </div>
-          <div className="flex min-h-0 w-[320px] flex-col border-l border-divider">
+          <div className="flex min-h-0 w-[320px] flex-col border-l border-[var(--line)]">
             <div className="min-h-0 flex-1" data-testid="edit-preview" />
-            <div className="h-24 border-t border-divider" data-testid="edit-timeline" />
+            <div className="h-24 border-t border-[var(--line)]" data-testid="edit-timeline" />
           </div>
-          <aside className="w-[280px] border-l border-divider" data-testid="edit-agent-panel">
-            <p className="p-3 text-xs text-ink/50">Open a project to talk to the editor.</p>
+          <aside className="w-[280px] border-l border-[var(--line)]" data-testid="edit-agent-panel">
+            <p className="p-3 text-xs text-[var(--text-3)]">Open a project to talk to the editor.</p>
           </aside>
         </div>
       ) : (
         <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
-          <nav className="flex w-[112px] shrink-0 flex-col overflow-y-auto border-r border-divider bg-paper py-2">
+          <nav className="flex w-[112px] shrink-0 flex-col overflow-y-auto border-r border-[var(--line)] bg-[var(--surface)] py-2">
             <input
               ref={fileRef}
               type="file"
@@ -743,7 +743,7 @@ export function EditStudio() {
                 key={item.id}
                 type="button"
                 className={`mx-1.5 mb-1 rounded-md px-2 py-1.5 text-left text-sm ${
-                  tool === item.id ? "bg-[color-mix(in_srgb,var(--color-accent)_16%,transparent)]" : "hover:bg-mist/40"
+                  tool === item.id ? "bg-[color-mix(in_srgb,var(--color-accent)_16%,transparent)]" : "hover:bg-[var(--line)]/40"
                 }`}
                 data-testid={item.id === "upload" ? "edit-import" : item.id === "generate" ? "edit-generate-tab" : undefined}
                 onClick={() => {
@@ -758,7 +758,7 @@ export function EditStudio() {
             ))}
           </nav>
           {tool !== "upload" ? (
-            <aside className="flex min-h-0 w-[260px] min-w-[180px] max-w-[280px] shrink flex-col overflow-hidden border-r border-divider bg-paper">
+            <aside className="flex min-h-0 w-[260px] min-w-[180px] max-w-[280px] shrink flex-col overflow-hidden border-r border-[var(--line)] bg-[var(--surface)]">
               {tool === "generate" ? (
                 <EditGenerateTab
                   project={project}
@@ -776,7 +776,7 @@ export function EditStudio() {
               ) : tool === "recipes" ? (
                 <EditRecipesPanel onRun={(recipeId) => void sendAgent(`Run recipe ${recipeId}`)} />
               ) : (
-                <p className="p-3 text-xs text-ink/50">
+                <p className="p-3 text-xs text-[var(--text-3)]">
                   {tool === "captions" ? (
                     <Link href="/settings" className="underline">
                       Captions
@@ -812,7 +812,7 @@ export function EditStudio() {
                 void commitOps([{ type: "trim_clip", payload: { clipId, inFrame, durationFrames } }]);
               }}
             />
-            <p className="px-3 py-1 text-[11px] text-ink/45" data-testid="edit-ops-count">
+            <p className="px-3 py-1 text-xs text-[var(--text-3)]" data-testid="edit-ops-count">
               ops {opsPosted}
             </p>
           </div>

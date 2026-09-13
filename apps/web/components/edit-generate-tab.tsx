@@ -194,7 +194,7 @@ export function EditGenerateTab({
         </button>
       </div>
       {needsKey ? (
-        <p className="rounded-md border border-mist bg-mist/30 px-2 py-2 text-xs text-ink/70" data-testid="edit-needs-key">
+        <p className="rounded-md border border-[var(--line)] bg-[var(--line)]/30 px-2 py-2 text-xs text-[var(--text-2)]" data-testid="edit-needs-key">
           Add a {gatewayName} gateway key in{" "}
           <Link href="/settings" className="underline">
             Settings
@@ -203,7 +203,7 @@ export function EditGenerateTab({
         </p>
       ) : null}
       {sub === "storyboard" ? (
-        <p className="text-xs text-ink/50">Storyboard lands in Phase 3.</p>
+        <p className="text-xs text-[var(--text-3)]">Storyboard lands in Phase 3.</p>
       ) : (
         <>
           <div className="flex min-w-0 flex-col gap-1" data-testid="edit-generate-tier">
@@ -211,14 +211,14 @@ export function EditGenerateTab({
               <button
                 key={id}
                 type="button"
-                className={`btn w-full px-2 py-1.5 text-[11px] capitalize ${tier === id ? "btn-primary" : "btn-secondary"}`}
+                className={`btn w-full px-2 py-1.5 text-xs capitalize ${tier === id ? "btn-primary" : "btn-secondary"}`}
                 onClick={() => changeTier(id)}
               >
                 {id}
               </button>
             ))}
           </div>
-          <span className="text-[11px] text-ink/55" data-testid="edit-estimate">
+          <span className="text-xs text-[var(--text-2)]" data-testid="edit-estimate">
             {estimate == null ? "price unknown" : formatUsd(estimate)}
           </span>
           <ModelSelect
@@ -226,11 +226,11 @@ export function EditGenerateTab({
             value={activeModel}
             onChange={setModel}
             testId="edit-generate-model"
-            className="min-w-0 w-full rounded-md border border-mist bg-paper px-2 py-1 text-xs"
+            className="min-w-0 w-full rounded-md border border-[var(--line)] bg-[var(--surface)] px-2 py-1 text-xs"
           />
           {sub === "video" ? (
             <select
-              className="min-w-0 w-full rounded-md border border-mist bg-paper px-2 py-1 text-xs"
+              className="min-w-0 w-full rounded-md border border-[var(--line)] bg-[var(--surface)] px-2 py-1 text-xs"
               value={seconds}
               onChange={(event) => setSeconds(Number(event.target.value) as Seconds)}
               data-testid="edit-generate-seconds"
@@ -251,17 +251,17 @@ export function EditGenerateTab({
           {sub === "video" && imageToVideo && !clipStill ? (
             <input
               type="text"
-              className="min-w-0 w-full rounded-md border border-mist bg-transparent px-2 py-1 text-xs"
+              className="min-w-0 w-full rounded-md border border-[var(--line)] bg-transparent px-2 py-1 text-xs"
               placeholder={stillClip ? "…or paste a still image URL" : "Still image URL, or move the playhead onto an image clip"}
               value={stillUrl}
               onChange={(event) => setStillUrl(event.target.value)}
               data-testid="edit-generate-still"
             />
           ) : sub === "video" && !imageToVideo ? (
-            <p className="text-xs text-ink/50">This model is text-to-video only</p>
+            <p className="text-xs text-[var(--text-3)]">This model is text-to-video only</p>
           ) : null}
           <textarea
-            className="min-h-[72px] min-w-0 w-full rounded-md border border-mist bg-transparent px-2 py-1 text-xs"
+            className="min-h-[72px] min-w-0 w-full rounded-md border border-[var(--line)] bg-transparent px-2 py-1 text-xs"
             placeholder={sub === "image" ? "Describe an image…" : "Describe a video…"}
             value={prompt}
             onChange={(event) => changePrompt(event.target.value)}

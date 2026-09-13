@@ -1,9 +1,14 @@
 import { z } from "zod";
 import { ApiError } from "@agentforge/core";
 
+export const presentationSlideKindSchema = z.enum(["section", "bullets", "split", "close"]);
+
 export const presentationSlideSchema = z.object({
+  kind: presentationSlideKindSchema.catch("bullets").default("bullets"),
   heading: z.string().min(1),
+  subhead: z.string().default(""),
   bullets: z.array(z.string()).default([]),
+  aside: z.string().default(""),
   notes: z.string().default(""),
 });
 
@@ -12,8 +17,55 @@ export const presentationOutlineSchema = z.object({
   slides: z.array(presentationSlideSchema).min(1),
 });
 
+export type PresentationSlideKind = z.infer<typeof presentationSlideKindSchema>;
 export type PresentationSlide = z.infer<typeof presentationSlideSchema>;
 export type PresentationOutline = z.infer<typeof presentationOutlineSchema>;
+
+function takeAside(slide: PresentationSlide): { bullets: string[]; aside: string } {
+  if (slide.aside.trim()) {
+    return { bullets: slide.bullets, aside: slide.aside };
+  }
+  if (slide.bullets.length >= 3) {
+    return {
+      bullets: slide.bullets.slice(0, -1),
+      aside: slide.bullets[slide.bullets.length - 1] ?? "",
+    };
+  }
+  return { bullets: slide.bullets, aside: "" };
+}
+
+/** Layout even when the model only returned heading + bullets. */
+export function resolvePresentationSlideLayout(
+  slides: PresentationSlide[],
+  index: number,
+): PresentationSlide {
+  const slide = slides[index];
+  if (!slide) {
+    return { kind: "bullets", heading: "", subhead: "", bullets: [], aside: "", notes: "" };
+  }
+  const mixed = slides.some((item) => item.kind !== "bullets");
+  let kind: PresentationSlideKind = slide.kind;
+  if (!mixed) {
+    if (index === slides.length - 1) {
+      kind = "close";
+    } else if (index === Math.floor((slides.length - 1) / 2) && slide.bullets.length >= 3) {
+      kind = "split";
+    } else {
+      kind = "bullets";
+    }
+  }
+  if (kind === "section" && slide.bullets.length >= 3) {
+    kind = "bullets";
+  }
+  if (kind === "split") {
+    const split = takeAside(slide);
+    if (!split.aside.trim()) {
+      return { ...slide, kind: "bullets" };
+    }
+    return { ...slide, kind, bullets: split.bullets, aside: split.aside };
+  }
+  return { ...slide, kind };
+}
 
 const FENCE_RE = /^```(?:json)?\s*([\s\S]*?)\s*```$/i;
 

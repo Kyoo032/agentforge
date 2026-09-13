@@ -61,7 +61,7 @@ export function FfmpegSetupNotice({ doctor, onDoctor, variant = "compact" }: Pro
 
   return (
     <div
-      className="border-b border-divider bg-[color-mix(in_srgb,var(--color-accent)_8%,transparent)] px-4 py-2 text-xs text-ink/80"
+      className="border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--color-accent)_8%,transparent)] px-4 py-2 text-xs text-[var(--text-2)]"
       data-testid="edit-needs-ffmpeg"
       role="status"
     >
@@ -69,15 +69,15 @@ export function FfmpegSetupNotice({ doctor, onDoctor, variant = "compact" }: Pro
         <span>
           <strong>{setup ? `${PLATFORM_LABEL[setup.platform]} setup:` : "Setup:"}</strong> {summary}
         </span>
-        <code className="rounded bg-paper px-2 py-0.5 font-mono text-[11px]" data-testid="ffmpeg-install-command">
+        <code className="rounded bg-[var(--surface)] px-2 py-0.5 font-mono text-xs" data-testid="ffmpeg-install-command">
           {command}
         </code>
-        <button type="button" className="btn btn-ghost px-2 py-0.5 text-[11px]" onClick={() => void copy()}>
+        <button type="button" className="btn btn-ghost px-2 py-0.5 text-xs" onClick={() => void copy()}>
           {copied ? "Copied" : "Copy"}
         </button>
         <button
           type="button"
-          className="btn btn-secondary px-2 py-0.5 text-[11px]"
+          className="btn btn-secondary px-2 py-0.5 text-xs"
           onClick={() => void recheck()}
           disabled={checking}
           data-testid="ffmpeg-recheck"

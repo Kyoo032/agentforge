@@ -5,15 +5,17 @@ import { createPortal } from "react-dom";
 import { Link } from "@/lib/nav";
 import { useRouter } from "@/lib/nav";
 import { apiFetch } from "@/lib/api-client";
+import { BrandMark } from "@/components/brand-mark";
 
 type Workspace = { id: string; name: string; slug: string };
 
 type Props = {
   workspaceName: string;
   compact?: boolean;
+  logoSrc?: string;
 };
 
-export function WorkspaceSwitcher({ workspaceName, compact = false }: Props) {
+export function WorkspaceSwitcher({ workspaceName, compact = false, logoSrc = "" }: Props) {
   const router = useRouter();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -149,7 +151,15 @@ export function WorkspaceSwitcher({ workspaceName, compact = false }: Props) {
           setOpen(true);
         }}
       >
-        <span className="min-w-0 flex-1 truncate">{compact ? workspaceName.slice(0, 1) : workspaceName}</span>
+        {compact ? (
+          logoSrc ? (
+            <img src={logoSrc} alt="" className="h-5 w-5 object-contain" data-testid="product-logo" />
+          ) : (
+            <BrandMark size={20} className="text-[var(--accent)]" testId="product-logo" />
+          )
+        ) : (
+          <span className="min-w-0 flex-1 truncate">{workspaceName}</span>
+        )}
         {compact ? null : (
           <svg
             width="14"

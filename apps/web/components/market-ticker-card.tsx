@@ -16,6 +16,8 @@ type Props = { ticker: TickerPacket; testIdPrefix: string };
 
 type Fact = { label: string; value: string };
 
+const BANNER = "rounded-lg border border-[var(--line)] bg-[var(--accent-soft)] px-3 py-2 text-xs text-[var(--text)]";
+
 function quoteFacts(ticker: TickerPacket): Fact[] {
   const q = ticker.quote;
   const tech = ticker.technical;
@@ -59,7 +61,7 @@ function Headline({ item, testId }: { item: WatchNewsItem; testId: string }) {
     .filter(Boolean)
     .join(" · ");
   return (
-    <li className="text-sm text-ink/85" data-testid={testId}>
+    <li className="text-sm text-[var(--text)]" data-testid={testId}>
       {href ? (
         <a href={href} target="_blank" rel="noreferrer" className="underline-offset-2 hover:underline">
           {item.title}
@@ -67,8 +69,8 @@ function Headline({ item, testId }: { item: WatchNewsItem; testId: string }) {
       ) : (
         <span>{item.title}</span>
       )}
-      {meta ? <span className="ml-2 text-xs text-ink/50">{meta}</span> : null}
-      {item.summary ? <p className="mt-0.5 text-xs text-ink/65">{item.summary}</p> : null}
+      {meta ? <span className="ml-2 text-xs text-[var(--text-3)]">{meta}</span> : null}
+      {item.summary ? <p className="mt-0.5 text-xs text-[var(--text-2)]">{item.summary}</p> : null}
     </li>
   );
 }
@@ -81,15 +83,15 @@ export function MarketTickerCard({ ticker, testIdPrefix }: Props) {
   const subtitle = [ticker.symbol.name, ticker.symbol.exchange, ticker.symbol.tradingview].filter(Boolean).join(" · ");
   return (
     <section
-      className="rounded-xl border border-mist bg-paper p-4"
+      className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4"
       data-testid={`${testIdPrefix}-ticker-card`}
       data-symbol={ticker.symbol.yahoo}
     >
       <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h4 className="font-mono text-base font-semibold text-ink">{ticker.symbol.yahoo}</h4>
-        {subtitle ? <span className="text-xs text-ink/55">{subtitle}</span> : null}
+        <h4 className="font-mono text-base font-semibold text-[var(--text)]">{ticker.symbol.yahoo}</h4>
+        {subtitle ? <span className="text-xs text-[var(--text-3)]">{subtitle}</span> : null}
         {ticker.symbol.input !== ticker.symbol.yahoo ? (
-          <span className="text-[11px] text-ink/45">typed as {ticker.symbol.input}</span>
+          <span className="text-xs text-[var(--text-3)]">typed as {ticker.symbol.input}</span>
         ) : null}
       </header>
       <div className="mt-3 grid gap-4 lg:[grid-template-columns:minmax(0,3fr)_minmax(0,2fr)]">
@@ -103,20 +105,20 @@ export function MarketTickerCard({ ticker, testIdPrefix }: Props) {
           <table className="self-start text-sm" data-testid={`${testIdPrefix}-ticker-facts`}>
             <tbody>
               {facts.map((fact) => (
-                <tr key={fact.label} className="border-t border-mist first:border-t-0">
+                <tr key={fact.label} className="border-t border-[var(--line)] first:border-t-0">
                   <th
                     scope="row"
-                    className="py-1 pr-3 text-left text-[11px] font-medium uppercase tracking-wide text-ink/50"
+                    className="py-1 pr-3 text-left text-xs font-medium uppercase tracking-wide text-[var(--text-3)]"
                   >
                     {fact.label}
                   </th>
-                  <td className="py-1 text-right tabular-nums text-ink/85">{fact.value}</td>
+                  <td className="py-1 text-right tabular-nums text-[var(--text)]">{fact.value}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         ) : (
-          <p className="text-sm text-ink/55">No quote or technical data.</p>
+          <p className="text-sm text-[var(--text-3)]">No quote or technical data.</p>
         )}
       </div>
       {news.length > 0 ? (
@@ -126,18 +128,15 @@ export function MarketTickerCard({ ticker, testIdPrefix }: Props) {
           ))}
         </ul>
       ) : (
-        <p className="mt-4 text-xs text-ink/50">No headlines fetched.</p>
+        <p className="mt-4 text-xs text-[var(--text-3)]">No headlines fetched.</p>
       )}
       {hidden > 0 ? (
-        <p className="mt-1 text-[11px] text-amber-900">
+        <p className="mt-1 text-xs text-[var(--text-2)]">
           {hidden} headline{hidden === 1 ? "" : "s"} hidden because the text looked like an instruction, not news.
         </p>
       ) : null}
       {ticker.failures.length > 0 ? (
-        <ul
-          className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900"
-          data-testid={`${testIdPrefix}-ticker-failures`}
-        >
+        <ul className={`mt-3 ${BANNER}`} data-testid={`${testIdPrefix}-ticker-failures`}>
           {ticker.failures.map((failure) => (
             <li key={failure}>{failure}</li>
           ))}

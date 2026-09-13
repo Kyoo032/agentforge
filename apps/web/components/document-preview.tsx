@@ -24,18 +24,18 @@ export function DocumentPreview({
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
-    <article className="rounded-xl border border-mist bg-paper px-8 py-10 shadow-sm" data-testid="documents-preview">
-      <p className="text-xs font-medium uppercase tracking-[0.16em] text-ink/45">Document</p>
-      <h2 className="mt-2 text-3xl font-semibold tracking-tight text-ink">{draft.title}</h2>
+    <article className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-8 py-10" data-testid="documents-preview">
+      <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--text-3)]">Document</p>
+      <h2 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{draft.title}</h2>
       <div className="mt-8 space-y-8">
         {draft.sections.map((section, index) => (
           <section key={`${section.heading}-${index}`} data-testid="documents-section">
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <h3 className="text-lg font-semibold text-navy">{section.heading}</h3>
+              <h3 className="text-sm font-medium text-[var(--text)]">{section.heading}</h3>
               {onRegenerate ? (
                 <button
                   type="button"
-                  className="rounded-md border border-mist px-3 py-1 text-xs font-medium text-ink disabled:opacity-50"
+                  className="wash inline-flex h-8 items-center rounded-lg border border-[var(--line)] bg-transparent px-3 text-xs text-[var(--text)] hover:bg-[var(--accent-soft)] disabled:opacity-45"
                   onClick={() => setOpenIndex(openIndex === index ? null : index)}
                   disabled={regeneratingIndex !== null}
                   aria-expanded={openIndex === index}
@@ -45,7 +45,7 @@ export function DocumentPreview({
                 </button>
               ) : null}
             </div>
-            <FormattedText text={section.body} className="mt-3 text-sm leading-relaxed text-ink/85" />
+            <FormattedText text={section.body} className="mt-3 text-sm leading-relaxed text-[var(--text-2)]" />
             {onRegenerate && openIndex === index ? (
               <JobRegenPanel
                 key={index}

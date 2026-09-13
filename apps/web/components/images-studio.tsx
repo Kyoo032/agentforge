@@ -110,13 +110,13 @@ export function ImagesStudio() {
   }
 
   return (
-    <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-10 text-ink" data-testid="images-studio">
-      <h1 className="text-2xl font-semibold tracking-tight">Images</h1>
-      <p className="mt-2 max-w-xl text-sm text-ink/60">Prompt-to-image studio. Results show in the gallery below.</p>
+    <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-10 text-[var(--text)]" data-testid="images-studio">
+      <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">Images</h1>
+      <p className="mt-2 max-w-xl text-sm text-[var(--text-2)]">Prompt-to-image studio. Results show in the gallery below.</p>
 
       {!ready && !loading ? (
         <div
-          className="mt-6 rounded-xl border border-mist bg-mist/30 px-4 py-3 text-sm text-ink/70"
+          className="mt-6 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--text-2)]"
           data-testid="images-studio-needs-key"
         >
           Add a {gatewayName} gateway key in{" "}
@@ -129,7 +129,7 @@ export function ImagesStudio() {
 
       {error ? (
         <div
-          className="mt-4 rounded-xl border border-red-300/60 bg-red-50 px-4 py-3 text-sm text-red-800"
+          className="mt-4 rounded-xl border border-[var(--line)] px-4 py-3 text-sm text-[var(--danger)]"
           role="alert"
           data-testid="images-studio-error"
         >
@@ -140,13 +140,13 @@ export function ImagesStudio() {
       <ExampleGallery mode="images" onSelect={(entry) => setPrompt(entry.prompt)} />
 
       <form
-        className="mt-8 space-y-3 rounded-xl border border-mist bg-paper p-3 shadow-sm"
+        className="raise mt-8 space-y-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3"
         onSubmit={onSubmit}
         data-testid="images-studio-prompt-bar"
       >
         <div className="flex flex-wrap gap-2">
           <select
-            className="rounded-md border border-mist bg-paper px-3 py-2 text-sm text-ink"
+            className="h-8 rounded-lg border border-[var(--line)] bg-transparent px-3 py-2 text-sm text-[var(--text)]"
             value={aspect}
             onChange={(event) => setAspect(event.target.value as (typeof ASPECTS)[number]["id"])}
             disabled={generating}
@@ -164,14 +164,14 @@ export function ImagesStudio() {
             onChange={setModel}
             disabled={generating || models.length === 0}
             testId="images-studio-model"
-            className="min-w-[12rem] flex-1 rounded-md border border-mist bg-paper px-3 py-2 text-sm text-ink"
+            className="min-w-[12rem] flex-1 h-8 rounded-lg border border-[var(--line)] bg-transparent px-3 py-2 text-sm text-[var(--text)]"
           />
         </div>
         <div className="flex gap-2">
           <EnhancePromptButton text={prompt} surface="images" model={model} disabled={generating} testId="images-enhance" onApply={setPrompt} />
           <input
             type="text"
-            className="min-w-0 flex-1 rounded-md border border-mist bg-transparent px-3 py-2 text-sm text-ink outline-none placeholder:text-ink/40"
+            className="min-w-0 flex-1 h-8 rounded-lg border border-[var(--line)] bg-transparent px-3 py-2 text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-3)]"
             placeholder="Describe an image…"
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
@@ -180,7 +180,7 @@ export function ImagesStudio() {
           />
           <button
             type="submit"
-            className="shrink-0 rounded-md bg-navy px-4 py-2 text-sm font-medium text-white disabled:bg-navy/40"
+            className="shrink-0 wash inline-flex h-8 items-center rounded-pill bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--surface)] disabled:opacity-45"
             disabled={generating || !prompt.trim()}
             data-testid="images-studio-submit"
           >
@@ -191,22 +191,22 @@ export function ImagesStudio() {
 
       <section className="mt-8" data-testid="images-studio-gallery">
         {loading ? (
-          <p className="text-sm text-ink/50">Loading gallery…</p>
+          <p className="text-sm text-[var(--text-3)]">Loading gallery…</p>
         ) : items.length === 0 ? (
           <div
-            className="rounded-lg border border-mist bg-mist/30 px-4 py-10 text-center"
+            className="rounded-lg border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center"
             data-testid="images-studio-empty"
           >
-            <p className="text-lg font-medium">Nothing here yet</p>
-            <p className="mt-2 text-sm text-ink/60">Generate an image to populate this gallery.</p>
+            <p className="text-sm font-medium text-[var(--text)]">Nothing here yet</p>
+            <p className="mt-2 text-sm text-[var(--text-2)]">Generate an image to populate this gallery.</p>
           </div>
         ) : (
           <ul className="grid gap-4 sm:grid-cols-2">
             {items.map((item) => (
-              <li key={item.id} className="overflow-hidden rounded-xl border border-mist bg-paper">
+              <li key={item.id} className="overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface)]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={mediaSrc(item.url)} alt={item.prompt || "Generated image"} className="aspect-square w-full object-cover" />
-                {item.prompt ? <p className="truncate px-3 py-2 text-xs text-ink/60">{item.prompt}</p> : null}
+                {item.prompt ? <p className="truncate px-3 py-2 text-xs text-[var(--text-2)]">{item.prompt}</p> : null}
               </li>
             ))}
           </ul>

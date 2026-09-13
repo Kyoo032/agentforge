@@ -292,12 +292,12 @@ export function KnowledgePage() {
   }
 
   return (
-    <main className="px-[30px] pb-10 pt-[26px] text-inkbase" data-testid="knowledge-page">
+    <main className="px-6 py-8 text-[var(--text)]" data-testid="knowledge-page">
       <div className="mb-5 flex flex-wrap items-end gap-4">
         <div>
           <div className="kicker">{workspaceName} › Knowledge Base</div>
-          <h3 className="mt-2 text-[25px]">Knowledge Base</h3>
-          <p className="mt-1 text-[13px] text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">
+          <h3 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">Knowledge Base</h3>
+          <p className="mt-1 text-[13px] text-[var(--text-2)]">
             Soul, memory, and sources for the {workspaceName} desk. Other workspaces keep their own knowledge.
           </p>
         </div>
@@ -318,11 +318,11 @@ export function KnowledgePage() {
       </div>
       {error ? <p className="mb-4 text-sm text-red-700">{error}</p> : null}
 
-      <section className="blueprint mb-4 p-[18px]" data-testid="knowledge-models">
+      <section className="mb-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4" data-testid="knowledge-models">
         <p className="panel-label">Models</p>
         <div className="mt-3 flex flex-wrap gap-3">
           <label className="flex min-w-[180px] flex-1 flex-col gap-1">
-            <span className="text-[12px] text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">Embedding</span>
+            <span className="text-xs text-[var(--text-2)]">Embedding</span>
             <ModelSelect
               models={embeddingModels}
               value={embeddingModel}
@@ -334,7 +334,7 @@ export function KnowledgePage() {
             />
           </label>
           <label className="flex min-w-[180px] flex-1 flex-col gap-1">
-            <span className="text-[12px] text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">Brain</span>
+            <span className="text-xs text-[var(--text-2)]">Brain</span>
             <ModelSelect
               models={chatModels}
               value={brainModel}
@@ -345,7 +345,7 @@ export function KnowledgePage() {
             />
           </label>
           <label className="flex min-w-[180px] flex-1 flex-col gap-1">
-            <span className="text-[12px] text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">Verifier</span>
+            <span className="text-xs text-[var(--text-2)]">Verifier</span>
             <ModelSelect
               models={chatModels}
               value={verifierModel}
@@ -375,7 +375,7 @@ export function KnowledgePage() {
             key={`${workspaceId}:${graphCounts?.nodes ?? 0}:${graphCounts?.edges ?? 0}`}
             counts={graphCounts}
           />
-          <section className="blueprint p-[18px]">
+          <section className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
             <p className="panel-label">Add a source</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <input
@@ -441,14 +441,14 @@ export function KnowledgePage() {
               </label>
             </div>
           </section>
-          <ul className="blueprint divide-y divide-[color-mix(in_srgb,var(--color-text)_8%,transparent)]">
+          <ul className="divide-y divide-[var(--line)] rounded-xl border border-[var(--line)] bg-[var(--surface)]">
             {sources.map((row) => (
               <li key={row.id} className="flex items-center gap-3 px-4 py-3" data-testid="knowledge-source-row">
                 <span className="min-w-0 flex-1 truncate">{row.name}</span>
                 <span className="tag tag-neutral" data-testid="knowledge-source-type">
                   {row.type}
                 </span>
-                <span className="text-[12px]">{row.chunks} chunks</span>
+                <span className="text-xs">{row.chunks} chunks</span>
                 <span
                   className={row.status === "Indexed" ? "tag tag-accent" : "tag tag-outline"}
                   title={row.status === "Failed" && row.error ? row.error : undefined}
@@ -457,7 +457,7 @@ export function KnowledgePage() {
                 </span>
                 <button
                   type="button"
-                  className="btn btn-ghost text-[12px]"
+                  className="btn btn-ghost text-xs"
                   onClick={() =>
                     void apiFetch(`/api/v1/knowledge/sources/${row.id}`, { method: "DELETE" }).then(() => reload())
                   }
@@ -553,7 +553,7 @@ export function KnowledgePage() {
             {memories.map((item) => (
               <li
                 key={item.id}
-                className="flex items-center gap-2 border-b border-divider py-2"
+                className="flex items-center gap-2 border-b border-[var(--line)] py-2"
                 data-testid="knowledge-memory-row"
               >
                 <span className="flex-1">{item.text}</span>
@@ -575,9 +575,9 @@ export function KnowledgePage() {
 
       {tab === "map" ? (
         <div className="flex flex-col gap-4" data-testid="knowledge-map-panel">
-          <section className="blueprint p-[18px]">
+          <section className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
             <p className="panel-label">Map</p>
-            <p className="mt-2 text-[13px] text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">
+            <p className="mt-2 text-[13px] text-[var(--text-2)]">
               This desk memory is what Chat retrieves now. Job modes will call the same retrieve later. Map reviews
               sources with your embedding, brain, and verifier models.
             </p>
@@ -592,7 +592,7 @@ export function KnowledgePage() {
             </button>
           </section>
           {knowledgeMap ? (
-            <section className="blueprint flex flex-col gap-3 p-[18px]" data-testid="knowledge-map">
+            <section className="flex flex-col gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4" data-testid="knowledge-map">
               <div className="flex flex-wrap items-center gap-2">
                 <span className={knowledgeMap.ready ? "tag tag-accent" : "tag tag-outline"}>
                   {knowledgeMap.ready ? "Ready" : "Not ready"}
@@ -602,19 +602,19 @@ export function KnowledgePage() {
               <FormattedText text={knowledgeMap.overview} className="text-[14px]" />
               <ul className="flex flex-col gap-3">
                 {knowledgeMap.topics.map((topic) => (
-                  <li key={`${topic.title}-${topic.verdict}`} className="border-t border-divider pt-3">
+                  <li key={`${topic.title}-${topic.verdict}`} className="border-t border-[var(--line)] pt-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{topic.title}</span>
                       <span className={verdictTagClass(topic.verdict)}>{topic.verdict}</span>
                     </div>
                     <FormattedText
                       text={topic.summary}
-                      className="mt-1 text-[13px] text-[color-mix(in_srgb,var(--color-text)_70%,transparent)]"
+                      className="mt-1 text-[13px] text-[var(--text)]"
                     />
                     {topic.note ? (
                       <FormattedText
                         text={topic.note}
-                        className="mt-1 text-[12px] text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]"
+                        className="mt-1 text-xs text-[var(--text-2)]"
                       />
                     ) : null}
                   </li>

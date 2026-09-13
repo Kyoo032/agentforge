@@ -43,6 +43,7 @@ describe("modeCatalogPayload", () => {
 
   it("routes a mixed catalog into chat jobs and full media lists", () => {
     const payload = modeCatalogPayload([
+      model("gpt-5.6-terra"),
       model("gpt-5.6-luna"),
       model("gpt-5.6-sol"),
       model("claude-sonnet-5"),
@@ -60,10 +61,11 @@ describe("modeCatalogPayload", () => {
 
     expect(payload.modes.chat.map((item) => item.id)).toEqual([
       "gpt-5.6-luna",
+      "gpt-5.6-terra",
       "gpt-5.6-sol",
       "claude-sonnet-5",
-      "deepseek-v4-flash",
       "glm-5.2-fast-preview",
+      "deepseek-v4-flash",
     ]);
     expect(payload.modes.documents.map((item) => item.id)).toEqual(payload.modes.chat.map((item) => item.id));
     expect(payload.modes.research.map((item) => item.id)).toEqual(payload.modes.chat.map((item) => item.id));
@@ -88,6 +90,7 @@ describe("modeCatalogPayload", () => {
     expect(payload.defaults.finance).toBe("deepseek-v4-flash");
     expect(payload.defaults.data).toBe("gpt-5.6-luna");
     expect(payload.defaults.market).toBe("deepseek-v4-flash");
+    expect(payload.defaults.legal).toBe("gpt-5.6-sol");
     expect(payload.defaults.image).toBe("gpt-image-2");
     expect(payload.defaults.video).toBe("grok-imagine-video");
     expect(payload.defaults.embedding).toBe("text-embedding-3-small");

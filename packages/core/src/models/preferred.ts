@@ -5,8 +5,19 @@ type ModelRef = { id: string };
 
 export { formatContextLength } from "./context-length";
 
-/** Small everyday chat defaults, in order. Live catalog spelling may differ (e.g. MiniMax-M3). */
-export const CHAT_DEFAULT_PREFERENCES = ["gpt-5.6-luna", "deepseek-v4-flash", "MiniMax-M3", "minimax-m3"];
+/** Everyday chat defaults — product Chat prefers Luna; Terra stays in the everyday set. */
+export const CHAT_DEFAULT_PREFERENCES = [
+  "gpt-5.6-luna",
+  "claude-sonnet-5",
+  "gemini-3.5-flash",
+  "qwen3.7-plus",
+  "MiniMax-M3",
+  "minimax-m3",
+  "doubao-seed-2-1-turbo-260628",
+  "gpt-5.6-terra",
+  "glm-5.3-flash",
+  "deepseek-v4-flash",
+];
 
 function tierRank(id: string): number {
   return isEverydayModel(id) ? 0 : 1;
@@ -24,16 +35,16 @@ type Family = {
 
 const FAMILIES: Family[] = [
   {
-    label: "DeepSeek V4",
-    rank: 0,
-    match: (id) => /deepseek-v4/i.test(id),
-    variant: (id) => (/flash/i.test(id) ? 0 : /pro/i.test(id) ? 1 : 2),
-  },
-  {
     label: "GPT-5.6",
-    rank: 1,
+    rank: 0,
     match: (id) => /gpt-5\.6/i.test(id),
     variant: (id) => (/luna/i.test(id) ? 0 : /terra/i.test(id) ? 1 : /sol/i.test(id) ? 2 : 3),
+  },
+  {
+    label: "Claude 5",
+    rank: 1,
+    match: (id) => /claude-(sonnet|opus)-5(?:$|[^\d])/i.test(id),
+    variant: (id) => (/sonnet/i.test(id) ? 0 : 1),
   },
   {
     label: "MiniMax",
@@ -42,26 +53,26 @@ const FAMILIES: Family[] = [
     variant: (id) => (/m3(?:$|[.-])/i.test(id) ? 0 : 1),
   },
   {
-    label: "Claude 5",
+    label: "GLM",
     rank: 3,
-    match: (id) => /claude-(sonnet|opus)-5(?:$|[^\d])/i.test(id),
-    variant: (id) => (/opus/i.test(id) ? 0 : 1),
+    match: (id) => /glm-5/i.test(id),
+    variant: (id) => (/glm-5\.3-flash/i.test(id) ? 0 : /glm-5\.3/i.test(id) ? 1 : 2),
+  },
+  {
+    label: "DeepSeek V4",
+    rank: 4,
+    match: (id) => /deepseek-v4/i.test(id),
+    variant: (id) => (/flash/i.test(id) ? 0 : /pro/i.test(id) ? 1 : 2),
   },
   {
     label: "Kimi",
-    rank: 4,
-    match: (id) => /kimi/i.test(id),
-    variant: (id) => (/kimi-k3/i.test(id) ? 0 : /kimi-k2\.7/i.test(id) ? 1 : /kimi-k2\.6/i.test(id) ? 2 : 3),
-  },
-  {
-    label: "GLM",
     rank: 5,
-    match: (id) => /glm-5/i.test(id),
-    variant: (id) => (/glm-5\.3/i.test(id) ? 0 : /glm-5\.2/i.test(id) ? 1 : 2),
+    match: (id) => /kimi/i.test(id),
+    variant: (id) => (/kimi-k2\.6/i.test(id) ? 0 : /kimi-k2\.7/i.test(id) ? 1 : /kimi-k3/i.test(id) ? 2 : 3),
   },
 ];
 
-const DEFAULT_FAMILY_ORDER = ["GPT-5.6", "DeepSeek V4", "MiniMax", "Claude 5", "Kimi", "GLM"];
+const DEFAULT_FAMILY_ORDER = ["GPT-5.6", "Claude 5", "MiniMax", "GLM", "DeepSeek V4", "Kimi"];
 
 /** Stable picker buckets. One brand per group — no GPT-5.6 vs OpenAI split. */
 const BRAND_GROUP_ORDER = [
@@ -158,8 +169,16 @@ function claudeFamilyRank(id: string): number {
 }
 
 function gptVersionKey(id: string): string {
-  const match = pickerLeaf(id).match(/^gpt-(\d+(?:\.\d+)*)/);
-  return match?.[1] ?? "";
+  const n = pickerLeaf(id);
+  const match = n.match(/^gpt-(\d+(?:\.\d+)*)/);
+  if (match?.[1]) {
+    return match[1];
+  }
+  // o-series sits between gpt-5.6 and older gpt-5.x / gpt-4o in the brand list.
+  if (/^o[134]/.test(n)) {
+    return "5.5";
+  }
+  return "";
 }
 
 function gptVariantRank(id: string): number {
@@ -253,6 +272,8 @@ export function recommendedChatModels<T extends ModelRef>(models: T[]): T[] {
     const best = hits[0];
     if (best && !picks.some((pick) => pick.id === best.id)) {
       picks.push(best);
+      // One family best is enough — do not dump a pick from every FAMILIES entry.
+      break;
     }
   }
   return picks;

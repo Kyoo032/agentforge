@@ -60,15 +60,15 @@ export function EditAgentPanel({
   }
 
   return (
-    <aside className="flex h-full min-h-0 w-[240px] min-w-[200px] max-w-[280px] shrink flex-col overflow-hidden border-l border-divider bg-paper" data-testid="edit-agent-panel">
-      <div className="flex items-center justify-between border-b border-divider px-3 py-2">
-        <span className="text-xs font-heading uppercase tracking-[.12em] text-ink/50">Agent</span>
-        <span className="text-xs text-ink/60" data-testid="edit-spend-meter">
+    <aside className="flex h-full min-h-0 w-[240px] min-w-[200px] max-w-[280px] shrink flex-col overflow-hidden border-l border-[var(--line)] bg-[var(--surface)]" data-testid="edit-agent-panel">
+      <div className="flex items-center justify-between border-b border-[var(--line)] px-3 py-2">
+        <span className="text-xs font-heading uppercase tracking-[.12em] text-[var(--text-3)]">Agent</span>
+        <span className="text-xs text-[var(--text-2)]" data-testid="edit-spend-meter">
           turn {formatUsd(spent)} / {formatUsd(spendCap)}
         </span>
       </div>
       {emitLockActive ? (
-        <p className="border-b border-divider px-3 py-1 text-[11px] text-accent" data-testid="edit-emit-lock">
+        <p className="border-b border-[var(--line)] px-3 py-1 text-xs text-[var(--accent)]" data-testid="edit-emit-lock">
           Agent writing…
         </p>
       ) : null}
@@ -84,9 +84,9 @@ export function EditAgentPanel({
         onReviewOk={onReviewOk}
       />
       <EditTray items={unplaced} onPlace={onPlace} onDiscard={onDiscard} />
-      <form className="border-t border-divider p-2" onSubmit={onSubmit}>
+      <form className="border-t border-[var(--line)] p-2" onSubmit={onSubmit}>
         <textarea
-          className="h-20 w-full resize-none rounded-md border border-mist bg-transparent px-2 py-1.5 text-sm outline-none"
+          className="h-20 w-full resize-none rounded-md border border-[var(--line)] bg-transparent px-2 py-1.5 text-sm outline-none"
           placeholder="Ask the editor…"
           value={value}
           onChange={(event) => {

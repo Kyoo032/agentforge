@@ -146,11 +146,11 @@ export function DocumentsStudio() {
   }
 
   return (
-    <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-10 text-ink" data-testid="documents-studio">
+    <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-10 text-[var(--text)]" data-testid="documents-studio">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Documents</h1>
-          <p className="mt-2 max-w-xl text-sm text-ink/60">
+          <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">Documents</h1>
+          <p className="mt-2 max-w-xl text-sm text-[var(--text-2)]">
             Describe a memo, brief, or report. {productName} drafts sections, shows a preview, and downloads a DOCX.
           </p>
         </div>
@@ -159,7 +159,7 @@ export function DocumentsStudio() {
             type="button"
             onClick={() => void onDownload()}
             disabled={busy !== null}
-            className="rounded-md bg-navy px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            className="wash inline-flex h-8 items-center rounded-pill bg-[var(--accent)] px-4 text-sm font-medium text-[var(--surface)] disabled:opacity-45"
             data-testid="documents-download"
           >
             {busy === "download" ? "Building…" : "Download DOCX"}
@@ -169,7 +169,7 @@ export function DocumentsStudio() {
 
       {error ? (
         <div
-          className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+          className="mt-6 rounded-lg border border-[var(--line)] px-4 py-3 text-sm text-[var(--danger)]"
           role="alert"
           data-testid="documents-error"
         >
@@ -199,9 +199,9 @@ export function DocumentsStudio() {
             onRegenerate={(index, payload) => void onRegenerate(index, payload)}
           />
         ) : (
-          <div className="rounded-lg border border-mist bg-mist/30 px-4 py-10" data-testid="documents-studio-empty">
-            <p className="text-center text-lg font-medium">No document yet</p>
-            <p className="mt-2 text-center text-sm text-ink/60">
+          <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10" data-testid="documents-studio-empty">
+            <p className="text-center text-sm font-medium text-[var(--text)]">No document yet</p>
+            <p className="mt-2 text-center text-sm text-[var(--text-2)]">
               Enter a topic below, or load a starter and download a DOCX without a live generate.
             </p>
             <div className="mx-auto mt-6 grid max-w-2xl gap-3 sm:grid-cols-2">
@@ -209,15 +209,15 @@ export function DocumentsStudio() {
                 <button
                   key={starter.id}
                   type="button"
-                  className="rounded-xl border border-mist bg-paper px-4 py-3 text-left hover:border-navy"
+                  className="wash rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-left hover:bg-[var(--accent-soft)]"
                   onClick={() => {
                     setDraft(starter.draft);
                     setError(null);
                   }}
                   data-testid="documents-starter"
                 >
-                  <p className="text-sm font-medium text-ink">{starter.label}</p>
-                  <p className="mt-1 text-xs text-ink/60">{starter.description}</p>
+                  <p className="text-sm font-medium text-[var(--text)]">{starter.label}</p>
+                  <p className="mt-1 text-xs text-[var(--text-2)]">{starter.description}</p>
                 </button>
               ))}
             </div>
@@ -226,7 +226,7 @@ export function DocumentsStudio() {
       </div>
 
       <form
-        className="sticky bottom-4 mt-8 space-y-2 rounded-xl border border-mist bg-paper p-2 shadow-sm"
+        className="raise sticky bottom-4 mt-8 space-y-2 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3"
         onSubmit={(event) => void onGenerate(event)}
         data-testid="documents-studio-prompt-bar"
       >
@@ -244,7 +244,7 @@ export function DocumentsStudio() {
           onChange={setModel}
           disabled={busy !== null || models.length === 0}
           testId="documents-studio-model"
-          className="w-full rounded-md border border-mist bg-paper px-3 py-2 text-sm text-ink"
+          className="h-8 w-full rounded-lg border border-[var(--line)] bg-transparent px-2 text-xs text-[var(--text-2)] wash"
         />
         <div className="flex gap-2">
           <EnhancePromptButton
@@ -259,7 +259,7 @@ export function DocumentsStudio() {
             type="text"
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
-            className="min-w-0 flex-1 rounded-md bg-transparent px-3 py-2 text-sm text-ink outline-none placeholder:text-ink/40"
+            className="min-w-0 flex-1 rounded-lg bg-transparent px-3 py-2 text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-3)]"
             placeholder="Describe a document…"
             disabled={busy !== null}
             data-testid="documents-prompt"
@@ -267,7 +267,7 @@ export function DocumentsStudio() {
           />
           <button
             type="submit"
-            className="shrink-0 rounded-md bg-navy px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            className="wash inline-flex h-8 shrink-0 items-center rounded-pill bg-[var(--accent)] px-4 text-sm font-medium text-[var(--surface)] disabled:opacity-45"
             disabled={busy !== null || !prompt.trim()}
             data-testid="documents-generate"
           >

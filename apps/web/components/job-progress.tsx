@@ -20,10 +20,14 @@ export function JobProgressList({ progress, busy, testId = "job-progress" }: Pro
     return null;
   }
   return (
-    <div className="rounded-lg border border-mist bg-mist/30 px-4 py-3 text-sm" data-testid={testId} aria-live="polite">
-      {progress.phases.length === 0 ? <p className="text-ink/60">Starting…</p> : null}
+    <div
+      className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm"
+      data-testid={testId}
+      aria-live="polite"
+    >
+      {progress.phases.length === 0 ? <p className="text-[var(--text-2)]">Starting…</p> : null}
       {progress.round ? (
-        <p className="mb-1 text-xs font-medium text-navy" data-testid={`${testId}-round`}>
+        <p className="mb-1 text-xs font-medium text-[var(--accent)]" data-testid={`${testId}-round`}>
           Round {progress.round.round} of {progress.round.total} · {progress.round.label}
         </p>
       ) : null}
@@ -33,26 +37,26 @@ export function JobProgressList({ progress, busy, testId = "job-progress" }: Pro
           const count = last?.total ? ` ${last.current ?? phase.steps.length}/${last.total}` : "";
           return (
             <li key={phase.phase} className="flex items-baseline gap-2" data-testid={`${testId}-phase`}>
-              <span className={phase.status === "active" ? "text-navy" : "text-ink/45"} aria-hidden>
+              <span className={phase.status === "active" ? "text-[var(--accent)]" : "text-[var(--text-3)]"} aria-hidden>
                 {phase.status === "active" ? "●" : "✓"}
               </span>
-              <span className={phase.status === "active" ? "font-medium text-ink" : "text-ink/70"}>
+              <span className={phase.status === "active" ? "font-medium text-[var(--text)]" : "text-[var(--text-2)]"}>
                 {phase.label}
                 {count}
               </span>
               {phase.status === "active" && last?.label ? (
-                <span className="truncate text-xs text-ink/50">{last.detail ?? last.label}</span>
+                <span className="truncate text-xs text-[var(--text-3)]">{last.detail ?? last.label}</span>
               ) : null}
             </li>
           );
         })}
       </ol>
       {progress.sources.length > 0 ? (
-        <ul className="mt-2 space-y-0.5 text-xs text-ink/60" data-testid={`${testId}-sources`}>
+        <ul className="mt-2 space-y-0.5 text-xs text-[var(--text-2)]" data-testid={`${testId}-sources`}>
           {progress.sources.map((source) => (
             <li key={source.id} className="truncate">
               <span className="font-mono">{source.id}</span> {source.title || source.url}{" "}
-              <span className="text-ink/40">({SOURCE_STATUS_LABEL[source.status] ?? source.status})</span>
+              <span className="text-[var(--text-3)]">({SOURCE_STATUS_LABEL[source.status] ?? source.status})</span>
             </li>
           ))}
         </ul>

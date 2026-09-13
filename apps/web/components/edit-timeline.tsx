@@ -144,8 +144,8 @@ export function EditTimeline({
   ];
 
   return (
-    <section className="shrink-0 border-t border-divider bg-paper" data-testid="edit-timeline">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-divider px-3 py-1.5 text-xs text-ink/60">
+    <section className="shrink-0 border-t border-[var(--line)] bg-[var(--surface)]" data-testid="edit-timeline">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-[var(--line)] px-3 py-1.5 text-xs text-[var(--text-2)]">
         <label className="flex shrink-0 items-center gap-2">
           Zoom
           <input
@@ -170,10 +170,10 @@ export function EditTimeline({
           {tracks.map((track) => (
             <div
               key={track.id}
-              className="relative h-11 border-b border-divider"
+              className="relative h-11 border-b border-[var(--line)]"
               data-testid={`edit-track-${track.id}`}
             >
-              <span className="sticky left-0 z-[1] inline-block w-8 bg-paper px-1 text-[10px] uppercase text-ink/50">
+              <span className="sticky left-0 z-[1] inline-block w-8 bg-[var(--surface)] px-1 text-xs uppercase text-[var(--text-3)]">
                 {track.id}
               </span>
               {(project?.clips ?? [])
@@ -188,9 +188,9 @@ export function EditTimeline({
                   return (
                     <div
                       key={clip.id}
-                      className={`absolute top-1.5 h-8 rounded-sm border text-[10px] ${
-                        pending ? "edit-placeholder-shimmer border-accent/40" : "border-mist bg-accent/20"
-                      } ${selected ? "ring-1 ring-accent" : ""} ${dim ? "opacity-40" : ""}`}
+                      className={`absolute top-1.5 h-8 rounded-sm border text-xs ${
+                        pending ? "border-[var(--accent)]/40" : "border-[var(--line)] bg-[var(--accent)]/20"
+                      } ${selected ? "ring-1 ring-[var(--accent)]" : ""} ${dim ? "opacity-40" : ""}`}
                       style={{
                         left: clip.timelineStartFrame * px,
                         width: Math.max(MIN_PX, clip.durationFrames * px),

@@ -114,12 +114,12 @@ export function JobRegenPanel({
 
   return (
     <form
-      className="mt-3 space-y-2 rounded-lg border border-mist bg-mist/20 p-3"
+      className="mt-3 space-y-2 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3"
       onSubmit={(event) => void submit(event)}
       data-testid={`${testIdPrefix}-regen-panel`}
     >
       <textarea
-        className="w-full rounded-md border border-mist bg-paper px-3 py-2 text-sm text-ink outline-none placeholder:text-ink/40"
+        className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-3)]"
         rows={3}
         value={instruction}
         onChange={(event) => setInstruction(event.target.value)}
@@ -142,7 +142,7 @@ export function JobRegenPanel({
         onChange={setModel}
         disabled={busy || models.length === 0}
         testId={`${testIdPrefix}-regen-model`}
-        className="w-full rounded-md border border-mist bg-paper px-3 py-2 text-sm text-ink"
+        className="h-8 w-full rounded-lg border border-[var(--line)] bg-transparent px-2 text-xs text-[var(--text-2)] wash"
       />
       <input
         ref={fileInputRef}
@@ -158,12 +158,12 @@ export function JobRegenPanel({
           {files.map((item) => (
             <li
               key={item.id}
-              className="flex items-center gap-2 rounded-md border border-mist bg-paper px-3 py-1 text-xs text-ink"
+              className="flex items-center gap-2 rounded-lg border border-[var(--line)] px-3 py-1 text-xs text-[var(--text)]"
             >
               <span className="max-w-[12rem] truncate">{item.file.name}</span>
               <button
                 type="button"
-                className="text-ink/50 hover:text-ink"
+                className="text-[var(--text-3)] hover:text-[var(--text)]"
                 aria-label={`Remove ${item.file.name}`}
                 disabled={busy}
                 onClick={() => setFiles((current) => current.filter((held) => held.id !== item.id))}
@@ -174,11 +174,11 @@ export function JobRegenPanel({
           ))}
         </ul>
       ) : null}
-      {error ? <p className="text-sm text-red-700">{error}</p> : null}
+      {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
-          className="rounded-md border border-mist px-3 py-1.5 text-xs font-medium text-ink disabled:opacity-50"
+          className="wash inline-flex h-8 items-center rounded-lg border border-[var(--line)] bg-transparent px-3 text-xs text-[var(--text)] hover:bg-[var(--accent-soft)] disabled:opacity-45"
           onClick={() => fileInputRef.current?.click()}
           disabled={busy}
           data-testid={`${testIdPrefix}-regen-attach`}
@@ -187,7 +187,7 @@ export function JobRegenPanel({
         </button>
         <button
           type="button"
-          className="rounded-md border border-mist px-3 py-1.5 text-xs font-medium text-ink disabled:opacity-50"
+          className="wash inline-flex h-8 items-center rounded-lg border border-[var(--line)] bg-transparent px-3 text-xs text-[var(--text)] hover:bg-[var(--accent-soft)] disabled:opacity-45"
           onClick={onCancel}
           disabled={submitting || uploading}
         >
@@ -195,7 +195,7 @@ export function JobRegenPanel({
         </button>
         <button
           type="submit"
-          className="rounded-md bg-navy px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+          className="wash inline-flex h-8 items-center rounded-pill bg-[var(--accent)] px-4 text-xs font-medium text-[var(--surface)] disabled:opacity-45"
           disabled={busy}
           data-testid={`${testIdPrefix}-regen-submit`}
         >

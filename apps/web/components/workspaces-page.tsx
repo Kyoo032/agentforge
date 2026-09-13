@@ -16,8 +16,8 @@ type Workspace = {
 };
 
 const chipBase = "rounded-md border px-3 py-1.5 text-sm transition-colors";
-const chipOn = "border-accent bg-accent text-white";
-const chipOff = "border-mist bg-paper text-ink hover:bg-mist";
+const chipOn = "border-[var(--accent)] bg-[var(--accent)] text-[var(--surface)]";
+const chipOff = "border-[var(--line)] bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--line)]";
 
 function templateLabel(id: string | null | undefined): string | null {
   if (!id) {
@@ -200,20 +200,20 @@ export function WorkspacesPage() {
   }
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-10 text-ink">
-      <h1 className="text-3xl font-semibold text-ink">Workspaces</h1>
-      <p className="mt-2 text-ink/60">
+    <main className="mx-auto max-w-2xl px-6 py-8 text-[var(--text)]">
+      <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">Workspaces</h1>
+      <p className="mt-2 text-[var(--text-2)]">
         Folders on this machine. Each desk has its own gateway key, Settings, and Knowledge Base — switching does not
         share them. You own all of them here — nothing to join.
       </p>
       {creating ? (
         <form
           onSubmit={(event) => void createWorkspace(event)}
-          className="mt-8 space-y-4 rounded-xl border border-mist bg-paper p-4"
+          className="mt-8 space-y-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4"
           data-testid="workspace-create-form"
         >
           <fieldset>
-            <legend className="text-sm font-medium text-ink">Template (optional)</legend>
+            <legend className="text-sm font-medium text-[var(--text)]">Template (optional)</legend>
             <div className="mt-2 flex flex-wrap gap-2" data-testid="workspace-template-picker">
               <button
                 type="button"
@@ -245,7 +245,7 @@ export function WorkspacesPage() {
             </div>
           </fieldset>
           <fieldset>
-            <legend className="text-sm font-medium text-ink">Modes</legend>
+            <legend className="text-sm font-medium text-[var(--text)]">Modes</legend>
             <div className="mt-2 flex flex-wrap gap-2" data-testid="workspace-mode-picker">
               {PRODUCT_MODES.map((mode) => {
                 const on = selectedModes.includes(mode.id);
@@ -267,19 +267,19 @@ export function WorkspacesPage() {
           </fieldset>
           <div className="flex flex-wrap gap-3">
             <input
-              className="min-w-[12rem] flex-1 rounded-md border border-mist bg-paper px-3 py-2 text-ink"
+              className="min-w-[12rem] flex-1 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)]"
               placeholder="New workspace name"
               value={name}
               onChange={(event) => setName(event.target.value)}
               required
               data-testid="workspace-name"
             />
-            <button type="submit" className="rounded-md bg-navy px-4 py-2 text-white" data-testid="create-workspace">
+            <button type="submit" className="btn btn-primary" data-testid="create-workspace">
               Create
             </button>
             <button
               type="button"
-              className="rounded-md px-3 py-2 text-sm text-ink/70 underline"
+              className="rounded-md px-3 py-2 text-sm text-[var(--text-2)] underline"
               data-testid="cancel-create-workspace"
               onClick={closeCreate}
             >
@@ -290,28 +290,28 @@ export function WorkspacesPage() {
       ) : (
         <button
           type="button"
-          className="mt-8 rounded-full bg-navy px-3 py-1.5 text-sm text-white"
+          className="btn btn-primary mt-8 rounded-pill px-3 py-1.5 text-sm"
           data-testid="create-new-workspace"
           onClick={openCreate}
         >
           Create new workspace
         </button>
       )}
-      {error ? <p className="mt-3 text-sm text-red-700">{error}</p> : null}
-      <ul className="mt-8 space-y-2 rounded-xl border border-mist bg-paper p-3" data-testid="workspace-list">
+      {error ? <p className="mt-3 text-sm text-[var(--danger)]">{error}</p> : null}
+      <ul className="mt-8 space-y-2 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3" data-testid="workspace-list">
         {workspaces.map((workspace) => {
           const packLabel = templateLabel(workspace.templatePack);
           const modes = workspace.productModes ?? [];
           const dirty = editName.trim() !== workspace.name || !sameModes(withChat(editModes), withChat(modes));
           return (
-            <li key={workspace.id} className="rounded-md border border-mist bg-paper px-4 py-3">
+            <li key={workspace.id} className="rounded-md border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="font-medium text-ink">
+                  <p className="font-medium text-[var(--text)]">
                     {workspace.name}
-                    {packLabel ? <span className="ml-2 text-xs font-normal text-ink/50">{packLabel}</span> : null}
+                    {packLabel ? <span className="ml-2 text-xs font-normal text-[var(--text-3)]">{packLabel}</span> : null}
                   </p>
-                  <p className="text-xs text-ink/50">
+                  <p className="text-xs text-[var(--text-3)]">
                     {workspace.id === currentId ? "Current · " : ""}
                     {modes.map((id) => PRODUCT_MODES.find((mode) => mode.id === id)?.label ?? id).join(", ")}
                   </p>
@@ -319,7 +319,7 @@ export function WorkspacesPage() {
                 <div className="flex shrink-0 gap-2">
                   <button
                     type="button"
-                    className="rounded-md px-2 py-1 text-sm text-navy underline"
+                    className="rounded-md px-2 py-1 text-sm text-[var(--accent)] underline"
                     onClick={() => openEditor(workspace)}
                     data-testid="edit-workspace-modes"
                   >
@@ -328,7 +328,7 @@ export function WorkspacesPage() {
                   {workspace.protected || workspace.slug === "home" ? null : (
                     <button
                       type="button"
-                      className="rounded-md px-2 py-1 text-sm text-red-700 underline"
+                      className="rounded-md px-2 py-1 text-sm text-[var(--danger)] underline"
                       onClick={() => openDelete(workspace)}
                       data-testid="delete-workspace"
                     >
@@ -337,7 +337,7 @@ export function WorkspacesPage() {
                   )}
                   <button
                     type="button"
-                    className="rounded-md px-2 py-1 text-sm text-navy underline"
+                    className="rounded-md px-2 py-1 text-sm text-[var(--accent)] underline"
                     onClick={() => void openWorkspace(workspace.id)}
                     data-testid="open-workspace"
                   >
@@ -347,17 +347,17 @@ export function WorkspacesPage() {
               </div>
               {editingId === workspace.id ? (
                 <div className="mt-3 space-y-3">
-                  <label className="block text-sm font-medium text-ink">
+                  <label className="block text-sm font-medium text-[var(--text)]">
                     Name
                     <input
-                      className="mt-1 w-full rounded-md border border-mist bg-paper px-3 py-2 text-ink"
+                      className="mt-1 w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)]"
                       value={editName}
                       onChange={(event) => setEditName(event.target.value)}
                       data-testid="workspace-edit-name"
                     />
                   </label>
                   <div>
-                    <p className="text-sm font-medium text-ink">Modes</p>
+                    <p className="text-sm font-medium text-[var(--text)]">Modes</p>
                     <div className="mt-2 flex flex-wrap gap-2" data-testid="workspace-edit-modes">
                       {PRODUCT_MODES.map((mode) => {
                         const on = editModes.includes(mode.id);
@@ -380,7 +380,7 @@ export function WorkspacesPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
-                      className="rounded-md bg-navy px-4 py-2 text-sm text-white disabled:opacity-50"
+                      className="btn btn-primary text-sm disabled:opacity-50"
                       data-testid="save-workspace-modes"
                       disabled={!dirty || !editName.trim()}
                       onClick={() => void saveDesk(workspace.id, workspace.name, modes)}
@@ -389,7 +389,7 @@ export function WorkspacesPage() {
                     </button>
                     <button
                       type="button"
-                      className="rounded-md px-3 py-2 text-sm text-ink/70 underline"
+                      className="rounded-md px-3 py-2 text-sm text-[var(--text-2)] underline"
                       data-testid="cancel-workspace-modes"
                       onClick={() => setEditingId(null)}
                     >
@@ -399,13 +399,13 @@ export function WorkspacesPage() {
                 </div>
               ) : null}
               {deletingId === workspace.id ? (
-                <div className="mt-3 space-y-3 rounded-md border border-red-200 bg-red-50/60 p-3" data-testid="delete-workspace-confirm">
-                  <p className="text-sm text-ink">
+                <div className="mt-3 space-y-3 rounded-md border border-[var(--danger)]/30 bg-[var(--danger)]/5 p-3" data-testid="delete-workspace-confirm">
+                  <p className="text-sm text-[var(--text)]">
                     This removes the desk, its chats, Knowledge Base, and saved key from this machine. Type{" "}
                     <span className="font-medium">{workspace.name}</span> to confirm.
                   </p>
                   <input
-                    className="w-full rounded-md border border-mist bg-paper px-3 py-2 text-ink"
+                    className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)]"
                     value={deleteConfirm}
                     onChange={(event) => setDeleteConfirm(event.target.value)}
                     placeholder={workspace.name}
@@ -415,7 +415,7 @@ export function WorkspacesPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
-                      className="rounded-full bg-red-700 px-3 py-1.5 text-sm text-white disabled:opacity-50"
+                      className="rounded-pill bg-[var(--danger)] px-3 py-1.5 text-sm text-[var(--surface)] disabled:opacity-50"
                       data-testid="delete-workspace-confirm-submit"
                       disabled={deleteConfirm.trim() !== workspace.name}
                       onClick={() => void deleteDesk(workspace)}
@@ -424,7 +424,7 @@ export function WorkspacesPage() {
                     </button>
                     <button
                       type="button"
-                      className="rounded-md px-3 py-2 text-sm text-ink/70 underline"
+                      className="rounded-md px-3 py-2 text-sm text-[var(--text-2)] underline"
                       data-testid="delete-workspace-cancel"
                       onClick={() => {
                         setDeletingId(null);

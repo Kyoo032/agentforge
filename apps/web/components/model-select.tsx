@@ -45,7 +45,7 @@ export function ModelSelect({
   disabled,
   testId = "model-picker",
   showModalities = false,
-  className = "rounded-md border border-divider bg-[color-mix(in_srgb,var(--color-text)_10%,var(--color-bg))] px-3 py-2 font-medium text-ink",
+  className = "h-8 rounded-lg border border-[var(--line)] bg-transparent px-2 text-xs text-[var(--text-2)] wash",
   flat = false,
 }: Props) {
   const selected = models.some((model) => model.id === value) ? value : (models[0]?.id ?? "");

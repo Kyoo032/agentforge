@@ -67,7 +67,7 @@ export function VideoExamples({ onPick, selectedId }: Props) {
 
   if (error) {
     return (
-      <p className="mt-6 text-xs text-ink/50" data-testid="videos-examples-error">
+      <p className="mt-6 text-xs text-[var(--text-3)]" data-testid="videos-examples-error">
         {error}
       </p>
     );
@@ -79,8 +79,8 @@ export function VideoExamples({ onPick, selectedId }: Props) {
 
   return (
     <section className="mt-6" data-testid="videos-examples">
-      <h2 className="text-sm font-medium text-ink">Example clips</h2>
-      <p className="mt-1 text-xs text-ink/55">
+      <h2 className="text-sm font-medium text-[var(--text)]">Example clips</h2>
+      <p className="mt-1 text-xs text-[var(--text-3)]">
         Generated from the prompt templates below and bundled with the app. Click one to load its prompt.
       </p>
       <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -89,7 +89,11 @@ export function VideoExamples({ onPick, selectedId }: Props) {
           return (
             <li
               key={item.file}
-              className={`overflow-hidden rounded-xl border bg-paper ${isSelected ? "border-accent" : "border-mist"}`}
+              className={`overflow-hidden rounded-xl border bg-[var(--surface)] ${
+                isSelected
+                  ? "select-row border-[var(--accent)] bg-[var(--accent-soft)]"
+                  : "wash border-[var(--line)] hover:bg-[var(--accent-soft)]"
+              }`}
               data-testid="videos-example-card"
               data-template-id={item.templateId}
             >
@@ -103,20 +107,20 @@ export function VideoExamples({ onPick, selectedId }: Props) {
                 data-testid="videos-example-video"
               />
               <div className="px-3 py-2">
-                <p className="truncate text-sm text-ink" title={item.title}>
+                <p className="truncate text-sm text-[var(--text)]" title={item.title}>
                   {item.title}
                 </p>
-                <p className="mt-0.5 flex flex-wrap items-center gap-1 text-[10px] text-ink/50">
-                  <span className="rounded border border-mist px-1 leading-4">{item.aspect}</span>
+                <p className="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-[var(--text-3)]">
+                  <span className="rounded border border-[var(--line)] px-1 leading-4">{item.aspect}</span>
                   <span>{formatSeconds(item)}</span>
                   {item.model ? <span className="truncate">{item.model}</span> : null}
                 </p>
-                <p className="mt-1 line-clamp-2 text-xs text-ink/60" title={item.prompt}>
+                <p className="mt-1 line-clamp-2 text-xs text-[var(--text-2)]" title={item.prompt}>
                   {item.prompt}
                 </p>
                 <button
                   type="button"
-                  className="btn btn-secondary mt-2 px-2 py-1 text-xs"
+                  className="wash mt-2 inline-flex h-8 items-center rounded-lg border border-[var(--line)] bg-transparent px-3 text-xs text-[var(--text)] hover:bg-[var(--accent-soft)]"
                   aria-pressed={isSelected}
                   data-testid={`videos-example-use-${item.templateId}`}
                   onClick={() => {

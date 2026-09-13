@@ -153,13 +153,13 @@ export function VideosStudio() {
   }
 
   return (
-    <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-10 text-ink" data-testid="videos-studio">
-      <h1 className="text-2xl font-semibold tracking-tight">Videos</h1>
-      <p className="mt-2 max-w-xl text-sm text-ink/60">Prompt-to-video studio. Clips show in the gallery below.</p>
+    <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-10 text-[var(--text)]" data-testid="videos-studio">
+      <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">Videos</h1>
+      <p className="mt-2 max-w-xl text-sm text-[var(--text-2)]">Prompt-to-video studio. Clips show in the gallery below.</p>
 
       {!ready && !loading ? (
         <div
-          className="mt-6 rounded-xl border border-mist bg-mist/30 px-4 py-3 text-sm text-ink/70"
+          className="mt-6 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--text-2)]"
           data-testid="videos-studio-needs-key"
         >
           Add a {gatewayName} gateway key in{" "}
@@ -172,7 +172,7 @@ export function VideosStudio() {
 
       {error ? (
         <div
-          className="mt-4 rounded-xl border border-red-300/60 bg-red-50 px-4 py-3 text-sm text-red-800"
+          className="mt-4 rounded-xl border border-[var(--line)] px-4 py-3 text-sm text-[var(--danger)]"
           role="alert"
           data-testid="videos-studio-error"
         >
@@ -185,13 +185,13 @@ export function VideosStudio() {
       <VideoExamples onPick={pickTemplate} selectedId={templateId} />
 
       <form
-        className="mt-8 space-y-3 rounded-xl border border-mist bg-paper p-3 shadow-sm"
+        className="raise mt-8 space-y-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3"
         onSubmit={onSubmit}
         data-testid="videos-studio-prompt-bar"
       >
         <div className="flex flex-wrap gap-2">
           <select
-            className="rounded-md border border-mist bg-paper px-3 py-2 text-sm text-ink"
+            className="h-8 rounded-lg border border-[var(--line)] bg-transparent px-3 py-2 text-sm text-[var(--text)]"
             value={aspect}
             onChange={(event) => setAspect(event.target.value as (typeof ASPECTS)[number]["id"])}
             disabled={generating}
@@ -204,7 +204,7 @@ export function VideosStudio() {
             ))}
           </select>
           <select
-            className="rounded-md border border-mist bg-paper px-3 py-2 text-sm text-ink"
+            className="h-8 rounded-lg border border-[var(--line)] bg-transparent px-3 py-2 text-sm text-[var(--text)]"
             value={seconds}
             onChange={(event) => setSeconds(Number(event.target.value))}
             disabled={generating || !caps.seconds}
@@ -217,7 +217,7 @@ export function VideosStudio() {
             ))}
           </select>
           <select
-            className="rounded-md border border-mist bg-paper px-3 py-2 text-sm text-ink disabled:opacity-50"
+            className="h-8 rounded-lg border border-[var(--line)] bg-transparent px-3 py-2 text-sm text-[var(--text)] disabled:opacity-50"
             value={resolution}
             onChange={(event) => setResolution(event.target.value as (typeof RESOLUTIONS)[number])}
             disabled={generating || !caps.resolution}
@@ -235,13 +235,13 @@ export function VideosStudio() {
             onChange={setModel}
             disabled={generating || models.length === 0}
             testId="videos-studio-model"
-            className="min-w-[12rem] flex-1 rounded-md border border-mist bg-paper px-3 py-2 text-sm text-ink"
+            className="min-w-[12rem] flex-1 h-8 rounded-lg border border-[var(--line)] bg-transparent px-3 py-2 text-sm text-[var(--text)]"
           />
         </div>
         {imageToVideo ? (
           <input
             type="url"
-            className="w-full rounded-md border border-mist bg-transparent px-3 py-2 text-sm text-ink outline-none placeholder:text-ink/40"
+            className="w-full h-8 rounded-lg border border-[var(--line)] bg-transparent px-3 py-2 text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-3)]"
             placeholder="Optional still image URL…"
             value={stillUrl}
             onChange={(event) => setStillUrl(event.target.value)}
@@ -249,13 +249,13 @@ export function VideosStudio() {
             data-testid="videos-studio-still"
           />
         ) : model ? (
-          <p className="text-xs text-ink/50">This model is text-to-video only</p>
+          <p className="text-xs text-[var(--text-3)]">This model is text-to-video only</p>
         ) : null}
         <div className="flex gap-2">
           <EnhancePromptButton text={prompt} surface="videos" model={model} disabled={generating} testId="videos-enhance" onApply={setPrompt} />
           <input
             type="text"
-            className="min-w-0 flex-1 rounded-md border border-mist bg-transparent px-3 py-2 text-sm text-ink outline-none placeholder:text-ink/40"
+            className="min-w-0 flex-1 h-8 rounded-lg border border-[var(--line)] bg-transparent px-3 py-2 text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-3)]"
             placeholder="Describe a video…"
             value={prompt}
             onChange={(event) => changePrompt(event.target.value)}
@@ -264,7 +264,7 @@ export function VideosStudio() {
           />
           <button
             type="submit"
-            className="shrink-0 rounded-md bg-navy px-4 py-2 text-sm font-medium text-white disabled:bg-navy/40"
+            className="shrink-0 wash inline-flex h-8 items-center rounded-pill bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--surface)] disabled:opacity-45"
             disabled={generating || !ready || !prompt.trim()}
             data-testid="videos-studio-submit"
           >
@@ -276,26 +276,26 @@ export function VideosStudio() {
 
       <section className="mt-8" data-testid="videos-studio-gallery">
         {loading ? (
-          <p className="text-sm text-ink/50">Loading gallery…</p>
+          <p className="text-sm text-[var(--text-3)]">Loading gallery…</p>
         ) : items.length === 0 ? (
           <div
-            className="rounded-lg border border-mist bg-mist/30 px-4 py-10 text-center"
+            className="rounded-lg border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center"
             data-testid="videos-studio-empty"
           >
-            <p className="text-lg font-medium">Nothing here yet</p>
-            <p className="mt-2 text-sm text-ink/60">Generate a video to populate this gallery.</p>
+            <p className="text-sm font-medium text-[var(--text)]">Nothing here yet</p>
+            <p className="mt-2 text-sm text-[var(--text-2)]">Generate a video to populate this gallery.</p>
           </div>
         ) : (
           <ul className="grid gap-4 sm:grid-cols-2">
             {items.map((item) => (
-              <li key={item.id} className="overflow-hidden rounded-xl border border-mist bg-paper">
+              <li key={item.id} className="overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface)]">
                 <video src={mediaSrc(item.url)} controls className="aspect-video w-full bg-black object-contain" />
                 <div className="flex items-center justify-between gap-2 px-3 py-2">
-                  {item.prompt ? <p className="min-w-0 truncate text-xs text-ink/60">{item.prompt}</p> : <span />}
+                  {item.prompt ? <p className="min-w-0 truncate text-xs text-[var(--text-2)]">{item.prompt}</p> : <span />}
                   <a
                     href={mediaSrc(item.url)}
                     download={`agentforge-video-${item.id}.mp4`}
-                    className="shrink-0 text-xs underline text-ink/70"
+                    className="shrink-0 text-xs underline text-[var(--text-2)]"
                     data-testid="videos-studio-download"
                   >
                     Download

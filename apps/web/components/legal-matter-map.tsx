@@ -91,7 +91,7 @@ export function LegalMatterMap({
           ))}
         </ol>
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <label className={`flex items-center gap-2 text-[11px] ${DIM}`}>
+          <label className={`flex items-center gap-2 text-xs ${DIM}`}>
             Model
             <ModelSelect
               models={models}
@@ -102,7 +102,7 @@ export function LegalMatterMap({
               className="input w-auto px-2 py-1 text-[12px]"
             />
           </label>
-          <label className={`flex items-center gap-2 text-[11px] ${DIM}`}>
+          <label className={`flex items-center gap-2 text-xs ${DIM}`}>
             Verifier
             <ModelSelect
               models={models}

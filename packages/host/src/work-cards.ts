@@ -158,12 +158,15 @@ export function documentDraftMarkdown(draft: { title: string; sections: Array<{ 
 /** Markdown for a Presentation outline (title + slides with bullets and speaker notes). */
 export function presentationOutlineMarkdown(outline: {
   title: string;
-  slides: Array<{ heading: string; bullets: string[]; notes?: string }>;
+  slides: Array<{ heading: string; subhead?: string; bullets: string[]; aside?: string; notes?: string }>;
 }): string {
   const slides = outline.slides.map((slide, index) => {
+    const subhead = slide.subhead?.trim() ? `\n\n_${slide.subhead.trim()}_` : "";
     const bullets = slide.bullets.map((bullet) => `- ${bullet.trim()}`).join("\n");
+    const aside = slide.aside?.trim() ? `\n\n> ${slide.aside.trim()}` : "";
     const notes = slide.notes?.trim() ? `\n\nNotes: ${slide.notes.trim()}` : "";
-    return `## ${index + 1}. ${slide.heading.trim()}\n\n${bullets}${notes}`;
+    const body = [subhead, bullets ? `\n\n${bullets}` : "", aside, notes].join("");
+    return `## ${index + 1}. ${slide.heading.trim()}${body}`;
   });
   return [`# ${outline.title.trim()}`, ...slides].join("\n\n").trim();
 }

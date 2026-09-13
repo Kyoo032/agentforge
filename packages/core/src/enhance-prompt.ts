@@ -40,7 +40,8 @@ const STUB_SUFFIX: Record<EnhanceSurface, string> = {
   market:
     "Name the ticker and what you want to understand from the filings, prices, and headlines. Do not ask for a recommendation.",
   legal: "Name the client's position, the documents that govern, the points reserved for a partner, and the deliverables.",
-  presentations: "Name the audience, slide count, and the one ask on the last slide.",
+  presentations:
+    "Name the audience, the decision, slide count, and the one ask on the last slide. Write slide titles as claims, not labels like Overview or Agenda.",
   images: "Name subject, framing, and what must stay out of the frame.",
   videos: "Name subject, motion, duration, and what must stay out of frame.",
 };

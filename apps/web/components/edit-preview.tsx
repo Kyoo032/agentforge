@@ -186,7 +186,7 @@ export function EditPreview({ project, playhead, playing, onPlayhead, onPlaying,
   }
 
   return (
-    <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[color-mix(in_srgb,var(--color-text)_4%,transparent)]" data-testid="edit-preview">
+    <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[color-mix(in_srgb,var(--text)_4%,transparent)]" data-testid="edit-preview">
       <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden p-3">
         <div ref={frameRef} className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden">
         <div
@@ -239,7 +239,7 @@ export function EditPreview({ project, playhead, playing, onPlayhead, onPlaying,
         </div>
         </div>
       </div>
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-divider px-3 py-2">
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-[var(--line)] px-3 py-2">
         <button
           type="button"
           className="btn btn-secondary shrink-0 px-3 py-1 text-sm"
@@ -254,7 +254,7 @@ export function EditPreview({ project, playhead, playing, onPlayhead, onPlaying,
         <button type="button" className="btn btn-ghost shrink-0 px-2 py-1 text-xs" onClick={() => step(1)} aria-label="Next frame">
           {">"}
         </button>
-        <span className="shrink-0 font-mono text-xs text-ink/70" data-testid="edit-time">
+        <span className="shrink-0 font-mono text-xs text-[var(--text-2)]" data-testid="edit-time">
           {formatTimecode(playhead, fps)} / {formatTimecode(end, fps)}
         </span>
         <input

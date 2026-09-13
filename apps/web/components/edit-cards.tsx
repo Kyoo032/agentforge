@@ -41,9 +41,9 @@ export function EditCards({
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2">
       {reviewNeeded ? (
-        <article className="rounded-md border border-mist bg-mist/30 p-3 text-sm" data-testid="edit-review-card">
+        <article className="rounded-md border border-[var(--line)] bg-[var(--line)]/30 p-3 text-sm" data-testid="edit-review-card">
           <p className="font-medium">Review before export</p>
-          <p className="mt-1 text-xs text-ink/60">Scrub the full timeline or confirm it looks good.</p>
+          <p className="mt-1 text-xs text-[var(--text-2)]">Scrub the full timeline or confirm it looks good.</p>
           <button type="button" className="btn btn-primary mt-2 px-3 py-1 text-xs" data-testid="edit-review-ok" onClick={onReviewOk}>
             Looks good
           </button>
@@ -54,14 +54,14 @@ export function EditCards({
         const pendingJob = job && (job.status === "queued" || job.status === "running");
         if (isPlanCard(card)) {
           return (
-            <article key={card.id} className="rounded-md border border-mist bg-paper p-3 text-sm" data-testid="edit-plan-card">
+            <article key={card.id} className="rounded-md border border-[var(--line)] bg-[var(--surface)] p-3 text-sm" data-testid="edit-plan-card">
               <p className="font-medium">
                 {card.verb} {card.object}
               </p>
               {typeof card.estimateUsd === "number" ? (
-                <p className="mt-1 text-xs text-ink/60">est {formatUsd(card.estimateUsd)}</p>
+                <p className="mt-1 text-xs text-[var(--text-2)]">est {formatUsd(card.estimateUsd)}</p>
               ) : (
-                <p className="mt-1 text-xs text-ink/60">price unknown</p>
+                <p className="mt-1 text-xs text-[var(--text-2)]">price unknown</p>
               )}
               <button
                 type="button"
@@ -75,11 +75,11 @@ export function EditCards({
           );
         }
         return (
-          <article key={card.id} className="rounded-md border border-mist bg-paper p-3 text-sm" data-testid="edit-card">
+          <article key={card.id} className="rounded-md border border-[var(--line)] bg-[var(--surface)] p-3 text-sm" data-testid="edit-card">
             <p className="font-medium">
               {card.verb} · {card.object}
             </p>
-            <p className="mt-0.5 text-xs text-ink/50">{card.status}</p>
+            <p className="mt-0.5 text-xs text-[var(--text-3)]">{card.status}</p>
             {card.thumbs && card.thumbs.length > 0 ? (
               <div className="mt-2 flex gap-1">
                 {card.thumbs.slice(0, 6).map((thumb) => (
@@ -89,7 +89,7 @@ export function EditCards({
             ) : null}
             {pendingJob ? (
               <div className="mt-2">
-                <div className="h-1.5 overflow-hidden rounded bg-mist" data-testid="edit-card-progress">
+                <div className="h-1.5 overflow-hidden rounded bg-[var(--line)]" data-testid="edit-card-progress">
                   <div className="h-full bg-accent" style={{ width: `${Math.round((job.progress ?? 0) * 100)}%` }} />
                 </div>
                 <button
@@ -134,8 +134,8 @@ export function EditTray({
     return null;
   }
   return (
-    <div className="border-t border-divider p-2" data-testid="edit-tray">
-      <p className="text-[10px] font-heading uppercase tracking-[.12em] text-ink/50">Unplaced ({items.length})</p>
+    <div className="border-t border-[var(--line)] p-2" data-testid="edit-tray">
+      <p className="text-xs font-heading uppercase tracking-[.12em] text-[var(--text-3)]">Unplaced ({items.length})</p>
       <div className="mt-1 flex flex-col gap-1">
         {items.map((item) => (
           <div key={item.id} className="flex items-center justify-between gap-2 text-xs" data-testid="edit-tray-item">

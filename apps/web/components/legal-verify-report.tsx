@@ -45,11 +45,11 @@ export function LegalVerifyReport({ verify }: Props) {
 
       {failures.length > 0 ? (
         <Section title="Code check failures">
-          <ul className="mt-1 space-y-1 text-[12.5px]">
+          <ul className="mt-1 space-y-1 text-xs">
             {failures.map((failure, index) => (
               <li key={`${failure.code}-${failure.target}-${index}`}>
                 <span className="font-medium">{codeCheckLabel(failure.code)}</span> · {failure.deliverable} ·{" "}
-                <span className="font-mono text-[11px]">{failure.target}</span>: {failure.detail}
+                <span className="font-mono text-xs">{failure.target}</span>: {failure.detail}
                 {failure.autoFixable ? <span className={` ${DIM}`}> (corrected in code)</span> : null}
               </li>
             ))}
@@ -59,10 +59,10 @@ export function LegalVerifyReport({ verify }: Props) {
 
       {failedChecklist.length > 0 ? (
         <Section title="Checklist items not satisfied">
-          <ul className="mt-1 space-y-1 text-[12.5px]">
+          <ul className="mt-1 space-y-1 text-xs">
             {failedChecklist.map((item) => (
               <li key={`${item.itemId}-${item.deliverable}`}>
-                <span className="font-mono text-[11px]">{item.itemId}</span> · {item.deliverable}: {item.reason}
+                <span className="font-mono text-xs">{item.itemId}</span> · {item.deliverable}: {item.reason}
               </li>
             ))}
           </ul>
@@ -71,7 +71,7 @@ export function LegalVerifyReport({ verify }: Props) {
 
       {verify.concessions.length > 0 ? (
         <Section title="Concessions found by opposing counsel">
-          <ul className="mt-1 space-y-1 text-[12.5px]">
+          <ul className="mt-1 space-y-1 text-xs">
             {verify.concessions.map((item, index) => (
               <li key={`${item.clause}-${index}`}>
                 <span className="font-medium">{item.clause}</span>: {item.detail}{" "}
@@ -84,10 +84,10 @@ export function LegalVerifyReport({ verify }: Props) {
 
       {verify.documentsSkipped.length > 0 ? (
         <Section title="Documents skipped">
-          <ul className="mt-1 space-y-1 text-[12.5px]">
+          <ul className="mt-1 space-y-1 text-xs">
             {verify.documentsSkipped.map((item) => (
               <li key={item.doc}>
-                <span className="font-mono text-[11px]">{item.doc}</span>: {item.reason}
+                <span className="font-mono text-xs">{item.doc}</span>: {item.reason}
               </li>
             ))}
           </ul>
@@ -96,7 +96,7 @@ export function LegalVerifyReport({ verify }: Props) {
 
       {verify.openForHuman.length > 0 ? (
         <Section title="Requires partner decision">
-          <ul className="mt-1 space-y-1 text-[12.5px]">
+          <ul className="mt-1 space-y-1 text-xs">
             {verify.openForHuman.map((item, index) => (
               <li key={`${item.clause}-${index}`}>
                 <span className="font-medium">{item.clause}</span>: {item.detail}

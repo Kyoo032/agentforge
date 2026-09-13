@@ -34,8 +34,8 @@ function needsSettingsHint(message: string): boolean {
 
 function tabClass(active: boolean): string {
   return active
-    ? "rounded-md bg-navy px-3 py-1 text-xs font-medium text-white"
-    : "rounded-md border border-mist px-3 py-1 text-xs font-medium text-ink/70 hover:text-ink";
+    ? "select-row wash inline-flex h-8 items-center rounded-pill bg-[var(--accent)] px-3 text-xs font-medium text-[var(--surface)]"
+    : "wash inline-flex h-8 items-center rounded-lg border border-[var(--line)] bg-transparent px-3 text-xs text-[var(--text)] hover:bg-[var(--accent-soft)]";
 }
 
 export function ResearchStudio() {
@@ -70,11 +70,11 @@ export function ResearchStudio() {
   const markdown = shown?.kind === "run" ? shown.dossierMarkdown : (shown?.markdown ?? "");
 
   return (
-    <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-10 text-ink" data-testid="research-studio">
+    <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-10 text-[var(--text)]" data-testid="research-studio">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Research</h1>
-          <p className="mt-2 max-w-xl text-sm text-ink/60">
+          <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">Research</h1>
+          <p className="mt-2 max-w-xl text-sm text-[var(--text-2)]">
             Ask a question. {productName} plans sub-queries, reads the pages behind the hits, and builds a cited dossier
             you can send to Documents, Presentation, or the Knowledge Base.
           </p>
@@ -93,7 +93,7 @@ export function ResearchStudio() {
 
       {error ? (
         <div
-          className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+          className="mt-6 rounded-lg border border-[var(--line)] px-4 py-3 text-sm text-[var(--danger)]"
           role="alert"
           data-testid="research-error"
         >
@@ -158,20 +158,20 @@ export function ResearchStudio() {
               <ResearchPreview notes={shown.notes} />
             ) : (
               <article
-                className="rounded-xl border border-mist bg-paper px-8 py-10 shadow-sm"
+                className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-8 py-10"
                 data-testid="research-dossier-preview"
               >
-                <FormattedText text={markdown} className="text-sm leading-relaxed text-ink/85" />
+                <FormattedText text={markdown} className="text-sm leading-relaxed text-[var(--text-2)]" />
               </article>
             )}
           </div>
         ) : job.busy ? null : (
           <div
-            className="rounded-lg border border-mist bg-mist/30 px-4 py-10 text-center"
+            className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center"
             data-testid="research-studio-empty"
           >
-            <p className="text-lg font-medium">No dossier yet</p>
-            <p className="mt-2 text-sm text-ink/60">
+            <p className="text-sm font-medium text-[var(--text)]">No dossier yet</p>
+            <p className="mt-2 text-sm text-[var(--text-2)]">
               Enter a question below. Search uses your Tavily or Brave key from Settings; pages are read over HTTPS.
             </p>
           </div>
@@ -179,7 +179,7 @@ export function ResearchStudio() {
       </div>
 
       <form
-        className="sticky bottom-4 mt-8 space-y-2 rounded-xl border border-mist bg-paper p-2 shadow-sm"
+        className="raise sticky bottom-4 mt-8 space-y-2 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3"
         onSubmit={(event) => void onGenerate(event)}
         data-testid="research-studio-prompt-bar"
       >
@@ -189,7 +189,7 @@ export function ResearchStudio() {
           onChange={setModel}
           disabled={job.busy || models.length === 0}
           testId="research-studio-model"
-          className="w-full rounded-md border border-mist bg-paper px-3 py-2 text-sm text-ink"
+          className="h-8 w-full rounded-lg border border-[var(--line)] bg-transparent px-2 text-xs text-[var(--text-2)] wash"
         />
         <div className="flex gap-2">
           <EnhancePromptButton
@@ -204,7 +204,7 @@ export function ResearchStudio() {
             type="text"
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
-            className="min-w-0 flex-1 rounded-md bg-transparent px-3 py-2 text-sm text-ink outline-none placeholder:text-ink/40"
+            className="min-w-0 flex-1 rounded-lg bg-transparent px-3 py-2 text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-3)]"
             placeholder="What should we look up?"
             disabled={job.busy}
             data-testid="research-prompt"
@@ -213,7 +213,7 @@ export function ResearchStudio() {
           {job.busy ? (
             <button
               type="button"
-              className="shrink-0 rounded-md border border-mist px-3 py-2 text-sm"
+              className="wash inline-flex h-8 shrink-0 items-center rounded-lg border border-[var(--line)] bg-transparent px-3 text-xs text-[var(--text)] hover:bg-[var(--accent-soft)] disabled:opacity-45"
               onClick={job.cancel}
               data-testid="research-cancel"
             >
@@ -222,7 +222,7 @@ export function ResearchStudio() {
           ) : null}
           <button
             type="submit"
-            className="shrink-0 rounded-md bg-navy px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            className="wash inline-flex h-8 shrink-0 items-center rounded-pill bg-[var(--accent)] px-4 text-sm font-medium text-[var(--surface)] disabled:opacity-45"
             disabled={job.busy || !prompt.trim()}
             data-testid="research-generate"
           >

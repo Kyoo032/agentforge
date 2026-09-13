@@ -80,7 +80,7 @@ export function ArtifactPicker({
     <div className="relative" data-testid={testId}>
       <button
         type="button"
-        className="rounded-md border border-mist px-3 py-1.5 text-xs font-medium text-ink disabled:opacity-50"
+        className="wash inline-flex h-8 items-center rounded-lg border border-[var(--line)] bg-transparent px-3 text-xs font-medium text-[var(--text)] hover:bg-[var(--accent-soft)] disabled:opacity-45"
         onClick={() => setOpen((value) => !value)}
         disabled={disabled}
         aria-expanded={open}
@@ -90,26 +90,26 @@ export function ArtifactPicker({
       </button>
       {open ? (
         <div
-          className="absolute left-0 z-20 mt-1 w-80 max-w-[90vw] rounded-lg border border-mist bg-paper p-2 text-sm shadow-lg"
+          className="raise absolute left-0 z-20 mt-1 w-80 max-w-[90vw] rounded-xl border border-[var(--line)] bg-[var(--surface)] p-2 text-sm"
           data-testid={`${testId}-panel`}
         >
-          {error ? <p className="px-2 py-1 text-xs text-red-700">{error}</p> : null}
-          {items === null && !error ? <p className="px-2 py-1 text-xs text-ink/60">Loading…</p> : null}
+          {error ? <p className="px-2 py-1 text-xs text-[var(--danger)]">{error}</p> : null}
+          {items === null && !error ? <p className="px-2 py-1 text-xs text-[var(--text-2)]">Loading…</p> : null}
           {items && items.length === 0 ? (
-            <p className="px-2 py-1 text-xs text-ink/60">Nothing saved yet. Run Research first.</p>
+            <p className="px-2 py-1 text-xs text-[var(--text-2)]">Nothing saved yet. Run Research first.</p>
           ) : null}
           <ul className="max-h-64 overflow-y-auto">
             {(items ?? []).map((item) => (
               <li key={item.id}>
                 <button
                   type="button"
-                  className="w-full rounded-md px-2 py-1.5 text-left hover:bg-mist/50 disabled:opacity-50"
+                  className="wash w-full rounded-lg px-2 py-1.5 text-left hover:bg-[var(--accent-soft)] disabled:opacity-45"
                   onClick={() => void pick(item)}
                   disabled={loadingId !== null}
                   data-testid={`${testId}-item`}
                 >
-                  <span className="block truncate font-medium text-ink">{item.title}</span>
-                  <span className="block text-xs text-ink/55">
+                  <span className="block truncate font-medium text-[var(--text)]">{item.title}</span>
+                  <span className="block text-xs text-[var(--text-3)]">
                     {MODE_LABEL[item.mode]} · {item.kind} · {formatWhen(item.createdAt)}
                   </span>
                 </button>
