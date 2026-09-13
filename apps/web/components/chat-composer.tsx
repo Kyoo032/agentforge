@@ -334,6 +334,7 @@ export function ChatComposer({
       <textarea
         ref={textAreaRef}
         className="min-h-11 max-h-40 w-full resize-none border-0 bg-transparent px-1 py-2 text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-3)]"
+        style={{ outline: "none" }}
         placeholder="Message"
         value={text}
         onChange={(event) => {
