@@ -337,7 +337,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
   return (
     <main className="flex h-full min-h-0 flex-col bg-[var(--bg)]" data-testid="chat-home">
       <div className="flex h-14 shrink-0 items-center justify-between gap-4 px-6" data-testid="chat-header">
-        <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">
+        <h1 className={`${empty ? "text-sm" : "text-2xl"} font-medium tracking-[var(--track)] text-[var(--text)]`}>
           {isDefaultChat ? "Chat" : agentName}
         </h1>
         <div className="flex min-w-0 flex-wrap items-center justify-end gap-3 text-xs">
