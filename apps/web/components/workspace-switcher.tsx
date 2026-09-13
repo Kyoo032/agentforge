@@ -83,15 +83,15 @@ export function WorkspaceSwitcher({ workspaceName, compact = false }: Props) {
   }
 
   const triggerClass = compact
-    ? "flex justify-center rounded-md px-2 py-2 text-xs font-medium text-ink hover:bg-mist"
-    : "flex w-full items-center gap-1 truncate rounded-md px-2.5 py-1.5 text-left text-sm text-ink hover:bg-mist";
+    ? "flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium text-[var(--text)] hover:bg-[var(--accent-soft)]"
+    : "flex w-full items-center gap-1 truncate rounded-lg py-0 text-left text-xs text-[var(--text-3)] hover:text-[var(--text)]";
 
   const menu =
     open && menuPos
       ? createPortal(
           <div
             ref={menuRef}
-            className="fixed z-[80] rounded-md border border-mist bg-paper p-1 shadow-sm"
+            className="fixed z-[80] rounded-lg border border-[var(--line)] bg-[var(--surface)] p-1"
             role="listbox"
             style={{ top: menuPos.top, left: menuPos.left, width: menuPos.width }}
           >
@@ -101,7 +101,7 @@ export function WorkspaceSwitcher({ workspaceName, compact = false }: Props) {
                 type="button"
                 role="option"
                 aria-selected={workspace.id === currentId}
-                className="block w-full truncate rounded-md px-2 py-1.5 text-left text-sm text-ink hover:bg-mist"
+                className="block w-full truncate rounded-lg px-2 py-1.5 text-left text-sm text-[var(--text)] hover:bg-[var(--accent-soft)]"
                 onClick={() => void openWorkspace(workspace.id)}
                 data-testid="open-workspace"
               >
@@ -111,7 +111,7 @@ export function WorkspaceSwitcher({ workspaceName, compact = false }: Props) {
             ))}
             <Link
               href="/workspaces"
-              className="mt-1 block rounded-md px-2 py-1.5 text-sm text-navy hover:bg-mist"
+              className="mt-1 block rounded-lg px-2 py-1.5 text-sm text-[var(--accent)] hover:bg-[var(--accent-soft)]"
               data-testid="workspace-new-link"
               onClick={() => setOpen(false)}
             >
@@ -151,8 +151,21 @@ export function WorkspaceSwitcher({ workspaceName, compact = false }: Props) {
       >
         <span className="min-w-0 flex-1 truncate">{compact ? workspaceName.slice(0, 1) : workspaceName}</span>
         {compact ? null : (
-          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true" className="shrink-0 opacity-50">
-            <path d="M3 4.5 6 8l3-3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            fill="none"
+            aria-hidden="true"
+            className="shrink-0 text-[var(--accent)]"
+          >
+            <path
+              d="M3 4.5 6 8l3-3.5"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
         )}
       </button>
