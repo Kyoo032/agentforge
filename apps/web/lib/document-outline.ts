@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ApiError } from "@agentforge/core";
+import { ApiError } from "@agentforge/core/errors";
 import { extractJsonObject } from "./presentation-outline";
 
 export const documentSectionSchema = z.object({

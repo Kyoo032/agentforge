@@ -229,32 +229,34 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
     >
       <div
         className={`flex h-12 shrink-0 ${
-          collapsed ? "flex-col items-center justify-center px-1.5" : "items-center gap-2 px-3"
+          collapsed ? "items-center justify-center px-1.5" : "items-center gap-2 px-3"
         }`}
       >
-        {logoSrc ? (
-          <img src={logoSrc} alt="" className="h-5 w-5 shrink-0 object-contain" data-testid="product-logo" />
-        ) : (
-          <span
-            className="grid h-5 w-5 shrink-0 place-items-center text-xs font-medium text-[var(--text)]"
-            data-testid="product-logo"
-          >
-            {productMonogram(productName)}
-          </span>
-        )}
         {collapsed ? (
-          <WorkspaceSwitcher workspaceName={workspaceName} compact />
+          <WorkspaceSwitcher workspaceName={workspaceName} compact logoSrc={logoSrc} />
         ) : (
-          <div className="min-w-0 flex-1">
-            <Link
-              href={homeHref}
-              className="block truncate text-sm font-medium tracking-[var(--track)] text-[var(--text)]"
-              data-testid="product-brand"
-            >
-              {productName}
-            </Link>
-            <WorkspaceSwitcher workspaceName={workspaceName} />
-          </div>
+          <>
+            {logoSrc ? (
+              <img src={logoSrc} alt="" className="h-5 w-5 shrink-0 object-contain" data-testid="product-logo" />
+            ) : (
+              <span
+                className="grid h-5 w-5 shrink-0 place-items-center text-xs font-medium text-[var(--text)]"
+                data-testid="product-logo"
+              >
+                {productMonogram(productName)}
+              </span>
+            )}
+            <div className="min-w-0 flex-1">
+              <Link
+                href={homeHref}
+                className="block truncate text-sm font-medium tracking-[var(--track)] text-[var(--text)]"
+                data-testid="product-brand"
+              >
+                {productName}
+              </Link>
+              <WorkspaceSwitcher workspaceName={workspaceName} />
+            </div>
+          </>
         )}
       </div>
 

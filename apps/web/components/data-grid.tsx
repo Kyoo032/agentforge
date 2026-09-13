@@ -13,8 +13,8 @@ type Props = {
 const DEFAULT_MAX_ROWS = 100;
 const EM_DASH = "—";
 const HEADER_CLASS =
-  "sticky top-0 z-10 border-b border-mist bg-paper px-3 py-2 text-left text-[11px] font-medium uppercase tracking-[0.08em] text-ink/55";
-const CELL_CLASS = "border-b border-mist/70 px-3 py-1.5 align-top text-ink/85";
+  "sticky top-0 z-10 border-b border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-left text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-2)]";
+const CELL_CLASS = "border-b border-[var(--line)] px-3 py-1.5 align-top text-[var(--text)]";
 
 function cellText(cell: DataGridCell): string {
   if (cell === null) {
@@ -28,7 +28,7 @@ function cellText(cell: DataGridCell): string {
 
 function cellClass(cell: DataGridCell): string {
   if (cell === null) {
-    return `${CELL_CLASS} text-ink/35`;
+    return `${CELL_CLASS} text-[var(--text-3)]`;
   }
   if (typeof cell === "number") {
     return `${CELL_CLASS} text-right font-mono tabular-nums`;
@@ -40,50 +40,46 @@ function Cell({ cell }: { cell: DataGridCell }) {
   return <td className={cellClass(cell)}>{cellText(cell)}</td>;
 }
 
-/** Scrollable table with a sticky header. Slices to `maxRows` instead of virtualizing. */
 export function DataGrid({ columns, rows, maxRows = DEFAULT_MAX_ROWS, testId, caption }: Props) {
   const visible = rows.slice(0, Math.max(0, maxRows));
   const truncated = rows.length > visible.length;
   return (
-    <div data-testid={testId}>
-      {caption ? <p className="mb-2 text-sm font-semibold text-ink">{caption}</p> : null}
-      <div className="max-h-[420px] overflow-auto rounded-lg border border-mist">
-        <table className="w-full border-collapse text-[13px]">
-          <thead>
-            <tr>
-              <th scope="col" className={`${HEADER_CLASS} w-10 text-right`}>
-                #
+    <div className="overflow-auto" data-testid={testId}>
+      {caption ? <p className="mb-2 text-xs text-[var(--text-2)]">{caption}</p> : null}
+      <table className="w-full min-w-[480px] border-collapse text-sm">
+        <thead>
+          <tr>
+            <th className={`${HEADER_CLASS} w-10 text-right`} scope="col">
+              #
+            </th>
+            {columns.map((column) => (
+              <th key={column} className={HEADER_CLASS} scope="col">
+                {column}
               </th>
-              {columns.map((column, index) => (
-                <th key={`${column}-${index}`} scope="col" className={HEADER_CLASS}>
-                  {column}
-                </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {visible.map((row, rowIndex) => (
+            <tr key={rowIndex}>
+              <td className={`${CELL_CLASS} text-right font-mono tabular-nums text-[var(--text-3)]`}>{rowIndex + 1}</td>
+              {columns.map((_, colIndex) => (
+                <Cell key={colIndex} cell={row[colIndex] ?? null} />
               ))}
             </tr>
-          </thead>
-          <tbody>
-            {visible.map((row, rowIndex) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: rows have no stable id
-              <tr key={rowIndex}>
-                <td className={`${CELL_CLASS} text-right font-mono tabular-nums text-ink/40`}>{rowIndex + 1}</td>
-                {columns.map((column, columnIndex) => (
-                  <Cell key={`${column}-${columnIndex}`} cell={row[columnIndex] ?? null} />
-                ))}
-              </tr>
-            ))}
-            {visible.length === 0 ? (
-              <tr>
-                <td className={`${CELL_CLASS} text-ink/45`} colSpan={columns.length + 1}>
-                  No rows.
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </div>
+          ))}
+          {visible.length === 0 ? (
+            <tr>
+              <td className={`${CELL_CLASS} text-[var(--text-3)]`} colSpan={columns.length + 1}>
+                No rows
+              </td>
+            </tr>
+          ) : null}
+        </tbody>
+      </table>
       {truncated ? (
-        <p className="mt-1.5 text-[11px] text-ink/50">
-          Showing first {visible.length} of {rows.length} rows
+        <p className="mt-1.5 text-xs text-[var(--text-2)]">
+          Showing {visible.length} of {rows.length} rows
         </p>
       ) : null}
     </div>

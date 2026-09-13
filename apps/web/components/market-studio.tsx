@@ -35,9 +35,6 @@ import { useProductBrand } from "@/lib/product-brand";
 const DEFAULT_PROMPT: Record<WatchLanguage, string> = { id: DEFAULT_WATCH_PROMPT_ID, en: DEFAULT_WATCH_PROMPT_EN };
 const DEFAULT_PROMPTS = new Set<string>([DEFAULT_WATCH_PROMPT_ID, DEFAULT_WATCH_PROMPT_EN]);
 
-const MUTED = "text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]";
-const FAINT = "text-[color-mix(in_srgb,var(--color-text)_45%,transparent)]";
-
 function isLanguage(value: string): value is WatchLanguage {
   return value === "id" || value === "en";
 }
@@ -153,12 +150,12 @@ export function MarketStudio() {
   }
 
   return (
-    <main className="px-[30px] pb-10 pt-[26px] text-inkbase" data-testid="market-studio">
+    <main className="px-6 pb-10 pt-8 text-[var(--text)]" data-testid="market-studio">
       <div className="kicker">Workspace</div>
       <div className="mb-5 flex flex-wrap items-end gap-4">
         <div>
-          <h3 className="mt-2 text-[25px]">Market Watch</h3>
-          <p className={`mt-1.5 max-w-xl text-sm ${MUTED}`}>
+          <h3 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">Market Watch</h3>
+          <p className="mt-1.5 max-w-xl text-sm text-[var(--text-2)]">
             Type the stocks you follow. You get live prices and a chart for each one, and can ask for a written
             briefing. Analysis, not investment advice.
           </p>
@@ -177,7 +174,7 @@ export function MarketStudio() {
       </div>
 
       {error && tickers.length === 0 ? (
-        <p className="mb-4 text-sm text-red-700 dark:text-red-300" role="alert" data-testid="market-error">
+        <p className="mb-4 text-sm text-[var(--danger)]" role="alert" data-testid="market-error">
           {error}
           {needsKey(rawError ?? "") ? (
             <>
@@ -192,24 +189,24 @@ export function MarketStudio() {
       ) : null}
 
       <form className="space-y-4" onSubmit={(event) => void onGenerate(event)} data-testid="market-inputs">
-        <div className="blueprint p-4">
+        <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <MarketWatchlistInput tickers={tickers} onChange={changeTickers} disabled={locked} />
           {tickers.length === 0 ? (
             <div className="mt-3" data-testid="market-starters">
-              <p className={`text-[11px] ${FAINT}`}>Or start from a ready-made list:</p>
+              <p className="text-xs text-[var(--text-3)]">Or start from a ready-made list:</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {MARKET_STARTERS.map((starter) => (
                   <button
                     key={starter.id}
                     type="button"
-                    className="rounded-md border border-mist px-3 py-1.5 text-left text-xs hover:bg-mist/40"
+                    className="rounded-md border border-[var(--line)] px-3 py-1.5 text-left text-xs text-[var(--text)] hover:bg-[var(--accent-soft)]"
                     data-testid="market-starter"
                     title={starter.tickers.join(", ")}
                     onClick={() => applyStarter(starter)}
                     disabled={locked}
                   >
                     <span className="font-medium">{starter.label}</span>
-                    <span className={`ml-2 ${FAINT}`}>{starter.hint}</span>
+                    <span className="ml-2 text-[var(--text-3)]">{starter.hint}</span>
                   </button>
                 ))}
               </div>
@@ -218,9 +215,9 @@ export function MarketStudio() {
         </div>
 
         {tickers.length > 0 ? (
-          <div className="blueprint space-y-3 p-4">
+          <div className="space-y-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
             {error ? (
-              <p className="text-sm text-red-700 dark:text-red-300" role="alert" data-testid="market-error">
+              <p className="text-sm text-[var(--danger)]" role="alert" data-testid="market-error">
                 {error}
                 {needsKey(rawError ?? "") ? (
                   <>
@@ -261,7 +258,7 @@ export function MarketStudio() {
               </select>
               <button
                 type="button"
-                className={`text-xs underline ${MUTED}`}
+                className="text-xs text-[var(--text-2)] underline"
                 onClick={() => setShowOptions(!showOptions)}
                 aria-expanded={showOptions}
                 data-testid="market-options-toggle"
@@ -269,13 +266,13 @@ export function MarketStudio() {
                 {showOptions ? "Hide options" : "Options"}
               </button>
             </div>
-            <p className={`text-[11px] ${FAINT}`}>
+            <p className="text-xs text-[var(--text-3)]">
               {productName} reads prices, charts, ratings, headlines, and market levels on this machine, then writes a
               briefing over them. Any figure it cannot trace back to that data is removed.
             </p>
 
             {showOptions ? (
-              <div className="space-y-4 border-t border-mist pt-4" data-testid="market-options">
+              <div className="space-y-4 border-t border-[var(--line)] pt-4" data-testid="market-options">
                 <div>
                   <label htmlFor="market-position-input" className="panel-label">
                     Your positions (optional)
@@ -290,7 +287,7 @@ export function MarketStudio() {
                     disabled={locked}
                     data-testid="market-position"
                   />
-                  <p className={`mt-1 text-[11px] ${FAINT}`}>
+                  <p className="mt-1 text-xs text-[var(--text-3)]">
                     What you own and at what price. The briefing may use these numbers; it invents nothing else.
                   </p>
                 </div>
@@ -396,7 +393,10 @@ export function MarketStudio() {
           </>
         ) : null}
         {tickers.length === 0 && !job.busy ? (
-          <div className="blueprint px-4 py-8 text-center" data-testid="market-studio-empty">
+          <div
+            className="wash rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-8 text-center text-[var(--text-2)]"
+            data-testid="market-studio-empty"
+          >
             <p>Add a ticker above to see its price and chart.</p>
           </div>
         ) : null}

@@ -15,8 +15,18 @@ describe("pickPreferredJobModel", () => {
 
   it("prefers GPT-5.6 Luna for research when present", () => {
     expect(
-      pickPreferredJobModel("research", ["glm-5.3", "deepseek-v4-pro", "gpt-5.6-luna", "MiniMax-M3"], "gpt-5.6-sol"),
+      pickPreferredJobModel(
+        "research",
+        ["glm-5.3", "deepseek-v4-pro", "gpt-5.6-terra", "gpt-5.6-luna", "MiniMax-M3"],
+        "gpt-5.6-sol",
+      ),
     ).toBe("gpt-5.6-luna");
+  });
+
+  it("prefers MiniMax M3 for research when Luna is absent", () => {
+    expect(
+      pickPreferredJobModel("research", ["glm-5.3", "deepseek-v4-pro", "gpt-5.6-terra", "MiniMax-M3"], "gpt-5.6-sol"),
+    ).toBe("MiniMax-M3");
   });
 
   it("prefers GLM 5.2 Fast for presentations when live, ahead of Kimi K3", () => {

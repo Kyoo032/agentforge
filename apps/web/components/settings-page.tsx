@@ -19,7 +19,7 @@ type Probe = {
   detectedDialect?: string;
 };
 
-const fieldClass = "mt-1 w-full rounded-md border border-mist bg-paper px-3 py-2 text-ink";
+const fieldClass = "mt-1 w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)]";
 
 function isCustomEndpoint(value: string, gatewayBaseUrl: string): boolean {
   const trimmed = value.trim().replace(/\/+$/, "").toLowerCase();
@@ -187,16 +187,16 @@ export function SettingsPage() {
   }
 
   return (
-    <main className="mx-auto max-w-xl px-[30px] py-10 text-inkbase">
+    <main className="mx-auto max-w-xl px-6 py-8 text-[var(--text)]">
       <div className="kicker">Account · {workspaceName}</div>
-      <h1 className="mt-2 font-heading text-[25px] font-semibold">Settings</h1>
-      <p className="mt-2 text-[13px] text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">
+      <h1 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">Settings</h1>
+      <p className="mt-2 text-[13px] text-[var(--text-2)]">
         Gateway key, extras, and defaults for the {workspaceName} desk. Other workspaces keep their own keys and
         setup. Paste your {gatewayName} API key from {gatewayHostLabel(openaiBaseUrl || gatewayBaseUrl)} to use chat
         and job modes on this desk.
       </p>
 
-      <p className="mt-3 text-sm text-ink/50" data-testid="runtime-status">
+      <p className="mt-3 text-sm text-[var(--text-3)]" data-testid="runtime-status">
         Status: {runtimeStatusLabel(runtime)}
         {hasOpenai ? " · Gateway key saved" : ""}
         {hasAnthropic ? " · Anthropic key saved" : ""}
@@ -207,14 +207,14 @@ export function SettingsPage() {
       </p>
 
       <form onSubmit={(event) => void onSubmit(event)} className="mt-6 space-y-6" data-testid="settings-form">
-        <section className="space-y-4 rounded-xl border border-mist bg-paper p-5">
+        <section className="space-y-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <div>
-            <h2 className="font-medium text-ink">{gatewayName} gateway</h2>
-            <p className="mt-1 text-xs text-ink/50">
+            <h2 className="font-medium text-[var(--text)]">{gatewayName} gateway</h2>
+            <p className="mt-1 text-xs text-[var(--text-3)]">
               Paste your gateway API key for this desk. It never comes back after save.
             </p>
           </div>
-          <label className="block text-sm text-ink">
+          <label className="block text-sm text-[var(--text)]">
             Endpoint URL
             <input
               className={fieldClass}
@@ -228,12 +228,12 @@ export function SettingsPage() {
               data-testid="settings-endpoint"
             />
           </label>
-          <div className="-mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink/50">
+          <div className="-mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--text-3)]">
             <span>HTTPS only. Plain http:// works for a local model server on 127.0.0.1.</span>
             {isCustomEndpoint(openaiBaseUrl, gatewayBaseUrl) ? (
               <button
                 type="button"
-                className="underline underline-offset-2 hover:text-ink"
+                className="underline underline-offset-2 hover:text-[var(--text)]"
                 onClick={() => setOpenaiBaseUrl(gatewayBaseUrl)}
                 data-testid="settings-endpoint-reset"
               >
@@ -241,7 +241,7 @@ export function SettingsPage() {
               </button>
             ) : null}
           </div>
-          <label className="block text-sm text-ink">
+          <label className="block text-sm text-[var(--text)]">
             Gateway API key
             <input
               className={fieldClass}
@@ -253,7 +253,7 @@ export function SettingsPage() {
               data-testid="openai-key"
             />
           </label>
-          <label className="block text-sm text-ink">
+          <label className="block text-sm text-[var(--text)]">
             Edit turn spend cap (USD)
             <input
               className={fieldClass}
@@ -273,17 +273,17 @@ export function SettingsPage() {
             />
           </label>
           {hasOpenai && openaiKeyFingerprint ? (
-            <p className="mt-1 text-xs text-ink/50" data-testid="key-fingerprint">
+            <p className="mt-1 text-xs text-[var(--text-3)]" data-testid="key-fingerprint">
               Saved key fingerprint {openaiKeyFingerprint}
             </p>
           ) : null}
-          {error ? <p className="text-sm text-red-700">{error}</p> : null}
-          {message ? <p className="text-sm text-ink/60">{message}</p> : null}
+          {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
+          {message ? <p className="text-sm text-[var(--text-2)]">{message}</p> : null}
           <UsagePanel usage={usage} />
           <div className="flex flex-wrap gap-3">
             <button
               type="submit"
-              className="rounded-md bg-navy px-4 py-2 text-white disabled:opacity-50"
+              className="btn btn-primary disabled:opacity-50"
               data-testid="save-settings"
               disabled={busy}
             >
@@ -292,7 +292,7 @@ export function SettingsPage() {
           </div>
         </section>
 
-        <p className="text-sm text-ink/50" data-testid="privacy-note">
+        <p className="text-sm text-[var(--text-3)]" data-testid="privacy-note">
           Prompts leave this machine only over HTTPS to the saved endpoint. {productName} does not log prompts. Keys and
           threads are encrypted on disk. {gatewayName} retention is the gateway&apos;s policy.
         </p>

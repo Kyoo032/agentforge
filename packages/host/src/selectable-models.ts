@@ -15,6 +15,7 @@ import {
   resolveModeDefaults,
   resolvedGatewayBaseUrl,
   routeModelsByKind,
+  sortChatModels,
   withContextLengths,
   type ChatModel,
   type CuratedModelMeta,
@@ -112,7 +113,7 @@ export function defaultSelectableModel(models: Array<{ id: string }> = listSelec
 
 function curateRouted(routed: RoutedModels<ChatModel>): RoutedModels<SelectableModel> {
   return {
-    chat: applyCuration(routed.chat),
+    chat: applyCuration(sortChatModels(routed.chat)),
     image: applyCuration(routed.image),
     video: applyCuration(routed.video),
     audio: applyCuration(routed.audio),

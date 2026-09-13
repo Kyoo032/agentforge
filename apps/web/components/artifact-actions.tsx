@@ -106,7 +106,7 @@ export function ArtifactActions({ title, markdown, artifactId, kbType, disabled 
         Make a presentation
       </button>
       {note ? (
-        <span className="text-xs text-ink/60" data-testid={`${testIdPrefix}-actions-note`} role="status">
+        <span className="text-xs text-[var(--text-2)]" data-testid={`${testIdPrefix}-actions-note`} role="status">
           {note}
         </span>
       ) : null}
@@ -114,8 +114,10 @@ export function ArtifactActions({ title, markdown, artifactId, kbType, disabled 
   );
 }
 
-const PRIMARY = "rounded-md bg-navy px-4 py-2 text-sm font-medium text-white disabled:opacity-50";
-const SECONDARY = "rounded-md border border-mist px-3 py-2 text-sm font-medium text-ink disabled:opacity-50";
+const PRIMARY =
+  "wash inline-flex h-8 items-center rounded-pill bg-[var(--accent)] px-4 text-sm font-medium text-[var(--surface)] disabled:opacity-45";
+const SECONDARY =
+  "wash inline-flex h-8 items-center rounded-lg border border-[var(--line)] bg-transparent px-3 text-sm font-medium text-[var(--text)] hover:bg-[var(--accent-soft)] disabled:opacity-45";
 
 function slug(title: string): string {
   return (

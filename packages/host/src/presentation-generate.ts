@@ -19,23 +19,21 @@ import { artifactStore } from "./artifacts";
 import { upsertWorkSource } from "./knowledge-ingest";
 import { artifactWorkCard, presentationOutlineMarkdown } from "./work-cards";
 
-const OUTLINE_SYSTEM = `You create presentation outlines a stranger can present from — not title-only skeletons.
-Return ONLY valid JSON (no markdown fences, no commentary) with this exact shape:
-{
-  "title": string,
-  "slides": [
-    { "heading": string, "bullets": string[], "notes": string }
-  ]
-}
+const OUTLINE_SYSTEM = `You write finished presentation outlines a stranger can present from. Return ONLY JSON (no markdown fences).
+Shape:
+{"title":string,"slides":[{"kind":"section"|"bullets"|"split"|"close","heading":string,"subhead":string,"bullets":string[],"aside":string,"notes":string}]}
 Rules:
-- Honor the user's requested slide count and arc. Default 7–9 slides (max 14).
-- Heading is a claim, not a topic label.
-- 3–5 bullets per slide. Each bullet is a complete thought (roughly 8–18 words), not a one-word stub.
-- notes is required: what the speaker argues if the room pushes back. Not "keep it short."
-- Use the sample story in the prompt. Tag invented figures [sample].
-- No "team / traction / vision" filler. No "excited to share." No empty TBD slides.
-- Do not invent revenue, logos, or uptime.
-- No campus / student / course nouns unless the topic itself requires them.`;
+- Honor the requested slide count. Default 8–12 (max 14). title is the title slide — do not add a Title content slide.
+- Mix kinds: one section opener, mostly bullets, at least one split, last slide close.
+- heading: a spoken claim, 6–14 words. Never Overview, Agenda, Introduction, Team, Traction, Thank you, Q&A, or Next steps.
+- subhead: one tightening line.
+- bullets: 3–5 complete thoughts, 10–22 words, with names, dates, owners, or decisions. section may have 0–2. No one-word stubs.
+- aside: required on split (1–2 sentences to point at). Empty on other kinds.
+- notes: required, 40–90 words, what to say if they push back. Not "keep it short."
+- Use the sample story. Tag invented figures [sample]. No "excited to share." No TBD. Do not invent revenue, logos, or uptime.
+- No campus / student / course nouns unless the topic itself requires them.
+Example (copy the shape, not the facts):
+{"title":"Northline week of 1 Sep","slides":[{"kind":"section","heading":"The installer is the only sentence that matters","subhead":"Webdev is current; anyone on the .exe is a month behind.","bullets":[],"aside":"","notes":"If they say the installer can wait, remind them anyone on the exe will not see GTM. Offer a yes or no this Thursday, not a backlog item. Do not bury the gap under process slides."},{"kind":"bullets","heading":"What we can prove on this machine today","subhead":"Open Chat if they want evidence.","bullets":["Chat, Documents, Research, Images, Videos, and Presentation are on Home.","Settings is paste-key, usage, and privacy — there is no Advanced tab.","A Legal desk can hide Images and Videos; we did not create one here."],"aside":"","notes":"Do not send them to /agents. It redirects to Chat. The proof is the rail on this machine, not a roadmap slide."},{"kind":"split","heading":"I will not paper over thin decks","subhead":"Old cards were one-sentence prompts.","bullets":["Generate then produced memos and 3-slide skeletons.","Briefs now name audience, deliverable, and a sample scenario.","The remaining risk is a live generate with an empty prompt."],"aside":"This is a ship miss, not a code miss.","notes":"If they ask for a prettier template instead of better briefs, say the template only works when the outline has claims and notes. Show the starter if they want proof."},{"kind":"close","heading":"Thursday is a yes or no on the rebuild","subhead":"Owner of the call: you.","bullets":["Rebuild NSIS this week, or keep using desktop:dev.","I will not call the August installer the GTM product.","Friday: a six-line recap whether or not we rebuilt."],"aside":"","notes":"If they defer, write deferred on the recap. Do not leave the decision implied. Three outcomes this week; a fourth waits."}]}`;
 
 function readPrompt(body: unknown): string {
   if (!body || typeof body !== "object") {
@@ -140,12 +138,14 @@ export async function generatePresentationOutline(tenant: TenantContext, body: u
   return outline;
 }
 
-const SLIDE_SYSTEM = `You rewrite one slide of an DPSBuddy presentation.
+const SLIDE_SYSTEM = `You rewrite one slide of a DPSBuddy presentation.
 Return ONLY valid JSON (no markdown fences, no commentary) with this exact shape:
-{ "heading": string, "bullets": string[], "notes": string }
+{ "kind": "section" | "bullets" | "split" | "close", "heading": string, "subhead": string, "bullets": string[], "aside": string, "notes": string }
 Rules:
-- 2 to 5 concise bullets.
-- notes is optional speaker notes (empty string if none).
+- Keep the same kind unless the instruction names a different layout.
+- heading is a spoken claim, not a topic label.
+- bullets: 3–5 complete thoughts (10–22 words). section may have 0–2. split needs 3–4 plus aside.
+- notes: 40–90 words, what to say if they push back.
 - Stay on the same topic as the rest of the deck.
 - No campus / student / course nouns unless the topic itself requires them.`;
 
@@ -185,7 +185,7 @@ export async function regeneratePresentationSlide(tenant: TenantContext, body: u
       topic ? `Original topic: ${topic}` : null,
       `Deck title: ${outline.title}`,
       others ? `Other slides:\n${others}` : null,
-      `Rewrite this slide only.\nHeading: ${current.heading}\nBullets:\n${current.bullets.map((item) => `- ${item}`).join("\n")}\nNotes: ${current.notes}`,
+      `Rewrite this slide only.\nKind: ${current.kind}\nHeading: ${current.heading}\nSubhead: ${current.subhead}\nBullets:\n${current.bullets.map((item) => `- ${item}`).join("\n")}\nAside: ${current.aside}\nNotes: ${current.notes}`,
     ]
       .filter(Boolean)
       .join("\n\n"),

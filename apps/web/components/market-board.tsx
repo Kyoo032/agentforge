@@ -23,15 +23,15 @@ type Props = {
   testIdPrefix?: string;
 };
 
-const CARD = "rounded-xl border border-mist bg-paper p-4";
+const CARD = "rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4";
 const NOTE =
-  "rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-500/50 dark:bg-amber-500/10 dark:text-amber-200";
+  "rounded-lg border border-[var(--line)] bg-[var(--accent-soft)] px-3 py-2 text-xs text-[var(--text)]";
 
 function changeTone(value: number | null | undefined): string {
   if (value === null || value === undefined) {
-    return "text-ink/60";
+    return "text-[var(--text-2)]";
   }
-  return value >= 0 ? "text-emerald-700 dark:text-emerald-300" : "text-red-700 dark:text-red-300";
+  return value >= 0 ? "text-[var(--ok)]" : "text-[var(--danger)]";
 }
 
 function trendWord(price: number | null | undefined, average: number | null | undefined, days: number): string {
@@ -59,26 +59,26 @@ function BoardCard({ ticker, testIdPrefix }: { ticker: TickerPacket; testIdPrefi
     <section className={CARD} data-testid={`${testIdPrefix}-board-card`} data-symbol={ticker.symbol.yahoo}>
       <header className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
-          <h4 className="font-mono text-base font-semibold text-ink">{ticker.symbol.yahoo}</h4>
-          <p className="truncate text-xs text-ink/55">{ticker.symbol.name || ticker.symbol.exchange || " "}</p>
+          <h4 className="font-mono text-base font-semibold text-[var(--text)]">{ticker.symbol.yahoo}</h4>
+          <p className="truncate text-xs text-[var(--text-3)]">{ticker.symbol.name || ticker.symbol.exchange || " "}</p>
         </div>
         <div className="text-right">
-          <p className="text-xl font-semibold tabular-nums text-ink" data-testid={`${testIdPrefix}-board-price`}>
+          <p className="text-xl font-semibold tabular-nums text-[var(--text)]" data-testid={`${testIdPrefix}-board-price`}>
             {headline.price || "No quote"}
           </p>
           <p className={`text-sm tabular-nums ${changeTone(headline.percent)}`}>
             {formatPercent(headline.percent) || (quote ? "unchanged" : "")}
-            {headline.caption ? <span className="ml-2 text-xs text-ink/55">{headline.caption}</span> : null}
+            {headline.caption ? <span className="ml-2 text-xs text-[var(--text-3)]">{headline.caption}</span> : null}
           </p>
         </div>
       </header>
       {headline.note ? (
-        <p className="mt-1 text-xs text-ink/65" data-testid={`${testIdPrefix}-board-close`}>
+        <p className="mt-1 text-xs text-[var(--text-2)]" data-testid={`${testIdPrefix}-board-close`}>
           {headline.note}
         </p>
       ) : null}
       {facts.length > 0 ? (
-        <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink/65" data-testid={`${testIdPrefix}-board-facts`}>
+        <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--text-2)]" data-testid={`${testIdPrefix}-board-facts`}>
           {facts.map((fact) => (
             <span key={fact}>{fact}</span>
           ))}
@@ -105,10 +105,10 @@ function LoadingCards({ tickers, testIdPrefix }: { tickers: ReadonlyArray<string
   return (
     <div className="grid gap-4 md:grid-cols-2" data-testid={`${testIdPrefix}-board-loading`}>
       {tickers.map((ticker) => (
-        <section key={ticker} className={`${CARD} animate-pulse`} aria-busy="true">
-          <h4 className="font-mono text-base font-semibold text-ink">{ticker}</h4>
-          <p className="mt-1 text-xs text-ink/55">Loading quote and chart…</p>
-          <div className="mt-3 h-40 rounded-xl bg-mist/40" />
+        <section key={ticker} className={CARD} aria-busy="true">
+          <h4 className="font-mono text-base font-semibold text-[var(--text)]">{ticker}</h4>
+          <p className="mt-1 text-xs text-[var(--text-3)]">Loading quote and chart…</p>
+          <div className="mt-3 h-40 rounded-xl border border-[var(--line)] bg-[var(--accent-soft)]" />
         </section>
       ))}
     </div>
@@ -123,7 +123,7 @@ export function MarketBoard({ board, loading, error, tickers, onRefresh, testIdP
   return (
     <div className="space-y-3" data-testid={`${testIdPrefix}-board`} aria-busy={loading}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-ink/55" data-testid={`${testIdPrefix}-board-status`}>
+        <p className="text-xs text-[var(--text-3)]" data-testid={`${testIdPrefix}-board-status`}>
           {board
             ? `US market ${sessionLabel(board.clock.usSession).toLowerCase()} · as of ${formatObservedAt(board.clock.runAt)}${loading ? " · updating…" : ""}`
             : loading

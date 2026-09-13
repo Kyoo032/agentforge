@@ -250,9 +250,9 @@ export function LegalStudio() {
 
   return (
     <div data-testid="legal-shell">
-      <main className="px-[30px] pb-10 pt-[26px] text-inkbase" data-testid="legal-studio" data-screen={screen}>
+      <main className="px-6 pb-10 pt-8 text-[var(--text)]" data-testid="legal-studio" data-screen={screen}>
       {error ? (
-        <p className="mb-4 text-sm text-red-700" role="alert" data-testid="legal-error">
+        <p className="mb-4 text-sm text-[var(--danger)]" role="alert" data-testid="legal-error">
           {error}
           {needsSettingsHint(error, job.error?.code, job.error?.status) && !/settings/i.test(error) ? (
             <>
@@ -294,8 +294,8 @@ export function LegalStudio() {
           <div className="kicker">Workspace · Legal desk</div>
           <div className="mb-5 flex flex-wrap items-end gap-4">
             <div>
-              <h3 className="mt-2 text-[25px]">Legal</h3>
-              <p className="mt-1.5 max-w-xl text-sm text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">
+              <h3 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">Legal</h3>
+              <p className="mt-1.5 max-w-xl text-sm text-[var(--text-2)]">
                 Load a matter, confirm the client's position and select the work. Every number, quotation and
                 cross-reference is checked in code before the draft is presented. Draft work product only; review before
                 release.

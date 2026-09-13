@@ -167,19 +167,19 @@ export function DataStudio() {
   }
 
   return (
-    <main className="px-[30px] pb-10 pt-[26px] text-inkbase" data-testid="data-studio">
+    <main className="px-6 pb-10 pt-8 text-[var(--text)]" data-testid="data-studio">
       <div className="kicker">Workspace</div>
       <div className="mb-5 flex flex-wrap items-end gap-4">
         <div>
-          <h3 className="mt-2 text-[25px]">Data</h3>
-          <p className="mt-1.5 max-w-xl text-sm text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">
+          <h3 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">Data</h3>
+          <p className="mt-1.5 max-w-xl text-sm text-[var(--text-2)]">
             Upload a CSV or XLSX, or paste a table. {productName} profiles it, queries it with SQL, and shows every
             number's query. Nothing leaves this machine except the question and the profile.
           </p>
         </div>
       </div>
       {error ? (
-        <p className="mb-4 text-sm text-red-700" role="alert" data-testid="data-error">
+        <p className="mb-4 text-sm text-[var(--danger)]" role="alert" data-testid="data-error">
           {error}
           {needsSettingsHint(error) && !/settings/i.test(error) ? (
             <>
@@ -194,7 +194,10 @@ export function DataStudio() {
         </p>
       ) : null}
       <div className="grid items-start gap-5 lg:[grid-template-columns:380px_minmax(0,1fr)]">
-        <section className="blueprint space-y-3 p-4" data-testid="data-source">
+        <section
+          className="space-y-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4"
+          data-testid="data-source"
+        >
           <div className="flex flex-wrap items-center gap-2">
             <input
               ref={fileInput}
@@ -240,7 +243,7 @@ export function DataStudio() {
               rows={6}
               value={pasted}
               onChange={(event) => setPasted(event.target.value)}
-              className="input mt-2 font-mono text-[12px]"
+              className="input mt-2 font-mono text-xs"
               placeholder={"vendor,spend\nAcme,12000\nBeta,4100"}
               disabled={busy}
               data-testid="data-csv"
@@ -257,16 +260,16 @@ export function DataStudio() {
           </div>
           {dataset ? (
             <div className="space-y-2" data-testid="data-dataset">
-              <p className="text-sm font-medium" data-testid="data-dataset-name">
+              <p className="text-sm font-medium text-[var(--text)]" data-testid="data-dataset-name">
                 {dataset.name}
               </p>
-              <p className="text-[11px] text-[color-mix(in_srgb,var(--color-text)_45%,transparent)]">
+              <p className="text-xs text-[var(--text-3)]">
                 {dataset.rows} rows × {dataset.cols} cols · {formatBytes(dataset.sizeBytes)}
               </p>
               <DatasetProfile profile={dataset.profile} testId="data-profile" />
               <button
                 type="button"
-                className="text-xs underline-offset-2 hover:underline"
+                className="text-xs text-[var(--text-2)] underline-offset-2 hover:underline"
                 onClick={() => setShowPreview((value) => !value)}
                 data-testid="data-preview-toggle"
               >
@@ -301,7 +304,10 @@ export function DataStudio() {
               <DataAnalysisView analysis={shown.result.analysis} testIdPrefix="data" />
             </>
           ) : job.busy ? null : (
-            <div className="blueprint px-4 py-8 text-center" data-testid="data-studio-empty">
+            <div
+              className="wash rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-8 text-center text-[var(--text-2)]"
+              data-testid="data-studio-empty"
+            >
               <p>{dataset ? "Ask a question about the table." : "Upload or paste a table, then ask a question."}</p>
             </div>
           )}
@@ -310,7 +316,7 @@ export function DataStudio() {
               <button
                 key={starter.id}
                 type="button"
-                className="blueprint p-3 text-left"
+                className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3 text-left text-[var(--text)]"
                 data-testid="data-starter"
                 onClick={() => setPrompt(starter.prompt)}
                 disabled={busy}
@@ -322,7 +328,7 @@ export function DataStudio() {
         </div>
       </div>
       <form
-        className="blueprint mt-5 p-4"
+        className="mt-5 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4"
         onSubmit={(event) => void onGenerate(event)}
         data-testid="data-studio-prompt-bar"
       >
@@ -337,10 +343,7 @@ export function DataStudio() {
           />
           <ModelSelect models={models} value={model} onChange={setModel} disabled={busy} testId="data-studio-model" />
           {history.length > 0 ? (
-            <span
-              className="text-[11px] text-[color-mix(in_srgb,var(--color-text)_45%,transparent)]"
-              data-testid="data-history"
-            >
+            <span className="text-xs text-[var(--text-3)]" data-testid="data-history">
               Follow-up {history.length + 1} on this dataset
             </span>
           ) : null}

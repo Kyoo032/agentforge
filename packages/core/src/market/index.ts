@@ -104,3 +104,5 @@ export {
   universeSchema,
 } from "./universe";
 export type { Universe, UniverseConstituent } from "./universe";
+export { canonicalWatchTicker, lookupWatchTicker, suggestWatchlistTickers } from "./watchlist-suggest";
+export type { WatchlistSuggestion } from "./watchlist-suggest";

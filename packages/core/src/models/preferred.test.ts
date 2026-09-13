@@ -14,6 +14,17 @@ function model(id: string): ChatModel {
 }
 
 describe("pickPreferredModel", () => {
+  it("defaults to GPT-5.6 Luna when the live list also has Terra and Sol", () => {
+    expect(
+      pickPreferredModel([
+        model("gpt-5.6-sol"),
+        model("gpt-5.6-luna"),
+        model("gpt-5.6-terra"),
+        model("claude-sonnet-5"),
+      ]),
+    ).toBe("gpt-5.6-luna");
+  });
+
   it("defaults to GPT-5.6 Luna when the live list also has Sol and DeepSeek", () => {
     expect(
       pickPreferredModel([
@@ -41,13 +52,15 @@ describe("pickPreferredModel", () => {
     ).toBe("gpt-5.6-sol");
   });
 
-  it("falls through to DeepSeek V4 Flash, MiniMax M3, Claude 5, Kimi, then GLM", () => {
+  it("falls through to Claude Sonnet 5, MiniMax M3, GLM, DeepSeek Flash, then Kimi", () => {
     expect(pickPreferredModel([model("gpt-4o-mini"), model("deepseek-v4-flash"), model("claude-sonnet-5")])).toBe(
-      "deepseek-v4-flash",
+      "claude-sonnet-5",
     );
-    expect(pickPreferredModel([model("gpt-4o-mini"), model("MiniMax-M3"), model("claude-sonnet-5")])).toBe("MiniMax-M3");
+    expect(pickPreferredModel([model("gpt-4o-mini"), model("MiniMax-M3"), model("claude-sonnet-5")])).toBe(
+      "claude-sonnet-5",
+    );
     expect(pickPreferredModel([model("gpt-4o-mini"), model("claude-opus-5"), model("kimi-k2.6")])).toBe("claude-opus-5");
-    expect(pickPreferredModel([model("kimi-k2.6"), model("kimi-k3"), model("glm-5.2")])).toBe("kimi-k3");
+    expect(pickPreferredModel([model("kimi-k2.6"), model("kimi-k3"), model("glm-5.2")])).toBe("glm-5.2");
     expect(pickPreferredModel([model("glm-5"), model("glm-5.3"), model("gpt-4o-mini")])).toBe("glm-5.3");
   });
 
@@ -61,23 +74,29 @@ describe("pickPreferredModel", () => {
 describe("sortChatModels", () => {
   it("puts preferred families ahead of gpt-4o-mini", () => {
     const sorted = sortChatModels([model("gpt-4o-mini"), model("claude-sonnet-5"), model("deepseek-v4-flash")]);
-    expect(sorted.map((item) => item.id)).toEqual(["deepseek-v4-flash", "claude-sonnet-5", "gpt-4o-mini"]);
+    expect(sorted.map((item) => item.id)).toEqual(["claude-sonnet-5", "deepseek-v4-flash", "gpt-4o-mini"]);
   });
 });
 
 describe("recommendedChatModels", () => {
-  it("recommends Luna, Flash, and MiniMax M3 when they are live", () => {
+  it("recommends the routing-table everyday set when they are live", () => {
     const picks = recommendedChatModels([
       model("deepseek-v4-flash"),
       model("gpt-5.6-sol"),
       model("gpt-5.6-luna"),
+      model("gpt-5.6-terra"),
       model("claude-sonnet-5"),
       model("MiniMax-M3"),
       model("kimi-k2.6"),
       model("glm-5.2"),
       model("gpt-4o-mini"),
     ]);
-    expect(picks.map((item) => item.id)).toEqual(["gpt-5.6-luna", "deepseek-v4-flash", "MiniMax-M3"]);
+    expect(picks.map((item) => item.id)).toEqual([
+      "gpt-5.6-luna",
+      "claude-sonnet-5",
+      "MiniMax-M3",
+      "gpt-5.6-terra",
+    ]);
   });
 
   it("contains only everyday models when everyday models exist", () => {
@@ -89,10 +108,10 @@ describe("recommendedChatModels", () => {
       model("weird-lab-model"),
       model("gpt-4o-mini"),
     ]);
-    expect(picks.map((item) => item.id)).toEqual(["deepseek-v4-flash"]);
+    expect(picks.map((item) => item.id)).toEqual(["qwen3.7-plus"]);
   });
 
-  it("keeps Recommended to the small preference set even when older gpt ids are live", () => {
+  it("keeps Recommended to the preference set even when older gpt ids are live", () => {
     const picks = recommendedChatModels([
       model("gpt-5.6-luna"),
       model("deepseek-v4-flash"),
@@ -101,7 +120,7 @@ describe("recommendedChatModels", () => {
       model("gpt-5.4"),
       model("gpt-5.6-sol"),
     ]);
-    expect(picks.map((item) => item.id)).toEqual(["gpt-5.6-luna", "deepseek-v4-flash", "MiniMax-M3"]);
+    expect(picks.map((item) => item.id)).toEqual(["gpt-5.6-luna", "MiniMax-M3"]);
   });
 
   it("puts the gateway default model first in Recommended", () => {
@@ -124,7 +143,6 @@ describe("pickerGroups", () => {
   it("leads with a Recommended group", () => {
     const groups = pickerGroups([model("gpt-4o-mini"), model("gpt-5.6-sol"), model("deepseek-v4-pro")]);
     expect(groups[0]?.label).toBe("Recommended");
-    // deepseek-v4-pro is advanced, so only the live everyday GPT-5.6 id is recommended here
     expect(groups[0]?.models.map((item) => item.id)).toEqual(["gpt-5.6-sol"]);
   });
 
@@ -158,6 +176,7 @@ describe("pickerGroups", () => {
       "Qwen",
     ]);
     expect(groups.find((group) => group.label === "GPT")?.models.map((item) => item.id)).toEqual([
+      "gpt-5.6-sol",
       "gpt-5.2",
       "openai/gpt-4.1",
       "gpt-4o-mini",
@@ -171,10 +190,7 @@ describe("pickerGroups", () => {
       "claude-sonnet-4-6",
       "claude-haiku-4-5",
     ]);
-    expect(groups.find((group) => group.label === "Qwen")?.models.map((item) => item.id)).toEqual([
-      "qwen3.7-plus",
-      "qwen3.6-flash",
-    ]);
+    expect(groups.find((group) => group.label === "Qwen")?.models.map((item) => item.id)).toEqual(["qwen3.6-flash"]);
     expect(groups.some((group) => group.models.some((item) => /embedding|20251001/.test(item.id)))).toBe(false);
   });
 
@@ -216,12 +232,7 @@ describe("pickerGroups", () => {
       model("gpt-4o-mini"),
       model("o3"),
     ]);
-    expect(groups[0]?.models.map((item) => item.id)).toEqual([
-      "gpt-5.6-luna",
-      "deepseek-v4-flash",
-      "MiniMax-M3",
-    ]);
-    // gpt-5.6-sol is everyday; older gpt / o3 share the brand but are advanced
+    expect(groups[0]?.models.map((item) => item.id)).toEqual(["gpt-5.6-luna", "MiniMax-M3"]);
     expect(groups.find((group) => group.label === "GPT")?.models.map((item) => item.id)).toEqual([
       "gpt-5.6-sol",
       "o3",
@@ -247,6 +258,16 @@ describe("chooseDefaultModel", () => {
         "gpt-5.6-sol",
       ),
     ).toBe("default");
+  });
+
+  it("uses GPT-5.6 Luna over Terra and Sol when all are live", () => {
+    expect(
+      chooseDefaultModel(
+        [model("gpt-5.6-sol"), model("gpt-5.6-luna"), model("gpt-5.6-terra")],
+        ["gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.6-terra"],
+        "gpt-5.6-sol",
+      ),
+    ).toBe("gpt-5.6-luna");
   });
 
   it("uses GPT-5.6 Luna over Sol when both are live", () => {
@@ -286,8 +307,8 @@ describe("chooseDefaultModel", () => {
   });
 
   it("does not default to DeepSeek from the static catalog", () => {
-    expect(chooseDefaultModel(catalog, undefined, "gpt-5.6-sol")).toBe("gpt-5.6-sol");
-    expect(chooseDefaultModel(catalog, [], "gpt-5.6-sol")).toBe("gpt-5.6-sol");
+    expect(chooseDefaultModel(catalog, undefined, "gpt-5.6-sol")).toBe("claude-sonnet-5");
+    expect(chooseDefaultModel(catalog, [], "gpt-5.6-sol")).toBe("claude-sonnet-5");
   });
 
   it("stays on a live Claude 5 when that is the preferred family present", () => {

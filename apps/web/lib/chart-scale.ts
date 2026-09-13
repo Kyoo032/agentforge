@@ -13,12 +13,10 @@ export const DEFAULT_CHART_LAYOUT: ChartLayout = {
 };
 
 /**
- * Brand-neutral categorical palette, validated (dataviz skill validator) against the app
- * surfaces #f6f8fb (light) and #2b2b2d (dark): lightness band, chroma floor, adjacent-pair
- * CVD separation and normal-vision floor all pass in both modes. Order is the CVD-safety
- * mechanism; assign by series index, never re-sort.
+ * Quiet-tool categorical palette (CVD order): accent, ok, danger, text-2, text-3, text.
+ * Assign by series index; never re-sort.
  */
-export const CHART_PALETTE = ["#3987e5", "#e0602c", "#1aa675", "#c98500", "#d55181", "#7a6bd8"] as const;
+export const CHART_PALETTE = ["#0f766e", "#2f6f4e", "#c4453c", "#5d5d5d", "#9e9e9e", "#292929"] as const;
 
 export const DEFAULT_TICK_COUNT = 5;
 export const MAX_LABEL_CHARS = 14;

@@ -27,10 +27,10 @@ type Props = {
 
 type Status = "idle" | "loading" | "ready" | "error";
 
-const MUTED = "text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]";
+const MUTED = "text-[var(--text-2)]";
 const NODE_R = 5;
 const FOCUS_R = 8;
-const LABEL_FONT = 10;
+const LABEL_FONT = 12;
 const LABEL_PAD = 10;
 const EDGE_OPACITY = 0.45;
 const EMPTY_GRAPH: KnowledgeGraph = { nodes: [], edges: [] };
@@ -123,11 +123,11 @@ export function KnowledgeGraphPanel({ counts }: Props) {
   const focusLabel = focus ? (capped.nodes.find((node) => node.id === focus)?.label ?? focus) : null;
 
   return (
-    <section className="blueprint p-[18px]" data-testid="knowledge-graph-panel" aria-label="Knowledge graph">
+    <section className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4" data-testid="knowledge-graph-panel" aria-label="Knowledge graph">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <button
           type="button"
-          className="btn btn-ghost text-[12px]"
+          className="btn btn-ghost text-xs"
           aria-expanded={open}
           onClick={() => setOpen(!open)}
           data-testid="knowledge-graph-toggle"
@@ -136,7 +136,7 @@ export function KnowledgeGraphPanel({ counts }: Props) {
         </button>
         <p className="panel-label">Graph</p>
         <p
-          className={`text-[12px] ${MUTED}`}
+          className={`text-xs ${MUTED}`}
           data-testid="knowledge-graph-counts"
           data-nodes={totalNodes}
           data-edges={totalEdges}
@@ -146,7 +146,7 @@ export function KnowledgeGraphPanel({ counts }: Props) {
         {focus ? (
           <button
             type="button"
-            className="btn btn-ghost ml-auto text-[12px]"
+            className="btn btn-ghost ml-auto text-xs"
             onClick={() => setFocus(null)}
             data-testid="knowledge-graph-clear-focus"
           >
@@ -158,18 +158,18 @@ export function KnowledgeGraphPanel({ counts }: Props) {
       {open ? (
         <div className="mt-3">
           {status === "loading" ? (
-            <p className={`text-[12px] ${MUTED}`} data-testid="knowledge-graph-loading">
+            <p className={`text-xs ${MUTED}`} data-testid="knowledge-graph-loading">
               Loading links…
             </p>
           ) : null}
           {status === "error" ? (
             <div className="flex flex-wrap items-center gap-2">
-              <p className="text-[12px] text-red-700" data-testid="knowledge-graph-error">
+              <p className="text-xs text-red-700" data-testid="knowledge-graph-error">
                 {error ?? "Could not load the graph"}
               </p>
               <button
                 type="button"
-                className="btn btn-ghost text-[12px]"
+                className="btn btn-ghost text-xs"
                 onClick={() => setReload((n) => n + 1)}
                 data-testid="knowledge-graph-retry"
               >
@@ -178,13 +178,13 @@ export function KnowledgeGraphPanel({ counts }: Props) {
             </div>
           ) : null}
           {status === "ready" && capped.nodes.length === 0 ? (
-            <p className={`text-[12px] ${MUTED}`} data-testid="knowledge-graph-empty">
+            <p className={`text-xs ${MUTED}`} data-testid="knowledge-graph-empty">
               Build map to create topic links.
             </p>
           ) : null}
           {status === "ready" && capped.nodes.length > 0 ? (
             <>
-              <p className={`text-[12px] ${MUTED}`} data-testid="knowledge-graph-shown">
+              <p className={`text-xs ${MUTED}`} data-testid="knowledge-graph-shown">
                 Showing {layout.nodes.length} of {totalNodes} nodes
                 {focusLabel ? ` · around ${focusLabel}` : ""}
               </p>
@@ -250,7 +250,7 @@ export function KnowledgeGraphPanel({ counts }: Props) {
                 ))}
               </svg>
               <ul
-                className={`mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12px] ${MUTED}`}
+                className={`mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs ${MUTED}`}
                 data-testid="knowledge-graph-legend"
               >
                 {GRAPH_NODE_KINDS.map((kind) => (
@@ -274,7 +274,7 @@ export function KnowledgeGraphPanel({ counts }: Props) {
                   </li>
                 ))}
               </ul>
-              <p className={`mt-1 text-[12px] ${MUTED}`}>
+              <p className={`mt-1 text-xs ${MUTED}`}>
                 Click a node to keep only what it touches; click it again to show all.
               </p>
             </>

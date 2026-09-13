@@ -36,7 +36,7 @@ export function LegalFindingsTable({ label, findings, emptyText }: Props) {
                 <td className={TD}>
                   {finding.clause}
                   <br />
-                  <span className={`text-[11px] ${DIM}`}>{finding.title}</span>
+                  <span className={`text-xs ${DIM}`}>{finding.title}</span>
                 </td>
                 <td className={QUOTE}>{finding.quote ? `“${finding.quote}”` : "—"}</td>
                 <td className={TD}>{finding.why}</td>
@@ -50,7 +50,7 @@ export function LegalFindingsTable({ label, findings, emptyText }: Props) {
                       ? `[Reserved for ${finding.reservedFor}]`
                       : "—"}
                 </td>
-                <td className={`${TD} font-mono text-[11px]`}>{basisLabel(finding.basis) || "—"}</td>
+                <td className={`${TD} font-mono text-xs`}>{basisLabel(finding.basis) || "—"}</td>
               </tr>
             ))}
           </tbody>
@@ -88,7 +88,7 @@ export function LegalStreamedFindings({ findings }: { findings: readonly Streame
                 <td className={TD}>
                   <ToneTag tone={severityTone(finding)}>{severityLabel(finding)}</ToneTag>
                 </td>
-                <td className={`${TD} font-mono text-[11px]`}>{finding.basis || "—"}</td>
+                <td className={`${TD} font-mono text-xs`}>{finding.basis || "—"}</td>
               </tr>
             ))}
           </tbody>

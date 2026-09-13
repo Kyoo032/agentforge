@@ -28,13 +28,14 @@ type Props = {
 };
 
 const SESSION_BADGE: Record<MarketClock["usSession"], string> = {
-  pre: "border-sky-300 bg-sky-50 text-sky-900",
-  regular: "border-emerald-300 bg-emerald-50 text-emerald-900",
-  post: "border-violet-300 bg-violet-50 text-violet-900",
-  closed: "border-mist bg-mist/40 text-ink/70",
+  pre: "border-[var(--line)] bg-[var(--accent-soft)] text-[var(--text)]",
+  regular: "border-[var(--line)] bg-[var(--accent-soft)] text-[var(--text)]",
+  post: "border-[var(--line)] bg-[var(--accent-soft)] text-[var(--text)]",
+  closed: "border-[var(--line)] text-[var(--text-2)]",
 };
 
-const H3 = "text-lg font-semibold text-navy";
+const H3 = "text-sm font-semibold text-[var(--text)]";
+const BANNER = "rounded-lg border border-[var(--line)] bg-[var(--accent-soft)] px-3 py-2 text-xs text-[var(--text)]";
 
 function pluralize(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? "" : "s"}`;
@@ -42,7 +43,7 @@ function pluralize(count: number, noun: string): string {
 
 function ClockLine({ clock, testId }: { clock: MarketClock; testId: string }) {
   return (
-    <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-ink/65" data-testid={testId}>
+    <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-[var(--text-2)]" data-testid={testId}>
       <span
         className={`rounded-md border px-2 py-0.5 text-xs font-medium ${SESSION_BADGE[clock.usSession]}`}
         data-session={clock.usSession}
@@ -50,7 +51,7 @@ function ClockLine({ clock, testId }: { clock: MarketClock; testId: string }) {
         US {sessionLabel(clock.usSession)}
       </span>
       <span>Run {formatObservedAt(clock.runAt)}</span>
-      {clock.note ? <span className="text-ink/55">— {clock.note}</span> : null}
+      {clock.note ? <span className="text-[var(--text-3)]">— {clock.note}</span> : null}
     </p>
   );
 }
@@ -58,18 +59,14 @@ function ClockLine({ clock, testId }: { clock: MarketClock; testId: string }) {
 function GuardLine({ guard, testId }: { guard: GuardReport; testId: string }) {
   if (guard.total === 0 && guard.adviceReplaced === 0) {
     return (
-      <p className="mt-3 text-xs text-ink/55" data-testid={testId} data-clean="true">
+      <p className="mt-3 text-xs text-[var(--text-3)]" data-testid={testId} data-clean="true">
         Every figure in this briefing traces to the fetched packet or your own position notes, and no sentence gives a
         directive.
       </p>
     );
   }
   return (
-    <p
-      className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900"
-      data-testid={testId}
-      data-clean="false"
-    >
+    <p className={`mt-3 ${BANNER}`} data-testid={testId} data-clean="false">
       {pluralize(guard.total, "unverified figure")} replaced with “[unverified figure]”
       {guard.flagged.length > 0 ? `: ${guard.flagged.map((item) => item.text).join(", ")}` : ""}.{" "}
       {pluralize(guard.adviceReplaced, "sentence")} removed because {guard.adviceReplaced === 1 ? "it" : "they"} read as
@@ -83,9 +80,9 @@ function SourceList({ briefing, testId }: { briefing: MarketBriefing; testId: st
     <section className="mt-10" data-testid={testId}>
       <h3 className={H3}>Sources</h3>
       {briefing.sources.length === 0 ? (
-        <p className="mt-2 text-sm text-ink/55">No sources recorded.</p>
+        <p className="mt-2 text-sm text-[var(--text-3)]">No sources recorded.</p>
       ) : (
-        <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-ink/80">
+        <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-[var(--text-2)]">
           {briefing.sources.map((source) => {
             const href = safeLinkHref(source.url);
             return (
@@ -97,7 +94,7 @@ function SourceList({ briefing, testId }: { briefing: MarketBriefing; testId: st
                 ) : (
                   <span>{source.label}</span>
                 )}{" "}
-                <span className="text-xs text-ink/50">observed {formatObservedAt(source.observedAt)}</span>
+                <span className="text-xs text-[var(--text-3)]">observed {formatObservedAt(source.observedAt)}</span>
               </li>
             );
           })}
@@ -122,19 +119,16 @@ export function MarketBriefingView({
 
   return (
     <article
-      className="rounded-xl border border-mist bg-paper px-8 py-10 shadow-sm"
+      className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-8 py-10"
       data-testid={`${testIdPrefix}-preview`}
       lang={briefing.language}
     >
-      <p className="text-xs font-medium uppercase tracking-[0.16em] text-ink/45">Market Watch briefing</p>
-      <h2 className="mt-2 text-3xl font-semibold tracking-tight text-ink">{briefing.title}</h2>
+      <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--text-3)]">Market Watch briefing</p>
+      <h2 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{briefing.title}</h2>
       <ClockLine clock={packet.clock} testId={`${testIdPrefix}-clock`} />
       <GuardLine guard={guard} testId={`${testIdPrefix}-guard`} />
       {failures.length > 0 ? (
-        <ul
-          className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900"
-          data-testid={`${testIdPrefix}-failures`}
-        >
+        <ul className={`mt-3 ${BANNER}`} data-testid={`${testIdPrefix}-failures`}>
           {failures.map((failure) => (
             <li key={failure}>{failure}</li>
           ))}
@@ -148,7 +142,7 @@ export function MarketBriefingView({
               {onRegenerate ? (
                 <button
                   type="button"
-                  className="rounded-md border border-mist px-3 py-1 text-xs font-medium text-ink disabled:opacity-50"
+                  className="rounded-md border border-[var(--line)] px-3 py-1 text-xs font-medium text-[var(--text)] disabled:opacity-50"
                   onClick={() => setOpenIndex(openIndex === index ? null : index)}
                   disabled={regeneratingIndex !== null}
                   data-testid={`${testIdPrefix}-section-regen`}
@@ -158,11 +152,11 @@ export function MarketBriefingView({
               ) : null}
             </div>
             {isGuardedSection(section) ? (
-              <p className="mt-2 text-[11px] text-amber-900" data-testid={`${testIdPrefix}-section-guarded`}>
+              <p className="mt-2 text-xs text-[var(--text-2)]" data-testid={`${testIdPrefix}-section-guarded`}>
                 The advice guard replaced part of this section.
               </p>
             ) : null}
-            <FormattedText text={section.body} className="mt-3 text-sm leading-relaxed text-ink/85" />
+            <FormattedText text={section.body} className="mt-3 text-sm leading-relaxed text-[var(--text-2)]" />
             {onRegenerate && openIndex === index ? (
               <JobRegenPanel
                 testIdPrefix="market"
@@ -199,14 +193,14 @@ export function MarketBriefingView({
       {packet.positionContext ? (
         <section className="mt-10" data-testid={`${testIdPrefix}-position`}>
           <h3 className={H3}>Your position notes</h3>
-          <pre className="mt-3 whitespace-pre-wrap rounded-md border border-mist bg-mist/30 px-3 py-2 font-sans text-sm text-ink/80">
+          <pre className="mt-3 whitespace-pre-wrap rounded-md border border-[var(--line)] bg-[var(--accent-soft)] px-3 py-2 font-sans text-sm text-[var(--text-2)]">
             {packet.positionContext}
           </pre>
         </section>
       ) : null}
       <SourceList briefing={briefing} testId={`${testIdPrefix}-sources`} />
       <p
-        className="mt-10 rounded-md border border-mist bg-mist/40 px-4 py-3 text-sm text-ink/80"
+        className="mt-10 rounded-md border border-[var(--line)] bg-[var(--accent-soft)] px-4 py-3 text-sm text-[var(--text-2)]"
         data-testid={`${testIdPrefix}-disclaimer`}
       >
         {briefing.disclaimer}

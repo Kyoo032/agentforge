@@ -53,14 +53,14 @@ export function UsageRangeChart({ buckets, productName = "DPSBuddy", minKeep = 7
   const hasRuns = visible.some((bucket) => bucket.models.length > 0);
   if (visible.length === 0 || (!hasSpend && !hasRuns)) {
     return (
-      <p className="mt-4 text-sm text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]" data-testid="usage-range-empty">
+      <p className="mt-4 text-sm text-[var(--text-2)]" data-testid="usage-range-empty">
         No {productName} runs in this range.
       </p>
     );
   }
   if (!hasSpend && hasRuns) {
     return (
-      <p className="mt-4 text-sm text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]" data-testid="usage-range-empty">
+      <p className="mt-4 text-sm text-[var(--text-2)]" data-testid="usage-range-empty">
         Runs in this range are not priced yet.
       </p>
     );
@@ -87,7 +87,7 @@ export function UsageRangeChart({ buckets, productName = "DPSBuddy", minKeep = 7
     <div className="mt-3 overflow-x-auto" data-testid="usage-range-chart">
       <svg
         viewBox={`0 0 ${CHART_W} ${CHART_H}`}
-        className="h-auto w-full text-inkbase"
+        className="h-auto w-full text-[var(--text)]"
         role="img"
         aria-label="Spend by model over time"
       >
@@ -108,7 +108,7 @@ export function UsageRangeChart({ buckets, productName = "DPSBuddy", minKeep = 7
                 y={y + 3}
                 textAnchor="end"
                 className="fill-current"
-                style={{ fontSize: 10, opacity: 0.55 }}
+                style={{ fontSize: 12, opacity: 0.55 }}
               >
                 {axisUsd(tick)}
               </text>
@@ -161,7 +161,7 @@ export function UsageRangeChart({ buckets, productName = "DPSBuddy", minKeep = 7
                   y={CHART_H - 10}
                   textAnchor="middle"
                   className="fill-current"
-                  style={{ fontSize: 11, opacity: 0.6 }}
+                  style={{ fontSize: 12, opacity: 0.6 }}
                 >
                   {bucket.label}
                 </text>
@@ -171,7 +171,7 @@ export function UsageRangeChart({ buckets, productName = "DPSBuddy", minKeep = 7
         })}
       </svg>
       {modelOrder.length > 0 ? (
-        <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-[color-mix(in_srgb,var(--color-text)_70%,transparent)]">
+        <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--text-2)]">
           {modelOrder.map((model, index) => (
             <li key={model} className="flex items-center gap-1.5">
               <span

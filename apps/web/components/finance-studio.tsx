@@ -166,12 +166,12 @@ export function FinanceStudio() {
   }
 
   return (
-    <main className="px-[30px] pb-10 pt-[26px] text-inkbase" data-testid="finance-studio">
+    <main className="px-6 pb-10 pt-8 text-[var(--text)]" data-testid="finance-studio">
       <div className="kicker">Workspace</div>
       <div className="mb-5 flex flex-wrap items-end gap-4">
         <div>
-          <h3 className="mt-2 text-[25px]">Finance</h3>
-          <p className="mt-1.5 max-w-xl text-sm text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">
+          <h3 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">Finance</h3>
+          <p className="mt-1.5 max-w-xl text-sm text-[var(--text-2)]">
             Give {productName} your figures as line items. Margins, growth, runway, breakeven, and NPV are computed in
             code; the model only writes the narrative, and any figure it cannot trace is removed.
           </p>
@@ -189,7 +189,7 @@ export function FinanceStudio() {
         ) : null}
       </div>
       {error ? (
-        <p className="mb-4 text-sm text-red-700" role="alert" data-testid="finance-error">
+        <p className="mb-4 text-sm text-[var(--danger)]" role="alert" data-testid="finance-error">
           {error}
           {needsSettingsHint(error) && !/settings/i.test(error) ? (
             <>
@@ -204,7 +204,10 @@ export function FinanceStudio() {
         </p>
       ) : null}
       <div className="grid items-start gap-5 lg:[grid-template-columns:420px_minmax(0,1fr)]">
-        <section className="blueprint space-y-4 p-4" data-testid="finance-inputs">
+        <section
+          className="space-y-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4"
+          data-testid="finance-inputs"
+        >
           <div>
             <label htmlFor="finance-figures-input" className="panel-label">
               Paste figures
@@ -228,7 +231,7 @@ export function FinanceStudio() {
             >
               {busy === "parse" ? "Reading…" : "Parse into line items"}
             </button>
-            <p className="mt-1 text-[11px] text-[color-mix(in_srgb,var(--color-text)_45%,transparent)]">
+            <p className="mt-1 text-xs text-[var(--text-3)]">
               Nothing is computed until you confirm the rows below.
             </p>
           </div>
@@ -276,16 +279,12 @@ export function FinanceStudio() {
             <p className="panel-label">Parameters (optional)</p>
             <div className="mt-2 grid grid-cols-2 gap-2">
               {FINANCE_PARAM_FIELDS.map((field) => (
-                <label
-                  key={field.key}
-                  className="text-[11px] text-[color-mix(in_srgb,var(--color-text)_60%,transparent)]"
-                  title={field.hint}
-                >
+                <label key={field.key} className="text-xs text-[var(--text-2)]" title={field.hint}>
                   {field.label}
                   <input
                     type="number"
                     step="any"
-                    className="input mt-1 px-2 py-1 text-[12px]"
+                    className="input mt-1 px-2 py-1 text-xs"
                     value={params[field.key] ?? ""}
                     onChange={(event) => {
                       const value = event.target.value;
@@ -326,7 +325,10 @@ export function FinanceStudio() {
               />
             </>
           ) : job.busy ? null : (
-            <div className="blueprint px-4 py-8 text-center" data-testid="finance-studio-empty">
+            <div
+              className="wash rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-8 text-center text-[var(--text-2)]"
+              data-testid="finance-studio-empty"
+            >
               <p>
                 {ready
                   ? "Describe the brief you need."
@@ -337,7 +339,7 @@ export function FinanceStudio() {
         </div>
       </div>
       <form
-        className="blueprint mt-5 p-4"
+        className="mt-5 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4"
         onSubmit={(event) => void onGenerate(event)}
         data-testid="finance-studio-prompt-bar"
       >

@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { ApiError } from "@agentforge/core";
+import { ApiError } from "@agentforge/core/errors";
 import {
   extractJsonObject,
   parsePresentationOutline,
   parsePresentationOutlineBody,
+  parsePresentationSlide,
   mergePresentationSlide,
+  resolvePresentationSlideLayout,
 } from "./presentation-outline";
 
 describe("extractJsonObject", () => {
@@ -35,17 +37,30 @@ describe("parsePresentationOutline", () => {
   };
 
   it("accepts a valid outline string", () => {
-    expect(parsePresentationOutline(JSON.stringify(valid))).toEqual(valid);
+    expect(parsePresentationOutline(JSON.stringify(valid))).toEqual({
+      title: "Quarterly plan",
+      slides: [
+        {
+          kind: "bullets",
+          heading: "Goals",
+          subhead: "",
+          bullets: ["Ship v1", "Measure adoption"],
+          aside: "",
+          notes: "Keep short",
+        },
+        { kind: "bullets", heading: "Next steps", subhead: "", bullets: ["Pilot"], aside: "", notes: "" },
+      ],
+    });
   });
 
-  it("defaults missing bullets and notes", () => {
+  it("defaults missing bullets, notes, kind, subhead, and aside", () => {
     const raw = JSON.stringify({
       title: "Deck",
       slides: [{ heading: "Only heading" }],
     });
     expect(parsePresentationOutline(raw)).toEqual({
       title: "Deck",
-      slides: [{ heading: "Only heading", bullets: [], notes: "" }],
+      slides: [{ kind: "bullets", heading: "Only heading", subhead: "", bullets: [], aside: "", notes: "" }],
     });
   });
 
@@ -87,8 +102,45 @@ describe("mergePresentationSlide", () => {
         { heading: "Two", bullets: ["b"], notes: "" },
       ],
     });
-    const next = mergePresentationSlide(outline, 0, { heading: "New", bullets: ["c"], notes: "" });
+    const next = mergePresentationSlide(
+      outline,
+      0,
+      parsePresentationSlide({ heading: "New", bullets: ["c"], notes: "" }),
+    );
     expect(next.slides[0]?.heading).toBe("New");
     expect(next.slides[1]?.heading).toBe("Two");
+  });
+});
+
+describe("resolvePresentationSlideLayout", () => {
+  it("applies split and close when every slide is bullets", () => {
+    const { slides } = parsePresentationOutlineBody({
+      title: "Thin",
+      slides: [
+        { heading: "A", bullets: ["1", "2", "3"], notes: "" },
+        { heading: "B", bullets: ["4", "5", "6"], notes: "" },
+        { heading: "C", bullets: ["7", "8", "9"], notes: "" },
+      ],
+    });
+    expect(resolvePresentationSlideLayout(slides, 0).kind).toBe("bullets");
+    const split = resolvePresentationSlideLayout(slides, 1);
+    expect(split.kind).toBe("split");
+    expect(split.bullets).toEqual(["4", "5"]);
+    expect(split.aside).toBe("6");
+    expect(resolvePresentationSlideLayout(slides, 2).kind).toBe("close");
+  });
+
+  it("respects mixed kinds from the model", () => {
+    const { slides } = parsePresentationOutlineBody({
+      title: "Mixed",
+      slides: [
+        { kind: "section", heading: "Open", subhead: "Line", bullets: [], notes: "" },
+        { kind: "bullets", heading: "Body", bullets: ["a", "b", "c"], notes: "" },
+        { kind: "close", heading: "Ask", bullets: ["yes"], notes: "" },
+      ],
+    });
+    expect(resolvePresentationSlideLayout(slides, 0).kind).toBe("section");
+    expect(resolvePresentationSlideLayout(slides, 1).kind).toBe("bullets");
+    expect(resolvePresentationSlideLayout(slides, 2).kind).toBe("close");
   });
 });

@@ -1,3 +1,5 @@
+import { EVERYDAY_MODEL_IDS, GATEWAY_BEST_FOR } from "./gateway-roles";
+
 export type ModelTier = "everyday" | "advanced";
 
 export type CuratedModelMeta = {
@@ -9,17 +11,6 @@ export type CuratedModelMeta = {
 const VENDOR_PREFIX = /^(openai|anthropic|google|x-ai|xai|deepseek|moonshot|minimax|meta-llama|mistralai)\//i;
 const DATED_SUFFIX = /-\d{8}$/;
 const SNAPSHOT_NOISE = /-(?:latest|preview|exp|experimental|instruct)$/i;
-
-/** Generation-locked everyday allowlist (not brand-wide prefixes). */
-const EVERYDAY_MATCHERS: RegExp[] = [
-  /^gpt-5\.6(?:$|-)/i,
-  /^deepseek-v4-flash(?:$|-)/i,
-  /^minimax-m3(?:$|-)/i,
-  /^claude-sonnet-5(?:$|[^\d])/i,
-  /^gemini-3(?:\.\d+)?-(?:flash|lite)(?:$|-)/i,
-  /^kimi-k3(?:$|-)/i,
-  /^grok-4(?:\.5|\.6)?(?:$|-)/i,
-];
 
 function leafId(id: string): string {
   const slash = id.lastIndexOf("/");
@@ -74,24 +65,13 @@ export function friendlyModelLabel(id: string): string {
   return parts.map(titleCaseToken).join(" ");
 }
 
+function catalogLeaf(id: string): string {
+  return leafId(id).toLowerCase();
+}
+
 function bestForFromId(id: string): string {
-  const n = leafId(id).toLowerCase();
-  if (/code|coder|codex|devstral|codestral/.test(n)) {
-    return "Coding";
-  }
-  if (/long|opus|pro|ultra|32k|128k|200k|1m|document/.test(n)) {
-    return "Long documents";
-  }
-  if (isThinkingModel(id)) {
-    return "Deep reasoning";
-  }
-  if (/flash|mini|nano|lite|fast|turbo|instant|haiku|tiny/.test(n)) {
-    return "Fast drafts";
-  }
-  if (isEverydayModel(id)) {
-    return "Everyday chat";
-  }
-  return "General chat";
+  const n = catalogLeaf(id);
+  return GATEWAY_BEST_FOR[n] ?? GATEWAY_BEST_FOR[n.replace(DATED_SUFFIX, "")] ?? "General chat";
 }
 
 /** Models that stream a reasoning channel (o-series, R1, MiniMax think tags, *thinking* ids). */
@@ -105,8 +85,8 @@ export function isEverydayModel(id: string): boolean {
   if (!trimmed) {
     return false;
   }
-  const n = leafId(trimmed);
-  return EVERYDAY_MATCHERS.some((re) => re.test(n));
+  const n = catalogLeaf(trimmed);
+  return EVERYDAY_MODEL_IDS.has(n) || EVERYDAY_MODEL_IDS.has(n.replace(DATED_SUFFIX, ""));
 }
 
 export function curateModel(id: string): CuratedModelMeta {

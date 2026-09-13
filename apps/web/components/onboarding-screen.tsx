@@ -9,7 +9,7 @@ type Props = {
   onOffline: () => void;
 };
 
-const fieldClass = "mt-1 w-full rounded-md border border-mist bg-paper px-3 py-2 text-ink";
+const fieldClass = "mt-1 w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)]";
 
 export function OnboardingScreen({ onDone, onOffline }: Props) {
   const { productName, gatewayName, gatewayBaseUrl } = useProductBrand();
@@ -44,17 +44,17 @@ export function OnboardingScreen({ onDone, onOffline }: Props) {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-lg flex-col justify-center px-6 py-10 text-ink">
-      <h1 className="text-3xl font-semibold">Welcome to {productName}</h1>
-      <p className="mt-2 text-ink/60">
+    <main className="mx-auto flex min-h-screen max-w-lg flex-col justify-center px-6 py-8 text-[var(--text)]">
+      <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">Welcome to {productName}</h1>
+      <p className="mt-2 text-[var(--text-2)]">
         Paste your {gatewayName} API key. Chat and job modes run on this machine. You can change the endpoint later in
         Settings.
       </p>
       {doctor?.ffmpeg?.found === false ? (
-        <section className="mt-6 overflow-hidden rounded-md border border-mist" data-testid="onboarding-setup-check">
-          <h2 className="border-b border-divider px-4 py-2 text-sm font-semibold">Setup check</h2>
+        <section className="mt-6 overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface)]" data-testid="onboarding-setup-check">
+          <h2 className="border-b border-[var(--line)] px-4 py-2 text-sm font-semibold">Setup check</h2>
           <FfmpegSetupNotice doctor={doctor} onDoctor={setDoctor} variant="full" />
-          <p className="px-4 py-2 text-xs text-ink/60">
+          <p className="px-4 py-2 text-xs text-[var(--text-2)]">
             You can continue now and install ffmpeg later; the Edit studio shows the same guide until it is found.
           </p>
         </section>
@@ -64,7 +64,7 @@ export function OnboardingScreen({ onDone, onOffline }: Props) {
           Endpoint URL
           <input className={fieldClass} value={gatewayBaseUrl} readOnly data-testid="onboarding-endpoint" />
         </label>
-        <p className="text-xs text-ink/50">{gatewayHostLabel(gatewayBaseUrl)}</p>
+        <p className="text-xs text-[var(--text-3)]">{gatewayHostLabel(gatewayBaseUrl)}</p>
         <label className="block text-sm">
           API key
           <input
@@ -77,11 +77,11 @@ export function OnboardingScreen({ onDone, onOffline }: Props) {
             data-testid="onboarding-key"
           />
         </label>
-        {error ? <p className="text-sm text-red-700">{error}</p> : null}
+        {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
         <div className="flex flex-wrap gap-3">
           <button
             type="submit"
-            className="rounded-md bg-navy px-4 py-2 text-white disabled:opacity-50"
+            className="btn btn-primary disabled:opacity-50"
             disabled={busy || !openaiApiKey.trim()}
             data-testid="onboarding-continue"
           >
@@ -89,7 +89,7 @@ export function OnboardingScreen({ onDone, onOffline }: Props) {
           </button>
           <button
             type="button"
-            className="rounded-md border border-mist px-4 py-2 text-ink"
+            className="rounded-md border border-[var(--line)] px-4 py-2 text-[var(--text)]"
             onClick={onOffline}
             data-testid="onboarding-offline"
           >

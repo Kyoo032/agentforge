@@ -103,12 +103,12 @@ export function UsagePage() {
   const maxPriced = Math.max(...priced.map((row) => row.usd), 0.0001);
 
   return (
-    <main className="px-[30px] pb-10 pt-[26px] text-inkbase" data-testid="usage-page">
+    <main className="px-6 py-8 text-[var(--text)]" data-testid="usage-page">
       <div className="mb-5 flex flex-wrap items-end gap-4">
         <div>
           <div className="kicker">Account</div>
-          <h3 className="mt-2 text-[25px]">Usage</h3>
-          <p className="mt-1 text-[13px] text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">
+          <h3 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">Usage</h3>
+          <p className="mt-1 text-[13px] text-[var(--text-2)]">
             This-key wallet and desk spend for the selected range.
           </p>
         </div>
@@ -135,30 +135,30 @@ export function UsagePage() {
       {loadError ? <p className="mb-4 text-sm text-red-700">{loadError}</p> : null}
 
       <div className="grid gap-4 md:grid-cols-2">
-        <section className="blueprint p-[18px]">
+        <section className="raise rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <p className="panel-label">This key</p>
-          <p className="mt-2 text-[22px] font-heading font-semibold tabular-nums" data-testid="usage-this-key">
+          <p className="mt-2 text-2xl font-medium tabular-nums tracking-[var(--track)] text-[var(--text)]" data-testid="usage-this-key">
             {loading && !ready ? "Loading…" : thisKeyLine(usage)}
           </p>
           <KeyQuotaMeter usage={usage} />
         </section>
-        <section className="blueprint p-[18px]">
+        <section className="raise rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <p className="panel-label">This desk</p>
-          <p className="mt-2 text-[22px] font-heading font-semibold tabular-nums" data-testid="usage-desk-range">
+          <p className="mt-2 text-sm font-medium tabular-nums text-[var(--text)]" data-testid="usage-desk-range">
             {loading && !ready
               ? "Loading…"
               : `${desk.display} · ${desk.modelCount} model${desk.modelCount === 1 ? "" : "s"}`}
           </p>
-          <p className="mt-2 text-[13px] text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">
+          <p className="mt-2 text-[13px] text-[var(--text-2)]">
             {ready ? `${desk.pricedCount} priced run${desk.pricedCount === 1 ? "" : "s"} in this range.` : "Fetching desk spend…"}
           </p>
         </section>
       </div>
 
-      <section className="blueprint mt-4 p-[18px]">
+      <section className="raise mt-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
         <p className="panel-label">Spend over time</p>
         {loading && !ready ? (
-          <p className="mt-4 text-sm text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">Loading…</p>
+          <p className="mt-4 text-sm text-[var(--text-2)]">Loading…</p>
         ) : (
           <UsageRangeChart
             buckets={usage?.buckets ?? []}
@@ -168,25 +168,25 @@ export function UsagePage() {
         )}
       </section>
 
-      <section className="blueprint mt-4 p-[18px]" data-testid="usage-by-model">
+      <section className="raise mt-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4" data-testid="usage-by-model">
         <p className="panel-label">Spend by model</p>
         {!ready && loading ? (
-          <p className="mt-3 text-sm text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">Loading…</p>
+          <p className="mt-3 text-sm text-[var(--text-2)]">Loading…</p>
         ) : byModel.length === 0 ? (
-          <p className="mt-3 text-sm text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">
+          <p className="mt-3 text-sm text-[var(--text-2)]">
             No {productName} runs in this range.
           </p>
         ) : (
           <ul className="mt-4 space-y-4">
             {priced.map((row, index) => (
               <li key={row.model} data-testid={`usage-model-row-${row.model}`}>
-                <div className="flex items-baseline justify-between gap-2 text-sm text-inkbase">
+                <div className="flex items-baseline justify-between gap-2 text-sm text-[var(--text)]">
                   <span className="min-w-0 truncate font-medium" title={row.model}>
                     {row.model}
                   </span>
                   <span className="shrink-0 tabular-nums">{row.display}</span>
                 </div>
-                <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--color-text)_8%,transparent)]">
+                <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[var(--line)]">
                   <div
                     className="h-full rounded-full"
                     style={{
@@ -195,7 +195,7 @@ export function UsagePage() {
                     }}
                   />
                 </div>
-                <p className="mt-1 text-[12px] text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">
+                <p className="mt-1 text-xs text-[var(--text-2)]">
                   {row.runCount} run{row.runCount === 1 ? "" : "s"} · {tokenLabel(row.inputTokens)} in ·{" "}
                   {tokenLabel(row.outputTokens)} out
                 </p>
@@ -206,7 +206,7 @@ export function UsagePage() {
               .map((row) => (
                 <li
                   key={row.model}
-                  className="text-[12px] text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]"
+                  className="text-xs text-[var(--text-2)]"
                   data-testid={`usage-model-row-${row.model}`}
                 >
                   {row.model}: {row.unknown ? "billed after they finish" : row.display} · {row.runCount} run
@@ -217,7 +217,7 @@ export function UsagePage() {
         )}
       </section>
 
-      <p className="mt-4 text-[12px] text-[color-mix(in_srgb,var(--color-text)_48%,transparent)]">
+      <p className="mt-4 text-xs text-[var(--text-3)]">
         Desk estimate uses {productName} input and output tokens and {gatewayName} catalog prices. This-key wallet spend
         includes other apps on the same key and will not match the desk total.
       </p>

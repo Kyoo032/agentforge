@@ -25,8 +25,8 @@ type Props = {
 const ROTATE_FROM = 8;
 /** Beyond this many points a marker per point is clutter; the line alone reads better. */
 const MAX_MARKER_POINTS = 40;
-const TICK_FONT = 10;
-const LABEL_FONT = 11;
+const TICK_FONT = 12;
+const LABEL_FONT = 12;
 const LINE_WIDTH = 2;
 const MARKER_RADIUS = 4;
 const AXIS_OPACITY = 0.15;
@@ -38,10 +38,10 @@ const plot = plotArea(layout);
 export function SvgChart({ chart, testId, zeroBaseline = true }: Props) {
   const caption = chart.title || `${chart.type} chart`;
   return (
-    <figure className="rounded-xl border border-mist bg-paper p-4 text-ink" data-testid={testId}>
-      <figcaption className="text-sm font-semibold text-ink">
+    <figure className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4 text-[var(--text)]" data-testid={testId}>
+      <figcaption className="text-sm font-medium text-[var(--text)]">
         {caption}
-        {chart.x.label ? <span className="ml-2 font-normal text-ink/55">by {chart.x.label}</span> : null}
+        {chart.x.label ? <span className="ml-2 font-normal text-[var(--text-2)]">by {chart.x.label}</span> : null}
       </figcaption>
       <svg
         viewBox={`0 0 ${layout.width} ${layout.height}`}
@@ -204,7 +204,7 @@ function XLabels({ labels, plot: area }: { labels: XTick[]; plot: PlotArea }) {
 
 function Legend({ names }: { names: string[] }) {
   return (
-    <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-ink/70">
+    <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--text-2)]">
       {names.map((name, index) => (
         <li key={`${name}-${index}`} className="flex items-center gap-1.5">
           <span
