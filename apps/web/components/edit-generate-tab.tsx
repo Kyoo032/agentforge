@@ -211,14 +211,14 @@ export function EditGenerateTab({
               <button
                 key={id}
                 type="button"
-                className={`btn w-full px-2 py-1.5 text-[12px] capitalize ${tier === id ? "btn-primary" : "btn-secondary"}`}
+                className={`btn w-full px-2 py-1.5 text-[11px] capitalize ${tier === id ? "btn-primary" : "btn-secondary"}`}
                 onClick={() => changeTier(id)}
               >
                 {id}
               </button>
             ))}
           </div>
-          <span className="text-[12px] text-ink/55" data-testid="edit-estimate">
+          <span className="text-[11px] text-ink/55" data-testid="edit-estimate">
             {estimate == null ? "price unknown" : formatUsd(estimate)}
           </span>
           <ModelSelect

@@ -319,7 +319,7 @@ export function ChatComposer({
 
   return (
     <form
-      className="composer-shell px-4 pb-3 pt-2"
+      className="blueprint sticky bottom-0 mt-6 bg-app p-4"
       data-testid="composer"
       onSubmit={(event) => {
         event.preventDefault();
@@ -328,15 +328,11 @@ export function ChatComposer({
     >
       <textarea
         ref={textAreaRef}
-        className="min-h-11 max-h-40 w-full resize-none border-0 bg-transparent px-1 py-2 text-[14px] tracking-[-0.015em] text-[var(--text)] outline-none placeholder:text-[var(--text-3)]"
+        className="input w-full"
         placeholder="Message"
-        rows={1}
         value={text}
         onChange={(event) => {
           setText(event.target.value);
-          const el = event.target;
-          el.style.height = "auto";
-          el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
         }}
         onKeyDown={(event) => {
           submitOnEnter(event, () => {
@@ -355,17 +351,17 @@ export function ChatComposer({
         data-testid="composer-file"
       />
       {files.length > 0 ? (
-        <ul className="mb-2 flex flex-wrap gap-2" data-testid="composer-attachments">
+        <ul className="mt-3 flex flex-wrap gap-2" data-testid="composer-attachments">
           {files.map((item) => (
             <li
               key={item.id}
-              className="flex items-center gap-2 rounded-[8px] border border-[var(--line)] px-3 py-1 text-[12px] text-[var(--text)]"
+              className="flex items-center gap-2 rounded-md border border-mist px-3 py-1 text-sm text-ink"
               data-testid="composer-attachment"
             >
               <span className="max-w-[12rem] truncate">{item.file.name}</span>
               <button
                 type="button"
-                className="text-[var(--text-3)] hover:text-[var(--text)]"
+                className="text-ink/50 hover:text-ink"
                 aria-label={`Remove ${item.file.name}`}
                 onClick={() => removeFile(item.id)}
               >
@@ -376,11 +372,11 @@ export function ChatComposer({
         </ul>
       ) : null}
       {error ? (
-        <p className="mb-2 text-[12px] text-[var(--danger)]" data-testid="composer-error" role="alert">
+        <p className="mt-2 text-sm text-red-700" data-testid="composer-error" role="alert">
           {error}
         </p>
       ) : null}
-      <div className="flex flex-wrap items-center gap-2" data-testid="composer-toolbar">
+      <div className="mt-3 flex flex-wrap items-center gap-2" data-testid="composer-toolbar">
         {showPicker ? (
           <ModelPicker
             models={pickerModels}
@@ -394,8 +390,8 @@ export function ChatComposer({
           <label className="inline-flex items-center" data-testid="thinking-toggle">
             <span className="sr-only">Thinking</span>
             <select
-              className={`h-8 rounded-[8px] border bg-transparent px-2 text-[12px] text-[var(--text-2)] disabled:opacity-45 ${
-                reasoningEffort !== "none" ? "border-[var(--accent)] text-[var(--accent)]" : "border-[var(--line)]"
+              className={`rounded-md border bg-transparent px-2 py-1.5 text-[12.5px] text-ink disabled:opacity-45 ${
+                reasoningEffort !== "none" ? "border-accent text-accent" : "border-divider"
               }`}
               data-testid="reasoning-effort"
               aria-label="Thinking"
@@ -417,7 +413,7 @@ export function ChatComposer({
         ) : null}
         <button
           type="button"
-          className="btn btn-ghost h-8 px-2 text-[12px]"
+          className="btn btn-secondary"
           data-testid="composer-attach"
           onClick={() => fileInputRef.current?.click()}
           disabled={busy}
@@ -434,7 +430,7 @@ export function ChatComposer({
         />
         <button
           type="submit"
-          className="btn btn-primary btn-pill ml-auto h-8 px-4 text-[14px]"
+          className="btn btn-primary ml-auto"
           disabled={busy || enhancing || (!text.trim() && files.length === 0)}
           data-testid="composer-send"
         >

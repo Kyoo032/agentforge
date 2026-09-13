@@ -79,7 +79,7 @@ export function SourceMaterialField({ value, onChange, title = null, onTitle, di
             data-testid={`${testIdPrefix}-source-text`}
             aria-label="Source material"
           />
-          <p className={`mt-1 text-[12px] ${over ? "text-red-700" : "text-ink/45"}`}>
+          <p className={`mt-1 text-[11px] ${over ? "text-red-700" : "text-ink/45"}`}>
             {value.length.toLocaleString()} / {SOURCE_TEXT_MAX_CHARS.toLocaleString()} characters
             {over ? " — the host keeps the first part only" : ""}
           </p>

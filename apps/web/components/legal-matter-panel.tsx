@@ -145,8 +145,8 @@ export function LegalMatterPanel({
               data-testid={`legal-deliverable-${option.kind}`}
             />
             {option.label}
-            <span className="tag tag-neutral font-mono text-[12px]">{option.format}</span>
-            {option.available ? null : <span className="text-[12px]">not available in this version</span>}
+            <span className="tag tag-neutral font-mono text-[10px]">{option.format}</span>
+            {option.available ? null : <span className="text-[11px]">not available in this version</span>}
           </label>
         ))}
       </div>
@@ -167,7 +167,7 @@ export function LegalMatterPanel({
           </option>
         ))}
       </select>
-      <p className={`mt-1 text-[12px] ${DIM}`}>
+      <p className={`mt-1 text-[11px] ${DIM}`}>
         {playbook
           ? `${playbook.contractType || "Contract"} · checklist of ${playbook.itemCount} items`
           : "Built-in playbooks, plus Knowledge Base sources of type Playbook."}

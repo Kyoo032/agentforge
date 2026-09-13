@@ -13,7 +13,7 @@ type Props = {
 const DEFAULT_MAX_ROWS = 100;
 const EM_DASH = "—";
 const HEADER_CLASS =
-  "sticky top-0 z-10 border-b border-mist bg-paper px-3 py-2 text-left text-[12px] font-medium uppercase tracking-[0.08em] text-ink/55";
+  "sticky top-0 z-10 border-b border-mist bg-paper px-3 py-2 text-left text-[11px] font-medium uppercase tracking-[0.08em] text-ink/55";
 const CELL_CLASS = "border-b border-mist/70 px-3 py-1.5 align-top text-ink/85";
 
 function cellText(cell: DataGridCell): string {
@@ -46,7 +46,7 @@ export function DataGrid({ columns, rows, maxRows = DEFAULT_MAX_ROWS, testId, ca
   const truncated = rows.length > visible.length;
   return (
     <div data-testid={testId}>
-      {caption ? <p className="mb-2 text-sm font-medium text-ink">{caption}</p> : null}
+      {caption ? <p className="mb-2 text-sm font-semibold text-ink">{caption}</p> : null}
       <div className="max-h-[420px] overflow-auto rounded-lg border border-mist">
         <table className="w-full border-collapse text-[13px]">
           <thead>
@@ -82,7 +82,7 @@ export function DataGrid({ columns, rows, maxRows = DEFAULT_MAX_ROWS, testId, ca
         </table>
       </div>
       {truncated ? (
-        <p className="mt-1.5 text-[12px] text-ink/50">
+        <p className="mt-1.5 text-[11px] text-ink/50">
           Showing first {visible.length} of {rows.length} rows
         </p>
       ) : null}

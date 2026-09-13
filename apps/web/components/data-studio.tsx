@@ -167,10 +167,11 @@ export function DataStudio() {
   }
 
   return (
-    <main className="px-6 pb-8 pt-6 text-[var(--text)]" data-testid="data-studio">
+    <main className="px-[30px] pb-10 pt-[26px] text-inkbase" data-testid="data-studio">
+      <div className="kicker">Workspace</div>
       <div className="mb-5 flex flex-wrap items-end gap-4">
         <div>
-          <h3 className="stage-title mt-2">Data</h3>
+          <h3 className="mt-2 text-[25px]">Data</h3>
           <p className="mt-1.5 max-w-xl text-sm text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">
             Upload a CSV or XLSX, or paste a table. {productName} profiles it, queries it with SQL, and shows every
             number's query. Nothing leaves this machine except the question and the profile.
@@ -259,7 +260,7 @@ export function DataStudio() {
               <p className="text-sm font-medium" data-testid="data-dataset-name">
                 {dataset.name}
               </p>
-              <p className="text-[12px] text-[color-mix(in_srgb,var(--color-text)_45%,transparent)]">
+              <p className="text-[11px] text-[color-mix(in_srgb,var(--color-text)_45%,transparent)]">
                 {dataset.rows} rows × {dataset.cols} cols · {formatBytes(dataset.sizeBytes)}
               </p>
               <DatasetProfile profile={dataset.profile} testId="data-profile" />
@@ -337,7 +338,7 @@ export function DataStudio() {
           <ModelSelect models={models} value={model} onChange={setModel} disabled={busy} testId="data-studio-model" />
           {history.length > 0 ? (
             <span
-              className="text-[12px] text-[color-mix(in_srgb,var(--color-text)_45%,transparent)]"
+              className="text-[11px] text-[color-mix(in_srgb,var(--color-text)_45%,transparent)]"
               data-testid="data-history"
             >
               Follow-up {history.length + 1} on this dataset

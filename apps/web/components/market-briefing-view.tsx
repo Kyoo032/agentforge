@@ -34,7 +34,7 @@ const SESSION_BADGE: Record<MarketClock["usSession"], string> = {
   closed: "border-mist bg-mist/40 text-ink/70",
 };
 
-const H3 = "text-[14px] font-medium text-[var(--text)]";
+const H3 = "text-lg font-semibold text-navy";
 
 function pluralize(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? "" : "s"}`;
@@ -127,7 +127,7 @@ export function MarketBriefingView({
       lang={briefing.language}
     >
       <p className="text-xs font-medium uppercase tracking-[0.16em] text-ink/45">Market Watch briefing</p>
-      <h2 className="mt-2 text-3xl font-medium tracking-tight text-ink">{briefing.title}</h2>
+      <h2 className="mt-2 text-3xl font-semibold tracking-tight text-ink">{briefing.title}</h2>
       <ClockLine clock={packet.clock} testId={`${testIdPrefix}-clock`} />
       <GuardLine guard={guard} testId={`${testIdPrefix}-guard`} />
       {failures.length > 0 ? (
@@ -158,7 +158,7 @@ export function MarketBriefingView({
               ) : null}
             </div>
             {isGuardedSection(section) ? (
-              <p className="mt-2 text-[12px] text-amber-900" data-testid={`${testIdPrefix}-section-guarded`}>
+              <p className="mt-2 text-[11px] text-amber-900" data-testid={`${testIdPrefix}-section-guarded`}>
                 The advice guard replaced part of this section.
               </p>
             ) : null}

@@ -103,11 +103,11 @@ export function UsagePage() {
   const maxPriced = Math.max(...priced.map((row) => row.usd), 0.0001);
 
   return (
-    <main className="px-6 pb-8 pt-6 text-[var(--text)]" data-testid="usage-page">
+    <main className="px-[30px] pb-10 pt-[26px] text-inkbase" data-testid="usage-page">
       <div className="mb-5 flex flex-wrap items-end gap-4">
         <div>
           <div className="kicker">Account</div>
-          <h3 className="stage-title mt-2">Usage</h3>
+          <h3 className="mt-2 text-[25px]">Usage</h3>
           <p className="mt-1 text-[13px] text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">
             This-key wallet and desk spend for the selected range.
           </p>
@@ -137,14 +137,14 @@ export function UsagePage() {
       <div className="grid gap-4 md:grid-cols-2">
         <section className="blueprint p-[18px]">
           <p className="panel-label">This key</p>
-          <p className="mt-2 text-[24px] font-medium tabular-nums" data-testid="usage-this-key">
+          <p className="mt-2 text-[22px] font-heading font-semibold tabular-nums" data-testid="usage-this-key">
             {loading && !ready ? "Loading…" : thisKeyLine(usage)}
           </p>
           <KeyQuotaMeter usage={usage} />
         </section>
         <section className="blueprint p-[18px]">
           <p className="panel-label">This desk</p>
-          <p className="mt-2 text-[24px] font-medium tabular-nums" data-testid="usage-desk-range">
+          <p className="mt-2 text-[22px] font-heading font-semibold tabular-nums" data-testid="usage-desk-range">
             {loading && !ready
               ? "Loading…"
               : `${desk.display} · ${desk.modelCount} model${desk.modelCount === 1 ? "" : "s"}`}

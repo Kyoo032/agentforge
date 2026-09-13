@@ -173,7 +173,7 @@ export function EditTimeline({
               className="relative h-11 border-b border-divider"
               data-testid={`edit-track-${track.id}`}
             >
-              <span className="sticky left-0 z-[1] inline-block w-8 bg-paper px-1 text-[12px] uppercase text-ink/50">
+              <span className="sticky left-0 z-[1] inline-block w-8 bg-paper px-1 text-[10px] uppercase text-ink/50">
                 {track.id}
               </span>
               {(project?.clips ?? [])
@@ -188,7 +188,7 @@ export function EditTimeline({
                   return (
                     <div
                       key={clip.id}
-                      className={`absolute top-1.5 h-8 rounded-sm border text-[12px] ${
+                      className={`absolute top-1.5 h-8 rounded-sm border text-[10px] ${
                         pending ? "edit-placeholder-shimmer border-accent/40" : "border-mist bg-accent/20"
                       } ${selected ? "ring-1 ring-accent" : ""} ${dim ? "opacity-40" : ""}`}
                       style={{

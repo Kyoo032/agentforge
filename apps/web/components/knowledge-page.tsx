@@ -292,11 +292,11 @@ export function KnowledgePage() {
   }
 
   return (
-    <main className="px-6 pb-8 pt-6 text-[var(--text)]" data-testid="knowledge-page">
+    <main className="px-[30px] pb-10 pt-[26px] text-inkbase" data-testid="knowledge-page">
       <div className="mb-5 flex flex-wrap items-end gap-4">
         <div>
           <div className="kicker">{workspaceName} › Knowledge Base</div>
-          <h3 className="stage-title mt-2">Knowledge Base</h3>
+          <h3 className="mt-2 text-[25px]">Knowledge Base</h3>
           <p className="mt-1 text-[13px] text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">
             Soul, memory, and sources for the {workspaceName} desk. Other workspaces keep their own knowledge.
           </p>

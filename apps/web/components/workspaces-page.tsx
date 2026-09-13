@@ -200,8 +200,8 @@ export function WorkspacesPage() {
   }
 
   return (
-    <main className="stage-page text-[var(--text)]">
-      <h1 className="stage-title">Workspaces</h1>
+    <main className="mx-auto max-w-2xl px-6 py-10 text-ink">
+      <h1 className="text-3xl font-semibold text-ink">Workspaces</h1>
       <p className="mt-2 text-ink/60">
         Folders on this machine. Each desk has its own gateway key, Settings, and Knowledge Base — switching does not
         share them. You own all of them here — nothing to join.
@@ -274,7 +274,7 @@ export function WorkspacesPage() {
               required
               data-testid="workspace-name"
             />
-            <button type="submit" className="btn btn-primary btn-pill" data-testid="create-workspace">
+            <button type="submit" className="rounded-md bg-navy px-4 py-2 text-white" data-testid="create-workspace">
               Create
             </button>
             <button
@@ -290,7 +290,7 @@ export function WorkspacesPage() {
       ) : (
         <button
           type="button"
-          className="btn btn-primary btn-pill mt-8"
+          className="mt-8 rounded-full bg-navy px-3 py-1.5 text-sm text-white"
           data-testid="create-new-workspace"
           onClick={openCreate}
         >
@@ -380,7 +380,7 @@ export function WorkspacesPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
-                      className="btn btn-primary btn-pill disabled:opacity-50"
+                      className="rounded-md bg-navy px-4 py-2 text-sm text-white disabled:opacity-50"
                       data-testid="save-workspace-modes"
                       disabled={!dirty || !editName.trim()}
                       onClick={() => void saveDesk(workspace.id, workspace.name, modes)}

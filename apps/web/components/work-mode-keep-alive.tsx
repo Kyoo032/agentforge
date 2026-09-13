@@ -61,18 +61,11 @@ function WorkModePanes() {
           return null;
         }
         const active = pathname === path;
-        const fillPane = path === "/chat" || path === "/edit";
         return (
           <div
             key={path}
             hidden={!active}
-            className={
-              active
-                ? fillPane
-                  ? "absolute inset-0 min-h-0 overflow-hidden"
-                  : "absolute inset-0 min-h-0 overflow-y-auto"
-                : "hidden"
-            }
+            className={active ? "absolute inset-0 min-h-0 overflow-y-auto" : "hidden"}
             aria-hidden={!active}
           >
             <Page />

@@ -114,7 +114,7 @@ export function ArtifactActions({ title, markdown, artifactId, kbType, disabled 
   );
 }
 
-const PRIMARY = "btn btn-secondary disabled:opacity-50";
+const PRIMARY = "rounded-md bg-navy px-4 py-2 text-sm font-medium text-white disabled:opacity-50";
 const SECONDARY = "rounded-md border border-mist px-3 py-2 text-sm font-medium text-ink disabled:opacity-50";
 
 function slug(title: string): string {

@@ -26,8 +26,8 @@ function popoverStyle(anchor: DOMRect | null): CSSProperties {
 function UpdateIcon({ busy }: { busy: boolean }) {
   return (
     <svg
-      width="14"
-      height="14"
+      width="15"
+      height="15"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -103,7 +103,7 @@ export function AppUpdatesButton() {
       <button
         ref={buttonRef}
         type="button"
-        className="btn btn-ghost btn-icon relative h-8 w-8"
+        className="btn btn-secondary btn-icon relative h-[30px] w-[30px]"
         onClick={toggle}
         aria-label={title}
         aria-expanded={open}
@@ -125,7 +125,7 @@ export function AppUpdatesButton() {
         <div
           role="dialog"
           aria-label="Updates"
-          className="elev-md z-30 rounded-[16px] border border-[var(--line)] bg-[var(--surface)] p-3"
+          className="z-30 rounded-md border border-divider bg-app p-3 shadow-lg"
           style={popoverStyle(anchor)}
           data-testid="app-updates-panel"
         >

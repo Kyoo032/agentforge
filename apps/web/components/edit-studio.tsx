@@ -619,7 +619,7 @@ export function EditStudio() {
     <main className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-app text-ink" data-testid="edit-studio">
       {doctor ? <FfmpegSetupNotice doctor={doctor} onDoctor={setDoctor} /> : null}
       <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-divider px-4 py-2">
-        <h1 className="stage-title">{project?.name ?? "Edit"}</h1>
+        <h1 className="font-heading text-lg font-semibold">{project?.name ?? "Edit"}</h1>
         <select
           className="rounded-md border border-mist bg-paper px-2 py-1 text-sm"
           value={tier}
@@ -675,7 +675,7 @@ export function EditStudio() {
       {!project ? (
         <div className="flex min-h-0 flex-1">
           <div className="flex min-h-0 flex-1 flex-col p-6" data-testid="edit-project-list">
-            <h2 className="text-xl">Projects</h2>
+            <h2 className="font-heading text-xl">Projects</h2>
             <div className="mt-4 flex flex-col gap-2">
               <select
                 className="rounded-md border border-mist bg-paper px-3 py-2 text-sm"
@@ -812,7 +812,7 @@ export function EditStudio() {
                 void commitOps([{ type: "trim_clip", payload: { clipId, inFrame, durationFrames } }]);
               }}
             />
-            <p className="px-3 py-1 text-[12px] text-ink/45" data-testid="edit-ops-count">
+            <p className="px-3 py-1 text-[11px] text-ink/45" data-testid="edit-ops-count">
               ops {opsPosted}
             </p>
           </div>

@@ -59,7 +59,7 @@ export type RangeUsage = {
   }>;
 };
 
-export const BAR_COLORS = ["#0f766e", "#5d5d5d", "#9e9e9e", "#292929", "#c5c5c1"];
+export const BAR_COLORS = ["#5980a6", "#2c455d", "#94bce3", "#416180", "#749dc4"];
 
 export function thisKeyLine(usage: { thisKey?: ThisKeyStatus } | null): string {
   const thisKey = usage?.thisKey;
@@ -117,7 +117,7 @@ export function UsagePanel({ usage }: { usage: AccountUsage | null }) {
       </p>
       <KeyQuotaMeter usage={usage} />
       <p className="mt-3">
-        <Link href="/usage" className="text-[14px] text-[var(--accent)] underline underline-offset-2" data-testid="usage-open">
+        <Link href="/usage" className="text-sm text-accent-800 underline underline-offset-2" data-testid="usage-open">
           Open Usage
         </Link>
       </p>

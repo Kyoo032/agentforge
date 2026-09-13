@@ -135,7 +135,7 @@ export function EditTray({
   }
   return (
     <div className="border-t border-divider p-2" data-testid="edit-tray">
-      <p className="text-[12px] uppercase tracking-[.12em] text-ink/50">Unplaced ({items.length})</p>
+      <p className="text-[10px] font-heading uppercase tracking-[.12em] text-ink/50">Unplaced ({items.length})</p>
       <div className="mt-1 flex flex-col gap-1">
         {items.map((item) => (
           <div key={item.id} className="flex items-center justify-between gap-2 text-xs" data-testid="edit-tray-item">

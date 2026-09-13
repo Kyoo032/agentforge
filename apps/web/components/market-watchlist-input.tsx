@@ -114,11 +114,11 @@ export function MarketWatchlistInput({ tickers, onChange, disabled = false, test
         />
       </div>
       {notice ? (
-        <p className="mt-1 text-[12px] text-red-700" role="alert" data-testid={`${testIdPrefix}-ticker-notice`}>
+        <p className="mt-1 text-[11px] text-red-700" role="alert" data-testid={`${testIdPrefix}-ticker-notice`}>
           {notice}
         </p>
       ) : (
-        <p className={`mt-1 text-[12px] ${FAINT}`}>
+        <p className={`mt-1 text-[11px] ${FAINT}`}>
           Type a ticker and press Enter. US stocks as-is (MU, NVDA), Indonesian stocks by code (BBCA), indexes with ^
           (^VIX). {tickers.length}/{WATCHLIST_MAX}.
         </p>

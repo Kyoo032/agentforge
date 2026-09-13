@@ -83,15 +83,15 @@ export function WorkspaceSwitcher({ workspaceName, compact = false }: Props) {
   }
 
   const triggerClass = compact
-    ? "flex justify-center rounded-[8px] px-2 py-1 text-[12px] font-medium text-[var(--text-3)] hover:bg-[var(--accent-soft)]"
-    : "flex w-full items-center gap-1 truncate rounded-[8px] px-0 py-0 text-left text-[12px] text-[var(--text-3)] hover:text-[var(--text)]";
+    ? "flex justify-center rounded-md px-2 py-2 text-xs font-medium text-ink hover:bg-mist"
+    : "flex w-full items-center gap-1 truncate rounded-md px-2.5 py-1.5 text-left text-sm text-ink hover:bg-mist";
 
   const menu =
     open && menuPos
       ? createPortal(
           <div
             ref={menuRef}
-            className="elev-md fixed z-[80] rounded-[8px] border border-[var(--line)] bg-[var(--surface)] p-1"
+            className="fixed z-[80] rounded-md border border-mist bg-paper p-1 shadow-sm"
             role="listbox"
             style={{ top: menuPos.top, left: menuPos.left, width: menuPos.width }}
           >
@@ -101,7 +101,7 @@ export function WorkspaceSwitcher({ workspaceName, compact = false }: Props) {
                 type="button"
                 role="option"
                 aria-selected={workspace.id === currentId}
-                className="block w-full truncate rounded-[8px] px-2 py-1.5 text-left text-[14px] text-[var(--text)] hover:bg-[var(--accent-soft)]"
+                className="block w-full truncate rounded-md px-2 py-1.5 text-left text-sm text-ink hover:bg-mist"
                 onClick={() => void openWorkspace(workspace.id)}
                 data-testid="open-workspace"
               >
@@ -111,7 +111,7 @@ export function WorkspaceSwitcher({ workspaceName, compact = false }: Props) {
             ))}
             <Link
               href="/workspaces"
-              className="mt-1 block rounded-[8px] px-2 py-1.5 text-[14px] text-[var(--accent)] hover:bg-[var(--accent-soft)]"
+              className="mt-1 block rounded-md px-2 py-1.5 text-sm text-navy hover:bg-mist"
               data-testid="workspace-new-link"
               onClick={() => setOpen(false)}
             >

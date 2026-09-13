@@ -49,12 +49,12 @@ export function ChatContextChip({ usedTokens, contextLength, parts }: Props) {
     <div ref={rootRef} className="relative ml-auto flex-none">
       {open ? (
         <div
-          className="elev-md absolute right-0 top-full z-20 mt-2 w-80 max-w-[calc(100vw-14rem)] rounded-[16px] border border-[var(--line)] bg-[var(--surface)] p-4"
+          className="blueprint elev-lg absolute right-0 top-full z-20 mt-2 w-80 max-w-[calc(100vw-14rem)] bg-app p-4"
           data-testid="chat-context-breakdown"
         >
           <div className="mb-3 flex items-baseline gap-2">
             <span className="panel-label">Context window</span>
-            <span className="ml-auto text-[14px] font-medium">
+            <span className="ml-auto font-heading text-[15px] font-semibold">
               {window_ != null ? `${formatContextLength(used)} / ${formatContextLength(window_)}` : `${formatContextLength(used)} used`}
             </span>
           </div>
@@ -63,29 +63,29 @@ export function ChatContextChip({ usedTokens, contextLength, parts }: Props) {
           </div>
           <div className="flex flex-col">
             {rows.map((row) => (
-              <div key={row.label} className="flex items-center gap-2 border-b border-[var(--line)] py-1.5 text-[12px]">
+              <div key={row.label} className="flex items-center gap-2 border-b border-[color-mix(in_srgb,var(--color-text)_8%,transparent)] py-1.5 text-[12.5px]">
                 <span className="h-[9px] w-[9px] flex-none rounded-[2px] bg-accent" aria-hidden="true" />
                 <span>{row.label}</span>
                 {row.detail ? <span className={`ml-auto ${MUTED}`}>{row.detail}</span> : <span className="ml-auto" />}
                 <span className="w-[52px] text-right tabular-nums">{formatContextLength(row.tokens)}</span>
               </div>
             ))}
-            <div className={`flex items-center gap-2 py-1.5 text-[12px] ${MUTED}`}>
+            <div className={`flex items-center gap-2 py-1.5 text-[12.5px] ${MUTED}`}>
               <span className="h-[9px] w-[9px] flex-none rounded-[2px] border border-divider" aria-hidden="true" />
               <span>Free</span>
               <span className="ml-auto w-[52px] text-right tabular-nums">{left != null ? formatContextLength(left) : "—"}</span>
             </div>
           </div>
           {window_ && fraction >= 0.8 ? (
-            <p className="mt-3 text-[12px] text-[var(--accent)]">Approaching the context limit.</p>
+            <p className="mt-3 text-[11px] text-accent-800">Approaching the context limit.</p>
           ) : (
-            <p className={`mt-3 text-[12px] ${MUTED}`}>Estimated at about four characters per token.</p>
+            <p className={`mt-3 text-[11px] ${MUTED}`}>Estimated at about four characters per token.</p>
           )}
         </div>
       ) : null}
       <button
         type="button"
-        className="flex items-center gap-2 whitespace-nowrap rounded-[8px] border border-[var(--line)] bg-[var(--surface)] py-[3px] pl-[5px] pr-[11px] text-[12px] text-[var(--text-3)]"
+        className="flex items-center gap-2 whitespace-nowrap rounded-full border border-divider bg-transparent py-[3px] pl-[5px] pr-[11px] font-body text-inkbase"
         data-testid="chat-context"
         title={title}
         aria-expanded={open}
@@ -104,7 +104,7 @@ export function ChatContextChip({ usedTokens, contextLength, parts }: Props) {
             strokeDasharray={`${(fraction * RING_CIRCUMFERENCE).toFixed(2)} ${RING_CIRCUMFERENCE.toFixed(2)}`}
           />
         </svg>
-        <span className="text-[12px] text-[var(--text-3)]">{ringLabel}</span>
+        <span className="text-[11px] text-[color-mix(in_srgb,var(--color-text)_60%,transparent)]">{ringLabel}</span>
       </button>
     </div>
   );

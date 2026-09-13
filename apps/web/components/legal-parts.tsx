@@ -3,9 +3,16 @@
 import type { ReactNode } from "react";
 import type { Tone } from "@/lib/legal-view";
 
-/** Quiet card wrapper (corner marks retired). */
+/** The four accent corner marks every blueprint panel carries. */
 export function Corners() {
-  return null;
+  return (
+    <>
+      <i className="corner tl" aria-hidden />
+      <i className="corner tr" aria-hidden />
+      <i className="corner bl" aria-hidden />
+      <i className="corner br" aria-hidden />
+    </>
+  );
 }
 
 type PanelProps = { label: string; aside?: ReactNode; children: ReactNode; testId?: string; className?: string };
@@ -16,7 +23,7 @@ export function LegalPanel({ label, aside, children, testId, className = "" }: P
       <Corners />
       <div className="flex items-center gap-2">
         <div className="panel-label">{label}</div>
-        {aside ? <span className="ml-auto text-[12px] text-[var(--text-3)]">{aside}</span> : null}
+        {aside ? <span className="ml-auto text-[11px] text-dim">{aside}</span> : null}
       </div>
       {children}
     </section>
@@ -39,5 +46,5 @@ export function ToneTag({ tone, children, testId }: { tone: Tone; children: Reac
 }
 
 export const TH = "px-2 py-1.5 text-left panel-label whitespace-nowrap";
-export const TD = "px-2 py-2 align-top text-[13px] border-t border-divider";
+export const TD = "px-2 py-2 align-top text-[12.5px] border-t border-divider";
 export const DIM = "text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]";

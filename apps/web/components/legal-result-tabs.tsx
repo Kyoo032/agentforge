@@ -24,7 +24,7 @@ export function LegalRedlinePreview({ findings, action }: { findings: readonly F
                 {finding.quote ? <del className="text-red-700">{finding.quote}</del> : null}{" "}
                 <ins className="text-emerald-800 underline">{finding.proposedText}</ins>
               </p>
-              <p className={`mt-1 text-[12px] ${DIM}`}>
+              <p className={`mt-1 text-[11px] ${DIM}`}>
                 {finding.title}. Basis: {basisLabel(finding.basis) || "—"}.
               </p>
             </li>
@@ -58,7 +58,7 @@ export function LegalAuditTrail({ manifest, runId }: { manifest: LegalManifest; 
         </span>
         <span className="tag tag-neutral">{manifest.findingsCount} findings</span>
         {manifest.playbookId ? <span className="tag tag-neutral">Playbook · {manifest.playbookId}</span> : null}
-        <span className={`text-[12px] ${DIM}`}>{manifest.createdAt}</span>
+        <span className={`text-[11px] ${DIM}`}>{manifest.createdAt}</span>
       </div>
 
       <div className="panel-label mt-4">Documents read</div>
@@ -74,7 +74,7 @@ export function LegalAuditTrail({ manifest, runId }: { manifest: LegalManifest; 
         <tbody>
           {read.map((doc) => (
             <tr key={doc.id}>
-              <td className={`${TD} font-mono text-[12px]`}>{doc.id}</td>
+              <td className={`${TD} font-mono text-[11px]`}>{doc.id}</td>
               <td className={TD}>{doc.name}</td>
               <td className={TD}>{roleLabel(doc.role)}</td>
               <td className={`${TD} ${DIM}`}>{doc.words.toLocaleString()}</td>
@@ -86,10 +86,10 @@ export function LegalAuditTrail({ manifest, runId }: { manifest: LegalManifest; 
       {skipped.length > 0 ? (
         <>
           <div className="panel-label mt-4">Documents skipped</div>
-          <ul className="mt-1 space-y-1 text-[12px]">
+          <ul className="mt-1 space-y-1 text-[12.5px]">
             {skipped.map((doc) => (
               <li key={doc.id}>
-                <span className="font-mono text-[12px]">{doc.id}</span> {doc.name}
+                <span className="font-mono text-[11px]">{doc.id}</span> {doc.name}
                 <span className={` ${DIM}`}> · {doc.skipReason ?? "no readable text"}</span>
               </li>
             ))}
@@ -101,7 +101,7 @@ export function LegalAuditTrail({ manifest, runId }: { manifest: LegalManifest; 
       {manifest.rounds.length === 0 ? (
         <p className={`mt-1 text-sm ${DIM}`}>No verification rounds were recorded.</p>
       ) : (
-        <ul className="mt-1 space-y-1 text-[12px]">
+        <ul className="mt-1 space-y-1 text-[12.5px]">
           {manifest.rounds.map((round) => {
             const failed = round.verify.codeChecks.reduce((sum, check) => sum + check.failed, 0);
             return (

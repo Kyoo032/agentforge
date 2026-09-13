@@ -86,10 +86,10 @@ export function MarketTickerCard({ ticker, testIdPrefix }: Props) {
       data-symbol={ticker.symbol.yahoo}
     >
       <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h4 className="font-mono text-base font-medium text-ink">{ticker.symbol.yahoo}</h4>
+        <h4 className="font-mono text-base font-semibold text-ink">{ticker.symbol.yahoo}</h4>
         {subtitle ? <span className="text-xs text-ink/55">{subtitle}</span> : null}
         {ticker.symbol.input !== ticker.symbol.yahoo ? (
-          <span className="text-[12px] text-ink/45">typed as {ticker.symbol.input}</span>
+          <span className="text-[11px] text-ink/45">typed as {ticker.symbol.input}</span>
         ) : null}
       </header>
       <div className="mt-3 grid gap-4 lg:[grid-template-columns:minmax(0,3fr)_minmax(0,2fr)]">
@@ -106,7 +106,7 @@ export function MarketTickerCard({ ticker, testIdPrefix }: Props) {
                 <tr key={fact.label} className="border-t border-mist first:border-t-0">
                   <th
                     scope="row"
-                    className="py-1 pr-3 text-left text-[12px] font-medium uppercase tracking-wide text-ink/50"
+                    className="py-1 pr-3 text-left text-[11px] font-medium uppercase tracking-wide text-ink/50"
                   >
                     {fact.label}
                   </th>
@@ -129,7 +129,7 @@ export function MarketTickerCard({ ticker, testIdPrefix }: Props) {
         <p className="mt-4 text-xs text-ink/50">No headlines fetched.</p>
       )}
       {hidden > 0 ? (
-        <p className="mt-1 text-[12px] text-amber-900">
+        <p className="mt-1 text-[11px] text-amber-900">
           {hidden} headline{hidden === 1 ? "" : "s"} hidden because the text looked like an instruction, not news.
         </p>
       ) : null}

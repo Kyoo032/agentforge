@@ -96,7 +96,7 @@ export function LegalResultView({ title, party, result, locked, onNextTurn, onNe
       <div className="kicker">Workspace · Legal desk · {title}</div>
       <div className="mb-4 flex flex-wrap items-end gap-4">
         <div className="max-w-3xl">
-          <h3 className="stage-title mt-2" data-testid="legal-result-headline">
+          <h3 className="mt-2 text-[25px]" data-testid="legal-result-headline">
             {resultHeadline(result.findings, result.verify)}
           </h3>
           <p className={`mt-1.5 text-sm ${DIM}`}>
@@ -140,7 +140,7 @@ export function LegalResultView({ title, party, result, locked, onNextTurn, onNe
               data-testid={`legal-tab-${item.id}`}
             >
               {item.label}
-              {count !== null ? <span className="ml-1.5 text-[12px]">{count}</span> : null}
+              {count !== null ? <span className="ml-1.5 text-[11px]">{count}</span> : null}
             </button>
           );
         })}
@@ -201,7 +201,7 @@ export function LegalResultView({ title, party, result, locked, onNextTurn, onNe
             testIdPrefix="legal"
           />
         </div>
-        <p className={`mt-2 text-[12px] ${DIM}`}>
+        <p className={`mt-2 text-[11px] ${DIM}`}>
           Draft work product prepared with automated assistance for review by a qualified lawyer. Files remain in this
           workspace until exported.
         </p>

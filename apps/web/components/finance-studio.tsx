@@ -166,10 +166,11 @@ export function FinanceStudio() {
   }
 
   return (
-    <main className="px-6 pb-8 pt-6 text-[var(--text)]" data-testid="finance-studio">
+    <main className="px-[30px] pb-10 pt-[26px] text-inkbase" data-testid="finance-studio">
+      <div className="kicker">Workspace</div>
       <div className="mb-5 flex flex-wrap items-end gap-4">
         <div>
-          <h3 className="stage-title mt-2">Finance</h3>
+          <h3 className="mt-2 text-[25px]">Finance</h3>
           <p className="mt-1.5 max-w-xl text-sm text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">
             Give {productName} your figures as line items. Margins, growth, runway, breakeven, and NPV are computed in
             code; the model only writes the narrative, and any figure it cannot trace is removed.
@@ -180,7 +181,7 @@ export function FinanceStudio() {
             type="button"
             onClick={() => void onDownload()}
             disabled={locked}
-            className="btn btn-secondary ml-auto"
+            className="btn btn-primary ml-auto"
             data-testid="finance-download"
           >
             {busy === "download" ? "Building…" : "Download DOCX"}
@@ -227,7 +228,7 @@ export function FinanceStudio() {
             >
               {busy === "parse" ? "Reading…" : "Parse into line items"}
             </button>
-            <p className="mt-1 text-[12px] text-[color-mix(in_srgb,var(--color-text)_45%,transparent)]">
+            <p className="mt-1 text-[11px] text-[color-mix(in_srgb,var(--color-text)_45%,transparent)]">
               Nothing is computed until you confirm the rows below.
             </p>
           </div>
@@ -277,7 +278,7 @@ export function FinanceStudio() {
               {FINANCE_PARAM_FIELDS.map((field) => (
                 <label
                   key={field.key}
-                  className="text-[12px] text-[color-mix(in_srgb,var(--color-text)_60%,transparent)]"
+                  className="text-[11px] text-[color-mix(in_srgb,var(--color-text)_60%,transparent)]"
                   title={field.hint}
                 >
                   {field.label}

@@ -195,7 +195,7 @@ export function KnowledgeLoop({ sources, retrievals, graph, verified, onRefresh 
               <span className="flex items-center gap-1.5 truncate" title={row.type}>
                 <span className="truncate">{row.type}</span>
                 {isWorkSourceType(row.type) ? (
-                  <span className="text-[12px] uppercase tracking-wide opacity-60" aria-label="written by the loop">
+                  <span className="text-[10px] uppercase tracking-wide opacity-60" aria-label="written by the loop">
                     auto
                   </span>
                 ) : null}

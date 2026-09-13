@@ -23,7 +23,7 @@ export function JobProgressList({ progress, busy, testId = "job-progress" }: Pro
     <div className="rounded-lg border border-mist bg-mist/30 px-4 py-3 text-sm" data-testid={testId} aria-live="polite">
       {progress.phases.length === 0 ? <p className="text-ink/60">Starting…</p> : null}
       {progress.round ? (
-        <p className="mb-1 text-[12px] font-medium text-[var(--accent)]" data-testid={`${testId}-round`}>
+        <p className="mb-1 text-xs font-medium text-navy" data-testid={`${testId}-round`}>
           Round {progress.round.round} of {progress.round.total} · {progress.round.label}
         </p>
       ) : null}

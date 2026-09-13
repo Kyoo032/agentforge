@@ -8,7 +8,7 @@ import {
   type TickerPacket,
 } from "@/lib/market-client";
 
-const HEAD = "px-2 py-1.5 text-left text-[12px] font-medium uppercase tracking-wide text-ink/50";
+const HEAD = "px-2 py-1.5 text-left text-[11px] font-medium uppercase tracking-wide text-ink/50";
 const CELL = "px-2 py-1.5 text-ink/85";
 const NUM = `${CELL} text-right tabular-nums`;
 

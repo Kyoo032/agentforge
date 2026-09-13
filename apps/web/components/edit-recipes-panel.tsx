@@ -20,7 +20,7 @@ export function EditRecipesPanel({ onRun }: Props) {
               onClick={() => onRun(recipe.id, recipe.name)}
             >
               {recipe.name}
-              <span className="mt-0.5 block text-[12px] text-ink/45">
+              <span className="mt-0.5 block text-[10px] text-ink/45">
                 {recipe.steps.length} step{recipe.steps.length === 1 ? "" : "s"}
               </span>
             </button>

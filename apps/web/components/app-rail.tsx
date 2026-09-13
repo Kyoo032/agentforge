@@ -7,9 +7,9 @@ import { PRODUCT_MODES, firstVisibleHref, productModeMatches, type ProductMode }
 import { AppUpdatesButton } from "@/components/app-updates";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { WorkspaceSwitcher } from "@/components/workspace-switcher";
-import { BrandMark } from "@/components/brand-mark";
 import { getRailCollapsed, setRailCollapsed } from "@/lib/rail-prefs";
 import { useProductBrand } from "@/lib/product-brand";
+import { productMonogram } from "@/components/app-shell";
 
 type Props = {
   workspaceName: string;
@@ -136,17 +136,15 @@ const RAIL_ICON_PATHS: Record<IconName, ReactNode> = {
   ),
 };
 
-export function RailIcon({ name, size = 14 }: { name: IconName; size?: number }) {
+function RailIcon({ name }: { name: IconName }) {
   return (
     <svg
-      width={size}
-      height={size}
+      width="16"
+      height="16"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="round"
-      strokeLinejoin="round"
+      strokeWidth="1.5"
       aria-hidden="true"
     >
       {RAIL_ICON_PATHS[name]}
@@ -172,32 +170,29 @@ function RailItem({
   return (
     <Link
       href={href}
-      className={`flex h-8 items-center gap-2 rounded-[8px] px-2 text-[14px] tracking-[-0.015em] transition-[background-color,color] duration-[180ms] ease-out ${
+      className={`flex items-center gap-2.5 px-2.5 py-[7px] text-[13.5px] ${
         active
-          ? "bg-[var(--accent-soft)] text-[var(--accent)]"
-          : "text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+          ? "bg-[color-mix(in_srgb,var(--color-accent)_16%,transparent)] text-accent"
+          : "text-inkbase hover:bg-[color-mix(in_srgb,var(--color-text)_7%,transparent)]"
       } ${collapsed ? "justify-center" : ""}`}
       aria-current={active ? "page" : undefined}
       aria-label={label}
       title={label}
       data-testid={testId}
     >
-      <span className={active ? "text-[var(--accent)]" : "text-[var(--text-3)]"}>
-        <RailIcon name={icon} />
-      </span>
-      {collapsed ? null : <span className="truncate font-medium">{label}</span>}
+      <RailIcon name={icon} />
+      {collapsed ? null : <span className="truncate">{label}</span>}
     </Link>
   );
 }
 
 function RailGroupLabel({ children, collapsed, first }: { children: ReactNode; collapsed: boolean; first?: boolean }) {
   if (collapsed) {
-    return <div className={`${first ? "mt-1" : "mt-2"} mx-auto h-px w-6 bg-[var(--line)]`} />;
+    return <div className={`${first ? "mt-1" : "mt-2"} mx-auto h-px w-6 bg-divider`} />;
   }
   return (
     <p
-      className={`${first ? "mt-1" : ""} px-2 text-[12px] font-medium uppercase tracking-[0.06em] text-[var(--text-3)]`}
-      style={{ paddingTop: first ? 16 : 16, paddingBottom: 6 }}
+      className={`${first ? "mt-1" : "mt-3"} mb-0.5 px-2.5 text-[10px] font-heading font-semibold uppercase tracking-[.14em] text-[color-mix(in_srgb,var(--color-text)_48%,transparent)]`}
     >
       {children}
     </p>
@@ -227,21 +222,21 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
 
   return (
     <aside
-      className="flex h-full shrink-0 flex-col overflow-hidden border-r border-[var(--line)] bg-[var(--surface)]"
-      style={{ width: collapsed ? 68 : 232 }}
+      className="blueprint flex h-full shrink-0 flex-col overflow-hidden bg-app"
+      style={{ width: collapsed ? 68 : 236 }}
       aria-label="Product modes"
       data-rail={collapsed ? "min" : "full"}
     >
       <div
-        className={`flex h-12 shrink-0 ${
-          collapsed ? "flex-col items-center justify-center gap-1 px-1.5" : "items-center gap-2 px-3"
+        className={`flex shrink-0 border-b border-divider ${
+          collapsed ? "flex-col items-center gap-1 px-1.5 py-3" : "items-start gap-2 px-3 py-3"
         }`}
       >
         {logoSrc ? (
-          <img src={logoSrc} alt="" className="h-7 w-7 shrink-0 object-contain" data-testid="product-logo" />
+          <img src={logoSrc} alt="" className="mt-0.5 h-7 w-7 shrink-0 object-contain" data-testid="product-logo" />
         ) : (
-          <span className="grid h-7 w-7 shrink-0 place-items-center text-[var(--accent)]" data-testid="product-logo">
-            <BrandMark size={20} />
+          <span className="grid h-7 w-7 shrink-0 place-items-center border border-accent font-heading text-sm font-semibold text-accent">
+            {productMonogram(productName)}
           </span>
         )}
         {collapsed ? (
@@ -250,19 +245,19 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
           <div className="min-w-0 flex-1">
             <Link
               href={homeHref}
-              className="block truncate text-[14px] font-medium tracking-[-0.015em] text-[var(--text)]"
+              className="block truncate font-heading text-[15px] font-semibold tracking-tight"
               data-testid="product-brand"
             >
               {productName}
             </Link>
-            <div className="text-[12px] text-[var(--text-3)] [&_button]:py-0 [&_button]:text-[12px] [&_button]:text-[var(--text-3)]">
+            <div className="mt-0.5 -mx-1 text-[11px] text-[color-mix(in_srgb,var(--color-text)_50%,transparent)] [&_button]:py-0.5 [&_button]:text-[11px]">
               <WorkspaceSwitcher workspaceName={workspaceName} />
             </div>
           </div>
         )}
       </div>
 
-      <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-2" aria-label="Modes">
+      <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-2" aria-label="Modes">
         {chatMode ? (
           <>
             <RailGroupLabel collapsed={collapsed} first>
@@ -328,7 +323,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
       </nav>
 
       <div
-        className={`flex shrink-0 items-center border-t border-[var(--line)] p-2 ${collapsed ? "flex-col gap-2" : "justify-between gap-2"}`}
+        className={`flex shrink-0 items-center border-t border-divider p-2.5 ${collapsed ? "flex-col gap-2" : "justify-between gap-2"}`}
         data-testid="rail-footer"
       >
         <ThemeToggle />
@@ -336,19 +331,19 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
           <AppUpdatesButton />
           <button
             type="button"
-            className="btn btn-ghost btn-icon h-8 w-8 shrink-0"
+            className="btn btn-secondary btn-icon h-[30px] w-[30px] shrink-0"
             onClick={toggleCollapsed}
             data-testid={collapsed ? "rail-expand" : "rail-collapse"}
             aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
             title={collapsed ? "Expand navigation" : "Collapse navigation"}
           >
             <svg
-              width="14"
-              height="14"
+              width="15"
+              height="15"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              strokeWidth="1.75"
+              strokeWidth="1.5"
               aria-hidden="true"
             >
               <rect x="3" y="3" width="18" height="18" />
