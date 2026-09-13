@@ -19,6 +19,7 @@ import {
   writeLastChatModel,
   writeThreadChatModel,
 } from "@/lib/chat-model-pref";
+import { BrandMark } from "@/components/brand-mark";
 import { useProductBrand } from "@/lib/product-brand";
 import { isReasoningEffort, type ReasoningEffort } from "@agentforge/core/reasoning-effort";
 
@@ -38,6 +39,43 @@ type Props = {
   agentId?: string;
   initialThreadId?: string;
 };
+
+function EmptyCardIcon({ name }: { name: "documents" | "research" | "finance" }) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {name === "documents" ? (
+        <>
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <path d="M14 2v6h6" />
+          <path d="M16 13H8M16 17H8" />
+        </>
+      ) : null}
+      {name === "research" ? (
+        <>
+          <circle cx="11" cy="11" r="7" />
+          <path d="m21 21-4.3-4.3" />
+        </>
+      ) : null}
+      {name === "finance" ? (
+        <>
+          <path d="m3 17 6-6 4 4 8-8" />
+          <path d="M17 7h4v4" />
+          <path d="M3 21h18" />
+        </>
+      ) : null}
+    </svg>
+  );
+}
 
 export function ChatSession({ agentId, initialThreadId }: Props) {
   const router = useRouter();
@@ -297,21 +335,22 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
   }, [messages]);
 
   return (
-    <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-8" data-testid="chat-home">
-      <div className="flex flex-wrap items-start justify-between gap-4" data-testid="chat-header">
-        <div>
-          <h1 className="text-2xl font-semibold">{isDefaultChat ? "Chat" : agentName}</h1>
-          {!isDefaultChat ? (
-            <p className="mt-1 text-sm text-ink/50">Specialist agent · pick any model for this thread</p>
-          ) : null}
-        </div>
-        <div className="flex min-w-0 flex-wrap items-center justify-end gap-3">
-          <ChatContextChip usedTokens={contextTokens} contextLength={selectedModel?.contextLength} parts={contextParts} />
+    <main className="flex h-full min-h-0 flex-col bg-[var(--bg)]" data-testid="chat-home">
+      <div className="flex h-14 shrink-0 items-center justify-between gap-4 px-6" data-testid="chat-header">
+        <h1 className={`${empty ? "text-sm" : "text-2xl"} font-medium tracking-[var(--track)] text-[var(--text)]`}>
+          {isDefaultChat ? "Chat" : agentName}
+        </h1>
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-3 text-xs">
+          <ChatContextChip
+            usedTokens={contextTokens}
+            contextLength={selectedModel?.contextLength}
+            parts={contextParts}
+          />
           <ChatUsageChip />
           {agentIdReady ? (
             <button
               type="button"
-              className="rounded-md border border-mist px-3 py-2 text-sm"
+              className="wash rounded-lg px-3 py-1.5 text-xs text-[var(--text)] hover:bg-[var(--accent-soft)]"
               data-testid="new-chat"
               onClick={() => {
                 threadIdRef.current = null;
@@ -329,22 +368,50 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
       </div>
 
       {error ? (
-        <p className="mt-6 text-sm text-red-700" data-testid="chat-error" role="alert">
+        <p className="px-6 text-sm text-[var(--danger)]" data-testid="chat-error" role="alert">
           {error}
         </p>
       ) : null}
 
-      <div className={`mt-6 flex-1 space-y-4 ${empty ? "flex flex-col justify-center" : ""}`} data-testid="message-list">
+      <div
+        key={threadId ?? "empty"}
+        className={`stage-fade min-h-0 flex-1 overflow-y-auto px-6 ${empty ? "" : "space-y-4 py-4"}`}
+        data-testid="message-list"
+      >
         {empty && !error ? (
-          <div className="text-center" data-testid="chat-empty">
-            <p className="text-2xl font-semibold">You're in. Ask anything.</p>
-            <p className="mt-2 text-ink/60">
+          <div className="mx-auto w-full max-w-[520px] pt-8 text-center" data-testid="chat-empty">
+            <BrandMark size={28} className="mx-auto text-[var(--accent)]" />
+            <p className="mt-4 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">
+              You&apos;re in. Ask anything.
+            </p>
+            <p className="mt-2 text-sm text-[var(--text-2)]">
               Paste a {gatewayName} gateway key in{" "}
-              <Link href="/settings" className="underline">
+              <Link href="/settings" className="text-[var(--accent)] no-underline hover:underline">
                 Settings
               </Link>{" "}
-              to talk to live models. Ask anything.
+              to talk to live models.
             </p>
+            <div className="mt-6 grid grid-cols-3 gap-3">
+              {(
+                [
+                  { href: "/documents", icon: "documents" as const, title: "Documents", hint: "Memos and reports" },
+                  { href: "/research", icon: "research" as const, title: "Research", hint: "Dossiers from the web" },
+                  { href: "/finance", icon: "finance" as const, title: "Finance", hint: "Models and briefs" },
+                ] as const
+              ).map((card) => (
+                <Link
+                  key={card.href}
+                  href={card.href}
+                  className="wash rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-3 text-left hover:bg-[var(--accent-soft)]"
+                >
+                  <span className="text-[var(--text-3)]">
+                    <EmptyCardIcon name={card.icon} />
+                  </span>
+                  <p className="mt-2 text-sm font-medium tracking-[var(--track)] text-[var(--text)]">{card.title}</p>
+                  <p className="mt-1 text-xs text-[var(--text-3)]">{card.hint}</p>
+                </Link>
+              ))}
+            </div>
           </div>
         ) : null}
         {messages
@@ -354,10 +421,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           ))}
         {running || thinking || tools.length > 0 || streaming ? (
           <div data-testid="assistant-live">
-            <ChatTurn
-              role="assistant"
-              live={{ thinking, tools, streaming, running, thinkingEnabled }}
-            />
+            <ChatTurn role="assistant" live={{ thinking, tools, streaming, running, thinkingEnabled }} />
           </div>
         ) : null}
       </div>
@@ -380,13 +444,8 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
             setTools([]);
             setStreaming("");
             const content =
-              payload.parts && payload.parts.length > 0
-                ? payload.parts
-                : [{ type: "text", text: payload.text }];
-            setMessages((current) => [
-              ...current,
-              { id: `local-${Date.now()}`, role: "user", content },
-            ]);
+              payload.parts && payload.parts.length > 0 ? payload.parts : [{ type: "text", text: payload.text }];
+            setMessages((current) => [...current, { id: `local-${Date.now()}`, role: "user", content }]);
           }}
           onStarted={() => setRunning(true)}
           onDelta={(text) => setStreaming((current) => current + text)}

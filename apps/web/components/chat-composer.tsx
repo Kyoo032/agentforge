@@ -1,13 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { consumeSse } from "@/lib/sse-client";
-import {
-  COMPOSER_FILE_ACCEPT,
-  classifyAttachment,
-  routeDecision,
-  type AttachmentKind,
-} from "@/lib/composer-attach";
+import { COMPOSER_FILE_ACCEPT, classifyAttachment, routeDecision, type AttachmentKind } from "@/lib/composer-attach";
 import { ModelPicker, type ChatModel } from "@/components/model-picker";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { apiFetch } from "@/lib/api-client";
@@ -95,6 +90,17 @@ export function ChatComposer({
 
   const pickerModels = models ?? [];
   const showPicker = typeof onModelChange === "function";
+  const sendEmpty = !text.trim() && files.length === 0;
+  const sendDisabled = busy || enhancing || sendEmpty;
+
+  useEffect(() => {
+    const el = textAreaRef.current;
+    if (!el) {
+      return;
+    }
+    el.style.height = "44px";
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, [text]);
 
   async function readSse(response: Response, onActivity?: () => void) {
     if (!response.body) {
@@ -213,19 +219,78 @@ export function ChatComposer({
       const dog = armStreamWatchdog(model ?? "this model", abort);
       try {
         if (decision.route === "text") {
+          const id = onEnsureThread ? await onEnsureThread() : threadId;
+          if (!id) {
+            throw new Error("Could not start a chat");
+          }
+          onUserSend?.({
+            text: outgoing,
+            parts: outgoing ? [{ type: "text", text: outgoing }] : [],
+          });
+          const response = await apiFetch(`/api/v1/threads/${id}/runs/text`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              content: outgoing,
+              model,
+              thinking: reasoningEffort !== "none",
+              reasoningEffort,
+            }),
+            signal: abort.signal,
+          });
+          if (!response.ok) {
+            const payload = await response.json();
+            const message = payload.error?.message ?? "Run failed";
+            setError(message);
+            onFailed?.(message);
+            await onComplete();
+            return;
+          }
+          setText("");
+          setFiles([]);
+          await readSse(response, () => dog.touch());
+          await onComplete();
+          return;
+        }
+
+        const uploads: { kind: "image" | "video"; url: string }[] = [];
+        for (const held of mediaFiles) {
+          const uploaded = await uploadMedia(held.file);
+          uploads.push({ kind: held.kind as "image" | "video", url: uploaded.url });
+        }
+
+        const caption =
+          composedText || (decision.route === "image" ? "What is in this image?" : "Summarize this video.");
+
+        const parts: unknown[] =
+          decision.route === "image"
+            ? [
+                { type: "text", text: caption },
+                ...uploads.map((item) => ({
+                  type: "image_url",
+                  image_url: { url: item.url, detail: "high" },
+                })),
+              ]
+            : [
+                { type: "text", text: caption },
+                ...uploads.map((item) => ({
+                  type: "video_url",
+                  video_url: { url: item.url },
+                })),
+              ];
+
+        onUserSend?.({ text: caption, parts });
+
         const id = onEnsureThread ? await onEnsureThread() : threadId;
         if (!id) {
           throw new Error("Could not start a chat");
         }
-        onUserSend?.({
-          text: outgoing,
-          parts: outgoing ? [{ type: "text", text: outgoing }] : [],
-        });
-        const response = await apiFetch(`/api/v1/threads/${id}/runs/text`, {
+
+        const response = await apiFetch(`/api/v1/threads/${id}/runs/${decision.route}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            content: outgoing,
+            content: parts,
             model,
             thinking: reasoningEffort !== "none",
             reasoningEffort,
@@ -244,66 +309,6 @@ export function ChatComposer({
         setFiles([]);
         await readSse(response, () => dog.touch());
         await onComplete();
-        return;
-      }
-
-      const uploads: { kind: "image" | "video"; url: string }[] = [];
-      for (const held of mediaFiles) {
-        const uploaded = await uploadMedia(held.file);
-        uploads.push({ kind: held.kind as "image" | "video", url: uploaded.url });
-      }
-
-      const caption =
-        composedText ||
-        (decision.route === "image" ? "What is in this image?" : "Summarize this video.");
-
-      const parts: unknown[] =
-        decision.route === "image"
-          ? [
-              { type: "text", text: caption },
-              ...uploads.map((item) => ({
-                type: "image_url",
-                image_url: { url: item.url, detail: "high" },
-              })),
-            ]
-          : [
-              { type: "text", text: caption },
-              ...uploads.map((item) => ({
-                type: "video_url",
-                video_url: { url: item.url },
-              })),
-            ];
-
-      onUserSend?.({ text: caption, parts });
-
-      const id = onEnsureThread ? await onEnsureThread() : threadId;
-      if (!id) {
-        throw new Error("Could not start a chat");
-      }
-
-      const response = await apiFetch(`/api/v1/threads/${id}/runs/${decision.route}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          content: parts,
-          model,
-          thinking: reasoningEffort !== "none",
-          reasoningEffort,
-        }),
-        signal: abort.signal,
-      });
-      if (!response.ok) {
-        const payload = await response.json();
-        const message = payload.error?.message ?? "Run failed";
-        setError(message);
-        onFailed?.(message);
-        await onComplete();
-        return;
-      }
-      setText("");
-      setFiles([]);
-      await readSse(response, () => dog.touch());
-      await onComplete();
       } finally {
         dog.close();
       }
@@ -319,7 +324,7 @@ export function ChatComposer({
 
   return (
     <form
-      className="blueprint sticky bottom-0 mt-6 bg-app p-4"
+      className="composer-shell mx-auto mb-6 mt-6 w-full max-w-[var(--composer-max)] rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 pb-3 pt-2"
       data-testid="composer"
       onSubmit={(event) => {
         event.preventDefault();
@@ -328,7 +333,8 @@ export function ChatComposer({
     >
       <textarea
         ref={textAreaRef}
-        className="input w-full"
+        className="min-h-11 max-h-40 w-full resize-none border-0 bg-transparent px-1 py-2 text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-3)]"
+        style={{ outline: "none" }}
         placeholder="Message"
         value={text}
         onChange={(event) => {
@@ -355,13 +361,13 @@ export function ChatComposer({
           {files.map((item) => (
             <li
               key={item.id}
-              className="flex items-center gap-2 rounded-md border border-mist px-3 py-1 text-sm text-ink"
+              className="flex items-center gap-2 rounded-lg border border-[var(--line)] px-3 py-1 text-sm text-[var(--text)]"
               data-testid="composer-attachment"
             >
               <span className="max-w-[12rem] truncate">{item.file.name}</span>
               <button
                 type="button"
-                className="text-ink/50 hover:text-ink"
+                className="text-[var(--text-3)] hover:text-[var(--text)]"
                 aria-label={`Remove ${item.file.name}`}
                 onClick={() => removeFile(item.id)}
               >
@@ -372,7 +378,7 @@ export function ChatComposer({
         </ul>
       ) : null}
       {error ? (
-        <p className="mt-2 text-sm text-red-700" data-testid="composer-error" role="alert">
+        <p className="mt-2 text-sm text-[var(--danger)]" data-testid="composer-error" role="alert">
           {error}
         </p>
       ) : null}
@@ -390,9 +396,7 @@ export function ChatComposer({
           <label className="inline-flex items-center" data-testid="thinking-toggle">
             <span className="sr-only">Thinking</span>
             <select
-              className={`rounded-md border bg-transparent px-2 py-1.5 text-[12.5px] text-ink disabled:opacity-45 ${
-                reasoningEffort !== "none" ? "border-accent text-accent" : "border-divider"
-              }`}
+              className="h-8 rounded-lg border border-[var(--line)] bg-transparent px-2 text-xs text-[var(--text-2)] disabled:opacity-45 wash"
               data-testid="reasoning-effort"
               aria-label="Thinking"
               value={reasoningEffort}
@@ -413,7 +417,7 @@ export function ChatComposer({
         ) : null}
         <button
           type="button"
-          className="btn btn-secondary"
+          className="wash inline-flex h-8 items-center rounded-lg border border-[var(--line)] bg-transparent px-3 text-xs text-[var(--text)] hover:bg-[var(--accent-soft)] disabled:opacity-45"
           data-testid="composer-attach"
           onClick={() => fileInputRef.current?.click()}
           disabled={busy}
@@ -430,8 +434,10 @@ export function ChatComposer({
         />
         <button
           type="submit"
-          className="btn btn-primary ml-auto"
-          disabled={busy || enhancing || (!text.trim() && files.length === 0)}
+          className={`wash ml-auto inline-flex h-8 items-center rounded-pill px-4 text-sm ${
+            sendDisabled ? "bg-[var(--line)] text-[var(--text-3)]" : "bg-[var(--accent)] text-white"
+          }`}
+          disabled={sendDisabled}
           data-testid="composer-send"
         >
           {busy ? "Sending…" : "Send"}
