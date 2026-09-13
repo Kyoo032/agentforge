@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { formatUsd } from "@agentforge/core/gateway";
+import { Link } from "@/lib/nav";
 import { apiFetch } from "@/lib/api-client";
 
 type ThisKeyUsage =
@@ -22,13 +23,9 @@ type SettingsUsage = {
   thisKey?: ThisKeyUsage;
 };
 
-const pillClass =
-  "inline-flex h-8 items-center rounded-md border border-mist bg-paper px-2.5 text-xs tabular-nums text-ink/60";
-
 export function ChatUsageChip() {
-  const [label, setLabel] = useState<string | null>("…");
+  const [label, setLabel] = useState("Usage · —");
   const [title, setTitle] = useState<string | undefined>(undefined);
-  const [hidden, setHidden] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,38 +33,35 @@ export function ChatUsageChip() {
       try {
         const res = await apiFetch("/api/v1/settings");
         if (!res.ok) {
-          if (!cancelled) setHidden(true);
           return;
         }
         const payload = (await res.json()) as { usage?: SettingsUsage; error?: { message?: string } };
         if (cancelled) return;
         if (payload.error || !payload.usage?.thisKey) {
-          setHidden(true);
+          setLabel("Usage · —");
           return;
         }
         const thisKey = payload.usage.thisKey;
         if (thisKey.status === "needs_key") {
-          setLabel("No key saved");
+          setLabel("Usage · —");
           setTitle(undefined);
           return;
         }
         if (thisKey.status === "error") {
-          setLabel("Usage unavailable");
+          setLabel("Usage · —");
           setTitle(thisKey.message);
           return;
         }
         if (thisKey.data.unlimited) {
-          setLabel("Unlimited");
+          setLabel("Usage · Unlimited");
           setTitle(undefined);
           return;
         }
-        const used = formatUsd(thisKey.data.usedUsd ?? 0);
-        const left =
-          thisKey.data.remainingUsd == null ? "—" : formatUsd(thisKey.data.remainingUsd);
-        setLabel(`${used} used · ${left} left`);
+        const left = thisKey.data.remainingUsd == null ? "—" : formatUsd(thisKey.data.remainingUsd);
+        setLabel(`Usage · ${left}`);
         setTitle(undefined);
       } catch {
-        if (!cancelled) setHidden(true);
+        if (!cancelled) setLabel("Usage · —");
       }
     })();
     return () => {
@@ -75,13 +69,14 @@ export function ChatUsageChip() {
     };
   }, []);
 
-  if (hidden || label == null) {
-    return null;
-  }
-
   return (
-    <span className={pillClass} data-testid="chat-usage" title={title}>
+    <Link
+      href="/usage"
+      className="text-xs text-[var(--text-3)] hover:text-[var(--text)]"
+      data-testid="chat-usage"
+      title={title}
+    >
       {label}
-    </span>
+    </Link>
   );
 }
