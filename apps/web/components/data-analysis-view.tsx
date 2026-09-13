@@ -40,7 +40,7 @@ function Evidence({ evidence, prefix }: { evidence: NonNullable<DataFinding["evi
 function Finding({ finding, prefix }: { finding: DataFinding; prefix: string }) {
   return (
     <section data-testid={`${prefix}-finding`}>
-      <h3 className="text-lg font-semibold text-navy">{finding.heading}</h3>
+      <h3 className="text-[14px] font-medium text-[var(--text)]">{finding.heading}</h3>
       <FormattedText text={finding.body} className="mt-3 text-sm leading-relaxed text-ink/85" />
       {finding.evidence ? <Evidence evidence={finding.evidence} prefix={prefix} /> : null}
     </section>
@@ -55,7 +55,7 @@ export function DataAnalysisView({ analysis, testIdPrefix = "data" }: Props) {
       data-testid={`${testIdPrefix}-analysis`}
     >
       <p className="text-xs font-medium uppercase tracking-[0.16em] text-ink/45">Data analysis</p>
-      <h2 className="mt-2 text-3xl font-semibold tracking-tight text-ink">{analysis.title}</h2>
+      <h2 className="mt-2 text-3xl font-medium tracking-tight text-ink">{analysis.title}</h2>
       <FormattedText
         text={analysis.summary}
         className="mt-4 text-sm leading-relaxed text-ink/80"

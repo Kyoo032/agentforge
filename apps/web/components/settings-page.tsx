@@ -187,9 +187,9 @@ export function SettingsPage() {
   }
 
   return (
-    <main className="mx-auto max-w-xl px-[30px] py-10 text-inkbase">
+    <main className="stage-page text-[var(--text)]">
       <div className="kicker">Account · {workspaceName}</div>
-      <h1 className="mt-2 font-heading text-[25px] font-semibold">Settings</h1>
+      <h1 className="stage-title mt-2">Settings</h1>
       <p className="mt-2 text-[13px] text-[color-mix(in_srgb,var(--color-text)_52%,transparent)]">
         Gateway key, extras, and defaults for the {workspaceName} desk. Other workspaces keep their own keys and
         setup. Paste your {gatewayName} API key from {gatewayHostLabel(openaiBaseUrl || gatewayBaseUrl)} to use chat
@@ -283,7 +283,7 @@ export function SettingsPage() {
           <div className="flex flex-wrap gap-3">
             <button
               type="submit"
-              className="rounded-md bg-navy px-4 py-2 text-white disabled:opacity-50"
+              className="btn btn-primary btn-pill disabled:opacity-50"
               data-testid="save-settings"
               disabled={busy}
             >

@@ -19,6 +19,8 @@ import {
   writeLastChatModel,
   writeThreadChatModel,
 } from "@/lib/chat-model-pref";
+import { BrandMark } from "@/components/brand-mark";
+import { RailIcon } from "@/components/app-rail";
 import { useProductBrand } from "@/lib/product-brand";
 import { isReasoningEffort, type ReasoningEffort } from "@agentforge/core/reasoning-effort";
 
@@ -297,21 +299,19 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
   }, [messages]);
 
   return (
-    <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-8" data-testid="chat-home">
-      <div className="flex flex-wrap items-start justify-between gap-4" data-testid="chat-header">
-        <div>
-          <h1 className="text-2xl font-semibold">{isDefaultChat ? "Chat" : agentName}</h1>
-          {!isDefaultChat ? (
-            <p className="mt-1 text-sm text-ink/50">Specialist agent · pick any model for this thread</p>
-          ) : null}
-        </div>
+    <main className="flex h-full min-h-0 flex-col bg-[var(--bg)]" data-testid="chat-home">
+      <div
+        className="flex h-14 shrink-0 items-center justify-between gap-4 px-6"
+        data-testid="chat-header"
+      >
+        <h1 className="stage-title">{isDefaultChat ? "Chat" : agentName}</h1>
         <div className="flex min-w-0 flex-wrap items-center justify-end gap-3">
           <ChatContextChip usedTokens={contextTokens} contextLength={selectedModel?.contextLength} parts={contextParts} />
           <ChatUsageChip />
           {agentIdReady ? (
             <button
               type="button"
-              className="rounded-md border border-mist px-3 py-2 text-sm"
+              className="btn btn-ghost px-3 py-1.5 text-[12px]"
               data-testid="new-chat"
               onClick={() => {
                 threadIdRef.current = null;
@@ -329,22 +329,49 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
       </div>
 
       {error ? (
-        <p className="mt-6 text-sm text-red-700" data-testid="chat-error" role="alert">
+        <p className="px-6 text-[14px] text-[var(--danger)]" data-testid="chat-error" role="alert">
           {error}
         </p>
       ) : null}
 
-      <div className={`mt-6 flex-1 space-y-4 ${empty ? "flex flex-col justify-center" : ""}`} data-testid="message-list">
+      <div
+        className={`min-h-0 flex-1 overflow-y-auto px-6 ${empty ? "flex flex-col justify-center" : "space-y-4 py-4"}`}
+        data-testid="message-list"
+      >
         {empty && !error ? (
-          <div className="text-center" data-testid="chat-empty">
-            <p className="text-2xl font-semibold">You're in. Ask anything.</p>
-            <p className="mt-2 text-ink/60">
+          <div className="mx-auto w-full max-w-[520px] text-center" data-testid="chat-empty">
+            <BrandMark size={28} className="mx-auto text-[var(--accent)]" />
+            <p className="mt-4 text-[24px] font-bold tracking-[-0.015em] text-[var(--text)]">
+              You&apos;re in. Ask anything.
+            </p>
+            <p className="mt-2 text-[14px] leading-[1.45] text-[var(--text-2)]">
               Paste a {gatewayName} gateway key in{" "}
-              <Link href="/settings" className="underline">
+              <Link href="/settings" className="text-[var(--accent)] no-underline hover:underline">
                 Settings
               </Link>{" "}
-              to talk to live models. Ask anything.
+              to talk to live models.
             </p>
+            <div className="mt-6 grid grid-cols-3 gap-3">
+              {(
+                [
+                  { href: "/documents", icon: "documents" as const, title: "Documents", hint: "Memos and reports" },
+                  { href: "/research", icon: "research" as const, title: "Research", hint: "Dossiers from the web" },
+                  { href: "/finance", icon: "finance" as const, title: "Finance", hint: "Models and briefs" },
+                ] as const
+              ).map((card) => (
+                <Link
+                  key={card.href}
+                  href={card.href}
+                  className="quiet-card px-3 py-3 text-left transition-colors duration-[120ms] hover:bg-[var(--accent-soft)]"
+                >
+                  <span className="text-[var(--text-3)]">
+                    <RailIcon name={card.icon} size={20} />
+                  </span>
+                  <p className="mt-2 text-[14px] font-medium tracking-[-0.015em] text-[var(--text)]">{card.title}</p>
+                  <p className="mt-1 text-[12px] text-[var(--text-3)]">{card.hint}</p>
+                </Link>
+              ))}
+            </div>
           </div>
         ) : null}
         {messages
@@ -362,6 +389,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
         ) : null}
       </div>
       {agentIdReady ? (
+        <div className="shrink-0 px-6">
         <ChatComposer
           threadId={threadId}
           onEnsureThread={ensureThread}
@@ -460,8 +488,9 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
             }
           }}
         />
+        </div>
       ) : error ? null : (
-        <p className="mt-6 text-sm text-ink/50">Starting chat…</p>
+        <p className="px-6 pb-6 text-[14px] text-[var(--text-3)]">Starting chat…</p>
       )}
     </main>
   );

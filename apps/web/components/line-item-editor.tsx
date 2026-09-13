@@ -22,7 +22,7 @@ export function LineItemEditor({ items, onChange, disabled = false, testId = "fi
       <div className="overflow-x-auto">
         <table className="w-full text-[12px]">
           <thead>
-            <tr className="text-left text-[11px] uppercase tracking-wide text-[color-mix(in_srgb,var(--color-text)_50%,transparent)]">
+            <tr className="text-left text-[12px] uppercase tracking-wide text-[color-mix(in_srgb,var(--color-text)_50%,transparent)]">
               <th className="pr-2 font-medium">Label</th>
               <th className="pr-2 font-medium">Period</th>
               <th className="pr-2 font-medium">Amount</th>

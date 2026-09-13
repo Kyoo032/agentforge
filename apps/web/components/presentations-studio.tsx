@@ -142,10 +142,10 @@ export function PresentationsStudio() {
   }
 
   return (
-    <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-10 text-ink" data-testid="presentations-studio">
+    <main className="stage-page flex min-h-full flex-col text-[var(--text)]" data-testid="presentations-studio">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Presentation</h1>
+          <h1 className="stage-title">Presentation</h1>
           <p className="mt-2 max-w-xl text-sm text-ink/60">
             Describe a topic. {productName} drafts an outline, shows an HTML preview, and downloads a PPTX.
           </p>
@@ -155,7 +155,7 @@ export function PresentationsStudio() {
             type="button"
             onClick={() => void onDownload()}
             disabled={busy !== null}
-            className="rounded-md bg-navy px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            className="btn btn-secondary disabled:opacity-50"
             data-testid="presentations-download"
           >
             {busy === "download" ? "Building…" : "Download PPTX"}
@@ -263,7 +263,7 @@ export function PresentationsStudio() {
           />
           <button
             type="submit"
-            className="shrink-0 rounded-md bg-navy px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            className="btn btn-primary btn-pill disabled:opacity-50"
             disabled={busy !== null || !prompt.trim()}
             data-testid="presentations-generate"
           >

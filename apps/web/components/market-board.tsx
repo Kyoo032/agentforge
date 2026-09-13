@@ -59,11 +59,11 @@ function BoardCard({ ticker, testIdPrefix }: { ticker: TickerPacket; testIdPrefi
     <section className={CARD} data-testid={`${testIdPrefix}-board-card`} data-symbol={ticker.symbol.yahoo}>
       <header className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
-          <h4 className="font-mono text-base font-semibold text-ink">{ticker.symbol.yahoo}</h4>
+          <h4 className="font-mono text-base font-medium text-ink">{ticker.symbol.yahoo}</h4>
           <p className="truncate text-xs text-ink/55">{ticker.symbol.name || ticker.symbol.exchange || " "}</p>
         </div>
         <div className="text-right">
-          <p className="text-xl font-semibold tabular-nums text-ink" data-testid={`${testIdPrefix}-board-price`}>
+          <p className="text-xl font-medium tabular-nums text-ink" data-testid={`${testIdPrefix}-board-price`}>
             {headline.price || "No quote"}
           </p>
           <p className={`text-sm tabular-nums ${changeTone(headline.percent)}`}>
@@ -106,7 +106,7 @@ function LoadingCards({ tickers, testIdPrefix }: { tickers: ReadonlyArray<string
     <div className="grid gap-4 md:grid-cols-2" data-testid={`${testIdPrefix}-board-loading`}>
       {tickers.map((ticker) => (
         <section key={ticker} className={`${CARD} animate-pulse`} aria-busy="true">
-          <h4 className="font-mono text-base font-semibold text-ink">{ticker}</h4>
+          <h4 className="font-mono text-base font-medium text-ink">{ticker}</h4>
           <p className="mt-1 text-xs text-ink/55">Loading quote and chart…</p>
           <div className="mt-3 h-40 rounded-xl bg-mist/40" />
         </section>

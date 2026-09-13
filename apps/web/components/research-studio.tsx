@@ -34,8 +34,8 @@ function needsSettingsHint(message: string): boolean {
 
 function tabClass(active: boolean): string {
   return active
-    ? "rounded-md bg-navy px-3 py-1 text-xs font-medium text-white"
-    : "rounded-md border border-mist px-3 py-1 text-xs font-medium text-ink/70 hover:text-ink";
+    ? "rounded-[8px] bg-[var(--accent-soft)] px-3 py-1 text-[12px] font-medium text-[var(--accent)]"
+    : "rounded-[8px] border border-[var(--line)] px-3 py-1 text-[12px] font-medium text-[var(--text-2)] hover:text-[var(--text)]";
 }
 
 export function ResearchStudio() {
@@ -70,10 +70,10 @@ export function ResearchStudio() {
   const markdown = shown?.kind === "run" ? shown.dossierMarkdown : (shown?.markdown ?? "");
 
   return (
-    <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-10 text-ink" data-testid="research-studio">
+    <main className="stage-page flex min-h-full flex-col text-[var(--text)]" data-testid="research-studio">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Research</h1>
+          <h1 className="stage-title">Research</h1>
           <p className="mt-2 max-w-xl text-sm text-ink/60">
             Ask a question. {productName} plans sub-queries, reads the pages behind the hits, and builds a cited dossier
             you can send to Documents, Presentation, or the Knowledge Base.
@@ -222,7 +222,7 @@ export function ResearchStudio() {
           ) : null}
           <button
             type="submit"
-            className="shrink-0 rounded-md bg-navy px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            className="btn btn-primary btn-pill disabled:opacity-50"
             disabled={job.busy || !prompt.trim()}
             data-testid="research-generate"
           >

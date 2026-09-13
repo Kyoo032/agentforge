@@ -4,6 +4,17 @@ const config: Config = {
   darkMode: "class",
   content: ["./index.html", "./src/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./lib/**/*.{ts,tsx}"],
   theme: {
+    fontSize: {
+      xs: ["12px", { lineHeight: "1.45" }],
+      sm: ["14px", { lineHeight: "1.45", letterSpacing: "-0.015em" }],
+      base: ["14px", { lineHeight: "1.45", letterSpacing: "-0.015em" }],
+      lg: ["14px", { lineHeight: "1.45", letterSpacing: "-0.015em" }],
+      xl: ["14px", { lineHeight: "1.45", letterSpacing: "-0.015em" }],
+      "2xl": ["24px", { lineHeight: "1.25", letterSpacing: "-0.015em" }],
+      "3xl": ["24px", { lineHeight: "1.25", letterSpacing: "-0.015em" }],
+      "4xl": ["24px", { lineHeight: "1.25", letterSpacing: "-0.015em" }],
+      "5xl": ["24px", { lineHeight: "1.25", letterSpacing: "-0.015em" }],
+    },
     extend: {
       colors: {
         ink: "var(--color-ink)",
@@ -27,14 +38,20 @@ const config: Config = {
         divider: "var(--color-divider)",
       },
       fontFamily: {
-        heading: ["var(--font-heading)"],
-        body: ["var(--font-body)"],
+        heading: ["var(--font)"],
+        body: ["var(--font)"],
+        sans: ["var(--font)"],
       },
       borderRadius: {
-        sm: "var(--radius-sm)",
-        md: "var(--radius-md)",
-        lg: "var(--radius-lg)",
-        xl: "var(--radius-xl)",
+        sm: "var(--r-nav)",
+        md: "var(--r-nav)",
+        lg: "var(--r-card)",
+        xl: "var(--r-card)",
+        full: "var(--r-pill)",
+      },
+      transitionDuration: {
+        hover: "120ms",
+        select: "180ms",
       },
     },
   },

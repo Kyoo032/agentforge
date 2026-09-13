@@ -27,8 +27,8 @@ type Props = {
 
 function itemClass(active: boolean) {
   return active
-    ? "block rounded-md bg-navy px-2.5 py-1.5 text-sm text-white"
-    : "block rounded-md px-2.5 py-1.5 text-sm text-ink hover:bg-mist";
+    ? "block h-11 rounded-[8px] bg-[var(--accent-soft)] px-2.5 py-2 text-[14px] tracking-[-0.015em] text-[var(--text)]"
+    : "block h-11 rounded-[8px] px-2.5 py-2 text-[14px] tracking-[-0.015em] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]";
 }
 
 function ChatThreadListInner({ basePath, scope, agentId }: Props) {
@@ -92,26 +92,28 @@ function ChatThreadListInner({ basePath, scope, agentId }: Props) {
 
   return (
     <aside
-      className="flex h-full w-52 shrink-0 flex-col overflow-hidden border-r border-mist bg-paper"
+      className="flex h-full w-[268px] shrink-0 flex-col overflow-hidden border-r border-[var(--line)] bg-[var(--surface)]"
       aria-label="Sessions"
     >
-      <div className="border-b border-mist px-3 py-3">
+      <div className="px-3 py-3">
         <Link
           href={basePath}
-          className="block rounded-md border border-mist px-2.5 py-1.5 text-sm font-medium text-ink hover:bg-mist"
+          className="flex h-8 w-full items-center justify-center rounded-full bg-[var(--accent)] text-[14px] font-medium text-white transition-colors duration-[120ms] hover:bg-[color-mix(in_srgb,var(--accent)_88%,black)]"
           data-testid="new-chat-link"
         >
           + New chat
         </Link>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3" data-testid="thread-list">
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3" data-testid="thread-list">
         {groups.length === 0 ? (
-          <p className="px-1 text-xs text-ink/50">Sessions show up here after you send.</p>
+          <p className="px-1 text-[12px] text-[var(--text-3)]">Sessions show up here after you send.</p>
         ) : (
           groups.map((group) => (
             <div key={group.label} className="mb-3">
-              <p className="px-1 text-[11px] font-medium uppercase tracking-wide text-ink/50">{group.label}</p>
+              <p className="px-1 text-[12px] font-medium uppercase tracking-[0.06em] text-[var(--text-3)]">
+                {group.label}
+              </p>
               <div className="mt-1 space-y-0.5">
                 {group.threads.map((thread) => {
                   const href = `${basePath}?thread=${thread.id}`;
@@ -129,7 +131,7 @@ function ChatThreadListInner({ basePath, scope, agentId }: Props) {
                       </Link>
                       <button
                         type="button"
-                        className={`shrink-0 rounded-md px-1.5 py-1 text-sm text-ink/40 hover:bg-red-50 hover:text-red-700 ${
+                        className={`shrink-0 rounded-[8px] px-1.5 py-1 text-[14px] text-[var(--text-3)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:text-[var(--danger)] ${
                           deleting ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
                         }`}
                         onClick={() => void removeThread(thread)}
@@ -154,7 +156,9 @@ function ChatThreadListInner({ basePath, scope, agentId }: Props) {
 
 export function ChatThreadList(props: Props) {
   return (
-    <Suspense fallback={<aside className="w-52 shrink-0 border-r border-mist bg-paper" aria-hidden />}>
+    <Suspense
+      fallback={<aside className="w-[268px] shrink-0 border-r border-[var(--line)] bg-[var(--surface)]" aria-hidden />}
+    >
       <ChatThreadListInner {...props} />
     </Suspense>
   );

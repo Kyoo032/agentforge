@@ -153,11 +153,10 @@ export function MarketStudio() {
   }
 
   return (
-    <main className="px-[30px] pb-10 pt-[26px] text-inkbase" data-testid="market-studio">
-      <div className="kicker">Workspace</div>
+    <main className="px-6 pb-8 pt-6 text-[var(--text)]" data-testid="market-studio">
       <div className="mb-5 flex flex-wrap items-end gap-4">
         <div>
-          <h3 className="mt-2 text-[25px]">Market Watch</h3>
+          <h3 className="stage-title mt-2">Market Watch</h3>
           <p className={`mt-1.5 max-w-xl text-sm ${MUTED}`}>
             Type the stocks you follow. You get live prices and a chart for each one, and can ask for a written
             briefing. Analysis, not investment advice.
@@ -168,7 +167,7 @@ export function MarketStudio() {
             type="button"
             onClick={() => void onDownload()}
             disabled={locked}
-            className="btn btn-primary ml-auto"
+            className="btn btn-secondary ml-auto"
             data-testid="market-download"
           >
             {busy === "download" ? "Building…" : "Download DOCX"}
@@ -196,7 +195,7 @@ export function MarketStudio() {
           <MarketWatchlistInput tickers={tickers} onChange={changeTickers} disabled={locked} />
           {tickers.length === 0 ? (
             <div className="mt-3" data-testid="market-starters">
-              <p className={`text-[11px] ${FAINT}`}>Or start from a ready-made list:</p>
+              <p className={`text-[12px] ${FAINT}`}>Or start from a ready-made list:</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {MARKET_STARTERS.map((starter) => (
                   <button
@@ -269,7 +268,7 @@ export function MarketStudio() {
                 {showOptions ? "Hide options" : "Options"}
               </button>
             </div>
-            <p className={`text-[11px] ${FAINT}`}>
+            <p className={`text-[12px] ${FAINT}`}>
               {productName} reads prices, charts, ratings, headlines, and market levels on this machine, then writes a
               briefing over them. Any figure it cannot trace back to that data is removed.
             </p>
@@ -290,7 +289,7 @@ export function MarketStudio() {
                     disabled={locked}
                     data-testid="market-position"
                   />
-                  <p className={`mt-1 text-[11px] ${FAINT}`}>
+                  <p className={`mt-1 text-[12px] ${FAINT}`}>
                     What you own and at what price. The briefing may use these numbers; it invents nothing else.
                   </p>
                 </div>

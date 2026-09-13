@@ -68,14 +68,14 @@ export function LegalFileList({ docs, pending, locked, onFiles, onCycleRole, onR
       >
         Drop the matter documents or choose files
         <br />
-        <span className={`text-[11px] ${DIM}`}>
+        <span className={`text-[12px] ${DIM}`}>
           .docx only in this version · {docs.length} {docs.length === 1 ? "file" : "files"}
         </span>
       </button>
       <ul className="mt-2 divide-y divide-divider text-[13px]" data-testid="legal-file-list">
         {docs.map((doc) => (
           <li key={doc.id} className="flex items-center gap-2 py-1.5" data-testid="legal-file-row">
-            <span className="tag tag-neutral font-mono text-[10px]">{doc.id}</span>
+            <span className="tag tag-neutral font-mono text-[12px]">{doc.id}</span>
             <span className="min-w-0 flex-1 truncate" title={doc.name}>
               {doc.name}
             </span>
@@ -91,7 +91,7 @@ export function LegalFileList({ docs, pending, locked, onFiles, onCycleRole, onR
             </button>
             <button
               type="button"
-              className="btn btn-ghost px-1.5 py-0.5 text-[11px]"
+              className="btn btn-ghost px-1.5 py-0.5 text-[12px]"
               onClick={() => onRemove(doc.id)}
               disabled={locked}
               aria-label={`Remove ${doc.name}`}
@@ -109,7 +109,7 @@ export function LegalFileList({ docs, pending, locked, onFiles, onCycleRole, onR
         ))}
       </ul>
       {docs.length > 0 ? (
-        <p className={`mt-1 text-[11px] ${DIM}`}>Roles are confirmed on run · click a tag to change it now</p>
+        <p className={`mt-1 text-[12px] ${DIM}`}>Roles are confirmed on run · click a tag to change it now</p>
       ) : null}
     </div>
   );

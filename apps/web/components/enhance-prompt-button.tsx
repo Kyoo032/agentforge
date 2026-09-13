@@ -98,7 +98,7 @@ export function EnhancePromptButton({
   return (
     <button
       type="button"
-      className="btn btn-secondary btn-icon h-[30px] w-[30px] rounded-full hover:border-accent hover:text-accent"
+      className="btn btn-ghost btn-icon h-8 w-8 rounded-[8px]"
       data-tip={busy ? "Cancel enhance" : enhanced ? "Revert prompt" : "Enhance prompt"}
       aria-label={busy ? "Cancel enhance" : enhanced ? "Revert enhanced prompt" : "Enhance prompt"}
       aria-pressed={enhanced}
@@ -106,7 +106,7 @@ export function EnhancePromptButton({
       disabled={disabled || empty}
       onClick={() => void onClick()}
     >
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
         <path d="M12 3.5 13.7 8l4.5 1.7-4.5 1.7L12 15.9l-1.7-4.5L5.8 9.7 10.3 8 12 3.5Z" />
         <path d="M18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7.7-1.8Z" />
       </svg>

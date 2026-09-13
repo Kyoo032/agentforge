@@ -41,7 +41,7 @@ export function FinanceBriefView({
       data-testid={`${testIdPrefix}-preview`}
     >
       <p className="text-xs font-medium uppercase tracking-[0.16em] text-ink/45">Finance brief</p>
-      <h2 className="mt-2 text-3xl font-semibold tracking-tight text-ink">{brief.title}</h2>
+      <h2 className="mt-2 text-3xl font-medium tracking-tight text-ink">{brief.title}</h2>
       {guard.total > 0 ? (
         <p
           className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900"
@@ -60,7 +60,7 @@ export function FinanceBriefView({
         {brief.sections.map((section, index) => (
           <section key={`${section.heading}-${index}`} data-testid={`${testIdPrefix}-section`}>
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <h3 className="text-lg font-semibold text-navy">{section.heading}</h3>
+              <h3 className="text-[14px] font-medium text-[var(--text)]">{section.heading}</h3>
               {onRegenerate ? (
                 <button
                   type="button"
@@ -75,7 +75,7 @@ export function FinanceBriefView({
             </div>
             <FormattedText text={section.body} className="mt-3 text-sm leading-relaxed text-ink/85" />
             {section.metrics.length > 0 ? (
-              <p className="mt-2 text-[11px] text-ink/45">Uses: {section.metrics.join(", ")}</p>
+              <p className="mt-2 text-[12px] text-ink/45">Uses: {section.metrics.join(", ")}</p>
             ) : null}
             {section.tables.map((table, tableIndex) => (
               <div key={`${index}-${tableIndex}`} className="mt-3">
@@ -100,7 +100,7 @@ export function FinanceBriefView({
       </div>
       {metricRows.length > 0 ? (
         <section className="mt-10" data-testid={`${testIdPrefix}-metrics`}>
-          <h3 className="text-lg font-semibold text-navy">Computed metrics</h3>
+          <h3 className="text-[14px] font-medium text-[var(--text)]">Computed metrics</h3>
           <div className="mt-3">
             <DataGrid columns={["Metric", "Value", "Period", "Formula"]} rows={metricRows} maxRows={100} />
           </div>
@@ -108,14 +108,14 @@ export function FinanceBriefView({
       ) : null}
       {brief.computed.tables.map((table) => (
         <section key={table.name} className="mt-8" data-testid={`${testIdPrefix}-table`}>
-          <h3 className="text-base font-semibold text-navy">{table.name}</h3>
+          <h3 className="text-[14px] font-medium text-[var(--text)]">{table.name}</h3>
           <div className="mt-3">
             <DataGrid columns={table.columns} rows={table.rows} maxRows={100} />
           </div>
         </section>
       ))}
       <section className="mt-10" data-testid={`${testIdPrefix}-assumptions`}>
-        <h3 className="text-lg font-semibold text-navy">Assumptions</h3>
+        <h3 className="text-[14px] font-medium text-[var(--text)]">Assumptions</h3>
         <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-ink/80">
           {(brief.assumptions.length > 0 ? brief.assumptions : ["None stated."]).map((item) => (
             <li key={item}>{item}</li>

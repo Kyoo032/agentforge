@@ -153,8 +153,8 @@ export function VideosStudio() {
   }
 
   return (
-    <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-10 text-ink" data-testid="videos-studio">
-      <h1 className="text-2xl font-semibold tracking-tight">Videos</h1>
+    <main className="stage-page flex min-h-full flex-col text-[var(--text)]" data-testid="videos-studio">
+      <h1 className="stage-title">Videos</h1>
       <p className="mt-2 max-w-xl text-sm text-ink/60">Prompt-to-video studio. Clips show in the gallery below.</p>
 
       {!ready && !loading ? (
@@ -264,7 +264,7 @@ export function VideosStudio() {
           />
           <button
             type="submit"
-            className="shrink-0 rounded-md bg-navy px-4 py-2 text-sm font-medium text-white disabled:bg-navy/40"
+            className="btn btn-primary btn-pill disabled:bg-[var(--line)] disabled:text-[var(--text-3)]"
             disabled={generating || !ready || !prompt.trim()}
             data-testid="videos-studio-submit"
           >

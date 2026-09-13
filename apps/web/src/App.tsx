@@ -91,9 +91,9 @@ export function App() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-app text-inkbase">
         <div className="flex w-[280px] flex-col items-center gap-4">
-          <p className="font-heading text-[17px] font-semibold tracking-[.01em]">Starting {productName}…</p>
-          <div className="h-0.5 w-full overflow-hidden bg-[color-mix(in_srgb,var(--color-text)_12%,transparent)]">
-            <div className="h-full w-1/3 bg-accent" style={{ animation: "af-sweep 1.5s linear infinite" }} />
+          <p className="text-[14px] font-medium tracking-[-0.015em] text-[var(--text)]">Starting {productName}…</p>
+          <div className="h-0.5 w-full overflow-hidden bg-[var(--line)]">
+            <div className="h-full w-1/3 bg-[var(--accent)]" style={{ animation: "af-sweep 1.5s linear infinite" }} />
           </div>
         </div>
       </main>

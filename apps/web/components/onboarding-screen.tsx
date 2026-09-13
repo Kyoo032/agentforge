@@ -45,14 +45,14 @@ export function OnboardingScreen({ onDone, onOffline }: Props) {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-lg flex-col justify-center px-6 py-10 text-ink">
-      <h1 className="text-3xl font-semibold">Welcome to {productName}</h1>
+      <h1 className="stage-title">Welcome to {productName}</h1>
       <p className="mt-2 text-ink/60">
         Paste your {gatewayName} API key. Chat and job modes run on this machine. You can change the endpoint later in
         Settings.
       </p>
       {doctor?.ffmpeg?.found === false ? (
         <section className="mt-6 overflow-hidden rounded-md border border-mist" data-testid="onboarding-setup-check">
-          <h2 className="border-b border-divider px-4 py-2 text-sm font-semibold">Setup check</h2>
+          <h2 className="border-b border-divider px-4 py-2 text-sm font-medium">Setup check</h2>
           <FfmpegSetupNotice doctor={doctor} onDoctor={setDoctor} variant="full" />
           <p className="px-4 py-2 text-xs text-ink/60">
             You can continue now and install ffmpeg later; the Edit studio shows the same guide until it is found.
@@ -81,7 +81,7 @@ export function OnboardingScreen({ onDone, onOffline }: Props) {
         <div className="flex flex-wrap gap-3">
           <button
             type="submit"
-            className="rounded-md bg-navy px-4 py-2 text-white disabled:opacity-50"
+            className="btn btn-primary btn-pill disabled:opacity-50"
             disabled={busy || !openaiApiKey.trim()}
             data-testid="onboarding-continue"
           >

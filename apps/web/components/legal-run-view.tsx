@@ -33,7 +33,7 @@ export function LegalRunView({ draft, playbookTitle, progress, busy, onCancel }:
       <div className="kicker">Workspace · Legal desk · {draft.title || "Untitled matter"}</div>
       <div className="mb-5 flex flex-wrap items-end gap-4">
         <div>
-          <h3 className="mt-2 text-[25px]">
+          <h3 className="stage-title mt-2">
             {WORK_TYPE_PROGRESSIVE[draft.workType]} the draft for {side}
           </h3>
           <p className={`mt-1.5 text-sm ${DIM}`}>
@@ -67,7 +67,7 @@ export function LegalRunView({ draft, playbookTitle, progress, busy, onCancel }:
               <ul className="mt-2 divide-y divide-divider text-[13px]">
                 {progress.sources.map((source) => (
                   <li key={source.id} className="flex items-center gap-2 py-1.5">
-                    <span className="font-mono text-[11px]">{source.id}</span>
+                    <span className="font-mono text-[12px]">{source.id}</span>
                     <span className="min-w-0 flex-1 truncate">{source.title || source.url}</span>
                     <ToneTag tone={SOURCE_TONE[source.status] ?? "neutral"}>
                       {SOURCE_LABEL[source.status] ?? source.status}

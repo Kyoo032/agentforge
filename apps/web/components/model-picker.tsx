@@ -222,10 +222,10 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
         id={optionId}
         role="option"
         aria-selected={isSelected}
-        className={`flex cursor-pointer items-center gap-2 px-3 py-2 text-sm ${
+        className={`flex cursor-pointer items-center gap-2 px-3 py-2 text-[14px] ${
           isActive
-            ? "bg-navy text-white"
-            : "text-ink hover:bg-[color-mix(in_srgb,var(--color-text)_8%,transparent)]"
+            ? "bg-[var(--accent-soft)] text-[var(--accent)]"
+            : "text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
         }`}
         onMouseEnter={() => setHighlight(flatIndex)}
         onMouseDown={(event) => {
@@ -241,7 +241,7 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
           {model.bestFor ? (
             <span
               data-testid="model-best-for"
-              className={`block truncate text-xs ${isActive ? "text-white/80" : "text-ink/50"}`}
+              className={`block truncate text-[12px] ${isActive ? "text-[var(--accent)]" : "text-[var(--text-3)]"}`}
             >
               {model.bestFor}
             </span>
@@ -250,8 +250,8 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
         {isThinkingModel(model.id) ? (
           <span
             data-testid="model-thinking-badge"
-            className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${
-              isActive ? "bg-white/20 text-white" : "border border-divider text-ink/60"
+            className={`shrink-0 rounded-[8px] px-1.5 py-0.5 text-[12px] uppercase tracking-wide ${
+              isActive ? "bg-[var(--accent)]/15 text-[var(--accent)]" : "border border-[var(--line)] text-[var(--text-3)]"
             }`}
           >
             Think
@@ -259,13 +259,13 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
         ) : null}
         {model.contextLength ? (
           <span
-            className={`shrink-0 text-xs tabular-nums ${isActive ? "text-white/80" : "text-ink/50"}`}
+            className={`shrink-0 text-[12px] tabular-nums ${isActive ? "text-[var(--text-2)]" : "text-[var(--text-3)]"}`}
           >
             {formatContextLength(model.contextLength)}
           </span>
         ) : null}
         {tags.length > 0 ? (
-          <span className={`shrink-0 text-xs ${isActive ? "text-white/80" : "text-ink/50"}`}>
+          <span className={`shrink-0 text-[12px] ${isActive ? "text-[var(--text-2)]" : "text-[var(--text-3)]"}`}>
             {tags.join(" · ")}
           </span>
         ) : null}
@@ -278,7 +278,7 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
       <button
         ref={triggerRef}
         type="button"
-        className="btn btn-secondary max-w-[8.75rem] justify-start truncate px-2 py-1.5 text-left text-[12.5px] font-medium"
+        className="btn btn-secondary max-w-[11rem] justify-start truncate px-2 py-1.5 text-left text-[12px] font-medium"
         data-testid="model-picker"
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -292,7 +292,7 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
       {open ? (
         <div
           ref={panelRef}
-          className="elev-lg absolute bottom-full left-0 z-50 mb-2 w-[min(100vw-2rem,22rem)] overflow-hidden rounded-xl border border-divider bg-app"
+          className="elev-md absolute bottom-full left-0 z-50 mb-2 w-[min(100vw-2rem,22rem)] overflow-hidden rounded-[16px] border border-[var(--line)] bg-[var(--surface)]"
           role="presentation"
         >
           <div className="border-b border-divider p-2">

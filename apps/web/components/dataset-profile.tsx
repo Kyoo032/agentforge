@@ -8,7 +8,7 @@ type Props = { profile: TableProfile; testId?: string };
 const TOP_VALUES = 3;
 const EM_DASH = "—";
 const HEADER_CLASS =
-  "border-b border-mist px-3 py-2 text-left text-[11px] font-medium uppercase tracking-[0.08em] text-ink/55";
+  "border-b border-mist px-3 py-2 text-left text-[12px] font-medium uppercase tracking-[0.08em] text-ink/55";
 const CELL_CLASS = "border-b border-mist/70 px-3 py-1.5 align-top text-ink/85";
 
 function statText(value: number | string | undefined): string {
@@ -20,7 +20,7 @@ function statText(value: number | string | undefined): string {
 
 function TypeBadge({ type }: { type: ColumnProfile["type"] }) {
   return (
-    <span className="inline-block rounded-sm border border-mist px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide text-ink/70">
+    <span className="inline-block rounded-sm border border-mist px-1.5 py-0.5 font-mono text-[12px] uppercase tracking-wide text-ink/70">
       {type}
     </span>
   );
@@ -36,7 +36,7 @@ function TopValues({ topK }: { topK: ColumnProfile["topK"] }) {
       {chips.map((entry) => (
         <span
           key={entry.value}
-          className="inline-block max-w-[140px] truncate rounded-sm bg-mist px-1.5 py-0.5 text-[11px] text-ink/80"
+          className="inline-block max-w-[140px] truncate rounded-sm bg-mist px-1.5 py-0.5 text-[12px] text-ink/80"
           title={`${entry.value} (${entry.count})`}
         >
           {entry.value || EM_DASH} <span className="text-ink/45">×{entry.count}</span>
@@ -69,7 +69,7 @@ function ColumnRow({ column }: { column: ColumnProfile }) {
 export function DatasetProfile({ profile, testId }: Props) {
   return (
     <div data-testid={testId}>
-      <p className="text-sm font-semibold text-ink">
+      <p className="text-sm font-medium text-ink">
         {formatTick(profile.rowCount)} rows × {formatTick(profile.columnCount)} columns
       </p>
       <div className="mt-2 overflow-auto rounded-lg border border-mist">

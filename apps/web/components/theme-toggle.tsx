@@ -13,8 +13,8 @@ function ThemeIcon({ theme }: { theme: Theme }) {
   if (theme === "dark") {
     return (
       <svg
-        width="15"
-        height="15"
+        width="14"
+        height="14"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -30,8 +30,8 @@ function ThemeIcon({ theme }: { theme: Theme }) {
   }
   return (
     <svg
-      width="15"
-      height="15"
+        width="14"
+        height="14"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -66,7 +66,7 @@ export function ThemeToggle({ className }: { className?: string }) {
     <button
       type="button"
       onClick={toggle}
-      className={className ?? "btn btn-secondary btn-icon h-[30px] w-[30px] shrink-0"}
+      className={className ?? "btn btn-ghost btn-icon h-8 w-8 shrink-0"}
       aria-label={label}
       title={label}
       data-testid="theme-toggle"

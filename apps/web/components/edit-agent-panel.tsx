@@ -62,13 +62,13 @@ export function EditAgentPanel({
   return (
     <aside className="flex h-full min-h-0 w-[240px] min-w-[200px] max-w-[280px] shrink flex-col overflow-hidden border-l border-divider bg-paper" data-testid="edit-agent-panel">
       <div className="flex items-center justify-between border-b border-divider px-3 py-2">
-        <span className="text-xs font-heading uppercase tracking-[.12em] text-ink/50">Agent</span>
+        <span className="text-xs uppercase tracking-[.12em] text-ink/50">Agent</span>
         <span className="text-xs text-ink/60" data-testid="edit-spend-meter">
           turn {formatUsd(spent)} / {formatUsd(spendCap)}
         </span>
       </div>
       {emitLockActive ? (
-        <p className="border-b border-divider px-3 py-1 text-[11px] text-accent" data-testid="edit-emit-lock">
+        <p className="border-b border-divider px-3 py-1 text-[12px] text-accent" data-testid="edit-emit-lock">
           Agent writing…
         </p>
       ) : null}

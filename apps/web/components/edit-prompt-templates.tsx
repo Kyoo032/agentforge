@@ -15,13 +15,13 @@ type Props = {
   selectedId: string | null;
 };
 
-const CATEGORY_BTN = "btn whitespace-nowrap px-1.5 py-0.5 text-[10px]";
+const CATEGORY_BTN = "btn whitespace-nowrap px-1.5 py-0.5 text-[12px]";
 
 function TemplateSource({ template }: { template: PromptTemplate }) {
   const { source, tips } = template;
   return (
     <div
-      className="rounded-md border border-mist bg-paper px-2 py-1.5 text-[11px] text-ink/70"
+      className="rounded-md border border-mist bg-paper px-2 py-1.5 text-[12px] text-ink/70"
       data-testid="edit-prompt-template-source"
     >
       <p className="text-ink">
@@ -51,7 +51,7 @@ function TemplateSource({ template }: { template: PromptTemplate }) {
 
 function PromptGuide() {
   return (
-    <details className="rounded-md border border-mist px-2 py-1 text-[11px]" data-testid="edit-prompt-guide">
+    <details className="rounded-md border border-mist px-2 py-1 text-[12px]" data-testid="edit-prompt-guide">
       <summary className="cursor-pointer select-none text-ink/70">Prompting rules</summary>
       <ul className="mt-1 list-disc space-y-0.5 pl-4 text-ink/70">
         {PROMPT_GUIDE_RULES.map((rule) => (
@@ -71,7 +71,7 @@ export function EditPromptTemplates({ onPick, selectedId }: Props) {
 
   return (
     <div className="flex min-w-0 flex-col gap-1.5 text-xs" data-testid="edit-prompt-templates">
-      <p className="text-[11px] text-ink/50">Start from a prompt template</p>
+      <p className="text-[12px] text-ink/50">Start from a prompt template</p>
       <div className="flex min-w-0 flex-wrap gap-1" data-testid="edit-prompt-template-categories">
         <button
           type="button"
@@ -96,7 +96,7 @@ export function EditPromptTemplates({ onPick, selectedId }: Props) {
         ))}
       </div>
       {templates.length === 0 ? (
-        <p className="text-[11px] text-ink/50">No templates in this category.</p>
+        <p className="text-[12px] text-ink/50">No templates in this category.</p>
       ) : (
         <ul className="max-h-40 space-y-1 overflow-y-auto" data-testid="edit-prompt-template-list">
           {templates.map((template) => {
@@ -114,7 +114,7 @@ export function EditPromptTemplates({ onPick, selectedId }: Props) {
                   onClick={() => onPick(template)}
                 >
                   <span className="block truncate">{template.title}</span>
-                  <span className="mt-0.5 flex items-center gap-1 text-[10px] text-ink/50">
+                  <span className="mt-0.5 flex items-center gap-1 text-[12px] text-ink/50">
                     <span className="rounded border border-mist px-1 leading-4">{template.aspect}</span>
                     <span>{template.seconds}s</span>
                     <span className="truncate">{template.source.site}</span>

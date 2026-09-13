@@ -85,13 +85,13 @@ export function LegalMatterMap({
         <ol className="mt-2 space-y-1.5 text-sm">
           {steps.map((step, index) => (
             <li key={step} className="flex gap-3">
-              <span className={`w-4 shrink-0 font-heading ${DIM}`}>{index + 1}</span>
+              <span className={`w-4 shrink-0 ${DIM}`}>{index + 1}</span>
               <span>{step}</span>
             </li>
           ))}
         </ol>
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <label className={`flex items-center gap-2 text-[11px] ${DIM}`}>
+          <label className={`flex items-center gap-2 text-[12px] ${DIM}`}>
             Model
             <ModelSelect
               models={models}
@@ -102,7 +102,7 @@ export function LegalMatterMap({
               className="input w-auto px-2 py-1 text-[12px]"
             />
           </label>
-          <label className={`flex items-center gap-2 text-[11px] ${DIM}`}>
+          <label className={`flex items-center gap-2 text-[12px] ${DIM}`}>
             Verifier
             <ModelSelect
               models={models}

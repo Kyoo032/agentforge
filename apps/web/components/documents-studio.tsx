@@ -146,10 +146,10 @@ export function DocumentsStudio() {
   }
 
   return (
-    <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-10 text-ink" data-testid="documents-studio">
+    <main className="stage-page flex min-h-full flex-col text-[var(--text)]" data-testid="documents-studio">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Documents</h1>
+          <h1 className="stage-title">Documents</h1>
           <p className="mt-2 max-w-xl text-sm text-ink/60">
             Describe a memo, brief, or report. {productName} drafts sections, shows a preview, and downloads a DOCX.
           </p>
@@ -159,7 +159,7 @@ export function DocumentsStudio() {
             type="button"
             onClick={() => void onDownload()}
             disabled={busy !== null}
-            className="rounded-md bg-navy px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            className="btn btn-secondary disabled:opacity-50"
             data-testid="documents-download"
           >
             {busy === "download" ? "Building…" : "Download DOCX"}
@@ -267,7 +267,7 @@ export function DocumentsStudio() {
           />
           <button
             type="submit"
-            className="shrink-0 rounded-md bg-navy px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            className="btn btn-primary btn-pill disabled:opacity-50"
             disabled={busy !== null || !prompt.trim()}
             data-testid="documents-generate"
           >

@@ -39,7 +39,7 @@ export function SvgChart({ chart, testId, zeroBaseline = true }: Props) {
   const caption = chart.title || `${chart.type} chart`;
   return (
     <figure className="rounded-xl border border-mist bg-paper p-4 text-ink" data-testid={testId}>
-      <figcaption className="text-sm font-semibold text-ink">
+      <figcaption className="text-sm font-medium text-ink">
         {caption}
         {chart.x.label ? <span className="ml-2 font-normal text-ink/55">by {chart.x.label}</span> : null}
       </figcaption>
