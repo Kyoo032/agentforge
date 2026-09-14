@@ -45,5 +45,15 @@ describe("buildPresentationPptx", () => {
     const bytes = new Uint8Array(buffer);
     expect(bytes[0]).toBe(0x50);
   });
-});
 
+  it("builds a deck with an Indonesian title-slide kicker", async () => {
+    const { buffer } = await buildPresentationPptx(
+      parsePresentationOutlineBody({
+        title: "Pembaruan proyek",
+        slides: [{ heading: "Keputusan", bullets: ["Ya atau tidak"], notes: "Tawarkan Kamis." }],
+      }),
+      { locale: "id" },
+    );
+    expect(buffer.byteLength).toBeGreaterThan(1000);
+  });
+});

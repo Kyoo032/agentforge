@@ -1,0 +1,22 @@
+{
+  "title": "Presentation",
+  "subtitle": "Describe a topic. {product} drafts an outline, shows an HTML preview, and downloads a PPTX.",
+  "download": "Download PPTX",
+  "building": "Building…",
+  "generate": "Generate",
+  "generating": "Generating…",
+  "regenerate": "Regenerate",
+  "regenerating": "Regenerating…",
+  "generateError": "Could not generate the presentation outline",
+  "regenError": "Could not regenerate that slide",
+  "downloadError": "Could not build the PPTX file",
+  "openSettings": "Open Settings",
+  "emptyTitle": "No deck yet",
+  "emptyBody": "Enter a topic below, or load a starter and download a PPTX without a live generate.",
+  "promptPlaceholder": "Describe a presentation…",
+  "promptAria": "Presentation topic",
+  "kicker": "Presentation",
+  "notes": "Notes:",
+  "noBullets": "No bullets on this slide.",
+  "gatewayError": "Presentation generation needs a live gateway. Paste a Toko Token API key in Settings, then try again."
+}

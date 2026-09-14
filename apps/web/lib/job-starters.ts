@@ -93,10 +93,12 @@ export const PRESENTATION_STARTERS: PresentationStarter[] = [
         {
           kind: "section",
           heading: "This week in one line",
-          subhead: "Home is current. The installer is last month’s build. I need a yes or no on rebuilding NSIS this week.",
+          subhead:
+            "Home is current. The installer is last month’s build. I need a yes or no on rebuilding NSIS this week.",
           bullets: [],
           aside: "",
-          notes: "If someone only remembers one sentence, it is the installer gap. Do not bury it under process. Offer a Thursday yes or no, not a backlog item.",
+          notes:
+            "If someone only remembers one sentence, it is the installer gap. Do not bury it under process. Offer a Thursday yes or no, not a backlog item.",
         },
         {
           kind: "bullets",
@@ -173,7 +175,8 @@ export const PRESENTATION_STARTERS: PresentationStarter[] = [
           subhead: "Do we stay on the current gateway through 15 Oct, or lose the uptime language the deal needs?",
           bullets: [],
           aside: "",
-          notes: "One decision. If they start a second, park it. Error budget is 2.1% against a 1.0% target — that number belongs in the next slide, not as a second ask.",
+          notes:
+            "One decision. If they start a second, park it. Error budget is 2.1% against a 1.0% target — that number belongs in the next slide, not as a second ask.",
         },
         {
           kind: "bullets",
@@ -240,10 +243,176 @@ export const PRESENTATION_STARTERS: PresentationStarter[] = [
   },
 ];
 
+export const PRESENTATION_STARTERS_ID: PresentationStarter[] = [
+  {
+    id: "project-update",
+    label: "Pembaruan proyek",
+    description: "Pembaruan operasional 6 slide dengan bukti, satu keterlambatan, dan satu permintaan.",
+    outline: {
+      title: "Northline + Fieldnote — minggu 1 Sep",
+      slides: [
+        {
+          kind: "section",
+          heading: "Minggu ini dalam satu kalimat",
+          subhead:
+            "Home sudah mutakhir. Installer masih build bulan lalu. Saya butuh ya atau tidak untuk membangun ulang NSIS minggu ini.",
+          bullets: [],
+          aside: "",
+          notes:
+            "Jika yang diingat hanya satu kalimat, itu kesenjangan installer. Jangan dikubur di bawah proses. Tawarkan ya atau tidak pada hari Kamis, bukan item backlog.",
+        },
+        {
+          kind: "bullets",
+          heading: "Yang bisa kami tunjukkan di mesin ini",
+          subhead: "Buktinya adalah rel di meja ini, bukan slide peta jalan.",
+          bullets: [
+            "Chat, Documents, Research, Images, Videos, dan Presentation ada di Home.",
+            "Settings hanya tempel kunci, pemakaian, dan privasi — tanpa tab Advanced.",
+            "Meja Legal bisa menyembunyikan Images dan Videos; kami tidak membuatnya di sini.",
+          ],
+          aside: "",
+          notes: "Buka /chat jika mereka ingin bukti. Jangan kirim ke /agents — itu dialihkan.",
+        },
+        {
+          kind: "bullets",
+          heading: "Yang terlambat",
+          subhead: "desktop:dev sudah membungkus UI baru di port 3000.",
+          bullets: [
+            "Electron terpaket terakhir dibangun 31 Agu.",
+            "Siapa pun di .exe tidak akan melihat GTM sampai kami membangun ulang.",
+            "Ini miss pengiriman, bukan miss kode.",
+          ],
+          aside: "",
+          notes: "Tawarkan rebuild sebagai keputusan. Jangan minta maaf karena webdev lebih dulu.",
+        },
+        {
+          kind: "split",
+          heading: "Risiko mutu yang tidak akan saya tutupi",
+          subhead: "Prompt tipis menghasilkan dek tipis.",
+          bullets: [
+            "Kartu contoh lama hanya prompt satu kalimat.",
+            "Buat lalu menghasilkan memo tipis dan dek 3 slide.",
+          ],
+          aside: "Brief baru menyebut audiens, deliverable, dan skenario contoh.",
+          notes: "Tunjukkan satu kartu Documents jika diminta. Memo contoh siap pakai adalah bukti luring.",
+        },
+        {
+          kind: "bullets",
+          heading: "Keputusan di ruangan ini",
+          subhead: "Pemilik panggilan: Anda. Tanggal: Kamis.",
+          bullets: [
+            "Bangun ulang NSIS minggu ini, atau tetap pakai desktop:dev.",
+            "Saya tidak akan menyebut installer Agustus sebagai produk GTM.",
+            "Jika ditunda, kami menulis ditunda di rekap — bukan tersirat.",
+          ],
+          aside: "",
+          notes: "Jika ditunda, tulis ‘ditunda’ di slide pada rekap. Jangan biarkan tersirat.",
+        },
+        {
+          kind: "close",
+          heading: "Tujuh hari ke depan",
+          subhead: "Tiga hasil. Yang keempat menunggu.",
+          bullets: [
+            "Sen–Sel: draf desain dual-run (Sam).",
+            "Rab: nama ekspor yang aman dari tabrakan (Jin).",
+            "Jum: rekap enam baris, dibangun ulang atau tidak.",
+          ],
+          aside: "",
+          notes: "Tiga hasil, bukan backlog. Jika muncul yang keempat, itu menunggu.",
+        },
+      ],
+    },
+  },
+  {
+    id: "decision-brief",
+    label: "Ringkasan keputusan",
+    description: "Opsi, rekomendasi yang disebut namanya, dan kompromi yang kita terima.",
+    outline: {
+      title: "Tetap, dual-run, atau cut over — checkout Northline",
+      slides: [
+        {
+          kind: "section",
+          heading: "Keputusannya",
+          subhead:
+            "Apakah kita tetap di gateway saat ini sampai 15 Okt, atau kehilangan bahasa uptime yang dibutuhkan kesepakatan?",
+          bullets: [],
+          aside: "",
+          notes:
+            "Satu keputusan. Jika mereka mulai yang kedua, parkir. Error budget 2,1% terhadap target 1,0% — angka itu untuk slide berikutnya, bukan permintaan kedua.",
+        },
+        {
+          kind: "bullets",
+          heading: "Biaya menunggu",
+          subhead: "Perpanjangan masih enam minggu lagi.",
+          bullets: [
+            "Error budget 2,1% terhadap target 1,0%.",
+            "Setiap minggu di 2,1% adalah minggu lain kita tidak bisa menandatangani kesepakatan.",
+            "Legal tidak akan meninjau vendor kedua bulan ini.",
+          ],
+          aside: "",
+          notes: "Jika mereka bilang ‘suruh Legal buru-buru,’ ingatkan kami sudah meminta.",
+        },
+        {
+          kind: "split",
+          heading: "Tiga opsi",
+          subhead: "Tetap, dual-run, atau cut over keras.",
+          bullets: [
+            "Tetap: tanpa slot legal, error budget tidak berubah.",
+            "Dual-run 90 hari: satu minggu-insinyur, bisa dibalik.",
+            "Cut over keras dalam 30 hari: butuh slot legal yang tidak kita punya.",
+          ],
+          aside: "Jangan biarkan vendor keempat masuk ruangan. Itu memo baru.",
+          notes: "Jangan biarkan ‘jelajahi vendor keempat’ masuk ruangan. Itu memo baru.",
+        },
+        {
+          kind: "bullets",
+          heading: "Rekomendasi: tetap, tulis dual-run",
+          subhead: "Sebut pilihannya di kalimat pertama.",
+          bullets: [
+            "Pilih tetap sampai perpanjangan.",
+            "Tulis desain dual-run minggu ini agar Oktober menjadi pilihan.",
+            "Jangan mulai cut over keras tanpa tanggal legal.",
+          ],
+          aside: "",
+          notes: "Sebut pilihannya di kalimat pertama. Lalu dua kompromi.",
+        },
+        {
+          kind: "bullets",
+          heading: "Kompromi yang kita terima",
+          subhead: "Yang tidak diketahui tetap tidak diketahui.",
+          bullets: [
+            "Kita akan kehilangan kesepakatan enterprise jika mereka tidak mau menunggu.",
+            "Kita menghabiskan satu minggu-insinyur untuk desain yang mungkin tidak dijalankan.",
+            "Tidak diketahui: apakah gateway akan menerbitkan halaman status yang bisa kita kutip.",
+          ],
+          aside: "",
+          notes: "Yang tidak diketahui tetap tidak diketahui. Jangan mengarang SLA.",
+        },
+        {
+          kind: "close",
+          heading: "Jika Anda setujui hari ini",
+          subhead: "Tutup dengan tindakan pertama, bukan terima kasih.",
+          bullets: [
+            "Sam menulis desain dual-run sebelum Jumat.",
+            "Saya mengirim rekap enam baris dengan pilihan tertulis.",
+            "Kita tinjau lagi saat perpanjangan dengan bukti, bukan perasaan.",
+          ],
+          aside: "",
+          notes: "Tutup dengan tindakan pertama, bukan terima kasih.",
+        },
+      ],
+    },
+  },
+];
+
+export function presentationStarters(locale: "en" | "id" = "en"): PresentationStarter[] {
+  return locale === "id" ? PRESENTATION_STARTERS_ID : PRESENTATION_STARTERS;
+}
+
 export function findDocumentStarter(id: string): DocumentStarter | undefined {
   return DOCUMENT_STARTERS.find((item) => item.id === id);
 }
 
-export function findPresentationStarter(id: string): PresentationStarter | undefined {
-  return PRESENTATION_STARTERS.find((item) => item.id === id);
+export function findPresentationStarter(id: string, locale: "en" | "id" = "en"): PresentationStarter | undefined {
+  return presentationStarters(locale).find((item) => item.id === id);
 }

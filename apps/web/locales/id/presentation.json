@@ -1,0 +1,22 @@
+{
+  "title": "Presentasi",
+  "subtitle": "Uraikan topik. {product} menyusun kerangka, menampilkan pratinjau HTML, dan mengunduh PPTX.",
+  "download": "Unduh PPTX",
+  "building": "Menyusun…",
+  "generate": "Buat",
+  "generating": "Sedang membuat…",
+  "regenerate": "Susun ulang",
+  "regenerating": "Menyusun ulang…",
+  "generateError": "Kerangka presentasi tidak dapat dibuat",
+  "regenError": "Slide itu tidak dapat dibuat ulang",
+  "downloadError": "Berkas PPTX tidak dapat disusun",
+  "openSettings": "Buka Pengaturan",
+  "emptyTitle": "Belum ada dek",
+  "emptyBody": "Masukkan topik di bawah, atau muat contoh siap pakai lalu unduh PPTX tanpa memanggil model.",
+  "promptPlaceholder": "Uraikan presentasi…",
+  "promptAria": "Topik presentasi",
+  "kicker": "Presentasi",
+  "notes": "Catatan:",
+  "noBullets": "Slide ini tidak punya butir.",
+  "gatewayError": "Pembuatan presentasi membutuhkan gateway yang aktif. Tempel kunci API Toko Token di Pengaturan, lalu coba lagi."
+}
