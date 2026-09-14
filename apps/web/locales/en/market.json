@@ -1,0 +1,153 @@
+{
+  "studio": {
+    "kicker": "Workspace",
+    "title": "Market Watch",
+    "subtitle": "Type the stocks you follow. You get live prices and a chart for each one, and can ask for a written briefing. Analysis, not investment advice.",
+    "download": "Download DOCX",
+    "building": "Building…",
+    "writeBriefing": "Write a briefing",
+    "writing": "Writing…",
+    "cancel": "Cancel",
+    "options": "Options",
+    "hideOptions": "Hide options",
+    "machineNote": "{product} reads prices, charts, ratings, headlines, and market levels on this machine, then writes a briefing over them. Any figure it cannot trace back to that data is removed.",
+    "empty": "Add a ticker above to see its price and chart.",
+    "openSettings": "Open Settings",
+    "startersLead": "Or start from a ready-made list:",
+    "positionLabel": "Your positions (optional)",
+    "positionHelp": "What you own and at what price. The briefing may use these numbers; it invents nothing else.",
+    "promptLabel": "What the briefing should cover",
+    "resetPrompt": "Reset to default",
+    "lengthLimit": "Length limit (characters)"
+  },
+  "errors": {
+    "needsKey": "Quotes and charts work without a key. To write the briefing, add your API key in Settings.",
+    "noTicker": "None of those tickers could be found. Check the spelling, for example MU, NVDA, or BBCA.",
+    "offline": "Market data is not reachable right now. Check your internet connection and try again.",
+    "rewrite": "Could not rewrite that section",
+    "docx": "Could not build the DOCX file",
+    "board": "Could not load the watchlist"
+  },
+  "watchlist": {
+    "label": "Which stocks do you follow?",
+    "placeholder": "MU, NVDA, BBCA…",
+    "placeholderAdd": "Add another…",
+    "placeholderFull": "That is the maximum",
+    "help": "Type a ticker or a name. IDX names (BCA, Astra) and the usual US examples (NVIDIA, Micron) fill in. {current}/{max}.",
+    "overflow": "The watchlist holds {max} tickers, so the extra ones were not added.",
+    "notTickerOne": "{shown} is not a ticker symbol. Try MU, NVDA, or BBCA.",
+    "notTickerMany": "{shown} are not a ticker symbol. Try MU, NVDA, or BBCA.",
+    "remove": "Remove {ticker}"
+  },
+  "starters": {
+    "us-premarket": {
+      "label": "US pre-market favorites",
+      "hint": "Memory, semis, cloud, and mega-cap tech before the New York open."
+    },
+    "idx-banks": {
+      "label": "IDX bank check",
+      "hint": "The four large Jakarta banks side by side."
+    },
+    "semis-macro": {
+      "label": "Semis vs macro",
+      "hint": "Semiconductor names against the volatility index."
+    }
+  },
+  "board": {
+    "refresh": "Refresh",
+    "loading": "Loading quote and chart…",
+    "fetching": "Fetching quotes and charts…",
+    "updating": "updating…",
+    "status": "US market {session} · as of {when}",
+    "noQuote": "No quote",
+    "unchanged": "unchanged",
+    "aboveAverage": "Above {days}-day average",
+    "belowAverage": "Below {days}-day average",
+    "tradingView": "TradingView: {rating}"
+  },
+  "session": {
+    "pre": "Pre-market",
+    "regular": "Regular session",
+    "post": "After hours",
+    "closed": "Closed"
+  },
+  "headline": {
+    "preMarket": "Pre-market",
+    "afterHours": "After hours",
+    "previousClose": "Previous close {price} ({change})"
+  },
+  "chart": {
+    "range": "Chart range",
+    "empty": "No price history to chart."
+  },
+  "briefing": {
+    "kicker": "Market Watch briefing",
+    "run": "Run {when}",
+    "usSession": "US {session}",
+    "guardClean": "Every figure in this briefing traces to the fetched packet or your own position notes, and no sentence gives a directive.",
+    "guardDirty": "{figures} replaced with “[unverified figure]”{flagged}. {sentences} removed because {pronoun} read as a directive.",
+    "unverifiedOne": "{count} unverified figure",
+    "unverifiedMany": "{count} unverified figures",
+    "sentenceOne": "{count} sentence",
+    "sentenceMany": "{count} sentences",
+    "pronounOne": "it",
+    "pronounMany": "they",
+    "sources": "Sources",
+    "noSources": "No sources recorded.",
+    "observed": "observed {when}",
+    "watchlist": "Watchlist",
+    "macro": "Macro",
+    "noMacro": "No macro quotes were fetched.",
+    "positionNotes": "Your position notes",
+    "rewrite": "Rewrite",
+    "rewriting": "Rewriting…",
+    "guardedSection": "The advice guard replaced part of this section."
+  },
+  "facts": {
+    "price": "Price",
+    "change": "Change",
+    "prevClose": "Prev close",
+    "preMarket": "Pre-market",
+    "afterHours": "After hours",
+    "volume": "Volume",
+    "marketCap": "Market cap",
+    "state": "State",
+    "tradingView": "TradingView",
+    "tvSummary": "TV summary",
+    "rsi14": "RSI14",
+    "sma50": "SMA50",
+    "sma200": "SMA200",
+    "vsSma200": "vs SMA200",
+    "macd": "MACD",
+    "change5d1m": "5d / 1m",
+    "range52w": "52w range"
+  },
+  "tables": {
+    "ticker": "Ticker",
+    "price": "Price",
+    "chgPct": "Chg%",
+    "preMkt": "Pre-mkt",
+    "prePct": "Pre%",
+    "state": "State",
+    "tvRating": "TV rating",
+    "rsi14": "RSI14",
+    "vsSma200": "vs SMA200",
+    "macro": "Macro",
+    "symbol": "Symbol",
+    "level": "Level"
+  },
+  "ticker": {
+    "typedAs": "typed as {input}",
+    "noData": "No quote or technical data.",
+    "noHeadlines": "No headlines fetched.",
+    "hiddenOne": "{count} headline hidden because the text looked like an instruction, not news.",
+    "hiddenMany": "{count} headlines hidden because the text looked like an instruction, not news."
+  },
+  "rating": {
+    "STRONG_BUY": "Strong buy",
+    "BUY": "Buy",
+    "NEUTRAL": "Neutral",
+    "SELL": "Sell",
+    "STRONG_SELL": "Strong sell"
+  }
+}
