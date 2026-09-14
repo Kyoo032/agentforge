@@ -3,7 +3,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { encryptJson, wrappingKeyFromSecret } from "@agentforge/core";
-import { loadSettings, saveSettings, adoptLegacySettings, dropWorkspaceSettings } from "./settings-store";
+import {
+  loadSettings,
+  saveSettings,
+  adoptLegacySettings,
+  dropWorkspaceSettings,
+  loadOwnerLocale,
+  saveOwnerLocale,
+} from "./settings-store";
 
 const SECRET = "a".repeat(64);
 const PLAIN_KEY = "sk-test-plaintext-should-not-appear";
@@ -96,5 +103,15 @@ describe("settings-store", () => {
     expect(loadSettings("ws-scratch").openaiApiKey).toBe("sk-scratch");
     dropWorkspaceSettings("ws-scratch");
     expect(loadSettings("ws-scratch").openaiApiKey).toBeUndefined();
+  });
+
+  it("persists owner locale outside workspace secrets and does not put it on the key slice", () => {
+    expect(loadOwnerLocale()).toBe("en");
+    expect(saveOwnerLocale("id")).toBe("id");
+    expect(loadOwnerLocale()).toBe("id");
+    saveSettings({ openaiApiKey: "sk-home-desk" }, "ws-home");
+    expect(loadOwnerLocale()).toBe("id");
+    expect(loadSettings("ws-home")).not.toHaveProperty("locale");
+    expect(saveOwnerLocale("en")).toBe("en");
   });
 });

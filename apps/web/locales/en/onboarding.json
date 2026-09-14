@@ -1,0 +1,11 @@
+{
+  "welcome": "Welcome to {productName}",
+  "intro": "Paste your {gatewayName} API key. Chat and job modes run on this machine. You can change the endpoint later in Settings.",
+  "setupCheck": "Setup check",
+  "ffmpegLater": "You can continue now and install ffmpeg later; the Edit studio shows the same guide until it is found.",
+  "endpointLabel": "Endpoint URL",
+  "keyLabel": "API key",
+  "keyPlaceholder": "From your gateway dashboard",
+  "continue": "Continue to Chat",
+  "offline": "Use offline demo"
+}

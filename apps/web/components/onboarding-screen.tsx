@@ -3,13 +3,15 @@ import { apiFetch } from "@/lib/api-client";
 import { FfmpegSetupNotice } from "@/components/ffmpeg-setup-notice";
 import { fetchEditDoctor, type EditDoctor } from "@/lib/edit-client";
 import { gatewayHostLabel, useProductBrand } from "@/lib/product-brand";
+import { t } from "@/lib/i18n";
 
 type Props = {
   onDone: () => void;
   onOffline: () => void;
 };
 
-const fieldClass = "mt-1 w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)]";
+const fieldClass =
+  "mt-1 w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)]";
 
 export function OnboardingScreen({ onDone, onOffline }: Props) {
   const { productName, gatewayName, gatewayBaseUrl } = useProductBrand();
@@ -45,33 +47,35 @@ export function OnboardingScreen({ onDone, onOffline }: Props) {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-lg flex-col justify-center px-6 py-8 text-[var(--text)]">
-      <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">Welcome to {productName}</h1>
-      <p className="mt-2 text-[var(--text-2)]">
-        Paste your {gatewayName} API key. Chat and job modes run on this machine. You can change the endpoint later in
-        Settings.
-      </p>
+      <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">
+        {t("onboarding.welcome", { productName })}
+      </h1>
+      <p className="mt-2 text-[var(--text-2)]">{t("onboarding.intro", { gatewayName })}</p>
       {doctor?.ffmpeg?.found === false ? (
-        <section className="mt-6 overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface)]" data-testid="onboarding-setup-check">
-          <h2 className="border-b border-[var(--line)] px-4 py-2 text-sm font-semibold">Setup check</h2>
+        <section
+          className="mt-6 overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface)]"
+          data-testid="onboarding-setup-check"
+        >
+          <h2 className="border-b border-[var(--line)] px-4 py-2 text-sm font-semibold">
+            {t("onboarding.setupCheck")}
+          </h2>
           <FfmpegSetupNotice doctor={doctor} onDoctor={setDoctor} variant="full" />
-          <p className="px-4 py-2 text-xs text-[var(--text-2)]">
-            You can continue now and install ffmpeg later; the Edit studio shows the same guide until it is found.
-          </p>
+          <p className="px-4 py-2 text-xs text-[var(--text-2)]">{t("onboarding.ffmpegLater")}</p>
         </section>
       ) : null}
       <form onSubmit={(event) => void onSubmit(event)} className="mt-8 space-y-4" data-testid="onboarding-form">
         <label className="block text-sm">
-          Endpoint URL
+          {t("onboarding.endpointLabel")}
           <input className={fieldClass} value={gatewayBaseUrl} readOnly data-testid="onboarding-endpoint" />
         </label>
         <p className="text-xs text-[var(--text-3)]">{gatewayHostLabel(gatewayBaseUrl)}</p>
         <label className="block text-sm">
-          API key
+          {t("onboarding.keyLabel")}
           <input
             className={fieldClass}
             type="password"
             autoComplete="off"
-            placeholder="From your gateway dashboard"
+            placeholder={t("onboarding.keyPlaceholder")}
             value={openaiApiKey}
             onChange={(event) => setOpenaiApiKey(event.target.value)}
             data-testid="onboarding-key"
@@ -85,7 +89,7 @@ export function OnboardingScreen({ onDone, onOffline }: Props) {
             disabled={busy || !openaiApiKey.trim()}
             data-testid="onboarding-continue"
           >
-            Continue to Chat
+            {t("onboarding.continue")}
           </button>
           <button
             type="button"
@@ -93,7 +97,7 @@ export function OnboardingScreen({ onDone, onOffline }: Props) {
             onClick={onOffline}
             data-testid="onboarding-offline"
           >
-            Use offline demo
+            {t("onboarding.offline")}
           </button>
         </div>
       </form>

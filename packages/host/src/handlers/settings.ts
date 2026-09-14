@@ -1,6 +1,8 @@
 import {
+  ApiError,
   hasLiveProvider,
   HOME_WORKSPACE_NAME,
+  isAppLocale,
   listToolCapabilities,
   listToolRoutes,
   maskSecrets,
@@ -12,7 +14,8 @@ import {
 import type { HostRequest, HostResult } from "../types";
 import { jsonError, jsonOk } from "../errors";
 import { getTenant } from "../tenant";
-import { loadSettings, saveSettings } from "../settings-store";
+import { loadSettings, saveOwnerLocale, saveSettings } from "../settings-store";
+import { localePayload } from "../locale-boot";
 import { refreshModelCache, modeCatalogPayload } from "../selectable-models";
 import { clearThisKeyCache, loadAccountUsage } from "../account-usage";
 import { probeSummary } from "../model-cache";
@@ -67,6 +70,7 @@ async function settingsPayload(
   const current = rows.find((row) => row.id === tenant.workspaceId);
   return {
     ...maskSecrets(settings),
+    ...localePayload(),
     workspaceId: tenant.workspaceId,
     workspaceName: current?.name ?? HOME_WORKSPACE_NAME,
     productName: resolvedProductName(),
@@ -106,6 +110,12 @@ export async function handlePostSettings(request: HostRequest): Promise<HostResu
   try {
     const tenant = await getTenant(request.workspaceId);
     const body = (request.body ?? {}) as Record<string, unknown>;
+    if (body.locale !== undefined) {
+      if (!isAppLocale(body.locale)) {
+        throw new ApiError("invalid_request", "locale must be en or id", 400);
+      }
+      saveOwnerLocale(body.locale);
+    }
     const patch: SecretPatch = {
       openaiApiKey: typeof body.openaiApiKey === "string" ? body.openaiApiKey : undefined,
       googleApiKey: typeof body.googleApiKey === "string" ? body.googleApiKey : undefined,

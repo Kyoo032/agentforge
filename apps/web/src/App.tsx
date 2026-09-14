@@ -17,6 +17,7 @@ import { KnowledgePage } from "@/components/knowledge-page";
 import { WorkModeKeepAlive } from "@/components/work-mode-keep-alive";
 import { OnboardingScreen } from "@/components/onboarding-screen";
 import { isElectron } from "@/lib/api-client";
+import { freezeLocale, t } from "@/lib/i18n";
 import { useProductBrand } from "@/lib/product-brand";
 import { WorkspaceScope } from "@/lib/workspace-scope";
 
@@ -67,31 +68,37 @@ export function App() {
   const { productName } = useProductBrand();
 
   useEffect(() => {
-    if (!isElectron()) {
-      setGate("app");
-      return;
-    }
-    try {
-      if (window.localStorage.getItem("agentforge-offline-demo") === "1") {
-        setGate("app");
-        return;
-      }
-    } catch {
-      // private mode
-    }
     void apiFetch("/api/v1/settings")
       .then((res) => res.json())
       .then((payload) => {
+        freezeLocale(payload.locale);
+        if (!isElectron()) {
+          setGate("app");
+          return;
+        }
+        try {
+          if (window.localStorage.getItem("agentforge-offline-demo") === "1") {
+            setGate("app");
+            return;
+          }
+        } catch {
+          // private mode
+        }
         setGate(payload.hasOpenai ? "app" : "onboarding");
       })
-      .catch(() => setGate("onboarding"));
+      .catch(() => {
+        freezeLocale("en");
+        setGate(isElectron() ? "onboarding" : "app");
+      });
   }, []);
 
   if (gate === "loading") {
     return (
       <main className="flex min-h-screen items-center justify-center bg-app text-inkbase">
         <div className="flex w-[280px] flex-col items-center gap-4">
-          <p className="text-sm font-medium tracking-[var(--track)] text-[var(--text)]">Starting {productName}…</p>
+          <p className="text-sm font-medium tracking-[var(--track)] text-[var(--text)]">
+            {t("common.starting", { productName })}
+          </p>
           <div className="h-0.5 w-full overflow-hidden bg-[var(--line)]">
             <div className="h-full w-1/3 bg-[var(--accent)]" />
           </div>

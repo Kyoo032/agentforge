@@ -9,6 +9,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { WorkspaceSwitcher } from "@/components/workspace-switcher";
 import { getRailCollapsed, setRailCollapsed } from "@/lib/rail-prefs";
 import { useProductBrand } from "@/lib/product-brand";
+import { t } from "@/lib/i18n";
 import { productMonogram } from "@/components/app-shell";
 
 type Props = {
@@ -224,13 +225,11 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
     <aside
       className="flex h-full shrink-0 flex-col overflow-hidden border-r border-[var(--line)] bg-[var(--surface)]"
       style={{ width: collapsed ? 68 : "var(--sidebar)" }}
-      aria-label="Product modes"
+      aria-label={t("rail.aria")}
       data-rail={collapsed ? "min" : "full"}
     >
       <div
-        className={`flex h-12 shrink-0 ${
-          collapsed ? "items-center justify-center px-1.5" : "items-center gap-2 px-3"
-        }`}
+        className={`flex h-12 shrink-0 ${collapsed ? "items-center justify-center px-1.5" : "items-center gap-2 px-3"}`}
       >
         {collapsed ? (
           <WorkspaceSwitcher workspaceName={workspaceName} compact logoSrc={logoSrc} />
@@ -260,15 +259,15 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
         )}
       </div>
 
-      <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-2" aria-label="Modes">
+      <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-2" aria-label={t("rail.modesAria")}>
         {chatMode ? (
           <>
             <RailGroupLabel collapsed={collapsed} first>
-              Converse
+              {t("rail.groupConverse")}
             </RailGroupLabel>
             <RailItem
               href={chatMode.href}
-              label={chatMode.label}
+              label={t("rail.chat")}
               icon="chat"
               active={productModeMatches(chatMode.id, pathname)}
               collapsed={collapsed}
@@ -277,12 +276,12 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
           </>
         ) : null}
 
-        {jobModes.length > 0 ? <RailGroupLabel collapsed={collapsed}>Job modes</RailGroupLabel> : null}
+        {jobModes.length > 0 ? <RailGroupLabel collapsed={collapsed}>{t("rail.groupJobs")}</RailGroupLabel> : null}
         {jobModes.map((mode) => (
           <RailItem
             key={mode.href}
             href={mode.href}
-            label={mode.label}
+            label={t(`rail.${mode.id}`)}
             icon={(mode.id in RAIL_ICON_PATHS ? mode.id : "documents") as IconName}
             active={productModeMatches(mode.id, pathname)}
             collapsed={collapsed}
@@ -290,10 +289,10 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
           />
         ))}
 
-        <RailGroupLabel collapsed={collapsed}>Account</RailGroupLabel>
+        <RailGroupLabel collapsed={collapsed}>{t("rail.groupAccount")}</RailGroupLabel>
         <RailItem
           href="/knowledge"
-          label="Knowledge Base"
+          label={t("rail.knowledge")}
           icon="knowledge"
           active={pathname.startsWith("/knowledge")}
           collapsed={collapsed}
@@ -301,7 +300,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
         />
         <RailItem
           href="/workspaces"
-          label="Workspaces"
+          label={t("rail.workspaces")}
           icon="workspaces"
           active={pathname.startsWith("/workspaces")}
           collapsed={collapsed}
@@ -309,7 +308,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
         />
         <RailItem
           href="/usage"
-          label="Usage"
+          label={t("rail.usage")}
           icon="usage"
           active={pathname.startsWith("/usage")}
           collapsed={collapsed}
@@ -317,7 +316,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
         />
         <RailItem
           href="/settings"
-          label="Settings"
+          label={t("rail.settings")}
           icon="settings"
           active={pathname.startsWith("/settings")}
           collapsed={collapsed}
@@ -337,8 +336,8 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
             className="btn btn-ghost btn-icon h-8 w-8 shrink-0 wash"
             onClick={toggleCollapsed}
             data-testid={collapsed ? "rail-expand" : "rail-collapse"}
-            aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
-            title={collapsed ? "Expand navigation" : "Collapse navigation"}
+            aria-label={collapsed ? t("rail.expand") : t("rail.collapse")}
+            title={collapsed ? t("rail.expand") : t("rail.collapse")}
           >
             <svg
               width="14"

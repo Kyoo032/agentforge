@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { DEFAULT_GATEWAY_IMAGE_MODEL, DEFAULT_GATEWAY_VIDEO_MODEL } from "@agentforge/core/media-kind";
 import { UsagePanel, type AccountUsage } from "./usage-panel";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, relaunchDesktopApp } from "@/lib/api-client";
+import { t } from "@/lib/i18n";
+import { isAppLocale, parseAppLocale, type AppLocale } from "@agentforge/core";
 import { gatewayHostLabel, useProductBrand } from "@/lib/product-brand";
 import { useWorkspaceScope } from "@/lib/workspace-scope";
 
@@ -19,7 +21,8 @@ type Probe = {
   detectedDialect?: string;
 };
 
-const fieldClass = "mt-1 w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)]";
+const fieldClass =
+  "mt-1 w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)]";
 
 function isCustomEndpoint(value: string, gatewayBaseUrl: string): boolean {
   const trimmed = value.trim().replace(/\/+$/, "").toLowerCase();
@@ -64,6 +67,8 @@ export function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [usage, setUsage] = useState<AccountUsage | null>(null);
+  const [locale, setLocale] = useState<AppLocale>("en");
+  const [savedLocale, setSavedLocale] = useState<AppLocale>("en");
 
   function applyPayload(payload: {
     hasOpenai?: boolean;
@@ -94,6 +99,8 @@ export function SettingsPage() {
       presentations?: string;
     };
     usage?: AccountUsage;
+    locale?: string;
+    savedLocale?: string;
   }) {
     setHasOpenai(Boolean(payload.hasOpenai));
     setHasGoogle(Boolean(payload.hasGoogle));
@@ -148,6 +155,8 @@ export function SettingsPage() {
     if (payload.usage) {
       setUsage(payload.usage);
     }
+    setLocale(parseAppLocale(payload.locale));
+    setSavedLocale(parseAppLocale(payload.savedLocale ?? payload.locale));
   }
 
   useEffect(() => {
@@ -183,17 +192,44 @@ export function SettingsPage() {
     setBraveKey("");
     setFalKey("");
     applyPayload(saved);
-    setMessage("Saved. Keys stay on this desk.");
+    setMessage(t("settings.saved"));
+  }
+
+  async function onLocaleChange(next: string) {
+    if (!isAppLocale(next)) {
+      return;
+    }
+    setSavedLocale(next);
+    setError(null);
+    const saved = await apiFetch("/api/v1/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ locale: next }),
+    }).then((res) => res.json());
+    if (saved.error) {
+      setError(saved.error.message);
+      return;
+    }
+    applyPayload(saved);
+  }
+
+  function onRestart() {
+    if (relaunchDesktopApp()) {
+      return;
+    }
+    window.location.reload();
   }
 
   return (
     <main className="mx-auto max-w-xl px-6 py-8 text-[var(--text)]">
-      <div className="kicker">Account · {workspaceName}</div>
-      <h1 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">Settings</h1>
+      <div className="kicker">{t("settings.kicker", { workspaceName })}</div>
+      <h1 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("settings.title")}</h1>
       <p className="mt-2 text-[13px] text-[var(--text-2)]">
-        Gateway key, extras, and defaults for the {workspaceName} desk. Other workspaces keep their own keys and
-        setup. Paste your {gatewayName} API key from {gatewayHostLabel(openaiBaseUrl || gatewayBaseUrl)} to use chat
-        and job modes on this desk.
+        {t("settings.intro", {
+          workspaceName,
+          gatewayName,
+          gatewayHost: gatewayHostLabel(openaiBaseUrl || gatewayBaseUrl),
+        })}
       </p>
 
       <p className="mt-3 text-sm text-[var(--text-3)]" data-testid="runtime-status">
@@ -205,6 +241,35 @@ export function SettingsPage() {
         {probe?.detectedDialect ? ` · detected ${probe.detectedDialect}` : ""}
         {!hasOpenai && !hasGoogle && !hasAnthropic && !hasVolcengine ? " · no keys yet" : ""}
       </p>
+
+      <section className="mt-6 space-y-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
+        <label className="block text-sm text-[var(--text)]">
+          {t("settings.languageLabel")}
+          <select
+            className={fieldClass}
+            value={savedLocale}
+            onChange={(event) => void onLocaleChange(event.target.value)}
+            data-testid="settings-locale"
+          >
+            <option value="en">{t("common.english")}</option>
+            <option value="id">{t("common.bahasa")}</option>
+          </select>
+        </label>
+        <p className="text-xs text-[var(--text-3)]">{t("settings.languageHelp")}</p>
+        {savedLocale !== locale ? (
+          <div className="space-y-2" data-testid="settings-locale-restart">
+            <p className="text-sm text-[var(--text-2)]">{t("common.restartHint")}</p>
+            <button
+              type="button"
+              className="btn btn-primary"
+              data-testid="settings-locale-restart-button"
+              onClick={onRestart}
+            >
+              {t("common.restartApp")}
+            </button>
+          </div>
+        ) : null}
+      </section>
 
       <form onSubmit={(event) => void onSubmit(event)} className="mt-6 space-y-6" data-testid="settings-form">
         <section className="space-y-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">

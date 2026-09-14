@@ -16,6 +16,7 @@ export {
   getDesktopBrandLogo,
   getDesktopUpdates,
   isElectron,
+  relaunchDesktopApp,
 } from "./desktop-bridge";
 
 function parsePath(input: string): { path: string; query: Record<string, string> } {

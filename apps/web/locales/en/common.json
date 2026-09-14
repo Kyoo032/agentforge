@@ -1,0 +1,8 @@
+{
+  "starting": "Starting {productName}…",
+  "language": "Language",
+  "english": "English",
+  "bahasa": "Bahasa Indonesia",
+  "restartApp": "Restart DPSBuddy",
+  "restartHint": "Restart DPSBuddy to apply this language."
+}
