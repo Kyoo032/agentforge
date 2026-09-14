@@ -16,6 +16,7 @@ import { jsonError, jsonOk } from "../errors";
 import { getTenant } from "../tenant";
 import { ensureToolsRegistered } from "../register-tools";
 import { loadSettings } from "../settings-store";
+import { localePayload } from "../locale-boot";
 
 export async function handleGetTools(request: HostRequest): Promise<HostResult> {
   try {
@@ -45,11 +46,7 @@ export async function handleGetContext(request: HostRequest): Promise<HostResult
       .from(organizations)
       .where(eq(organizations.id, tenant.organizationId))
       .limit(1);
-    const [workspace] = await db
-      .select()
-      .from(workspaces)
-      .where(eq(workspaces.id, tenant.workspaceId))
-      .limit(1);
+    const [workspace] = await db.select().from(workspaces).where(eq(workspaces.id, tenant.workspaceId)).limit(1);
     return jsonOk({ tenant, organization, workspace });
   } catch (error) {
     return jsonError(error);
@@ -92,5 +89,6 @@ export async function handlePing(): Promise<HostResult> {
     productName: resolvedProductName(),
     gatewayName: resolvedGatewayName(),
     gatewayBaseUrl: resolvedGatewayBaseUrl(),
+    ...localePayload(),
   });
 }

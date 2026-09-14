@@ -1,7 +1,10 @@
 export { dispatch } from "./router";
 export type { HostRequest, HostResult, HostFile, HostCookie, HostHandler } from "./types";
 export { getTenant, agentService } from "./tenant";
-export { loadSettings, saveSettings, adoptLegacySettings } from "./settings-store";
+export { loadSettings, saveSettings, adoptLegacySettings, loadOwnerLocale, saveOwnerLocale } from "./settings-store";
+export { getBootLocale, getSavedLocale, resetBootLocaleForTests } from "./locale-boot";
+export { getRunContext, withRunContext, localeForRun } from "./run-context";
+export type { RunContext } from "./run-context";
 export { readSelectedWorkspaceId, writeSelectedWorkspaceId, WORKSPACE_COOKIE } from "./workspace";
 export { jsonError, jsonOk } from "./errors";
 export { mediaRoot } from "./media-root";

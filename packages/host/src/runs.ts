@@ -50,6 +50,7 @@ import { collectToolMediaParts } from "./tool-media";
 import { inlineLocalMediaParts, shouldInlineLocalMediaForProvider } from "./inline-local-media";
 import { saveGeneratedImage } from "./media";
 import { withRunContext } from "./run-context";
+import { getBootLocale } from "./locale-boot";
 import { formatPastSessionsHint } from "./session-recall";
 
 const parsers = {
@@ -129,8 +130,7 @@ export async function* startModalityRun(options: {
   ensureToolsRegistered();
   const parsed = parsers[options.modality](options.body as { content?: unknown; stream?: unknown });
   const settings = loadSettings(options.tenant.workspaceId);
-  const userParts =
-    settings.injectionGuardBypass === true ? parsed.parts : redactAttachedParts(parsed.parts);
+  const userParts = settings.injectionGuardBypass === true ? parsed.parts : redactAttachedParts(parsed.parts);
   const reasoningEffort = readOptionalReasoningEffort(options.body);
   const thinkingEnabled = reasoningEffort !== "none";
   const wire = readOptionalChatWire(options.body);
@@ -140,9 +140,7 @@ export async function* startModalityRun(options: {
   }
   const published = await agentService.getPublishedForRun(options.tenant, thread.agentId);
   const catalog = listSelectableModels();
-  const fallback = isDefaultChatAgent(published.agent)
-    ? defaultSelectableModel(catalog)
-    : published.version.model;
+  const fallback = isDefaultChatAgent(published.agent) ? defaultSelectableModel(catalog) : published.version.model;
   const requestedModel = readOptionalModel(options.body);
   const model = resolveChatModel(requestedModel, fallback, catalog);
   const pastHint = await formatPastSessionsHint(options.tenant, thread.agentId, thread.id);
@@ -272,7 +270,7 @@ export async function* startModalityRun(options: {
       const runtime = createRuntime(settings);
       send({ type: "run.started", runId: run.id });
 
-      await withRunContext({ threadId: thread.id, agentId: thread.agentId }, async () => {
+      await withRunContext({ threadId: thread.id, agentId: thread.agentId, locale: getBootLocale() }, async () => {
         await runtime.execute({
           tenant: options.tenant,
           runId: run.id,
@@ -316,7 +314,9 @@ export async function* startModalityRun(options: {
             if (event.type === "tool.completed") {
               const recorded = takeLastToolIo(event.toolKey);
               const persistOutput = recorded?.full ?? event.output;
-              const last = [...toolTrace].reverse().find((item) => item.toolKey === event.toolKey && item.status === "started");
+              const last = [...toolTrace]
+                .reverse()
+                .find((item) => item.toolKey === event.toolKey && item.status === "started");
               if (last) {
                 last.status = "completed";
                 last.output = event.output;

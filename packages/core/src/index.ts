@@ -465,6 +465,8 @@ export {
   KNOWLEDGE_BACKEND_IDS,
 } from "./secrets";
 export type { StoredSecrets, SecretPatch, MaskedSecrets, KnowledgeBackendSetting } from "./secrets";
+export { APP_LOCALES, DEFAULT_APP_LOCALE, isAppLocale, parseAppLocale } from "./locale";
+export type { AppLocale } from "./locale";
 export {
   ENHANCE_SURFACES,
   isEnhanceSurface,

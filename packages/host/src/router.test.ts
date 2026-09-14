@@ -10,7 +10,7 @@ describe("host router", () => {
       params: {},
       headers: {},
     });
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       type: "json",
       status: 200,
       body: {
@@ -19,6 +19,8 @@ describe("host router", () => {
         productName: "DPSBuddy",
         gatewayName: "Toko Token",
         gatewayBaseUrl: "https://api.tokotokenai.com/v1",
+        locale: expect.stringMatching(/^(en|id)$/),
+        savedLocale: expect.stringMatching(/^(en|id)$/),
       },
     });
   });
@@ -88,7 +90,14 @@ describe("host router", () => {
         expect(board.body).toMatchObject({ error: { code: "invalid_request" } });
       }
       for (const path of ["/api/v1/market/regenerate", "/api/v1/market/docx"]) {
-        const result = await dispatch({ method: "POST", path, query: {}, params: {}, headers: {}, body: { brief: {} } });
+        const result = await dispatch({
+          method: "POST",
+          path,
+          query: {},
+          params: {},
+          headers: {},
+          body: { brief: {} },
+        });
         expect(result.type).toBe("json");
         if (result.type === "json") {
           expect(result.status).toBe(400);

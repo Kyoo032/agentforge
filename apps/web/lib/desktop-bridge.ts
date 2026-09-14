@@ -50,6 +50,7 @@ type DesktopBridge = {
   saveBytes?: (filename: string, bytes: number[]) => Promise<void>;
   pickMedia?: () => Promise<string[]>;
   updates?: DesktopUpdatesApi;
+  relaunch?: () => void;
 };
 
 declare global {
@@ -117,4 +118,14 @@ export async function pickMedia(): Promise<string[]> {
     return [];
   }
   return pick();
+}
+
+/** Packaged relaunch if preload already exposes it. Does not invent Electron chrome. */
+export function relaunchDesktopApp(): boolean {
+  const relaunch = desktopBridge()?.relaunch;
+  if (typeof relaunch !== "function") {
+    return false;
+  }
+  relaunch();
+  return true;
 }

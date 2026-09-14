@@ -1,14 +1,16 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import type { SecretPatch, StoredSecrets } from "@agentforge/core";
+import type { AppLocale, SecretPatch, StoredSecrets } from "@agentforge/core";
 import {
   resolvedGatewayBaseUrl,
   assertAllowedEndpointUrl,
   decryptJson,
   encryptJson,
+  isAppLocale,
   isEnvelope,
   knowledgeBackendSetting,
   mergeSecrets,
+  parseAppLocale,
 } from "@agentforge/core";
 import { getLocalVaultKey, localDataDir } from "@agentforge/db/vault-key";
 import { readSelectedWorkspaceId } from "./workspace";
@@ -115,6 +117,7 @@ function tryDeleteLegacyPlaintext(): void {
 }
 type SettingsFileV2 = {
   version: 2;
+  locale?: AppLocale;
   workspaces: Record<string, StoredSecrets>;
 };
 
@@ -148,9 +151,20 @@ function secretsMap(workspaces: Record<string, unknown>): Record<string, StoredS
   return next;
 }
 
+function readLocaleField(value: unknown): AppLocale | undefined {
+  return isAppLocale(value) ? value : undefined;
+}
+
 function parseSettingsFile(decrypted: unknown): { file: SettingsFileV2; migrated: boolean } {
   if (isSettingsFileV2(decrypted)) {
-    return { file: { version: 2, workspaces: secretsMap(decrypted.workspaces as Record<string, unknown>) }, migrated: false };
+    return {
+      file: {
+        version: 2,
+        locale: readLocaleField((decrypted as SettingsFileV2).locale),
+        workspaces: secretsMap(decrypted.workspaces as Record<string, unknown>),
+      },
+      migrated: false,
+    };
   }
   if (decrypted && typeof decrypted === "object") {
     return {
@@ -313,6 +327,7 @@ export function saveSettings(patch: SecretPatch, workspaceId?: string | null): S
   assertSavedEndpoints(next);
   persistEncrypted({
     version: 2,
+    locale: file.locale,
     workspaces: { ...file.workspaces, [id]: next },
   });
   tryDeleteLegacyPlaintext();
@@ -337,7 +352,7 @@ export function adoptLegacySettings(homeWorkspaceId: string): void {
   if (!rest[id]) {
     rest[id] = legacy;
   }
-  persistEncrypted({ version: 2, workspaces: rest });
+  persistEncrypted({ version: 2, locale: file.locale, workspaces: rest });
 }
 
 export function dropWorkspaceSettings(workspaceId: string): void {
@@ -351,5 +366,16 @@ export function dropWorkspaceSettings(workspaceId: string): void {
   }
   const rest = { ...file.workspaces };
   delete rest[id];
-  persistEncrypted({ version: 2, workspaces: rest });
+  persistEncrypted({ version: 2, locale: file.locale, workspaces: rest });
+}
+
+/** Machine-wide UI locale. Not a per-desk secret. */
+export function loadOwnerLocale(): AppLocale {
+  return parseAppLocale(loadSettingsFile().locale);
+}
+
+export function saveOwnerLocale(locale: AppLocale): AppLocale {
+  const file = loadSettingsFile();
+  persistEncrypted({ version: 2, locale, workspaces: file.workspaces });
+  return locale;
 }
