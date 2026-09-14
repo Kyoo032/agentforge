@@ -1,0 +1,60 @@
+{
+  "title": "Workspaces",
+  "intro": "Folders on this machine. Each desk has its own gateway key, Settings, and Knowledge Base — switching does not share them. You own all of them here — nothing to join.",
+  "createNew": "Create new workspace",
+  "create": "Create",
+  "cancel": "Cancel",
+  "edit": "Edit",
+  "delete": "Delete",
+  "open": "Open",
+  "save": "Save",
+  "name": "Name",
+  "namePlaceholder": "New workspace name",
+  "nameRequired": "Name is required",
+  "templateLegend": "Template (optional)",
+  "blank": "Blank",
+  "modes": "Modes",
+  "currentPrefix": "Current · ",
+  "deleteConfirm": "This removes the desk, its chats, Knowledge Base, and saved key from this machine. Type {name} to confirm.",
+  "deleteDesk": "Delete desk",
+  "errors": {
+    "create": "Could not create workspace",
+    "update": "Could not update workspace",
+    "delete": "Could not delete workspace",
+    "protected": "The Default desk cannot be deleted",
+    "confirmName": "Type the desk name to confirm deletion"
+  },
+  "mode": {
+    "chat": "Chat",
+    "documents": "Documents",
+    "research": "Research",
+    "finance": "Finance",
+    "data": "Data",
+    "market": "Market",
+    "legal": "Legal",
+    "images": "Images",
+    "videos": "Videos",
+    "edit": "Edit",
+    "presentations": "Presentation"
+  },
+  "template": {
+    "general": "General",
+    "organisation": "Organisation",
+    "students": "Students",
+    "office": "Office",
+    "legal": "Legal",
+    "sales": "Sales",
+    "marketing": "Marketing",
+    "product": "Product"
+  },
+  "templateDescription": {
+    "general": "Every work tab: chat, documents, research, images, videos, and presentation.",
+    "organisation": "Cross-team workspace with every work tab.",
+    "students": "Study desk: chat, documents, research, images, and presentation.",
+    "office": "Everyday ops: chat, documents, and presentation.",
+    "legal": "Matter review, memos, and redlines: chat, documents, research, legal, and presentation.",
+    "sales": "Outreach and deal-room: chat, documents, images, and presentation.",
+    "marketing": "Campaigns and creative: chat, documents, images, videos, and presentation.",
+    "product": "Specs and roadmaps: chat, documents, research, and presentation."
+  }
+}

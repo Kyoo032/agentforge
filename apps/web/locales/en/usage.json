@@ -1,0 +1,52 @@
+{
+  "title": "Usage",
+  "kicker": "Account",
+  "intro": "This-key wallet and desk spend for the selected range.",
+  "rangeAria": "Usage range",
+  "range": {
+    "day": "Day",
+    "week": "Week",
+    "month": "Month"
+  },
+  "thisKey": {
+    "label": "This key",
+    "needsKey": "Paste a gateway key to see spend.",
+    "unlimited": "{used} used · Unlimited",
+    "metered": "{used} used · {left} left",
+    "meterUnlimited": "This key used {used}, unlimited remaining",
+    "meterLimited": "This key used {used} of {total}"
+  },
+  "desk": {
+    "label": "This desk",
+    "summary": "{display} · {count} models",
+    "summaryOne": "{display} · {count} model",
+    "priced": "{count} priced runs in this range.",
+    "pricedOne": "{count} priced run in this range.",
+    "fetching": "Fetching desk spend…"
+  },
+  "chart": {
+    "label": "Spend over time",
+    "aria": "Spend by model over time",
+    "empty": "No {productName} runs in this range.",
+    "unpriced": "Runs in this range are not priced yet.",
+    "barTitle": "{label}: {model} · ${usd}"
+  },
+  "byModel": {
+    "label": "Spend by model",
+    "empty": "No {productName} runs in this range.",
+    "row": "{runs} runs · {input} in · {output} out",
+    "rowOne": "{runs} run · {input} in · {output} out",
+    "unpriced": "{model}: billed after they finish · {runs} runs",
+    "unpricedOne": "{model}: billed after they finish · {runs} run",
+    "unpricedKnown": "{model}: {display} · {runs} runs",
+    "unpricedKnownOne": "{model}: {display} · {runs} run"
+  },
+  "loading": "Loading…",
+  "footer": "Desk estimate uses {productName} input and output tokens and {gatewayName} catalog prices. This-key wallet spend includes other apps on the same key and will not match the desk total.",
+  "errors": {
+    "unavailable": "Usage is not available yet.",
+    "loadStatus": "Could not load usage ({status}).",
+    "incomplete": "Usage response was incomplete.",
+    "load": "Could not load usage."
+  }
+}
