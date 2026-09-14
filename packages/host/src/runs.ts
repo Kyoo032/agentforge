@@ -25,6 +25,7 @@ import {
   type TenantContext,
   type ToolBindingRecord,
   type ToolCallPart,
+  withChatOutputLanguage,
 } from "@agentforge/core";
 import { ApiError } from "@agentforge/core";
 import { agentService } from "./tenant";
@@ -149,10 +150,11 @@ export async function* startModalityRun(options: {
     .join("\n");
   // The thread's own work card is skipped so Chat never retrieves its last reply back into itself.
   const knowledge = await knowledgeInjection(options.tenant, userText, { excludeThreadId: thread.id });
+  const locale = getBootLocale();
   const version = {
     ...published.version,
     model,
-    systemPrompt: published.version.systemPrompt + pastHint + knowledge.prompt,
+    systemPrompt: withChatOutputLanguage(published.version.systemPrompt + pastHint + knowledge.prompt, locale),
   };
   assertAgentSupportsModality(published.version.inputModalities, options.modality);
   assertModelSupportsModality(version.model, options.modality);
@@ -270,7 +272,7 @@ export async function* startModalityRun(options: {
       const runtime = createRuntime(settings);
       send({ type: "run.started", runId: run.id });
 
-      await withRunContext({ threadId: thread.id, agentId: thread.agentId, locale: getBootLocale() }, async () => {
+      await withRunContext({ threadId: thread.id, agentId: thread.agentId, locale }, async () => {
         await runtime.execute({
           tenant: options.tenant,
           runId: run.id,
@@ -281,6 +283,7 @@ export async function* startModalityRun(options: {
           thinking: thinkingEnabled,
           reasoningEffort,
           wire,
+          locale,
           onEvent: async (event) => {
             if (event.type === "run.failed") {
               failedMessage = redactSecrets(event.message);

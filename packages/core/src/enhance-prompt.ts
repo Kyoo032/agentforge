@@ -1,3 +1,6 @@
+import type { AppLocale } from "./locale";
+import { stubChatEnhanceSuffix } from "./agents/chat-locale";
+
 export const ENHANCE_SURFACES = [
   "chat",
   "documents",
@@ -39,14 +42,19 @@ const STUB_SUFFIX: Record<EnhanceSurface, string> = {
   data: "Name the columns that matter, the check to run, and the output table or list.",
   market:
     "Name the ticker and what you want to understand from the filings, prices, and headlines. Do not ask for a recommendation.",
-  legal: "Name the client's position, the documents that govern, the points reserved for a partner, and the deliverables.",
+  legal:
+    "Name the client's position, the documents that govern, the points reserved for a partner, and the deliverables.",
   presentations:
     "Name the audience, the decision, slide count, and the one ask on the last slide. Write slide titles as claims, not labels like Overview or Agenda.",
   images: "Name subject, framing, and what must stay out of the frame.",
   videos: "Name subject, motion, duration, and what must stay out of frame.",
 };
 
-export function enhanceSystemPrompt(surface: EnhanceSurface): string {
+export function enhanceSystemPrompt(surface: EnhanceSurface, locale: AppLocale = "en"): string {
+  const localeRule =
+    surface === "chat" && locale === "id"
+      ? "The product locale is Bahasa Indonesia. Write the enhanced prompt in Bahasa Indonesia. Keep brand names DPSBuddy, Toko Token, and TokenKu unchanged."
+      : "Language matching is the highest priority - You MUST strictly respond in the exact same language as the user's input. If the user writes in Chinese, respond in Chinese; if the user writes in English, respond in English; if the user uses another language, respond in that same language. Do not mix languages unless the user's input itself mixes languages.";
   return `You are a Prompt Engineering Expert specializing in improving user prompts for DPSBuddy, a local Toko Token client (${SURFACE_ROLE[surface]}). When given a prompt, analyze and enhance it to create a more effective version while maintaining its core purpose.
 
 TASK:
@@ -80,7 +88,7 @@ Create the enhanced version:
   For finance: never invent figures; only refer to numbers the user already gave
 
 IMPORTANT CONSTRAINTS:
-1. Language matching is the highest priority - You MUST strictly respond in the exact same language as the user's input. If the user writes in Chinese, respond in Chinese; if the user writes in English, respond in English; if the user uses another language, respond in that same language. Do not mix languages unless the user's input itself mixes languages.
+1. ${localeRule}
 2. Keep the enhanced prompt concise - maximum length should be around 800 characters
 
 FORMAT:
@@ -126,12 +134,13 @@ export function stripWrappingQuotes(text: string): string {
   return out.replace(/^Enhanced prompt:\s*/i, "").trim();
 }
 
-export function stubEnhancePrompt(text: string, surface: EnhanceSurface = "chat"): string {
+export function stubEnhancePrompt(text: string, surface: EnhanceSurface = "chat", locale: AppLocale = "en"): string {
   const trimmed = text.trim();
   if (!trimmed) {
     return "";
   }
   const base = trimmed.replace(/[.?。？]$/, "");
-  const next = `${base}. ${STUB_SUFFIX[surface]}`;
+  const suffix = surface === "chat" ? stubChatEnhanceSuffix(locale) : STUB_SUFFIX[surface];
+  const next = `${base}. ${suffix}`;
   return next.length > 800 ? `${next.slice(0, 797)}…` : next;
 }

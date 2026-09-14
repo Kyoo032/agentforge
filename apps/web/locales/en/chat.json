@@ -1,0 +1,115 @@
+{
+  "title": "Chat",
+  "agent": "Agent",
+  "newChat": "New chat",
+  "newChatPlus": "+ New chat",
+  "starting": "Starting chat…",
+  "sessions": "Sessions",
+  "sessionsEmpty": "Sessions show up here after you send.",
+  "deleteSession": "Delete session",
+  "deleteConfirm": "Delete \"{title}\"? This cannot be undone.",
+  "deleteAria": "Delete {title}",
+  "removeAttachment": "Remove {name}",
+  "empty": {
+    "headline": "You're in. Ask anything.",
+    "pasteKeyPrefix": "Paste a {gatewayName} gateway key in",
+    "settingsLink": "Settings",
+    "pasteKeySuffix": "to talk to live models.",
+    "documentsTitle": "Documents",
+    "documentsHint": "Memos and reports",
+    "researchTitle": "Research",
+    "researchHint": "Dossiers from the web",
+    "financeTitle": "Finance",
+    "financeHint": "Models and briefs"
+  },
+  "composer": {
+    "placeholder": "Message",
+    "attach": "Attach",
+    "send": "Send",
+    "sending": "Sending…",
+    "thinking": "Thinking",
+    "imageCaption": "What is in this image?",
+    "videoCaption": "Summarize this video."
+  },
+  "thinking": {
+    "none": "Off",
+    "low": "Light",
+    "medium": "Normal",
+    "high": "Deep",
+    "xhigh": "Extra",
+    "max": "Max",
+    "ultra": "Ultra"
+  },
+  "turn": {
+    "thinking": "Thinking",
+    "thinkingPlaceholder": "Thinking…"
+  },
+  "threads": {
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "earlier": "Earlier"
+  },
+  "context": {
+    "left": "{n} left",
+    "used": "{n} used",
+    "window": "Context window",
+    "titleWithWindow": "About {used} tokens in this chat of {window} context",
+    "title": "About {used} tokens in this chat",
+    "conversation": "Conversation",
+    "conversationDetail": "messages in this thread",
+    "attachments": "Attachments",
+    "attachmentsDetail": "files in this turn",
+    "knowledge": "Knowledge",
+    "knowledgeDetail": "pinned + retrieved",
+    "pinnedDetail": "{n} pinned",
+    "soul": "Soul",
+    "memories": "Memories",
+    "sources": "Sources",
+    "free": "Free",
+    "approaching": "Approaching the context limit.",
+    "estimate": "Estimated at about four characters per token."
+  },
+  "usage": {
+    "placeholder": "Usage · —",
+    "unlimited": "Usage · Unlimited",
+    "remaining": "Usage · {left}"
+  },
+  "enhance": {
+    "busy": "Cancel enhance",
+    "revert": "Revert prompt",
+    "idle": "Enhance prompt",
+    "failed": "Could not enhance the prompt"
+  },
+  "tool": {
+    "working": "Working…",
+    "searching": "Searching…",
+    "creatingImage": "Creating image…",
+    "creatingVideo": "Creating video…",
+    "pastChats": "Looking up past chats…",
+    "calculating": "Calculating…",
+    "clock": "Reading the clock…",
+    "search": "Search",
+    "image": "Image",
+    "video": "Video",
+    "pastSessions": "Past chats",
+    "calculator": "Calculator",
+    "datetime": "Clock"
+  },
+  "error": {
+    "loading": "Chat is still loading",
+    "start": "Could not start a chat",
+    "open": "Could not open chat",
+    "agentMissing": "Agent not found",
+    "threadMissing": "Thread not found",
+    "upload": "Upload failed",
+    "noStream": "No stream",
+    "runFailed": "Run failed",
+    "deleteSession": "Could not delete session",
+    "noImageInput": "This agent or model does not accept image input",
+    "noVideoInput": "This agent or model does not accept video input",
+    "emptySend": "Type a message or attach a file",
+    "unsupportedFile": "Unsupported file type",
+    "mixedMedia": "Send image and video attachments separately",
+    "couldNotReach": "Could not reach {model} after {tries} tries"
+  }
+}

@@ -94,4 +94,31 @@ describe("StubRuntime answers", () => {
     expect(seen.answer).not.toContain("What time is it now?");
     expect(seen.tools).toEqual(["datetime"]);
   });
+
+  it("writes Bahasa Indonesia when locale is id", async () => {
+    const runtime = new StubRuntime();
+    let answer = "";
+    let thought = "";
+    await runtime.execute({
+      tenant,
+      runId: "run-id",
+      modality: "text",
+      version,
+      bindings: [],
+      history: [{ role: "user", parts: [{ type: "text", text: "Halo, apa kabar?" }] }],
+      locale: "id",
+      onEvent: (event: RuntimeEvent) => {
+        if (event.type === "assistant.delta") {
+          answer += event.text;
+        }
+        if (event.type === "assistant.thinking") {
+          thought += event.text;
+        }
+      },
+    });
+    expect(answer).toMatch(/Toko Token/);
+    expect(answer).toMatch(/Pengaturan/);
+    expect(answer).not.toMatch(/I need a Toko Token/);
+    expect(thought).toMatch(/Meja ini/);
+  });
 });

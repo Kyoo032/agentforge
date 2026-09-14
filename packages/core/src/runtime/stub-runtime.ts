@@ -4,11 +4,10 @@ import type { AgentRuntime, RuntimeEvent } from "./types";
 import { invokeToolGuarded } from "./invoke-guarded";
 import { resolveRequestReasoningEffort } from "../models/reasoning-effort";
 import { MODEL_CONTACT_ATTEMPTS, formatContactProbe } from "./retry";
+import { parseAppLocale } from "../locale";
+import { stubChatCopy, wantsStubClock } from "../agents/chat-locale";
 
-function hasEnabledBinding(
-  bindings: Parameters<AgentRuntime["execute"]>[0]["bindings"],
-  toolKey: string,
-): boolean {
+function hasEnabledBinding(bindings: Parameters<AgentRuntime["execute"]>[0]["bindings"], toolKey: string): boolean {
   return bindings.some((binding) => binding.toolKey === toolKey && binding.enabled);
 }
 
@@ -32,10 +31,7 @@ function datetimeResult(output: unknown): string | null {
   return `${record.iso} (${zone})`;
 }
 
-async function emitText(
-  onEvent: (event: RuntimeEvent) => Promise<void> | void,
-  text: string,
-): Promise<void> {
+async function emitText(onEvent: (event: RuntimeEvent) => Promise<void> | void, text: string): Promise<void> {
   for (const chunk of text.match(/.{1,24}/g) ?? [text]) {
     await onEvent({ type: "assistant.delta", text: chunk });
   }
@@ -46,6 +42,7 @@ export class StubRuntime implements AgentRuntime {
     const last = input.history[input.history.length - 1];
     const summary = last ? summarizeParts(last.parts) : "";
     const showThinking = resolveRequestReasoningEffort(input) !== "none";
+    const copy = stubChatCopy(parseAppLocale(input.locale));
     await input.onEvent({
       type: "run.probing",
       model: input.version.model,
@@ -56,15 +53,10 @@ export class StubRuntime implements AgentRuntime {
     const answers: string[] = [];
 
     const wantsCalc = hasEnabledBinding(input.bindings, "calculator") && /\d+\s*[+\-*/]\s*\d+/.test(summary);
-    const wantsClock =
-      hasEnabledBinding(input.bindings, "datetime") && /\b(date|time|today|now|clock)\b/i.test(summary);
+    const wantsClock = hasEnabledBinding(input.bindings, "datetime") && wantsStubClock(summary);
 
     if (showThinking) {
-      const plan = wantsCalc
-        ? "I'll compute this with the calculator, then return only the result."
-        : wantsClock
-          ? "I'll read the clock and return the timestamp."
-          : "This desk has no live model. I can still use local tools; a gateway key in Settings unlocks a real answer.";
+      const plan = wantsCalc ? copy.thinkCalc : wantsClock ? copy.thinkClock : copy.thinkDefault;
       await input.onEvent({ type: "assistant.thinking", text: plan });
     }
 
@@ -92,10 +84,7 @@ export class StubRuntime implements AgentRuntime {
       }
     }
 
-    const body =
-      answers.length > 0
-        ? answers.join("\n")
-        : "I need a Toko Token gateway key in Settings to answer that.";
+    const body = answers.length > 0 ? answers.join("\n") : copy.needKey;
     await emitText(input.onEvent, body);
     await input.onEvent({ type: "run.completed", runId: input.runId });
   }
