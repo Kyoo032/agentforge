@@ -1,0 +1,115 @@
+{
+  "title": "Chat",
+  "agent": "Agen",
+  "newChat": "Chat baru",
+  "newChatPlus": "+ Chat baru",
+  "starting": "Menyiapkan chat…",
+  "sessions": "Sesi",
+  "sessionsEmpty": "Sesi muncul di sini setelah Anda mengirim.",
+  "deleteSession": "Hapus sesi",
+  "deleteConfirm": "Hapus \"{title}\"? Tindakan ini tidak dapat dibatalkan.",
+  "deleteAria": "Hapus {title}",
+  "removeAttachment": "Hapus {name}",
+  "empty": {
+    "headline": "Anda sudah masuk. Tanya apa saja.",
+    "pasteKeyPrefix": "Tempel kunci gateway {gatewayName} di",
+    "settingsLink": "Pengaturan",
+    "pasteKeySuffix": "untuk berbicara dengan model live.",
+    "documentsTitle": "Dokumen",
+    "documentsHint": "Memo dan laporan",
+    "researchTitle": "Riset",
+    "researchHint": "Dossier dari web",
+    "financeTitle": "Keuangan",
+    "financeHint": "Model dan brief"
+  },
+  "composer": {
+    "placeholder": "Pesan",
+    "attach": "Lampirkan",
+    "send": "Kirim",
+    "sending": "Mengirim…",
+    "thinking": "Berpikir",
+    "imageCaption": "Apa yang ada di gambar ini?",
+    "videoCaption": "Ringkas video ini."
+  },
+  "thinking": {
+    "none": "Mati",
+    "low": "Ringan",
+    "medium": "Normal",
+    "high": "Dalam",
+    "xhigh": "Ekstra",
+    "max": "Maks",
+    "ultra": "Ultra"
+  },
+  "turn": {
+    "thinking": "Berpikir",
+    "thinkingPlaceholder": "Berpikir…"
+  },
+  "threads": {
+    "today": "Hari ini",
+    "yesterday": "Kemarin",
+    "earlier": "Lebih lama"
+  },
+  "context": {
+    "left": "{n} tersisa",
+    "used": "{n} terpakai",
+    "window": "Jendela konteks",
+    "titleWithWindow": "Sekitar {used} token dalam chat ini dari {window} konteks",
+    "title": "Sekitar {used} token dalam chat ini",
+    "conversation": "Percakapan",
+    "conversationDetail": "pesan dalam utas ini",
+    "attachments": "Lampiran",
+    "attachmentsDetail": "file pada giliran ini",
+    "knowledge": "Pengetahuan",
+    "knowledgeDetail": "tersemat + diambil",
+    "pinnedDetail": "{n} tersemat",
+    "soul": "Soul",
+    "memories": "Memori",
+    "sources": "Sumber",
+    "free": "Tersedia",
+    "approaching": "Mendekati batas konteks.",
+    "estimate": "Perkiraan sekitar empat karakter per token."
+  },
+  "usage": {
+    "placeholder": "Pemakaian · —",
+    "unlimited": "Pemakaian · Tanpa batas",
+    "remaining": "Pemakaian · {left}"
+  },
+  "enhance": {
+    "busy": "Batalkan peningkatan",
+    "revert": "Kembalikan prompt",
+    "idle": "Tingkatkan prompt",
+    "failed": "Tidak dapat meningkatkan prompt"
+  },
+  "tool": {
+    "working": "Bekerja…",
+    "searching": "Mencari…",
+    "creatingImage": "Membuat gambar…",
+    "creatingVideo": "Membuat video…",
+    "pastChats": "Mencari chat sebelumnya…",
+    "calculating": "Menghitung…",
+    "clock": "Membaca jam…",
+    "search": "Pencarian",
+    "image": "Gambar",
+    "video": "Video",
+    "pastSessions": "Chat sebelumnya",
+    "calculator": "Kalkulator",
+    "datetime": "Jam"
+  },
+  "error": {
+    "loading": "Chat masih dimuat",
+    "start": "Tidak dapat memulai chat",
+    "open": "Tidak dapat membuka chat",
+    "agentMissing": "Agen tidak ditemukan",
+    "threadMissing": "Utas tidak ditemukan",
+    "upload": "Unggahan gagal",
+    "noStream": "Tidak ada aliran",
+    "runFailed": "Jalankan gagal",
+    "deleteSession": "Tidak dapat menghapus sesi",
+    "noImageInput": "Agen atau model ini tidak menerima masukan gambar",
+    "noVideoInput": "Agen atau model ini tidak menerima masukan video",
+    "emptySend": "Ketik pesan atau lampirkan berkas",
+    "unsupportedFile": "Jenis berkas tidak didukung",
+    "mixedMedia": "Kirim lampiran gambar dan video secara terpisah",
+    "couldNotReach": "Tidak dapat menghubungi {model} setelah {tries} percobaan"
+  }
+}

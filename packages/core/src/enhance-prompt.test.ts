@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  isEnhanceSurface,
-  stubEnhancePrompt,
-  stripWrappingQuotes,
-  enhanceUserPrompt,
-} from "./enhance-prompt";
+import { isEnhanceSurface, stubEnhancePrompt, stripWrappingQuotes, enhanceUserPrompt } from "./enhance-prompt";
 
 describe("enhance-prompt", () => {
   it("accepts known surfaces", () => {
@@ -24,6 +19,12 @@ describe("enhance-prompt", () => {
     expect(out.length).toBeGreaterThan("Summarize this memo".length);
     expect(out).not.toMatch(/Enhanced prompt/i);
     expect(out.startsWith("Summarize this memo")).toBe(true);
+  });
+
+  it("stub chat enhance follows Bahasa Indonesia when locale is id", () => {
+    const out = stubEnhancePrompt("Ringkas memo ini", "chat", "id");
+    expect(out).toMatch(/Anda/);
+    expect(out).not.toMatch(/State the goal/);
   });
 
   it("user template substitutes the draft", () => {

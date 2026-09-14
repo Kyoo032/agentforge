@@ -13,6 +13,7 @@ import type { HostRequest, HostResult } from "../types";
 import { jsonError, jsonOk } from "../errors";
 import { getTenant } from "../tenant";
 import { loadSettings } from "../settings-store";
+import { getBootLocale } from "../locale-boot";
 import { collectJobAssistantText } from "../job-regen";
 import { listSelectableModels, modeCatalogPayload } from "../selectable-models";
 
@@ -30,28 +31,32 @@ function readText(body: unknown): string {
 export async function handlePostEnhancePrompt(request: HostRequest): Promise<HostResult> {
   try {
     const text = readText(request.body ?? null);
-    const rawSurface = request.body && typeof request.body === "object" ? (request.body as { surface?: unknown }).surface : "chat";
+    const rawSurface =
+      request.body && typeof request.body === "object" ? (request.body as { surface?: unknown }).surface : "chat";
     const surface = isEnhanceSurface(rawSurface) ? rawSurface : "chat";
     const tenant = await getTenant(request.workspaceId);
     const settings = loadSettings(tenant.workspaceId);
+    const locale = getBootLocale();
     const mode = resolveRuntimeMode({
       settingsHasKey: hasLiveProvider(settings),
       envRuntime: process.env.AGENTFORGE_RUNTIME,
     });
     if (mode === "stub") {
-      return jsonOk({ text: stubEnhancePrompt(text, surface), source: "stub" });
+      return jsonOk({ text: stubEnhancePrompt(text, surface, locale), source: "stub" });
     }
     const catalog = listSelectableModels();
     const { defaults } = modeCatalogPayload();
     const requested =
-      request.body && typeof request.body === "object" && typeof (request.body as { model?: unknown }).model === "string"
+      request.body &&
+      typeof request.body === "object" &&
+      typeof (request.body as { model?: unknown }).model === "string"
         ? (request.body as { model: string }).model
         : undefined;
     const model = resolveChatModel(requested, defaults.chat, catalog);
     const raw = await collectJobAssistantText({
       tenant,
       model,
-      systemPrompt: enhanceSystemPrompt(surface),
+      systemPrompt: enhanceSystemPrompt(surface, locale),
       runPrefix: "enhance",
       agentId: "enhance-prompt",
       versionId: "enhance-prompt",

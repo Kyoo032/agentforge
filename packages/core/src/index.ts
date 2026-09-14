@@ -468,6 +468,13 @@ export type { StoredSecrets, SecretPatch, MaskedSecrets, KnowledgeBackendSetting
 export { APP_LOCALES, DEFAULT_APP_LOCALE, isAppLocale, parseAppLocale } from "./locale";
 export type { AppLocale } from "./locale";
 export {
+  withChatOutputLanguage,
+  stubChatCopy,
+  stubChatEnhanceSuffix,
+  wantsStubClock,
+} from "./agents/chat-locale";
+export type { StubChatCopy } from "./agents/chat-locale";
+export {
   ENHANCE_SURFACES,
   isEnhanceSurface,
   enhanceSystemPrompt,
