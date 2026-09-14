@@ -10,7 +10,6 @@ import {
 } from "@/lib/presentation-outline";
 import type { JobStudioModel } from "@/lib/use-job-model";
 import { useProductBrand } from "@/lib/product-brand";
-import { t } from "@/lib/i18n";
 
 type Props = {
   outline: PresentationOutline;
@@ -52,7 +51,9 @@ function SlideBody({ slide }: { slide: PresentationSlide }) {
         <h3 className="max-w-4xl text-3xl font-medium leading-tight tracking-[var(--track)] text-[var(--text)]">
           {slide.heading}
         </h3>
-        {slide.subhead.trim() ? <p className="mt-4 max-w-3xl text-base text-[var(--text-2)]">{slide.subhead}</p> : null}
+        {slide.subhead.trim() ? (
+          <p className="mt-4 max-w-3xl text-base text-[var(--text-2)]">{slide.subhead}</p>
+        ) : null}
         {slide.bullets.length > 0 ? (
           <ul className="mt-6 max-w-3xl list-disc space-y-2 pl-5 text-sm text-[var(--text-2)]">
             {slide.bullets.map((bullet) => (
@@ -93,7 +94,7 @@ function SlideBody({ slide }: { slide: PresentationSlide }) {
           ))}
         </ul>
       ) : (
-        <p className="mt-5 text-sm text-[var(--text-3)]">{t("presentation.noBullets")}</p>
+        <p className="mt-5 text-sm text-[var(--text-3)]">No bullets on this slide.</p>
       )}
     </div>
   );
@@ -118,14 +119,14 @@ export function PresentationPreview({
       >
         <div className="absolute inset-y-0 left-0 w-1.5 bg-[var(--accent)]" />
         <div className="relative flex h-full flex-col justify-center px-8 py-10 sm:px-12">
-          <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--text-3)]">
-            {t("presentation.kicker")}
-          </p>
+          <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--text-3)]">Presentation</p>
           <h2 className="mt-3 max-w-3xl text-2xl font-medium leading-tight tracking-[var(--track)] text-[var(--text)]">
             {outline.title}
           </h2>
           <p className="absolute bottom-4 left-8 text-xs font-medium text-[var(--text-3)] sm:left-12">{productName}</p>
-          <p className="absolute bottom-4 right-8 text-xs font-medium text-[var(--text-3)] sm:right-12">1 / {total}</p>
+          <p className="absolute bottom-4 right-8 text-xs font-medium text-[var(--text-3)] sm:right-12">
+            1 / {total}
+          </p>
         </div>
       </article>
 
@@ -146,7 +147,7 @@ export function PresentationPreview({
                     aria-expanded={openIndex === index}
                     data-testid="presentations-regen"
                   >
-                    {regeneratingIndex === index ? t("presentation.regenerating") : t("presentation.regenerate")}
+                    {regeneratingIndex === index ? "Regenerating…" : "Regenerate"}
                   </button>
                 ) : null
               }
@@ -155,7 +156,7 @@ export function PresentationPreview({
             </SlideShell>
             {slide.notes.trim() ? (
               <p className="mt-2 px-1 text-xs leading-relaxed text-[var(--text-3)]">
-                {t("presentation.notes")} <FormattedText text={slide.notes} inline />
+                Notes: <FormattedText text={slide.notes} inline />
               </p>
             ) : null}
             {onRegenerate && openIndex === index ? (

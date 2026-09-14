@@ -10,8 +10,7 @@ import { ModelSelect } from "@/components/model-select";
 import type { JobRegenSubmit } from "@/components/job-regen-panel";
 import { PresentationPreview } from "@/components/presentation-preview";
 import type { PresentationOutline } from "@/lib/presentation-outline";
-import { presentationStarters } from "@/lib/job-starters";
-import { t } from "@/lib/i18n";
+import { PRESENTATION_STARTERS } from "@/lib/job-starters";
 import { useJobModel } from "@/lib/use-job-model";
 import { apiFetch } from "@/lib/api-client";
 import { useProductBrand } from "@/lib/product-brand";
@@ -29,7 +28,6 @@ function errorMessage(payload: unknown, fallback: string): string {
 export function PresentationsStudio() {
   const { productName } = useProductBrand();
   const { models, model, setModel } = useJobModel("presentations");
-  const starterLocale = t("presentation.title") === "Presentasi" ? "id" : "en";
   const [prompt, setPrompt] = useState("");
   const [sourceText, setSourceText] = useState("");
   const [sourceTitle, setSourceTitle] = useState<string | null>(null);
@@ -61,20 +59,16 @@ export function PresentationsStudio() {
       const res = await apiFetch("/api/v1/presentations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: topic,
-          model: model || undefined,
-          sourceText: sourceText.trim() || undefined,
-        }),
+        body: JSON.stringify({ prompt: topic, model: model || undefined, sourceText: sourceText.trim() || undefined }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        throw new Error(errorMessage(data, t("presentation.generateError")));
+        throw new Error(errorMessage(data, "Could not generate the presentation outline"));
       }
       setOutline(data as PresentationOutline);
     } catch (err) {
       setOutline(null);
-      setError(err instanceof Error ? err.message : t("presentation.generateError"));
+      setError(err instanceof Error ? err.message : "Could not generate the presentation outline");
     } finally {
       setBusy(null);
     }
@@ -103,11 +97,11 @@ export function PresentationsStudio() {
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        throw new Error(errorMessage(data, t("presentation.regenError")));
+        throw new Error(errorMessage(data, "Could not regenerate that slide"));
       }
       setOutline(data as PresentationOutline);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("presentation.regenError"));
+      setError(err instanceof Error ? err.message : "Could not regenerate that slide");
     } finally {
       setBusy(null);
       setRegenIndex(null);
@@ -128,7 +122,7 @@ export function PresentationsStudio() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        throw new Error(errorMessage(data, t("presentation.downloadError")));
+        throw new Error(errorMessage(data, "Could not build the PPTX file"));
       }
       const blob = await res.blob();
       const disposition = res.headers.get("Content-Disposition") ?? "";
@@ -141,22 +135,19 @@ export function PresentationsStudio() {
       anchor.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("presentation.downloadError"));
+      setError(err instanceof Error ? err.message : "Could not build the PPTX file");
     } finally {
       setBusy(null);
     }
   }
 
   return (
-    <main
-      className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-10 text-[var(--text)]"
-      data-testid="presentations-studio"
-    >
+    <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-10 text-[var(--text)]" data-testid="presentations-studio">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("presentation.title")}</h1>
+          <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">Presentation</h1>
           <p className="mt-2 max-w-xl text-sm text-[var(--text-2)]">
-            {t("presentation.subtitle", { product: productName })}
+            Describe a topic. {productName} drafts an outline, shows an HTML preview, and downloads a PPTX.
           </p>
         </div>
         {outline ? (
@@ -167,7 +158,7 @@ export function PresentationsStudio() {
             className="wash inline-flex h-8 items-center rounded-pill bg-[var(--accent)] px-4 text-sm font-medium text-[var(--surface)] disabled:opacity-45"
             data-testid="presentations-download"
           >
-            {busy === "download" ? t("presentation.building") : t("presentation.download")}
+            {busy === "download" ? "Building…" : "Download PPTX"}
           </button>
         ) : null}
       </div>
@@ -179,12 +170,12 @@ export function PresentationsStudio() {
           data-testid="presentations-error"
         >
           {error}
-          {/gateway|api key|settings|runtime_stub|live gateway|pengaturan|kunci api/i.test(error) &&
-          !/settings|pengaturan/i.test(error) ? (
+          {/gateway|api key|settings|runtime_stub|live gateway/i.test(error) && !/settings/i.test(error) ? (
             <>
               {" "}
+              Open{" "}
               <Link href="/settings" className="underline">
-                {t("presentation.openSettings")}
+                Settings
               </Link>
               .
             </>
@@ -204,14 +195,13 @@ export function PresentationsStudio() {
             onRegenerate={(index, payload) => void onRegenerate(index, payload)}
           />
         ) : (
-          <div
-            className="rounded-lg border border-[var(--line)] bg-[var(--surface)] px-4 py-10"
-            data-testid="presentations-studio-empty"
-          >
-            <p className="text-center text-sm font-medium text-[var(--text)]">{t("presentation.emptyTitle")}</p>
-            <p className="mt-2 text-center text-sm text-[var(--text-2)]">{t("presentation.emptyBody")}</p>
+          <div className="rounded-lg border border-[var(--line)] bg-[var(--surface)] px-4 py-10" data-testid="presentations-studio-empty">
+            <p className="text-center text-sm font-medium text-[var(--text)]">No deck yet</p>
+            <p className="mt-2 text-center text-sm text-[var(--text-2)]">
+              Enter a topic below, or load a starter and download a PPTX without a live generate.
+            </p>
             <div className="mx-auto mt-6 grid max-w-2xl gap-3 sm:grid-cols-2">
-              {presentationStarters(starterLocale).map((starter) => (
+              {PRESENTATION_STARTERS.map((starter) => (
                 <button
                   key={starter.id}
                   type="button"
@@ -266,10 +256,10 @@ export function PresentationsStudio() {
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
             className="min-w-0 flex-1 rounded-lg bg-transparent px-3 py-2 text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-3)]"
-            placeholder={t("presentation.promptPlaceholder")}
+            placeholder="Describe a presentation…"
             disabled={busy !== null}
             data-testid="presentations-prompt"
-            aria-label={t("presentation.promptAria")}
+            aria-label="Presentation topic"
           />
           <button
             type="submit"
@@ -277,7 +267,7 @@ export function PresentationsStudio() {
             disabled={busy !== null || !prompt.trim()}
             data-testid="presentations-generate"
           >
-            {busy === "generate" ? t("presentation.generating") : t("presentation.generate")}
+            {busy === "generate" ? "Generating…" : "Generate"}
           </button>
         </div>
       </form>
