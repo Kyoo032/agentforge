@@ -33,6 +33,7 @@ Do **not** use Hermes CLI, Hermes dashboard session tokens, or Hermes `hermes:ap
 |---|---|---|
 | This Windows session | `cursor-ide-browser` + `scripts/doctor.mjs`; Electron for desktop changes | `pnpm test:e2e`, `playwright test` |
 | Cursor Cloud + GHA | Playwright `apps/web/tests/e2e/foundation.spec.ts` | Paste a gateway key; start Docker |
+| Pack / ship (this PC only) | [pack-dpsbuddy](../pack-dpsbuddy/SKILL.md) | Cloud `desktop:build`; `electron-builder --mac` on Windows |
 
 Cloud and `.github/workflows/e2e.yml` own the serial stub smoke. Local coding agents do not run Playwright here (long serial pass). Cloud may use a secret gateway key for live Enhance / Finance / Data proof after doctor `ai`; GHA stays stub.
 
