@@ -1,0 +1,65 @@
+{
+  "title": "Gambar",
+  "subtitle": "Studio prompt-ke-gambar. Hasil tampil di galeri di bawah.",
+  "needsKey": "Tambahkan kunci gateway {gateway} di {settings} untuk membuat gambar.",
+  "settingsLink": "Pengaturan",
+  "loadError": "Studio gambar tidak dapat dimuat",
+  "generateError": "Pembuatan gambar gagal",
+  "aspect": {
+    "square": "Persegi",
+    "landscape": "Lanskap",
+    "portrait": "Potret"
+  },
+  "promptPlaceholder": "Deskripsikan gambar…",
+  "generate": "Buat",
+  "generating": "Membuat…",
+  "loadingGallery": "Memuat galeri…",
+  "emptyTitle": "Belum ada apa pun",
+  "emptyBody": "Buat gambar untuk mengisi galeri ini.",
+  "generatedAlt": "Gambar yang dibuat",
+  "examplesHeading": "Mulai dari templat",
+  "examplesHint": "Klik kartu untuk memuat brief lengkap. Ganti detail contoh, lalu buat.",
+  "outputTextLanguage": "Jika gambar ini memuat teks yang dapat dibaca (keterangan, label, papan, atau UI pada gambar), tulis teks itu dalam bahasa Indonesia.",
+  "templates": {
+    "launch-page-product-hero": {
+      "title": "Hero produk halaman peluncuran",
+      "resultSummary": "Hero katalog dengan tata cahaya nyata dan kolom teks yang disiapkan — bukan gawai mengambang di latar abu-abu."
+    },
+    "app-in-a-working-desk": {
+      "title": "Aplikasi di meja kerja",
+      "resultSummary": "Bingkai aplikasi di tempat yang meyakinkan, siap dipakai di pitch atau situs dokumentasi."
+    },
+    "lookbook-material-board": {
+      "title": "Papan material lookbook",
+      "resultSummary": "Papan palet yang terasa nyata dengan material bernama dan tata letak sungguhan, bukan tumpukan tekstur."
+    },
+    "quiet-kitchen-header": {
+      "title": "Tajuk dapur yang tenang",
+      "resultSummary": "Still sarapan yang tenang dengan area teks yang disiapkan — layak jadi tajuk sungguhan."
+    },
+    "dusk-city-establishing": {
+      "title": "Adegan pembuka kota senja",
+      "resultSummary": "Plat skyline sinematik dengan rak latar depan — bukan senja stok yang generik."
+    },
+    "macro-fabric-study": {
+      "title": "Studi kain makro",
+      "resultSummary": "Bukti material dari dekat, bukan flat-lay properti yang ditata berlebihan."
+    },
+    "night-retail-window": {
+      "title": "Etalase ritel malam",
+      "resultSummary": "Jendela siap cerita dengan kontras cahaya yang bisa dipotong untuk kampanye."
+    },
+    "fog-path-cover": {
+      "title": "Sampul jalur berkabut",
+      "resultSummary": "Jalur yang tenang dengan satu titik struktur — layak jadi sampul, bukan wallpaper."
+    },
+    "about-page-portrait": {
+      "title": "Potret halaman tentang",
+      "resultSummary": "Bingkai kepala-dan-bahu yang bisa dipakai, dengan lensa dan latar nyata, bukan potongan selfie."
+    },
+    "desk-object-still": {
+      "title": "Still life objek meja",
+      "resultSummary": "Studi objek yang tenang dengan rencana pencahayaan — bukan tiga properti di latar putih."
+    }
+  }
+}

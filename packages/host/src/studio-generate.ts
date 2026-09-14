@@ -23,6 +23,11 @@ import { getStudioMediaMeta, saveStudioMediaMeta, type StudioMediaMeta } from ".
 import { upsertWorkSource } from "./knowledge-ingest";
 import { mediaWorkCard } from "./work-cards";
 import type { WorkSourceType } from "./knowledge";
+import {
+  imageGenerateFailedMessage,
+  imageStudioLocale,
+  withImageOutputLanguage,
+} from "./image-output-locale";
 
 export type StudioGenerateOptions = {
   /** Knowledge source type for the work card. Defaults to Images / Videos; Edit passes "Edit". */
@@ -152,12 +157,13 @@ export async function generateStudioImage(
   options: StudioGenerateOptions = {},
 ): Promise<StudioGenerateResult> {
   const settings = loadSettings();
+  const locale = imageStudioLocale(settings);
   const scope = buildToolSecretScope(settings);
   const model = body.model || settings.imageGenModel || defaultStudioImageModel();
   const output = await runWithToolSecrets(scope, () =>
     imageGenerateTool.execute(
       {
-        prompt: maskPii(body.prompt),
+        prompt: withImageOutputLanguage(maskPii(body.prompt), locale),
         aspect_ratio: body.aspect,
         image_url: body.imageUrl,
         model,
@@ -167,7 +173,7 @@ export async function generateStudioImage(
   );
   const url = toolSuccessUrl(output, "image");
   if (!url) {
-    throw new ApiError("tool_failed", toolFailureMessage(output, "Image generation failed"), 400);
+    throw new ApiError("tool_failed", toolFailureMessage(output, imageGenerateFailedMessage(locale)), 400);
   }
   const { saveGeneratedImage } = await import("./media");
   const stored = await saveGeneratedImage(tenant, url);

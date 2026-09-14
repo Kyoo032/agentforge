@@ -1,0 +1,65 @@
+{
+  "title": "Images",
+  "subtitle": "Prompt-to-image studio. Results show in the gallery below.",
+  "needsKey": "Add a {gateway} gateway key in {settings} to generate images.",
+  "settingsLink": "Settings",
+  "loadError": "Could not load image studio",
+  "generateError": "Image generation failed",
+  "aspect": {
+    "square": "Square",
+    "landscape": "Landscape",
+    "portrait": "Portrait"
+  },
+  "promptPlaceholder": "Describe an image…",
+  "generate": "Generate",
+  "generating": "Generating…",
+  "loadingGallery": "Loading gallery…",
+  "emptyTitle": "Nothing here yet",
+  "emptyBody": "Generate an image to populate this gallery.",
+  "generatedAlt": "Generated image",
+  "examplesHeading": "Start from a template",
+  "examplesHint": "Click a card to load a full brief. Replace the sample details, then generate.",
+  "outputTextLanguage": "If this image includes any readable text (captions, labels, signs, or on-image UI), write that text in English.",
+  "templates": {
+    "launch-page-product-hero": {
+      "title": "Launch-page product hero",
+      "resultSummary": "Catalog hero with a real lighting setup and a reserved type column — not a floating gadget on grey."
+    },
+    "app-in-a-working-desk": {
+      "title": "App in a working desk",
+      "resultSummary": "A believable in-situ app frame you can drop into a pitch or docs site."
+    },
+    "lookbook-material-board": {
+      "title": "Lookbook material board",
+      "resultSummary": "A tactile palette board with named materials and a real layout, not a texture dump."
+    },
+    "quiet-kitchen-header": {
+      "title": "Quiet kitchen header",
+      "resultSummary": "A calm breakfast still with a reserved type area — usable as a real header."
+    },
+    "dusk-city-establishing": {
+      "title": "Dusk city establishing",
+      "resultSummary": "A dated, cinematic skyline plate with a foreground shelf — not a generic stock dusk."
+    },
+    "macro-fabric-study": {
+      "title": "Macro fabric study",
+      "resultSummary": "Close material evidence, not a styled flat-lay of props."
+    },
+    "night-retail-window": {
+      "title": "Night retail window",
+      "resultSummary": "A story-ready window with a lighting contrast you can crop for a campaign."
+    },
+    "fog-path-cover": {
+      "title": "Fog path cover",
+      "resultSummary": "A quiet path with a single structural beat — usable as a cover, not wallpaper."
+    },
+    "about-page-portrait": {
+      "title": "About-page portrait",
+      "resultSummary": "A usable head-and-shoulders frame with a real lens and backdrop, not a selfie crop."
+    },
+    "desk-object-still": {
+      "title": "Desk-object still",
+      "resultSummary": "A quiet object study with a lighting plan — not three props on a white sweep."
+    }
+  }
+}
