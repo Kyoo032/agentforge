@@ -1,0 +1,177 @@
+{
+  "title": "Knowledge Base",
+  "kicker": "{name} › Knowledge Base",
+  "intro": "Soul, memory, and sources for the {name} desk. Other workspaces keep their own knowledge.",
+  "tabs": {
+    "sources": "Sources",
+    "soul": "Soul",
+    "memory": "Memory",
+    "map": "Map"
+  },
+  "models": {
+    "label": "Models",
+    "embedding": "Embedding",
+    "brain": "Brain",
+    "verifier": "Verifier"
+  },
+  "errors": {
+    "load": "Could not load knowledge",
+    "saveModels": "Could not save knowledge models",
+    "map": "Could not map knowledge",
+    "addUrl": "Could not add URL",
+    "addNotes": "Could not add notes",
+    "saveSoul": "Could not save soul",
+    "indexFile": "Could not index file",
+    "selfCheck": "Could not run the self-check",
+    "loadGraph": "Could not load the graph"
+  },
+  "sources": {
+    "add": "Add a source",
+    "urlPlaceholder": "https://…",
+    "addUrl": "Add URL",
+    "pastePlaceholder": "Paste notes…",
+    "indexPaste": "Index paste",
+    "uploadFile": "Upload file",
+    "pastedName": "Pasted notes",
+    "chunks": "{count} chunks",
+    "chunksOne": "{count} chunk",
+    "remove": "Remove"
+  },
+  "status": {
+    "Indexed": "Indexed",
+    "Indexing": "Indexing",
+    "Failed": "Failed"
+  },
+  "sourceType": {
+    "File": "File",
+    "URL": "URL",
+    "Paste": "Paste",
+    "Chat": "Chat",
+    "Documents": "Documents",
+    "Research": "Research",
+    "Finance": "Finance",
+    "Data": "Data",
+    "Images": "Images",
+    "Videos": "Videos",
+    "Presentation": "Presentation",
+    "Edit": "Edit",
+    "Other": "Other"
+  },
+  "soul": {
+    "name": "Name",
+    "role": "Role",
+    "voice": "Voice",
+    "rulePlaceholder": "Add a rule",
+    "addRule": "Add rule",
+    "save": "Save soul"
+  },
+  "memory": {
+    "placeholder": "Pin a memory",
+    "pin": "Pin",
+    "pinned": "Pinned",
+    "forget": "Forget"
+  },
+  "map": {
+    "label": "Map",
+    "intro": "This desk memory is what Chat retrieves now. Job modes will call the same retrieve later. Map reviews sources with your embedding, brain, and verifier models.",
+    "run": "Map knowledge",
+    "running": "Mapping…",
+    "ready": "Ready",
+    "notReady": "Not ready",
+    "gaps": "Gaps",
+    "sourceStub": "stub",
+    "sourceLive": "live"
+  },
+  "verdict": {
+    "supported": "supported",
+    "weak": "weak",
+    "unsupported": "unsupported",
+    "stub": "stub"
+  },
+  "loop": {
+    "label": "Loop",
+    "aria": "Knowledge loop",
+    "intro": "Every finished piece of work becomes a text card here. Files stay in their gallery.",
+    "cycleAria": "Work, Saved, Indexed, Graph, Retrieved, Verified, then back to Work",
+    "verifiedLine": "Verified: {label} · {detail}",
+    "runCheck": "Run self-check",
+    "checking": "Checking…",
+    "fromWork": "From work",
+    "addedByHand": "Added by hand",
+    "indexed": "Indexed",
+    "failed": "Failed",
+    "chunks": "Chunks",
+    "empty": "Nothing indexed yet. Send a Chat message or run a job mode and a card appears here.",
+    "byTypeAria": "Sources by type",
+    "auto": "auto",
+    "autoAria": "written by the loop",
+    "countTitle": "{indexed} indexed, {failed} failed, {chunks} chunks",
+    "failedSuffix": "({count} failed)",
+    "stage": {
+      "Work": "Work",
+      "Saved": "Saved",
+      "Indexed": "Indexed",
+      "Graph": "Graph",
+      "Retrieved": "Retrieved",
+      "Verified": "Verified"
+    },
+    "detail": {
+      "work": "Chat or a job mode",
+      "saved": "{count} added by hand",
+      "indexedOk": "text cards in KB",
+      "indexedFailed": "{count} failed",
+      "graphEmpty": "build map to create links",
+      "graphEdges": "{count} edges",
+      "graphEdgeOne": "{count} edge",
+      "retrieved": "chunks cited in runs",
+      "retrievedEmpty": "nothing retrieved yet"
+    },
+    "verified": {
+      "pass": "pass",
+      "fail": "fail",
+      "never": "never",
+      "none": "no self-check yet",
+      "unknown": "time unknown",
+      "justNow": "just now",
+      "minutesAgo": "{count}m ago",
+      "hoursAgo": "{count}h ago",
+      "daysAgo": "{count}d ago"
+    }
+  },
+  "graph": {
+    "aria": "Knowledge graph",
+    "label": "Graph",
+    "show": "Show graph",
+    "hide": "Hide graph",
+    "counts": "{nodes} nodes · {edges} edges",
+    "showAll": "Show all",
+    "loading": "Loading links…",
+    "retry": "Try again",
+    "empty": "Build map to create topic links.",
+    "showing": "Showing {shown} of {total} nodes",
+    "around": " · around {label}",
+    "svgAria": "Topics, sources, and threads, linked by covers, retrieved, and cites edges",
+    "hint": "Click a node to keep only what it touches; click it again to show all.",
+    "node": {
+      "topic": "topic",
+      "source": "source",
+      "thread": "thread"
+    },
+    "nodeHint": {
+      "topic": "map topics",
+      "source": "indexed sources",
+      "thread": "chat threads"
+    },
+    "edge": {
+      "covers": "covers",
+      "retrieved": "retrieved",
+      "cites": "cites"
+    },
+    "edgeHint": {
+      "covers": "topic covers a source",
+      "retrieved": "source was retrieved by a thread",
+      "cites": "thread cited a source"
+    },
+    "edgeTitle": "{kind} · weight {weight}"
+  }
+}

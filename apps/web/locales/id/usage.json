@@ -1,0 +1,52 @@
+{
+  "title": "Pemakaian",
+  "kicker": "Akun",
+  "intro": "Dompet kunci ini dan belanja meja untuk rentang yang dipilih.",
+  "rangeAria": "Rentang pemakaian",
+  "range": {
+    "day": "Hari",
+    "week": "Minggu",
+    "month": "Bulan"
+  },
+  "thisKey": {
+    "label": "Kunci ini",
+    "needsKey": "Tempel kunci gateway untuk melihat pemakaian.",
+    "unlimited": "{used} terpakai · Tanpa batas",
+    "metered": "{used} terpakai · sisa {left}",
+    "meterUnlimited": "Kunci ini memakai {used}, sisa tanpa batas",
+    "meterLimited": "Kunci ini memakai {used} dari {total}"
+  },
+  "desk": {
+    "label": "Meja ini",
+    "summary": "{display} · {count} model",
+    "summaryOne": "{display} · {count} model",
+    "priced": "{count} proses berharga dalam rentang ini.",
+    "pricedOne": "{count} proses berharga dalam rentang ini.",
+    "fetching": "Mengambil belanja meja…"
+  },
+  "chart": {
+    "label": "Belanja dari waktu ke waktu",
+    "aria": "Belanja per model dari waktu ke waktu",
+    "empty": "Tidak ada proses {productName} dalam rentang ini.",
+    "unpriced": "Proses dalam rentang ini belum diberi harga.",
+    "barTitle": "{label}: {model} · ${usd}"
+  },
+  "byModel": {
+    "label": "Belanja per model",
+    "empty": "Tidak ada proses {productName} dalam rentang ini.",
+    "row": "{runs} proses · {input} masuk · {output} keluar",
+    "rowOne": "{runs} proses · {input} masuk · {output} keluar",
+    "unpriced": "{model}: ditagih setelah selesai · {runs} proses",
+    "unpricedOne": "{model}: ditagih setelah selesai · {runs} proses",
+    "unpricedKnown": "{model}: {display} · {runs} proses",
+    "unpricedKnownOne": "{model}: {display} · {runs} proses"
+  },
+  "loading": "Memuat…",
+  "footer": "Perkiraan meja memakai token masuk dan keluar {productName} serta harga katalog {gatewayName}. Belanja dompet kunci ini mencakup aplikasi lain pada kunci yang sama dan tidak akan sama dengan total meja.",
+  "errors": {
+    "unavailable": "Pemakaian belum tersedia.",
+    "loadStatus": "Pemakaian tidak dapat dimuat ({status}).",
+    "incomplete": "Respons pemakaian tidak lengkap.",
+    "load": "Pemakaian tidak dapat dimuat."
+  }
+}
