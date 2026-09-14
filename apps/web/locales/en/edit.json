@@ -1,0 +1,223 @@
+{
+  "title": "Edit",
+  "defaultProjectName": "Loop 1",
+  "untitled": "Untitled",
+  "projects": "Projects",
+  "newProject": "New project",
+  "openProjectHint": "Open a project to talk to the editor.",
+  "phaseLater": "{label} (Phase 2+)",
+  "jobs": "jobs {count}",
+  "turnMeter": "turn {spent} / {cap}",
+  "opsCount": "ops {count}",
+  "parity": "Parity",
+  "export": "Export",
+  "exporting": "Exporting…",
+  "downloadExport": "Download export",
+  "tools": {
+    "upload": "Upload",
+    "generate": "Generate",
+    "ingredients": "Ingredients",
+    "titles": "Titles",
+    "captions": "Captions",
+    "recipes": "Recipes",
+    "history": "History"
+  },
+  "tier": {
+    "draft": "Draft",
+    "standard": "Standard",
+    "cinematic": "Cinematic"
+  },
+  "preview": {
+    "play": "Play",
+    "pause": "Pause",
+    "previousFrame": "Previous frame",
+    "nextFrame": "Next frame",
+    "scrub": "Scrub"
+  },
+  "timeline": {
+    "hints": "snap: frame · S split · Del delete",
+    "trimStart": "Trim start",
+    "trimEnd": "Trim end",
+    "trackV1": "V1",
+    "trackA1": "A1",
+    "trackC1": "C1"
+  },
+  "agent": {
+    "title": "Agent",
+    "writing": "Agent writing…",
+    "placeholder": "Ask the editor…",
+    "send": "Send"
+  },
+  "cards": {
+    "reviewTitle": "Review before export",
+    "reviewBody": "Scrub the full timeline or confirm it looks good.",
+    "looksGood": "Looks good",
+    "estimate": "est {usd}",
+    "priceUnknown": "price unknown",
+    "go": "Go",
+    "cancel": "Cancel",
+    "keep": "Keep",
+    "undo": "Undo",
+    "tweak": "Tweak",
+    "fallbackVerb": "Edit"
+  },
+  "status": {
+    "proposed": "proposed",
+    "pending": "pending",
+    "kept": "kept",
+    "undone": "undone",
+    "plan": "plan",
+    "cancelled": "cancelled"
+  },
+  "tray": {
+    "unplaced": "Unplaced ({count})",
+    "place": "Place",
+    "discard": "Discard"
+  },
+  "generate": {
+    "image": "Image",
+    "videoFromImage": "Video from image",
+    "storyboard": "Storyboard",
+    "storyboardPhase": "Storyboard lands in Phase 3.",
+    "needsKey": "Add a {gateway} gateway key in {settings} to generate.",
+    "settingsLink": "Settings",
+    "animateStillClip": "Animate the image clip under the playhead",
+    "stillUrlPlaceholder": "Still image URL, or move the playhead onto an image clip",
+    "stillUrlOrPaste": "…or paste a still image URL",
+    "textToVideoOnly": "This model is text-to-video only",
+    "imagePlaceholder": "Describe an image…",
+    "videoPlaceholder": "Describe a video…",
+    "generate": "Generate",
+    "generating": "Generating…",
+    "seconds": "{value}s",
+    "failed": "Generation failed"
+  },
+  "templates": {
+    "heading": "Start from a prompt template",
+    "all": "All",
+    "empty": "No templates in this category.",
+    "fromSource": "From {site}: {title}",
+    "promptingRules": "Prompting rules",
+    "categories": {
+      "promo": "Product promo",
+      "talking-head": "Talking head",
+      "reel": "Vertical reel",
+      "square": "Square social"
+    },
+    "titles": {
+      "promo-product-stone": "Product on stone counter",
+      "promo-daisy-macro": "Daisy field macro",
+      "promo-caterpillar-macro": "Caterpillar macro crawl",
+      "promo-drone-broll": "Drone obstacle flythrough",
+      "promo-rooftop-dolly-out": "Rooftop dolly out",
+      "promo-chip-macro": "Chip macro spin",
+      "talk-neon-frontal": "Neon street frontal",
+      "talk-calm-line": "Calm voiceover line",
+      "talk-bookstore-dialogue": "Bookstore two-person dialogue",
+      "talk-keyboard-review": "Keyboard review",
+      "reel-runway-pan": "Runway pan",
+      "reel-cheongsam": "Cheongsam showcase",
+      "reel-tokyo-selfie": "Tokyo selfie manga",
+      "reel-skateboard": "Skateboard follow shot",
+      "reel-ugc-airplane": "Airplane UGC vlog",
+      "square-poppies": "Poppies backlit",
+      "square-kitten-yawn": "Kitten yawn",
+      "square-voxel-robot": "Voxel robot on rocket",
+      "square-gummies-selfie": "Gummies selfie review"
+    },
+    "guide": {
+      "subject-action-timeline": "Start with subject and action; describe multiple actions in timeline order.",
+      "camera-move-names": "Name the camera move: push, pull, pan, circle, follow, rise, zoom, or tracking.",
+      "shot-size-names": "Name the shot size: long, full, medium, close-up, macro, aerial, low or high angle.",
+      "style-words": "Use style words such as voxel, felt, clay, or manga for stylized output.",
+      "prompt-order": "Order the prompt as subject, movement, environment, camera movement, aesthetic, then sound.",
+      "camera-start-end": "Describe camera as starting composition, movement, amplitude, then ending composition.",
+      "dialogue-quotes": "Put dialogue in quotes and state emotion, tone, and pace.",
+      "one-move-per-shot": "Use one camera move per shot; label shots Shot 1, Shot 2, Shot 3.",
+      "no-text-constraint": "Add constraints such as avoid generating text or subtitles, and no logo or watermark.",
+      "negatives-audio": "Use negatives only for subtitles or audio, for example No subtitles or No BGM.",
+      "camera-presets": "Camera preset names work as prompt phrases: crash zoom in, dolly in, 360 orbit, whip pan."
+    }
+  },
+  "recipes": {
+    "hint": "Each step becomes its own card after Go.",
+    "steps": "{count} steps",
+    "stepsOne": "{count} step",
+    "podcast-clean-up": "Podcast clean-up",
+    "reels-cutdown": "Reels cutdown"
+  },
+  "starters": {
+    "blank-16x9": {
+      "name": "Blank 16:9",
+      "description": "Empty landscape timeline."
+    },
+    "blank-9x16": {
+      "name": "Blank 9:16",
+      "description": "Empty portrait timeline."
+    },
+    "blank-1x1": {
+      "name": "Blank 1:1",
+      "description": "Empty square timeline."
+    },
+    "promo-16x9": {
+      "name": "Product promo",
+      "description": "Title card, three sample shots, and a music bed. Swap the shots for your footage."
+    },
+    "talk-16x9": {
+      "name": "Talking head + subtitles",
+      "description": "A 20 second talk clip with a sample caption. Try “Remove the silences”."
+    },
+    "reels-9x16": {
+      "name": "Reels 9:16",
+      "description": "Vertical sample clip with a title. Ready for Reels or Shorts."
+    },
+    "square-1x1": {
+      "name": "Square social",
+      "description": "Square sample loop for feed posts."
+    }
+  },
+  "ffmpeg": {
+    "setup": "Setup:",
+    "platformSetup": "{platform} setup:",
+    "copy": "Copy",
+    "copied": "Copied",
+    "checkAgain": "Check again",
+    "checking": "Checking…",
+    "installGuide": "Install guide",
+    "recheckFailed": "Could not reach the local host to re-check. Try again in a moment."
+  },
+  "errors": {
+    "apply": "Could not apply edit",
+    "createProject": "Could not create project",
+    "import": "Import failed",
+    "agentUnavailable": "Edit agent is not available yet",
+    "agentFailed": "Agent failed",
+    "exportBlocked": "Export blocked",
+    "exportNotReady": "Export is not ready",
+    "exportDownload": "Could not download export"
+  },
+  "pipeline": {
+    "languageInstruction": "Write user-facing Edit text (card verbs, titles, captions, assistant replies, and any on-image or on-video words) in English. Keep tool names and JSON keys in English.",
+    "stubHelp": "I can help trim, split, caption, and title this timeline.",
+    "stubUndo": "Undo is available on the last card."
+  },
+  "stubCards": {
+    "S1": { "verb": "Remove 3 silences", "object": "v1" },
+    "S2": { "verb": "Split at scenes", "object": "v1" },
+    "S3": { "verb": "Add captions", "object": "script" },
+    "S4": { "verb": "Transcribe", "object": "talk track" },
+    "S5": { "verb": "Reframe", "object": "9:16" },
+    "S6": { "verb": "Add title", "object": "Summer Sale" },
+    "S7": { "verb": "Trim clip", "object": "3 seconds" },
+    "S8": { "verb": "Move clip", "object": "start" },
+    "S9": { "verb": "Clear timeline", "object": "all clips" },
+    "S10": { "verb": "Undo", "object": "last change" },
+    "F1": { "verb": "Storyboard", "object": "still shots" },
+    "F2": { "verb": "Animate", "object": "storyboard" },
+    "F3": { "verb": "Recipe", "object": "plan" },
+    "F4": { "verb": "Match look", "object": "reference" },
+    "F5": { "verb": "Alt cut", "object": "v_compare" },
+    "generateImage": { "verb": "Generate image", "object": "prompt" },
+    "generateVideo": { "verb": "Generate video", "object": "prompt" }
+  }
+}
