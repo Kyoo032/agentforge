@@ -74,7 +74,7 @@
       "prompt": "Jika ada kolom tanggal, tunjukkan pergerakan kolom numerik utama dari waktu ke waktu dan sebutkan perubahan terbesar."
     }
   },
-  "outputTextLanguage": "Tulis judul, ringkasan, judul temuan, isi temuan, dan judul grafik dalam Bahasa Indonesia yang profesional. Jangan menerjemahkan SQL, pengenal kolom, atau nama tabel."
+  "outputTextLanguage": "Tulis judul, ringkasan, judul temuan, isi temuan, dan judul grafik dalam Bahasa Indonesia yang profesional. Jangan menerjemahkan SQL, pengenal kolom, atau nama tabel.",
   "job": {
     "profiling": "Memprofilkan dataset",
     "analyzing": "Mengueri dengan SQL",
