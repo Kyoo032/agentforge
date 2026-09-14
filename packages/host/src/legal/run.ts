@@ -42,6 +42,9 @@ import {
   type DocRole,
   type StageCardInput,
   type VerifyReport,
+  type LegalLocale,
+  fillCopy,
+  legalOutputCopy,
 } from "@agentforge/core/legal";
 import type { z } from "zod";
 import { throwIfJobAborted } from "../job-stream";
@@ -83,6 +86,7 @@ export type LegalRunInput = {
   maxRounds: number;
   runId: string;
   now: () => Date;
+  locale?: LegalLocale;
 };
 
 export type LegalRunDeps = {
@@ -129,6 +133,18 @@ async function mapWithConcurrency<T, R>(
   return results;
 }
 
+function localeOf(ctx: RunCtx): LegalLocale {
+  return ctx.input.locale ?? "en";
+}
+
+function copyOf(ctx: RunCtx) {
+  return legalOutputCopy(localeOf(ctx));
+}
+
+function emitPhaseLoc(ctx: RunCtx, phase: string): void {
+  emitPhase(ctx.deps.emit, phase, localeOf(ctx));
+}
+
 function abort(ctx: RunCtx): void {
   throwIfJobAborted(ctx.deps.abortSignal);
 }
@@ -159,12 +175,12 @@ async function askJson<S extends z.ZodTypeAny>(
   if (retry !== null) {
     return retry;
   }
-  emitStep(ctx.deps.emit, stage.stage.split("-")[0] ?? stage.stage, "Dropped invalid model output after retry");
+  emitStep(ctx.deps.emit, stage.stage.split("-")[0] ?? stage.stage, copyOf(ctx).droppedOutput);
   return null;
 }
 
 async function classify(ctx: RunCtx): Promise<MatterDocCard[]> {
-  emitPhase(ctx.deps.emit, "classify");
+  emitPhaseLoc(ctx, "classify");
   abort(ctx);
   const pending = ctx.cards.filter((card) => card.role === "context");
   let proposed = new Map<string, DocRole>();
@@ -194,21 +210,23 @@ async function classify(ctx: RunCtx): Promise<MatterDocCard[]> {
 }
 
 async function diffStage(ctx: RunCtx, ids: { next: () => string }, findings: Finding[]): Promise<ParagraphChange[]> {
-  emitPhase(ctx.deps.emit, "diff");
+  emitPhaseLoc(ctx, "diff");
   abort(ctx);
   const prior = cardByRole(ctx.cards, "prior-turn");
   const draftCard = cardByRole(ctx.cards, "counterparty-draft");
   const priorDoc = prior ? ctx.input.docs.get(prior.id) : undefined;
   const draftDoc = draftCard ? ctx.input.docs.get(draftCard.id) : undefined;
   if (!prior || !draftCard || !priorDoc || !draftDoc) {
-    emitStep(ctx.deps.emit, "diff", "No prior turn to compare");
+    emitStep(ctx.deps.emit, "diff", copyOf(ctx).noPriorTurn);
     return [];
   }
   const diff = diffDocuments(priorDoc, draftDoc);
   for (const change of diff.unmarked) {
-    findings.push(unmarkedFinding(change, ids.next(), 1, draftDoc));
+    findings.push(unmarkedFinding(change, ids.next(), 1, draftDoc, localeOf(ctx)));
   }
-  emitStep(ctx.deps.emit, "diff", `${diff.unmarked.length} unmarked changes`, { detail: String(diff.unmarked.length) });
+  emitStep(ctx.deps.emit, "diff", fillCopy(copyOf(ctx).unmarkedChanges, { count: diff.unmarked.length }), {
+    detail: String(diff.unmarked.length),
+  });
   return [...diff.unmarked];
 }
 
@@ -220,13 +238,13 @@ async function reviewStage(
   draft: DocxDocument | null,
   ids: { next: () => string },
 ): Promise<Finding[]> {
-  emitPhase(ctx.deps.emit, "review");
+  emitPhaseLoc(ctx, "review");
   abort(ctx);
   for (const card of ctx.cards.filter((card) => card.status === "read")) {
     ctx.deps.emit({ type: "job.source", id: card.id, title: card.name, url: card.path, status: "read" });
   }
   if (clauses.length === 0) {
-    emitStep(ctx.deps.emit, "review", "No clauses to review");
+    emitStep(ctx.deps.emit, "review", copyOf(ctx).noClauses);
     return [];
   }
   const playbook = ctx.input.playbook;
@@ -263,11 +281,11 @@ async function missingStage(
   mapping: ReturnType<typeof mapChecklistToClauses> | null,
   ids: { next: () => string },
 ): Promise<Finding[]> {
-  emitPhase(ctx.deps.emit, "missing");
+  emitPhaseLoc(ctx, "missing");
   abort(ctx);
   const playbook = ctx.input.playbook;
   if (!playbook || !mapping || mapping.unmapped.length === 0) {
-    emitStep(ctx.deps.emit, "missing", playbook ? "All checklist items mapped" : "No playbook");
+    emitStep(ctx.deps.emit, "missing", playbook ? copyOf(ctx).allMapped : copyOf(ctx).noPlaybook);
     return [];
   }
   const out: Finding[] = [];
@@ -286,7 +304,7 @@ async function missingStage(
     );
     emitStep(ctx.deps.emit, "missing", item.title, { detail: item.id });
     if (parsed?.absent !== false) {
-      out.push(missingFinding(item, ids.next(), 1));
+      out.push(missingFinding(item, ids.next(), 1, localeOf(ctx)));
     }
   }
   return out;
@@ -299,11 +317,11 @@ async function interactionStage(
   draft: DocxDocument | null,
   ids: { next: () => string },
 ): Promise<Finding[]> {
-  emitPhase(ctx.deps.emit, "interactions");
+  emitPhaseLoc(ctx, "interactions");
   abort(ctx);
   const high = findings.filter((finding) => finding.severity === "high").slice(0, LEGAL_CAPS.maxInteractions);
   if (high.length === 0) {
-    emitStep(ctx.deps.emit, "interactions", "No high-severity findings");
+    emitStep(ctx.deps.emit, "interactions", copyOf(ctx).noHighSeverity);
     return [];
   }
   const out: Finding[] = [];
@@ -360,12 +378,13 @@ async function draftMemo(
     { findings, facts: { author: ctx.input.matter.author, addressee: ctx.input.matter.addressee, dateIso } },
     memoOutlineSchema,
   );
-  const outline = parsed ?? fallbackMemo(ctx.input.matter, dateIso, findings);
+  const outline = parsed ?? fallbackMemo(ctx.input.matter, dateIso, findings, localeOf(ctx));
   const rendered = await renderMemoDocx({
     outline,
     findings,
     side: ctx.input.matter.side,
     firm: ctx.input.matter.firm,
+    locale: localeOf(ctx),
   });
   return {
     kind,
@@ -387,10 +406,10 @@ async function draftRedline(
   const draftCard = cardByRole(ctx.cards, "counterparty-draft");
   const original = draftCard ? ctx.input.bytes.get(draftCard.id) : undefined;
   if (!original) {
-    emitStep(ctx.deps.emit, "draft", "No original bytes for redline");
+    emitStep(ctx.deps.emit, "draft", copyOf(ctx).noRedlineBytes);
     return emptyPacked("redline");
   }
-  const { patches, inserts } = buildRedlinePatches(findings, draft, clauses);
+  const { patches, inserts } = buildRedlinePatches(findings, draft, clauses, localeOf(ctx));
   const result = await applyRedline(original, patches, inserts, {
     author: ctx.input.matter.author || "DPSBuddy Legal",
     date: ctx.input.now().toISOString(),
@@ -427,7 +446,12 @@ async function draftOne(
     return draftRedline(ctx, findings, draft, clauses);
   }
   if (kind === "deviation-report") {
-    const bytes = renderDeviationXlsx({ findings, side: ctx.input.matter.side, matterTitle: ctx.input.matter.title });
+    const bytes = renderDeviationXlsx({
+      findings,
+      side: ctx.input.matter.side,
+      matterTitle: ctx.input.matter.title,
+      locale: localeOf(ctx),
+    });
     return { kind, filename: FILENAME[kind], mime: MIME.xlsx, bytes, text: "", outline: null, redline: null };
   }
   const text = renderRedFlagsMarkdown({
@@ -435,6 +459,7 @@ async function draftOne(
     side: ctx.input.matter.side,
     matterTitle: ctx.input.matter.title,
     verify,
+    locale: localeOf(ctx),
   });
   return {
     kind,
@@ -458,7 +483,7 @@ async function draftStage(
   announce: boolean,
 ): Promise<Packed[]> {
   if (announce) {
-    emitPhase(ctx.deps.emit, "draft");
+    emitPhaseLoc(ctx, "draft");
   }
   abort(ctx);
   const out: Packed[] = [];
@@ -513,9 +538,14 @@ async function verifyStage(
   clauses: readonly DocxClause[],
   reserved: readonly ReservedInstruction[],
 ): Promise<VerifyReport> {
-  emitPhase(ctx.deps.emit, "verify");
+  emitPhaseLoc(ctx, "verify");
   abort(ctx);
-  ctx.deps.emit({ type: "job.round", round, total: ctx.maxRounds, label: `Round ${round} of ${ctx.maxRounds}` });
+  ctx.deps.emit({
+    type: "job.round",
+    round,
+    total: ctx.maxRounds,
+    label: fillCopy(copyOf(ctx).roundOf, { round, total: ctx.maxRounds }),
+  });
   const memo = packed.find((item) => item.kind === "issues-memo");
   const redline = packed.find((item) => item.kind === "redline");
   const draftCard = cardByRole(ctx.cards, "counterparty-draft");
@@ -539,16 +569,21 @@ async function verifyStage(
     citedDocIds: citedDocIds(findings),
     skipped: ctx.cards
       .filter((card) => card.status === "skipped")
-      .map((card) => ({ doc: card.id, reason: card.skipReason ?? "skipped" })),
+      .map((card) => ({ doc: card.id, reason: card.skipReason ?? copyOf(ctx).skipped })),
   });
   for (const check of checks) {
-    emitStep(ctx.deps.emit, "verify", check.code, { detail: `${check.passed} passed, ${check.failed} failed` });
+    emitStep(ctx.deps.emit, "verify", check.code, {
+      detail: fillCopy(copyOf(ctx).passedFailed, { passed: check.passed, failed: check.failed }),
+    });
   }
   const model = await modelVerify(ctx, packed, ctx.input.playbook);
   const openForHuman = [
     ...findings
       .filter((finding) => finding.reservedFor !== null)
-      .map((finding) => ({ clause: finding.clause, detail: `Reserved for ${finding.reservedFor}` })),
+      .map((finding) => ({
+        clause: finding.clause,
+        detail: fillCopy(copyOf(ctx).reservedFor, { who: finding.reservedFor ?? "" }),
+      })),
     ...model.concessions
       .filter((item) => item.disposition === "market")
       .map((item) => ({ clause: item.clause, detail: item.detail })),
@@ -564,7 +599,7 @@ async function verifyStage(
     concessions: model.concessions,
     documentsSkipped: ctx.cards
       .filter((card) => card.status === "skipped")
-      .map((card) => ({ doc: card.id, reason: card.skipReason ?? "skipped" })),
+      .map((card) => ({ doc: card.id, reason: card.skipReason ?? copyOf(ctx).skipped })),
     openForHuman,
     ok,
   };
@@ -577,7 +612,7 @@ async function editStage(
   verify: VerifyReport,
   reserved: readonly ReservedInstruction[],
 ): Promise<{ findings: readonly Finding[]; patches: EditPatch[]; touched: DeliverableKind[] }> {
-  emitPhase(ctx.deps.emit, "edit");
+  emitPhaseLoc(ctx, "edit");
   abort(ctx);
   const failures = verify.codeChecks.flatMap((check) => (check.code === "coverage" ? [] : [...check.failures]));
   const auto = autoFixInstructionFindings(findings, failures, reserved, round, ctx.input.matter.author);
@@ -683,6 +718,7 @@ function preambleArgs(ctx: RunCtx) {
     docs: ctx.cards,
     playbook: ctx.input.playbook,
     priorityNote: "",
+    locale: localeOf(ctx),
   };
 }
 
@@ -734,7 +770,7 @@ export async function runLegalMatter(input: LegalRunInput, deps: LegalRunDeps): 
   findings.push(...(await missingStage(ctx, mapping, ids)));
   findings.push(...(await interactionStage(ctx, findings, clauses, draft, ids)));
   const instructionSources = [
-    { text: input.matter.instructions, by: input.matter.author || "instructing author" },
+    { text: input.matter.instructions, by: input.matter.author || copyOf(ctx).instructingAuthor },
     ...ctx.cards
       .filter((card) => card.role === "instruction")
       .map((card) => {
@@ -768,12 +804,13 @@ export async function runLegalMatter(input: LegalRunInput, deps: LegalRunDeps): 
       side: input.matter.side,
       matterTitle: input.matter.title,
       verify,
+      locale: localeOf(ctx),
     });
     packed = packed.map((item) =>
       item.kind === "red-flags" ? { ...item, text, bytes: new TextEncoder().encode(text) } : item,
     );
   }
-  emitPhase(deps.emit, "package");
+  emitPhase(deps.emit, "package", localeOf(ctx));
   const deliverables = input.matter.deliverables.map((kind) => {
     const item = packed.find((entry) => entry.kind === kind) ?? emptyPacked(kind);
     emitStep(deps.emit, "package", kind);

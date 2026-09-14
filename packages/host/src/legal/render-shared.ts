@@ -2,44 +2,42 @@
  * Helpers shared by the Legal deliverable renderers. Pure, no I/O.
  * Formal register only: parties by defined term, provisions by section number, documents by id.
  */
+import { fillCopy, legalOutputCopy, type LegalLocale } from "@agentforge/core/legal";
 import type { Citation, Finding, FindingKind, LegalSide, Severity } from "@agentforge/core/legal";
 
-/** Mandatory last line of every deliverable (legal-mode-flow.md §12). */
-export const CLOSING_LINE = "Draft work product prepared with automated assistance for review by a qualified lawyer.";
+const EN = legalOutputCopy("en");
 
-export const NO_CITATION = "no citation recorded";
-export const NOT_FOUND_TOKEN = "[finding not found]";
-export const NONE_IDENTIFIED = "None identified.";
+/** Mandatory last line of every deliverable (legal-mode-flow.md §12). English default for tests. */
+export const CLOSING_LINE = EN.closingLine;
+
+export const NO_CITATION = EN.noCitation;
+export const NOT_FOUND_TOKEN = EN.findingNotFound;
+export const NONE_IDENTIFIED = EN.noneIdentified;
 
 /** Sort order for severities: high first. */
 export const SEVERITY_RANK: Readonly<Record<Severity, number>> = { high: 0, medium: 1, low: 2 };
 
 /** Display labels for finding kinds, in the register the UI uses. */
-export const KIND_LABELS: Readonly<Record<FindingKind, string>> = {
-  adverse: "Adverse provision",
-  deviation: "Deviation from playbook",
-  "unmarked-change": "Unmarked change",
-  interaction: "Interaction",
-  missing: "Missing provision",
-  ok: "Conforms",
-};
+export const KIND_LABELS: Readonly<Record<FindingKind, string>> = EN.kindLabels;
 
 const CLAUSE_COLLATOR = new Intl.Collator("en", { numeric: true, sensitivity: "base" });
 
 /** "S2 ¶41, PB CA-07" — document id then reference, comma-separated. */
-export function formatBasis(basis: readonly Citation[]): string {
-  return basis.length === 0 ? NO_CITATION : basis.map((citation) => `${citation.doc} ${citation.ref}`).join(", ");
+export function formatBasis(basis: readonly Citation[], locale: LegalLocale = "en"): string {
+  return basis.length === 0
+    ? legalOutputCopy(locale).noCitation
+    : basis.map((citation) => `${citation.doc} ${citation.ref}`).join(", ");
 }
 
 /** "<title> (<clause>; <basis>)" — the expansion used for memo tokens and cross-references. */
-export function findingLabel(finding: Finding): string {
-  return `${finding.title} (${finding.clause}; ${formatBasis(finding.basis)})`;
+export function findingLabel(finding: Finding, locale: LegalLocale = "en"): string {
+  return `${finding.title} (${finding.clause}; ${formatBasis(finding.basis, locale)})`;
 }
 
 /** Proposed language, or the reservation note when the point is held for a named reviewer. */
-export function proposedLanguage(finding: Finding): string {
+export function proposedLanguage(finding: Finding, locale: LegalLocale = "en"): string {
   if (finding.reservedFor !== null) {
-    return `Reserved for ${finding.reservedFor}`;
+    return fillCopy(legalOutputCopy(locale).reservedFor, { who: finding.reservedFor });
   }
   return finding.proposedText ?? "";
 }
@@ -65,8 +63,12 @@ export function sortFindings(findings: readonly Finding[]): Finding[] {
 }
 
 /** "Acting for Borrower Co (borrower) against the Lenders." */
-export function positionLine(side: LegalSide): string {
-  return `Acting for ${side.party} (${side.role}) against ${side.counterparty}.`;
+export function positionLine(side: LegalSide, locale: LegalLocale = "en"): string {
+  return fillCopy(legalOutputCopy(locale).positionLine, {
+    party: side.party,
+    role: side.role,
+    counterparty: side.counterparty,
+  });
 }
 
 /** Index by finding id; later duplicates win, matching the ledger's replace semantics. */

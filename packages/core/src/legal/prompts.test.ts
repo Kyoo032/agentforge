@@ -93,6 +93,14 @@ describe("buildPreamble", () => {
     expect(positions).toEqual([...positions].sort((a, b) => a - b));
     expect(text).toContain("Formal legal register. Refer to parties by their defined terms.");
     expect(text).toContain("draft work product for review by a qualified lawyer");
+    expect(text).toContain("MUST be written in English");
+  });
+
+  it("instructs Bahasa Indonesia user-facing artifacts when locale is id", () => {
+    const text = buildPreamble({ ...INPUT, locale: "id" });
+    expect(text).toContain("Bahasa Indonesia");
+    expect(text).toContain("Anda");
+    expect(text).not.toContain("MUST be written in English");
   });
 
   it("lists every document id with role, name and counters, plus the playbook line", () => {

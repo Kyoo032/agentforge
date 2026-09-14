@@ -11,16 +11,17 @@ import type {
   RedlineInsertParagraph,
   RedlinePatch,
 } from "@agentforge/core/docx";
-import type { Finding, FindingKind } from "@agentforge/core/legal";
+import { fillCopy, legalOutputCopy, type Finding, type FindingKind, type LegalLocale } from "@agentforge/core/legal";
 import { formatBasis, isActionable } from "./render-shared";
 
 const PATCH_KINDS: readonly FindingKind[] = ["adverse", "deviation", "unmarked-change", "interaction"];
 const CLAUSE_NORMALISE = /[\s.]+$|\s+/g;
 
 /** "<title>. Basis: <citations>." — the margin comment in formal register. */
-export function basisComment(finding: Finding): string {
+export function basisComment(finding: Finding, locale: LegalLocale = "en"): string {
+  const copy = legalOutputCopy(locale);
   const title = finding.title.trim().replace(/[.\s]+$/, "");
-  return `${title}. Basis: ${formatBasis(finding.basis)}.`;
+  return fillCopy(copy.basisComment, { title, basis: formatBasis(finding.basis, locale) });
 }
 
 function normaliseClauseId(id: string): string {
@@ -66,26 +67,27 @@ function patchAnchor(finding: Finding, draft: DocxDocument): ParagraphAnchor | n
   return finding.quoteAnchor ?? findQuote(draft, finding.quote)?.anchor ?? null;
 }
 
-function toPatch(finding: Finding, draft: DocxDocument): RedlinePatch | null {
+function toPatch(finding: Finding, draft: DocxDocument, locale: LegalLocale): RedlinePatch | null {
   if (!PATCH_KINDS.includes(finding.kind) || finding.quote.trim() === "" || finding.proposedText === null) {
     return null;
   }
   const anchor = patchAnchor(finding, draft);
   return anchor === null
     ? null
-    : { anchor, find: finding.quote, replace: finding.proposedText, comment: basisComment(finding) };
+    : { anchor, find: finding.quote, replace: finding.proposedText, comment: basisComment(finding, locale) };
 }
 
 function toInsert(
   finding: Finding,
   draft: DocxDocument,
   clauses: readonly DocxClause[],
+  locale: LegalLocale,
 ): RedlineInsertParagraph | null {
   if (finding.kind !== "missing" || finding.proposedText === null) {
     return null;
   }
   const after = insertionAnchor(finding, draft, clauses);
-  return after === null ? null : { after, text: finding.proposedText, comment: basisComment(finding) };
+  return after === null ? null : { after, text: finding.proposedText, comment: basisComment(finding, locale) };
 }
 
 /**
@@ -96,14 +98,15 @@ export function buildRedlinePatches(
   findings: readonly Finding[],
   draft: DocxDocument,
   clauses: readonly DocxClause[],
+  locale: LegalLocale = "en",
 ): { patches: RedlinePatch[]; inserts: RedlineInsertParagraph[] } {
   const actionable = findings.filter(isActionable);
   const patches = actionable.flatMap((finding) => {
-    const patch = toPatch(finding, draft);
+    const patch = toPatch(finding, draft, locale);
     return patch ? [patch] : [];
   });
   const inserts = actionable.flatMap((finding) => {
-    const insert = toInsert(finding, draft, clauses);
+    const insert = toInsert(finding, draft, clauses, locale);
     return insert ? [insert] : [];
   });
   return { patches, inserts };

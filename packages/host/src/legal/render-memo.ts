@@ -5,11 +5,9 @@
  */
 import { Document, HeadingLevel, Packer, Paragraph, type Table, TextRun } from "docx";
 import { resolvedProductName } from "@agentforge/core";
-import type { Finding, LegalSide, MemoOutline } from "@agentforge/core/legal";
+import { legalOutputCopy, type Finding, type LegalLocale, type LegalSide, type MemoOutline } from "@agentforge/core/legal";
 import { docxTable } from "../docx-table";
 import {
-  CLOSING_LINE,
-  NOT_FOUND_TOKEN,
   findingLabel,
   findingsById,
   formatBasis,
@@ -17,9 +15,9 @@ import {
   proposedLanguage,
 } from "./render-shared";
 
-export const MEMO_TITLE = "MEMORANDUM";
-export const PRIVILEGE_LINE = "PRIVILEGED AND CONFIDENTIAL — ATTORNEY WORK PRODUCT";
-export const FINDINGS_TABLE_COLUMNS = ["Clause", "Provision", "Why adverse", "Severity", "Proposed language", "Basis"];
+export const MEMO_TITLE = legalOutputCopy("en").memoTitle;
+export const PRIVILEGE_LINE = legalOutputCopy("en").privilegeLine;
+export const FINDINGS_TABLE_COLUMNS = legalOutputCopy("en").memoColumns;
 
 const TOKEN_PATTERN = /\{\{\s*(F[\w-]+)\s*\}\}/g;
 const FONT = "Calibri";
@@ -27,7 +25,7 @@ const TITLE_COLOR = "0D2137";
 const HEADING_COLOR = "1565C0";
 const TEXT_ROW_SEPARATOR = " | ";
 
-export type MemoContext = { side?: LegalSide; firm?: string };
+export type MemoContext = { side?: LegalSide; firm?: string; locale?: LegalLocale };
 
 export type MemoBlock =
   | { kind: "title"; text: string }
@@ -37,51 +35,54 @@ export type MemoBlock =
   | { kind: "table"; columns: readonly string[]; rows: readonly (readonly string[])[] };
 
 /** Replaces `{{F3}}` with the finding label; unknown ids become a visible marker rather than vanishing. */
-export function expandFindingTokens(text: string, byId: ReadonlyMap<string, Finding>): string {
+export function expandFindingTokens(text: string, byId: ReadonlyMap<string, Finding>, locale: LegalLocale = "en"): string {
+  const missing = legalOutputCopy(locale).findingNotFound;
   return text.replace(TOKEN_PATTERN, (_match, id: string) => {
     const finding = byId.get(id);
-    return finding ? findingLabel(finding) : NOT_FOUND_TOKEN;
+    return finding ? findingLabel(finding, locale) : missing;
   });
 }
 
-function tableRow(finding: Finding): readonly string[] {
+function tableRow(finding: Finding, locale: LegalLocale): readonly string[] {
   return [
     finding.clause,
     finding.quote,
     finding.why,
     finding.severity,
-    proposedLanguage(finding),
-    formatBasis(finding.basis),
+    proposedLanguage(finding, locale),
+    formatBasis(finding.basis, locale),
   ];
 }
 
 function headerBlocks(outline: MemoOutline, context: MemoContext): MemoBlock[] {
+  const copy = legalOutputCopy(context.locale);
   const optional: MemoBlock[] = [
-    ...(outline.privileged ? [{ kind: "line", text: PRIVILEGE_LINE } as const] : []),
-    ...(context.firm ? [{ kind: "line", text: `Firm: ${context.firm}` } as const] : []),
-    ...(context.side ? [{ kind: "line", text: positionLine(context.side) } as const] : []),
+    ...(outline.privileged ? [{ kind: "line", text: copy.privilegeLine } as const] : []),
+    ...(context.firm ? [{ kind: "line", text: `${copy.firmLabel}: ${context.firm}` } as const] : []),
+    ...(context.side ? [{ kind: "line", text: positionLine(context.side, context.locale) } as const] : []),
   ];
   return [
-    { kind: "title", text: MEMO_TITLE },
+    { kind: "title", text: copy.memoTitle },
     ...optional,
-    { kind: "line", text: `To: ${outline.to}` },
-    { kind: "line", text: `From: ${outline.from}` },
-    { kind: "line", text: `Date: ${outline.date}` },
-    { kind: "line", text: `Re: ${outline.re}` },
+    { kind: "line", text: `${copy.headerTo}: ${outline.to}` },
+    { kind: "line", text: `${copy.headerFrom}: ${outline.from}` },
+    { kind: "line", text: `${copy.headerDate}: ${outline.date}` },
+    { kind: "line", text: `${copy.headerRe}: ${outline.re}` },
   ];
 }
 
-function sectionBlocks(outline: MemoOutline, byId: ReadonlyMap<string, Finding>): MemoBlock[] {
+function sectionBlocks(outline: MemoOutline, byId: ReadonlyMap<string, Finding>, locale: LegalLocale): MemoBlock[] {
+  const copy = legalOutputCopy(locale);
   return outline.sections.flatMap((section) => {
     const listed = (section.findingsTable ?? []).flatMap((id) => {
       const finding = byId.get(id);
-      return finding ? [tableRow(finding)] : [];
+      return finding ? [tableRow(finding, locale)] : [];
     });
     const table: MemoBlock[] =
-      section.findingsTable === undefined ? [] : [{ kind: "table", columns: FINDINGS_TABLE_COLUMNS, rows: listed }];
+      section.findingsTable === undefined ? [] : [{ kind: "table", columns: copy.memoColumns, rows: listed }];
     return [
       { kind: "heading", text: section.heading },
-      ...section.paragraphs.map((text): MemoBlock => ({ kind: "paragraph", text: expandFindingTokens(text, byId) })),
+      ...section.paragraphs.map((text): MemoBlock => ({ kind: "paragraph", text: expandFindingTokens(text, byId, locale) })),
       ...table,
     ];
   });
@@ -90,10 +91,11 @@ function sectionBlocks(outline: MemoOutline, byId: ReadonlyMap<string, Finding>)
 /** The full memo as ordered blocks; the closing line is always last. */
 export function memoBlocks(outline: MemoOutline, findings: readonly Finding[], context: MemoContext = {}): MemoBlock[] {
   const byId = findingsById(findings);
+  const locale = context.locale ?? "en";
   return [
     ...headerBlocks(outline, context),
-    ...sectionBlocks(outline, byId),
-    { kind: "paragraph", text: CLOSING_LINE },
+    ...sectionBlocks(outline, byId, locale),
+    { kind: "paragraph", text: legalOutputCopy(locale).closingLine },
   ];
 }
 
@@ -146,13 +148,14 @@ export async function renderMemoDocx(input: {
   findings: readonly Finding[];
   side: LegalSide;
   firm: string;
+  locale?: LegalLocale;
 }): Promise<{ bytes: Uint8Array; text: string }> {
-  const context: MemoContext = { side: input.side, firm: input.firm };
+  const context: MemoContext = { side: input.side, firm: input.firm, locale: input.locale };
   const blocks = memoBlocks(input.outline, input.findings, context);
   const doc = new Document({
     creator: input.firm || resolvedProductName(),
     title: input.outline.re,
-    description: MEMO_TITLE,
+    description: legalOutputCopy(input.locale).memoTitle,
     sections: [{ children: blocks.flatMap(blockDocx) }],
   });
   const buffer = await Packer.toBuffer(doc);
