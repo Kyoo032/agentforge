@@ -139,7 +139,7 @@ export async function handlePostPresentationsRegen(request: HostRequest): Promis
 export async function handlePostPresentationsPptx(request: HostRequest): Promise<HostResult> {
   try {
     const outline = parsePresentationOutlineBody(request.body ?? null);
-    const locale = presentationLocale(loadSettings());
+    const locale = presentationLocale();
     const { buffer, filename } = await buildPresentationPptx(outline, { locale });
     return {
       type: "bytes",

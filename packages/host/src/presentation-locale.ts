@@ -1,12 +1,11 @@
-export type PresentationLocale = "en" | "id";
+import type { AppLocale } from "@agentforge/core";
+import { localeForRun } from "./run-context";
 
-/** Boot locale from i18n core (AGENTFORGE_LOCALE freeze or owner settings.locale). Default en. */
-export function presentationLocale(settings?: { locale?: unknown } | null): PresentationLocale {
-  const frozen = process.env.AGENTFORGE_LOCALE;
-  if (frozen === "id" || frozen === "en") {
-    return frozen;
-  }
-  return settings?.locale === "id" ? "id" : "en";
+export type PresentationLocale = AppLocale;
+
+/** Slide-copy language follows i18n core (`localeForRun` → boot locale). */
+export function presentationLocale(): PresentationLocale {
+  return localeForRun();
 }
 
 export function presentationLanguageRule(locale: PresentationLocale): string {

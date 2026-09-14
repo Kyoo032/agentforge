@@ -1,34 +1,56 @@
-import { describe, expect, it } from "vitest";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { resetBootLocaleForTests } from "./locale-boot";
 import {
   presentationGatewayMessage,
   presentationKicker,
   presentationLanguageRule,
   presentationLocale,
 } from "./presentation-locale";
+import { saveOwnerLocale } from "./settings-store";
+
+const SECRET = "a".repeat(64);
 
 describe("presentationLocale", () => {
+  let dir: string;
+  let previousPath: string | undefined;
+  let previousKey: string | undefined;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "af-pres-locale-"));
+    previousPath = process.env.AGENTFORGE_SETTINGS_PATH;
+    previousKey = process.env.AGENTFORGE_SECRETS_KEY;
+    process.env.AGENTFORGE_SETTINGS_PATH = dir;
+    process.env.AGENTFORGE_SECRETS_KEY = SECRET;
+    resetBootLocaleForTests();
+  });
+
+  afterEach(() => {
+    resetBootLocaleForTests();
+    if (previousPath === undefined) {
+      delete process.env.AGENTFORGE_SETTINGS_PATH;
+    } else {
+      process.env.AGENTFORGE_SETTINGS_PATH = previousPath;
+    }
+    if (previousKey === undefined) {
+      delete process.env.AGENTFORGE_SECRETS_KEY;
+    } else {
+      process.env.AGENTFORGE_SECRETS_KEY = previousKey;
+    }
+    rmSync(dir, { recursive: true, force: true });
+  });
+
   it("defaults to en", () => {
     expect(presentationLocale()).toBe("en");
-    expect(presentationLocale({})).toBe("en");
   });
 
-  it("reads owner settings.locale when core has persisted it", () => {
-    expect(presentationLocale({ locale: "id" })).toBe("id");
-    expect(presentationLocale({ locale: "en" })).toBe("en");
-  });
-
-  it("prefers AGENTFORGE_LOCALE freeze over settings", () => {
-    const previous = process.env.AGENTFORGE_LOCALE;
-    process.env.AGENTFORGE_LOCALE = "id";
-    try {
-      expect(presentationLocale({ locale: "en" })).toBe("id");
-    } finally {
-      if (previous === undefined) {
-        delete process.env.AGENTFORGE_LOCALE;
-      } else {
-        process.env.AGENTFORGE_LOCALE = previous;
-      }
-    }
+  it("reads owner locale frozen by i18n core", () => {
+    saveOwnerLocale("id");
+    expect(presentationLocale()).toBe("id");
+    saveOwnerLocale("en");
+    expect(presentationLocale()).toBe("id");
   });
 });
 

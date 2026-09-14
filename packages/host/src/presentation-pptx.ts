@@ -229,12 +229,12 @@ function addContentSlide(
 /** Build a PPTX ArrayBuffer from a validated outline. */
 export async function buildPresentationPptx(
   outline: PresentationOutline,
-  options?: { locale?: PresentationLocale; settings?: unknown },
+  options?: { locale?: PresentationLocale },
 ): Promise<{
   buffer: ArrayBuffer;
   filename: string;
 }> {
-  const locale = options?.locale ?? presentationLocale(options?.settings as { locale?: unknown } | undefined);
+  const locale = options?.locale ?? presentationLocale();
   const productName = resolvedProductName();
   const pptx = new PptxGenJS();
   pptx.defineLayout({ name: "AGENTFORGE_WIDE", width: 13.333, height: 7.5 });

@@ -94,7 +94,7 @@ function requireLivePresentationRuntime(): ReturnType<typeof loadSettings> {
     envRuntime: process.env.AGENTFORGE_RUNTIME,
   });
   if (mode === "stub") {
-    throw new ApiError("runtime_stub", presentationGatewayMessage(presentationLocale(settings)), 503);
+    throw new ApiError("runtime_stub", presentationGatewayMessage(presentationLocale()), 503);
   }
   return settings;
 }
@@ -132,7 +132,7 @@ function persistOutline(
 export async function generatePresentationOutline(tenant: TenantContext, body: unknown): Promise<PresentationOutline> {
   const prompt = readPrompt(body);
   const settings = requireLivePresentationRuntime();
-  const locale = presentationLocale(settings);
+  const locale = presentationLocale();
   const sourceText = readSourceText(body, { injectionGuardBypass: settings.injectionGuardBypass === true });
   const model = resolvePresentationModel(body, settings);
   const raw = await collectAssistantText(tenant, model, prompt, sourceText, locale);
@@ -190,7 +190,7 @@ export async function regeneratePresentationSlide(tenant: TenantContext, body: u
     throw new ApiError("invalid_request", "slideIndex is out of range", 400);
   }
   const settings = requireLivePresentationRuntime();
-  const locale = presentationLocale(settings);
+  const locale = presentationLocale();
   const model = resolvePresentationModel(body, settings);
   const attachments = readJobRegenAttachments(body);
   const sourceText = readSourceText(body, { injectionGuardBypass: settings.injectionGuardBypass === true });
