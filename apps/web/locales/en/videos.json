@@ -1,0 +1,73 @@
+{
+  "title": "Videos",
+  "subtitle": "Prompt-to-video studio. Clips show in the gallery below.",
+  "needsKey": "Add a {gateway} gateway key in {settings} to generate videos.",
+  "settingsLink": "Settings",
+  "loadError": "Could not load video studio",
+  "generateError": "Video generation failed",
+  "stillUnsupported": "This model does not accept a still image",
+  "hostNeedsKey": "Add a Toko Token gateway key in Settings to generate videos.",
+  "textToVideoOnly": "This model is text-to-video only",
+  "stillPlaceholder": "Optional still image URL…",
+  "promptPlaceholder": "Describe a video…",
+  "generate": "Generate",
+  "generating": "Generating…",
+  "loadingGallery": "Loading gallery…",
+  "emptyTitle": "Nothing here yet",
+  "emptyBody": "Generate a video to populate this gallery.",
+  "download": "Download",
+  "seconds": "{n}s",
+  "examplesHeading": "Start from a template",
+  "examplesHint": "Click a card to load a full brief. Replace the sample details, then generate.",
+  "clipsHeading": "Example clips",
+  "clipsHint": "Generated from the prompt templates below and bundled with the app. Click one to load its prompt.",
+  "clipsLoadError": "Could not load example clips",
+  "usePrompt": "Use this prompt",
+  "outputTextLanguage": "Spoken dialogue, narration, and any on-screen text in this clip must be in English unless the prompt already names another language.",
+  "templates": {
+    "product-page-turntable": {
+      "title": "Product-page turntable",
+      "resultSummary": "A shoppable 360 with a lighting plot and an end hold — usable on a product page."
+    },
+    "feature-walkthrough-open": {
+      "title": "Feature walkthrough open",
+      "resultSummary": "A cinematic open that lands on a real-looking UI, not a logo bumper."
+    },
+    "before-after-process": {
+      "title": "Before / after process",
+      "resultSummary": "A readable before/after with a timed wipe — not a meme transition."
+    },
+    "seamless-social-loop": {
+      "title": "Seamless social loop",
+      "resultSummary": "A true loop with a start/end match — usable under type, not a one-shot gag."
+    },
+    "night-rain-hold": {
+      "title": "Night rain hold",
+      "resultSummary": "A loopable rain plate with a rack-focus move — an intro hold, not weather B-roll."
+    },
+    "kitchen-pour-insert": {
+      "title": "Kitchen pour insert",
+      "resultSummary": "A timed pour that ends on a usable still — an insert, not a coffee commercial."
+    }
+  },
+  "exampleClips": {
+    "promo-daisy-macro": {
+      "title": "Daisy field macro"
+    },
+    "promo-caterpillar-macro": {
+      "title": "Caterpillar macro crawl"
+    },
+    "promo-drone-broll": {
+      "title": "Drone obstacle flythrough"
+    },
+    "talk-calm-line": {
+      "title": "Calm voiceover line"
+    },
+    "talk-keyboard-review": {
+      "title": "Keyboard review"
+    },
+    "talk-bookstore-dialogue": {
+      "title": "Bookstore two-person dialogue"
+    }
+  }
+}

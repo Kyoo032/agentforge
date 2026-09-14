@@ -1,0 +1,73 @@
+{
+  "title": "Video",
+  "subtitle": "Studio prompt-ke-video. Klip tampil di galeri di bawah.",
+  "needsKey": "Tambahkan kunci gateway {gateway} di {settings} untuk membuat video.",
+  "settingsLink": "Pengaturan",
+  "loadError": "Studio video tidak dapat dimuat",
+  "generateError": "Pembuatan video gagal",
+  "stillUnsupported": "Model ini tidak menerima gambar diam",
+  "hostNeedsKey": "Tambahkan kunci gateway Toko Token di Pengaturan untuk membuat video.",
+  "textToVideoOnly": "Model ini hanya mendukung teks-ke-video",
+  "stillPlaceholder": "URL gambar diam opsional…",
+  "promptPlaceholder": "Deskripsikan video…",
+  "generate": "Buat",
+  "generating": "Membuat…",
+  "loadingGallery": "Memuat galeri…",
+  "emptyTitle": "Belum ada apa pun",
+  "emptyBody": "Buat video untuk mengisi galeri ini.",
+  "download": "Unduh",
+  "seconds": "{n}s",
+  "examplesHeading": "Mulai dari templat",
+  "examplesHint": "Klik kartu untuk memuat brief lengkap. Ganti detail contoh, lalu buat.",
+  "clipsHeading": "Contoh klip",
+  "clipsHint": "Dihasilkan dari templat prompt di bawah dan disertakan dalam aplikasi. Klik salah satu untuk memuat promptnya.",
+  "clipsLoadError": "Contoh klip tidak dapat dimuat",
+  "usePrompt": "Gunakan prompt ini",
+  "outputTextLanguage": "Dialog, narasi, dan teks di layar pada klip ini harus dalam bahasa Indonesia, kecuali prompt sudah menyebut bahasa lain.",
+  "templates": {
+    "product-page-turntable": {
+      "title": "Turntable halaman produk",
+      "resultSummary": "Putaran 360 yang siap jual, dengan rencana pencahayaan dan tahan di akhir — layak dipakai di halaman produk."
+    },
+    "feature-walkthrough-open": {
+      "title": "Pembuka walkthrough fitur",
+      "resultSummary": "Pembuka sinematik yang mendarat di UI yang terasa nyata, bukan bumper logo."
+    },
+    "before-after-process": {
+      "title": "Proses sebelum / sesudah",
+      "resultSummary": "Sebelum/sesudah yang terbaca dengan wipe berwaktu — bukan transisi meme."
+    },
+    "seamless-social-loop": {
+      "title": "Loop sosial tanpa sambungan",
+      "resultSummary": "Loop sungguhan dengan bingkai awal/akhir yang cocok — siap di bawah teks, bukan lelucon sekali putar."
+    },
+    "night-rain-hold": {
+      "title": "Tahan hujan malam",
+      "resultSummary": "Plat hujan yang bisa di-loop dengan gerak rack-focus — tahan intro, bukan B-roll cuaca."
+    },
+    "kitchen-pour-insert": {
+      "title": "Sisipan tuang dapur",
+      "resultSummary": "Tuang berwaktu yang berakhir pada still yang bisa dipakai — sisipan, bukan iklan kopi."
+    }
+  },
+  "exampleClips": {
+    "promo-daisy-macro": {
+      "title": "Makro padang aster"
+    },
+    "promo-caterpillar-macro": {
+      "title": "Makro ulat merayap"
+    },
+    "promo-drone-broll": {
+      "title": "Drone menembus rintangan"
+    },
+    "talk-calm-line": {
+      "title": "Kalimat sulih suara tenang"
+    },
+    "talk-keyboard-review": {
+      "title": "Ulasan keyboard"
+    },
+    "talk-bookstore-dialogue": {
+      "title": "Dialog dua orang di toko buku"
+    }
+  }
+}
