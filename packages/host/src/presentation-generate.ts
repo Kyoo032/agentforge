@@ -18,6 +18,12 @@ import { readSourceText, withSourceMaterial, withSourceRule } from "./job-source
 import { artifactStore } from "./artifacts";
 import { upsertWorkSource } from "./knowledge-ingest";
 import { artifactWorkCard, presentationOutlineMarkdown } from "./work-cards";
+import {
+  presentationGatewayMessage,
+  presentationLanguageRule,
+  presentationLocale,
+  type PresentationLocale,
+} from "./presentation-locale";
 
 const OUTLINE_SYSTEM = `You write finished presentation outlines a stranger can present from. Return ONLY JSON (no markdown fences).
 Shape:
@@ -32,6 +38,7 @@ Rules:
 - notes: required, 40–90 words, what to say if they push back. Not "keep it short."
 - Use the sample story. Tag invented figures [sample]. No "excited to share." No TBD. Do not invent revenue, logos, or uptime.
 - No campus / student / course nouns unless the topic itself requires them.
+- {languageRule}
 Example (copy the shape, not the facts):
 {"title":"Northline week of 1 Sep","slides":[{"kind":"section","heading":"The installer is the only sentence that matters","subhead":"Webdev is current; anyone on the .exe is a month behind.","bullets":[],"aside":"","notes":"If they say the installer can wait, remind them anyone on the exe will not see GTM. Offer a yes or no this Thursday, not a backlog item. Do not bury the gap under process slides."},{"kind":"bullets","heading":"What we can prove on this machine today","subhead":"Open Chat if they want evidence.","bullets":["Chat, Documents, Research, Images, Videos, and Presentation are on Home.","Settings is paste-key, usage, and privacy — there is no Advanced tab.","A Legal desk can hide Images and Videos; we did not create one here."],"aside":"","notes":"Do not send them to /agents. It redirects to Chat. The proof is the rail on this machine, not a roadmap slide."},{"kind":"split","heading":"I will not paper over thin decks","subhead":"Old cards were one-sentence prompts.","bullets":["Generate then produced memos and 3-slide skeletons.","Briefs now name audience, deliverable, and a sample scenario.","The remaining risk is a live generate with an empty prompt."],"aside":"This is a ship miss, not a code miss.","notes":"If they ask for a prettier template instead of better briefs, say the template only works when the outline has claims and notes. Show the starter if they want proof."},{"kind":"close","heading":"Thursday is a yes or no on the rebuild","subhead":"Owner of the call: you.","bullets":["Rebuild NSIS this week, or keep using desktop:dev.","I will not call the August installer the GTM product.","Friday: a six-line recap whether or not we rebuilt."],"aside":"","notes":"If they defer, write deferred on the recap. Do not leave the decision implied. Three outcomes this week; a fourth waits."}]}`;
 
@@ -54,16 +61,25 @@ function readOptionalModel(body: unknown): string | undefined {
   return typeof model === "string" && model.trim() ? model.trim() : undefined;
 }
 
-async function collectAssistantText(
+function outlineSystem(locale: PresentationLocale): string {
+  return OUTLINE_SYSTEM.replace("{languageRule}", presentationLanguageRule(locale));
+}
+
+function slideSystem(locale: PresentationLocale): string {
+  return `${SLIDE_SYSTEM}\n- ${presentationLanguageRule(locale)}`;
+}
+
+function collectAssistantText(
   tenant: TenantContext,
   model: string,
   prompt: string,
   sourceText: string,
+  locale: PresentationLocale,
 ): Promise<string> {
   return collectJobAssistantText({
     tenant,
     model,
-    systemPrompt: withSourceRule(OUTLINE_SYSTEM, sourceText),
+    systemPrompt: withSourceRule(outlineSystem(locale), sourceText),
     runPrefix: "presentation",
     agentId: "presentation",
     versionId: "presentation-outline",
@@ -78,11 +94,7 @@ function requireLivePresentationRuntime(): ReturnType<typeof loadSettings> {
     envRuntime: process.env.AGENTFORGE_RUNTIME,
   });
   if (mode === "stub") {
-    throw new ApiError(
-      "runtime_stub",
-      "Presentation generation needs a live gateway. Paste a Toko Token API key in Settings, then try again.",
-      503,
-    );
+    throw new ApiError("runtime_stub", presentationGatewayMessage(presentationLocale()), 503);
   }
   return settings;
 }
@@ -120,15 +132,20 @@ function persistOutline(
 export async function generatePresentationOutline(tenant: TenantContext, body: unknown): Promise<PresentationOutline> {
   const prompt = readPrompt(body);
   const settings = requireLivePresentationRuntime();
+  const locale = presentationLocale();
   const sourceText = readSourceText(body, { injectionGuardBypass: settings.injectionGuardBypass === true });
   const model = resolvePresentationModel(body, settings);
-  const raw = await collectAssistantText(tenant, model, prompt, sourceText);
+  const raw = await collectAssistantText(tenant, model, prompt, sourceText, locale);
   if (!raw.trim()) {
     throw new ApiError("generation_failed", "Model returned an empty presentation outline", 502);
   }
   const outline = parsePresentationOutline(raw);
   const markdown = presentationOutlineMarkdown(outline);
-  const artifactId = persistOutline(tenant, outline, markdown, { question: prompt, model, slides: outline.slides.length });
+  const artifactId = persistOutline(tenant, outline, markdown, {
+    question: prompt,
+    model,
+    slides: outline.slides.length,
+  });
   if (artifactId) {
     await upsertWorkSource(
       tenant,
@@ -173,6 +190,7 @@ export async function regeneratePresentationSlide(tenant: TenantContext, body: u
     throw new ApiError("invalid_request", "slideIndex is out of range", 400);
   }
   const settings = requireLivePresentationRuntime();
+  const locale = presentationLocale();
   const model = resolvePresentationModel(body, settings);
   const attachments = readJobRegenAttachments(body);
   const sourceText = readSourceText(body, { injectionGuardBypass: settings.injectionGuardBypass === true });
@@ -194,7 +212,7 @@ export async function regeneratePresentationSlide(tenant: TenantContext, body: u
   const raw = await collectJobAssistantText({
     tenant,
     model,
-    systemPrompt: withSourceRule(SLIDE_SYSTEM, sourceText),
+    systemPrompt: withSourceRule(slideSystem(locale), sourceText),
     runPrefix: "presentation-slide",
     agentId: "presentation",
     versionId: "presentation-slide",

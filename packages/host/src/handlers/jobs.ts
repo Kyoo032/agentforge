@@ -21,6 +21,7 @@ import { buildDocumentDocx } from "../document-docx";
 import { generatePresentationOutline, regeneratePresentationSlide } from "../presentation-generate";
 import { parsePresentationOutlineBody } from "../presentation-outline";
 import { buildPresentationPptx } from "../presentation-pptx";
+import { presentationLocale } from "../presentation-locale";
 import { generateResearchNotes } from "../research-generate";
 import { streamJob } from "../job-stream";
 import { analyzeDataset } from "../data-generate";
@@ -138,7 +139,8 @@ export async function handlePostPresentationsRegen(request: HostRequest): Promis
 export async function handlePostPresentationsPptx(request: HostRequest): Promise<HostResult> {
   try {
     const outline = parsePresentationOutlineBody(request.body ?? null);
-    const { buffer, filename } = await buildPresentationPptx(outline);
+    const locale = presentationLocale();
+    const { buffer, filename } = await buildPresentationPptx(outline, { locale });
     return {
       type: "bytes",
       status: 200,

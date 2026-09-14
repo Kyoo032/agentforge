@@ -1,6 +1,7 @@
 import PptxGenJS from "pptxgenjs";
 import { resolvedProductName } from "@agentforge/core";
 import { resolvePresentationSlideLayout, type PresentationOutline } from "./presentation-outline";
+import { presentationKicker, presentationLocale, type PresentationLocale } from "./presentation-locale";
 
 type PptxSlide = ReturnType<PptxGenJS["addSlide"]>;
 
@@ -26,11 +27,7 @@ function safeFilename(title: string): string {
   return `${base || "presentation"}.pptx`;
 }
 
-function addChrome(
-  pptx: PptxGenJS,
-  slide: PptxSlide,
-  opts: { fill: string; productName: string; page: string },
-): void {
+function addChrome(pptx: PptxGenJS, slide: PptxSlide, opts: { fill: string; productName: string; page: string }): void {
   slide.addShape(pptx.ShapeType.rect, {
     x: 0,
     y: 0,
@@ -72,10 +69,16 @@ function addNotes(slide: PptxSlide, notes: string): void {
   }
 }
 
-function addTitleSlide(pptx: PptxGenJS, title: string, productName: string, total: number): void {
+function addTitleSlide(
+  pptx: PptxGenJS,
+  title: string,
+  productName: string,
+  total: number,
+  locale: PresentationLocale,
+): void {
   const slide = pptx.addSlide();
   addChrome(pptx, slide, { fill: COLORS.bg, productName, page: `1 / ${total}` });
-  slide.addText("PRESENTATION", {
+  slide.addText(presentationKicker(locale), {
     x: 0.8,
     y: 2.15,
     w: 11.6,
@@ -224,10 +227,14 @@ function addContentSlide(
 }
 
 /** Build a PPTX ArrayBuffer from a validated outline. */
-export async function buildPresentationPptx(outline: PresentationOutline): Promise<{
+export async function buildPresentationPptx(
+  outline: PresentationOutline,
+  options?: { locale?: PresentationLocale },
+): Promise<{
   buffer: ArrayBuffer;
   filename: string;
 }> {
+  const locale = options?.locale ?? presentationLocale();
   const productName = resolvedProductName();
   const pptx = new PptxGenJS();
   pptx.defineLayout({ name: "AGENTFORGE_WIDE", width: 13.333, height: 7.5 });
@@ -236,7 +243,7 @@ export async function buildPresentationPptx(outline: PresentationOutline): Promi
   pptx.title = outline.title;
 
   const total = outline.slides.length + 1;
-  addTitleSlide(pptx, outline.title, productName, total);
+  addTitleSlide(pptx, outline.title, productName, total, locale);
   outline.slides.forEach((_item, index) => {
     addContentSlide(pptx, outline.slides, index, productName, `${index + 2} / ${total}`);
   });
