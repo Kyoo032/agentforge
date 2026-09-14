@@ -1,0 +1,153 @@
+{
+  "studio": {
+    "kicker": "Ruang kerja",
+    "title": "Pantauan Pasar",
+    "subtitle": "Ketik saham yang Anda ikuti. Anda mendapat harga langsung dan grafik untuk masing-masing, lalu dapat meminta briefing tertulis. Analisis, bukan saran investasi.",
+    "download": "Unduh DOCX",
+    "building": "Menyusun…",
+    "writeBriefing": "Tulis briefing",
+    "writing": "Menulis…",
+    "cancel": "Batalkan",
+    "options": "Opsi",
+    "hideOptions": "Sembunyikan opsi",
+    "machineNote": "{product} membaca harga, grafik, peringkat, berita, dan tingkat pasar di mesin ini, lalu menulis briefing di atas data itu. Angka yang tidak dapat ditelusuri ke data tersebut dihapus.",
+    "empty": "Tambahkan ticker di atas untuk melihat harga dan grafiknya.",
+    "openSettings": "Buka Pengaturan",
+    "startersLead": "Atau mulai dari daftar siap pakai:",
+    "positionLabel": "Posisi Anda (opsional)",
+    "positionHelp": "Apa yang Anda miliki dan pada harga berapa. Briefing boleh memakai angka ini; tidak mengarang yang lain.",
+    "promptLabel": "Apa yang harus dicakup briefing",
+    "resetPrompt": "Kembalikan ke bawaan",
+    "lengthLimit": "Batas panjang (karakter)"
+  },
+  "errors": {
+    "needsKey": "Harga dan grafik tetap berfungsi tanpa kunci. Untuk menulis briefing, tambahkan kunci API Anda di Pengaturan.",
+    "noTicker": "Ticker itu tidak ditemukan. Periksa ejaannya, misalnya MU, NVDA, atau BBCA.",
+    "offline": "Data pasar tidak dapat dijangkau saat ini. Periksa koneksi internet Anda, lalu coba lagi.",
+    "rewrite": "Bagian itu tidak dapat ditulis ulang",
+    "docx": "Berkas DOCX tidak dapat disusun",
+    "board": "Daftar pantauan tidak dapat dimuat"
+  },
+  "watchlist": {
+    "label": "Saham mana yang Anda ikuti?",
+    "placeholder": "MU, NVDA, BBCA…",
+    "placeholderAdd": "Tambah lagi…",
+    "placeholderFull": "Itu sudah batasnya",
+    "help": "Ketik ticker atau nama. Nama IDX (BCA, Astra) dan contoh AS yang umum (NVIDIA, Micron) terisi otomatis. {current}/{max}.",
+    "overflow": "Daftar pantauan menampung {max} ticker, jadi yang lebih tidak ditambahkan.",
+    "notTickerOne": "{shown} bukan simbol ticker. Coba MU, NVDA, atau BBCA.",
+    "notTickerMany": "{shown} bukan simbol ticker. Coba MU, NVDA, atau BBCA.",
+    "remove": "Hapus {ticker}"
+  },
+  "starters": {
+    "us-premarket": {
+      "label": "Favorit pra-pasar AS",
+      "hint": "Memori, semikonduktor, cloud, dan teknologi mega-cap sebelum bursa New York buka."
+    },
+    "idx-banks": {
+      "label": "Cek bank IDX",
+      "hint": "Empat bank besar Jakarta berdampingan."
+    },
+    "semis-macro": {
+      "label": "Semikonduktor vs makro",
+      "hint": "Nama semikonduktor dibanding indeks volatilitas."
+    }
+  },
+  "board": {
+    "refresh": "Segarkan",
+    "loading": "Memuat kuotasi dan grafik…",
+    "fetching": "Mengambil kuotasi dan grafik…",
+    "updating": "memperbarui…",
+    "status": "Pasar AS {session} · per {when}",
+    "noQuote": "Tidak ada kuotasi",
+    "unchanged": "tidak berubah",
+    "aboveAverage": "Di atas rata-rata {days} hari",
+    "belowAverage": "Di bawah rata-rata {days} hari",
+    "tradingView": "TradingView: {rating}"
+  },
+  "session": {
+    "pre": "Pra-pasar",
+    "regular": "Sesi reguler",
+    "post": "Sesi setelah tutup",
+    "closed": "Tutup"
+  },
+  "headline": {
+    "preMarket": "Pra-pasar",
+    "afterHours": "Sesi setelah tutup",
+    "previousClose": "Penutupan sebelumnya {price} ({change})"
+  },
+  "chart": {
+    "range": "Rentang grafik",
+    "empty": "Tidak ada riwayat harga untuk digrafik."
+  },
+  "briefing": {
+    "kicker": "Briefing Pantauan Pasar",
+    "run": "Dijalankan {when}",
+    "usSession": "AS {session}",
+    "guardClean": "Setiap angka dalam briefing ini tertelusur ke paket data yang diambil atau catatan posisi Anda, dan tidak ada kalimat yang memberi perintah.",
+    "guardDirty": "{figures} diganti dengan “[unverified figure]”{flagged}. {sentences} dihapus karena {pronoun} terbaca sebagai perintah.",
+    "unverifiedOne": "{count} angka belum terverifikasi",
+    "unverifiedMany": "{count} angka belum terverifikasi",
+    "sentenceOne": "{count} kalimat",
+    "sentenceMany": "{count} kalimat",
+    "pronounOne": "kalimat itu",
+    "pronounMany": "kalimat-kalimat itu",
+    "sources": "Sumber",
+    "noSources": "Tidak ada sumber yang tercatat.",
+    "observed": "diamati {when}",
+    "watchlist": "Daftar pantauan",
+    "macro": "Makro",
+    "noMacro": "Kuotasi makro tidak diambil.",
+    "positionNotes": "Catatan posisi Anda",
+    "rewrite": "Tulis ulang",
+    "rewriting": "Menulis ulang…",
+    "guardedSection": "Penjaga saran mengganti sebagian bagian ini."
+  },
+  "facts": {
+    "price": "Harga",
+    "change": "Perubahan",
+    "prevClose": "Penutupan sblm.",
+    "preMarket": "Pra-pasar",
+    "afterHours": "Sesi setelah tutup",
+    "volume": "Volume",
+    "marketCap": "Kap. pasar",
+    "state": "Status",
+    "tradingView": "TradingView",
+    "tvSummary": "Ringkasan TV",
+    "rsi14": "RSI14",
+    "sma50": "SMA50",
+    "sma200": "SMA200",
+    "vsSma200": "vs SMA200",
+    "macd": "MACD",
+    "change5d1m": "5h / 1bln",
+    "range52w": "Rentang 52 mg"
+  },
+  "tables": {
+    "ticker": "Ticker",
+    "price": "Harga",
+    "chgPct": "Ubh%",
+    "preMkt": "Pra-pasar",
+    "prePct": "Pra%",
+    "state": "Status",
+    "tvRating": "Peringkat TV",
+    "rsi14": "RSI14",
+    "vsSma200": "vs SMA200",
+    "macro": "Makro",
+    "symbol": "Simbol",
+    "level": "Level"
+  },
+  "ticker": {
+    "typedAs": "diketik sebagai {input}",
+    "noData": "Tidak ada kuotasi atau data teknikal.",
+    "noHeadlines": "Tidak ada berita yang diambil.",
+    "hiddenOne": "{count} berita disembunyikan karena teksnya tampak seperti instruksi, bukan berita.",
+    "hiddenMany": "{count} berita disembunyikan karena teksnya tampak seperti instruksi, bukan berita."
+  },
+  "rating": {
+    "STRONG_BUY": "Beli kuat",
+    "BUY": "Beli",
+    "SELL": "Jual",
+    "NEUTRAL": "Netral",
+    "STRONG_SELL": "Jual kuat"
+  }
+}
