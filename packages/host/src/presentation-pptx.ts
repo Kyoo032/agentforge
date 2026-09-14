@@ -1,7 +1,7 @@
 import PptxGenJS from "pptxgenjs";
 import { resolvedProductName } from "@agentforge/core";
 import { resolvePresentationSlideLayout, type PresentationOutline } from "./presentation-outline";
-import { presentationBootLocale, presentationKicker, type PresentationLocale } from "./presentation-locale";
+import { presentationKicker, presentationLocale, type PresentationLocale } from "./presentation-locale";
 
 type PptxSlide = ReturnType<PptxGenJS["addSlide"]>;
 
@@ -234,7 +234,7 @@ export async function buildPresentationPptx(
   buffer: ArrayBuffer;
   filename: string;
 }> {
-  const locale = options?.locale ?? presentationBootLocale(options?.settings);
+  const locale = options?.locale ?? presentationLocale(options?.settings as { locale?: unknown } | undefined);
   const productName = resolvedProductName();
   const pptx = new PptxGenJS();
   pptx.defineLayout({ name: "AGENTFORGE_WIDE", width: 13.333, height: 7.5 });

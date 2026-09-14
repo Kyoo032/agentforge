@@ -11,7 +11,7 @@ import type { JobRegenSubmit } from "@/components/job-regen-panel";
 import { PresentationPreview } from "@/components/presentation-preview";
 import type { PresentationOutline } from "@/lib/presentation-outline";
 import { presentationStarters } from "@/lib/job-starters";
-import { freezeLocale, getLocale, t } from "@/lib/i18n";
+import { t } from "@/lib/i18n";
 import { useJobModel } from "@/lib/use-job-model";
 import { apiFetch } from "@/lib/api-client";
 import { useProductBrand } from "@/lib/product-brand";
@@ -29,7 +29,7 @@ function errorMessage(payload: unknown, fallback: string): string {
 export function PresentationsStudio() {
   const { productName } = useProductBrand();
   const { models, model, setModel } = useJobModel("presentations");
-  const [locale, setLocale] = useState(getLocale);
+  const starterLocale = t("presentation.title") === "Presentasi" ? "id" : "en";
   const [prompt, setPrompt] = useState("");
   const [sourceText, setSourceText] = useState("");
   const [sourceTitle, setSourceTitle] = useState<string | null>(null);
@@ -49,20 +49,6 @@ export function PresentationsStudio() {
     [],
   );
 
-  useEffect(() => {
-    void apiFetch("/api/v1/settings")
-      .then((res) => res.json())
-      .then((payload) => {
-        if (payload.locale === "id" || payload.locale === "en") {
-          freezeLocale(payload.locale);
-          setLocale(payload.locale);
-        }
-      })
-      .catch(() => {
-        // first boot before SQLite is ready
-      });
-  }, []);
-
   async function onGenerate(event: FormEvent) {
     event.preventDefault();
     const topic = prompt.trim();
@@ -79,7 +65,6 @@ export function PresentationsStudio() {
           prompt: topic,
           model: model || undefined,
           sourceText: sourceText.trim() || undefined,
-          locale,
         }),
       });
       const data = await res.json().catch(() => null);
@@ -114,7 +99,6 @@ export function PresentationsStudio() {
           model: payload.model || model || undefined,
           attachments: payload.attachments.length > 0 ? payload.attachments : undefined,
           sourceText: sourceText.trim() || undefined,
-          locale,
         }),
       });
       const data = await res.json().catch(() => null);
@@ -140,7 +124,7 @@ export function PresentationsStudio() {
       const res = await apiFetch("/api/v1/presentations/pptx", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...outline, locale }),
+        body: JSON.stringify(outline),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
@@ -167,7 +151,6 @@ export function PresentationsStudio() {
     <main
       className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-10 text-[var(--text)]"
       data-testid="presentations-studio"
-      lang={locale}
     >
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -217,7 +200,6 @@ export function PresentationsStudio() {
             outline={outline}
             models={models}
             defaultModel={model}
-            locale={locale}
             regeneratingIndex={regenIndex}
             onRegenerate={(index, payload) => void onRegenerate(index, payload)}
           />
@@ -229,7 +211,7 @@ export function PresentationsStudio() {
             <p className="text-center text-sm font-medium text-[var(--text)]">{t("presentation.emptyTitle")}</p>
             <p className="mt-2 text-center text-sm text-[var(--text-2)]">{t("presentation.emptyBody")}</p>
             <div className="mx-auto mt-6 grid max-w-2xl gap-3 sm:grid-cols-2">
-              {presentationStarters(locale).map((starter) => (
+              {presentationStarters(starterLocale).map((starter) => (
                 <button
                   key={starter.id}
                   type="button"

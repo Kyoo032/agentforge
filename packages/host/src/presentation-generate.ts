@@ -19,10 +19,10 @@ import { artifactStore } from "./artifacts";
 import { upsertWorkSource } from "./knowledge-ingest";
 import { artifactWorkCard, presentationOutlineMarkdown } from "./work-cards";
 import {
-  presentationBootLocale,
   presentationGatewayMessage,
   presentationLanguageRule,
-  type presentationLocale,
+  presentationLocale,
+  type PresentationLocale,
 } from "./presentation-locale";
 
 const OUTLINE_SYSTEM = `You write finished presentation outlines a stranger can present from. Return ONLY JSON (no markdown fences).
@@ -61,11 +61,11 @@ function readOptionalModel(body: unknown): string | undefined {
   return typeof model === "string" && model.trim() ? model.trim() : undefined;
 }
 
-function outlineSystem(locale: ReturnType<typeof presentationLocale>): string {
+function outlineSystem(locale: PresentationLocale): string {
   return OUTLINE_SYSTEM.replace("{languageRule}", presentationLanguageRule(locale));
 }
 
-function slideSystem(locale: ReturnType<typeof presentationLocale>): string {
+function slideSystem(locale: PresentationLocale): string {
   return `${SLIDE_SYSTEM}\n- ${presentationLanguageRule(locale)}`;
 }
 
@@ -74,7 +74,7 @@ function collectAssistantText(
   model: string,
   prompt: string,
   sourceText: string,
-  locale: ReturnType<typeof presentationLocale>,
+  locale: PresentationLocale,
 ): Promise<string> {
   return collectJobAssistantText({
     tenant,
@@ -94,7 +94,7 @@ function requireLivePresentationRuntime(): ReturnType<typeof loadSettings> {
     envRuntime: process.env.AGENTFORGE_RUNTIME,
   });
   if (mode === "stub") {
-    throw new ApiError("runtime_stub", presentationGatewayMessage(presentationBootLocale(settings)), 503);
+    throw new ApiError("runtime_stub", presentationGatewayMessage(presentationLocale(settings)), 503);
   }
   return settings;
 }
@@ -132,7 +132,7 @@ function persistOutline(
 export async function generatePresentationOutline(tenant: TenantContext, body: unknown): Promise<PresentationOutline> {
   const prompt = readPrompt(body);
   const settings = requireLivePresentationRuntime();
-  const locale = presentationBootLocale(settings);
+  const locale = presentationLocale(settings);
   const sourceText = readSourceText(body, { injectionGuardBypass: settings.injectionGuardBypass === true });
   const model = resolvePresentationModel(body, settings);
   const raw = await collectAssistantText(tenant, model, prompt, sourceText, locale);
@@ -190,7 +190,7 @@ export async function regeneratePresentationSlide(tenant: TenantContext, body: u
     throw new ApiError("invalid_request", "slideIndex is out of range", 400);
   }
   const settings = requireLivePresentationRuntime();
-  const locale = presentationBootLocale(settings);
+  const locale = presentationLocale(settings);
   const model = resolvePresentationModel(body, settings);
   const attachments = readJobRegenAttachments(body);
   const sourceText = readSourceText(body, { injectionGuardBypass: settings.injectionGuardBypass === true });

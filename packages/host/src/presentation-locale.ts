@@ -1,36 +1,12 @@
 export type PresentationLocale = "en" | "id";
 
-function readLocale(value: unknown): PresentationLocale | undefined {
-  if (value === "id" || value === "en") {
-    return value;
+/** Boot locale from i18n core (AGENTFORGE_LOCALE freeze or owner settings.locale). Default en. */
+export function presentationLocale(settings?: { locale?: unknown } | null): PresentationLocale {
+  const frozen = process.env.AGENTFORGE_LOCALE;
+  if (frozen === "id" || frozen === "en") {
+    return frozen;
   }
-  if (value && typeof value === "object" && "locale" in value) {
-    const locale = (value as { locale?: unknown }).locale;
-    if (locale === "id" || locale === "en") {
-      return locale;
-    }
-  }
-  return undefined;
-}
-
-/** Resolve locale from settings, env, or request body. Default en. */
-export function presentationLocale(input: { settings?: unknown; body?: unknown } = {}): PresentationLocale {
-  return readLocale(input.settings) ?? readLocale(process.env.AGENTFORGE_LOCALE) ?? readLocale(input.body) ?? "en";
-}
-
-let bootLocale: PresentationLocale | null = null;
-
-/** Process-boot freeze so a Settings save does not mix languages mid-session. */
-export function presentationBootLocale(settings?: unknown): PresentationLocale {
-  if (!bootLocale) {
-    bootLocale = presentationLocale({ settings });
-  }
-  return bootLocale;
-}
-
-/** Test seam. */
-export function resetPresentationBootLocaleForTests(): void {
-  bootLocale = null;
+  return settings?.locale === "id" ? "id" : "en";
 }
 
 export function presentationLanguageRule(locale: PresentationLocale): string {

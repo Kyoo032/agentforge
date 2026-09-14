@@ -1,24 +1,27 @@
 import { describe, expect, it } from "vitest";
 import {
-  presentationBootLocale,
   presentationGatewayMessage,
   presentationKicker,
   presentationLanguageRule,
   presentationLocale,
-  resetPresentationBootLocaleForTests,
 } from "./presentation-locale";
 
 describe("presentationLocale", () => {
   it("defaults to en", () => {
+    expect(presentationLocale()).toBe("en");
     expect(presentationLocale({})).toBe("en");
   });
 
-  it("prefers settings over env and body", () => {
+  it("reads owner settings.locale when core has persisted it", () => {
+    expect(presentationLocale({ locale: "id" })).toBe("id");
+    expect(presentationLocale({ locale: "en" })).toBe("en");
+  });
+
+  it("prefers AGENTFORGE_LOCALE freeze over settings", () => {
     const previous = process.env.AGENTFORGE_LOCALE;
     process.env.AGENTFORGE_LOCALE = "id";
     try {
-      expect(presentationLocale({ settings: { locale: "en" }, body: { locale: "id" } })).toBe("en");
-      expect(presentationLocale({ body: { locale: "id" } })).toBe("id");
+      expect(presentationLocale({ locale: "en" })).toBe("id");
     } finally {
       if (previous === undefined) {
         delete process.env.AGENTFORGE_LOCALE;
@@ -26,15 +29,6 @@ describe("presentationLocale", () => {
         process.env.AGENTFORGE_LOCALE = previous;
       }
     }
-  });
-
-  it("freezes the first boot locale", () => {
-    resetPresentationBootLocaleForTests();
-    expect(presentationBootLocale({ locale: "id" })).toBe("id");
-    expect(presentationBootLocale({ locale: "en" })).toBe("id");
-    resetPresentationBootLocaleForTests();
-    expect(presentationBootLocale({ locale: "en" })).toBe("en");
-    resetPresentationBootLocaleForTests();
   });
 });
 

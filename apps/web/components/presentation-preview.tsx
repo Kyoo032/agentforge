@@ -10,13 +10,12 @@ import {
 } from "@/lib/presentation-outline";
 import type { JobStudioModel } from "@/lib/use-job-model";
 import { useProductBrand } from "@/lib/product-brand";
-import { t, type AppLocale } from "@/lib/i18n";
+import { t } from "@/lib/i18n";
 
 type Props = {
   outline: PresentationOutline;
   models?: JobStudioModel[];
   defaultModel?: string;
-  locale?: AppLocale;
   regeneratingIndex?: number | null;
   onRegenerate?: (index: number, payload: JobRegenSubmit) => void;
 };
@@ -104,7 +103,6 @@ export function PresentationPreview({
   outline,
   models = [],
   defaultModel = "",
-  locale = "en",
   regeneratingIndex = null,
   onRegenerate,
 }: Props) {
@@ -113,7 +111,7 @@ export function PresentationPreview({
   const total = outline.slides.length + 1;
 
   return (
-    <div className="flex flex-col gap-4" data-testid="presentations-preview" lang={locale}>
+    <div className="flex flex-col gap-4" data-testid="presentations-preview">
       <article
         className="relative aspect-video w-full overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--bg)]"
         data-testid="presentations-slide-title"
