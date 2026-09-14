@@ -23,6 +23,13 @@ import { getStudioMediaMeta, saveStudioMediaMeta, type StudioMediaMeta } from ".
 import { upsertWorkSource } from "./knowledge-ingest";
 import { mediaWorkCard } from "./work-cards";
 import type { WorkSourceType } from "./knowledge";
+import {
+  videoGenerateFailedMessage,
+  videoNeedsKeyMessage,
+  videoStillUnsupportedMessage,
+  videoStudioLocale,
+  withVideoOutputLanguage,
+} from "./video-output-locale";
 
 export type StudioGenerateOptions = {
   /** Knowledge source type for the work card. Defaults to Images / Videos; Edit passes "Edit". */
@@ -203,23 +210,20 @@ export async function generateStudioVideo(
   body: VideoGenerateBody,
   options: StudioGenerateOptions = {},
 ): Promise<StudioGenerateResult> {
-  if (!studioRouteReady("video_gen")) {
-    throw new ApiError(
-      "invalid_request",
-      "Add a Toko Token gateway key in Settings to generate videos.",
-      400,
-    );
-  }
   const settings = loadSettings();
+  const locale = videoStudioLocale(settings);
+  if (!studioRouteReady("video_gen")) {
+    throw new ApiError("invalid_request", videoNeedsKeyMessage(locale), 400);
+  }
   const scope = buildToolSecretScope(settings);
   const model = body.model || settings.videoGenModel || defaultStudioVideoModel();
   if (body.imageUrl && !videoCapabilities(model).imageToVideo) {
-    throw new ApiError("video_still_unsupported", "This model does not accept a still image", 400);
+    throw new ApiError("video_still_unsupported", videoStillUnsupportedMessage(locale), 400);
   }
   const output = await runWithToolSecrets(scope, () =>
     videoGenerateTool.execute(
       {
-        prompt: maskPii(body.prompt),
+        prompt: withVideoOutputLanguage(maskPii(body.prompt), locale),
         aspect_ratio: body.aspect,
         image_url: body.imageUrl,
         model,
@@ -231,7 +235,7 @@ export async function generateStudioVideo(
   );
   const url = toolSuccessUrl(output, "video");
   if (!url) {
-    const message = toolFailureMessage(output, "Video generation failed");
+    const message = toolFailureMessage(output, videoGenerateFailedMessage(locale));
     throw new ApiError("tool_failed", message, studioVideoFailureStatus(message));
   }
   const { saveGeneratedVideo } = await import("./media");
