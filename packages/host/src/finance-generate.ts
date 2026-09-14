@@ -9,14 +9,18 @@ import { requireDataset } from "./datasets";
 import {
   buildFinanceBrief,
   computeFinance,
+  financeMarkdownLabels,
   financePromptBlock,
   guardSection,
+  localizeComputedFinance,
   parseBriefDraft,
   parseBriefSection,
   readFinanceInputs,
+  stubFinanceDraft,
   type FinanceInputs,
   type GuardReport,
 } from "./finance-brief-build";
+import { type AppLocale, financeBootLocale, financeCopy, financeFill } from "./finance-locale";
 import { appendRegenInstruction, collectJobAssistantText, readOptionalInstruction } from "./job-regen";
 import { readSourceText } from "./job-source";
 import { throwIfJobAborted } from "./job-stream";
@@ -52,6 +56,22 @@ const SECTION_SYSTEM = `You rewrite one section of an DPSBuddy finance brief.
 Return ONLY valid JSON: { "heading": string, "body": string, "metrics": [string] }
 Rules: same as the brief. Only line-item amounts and computed metric values may appear as numbers; metrics lists the keys used. Stay on the same topic as the rest of the brief.`;
 
+function withLanguageRule(system: string, locale: AppLocale): string {
+  return `${system}\n${financeCopy(locale).pipeline.languageInstruction}`;
+}
+
+export function financeParseSystemPrompt(locale: AppLocale = financeBootLocale()): string {
+  return withLanguageRule(PARSE_SYSTEM, locale);
+}
+
+export function financeBriefSystemPrompt(locale: AppLocale = financeBootLocale()): string {
+  return withLanguageRule(BRIEF_SYSTEM, locale);
+}
+
+export function financeSectionSystemPrompt(locale: AppLocale = financeBootLocale()): string {
+  return withLanguageRule(SECTION_SYSTEM, locale);
+}
+
 export type FinanceResult = {
   brief: FinanceBrief;
   artifactId: string | null;
@@ -64,13 +84,13 @@ export type ParsedFigures = { items: LineItem[]; needsConfirmation: true };
 
 const NO_EMIT: JobEmitter = () => {};
 
-function readPrompt(body: unknown): string {
+function readPrompt(body: unknown, locale: AppLocale): string {
   if (!body || typeof body !== "object") {
-    throw new ApiError("invalid_request", "Request body must be a JSON object", 400);
+    throw new ApiError("invalid_request", financeCopy(locale).errors.bodyRequired, 400);
   }
   const prompt = (body as { prompt?: unknown }).prompt;
   if (typeof prompt !== "string" || !prompt.trim()) {
-    throw new ApiError("invalid_request", "prompt is required", 400);
+    throw new ApiError("invalid_request", financeCopy(locale).errors.promptRequired, 400);
   }
   return prompt.trim();
 }
@@ -80,18 +100,14 @@ function readOptionalModel(body: unknown): string | undefined {
   return typeof model === "string" && model.trim() ? model.trim() : undefined;
 }
 
-function requireLive(): ReturnType<typeof loadSettings> {
+function requireLive(locale: AppLocale = financeBootLocale()): ReturnType<typeof loadSettings> {
   const settings = loadSettings();
   const mode = resolveRuntimeMode({
     settingsHasKey: hasLiveProvider(settings),
     envRuntime: process.env.AGENTFORGE_RUNTIME,
   });
   if (mode === "stub") {
-    throw new ApiError(
-      "runtime_stub",
-      "Finance needs a live gateway. Paste a Toko Token API key in Settings, then try again.",
-      503,
-    );
+    throw new ApiError("runtime_stub", financeCopy(locale).errors.stub, 503);
   }
   return settings;
 }
@@ -107,16 +123,18 @@ function resolveModel(body: unknown, settings: ReturnType<typeof loadSettings>):
 
 /** Free text → line items via the model. Nothing is computed until the user confirms these. */
 export async function parseFinanceFigures(tenant: TenantContext, body: unknown): Promise<ParsedFigures> {
+  const locale = financeBootLocale();
+  const copy = financeCopy(locale);
   const figures = (body as { figures?: unknown } | null)?.figures;
   if (typeof figures !== "string" || !figures.trim()) {
-    throw new ApiError("invalid_request", "figures text is required", 400);
+    throw new ApiError("invalid_request", copy.errors.parseRequired, 400);
   }
-  const settings = requireLive();
+  const settings = requireLive(locale);
   const model = resolveModel(body, settings);
   const raw = await collectJobAssistantText({
     tenant,
     model,
-    systemPrompt: PARSE_SYSTEM,
+    systemPrompt: financeParseSystemPrompt(locale),
     runPrefix: "finance-parse",
     agentId: "finance",
     versionId: "finance-parse",
@@ -126,17 +144,18 @@ export async function parseFinanceFigures(tenant: TenantContext, body: unknown):
   try {
     parsed = JSON.parse(raw.trim().replace(/^```(?:json)?\s*|\s*```$/g, ""));
   } catch {
-    throw new ApiError("invalid_finance", "Model returned invalid JSON for the figures", 502);
+    throw new ApiError("invalid_finance", copy.errors.parseInvalidJson, 502);
   }
   const items = parseLineItems(parsed);
   if (items.length === 0) {
-    throw new ApiError("invalid_finance", "No figures could be read from that text", 422);
+    throw new ApiError("invalid_finance", copy.errors.parseEmpty, 422);
   }
   return { items, needsConfirmation: true };
 }
 
 /** Confirmed items, or a dataset's rows mapped to items. Free text must go through parseFinanceFigures first. */
-function resolveInputs(tenant: TenantContext, body: unknown): FinanceInputs {
+function resolveInputs(tenant: TenantContext, body: unknown, locale: AppLocale): FinanceInputs {
+  const copy = financeCopy(locale);
   const direct = readFinanceInputs(body);
   if (direct) {
     return direct;
@@ -145,11 +164,11 @@ function resolveInputs(tenant: TenantContext, body: unknown): FinanceInputs {
   if (typeof datasetId === "string" && datasetId.trim()) {
     const items = lineItemsFromTable(requireDataset(tenant, datasetId.trim()).table);
     if (items.length === 0) {
-      throw new ApiError("invalid_request", "That dataset has no numeric column to use as amounts", 400);
+      throw new ApiError("invalid_request", copy.errors.datasetNoAmounts, 400);
     }
     return { items, params: readFinanceInputs({ items, params: (body as { params?: unknown }).params })?.params ?? {} };
   }
-  throw new ApiError("invalid_request", "items are required. Parse the pasted figures first and confirm them.", 400);
+  throw new ApiError("invalid_request", copy.errors.itemsRequired, 400);
 }
 
 function persistBrief(
@@ -180,54 +199,97 @@ export async function generateFinanceBrief(
   emit: JobEmitter = NO_EMIT,
   abortSignal?: AbortSignal,
 ): Promise<FinanceResult> {
-  const question = readPrompt(body);
-  const settings = requireLive();
-  const model = resolveModel(body, settings);
+  const locale = financeBootLocale();
+  const copy = financeCopy(locale);
+  const labels = financeMarkdownLabels(locale);
+  const question = readPrompt(body, locale);
+  const settings = loadSettings();
+  const mode = resolveRuntimeMode({
+    settingsHasKey: hasLiveProvider(settings),
+    envRuntime: process.env.AGENTFORGE_RUNTIME,
+  });
   const extra = readSourceText(body, { injectionGuardBypass: settings.injectionGuardBypass === true });
 
   throwIfJobAborted(abortSignal);
-  emit({ type: "job.phase", phase: "computing", label: "Computing metrics" });
-  const inputs = resolveInputs(tenant, body);
-  const computed = computeFinance(inputs.items, inputs.params);
+  emit({ type: "job.phase", phase: "computing", label: copy.pipeline.computing });
+  const inputs = resolveInputs(tenant, body, locale);
+  const computed = localizeComputedFinance(computeFinance(inputs.items, inputs.params), locale);
   emit({
     type: "job.step",
     phase: "computing",
-    label: `${computed.metrics.length} metrics from ${inputs.items.length} line items`,
+    label: financeFill(copy.pipeline.computingStep, {
+      metrics: computed.metrics.length,
+      items: inputs.items.length,
+    }),
   });
 
+  if (mode === "stub") {
+    throwIfJobAborted(abortSignal);
+    emit({ type: "job.phase", phase: "drafting", label: copy.pipeline.drafting });
+    emit({ type: "job.phase", phase: "verifying", label: copy.pipeline.verifying });
+    const { brief, guard } = buildFinanceBrief(stubFinanceDraft(question, computed, locale), computed);
+    emit({ type: "job.step", phase: "verifying", label: copy.pipeline.verifyingOk });
+    emit({ type: "job.phase", phase: "saving", label: copy.pipeline.saving });
+    const markdown = financeBriefToMarkdown(brief, labels);
+    const artifactId = persistBrief(tenant, brief, markdown, {
+      question,
+      model: "stub",
+      itemCount: inputs.items.length,
+      flagged: guard.total,
+    });
+    if (artifactId) {
+      await upsertWorkSource(
+        tenant,
+        artifactWorkCard({
+          type: "Finance",
+          artifactId,
+          title: brief.title,
+          prompt: question,
+          markdown,
+          model: "stub",
+        }),
+      );
+    }
+    return { brief, artifactId, markdown, guard, items: inputs.items };
+  }
+
+  const model = resolveModel(body, settings);
   throwIfJobAborted(abortSignal);
-  emit({ type: "job.phase", phase: "drafting", label: "Drafting the brief" });
+  emit({ type: "job.phase", phase: "drafting", label: copy.pipeline.drafting });
   const raw = await collectJobAssistantText({
     tenant,
     model,
-    systemPrompt: BRIEF_SYSTEM,
+    systemPrompt: financeBriefSystemPrompt(locale),
     runPrefix: "finance",
     agentId: "finance",
     versionId: "finance-brief",
     prompt: [
-      financePromptBlock(inputs, computed),
-      extra ? `Extra context:\n${extra}` : null,
-      `Brief requested:\n${question}`,
+      financePromptBlock(inputs, computed, locale),
+      extra ? `${copy.pipeline.extraContext}\n${extra}` : null,
+      `${copy.pipeline.briefRequested}\n${question}`,
     ]
       .filter(Boolean)
       .join("\n\n"),
   });
   if (!raw.trim()) {
-    throw new ApiError("generation_failed", "Model returned an empty finance brief", 502);
+    throw new ApiError("generation_failed", copy.errors.emptyBrief, 502);
   }
 
   throwIfJobAborted(abortSignal);
-  emit({ type: "job.phase", phase: "verifying", label: "Checking every figure" });
-  const { brief, guard } = buildFinanceBrief(parseBriefDraft(raw), computed);
+  emit({ type: "job.phase", phase: "verifying", label: copy.pipeline.verifying });
+  const { brief, guard } = buildFinanceBrief(parseBriefDraft(raw, locale), computed);
   emit({
     type: "job.step",
     phase: "verifying",
-    label: guard.total === 0 ? "All figures trace to inputs" : `${guard.total} unverified figure(s) removed`,
+    label:
+      guard.total === 0
+        ? copy.pipeline.verifyingOk
+        : financeFill(copy.pipeline.verifyingFlagged, { count: guard.total }),
   });
 
   throwIfJobAborted(abortSignal);
-  emit({ type: "job.phase", phase: "saving", label: "Saving brief" });
-  const markdown = financeBriefToMarkdown(brief);
+  emit({ type: "job.phase", phase: "saving", label: copy.pipeline.saving });
+  const markdown = financeBriefToMarkdown(brief, labels);
   const artifactId = persistBrief(tenant, brief, markdown, {
     question,
     model,
@@ -243,45 +305,47 @@ export async function generateFinanceBrief(
   return { brief, artifactId, markdown, guard, items: inputs.items };
 }
 
-function readSectionIndex(body: unknown, length: number): number {
+function readSectionIndex(body: unknown, length: number, locale: AppLocale): number {
   const index = (body as { sectionIndex?: unknown }).sectionIndex;
   if (typeof index !== "number" || !Number.isInteger(index) || index < 0 || index >= length) {
-    throw new ApiError("invalid_request", "sectionIndex is out of range", 400);
+    throw new ApiError("invalid_request", financeCopy(locale).errors.sectionIndex, 400);
   }
   return index;
 }
 
 /** Rewrite one section with the same inputs, metrics, and guard. */
 export async function regenerateFinanceSection(tenant: TenantContext, body: unknown): Promise<FinanceResult> {
+  const locale = financeBootLocale();
+  const copy = financeCopy(locale);
   if (!body || typeof body !== "object") {
-    throw new ApiError("invalid_request", "Request body must be a JSON object", 400);
+    throw new ApiError("invalid_request", copy.errors.bodyRequired, 400);
   }
   const parsedBrief = financeBriefSchema.safeParse((body as { brief?: unknown }).brief);
   if (!parsedBrief.success) {
-    throw new ApiError("invalid_request", "brief is missing or malformed", 400);
+    throw new ApiError("invalid_request", copy.errors.briefMalformed, 400);
   }
   const brief = parsedBrief.data;
-  const index = readSectionIndex(body, brief.sections.length);
+  const index = readSectionIndex(body, brief.sections.length, locale);
   const current = brief.sections[index];
   if (!current) {
-    throw new ApiError("invalid_request", "sectionIndex is out of range", 400);
+    throw new ApiError("invalid_request", copy.errors.sectionIndex, 400);
   }
-  const settings = requireLive();
+  const settings = requireLive(locale);
   const model = resolveModel(body, settings);
-  const inputs = resolveInputs(tenant, body);
-  const computed = computeFinance(inputs.items, inputs.params);
+  const inputs = resolveInputs(tenant, body, locale);
+  const computed = localizeComputedFinance(computeFinance(inputs.items, inputs.params), locale);
   const topic =
     typeof (body as { prompt?: unknown }).prompt === "string" ? (body as { prompt: string }).prompt.trim() : "";
   const prompt = appendRegenInstruction(
     [
-      financePromptBlock(inputs, computed),
-      topic ? `Original brief request: ${topic}` : null,
-      `Brief title: ${brief.title}`,
-      `Other sections:\n${brief.sections
+      financePromptBlock(inputs, computed, locale),
+      topic ? `${copy.pipeline.originalRequest} ${topic}` : null,
+      `${copy.pipeline.briefTitle} ${brief.title}`,
+      `${copy.pipeline.otherSections}\n${brief.sections
         .map((section, at) => (at === index ? null : `- ${section.heading}`))
         .filter(Boolean)
         .join("\n")}`,
-      `Rewrite this section only.\nHeading: ${current.heading}\nBody:\n${current.body}`,
+      `${copy.pipeline.rewriteSection}\n${copy.pipeline.heading} ${current.heading}\n${copy.pipeline.body}\n${current.body}`,
     ]
       .filter(Boolean)
       .join("\n\n"),
@@ -290,14 +354,14 @@ export async function regenerateFinanceSection(tenant: TenantContext, body: unkn
   const raw = await collectJobAssistantText({
     tenant,
     model,
-    systemPrompt: SECTION_SYSTEM,
+    systemPrompt: financeSectionSystemPrompt(locale),
     runPrefix: "finance-section",
     agentId: "finance",
     versionId: "finance-section",
     prompt,
   });
   const knownKeys = new Set(computed.metrics.map((entry) => entry.key));
-  const rewritten = guardSection(parseBriefSection(raw), computed, knownKeys);
+  const rewritten = guardSection(parseBriefSection(raw, locale), computed, knownKeys);
   const next = financeBriefSchema.parse({
     ...brief,
     sections: brief.sections.map((section, at) => (at === index ? rewritten.section : section)),
@@ -307,5 +371,11 @@ export async function regenerateFinanceSection(tenant: TenantContext, body: unkn
     flagged: rewritten.flagged.map((text) => ({ section: index, text })),
     total: rewritten.flagged.length,
   };
-  return { brief: next, artifactId: null, markdown: financeBriefToMarkdown(next), guard, items: inputs.items };
+  return {
+    brief: next,
+    artifactId: null,
+    markdown: financeBriefToMarkdown(next, financeMarkdownLabels(locale)),
+    guard,
+    items: inputs.items,
+  };
 }

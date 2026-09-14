@@ -2,16 +2,27 @@ import { Document, HeadingLevel, Packer, Paragraph, TextRun, type Table } from "
 import { resolvedProductName } from "@agentforge/core";
 import { formatMetricValue, type FinanceBrief } from "@agentforge/core/artifacts";
 import { docxTable } from "./docx-table";
+import { type AppLocale, financeBootLocale, financeCopy, financeIntlLocale } from "./finance-locale";
 
 const FONT = "Calibri";
 
-function safeFilename(title: string): string {
+function resolveDocxLocale(locale?: string): { copy: AppLocale; intl: string } {
+  if (locale === "id" || locale === "id-ID" || locale?.startsWith("id")) {
+    return { copy: "id", intl: locale === "id" ? financeIntlLocale("id") : locale };
+  }
+  if (!locale || locale === "en") {
+    return { copy: "en", intl: financeIntlLocale("en") };
+  }
+  return { copy: "en", intl: locale };
+}
+
+function safeFilename(title: string, fallback: string): string {
   const base = title
     .trim()
     .replace(/[^\w\s-]+/g, "")
     .replace(/\s+/g, "-")
     .slice(0, 60);
-  return `${base || "finance-brief"}.docx`;
+  return `${base || fallback}.docx`;
 }
 
 function heading(
@@ -42,13 +53,19 @@ function bullet(text: string): Paragraph {
   return new Paragraph({ bullet: { level: 0 }, children: [new TextRun({ text, font: FONT, size: 22 })] });
 }
 
-function metricsTable(brief: FinanceBrief): Table | null {
+function metricsTable(brief: FinanceBrief, locale: AppLocale): Table | null {
   if (brief.computed.metrics.length === 0) {
     return null;
   }
+  const copy = financeCopy(locale);
   return docxTable(
-    ["Metric", "Value", "Period", "Formula"],
-    brief.computed.metrics.map((metric) => [metric.label, formatMetricValue(metric), metric.period, metric.formula]),
+    [copy.preview.metric, copy.preview.value, copy.preview.period, copy.preview.formula],
+    brief.computed.metrics.map((metric) => [
+      metric.label,
+      formatMetricValue(metric, copy.metrics.missing),
+      metric.period,
+      metric.formula,
+    ]),
   );
 }
 
@@ -57,6 +74,9 @@ export async function buildFinanceDocx(
   brief: FinanceBrief,
   locale?: string,
 ): Promise<{ buffer: Buffer; filename: string }> {
+  const resolved = resolveDocxLocale(locale ?? financeBootLocale());
+  const copy = financeCopy(resolved.copy);
+  const intl = resolved.intl;
   const children: Array<Paragraph | Table> = [
     new Paragraph({
       heading: HeadingLevel.TITLE,
@@ -67,13 +87,13 @@ export async function buildFinanceDocx(
   for (const section of brief.sections) {
     children.push(heading(section.heading, HeadingLevel.HEADING_1, 28, "1565C0"), ...bodyParagraphs(section.body));
     for (const table of section.tables) {
-      children.push(docxTable(table.columns, table.rows, locale), new Paragraph({ spacing: { after: 160 } }));
+      children.push(docxTable(table.columns, table.rows, intl), new Paragraph({ spacing: { after: 160 } }));
     }
   }
-  const metrics = metricsTable(brief);
+  const metrics = metricsTable(brief, resolved.copy);
   if (metrics) {
     children.push(
-      heading("Computed metrics", HeadingLevel.HEADING_1, 28, "1565C0"),
+      heading(copy.preview.computedMetrics, HeadingLevel.HEADING_1, 28, "1565C0"),
       metrics,
       new Paragraph({ spacing: { after: 160 } }),
     );
@@ -81,13 +101,13 @@ export async function buildFinanceDocx(
   for (const table of brief.computed.tables) {
     children.push(
       heading(table.name, HeadingLevel.HEADING_2, 24, "1565C0"),
-      docxTable(table.columns, table.rows, locale),
+      docxTable(table.columns, table.rows, intl),
       new Paragraph({ spacing: { after: 160 } }),
     );
   }
-  children.push(heading("Assumptions", HeadingLevel.HEADING_1, 28, "1565C0"));
-  children.push(...(brief.assumptions.length > 0 ? brief.assumptions.map(bullet) : [bullet("None stated.")]));
+  children.push(heading(copy.preview.assumptions, HeadingLevel.HEADING_1, 28, "1565C0"));
+  children.push(...(brief.assumptions.length > 0 ? brief.assumptions.map(bullet) : [bullet(copy.preview.noneStated)]));
 
   const doc = new Document({ creator: resolvedProductName(), title: brief.title, sections: [{ children }] });
-  return { buffer: await Packer.toBuffer(doc), filename: safeFilename(brief.title) };
+  return { buffer: await Packer.toBuffer(doc), filename: safeFilename(brief.title, "finance-brief") };
 }

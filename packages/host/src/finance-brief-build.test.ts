@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { ApiError } from "@agentforge/core";
 import { UNVERIFIED_MARKER, computeFinance } from "@agentforge/core/finance";
-import { buildFinanceBrief, financePromptBlock, parseBriefDraft, readFinanceInputs } from "./finance-brief-build";
+import {
+  buildFinanceBrief,
+  financePromptBlock,
+  localizeComputedFinance,
+  parseBriefDraft,
+  readFinanceInputs,
+  stubFinanceDraft,
+} from "./finance-brief-build";
 import { buildFinanceDocx } from "./finance-docx";
 import { formatDocxCell } from "./docx-table";
 
@@ -90,5 +97,19 @@ describe("brief draft and guard", () => {
     expect(formatDocxCell(1234567.891, "en-US")).toBe("1,234,567.89");
     expect(formatDocxCell(null)).toBe("");
     expect(formatDocxCell(true)).toBe("true");
+  });
+
+  it("localizes computed labels, stub draft, and prompt chrome for Bahasa Indonesia", () => {
+    const localized = localizeComputedFinance(computed, "id");
+    expect(localized.metrics.some((entry) => entry.label.startsWith("Pendapatan"))).toBe(true);
+    expect(localized.tables[0]?.name).toBe("Pos");
+    expect(localized.tables[0]?.columns[0]).toBe("Uraian");
+    const draft = stubFinanceDraft("Rencana kas", localized, "id");
+    expect(draft.sections[0]?.heading).toBe("Angka yang sudah dihitung");
+    expect(draft.assumptions[0]).toMatch(/Pengaturan/);
+    const block = financePromptBlock(inputs, localized, "id");
+    expect(block).toContain("Pos (satu-satunya masukan):");
+    expect(block).toContain("Metrik terhitung");
+    expect(() => parseBriefDraft("not json", "id")).toThrow(/JSON tidak valid/);
   });
 });

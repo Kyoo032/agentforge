@@ -5,6 +5,7 @@ import { jsonError, jsonOk } from "../errors";
 import { getTenant } from "../tenant";
 import { buildFinanceDocx } from "../finance-docx";
 import { generateFinanceBrief, parseFinanceFigures, regenerateFinanceSection } from "../finance-generate";
+import { financeBootLocale, financeCopy } from "../finance-locale";
 import { streamJob } from "../job-stream";
 
 export async function handlePostFinance(request: HostRequest): Promise<HostResult> {
@@ -51,9 +52,9 @@ export async function handlePostFinanceDocx(request: HostRequest): Promise<HostR
   try {
     const parsed = financeBriefSchema.safeParse((request.body as { brief?: unknown } | null)?.brief ?? request.body);
     if (!parsed.success) {
-      throw new ApiError("invalid_request", "brief is missing or malformed", 400);
+      throw new ApiError("invalid_request", financeCopy().errors.briefMalformed, 400);
     }
-    const { buffer, filename } = await buildFinanceDocx(parsed.data);
+    const { buffer, filename } = await buildFinanceDocx(parsed.data, financeBootLocale());
     return {
       type: "bytes",
       status: 200,
