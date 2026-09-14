@@ -1,0 +1,134 @@
+{
+  "title": "Documents",
+  "subtitle": "Describe a memo, brief, or report. {productName} drafts sections, shows a preview, and downloads a DOCX.",
+  "download": "Download DOCX",
+  "building": "Building…",
+  "emptyTitle": "No document yet",
+  "emptyHint": "Enter a topic below, or load a starter and download a DOCX without a live generate.",
+  "placeholder": "Describe a document…",
+  "topicAria": "Document topic",
+  "generate": "Generate",
+  "generating": "Generating…",
+  "previewKicker": "Document",
+  "galleryTitle": "Start from a template",
+  "galleryHint": "Click a card to load a full brief. Replace the sample details, then generate.",
+  "settings": "Settings",
+  "openSettingsLead": "Open",
+  "outputTextLanguage": "Write every user-facing title, heading, and body string in English. Keep JSON keys in English.",
+  "errors": {
+    "generate": "Could not generate the document",
+    "regen": "Could not regenerate that section",
+    "docx": "Could not build the DOCX file",
+    "runtimeStub": "Document generation needs a live gateway. Paste a Toko Token API key in Settings, then try again."
+  },
+  "source": {
+    "add": "Add source material",
+    "label": "Source material",
+    "from": "from “{title}”",
+    "clear": "Clear",
+    "placeholder": "Paste a dossier, analysis, or notes. The draft will use only this material for facts.",
+    "aria": "Source material",
+    "chars": "{current} / {max} characters",
+    "truncated": " — the host keeps the first part only"
+  },
+  "regen": {
+    "action": "Regenerate",
+    "busy": "Regenerating…",
+    "placeholder": "Optional: what should change?",
+    "aria": "Regenerate instruction",
+    "attach": "Attach",
+    "cancel": "Cancel",
+    "submit": "Regenerate",
+    "attachImagesOnly": "Attach images or text files only",
+    "attachFailed": "Could not attach files",
+    "uploadFailed": "Upload failed"
+  },
+  "starters": {
+    "statusMemo": {
+      "label": "Status memo",
+      "description": "A finished weekly memo you can download as DOCX and rewrite.",
+      "title": "Northline checkout — week ending 1 Sep",
+      "s1": {
+        "heading": "What I need from you",
+        "body": "Approve staying on the current gateway through the 15 Oct renewal. I will write the dual-run design this week; legal will not review a second vendor before then.\n\nIf you want a hard cutover instead, say so by Thursday. That path needs a legal slot we do not have."
+      },
+      "s2": {
+        "heading": "What moved",
+        "body": "Error budget is 2.1% over a 28-day window (target 1.0%). Two timeouts on Thursday sat in the gateway; we have traces, not a vendor ticket number yet.\n\nFieldnote export shipped outline JSON and a DOCX download from a starter. Section regen with attachments is still open — Jin owns it, blocked on filename collisions when two exports share a title."
+      },
+      "s3": {
+        "heading": "What slipped",
+        "body": "The packaged Windows installer is still the 31 Aug build. Webdev already has the workspace-first rail; anyone on the installed app will not see it until we rebuild NSIS.\n\nI did not measure time-to-first-artifact this week. I will not pretend we have a number."
+      },
+      "s4": {
+        "heading": "Risks",
+        "body": "Prompt cards were one-line examples. Live Documents and Presentation jobs look thin if someone clicks Generate without rewriting. Template briefs are the fix; they are not in the last installer.\n\nFilename collisions will bite the first person who exports twice from the same title."
+      },
+      "s5": {
+        "heading": "Next seven days",
+        "body": "Mon–Tue: dual-run design draft (Sam). Wed: collide-safe export names (Jin). Thu: decision on rebuild vs keep using desktop:dev (you). I will send a six-line recap Friday whether or not the rebuild happens."
+      }
+    },
+    "onePager": {
+      "label": "One-pager brief",
+      "description": "An executable project brief — scope, three-week sequence, and an ask.",
+      "title": "Fieldnote export — one-page brief",
+      "s1": {
+        "heading": "Outcome",
+        "body": "An owner can leave Documents with a .docx that matches the on-screen draft, without opening Word first. Success is the first 20 exports completing without a support thread, and p95 under 8 seconds on this machine."
+      },
+      "s2": {
+        "heading": "Who it is for",
+        "body": "The person who already pasted a gateway key and is doing real work on Home. They are not looking for a collaborative editor. They want a file they can email or file on disk."
+      },
+      "s3": {
+        "heading": "In scope / out of scope",
+        "body": "In: prompt → structured draft → section regen → DOCX download; collide-safe filenames; a starter they can download offline.\n\nOut: collaborative editing, comments, cloud sync, and classroom-only nouns in the kernel."
+      },
+      "s4": {
+        "heading": "Approach and the risk",
+        "body": "Keep the existing JSON draft shape. Do not invent a second document model. The risk is the model returning empty headings when the user prompt is a one-liner — the template library has to carry audience, deliverable, and a sample scenario so the system prompt has something to write."
+      },
+      "s5": {
+        "heading": "Sequence",
+        "body": "Week 1 (Jin): collide-safe names and a worked starter, not a placeholder memo.\n\nWeek 2 (Jin): section regen with attachments, verified on Home.\n\nWeek 3 (Sam): one live generate on this desk with a full brief, then a DOCX opened locally. If p95 is over 8s, we stop adding features and fix the run."
+      },
+      "s6": {
+        "heading": "Ask",
+        "body": "Confirm out-of-scope stays out. If you want comments or sync in this cycle, that is a different brief — say so now."
+      }
+    }
+  },
+  "templates": {
+    "decision-memo": {
+      "title": "Decision memo",
+      "prompt": "Write a decision memo a director can approve in one sitting. This is a finished memo, not a skeleton.\n\nRole: chief of staff to the operator.\nAudience: the person who will pick one option today.\nDeliverable: 5–7 sections, 700–1000 words. Short paragraphs. No executive-summary fluff.\n\nSample context (replace bracketed fields, keep the shape):\n- Decision: whether [Northline] [keeps building checkout on the current gateway] or [moves the next quarter of volume to a second provider].\n- Why now: [renewal in 6 weeks], [error budget at 2.1%], [one enterprise deal blocked on uptime].\n- Options: stay; dual-run for 90 days; hard cutover in 30 days.\n- Constraint: [one engineer-week] and [no new vendor legal review this month] unless we pick the hard cutover.\n\nRequired sections:\n1. Decision in one sentence (name the pick).\n2. Context and cost of waiting.\n3. Options table-in-prose (cost, time, risk, reversibility — mark unknowns instead of guessing).\n4. Recommendation and the two tradeoffs we are accepting.\n5. What we will measure in 30 days.\n6. Ask (who does what by when).\n\nQuality bar: specific numbers from the sample or clearly tagged [sample]. No “we should consider exploring.” No “in today’s landscape.”\nDo not invent statutes, customers, or quotes.",
+      "resultSummary": "A one-sitting decision memo with a named pick, tradeoffs, and a 30-day measure — not empty headings."
+    },
+    "project-one-pager": {
+      "title": "Project one-pager",
+      "prompt": "Write a one-page project brief that a new teammate could execute from. Finished prose, not an outline.\n\nRole: project lead.\nAudience: the people who will do the work and the person funding it.\nDeliverable: 6 sections, ~600–800 words.\n\nSample context (replace bracketed fields):\n- Project: ship [Fieldnote] [export-to-DOCX] so [owners] can leave the studio with a file.\n- Window: [three weeks].\n- Success: [first 20 exports] complete without a support thread; [p95 under 8s].\n- Out of scope: [collaborative editing], [cloud sync].\n\nRequired sections:\n1. Outcome (one paragraph, measurable).\n2. Who it is for and the job they are hiring this for.\n3. In-scope / out-of-scope (two short lists).\n4. Approach and the one technical risk.\n5. Sequence (week 1 / 2 / 3) with a named owner per week.\n6. Ask (decision or resource).\n\nQuality bar: a stranger can tell what “done” looks like. No mission statements. No classroom jargon.\nDo not invent budget line items that are not in the sample.",
+      "resultSummary": "An executable one-pager with scope, a three-week sequence, and a clear ask."
+    },
+    "design-rfc": {
+      "title": "Design RFC",
+      "prompt": "Draft a design RFC people can argue with. Write the actual argument, not a table of contents.\n\nRole: the engineer proposing the change.\nAudience: two reviewers who will stamp or block.\nDeliverable: 7–8 sections, 900–1300 words.\n\nSample context (replace bracketed fields):\n- Change: store [workspace product modes] on the [workspace row] instead of inferring them from [custom agents].\n- Problem: [Home only showed Chat + Agents] until someone built an agent; job studios stayed locked.\n- Constraint: do not delete [agent tables]; Chat still uses the hidden [quick-chat] agent.\n\nRequired sections:\n1. Summary (what changes, what does not).\n2. Problem and who feels it.\n3. Proposal (data, read path, write path).\n4. Alternatives considered (at least two, with why they lose).\n5. Rollout and migrate (null means all work modes).\n6. Risks and how we will notice them.\n7. Open questions (real ones, not “TBD”).\n\nQuality bar: a reviewer can implement from this. Name files or tables in the sample; do not invent a second schema.\nNo “this RFC proposes to explore.”",
+      "resultSummary": "A stampable RFC with a real proposal, two rejected alternatives, and a migrate rule."
+    },
+    "meeting-digest": {
+      "title": "Meeting digest",
+      "prompt": "Turn the notes below into a digest a missing teammate can act on. Drop chatter. Keep owners and dates.\n\nRole: the person who ran the meeting.\nAudience: attendees plus two people who were not there.\nDeliverable: 4 sections. Tight lists. Every action has an owner and a date.\n\nSample notes (replace with yours, keep this density):\n- [Northline] checkout: error budget [2.1%], [Sam] wants dual-run, [Leah] says legal will not review a second vendor this month.\n- [Fieldnote] export: [week 2], [Jin] owns DOCX; blocked on [filename collisions].\n- Parking: [usage dashboard colors], [rename the product].\n- Decision (provisional): stay on the current gateway through [renewal]; write the dual-run design this week.\n\nRequired sections:\n1. Decisions (what was actually decided — if provisional, say so).\n2. Action items (owner + date + the first concrete step).\n3. Risks / blockers that still need a person.\n4. Parking lot (one line each, no essays).\n\nQuality bar: no “team to follow up.” If an owner is missing, write “[needs owner]”.\nDo not invent attendees who are not in the notes.",
+      "resultSummary": "An action digest with owners and dates — not a transcript with nicer headings."
+    },
+    "kickoff-agenda": {
+      "title": "Kickoff agenda",
+      "prompt": "Write a 45-minute kickoff agenda someone can run without you in the room.\n\nRole: facilitator.\nAudience: a mixed room (ops + one decision-maker).\nDeliverable: timed blocks with a desired outcome per block, plus a one-paragraph purpose at the top.\n\nSample context (replace bracketed fields):\n- Kickoff for [Fieldnote export].\n- Room: [Jin] (build), [Leah] (legal), [Sam] (ops), [you].\n- Must leave with: [scope locked], [week-1 owner], [the one risk we will watch].\n\nRequired blocks (keep the times, rewrite the prompts):\n1. 0:00–0:05 Purpose and what “done” means this cycle.\n2. 0:05–0:15 Context: who hurts today, what we will not build.\n3. 0:15–0:30 Sequence and owners (week 1/2/3).\n4. 0:30–0:40 Risks and the decision we need today.\n5. 0:40–0:45 Wrap, parking lot, written recap owner.\n\nFor each block: time, owner, the question the room must answer, the artifact they should leave with.\nQuality bar: a substitute facilitator can run this. No icebreakers. No “introductions if we have time.”",
+      "resultSummary": "A run-ready 45-minute agenda with outcomes per block — not a list of topics."
+    },
+    "handoff-pack": {
+      "title": "Handoff pack",
+      "prompt": "Write a handoff a new owner can use on Monday without a call.\n\nRole: outgoing owner.\nAudience: the person picking this up cold.\nDeliverable: 6 sections, checkbox lists where they help, short paragraphs where they do not.\n\nSample context (replace bracketed fields):\n- Handing [Fieldnote export] from [Jin] to [Rafi].\n- Done: [outline JSON], [DOCX download from a starter].\n- In progress: [section regen with attachments].\n- Known break: [filenames collide when two exports share a title].\n- Where it lives: [apps/web/lib/document-generate.ts], [packages/core templates].\n\nRequired sections:\n1. What this is (one paragraph).\n2. Done (checkboxes, evidence of done).\n3. In progress (what “good” looks like for each).\n4. Who owns what after today.\n5. Known risks and the first place to look.\n6. Paths, credentials (none in-repo), and how to verify.\n\nQuality bar: the new owner should not need Slack. Mark secrets as “in Settings / keychain,” never paste keys.\nNo “happy to hop on a call if needed” as a substitute for the pack.",
+      "resultSummary": "A Monday-ready handoff with paths, risks, and proof of done — not a farewell paragraph."
+    }
+  }
+}
