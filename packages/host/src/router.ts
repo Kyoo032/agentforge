@@ -113,7 +113,7 @@ import {
 } from "./handlers/misc";
 import { handleGetModels, handlePostModels } from "./handlers/models";
 import { handleRun } from "./handlers/runs";
-import { handleGetSettings, handlePostSettings } from "./handlers/settings";
+import { handleApplyLocale, handleGetSettings, handlePostSettings } from "./handlers/settings";
 import { handleDeleteThread, handleGetThread, handleGetThreads, handlePostThreads } from "./handlers/threads";
 import { handleGetUsage } from "./handlers/usage";
 import { handleGetVideoExampleFile, handleGetVideoExamples } from "./handlers/video-examples";
@@ -166,6 +166,7 @@ const routes: Route[] = [
   compile("POST", "/api/v1/edit/projects/:projectId/parity", handlePostEditParity),
   compile("GET", "/api/v1/settings", handleGetSettings),
   compile("POST", "/api/v1/settings", handlePostSettings),
+  compile("POST", "/api/v1/settings/apply-locale", handleApplyLocale),
   compile("GET", "/api/v1/usage", handleGetUsage),
   compile("GET", "/api/v1/chat", handleGetChat),
   compile("GET", "/api/v1/workspaces", handleGetWorkspaces),

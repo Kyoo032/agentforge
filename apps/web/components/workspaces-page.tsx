@@ -5,6 +5,8 @@ import { useRouter } from "@/lib/nav";
 import { PRODUCT_MODES, type ProductMode } from "@agentforge/core/product-modes";
 import { WORKSPACE_TEMPLATES } from "@agentforge/core/templates";
 import { apiFetch } from "@/lib/api-client";
+import { t } from "@/lib/i18n";
+import { labeled } from "@/lib/ui-copy";
 
 type Workspace = {
   id: string;
@@ -23,7 +25,8 @@ function templateLabel(id: string | null | undefined): string | null {
   if (!id) {
     return null;
   }
-  return WORKSPACE_TEMPLATES.find((entry) => entry.id === id)?.label ?? id;
+  const fallback = WORKSPACE_TEMPLATES.find((entry) => entry.id === id)?.label ?? id;
+  return labeled(`workspaces.template.${id}`, fallback);
 }
 
 function sameModes(a: ProductMode[], b: ProductMode[]): boolean {
@@ -136,7 +139,7 @@ export function WorkspacesPage() {
       body: JSON.stringify(body),
     }).then((res) => res.json());
     if (created.error) {
-      setError(created.error.message ?? created.error.code ?? "Could not create workspace");
+      setError(created.error.message ?? created.error.code ?? t("workspaces.errors.create"));
       return;
     }
     closeCreate();
@@ -154,7 +157,7 @@ export function WorkspacesPage() {
     setError(null);
     const trimmed = editName.trim();
     if (!trimmed) {
-      setError("Name is required");
+      setError(t("workspaces.nameRequired"));
       return;
     }
     const modes = withChat(editModes);
@@ -164,7 +167,7 @@ export function WorkspacesPage() {
       body: JSON.stringify({ name: trimmed, productModes: modes }),
     }).then((res) => res.json());
     if (saved.error) {
-      setError(saved.error.message ?? "Could not update workspace");
+      setError(saved.error.message ?? t("workspaces.errors.update"));
       return;
     }
     setEditingId(null);
@@ -177,11 +180,11 @@ export function WorkspacesPage() {
   async function deleteDesk(workspace: Workspace) {
     setError(null);
     if (workspace.protected || workspace.slug === "home") {
-      setError("The Default desk cannot be deleted");
+      setError(t("workspaces.errors.protected"));
       return;
     }
     if (deleteConfirm.trim() !== workspace.name) {
-      setError("Type the desk name to confirm deletion");
+      setError(t("workspaces.errors.confirmName"));
       return;
     }
     const deleted = await apiFetch(`/api/v1/workspaces/${workspace.id}`, {
@@ -190,7 +193,7 @@ export function WorkspacesPage() {
       body: JSON.stringify({ confirmName: deleteConfirm.trim() }),
     }).then((res) => res.json());
     if (deleted.error) {
-      setError(deleted.error.message ?? "Could not delete workspace");
+      setError(deleted.error.message ?? t("workspaces.errors.delete"));
       return;
     }
     setDeletingId(null);
@@ -201,11 +204,8 @@ export function WorkspacesPage() {
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-8 text-[var(--text)]">
-      <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">Workspaces</h1>
-      <p className="mt-2 text-[var(--text-2)]">
-        Folders on this machine. Each desk has its own gateway key, Settings, and Knowledge Base — switching does not
-        share them. You own all of them here — nothing to join.
-      </p>
+      <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("workspaces.title")}</h1>
+      <p className="mt-2 text-[var(--text-2)]">{t("workspaces.intro")}</p>
       {creating ? (
         <form
           onSubmit={(event) => void createWorkspace(event)}
@@ -213,7 +213,7 @@ export function WorkspacesPage() {
           data-testid="workspace-create-form"
         >
           <fieldset>
-            <legend className="text-sm font-medium text-[var(--text)]">Template (optional)</legend>
+            <legend className="text-sm font-medium text-[var(--text)]">{t("workspaces.templateLegend")}</legend>
             <div className="mt-2 flex flex-wrap gap-2" data-testid="workspace-template-picker">
               <button
                 type="button"
@@ -223,7 +223,7 @@ export function WorkspacesPage() {
                 data-selected={templatePack === null ? "true" : "false"}
                 onClick={() => applyPreset(null)}
               >
-                Blank
+                {t("workspaces.blank")}
               </button>
               {WORKSPACE_TEMPLATES.map((template) => {
                 const selected = templatePack === template.id;
@@ -235,17 +235,17 @@ export function WorkspacesPage() {
                     data-testid={`workspace-template-${template.id}`}
                     aria-pressed={selected}
                     data-selected={selected ? "true" : "false"}
-                    title={template.description}
+                    title={labeled(`workspaces.templateDescription.${template.id}`, template.description)}
                     onClick={() => applyPreset(template.id)}
                   >
-                    {template.label}
+                    {labeled(`workspaces.template.${template.id}`, template.label)}
                   </button>
                 );
               })}
             </div>
           </fieldset>
           <fieldset>
-            <legend className="text-sm font-medium text-[var(--text)]">Modes</legend>
+            <legend className="text-sm font-medium text-[var(--text)]">{t("workspaces.modes")}</legend>
             <div className="mt-2 flex flex-wrap gap-2" data-testid="workspace-mode-picker">
               {PRODUCT_MODES.map((mode) => {
                 const on = selectedModes.includes(mode.id);
@@ -259,7 +259,7 @@ export function WorkspacesPage() {
                     disabled={mode.id === "chat"}
                     onClick={() => toggleMode(selectedModes, mode.id, setSelectedModes)}
                   >
-                    {mode.label}
+                    {labeled(`workspaces.mode.${mode.id}`, mode.label)}
                   </button>
                 );
               })}
@@ -268,14 +268,14 @@ export function WorkspacesPage() {
           <div className="flex flex-wrap gap-3">
             <input
               className="min-w-[12rem] flex-1 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)]"
-              placeholder="New workspace name"
+              placeholder={t("workspaces.namePlaceholder")}
               value={name}
               onChange={(event) => setName(event.target.value)}
               required
               data-testid="workspace-name"
             />
             <button type="submit" className="btn btn-primary" data-testid="create-workspace">
-              Create
+              {t("workspaces.create")}
             </button>
             <button
               type="button"
@@ -283,7 +283,7 @@ export function WorkspacesPage() {
               data-testid="cancel-create-workspace"
               onClick={closeCreate}
             >
-              Cancel
+              {t("workspaces.cancel")}
             </button>
           </div>
         </form>
@@ -294,7 +294,7 @@ export function WorkspacesPage() {
           data-testid="create-new-workspace"
           onClick={openCreate}
         >
-          Create new workspace
+          {t("workspaces.createNew")}
         </button>
       )}
       {error ? <p className="mt-3 text-sm text-[var(--danger)]">{error}</p> : null}
@@ -312,8 +312,8 @@ export function WorkspacesPage() {
                     {packLabel ? <span className="ml-2 text-xs font-normal text-[var(--text-3)]">{packLabel}</span> : null}
                   </p>
                   <p className="text-xs text-[var(--text-3)]">
-                    {workspace.id === currentId ? "Current · " : ""}
-                    {modes.map((id) => PRODUCT_MODES.find((mode) => mode.id === id)?.label ?? id).join(", ")}
+                    {workspace.id === currentId ? t("workspaces.currentPrefix") : ""}
+                    {modes.map((id) => labeled(`workspaces.mode.${id}`, PRODUCT_MODES.find((mode) => mode.id === id)?.label ?? id)).join(", ")}
                   </p>
                 </div>
                 <div className="flex shrink-0 gap-2">
@@ -323,7 +323,7 @@ export function WorkspacesPage() {
                     onClick={() => openEditor(workspace)}
                     data-testid="edit-workspace-modes"
                   >
-                    Edit
+                    {t("workspaces.edit")}
                   </button>
                   {workspace.protected || workspace.slug === "home" ? null : (
                     <button
@@ -332,7 +332,7 @@ export function WorkspacesPage() {
                       onClick={() => openDelete(workspace)}
                       data-testid="delete-workspace"
                     >
-                      Delete
+                      {t("workspaces.delete")}
                     </button>
                   )}
                   <button
@@ -341,14 +341,14 @@ export function WorkspacesPage() {
                     onClick={() => void openWorkspace(workspace.id)}
                     data-testid="open-workspace"
                   >
-                    Open
+                    {t("workspaces.open")}
                   </button>
                 </div>
               </div>
               {editingId === workspace.id ? (
                 <div className="mt-3 space-y-3">
                   <label className="block text-sm font-medium text-[var(--text)]">
-                    Name
+                    {t("workspaces.name")}
                     <input
                       className="mt-1 w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)]"
                       value={editName}
@@ -357,7 +357,7 @@ export function WorkspacesPage() {
                     />
                   </label>
                   <div>
-                    <p className="text-sm font-medium text-[var(--text)]">Modes</p>
+                    <p className="text-sm font-medium text-[var(--text)]">{t("workspaces.modes")}</p>
                     <div className="mt-2 flex flex-wrap gap-2" data-testid="workspace-edit-modes">
                       {PRODUCT_MODES.map((mode) => {
                         const on = editModes.includes(mode.id);
@@ -371,7 +371,7 @@ export function WorkspacesPage() {
                             aria-pressed={on}
                             onClick={() => toggleMode(editModes, mode.id, setEditModes)}
                           >
-                            {mode.label}
+                            {labeled(`workspaces.mode.${mode.id}`, mode.label)}
                           </button>
                         );
                       })}
@@ -385,7 +385,7 @@ export function WorkspacesPage() {
                       disabled={!dirty || !editName.trim()}
                       onClick={() => void saveDesk(workspace.id, workspace.name, modes)}
                     >
-                      Save
+                      {t("workspaces.save")}
                     </button>
                     <button
                       type="button"
@@ -393,7 +393,7 @@ export function WorkspacesPage() {
                       data-testid="cancel-workspace-modes"
                       onClick={() => setEditingId(null)}
                     >
-                      Cancel
+                      {t("workspaces.cancel")}
                     </button>
                   </div>
                 </div>
@@ -401,8 +401,7 @@ export function WorkspacesPage() {
               {deletingId === workspace.id ? (
                 <div className="mt-3 space-y-3 rounded-md border border-[var(--danger)]/30 bg-[var(--danger)]/5 p-3" data-testid="delete-workspace-confirm">
                   <p className="text-sm text-[var(--text)]">
-                    This removes the desk, its chats, Knowledge Base, and saved key from this machine. Type{" "}
-                    <span className="font-medium">{workspace.name}</span> to confirm.
+                    {t("workspaces.deleteConfirm", { name: workspace.name })}
                   </p>
                   <input
                     className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)]"
@@ -420,7 +419,7 @@ export function WorkspacesPage() {
                       disabled={deleteConfirm.trim() !== workspace.name}
                       onClick={() => void deleteDesk(workspace)}
                     >
-                      Delete desk
+                      {t("workspaces.deleteDesk")}
                     </button>
                     <button
                       type="button"
@@ -431,7 +430,7 @@ export function WorkspacesPage() {
                         setDeleteConfirm("");
                       }}
                     >
-                      Cancel
+                      {t("workspaces.cancel")}
                     </button>
                   </div>
                 </div>

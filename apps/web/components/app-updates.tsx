@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { isInstallAction, updateBadge, updateButtonTitle } from "@/lib/app-updates-copy";
+import { createPortal } from "react-dom";
+import { isInstallAction, updateBadge, updateButtonTitle, updateCtaKind } from "@/lib/app-updates-copy";
 import { useProductBrand } from "@/lib/product-brand";
 import { useAppUpdates } from "@/lib/use-app-updates";
+import { t } from "@/lib/i18n";
 
 const POPOVER_WIDTH = 272;
 const POPOVER_GAP = 8;
@@ -44,26 +46,42 @@ function UpdateIcon({ busy }: { busy: boolean }) {
   );
 }
 
+function ctaLabel(kind: ReturnType<typeof updateCtaKind>): string | null {
+  if (kind === "ready") {
+    return t("rail.updates.ctaReady");
+  }
+  if (kind === "downloading") {
+    return t("rail.updates.ctaDownloading");
+  }
+  if (kind === "available") {
+    return t("rail.updates.ctaAvailable");
+  }
+  return null;
+}
+
 /**
- * Rail control for desktop updates: an icon between the theme toggle and the collapse button, with a small
- * panel that carries the status line and the check / install action. Branded flavors render nothing.
+ * Rail control for desktop updates. Idle retracts to an icon. A downloadable release expands into a
+ * labeled primary button (icon-only when the rail is collapsed) so the update is not a 2px dot.
  */
-export function AppUpdatesButton() {
+export function AppUpdatesButton({ collapsed = false }: { collapsed?: boolean }) {
   const { productName } = useProductBrand();
   const updates = useAppUpdates(productName);
   const [open, setOpen] = useState(false);
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) {
       return;
     }
     function onPointerDown(event: PointerEvent) {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
-        setOpen(false);
+      const target = event.target as Node;
+      if (rootRef.current?.contains(target) || panelRef.current?.contains(target)) {
+        return;
       }
+      setOpen(false);
     }
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -71,9 +89,12 @@ export function AppUpdatesButton() {
         buttonRef.current?.focus();
       }
     }
-    document.addEventListener("pointerdown", onPointerDown);
+    const timer = window.setTimeout(() => {
+      document.addEventListener("pointerdown", onPointerDown);
+    }, 0);
     document.addEventListener("keydown", onKeyDown);
     return () => {
+      window.clearTimeout(timer);
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
@@ -85,8 +106,11 @@ export function AppUpdatesButton() {
 
   const { state, supported, busy, statusText } = updates;
   const badge = updateBadge(state);
+  const cta = updateCtaKind(state);
   const install = isInstallAction(state);
   const title = updateButtonTitle(state, supported);
+  const expanded = Boolean(cta) && !collapsed;
+  const label = ctaLabel(cta);
 
   function toggle() {
     setAnchor(buttonRef.current?.getBoundingClientRect() ?? null);
@@ -99,11 +123,21 @@ export function AppUpdatesButton() {
   }
 
   return (
-    <div ref={rootRef} className="relative shrink-0" data-testid="app-updates">
+    <div
+      ref={rootRef}
+      className={expanded ? "relative min-w-0 flex-1" : "relative shrink-0"}
+      data-testid="app-updates"
+    >
       <button
         ref={buttonRef}
         type="button"
-        className="btn btn-ghost btn-icon relative h-8 w-8"
+        className={
+          expanded
+            ? "btn btn-primary inline-flex h-8 w-full min-w-0 items-center justify-center gap-1.5 px-2 text-xs font-medium"
+            : cta
+              ? "btn btn-primary btn-icon relative h-8 w-8"
+              : "btn btn-ghost btn-icon relative h-8 w-8"
+        }
         onClick={toggle}
         aria-label={title}
         aria-expanded={open}
@@ -111,56 +145,60 @@ export function AppUpdatesButton() {
         title={title}
         data-testid="app-updates-toggle"
         data-update-badge={badge ?? "none"}
+        data-update-cta={cta ?? "none"}
       >
         <UpdateIcon busy={badge === "busy" || busy} />
-        {badge === "available" ? (
-          <span
-            className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-accent"
-            aria-hidden="true"
-            data-testid="app-updates-badge"
-          />
+        {expanded && label ? <span className="min-w-0 truncate">{label}</span> : null}
+        {cta ? (
+          <span className="sr-only" data-testid="app-updates-badge">
+            {label}
+          </span>
         ) : null}
       </button>
-      {open ? (
-        <div
-          role="dialog"
-          aria-label="Updates"
-          className="z-30 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3"
-          style={popoverStyle(anchor)}
-          data-testid="app-updates-panel"
-        >
-          <p className="panel-label">Updates</p>
-          <p className="mt-2 break-words text-sm text-inkbase" data-testid="app-updates-status">
-            {statusText}
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {supported && install ? (
-              <button
-                type="button"
-                className="btn btn-primary"
-                data-testid="app-updates-install"
-                disabled={busy || state.status === "downloading"}
-                onClick={() => void updates.updateAndRestart()}
-              >
-                Update and restart
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="btn btn-secondary"
-                data-testid="app-updates-check"
-                disabled={!supported || busy}
-                onClick={() => void updates.check()}
-              >
-                Check for updates
-              </button>
-            )}
-            <button type="button" className="btn btn-ghost" onClick={close} data-testid="app-updates-close">
-              Close
-            </button>
-          </div>
-        </div>
-      ) : null}
+      {open
+        ? createPortal(
+            <div
+              ref={panelRef}
+              role="dialog"
+              aria-label={t("rail.updates.panel")}
+              className="z-50 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3 shadow-[var(--shadow-raise)]"
+              style={popoverStyle(anchor)}
+              data-testid="app-updates-panel"
+            >
+              <p className="panel-label">{t("rail.updates.panel")}</p>
+              <p className="mt-2 break-words text-sm text-inkbase" data-testid="app-updates-status">
+                {statusText}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {supported && install ? (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    data-testid="app-updates-install"
+                    disabled={busy || state.status === "downloading"}
+                    onClick={() => void updates.updateAndRestart()}
+                  >
+                    {t("rail.updates.install")}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    data-testid="app-updates-check"
+                    disabled={!supported || busy}
+                    onClick={() => void updates.check()}
+                  >
+                    {t("rail.updates.check")}
+                  </button>
+                )}
+                <button type="button" className="btn btn-ghost" onClick={close} data-testid="app-updates-close">
+                  {t("rail.updates.close")}
+                </button>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

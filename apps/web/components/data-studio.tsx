@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import { Link } from "@/lib/nav";
 import { ArtifactActions } from "@/components/artifact-actions";
 import { DataAnalysisView } from "@/components/data-analysis-view";
 import { DataGrid } from "@/components/data-grid";
@@ -23,6 +22,9 @@ import {
 import { useJobModel } from "@/lib/use-job-model";
 import { useJobStream } from "@/lib/use-job-stream";
 import { useProductBrand } from "@/lib/product-brand";
+import { t } from "@/lib/i18n";
+import { labeled } from "@/lib/ui-copy";
+import { SettingsLinkHint } from "@/components/settings-link-hint";
 
 const DATA_STARTERS = [
   {
@@ -42,7 +44,7 @@ const DATA_STARTERS = [
     label: "Trend over time",
     prompt: "If there is a date column, show how the main numeric column moves over time and name the biggest change.",
   },
-];
+] as const;
 
 const HISTORY_MAX = 5;
 
@@ -105,7 +107,7 @@ export function DataStudio() {
     try {
       adopt(await uploadDatasetFile(file));
     } catch (err) {
-      setLocalError(err instanceof Error ? err.message : "Could not upload that file");
+      setLocalError(err instanceof Error ? err.message : t("data.errors.upload"));
     } finally {
       setLoading(null);
     }
@@ -118,10 +120,10 @@ export function DataStudio() {
     setLoading("paste");
     setLocalError(null);
     try {
-      adopt(await createPastedDataset("Pasted table", pasted));
+      adopt(await createPastedDataset(t("data.pastedTable"), pasted));
       setPasted("");
     } catch (err) {
-      setLocalError(err instanceof Error ? err.message : "Could not read the pasted text as a table");
+      setLocalError(err instanceof Error ? err.message : t("data.errors.paste"));
     } finally {
       setLoading(null);
     }
@@ -136,7 +138,7 @@ export function DataStudio() {
     try {
       adopt(await getDataset(id));
     } catch (err) {
-      setLocalError(err instanceof Error ? err.message : "Could not open that dataset");
+      setLocalError(err instanceof Error ? err.message : t("data.errors.open"));
     } finally {
       setLoading(null);
     }
@@ -149,7 +151,7 @@ export function DataStudio() {
       return;
     }
     if (!dataset) {
-      setLocalError("Upload a file or paste a table first.");
+      setLocalError(t("data.errors.needTable"));
       return;
     }
     setLocalError(null);
@@ -168,14 +170,11 @@ export function DataStudio() {
 
   return (
     <main className="px-6 pb-10 pt-8 text-[var(--text)]" data-testid="data-studio">
-      <div className="kicker">Workspace</div>
+      <div className="kicker">{t("workspaces.title")}</div>
       <div className="mb-5 flex flex-wrap items-end gap-4">
         <div>
-          <h3 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">Data</h3>
-          <p className="mt-1.5 max-w-xl text-sm text-[var(--text-2)]">
-            Upload a CSV or XLSX, or paste a table. {productName} profiles it, queries it with SQL, and shows every
-            number's query. Nothing leaves this machine except the question and the profile.
-          </p>
+          <h3 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("data.title")}</h3>
+          <p className="mt-1.5 max-w-xl text-sm text-[var(--text-2)]">{t("data.lede", { productName })}</p>
         </div>
       </div>
       {error ? (
@@ -184,11 +183,7 @@ export function DataStudio() {
           {needsSettingsHint(error) && !/settings/i.test(error) ? (
             <>
               {" "}
-              Open{" "}
-              <Link href="/settings" className="underline">
-                Settings
-              </Link>
-              .
+              <SettingsLinkHint i18nKey="data.openSettings" />
             </>
           ) : null}
         </p>
@@ -214,7 +209,7 @@ export function DataStudio() {
               disabled={busy}
               data-testid="data-upload"
             >
-              {loading === "upload" ? "Reading…" : "Upload CSV / XLSX"}
+              {loading === "upload" ? t("data.reading") : t("data.upload")}
             </button>
             {saved.length > 0 ? (
               <select
@@ -222,13 +217,13 @@ export function DataStudio() {
                 value={dataset?.id ?? ""}
                 onChange={(event) => void onOpenSaved(event.target.value)}
                 disabled={busy}
-                aria-label="Saved datasets"
+                aria-label={t("data.savedAria")}
                 data-testid="data-saved"
               >
-                <option value="">Saved datasets…</option>
+                <option value="">{t("data.savedPlaceholder")}</option>
                 {saved.map((item) => (
                   <option key={item.id} value={item.id}>
-                    {item.name} ({item.rows} rows)
+                    {t("data.savedOption", { name: item.name, rows: item.rows })}
                   </option>
                 ))}
               </select>
@@ -236,7 +231,7 @@ export function DataStudio() {
           </div>
           <div>
             <label htmlFor="data-csv" className="panel-label">
-              Or paste a table
+              {t("data.pasteLabel")}
             </label>
             <textarea
               id="data-csv"
@@ -255,7 +250,7 @@ export function DataStudio() {
               disabled={busy || !pasted.trim()}
               data-testid="data-use-pasted"
             >
-              {loading === "paste" ? "Reading…" : "Use pasted table"}
+              {loading === "paste" ? t("data.reading") : t("data.usePasted")}
             </button>
           </div>
           {dataset ? (
@@ -264,7 +259,11 @@ export function DataStudio() {
                 {dataset.name}
               </p>
               <p className="text-xs text-[var(--text-3)]">
-                {dataset.rows} rows × {dataset.cols} cols · {formatBytes(dataset.sizeBytes)}
+                {t("data.datasetMeta", {
+                  rows: dataset.rows,
+                  cols: dataset.cols,
+                  size: formatBytes(dataset.sizeBytes),
+                })}
               </p>
               <DatasetProfile profile={dataset.profile} testId="data-profile" />
               <button
@@ -273,7 +272,7 @@ export function DataStudio() {
                 onClick={() => setShowPreview((value) => !value)}
                 data-testid="data-preview-toggle"
               >
-                {showPreview ? "Hide rows" : "Show first rows"}
+                {showPreview ? t("data.hideRows") : t("data.showRows")}
               </button>
               {showPreview ? (
                 <DataGrid
@@ -281,7 +280,7 @@ export function DataStudio() {
                   rows={dataset.preview.rows}
                   maxRows={100}
                   testId="data-preview"
-                  caption={`${dataset.preview.total} rows`}
+                  caption={t("data.previewCaption", { total: dataset.preview.total })}
                 />
               ) : null}
             </div>
@@ -308,7 +307,7 @@ export function DataStudio() {
               className="wash rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-8 text-center text-[var(--text-2)]"
               data-testid="data-studio-empty"
             >
-              <p>{dataset ? "Ask a question about the table." : "Upload or paste a table, then ask a question."}</p>
+              <p>{dataset ? t("data.emptyAsk") : t("data.emptyUpload")}</p>
             </div>
           )}
           <div className="flex flex-col gap-2" data-testid="data-starters">
@@ -318,10 +317,10 @@ export function DataStudio() {
                 type="button"
                 className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3 text-left text-[var(--text)]"
                 data-testid="data-starter"
-                onClick={() => setPrompt(starter.prompt)}
+                onClick={() => setPrompt(labeled(`data.starters.${starter.id}.prompt`, starter.prompt))}
                 disabled={busy}
               >
-                {starter.label}
+                {labeled(`data.starters.${starter.id}.label`, starter.label)}
               </button>
             ))}
           </div>
@@ -353,7 +352,7 @@ export function DataStudio() {
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
             className="input min-w-0 flex-1"
-            placeholder={dataset ? "Ask a question about the table…" : "Add a table first…"}
+            placeholder={dataset ? t("data.promptWithTable") : t("data.promptNoTable")}
             disabled={busy}
             data-testid="data-prompt"
           />
@@ -368,7 +367,7 @@ export function DataStudio() {
             disabled={busy || !prompt.trim()}
             data-testid="data-generate"
           >
-            {job.busy ? "Working…" : "Analyze"}
+            {job.busy ? t("data.working") : t("data.analyze")}
           </button>
         </div>
       </form>

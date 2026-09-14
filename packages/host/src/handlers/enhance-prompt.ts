@@ -60,7 +60,7 @@ export async function handlePostEnhancePrompt(request: HostRequest): Promise<Hos
       runPrefix: "enhance",
       agentId: "enhance-prompt",
       versionId: "enhance-prompt",
-      prompt: enhanceUserPrompt(text),
+      prompt: enhanceUserPrompt(text, locale),
     });
     const next = stripWrappingQuotes(raw);
     if (!next) {

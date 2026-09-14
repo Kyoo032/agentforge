@@ -22,6 +22,7 @@ import {
 import { BrandMark } from "@/components/brand-mark";
 import { useProductBrand } from "@/lib/product-brand";
 import { isReasoningEffort, type ReasoningEffort } from "@agentforge/core/reasoning-effort";
+import { t } from "@/lib/i18n";
 
 type Message = { id: string; role: string; content: unknown };
 
@@ -80,7 +81,7 @@ function EmptyCardIcon({ name }: { name: "documents" | "research" | "finance" })
 export function ChatSession({ agentId, initialThreadId }: Props) {
   const router = useRouter();
   const { gatewayName } = useProductBrand();
-  const [agentName, setAgentName] = useState("Chat");
+  const [agentName, setAgentName] = useState(() => t("chat.title"));
   const [isDefaultChat, setIsDefaultChat] = useState(!agentId);
   const [threadId, setThreadId] = useState<string | null>(null);
   const [agentIdReady, setAgentIdReady] = useState<string | null>(agentId ?? null);
@@ -172,7 +173,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
       return threadIdRef.current;
     }
     if (!agentIdReady) {
-      throw new Error("Chat is still loading");
+      throw new Error(t("chat.error.loading"));
     }
     const created = await apiFetch("/api/v1/threads", {
       method: "POST",
@@ -180,7 +181,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
       body: JSON.stringify({ agentId: agentIdReady }),
     }).then((res) => res.json());
     if (created.error) {
-      throw new Error(created.error.message ?? "Could not start a chat");
+      throw new Error(created.error.message ?? t("chat.error.start"));
     }
     const id = created.thread.id as string;
     threadIdRef.current = id;
@@ -204,12 +205,12 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
             apiFetch("/api/v1/models").then((res) => res.json()),
           ]);
           if (agentPayload.error) {
-            throw new Error(agentPayload.error.message ?? "Agent not found");
+            throw new Error(agentPayload.error.message ?? t("chat.error.agentMissing"));
           }
           if (cancelled) {
             return;
           }
-          setAgentName(agentPayload.agent?.name ?? "Agent");
+          setAgentName(agentPayload.agent?.name ?? t("chat.agent"));
           setIsDefaultChat(agentPayload.agent?.slug === "quick-chat");
           setAgentModalities(caps.inputModalities ?? ["text"]);
           setModels(modelPayload.models ?? []);
@@ -223,12 +224,12 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
         } else {
           const home = await apiFetch("/api/v1/chat").then((res) => res.json());
           if (home.error) {
-            throw new Error(home.error.message ?? "Could not open chat");
+            throw new Error(home.error.message ?? t("chat.error.open"));
           }
           if (cancelled) {
             return;
           }
-          setAgentName(home.agent?.name ?? "Chat");
+          setAgentName(home.agent?.name ?? t("chat.title"));
           setIsDefaultChat(true);
           setAgentModalities(home.version?.inputModalities ?? ["text", "image", "video"]);
           setModels(home.models ?? []);
@@ -243,7 +244,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           }
           const payload = await apiFetch(`/api/v1/threads/${initialThreadId}`).then((res) => res.json());
           if (payload.error) {
-            throw new Error(payload.error.message ?? "Thread not found");
+            throw new Error(payload.error.message ?? t("chat.error.threadMissing"));
           }
           if (cancelled) {
             return;
@@ -270,7 +271,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
         resetLive();
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Could not open chat");
+          setError(err instanceof Error ? err.message : t("chat.error.open"));
         }
       }
     })();
@@ -338,7 +339,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
     <main className="flex h-full min-h-0 flex-col bg-[var(--bg)]" data-testid="chat-home">
       <div className="flex h-14 shrink-0 items-center justify-between gap-4 px-6" data-testid="chat-header">
         <h1 className={`${empty ? "text-sm" : "text-2xl"} font-medium tracking-[var(--track)] text-[var(--text)]`}>
-          {isDefaultChat ? "Chat" : agentName}
+          {isDefaultChat ? t("chat.title") : agentName}
         </h1>
         <div className="flex min-w-0 flex-wrap items-center justify-end gap-3 text-xs">
           <ChatContextChip
@@ -361,7 +362,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
                 router.push(chatPath());
               }}
             >
-              New chat
+              {t("chat.newChat")}
             </button>
           ) : null}
         </div>
@@ -382,21 +383,36 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           <div className="mx-auto w-full max-w-[520px] pt-8 text-center" data-testid="chat-empty">
             <BrandMark size={28} className="mx-auto text-[var(--accent)]" />
             <p className="mt-4 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">
-              You&apos;re in. Ask anything.
+              {t("chat.empty.headline")}
             </p>
             <p className="mt-2 text-sm text-[var(--text-2)]">
-              Paste a {gatewayName} gateway key in{" "}
+              {t("chat.empty.pasteKeyPrefix", { gatewayName })}{" "}
               <Link href="/settings" className="text-[var(--accent)] no-underline hover:underline">
-                Settings
+                {t("chat.empty.settingsLink")}
               </Link>{" "}
-              to talk to live models.
+              {t("chat.empty.pasteKeySuffix")}
             </p>
             <div className="mt-6 grid grid-cols-3 gap-3">
               {(
                 [
-                  { href: "/documents", icon: "documents" as const, title: "Documents", hint: "Memos and reports" },
-                  { href: "/research", icon: "research" as const, title: "Research", hint: "Dossiers from the web" },
-                  { href: "/finance", icon: "finance" as const, title: "Finance", hint: "Models and briefs" },
+                  {
+                    href: "/documents",
+                    icon: "documents" as const,
+                    title: t("chat.empty.documentsTitle"),
+                    hint: t("chat.empty.documentsHint"),
+                  },
+                  {
+                    href: "/research",
+                    icon: "research" as const,
+                    title: t("chat.empty.researchTitle"),
+                    hint: t("chat.empty.researchHint"),
+                  },
+                  {
+                    href: "/finance",
+                    icon: "finance" as const,
+                    title: t("chat.empty.financeTitle"),
+                    hint: t("chat.empty.financeHint"),
+                  },
                 ] as const
               ).map((card) => (
                 <Link

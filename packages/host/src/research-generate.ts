@@ -10,6 +10,7 @@ import {
   runWithToolSecrets,
   scanInjection,
   webSearchTool,
+  withOutputLanguage,
   type TenantContext,
 } from "@agentforge/core";
 import { dossierToMarkdown, type Dossier, type ResearchNotes } from "@agentforge/core/artifacts";
@@ -23,6 +24,7 @@ import { artifactWorkCard } from "./work-cards";
 import { collectJobAssistantText } from "./job-regen";
 import { throwIfJobAborted } from "./job-stream";
 import { RESEARCH_CAPS, runResearchDossier, type SearchHit } from "./research-dossier";
+import { localeForRun } from "./run-context";
 
 /** Notes (existing preview shape) plus the saved dossier. `artifactId` mirrors `dossierId` for older callers. */
 export type ResearchResult = ResearchNotes & {
@@ -135,7 +137,7 @@ export async function generateResearchNotes(
         collectJobAssistantText({
           tenant,
           model,
-          systemPrompt: system,
+          systemPrompt: withOutputLanguage(system, "research", localeForRun()),
           runPrefix: "research",
           agentId: "research",
           versionId: "research-dossier",

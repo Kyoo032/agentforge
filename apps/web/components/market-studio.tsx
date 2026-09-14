@@ -2,7 +2,6 @@
 
 import { useState, type FormEvent } from "react";
 import { DEFAULT_WATCH_PROMPT_EN, DEFAULT_WATCH_PROMPT_ID } from "@agentforge/core/market";
-import { Link } from "@/lib/nav";
 import { ArtifactActions } from "@/components/artifact-actions";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { JobProgressList } from "@/components/job-progress";
@@ -30,7 +29,10 @@ import {
 import { useJobModel } from "@/lib/use-job-model";
 import { useJobStream } from "@/lib/use-job-stream";
 import { useMarketBoard } from "@/lib/use-market-board";
+import { t, getLocale } from "@/lib/i18n";
+import { labeled } from "@/lib/ui-copy";
 import { useProductBrand } from "@/lib/product-brand";
+import { SettingsLinkHint } from "@/components/settings-link-hint";
 
 const DEFAULT_PROMPT: Record<WatchLanguage, string> = { id: DEFAULT_WATCH_PROMPT_ID, en: DEFAULT_WATCH_PROMPT_EN };
 const DEFAULT_PROMPTS = new Set<string>([DEFAULT_WATCH_PROMPT_ID, DEFAULT_WATCH_PROMPT_EN]);
@@ -51,7 +53,7 @@ export function MarketStudio() {
   const { models, model, setModel } = useJobModel("market");
   const job = useJobStream<MarketWatchResult>();
   const [tickers, setTickers] = useState<string[]>([]);
-  const [language, setLanguage] = useState<WatchLanguage>("id");
+  const [language, setLanguage] = useState<WatchLanguage>(() => getLocale());
   const [prompt, setPrompt] = useState<string>(DEFAULT_WATCH_PROMPT_ID);
   const [position, setPosition] = useState("");
   const [maxChars, setMaxChars] = useState<number>(DEFAULT_MAX_CHARS);
@@ -123,7 +125,7 @@ export function MarketStudio() {
       });
       setResult((current) => (current ? applyRegeneratedSection(current, index, rewritten) : current));
     } catch (err) {
-      setLocalError(err instanceof Error ? err.message : "Could not rewrite that section");
+      setLocalError(err instanceof Error ? err.message : t("market.errors.rewrite"));
     } finally {
       setBusy(null);
       setRegenIndex(null);
@@ -139,7 +141,7 @@ export function MarketStudio() {
     try {
       await downloadMarketDocx(result.briefing);
     } catch (err) {
-      setLocalError(err instanceof Error ? err.message : "Could not build the DOCX file");
+      setLocalError(err instanceof Error ? err.message : t("market.errors.docx"));
     } finally {
       setBusy(null);
     }
@@ -151,14 +153,13 @@ export function MarketStudio() {
 
   return (
     <main className="px-6 pb-10 pt-8 text-[var(--text)]" data-testid="market-studio">
-      <div className="kicker">Workspace</div>
+      <div className="kicker">{t("market.studio.kicker")}</div>
       <div className="mb-5 flex flex-wrap items-end gap-4">
         <div>
-          <h3 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">Market Watch</h3>
-          <p className="mt-1.5 max-w-xl text-sm text-[var(--text-2)]">
-            Type the stocks you follow. You get live prices and a chart for each one, and can ask for a written
-            briefing. Analysis, not investment advice.
-          </p>
+          <h3 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">
+            {t("market.studio.title")}
+          </h3>
+          <p className="mt-1.5 max-w-xl text-sm text-[var(--text-2)]">{t("market.studio.subtitle")}</p>
         </div>
         {result ? (
           <button
@@ -168,7 +169,7 @@ export function MarketStudio() {
             className="btn btn-primary ml-auto"
             data-testid="market-download"
           >
-            {busy === "download" ? "Building…" : "Download DOCX"}
+            {busy === "download" ? t("market.studio.building") : t("market.studio.download")}
           </button>
         ) : null}
       </div>
@@ -179,10 +180,7 @@ export function MarketStudio() {
           {needsKey(rawError ?? "") ? (
             <>
               {" "}
-              <Link href="/settings" className="underline" data-testid="market-error-settings">
-                Open Settings
-              </Link>
-              .
+              <SettingsLinkHint i18nKey="market.studio.openSettings" testId="market-error-settings" />
             </>
           ) : null}
         </p>
@@ -193,7 +191,7 @@ export function MarketStudio() {
           <MarketWatchlistInput tickers={tickers} onChange={changeTickers} disabled={locked} />
           {tickers.length === 0 ? (
             <div className="mt-3" data-testid="market-starters">
-              <p className="text-xs text-[var(--text-3)]">Or start from a ready-made list:</p>
+              <p className="text-xs text-[var(--text-3)]">{t("market.studio.startersLead")}</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {MARKET_STARTERS.map((starter) => (
                   <button
@@ -205,8 +203,10 @@ export function MarketStudio() {
                     onClick={() => applyStarter(starter)}
                     disabled={locked}
                   >
-                    <span className="font-medium">{starter.label}</span>
-                    <span className="ml-2 text-[var(--text-3)]">{starter.hint}</span>
+                    <span className="font-medium">{labeled(`market.starters.${starter.id}.label`, starter.label)}</span>
+                    <span className="ml-2 text-[var(--text-3)]">
+                      {labeled(`market.starters.${starter.id}.hint`, starter.hint)}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -222,10 +222,7 @@ export function MarketStudio() {
                 {needsKey(rawError ?? "") ? (
                   <>
                     {" "}
-                    <Link href="/settings" className="underline" data-testid="market-error-settings">
-                      Open Settings
-                    </Link>
-                    .
+                    <SettingsLinkHint i18nKey="market.studio.openSettings" testId="market-error-settings" />
                   </>
                 ) : null}
               </p>
@@ -237,15 +234,15 @@ export function MarketStudio() {
                 disabled={locked || !ready}
                 data-testid="market-generate"
               >
-                {job.busy ? "Writing…" : "Write a briefing"}
+                {job.busy ? t("market.studio.writing") : t("market.studio.writeBriefing")}
               </button>
               {job.busy ? (
                 <button type="button" className="btn" onClick={job.cancel} data-testid="market-cancel">
-                  Cancel
+                  {t("market.studio.cancel")}
                 </button>
               ) : null}
               <select
-                aria-label="Briefing language"
+                aria-label={t("market.studio.languageAria")}
                 className="input"
                 style={{ width: "auto" }}
                 value={language}
@@ -253,8 +250,8 @@ export function MarketStudio() {
                 disabled={locked}
                 data-testid="market-language"
               >
-                <option value="id">Bahasa Indonesia</option>
-                <option value="en">English</option>
+                <option value="id">{t("common.bahasa")}</option>
+                <option value="en">{t("common.english")}</option>
               </select>
               <button
                 type="button"
@@ -263,19 +260,16 @@ export function MarketStudio() {
                 aria-expanded={showOptions}
                 data-testid="market-options-toggle"
               >
-                {showOptions ? "Hide options" : "Options"}
+                {showOptions ? t("market.studio.hideOptions") : t("market.studio.options")}
               </button>
             </div>
-            <p className="text-xs text-[var(--text-3)]">
-              {productName} reads prices, charts, ratings, headlines, and market levels on this machine, then writes a
-              briefing over them. Any figure it cannot trace back to that data is removed.
-            </p>
+            <p className="text-xs text-[var(--text-3)]">{t("market.studio.machineNote", { product: productName })}</p>
 
             {showOptions ? (
               <div className="space-y-4 border-t border-[var(--line)] pt-4" data-testid="market-options">
                 <div>
                   <label htmlFor="market-position-input" className="panel-label">
-                    Your positions (optional)
+                    {t("market.studio.positionLabel")}
                   </label>
                   <textarea
                     id="market-position-input"
@@ -287,13 +281,11 @@ export function MarketStudio() {
                     disabled={locked}
                     data-testid="market-position"
                   />
-                  <p className="mt-1 text-xs text-[var(--text-3)]">
-                    What you own and at what price. The briefing may use these numbers; it invents nothing else.
-                  </p>
+                  <p className="mt-1 text-xs text-[var(--text-3)]">{t("market.studio.positionHelp")}</p>
                 </div>
                 <div>
                   <label htmlFor="market-prompt-input" className="panel-label">
-                    What the briefing should cover
+                    {t("market.studio.promptLabel")}
                   </label>
                   <textarea
                     id="market-prompt-input"
@@ -312,7 +304,7 @@ export function MarketStudio() {
                       disabled={locked || prompt === DEFAULT_PROMPT[language]}
                       data-testid="market-prompt-reset"
                     >
-                      Reset to default
+                      {t("market.studio.resetPrompt")}
                     </button>
                     <EnhancePromptButton
                       text={prompt}
@@ -327,7 +319,7 @@ export function MarketStudio() {
                 <div className="flex flex-wrap items-end gap-4">
                   <div>
                     <label htmlFor="market-maxchars-input" className="panel-label">
-                      Length limit (characters)
+                      {t("market.studio.lengthLimit")}
                     </label>
                     <input
                       id="market-maxchars-input"
@@ -365,7 +357,6 @@ export function MarketStudio() {
             onRefresh={board.refresh}
           />
         ) : null}
-
       </form>
 
       <div className="mt-5 space-y-4">
@@ -397,7 +388,7 @@ export function MarketStudio() {
             className="wash rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-8 text-center text-[var(--text-2)]"
             data-testid="market-studio-empty"
           >
-            <p>Add a ticker above to see its price and chart.</p>
+            <p>{t("market.studio.empty")}</p>
           </div>
         ) : null}
       </div>

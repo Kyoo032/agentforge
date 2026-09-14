@@ -1,3 +1,5 @@
+import { t } from "@/lib/i18n";
+
 /** Rough chat-token estimate: ~4 characters per token. Not a tokenizer. */
 export function estimateTokensFromText(text: string): number {
   const trimmed = text.trim();
@@ -38,10 +40,10 @@ export function estimateContextParts(input: {
   const knowledge =
     input.knowledge && input.knowledge.length > 0
       ? input.knowledge
-      : [{ label: "Knowledge", detail: "pinned + retrieved", tokens: 0 }];
+      : [{ label: t("chat.context.knowledge"), detail: t("chat.context.knowledgeDetail"), tokens: 0 }];
   return [
-    { label: "Conversation", detail: "messages in this thread", tokens: input.conversation },
-    { label: "Attachments", detail: "files in this turn", tokens: input.attachments ?? 0 },
+    { label: t("chat.context.conversation"), detail: t("chat.context.conversationDetail"), tokens: input.conversation },
+    { label: t("chat.context.attachments"), detail: t("chat.context.attachmentsDetail"), tokens: input.attachments ?? 0 },
     ...knowledge,
   ];
 }

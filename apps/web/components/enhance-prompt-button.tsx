@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { EnhanceSurface } from "@agentforge/core";
 import { apiFetch } from "@/lib/api-client";
+import { t } from "@/lib/i18n";
 
 type Props = {
   text: string;
@@ -76,7 +77,7 @@ export function EnhancePromptButton({
         return;
       }
       if (!res.ok || !data || typeof data.text !== "string") {
-        throw new Error(data?.error?.message ?? "Could not enhance the prompt");
+        throw new Error(data?.error?.message ?? t("chat.enhance.failed"));
       }
       originalRef.current = text;
       appliedRef.current = data.text;
@@ -98,9 +99,9 @@ export function EnhancePromptButton({
   return (
     <button
       type="button"
-      className="wash inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--line)] bg-transparent text-[var(--text-2)] hover:bg-[var(--accent-soft)] disabled:opacity-45"
-      data-tip={busy ? "Cancel enhance" : enhanced ? "Revert prompt" : "Enhance prompt"}
-      aria-label={busy ? "Cancel enhance" : enhanced ? "Revert enhanced prompt" : "Enhance prompt"}
+      className="wash inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--line)] bg-transparent text-[var(--text-2)] hover:bg-[var(--accent-soft)] disabled:opacity-45"
+      data-tip={busy ? t("chat.enhance.busy") : enhanced ? t("chat.enhance.revert") : t("chat.enhance.idle")}
+      aria-label={busy ? t("chat.enhance.busy") : enhanced ? t("chat.enhance.revert") : t("chat.enhance.idle")}
       aria-pressed={enhanced}
       data-testid={enhanced ? `${testId}-revert` : testId}
       disabled={disabled || empty}

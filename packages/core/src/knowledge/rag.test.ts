@@ -44,4 +44,14 @@ describe("knowledge rag", () => {
     expect(map.topics[0]?.title).toBe("Notes");
     expect(map.ready).toBe(true);
   });
+
+  it("builds a Bahasa Indonesia stub map when locale is id", () => {
+    const map = stubKnowledgeMap([{ id: "s1", name: "Catatan" }], {
+      embeddingModel: "text-embedding-3-small",
+      brainModel: "gpt-5.6-luna",
+      verifierModel: "gpt-5.6-luna",
+    }, "id");
+    expect(map.overview).toMatch(/Peta stub/);
+    expect(map.topics[0]?.summary).toMatch(/Terindeks/);
+  });
 });

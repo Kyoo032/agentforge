@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { FormattedText } from "@/components/formatted-text";
 import { JobRegenPanel, type JobRegenSubmit } from "@/components/job-regen-panel";
+import { t } from "@/lib/i18n";
 import type { DocumentDraft } from "@/lib/document-outline";
 import type { JobStudioModel } from "@/lib/use-job-model";
 
@@ -25,7 +26,7 @@ export function DocumentPreview({
 
   return (
     <article className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-8 py-10" data-testid="documents-preview">
-      <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--text-3)]">Document</p>
+      <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--text-3)]">{t("documents.previewKicker")}</p>
       <h2 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{draft.title}</h2>
       <div className="mt-8 space-y-8">
         {draft.sections.map((section, index) => (
@@ -41,7 +42,7 @@ export function DocumentPreview({
                   aria-expanded={openIndex === index}
                   data-testid="documents-regen"
                 >
-                  {regeneratingIndex === index ? "Regenerating…" : "Regenerate"}
+                  {regeneratingIndex === index ? t("documents.regen.busy") : t("documents.regen.action")}
                 </button>
               ) : null}
             </div>

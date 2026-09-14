@@ -25,6 +25,7 @@
     "add": "Add source material",
     "label": "Source material",
     "from": "from “{title}”",
+    "picker": "Use a saved artifact…",
     "clear": "Clear",
     "placeholder": "Paste a dossier, analysis, or notes. The draft will use only this material for facts.",
     "aria": "Source material",

@@ -14,8 +14,6 @@
   "gatewayHeading": "Gateway {gatewayName}",
   "gatewayHelp": "Tempel kunci API gateway untuk meja ini. Kunci tidak dikembalikan setelah disimpan.",
   "endpointLabel": "URL endpoint",
-  "endpointHint": "Hanya HTTPS. http:// biasa berlaku untuk server model lokal di 127.0.0.1.",
-  "endpointReset": "Gunakan {gatewayName} ({host})",
   "keyLabel": "Kunci API gateway",
   "keyPlaceholderSaved": "Tersimpan — tempel untuk mengganti",
   "keyPlaceholderEmpty": "Dari dasbor gateway Anda",
@@ -25,5 +23,16 @@
   "save": "Simpan",
   "privacy": "Prompt meninggalkan mesin ini hanya melalui HTTPS ke endpoint yang tersimpan. {productName} tidak mencatat prompt. Kunci dan utas dienkripsi di disk. Retensi {gatewayName} mengikuti kebijakan gateway.",
   "languageLabel": "Bahasa",
-  "languageHelp": "Berlaku setelah Anda mulai ulang DPSBuddy. Chat dan mode kerja mengikuti bahasa ini."
+  "languageHelp": "Berlaku setelah Anda mulai ulang DPSBuddy. Chat dan mode kerja mengikuti bahasa ini.",
+  "endpointLocked": "Endpoint ini tetap dan tidak dapat diubah.",
+  "gateway.status.ok": "Key terverifikasi",
+  "gateway.status.invalid_key": "Key ditolak gateway",
+  "gateway.status.unreachable": "Gateway tidak terjangkau",
+  "gateway.status.error": "Kesalahan gateway",
+  "gateway.status.needs_key": "Belum ada key",
+  "gateway.status.stub": "Demo luring",
+  "gateway.grace": "Bekerja offline dengan key yang terverifikasi pada {date}.",
+  "gateway.recheck": "Periksa ulang",
+  "gateway.lastChecked": "Terakhir diperiksa {date}",
+  "gateway.checkFailed": "Tidak dapat memeriksa ulang gateway saat ini. Coba lagi sebentar lagi."
 }

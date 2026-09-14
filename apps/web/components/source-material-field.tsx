@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ArtifactPicker } from "@/components/artifact-picker";
+import { t } from "@/lib/i18n";
 
 /** Mirrors the host cap in packages/host/src/job-source.ts. */
 export const SOURCE_TEXT_MAX_CHARS = 120_000;
@@ -34,17 +35,18 @@ export function SourceMaterialField({ value, onChange, title = null, onTitle, di
           disabled={disabled}
           data-testid={`${testIdPrefix}-source-toggle`}
         >
-          {shown ? "Source material" : "Add source material"}
+          {shown ? t("documents.source.label") : t("documents.source.add")}
         </button>
         {title ? (
           <span className="truncate text-xs text-[var(--text-3)]" data-testid={`${testIdPrefix}-source-title`}>
-            from “{title}”
+            {t("documents.source.from", { title })}
           </span>
         ) : null}
         <div className="ml-auto flex items-center gap-2">
           <ArtifactPicker
             disabled={disabled}
             testId={`${testIdPrefix}-source-picker`}
+            label={t("documents.source.picker")}
             onPick={(artifact) => {
               onChange(artifact.body);
               onTitle?.(artifact.title);
@@ -62,7 +64,7 @@ export function SourceMaterialField({ value, onChange, title = null, onTitle, di
               disabled={disabled}
               data-testid={`${testIdPrefix}-source-clear`}
             >
-              Clear
+              {t("documents.source.clear")}
             </button>
           ) : null}
         </div>
@@ -78,13 +80,16 @@ export function SourceMaterialField({ value, onChange, title = null, onTitle, di
             rows={6}
             disabled={disabled}
             className="mt-2 w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 font-mono text-xs text-[var(--text)] outline-none"
-            placeholder="Paste a dossier, analysis, or notes. The draft will use only this material for facts."
+            placeholder={t("documents.source.placeholder")}
             data-testid={`${testIdPrefix}-source-text`}
-            aria-label="Source material"
+            aria-label={t("documents.source.aria")}
           />
           <p className={`mt-1 text-xs ${over ? "text-[var(--danger)]" : "text-[var(--text-3)]"}`}>
-            {value.length.toLocaleString()} / {SOURCE_TEXT_MAX_CHARS.toLocaleString()} characters
-            {over ? " — the host keeps the first part only" : ""}
+            {t("documents.source.chars", {
+              current: value.length.toLocaleString(),
+              max: SOURCE_TEXT_MAX_CHARS.toLocaleString(),
+            })}
+            {over ? t("documents.source.truncated") : ""}
           </p>
         </>
       ) : null}

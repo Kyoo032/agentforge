@@ -1,4 +1,5 @@
-import { guessDialectFromKey, guessDialectFromUrl, DEFAULT_OPENAI_BASE_URL, isDefaultOpenAIBaseUrl, resolvedOpenAIBaseUrl } from "./models/probe";
+import { guessDialectFromKey } from "./models/probe";
+import { resolvedGatewayBaseUrl } from "./gateway";
 import { keyFingerprintOrNull } from "./security/fingerprint";
 import { maskToolKeys } from "./tools/credentials";
 
@@ -238,7 +239,8 @@ export function maskSecrets(current: StoredSecrets): MaskedSecrets {
     googleKeyFingerprint: keyFingerprintOrNull(current.googleApiKey),
     anthropicKeyFingerprint: keyFingerprintOrNull(current.anthropicApiKey),
     volcengineKeyFingerprint: keyFingerprintOrNull(current.volcengineApiKey),
-    openaiBaseUrl: current.openaiBaseUrl || DEFAULT_OPENAI_BASE_URL,
+    // Pinned: a value stored by an older build is tolerated on read but never reported back.
+    openaiBaseUrl: resolvedGatewayBaseUrl(),
     googleBaseUrl: current.googleBaseUrl,
     anthropicBaseUrl: current.anthropicBaseUrl,
     volcengineBaseUrl: current.volcengineBaseUrl,
@@ -261,7 +263,6 @@ export function hasLiveProvider(settings: StoredSecrets): boolean {
       settings.googleApiKey ||
       settings.anthropicApiKey ||
       settings.volcengineApiKey ||
-      (settings.openaiBaseUrl && !isDefaultOpenAIBaseUrl(settings.openaiBaseUrl)) ||
       settings.anthropicBaseUrl ||
       settings.volcengineBaseUrl,
   );
@@ -288,13 +289,11 @@ export function resolveProviderKeys(
   volcengineBaseUrl?: string;
 } {
   const openai = settings.openaiApiKey || env.OPENAI_API_KEY || undefined;
-  const openaiBaseUrl = resolvedOpenAIBaseUrl(settings.openaiBaseUrl || env.OPENAI_BASE_URL);
+  // Pinned endpoint: neither the stored value nor OPENAI_BASE_URL can re-point the gateway.
+  const openaiBaseUrl = resolvedGatewayBaseUrl();
   const openaiKeyDialect = openai ? guessDialectFromKey(openai) : undefined;
-  const openaiUrlDialect = openaiBaseUrl ? guessDialectFromUrl(openaiBaseUrl) : undefined;
   const reuseOpenAI = (dialect: "anthropic" | "google" | "volcengine") =>
-    openaiKeyDialect === dialect || openaiUrlDialect === dialect ? openai : undefined;
-  const reuseOpenAIUrl = (dialect: "anthropic" | "google" | "volcengine") =>
-    openaiUrlDialect === dialect ? openaiBaseUrl : undefined;
+    openaiKeyDialect === dialect ? openai : undefined;
 
   return {
     openai,
@@ -303,9 +302,8 @@ export function resolveProviderKeys(
     volcengine:
       settings.volcengineApiKey || env.ARK_API_KEY || env.VOLCENGINE_API_KEY || reuseOpenAI("volcengine"),
     openaiBaseUrl,
-    googleBaseUrl: settings.googleBaseUrl || env.GOOGLE_GENERATIVE_AI_BASE_URL || reuseOpenAIUrl("google"),
-    anthropicBaseUrl: settings.anthropicBaseUrl || env.ANTHROPIC_BASE_URL || reuseOpenAIUrl("anthropic"),
-    volcengineBaseUrl:
-      settings.volcengineBaseUrl || env.ARK_BASE_URL || env.VOLCENGINE_BASE_URL || reuseOpenAIUrl("volcengine"),
+    googleBaseUrl: settings.googleBaseUrl || env.GOOGLE_GENERATIVE_AI_BASE_URL,
+    anthropicBaseUrl: settings.anthropicBaseUrl || env.ANTHROPIC_BASE_URL,
+    volcengineBaseUrl: settings.volcengineBaseUrl || env.ARK_BASE_URL || env.VOLCENGINE_BASE_URL,
   };
 }

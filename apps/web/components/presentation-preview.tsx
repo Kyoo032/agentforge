@@ -9,7 +9,7 @@ import {
   type PresentationSlide,
 } from "@/lib/presentation-outline";
 import type { JobStudioModel } from "@/lib/use-job-model";
-import { useProductBrand } from "@/lib/product-brand";
+import { t } from "@/lib/i18n";
 
 type Props = {
   outline: PresentationOutline;
@@ -94,7 +94,7 @@ function SlideBody({ slide }: { slide: PresentationSlide }) {
           ))}
         </ul>
       ) : (
-        <p className="mt-5 text-sm text-[var(--text-3)]">No bullets on this slide.</p>
+        <p className="mt-5 text-sm text-[var(--text-3)]">{t("presentation.noBullets")}</p>
       )}
     </div>
   );
@@ -147,7 +147,7 @@ export function PresentationPreview({
                     aria-expanded={openIndex === index}
                     data-testid="presentations-regen"
                   >
-                    {regeneratingIndex === index ? "Regenerating…" : "Regenerate"}
+                    {regeneratingIndex === index ? t("presentation.regenerating") : t("presentation.regenerate")}
                   </button>
                 ) : null
               }
@@ -156,7 +156,7 @@ export function PresentationPreview({
             </SlideShell>
             {slide.notes.trim() ? (
               <p className="mt-2 px-1 text-xs leading-relaxed text-[var(--text-3)]">
-                Notes: <FormattedText text={slide.notes} inline />
+                {t("presentation.notes")} <FormattedText text={slide.notes} inline />
               </p>
             ) : null}
             {onRegenerate && openIndex === index ? (

@@ -8,6 +8,7 @@ import {
   type UpdateState,
   updateBadge,
   updateButtonTitle,
+  updateCtaKind,
   updateStatusLine,
   updateVersionLine,
 } from "./app-updates-copy";
@@ -180,6 +181,16 @@ describe("normalizeUpdateSnapshot", () => {
       typeof normalizeUpdateSnapshot
     >[0];
     expect(normalizeUpdateSnapshot(loose, "idle")).toEqual({ supported: false, status: "current" });
+  });
+});
+
+describe("updateCtaKind", () => {
+  it("expands the rail control only when a release should be installed", () => {
+    expect(updateCtaKind(state({ status: "available", version: "0.14.25" }))).toBe("available");
+    expect(updateCtaKind(state({ status: "ready", version: "0.14.25" }))).toBe("ready");
+    expect(updateCtaKind(state({ status: "downloading", percent: 40 }))).toBe("downloading");
+    expect(updateCtaKind(state({ status: "idle" }))).toBeNull();
+    expect(updateCtaKind(state({ status: "current" }))).toBeNull();
   });
 });
 

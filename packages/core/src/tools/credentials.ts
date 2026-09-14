@@ -16,6 +16,7 @@
  *    key does not fall through.
  */
 
+import { resolvedGatewayBaseUrl } from "../gateway";
 import { getSecret, getToolSelection, type ToolSecretScope } from "./secret-scope";
 
 export type ToolSecretStore = {
@@ -273,7 +274,8 @@ export function secretMapFromSettings(
     }
   };
   put("OPENAI_API_KEY", settings.openaiApiKey || env.OPENAI_API_KEY);
-  put("OPENAI_BASE_URL", settings.openaiBaseUrl || env.OPENAI_BASE_URL);
+  // Pinned gateway: tools reuse the same endpoint the runtime does, never a stored override.
+  put("OPENAI_BASE_URL", resolvedGatewayBaseUrl());
   put("ANTHROPIC_API_KEY", settings.anthropicApiKey || env.ANTHROPIC_API_KEY);
   put("GOOGLE_GENERATIVE_AI_API_KEY", settings.googleApiKey || env.GOOGLE_GENERATIVE_AI_API_KEY);
   put("ARK_API_KEY", settings.volcengineApiKey || env.ARK_API_KEY || env.VOLCENGINE_API_KEY);

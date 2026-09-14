@@ -1,11 +1,14 @@
 {
   "welcome": "Selamat datang di {productName}",
-  "intro": "Tempel kunci API {gatewayName} Anda. Chat dan mode kerja berjalan di mesin ini. Anda dapat mengubah endpoint nanti di Pengaturan.",
+  "intro": "Tempel kunci API {gatewayName} Anda. Chat dan mode kerja berjalan di mesin ini.",
   "setupCheck": "Pemeriksaan penyiapan",
   "ffmpegLater": "Anda dapat lanjut sekarang dan memasang ffmpeg nanti; studio Edit menampilkan panduan yang sama sampai ffmpeg ditemukan.",
   "endpointLabel": "URL endpoint",
   "keyLabel": "Kunci API",
   "keyPlaceholder": "Dari dasbor gateway Anda",
   "continue": "Lanjut ke Chat",
-  "offline": "Gunakan demo luring"
+  "endpointLocked": "Endpoint ini tetap dan tidak dapat diubah.",
+  "gate.invalidKey": "Gateway menolak API key ini. Periksa key di {gatewayName} lalu coba lagi.",
+  "gate.unreachable": "Tidak dapat menghubungi {gatewayName}. Periksa koneksi Anda lalu coba lagi.",
+  "gate.error": "Gateway mengembalikan kesalahan tak terduga. Coba lagi sebentar lagi."
 }

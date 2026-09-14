@@ -6,6 +6,7 @@
   "starting": "Starting chat…",
   "sessions": "Sessions",
   "sessionsEmpty": "Sessions show up here after you send.",
+  "resizeSessions": "Resize sessions",
   "deleteSession": "Delete session",
   "deleteConfirm": "Delete \"{title}\"? This cannot be undone.",
   "deleteAria": "Delete {title}",

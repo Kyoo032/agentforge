@@ -15,6 +15,17 @@ export {
   formatUsd,
 } from "./gateway";
 export {
+  PINNED_GATEWAY_BASE_URL,
+  PINNED_GATEWAY_BASE_URL_SHA256,
+  pinnedGatewayBaseUrl,
+  pinnedGatewayOrigin,
+  isPackagedRuntime,
+  gatewayUrlOverrideAllowed,
+} from "./gateway/pinned";
+export type { GatewayGateStatus, GatewayGatePayload } from "./gateway/gate-types";
+export { GATEWAY_VALIDATE_TIMEOUT_MS, validateGatewayKey } from "./gateway/validate";
+export type { GatewayKeyValidation } from "./gateway/validate";
+export {
   readLanguageModelUsage,
   asRunUsageRecord,
   addTokenUsage,
@@ -467,6 +478,13 @@ export {
 export type { StoredSecrets, SecretPatch, MaskedSecrets, KnowledgeBackendSetting } from "./secrets";
 export { APP_LOCALES, DEFAULT_APP_LOCALE, isAppLocale, parseAppLocale } from "./locale";
 export type { AppLocale } from "./locale";
+export {
+  OUTPUT_LANGUAGE_SURFACES,
+  outputLanguageRule,
+  withOutputLanguage,
+  editStubAssistantCopy,
+} from "./output-language";
+export type { OutputLanguageSurface } from "./output-language";
 export {
   withChatOutputLanguage,
   stubChatCopy,

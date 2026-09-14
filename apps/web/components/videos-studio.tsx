@@ -1,6 +1,5 @@
 "use client";
 
-import { Link } from "@/lib/nav";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { allowedVideoSeconds, snapVideoSeconds, videoCapabilities } from "@agentforge/core/video-capabilities";
 import type { PromptTemplate } from "@agentforge/core/edit";
@@ -9,6 +8,8 @@ import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { ExampleGallery } from "@/components/example-gallery";
 import { VideoExamples } from "@/components/video-examples";
 import { ModelSelect } from "@/components/model-select";
+import { SettingsLinkHint } from "@/components/settings-link-hint";
+import { t } from "@/lib/i18n";
 import { apiFetch, mediaSrc } from "@/lib/api-client";
 import { useProductBrand } from "@/lib/product-brand";
 
@@ -70,7 +71,7 @@ export function VideosStudio() {
         error?: { message?: string };
       };
       if (!response.ok) {
-        setError(data.error?.message ?? "Could not load video studio");
+        setError(data.error?.message ?? t("videos.loadError"));
         setReady(false);
         return;
       }
@@ -79,7 +80,7 @@ export function VideosStudio() {
       setModel(data.defaultModel || data.models?.[0]?.id || "");
       setReady(Boolean(data.ready));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load video studio");
+      setError(err instanceof Error ? err.message : t("videos.loadError"));
       setReady(false);
     } finally {
       setLoading(false);
@@ -139,14 +140,14 @@ export function VideosStudio() {
         error?: { message?: string };
       };
       if (!response.ok) {
-        setError(data.error?.message ?? "Video generation failed");
+        setError(data.error?.message ?? t("videos.generateError"));
         return;
       }
       setPrompt("");
       setStillUrl("");
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Video generation failed");
+      setError(err instanceof Error ? err.message : t("videos.generateError"));
     } finally {
       setGenerating(false);
     }
@@ -154,19 +155,15 @@ export function VideosStudio() {
 
   return (
     <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-10 text-[var(--text)]" data-testid="videos-studio">
-      <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">Videos</h1>
-      <p className="mt-2 max-w-xl text-sm text-[var(--text-2)]">Prompt-to-video studio. Clips show in the gallery below.</p>
+      <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("videos.title")}</h1>
+      <p className="mt-2 max-w-xl text-sm text-[var(--text-2)]">{t("videos.subtitle")}</p>
 
       {!ready && !loading ? (
         <div
           className="mt-6 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--text-2)]"
           data-testid="videos-studio-needs-key"
         >
-          Add a {gatewayName} gateway key in{" "}
-          <Link href="/settings" className="underline">
-            Settings
-          </Link>{" "}
-          to generate videos.
+          <SettingsLinkHint i18nKey="videos.needsKey" vars={{ gateway: gatewayName }} />
         </div>
       ) : null}
 
@@ -212,7 +209,7 @@ export function VideosStudio() {
           >
             {allowedVideoSeconds(model).map((value) => (
               <option key={value} value={value}>
-                {value}s
+                {t("videos.seconds", { n: value })}
               </option>
             ))}
           </select>
@@ -242,21 +239,21 @@ export function VideosStudio() {
           <input
             type="url"
             className="w-full h-8 rounded-lg border border-[var(--line)] bg-transparent px-3 py-2 text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-3)]"
-            placeholder="Optional still image URL…"
+            placeholder={t("videos.stillPlaceholder")}
             value={stillUrl}
             onChange={(event) => setStillUrl(event.target.value)}
             disabled={generating}
             data-testid="videos-studio-still"
           />
         ) : model ? (
-          <p className="text-xs text-[var(--text-3)]">This model is text-to-video only</p>
+          <p className="text-xs text-[var(--text-3)]">{t("videos.textToVideoOnly")}</p>
         ) : null}
         <div className="flex gap-2">
           <EnhancePromptButton text={prompt} surface="videos" model={model} disabled={generating} testId="videos-enhance" onApply={setPrompt} />
           <input
             type="text"
             className="min-w-0 flex-1 h-8 rounded-lg border border-[var(--line)] bg-transparent px-3 py-2 text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-3)]"
-            placeholder="Describe a video…"
+            placeholder={t("videos.promptPlaceholder")}
             value={prompt}
             onChange={(event) => changePrompt(event.target.value)}
             disabled={generating}
@@ -268,7 +265,7 @@ export function VideosStudio() {
             disabled={generating || !ready || !prompt.trim()}
             data-testid="videos-studio-submit"
           >
-            {generating ? "Generating…" : "Generate"}
+            {generating ? t("videos.generating") : t("videos.generate")}
           </button>
         </div>
         <EditPromptTemplates onPick={pickTemplate} selectedId={templateId} />
@@ -276,14 +273,14 @@ export function VideosStudio() {
 
       <section className="mt-8" data-testid="videos-studio-gallery">
         {loading ? (
-          <p className="text-sm text-[var(--text-3)]">Loading gallery…</p>
+          <p className="text-sm text-[var(--text-3)]">{t("videos.loadingGallery")}</p>
         ) : items.length === 0 ? (
           <div
             className="rounded-lg border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center"
             data-testid="videos-studio-empty"
           >
-            <p className="text-sm font-medium text-[var(--text)]">Nothing here yet</p>
-            <p className="mt-2 text-sm text-[var(--text-2)]">Generate a video to populate this gallery.</p>
+            <p className="text-sm font-medium text-[var(--text)]">{t("videos.emptyTitle")}</p>
+            <p className="mt-2 text-sm text-[var(--text-2)]">{t("videos.emptyBody")}</p>
           </div>
         ) : (
           <ul className="grid gap-4 sm:grid-cols-2">
@@ -298,7 +295,7 @@ export function VideosStudio() {
                     className="shrink-0 text-xs underline text-[var(--text-2)]"
                     data-testid="videos-studio-download"
                   >
-                    Download
+                    {t("videos.download")}
                   </a>
                 </div>
               </li>

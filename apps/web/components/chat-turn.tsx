@@ -6,6 +6,7 @@ import { FormattedText } from "@/components/formatted-text";
 import { collectToolMediaParts } from "@/lib/tool-media";
 import { showsToolSpinner, toolActivityLabel, toolCallSummary } from "@/lib/tool-labels";
 import type { ContentPart, ToolCallPart } from "@agentforge/core/content";
+import { t } from "@/lib/i18n";
 
 export type LiveTool = {
   key: string;
@@ -53,7 +54,7 @@ export function ChatTurn({ role, content, live }: Props) {
               data-testid="message-thinking"
               open={Boolean(live)}
             >
-              <summary className="cursor-pointer text-xs font-medium text-ink/60">Thinking</summary>
+              <summary className="cursor-pointer text-xs font-medium text-ink/60">{t("chat.turn.thinking")}</summary>
               {thinking ? (
                 <pre
                   className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap text-xs text-ink/70"
@@ -63,7 +64,7 @@ export function ChatTurn({ role, content, live }: Props) {
                 </pre>
               ) : (
                 <p className="mt-2 text-xs text-ink/70" data-testid="thinking-placeholder">
-                  Thinking…
+                  {t("chat.turn.thinkingPlaceholder")}
                 </p>
               )}
             </details>

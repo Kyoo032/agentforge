@@ -2,6 +2,7 @@
 
 import type { ColumnProfile, TableProfile } from "@agentforge/core/tabular";
 import { formatTick } from "@/lib/chart-scale";
+import { t } from "@/lib/i18n";
 
 type Props = { profile: TableProfile; testId?: string };
 
@@ -70,35 +71,35 @@ export function DatasetProfile({ profile, testId }: Props) {
   return (
     <div data-testid={testId}>
       <p className="text-sm font-semibold text-[var(--text)]">
-        {formatTick(profile.rowCount)} rows × {formatTick(profile.columnCount)} columns
+        {t("data.profile.meta", { rows: formatTick(profile.rowCount), cols: formatTick(profile.columnCount) })}
       </p>
       <div className="mt-2 overflow-auto rounded-lg border border-[var(--line)]">
         <table className="w-full border-collapse text-[13px]">
           <thead>
             <tr>
               <th scope="col" className={HEADER_CLASS}>
-                Column
+                {t("data.profile.column")}
               </th>
               <th scope="col" className={HEADER_CLASS}>
-                Type
+                {t("data.profile.type")}
               </th>
               <th scope="col" className={`${HEADER_CLASS} text-right`}>
-                Nulls
+                {t("data.profile.nulls")}
               </th>
               <th scope="col" className={`${HEADER_CLASS} text-right`}>
-                Distinct
+                {t("data.profile.distinct")}
               </th>
               <th scope="col" className={`${HEADER_CLASS} text-right`}>
-                Min
+                {t("data.profile.min")}
               </th>
               <th scope="col" className={`${HEADER_CLASS} text-right`}>
-                Max
+                {t("data.profile.max")}
               </th>
               <th scope="col" className={`${HEADER_CLASS} text-right`}>
-                Mean
+                {t("data.profile.mean")}
               </th>
               <th scope="col" className={HEADER_CLASS}>
-                Top values
+                {t("data.profile.topValues")}
               </th>
             </tr>
           </thead>

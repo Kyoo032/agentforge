@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api-client";
+import { t } from "@/lib/i18n";
 import { truncateLabel } from "@/lib/chart-scale";
 import {
   GRAPH_EDGE_KINDS,
@@ -34,18 +35,6 @@ const LABEL_FONT = 12;
 const LABEL_PAD = 10;
 const EDGE_OPACITY = 0.45;
 const EMPTY_GRAPH: KnowledgeGraph = { nodes: [], edges: [] };
-
-const EDGE_KIND_HINT: Record<(typeof GRAPH_EDGE_KINDS)[number], string> = {
-  covers: "topic covers a source",
-  retrieved: "source was retrieved by a thread",
-  cites: "thread cited a source",
-};
-
-const NODE_KIND_HINT: Record<GraphNodeKind, string> = {
-  topic: "map topics",
-  source: "indexed sources",
-  thread: "chat threads",
-};
 
 function labelAnchor(kind: GraphNodeKind): "start" | "middle" | "end" {
   if (kind === "topic") {
@@ -97,7 +86,7 @@ export function KnowledgeGraphPanel({ counts }: Props) {
           return;
         }
         if (!res.ok) {
-          setError(data?.error?.message ?? "Could not load the graph");
+          setError(data?.error?.message ?? t("knowledge.errors.loadGraph"));
           setStatus("error");
           return;
         }
@@ -105,7 +94,7 @@ export function KnowledgeGraphPanel({ counts }: Props) {
         setStatus("ready");
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Could not load the graph");
+          setError(err instanceof Error ? err.message : t("knowledge.errors.loadGraph"));
           setStatus("error");
         }
       }
@@ -123,7 +112,7 @@ export function KnowledgeGraphPanel({ counts }: Props) {
   const focusLabel = focus ? (capped.nodes.find((node) => node.id === focus)?.label ?? focus) : null;
 
   return (
-    <section className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4" data-testid="knowledge-graph-panel" aria-label="Knowledge graph">
+    <section className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4" data-testid="knowledge-graph-panel" aria-label={t("knowledge.graph.aria")}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <button
           type="button"
@@ -132,16 +121,16 @@ export function KnowledgeGraphPanel({ counts }: Props) {
           onClick={() => setOpen(!open)}
           data-testid="knowledge-graph-toggle"
         >
-          {open ? "Hide graph" : "Show graph"}
+          {open ? t("knowledge.graph.hide") : t("knowledge.graph.show")}
         </button>
-        <p className="panel-label">Graph</p>
+        <p className="panel-label">{t("knowledge.graph.label")}</p>
         <p
           className={`text-xs ${MUTED}`}
           data-testid="knowledge-graph-counts"
           data-nodes={totalNodes}
           data-edges={totalEdges}
         >
-          {totalNodes} nodes · {totalEdges} edges
+          {t("knowledge.graph.counts", { nodes: totalNodes, edges: totalEdges })}
         </p>
         {focus ? (
           <button
@@ -150,7 +139,7 @@ export function KnowledgeGraphPanel({ counts }: Props) {
             onClick={() => setFocus(null)}
             data-testid="knowledge-graph-clear-focus"
           >
-            Show all
+            {t("knowledge.graph.showAll")}
           </button>
         ) : null}
       </div>
@@ -159,13 +148,13 @@ export function KnowledgeGraphPanel({ counts }: Props) {
         <div className="mt-3">
           {status === "loading" ? (
             <p className={`text-xs ${MUTED}`} data-testid="knowledge-graph-loading">
-              Loading links…
+              {t("knowledge.graph.loading")}
             </p>
           ) : null}
           {status === "error" ? (
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-xs text-red-700" data-testid="knowledge-graph-error">
-                {error ?? "Could not load the graph"}
+                {error ?? t("knowledge.errors.loadGraph")}
               </p>
               <button
                 type="button"
@@ -173,26 +162,26 @@ export function KnowledgeGraphPanel({ counts }: Props) {
                 onClick={() => setReload((n) => n + 1)}
                 data-testid="knowledge-graph-retry"
               >
-                Try again
+                {t("knowledge.graph.retry")}
               </button>
             </div>
           ) : null}
           {status === "ready" && capped.nodes.length === 0 ? (
             <p className={`text-xs ${MUTED}`} data-testid="knowledge-graph-empty">
-              Build map to create topic links.
+              {t("knowledge.graph.empty")}
             </p>
           ) : null}
           {status === "ready" && capped.nodes.length > 0 ? (
             <>
               <p className={`text-xs ${MUTED}`} data-testid="knowledge-graph-shown">
-                Showing {layout.nodes.length} of {totalNodes} nodes
-                {focusLabel ? ` · around ${focusLabel}` : ""}
+                {t("knowledge.graph.showing", { shown: layout.nodes.length, total: totalNodes })}
+                {focusLabel ? t("knowledge.graph.around", { label: focusLabel }) : ""}
               </p>
               <svg
                 viewBox={`0 0 ${layout.width} ${layout.height}`}
                 className="mt-2 h-auto w-full"
                 role="img"
-                aria-label="Topics, sources, and threads, linked by covers, retrieved, and cites edges"
+                aria-label={t("knowledge.graph.svgAria")}
                 data-testid="knowledge-graph-svg"
               >
                 {layout.edges.map((edge) => (
@@ -206,7 +195,7 @@ export function KnowledgeGraphPanel({ counts }: Props) {
                     strokeOpacity={EDGE_OPACITY}
                     strokeWidth={edgeStrokeWidth(edge.weight)}
                   >
-                    <title>{`${edge.kind} · weight ${edge.weight}`}</title>
+                    <title>{t("knowledge.graph.edgeTitle", { kind: t(`knowledge.graph.edge.${edge.kind}`), weight: edge.weight })}</title>
                   </line>
                 ))}
                 {layout.nodes.map((node) => (
@@ -225,7 +214,7 @@ export function KnowledgeGraphPanel({ counts }: Props) {
                     data-testid={`knowledge-graph-node-${node.id}`}
                     data-kind={node.kind}
                   >
-                    <title>{`${node.label} (${node.kind})`}</title>
+                    <title>{`${node.label} (${t(`knowledge.graph.node.${node.kind}`)})`}</title>
                     {focus === node.id ? (
                       <circle
                         cx={node.x}
@@ -254,28 +243,28 @@ export function KnowledgeGraphPanel({ counts }: Props) {
                 data-testid="knowledge-graph-legend"
               >
                 {GRAPH_NODE_KINDS.map((kind) => (
-                  <li key={kind} className="flex items-center gap-1.5" title={NODE_KIND_HINT[kind]}>
+                  <li key={kind} className="flex items-center gap-1.5" title={t(`knowledge.graph.nodeHint.${kind}`)}>
                     <span
                       className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
                       style={{ backgroundColor: nodeKindColor(kind) }}
                       aria-hidden
                     />
-                    {kind}
+                    {t(`knowledge.graph.node.${kind}`)}
                   </li>
                 ))}
                 {GRAPH_EDGE_KINDS.map((kind) => (
-                  <li key={kind} className="flex items-center gap-1.5" title={EDGE_KIND_HINT[kind]}>
+                  <li key={kind} className="flex items-center gap-1.5" title={t(`knowledge.graph.edgeHint.${kind}`)}>
                     <span
                       className="inline-block h-0.5 w-4 shrink-0"
                       style={{ backgroundColor: edgeKindColor(kind) }}
                       aria-hidden
                     />
-                    {kind}
+                    {t(`knowledge.graph.edge.${kind}`)}
                   </li>
                 ))}
               </ul>
               <p className={`mt-1 text-xs ${MUTED}`}>
-                Click a node to keep only what it touches; click it again to show all.
+                {t("knowledge.graph.hint")}
               </p>
             </>
           ) : null}

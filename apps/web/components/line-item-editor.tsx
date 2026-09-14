@@ -1,6 +1,8 @@
 "use client";
 
 import { LINE_ITEM_CATEGORIES, emptyLineItem, type LineItem, type LineItemCategory } from "@/lib/finance-client";
+import { t } from "@/lib/i18n";
+import { labeled } from "@/lib/ui-copy";
 
 type Props = {
   items: LineItem[];
@@ -23,11 +25,11 @@ export function LineItemEditor({ items, onChange, disabled = false, testId = "fi
         <table className="w-full text-xs">
           <thead>
             <tr className="text-left text-xs uppercase tracking-wide text-[var(--text-3)]">
-              <th className="pr-2 font-medium">Label</th>
-              <th className="pr-2 font-medium">Period</th>
-              <th className="pr-2 font-medium">Amount</th>
-              <th className="pr-2 font-medium">Currency</th>
-              <th className="pr-2 font-medium">Category</th>
+              <th className="pr-2 font-medium">{t("finance.items.label")}</th>
+              <th className="pr-2 font-medium">{t("finance.items.period")}</th>
+              <th className="pr-2 font-medium">{t("finance.items.amount")}</th>
+              <th className="pr-2 font-medium">{t("finance.items.currency")}</th>
+              <th className="pr-2 font-medium">{t("finance.items.category")}</th>
               <th />
             </tr>
           </thead>
@@ -40,7 +42,7 @@ export function LineItemEditor({ items, onChange, disabled = false, testId = "fi
                     value={item.label}
                     onChange={(event) => update(index, { label: event.target.value })}
                     disabled={disabled}
-                    aria-label="Label"
+                    aria-label={t("finance.items.label")}
                     data-testid={`${testId}-label`}
                   />
                 </td>
@@ -50,7 +52,7 @@ export function LineItemEditor({ items, onChange, disabled = false, testId = "fi
                     value={item.period}
                     onChange={(event) => update(index, { period: event.target.value })}
                     disabled={disabled}
-                    aria-label="Period"
+                    aria-label={t("finance.items.period")}
                   />
                 </td>
                 <td className="pr-2 py-0.5">
@@ -61,7 +63,7 @@ export function LineItemEditor({ items, onChange, disabled = false, testId = "fi
                     value={Number.isFinite(item.amount) ? item.amount : ""}
                     onChange={(event) => update(index, { amount: Number(event.target.value) })}
                     disabled={disabled}
-                    aria-label="Amount"
+                    aria-label={t("finance.items.amount")}
                     data-testid={`${testId}-amount`}
                   />
                 </td>
@@ -72,7 +74,7 @@ export function LineItemEditor({ items, onChange, disabled = false, testId = "fi
                     maxLength={8}
                     onChange={(event) => update(index, { currency: event.target.value.toUpperCase() })}
                     disabled={disabled}
-                    aria-label="Currency"
+                    aria-label={t("finance.items.currency")}
                   />
                 </td>
                 <td className="pr-2 py-0.5">
@@ -81,11 +83,11 @@ export function LineItemEditor({ items, onChange, disabled = false, testId = "fi
                     value={item.category}
                     onChange={(event) => update(index, { category: event.target.value as LineItemCategory })}
                     disabled={disabled}
-                    aria-label="Category"
+                    aria-label={t("finance.items.category")}
                   >
                     {LINE_ITEM_CATEGORIES.map((category) => (
                       <option key={category} value={category}>
-                        {category}
+                        {labeled(`finance.category.${category}`, category)}
                       </option>
                     ))}
                   </select>
@@ -96,9 +98,9 @@ export function LineItemEditor({ items, onChange, disabled = false, testId = "fi
                     className="text-xs text-[var(--danger)] hover:underline disabled:opacity-50"
                     onClick={() => onChange(items.filter((_, at) => at !== index))}
                     disabled={disabled}
-                    aria-label="Remove line item"
+                    aria-label={t("finance.items.removeAria")}
                   >
-                    Remove
+                    {t("finance.items.remove")}
                   </button>
                 </td>
               </tr>
@@ -113,7 +115,7 @@ export function LineItemEditor({ items, onChange, disabled = false, testId = "fi
         disabled={disabled}
         data-testid={`${testId}-add`}
       >
-        Add line item
+        {t("finance.items.add")}
       </button>
     </div>
   );

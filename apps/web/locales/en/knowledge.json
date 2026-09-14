@@ -173,5 +173,6 @@
       "cites": "thread cited a source"
     },
     "edgeTitle": "{kind} · weight {weight}"
-  }
+  },
+  "languageRule": "Write overview, topic titles, topic summaries, gap notes, and verifier notes in English. Keep JSON keys, source ids, and verbatim excerpts unchanged."
 }

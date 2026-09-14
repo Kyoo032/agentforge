@@ -17,7 +17,7 @@
     "runHint": "Unggah sekurang-kurangnya satu berkas .docx dan isi nama klien",
     "untitled": "Perkara tanpa judul",
     "nextTurnTitle": "{title} · giliran berikutnya",
-    "openSettings": "Buka Settings."
+    "openSettings": "Buka {settings}."
   },
   "errors": {
     "upload": "Berkas tersebut tidak dapat diunggah",
@@ -30,7 +30,7 @@
     "nextTurn": "Giliran berikutnya tidak dapat dimulai",
     "download": "{filename} tidak dapat diunduh",
     "docxOnly": "Hanya berkas .docx yang diterima pada v1. Ubah PDF atau format lain ke .docx terlebih dahulu.",
-    "stub": "Legal memerlukan gerbang yang aktif. Tempel kunci API Toko Token di Settings, lalu coba lagi."
+    "stub": "Legal memerlukan gerbang yang aktif. Tempel kunci API Toko Token di Pengaturan, lalu coba lagi."
   },
   "matter": {
     "panel": "Perkara",
@@ -52,7 +52,7 @@
     "noPlaybook": "Tanpa playbook · penelaahan umum",
     "playbookMeta": "{type} · daftar periksa {count} butir",
     "contractFallback": "Kontrak",
-    "playbookHint": "Playbook bawaan, plus sumber Knowledge Base berjenis Playbook.",
+    "playbookHint": "Playbook bawaan, plus sumber Basis Pengetahuan berjenis Playbook.",
     "memoHeader": "Kop memorandum",
     "fromPlaceholder": "Dari",
     "fromAria": "Penyusun",

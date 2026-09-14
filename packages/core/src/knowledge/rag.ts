@@ -1,3 +1,5 @@
+import { parseAppLocale, type AppLocale } from "../locale";
+
 export type KnowledgeMapTopic = {
   title: string;
   summary: string;
@@ -123,19 +125,27 @@ export function parseKnowledgeMap(raw: string, models: KnowledgeModels, source: 
 export function stubKnowledgeMap(
   sources: Array<{ id: string; name: string }>,
   models: KnowledgeModels,
+  locale: AppLocale = "en",
 ): KnowledgeMap {
+  const id = parseAppLocale(locale) === "id";
   return {
     overview: sources.length
-      ? `Stub map of ${sources.length} source${sources.length === 1 ? "" : "s"}. Live mapping uses the brain and verifier you pick.`
-      : "No sources to map yet. Add a note, file, or URL first.",
+      ? id
+        ? `Peta stub dari ${sources.length} sumber. Pemetaan live memakai brain dan verifier yang Anda pilih.`
+        : `Stub map of ${sources.length} source${sources.length === 1 ? "" : "s"}. Live mapping uses the brain and verifier you pick.`
+      : id
+        ? "Belum ada sumber untuk dipetakan. Tambah catatan, berkas, atau URL dulu."
+        : "No sources to map yet. Add a note, file, or URL first.",
     topics: sources.slice(0, 8).map((source) => ({
       title: source.name,
-      summary: "Indexed and ready for retrieve.",
+      summary: id ? "Terindeks dan siap diambil." : "Indexed and ready for retrieve.",
       sourceIds: [source.id],
       verdict: "stub",
-      note: "Stub verifier: lexical plus hash vectors are present.",
+      note: id
+        ? "Verifier stub: vektor leksikal plus hash sudah ada."
+        : "Stub verifier: lexical plus hash vectors are present.",
     })),
-    gaps: sources.length ? [] : ["Add a source, then map again."],
+    gaps: sources.length ? [] : [id ? "Tambah sumber, lalu peta lagi." : "Add a source, then map again."],
     ready: sources.length > 0,
     source: "stub",
     embeddingModel: models.embeddingModel,

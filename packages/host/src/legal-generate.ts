@@ -27,6 +27,7 @@ import { runLegalMatter } from "./legal/run";
 import { legalStore, requireLegalMatter } from "./legal/store";
 import { listSelectableModels, modeCatalogPayload } from "./selectable-models";
 import { loadSettings } from "./settings-store";
+import { localeForRun } from "./run-context";
 import { artifactWorkCard } from "./work-cards";
 
 export type LegalRunSummary = {
@@ -228,6 +229,7 @@ export async function generateLegalRun(
       maxRounds: LEGAL_CAPS.maxRounds,
       runId,
       now: () => new Date(),
+      locale: localeForRun(),
     },
     {
       ask: ({ model, system, prompt }) =>

@@ -4,6 +4,7 @@ import {
   resolveChatModel,
   resolveRuntimeMode,
   scanInjection,
+  withOutputLanguage,
   type TenantContext,
 } from "@agentforge/core";
 import { dataAnalysisToMarkdown, type DataAnalysis } from "@agentforge/core/artifacts";
@@ -19,6 +20,7 @@ import { throwIfJobAborted } from "./job-stream";
 import { readSourceText } from "./job-source";
 import { listSelectableModels, modeCatalogPayload } from "./selectable-models";
 import { loadSettings } from "./settings-store";
+import { localeForRun } from "./run-context";
 import { DATASET_TABLE } from "./sql-guard";
 import { SQL_STEP_CAP, withActiveDataset, type SqlToolOutput } from "./sql-tool";
 
@@ -247,7 +249,7 @@ export async function analyzeDataset(
       collectJobAssistantText({
         tenant,
         model,
-        systemPrompt: DATA_SYSTEM,
+        systemPrompt: withOutputLanguage(DATA_SYSTEM, "data", localeForRun()),
         runPrefix: "data",
         agentId: "data",
         versionId: "data-analysis",

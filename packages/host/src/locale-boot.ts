@@ -19,6 +19,15 @@ export function getSavedLocale(): AppLocale {
   return loadOwnerLocale();
 }
 
+/**
+ * The Restart control in Settings. Reloading the renderer does not restart this
+ * process (webdev or packaged IPC), so boot locale must be re-read from disk here.
+ */
+export function applySavedLocaleAsBoot(): AppLocale {
+  frozen = loadOwnerLocale();
+  return frozen;
+}
+
 export function resetBootLocaleForTests(): void {
   frozen = null;
 }

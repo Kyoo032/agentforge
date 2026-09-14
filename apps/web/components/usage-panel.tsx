@@ -2,6 +2,7 @@
 
 import { formatUsd } from "@agentforge/core/gateway";
 import { Link } from "@/lib/nav";
+import { t } from "@/lib/i18n";
 
 export type ThisKeyStatus =
   | { status: "needs_key" }
@@ -65,17 +66,17 @@ export const BAR_COLORS = ["#0f766e", "#2f6f4e", "#c4453c", "#5d5d5d", "#9e9e9e"
 export function thisKeyLine(usage: { thisKey?: ThisKeyStatus } | null): string {
   const thisKey = usage?.thisKey;
   if (!thisKey || thisKey.status === "needs_key") {
-    return "Paste a gateway key to see spend.";
+    return t("usage.thisKey.needsKey");
   }
   if (thisKey.status === "error") {
     return thisKey.message;
   }
   const used = formatUsd(thisKey.data.usedUsd);
   if (thisKey.data.unlimited) {
-    return `${used} used · Unlimited`;
+    return t("usage.thisKey.unlimited", { used });
   }
   const left = thisKey.data.remainingUsd == null ? "—" : formatUsd(thisKey.data.remainingUsd);
-  return `${used} used · ${left} left`;
+  return t("usage.thisKey.metered", { used, left });
 }
 
 export function tokenLabel(count: number): string {
@@ -98,8 +99,8 @@ export function KeyQuotaMeter({ usage }: { usage: { thisKey?: ThisKeyStatus } | 
         role="img"
         aria-label={
           thisKey.data.unlimited
-            ? `This key used ${formatUsd(used)}, unlimited remaining`
-            : `This key used ${formatUsd(used)} of ${formatUsd(total)}`
+            ? t("usage.thisKey.meterUnlimited", { used: formatUsd(used) })
+            : t("usage.thisKey.meterLimited", { used: formatUsd(used), total: formatUsd(total) })
         }
       >
         <div className="h-full rounded-full bg-accent" style={{ width: `${usedPct}%` }} />
@@ -112,14 +113,14 @@ export function KeyQuotaMeter({ usage }: { usage: { thisKey?: ThisKeyStatus } | 
 export function UsagePanel({ usage }: { usage: AccountUsage | null }) {
   return (
     <div className="raise rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4" data-testid="usage-panel">
-      <p className="panel-label">Usage</p>
+      <p className="panel-label">{t("usage.title")}</p>
       <p className="mt-2 text-sm text-inkbase" data-testid="usage-this-key">
-        This key: {thisKeyLine(usage)}
+        {t("usage.thisKey.label")}: {thisKeyLine(usage)}
       </p>
       <KeyQuotaMeter usage={usage} />
       <p className="mt-3">
         <Link href="/usage" className="text-sm text-accent-800 underline underline-offset-2" data-testid="usage-open">
-          Open Usage
+          {t("workspaces.open")} {t("usage.title")}
         </Link>
       </p>
     </div>

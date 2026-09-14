@@ -6,6 +6,7 @@ import {
   parseKnowledgeMap,
   resolveRuntimeMode,
   stubKnowledgeMap,
+  withOutputLanguage,
   type KnowledgeMap,
   type KnowledgeModels,
   type TenantContext,
@@ -16,6 +17,7 @@ import { getKnowledgeModels, listSources, putKnowledgeModels } from "./knowledge
 import { reembedWorkspaceChunks } from "./knowledge-embed";
 import { projectMapToGraph } from "./knowledge-graph";
 import { loadSettings } from "./settings-store";
+import { localeForRun } from "./run-context";
 
 function workspaceId(tenant: TenantContext): string {
   return tenant.workspaceId;
@@ -109,13 +111,17 @@ export async function mapKnowledge(
     let map: KnowledgeMap | null;
 
     if (mode === "stub") {
-      map = stubKnowledgeMap(sources, models);
+      map = stubKnowledgeMap(sources, models, localeForRun());
     } else {
       const excerpts = sourceExcerpts(tenant);
       const brainRaw = await collectJobAssistantText({
         tenant,
         model: models.brainModel,
-        systemPrompt: "You organize a local knowledge base. Return JSON only.",
+        systemPrompt: withOutputLanguage(
+          "You organize a local knowledge base. Return JSON only.",
+          "knowledge",
+          localeForRun(),
+        ),
         runPrefix: "knowledge-brain",
         agentId: "knowledge-brain",
         versionId: "knowledge-brain",
@@ -131,7 +137,11 @@ export async function mapKnowledge(
       const verifierRaw = await collectJobAssistantText({
         tenant,
         model: models.verifierModel,
-        systemPrompt: "You verify a knowledge map against source evidence. Return JSON only.",
+        systemPrompt: withOutputLanguage(
+          "You verify a knowledge map against source evidence. Return JSON only.",
+          "knowledge",
+          localeForRun(),
+        ),
         runPrefix: "knowledge-verifier",
         agentId: "knowledge-verifier",
         versionId: "knowledge-verifier",

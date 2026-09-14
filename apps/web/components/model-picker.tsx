@@ -274,11 +274,11 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
   }
 
   return (
-    <div className="relative">
+    <div className="relative min-w-0 max-w-[9rem] shrink">
       <button
         ref={triggerRef}
         type="button"
-        className="wash inline-flex h-8 max-w-[8.75rem] items-center truncate rounded-lg border border-[var(--line)] bg-transparent px-2 text-left text-xs font-medium text-[var(--text)] hover:bg-[var(--accent-soft)] disabled:opacity-45"
+        className="wash inline-flex h-8 w-full min-w-0 items-center overflow-hidden rounded-lg border border-[var(--line)] bg-transparent px-2 text-left text-xs font-medium text-[var(--text)] hover:bg-[var(--accent-soft)] disabled:opacity-45"
         data-testid="model-picker"
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -286,7 +286,7 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
         disabled={disabled || models.length === 0}
         onClick={() => (open ? closePalette(false) : openPalette())}
       >
-        {triggerLabel}
+        <span className="min-w-0 truncate">{triggerLabel}</span>
       </button>
 
       {open ? (

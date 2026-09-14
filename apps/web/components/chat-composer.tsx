@@ -7,8 +7,9 @@ import { ModelPicker, type ChatModel } from "@/components/model-picker";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { apiFetch } from "@/lib/api-client";
 import { abortErrorMessage, armStreamWatchdog } from "@agentforge/core/stream-watchdog";
-import { REASONING_EFFORTS, THINKING_LABELS, type ReasoningEffort } from "@agentforge/core/reasoning-effort";
+import { REASONING_EFFORTS, type ReasoningEffort } from "@agentforge/core/reasoning-effort";
 import { submitOnEnter } from "@/lib/composer-enter";
+import { t } from "@/lib/i18n";
 
 export type ComposerUserSendPayload = {
   text: string;
@@ -48,10 +49,10 @@ async function uploadMedia(file: File): Promise<{ url: string }> {
   form.set("file", file);
   const uploaded = await apiFetch("/api/v1/media", { method: "POST", body: form }).then((res) => res.json());
   if (uploaded.error) {
-    throw new Error(uploaded.error.message ?? "Upload failed");
+    throw new Error(uploaded.error.message ?? t("chat.error.upload"));
   }
   if (typeof uploaded.url !== "string") {
-    throw new Error("Upload failed");
+    throw new Error(t("chat.error.upload"));
   }
   return { url: uploaded.url };
 }
@@ -104,7 +105,7 @@ export function ChatComposer({
 
   async function readSse(response: Response, onActivity?: () => void) {
     if (!response.body) {
-      throw new Error("No stream");
+      throw new Error(t("chat.error.noStream"));
     }
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -182,18 +183,20 @@ export function ChatComposer({
     try {
       const decision = routeDecision(files.map((item) => item.kind));
       if (decision.route === "error") {
-        setError(decision.message);
+        setError(
+          decision.message === "Unsupported file type" ? t("chat.error.unsupportedFile") : t("chat.error.mixedMedia"),
+        );
         setBusy(false);
         return;
       }
 
       if (decision.route === "image" && !modalities.includes("image")) {
-        setError("This agent or model does not accept image input");
+        setError(t("chat.error.noImageInput"));
         setBusy(false);
         return;
       }
       if (decision.route === "video" && !modalities.includes("video")) {
-        setError("This agent or model does not accept video input");
+        setError(t("chat.error.noVideoInput"));
         setBusy(false);
         return;
       }
@@ -210,7 +213,7 @@ export function ChatComposer({
 
       const outgoing = composedText.trim();
       if (decision.route === "text" && !outgoing) {
-        setError("Type a message or attach a file");
+        setError(t("chat.error.emptySend"));
         setBusy(false);
         return;
       }
@@ -221,7 +224,7 @@ export function ChatComposer({
         if (decision.route === "text") {
           const id = onEnsureThread ? await onEnsureThread() : threadId;
           if (!id) {
-            throw new Error("Could not start a chat");
+            throw new Error(t("chat.error.start"));
           }
           onUserSend?.({
             text: outgoing,
@@ -240,7 +243,7 @@ export function ChatComposer({
           });
           if (!response.ok) {
             const payload = await response.json();
-            const message = payload.error?.message ?? "Run failed";
+            const message = payload.error?.message ?? t("chat.error.runFailed");
             setError(message);
             onFailed?.(message);
             await onComplete();
@@ -260,7 +263,8 @@ export function ChatComposer({
         }
 
         const caption =
-          composedText || (decision.route === "image" ? "What is in this image?" : "Summarize this video.");
+          composedText ||
+          (decision.route === "image" ? t("chat.composer.imageCaption") : t("chat.composer.videoCaption"));
 
         const parts: unknown[] =
           decision.route === "image"
@@ -283,7 +287,7 @@ export function ChatComposer({
 
         const id = onEnsureThread ? await onEnsureThread() : threadId;
         if (!id) {
-          throw new Error("Could not start a chat");
+          throw new Error(t("chat.error.start"));
         }
 
         const response = await apiFetch(`/api/v1/threads/${id}/runs/${decision.route}`, {
@@ -299,7 +303,7 @@ export function ChatComposer({
         });
         if (!response.ok) {
           const payload = await response.json();
-          const message = payload.error?.message ?? "Run failed";
+          const message = payload.error?.message ?? t("chat.error.runFailed");
           setError(message);
           onFailed?.(message);
           await onComplete();
@@ -335,7 +339,7 @@ export function ChatComposer({
         ref={textAreaRef}
         className="min-h-11 max-h-40 w-full resize-none border-0 bg-transparent px-1 py-2 text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-3)]"
         style={{ outline: "none" }}
-        placeholder="Message"
+        placeholder={t("chat.composer.placeholder")}
         value={text}
         onChange={(event) => {
           setText(event.target.value);
@@ -368,7 +372,7 @@ export function ChatComposer({
               <button
                 type="button"
                 className="text-[var(--text-3)] hover:text-[var(--text)]"
-                aria-label={`Remove ${item.file.name}`}
+                aria-label={t("chat.removeAttachment", { name: item.file.name })}
                 onClick={() => removeFile(item.id)}
               >
                 ×
@@ -382,65 +386,67 @@ export function ChatComposer({
           {error}
         </p>
       ) : null}
-      <div className="mt-3 flex flex-wrap items-center gap-2" data-testid="composer-toolbar">
-        {showPicker ? (
-          <ModelPicker
-            models={pickerModels}
-            value={model ?? ""}
-            onChange={onModelChange}
-            disabled={modelDisabled || busy}
-            returnFocusRef={textAreaRef}
+      <div className="mt-3 flex items-center gap-2" data-testid="composer-toolbar">
+        <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+          {showPicker ? (
+            <ModelPicker
+              models={pickerModels}
+              value={model ?? ""}
+              onChange={onModelChange}
+              disabled={modelDisabled || busy}
+              returnFocusRef={textAreaRef}
+            />
+          ) : null}
+          {onReasoningEffortChange || onThinkingChange ? (
+            <label className="inline-flex shrink-0 items-center" data-testid="thinking-toggle">
+              <span className="sr-only">{t("chat.composer.thinking")}</span>
+              <select
+                className="h-8 rounded-lg border border-[var(--line)] bg-transparent px-2 text-xs text-[var(--text-2)] disabled:opacity-45 wash"
+                data-testid="reasoning-effort"
+                aria-label={t("chat.composer.thinking")}
+                value={reasoningEffort}
+                disabled={busy}
+                onChange={(event) => {
+                  const next = event.target.value as ReasoningEffort;
+                  onReasoningEffortChange?.(next);
+                  onThinkingChange?.(next !== "none");
+                }}
+              >
+                {REASONING_EFFORTS.map((effort) => (
+                  <option key={effort} value={effort}>
+                    {t(`chat.thinking.${effort}`)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          <button
+            type="button"
+            className="wash inline-flex h-8 shrink-0 items-center rounded-lg border border-[var(--line)] bg-transparent px-3 text-xs text-[var(--text)] hover:bg-[var(--accent-soft)] disabled:opacity-45"
+            data-testid="composer-attach"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={busy}
+          >
+            {t("chat.composer.attach")}
+          </button>
+          <EnhancePromptButton
+            text={text}
+            surface="chat"
+            model={model}
+            disabled={busy}
+            onApply={setText}
+            onBusyChange={setEnhancing}
           />
-        ) : null}
-        {onReasoningEffortChange || onThinkingChange ? (
-          <label className="inline-flex items-center" data-testid="thinking-toggle">
-            <span className="sr-only">Thinking</span>
-            <select
-              className="h-8 rounded-lg border border-[var(--line)] bg-transparent px-2 text-xs text-[var(--text-2)] disabled:opacity-45 wash"
-              data-testid="reasoning-effort"
-              aria-label="Thinking"
-              value={reasoningEffort}
-              disabled={busy}
-              onChange={(event) => {
-                const next = event.target.value as ReasoningEffort;
-                onReasoningEffortChange?.(next);
-                onThinkingChange?.(next !== "none");
-              }}
-            >
-              {REASONING_EFFORTS.map((effort) => (
-                <option key={effort} value={effort}>
-                  {THINKING_LABELS[effort]}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : null}
-        <button
-          type="button"
-          className="wash inline-flex h-8 items-center rounded-lg border border-[var(--line)] bg-transparent px-3 text-xs text-[var(--text)] hover:bg-[var(--accent-soft)] disabled:opacity-45"
-          data-testid="composer-attach"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={busy}
-        >
-          Attach
-        </button>
-        <EnhancePromptButton
-          text={text}
-          surface="chat"
-          model={model}
-          disabled={busy}
-          onApply={setText}
-          onBusyChange={setEnhancing}
-        />
+        </div>
         <button
           type="submit"
-          className={`wash ml-auto inline-flex h-8 items-center rounded-pill px-4 text-sm ${
+          className={`wash inline-flex h-8 shrink-0 items-center rounded-pill px-4 text-sm ${
             sendDisabled ? "bg-[var(--line)] text-[var(--text-3)]" : "bg-[var(--accent)] text-white"
           }`}
           disabled={sendDisabled}
           data-testid="composer-send"
         >
-          {busy ? "Sending…" : "Send"}
+          {busy ? t("chat.composer.sending") : t("chat.composer.send")}
         </button>
       </div>
     </form>

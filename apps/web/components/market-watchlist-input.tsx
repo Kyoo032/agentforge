@@ -3,6 +3,7 @@
 import { useId, useMemo, useState, type KeyboardEvent } from "react";
 import { lookupWatchTicker, suggestWatchlistTickers, WATCHLIST_MAX } from "@agentforge/core/market";
 import { mergeTickersReporting } from "@/lib/market-client";
+import { t } from "@/lib/i18n";
 
 type Props = {
   tickers: ReadonlyArray<string>;
@@ -15,7 +16,7 @@ const LIST_COMMIT_KEYS = new Set([",", ";"]);
 
 function rejectionMessage(rejected: readonly string[]): string {
   const shown = rejected.slice(0, 3).join(", ");
-  return `${shown} ${rejected.length === 1 ? "is not" : "are not"} a ticker symbol. Try MU, NVDA, or BBCA.`;
+  return t(rejected.length === 1 ? "market.watchlist.notTickerOne" : "market.watchlist.notTickerMany", { shown });
 }
 
 /**
@@ -44,7 +45,7 @@ export function MarketWatchlistInput({ tickers, onChange, disabled = false, test
       rejected.length > 0
         ? rejectionMessage(rejected)
         : overflow
-          ? `The watchlist holds ${WATCHLIST_MAX} tickers, so the extra ones were not added.`
+          ? t("market.watchlist.overflow", { max: WATCHLIST_MAX })
           : null,
     );
     if (next.length !== tickers.length || next.some((item, index) => item !== tickers[index])) {
@@ -112,7 +113,7 @@ export function MarketWatchlistInput({ tickers, onChange, disabled = false, test
   return (
     <div>
       <label htmlFor="market-tickers-input" className="panel-label">
-        Which stocks do you follow?
+        {t("market.watchlist.label")}
       </label>
       <div className="relative">
         <div
@@ -130,7 +131,7 @@ export function MarketWatchlistInput({ tickers, onChange, disabled = false, test
               <button
                 type="button"
                 className="inline-flex h-6 w-6 items-center justify-center rounded text-[var(--text-3)] hover:bg-[var(--accent-soft)] hover:text-[var(--text)] disabled:opacity-50"
-                aria-label={`Remove ${ticker}`}
+                aria-label={t("market.watchlist.remove", { ticker })}
                 disabled={disabled}
                 onClick={() => {
                   setNotice(null);
@@ -156,7 +157,13 @@ export function MarketWatchlistInput({ tickers, onChange, disabled = false, test
               commit(`${draft} ${event.clipboardData.getData("text")}`);
             }}
             className="min-w-[8rem] flex-1 bg-transparent font-mono uppercase outline-none placeholder:normal-case"
-            placeholder={tickers.length === 0 ? "MU, NVDA, BBCA…" : full ? "That is the maximum" : "Add another…"}
+            placeholder={
+              tickers.length === 0
+                ? t("market.watchlist.placeholder")
+                : full
+                  ? t("market.watchlist.placeholderFull")
+                  : t("market.watchlist.placeholderAdd")
+            }
             role="combobox"
             aria-expanded={suggestions.length > 0}
             aria-controls={listId}
@@ -207,8 +214,7 @@ export function MarketWatchlistInput({ tickers, onChange, disabled = false, test
         </p>
       ) : (
         <p className="mt-1 text-xs text-[var(--text-3)]">
-          Type a ticker or a name. IDX names (BCA, Astra) and the usual US examples (NVIDIA, Micron) fill in.{" "}
-          {tickers.length}/{WATCHLIST_MAX}.
+          {t("market.watchlist.help", { current: tickers.length, max: WATCHLIST_MAX })}
         </p>
       )}
     </div>

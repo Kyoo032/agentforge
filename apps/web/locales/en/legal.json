@@ -17,7 +17,7 @@
     "runHint": "Upload at least one .docx and enter the client name",
     "untitled": "Untitled matter",
     "nextTurnTitle": "{title} · next turn",
-    "openSettings": "Open Settings."
+    "openSettings": "Open {settings}."
   },
   "errors": {
     "upload": "Could not upload those files",

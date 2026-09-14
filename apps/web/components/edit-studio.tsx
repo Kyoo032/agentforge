@@ -1,6 +1,13 @@
 "use client";
 
-import { applyOp, emptyProject, STARTER_PROJECTS, type ApplyableOp, type EditOp, type EditProject } from "@agentforge/core/edit";
+import {
+  applyOp,
+  emptyProject,
+  STARTER_PROJECTS,
+  type ApplyableOp,
+  type EditOp,
+  type EditProject,
+} from "@agentforge/core/edit";
 import { formatUsd } from "@agentforge/core/gateway";
 import { EditAgentPanel } from "@/components/edit-agent-panel";
 import { EditGenerateTab } from "@/components/edit-generate-tab";
@@ -32,19 +39,20 @@ import {
 import { consumeSse } from "@/lib/sse-client";
 import { useEmitLock } from "@/lib/use-emit-lock";
 import { useProductBrand } from "@/lib/product-brand";
+import { t } from "@/lib/i18n";
 import { Link } from "@/lib/nav";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type ToolId = "upload" | "generate" | "ingredients" | "titles" | "captions" | "recipes" | "history";
 
-const TOOLS: { id: ToolId; label: string }[] = [
-  { id: "upload", label: "Upload" },
-  { id: "generate", label: "Generate" },
-  { id: "ingredients", label: "Ingredients" },
-  { id: "titles", label: "Titles" },
-  { id: "captions", label: "Captions" },
-  { id: "recipes", label: "Recipes" },
-  { id: "history", label: "History" },
+const TOOLS: { id: ToolId }[] = [
+  { id: "upload" },
+  { id: "generate" },
+  { id: "ingredients" },
+  { id: "titles" },
+  { id: "captions" },
+  { id: "recipes" },
+  { id: "history" },
 ];
 
 type StudioModel = { id: string; label: string; provider?: string; inputModalities: string[]; contextLength?: number };
@@ -245,7 +253,9 @@ export function EditStudio() {
         return;
       }
       for (const cardId of [...new Set(result.keepCardIds)]) {
-        await apiFetch(`/api/v1/edit/projects/${project.id}/cards/${cardId}/keep`, { method: "POST" }).catch(() => undefined);
+        await apiFetch(`/api/v1/edit/projects/${project.id}/cards/${cardId}/keep`, { method: "POST" }).catch(
+          () => undefined,
+        );
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not apply edit");
@@ -476,7 +486,10 @@ export function EditStudio() {
         if (event.type === "edit.plan") {
           const card = (record.card ?? record) as OpCard;
           if (card && typeof card.id === "string") {
-            setCards((current) => [...current.filter((item) => item.id !== card.id), { ...card, toolKey: card.toolKey ?? "propose_plan" }]);
+            setCards((current) => [
+              ...current.filter((item) => item.id !== card.id),
+              { ...card, toolKey: card.toolKey ?? "propose_plan" },
+            ]);
           }
         }
       }
@@ -566,7 +579,8 @@ export function EditStudio() {
       setError(errorMessage(payload, "Export blocked"));
       return;
     }
-    const jobId = typeof payload.id === "string" ? payload.id : typeof payload.jobId === "string" ? payload.jobId : null;
+    const jobId =
+      typeof payload.id === "string" ? payload.id : typeof payload.jobId === "string" ? payload.jobId : null;
     setExportJobId(jobId);
     if (!jobId) {
       setExporting(false);
@@ -604,7 +618,8 @@ export function EditStudio() {
   const spent = turnSpendUsd(cards, jobs);
   const exportJob = exportJobId ? jobs.find((job) => job.id === exportJobId) : undefined;
   const exportReady = exportJob?.status === "succeeded";
-  const exportBusy = Boolean(exportJobId) && !exportReady && exportJob?.status !== "failed" && exportJob?.status !== "cancelled";
+  const exportBusy =
+    Boolean(exportJobId) && !exportReady && exportJob?.status !== "failed" && exportJob?.status !== "cancelled";
 
   useEffect(() => {
     if (!exportJobId) {
@@ -616,29 +631,32 @@ export function EditStudio() {
   }, [exportJob?.status, exportJobId]);
 
   return (
-    <main className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-app text-[var(--text)]" data-testid="edit-studio">
+    <main
+      className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-app text-[var(--text)]"
+      data-testid="edit-studio"
+    >
       {doctor ? <FfmpegSetupNotice doctor={doctor} onDoctor={setDoctor} /> : null}
       <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-[var(--line)] px-4 py-2">
-        <h1 className="font-heading text-lg font-semibold">{project?.name ?? "Edit"}</h1>
+        <h1 className="font-heading text-lg font-semibold">{project?.name ?? t("edit.title")}</h1>
         <select
           className="rounded-md border border-[var(--line)] bg-[var(--surface)] px-2 py-1 text-sm"
           value={tier}
           onChange={(event) => setTier(event.target.value)}
           data-testid="edit-tier"
         >
-          <option value="draft">Draft</option>
-          <option value="standard">Standard</option>
-          <option value="cinematic">Cinematic</option>
+          <option value="draft">{t("edit.tier.draft")}</option>
+          <option value="standard">{t("edit.tier.standard")}</option>
+          <option value="cinematic">{t("edit.tier.cinematic")}</option>
         </select>
         <span className="text-xs text-[var(--text-2)]" data-testid="edit-jobs">
-          jobs {jobsLive.length > 0 ? `~${jobsLive.length}` : "0"}
+          {t("edit.jobs", { count: jobsLive.length > 0 ? `~${jobsLive.length}` : "0" })}
         </span>
         <span className="text-xs text-[var(--text-2)]">
-          turn {formatUsd(spent)} / {formatUsd(spendCap)}
+          {t("edit.turnMeter", { spent: formatUsd(spent), cap: formatUsd(spendCap) })}
         </span>
         <span className="ml-auto flex items-center gap-2">
           <button type="button" className="btn btn-ghost px-2 py-1 text-xs" data-testid="edit-parity-check">
-            Parity
+            {t("edit.parity")}
           </button>
           <button
             type="button"
@@ -647,13 +665,13 @@ export function EditStudio() {
             disabled={!project || !reviewOpen || exporting}
             onClick={() => void onExport()}
           >
-            Export
+            {t("edit.export")}
           </button>
         </span>
       </header>
       {exporting || exportBusy ? (
         <p className="px-4 text-xs text-[var(--text-3)]" data-testid="edit-export-progress">
-          Exporting…
+          {t("edit.exporting")}
         </p>
       ) : null}
       {exportReady ? (
@@ -663,7 +681,7 @@ export function EditStudio() {
           data-testid="edit-export-download"
           onClick={() => void onDownloadExport()}
         >
-          Download export
+          {t("edit.downloadExport")}
         </button>
       ) : null}
       {error ? (
@@ -675,7 +693,7 @@ export function EditStudio() {
       {!project ? (
         <div className="flex min-h-0 flex-1">
           <div className="flex min-h-0 flex-1 flex-col p-6" data-testid="edit-project-list">
-            <h2 className="font-heading text-xl">Projects</h2>
+            <h2 className="font-heading text-xl">{t("edit.projects")}</h2>
             <div className="mt-4 flex flex-col gap-2">
               <select
                 className="rounded-md border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm"
@@ -693,15 +711,20 @@ export function EditStudio() {
                 {STARTER_PROJECTS.find((starter) => starter.id === starterId)?.description ?? ""}
               </p>
               <div className="flex gap-2">
-              <input
-                className="rounded-md border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm"
-                value={projectName}
-                onChange={(event) => setProjectName(event.target.value)}
-                data-testid="edit-project-name"
-              />
-              <button type="button" className="btn btn-primary px-3 py-2 text-sm" data-testid="edit-new-project" onClick={() => void onNewProject()}>
-                New project
-              </button>
+                <input
+                  className="rounded-md border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm"
+                  value={projectName}
+                  onChange={(event) => setProjectName(event.target.value)}
+                  data-testid="edit-project-name"
+                />
+                <button
+                  type="button"
+                  className="btn btn-primary px-3 py-2 text-sm"
+                  data-testid="edit-new-project"
+                  onClick={() => void onNewProject()}
+                >
+                  {t("edit.newProject")}
+                </button>
               </div>
             </div>
             <ul className="mt-4 space-y-1">
@@ -719,7 +742,7 @@ export function EditStudio() {
             <div className="h-24 border-t border-[var(--line)]" data-testid="edit-timeline" />
           </div>
           <aside className="w-[280px] border-l border-[var(--line)]" data-testid="edit-agent-panel">
-            <p className="p-3 text-xs text-[var(--text-3)]">Open a project to talk to the editor.</p>
+            <p className="p-3 text-xs text-[var(--text-3)]">{t("edit.openProjectHint")}</p>
           </aside>
         </div>
       ) : (
@@ -743,9 +766,13 @@ export function EditStudio() {
                 key={item.id}
                 type="button"
                 className={`mx-1.5 mb-1 rounded-md px-2 py-1.5 text-left text-sm ${
-                  tool === item.id ? "bg-[color-mix(in_srgb,var(--color-accent)_16%,transparent)]" : "hover:bg-[var(--line)]/40"
+                  tool === item.id
+                    ? "bg-[color-mix(in_srgb,var(--color-accent)_16%,transparent)]"
+                    : "hover:bg-[var(--line)]/40"
                 }`}
-                data-testid={item.id === "upload" ? "edit-import" : item.id === "generate" ? "edit-generate-tab" : undefined}
+                data-testid={
+                  item.id === "upload" ? "edit-import" : item.id === "generate" ? "edit-generate-tab" : undefined
+                }
                 onClick={() => {
                   if (item.id === "upload") {
                     void onImportClick();
@@ -753,7 +780,7 @@ export function EditStudio() {
                   setTool(item.id);
                 }}
               >
-                {item.label}
+                {t(`edit.tools.${item.id}`)}
               </button>
             ))}
           </nav>

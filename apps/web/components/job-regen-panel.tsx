@@ -6,6 +6,7 @@ import { JOB_REGEN_FILE_ACCEPT, classifyAttachment, type AttachmentKind } from "
 import type { JobStudioModel } from "@/lib/use-job-model";
 import { apiFetch } from "@/lib/api-client";
 import { submitOnEnter } from "@/lib/composer-enter";
+import { t } from "@/lib/i18n";
 
 export type JobRegenSubmit = {
   instruction: string;
@@ -36,10 +37,10 @@ async function uploadMedia(file: File): Promise<string> {
     response.json(),
   );
   if (uploaded.error) {
-    throw new Error(uploaded.error.message ?? "Upload failed");
+    throw new Error(uploaded.error.message ?? t("documents.regen.uploadFailed"));
   }
   if (typeof uploaded.url !== "string") {
-    throw new Error("Upload failed");
+    throw new Error(t("documents.regen.uploadFailed"));
   }
   return uploaded.url;
 }
@@ -72,7 +73,7 @@ export function JobRegenPanel({
         next.push({ id: `${file.name}-${file.size}-${file.lastModified}`, file, kind });
         continue;
       }
-      setError("Attach images or text files only");
+      setError(t("documents.regen.attachImagesOnly"));
       return;
     }
     setError(null);
@@ -106,7 +107,7 @@ export function JobRegenPanel({
       }
       onSubmit({ instruction: composed, model, attachments });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not attach files");
+      setError(err instanceof Error ? err.message : t("documents.regen.attachFailed"));
     } finally {
       setUploading(false);
     }
@@ -131,10 +132,10 @@ export function JobRegenPanel({
             }
           });
         }}
-        placeholder="Optional: what should change?"
+        placeholder={t("documents.regen.placeholder")}
         disabled={busy}
         data-testid={`${testIdPrefix}-regen-prompt`}
-        aria-label="Regenerate instruction"
+        aria-label={t("documents.regen.aria")}
       />
       <ModelSelect
         models={models}
@@ -183,7 +184,7 @@ export function JobRegenPanel({
           disabled={busy}
           data-testid={`${testIdPrefix}-regen-attach`}
         >
-          Attach
+          {t("documents.regen.attach")}
         </button>
         <button
           type="button"
@@ -191,7 +192,7 @@ export function JobRegenPanel({
           onClick={onCancel}
           disabled={submitting || uploading}
         >
-          Cancel
+          {t("documents.regen.cancel")}
         </button>
         <button
           type="submit"
@@ -199,7 +200,17 @@ export function JobRegenPanel({
           disabled={busy}
           data-testid={`${testIdPrefix}-regen-submit`}
         >
-          {submitting || uploading ? "Regenerating…" : "Regenerate"}
+          {submitting || uploading
+            ? testIdPrefix === "finance" || testIdPrefix === "market"
+              ? t("finance.preview.rewriting")
+              : testIdPrefix === "presentations"
+                ? t("presentation.regenerating")
+                : t("documents.regen.busy")
+            : testIdPrefix === "finance" || testIdPrefix === "market"
+              ? t("finance.preview.rewrite")
+              : testIdPrefix === "presentations"
+                ? t("presentation.regenerate")
+                : t("documents.regen.submit")}
         </button>
       </div>
     </form>

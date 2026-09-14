@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./locale": "./src/locale.ts",
     "./errors": "./src/errors.ts",
     "./local-owner": "./src/local-owner.ts",
     "./gateway": "./src/gateway.ts",

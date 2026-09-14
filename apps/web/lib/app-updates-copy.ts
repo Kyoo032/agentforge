@@ -158,6 +158,22 @@ export function normalizeUpdateSnapshot(next: DesktopUpdateSnapshot, fallbackSta
   };
 }
 
+export type UpdateCtaKind = "available" | "ready" | "downloading";
+
+/** Visible rail call-to-action. Idle/current retract to the icon; never hide a downloadable release. */
+export function updateCtaKind(state: UpdateState): UpdateCtaKind | null {
+  switch (state.status) {
+    case "available":
+      return "available";
+    case "ready":
+      return "ready";
+    case "downloading":
+      return "downloading";
+    default:
+      return null;
+  }
+}
+
 export type UpdateBadge = "available" | "busy" | null;
 
 /** Dot on the rail icon: accent when something is downloadable/installable, pulsing while the updater works. */

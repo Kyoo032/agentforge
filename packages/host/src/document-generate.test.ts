@@ -5,9 +5,11 @@ describe("finance document prompt", () => {
   it("flags job=finance and never invents figures", () => {
     expect(isFinanceJob({ job: "finance", prompt: "breakeven" })).toBe(true);
     expect(isFinanceJob({ prompt: "breakeven" })).toBe(false);
-    const prompt = documentJobSystemPrompt(true);
+    const prompt = documentJobSystemPrompt(true, "en");
     expect(prompt).toMatch(/Never invent numbers/i);
     expect(prompt).toMatch(/Use only figures the user pasted/i);
-    expect(documentJobSystemPrompt(false)).not.toMatch(/Never invent numbers/i);
+    expect(documentJobSystemPrompt(false, "en")).not.toMatch(/Never invent numbers/i);
+    expect(documentJobSystemPrompt(false, "id")).toMatch(/Bahasa Indonesia/);
+    expect(documentJobSystemPrompt(true, "id")).toMatch(/Bahasa Indonesia/);
   });
 });

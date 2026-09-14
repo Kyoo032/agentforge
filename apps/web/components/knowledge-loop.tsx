@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { apiFetch } from "@/lib/api-client";
+import { t } from "@/lib/i18n";
+import { labeled } from "@/lib/ui-copy";
 import { chartPalette } from "@/lib/chart-scale";
 import {
   type LoopGraphCounts,
@@ -15,6 +17,60 @@ import {
   loopStageCounts,
   summarizeLoop,
 } from "@/lib/knowledge-loop";
+
+function formatVerifiedCopy(verified: LoopVerified, now = Date.now()): string {
+  if (!verified || typeof verified !== "object") {
+    return t("knowledge.loop.verified.none");
+  }
+  const at = verified.at;
+  if (typeof at !== "number" || !Number.isFinite(at) || at <= 0) {
+    return t("knowledge.loop.verified.unknown");
+  }
+  const elapsed = now - at;
+  if (elapsed < 45_000) {
+    return t("knowledge.loop.verified.justNow");
+  }
+  if (elapsed < 3_600_000) {
+    return t("knowledge.loop.verified.minutesAgo", { count: Math.floor(elapsed / 60_000) });
+  }
+  if (elapsed < 86_400_000) {
+    return t("knowledge.loop.verified.hoursAgo", { count: Math.floor(elapsed / 3_600_000) });
+  }
+  return t("knowledge.loop.verified.daysAgo", { count: Math.floor(elapsed / 86_400_000) });
+}
+
+function localizeDetail(
+  stage: LoopStageCount,
+  summary: ReturnType<typeof summarizeLoop>,
+  graph: LoopGraphCounts | undefined,
+  retrievals: number | null | undefined,
+  verified: LoopVerified,
+): string {
+  const edges = graph && typeof graph.edges === "number" && Number.isFinite(graph.edges) ? Math.trunc(graph.edges) : 0;
+  const nodes = graph && typeof graph.nodes === "number" && Number.isFinite(graph.nodes) ? Math.trunc(graph.nodes) : 0;
+  const retrieved = typeof retrievals === "number" && Number.isFinite(retrievals) ? Math.trunc(retrievals) : 0;
+  if (stage.stage === "Work") {
+    return t("knowledge.loop.detail.work");
+  }
+  if (stage.stage === "Saved") {
+    return t("knowledge.loop.detail.saved", { count: summary.manual });
+  }
+  if (stage.stage === "Indexed") {
+    return summary.failed > 0
+      ? t("knowledge.loop.detail.indexedFailed", { count: summary.failed })
+      : t("knowledge.loop.detail.indexedOk");
+  }
+  if (stage.stage === "Graph") {
+    if (nodes <= 0) {
+      return t("knowledge.loop.detail.graphEmpty");
+    }
+    return t(edges === 1 ? "knowledge.loop.detail.graphEdgeOne" : "knowledge.loop.detail.graphEdges", { count: edges });
+  }
+  if (stage.stage === "Retrieved") {
+    return retrieved > 0 ? t("knowledge.loop.detail.retrieved") : t("knowledge.loop.detail.retrievedEmpty");
+  }
+  return formatVerifiedCopy(verified);
+}
 
 type Props = {
   sources: readonly LoopSource[];
@@ -85,30 +141,28 @@ export function KnowledgeLoop({ sources, retrievals, graph, verified, onRefresh 
       const res = await apiFetch("/api/v1/knowledge/verify", { method: "POST" });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setCheckError(data?.error?.message ?? "Could not run the self-check");
+        setCheckError(data?.error?.message ?? t("knowledge.errors.selfCheck"));
         return;
       }
       await onRefresh?.();
     } catch (err) {
-      setCheckError(err instanceof Error ? err.message : "Could not run the self-check");
+      setCheckError(err instanceof Error ? err.message : t("knowledge.errors.selfCheck"));
     } finally {
       setChecking(false);
     }
   }
 
   return (
-    <section className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4" data-testid="knowledge-loop" aria-label="Knowledge loop">
+    <section className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4" data-testid="knowledge-loop" aria-label={t("knowledge.loop.aria")}>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <p className="panel-label">Loop</p>
-        <p className="text-xs text-[var(--text-2)]">
-          Every finished piece of work becomes a text card here. Files stay in their gallery.
-        </p>
+        <p className="panel-label">{t("knowledge.loop.label")}</p>
+        <p className="text-xs text-[var(--text-2)]">{t("knowledge.loop.intro")}</p>
       </div>
       <svg
         viewBox={`0 0 ${W} ${H}`}
         className="mt-3 h-auto w-full"
         role="img"
-        aria-label="Work, Saved, Indexed, Graph, Retrieved, Verified, then back to Work"
+        aria-label={t("knowledge.loop.cycleAria")}
         data-testid="knowledge-loop-cycle"
       >
         <defs>
@@ -129,6 +183,13 @@ export function KnowledgeLoop({ sources, retrievals, graph, verified, onRefresh 
             key={stage.stage}
             stage={stage}
             index={index}
+            name={t(`knowledge.loop.stage.${stage.stage}`)}
+            label={
+              stage.stage === "Verified"
+                ? labeled(`knowledge.loop.verified.${stage.label}`, stage.label)
+                : stage.label
+            }
+            detail={localizeDetail(stage, summary, graph, retrievals, verified)}
             title={stage.stage === "Verified" && verified?.detail ? verified.detail : undefined}
           />
         ))}
@@ -150,7 +211,12 @@ export function KnowledgeLoop({ sources, retrievals, graph, verified, onRefresh 
           data-testid="knowledge-loop-verified"
           data-state={verifiedStage?.state ?? "idle"}
         >
-          Verified: {verifiedStage?.label ?? "never"} · {verifiedStage?.detail ?? "no self-check yet"}
+          {t("knowledge.loop.verifiedLine", {
+            label: verifiedStage
+              ? labeled(`knowledge.loop.verified.${verifiedStage.label}`, verifiedStage.label)
+              : t("knowledge.loop.verified.never"),
+            detail: formatVerifiedCopy(verified),
+          })}
         </span>
         <button
           type="button"
@@ -159,7 +225,7 @@ export function KnowledgeLoop({ sources, retrievals, graph, verified, onRefresh 
           onClick={() => void runSelfCheck()}
           data-testid="knowledge-loop-verify"
         >
-          {checking ? "Checking…" : "Run self-check"}
+          {checking ? t("knowledge.loop.checking") : t("knowledge.loop.runCheck")}
         </button>
       </div>
       {checkError ? (
@@ -169,11 +235,11 @@ export function KnowledgeLoop({ sources, retrievals, graph, verified, onRefresh 
       ) : null}
 
       <dl className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs" data-testid="knowledge-loop-summary">
-        <Stat label="From work" value={summary.work} testId="knowledge-loop-work" />
-        <Stat label="Added by hand" value={summary.manual} testId="knowledge-loop-manual" />
-        <Stat label="Indexed" value={summary.indexed} testId="knowledge-loop-indexed" />
-        <Stat label="Failed" value={summary.failed} testId="knowledge-loop-failed" />
-        <Stat label="Chunks" value={summary.chunks} testId="knowledge-loop-chunks" />
+        <Stat label={t("knowledge.loop.fromWork")} value={summary.work} testId="knowledge-loop-work" />
+        <Stat label={t("knowledge.loop.addedByHand")} value={summary.manual} testId="knowledge-loop-manual" />
+        <Stat label={t("knowledge.loop.indexed")} value={summary.indexed} testId="knowledge-loop-indexed" />
+        <Stat label={t("knowledge.loop.failed")} value={summary.failed} testId="knowledge-loop-failed" />
+        <Stat label={t("knowledge.loop.chunks")} value={summary.chunks} testId="knowledge-loop-chunks" />
       </dl>
 
       {counts.length === 0 ? (
@@ -181,10 +247,10 @@ export function KnowledgeLoop({ sources, retrievals, graph, verified, onRefresh 
           className="mt-3 text-xs text-[var(--text-2)]"
           data-testid="knowledge-loop-empty"
         >
-          Nothing indexed yet. Send a Chat message or run a job mode and a card appears here.
+          {t("knowledge.loop.empty")}
         </p>
       ) : (
-        <ul className="mt-3 flex flex-col gap-1.5" data-testid="knowledge-loop-counts" aria-label="Sources by type">
+        <ul className="mt-3 flex flex-col gap-1.5" data-testid="knowledge-loop-counts" aria-label={t("knowledge.loop.byTypeAria")}>
           {counts.map((row) => (
             <li
               key={row.type}
@@ -192,11 +258,11 @@ export function KnowledgeLoop({ sources, retrievals, graph, verified, onRefresh 
               data-testid={`knowledge-loop-count-${row.type}`}
               data-count={row.total}
             >
-              <span className="flex items-center gap-1.5 truncate" title={row.type}>
-                <span className="truncate">{row.type}</span>
+              <span className="flex items-center gap-1.5 truncate" title={labeled(`knowledge.sourceType.${row.type}`, row.type)}>
+                <span className="truncate">{labeled(`knowledge.sourceType.${row.type}`, row.type)}</span>
                 {isWorkSourceType(row.type) ? (
-                  <span className="text-xs uppercase tracking-wide opacity-60" aria-label="written by the loop">
-                    auto
+                  <span className="text-xs uppercase tracking-wide opacity-60" aria-label={t("knowledge.loop.autoAria")}>
+                    {t("knowledge.loop.auto")}
                   </span>
                 ) : null}
               </span>
@@ -209,10 +275,16 @@ export function KnowledgeLoop({ sources, retrievals, graph, verified, onRefresh 
               </span>
               <span
                 className="tabular-nums"
-                title={`${row.indexed} indexed, ${row.failed} failed, ${row.chunks} chunks`}
+                title={t("knowledge.loop.countTitle", {
+                  indexed: row.indexed,
+                  failed: row.failed,
+                  chunks: row.chunks,
+                })}
               >
                 {row.total}
-                {row.failed > 0 ? <span className="ml-1 opacity-60">({row.failed} failed)</span> : null}
+                {row.failed > 0 ? (
+                  <span className="ml-1 opacity-60">{t("knowledge.loop.failedSuffix", { count: row.failed })}</span>
+                ) : null}
               </span>
             </li>
           ))}
@@ -222,15 +294,27 @@ export function KnowledgeLoop({ sources, retrievals, graph, verified, onRefresh 
   );
 }
 
-function LoopStageNode({ stage, index, title }: { stage: LoopStageCount; index: number; title?: string }) {
+function LoopStageNode({
+  stage,
+  index,
+  title,
+  name,
+  label,
+  detail,
+}: {
+  stage: LoopStageCount;
+  index: number;
+  title?: string;
+  name: string;
+  label: string;
+  detail: string;
+}) {
   const x = stageX(index);
   const { stroke, opacity } = stageStroke(stage.state);
   const isLast = index === STAGE_COUNT - 1;
   return (
     <g data-testid={`knowledge-loop-stage-${stage.stage}`} data-value={stage.value} data-state={stage.state}>
-      <title>
-        {title ? `${stage.stage}: ${stage.label} — ${title}` : `${stage.stage}: ${stage.label} · ${stage.detail}`}
-      </title>
+      <title>{title ? `${name}: ${label} — ${title}` : `${name}: ${label} · ${detail}`}</title>
       <rect
         x={x}
         y={NODE_Y}
@@ -248,7 +332,7 @@ function LoopStageNode({ stage, index, title }: { stage: LoopStageCount; index: 
         fill="currentColor"
         style={{ fontSize: LABEL_FONT, fontWeight: 600 }}
       >
-        {stage.stage}
+        {name}
       </text>
       <text
         x={x + NODE_W / 2}
@@ -257,7 +341,7 @@ function LoopStageNode({ stage, index, title }: { stage: LoopStageCount; index: 
         fill={stage.state === "ok" || stage.state === "fail" ? stroke : "currentColor"}
         style={{ fontSize: VALUE_FONT, opacity: stage.state === "idle" ? TEXT_OPACITY : 1 }}
       >
-        {stage.label}
+        {label}
       </text>
       <text
         x={x + NODE_W / 2}
@@ -266,7 +350,7 @@ function LoopStageNode({ stage, index, title }: { stage: LoopStageCount; index: 
         fill="currentColor"
         style={{ fontSize: CAPTION_FONT, opacity: TEXT_OPACITY }}
       >
-        {stage.detail}
+        {detail}
       </text>
       {isLast ? null : (
         <line

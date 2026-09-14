@@ -173,5 +173,6 @@
       "cites": "utas mengutip sumber"
     },
     "edgeTitle": "{kind} · bobot {weight}"
-  }
+  },
+  "languageRule": "Tulis overview, judul topik, ringkasan, catatan celah, dan catatan verifier dalam Bahasa Indonesia profesional. Pertahankan kunci JSON, id sumber, dan kutipan verbatim."
 }
