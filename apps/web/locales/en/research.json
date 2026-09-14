@@ -1,0 +1,81 @@
+{
+  "title": "Research",
+  "subtitle": "Ask a question. {product} plans sub-queries, reads the pages behind the hits, and builds a cited dossier you can send to Documents, Presentation, or the Knowledge Base.",
+  "reopenSaved": "Reopen saved research…",
+  "openSettings": "Open Settings.",
+  "tabNotes": "Notes",
+  "tabDossier": "Dossier",
+  "emptyTitle": "No dossier yet",
+  "emptyBody": "Enter a question below. Search uses your Tavily or Brave key from Settings; pages are read over HTTPS.",
+  "promptPlaceholder": "What should we look up?",
+  "promptAria": "Research question",
+  "cancel": "Cancel",
+  "generate": "Generate",
+  "working": "Working…",
+  "previewKicker": "Research",
+  "examplesHeading": "Start from a template",
+  "examplesHint": "Click a card to load a full brief. Replace the sample details, then generate.",
+  "templates": {
+    "competitive-landscape": {
+      "title": "Competitive landscape",
+      "resultSummary": "A sourced landscape with a buyer job, three real products, and dated change — not three adjectives."
+    },
+    "source-synthesis": {
+      "title": "Source synthesis",
+      "resultSummary": "A theme map with disagreements and a kill-criterion — not a stacked summary of the same take."
+    },
+    "question-backlog": {
+      "title": "Question backlog",
+      "resultSummary": "Twelve ranked questions with a method and a done-looks-like — not a brainstorm dump."
+    },
+    "claim-check": {
+      "title": "Claim check",
+      "resultSummary": "A verdict on one claim with a flip-condition — not a both-sides paragraph."
+    },
+    "options-matrix": {
+      "title": "Options matrix",
+      "resultSummary": "A scored option grid with explicit unknowns and a week-1 kill metric."
+    },
+    "vendor-diligence": {
+      "title": "Vendor diligence",
+      "resultSummary": "A sourced diligence note with a fit verdict and ‘not published’ gaps — not a brochure rewrite."
+    }
+  },
+  "errorGateway": "Research needs a live gateway. Paste a Toko Token API key in Settings, then try again.",
+  "errorSearch": "Research needs a Tavily or Brave Search API key. Add it in Settings, then try again.",
+  "errorNoHttps": "Search returned no readable HTTPS results for this question",
+  "phasePlanning": "Planning sub-queries",
+  "phaseSearching": "Searching the web",
+  "phaseReading": "Reading pages",
+  "phaseDrafting": "Drafting findings",
+  "phaseSaving": "Saving dossier",
+  "headingQuestion": "## Question",
+  "headingQueries": "## Queries run",
+  "headingSources": "## Sources",
+  "headingFindings": "## Findings",
+  "headingContradictions": "## Contradictions",
+  "headingOpenQuestions": "## Open questions",
+  "notesSources": "Sources:",
+  "fallbackTitle": "Research dossier",
+  "fallbackSummary": "Findings from {count} sources.",
+  "unreadPage": "Could not read page: {reason}. Search snippet kept above.",
+  "noneRecorded": "None recorded.",
+  "untitled": "Untitled",
+  "urlNone": "(none)",
+  "unknown": "(unknown)",
+  "keyPassages": "Key passages:",
+  "notesLabel": "Notes:",
+  "urlLabel": "URL",
+  "retrievedLabel": "Retrieved",
+  "foundByLabel": "Found by query",
+  "statusLabel": "Status",
+  "languageRule": "Write every user-facing string (title, summary, finding headings and bodies, contradictions, openQuestions, and source notes) in English. Keep JSON keys, source ids such as [S1], URLs, and verbatim passages unchanged.",
+  "stubTitle": "Stub dossier: {question}",
+  "stubSummary": "Offline demo. No web search ran. Confidence: low. Thin evidence: this stand-in exists so Research still produces a dossier when the runtime is stub. Save a Toko Token API key and a Tavily or Brave Search key in Settings to research the question from HTTPS pages.",
+  "stubFindingHeading": "This is a stub, not a web finding",
+  "stubFindingBody": "DPSBuddy returned this dossier because the runtime is stub. It does not cite live pages for: {question}. Paste a Toko Token key and a Tavily or Brave key in Settings, then generate again.",
+  "stubSourceTitle": "DPSBuddy stub",
+  "stubSourceNotes": "Synthetic source for the offline demo. Not a page that was read.",
+  "stubContradiction": "No source disagreement — search did not run.",
+  "stubOpenQuestion": "What changes after a gateway key and a search key are saved?"
+}
