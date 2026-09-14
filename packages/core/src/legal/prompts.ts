@@ -4,6 +4,7 @@
  */
 
 import { DELIVERABLE_LABELS } from "./deliverable-manuals";
+import { legalUserFacingLanguageInstruction, type LegalLocale } from "./locale";
 import type { DeliverableKind, DocRole, LegalSide, LegalWorkType, MatterDocCard, Playbook } from "./types";
 import { DELIVERABLE_FORMAT, DOC_ROLE_PRIORITY } from "./types";
 
@@ -20,6 +21,7 @@ export type PreambleInput = {
   docs: readonly MatterDocCard[];
   playbook: Playbook | null;
   priorityNote: string;
+  locale?: LegalLocale;
 };
 
 export const PLAYBOOK_DOC_ID = "PB";
@@ -33,12 +35,15 @@ const IDENTITY_BLOCK = [
   "proposals to the documents, and checks your output. Your work is discarded if it fails those checks.",
 ].join("\n");
 
-const LANGUAGE_BLOCK = [
-  "LANGUAGE",
-  `${INDENT}Formal legal register. Refer to parties by their defined terms. No first person outside the memorandum's`,
-  `${INDENT}own voice. State what the documents show; do not speculate about intent beyond the text. No advice to`,
-  `${INDENT}the client; the deliverables are draft work product for review by a qualified lawyer.`,
-].join("\n");
+function languageBlock(locale: LegalLocale = "en"): string {
+  return [
+    "LANGUAGE",
+    `${INDENT}Formal legal register. Refer to parties by their defined terms. No first person outside the memorandum's`,
+    `${INDENT}own voice. State what the documents show; do not speculate about intent beyond the text. No advice to`,
+    `${INDENT}the client; the deliverables are draft work product for review by a qualified lawyer.`,
+    legalUserFacingLanguageInstruction(locale),
+  ].join("\n");
+}
 
 function capitalise(text: string): string {
   return text.length === 0 ? text : `${text[0]?.toUpperCase() ?? ""}${text.slice(1)}`;
@@ -145,6 +150,6 @@ export function buildPreamble(input: PreambleInput): string {
     documentsBlock(input.docs, input.playbook),
     priorityBlock(input.docs, input.playbook, input.priorityNote),
     rulesBlock(input.docs),
-    LANGUAGE_BLOCK,
+    languageBlock(input.locale),
   ].join("\n\n");
 }

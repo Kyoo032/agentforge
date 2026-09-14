@@ -12,6 +12,8 @@ import {
   applyFindingEdits,
   DELIVERABLE_FORMAT,
   extractXrefs,
+  fillCopy,
+  legalOutputCopy,
   normaliseClauseId,
   type ChecklistItem,
   type DeliverableKind,
@@ -19,6 +21,7 @@ import {
   type EditPatch,
   type Finding,
   type FindingDraft,
+  type LegalLocale,
   type MatterDocCard,
   type MemoOutline,
   type VerifyFailure,
@@ -127,7 +130,7 @@ export function findingFromDraft(draft: FindingDraft, id: string, round: number,
   };
 }
 
-export function missingFinding(item: ChecklistItem, id: string, round: number): Finding {
+export function missingFinding(item: ChecklistItem, id: string, round: number, locale: LegalLocale = "en"): Finding {
   return {
     id,
     clause: item.id,
@@ -135,7 +138,7 @@ export function missingFinding(item: ChecklistItem, id: string, round: number): 
     quote: "",
     quoteAnchor: null,
     title: item.title,
-    why: `Required provision "${item.title}" is not present in the counterparty draft.`,
+    why: fillCopy(legalOutputCopy(locale).missingWhy, { title: item.title }),
     severity: item.required ? "high" : "medium",
     negotiability: "preferred",
     proposedText: item.preferred.trim() === "" ? null : item.preferred,
@@ -207,17 +210,11 @@ export function createIdAllocator(start = 1): { next: () => string } {
   };
 }
 
-export const PHASE_LABEL: Readonly<Record<string, string>> = {
-  classify: "Classifying documents",
-  diff: "Comparing with the prior turn",
-  review: "Reviewing provisions",
-  missing: "Checking required provisions",
-  interactions: "Checking interactions",
-  draft: "Drafting deliverables",
-  verify: "Verifying",
-  edit: "Applying corrections",
-  package: "Packaging",
-};
+export const PHASE_LABEL: Readonly<Record<string, string>> = legalOutputCopy("en").phase;
+
+export function phaseLabel(phase: string, locale: LegalLocale = "en"): string {
+  return legalOutputCopy(locale).phase[phase] ?? PHASE_LABEL[phase] ?? phase;
+}
 
 export const FILENAME: Readonly<Record<DeliverableKind, string>> = {
   "issues-memo": "issues-memorandum.docx",
@@ -255,8 +252,8 @@ export function emptyPacked(kind: DeliverableKind): PackedDeliverable {
   };
 }
 
-export function emitPhase(emit: JobEmitter, phase: string): void {
-  emit({ type: "job.phase", phase, label: PHASE_LABEL[phase] ?? phase });
+export function emitPhase(emit: JobEmitter, phase: string, locale: LegalLocale = "en"): void {
+  emit({ type: "job.phase", phase, label: phaseLabel(phase, locale) });
 }
 
 export function emitStep(
@@ -272,7 +269,13 @@ export function cardByRole(cards: readonly MatterDocCard[], role: DocRole): Matt
   return cards.find((card) => card.role === role && card.status === "read");
 }
 
-export function fallbackMemo(matter: LegalMatterRecord, dateIso: string, findings: readonly Finding[]): MemoOutline {
+export function fallbackMemo(
+  matter: LegalMatterRecord,
+  dateIso: string,
+  findings: readonly Finding[],
+  locale: LegalLocale = "en",
+): MemoOutline {
+  const copy = legalOutputCopy(locale);
   return {
     to: matter.addressee,
     from: matter.author,
@@ -281,8 +284,10 @@ export function fallbackMemo(matter: LegalMatterRecord, dateIso: string, finding
     privileged: true,
     sections: [
       {
-        heading: "Summary",
-        paragraphs: [`${matter.side.party} reviewed the counterparty draft against ${matter.side.counterparty}.`],
+        heading: copy.summaryHeading,
+        paragraphs: [
+          fillCopy(copy.fallbackSummary, { party: matter.side.party, counterparty: matter.side.counterparty }),
+        ],
         findingsTable: findings.map((finding) => finding.id),
       },
     ],
@@ -299,7 +304,14 @@ export function citedDocIds(findings: readonly Finding[]): string[] {
   return [...new Set(findings.flatMap((finding) => finding.basis.map((citation) => citation.doc)))];
 }
 
-export function unmarkedFinding(change: ParagraphChange, id: string, round: number, draft: DocxDocument): Finding {
+export function unmarkedFinding(
+  change: ParagraphChange,
+  id: string,
+  round: number,
+  draft: DocxDocument,
+  locale: LegalLocale = "en",
+): Finding {
+  const copy = legalOutputCopy(locale);
   const quote = change.after.trim();
   const hit = quote === "" ? null : findQuote(draft, quote);
   return {
@@ -308,8 +320,8 @@ export function unmarkedFinding(change: ParagraphChange, id: string, round: numb
     kind: "unmarked-change",
     quote: hit ? quote : "",
     quoteAnchor: hit?.anchor ?? change.next,
-    title: "Unmarked change",
-    why: change.before.trim() === "" ? "Paragraph added without a tracked change." : `Prior text: ${change.before}`,
+    title: copy.unmarkedTitle,
+    why: change.before.trim() === "" ? copy.unmarkedAdded : fillCopy(copy.unmarkedPrior, { before: change.before }),
     severity: "medium",
     negotiability: "fallback",
     proposedText: null,

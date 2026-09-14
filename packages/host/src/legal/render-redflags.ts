@@ -3,97 +3,98 @@
  * declarative lines, and the mandatory closing line.
  */
 import { markdownTable } from "@agentforge/core/artifacts";
-import type { Finding, FindingKind, LegalSide, VerifyCheck, VerifyReport } from "@agentforge/core/legal";
 import {
-  CLOSING_LINE,
-  NONE_IDENTIFIED,
-  formatBasis,
-  positionLine,
-  proposedLanguage,
-  sortFindings,
-} from "./render-shared";
+  fillCopy,
+  legalOutputCopy,
+  type Finding,
+  type FindingKind,
+  type LegalLocale,
+  type LegalSide,
+  type VerifyCheck,
+  type VerifyReport,
+} from "@agentforge/core/legal";
+import { formatBasis, positionLine, proposedLanguage, sortFindings } from "./render-shared";
 
-export const RED_FLAG_SECTIONS = [
-  "Adverse provisions",
-  "Missing provisions",
-  "Unmarked changes",
-  "Interactions",
-  "Reserved for partner decision",
-] as const;
-export const VERIFICATION_HEADING = "Verification";
-export const VERIFICATION_NOT_RUN = "Verification was not run.";
+export const RED_FLAG_SECTIONS = legalOutputCopy("en").redFlagSections;
+export const VERIFICATION_HEADING = legalOutputCopy("en").verificationHeading;
+export const VERIFICATION_NOT_RUN = legalOutputCopy("en").verificationNotRun;
 
-const SECTION_KINDS: Readonly<Record<(typeof RED_FLAG_SECTIONS)[number], readonly FindingKind[]>> = {
-  "Adverse provisions": ["adverse", "deviation"],
-  "Missing provisions": ["missing"],
-  "Unmarked changes": ["unmarked-change"],
-  Interactions: ["interaction"],
-  "Reserved for partner decision": [],
-};
+const SECTION_KINDS: readonly (readonly FindingKind[])[] = [
+  ["adverse", "deviation"],
+  ["missing"],
+  ["unmarked-change"],
+  ["interaction"],
+  [],
+];
 
-const FINDING_COLUMNS = ["Clause", "Title", "Severity", "Negotiability", "Why adverse", "Proposed language", "Basis"];
-const RESERVED_COLUMNS = ["Clause", "Title", "Severity", "Reserved for", "Why adverse", "Basis"];
-
-function findingRow(finding: Finding): readonly string[] {
+function findingRow(finding: Finding, locale: LegalLocale): readonly string[] {
   return [
     finding.clause,
     finding.title,
     finding.severity,
     finding.negotiability,
     finding.why,
-    proposedLanguage(finding),
-    formatBasis(finding.basis),
+    proposedLanguage(finding, locale),
+    formatBasis(finding.basis, locale),
   ];
 }
 
-function reservedRow(finding: Finding): readonly string[] {
+function reservedRow(finding: Finding, locale: LegalLocale): readonly string[] {
   return [
     finding.clause,
     finding.title,
     finding.severity,
     finding.reservedFor ?? "",
     finding.why,
-    formatBasis(finding.basis),
+    formatBasis(finding.basis, locale),
   ];
 }
 
-function section(heading: string, columns: readonly string[], rows: readonly (readonly string[])[]): string[] {
-  return [`## ${heading}`, "", rows.length === 0 ? NONE_IDENTIFIED : markdownTable(columns, rows), ""];
+function section(
+  heading: string,
+  columns: readonly string[],
+  rows: readonly (readonly string[])[],
+  empty: string,
+): string[] {
+  return [`## ${heading}`, "", rows.length === 0 ? empty : markdownTable(columns, rows), ""];
 }
 
-function kindSections(findings: readonly Finding[]): string[] {
+function kindSections(findings: readonly Finding[], locale: LegalLocale): string[] {
+  const copy = legalOutputCopy(locale);
   const sorted = sortFindings(findings);
-  return RED_FLAG_SECTIONS.flatMap((heading) => {
-    const kinds = SECTION_KINDS[heading];
+  return copy.redFlagSections.flatMap((heading, index) => {
+    const kinds = SECTION_KINDS[index] ?? [];
     if (kinds.length === 0) {
       const reserved = sorted.filter((finding) => finding.reservedFor !== null);
-      return section(heading, RESERVED_COLUMNS, reserved.map(reservedRow));
+      return section(heading, copy.reservedColumns, reserved.map((finding) => reservedRow(finding, locale)), copy.noneIdentified);
     }
-    const rows = sorted.filter((finding) => kinds.includes(finding.kind)).map(findingRow);
-    return section(heading, FINDING_COLUMNS, rows);
+    const rows = sorted.filter((finding) => kinds.includes(finding.kind)).map((finding) => findingRow(finding, locale));
+    return section(heading, copy.findingColumns, rows, copy.noneIdentified);
   });
 }
 
-function checkLine(check: VerifyCheck): string {
-  const status = check.failed === 0 ? "passed" : "failed";
-  const counts = `${check.passed} passed, ${check.failed} failed`;
+function checkLine(check: VerifyCheck, locale: LegalLocale): string {
+  const copy = legalOutputCopy(locale);
+  const status = check.failed === 0 ? copy.checkPassed : copy.checkFailed;
+  const counts = fillCopy(copy.passedFailed, { passed: check.passed, failed: check.failed });
   return `- ${check.code} — ${status} (${counts})`;
 }
 
-function verificationSection(verify: VerifyReport | null): string[] {
+function verificationSection(verify: VerifyReport | null, locale: LegalLocale): string[] {
+  const copy = legalOutputCopy(locale);
   if (verify === null) {
-    return [`## ${VERIFICATION_HEADING}`, "", VERIFICATION_NOT_RUN, ""];
+    return [`## ${copy.verificationHeading}`, "", copy.verificationNotRun, ""];
   }
-  const outcome = verify.ok ? "All code checks passed." : "One or more code checks failed.";
+  const outcome = verify.ok ? copy.allChecksPassed : copy.someChecksFailed;
   const failures = verify.codeChecks.flatMap((check) =>
     check.failures.map((failure) => `  - ${failure.target}: ${failure.detail}`),
   );
   return [
-    `## ${VERIFICATION_HEADING}`,
+    `## ${copy.verificationHeading}`,
     "",
-    `Round ${verify.round}. ${outcome}`,
+    fillCopy(copy.roundLine, { round: verify.round, outcome }),
     "",
-    ...verify.codeChecks.map(checkLine),
+    ...verify.codeChecks.map((check) => checkLine(check, locale)),
     ...failures,
     "",
   ];
@@ -105,15 +106,18 @@ export function renderRedFlagsMarkdown(input: {
   side: LegalSide;
   matterTitle: string;
   verify: VerifyReport | null;
+  locale?: LegalLocale;
 }): string {
+  const locale = input.locale ?? "en";
+  const copy = legalOutputCopy(locale);
   return [
     `# ${input.matterTitle}`,
     "",
-    `Position: ${positionLine(input.side)}`,
+    `${copy.sheetPosition}: ${positionLine(input.side, locale)}`,
     "",
-    ...kindSections(input.findings),
-    ...verificationSection(input.verify),
-    CLOSING_LINE,
+    ...kindSections(input.findings, locale),
+    ...verificationSection(input.verify, locale),
+    copy.closingLine,
     "",
   ].join("\n");
 }
