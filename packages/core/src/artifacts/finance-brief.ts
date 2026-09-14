@@ -39,20 +39,9 @@ export type FinanceBrief = z.infer<typeof financeBriefSchema>;
 
 const SUFFIX_UNITS = new Set(["%", "x"]);
 
-export type FinanceBriefLabels = {
-  computedMetrics?: string;
-  assumptions?: string;
-  noneStated?: string;
-  missing?: string;
-  metric?: string;
-  value?: string;
-  period?: string;
-  formula?: string;
-};
-
-export function formatMetricValue(metric: FinanceMetric, missing = "missing"): string {
+export function formatMetricValue(metric: FinanceMetric): string {
   if (metric.value === null) {
-    return missing;
+    return "missing";
   }
   const number = formatCellNumber(metric.value);
   if (!metric.unit) {
@@ -64,11 +53,10 @@ export function formatMetricValue(metric: FinanceMetric, missing = "missing"): s
   return `${number} ${metric.unit}`;
 }
 
-function metricsTable(metrics: FinanceMetric[], labels?: FinanceBriefLabels): string {
-  const missing = labels?.missing ?? "missing";
+function metricsTable(metrics: FinanceMetric[]): string {
   return markdownTable(
-    [labels?.metric ?? "Metric", labels?.value ?? "Value", labels?.period ?? "Period", labels?.formula ?? "Formula"],
-    metrics.map((metric) => [metric.label, formatMetricValue(metric, missing), metric.period, metric.formula]),
+    ["Metric", "Value", "Period", "Formula"],
+    metrics.map((metric) => [metric.label, formatMetricValue(metric), metric.period, metric.formula]),
   );
 }
 
@@ -80,18 +68,15 @@ function sectionBlock(section: FinanceSection): string[] {
   return lines;
 }
 
-export function financeBriefToMarkdown(brief: FinanceBrief, labels?: FinanceBriefLabels): string {
-  const computedHeading = labels?.computedMetrics ?? "Computed metrics";
-  const assumptionsHeading = labels?.assumptions ?? "Assumptions";
-  const noneStated = labels?.noneStated ?? "None stated.";
+export function financeBriefToMarkdown(brief: FinanceBrief): string {
   const lines = [`# ${brief.title}`, "", ...brief.sections.flatMap(sectionBlock)];
   if (brief.computed.metrics.length > 0) {
-    lines.push(`## ${computedHeading}`, "", metricsTable(brief.computed.metrics, labels), "");
+    lines.push("## Computed metrics", "", metricsTable(brief.computed.metrics), "");
   }
   for (const table of brief.computed.tables) {
     lines.push(`### ${table.name}`, "", markdownTable(table.columns, table.rows), "");
   }
-  lines.push(`## ${assumptionsHeading}`, "");
-  lines.push(...(brief.assumptions.length > 0 ? brief.assumptions.map((item) => `- ${item}`) : [`- ${noneStated}`]));
+  lines.push("## Assumptions", "");
+  lines.push(...(brief.assumptions.length > 0 ? brief.assumptions.map((item) => `- ${item}`) : ["- None stated."]));
   return `${lines.join("\n").trim()}\n`;
 }

@@ -60,13 +60,7 @@ export {
   financeSectionSchema,
   formatMetricValue,
 } from "./finance-brief";
-export type {
-  FinanceBrief,
-  FinanceBriefLabels,
-  FinanceComputed,
-  FinanceMetric,
-  FinanceSection,
-} from "./finance-brief";
+export type { FinanceBrief, FinanceComputed, FinanceMetric, FinanceSection } from "./finance-brief";
 export {
   briefingSectionSchema,
   briefingSourceSchema,

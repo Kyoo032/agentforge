@@ -1,11 +1,5 @@
 import { ApiError } from "@agentforge/core";
-import {
-  financeBriefSchema,
-  markdownTable,
-  type FinanceBrief,
-  type FinanceBriefLabels,
-  type FinanceSection,
-} from "@agentforge/core/artifacts";
+import { financeBriefSchema, markdownTable, type FinanceBrief, type FinanceSection } from "@agentforge/core/artifacts";
 import {
   UNVERIFIED_MARKER,
   computeFinance,
@@ -16,7 +10,6 @@ import {
   type FinanceParams,
   type LineItem,
 } from "@agentforge/core/finance";
-import { type AppLocale, financeCopy, localizeMetricLabel } from "./finance-locale";
 import { extractJsonObject } from "./presentation-outline";
 
 export const FINANCE_PARAM_KEYS = ["discountRatePercent", "pricePerUnit", "variableCostPerUnit", "fixedCosts"] as const;
@@ -51,7 +44,11 @@ export function readFinanceInputs(body: unknown): FinanceInputs | null {
   }
   const parsed = lineItemsSchema.safeParse(record.items);
   if (!parsed.success) {
-    throw new ApiError("invalid_request", financeCopy().errors.itemsInvalid, 400);
+    throw new ApiError(
+      "invalid_request",
+      "items must be a non-empty list of line items with a label and a numeric amount",
+      400,
+    );
   }
   const rawParams = (record.params ?? {}) as Record<string, unknown>;
   const params: FinanceParams = {};
@@ -64,13 +61,12 @@ export function readFinanceInputs(body: unknown): FinanceInputs | null {
   return { items: parsed.data, params };
 }
 
-export function parseBriefDraft(raw: string, locale?: AppLocale): BriefDraft {
-  const copy = financeCopy(locale);
+export function parseBriefDraft(raw: string): BriefDraft {
   let parsed: Record<string, unknown>;
   try {
     parsed = JSON.parse(extractJsonObject(raw)) as Record<string, unknown>;
   } catch {
-    throw new ApiError("invalid_finance", copy.errors.invalidBriefJson, 502);
+    throw new ApiError("invalid_finance", "Model returned invalid JSON for the finance brief", 502);
   }
   const sections = (Array.isArray(parsed.sections) ? parsed.sections : [])
     .map((item) => {
@@ -79,26 +75,21 @@ export function parseBriefDraft(raw: string, locale?: AppLocale): BriefDraft {
     })
     .filter((section) => section.heading && section.body);
   if (sections.length === 0) {
-    throw new ApiError("invalid_finance", copy.errors.noSections, 502);
+    throw new ApiError("invalid_finance", "Model returned no sections", 502);
   }
-  return {
-    title: text(parsed.title) || copy.pipeline.fallbackTitle,
-    sections,
-    assumptions: stringList(parsed.assumptions, 30),
-  };
+  return { title: text(parsed.title) || "Finance brief", sections, assumptions: stringList(parsed.assumptions, 30) };
 }
 
-export function parseBriefSection(raw: string, locale?: AppLocale): BriefDraft["sections"][number] {
-  const copy = financeCopy(locale);
+export function parseBriefSection(raw: string): BriefDraft["sections"][number] {
   let parsed: Record<string, unknown>;
   try {
     parsed = JSON.parse(extractJsonObject(raw)) as Record<string, unknown>;
   } catch {
-    throw new ApiError("invalid_finance", copy.errors.invalidSectionJson, 502);
+    throw new ApiError("invalid_finance", "Model returned invalid JSON for the section", 502);
   }
   const section = { heading: text(parsed.heading), body: text(parsed.body), metrics: stringList(parsed.metrics, 20) };
   if (!section.heading || !section.body) {
-    throw new ApiError("invalid_finance", copy.errors.emptySection, 502);
+    throw new ApiError("invalid_finance", "Model returned an empty section", 502);
   }
   return section;
 }
@@ -142,73 +133,14 @@ export function buildFinanceBrief(
   return { brief, guard: { flagged, total: flagged.length } };
 }
 
-export function localizeComputedFinance(computed: ComputedFinance, locale: AppLocale): ComputedFinance {
-  const copy = financeCopy(locale);
-  return {
-    ...computed,
-    metrics: computed.metrics.map((entry) => ({
-      ...entry,
-      label: localizeMetricLabel(entry.label, locale),
-      unit: entry.unit === "months" ? copy.metrics.months : entry.unit,
-    })),
-    tables: computed.tables.map((table) => {
-      const name =
-        table.name === "Line items"
-          ? copy.tables.lineItems
-          : table.name === "Totals by period"
-            ? copy.tables.totalsByPeriod
-            : table.name;
-      const columns = table.columns.map((column) => {
-        if (column === "Label") return copy.tables.label;
-        if (column === "Period") return copy.tables.period;
-        if (column === "Category") return copy.tables.category;
-        if (column === "Amount") return copy.tables.amount;
-        if (column === "Currency") return copy.tables.currency;
-        if (column === "(none)") return copy.tables.none;
-        return column;
-      });
-      return { ...table, name, columns };
-    }),
-  };
-}
-
-export function financeMarkdownLabels(locale: AppLocale): FinanceBriefLabels {
-  const copy = financeCopy(locale);
-  return {
-    computedMetrics: copy.preview.computedMetrics,
-    assumptions: copy.preview.assumptions,
-    noneStated: copy.preview.noneStated,
-    missing: copy.metrics.missing,
-    metric: copy.preview.metric,
-    value: copy.preview.value,
-    period: copy.preview.period,
-    formula: copy.preview.formula,
-  };
-}
-
-export function stubFinanceDraft(question: string, computed: ComputedFinance, locale: AppLocale): BriefDraft {
-  const copy = financeCopy(locale);
-  const metrics = computed.metrics.slice(0, 8);
-  const body =
-    metrics.length > 0
-      ? metrics.map((entry) => `${entry.label}: ${formatMetricForPrompt(entry)}.`).join(" ")
-      : copy.stub.empty;
-  return {
-    title: question.trim().slice(0, 80) || copy.pipeline.fallbackTitle,
-    sections: [{ heading: copy.stub.heading, body, metrics: metrics.map((entry) => entry.key) }],
-    assumptions: [copy.stub.assumption],
-  };
-}
-
 /** The model sees inputs and computed metrics as Markdown tables, never raw prose numbers. */
-export function financePromptBlock(inputs: FinanceInputs, computed: ComputedFinance, locale: AppLocale = "en"): string {
-  const copy = financeCopy(locale);
+export function financePromptBlock(inputs: FinanceInputs, computed: ComputedFinance): string {
   const items = markdownTable(
-    [copy.tables.label, copy.tables.period, copy.tables.category, copy.tables.amount, copy.tables.currency],
+    ["Label", "Period", "Category", "Amount", "Currency"],
     inputs.items.map((item) => [item.label, item.period, item.category, item.amount, item.currency]),
   );
   const metrics = markdownTable(
-    ["Key", copy.preview.metric, copy.preview.value, copy.preview.period, copy.preview.formula],
+    ["Key", "Metric", "Value", "Period", "Formula"],
     computed.metrics.map((entry) => [
       entry.key,
       entry.label,
@@ -221,11 +153,11 @@ export function financePromptBlock(inputs: FinanceInputs, computed: ComputedFina
     .map(([key, value]) => `- ${key}: ${value}`)
     .join("\n");
   return [
-    copy.pipeline.lineItemsHeader,
+    "Line items (the only inputs):",
     items,
-    params ? `${copy.pipeline.parametersHeader}\n${params}` : null,
-    copy.pipeline.metricsHeader,
-    metrics || copy.pipeline.metricsNone,
+    params ? `Parameters:\n${params}` : null,
+    "Computed metrics (already calculated in code; cite by key):",
+    metrics || "(none could be computed from these items)",
   ]
     .filter(Boolean)
     .join("\n\n");
