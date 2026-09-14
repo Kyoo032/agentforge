@@ -1,0 +1,223 @@
+{
+  "title": "Edit",
+  "defaultProjectName": "Loop 1",
+  "untitled": "Tanpa judul",
+  "projects": "Proyek",
+  "newProject": "Proyek baru",
+  "openProjectHint": "Buka proyek untuk berbicara dengan editor.",
+  "phaseLater": "{label} (Tahap 2+)",
+  "jobs": "pekerjaan {count}",
+  "turnMeter": "giliran {spent} / {cap}",
+  "opsCount": "ops {count}",
+  "parity": "Paritas",
+  "export": "Ekspor",
+  "exporting": "Mengekspor…",
+  "downloadExport": "Unduh ekspor",
+  "tools": {
+    "upload": "Unggah",
+    "generate": "Buat",
+    "ingredients": "Bahan",
+    "titles": "Judul",
+    "captions": "Teks overlay",
+    "recipes": "Resep",
+    "history": "Riwayat"
+  },
+  "tier": {
+    "draft": "Draf",
+    "standard": "Standar",
+    "cinematic": "Sinematik"
+  },
+  "preview": {
+    "play": "Putar",
+    "pause": "Jeda",
+    "previousFrame": "Bingkai sebelumnya",
+    "nextFrame": "Bingkai berikutnya",
+    "scrub": "Geser"
+  },
+  "timeline": {
+    "hints": "snap: bingkai · S potong · Del hapus",
+    "trimStart": "Pangkas awal",
+    "trimEnd": "Pangkas akhir",
+    "trackV1": "V1",
+    "trackA1": "A1",
+    "trackC1": "C1"
+  },
+  "agent": {
+    "title": "Agen",
+    "writing": "Agen sedang menulis…",
+    "placeholder": "Tanyakan kepada editor…",
+    "send": "Kirim"
+  },
+  "cards": {
+    "reviewTitle": "Tinjau sebelum ekspor",
+    "reviewBody": "Geser seluruh linimasa atau konfirmasikan tampilannya sudah baik.",
+    "looksGood": "Sudah baik",
+    "estimate": "perkiraan {usd}",
+    "priceUnknown": "harga belum diketahui",
+    "go": "Jalankan",
+    "cancel": "Batalkan",
+    "keep": "Simpan",
+    "undo": "Urungkan",
+    "tweak": "Sesuaikan",
+    "fallbackVerb": "Edit"
+  },
+  "status": {
+    "proposed": "diusulkan",
+    "pending": "menunggu",
+    "kept": "disimpan",
+    "undone": "diurungkan",
+    "plan": "rencana",
+    "cancelled": "dibatalkan"
+  },
+  "tray": {
+    "unplaced": "Belum dipasang ({count})",
+    "place": "Pasang",
+    "discard": "Buang"
+  },
+  "generate": {
+    "image": "Gambar",
+    "videoFromImage": "Video dari gambar",
+    "storyboard": "Papan cerita",
+    "storyboardPhase": "Papan cerita hadir di Tahap 3.",
+    "needsKey": "Tambahkan kunci gateway {gateway} di {settings} untuk membuat konten.",
+    "settingsLink": "Settings",
+    "animateStillClip": "Animasikan klip gambar di bawah playhead",
+    "stillUrlPlaceholder": "URL gambar diam, atau geser playhead ke klip gambar",
+    "stillUrlOrPaste": "…atau tempel URL gambar diam",
+    "textToVideoOnly": "Model ini hanya teks-ke-video",
+    "imagePlaceholder": "Deskripsikan sebuah gambar…",
+    "videoPlaceholder": "Deskripsikan sebuah video…",
+    "generate": "Buat",
+    "generating": "Membuat…",
+    "seconds": "{value}s",
+    "failed": "Pembuatan gagal"
+  },
+  "templates": {
+    "heading": "Mulai dari templat prompt",
+    "all": "Semua",
+    "empty": "Tidak ada templat di kategori ini.",
+    "fromSource": "Dari {site}: {title}",
+    "promptingRules": "Aturan prompt",
+    "categories": {
+      "promo": "Promo produk",
+      "talking-head": "Talking head",
+      "reel": "Reel vertikal",
+      "square": "Sosial persegi"
+    },
+    "titles": {
+      "promo-product-stone": "Produk di meja batu",
+      "promo-daisy-macro": "Makro ladang daisy",
+      "promo-caterpillar-macro": "Makro ulat merayap",
+      "promo-drone-broll": "Drone menembus rintangan",
+      "promo-rooftop-dolly-out": "Dolly out di atap",
+      "promo-chip-macro": "Makro keping berputar",
+      "talk-neon-frontal": "Jalan neon dari depan",
+      "talk-calm-line": "Kalimat voiceover tenang",
+      "talk-bookstore-dialogue": "Dialog dua orang di toko buku",
+      "talk-keyboard-review": "Ulasan keyboard",
+      "reel-runway-pan": "Pan di catwalk",
+      "reel-cheongsam": "Peragaan cheongsam",
+      "reel-tokyo-selfie": "Selfie manga Tokyo",
+      "reel-skateboard": "Shot mengikuti skateboard",
+      "reel-ugc-airplane": "Vlog UGC di pesawat",
+      "square-poppies": "Bunga poppy berlatar cahaya",
+      "square-kitten-yawn": "Anak kucing menguap",
+      "square-voxel-robot": "Robot voxel di roket",
+      "square-gummies-selfie": "Ulasan selfie permen karet"
+    },
+    "guide": {
+      "subject-action-timeline": "Mulai dari subjek dan aksi; urutkan beberapa aksi sesuai linimasa.",
+      "camera-move-names": "Sebut gerakan kamera: push, pull, pan, circle, follow, rise, zoom, atau tracking.",
+      "shot-size-names": "Sebut ukuran shot: long, full, medium, close-up, makro, aerial, sudut rendah atau tinggi.",
+      "style-words": "Gunakan kata gaya seperti voxel, felt, clay, atau manga untuk hasil bergaya.",
+      "prompt-order": "Susun prompt: subjek, gerakan, lingkungan, gerakan kamera, estetika, lalu suara.",
+      "camera-start-end": "Deskripsikan kamera sebagai komposisi awal, gerakan, amplitudo, lalu komposisi akhir.",
+      "dialogue-quotes": "Tulis dialog dalam tanda kutip dan sebutkan emosi, nada, serta tempo.",
+      "one-move-per-shot": "Satu gerakan kamera per shot; beri label Shot 1, Shot 2, Shot 3.",
+      "no-text-constraint": "Tambahkan batasan seperti hindari teks atau subtitle, serta tanpa logo atau watermark.",
+      "negatives-audio": "Gunakan negatif hanya untuk subtitle atau audio, misalnya No subtitles atau No BGM.",
+      "camera-presets": "Nama preset kamera bisa jadi frasa prompt: crash zoom in, dolly in, 360 orbit, whip pan."
+    }
+  },
+  "recipes": {
+    "hint": "Setiap langkah menjadi kartunya sendiri setelah Jalankan.",
+    "steps": "{count} langkah",
+    "stepsOne": "{count} langkah",
+    "podcast-clean-up": "Rapikan podcast",
+    "reels-cutdown": "Potongan Reels"
+  },
+  "starters": {
+    "blank-16x9": {
+      "name": "Kosong 16:9",
+      "description": "Linimasa lanskap kosong."
+    },
+    "blank-9x16": {
+      "name": "Kosong 9:16",
+      "description": "Linimasa potret kosong."
+    },
+    "blank-1x1": {
+      "name": "Kosong 1:1",
+      "description": "Linimasa persegi kosong."
+    },
+    "promo-16x9": {
+      "name": "Promo produk",
+      "description": "Kartu judul, tiga shot sampel, dan bed musik. Ganti shot dengan rekaman Anda."
+    },
+    "talk-16x9": {
+      "name": "Talking head + subtitle",
+      "description": "Klip bicara 20 detik dengan sampel teks overlay. Coba “Remove the silences”."
+    },
+    "reels-9x16": {
+      "name": "Reels 9:16",
+      "description": "Klip sampel vertikal dengan judul. Siap untuk Reels atau Shorts."
+    },
+    "square-1x1": {
+      "name": "Sosial persegi",
+      "description": "Loop sampel persegi untuk unggahan feed."
+    }
+  },
+  "ffmpeg": {
+    "setup": "Penyiapan:",
+    "platformSetup": "Penyiapan {platform}:",
+    "copy": "Salin",
+    "copied": "Tersalin",
+    "checkAgain": "Periksa lagi",
+    "checking": "Memeriksa…",
+    "installGuide": "Panduan instalasi",
+    "recheckFailed": "Tidak dapat menghubungi host lokal untuk memeriksa ulang. Coba lagi sebentar."
+  },
+  "errors": {
+    "apply": "Tidak dapat menerapkan suntingan",
+    "createProject": "Tidak dapat membuat proyek",
+    "import": "Impor gagal",
+    "agentUnavailable": "Agen Edit belum tersedia",
+    "agentFailed": "Agen gagal",
+    "exportBlocked": "Ekspor diblokir",
+    "exportNotReady": "Ekspor belum siap",
+    "exportDownload": "Tidak dapat mengunduh ekspor"
+  },
+  "pipeline": {
+    "languageInstruction": "Tulis teks Edit yang dilihat pengguna (kata kerja kartu, judul, teks overlay, balasan asisten, dan kata pada gambar atau video) dalam bahasa Indonesia. Pertahankan nama alat dan kunci JSON dalam bahasa Inggris.",
+    "stubHelp": "Saya dapat membantu memangkas, memotong, menambahkan teks overlay, dan memberi judul pada linimasa ini.",
+    "stubUndo": "Urungkan tersedia pada kartu terakhir."
+  },
+  "stubCards": {
+    "S1": { "verb": "Hapus 3 jeda sunyi", "object": "v1" },
+    "S2": { "verb": "Potong di pergantian adegan", "object": "v1" },
+    "S3": { "verb": "Tambah teks overlay", "object": "naskah" },
+    "S4": { "verb": "Transkripsi", "object": "jalur bicara" },
+    "S5": { "verb": "Ubah bingkai", "object": "9:16" },
+    "S6": { "verb": "Tambah judul", "object": "Summer Sale" },
+    "S7": { "verb": "Pangkas klip", "object": "3 detik" },
+    "S8": { "verb": "Pindahkan klip", "object": "awal" },
+    "S9": { "verb": "Kosongkan linimasa", "object": "semua klip" },
+    "S10": { "verb": "Urungkan", "object": "perubahan terakhir" },
+    "F1": { "verb": "Papan cerita", "object": "gambar diam" },
+    "F2": { "verb": "Animasikan", "object": "papan cerita" },
+    "F3": { "verb": "Resep", "object": "rencana" },
+    "F4": { "verb": "Samakan tampilan", "object": "referensi" },
+    "F5": { "verb": "Potongan alternatif", "object": "v_compare" },
+    "generateImage": { "verb": "Buat gambar", "object": "prompt" },
+    "generateVideo": { "verb": "Buat video", "object": "prompt" }
+  }
+}
