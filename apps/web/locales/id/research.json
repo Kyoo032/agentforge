@@ -1,0 +1,81 @@
+{
+  "title": "Riset",
+  "subtitle": "Ajukan pertanyaan. {product} merencanakan sub-kueri, membaca halaman di balik hasil pencarian, dan menyusun dosir bersitasi yang dapat Anda kirim ke Documents, Presentation, atau Knowledge Base.",
+  "reopenSaved": "Buka riset tersimpan…",
+  "openSettings": "Buka Settings.",
+  "tabNotes": "Catatan",
+  "tabDossier": "Dosir",
+  "emptyTitle": "Belum ada dosir",
+  "emptyBody": "Masukkan pertanyaan di bawah. Pencarian memakai kunci Tavily atau Brave dari Settings; halaman dibaca lewat HTTPS.",
+  "promptPlaceholder": "Apa yang perlu dicari?",
+  "promptAria": "Pertanyaan riset",
+  "cancel": "Batal",
+  "generate": "Hasilkan",
+  "working": "Memproses…",
+  "previewKicker": "Riset",
+  "examplesHeading": "Mulai dari templat",
+  "examplesHint": "Klik kartu untuk memuat brief lengkap. Ganti detail contoh, lalu hasilkan.",
+  "templates": {
+    "competitive-landscape": {
+      "title": "Peta persaingan",
+      "resultSummary": "Peta bersumber dengan pekerjaan pembeli, tiga produk nyata, dan perubahan bertanggal — bukan tiga kata sifat."
+    },
+    "source-synthesis": {
+      "title": "Sintesis sumber",
+      "resultSummary": "Peta tema dengan ketidaksepakatan dan kriteria batal — bukan ringkasan bertumpuk dari satu pendapat."
+    },
+    "question-backlog": {
+      "title": "Antrean pertanyaan",
+      "resultSummary": "Dua belas pertanyaan terurut dengan metode dan tolok ukur selesai — bukan curah pendapat."
+    },
+    "claim-check": {
+      "title": "Uji klaim",
+      "resultSummary": "Putusan atas satu klaim dengan syarat pembalik — bukan paragraf kedua belah pihak."
+    },
+    "options-matrix": {
+      "title": "Matriks opsi",
+      "resultSummary": "Kisi opsi berskor dengan ketidaktahuan eksplisit dan metrik batal minggu pertama."
+    },
+    "vendor-diligence": {
+      "title": "Uji tuntas vendor",
+      "resultSummary": "Catatan uji tuntas bersumber dengan putusan kecocokan dan celah ‘tidak dipublikasikan’ — bukan brosur."
+    }
+  },
+  "errorGateway": "Riset memerlukan gateway aktif. Tempel kunci API Toko Token di Settings, lalu coba lagi.",
+  "errorSearch": "Riset memerlukan kunci API Tavily atau Brave Search. Tambahkan di Settings, lalu coba lagi.",
+  "errorNoHttps": "Pencarian tidak mengembalikan hasil HTTPS yang dapat dibaca untuk pertanyaan ini",
+  "phasePlanning": "Merencanakan sub-kueri",
+  "phaseSearching": "Mencari di web",
+  "phaseReading": "Membaca halaman",
+  "phaseDrafting": "Menyusun temuan",
+  "phaseSaving": "Menyimpan dosir",
+  "headingQuestion": "## Pertanyaan",
+  "headingQueries": "## Kueri yang dijalankan",
+  "headingSources": "## Sumber",
+  "headingFindings": "## Temuan",
+  "headingContradictions": "## Kontradiksi",
+  "headingOpenQuestions": "## Pertanyaan terbuka",
+  "notesSources": "Sumber:",
+  "fallbackTitle": "Dosir riset",
+  "fallbackSummary": "Temuan dari {count} sumber.",
+  "unreadPage": "Halaman tidak dapat dibaca: {reason}. Cuplikan pencarian disimpan di atas.",
+  "noneRecorded": "Tidak ada yang tercatat.",
+  "untitled": "Tanpa judul",
+  "urlNone": "(tidak ada)",
+  "unknown": "(tidak diketahui)",
+  "keyPassages": "Kutipan utama:",
+  "notesLabel": "Catatan:",
+  "urlLabel": "URL",
+  "retrievedLabel": "Diambil",
+  "foundByLabel": "Ditemukan dari kueri",
+  "statusLabel": "Status",
+  "languageRule": "Tulis setiap string yang dilihat pengguna (title, summary, judul dan isi temuan, contradictions, openQuestions, dan catatan sumber) dalam Bahasa Indonesia profesional (Anda / infinitif). Pertahankan kunci JSON, id sumber seperti [S1], URL, dan kutipan verbatim. Jangan mencampur heading bahasa Inggris ke dalam temuan.",
+  "stubTitle": "Dosir stub: {question}",
+  "stubSummary": "Demo luring. Pencarian web tidak dijalankan. Keyakinan: rendah. Bukti tipis: dosir ini hanya pengganti agar Riset tetap menghasilkan keluaran saat runtime stub. Simpan kunci API Toko Token serta kunci Tavily atau Brave Search di Settings untuk meneliti pertanyaan dari halaman HTTPS.",
+  "stubFindingHeading": "Ini output stub, bukan temuan dari web",
+  "stubFindingBody": "DPSBuddy mengembalikan dosir ini karena runtime sedang stub. Dosir ini tidak mengutip halaman hidup untuk: {question}. Tempel kunci Toko Token dan kunci Tavily atau Brave di Settings, lalu hasilkan lagi.",
+  "stubSourceTitle": "Stub DPSBuddy",
+  "stubSourceNotes": "Sumber sintetis untuk demo luring. Bukan halaman yang dibaca.",
+  "stubContradiction": "Tidak ada ketidaksepakatan sumber — pencarian tidak dijalankan.",
+  "stubOpenQuestion": "Apa yang berubah setelah kunci gateway dan kunci pencarian disimpan?"
+}
