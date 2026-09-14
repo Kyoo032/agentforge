@@ -1,0 +1,134 @@
+{
+  "title": "Dokumen",
+  "subtitle": "Jelaskan memo, brief, atau laporan. {productName} menyusun bagian, menampilkan pratinjau, dan mengunduh DOCX.",
+  "download": "Unduh DOCX",
+  "building": "Menyusun…",
+  "emptyTitle": "Belum ada dokumen",
+  "emptyHint": "Masukkan topik di bawah, atau muat contoh jadi dan unduh DOCX tanpa pembuatan langsung.",
+  "placeholder": "Jelaskan dokumen…",
+  "topicAria": "Topik dokumen",
+  "generate": "Buat",
+  "generating": "Membuat…",
+  "previewKicker": "Dokumen",
+  "galleryTitle": "Mulai dari templat",
+  "galleryHint": "Klik kartu untuk memuat brief lengkap. Ganti detail sampel, lalu buat.",
+  "settings": "Settings",
+  "openSettingsLead": "Buka",
+  "outputTextLanguage": "Tulis setiap title, heading, dan body yang dilihat pengguna dalam Bahasa Indonesia (register profesional, sapaan Anda). Kunci JSON tetap bahasa Inggris. Jangan mencampur bahasa kecuali prompt pengguna sendiri mencampur.",
+  "errors": {
+    "generate": "Dokumen tidak dapat dibuat",
+    "regen": "Bagian itu tidak dapat dibuat ulang",
+    "docx": "File DOCX tidak dapat disusun",
+    "runtimeStub": "Pembuatan dokumen memerlukan gateway yang aktif. Tempel kunci API Toko Token di Settings, lalu coba lagi."
+  },
+  "source": {
+    "add": "Tambah materi sumber",
+    "label": "Materi sumber",
+    "from": "dari “{title}”",
+    "clear": "Hapus",
+    "placeholder": "Tempel dosier, analisis, atau catatan. Draf hanya memakai materi ini untuk fakta.",
+    "aria": "Materi sumber",
+    "chars": "{current} / {max} karakter",
+    "truncated": " — hanya bagian awal yang disimpan"
+  },
+  "regen": {
+    "action": "Buat ulang",
+    "busy": "Membuat ulang…",
+    "placeholder": "Opsional: apa yang harus diubah?",
+    "aria": "Instruksi buat ulang",
+    "attach": "Lampirkan",
+    "cancel": "Batal",
+    "submit": "Buat ulang",
+    "attachImagesOnly": "Lampirkan hanya gambar atau file teks",
+    "attachFailed": "File tidak dapat dilampirkan",
+    "uploadFailed": "Unggahan gagal"
+  },
+  "starters": {
+    "statusMemo": {
+      "label": "Memo status",
+      "description": "Memo mingguan jadi yang dapat Anda unduh sebagai DOCX dan tulis ulang.",
+      "title": "Checkout Northline — minggu berakhir 1 Sep",
+      "s1": {
+        "heading": "Yang saya butuhkan dari Anda",
+        "body": "Setujui tetap di gateway saat ini sampai perpanjangan 15 Okt. Saya akan menulis desain dual-run minggu ini; legal tidak akan meninjau vendor kedua sebelum itu.\n\nJika Anda ingin cutover penuh, sampaikan paling lambat Kamis. Jalur itu butuh slot legal yang belum kita miliki."
+      },
+      "s2": {
+        "heading": "Yang bergerak",
+        "body": "Anggaran error 2,1% dalam jendela 28 hari (target 1,0%). Dua timeout pada Kamis ada di gateway; kita punya jejak, belum nomor tiket vendor.\n\nEkspor Fieldnote mengirim outline JSON dan unduhan DOCX dari starter. Buat ulang bagian dengan lampiran masih terbuka — Jin memegangnya, terhambat tabrakan nama file ketika dua ekspor memakai judul yang sama."
+      },
+      "s3": {
+        "heading": "Yang tertunda",
+        "body": "Installer Windows terpaket masih build 31 Agu. Webdev sudah punya rel workspace-first; siapa pun di aplikasi terpasang tidak akan melihatnya sampai kita membangun NSIS ulang.\n\nSaya tidak mengukur waktu-ke-artefak-pertama minggu ini. Saya tidak akan berpura-pura punya angka."
+      },
+      "s4": {
+        "heading": "Risiko",
+        "body": "Kartu prompt hanya contoh satu baris. Pekerjaan Documents dan Presentation yang live terlihat tipis jika seseorang mengklik Buat tanpa menulis ulang. Brief templat adalah perbaikannya; itu belum ada di installer terakhir.\n\nTabrakan nama file akan mengenai orang pertama yang mengekspor dua kali dari judul yang sama."
+      },
+      "s5": {
+        "heading": "Tujuh hari ke depan",
+        "body": "Sen–Sel: draf desain dual-run (Sam). Rab: nama ekspor yang aman dari tabrakan (Jin). Kam: keputusan membangun ulang vs tetap memakai desktop:dev (Anda). Saya akan mengirim rekap enam baris Jumat, apakah rebuild terjadi atau tidak."
+      }
+    },
+    "onePager": {
+      "label": "Brief satu halaman",
+      "description": "Brief proyek yang dapat dijalankan — cakupan, urutan tiga minggu, dan satu permintaan.",
+      "title": "Ekspor Fieldnote — brief satu halaman",
+      "s1": {
+        "heading": "Hasil",
+        "body": "Pemilik dapat meninggalkan Dokumen dengan .docx yang cocok dengan draf di layar, tanpa membuka Word dulu. Sukses adalah 20 ekspor pertama selesai tanpa utas dukungan, dan p95 di bawah 8 detik di mesin ini."
+      },
+      "s2": {
+        "heading": "Untuk siapa",
+        "body": "Orang yang sudah menempel kunci gateway dan sedang bekerja nyata di Beranda. Mereka tidak mencari editor kolaboratif. Mereka ingin file yang dapat dikirim email atau disimpan di disk."
+      },
+      "s3": {
+        "heading": "Dalam cakupan / di luar cakupan",
+        "body": "Dalam: prompt → draf terstruktur → buat ulang bagian → unduh DOCX; nama file aman dari tabrakan; starter yang dapat diunduh luring.\n\nLuar: penyuntingan kolaboratif, komentar, sinkronisasi cloud, dan kata benda ruang kelas di kernel."
+      },
+      "s4": {
+        "heading": "Pendekatan dan risikonya",
+        "body": "Pertahankan bentuk draf JSON yang ada. Jangan membuat model dokumen kedua. Risikonya model mengembalikan heading kosong ketika prompt pengguna hanya satu baris — pustaka templat harus membawa audiens, hasil, dan skenario sampel agar system prompt punya bahan tulis."
+      },
+      "s5": {
+        "heading": "Urutan",
+        "body": "Minggu 1 (Jin): nama aman dari tabrakan dan starter jadi, bukan memo placeholder.\n\nMinggu 2 (Jin): buat ulang bagian dengan lampiran, diverifikasi di Beranda.\n\nMinggu 3 (Sam): satu generate live di meja ini dengan brief lengkap, lalu DOCX dibuka secara lokal. Jika p95 di atas 8 dtk, kita berhenti menambah fitur dan memperbaiki jalannya."
+      },
+      "s6": {
+        "heading": "Permintaan",
+        "body": "Pastikan yang di luar cakupan tetap di luar. Jika Anda ingin komentar atau sinkronisasi pada siklus ini, itu brief yang berbeda — sampaikan sekarang."
+      }
+    }
+  },
+  "templates": {
+    "decision-memo": {
+      "title": "Memo keputusan",
+      "prompt": "Tulis memo keputusan yang dapat disetujui direktur dalam satu kali baca. Ini memo jadi, bukan kerangka.\n\nPeran: kepala staf bagi operator.\nAudiens: orang yang akan memilih satu opsi hari ini.\nHasil: 5–7 bagian, 700–1000 kata. Paragraf pendek. Tanpa ringkasan eksekutif yang kosong.\n\nKonteks sampel (ganti bidang dalam kurung, pertahankan bentuknya):\n- Keputusan: apakah [Northline] [tetap membangun checkout di gateway saat ini] atau [memindahkan volume kuartal berikutnya ke penyedia kedua].\n- Mengapa sekarang: [perpanjangan dalam 6 minggu], [anggaran error 2,1%], [satu kesepakatan enterprise tertahan karena uptime].\n- Opsi: tetap; dual-run 90 hari; cutover penuh dalam 30 hari.\n- Batasan: [satu minggu-insinyur] dan [tidak ada tinjauan legal vendor baru bulan ini] kecuali kita memilih cutover penuh.\n\nBagian wajib:\n1. Keputusan dalam satu kalimat (sebut pilihannya).\n2. Konteks dan biaya menunda.\n3. Opsi dalam prosa (biaya, waktu, risiko, dapat dibalik — tandai yang belum diketahui, jangan menebak).\n4. Rekomendasi dan dua tradeoff yang kita terima.\n5. Apa yang akan diukur dalam 30 hari.\n6. Permintaan (siapa mengerjakan apa, kapan).\n\nStandar mutu: angka konkret dari sampel atau diberi tag [sample]. Tanpa “kita sebaiknya mempertimbangkan untuk menelusuri.” Tanpa “dalam lanskap hari ini.”\nJangan mengada-ada undang-undang, pelanggan, atau kutipan.",
+      "resultSummary": "Memo keputusan sekali baca dengan pilihan bernama, tradeoff, dan ukuran 30 hari — bukan heading kosong."
+    },
+    "project-one-pager": {
+      "title": "Satu halaman proyek",
+      "prompt": "Tulis brief proyek satu halaman yang dapat dijalankan rekan baru. Prosa jadi, bukan kerangka.\n\nPeran: ketua proyek.\nAudiens: orang yang mengerjakan dan orang yang mendanai.\nHasil: 6 bagian, sekitar 600–800 kata.\n\nKonteks sampel (ganti bidang dalam kurung):\n- Proyek: kirim [Fieldnote] [ekspor-ke-DOCX] agar [pemilik] dapat meninggalkan studio dengan file.\n- Jendela: [tiga minggu].\n- Sukses: [20 ekspor pertama] selesai tanpa utas dukungan; [p95 di bawah 8 dtk].\n- Di luar cakupan: [penyuntingan kolaboratif], [sinkronisasi cloud].\n\nBagian wajib:\n1. Hasil (satu paragraf, terukur).\n2. Untuk siapa dan pekerjaan yang mereka sewa.\n3. Dalam cakupan / di luar cakupan (dua daftar singkat).\n4. Pendekatan dan satu risiko teknis.\n5. Urutan (minggu 1 / 2 / 3) dengan pemilik bernama per minggu.\n6. Permintaan (keputusan atau sumber daya).\n\nStandar mutu: orang asing dapat melihat seperti apa “selesai”. Tanpa pernyataan misi. Tanpa jargon ruang kelas.\nJangan mengada-ada pos anggaran yang tidak ada di sampel.",
+      "resultSummary": "Satu halaman yang dapat dijalankan, dengan cakupan, urutan tiga minggu, dan permintaan yang jelas."
+    },
+    "design-rfc": {
+      "title": "RFC desain",
+      "prompt": "Susun RFC desain yang dapat diperdebatkan. Tulis argumennya, bukan daftar isi.\n\nPeran: insinyur yang mengusulkan perubahan.\nAudiens: dua peninjau yang akan menyetujui atau menolak.\nHasil: 7–8 bagian, 900–1300 kata.\n\nKonteks sampel (ganti bidang dalam kurung):\n- Perubahan: simpan [mode produk workspace] pada [baris workspace] alih-alih menyimpulkannya dari [agen kustom].\n- Masalah: [Beranda hanya menampilkan Chat + Agents] sampai seseorang membuat agen; studio pekerjaan tetap terkunci.\n- Batasan: jangan hapus [tabel agen]; Chat masih memakai agen [quick-chat] yang tersembunyi.\n\nBagian wajib:\n1. Ringkasan (apa yang berubah, apa yang tidak).\n2. Masalah dan siapa yang merasakannya.\n3. Usulan (data, jalur baca, jalur tulis).\n4. Alternatif yang dipertimbangkan (minimal dua, mengapa kalah).\n5. Peluncuran dan migrasi (null berarti semua mode kerja).\n6. Risiko dan cara kita mengetahuinya.\n7. Pertanyaan terbuka (yang nyata, bukan “TBD”).\n\nStandar mutu: peninjau dapat mengimplementasikan dari naskah ini. Sebut file atau tabel di sampel; jangan membuat skema kedua.\nJangan menulis “RFC ini mengusulkan untuk menelusuri.”",
+      "resultSummary": "RFC yang dapat distempel, dengan usulan nyata, dua alternatif yang ditolak, dan aturan migrasi."
+    },
+    "meeting-digest": {
+      "title": "Ringkasan rapat",
+      "prompt": "Ubah catatan di bawah menjadi ringkasan yang dapat ditindaklanjuti rekan yang absen. Buang obrolan. Pertahankan pemilik dan tanggal.\n\nPeran: orang yang memimpin rapat.\nAudiens: peserta plus dua orang yang tidak hadir.\nHasil: 4 bagian. Daftar rapat. Setiap tindakan punya pemilik dan tanggal.\n\nCatatan sampel (ganti dengan milik Anda, pertahankan kepadatan ini):\n- Checkout [Northline]: anggaran error [2,1%], [Sam] ingin dual-run, [Leah] bilang legal tidak akan meninjau vendor kedua bulan ini.\n- Ekspor [Fieldnote]: [minggu 2], [Jin] memegang DOCX; terhambat [tabrakan nama file].\n- Parkir: [warna dasbor penggunaan], [ganti nama produk].\n- Keputusan (sementara): tetap di gateway saat ini sampai [perpanjangan]; tulis desain dual-run minggu ini.\n\nBagian wajib:\n1. Keputusan (apa yang benar-benar diputuskan — jika sementara, sebutkan).\n2. Butir tindakan (pemilik + tanggal + langkah konkret pertama).\n3. Risiko / hambatan yang masih butuh orang.\n4. Parkir (satu baris masing-masing, tanpa esai).\n\nStandar mutu: jangan “tim akan menindaklanjuti.” Jika pemilik belum ada, tulis “[needs owner]”.\nJangan mengada-ada peserta yang tidak ada di catatan.",
+      "resultSummary": "Ringkasan tindakan dengan pemilik dan tanggal — bukan transkrip dengan heading yang lebih rapi."
+    },
+    "kickoff-agenda": {
+      "title": "Agenda kickoff",
+      "prompt": "Tulis agenda kickoff 45 menit yang dapat dijalankan orang lain tanpa Anda di ruangan.\n\nPeran: fasilitator.\nAudiens: ruangan campuran (ops + satu pengambil keputusan).\nHasil: blok berwaktu dengan hasil yang diinginkan per blok, plus satu paragraf tujuan di atas.\n\nKonteks sampel (ganti bidang dalam kurung):\n- Kickoff untuk [ekspor Fieldnote].\n- Ruangan: [Jin] (build), [Leah] (legal), [Sam] (ops), [Anda].\n- Harus selesai dengan: [cakupan terkunci], [pemilik minggu-1], [satu risiko yang akan kita awasi].\n\nBlok wajib (pertahankan waktu, tulis ulang promptnya):\n1. 0:00–0:05 Tujuan dan arti “selesai” pada siklus ini.\n2. 0:05–0:15 Konteks: siapa yang kesulitan hari ini, apa yang tidak akan kita bangun.\n3. 0:15–0:30 Urutan dan pemilik (minggu 1/2/3).\n4. 0:30–0:40 Risiko dan keputusan yang dibutuhkan hari ini.\n5. 0:40–0:45 Penutup, parkir, pemilik rekap tertulis.\n\nUntuk setiap blok: waktu, pemilik, pertanyaan yang harus dijawab ruangan, artefak yang mereka bawa pulang.\nStandar mutu: fasilitator pengganti dapat menjalankannya. Tanpa icebreaker. Tanpa “perkenalan jika ada waktu.”",
+      "resultSummary": "Agenda 45 menit siap jalan dengan hasil per blok — bukan daftar topik."
+    },
+    "handoff-pack": {
+      "title": "Paket serah terima",
+      "prompt": "Tulis serah terima yang dapat dipakai pemilik baru pada Senin tanpa panggilan.\n\nPeran: pemilik yang menyerahkan.\nAudiens: orang yang mengambil ini dari nol.\nHasil: 6 bagian, daftar centang jika membantu, paragraf pendek jika tidak.\n\nKonteks sampel (ganti bidang dalam kurung):\n- Menyerahkan [ekspor Fieldnote] dari [Jin] ke [Rafi].\n- Selesai: [outline JSON], [unduh DOCX dari starter].\n- Sedang dikerjakan: [buat ulang bagian dengan lampiran].\n- Kerusakan diketahui: [nama file tabrakan jika dua ekspor memakai judul yang sama].\n- Lokasinya: [apps/web/lib/document-generate.ts], [templat packages/core].\n\nBagian wajib:\n1. Ini apa (satu paragraf).\n2. Selesai (centang, bukti selesai).\n3. Sedang dikerjakan (seperti apa “baik” untuk masing-masing).\n4. Siapa memegang apa setelah hari ini.\n5. Risiko diketahui dan tempat pertama untuk memeriksa.\n6. Jalur, kredensial (tidak ada di repo), dan cara memverifikasi.\n\nStandar mutu: pemilik baru tidak perlu Slack. Tandai rahasia sebagai “di Settings / keychain,” jangan menempel kunci.\nJangan mengganti paket ini dengan “siap telepon jika perlu.”",
+      "resultSummary": "Serah terima siap Senin dengan jalur, risiko, dan bukti selesai — bukan paragraf perpisahan."
+    }
+  }
+}
