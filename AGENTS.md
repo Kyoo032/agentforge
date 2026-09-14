@@ -87,6 +87,7 @@ Desktop:
 - **`Kyoo032/agentforge` (private, this repo)** is where all work happens: source, branches, webdev, packing, and the full verify pass. Nothing leaves it until proven — staged into `host.cjs` + renderer, packed, installed, and driven on the packaged app (`doctor --desktop`).
 - **`Kyoo032/DPSBuddy` (public, "DPSBuddy")** is releases only: README + `DPSBuddy-Setup-<v>.exe` + `.blockmap` + `latest.yml`, published with `pnpm desktop:release` (never by hand, never `git push`). The packaged app's updater reads this repo unauthenticated. Never put source, flavor exes, `docs/internal/` notes, or any AI/agent marks there — release notes come from `docs/public/<version>-notes.md`, commits and releases are authored as Kyo, plain messages.
 - Order is fixed: work → verify inside agentforge → only when everything on the ship list is proven, cut the release into DPSBuddy.
+- **Pack/ship on this Windows desk:** [`.cursor/skills/pack-dpsbuddy`](.cursor/skills/pack-dpsbuddy/SKILL.md) (isolated NSIS worktree + Docker mac dmg). Cloud must not run it.
 - **Versioning (Kyo, 2026-09-07):** after 0.14.2 the next releases are `0.14.21`, `0.14.22`, … — do not use `0.14.3+` and do not bump to `0.15` until Kyo says so. Semver orders these correctly for the updater (21 > 2).
 
 **Packaged Windows installer exists** (rebuild on Windows after the IPC host rewrite). Cloud Linux must not run `pnpm desktop:build`.
