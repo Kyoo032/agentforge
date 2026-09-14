@@ -9,8 +9,9 @@ import { ExampleGallery } from "@/components/example-gallery";
 import { ModelSelect } from "@/components/model-select";
 import type { JobRegenSubmit } from "@/components/job-regen-panel";
 import { PresentationPreview } from "@/components/presentation-preview";
+import { getLocale, t } from "@/lib/i18n";
 import type { PresentationOutline } from "@/lib/presentation-outline";
-import { PRESENTATION_STARTERS } from "@/lib/job-starters";
+import { presentationStarters } from "@/lib/job-starters";
 import { useJobModel } from "@/lib/use-job-model";
 import { apiFetch } from "@/lib/api-client";
 import { useProductBrand } from "@/lib/product-brand";
@@ -63,12 +64,12 @@ export function PresentationsStudio() {
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        throw new Error(errorMessage(data, "Could not generate the presentation outline"));
+        throw new Error(errorMessage(data, t("presentation.generateError")));
       }
       setOutline(data as PresentationOutline);
     } catch (err) {
       setOutline(null);
-      setError(err instanceof Error ? err.message : "Could not generate the presentation outline");
+      setError(err instanceof Error ? err.message : t("presentation.generateError"));
     } finally {
       setBusy(null);
     }
@@ -97,11 +98,11 @@ export function PresentationsStudio() {
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        throw new Error(errorMessage(data, "Could not regenerate that slide"));
+        throw new Error(errorMessage(data, t("presentation.regenError")));
       }
       setOutline(data as PresentationOutline);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not regenerate that slide");
+      setError(err instanceof Error ? err.message : t("presentation.regenError"));
     } finally {
       setBusy(null);
       setRegenIndex(null);
@@ -122,7 +123,7 @@ export function PresentationsStudio() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        throw new Error(errorMessage(data, "Could not build the PPTX file"));
+        throw new Error(errorMessage(data, t("presentation.downloadError")));
       }
       const blob = await res.blob();
       const disposition = res.headers.get("Content-Disposition") ?? "";
@@ -135,7 +136,7 @@ export function PresentationsStudio() {
       anchor.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not build the PPTX file");
+      setError(err instanceof Error ? err.message : t("presentation.downloadError"));
     } finally {
       setBusy(null);
     }
@@ -145,9 +146,9 @@ export function PresentationsStudio() {
     <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-10 text-[var(--text)]" data-testid="presentations-studio">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">Presentation</h1>
+          <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("presentation.title")}</h1>
           <p className="mt-2 max-w-xl text-sm text-[var(--text-2)]">
-            Describe a topic. {productName} drafts an outline, shows an HTML preview, and downloads a PPTX.
+            {t("presentation.subtitle", { product: productName })}
           </p>
         </div>
         {outline ? (
@@ -158,7 +159,7 @@ export function PresentationsStudio() {
             className="wash inline-flex h-8 items-center rounded-pill bg-[var(--accent)] px-4 text-sm font-medium text-[var(--surface)] disabled:opacity-45"
             data-testid="presentations-download"
           >
-            {busy === "download" ? "Building…" : "Download PPTX"}
+            {busy === "download" ? t("presentation.building") : t("presentation.download")}
           </button>
         ) : null}
       </div>
@@ -173,9 +174,8 @@ export function PresentationsStudio() {
           {/gateway|api key|settings|runtime_stub|live gateway/i.test(error) && !/settings/i.test(error) ? (
             <>
               {" "}
-              Open{" "}
               <Link href="/settings" className="underline">
-                Settings
+                {t("presentation.openSettings")}
               </Link>
               .
             </>
@@ -196,12 +196,10 @@ export function PresentationsStudio() {
           />
         ) : (
           <div className="rounded-lg border border-[var(--line)] bg-[var(--surface)] px-4 py-10" data-testid="presentations-studio-empty">
-            <p className="text-center text-sm font-medium text-[var(--text)]">No deck yet</p>
-            <p className="mt-2 text-center text-sm text-[var(--text-2)]">
-              Enter a topic below, or load a starter and download a PPTX without a live generate.
-            </p>
+            <p className="text-center text-sm font-medium text-[var(--text)]">{t("presentation.emptyTitle")}</p>
+            <p className="mt-2 text-center text-sm text-[var(--text-2)]">{t("presentation.emptyBody")}</p>
             <div className="mx-auto mt-6 grid max-w-2xl gap-3 sm:grid-cols-2">
-              {PRESENTATION_STARTERS.map((starter) => (
+              {presentationStarters(getLocale()).map((starter) => (
                 <button
                   key={starter.id}
                   type="button"
@@ -256,10 +254,10 @@ export function PresentationsStudio() {
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
             className="min-w-0 flex-1 rounded-lg bg-transparent px-3 py-2 text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-3)]"
-            placeholder="Describe a presentation…"
+            placeholder={t("presentation.promptPlaceholder")}
             disabled={busy !== null}
             data-testid="presentations-prompt"
-            aria-label="Presentation topic"
+            aria-label={t("presentation.promptAria")}
           />
           <button
             type="submit"
@@ -267,7 +265,7 @@ export function PresentationsStudio() {
             disabled={busy !== null || !prompt.trim()}
             data-testid="presentations-generate"
           >
-            {busy === "generate" ? "Generating…" : "Generate"}
+            {busy === "generate" ? t("presentation.generating") : t("presentation.generate")}
           </button>
         </div>
       </form>

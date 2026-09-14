@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import type { ArtifactMode, ArtifactRecord, ArtifactSummary } from "@/lib/artifacts-client";
 import { getArtifact, listArtifacts } from "@/lib/artifacts-client";
+import { getLocale, t } from "@/lib/i18n";
+import { labeled } from "@/lib/ui-copy";
 
 type Props = {
   /** Restrict to one mode; omit for every saved artifact. */
@@ -13,28 +15,26 @@ type Props = {
   onPick: (artifact: ArtifactRecord) => void;
 };
 
-const MODE_LABEL: Record<ArtifactMode, string> = {
-  research: "Research",
-  data: "Data",
-  finance: "Finance",
-  market: "Market",
-  documents: "Documents",
-  presentations: "Presentation",
-  legal: "Legal",
-};
+function modeLabel(mode: ArtifactMode): string {
+  return labeled(`rail.${mode}`, mode);
+}
 
 function formatWhen(ms: number): string {
-  return new Date(ms).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+  return new Date(ms).toLocaleString(getLocale() === "id" ? "id-ID" : "en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
 }
 
 /** "Use a saved dossier / analysis…" dropdown. Loads the list on open, the body on pick. */
 export function ArtifactPicker({
   mode,
-  label = "Use a saved artifact…",
+  label,
   disabled = false,
   testId = "artifact-picker",
   onPick,
 }: Props) {
+  const buttonLabel = label ?? t("documents.source.picker");
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<ArtifactSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +86,7 @@ export function ArtifactPicker({
         aria-expanded={open}
         data-testid={`${testId}-toggle`}
       >
-        {label}
+        {buttonLabel}
       </button>
       {open ? (
         <div
@@ -94,9 +94,11 @@ export function ArtifactPicker({
           data-testid={`${testId}-panel`}
         >
           {error ? <p className="px-2 py-1 text-xs text-[var(--danger)]">{error}</p> : null}
-          {items === null && !error ? <p className="px-2 py-1 text-xs text-[var(--text-2)]">Loading…</p> : null}
+          {items === null && !error ? (
+            <p className="px-2 py-1 text-xs text-[var(--text-2)]">{t("common.loading")}</p>
+          ) : null}
           {items && items.length === 0 ? (
-            <p className="px-2 py-1 text-xs text-[var(--text-2)]">Nothing saved yet. Run Research first.</p>
+            <p className="px-2 py-1 text-xs text-[var(--text-2)]">{t("research.emptyTitle")}</p>
           ) : null}
           <ul className="max-h-64 overflow-y-auto">
             {(items ?? []).map((item) => (
@@ -110,7 +112,7 @@ export function ArtifactPicker({
                 >
                   <span className="block truncate font-medium text-[var(--text)]">{item.title}</span>
                   <span className="block text-xs text-[var(--text-3)]">
-                    {MODE_LABEL[item.mode]} · {item.kind} · {formatWhen(item.createdAt)}
+                    {modeLabel(item.mode)} · {item.kind} · {formatWhen(item.createdAt)}
                   </span>
                 </button>
               </li>

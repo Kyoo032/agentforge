@@ -5,6 +5,8 @@ import { FormattedText } from "@/components/formatted-text";
 import { KnowledgeGraphPanel } from "@/components/knowledge-graph-panel";
 import { KnowledgeLoop } from "@/components/knowledge-loop";
 import { ModelSelect } from "@/components/model-select";
+import { t } from "@/lib/i18n";
+import { labeled } from "@/lib/ui-copy";
 import { apiFetch } from "@/lib/api-client";
 import { useWorkspaceScope } from "@/lib/workspace-scope";
 
@@ -181,7 +183,7 @@ export function KnowledgePage() {
 
   useEffect(() => {
     void reload().catch((err: unknown) => {
-      setError(err instanceof Error ? err.message : "Could not load knowledge");
+      setError(err instanceof Error ? err.message : t("knowledge.errors.load"));
     });
   }, [workspaceId]);
 
@@ -197,7 +199,7 @@ export function KnowledgePage() {
     });
     const data = await res.json().catch(() => null);
     if (!res.ok) {
-      setError(data?.error?.message ?? "Could not save knowledge models");
+      setError(data?.error?.message ?? t("knowledge.errors.saveModels"));
     }
   }
 
@@ -211,12 +213,12 @@ export function KnowledgePage() {
       const res = await apiFetch("/api/v1/knowledge/map", { method: "POST" });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(data?.error?.message ?? "Could not map knowledge");
+        setError(data?.error?.message ?? t("knowledge.errors.map"));
         return;
       }
       setKnowledgeMap(data as KnowledgeMap);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not map knowledge");
+      setError(err instanceof Error ? err.message : t("knowledge.errors.map"));
     } finally {
       setMapping(false);
     }
@@ -235,7 +237,7 @@ export function KnowledgePage() {
     });
     const data = await res.json().catch(() => null);
     if (!res.ok) {
-      setError(data?.error?.message ?? "Could not add URL");
+      setError(data?.error?.message ?? t("knowledge.errors.addUrl"));
       return;
     }
     setUrlDraft("");
@@ -251,11 +253,11 @@ export function KnowledgePage() {
     const res = await apiFetch("/api/v1/knowledge/sources", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "Pasted notes", text }),
+      body: JSON.stringify({ name: t("knowledge.sources.pastedName"), text }),
     });
     const data = await res.json().catch(() => null);
     if (!res.ok) {
-      setError(data?.error?.message ?? "Could not add notes");
+      setError(data?.error?.message ?? t("knowledge.errors.addNotes"));
       return;
     }
     setPasteDraft("");
@@ -271,7 +273,7 @@ export function KnowledgePage() {
     });
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      setError(data?.error?.message ?? "Could not save soul");
+      setError(data?.error?.message ?? t("knowledge.errors.saveSoul"));
       return;
     }
     await reload();
@@ -295,23 +297,21 @@ export function KnowledgePage() {
     <main className="px-6 py-8 text-[var(--text)]" data-testid="knowledge-page">
       <div className="mb-5 flex flex-wrap items-end gap-4">
         <div>
-          <div className="kicker">{workspaceName} › Knowledge Base</div>
-          <h3 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">Knowledge Base</h3>
-          <p className="mt-1 text-[13px] text-[var(--text-2)]">
-            Soul, memory, and sources for the {workspaceName} desk. Other workspaces keep their own knowledge.
-          </p>
+          <div className="kicker">{t("knowledge.kicker", { name: workspaceName })}</div>
+          <h3 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("knowledge.title")}</h3>
+          <p className="mt-1 text-[13px] text-[var(--text-2)]">{t("knowledge.intro", { name: workspaceName })}</p>
         </div>
         <div className="seg ml-auto" data-testid="knowledge-tabs">
           {(["sources", "soul", "memory", "map"] as const).map((id) => (
             <button
               key={id}
               type="button"
-              className="seg-opt capitalize"
+              className="seg-opt"
               data-on={tab === id ? "true" : "false"}
               data-testid={`knowledge-tab-${id}`}
               onClick={() => setTab(id)}
             >
-              {id}
+              {t(`knowledge.tabs.${id}`)}
             </button>
           ))}
         </div>
@@ -319,10 +319,10 @@ export function KnowledgePage() {
       {error ? <p className="mb-4 text-sm text-red-700">{error}</p> : null}
 
       <section className="mb-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4" data-testid="knowledge-models">
-        <p className="panel-label">Models</p>
+        <p className="panel-label">{t("knowledge.models.label")}</p>
         <div className="mt-3 flex flex-wrap gap-3">
           <label className="flex min-w-[180px] flex-1 flex-col gap-1">
-            <span className="text-xs text-[var(--text-2)]">Embedding</span>
+            <span className="text-xs text-[var(--text-2)]">{t("knowledge.models.embedding")}</span>
             <ModelSelect
               models={embeddingModels}
               value={embeddingModel}
@@ -334,7 +334,7 @@ export function KnowledgePage() {
             />
           </label>
           <label className="flex min-w-[180px] flex-1 flex-col gap-1">
-            <span className="text-xs text-[var(--text-2)]">Brain</span>
+            <span className="text-xs text-[var(--text-2)]">{t("knowledge.models.brain")}</span>
             <ModelSelect
               models={chatModels}
               value={brainModel}
@@ -345,7 +345,7 @@ export function KnowledgePage() {
             />
           </label>
           <label className="flex min-w-[180px] flex-1 flex-col gap-1">
-            <span className="text-xs text-[var(--text-2)]">Verifier</span>
+            <span className="text-xs text-[var(--text-2)]">{t("knowledge.models.verifier")}</span>
             <ModelSelect
               models={chatModels}
               value={verifierModel}
@@ -367,7 +367,7 @@ export function KnowledgePage() {
             verified={verified}
             onRefresh={() =>
               reload().catch((err: unknown) => {
-                setError(err instanceof Error ? err.message : "Could not load knowledge");
+                setError(err instanceof Error ? err.message : t("knowledge.errors.load"));
               })
             }
           />
@@ -376,11 +376,11 @@ export function KnowledgePage() {
             counts={graphCounts}
           />
           <section className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-            <p className="panel-label">Add a source</p>
+            <p className="panel-label">{t("knowledge.sources.add")}</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <input
                 className="input min-w-[240px] flex-1"
-                placeholder="https://…"
+                placeholder={t("knowledge.sources.urlPlaceholder")}
                 value={urlDraft}
                 onChange={(event) => setUrlDraft(event.target.value)}
                 data-testid="knowledge-url"
@@ -391,13 +391,13 @@ export function KnowledgePage() {
                 onClick={() => void addUrl()}
                 data-testid="knowledge-add-url"
               >
-                Add URL
+                {t("knowledge.sources.addUrl")}
               </button>
             </div>
             <textarea
               className="input mt-3"
               rows={4}
-              placeholder="Paste notes…"
+              placeholder={t("knowledge.sources.pastePlaceholder")}
               value={pasteDraft}
               onChange={(event) => setPasteDraft(event.target.value)}
               data-testid="knowledge-paste"
@@ -409,10 +409,10 @@ export function KnowledgePage() {
                 onClick={() => void addPaste()}
                 data-testid="knowledge-add-paste"
               >
-                Index paste
+                {t("knowledge.sources.indexPaste")}
               </button>
               <label className="btn btn-secondary cursor-pointer">
-                Upload file
+                {t("knowledge.sources.uploadFile")}
                 <input
                   className="sr-only"
                   type="file"
@@ -431,7 +431,7 @@ export function KnowledgePage() {
                       const res = await apiFetch("/api/v1/knowledge/sources", { method: "POST", body: form });
                       const data = await res.json().catch(() => null);
                       if (!res.ok) {
-                        setError(data?.error?.message ?? "Could not index file");
+                        setError(data?.error?.message ?? t("knowledge.errors.indexFile"));
                         return;
                       }
                       await reload();
@@ -446,14 +446,16 @@ export function KnowledgePage() {
               <li key={row.id} className="flex items-center gap-3 px-4 py-3" data-testid="knowledge-source-row">
                 <span className="min-w-0 flex-1 truncate">{row.name}</span>
                 <span className="tag tag-neutral" data-testid="knowledge-source-type">
-                  {row.type}
+                  {labeled(`knowledge.sourceType.${row.type}`, row.type)}
                 </span>
-                <span className="text-xs">{row.chunks} chunks</span>
+                <span className="text-xs">
+                  {t(row.chunks === 1 ? "knowledge.sources.chunksOne" : "knowledge.sources.chunks", { count: row.chunks })}
+                </span>
                 <span
                   className={row.status === "Indexed" ? "tag tag-accent" : "tag tag-outline"}
                   title={row.status === "Failed" && row.error ? row.error : undefined}
                 >
-                  {row.status}
+                  {labeled(`knowledge.status.${row.status}`, row.status)}
                 </span>
                 <button
                   type="button"
@@ -462,7 +464,7 @@ export function KnowledgePage() {
                     void apiFetch(`/api/v1/knowledge/sources/${row.id}`, { method: "DELETE" }).then(() => reload())
                   }
                 >
-                  Remove
+                  {t("knowledge.sources.remove")}
                 </button>
               </li>
             ))}
@@ -472,21 +474,21 @@ export function KnowledgePage() {
 
       {tab === "soul" ? (
         <div className="flex flex-col gap-3" data-testid="knowledge-soul">
-          <label className="panel-label">Name</label>
+          <label className="panel-label">{t("knowledge.soul.name")}</label>
           <input
             className="input"
             value={soul.name}
             onChange={(event) => setSoul({ ...soul, name: event.target.value })}
             data-testid="knowledge-soul-name"
           />
-          <label className="panel-label">Role</label>
+          <label className="panel-label">{t("knowledge.soul.role")}</label>
           <input
             className="input"
             value={soul.role}
             onChange={(event) => setSoul({ ...soul, role: event.target.value })}
             data-testid="knowledge-soul-role"
           />
-          <label className="panel-label">Voice</label>
+          <label className="panel-label">{t("knowledge.soul.voice")}</label>
           <textarea
             className="input"
             rows={3}
@@ -504,7 +506,7 @@ export function KnowledgePage() {
               className="input flex-1"
               value={ruleDraft}
               onChange={(event) => setRuleDraft(event.target.value)}
-              placeholder="Add a rule"
+              placeholder={t("knowledge.soul.rulePlaceholder")}
             />
             <button
               type="button"
@@ -516,7 +518,7 @@ export function KnowledgePage() {
                 }
               }}
             >
-              Add rule
+              {t("knowledge.soul.addRule")}
             </button>
           </div>
           <button
@@ -525,7 +527,7 @@ export function KnowledgePage() {
             onClick={() => void saveSoul()}
             data-testid="knowledge-soul-save"
           >
-            Save soul
+            {t("knowledge.soul.save")}
           </button>
         </div>
       ) : null}
@@ -538,7 +540,7 @@ export function KnowledgePage() {
               value={memoryDraft}
               onChange={(event) => setMemoryDraft(event.target.value)}
               data-testid="knowledge-memory-input"
-              placeholder="Pin a memory"
+              placeholder={t("knowledge.memory.placeholder")}
             />
             <button
               type="button"
@@ -546,7 +548,7 @@ export function KnowledgePage() {
               onClick={() => void addMemory()}
               data-testid="knowledge-memory-add"
             >
-              Pin
+              {t("knowledge.memory.pin")}
             </button>
           </div>
           <ul>
@@ -557,7 +559,7 @@ export function KnowledgePage() {
                 data-testid="knowledge-memory-row"
               >
                 <span className="flex-1">{item.text}</span>
-                {item.pinned ? <span className="tag tag-accent">Pinned</span> : null}
+                {item.pinned ? <span className="tag tag-accent">{t("knowledge.memory.pinned")}</span> : null}
                 <button
                   type="button"
                   className="btn btn-ghost"
@@ -565,7 +567,7 @@ export function KnowledgePage() {
                     void apiFetch(`/api/v1/knowledge/memories/${item.id}`, { method: "DELETE" }).then(() => reload())
                   }
                 >
-                  Forget
+                  {t("knowledge.memory.forget")}
                 </button>
               </li>
             ))}
@@ -576,11 +578,8 @@ export function KnowledgePage() {
       {tab === "map" ? (
         <div className="flex flex-col gap-4" data-testid="knowledge-map-panel">
           <section className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-            <p className="panel-label">Map</p>
-            <p className="mt-2 text-[13px] text-[var(--text-2)]">
-              This desk memory is what Chat retrieves now. Job modes will call the same retrieve later. Map reviews
-              sources with your embedding, brain, and verifier models.
-            </p>
+            <p className="panel-label">{t("knowledge.map.label")}</p>
+            <p className="mt-2 text-[13px] text-[var(--text-2)]">{t("knowledge.map.intro")}</p>
             <button
               type="button"
               className="btn btn-primary mt-3 w-fit"
@@ -588,16 +587,18 @@ export function KnowledgePage() {
               onClick={() => void runMap()}
               data-testid="knowledge-map-run"
             >
-              {mapping ? "Mapping…" : "Map knowledge"}
+              {mapping ? t("knowledge.map.running") : t("knowledge.map.run")}
             </button>
           </section>
           {knowledgeMap ? (
             <section className="flex flex-col gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4" data-testid="knowledge-map">
               <div className="flex flex-wrap items-center gap-2">
                 <span className={knowledgeMap.ready ? "tag tag-accent" : "tag tag-outline"}>
-                  {knowledgeMap.ready ? "Ready" : "Not ready"}
+                  {knowledgeMap.ready ? t("knowledge.map.ready") : t("knowledge.map.notReady")}
                 </span>
-                <span className="tag tag-neutral">{knowledgeMap.source}</span>
+                <span className="tag tag-neutral">
+                  {knowledgeMap.source === "live" ? t("knowledge.map.sourceLive") : t("knowledge.map.sourceStub")}
+                </span>
               </div>
               <FormattedText text={knowledgeMap.overview} className="text-[14px]" />
               <ul className="flex flex-col gap-3">
@@ -605,7 +606,9 @@ export function KnowledgePage() {
                   <li key={`${topic.title}-${topic.verdict}`} className="border-t border-[var(--line)] pt-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{topic.title}</span>
-                      <span className={verdictTagClass(topic.verdict)}>{topic.verdict}</span>
+                      <span className={verdictTagClass(topic.verdict)}>
+                        {labeled(`knowledge.verdict.${topic.verdict}`, topic.verdict)}
+                      </span>
                     </div>
                     <FormattedText
                       text={topic.summary}
@@ -622,7 +625,7 @@ export function KnowledgePage() {
               </ul>
               {knowledgeMap.gaps.length > 0 ? (
                 <div>
-                  <p className="panel-label">Gaps</p>
+                  <p className="panel-label">{t("knowledge.map.gaps")}</p>
                   <ul className="mt-2 list-disc pl-5 text-[13px]">
                     {knowledgeMap.gaps.map((gap) => (
                       <li key={gap}>{gap}</li>

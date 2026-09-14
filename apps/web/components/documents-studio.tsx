@@ -10,7 +10,8 @@ import { ExampleGallery } from "@/components/example-gallery";
 import { ModelSelect } from "@/components/model-select";
 import type { JobRegenSubmit } from "@/components/job-regen-panel";
 import type { DocumentDraft } from "@/lib/document-outline";
-import { DOCUMENT_STARTERS } from "@/lib/job-starters";
+import { documentStarters } from "@/lib/job-starters";
+import { t } from "@/lib/i18n";
 import { useJobModel } from "@/lib/use-job-model";
 import { apiFetch } from "@/lib/api-client";
 import { useProductBrand } from "@/lib/product-brand";
@@ -67,12 +68,12 @@ export function DocumentsStudio() {
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        throw new Error(errorMessage(data, "Could not generate the document"));
+        throw new Error(errorMessage(data, t("documents.errors.generate")));
       }
       setDraft(data as DocumentDraft);
     } catch (err) {
       setDraft(null);
-      setError(err instanceof Error ? err.message : "Could not generate the document");
+      setError(err instanceof Error ? err.message : t("documents.errors.generate"));
     } finally {
       setBusy(null);
     }
@@ -101,11 +102,11 @@ export function DocumentsStudio() {
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        throw new Error(errorMessage(data, "Could not regenerate that section"));
+        throw new Error(errorMessage(data, t("documents.errors.regen")));
       }
       setDraft(data as DocumentDraft);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not regenerate that section");
+      setError(err instanceof Error ? err.message : t("documents.errors.regen"));
     } finally {
       setBusy(null);
       setRegenIndex(null);
@@ -126,7 +127,7 @@ export function DocumentsStudio() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        throw new Error(errorMessage(data, "Could not build the DOCX file"));
+        throw new Error(errorMessage(data, t("documents.errors.docx")));
       }
       const blob = await res.blob();
       const disposition = res.headers.get("Content-Disposition") ?? "";
@@ -139,7 +140,7 @@ export function DocumentsStudio() {
       anchor.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not build the DOCX file");
+      setError(err instanceof Error ? err.message : t("documents.errors.docx"));
     } finally {
       setBusy(null);
     }
@@ -149,9 +150,9 @@ export function DocumentsStudio() {
     <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-10 text-[var(--text)]" data-testid="documents-studio">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">Documents</h1>
+          <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("documents.title")}</h1>
           <p className="mt-2 max-w-xl text-sm text-[var(--text-2)]">
-            Describe a memo, brief, or report. {productName} drafts sections, shows a preview, and downloads a DOCX.
+            {t("documents.subtitle", { productName })}
           </p>
         </div>
         {draft ? (
@@ -162,7 +163,7 @@ export function DocumentsStudio() {
             className="wash inline-flex h-8 items-center rounded-pill bg-[var(--accent)] px-4 text-sm font-medium text-[var(--surface)] disabled:opacity-45"
             data-testid="documents-download"
           >
-            {busy === "download" ? "Building…" : "Download DOCX"}
+            {busy === "download" ? t("documents.building") : t("documents.download")}
           </button>
         ) : null}
       </div>
@@ -177,9 +178,9 @@ export function DocumentsStudio() {
           {/gateway|api key|settings|runtime_stub|live gateway/i.test(error) && !/settings/i.test(error) ? (
             <>
               {" "}
-              Open{" "}
+              {t("documents.openSettingsLead")}{" "}
               <Link href="/settings" className="underline">
-                Settings
+                {t("documents.settings")}
               </Link>
               .
             </>
@@ -200,12 +201,10 @@ export function DocumentsStudio() {
           />
         ) : (
           <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10" data-testid="documents-studio-empty">
-            <p className="text-center text-sm font-medium text-[var(--text)]">No document yet</p>
-            <p className="mt-2 text-center text-sm text-[var(--text-2)]">
-              Enter a topic below, or load a starter and download a DOCX without a live generate.
-            </p>
+            <p className="text-center text-sm font-medium text-[var(--text)]">{t("documents.emptyTitle")}</p>
+            <p className="mt-2 text-center text-sm text-[var(--text-2)]">{t("documents.emptyHint")}</p>
             <div className="mx-auto mt-6 grid max-w-2xl gap-3 sm:grid-cols-2">
-              {DOCUMENT_STARTERS.map((starter) => (
+              {documentStarters().map((starter) => (
                 <button
                   key={starter.id}
                   type="button"
@@ -260,10 +259,10 @@ export function DocumentsStudio() {
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
             className="min-w-0 flex-1 rounded-lg bg-transparent px-3 py-2 text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-3)]"
-            placeholder="Describe a document…"
+            placeholder={t("documents.placeholder")}
             disabled={busy !== null}
             data-testid="documents-prompt"
-            aria-label="Document topic"
+            aria-label={t("documents.topicAria")}
           />
           <button
             type="submit"
@@ -271,7 +270,7 @@ export function DocumentsStudio() {
             disabled={busy !== null || !prompt.trim()}
             data-testid="documents-generate"
           >
-            {busy === "generate" ? "Generating…" : "Generate"}
+            {busy === "generate" ? t("documents.generating") : t("documents.generate")}
           </button>
         </div>
       </form>

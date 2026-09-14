@@ -1,5 +1,6 @@
 {
   "title": "Keuangan",
+  "kicker": "Ruang kerja",
   "subtitle": "Berikan angka Anda kepada {productName} sebagai pos. Margin, pertumbuhan, runway, titik impas, dan NPV dihitung di kode; model hanya menulis narasi, dan setiap angka yang tidak dapat dilacak akan dihapus.",
   "download": "Unduh DOCX",
   "downloading": "Menyusun…",
@@ -21,7 +22,7 @@
   "cancel": "Batal",
   "generate": "Buat",
   "generating": "Memproses…",
-  "openSettings": "Buka",
+  "openSettings": "Buka {settings}.",
   "settingsLink": "Pengaturan",
   "params": {
     "discountRatePercent": "Tingkat diskonto %",

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { Link } from "@/lib/nav";
 import { ArtifactActions } from "@/components/artifact-actions";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { FinanceBriefView } from "@/components/finance-brief-view";
@@ -23,6 +22,9 @@ import {
 import { useJobModel } from "@/lib/use-job-model";
 import { useJobStream } from "@/lib/use-job-stream";
 import { useProductBrand } from "@/lib/product-brand";
+import { t } from "@/lib/i18n";
+import { labeled } from "@/lib/ui-copy";
+import { SettingsLinkHint } from "@/components/settings-link-hint";
 
 type Source = { kind: "items" } | { kind: "dataset"; id: string };
 
@@ -90,7 +92,7 @@ export function FinanceStudio() {
       setItems(parsed);
       setSource({ kind: "items" });
     } catch (err) {
-      setLocalError(err instanceof Error ? err.message : "Could not read those figures");
+      setLocalError(err instanceof Error ? err.message : t("finance.errors.parse"));
     } finally {
       setBusy(null);
     }
@@ -103,7 +105,7 @@ export function FinanceStudio() {
       return;
     }
     if (!ready) {
-      setLocalError("Add line items first: paste figures and parse them, add rows by hand, or pick a saved dataset.");
+      setLocalError(t("finance.errors.addItems"));
       return;
     }
     setLocalError(null);
@@ -138,12 +140,12 @@ export function FinanceStudio() {
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        throw new Error(errorMessage(data, "Could not rewrite that section"));
+        throw new Error(errorMessage(data, t("finance.errors.regen")));
       }
       // The saved artifact still holds the pre-rewrite brief; drop the id so downloads use the current markdown.
       setResult(data as FinanceResult);
     } catch (err) {
-      setLocalError(err instanceof Error ? err.message : "Could not rewrite that section");
+      setLocalError(err instanceof Error ? err.message : t("finance.errors.regen"));
     } finally {
       setBusy(null);
       setRegenIndex(null);
@@ -159,7 +161,7 @@ export function FinanceStudio() {
     try {
       await downloadFinanceDocx(result.brief);
     } catch (err) {
-      setLocalError(err instanceof Error ? err.message : "Could not build the DOCX file");
+      setLocalError(err instanceof Error ? err.message : t("finance.errors.docx"));
     } finally {
       setBusy(null);
     }
@@ -167,14 +169,11 @@ export function FinanceStudio() {
 
   return (
     <main className="px-6 pb-10 pt-8 text-[var(--text)]" data-testid="finance-studio">
-      <div className="kicker">Workspace</div>
+      <div className="kicker">{t("finance.kicker")}</div>
       <div className="mb-5 flex flex-wrap items-end gap-4">
         <div>
-          <h3 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">Finance</h3>
-          <p className="mt-1.5 max-w-xl text-sm text-[var(--text-2)]">
-            Give {productName} your figures as line items. Margins, growth, runway, breakeven, and NPV are computed in
-            code; the model only writes the narrative, and any figure it cannot trace is removed.
-          </p>
+          <h3 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("finance.title")}</h3>
+          <p className="mt-1.5 max-w-xl text-sm text-[var(--text-2)]">{t("finance.subtitle", { productName })}</p>
         </div>
         {result ? (
           <button
@@ -184,7 +183,7 @@ export function FinanceStudio() {
             className="btn btn-primary ml-auto"
             data-testid="finance-download"
           >
-            {busy === "download" ? "Building…" : "Download DOCX"}
+            {busy === "download" ? t("finance.downloading") : t("finance.download")}
           </button>
         ) : null}
       </div>
@@ -194,11 +193,7 @@ export function FinanceStudio() {
           {needsSettingsHint(error) && !/settings/i.test(error) ? (
             <>
               {" "}
-              Open{" "}
-              <Link href="/settings" className="underline">
-                Settings
-              </Link>
-              .
+              <SettingsLinkHint i18nKey="finance.openSettings" />
             </>
           ) : null}
         </p>
@@ -210,7 +205,7 @@ export function FinanceStudio() {
         >
           <div>
             <label htmlFor="finance-figures-input" className="panel-label">
-              Paste figures
+              {t("finance.pasteFigures")}
             </label>
             <textarea
               id="finance-figures-input"
@@ -218,7 +213,7 @@ export function FinanceStudio() {
               value={figures}
               onChange={(event) => setFigures(event.target.value)}
               className="input mt-2 text-[13px]"
-              placeholder="Revenue 2025: $120,000. Hosting $30,000. Payroll $100,000. Cash $90,000…"
+              placeholder={t("finance.figuresPlaceholder")}
               disabled={locked}
               data-testid="finance-figures-input"
             />
@@ -229,16 +224,14 @@ export function FinanceStudio() {
               disabled={locked || !figures.trim()}
               data-testid="finance-parse"
             >
-              {busy === "parse" ? "Reading…" : "Parse into line items"}
+              {busy === "parse" ? t("finance.parsing") : t("finance.parse")}
             </button>
-            <p className="mt-1 text-xs text-[var(--text-3)]">
-              Nothing is computed until you confirm the rows below.
-            </p>
+            <p className="mt-1 text-xs text-[var(--text-3)]">{t("finance.parseHint")}</p>
           </div>
           {datasets.length > 0 ? (
             <div>
               <label htmlFor="finance-dataset" className="panel-label">
-                Or use a saved dataset
+                {t("finance.orDataset")}
               </label>
               <select
                 id="finance-dataset"
@@ -250,10 +243,10 @@ export function FinanceStudio() {
                 disabled={locked}
                 data-testid="finance-dataset"
               >
-                <option value="">Line items below</option>
+                <option value="">{t("finance.lineItemsBelow")}</option>
                 {datasets.map((dataset) => (
                   <option key={dataset.id} value={dataset.id}>
-                    {dataset.name} ({dataset.rows} rows)
+                    {t("finance.datasetOption", { name: dataset.name, rows: dataset.rows })}
                   </option>
                 ))}
               </select>
@@ -261,8 +254,10 @@ export function FinanceStudio() {
           ) : null}
           <div>
             <p className="panel-label">
-              Line items{confirmedItems.length > 0 ? ` (${confirmedItems.length})` : ""}
-              {source.kind === "dataset" ? " — from the dataset" : ""}
+              {confirmedItems.length > 0
+                ? t("finance.lineItemsCount", { count: confirmedItems.length })
+                : t("finance.lineItems")}
+              {source.kind === "dataset" ? t("finance.fromDataset") : ""}
             </p>
             <div className="mt-2">
               <LineItemEditor
@@ -276,11 +271,15 @@ export function FinanceStudio() {
             </div>
           </div>
           <div>
-            <p className="panel-label">Parameters (optional)</p>
+            <p className="panel-label">{t("finance.parameters")}</p>
             <div className="mt-2 grid grid-cols-2 gap-2">
               {FINANCE_PARAM_FIELDS.map((field) => (
-                <label key={field.key} className="text-xs text-[var(--text-2)]" title={field.hint}>
-                  {field.label}
+                <label
+                  key={field.key}
+                  className="text-xs text-[var(--text-2)]"
+                  title={labeled(`finance.params.${field.key}Hint`, field.hint)}
+                >
+                  {labeled(`finance.params.${field.key}`, field.label)}
                   <input
                     type="number"
                     step="any"
@@ -329,11 +328,7 @@ export function FinanceStudio() {
               className="wash rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-8 text-center text-[var(--text-2)]"
               data-testid="finance-studio-empty"
             >
-              <p>
-                {ready
-                  ? "Describe the brief you need."
-                  : "Add figures, confirm the line items, then describe the brief."}
-              </p>
+              <p>{ready ? t("finance.emptyReady") : t("finance.emptyWait")}</p>
             </div>
           )}
         </div>
@@ -365,13 +360,13 @@ export function FinanceStudio() {
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
             className="input min-w-0 flex-1"
-            placeholder="Describe a finance brief… (cash plan, breakeven, exposure)"
+            placeholder={t("finance.promptPlaceholder")}
             disabled={locked}
             data-testid="finance-prompt"
           />
           {job.busy ? (
             <button type="button" className="btn" onClick={job.cancel} data-testid="finance-cancel">
-              Cancel
+              {t("finance.cancel")}
             </button>
           ) : null}
           <button
@@ -380,7 +375,7 @@ export function FinanceStudio() {
             disabled={locked || !prompt.trim()}
             data-testid="finance-generate"
           >
-            {job.busy ? "Working…" : "Generate"}
+            {job.busy ? t("finance.generating") : t("finance.generate")}
           </button>
         </div>
       </form>

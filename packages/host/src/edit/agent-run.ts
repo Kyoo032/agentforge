@@ -1,6 +1,7 @@
 import {
   ApiError,
   createRuntime,
+  editStubAssistantCopy,
   encodeSse,
   getTool,
   hasLiveProvider,
@@ -9,11 +10,13 @@ import {
   matchStubFillScenario,
   matchStubGenerateScenario,
   resolveRuntimeMode,
+  withOutputLanguage,
   type RuntimeEvent,
   type TenantContext,
 } from "@agentforge/core";
 import { rememberJobUsage } from "../job-usage";
 import { loadSettings } from "../settings-store";
+import { localeForRun } from "../run-context";
 import { ensureToolsRegistered } from "../register-tools";
 import { withEditToolContext } from "./context";
 import { foldProject } from "./ops";
@@ -161,7 +164,7 @@ export async function runEditAgent(input: {
               agentId: "edit",
               organizationId: input.tenant.organizationId,
               version: 1,
-              systemPrompt: compactPrompt(doc, budget.turnBudget),
+              systemPrompt: withOutputLanguage(compactPrompt(doc, budget.turnBudget), "edit", localeForRun()),
               model: "edit",
               inputModalities: ["text"],
               config: {},
@@ -201,12 +204,12 @@ async function runStub(
     matchStubFillScenario(input.text) ??
     matchStubGenerateScenario(input.text);
   if (!scenario) {
-    queue.push(encodeSse({ type: "assistant.delta", text: "I can help trim, split, caption, and title this timeline." }));
+    queue.push(encodeSse({ type: "assistant.delta", text: editStubAssistantCopy(localeForRun()).help }));
     queue.push(encodeSse({ type: "run.completed", runId }));
     return;
   }
   if (scenario.toolKey === "__undo__") {
-    queue.push(encodeSse({ type: "assistant.delta", text: "Undo is available on the last card." }));
+    queue.push(encodeSse({ type: "assistant.delta", text: editStubAssistantCopy(localeForRun()).undo }));
     queue.push(encodeSse({ type: "run.completed", runId }));
     return;
   }

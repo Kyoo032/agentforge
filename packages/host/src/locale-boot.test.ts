@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { getBootLocale, getSavedLocale, resetBootLocaleForTests } from "./locale-boot";
+import { getBootLocale, getSavedLocale, applySavedLocaleAsBoot, resetBootLocaleForTests } from "./locale-boot";
 import { saveOwnerLocale } from "./settings-store";
 
 const SECRET = "a".repeat(64);
@@ -43,5 +43,14 @@ describe("locale-boot", () => {
     expect(getSavedLocale()).toBe("en");
     expect(getBootLocale()).toBe("id");
     expect(process.env.AGENTFORGE_LOCALE).toBeUndefined();
+  });
+
+  it("Restart re-freezes boot locale from the saved value", () => {
+    saveOwnerLocale("en");
+    expect(getBootLocale()).toBe("en");
+    saveOwnerLocale("id");
+    expect(getBootLocale()).toBe("en");
+    expect(applySavedLocaleAsBoot()).toBe("id");
+    expect(getBootLocale()).toBe("id");
   });
 });

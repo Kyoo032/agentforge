@@ -1,10 +1,11 @@
 "use client";
 
-import { Link } from "@/lib/nav";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { ExampleGallery } from "@/components/example-gallery";
 import { ModelSelect } from "@/components/model-select";
+import { SettingsLinkHint } from "@/components/settings-link-hint";
+import { t } from "@/lib/i18n";
 import { apiFetch, mediaSrc } from "@/lib/api-client";
 import { useProductBrand } from "@/lib/product-brand";
 
@@ -33,18 +34,14 @@ type GalleryResponse = {
   ready: boolean;
 };
 
-const ASPECTS = [
-  { id: "square", label: "Square" },
-  { id: "landscape", label: "Landscape" },
-  { id: "portrait", label: "Portrait" },
-] as const;
+const ASPECTS = ["square", "landscape", "portrait"] as const;
 
 export function ImagesStudio() {
   const { gatewayName } = useProductBrand();
   const [items, setItems] = useState<GalleryItem[]>([]);
   const [models, setModels] = useState<StudioModel[]>([]);
   const [model, setModel] = useState("");
-  const [aspect, setAspect] = useState<(typeof ASPECTS)[number]["id"]>("square");
+  const [aspect, setAspect] = useState<(typeof ASPECTS)[number]>("square");
   const [prompt, setPrompt] = useState("");
   const [ready, setReady] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -60,7 +57,7 @@ export function ImagesStudio() {
         error?: { message?: string };
       };
       if (!response.ok) {
-        setError(data.error?.message ?? "Could not load image studio");
+        setError(data.error?.message ?? t("images.loadError"));
         setReady(false);
         return;
       }
@@ -69,7 +66,7 @@ export function ImagesStudio() {
       setModel(data.defaultModel || data.models?.[0]?.id || "");
       setReady(Boolean(data.ready));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load image studio");
+      setError(err instanceof Error ? err.message : t("images.loadError"));
       setReady(false);
     } finally {
       setLoading(false);
@@ -97,13 +94,13 @@ export function ImagesStudio() {
         error?: { message?: string };
       };
       if (!response.ok) {
-        setError(data.error?.message ?? "Image generation failed");
+        setError(data.error?.message ?? t("images.generateError"));
         return;
       }
       setPrompt("");
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Image generation failed");
+      setError(err instanceof Error ? err.message : t("images.generateError"));
     } finally {
       setGenerating(false);
     }
@@ -111,19 +108,15 @@ export function ImagesStudio() {
 
   return (
     <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-10 text-[var(--text)]" data-testid="images-studio">
-      <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">Images</h1>
-      <p className="mt-2 max-w-xl text-sm text-[var(--text-2)]">Prompt-to-image studio. Results show in the gallery below.</p>
+      <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("images.title")}</h1>
+      <p className="mt-2 max-w-xl text-sm text-[var(--text-2)]">{t("images.subtitle")}</p>
 
       {!ready && !loading ? (
         <div
           className="mt-6 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--text-2)]"
           data-testid="images-studio-needs-key"
         >
-          Add a {gatewayName} gateway key in{" "}
-          <Link href="/settings" className="underline">
-            Settings
-          </Link>{" "}
-          to generate images.
+          <SettingsLinkHint i18nKey="images.needsKey" vars={{ gateway: gatewayName }} />
         </div>
       ) : null}
 
@@ -148,13 +141,13 @@ export function ImagesStudio() {
           <select
             className="h-8 rounded-lg border border-[var(--line)] bg-transparent px-3 py-2 text-sm text-[var(--text)]"
             value={aspect}
-            onChange={(event) => setAspect(event.target.value as (typeof ASPECTS)[number]["id"])}
+            onChange={(event) => setAspect(event.target.value as (typeof ASPECTS)[number])}
             disabled={generating}
             data-testid="images-studio-aspect"
           >
-            {ASPECTS.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.label}
+            {ASPECTS.map((id) => (
+              <option key={id} value={id}>
+                {t(`images.aspect.${id}`)}
               </option>
             ))}
           </select>
@@ -172,7 +165,7 @@ export function ImagesStudio() {
           <input
             type="text"
             className="min-w-0 flex-1 h-8 rounded-lg border border-[var(--line)] bg-transparent px-3 py-2 text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-3)]"
-            placeholder="Describe an image…"
+            placeholder={t("images.promptPlaceholder")}
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
             disabled={generating}
@@ -184,28 +177,28 @@ export function ImagesStudio() {
             disabled={generating || !prompt.trim()}
             data-testid="images-studio-submit"
           >
-            {generating ? "Generating…" : "Generate"}
+            {generating ? t("images.generating") : t("images.generate")}
           </button>
         </div>
       </form>
 
       <section className="mt-8" data-testid="images-studio-gallery">
         {loading ? (
-          <p className="text-sm text-[var(--text-3)]">Loading gallery…</p>
+          <p className="text-sm text-[var(--text-3)]">{t("images.loadingGallery")}</p>
         ) : items.length === 0 ? (
           <div
             className="rounded-lg border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center"
             data-testid="images-studio-empty"
           >
-            <p className="text-sm font-medium text-[var(--text)]">Nothing here yet</p>
-            <p className="mt-2 text-sm text-[var(--text-2)]">Generate an image to populate this gallery.</p>
+            <p className="text-sm font-medium text-[var(--text)]">{t("images.emptyTitle")}</p>
+            <p className="mt-2 text-sm text-[var(--text-2)]">{t("images.emptyBody")}</p>
           </div>
         ) : (
           <ul className="grid gap-4 sm:grid-cols-2">
             {items.map((item) => (
               <li key={item.id} className="overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface)]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={mediaSrc(item.url)} alt={item.prompt || "Generated image"} className="aspect-square w-full object-cover" />
+                <img src={mediaSrc(item.url)} alt={item.prompt || t("images.generatedAlt")} className="aspect-square w-full object-cover" />
                 {item.prompt ? <p className="truncate px-3 py-2 text-xs text-[var(--text-2)]">{item.prompt}</p> : null}
               </li>
             ))}

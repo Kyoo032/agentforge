@@ -14,8 +14,6 @@
   "gatewayHeading": "{gatewayName} gateway",
   "gatewayHelp": "Paste your gateway API key for this desk. It never comes back after save.",
   "endpointLabel": "Endpoint URL",
-  "endpointHint": "HTTPS only. Plain http:// works for a local model server on 127.0.0.1.",
-  "endpointReset": "Use {gatewayName} ({host})",
   "keyLabel": "Gateway API key",
   "keyPlaceholderSaved": "Saved — paste to replace",
   "keyPlaceholderEmpty": "From your gateway dashboard",
@@ -25,5 +23,16 @@
   "save": "Save",
   "privacy": "Prompts leave this machine only over HTTPS to the saved endpoint. {productName} does not log prompts. Keys and threads are encrypted on disk. {gatewayName} retention is the gateway's policy.",
   "languageLabel": "Language",
-  "languageHelp": "Applies after you restart DPSBuddy. Chat and job modes follow this language."
+  "languageHelp": "Applies after you restart DPSBuddy. Chat and job modes follow this language.",
+  "endpointLocked": "This endpoint is fixed and cannot be changed.",
+  "gateway.status.ok": "Key verified",
+  "gateway.status.invalid_key": "Key rejected by gateway",
+  "gateway.status.unreachable": "Gateway unreachable",
+  "gateway.status.error": "Gateway error",
+  "gateway.status.needs_key": "No key saved",
+  "gateway.status.stub": "Offline demo",
+  "gateway.grace": "Working offline with a key verified on {date}.",
+  "gateway.recheck": "Re-check",
+  "gateway.lastChecked": "Last checked {date}",
+  "gateway.checkFailed": "Could not re-check the gateway right now. Try again in a moment."
 }

@@ -17,7 +17,13 @@ import { KnowledgePage } from "@/components/knowledge-page";
 import { WorkModeKeepAlive } from "@/components/work-mode-keep-alive";
 import { OnboardingScreen } from "@/components/onboarding-screen";
 import { isElectron } from "@/lib/api-client";
-import { freezeLocale, t } from "@/lib/i18n";
+import {
+  parseGatewayGate,
+  resolveGate,
+  type GatewayGatePayload,
+  type GateView,
+} from "@/lib/gateway-gate";
+import { applyLocale, freezeLocale, LOCALE_RESTART_EVENT, t } from "@/lib/i18n";
 import { useProductBrand } from "@/lib/product-brand";
 import { WorkspaceScope } from "@/lib/workspace-scope";
 
@@ -64,33 +70,41 @@ function Shell({ children }: { children: ReactNode }) {
 }
 
 export function App() {
-  const [gate, setGate] = useState<"loading" | "onboarding" | "app">("loading");
+  const [gate, setGate] = useState<GateView | "loading">("loading");
+  const [gateway, setGateway] = useState<GatewayGatePayload | null>(null);
+  const [localeEpoch, setLocaleEpoch] = useState(0);
   const { productName } = useProductBrand();
+
+  useEffect(() => {
+    const onRestart = () => setLocaleEpoch((n) => n + 1);
+    window.addEventListener(LOCALE_RESTART_EVENT, onRestart);
+    return () => window.removeEventListener(LOCALE_RESTART_EVENT, onRestart);
+  }, []);
 
   useEffect(() => {
     void apiFetch("/api/v1/settings")
       .then((res) => res.json())
       .then((payload) => {
-        freezeLocale(payload.locale);
-        if (!isElectron()) {
-          setGate("app");
-          return;
+        if (localeEpoch === 0) {
+          freezeLocale(payload.locale);
+        } else {
+          applyLocale(payload.locale);
         }
-        try {
-          if (window.localStorage.getItem("agentforge-offline-demo") === "1") {
-            setGate("app");
-            return;
-          }
-        } catch {
-          // private mode
-        }
-        setGate(payload.hasOpenai ? "app" : "onboarding");
+        // The host owns the decision. The renderer only renders it.
+        const reported = parseGatewayGate(payload?.gateway);
+        setGateway(reported);
+        setGate(resolveGate(reported, isElectron()));
       })
       .catch(() => {
-        freezeLocale("en");
-        setGate(isElectron() ? "onboarding" : "app");
+        if (localeEpoch === 0) {
+          freezeLocale("en");
+        } else {
+          applyLocale("en");
+        }
+        setGateway(null);
+        setGate("onboarding");
       });
-  }, []);
+  }, [localeEpoch]);
 
   if (gate === "loading") {
     return (
@@ -108,23 +122,11 @@ export function App() {
   }
 
   if (gate === "onboarding") {
-    return (
-      <OnboardingScreen
-        onDone={() => setGate("app")}
-        onOffline={() => {
-          try {
-            window.localStorage.setItem("agentforge-offline-demo", "1");
-          } catch {
-            // private mode
-          }
-          setGate("app");
-        }}
-      />
-    );
+    return <OnboardingScreen gateway={gateway} onDone={() => setGate("app")} />;
   }
 
   return (
-    <Shell>
+    <Shell key={localeEpoch}>
       <div className="relative h-full min-h-0 overflow-y-auto">
         <WorkModeKeepAlive />
         <Routes>

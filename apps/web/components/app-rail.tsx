@@ -8,6 +8,9 @@ import { AppUpdatesButton } from "@/components/app-updates";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { WorkspaceSwitcher } from "@/components/workspace-switcher";
 import { getRailCollapsed, setRailCollapsed } from "@/lib/rail-prefs";
+import { RAIL_WIDTH, RAIL_WIDTH_KEY } from "@/lib/panel-width";
+import { usePanelWidth } from "@/lib/use-panel-width";
+import { PanelResizeHandle } from "@/components/panel-resize-handle";
 import { useProductBrand } from "@/lib/product-brand";
 import { t } from "@/lib/i18n";
 import { productMonogram } from "@/components/app-shell";
@@ -204,6 +207,12 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
   const pathname = usePathname();
   const { productName, logoSrc } = useProductBrand();
   const [collapsed, setCollapsed] = useState(false);
+  const [railWidth, setRailWidth] = usePanelWidth(
+    RAIL_WIDTH_KEY,
+    RAIL_WIDTH.default,
+    RAIL_WIDTH.min,
+    RAIL_WIDTH.max,
+  );
   const modes = PRODUCT_MODES.filter((mode) => visibleModes.includes(mode.id));
   const homeHref = firstVisibleHref(visibleModes);
   const chatMode = modes.find((mode) => mode.id === "chat");
@@ -223,8 +232,8 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
 
   return (
     <aside
-      className="flex h-full shrink-0 flex-col overflow-hidden border-r border-[var(--line)] bg-[var(--surface)]"
-      style={{ width: collapsed ? 68 : "var(--sidebar)" }}
+      className="relative flex h-full shrink-0 flex-col overflow-hidden border-r border-[var(--line)] bg-[var(--surface)]"
+      style={{ width: collapsed ? RAIL_WIDTH.collapsed : railWidth }}
       aria-label={t("rail.aria")}
       data-rail={collapsed ? "min" : "full"}
     >
@@ -329,8 +338,8 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
         data-testid="rail-footer"
       >
         <ThemeToggle />
-        <div className={`flex items-center gap-2 ${collapsed ? "flex-col" : ""}`}>
-          <AppUpdatesButton />
+        <div className={`flex items-center gap-2 ${collapsed ? "flex-col" : "min-w-0 flex-1 justify-end"}`}>
+          <AppUpdatesButton collapsed={collapsed} />
           <button
             type="button"
             className="btn btn-ghost btn-icon h-8 w-8 shrink-0 wash"
@@ -354,6 +363,16 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
           </button>
         </div>
       </div>
+      {collapsed ? null : (
+        <PanelResizeHandle
+          width={railWidth}
+          min={RAIL_WIDTH.min}
+          max={RAIL_WIDTH.max}
+          onWidth={setRailWidth}
+          label={t("rail.resize")}
+          testId="rail-resize"
+        />
+      )}
     </aside>
   );
 }

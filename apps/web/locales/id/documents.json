@@ -12,19 +12,20 @@
   "previewKicker": "Dokumen",
   "galleryTitle": "Mulai dari templat",
   "galleryHint": "Klik kartu untuk memuat brief lengkap. Ganti detail sampel, lalu buat.",
-  "settings": "Settings",
+  "settings": "Pengaturan",
   "openSettingsLead": "Buka",
   "outputTextLanguage": "Tulis setiap title, heading, dan body yang dilihat pengguna dalam Bahasa Indonesia (register profesional, sapaan Anda). Kunci JSON tetap bahasa Inggris. Jangan mencampur bahasa kecuali prompt pengguna sendiri mencampur.",
   "errors": {
     "generate": "Dokumen tidak dapat dibuat",
     "regen": "Bagian itu tidak dapat dibuat ulang",
     "docx": "File DOCX tidak dapat disusun",
-    "runtimeStub": "Pembuatan dokumen memerlukan gateway yang aktif. Tempel kunci API Toko Token di Settings, lalu coba lagi."
+    "runtimeStub": "Pembuatan dokumen memerlukan gateway yang aktif. Tempel kunci API Toko Token di Pengaturan, lalu coba lagi."
   },
   "source": {
     "add": "Tambah materi sumber",
     "label": "Materi sumber",
     "from": "dari “{title}”",
+    "picker": "Gunakan artefak tersimpan…",
     "clear": "Hapus",
     "placeholder": "Tempel dosier, analisis, atau catatan. Draf hanya memakai materi ini untuk fakta.",
     "aria": "Materi sumber",

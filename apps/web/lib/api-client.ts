@@ -7,6 +7,7 @@ import {
   type IpcHostRequest,
   type IpcHostResponse,
 } from "./desktop-bridge";
+import { parseGatewayGate, type GatewayGatePayload } from "./gateway-gate";
 import { errorFromAbortSignal, onAbort, throwIfAborted } from "./ipc-abort";
 import { desktopMediaSrc } from "./media-src";
 
@@ -136,6 +137,16 @@ export async function apiFetch(input: string, init: RequestInit = {}): Promise<R
     status: result.status,
     headers: { "Content-Type": "text/event-stream; charset=utf-8" },
   });
+}
+
+/**
+ * Force a fresh gateway key check on the host.
+ * Returns `null` when the host reported no usable gate; callers must not open on that.
+ */
+export async function checkGateway(signal?: AbortSignal): Promise<GatewayGatePayload | null> {
+  const res = await apiFetch("/api/v1/settings/gateway/check", { method: "POST", signal });
+  const body = (await res.json().catch(() => null)) as { gateway?: unknown } | null;
+  return parseGatewayGate(body?.gateway);
 }
 
 export function mediaSrc(url: string): string {

@@ -15,7 +15,7 @@ import type { HostRequest, HostResult } from "../types";
 import { jsonError, jsonOk } from "../errors";
 import { getTenant } from "../tenant";
 import { loadSettings, saveOwnerLocale, saveSettings } from "../settings-store";
-import { localePayload } from "../locale-boot";
+import { applySavedLocaleAsBoot, localePayload } from "../locale-boot";
 import { refreshModelCache, modeCatalogPayload } from "../selectable-models";
 import { clearThisKeyCache, loadAccountUsage } from "../account-usage";
 import { probeSummary } from "../model-cache";
@@ -152,6 +152,16 @@ export async function handlePostSettings(request: HostRequest): Promise<HostResu
       modes: catalog.modes,
       defaults: catalog.defaults,
     });
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+export async function handleApplyLocale(request: HostRequest): Promise<HostResult> {
+  try {
+    const tenant = await getTenant(request.workspaceId);
+    applySavedLocaleAsBoot();
+    return jsonOk(await settingsPayload(loadSettings(tenant.workspaceId), tenant));
   } catch (error) {
     return jsonError(error);
   }

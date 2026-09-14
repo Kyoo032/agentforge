@@ -101,6 +101,7 @@ describe("mergeSecrets", () => {
 describe("maskSecrets", () => {
   it("never returns the raw key", () => {
     expect(maskSecrets({ openaiApiKey: "sk-secret" }).openaiBaseUrl).toBe(DEFAULT_OPENAI_BASE_URL);
+    // The endpoint is pinned: a stored value from an older build is never reported back.
     expect(maskSecrets({ openaiApiKey: "sk-secret", openaiBaseUrl: "https://api.openai.com/v1" })).toEqual({
       hasOpenai: true,
       hasGoogle: false,
@@ -110,7 +111,7 @@ describe("maskSecrets", () => {
       googleKeyFingerprint: null,
       anthropicKeyFingerprint: null,
       volcengineKeyFingerprint: null,
-      openaiBaseUrl: "https://api.openai.com/v1",
+      openaiBaseUrl: DEFAULT_OPENAI_BASE_URL,
       googleBaseUrl: undefined,
       anthropicBaseUrl: undefined,
       volcengineBaseUrl: undefined,
@@ -212,22 +213,24 @@ describe("resolveProviderKeys", () => {
     expect(keys.openaiBaseUrl).toBe("https://api.tokotokenai.com/v1");
   });
 
-  it("reuses the OpenAI-compatible field when auto-detect finds another dialect", () => {
+  it("reuses the OpenAI-compatible key when auto-detect finds another dialect", () => {
     const anthropic = resolveProviderKeys({ openaiApiKey: "sk-ant-test" }, {} as NodeJS.ProcessEnv);
     expect(anthropic.anthropic).toBe("sk-ant-test");
+  });
 
-    const ark = resolveProviderKeys(
-      { openaiApiKey: "ark-key", openaiBaseUrl: "https://ark.cn-beijing.volces.com/api/v3" },
-      {} as NodeJS.ProcessEnv,
+  it("ignores a stored endpoint and OPENAI_BASE_URL: the gateway is pinned", () => {
+    const keys = resolveProviderKeys(
+      { openaiApiKey: "sk-test", openaiBaseUrl: "https://ark.cn-beijing.volces.com/api/v3" },
+      { OPENAI_BASE_URL: "https://elsewhere.example/v1" } as NodeJS.ProcessEnv,
     );
-    expect(ark.volcengine).toBe("ark-key");
-    expect(ark.volcengineBaseUrl).toBe("https://ark.cn-beijing.volces.com/api/v3");
+    expect(keys.openaiBaseUrl).toBe(DEFAULT_OPENAI_BASE_URL);
+    expect(keys.volcengineBaseUrl).toBeUndefined();
   });
 });
 
 describe("hasLiveProvider", () => {
-  it("treats a custom endpoint as enough to leave stub mode", () => {
-    expect(hasLiveProvider({ openaiBaseUrl: "http://127.0.0.1:11434/v1" })).toBe(true);
+  it("needs a key: the pinned endpoint can no longer be re-pointed", () => {
+    expect(hasLiveProvider({ openaiBaseUrl: "http://127.0.0.1:11434/v1" })).toBe(false);
     expect(hasLiveProvider({ anthropicApiKey: "sk-ant-test" })).toBe(true);
     expect(hasLiveProvider({})).toBe(false);
     expect(hasLiveProvider({ openaiBaseUrl: DEFAULT_OPENAI_BASE_URL })).toBe(false);

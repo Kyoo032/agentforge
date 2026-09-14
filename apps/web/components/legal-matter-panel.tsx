@@ -12,6 +12,8 @@ import {
 } from "@/lib/legal-view";
 import { LegalFileList } from "@/components/legal-file-list";
 import { DIM, LegalPanel } from "@/components/legal-parts";
+import { t } from "@/lib/i18n";
+import { labeled } from "@/lib/ui-copy";
 
 type Props = {
   draft: LegalDraft;
@@ -45,14 +47,14 @@ export function LegalMatterPanel({
   const isOtherSide = draft.side.role !== "borrower" && draft.side.role !== "lender";
 
   return (
-    <LegalPanel label="Matter" testId="legal-matter-panel">
+    <LegalPanel label={t("legal.matter.panel")} testId="legal-matter-panel">
       <input
         value={draft.title}
         onChange={(event) => onDraft({ ...draft, title: event.target.value })}
         className="input mt-2"
-        placeholder="Matter title, e.g. Meridian credit agreement, turn 3"
+        placeholder={t("legal.matter.titlePlaceholder")}
         disabled={locked}
-        aria-label="Matter title"
+        aria-label={t("legal.matter.titleAria")}
         data-testid="legal-matter-title"
       />
       <LegalFileList
@@ -64,7 +66,7 @@ export function LegalMatterPanel({
         onRemove={onRemoveFile}
       />
 
-      <div className="panel-label mt-4">We act for</div>
+      <div className="panel-label mt-4">{t("legal.matter.weActFor")}</div>
       <div className="mt-1.5 flex flex-wrap items-center gap-2">
         <div className="seg" data-testid="legal-side">
           {SIDE_ROLE_OPTIONS.map((role) => (
@@ -77,7 +79,9 @@ export function LegalMatterPanel({
               disabled={locked}
               data-testid={`legal-side-${role}`}
             >
-              {role === "other" ? "Other…" : role.charAt(0).toUpperCase() + role.slice(1)}
+              {role === "other"
+                ? t("legal.matter.other")
+                : labeled(`legal.side.${role}`, role.charAt(0).toUpperCase() + role.slice(1))}
             </button>
           ))}
         </div>
@@ -85,9 +89,9 @@ export function LegalMatterPanel({
           value={draft.side.party}
           onChange={(event) => onDraft({ ...draft, side: { ...draft.side, party: event.target.value } })}
           className="input min-w-0 flex-1 px-2 py-1 text-[13px]"
-          placeholder="Client name as it should appear"
+          placeholder={t("legal.matter.clientPlaceholder")}
           disabled={locked}
-          aria-label="Client name"
+          aria-label={t("legal.matter.clientAria")}
           data-testid="legal-side-party"
         />
       </div>
@@ -99,9 +103,9 @@ export function LegalMatterPanel({
               onDraft({ ...draft, side: { ...draft.side, role: event.target.value.trim() || "other" } })
             }
             className="input px-2 py-1 text-[13px]"
-            placeholder="Position, e.g. buyer"
+            placeholder={t("legal.matter.positionPlaceholder")}
             disabled={locked}
-            aria-label="Position"
+            aria-label={t("legal.matter.positionAria")}
             data-testid="legal-side-role-other"
           />
         ) : null}
@@ -109,14 +113,14 @@ export function LegalMatterPanel({
           value={draft.side.counterparty}
           onChange={(event) => onDraft({ ...draft, side: { ...draft.side, counterparty: event.target.value } })}
           className="input px-2 py-1 text-[13px]"
-          placeholder="Counterparty label, e.g. the Lenders"
+          placeholder={t("legal.matter.counterpartyPlaceholder")}
           disabled={locked}
-          aria-label="Counterparty"
+          aria-label={t("legal.matter.counterpartyAria")}
           data-testid="legal-side-counterparty"
         />
       </div>
 
-      <div className="panel-label mt-4">Work</div>
+      <div className="panel-label mt-4">{t("legal.matter.work")}</div>
       <div className="seg mt-1.5" data-testid="legal-work-type">
         {LEGAL_WORK_TYPES.map((workType) => (
           <button
@@ -128,12 +132,12 @@ export function LegalMatterPanel({
             disabled={locked}
             data-testid={`legal-work-type-${workType}`}
           >
-            {WORK_TYPE_LABEL[workType]}
+            {labeled(`legal.workType.${workType}`, WORK_TYPE_LABEL[workType])}
           </button>
         ))}
       </div>
 
-      <div className="panel-label mt-4">Deliverables</div>
+      <div className="panel-label mt-4">{t("legal.matter.deliverables")}</div>
       <div className="mt-1 space-y-1">
         {DELIVERABLE_OPTIONS.map((option) => (
           <label key={option.kind} className={`flex items-center gap-2 text-[13px] ${option.available ? "" : DIM}`}>
@@ -144,23 +148,23 @@ export function LegalMatterPanel({
               disabled={locked || !option.available}
               data-testid={`legal-deliverable-${option.kind}`}
             />
-            {option.label}
+            {labeled(`legal.deliverable.${option.kind}`, option.label)}
             <span className="tag tag-neutral font-mono text-xs">{option.format}</span>
-            {option.available ? null : <span className="text-xs">not available in this version</span>}
+            {option.available ? null : <span className="text-xs">{t("legal.matter.unavailable")}</span>}
           </label>
         ))}
       </div>
 
-      <div className="panel-label mt-4">Playbook and checklist</div>
+      <div className="panel-label mt-4">{t("legal.matter.playbookHeading")}</div>
       <select
         className="input mt-1.5"
         value={draft.playbookId ?? ""}
         onChange={(event) => onDraft({ ...draft, playbookId: event.target.value || null })}
         disabled={locked}
-        aria-label="Playbook"
+        aria-label={t("legal.matter.playbookAria")}
         data-testid="legal-playbook"
       >
-        <option value="">No playbook · generic review</option>
+        <option value="">{t("legal.matter.noPlaybook")}</option>
         {playbooks.map((item) => (
           <option key={item.id} value={item.id}>
             {item.title}
@@ -169,51 +173,54 @@ export function LegalMatterPanel({
       </select>
       <p className={`mt-1 text-xs ${DIM}`}>
         {playbook
-          ? `${playbook.contractType || "Contract"} · checklist of ${playbook.itemCount} items`
-          : "Built-in playbooks, plus Knowledge Base sources of type Playbook."}
+          ? t("legal.matter.playbookMeta", {
+              type: playbook.contractType || t("legal.matter.contractFallback"),
+              count: playbook.itemCount,
+            })
+          : t("legal.matter.playbookHint")}
       </p>
 
-      <div className="panel-label mt-4">Memorandum header</div>
+      <div className="panel-label mt-4">{t("legal.matter.memoHeader")}</div>
       <div className="mt-1.5 grid grid-cols-3 gap-2">
         <input
           value={draft.author}
           onChange={(event) => onDraft({ ...draft, author: event.target.value })}
           className="input px-2 py-1 text-[13px]"
-          placeholder="From"
+          placeholder={t("legal.matter.fromPlaceholder")}
           disabled={locked}
-          aria-label="Author"
+          aria-label={t("legal.matter.fromAria")}
           data-testid="legal-author"
         />
         <input
           value={draft.addressee}
           onChange={(event) => onDraft({ ...draft, addressee: event.target.value })}
           className="input px-2 py-1 text-[13px]"
-          placeholder="To"
+          placeholder={t("legal.matter.toPlaceholder")}
           disabled={locked}
-          aria-label="Addressee"
+          aria-label={t("legal.matter.toAria")}
           data-testid="legal-addressee"
         />
         <input
           value={draft.firm}
           onChange={(event) => onDraft({ ...draft, firm: event.target.value })}
           className="input px-2 py-1 text-[13px]"
-          placeholder="Firm"
+          placeholder={t("legal.matter.firmPlaceholder")}
           disabled={locked}
-          aria-label="Firm"
+          aria-label={t("legal.matter.firmAria")}
           data-testid="legal-firm"
         />
       </div>
 
-      <div className="panel-label mt-4">Instructions</div>
+      <div className="panel-label mt-4">{t("legal.matter.instructions")}</div>
       <textarea
         rows={4}
         value={draft.instructions}
         onChange={(event) => onDraft({ ...draft, instructions: event.target.value })}
         maxLength={LEGAL_CAPS.maxInstructionChars}
         className="input mt-1.5 text-[13px]"
-        placeholder="What to compare against, which points to flag, and which points to reserve for the partner."
+        placeholder={t("legal.matter.instructionsPlaceholder")}
         disabled={locked}
-        aria-label="Instructions"
+        aria-label={t("legal.matter.instructionsAria")}
         data-testid="legal-instructions"
       />
     </LegalPanel>

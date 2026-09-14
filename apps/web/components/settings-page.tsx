@@ -3,9 +3,17 @@
 import { useEffect, useState } from "react";
 import { DEFAULT_GATEWAY_IMAGE_MODEL, DEFAULT_GATEWAY_VIDEO_MODEL } from "@agentforge/core/media-kind";
 import { UsagePanel, type AccountUsage } from "./usage-panel";
-import { apiFetch, relaunchDesktopApp } from "@/lib/api-client";
-import { t } from "@/lib/i18n";
-import { isAppLocale, parseAppLocale, type AppLocale } from "@agentforge/core";
+import { apiFetch, checkGateway, relaunchDesktopApp } from "@/lib/api-client";
+import {
+  formatGateTimestamp,
+  gatewayReasonKey,
+  gatewayStatusKey,
+  parseGatewayBlocked,
+  parseGatewayGate,
+  type GatewayGatePayload,
+} from "@/lib/gateway-gate";
+import { applyLocale, getLocale, LOCALE_RESTART_EVENT, t } from "@/lib/i18n";
+import { isAppLocale, parseAppLocale, type AppLocale } from "@agentforge/core/locale";
 import { gatewayHostLabel, useProductBrand } from "@/lib/product-brand";
 import { useWorkspaceScope } from "@/lib/workspace-scope";
 
@@ -24,13 +32,11 @@ type Probe = {
 const fieldClass =
   "mt-1 w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)]";
 
-function isCustomEndpoint(value: string, gatewayBaseUrl: string): boolean {
-  const trimmed = value.trim().replace(/\/+$/, "").toLowerCase();
-  return trimmed.length > 0 && trimmed !== gatewayBaseUrl.replace(/\/+$/, "").toLowerCase();
-}
+/** The pinned endpoint is text, not an input: the owner cannot change it. */
+const readOnlyFieldClass = `${fieldClass} break-all text-[var(--text-2)]`;
 
 function runtimeStatusLabel(mode: "ai" | "stub"): string {
-  return mode === "ai" ? "Live" : "Offline demo";
+  return mode === "ai" ? t("settings.runtimeLive") : t("settings.runtimeStub");
 }
 
 export function SettingsPage() {
@@ -46,7 +52,8 @@ export function SettingsPage() {
   const [googleApiKey, setGoogleApiKey] = useState("");
   const [anthropicApiKey, setAnthropicApiKey] = useState("");
   const [volcengineApiKey, setVolcengineApiKey] = useState("");
-  const [openaiBaseUrl, setOpenaiBaseUrl] = useState("");
+  const [gateway, setGateway] = useState<GatewayGatePayload | null>(null);
+  const [gatewayBusy, setGatewayBusy] = useState(false);
   const [googleBaseUrl, setGoogleBaseUrl] = useState("");
   const [anthropicBaseUrl, setAnthropicBaseUrl] = useState("");
   const [volcengineBaseUrl, setVolcengineBaseUrl] = useState("");
@@ -69,6 +76,12 @@ export function SettingsPage() {
   const [usage, setUsage] = useState<AccountUsage | null>(null);
   const [locale, setLocale] = useState<AppLocale>("en");
   const [savedLocale, setSavedLocale] = useState<AppLocale>("en");
+  const [localeBusy, setLocaleBusy] = useState(false);
+
+  const gatewayEndpoint = gateway?.endpoint ?? gatewayBaseUrl;
+  const gatewayCheckedAt = formatGateTimestamp(gateway?.checkedAt, getLocale(), true);
+  const gatewayLastOkAt = formatGateTimestamp(gateway?.lastOkAt, getLocale());
+  const gatewayReason = gatewayReasonKey(gateway?.status);
 
   function applyPayload(payload: {
     hasOpenai?: boolean;
@@ -77,7 +90,7 @@ export function SettingsPage() {
     hasVolcengine?: boolean;
     openaiKeyFingerprint?: string | null;
     runtime?: string;
-    openaiBaseUrl?: string;
+    gateway?: unknown;
     googleBaseUrl?: string;
     anthropicBaseUrl?: string;
     volcengineBaseUrl?: string;
@@ -112,7 +125,7 @@ export function SettingsPage() {
         : null,
     );
     setRuntime(payload.runtime === "ai" ? "ai" : "stub");
-    setOpenaiBaseUrl(typeof payload.openaiBaseUrl === "string" ? payload.openaiBaseUrl : "");
+    setGateway(parseGatewayGate(payload.gateway));
     setGoogleBaseUrl(typeof payload.googleBaseUrl === "string" ? payload.googleBaseUrl : "");
     setAnthropicBaseUrl(typeof payload.anthropicBaseUrl === "string" ? payload.anthropicBaseUrl : "");
     setVolcengineBaseUrl(typeof payload.volcengineBaseUrl === "string" ? payload.volcengineBaseUrl : "");
@@ -170,16 +183,21 @@ export function SettingsPage() {
     setError(null);
     setMessage(null);
     setBusy(true);
+    // The endpoint is pinned by the host; never send it back.
     const saved = await apiFetch("/api/v1/settings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         openaiApiKey,
-        openaiBaseUrl,
         editTurnCapUsd,
       }),
     }).then((res) => res.json());
     setBusy(false);
+    const blocked = parseGatewayBlocked(saved);
+    if (blocked) {
+      setError(t(gatewayReasonKey(blocked.status) ?? "onboarding.gate.error", { gatewayName }));
+      return;
+    }
     if (saved.error) {
       setError(saved.error.message);
       return;
@@ -213,11 +231,44 @@ export function SettingsPage() {
     applyPayload(saved);
   }
 
-  function onRestart() {
-    if (relaunchDesktopApp()) {
-      return;
+  async function onRecheckGateway() {
+    setError(null);
+    setMessage(null);
+    setGatewayBusy(true);
+    try {
+      const next = await checkGateway();
+      if (next) {
+        setGateway(next);
+      } else {
+        setError(t("settings.gateway.checkFailed"));
+      }
+    } catch {
+      setError(t("settings.gateway.checkFailed"));
+    } finally {
+      setGatewayBusy(false);
     }
-    window.location.reload();
+  }
+
+  async function onRestart() {
+    setError(null);
+    setLocaleBusy(true);
+    try {
+      const applied = await apiFetch("/api/v1/settings/apply-locale", { method: "POST" }).then((res) =>
+        res.json(),
+      );
+      if (applied.error) {
+        setError(applied.error.message);
+        return;
+      }
+      applyPayload(applied);
+      applyLocale(applied.locale);
+      if (relaunchDesktopApp()) {
+        return;
+      }
+      window.dispatchEvent(new Event(LOCALE_RESTART_EVENT));
+    } finally {
+      setLocaleBusy(false);
+    }
   }
 
   return (
@@ -228,18 +279,24 @@ export function SettingsPage() {
         {t("settings.intro", {
           workspaceName,
           gatewayName,
-          gatewayHost: gatewayHostLabel(openaiBaseUrl || gatewayBaseUrl),
+          gatewayHost: gatewayHostLabel(gatewayEndpoint),
         })}
       </p>
 
       <p className="mt-3 text-sm text-[var(--text-3)]" data-testid="runtime-status">
-        Status: {runtimeStatusLabel(runtime)}
-        {hasOpenai ? " · Gateway key saved" : ""}
-        {hasAnthropic ? " · Anthropic key saved" : ""}
-        {hasGoogle ? " · Google key saved" : ""}
-        {hasVolcengine ? " · Volcengine key saved" : ""}
-        {probe?.detectedDialect ? ` · detected ${probe.detectedDialect}` : ""}
-        {!hasOpenai && !hasGoogle && !hasAnthropic && !hasVolcengine ? " · no keys yet" : ""}
+        {t("settings.status", {
+          details: [
+            runtimeStatusLabel(runtime),
+            hasOpenai ? t("settings.keyGateway") : null,
+            hasAnthropic ? t("settings.keyAnthropic") : null,
+            hasGoogle ? t("settings.keyGoogle") : null,
+            hasVolcengine ? t("settings.keyVolcengine") : null,
+            probe?.detectedDialect ? t("settings.detected", { dialect: probe.detectedDialect }) : null,
+            !hasOpenai && !hasGoogle && !hasAnthropic && !hasVolcengine ? t("settings.noKeys") : null,
+          ]
+            .filter(Boolean)
+            .join(" · "),
+        })}
       </p>
 
       <section className="mt-6 space-y-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
@@ -263,7 +320,8 @@ export function SettingsPage() {
               type="button"
               className="btn btn-primary"
               data-testid="settings-locale-restart-button"
-              onClick={onRestart}
+              onClick={() => void onRestart()}
+              disabled={localeBusy}
             >
               {t("common.restartApp")}
             </button>
@@ -274,52 +332,56 @@ export function SettingsPage() {
       <form onSubmit={(event) => void onSubmit(event)} className="mt-6 space-y-6" data-testid="settings-form">
         <section className="space-y-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <div>
-            <h2 className="font-medium text-[var(--text)]">{gatewayName} gateway</h2>
-            <p className="mt-1 text-xs text-[var(--text-3)]">
-              Paste your gateway API key for this desk. It never comes back after save.
+            <h2 className="font-medium text-[var(--text)]">{t("settings.gatewayHeading", { gatewayName })}</h2>
+            <p className="mt-1 text-xs text-[var(--text-3)]">{t("settings.gatewayHelp")}</p>
+          </div>
+          <div className="block text-sm text-[var(--text)]">
+            {t("settings.endpointLabel")}
+            <p className={readOnlyFieldClass} data-testid="settings-endpoint">
+              {gatewayEndpoint}
             </p>
           </div>
-          <label className="block text-sm text-[var(--text)]">
-            Endpoint URL
-            <input
-              className={fieldClass}
-              type="text"
-              inputMode="url"
-              autoComplete="off"
-              spellCheck={false}
-              placeholder={gatewayBaseUrl}
-              value={openaiBaseUrl}
-              onChange={(event) => setOpenaiBaseUrl(event.target.value)}
-              data-testid="settings-endpoint"
-            />
-          </label>
-          <div className="-mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--text-3)]">
-            <span>HTTPS only. Plain http:// works for a local model server on 127.0.0.1.</span>
-            {isCustomEndpoint(openaiBaseUrl, gatewayBaseUrl) ? (
-              <button
-                type="button"
-                className="underline underline-offset-2 hover:text-[var(--text)]"
-                onClick={() => setOpenaiBaseUrl(gatewayBaseUrl)}
-                data-testid="settings-endpoint-reset"
-              >
-                Use {gatewayName} ({gatewayHostLabel(gatewayBaseUrl)})
-              </button>
-            ) : null}
+          <p className="-mt-2 text-xs text-[var(--text-3)]">{t("settings.endpointLocked")}</p>
+          <div
+            className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--text-3)]"
+            data-testid="settings-gateway-status"
+          >
+            {gateway ? <span>{t(gatewayStatusKey(gateway.status))}</span> : null}
+            {gatewayCheckedAt ? <span>{t("settings.gateway.lastChecked", { date: gatewayCheckedAt })}</span> : null}
+            <button
+              type="button"
+              className="underline underline-offset-2 hover:text-[var(--text)] disabled:opacity-50"
+              onClick={() => void onRecheckGateway()}
+              disabled={gatewayBusy}
+              data-testid="settings-gateway-recheck"
+            >
+              {t("settings.gateway.recheck")}
+            </button>
           </div>
+          {gateway?.grace && gatewayLastOkAt ? (
+            <p className="-mt-2 text-xs text-[var(--text-2)]" data-testid="settings-gateway-grace">
+              {t("settings.gateway.grace", { date: gatewayLastOkAt })}
+            </p>
+          ) : null}
+          {gatewayReason ? (
+            <p className="-mt-2 text-sm text-[var(--danger)]" data-testid="settings-gateway-reason">
+              {t(gatewayReason, { gatewayName })}
+            </p>
+          ) : null}
           <label className="block text-sm text-[var(--text)]">
-            Gateway API key
+            {t("settings.keyLabel")}
             <input
               className={fieldClass}
               type="password"
               autoComplete="off"
-              placeholder={hasOpenai ? "Saved — paste to replace" : "From your gateway dashboard"}
+              placeholder={hasOpenai ? t("settings.keyPlaceholderSaved") : t("settings.keyPlaceholderEmpty")}
               value={openaiApiKey}
               onChange={(event) => setOpenaiApiKey(event.target.value)}
               data-testid="openai-key"
             />
           </label>
           <label className="block text-sm text-[var(--text)]">
-            Edit turn spend cap (USD)
+            {t("settings.editCapLabel")}
             <input
               className={fieldClass}
               type="number"
@@ -339,7 +401,7 @@ export function SettingsPage() {
           </label>
           {hasOpenai && openaiKeyFingerprint ? (
             <p className="mt-1 text-xs text-[var(--text-3)]" data-testid="key-fingerprint">
-              Saved key fingerprint {openaiKeyFingerprint}
+              {t("settings.fingerprint", { fingerprint: openaiKeyFingerprint })}
             </p>
           ) : null}
           {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
@@ -352,14 +414,13 @@ export function SettingsPage() {
               data-testid="save-settings"
               disabled={busy}
             >
-              Save
+              {t("settings.save")}
             </button>
           </div>
         </section>
 
         <p className="text-sm text-[var(--text-3)]" data-testid="privacy-note">
-          Prompts leave this machine only over HTTPS to the saved endpoint. {productName} does not log prompts. Keys and
-          threads are encrypted on disk. {gatewayName} retention is the gateway&apos;s policy.
+          {t("settings.privacy", { productName, gatewayName })}
         </p>
       </form>
     </main>

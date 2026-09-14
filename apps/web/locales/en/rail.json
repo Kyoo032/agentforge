@@ -20,5 +20,15 @@
   "usage": "Usage",
   "settings": "Settings",
   "expand": "Expand navigation",
-  "collapse": "Collapse navigation"
+  "collapse": "Collapse navigation",
+  "resize": "Resize navigation",
+  "updates": {
+    "panel": "Updates",
+    "ctaAvailable": "Update available",
+    "ctaReady": "Restart to update",
+    "ctaDownloading": "Downloading…",
+    "install": "Update and restart",
+    "check": "Check for updates",
+    "close": "Close"
+  }
 }

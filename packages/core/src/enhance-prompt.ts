@@ -34,25 +34,42 @@ const SURFACE_ROLE: Record<EnhanceSurface, string> = {
   videos: "a Videos studio that generates clips from a prompt",
 };
 
-const STUB_SUFFIX: Record<EnhanceSurface, string> = {
-  chat: "State the goal, constraints, and the output you want.",
-  documents: "Name the audience, the sections you need, and the decision the draft should support.",
-  research: "Name the claim to check, which sources count, and the output shape.",
-  finance: "Use only the figures already given. Do not invent numbers. State the decision.",
-  data: "Name the columns that matter, the check to run, and the output table or list.",
-  market:
-    "Name the ticker and what you want to understand from the filings, prices, and headlines. Do not ask for a recommendation.",
-  legal:
-    "Name the client's position, the documents that govern, the points reserved for a partner, and the deliverables.",
-  presentations:
-    "Name the audience, the decision, slide count, and the one ask on the last slide. Write slide titles as claims, not labels like Overview or Agenda.",
-  images: "Name subject, framing, and what must stay out of the frame.",
-  videos: "Name subject, motion, duration, and what must stay out of frame.",
+const STUB_SUFFIX: Record<AppLocale, Record<EnhanceSurface, string>> = {
+  en: {
+    chat: "State the goal, constraints, and the output you want.",
+    documents: "Name the audience, the sections you need, and the decision the draft should support.",
+    research: "Name the claim to check, which sources count, and the output shape.",
+    finance: "Use only the figures already given. Do not invent numbers. State the decision.",
+    data: "Name the columns that matter, the check to run, and the output table or list.",
+    market:
+      "Name the ticker and what you want to understand from the filings, prices, and headlines. Do not ask for a recommendation.",
+    legal:
+      "Name the client's position, the documents that govern, the points reserved for a partner, and the deliverables.",
+    presentations:
+      "Name the audience, the decision, slide count, and the one ask on the last slide. Write slide titles as claims, not labels like Overview or Agenda.",
+    images: "Name subject, framing, and what must stay out of the frame.",
+    videos: "Name subject, motion, duration, and what must stay out of frame.",
+  },
+  id: {
+    chat: "Nyatakan tujuan, batasan, dan keluaran yang Anda inginkan.",
+    documents: "Sebutkan audiens, bagian yang Anda butuhkan, dan keputusan yang harus didukung draf.",
+    research: "Sebutkan klaim yang dicek, sumber mana yang dihitung, dan bentuk keluaran.",
+    finance: "Pakai hanya angka yang sudah diberikan. Jangan mengarang angka. Nyatakan keputusannya.",
+    data: "Sebutkan kolom yang penting, pemeriksaan yang dijalankan, dan tabel atau daftar keluaran.",
+    market:
+      "Sebutkan ticker dan apa yang ingin Anda pahami dari laporan, harga, dan berita. Jangan minta rekomendasi.",
+    legal:
+      "Sebutkan posisi klien, dokumen yang mengatur, poin yang dicadangkan untuk mitra, dan hasil kerja.",
+    presentations:
+      "Sebutkan audiens, keputusan, jumlah slide, dan satu permintaan di slide terakhir. Tulis judul slide sebagai klaim, bukan label seperti Overview atau Agenda.",
+    images: "Sebutkan subjek, framing, dan apa yang harus tetap di luar bingkai.",
+    videos: "Sebutkan subjek, gerak, durasi, dan apa yang harus tetap di luar bingkai.",
+  },
 };
 
 export function enhanceSystemPrompt(surface: EnhanceSurface, locale: AppLocale = "en"): string {
   const localeRule =
-    surface === "chat" && locale === "id"
+    locale === "id"
       ? "The product locale is Bahasa Indonesia. Write the enhanced prompt in Bahasa Indonesia. Keep brand names DPSBuddy, Toko Token, and TokenKu unchanged."
       : "Language matching is the highest priority - You MUST strictly respond in the exact same language as the user's input. If the user writes in Chinese, respond in Chinese; if the user writes in English, respond in English; if the user uses another language, respond in that same language. Do not mix languages unless the user's input itself mixes languages.";
   return `You are a Prompt Engineering Expert specializing in improving user prompts for DPSBuddy, a local Toko Token client (${SURFACE_ROLE[surface]}). When given a prompt, analyze and enhance it to create a more effective version while maintaining its core purpose.
@@ -95,7 +112,21 @@ FORMAT:
 Provide only the enhanced prompt with no additional commentary.`;
 }
 
-export function enhanceUserPrompt(input: string): string {
+export function enhanceUserPrompt(input: string, locale: AppLocale = "en"): string {
+  const languageBlock =
+    locale === "id"
+      ? `CRITICAL PRIORITY - LANGUAGE:
+1. The product locale is Bahasa Indonesia. Write the enhanced prompt entirely in Bahasa Indonesia.
+2. Keep brand names DPSBuddy, Toko Token, and TokenKu unchanged.
+3. Keep JSON keys, tickers, SQL, and verbatim quotes in their source form.
+4. These language rules are behavior instructions only; never include language analysis or language labels in the output.`
+      : `CRITICAL PRIORITY - LANGUAGE CONSISTENCY:
+1. You MUST detect the language of the user input above and write the enhanced prompt in that same language.
+2. If the user writes in Chinese, the enhanced prompt MUST be entirely in Chinese.
+3. If the user writes in English, the enhanced prompt MUST be entirely in English.
+4. If the user writes in any other language, the enhanced prompt MUST use that exact same language.
+5. If the user mixes languages, keep a natural matching mix. Do not translate the user's intent into a single language.
+6. These language rules are behavior instructions only; never include language analysis or language labels in the output.`;
   return `You are a prompt enhancement assistant. Improve the user prompt while preserving its intent and language.
 
 USER INPUT:
@@ -104,13 +135,7 @@ ${input}
 TASK:
 Rewrite the user input into a clearer, more specific prompt for the target AI assistant.
 
-CRITICAL PRIORITY - LANGUAGE CONSISTENCY:
-1. You MUST detect the language of the user input above and write the enhanced prompt in that same language.
-2. If the user writes in Chinese, the enhanced prompt MUST be entirely in Chinese.
-3. If the user writes in English, the enhanced prompt MUST be entirely in English.
-4. If the user writes in any other language, the enhanced prompt MUST use that exact same language.
-5. If the user mixes languages, keep a natural matching mix. Do not translate the user's intent into a single language.
-6. These language rules are behavior instructions only; never include language analysis or language labels in the output.
+${languageBlock}
 
 ENHANCEMENT REQUIREMENTS:
 1. Return only the enhanced prompt text; do not add explanations, prefaces, markdown fences, labels, or analysis.
@@ -140,7 +165,8 @@ export function stubEnhancePrompt(text: string, surface: EnhanceSurface = "chat"
     return "";
   }
   const base = trimmed.replace(/[.?。？]$/, "");
-  const suffix = surface === "chat" ? stubChatEnhanceSuffix(locale) : STUB_SUFFIX[surface];
+  const suffix =
+    surface === "chat" ? stubChatEnhanceSuffix(locale) : STUB_SUFFIX[locale === "id" ? "id" : "en"][surface];
   const next = `${base}. ${suffix}`;
   return next.length > 800 ? `${next.slice(0, 797)}…` : next;
 }

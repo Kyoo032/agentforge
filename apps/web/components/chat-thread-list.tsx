@@ -6,6 +6,10 @@ import { useRouter, useSearchParams } from "@/lib/nav";
 import { groupThreadsByDay } from "@/lib/thread-groups";
 import { THREADS_CHANGED_EVENT } from "@/lib/threads-events";
 import { apiFetch } from "@/lib/api-client";
+import { t } from "@/lib/i18n";
+import { THREAD_WIDTH, THREAD_WIDTH_KEY } from "@/lib/panel-width";
+import { usePanelWidth } from "@/lib/use-panel-width";
+import { PanelResizeHandle } from "@/components/panel-resize-handle";
 
 type RailThread = {
   id: string;
@@ -38,6 +42,12 @@ function ChatThreadListInner({ basePath, scope, agentId }: Props) {
   const activeThread = searchParams.get("thread");
   const [threads, setThreads] = useState<RailThread[]>([]);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [threadWidth, setThreadWidth] = usePanelWidth(
+    THREAD_WIDTH_KEY,
+    THREAD_WIDTH.default,
+    THREAD_WIDTH.min,
+    THREAD_WIDTH.max,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -67,7 +77,7 @@ function ChatThreadListInner({ basePath, scope, agentId }: Props) {
     if (deletingId) {
       return;
     }
-    const confirmed = window.confirm(`Delete "${thread.title}"? This cannot be undone.`);
+    const confirmed = window.confirm(t("chat.deleteConfirm", { title: thread.title }));
     if (!confirmed) {
       return;
     }
@@ -76,14 +86,14 @@ function ChatThreadListInner({ basePath, scope, agentId }: Props) {
       const response = await apiFetch(`/api/v1/threads/${thread.id}`, { method: "DELETE" });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(payload.error?.message ?? "Could not delete session");
+        throw new Error(payload.error?.message ?? t("chat.error.deleteSession"));
       }
       if (activeThread === thread.id) {
         router.push(basePath);
       }
       setThreads((current) => current.filter((item) => item.id !== thread.id));
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : "Could not delete session");
+      window.alert(error instanceof Error ? error.message : t("chat.error.deleteSession"));
     } finally {
       setDeletingId(null);
     }
@@ -93,9 +103,9 @@ function ChatThreadListInner({ basePath, scope, agentId }: Props) {
 
   return (
     <aside
-      className="flex h-full shrink-0 flex-col overflow-hidden border-r border-[var(--line)] bg-[var(--surface)]"
-      style={{ width: "var(--thread)" }}
-      aria-label="Sessions"
+      className="relative flex h-full shrink-0 flex-col overflow-hidden border-r border-[var(--line)] bg-[var(--surface)]"
+      style={{ width: threadWidth }}
+      aria-label={t("chat.sessions")}
     >
       <div className="px-3 py-3">
         <Link
@@ -103,17 +113,23 @@ function ChatThreadListInner({ basePath, scope, agentId }: Props) {
           className="wash flex h-8 w-full items-center justify-center rounded-pill border border-[var(--line)] text-sm font-medium text-[var(--text)] hover:bg-[var(--accent-soft)]"
           data-testid="new-chat-link"
         >
-          + New chat
+          {t("chat.newChatPlus")}
         </Link>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3" data-testid="thread-list">
         {groups.length === 0 ? (
-          <p className="px-1 text-xs text-[var(--text-3)]">Sessions show up here after you send.</p>
+          <p className="px-1 text-xs text-[var(--text-3)]">{t("chat.sessionsEmpty")}</p>
         ) : (
           groups.map((group) => (
             <div key={group.label} className="mb-3">
-              <p className="px-1 text-xs font-medium uppercase tracking-[0.06em] text-[var(--text-3)]">{group.label}</p>
+              <p className="px-1 text-xs font-medium uppercase tracking-[0.06em] text-[var(--text-3)]">
+                {group.label === "Today"
+                  ? t("chat.threads.today")
+                  : group.label === "Yesterday"
+                    ? t("chat.threads.yesterday")
+                    : t("chat.threads.earlier")}
+              </p>
               <div className="mt-1">
                 {group.threads.map((thread) => {
                   const href = `${basePath}?thread=${thread.id}`;
@@ -140,8 +156,8 @@ function ChatThreadListInner({ basePath, scope, agentId }: Props) {
                         }`}
                         onClick={() => void removeThread(thread)}
                         disabled={deleting}
-                        aria-label={`Delete ${thread.title}`}
-                        title="Delete session"
+                        aria-label={t("chat.deleteAria", { title: thread.title })}
+                        title={t("chat.deleteSession")}
                         data-testid="thread-delete"
                       >
                         ×
@@ -154,6 +170,14 @@ function ChatThreadListInner({ basePath, scope, agentId }: Props) {
           ))
         )}
       </div>
+      <PanelResizeHandle
+        width={threadWidth}
+        min={THREAD_WIDTH.min}
+        max={THREAD_WIDTH.max}
+        onWidth={setThreadWidth}
+        label={t("chat.resizeSessions")}
+        testId="thread-resize"
+      />
     </aside>
   );
 }
@@ -163,7 +187,7 @@ export function ChatThreadList(props: Props) {
     <Suspense
       fallback={
         <aside
-          className="shrink-0 border-r border-[var(--line)] bg-[var(--surface)]"
+          className="relative shrink-0 border-r border-[var(--line)] bg-[var(--surface)]"
           style={{ width: "var(--thread)" }}
           aria-hidden
         />

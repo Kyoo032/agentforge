@@ -1,12 +1,27 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { parseDocumentDraftBody } from "./document-outline";
+import { applyLocale, resetLocaleForTests } from "./i18n";
+import { DOCUMENT_STARTERS, PRESENTATION_STARTERS, documentStarters, presentationStarters } from "./job-starters";
 import { parsePresentationOutlineBody } from "./presentation-outline";
-import { DOCUMENT_STARTERS, PRESENTATION_STARTERS, presentationStarters } from "./job-starters";
+
+afterEach(() => {
+  resetLocaleForTests();
+});
 
 describe("job starters", () => {
   it("ships valid document drafts", () => {
     expect(DOCUMENT_STARTERS).toHaveLength(2);
     for (const starter of DOCUMENT_STARTERS) {
+      expect(parseDocumentDraftBody(starter.draft).title).toBe(starter.draft.title);
+    }
+  });
+
+  it("reads document starter chrome from the active locale", () => {
+    applyLocale("id");
+    const starters = documentStarters();
+    expect(starters).toHaveLength(2);
+    expect(starters[0]?.label).toBe("Memo status");
+    for (const starter of starters) {
       expect(parseDocumentDraftBody(starter.draft).title).toBe(starter.draft.title);
     }
   });

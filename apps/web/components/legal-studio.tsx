@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Link } from "@/lib/nav";
 import {
   createLegalMatter,
   deleteLegalFile,
@@ -27,6 +26,8 @@ import {
 } from "@/lib/legal-view";
 import { useJobModel } from "@/lib/use-job-model";
 import { useJobStream } from "@/lib/use-job-stream";
+import { t } from "@/lib/i18n";
+import { SettingsLinkHint } from "@/components/settings-link-hint";
 import { LegalMatterMap } from "@/components/legal-matter-map";
 import { LegalMatterPanel } from "@/components/legal-matter-panel";
 import { LegalResultView } from "@/components/legal-result-view";
@@ -34,7 +35,9 @@ import { LegalRunView } from "@/components/legal-run-view";
 
 type Busy = "upload" | "open" | "save" | "next" | "roles" | null;
 
-const UNTITLED = "Untitled matter";
+function untitled(): string {
+  return t("legal.studio.untitled");
+}
 
 function needsSettingsHint(message: string, code?: string, status?: number): boolean {
   if (code === "runtime_stub" || code === "not_implemented" || status === 503 || status === 501) {
@@ -89,7 +92,7 @@ export function LegalStudio() {
     if (matter) {
       return matter;
     }
-    const created = await createLegalMatter({ ...draft, title: draft.title.trim() || UNTITLED });
+    const created = await createLegalMatter({ ...draft, title: draft.title.trim() || untitled() });
     setMatter(created);
     return created;
   }
@@ -112,7 +115,7 @@ export function LegalStudio() {
         setMatter(latest);
       }
     } catch (err) {
-      setLocalError(message(err, "Could not upload those files"));
+      setLocalError(message(err, t("legal.errors.upload")));
       if (matter) {
         setMatter(await getLegalMatter(matter.id).catch(() => matter));
       }
@@ -137,7 +140,7 @@ export function LegalStudio() {
     try {
       setMatter(await updateLegalMatter(matter.id, { roles: [{ id: docId, role }] }));
     } catch (err) {
-      setLocalError(message(err, "Could not change that role"));
+      setLocalError(message(err, t("legal.errors.role")));
     } finally {
       setBusy(null);
     }
@@ -152,7 +155,7 @@ export function LegalStudio() {
     try {
       setMatter(await deleteLegalFile(matter.id, docId));
     } catch (err) {
-      setLocalError(message(err, "Could not remove that document"));
+      setLocalError(message(err, t("legal.errors.remove")));
     } finally {
       setBusy(null);
     }
@@ -166,10 +169,10 @@ export function LegalStudio() {
     setLocalError(null);
     let saved: LegalMatterRecord;
     try {
-      saved = await updateLegalMatter(matter.id, { ...draft, title: draft.title.trim() || UNTITLED });
+      saved = await updateLegalMatter(matter.id, { ...draft, title: draft.title.trim() || untitled() });
       setMatter(saved);
     } catch (err) {
-      setLocalError(message(err, "Could not save the matter before running"));
+      setLocalError(message(err, t("legal.errors.saveBeforeRun")));
       setBusy(null);
       return;
     }
@@ -186,7 +189,7 @@ export function LegalStudio() {
       setMatter(await getLegalMatter(saved.id).catch(() => saved));
       void refreshMatters();
     } catch (err) {
-      setLocalError(message(err, "The run finished but its result could not be read"));
+      setLocalError(message(err, t("legal.errors.readResult")));
     }
   }
 
@@ -204,10 +207,10 @@ export function LegalStudio() {
       setDraft(draftFromMatter(opened));
       setResult(run);
       if (run?.error) {
-        setLocalError(`The last run ended with an error: ${run.error.message}`);
+        setLocalError(t("legal.errors.lastRun", { message: run.error.message }));
       }
     } catch (err) {
-      setLocalError(message(err, "Could not open that matter"));
+      setLocalError(message(err, t("legal.errors.openMatter")));
     } finally {
       setBusy(null);
     }
@@ -231,7 +234,7 @@ export function LegalStudio() {
       const base = draftFromMatter(matter);
       const created = await createLegalMatter({
         ...base,
-        title: `${base.title} · next turn`,
+        title: t("legal.studio.nextTurnTitle", { title: base.title }),
         priorMatterId: matter.id,
       });
       job.reset();
@@ -240,7 +243,7 @@ export function LegalStudio() {
       setResult(null);
       void refreshMatters();
     } catch (err) {
-      setLocalError(message(err, "Could not start the next turn"));
+      setLocalError(message(err, t("legal.errors.nextTurn")));
     } finally {
       setBusy(null);
     }
@@ -251,120 +254,114 @@ export function LegalStudio() {
   return (
     <div data-testid="legal-shell">
       <main className="px-6 pb-10 pt-8 text-[var(--text)]" data-testid="legal-studio" data-screen={screen}>
-      {error ? (
-        <p className="mb-4 text-sm text-[var(--danger)]" role="alert" data-testid="legal-error">
-          {error}
-          {needsSettingsHint(error, job.error?.code, job.error?.status) && !/settings/i.test(error) ? (
-            <>
-              {" "}
-              Open{" "}
-              <Link href="/settings" className="underline">
-                Settings
-              </Link>
-              .
-            </>
-          ) : null}
-        </p>
-      ) : null}
+        {error ? (
+          <p className="mb-4 text-sm text-[var(--danger)]" role="alert" data-testid="legal-error">
+            {error}
+            {needsSettingsHint(error, job.error?.code, job.error?.status) && !/settings/i.test(error) ? (
+              <>
+                {" "}
+                <SettingsLinkHint i18nKey="legal.studio.openSettings" />
+              </>
+            ) : null}
+          </p>
+        ) : null}
 
-      {screen === "running" ? (
-        <LegalRunView
-          draft={draft}
-          playbookTitle={playbookTitle}
-          progress={job.progress}
-          busy={job.busy}
-          onCancel={job.cancel}
-        />
-      ) : null}
+        {screen === "running" ? (
+          <LegalRunView
+            draft={draft}
+            playbookTitle={playbookTitle}
+            progress={job.progress}
+            busy={job.busy}
+            onCancel={job.cancel}
+          />
+        ) : null}
 
-      {screen === "result" && result && matter ? (
-        <LegalResultView
-          title={matter.title}
-          party={draft.side.party}
-          result={result}
-          locked={locked}
-          onNextTurn={() => void onNextTurn()}
-          onNewMatter={onNewMatter}
-          onError={setLocalError}
-        />
-      ) : null}
+        {screen === "result" && result && matter ? (
+          <LegalResultView
+            title={matter.title}
+            party={draft.side.party}
+            result={result}
+            locked={locked}
+            onNextTurn={() => void onNextTurn()}
+            onNewMatter={onNewMatter}
+            onError={setLocalError}
+          />
+        ) : null}
 
-      {screen === "new" ? (
-        <>
-          <div className="kicker">Workspace · Legal desk</div>
-          <div className="mb-5 flex flex-wrap items-end gap-4">
-            <div>
-              <h3 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">Legal</h3>
-              <p className="mt-1.5 max-w-xl text-sm text-[var(--text-2)]">
-                Load a matter, confirm the client's position and select the work. Every number, quotation and
-                cross-reference is checked in code before the draft is presented. Draft work product only; review before
-                release.
-              </p>
-            </div>
-            <div className="ml-auto flex items-center gap-2">
-              {matters.length > 0 ? (
-                <select
-                  className="input w-auto"
-                  value=""
-                  onChange={(event) => event.target.value && void onOpen(event.target.value)}
-                  disabled={locked}
-                  aria-label="Reopen matter"
-                  data-testid="legal-reopen"
+        {screen === "new" ? (
+          <>
+            <div className="kicker">{t("legal.studio.kicker")}</div>
+            <div className="mb-5 flex flex-wrap items-end gap-4">
+              <div>
+                <h3 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">
+                  {t("legal.studio.title")}
+                </h3>
+                <p className="mt-1.5 max-w-xl text-sm text-[var(--text-2)]">{t("legal.studio.lede")}</p>
+              </div>
+              <div className="ml-auto flex items-center gap-2">
+                {matters.length > 0 ? (
+                  <select
+                    className="input w-auto"
+                    value=""
+                    onChange={(event) => event.target.value && void onOpen(event.target.value)}
+                    disabled={locked}
+                    aria-label={t("legal.studio.reopenAria")}
+                    data-testid="legal-reopen"
+                  >
+                    <option value="">{t("legal.studio.reopen")}</option>
+                    {matters.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.title}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
+                {matter ? (
+                  <button type="button" className="btn" onClick={onNewMatter} disabled={locked}>
+                    {t("legal.studio.newMatter")}
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => void onRun()}
+                  disabled={!ready || locked}
+                  title={ready ? undefined : t("legal.studio.runHint")}
+                  data-testid="legal-run"
                 >
-                  <option value="">Reopen matter…</option>
-                  {matters.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.title}
-                    </option>
-                  ))}
-                </select>
-              ) : null}
-              {matter ? (
-                <button type="button" className="btn" onClick={onNewMatter} disabled={locked}>
-                  New matter
+                  {busy === "save" ? t("legal.studio.saving") : t("legal.studio.run")}
                 </button>
-              ) : null}
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => void onRun()}
-                disabled={!ready || locked}
-                title={ready ? undefined : "Upload at least one .docx and enter the client name"}
-                data-testid="legal-run"
-              >
-                {busy === "save" ? "Saving…" : "Run matter"}
-              </button>
+              </div>
             </div>
-          </div>
-          <div className="grid items-start gap-5 lg:[grid-template-columns:minmax(0,1fr)_minmax(0,1fr)]">
-            <LegalMatterPanel
-              draft={draft}
-              onDraft={setDraft}
-              docs={docs}
-              pending={pending}
-              playbooks={playbooks}
-              locked={locked}
-              onFiles={(files) => void onFiles(files)}
-              onCycleRole={(docId) => void onCycleRole(docId)}
-              onRemoveFile={(docId) => void onRemoveFile(docId)}
-            />
-            <LegalMatterMap
-              draft={draft}
-              docs={docs}
-              playbookTitle={playbookTitle}
-              matters={matters}
-              currentMatterId={matter?.id ?? null}
-              models={models}
-              model={model}
-              verifierModel={verifierModel}
-              locked={locked}
-              onModel={setModel}
-              onVerifierModel={setVerifierModel}
-              onOpen={(id) => void onOpen(id)}
-            />
-          </div>
-        </>
-      ) : null}
+            <div className="grid items-start gap-5 lg:[grid-template-columns:minmax(0,1fr)_minmax(0,1fr)]">
+              <LegalMatterPanel
+                draft={draft}
+                onDraft={setDraft}
+                docs={docs}
+                pending={pending}
+                playbooks={playbooks}
+                locked={locked}
+                onFiles={(files) => void onFiles(files)}
+                onCycleRole={(docId) => void onCycleRole(docId)}
+                onRemoveFile={(docId) => void onRemoveFile(docId)}
+              />
+              <LegalMatterMap
+                draft={draft}
+                docs={docs}
+                playbookTitle={playbookTitle}
+                matters={matters}
+                currentMatterId={matter?.id ?? null}
+                models={models}
+                model={model}
+                verifierModel={verifierModel}
+                locked={locked}
+                onModel={setModel}
+                onVerifierModel={setVerifierModel}
+                onOpen={(id) => void onOpen(id)}
+              />
+            </div>
+          </>
+        ) : null}
       </main>
     </div>
   );

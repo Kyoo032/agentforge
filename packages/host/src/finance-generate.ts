@@ -1,4 +1,4 @@
-import { ApiError, hasLiveProvider, resolveChatModel, resolveRuntimeMode, type TenantContext } from "@agentforge/core";
+import { ApiError, hasLiveProvider, resolveChatModel, resolveRuntimeMode, withOutputLanguage, type TenantContext } from "@agentforge/core";
 import { financeBriefSchema, financeBriefToMarkdown, type FinanceBrief } from "@agentforge/core/artifacts";
 import { lineItemsFromTable, parseLineItems, type LineItem } from "@agentforge/core/finance";
 import type { JobEmitter } from "@agentforge/core/jobs";
@@ -22,6 +22,7 @@ import { readSourceText } from "./job-source";
 import { throwIfJobAborted } from "./job-stream";
 import { listSelectableModels, modeCatalogPayload } from "./selectable-models";
 import { loadSettings } from "./settings-store";
+import { localeForRun } from "./run-context";
 
 export const FIGURES_TEXT_MAX = 12_000;
 
@@ -200,7 +201,7 @@ export async function generateFinanceBrief(
   const raw = await collectJobAssistantText({
     tenant,
     model,
-    systemPrompt: BRIEF_SYSTEM,
+    systemPrompt: withOutputLanguage(BRIEF_SYSTEM, "finance", localeForRun()),
     runPrefix: "finance",
     agentId: "finance",
     versionId: "finance-brief",
@@ -290,7 +291,7 @@ export async function regenerateFinanceSection(tenant: TenantContext, body: unkn
   const raw = await collectJobAssistantText({
     tenant,
     model,
-    systemPrompt: SECTION_SYSTEM,
+    systemPrompt: withOutputLanguage(SECTION_SYSTEM, "finance", localeForRun()),
     runPrefix: "finance-section",
     agentId: "finance",
     versionId: "finance-section",

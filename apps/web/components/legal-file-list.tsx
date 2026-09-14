@@ -5,6 +5,8 @@ import type { MatterDocCard } from "@agentforge/core/legal";
 import { LEGAL_ACCEPT } from "@/lib/legal-client";
 import { roleLabel, type PendingUpload } from "@/lib/legal-view";
 import { DIM } from "@/components/legal-parts";
+import { t } from "@/lib/i18n";
+import { labeled } from "@/lib/ui-copy";
 
 type Props = {
   docs: readonly MatterDocCard[];
@@ -16,13 +18,6 @@ type Props = {
 };
 
 const ACCENT_ROLES = new Set(["counterparty-draft", "our-draft", "executed"]);
-
-const PENDING_LABEL: Readonly<Record<PendingUpload["status"], string>> = {
-  queued: "queued",
-  uploading: "uploading…",
-  done: "uploaded",
-  failed: "failed",
-};
 
 /** Drop zone plus the per-document list with clickable role tags. */
 export function LegalFileList({ docs, pending, locked, onFiles, onCycleRole, onRemove }: Props) {
@@ -66,10 +61,13 @@ export function LegalFileList({ docs, pending, locked, onFiles, onCycleRole, onR
         disabled={locked}
         data-testid="legal-drop-zone"
       >
-        Drop the matter documents or choose files
+        {t("legal.files.drop")}
         <br />
         <span className={`text-xs ${DIM}`}>
-          .docx only in this version · {docs.length} {docs.length === 1 ? "file" : "files"}
+          {t("legal.files.docxOnly", {
+            count: docs.length,
+            filesWord: t(docs.length === 1 ? "legal.files.file" : "legal.files.files"),
+          })}
         </span>
       </button>
       <ul className="mt-2 divide-y divide-divider text-[13px]" data-testid="legal-file-list">
@@ -84,17 +82,17 @@ export function LegalFileList({ docs, pending, locked, onFiles, onCycleRole, onR
               className={`tag ${ACCENT_ROLES.has(doc.role) ? "tag-accent" : "tag-neutral"}`}
               onClick={() => onCycleRole(doc.id)}
               disabled={locked}
-              title="Click to change the role"
+              title={t("legal.files.changeRole")}
               data-testid={`legal-file-role-${doc.id}`}
             >
-              {roleLabel(doc.role)}
+              {labeled(`legal.role.${doc.role}`, roleLabel(doc.role))}
             </button>
             <button
               type="button"
               className="btn btn-ghost px-1.5 py-0.5 text-xs"
               onClick={() => onRemove(doc.id)}
               disabled={locked}
-              aria-label={`Remove ${doc.name}`}
+              aria-label={t("legal.files.removeAria", { name: doc.name })}
               data-testid={`legal-file-remove-${doc.id}`}
             >
               ×
@@ -104,12 +102,12 @@ export function LegalFileList({ docs, pending, locked, onFiles, onCycleRole, onR
         {pending.map((item, index) => (
           <li key={`${item.name}-${index}`} className={`flex items-center gap-2 py-1.5 ${DIM}`}>
             <span className="min-w-0 flex-1 truncate">{item.name}</span>
-            <span className="tag tag-neutral">{PENDING_LABEL[item.status]}</span>
+            <span className="tag tag-neutral">{t(`legal.files.${item.status}`)}</span>
           </li>
         ))}
       </ul>
       {docs.length > 0 ? (
-        <p className={`mt-1 text-xs ${DIM}`}>Roles are confirmed on run · click a tag to change it now</p>
+        <p className={`mt-1 text-xs ${DIM}`}>{t("legal.files.rolesHint")}</p>
       ) : null}
     </div>
   );

@@ -1,4 +1,5 @@
 import type { DocumentDraft } from "./document-outline";
+import { t } from "./i18n";
 import type { PresentationOutline } from "./presentation-outline";
 
 export type DocumentStarter = {
@@ -407,6 +408,36 @@ export const PRESENTATION_STARTERS_ID: PresentationStarter[] = [
 
 export function presentationStarters(locale: "en" | "id" = "en"): PresentationStarter[] {
   return locale === "id" ? PRESENTATION_STARTERS_ID : PRESENTATION_STARTERS;
+}
+
+function starterSections(base: string, keys: readonly string[]): DocumentDraft["sections"] {
+  return keys.map((key) => ({
+    heading: t(`${base}.${key}.heading`),
+    body: t(`${base}.${key}.body`),
+  }));
+}
+
+export function documentStarters(): DocumentStarter[] {
+  return [
+    {
+      id: "status-memo",
+      label: t("documents.starters.statusMemo.label"),
+      description: t("documents.starters.statusMemo.description"),
+      draft: {
+        title: t("documents.starters.statusMemo.title"),
+        sections: starterSections("documents.starters.statusMemo", ["s1", "s2", "s3", "s4", "s5"]),
+      },
+    },
+    {
+      id: "one-pager",
+      label: t("documents.starters.onePager.label"),
+      description: t("documents.starters.onePager.description"),
+      draft: {
+        title: t("documents.starters.onePager.title"),
+        sections: starterSections("documents.starters.onePager", ["s1", "s2", "s3", "s4", "s5", "s6"]),
+      },
+    },
+  ];
 }
 
 export function findDocumentStarter(id: string): DocumentStarter | undefined {

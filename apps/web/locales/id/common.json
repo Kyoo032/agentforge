@@ -4,5 +4,6 @@
   "english": "English",
   "bahasa": "Bahasa Indonesia",
   "restartApp": "Mulai ulang DPSBuddy",
-  "restartHint": "Mulai ulang DPSBuddy untuk menerapkan bahasa ini."
+  "restartHint": "Mulai ulang DPSBuddy untuk menerapkan bahasa ini.",
+  "loading": "Memuat…"
 }

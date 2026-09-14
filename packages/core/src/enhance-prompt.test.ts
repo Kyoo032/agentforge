@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { isEnhanceSurface, stubEnhancePrompt, stripWrappingQuotes, enhanceUserPrompt } from "./enhance-prompt";
+import {
+  enhanceSystemPrompt,
+  enhanceUserPrompt,
+  isEnhanceSurface,
+  stubEnhancePrompt,
+  stripWrappingQuotes,
+} from "./enhance-prompt";
 
 describe("enhance-prompt", () => {
   it("accepts known surfaces", () => {
@@ -25,6 +31,19 @@ describe("enhance-prompt", () => {
     const out = stubEnhancePrompt("Ringkas memo ini", "chat", "id");
     expect(out).toMatch(/Anda/);
     expect(out).not.toMatch(/State the goal/);
+  });
+
+  it("stub documents enhance follows Bahasa Indonesia when locale is id", () => {
+    const out = stubEnhancePrompt("Summarize this memo.", "documents", "id");
+    expect(out).toMatch(/audiens/);
+    expect(out).not.toMatch(/Name the audience/);
+  });
+
+  it("system and user enhance prompts instruct Bahasa Indonesia for every surface when locale is id", () => {
+    expect(enhanceSystemPrompt("documents", "id")).toMatch(/Bahasa Indonesia/);
+    expect(enhanceSystemPrompt("research", "en")).toMatch(/same language as the user's input/);
+    expect(enhanceUserPrompt("Write a brief", "id")).toMatch(/Bahasa Indonesia/);
+    expect(enhanceUserPrompt("请解释", "en")).toContain("请解释");
   });
 
   it("user template substitutes the draft", () => {

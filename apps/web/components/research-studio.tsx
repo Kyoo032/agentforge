@@ -10,6 +10,7 @@ import { FormattedText } from "@/components/formatted-text";
 import { JobProgressList } from "@/components/job-progress";
 import { ModelSelect } from "@/components/model-select";
 import { ResearchPreview } from "@/components/research-preview";
+import { t } from "@/lib/i18n";
 import { researchNotesToMarkdown, type ResearchNotes } from "@/lib/research-notes";
 import { useJobModel } from "@/lib/use-job-model";
 import { useJobStream } from "@/lib/use-job-stream";
@@ -73,15 +74,14 @@ export function ResearchStudio() {
     <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-10 text-[var(--text)]" data-testid="research-studio">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">Research</h1>
+          <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("research.title")}</h1>
           <p className="mt-2 max-w-xl text-sm text-[var(--text-2)]">
-            Ask a question. {productName} plans sub-queries, reads the pages behind the hits, and builds a cited dossier
-            you can send to Documents, Presentation, or the Knowledge Base.
+            {t("research.subtitle", { product: productName })}
           </p>
         </div>
         <ArtifactPicker
           mode="research"
-          label="Reopen saved research…"
+          label={t("research.reopenSaved")}
           disabled={job.busy}
           testId="research-saved"
           onPick={(artifact) => {
@@ -101,11 +101,9 @@ export function ResearchStudio() {
           {needsSettingsHint(error) && !/settings/i.test(error) ? (
             <>
               {" "}
-              Open{" "}
               <Link href="/settings" className="underline">
-                Settings
+                {t("research.openSettings")}
               </Link>
-              .
             </>
           ) : null}
         </div>
@@ -140,7 +138,7 @@ export function ResearchStudio() {
                   onClick={() => setTab("notes")}
                   data-testid="research-tab-notes"
                 >
-                  Notes
+                  {t("research.tabNotes")}
                 </button>
                 <button
                   type="button"
@@ -150,7 +148,7 @@ export function ResearchStudio() {
                   onClick={() => setTab("dossier")}
                   data-testid="research-tab-dossier"
                 >
-                  Dossier
+                  {t("research.tabDossier")}
                 </button>
               </div>
             ) : null}
@@ -170,10 +168,8 @@ export function ResearchStudio() {
             className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center"
             data-testid="research-studio-empty"
           >
-            <p className="text-sm font-medium text-[var(--text)]">No dossier yet</p>
-            <p className="mt-2 text-sm text-[var(--text-2)]">
-              Enter a question below. Search uses your Tavily or Brave key from Settings; pages are read over HTTPS.
-            </p>
+            <p className="text-sm font-medium text-[var(--text)]">{t("research.emptyTitle")}</p>
+            <p className="mt-2 text-sm text-[var(--text-2)]">{t("research.emptyBody")}</p>
           </div>
         )}
       </div>
@@ -205,10 +201,10 @@ export function ResearchStudio() {
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
             className="min-w-0 flex-1 rounded-lg bg-transparent px-3 py-2 text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-3)]"
-            placeholder="What should we look up?"
+            placeholder={t("research.promptPlaceholder")}
             disabled={job.busy}
             data-testid="research-prompt"
-            aria-label="Research question"
+            aria-label={t("research.promptAria")}
           />
           {job.busy ? (
             <button
@@ -217,7 +213,7 @@ export function ResearchStudio() {
               onClick={job.cancel}
               data-testid="research-cancel"
             >
-              Cancel
+              {t("research.cancel")}
             </button>
           ) : null}
           <button
@@ -226,7 +222,7 @@ export function ResearchStudio() {
             disabled={job.busy || !prompt.trim()}
             data-testid="research-generate"
           >
-            {job.busy ? "Working…" : "Generate"}
+            {job.busy ? t("research.working") : t("research.generate")}
           </button>
         </div>
       </form>

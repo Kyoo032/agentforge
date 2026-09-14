@@ -20,5 +20,15 @@
   "usage": "Pemakaian",
   "settings": "Pengaturan",
   "expand": "Perluas navigasi",
-  "collapse": "Ciutkan navigasi"
+  "collapse": "Ciutkan navigasi",
+  "resize": "Ubah ukuran navigasi",
+  "updates": {
+    "panel": "Pembaruan",
+    "ctaAvailable": "Pembaruan tersedia",
+    "ctaReady": "Mulai ulang untuk memperbarui",
+    "ctaDownloading": "Mengunduh…",
+    "install": "Perbarui dan mulai ulang",
+    "check": "Periksa pembaruan",
+    "close": "Tutup"
+  }
 }

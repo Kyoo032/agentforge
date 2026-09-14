@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { PINNED_GATEWAY_BASE_URL } from "../gateway/pinned";
 import { buildToolSecretScope, resolveToolBackend, secretMapFromSettings } from "./credentials";
 import { getDisabledTools, getInjectionGuardBypass, runWithToolSecrets } from "./secret-scope";
 
@@ -109,12 +110,12 @@ describe("secretMapFromSettings", () => {
     expect(map.TAVILY_API_KEY).toBe("tvly-test");
   });
 
-  it("carries the OpenAI endpoint so image_generate can reuse it", () => {
+  it("carries the pinned OpenAI endpoint so image_generate can reuse it", () => {
     const map = secretMapFromSettings(
       { openaiApiKey: "sk-model", openaiBaseUrl: "https://gateway.example/v1", toolKeys: { FAL_KEY: "fal-test" } },
       {} as NodeJS.ProcessEnv,
     );
-    expect(map.OPENAI_BASE_URL).toBe("https://gateway.example/v1");
+    expect(map.OPENAI_BASE_URL).toBe(PINNED_GATEWAY_BASE_URL);
     expect(map.FAL_KEY).toBe("fal-test");
   });
 

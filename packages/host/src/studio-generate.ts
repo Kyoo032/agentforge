@@ -13,6 +13,7 @@ import {
   videoCapabilities,
   snapVideoSeconds,
   videoGenerateTool,
+  withOutputLanguage,
   type ChatModel,
   type TenantContext,
 } from "@agentforge/core";
@@ -28,6 +29,7 @@ import {
   imageStudioLocale,
   withImageOutputLanguage,
 } from "./image-output-locale";
+import { localeForRun } from "./run-context";
 
 export type StudioGenerateOptions = {
   /** Knowledge source type for the work card. Defaults to Images / Videos; Edit passes "Edit". */
@@ -225,7 +227,7 @@ export async function generateStudioVideo(
   const output = await runWithToolSecrets(scope, () =>
     videoGenerateTool.execute(
       {
-        prompt: maskPii(body.prompt),
+        prompt: withOutputLanguage(maskPii(body.prompt), "videos", localeForRun()),
         aspect_ratio: body.aspect,
         image_url: body.imageUrl,
         model,

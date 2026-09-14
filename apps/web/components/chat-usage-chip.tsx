@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { formatUsd } from "@agentforge/core/gateway";
 import { Link } from "@/lib/nav";
 import { apiFetch } from "@/lib/api-client";
+import { t } from "@/lib/i18n";
 
 type ThisKeyUsage =
   | { status: "needs_key" }
@@ -24,7 +25,7 @@ type SettingsUsage = {
 };
 
 export function ChatUsageChip() {
-  const [label, setLabel] = useState("Usage · —");
+  const [label, setLabel] = useState(() => t("chat.usage.placeholder"));
   const [title, setTitle] = useState<string | undefined>(undefined);
 
   useEffect(() => {
@@ -38,30 +39,30 @@ export function ChatUsageChip() {
         const payload = (await res.json()) as { usage?: SettingsUsage; error?: { message?: string } };
         if (cancelled) return;
         if (payload.error || !payload.usage?.thisKey) {
-          setLabel("Usage · —");
+          setLabel(t("chat.usage.placeholder"));
           return;
         }
         const thisKey = payload.usage.thisKey;
         if (thisKey.status === "needs_key") {
-          setLabel("Usage · —");
+          setLabel(t("chat.usage.placeholder"));
           setTitle(undefined);
           return;
         }
         if (thisKey.status === "error") {
-          setLabel("Usage · —");
+          setLabel(t("chat.usage.placeholder"));
           setTitle(thisKey.message);
           return;
         }
         if (thisKey.data.unlimited) {
-          setLabel("Usage · Unlimited");
+          setLabel(t("chat.usage.unlimited"));
           setTitle(undefined);
           return;
         }
         const left = thisKey.data.remainingUsd == null ? "—" : formatUsd(thisKey.data.remainingUsd);
-        setLabel(`Usage · ${left}`);
+        setLabel(t("chat.usage.remaining", { left }));
         setTitle(undefined);
       } catch {
-        if (!cancelled) setLabel("Usage · —");
+        if (!cancelled) setLabel(t("chat.usage.placeholder"));
       }
     })();
     return () => {

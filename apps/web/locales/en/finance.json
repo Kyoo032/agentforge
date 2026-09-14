@@ -1,5 +1,6 @@
 {
   "title": "Finance",
+  "kicker": "Workspace",
   "subtitle": "Give {productName} your figures as line items. Margins, growth, runway, breakeven, and NPV are computed in code; the model only writes the narrative, and any figure it cannot trace is removed.",
   "download": "Download DOCX",
   "downloading": "Building…",
@@ -21,7 +22,7 @@
   "cancel": "Cancel",
   "generate": "Generate",
   "generating": "Working…",
-  "openSettings": "Open",
+  "openSettings": "Open {settings}.",
   "settingsLink": "Settings",
   "params": {
     "discountRatePercent": "Discount rate %",

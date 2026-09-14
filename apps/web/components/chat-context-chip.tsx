@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { formatContextLength } from "@agentforge/core/preferred";
+import { t } from "@/lib/i18n";
 
 const RING_RADIUS = 7;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
@@ -59,12 +60,15 @@ export function ChatContextChip({ usedTokens, contextLength, parts }: Props) {
   const window_ = contextLength && contextLength > 0 ? contextLength : undefined;
   const left = window_ != null ? Math.max(0, window_ - used) : undefined;
   const fraction = window_ ? Math.min(1, used / window_) : 0;
-  const ringLabel = left != null ? `${formatContextLength(left)} left` : `${formatContextLength(used)} used`;
+  const ringLabel =
+    left != null ? t("chat.context.left", { n: formatContextLength(left) }) : t("chat.context.used", { n: formatContextLength(used) });
   const title = window_
-    ? `About ${used.toLocaleString()} tokens in this chat of ${window_.toLocaleString()} context`
-    : `About ${used.toLocaleString()} tokens in this chat`;
+    ? t("chat.context.titleWithWindow", { used: used.toLocaleString(), window: window_.toLocaleString() })
+    : t("chat.context.title", { used: used.toLocaleString() });
   const rows: ContextPart[] =
-    parts && parts.length > 0 ? parts : [{ label: "Conversation", detail: "messages in this thread", tokens: used }];
+    parts && parts.length > 0
+      ? parts
+      : [{ label: t("chat.context.conversation"), detail: t("chat.context.conversationDetail"), tokens: used }];
 
   useEffect(() => {
     if (!open) {
@@ -115,15 +119,15 @@ export function ChatContextChip({ usedTokens, contextLength, parts }: Props) {
             className="raise fixed z-[80] overflow-y-auto rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4"
             data-testid="chat-context-breakdown"
             role="dialog"
-            aria-label="Context window"
+            aria-label={t("chat.context.window")}
             style={{ top: pos.top, left: pos.left, width: pos.width, maxHeight: pos.maxHeight }}
           >
             <div className="mb-3 flex items-baseline gap-3">
-              <span className="panel-label">Context window</span>
+              <span className="panel-label">{t("chat.context.window")}</span>
               <span className="ml-auto shrink-0 text-sm font-medium tabular-nums">
                 {window_ != null
                   ? `${formatContextLength(used)} / ${formatContextLength(window_)}`
-                  : `${formatContextLength(used)} used`}
+                  : t("chat.context.used", { n: formatContextLength(used) })}
               </span>
             </div>
             <div className="mb-3.5 flex h-2 overflow-hidden bg-[color-mix(in_srgb,var(--color-text)_12%,transparent)]">
@@ -142,16 +146,16 @@ export function ChatContextChip({ usedTokens, contextLength, parts }: Props) {
               ))}
               <div className={`flex items-start gap-2 py-1.5 text-xs ${MUTED}`}>
                 <span className="mt-1 h-2 w-2 flex-none rounded-sm border border-divider" aria-hidden="true" />
-                <span className="min-w-0 flex-1">Free</span>
+                <span className="min-w-0 flex-1">{t("chat.context.free")}</span>
                 <span className="w-[52px] shrink-0 text-right tabular-nums">
                   {left != null ? formatContextLength(left) : "—"}
                 </span>
               </div>
             </div>
             {window_ && fraction >= 0.8 ? (
-              <p className="mt-3 text-xs text-[var(--accent)]">Approaching the context limit.</p>
+              <p className="mt-3 text-xs text-[var(--accent)]">{t("chat.context.approaching")}</p>
             ) : (
-              <p className={`mt-3 text-xs ${MUTED}`}>Estimated at about four characters per token.</p>
+              <p className={`mt-3 text-xs ${MUTED}`}>{t("chat.context.estimate")}</p>
             )}
           </div>,
           document.body,

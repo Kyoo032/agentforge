@@ -1,18 +1,56 @@
 "use client";
 
-import type { MatterDocCard } from "@agentforge/core/legal";
+import { LEGAL_CAPS, type DocRole, type MatterDocCard } from "@agentforge/core/legal";
 import type { LegalMatterRecord } from "@/lib/legal-client";
 import {
+  deliverableLabel,
   formatDate,
   matterMapRows,
   roleLabel,
-  whatWillHappen,
   WORK_TYPE_LABEL,
   type LegalDraft,
 } from "@/lib/legal-view";
 import type { JobStudioModel } from "@/lib/use-job-model";
 import { ModelSelect } from "@/components/model-select";
 import { DIM, LegalPanel, TD, TH } from "@/components/legal-parts";
+import { t } from "@/lib/i18n";
+import { labeled } from "@/lib/ui-copy";
+
+function localizedRole(role: DocRole): string {
+  return labeled(`legal.role.${role}`, roleLabel(role));
+}
+
+function localizedRank(rank: string): string {
+  if (rank === "—") {
+    return t("legal.rank.none");
+  }
+  if (rank === "last") {
+    return t("legal.rank.last");
+  }
+  return rank;
+}
+
+function planSteps(draft: LegalDraft, docCount: number, playbookTitle: string | null): string[] {
+  const filesWord = t(docCount === 1 ? "legal.files.file" : "legal.files.files");
+  const files = `${docCount} ${filesWord}`;
+  const side =
+    draft.side.role === "other"
+      ? draft.side.party || t("legal.plan.theClient")
+      : t("legal.plan.theRole", { role: labeled(`legal.side.${draft.side.role}`, draft.side.role) });
+  const playbook = playbookTitle ? t("legal.plan.andPlaybook", { title: playbookTitle }) : "";
+  const work = labeled(`legal.workType.${draft.workType}`, WORK_TYPE_LABEL[draft.workType]);
+  const deliverables =
+    draft.deliverables.map((kind) => labeled(`legal.deliverable.${kind}`, deliverableLabel(kind))).join(", ") ||
+    t("legal.plan.noFiles");
+  return [
+    t("legal.plan.ingest", { files }),
+    t("legal.plan.review", { work, playbook, side }),
+    t("legal.plan.draft", { deliverables }),
+    t("legal.plan.verifyCode"),
+    t("legal.plan.verifyModel", { rounds: LEGAL_CAPS.maxRounds }),
+    t("legal.plan.deliver"),
+  ];
+}
 
 type Props = {
   draft: LegalDraft;
@@ -47,32 +85,32 @@ export function LegalMatterMap({
   onOpen,
 }: Props) {
   const rows = matterMapRows(docs);
-  const steps = whatWillHappen(draft, docs.length, playbookTitle);
+  const steps = planSteps(draft, docs.length, playbookTitle);
   const previous = matters.filter((item) => item.id !== currentMatterId).slice(0, MATTERS_SHOWN);
 
   return (
     <div className="space-y-4">
-      <LegalPanel label="Matter map" aside="built from the files, editable" testId="legal-matter-map">
+      <LegalPanel label={t("legal.map.title")} aside={t("legal.map.aside")} testId="legal-matter-map">
         {rows.length === 0 ? (
-          <p className={`mt-2 text-sm ${DIM}`}>Upload the documents to build the map.</p>
+          <p className={`mt-2 text-sm ${DIM}`}>{t("legal.map.empty")}</p>
         ) : (
           <table className="mt-2 w-full border-collapse">
             <thead>
               <tr>
-                <th className={TH}>Role</th>
-                <th className={TH}>Document</th>
-                <th className={TH}>Wins on conflict</th>
-                <th className={TH}>Notes</th>
+                <th className={TH}>{t("legal.map.role")}</th>
+                <th className={TH}>{t("legal.map.document")}</th>
+                <th className={TH}>{t("legal.map.wins")}</th>
+                <th className={TH}>{t("legal.map.notes")}</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((row) => (
                 <tr key={row.role} data-testid="legal-matter-map-row">
                   <td className={TD}>
-                    <span className="tag tag-accent">{roleLabel(row.role)}</span>
+                    <span className="tag tag-accent">{localizedRole(row.role)}</span>
                   </td>
                   <td className={TD}>{row.documents}</td>
-                  <td className={`${TD} ${row.rank === "—" ? DIM : ""}`}>{row.rank}</td>
+                  <td className={`${TD} ${row.rank === "—" ? DIM : ""}`}>{localizedRank(row.rank)}</td>
                   <td className={`${TD} ${DIM}`}>{row.notes}</td>
                 </tr>
               ))}
@@ -81,7 +119,7 @@ export function LegalMatterMap({
         )}
       </LegalPanel>
 
-      <LegalPanel label="What will happen" testId="legal-plan">
+      <LegalPanel label={t("legal.plan.title")} testId="legal-plan">
         <ol className="mt-2 space-y-1.5 text-sm">
           {steps.map((step, index) => (
             <li key={step} className="flex gap-3">
@@ -92,7 +130,7 @@ export function LegalMatterMap({
         </ol>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <label className={`flex items-center gap-2 text-xs ${DIM}`}>
-            Model
+            {t("legal.plan.model")}
             <ModelSelect
               models={models}
               value={model}
@@ -103,7 +141,7 @@ export function LegalMatterMap({
             />
           </label>
           <label className={`flex items-center gap-2 text-xs ${DIM}`}>
-            Verifier
+            {t("legal.plan.verifier")}
             <ModelSelect
               models={models}
               value={verifierModel || model}
@@ -116,9 +154,9 @@ export function LegalMatterMap({
         </div>
       </LegalPanel>
 
-      <LegalPanel label="Previous matters" testId="legal-previous">
+      <LegalPanel label={t("legal.previous.title")} testId="legal-previous">
         {previous.length === 0 ? (
-          <p className={`mt-2 text-sm ${DIM}`}>No previous matters in this workspace.</p>
+          <p className={`mt-2 text-sm ${DIM}`}>{t("legal.previous.empty")}</p>
         ) : (
           <table className="mt-2 w-full border-collapse">
             <tbody>
@@ -126,7 +164,11 @@ export function LegalMatterMap({
                 <tr key={item.id} data-testid="legal-previous-row">
                   <td className={TD}>{item.title}</td>
                   <td className={`${TD} ${DIM}`}>
-                    {WORK_TYPE_LABEL[item.workType]} · {item.docs.length} {item.docs.length === 1 ? "file" : "files"}
+                    {t("legal.previous.meta", {
+                      work: labeled(`legal.workType.${item.workType}`, WORK_TYPE_LABEL[item.workType]),
+                      count: item.docs.length,
+                      filesWord: t(item.docs.length === 1 ? "legal.files.file" : "legal.files.files"),
+                    })}
                   </td>
                   <td className={`${TD} ${DIM}`}>{formatDate(item.updatedAt)}</td>
                   <td className={`${TD} text-right`}>
@@ -137,7 +179,7 @@ export function LegalMatterMap({
                       disabled={locked}
                       data-testid={`legal-open-${item.id}`}
                     >
-                      Open
+                      {t("legal.previous.open")}
                     </button>
                   </td>
                 </tr>

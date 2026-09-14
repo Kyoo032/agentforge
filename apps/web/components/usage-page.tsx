@@ -11,13 +11,12 @@ import {
   type UsageRange,
 } from "./usage-panel";
 import { UsageRangeChart } from "./usage-range-chart";
+import { t } from "@/lib/i18n";
 import { useProductBrand } from "@/lib/product-brand";
 
-const RANGES: Array<{ id: UsageRange; label: string }> = [
-  { id: "day", label: "Day" },
-  { id: "week", label: "Week" },
-  { id: "month", label: "Month" },
-];
+function rangeLabel(id: UsageRange): string {
+  return t(`usage.range.${id}`);
+}
 
 function emptyDesk(): RangeUsage["desk"] {
   return {
@@ -71,21 +70,21 @@ export function UsagePage() {
       .then(async (res) => {
         if (!res.ok) {
           setUsage(null);
-          setLoadError(res.status === 404 ? "Usage is not available yet." : `Could not load usage (${res.status}).`);
+          setLoadError(res.status === 404 ? t("usage.errors.unavailable") : t("usage.errors.loadStatus", { status: res.status }));
           return;
         }
         const payload: unknown = await res.json();
         const parsed = parseUsage(payload, nextRange);
         if (!parsed) {
           setUsage(null);
-          setLoadError("Usage response was incomplete.");
+          setLoadError(t("usage.errors.incomplete"));
           return;
         }
         setUsage(parsed);
       })
       .catch(() => {
         setUsage(null);
-        setLoadError("Could not load usage.");
+        setLoadError(t("usage.errors.load"));
       })
       .finally(() => {
         setLoading(false);
@@ -106,26 +105,24 @@ export function UsagePage() {
     <main className="px-6 py-8 text-[var(--text)]" data-testid="usage-page">
       <div className="mb-5 flex flex-wrap items-end gap-4">
         <div>
-          <div className="kicker">Account</div>
-          <h3 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">Usage</h3>
-          <p className="mt-1 text-[13px] text-[var(--text-2)]">
-            This-key wallet and desk spend for the selected range.
-          </p>
+          <div className="kicker">{t("usage.kicker")}</div>
+          <h3 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("usage.title")}</h3>
+          <p className="mt-1 text-[13px] text-[var(--text-2)]">{t("usage.intro")}</p>
         </div>
-        <div className="seg ml-auto" data-testid="usage-range" role="group" aria-label="Usage range">
-          {RANGES.map((option) => {
-            const active = range === option.id;
+        <div className="seg ml-auto" data-testid="usage-range" role="group" aria-label={t("usage.rangeAria")}>
+          {(["day", "week", "month"] as const).map((id) => {
+            const active = range === id;
             return (
               <button
-                key={option.id}
+                key={id}
                 type="button"
                 className="seg-opt"
                 data-on={active ? "true" : "false"}
                 aria-pressed={active}
-                data-testid={`usage-range-${option.id}`}
-                onClick={() => setRange(option.id)}
+                data-testid={`usage-range-${id}`}
+                onClick={() => setRange(id)}
               >
-                {option.label}
+                {rangeLabel(id)}
               </button>
             );
           })}
@@ -136,29 +133,34 @@ export function UsagePage() {
 
       <div className="grid gap-4 md:grid-cols-2">
         <section className="raise rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-          <p className="panel-label">This key</p>
+          <p className="panel-label">{t("usage.thisKey.label")}</p>
           <p className="mt-2 text-2xl font-medium tabular-nums tracking-[var(--track)] text-[var(--text)]" data-testid="usage-this-key">
-            {loading && !ready ? "Loading…" : thisKeyLine(usage)}
+            {loading && !ready ? t("usage.loading") : thisKeyLine(usage)}
           </p>
           <KeyQuotaMeter usage={usage} />
         </section>
         <section className="raise rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-          <p className="panel-label">This desk</p>
+          <p className="panel-label">{t("usage.desk.label")}</p>
           <p className="mt-2 text-sm font-medium tabular-nums text-[var(--text)]" data-testid="usage-desk-range">
             {loading && !ready
-              ? "Loading…"
-              : `${desk.display} · ${desk.modelCount} model${desk.modelCount === 1 ? "" : "s"}`}
+              ? t("usage.loading")
+              : t(desk.modelCount === 1 ? "usage.desk.summaryOne" : "usage.desk.summary", {
+                  display: desk.display,
+                  count: desk.modelCount,
+                })}
           </p>
           <p className="mt-2 text-[13px] text-[var(--text-2)]">
-            {ready ? `${desk.pricedCount} priced run${desk.pricedCount === 1 ? "" : "s"} in this range.` : "Fetching desk spend…"}
+            {ready
+              ? t(desk.pricedCount === 1 ? "usage.desk.pricedOne" : "usage.desk.priced", { count: desk.pricedCount })
+              : t("usage.desk.fetching")}
           </p>
         </section>
       </div>
 
       <section className="raise mt-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-        <p className="panel-label">Spend over time</p>
+        <p className="panel-label">{t("usage.chart.label")}</p>
         {loading && !ready ? (
-          <p className="mt-4 text-sm text-[var(--text-2)]">Loading…</p>
+          <p className="mt-4 text-sm text-[var(--text-2)]">{t("usage.loading")}</p>
         ) : (
           <UsageRangeChart
             buckets={usage?.buckets ?? []}
@@ -169,12 +171,12 @@ export function UsagePage() {
       </section>
 
       <section className="raise mt-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4" data-testid="usage-by-model">
-        <p className="panel-label">Spend by model</p>
+        <p className="panel-label">{t("usage.byModel.label")}</p>
         {!ready && loading ? (
-          <p className="mt-3 text-sm text-[var(--text-2)]">Loading…</p>
+          <p className="mt-3 text-sm text-[var(--text-2)]">{t("usage.loading")}</p>
         ) : byModel.length === 0 ? (
           <p className="mt-3 text-sm text-[var(--text-2)]">
-            No {productName} runs in this range.
+            {t("usage.byModel.empty", { productName })}
           </p>
         ) : (
           <ul className="mt-4 space-y-4">
@@ -196,8 +198,11 @@ export function UsagePage() {
                   />
                 </div>
                 <p className="mt-1 text-xs text-[var(--text-2)]">
-                  {row.runCount} run{row.runCount === 1 ? "" : "s"} · {tokenLabel(row.inputTokens)} in ·{" "}
-                  {tokenLabel(row.outputTokens)} out
+                  {t(row.runCount === 1 ? "usage.byModel.rowOne" : "usage.byModel.row", {
+                    runs: row.runCount,
+                    input: tokenLabel(row.inputTokens),
+                    output: tokenLabel(row.outputTokens),
+                  })}
                 </p>
               </li>
             ))}
@@ -209,8 +214,16 @@ export function UsagePage() {
                   className="text-xs text-[var(--text-2)]"
                   data-testid={`usage-model-row-${row.model}`}
                 >
-                  {row.model}: {row.unknown ? "billed after they finish" : row.display} · {row.runCount} run
-                  {row.runCount === 1 ? "" : "s"}
+                  {row.unknown
+                    ? t(row.runCount === 1 ? "usage.byModel.unpricedOne" : "usage.byModel.unpriced", {
+                        model: row.model,
+                        runs: row.runCount,
+                      })
+                    : t(row.runCount === 1 ? "usage.byModel.unpricedKnownOne" : "usage.byModel.unpricedKnown", {
+                        model: row.model,
+                        display: row.display,
+                        runs: row.runCount,
+                      })}
                 </li>
               ))}
           </ul>
@@ -218,8 +231,7 @@ export function UsagePage() {
       </section>
 
       <p className="mt-4 text-xs text-[var(--text-3)]">
-        Desk estimate uses {productName} input and output tokens and {gatewayName} catalog prices. This-key wallet spend
-        includes other apps on the same key and will not match the desk total.
+        {t("usage.footer", { productName, gatewayName })}
       </p>
     </main>
   );

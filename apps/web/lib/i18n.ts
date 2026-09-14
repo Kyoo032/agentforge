@@ -1,28 +1,120 @@
-import { DEFAULT_APP_LOCALE, parseAppLocale, type AppLocale } from "@agentforge/core";
+import { DEFAULT_APP_LOCALE, parseAppLocale, type AppLocale } from "@agentforge/core/locale";
+import enChat from "../locales/en/chat.json";
 import enCommon from "../locales/en/common.json";
+import enData from "../locales/en/data.json";
+import enDocuments from "../locales/en/documents.json";
+import enEdit from "../locales/en/edit.json";
+import enFinance from "../locales/en/finance.json";
+import enImages from "../locales/en/images.json";
+import enKnowledge from "../locales/en/knowledge.json";
+import enLegal from "../locales/en/legal.json";
+import enMarket from "../locales/en/market.json";
 import enOnboarding from "../locales/en/onboarding.json";
+import enPresentation from "../locales/en/presentation.json";
 import enRail from "../locales/en/rail.json";
+import enResearch from "../locales/en/research.json";
 import enSettings from "../locales/en/settings.json";
+import enUsage from "../locales/en/usage.json";
+import enVideos from "../locales/en/videos.json";
+import enWorkspaces from "../locales/en/workspaces.json";
+import idChat from "../locales/id/chat.json";
 import idCommon from "../locales/id/common.json";
+import idData from "../locales/id/data.json";
+import idDocuments from "../locales/id/documents.json";
+import idEdit from "../locales/id/edit.json";
+import idFinance from "../locales/id/finance.json";
+import idImages from "../locales/id/images.json";
+import idKnowledge from "../locales/id/knowledge.json";
+import idLegal from "../locales/id/legal.json";
+import idMarket from "../locales/id/market.json";
 import idOnboarding from "../locales/id/onboarding.json";
+import idPresentation from "../locales/id/presentation.json";
 import idRail from "../locales/id/rail.json";
+import idResearch from "../locales/id/research.json";
 import idSettings from "../locales/id/settings.json";
+import idUsage from "../locales/id/usage.json";
+import idVideos from "../locales/id/videos.json";
+import idWorkspaces from "../locales/id/workspaces.json";
 
-const NAMESPACES = ["common", "rail", "settings", "onboarding"] as const;
+const NAMESPACES = [
+  "common",
+  "rail",
+  "settings",
+  "onboarding",
+  "chat",
+  "documents",
+  "research",
+  "images",
+  "videos",
+  "presentation",
+  "knowledge",
+  "workspaces",
+  "usage",
+  "market",
+  "data",
+  "finance",
+  "legal",
+  "edit",
+] as const;
 type Namespace = (typeof NAMESPACES)[number];
-type Catalog = Record<Namespace, Record<string, string>>;
+type MessageTree = { [key: string]: string | MessageTree };
 
-const catalogs: Record<AppLocale, Catalog> = {
-  en: { common: enCommon, rail: enRail, settings: enSettings, onboarding: enOnboarding },
-  id: { common: idCommon, rail: idRail, settings: idSettings, onboarding: idOnboarding },
+const catalogs: Record<AppLocale, Record<Namespace, MessageTree>> = {
+  en: {
+    common: enCommon,
+    rail: enRail,
+    settings: enSettings,
+    onboarding: enOnboarding,
+    chat: enChat,
+    documents: enDocuments,
+    research: enResearch,
+    images: enImages,
+    videos: enVideos,
+    presentation: enPresentation,
+    knowledge: enKnowledge,
+    workspaces: enWorkspaces,
+    usage: enUsage,
+    market: enMarket,
+    data: enData,
+    finance: enFinance,
+    legal: enLegal,
+    edit: enEdit,
+  },
+  id: {
+    common: idCommon,
+    rail: idRail,
+    settings: idSettings,
+    onboarding: idOnboarding,
+    chat: idChat,
+    documents: idDocuments,
+    research: idResearch,
+    images: idImages,
+    videos: idVideos,
+    presentation: idPresentation,
+    knowledge: idKnowledge,
+    workspaces: idWorkspaces,
+    usage: idUsage,
+    market: idMarket,
+    data: idData,
+    finance: idFinance,
+    legal: idLegal,
+    edit: idEdit,
+  },
 };
 
 let frozen: AppLocale | null = null;
+
+export const LOCALE_RESTART_EVENT = "agentforge-locale-restart";
 
 export function freezeLocale(locale: unknown): AppLocale {
   if (frozen) {
     return frozen;
   }
+  return applyLocale(locale);
+}
+
+/** Overwrite the boot freeze. Settings Restart is the only product caller. */
+export function applyLocale(locale: unknown): AppLocale {
   frozen = parseAppLocale(locale);
   if (typeof document !== "undefined") {
     document.documentElement.lang = frozen;
@@ -38,6 +130,17 @@ export function resetLocaleForTests(): void {
   frozen = null;
 }
 
+function walk(node: unknown, parts: string[]): unknown {
+  let current = node;
+  for (const part of parts) {
+    if (!current || typeof current !== "object" || Array.isArray(current)) {
+      return undefined;
+    }
+    current = (current as Record<string, unknown>)[part];
+  }
+  return current;
+}
+
 function lookup(locale: AppLocale, key: string): string | undefined {
   const dot = key.indexOf(".");
   if (dot <= 0) {
@@ -48,8 +151,13 @@ function lookup(locale: AppLocale, key: string): string | undefined {
   if (!NAMESPACES.includes(ns as Namespace)) {
     return undefined;
   }
-  const value = catalogs[locale][ns as Namespace][rest];
-  return typeof value === "string" ? value : undefined;
+  const catalog = catalogs[locale][ns as Namespace];
+  const nested = walk(catalog, rest.split("."));
+  if (typeof nested === "string") {
+    return nested;
+  }
+  const flat = catalog[rest];
+  return typeof flat === "string" ? flat : undefined;
 }
 
 function interpolate(template: string, vars?: Record<string, string | number>): string {

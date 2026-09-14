@@ -7,12 +7,12 @@ import {
   formatObservedAt,
   formatPercent,
   humanRating,
-  sessionLabel,
   type MarketBoard as Board,
   type Quote,
   type Technical,
   type TickerPacket,
 } from "@/lib/market-client";
+import { t } from "@/lib/i18n";
 
 type Props = {
   board: Board | null;
@@ -24,8 +24,7 @@ type Props = {
 };
 
 const CARD = "rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4";
-const NOTE =
-  "rounded-lg border border-[var(--line)] bg-[var(--accent-soft)] px-3 py-2 text-xs text-[var(--text)]";
+const NOTE = "rounded-lg border border-[var(--line)] bg-[var(--accent-soft)] px-3 py-2 text-xs text-[var(--text)]";
 
 function changeTone(value: number | null | undefined): string {
   if (value === null || value === undefined) {
@@ -38,13 +37,13 @@ function trendWord(price: number | null | undefined, average: number | null | un
   if (price === null || price === undefined || average === null || average === undefined) {
     return "";
   }
-  return `${price >= average ? "Above" : "Below"} ${days}-day average`;
+  return t(price >= average ? "market.board.aboveAverage" : "market.board.belowAverage", { days });
 }
 
 function readings(quote: Quote | null, tech: Technical | null): string[] {
   const rating = humanRating(tech?.tradingview?.label ?? "");
   return [
-    rating ? `TradingView: ${rating}` : "",
+    rating ? t("market.board.tradingView", { rating }) : "",
     tech?.rsi14 !== null && tech?.rsi14 !== undefined ? `RSI ${formatNumber(tech.rsi14, 0)}` : "",
     trendWord(quote?.price, tech?.sma50, 50),
     trendWord(quote?.price, tech?.sma200, 200),
@@ -63,11 +62,14 @@ function BoardCard({ ticker, testIdPrefix }: { ticker: TickerPacket; testIdPrefi
           <p className="truncate text-xs text-[var(--text-3)]">{ticker.symbol.name || ticker.symbol.exchange || " "}</p>
         </div>
         <div className="text-right">
-          <p className="text-xl font-semibold tabular-nums text-[var(--text)]" data-testid={`${testIdPrefix}-board-price`}>
-            {headline.price || "No quote"}
+          <p
+            className="text-xl font-semibold tabular-nums text-[var(--text)]"
+            data-testid={`${testIdPrefix}-board-price`}
+          >
+            {headline.price || t("market.board.noQuote")}
           </p>
           <p className={`text-sm tabular-nums ${changeTone(headline.percent)}`}>
-            {formatPercent(headline.percent) || (quote ? "unchanged" : "")}
+            {formatPercent(headline.percent) || (quote ? t("market.board.unchanged") : "")}
             {headline.caption ? <span className="ml-2 text-xs text-[var(--text-3)]">{headline.caption}</span> : null}
           </p>
         </div>
@@ -78,7 +80,10 @@ function BoardCard({ ticker, testIdPrefix }: { ticker: TickerPacket; testIdPrefi
         </p>
       ) : null}
       {facts.length > 0 ? (
-        <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--text-2)]" data-testid={`${testIdPrefix}-board-facts`}>
+        <p
+          className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--text-2)]"
+          data-testid={`${testIdPrefix}-board-facts`}
+        >
           {facts.map((fact) => (
             <span key={fact}>{fact}</span>
           ))}
@@ -107,7 +112,7 @@ function LoadingCards({ tickers, testIdPrefix }: { tickers: ReadonlyArray<string
       {tickers.map((ticker) => (
         <section key={ticker} className={CARD} aria-busy="true">
           <h4 className="font-mono text-base font-semibold text-[var(--text)]">{ticker}</h4>
-          <p className="mt-1 text-xs text-[var(--text-3)]">Loading quote and chart…</p>
+          <p className="mt-1 text-xs text-[var(--text-3)]">{t("market.board.loading")}</p>
           <div className="mt-3 h-40 rounded-xl border border-[var(--line)] bg-[var(--accent-soft)]" />
         </section>
       ))}
@@ -125,9 +130,12 @@ export function MarketBoard({ board, loading, error, tickers, onRefresh, testIdP
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-[var(--text-3)]" data-testid={`${testIdPrefix}-board-status`}>
           {board
-            ? `US market ${sessionLabel(board.clock.usSession).toLowerCase()} · as of ${formatObservedAt(board.clock.runAt)}${loading ? " · updating…" : ""}`
+            ? t("market.board.status", {
+                session: t(`market.session.${board.clock.usSession}`),
+                when: `${formatObservedAt(board.clock.runAt)}${loading ? ` · ${t("market.board.updating")}` : ""}`,
+              })
             : loading
-              ? "Fetching quotes and charts…"
+              ? t("market.board.fetching")
               : ""}
         </p>
         <button
@@ -137,7 +145,7 @@ export function MarketBoard({ board, loading, error, tickers, onRefresh, testIdP
           disabled={loading}
           data-testid={`${testIdPrefix}-board-refresh`}
         >
-          Refresh
+          {t("market.board.refresh")}
         </button>
       </div>
       {error ? (

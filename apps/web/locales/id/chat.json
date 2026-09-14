@@ -6,6 +6,7 @@
   "starting": "Menyiapkan chat…",
   "sessions": "Sesi",
   "sessionsEmpty": "Sesi muncul di sini setelah Anda mengirim.",
+  "resizeSessions": "Ubah ukuran sesi",
   "deleteSession": "Hapus sesi",
   "deleteConfirm": "Hapus \"{title}\"? Tindakan ini tidak dapat dibatalkan.",
   "deleteAria": "Hapus {title}",

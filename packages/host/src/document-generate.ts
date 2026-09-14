@@ -1,4 +1,4 @@
-import { ApiError, hasLiveProvider, resolveChatModel, resolveRuntimeMode, type TenantContext } from "@agentforge/core";
+import { ApiError, hasLiveProvider, resolveChatModel, resolveRuntimeMode, type TenantContext, withOutputLanguage, type AppLocale } from "@agentforge/core";
 import { loadSettings } from "./settings-store";
 import { modeCatalogPayload, listSelectableModels } from "./selectable-models";
 import {
@@ -15,6 +15,7 @@ import {
   readOptionalInstruction,
 } from "./job-regen";
 import { readSourceText, withSourceMaterial, withSourceRule } from "./job-source";
+import { localeForRun } from "./run-context";
 import { artifactStore } from "./artifacts";
 import { upsertWorkSource } from "./knowledge-ingest";
 import { artifactWorkCard, documentDraftMarkdown } from "./work-cards";
@@ -74,8 +75,9 @@ export function isFinanceJob(body: unknown): boolean {
   return Boolean(body && typeof body === "object" && (body as { job?: unknown }).job === "finance");
 }
 
-export function documentJobSystemPrompt(finance: boolean): string {
-  return finance ? FINANCE_SYSTEM : DOCUMENT_SYSTEM;
+export function documentJobSystemPrompt(finance: boolean, locale: AppLocale = localeForRun()): string {
+  const base = finance ? FINANCE_SYSTEM : DOCUMENT_SYSTEM;
+  return withOutputLanguage(base, finance ? "finance" : "documents", locale);
 }
 
 async function collectAssistantText(
@@ -215,7 +217,7 @@ export async function regenerateDocumentSection(tenant: TenantContext, body: unk
   const raw = await collectJobAssistantText({
     tenant,
     model,
-    systemPrompt: withSourceRule(SECTION_SYSTEM, sourceText),
+    systemPrompt: withSourceRule(withOutputLanguage(SECTION_SYSTEM, "documents", localeForRun()), sourceText),
     runPrefix: "document-section",
     agentId: "document",
     versionId: "document-section",
