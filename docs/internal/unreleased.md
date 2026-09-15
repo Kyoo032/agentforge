@@ -8,6 +8,8 @@ Append-only. When 0.14.26 is published, record the artifact table below, fold an
 
 | Artifact | Source | Uploaded (UTC) |
 |---|---|---|
+| `DPSBuddy-Setup-0.14.26.exe` + `.blockmap` + `latest.yml` | `e93c617` (chat model-picker portal fix on `8831bc4`), isolated worktree `agentforge-pack-0.14.26-e93c617`, sha256 `F6E6B7A9…F42C0769`, 99 412 438 bytes, `latest.yml` sha512 `z6hqIj9k…+j8gkQ==` | publishing 2026-09-15 |
+| `DPSBuddy-0.14.26-mac-arm64.dmg` / `.zip`, `-x64.dmg` / `.zip` | `e93c617` (same commit, Docker Linux pipeline, `--arch all`), `mac-0.14.26.sha256`, arm64 dmg `bfa5f041…5362` / zip `ef58afcf…93ad`, x64 dmg `a78a655d…e1df` / zip `8d67fa8d…60c3` | publishing 2026-09-15 |
 | `DPSBuddy-Setup-0.14.25.exe` + `.blockmap` + `latest.yml` | `242f428` (version bump on `e0c6c19`), isolated worktree `agentforge-pack-0.14.25`, sha256 `89F85BB9…055E7BA7`, 99 338 814 bytes | 2026-09-12 13:27 |
 | `DPSBuddy-0.14.25-mac-arm64.dmg` / `.zip`, `-x64.dmg` / `.zip` | `9c0bd27` (same app as `242f428` plus the `hfsplus ls` parser fixes `051382e` / `9c0bd27`), Docker pipeline, `mac-0.14.25.sha256` | 2026-09-12 13:27 |
 
