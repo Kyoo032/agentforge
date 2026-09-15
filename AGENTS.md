@@ -12,6 +12,8 @@ Product modes: see [`docs/product-modes.md`](docs/product-modes.md). The left ra
 
 ## Next step: harness pass (verify skill, mapper, repack) before 0.14.26
 
+**Landed 2026-09-15.** Deliverable 1 is done — the verify skill is maintained (`features/locale.md` and `features/gateway-gate.md` added, 15 dead one-off scripts removed, `doctor --base`, live pass driven on webdev) — and so is deliverable 2, eight map pages under [`docs/internal/maps/`](docs/internal/maps/README.md). Deliverable 3 was exercised for real rather than rehearsed: 0.14.26 was packed twice (Windows worktree + mac Docker, one supersession) and the traps are in [`.cursor/skills/pack-dpsbuddy/traps.md`](.cursor/skills/pack-dpsbuddy/traps.md). Still owed: a packaged-app drive from the verify skill (a `DPSBuddy.exe` was running during the pass, so the live pass stayed on webdev), the Legal recipe, which has still never been driven, and the mac hardware smoke.
+
 Kyo’s order (2026-09-15): bring the harness up to the tree first, then build 0.14.26. Three deliverables, each its own PR, each proven by driving, none touching product code.
 
 ### 1. Verify skill — run pstack `/maintain-verification-skill` on `verify-agentforge`

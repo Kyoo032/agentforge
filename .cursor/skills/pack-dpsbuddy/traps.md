@@ -1,6 +1,6 @@
 # Pack traps (this Windows desk)
 
-Lived through 0.14.23 and 0.14.25. Read when a step fails; do not invent a third environment. Windows pack and mac pack are different routes (different cwd, command, natives, artifacts, proof). A failure on one is not diagnosed with the other.
+Lived through 0.14.23, 0.14.25 and 0.14.26 (packed twice). Read when a step fails; do not invent a third environment. Windows pack and mac pack are different routes (different cwd, command, natives, artifacts, proof). A failure on one is not diagnosed with the other.
 
 ## Python / natives
 
@@ -16,6 +16,8 @@ Do not use the Hermes venv path; it may be gone.
 ## `ELECTRON_RUN_AS_NODE`
 
 Agent shells inject this. Electron then runs as Node and the pack/launch is nonsense. `Remove-Item Env:ELECTRON_RUN_AS_NODE` in every pack shell. Preflight fails if it is set.
+
+**The launch shell counts too (0.14.26).** Unsetting it for the build and then starting `DPSBuddy.exe` from a shell that still has it set gives a **silent** failure: the exe runs as plain Node, never boots a window, exits without an error line, and `doctor --desktop` finds nothing to talk to. It looks like a broken pack. `Remove-Item Env:ELECTRON_RUN_AS_NODE` before every launch as well as every build, and check `$env:ELECTRON_RUN_AS_NODE` in the shell you are actually launching from.
 
 ## Dirty tree vs Docker
 
@@ -75,3 +77,17 @@ Windows artifacts land in the **worktree** `dist/`. Mac artifacts land in the **
 ## Two repos
 
 Source commits stay on `Kyoo032/agentforge`. `pnpm desktop:release` creates a GitHub **release** on `Kyoo032/DPSBuddy` (binaries + `docs/public/<v>-notes.md`). Do not `git push` source to DPSBuddy.
+
+## Repacking the same version
+
+0.14.26 was packed twice (a fix landed after the first pack). A repack of the **same version** from a new sha:
+
+- gets its own fresh worktree, `C:\Users\rizky\agentforge-pack-<version>-<shortsha>` — never reuse the first pack's worktree, and never reuse the bare `agentforge-pack-<version>` name once a second sha exists;
+- moves the earlier pack's artifacts out of the way into the main checkout's `apps/desktop/dist/superseded-<oldsha>/` — **both** routes, Windows and mac, so `desktop-release` cannot pick up a stale exe or dmg of the same version number;
+- records **both** packs in the changelog's "Pack + publish" line, with each sha and which one shipped. A superseded pack that leaves no trace is indistinguishable from a pack that was never made.
+
+## Git writes during a pack
+
+`git worktree add` is the **only** git write a pack agent may make. No `stash`, `checkout`, `switch`, `restore`, `reset`, `rebase`, no commit, no branch move — the pack reads a sha, it does not move the tree.
+
+A stash or checkout by any agent wipes every other worker's uncommitted edits in the shared checkout. This happened **twice on 2026-09-15** during a multi-worker pass, both times costing hours of unrelated work. If the tree is dirty and the pack needs a clean one, that is what the worktree is for.
