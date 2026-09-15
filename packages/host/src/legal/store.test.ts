@@ -4,8 +4,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ApiError, type TenantContext } from "@agentforge/core";
-import { LEGAL_CAPS, type LegalManifest, type MatterDocCard } from "@agentforge/core/legal";
+import { LEGAL_CAPS, legalOutputCopy, type LegalManifest, type MatterDocCard } from "@agentforge/core/legal";
 import { DOCX_MIME, LEGAL_MATTER_MAX_BYTES, UNSUPPORTED_FILE_MESSAGE } from "./store-files";
+import { localeForRun } from "../run-context";
 import { type CreateMatterInput, type LegalRunRecord, type LegalStore, createLegalStore } from "./store";
 
 const tenant: TenantContext = { organizationId: "org", workspaceId: "ws-1", userId: "local", role: "owner" };
@@ -143,7 +144,12 @@ describe("legal store", () => {
     });
     await expect(
       store.addFile(tenant, matter.id, { filename: "notes.txt", bytes: Buffer.from("plain text, not a docx") }),
-    ).rejects.toMatchObject({ code: "unsupported_content_type", status: 400, message: UNSUPPORTED_FILE_MESSAGE });
+    ).rejects.toMatchObject({
+      code: "unsupported_content_type",
+      status: 400,
+      message: legalOutputCopy(localeForRun()).unsupportedFile,
+    });
+    expect(UNSUPPORTED_FILE_MESSAGE).toBe(legalOutputCopy("en").unsupportedFile);
     expect(store.get(tenant, matter.id)?.docs).toHaveLength(1);
     expect(existsSync(join(dir, tenant.workspaceId, matter.id, "files", "S2.docx"))).toBe(false);
 

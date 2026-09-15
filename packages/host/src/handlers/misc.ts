@@ -20,9 +20,9 @@ import { localePayload } from "../locale-boot";
 
 export async function handleGetTools(request: HostRequest): Promise<HostResult> {
   try {
-    await getTenant(request.workspaceId);
+    const tenant = await getTenant(request.workspaceId);
     ensureToolsRegistered();
-    const routes = listToolRoutes(loadSettings());
+    const routes = listToolRoutes(loadSettings(tenant.workspaceId));
     return jsonOk({
       tools: listTools().map((tool) => ({
         key: tool.key,

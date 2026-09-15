@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { markdownPlainText, parseMarkdown, safeHref } from "./parse-markdown";
+import { markdownPlainText, parseMarkdown, safeHref, safeImageSrc } from "./parse-markdown";
 
 describe("parseMarkdown", () => {
   it("turns bold list items into structured blocks", () => {
@@ -29,13 +29,65 @@ describe("parseMarkdown", () => {
   });
 
   it("parses images and headings", () => {
-    const blocks = parseMarkdown("## Title\n\n![cat](https://example.com/cat.png)");
+    const blocks = parseMarkdown("## Title\n\n![cat](/api/v1/media/abc/file)");
     expect(blocks[0]).toMatchObject({ type: "h", level: 2 });
     expect(blocks[1]).toMatchObject({ type: "p" });
     if (blocks[1]?.type !== "p") {
       return;
     }
-    expect(blocks[1].children[0]).toMatchObject({ type: "image", alt: "cat" });
+    expect(blocks[1].children[0]).toMatchObject({
+      type: "image",
+      alt: "cat",
+      src: "/api/v1/media/abc/file",
+    });
+  });
+
+  it("degrades a remote image to a link so nothing auto-loads", () => {
+    const blocks = parseMarkdown("![cat](https://cdn.example/cat.png)");
+    if (blocks[0]?.type !== "p") {
+      throw new Error("expected a paragraph");
+    }
+    expect(blocks[0].children[0]).toMatchObject({
+      type: "link",
+      href: "https://cdn.example/cat.png",
+      children: [{ type: "text", value: "cat" }],
+    });
+    expect(blocks[0].children.some((node) => node.type === "image")).toBe(false);
+  });
+
+  it("uses the url as the link text when a remote image has no alt", () => {
+    const blocks = parseMarkdown("![](http://cdn.example/beacon.gif)");
+    if (blocks[0]?.type !== "p") {
+      throw new Error("expected a paragraph");
+    }
+    expect(blocks[0].children[0]).toMatchObject({
+      type: "link",
+      href: "http://cdn.example/beacon.gif",
+      children: [{ type: "text", value: "http://cdn.example/beacon.gif" }],
+    });
+  });
+
+  it("keeps an unlinkable image source as plain text", () => {
+    const blocks = parseMarkdown("![x](javascript:alert(1))");
+    if (blocks[0]?.type !== "p") {
+      throw new Error("expected a paragraph");
+    }
+    expect(blocks[0].children.every((node) => node.type === "text")).toBe(true);
+  });
+});
+
+describe("safeImageSrc", () => {
+  it("allows host-served media and inline raster data urls", () => {
+    expect(safeImageSrc("  /api/v1/media/abc/file  ")).toBe("/api/v1/media/abc/file");
+    expect(safeImageSrc("agentforge://media/abc")).toBe("agentforge://media/abc");
+    expect(safeImageSrc("data:image/webp;base64,aaa")).toBe("data:image/webp;base64,aaa");
+  });
+
+  it("rejects remote urls and data urls outside the allow-list", () => {
+    expect(safeImageSrc("https://cdn.example/cat.png")).toBeNull();
+    expect(safeImageSrc("http://cdn.example/cat.png")).toBeNull();
+    expect(safeImageSrc("data:image/svg+xml;base64,aaa")).toBeNull();
+    expect(safeImageSrc("data:text/html;base64,aaa")).toBeNull();
   });
 });
 

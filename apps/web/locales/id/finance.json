@@ -22,6 +22,8 @@
   "cancel": "Batal",
   "generate": "Buat",
   "generating": "Memproses…",
+  "autoParsing": "Membaca angka…",
+  "autoParsed": "Membaca {n} angka dari brief Anda. Periksa barisnya, lalu generate lagi.",
   "openSettings": "Buka {settings}.",
   "settingsLink": "Pengaturan",
   "params": {

@@ -1,5 +1,6 @@
 import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { localDataDir } from "@agentforge/db/vault-key";
 import { mediaKind, type ChatModel, type ModelProvider } from "@agentforge/core";
 
 export type ModelCache = {
@@ -22,12 +23,10 @@ function cachePath(): string {
   if (process.env.AGENTFORGE_MODELS_CACHE_PATH) {
     return process.env.AGENTFORGE_MODELS_CACHE_PATH;
   }
-  // Packaged app: the data dir is userData, not cwd/../../data (which would be outside the install).
-  const dataDir = process.env.AGENTFORGE_DATA_DIR?.trim();
-  if (dataDir) {
-    return resolve(dataDir, "models-cache.json");
-  }
-  return resolve(process.cwd(), "../../data/models-cache.json");
+  // One source of truth for where this desk keeps its files: `localDataDir()` also honours
+  // AGENTFORGE_SETTINGS_PATH, which reading AGENTFORGE_DATA_DIR by hand did not — so a desk with a
+  // custom settings path wrote its caches somewhere the "Start over" wipe list never looked.
+  return resolve(localDataDir(), "models-cache.json");
 }
 
 function asModels(value: unknown): ChatModel[] | undefined {

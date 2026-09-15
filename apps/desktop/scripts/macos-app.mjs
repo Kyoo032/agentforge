@@ -50,7 +50,9 @@ if (process.argv.includes("--check")) {
   process.exit(0);
 }
 
-const child = spawn(binary, ["--remote-debugging-port=9222"], {
+// No --remote-debugging-port: a packaged build exits(1) on any debugger switch (lifecycle.hasDebugSwitch),
+// because the main process holds the decrypted gateway key. Inspect the renderer in webdev instead.
+const child = spawn(binary, [], {
   stdio: "inherit",
   detached: true,
 });

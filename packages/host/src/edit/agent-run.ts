@@ -9,7 +9,9 @@ import {
   matchStubEditScenario,
   matchStubFillScenario,
   matchStubGenerateScenario,
+  modeMessage,
   resolveRuntimeMode,
+  stubEditCardCopy,
   withOutputLanguage,
   type RuntimeEvent,
   type TenantContext,
@@ -138,7 +140,7 @@ export async function runEditAgent(input: {
 }): Promise<AsyncIterable<string>> {
   const queue = new StringQueue();
   const runId = crypto.randomUUID();
-  const settings = loadSettings();
+  const settings = loadSettings(input.tenant.workspaceId);
   ensureToolsRegistered();
   const budget = createTurnBudget({ capUsd: settings.editTurnCapUsd });
   const stub = resolveRuntimeMode({
@@ -182,7 +184,7 @@ export async function runEditAgent(input: {
         }
       });
     } catch (error) {
-      const message = error instanceof ApiError ? error.message : "edit agent failed";
+      const message = error instanceof ApiError ? error.message : modeMessage("editAgentFailed", localeForRun());
       queue.push(encodeSse({ type: "run.failed", message }));
     } finally {
       queue.close();
@@ -350,9 +352,8 @@ async function runStub(
       queue.push(encodeEditSse({ type: "edit.job", job }));
     }
   }
-  const cardVerb = "cardVerb" in scenario ? scenario.cardVerb : "Edit";
-  const cardObject = "cardObject" in scenario ? scenario.cardObject : scenario.toolKey;
-  queue.push(encodeSse({ type: "assistant.delta", text: `${cardVerb} · ${cardObject}` }));
+  const card = stubEditCardCopy(scenario, localeForRun());
+  queue.push(encodeSse({ type: "assistant.delta", text: `${card.verb} · ${card.object}` }));
   const completed: RuntimeEvent = { type: "run.completed", runId };
   rememberJobUsage(completed);
   queue.push(encodeSse(completed));

@@ -2,10 +2,12 @@ import { z } from "zod";
 import {
   ApiError,
   buildToolSecretScope,
+  gatewayRequiredMessage,
   imageGenerateTool,
   listToolRoutes,
   maskPii,
   mediaKind,
+  modeMessage,
   pickPreferredImageModel,
   pickPreferredVideoModel,
   runWithToolSecrets,
@@ -24,11 +26,7 @@ import { getStudioMediaMeta, saveStudioMediaMeta, type StudioMediaMeta } from ".
 import { upsertWorkSource } from "./knowledge-ingest";
 import { mediaWorkCard } from "./work-cards";
 import type { WorkSourceType } from "./knowledge";
-import {
-  imageGenerateFailedMessage,
-  imageStudioLocale,
-  withImageOutputLanguage,
-} from "./image-output-locale";
+import { imageGenerateFailedMessage, withImageOutputLanguage } from "./image-output-locale";
 import { localeForRun } from "./run-context";
 
 export type StudioGenerateOptions = {
@@ -103,7 +101,7 @@ export function parseVideoGenerateBody(raw: unknown): VideoGenerateBody {
     throw new ApiError("invalid_content_part", parsed.error.issues[0]?.message ?? "Invalid body", 400);
   }
   if (parsed.data.imageUrl && parsed.data.model && !videoCapabilities(parsed.data.model).imageToVideo) {
-    throw new ApiError("video_still_unsupported", "This model does not accept a still image", 400);
+    throw new ApiError("video_still_unsupported", modeMessage("videoStillUnsupported", localeForRun()), 400);
   }
   return parsed.data;
 }
@@ -148,8 +146,8 @@ async function persistMeta(meta: StudioMediaMeta): Promise<void> {
   }
 }
 
-export function studioRouteReady(capability: "image_gen" | "video_gen"): boolean {
-  const routes = listToolRoutes(loadSettings());
+export function studioRouteReady(capability: "image_gen" | "video_gen", workspaceId: string): boolean {
+  const routes = listToolRoutes(loadSettings(workspaceId));
   return Boolean(routes[capability]?.ready);
 }
 
@@ -158,8 +156,8 @@ export async function generateStudioImage(
   body: ImageGenerateBody,
   options: StudioGenerateOptions = {},
 ): Promise<StudioGenerateResult> {
-  const settings = loadSettings();
-  const locale = imageStudioLocale(settings);
+  const settings = loadSettings(tenant.workspaceId);
+  const locale = localeForRun();
   const scope = buildToolSecretScope(settings);
   const model = body.model || settings.imageGenModel || defaultStudioImageModel();
   const output = await runWithToolSecrets(scope, () =>
@@ -211,18 +209,14 @@ export async function generateStudioVideo(
   body: VideoGenerateBody,
   options: StudioGenerateOptions = {},
 ): Promise<StudioGenerateResult> {
-  if (!studioRouteReady("video_gen")) {
-    throw new ApiError(
-      "invalid_request",
-      "Add a Toko Token gateway key in Settings to generate videos.",
-      400,
-    );
+  if (!studioRouteReady("video_gen", tenant.workspaceId)) {
+    throw new ApiError("invalid_request", gatewayRequiredMessage("videos", localeForRun()), 400);
   }
-  const settings = loadSettings();
+  const settings = loadSettings(tenant.workspaceId);
   const scope = buildToolSecretScope(settings);
   const model = body.model || settings.videoGenModel || defaultStudioVideoModel();
   if (body.imageUrl && !videoCapabilities(model).imageToVideo) {
-    throw new ApiError("video_still_unsupported", "This model does not accept a still image", 400);
+    throw new ApiError("video_still_unsupported", modeMessage("videoStillUnsupported", localeForRun()), 400);
   }
   const output = await runWithToolSecrets(scope, () =>
     videoGenerateTool.execute(
@@ -239,7 +233,7 @@ export async function generateStudioVideo(
   );
   const url = toolSuccessUrl(output, "video");
   if (!url) {
-    const message = toolFailureMessage(output, "Video generation failed");
+    const message = toolFailureMessage(output, modeMessage("videoGenerateFailed", localeForRun()));
     throw new ApiError("tool_failed", message, studioVideoFailureStatus(message));
   }
   const { saveGeneratedVideo } = await import("./media");

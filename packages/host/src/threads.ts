@@ -1,9 +1,10 @@
-import { and, asc, desc, eq, ne } from "drizzle-orm";
+import { and, asc, desc, eq, ne, notInArray } from "drizzle-orm";
 import { agents, db, messages, runs, threads, toolInvocations } from "@agentforge/db";
 import type { ContentPart, InputModality, TenantContext } from "@agentforge/core";
 import { ApiError, DEFAULT_CHAT_SLUG, isDefaultChatAgent, openPayload, sealPayload } from "@agentforge/core";
 import { getLocalVaultKey } from "@agentforge/db/vault-key";
-import { DEFAULT_THREAD_TITLE, titleFromParts } from "./thread-title";
+import { DEFAULT_THREAD_TITLES, defaultThreadTitle, isDefaultThreadTitle, titleFromParts } from "./thread-title";
+import { localeForRun } from "./run-context";
 import { deleteSourceByOrigin } from "./knowledge";
 import { messageText } from "./message-text";
 
@@ -37,7 +38,7 @@ export async function createThread(tenant: TenantContext, agentId: string, title
       workspaceId: tenant.workspaceId,
       agentId,
       userId: tenant.userId,
-      title: title ?? DEFAULT_THREAD_TITLE,
+      title: title ?? defaultThreadTitle(localeForRun()),
     })
     .returning();
   return row;
@@ -168,7 +169,7 @@ export async function listPastSessionsForAgent(
         eq(threads.agentId, agentId),
         eq(threads.userId, tenant.userId),
         ne(threads.id, excludeThreadId),
-        ne(threads.title, DEFAULT_THREAD_TITLE),
+        notInArray(threads.title, [...DEFAULT_THREAD_TITLES]),
       ),
     )
     .orderBy(desc(threads.createdAt))
@@ -236,7 +237,7 @@ export async function setThreadTitleFromParts(tenant: TenantContext, threadId: s
     return;
   }
   const thread = await getThread(tenant, threadId);
-  if (!thread || thread.title !== DEFAULT_THREAD_TITLE) {
+  if (!thread || !isDefaultThreadTitle(thread.title)) {
     return;
   }
   await db

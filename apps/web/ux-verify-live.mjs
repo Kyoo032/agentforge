@@ -2,7 +2,7 @@
 import { chromium } from "playwright";
 import { mkdirSync, writeFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 
 const BASE = process.env.BASE ?? "http://127.0.0.1:3177";
 const OUT = process.env.OUT ?? "C:/Users/rizky/AppData/Local/Temp/af-market-verify/out/ux";
@@ -63,7 +63,7 @@ async function runGenerate(tag, { cancelAtMs = null } = {}) {
       if (/Still drafting/.test(text)) {
         heartbeat = true;
         const m = text.match(/Still drafting… \d+s/g);
-        if (m) m.forEach((x) => heartbeatLabels.add(x));
+        if (m) for (const x of m) heartbeatLabels.add(x);
       }
       if (/drafting/i.test(text) && !shotDrafting) {
         shotDrafting = true;
@@ -223,7 +223,9 @@ if (STAGES.includes("download")) {
   const size = statSync(file).size;
   let zipList = "";
   try {
-    zipList = execSync(`node -e "const z=require('fs').readFileSync(process.argv[1]);const s=z.toString('latin1');console.log(s.includes('word/document.xml'), s.slice(0,2))" "${file}"`).toString();
+    const probe =
+      "const z=require('fs').readFileSync(process.argv[1]);const s=z.toString('latin1');console.log(s.includes('word/document.xml'), s.slice(0,2))";
+    zipList = execFileSync("node", ["-e", probe, file]).toString();
   } catch (e) { zipList = String(e); }
   note("download-docx", { file, size, hasWordDocumentXml: zipList.trim(), btnTextAfter: await btn.textContent(), err: await page.locator('[data-testid="market-error"]').textContent().catch(() => null) });
   // Markdown download too

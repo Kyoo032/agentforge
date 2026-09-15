@@ -8,6 +8,7 @@ Status: **port in progress**. Code for the shell rows landed on 2026-09-08 (merg
 - **Launching needs a Mac.** `pnpm desktop:mac`, the Keychain prompt, Cmd+Q, and every smoke step below run on macOS only.
 - **The application menu is mandatory.** On macOS Cmd+C/V/X/A/Q exist only as Edit/App menu roles. `edit-menu.cjs` installs App + Edit + Window menus; never set the menu to `null` and never remove the Edit roles. A menu change is tested on both Windows and macOS.
 - **Window lifecycle is Dock-style.** `lifecycle.cjs` `shouldQuitOnLastWindow("darwin")` is false: closing the window destroys it, the app stays in the Dock, and `activate` recreates the window. Cmd+Q (the `quit` role) is the only quit path. `exitApp()` and its `taskkill` tree walk never run on macOS.
+- **Relaunch is the one other exit.** The Dock and Cmd+Q rules above are unchanged, but `app:relaunch` (Settings → Start over) is the only path besides Cmd+Q that ends the process on macOS: `lifecycle.relaunchPlan` → `app.relaunch()` + `app.exit(0)`, with tracked helpers signalled first (`killChildren` is true on every platform). It never runs `exitApp()` and never touches `taskkill`; the relauncher waits for this process to exit, so the single-instance lock is free for the new one. It is refused while an update installs or while the app is already exiting.
 - **Helpers die with the app.** `before-quit` calls the host's `killTrackedChildren()` (`packages/host/src/child-processes.ts`); `runFfmpeg` registers every ffmpeg / ffprobe it spawns. Anything else the host spawns in future must go through `trackChild`, or it survives Cmd+Q.
 - **Secrets.** keytar stores the wrap key in the login Keychain under service `<productName>` / account `wrap-key`. First access on an unsigned app can show a Keychain prompt; "Always Allow" must work, and denying must fall through to the session-key warning, not a crash. Same `settings.enc` format as Windows.
 - **Paths.** userData is `~/Library/Application Support/<productName>`. `doctor.mjs --desktop` reads `host-status.json` there. Logs go to `~/Library/Logs/<productName>` (`updater.log` is not written on macOS because the updater is off).
@@ -55,6 +56,10 @@ What this path cannot prove: that the app launches. Static checks pass; smoke st
 5. Relaunch: Keychain does not re-prompt, saved key still decrypts (`hasOpenai: true` in `host-status.json`).
 6. `node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop` passes with `transport: "ipc"`.
 7. Rail footer updates icon: the panel reads "Updates on macOS are manual for now…" and **Check for updates** is disabled.
+8. Settings → Start over → Reset to a fresh install → app restarts on onboarding; userData keeps Chromium folders, loses `agentforge.sqlite`, `settings.enc`, `media/`; `host-status.json` shows `hasOpenai: false`. Activity Monitor shows one `DPSBuddy` and no `ffmpeg` left from the old run; the Dock icon stays in place across the restart.
+9. Second launch after that reset stays fresh: onboarding again, `hasOpenai: false`, no threads. The legacy folder under `~/Library/Application Support/` is **not** copied back — `legacy-migrated.json` exists in userData and the old desk is untouched on disk.
+10. Queued wipe, second thoughts: Settings → Start over → Reset to a fresh install, then **Keep my data** on the banner. `reset-pending.json` is gone from userData and the next launch keeps every thread and the saved key.
+11. Model-output link (a research source, a market ticker, the ffmpeg setup notice) opens the default browser. Never a second app window, and the app window itself has not navigated anywhere.
 
 ## Do not
 

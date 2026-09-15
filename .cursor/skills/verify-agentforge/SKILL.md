@@ -151,7 +151,7 @@ Use `page.getByTestId("<id>")` exactly as the spec.
 | `usage-range-empty`, `usage-desk-range`, `usage-by-model`, `usage-key-meter` | Usage page (by-model + desk range; empty chart copy) |
 | `images-studio`, `images-studio-needs-key`, `videos-studio`, `videos-studio-needs-key` | Generate studios |
 | `edit-studio`, `edit-timeline`, `edit-preview`, `edit-agent-panel`, `edit-composer`, `edit-card`, `edit-card-keep`, `edit-card-undo`, `edit-card-tweak`, `edit-export`, `edit-needs-ffmpeg`, `edit-needs-key` | Edit studio (Phase 1) |
-| `finance-studio`, `finance-starters`, `finance-download`, `finance-generate` | Finance job |
+| `finance-studio`, `finance-starters`, `finance-download-docx` (DOCX) / `finance-download` (Markdown, shared artifact bar), `finance-generate` | Finance job |
 | `data-studio`, `data-csv`, `data-starter`, `data-download`, `data-generate` | Data job |
 | `knowledge-page`, `knowledge-tabs`, `knowledge-models`, `knowledge-sources`, `knowledge-paste`, `knowledge-soul-save`, `knowledge-memory-add`, `knowledge-model-embedding`, `knowledge-model-brain`, `knowledge-model-verifier`, `knowledge-tab-map`, `knowledge-map-panel`, `knowledge-map-run`, `knowledge-map` | Knowledge Base |
 | `knowledge-loop`, `knowledge-loop-cycle`, `knowledge-loop-stage-<Stage>`, `knowledge-loop-summary`, `knowledge-loop-work`, `knowledge-loop-count-<Type>`, `knowledge-loop-empty`, `knowledge-loop-verify`, `knowledge-loop-verified`, `knowledge-loop-verify-error`, `knowledge-source-type` | Knowledge loop, six stages incl. Graph + Verified (Sources tab) — [knowledge-ingest.md](features/knowledge-ingest.md), [knowledge.md](features/knowledge.md) |

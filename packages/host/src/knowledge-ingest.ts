@@ -24,7 +24,7 @@ export type UpsertWorkSourceResult =
 export async function upsertWorkSource(tenant: TenantContext, card: WorkCard): Promise<UpsertWorkSourceResult> {
   // A thread title is derived from the first user message, so a title that trips the guard would keep
   // every later (clean) card of that thread blocked. The title is replaced; only body + prompt decide.
-  const bypass = injectionGuardBypass();
+  const bypass = injectionGuardBypass(tenant);
   const titleHit = bypass ? null : scanInjection(card.title);
   const safeCard = titleHit ? { ...card, title: card.type } : card;
   // Knowledge chunks are plaintext (FTS) while chat messages are sealed at rest, so the card gets the
@@ -76,9 +76,9 @@ export function ingestWorkSource(tenant: TenantContext, card: WorkCard): void {
   });
 }
 
-function injectionGuardBypass(): boolean {
+function injectionGuardBypass(tenant: TenantContext): boolean {
   try {
-    return loadSettings().injectionGuardBypass === true;
+    return loadSettings(tenant.workspaceId).injectionGuardBypass === true;
   } catch {
     return false;
   }

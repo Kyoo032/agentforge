@@ -29,6 +29,19 @@
     "ctaDownloading": "Mengunduh…",
     "install": "Perbarui dan mulai ulang",
     "check": "Periksa pembaruan",
-    "close": "Tutup"
+    "close": "Tutup",
+    "versionLine": "Instalasi ini versi {version}.",
+    "tooltip": "Pembaruan: {line}",
+    "status": {
+      "checking": "Memeriksa GitHub Releases…",
+      "latest": "Kamu sudah memakai DPSBuddy versi terbaru.",
+      "ready": "Versi {version} siap diunduh.",
+      "downloading": "Mengunduh {percent}%",
+      "downloadingUnknown": "Mengunduh…",
+      "downloaded": "Versi {version} sudah diunduh. Mulai ulang untuk menyelesaikan.",
+      "unsupported": "Tersedia di aplikasi DPSBuddy yang terpasang. Rilis GitHub baru diunduh lalu aplikasi dimulai ulang.",
+      "idle": "Rilis GitHub baru diunduh di sini, lalu DPSBuddy dimulai ulang.",
+      "checkFailed": "Pemeriksaan pembaruan gagal."
+    }
   }
 }

@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
+  announceGate,
   formatGateTimestamp,
   gatewayReasonKey,
   gatewayStatusKey,
+  GATE_EVENT,
   GATEWAY_GATE_STATUSES,
   MISSING_GATEWAY_GATE,
   parseGatewayBlocked,
   parseGatewayGate,
+  readGateEvent,
   resolveGate,
   type GatewayGatePayload,
   type GatewayGateStatus,
@@ -152,9 +155,9 @@ describe("copy keys", () => {
 
 describe("parseGatewayBlocked", () => {
   it("reads a 403 gateway_blocked body", () => {
-    expect(
-      parseGatewayBlocked({ error: "gateway_blocked", status: "invalid_key", message: " key rejected " }),
-    ).toEqual({ status: "invalid_key", message: "key rejected" });
+    expect(parseGatewayBlocked({ error: "gateway_blocked", status: "invalid_key", message: " key rejected " })).toEqual(
+      { status: "invalid_key", message: "key rejected" },
+    );
   });
 
   it("falls back to error for an unknown status and a missing message", () => {
@@ -190,5 +193,40 @@ describe("formatGateTimestamp", () => {
     const withTime = formatGateTimestamp("2026-09-14T04:00:00.000Z", "en", true);
     expect(withTime).not.toBe(dateOnly);
     expect(withTime?.length).toBeGreaterThan((dateOnly ?? "").length);
+  });
+});
+
+describe("gate events", () => {
+  it("names one event for the whole renderer", () => {
+    expect(GATE_EVENT).toBe("agentforge-gate");
+  });
+
+  it("reads a gate back out of an event detail", () => {
+    const event = { type: GATE_EVENT, detail: gate({ status: "needs_key", allowed: false }) } as unknown as Event;
+    expect(readGateEvent(event)).toEqual(gate({ status: "needs_key", allowed: false }));
+  });
+
+  it("returns null when the detail is not a gate", () => {
+    for (const detail of [null, undefined, "needs_key", {}, { status: "ok" }, { status: "yes", allowed: true }]) {
+      expect(readGateEvent({ type: GATE_EVENT, detail } as unknown as Event)).toBeNull();
+    }
+    expect(readGateEvent({ type: GATE_EVENT } as unknown as Event)).toBeNull();
+  });
+
+  it("re-parses the detail rather than trusting it", () => {
+    const event = {
+      type: GATE_EVENT,
+      detail: { status: "ok", allowed: true, endpoint: "  ", grace: "yes", bypass: true },
+    } as unknown as Event;
+    const read = readGateEvent(event);
+    expect(read?.grace).toBe(false);
+    expect(read?.endpointLocked).toBe(true);
+    expect(read).not.toHaveProperty("bypass");
+  });
+
+  it("does nothing when there is no window to announce on", () => {
+    expect(typeof window).toBe("undefined");
+    expect(() => announceGate(gate())).not.toThrow();
+    expect(() => announceGate(null)).not.toThrow();
   });
 });

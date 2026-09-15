@@ -31,6 +31,22 @@ export type DesktopUpdateSnapshot = {
   message?: string;
 };
 
+/** Shell restart request. `reset` asks the packaged app to wipe local data on the next boot. */
+export type DesktopRelaunchOptions = {
+  reset?: boolean;
+};
+
+/**
+ * What the shell answered. `ok: false` means the restart did **not** happen — the shell refuses
+ * while an update installs (`installing-update`), while a quit is already in flight
+ * (`already-exiting`), from any frame that is not the main renderer (`forbidden`), and there is no
+ * shell at all on webdev (`unavailable`).
+ */
+export type DesktopRelaunchResult = {
+  ok: boolean;
+  reason?: string;
+};
+
 export type DesktopUpdatesApi = {
   supported: boolean;
   state: () => Promise<DesktopUpdateSnapshot>;
@@ -50,7 +66,7 @@ type DesktopBridge = {
   saveBytes?: (filename: string, bytes: number[]) => Promise<void>;
   pickMedia?: () => Promise<string[]>;
   updates?: DesktopUpdatesApi;
-  relaunch?: () => void;
+  relaunch?: (options?: DesktopRelaunchOptions) => unknown;
 };
 
 declare global {
@@ -120,12 +136,29 @@ export async function pickMedia(): Promise<string[]> {
   return pick();
 }
 
-/** Packaged relaunch if preload already exposes it. Does not invent Electron chrome. */
-export function relaunchDesktopApp(): boolean {
+/**
+ * Packaged relaunch if preload already exposes it. Does not invent Electron chrome.
+ *
+ * `{ reset: true }` asks the shell to wipe local data on the next boot.
+ *
+ * The shell can refuse (see `DesktopRelaunchResult`), and a refusal must never read as a restart in
+ * flight: the user would sit waiting for a window that is not coming back. On webdev there is no
+ * bridge at all, which is `{ ok: false, reason: "unavailable" }` — the caller tells the operator to
+ * restart by hand. A non-object answer is success: on the happy path the process exits before the
+ * IPC reply is ever sent, so the promise resolves with whatever Electron had (or never at all).
+ */
+export async function relaunchDesktopApp(options?: DesktopRelaunchOptions): Promise<DesktopRelaunchResult> {
   const relaunch = desktopBridge()?.relaunch;
   if (typeof relaunch !== "function") {
-    return false;
+    return { ok: false, reason: "unavailable" };
   }
-  relaunch();
-  return true;
+  const answer = await relaunch(options);
+  if (!answer || typeof answer !== "object") {
+    return { ok: true };
+  }
+  const result = answer as { ok?: unknown; reason?: unknown };
+  if (result.ok === false) {
+    return { ok: false, reason: typeof result.reason === "string" && result.reason.trim() ? result.reason : "refused" };
+  }
+  return { ok: true };
 }

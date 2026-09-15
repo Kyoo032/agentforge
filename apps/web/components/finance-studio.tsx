@@ -10,6 +10,7 @@ import { LineItemEditor } from "@/components/line-item-editor";
 import { ModelSelect } from "@/components/model-select";
 import { apiFetch } from "@/lib/api-client";
 import { listDatasets, type DatasetSummary } from "@/lib/data-client";
+import { briefLooksLikeFigures, parseFailureMessage } from "@/lib/finance-brief";
 import {
   FINANCE_PARAM_FIELDS,
   downloadFinanceDocx,
@@ -53,14 +54,17 @@ export function FinanceStudio() {
   const [source, setSource] = useState<Source>({ kind: "items" });
   const [datasets, setDatasets] = useState<DatasetSummary[]>([]);
   const [result, setResult] = useState<FinanceResult | null>(null);
-  const [busy, setBusy] = useState<"parse" | "download" | "regen" | null>(null);
+  const [busy, setBusy] = useState<"parse" | "autoParse" | "download" | "regen" | null>(null);
   const [regenIndex, setRegenIndex] = useState<number | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const error = localError ?? job.error?.message ?? null;
   const locked = job.busy || busy !== null;
   const confirmedItems = usableLineItems(items);
   const ready = source.kind === "dataset" || confirmedItems.length > 0;
+  const generateLabel =
+    busy === "autoParse" ? t("finance.autoParsing") : job.busy ? t("finance.generating") : t("finance.generate");
 
   useEffect(() => {
     let cancelled = false;
@@ -87,12 +91,36 @@ export function FinanceStudio() {
     }
     setBusy("parse");
     setLocalError(null);
+    setNotice(null);
+    job.reset();
     try {
       const parsed = await parseFigures(figures, model);
       setItems(parsed);
       setSource({ kind: "items" });
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : t("finance.errors.parse"));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  /** Brief-only figures: read them into rows and stop; the owner confirms rows before anything is computed. */
+  async function autoParseBrief(brief: string) {
+    setBusy("autoParse");
+    setLocalError(null);
+    setNotice(null);
+    job.reset();
+    try {
+      const parsed = await parseFigures(brief, model);
+      if (parsed.length === 0) {
+        setLocalError(t("finance.errors.addItems"));
+        return;
+      }
+      setItems(parsed);
+      setSource({ kind: "items" });
+      setNotice(t("finance.autoParsed", { n: parsed.length }));
+    } catch (err) {
+      setLocalError(parseFailureMessage(err, t("finance.errors.parse"), t("finance.errors.addItems")));
     } finally {
       setBusy(null);
     }
@@ -105,10 +133,16 @@ export function FinanceStudio() {
       return;
     }
     if (!ready) {
+      if (briefLooksLikeFigures(brief)) {
+        await autoParseBrief(brief);
+        return;
+      }
+      setNotice(null);
       setLocalError(t("finance.errors.addItems"));
       return;
     }
     setLocalError(null);
+    setNotice(null);
     const next = await job.run("/api/v1/finance/stream", { prompt: brief, model: model || undefined, ...inputsBody() });
     if (next) {
       setResult(next);
@@ -181,7 +215,7 @@ export function FinanceStudio() {
             onClick={() => void onDownload()}
             disabled={locked}
             className="btn btn-primary ml-auto"
-            data-testid="finance-download"
+            data-testid="finance-download-docx"
           >
             {busy === "download" ? t("finance.downloading") : t("finance.download")}
           </button>
@@ -196,6 +230,11 @@ export function FinanceStudio() {
               <SettingsLinkHint i18nKey="finance.openSettings" />
             </>
           ) : null}
+        </p>
+      ) : null}
+      {notice ? (
+        <p className="mb-4 text-sm text-[var(--text-2)]" role="status" data-testid="finance-auto-parsed">
+          {notice}
         </p>
       ) : null}
       <div className="grid items-start gap-5 lg:[grid-template-columns:420px_minmax(0,1fr)]">
@@ -375,7 +414,7 @@ export function FinanceStudio() {
             disabled={locked || !prompt.trim()}
             data-testid="finance-generate"
           >
-            {job.busy ? t("finance.generating") : t("finance.generate")}
+            {generateLabel}
           </button>
         </div>
       </form>

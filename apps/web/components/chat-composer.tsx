@@ -9,7 +9,7 @@ import { apiFetch } from "@/lib/api-client";
 import { abortErrorMessage, armStreamWatchdog } from "@agentforge/core/stream-watchdog";
 import { REASONING_EFFORTS, type ReasoningEffort } from "@agentforge/core/reasoning-effort";
 import { submitOnEnter } from "@/lib/composer-enter";
-import { t } from "@/lib/i18n";
+import { getLocale, t } from "@/lib/i18n";
 
 export type ComposerUserSendPayload = {
   text: string;
@@ -219,7 +219,7 @@ export function ChatComposer({
       }
 
       const abort = new AbortController();
-      const dog = armStreamWatchdog(model ?? "this model", abort);
+      const dog = armStreamWatchdog(model ?? "this model", abort, undefined, Date.now, getLocale());
       try {
         if (decision.route === "text") {
           const id = onEnsureThread ? await onEnsureThread() : threadId;
@@ -317,7 +317,7 @@ export function ChatComposer({
         dog.close();
       }
     } catch (err) {
-      const message = abortErrorMessage(err);
+      const message = abortErrorMessage(err, getLocale());
       setError(message);
       onFailed?.(message);
       await onComplete();

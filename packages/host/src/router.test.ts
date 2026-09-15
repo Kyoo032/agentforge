@@ -1,7 +1,31 @@
-import { describe, expect, it, vi } from "vitest";
-import { dispatch } from "./router";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import type { HostRequest, HostResult } from "./types";
+
+// Isolation: several routes resolve a tenant, which opens the kernel SQLite and records the desk in
+// `workspace-id.txt`. Point the data dir at a temp folder BEFORE the router is imported so none of
+// that lands in the repo's own data/ directory.
+const dataDir = mkdtempSync(join(tmpdir(), "agentforge-router-"));
+process.env.AGENTFORGE_DATA_DIR = dataDir;
+process.env.AGENTFORGE_SECRETS_KEY = "e".repeat(64);
+delete process.env.AGENTFORGE_SETTINGS_PATH;
+delete process.env.DATABASE_URL;
+
+let dispatch: (request: HostRequest) => Promise<HostResult>;
 
 describe("host router", () => {
+  beforeAll(async () => {
+    ({ dispatch } = await import("./router"));
+  }, 60_000);
+
+  afterAll(async () => {
+    // The kernel SQLite lives in dataDir; close it so Windows releases the file before cleanup.
+    const { sql } = await import("@agentforge/db");
+    sql.close();
+    rmSync(dataDir, { recursive: true, force: true });
+  });
   it("answers GET /api/v1/ping without a database", async () => {
     const result = await dispatch({
       method: "GET",

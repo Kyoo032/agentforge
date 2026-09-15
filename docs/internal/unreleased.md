@@ -1,45 +1,40 @@
-# Unreleased changes (after public v0.14.22)
+# Unreleased changes (after public v0.14.25)
 
-**Purpose:** what is on `main` but not inside the installers attached to the public v0.14.22 release on `Kyoo032/DPS-Agent-Platform`. On 2026-09-08 the tree was bumped to **`0.14.23`** (per the 2026-09-07 rule; never `0.14.3+`, never `0.15`) and everything listed here up to that point was folded into [`0.14.23-changelog.md`](0.14.23-changelog.md); 0.14.23 was published on 2026-09-08 15:25 UTC from `4fc02f4`; `release/0.14.23` is not merged to `main` yet, so merge it before starting the next patch's copy of this file. Same rule as every changelog: nothing counts as shipped until it is staged, packed, installed, and driven on the packaged app.
+**Purpose:** what is on `main` or on the cut branch but not inside the installers attached to the public **v0.14.25** release on `Kyoo032/DPSBuddy` — published 2026-09-12 13:27 UTC from the publish commit `3dab299`, with `apps/desktop/package.json` at `0.14.25`. The **`0.14.26` cut is in progress (2026-09-15), not yet published**: `apps/desktop/package.json` is at `0.14.26` and everything this file used to list has been folded into [`0.14.26-changelog.md`](0.14.26-changelog.md). The next cut after it is **`0.14.27`** (per the 2026-09-07 rule; never `0.14.3+`, never `0.15`). Convention unchanged: at the bump everything listed here is folded into `<version>-changelog.md` and this file starts over. Same rule as every changelog: nothing counts as shipped until it is staged, packed, installed, and driven on the packaged app.
 
-Append-only. When 0.14.23 is published, record the artifact table below, fold any later items into the next changelog, and start this file over.
+Append-only. When 0.14.26 is published, record the artifact table below, fold any later items into the next changelog, and start this file over.
 
 ## Where each published artifact came from
 
 | Artifact | Source | Uploaded (UTC) |
 |---|---|---|
-| `Agentforge-Setup-0.14.22.exe` + `.blockmap` + `latest.yml` | PR #23 branch, dirty tree (`--allow-dirty`), minutes before its merge `768b6d8`; exact commit not recorded | 2026-09-07 14:44 |
-| `Agentforge-0.14.22-mac-arm64.dmg` / `.zip`, `-x64.dmg` / `.zip` | `ce7b25b` (merge of PR #24), built in the Docker pipeline from PR #25 | 2026-09-08 06:23 |
-| `Agentforge-Setup-0.14.23.exe` + `.blockmap` + `latest.yml` | `4fc02f4` (`release/0.14.23`), clean tree, isolated worktree `agentforge-pack`, sha256 `b1989a84…9aa98a` | 2026-09-08 15:25 |
-| `Agentforge-0.14.23-mac-arm64.dmg` / `.zip`, `-x64.dmg` / `.zip` | `4fc02f4`, Docker pipeline, `mac-0.14.23.sha256` | 2026-09-08 15:25 |
-| `DPSBuddy-Setup-0.14.25.exe` + `.blockmap` + `latest.yml` | `242f428` (version bump on `e0c6c19`), isolated worktree `agentforge-pack-0.14.25`, sha256 `89F85BB9…557BA7`, 99 338 814 bytes | 2026-09-12 13:27 |
-| `DPSBuddy-0.14.25-mac-arm64.dmg` / `.zip`, `-x64.dmg` / `.zip` | `9c0bd27` (same app as `242f428` + hfsplus `ls` parser), Docker pipeline, `mac-0.14.25.sha256` | 2026-09-12 13:27 |
+| `DPSBuddy-Setup-0.14.25.exe` + `.blockmap` + `latest.yml` | `242f428` (version bump on `e0c6c19`), isolated worktree `agentforge-pack-0.14.25`, sha256 `89F85BB9…055E7BA7`, 99 338 814 bytes | 2026-09-12 13:27 |
+| `DPSBuddy-0.14.25-mac-arm64.dmg` / `.zip`, `-x64.dmg` / `.zip` | `9c0bd27` (same app as `242f428` plus the `hfsplus ls` parser fixes `051382e` / `9c0bd27`), Docker pipeline, `mac-0.14.25.sha256` | 2026-09-12 13:27 |
 
-Everything from PR #21 (Edit studio), PR #22 (starter media prompt templates), the 0.14.2 release commit `6aad7cd`, and PR #23 (Research dossier, Data, Finance, source material, Markdown tables, HTTPS-only fetch) is inside both 0.14.22 installers.
+Seven assets in all (`gh release view v0.14.25`): the exe, its `.blockmap`, `latest.yml`, and the four mac files. Everything up to the bump commit `242f428` is inside both 0.14.25 installers — Market Watch (the keyless board and the written briefing), the Knowledge Base phases, desk management, and PR #33 (Chat auto-route wires, Thinking snapped per model, `e0c6c19`); entries in [`0.14.25-changelog.md`](0.14.25-changelog.md), on top of everything already shipped in 0.14.22, 0.14.23 and 0.14.24.
 
-## On `main`, not in any published installer (ships as 0.14.23)
+Everything this file used to list under "ships as 0.14.23" (Legal mode v1, Knowledge ingest loop, hardening rounds 1 to 6, the offline requirement, Videos example clips, PR #24 to #27) is inside the published 0.14.23 installers; the entries live in [`0.14.23-changelog.md`](0.14.23-changelog.md).
 
-Detailed entries live in [`0.14.23-changelog.md`](0.14.23-changelog.md); this is the index.
+## Folded into the 0.14.26 cut
 
-- **Legal mode v1** (.docx matter review: classify → diff → clause review → verify / edit loop → memo, redline, deviation report, red-flags). Built in a parallel session; two docx fixture tests still fail; no live run yet.
-- **Knowledge ingest loop** (work cards from every Chat turn / job, `knowledge-loop` chart, skip-self retrieval, `Send to Knowledge Base` dedupe, cascade on delete).
-- **Hardening rounds 1 to 6** (PII masking + injection guard on every KB write, guard bypass fixes, workspace-scoped threads, runs never stuck `streaming`, FTS5 query quoting, catalog memo, malformed input → 4xx).
-- **Offline requirement** (bundled Barlow fonts, chat fails fast on a refused or black-holed gateway, bounded settings save, embeddings circuit breaker, updater skips the startup check offline, model caches under `AGENTFORGE_DATA_DIR`).
-- **Videos** example clips bundled under `resources/examples/videos/` + real upstream-refusal error text; **Chat** hides model-contact probing.
-- **PR #24 to #27** (studios scroll, rail theme icon + dark contrast, Windows-neutral macOS shell rows, mac build pipeline docs). The Windows exe predates all four; the mac files predate #25 to #27.
+Everything that was listed here under "On `main` since v0.14.25, not yet in an installer" and "Uncommitted on `cursor/id-locale-harness-chat-layout` (2026-09-15)" now lives in [`0.14.26-changelog.md`](0.14.26-changelog.md) — quiet-tool UI, the Bahasa Indonesia i18n rollout and locale sweep, the host gateway gate + Start over, the Finance fixes, the media cost estimate, the stream-watchdog work, and both security passes. Nothing of it is in any installer yet.
 
-## Still open before the 0.14.23 cut
+## Still open before the 0.14.26 cut
+
+Resolved since this list was written: the Videos studio duration knob vs. `veo_3_1-fast` (snapped per model in `video-capabilities.ts`, commit `0b02714`, shipped in 0.14.25).
 
 - [x] `packages/core/src/docx`: term-sheet `diff.test.ts` pair quarantined (`it.skip`); `read.test.ts` "excludes deleted words" keeps asserting except the one re-typed deletion; `zz-debug.test.ts` deleted. Proof: 46 passed / 1 skipped on those two files.
 - [ ] Legal: one live matter run against the gateway (`features/legal.md` steps 4 to 8), Word / Excel round-trip of the redline and deviation report.
-- [ ] Videos studio duration knob vs. veo: `veo_3_1-fast` only accepts 4 / 6 / 8 s, the studio offers 5 / 8 / 10, so 5 s and 10 s fail with "Only [4, 6, 8] seconds durations are supported". Snap or hide per model in `video-capabilities.ts`.
 - [ ] Isolate host vitest from the operator's desk (`AGENTFORGE_DATA_DIR` / `MEDIA_ROOT` to a temp dir in a setup file); then purge the 37 stub video rows from `data/agentforge.sqlite` so the dev Videos gallery is clean again.
-- [ ] Drive the 0.14.22 "Verify on the installed app" lists (`0.14.22-changelog.md`) on the packaged **Windows** app (`%APPDATA%\Agentforge`, NSIS). That is not mac proof.
-- [ ] **macOS, separate from the Windows cut:** `pnpm desktop:build:mac:docker --arch all` (static bundle only; never `electron-builder --mac` on this host). First-launch smoke on a real Mac (Gatekeeper, Keychain, Cmd+Q stops ffmpeg, Dock reopen). Do not attach `.dmg`/`.zip` until that list is driven, or ship Windows-only and say so in the notes.
-- [x] Source commit recorded: both the Windows exe and the mac dmg / zip come from `4fc02f4` (clean tree). Release dry run with `--require-mac` passes; `pnpm desktop:release` (exe + mac in one release) waits for Kyo's go.
+- [ ] mac launch smoke on real hardware (builds verified by verify-bundle.py for 0.14.23 and 0.14.25; never launched on a Mac)
+- [ ] Packaged Windows drive of Start over + gateway gate (`doctor --desktop`, `host-status.json` `hasOpenai: false` after sign-out)
+- [x] Source commits recorded: the Windows exe comes from `242f428` (version bump on `e0c6c19`) packed in the isolated worktree `agentforge-pack-0.14.25`; the mac dmg / zip come from `9c0bd27` (the same app plus the `hfsplus ls` parser fix). `desktop-release --require-mac` published v0.14.25 with 7 assets on 2026-09-12, recorded in `3dab299`.
 
 ## Log
 
+- **2026-09-15 (evening)** — 0.14.26 prep: version bump, changelog folded into 0.14.26-changelog.md, security pass landed (see blockers-2026-09-15.md), one commit on cursor/id-locale-harness-chat-layout, pack routes started; not published.
+- **2026-09-15** — Host gateway gate (Phase 0), Start over card + shell relaunch, and the en/id locale sweep landed on `cursor/id-locale-harness-chat-layout` (uncommitted at time of writing). Proof so far is unit tests + a webdev drive on a throwaway data dir; nothing packed. AGENTS.md rewritten the same day (harness pass first, then 0.14.26).
+- **2026-09-15 (later)** — Finance fix driven on a throwaway webdev data dir with a test key: `GET /api/v1/settings` → `runtime: ai`, `gateway.status: ok`; `POST /api/v1/finance` no longer answers `runtime_stub` (default `deepseek-v4-flash` stalled 3/3 with “No stream events for 60s”, `gpt-5.6-luna` → 200 with a brief), `workspace-id.txt` appeared on the first generator call. Browser drive (headless, `PORT=3100`): prompt-only Generate → `finance-auto-parsed` “Read 5 figures from your brief” with the rows filled, second Generate → full brief + downloads; manual paste → `finance-parse` → 4 rows → brief; locale `id` after Settings → Restart renders the studio in Bahasa Indonesia. Screenshots kept in the session scratchpad. Side findings: `deepseek-v4-flash` default stalls on long generations; duplicate `finance-download` testid (DOCX + Markdown) breaks strict `getByTestId`; the parser read “12 outlets” as a line item.
 - **2026-09-12 (published)** — `pnpm desktop:release --require-mac` created public release `v0.14.25` on `Kyoo032/DPSBuddy` (7 assets: exe, blockmap, `latest.yml`, four mac files). Windows packed in isolated worktree `C:\Users\rizky\agentforge-pack-0.14.25` from `242f428` (PYTHON → 3.12, `ELECTRON_RUN_AS_NODE` unset); `doctor --desktop` ok against unpacked `DPSBuddy.exe` (`transport: "ipc"`, `runtime: "ai"`, `hasOpenai: true`). NSIS `/S` hung (`oneClick: false`). macOS packed in Docker Linux (`pnpm desktop:build:mac:docker --arch all`); both arches passed `verify-bundle.py` including dmg/zip round-trip. First dmg attempts failed because `hfsplus ls` now prints numeric dates and helper names have spaces (`051382e`, `9c0bd27`). Mac launch smoke still owed on hardware. `releases/latest/download/latest.yml` serves 0.14.25.
 - **2026-09-09 (published)** — `node scripts/release-desktop.mjs` created public release `v0.14.24` on `Kyoo032/DPSBuddy` (Windows-only: `DPSBuddy-Setup-0.14.24.exe` 99 072 927 bytes, `.blockmap`, `latest.yml`) from `a2802ad` (`feat/dpsbuddy-rebrand`, tree clean, main checkout, `npx pnpm@9.15.9 desktop:build` with PYTHON pinned). First release under the new name; installed 0.14.23 reaches it through the GitHub redirect from the old repo name. Owed: drive the in-app update on the installed 0.14.23 (data folder + wrap key carry-over), merge PR #29, mac dmg for 0.14.24 or fold into 0.14.25.
 - **2026-09-09 — DPSBuddy rebrand (PR #29, on `main` after merging `release/0.14.23`)** — Public product renamed Agentforge → DPSBuddy with the DPS chevron icon; releases repo renamed in place to `Kyoo032/DPSBuddy` (old name redirects, README updated there). Artifact names change to `DPSBuddy Setup <v>.exe` / `DPSBuddy-<v>-mac-<arch>.dmg|zip`, so the next cut needs a version bump (0.14.24). First launch after the upgrade copies `%APPDATA%\Agentforge` and the `Agentforge/wrap-key` Keychain entry forward (`main.cjs`); drive that on an installed 0.14.23 before publishing. Not shipped in any installer yet. Details: `moves.md` (2026-09-08).

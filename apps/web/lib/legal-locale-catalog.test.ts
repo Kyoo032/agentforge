@@ -26,6 +26,6 @@ describe("legal locale catalogs", () => {
     expect(id.studio.lede).toMatch(/perkara/);
     expect(id.studio.run).toBe("Jalankan perkara");
     expect(id.errors.stub).toMatch(/gerbang yang aktif/);
-    expect(id.errors.stub).toContain("Settings");
+    expect(id.errors.stub).toContain("Pengaturan");
   });
 });

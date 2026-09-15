@@ -165,7 +165,7 @@ export function JobRegenPanel({
               <button
                 type="button"
                 className="text-[var(--text-3)] hover:text-[var(--text)]"
-                aria-label={`Remove ${item.file.name}`}
+                aria-label={t("documents.regen.removeFile", { name: item.file.name })}
                 disabled={busy}
                 onClick={() => setFiles((current) => current.filter((held) => held.id !== item.id))}
               >

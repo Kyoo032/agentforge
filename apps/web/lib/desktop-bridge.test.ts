@@ -6,6 +6,7 @@ import {
   getDesktopUpdates,
   invokeDesktop,
   isElectron,
+  relaunchDesktopApp,
   saveDesktopBytes,
 } from "./desktop-bridge";
 
@@ -74,5 +75,41 @@ describe("desktop-bridge", () => {
   it("no-ops abort and save when the bridge is missing", async () => {
     abortDesktopStream("r1");
     await expect(saveDesktopBytes("note.txt", [1])).resolves.toBeUndefined();
+  });
+
+  it("passes a reset request through to the shell relaunch", async () => {
+    const relaunch = vi.fn(async () => undefined);
+    vi.stubGlobal("window", { agentforge: { isElectron: true, relaunch } });
+    // The shell exits before it can answer, so an empty reply is the happy path.
+    await expect(relaunchDesktopApp({ reset: true })).resolves.toEqual({ ok: true });
+    expect(relaunch).toHaveBeenCalledWith({ reset: true });
+    await expect(relaunchDesktopApp()).resolves.toEqual({ ok: true });
+    expect(relaunch).toHaveBeenLastCalledWith(undefined);
+  });
+
+  it("reads an explicit ok from the shell", async () => {
+    const relaunch = vi.fn(async () => ({ ok: true }));
+    vi.stubGlobal("window", { agentforge: { isElectron: true, relaunch } });
+    await expect(relaunchDesktopApp({ reset: true })).resolves.toEqual({ ok: true });
+  });
+
+  it("surfaces a refusal instead of reporting a restart that is not coming", async () => {
+    for (const reason of ["installing-update", "already-exiting", "forbidden"]) {
+      const relaunch = vi.fn(async () => ({ ok: false, reason }));
+      vi.stubGlobal("window", { agentforge: { isElectron: true, relaunch } });
+      await expect(relaunchDesktopApp({ reset: true })).resolves.toEqual({ ok: false, reason });
+    }
+  });
+
+  it("names a refusal the shell left blank", async () => {
+    const relaunch = vi.fn(async () => ({ ok: false, reason: "  " }));
+    vi.stubGlobal("window", { agentforge: { isElectron: true, relaunch } });
+    await expect(relaunchDesktopApp()).resolves.toEqual({ ok: false, reason: "refused" });
+  });
+
+  it("reports no relaunch on webdev, where the bridge has none", async () => {
+    await expect(relaunchDesktopApp({ reset: true })).resolves.toEqual({ ok: false, reason: "unavailable" });
+    vi.stubGlobal("window", { agentforge: { isElectron: true } });
+    await expect(relaunchDesktopApp({ reset: true })).resolves.toEqual({ ok: false, reason: "unavailable" });
   });
 });

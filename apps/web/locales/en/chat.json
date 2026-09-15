@@ -112,5 +112,16 @@
     "unsupportedFile": "Unsupported file type",
     "mixedMedia": "Send image and video attachments separately",
     "couldNotReach": "Could not reach {model} after {tries} tries"
+  },
+  "models": {
+    "searchPlaceholder": "Search models",
+    "aria": "Models",
+    "think": "Think",
+    "fallback": "Model",
+    "groups": {
+      "recommended": "Recommended"
+    },
+    "noMatch": "No models matching “{query}”",
+    "noMatchEmpty": "No models matching your search"
   }
 }

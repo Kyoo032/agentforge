@@ -3,8 +3,10 @@ import {
   assertModelSupportsModality,
   createRuntime,
   type AgentVersionRecord,
+  type AppLocale,
   type ContentPart,
   type ImageUrlPart,
+  type JobMode,
   type RuntimeEvent,
   type StreamWatchdogLimits,
   type TenantContext,
@@ -14,6 +16,7 @@ import { isRenderableImageUrl } from "./composer-attach";
 import { inlineLocalMediaParts } from "./inline-local-media";
 import { rememberJobUsage } from "./job-usage";
 import { loadSettings } from "./settings-store";
+import { localeForRun } from "./run-context";
 
 export function readOptionalInstruction(body: unknown): string {
   if (!body || typeof body !== "object") {
@@ -75,8 +78,12 @@ export async function collectJobAssistantText(options: {
   onEvent?: (event: RuntimeEvent) => void;
   /** Raise the stream watchdog above the model defaults for this run (never lowers them). */
   streamWatchdog?: Partial<StreamWatchdogLimits>;
+  /** The studio this run belongs to. Sends the thinking-off knob on always-thinking models. */
+  jobMode?: JobMode;
+  /** App locale for runtime copy (timeouts, contact errors). Defaults to the run context. */
+  locale?: AppLocale;
 }): Promise<string> {
-  const settings = loadSettings();
+  const settings = loadSettings(options.tenant.workspaceId);
   const runtime = createRuntime(settings);
   const attachments = options.attachments ?? [];
   if (attachments.length > 0) {
@@ -114,7 +121,10 @@ export async function collectJobAssistantText(options: {
     version,
     bindings,
     history: [{ role: "user", parts }],
+    // Without this every job-side timeout and contact error is English on an Indonesian desk.
+    locale: options.locale ?? localeForRun(),
     ...(options.streamWatchdog ? { streamWatchdog: options.streamWatchdog } : {}),
+    ...(options.jobMode ? { jobMode: options.jobMode } : {}),
     onEvent: (event) => {
       if (event.type === "assistant.delta") {
         assistantText += event.text;

@@ -16,6 +16,7 @@
     "./pii": "./src/security/pii.ts",
     "./product-modes": "./src/agents/product-modes.ts",
     "./video-capabilities": "./src/models/video-capabilities.ts",
+    "./media-pricing": "./src/models/media-pricing.ts",
     "./edit": "./src/edit/index.ts",
     "./content": "./src/content/transcript.ts",
     "./reasoning-effort": "./src/models/reasoning-effort.ts",

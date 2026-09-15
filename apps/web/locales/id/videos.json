@@ -24,6 +24,26 @@
   "clipsLoadError": "Contoh klip tidak dapat dimuat",
   "usePrompt": "Gunakan prompt ini",
   "outputTextLanguage": "Dialog, narasi, dan teks di layar pada klip ini harus dalam bahasa Indonesia, kecuali prompt sudah menyebut bahasa lain.",
+  "estimate": {
+    "forClip": "{usd} untuk {seconds} dtk pada {resolution}",
+    "perSecond": "{usd}/dtk",
+    "source": "Harga resmi {vendor}, dicek {date}",
+    "sourceThirdParty": "Harga {vendor}, angka pihak ketiga, dicek {date}",
+    "sourceUnverified": "Perkiraan belum terverifikasi, tanpa halaman resmi vendor",
+    "sourceGateway": "Harga gateway, dicek {date}",
+    "tier": {
+      "cheapest": "termurah",
+      "cheap": "murah",
+      "mid": "menengah",
+      "premium": "mahal"
+    },
+    "compareCheaper": "Sekitar {factor}× lebih murah dari {model}",
+    "compareMore": "Sekitar {factor}× lebih mahal dari {model}",
+    "compareCheapest": "Model video termurah di sini",
+    "unknown": "Belum ada harga resmi untuk model ini",
+    "unverified": "(belum terverifikasi)",
+    "hint": "{usd}/dtk"
+  },
   "templates": {
     "product-page-turntable": {
       "title": "Turntable halaman produk",

@@ -1,3 +1,5 @@
+import { parseAppLocale, type AppLocale } from "../locale";
+
 export type StubEditScenario = {
   id: "S1" | "S2" | "S3" | "S4" | "S5" | "S6" | "S7" | "S8" | "S9" | "S10";
   match: RegExp;
@@ -5,6 +7,9 @@ export type StubEditScenario = {
   args: Record<string, unknown>;
   cardVerb: string;
   cardObject: string;
+  /** Bahasa Indonesia card copy; the host picks by `localeForRun()`. */
+  cardVerbId: string;
+  cardObjectId: string;
 };
 
 export const STUB_EDIT_SCENARIOS: StubEditScenario[] = [
@@ -21,6 +26,8 @@ export const STUB_EDIT_SCENARIOS: StubEditScenario[] = [
     },
     cardVerb: "Remove 3 silences",
     cardObject: "v1",
+    cardVerbId: "Hapus 3 jeda sunyi",
+    cardObjectId: "v1",
   },
   {
     id: "S2",
@@ -29,6 +36,8 @@ export const STUB_EDIT_SCENARIOS: StubEditScenario[] = [
     args: { frames: [450, 900] },
     cardVerb: "Split at scenes",
     cardObject: "v1",
+    cardVerbId: "Potong di pergantian adegan",
+    cardObjectId: "v1",
   },
   {
     id: "S3",
@@ -37,6 +46,8 @@ export const STUB_EDIT_SCENARIOS: StubEditScenario[] = [
     args: { source: "script" },
     cardVerb: "Add captions",
     cardObject: "script",
+    cardVerbId: "Tambahkan teks overlay",
+    cardObjectId: "naskah",
   },
   {
     id: "S4",
@@ -45,6 +56,8 @@ export const STUB_EDIT_SCENARIOS: StubEditScenario[] = [
     args: {},
     cardVerb: "Transcribe",
     cardObject: "talk track",
+    cardVerbId: "Transkripsikan",
+    cardObjectId: "trek suara",
   },
   {
     id: "S5",
@@ -53,6 +66,8 @@ export const STUB_EDIT_SCENARIOS: StubEditScenario[] = [
     args: { aspect: "9:16", mode: "pad", confirm: true },
     cardVerb: "Reframe",
     cardObject: "9:16",
+    cardVerbId: "Ubah bingkai",
+    cardObjectId: "9:16",
   },
   {
     id: "S6",
@@ -61,6 +76,8 @@ export const STUB_EDIT_SCENARIOS: StubEditScenario[] = [
     args: { text: "Summer Sale" },
     cardVerb: "Add title",
     cardObject: "Summer Sale",
+    cardVerbId: "Tambahkan judul",
+    cardObjectId: "Summer Sale",
   },
   {
     id: "S7",
@@ -69,6 +86,8 @@ export const STUB_EDIT_SCENARIOS: StubEditScenario[] = [
     args: { inFrame: 90 },
     cardVerb: "Trim clip",
     cardObject: "3 seconds",
+    cardVerbId: "Pangkas klip",
+    cardObjectId: "3 detik",
   },
   {
     id: "S8",
@@ -77,6 +96,8 @@ export const STUB_EDIT_SCENARIOS: StubEditScenario[] = [
     args: { timelineStartFrame: 0 },
     cardVerb: "Move clip",
     cardObject: "start",
+    cardVerbId: "Pindahkan klip",
+    cardObjectId: "awal",
   },
   {
     id: "S9",
@@ -85,6 +106,8 @@ export const STUB_EDIT_SCENARIOS: StubEditScenario[] = [
     args: {},
     cardVerb: "Clear timeline",
     cardObject: "all clips",
+    cardVerbId: "Kosongkan linimasa",
+    cardObjectId: "semua klip",
   },
   {
     id: "S10",
@@ -93,6 +116,8 @@ export const STUB_EDIT_SCENARIOS: StubEditScenario[] = [
     args: { marker: "undo_last" },
     cardVerb: "Undo",
     cardObject: "last change",
+    cardVerbId: "Urungkan",
+    cardObjectId: "perubahan terakhir",
   },
 ];
 
@@ -103,4 +128,23 @@ export function matchStubEditScenario(text: string): StubEditScenario | null {
     }
   }
   return null;
+}
+
+type StubCardSource = {
+  toolKey: string;
+  cardVerb?: string;
+  cardObject?: string;
+  cardVerbId?: string;
+  cardObjectId?: string;
+};
+
+/**
+ * Card copy for a matched stub scenario in the run locale. Fill and generate scenarios
+ * carry only English copy today, so `id` falls back to it rather than showing a blank card.
+ */
+export function stubEditCardCopy(scenario: StubCardSource, locale: AppLocale): { verb: string; object: string } {
+  const wantsId = parseAppLocale(locale) === "id";
+  const verb = (wantsId ? scenario.cardVerbId : "") || scenario.cardVerb || "Edit";
+  const object = (wantsId ? scenario.cardObjectId : "") || scenario.cardObject || scenario.toolKey;
+  return { verb, object };
 }

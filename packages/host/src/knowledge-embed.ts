@@ -3,6 +3,7 @@ import {
   cosineSimilarity,
   hasLiveProvider,
   parseEmbeddingResponse,
+  resolveProviderKeys,
   resolveRuntimeMode,
   stubEmbed,
   type KnowledgeModels,
@@ -41,8 +42,8 @@ function workspaceId(tenant: TenantContext): string {
   return tenant.workspaceId;
 }
 
-function isStubEmbedding(): boolean {
-  const settings = loadSettings();
+function isStubEmbedding(deskId?: string): boolean {
+  const settings = loadSettings(deskId);
   return (
     resolveRuntimeMode({
       settingsHasKey: hasLiveProvider(settings),
@@ -51,13 +52,15 @@ function isStubEmbedding(): boolean {
   );
 }
 
-async function liveEmbedBatch(texts: string[], model: string): Promise<number[][]> {
-  const settings = loadSettings();
+async function liveEmbedBatch(texts: string[], model: string, deskId?: string): Promise<number[][]> {
+  const settings = loadSettings(deskId);
   const key = settings.openaiApiKey;
   if (!key) {
     return texts.map((text) => stubEmbed(text));
   }
-  const base = (settings.openaiBaseUrl || DEFAULT_OPENAI_BASE_URL).replace(/\/+$/, "");
+  // Pinned endpoint only: the gateway key rides this request, so a stored `openaiBaseUrl` must
+  // never decide where it goes. `resolveProviderKeys` is the single source of that URL.
+  const base = (resolveProviderKeys(settings).openaiBaseUrl || DEFAULT_OPENAI_BASE_URL).replace(/\/+$/, "");
   const res = await fetch(`${base}/embeddings`, {
     method: "POST",
     headers: {
@@ -84,19 +87,22 @@ function allStubbed(texts: string[]): EmbeddedTexts {
 /**
  * Embed a batch and say which model id the result belongs to. A run that falls back part-way is
  * re-stubbed whole: one source's vectors must share one geometry, or cosine across them is noise.
+ *
+ * `deskId` is the workspace whose gateway key pays for the call; without it the read falls back to
+ * the machine-wide selection, which is the wrong desk's key (or none at all).
  */
-export async function embedTextsWithModel(texts: string[], model: string): Promise<EmbeddedTexts> {
+export async function embedTextsWithModel(texts: string[], model: string, deskId?: string): Promise<EmbeddedTexts> {
   if (texts.length === 0) {
     return { vectors: [], model };
   }
-  if (isStubEmbedding() || Date.now() < embedDownUntil) {
+  if (isStubEmbedding(deskId) || Date.now() < embedDownUntil) {
     return allStubbed(texts);
   }
   const out: number[][] = [];
   for (let i = 0; i < texts.length; i += EMBED_BATCH) {
     const batch = texts.slice(i, i + EMBED_BATCH);
     try {
-      out.push(...(await liveEmbedBatch(batch, model)));
+      out.push(...(await liveEmbedBatch(batch, model, deskId)));
     } catch (error) {
       embedDownUntil = Date.now() + EMBED_DOWN_MS;
       console.warn(
@@ -108,8 +114,8 @@ export async function embedTextsWithModel(texts: string[], model: string): Promi
   return { vectors: out, model };
 }
 
-export async function embedTexts(texts: string[], model: string): Promise<number[][]> {
-  return (await embedTextsWithModel(texts, model)).vectors;
+export async function embedTexts(texts: string[], model: string, deskId?: string): Promise<number[][]> {
+  return (await embedTextsWithModel(texts, model, deskId)).vectors;
 }
 
 /** A query vector plus the model id it was actually produced by. */
@@ -123,11 +129,11 @@ export type EmbeddedQuery = { vector: number[]; model: string };
  * against 1536-dim rows would score 32 of 1536 dimensions and call the noise a match. Callers use
  * the returned id to pick the rows this vector may legally be compared against.
  */
-export async function embedQuery(query: string, model: string): Promise<EmbeddedQuery> {
+export async function embedQuery(query: string, model: string, deskId?: string): Promise<EmbeddedQuery> {
   if (model === STUB_EMBED_MODEL) {
     return { vector: stubEmbed(query), model: STUB_EMBED_MODEL };
   }
-  const { vectors, model: used } = await embedTextsWithModel([query], model);
+  const { vectors, model: used } = await embedTextsWithModel([query], model, deskId);
   const vec = vectors[0];
   return vec ? { vector: vec, model: used } : { vector: stubEmbed(query), model: STUB_EMBED_MODEL };
 }
@@ -152,7 +158,7 @@ export async function indexSourceVectors(
   try {
     // The id the vectors are *stored* under is the one the embedder actually used, which is
     // `stub-fnv-32` whenever the live endpoint was unavailable — never the configured model.
-    const { vectors: embeddings, model: storedModel } = await embedTextsWithModel(chunks, model);
+    const { vectors: embeddings, model: storedModel } = await embedTextsWithModel(chunks, model, workspaceId(tenant));
     const insert = sql.prepare(
       `INSERT INTO knowledge_vectors (id, workspace_id, source_id, chunk_index, body, embedding, model, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -280,7 +286,7 @@ export async function searchVectors(
   if (!preferred) {
     return { hits: [], model: null };
   }
-  const { vector: queryVec, model } = await embedQuery(trimmed, preferred);
+  const { vector: queryVec, model } = await embedQuery(trimmed, preferred, workspaceId(tenant));
   // The embedder fell back (or was already down) while this workspace holds rows of another model:
   // there is nothing here this vector can be compared against, so the answer is "no vector hits".
   if (model !== preferred && countVectorsForModel(tenant, model) === 0) {

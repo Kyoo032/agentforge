@@ -1,4 +1,11 @@
-import { ApiError, hasLiveProvider, resolveChatModel, resolveRuntimeMode, type TenantContext } from "@agentforge/core";
+import {
+  ApiError,
+  hasLiveProvider,
+  modeMessage,
+  resolveChatModel,
+  resolveRuntimeMode,
+  type TenantContext,
+} from "@agentforge/core";
 import { loadSettings } from "./settings-store";
 import { listSelectableModels, modeCatalogPayload } from "./selectable-models";
 import {
@@ -82,13 +89,14 @@ function collectAssistantText(
     systemPrompt: withSourceRule(outlineSystem(locale), sourceText),
     runPrefix: "presentation",
     agentId: "presentation",
+    jobMode: "presentations",
     versionId: "presentation-outline",
     prompt: withSourceMaterial(prompt, sourceText),
   });
 }
 
-function requireLivePresentationRuntime(): ReturnType<typeof loadSettings> {
-  const settings = loadSettings();
+function requireLivePresentationRuntime(workspaceId: string): ReturnType<typeof loadSettings> {
+  const settings = loadSettings(workspaceId);
   const mode = resolveRuntimeMode({
     settingsHasKey: hasLiveProvider(settings),
     envRuntime: process.env.AGENTFORGE_RUNTIME,
@@ -131,13 +139,13 @@ function persistOutline(
 /** Generate a validated presentation outline via the same runtime path as chat. */
 export async function generatePresentationOutline(tenant: TenantContext, body: unknown): Promise<PresentationOutline> {
   const prompt = readPrompt(body);
-  const settings = requireLivePresentationRuntime();
+  const settings = requireLivePresentationRuntime(tenant.workspaceId);
   const locale = presentationLocale();
   const sourceText = readSourceText(body, { injectionGuardBypass: settings.injectionGuardBypass === true });
   const model = resolvePresentationModel(body, settings);
   const raw = await collectAssistantText(tenant, model, prompt, sourceText, locale);
   if (!raw.trim()) {
-    throw new ApiError("generation_failed", "Model returned an empty presentation outline", 502);
+    throw new ApiError("generation_failed", modeMessage("emptyPresentationOutline", locale), 502);
   }
   const outline = parsePresentationOutline(raw);
   const markdown = presentationOutlineMarkdown(outline);
@@ -189,7 +197,7 @@ export async function regeneratePresentationSlide(tenant: TenantContext, body: u
   if (!current) {
     throw new ApiError("invalid_request", "slideIndex is out of range", 400);
   }
-  const settings = requireLivePresentationRuntime();
+  const settings = requireLivePresentationRuntime(tenant.workspaceId);
   const locale = presentationLocale();
   const model = resolvePresentationModel(body, settings);
   const attachments = readJobRegenAttachments(body);
@@ -215,12 +223,13 @@ export async function regeneratePresentationSlide(tenant: TenantContext, body: u
     systemPrompt: withSourceRule(slideSystem(locale), sourceText),
     runPrefix: "presentation-slide",
     agentId: "presentation",
+    jobMode: "presentations",
     versionId: "presentation-slide",
     prompt: withSourceMaterial(prompt, sourceText),
     attachments,
   });
   if (!raw.trim()) {
-    throw new ApiError("generation_failed", "Model returned an empty slide", 502);
+    throw new ApiError("generation_failed", modeMessage("emptySlide", locale), 502);
   }
   return mergePresentationSlide(outline, index, parsePresentationSlide(raw));
 }

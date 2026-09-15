@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   MODEL_CONTACT_ATTEMPTS,
+  contactAttemptOrdinal,
   formatContactProbe,
   formatContactProbeButton,
   formatModelContactError,
@@ -135,5 +136,51 @@ describe("shouldKeepToolTurn", () => {
   it("does not swallow failures when no tool ran", () => {
     expect(shouldKeepToolTurn({ tooled: false, failed: "No available channel" })).toBe(false);
     expect(shouldKeepToolTurn({ tooled: true, failed: "" })).toBe(false);
+  });
+});
+
+describe("retry copy in Bahasa Indonesia", () => {
+  it("writes the probe and probe button in id", () => {
+    expect(formatContactProbe("gpt-5", 1, MODEL_CONTACT_ATTEMPTS, "id")).toBe("Menghubungi gpt-5 · percobaan ke-1");
+    expect(formatContactProbe("gpt-5", 2, MODEL_CONTACT_ATTEMPTS, "id")).toBe("Percobaan ke-2 · gpt-5");
+    expect(formatContactProbeButton(2, "id")).toBe("Percobaan ke-2…");
+  });
+
+  it("keeps English as the default", () => {
+    expect(formatContactProbe("gpt-5", 1)).toBe("Probing gpt-5 · 1st try");
+    expect(formatContactProbeButton(2)).toBe("2nd try…");
+    expect(contactAttemptOrdinal(3)).toBe("3rd");
+    expect(contactAttemptOrdinal(3, "id")).toBe("ke-3");
+  });
+
+  it("writes the contact error in id and does not nest the prefix", () => {
+    const first = formatModelContactError("gpt-5", 3, "fetch failed", "id");
+    expect(first).toBe("Tidak dapat menghubungi gpt-5 setelah 3 percobaan. fetch failed");
+    expect(formatModelContactError("gpt-5", 3, first, "id")).toBe(first);
+    expect(formatModelContactError("gpt-5", 3, "", "id")).toContain("Model tidak dapat dihubungi.");
+  });
+
+  it("still treats an Indonesian watchdog timeout as a hard stop", () => {
+    const idle = "Tidak ada peristiwa stream dari gpt-5 selama 60 detik setelah dimulai (timeout).";
+    const ttfb = "Tidak ada token pertama dari gpt-5 setelah 120 detik (timeout).";
+    expect(isRetryableModelFailure(idle)).toBe(false);
+    expect(isRetryableModelFailure(ttfb)).toBe(false);
+  });
+
+  it("retries the Indonesian wording of a contact failure, like the English one", () => {
+    expect(isRetryableModelFailure("Tidak dapat menghubungi gpt-5 setelah 3 percobaan. fetch failed")).toBe(true);
+    expect(isRetryableModelFailure("Model tidak dapat dihubungi. Coba model lain, atau kirim lagi.")).toBe(true);
+    expect(isRetryableModelFailure("Stream model habis waktu")).toBe(true);
+    expect(isRetryableModelFailure("Layanan tidak tersedia")).toBe(true);
+    expect(isRetryableModelFailure("Model sedang kelebihan beban")).toBe(true);
+    expect(isRetryableModelFailure("Galat jaringan saat menghubungi model")).toBe(true);
+  });
+
+  it("strips the prefix of a single-try English error so retries do not nest it", () => {
+    const once = formatModelContactError("gpt-5", 1, "fetch failed");
+    expect(once).toBe("Could not reach gpt-5 after 1 try. fetch failed");
+    expect(formatModelContactError("gpt-5", 2, once)).toBe("Could not reach gpt-5 after 2 tries. fetch failed");
+    const thrice = formatModelContactError("gpt-5", 3, "fetch failed");
+    expect(formatModelContactError("gpt-5", 3, thrice)).toBe(thrice);
   });
 });

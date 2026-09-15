@@ -343,7 +343,7 @@ export function DataStudio() {
           <ModelSelect models={models} value={model} onChange={setModel} disabled={busy} testId="data-studio-model" />
           {history.length > 0 ? (
             <span className="text-xs text-[var(--text-3)]" data-testid="data-history">
-              Follow-up {history.length + 1} on this dataset
+              {t("data.followUp", { n: history.length + 1 })}
             </span>
           ) : null}
         </div>
@@ -358,7 +358,7 @@ export function DataStudio() {
           />
           {job.busy ? (
             <button type="button" className="btn" onClick={job.cancel} data-testid="data-cancel">
-              Cancel
+              {t("data.cancel")}
             </button>
           ) : null}
           <button

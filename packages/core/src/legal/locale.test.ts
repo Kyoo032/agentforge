@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { legalUserFacingLanguageInstruction, resolveLegalLocale } from "./locale";
+import { APP_LOCALES } from "../locale";
+import { LEGAL_LOCALES, legalUserFacingLanguageInstruction, resolveLegalLocale } from "./locale";
 import { fillCopy, legalOutputCopy } from "./output-copy";
 
 describe("resolveLegalLocale", () => {
@@ -26,5 +27,15 @@ describe("legalOutputCopy", () => {
     expect(
       fillCopy(legalOutputCopy("id").roundOf, { round: 2, total: 3 }),
     ).toBe("Putaran 2 dari 3");
+  });
+});
+
+describe("LEGAL_LOCALES", () => {
+  it("is the app-wide locale set, not a mode-private one", () => {
+    expect([...LEGAL_LOCALES]).toEqual([...APP_LOCALES]);
+    for (const locale of APP_LOCALES) {
+      expect(resolveLegalLocale(locale)).toBe(locale);
+    }
+    expect(resolveLegalLocale(null, undefined, "nope")).toBe("en");
   });
 });

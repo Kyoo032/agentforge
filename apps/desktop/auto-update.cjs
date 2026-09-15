@@ -5,6 +5,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { PUBLIC_PRODUCT_NAME } = require("./brand-read.cjs");
+const { isTrustedSender } = require("./navigation.cjs");
 
 const MAX_MESSAGE_CHARS = 160;
 const GENERIC_MESSAGE = "Could not check for updates.";
@@ -38,6 +39,16 @@ const UPDATER_MESSAGES = Object.freeze({
 const UNSIGNED_PLATFORMS = new Set(["darwin"]);
 const MAC_MANUAL_MESSAGE = "Updates on macOS are manual for now. Download the new .dmg from GitHub Releases.";
 const NOT_INSTALLED_MESSAGE = "Updates are available in the installed DPSBuddy app.";
+
+/**
+ * What every `updates:*` channel answers a frame that is not the main renderer.
+ *
+ * It is the snapshot an unsupported build already returns, so the renderer renders it with copy it
+ * already has and nothing new reaches the UI — and it names no version, so a subframe cannot read
+ * the install's version out of a channel it should never have reached. Refusing is a return, never a
+ * throw: `updates:install` throws for a real unsupported build, and a refusal must not look like one.
+ */
+const REFUSED_STATE = Object.freeze({ supported: false, status: "unavailable" });
 
 function updatesEnabled(productName, isPackaged, platform = process.platform) {
   return Boolean(isPackaged && productName === PUBLIC_PRODUCT_NAME && !UNSIGNED_PLATFORMS.has(platform));
@@ -151,7 +162,10 @@ function createUpdateLogger(logPath) {
     try {
       fs.mkdirSync(path.dirname(logPath), { recursive: true });
       // One line per entry: HttpError messages embed "\nHeaders: {...}", so fold newlines.
-      const text = args.map(formatLogArg).join(" ").replace(/\s*\r?\n\s*/g, " | ");
+      const text = args
+        .map(formatLogArg)
+        .join(" ")
+        .replace(/\s*\r?\n\s*/g, " | ");
       fs.appendFileSync(logPath, `${new Date().toISOString()} ${level} ${text}\n`, "utf8");
     } catch {
       // Logging is best-effort only.
@@ -181,11 +195,12 @@ function registerAutoUpdate({
   productName,
   onInstallStart,
   autoUpdaterOverride,
+  getMainWindow,
   platform = process.platform,
 }) {
   const currentVersion = app.getVersion();
   const supported = updatesEnabled(productName, app.isPackaged, platform);
-  const autoUpdater = supported ? autoUpdaterOverride ?? loadAutoUpdater() : null;
+  const autoUpdater = supported ? (autoUpdaterOverride ?? loadAutoUpdater()) : null;
   const logger = createUpdateLogger(autoUpdater ? resolveUpdateLogPath(app) : null);
   const unsupportedReason = unsupportedMessage(productName, app.isPackaged, platform);
 
@@ -196,6 +211,15 @@ function registerAutoUpdate({
     currentVersion,
     ...(supported && autoUpdater ? {} : { message: unsupportedReason }),
   };
+
+  /**
+   * Whether this ipc call came from the main renderer. Downloading and installing replace the app on
+   * disk and restart it, and `getMainWindow` is read per call because a macOS Dock reopen builds a
+   * new window. A host that passes no `getMainWindow` at all trusts nobody.
+   */
+  function trusted(event) {
+    return isTrustedSender(event, typeof getMainWindow === "function" ? getMainWindow() : null);
+  }
 
   function broadcast() {
     for (const win of BrowserWindow.getAllWindows()) {
@@ -225,12 +249,15 @@ function registerAutoUpdate({
     }
   }
 
-  ipcMain.handle("updates:state", () => state);
+  ipcMain.handle("updates:state", (event) => (trusted(event) ? state : REFUSED_STATE));
 
   if (!autoUpdater) {
-    ipcMain.handle("updates:check", () => state);
-    ipcMain.handle("updates:download", () => state);
-    ipcMain.handle("updates:install", () => {
+    ipcMain.handle("updates:check", (event) => (trusted(event) ? state : REFUSED_STATE));
+    ipcMain.handle("updates:download", (event) => (trusted(event) ? state : REFUSED_STATE));
+    ipcMain.handle("updates:install", (event) => {
+      if (!trusted(event)) {
+        return REFUSED_STATE;
+      }
       throw new Error(unsupportedReason ?? NOT_INSTALLED_MESSAGE);
     });
     return { supported: false };
@@ -264,8 +291,11 @@ function registerAutoUpdate({
     failState("updater error", error);
   });
 
-  ipcMain.handle("updates:check", () =>
-    guarded("check failed", async () => {
+  ipcMain.handle("updates:check", (event) => {
+    if (!trusted(event)) {
+      return REFUSED_STATE;
+    }
+    return guarded("check failed", async () => {
       const result = await autoUpdater.checkForUpdates();
       // electron-updater's semver compare: an older published release (e.g. right after a fresh
       // install that is ahead of the public feed) is "current", never a downgrade offer.
@@ -274,17 +304,23 @@ function registerAutoUpdate({
         return setState({ status: "available", version, message: undefined });
       }
       return setState({ status: "current", version: undefined, message: undefined });
-    }),
-  );
+    });
+  });
 
-  ipcMain.handle("updates:download", () =>
-    guarded("download failed", async () => {
+  ipcMain.handle("updates:download", (event) => {
+    if (!trusted(event)) {
+      return REFUSED_STATE;
+    }
+    return guarded("download failed", async () => {
       await autoUpdater.downloadUpdate();
       return state.status === "ready" ? state : setState({ status: "ready" });
-    }),
-  );
+    });
+  });
 
-  ipcMain.handle("updates:install", () => {
+  ipcMain.handle("updates:install", (event) => {
+    if (!trusted(event)) {
+      return REFUSED_STATE;
+    }
     if (state.status !== "ready") {
       // Nothing downloaded: quitAndInstall would be a no-op, and flagging the install would skip the
       // taskkill cleanup on the next ordinary exit for no reason.

@@ -18,7 +18,9 @@ import { WorkModeKeepAlive } from "@/components/work-mode-keep-alive";
 import { OnboardingScreen } from "@/components/onboarding-screen";
 import { isElectron } from "@/lib/api-client";
 import {
+  GATE_EVENT,
   parseGatewayGate,
+  readGateEvent,
   resolveGate,
   type GatewayGatePayload,
   type GateView,
@@ -79,6 +81,18 @@ export function App() {
     const onRestart = () => setLocaleEpoch((n) => n + 1);
     window.addEventListener(LOCALE_RESTART_EVENT, onRestart);
     return () => window.removeEventListener(LOCALE_RESTART_EVENT, onRestart);
+  }, []);
+
+  // Settings can hand the app a gate the host just reported (sign out of the
+  // gateway). The host still decides; this only re-renders its answer.
+  useEffect(() => {
+    const onGate = (event: Event) => {
+      const reported = readGateEvent(event);
+      setGateway(reported);
+      setGate(resolveGate(reported, isElectron()));
+    };
+    window.addEventListener(GATE_EVENT, onGate);
+    return () => window.removeEventListener(GATE_EVENT, onGate);
   }, []);
 
   useEffect(() => {

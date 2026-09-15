@@ -54,9 +54,7 @@ describe("normalizeProviderBaseUrl", () => {
   });
 
   it("accepts plain http for loopback (Ollama)", () => {
-    expect(normalizeProviderBaseUrl("http://127.0.0.1:11434/v1", "openai")).toBe(
-      "http://127.0.0.1:11434/v1",
-    );
+    expect(normalizeProviderBaseUrl("http://127.0.0.1:11434/v1", "openai")).toBe("http://127.0.0.1:11434/v1");
   });
 });
 
@@ -155,7 +153,9 @@ describe("modelsFromAnthropicList", () => {
     const models = modelsFromAnthropicList({
       data: [{ id: "claude-sonnet-5", display_name: "Claude Sonnet 5", type: "model" }],
     });
-    expect(models).toEqual([expect.objectContaining({ id: "claude-sonnet-5", label: "Claude Sonnet 5", provider: "anthropic" })]);
+    expect(models).toEqual([
+      expect.objectContaining({ id: "claude-sonnet-5", label: "Claude Sonnet 5", provider: "anthropic" }),
+    ]);
   });
 });
 
@@ -249,5 +249,40 @@ describe("probeGoogleModels", () => {
     expect(capturedUrl).not.toContain("key=");
     expect(capturedUrl).not.toContain("AIzaTestKey");
     expect(capturedHeaders["x-goog-api-key"]).toBe("AIzaTestKey");
+  });
+});
+
+describe("probe request hardening", () => {
+  it("does not follow a redirect while carrying the provider key", async () => {
+    const calls: string[] = [];
+    await expect(
+      probeOpenAIModels({
+        baseURL: "https://openrouter.ai/api/v1",
+        apiKey: "sk-test",
+        fetch: async (input, init) => {
+          calls.push(String(input));
+          expect((init as RequestInit).redirect).toBe("manual");
+          return new Response(null, { status: 302, headers: { location: "https://evil.example/models" } });
+        },
+      }),
+    ).rejects.toBeInstanceOf(ApiError);
+    expect(calls).toEqual(["https://openrouter.ai/api/v1/models"]);
+  });
+
+  it("keeps the query string out of the failure message", async () => {
+    try {
+      await probeOpenAIModels({
+        baseURL: "https://api.example.com/v1?token=not-a-real-token",
+        apiKey: "sk-test",
+        fetch: async () => new Response("nope", { status: 401 }),
+      });
+      throw new Error("expected throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApiError);
+      const message = (error as ApiError).message;
+      expect(message).not.toContain("?");
+      expect(message).not.toContain("not-a-real-token");
+      expect(message).toContain("401");
+    }
   });
 });

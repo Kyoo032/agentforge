@@ -26,6 +26,12 @@
     "desktop:mac": "node apps/desktop/scripts/macos-app.mjs",
     "desktop:build:linux": "pnpm --filter @agentforge/desktop desktop-build-linux"
   },
+  "pnpm": {
+    "overrides": {
+      "jsondiffpatch@<0.7.6": ">=0.7.6",
+      "image-size@<2.0.3": ">=2.0.3"
+    }
+  },
   "devDependencies": {
     "@biomejs/biome": "^2.5.12",
     "turbo": "^2.5.4",

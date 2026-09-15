@@ -13,6 +13,7 @@ import type { HostRequest, HostResult } from "../types";
 import { jsonError, jsonOk } from "../errors";
 import { getTenant } from "../tenant";
 import { loadSettings } from "../settings-store";
+import { requireGatewayAllowed } from "../gateway-gate";
 import { getBootLocale } from "../locale-boot";
 import { collectJobAssistantText } from "../job-regen";
 import { listSelectableModels, modeCatalogPayload } from "../selectable-models";
@@ -44,6 +45,8 @@ export async function handlePostEnhancePrompt(request: HostRequest): Promise<Hos
     if (mode === "stub") {
       return jsonOk({ text: stubEnhancePrompt(text, surface, locale), source: "stub" });
     }
+    // Past the stub short-circuit this is a real model call, so the gate decides.
+    requireGatewayAllowed(settings);
     const catalog = listSelectableModels();
     const { defaults } = modeCatalogPayload();
     const requested =
@@ -59,6 +62,8 @@ export async function handlePostEnhancePrompt(request: HostRequest): Promise<Hos
       systemPrompt: enhanceSystemPrompt(surface, locale),
       runPrefix: "enhance",
       agentId: "enhance-prompt",
+      // Nearest studio: this only picks the thinking knob, and rewriting a prompt needs none.
+      jobMode: "documents",
       versionId: "enhance-prompt",
       prompt: enhanceUserPrompt(text, locale),
     });

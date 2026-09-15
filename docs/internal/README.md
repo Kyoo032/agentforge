@@ -2,9 +2,41 @@
 
 Engineering and research notes. Not part of the closed-beta tester surface.
 
+## Current work
+
 | Path | Purpose |
 |------|---------|
-| [`moves.md`](moves.md) | Desktop / shell move log |
+| [`portal/device-code-login.md`](portal/device-code-login.md) | Device-code login between DPSBuddy and the Toko Token portal: flow, endpoints, tokens, reason codes, client integration plan |
+| [`portal/schema.md`](portal/schema.md) | Portal control-plane Postgres design: tables, RLS, seat count, wallet |
+| [`portal/migrations/`](portal/migrations/README.md) | SQL 0001–0005 for the portal database, run order, rollback notes |
 | [`unreleased.md`](unreleased.md) | What is on `main` but not yet in the published exe / dmg |
-| [`0.14.23-changelog.md`](0.14.23-changelog.md) | Current patch (version bumped 2026-09-08, not yet published): Legal mode v1, Knowledge ingest loop, hardening + offline, Videos example clips |
+| [`blockers-2026-09-15.md`](blockers-2026-09-15.md) | Blockers before the 0.14.26 cut, verification owed, security audit findings and follow-ups |
+| [`moves.md`](moves.md) | Desktop / shell move log |
+
+## Changelogs (newest first)
+
+| Path | Purpose |
+|------|---------|
+| [`0.14.26-changelog.md`](0.14.26-changelog.md) | In progress 2026-09-15: gateway gate + Start over, id locale sweep, Finance fixes, media cost estimate, security pass |
+| [`0.14.25-changelog.md`](0.14.25-changelog.md) | Published 2026-09-12: Market Watch, desk management, Knowledge Phases 0–4 |
+| [`0.14.23-changelog.md`](0.14.23-changelog.md) | Published 2026-09-08: Legal mode v1, Knowledge ingest loop, hardening + offline, Videos example clips |
+| [`0.14.22-changelog.md`](0.14.22-changelog.md) | Research dossier, Data, Finance, macOS preview |
+| [`0.14.21-changelog.md`](0.14.21-changelog.md) | Endpoint URL override and earlier fixes |
+| [`0.14.1-changelog.md`](0.14.1-changelog.md) | Everything that must be inside the 0.14.1 setup.exe |
+| [`0.14-changelog.md`](0.14-changelog.md) | 0.14 baseline |
+
+## Plans and mode notes
+
+| Path | Purpose |
+|------|---------|
+| [`research-dossier-analyst-modes-plan.md`](research-dossier-analyst-modes-plan.md) | Research dossier plus Data / Finance analyst modes |
+| [`market-mode-plan.md`](market-mode-plan.md) | Market Watch mode |
+| [`legal-mode-flow.md`](legal-mode-flow.md) | Legal mode run flow |
+| [`legal-mode-contracts.md`](legal-mode-contracts.md) | Legal mode data contracts |
+| [`weknora-kb-plan.md`](weknora-kb-plan.md) | Knowledge Base plan (builtin path shipped; WeKnora sidecar not used) |
+| [`gateway-model-selection.md`](gateway-model-selection.md) | How models are chosen against the gateway |
+| [`research/media-pricing.md`](research/media-pricing.md) | Image / video provider list prices behind the studio cost estimate |
+| [`mobile-android-plan.md`](mobile-android-plan.md) | Android client plan (paused) |
+| [`ffmpeg-attribution.md`](ffmpeg-attribution.md) | ffmpeg licensing notes for the Edit studio |
+| [`mockups/`](mockups/) | UI mockups |
 | [`research/`](research/) | Gateway and competitor research |

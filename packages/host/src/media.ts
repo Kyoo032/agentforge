@@ -4,6 +4,8 @@ import { and, desc, eq } from "drizzle-orm";
 import { db, media } from "@agentforge/db";
 import type { TenantContext } from "@agentforge/core";
 import { ApiError } from "@agentforge/core";
+import type { DownloadedMedia } from "./media-download";
+import { downloadGeneratedMedia } from "./media-download";
 import { mediaRoot } from "./media-root";
 
 const IMAGE_MAX = 10 * 1024 * 1024;
@@ -82,74 +84,48 @@ export async function readMediaDataUrl(tenant: TenantContext, mediaId: string): 
   }
 }
 
+/**
+ * Mirror a generated image into the local store so the renderer only ever loads
+ * host-served media. A remote URL is fetched through `downloadGeneratedMedia`
+ * (HTTPS only, redirect-checked, capped); anything it cannot mirror throws rather
+ * than handing the caller a URL pointing at someone else's origin.
+ */
 export async function saveGeneratedImage(tenant: TenantContext, url: string): Promise<string> {
   if (url.startsWith("/api/v1/media/")) {
     return url;
   }
-  let mime = "image/png";
-  let bytes: Buffer;
-  if (url.startsWith("data:image/")) {
-    const match = url.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/s);
-    if (!match?.[1] || !match[2]) {
-      return url;
-    }
-    mime = match[1];
-    bytes = Buffer.from(match[2], "base64");
-  } else if (url.startsWith("https://")) {
-    const response = await fetch(url);
-    if (!response.ok) {
-      return url;
-    }
-    const type = response.headers.get("content-type")?.split(";")[0]?.trim();
-    if (type && type.startsWith("image/")) {
-      mime = type;
-    }
-    bytes = Buffer.from(await response.arrayBuffer());
-  } else {
-    return url;
-  }
-  try {
-    const saved = await saveMedia(tenant, new File([new Uint8Array(bytes)], `generated.${mime.split("/")[1] ?? "png"}`, { type: mime }));
-    return saved.url;
-  } catch {
-    return url;
-  }
+  const downloaded = url.startsWith("data:image/")
+    ? decodeMediaDataUrl(url, "image")
+    : await downloadGeneratedMedia(url, "image");
+  const ext = downloaded.mime.split("/")[1] ?? "png";
+  const saved = await saveMedia(
+    tenant,
+    new File([new Uint8Array(downloaded.bytes)], `generated.${ext}`, { type: downloaded.mime }),
+  );
+  return saved.url;
 }
 
+/** Video twin of `saveGeneratedImage`; plain http:// is not a mirrorable source. */
 export async function saveGeneratedVideo(tenant: TenantContext, url: string): Promise<string> {
   if (url.startsWith("/api/v1/media/")) {
     return url;
   }
-  let mime = "video/mp4";
-  let bytes: Buffer;
-  if (url.startsWith("data:video/")) {
-    const match = url.match(/^data:(video\/[a-zA-Z0-9.+-]+);base64,(.+)$/s);
-    if (!match?.[1] || !match[2]) {
-      return url;
-    }
-    mime = match[1];
-    bytes = Buffer.from(match[2], "base64");
-  } else if (url.startsWith("https://") || url.startsWith("http://")) {
-    const response = await fetch(url);
-    if (!response.ok) {
-      return url;
-    }
-    const type = response.headers.get("content-type")?.split(";")[0]?.trim();
-    if (type && type.startsWith("video/")) {
-      mime = type;
-    }
-    bytes = Buffer.from(await response.arrayBuffer());
-  } else {
-    return url;
+  const downloaded = url.startsWith("data:video/")
+    ? decodeMediaDataUrl(url, "video")
+    : await downloadGeneratedMedia(url, "video");
+  const subtype = downloaded.mime.split("/")[1];
+  const ext = subtype === "quicktime" ? "mov" : (subtype ?? "mp4");
+  const saved = await saveMedia(
+    tenant,
+    new File([new Uint8Array(downloaded.bytes)], `generated.${ext}`, { type: downloaded.mime }),
+  );
+  return saved.url;
+}
+
+function decodeMediaDataUrl(url: string, kind: "image" | "video"): DownloadedMedia {
+  const match = url.match(new RegExp(`^data:(${kind}/[a-zA-Z0-9.+-]+);base64,(.+)$`, "s"));
+  if (!match?.[1] || !match[2]) {
+    throw new ApiError(`invalid_${kind}_url`, `Generated ${kind} is not a readable data URL`, 400);
   }
-  const ext = mime.split("/")[1] === "quicktime" ? "mov" : (mime.split("/")[1] ?? "mp4");
-  try {
-    const saved = await saveMedia(
-      tenant,
-      new File([new Uint8Array(bytes)], `generated.${ext}`, { type: mime }),
-    );
-    return saved.url;
-  } catch {
-    return url;
-  }
+  return { mime: match[1], bytes: Buffer.from(match[2], "base64") };
 }

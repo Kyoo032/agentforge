@@ -17,6 +17,7 @@ import { EditRecipesPanel } from "@/components/edit-recipes-panel";
 import { EditPreview } from "@/components/edit-preview";
 import { EditTimeline } from "@/components/edit-timeline";
 import { apiFetch } from "@/lib/api-client";
+import { isElectron, pickMedia } from "@/lib/desktop-bridge";
 import {
   activeJobs,
   createEditProject,
@@ -56,11 +57,6 @@ const TOOLS: { id: ToolId }[] = [
 ];
 
 type StudioModel = { id: string; label: string; provider?: string; inputModalities: string[]; contextLength?: number };
-
-function pickMedia(): (() => Promise<string[]>) | undefined {
-  const bridge = window.agentforge as { pickMedia?: () => Promise<string[]> } | undefined;
-  return typeof bridge?.pickMedia === "function" ? () => bridge.pickMedia!() : undefined;
-}
 
 export function EditStudio() {
   const { gatewayName } = useProductBrand();
@@ -258,7 +254,7 @@ export function EditStudio() {
         );
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not apply edit");
+      setError(err instanceof Error ? err.message : t("edit.errors.apply"));
     }
   }
 
@@ -279,7 +275,7 @@ export function EditStudio() {
         setUnplaced([]);
         return;
       }
-      setError(created.error ?? "Could not create project");
+      setError(created.error ?? t("edit.errors.createProject"));
       return;
     }
     const { loaded } = await fetchEditProject(created.project.id);
@@ -300,7 +296,7 @@ export function EditStudio() {
     const response = await apiFetch(`/api/v1/edit/projects/${project.id}/import`, { method: "POST", body: form });
     const payload = await readJson(response);
     if (!response.ok) {
-      setError(errorMessage(payload, "Import failed"));
+      setError(errorMessage(payload, t("edit.errors.import")));
       return;
     }
     if (payload.op) {
@@ -311,11 +307,9 @@ export function EditStudio() {
   }
 
   async function onImportClick() {
-    const picker = pickMedia();
-    if (picker && project) {
+    if (isElectron() && project) {
       try {
-        const paths = await picker();
-        const sourcePath = paths[0];
+        const [sourcePath] = await pickMedia();
         if (!sourcePath) {
           return;
         }
@@ -325,13 +319,13 @@ export function EditStudio() {
           body: JSON.stringify({ sourcePath }),
         });
         if (!response.ok) {
-          setError(errorMessage(await readJson(response), "Import failed"));
+          setError(errorMessage(await readJson(response), t("edit.errors.import")));
           return;
         }
         await reloadProject(project.id);
         return;
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Import failed");
+        setError(err instanceof Error ? err.message : t("edit.errors.import"));
         return;
       }
     }
@@ -443,11 +437,11 @@ export function EditStudio() {
       signal: abort.signal,
     });
     if (response.status === 404) {
-      setError("Edit agent is not available yet");
+      setError(t("edit.errors.agentUnavailable"));
       return;
     }
     if (!response.ok || !response.body) {
-      setError(errorMessage(await readJson(response), "Agent failed"));
+      setError(errorMessage(await readJson(response), t("edit.errors.agentFailed")));
       return;
     }
     const reader = response.body.getReader();
@@ -576,7 +570,7 @@ export function EditStudio() {
     const payload = await readJson(response);
     if (!response.ok) {
       setExporting(false);
-      setError(errorMessage(payload, "Export blocked"));
+      setError(errorMessage(payload, t("edit.errors.exportBlocked")));
       return;
     }
     const jobId =
@@ -595,7 +589,7 @@ export function EditStudio() {
     try {
       const response = await apiFetch(`/api/v1/edit/projects/${project.id}/export/${exportJobId}/file`);
       if (!response.ok) {
-        setError(errorMessage(await readJson(response), "Export is not ready"));
+        setError(errorMessage(await readJson(response), t("edit.errors.exportNotReady")));
         return;
       }
       const blob = await response.blob();
@@ -609,7 +603,7 @@ export function EditStudio() {
       anchor.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not download export");
+      setError(err instanceof Error ? err.message : t("edit.errors.exportDownload"));
     }
   }
 
@@ -806,10 +800,10 @@ export function EditStudio() {
                 <p className="p-3 text-xs text-[var(--text-3)]">
                   {tool === "captions" ? (
                     <Link href="/settings" className="underline">
-                      Captions
+                      {t("edit.tools.captions")}
                     </Link>
                   ) : (
-                    `${itemLabel(tool)} (Phase 2+)`
+                    t("edit.phaseLater", { label: t(`edit.tools.${tool}`) })
                   )}
                 </p>
               )}
@@ -892,10 +886,6 @@ function mergeCards(current: OpCard[], incoming: OpCard[]): OpCard[] {
     map.set(card.id, card);
   }
   return [...map.values()];
-}
-
-function itemLabel(id: ToolId): string {
-  return TOOLS.find((item) => item.id === id)?.label ?? id;
 }
 
 function projectAspectFromStarter(starterId: string): "16:9" | "9:16" | "1:1" {

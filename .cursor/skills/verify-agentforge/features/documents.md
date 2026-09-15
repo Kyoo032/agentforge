@@ -36,3 +36,4 @@ Preconditions:
 - Default desk unlocks Documents. A Legal desk also has it. Do not open Studio to unlock the tab.
 - Regen opens a panel; it does not POST until `documents-regen-submit`. Stub is HTTP 503, not a silent no-op.
 - Do not POST `/api/v1/documents` as a substitute for the prompt bar on a live proof.
+- Documents runs on the same default job model as Finance (`deepseek-v4-flash`), which thinks silently before it writes: the drafting phase can sit still for a minute or two with no events. That is the model, not a stall — the watchdog now allows 240 s to the first token and 180 s idle for the always-thinking gateway families. See the Finance recipe for the HTTP 500 this used to produce.

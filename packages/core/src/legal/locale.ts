@@ -1,10 +1,14 @@
-export const LEGAL_LOCALES = ["en", "id"] as const;
-export type LegalLocale = (typeof LEGAL_LOCALES)[number];
+import { APP_LOCALES, isAppLocale, type AppLocale } from "../locale";
+
+/** Legal shares the app-wide locale set; the alias keeps the mode's existing call sites readable. */
+export type LegalLocale = AppLocale;
+
+export const LEGAL_LOCALES = APP_LOCALES;
 
 /** Accept an explicit locale from run context; unknown values fall back to `en`. */
 export function resolveLegalLocale(...candidates: unknown[]): LegalLocale {
   for (const value of candidates) {
-    if (value === "id" || value === "en") {
+    if (isAppLocale(value)) {
       return value;
     }
   }

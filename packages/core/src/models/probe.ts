@@ -1,5 +1,6 @@
 import { ApiError } from "../errors";
 import { GATEWAY_BASE_URL, isGatewayBaseUrl } from "../gateway";
+import { redactSecrets } from "../security/redact";
 import { assertAllowedEndpointUrl } from "../security/tls";
 import { chatModelFromId, type ChatModel, type ModelProvider } from "./catalog";
 import { extractContextLength } from "./context-length";
@@ -11,7 +12,6 @@ export const DEFAULT_OPENAI_BASE_URL = GATEWAY_BASE_URL;
 export const DEFAULT_GOOGLE_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 export const DEFAULT_ANTHROPIC_BASE_URL = "https://api.anthropic.com/v1";
 export const DEFAULT_VOLCENGINE_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3";
-
 
 const DEFAULT_BY_DIALECT: Record<ApiDialect, string> = {
   openai: DEFAULT_OPENAI_BASE_URL,
@@ -160,10 +160,16 @@ function modelsFromListedItems(
       continue;
     }
     seen.add(id);
-    const name = typeof item.display_name === "string" ? item.display_name : typeof item.name === "string" ? item.name : undefined;
+    const name =
+      typeof item.display_name === "string" ? item.display_name : typeof item.name === "string" ? item.name : undefined;
     const contextLength = extractContextLength(item);
     models.push(
-      chatModelFromId(id, labelFor(id, name), provider, contextLength ? { contextLength, contextSource: "endpoint" } : undefined),
+      chatModelFromId(
+        id,
+        labelFor(id, name),
+        provider,
+        contextLength ? { contextLength, contextSource: "endpoint" } : undefined,
+      ),
     );
   }
   return models;
@@ -256,14 +262,43 @@ export function isNetworkUnreachableError(error: unknown): boolean {
   return /fetch failed|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|network|timed? ?out/i.test(message);
 }
 
-async function getJson(
-  url: string,
-  headers: Record<string, string>,
-  fetchFn: typeof fetch,
-): Promise<unknown> {
-  const response = await fetchFn(url, { headers, signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) });
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+
+/**
+ * The endpoint as it is safe to show a user: no query string (some providers pass the key
+ * there) and run through the secret redactor for anything left in the path.
+ */
+function endpointLabel(url: string): string {
+  try {
+    const parsed = new URL(url);
+    parsed.search = "";
+    parsed.hash = "";
+    return redactSecrets(parsed.toString());
+  } catch {
+    return "the endpoint";
+  }
+}
+
+/**
+ * This request carries the provider key, so it never follows a redirect: a 3xx would
+ * hand the Authorization header to whatever host the response names.
+ */
+async function getJson(url: string, headers: Record<string, string>, fetchFn: typeof fetch): Promise<unknown> {
+  assertAllowedEndpointUrl(url);
+  const response = await fetchFn(url, {
+    headers,
+    redirect: "manual",
+    signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+  });
+  if (REDIRECT_STATUSES.has(response.status)) {
+    throw new ApiError(
+      "probe_failed",
+      `Could not list models from ${endpointLabel(url)}: the endpoint redirected (${response.status})`,
+      502,
+    );
+  }
   if (!response.ok) {
-    throw new ApiError("probe_failed", `Could not list models from ${url} (${response.status})`, 502);
+    throw new ApiError("probe_failed", `Could not list models from ${endpointLabel(url)} (${response.status})`, 502);
   }
   return readJson(response);
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import type { MediaPrice } from "@agentforge/core/media-pricing";
 import { allowedVideoSeconds, snapVideoSeconds, videoCapabilities } from "@agentforge/core/video-capabilities";
 import type { PromptTemplate } from "@agentforge/core/edit";
 import { EditPromptTemplates } from "@/components/edit-prompt-templates";
@@ -10,6 +11,7 @@ import { VideoExamples } from "@/components/video-examples";
 import { ModelSelect } from "@/components/model-select";
 import { SettingsLinkHint } from "@/components/settings-link-hint";
 import { t } from "@/lib/i18n";
+import { mediaPriceHints, videoEstimateView } from "@/lib/media-estimate";
 import { apiFetch, mediaSrc } from "@/lib/api-client";
 import { useProductBrand } from "@/lib/product-brand";
 
@@ -19,6 +21,8 @@ type StudioModel = {
   provider?: string;
   inputModalities: string[];
   contextLength?: number;
+  /** Provider list price per second for the cost estimate; null when nobody has transcribed one. */
+  price?: MediaPrice | null;
 };
 
 type GalleryItem = {
@@ -103,6 +107,22 @@ export function VideosStudio() {
       setStillUrl("");
     }
   }, [imageToVideo]);
+
+  // List-price estimate. Recomputed whenever model, clip length or resolution changes.
+  const estimate = useMemo(
+    () =>
+      videoEstimateView({
+        model,
+        models,
+        seconds,
+        resolution: caps.resolution ? resolution : undefined,
+      }),
+    [model, models, seconds, resolution, caps.resolution],
+  );
+  const modelOptions = useMemo(() => {
+    const hints = mediaPriceHints("videos", models);
+    return models.map((item) => ({ ...item, hint: hints[item.id] }));
+  }, [models]);
 
   function pickTemplate(template: PromptTemplate) {
     setPrompt(template.prompt);
@@ -227,7 +247,7 @@ export function VideosStudio() {
             ))}
           </select>
           <ModelSelect
-            models={models}
+            models={modelOptions}
             value={model}
             onChange={setModel}
             disabled={generating || models.length === 0}
@@ -235,6 +255,22 @@ export function VideosStudio() {
             className="min-w-[12rem] flex-1 h-8 rounded-lg border border-[var(--line)] bg-transparent px-3 py-2 text-sm text-[var(--text)]"
           />
         </div>
+        {!model ? null : estimate.unknown ? (
+          <p className="text-xs text-[var(--text-3)]" data-testid="videos-studio-estimate-unknown">
+            {estimate.line}
+          </p>
+        ) : (
+          <div className="space-y-0.5">
+            <p className="text-xs text-[var(--text-2)]" data-testid="videos-studio-estimate">
+              {estimate.line}
+            </p>
+            {estimate.compare ? (
+              <p className="text-xs text-[var(--text-3)]" data-testid="videos-studio-estimate-compare">
+                {estimate.compare}
+              </p>
+            ) : null}
+          </div>
+        )}
         {imageToVideo ? (
           <input
             type="url"

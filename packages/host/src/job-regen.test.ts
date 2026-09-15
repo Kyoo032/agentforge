@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AgentRuntime, TenantContext } from "@agentforge/core";
+import { applyJobThinking, type AgentRuntime, type TenantContext } from "@agentforge/core";
+import { withRunContext } from "./run-context";
 import {
   appendRegenInstruction,
   collectJobAssistantText,
@@ -24,7 +25,7 @@ vi.mock("@agentforge/core", async (importOriginal) => {
   };
 });
 
-vi.mock("./settings-store", () => ({ loadSettings: () => ({}) }));
+vi.mock("./settings-store", () => ({ loadSettings: () => ({}), loadOwnerLocale: () => "en" }));
 
 const tenant: TenantContext = { organizationId: "org", workspaceId: "ws-1", userId: "local", role: "owner" };
 
@@ -54,6 +55,29 @@ describe("collectJobAssistantText", () => {
   it("leaves streamWatchdog unset so the model defaults apply when no override is given", async () => {
     await collectJobAssistantText(base);
     expect(executed[0]?.streamWatchdog).toBeUndefined();
+  });
+
+  it("forwards the studio mode so an always-thinking model is told not to think", async () => {
+    await collectJobAssistantText({ ...base, jobMode: "finance" });
+    expect(executed[0]?.jobMode).toBe("finance");
+    expect(applyJobThinking({ model: base.model }, base.model, executed[0]?.jobMode)).toEqual({
+      model: base.model,
+      reasoning_effort: "low",
+    });
+  });
+
+  it("leaves jobMode unset for a caller that is not a studio", async () => {
+    await collectJobAssistantText(base);
+    expect(executed[0]?.jobMode).toBeUndefined();
+  });
+
+  it("runs in the locale of the run context so job timeouts are not English on an id desk", async () => {
+    await withRunContext({ threadId: "t1", agentId: "finance", locale: "id" }, () =>
+      collectJobAssistantText(base),
+    );
+    expect(executed[0]?.locale).toBe("id");
+    await collectJobAssistantText(base);
+    expect(executed[1]?.locale).toBe("en");
   });
 });
 

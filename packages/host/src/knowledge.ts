@@ -406,9 +406,9 @@ export function markSourceFailed(
   };
 }
 
-function injectionGuardBypass(): boolean {
+function injectionGuardBypass(tenant: TenantContext): boolean {
   try {
-    return loadSettings().injectionGuardBypass === true;
+    return loadSettings(tenant.workspaceId).injectionGuardBypass === true;
   } catch {
     return false;
   }
@@ -429,7 +429,7 @@ function indexSource(
   type: string,
   text: string,
 ): Promise<KnowledgeSource> {
-  const bypass = injectionGuardBypass();
+  const bypass = injectionGuardBypass(tenant);
   // The raw name, not the sanitized one: stripping a leading `###` must not also strip the rule that
   // would have caught it.
   const hit = bypass ? null : (scanInjection(name) ?? scanInjection(text));

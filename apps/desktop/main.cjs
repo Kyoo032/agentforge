@@ -1,12 +1,29 @@
-const { app, BrowserWindow, Menu, dialog, ipcMain, protocol } = require("electron");
+const { app, BrowserWindow, Menu, dialog, ipcMain, protocol, session, shell } = require("electron");
 const { registerAutoUpdate } = require("./auto-update.cjs");
 const { PUBLIC_PRODUCT_NAME } = require("./brand-read.cjs");
 const { installApplicationMenu, attachContextMenu } = require("./edit-menu.cjs");
 const lifecycle = require("./lifecycle.cjs");
+const { RENDERER_CSP } = require("./renderer-csp.cjs");
+const {
+  isMediaProtocolKey,
+  isTrustedSender,
+  navigationDecision,
+  rendererOrigin,
+  safeSaveFilename,
+} = require("./navigation.cjs");
 const { execFile } = require("node:child_process");
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
+
+// A packaged build that was handed a debugger switch never starts. This process holds the decrypted
+// gateway key, the SQLite handle and a preload bridge that dispatches straight into the host, so a
+// DevTools endpoint on it is a full read of the user's desk by whatever set our command line — an
+// edited shortcut, a "launch with" registration, another program spawning our exe. Debugging belongs
+// in webdev, where `app.isPackaged` is false and this never fires.
+if (app.isPackaged && lifecycle.hasDebugSwitch(process.argv)) {
+  app.exit(1);
+}
 
 const DEFAULT_BRAND = {
   productName: "DPSBuddy",
@@ -50,6 +67,14 @@ const KEYCHAIN_ACCOUNT = "wrap-key";
 /** Names the public build carried before the DPSBuddy rename. Read once and copied forward; never deleted here. */
 const LEGACY_PUBLIC_NAMES = PRODUCT_NAME === PUBLIC_PRODUCT_NAME ? ["Agentforge"] : [];
 const WEBDEV_URL = "http://127.0.0.1:3000";
+/** Longest a "Start over" restart waits on `clearRendererState()`; see it for what that covers. */
+const CLEAR_STORAGE_TIMEOUT_MS = 3000;
+/** Ceiling on a single `host:save-bytes` write. Every real export (a video, a deck, a workbook) fits. */
+const MAX_SAVE_BYTES = 200 * 1024 * 1024;
+/** What a refused ipc channel answers with, in the shape `IpcHostResponse` already carries. */
+const FORBIDDEN_RESPONSE = Object.freeze({ type: "json", status: 403, body: { error: "forbidden" } });
+/** Written once per install after `migrateLegacyUserData()` decides; its presence means never again. */
+const LEGACY_MIGRATION_MARKER = "legacy-migrated.json";
 
 process.env.AGENTFORGE_PRODUCT_NAME = brand.productName;
 process.env.AGENTFORGE_GATEWAY_NAME = brand.gatewayName;
@@ -79,6 +104,20 @@ let hostModule = null;
 
 function shouldQuitOnLastWindow() {
   return lifecycle.shouldQuitOnLastWindow(process.platform);
+}
+
+/**
+ * An absolute path to a Windows system binary. Spawning the bare name would let any `taskkill.exe`
+ * sitting earlier on PATH — the install directory, a writable folder someone prepended — stand in
+ * for the real one and inherit this process's environment. `SystemRoot` is set by the OS on every
+ * session; the literal is a floor for a stripped environment, not a normal case.
+ *
+ * @param {string} name
+ * @returns {string}
+ */
+function windowsSystemBinary(name) {
+  const root = process.env.SystemRoot || process.env.windir || String.raw`C:\Windows`;
+  return path.join(root, "System32", name);
 }
 
 /**
@@ -116,7 +155,7 @@ function exitApp() {
     return;
   }
   if (strategy === "taskkill-tree") {
-    execFile("taskkill", ["/F", "/PID", String(process.pid), "/T"], () => {
+    execFile(windowsSystemBinary("taskkill.exe"), ["/F", "/PID", String(process.pid), "/T"], () => {
       app.exit(0);
     });
     setTimeout(() => app.exit(0), 1500).unref();
@@ -124,6 +163,81 @@ function exitApp() {
   }
   terminateHostChildren();
   app.exit(0);
+}
+
+/**
+ * Drop everything Chromium is holding for the renderer, in one pass.
+ *
+ * `clearStorageData()` covers localStorage, IndexedDB, service workers and cookies and nothing else,
+ * so on its own it left the HTTP cache, the cached HTTP auth and the compiled code caches in place —
+ * a "Start over" restarted onto a window still serving the previous install's bytes and credentials.
+ * All four are cleared here.
+ *
+ * `allSettled`, never `all`: one clear that rejects (a locked cache file, a session torn down under
+ * us) must not strand the other three or turn a restart into a stuck window.
+ *
+ * @returns {Promise<void>}
+ */
+async function clearRendererState() {
+  const results = await Promise.allSettled([
+    session.defaultSession.clearStorageData(),
+    session.defaultSession.clearCache(),
+    session.defaultSession.clearAuthCache(),
+    session.defaultSession.clearCodeCaches({}),
+  ]);
+  for (const result of results) {
+    if (result.status === "rejected") {
+      console.warn("one renderer clear failed before relaunch:", result.reason?.message ?? result.reason);
+    }
+  }
+}
+
+/**
+ * Restart the app for the renderer (Settings -> Start over, and any future restart button).
+ *
+ * `reset` only concerns what Chromium holds for the renderer — `clearRendererState()` lists it.
+ * App-owned files (`agentforge.sqlite`, `settings.enc`, `media/`) are listed by the host in
+ * `reset-pending.json` and removed on the next boot before SQLite opens; this shell never deletes
+ * them itself.
+ *
+ * Exit is `app.relaunch()` + `app.exit(0)`, never `exitApp()`: that would run the Windows
+ * `taskkill /F /PID <pid> /T` tree walk, and Electron's relauncher is a detached child of this
+ * process, so the walk would kill the thing that is meant to start us again. The relauncher waits
+ * for this process to exit before spawning the new one, so the single-instance lock taken at module
+ * load is already released when the new instance calls `requestSingleInstanceLock()`.
+ *
+ * @param {boolean} reset
+ * @returns {Promise<{ ok: true } | { ok: false, reason: string }>}
+ */
+async function relaunchApp(reset) {
+  const plan = lifecycle.relaunchPlan({ platform: process.platform, installingUpdate, exiting });
+  if (!plan.ok) {
+    console.warn(`relaunch refused: ${plan.reason}`);
+    return { ok: false, reason: plan.reason };
+  }
+  if (reset) {
+    // `exiting` is deliberately still false here: the clear is awaited, and a window close or Cmd+Q
+    // arriving meanwhile must still take the normal exit path instead of being swallowed as
+    // "already exiting" by a relaunch that has not started leaving yet. The 3 s cap keeps a wedged
+    // Chromium clear from stranding the user on a window that never restarts; whatever has not
+    // finished by then is dropped with the process a moment later anyway.
+    try {
+      await Promise.race([
+        clearRendererState(),
+        new Promise((resolve) => setTimeout(resolve, CLEAR_STORAGE_TIMEOUT_MS).unref()),
+      ]);
+    } catch (err) {
+      console.warn("could not clear renderer state before relaunch:", err.message);
+    }
+  }
+  exiting = true;
+  hostReady = false;
+  if (plan.killChildren) {
+    terminateHostChildren();
+  }
+  app.relaunch();
+  app.exit(0);
+  return { ok: true };
 }
 
 function splashPath() {
@@ -198,6 +312,68 @@ function writeHostStatus(dataDir, extra) {
   fs.writeFileSync(path.join(dataDir, "host-status.json"), `${JSON.stringify(payload, null, 2)}\n`, "utf8");
 }
 
+/** The one document the window may hold, as `navigation.cjs` compares them. */
+function currentRendererOrigin() {
+  return rendererOrigin({ packaged: app.isPackaged, rendererIndex: rendererIndex(), webdevUrl: WEBDEV_URL });
+}
+
+/** Hand an http(s) address to the user's browser; anything else is dropped on the floor. */
+function openExternally(url) {
+  void shell.openExternal(url).catch((err) => {
+    console.warn("could not open an external link:", err.message);
+  });
+}
+
+/**
+ * Deny by default for both ways a page can leave its document.
+ *
+ * Model output is full of links (`target="_blank"` anchors in research sources, market tickers, the
+ * ffmpeg setup notice). Without these hooks Chromium would answer each one with a *new BrowserWindow*
+ * that has no preload and no navigation rules of its own, pointed at an arbitrary remote page. Both
+ * handlers send `http(s)` elsewhere to the system browser and refuse everything else.
+ *
+ * @param {BrowserWindow} window
+ */
+function hardenNavigation(window) {
+  window.webContents.setWindowOpenHandler(({ url }) => {
+    if (navigationDecision(url, currentRendererOrigin()) === "external") {
+      openExternally(url);
+    }
+    // Never "allow": the app is one window. A same-origin popup would still be a second, unhardened one.
+    return { action: "deny" };
+  });
+  window.webContents.on("will-navigate", (event, url) => {
+    const decision = navigationDecision(url, currentRendererOrigin());
+    if (decision === "allow") {
+      return;
+    }
+    event.preventDefault();
+    if (decision === "external") {
+      openExternally(url);
+    }
+  });
+}
+
+/**
+ * Serve `RENDERER_CSP` as a response header, alongside the `<meta>` tag `scripts/stage-renderer.mjs`
+ * bakes into the packaged index.html. renderer-csp.cjs explains the policy and why it is enforced in
+ * both places; in short, the meta tag is what governs the `file://` document and this covers
+ * everything else the session serves.
+ *
+ * Packaged only: webdev needs Vite's inline preamble, its eval'd HMR client and its websocket back to
+ * the dev server, none of which survive this policy.
+ */
+function installContentSecurityPolicy() {
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    const withoutCsp = Object.entries(details.responseHeaders ?? {}).filter(
+      ([name]) => name.toLowerCase() !== "content-security-policy",
+    );
+    callback({
+      responseHeaders: { ...Object.fromEntries(withoutCsp), "Content-Security-Policy": [RENDERER_CSP] },
+    });
+  });
+}
+
 function createWindow() {
   // A null application menu drops the Edit roles that back Ctrl/Cmd+V, so users could not paste
   // the API key during onboarding. Keep a real Edit menu; autoHideMenuBar keeps it out of sight.
@@ -217,6 +393,7 @@ function createWindow() {
     },
   });
   attachContextMenu({ Menu, window: mainWindow });
+  hardenNavigation(mainWindow);
   mainWindow.once("ready-to-show", () => {
     if (exiting || !mainWindow || mainWindow.isDestroyed()) {
       return;
@@ -248,12 +425,22 @@ function createWindow() {
 function registerIpc(host) {
   /** @type {Map<string, AbortController>} */
   const streamAborts = new Map();
-  ipcMain.on("host:stream-abort", (_event, payload) => {
+  // Every channel below is bound to the one frame we control: not a subframe, not a devtools page,
+  // not anything a navigation slipped into the window. Each refusal is the channel's own "no" shape,
+  // never a throw, so a caller that is simply wrong sees an ordinary answer.
+  ipcMain.on("host:stream-abort", (event, payload) => {
+    if (!isTrustedSender(event, mainWindow)) {
+      return;
+    }
     const requestId = typeof payload?.requestId === "string" ? payload.requestId : "";
     streamAborts.get(requestId)?.abort();
   });
   ipcMain.handle("host:ping", () => ({ ok: true }));
   ipcMain.handle("host:request", async (event, payload) => {
+    if (!isTrustedSender(event, mainWindow)) {
+      console.warn("host request refused: forbidden sender");
+      return FORBIDDEN_RESPONSE;
+    }
     const files = Array.isArray(payload.files)
       ? payload.files.map((file) => ({
           field: file.field,
@@ -308,19 +495,60 @@ function registerIpc(host) {
     }
     return result;
   });
-  ipcMain.handle("host:save-bytes", async (_event, payload) => {
-    const save = await dialog.showSaveDialog({ defaultPath: payload.filename });
-    if (save.canceled || !save.filePath) {
-      return { ok: false };
+  /**
+   * Write an export the renderer produced to a file the user picks.
+   *
+   * The renderer names the file and the model names it for the renderer, so the name is untrusted
+   * input that lands in the one part of a save dialog people accept without reading:
+   * `safeSaveFilename` cuts it back to a bare, non-device leaf. Nothing here throws — a rejected
+   * promise would surface in the renderer as an unhandled error with a main-process path in it.
+   */
+  ipcMain.handle("host:save-bytes", async (event, payload) => {
+    if (!isTrustedSender(event, mainWindow)) {
+      console.warn("save refused: forbidden sender");
+      return { ok: false, reason: "forbidden" };
     }
-    fs.writeFileSync(save.filePath, Buffer.from(payload.bytes));
-    return { ok: true };
+    try {
+      const filename = safeSaveFilename(payload?.filename);
+      if (!filename) {
+        return { ok: false, reason: "bad-filename" };
+      }
+      const raw = payload?.bytes;
+      const length = Array.isArray(raw) ? raw.length : (raw?.byteLength ?? 0);
+      if (length > MAX_SAVE_BYTES) {
+        return { ok: false, reason: "too-large" };
+      }
+      const save = await dialog.showSaveDialog({ defaultPath: filename });
+      if (save.canceled || !save.filePath) {
+        return { ok: false, reason: "canceled" };
+      }
+      fs.writeFileSync(save.filePath, Buffer.from(raw ?? []));
+      return { ok: true };
+    } catch (err) {
+      console.warn("could not save the file the renderer asked for:", err.message);
+      return { ok: false, reason: "write-failed" };
+    }
   });
-  ipcMain.handle("agentforge:pick-media", async () => {
+  // Destructive and un-undoable: the sender gate matters most here.
+  ipcMain.handle("app:relaunch", async (event, payload) => {
+    if (!isTrustedSender(event, mainWindow)) {
+      console.warn("relaunch refused: forbidden sender");
+      return { ok: false, reason: "forbidden" };
+    }
+    return relaunchApp(Boolean(payload?.reset));
+  });
+  ipcMain.handle("agentforge:pick-media", async (event) => {
+    if (!isTrustedSender(event, mainWindow)) {
+      console.warn("media picker refused: forbidden sender");
+      return [];
+    }
     const picked = await dialog.showOpenDialog({
       properties: ["openFile", "multiSelections"],
       filters: [
-        { name: "Media", extensions: ["mp4", "webm", "mov", "png", "jpg", "jpeg", "webp", "gif", "mp3", "wav", "aac", "m4a"] },
+        {
+          name: "Media",
+          extensions: ["mp4", "webm", "mov", "png", "jpg", "jpeg", "webp", "gif", "mp3", "wav", "aac", "m4a"],
+        },
       ],
     });
     if (picked.canceled) {
@@ -346,7 +574,12 @@ function registerMediaProtocol(host) {
     if (!toHostPath) {
       return new Response("Not found", { status: 404 });
     }
+    // The hostname above chose the route; the path is the only free part, so it is the only place a
+    // traversal or a query string could bend `/api/v1/media/<key>/file` into another host endpoint.
     const key = url.pathname.replace(/^\//, "");
+    if (!isMediaProtocolKey(key)) {
+      return new Response("Not found", { status: 404 });
+    }
     const result = await host.dispatch({
       method: "GET",
       path: toHostPath(key),
@@ -392,6 +625,10 @@ async function bootstrapPackaged() {
   process.env.AGENTFORGE_SECRETS_KEY = secret;
   process.env.AGENTFORGE_MIGRATIONS_DIR = drizzleDir();
   delete process.env.DATABASE_URL;
+  // The only place the packaged app applies `reset-pending.json`. `packages/db` deletes the queued
+  // files before SQLite opens, and only when this flag is "1", so no webdev run, test harness, or
+  // stray import of the host can ever act on a wipe the user queued in the desktop app.
+  process.env.AGENTFORGE_APPLY_PENDING_RESET = "1";
 
   const host = require("./host.cjs");
   hostModule = host;
@@ -409,7 +646,23 @@ async function bootstrapPackaged() {
     throw new Error("host ping failed");
   }
   hostReady = true;
-  const settings = host.loadSettings();
+  // Settings live per desk, and nothing has named one yet: ping and edit/doctor resolve no tenant, so
+  // on a fresh install `workspace-id.txt` does not exist and a bare read would land on the empty
+  // `__default__` slice. GET /api/v1/context resolves the tenant (which stamps the file) and the read
+  // below then names that desk, so the status file reports the runtime the app will actually use.
+  try {
+    await host.dispatch({
+      method: "GET",
+      path: "/api/v1/context",
+      query: {},
+      params: {},
+      headers: {},
+      workspaceId: host.readSelectedWorkspaceId() ?? null,
+    });
+  } catch {
+    // desk resolution is best effort; the read below still names whatever selection exists
+  }
+  const settings = host.loadSettings(host.readSelectedWorkspaceId() ?? undefined);
   let editFfmpeg = null;
   try {
     const doctor = await host.dispatch({
@@ -427,8 +680,10 @@ async function bootstrapPackaged() {
     // edit doctor optional during boot
   }
   writeHostStatus(dataDir, {
-    runtime: settings.openaiApiKey ? "ai" : process.env.AGENTFORGE_RUNTIME || "stub",
-    hasOpenai: Boolean(settings.openaiApiKey),
+    ...lifecycle.hostStatusRuntime({
+      hasOpenai: Boolean(settings.openaiApiKey),
+      envRuntime: process.env.AGENTFORGE_RUNTIME,
+    }),
     editFfmpeg,
   });
   await navigateToUi();
@@ -463,27 +718,50 @@ function applyProductPaths() {
 /** Older data folders, oldest first: the pre-0.14 scoped folder, then the pre-rename product folder. */
 function legacyUserDataDirs() {
   const appData = app.getPath("appData");
-  return [
-    path.join(appData, "@agentforge", "desktop"),
-    ...LEGACY_PUBLIC_NAMES.map((name) => path.join(appData, name)),
-  ];
+  return [path.join(appData, "@agentforge", "desktop"), ...LEGACY_PUBLIC_NAMES.map((name) => path.join(appData, name))];
 }
 
-/** First launch after an upgrade copies the newest legacy desk into the current userData; nothing is deleted. */
+/** Record that the legacy question has been asked, so no later launch can ask it again. */
+function writeLegacyMigrationMarker(dest, from) {
+  try {
+    fs.mkdirSync(dest, { recursive: true });
+    const payload = { version: 1, at: new Date().toISOString(), from: from ?? null };
+    fs.writeFileSync(path.join(dest, LEGACY_MIGRATION_MARKER), `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+  } catch (err) {
+    console.warn("could not record the legacy migration marker:", err.message);
+  }
+}
+
+/**
+ * First launch after an upgrade copies the newest legacy desk into the current userData; nothing is
+ * deleted, and the decision is taken exactly once per install.
+ *
+ * The one-shot marker is the whole point. "userData has no `agentforge.sqlite`" is also the state a
+ * "Reset to a fresh install" leaves behind, so without the marker the second launch after a reset
+ * would copy the forgotten gateway key, every thread and all media back out of the old desk. The
+ * marker is written after any decision, including "nothing to copy".
+ */
 function migrateLegacyUserData() {
   const dest = app.getPath("userData");
-  if (fs.existsSync(path.join(dest, "agentforge.sqlite"))) {
+  const markerExists = fs.existsSync(path.join(dest, LEGACY_MIGRATION_MARKER));
+  const destHasDb = fs.existsSync(path.join(dest, "agentforge.sqlite"));
+  const legacyDirs = markerExists
+    ? []
+    : legacyUserDataDirs().filter(
+        (dir) => path.resolve(dir) !== path.resolve(dest) && fs.existsSync(path.join(dir, "agentforge.sqlite")),
+      );
+  const plan = lifecycle.legacyMigrationPlan({ markerExists, destHasDb, legacyDirs });
+  if (plan === "skip") {
     return;
   }
-  const sources = legacyUserDataDirs().filter(
-    (dir) => path.resolve(dir) !== path.resolve(dest) && fs.existsSync(path.join(dir, "agentforge.sqlite")),
-  );
-  const source = sources.at(-1);
-  if (!source) {
+  if (plan === "mark-only") {
+    writeLegacyMigrationMarker(dest, null);
     return;
   }
+  const source = legacyDirs.at(-1);
   fs.mkdirSync(dest, { recursive: true });
   fs.cpSync(source, dest, { recursive: true, force: false });
+  writeLegacyMigrationMarker(dest, source);
 }
 
 if (process.platform === "win32") {
@@ -507,6 +785,9 @@ if (!gotLock) {
   });
 
   app.whenReady().then(async () => {
+    if (app.isPackaged) {
+      installContentSecurityPolicy();
+    }
     createWindow();
     // Registered before boot so a Dock click during a slow start still gets a window (macOS only
     // emits this; on Windows/Linux the app has exited by the time all windows are gone).
@@ -524,6 +805,8 @@ if (!gotLock) {
       BrowserWindow,
       productName: PRODUCT_NAME,
       platform: process.platform,
+      // Read at call time, not captured: createWindow() replaces the window on a macOS Dock reopen.
+      getMainWindow: () => mainWindow,
       onInstallStart: () => {
         installingUpdate = true;
       },

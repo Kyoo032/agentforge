@@ -11,7 +11,9 @@
 import type Database from "better-sqlite3";
 import {
   ApiError,
+  gatewayRequiredMessage,
   hasLiveProvider,
+  modeMessage,
   resolveChatModel,
   resolveRuntimeMode,
   resolveToolBackend,
@@ -46,6 +48,7 @@ import {
 } from "./market-briefing-build";
 import { buildMarketWatchPacket, type PacketClients, type PacketPhase } from "./market/packet";
 import { ensureToolsRegistered } from "./register-tools";
+import { localeForRun } from "./run-context";
 import { listSelectableModels, modeCatalogPayload } from "./selectable-models";
 import { loadSettings } from "./settings-store";
 
@@ -58,9 +61,11 @@ export const USER_INSTRUCTION_HEADING = "USER INSTRUCTION:";
 /**
  * Stream watchdog for the drafting call. A 10-15 ticker packet with eight
  * headlines each plus bound tools makes deepseek-class models sit silent for
- * over a minute before the first token (and again between tool rounds), which
- * trips the 120 s / 60 s defaults; the same request completes in ~90 s over the
- * non-stream API. These only ever raise the model defaults.
+ * over a minute before the first token (and again between tool rounds); the same
+ * request completes in ~90 s over the non-stream API. Those families now carry the
+ * reasoning floors themselves (240 s / 180 s in `stream-watchdog.ts`), so this is
+ * inert for them and still covers an everyday model picked by hand. These only
+ * ever raise the model defaults.
  */
 export const MARKET_WATCHDOG_TTFB_MS = 180_000;
 export const MARKET_WATCHDOG_IDLE_MS = 150_000;
@@ -130,18 +135,14 @@ function resolveDeps(deps: MarketGenerateDeps): Resolved {
   };
 }
 
-function requireLive(): ReturnType<typeof loadSettings> {
-  const settings = loadSettings();
+function requireLive(workspaceId: string): ReturnType<typeof loadSettings> {
+  const settings = loadSettings(workspaceId);
   const mode = resolveRuntimeMode({
     settingsHasKey: hasLiveProvider(settings),
     envRuntime: process.env.AGENTFORGE_RUNTIME,
   });
   if (mode === "stub") {
-    throw new ApiError(
-      "runtime_stub",
-      "Market needs a live gateway. Paste a Toko Token API key in Settings, then try again.",
-      503,
-    );
+    throw new ApiError("runtime_stub", gatewayRequiredMessage("market", localeForRun()), 503);
   }
   return settings;
 }
@@ -314,6 +315,7 @@ async function draftBriefing(run: WatchRun, packet: MarketWatchPacket): Promise<
         }),
         runPrefix: "market",
         agentId: "market",
+        jobMode: "market",
         versionId: "market-briefing",
         prompt: briefingPrompt(packet, request.prompt),
         toolKeys: toolKeysFor(resolved.webReady()),
@@ -325,7 +327,7 @@ async function draftBriefing(run: WatchRun, packet: MarketWatchPacket): Promise<
     stopHeartbeat();
   }
   if (!raw.trim()) {
-    throw new ApiError("generation_failed", "Model returned an empty market briefing", 502);
+    throw new ApiError("generation_failed", modeMessage("emptyMarketBriefing", localeForRun()), 502);
   }
   return raw;
 }
@@ -375,7 +377,7 @@ export async function generateMarketBriefing(
 ): Promise<MarketWatchResult> {
   // A malformed client payload is a 400 whatever the runtime; the gateway check comes once the body is sound.
   const request = parseWatchRequest(body);
-  const settings = requireLive();
+  const settings = requireLive(tenant.workspaceId);
   const run: WatchRun = {
     tenant,
     request,
@@ -433,7 +435,7 @@ export async function regenerateBriefingSection(
   assertBriefingHasNoAdvice(briefing.sections);
   const index = readSectionIndex(record, briefing.sections.length);
   const current = briefing.sections[index] as BriefingSection;
-  const settings = requireLive();
+  const settings = requireLive(tenant.workspaceId);
   const model = resolveModel(typeof record.model === "string" ? record.model : undefined, settings);
   const resolved = resolveDeps(deps);
 
@@ -447,6 +449,7 @@ export async function regenerateBriefingSection(
     }),
     runPrefix: "market-section",
     agentId: "market",
+    jobMode: "market",
     versionId: "market-section",
     prompt: appendRegenInstruction(sectionPrompt(briefing, index, current), readOptionalInstruction(record)),
     toolKeys: toolKeysFor(resolved.webReady()),

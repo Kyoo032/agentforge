@@ -12,6 +12,7 @@ import type { JobEmitter } from "@agentforge/core/jobs";
 import {
   findPlaybook,
   LEGAL_CAPS,
+  legalOutputCopy,
   type DeliverableKind,
   type Finding,
   type LegalManifest,
@@ -57,18 +58,14 @@ export function encodeArtifactBody(mime: ArtifactMime, bytes: Uint8Array, text: 
   return text.trim() || new TextDecoder().decode(bytes);
 }
 
-function requireLive(): ReturnType<typeof loadSettings> {
-  const settings = loadSettings();
+function requireLive(workspaceId: string): ReturnType<typeof loadSettings> {
+  const settings = loadSettings(workspaceId);
   const mode = resolveRuntimeMode({
     settingsHasKey: hasLiveProvider(settings),
     envRuntime: process.env.AGENTFORGE_RUNTIME,
   });
   if (mode === "stub") {
-    throw new ApiError(
-      "runtime_stub",
-      "Legal needs a live gateway. Paste a Toko Token API key in Settings, then try again.",
-      503,
-    );
+    throw new ApiError("runtime_stub", legalOutputCopy(localeForRun()).stubError, 503);
   }
   return settings;
 }
@@ -210,7 +207,7 @@ export async function generateLegalRun(
   emit: JobEmitter,
   abortSignal?: AbortSignal,
 ): Promise<LegalRunSummary> {
-  requireLive();
+  requireLive(tenant.workspaceId);
   const matter = requireLegalMatter(tenant, matterId);
   const runBody = readRunBody(body);
   const models = resolveModels(runBody);
@@ -239,6 +236,7 @@ export async function generateLegalRun(
           systemPrompt: system,
           runPrefix: "legal",
           agentId: "legal",
+          jobMode: "legal",
           versionId: runId,
           prompt,
         }),

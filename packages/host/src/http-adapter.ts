@@ -2,10 +2,14 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { WORKSPACE_COOKIE } from "@agentforge/core";
 import { dispatch } from "./router";
 import { readSelectedWorkspaceId } from "./workspace";
-import { isAllowedMutatingApiRequest } from "./local-request";
+import { isAllowedMutatingApiRequest, isLoopbackHostHeader } from "./local-request";
 import type { HostFile, HostRequest, HostResult } from "./types";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+/** Header the renderer stamps on every mutating call; a plain HTML form cannot set one. */
+const TRANSPORT_HEADER = "x-agentforge-transport";
+/** Routes that destroy local data, so they ask for the custom header on top of the Origin/Host checks. */
+const TRANSPORT_REQUIRED_PATHS = new Set(["/api/v1/settings/reset"]);
 /** Largest accepted request body (dataset uploads are 25 MB plus multipart framing). */
 export const MAX_BODY_BYTES = 26 * 1024 * 1024;
 
@@ -134,6 +138,7 @@ export async function writeHostResult(res: ServerResponse, result: HostResult): 
     applyCookies(res, result);
     res.statusCode = result.status;
     res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("X-Content-Type-Options", "nosniff");
     res.end(JSON.stringify(result.body));
     return;
   }
@@ -141,6 +146,7 @@ export async function writeHostResult(res: ServerResponse, result: HostResult): 
     res.statusCode = result.status;
     res.setHeader("Content-Type", result.contentType);
     res.setHeader("Cache-Control", "private, max-age=3600");
+    res.setHeader("X-Content-Type-Options", "nosniff");
     if (result.filename) {
       res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
     }
@@ -153,6 +159,7 @@ export async function writeHostResult(res: ServerResponse, result: HostResult): 
   res.statusCode = result.status;
   res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
   res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Connection", "keep-alive");
   res.setHeader("X-Accel-Buffering", "no");
   res.flushHeaders?.();
@@ -177,10 +184,15 @@ export async function handleNodeRequest(req: IncomingMessage, res: ServerRespons
   const method = req.method ?? "GET";
   if (!SAFE_METHODS.has(method)) {
     const origin = header(req, "origin");
-    if (!isAllowedMutatingApiRequest(origin, header(req, "referer"))) {
+    const localRequest =
+      isAllowedMutatingApiRequest(origin, header(req, "referer")) && isLoopbackHostHeader(header(req, "host"));
+    // The reset routes wipe local data, so they also demand a header no cross-site HTML form can send.
+    const transportOk = !TRANSPORT_REQUIRED_PATHS.has(path) || Boolean(header(req, TRANSPORT_HEADER)?.trim());
+    if (!localRequest || !transportOk) {
+      const message = localRequest ? "Missing x-agentforge-transport header" : "Local requests only";
       res.statusCode = 403;
       res.setHeader("Content-Type", "application/json; charset=utf-8");
-      res.end(JSON.stringify({ error: { code: "forbidden", message: "Local requests only" } }));
+      res.end(JSON.stringify({ error: { code: "forbidden", message } }));
       return true;
     }
   }

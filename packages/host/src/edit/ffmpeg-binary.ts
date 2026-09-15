@@ -3,6 +3,7 @@ import { existsSync, readdirSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { wellKnownBinaryPaths, wingetPackageBinaryPaths } from "./ffmpeg-locations";
+import { minimalEnv } from "./ffmpeg/env";
 
 export type BinaryStatus = {
   found: boolean;
@@ -39,6 +40,10 @@ function execVersion(binPath: string): string {
     encoding: "utf8",
     windowsHide: true,
     timeout: 10_000,
+    // A probe is still a spawn of a binary we did not build, picked up from PATH or a winget
+    // directory. It gets the same allowlisted environment as a real ffmpeg run, so the wrap key is
+    // never one `child.env` away from whatever is sitting at that path.
+    env: minimalEnv(),
   });
 }
 
@@ -58,13 +63,29 @@ function probeBinary(candidate: string): BinaryStatus {
   }
 }
 
+/**
+ * `where.exe` by absolute path on Windows: resolving it through PATH means the first `where.exe`
+ * on PATH decides where we look for ffmpeg, which is the lookup we are trying to secure.
+ * `%SystemRoot%` falls back to the default install path when the variable is missing.
+ */
+function whichCommand(): string {
+  if (process.platform !== "win32") {
+    // Left as a PATH lookup: `which` lives in different places across macOS and the Linux distros
+    // the mac/Cloud routes run on, and pinning it there would break discovery for no gain.
+    return "which";
+  }
+  const systemRoot = process.env.SystemRoot || process.env.SYSTEMROOT || "C:\\Windows";
+  return path.join(systemRoot, "System32", "where.exe");
+}
+
 function whichOnPath(name: string): string | null {
-  const cmd = process.platform === "win32" ? "where" : "which";
+  const cmd = whichCommand();
   try {
     const out = execFileSync(cmd, [name], {
       encoding: "utf8",
       windowsHide: true,
       timeout: 10_000,
+      env: minimalEnv(),
     });
     const first = out
       .trim()

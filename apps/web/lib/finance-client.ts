@@ -34,6 +34,29 @@ export const FINANCE_PARAM_FIELDS: Array<{ key: keyof FinanceParams; label: stri
   { key: "variableCostPerUnit", label: "Variable cost per unit", hint: "" },
 ];
 
+/** A failed finance request, carrying the host code (`invalid_finance`, `runtime_stub`, …) the studio branches on. */
+export class FinanceRequestError extends Error {
+  readonly code: string;
+  readonly status: number;
+
+  constructor(code: string, message: string, status: number) {
+    super(message);
+    this.name = "FinanceRequestError";
+    this.code = code;
+    this.status = status;
+  }
+}
+
+function errorCode(payload: unknown): string {
+  if (payload && typeof payload === "object") {
+    const error = (payload as { error?: { code?: unknown } }).error;
+    if (error && typeof error.code === "string" && error.code.trim()) {
+      return error.code;
+    }
+  }
+  return "request_failed";
+}
+
 function errorMessage(payload: unknown, fallback: string): string {
   if (payload && typeof payload === "object") {
     const error = (payload as { error?: { message?: unknown } }).error;
@@ -47,7 +70,7 @@ function errorMessage(payload: unknown, fallback: string): string {
 async function readJson<T>(res: Response, fallback: string): Promise<T> {
   const data = await res.json().catch(() => null);
   if (!res.ok) {
-    throw new Error(errorMessage(data, fallback));
+    throw new FinanceRequestError(errorCode(data), errorMessage(data, fallback), res.status);
   }
   return data as T;
 }

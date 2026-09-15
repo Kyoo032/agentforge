@@ -20,6 +20,31 @@
   "examplesHeading": "Start from a template",
   "examplesHint": "Click a card to load a full brief. Replace the sample details, then generate.",
   "outputTextLanguage": "If this image includes any readable text (captions, labels, signs, or on-image UI), write that text in English.",
+  "estimate": {
+    "perImage": "{usd} per image",
+    "atQuality": "at {quality} quality",
+    "quality": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    },
+    "source": "{vendor} list price, checked {date}",
+    "sourceThirdParty": "{vendor} price, third-party figure, checked {date}",
+    "sourceUnverified": "Unverified estimate, no vendor page",
+    "sourceGateway": "Gateway price, checked {date}",
+    "tier": {
+      "cheapest": "cheapest",
+      "cheap": "cheap",
+      "mid": "mid-priced",
+      "premium": "premium"
+    },
+    "compareCheaper": "About {factor}× cheaper than {model}",
+    "compareMore": "About {factor}× more than {model}",
+    "compareCheapest": "The cheapest image model here",
+    "unknown": "No list price on file for this model",
+    "unverified": "(unverified)",
+    "hint": "{usd}/img"
+  },
   "templates": {
     "launch-page-product-hero": {
       "title": "Launch-page product hero",

@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  classifyAttachment,
-  isRenderableImageUrl,
-  isRenderableVideoUrl,
-  routeDecision,
-} from "./composer-attach";
+import { classifyAttachment, isRenderableImageUrl, isRenderableVideoUrl, routeDecision } from "./composer-attach";
 
 describe("classifyAttachment", () => {
   it("classifies image MIME types", () => {
@@ -73,20 +68,22 @@ describe("routeDecision", () => {
 });
 
 describe("isRenderableMediaUrl", () => {
-  it("accepts absolute, data, and relative media URLs for images", () => {
-    expect(isRenderableImageUrl("https://cdn.example/a.png")).toBe(true);
-    expect(isRenderableImageUrl("http://127.0.0.1/a.png")).toBe(true);
+  it("accepts host media and inline raster data URLs for images, never a remote one", () => {
     expect(isRenderableImageUrl("data:image/png;base64,aaa")).toBe(true);
     expect(isRenderableImageUrl("/api/v1/media/abc/file")).toBe(true);
+    expect(isRenderableImageUrl("agentforge://media/abc")).toBe(true);
+    expect(isRenderableImageUrl("https://cdn.example/a.png")).toBe(false);
+    expect(isRenderableImageUrl("http://127.0.0.1/a.png")).toBe(false);
     expect(isRenderableImageUrl("ftp://x")).toBe(false);
     expect(isRenderableImageUrl("/other/path")).toBe(false);
   });
 
-  it("accepts absolute, data, and relative media URLs for videos", () => {
-    expect(isRenderableVideoUrl("https://cdn.example/a.mp4")).toBe(true);
-    expect(isRenderableVideoUrl("http://127.0.0.1/a.mp4")).toBe(true);
-    expect(isRenderableVideoUrl("data:video/mp4;base64,aaa")).toBe(true);
+  it("accepts host media only for videos", () => {
     expect(isRenderableVideoUrl("/api/v1/media/abc/file")).toBe(true);
+    expect(isRenderableVideoUrl("agentforge://media/abc")).toBe(true);
+    expect(isRenderableVideoUrl("https://cdn.example/a.mp4")).toBe(false);
+    expect(isRenderableVideoUrl("http://127.0.0.1/a.mp4")).toBe(false);
+    expect(isRenderableVideoUrl("data:video/mp4;base64,aaa")).toBe(false);
     expect(isRenderableVideoUrl("data:image/png;base64,aaa")).toBe(false);
     expect(isRenderableVideoUrl("/other/path")).toBe(false);
   });

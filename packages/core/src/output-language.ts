@@ -78,3 +78,60 @@ export function withOutputLanguage(
 export function editStubAssistantCopy(locale: AppLocale): { help: string; undo: string } {
   return EDIT_STUB[parseAppLocale(locale)];
 }
+
+export const GATEWAY_REQUIRED_SURFACES = [
+  "documents",
+  "research",
+  "finance",
+  "data",
+  "market",
+  "videos",
+] as const;
+
+export type GatewayRequiredSurface = (typeof GATEWAY_REQUIRED_SURFACES)[number];
+
+/**
+ * "Needs a live gateway" copy for the job harnesses. Legal keeps its own `stubError`
+ * in `legal/output-copy.ts`; Presentation keeps `presentationGatewayMessage` host-side.
+ */
+const GATEWAY_REQUIRED: Record<GatewayRequiredSurface, Record<AppLocale, string>> = {
+  documents: {
+    en: "Document generation needs a live gateway. Paste a Toko Token API key in Settings, then try again.",
+    id: "Pembuatan dokumen memerlukan gerbang yang aktif. Tempel kunci API Toko Token di Settings, lalu coba lagi.",
+  },
+  research: {
+    en: "Research needs a live gateway. Paste a Toko Token API key in Settings, then try again.",
+    id: "Research memerlukan gerbang yang aktif. Tempel kunci API Toko Token di Settings, lalu coba lagi.",
+  },
+  finance: {
+    en: "Finance needs a live gateway. Paste a Toko Token API key in Settings, then try again.",
+    id: "Finance memerlukan gerbang yang aktif. Tempel kunci API Toko Token di Settings, lalu coba lagi.",
+  },
+  data: {
+    en: "Data analysis needs a live gateway. Paste a Toko Token API key in Settings, then try again.",
+    id: "Analisis data memerlukan gerbang yang aktif. Tempel kunci API Toko Token di Settings, lalu coba lagi.",
+  },
+  market: {
+    en: "Market needs a live gateway. Paste a Toko Token API key in Settings, then try again.",
+    id: "Market memerlukan gerbang yang aktif. Tempel kunci API Toko Token di Settings, lalu coba lagi.",
+  },
+  videos: {
+    en: "Add a Toko Token gateway key in Settings to generate videos.",
+    id: "Tambahkan kunci gerbang Toko Token di Settings untuk membuat video.",
+  },
+};
+
+const SEARCH_KEY_REQUIRED: Record<AppLocale, string> = {
+  en: "Research needs a Tavily or Brave Search API key. Add it in Settings, then try again.",
+  id: "Research memerlukan kunci API Tavily atau Brave Search. Tambahkan di Settings, lalu coba lagi.",
+};
+
+/** Stub-runtime refusal shown when the owner has not pasted a gateway key yet. */
+export function gatewayRequiredMessage(surface: GatewayRequiredSurface, locale: AppLocale): string {
+  return GATEWAY_REQUIRED[surface][parseAppLocale(locale)];
+}
+
+/** Research also needs a web-search route; the gateway key alone is not enough. */
+export function searchKeyRequiredMessage(locale: AppLocale): string {
+  return SEARCH_KEY_REQUIRED[parseAppLocale(locale)];
+}
