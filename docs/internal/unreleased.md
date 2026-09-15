@@ -1,6 +1,6 @@
 # Unreleased changes (after public v0.14.25)
 
-**Purpose:** what is on `main` or on the cut branch but not inside the installers attached to the public **v0.14.25** release on `Kyoo032/DPSBuddy` — published 2026-09-12 13:27 UTC from the publish commit `3dab299`, with `apps/desktop/package.json` at `0.14.25`. The **`0.14.26` cut is in progress (2026-09-15), not yet published**: `apps/desktop/package.json` is at `0.14.26` and everything this file used to list has been folded into [`0.14.26-changelog.md`](0.14.26-changelog.md). The next cut after it is **`0.14.27`** (per the 2026-09-07 rule; never `0.14.3+`, never `0.15`). Convention unchanged: at the bump everything listed here is folded into `<version>-changelog.md` and this file starts over. Same rule as every changelog: nothing counts as shipped until it is staged, packed, installed, and driven on the packaged app.
+**Purpose:** what is on `main` or on the cut branch but not inside the installers attached to the public **v0.14.25** release on `Kyoo032/DPSBuddy` — published 2026-09-12 13:27 UTC from the publish commit `3dab299`, with `apps/desktop/package.json` at `0.14.25`. The **`0.14.26` cut was published 2026-09-15 09:18 UTC**: `apps/desktop/package.json` is at `0.14.26` and everything this file used to list has been folded into [`0.14.26-changelog.md`](0.14.26-changelog.md). The next cut after it is **`0.14.27`** (per the 2026-09-07 rule; never `0.14.3+`, never `0.15`). Convention unchanged: at the bump everything listed here is folded into `<version>-changelog.md` and this file starts over. Same rule as every changelog: nothing counts as shipped until it is staged, packed, installed, and driven on the packaged app.
 
 Append-only. When 0.14.26 is published, record the artifact table below, fold any later items into the next changelog, and start this file over.
 
@@ -8,8 +8,8 @@ Append-only. When 0.14.26 is published, record the artifact table below, fold an
 
 | Artifact | Source | Uploaded (UTC) |
 |---|---|---|
-| `DPSBuddy-Setup-0.14.26.exe` + `.blockmap` + `latest.yml` | `e93c617` (chat model-picker portal fix on `8831bc4`), isolated worktree `agentforge-pack-0.14.26-e93c617`, sha256 `F6E6B7A9…F42C0769`, 99 412 438 bytes, `latest.yml` sha512 `z6hqIj9k…+j8gkQ==` | publishing 2026-09-15 |
-| `DPSBuddy-0.14.26-mac-arm64.dmg` / `.zip`, `-x64.dmg` / `.zip` | `e93c617` (same commit, Docker Linux pipeline, `--arch all`), `mac-0.14.26.sha256`, arm64 dmg `bfa5f041…5362` / zip `ef58afcf…93ad`, x64 dmg `a78a655d…e1df` / zip `8d67fa8d…60c3` | publishing 2026-09-15 |
+| `DPSBuddy-Setup-0.14.26.exe` + `.blockmap` + `latest.yml` | `e93c617` (chat model-picker portal fix on `8831bc4`), isolated worktree `agentforge-pack-0.14.26-e93c617`, sha256 `F6E6B7A9…F42C0769`, 99 412 438 bytes, `latest.yml` sha512 `z6hqIj9k…+j8gkQ==` | 2026-09-15 09:18 |
+| `DPSBuddy-0.14.26-mac-arm64.dmg` / `.zip`, `-x64.dmg` / `.zip` | `e93c617` (same commit, Docker Linux pipeline, `--arch all`), `mac-0.14.26.sha256`, arm64 dmg `bfa5f041…5362` / zip `ef58afcf…93ad`, x64 dmg `a78a655d…e1df` / zip `8d67fa8d…60c3` | 2026-09-15 09:18 |
 | `DPSBuddy-Setup-0.14.25.exe` + `.blockmap` + `latest.yml` | `242f428` (version bump on `e0c6c19`), isolated worktree `agentforge-pack-0.14.25`, sha256 `89F85BB9…055E7BA7`, 99 338 814 bytes | 2026-09-12 13:27 |
 | `DPSBuddy-0.14.25-mac-arm64.dmg` / `.zip`, `-x64.dmg` / `.zip` | `9c0bd27` (same app as `242f428` plus the `hfsplus ls` parser fixes `051382e` / `9c0bd27`), Docker pipeline, `mac-0.14.25.sha256` | 2026-09-12 13:27 |
 
@@ -34,6 +34,7 @@ Resolved since this list was written: the Videos studio duration knob vs. `veo_3
 
 ## Log
 
+- **2026-09-15 (published)** — v0.14.26 released on Kyoo032/DPSBuddy from e93c617 (7 assets); PR #51 open on Kyoo032/agentforge.
 - **2026-09-15 (evening)** — 0.14.26 prep: version bump, changelog folded into 0.14.26-changelog.md, security pass landed (see blockers-2026-09-15.md), one commit on cursor/id-locale-harness-chat-layout, pack routes started; not published.
 - **2026-09-15** — Host gateway gate (Phase 0), Start over card + shell relaunch, and the en/id locale sweep landed on `cursor/id-locale-harness-chat-layout` (uncommitted at time of writing). Proof so far is unit tests + a webdev drive on a throwaway data dir; nothing packed. AGENTS.md rewritten the same day (harness pass first, then 0.14.26).
 - **2026-09-15 (later)** — Finance fix driven on a throwaway webdev data dir with a test key: `GET /api/v1/settings` → `runtime: ai`, `gateway.status: ok`; `POST /api/v1/finance` no longer answers `runtime_stub` (default `deepseek-v4-flash` stalled 3/3 with “No stream events for 60s”, `gpt-5.6-luna` → 200 with a brief), `workspace-id.txt` appeared on the first generator call. Browser drive (headless, `PORT=3100`): prompt-only Generate → `finance-auto-parsed` “Read 5 figures from your brief” with the rows filled, second Generate → full brief + downloads; manual paste → `finance-parse` → 4 rows → brief; locale `id` after Settings → Restart renders the studio in Bahasa Indonesia. Screenshots kept in the session scratchpad. Side findings: `deepseek-v4-flash` default stalls on long generations; duplicate `finance-download` testid (DOCX + Markdown) breaks strict `getByTestId`; the parser read “12 outlets” as a line item.
