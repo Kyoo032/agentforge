@@ -4,6 +4,7 @@ import { promisify } from "node:util";
 import { ApiError } from "@agentforge/core";
 import { trackChild, type TrackableChild } from "../../child-processes";
 import { resolveFfmpeg, resolveFfprobe } from "../ffmpeg-binary";
+import { minimalEnv } from "./env";
 
 const defaultExecFile = promisify(execFileCb);
 
@@ -30,22 +31,8 @@ export type RunFfmpegOptions = {
   outputPath?: string;
 };
 
-const SECRET_ENV = /^(AGENTFORGE_SECRETS_KEY|OPENAI_|ANTHROPIC_|GOOGLE_|ARK_|VOLCENGINE_|FAL_)/i;
-
-export function minimalEnv(source: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = {};
-  for (const key of ["PATH", "TMP", "TEMP", "TMPDIR", "SystemRoot", "SYSTEMROOT", "ComSpec", "PATHEXT"]) {
-    if (source[key]) {
-      env[key] = source[key];
-    }
-  }
-  for (const key of Object.keys(source)) {
-    if (SECRET_ENV.test(key)) {
-      continue;
-    }
-  }
-  return env;
-}
+// Re-exported so the existing `./ffmpeg/run` import path keeps working for callers and tests.
+export { minimalEnv };
 
 let execFileImpl: ExecFileFn = defaultExecFile as ExecFileFn;
 

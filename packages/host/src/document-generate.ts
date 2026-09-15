@@ -1,4 +1,14 @@
-import { ApiError, hasLiveProvider, resolveChatModel, resolveRuntimeMode, type TenantContext, withOutputLanguage, type AppLocale } from "@agentforge/core";
+import {
+  ApiError,
+  gatewayRequiredMessage,
+  hasLiveProvider,
+  modeMessage,
+  resolveChatModel,
+  resolveRuntimeMode,
+  withOutputLanguage,
+  type AppLocale,
+  type TenantContext,
+} from "@agentforge/core";
 import { loadSettings } from "./settings-store";
 import { modeCatalogPayload, listSelectableModels } from "./selectable-models";
 import {
@@ -93,23 +103,20 @@ async function collectAssistantText(
     systemPrompt: withSourceRule(documentJobSystemPrompt(finance), sourceText),
     runPrefix: finance ? "finance" : "document",
     agentId: finance ? "finance" : "document",
+    jobMode: finance ? "finance" : "documents",
     versionId: finance ? "finance-draft" : "document-draft",
     prompt: withSourceMaterial(prompt, sourceText),
   });
 }
 
-function requireLiveDocumentRuntime(): ReturnType<typeof loadSettings> {
-  const settings = loadSettings();
+function requireLiveDocumentRuntime(workspaceId: string): ReturnType<typeof loadSettings> {
+  const settings = loadSettings(workspaceId);
   const mode = resolveRuntimeMode({
     settingsHasKey: hasLiveProvider(settings),
     envRuntime: process.env.AGENTFORGE_RUNTIME,
   });
   if (mode === "stub") {
-    throw new ApiError(
-      "runtime_stub",
-      "Document generation needs a live gateway. Paste a Toko Token API key in Settings, then try again.",
-      503,
-    );
+    throw new ApiError("runtime_stub", gatewayRequiredMessage("documents", localeForRun()), 503);
   }
   return settings;
 }
@@ -144,12 +151,12 @@ function persistDraft(tenant: TenantContext, draft: DocumentDraft, markdown: str
 
 export async function generateDocumentDraft(tenant: TenantContext, body: unknown): Promise<DocumentDraft> {
   const prompt = readPrompt(body);
-  const settings = requireLiveDocumentRuntime();
+  const settings = requireLiveDocumentRuntime(tenant.workspaceId);
   const sourceText = readSourceText(body, { injectionGuardBypass: settings.injectionGuardBypass === true });
   const model = resolveDocumentModel(body, settings);
   const raw = await collectAssistantText(tenant, model, prompt, isFinanceJob(body), sourceText);
   if (!raw.trim()) {
-    throw new ApiError("generation_failed", "Model returned an empty document draft", 502);
+    throw new ApiError("generation_failed", modeMessage("emptyDocumentDraft", localeForRun()), 502);
   }
   const draft = parseDocumentDraft(raw);
   const markdown = documentDraftMarkdown(draft);
@@ -194,7 +201,7 @@ export async function regenerateDocumentSection(tenant: TenantContext, body: unk
   if (!current) {
     throw new ApiError("invalid_request", "sectionIndex is out of range", 400);
   }
-  const settings = requireLiveDocumentRuntime();
+  const settings = requireLiveDocumentRuntime(tenant.workspaceId);
   const model = resolveDocumentModel(body, settings);
   const attachments = readJobRegenAttachments(body);
   const sourceText = readSourceText(body, { injectionGuardBypass: settings.injectionGuardBypass === true });
@@ -220,12 +227,13 @@ export async function regenerateDocumentSection(tenant: TenantContext, body: unk
     systemPrompt: withSourceRule(withOutputLanguage(SECTION_SYSTEM, "documents", localeForRun()), sourceText),
     runPrefix: "document-section",
     agentId: "document",
+    jobMode: "documents",
     versionId: "document-section",
     prompt: withSourceMaterial(prompt, sourceText),
     attachments,
   });
   if (!raw.trim()) {
-    throw new ApiError("generation_failed", "Model returned an empty document section", 502);
+    throw new ApiError("generation_failed", modeMessage("emptyDocumentSection", localeForRun()), 502);
   }
   return mergeDocumentSection(draft, index, parseDocumentSection(raw));
 }

@@ -126,7 +126,7 @@ export function closestReasoningEffort(
   return best;
 }
 
-/** GPT-6 does not support `none`. Per-model allowlists live in `effort-allowlist.ts`. */
+/** GPT-6 does not support `none`. Per-model allowlists live in `runtime/effort-allowlist.ts`. */
 export function coerceReasoningEffortForModel(modelId: string, effort: ReasoningEffort): ReasoningEffort {
   if (effort !== "none") {
     return effort;

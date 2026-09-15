@@ -56,4 +56,14 @@ contextBridge.exposeInMainWorld("agentforge", {
     }),
   saveBytes: (filename, bytes) => ipcRenderer.invoke("host:save-bytes", { filename, bytes }),
   pickMedia: () => ipcRenderer.invoke("agentforge:pick-media"),
+  /**
+   * Restart the app. `{ reset: true }` (Settings -> Start over) also clears the renderer's Chromium
+   * storage in the main process before exiting, so nothing from the old install leaks into the
+   * fresh one. App-owned files are handled by the host's reset marker, not here.
+   *
+   * Resolves to `{ ok: false, reason }` when the main process refuses (`installing-update`,
+   * `already-exiting`, `forbidden` from any frame that is not the main renderer). On success the
+   * process exits before the reply is sent, so the renderer treats a non-object answer as ok.
+   */
+  relaunch: (options) => ipcRenderer.invoke("app:relaunch", { reset: Boolean(options?.reset) }),
 });

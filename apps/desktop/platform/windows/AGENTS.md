@@ -30,6 +30,10 @@ Do not run these on Cloud Linux. `pnpm desktop:dev` (Electron around webdev `:30
 4. Relaunch: saved key still decrypts (`hasOpenai: true` in `host-status.json`).
 5. Rail footer updates icon (between the theme toggle and collapse) opens the panel; Check for updates shows a state, never a raw error dump.
 6. Settings → Endpoint URL: a remote `http://` value is rejected on Save; the reset link returns to Toko Token; a custom HTTPS value survives relaunch.
+7. Settings → Start over → Reset to a fresh install → app restarts on onboarding; userData keeps Chromium folders, loses `agentforge.sqlite`, `settings.enc`, `media/`; `host-status.json` shows `hasOpenai: false`. Task Manager shows exactly one `DPSBuddy.exe` tree and no `ffmpeg.exe` left from the old run.
+8. Second launch after that reset stays fresh: onboarding again, `hasOpenai: false`, no threads. The legacy folder (`%APPDATA%\@agentforge\desktop`, `%APPDATA%\Agentforge`) is **not** copied back — `%APPDATA%\DPSBuddy\legacy-migrated.json` exists and the old desk is untouched on disk.
+9. Queued wipe, second thoughts: Settings → Start over → Reset to a fresh install, then **Keep my data** on the banner. `reset-pending.json` is gone from userData and the next launch keeps every thread and the saved key.
+10. Model-output link (a research source, a market ticker, the ffmpeg setup notice) opens the default browser. Never a second `DPSBuddy.exe` window, never a window with no menu — and the app window itself has not navigated anywhere.
 
 ## Do not
 

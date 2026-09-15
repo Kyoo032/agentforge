@@ -2,13 +2,16 @@ import {
   ApiError,
   buildToolSecretScope,
   fetchPageText,
+  gatewayRequiredMessage,
   hasLiveProvider,
   listToolRoutes,
   maskPii,
+  modeMessage,
   resolveChatModel,
   resolveRuntimeMode,
   runWithToolSecrets,
   scanInjection,
+  searchKeyRequiredMessage,
   webSearchTool,
   withOutputLanguage,
   type TenantContext,
@@ -60,7 +63,10 @@ function hitsFromSearch(output: unknown): SearchHit[] {
   }
   const record = output as { success?: unknown; error?: unknown; data?: { web?: SearchHit[] } };
   if (record.success !== true) {
-    const error = typeof record.error === "string" && record.error.trim() ? record.error.trim() : "Web search failed";
+    const error =
+      typeof record.error === "string" && record.error.trim()
+        ? record.error.trim()
+        : modeMessage("webSearchFailed", localeForRun());
     throw new ApiError("tool_failed", error, 503);
   }
   return Array.isArray(record.data?.web) ? record.data.web : [];
@@ -72,18 +78,10 @@ function requireLiveResearch(settings: ReturnType<typeof loadSettings>): void {
     envRuntime: process.env.AGENTFORGE_RUNTIME,
   });
   if (mode === "stub") {
-    throw new ApiError(
-      "runtime_stub",
-      "Research needs a live gateway. Paste a Toko Token API key in Settings, then try again.",
-      503,
-    );
+    throw new ApiError("runtime_stub", gatewayRequiredMessage("research", localeForRun()), 503);
   }
   if (!listToolRoutes(settings).web?.ready) {
-    throw new ApiError(
-      "tool_failed",
-      "Research needs a Tavily or Brave Search API key. Add it in Settings, then try again.",
-      503,
-    );
+    throw new ApiError("tool_failed", searchKeyRequiredMessage(localeForRun()), 503);
   }
 }
 
@@ -119,7 +117,7 @@ export async function generateResearchNotes(
 ): Promise<ResearchResult> {
   ensureToolsRegistered();
   const question = readPrompt(body);
-  const settings = loadSettings();
+  const settings = loadSettings(tenant.workspaceId);
   requireLiveResearch(settings);
   const catalog = listSelectableModels();
   const { defaults } = modeCatalogPayload();
@@ -140,6 +138,7 @@ export async function generateResearchNotes(
           systemPrompt: withOutputLanguage(system, "research", localeForRun()),
           runPrefix: "research",
           agentId: "research",
+          jobMode: "research",
           versionId: "research-dossier",
           prompt,
         }),

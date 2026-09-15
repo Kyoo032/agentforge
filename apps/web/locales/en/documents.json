@@ -42,7 +42,8 @@
     "submit": "Regenerate",
     "attachImagesOnly": "Attach images or text files only",
     "attachFailed": "Could not attach files",
-    "uploadFailed": "Upload failed"
+    "uploadFailed": "Upload failed",
+    "removeFile": "Remove {name}"
   },
   "starters": {
     "statusMemo": {
@@ -130,6 +131,23 @@
       "title": "Handoff pack",
       "prompt": "Write a handoff a new owner can use on Monday without a call.\n\nRole: outgoing owner.\nAudience: the person picking this up cold.\nDeliverable: 6 sections, checkbox lists where they help, short paragraphs where they do not.\n\nSample context (replace bracketed fields):\n- Handing [Fieldnote export] from [Jin] to [Rafi].\n- Done: [outline JSON], [DOCX download from a starter].\n- In progress: [section regen with attachments].\n- Known break: [filenames collide when two exports share a title].\n- Where it lives: [apps/web/lib/document-generate.ts], [packages/core templates].\n\nRequired sections:\n1. What this is (one paragraph).\n2. Done (checkboxes, evidence of done).\n3. In progress (what “good” looks like for each).\n4. Who owns what after today.\n5. Known risks and the first place to look.\n6. Paths, credentials (none in-repo), and how to verify.\n\nQuality bar: the new owner should not need Slack. Mark secrets as “in Settings / keychain,” never paste keys.\nNo “happy to hop on a call if needed” as a substitute for the pack.",
       "resultSummary": "A Monday-ready handoff with paths, risks, and proof of done — not a farewell paragraph."
+    }
+  },
+  "artifacts": {
+    "listFailed": "Could not list saved artifacts",
+    "openFailed": "Could not open that artifact",
+    "kind": {
+      "dossier": "Dossier",
+      "analysis": "Analysis",
+      "brief": "Brief",
+      "briefing": "Briefing",
+      "draft": "Draft",
+      "memo": "Memo",
+      "redline": "Redline",
+      "report": "Report",
+      "summary": "Summary",
+      "red-flags": "Red flags",
+      "matter": "Matter"
     }
   }
 }

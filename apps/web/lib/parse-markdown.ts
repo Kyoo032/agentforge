@@ -1,3 +1,5 @@
+import { isRenderableImageUrl } from "./renderable-media";
+
 export type MdInline =
   | { type: "text"; value: string }
   | { type: "strong"; children: MdInline[] }
@@ -53,17 +55,14 @@ export function safeHref(href: string): string | null {
   return null;
 }
 
+/**
+ * The src a rendered markdown image may carry. Host-served media and inline raster
+ * data URLs only: a remote URL in model output must not auto-load, so `parseInline`
+ * turns it into a link instead.
+ */
 export function safeImageSrc(src: string): string | null {
   const trimmed = src.trim();
-  if (
-    /^https?:\/\//i.test(trimmed) ||
-    trimmed.startsWith("data:image/") ||
-    trimmed.startsWith("/api/v1/media/") ||
-    trimmed.startsWith("agentforge://media/")
-  ) {
-    return trimmed;
-  }
-  return null;
+  return isRenderableImageUrl(trimmed) ? trimmed : null;
 }
 
 export function parseInline(input: string): MdInline[] {
@@ -92,10 +91,10 @@ export function parseInline(input: string): MdInline[] {
     if (input.startsWith("![", i)) {
       const parsed = takeLinkLike(input, i + 1);
       if (parsed) {
-        const src = safeImageSrc(parsed.href);
-        if (src) {
+        const image = imageNode(parsed);
+        if (image) {
           flush(i);
-          out.push({ type: "image", src, alt: parsed.label });
+          out.push(image);
           i = parsed.end;
           textStart = i;
           continue;
@@ -159,6 +158,24 @@ export function parseInline(input: string): MdInline[] {
 
   flush(input.length);
   return out;
+}
+
+/**
+ * An `![alt](src)` becomes an image only for a src the renderer may auto-load.
+ * A src it may not — a remote http(s) URL from a model — degrades to a link the
+ * reader has to click, so nothing is fetched on render. Anything else is null and
+ * the source text is kept verbatim.
+ */
+function imageNode(parsed: { label: string; href: string }): MdInline | null {
+  const src = safeImageSrc(parsed.href);
+  if (src) {
+    return { type: "image", src, alt: parsed.label };
+  }
+  const href = safeHref(parsed.href);
+  if (!href) {
+    return null;
+  }
+  return { type: "link", href, children: [{ type: "text", value: parsed.label || href }] };
 }
 
 function takeLinkLike(input: string, start: number): { label: string; href: string; end: number } | null {

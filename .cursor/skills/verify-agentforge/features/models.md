@@ -1,13 +1,14 @@
 # Models
 
-- The Chat model picker lists curated models first under **Recommended** (`model-group-recommended`) with per-model `bestFor` hints (`model-best-for`), then brand groups (`GPT`, `Claude`, `Gemini`, …) with no extra testids. There is no Advanced disclosure and no `model-picker-all`. Reasoning ids show a `model-thinking-badge`. Doctor (webdev) probes `GET /api/v1/models` so a drive knows mode keys, chat-list size, and that curation metadata is present.
+The Chat model picker lists curated models first under **Recommended** (`model-group-recommended`) with per-model `bestFor` hints (`model-best-for`), then brand groups (`GPT`, `Claude`, `Gemini`, …) with no extra testids. There is no Advanced disclosure and no `model-picker-all`. Reasoning ids show a `model-thinking-badge`. Doctor (webdev) probes `GET /api/v1/models` so a drive knows mode keys, chat-list size, and that curation metadata is present.
 
 ## Sub-features
 
 - `models-doctor` prints `modeKeys`, `chatCount`, and `curation` from webdev doctor. `curation: true` is expected on webdev; `false` is a regression there. Packaged `--desktop` cannot GET models over HTTP — `curation: false` / empty `modeKeys` on that surface is expected, not a fail.
 - `models-recommended` shows the Recommended group (`model-group-recommended`) — chat-kind only, `tier: "everyday"`, with `friendlyLabel` and `bestFor` (`model-best-for`) on each row. The UI label is **Recommended**; the catalog tier is still `everyday`.
 - `models-brand-groups` lists the rest under brand headers (`GPT`, `Claude`, `Gemini`, …). Those headers have no testids — scroll or search; do not look for `model-picker-all`.
-- `models-picker` opens from Chat via `model-picker`; the trigger button shows `friendlyLabel` (not the bare slug) once models load.
+- `models-picker` opens from Chat via `model-picker`; the trigger button shows `friendlyLabel` (not the bare slug) once models load. The trigger wrapper is `relative w-36 min-w-[7rem] shrink` (144px, 112px floor).
+- `models-picker-panel` is `model-picker-panel` — the list itself (`apps/web/components/model-picker.tsx:327`, trigger at `:386`), portalled with `createPortal(…, document.body)` as `fixed z-[80]` and positioned by `placePickerPanel` (`apps/web/lib/picker-panel.ts`). Inside it only `model-group-recommended` (Recommended group only), `model-best-for`, and `model-thinking-badge` are testids; there is no search-box testid and no per-option testid — rows are `[role="option"]`. `reasoning-effort` is a **sibling** control in `chat-composer.tsx`, not part of the picker. Portal mechanics and narrow-pane rules live in [chat.md](./chat.md) — `chat-model-switch`.
 
 ## How to get to it (user POV)
 
@@ -26,6 +27,7 @@ Preconditions:
 - **Open picker.** Go to `/chat`. Click `model-picker`. The trigger is visible and shows a friendly label — not the bare word `Model` alone after models load.
 - **Recommended + bestFor.** Assert `model-group-recommended` is visible. At least one `model-best-for` hint is present on Recommended rows.
 - **Brand groups.** After Recommended, brand-group rows exist. Search can surface a non-recommended id. Do not assert `model-picker-all`.
+- **Switch a model.** Click `model-picker`; `model-picker-panel` opens outside the composer toolbar row. Click an option that carries **no** check mark. Proof is the trigger label becoming that model's `friendlyLabel` — not the panel closing. Driven at 1440×900: trigger `GPT 5.6 Luna` → `Claude Sonnet 5`, trigger `clientWidth` 144px, `model-picker-panel` box x=589 y=479 w=352 h=344 (clear of the 32px toolbar row), 97 options in the list, panel gone after select.
 - **IDE proof.** Screenshot of the open picker under `evidence/models/<run-id>/` with Recommended group, a `bestFor` hint, and Chat identity visible.
 - **Cloud.** Doctor JSON must report `curation: true`. Picker UI smoke asserts `model-group-recommended` and `model-best-for` as real testids.
 
@@ -35,4 +37,7 @@ Preconditions:
 - The Chat list is chat-kind only. Image/video model pickers on Generate surfaces are separate features. Documents / Research / Presentation generate bars use `*-studio-model` (`model-select.tsx`). Section/slide regen uses `*-regen-model` on the regen panel. Knowledge embedding uses a flat `Embeddings` group when `flat`.
 - `model-group-recommended` and `model-best-for` are real — assert them. `model-picker-all` was removed; do not invent it.
 - Settings / studio / Knowledge `<select>` paths (`model-select.tsx`) use **Recommended + brand** optgroups (`GPT`, `Claude`, …) with `friendlyLabel — bestFor` option text, not Everyday / Advanced optgroups. Chat uses the palette above.
+- The currently-selected option's text is prefixed with a check mark (`U+2713`). A driver that picks “the first option whose label differs from the trigger label” therefore re-picks the current model and proves nothing. Pick an option that carries no check mark.
+- `model-picker-panel` closes on Escape, on an outside mousedown, and on selecting an option. Scrolling **re-places** it; it does not close it.
+- Do not restate the portal story here. The toolbar wrap rule, the ≥110px trigger floor, the 480px rail caveat, and the Playwright-calls-a-clipped-option-visible trap are in [chat.md](./chat.md) — the `chat-model-switch` bullet and its Gotchas.
 - Doctor must hit loopback only. Packaged: use `--desktop`, never treat :3000 as the installed app.

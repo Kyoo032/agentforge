@@ -158,7 +158,8 @@ export async function readHttpErrorBody(response: Response, timeoutMs = GATEWAY_
 /**
  * Prefer the gateway's inner error message; always make the HTTP status discoverable.
  */
-export function parseGatewayHttpError(status: number, bodyText: string): string {
+/** The upstream sentence plus the code the gateway meant, for the log and for classification. */
+export function parseGatewayHttpDetail(status: number, bodyText: string): { message: string; code: number } {
   const trimmed = typeof bodyText === "string" ? bodyText.trim() : "";
   let message = "";
   let statusCode: number | undefined;
@@ -200,7 +201,12 @@ export function parseGatewayHttpError(status: number, bodyText: string): string 
 
   const code = statusCode ?? status;
   if (!/status_code\s*=/i.test(message) && !new RegExp(`\\b${code}\\b`).test(message)) {
-    return `${message} (status_code=${code})`;
+    return { message: `${message} (status_code=${code})`, code };
   }
-  return message;
+  return { message, code };
+}
+
+/** The upstream sentence as-is. User-facing paths go through `gatewayHttpFailure` instead. */
+export function parseGatewayHttpError(status: number, bodyText: string): string {
+  return parseGatewayHttpDetail(status, bodyText).message;
 }

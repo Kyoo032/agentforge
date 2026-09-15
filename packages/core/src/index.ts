@@ -23,6 +23,8 @@ export {
   gatewayUrlOverrideAllowed,
 } from "./gateway/pinned";
 export type { GatewayGateStatus, GatewayGatePayload } from "./gateway/gate-types";
+export { RESET_CONFIRM_WORD } from "./gateway/reset-types";
+export type { ResetScope } from "./gateway/reset-types";
 export { GATEWAY_VALIDATE_TIMEOUT_MS, validateGatewayKey } from "./gateway/validate";
 export type { GatewayKeyValidation } from "./gateway/validate";
 export {
@@ -106,6 +108,7 @@ export { mergeOpenRouterZdr } from "./runtime/ai-sdk-runtime";
 export {
   sanitizeGatewayRequestBody,
   applyZeroRetention,
+  parseGatewayHttpDetail,
   parseGatewayHttpError,
   readHttpErrorBody,
   temperatureMustBeOneOrOmitted,
@@ -168,6 +171,28 @@ export {
 } from "./models/video-capabilities";
 export type { VideoCapabilities, GatewayVideoResolution } from "./models/video-capabilities";
 export {
+  MEDIA_PRICE_ENTRIES,
+  costTier,
+  estimateImageCost,
+  estimateVideoCost,
+  findMediaListPrice,
+  relativeFactor,
+} from "./models/media-pricing";
+export type {
+  AspectMultiplier,
+  ImageCostOptions,
+  MediaAspect,
+  MediaCostTier,
+  MediaEstimate,
+  MediaPrice,
+  MediaPriceConfidence,
+  MediaPriceEntry,
+  MediaPriceOrigin,
+  MediaPriceTier,
+  MediaPriceUnit,
+  VideoCostOptions,
+} from "./models/media-pricing";
+export {
   emptyProject,
   projectSchema,
   titleStyleSchema,
@@ -199,7 +224,7 @@ export type {
   EditStartGenerateJobResult,
   EditPlanInput,
 } from "./tools/edit";
-export { matchStubEditScenario, STUB_EDIT_SCENARIOS } from "./runtime/stub-edit-scenarios";
+export { matchStubEditScenario, STUB_EDIT_SCENARIOS, stubEditCardCopy } from "./runtime/stub-edit-scenarios";
 export {
   matchStubFillScenario,
   matchStubGenerateScenario,
@@ -309,9 +334,11 @@ export type { KnowledgeMap, KnowledgeMapTopic, KnowledgeModels } from "./knowled
 export {
   pickPreferredJobModel,
   resolveModeDefaults,
+  EFFECTIVE_JOB_MODEL,
   JOB_MODE_PREFERENCES,
 } from "./models/mode-defaults";
 export type { JobMode, ModeModelDefaults } from "./models/mode-defaults";
+export { applyJobThinking, jobThinkingExtras } from "./models/job-thinking";
 export {
   DEFAULT_OPENAI_BASE_URL,
   DEFAULT_GOOGLE_BASE_URL,
@@ -483,8 +510,13 @@ export {
   outputLanguageRule,
   withOutputLanguage,
   editStubAssistantCopy,
+  GATEWAY_REQUIRED_SURFACES,
+  gatewayRequiredMessage,
+  searchKeyRequiredMessage,
 } from "./output-language";
-export type { OutputLanguageSurface } from "./output-language";
+export type { OutputLanguageSurface, GatewayRequiredSurface } from "./output-language";
+export { MODE_MESSAGE_KEYS, modeMessage } from "./mode-messages";
+export type { ModeMessageKey } from "./mode-messages";
 export {
   withChatOutputLanguage,
   stubChatCopy,

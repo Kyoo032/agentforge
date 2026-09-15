@@ -9,14 +9,7 @@ import { GATEWAY_BASE_URL } from "@agentforge/core/gateway";
  * on the packaged desktop app.
  */
 
-export const GATEWAY_GATE_STATUSES = [
-  "stub",
-  "needs_key",
-  "ok",
-  "invalid_key",
-  "unreachable",
-  "error",
-] as const;
+export const GATEWAY_GATE_STATUSES = ["stub", "needs_key", "ok", "invalid_key", "unreachable", "error"] as const;
 
 export type GatewayGateStatus = (typeof GATEWAY_GATE_STATUSES)[number];
 
@@ -93,6 +86,27 @@ export function resolveGate(payload: unknown, isElectron: boolean): GateView {
     return isElectron ? "onboarding" : "app";
   }
   return gate.allowed ? "app" : "onboarding";
+}
+
+/**
+ * Window event the renderer uses to push a fresh host gate into the app shell.
+ *
+ * Settings resets the key through the host, then announces the gate the host
+ * returned; `App` re-runs `resolveGate` on it. Nothing here decides anything.
+ */
+export const GATE_EVENT = "agentforge-gate";
+
+/** Tell the app shell about a gate the host just reported. No-op outside a browser. */
+export function announceGate(payload: GatewayGatePayload | null): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.dispatchEvent(new CustomEvent<GatewayGatePayload | null>(GATE_EVENT, { detail: payload }));
+}
+
+/** Read a `GATE_EVENT` back, through the same parser as a host payload. */
+export function readGateEvent(event: Event): GatewayGatePayload | null {
+  return parseGatewayGate((event as CustomEvent<unknown>).detail);
 }
 
 const REASON_KEYS: Partial<Record<GatewayGateStatus, string>> = {

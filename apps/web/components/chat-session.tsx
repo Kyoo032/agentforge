@@ -536,7 +536,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           }}
         />
       ) : error ? null : (
-        <p className="mt-6 text-sm text-ink/50">Starting chat…</p>
+        <p className="mt-6 text-sm text-ink/50">{t("chat.starting")}</p>
       )}
     </main>
   );

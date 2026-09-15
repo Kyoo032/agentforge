@@ -1,21 +1,13 @@
 import type { ContentPart } from "@agentforge/core";
-
-function isHttpOrDataUrl(value: string, kind: "image" | "video"): boolean {
-  if (value.startsWith("https://") || value.startsWith("http://")) {
-    return true;
-  }
-  if (kind === "image" && value.startsWith("data:image/")) {
-    return true;
-  }
-  if (kind === "image" && value.startsWith("/api/v1/media/")) {
-    return true;
-  }
-  return false;
-}
+import { isRenderableImageUrl, isRenderableVideoUrl } from "./renderable-media";
 
 /**
  * Extract image_url / video_url parts from platform tool outputs.
- * Conservative: only explicit `image` / `video` keys when `success: true`.
+ * Conservative: only explicit `image` / `video` keys when `success: true`, and only
+ * URLs the renderer may auto-load. A tool that hands back a remote URL is dropped
+ * here; the host mirrors generated media into its own store (see
+ * `saveGeneratedImage` / `saveGeneratedVideo`) and the persisted turn carries the
+ * `/api/v1/media/<id>/file` path instead.
  */
 export function collectToolMediaParts(output: unknown): ContentPart[] {
   if (!output || typeof output !== "object" || Array.isArray(output)) {
@@ -28,11 +20,11 @@ export function collectToolMediaParts(output: unknown): ContentPart[] {
 
   const parts: ContentPart[] = [];
 
-  if (typeof record.image === "string" && isHttpOrDataUrl(record.image, "image")) {
+  if (typeof record.image === "string" && isRenderableImageUrl(record.image)) {
     parts.push({ type: "image_url", image_url: { url: record.image } });
   }
 
-  if (typeof record.video === "string" && isHttpOrDataUrl(record.video, "video")) {
+  if (typeof record.video === "string" && isRenderableVideoUrl(record.video)) {
     parts.push({ type: "video_url", video_url: { url: record.video } });
   }
 

@@ -1,3 +1,6 @@
+// MUST stay first: it sets AGENTFORGE_APPLY_PENDING_RESET before @agentforge/host (and through it
+// @agentforge/db) is evaluated, which is when a queued "Start over" wipe is applied. See server-env.ts.
+import "./server-env";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

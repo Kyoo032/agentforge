@@ -9,8 +9,11 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type RefObject,
 } from "react";
+import { createPortal } from "react-dom";
 import { formatContextLength, pickerGroups } from "@agentforge/core/preferred";
 import { isThinkingModel } from "@agentforge/core/curation";
+import { t } from "@/lib/i18n";
+import { placePickerPanel, viewportBounds, type PickerPanelPos } from "@/lib/picker-panel";
 
 export type ChatModel = {
   id: string;
@@ -43,6 +46,22 @@ type DisplayGroup = {
   models: ChatModel[];
 };
 
+/** Group ids come from core (English labels); the renderer maps the known ones onto catalog keys. */
+const GROUP_LABEL_KEYS: Record<string, string> = {
+  Recommended: "chat.models.groups.recommended",
+};
+
+const RECOMMENDED_GROUP = "Recommended";
+
+function groupLabel(label: string): string {
+  const key = GROUP_LABEL_KEYS[label];
+  if (!key) {
+    return label;
+  }
+  const translated = t(key);
+  return translated === key ? label : translated;
+}
+
 function modalityTags(mods: string[]): string[] {
   const extra = mods.filter((m) => m !== "text");
   return extra.length > 0 ? extra : [];
@@ -71,6 +90,7 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
   const searchRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = useState<PickerPanelPos | null>(null);
 
   const selected = models.find((m) => m.id === value) ?? models[0];
   const selectedId = selected?.id ?? "";
@@ -102,6 +122,7 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
 
   function closePalette(returnFocus: boolean) {
     setOpen(false);
+    setPos(null);
     setQuery("");
     setHighlight(0);
     if (returnFocus) {
@@ -175,6 +196,30 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
     return () => document.removeEventListener("mousedown", onPointerDown);
   }, [open]);
 
+  // The toolbar clips its left group, so the panel is portalled and placed against the trigger
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    function place() {
+      const trigger = triggerRef.current;
+      if (!trigger) {
+        return;
+      }
+      const viewport = { width: window.innerWidth, height: window.innerHeight };
+      setPos(placePickerPanel(trigger.getBoundingClientRect(), viewportBounds(viewport), viewport));
+    }
+    place();
+    const frame = window.requestAnimationFrame(place);
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [open]);
+
   // Autofocus search when opened
   useEffect(() => {
     if (open) {
@@ -207,7 +252,7 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
     }
   }
 
-  const triggerLabel = selected ? displayName(selected) : "Model";
+  const triggerLabel = selected ? displayName(selected) : t("chat.models.fallback");
 
   function renderModelOption(model: ChatModel) {
     const optionId = `${listId}-opt-${model.id}`;
@@ -254,7 +299,7 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
               isActive ? "bg-[var(--surface)] text-[var(--text-2)]" : "border border-[var(--line)] text-[var(--text-3)]"
             }`}
           >
-            Think
+            {t("chat.models.think")}
           </span>
         ) : null}
         {model.contextLength ? (
@@ -273,8 +318,67 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
     );
   }
 
+  const panel =
+    open && pos && typeof document !== "undefined"
+      ? createPortal(
+          <div
+            ref={panelRef}
+            className="raise fixed z-[80] flex flex-col overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface)]"
+            data-testid="model-picker-panel"
+            style={{ top: pos.top, bottom: pos.bottom, left: pos.left, width: pos.width, maxHeight: pos.maxHeight }}
+            role="presentation"
+          >
+            <div className="border-b border-[var(--line)] p-2">
+              <input
+                ref={searchRef}
+                type="search"
+                className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)]"
+                placeholder={t("chat.models.searchPlaceholder")}
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={onSearchKeyDown}
+                role="combobox"
+                aria-expanded={true}
+                aria-controls={listId}
+                aria-activedescendant={activeDescendant}
+                aria-autocomplete="list"
+                autoComplete="off"
+              />
+            </div>
+            <ul
+              id={listId}
+              role="listbox"
+              className="min-h-0 flex-1 overflow-y-auto py-1"
+              aria-label={t("chat.models.aria")}
+            >
+              {flat.length === 0 ? (
+                <li className="px-3 py-4 text-sm text-[var(--text-3)]" role="presentation">
+                  {query.trim() ? t("chat.models.noMatch", { query: query.trim() }) : t("chat.models.noMatchEmpty")}
+                </li>
+              ) : (
+                groups.map((group) => (
+                  <li
+                    key={group.label}
+                    role="presentation"
+                    data-testid={group.label === RECOMMENDED_GROUP ? "model-group-recommended" : undefined}
+                  >
+                    <div className="px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wide text-[var(--text-3)]">
+                      {groupLabel(group.label)}
+                    </div>
+                    <ul role="group" aria-label={groupLabel(group.label)}>
+                      {group.models.map((model) => renderModelOption(model))}
+                    </ul>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>,
+          document.body,
+        )
+      : null;
+
   return (
-    <div className="relative min-w-0 max-w-[9rem] shrink">
+    <div className="relative w-36 min-w-[7rem] shrink">
       <button
         ref={triggerRef}
         type="button"
@@ -288,54 +392,7 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
       >
         <span className="min-w-0 truncate">{triggerLabel}</span>
       </button>
-
-      {open ? (
-        <div
-          ref={panelRef}
-          className="raise absolute bottom-full left-0 z-50 mb-2 w-[min(100vw-2rem,22rem)] overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface)]"
-          role="presentation"
-        >
-          <div className="border-b border-[var(--line)] p-2">
-            <input
-              ref={searchRef}
-              type="search"
-              className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)]"
-              placeholder="Search models"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              onKeyDown={onSearchKeyDown}
-              role="combobox"
-              aria-expanded={true}
-              aria-controls={listId}
-              aria-activedescendant={activeDescendant}
-              aria-autocomplete="list"
-              autoComplete="off"
-            />
-          </div>
-          <ul id={listId} role="listbox" className="max-h-72 overflow-y-auto py-1" aria-label="Models">
-            {flat.length === 0 ? (
-              <li className="px-3 py-4 text-sm text-[var(--text-3)]" role="presentation">
-                No models matching {query.trim() ? `“${query.trim()}”` : "your search"}
-              </li>
-            ) : (
-              groups.map((group) => (
-                <li
-                  key={group.label}
-                  role="presentation"
-                  data-testid={group.label === "Recommended" ? "model-group-recommended" : undefined}
-                >
-                  <div className="px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wide text-[var(--text-3)]">
-                    {group.label}
-                  </div>
-                  <ul role="group" aria-label={group.label}>
-                    {group.models.map((model) => renderModelOption(model))}
-                  </ul>
-                </li>
-              ))
-            )}
-          </ul>
-        </div>
-      ) : null}
+      {panel}
     </div>
   );
 }

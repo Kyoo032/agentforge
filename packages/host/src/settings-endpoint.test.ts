@@ -46,35 +46,31 @@ describe("settings-store gateway endpoint", () => {
     expect(loadSettings().openaiBaseUrl).toBe(GATEWAY_BASE_URL);
   });
 
-  it("stores a custom HTTPS endpoint from Settings and keeps it across reloads", () => {
+  it("discards a custom HTTPS endpoint: the gateway endpoint is pinned", () => {
     const saved = saveSettings({ openaiApiKey: "sk-test", openaiBaseUrl: `${CUSTOM_ENDPOINT}/` });
-    expect(saved.openaiBaseUrl).toBe(CUSTOM_ENDPOINT);
-    expect(loadSettings().openaiBaseUrl).toBe(CUSTOM_ENDPOINT);
-    // A later save that omits the field must not reset it.
-    expect(saveSettings({ editTurnCapUsd: 3 }).openaiBaseUrl).toBe(CUSTOM_ENDPOINT);
+    expect(saved.openaiBaseUrl).toBe(GATEWAY_BASE_URL);
+    expect(loadSettings().openaiBaseUrl).toBe(GATEWAY_BASE_URL);
+    expect(saveSettings({ editTurnCapUsd: 3 }).openaiBaseUrl).toBe(GATEWAY_BASE_URL);
   });
 
-  it("resets to the gateway default when the endpoint is cleared", () => {
+  it("keeps the gateway default when the endpoint is cleared", () => {
     saveSettings({ openaiBaseUrl: CUSTOM_ENDPOINT });
     const saved = saveSettings({ openaiBaseUrl: "   " });
     expect(saved.openaiBaseUrl).toBe(GATEWAY_BASE_URL);
     expect(loadSettings().openaiBaseUrl).toBe(GATEWAY_BASE_URL);
   });
 
-  it("allows plain HTTP only for loopback (local model servers)", () => {
-    expect(saveSettings({ openaiBaseUrl: "http://127.0.0.1:11434/v1" }).openaiBaseUrl).toBe(
-      "http://127.0.0.1:11434/v1",
-    );
+  it("does not honour a loopback endpoint either", () => {
+    expect(saveSettings({ openaiBaseUrl: "http://127.0.0.1:11434/v1" }).openaiBaseUrl).toBe(GATEWAY_BASE_URL);
   });
 
-  it("rejects a remote plain-HTTP endpoint and keeps the previous value", () => {
-    saveSettings({ openaiBaseUrl: CUSTOM_ENDPOINT });
-    expect(() => saveSettings({ openaiBaseUrl: "http://gateway.example.test/v1" })).toThrowError(/HTTPS/);
-    expect(loadSettings().openaiBaseUrl).toBe(CUSTOM_ENDPOINT);
+  it("never lets a remote plain-HTTP endpoint reach disk", () => {
+    saveSettings({ openaiBaseUrl: "http://gateway.example.test/v1" });
+    expect(loadSettings().openaiBaseUrl).toBe(GATEWAY_BASE_URL);
   });
 
-  it("rejects an endpoint that is not a URL", () => {
-    expect(() => saveSettings({ openaiBaseUrl: "not a url" })).toThrowError(/not valid/);
+  it("ignores an endpoint that is not a URL", () => {
+    expect(saveSettings({ openaiBaseUrl: "not a url" }).openaiBaseUrl).toBe(GATEWAY_BASE_URL);
   });
 
   it("defaults branded flavors to their own gateway URL", () => {

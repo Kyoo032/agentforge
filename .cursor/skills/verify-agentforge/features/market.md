@@ -20,7 +20,7 @@ Market is a job: a watchlist of up to 15 tickers from any market plus a briefing
 - Legal / Marketing / Students presets do not add this tab unless the owner checks it.
 - Nothing to install and nothing to configure beyond the gateway key. Web search is used when a Tavily/Brave key exists; otherwise headlines come from Yahoo.
 
-## Driving it with the Agentforge harness
+## Driving it with the DPSBuddy harness
 
 Preconditions:
 
@@ -38,6 +38,7 @@ Preconditions:
 - **IDX.** Chips `BBCA, BBRI, BMRI, TLKM` → quotes in IDR, TradingView labels, IHSG and USD/IDR in `market-macro`.
 - **Rewrite.** Click a `market-section-regen`, type "Ringkas jadi 3 poin, pertahankan angka." in `market-regen-prompt`, click `market-regen-submit`. The section changes; `market-guard` stays clean.
 - **Download.** Click `market-download`. DOCX first page and last paragraph carry the disclaimer.
+- **Locale (id).** With the desk on `id` (see [locale.md](./locale.md)), this view reads `Pantauan Pasar`, `Tambahkan ticker di atas untuk melihat harga dan grafiknya.`, `Saham mana yang Anda ikuti?` and `Segarkan`. Testids are locale-invariant.
 
 ## Gotchas
 

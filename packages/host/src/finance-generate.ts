@@ -1,6 +1,22 @@
-import { ApiError, hasLiveProvider, resolveChatModel, resolveRuntimeMode, withOutputLanguage, type TenantContext } from "@agentforge/core";
+import {
+  ApiError,
+  gatewayRequiredMessage,
+  hasLiveProvider,
+  modeMessage,
+  resolveChatModel,
+  resolveRuntimeMode,
+  withOutputLanguage,
+  type TenantContext,
+} from "@agentforge/core";
 import { financeBriefSchema, financeBriefToMarkdown, type FinanceBrief } from "@agentforge/core/artifacts";
-import { lineItemsFromTable, parseLineItems, type LineItem } from "@agentforge/core/finance";
+import {
+  dropCountRows,
+  expandMagnitudes,
+  lineItemsFromTable,
+  looksScaled,
+  parseLineItems,
+  type LineItem,
+} from "@agentforge/core/finance";
 import type { JobEmitter } from "@agentforge/core/jobs";
 import { artifactStore } from "./artifacts";
 import { upsertWorkSource } from "./knowledge-ingest";
@@ -32,6 +48,8 @@ Rules:
 - One item per figure in the text. amount is a plain number (no separators, no symbols); keep the sign the text implies.
 - period is the text's own label ("2025", "Q1", "Sep", "monthly") or "" when none is given.
 - currency is the ISO code when stated or clearly implied (Rp → IDR, $ → USD), else "".
+- Only monetary amounts and percentages or rates are items. Counts of things are not: skip outlets, stores, branches, employees, staff, headcount, units, months, weeks, days, customers and users when the number just says how many there are.
+- Amounts are already expanded to full integers; copy them exactly.
 - Never add figures that are not in the text. Do not compute totals or averages.`;
 
 const BRIEF_SYSTEM = `You write a finished finance brief for DPSBuddy from line items and metrics that were computed in code.
@@ -81,18 +99,14 @@ function readOptionalModel(body: unknown): string | undefined {
   return typeof model === "string" && model.trim() ? model.trim() : undefined;
 }
 
-function requireLive(): ReturnType<typeof loadSettings> {
-  const settings = loadSettings();
+function requireLive(workspaceId: string): ReturnType<typeof loadSettings> {
+  const settings = loadSettings(workspaceId);
   const mode = resolveRuntimeMode({
     settingsHasKey: hasLiveProvider(settings),
     envRuntime: process.env.AGENTFORGE_RUNTIME,
   });
   if (mode === "stub") {
-    throw new ApiError(
-      "runtime_stub",
-      "Finance needs a live gateway. Paste a Toko Token API key in Settings, then try again.",
-      503,
-    );
+    throw new ApiError("runtime_stub", gatewayRequiredMessage("finance", localeForRun()), 503);
   }
   return settings;
 }
@@ -112,16 +126,22 @@ export async function parseFinanceFigures(tenant: TenantContext, body: unknown):
   if (typeof figures !== "string" || !figures.trim()) {
     throw new ApiError("invalid_request", "figures text is required", 400);
   }
-  const settings = requireLive();
+  const settings = requireLive(tenant.workspaceId);
   const model = resolveModel(body, settings);
+  const locale = localeForRun();
+  // "IDR 18.4B" becomes "IDR 18400000000" before the model sees it: a quiet-reasoning model copies
+  // the mantissa and drops the suffix, which stores every amount 1e9 short. Cap after expanding.
+  const source = figures.trim();
+  const expanded = expandMagnitudes(source, locale).slice(0, FIGURES_TEXT_MAX);
   const raw = await collectJobAssistantText({
     tenant,
     model,
     systemPrompt: PARSE_SYSTEM,
     runPrefix: "finance-parse",
     agentId: "finance",
+    jobMode: "finance",
     versionId: "finance-parse",
-    prompt: `Figures:\n${figures.trim().slice(0, FIGURES_TEXT_MAX)}`,
+    prompt: `Figures:\n${expanded}`,
   });
   let parsed: unknown;
   try {
@@ -129,9 +149,11 @@ export async function parseFinanceFigures(tenant: TenantContext, body: unknown):
   } catch {
     throw new ApiError("invalid_finance", "Model returned invalid JSON for the figures", 502);
   }
-  const items = parseLineItems(parsed);
+  // The prompt already asks for money only; this drops the count rows a model still slips in ("12 outlets").
+  // looksScaled reads the text the user typed, suffixes and all: that is the evidence a row lost its scale.
+  const items = looksScaled(source, dropCountRows(parseLineItems(parsed)), locale);
   if (items.length === 0) {
-    throw new ApiError("invalid_finance", "No figures could be read from that text", 422);
+    throw new ApiError("invalid_finance", modeMessage("noFiguresParsed", localeForRun()), 422);
   }
   return { items, needsConfirmation: true };
 }
@@ -146,7 +168,7 @@ function resolveInputs(tenant: TenantContext, body: unknown): FinanceInputs {
   if (typeof datasetId === "string" && datasetId.trim()) {
     const items = lineItemsFromTable(requireDataset(tenant, datasetId.trim()).table);
     if (items.length === 0) {
-      throw new ApiError("invalid_request", "That dataset has no numeric column to use as amounts", 400);
+      throw new ApiError("invalid_request", modeMessage("datasetNoNumericColumn", localeForRun()), 400);
     }
     return { items, params: readFinanceInputs({ items, params: (body as { params?: unknown }).params })?.params ?? {} };
   }
@@ -182,7 +204,7 @@ export async function generateFinanceBrief(
   abortSignal?: AbortSignal,
 ): Promise<FinanceResult> {
   const question = readPrompt(body);
-  const settings = requireLive();
+  const settings = requireLive(tenant.workspaceId);
   const model = resolveModel(body, settings);
   const extra = readSourceText(body, { injectionGuardBypass: settings.injectionGuardBypass === true });
 
@@ -204,6 +226,7 @@ export async function generateFinanceBrief(
     systemPrompt: withOutputLanguage(BRIEF_SYSTEM, "finance", localeForRun()),
     runPrefix: "finance",
     agentId: "finance",
+    jobMode: "finance",
     versionId: "finance-brief",
     prompt: [
       financePromptBlock(inputs, computed),
@@ -214,7 +237,7 @@ export async function generateFinanceBrief(
       .join("\n\n"),
   });
   if (!raw.trim()) {
-    throw new ApiError("generation_failed", "Model returned an empty finance brief", 502);
+    throw new ApiError("generation_failed", modeMessage("emptyFinanceBrief", localeForRun()), 502);
   }
 
   throwIfJobAborted(abortSignal);
@@ -267,7 +290,7 @@ export async function regenerateFinanceSection(tenant: TenantContext, body: unkn
   if (!current) {
     throw new ApiError("invalid_request", "sectionIndex is out of range", 400);
   }
-  const settings = requireLive();
+  const settings = requireLive(tenant.workspaceId);
   const model = resolveModel(body, settings);
   const inputs = resolveInputs(tenant, body);
   const computed = computeFinance(inputs.items, inputs.params);
@@ -294,6 +317,7 @@ export async function regenerateFinanceSection(tenant: TenantContext, body: unkn
     systemPrompt: withOutputLanguage(SECTION_SYSTEM, "finance", localeForRun()),
     runPrefix: "finance-section",
     agentId: "finance",
+    jobMode: "finance",
     versionId: "finance-section",
     prompt,
   });

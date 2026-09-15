@@ -1,9 +1,11 @@
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { eq } from "drizzle-orm";
-import { ApiError, videoCapabilities, type TenantContext } from "@agentforge/core";
+import { ApiError, modeMessage, videoCapabilities, type TenantContext } from "@agentforge/core";
 import { db, editUnplaced, media } from "@agentforge/db";
 import { jsonError, jsonOk } from "../errors";
+import { requireGatewayAllowed } from "../gateway-gate";
+import { loadSettings } from "../settings-store";
 import { getTenant } from "../tenant";
 import { mediaRoot } from "../media-root";
 import type { HostRequest, HostResult } from "../types";
@@ -21,6 +23,7 @@ import { foldEditMetrics } from "../edit/metrics";
 import { renderParityFrame } from "../edit/parity";
 import { probe } from "../edit/ffmpeg/recipes";
 import { importedClipDurationFrames, STILL_IMAGE_SECONDS } from "../edit/import-duration";
+import { localeForRun } from "../run-context";
 
 export const EDIT_UPLOAD_MAX = 500 * 1024 * 1024;
 
@@ -161,9 +164,23 @@ export async function handlePostEditOps(request: HostRequest): Promise<HostResul
   }
 }
 
+/**
+ * A job id alone says nothing about who owns it. The caller has already proved the project belongs
+ * to its desk; this pins the job to that same project so one desk's id cannot reach another's job.
+ */
+async function jobInProject(jobId: string, projectId: string): Promise<Awaited<ReturnType<typeof getEditJob>>> {
+  const job = await getEditJob(jobId);
+  if (job.projectId !== projectId) {
+    throw new ApiError("not_found", "Edit job not found", 404);
+  }
+  return job;
+}
+
 export async function handlePostEditUndo(request: HostRequest): Promise<HostResult> {
   try {
-    await getTenant(request.workspaceId);
+    const tenant = await getTenant(request.workspaceId);
+    // Scope first: without it another desk's project id is enough to rewind this one.
+    await foldProject(request.params.projectId, tenant.workspaceId);
     const body = asRecord(request.body);
     const cardId = typeof body.cardId === "string" ? body.cardId : "";
     if (!cardId) {
@@ -177,7 +194,8 @@ export async function handlePostEditUndo(request: HostRequest): Promise<HostResu
 
 export async function handlePostEditKeep(request: HostRequest): Promise<HostResult> {
   try {
-    await getTenant(request.workspaceId);
+    const tenant = await getTenant(request.workspaceId);
+    await foldProject(request.params.projectId, tenant.workspaceId);
     return jsonOk(await keepCard(request.params.projectId, request.params.cardId));
   } catch (error) {
     return jsonError(error);
@@ -225,7 +243,10 @@ export async function handlePostEditImport(request: HostRequest): Promise<HostRe
     } else {
       const file = request.files?.find((item) => item.field === "file") ?? request.files?.[0];
       if (!file) {
-        return jsonOk({ error: { code: "invalid_request", message: "file is required" } }, 400);
+        return jsonOk(
+          { error: { code: "invalid_request", message: modeMessage("editFileRequired", localeForRun()) } },
+          400,
+        );
       }
       bytes = file.bytes;
       mime = file.mime;
@@ -233,7 +254,7 @@ export async function handlePostEditImport(request: HostRequest): Promise<HostRe
     }
     const saved = await saveEditFile(tenant, bytes, mime, filename);
     const abs = path.join(mediaRoot(), saved.storagePath);
-    let probed;
+    let probed: Awaited<ReturnType<typeof probe>>;
     try {
       probed = await probe(abs, projectId);
     } catch {
@@ -242,7 +263,10 @@ export async function handlePostEditImport(request: HostRequest): Promise<HostRe
       } catch {
         // ignore
       }
-      return jsonOk({ error: { code: "unsupported_media", message: "ffprobe could not read this file" } }, 400);
+      return jsonOk(
+        { error: { code: "unsupported_media", message: modeMessage("editMediaUnreadable", localeForRun()) } },
+        400,
+      );
     }
     const assetId = crypto.randomUUID();
     const clipId = crypto.randomUUID();
@@ -298,6 +322,8 @@ export async function handlePostEditImport(request: HostRequest): Promise<HostRe
 export async function handlePostEditAgent(request: HostRequest): Promise<HostResult> {
   try {
     const tenant = await getTenant(request.workspaceId);
+    // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
+    requireGatewayAllowed(loadSettings(tenant.workspaceId));
     const body = asRecord(request.body);
     const text = typeof body.text === "string" ? body.text : "";
     const events = await runEditAgent({
@@ -314,6 +340,13 @@ export async function handlePostEditAgent(request: HostRequest): Promise<HostRes
 
 export async function handleGetEditEvents(request: HostRequest): Promise<HostResult> {
   const projectId = request.params.projectId;
+  try {
+    // The stream carries every op on the project, so the desk check belongs before the first frame.
+    const tenant = await getTenant(request.workspaceId);
+    await foldProject(projectId, tenant.workspaceId);
+  } catch (error) {
+    return jsonError(error);
+  }
   const abort = request.abortSignal;
   const events = (async function* () {
     const queue: string[] = [];
@@ -360,8 +393,9 @@ export async function handlePostEditJobs(request: HostRequest): Promise<HostResu
 
 export async function handleGetEditJob(request: HostRequest): Promise<HostResult> {
   try {
-    await getTenant(request.workspaceId);
-    return jsonOk(mapJob(await getEditJob(request.params.jobId)));
+    const tenant = await getTenant(request.workspaceId);
+    await foldProject(request.params.projectId, tenant.workspaceId);
+    return jsonOk(mapJob(await jobInProject(request.params.jobId, request.params.projectId)));
   } catch (error) {
     return jsonError(error);
   }
@@ -369,7 +403,9 @@ export async function handleGetEditJob(request: HostRequest): Promise<HostResult
 
 export async function handlePostEditJobCancel(request: HostRequest): Promise<HostResult> {
   try {
-    await getTenant(request.workspaceId);
+    const tenant = await getTenant(request.workspaceId);
+    await foldProject(request.params.projectId, tenant.workspaceId);
+    await jobInProject(request.params.jobId, request.params.projectId);
     return jsonOk(mapJob(await cancelEditJob(request.params.jobId)));
   } catch (error) {
     return jsonError(error);
@@ -398,8 +434,9 @@ export async function handlePostEditExport(request: HostRequest): Promise<HostRe
 
 export async function handleGetEditExportFile(request: HostRequest): Promise<HostResult> {
   try {
-    await getTenant(request.workspaceId);
-    const job = await getEditJob(request.params.jobId);
+    const tenant = await getTenant(request.workspaceId);
+    await foldProject(request.params.projectId, tenant.workspaceId);
+    const job = await jobInProject(request.params.jobId, request.params.projectId);
     const file = job.outputAssetIdsJson?.[0];
     if (!file || job.status !== "succeeded") {
       return jsonOk({ error: { code: "not_found", message: "Export is not ready" } }, 404);
@@ -505,6 +542,8 @@ export async function handleGetEditMetrics(request: HostRequest): Promise<HostRe
 export async function handlePostEditGenerate(request: HostRequest): Promise<HostResult> {
   try {
     const tenant = await getTenant(request.workspaceId);
+    // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
+    requireGatewayAllowed(loadSettings(tenant.workspaceId));
     const projectId = request.params.projectId;
     await foldProject(projectId, tenant.workspaceId);
     const body = asRecord(request.body);

@@ -24,6 +24,26 @@
   "clipsLoadError": "Could not load example clips",
   "usePrompt": "Use this prompt",
   "outputTextLanguage": "Spoken dialogue, narration, and any on-screen text in this clip must be in English unless the prompt already names another language.",
+  "estimate": {
+    "forClip": "{usd} for {seconds} s at {resolution}",
+    "perSecond": "{usd}/s",
+    "source": "{vendor} list price, checked {date}",
+    "sourceThirdParty": "{vendor} price, third-party figure, checked {date}",
+    "sourceUnverified": "Unverified estimate, no vendor page",
+    "sourceGateway": "Gateway price, checked {date}",
+    "tier": {
+      "cheapest": "cheapest",
+      "cheap": "cheap",
+      "mid": "mid-priced",
+      "premium": "premium"
+    },
+    "compareCheaper": "About {factor}× cheaper than {model}",
+    "compareMore": "About {factor}× more than {model}",
+    "compareCheapest": "The cheapest video model here",
+    "unknown": "No list price on file for this model",
+    "unverified": "(unverified)",
+    "hint": "{usd}/s"
+  },
   "templates": {
     "product-page-turntable": {
       "title": "Product-page turntable",

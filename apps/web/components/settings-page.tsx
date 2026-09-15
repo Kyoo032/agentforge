@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { DEFAULT_GATEWAY_IMAGE_MODEL, DEFAULT_GATEWAY_VIDEO_MODEL } from "@agentforge/core/media-kind";
+import { SettingsResetCard } from "./settings-reset-card";
 import { UsagePanel, type AccountUsage } from "./usage-panel";
 import { apiFetch, checkGateway, relaunchDesktopApp } from "@/lib/api-client";
 import {
@@ -77,6 +78,8 @@ export function SettingsPage() {
   const [locale, setLocale] = useState<AppLocale>("en");
   const [savedLocale, setSavedLocale] = useState<AppLocale>("en");
   const [localeBusy, setLocaleBusy] = useState(false);
+  // A queued wipe the host will apply on the next launch; the reset card offers to call it off.
+  const [resetPending, setResetPending] = useState(false);
 
   const gatewayEndpoint = gateway?.endpoint ?? gatewayBaseUrl;
   const gatewayCheckedAt = formatGateTimestamp(gateway?.checkedAt, getLocale(), true);
@@ -114,6 +117,7 @@ export function SettingsPage() {
     usage?: AccountUsage;
     locale?: string;
     savedLocale?: string;
+    resetPending?: boolean;
   }) {
     setHasOpenai(Boolean(payload.hasOpenai));
     setHasGoogle(Boolean(payload.hasGoogle));
@@ -170,6 +174,7 @@ export function SettingsPage() {
     }
     setLocale(parseAppLocale(payload.locale));
     setSavedLocale(parseAppLocale(payload.savedLocale ?? payload.locale));
+    setResetPending(payload.resetPending === true);
   }
 
   useEffect(() => {
@@ -253,16 +258,17 @@ export function SettingsPage() {
     setError(null);
     setLocaleBusy(true);
     try {
-      const applied = await apiFetch("/api/v1/settings/apply-locale", { method: "POST" }).then((res) =>
-        res.json(),
-      );
+      const applied = await apiFetch("/api/v1/settings/apply-locale", { method: "POST" }).then((res) => res.json());
       if (applied.error) {
         setError(applied.error.message);
         return;
       }
       applyPayload(applied);
       applyLocale(applied.locale);
-      if (relaunchDesktopApp()) {
+      // A refused relaunch (installing an update, already quitting, webdev) must still reach the
+      // in-app restart notice, or the language change would look like it did nothing.
+      const relaunched = await relaunchDesktopApp();
+      if (relaunched.ok) {
         return;
       }
       window.dispatchEvent(new Event(LOCALE_RESTART_EVENT));
@@ -423,6 +429,8 @@ export function SettingsPage() {
           {t("settings.privacy", { productName, gatewayName })}
         </p>
       </form>
+
+      <SettingsResetCard resetPending={resetPending} />
     </main>
   );
 }

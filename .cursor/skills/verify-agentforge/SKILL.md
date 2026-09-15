@@ -12,7 +12,7 @@ Agent guardrail, same class as `AGENTS.md`. Not part of the DPSBuddy app.
 - Original pstack skills stay in the Cursor pstack plugin. Call them. Do not copy them into product code or the desktop bundle.
 - **Map:** this `features/` map, then pstack `how` for how a subsystem works and where to fix.
 - **Verify:** Launch / Doctor / Drive below (from pstack `create-verification-skill`). Map rot → pstack `/maintain-verification-skill` (edits only this directory).
-- Keep Cursor explore/worker Task models. Do not adopt pstack Fable/GPT slugs.
+- Keep the host's own task models (Cursor explore/worker; Claude Code explorers on Sonnet, workers on Opus). Do not adopt pstack Fable/GPT slugs.
 
 A cold agent reads this mid-task. Drive the real app. A green `tsc` or worker summary is not proof.
 
@@ -31,13 +31,14 @@ Do **not** use Hermes CLI, Hermes dashboard session tokens, or Hermes `hermes:ap
 
 | Machine | Harness | Do not |
 |---|---|---|
-| This Windows session | `cursor-ide-browser` + `scripts/doctor.mjs`; Electron for desktop changes | `pnpm test:e2e`, `playwright test` |
+| This Windows session (Cursor) | `cursor-ide-browser` + `scripts/doctor.mjs`; Electron for desktop changes | `pnpm test:e2e`, `playwright test` |
+| This Windows session (Claude Code) | Its **own** isolated instance on a free port + `doctor.mjs --base`; a short scratch Playwright script to drive it | Drive the operator's :3000; leave a drive script in `scripts/`; `pnpm test:e2e` |
 | Cursor Cloud + GHA | Playwright `apps/web/tests/e2e/foundation.spec.ts` | Paste a gateway key; start Docker |
 | Pack / ship (this PC only) | [pack-dpsbuddy](../pack-dpsbuddy/SKILL.md) | Cloud `desktop:build`; `electron-builder --mac` on Windows |
 
 Cloud and `.github/workflows/e2e.yml` own the serial stub smoke. Local coding agents do not run Playwright here (long serial pass). Cloud may use a secret gateway key for live Enhance / Finance / Data proof after doctor `ai`; GHA stays stub.
 
-**Delegation.** Explore with Composer 2.5 (`explore` / `composer-2.5-fast`). Implementation workers are Grok 4.5 (`worker` / `cursor-grok-4.5-high`). Do not use pstack Fable/GPT Task slugs. Fan-out stays at 2.
+**Delegation.** Cursor sessions: explore with Composer 2.5 (`explore` / `composer-2.5-fast`), implementation workers are Grok 4.5 (`worker` / `cursor-grok-4.5-high`), fan-out stays at 2. Claude Code sessions: explorers on Sonnet, implementation and review workers on Opus, and the orchestrator verifies every result itself before reporting. Neither adopts pstack's own Fable/GPT Task slugs.
 
 Read [features/README.md](features/README.md) before driving. The map is the source of which entry points exist. Proving one convenient path is incomplete when the map lists others.
 
@@ -74,14 +75,17 @@ SQLite file: `$AGENTFORGE_DATA_DIR/agentforge.sqlite` (default `data/agentforge.
 Run this first whenever anything looks off, and before every drive:
 
 ```bash
-# local webdev
+# local webdev on :3000 (the operator's instance)
 node .cursor/skills/verify-agentforge/scripts/doctor.mjs
+
+# an isolated webdev instance you started yourself on another port
+node .cursor/skills/verify-agentforge/scripts/doctor.mjs --base http://127.0.0.1:3200
 
 # packaged desktop (reads OS userData host-status.json — not :3000, not HTTP)
 node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop
 ```
 
-It is read-only. Default GETs `/chat`, `/api/v1/settings`, `/api/v1/models`, and `GET /api/v1/edit/doctor` on `http://127.0.0.1:3000`. `--desktop` reads `host-status.json` (IPC; no HTTP). Override webdev with `AGENTFORGE_VERIFY_URL` (still must be loopback). Exit `0` prints JSON. Webdev: `url`, `surface`, `chatStatus`, `runtime`, `hasOpenai`, `keyFingerprint`, `modeKeys`, `chatCount`, `curation`, `knowledge`, `gatewayName`, `dataDir`, `edit` (`ffmpeg` / `asr`, or `{ available: false }` when the endpoint is missing). Desktop: `url: "ipc"`, `transport: "ipc"`, `pid`, `dataDir`, `productName`, `gatewayName`, `gatewayBaseUrl`, `edit.ffmpeg` from `host-status.json` `editFfmpeg` when present. Desktop `curation` / `modeKeys` / `chatCount` stay empty — no HTTP models probe. Exit `1` means do not drive. A missing edit endpoint is a note, not a fail. `keyFingerprint` is `true` only on webdev when a gateway key is saved and `openaiKeyFingerprint` is a non-empty `sha256:` string. Cloud/GHA have no key — expect `false`, do not fail. `gatewayName` is Toko Token on public webdev. Webdev `knowledge: true` means `GET /api/v1/knowledge` returned 200; `false` is not a doctor fail — skip the Knowledge drive if it is false.
+It is read-only. Default GETs `/chat`, `/api/v1/settings`, `/api/v1/models`, and `GET /api/v1/edit/doctor` on `http://127.0.0.1:3000`. `--desktop` reads `host-status.json` (IPC; no HTTP). Override the webdev base with `--base http://127.0.0.1:<port>` (or `--base=…`), `AGENTFORGE_VERIFY_URL`, or `PORT`, in that order of precedence — still loopback only, and ignored with `--desktop`. Exit `0` prints JSON. Webdev: `url`, `surface`, `chatStatus`, `runtime`, `hasOpenai`, `keyFingerprint`, `modeKeys`, `chatCount`, `curation`, `knowledge`, `gatewayName`, `dataDirThisShell`, `edit` (`ffmpeg` / `asr`, or `{ available: false }` when the endpoint is missing). Desktop: `url: "ipc"`, `transport: "ipc"`, `pid`, `dataDir`, `productName`, `gatewayName`, `gatewayBaseUrl`, `edit.ffmpeg` from `host-status.json` `editFfmpeg` when present. Desktop `curation` / `modeKeys` / `chatCount` stay empty — no HTTP models probe. Exit `1` means do not drive. A missing edit endpoint is a note, not a fail. `keyFingerprint` is `true` only on webdev when a gateway key is saved and `openaiKeyFingerprint` is a non-empty `sha256:` string. Cloud/GHA have no key — expect `false`, do not fail. `gatewayName` is Toko Token on public webdev. `dataDirThisShell` is **this shell's** `AGENTFORGE_DATA_DIR`, not the server's — the host does not expose its data dir over HTTP, so on an isolated drive it says nothing about the instance you are doctoring. Webdev `knowledge: true` means `GET /api/v1/knowledge` returned 200; `false` is not a doctor fail — skip the Knowledge drive if it is false.
 
 Refuse to drive when:
 
@@ -121,6 +125,18 @@ Stable handles are `data-testid` values from `apps/web`. Prefer those over CSS, 
 4. Wait on the named testid or URL, not a fixed sleep. Composer send is done when `composer-send` reads `Send` again (up to 30s).
 5. Unlock when the whole drive is finished.
 
+**Windows (Claude Code — no IDE browser)**
+
+A Claude Code session has no `browser_*` tool, so it does not drive the operator's instance at all. It starts its **own** webdev on a free port with its own `AGENTFORGE_DATA_DIR`, doctors it with `--base`, and drives it with a throwaway Playwright script written to a scratch directory (`playwright` already resolves from `apps/web`). The script is deleted with the run — it never lands in `scripts/`. Everything else is unchanged: real composer / form / rail clicks, testid waits, evidence under `evidence/<feature>/<run-id>/`.
+
+```bash
+cd apps/web
+PORT=3200 AGENTFORGE_DATA_DIR=<throwaway> npx pnpm@9.15.9 --filter @agentforge/web dev &
+node .cursor/skills/verify-agentforge/scripts/doctor.mjs --base http://127.0.0.1:3200
+```
+
+Stop only the PID listening on your own port at the end (`Get-NetTCPConnection -LocalPort <port>` → `Stop-Process`), never by image name, and never the operator's :3000 / :3100.
+
 **Cloud / GHA (Playwright)**
 
 ```bash
@@ -135,23 +151,27 @@ Use `page.getByTestId("<id>")` exactly as the spec.
 
 | testid | Surface |
 |---|---|
-| `mode-chat`, `mode-documents`, `mode-research`, `mode-finance`, `mode-data`, `mode-images`, `mode-videos`, `mode-presentations`, `mode-edit` | Left rail work modes (Default has all of these). `mode-edit` is Phase 1 |
+| `mode-chat`, `mode-documents`, `mode-research`, `mode-finance`, `mode-data`, `mode-images`, `mode-videos`, `mode-presentations`, `mode-edit` | Left rail work modes (Default has all of these). `mode-edit` shipped in 0.14.22 |
 | `mode-knowledge` | Account rail → Knowledge Base (`/knowledge`). Always visible; not a product mode |
 | `product-brand`, `product-logo` | Rail product name and mark. Packaged flavors must not stay DPSBuddy — [desktop-brands.md](features/desktop-brands.md) |
 | `mode-agents` | Parked. Count 0. `/agents` and `/studio` redirect to Chat |
 | `workspaces-switcher`, `workspaces-link`, `open-workspace`, `create-new-workspace`, `workspace-template-picker`, `workspace-mode-picker`, `create-workspace`, `edit-workspace-modes`, `workspace-edit-name`, `save-workspace-modes`, `delete-workspace`, `delete-workspace-confirm-name`, `delete-workspace-confirm-submit` | Workspaces |
 | `settings-link` | Rail → Settings |
 | `usage-link`, `usage-open`, `usage-range`, `usage-range-chart` | Rail / Settings → Usage (`/usage`); range toggle + stacked chart |
-| `model-picker`, `composer`, `composer-text`, `composer-send`, `composer-enhance` | Chat |
+| `model-picker`, `model-picker-panel`, `model-group-recommended`, `model-best-for`, `model-thinking-badge`, `composer`, `composer-text`, `composer-send`, `composer-enhance` | Chat. The picker panel is portalled to `document.body`; options are `[role="option"]` with no per-row testid |
 | `reasoning-effort` | Chat Thinking: Off / Light / Normal / Deep / Extra / Max / Ultra (values `none` / `low` / `medium` / `high` / `xhigh` / `max` / `ultra`). Host snaps silently per model. No `chat-wire`. |
 | `chat-usage`, `chat-context` | Chat header chips (wallet spend; ring + `left`/`used`) |
 | `chat-empty`, `message-list`, `message-output`, `thread-list`, `thread-item`, `new-chat`, `chat-error`, `composer-error` | Threads + assistant markdown output; live contact fail after 3 tries |
-| `settings-form`, `settings-endpoint`, `settings-endpoint-reset`, `openai-key`, `key-fingerprint`, `runtime-status`, `privacy-note`, `usage-this-key` | Settings (endpoint + key; Open Usage) |
+| `settings-form`, `settings-endpoint`, `openai-key`, `key-fingerprint`, `runtime-status`, `privacy-note`, `usage-this-key` | Settings (endpoint + key; Open Usage). `settings-endpoint` is a read-only line — there is no `settings-endpoint-reset` |
+| `settings-gateway-status`, `settings-gateway-recheck`, `settings-gateway-grace`, `settings-gateway-reason` | Settings gateway status row — [gateway-gate.md](features/gateway-gate.md) |
+| `settings-locale`, `settings-locale-restart`, `settings-locale-restart-button` | Settings language row + restart banner — [locale.md](features/locale.md) |
+| `settings-reset`, `settings-reset-key`, `settings-reset-key-confirm`, `settings-reset-key-submit`, `settings-reset-all`, `settings-reset-all-confirm-name`, `settings-reset-all-submit`, `settings-reset-cancel`, `settings-reset-pending` | Start over card. **Never press these on a desk you do not own** |
+| `onboarding-form`, `onboarding-endpoint`, `onboarding-key`, `onboarding-continue`, `onboarding-gate-reason`, `onboarding-recheck`, `onboarding-setup-check` | First-run / gate-closed screen. `onboarding-gate-reason` + `onboarding-recheck` appear only when the host reported a reason |
 | `rail-footer`, `theme-toggle`, `app-updates-toggle`, `app-updates-badge`, `app-updates-panel`, `app-updates-status`, `app-updates-check`, `app-updates-install`, `app-updates-close` | Rail footer: theme icon, updates icon (DPSBuddy only), collapse |
 | `usage-range-empty`, `usage-desk-range`, `usage-by-model`, `usage-key-meter` | Usage page (by-model + desk range; empty chart copy) |
 | `images-studio`, `images-studio-needs-key`, `videos-studio`, `videos-studio-needs-key` | Generate studios |
-| `edit-studio`, `edit-timeline`, `edit-preview`, `edit-agent-panel`, `edit-composer`, `edit-card`, `edit-card-keep`, `edit-card-undo`, `edit-card-tweak`, `edit-export`, `edit-needs-ffmpeg`, `edit-needs-key` | Edit studio (Phase 1) |
-| `finance-studio`, `finance-starters`, `finance-download`, `finance-generate` | Finance job |
+| `edit-studio`, `edit-timeline`, `edit-preview`, `edit-agent-panel`, `edit-composer`, `edit-card`, `edit-card-keep`, `edit-card-undo`, `edit-card-tweak`, `edit-export`, `edit-needs-ffmpeg`, `edit-needs-key` | Edit studio. Storyboard generate is still a Phase 3 placeholder — [edit.md](features/edit.md) |
+| `finance-studio`, `finance-figures-input`, `finance-parse`, `finance-prompt`, `finance-generate`, `finance-auto-parsed`, `finance-download-docx` (DOCX, studio header) / `finance-download` (Markdown, shared artifact bar) | Finance job. No starter cards — they were removed in 0.14.22 |
 | `data-studio`, `data-csv`, `data-starter`, `data-download`, `data-generate` | Data job |
 | `knowledge-page`, `knowledge-tabs`, `knowledge-models`, `knowledge-sources`, `knowledge-paste`, `knowledge-soul-save`, `knowledge-memory-add`, `knowledge-model-embedding`, `knowledge-model-brain`, `knowledge-model-verifier`, `knowledge-tab-map`, `knowledge-map-panel`, `knowledge-map-run`, `knowledge-map` | Knowledge Base |
 | `knowledge-loop`, `knowledge-loop-cycle`, `knowledge-loop-stage-<Stage>`, `knowledge-loop-summary`, `knowledge-loop-work`, `knowledge-loop-count-<Type>`, `knowledge-loop-empty`, `knowledge-loop-verify`, `knowledge-loop-verified`, `knowledge-loop-verify-error`, `knowledge-source-type` | Knowledge loop, six stages incl. Graph + Verified (Sources tab) — [knowledge-ingest.md](features/knowledge-ingest.md), [knowledge.md](features/knowledge.md) |
@@ -162,7 +182,7 @@ Use `page.getByTestId("<id>")` exactly as the spec.
 
 Rail testids are `mode-${href.slice(1)}` (`/chat` → `mode-chat`). Default already shows every work mode. A Legal desk has Chat + Documents + Research + Presentation and `mode-images` count 0.
 
-Recipes: [features/chat.md](features/chat.md), [features/settings.md](features/settings.md), [features/usage.md](features/usage.md), [features/workspaces.md](features/workspaces.md), [features/documents.md](features/documents.md), [features/research.md](features/research.md), [features/finance.md](features/finance.md), [features/data.md](features/data.md), [features/legal.md](features/legal.md), [features/knowledge.md](features/knowledge.md), [features/knowledge-phases.md](features/knowledge-phases.md), [features/knowledge-ingest.md](features/knowledge-ingest.md), [features/knowledge-graph.md](features/knowledge-graph.md), [features/images.md](features/images.md), [features/videos.md](features/videos.md), [features/edit.md](features/edit.md), [features/desktop.md](features/desktop.md), [features/desktop-brands.md](features/desktop-brands.md), [features/mobile.md](features/mobile.md). Build and Studio advanced are parked.
+Recipes: [features/chat.md](features/chat.md), [features/settings.md](features/settings.md), [features/gateway-gate.md](features/gateway-gate.md), [features/locale.md](features/locale.md), [features/usage.md](features/usage.md), [features/workspaces.md](features/workspaces.md), [features/documents.md](features/documents.md), [features/research.md](features/research.md), [features/finance.md](features/finance.md), [features/data.md](features/data.md), [features/legal.md](features/legal.md), [features/knowledge.md](features/knowledge.md), [features/knowledge-phases.md](features/knowledge-phases.md), [features/knowledge-ingest.md](features/knowledge-ingest.md), [features/knowledge-graph.md](features/knowledge-graph.md), [features/images.md](features/images.md), [features/videos.md](features/videos.md), [features/edit.md](features/edit.md), [features/desktop.md](features/desktop.md), [features/desktop-brands.md](features/desktop-brands.md), [features/mobile.md](features/mobile.md). Build and Studio advanced are parked.
 
 ## Evidence
 
@@ -194,7 +214,15 @@ Standards:
 
 ## Helpers
 
-`scripts/doctor.mjs` is the only helper. Webdev: no args. Packaged: `--desktop`. Do not reverse-engineer it — it prints the fields you need.
+`scripts/doctor.mjs` is the only helper, and `scripts/desktop-app-url.mjs` exists solely because doctor imports it. Nothing else lives in `scripts/`.
+
+| Invocation | What it doctors |
+|---|---|
+| `node .cursor/skills/verify-agentforge/scripts/doctor.mjs` | webdev on `:3000` |
+| `… doctor.mjs --base http://127.0.0.1:<port>` | an isolated webdev instance on another port (`--base=…`, `AGENTFORGE_VERIFY_URL` and `PORT` do the same) |
+| `… doctor.mjs --desktop` | the packaged app via `host-status.json` |
+
+Do not reverse-engineer it — it prints the fields you need. **A one-off drive script is not a helper.** Write it in a scratch directory, delete it with the run, and never leave it in `scripts/`: fifteen `drive-*` / `loop-*` / `poll-*` / `probe-*` / `reverify-*` files accumulated that way, none of them referenced by any recipe, two of them able to save a real key or decrypt `settings.enc`. They were deleted on 2026-09-15. If a recipe genuinely needs a helper, it goes in this table first.
 
 ## Isolate
 

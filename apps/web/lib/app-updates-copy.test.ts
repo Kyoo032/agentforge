@@ -1,10 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   isInstallAction,
   normalizeUpdateSnapshot,
   shortUpdateMessage,
-  SUPPORTED_IDLE_STATUS_LINE,
-  UNSUPPORTED_STATUS_LINE,
   type UpdateState,
   updateBadge,
   updateButtonTitle,
@@ -12,6 +10,11 @@ import {
   updateStatusLine,
   updateVersionLine,
 } from "./app-updates-copy";
+import { freezeLocale, resetLocaleForTests, t } from "./i18n";
+
+const SUPPORTED_IDLE_STATUS_LINE = "New GitHub releases download here, then DPSBuddy restarts.";
+const UNSUPPORTED_STATUS_LINE =
+  "Available in the installed DPSBuddy app. New GitHub releases download and restart the app.";
 
 const ELECTRON_UPDATER_DUMP = [
   "404 Not Found",
@@ -29,6 +32,15 @@ const ELECTRON_UPDATER_DUMP = [
 function state(partial: Partial<UpdateState>): UpdateState {
   return { supported: true, status: "idle", ...partial };
 }
+
+beforeEach(() => {
+  resetLocaleForTests();
+  freezeLocale("en");
+});
+
+afterEach(() => {
+  resetLocaleForTests();
+});
 
 describe("shortUpdateMessage", () => {
   it("reduces the electron-updater 404 dump to the HTTP status line", () => {
@@ -143,11 +155,28 @@ describe("updateStatusLine", () => {
       "New GitHub releases download here, then DPSBuddy restarts.",
     );
   });
+
+  it("reads the Indonesian catalog when the locale is id", () => {
+    resetLocaleForTests();
+    freezeLocale("id");
+    expect(updateStatusLine(state({ status: "checking" }), true)).toBe(t("rail.updates.status.checking"));
+    expect(updateStatusLine(state({ status: "checking" }), true)).toBe("Memeriksa GitHub Releases…");
+    expect(updateStatusLine(state({ status: "ready", version: "0.14.26" }), true)).toBe(
+      "Versi 0.14.26 sudah diunduh. Mulai ulang untuk menyelesaikan.",
+    );
+    expect(updateStatusLine(state({ status: "downloading", percent: 42.6 }), true)).toBe("Mengunduh 43%");
+  });
 });
 
 describe("updateVersionLine", () => {
   it("names the installed version", () => {
     expect(updateVersionLine("0.14.1")).toBe("This install is 0.14.1.");
+  });
+
+  it("names the installed version in Indonesian", () => {
+    resetLocaleForTests();
+    freezeLocale("id");
+    expect(updateVersionLine("0.14.1")).toBe("Instalasi ini versi 0.14.1.");
   });
 
   it("returns an empty string when the version is unknown", () => {
@@ -228,6 +257,14 @@ describe("updateButtonTitle", () => {
     expect(updateButtonTitle(state({ status: "idle" }), false)).toBe(`Updates: ${UNSUPPORTED_STATUS_LINE}`);
     expect(updateButtonTitle(state({ status: "available", version: "0.14.21" }), true)).toBe(
       "Updates: Version 0.14.21 is ready to download.",
+    );
+  });
+
+  it("prefixes with the Indonesian label when the locale is id", () => {
+    resetLocaleForTests();
+    freezeLocale("id");
+    expect(updateButtonTitle(state({ status: "available", version: "0.14.21" }), true)).toBe(
+      "Pembaruan: Versi 0.14.21 siap diunduh.",
     );
   });
 });

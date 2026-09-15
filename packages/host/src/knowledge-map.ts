@@ -3,6 +3,7 @@ import {
   hasLiveProvider,
   knowledgeBrainPrompt,
   knowledgeVerifierPrompt,
+  modeMessage,
   parseKnowledgeMap,
   resolveRuntimeMode,
   stubKnowledgeMap,
@@ -101,7 +102,7 @@ export async function mapKnowledge(
   try {
     await reembedWorkspaceChunks(tenant, models.embeddingModel);
 
-    const settings = loadSettings();
+    const settings = loadSettings(tenant.workspaceId);
     const mode = resolveRuntimeMode({
       settingsHasKey: hasLiveProvider(settings),
       envRuntime: process.env.AGENTFORGE_RUNTIME,
@@ -124,12 +125,14 @@ export async function mapKnowledge(
         ),
         runPrefix: "knowledge-brain",
         agentId: "knowledge-brain",
+        // Nearest studio for the thinking knob; the map is JSON over excerpts, like Research.
+        jobMode: "research",
         versionId: "knowledge-brain",
         prompt: knowledgeBrainPrompt(excerpts),
       });
       const draft = parseKnowledgeMap(brainRaw, models, "live");
       if (!draft) {
-        throw new ApiError("generation_failed", "Brain returned an invalid knowledge map", 502);
+        throw new ApiError("generation_failed", modeMessage("invalidKnowledgeMap", localeForRun()), 502);
       }
       const evidence = excerpts
         .map((item) => `[${item.id}] ${item.name}\n${item.excerpt}`)
@@ -144,6 +147,7 @@ export async function mapKnowledge(
         ),
         runPrefix: "knowledge-verifier",
         agentId: "knowledge-verifier",
+        jobMode: "research",
         versionId: "knowledge-verifier",
         prompt: knowledgeVerifierPrompt(JSON.stringify(draft), evidence),
       });
@@ -165,7 +169,7 @@ export async function mapKnowledge(
     }
     return map;
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Map failed";
+    const message = error instanceof Error ? error.message : modeMessage("knowledgeMapFailed", localeForRun());
     saveMap(tenant, "Failed", null, message);
     if (error instanceof ApiError) {
       throw error;

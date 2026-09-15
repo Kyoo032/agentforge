@@ -42,7 +42,8 @@
     "submit": "Buat ulang",
     "attachImagesOnly": "Lampirkan hanya gambar atau file teks",
     "attachFailed": "File tidak dapat dilampirkan",
-    "uploadFailed": "Unggahan gagal"
+    "uploadFailed": "Unggahan gagal",
+    "removeFile": "Hapus {name}"
   },
   "starters": {
     "statusMemo": {
@@ -130,6 +131,23 @@
       "title": "Paket serah terima",
       "prompt": "Tulis serah terima yang dapat dipakai pemilik baru pada Senin tanpa panggilan.\n\nPeran: pemilik yang menyerahkan.\nAudiens: orang yang mengambil ini dari nol.\nHasil: 6 bagian, daftar centang jika membantu, paragraf pendek jika tidak.\n\nKonteks sampel (ganti bidang dalam kurung):\n- Menyerahkan [ekspor Fieldnote] dari [Jin] ke [Rafi].\n- Selesai: [outline JSON], [unduh DOCX dari starter].\n- Sedang dikerjakan: [buat ulang bagian dengan lampiran].\n- Kerusakan diketahui: [nama file tabrakan jika dua ekspor memakai judul yang sama].\n- Lokasinya: [apps/web/lib/document-generate.ts], [templat packages/core].\n\nBagian wajib:\n1. Ini apa (satu paragraf).\n2. Selesai (centang, bukti selesai).\n3. Sedang dikerjakan (seperti apa “baik” untuk masing-masing).\n4. Siapa memegang apa setelah hari ini.\n5. Risiko diketahui dan tempat pertama untuk memeriksa.\n6. Jalur, kredensial (tidak ada di repo), dan cara memverifikasi.\n\nStandar mutu: pemilik baru tidak perlu Slack. Tandai rahasia sebagai “di Settings / keychain,” jangan menempel kunci.\nJangan mengganti paket ini dengan “siap telepon jika perlu.”",
       "resultSummary": "Serah terima siap Senin dengan jalur, risiko, dan bukti selesai — bukan paragraf perpisahan."
+    }
+  },
+  "artifacts": {
+    "listFailed": "Tidak bisa memuat daftar artefak tersimpan",
+    "openFailed": "Tidak bisa membuka artefak itu",
+    "kind": {
+      "dossier": "Dosir",
+      "analysis": "Analisis",
+      "brief": "Brief",
+      "briefing": "Pengarahan",
+      "draft": "Draf",
+      "memo": "Memo",
+      "redline": "Markah revisi",
+      "report": "Laporan",
+      "summary": "Ringkasan",
+      "red-flags": "Temuan kritis",
+      "matter": "Perkara"
     }
   }
 }

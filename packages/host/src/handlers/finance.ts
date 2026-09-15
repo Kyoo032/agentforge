@@ -2,6 +2,8 @@ import { financeBriefSchema } from "@agentforge/core/artifacts";
 import { ApiError } from "@agentforge/core";
 import type { HostRequest, HostResult } from "../types";
 import { jsonError, jsonOk } from "../errors";
+import { requireGatewayAllowed } from "../gateway-gate";
+import { loadSettings } from "../settings-store";
 import { getTenant } from "../tenant";
 import { buildFinanceDocx } from "../finance-docx";
 import { generateFinanceBrief, parseFinanceFigures, regenerateFinanceSection } from "../finance-generate";
@@ -10,6 +12,8 @@ import { streamJob } from "../job-stream";
 export async function handlePostFinance(request: HostRequest): Promise<HostResult> {
   try {
     const tenant = await getTenant(request.workspaceId);
+    // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
+    requireGatewayAllowed(loadSettings(tenant.workspaceId));
     return jsonOk(await generateFinanceBrief(tenant, request.body ?? null));
   } catch (error) {
     return jsonError(error);
@@ -20,6 +24,8 @@ export async function handlePostFinance(request: HostRequest): Promise<HostResul
 export async function handlePostFinanceStream(request: HostRequest): Promise<HostResult> {
   try {
     const tenant = await getTenant(request.workspaceId);
+    // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
+    requireGatewayAllowed(loadSettings(tenant.workspaceId));
     return streamJob((emit, abortSignal) => generateFinanceBrief(tenant, request.body ?? null, emit, abortSignal), {
       abortSignal: request.abortSignal,
     });
@@ -32,6 +38,8 @@ export async function handlePostFinanceStream(request: HostRequest): Promise<Hos
 export async function handlePostFinanceParse(request: HostRequest): Promise<HostResult> {
   try {
     const tenant = await getTenant(request.workspaceId);
+    // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
+    requireGatewayAllowed(loadSettings(tenant.workspaceId));
     return jsonOk(await parseFinanceFigures(tenant, request.body ?? null));
   } catch (error) {
     return jsonError(error);
@@ -41,6 +49,8 @@ export async function handlePostFinanceParse(request: HostRequest): Promise<Host
 export async function handlePostFinanceRegen(request: HostRequest): Promise<HostResult> {
   try {
     const tenant = await getTenant(request.workspaceId);
+    // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
+    requireGatewayAllowed(loadSettings(tenant.workspaceId));
     return jsonOk(await regenerateFinanceSection(tenant, request.body ?? null));
   } catch (error) {
     return jsonError(error);

@@ -4,7 +4,10 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   editStubAssistantCopy,
+  GATEWAY_REQUIRED_SURFACES,
+  gatewayRequiredMessage,
   outputLanguageRule,
+  searchKeyRequiredMessage,
   withOutputLanguage,
 } from "./output-language";
 
@@ -47,5 +50,50 @@ describe("output language", () => {
         undo: edit.pipeline.stubUndo,
       });
     }
+  });
+});
+
+describe("gateway required copy", () => {
+  it("has a distinct en and id message for every surface", () => {
+    for (const surface of GATEWAY_REQUIRED_SURFACES) {
+      const en = gatewayRequiredMessage(surface, "en");
+      const id = gatewayRequiredMessage(surface, "id");
+      expect(en.trim().length).toBeGreaterThan(0);
+      expect(id.trim().length).toBeGreaterThan(0);
+      expect(id).not.toBe(en);
+    }
+  });
+
+  it("keeps the English wording the modes already threw", () => {
+    expect(gatewayRequiredMessage("documents", "en")).toBe(
+      "Document generation needs a live gateway. Paste a Toko Token API key in Settings, then try again.",
+    );
+    expect(gatewayRequiredMessage("research", "en")).toBe(
+      "Research needs a live gateway. Paste a Toko Token API key in Settings, then try again.",
+    );
+    expect(gatewayRequiredMessage("finance", "en")).toBe(
+      "Finance needs a live gateway. Paste a Toko Token API key in Settings, then try again.",
+    );
+    expect(gatewayRequiredMessage("data", "en")).toBe(
+      "Data analysis needs a live gateway. Paste a Toko Token API key in Settings, then try again.",
+    );
+    expect(gatewayRequiredMessage("market", "en")).toBe(
+      "Market needs a live gateway. Paste a Toko Token API key in Settings, then try again.",
+    );
+    expect(gatewayRequiredMessage("videos", "en")).toBe("Add a Toko Token gateway key in Settings to generate videos.");
+  });
+
+  it("writes Indonesian for id and falls back to English for an unknown locale", () => {
+    expect(gatewayRequiredMessage("data", "id")).toContain("gerbang yang aktif");
+    expect(gatewayRequiredMessage("videos", "id")).toContain("membuat video");
+    expect(gatewayRequiredMessage("finance", "de" as never)).toBe(gatewayRequiredMessage("finance", "en"));
+  });
+
+  it("localizes the Research search-key message", () => {
+    expect(searchKeyRequiredMessage("en")).toBe(
+      "Research needs a Tavily or Brave Search API key. Add it in Settings, then try again.",
+    );
+    expect(searchKeyRequiredMessage("id")).toContain("Tavily atau Brave Search");
+    expect(searchKeyRequiredMessage("de" as never)).toBe(searchKeyRequiredMessage("en"));
   });
 });

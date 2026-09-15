@@ -3,6 +3,7 @@ import {
   isAllowedMutatingApiRequest,
   isLocalRequestHost,
   isLocalRequestUrl,
+  isLoopbackHostHeader,
 } from "./local-request";
 
 describe("isLocalRequestHost", () => {
@@ -27,6 +28,36 @@ describe("isLocalRequestUrl", () => {
     expect(isLocalRequestUrl("http://localhost:3000")).toBe(true);
     expect(isLocalRequestUrl("http://127.0.0.1:3000/settings")).toBe(true);
     expect(isLocalRequestUrl("https://evil.example")).toBe(false);
+  });
+});
+
+describe("isLoopbackHostHeader", () => {
+  it("accepts loopback names with or without a port", () => {
+    expect(isLoopbackHostHeader("localhost")).toBe(true);
+    expect(isLoopbackHostHeader("localhost:3000")).toBe(true);
+    expect(isLoopbackHostHeader("127.0.0.1")).toBe(true);
+    expect(isLoopbackHostHeader("127.0.0.1:3100")).toBe(true);
+    expect(isLoopbackHostHeader("[::1]")).toBe(true);
+    expect(isLoopbackHostHeader("[::1]:3000")).toBe(true);
+    expect(isLoopbackHostHeader("::1")).toBe(true);
+    expect(isLoopbackHostHeader(" LocalHost:3000 ")).toBe(true);
+  });
+
+  it("rejects every other host", () => {
+    expect(isLoopbackHostHeader("example.com")).toBe(false);
+    expect(isLoopbackHostHeader("example.com:3000")).toBe(false);
+    expect(isLoopbackHostHeader("localhost.evil.com")).toBe(false);
+    expect(isLoopbackHostHeader("127.0.0.1.attacker.test")).toBe(false);
+    expect(isLoopbackHostHeader("192.168.1.10:3000")).toBe(false);
+    expect(isLoopbackHostHeader("[::1].evil.com")).toBe(false);
+    expect(isLoopbackHostHeader("localhost:3000:evil")).toBe(false);
+  });
+
+  it("rejects a missing Host header, unlike a missing Origin", () => {
+    expect(isLoopbackHostHeader(null)).toBe(false);
+    expect(isLoopbackHostHeader(undefined)).toBe(false);
+    expect(isLoopbackHostHeader("")).toBe(false);
+    expect(isLoopbackHostHeader("   ")).toBe(false);
   });
 });
 

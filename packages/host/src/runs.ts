@@ -5,8 +5,6 @@ import {
   encodeSse,
   redactSecrets,
   abortErrorMessage,
-  formatStreamWatchdogError,
-  streamWatchdogLimits,
   isDefaultChatAgent,
   parseImageRunInput,
   parseTextRunInput,
@@ -20,6 +18,7 @@ import {
   redactAttachedParts,
   takeLastToolIo,
   resolvedGatewayBaseUrl,
+  resolveProviderKeys,
   type ContentPart,
   type InputModality,
   type TenantContext,
@@ -29,6 +28,7 @@ import {
 } from "@agentforge/core";
 import { ApiError } from "@agentforge/core";
 import { agentService } from "./tenant";
+import { armRunStallGuard, isRunOutputEvent } from "./run-stall";
 import { knowledgeInjection } from "./knowledge";
 import { citedSources } from "./knowledge-cites";
 import { recordCites } from "./knowledge-graph";
@@ -49,7 +49,7 @@ import { loadSettings } from "./settings-store";
 import { defaultSelectableModel, listSelectableModels } from "./selectable-models";
 import { collectToolMediaParts } from "./tool-media";
 import { inlineLocalMediaParts, shouldInlineLocalMediaForProvider } from "./inline-local-media";
-import { saveGeneratedImage } from "./media";
+import { saveGeneratedImage, saveGeneratedVideo } from "./media";
 import { withRunContext } from "./run-context";
 import { getBootLocale } from "./locale-boot";
 import { formatPastSessionsHint } from "./session-recall";
@@ -169,8 +169,6 @@ export async function* startModalityRun(options: {
     queue.push(encodeSse(event));
   };
   queue.push(": connected\n\n");
-  const limits = streamWatchdogLimits(model);
-  const runStartedAt = Date.now();
   // Shared with `work` so the watchdog / client-abort paths can finalize the run row. Without this a
   // run whose model call never answers stays `streaming` forever (observed under a hung gateway).
   let runId: string | null = null;
@@ -187,21 +185,26 @@ export async function* startModalityRun(options: {
     }
     void finishRun(options.tenant, runId, "failed", message, null).catch(() => undefined);
   };
-  const failsafe = setTimeout(() => {
-    if (queueClosed) {
-      return;
-    }
-    const message = formatStreamWatchdogError(model, "ttfb", Date.now() - runStartedAt);
-    send({ type: "run.failed", message });
-    send({ type: "run.completed", runId: runId ?? "unknown" });
-    closeQueue();
-    settleRun(message);
-  }, limits.ttfbMs);
+  // Rearmed by every runtime event below, so it guards the first token and then the gaps
+  // between them instead of capping the whole run.
+  const stall = armRunStallGuard({
+    model,
+    locale,
+    onStall: (message) => {
+      if (queueClosed) {
+        return;
+      }
+      send({ type: "run.failed", message });
+      send({ type: "run.completed", runId: runId ?? "unknown" });
+      closeQueue();
+      settleRun(message);
+    },
+  });
   const onClientAbort = () => {
     if (queueClosed) {
       return;
     }
-    const message = abortErrorMessage(options.abortSignal?.reason);
+    const message = abortErrorMessage(options.abortSignal?.reason, locale);
     send({ type: "run.failed", message });
     send({ type: "run.completed", runId: runId ?? "unknown" });
     closeQueue();
@@ -250,7 +253,9 @@ export async function* startModalityRun(options: {
         return;
       }
       const historyRows = await listMessages(options.tenant, thread.id);
-      const inlineLocal = shouldInlineLocalMediaForProvider(settings.openaiBaseUrl || resolvedGatewayBaseUrl());
+      const inlineLocal = shouldInlineLocalMediaForProvider(
+        resolveProviderKeys(settings).openaiBaseUrl || resolvedGatewayBaseUrl(),
+      );
       const history: Array<{ role: "user" | "assistant"; parts: ContentPart[] }> = [];
       for (const row of historyRows) {
         if (row.role !== "user" && row.role !== "assistant") {
@@ -285,6 +290,10 @@ export async function* startModalityRun(options: {
           wire,
           locale,
           onEvent: async (event) => {
+            stall.touch();
+            if (isRunOutputEvent(event)) {
+              stall.touchOutput();
+            }
             if (event.type === "run.failed") {
               failedMessage = redactSecrets(event.message);
               send({ ...event, message: failedMessage });
@@ -333,12 +342,13 @@ export async function* startModalityRun(options: {
               }
               await insertToolInvocation(options.tenant, run.id, event.toolKey, null, persistOutput, "completed");
               for (const part of collectToolMediaParts(persistOutput)) {
-                if (part.type === "image_url") {
-                  const stored = await saveGeneratedImage(options.tenant, part.image_url.url);
-                  mediaParts.push({ type: "image_url", image_url: { url: stored } });
-                  continue;
+                // Every generated URL is mirrored into the local store first: the renderer
+                // only loads host-served media, so a part we cannot mirror is dropped
+                // rather than persisted as a remote URL that would never display.
+                const mirrored = await mirrorToolMediaPart(options.tenant, part);
+                if (mirrored) {
+                  mediaParts.push(mirrored);
                 }
-                mediaParts.push(part);
               }
             }
           },
@@ -417,7 +427,7 @@ export async function* startModalityRun(options: {
       }
       send({ type: "run.completed", runId: runId ?? "unknown" });
     } finally {
-      clearTimeout(failsafe);
+      stall.close();
       options.abortSignal?.removeEventListener("abort", onClientAbort);
       closeQueue();
     }
@@ -429,5 +439,27 @@ export async function* startModalityRun(options: {
     // Do not await `work` here. A wedged model call would block host:stream-end
     // and leave the packaged composer on Running forever.
     void work.catch(() => undefined);
+  }
+}
+
+/**
+ * Copy a tool's generated media into the local store and return the part pointing at it.
+ * Returns null when the media cannot be mirrored (blocked host, over cap, bad response):
+ * the turn keeps its text and drops the picture rather than carrying a remote URL.
+ */
+async function mirrorToolMediaPart(tenant: TenantContext, part: ContentPart): Promise<ContentPart | null> {
+  try {
+    if (part.type === "image_url") {
+      const stored = await saveGeneratedImage(tenant, part.image_url.url);
+      return { type: "image_url", image_url: { url: stored } };
+    }
+    if (part.type === "video_url") {
+      const stored = await saveGeneratedVideo(tenant, part.video_url.url);
+      return { type: "video_url", video_url: { url: stored } };
+    }
+    return part;
+  } catch (error) {
+    console.warn(`tool-media: generated media not mirrored (${error instanceof Error ? error.message : "unknown"})`);
+    return null;
   }
 }

@@ -32,6 +32,11 @@ function versionStdout(version: string): string {
   return `ffmpeg version ${version} Copyright (c) 2000-2023 the FFmpeg developers\n`;
 }
 
+/** The PATH lookup, however it is spelled: bare `which` on POSIX, an absolute `where.exe` on win32. */
+function isPathLookup(file: unknown): boolean {
+  return typeof file === "string" && /(?:^|[\\/])(?:which|where\.exe)$/i.test(file);
+}
+
 describe("parseFfmpegVersion", () => {
   it("reads major.minor.patch from ffmpeg -version", () => {
     expect(parseFfmpegVersion(versionStdout("6.1.1-3ubuntu5"))).toEqual({ version: "6.1.1", major: 6 });
@@ -108,6 +113,36 @@ describe("resolveFfmpeg", () => {
       throw new Error("not found");
     });
     expect(resolveFfmpeg()).toEqual({ found: false, path: null, version: null, reason: "missing" });
+  });
+
+  it("looks PATH up through an absolute where.exe on Windows", () => {
+    // Resolving `where` through PATH would let the first `where.exe` on PATH decide where we go
+    // looking for ffmpeg — which is the lookup this is meant to secure.
+    withPlatform("win32", () => {
+      mockedExists.mockReturnValue(false);
+      mockedExec.mockImplementation((file) => (isPathLookup(file) ? "C:\\tools\\ffmpeg.exe\n" : versionStdout("7.0")));
+
+      expect(resolveFfmpeg()).toEqual({ found: true, path: "C:\\tools\\ffmpeg.exe", version: "7.0" });
+      const lookup = mockedExec.mock.calls.find((call) => isPathLookup(call[0]));
+      expect(lookup).toBeDefined();
+      expect(String(lookup?.[0])).toMatch(/^[A-Za-z]:\\.*\\System32\\where\.exe$/);
+    });
+  });
+
+  it("never hands a spawned binary anything but the allowlisted environment", () => {
+    // A probe spawns a binary picked up from PATH or a winget directory. It must not carry the
+    // wrap key, nor any provider key, in its environment.
+    process.env.AGENTFORGE_FFMPEG_PATH = "/opt/ffmpeg/ffmpeg";
+    mockedExec.mockReturnValue(versionStdout("6.1.1"));
+    resolveFfmpeg();
+
+    for (const call of mockedExec.mock.calls) {
+      const env = (call[2] as { env?: NodeJS.ProcessEnv } | undefined)?.env;
+      expect(env).toBeDefined();
+      for (const key of Object.keys(env ?? {})) {
+        expect(key).not.toMatch(/^(AGENTFORGE_SECRETS_KEY|OPENAI_|ANTHROPIC_|GOOGLE_|ARK_|VOLCENGINE_|FAL_)/i);
+      }
+    }
   });
 
   it("falls back to the Homebrew prefix when a Finder-launched app has a bare PATH", () => {
@@ -218,7 +253,7 @@ describe("getEditDoctor", () => {
     });
     expect(getEditDoctor().ffmpeg.found).toBe(false);
     mockedExec.mockReset();
-    mockedExec.mockImplementation((file) => (file === "which" || file === "where" ? "/usr/local/bin/ffmpeg\n" : versionStdout("7.0")));
+    mockedExec.mockImplementation((file) => (isPathLookup(file) ? "/usr/local/bin/ffmpeg\n" : versionStdout("7.0")));
     expect(getEditDoctor().ffmpeg.found).toBe(false);
     expect(getEditDoctor({ recheck: true }).ffmpeg.found).toBe(true);
   });
@@ -232,7 +267,7 @@ describe("getEditDoctor", () => {
     resetDoctorRecheckThrottle();
     expect(getEditDoctor({ recheck: true }, 10_000).ffmpeg.found).toBe(false);
     const probesAfterFirst = mockedExec.mock.calls.length;
-    mockedExec.mockImplementation((file) => (file === "which" || file === "where" ? "/usr/local/bin/ffmpeg\n" : versionStdout("7.0")));
+    mockedExec.mockImplementation((file) => (isPathLookup(file) ? "/usr/local/bin/ffmpeg\n" : versionStdout("7.0")));
     expect(getEditDoctor({ recheck: true }, 10_000 + RECHECK_MIN_INTERVAL_MS - 1).ffmpeg.found).toBe(false);
     expect(mockedExec.mock.calls.length).toBe(probesAfterFirst);
     expect(getEditDoctor({ recheck: true }, 10_000 + RECHECK_MIN_INTERVAL_MS).ffmpeg.found).toBe(true);

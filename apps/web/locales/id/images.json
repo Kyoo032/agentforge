@@ -20,6 +20,31 @@
   "examplesHeading": "Mulai dari templat",
   "examplesHint": "Klik kartu untuk memuat brief lengkap. Ganti detail contoh, lalu buat.",
   "outputTextLanguage": "Jika gambar ini memuat teks yang dapat dibaca (keterangan, label, papan, atau UI pada gambar), tulis teks itu dalam bahasa Indonesia.",
+  "estimate": {
+    "perImage": "{usd} per gambar",
+    "atQuality": "pada kualitas {quality}",
+    "quality": {
+      "low": "rendah",
+      "medium": "sedang",
+      "high": "tinggi"
+    },
+    "source": "Harga resmi {vendor}, dicek {date}",
+    "sourceThirdParty": "Harga {vendor}, angka pihak ketiga, dicek {date}",
+    "sourceUnverified": "Perkiraan belum terverifikasi, tanpa halaman resmi vendor",
+    "sourceGateway": "Harga gateway, dicek {date}",
+    "tier": {
+      "cheapest": "termurah",
+      "cheap": "murah",
+      "mid": "menengah",
+      "premium": "mahal"
+    },
+    "compareCheaper": "Sekitar {factor}× lebih murah dari {model}",
+    "compareMore": "Sekitar {factor}× lebih mahal dari {model}",
+    "compareCheapest": "Model gambar termurah di sini",
+    "unknown": "Belum ada harga resmi untuk model ini",
+    "unverified": "(belum terverifikasi)",
+    "hint": "{usd}/gbr"
+  },
   "templates": {
     "launch-page-product-hero": {
       "title": "Hero produk halaman peluncuran",

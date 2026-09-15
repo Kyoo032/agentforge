@@ -1,9 +1,13 @@
 #!/usr/bin/env node
 import { build } from "esbuild";
 import { execFileSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+
+const require = createRequire(import.meta.url);
+const { injectCspMeta } = require("../renderer-csp.cjs");
 
 const desktopRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const repoRoot = join(desktopRoot, "..", "..");
@@ -34,6 +38,14 @@ cpSync(webDist, rendererDest, {
   filter: (src) => !src.endsWith(".map"),
 });
 
+// The renderer ships as a file:// document, where a response header never reaches it (Electron's
+// webRequest does not observe Chromium's file loader), so the policy has to be in the page itself.
+// It is injected here rather than in apps/web/index.html because that file is also what `pnpm dev`
+// serves through Vite, whose Fast Refresh preamble, eval'd HMR client and dev-server websocket all
+// fall foul of script-src 'self' / connect-src 'self'. See apps/desktop/renderer-csp.cjs.
+const rendererIndex = join(rendererDest, "index.html");
+writeFileSync(rendererIndex, injectCspMeta(readFileSync(rendererIndex, "utf8")), "utf8");
+
 rmSync(drizzleDest, { recursive: true, force: true });
 mkdirSync(dirname(drizzleDest), { recursive: true });
 cpSync(drizzleSrc, drizzleDest, { recursive: true });
@@ -46,4 +58,4 @@ if (!existsSync(join(drizzleDest, "meta", "_journal.json"))) {
   process.exit(1);
 }
 
-console.log("staged renderer + host.cjs + drizzle + starters");
+console.log("staged renderer (CSP injected) + host.cjs + drizzle + starters");

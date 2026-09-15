@@ -35,12 +35,14 @@ export async function transcribeAudioChunks(
   files: string[],
   language?: string,
   fetchImpl: typeof fetch = fetch,
+  /** Desk whose gateway key pays for the transcription. */
+  deskId?: string,
 ): Promise<{ text: string }> {
   const cap = resolveAsrCapability();
   if (!cap.available || !cap.model) {
     return { text: "" };
   }
-  const settings = loadSettings();
+  const settings = loadSettings(deskId);
   const key = settings.openaiApiKey || process.env.OPENAI_API_KEY;
   if (!key) {
     return { text: "" };

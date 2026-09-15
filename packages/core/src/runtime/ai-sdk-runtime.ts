@@ -5,6 +5,7 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import type { ContentPart } from "../content/types";
 import { getTool } from "../tools/registry";
 import { resolveModelProvider } from "../models/catalog";
+import { applyJobThinking } from "../models/job-thinking";
 import { DEFAULT_OPENAI_BASE_URL, isOfficialOpenAIBaseUrl } from "../models/probe";
 import { isOpenRouterBaseUrl } from "../privacy/openrouter";
 import { getDisabledTools } from "../tools/secret-scope";
@@ -40,6 +41,9 @@ import {
   toWireReasoningEffort,
 } from "../models/reasoning-effort";
 import type { ReasoningEffort } from "../models/reasoning-effort";
+import { parseAppLocale } from "../locale";
+import { redactSecrets } from "../security/redact";
+import { gatewayHttpFailure } from "../gateway-http-copy";
 import { abortErrorMessage, armStreamWatchdog, watchAsyncIterable } from "./stream-watchdog";
 import { readLanguageModelUsage, addTokenUsage } from "../gateway/account";
 import type { AgentRuntime, RunUsage } from "./types";
@@ -50,7 +54,6 @@ import {
 } from "../content/provider-media";
 import {
   applyZeroRetention,
-  parseGatewayHttpError,
   readHttpErrorBody,
   sanitizeGatewayRequestBody,
 } from "../models/request-constraints";
@@ -166,6 +169,15 @@ export class AiSdkRuntime implements AgentRuntime {
     const anthropicBaseUrl = this.keys.anthropicBaseUrl ?? process.env.ANTHROPIC_BASE_URL;
     const volcengineBaseUrl = this.keys.volcengineBaseUrl ?? process.env.ARK_BASE_URL;
     const modelName = input.version.model;
+    const runLocale = parseAppLocale(input.locale);
+    // One place turns a gateway 4xx/5xx into words: app-locale headline, upstream text to the log.
+    const gatewayFailure = (status: number, text: string): Error => {
+      const failure = gatewayHttpFailure(status, text, runLocale);
+      if (failure.detail && failure.detail !== failure.message) {
+        console.warn(`gateway: HTTP ${status} ${redactSecrets(failure.detail).slice(0, 300)}`);
+      }
+      return new Error(failure.message);
+    };
     const provider = resolveModelProvider(modelName);
 
     const openaiLooksCustom = !isOfficialOpenAIBaseUrl(openaiBaseUrl);
@@ -255,7 +267,11 @@ export class AiSdkRuntime implements AgentRuntime {
               ? ((withEffort as { model: string }).model)
               : modelName;
           minimax = minimax || isMinimaxChatModel(bodyModel);
-          const sanitized = sanitizeGatewayRequestBody(withEffort, bodyModel, url);
+          // A job on an always-thinking family asks it to stop thinking; Chat sends no mode here.
+          const withJobThinking = isChatCompletionsUrl(url)
+            ? applyJobThinking(withEffort, bodyModel, input.jobMode)
+            : withEffort;
+          const sanitized = sanitizeGatewayRequestBody(withJobThinking, bodyModel, url);
           outgoing = { ...init, body: JSON.stringify(sanitized) };
         } catch {
           // fall through to unmodified request on parse error
@@ -264,7 +280,7 @@ export class AiSdkRuntime implements AgentRuntime {
       const response = await fetchWithHeaderTimeout(url, outgoing);
       if (!response.ok) {
         const text = await readHttpErrorBody(response);
-        throw new Error(parseGatewayHttpError(response.status, text));
+        throw gatewayFailure(response.status, text);
       }
       return minimax ? wrapMinimaxResponse(response) : response;
     };
@@ -306,7 +322,7 @@ export class AiSdkRuntime implements AgentRuntime {
         const response = await fetchWithHeaderTimeout(url, outgoing);
         if (!response.ok) {
           const text = await readHttpErrorBody(response);
-          throw new Error(parseGatewayHttpError(response.status, text));
+          throw gatewayFailure(response.status, text);
         }
         return response;
       };
@@ -342,7 +358,7 @@ export class AiSdkRuntime implements AgentRuntime {
         const response = await fetchWithHeaderTimeout(url, outgoing);
         if (!response.ok) {
           const text = await readHttpErrorBody(response);
-          throw new Error(parseGatewayHttpError(response.status, text));
+          throw gatewayFailure(response.status, text);
         }
         return response;
       };
@@ -424,7 +440,12 @@ export class AiSdkRuntime implements AgentRuntime {
         model: input.version.model,
         attempt,
         attempts: MODEL_CONTACT_ATTEMPTS,
-        message: formatContactProbe(input.version.model, attempt),
+        message: formatContactProbe(
+          input.version.model,
+          attempt,
+          MODEL_CONTACT_ATTEMPTS,
+          parseAppLocale(input.locale),
+        ),
       });
     };
 
@@ -500,7 +521,7 @@ export class AiSdkRuntime implements AgentRuntime {
         return;
       }
       const message = isRetryableModelFailure(result.failed)
-        ? formatModelContactError(input.version.model, contactAttempts, result.failed)
+        ? formatModelContactError(input.version.model, contactAttempts, result.failed, parseAppLocale(input.locale))
         : result.failed;
       await input.onEvent({ type: "run.failed", message });
       throw new Error(message);
@@ -511,6 +532,7 @@ export class AiSdkRuntime implements AgentRuntime {
         input.version.model,
         contactAttempts,
         "The model returned no text. Try another model, or turn off tools if this endpoint rejects them.",
+        parseAppLocale(input.locale),
       );
       await input.onEvent({ type: "run.failed", message });
       throw new Error(message);
@@ -573,7 +595,8 @@ export class AiSdkRuntime implements AgentRuntime {
         ? undefined
         : openaiCompatProviderOptions({ ...options, officialOpenAI });
     const abort = new AbortController();
-    const watchdog = armStreamWatchdog(input.version.model, abort, input.streamWatchdog);
+    const locale = parseAppLocale(input.locale);
+    const watchdog = armStreamWatchdog(input.version.model, abort, input.streamWatchdog, Date.now, locale);
     const result = streamText({
       model,
       messages,
@@ -591,11 +614,15 @@ export class AiSdkRuntime implements AgentRuntime {
     let usage = { inputTokens: 0, outputTokens: 0 };
 
     try {
-      for await (const part of watchAsyncIterable(result.fullStream, abort, () => watchdog.touch())) {
-      const event = mapStreamPart(part);
-      if (!event) {
-        continue;
-      }
+      for await (const part of watchAsyncIterable(result.fullStream, abort, () => watchdog.touch(), locale)) {
+        const event = mapStreamPart(part);
+        if (!event) {
+          continue;
+        }
+        // Only a mapped part is the model working. The SDK opens every stream with a `step-start`
+        // as soon as the first frame lands, and counting that as a first token would hand a model
+        // that is still thinking the short idle budget instead of the first-token one.
+        watchdog.touchOutput();
         if (event.type === "run.failed") {
           failed = event.message;
           break;
@@ -637,7 +664,7 @@ export class AiSdkRuntime implements AgentRuntime {
 
       return { text, thinking, tooled, toolCompleted, failed, usage };
     } catch (error) {
-      const message = abortErrorMessage(error);
+      const message = abortErrorMessage(error, locale);
       if (!failed) {
         failed = message;
       }

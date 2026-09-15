@@ -3,7 +3,7 @@ import type { HostRequest, HostResult } from "../types";
 import { jsonError, jsonOk } from "../errors";
 import { agentService, getTenant } from "../tenant";
 import { createThread, deleteThread, getThread, listMessages, listWorkspaceThreads, type WorkspaceThreadScope } from "../threads";
-import { DEFAULT_THREAD_TITLE, THREAD_TITLE_MAX } from "../thread-title";
+import { isDefaultThreadTitle, THREAD_TITLE_MAX } from "../thread-title";
 
 function parseScope(value: string | undefined): WorkspaceThreadScope {
   if (value === "chat" || value === "agent") {
@@ -26,7 +26,7 @@ export async function handleGetThreads(request: HostRequest): Promise<HostResult
     const rows = await listWorkspaceThreads(tenant, { scope, agentId });
     return jsonOk({
       threads: rows
-        .filter((row) => row.title !== DEFAULT_THREAD_TITLE)
+        .filter((row) => !isDefaultThreadTitle(row.title))
         .map((row) => ({
           id: row.id,
           title: row.title,

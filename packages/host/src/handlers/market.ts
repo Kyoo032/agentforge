@@ -1,6 +1,8 @@
 import { ApiError } from "@agentforge/core";
 import { marketBriefingSchema } from "@agentforge/core/artifacts";
 import { jsonError, jsonOk } from "../errors";
+import { requireGatewayAllowed } from "../gateway-gate";
+import { loadSettings } from "../settings-store";
 import { streamJob } from "../job-stream";
 import { buildMarketBoard } from "../market-board";
 import { assertBriefingHasNoAdvice } from "../market-briefing-build";
@@ -24,6 +26,8 @@ export async function handlePostMarketBoard(request: HostRequest): Promise<HostR
 export async function handlePostMarket(request: HostRequest): Promise<HostResult> {
   try {
     const tenant = await getTenant(request.workspaceId);
+    // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
+    requireGatewayAllowed(loadSettings(tenant.workspaceId));
     return jsonOk(await generateMarketBriefing(tenant, request.body ?? null));
   } catch (error) {
     return jsonError(error);
@@ -34,6 +38,8 @@ export async function handlePostMarket(request: HostRequest): Promise<HostResult
 export async function handlePostMarketStream(request: HostRequest): Promise<HostResult> {
   try {
     const tenant = await getTenant(request.workspaceId);
+    // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
+    requireGatewayAllowed(loadSettings(tenant.workspaceId));
     return streamJob((emit, abortSignal) => generateMarketBriefing(tenant, request.body ?? null, emit, abortSignal), {
       abortSignal: request.abortSignal,
     });
@@ -46,6 +52,8 @@ export async function handlePostMarketStream(request: HostRequest): Promise<Host
 export async function handlePostMarketRegen(request: HostRequest): Promise<HostResult> {
   try {
     const tenant = await getTenant(request.workspaceId);
+    // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
+    requireGatewayAllowed(loadSettings(tenant.workspaceId));
     return jsonOk(await regenerateBriefingSection(tenant, request.body ?? null));
   } catch (error) {
     return jsonError(error);

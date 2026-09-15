@@ -1,8 +1,6 @@
 # Desktop brands
 
-Public git and GitHub releases are **DPSBuddy** (Toko Token). Two local Windows flavors exist on the operator machine only: **Kemenkeu AI** and **AIHub Metranet**. Flavor folders under `apps/desktop/branding/kemenkeu/` and `apps/desktop/branding/metranet/` are gitignored. Do not upload those two installers.
-
-The splash, exe, and Start menu can show the flavor while Chat still says DPSBuddy if the renderer never received `brand.json`. Packaged chrome must come from preload (`window.agentforge.brand` + `brandLogo`), not a host ping that can fire before IPC is ready or fail closed to DPSBuddy.
+Public git and GitHub releases are **DPSBuddy** (Toko Token). Two local Windows flavors exist on the operator machine only: **Kemenkeu AI** and **AIHub Metranet**. Flavor folders under `apps/desktop/branding/kemenkeu/` and `apps/desktop/branding/metranet/` are gitignored. Do not upload those two installers. The splash, exe, and Start menu can show the flavor while Chat still says DPSBuddy if the renderer never received `brand.json`. Packaged chrome must come from preload (`window.agentforge.brand` + `brandLogo`), not a host ping that can fire before IPC is ready or fail closed to DPSBuddy.
 
 ## Sub-features
 

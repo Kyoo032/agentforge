@@ -4,15 +4,16 @@ Agent-facing map (where to press). Not product. Pair with pstack `how` for how a
 
 This directory is the maintained source for verifying user-facing DPSBuddy behavior. Read this index before driving, then use the matching feature file as the recipe.
 
-Documents, Research, Finance, Data, Market, Legal, Images, Videos, Presentation, and Edit are product modes. **Default already unlocks all of them.** A Legal (or other) workspace can hide some tabs. Knowledge is Account-rail, not a mode checkbox. Custom agents do not unlock the rail. Edit rail `mode-edit` lands in Phase 1; Loop 0 only ships the map + doctor + fixtures.
+Documents, Research, Finance, Data, Market, Legal, Images, Videos, Presentation, and Edit are product modes. **Default already unlocks all of them.** A Legal (or other) workspace can hide some tabs. Knowledge is Account-rail, not a mode checkbox. Custom agents do not unlock the rail. Edit shipped in 0.14.22 and `mode-edit` is a real rail tab on Default; the parts of the Edit studio still owed are named in [edit.md](./edit.md), not here.
 
 ## Baseline preconditions
 
-- **Webdev:** app answers at `http://127.0.0.1:3000` (never a LAN IP). Doctor with no args.
+- **Webdev:** the operator's instance answers at `http://127.0.0.1:3000` (never a LAN IP). Doctor with no args. An isolated instance you started yourself on another port is doctored with `--base http://127.0.0.1:<port>`.
 - **Packaged desktop:** Electron window; doctor `--desktop` reads `host-status.json` (`transport: "ipc"`). No HTTP port.
 - SQLite is `data/agentforge.sqlite` (webdev) or Electron userData (packaged: `%APPDATA%\DPSBuddy`, `$XDG_CONFIG_HOME/DPSBuddy` or `~/.config/DPSBuddy`, `~/Library/Application Support/DPSBuddy`).
-- No product login. A gateway key is optional; stub Chat works without one.
-- Windows: drive webdev with the IDE browser. Drive packaged in the Electron window. Do not run Playwright.
+- No product login. A gateway key is optional; stub Chat works without one. When login lands it is the device-code door against the Toko Token portal — never a password field, and never an e-mail domain used to pick a tenant.
+- The **gateway gate** decides whether a desk opens at all: `allowed: false` puts the whole app on onboarding and answers `403 gateway_blocked` on every gateway-calling route. See [gateway-gate.md](./gateway-gate.md).
+- Windows: drive webdev with the IDE browser where you have one. A Claude Code session has no IDE browser — it drives its own isolated instance with a short Playwright script (see SKILL.md **Drive**) and still never runs `pnpm test:e2e` against the operator's desk.
 - Cloud / GHA: `AGENTFORGE_RUNTIME=stub` and Playwright `foundation.spec.ts` against **webdev** :3000.
 - Never drive an instance this run did not doctor. Never start a second process on :3000. Never treat :3000 as the installed app.
 
@@ -23,6 +24,7 @@ Documents, Research, Finance, Data, Market, Legal, Images, Videos, Presentation,
 - Rail tabs are the current workspace `productModes`. Default has every work mode. `mode-agents` count is 0.
 - Restore nothing on the operator's Windows SQLite. Cloud isolation is the VM.
 - Keep proof artifacts under `evidence/<feature>/<run-id>/`.
+- Testids are locale-invariant. Every recipe here holds on an `id` desk; only the visible strings change. See [locale.md](./locale.md).
 
 ## Proof and skip reporting
 
@@ -41,7 +43,9 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 ## Features
 
 - [Chat](./chat.md) — composer send, new thread, switch sessions, stub reply. Default rail shows every work mode.
-- [Settings](./settings.md) — gateway key, privacy note, stub/live runtime, compact this-key + Open Usage. No Advanced tab.
+- [Settings](./settings.md) — gateway key, privacy note, stub/live runtime, gateway status row, language row, compact this-key + Open Usage. No Advanced tab.
+- [Gateway gate](./gateway-gate.md) — the host's open/closed decision: onboarding reasons, `settings-gateway-status` + re-check, 7-day grace, `403 gateway_blocked`, Start over. Advisory, fails open, never an entitlement check.
+- [Locale](./locale.md) — the Settings language select, the restart banner, and an `id` walk of the rail, Chat and one job mode. Testids do not move.
 - [Usage](./usage.md) — bottom-rail `/usage` Day/Week/Month stacked spend, this-key strip, desk by-model. Not a product mode.
 - [Workspaces](./workspaces.md) — rail switcher + `/workspaces` create/edit, presets and mode checkboxes, open → Chat.
 - [Models](./models.md) — curated Chat picker (Recommended + brand groups), doctor modeKeys/chatCount/curation on webdev. No `model-picker-all`.
@@ -50,7 +54,7 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 - [Security](./security.md) — saved-key fingerprint on Settings (`key-fingerprint`); TLS note on `privacy-note`; at-rest envelope is existing work.
 - [Research](./research.md) — studio shell on Default; live generate needs a key (and search backends).
 - [Documents](./documents.md) — starters, preview, section regen (503 without a key), DOCX download from a starter. Default has the tab.
-- [Finance](./finance.md) — figures-only brief, starter + DOCX without a key, generate 503 without a key. Default has the tab.
+- [Finance](./finance.md) — figures-only brief, prompt-only auto-parse, DOCX + Markdown downloads after a live generate. No starter path any more; every download needs a working key. Default has the tab.
 - [Data](./data.md) — pasted CSV + table notes, no web search, generate 503 without a key. Default has the tab.
 - [Market](./market.md) — watchlist ≤15 tickers → briefing → guarded brief + DOCX, disclaimer always, generate 503 without a key. Default has the tab.
 - [Legal](./legal.md) — .docx matter review with a verify/edit loop; uploads and roles without a key, run 503 without one. Default and the Legal preset have the tab.
@@ -60,7 +64,7 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 - [Knowledge graph](./knowledge-graph.md) — Phase 4 builtin: completed Chat replies with `[n]` markers add `cites` edges; one-hop `covers` expansion is behind `knowledge.graphExpand` (off in Chat); panel is the existing Phase 2 base. Drive on webdev :3000.
 - [Images](./images.md) — studio shell on Default; needs-key without a gateway key.
 - [Videos](./videos.md) — studio shell and `videos-studio-needs-key` without a key.
-- [Edit](./edit.md) — CapCut-style timeline + agent panel (`mode-edit`). Loop 0 harness (fixtures, doctor, stub S1–S10); studio ships in Phase 1.
+- [Edit](./edit.md) — CapCut-style timeline + agent panel (`mode-edit`), shipped in 0.14.22. Storyboard generate is still a Phase 3 placeholder and `animate_storyboard` is backend-only.
 - [Presentation](./presentations.md) — starters, preview, slide regen (503 without a key), PPTX download from a starter.
 - [Desktop](./desktop.md) — Electron one-window launch, splash → Chat, IPC host (no loopback HTTP). Windows NSIS exists; mac/linux are builder targets.
 - [Desktop brands](./desktop-brands.md) — packaged Kemenkeu AI / AIHub Metranet vs public DPSBuddy. Rail `product-brand` + `product-logo` must match the installed flavor, not leftover DPSBuddy copy.

@@ -119,7 +119,9 @@ function lookupModel(catalog: PricingCatalog, model: string): PricingModel | und
 }
 
 export function isUnpricedBilling(model: PricingModel): boolean {
-  return model.billingMode === "tiered_expr" || (model.quotaType === 1 && model.modelPrice <= 0 && model.modelRatio <= 0);
+  return (
+    model.billingMode === "tiered_expr" || (model.quotaType === 1 && model.modelPrice <= 0 && model.modelRatio <= 0)
+  );
 }
 
 /** Estimate USD for one run. `null` means do not invent a number (tiered / missing catalog). */
@@ -295,6 +297,13 @@ async function readJson(response: Response): Promise<unknown> {
   }
 }
 
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+
+/**
+ * These requests carry the gateway key, so they never follow a redirect: a 3xx would
+ * replay the Authorization header against whatever host the response names. The error
+ * names the status only, redacted, never the endpoint or its query.
+ */
 async function getJson(
   url: string,
   headers: Record<string, string>,
@@ -303,16 +312,17 @@ async function getJson(
   assertAllowedEndpointUrl(url);
   const response = await fetchFn(url, {
     headers,
+    redirect: "manual",
     signal: AbortSignal.timeout(FETCH_MS),
   });
+  if (REDIRECT_STATUSES.has(response.status)) {
+    throw new Error(redactSecrets(`Gateway endpoint redirected (${response.status}); not following it with a key`));
+  }
   const body = await readJson(response).catch(() => null);
   return { ok: response.ok, status: response.status, body };
 }
 
-export async function fetchPricingCatalog(input: {
-  baseURL?: string;
-  fetch?: typeof fetch;
-}): Promise<PricingCatalog> {
+export async function fetchPricingCatalog(input: { baseURL?: string; fetch?: typeof fetch }): Promise<PricingCatalog> {
   const origin = gatewayOriginFromBaseUrl(input.baseURL ?? resolvedGatewayBaseUrl());
   const result = await getJson(`${origin}/api/pricing`, { Accept: "application/json" }, input.fetch ?? fetch);
   if (!result.ok) {
@@ -531,11 +541,7 @@ export function listUsageBucketFrames(range: UsageRange, now = new Date()): Usag
   return frames;
 }
 
-function priceOrNull(
-  usage: RunUsageRecord,
-  catalog: PricingCatalog | null,
-  groupRatio: number,
-): number | null {
+function priceOrNull(usage: RunUsageRecord, catalog: PricingCatalog | null, groupRatio: number): number | null {
   if (!catalog) {
     return null;
   }

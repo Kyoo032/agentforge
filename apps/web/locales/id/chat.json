@@ -112,5 +112,16 @@
     "unsupportedFile": "Jenis berkas tidak didukung",
     "mixedMedia": "Kirim lampiran gambar dan video secara terpisah",
     "couldNotReach": "Tidak dapat menghubungi {model} setelah {tries} percobaan"
+  },
+  "models": {
+    "searchPlaceholder": "Cari model",
+    "aria": "Model",
+    "think": "Nalar",
+    "fallback": "Pilih model",
+    "groups": {
+      "recommended": "Disarankan"
+    },
+    "noMatch": "Tidak ada model yang cocok dengan “{query}”",
+    "noMatchEmpty": "Tidak ada model yang cocok dengan pencarian Anda"
   }
 }

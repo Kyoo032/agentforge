@@ -22,6 +22,8 @@
   "cancel": "Cancel",
   "generate": "Generate",
   "generating": "Working…",
+  "autoParsing": "Reading figures…",
+  "autoParsed": "Read {n} figures from your brief. Check the rows, then generate again.",
   "openSettings": "Open {settings}.",
   "settingsLink": "Settings",
   "params": {

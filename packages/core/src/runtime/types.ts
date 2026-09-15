@@ -2,6 +2,7 @@ import type { ContentPart } from "../content/types";
 import type { InputModality, TenantContext } from "../tenancy/types";
 import type { AgentVersionRecord, ToolBindingRecord } from "../agents/service";
 import type { AppLocale } from "../locale";
+import type { JobMode } from "../models/mode-defaults";
 import type { ReasoningEffort } from "../models/reasoning-effort";
 import type { ChatWire } from "./chat-wire";
 import type { StreamWatchdogLimits } from "./stream-watchdog";
@@ -50,6 +51,12 @@ export type AgentRuntime = {
      * Default English when omitted.
      */
     locale?: AppLocale;
+    /**
+     * Set by the job runner (Finance, Documents, Market, ...). Jobs ask for strict JSON over
+     * figures the host already computed, so a thinking model is told not to think. Chat leaves
+     * this unset and keeps its own Thinking control.
+     */
+    jobMode?: JobMode;
     onEvent: (event: RuntimeEvent) => Promise<void> | void;
   }): Promise<void>;
 };

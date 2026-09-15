@@ -11,7 +11,9 @@
  *         Linux:   $XDG_CONFIG_HOME/DPSBuddy/host-status.json
  *                  or ~/.config/DPSBuddy/host-status.json
  *         macOS:   ~/Library/Application Support/DPSBuddy/host-status.json
+ *   node …/doctor.mjs --base http://127.0.0.1:PORT
  *   AGENTFORGE_VERIFY_URL=http://127.0.0.1:PORT node …/doctor.mjs
+ *   PORT=3200 node …/doctor.mjs
  *       → explicit loopback for **webdev only** (ignored with --desktop)
  */
 import { existsSync, readFileSync, statSync } from "node:fs";
@@ -147,9 +149,27 @@ async function get(base, path) {
   return { url, status: response.status, ms: Date.now() - started, text };
 }
 
+function baseFromArgv() {
+  const inline = process.argv.find((arg) => arg.startsWith("--base="));
+  if (inline) {
+    return inline.slice("--base=".length).trim();
+  }
+  const flag = process.argv.indexOf("--base");
+  if (flag !== -1 && process.argv[flag + 1]) {
+    return process.argv[flag + 1].trim();
+  }
+  const port = process.env.PORT?.trim();
+  if (port && /^\d+$/.test(port)) {
+    return `http://127.0.0.1:${port}`;
+  }
+  return "";
+}
+
 async function doctorWebdev() {
-  const fromEnv = process.env.AGENTFORGE_VERIFY_URL?.trim();
-  const BASE = (fromEnv || WEBDEV_URL).replace(/\/$/, "");
+  // --base wins, then AGENTFORGE_VERIFY_URL, then PORT, then :3000.
+  const override = baseFromArgv() || process.env.AGENTFORGE_VERIFY_URL?.trim();
+  const fromEnv = override;
+  const BASE = (override || WEBDEV_URL).replace(/\/$/, "");
   const host = hostnameOf(BASE);
   if (host !== "127.0.0.1" && host !== "localhost") {
     fail(`refusing non-loopback URL ${BASE}. Drive loopback only.`);
@@ -310,7 +330,10 @@ async function doctorWebdev() {
     knowledgeVerified,
     knowledgeBackend,
     gatewayName: typeof payload.gatewayName === "string" ? payload.gatewayName : undefined,
-    dataDir: process.env.AGENTFORGE_DATA_DIR || "unset (webdev default: <repo>/data)",
+    // This is THIS shell's env, not the server's — the host does not expose its
+    // data dir over HTTP. On an isolated drive the server's dir is whatever you
+    // passed it, not what doctor prints here.
+    dataDirThisShell: process.env.AGENTFORGE_DATA_DIR || "unset in this shell (webdev default: <repo>/data)",
     sqliteHint: "data/agentforge.sqlite under AGENTFORGE_DATA_DIR or repo data/",
     edit,
   };

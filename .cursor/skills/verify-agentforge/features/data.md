@@ -30,6 +30,7 @@ Preconditions:
 - **Starter.** Click a `data-starter`. `data-prompt` fills.
 - **Invalid CSV.** Clear `data-csv`, keep a prompt, click `data-generate`. `data-error` says the table is not parseable. No search call.
 - **Generate without a key.** Restore a valid CSV, click `data-generate`. `data-error` mentions gateway / Settings / API key.
+- **Locale (id).** With the desk on `id` (see [locale.md](./locale.md)), this view reads `Unggah CSV / XLSX`, `Ajukan pertanyaan tentang tabel ini.` and `Unggah atau tempel tabel, lalu ajukan pertanyaan.` Testids are locale-invariant.
 - **Cloud live.** Only after doctor `ai`: one table analysis. Do not screenshot the key.
 
 ## Gotchas

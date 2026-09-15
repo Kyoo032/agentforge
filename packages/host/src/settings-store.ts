@@ -8,6 +8,7 @@ import {
   encryptJson,
   isAppLocale,
   isEnvelope,
+  isGatewayBaseUrl,
   knowledgeBackendSetting,
   mergeSecrets,
   parseAppLocale,
@@ -259,12 +260,22 @@ function normalizeEndpoint(url: string | undefined): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
+/** Logged at most once per process: a repeat on every settings read would be noise, not signal. */
+let warnedStoredGatewayEndpoint = false;
+
 /**
- * The gateway endpoint defaults to the branded gateway (Toko Token, or the flavor's URL) but the owner may
- * point it elsewhere from Settings. An empty value means "back to the default". Onboarding never edits it.
+ * The gateway endpoint is pinned (`core/gateway/pinned.ts`) and Settings no longer accepts the field. A
+ * value left behind by an older build - or written into `settings.enc` by hand - is discarded here, on
+ * both the load and the save path, so no caller can be handed a host that would receive the gateway key.
+ * The warning names no URL: it would be echoing back an attacker-controlled field.
  */
 function withGatewayDefault(secrets: StoredSecrets): StoredSecrets {
-  return { ...secrets, openaiBaseUrl: normalizeEndpoint(secrets.openaiBaseUrl) ?? resolvedGatewayBaseUrl() };
+  const stored = normalizeEndpoint(secrets.openaiBaseUrl);
+  if (stored && !isGatewayBaseUrl(stored) && !warnedStoredGatewayEndpoint) {
+    warnedStoredGatewayEndpoint = true;
+    console.warn("[agentforge] Ignoring a stored gateway endpoint: the endpoint is pinned by this build.");
+  }
+  return { ...secrets, openaiBaseUrl: resolvedGatewayBaseUrl() };
 }
 
 function rememberFile(path: string, mtimeMs: number, file: SettingsFileV2): SettingsFileV2 {
@@ -353,6 +364,29 @@ export function adoptLegacySettings(homeWorkspaceId: string): void {
     rest[id] = legacy;
   }
   persistEncrypted({ version: 2, locale: file.locale, workspaces: rest });
+}
+
+/**
+ * "Start over — key only": drop the gateway key from every desk in one write.
+ *
+ * A key saved on a second desk would otherwise keep the app open after the owner asked to forget
+ * it, so this is machine-wide by design. Returns the desks that actually held a key.
+ */
+export function clearGatewayKeyEverywhere(): string[] {
+  const file = loadSettingsFile();
+  const touched: string[] = [];
+  const workspaces: Record<string, StoredSecrets> = {};
+  for (const [id, slice] of Object.entries(file.workspaces)) {
+    if (slice.openaiApiKey) {
+      touched.push(id);
+    }
+    workspaces[id] = mergeSecrets(slice, { openaiApiKey: "" });
+  }
+  if (touched.length === 0) {
+    return [];
+  }
+  persistEncrypted({ version: 2, locale: file.locale, workspaces });
+  return touched;
 }
 
 export function dropWorkspaceSettings(workspaceId: string): void {

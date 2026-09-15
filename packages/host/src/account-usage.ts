@@ -17,6 +17,7 @@ import {
   type TimestampedRunUsage,
   type UsageBucket,
   redactSecrets,
+  resolveProviderKeys,
   type UsageRange,
 } from "@agentforge/core";
 import type { TenantContext } from "@agentforge/core";
@@ -29,6 +30,14 @@ const THIS_KEY_TTL_MS = 2 * 60 * 1000;
 
 let pricingCache: { at: number; baseURL: string; catalog: PricingCatalog } | null = null;
 let thisKeyCache: { at: number; id: string; state: ThisKeyState } | null = null;
+
+/**
+ * The gateway key travels on every call below, so the endpoint must be the pinned one and never the
+ * owner-stored `openaiBaseUrl`: `resolveProviderKeys` is the single place that decides it.
+ */
+function gatewayBaseUrlFor(settings: StoredSecrets): string | undefined {
+  return resolveProviderKeys(settings).openaiBaseUrl;
+}
 
 function thisKeyCacheId(baseURL: string | undefined, apiKey: string | undefined): string {
   const key = apiKey?.trim() ?? "";
@@ -44,12 +53,13 @@ export function clearThisKeyCache(): void {
 }
 
 async function thisKeyFor(settings: StoredSecrets): Promise<ThisKeyState> {
-  const id = thisKeyCacheId(settings.openaiBaseUrl, settings.openaiApiKey);
+  const baseURL = gatewayBaseUrlFor(settings);
+  const id = thisKeyCacheId(baseURL, settings.openaiApiKey);
   if (thisKeyCache && thisKeyCache.id === id && Date.now() - thisKeyCache.at < THIS_KEY_TTL_MS) {
     return thisKeyCache.state;
   }
   const state = await loadThisKeyState({
-    baseURL: settings.openaiBaseUrl,
+    baseURL,
     apiKey: settings.openaiApiKey,
   });
   thisKeyCache = { at: Date.now(), id, state };
@@ -128,6 +138,18 @@ async function pricingFor(baseURL: string | undefined): Promise<PricingCatalog> 
   }
 }
 
+/**
+ * Catalog already in memory, or null. Never fetches: the studio model lists call this on a hot path and
+ * must not wait on the gateway, so an uncached desk simply shows no gateway-origin price.
+ */
+export function cachedPricingCatalog(baseURL: string | undefined): PricingCatalog | null {
+  const key = baseURL?.trim() || "";
+  if (pricingCache && pricingCache.baseURL === key && Date.now() - pricingCache.at < PRICING_TTL_MS) {
+    return pricingCache.catalog;
+  }
+  return null;
+}
+
 export async function loadLocalAccountUsage(
   settings: StoredSecrets,
   tenant: TenantContext,
@@ -163,7 +185,7 @@ export async function loadAccountUsage(
   // With a key both gateway calls are needed; start pricing alongside this-key so an offline desk pays
   // one timeout, not two in a row (this sits on GET /settings, which the app shell waits for).
   const pricingEarly = settings.openaiApiKey
-    ? pricingFor(settings.openaiBaseUrl).then(
+    ? pricingFor(gatewayBaseUrlFor(settings)).then(
         (catalog) => ({ catalog, error: null as unknown }),
         (error: unknown) => ({ catalog: null, error }),
       )
@@ -196,7 +218,7 @@ export async function loadAccountUsage(
     if (early?.error) {
       throw early.error;
     }
-    const catalog = early?.catalog ?? (await pricingFor(settings.openaiBaseUrl));
+    const catalog = early?.catalog ?? (await pricingFor(gatewayBaseUrlFor(settings)));
     const desk = estimateDeskUsd(records, catalog);
     return {
       thisKey,
@@ -300,7 +322,7 @@ export async function loadRangeUsage(
   let catalog: PricingCatalog | null = null;
   let pricingError: string | undefined;
   try {
-    catalog = await pricingFor(settings.openaiBaseUrl);
+    catalog = await pricingFor(gatewayBaseUrlFor(settings));
   } catch (error) {
     pricingError = redactSecrets(error instanceof Error ? error.message : "Could not load gateway prices");
   }

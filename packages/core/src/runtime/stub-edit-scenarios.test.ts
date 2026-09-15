@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { matchStubEditScenario, STUB_EDIT_SCENARIOS } from "./stub-edit-scenarios";
+import { matchStubEditScenario, STUB_EDIT_SCENARIOS, stubEditCardCopy } from "./stub-edit-scenarios";
 
 const IDS = ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10"] as const;
 
@@ -44,5 +44,26 @@ describe("STUB_EDIT_SCENARIOS", () => {
 
   it("returns null when no scenario matches", () => {
     expect(matchStubEditScenario("hello from chat")).toBeNull();
+  });
+});
+
+describe("stubEditCardCopy", () => {
+  it("gives every scenario Indonesian card copy", () => {
+    for (const scenario of STUB_EDIT_SCENARIOS) {
+      const id = stubEditCardCopy(scenario, "id");
+      const en = stubEditCardCopy(scenario, "en");
+      expect(id.verb.trim().length).toBeGreaterThan(0);
+      expect(id.object.trim().length).toBeGreaterThan(0);
+      expect(en.verb).toBe(scenario.cardVerb);
+      expect(en.object).toBe(scenario.cardObject);
+    }
+    const silences = STUB_EDIT_SCENARIOS.find((item) => item.id === "S1");
+    expect(silences && stubEditCardCopy(silences, "id").verb).toBe("Hapus 3 jeda sunyi");
+  });
+
+  it("falls back to the English copy when a scenario has no id variant", () => {
+    const copy = stubEditCardCopy({ toolKey: "generate_image", cardVerb: "Generate image", cardObject: "still" }, "id");
+    expect(copy).toEqual({ verb: "Generate image", object: "still" });
+    expect(stubEditCardCopy({ toolKey: "probe_asset" }, "id")).toEqual({ verb: "Edit", object: "probe_asset" });
   });
 });

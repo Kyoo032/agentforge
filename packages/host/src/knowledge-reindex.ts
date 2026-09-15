@@ -202,7 +202,7 @@ async function uploadText(
  */
 async function replaceSourceRows(tenant: TenantContext, sourceId: string, chunks: string[]): Promise<void> {
   const models = getKnowledgeModels(tenant);
-  const { vectors, model: storedModel } = await embedTextsWithModel(chunks, models.embeddingModel);
+  const { vectors, model: storedModel } = await embedTextsWithModel(chunks, models.embeddingModel, tenant.workspaceId);
   const createdAt = nextCreatedAt();
   const ws = tenant.workspaceId;
   const insertChunk = sql.prepare("INSERT INTO knowledge_chunks (source_id, workspace_id, body) VALUES (?, ?, ?)");

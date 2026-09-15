@@ -1,5 +1,6 @@
 import { ApiError, redactSecrets } from "@agentforge/core";
 import type { HostJsonResult } from "./types";
+import { isGatewayBlockedError } from "./gateway-gate";
 
 const LOCAL_OWNER_UNAVAILABLE = "Local owner context is unavailable on this machine.";
 
@@ -14,6 +15,15 @@ function asMessage(error: unknown): string {
 }
 
 export function jsonError(error: unknown): HostJsonResult {
+  // The one flat error body in the host: the renderer's `parseGatewayBlocked` reads
+  // `record.error === "gateway_blocked"` and `record.status` at the top level, not inside an envelope.
+  if (isGatewayBlockedError(error)) {
+    return {
+      type: "json",
+      status: error.status,
+      body: { error: error.code, status: error.gateStatus, message: redactSecrets(error.message) },
+    };
+  }
   if (error instanceof ApiError) {
     return {
       type: "json",

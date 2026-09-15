@@ -19,6 +19,11 @@ function modeLabel(mode: ArtifactMode): string {
   return labeled(`rail.${mode}`, mode);
 }
 
+/** Known artifact kinds are translated; an unknown kind falls back to the raw value. */
+function kindLabel(kind: string): string {
+  return labeled(`documents.artifacts.kind.${kind}`, kind);
+}
+
 function formatWhen(ms: number): string {
   return new Date(ms).toLocaleString(getLocale() === "id" ? "id-ID" : "en-US", {
     dateStyle: "medium",
@@ -54,7 +59,7 @@ export function ArtifactPicker({
       },
       (err: unknown) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Could not list saved artifacts");
+          setError(err instanceof Error ? err.message : t("documents.artifacts.listFailed"));
         }
       },
     );
@@ -70,7 +75,7 @@ export function ArtifactPicker({
       onPick(await getArtifact(item.id));
       setOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not open that artifact");
+      setError(err instanceof Error ? err.message : t("documents.artifacts.openFailed"));
     } finally {
       setLoadingId(null);
     }
@@ -112,7 +117,7 @@ export function ArtifactPicker({
                 >
                   <span className="block truncate font-medium text-[var(--text)]">{item.title}</span>
                   <span className="block text-xs text-[var(--text-3)]">
-                    {modeLabel(item.mode)} · {item.kind} · {formatWhen(item.createdAt)}
+                    {modeLabel(item.mode)} · {kindLabel(item.kind)} · {formatWhen(item.createdAt)}
                   </span>
                 </button>
               </li>

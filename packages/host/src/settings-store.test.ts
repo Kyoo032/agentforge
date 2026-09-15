@@ -10,6 +10,7 @@ import {
   dropWorkspaceSettings,
   loadOwnerLocale,
   saveOwnerLocale,
+  clearGatewayKeyEverywhere,
 } from "./settings-store";
 
 const SECRET = "a".repeat(64);
@@ -103,6 +104,22 @@ describe("settings-store", () => {
     expect(loadSettings("ws-scratch").openaiApiKey).toBe("sk-scratch");
     dropWorkspaceSettings("ws-scratch");
     expect(loadSettings("ws-scratch").openaiApiKey).toBeUndefined();
+  });
+
+  it("clears the gateway key on every desk and leaves the rest of each slice alone", () => {
+    saveSettings({ openaiApiKey: PLAIN_KEY, imageGenModel: "gpt-image-1" }, "ws-home");
+    saveSettings({ openaiApiKey: "sk-second-desk", anthropicApiKey: "sk-ant-keepme" }, "ws-other");
+    saveSettings({ imageGenModel: "gpt-image-1" }, "ws-keyless");
+
+    const touched = clearGatewayKeyEverywhere();
+
+    expect(touched.sort()).toEqual(["ws-home", "ws-other"]);
+    expect(loadSettings("ws-home").openaiApiKey).toBeUndefined();
+    expect(loadSettings("ws-other").openaiApiKey).toBeUndefined();
+    expect(loadSettings("ws-home").imageGenModel).toBe("gpt-image-1");
+    expect(loadSettings("ws-other").anthropicApiKey).toBe("sk-ant-keepme");
+    // Nothing left to clear: a second call is a no-op, not a rewrite.
+    expect(clearGatewayKeyEverywhere()).toEqual([]);
   });
 
   it("persists owner locale outside workspace secrets and does not put it on the key slice", () => {

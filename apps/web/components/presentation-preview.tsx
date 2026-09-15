@@ -8,6 +8,7 @@ import {
   type PresentationOutline,
   type PresentationSlide,
 } from "@/lib/presentation-outline";
+import { useProductBrand } from "@/lib/product-brand";
 import type { JobStudioModel } from "@/lib/use-job-model";
 import { t } from "@/lib/i18n";
 
@@ -119,7 +120,9 @@ export function PresentationPreview({
       >
         <div className="absolute inset-y-0 left-0 w-1.5 bg-[var(--accent)]" />
         <div className="relative flex h-full flex-col justify-center px-8 py-10 sm:px-12">
-          <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--text-3)]">Presentation</p>
+          <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--text-3)]">
+            {t("presentation.title")}
+          </p>
           <h2 className="mt-3 max-w-3xl text-2xl font-medium leading-tight tracking-[var(--track)] text-[var(--text)]">
             {outline.title}
           </h2>

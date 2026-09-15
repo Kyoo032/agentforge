@@ -83,22 +83,8 @@ export function routeDecision(kinds: AttachmentKind[]): RouteDecision {
   return { route: "text" };
 }
 
-export function isRenderableImageUrl(url: string): boolean {
-  return (
-    url.startsWith("https://") ||
-    url.startsWith("http://") ||
-    url.startsWith("data:image/") ||
-    url.startsWith("/api/v1/media/") ||
-    url.startsWith("agentforge://media/")
-  );
-}
-
-export function isRenderableVideoUrl(url: string): boolean {
-  return (
-    url.startsWith("https://") ||
-    url.startsWith("http://") ||
-    url.startsWith("data:video/") ||
-    url.startsWith("/api/v1/media/") ||
-    url.startsWith("agentforge://media/")
-  );
-}
+/**
+ * Re-exported so the composer and the chat renderer share one rule; the rule itself
+ * lives in `renderable-media` because markdown and tool output need it too.
+ */
+export { isRenderableImageUrl, isRenderableVideoUrl } from "./renderable-media";

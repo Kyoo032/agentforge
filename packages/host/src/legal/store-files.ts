@@ -12,16 +12,22 @@ import { createHash, randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { ApiError } from "@agentforge/core";
-import { type DocxDocument, readDocx } from "@agentforge/core/docx";
-import { LEGAL_CAPS, type MatterDocCard } from "@agentforge/core/legal";
+import type { DocxDocument } from "@agentforge/core/docx";
+import { LEGAL_CAPS, legalOutputCopy, type MatterDocCard } from "@agentforge/core/legal";
+import { readDocxUnderCaps } from "../knowledge-extract";
+import { localeForRun } from "../run-context";
 
 /** Per-file cap matches the IPC bytes envelope (tighter than LEGAL_CAPS.maxFileBytes). */
 export const LEGAL_FILE_MAX_BYTES = 25 * 1024 * 1024;
 export const LEGAL_MATTER_MAX_BYTES = LEGAL_CAPS.maxTotalBytes;
 export const LEGAL_LIST_LIMIT = 100;
 export const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-export const UNSUPPORTED_FILE_MESSAGE =
-  "Only .docx files are accepted in v1. Convert PDF or other formats to .docx first.";
+/** English wording kept for callers that compare against it; live throws use the run locale. */
+export const UNSUPPORTED_FILE_MESSAGE = legalOutputCopy("en").unsupportedFile;
+
+function unsupportedFileError(): ApiError {
+  return new ApiError("unsupported_content_type", legalOutputCopy(localeForRun()).unsupportedFile, 400);
+}
 
 const MATTER_FILE = "matter.json";
 const ID_PATTERN = /^[A-Za-z0-9_-]{1,80}$/;
@@ -136,18 +142,27 @@ export function assertFileCaps(docs: readonly MatterDocCard[], bytes: Uint8Array
 }
 
 /**
- * Sniff the zip magic, then let the reader confirm the package parts. The reader raises
- * "docx:"-prefixed errors for anything that is not a Word document.
+ * Sniff the zip magic, then parse under the same caps Knowledge uses: byte size, the size the zip
+ * directory *declares* it will inflate to, and a wall clock on the parse itself. Without the
+ * declared-size pre-scan a few hundred bytes of crafted archive can claim gigabytes of XML and
+ * take the host down before a single part has finished inflating.
+ *
+ * The reader raises "docx:"-prefixed errors for anything that is not a Word document; those, and
+ * the cap failures that mean "unreadable", come back to the owner as the one unsupported-file
+ * message. A size or timeout refusal keeps its own code so the owner can tell the two apart.
  */
 export async function parseDocxOrThrow(bytes: Uint8Array): Promise<DocxDocument> {
   if (!isZip(bytes)) {
-    throw new ApiError("unsupported_content_type", UNSUPPORTED_FILE_MESSAGE, 400);
+    throw unsupportedFileError();
   }
   try {
-    return await readDocx(bytes);
+    return await readDocxUnderCaps(Buffer.from(bytes), { maxBytes: LEGAL_FILE_MAX_BYTES });
   } catch (error) {
+    if (error instanceof ApiError && error.code === "docx_invalid") {
+      throw unsupportedFileError();
+    }
     if (error instanceof Error && error.message.startsWith(DOCX_ERROR_PREFIX)) {
-      throw new ApiError("unsupported_content_type", UNSUPPORTED_FILE_MESSAGE, 400);
+      throw unsupportedFileError();
     }
     throw error;
   }

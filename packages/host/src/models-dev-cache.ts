@@ -1,5 +1,6 @@
 import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { localDataDir } from "@agentforge/db/vault-key";
 import { assertAllowedEndpointUrl, parseModelsDevRegistry, type ModelsDevRegistry } from "@agentforge/core";
 
 const MODELS_DEV_URL = "https://models.dev/api.json";
@@ -13,11 +14,10 @@ function cachePath(): string {
   if (process.env.AGENTFORGE_MODELS_DEV_CACHE_PATH) {
     return process.env.AGENTFORGE_MODELS_DEV_CACHE_PATH;
   }
-  const dataDir = process.env.AGENTFORGE_DATA_DIR?.trim();
-  if (dataDir) {
-    return resolve(dataDir, "models-dev-cache.json");
-  }
-  return resolve(process.cwd(), "../../data/models-dev-cache.json");
+  // One source of truth for where this desk keeps its files: `localDataDir()` also honours
+  // AGENTFORGE_SETTINGS_PATH, which reading AGENTFORGE_DATA_DIR by hand did not — so a desk with a
+  // custom settings path wrote its caches somewhere the "Start over" wipe list never looked.
+  return resolve(localDataDir(), "models-dev-cache.json");
 }
 
 function cachedFetchedAt(): number | null {

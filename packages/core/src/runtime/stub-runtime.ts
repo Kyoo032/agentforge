@@ -42,13 +42,14 @@ export class StubRuntime implements AgentRuntime {
     const last = input.history[input.history.length - 1];
     const summary = last ? summarizeParts(last.parts) : "";
     const showThinking = resolveRequestReasoningEffort(input) !== "none";
-    const copy = stubChatCopy(parseAppLocale(input.locale));
+    const locale = parseAppLocale(input.locale);
+    const copy = stubChatCopy(locale);
     await input.onEvent({
       type: "run.probing",
       model: input.version.model,
       attempt: 1,
       attempts: MODEL_CONTACT_ATTEMPTS,
-      message: formatContactProbe(input.version.model, 1),
+      message: formatContactProbe(input.version.model, 1, MODEL_CONTACT_ATTEMPTS, locale),
     });
     const answers: string[] = [];
 

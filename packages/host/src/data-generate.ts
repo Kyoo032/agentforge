@@ -1,6 +1,8 @@
 import {
   ApiError,
+  gatewayRequiredMessage,
   hasLiveProvider,
+  modeMessage,
   resolveChatModel,
   resolveRuntimeMode,
   scanInjection,
@@ -104,18 +106,14 @@ function resolveDataset(tenant: TenantContext, body: unknown): LoadedDataset {
   throw new ApiError("invalid_request", "datasetId (or a pasted csv) is required", 400);
 }
 
-function requireLive(): ReturnType<typeof loadSettings> {
-  const settings = loadSettings();
+function requireLive(workspaceId: string): ReturnType<typeof loadSettings> {
+  const settings = loadSettings(workspaceId);
   const mode = resolveRuntimeMode({
     settingsHasKey: hasLiveProvider(settings),
     envRuntime: process.env.AGENTFORGE_RUNTIME,
   });
   if (mode === "stub") {
-    throw new ApiError(
-      "runtime_stub",
-      "Data analysis needs a live gateway. Paste a Toko Token API key in Settings, then try again.",
-      503,
-    );
+    throw new ApiError("runtime_stub", gatewayRequiredMessage("data", localeForRun()), 503);
   }
   return settings;
 }
@@ -204,7 +202,7 @@ export async function analyzeDataset(
   abortSignal?: AbortSignal,
 ): Promise<DataAnalysisResult> {
   const question = readPrompt(body);
-  const settings = requireLive();
+  const settings = requireLive(tenant.workspaceId);
   const history = readHistory(body);
   const extra = readSourceText(body, { injectionGuardBypass: settings.injectionGuardBypass === true });
   const catalog = listSelectableModels();
@@ -252,13 +250,14 @@ export async function analyzeDataset(
         systemPrompt: withOutputLanguage(DATA_SYSTEM, "data", localeForRun()),
         runPrefix: "data",
         agentId: "data",
+        jobMode: "data",
         versionId: "data-analysis",
         prompt,
         toolKeys: ["run_sql", "calculator"],
       }),
     );
     if (!raw.trim()) {
-      throw new ApiError("generation_failed", "Model returned an empty analysis", 502);
+      throw new ApiError("generation_failed", modeMessage("emptyAnalysis", localeForRun()), 502);
     }
 
     throwIfJobAborted(abortSignal);

@@ -110,7 +110,10 @@ function withTimeout<T>(work: Promise<T>, timeoutMs: number): Promise<T> {
  * The pre-scan reads only the zip directory, so a small archive claiming gigabytes of XML is refused
  * before `readDocx` inflates a single part. `read.ts` is untouched: Legal keeps its current behaviour.
  */
-async function readDocxUnderCaps(bytes: Buffer, opts: DocxExtractOptions): Promise<Awaited<ReturnType<typeof readDocx>>> {
+export async function readDocxUnderCaps(
+  bytes: Buffer,
+  opts: DocxExtractOptions,
+): Promise<Awaited<ReturnType<typeof readDocx>>> {
   if (bytes.byteLength > (opts.maxBytes ?? KNOWLEDGE_FILE_MAX_BYTES)) {
     throw docxFailure("too_large");
   }

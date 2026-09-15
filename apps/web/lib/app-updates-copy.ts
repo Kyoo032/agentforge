@@ -1,4 +1,5 @@
 import type { DesktopUpdateSnapshot } from "./desktop-bridge";
+import { t } from "./i18n";
 
 export type UpdateStatus =
   | "idle"
@@ -39,11 +40,6 @@ const HTTP_STATUS_WITH_QUOTED_BODY = /^\d{3}\s+[^"\n]+\s*"/;
 /** Leading `NNN <reason>` portion of an HTTP status line. */
 const HTTP_STATUS_LINE = /^\d{3}\s+[^"\n]+/;
 const HEADERS_MARKER = "Headers:";
-
-export const UNSUPPORTED_STATUS_LINE =
-  "Available in the installed DPSBuddy app. New GitHub releases download and restart the app.";
-export const SUPPORTED_IDLE_STATUS_LINE = "New GitHub releases download here, then DPSBuddy restarts.";
-export const CHECK_FAILED_FALLBACK = "Update check failed.";
 
 function isUpdateStatus(value: unknown): value is UpdateStatus {
   return typeof value === "string" && (UPDATE_STATUSES as readonly string[]).includes(value);
@@ -102,30 +98,36 @@ export function shortUpdateMessage(input: unknown, fallback: string): string {
 }
 
 export function updateVersionLine(currentVersion?: string): string {
-  return currentVersion ? `This install is ${currentVersion}.` : "";
+  return currentVersion ? t("rail.updates.versionLine", { version: currentVersion }) : "";
+}
+
+function downloadingLine(percent?: number): string {
+  return percent == null
+    ? t("rail.updates.status.downloadingUnknown")
+    : t("rail.updates.status.downloading", { percent: Math.round(percent) });
 }
 
 export function updateStatusLine(state: UpdateState, supported: boolean): string {
   switch (state.status) {
     case "checking":
-      return "Checking GitHub Releases…";
+      return t("rail.updates.status.checking");
     case "current":
-      return "You are on the latest DPSBuddy.";
+      return t("rail.updates.status.latest");
     case "available":
-      return `Version ${state.version ?? ""} is ready to download.`;
+      return t("rail.updates.status.ready", { version: state.version ?? "" });
     case "downloading":
-      return `Downloading${state.percent != null ? ` ${Math.round(state.percent)}%` : ELLIPSIS}`;
+      return downloadingLine(state.percent);
     case "ready":
-      return `Version ${state.version ?? ""} is downloaded. Restart to finish.`;
+      return t("rail.updates.status.downloaded", { version: state.version ?? "" });
     case "error":
-      return shortUpdateMessage(state.message, CHECK_FAILED_FALLBACK);
+      return shortUpdateMessage(state.message, t("rail.updates.status.checkFailed"));
     default:
       if (supported) {
-        return SUPPORTED_IDLE_STATUS_LINE;
+        return t("rail.updates.status.idle");
       }
       // The shell may say why updates are off (e.g. unsigned macOS build); the renderer never
       // reads the platform itself, so the reason travels in the snapshot.
-      return shortUpdateMessage(state.message, UNSUPPORTED_STATUS_LINE);
+      return shortUpdateMessage(state.message, t("rail.updates.status.unsupported"));
   }
 }
 
@@ -197,5 +199,5 @@ export function isInstallAction(state: UpdateState): boolean {
 
 /** Tooltip for the rail icon: the same line the panel shows, prefixed so the icon reads as "Updates". */
 export function updateButtonTitle(state: UpdateState, supported: boolean): string {
-  return `Updates: ${updateStatusLine(state, supported)}`;
+  return t("rail.updates.tooltip", { line: updateStatusLine(state, supported) });
 }

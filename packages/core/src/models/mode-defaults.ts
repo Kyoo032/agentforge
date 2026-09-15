@@ -25,6 +25,16 @@ export type ModeModelDefaults = {
   knowledgeVerifier: string;
 };
 
+/**
+ * The id every job mode falls back to on this gateway. The `hy3` / `hunyuan-3` first choices
+ * below are **not** in the TokenKu catalog (170 ids, checked 2026-09-13 in
+ * docs/internal/gateway-model-selection.md), so Documents, Finance, and Market all resolve to
+ * this one today. It thinks by default, which is why jobs send it a thinking-off knob
+ * (`packages/core/src/models/job-thinking.ts`) and the stream watchdog gives it the reasoning
+ * budgets. Read this before reordering anything below.
+ */
+export const EFFECTIVE_JOB_MODEL = "deepseek-v4-flash";
+
 /** Ranked hints against the live chat catalog — not a closed allowlist. */
 export const JOB_MODE_PREFERENCES: Record<JobMode, string[]> = {
   documents: ["hy3", "hy-3", "hunyuan-3", "hunyuan3", "deepseek-v4-flash"],

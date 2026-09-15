@@ -29,23 +29,29 @@ function makeApp({ isPackaged = true, logsDir = null } = {}) {
   };
 }
 
-function makeIpcMain() {
+/**
+ * Stand-in for `ipcMain`. `invoke` supplies the main-frame event every `updates:*` handler now
+ * demands; `invokeFrom` is the same call from some other frame, which every handler must refuse.
+ */
+function makeIpcMain(mainFrame) {
   const handlers = new Map();
   return {
     handle: (channel, fn) => handlers.set(channel, fn),
-    invoke: (channel, ...args) => handlers.get(channel)(...args),
+    invoke: (channel, ...args) => handlers.get(channel)({ senderFrame: mainFrame }, ...args),
+    invokeFrom: (frame, channel, ...args) => handlers.get(channel)({ senderFrame: frame }, ...args),
     channels: () => [...handlers.keys()],
   };
 }
 
 function makeWindows() {
   const sent = [];
+  const mainFrame = { id: "main" };
   const win = {
     isDestroyed: () => false,
-    webContents: { send: (channel, payload) => sent.push({ channel, payload }) },
+    webContents: { mainFrame, send: (channel, payload) => sent.push({ channel, payload }) },
   };
   const destroyed = { isDestroyed: () => true, webContents: { send: () => assert.fail("sent to destroyed window") } };
-  return { BrowserWindow: { getAllWindows: () => [win, destroyed] }, sent };
+  return { BrowserWindow: { getAllWindows: () => [win, destroyed] }, sent, win, mainFrame };
 }
 
 function makeAutoUpdater({ checkResult = null, checkError = null } = {}) {
@@ -90,8 +96,8 @@ function settle() {
 }
 
 function setup(options = {}) {
-  const ipcMain = makeIpcMain();
   const windows = makeWindows();
+  const ipcMain = makeIpcMain(windows.mainFrame);
   const autoUpdater = makeAutoUpdater(options.updater);
   const installs = [];
   const result = registerAutoUpdate({
@@ -101,6 +107,7 @@ function setup(options = {}) {
     productName: options.productName ?? "DPSBuddy",
     platform: options.platform ?? "win32",
     autoUpdaterOverride: autoUpdater,
+    getMainWindow: () => windows.win,
     onInstallStart: () => installs.push(autoUpdater.calls.length),
   });
   return { ipcMain, windows, autoUpdater, installs, result };
@@ -149,7 +156,10 @@ assert.equal(
   "No published release was found.",
 );
 const VERIFY = "The downloaded installer failed verification. Try again.";
-assert.equal(describeUpdateError(codedError("ERR_CHECKSUM_MISMATCH", "sha512 checksum mismatch, expected a, got b")), VERIFY);
+assert.equal(
+  describeUpdateError(codedError("ERR_CHECKSUM_MISMATCH", "sha512 checksum mismatch, expected a, got b")),
+  VERIFY,
+);
 assert.equal(describeUpdateError(new Error("sha512 checksum mismatch, expected a, got b")), VERIFY);
 
 assert.equal(describeUpdateError(new Error("Something odd\nsecond line with Headers: {}")), "Something odd");
@@ -170,7 +180,10 @@ logger.error(httpError(404, HEADER_DUMP));
 const lines = fs.readFileSync(logFile, "utf8").trimEnd().split("\n");
 assert.equal(lines.length, 2, "one line per entry even when the message embeds newlines");
 assert.match(lines[0], /^\d{4}-\d{2}-\d{2}T[\d:.]+Z info hello \{"a":1\}$/);
-assert.match(lines[1], /^\d{4}-\d{2}-\d{2}T[\d:.]+Z error 404 Not Found \| Headers: .*x-github-request-id.* \[code=HTTP_ERROR_404\]$/);
+assert.match(
+  lines[1],
+  /^\d{4}-\d{2}-\d{2}T[\d:.]+Z error 404 Not Found \| Headers: .*x-github-request-id.* \[code=HTTP_ERROR_404\]$/,
+);
 assert.doesNotThrow(() => createUpdateLogger(null).warn("dropped"));
 assert.doesNotThrow(() => createUpdateLogger(path.join(logFile, "impossible", "x.log")).error("dropped"));
 assert.equal(resolveUpdateLogPath(makeApp()), null);
@@ -340,6 +353,75 @@ async function main() {
   }
 
   fs.rmSync(tmp, { recursive: true, force: true });
+  // ---------- every updates:* channel is bound to the main renderer frame ----------
+
+  {
+    const { ipcMain, autoUpdater, installs } = setup();
+    // registerAutoUpdate() already ran its own startup check; only calls made from here on matter.
+    const callsBefore = autoUpdater.calls.length;
+    const subframe = { id: "iframe" };
+    const refused = { supported: false, status: "unavailable" };
+
+    assert.deepEqual(ipcMain.invokeFrom(subframe, "updates:state"), refused, "a subframe learns nothing");
+    assert.equal(
+      ipcMain.invokeFrom(subframe, "updates:state").currentVersion,
+      undefined,
+      "the refusal names no version",
+    );
+    assert.deepEqual(ipcMain.invokeFrom(subframe, "updates:check"), refused);
+    assert.deepEqual(ipcMain.invokeFrom(subframe, "updates:download"), refused);
+    assert.deepEqual(
+      ipcMain.invokeFrom(subframe, "updates:install"),
+      refused,
+      "a refusal returns; it never throws the way an unsupported build does",
+    );
+    assert.equal(autoUpdater.calls.length, callsBefore, "nothing reached electron-updater");
+    assert.deepEqual(installs, [], "no install was flagged");
+
+    assert.equal(ipcMain.invoke("updates:state").supported, true, "the main frame still gets the real state");
+  }
+
+  {
+    // Ready to install, then asked by a frame that is not the renderer: the app must not restart.
+    const { ipcMain, autoUpdater, installs } = setup();
+    const callsBefore = autoUpdater.calls.length;
+    autoUpdater.emit("update-downloaded", { version: "9.9.9" });
+    assert.equal(ipcMain.invoke("updates:state").status, "ready");
+
+    assert.deepEqual(ipcMain.invokeFrom({ id: "devtools" }, "updates:install"), {
+      supported: false,
+      status: "unavailable",
+    });
+    assert.equal(autoUpdater.calls.length, callsBefore, "quitAndInstall was never called");
+    assert.deepEqual(installs, [], "onInstallStart never fired, so the taskkill cleanup stays in place");
+  }
+
+  {
+    // An unsupported build refuses the same way before it reaches its own "not installed" error.
+    const { ipcMain } = setup({ productName: "Kemenkeu AI" });
+    assert.deepEqual(ipcMain.invokeFrom({ id: "iframe" }, "updates:install"), {
+      supported: false,
+      status: "unavailable",
+    });
+    assert.throws(() => ipcMain.invoke("updates:install"), /installed DPSBuddy app/, "the main frame still sees why");
+  }
+
+  {
+    // No window at all (booting, or torn down mid-quit): trust nobody.
+    const windows = makeWindows();
+    const ipcMain = makeIpcMain(windows.mainFrame);
+    registerAutoUpdate({
+      app: makeApp(),
+      ipcMain,
+      BrowserWindow: windows.BrowserWindow,
+      productName: "DPSBuddy",
+      platform: "win32",
+      autoUpdaterOverride: makeAutoUpdater(),
+      getMainWindow: () => null,
+    });
+    assert.deepEqual(ipcMain.invoke("updates:state"), { supported: false, status: "unavailable" });
+  }
+
   console.log("auto-update.test.cjs: ok");
 }
 

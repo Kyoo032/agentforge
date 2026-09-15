@@ -27,6 +27,7 @@ Preconditions:
 - **Range.** `usage-range` is visible. Default control is Day (`usage-range-day` pressed). Click Week / Month; the page refetches (loading may flash).
 - **Empty / Cloud.** With no key and no priced runs, `usage-this-key` contains `Paste a gateway key`. Either `usage-range-empty` or `usage-range-chart` is visible — do not require priced bars.
 - **Live (Windows, key saved, read-only).** `usage-this-key` shows `$` used (or Unlimited / error). `usage-desk-range` shows desk display and model count. If this desk has runs in range, `usage-range-chart` and `usage-by-model` show spend.
+- **Locale (id).** With the desk on `id` (see [locale.md](./locale.md)), this view reads `Pemakaian`, the range toggle `Hari` / `Minggu` / `Bulan`, and `Kunci ini`. Testids are locale-invariant.
 - **IDE proof.** Screenshot under `evidence/usage/<run-id>/` with range toggle + chart or empty.
 - **Cloud.** Same via `foundation.spec.ts` after Settings checks. Do not paste a key.
 
@@ -34,4 +35,4 @@ Preconditions:
 
 - Usage is not in `PRODUCT_MODES`. Do not hunt for `mode-usage`.
 - Desk estimate and this-key wallet will not match (footer note). Chat chips `chat-usage` / `chat-context` stay on Chat.
-- Settings no longer hosts `usage-by-model` or `usage-desk-estimate`. Assert those on `/usage` only.
+- Settings no longer hosts `usage-by-model` or `usage-desk-range`. Assert those on `/usage` only.

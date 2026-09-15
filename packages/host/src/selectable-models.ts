@@ -13,6 +13,7 @@ import {
   probeVolcengineModels,
   redactSecrets,
   resolveModeDefaults,
+  resolveProviderKeys,
   resolvedGatewayBaseUrl,
   routeModelsByKind,
   sortChatModels,
@@ -185,9 +186,12 @@ export type RefreshModelCacheOptions = {
   forceRegistry?: boolean;
 };
 
-/** A base URL the user typed, as opposed to the gateway default every settings save fills in. */
+/**
+ * A base URL other than the pinned gateway. Since the endpoint is pinned this is now always false;
+ * it stays as the one place that would have to change if a second endpoint were ever allowed.
+ */
 function hasCustomGateway(settings: StoredSecrets): boolean {
-  const base = settings.openaiBaseUrl?.trim();
+  const base = resolveProviderKeys(settings).openaiBaseUrl?.trim();
   return Boolean(base) && base !== resolvedGatewayBaseUrl();
 }
 
@@ -204,7 +208,7 @@ export async function refreshModelCache(
   if (settings.openaiApiKey || hasCustomGateway(settings)) {
     try {
       const detected = await detectCompatibleApi({
-        url: settings.openaiBaseUrl || DEFAULT_OPENAI_BASE_URL,
+        url: resolveProviderKeys(settings).openaiBaseUrl || DEFAULT_OPENAI_BASE_URL,
         apiKey: settings.openaiApiKey,
       });
       putModels(next, detected.dialect, detected.models, now);

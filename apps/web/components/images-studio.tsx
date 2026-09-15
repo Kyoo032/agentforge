@@ -1,11 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import type { MediaPrice } from "@agentforge/core/media-pricing";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { ExampleGallery } from "@/components/example-gallery";
 import { ModelSelect } from "@/components/model-select";
 import { SettingsLinkHint } from "@/components/settings-link-hint";
 import { t } from "@/lib/i18n";
+import { imageEstimateView, mediaPriceHints } from "@/lib/media-estimate";
 import { apiFetch, mediaSrc } from "@/lib/api-client";
 import { useProductBrand } from "@/lib/product-brand";
 
@@ -15,6 +17,8 @@ type StudioModel = {
   provider?: string;
   inputModalities: string[];
   contextLength?: number;
+  /** Provider list price for the cost estimate; null when nobody has transcribed one. */
+  price?: MediaPrice | null;
 };
 
 type GalleryItem = {
@@ -76,6 +80,13 @@ export function ImagesStudio() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // List-price estimate. Recomputed from the studio state, never from a live call.
+  const estimate = useMemo(() => imageEstimateView({ model, models, aspect }), [model, models, aspect]);
+  const modelOptions = useMemo(() => {
+    const hints = mediaPriceHints("images", models);
+    return models.map((item) => ({ ...item, hint: hints[item.id] }));
+  }, [models]);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -152,7 +163,7 @@ export function ImagesStudio() {
             ))}
           </select>
           <ModelSelect
-            models={models}
+            models={modelOptions}
             value={model}
             onChange={setModel}
             disabled={generating || models.length === 0}
@@ -160,6 +171,22 @@ export function ImagesStudio() {
             className="min-w-[12rem] flex-1 h-8 rounded-lg border border-[var(--line)] bg-transparent px-3 py-2 text-sm text-[var(--text)]"
           />
         </div>
+        {!model ? null : estimate.unknown ? (
+          <p className="text-xs text-[var(--text-3)]" data-testid="images-studio-estimate-unknown">
+            {estimate.line}
+          </p>
+        ) : (
+          <div className="space-y-0.5">
+            <p className="text-xs text-[var(--text-2)]" data-testid="images-studio-estimate">
+              {estimate.line}
+            </p>
+            {estimate.compare ? (
+              <p className="text-xs text-[var(--text-3)]" data-testid="images-studio-estimate-compare">
+                {estimate.compare}
+              </p>
+            ) : null}
+          </div>
+        )}
         <div className="flex gap-2">
           <EnhancePromptButton text={prompt} surface="images" model={model} disabled={generating} testId="images-enhance" onApply={setPrompt} />
           <input

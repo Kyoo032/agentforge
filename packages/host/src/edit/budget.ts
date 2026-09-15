@@ -1,5 +1,4 @@
 import { estimateJobUsd, editToolRefusal, type EditToolRefusal } from "@agentforge/core";
-import { loadSettings } from "../settings-store";
 
 export const DEFAULT_EDIT_TURN_CAP_USD = 2;
 
@@ -17,8 +16,9 @@ export function resolveEditTurnCapUsd(raw?: number): number {
   return DEFAULT_EDIT_TURN_CAP_USD;
 }
 
+/** `capUsd` comes from the running desk's settings; the caller reads it, so this stays desk-agnostic. */
 export function createTurnBudget(input: { capUsd?: number; remainingUsd?: number | null } = {}): TurnBudget {
-  const capUsd = resolveEditTurnCapUsd(input.capUsd ?? loadSettings().editTurnCapUsd);
+  const capUsd = resolveEditTurnCapUsd(input.capUsd);
   const remainingUsd = input.remainingUsd === undefined ? null : input.remainingUsd;
   const turnBudget = remainingUsd == null ? capUsd : Math.min(capUsd, remainingUsd);
   return { capUsd, remainingUsd, turnBudget, spentUsd: 0 };

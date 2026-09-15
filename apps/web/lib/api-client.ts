@@ -8,10 +8,18 @@ import {
   type IpcHostResponse,
 } from "./desktop-bridge";
 import { parseGatewayGate, type GatewayGatePayload } from "./gateway-gate";
+import {
+  parseCancelResetResult,
+  parseResetResult,
+  type CancelResetResult,
+  type ResetResult,
+  type ResetScope,
+} from "./reset-app";
 import { errorFromAbortSignal, onAbort, throwIfAborted } from "./ipc-abort";
 import { desktopMediaSrc } from "./media-src";
 
 export type { IpcHostRequest, IpcHostResponse };
+export type { CancelResetResult, ResetResult, ResetScope } from "./reset-app";
 export {
   getDesktopBrand,
   getDesktopBrandLogo,
@@ -66,13 +74,31 @@ function bytesResponse(payload: Extract<IpcHostResponse, { type: "bytes" }>): Re
   return new Response(bytes, { status: payload.status, headers });
 }
 
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+/**
+ * Stamped on every mutating browser call. The host requires it on the destructive routes: a cross-site
+ * HTML form can POST to the local server but cannot set a custom header, so its presence proves the
+ * call came from our own code rather than from a page that merely knows the URL.
+ */
+const TRANSPORT_HEADER = "x-agentforge-transport";
+
+/** Returns a copy of `init` carrying the transport header; mutating calls only, safe methods untouched. */
+function withTransportHeader(init: RequestInit, method: string): RequestInit {
+  if (SAFE_METHODS.has(method)) {
+    return init;
+  }
+  const headers = new Headers(init.headers);
+  headers.set(TRANSPORT_HEADER, "web");
+  return { ...init, headers };
+}
+
 export async function apiFetch(input: string, init: RequestInit = {}): Promise<Response> {
+  const method = (init.method ?? "GET").toUpperCase();
   if (!isElectron()) {
-    return fetch(input, init);
+    return fetch(input, withTransportHeader(init, method));
   }
   throwIfAborted(init.signal);
   const { path, query } = parsePath(input);
-  const method = (init.method ?? "GET").toUpperCase();
   const requestId = crypto.randomUUID();
   const payload: IpcHostRequest = {
     requestId,
@@ -147,6 +173,36 @@ export async function checkGateway(signal?: AbortSignal): Promise<GatewayGatePay
   const res = await apiFetch("/api/v1/settings/gateway/check", { method: "POST", signal });
   const body = (await res.json().catch(() => null)) as { gateway?: unknown } | null;
   return parseGatewayGate(body?.gateway);
+}
+
+/**
+ * Start over: forget the gateway key (`key`) or delete all local data (`all`).
+ *
+ * An `all` reset needs `confirm: "RESET"`; the host refuses anything else with
+ * `400 invalid_request`. The wipe lands on the next boot, so the caller has to
+ * restart the app when `relaunch` comes back true.
+ */
+export async function resetApp(scope: ResetScope, confirm?: string): Promise<ResetResult> {
+  const res = await apiFetch("/api/v1/settings/reset", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(confirm ? { scope, confirm } : { scope }),
+  });
+  const body = await res.json().catch(() => null);
+  return parseResetResult(res.status, body, scope);
+}
+
+/**
+ * Call off a wipe that is queued for the next boot.
+ *
+ * Only an `all` reset queues one, and it stays queued until the app restarts — which is the window
+ * in which the owner can still change their mind. The host removes `reset-pending.json` and answers
+ * with the `resetPending` it now reports.
+ */
+export async function cancelReset(): Promise<CancelResetResult> {
+  const res = await apiFetch("/api/v1/settings/reset", { method: "DELETE" });
+  const body = await res.json().catch(() => null);
+  return parseCancelResetResult(res.status, body);
 }
 
 export function mediaSrc(url: string): string {

@@ -1,4 +1,7 @@
-export type ImageStudioLocale = "en" | "id";
+import { parseAppLocale, type AppLocale } from "@agentforge/core";
+
+/** Images shares the app-wide locale; the alias keeps the mode's call sites readable. */
+export type ImageStudioLocale = AppLocale;
 
 /** Keep in sync with `apps/web/locales/{en,id}/images.json`. */
 const GENERATE_ERROR: Record<ImageStudioLocale, string> = {
@@ -12,24 +15,15 @@ const OUTPUT_TEXT_LANGUAGE: Record<ImageStudioLocale, string> = {
   id: "Jika gambar ini memuat teks yang dapat dibaca (keterangan, label, papan, atau UI pada gambar), tulis teks itu dalam bahasa Indonesia.",
 };
 
-/** Boot locale frozen by i18n core (process env or owner settings). Default en. */
-export function imageStudioLocale(settings: { locale?: unknown } | null | undefined): ImageStudioLocale {
-  const frozen = process.env.AGENTFORGE_LOCALE;
-  if (frozen === "id" || frozen === "en") {
-    return frozen;
-  }
-  return settings?.locale === "id" ? "id" : "en";
-}
-
 export function imageOutputLanguageHint(locale: ImageStudioLocale): string {
-  return OUTPUT_TEXT_LANGUAGE[locale];
+  return OUTPUT_TEXT_LANGUAGE[parseAppLocale(locale)];
 }
 
 export function imageGenerateFailedMessage(locale: ImageStudioLocale): string {
-  return GENERATE_ERROR[locale];
+  return GENERATE_ERROR[parseAppLocale(locale)];
 }
 
-/** Instruct the image model to render on-image text in the boot locale. Does not rewrite the stored prompt. */
+/** Instruct the image model to render on-image text in the run locale. Does not rewrite the stored prompt. */
 export function withImageOutputLanguage(prompt: string, locale: ImageStudioLocale): string {
   const hint = imageOutputLanguageHint(locale);
   if (prompt.includes(hint)) {

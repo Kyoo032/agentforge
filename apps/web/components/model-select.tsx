@@ -12,6 +12,8 @@ type ChatModel = {
   friendlyLabel?: string;
   bestFor?: string;
   tier?: "everyday" | "advanced";
+  /** Optional trailing tag for the option label, e.g. a list price ("$0.03/img"). */
+  hint?: string;
 };
 
 type Props = {
@@ -29,13 +31,12 @@ type Props = {
 function optionLabel(model: ChatModel, showModalities: boolean): string {
   const name = model.friendlyLabel ?? model.label;
   const withHint = model.bestFor ? `${name} — ${model.bestFor}` : name;
-  if (showModalities) {
-    return `${withHint} (${model.inputModalities.join(" + ")})`;
-  }
-  if (model.contextLength) {
-    return `${withHint} · ${formatContextLength(model.contextLength)}`;
-  }
-  return withHint;
+  const base = showModalities
+    ? `${withHint} (${model.inputModalities.join(" + ")})`
+    : model.contextLength
+      ? `${withHint} · ${formatContextLength(model.contextLength)}`
+      : withHint;
+  return model.hint ? `${base} · ${model.hint}` : base;
 }
 
 export function ModelSelect({

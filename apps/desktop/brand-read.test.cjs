@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { dirname, join } = require("node:path");
+const { join } = require("node:path");
 const { parseBrand, loadBrandFromResources, DEFAULT_BRAND } = require("./brand-read.cjs");
 
 const kemenkeu = parseBrand({

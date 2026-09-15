@@ -101,17 +101,12 @@ describe("parseTokenUsage", () => {
 describe("estimateRunUsd", () => {
   it("prices ratio models from input and output tokens", () => {
     // (1000 + 200*5) * 2 / 500000 = 0.008
-    const usd = estimateRunUsd(
-      { model: "gpt-5.6-sol", inputTokens: 1000, outputTokens: 200 },
-      catalog,
-    );
+    const usd = estimateRunUsd({ model: "gpt-5.6-sol", inputTokens: 1000, outputTokens: 200 }, catalog);
     expect(usd).toBeCloseTo(0.008, 6);
   });
 
   it("does not invent a number for tiered_expr video", () => {
-    expect(
-      estimateRunUsd({ model: "seedance-2.0-fast", inputTokens: 10, outputTokens: 10 }, catalog),
-    ).toBeNull();
+    expect(estimateRunUsd({ model: "seedance-2.0-fast", inputTokens: 10, outputTokens: 10 }, catalog)).toBeNull();
   });
 
   it("uses model_price for fixed per-call models", () => {
@@ -324,5 +319,37 @@ describe("usage bucketing", () => {
     expect(desk.byModel.map((row) => row.model)).toEqual(["fixed-image", "gpt-5.6-sol", "aaa-unknown"]);
     expect(desk.pricedCount).toBe(2);
     expect(desk.unknownCount).toBe(1);
+  });
+});
+
+describe("gateway account requests", () => {
+  it("does not follow a redirect while carrying the gateway key", async () => {
+    const calls: string[] = [];
+    await expect(
+      fetchThisKeyUsage({
+        baseURL: GATEWAY_BASE_URL,
+        apiKey: "sk-not-a-real-key",
+        fetch: async (input, init) => {
+          calls.push(String(input));
+          expect((init as RequestInit).redirect).toBe("manual");
+          return new Response(null, { status: 302, headers: { location: "https://evil.example/usage" } });
+        },
+      }),
+    ).rejects.toThrow(/redirected \(302\)/);
+    expect(calls).toHaveLength(1);
+  });
+
+  it("does not put the key in the redirect error", async () => {
+    try {
+      await fetchThisKeyUsage({
+        baseURL: GATEWAY_BASE_URL,
+        apiKey: "sk-not-a-real-key",
+        fetch: async () => new Response(null, { status: 307, headers: { location: "https://evil.example" } }),
+      });
+      throw new Error("expected throw");
+    } catch (error) {
+      expect(String((error as Error).message)).not.toContain("sk-not-a-real-key");
+      expect(String((error as Error).message)).not.toContain("evil.example");
+    }
   });
 });

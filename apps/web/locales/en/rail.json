@@ -29,6 +29,19 @@
     "ctaDownloading": "Downloading…",
     "install": "Update and restart",
     "check": "Check for updates",
-    "close": "Close"
+    "close": "Close",
+    "versionLine": "This install is {version}.",
+    "tooltip": "Updates: {line}",
+    "status": {
+      "checking": "Checking GitHub Releases…",
+      "latest": "You are on the latest DPSBuddy.",
+      "ready": "Version {version} is ready to download.",
+      "downloading": "Downloading {percent}%",
+      "downloadingUnknown": "Downloading…",
+      "downloaded": "Version {version} is downloaded. Restart to finish.",
+      "unsupported": "Available in the installed DPSBuddy app. New GitHub releases download and restart the app.",
+      "idle": "New GitHub releases download here, then DPSBuddy restarts.",
+      "checkFailed": "Update check failed."
+    }
   }
 }

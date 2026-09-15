@@ -1,4 +1,26 @@
-export const DEFAULT_THREAD_TITLE = "New thread";
+import { parseAppLocale, type AppLocale } from "@agentforge/core";
+
+const DEFAULT_TITLES: Record<AppLocale, string> = {
+  en: "New thread",
+  id: "Percakapan baru",
+};
+
+/** English default kept exported for callers that compare against the historical constant. */
+export const DEFAULT_THREAD_TITLE = DEFAULT_TITLES.en;
+
+/** Every locale's untouched-thread title. A stored row may carry any of them. */
+export const DEFAULT_THREAD_TITLES: readonly string[] = Object.values(DEFAULT_TITLES);
+
+/** Title a freshly created thread carries until the first user message renames it. */
+export function defaultThreadTitle(locale: AppLocale): string {
+  return DEFAULT_TITLES[parseAppLocale(locale)];
+}
+
+/** True when the thread has not been renamed yet, in any locale. */
+export function isDefaultThreadTitle(title: string): boolean {
+  return DEFAULT_THREAD_TITLES.includes(title);
+}
+
 /** Caller-supplied titles (POST /threads) are trimmed to this length; derived titles use MAX_TITLE below. */
 export const THREAD_TITLE_MAX = 200;
 

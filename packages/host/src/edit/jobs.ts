@@ -138,7 +138,12 @@ async function defaultRunner(
       return { outputAssetIds: [] };
     }
     const extracted = await extractAudio(assetAbsPath(asset), job.projectId);
-    await transcribeAudioChunks(extracted.files, (job.requestJson as { language?: string }).language);
+    await transcribeAudioChunks(
+      extracted.files,
+      (job.requestJson as { language?: string }).language,
+      undefined,
+      doc.workspaceId,
+    );
     onProgress(1);
     return { outputAssetIds: extracted.files };
   }
