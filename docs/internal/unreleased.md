@@ -49,6 +49,7 @@ Resolved since this list was written: the Videos studio duration knob vs. `veo_3
 - **2026-09-08 (evening)** — Knowledge ingest loop landed on the working tree (host `knowledge-ingest.ts` / `work-cards.ts`, origin columns, `knowledge-loop` chart, verify recipe `features/knowledge-ingest.md`). Host 209 / web 152 / db 14 unit tests green; `vite build` green. Not yet driven on the packaged app.
 - **2026-09-08 (later)** — Videos example clips (bundled, offline) + gateway video poll parsing fix. Found while generating the clips: `grok-imagine-video` on this key currently returns `FAILURE` / `上游拒绝了该请求，请稍后重试` (upstream refused) within ~60 s of submit; the Videos studio showed that as "success". Also noted: host vitest without `AGENTFORGE_DATA_DIR` writes stub media rows into the dev desk's `data/` gallery (37 junk video rows there today); run with a temp data dir until the config isolates it.
 - **2026-09-08** — file created after PR #27 merged (`4f1ce13`). Audit of PR #24–#26 against the Windows bundle: only `lifecycle.cjs`, the child-process registry, and the updater plumbing land in the exe, all behavior-neutral on Windows.
+- **2026-09-15 (owner smoke)** — Kyo installed v0.14.26 on Windows and macOS hardware; both launch and work. Test gateway key revoked; the gate on the throwaway desks reports invalid_key as expected.
 
 ## Findings from the harness pass — 2026-09-15
 
