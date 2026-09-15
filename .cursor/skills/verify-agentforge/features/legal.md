@@ -20,13 +20,32 @@ Legal is a matter job: .docx files in, position-aware review, verified deliverab
 - Open `http://127.0.0.1:3000/legal` when the tab is unlocked.
 - Marketing / Students presets do not add this tab unless the owner checks it.
 
-## Verify on webdev, then the installed app
+## Driving it with the DPSBuddy harness
 
-1. Rail shows Legal; `/legal` renders the empty studio.
-2. Upload `packages/core/src/docx/fixtures/lender-initial-aca-draft.docx` and `depositary-bank-round-1-redline.docx`; both appear with counters; set the redline's role to counterparty draft and the draft's role to prior turn.
-3. Upload a .txt; the exact rejection message appears; nothing is added.
-4. Without a key, Run shows the 503 hint. With a key, Run streams all phases, at least one round event, and lands on the results screen with non-empty Adverse provisions.
-5. Download the redline; open it in Word; tracked changes are authored as the configured author with margin comments; Accept All produces the proposed language.
-6. Download the deviation report; it opens in Excel with a Deviations and a Summary sheet.
-7. Send to Knowledge Base creates a `Memo` source; Open in Documents prefills the Documents studio.
-8. Reopen the matter from Previous matters; the last run's results load.
+Preconditions:
+
+- Doctor exits 0.
+- `mode-legal` is visible on Home or on the Legal preset. If count is 0, you are on a desk that hid Legal — not a missing agent.
+- Stub proof stops at intake, upload, role editing, and the run 503. Live run only if the operator asked and doctor reports `ai`.
+- Packaged proof repeats the same steps in the installed app, not only on `:3000`.
+
+- **Shell.** Rail shows Legal. `/legal` renders `legal-studio` empty, with the matter panel, the matter map, “What will happen”, and previous matters.
+- **Upload.** Upload `packages/core/src/docx/fixtures/lender-initial-aca-draft.docx` and `depositary-bank-round-1-redline.docx` through `legal-file-input`. Both appear with counters. Click each role tag to cycle it (PATCH roles): the redline to counterparty draft, the draft to prior turn.
+- **Wrong format.** Upload a .txt. The exact message “Only .docx files are accepted in v1. Convert PDF or other formats to .docx first.” appears and nothing is added.
+- **Run without a key.** Click `legal-run`. `legal-error` shows the Settings hint (HTTP 503 `runtime_stub`).
+- **Live run.** Only after doctor `ai`: `legal-progress` streams classify → diff → review n/m → missing → interactions → draft → verify (at least one “Round r of 3”) → edit → package, then lands on the results screen with a non-empty `legal-tab-adverse` (`legal-finding-row`). `legal-cancel` stops a run mid-phase.
+- **Redline.** Download the redline (`legal-download-<kind>`) and open it in Word. Tracked changes are authored as the configured author with margin comments; Accept All produces the proposed language.
+- **Deviation report.** Download the deviation report (`legal-download-<kind>`). It opens in Excel with a Deviations and a Summary sheet.
+- **Handoff.** Send to Knowledge Base creates a `Memo` source. Open in Documents prefills the Documents studio.
+- **Reopen.** Reopen the matter from Previous matters; the last run's results load.
+- **Locale (id).** With the desk on `id` (see [locale.md](./locale.md)), this view reads `Perkara baru`, `Jalankan perkara` and `Perkara`. Testids are locale-invariant.
+
+## Gotchas
+
+- v1 accepts .docx only. A .txt or .pdf is refused with the exact sentence above — a refusal, not a crash, and nothing joins the matter.
+- The matter is created **lazily** on the first upload. There is no matter row to assert before a file lands.
+- `legal-run` stays disabled until a file is uploaded **and** the client party is set. A disabled Run is that gate, not a hang.
+- A stub / no-key run is HTTP 503 `runtime_stub` with a Settings hint on `legal-error`, never a silent no-op.
+- `legal-download-<kind>` fetches `/api/v1/artifacts/:id/file`. On desktop that is a native save, so no browser download event fires — assert the file on disk.
+- `legal-side` and `legal-work-type` are segmented controls, `legal-deliverable-<kind>` are checkboxes. Do not look for a select.
+- `studio.title` stays **Legal** in `id`. Do not use it as a locale proof string — use `Perkara baru` / `Jalankan perkara` / `Perkara`.

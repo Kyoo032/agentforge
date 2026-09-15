@@ -1,8 +1,6 @@
 # Chat
 
-Chat is the default assistant: model picker, composer, thinking toggle, usage chip, and its own sessions at `/chat`. Stub replies without a gateway key; a saved key uses the live Toko Token gateway.
-
-A turn is three layers: **Thinking** (collapsible), **tools** (one row per call), **output** (the answer only — never a copy of the prompt, never a `Stub reply` prefix).
+Chat is the default assistant: model picker, composer, thinking toggle, usage chip, and its own sessions at `/chat`. Stub replies without a gateway key; a saved key uses the live Toko Token gateway. A turn is three layers: **Thinking** (collapsible), **tools** (one row per call), **output** (the answer only — never a copy of the prompt, never a `Stub reply` prefix).
 
 ## Sub-features
 
@@ -47,6 +45,7 @@ Preconditions:
 - **Second send.** Fill and send a second unique prompt. `message-list` and `thread-list` contain it.
 - **Knowledge card.** Open `/knowledge`. One `knowledge-source-row` with type `Chat` exists for this thread (not one per turn), `Indexed`, and `knowledge-loop-count-Chat` shows `data-count` ≥ 1.
 - **Switch.** Click the `thread-item` whose text is the first prompt. `message-list` contains the first prompt and its answer.
+- **Locale (id).** With the desk on `id` (see [locale.md](./locale.md)), Chat reads `Chat baru`, `Anda sudah masuk. Tanya apa saja.`, composer placeholder `Pesan`, and `Sesi muncul di sini setelah Anda mengirim.` on the empty session rail; the Thinking ladder reads `Berpikir Mati Ringan Normal Dalam Ekstra Maks Ultra`. Testids are locale-invariant.
 - **IDE proof.** Screenshot under `evidence/chat/<run-id>/` showing thinking, a tool row, and output.
 - **Cloud.** Same steps via `page.getByTestId` in `foundation.spec.ts` (do not run that spec on Windows).
 
@@ -71,3 +70,5 @@ Preconditions:
 - Do not POST `/api/v1/chat` as a substitute for the composer.
 - Documents / Research / Presentation collect `assistant.delta` only (JSON/markdown output). They ignore thinking events on purpose so drafts are not polluted with chain-of-thought.
 - The Chat work card is written after the stream closes (fire-and-forget). If `/knowledge` does not show the row at once, reload once. A thread with only media output (no assistant text) writes no card.
+- Remote media in an assistant reply no longer renders inline — it degrades **silently** to an ordinary link. `apps/web/lib/renderable-media.ts` treats only `/api/v1/media/`, `agentforge://media/`, and `data:image/{png,jpeg,webp,gif}` as renderable; `apps/web/lib/parse-markdown.ts` turns any other `![alt](url)` into a link whose text is the alt text, or the raw URL when there is no alt. There is no “image blocked” copy and no broken-image icon. Assert an `<a>` where an `<img>` used to be inside `message-output`; do not wait for an error that never comes.
+- A rejected saved key fails the send with the **same** localized sentence in both `chat-error` and `composer-error`: `The gateway did not accept this API key (status_code=401). Check the key in Settings.` The status code stays in the headline and the copy follows the desk language (`packages/core/src/gateway-http-copy.ts`). A driver waiting only on `message-output` hangs to timeout — race `message-output` against `chat-error` and `composer-error`. Driven: a 180s wait on `message-output` timed out when the real outcome was a 401 in `chat-error` two seconds after send.

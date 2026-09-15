@@ -29,6 +29,7 @@ Preconditions:
 - **Starter.** `documents-starter` count is 2. Click the first. `documents-preview`, `documents-section`, and `documents-regen` are visible. Section bodies show formatted markdown (no extra preview testid).
 - **Regen without a key.** Click `documents-regen`. `documents-regen-panel`, `documents-regen-prompt`, `documents-regen-model`, and `documents-regen-attach` are visible. Click `documents-regen-submit`. `documents-error` mentions gateway / Settings / API key.
 - **Download.** Click `documents-download` to get a DOCX from the starter (no live model).
+- **Locale (id).** With the desk on `id` (see [locale.md](./locale.md)), this view reads `Dokumen`, `Belum ada dokumen` and `Mulai dari templat`. Testids are locale-invariant.
 - **Cloud.** `foundation.spec.ts` covers starter + regen 503 on Default (no Studio unlock).
 
 ## Gotchas

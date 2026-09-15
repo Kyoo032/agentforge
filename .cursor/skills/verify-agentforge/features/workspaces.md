@@ -33,6 +33,7 @@ Preconditions:
 - **Switcher.** Click `workspaces-switcher`. `open-workspace` rows are visible.
 - **Create (optional / Cloud).** Click `create-new-workspace`. Fill `workspace-name` with a unique name. Click `workspace-template-legal`. Confirm `workspace-mode-documents` and `workspace-mode-research` are selected; Images is off. Click `create-workspace`. URL becomes `/chat`. Rail shows Chat, Documents, Research, Presentation. `mode-images` and `mode-videos` count 0. `mode-agents` count 0.
 - **Open.** Click an `open-workspace` control. The desk switches (rail workspace name updates) and `/chat` loads for that desk.
+- **Locale (id).** With the desk on `id` (see [locale.md](./locale.md)), this view reads `Ruang kerja`, `Buat ruang kerja baru` and `Mode`. Testids are locale-invariant.
 - **IDE proof.** Screenshot under `evidence/workspaces/<run-id>/` with `/workspaces` in the URL, chips visible, and the list showing the new desk.
 - **Cloud.** Same steps via `page.getByTestId`.
 

@@ -25,6 +25,7 @@ Preconditions:
 
 - **Open Research.** Click `mode-research`. URL matches `/research`. `research-studio` and `research-studio-model` are visible.
 - **Live preview (operator-asked only).** After a generate, `research-preview` and `research-note` are visible; note text is formatted markdown, not raw `**`.
+- **Locale (id).** With the desk on `id` (see [locale.md](./locale.md)), this view reads `Riset`, `Belum ada dosir`, `Catatan` and `Dosir`. Testids are locale-invariant.
 - **Cloud.** `foundation.spec.ts` covers the Default rail tab. Do not paste a gateway key.
 
 ## Gotchas

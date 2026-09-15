@@ -10,7 +10,7 @@ Edit is the CapCut-style timeline with an agent panel (`/edit`, rail `mode-edit`
 - `edit-cards` Keep / Undo / Tweak; pending cards cancel on Undo.
 - `edit-review-gate` `edit-export` disabled until scrub or `edit-review-ok`.
 - `edit-titles` ASS-subset title + `edit-parity-check`.
-- `edit-generate` Generate tab (image / video / storyboard), `edit-tray`, `edit-recipes`, `edit-starter`.
+- `edit-generate` Generate tab (image / video), `edit-tray`, per-item `edit-recipe-<id>` (the recipes panel has no wrapping testid), `edit-starter`. The Storyboard sub-tab is a placeholder in this build — `Storyboard lands in Phase 3.`
 - `edit-keep-scenarios` S1–S10 and Fill F1–F5 results tables (owner runs).
 - `edit-prompt-templates` Generate tab › Video: cited, model-agnostic prompt templates (BytePlus Seedance guides + Higgsfield blog) embedded offline. Category filter `edit-prompt-template-category-<id>`, items `edit-prompt-template-<id>`, citation `edit-prompt-template-source`, rules `edit-prompt-guide`. Picking fills the prompt + seconds; the model select is untouched.
 - `edit-starter-media` starters with bundled sample media (`promo-16x9`, `talk-16x9`, `reels-9x16`, `square-1x1`): clips land on `v1` / `a1` at create time from `apps/desktop/resources/starters/` (packaged: `resources/starters`). Offline only; a missing file is skipped and logged, never fetched. `edit-starter-description` shows the one-liner under `edit-starter`.
@@ -34,6 +34,7 @@ Preconditions: doctor exits 0 with `edit.ffmpeg.found: true`; fixtures generated
 - **Review gate.** After an agent card, `edit-export` disabled; scrub to end or `edit-review-ok`. `edit-export` enabled; export produces mp4 with burnt captions.
 - **Parity.** `edit-parity-check` (dev button) renders `frameAt(t)` and screenshots the stage.
 - **Cap.** Settings `settings-edit-turn-cap` = 0.5, ask for 3 generations (stub). Plan card (`edit-plan-card`), no jobs.
+- **Locale (id).** With the desk on `id` (see [locale.md](./locale.md)), this view reads `Proyek`, `Proyek baru` and `Buka proyek untuk berbicara dengan editor.` Testids are locale-invariant.
 
 Keep scenarios S1–S10 (owner runs; Result filled in Loop 3):
 
@@ -54,8 +55,8 @@ Fill scenarios F1–F5 (owner runs; Result filled in Loop 3):
 
 | Id | Prompt (fixture) | Expected card(s) | Result |
 |---|---|---|---|
-| F1 | Storyboard: 4 shots from scene textarea (`edit-storyboard-generate`) | 1 × `generate_storyboard`, 4 pending stills + image jobs | |
-| F2 | `Animate all` on storyboard stills (`edit-storyboard-animate-all`) | 1 × `animate_storyboard`, video jobs per still | |
+| F1 | Storyboard — **not shipped**. `edit-generate-tab`'s Storyboard sub-tab renders the single line `Storyboard lands in Phase 3.`: no textarea, no generate control, no `edit-storyboard-generate`. | Not drivable from the UI | n/a |
+| F2 | `animate_storyboard` — **backend only** (`packages/core/src/tools/edit/tools.ts`, `packages/host/src/edit/agent-run.ts`); zero frontend references, no `edit-storyboard-animate-all`. | Not drivable from the UI | n/a |
 | F3 | Recipe picker → Podcast clean-up (`edit-recipe-podcast-clean-up`) | 1 × `run_recipe` plan card; Go runs steps as cards | |
 | F4 | "Match look to the second clip" (two v1 clips) | 1 × `match_look` ffmpeg_op card, completes with note | |
 | F5 | "Propose an alternate cut" | 1 × `propose_alt_cut`, clips on `v_compare` only | |
@@ -64,4 +65,6 @@ Fill scenarios F1–F5 (owner runs; Result filled in Loop 3):
 
 - Stub agent replies are scripted per prompt; a live reply needs the operator's key on Windows only.
 - ASR unavailable is a note, not a fail.
+- The recipes panel has **no** wrapping testid. Assert a per-item `edit-recipe-<id>` (e.g. `edit-recipe-podcast-clean-up`); `edit-recipes` does not exist.
+- Storyboard is Phase 3 work. F1 and F2 are not drivable: the sub-tab is the literal copy `Storyboard lands in Phase 3.`, and `animate_storyboard` lives only in the host agent tools. Neither `edit-storyboard-generate` nor `edit-storyboard-animate-all` exists — do not invent them.
 - Never POST `/api/v1/edit/...` as a substitute for the UI.

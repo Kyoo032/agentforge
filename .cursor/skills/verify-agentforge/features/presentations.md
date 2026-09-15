@@ -28,6 +28,7 @@ Preconditions:
 - **Starter.** `presentations-starter` count is 2. Click the first. `presentations-preview` and `presentations-regen` are visible. Slide bullets/notes show formatted markdown.
 - **Regen without a key.** Click `presentations-regen`. `presentations-regen-panel`, `presentations-regen-prompt`, `presentations-regen-model`, and `presentations-regen-attach` are visible. Click `presentations-regen-submit`. `presentations-error` mentions gateway / Settings / API key.
 - **Download.** Click `presentations-download` to get a PPTX from the starter (no live model).
+- **Locale (id).** With the desk on `id` (see [locale.md](./locale.md)), this view reads `Presentasi`, `Belum ada dek` and `Mulai dari templat` (namespace `presentation.json`, singular; the rail key stays `presentations`). Testids are locale-invariant.
 - **Cloud.** `foundation.spec.ts` covers starter + regen 503 on the Default Assistant path.
 
 ## Gotchas
