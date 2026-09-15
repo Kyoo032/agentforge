@@ -12,6 +12,7 @@ Engineering and research notes. Not part of the closed-beta tester surface.
 | [`unreleased.md`](unreleased.md) | What is on `main` but not yet in the published exe / dmg |
 | [`blockers-2026-09-15.md`](blockers-2026-09-15.md) | Blockers before the 0.14.26 cut, verification owed, security audit findings and follow-ups |
 | [`moves.md`](moves.md) | Desktop / shell move log |
+| [`maps/`](maps/README.md) | Subsystem maps: user action → code path → where to fix, recorded from the pstack `how` / `why` mapper |
 
 ## Changelogs (newest first)
 
