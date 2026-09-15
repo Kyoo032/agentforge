@@ -6,7 +6,8 @@ A turn is three layers: **Thinking** (collapsible), **tools** (one row per call)
 
 ## Sub-features
 
-- `chat-open` shows the empty Chat home with composer, model picker, and wrapping composer toolbar (`composer-toolbar`). Header chips sit in `chat-header`.
+- `chat-open` shows the empty Chat home with composer, model picker, and the single-row composer toolbar (`composer-toolbar`). Header chips sit in `chat-header`.
+- `chat-model-switch` — clicking `model-picker` opens `model-picker-panel`, a **portalled** (`document.body`, `fixed`) list placed above the composer. Every option must be clickable with the mouse, not only reachable by Ctrl/Cmd+K and arrows. Clicking one changes the trigger label, survives a reload (`agentforge-chat-model`), and the next send posts that id in the run body. The trigger must stay readable on a narrow pane — `model-picker` `clientWidth` ≥ ~110px down to a 640px window; below that the composer toolbar wraps (Attach/Enhance move to another row) and `composer-send` stays visible and clickable inside `composer`.
 - `chat-usage` shows the Chat header chip (`chat-usage`): loading (`…`), then `No key saved` (stub / needs_key), `Unlimited`, `<used> used · <left> left`, or `Usage unavailable`.
 - `chat-context` shows the Chat header context chip (`chat-context`): a ring plus a short label (`<N> left` or `<N> used`). Click opens `chat-context-breakdown` with Conversation, Attachments, Knowledge (Soul / Memories / Sources, including RAG `N chunks · rag` or `fts` when retrieve ran), and Free. The `used / window` (empty: `0 / window`) line lives **inside the breakdown**, not on the closed chip. Sources excludes the thread's own work card (`threadId` on the context call).
 - `chat-ingest` — every completed assistant turn rewrites one `Chat` work card per thread in the Knowledge Base (latest user + assistant, capped). `/knowledge` shows a `Chat` row named after the thread. Retrieval for that thread skips it. See [knowledge-ingest.md](./knowledge-ingest.md).
@@ -51,6 +52,8 @@ Preconditions:
 
 ## Gotchas
 
+- The composer toolbar **wraps** (`flex flex-wrap items-end`); its left group must never go back to `overflow-hidden`. It used to clip, which hid the model palette (a thin sliver in the 32px toolbar row, clicks falling through to `message-list`) and squeezed the trigger to 18px on narrow panes. Any popover anchored in that group (model picker, and anything added next to it) **must** be portalled to the body and positioned with `placePickerPanel` (`apps/web/lib/picker-panel.ts`). Playwright still calls a clipped option "visible", so assert the click actually changes the trigger label — a visibility check alone will not catch it.
+- With the rail expanded, a 480px window leaves the chat pane ~48px wide (rail 232 + thread list 199 are fixed, no responsive auto-collapse), so everything in the pane overflows. Collapse the rail (`rail-collapse`) before judging narrow-pane layout, or verify at ≥640px.
 - `new-chat` is the header button on the Chat page. `new-chat-link` is the `+ New chat` control in the session rail. The smoke uses `new-chat`.
 - Wait for `composer-send` text `Send`, not a fixed sleep. Stub and live both hold the button in a busy state.
 - Live contact miss (no channel, 502/503, network): host retries the same model up to 3 times internally. The UI stays `Sending…` / `Thinking…` — do not require `1st try` labels on the frontend. Then `chat-error` / `composer-error` reads `Could not reach {model} after 3 tries`. Do not treat that as a harness fail if the gateway is down.

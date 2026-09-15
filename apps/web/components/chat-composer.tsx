@@ -386,8 +386,8 @@ export function ChatComposer({
           {error}
         </p>
       ) : null}
-      <div className="mt-3 flex items-center gap-2" data-testid="composer-toolbar">
-        <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+      <div className="mt-3 flex flex-wrap items-end gap-2" data-testid="composer-toolbar">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
           {showPicker ? (
             <ModelPicker
               models={pickerModels}
@@ -440,7 +440,7 @@ export function ChatComposer({
         </div>
         <button
           type="submit"
-          className={`wash inline-flex h-8 shrink-0 items-center rounded-pill px-4 text-sm ${
+          className={`wash ml-auto inline-flex h-8 shrink-0 items-center rounded-pill px-4 text-sm ${
             sendDisabled ? "bg-[var(--line)] text-[var(--text-3)]" : "bg-[var(--accent)] text-white"
           }`}
           disabled={sendDisabled}
