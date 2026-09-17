@@ -210,52 +210,41 @@ Unlike the mapping pass, this list is **not** all still live: two fix workers we
 
 ## Findings from the map refresh — 2026-09-17 (evening)
 
-Product bugs noticed while refreshing [`maps/finance-parse-and-generate.md`](maps/finance-parse-and-generate.md), the new [`maps/finance-tasks.md`](maps/finance-tasks.md) and the knowledge pages against the working tree. Read-only pass, nothing fixed, nothing driven.
+Product bugs noticed while refreshing [`maps/finance-parse-and-generate.md`](maps/finance-parse-and-generate.md), the new [`maps/finance-tasks.md`](maps/finance-tasks.md) and the knowledge pages against the working tree. The mapping pass itself was read-only; **all five entries below were then fixed in the working tree on 2026-09-17** and are marked as such.
 
-- **MEDIUM · Finance import** — `FINANCE_IMPORT_MAX_SHEETS` is 12 in the renderer (`apps/web/lib/finance-import-client.ts:40`) and 30 on the host (`packages/core/src/finance/import-table/limits.ts:13`), while the client comment claims parity. A document with 13+ tables loses the rest without a warning. Import the core constant instead of restating it.
-- **MEDIUM · Knowledge file picker** — the `knowledge-file` input's `accept` (`apps/web/components/knowledge-page.tsx:424`) still lists six types while `packages/host/src/file-extract` now reads sixteen; the picker hides every format that landed today and the new error sentence names types the dialog will not offer.
-- **LOW · Finance import** — the `capped_cells` warning is declared and translated in both locales but never emitted.
-- **LOW · Finance** — `FinanceComingSoon` and its three testids are dead now that all five tasks are `available: true` (`packages/core/src/finance/tasks.ts`).
-- **Recorded, not a bug** — `POST /api/v1/finance/export`, `/docx` and `/import` do not call `requireGatewayAllowed()`; they never reach the gateway, so a closed gate still lets the owner export and read files. Keep it that way on purpose or gate them on purpose, but decide.
+- **MEDIUM · Finance import** — `FINANCE_IMPORT_MAX_SHEETS` is 12 in the renderer (`apps/web/lib/finance-import-client.ts:40`) and 30 on the host (`packages/core/src/finance/import-table/limits.ts:13`), while the client comment claims parity. A document with 13+ tables loses the rest without a warning. Import the core constant instead of restating it. **(fix in tree 2026-09-17** — the client re-exports `FINANCE_IMPORT_MAX_SHEETS` / `FINANCE_IMPORT_MAX_BYTES` from `@agentforge/core/finance` and builds `FINANCE_IMPORT_ACCEPT` from `FINANCE_IMPORT_EXTENSIONS`; `finance-import-client.test.ts` fails on either a value mismatch or a restated literal.**)**
+- **MEDIUM · Knowledge file picker** — the `knowledge-file` input's `accept` (`apps/web/components/knowledge-page.tsx:424`) still lists six types while `packages/host/src/file-extract` now reads sixteen; the picker hides every format that landed today and the new error sentence names types the dialog will not offer. **(fix in tree 2026-09-17** — `apps/web/lib/knowledge-upload.ts` is the one list the `accept` and the new `knowledge-file-formats` hint (en + id) both read; `knowledge-upload.test.ts` reads the host's `knowledge-extract.ts` and fails on any disagreement, and the host's own refusal sentence is now built from `KNOWLEDGE_FILE_EXTENSIONS`.**)**
+- **LOW · Finance import** — the `capped_cells` warning is declared and translated in both locales but never emitted. **(fix in tree 2026-09-17** — cells really are cut, by `cleanCell` at `FINANCE_IMPORT_MAX_CELL_CHARS`, so the warning was kept and wired: `readFinanceTable` counts the cut cells of the sheets it keeps and emits one `capped_cells` line, `packages/core/src/finance/import-table/read.ts`.**)**
+- **LOW · Finance** — `FinanceComingSoon` and its three testids are dead now that all five tasks are `available: true` (`packages/core/src/finance/tasks.ts`). **(fix in tree 2026-09-17** — the component, its three testids, the `finance.comingSoon` block in both locales and the now-dead `financeTaskSampleFigures` helper are gone. The `available` flag stays — the core registry pins it to the module map and the host still throws `finance_task_unavailable` — so the studio keeps a one-line `finance-task-unavailable` fallback for the next task added before its flow is built.**)**
+- **Recorded, not a bug** — `POST /api/v1/finance/export`, `/docx` and `/import` do not call `requireGatewayAllowed()`; they never reach the gateway, so a closed gate still lets the owner export and read files. Keep it that way on purpose or gate them on purpose, but decide. **(decided in tree 2026-09-17** — intended, and now stated: each of the three handlers carries a comment saying why it is not gated, and `packages/host/src/handlers/finance-gate.test.ts` shuts the gate, proves `POST /api/v1/finance` answers `403 gateway_blocked`, and asserts the three file routes do not.**)**
 
-## anydoc packing (unreleased — one install step outstanding)
+## anydoc packing and the first-run component installer (unreleased — pack proof outstanding)
 
 `packages/host/src/file-extract` converts .pdf / .docx / .pptx / .xlsx / .odt / .rtf / .epub locally
-through `@firecrawl/anydoc`, a napi-rs module whose per-platform binary is a real `.node` file. The
-host is bundled into `apps/desktop/host.cjs` by esbuild, so the binary cannot be inlined: it has to
-travel as a real `node_modules` entry and be readable outside the asar.
+through `@firecrawl/anydoc` 0.2.4 (MIT), a napi-rs module whose per-platform binary is a real `.node`
+file. The owner never installs it (owner decision 2026-09-17: nothing may be a manual step the way
+ffmpeg still is). Two routes, tried in this order by `file-extract/anydoc.ts`:
 
-**Done in tree (no install needed):** `apps/desktop/package.json` `asarUnpack` now also lists
-`**/node_modules/@firecrawl/anydoc/**` and `**/node_modules/@firecrawl/anydoc-*/**` (the platform
-packages `@firecrawl/anydoc-win32-x64-msvc`, `-darwin-arm64`, `-darwin-x64` are siblings, not nested).
-No esbuild change is needed: `file-extract/anydoc.ts` loads the module through `createRequire`, which
-esbuild leaves as a runtime require rather than trying to bundle a `.node` file.
+1. **Bundled.** `apps/desktop/package.json` now depends on `@firecrawl/anydoc` (electron-builder only
+   walks the desktop package's own production dependencies) and `asarUnpack` lists
+   `@firecrawl/anydoc` and `@firecrawl/anydoc-*`. `pnpm install` was run; the lock diff is the desktop
+   importer only. No rebuild step: the binaries are prebuilt and ABI-independent.
+2. **Downloaded on first run.** `packages/host/src/components/` — manifest → `check, download, verify,
+   unpack, probe, marker` → `<dataDir>/components/anydoc/0.2.4/`. Pinned tarballs from
+   `registry.npmjs.org`, sha512 checked before anything is written, guarded tar reader, atomic
+   promote, completion marker, idempotent. Onboarding shows it and starts it by itself; an onboarded
+   desk runs it silently. This is also the macOS answer: the Docker route does not need to hand-place
+   darwin binaries, the app fetches `anydoc-darwin-arm64` / `-x64` itself.
 
-**Outstanding — needs `pnpm install`, so it was deliberately not run here:**
+**Bug found on the way (would have shipped):** inside the esbuild CJS bundle `import.meta` is `{}`, so
+`createRequire(import.meta.url)` threw and the packaged app would never have loaded the bundled copy
+— it would have fallen back silently forever. Fixed with the `typeof require === "function"` guard.
 
-1. Add the dependency to `apps/desktop/package.json` so electron-builder collects it (it only walks
-   the desktop package's own production dependencies; the root hoist is not enough):
-   ```json
-   "dependencies": {
-     "@firecrawl/anydoc": "^0.2.4",
-     "better-sqlite3": "^13.0.3",
-     ...
-   }
-   ```
-2. `corepack pnpm install` at the repo root, to materialise
-   `apps/desktop/node_modules/@firecrawl/anydoc` and update `pnpm-lock.yaml`.
-3. **No rebuild step.** Unlike better-sqlite3 and keytar, anydoc ships prebuilt napi binaries and is
-   ABI-independent, so `rebuild-natives` does not need a new `-w` flag and electron-builder's default
-   `npmRebuild` has nothing to do for it.
-4. **macOS (Docker path, `apps/desktop/platform/macos/docker/build-mac.sh`)** — that script runs with
-   `-c.npmRebuild=false` and hand-places the darwin binaries for better-sqlite3 and keytar. anydoc
-   needs the same treatment only if the Linux install did not fetch the darwin optional packages:
-   before the `electron-builder --mac` line, make sure
-   `apps/desktop/node_modules/@firecrawl/anydoc-darwin-arm64` and `-darwin-x64` exist (install with
-   `--config.supportedArchitectures` or copy them in, exactly as the keytar tarball is unpacked).
-   **Not run — this needs a mac machine / the release pipeline.**
+**Proven:** host unit tests; one live install on this desk into a temp data dir (8.3 MB, 2.4 s,
+`source: "downloaded"`, module loaded, second run all `skipped`).
+**Not proven:** a packed Windows installer loading the bundled copy; any macOS run (an ad-hoc-signed,
+non-notarized app should be allowed to `dlopen` a downloaded `.node`, but nobody has watched it
+happen); the onboarding panel on the packaged app. Drive all three before 0.14.27.
 
-**If any of the above is skipped the app still works.** `extractFile` catches the missing binding,
-logs `file-extract: native converter unavailable, falling back`, and degrades to the extractors that
-predate it (pdfjs, JSZip+xmldom, SheetJS). Only .pptx / .odt / .rtf / .epub become unreadable, which
-is what they were before. `packages/host/src/file-extract/fallback.test.ts` covers that path.
+**If every route fails the app still works.** `extractFile` logs once and degrades to pdfjs,
+JSZip+xmldom and SheetJS; only .pptx / .odt / .rtf / .epub become unreadable.
