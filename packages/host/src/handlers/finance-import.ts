@@ -281,7 +281,12 @@ function asApiError(error: unknown): ApiError {
   return new ApiError("invalid_request", UNREADABLE, 400);
 }
 
-/** Reading a file needs no tenant and touches no store; only the document reader has to await. */
+/**
+ * Reading a file needs no tenant and touches no store; only the document reader has to await.
+ *
+ * Deliberately NOT behind `requireGatewayAllowed()`: no path below reaches the gateway, and a
+ * closed gate must never stop the owner reading a file that never leaves it.
+ */
 export async function handlePostFinanceImport(request: HostRequest): Promise<HostResult> {
   try {
     const { file, document } = requireImportFile(request);

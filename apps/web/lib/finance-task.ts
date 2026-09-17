@@ -65,8 +65,3 @@ export function financeTaskHint(id: FinanceTask, locale: FinanceTaskLanguage): s
   const { hint } = financeTaskMeta(id);
   return locale === "en" ? hint.en : hint.id;
 }
-
-export function financeTaskSampleFigures(id: FinanceTask, locale: FinanceTaskLanguage): string {
-  const { sampleFigures } = financeTaskMeta(id);
-  return locale === "en" ? sampleFigures.en : sampleFigures.id;
-}

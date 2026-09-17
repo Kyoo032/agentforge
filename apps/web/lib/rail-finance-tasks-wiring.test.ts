@@ -127,12 +127,12 @@ describe("finance studio reads the rail's choice", () => {
     expect(studio).toContain("parseFinanceFigures(figures, { model, task, proseText })");
   });
 
-  it("shows a coming-soon panel instead of the brief inputs for a task that is not built", () => {
+  // All five tasks ship, so this branch does not render today; it is the seam the next task's
+  // `available: false` row arrives through, and the host refuses such a task at the boundary too.
+  it("answers with one line instead of the brief inputs for a task that is not built", () => {
     expect(studio).toContain("const available = financeTaskAvailable(task);");
-    expect(studio).toContain("<FinanceComingSoon task={task} locale={uiLocale} />");
-    expect(source("components/finance-steps/finance-coming-soon.tsx")).toContain(
-      'data-testid="finance-task-coming-soon"',
-    );
+    expect(studio).toContain('data-testid="finance-task-unavailable"');
+    expect(studio).toContain('t("finance.taskUnavailable"');
   });
 
   it("stays a shell: the studio file is well under the 400 line ceiling", () => {

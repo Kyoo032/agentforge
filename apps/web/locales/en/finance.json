@@ -188,12 +188,7 @@
   },
   "taskAria": "Finance task",
   "phaseStripAria": "Steps in this task",
-  "comingSoon": {
-    "title": "{task} is on the way",
-    "body": "This task has its own steps and its own maths, and both are still being built. Nothing here can be run yet, so no half-finished pipeline touches your figures.",
-    "sampleLabel": "It will ask for figures like these:",
-    "cta": "Open {task}"
-  },
+  "taskUnavailable": "{task} has its own steps and its own maths, and both are still being built. Nothing here can be run yet.",
   "brief": {
     "statedFacts": {
       "title": "Stated in the document ({{count}})",

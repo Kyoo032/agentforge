@@ -54,14 +54,24 @@ function isControlChar(char: string): boolean {
   return code <= LAST_CONTROL_CODE || code === DELETE_CODE;
 }
 
+/** One cell, cleaned, and whether {@link FINANCE_IMPORT_MAX_CELL_CHARS} had to cut it. */
+type CleanCell = { readonly text: string; readonly capped: boolean };
+
 /** Every cell is untrusted text: control characters out, whitespace collapsed, length capped. */
-function cleanCell(raw: string): string {
+function cleanCellPart(raw: string): CleanCell {
   const text = [...raw]
     .map((char) => (isControlChar(char) ? " " : char))
     .join("")
     .replace(/\s+/g, " ")
     .trim();
-  return text.length > FINANCE_IMPORT_MAX_CELL_CHARS ? text.slice(0, FINANCE_IMPORT_MAX_CELL_CHARS).trim() : text;
+  return text.length > FINANCE_IMPORT_MAX_CELL_CHARS
+    ? { text: text.slice(0, FINANCE_IMPORT_MAX_CELL_CHARS).trim(), capped: true }
+    : { text, capped: false };
+}
+
+/** The cleaned text alone, for the places where a cut is not something the owner lost (sheet names). */
+function cleanCell(raw: string): string {
+  return cleanCellPart(raw).text;
 }
 
 function filledCount(row: ReadonlyArray<string>): number {
@@ -76,6 +86,9 @@ function withoutEmptyColumns(rows: ReadonlyArray<ReadonlyArray<string>>): string
 }
 
 type Split = { readonly rows: string[][]; readonly facts: { label: string; value: string }[] };
+
+/** One sheet plus the count of its cells the cell cap cut, which no public shape carries. */
+type ReadSheet = { readonly sheet: FinanceSheet; readonly capped: number };
 
 /**
  * Leading title / merged-header rows ("PT Toko Token", "Monthly figures") carry one cell each and go.
@@ -95,8 +108,12 @@ function splitAboveHeader(rows: ReadonlyArray<string[]>): Split {
   };
 }
 
-function cleanRows(raw: ReadonlyArray<ReadonlyArray<string>>, sheet: string): Split {
-  const cleaned = raw.map((row) => row.map(cleanCell));
+type CleanedRows = Split & { readonly capped: number };
+
+function cleanRows(raw: ReadonlyArray<ReadonlyArray<string>>, sheet: string): CleanedRows {
+  const parts = raw.map((row) => row.map(cleanCellPart));
+  const capped = parts.reduce((sum, row) => sum + row.filter((cell) => cell.capped).length, 0);
+  const cleaned = parts.map((row) => row.map((cell) => cell.text));
   const split = splitAboveHeader(withoutEmptyColumns(cleaned).filter((row) => filledCount(row) > 0));
   const width = split.rows.reduce((max, row) => Math.max(max, row.length), 0);
   if (width > FINANCE_IMPORT_MAX_COLS) {
@@ -107,6 +124,7 @@ function cleanRows(raw: ReadonlyArray<ReadonlyArray<string>>, sheet: string): Sp
   }
   return {
     ...split,
+    capped,
     rows: split.rows.map((row) => [...row, ...Array.from({ length: width - row.length }, () => "")]),
   };
 }
@@ -117,13 +135,14 @@ function sheetNameFromFilename(filename: string): string {
   return cleaned === "" ? "Sheet1" : cleaned;
 }
 
-function readCsvSheets(bytes: Uint8Array, filename: string): FinanceSheet[] {
+function readCsvSheets(bytes: Uint8Array, filename: string): ReadSheet[] {
   const text = new TextDecoder("utf-8").decode(bytes).replace(new RegExp(`^${BOM}`), "");
   const delimiter = sniffDelimiter(text);
   // One more record than the cap so a file over it is refused rather than silently cut.
   const raw = tokenize(text, delimiter, FINANCE_IMPORT_MAX_ROWS + 1);
   const name = sheetNameFromFilename(filename);
-  return [{ name, ...cleanRows(raw, name) }];
+  const { capped, ...split } = cleanRows(raw, name);
+  return [{ sheet: { name, ...split }, capped }];
 }
 
 /** SheetJS reads cached values only: no formula is ever evaluated and no VBA is loaded. */
@@ -142,7 +161,7 @@ function openWorkbook(bytes: Uint8Array): XLSX.WorkBook {
   }
 }
 
-function readWorkbookSheets(bytes: Uint8Array): FinanceSheet[] {
+function readWorkbookSheets(bytes: Uint8Array): ReadSheet[] {
   const workbook = openWorkbook(bytes);
   if (workbook.SheetNames.length > FINANCE_IMPORT_MAX_SHEETS) {
     throw new FinanceImportError("too_large", `That workbook has more than ${FINANCE_IMPORT_MAX_SHEETS} sheets`);
@@ -153,7 +172,8 @@ function readWorkbookSheets(bytes: Uint8Array): FinanceSheet[] {
       ? XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, raw: false, defval: "", blankrows: false })
       : [];
     const rows = raw.map((row) => row.map((cell) => (cell === null || cell === undefined ? "" : String(cell))));
-    return { name: cleanCell(name) || "Sheet", ...cleanRows(rows, name) };
+    const { capped, ...split } = cleanRows(rows, name);
+    return { sheet: { name: cleanCell(name) || "Sheet", ...split }, capped };
   });
 }
 
@@ -184,6 +204,24 @@ function sheetWarnings(dropped: ReadonlyArray<FinanceSheet>): FinanceImportWarni
 }
 
 /**
+ * The other half of {@link FINANCE_IMPORT_MAX_CELL_CHARS}: a cut cell is told, not lost in silence.
+ *
+ * One line for the whole file, counted the way the truncation warning counts lines, so the screen
+ * reads "12 cells were too long and were shortened" rather than listing every label it shortened.
+ */
+function cappedCellWarnings(capped: number): FinanceImportWarning[] {
+  return capped === 0
+    ? []
+    : [
+        {
+          code: "capped_cells",
+          message: `${capped} cells were longer than ${FINANCE_IMPORT_MAX_CELL_CHARS} characters and were shortened`,
+          detail: [`${capped} cells`],
+        },
+      ];
+}
+
+/**
  * Read an upload into sheets of plain strings. Throws {@link FinanceImportError} for an extension we
  * do not take, bytes that are not what the name claims, a file over a cap, or a file with no rows.
  */
@@ -200,9 +238,17 @@ export function readFinanceTable(bytes: Uint8Array, filename: string): FinanceTa
   }
   requireContainer(extension, bytes);
   const all = extension === ".csv" ? readCsvSheets(bytes, filename) : readWorkbookSheets(bytes);
-  const sheets = all.filter((sheet) => sheet.rows.length >= 2);
-  if (sheets.length === 0) {
+  const kept = all.filter((read) => read.sheet.rows.length >= 2);
+  if (kept.length === 0) {
     throw new FinanceImportError("empty", "No rows of figures were found in that file");
   }
-  return { sheets, warnings: sheetWarnings(all.filter((sheet) => sheet.rows.length < 2)) };
+  // Only the kept sheets: a cell cut on a sheet nobody imports is not something the owner lost.
+  const capped = kept.reduce((sum, read) => sum + read.capped, 0);
+  return {
+    sheets: kept.map((read) => read.sheet),
+    warnings: [
+      ...sheetWarnings(all.filter((read) => read.sheet.rows.length < 2).map((read) => read.sheet)),
+      ...cappedCellWarnings(capped),
+    ],
+  };
 }

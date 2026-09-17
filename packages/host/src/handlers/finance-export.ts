@@ -112,6 +112,9 @@ async function resolveReport(request: HostRequest, body: ExportRequest): Promise
 /**
  * One report, every file type: Excel by default, PowerPoint, Word and Markdown beside it. The
  * older /finance/docx route stays exactly as it was.
+ *
+ * Deliberately NOT behind `requireGatewayAllowed()`: no path below reaches the gateway, and a
+ * closed gate must never stop the owner getting their own figures out of their own machine.
  */
 export async function handlePostFinanceExport(request: HostRequest): Promise<HostResult> {
   try {

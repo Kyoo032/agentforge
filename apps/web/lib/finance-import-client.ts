@@ -1,3 +1,8 @@
+import {
+  FINANCE_IMPORT_EXTENSIONS,
+  FINANCE_IMPORT_MAX_BYTES,
+  FINANCE_IMPORT_MAX_SHEETS,
+} from "@agentforge/core/finance";
 import { apiFetch } from "./api-client";
 import { mergeFigures } from "./finance-brief";
 import {
@@ -26,18 +31,25 @@ export type FinanceImportResult = {
   proseText: string;
 };
 
-/** Mirrors FINANCE_IMPORT_MAX_BYTES on the host. */
-export const FINANCE_IMPORT_MAX_BYTES = 25_000_000;
+/**
+ * The caps are the host's own, re-exported rather than restated.
+ *
+ * They used to be copied here, and the copy drifted: 12 sheets against the host's 30, so a document
+ * with thirteen tables quietly lost the rest. One import is the only way the two stay in step.
+ */
+export { FINANCE_IMPORT_MAX_BYTES, FINANCE_IMPORT_MAX_SHEETS };
+
+/** Documents Finance reads as tables plus prose — converted locally, never on the host's SheetJS path. */
+const DOCUMENT_EXTENSIONS = [".pdf", ".docx", ".pptx"] as const;
+
 /**
  * The `accept` attribute of the file input, and the extensions checked before an upload starts.
  * Spreadsheets go through SheetJS on the host; the three documents are converted locally, each of
  * their tables becoming a selectable sheet.
  */
-export const FINANCE_IMPORT_ACCEPT = ".csv,.xlsx,.xls,.pdf,.docx,.pptx";
+export const FINANCE_IMPORT_ACCEPT = [...FINANCE_IMPORT_EXTENSIONS, ...DOCUMENT_EXTENSIONS].join(",");
 
 const IMPORT_PATH = "/api/v1/finance/import";
-/** More tables than anyone would add by hand. A runaway document stops here, as it does on the host. */
-export const FINANCE_IMPORT_MAX_SHEETS = 12;
 /** Documents are read whole: their tables are chapters of one report, not alternatives to each other. */
 const DOCUMENT_EXTENSION = /\.(?:pdf|docx|pptx)$/i;
 
@@ -139,9 +151,7 @@ export async function importFinanceFile(file: File, sheet?: string): Promise<Fin
  */
 export async function importFinanceFileAllSheets(file: File): Promise<FinanceImportResult> {
   const first = await importFinanceFile(file);
-  const rest = first.sheets
-    .filter((sheet) => sheet.name !== first.sheet)
-    .slice(0, FINANCE_IMPORT_MAX_SHEETS - 1);
+  const rest = first.sheets.filter((sheet) => sheet.name !== first.sheet).slice(0, FINANCE_IMPORT_MAX_SHEETS - 1);
   let figuresText = first.figuresText;
   const warnings = [...first.warnings];
   for (const sheet of rest) {

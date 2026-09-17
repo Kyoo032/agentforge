@@ -46,8 +46,8 @@ export function RailFinanceTasksToggle({
  * Market desks sit under Market. Each task has its own phases and its own math,
  * so the row is the way into a task: the studio reads `?task=` back off the URL
  * rather than offering a second picker. A task that is not built yet still gets
- * a row — the studio answers with a calm coming-soon panel, which is honest
- * about the roadmap in a way a hidden row is not.
+ * a row — the studio says so in one line, which is honest about the roadmap in
+ * a way a hidden row is not. Today all five tasks run.
  */
 export function RailFinanceTasks() {
   const pathname = usePathname();

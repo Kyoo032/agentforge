@@ -28,7 +28,7 @@ export function readFinanceTask(body: unknown): FinanceTask {
   return isFinanceTask(task) ? task : DEFAULT_FINANCE_TASK;
 }
 
-/** Why a coming-soon task cannot run, naming the task in the reader's language. */
+/** Why a task that is not built yet cannot run, naming it in the reader's language. */
 export function financeTaskUnavailableMessage(task: FinanceTask, locale: AppLocale): string {
   const meta = financeTaskMeta(task);
   return locale === "en"
@@ -50,7 +50,7 @@ export function withFinanceTaskRules(base: string, task: FinanceTask, locale: Ap
 
 /**
  * The task this request runs as. Throws when the body names a task that ships
- * later, so the studio's coming-soon state and the host agree on one answer.
+ * later, so the studio's unavailable line and the host agree on one answer.
  */
 export function requireFinanceTask(body: unknown): FinanceTask {
   const task = readFinanceTask(body);

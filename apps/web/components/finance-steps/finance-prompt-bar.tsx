@@ -7,8 +7,8 @@ import { t } from "@/lib/i18n";
 
 /**
  * The instruction bar under the task's steps. It is the studio's one submit, so
- * it is rendered only for a task that actually runs — a coming-soon task shows
- * no way to start something the host would refuse.
+ * it is rendered only for a task that actually runs — a task that is not built
+ * yet shows no way to start something the host would refuse.
  */
 export function FinancePromptBar({
   prompt,

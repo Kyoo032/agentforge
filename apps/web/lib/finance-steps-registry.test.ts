@@ -46,11 +46,13 @@ describe("finance step registry", () => {
     expect(brief).toContain("Result: FinanceResultPanel");
   });
 
-  // A task that has not shipped yet answers from its own folder; one that has, renders its panel.
-  it("answers coming soon from each unbuilt task's own folder, not from the studio", () => {
-    for (const task of FINANCE_TASKS.filter((id) => !financeTaskAvailable(id))) {
-      expect(source(`components/finance-steps/${task}/index.tsx`), task).toContain("<FinanceComingSoon");
+  // Every task in the catalog ships today. The flag stays because it is what a task added before
+  // its flow is built sets, and the core registry keeps it in step with the module map.
+  it("has a panel for every task the catalog says is available", () => {
+    for (const task of FINANCE_TASKS.filter((id) => financeTaskAvailable(id))) {
+      expect(source(`components/finance-steps/${task}/index.tsx`), task).toContain("export");
     }
+    expect(FINANCE_TASKS.every((id) => financeTaskAvailable(id))).toBe(true);
   });
 
   it("makes the studio render through the registry", () => {

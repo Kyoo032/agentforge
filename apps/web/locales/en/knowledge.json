@@ -32,6 +32,7 @@
     "pastePlaceholder": "Paste notes…",
     "indexPaste": "Index paste",
     "uploadFile": "Upload file",
+    "uploadHint": "Indexed here: {formats}",
     "pastedName": "Pasted notes",
     "chunks": "{count} chunks",
     "chunksOne": "{count} chunk",

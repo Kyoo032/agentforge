@@ -32,6 +32,7 @@
     "pastePlaceholder": "Tempel catatan…",
     "indexPaste": "Indeks tempelan",
     "uploadFile": "Unggah berkas",
+    "uploadHint": "Yang bisa diindeks: {formats}",
     "pastedName": "Catatan tempelan",
     "chunks": "{count} potongan",
     "chunksOne": "{count} potongan",

@@ -105,6 +105,38 @@ describe("readFinanceTable - csv", () => {
     expect(cell.startsWith("Rent")).toBe(true);
   });
 
+  // A cut cell is a cap like any other, so it owes the owner the same sentence the dropped rows get.
+  it("warns once, with a count, when the cell cap actually cut something", () => {
+    const long = "x".repeat(FINANCE_IMPORT_MAX_CELL_CHARS + 50);
+    const file = readFinanceTable(csv(`Label,Amount\n"Rent ${long}",1000\n"Gaji ${long}",2000\n`), "long.csv");
+    const capped = file.warnings.filter((warning) => warning.code === "capped_cells");
+    expect(capped).toHaveLength(1);
+    expect(capped[0]?.detail).toEqual(["2 cells"]);
+  });
+
+  it("says nothing about the cell cap when no cell was over it", () => {
+    const file = readFinanceTable(csv("Label,Amount\nRevenue,120000\n"), "short.csv");
+    expect(file.warnings.map((warning) => warning.code)).not.toContain("capped_cells");
+  });
+
+  it("counts the cells cut in a workbook, and none from a sheet it dropped", () => {
+    const long = "y".repeat(FINANCE_IMPORT_MAX_CELL_CHARS + 10);
+    const bytes = writeWorkbook([
+      {
+        name: "Kept",
+        rows: [
+          ["Label", "Amount"],
+          [long, "1000"],
+        ],
+      },
+      // Header only: it is dropped for having no rows, so its long cell is not something anyone lost.
+      { name: "Empty", rows: [[long, "Amount"]] },
+    ]);
+    const file = readFinanceTable(bytes, "book.xlsx");
+    const capped = file.warnings.find((warning) => warning.code === "capped_cells");
+    expect(capped?.detail).toEqual(["1 cells"]);
+  });
+
   it("refuses a csv whose bytes are a container, a file over the byte cap and a file with no rows", () => {
     expect(codeOf(() => readFinanceTable(writeWorkbook([{ name: "S", rows: [["a"], ["1"]] }]), "sneaky.csv"))).toBe(
       "unsupported_type",

@@ -28,7 +28,7 @@ describe("finance task registry", () => {
     expect(hasFinanceTaskModule("brief")).toBe(true);
   });
 
-  // The coming-soon row and the missing module are the same fact: one flag, one file.
+  // An unavailable row and a missing module are the same fact: one flag, one file.
   it("keeps the available flags and the modules in step", () => {
     for (const task of FINANCE_TASKS) {
       expect(FINANCE_TASK_META[task].available, task).toBe(hasFinanceTaskModule(task));

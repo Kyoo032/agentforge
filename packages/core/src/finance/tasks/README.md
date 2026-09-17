@@ -11,7 +11,7 @@ Replace the files listed for **your** task only; everything else here is already
 | core | `packages/core/src/finance/<your math>.ts` (+ `.test.ts`) | pure arithmetic modules (`periods`, `variance`, `sensitivity`, `bands`, …) |
 | core | `packages/core/src/finance/tasks/<task>.test.ts` | module contract tests |
 | host | `packages/host/src/finance-tasks/parse-<task>.ts` | **replace the stub** — free text → your confirmed input |
-| web | `apps/web/components/finance-steps/<task>/index.tsx` | **replace the coming-soon export** — your inputs panel |
+| web | `apps/web/components/finance-steps/<task>/index.tsx` | **replace the placeholder export** — your inputs panel |
 | locale | `apps/web/locales/{en,id}/finance.json` → `"<task>": { … }` | your reserved block, already present and empty |
 | meta | `packages/core/src/finance/tasks.ts` | flip **only** your task's `available: false` → `true` |
 

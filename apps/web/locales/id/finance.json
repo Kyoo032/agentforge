@@ -188,12 +188,7 @@
   },
   "taskAria": "Tugas keuangan",
   "phaseStripAria": "Langkah dalam tugas ini",
-  "comingSoon": {
-    "title": "{task} segera hadir",
-    "body": "Tugas ini punya langkah dan perhitungannya sendiri, dan keduanya masih dibangun. Belum ada yang bisa dijalankan di sini, jadi tidak ada alur setengah jadi yang menyentuh angkamu.",
-    "sampleLabel": "Nanti akan meminta angka seperti ini:",
-    "cta": "Buka {task}"
-  },
+  "taskUnavailable": "{task} punya langkah dan perhitungannya sendiri, dan keduanya masih dibangun. Belum ada yang bisa dijalankan di sini.",
   "brief": {
     "statedFacts": {
       "title": "Tertulis di dokumen ({{count}})",

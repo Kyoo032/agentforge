@@ -70,6 +70,12 @@ export async function handlePostFinanceRegen(request: HostRequest): Promise<Host
   }
 }
 
+/**
+ * The original Word export.
+ *
+ * Deliberately NOT behind `requireGatewayAllowed()`: no path below reaches the gateway, and a
+ * closed gate must never stop the owner getting their own figures out of their own machine.
+ */
 export async function handlePostFinanceDocx(request: HostRequest): Promise<HostResult> {
   try {
     const parsed = financeBriefSchema.safeParse((request.body as { brief?: unknown } | null)?.brief ?? request.body);

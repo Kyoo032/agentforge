@@ -4,7 +4,7 @@
  * One import per task file and nothing else: a worker building a task replaces exactly one file and
  * flips one `available` flag, and never edits a switch this file would otherwise grow. A `null` here
  * is the honest answer for a task whose flow is not built — the host refuses it at the boundary and
- * the studio shows its coming-soon panel, rather than half a pipeline running.
+ * the studio says so in one line, rather than half a pipeline running.
  */
 import { FINANCE_TASKS, isFinanceTask, type FinanceTask } from "../task-ids";
 import { appraisalTaskModule } from "./appraisal";

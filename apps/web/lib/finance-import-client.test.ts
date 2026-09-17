@@ -1,4 +1,12 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  FINANCE_IMPORT_EXTENSIONS,
+  FINANCE_IMPORT_MAX_BYTES as CORE_MAX_BYTES,
+  FINANCE_IMPORT_MAX_SHEETS as CORE_MAX_SHEETS,
+} from "@agentforge/core/finance";
 
 const { apiFetch } = vi.hoisted(() => ({
   apiFetch: vi.fn<(input: string, init?: RequestInit) => Promise<Response>>(),
@@ -9,6 +17,7 @@ vi.mock("./api-client", () => ({ apiFetch }));
 import {
   FINANCE_IMPORT_ACCEPT,
   FINANCE_IMPORT_MAX_BYTES,
+  FINANCE_IMPORT_MAX_SHEETS,
   financeImportFileAllowed,
   importFinanceFile,
   parseFinanceImport,
@@ -16,7 +25,14 @@ import {
 
 const PAYLOAD = {
   sheets: [
-    { name: "Summary", rowCount: 3, preview: [["Label", "Amount"], ["Revenue", "120000"]] },
+    {
+      name: "Summary",
+      rowCount: 3,
+      preview: [
+        ["Label", "Amount"],
+        ["Revenue", "120000"],
+      ],
+    },
     { name: "Budget", rowCount: 2, preview: [["Label", "Plan"]] },
   ],
   sheet: "Summary",
@@ -34,6 +50,30 @@ function file(name: string, size = 10): File {
 
 beforeEach(() => {
   apiFetch.mockReset();
+});
+
+/**
+ * The caps are the host's, not a copy of them.
+ *
+ * A restated `12` against the host's `30` is how a document with thirteen tables lost the rest
+ * without anyone being told, so this pins both halves: the values must be the core ones, and the
+ * module must not hold a number that could drift away from them again.
+ */
+describe("import caps", () => {
+  const source = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "finance-import-client.ts"), "utf8");
+
+  it("takes the sheet and byte caps from core rather than restating them", () => {
+    expect(FINANCE_IMPORT_MAX_SHEETS).toBe(CORE_MAX_SHEETS);
+    expect(FINANCE_IMPORT_MAX_BYTES).toBe(CORE_MAX_BYTES);
+    expect(source).toContain('from "@agentforge/core/finance"');
+    expect(source).not.toMatch(/FINANCE_IMPORT_MAX_(?:SHEETS|BYTES)\s*[:=]\s*[\d_]/);
+  });
+
+  it("offers every spreadsheet extension core reads, plus the documents the host converts", () => {
+    for (const extension of FINANCE_IMPORT_EXTENSIONS) {
+      expect(FINANCE_IMPORT_ACCEPT.split(","), extension).toContain(extension);
+    }
+  });
 });
 
 describe("financeImportFileAllowed", () => {
@@ -110,7 +150,9 @@ describe("importFinanceFile", () => {
   });
 
   it("surfaces the host's own message on failure", async () => {
-    apiFetch.mockResolvedValue(jsonResponse({ error: { code: "invalid_request", message: "That sheet is not in this file" } }, 400));
+    apiFetch.mockResolvedValue(
+      jsonResponse({ error: { code: "invalid_request", message: "That sheet is not in this file" } }, 400),
+    );
     await expect(importFinanceFile(file("book.xlsx"), "Nope")).rejects.toThrow("That sheet is not in this file");
   });
 

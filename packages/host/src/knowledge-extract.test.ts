@@ -4,7 +4,12 @@ import { ApiError } from "@agentforge/core";
 import { buildGarbagePdf, buildTextPdf } from "@agentforge/core/pdf/test-fixtures";
 import { buildZipBomb } from "@agentforge/core/docx/test-fixtures";
 import { docxFixture, pptxFixture, rtfFixture, xlsxFixture } from "./file-extract/test-fixtures";
-import { KNOWLEDGE_FILE_MAX_BYTES, extractText } from "./knowledge-extract";
+import {
+  KNOWLEDGE_DOCUMENT_EXTENSIONS,
+  KNOWLEDGE_FILE_EXTENSIONS,
+  KNOWLEDGE_FILE_MAX_BYTES,
+  extractText,
+} from "./knowledge-extract";
 import { KNOWLEDGE_TEXT_MAX_CHARS, KNOWLEDGE_TEXT_TRUNCATED } from "./knowledge-text";
 
 const PLANTED = "QUENTLE-4402-PLANTED";
@@ -74,6 +79,20 @@ describe("extractText", () => {
     expect(await codeOf(extractText("photo.png", "image/png", Buffer.from([1, 2, 3])))).toBe(
       "unsupported_content_type",
     );
+  });
+
+  // The refusal is the only place the owner reads the list, so it has to be the list.
+  it("names every format it takes in the refusal, converter formats included", async () => {
+    const message = await extractText("photo.png", "image/png", Buffer.from([1, 2, 3])).then(
+      () => "",
+      (error: unknown) => (error instanceof ApiError ? error.message : ""),
+    );
+    for (const extension of KNOWLEDGE_FILE_EXTENSIONS) {
+      expect(message, extension).toContain(extension);
+    }
+    for (const extension of KNOWLEDGE_DOCUMENT_EXTENSIONS) {
+      expect(KNOWLEDGE_FILE_EXTENSIONS as readonly string[], extension).toContain(extension);
+    }
   });
 
   it("routes a pdf by extension and keeps the page markers", async () => {

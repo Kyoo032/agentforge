@@ -8,6 +8,7 @@ import { ModelSelect } from "@/components/model-select";
 import { t } from "@/lib/i18n";
 import { labeled } from "@/lib/ui-copy";
 import { apiFetch } from "@/lib/api-client";
+import { KNOWLEDGE_UPLOAD_ACCEPT, KNOWLEDGE_UPLOAD_FORMATS } from "@/lib/knowledge-upload";
 import { useProductBrand } from "@/lib/product-brand";
 import { useWorkspaceScope } from "@/lib/workspace-scope";
 
@@ -421,7 +422,7 @@ export function KnowledgePage() {
                 <input
                   className="sr-only"
                   type="file"
-                  accept=".txt,.md,.csv,.json,.pdf,.docx,text/plain,text/markdown,text/csv,application/json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  accept={KNOWLEDGE_UPLOAD_ACCEPT}
                   data-testid="knowledge-file"
                   onChange={(event) => {
                     const file = event.target.files?.[0];
@@ -445,6 +446,9 @@ export function KnowledgePage() {
                 />
               </label>
             </div>
+            <p className="mt-2 text-xs text-[var(--text-3)]" data-testid="knowledge-file-formats">
+              {t("knowledge.sources.uploadHint", { formats: KNOWLEDGE_UPLOAD_FORMATS })}
+            </p>
           </section>
           <ul className="divide-y divide-[var(--line)] rounded-xl border border-[var(--line)] bg-[var(--surface)]">
             {sources.map((row) => (

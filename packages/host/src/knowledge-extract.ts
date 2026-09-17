@@ -66,6 +66,23 @@ export const KNOWLEDGE_DOCUMENT_EXTENSIONS = [
   ".epub",
 ] as const;
 
+/**
+ * Everything `sourceKind` below says yes to, in one list, so the refusal names exactly what the
+ * Knowledge page's picker offers. `apps/web/lib/knowledge-upload.ts` mirrors it and its test reads
+ * this file, so a format added here and forgotten there fails the renderer's suite.
+ */
+export const KNOWLEDGE_FILE_EXTENSIONS = [
+  ".txt",
+  ".md",
+  ".csv",
+  ".json",
+  ".html",
+  ".htm",
+  ".pdf",
+  ".docx",
+  ...KNOWLEDGE_DOCUMENT_EXTENSIONS,
+] as const;
+
 function sourceKind(name: string, mime: string): SourceKind | null {
   const lower = name.toLowerCase();
   if (mime === PDF_MIME || lower.endsWith(".pdf")) {
@@ -248,7 +265,7 @@ function rawText(name: string, mime: string, bytes: Buffer, options: ExtractOpti
     default:
       throw new ApiError(
         "unsupported_content_type",
-        "That file type is not indexed. Try .txt, .md, .csv, .json, .html, .pdf, .docx, .pptx, .xlsx, .odt, .rtf or .epub.",
+        `That file type is not indexed. Try ${KNOWLEDGE_FILE_EXTENSIONS.join(" ")}.`,
         400,
       );
   }

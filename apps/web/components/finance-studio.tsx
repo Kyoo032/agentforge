@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { usePathname, useSearchParams } from "@/lib/nav";
 import { FinanceExportMenu } from "@/components/finance-export-menu";
 import { applyBriefDraft, briefDraftOf, briefInputsBody } from "@/components/finance-steps/brief";
-import { FinanceComingSoon } from "@/components/finance-steps/finance-coming-soon";
 import type { FinanceSource } from "@/components/finance-steps/finance-inputs-panel";
 import { FinancePhaseStrip } from "@/components/finance-steps/finance-phase-strip";
 import { FinancePromptBar } from "@/components/finance-steps/finance-prompt-bar";
@@ -43,7 +42,6 @@ import { useWorkspaceScope } from "@/lib/workspace-scope";
 import { getLocale, t } from "@/lib/i18n";
 import { labeled } from "@/lib/ui-copy";
 import { SettingsLinkHint } from "@/components/settings-link-hint";
-
 
 function needsSettingsHint(message: string): boolean {
   return /gateway|api key|settings|runtime_stub|live gateway/i.test(message);
@@ -364,7 +362,17 @@ export function FinanceStudio() {
           </div>
         </div>
       ) : (
-        <FinanceComingSoon task={task} locale={uiLocale} />
+        // The `available` flag is still the seam a task is added through: the core registry keeps
+        // it in step with the module map, and the host refuses a task without one. All five ship
+        // today, so this line is the fallback for the next task added to the catalog, not a screen
+        // anyone reaches — which is why it is one sentence rather than its own panel.
+        <p
+          className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-8 text-center text-[var(--text-2)]"
+          role="status"
+          data-testid="finance-task-unavailable"
+        >
+          {t("finance.taskUnavailable", { task: financeTaskLabel(task, uiLocale) })}
+        </p>
       )}
       {available ? (
         <FinancePromptBar
