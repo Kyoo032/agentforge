@@ -4,7 +4,7 @@ The host decides whether this desk may talk to the gateway and the renderer only
 
 ## Sub-features
 
-- `gate-onboarding` is the first-run / blocked screen: `onboarding-form`, `onboarding-endpoint` (read-only, "This endpoint is fixed and cannot be changed"), `onboarding-key`, `onboarding-continue`, and — only when the host reported a reason — `onboarding-gate-reason` plus `onboarding-recheck`. `onboarding-setup-check` appears when ffmpeg is missing.
+- `gate-onboarding` is the first-run / blocked screen: `onboarding-form`, `onboarding-gateway-host` (a muted one-line note, "Gateway: api.tokotokenai.com"), `onboarding-key`, `onboarding-continue`, and — only when the host reported a reason — `onboarding-gate-reason` plus `onboarding-recheck`. `onboarding-setup-check` appears when ffmpeg is missing. Since 2026-09-17 there is **no** `onboarding-endpoint` field: the endpoint is pinned host-side and hidden, so the screen has exactly one input, the key.
 - `gate-status-row` is `settings-gateway-status` on Settings: the status word, the last-checked timestamp, and `settings-gateway-recheck`.
 - `gate-grace` is `settings-gateway-grace`, shown only while `grace` is true: "Working offline with a key verified on {date}."
 - `gate-reason` is `settings-gateway-reason`, shown only for `invalid_key`, `unreachable` and `error` — the same three copy keys onboarding uses.
@@ -15,7 +15,7 @@ The host decides whether this desk may talk to the gateway and the renderer only
 
 ## How to get to it (user POV)
 
-- A desk with no key, or a key the gateway rejected, opens straight on the onboarding screen instead of Chat. There is no rail and no way past it except a key that validates or a re-check that succeeds.
+- A desk with no key, or a key the gateway rejected, opens straight on the onboarding screen instead of Chat — on **every** route, `/settings` included (`App.tsx` swaps the whole router, so `settings-form` has count 0 while the gate is closed). There is no rail, no Settings and no reset card; the only ways past are a key that validates, a re-check that succeeds, or deleting `gateway-gate.json` on disk.
 - A working desk reaches the gate through Rail → Settings (`settings-link`), where the status row sits under the gateway key block.
 - "Re-check" is the only user control that forces a fresh verdict.
 
@@ -27,13 +27,15 @@ Preconditions:
 - Use your own isolated desk (`AGENTFORGE_DATA_DIR` pointed at a throwaway dir). A re-check can turn a stale `ok` into `invalid_key`, which **closes the desk** — never do that to the operator's instance.
 - Never type into `onboarding-key` or `openai-key` on a desk you do not own, and never press anything in `settings-reset`.
 - Order matters: drive every other feature first. A re-check that fails leaves the desk on onboarding and blocks the rest of the run.
+- To see a **closed** gate at all, start your isolated instance with an explicit `AGENTFORGE_RUNTIME=ai` and no key saved (`PORT=<free> AGENTFORGE_RUNTIME=ai AGENTFORGE_DATA_DIR=<throwaway> node_modules/.bin/tsx server.ts` from `apps/web`). Both `.env` and `apps/web/.env.local` in this checkout pin `stub`, which opens the gate unconditionally. `needs_key` is then reachable with no key at all; `invalid_key` needs a key the gateway rejects — a deliberately bogus string on **your own** desk is enough, never the operator's key and never a real one.
 
 - **Status row.** Open Settings. `settings-gateway-status` is visible and reads one of "Key verified" / "No key saved" / "Key rejected by gateway" / "Gateway unreachable" / "Gateway error" / "Offline demo", followed by "Last checked <date>" and the Re-check button.
 - **Grace and reason.** `settings-gateway-grace` is present only when the payload says `grace: true`; `settings-gateway-reason` only for the three failure statuses. Absent is the correct state on a healthy desk — do not record it as a miss.
 - **Re-check.** Click `settings-gateway-recheck`, wait ~5s, and read the row again. The timestamp must move. On a desk whose key has since been revoked the row flips from "Key verified" to "Key rejected by gateway" and `settings-gateway-reason` appears.
-- **Gate closes.** With `allowed: false`, reload `/chat`: the page renders the onboarding screen instead (`onboarding-form`, `onboarding-endpoint`, `onboarding-gate-reason`, `onboarding-key`, `onboarding-continue`, `onboarding-recheck`) and the reason reads "The gateway rejected this API key. Check the key at Toko Token and try again."
-- **Blocked route.** A gateway-calling route answers `403 {"error":"gateway_blocked","status":"invalid_key","message":"…"}`. Read the body shape: `error` is a flat string, not `{ code, message }`.
-- **Open route.** `GET /api/v1/settings` still answers `200` with the gate closed. If it does not, the gate has stopped being recoverable and that is a product bug, not a recipe miss.
+- **Gate closes.** With `allowed: false`, reload `/chat`: the page renders the onboarding screen instead (`onboarding-form`, `onboarding-gateway-host`, `onboarding-gate-reason`, `onboarding-key`, `onboarding-continue`, `onboarding-recheck`). `onboarding-endpoint` has count 0 and no `<input>` on the screen has a value containing `tokotokenai`. The reason reads "The gateway rejected this API key. Check the key at Toko Token and try again."
+- **Blocked route.** `POST /api/v1/finance/parse` (or `runs/text`) answers `403` with a flat body. Driven 2026-09-17 on an isolated desk: no key → `{"error":"gateway_blocked","status":"needs_key","message":"No gateway key is saved on this machine."}`; after a rejected key → `{"error":"gateway_blocked","status":"invalid_key","message":"The gateway rejected the saved key. HTTP 401"}`. `error` is a flat string, not `{ code, message }`, and `status` follows the verdict.
+- **Not every route gates on entry.** `POST /api/v1/prompts/enhance` validates the body first (`empty_input` throws at `packages/host/src/handlers/enhance-prompt.ts:23`, while `requireGatewayAllowed` only runs at `:49`), so a probe with an empty prompt answers `400 empty_input` even on a fully closed desk. Use a route that gates first when you want to prove the 403.
+- **Open routes.** With the gate closed, all of these still answer `200`: `GET /api/v1/settings`, `/api/v1/threads`, `/api/v1/workspaces`, `/api/v1/usage`, `/api/v1/models`. If any of them starts answering 403 the gate has stopped being recoverable, and that is a product bug, not a recipe miss.
 - **Stub.** With `AGENTFORGE_RUNTIME=stub` the payload is `status: "stub", allowed: true` and nothing is gated, which is why Cloud and Playwright are unaffected.
 - **Evidence.** Screenshots of the status row before and after the re-check, the closed-gate onboarding screen, and the 403 body, under `evidence/gateway-gate/<run-id>/`.
 
@@ -46,4 +48,5 @@ Preconditions:
 - **`AGENTFORGE_RUNTIME=stub` opens the gate but does not force stub runtime.** On a desk with a key already saved, the payload reads `gateway.status: "stub", allowed: true` while `runtime` stays `"ai"` and sends still hit the live gateway. Observed on 2026-09-15. For a real stub drive use a data dir with no key saved.
 - **The English `message` never reaches the screen.** The renderer picks localized copy from `status` alone; `gateway.message` ("HTTP 401", "The gateway rejected the saved key.") exists only in the payload and the log. Assert the localized sentence, not the host's technical string.
 - **A 401 during a send is not the gate.** The gate is a cached verdict; a live 401 surfaces as ordinary gateway-failure copy in `chat-error` and `composer-error` (`packages/core/src/gateway-http-copy.ts`), in the desk language, with the status code in the headline. Both paths are real and they can disagree.
+- **`needs_key` shows no reason and no re-check.** `onboarding-gate-reason` and `onboarding-recheck` render only for `invalid_key` / `unreachable` / `error`; on a fresh keyless desk the screen is just the host line, the key field and Continue. Their absence there is the pass, not a miss.
 - **`allowed` is advisory and must stay that way.** It decides what the desk shows and which local handlers refuse. Seats, plan limits and spend are enforced server-side against the bearer. Anyone can delete one JSON file to get past this gate; a recipe that treats it as an entitlement proof is testing the wrong thing.

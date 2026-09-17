@@ -49,7 +49,7 @@ Preconditions:
 - Never put `AGENTFORGE_SECRETS_KEY` or the gateway key in the renderer or `NEXT_PUBLIC_*`.
 - Single-instance: a second launch focuses the existing window.
 - Cursor browser overlay can steal clicks; the Electron window itself is the primary proof surface for desktop.
-- **Uninstall:** NSIS `customUnInstall` taskkills `DPSBuddy.exe`, `RMDir` `%APPDATA%\DPSBuddy`, and `cmdkey /delete:DPSBuddy/wrap-key` — only when it is **not** an upgrade (`${isUpdated}`). Reinstall after uninstall must show onboarding. Running setup.exe while the app is open kills `DPSBuddy.exe` then overwrites the existing install.
+- **Uninstall:** NSIS `customUnInstall` taskkills `DPSBuddy.exe`, `RMDir` `%APPDATA%\DPSBuddy`, and `cmdkey /delete:DPSBuddy/wrap-key`. Only the `RMDir` + `cmdkey` block is gated on **not** an upgrade (`${ifNot} ${isUpdated}`, `apps/desktop/build/installer.nsh:26-32`); the `killRunningApp` taskkill at `:25` sits outside the guard and runs on every uninstall **and** every upgrade. Reinstall after uninstall must show onboarding. Running setup.exe while the app is open kills `DPSBuddy.exe` then overwrites the existing install.
 - **Upgrade:** same `appId` `com.tokotoken.agentforge`. Desk data and the wrap key stay. Do not treat a missing onboarding screen after upgrade as a fail.
 - **userData folder:** packaged `package.json` name used to be `@agentforge/desktop`, so Windows Electron wrote `%APPDATA%\@agentforge\desktop`. Product path is `%APPDATA%\DPSBuddy`. Doctor `--desktop` still falls back to the Windows scoped folder if that is all that exists.
 - Native rebuild: on Windows, `npx @electron/rebuild -f -w better-sqlite3 -w keytar` after install. Not a Cloud step.

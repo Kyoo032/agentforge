@@ -5,7 +5,7 @@ Settings can confirm which gateway key is saved without ever showing the raw sec
 ## Sub-features
 
 - `key-fingerprint` shows `Saved key fingerprint sha256:…` on Simple Settings (`data-testid="key-fingerprint"`) when `hasOpenai` and `openaiKeyFingerprint` are present. Hidden when no gateway key. Never put the prefix in the password input.
-- `privacy-note` already states HTTPS-only remote endpoints and that DPSBuddy does not log prompts. That is the TLS / retention note — do not add a second TLS banner.
+- `privacy-note` states HTTPS-only transport **to the named gateway host** ("… over HTTPS to api.tokotokenai.com", `{gatewayHost}` since 2026-09-17), that DPSBuddy does not log prompts, that keys and threads are encrypted on disk, and that retention is the gateway's policy. That is the TLS / retention note — do not add a second TLS banner, and do not read the host name in it as a leaked endpoint field.
 - At-rest seal is the existing AES-256-GCM envelope on `settings.enc` (`sealPayload` / `openPayload`). Do not claim new seal work from a fingerprint change.
 - Doctor prints `keyFingerprint: true` only when `hasOpenai` and `openaiKeyFingerprint` is a non-empty `sha256:` string; otherwise `false`. Missing key is not a doctor fail.
 
@@ -24,7 +24,7 @@ Preconditions:
 - Cloud / GHA force stub and have no key.
 
 - **Open Settings.** Click `settings-link` or go to `/settings`. `settings-form` is visible. Stay on this page.
-- **With a saved key** (`doctor.hasOpenai === true`). `key-fingerprint` is visible (10s). Its text starts with `Saved key fingerprint sha256:` (12 hex chars after the prefix). `openai-key` does not contain the fingerprint or the raw secret.
+- **With a saved key** (`doctor.hasOpenai === true`). `key-fingerprint` is visible (10s). Its text **contains** `sha256:` followed by 12 hex chars; the surrounding sentence is locale copy (`settings.fingerprint` — `apps/web/locales/en/settings.json:20`, `apps/web/locales/id/settings.json:20`), so match `/sha256:[0-9a-f]{12}/`, not the English words. `openai-key` does not contain the fingerprint or the raw secret.
 - **With no key** (`doctor.hasOpenai === false`). `key-fingerprint` count is 0. `privacy-note` is still visible. Doctor `keyFingerprint` is `false`.
 - **API.** `GET /api/v1/settings` may include `openaiKeyFingerprint` (and optional extra-provider fingerprints). The JSON must not contain the raw key. When no key, the fingerprint field is null / absent from the UI — not a leaked secret.
 - **IDE proof.** Screenshot under `evidence/security/<run-id>/` with Simple visible. If a key is saved, capture `key-fingerprint`. If not, capture the missing line plus `privacy-note`.

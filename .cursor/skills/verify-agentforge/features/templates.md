@@ -5,9 +5,9 @@ Example galleries on Images, Videos, Documents, Research, and Presentation load 
 ## Sub-features
 
 - `example-gallery` is the “Start from a template” region on each job-mode studio.
-- `example-card` is one clickable template (10 on Images, 6 on the other modes).
+- `example-card` is one clickable template (10 on Images, 6 on the other modes). On `/presentations` the gallery is `example-gallery` with **six** `example-card`s whose `data-example-id`s read `presentations-<slug>` (`apps/web/components/example-gallery.tsx:29-30`), backed by `packages/core/src/templates/library.ts:502-643` and localized through `presentation.templates.*`; `packages/core/src/templates/library.test.ts:18` pins that count at 6.
 - `example-result` shows that card’s `resultSummary` after selection.
-- `example-prefills-prompt` clicking a card fills the mode prompt with a multi-paragraph brief: `images-studio-prompt`, `videos-studio-prompt`, `documents-prompt`, `research-prompt`, or `presentations-prompt`.
+- `example-prefills-prompt` clicking a card fills the mode prompt with that card's full brief: `images-studio-prompt`, `videos-studio-prompt`, `documents-prompt`, `research-prompt`, or `presentations-prompt`. All five are single-line `<input type="text">`, so the library's line breaks are stripped — assert length (600–1600 chars; measured images 639, videos 420, documents 1337, research 678, presentations 1554) or a distinctive substring, never paragraph count: assert the text is present, not that it kept its paragraphs.
 
 ## How to get to it (user POV)
 
@@ -33,6 +33,9 @@ Preconditions:
 
 - Default already has job-mode tabs. Missing `mode-images` on Default is a fail. On a Legal desk it is expected — switch to Default or add the tab in Workspaces.
 - `images-studio-gallery` / `videos-studio-gallery` are generated-result galleries, not the example cards.
-- Documents / Presentations starters load a worked offline draft/outline. Template cards only prefill the prompt.
+- Documents / Presentations starters load a worked offline draft/outline. Template cards only prefill the prompt: `ExampleGallery`'s `onSelect` does nothing but `setPrompt(entry.prompt)` (`apps/web/components/documents-studio.tsx:191`), so a card can never produce `documents-preview` — only `documents-starter` and a live generate can.
 - Prefill targets the mode studio prompt, not Chat `composer-text`.
+- Card titles and `example-result` are localized on all five modes, but only `documents` and `presentation` have localized **prompts** in the catalogs; `images`, `videos` and `research` fall back to the English `TEMPLATE_LIBRARY` string (`apps/web/lib/ui-copy.ts:48`). So on an `id` desk the prefill is English on Images/Videos/Research and Indonesian on Documents/Presentations. Match a length or a mode-specific noun, not a fixed English sentence.
+- `/videos` carries **two** card grids: the template gallery (`example-card`, 6) and the generated video examples (`videos-example-card` / `videos-example-video` / `videos-example-use-<templateId>`, `apps/web/components/video-examples.tsx:97`, `:107`, `:125`). Say which one you mean.
+- The first click on `example-card` right after the studio paints can be swallowed on `/videos` and `/research` — the block above it finishes loading and moves the card. Assert `aria-pressed="true"` (or a non-empty prompt) and re-click once rather than treating the miss as a product fail.
 - Library copy is industry-neutral — no `student` / `course` / campus nouns in titles or prompts.

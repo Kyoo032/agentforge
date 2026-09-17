@@ -1,128 +1,247 @@
 # Map — Finance: parse and generate
 
-Last verified: 2026-09-15 at b9f931a
+Last verified: 2026-09-17 at 01ea70a (working tree)
 
 ## Overview
 
-A two-stage, two-model pipeline whose governing rule is that **a model never computes a number**. Stage one turns pasted free text into structured line items — a deterministic rewrite, one JSON-only model call, then two deterministic guards. Stage two computes every metric in TypeScript and asks a second model only to write prose *around* those numbers, then strips any figure the prose invented.
+Finance is a **task-based** mode: one set of routes, five named tasks behind them, and one governing rule — **a model never computes a number**. The rail picks the task, the URL carries it (`/finance?task=<id>`), the studio puts it on every request body, and the host validates it at the boundary.
 
-The two stages are separate HTTP calls with a human confirmation between them. The user reviews and edits the parsed rows before anything is computed.
+This page is the spine every task shares: the surface, the two gates, how pasted text and uploaded files become confirmed rows, the deterministic compute → narrate → guard → persist chain, the exports, and the failure modes. The five tasks themselves — their ids, phases, module contract and the generic runner — are [`finance-tasks.md`](finance-tasks.md).
+
+What Finance is not: a spreadsheet, and not a keyless preview. Every generating route needs a live gateway; only the two file-rendering routes (`/finance/export`, `/finance/docx`) and the file reader (`/finance/import`) work without one.
 
 ## How it works
 
-### Stage 1 — parse
+### 1. The task is the URL's
 
-**Entry.** `FinanceStudio` (`apps/web/components/finance-studio.tsx:46`) checks the brief with `briefLooksLikeFigures` (`apps/web/lib/finance-brief.ts:11`) to decide whether to auto-call parse, then `parseFigures()` (`apps/web/lib/finance-client.ts:79`) POSTs `/api/v1/finance/parse` → `handlePostFinanceParse` (`packages/host/src/handlers/finance.ts:38`) → `parseFinanceFigures` (`packages/host/src/finance-generate.ts:124`).
+`RailFinanceTasks` (`apps/web/components/rail-finance-tasks.tsx:52`) draws one row per `FINANCE_TASKS` entry (`packages/core/src/finance/task-ids.ts:12` — `brief`, `cashflow`, `budget`, `appraisal`, `ratios`), each linking `financeTaskHref(id)` = `/finance?task=<id>` (`apps/web/lib/finance-task.ts:55-57`). The chevron is `finance-tasks-toggle` (`rail-finance-tasks.tsx:39`), the submenu `rail-finance-tasks` (`:69`) with `rail-finance-tasks-branch` (`:70`) and one `finance-task-<id>` row (`:71`).
 
-**`expandMagnitudes`** (`packages/host/src/finance-generate.ts:135`, implementation `packages/core/src/finance/magnitude.ts:102`) rewrites magnitude words into plain integers **before the model ever sees them**, capped at `FIGURES_TEXT_MAX = 12_000` chars (`packages/host/src/finance-generate.ts:43`). It handles English and Indonesian suffixes (`rb`, `juta`, `jt`, `miliar`, `triliun`, `K`, `M`, `B`, `T`), grouped-digit locale parsing and negative signs, and rounds mantissa × multiplier with `Math.round` (`packages/core/src/finance/magnitude.ts:88`). **`M` is decided by the run locale**: a million in English, `miliar` (1e9) in Indonesian (`:65-73`).
+`taskFromParam` (`apps/web/lib/finance-task.ts:50-52`) resolves an absent or unknown `?task=` to `DEFAULT_FINANCE_TASK = "brief"` (`packages/core/src/finance/task-ids.ts:16`) — **no error**. The studio keeps the last task seen on `/finance` while it is mounted behind another mode (`apps/web/components/finance-studio.tsx:67-70`).
 
-**The model call.** The expanded text goes out with `PARSE_SYSTEM` (`packages/host/src/finance-generate.ts:45-53`) through `collectJobAssistantText` (`packages/host/src/job-regen.ts:66`) with `jobMode: "finance"`. The reply is JSON-parsed after stripping fenced code (`:148`); a parse failure is `ApiError("invalid_finance", …, 502)` (`:150`).
+On the host, `readFinanceTask` does the same fallback (`packages/host/src/finance-task.ts:23-29`) and `requireFinanceTask` (`:55-61`) throws `finance_task_unavailable` 400 for a task whose `available` flag is false. **Today all five are `available: true`** (`packages/core/src/finance/tasks.ts:72`, `:98`, `:125`, `:151`, `:177`), so that 400 and the studio's coming-soon panel are both currently unreachable.
 
-**Two deterministic guards, in this order** (`packages/host/src/finance-generate.ts:154`):
+### 2. The surface
 
-```ts
-const items = looksScaled(source, dropCountRows(parseLineItems(parsed)), locale);
-```
+`FinanceStudio` (`apps/web/components/finance-studio.tsx:52`) is a shell that owns state and the job; the steps belong to the task. It renders, on every task:
 
-- `parseLineItems` (`packages/core/src/finance/line-items.ts:74`) validates each row through `lineItemSchema` and **drops** bad rows rather than repairing them. Cap `LINE_ITEMS_MAX = 500` (`:5`).
-- `dropCountRows` (`packages/core/src/finance/count-rows.ts:54`) removes rows that are counts, not money — "12 outlets" goes, "units sold 12000 IDR" stays because it carries a currency, and anything at or above `COUNT_ROW_MAX_AMOUNT = 1000` (`:23`) is assumed to be money whatever it is labelled.
-- `looksScaled` (`packages/core/src/finance/magnitude.ts:125`) re-scales a mantissa the model dropped, checking `MAGNITUDE_EXPONENTS = [3, 6, 9, 12]` (`:41`). It must be given the **raw** user text, not the expanded copy — the suffixes are the evidence (`:124`), and `packages/host/src/finance-generate.ts:154` correctly passes `source`.
+- `finance-studio` (`:273`), `finance-task-current` (`:280`), `finance-task-hint` (`:283`);
+- `FinancePhaseStrip` over `financeTaskPhases(task)` (`:304`) — `finance-phase-strip` (`apps/web/components/finance-steps/finance-phase-strip.tsx:28`) with one `finance-phase-<id>` (`:34`);
+- the task's own inputs, from the step registry: `financeStepsFor(task)` (`apps/web/components/finance-steps/registry.tsx:29-31`), `StepInputs` at `finance-studio.tsx:324`;
+- `finance-studio-empty` (`:359`) until a result exists, then `FinanceResultNotices` (`:344`) plus the task's `StepResult` (`:345`, default `FinanceResultPanel`, `:155`);
+- `FinancePromptBar` (`:370`) — `finance-studio-prompt-bar` (`apps/web/components/finance-steps/finance-prompt-bar.tsx:40`), `finance-enhance` (`:48`), `finance-studio-model` (`:51`), `finance-prompt` (`:60`, an `<input>`), `finance-cancel` (`:63`, only while running), `finance-generate` (`:71`, `type="submit"` in the form at `:37`);
+- `finance-export` / `finance-export-toggle` (`apps/web/components/finance-export-menu.tsx:104`, `:116`) — but only when `result && available` (`finance-studio.tsx:290`).
 
-Zero surviving items is `ApiError("invalid_finance", modeMessage("noFiguresParsed", locale), 422)` (`:156`). Otherwise the response is `{ items, needsConfirmation: true }` and **nothing has been computed yet**.
+`finance-generate` is disabled on `locked || !prompt.trim()` (`finance-prompt-bar.tsx:70`) — **pasted figures never enable it**, only the brief does.
 
-### Stage 2 — compute, then narrate
+Drafts are per desk **and per task**: key `agentforge-finance-draft:<scope>:<task>` (`apps/web/lib/finance-drafts.ts:18`, `:40`), capped at `FINANCE_DRAFT_MAX_CHARS = 12_000` (`:24`), `localStorage` with an in-memory fallback. Switching task swaps the whole draft and clears items, prose, facts, params, source and result (`finance-studio.tsx:121-138`).
 
-The confirmed items (or a `datasetId`) POST to `/api/v1/finance` or `/finance/stream` → `generateFinanceBrief` (`packages/host/src/finance-generate.ts:200`).
+### 3. Routes and the two gates
 
-**`computeFinance(items, params)`** (`packages/core/src/finance/metrics.ts:209`) is pure TypeScript. It is **not** a formal three-statement model — it is a flat metric list plus two tables, derived per category and per period:
+Seven routes, all `POST` (`packages/host/src/router.ts:216-222`):
 
-| Group | Contents | Line |
-|---|---|---|
-| `periodMetrics` | revenue, gross profit and margin (needs `cogs`), net profit and margin (needs `opex`), revenue growth | `packages/core/src/finance/metrics.ts:46` |
-| `cashMetrics` | cash on hand, net burn per period, runway in months (only when burn > 0) | `:102` |
-| `ratioMetrics` | current ratio, debt-to-equity | `:119` |
-| `paramMetrics` | breakeven units and revenue, NPV and IRR | `:136` |
-| tables | `lineItemTable` (all rows), `totalsTable` (category totals by period, only with ≥ 2 periods) | `:188-206` |
-| `allowed` | **every number the narrative is permitted to cite** — item amounts, non-null metric values, period totals, table subtotals, numeric params | `:223-229` |
+| Route | Handler | Gate | Live runtime |
+|---|---|---|---|
+| `/api/v1/finance` | `handlePostFinance` (`packages/host/src/handlers/finance.ts:14`) | yes (`:18`) | yes |
+| `/api/v1/finance/stream` | `handlePostFinanceStream` (`:29`) | yes (`:33`) | yes |
+| `/api/v1/finance/parse` | `handlePostFinanceParse` (`:49`) | yes (`:53`) | yes |
+| `/api/v1/finance/regenerate` | `handlePostFinanceRegen` (`:61`) | yes (`:65`) | yes |
+| `/api/v1/finance/docx` | `handlePostFinanceDocx` (`:73`) | **no** | no |
+| `/api/v1/finance/export` | `handlePostFinanceExport` (`packages/host/src/handlers/finance-export.ts:116`) | **no** | no |
+| `/api/v1/finance/import` | `handlePostFinanceImport` (`packages/host/src/handlers/finance-import.ts:285`) | **no** | no |
 
-Currency is simply the first non-empty `item.currency` (`:42`); there is no conversion. Display rounds to 4 decimals (`formatCellNumber`, `packages/core/src/artifacts/markdown-table.ts:7-15`), and so does the prompt-facing `formatMetricForPrompt` (`packages/core/src/finance/metrics.ts:236-245`).
+**Gate first.** `requireGatewayAllowed(loadSettings(tenant.workspaceId))` runs at the top of the four gateway-bound handlers; a closed gate is `403 gateway_blocked` before any work — see [`settings-and-gateway-gate.md`](settings-and-gateway-gate.md). `requireFinanceTask` runs immediately after, so a bad `task` is a 400 before the model is reached.
 
-**The narrative call** (`packages/host/src/finance-generate.ts:223-238`) sends `BRIEF_SYSTEM` (`:55-68`) wrapped in `withOutputLanguage(BRIEF_SYSTEM, "finance", localeForRun())`. The prompt body, built by `financePromptBlock` (`packages/host/src/finance-brief-build.ts:137`), shows line items and computed metrics **only as Markdown tables** — never as loose prose numbers.
+**Then liveness.** `requireLive` (`packages/host/src/finance-tasks/live.ts:50-60`) resolves the runtime from the saved key and `AGENTFORGE_RUNTIME` and throws `ApiError("runtime_stub", gatewayRequiredMessage("finance", localeForRun()), 503)` on `stub`. Finance has no stub path.
 
-**The number guard.** `buildFinanceBrief(parseBriefDraft(raw), computed)` (`packages/host/src/finance-brief-build.ts:118`, `:64`) runs every section body through `guardNumbers` (`packages/core/src/finance/number-guard.ts:150`), which replaces any figure that does not trace to `computed.allowed` with the literal `[unverified figure]` (`UNVERIFIED_MARKER`, `:12`). Tolerances: relative `0.005`, absolute `0.5`, small-absolute `0.0500001` (`:7-10`); integers ≤ `FREE_INTEGER_MAX = 12` and years in `1900..2100` pass without matching anything (`:15-17`, `:123-129`). An invented figure is **not an error** — it is silently marked, and counted into the `guard.total` progress event (`packages/host/src/finance-generate.ts:246-250`).
+The refusal reaches the client in two shapes, because `/finance/stream` has already sent its headers: `/parse`, `/finance` and `/regenerate` answer a real HTTP **503**; `/finance/stream` answers HTTP **200**, `text/event-stream`, with one `event: job.error` frame carrying `status: 503`. `streamJob` (`packages/host/src/job-stream.ts:30`) builds it through `jobErrorFromUnknown` (`:8-14`, `:85` returns `status: 200`); `useJobStream` puts it in `job.error` and the studio renders `error = localError ?? job.error?.message ?? null` (`finance-studio.tsx:92`) in `finance-error` (`:307`). **The status on the wire is not the status the user sees.**
 
-The brief is serialized by `financeBriefToMarkdown` (`packages/core/src/artifacts/finance-brief.ts:71`) and persisted as an artifact.
+### 4. Getting figures in — three doors
 
-### Model, thinking and watchdog
+**Paste.** `finance-figures-input` (`apps/web/components/finance-steps/finance-inputs-panel.tsx:80`) plus `finance-parse` (`:87`), which calls `onParse()` (`finance-studio.tsx:173`) → `parseFinanceFigures` (`apps/web/lib/finance-client.ts:143`) → `POST /api/v1/finance/parse`.
 
-**Default model.** `JOB_MODE_PREFERENCES.finance = ["hy3", "hy-3", "hunyuan-3", "deepseek-v4-flash"]` (`packages/core/src/models/mode-defaults.ts:50`). None of the `hy3` ids are in this gateway's catalog (comment at `:29-34`), so Finance resolves to the fallback `EFFECTIVE_JOB_MODEL = "deepseek-v4-flash"` (`:36`). The preference list is effectively dead weight today.
+**Upload.** `FinanceFileUpload` sits between the parse button and the dataset picker (`finance-inputs-panel.tsx:94-97`) on every task: `finance-upload` (`apps/web/components/finance-file-upload.tsx:164`), `-input` (`:174`), `-drop` (`:183`), `-error` (`:192`), `-sheet` (`:210`, only for a multi-sheet file), `-preview` (`:44`), `-warnings` (`:91`), `-pii` (`:101`), `-use` (`:231`), `-remove` (`:235`). `finance-upload-use` writes text into `finance-figures-input` through `mergeFigures` (`finance-inputs-panel.tsx:95`) — it **appends on a new line** and never becomes a line item on its own.
 
-**Thinking.** Both Finance calls carry `jobMode: "finance"`, so `applyJobThinking` (`packages/core/src/models/job-thinking.ts:49-58`) merges `{ reasoning_effort: "low" }` — and nothing else — for the quiet-thinking families `^deepseek-v4`, `^glm-5\.3`, `^kimi-k3`, `^qwen3\.8-max` (`:19-29`), applied at `packages/core/src/runtime/ai-sdk-runtime.ts:272`. Chat is untouched; see [`chat-send.md`](chat-send.md).
+**Saved dataset.** `finance-dataset` (`finance-inputs-panel.tsx:112`), rendered only when `listDatasets()` returned rows (`:99`). Brief only.
 
-**Watchdog.** Because `deepseek-v4-flash` matches `QUIET_REASONING_FAMILY` (`packages/core/src/runtime/stream-watchdog.ts:40`), a Finance call gets the long budgets: `STREAM_REASONING_TTFB_MS = 240_000` and `STREAM_REASONING_IDLE_MS = 180_000` (`:11`, `:9`), not the 120 s / 60 s pair. Finance passes no `streamWatchdog` override, so the model defaults apply as-is.
+#### The import path
+
+`POST /api/v1/finance/import` takes **multipart** (`packages/host/src/handlers/finance-import.ts:84`, field `file`) and a sheet through `?sheet=` or a JSON body (`:108-112`). Accepted: `.csv`, `.xlsx`, `.xls` (`packages/core/src/finance/import-table/limits.ts:23`) plus `.pdf`, `.docx`, `.pptx` (`finance-import.ts:43`, all six at `:49-52`). Client mirror: `FINANCE_IMPORT_ACCEPT` (`apps/web/lib/finance-import-client.ts:36`).
+
+Order in `requireImportFile` (`finance-import.ts:83-106`): empty → 400; over `FINANCE_IMPORT_MAX_BYTES = 25_000_000` (`limits.ts:11`) → **413**; unknown extension → `unsupported_content_type` 400; magic bytes checked for the spreadsheet extensions (`:70-79`, `:104`) — a `.csv` that is really a workbook is refused.
+
+Documents go through `extractFile` (`:211`, `packages/host/src/file-extract/index.ts:171`): each markdown table becomes a selectable sheet (`finance-import.ts:150-156`), the prose is kept separately and capped at `FINANCE_FIGURES_TEXT_MAX` (`:159-169`). Spreadsheets go through `readFinanceTable` (`packages/core/src/finance/import-table/read.ts:190`), with `FINANCE_IMPORT_MAX_SHEETS = 30`, `MAX_ROWS = 5_000`, `MAX_COLS = 100`, `MAX_CELL_CHARS = 160` (`limits.ts:13-21`).
+
+A sheet becomes figures text in code (`financeFiguresFromSheet`, `packages/core/src/finance/import-table/text.ts:241`): header detection (`layout.ts:66`), period columns (`periods.ts:94`), locale-voted number style (`numbers.ts:147`), ledger/long-format folding (`long-format.ts:119`), register rows (`register-text.ts:178`), subtotal rows tagged `[subtotal]` (`block-rows.ts:15`). Warnings actually produced: `dropped_rows`, `dropped_columns`, `direction_mismatch`, `compacted`, `truncated`, `pii_amount_restored`; the client maps them to copy in `apps/web/lib/finance-import-warnings.ts:21-29`.
+
+Finally `requireNoInjection` (`finance-import.ts:133-137`) scans the filename and the extracted text and answers `injection_blocked` 400.
+
+### 5. Stage 1 — parse: code reads the figures, the model only names things
+
+`handlePostFinanceParse` dispatches on the task: `financeTaskParser(task)` (`packages/host/src/finance-tasks/parsers.ts:27-30`) picks one of five hooks, with the brief's as the fallback. The brief's is `parseFinanceFigures` (`packages/host/src/finance-generate.ts:85`).
+
+The brief's read, in order:
+
+1. **Redact first** — `guardFinanceInput({ figuresText })` (`finance-generate.ts:94`), and the document's prose separately (`:97`). The redacted copy is the only copy that travels.
+2. **Expand magnitudes** — `expandMagnitudes(text, locale)` (`packages/core/src/finance/magnitude.ts:102`) rewrites `18.4B`, `5jt`, `3 miliar`, `900k` to plain integers before any model sees them. `M` is locale-decided: a million in `en`, `miliar` (1e9) in `id` (`:68-73`). Lowercase `m`, `b`, `t` are deliberately not suffixes (`:11-17`).
+3. **Table first** — `parseFiguresTable` (`packages/host/src/finance-parse-figures.ts:221`) reads the rows deterministically via `readFiguresText` and `lineItemsFromRows`. The model is asked **one** question it is better at: what category does this *label* belong to (`CATEGORY_SYSTEM`, `:62-69`; `askForCategories`, `:148`). It is given labels and ids, never amounts, and answers are matched back by id. Skipped entirely above `CATEGORY_BATCH_MAX = 120` unplaced labels (`:46`, `:233`).
+4. **Prose fallback** — only text with no readable table reaches `parseFiguresProse` (`:242`) and `PARSE_SYSTEM` (`:50-60`), capped at `FIGURES_TEXT_MAX = 12_000` (`:44`). Its answer is then re-guarded in code: `looksScaled(rawText, dropCountRows(parseLineItems(...)), locale)` (`:252`) — `parseLineItems` drops invalid rows (`packages/core/src/finance/line-items.ts:74`, cap `LINE_ITEMS_MAX = 500` at `:5`), `dropCountRows` removes currency-free whole numbers under `COUNT_ROW_MAX_AMOUNT = 1000` next to a countable noun (`packages/core/src/finance/count-rows.ts:98`, `:87`, `:43`), and `looksScaled` re-scales a mantissa the model dropped (`magnitude.ts:125`, exponents at `:41`). Zero surviving items is `422 invalid_finance` (`finance-parse-figures.ts:254-256`).
+5. **Stated facts** — figures a document writes in a sentence (a headcount, a ratio, a dividend) come back as `proseFacts`, named by a labels-only model pass (`FACT_LABEL_SYSTEM`, `:71-77`; skipped above `FACT_BATCH_MAX = 60`, `:48`, `:169`). They are quotations, not inputs: see §6.
+
+The answer is `{ items, derived, statedFacts, proseFacts, needsConfirmation: true, source: "table" | "prose", pii, model? }` (`:79-95`). **Nothing has been computed yet.**
+
+Client-side, pressing `finance-generate` with a brief, no rows and no dataset runs `briefLooksLikeFigures` (`apps/web/lib/finance-brief.ts:11`) and, if true, `autoParseBrief` (`finance-studio.tsx:194`) — which parses **and returns** (`:224-225`). `finance-auto-parsed` (`:318`) shows the count; the owner presses Generate a second time.
+
+### 6. Stage 2 — compute in code, then narrate around it
+
+`generateFinanceBrief` (`packages/host/src/finance-generate.ts:143`) reads the task and hands anything that is not the brief to the generic runner (`:151-157`) — see [`finance-tasks.md`](finance-tasks.md). The brief keeps the path below.
+
+- **`resolveInputs`** (`:105-119`): confirmed `items` through `readFinanceInputs` (`packages/host/src/finance-brief-build.ts:42`, params filtered to `FINANCE_PARAM_KEYS` at `:15`); else a `datasetId` through `lineItemsFromTable` (`packages/core/src/finance/line-items.ts:41`), 400 when no numeric column; else 400 "items are required".
+- **Redact the rows** — `guardFinanceInput({ lineItems })` (`finance-generate.ts:172`) before the prompt table is written; the summary is merged with the source text's (`:174`).
+- **`computeFinance(items, params, { locale })`** (`packages/core/src/finance/metrics.ts:296`) is pure TypeScript: the per-period profit ladder, fiscal-year roll-ups, register metrics, trend and burn metrics, ratios, breakeven, NPV/IRR (`:324-338`), the tables (`:343-348`), the **`allowed`** list — every number the narrative may cite (`:349-354`) — and `checks`, the subtotals the source printed with our own arithmetic beside them (`:339`, type at `:24-30`).
+- **Stated facts** are added on top by `withStatedFacts` (`packages/host/src/finance-stated.ts:65`): a table plus entries in `allowed`, and `metrics` is deliberately untouched (`:84-87`) — a quotation is not something we computed.
+- **The narrative call** (`finance-generate.ts:191-203`) sends `BRIEF_SYSTEM` (`:47-60`) through `withFinanceTaskRules` and `withOutputLanguage` (`:187`), with a prompt body of `financePromptBlock` (`packages/host/src/finance-brief-build.ts:201`) plus `statedFactsBlock` — **Markdown tables only**, never loose prose numbers. An empty reply is `502 generation_failed` (`:204-206`).
+- **Guard, then repair** — `buildFinanceBrief(parseBriefDraft(run.text), computed)` (`:210`) runs every body through `guardSection` → `guardNumbers`, then `repairUnverifiedSections` (`:212`) asks for **one** rewrite of each marked section and finally strips the sentences that still do not trace. The marker never ships.
+
+Four `job.phase` frames bracket the work — `computing`, `drafting`, `verifying`, `saving` (`:169`, `:186`, `:209`, `:232`) — with `throwIfJobAborted` before each. They drive `finance-progress` (`finance-studio.tsx:338`; testids `finance-progress`, `-round`, `-phase`, `-sources` in `apps/web/components/job-progress.tsx:30`, `:35`, `:44`, `:60`). **None are emitted on a keyless run**, because `requireLive` throws at `:159`.
+
+### 7. The number guard
+
+`guardNumbers(text, allowed)` (`packages/core/src/finance/number-guard.ts:163`) replaces any figure that does not trace to `allowed` with `UNVERIFIED_MARKER = "[unverified figure]"` (`:12`). Tolerances: relative `0.005`, absolute `0.5`, small-absolute `0.0500001` (`:7-10`) with the small band under `SMALL_FIGURE_MAX = 100` (`:11`); integers ≤ `FREE_INTEGER_MAX = 12` (`:15`) and years in `1900..2100` (`:16-17`) pass freely. `guardSection` also drops any metric key the section claimed that `computed` does not publish (`packages/host/src/finance-brief-build.ts:100`).
+
+A marked figure is **not an error**: it is counted into `guard.total`, one rewrite is attempted, and the remaining marked sentences are removed (`packages/host/src/finance-section-repair.ts:38`, `:98`). The reader is told once, through the report's `REMOVED_SENTENCE_FLAG` (`packages/core/src/finance/report-brief.ts:78`).
+
+### 8. Privacy: what leaves the desk
+
+`packages/host/src/finance-privacy.ts:10-17` states the three rules: redaction is always on (there is no bypass — `injectionGuardBypass` turns off the injection guard and nothing else), the redacted copy is the only copy that travels, and a hit is never logged in the clear.
+
+Classification is **header-based** (`packages/core/src/finance/pii-columns.ts:64-88`): NIK → NPWP → amount veto → email → phone → name → account. A `name` column is replaced by a stable pseudonym `Karyawan N` (`:14`, `pii-scan.ts:97`); every other kind is masked (`[nik]`, `[phone]`, …). A cell that parses as an amount is never rewritten (`pii-scan.ts:91`), and a subtotal label like "TOTAL GAJI" is exempt from pseudonymising (`:94-96`).
+
+The last line of defence is `restoreFinanceAmounts` (`finance-privacy.ts:92-110`): any cell the importer read as a number before redaction and not after is **put back**, unless its column was positively identified. It exists because `(23.960.000.000)` under a column headed `2024` once reached the model as `[phone])` (`:88-90`). The count comes back as the `pii_amount_restored` warning (`:113-124`); the studio shows `finance-upload-pii` and `finance-result-pii` (`apps/web/components/finance-steps/finance-result-notices.tsx:21`).
+
+The file reader never opens a socket: `packages/host/src/file-extract/anydoc.ts:4-9` records that `toMarkdownBytes` is called with exactly two arguments so hosted OCR cannot be reached, and `no-hosted-ocr.test.ts` pins repo-wide that no source file carries both `anydoc` and an `ocr:` option, and that `FIRECRAWL_API` appears nowhere. A scanned PDF is refused locally as `needs_ocr` (`packages/host/src/file-extract/errors.ts:52`).
+
+One exception worth knowing: the budget task's pairing may send **line labels only** to the gateway embedder (`packages/host/src/finance-tasks/budget-embed.ts:1-18`, cap `BUDGET_EMBED_LABEL_MAX = 200` at `:26`). No amount, period, scenario or filename goes with them, and a stub answer is discarded rather than scored.
+
+### 9. Locale
+
+The studio sends the locale on the request; `readFinanceLocale` (`packages/host/src/finance-locale.ts:15-18`) reads it and falls back to `localeForRun()`, never to English. That one value drives the magnitude rewrite, the prompt block, `withOutputLanguage`, the report and the export. Reading the boot locale instead is how an Indonesian sheet came back as an English brief (`:5-7`).
+
+### 10. Persist, artifact meta, knowledge card
+
+`persistBrief` (`finance-generate.ts:121-141`) saves `mode: "finance"`, `kind: "brief"`; a failure is a `console.warn` and a null id, never a failed run. `financeArtifactMeta` (`packages/host/src/finance-artifact.ts:35`) puts the brief JSON and the guard summary on `meta` beside the provenance (`question`, `model`, `task`, `itemCount`, `flagged`), unless the JSON exceeds `FINANCE_META_MAX_BYTES = 256 * 1024` (`:19`), in which case it is dropped with a warning. When an id came back the brief is also written to the Knowledge Base as a work card (`finance-generate.ts:246-258`) — see [`knowledge-ingest-loop.md`](knowledge-ingest-loop.md).
+
+**Section regen now carries the artifact id back.** `readRegenArtifactId` (`:278-281`) reads it off the body and `regenerateFinanceSection` returns it (`:355`, `:371`), so "Send to Knowledge Base" after a rewrite updates the same card instead of minting a second one (`:271-277`).
+
+### 11. The report, the charts and the exports
+
+Every export and every on-screen chart reads one format-neutral object, `FinanceReport` (`packages/core/src/finance/report.ts:75`): `summary` KPIs, `tables` (`inputs` at `:24`, `calc` at `:26`, then the computed ones), `charts`, `flags`, `notes`. Two builders make one from a brief: `financeReportFromBrief` (`packages/core/src/finance/report-brief.ts:242`) and, for a brief that only exists as markdown, `financeReportFromMarkdown` (`:296` — notes only, no tables, no charts). A task builds its own.
+
+`FinanceResultPanel` (`apps/web/components/finance-steps/finance-result-panel.tsx:43-46`) uses `result.report` when the host sent one and otherwise builds it from the brief, then draws it through `FinanceReportCharts` — `finance-charts` (`apps/web/components/finance-charts/index.tsx:35`), `finance-charts-empty` (`:29`), one `finance-chart-<id>` per chart (`chart-frame.tsx:47`) — above the prose.
+
+`POST /api/v1/finance/export` (`packages/host/src/handlers/finance-export.ts:116`) resolves what to render in this order (`:89-110`): a posted `report`, else a posted `brief`/`result.brief`, else an `artifactId` — and for an artifact, the **stored report** first (`readStoredFinanceReport`, `packages/host/src/finance-tasks/persist.ts:66`), then the stored brief (`readStoredFinanceBrief`, `finance-artifact.ts:55`), then the markdown. A posted report is untrusted input: size-capped at `FINANCE_REPORT_MAX_BYTES = 256 * 1024` (`packages/host/src/finance-tasks/report-schema.ts:14`, 413 at `:74-76`) and shaped by `financeReportSchema` (`:59`) whose cells are primitives only.
+
+The registry renders it (`packages/host/src/renderers/registry.ts:22-28`): `xlsx` (the default, `:10`), `pptx`, `docx`, `md`, and `pdf`, which throws `501 format_unavailable` on purpose (`:12-20`). Mimes are in `packages/host/src/renderers/types.ts:32`. The picker offers only three (`FINANCE_EXPORT_FORMATS = ["xlsx","pptx","docx"]`, `apps/web/lib/finance-export.ts:15`), remembering the choice per desk under `agentforge-finance-export-format:<scope>` (`:22`, `:45-48`).
+
+`POST /api/v1/finance/docx` survives as the older alias (`router.ts:220`) and nothing in the UI calls it.
 
 ### Failure modes
 
-| Case | Result |
-|---|---|
-| Brief has no figures | `briefLooksLikeFigures` declines to auto-parse client-side |
-| Model returns non-JSON at parse | 502 `invalid_finance` (`packages/host/src/finance-generate.ts:150`) |
-| Every row invalid or dropped | 422 `invalid_finance` with `modeMessage("noFiguresParsed")` (`:156`) |
-| Narrative model returns non-JSON | 502 `invalid_finance` (`packages/host/src/finance-brief-build.ts:69`) |
-| Narrative returns zero sections | 502 `invalid_finance` (`:78`) |
-| Narrative returns empty text | 502 `generation_failed` (`packages/host/src/finance-generate.ts:240`) |
-| Narrative invents a number | silently replaced with `[unverified figure]`, counted in `guard.total` |
-| Stall | the shared watchdog aborts, surfaced as `run.failed` → `collectJobAssistantText` throws 502 `generation_failed` (`packages/host/src/job-regen.ts:140-141`) |
+| Case | Where | Result |
+|---|---|---|
+| Gate closed | `requireGatewayAllowed`, `packages/host/src/handlers/finance.ts:18, 33, 53, 65` | 403 `gateway_blocked`; export/docx/import are not gated |
+| Task not built | `requireFinanceTask`, `packages/host/src/finance-task.ts:55-61` | 400 `finance_task_unavailable` — unreachable today, all five ship |
+| No key / stub runtime | `requireLive`, `packages/host/src/finance-tasks/live.ts:50-59` | `/parse`, `/finance`, `/regenerate`: **503** `runtime_stub`. `/finance/stream`: **200** with one `job.error` frame carrying `status: 503` |
+| Brief has no digit and no currency token | `briefLooksLikeFigures`, `apps/web/lib/finance-brief.ts:11` | no request at all; `finance-error` shows `finance.errors.addItems` (`finance-studio.tsx:228`) |
+| Figures text missing or blank | `packages/host/src/finance-generate.ts:86-89` | 400 `invalid_request` |
+| Model returns non-JSON at parse | `packages/host/src/finance-parse-figures.ts:104-110` | 502 `invalid_finance` |
+| Every prose row invalid or dropped | `:254-256` | 422 `invalid_finance`, `modeMessage("noFiguresParsed")`; the client appends the add-items hint (`apps/web/lib/finance-brief.ts:42-46`) |
+| `items` malformed | `readFinanceInputs`, `packages/host/src/finance-brief-build.ts:42` | 400 `invalid_request` |
+| Dataset has no numeric column | `packages/host/src/finance-generate.ts:112-115` | 400 `invalid_request` |
+| Neither items nor dataset | `:118` | 400 `invalid_request` |
+| Prompt missing | `readPrompt`, `packages/host/src/finance-tasks/live.ts:22-31` | 400 `invalid_request` |
+| Narrative returns empty text | `packages/host/src/finance-generate.ts:204-206` | 502 `generation_failed` |
+| `sectionIndex` out of range | `readSectionIndex`, `:283-289` | 400 `invalid_request` |
+| Narrative invents a number | `guardNumbers` → one rewrite → sentence removal | marked, counted in `guard.total`, then removed; never shown to the reader |
+| Upload empty / oversized / wrong type | `requireImportFile`, `packages/host/src/handlers/finance-import.ts:88-104` | 400, **413**, `unsupported_content_type` 400 |
+| Scanned PDF | `packages/host/src/file-extract/errors.ts:52` | 400 `needs_ocr`, nothing sent anywhere |
+| Upload carries prompt-injection text | `requireNoInjection`, `finance-import.ts:133-137` | 400 `injection_blocked` |
+| Posted report oversized / malformed | `readPostedFinanceReport`, `packages/host/src/finance-tasks/report-schema.ts:74-80` | **413** / 400 `invalid_request` |
+| `pdf` export | `packages/host/src/renderers/registry.ts:18-20` | 501 `format_unavailable` |
+| Artifact could not be saved | `persistBrief`, `packages/host/src/finance-generate.ts:136-140` | `console.warn`, `artifactId: null`, run still succeeds |
+| Client cancels | `throwIfJobAborted`, `packages/host/src/job-stream.ts:19` | 499 `aborted`; `useJobStream` resets quietly |
+| DOCX brief malformed | `packages/host/src/handlers/finance.ts:76-78` | 400 `invalid_request` — reachable **without** a key |
 
 ## Where things live
 
 | File | Role |
 |---|---|
-| `packages/host/src/handlers/finance.ts` | Routes: parse, generate, stream, regenerate, docx (`packages/host/src/router.ts:214-218`) |
-| `packages/host/src/finance-generate.ts` | Orchestration and both system prompts |
-| `packages/host/src/finance-brief-build.ts` | Draft parsing, `guardSection` / `buildFinanceBrief`, `financePromptBlock` |
-| `packages/core/src/finance/magnitude.ts` | `expandMagnitudes`, `magnitudeValues`, `looksScaled` |
-| `packages/core/src/finance/count-rows.ts` | `isCountRow`, `dropCountRows` |
-| `packages/core/src/finance/line-items.ts` | `parseLineItems`, `lineItemsFromTable`, `guessCategory` |
-| `packages/core/src/finance/metrics.ts` | `computeFinance`, `formatMetricForPrompt`, the `allowed` list |
-| `packages/core/src/finance/engine.ts` | The pure math: sums, margins, growth, CAGR, runway, breakeven, NPV/IRR, ratios |
-| `packages/core/src/finance/number-guard.ts` | `guardNumbers`, `extractNumbers` |
-| `packages/core/src/artifacts/finance-brief.ts` | Schema and Markdown serialization |
-| `packages/core/src/models/mode-defaults.ts` | `JOB_MODE_PREFERENCES.finance`, `EFFECTIVE_JOB_MODEL` |
-| `packages/core/src/models/job-thinking.ts` | The `reasoning_effort: "low"` knob and its incident note |
-| `packages/host/src/job-regen.ts` | `collectJobAssistantText` — the shared model-call runner |
-| `apps/web/components/finance-studio.tsx`, `finance-brief-view.tsx` | The surface |
-| `apps/web/lib/finance-brief.ts`, `finance-client.ts` | Client pre-check, error copy, fetch wrappers |
+| `packages/host/src/router.ts:216-222` | The seven Finance routes |
+| `packages/host/src/handlers/finance.ts` | Generate, stream, parse, regenerate, docx; the gate and the task check |
+| `packages/host/src/handlers/finance-export.ts` | `/finance/export` — report first, brief second, artifact third |
+| `packages/host/src/handlers/finance-import.ts` | `/finance/import` — spreadsheet or document to figures text |
+| `packages/host/src/finance-task.ts` | `readFinanceTask`, `requireFinanceTask`, `withFinanceTaskRules` |
+| `packages/host/src/finance-tasks/live.ts` | `readPrompt`, `readModelPinned`, `requireLive`, `resolveModel` |
+| `packages/host/src/finance-generate.ts` | The brief's pipeline, `resolveInputs`, `persistBrief`, section regen |
+| `packages/host/src/finance-parse-figures.ts` | Table-first parse, the three system prompts, the prose fallback |
+| `packages/host/src/finance-brief-build.ts` | Input reading, draft parsing, `guardSection`, `financePromptBlock` |
+| `packages/host/src/finance-section-repair.ts` | One rewrite, then clean sentence removal |
+| `packages/host/src/finance-privacy.ts` | The redaction guard and `restoreFinanceAmounts` |
+| `packages/host/src/finance-stated.ts` | Stated facts as a table and as allowed figures |
+| `packages/host/src/finance-locale.ts` | Which language a run answers in |
+| `packages/host/src/finance-artifact.ts` | The structured brief on the artifact, and the 256 KB cap |
+| `packages/host/src/file-extract/` | PDF / DOCX / PPTX reading, entirely local |
+| `packages/host/src/renderers/` | `registry.ts` plus `xlsx`, `pptx`, `docx`, `md`, `pdf` |
+| `packages/core/src/finance/import-table/` | Sheet → figures text: layout, periods, numbers, ledger, register |
+| `packages/core/src/finance/pii-scan.ts`, `pii-columns.ts` | Header classification, pseudonyms, masks |
+| `packages/core/src/finance/magnitude.ts` | `expandMagnitudes`, `looksScaled` |
+| `packages/core/src/finance/count-rows.ts`, `derived-rows.ts` | Counts dropped, printed subtotals split out |
+| `packages/core/src/finance/metrics.ts`, `engine.ts` | `computeFinance`, `allowed`, `checks`; the pure math |
+| `packages/core/src/finance/number-guard.ts` | `guardNumbers`, `extractNumbers`, the marker |
+| `packages/core/src/finance/report.ts`, `report-brief.ts`, `report-formulas.ts` | `FinanceReport` and the brief's builders |
+| `apps/web/components/finance-studio.tsx` | The shell: task, phase strip, export menu, steps |
+| `apps/web/components/finance-steps/` | `registry.tsx`, the shared panels, and one folder per task |
+| `apps/web/components/finance-file-upload.tsx` | The upload that fills the paste box |
+| `apps/web/components/finance-export-menu.tsx`, `apps/web/lib/finance-export.ts` | The format picker and the per-desk memory |
+| `apps/web/components/finance-charts/` | The on-screen SVG charts, off the same `FinanceReport` |
+| `apps/web/lib/finance-task.ts`, `finance-client.ts`, `finance-drafts.ts` | Task plumbing, fetch wrappers, per-desk-per-task drafts |
 
 ## Gotchas
 
-- **`looksScaled` needs the raw text, not the expanded text.** Passing `expanded` would destroy the very suffixes it reads as evidence.
-- **`M` is locale-dependent.** A mistranslated locale flag changes every parsed amount by 1000×, silently, and margins will not reveal it because ratios are scale-invariant.
-- **Margins hide scale bugs.** The 0.14.26 incident was found in stored items, DOCX output and NPV/runway — never in the percentages.
-- **`computeFinance` is not P&L / cash flow / balance sheet.** `quickRatio` and `dscr` exist in `packages/core/src/finance/engine.ts:174` but are unreachable from Finance, because `ratioMetrics` never supplies `inventory`, `netOperatingIncome` or `debtService`.
-- **An invented figure is marked, not rejected.** `[unverified figure]` in a section body is the guard working, not a bug.
-- **The Finance "default model" in `mode-defaults.ts` is not the model that runs.** `hy3` is absent from this gateway's catalog; every real run is `deepseek-v4-flash`. Do not reorder the preference list to "fix" a Finance timeout — that is not where the behaviour comes from.
-- **Never add a vendor-specific thinking field here.** The comment at `packages/core/src/models/job-thinking.ts:10-17` says: no non-OpenAI vendor field without a fresh live 200 to point at. It also warns the family list must stay in sync with `QUIET_REASONING_FAMILY` in `stream-watchdog.ts`.
-- Finance's parse call is itself gated: `requireGatewayAllowed` at `packages/host/src/handlers/finance.ts:16, 28, 42, 53`.
+- **The generate route answers 200, not 503.** Only `/finance/parse`, `/finance` and `/finance/regenerate` are HTTP 503 keyless. A harness that asserts on the HTTP status of a generate reads a refusal as success.
+- **`finance-inputs` is not universal.** Four tasks mount a panel with `data-testid="finance-inputs"`, but the ratios task mounts `finance-ratios-inputs` with `finance-ratios-figures` / `finance-ratios-parse` instead (`apps/web/components/finance-steps/ratios/ratios-inputs.tsx:99`, `:113`, `:120`). A recipe that asserts `finance-inputs` on every task fails on ratios.
+- **The coming-soon panel is currently dead code.** All five tasks are `available: true` (`packages/core/src/finance/tasks.ts:72, 98, 125, 151, 177`), so `finance-task-coming-soon`, `finance-task-sample` and `finance-coming-soon-back` (`apps/web/components/finance-steps/finance-coming-soon.tsx:29`, `:35`, `:39`) are unreachable, and so is the `finance_task_unavailable` 400.
+- **Section regen no longer returns `artifactId: null`.** It carries the posted id back (`packages/host/src/finance-generate.ts:278-281`, `:355`) so the Knowledge Base card is rewritten rather than duplicated. A map or script that still expects `null` is stale.
+- **The parse route barely uses the model.** For a readable table it asks one labels-only question and never sees an amount (`packages/host/src/finance-parse-figures.ts:62-69`, `:221-239`). Only text with no table falls through to `PARSE_SYSTEM`. Do not describe Finance parsing as "the model reads the figures" any more.
+- **A stated fact is a quotation, not an input.** `withStatedFacts` adds a table and widens `allowed` but never touches `metrics` (`packages/host/src/finance-stated.ts:84-87`). It will never appear in a sum.
+- **`looksScaled` needs the raw text, not the expanded text** (`packages/core/src/finance/magnitude.ts:125`, called with `text` at `finance-parse-figures.ts:252`) — the suffixes are the evidence.
+- **`M` is locale-dependent** and margins hide scale bugs, because ratios are scale-invariant. Verify a stored **amount**.
+- **Counts vanish on purpose.** `dropCountRows` removes a currency-free whole number under 1000 sitting next to a countable noun (`packages/core/src/finance/count-rows.ts:87`, `:98`). "12 outlets" is gone; "units sold 12000 IDR" stays.
+- **An export by `artifactId` alone is only as good as that artifact's meta.** Stored report, then stored brief, then markdown (`packages/host/src/handlers/finance-export.ts:75-86`). A brief over the 256 KB cap, or one saved before the meta landed, exports as prose. A sparse workbook from an old id is not a renderer bug.
+- **Export formats are one route, not three.** `format` selects the renderer; `pdf` is registered and answers 501 on purpose. Assert the content type, not the route.
+- **`finance-prompt` is an `<input>` now, not a textarea** (`apps/web/components/finance-steps/finance-prompt-bar.tsx:54-61`), and `finance-generate` is a real form submit (`:67-71`) — a click before hydration reloads `/finance` and silently loses the prompt.
+- **Three things pick the model, and the dropdown is only the first.** `resolveModel` (`packages/host/src/finance-tasks/live.ts:62-69`) takes the request's `model`, else `settings.documentGenModel`, else `modeCatalogPayload().defaults.finance` — `pickPreferredJobModel("finance", …)` over `JOB_MODE_PREFERENCES.finance = ["hy3","hy-3","hunyuan-3","deepseek-v4-flash"]` (`packages/core/src/models/mode-defaults.ts:57`). None of the `hy3` ids are on this gateway, so the fourth entry wins.
+- **`EFFECTIVE_JOB_MODEL` is documentation, not a code path** (`packages/core/src/models/mode-defaults.ts:36`). The preference list is what delivers `deepseek-v4-flash`.
+- **`modelPinned` matters.** Only a deliberate pick travels (`apps/web/components/finance-studio.tsx:234`, `readModelPinned`, `packages/host/src/finance-tasks/live.ts:46-48`); a seeded default stays rescuable by the job fallback, which is why a run can answer on a different model with a `finance-result-model-fallback` notice.
+- **There is still no stub Finance brief.** `apps/web/locales/{en,id}/finance.json` carries a `finance.stub.*` block describing one; nothing references it. See `docs/internal/unreleased.md`.
 
 ## Verify
 
-`.cursor/skills/verify-agentforge/features/finance.md`. Its gotcha about a quiet drafting phase being the model thinking, not a stall, was added by the same pass that widened the watchdog family (`docs/internal/0.14.26-changelog.md:143`).
+`.cursor/skills/verify-agentforge/features/finance.md`, and [`finance-tasks.md`](finance-tasks.md) for the per-task recipes.
 
-Testids: `finance-studio` (`apps/web/components/finance-studio.tsx:205`), `finance-figures-input` (`:257`), `finance-parse` (`:264`), `finance-inputs` (`:243`), `finance-auto-parsed` (`:236`), `finance-param-${key}` (`:335`), `finance-prompt` (`:404`), `finance-generate` (`:415`), `finance-cancel` (`:407`), `finance-error` (`:225`), `finance-download-docx` (`:218`); in the brief view, `finance-preview`, `finance-guard`, `finance-section`, `finance-section-regen`, `finance-metrics`, `finance-table`, `finance-assumptions` (`apps/web/components/finance-brief-view.tsx:41-117`).
+The load-time testids on the brief: `finance-studio`, `finance-task-current`, `finance-task-hint`, `finance-phase-strip` + `finance-phase-<id>`, `finance-inputs`, `finance-figures-input`, `finance-parse`, `finance-upload` / `-input` / `-drop`, `finance-items` / `-row` / `-label` / `-amount` / `-add`, `finance-param-<key>` (four), `finance-dataset` (only with a saved dataset), `finance-studio-empty`, `finance-studio-prompt-bar`, `finance-enhance`, `finance-studio-model`, `finance-prompt`, `finance-generate`. After a result: `finance-export`, `finance-export-toggle`, `finance-result-pii`, `finance-result-model-fallback`, `finance-actions` / `-download` / `-send-kb` / `-make-document` / `-make-presentation` / `-actions-note`, `finance-charts` (or `finance-charts-empty`) with `finance-chart-<id>`, `finance-preview`, `finance-guard`, `finance-section`, `finance-section-regen`, `finance-metrics`, `finance-table`, `finance-assumptions`.
 
-Tests: `packages/core/src/finance/magnitude.test.ts` (en/id briefs, the `M` ambiguity, Indonesian suffixes, grouped digits, leaves counts and identifiers and periods alone, `looksScaled` restoring dropped mantissas); `count-rows.test.ts` (drops "12 outlets", keeps a currency-bearing row, keeps large counts, does not substring-match `daysheet`, returns a new array); `number-guard.test.ts`; `metrics.test.ts` (per-period margins, growth, burn, runway, tables; breakeven and NPV/IRR with params; "feeds the number guard so invented figures are caught" at `:69`); `packages/host/src/finance-brief-build.test.ts` (input validation, figures that do not trace are stripped, prompt renders tables only, DOCX); `packages/host/src/handlers/finance.test.ts` (live-runtime gating — Finance does **not** fall back to stub); `packages/core/src/models/job-thinking.test.ts:9` (pins `reasoning_effort: "low"` for `deepseek-v4-flash` + `"finance"`, and `null` extras for non-quiet models); `apps/web/lib/finance-brief.test.ts`; `apps/web/lib/finance-locale.test.ts`.
+Keyless proof stops at the shell plus the refusals — `/finance/parse` 503, `/finance/stream` 200-with-`job.error`, `finance.errors.addItems` with no request at all. `finance-upload` **is** reachable keyless: `/finance/import` reads the file host-side and needs no model.
+
+Tests: `packages/core/src/finance/magnitude.test.ts`, `count-rows.test.ts`, `derived-rows.test.ts`, `number-guard.test.ts`, `metrics.test.ts`, `engine.test.ts`, `figures-text.test.ts`, `period-figures.test.ts`, `register-metrics.test.ts`, `stated-facts.test.ts`, `report-brief.test.ts`, `report-formulas.test.ts`, `format-number.test.ts`, `import-table.test.ts`, `import-table/register.test.ts`, `pii-scan.test.ts`, `tasks.test.ts`; `packages/host/src/finance-brief-build.test.ts`, `finance-artifact.test.ts`, `handlers/finance.test.ts`, `handlers/finance-export.test.ts`, `file-extract/no-hosted-ocr.test.ts`, `file-extract/privacy.test.ts`; `apps/web/lib/finance-brief.test.ts`, `finance-import-client.test.ts`, `finance-import-warnings.test.ts`, `finance-export.test.ts`, `finance-drafts.test.ts`, `finance-locale.test.ts`, `finance-mount-wiring.test.ts`, `finance-steps-registry.test.ts`.
 
 ## Why
 
-**Why thinking-off was rejected and effort-low kept.** `[Direct]` `docs/internal/0.14.26-changelog.md:133`: "**First attempt was wrong and the desk caught it:** sending DeepSeek's documented `thinking: {"type":"disabled"}` made every Finance call on `deepseek-v4-flash` and `deepseek-v4-pro` fail with HTTP 400 in 2-4 s, 5/5, the `/finance/parse` call included — this gateway's passthrough rejects vendor-only fields — while `glm-5.3-flash` with `reasoning_effort: "low"` alone returned 200 in 12 s and Chat on the same model was unaffected. Every family now sends `{"reasoning_effort":"low"}` and nothing else (Qwen's `enable_thinking: false` dropped for the same reason), replacing the generic `reasoning_effort: "medium"` the chat ladder used to put on a studio's request; `reasoning_effort` is the proven field because Chat sends it to these ids on every turn."
+**Why the parse stopped trusting the model with figures.** `[Direct]` `docs/internal/0.14.26-changelog.md:189`: with the `reasoning_effort: "low"` job knob, `deepseek-v4-flash` returned `revenue: 18.4` instead of 18 400 000 000 in 6 of 8 parses; margins hid it because ratios are scale-invariant, but stored items, DOCX and NPV/runway were 1e9 short. `expandMagnitudes` / `looksScaled` were the first answer. `[Supported]` the second answer is the current one, recorded at the call site: "an imported sheet arrives as a table with an exact shape, and code reads a table perfectly… the model is asked one question it is genuinely better at: what category does this *label* belong to" (`packages/host/src/finance-parse-figures.ts:2-8`). **Confidence: high** for the mechanism; the code comment is the only statement of the second decision's intent.
 
-`[Direct]` `docs/internal/blockers-2026-09-15.md:205` closes blocker P1 with the measurement: the close condition was 4 of 5, and "the restarted 3100 desk returned **5/5 at 29–41 s**. No model default reordered." `[Direct]` the code comment at `packages/core/src/models/job-thinking.ts:10-17` records the same finding at the call site and sets the standing rule: no vendor-only field without a fresh live 200.
+**Why the narrative model is never allowed to produce a number.** `[Supported]` Four mechanisms converge: `financePromptBlock` renders inputs and metrics only as tables (`packages/host/src/finance-brief-build.ts:201`); `computeFinance` publishes an explicit `allowed` list (`packages/core/src/finance/metrics.ts:349-354`); `guardNumbers` replaces anything outside it; and `repairUnverifiedSections` removes the sentence rather than shipping the marker. `[Inferred]` an LLM arithmetic error in a financial brief is both plausible-looking and consequential, so the design makes it structurally impossible rather than merely unlikely. **Confidence: high for the mechanism, medium for the rationale.**
 
-**Confidence: high.** Driven, counted, and written down in three places.
+**Why redaction has no bypass and why amounts are restored.** `[Direct]` `packages/host/src/finance-privacy.ts:10-17` sets the rules, and `:88-90` records the incident: 2024 cost of sales written `(23.960.000.000)` under a column headed `2024` reached the model as `[phone])` and every ratio built on it was wrong. `[Direct]` `packages/core/src/finance/pii-columns.ts:42-50` records the same event at the classification end. **Confidence: high** — the fix, the reason and the safety net are all written down where they act.
 
-**Why the magnitude rewrite exists at all.** `[Direct]` `docs/internal/0.14.26-changelog.md:189`: "With the `reasoning_effort: "low"` job knob, `deepseek-v4-flash` returned `revenue: 18.4` instead of 18 400 000 000 in 6 of 8 parses of 'revenue IDR 18.4B, COGS IDR 7.9B, opex IDR 6.1B, net profit IDR 2.6B' (`gpt-5.6-luna` 2/2 correct; margins hid it because ratios are scale-invariant, but stored items, DOCX and NPV/runway were 1e9 short). `/finance/parse` now rewrites the figures text to plain integers before the model sees it and re-scales any mantissa that still comes back, via `expandMagnitudes` / `looksScaled` in `packages/core/src/finance/magnitude.ts` (en and id suffixes; `M` is a million in en and `miliar` in id, decided by the run locale). The knob stays." **Confidence: high** — this is the decision, its evidence and its trade-off in one entry. Note the causal chain it records: the cheaper effort setting *caused* the scale bug, and the fix was to stop trusting the model with magnitudes rather than to raise the effort back.
+**Why Finance has no stub path when Chat does.** `[Direct]` `packages/host/src/handlers/finance.test.ts` names it as a requirement, and `requireLive` is called from every gateway-bound entry point. `[Inferred]` a stub Chat reply is obviously fake prose, while a stub *financial brief* would look like a real one. **Confidence: high for the mechanism, medium for the rationale** — the `finance.stub.*` locale block is the fossil of an earlier answer.
 
-**Why the narrative model is never allowed to produce a number.** `[Supported]` Three mechanisms converge: `financePromptBlock` renders inputs and metrics only as tables (`packages/host/src/finance-brief-build.ts:137`, pinned at `finance-brief-build.test.ts:68`); `computeFinance` publishes an explicit `allowed` list (`packages/core/src/finance/metrics.ts:223-229`); and `guardNumbers` replaces anything outside it. `[Inferred]` the reason is that an LLM arithmetic error in a financial brief is both plausible-looking and consequential, so the design makes it structurally impossible rather than merely unlikely — no source states this in words, but the three-layer defence is hard to read any other way. **Confidence: high for the mechanism, medium for the rationale.**
-
-**Why the watchdog gives Finance 240 s / 180 s.** Recorded in [`chat-send.md`](chat-send.md#why) — the same fix, driven from Finance's timeouts.
+**Why the watchdog gives Finance 240 s / 180 s**, and why thinking-off was rejected in favour of `reasoning_effort: "low"`: recorded in [`chat-send.md`](chat-send.md#why) and `docs/internal/0.14.26-changelog.md:133`.

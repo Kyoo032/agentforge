@@ -9,7 +9,7 @@ DPSBuddy ships English and Bahasa Indonesia. Settings has one language select; p
 - `locale-apply` is the button's effect: `POST /api/v1/settings/apply-locale`, then `applyLocale()` in the renderer and `applySavedLocaleAsBoot()` in the host. Packaged, it also asks the shell to relaunch; on webdev the relaunch is refused and the app just retranslates in place.
 - `locale-walk` is the proof that the new locale reached the whole desk: the rail, Chat and at least one job mode read Indonesian.
 - `locale-run-output` is the host half — `localeForRun()` (`packages/host/src/run-context.ts`) picks the run's locale, and `withOutputLanguage()` (`packages/core/src/output-language.ts`) appends the output-language rule for Documents, Research, Finance, Data, Videos, Edit and Knowledge. This is what makes a generated brief Indonesian, not just the chrome.
-- `locale-parity` is the source check: 13 files under `apps/web/lib/*locale*.test.ts` assert en/id key parity per namespace.
+- `locale-parity` is the source check: **14** files under `apps/web/lib/*locale*.test.ts` assert en/id key parity per namespace (Market has two, `market-locale.test.ts` and `market-locale-catalog.test.ts`). The `common` namespace still has none.
 
 ## How to get to it (user POV)
 
@@ -23,17 +23,17 @@ Preconditions:
 
 - Doctor exits 0.
 - Drive this on your own isolated desk, not the operator's. It writes `locale` into that desk's settings, and leaving a desk in `id` is a visible change to someone else's app.
-- Put the desk back on `en` at the end of the run. That restore is part of the drive, not cleanup you may skip.
+- **Read the desk's locale before you touch it** (`GET /api/v1/settings` → `savedLocale`) and put it back to **that** value at the end of the run — not to `en`. The owner's desk is normally `id`. Restoring to a hardcoded `en` is how a locale drive leaves the desk in a state the owner did not choose; it happened on 2026-09-17. The restore is part of the drive, not cleanup you may skip.
 
 - **Open Settings.** Click `settings-link`. `settings-locale` is visible, `settings-locale-restart` is absent (15s).
 - **Select `id`.** Set `settings-locale` to `id`. `settings-locale-restart` appears (15s) and reads "Restart DPSBuddy to apply this language."; the rest of the page is **still English**. That is correct — do not call it a bug.
-- **Apply.** Click `settings-locale-restart-button`. Within ~2s Settings reads "Pengaturan", "Kunci gateway, pengaturan tambahan, dan default untuk meja Default." and the language help line reads "Berlaku setelah Anda mulai ulang DPSBuddy."
+- **Apply.** Click `settings-locale-restart-button`. Within ~2s Settings reads "Pengaturan", the intro begins "Kunci gateway, pengaturan tambahan, dan default untuk meja Default." and now ends "… Tempel kunci API Toko Token dari api.tokotokenai.com untuk menggunakan chat dan mode kerja di meja ini." (the `{gatewayHost}` added on 2026-09-17), and the language help line reads "Berlaku setelah Anda mulai ulang DPSBuddy." Match the prefix, not the whole paragraph. `applyLocale` also sets `document.documentElement.lang`, so `html[lang="id"]` is a cheap, locale-invariant assertion that the apply really ran.
 - **Rail walk.** The rail reads "PERCAKAPAN / Chat", "MODE KERJA / Dokumen, Riset, Keuangan, Data, Pasar, Hukum, Gambar, Video, Edit, Presentasi", "AKUN / Basis pengetahuan, Ruang kerja, Pemakaian, Pengaturan". `mode-*` testids are unchanged.
-- **Chat walk.** Open `/chat`. `chat-empty` reads "Anda sudah masuk. Tanya apa saja.", `new-chat` reads "Chat baru", `composer-text` placeholder is "Pesan", and `reasoning-effort` reads "Berpikir / Mati / Ringan / Normal / Dalam / Ekstra / Maks / Ultra".
+- **Chat walk.** Open `/chat`. `chat-empty` reads "Anda sudah masuk. Tanya apa saja.", `new-chat` reads "Chat baru", `composer-text` placeholder is "Pesan", and `reasoning-effort` reads "Mati / Ringan / Normal / Dalam / Ekstra / Maks / Ultra" — the seven option labels only. The "Berpikir" heading sits outside the testid, so asserting it against the element's text fails.
 - **Job-mode walk.** Open `/finance`. The studio reads "Keuangan", "TEMPEL ANGKA", "Uraikan menjadi pos", "POS", "Tambah pos", "PARAMETER (OPSIONAL)", "Tingkat diskonto %".
-- **Restore.** Back to Settings, set `settings-locale` to `en`, click `settings-locale-restart-button`, and confirm `GET /api/v1/settings` reports `locale: "en"` **and** `savedLocale: "en"`. Both, not just one.
-- **Source check.** `cd apps/web && npx vitest run lib/` covers the 13 `*locale*.test.ts` files. Run it when a catalog changed; it is not a substitute for the walk.
-- **Evidence.** Screenshots of Settings before, the restart banner, Settings in `id`, Chat in `id`, the job mode in `id`, and Settings back in `en`, under `evidence/locale/<run-id>/`.
+- **Restore.** Back to Settings, set `settings-locale` to the value you recorded at the start, click `settings-locale-restart-button`, and confirm `GET /api/v1/settings` reports **both** `locale` and `savedLocale` equal to that starting value. Both, not just one. If the run started on `id`, the desk ends on `id`. Record the start and end values in the evidence `action.md`.
+- **Source check.** `cd apps/web && npx vitest run lib/` covers whatever `*locale*.test.ts` files exist at this sha (14 on 2026-09-17). Assert they pass, not how many there are. Run it when a catalog changed; it is not a substitute for the walk.
+- **Evidence.** Screenshots of Settings before, the restart banner, Settings in `id`, Chat in `id`, the job mode in `id`, and Settings back on the locale the desk started on, under `evidence/locale/<run-id>/`.
 
 ## Gotchas
 
@@ -44,4 +44,4 @@ Preconditions:
 - **Some strings are English on purpose.** "English", "Chat", "Edit", "Data", "Ultra", "Toko Token" and the literal `RESET` confirm word are whitelisted by the parity tests. An en value equal to its id value is not automatically an untranslated bug.
 - **Model `bestFor` copy is not in the catalogs.** On an `id` desk the job model dropdowns still read "Fast drafts" / "Everyday chat" / "Deep reasoning", because those come from the model registry rather than `apps/web/locales/`. Observed on `/finance` in `id`. Report it as a product gap if it matters; it is not recipe drift.
 - **Thread titles follow the locale at creation time.** `defaultThreadTitle(locale)` writes "New thread" or "Percakapan baru", and `isDefaultThreadTitle` recognises both, so a thread made under `en` stays "untouched" after switching to `id`. Do not assert a fresh thread's title matches the current UI locale.
-- **"13 parity tests" is 13 files, not 13 cases.** Those files hold ~40 `it()` cases, and more locale tests live outside that glob in `packages/core` and `packages/host`. Do not script a check that expects exactly 13 results.
+- **The parity count is a moving target.** The glob matched 13 files on 2026-09-15 and 14 on 2026-09-17, and those files hold ~40 `it()` cases between them, with more locale tests outside the glob in `packages/core` and `packages/host`. Do not script a check that expects an exact number of files or results.
