@@ -8,6 +8,7 @@ import { ModelSelect } from "@/components/model-select";
 import { t } from "@/lib/i18n";
 import { labeled } from "@/lib/ui-copy";
 import { apiFetch } from "@/lib/api-client";
+import { useProductBrand } from "@/lib/product-brand";
 import { useWorkspaceScope } from "@/lib/workspace-scope";
 
 type KnowledgeTab = "sources" | "soul" | "memory" | "map";
@@ -128,9 +129,13 @@ function verdictTagClass(verdict: KnowledgeMapTopic["verdict"]): string {
 
 export function KnowledgePage() {
   const { id: workspaceId, name: workspaceName } = useWorkspaceScope();
+  const { productName } = useProductBrand();
   const [tab, setTab] = useState<KnowledgeTab>("sources");
   const [sources, setSources] = useState<SourceRow[]>([]);
-  const [soul, setSoul] = useState({ name: "Forge", role: "", voice: "", rules: [] as string[] });
+  // Placeholder only, until GET /api/v1/knowledge lands the desk's real Soul. It follows the brand
+  // (DPSBuddy, or the flavor name the packaged shell preloaded) — never a persona the host has no
+  // row for.
+  const [soul, setSoul] = useState({ name: productName, role: "", voice: "", rules: [] as string[] });
   const [memories, setMemories] = useState<Memory[]>([]);
   const [urlDraft, setUrlDraft] = useState("");
   const [pasteDraft, setPasteDraft] = useState("");

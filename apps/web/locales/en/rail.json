@@ -5,11 +5,18 @@
   "groupJobs": "Job modes",
   "groupAccount": "Account",
   "chat": "Chat",
+  "newChat": "+ New chat",
+  "seeAllSessions": "All sessions",
+  "showFewerSessions": "Show less",
+  "recentSessionsAria": "Recent chat sessions",
   "documents": "Documents",
   "research": "Research",
   "finance": "Finance",
   "data": "Data",
   "market": "Market",
+  "marketSpecialistsAria": "Market specialists",
+  "marketSpecialistsToggle": "Show specialists",
+  "marketSpecialistsHide": "Hide specialists",
   "legal": "Legal",
   "images": "Images",
   "videos": "Videos",
@@ -43,5 +50,8 @@
       "idle": "New GitHub releases download here, then DPSBuddy restarts.",
       "checkFailed": "Update check failed."
     }
-  }
+  },
+  "financeTasksAria": "Finance tasks",
+  "financeTasksToggle": "Show tasks",
+  "financeTasksHide": "Hide tasks"
 }

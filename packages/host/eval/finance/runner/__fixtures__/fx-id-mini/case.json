@@ -1,0 +1,31 @@
+{
+  "id": "fx-id-mini",
+  "task": "brief",
+  "locale": "id",
+  "currency": "IDR",
+  "description": "Kasus asap milik runner: empat baris sintetis untuk dua tahun, format angka Indonesia. Perusahaan rekaan, bukan data nyata.",
+  "files": [{ "path": "input.csv" }],
+  "prompt": "Tulis brief keuangan atas baris yang sudah dikonfirmasi: margin, pertumbuhan, dan posisi kas.",
+  "params": {},
+  "truth": {
+    "lineItems": [
+      { "label": "Pendapatan", "period": "2024", "amount": 1000000000, "category": "revenue" },
+      { "label": "Pendapatan", "period": "2025", "amount": 1250000000, "category": "revenue" },
+      { "label": "HPP", "period": "2024", "amount": 600000000, "category": "cogs" },
+      { "label": "HPP", "period": "2025", "amount": 730000000, "category": "cogs" },
+      { "label": "Beban Operasional", "period": "2024", "amount": 250000000, "category": "opex" },
+      { "label": "Beban Operasional", "period": "2025", "amount": 300000000, "category": "opex" },
+      { "label": "Kas", "period": "2024", "amount": 400000000, "category": "cash" },
+      { "label": "Kas", "period": "2025", "amount": 520000000, "category": "cash" }
+    ],
+    "figures": [
+      { "key": "revenue.2025", "label": "Revenue 2025", "value": 1250000000, "unit": "currency", "formula": "sel pendapatan 2025, dibaca langsung dari sheet" },
+      { "key": "gross_margin.2024", "label": "Gross margin 2024", "value": 40.0, "unit": "percent", "tolerance": 0.005, "formula": "(1000000000 - 600000000) / 1000000000 * 100" },
+      { "key": "gross_margin.2025", "label": "Gross margin 2025", "value": 41.6, "unit": "percent", "tolerance": 0.005, "formula": "(1250000000 - 730000000) / 1250000000 * 100" },
+      { "key": "net_margin.2025", "label": "Net margin 2025", "value": 17.6, "unit": "percent", "tolerance": 0.005, "formula": "(1250000000 - 730000000 - 300000000) / 1250000000 * 100" },
+      { "key": "revenue_growth.2025", "label": "Revenue growth 2025", "value": 25.0, "unit": "percent", "tolerance": 0.005, "formula": "(1250000000 - 1000000000) / 1000000000 * 100" }
+    ],
+    "mustMention": ["margin"],
+    "mustNotContain": ["[unverified figure]"]
+  }
+}

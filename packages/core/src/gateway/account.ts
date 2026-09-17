@@ -300,14 +300,44 @@ async function readJson(response: Response): Promise<unknown> {
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
 /**
- * These requests carry the gateway key, so they never follow a redirect: a 3xx would
- * replay the Authorization header against whatever host the response names. The error
- * names the status only, redacted, never the endpoint or its query.
+ * NewAPI's this-key usage endpoint. The gateway's reverse proxy 301s the slashless
+ * `/api/usage/token` to this trailing-slash form, so ask for it directly and no
+ * redirect is involved at all.
+ */
+export const USAGE_TOKEN_PATH = "/api/usage/token/";
+
+/** At most one redirect hop, and only back to the same origin, is ever followed with a key. */
+const MAX_SAME_ORIGIN_REDIRECTS = 1;
+
+/**
+ * Returns the redirect target only when it stays on the origin the request already went to
+ * (same scheme, host and port), so the Authorization header is never replayed to a new host.
+ * Anything else — cross-origin, protocol downgrade, missing or unparseable Location — is null.
+ */
+function sameOriginRedirectTarget(requestUrl: string, location: string | null): string | null {
+  if (!location || location.trim().length === 0) {
+    return null;
+  }
+  try {
+    const from = new URL(requestUrl);
+    const target = new URL(location, requestUrl);
+    return target.origin === from.origin ? target.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * These requests carry the gateway key, so a cross-origin 3xx is refused rather than followed:
+ * it would replay the Authorization header against whatever host the response names. A
+ * same-origin 3xx (a proxy's trailing-slash normalisation) is followed once. The error names the
+ * status only, redacted, never the endpoint or its query.
  */
 async function getJson(
   url: string,
   headers: Record<string, string>,
   fetchFn: typeof fetch,
+  hopsLeft: number = MAX_SAME_ORIGIN_REDIRECTS,
 ): Promise<{ ok: boolean; status: number; body: unknown }> {
   assertAllowedEndpointUrl(url);
   const response = await fetchFn(url, {
@@ -316,6 +346,10 @@ async function getJson(
     signal: AbortSignal.timeout(FETCH_MS),
   });
   if (REDIRECT_STATUSES.has(response.status)) {
+    const target = hopsLeft > 0 ? sameOriginRedirectTarget(url, response.headers.get("location")) : null;
+    if (target) {
+      return getJson(target, headers, fetchFn, hopsLeft - 1);
+    }
     throw new Error(redactSecrets(`Gateway endpoint redirected (${response.status}); not following it with a key`));
   }
   const body = await readJson(response).catch(() => null);
@@ -346,7 +380,7 @@ export async function fetchThisKeyUsage(input: {
     Authorization: `Bearer ${input.apiKey}`,
   };
   const fetchFn = input.fetch ?? fetch;
-  const primary = await getJson(`${origin}/api/usage/token`, headers, fetchFn);
+  const primary = await getJson(`${origin}${USAGE_TOKEN_PATH}`, headers, fetchFn);
   if (primary.ok) {
     const parsed = parseTokenUsage(primary.body);
     if (parsed) {

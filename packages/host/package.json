@@ -16,8 +16,10 @@
     "@agentforge/legal": "workspace:*",
     "@agentforge/marketing": "workspace:*",
     "@agentforge/university": "workspace:*",
+    "@firecrawl/anydoc": "^0.2.4",
     "docx": "^9.5.1",
     "drizzle-orm": "^0.45.2",
+    "exceljs": "^4.4.0",
     "pptxgenjs": "^4.0.1",
     "yahoo-finance2": "^4.0.2",
     "zod": "^3.24.2"

@@ -6,7 +6,9 @@ import { requireGatewayAllowed } from "../gateway-gate";
 import { loadSettings } from "../settings-store";
 import { getTenant } from "../tenant";
 import { buildFinanceDocx } from "../finance-docx";
-import { generateFinanceBrief, parseFinanceFigures, regenerateFinanceSection } from "../finance-generate";
+import { generateFinanceBrief, regenerateFinanceSection } from "../finance-generate";
+import { requireFinanceTask } from "../finance-task";
+import { financeTaskParser } from "../finance-tasks/parsers";
 import { streamJob } from "../job-stream";
 
 export async function handlePostFinance(request: HostRequest): Promise<HostResult> {
@@ -14,6 +16,9 @@ export async function handlePostFinance(request: HostRequest): Promise<HostResul
     const tenant = await getTenant(request.workspaceId);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowed(loadSettings(tenant.workspaceId));
+    // `task` is validated before anything reaches the gateway: a task that ships
+    // later is a 400 here, not a half-run pipeline.
+    requireFinanceTask(request.body ?? null);
     return jsonOk(await generateFinanceBrief(tenant, request.body ?? null));
   } catch (error) {
     return jsonError(error);
@@ -26,6 +31,7 @@ export async function handlePostFinanceStream(request: HostRequest): Promise<Hos
     const tenant = await getTenant(request.workspaceId);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowed(loadSettings(tenant.workspaceId));
+    requireFinanceTask(request.body ?? null);
     return streamJob((emit, abortSignal) => generateFinanceBrief(tenant, request.body ?? null, emit, abortSignal), {
       abortSignal: request.abortSignal,
     });
@@ -34,13 +40,19 @@ export async function handlePostFinanceStream(request: HostRequest): Promise<Hos
   }
 }
 
-/** Free text → line items for the user to confirm. No metrics are computed here. */
+/**
+ * Free text → the confirmed input its task asks for. No metrics are computed here.
+ *
+ * The task picks the parser, so a task worker adds `finance-tasks/parse-<task>.ts` instead of
+ * editing a switch here; a task without one still gets the brief's line-item read.
+ */
 export async function handlePostFinanceParse(request: HostRequest): Promise<HostResult> {
   try {
     const tenant = await getTenant(request.workspaceId);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowed(loadSettings(tenant.workspaceId));
-    return jsonOk(await parseFinanceFigures(tenant, request.body ?? null));
+    const task = requireFinanceTask(request.body ?? null);
+    return jsonOk(await financeTaskParser(task)(tenant, request.body ?? null));
   } catch (error) {
     return jsonError(error);
   }
@@ -51,6 +63,7 @@ export async function handlePostFinanceRegen(request: HostRequest): Promise<Host
     const tenant = await getTenant(request.workspaceId);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowed(loadSettings(tenant.workspaceId));
+    requireFinanceTask(request.body ?? null);
     return jsonOk(await regenerateFinanceSection(tenant, request.body ?? null));
   } catch (error) {
     return jsonError(error);

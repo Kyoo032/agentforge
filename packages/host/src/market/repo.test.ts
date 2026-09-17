@@ -13,10 +13,17 @@ import {
 } from "./__fixtures__/watch";
 import {
   CACHE_TTL_SECONDS,
+  CRYPTO_TTL_SECONDS,
+  FUNDAMENTALS_TTL_SECONDS,
+  GLOBAL_NEWS_TTL_SECONDS,
+  INSIDERS_TTL_SECONDS,
   MACRO_CACHE_KEY,
   MARKET_CACHE_KINDS,
   NEWS_RETENTION_SECONDS,
   NEWS_TTL_SECONDS,
+  REDDIT_TTL_SECONDS,
+  SENTIMENT_TTL_SECONDS,
+  globalNewsCacheKey,
   historyCacheKey,
   isFresh,
   readCached,
@@ -46,19 +53,50 @@ describe("market repo (v2 kinds)", () => {
   });
 
   it("takes its TTLs from core", () => {
-    expect(MARKET_CACHE_KINDS).toEqual(["quote", "technical", "history", "news", "macro"]);
+    expect(MARKET_CACHE_KINDS).toEqual([
+      "quote",
+      "technical",
+      "history",
+      "news",
+      "macro",
+      "crypto-global",
+      "crypto-markets",
+      "crypto-funding",
+      "fundamentals",
+      "insiders",
+      "stocktwits",
+      "reddit",
+      "global-news",
+    ]);
     expect(CACHE_TTL_SECONDS).toEqual({
       quote: TTL_SECONDS.quote,
       technical: TTL_SECONDS.technical,
       history: TTL_SECONDS.history,
       news: NEWS_TTL_SECONDS,
       macro: TTL_SECONDS.macro,
+      "crypto-global": CRYPTO_TTL_SECONDS,
+      "crypto-markets": CRYPTO_TTL_SECONDS,
+      "crypto-funding": CRYPTO_TTL_SECONDS,
+      fundamentals: FUNDAMENTALS_TTL_SECONDS,
+      insiders: INSIDERS_TTL_SECONDS,
+      stocktwits: SENTIMENT_TTL_SECONDS,
+      reddit: REDDIT_TTL_SECONDS,
+      "global-news": GLOBAL_NEWS_TTL_SECONDS,
     });
+    // The analyst-team sources each refresh on their own clock, slowest-moving first.
+    expect(FUNDAMENTALS_TTL_SECONDS).toBe(12 * 3600);
+    expect(INSIDERS_TTL_SECONDS).toBe(24 * 3600);
+    expect(SENTIMENT_TTL_SECONDS).toBe(15 * 60);
+    expect(REDDIT_TTL_SECONDS).toBe(30 * 60);
+    expect(GLOBAL_NEWS_TTL_SECONDS).toBe(NEWS_TTL_SECONDS);
+    expect(globalNewsCacheKey("id")).toBe("__global_news__@id");
+    expect(globalNewsCacheKey("")).toBe("__global_news__@en");
     expect(CACHE_TTL_SECONDS.quote).toBe(5 * 60);
     expect(CACHE_TTL_SECONDS.technical).toBe(15 * 60);
     expect(CACHE_TTL_SECONDS.history).toBe(6 * 3600);
     expect(CACHE_TTL_SECONDS.news).toBe(30 * 60);
     expect(CACHE_TTL_SECONDS.macro).toBe(5 * 60);
+    expect(CRYPTO_TTL_SECONDS).toBe(5 * 60);
     expect(historyCacheKey("MU", 6)).toBe("MU@6m");
   });
 
@@ -81,6 +119,47 @@ describe("market repo (v2 kinds)", () => {
       n: 1,
     });
     expect(readCached(db, "MU", "quote")?.payload.price).toBe(1010);
+  });
+
+  it("round-trips the analyst-team kinds under their own keys", () => {
+    const fundamentals = { marketCap: 1234, source: "yahoo" as const, observedAt: FIXTURE_OBSERVED_AT };
+    const insiders = { window: "90d" as const, buys: 1, sells: 2, source: "yahoo" as const, observedAt: FIXTURE_OBSERVED_AT };
+    const stocktwits = {
+      symbol: "MU",
+      total: 6,
+      bullish: 3,
+      bearish: 2,
+      sampled: 0,
+      samples: [],
+      observedAt: FIXTURE_OBSERVED_AT,
+    };
+    const reddit = {
+      query: "MU",
+      posts: 5,
+      subreddits: ["stocks"],
+      unavailable: false,
+      samples: [{ source: "reddit" as const, title: "MU thread" }],
+      observedAt: FIXTURE_OBSERVED_AT,
+    };
+    const globalNews = {
+      items: [{ title: "Fed holds", query: "federal reserve rate decision" }],
+      observedAt: FIXTURE_OBSERVED_AT,
+    };
+
+    writeCached(db, "MU", "fundamentals", fundamentals, yahooRef("MU"), FIXTURE_OBSERVED_AT);
+    writeCached(db, "MU", "insiders", insiders, yahooRef("MU"), FIXTURE_OBSERVED_AT);
+    writeCached(db, "MU", "stocktwits", stocktwits, yahooRef("MU"), FIXTURE_OBSERVED_AT);
+    writeCached(db, "MU", "reddit", reddit, yahooRef("MU"), FIXTURE_OBSERVED_AT);
+    writeCached(db, globalNewsCacheKey("en"), "global-news", globalNews, yahooRef("MU"), FIXTURE_OBSERVED_AT);
+
+    expect(readCached(db, "MU", "fundamentals")?.payload).toEqual(fundamentals);
+    expect(readCached(db, "MU", "insiders")?.payload).toEqual(insiders);
+    expect(readCached(db, "MU", "stocktwits")?.payload).toEqual(stocktwits);
+    expect(readCached(db, "MU", "reddit")?.payload).toEqual(reddit);
+    expect(readCached(db, globalNewsCacheKey("en"), "global-news")?.payload).toEqual(globalNews);
+    // Each language keeps its own macro headline row.
+    expect(readCached(db, globalNewsCacheKey("id"), "global-news")).toBeNull();
+    expect(() => writeCached(db, "MU", "insiders", { ...insiders, buys: -1 }, yahooRef("MU"), NOW_ISO)).toThrow();
   });
 
   it("rejects a payload that does not match the kind and a bad observedAt", () => {

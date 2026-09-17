@@ -7,6 +7,7 @@ import {
   type ContentPart,
   type ImageUrlPart,
   type JobMode,
+  type JobModelFallbackNotice,
   type RuntimeEvent,
   type StreamWatchdogLimits,
   type TenantContext,
@@ -15,6 +16,7 @@ import {
 import { isRenderableImageUrl } from "./composer-attach";
 import { inlineLocalMediaParts } from "./inline-local-media";
 import { rememberJobUsage } from "./job-usage";
+import { runWithJobModelFallback, type JobModelOutcome } from "./job-model-fallback";
 import { loadSettings } from "./settings-store";
 import { localeForRun } from "./run-context";
 
@@ -63,7 +65,7 @@ export function readJobRegenAttachments(body: unknown): ImageUrlPart[] {
   return parts;
 }
 
-export async function collectJobAssistantText(options: {
+async function runJobAssistantOnce(options: {
   tenant: TenantContext;
   model: string;
   systemPrompt: string;
@@ -141,4 +143,52 @@ export async function collectJobAssistantText(options: {
     throw new ApiError("generation_failed", failedMessage, 502);
   }
   return assistantText;
+}
+
+/** What a job run actually used: the text, the model that produced it, and any fallback notice. */
+export type JobAssistantRun = {
+  text: string;
+  /** The model that answered — the stand-in when the requested one could not be reached. */
+  model: string;
+  /** Set only when a stand-in answered. `code` is `model_fallback`; the desk writes the sentence. */
+  notice?: JobModelFallbackNotice;
+};
+
+export type JobAssistantOptions = Parameters<typeof runJobAssistantOnce>[0] & {
+  /** The person picked this model in the UI for this request: return the error, never swap it. */
+  modelExplicit?: boolean;
+  /** Chat ids this workspace lists. Defaults to the live selectable catalog. */
+  availableModelIds?: string[];
+};
+
+/**
+ * One job call, with one retry on another model when the gateway could not be reached at all — so
+ * a desk whose mode default is down still gets its brief instead of a 500. Callers that want to
+ * show which model answered use this; the rest keep `collectJobAssistantText` and are rescued
+ * without changing.
+ */
+export async function collectJobAssistantRun(options: JobAssistantOptions): Promise<JobAssistantRun> {
+  const run = await runWithJobModelFallback(options, async (model): Promise<JobModelOutcome<string>> => {
+    let streamed = false;
+    try {
+      const text = await runJobAssistantOnce({
+        ...options,
+        model,
+        onEvent: (event) => {
+          if (event.type === "assistant.delta" && event.text.length > 0) {
+            streamed = true;
+          }
+          options.onEvent?.(event);
+        },
+      });
+      return { ok: true, value: text };
+    } catch (error) {
+      return { ok: false, error, streamed };
+    }
+  });
+  return { text: run.value, model: run.model, ...(run.notice ? { notice: run.notice } : {}) };
+}
+
+export async function collectJobAssistantText(options: JobAssistantOptions): Promise<string> {
+  return (await collectJobAssistantRun(options)).text;
 }

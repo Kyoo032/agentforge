@@ -1,0 +1,29 @@
+[
+  {
+    "id": "bitcoin",
+    "symbol": "btc",
+    "name": "Bitcoin",
+    "current_price": 104231.5,
+    "market_cap": 2067890123456,
+    "total_volume": 48213456789,
+    "price_change_percentage_7d_in_currency": 3.87
+  },
+  {
+    "id": "ethereum",
+    "symbol": "eth",
+    "name": "Ethereum",
+    "current_price": 4210.77,
+    "market_cap": 507123456789,
+    "total_volume": 21987654321,
+    "price_change_percentage_7d_in_currency": -2.14
+  },
+  {
+    "id": "solana",
+    "symbol": "sol",
+    "name": "Solana",
+    "current_price": 238.19,
+    "market_cap": 113456789012,
+    "total_volume": 5987654321,
+    "price_change_percentage_7d_in_currency": null
+  }
+]

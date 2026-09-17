@@ -100,7 +100,9 @@
     ],
     "asarUnpack": [
       "**/node_modules/better-sqlite3/**",
-      "**/node_modules/keytar/**"
+      "**/node_modules/keytar/**",
+      "**/node_modules/@firecrawl/anydoc/**",
+      "**/node_modules/@firecrawl/anydoc-*/**"
     ],
     "win": {
       "icon": "icon.ico",

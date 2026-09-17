@@ -2,11 +2,7 @@
   "title": "Chat",
   "agent": "Agen",
   "newChat": "Chat baru",
-  "newChatPlus": "+ Chat baru",
   "starting": "Menyiapkan chat…",
-  "sessions": "Sesi",
-  "sessionsEmpty": "Sesi muncul di sini setelah Anda mengirim.",
-  "resizeSessions": "Ubah ukuran sesi",
   "deleteSession": "Hapus sesi",
   "deleteConfirm": "Hapus \"{title}\"? Tindakan ini tidak dapat dibatalkan.",
   "deleteAria": "Hapus {title}",
@@ -45,11 +41,6 @@
     "thinking": "Berpikir",
     "thinkingPlaceholder": "Berpikir…"
   },
-  "threads": {
-    "today": "Hari ini",
-    "yesterday": "Kemarin",
-    "earlier": "Lebih lama"
-  },
   "context": {
     "left": "{n} tersisa",
     "used": "{n} terpakai",
@@ -73,7 +64,8 @@
   "usage": {
     "placeholder": "Pemakaian · —",
     "unlimited": "Pemakaian · Tanpa batas",
-    "remaining": "Pemakaian · {left}"
+    "remaining": "Pemakaian · {left}",
+    "error": "Pemakaian tidak tersedia"
   },
   "enhance": {
     "busy": "Batalkan peningkatan",
@@ -106,6 +98,7 @@
     "noStream": "Tidak ada aliran",
     "runFailed": "Jalankan gagal",
     "deleteSession": "Tidak dapat menghapus sesi",
+    "loadSessions": "Tidak dapat memuat sesi",
     "noImageInput": "Agen atau model ini tidak menerima masukan gambar",
     "noVideoInput": "Agen atau model ini tidak menerima masukan video",
     "emptySend": "Ketik pesan atau lampirkan berkas",

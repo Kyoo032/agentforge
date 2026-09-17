@@ -1,4 +1,8 @@
-/** Pure helpers for the Knowledge loop chart (Work → Saved → Indexed → Graph → Retrieved → Verified → Work). */
+/**
+ * Pure helpers for the ingest loop's numbers (Work → Saved → Indexed → Graph → Retrieved →
+ * Verified). The six-box drawing is gone; `knowledge-health.ts` folds these stages into the
+ * Knowledge health tiles, and the Graph stage now only feeds the map panel's header.
+ */
 
 export type LoopSource = {
   type: string;
@@ -21,6 +25,8 @@ export const WORK_SOURCE_ORDER = [
   "Research",
   "Finance",
   "Data",
+  "Market",
+  "Legal",
   "Images",
   "Videos",
   "Presentation",
@@ -88,14 +94,6 @@ export function summarizeLoop(sources: readonly LoopSource[]): LoopSummary {
     }),
     { work: 0, manual: 0, indexed: 0, failed: 0, chunks: 0 },
   );
-}
-
-/** Bar width in [0, 1] relative to the largest count; 0 when there is nothing. */
-export function barFraction(total: number, max: number): number {
-  if (max <= 0 || total <= 0) {
-    return 0;
-  }
-  return Math.min(1, total / max);
 }
 
 /** Last planted-fact self-check reported by the host. Older hosts omit it entirely. */

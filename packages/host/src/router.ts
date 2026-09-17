@@ -50,6 +50,8 @@ import {
   handlePostFinanceRegen,
   handlePostFinanceStream,
 } from "./handlers/finance";
+import { handlePostFinanceExport } from "./handlers/finance-export";
+import { handlePostFinanceImport } from "./handlers/finance-import";
 import {
   handlePostMarket,
   handlePostMarketBoard,
@@ -216,6 +218,8 @@ const routes: Route[] = [
   compile("POST", "/api/v1/finance/parse", handlePostFinanceParse),
   compile("POST", "/api/v1/finance/regenerate", handlePostFinanceRegen),
   compile("POST", "/api/v1/finance/docx", handlePostFinanceDocx),
+  compile("POST", "/api/v1/finance/export", handlePostFinanceExport),
+  compile("POST", "/api/v1/finance/import", handlePostFinanceImport),
   compile("POST", "/api/v1/market", handlePostMarket),
   compile("POST", "/api/v1/market/board", handlePostMarketBoard),
   compile("POST", "/api/v1/market/stream", handlePostMarketStream),

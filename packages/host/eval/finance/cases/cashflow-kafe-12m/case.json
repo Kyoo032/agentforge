@@ -1,0 +1,432 @@
+{
+  "id": "cashflow-kafe-12m",
+  "task": "cashflow",
+  "locale": "id",
+  "currency": "IDR",
+  "description": "Buku kas 12 bulan Kafe Kopi Senja (sintetis). Bulan sebagai KOLOM, saldo awal ditulis di atas tabel, dan ada tiga baris subtotal (Total masuk / Total keluar / Arus kas bersih) plus baris Saldo akhir — keempatnya tidak boleh ikut dijumlahkan sebagai kategori. Konvensi yang dipakai oracle ini: (1) arus kas bersih = total masuk - total keluar per bulan; (2) saldo akhir bulan = saldo akhir bulan sebelumnya + arus kas bersih, saldo awal 45.000.000; (3) burn = nilai positif dari arus kas bersih yang negatif; runway = saldo akhir Des / burn rata-rata (sama seperti runwayMonths(cash, burn) = cash / burn di engine); (4) biaya variabel = Pembelian bahan baku + Perlengkapan & kemasan, biaya tetap = sisanya KECUALI Perawatan mesin (overhaul) yang bersifat sekali jalan, sehingga BEP = biaya tetap / margin kontribusi; (5) skenario dihitung dari basis bulan Desember 2024: penjualan +10% ikut menaikkan biaya variabel 10%, sewa turun 15%. Semua `tolerance` bersifat RELATIF terhadap nilai kebenaran (0.005 = 0,5%).",
+  "files": [
+    {
+      "path": "buku-kas-kopi-senja-2024.xlsx",
+      "sheet": "Arus Kas 2024"
+    }
+  ],
+  "prompt": "Ini buku kas kafe saya sepanjang 2024. Tolong hitung arus kas bersih tiap bulan, saldo akhir tiap bulan, rata-rata burn di bulan-bulan yang minus dan di 3 bulan terakhir, runway dari saldo akhir Desember, bulan berapa kas saya habis kalau burn 3 bulan terakhir berlanjut, dan berapa omzet BEP per bulan. Lalu satu skenario: kalau sewa dipotong 15% dan penjualan naik 10% mulai bulan depan, berapa arus kas bersih dan runway barunya?",
+  "params": {
+    "openingCash": 45000000,
+    "rentCutPct": 15,
+    "salesLiftPct": 10
+  },
+  "truth": {
+    "lineItems": [
+      {
+        "label": "Total kas masuk",
+        "period": "Jan 2024",
+        "amount": 92000000,
+        "category": "revenue"
+      },
+      {
+        "label": "Total kas keluar",
+        "period": "Jan 2024",
+        "amount": 88750000,
+        "category": "opex"
+      },
+      {
+        "label": "Total kas masuk",
+        "period": "Feb 2024",
+        "amount": 91300000,
+        "category": "revenue"
+      },
+      {
+        "label": "Total kas keluar",
+        "period": "Feb 2024",
+        "amount": 86450000,
+        "category": "opex"
+      },
+      {
+        "label": "Total kas masuk",
+        "period": "Mar 2024",
+        "amount": 96900000,
+        "category": "revenue"
+      },
+      {
+        "label": "Total kas keluar",
+        "period": "Mar 2024",
+        "amount": 92050000,
+        "category": "opex"
+      },
+      {
+        "label": "Total kas masuk",
+        "period": "Apr 2024",
+        "amount": 111200000,
+        "category": "revenue"
+      },
+      {
+        "label": "Total kas keluar",
+        "period": "Apr 2024",
+        "amount": 110150000,
+        "category": "opex"
+      },
+      {
+        "label": "Total kas masuk",
+        "period": "Mei 2024",
+        "amount": 115900000,
+        "category": "revenue"
+      },
+      {
+        "label": "Total kas keluar",
+        "period": "Mei 2024",
+        "amount": 101050000,
+        "category": "opex"
+      },
+      {
+        "label": "Total kas masuk",
+        "period": "Jun 2024",
+        "amount": 99800000,
+        "category": "revenue"
+      },
+      {
+        "label": "Total kas keluar",
+        "period": "Jun 2024",
+        "amount": 93750000,
+        "category": "opex"
+      },
+      {
+        "label": "Total kas masuk",
+        "period": "Jul 2024",
+        "amount": 84400000,
+        "category": "revenue"
+      },
+      {
+        "label": "Total kas keluar",
+        "period": "Jul 2024",
+        "amount": 96650000,
+        "category": "opex"
+      },
+      {
+        "label": "Total kas masuk",
+        "period": "Agu 2024",
+        "amount": 107500000,
+        "category": "revenue"
+      },
+      {
+        "label": "Total kas keluar",
+        "period": "Agu 2024",
+        "amount": 96350000,
+        "category": "opex"
+      },
+      {
+        "label": "Total kas masuk",
+        "period": "Sep 2024",
+        "amount": 107400000,
+        "category": "revenue"
+      },
+      {
+        "label": "Total kas keluar",
+        "period": "Sep 2024",
+        "amount": 98750000,
+        "category": "opex"
+      },
+      {
+        "label": "Total kas masuk",
+        "period": "Okt 2024",
+        "amount": 95400000,
+        "category": "revenue"
+      },
+      {
+        "label": "Total kas keluar",
+        "period": "Okt 2024",
+        "amount": 94350000,
+        "category": "opex"
+      },
+      {
+        "label": "Total kas masuk",
+        "period": "Nov 2024",
+        "amount": 79900000,
+        "category": "revenue"
+      },
+      {
+        "label": "Total kas keluar",
+        "period": "Nov 2024",
+        "amount": 89550000,
+        "category": "opex"
+      },
+      {
+        "label": "Total kas masuk",
+        "period": "Des 2024",
+        "amount": 71600000,
+        "category": "revenue"
+      },
+      {
+        "label": "Total kas keluar",
+        "period": "Des 2024",
+        "amount": 86250000,
+        "category": "opex"
+      }
+    ],
+    "figures": [
+      {
+        "key": "netCash.Jan 2024",
+        "label": "Arus kas bersih Jan 2024",
+        "value": 3250000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netCash.Feb 2024",
+        "label": "Arus kas bersih Feb 2024",
+        "value": 4850000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netCash.Mar 2024",
+        "label": "Arus kas bersih Mar 2024",
+        "value": 4850000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netCash.Apr 2024",
+        "label": "Arus kas bersih Apr 2024",
+        "value": 1050000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netCash.Mei 2024",
+        "label": "Arus kas bersih Mei 2024",
+        "value": 14850000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netCash.Jun 2024",
+        "label": "Arus kas bersih Jun 2024",
+        "value": 6050000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netCash.Jul 2024",
+        "label": "Arus kas bersih Jul 2024",
+        "value": -12250000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netCash.Agu 2024",
+        "label": "Arus kas bersih Agu 2024",
+        "value": 11150000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netCash.Sep 2024",
+        "label": "Arus kas bersih Sep 2024",
+        "value": 8650000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netCash.Okt 2024",
+        "label": "Arus kas bersih Okt 2024",
+        "value": 1050000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netCash.Nov 2024",
+        "label": "Arus kas bersih Nov 2024",
+        "value": -9650000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netCash.Des 2024",
+        "label": "Arus kas bersih Des 2024",
+        "value": -14650000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "closingCash.Jan 2024",
+        "label": "Saldo akhir Jan 2024",
+        "value": 48250000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "closingCash.Feb 2024",
+        "label": "Saldo akhir Feb 2024",
+        "value": 53100000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "closingCash.Mar 2024",
+        "label": "Saldo akhir Mar 2024",
+        "value": 57950000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "closingCash.Apr 2024",
+        "label": "Saldo akhir Apr 2024",
+        "value": 59000000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "closingCash.Mei 2024",
+        "label": "Saldo akhir Mei 2024",
+        "value": 73850000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "closingCash.Jun 2024",
+        "label": "Saldo akhir Jun 2024",
+        "value": 79900000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "closingCash.Jul 2024",
+        "label": "Saldo akhir Jul 2024",
+        "value": 67650000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "closingCash.Agu 2024",
+        "label": "Saldo akhir Agu 2024",
+        "value": 78800000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "closingCash.Sep 2024",
+        "label": "Saldo akhir Sep 2024",
+        "value": 87450000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "closingCash.Okt 2024",
+        "label": "Saldo akhir Okt 2024",
+        "value": 88500000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "closingCash.Nov 2024",
+        "label": "Saldo akhir Nov 2024",
+        "value": 78850000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "closingCash.Des 2024",
+        "label": "Saldo akhir Des 2024",
+        "value": 64200000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "totalCashIn.2024",
+        "label": "Total kas masuk 2024",
+        "value": 1153300000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "totalCashOut.2024",
+        "label": "Total kas keluar 2024",
+        "value": 1134100000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "averageBurn.negativeMonths",
+        "label": "Rata-rata burn bulan minus",
+        "value": 12183333.333333334,
+        "unit": "currency",
+        "tolerance": 0.000001
+      },
+      {
+        "key": "averageBurn.last3Months",
+        "label": "Rata-rata burn 3 bulan terakhir",
+        "value": 7750000,
+        "unit": "currency",
+        "tolerance": 0.000001
+      },
+      {
+        "key": "runwayMonths.negativeMonths",
+        "label": "Runway pada burn bulan minus",
+        "value": 5.269493844049247,
+        "unit": "months",
+        "tolerance": 0.000001
+      },
+      {
+        "key": "runwayMonths.last3Months",
+        "label": "Runway pada burn 3 bulan terakhir",
+        "value": 8.283870967741935,
+        "unit": "months",
+        "tolerance": 0.000001
+      },
+      {
+        "key": "monthsToZeroCash",
+        "label": "Bulan sampai kas habis",
+        "value": 8.283870967741935,
+        "unit": "months",
+        "tolerance": 0.000001
+      },
+      {
+        "key": "breakevenRevenue.monthly",
+        "label": "Pendapatan BEP per bulan",
+        "value": 91598512.30761519,
+        "unit": "currency",
+        "tolerance": 0.000001
+      },
+      {
+        "key": "breakevenRevenue.annual",
+        "label": "Pendapatan BEP setahun",
+        "value": 1099182147.6913822,
+        "unit": "currency",
+        "tolerance": 0.000001
+      },
+      {
+        "key": "contributionMarginPct",
+        "label": "Margin kontribusi",
+        "value": 57.651955258822504,
+        "unit": "percent",
+        "tolerance": 0.000001
+      },
+      {
+        "key": "whatIf.netCash.monthly",
+        "label": "Arus kas bersih setelah skenario",
+        "value": -8380000,
+        "unit": "currency",
+        "tolerance": 0.000001
+      },
+      {
+        "key": "whatIf.runwayMonths",
+        "label": "Runway setelah skenario",
+        "value": 7.6610978520286395,
+        "unit": "months",
+        "tolerance": 0.000001
+      }
+    ],
+    "mustMention": [
+      "runway",
+      "saldo akhir",
+      "burn",
+      "BEP",
+      "September 2025"
+    ],
+    "mustNotContain": [
+      "[unverified figure]",
+      "[angka belum diverifikasi]"
+    ]
+  }
+}

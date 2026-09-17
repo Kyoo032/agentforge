@@ -10,6 +10,8 @@ import {
   marketWatchPacketSchema,
   type TickerPacket,
 } from "../market/watch-schemas";
+import { DEFAULT_MARKET_SPECIALIST, MARKET_SPECIALISTS, MARKET_SPECIALIST_META } from "../market/specialists";
+import { DEFAULT_MARKET_DEPTH, MARKET_DEPTHS, teamNotesSchema } from "../market/team";
 import { httpUrlSchema } from "../market/schemas";
 import { markdownTable } from "./markdown-table";
 
@@ -29,10 +31,19 @@ export type BriefingSource = z.infer<typeof briefingSourceSchema>;
 export const marketBriefingSchema = z.object({
   title: z.string().min(1),
   language: z.enum(["id", "en"]).default("id"),
+  /** The named Market agent that wrote it; a rewrite reuses the same rules. */
+  specialist: z.enum(MARKET_SPECIALISTS).default(DEFAULT_MARKET_SPECIALIST),
+  /** How it was written: one pass (`quick`) or the analyst team (`team`). */
+  depth: z.enum(MARKET_DEPTHS).default(DEFAULT_MARKET_DEPTH),
   generatedAt: z.string().datetime({ offset: true }),
   sections: z.array(briefingSectionSchema).min(1).max(BRIEFING_SECTIONS_MAX),
   packet: marketWatchPacketSchema,
   sources: z.array(briefingSourceSchema).max(BRIEFING_SOURCES_MAX).default([]),
+  /**
+   * What the team produced, stored only for a `team` run and only after the
+   * advice and number guards have been run over every free-text field.
+   */
+  team: teamNotesSchema.optional(),
   /** Sections the advice guard touched. */
   guardedSections: z.number().int().nonnegative().default(0),
   disclaimer: z.string().min(1),
@@ -94,11 +105,17 @@ function newsBlock(t: TickerPacket): string[] {
   ];
 }
 
+/** The agent's name in the briefing's own language, for the line under the title. */
+export function specialistLabel(briefing: Pick<MarketBriefing, "specialist" | "language">): string {
+  const meta = MARKET_SPECIALIST_META[briefing.specialist] ?? MARKET_SPECIALIST_META[DEFAULT_MARKET_SPECIALIST];
+  return briefing.language === "en" ? meta.label.en : meta.label.id;
+}
+
 export function marketBriefingToMarkdown(briefing: MarketBriefing): string {
   const lines: string[] = [
     `# ${briefing.title}`,
     "",
-    `Generated ${briefing.generatedAt} · session: ${briefing.packet.clock.usSession}`,
+    `Agent: ${specialistLabel(briefing)} · generated ${briefing.generatedAt} · session: ${briefing.packet.clock.usSession}`,
   ];
   if (briefing.packet.clock.note) lines.push("", `> ${briefing.packet.clock.note}`);
   lines.push("");

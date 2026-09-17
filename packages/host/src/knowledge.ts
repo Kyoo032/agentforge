@@ -1,3 +1,4 @@
+import { readdirSync, rmSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { sql } from "@agentforge/db";
@@ -17,18 +18,15 @@ import { KNOWLEDGE_TEXT_MAX_CHARS, SOURCE_NAME_MAX, chunkKnowledgeText, sanitize
 import { deleteThroughBackend, indexThroughBackend, retrieveThroughBackend } from "./knowledge/registry";
 import type { KnowledgeBackendId, RetrievedChunk, RetrieveResult } from "./knowledge/backend";
 import { expandRetrievedChunks } from "./knowledge-expand";
+import { removeGraphForSource, sweepOrphanGraph } from "./knowledge-graph-prune";
+import { defaultSoul, isLegacyDefaultSoul, type KnowledgeSoul } from "./knowledge-soul";
 import { modeCatalogPayload } from "./selectable-models";
 import { loadSettings } from "./settings-store";
 
 export { chunkKnowledgeText, knowledgeFtsQuery, sanitizeSourceName } from "./knowledge-text";
 export type { RetrievedChunk, RetrieveResult } from "./knowledge/backend";
-
-export type KnowledgeSoul = {
-  name: string;
-  role: string;
-  voice: string;
-  rules: string[];
-};
+export { defaultSoul, isLegacyDefaultSoul } from "./knowledge-soul";
+export type { KnowledgeSoul } from "./knowledge-soul";
 
 export type KnowledgeMemory = {
   id: string;
@@ -83,13 +81,6 @@ function sourceFromRow(row: SourceRow): KnowledgeSource {
   };
 }
 
-const DEFAULT_SOUL: KnowledgeSoul = {
-  name: "Forge",
-  role: "Desk assistant for this workspace",
-  voice: "Precise, plain-spoken. Cites sources; never pads.",
-  rules: ["Cite a source for every factual claim or say it is an estimate."],
-};
-
 function workspaceId(tenant: TenantContext): string {
   return tenant.workspaceId;
 }
@@ -143,7 +134,7 @@ export function getSoul(tenant: TenantContext): KnowledgeSoul {
     .prepare("SELECT name, role, voice, rules FROM knowledge_soul WHERE workspace_id = ?")
     .get(workspaceId(tenant)) as { name: string; role: string; voice: string; rules: string } | undefined;
   if (!row) {
-    return { ...DEFAULT_SOUL, rules: [...DEFAULT_SOUL.rules] };
+    return defaultSoul();
   }
   let rules: string[] = [];
   try {
@@ -152,13 +143,18 @@ export function getSoul(tenant: TenantContext): KnowledgeSoul {
   } catch {
     rules = [];
   }
-  return { name: row.name, role: row.role, voice: row.voice, rules };
+  const stored: KnowledgeSoul = { name: row.name, role: row.role, voice: row.voice, rules };
+  // Upgrade on read, not on write: a desk whose row is byte-for-byte the old default never chose
+  // it (the Knowledge page saves the default verbatim when Save is pressed unedited), so it gets
+  // the product's own Soul. One edited field and the row is the owner's — returned untouched.
+  return isLegacyDefaultSoul(stored) ? defaultSoul() : stored;
 }
 
 export function putSoul(tenant: TenantContext, input: KnowledgeSoul): KnowledgeSoul {
-  const name = input.name.trim() || DEFAULT_SOUL.name;
-  const role = input.role.trim() || DEFAULT_SOUL.role;
-  const voice = input.voice.trim() || DEFAULT_SOUL.voice;
+  const fallback = defaultSoul();
+  const name = input.name.trim() || fallback.name;
+  const role = input.role.trim() || fallback.role;
+  const voice = input.voice.trim() || fallback.voice;
   const rules = input.rules.map((rule) => rule.trim()).filter(Boolean);
   sql
     .prepare(
@@ -422,6 +418,15 @@ function injectionGuardBypass(tenant: TenantContext): boolean {
  * The name is scanned too: it becomes the `[n] <name>` citation line, and an upload filename or a
  * remote `<title>` is attacker-controlled in exactly the same way the body is.
  */
+function injectionRule(tenant: TenantContext, name: string, text: string): string | null {
+  if (injectionGuardBypass(tenant)) {
+    return null;
+  }
+  // The raw name, not the sanitized one: stripping a leading `###` must not also strip the rule that
+  // would have caught it.
+  return (scanInjection(name) ?? scanInjection(text))?.rule ?? null;
+}
+
 function indexSource(
   tenant: TenantContext,
   id: string,
@@ -429,37 +434,83 @@ function indexSource(
   type: string,
   text: string,
 ): Promise<KnowledgeSource> {
-  const bypass = injectionGuardBypass(tenant);
-  // The raw name, not the sanitized one: stripping a leading `###` must not also strip the rule that
-  // would have caught it.
-  const hit = bypass ? null : (scanInjection(name) ?? scanInjection(text));
-  if (hit) {
-    return Promise.resolve(markSourceFailed(tenant, { id, name, type }, `injection_blocked (rule: ${hit.rule})`));
+  const rule = injectionRule(tenant, name, text);
+  if (rule) {
+    return Promise.resolve(markSourceFailed(tenant, { id, name, type }, `injection_blocked (rule: ${rule})`));
   }
   return indexKnowledgeSource(tenant, { id, name, type, text });
 }
 
+/** Where `addFileSource` keeps the raw upload, so a delete can find the bytes again. */
+function uploadDir(tenant: TenantContext): string {
+  return path.join(mediaRoot(), "knowledge", tenant.organizationId);
+}
+
+/**
+ * Drop the raw bytes an upload left on disk.
+ *
+ * `addFileSource` writes every upload under `<mediaRoot>/knowledge/<organizationId>/<id>-<name>`,
+ * and that directory is organization-scoped while the source row is workspace-scoped: an owner who
+ * removes a source believing they removed the document has to be right about that. The stored name
+ * is mangled (`[^\w.-]` collapsed) so it is found by its `<id>-` prefix rather than rebuilt.
+ *
+ * Sync on purpose: `deleteSource` answers the route synchronously, and a delete that reports success
+ * before the bytes are gone is the bug this closes. A missing directory or file is not an error.
+ */
+function removeStoredUpload(tenant: TenantContext, sourceId: string): number {
+  const dir = uploadDir(tenant);
+  let entries: string[];
+  try {
+    entries = readdirSync(dir);
+  } catch {
+    return 0; // ENOENT: this desk has never had a file upload, or it was cleaned up already.
+  }
+  let removed = 0;
+  for (const entry of entries) {
+    if (!entry.startsWith(`${sourceId}-`)) {
+      continue;
+    }
+    try {
+      rmSync(path.join(dir, entry), { force: true });
+      removed += 1;
+    } catch (error) {
+      console.warn(
+        `knowledge: stored upload for ${sourceId} could not be removed (${error instanceof Error ? error.message.slice(0, 120) : "error"})`,
+      );
+    }
+  }
+  return removed;
+}
+
+/**
+ * Index one uploaded file.
+ *
+ * Failure is an HTTP failure, not a tombstone: a format we cannot read (`unsupported_content_type`),
+ * a supported format that will not parse (`pdf_*` / `docx_*`) and an upload that carries injection
+ * text all leave as a structured 4xx with no row and no stored bytes. `201 Created` used to answer a
+ * `Failed` row, which reads as success to any client that is not the Knowledge page.
+ *
+ * The injection scan runs before the write so a blocked upload never leaves its bytes on disk.
+ */
 export async function addFileSource(
   tenant: TenantContext,
   file: { filename: string; mime: string; bytes: Uint8Array },
 ): Promise<KnowledgeSource> {
   const id = crypto.randomUUID();
-  let text: string;
-  try {
-    text = await extractText(file.filename, file.mime, Buffer.from(file.bytes));
-  } catch (error) {
-    // A supported format that fails to parse (pdf_* / docx_*) is a Failed source with a human
-    // reason, like injection_blocked; an unsupported type stays a 400 so the picker can say so.
-    if (error instanceof ApiError && /^(pdf|docx)_/.test(error.code)) {
-      return markSourceFailed(tenant, { id, name: file.filename, type: "File" }, `${error.code}: ${error.message}`);
-    }
-    throw error;
+  const text = await extractText(file.filename, file.mime, Buffer.from(file.bytes));
+  const rule = injectionRule(tenant, file.filename, text);
+  if (rule) {
+    throw new ApiError(
+      "injection_blocked",
+      `This file was not indexed: it carries prompt-injection text (rule: ${rule}).`,
+      400,
+    );
   }
   const relative = `knowledge/${tenant.organizationId}/${id}-${file.filename.replace(/[^\w.-]+/g, "_")}`;
   const full = path.join(mediaRoot(), relative);
   await mkdir(path.dirname(full), { recursive: true });
   await writeFile(full, Buffer.from(file.bytes));
-  return indexSource(tenant, id, file.filename, "File", text);
+  return indexKnowledgeSource(tenant, { id, name: file.filename, type: "File", text });
 }
 
 /** Whole page for indexing; the 1.5 MB fetch cap already bounds it. Shared with paste and file text. */
@@ -494,6 +545,7 @@ export const WORK_SOURCE_TYPES = [
   "Research",
   "Finance",
   "Data",
+  "Market",
   "Images",
   "Videos",
   "Presentation",
@@ -531,14 +583,28 @@ export async function addPastedSource(
   return indexSource(tenant, crypto.randomUUID(), trimmedName, type, text);
 }
 
+/**
+ * Everything one source leaves behind, in the caller's transaction: its chunks, its vectors, its
+ * graph node and edges, and its retrieval rows. The row itself is the caller's to delete, because
+ * `deleteSource` and the orphan sweep disagree about how they select it.
+ */
+function dropSourceTraces(tenant: TenantContext, sourceId: string): void {
+  const ws = workspaceId(tenant);
+  sql.prepare("DELETE FROM knowledge_vectors WHERE workspace_id = ? AND source_id = ?").run(ws, sourceId);
+  sql.prepare("DELETE FROM knowledge_chunks WHERE workspace_id = ? AND source_id = ?").run(ws, sourceId);
+  // The graph and the retrieval counter are projections that used to outlive their source: a deleted
+  // card stayed drawable forever and the Retrieved stage could only go up. Same transaction as the
+  // row, so the projection can never survive the thing it projects.
+  removeGraphForSource(tenant, sourceId);
+}
+
 export function deleteSource(tenant: TenantContext, id: string): boolean {
   const ws = workspaceId(tenant);
   // Read before the transaction: afterwards there is no row left to read it from, and the index
   // side of the delete has not run yet.
   const externalId = externalIdOf(ws, id);
   const tx = sql.transaction(() => {
-    sql.prepare("DELETE FROM knowledge_vectors WHERE workspace_id = ? AND source_id = ?").run(ws, id);
-    sql.prepare("DELETE FROM knowledge_chunks WHERE workspace_id = ? AND source_id = ?").run(ws, id);
+    dropSourceTraces(tenant, id);
     return sql.prepare("DELETE FROM knowledge_sources WHERE workspace_id = ? AND id = ?").run(ws, id).changes > 0;
   });
   const removed = tx.immediate();
@@ -546,42 +612,148 @@ export function deleteSource(tenant: TenantContext, id: string): boolean {
     // The SQLite rows are gone; tell the retrieval index too (a no-op repeat for the builtin backend,
     // a network call once the index lives outside this file).
     forgetInBackend(tenant, id, externalId);
+    // And the raw upload, if this source was a file. Nothing else ever reads it once the row is gone.
+    removeStoredUpload(tenant, id);
   }
   return removed;
 }
 
 /**
- * Drop Chat cards whose thread is gone (a delete that raced the cascade, or rows left by older builds).
- * Cheap, workspace-scoped, one transaction; called from GET /api/v1/knowledge.
+ * How the sweep decides whether a work card's subject still exists, one clause per origin kind.
+ *
+ * `media` is organization-scoped (the `media` table has no workspace column) while everything else
+ * on the knowledge path is workspace-scoped; the card is still only swept inside its own workspace.
  */
-export function sweepOrphanThreadSources(tenant: TenantContext): number {
-  const ws = workspaceId(tenant);
-  const tx = sql.transaction(() => {
-    const orphans = sql
+const ORIGIN_OWNERS: Readonly<
+  Record<SourceOriginKind, { select: string; param: (tenant: TenantContext) => string }>
+> = {
+  thread: { select: "SELECT id FROM threads WHERE workspace_id = ?", param: (tenant) => tenant.workspaceId },
+  artifact: { select: "SELECT id FROM artifacts WHERE workspace_id = ?", param: (tenant) => tenant.workspaceId },
+  media: { select: "SELECT id FROM media WHERE organization_id = ?", param: (tenant) => tenant.organizationId },
+};
+
+type OrphanRow = { id: string; external_id: string | null };
+
+/**
+ * Work cards of one origin kind whose subject is gone. `null` — never an empty list — when the owner
+ * table cannot be read, so an unreadable table can never be mistaken for "nothing owns these rows".
+ */
+function orphansOfKind(tenant: TenantContext, kind: SourceOriginKind): OrphanRow[] | null {
+  const owner = ORIGIN_OWNERS[kind];
+  try {
+    return sql
       .prepare(
         `SELECT id, external_id FROM knowledge_sources
-         WHERE workspace_id = ? AND origin_kind = 'thread'
-           AND origin_id NOT IN (SELECT id FROM threads WHERE workspace_id = ?)`,
+         WHERE workspace_id = ? AND origin_kind = ?
+           AND origin_id NOT IN (${owner.select})`,
       )
-      .all(ws, ws) as Array<{ id: string; external_id: string | null }>;
-    for (const row of orphans) {
-      sql.prepare("DELETE FROM knowledge_vectors WHERE workspace_id = ? AND source_id = ?").run(ws, row.id);
-      sql.prepare("DELETE FROM knowledge_chunks WHERE workspace_id = ? AND source_id = ?").run(ws, row.id);
+      .all(workspaceId(tenant), kind, owner.param(tenant)) as OrphanRow[];
+  } catch (error) {
+    console.warn(
+      `knowledge: orphan sweep skipped ${kind} (${error instanceof Error ? error.message.slice(0, 120) : "error"})`,
+    );
+    return null;
+  }
+}
+
+/**
+ * Drop work cards whose subject is gone — a deleted thread, a deleted generated image or clip, a
+ * deleted job artifact — plus the graph and retrieval rows they left behind.
+ *
+ * This is the belt to the cascade's braces. It covers three holes the thread-only sweep did not:
+ * `media` cards had *no* removal path at all (nothing ever called `deleteSourceByOrigin` with
+ * `kind: "media"`), `artifact` cards were only removed by the artifact route, and dataset / matter
+ * deletes reach their cards through the artifacts they own, which they now delete first.
+ *
+ * Cheap, workspace-scoped, one transaction; called from GET /api/v1/knowledge and after a dataset
+ * or matter delete. `sweepOrphanThreadSources` is the old name and still works.
+ */
+export function sweepOrphanSources(tenant: TenantContext): number {
+  const ws = workspaceId(tenant);
+  const found = (Object.keys(ORIGIN_OWNERS) as SourceOriginKind[]).flatMap((kind) => orphansOfKind(tenant, kind) ?? []);
+  const tx = sql.transaction(() => {
+    for (const row of found) {
+      dropSourceTraces(tenant, row.id);
       sql.prepare("DELETE FROM knowledge_sources WHERE workspace_id = ? AND id = ?").run(ws, row.id);
     }
-    return orphans;
+    return found;
   });
   const removed = tx.immediate();
   for (const row of removed) {
     forgetInBackend(tenant, row.id, row.external_id);
+    removeStoredUpload(tenant, row.id);
   }
+  // Rows written before the cascade existed have no source row left to sweep — only a node, an edge
+  // or a retrieval. The owner's desk carried 18 graph nodes against one live source; this is the
+  // repair pass that makes the loop chart describe the knowledge base that actually exists.
+  sweepOrphanGraph(tenant);
   return removed.length;
+}
+
+/**
+ * The sweep's old, thread-only name. Kept so the `GET /api/v1/knowledge` call site picks up the
+ * generalised sweep without a handler change; new callers should say `sweepOrphanSources`.
+ */
+export function sweepOrphanThreadSources(tenant: TenantContext): number {
+  return sweepOrphanSources(tenant);
 }
 
 /** Remove the work card of a thread / media / artifact that was deleted, so it is never retrieved again. */
 export function deleteSourceByOrigin(tenant: TenantContext, origin: SourceOrigin): boolean {
   const existing = findSourceByOrigin(tenant, origin);
   return existing ? deleteSource(tenant, existing.id) : false;
+}
+
+/** Meta keys that tie an artifact to the record it was produced for. */
+export type ArtifactOwnerKey = "datasetId" | "matterId";
+
+type SqlLike = Pick<typeof sql, "prepare">;
+
+/**
+ * Delete every artifact one dataset or matter produced.
+ *
+ * Data and Legal cards carry `origin: { kind: "artifact" }`, so removing the dataset or the matter
+ * has to reach the artifacts first — otherwise the analysis keeps answering Chat about numbers that
+ * are gone, and a matter the owner deleted keeps feeding its red flags into every later turn. The
+ * caller runs `sweepOrphanSources` afterwards, which collects the cards these rows owned.
+ *
+ * Matched on the `meta` JSON both ways: a `LIKE` on the serialized pair narrows the scan without
+ * needing JSON1, then the parsed value has to agree before anything is deleted.
+ */
+export function deleteArtifactsByOwner(
+  tenant: TenantContext,
+  key: ArtifactOwnerKey,
+  ownerId: string,
+  db: SqlLike = sql,
+): number {
+  if (!ownerId) {
+    return 0;
+  }
+  try {
+    const rows = db
+      .prepare("SELECT id, meta FROM artifacts WHERE workspace_id = ? AND meta LIKE ?")
+      .all(workspaceId(tenant), `%${JSON.stringify(key)}:${JSON.stringify(ownerId)}%`) as Array<{
+      id: string;
+      meta: string;
+    }>;
+    const owned = rows.filter((row) => {
+      try {
+        return (JSON.parse(row.meta) as Record<string, unknown>)[key] === ownerId;
+      } catch {
+        return false;
+      }
+    });
+    const statement = db.prepare("DELETE FROM artifacts WHERE workspace_id = ? AND id = ?");
+    for (const row of owned) {
+      statement.run(workspaceId(tenant), row.id);
+    }
+    return owned.length;
+  } catch (error) {
+    console.warn(
+      `knowledge: artifacts for ${key} ${ownerId} not removed (${error instanceof Error ? error.message.slice(0, 120) : "error"})`,
+    );
+    return 0;
+  }
 }
 
 export type RetrieveOptions = {

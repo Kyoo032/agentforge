@@ -11,7 +11,7 @@ import {
 } from "./work-cards";
 
 describe("work cards", () => {
-  it("renders a self-describing card with mode, pointer, and prompt", () => {
+  it("renders a self-describing card with mode, pointer, and file", () => {
     const text = renderWorkCard(
       mediaWorkCard({
         kind: "video",
@@ -29,6 +29,37 @@ describe("work cards", () => {
     expect(text).toContain("Pointer: media:m1");
     expect(text).toContain("Duration: 8 s");
     expect(text).toContain("File: /api/v1/media/m1/file");
+  });
+
+  it("writes a media card's prompt exactly once", () => {
+    const card = mediaWorkCard({
+      kind: "image",
+      mediaId: "m3",
+      prompt: "Slow pan over a harbor at dusk",
+      aspect: "16:9",
+      model: "gpt-image-2",
+      url: "/api/v1/media/m3/file",
+    });
+    // Header line and body line used to carry it, which doubled the indexed text of a card that is
+    // essentially nothing but its prompt, and doubled its term frequency against bm25.
+    expect(card.prompt).toBeUndefined();
+    const text = renderWorkCard(card);
+    expect(text.match(/Slow pan over a harbor at dusk/g)).toHaveLength(2); // the title line and the body line
+    expect(text.match(/^Prompt: /gm)).toHaveLength(1);
+  });
+
+  it("keeps an artifact card's prompt in the header, where it is not duplicated", () => {
+    const text = renderWorkCard(
+      artifactWorkCard({
+        type: "Research",
+        artifactId: "a2",
+        title: "Lithium supply",
+        prompt: "Who mines the most lithium?",
+        markdown: "Australia leads on mined output.",
+      }),
+    );
+    expect(text.match(/^Prompt: /gm)).toHaveLength(1);
+    expect(text).not.toContain("File:");
   });
 
   it("caps the body and marks the cut", () => {

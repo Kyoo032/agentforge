@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { MARKET_DISCLAIMER } from "../market/disclaimer";
+import {
+  DEFAULT_MARKET_SPECIALIST,
+  MARKET_SPECIALISTS,
+  MARKET_SPECIALIST_META,
+} from "../market/specialists";
 import { FIXTURE_NOW, makePacket } from "../market/watch-fixtures";
 import { ARTIFACT_KINDS, isArtifactKind } from "./artifact-meta";
 import { type MarketBriefing, marketBriefingSchema, marketBriefingToMarkdown } from "./market-briefing";
@@ -99,5 +104,23 @@ describe("artifact kind", () => {
   it("knows the briefing kind", () => {
     expect(ARTIFACT_KINDS).toContain("briefing");
     expect(isArtifactKind("briefing")).toBe(true);
+  });
+});
+
+describe("marketBriefing specialist", () => {
+  it("defaults to the saham agent and accepts every named one", () => {
+    const briefing = makeBriefing();
+    expect(briefing.specialist).toBe(DEFAULT_MARKET_SPECIALIST);
+    for (const id of MARKET_SPECIALISTS) {
+      expect(marketBriefingSchema.parse({ ...briefing, specialist: id }).specialist).toBe(id);
+    }
+    expect(marketBriefingSchema.safeParse({ ...briefing, specialist: "stocks" }).success).toBe(false);
+  });
+
+  it("names the agent on the markdown line under the title, in the briefing's language", () => {
+    const indonesian = marketBriefingToMarkdown({ ...makeBriefing(), specialist: "gold", language: "id" });
+    expect(indonesian).toContain(MARKET_SPECIALIST_META.gold.label.id);
+    const english = marketBriefingToMarkdown({ ...makeBriefing(), specialist: "gold", language: "en" });
+    expect(english).toContain(MARKET_SPECIALIST_META.gold.label.en);
   });
 });

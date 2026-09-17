@@ -40,7 +40,7 @@ test("chat and workspaces work without an account", async ({ page }) => {
   await page.getByTestId("composer-send").click();
   await expect(page.getByTestId("message-list")).toContainText(promptOne, { timeout: 20_000 });
   await expect(page.getByTestId("composer-send")).toHaveText("Send", { timeout: 30_000 });
-  await expect(page.getByTestId("thread-list")).toContainText(promptOne);
+  await expect(page.getByTestId("rail-thread-list")).toContainText(promptOne);
 
   await page.getByTestId("new-chat").click();
   await expect(page.getByTestId("chat-empty")).toContainText("Ask anything", { timeout: 10_000 });
@@ -48,7 +48,7 @@ test("chat and workspaces work without an account", async ({ page }) => {
   await page.getByTestId("composer-send").click();
   await expect(page.getByTestId("message-list")).toContainText(promptTwo, { timeout: 20_000 });
   await expect(page.getByTestId("composer-send")).toHaveText("Send", { timeout: 30_000 });
-  await expect(page.getByTestId("thread-list")).toContainText(promptTwo);
+  await expect(page.getByTestId("rail-thread-list")).toContainText(promptTwo);
   await page.getByTestId("thread-item").filter({ hasText: promptOne }).click();
   await expect(page.getByTestId("message-list")).toContainText(promptOne);
 

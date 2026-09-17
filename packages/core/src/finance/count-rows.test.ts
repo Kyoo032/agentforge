@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { COUNT_WORDS, dropCountRows, isCountRow } from "./count-rows";
+import { COUNT_WORDS, dropCountRows, hasUnitMarker, isCountRow } from "./count-rows";
 import type { LineItem } from "./types";
 
 function row(overrides: Partial<LineItem>): LineItem {
@@ -60,5 +60,25 @@ describe("dropCountRows", () => {
   it("leaves a list with no count rows untouched in content", () => {
     const items = [row({ label: "Rent", amount: 12, currency: "USD", category: "opex" })];
     expect(dropCountRows(items)).toEqual(items);
+  });
+});
+
+describe("Indonesian count rows", () => {
+  it("drops the orang / gerai / outlet rows an Indonesian operations sheet writes", () => {
+    expect(isCountRow(row({ label: "Jumlah Karyawan Tetap (orang)", amount: 46 }))).toBe(true);
+    expect(isCountRow(row({ label: "Jumlah Gerai Mitra (outlet)", amount: 18 }))).toBe(true);
+    expect(isCountRow(row({ label: "Jumlah Pelanggan", amount: 120 }))).toBe(true);
+  });
+
+  it("drops a count whose unit is written out, however large the number is", () => {
+    // 412,000 pcs is still a count; the old max-amount rule kept it and the engine totalled it.
+    expect(isCountRow(row({ label: "Unit Produk Terjual (pcs)", amount: 412_000 }))).toBe(true);
+    expect(isCountRow(row({ label: "Kapasitas Produksi (pcs/bulan)", amount: 45_000 }))).toBe(true);
+    expect(hasUnitMarker("Unit Produk Terjual (pcs)")).toBe(true);
+    expect(hasUnitMarker("Beban Pajak Penghasilan (22%)")).toBe(false);
+  });
+
+  it("keeps an Indonesian row that carries a currency", () => {
+    expect(isCountRow(row({ label: "Rata-rata Harga Jual per pcs", amount: 16_800, currency: "IDR" }))).toBe(false);
   });
 });

@@ -6,6 +6,11 @@ type Props = {
   progress: JobProgress;
   busy: boolean;
   testId?: string;
+  /**
+   * The reader's name for a phase label. Finance streams the phase *id* ("narrate-guard-export")
+   * because the host has no locale for one; other modes send a sentence and pass nothing here.
+   */
+  labelFor?: (label: string) => string;
 };
 
 const SOURCE_STATUS_LABEL: Record<string, string> = {
@@ -15,7 +20,7 @@ const SOURCE_STATUS_LABEL: Record<string, string> = {
 };
 
 /** Streamed phase list for job modes: planning → searching 3/5 → reading 7/10 → drafting. */
-export function JobProgressList({ progress, busy, testId = "job-progress" }: Props) {
+export function JobProgressList({ progress, busy, testId = "job-progress", labelFor }: Props) {
   if (progress.phases.length === 0 && !busy) {
     return null;
   }
@@ -41,7 +46,7 @@ export function JobProgressList({ progress, busy, testId = "job-progress" }: Pro
                 {phase.status === "active" ? "●" : "✓"}
               </span>
               <span className={phase.status === "active" ? "font-medium text-[var(--text)]" : "text-[var(--text-2)]"}>
-                {phase.label}
+                {labelFor ? labelFor(phase.label) : phase.label}
                 {count}
               </span>
               {phase.status === "active" && last?.label ? (

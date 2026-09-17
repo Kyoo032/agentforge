@@ -61,7 +61,94 @@ export {
   tradingViewLabel,
   tradingViewMarket,
 } from "./symbols";
-export { US_MARKET_TIMEZONE, WEEKEND_NOTE, WIB_TIMEZONE, marketClock } from "./market-clock";
+export { US_MARKET_TIMEZONE, WEEKEND_NOTE, WIB_TIMEZONE, marketClock, zonedTime } from "./market-clock";
+export type { ZonedTime } from "./market-clock";
+export {
+  HISTORY_MONTHS_ALLOWED,
+  MARKET_HARNESS,
+  MARKET_SOURCES,
+  MARKET_TOOL_KEYS,
+  harnessFor,
+} from "./harness";
+export type { HistoryMonths, MarketHarnessSpec, MarketSource, MarketToolKey } from "./harness";
+export {
+  ANALYST_KEY_POINTS_MAX,
+  ANALYST_KEY_POINT_CHARS_MAX,
+  ANALYST_SUMMARY_MAX,
+  ANALYST_UNAVAILABLE,
+  CONFIDENCE_LEVELS,
+  DEBATE_POINTS_MAX,
+  DEBATE_REBUTTALS_MAX,
+  DEBATE_STANCES,
+  DEBATE_THESIS_MAX,
+  DEFAULT_MARKET_DEPTH,
+  MARKET_ANALYSTS,
+  MARKET_DEPTHS,
+  RISK_KEY_RISKS_MAX,
+  RISK_LENSES,
+  RISK_NOTE_MAX,
+  RISK_VIEW_MAX,
+  TEAM_MAX_CALLS,
+  TEAM_ROUNDS,
+  analystNoteSchema,
+  analystsFor,
+  debateSideSchema,
+  riskLensSchema,
+  riskReadSchema,
+  teamAvailable,
+  teamNotesSchema,
+  unavailableAnalystNote,
+} from "./team";
+export type {
+  AnalystNote,
+  ConfidenceLevel,
+  DebateSide,
+  DebateStance,
+  MarketAnalyst,
+  MarketDepth,
+  RiskLens,
+  RiskLensName,
+  RiskRead,
+  TeamNotes,
+} from "./team";
+export {
+  TEAM_SECTION_KEYS,
+  analystPacketOrder,
+  analystSections,
+  analystSystemPrompt,
+  bearPrompt,
+  bullPrompt,
+  riskPrompt,
+  synthesisPrompt,
+  teamSectionHeadings,
+} from "./team-prompts";
+export type { TeamLanguage, TeamSectionKey } from "./team-prompts";
+export {
+  GLOBAL_NEWS_QUERIES,
+  GLOBAL_NEWS_QUERY_COUNT,
+  GLOBAL_NEWS_QUERY_KEYS,
+  globalNewsQueries,
+  globalNewsQuery,
+} from "./global-news-queries";
+export type { GlobalNewsLanguage, GlobalNewsQuery, GlobalNewsQueryKey } from "./global-news-queries";
+export {
+  CROSS_LOOKBACK_BARS,
+  RANGE_PROXIMITY_PCT,
+  RSI_OVERBOUGHT,
+  RSI_OVERSOLD,
+  UNUSUAL_MOVE_MULTIPLE,
+  UNUSUAL_MOVE_WINDOW_BARS,
+  computeSignals,
+} from "./signals";
+export {
+  MIN_ROTATION_BARS,
+  RET_1D_DAYS,
+  RET_1M_DAYS,
+  RET_5D_DAYS,
+  RET_6M_DAYS,
+  computeRotation,
+} from "./rotation";
+export { NEXT_CHANGE_HORIZON_DAYS, computeSessions, exchangeForTicker, sessionFor } from "./sessions";
 export {
   CHART_BARS_DEFAULT,
   CHART_RANGE_DEFAULT,
@@ -82,6 +169,16 @@ export {
   packetToPromptBlock,
 } from "./briefing-prompt";
 export type { WatchSystemPromptInput } from "./briefing-prompt";
+export {
+  DEFAULT_MARKET_SPECIALIST,
+  MARKET_SPECIALISTS,
+  MARKET_SPECIALIST_META,
+  defaultWatchPrompt,
+  isMarketSpecialist,
+  specialistSystemRules,
+} from "./specialists";
+export type { LocalizedText, MarketFocus, MarketSpecialist, MarketSpecialistMeta } from "./specialists";
+export { SWING_LOOKBACK_DEFAULT, swingPoints } from "./swings";
 export {
   PERCENT_DECIMALS,
   PRICE_DECIMALS,

@@ -35,7 +35,14 @@ export type ModeModelDefaults = {
  */
 export const EFFECTIVE_JOB_MODEL = "deepseek-v4-flash";
 
-/** Ranked hints against the live chat catalog — not a closed allowlist. */
+/**
+ * Ranked hints against the live chat catalog — not a closed allowlist.
+ *
+ * This list decides which model a mode gets on a healthy gateway, so reordering a head moves every
+ * desk’s default. What to do when that first choice is unreachable is a separate ranking, in
+ * `job-fallback.ts`: it appends `JOB_FALLBACK_TAIL` to whatever stands here, so a mode survives an
+ * outage without its default being re-picked for it.
+ */
 export const JOB_MODE_PREFERENCES: Record<JobMode, string[]> = {
   documents: ["hy3", "hy-3", "hunyuan-3", "hunyuan3", "deepseek-v4-flash"],
   research: ["gpt-5.6-luna", "MiniMax-M3", "minimax-m3", "gpt-5.6-terra"],

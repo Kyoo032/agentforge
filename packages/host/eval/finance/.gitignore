@@ -1,0 +1,4 @@
+# Eval runs are local evidence, not source: every run writes a new timestamped
+# folder here with the full trace of a case (figures, briefs, scores). They are
+# the owner's financial data and they never belong in git.
+results/

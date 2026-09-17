@@ -1,24 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { dayGroupLabel, groupThreadsByDay } from "./thread-groups";
+import { RAIL_RECENT_THREADS, takeRecentThreads } from "./thread-groups";
 
-describe("thread day groups", () => {
-  const now = new Date(2026, 7, 27, 21, 0, 0);
+describe("rail recent threads", () => {
+  const threads = [{ id: "a" }, { id: "b" }, { id: "c" }, { id: "d" }, { id: "e" }, { id: "f" }];
 
-  it("labels today, yesterday, and earlier", () => {
-    expect(dayGroupLabel(new Date(2026, 7, 27, 8, 0, 0), now)).toBe("Today");
-    expect(dayGroupLabel(new Date(2026, 7, 26, 23, 0, 0), now)).toBe("Yesterday");
-    expect(dayGroupLabel(new Date(2026, 7, 20, 12, 0, 0), now)).toBe("Earlier");
+  it("keeps the collapsed rail to a few sessions", () => {
+    expect(RAIL_RECENT_THREADS).toBe(4);
+    expect(takeRecentThreads(threads).map((thread) => thread.id)).toEqual(["a", "b", "c", "d"]);
   });
 
-  it("omits empty groups and keeps order", () => {
-    const groups = groupThreadsByDay(
-      [
-        { id: "a", createdAt: new Date(2026, 7, 27, 10, 0, 0) },
-        { id: "b", createdAt: "2026-08-20T03:00:00.000Z" },
-      ],
-      now,
-    );
-    expect(groups.map((group) => group.label)).toEqual(["Today", "Earlier"]);
-    expect(groups[0]?.threads).toHaveLength(1);
+  it("returns a new array and leaves the source order alone", () => {
+    const taken = takeRecentThreads(threads, 2);
+    expect(taken).not.toBe(threads);
+    expect(taken.map((thread) => thread.id)).toEqual(["a", "b"]);
+    expect(threads.map((thread) => thread.id)).toEqual(["a", "b", "c", "d", "e", "f"]);
+  });
+
+  it("returns everything when the list is shorter than the cap", () => {
+    expect(takeRecentThreads([{ id: "a" }])).toHaveLength(1);
+    expect(takeRecentThreads([])).toEqual([]);
+  });
+
+  it("yields nothing for a non-positive or broken count", () => {
+    expect(takeRecentThreads(threads, 0)).toEqual([]);
+    expect(takeRecentThreads(threads, -3)).toEqual([]);
+    expect(takeRecentThreads(threads, Number.NaN)).toEqual([]);
   });
 });

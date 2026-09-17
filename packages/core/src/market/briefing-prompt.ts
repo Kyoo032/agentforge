@@ -1,30 +1,46 @@
 /**
  * Prompt assembly for the Market Watch briefing. The model receives a system
- * text, a compact DATA PACKET block, and the user's own instruction. The
- * allowed-number set for the number guard is everything numeric in the packet
- * plus the figures in the user's position context.
+ * text, a compact DATA PACKET block, and the user's own instruction.
+ *
+ * Which sections that block carries, and in which order, is the chosen desk's
+ * harness (`harness.ts`) speaking: a scanner sees the computed SIGNALS table
+ * and no headlines, a wave counter sees swing levels and no macro. The
+ * renderers themselves live in `packet-sections.ts` and the allowed-number set
+ * in `packet-numbers.ts`.
  */
-import { UNVERIFIED_MARKER, type NumberToken, extractNumbers } from "../finance/number-guard";
+import { UNVERIFIED_MARKER } from "../finance/number-guard";
+import { harnessFor, type MarketSource } from "./harness";
 import {
-  RSI_DECIMALS,
-  SCORE_DECIMALS,
-  formatFixed,
-  formatPercent,
-  formatPrice,
-  presentationValues,
-} from "./prompt-format";
-import type {
-  MarketWatchPacket,
-  MarketWatchRequest,
-  Quote,
-  Technical,
-  TickerPacket,
-  WatchNewsItem,
-} from "./watch-schemas";
+  PROMPT_HEADLINES_MAX,
+  cryptoGlobalLines,
+  cryptoLine,
+  fundamentalsLine,
+  globalNewsLines,
+  insidersLine,
+  macroLines,
+  metalsLines,
+  newsLines,
+  quoteLine,
+  rotationLines,
+  sentimentLines,
+  sessionLines,
+  signalLines,
+  swingLines,
+  technicalLine,
+  tickerHeader,
+} from "./packet-sections";
+import { packetNumbers } from "./packet-numbers";
+import {
+  DEFAULT_MARKET_SPECIALIST,
+  MARKET_SPECIALIST_META,
+  specialistSystemRules,
+  type MarketSpecialist,
+} from "./specialists";
+import type { MarketWatchPacket, MarketWatchRequest, TickerPacket } from "./watch-schemas";
 
-export const PROMPT_HEADLINES_MAX = 6;
+export { PROMPT_HEADLINES_MAX, packetNumbers };
+
 export const POSITION_CONTEXT_HEADING = "USER POSITION CONTEXT (numbers allowed):";
-const MISSING = "n/a";
 
 const LANGUAGE_NAMES: Readonly<Record<MarketWatchRequest["language"], string>> = {
   id: "Bahasa Indonesia",
@@ -73,12 +89,21 @@ export type WatchSystemPromptInput = {
   language: MarketWatchRequest["language"];
   maxChars: number;
   clockNote: string;
+  /** Which named agent is writing. Defaults to the saham desk. */
+  specialist?: MarketSpecialist;
 };
 
+/**
+ * The shared contract (figures only from the packet, no imperative directive,
+ * JSON out) plus the chosen agent's own rules. One pipeline, one desk per run.
+ */
 export function buildWatchSystemPrompt(input: WatchSystemPromptInput): string {
   const language = LANGUAGE_NAMES[input.language] ?? LANGUAGE_NAMES.id;
   const clockLine = input.clockNote.trim() === "" ? [] : [`- Clock context: ${input.clockNote.trim()}`];
+  const specialist = input.specialist ?? DEFAULT_MARKET_SPECIALIST;
+  const label = MARKET_SPECIALIST_META[specialist].label[input.language] ?? specialist;
   return [
+    `You are the "${label}" desk of this market studio.`,
     "You are a market analyst writing a watchlist briefing for one reader.",
     "You receive a DATA PACKET (quotes, pre-market moves, TradingView technical ratings, RSI/SMA/MACD, 52-week range, headlines with publisher and time, macro levels) and then the reader's own instruction.",
     "",
@@ -90,210 +115,82 @@ export function buildWatchSystemPrompt(input: WatchSystemPromptInput): string {
     `- Write in ${language}. Stay under ${input.maxChars} characters in total.`,
     ...clockLine,
     '- Output ONLY JSON, no markdown fence, no preamble: {"title": string, "sections": [{"heading": string, "body": string}]}. Use the headings the reader\'s instruction asks for, in that order. Bodies are markdown (bullets and tables allowed).',
+    "",
+    `Your desk ("${label}"):`,
+    ...specialistSystemRules(specialist, input.language),
   ].join("\n");
 }
 
-/** Price-scale figure (quotes, SMAs, MACD, 52-week range) in the ticker's currency precision. */
-function price(value: number | null | undefined, currency: string): string {
-  return value === null || value === undefined ? MISSING : formatPrice(value, currency);
-}
+/**
+ * Sections printed once for the whole packet, in the order the desk's
+ * `packetOrder` lists them. A source absent from the map only contributes
+ * inside a ticker block (or, like `history`, is fetched but never printed).
+ */
+const PACKET_SECTIONS: Partial<Record<MarketSource, (packet: MarketWatchPacket) => string[]>> = {
+  macro: macroLines,
+  crypto: (packet) => cryptoGlobalLines(packet.cryptoGlobal),
+  metals: (packet) => metalsLines(packet.metals),
+  signals: (packet) => signalLines(packet.signals),
+  rotation: (packet) => rotationLines(packet.rotation),
+  sessions: (packet) => sessionLines(packet.sessions),
+  globalNews: (packet) => globalNewsLines(packet.globalNews),
+};
 
-function pct(value: number | null | undefined): string {
-  return value === null || value === undefined ? MISSING : formatPercent(value);
-}
+/**
+ * Sections printed as a line inside each ticker block. The order here is
+ * fixed: `packetOrder` decides which of them a desk sees, not how a quote and
+ * a technical line sit relative to each other.
+ */
+const TICKER_SECTIONS: readonly (readonly [MarketSource, (ticker: TickerPacket, currency: string) => string[]])[] = [
+  ["quotes", (ticker) => [quoteLine(ticker.quote)]],
+  ["technicals", (ticker, currency) => [technicalLine(ticker.technical, currency)]],
+  ["fundamentals", (ticker, currency) => [fundamentalsLine(ticker.fundamentals, currency)]],
+  ["insiders", (ticker) => [insidersLine(ticker.insiders)]],
+  ["crypto", (ticker) => [cryptoLine(ticker.crypto)]],
+  ["sentiment", (ticker) => sentimentLines(ticker.sentiment)],
+  ["swings", (ticker, currency) => swingLines(ticker.swings, currency)],
+  ["headlines", (ticker) => newsLines(ticker.news)],
+];
 
-function fixed(value: number | null | undefined, decimals: number): string {
-  return value === null || value === undefined ? MISSING : formatFixed(value, decimals);
-}
+const TICKER_SOURCES: ReadonlySet<MarketSource> = new Set(TICKER_SECTIONS.map(([source]) => source));
 
-/** "2026-09-09T10:00Z" from an ISO timestamp; n/a when absent. */
-function shortTime(iso: string | null): string {
-  if (iso === null) {
-    return MISSING;
-  }
-  const ms = Date.parse(iso);
-  return Number.isNaN(ms) ? iso : `${new Date(ms).toISOString().slice(0, 16)}Z`;
-}
-
-function quoteLine(quote: Quote | null): string {
-  if (quote === null) {
-    return `- quote: ${MISSING}`;
-  }
-  const cur = quote.currency;
-  const pre =
-    quote.preMarketPrice === null
-      ? MISSING
-      : `${price(quote.preMarketPrice, cur)} (${pct(quote.preMarketChangePercent)})`;
-  const post =
-    quote.postMarketPrice === null
-      ? MISSING
-      : `${price(quote.postMarketPrice, cur)} (${pct(quote.postMarketChangePercent)})`;
-  return [
-    `- quote: ${price(quote.price, cur)} ${cur}`.trimEnd(),
-    `chg ${pct(quote.changePercent)}`,
-    `prev close ${price(quote.previousClose, cur)}`,
-    `pre-mkt ${pre}`,
-    `post-mkt ${post}`,
-    `state ${quote.marketState}`,
-    `volume ${fixed(quote.volume, 0)}`,
-    `mkt cap ${fixed(quote.marketCap, 0)}`,
-    `(${quote.ref.source}, observed ${shortTime(quote.ref.observedAt)})`,
-  ].join(", ");
-}
-
-function ratingText(technical: Technical): string {
-  const tv = technical.tradingview;
-  if (tv === null) {
-    return `TV ${MISSING}`;
-  }
-  const scores = `${fixed(tv.summary, SCORE_DECIMALS)}; MA ${fixed(tv.movingAverages, SCORE_DECIMALS)}, osc ${fixed(tv.oscillators, SCORE_DECIMALS)}`;
-  return `TV ${tv.label || MISSING} (${scores})`;
-}
-
-/** Period labels are spelled out ("1 month", not "1m") so the model never writes a token the guard reads as a million. */
-function technicalLine(technical: Technical | null, currency: string): string {
-  if (technical === null) {
-    return `- technical: ${MISSING}`;
-  }
-  return [
-    `- technical: ${ratingText(technical)}`,
-    `RSI14 ${fixed(technical.rsi14, RSI_DECIMALS)}`,
-    `SMA50 ${price(technical.sma50, currency)}`,
-    `SMA200 ${price(technical.sma200, currency)}`,
-    `EMA200 ${price(technical.ema200, currency)}`,
-    `MACD ${price(technical.macd, currency)} / signal ${price(technical.macdSignal, currency)}`,
-    `1 day ${pct(technical.change1dPercent)}`,
-    `5 days ${pct(technical.change5dPercent)}`,
-    `1 month ${pct(technical.change1mPercent)}`,
-    `52-week ${price(technical.low52w, currency)}-${price(technical.high52w, currency)}`,
-  ].join(", ");
-}
-
-function headlineLine(item: WatchNewsItem): string {
-  return `  - ${item.title} — ${item.publisher || item.ref.source} (${shortTime(item.publishedAt)}) ${item.link}`;
-}
-
-function newsLines(news: readonly WatchNewsItem[]): string[] {
-  const shown = news.filter((item) => !item.injectionSuspect).slice(0, PROMPT_HEADLINES_MAX);
-  return shown.length === 0 ? ["- news: none"] : ["- news:", ...shown.map(headlineLine)];
-}
-
-/** "TICKER MU — MU Inc — NASDAQ:MU (NMS, USD)"; empty parts are dropped. */
-function tickerHeader(ticker: TickerPacket): string {
-  const s = ticker.symbol;
-  const venue = [s.exchange, s.currency].filter(Boolean).join(", ");
-  const tv = s.tradingview ?? "";
-  const listing = [tv, venue ? `(${venue})` : ""].filter(Boolean).join(" ");
-  return [`TICKER ${s.yahoo}`, s.name, listing].filter(Boolean).join(" — ");
-}
-
-function tickerBlock(ticker: TickerPacket): string[] {
-  const header = tickerHeader(ticker);
-  const failures = ticker.failures.length === 0 ? [] : [`- failures: ${ticker.failures.join("; ")}`];
+function tickerBlock(ticker: TickerPacket, wanted: ReadonlySet<MarketSource>): string[] {
   const currency = ticker.quote?.currency || ticker.symbol.currency;
-  return [
-    header,
-    quoteLine(ticker.quote),
-    technicalLine(ticker.technical, currency),
-    ...newsLines(ticker.news),
-    ...failures,
-    "",
-  ];
-}
-
-function macroLines(packet: MarketWatchPacket): string[] {
-  const { quotes, failures } = packet.macro;
-  const failureLine = failures.length === 0 ? [] : [`- macro failures: ${failures.join("; ")}`];
-  if (quotes.length === 0) {
-    return [`MACRO: ${MISSING}`, ...failureLine, ""];
-  }
-  const rows = quotes.map(
-    (q) =>
-      `| ${q.label || q.symbol} | ${q.symbol} | ${price(q.price, q.currency)} | ${pct(q.changePercent)} | ${q.marketState} |`,
+  const lines = TICKER_SECTIONS.filter(([source]) => wanted.has(source)).flatMap(([, render]) =>
+    render(ticker, currency),
   );
-  return ["MACRO:", "| Macro | Symbol | Level | Chg% | State |", "|---|---|---|---|---|", ...rows, ...failureLine, ""];
-}
-
-/** Compact text the model reads: clock, macro table, one block per ticker, position context last. */
-export function packetToPromptBlock(packet: MarketWatchPacket): string {
-  const clock =
-    `CLOCK: ${packet.clock.runAt} | U.S. session: ${packet.clock.usSession} | ${packet.clock.note}`.trimEnd();
-  const tickers = packet.tickers.flatMap(tickerBlock);
-  const position =
-    packet.positionContext.trim() === "" ? [] : [POSITION_CONTEXT_HEADING, packet.positionContext.trim()];
-  return [clock, "", ...macroLines(packet), ...tickers, ...position].join("\n").trimEnd();
-}
-
-const QUOTE_FIELDS = [
-  "price",
-  "changePercent",
-  "previousClose",
-  "preMarketPrice",
-  "preMarketChangePercent",
-  "postMarketPrice",
-  "postMarketChangePercent",
-  "volume",
-  "marketCap",
-] as const;
-
-const TECHNICAL_FIELDS = [
-  "rsi14",
-  "sma50",
-  "sma200",
-  "ema200",
-  "macd",
-  "macdSignal",
-  "change1dPercent",
-  "change5dPercent",
-  "change1mPercent",
-  "high52w",
-  "low52w",
-] as const;
-
-const RATING_FIELDS = ["summary", "movingAverages", "oscillators"] as const;
-
-function quoteNumbers(quote: Quote | null): (number | null)[] {
-  return quote === null ? [] : QUOTE_FIELDS.map((field) => quote[field]);
-}
-
-function technicalNumbers(technical: Technical | null): (number | null)[] {
-  if (technical === null) {
-    return [];
-  }
-  const rating = technical.tradingview;
-  return [
-    ...TECHNICAL_FIELDS.map((field) => technical[field]),
-    ...(rating === null ? [] : RATING_FIELDS.map((field) => rating[field])),
-  ];
-}
-
-function isFigure(value: number | null): value is number {
-  return typeof value === "number" && Number.isFinite(value);
-}
-
-/** Both readings of an ambiguous "1.000" in the user's own text (1,000 or 1.0). */
-function contextReadings(token: NumberToken): number[] {
-  return token.alternate === undefined ? [token.value] : [token.value, token.alternate];
+  const failures = ticker.failures.length === 0 ? [] : [`- failures: ${ticker.failures.join("; ")}`];
+  return [tickerHeader(ticker), ...lines, ...failures, ""];
 }
 
 /**
- * Every figure the model may write: packet quotes, technicals, and macro (each
- * with its rounded presentations, see `presentationValues`) plus the numbers in
- * the position context.
+ * Compact text the model reads: the clock, then this desk's sections in its
+ * own `packetOrder`, then the position context. The ticker blocks are printed
+ * where the first ticker-level source appears in that order; a desk whose
+ * harness never names a section simply never sees it, which is the whole point
+ * of the harness.
+ *
+ * `only` narrows that order further without ever widening it: at team depth an
+ * analyst is handed `analystSections(analyst)` so it reads its own slice of
+ * the packet and nothing else (see `team-prompts.ts`). A section the desk does
+ * not fetch stays unseen whatever `only` asks for.
  */
-/** Figures quoted inside the headlines the model saw (analyst targets, deal sizes). Attributed third-party data, so allowed. */
-function headlineNumbers(packet: MarketWatchPacket): number[] {
-  const text = packet.tickers
-    .flatMap((t) => t.news.filter((n) => !n.injectionSuspect).map((n) => `${n.title} ${n.summary}`))
-    .join("\n");
-  return extractNumbers(text).flatMap(contextReadings).filter(isFigure);
-}
-
-export function packetNumbers(packet: MarketWatchPacket, positionContext: string): number[] {
-  const raw = [
-    ...packet.tickers.flatMap((t) => [...quoteNumbers(t.quote), ...technicalNumbers(t.technical)]),
-    ...packet.macro.quotes.flatMap(quoteNumbers),
-  ].filter(isFigure);
-  const context = extractNumbers(positionContext).flatMap(contextReadings).filter(isFigure);
-  return [...new Set([...raw.flatMap(presentationValues), ...context, ...headlineNumbers(packet)])];
+export function packetToPromptBlock(
+  packet: MarketWatchPacket,
+  specialist: MarketSpecialist = DEFAULT_MARKET_SPECIALIST,
+  only?: readonly MarketSource[],
+): string {
+  const allowed: ReadonlySet<MarketSource> | null = only === undefined ? null : new Set(only);
+  const order = harnessFor(specialist).packetOrder.filter((source) => allowed === null || allowed.has(source));
+  const wanted: ReadonlySet<MarketSource> = new Set(order.filter((source) => TICKER_SOURCES.has(source)));
+  const firstTickerIndex = order.findIndex((source) => TICKER_SOURCES.has(source));
+  const clock =
+    `CLOCK: ${packet.clock.runAt} | U.S. session: ${packet.clock.usSession} | ${packet.clock.note}`.trimEnd();
+  const body = order.flatMap((source, index) => [
+    ...(PACKET_SECTIONS[source]?.(packet) ?? []),
+    ...(index === firstTickerIndex ? packet.tickers.flatMap((ticker) => tickerBlock(ticker, wanted)) : []),
+  ]);
+  const position =
+    packet.positionContext.trim() === "" ? [] : [POSITION_CONTEXT_HEADING, packet.positionContext.trim()];
+  return [clock, "", ...body, ...position].join("\n").trimEnd();
 }

@@ -11,6 +11,13 @@ import { getRailCollapsed, setRailCollapsed } from "@/lib/rail-prefs";
 import { RAIL_WIDTH, RAIL_WIDTH_KEY } from "@/lib/panel-width";
 import { usePanelWidth } from "@/lib/use-panel-width";
 import { PanelResizeHandle } from "@/components/panel-resize-handle";
+import { RailRecentThreads } from "@/components/rail-recent-threads";
+import { RailFinanceTasks, RailFinanceTasksToggle, useRailFinanceTasks } from "@/components/rail-finance-tasks";
+import {
+  RailMarketSpecialists,
+  RailMarketSpecialistsToggle,
+  useRailMarketSpecialists,
+} from "@/components/rail-market-specialists";
 import { useProductBrand } from "@/lib/product-brand";
 import { t } from "@/lib/i18n";
 import { productMonogram } from "@/components/app-shell";
@@ -176,7 +183,12 @@ function RailItem({
   return (
     <Link
       href={href}
-      className={`flex h-8 items-center gap-2 rounded-lg px-2 text-sm tracking-[var(--track)] ${
+      /* `shrink-0`: the nav is a column flex box, so without it a rail that runs
+         past the viewport squashes these rows (32px down to 23px at 640) while a
+         row wrapped in anything — the session block, Market's chevron row — keeps
+         its height and reads as though it had extra space around it. The nav
+         already scrolls; rows keep their rhythm instead. */
+      className={`flex h-8 shrink-0 items-center gap-2 rounded-lg px-2 text-sm tracking-[var(--track)] ${
         active
           ? "select-row bg-[var(--accent-soft)] text-[var(--accent)]"
           : "wash text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
@@ -196,10 +208,12 @@ function RailItem({
 
 function RailGroupLabel({ children, collapsed, first }: { children: ReactNode; collapsed: boolean; first?: boolean }) {
   if (collapsed) {
-    return <div className={`${first ? "mt-1" : "mt-2"} mx-auto h-px w-6 bg-divider`} />;
+    return <div className={`${first ? "mt-1" : "mt-2"} mx-auto h-px w-6 shrink-0 bg-divider`} />;
   }
   return (
-    <p className="px-2 pt-4 pb-1.5 text-xs font-medium uppercase tracking-[0.06em] text-[var(--text-3)]">{children}</p>
+    <p className="shrink-0 px-2 pt-4 pb-1.5 text-xs font-medium uppercase tracking-[0.06em] text-[var(--text-3)]">
+      {children}
+    </p>
   );
 }
 
@@ -207,16 +221,13 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
   const pathname = usePathname();
   const { productName, logoSrc } = useProductBrand();
   const [collapsed, setCollapsed] = useState(false);
-  const [railWidth, setRailWidth] = usePanelWidth(
-    RAIL_WIDTH_KEY,
-    RAIL_WIDTH.default,
-    RAIL_WIDTH.min,
-    RAIL_WIDTH.max,
-  );
+  const [railWidth, setRailWidth] = usePanelWidth(RAIL_WIDTH_KEY, RAIL_WIDTH.default, RAIL_WIDTH.min, RAIL_WIDTH.max);
   const modes = PRODUCT_MODES.filter((mode) => visibleModes.includes(mode.id));
   const homeHref = firstVisibleHref(visibleModes);
   const chatMode = modes.find((mode) => mode.id === "chat");
   const jobModes = modes.filter((mode) => mode.id !== "chat");
+  const marketSpecialists = useRailMarketSpecialists();
+  const financeTasks = useRailFinanceTasks();
 
   useEffect(() => {
     setCollapsed(getRailCollapsed());
@@ -268,7 +279,12 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
         )}
       </div>
 
-      <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-2" aria-label={t("rail.modesAria")}>
+      {/* `mr-2`: a scrollbar is laid out inside the border box and outside the
+          padding box, so padding cannot move it — only the margin can. Pulling
+          the scrolling box 8px off the aside's right edge clears the lane the
+          `rail-resize` strip occupies, so the handle is never stacked on top of
+          this nav's scrollbar (owner report 2026-09-17). */}
+      <nav className="mr-2 flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-2" aria-label={t("rail.modesAria")}>
         {chatMode ? (
           <>
             <RailGroupLabel collapsed={collapsed} first>
@@ -282,21 +298,66 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
               collapsed={collapsed}
               testId={`mode-${chatMode.href.slice(1)}`}
             />
+            {/* Collapsed rail stays a pure icon column: no session rows, no new-chat row. */}
+            {collapsed ? null : <RailRecentThreads />}
           </>
         ) : null}
 
         {jobModes.length > 0 ? <RailGroupLabel collapsed={collapsed}>{t("rail.groupJobs")}</RailGroupLabel> : null}
-        {jobModes.map((mode) => (
-          <RailItem
-            key={mode.href}
-            href={mode.href}
-            label={t(`rail.${mode.id}`)}
-            icon={(mode.id in RAIL_ICON_PATHS ? mode.id : "documents") as IconName}
-            active={productModeMatches(mode.id, pathname)}
-            collapsed={collapsed}
-            testId={`mode-${mode.href.slice(1)}`}
-          />
-        ))}
+        {jobModes.map((mode) => {
+          const item = (
+            <RailItem
+              key={mode.href}
+              href={mode.href}
+              label={t(`rail.${mode.id}`)}
+              icon={(mode.id in RAIL_ICON_PATHS ? mode.id : "documents") as IconName}
+              active={productModeMatches(mode.id, pathname)}
+              collapsed={collapsed}
+              testId={`mode-${mode.href.slice(1)}`}
+            />
+          );
+          /*
+           * Market carries its agents the way Chat carries its sessions: the
+           * chevron rides on the Market row and the desks render under it, each
+           * one its own harness and its own watchlist. The collapsed rail stays
+           * a pure icon column, so neither the chevron nor the rows appear there.
+           */
+          if (collapsed || (mode.id !== "market" && mode.id !== "finance")) {
+            return item;
+          }
+          if (mode.id === "finance") {
+            /* Finance carries its tasks on exactly the Market rules: same row,
+               same chevron, same one `h-8`, same nothing-below-when-closed. */
+            return (
+              <div key={mode.href} className="shrink-0" data-testid="rail-finance-mode">
+                <div className="flex h-8 items-center gap-0.5">
+                  <div className="min-w-0 flex-1">{item}</div>
+                  <RailFinanceTasksToggle
+                    open={financeTasks.open}
+                    onToggle={financeTasks.toggle}
+                    enabled={financeTasks.enabled}
+                  />
+                </div>
+                {financeTasks.open ? <RailFinanceTasks /> : null}
+              </div>
+            );
+          }
+          return (
+            <div key={mode.href} className="shrink-0" data-testid="rail-market-mode">
+              {/* Exactly one `h-8` row, like any other job mode: the chevron rides
+                  inside it, and when the list is closed nothing renders below. */}
+              <div className="flex h-8 items-center gap-0.5">
+                <div className="min-w-0 flex-1">{item}</div>
+                <RailMarketSpecialistsToggle
+                  open={marketSpecialists.open}
+                  onToggle={marketSpecialists.toggle}
+                  enabled={marketSpecialists.enabled}
+                />
+              </div>
+              {marketSpecialists.open ? <RailMarketSpecialists /> : null}
+            </div>
+          );
+        })}
 
         <RailGroupLabel collapsed={collapsed}>{t("rail.groupAccount")}</RailGroupLabel>
         <RailItem

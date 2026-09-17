@@ -26,16 +26,32 @@ const SESSION_NOTES: Readonly<Record<MarketClock["usSession"], string>> = {
   closed: "U.S. market closed (overnight); prices are last close, not pre-market.",
 };
 
-type ZonedTime = { weekday: string; minutes: number; hhmm: string };
+/** A wall-clock reading in some time zone: its calendar date, its weekday, and minutes past midnight. */
+export type ZonedTime = {
+  weekday: string;
+  year: number;
+  month: number;
+  day: number;
+  minutes: number;
+  hhmm: string;
+};
 
 function pad2(value: number): string {
   return String(value).padStart(2, "0");
 }
 
-function zonedTime(now: Date, timeZone: string): ZonedTime {
+/**
+ * The wall clock in `timeZone` at the instant `now`, DST included (the zone
+ * database does the work through `Intl`). Shared with `sessions.ts`, which
+ * needs the same reading for every other exchange.
+ */
+export function zonedTime(now: Date, timeZone: string): ZonedTime {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone,
     weekday: "short",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
     hourCycle: "h23",
@@ -43,7 +59,14 @@ function zonedTime(now: Date, timeZone: string): ZonedTime {
   const part = (type: Intl.DateTimeFormatPartTypes): string => parts.find((p) => p.type === type)?.value ?? "";
   const hour = Number(part("hour")) % HOURS_PER_DAY;
   const minute = Number(part("minute"));
-  return { weekday: part("weekday"), minutes: hour * 60 + minute, hhmm: `${pad2(hour)}:${pad2(minute)}` };
+  return {
+    weekday: part("weekday"),
+    year: Number(part("year")),
+    month: Number(part("month")),
+    day: Number(part("day")),
+    minutes: hour * 60 + minute,
+    hhmm: `${pad2(hour)}:${pad2(minute)}`,
+  };
 }
 
 function sessionAt(minutes: number): MarketClock["usSession"] {

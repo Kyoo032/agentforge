@@ -6,15 +6,21 @@
  * the caller records the reason against the source instead of guessing.
  *
  * Runs entirely offline — `readDocx` is JSZip + xmldom, `extractPdfText` is pdfjs with workers, fetches
- * and font faces disabled.
+ * and font faces disabled, and the formats below those two never covered (.pptx, .xlsx, .odt, .rtf,
+ * .epub and friends) go through `file-extract`, which converts them in-process and opens no socket.
+ *
+ * PDFs and .docx deliberately stay on the parsers above rather than moving to the converter: their
+ * output is what the knowledge index, its page markers and its failure codes are built on, and the
+ * point of this change is to add formats, not to re-cut every document already indexed.
  *
  * Both parsers are capped the same three ways as the paste and URL paths: input bytes, wall clock, and
  * the number of characters that reach the chunker.
  */
-import { ApiError } from "@agentforge/core";
+import { ApiError, htmlToText } from "@agentforge/core";
 import { DOCX_MAX_INFLATED_BYTES, bodyOrder, declaredInflatedBytes, readDocx } from "@agentforge/core/docx";
 import { PDF_MAX_BYTES, PdfExtractError, extractPdfText, type PdfExtractOptions } from "@agentforge/core/pdf";
-import { capKnowledgeText } from "./knowledge-text";
+import { FileExtractError, extractFile } from "./file-extract";
+import { KNOWLEDGE_TEXT_MAX_CHARS, capKnowledgeText } from "./knowledge-text";
 
 export const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const PDF_MIME = "application/pdf";
@@ -39,7 +45,26 @@ export type ExtractOptions = {
   docx?: DocxExtractOptions;
 };
 
-type SourceKind = "text" | "pdf" | "docx";
+type SourceKind = "text" | "html" | "pdf" | "docx" | "document";
+
+const HTML_MIMES = new Set(["text/html", "application/xhtml+xml"]);
+
+/**
+ * The formats the converter adds. `.pdf` and `.docx` are absent on purpose — they are matched
+ * earlier and keep their own parsers.
+ */
+export const KNOWLEDGE_DOCUMENT_EXTENSIONS = [
+  ".pptx",
+  ".ppt",
+  ".xlsx",
+  ".xls",
+  ".ods",
+  ".odt",
+  ".odp",
+  ".doc",
+  ".rtf",
+  ".epub",
+] as const;
 
 function sourceKind(name: string, mime: string): SourceKind | null {
   const lower = name.toLowerCase();
@@ -48,6 +73,15 @@ function sourceKind(name: string, mime: string): SourceKind | null {
   }
   if (mime === DOCX_MIME || lower.endsWith(".docx")) {
     return "docx";
+  }
+  // Ahead of the `text/*` test on purpose: HTML *is* text, and reading it as text is what put
+  // `<script>` bodies into the trusted `## Retrieved sources` block. The extension counts as well as
+  // the mime, so a page that arrives as `application/octet-stream` is still read as a page.
+  if (HTML_MIMES.has(mime) || lower.endsWith(".html") || lower.endsWith(".htm")) {
+    return "html";
+  }
+  if (KNOWLEDGE_DOCUMENT_EXTENSIONS.some((extension) => lower.endsWith(extension))) {
+    return "document";
   }
   const textLike =
     mime.startsWith("text/") ||
@@ -76,6 +110,31 @@ const DOCX_FAILURES = {
   // JSZip / xmldom internals (which quote file bytes) must never reach it. Detail goes to the log.
   invalid: { code: "docx_invalid", message: "This Word file could not be read (the file looks damaged)." },
 } as const;
+
+/**
+ * One `ApiError` code per converter failure, so a source row records *why* it could not be read.
+ * `document_needs_ocr` says plainly that nothing was sent anywhere: that is the first question a
+ * refused scan raises, and the answer has to be in the sentence itself.
+ */
+const DOCUMENT_STATUS: Readonly<Record<string, number>> = { too_large: 413 };
+
+function documentFailure(error: FileExtractError): ApiError {
+  return new ApiError(`document_${error.code}`, error.message, DOCUMENT_STATUS[error.code] ?? 400);
+}
+
+/** Text of any format the converter reads. Caps and format checks are enforced inside it. */
+async function documentText(name: string, mime: string, bytes: Buffer): Promise<string> {
+  try {
+    const extracted = await extractFile({ bytes: new Uint8Array(bytes), filename: name, mime });
+    return extracted.text;
+  } catch (error) {
+    if (error instanceof FileExtractError) {
+      throw documentFailure(error);
+    }
+    console.warn(`knowledge-extract: document conversion failed (${detailOf(error)})`);
+    throw new ApiError("document_malformed", "That file could not be read (it looks damaged).", 400);
+  }
+}
 
 function docxFailure(kind: keyof typeof DOCX_FAILURES): ApiError {
   const mapped = DOCX_FAILURES[kind];
@@ -178,9 +237,19 @@ function rawText(name: string, mime: string, bytes: Buffer, options: ExtractOpti
       return pdfText(bytes, options.pdf);
     case "docx":
       return docxText(bytes, options.docx ?? {});
+    case "document":
+      return documentText(name, mime, bytes);
+    case "html":
+      // The same reader the URL path has always used, so an uploaded page and a fetched page are
+      // indexed as the same prose instead of one of them carrying its markup, CSS and scripts.
+      return Promise.resolve(htmlToText(bytes.toString("utf8"), { maxChars: KNOWLEDGE_TEXT_MAX_CHARS }).text);
     case "text":
       return Promise.resolve(bytes.toString("utf8"));
     default:
-      throw new ApiError("unsupported_content_type", "v1 indexes .txt, .md, .csv, .json, .pdf, and .docx only", 400);
+      throw new ApiError(
+        "unsupported_content_type",
+        "That file type is not indexed. Try .txt, .md, .csv, .json, .html, .pdf, .docx, .pptx, .xlsx, .odt, .rtf or .epub.",
+        400,
+      );
   }
 }

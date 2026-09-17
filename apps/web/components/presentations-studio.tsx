@@ -238,7 +238,7 @@ export function PresentationsStudio() {
           onChange={setModel}
           disabled={busy !== null || models.length === 0}
           testId="presentations-studio-model"
-          className="w-full h-8 rounded-lg border border-[var(--line)] bg-transparent px-3 py-2 text-sm text-[var(--text)]"
+          className="select-field w-full"
         />
         <div className="flex gap-2">
           <EnhancePromptButton

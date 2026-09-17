@@ -3,6 +3,7 @@ import { Document, Packer, Paragraph, TextRun } from "docx";
 import { ApiError } from "@agentforge/core";
 import { buildGarbagePdf, buildTextPdf } from "@agentforge/core/pdf/test-fixtures";
 import { buildZipBomb } from "@agentforge/core/docx/test-fixtures";
+import { docxFixture, pptxFixture, rtfFixture, xlsxFixture } from "./file-extract/test-fixtures";
 import { KNOWLEDGE_FILE_MAX_BYTES, extractText } from "./knowledge-extract";
 import { KNOWLEDGE_TEXT_MAX_CHARS, KNOWLEDGE_TEXT_TRUNCATED } from "./knowledge-text";
 
@@ -47,6 +48,26 @@ describe("extractText", () => {
     expect(json).toBe('{"a":1}');
     const md = await extractText("readme.md", "application/octet-stream", Buffer.from("# Title", "utf8"));
     expect(md).toBe("# Title");
+  });
+
+  it("reads html as prose, by mime or by extension, and drops script and style bodies", async () => {
+    const page =
+      '<!doctype html><html><head><title>Probe</title><style>.x{color:red}</style>' +
+      `<script>var token="${PLANTED}";</script></head><body><h1>Probe</h1>` +
+      "<p>The Alder Point beacon flashes 77 times per minute.</p></body></html>";
+    for (const [name, mime] of [
+      ["page.html", "text/html"],
+      ["page.htm", "application/octet-stream"],
+      ["page", "text/html"],
+    ] as const) {
+      const text = await extractText(name, mime, Buffer.from(page, "utf8"));
+      expect(text).toContain("The Alder Point beacon flashes 77 times per minute.");
+      // Markup used to be indexed verbatim and served inside the trusted `## Retrieved sources`
+      // block — a `<script>` body is exactly where text hides from a human reviewer.
+      expect(text).not.toContain("<p>");
+      expect(text).not.toContain("color:red");
+      expect(text).not.toContain(PLANTED);
+    }
   });
 
   it("still rejects binaries it cannot read", async () => {
@@ -154,5 +175,37 @@ describe("extractText", () => {
     const bytes = await docxBytes(Array.from({ length: 25 }, () => paragraph));
     const text = await extractText("long.docx", DOCX_MIME, bytes);
     expect(text.length).toBeLessThanOrEqual(KNOWLEDGE_TEXT_MAX_CHARS + KNOWLEDGE_TEXT_TRUNCATED.length);
+  });
+});
+
+describe("extractText — formats the converter adds", () => {
+  it("indexes a .pptx deck by extension", async () => {
+    const text = await extractText("deck.pptx", "application/octet-stream", Buffer.from(await pptxFixture()));
+    expect(text).toContain("CEMARA-7781");
+    expect(text).toContain("Pendapatan");
+  });
+
+  it("indexes a workbook, sheet headings and all", async () => {
+    const text = await extractText("figures.xlsx", "application/octet-stream", Buffer.from(await xlsxFixture()));
+    expect(text).toContain("Ringkasan");
+    expect(text).toContain("Anggaran");
+    expect(text).toContain("Pendapatan | 1000000 | 1250000");
+  });
+
+  it("indexes an .rtf memo", async () => {
+    const text = await extractText("memo.rtf", "application/octet-stream", Buffer.from(rtfFixture()));
+    expect(text).toContain("CEMARA-7781");
+  });
+
+  it("refuses a name that lies about the bytes", async () => {
+    const code = await codeOf(extractText("deck.pptx", "application/octet-stream", Buffer.from("plain text", "utf8")));
+    expect(code).toBe("document_format_mismatch");
+  });
+
+  it("leaves .docx on the parser the index was built with", async () => {
+    // Same bytes, two readers: .docx must still come back as flattened paragraphs, not Markdown.
+    const text = await extractText("laporan.docx", "application/octet-stream", Buffer.from(await docxFixture()));
+    expect(text).not.toContain("# Laporan");
+    expect(text).toContain("Laporan PT Cemara Sintetis");
   });
 });

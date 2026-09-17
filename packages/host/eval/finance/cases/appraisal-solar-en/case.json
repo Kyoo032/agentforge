@@ -1,0 +1,524 @@
+{
+  "id": "appraisal-solar-en",
+  "task": "appraisal",
+  "locale": "en",
+  "currency": "USD",
+  "description": "Synthetic rooftop solar appraisal: an outlay in Year 0, ten uneven years of net cash flow and a residual value in Year 10. Year 5 is NEGATIVE (inverter replacement plus roof works), so the running total goes backwards mid-life and payback must be taken at the FIRST non-negative crossing, not at the first year the total improves. The table uses a label column and year columns (Year 0…10); the last row 'Net cash flow' is a SUBTOTAL and must not be added to the component rows above it. Conventions this oracle used: (1) NPV puts flows[0] at t = 0 UNDISCOUNTED, matching engine npv(), rate 8%; (2) IRR by bisection to 1e-7 — the flows change sign three times, so the build checks NPV(r) over r in [-0.98, 6] and confirms exactly one zero crossing before reporting an IRR; (3) payback = (first year cumulative >= 0) - 1 + |cumulative of the year before| / that year's flow; (4) discounted payback applies the same rule to flows discounted at 8%; (5) profitability index = (NPV - Year 0 flow) / -Year 0 flow, i.e. PV of Years 1-10 over the initial outlay; (6) the sensitivity grid scales ONLY Years 1-10 by -10% / 0 / +10% — including the negative Year 5, which gets 10% worse in the -10% column — while the Year 0 outlay stays fixed. All `tolerance` values are RELATIVE to the truth value (0.005 = 0.5%).",
+  "files": [
+    {
+      "path": "rooftop-solar-appraisal.xlsx",
+      "sheet": "Solar Appraisal"
+    }
+  ],
+  "prompt": "This is the appraisal for the rooftop solar system on our warehouse. Use an 8% discount rate. Work out NPV, IRR, simple payback and discounted payback, the profitability index and the cumulative cash flow each year, then give me a sensitivity grid of NPV for 6%, 8% and 10% against cash flows at -10%, base and +10%. Note that Year 5 is negative because the inverters have to be replaced. Should we build it?",
+  "params": {
+    "discountRate": 8,
+    "rateScenarios": [
+      6,
+      8,
+      10
+    ],
+    "cashFlowShifts": [
+      -10,
+      0,
+      10
+    ]
+  },
+  "truth": {
+    "lineItems": [
+      {
+        "label": "Initial investment (array, inverters, install)",
+        "period": "Year 0",
+        "amount": -820000,
+        "category": "asset"
+      },
+      {
+        "label": "Avoided grid electricity cost",
+        "period": "Year 1",
+        "amount": 152000,
+        "category": "cash"
+      },
+      {
+        "label": "Avoided grid electricity cost",
+        "period": "Year 2",
+        "amount": 156000,
+        "category": "cash"
+      },
+      {
+        "label": "Avoided grid electricity cost",
+        "period": "Year 3",
+        "amount": 159000,
+        "category": "cash"
+      },
+      {
+        "label": "Avoided grid electricity cost",
+        "period": "Year 4",
+        "amount": 163000,
+        "category": "cash"
+      },
+      {
+        "label": "Avoided grid electricity cost",
+        "period": "Year 5",
+        "amount": 163000,
+        "category": "cash"
+      },
+      {
+        "label": "Avoided grid electricity cost",
+        "period": "Year 6",
+        "amount": 165000,
+        "category": "cash"
+      },
+      {
+        "label": "Avoided grid electricity cost",
+        "period": "Year 7",
+        "amount": 168000,
+        "category": "cash"
+      },
+      {
+        "label": "Avoided grid electricity cost",
+        "period": "Year 8",
+        "amount": 171000,
+        "category": "cash"
+      },
+      {
+        "label": "Avoided grid electricity cost",
+        "period": "Year 9",
+        "amount": 174000,
+        "category": "cash"
+      },
+      {
+        "label": "Avoided grid electricity cost",
+        "period": "Year 10",
+        "amount": 177000,
+        "category": "cash"
+      },
+      {
+        "label": "O&M, monitoring and insurance",
+        "period": "Year 1",
+        "amount": -14000,
+        "category": "cash"
+      },
+      {
+        "label": "O&M, monitoring and insurance",
+        "period": "Year 2",
+        "amount": -14000,
+        "category": "cash"
+      },
+      {
+        "label": "O&M, monitoring and insurance",
+        "period": "Year 3",
+        "amount": -14000,
+        "category": "cash"
+      },
+      {
+        "label": "O&M, monitoring and insurance",
+        "period": "Year 4",
+        "amount": -14000,
+        "category": "cash"
+      },
+      {
+        "label": "O&M, monitoring and insurance",
+        "period": "Year 5",
+        "amount": -14000,
+        "category": "cash"
+      },
+      {
+        "label": "O&M, monitoring and insurance",
+        "period": "Year 6",
+        "amount": -14000,
+        "category": "cash"
+      },
+      {
+        "label": "O&M, monitoring and insurance",
+        "period": "Year 7",
+        "amount": -14000,
+        "category": "cash"
+      },
+      {
+        "label": "O&M, monitoring and insurance",
+        "period": "Year 8",
+        "amount": -14000,
+        "category": "cash"
+      },
+      {
+        "label": "O&M, monitoring and insurance",
+        "period": "Year 9",
+        "amount": -14000,
+        "category": "cash"
+      },
+      {
+        "label": "O&M, monitoring and insurance",
+        "period": "Year 10",
+        "amount": -14000,
+        "category": "cash"
+      },
+      {
+        "label": "Inverter replacement and roof works",
+        "period": "Year 5",
+        "amount": -214000,
+        "category": "cash"
+      },
+      {
+        "label": "Residual value of the array",
+        "period": "Year 10",
+        "amount": 45000,
+        "category": "cash"
+      }
+    ],
+    "figures": [
+      {
+        "key": "npv",
+        "label": "NPV @ 8%",
+        "value": 56126.53512720848,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "irrPct",
+        "label": "IRR",
+        "value": 9.420277386121443,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "flowSignChanges",
+        "label": "Sign changes in the cash flows",
+        "value": 3,
+        "unit": "count",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "npvZeroCrossings",
+        "label": "Zero crossings of NPV(r)",
+        "value": 1,
+        "unit": "count",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "paybackYears",
+        "label": "Simple payback",
+        "value": 7.038216560509555,
+        "unit": "years",
+        "tolerance": 0.000001
+      },
+      {
+        "key": "discountedPaybackYears",
+        "label": "Discounted payback",
+        "value": 9.41743759761327,
+        "unit": "years",
+        "tolerance": 0.000001
+      },
+      {
+        "key": "profitabilityIndex",
+        "label": "Profitability index",
+        "value": 1.0684469940575714,
+        "unit": "ratio",
+        "tolerance": 0.000001
+      },
+      {
+        "key": "netCashFlow.Year 0",
+        "label": "Net cash flow Year 0",
+        "value": -820000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netCashFlow.Year 1",
+        "label": "Net cash flow Year 1",
+        "value": 138000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netCashFlow.Year 2",
+        "label": "Net cash flow Year 2",
+        "value": 142000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netCashFlow.Year 3",
+        "label": "Net cash flow Year 3",
+        "value": 145000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netCashFlow.Year 4",
+        "label": "Net cash flow Year 4",
+        "value": 149000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netCashFlow.Year 5",
+        "label": "Net cash flow Year 5",
+        "value": -65000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netCashFlow.Year 6",
+        "label": "Net cash flow Year 6",
+        "value": 151000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netCashFlow.Year 7",
+        "label": "Net cash flow Year 7",
+        "value": 154000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netCashFlow.Year 8",
+        "label": "Net cash flow Year 8",
+        "value": 157000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netCashFlow.Year 9",
+        "label": "Net cash flow Year 9",
+        "value": 160000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netCashFlow.Year 10",
+        "label": "Net cash flow Year 10",
+        "value": 208000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "cumulativeCashFlow.Year 0",
+        "label": "Cumulative cash flow Year 0",
+        "value": -820000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "cumulativeCashFlow.Year 1",
+        "label": "Cumulative cash flow Year 1",
+        "value": -682000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "cumulativeCashFlow.Year 2",
+        "label": "Cumulative cash flow Year 2",
+        "value": -540000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "cumulativeCashFlow.Year 3",
+        "label": "Cumulative cash flow Year 3",
+        "value": -395000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "cumulativeCashFlow.Year 4",
+        "label": "Cumulative cash flow Year 4",
+        "value": -246000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "cumulativeCashFlow.Year 5",
+        "label": "Cumulative cash flow Year 5",
+        "value": -311000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "cumulativeCashFlow.Year 6",
+        "label": "Cumulative cash flow Year 6",
+        "value": -160000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "cumulativeCashFlow.Year 7",
+        "label": "Cumulative cash flow Year 7",
+        "value": -6000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "cumulativeCashFlow.Year 8",
+        "label": "Cumulative cash flow Year 8",
+        "value": 151000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "cumulativeCashFlow.Year 9",
+        "label": "Cumulative cash flow Year 9",
+        "value": 311000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "cumulativeCashFlow.Year 10",
+        "label": "Cumulative cash flow Year 10",
+        "value": 519000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "cumulativeDiscountedCashFlow.Year 0",
+        "label": "Cumulative discounted cash flow Year 0",
+        "value": -820000,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "cumulativeDiscountedCashFlow.Year 1",
+        "label": "Cumulative discounted cash flow Year 1",
+        "value": -692222.2222222222,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "cumulativeDiscountedCashFlow.Year 2",
+        "label": "Cumulative discounted cash flow Year 2",
+        "value": -570480.109739369,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "cumulativeDiscountedCashFlow.Year 3",
+        "label": "Cumulative discounted cash flow Year 3",
+        "value": -455374.43479144445,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "cumulativeDiscountedCashFlow.Year 4",
+        "label": "Cumulative discounted cash flow Year 4",
+        "value": -345854.9867247729,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "cumulativeDiscountedCashFlow.Year 5",
+        "label": "Cumulative discounted cash flow Year 5",
+        "value": -390092.8945319668,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "cumulativeDiscountedCashFlow.Year 6",
+        "label": "Cumulative discounted cash flow Year 6",
+        "value": -294937.280872618,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "cumulativeDiscountedCashFlow.Year 7",
+        "label": "Cumulative discounted cash flow Year 7",
+        "value": -205079.76000224944,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "cumulativeDiscountedCashFlow.Year 8",
+        "label": "Cumulative discounted cash flow Year 8",
+        "value": -120257.54513543926,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "cumulativeDiscountedCashFlow.Year 9",
+        "label": "Cumulative discounted cash flow Year 9",
+        "value": -40217.71039440582,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "cumulativeDiscountedCashFlow.Year 10",
+        "label": "Cumulative discounted cash flow Year 10",
+        "value": 56126.53512720848,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "sensitivityNpv.rate6.flowsminus10",
+        "label": "NPV @ 6% with flows -10%",
+        "value": 49386.13236908574,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "sensitivityNpv.rate6.flowsbase",
+        "label": "NPV @ 6% with flows +0%",
+        "value": 145984.59152120622,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "sensitivityNpv.rate6.flowsplus10",
+        "label": "NPV @ 6% with flows +10%",
+        "value": 242583.05067332697,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "sensitivityNpv.rate8.flowsminus10",
+        "label": "NPV @ 8% with flows -10%",
+        "value": -31486.11838551238,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "sensitivityNpv.rate8.flowsbase",
+        "label": "NPV @ 8% with flows +0%",
+        "value": 56126.53512720848,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "sensitivityNpv.rate8.flowsplus10",
+        "label": "NPV @ 8% with flows +10%",
+        "value": 143739.1886399293,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "sensitivityNpv.rate10.flowsminus10",
+        "label": "NPV @ 10% with flows -10%",
+        "value": -101159.30996544845,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "sensitivityNpv.rate10.flowsbase",
+        "label": "NPV @ 10% with flows +0%",
+        "value": -21288.12218383167,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "sensitivityNpv.rate10.flowsplus10",
+        "label": "NPV @ 10% with flows +10%",
+        "value": 58583.06559778517,
+        "unit": "currency",
+        "tolerance": 0.005
+      }
+    ],
+    "mustMention": [
+      "NPV",
+      "IRR",
+      "payback",
+      "sensitivity",
+      "Year 5"
+    ],
+    "mustNotContain": [
+      "[unverified figure]"
+    ]
+  }
+}

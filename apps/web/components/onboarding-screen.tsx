@@ -29,6 +29,7 @@ export function OnboardingScreen({ onDone, gateway }: Props) {
   const [gate, setGate] = useState<GatewayGatePayload | null>(gateway ?? null);
   const [doctor, setDoctor] = useState<EditDoctor | null>(null);
 
+  // Pinned by the host and never editable here: only its host label is shown, never the full URL.
   const endpoint = gate?.endpoint ?? gateway?.endpoint ?? gatewayBaseUrl;
   const reasonKey = gatewayReasonKey(gate?.status);
 
@@ -115,12 +116,8 @@ export function OnboardingScreen({ onDone, gateway }: Props) {
         </section>
       ) : null}
       <form onSubmit={(event) => void onSubmit(event)} className="mt-8 space-y-4" data-testid="onboarding-form">
-        <label className="block text-sm">
-          {t("onboarding.endpointLabel")}
-          <input className={fieldClass} value={endpoint} readOnly data-testid="onboarding-endpoint" />
-        </label>
-        <p className="text-xs text-[var(--text-3)]">
-          {gatewayHostLabel(endpoint)} · {t("onboarding.endpointLocked")}
+        <p className="text-xs text-[var(--text-3)]" data-testid="onboarding-gateway-host">
+          {t("onboarding.gatewayHost", { host: gatewayHostLabel(endpoint) })}
         </p>
         {reasonKey ? (
           <p className="text-sm text-[var(--danger)]" data-testid="onboarding-gate-reason">

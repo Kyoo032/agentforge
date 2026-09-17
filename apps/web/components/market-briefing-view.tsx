@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { FormattedText } from "@/components/formatted-text";
 import { JobRegenPanel, type JobRegenSubmit } from "@/components/job-regen-panel";
+import { MarketTeamPanel } from "@/components/market-team-panel";
 import { MarketTickerCard } from "@/components/market-ticker-card";
 import { MacroTable, WatchlistTable } from "@/components/market-watch-tables";
 import {
@@ -173,6 +174,21 @@ export function MarketBriefingView({
           </section>
         ))}
       </div>
+      {/*
+       * Only a team-depth run carries `team`; a quick briefing has nothing to
+       * show here, so the panel is absent rather than empty. It sits between
+       * the narrative and the data tables: the workings behind the sections
+       * just read, above the packet the workings were drawn from.
+       */}
+      {briefing.team ? (
+        <div className="mt-10">
+          <MarketTeamPanel
+            team={briefing.team}
+            language={briefing.language}
+            testIdPrefix={`${testIdPrefix}-team`}
+          />
+        </div>
+      ) : null}
       <section className="mt-10">
         <h3 className={H3}>Watchlist</h3>
         <div className="mt-3">

@@ -14,12 +14,60 @@
     "empty": "Tambahkan ticker di atas untuk melihat harga dan grafiknya.",
     "openSettings": "Buka {settings}",
     "languageAria": "Bahasa briefing",
+    "specialistLabel": "Spesialis",
+    "specialistAria": "Spesialis pasar",
+    "specialistStarter": "Pakai daftar awal {label}",
+    "sourcesLabel": "Sumber",
+    "sourcesComputed": "Dihitung di perangkat",
     "startersLead": "Atau mulai dari daftar siap pakai:",
     "positionLabel": "Posisi Anda (opsional)",
     "positionHelp": "Apa yang Anda miliki dan pada harga berapa. Briefing boleh memakai angka ini; tidak mengarang yang lain.",
     "promptLabel": "Apa yang harus dicakup briefing",
     "resetPrompt": "Kembalikan ke bawaan",
     "lengthLimit": "Batas panjang (karakter)"
+  },
+  "depth": {
+    "label": "Analisis",
+    "aria": "Mode analisis",
+    "quick": "Analis tunggal",
+    "team": "Tim analis",
+    "hint": "Tim analis menjalankan empat analis, satu ronde bullish dan bearish, lalu bacaan risiko sebelum briefing ditulis.",
+    "unavailable": "Meja ini tidak punya tim analis, jadi briefingnya ditulis satu analis saja."
+  },
+  "progress": {
+    "analysts": "Catatan analis",
+    "debate": "Ronde bullish dan bearish",
+    "risk": "Pembacaan risiko",
+    "synthesis": "Menulis briefing"
+  },
+  "team": {
+    "title": "Tim analis",
+    "show": "Tampilkan tim analis",
+    "hide": "Sembunyikan tim analis",
+    "notes": "Catatan analis",
+    "bull": "Kasus bullish",
+    "bear": "Kasus bearish",
+    "risk": "Pembacaan risiko",
+    "rebuttals": "Sanggahan",
+    "volatility": "Volatilitas",
+    "liquidity": "Likuiditas",
+    "analysts": {
+      "technical": "Teknikal",
+      "fundamentals": "Fundamental",
+      "sentiment": "Sentimen",
+      "news": "Berita"
+    },
+    "lenses": {
+      "aggressive": "Agresif",
+      "neutral": "Netral",
+      "conservative": "Konservatif"
+    },
+    "confidence": {
+      "label": "Keyakinan",
+      "low": "Keyakinan rendah",
+      "medium": "Keyakinan sedang",
+      "high": "Keyakinan tinggi"
+    }
   },
   "errors": {
     "needsKey": "Harga dan grafik tetap berfungsi tanpa kunci. Untuk menulis briefing, tambahkan kunci API Anda di Pengaturan.",
@@ -52,6 +100,52 @@
     "semis-macro": {
       "label": "Semikonduktor vs makro",
       "hint": "Nama semikonduktor dibanding indeks volatilitas."
+    }
+  },
+  "specialists": {
+    "saham": {
+      "label": "Saham",
+      "hint": "Saham di bursa mana pun — IDX, AS, dan seterusnya: peringkat watchlist, pembacaan sektor, sadar jam bursa."
+    },
+    "forex": {
+      "label": "Forex",
+      "hint": "Pasangan mata uang dibaca terhadap dolar, selisih suku bunga, dan jam sesi."
+    },
+    "gold": {
+      "label": "Emas & Mineral",
+      "hint": "Emas, perak dan tembaga terhadap dolar dan yield riil, plus penambang Indonesia sebagai beta."
+    },
+    "crypto": {
+      "label": "Kripto",
+      "hint": "Pasar 24/7: bitcoin sebagai penggerak, dominance, dan volatilitas altcoin."
+    },
+    "commodities": {
+      "label": "Komoditas",
+      "hint": "Energi dan logam: kurva futures, sensitivitas dolar, dan dampaknya ke eksportir."
+    },
+    "indices": {
+      "label": "Indeks Global",
+      "hint": "Estafet sesi Asia-Eropa-Amerika, futures versus indeks tunai."
+    },
+    "sector-rotation": {
+      "label": "Rotasi Sektor",
+      "hint": "Peringkat kinerja relatif antar sektor IDX dan ETF sektor AS: pemimpin dan yang tertinggal."
+    },
+    "scanner": {
+      "label": "Market Scanner",
+      "hint": "Tabel setup berperingkat per kelompok sinyal, tanpa narasi tambahan."
+    },
+    "summary": {
+      "label": "Ringkasan Pasar",
+      "hint": "Gambaran satu halaman: indeks, futures, mata uang, yield, dan komoditas."
+    },
+    "elliott-wave": {
+      "label": "Elliott Wave Count",
+      "hint": "Hitungan gelombang berhati-hati dari swing di paket data, lengkap dengan level invalidasi."
+    },
+    "news": {
+      "label": "Agregator Berita",
+      "hint": "Digest headline per ticker dan per tema, dengan penerbit, waktu, dan tanda basi."
     }
   },
   "board": {

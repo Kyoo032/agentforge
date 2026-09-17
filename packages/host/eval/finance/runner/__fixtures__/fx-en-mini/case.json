@@ -1,0 +1,31 @@
+{
+  "id": "fx-en-mini",
+  "task": "brief",
+  "locale": "en",
+  "currency": "USD",
+  "description": "Runner's own smoke case: four synthetic rows over two years, en number format. Invented company, no real data.",
+  "files": [{ "path": "input.csv" }],
+  "prompt": "Write a finance brief over the confirmed rows: margins, growth, and the cash position.",
+  "params": {},
+  "truth": {
+    "lineItems": [
+      { "label": "Revenue", "period": "2024", "amount": 1000000, "category": "revenue" },
+      { "label": "Revenue", "period": "2025", "amount": 1250000, "category": "revenue" },
+      { "label": "COGS", "period": "2024", "amount": 600000, "category": "cogs" },
+      { "label": "COGS", "period": "2025", "amount": 730000, "category": "cogs" },
+      { "label": "Payroll", "period": "2024", "amount": 250000, "category": "opex" },
+      { "label": "Payroll", "period": "2025", "amount": 300000, "category": "opex" },
+      { "label": "Cash", "period": "2024", "amount": 400000, "category": "cash" },
+      { "label": "Cash", "period": "2025", "amount": 520000, "category": "cash" }
+    ],
+    "figures": [
+      { "key": "revenue.2025", "label": "Revenue 2025", "value": 1250000, "unit": "currency", "formula": "the 2025 revenue cell, read straight off the sheet" },
+      { "key": "gross_margin.2024", "label": "Gross margin 2024", "value": 40.0, "unit": "percent", "tolerance": 0.005, "formula": "(1000000 - 600000) / 1000000 * 100" },
+      { "key": "gross_margin.2025", "label": "Gross margin 2025", "value": 41.6, "unit": "percent", "tolerance": 0.005, "formula": "(1250000 - 730000) / 1250000 * 100" },
+      { "key": "net_margin.2025", "label": "Net margin 2025", "value": 17.6, "unit": "percent", "tolerance": 0.005, "formula": "(1250000 - 730000 - 300000) / 1250000 * 100" },
+      { "key": "revenue_growth.2025", "label": "Revenue growth 2025", "value": 25.0, "unit": "percent", "tolerance": 0.005, "formula": "(1250000 - 1000000) / 1000000 * 100" }
+    ],
+    "mustMention": ["margin"],
+    "mustNotContain": ["[unverified figure]"]
+  }
+}

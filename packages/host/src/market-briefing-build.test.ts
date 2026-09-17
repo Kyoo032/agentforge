@@ -8,6 +8,7 @@ import {
   buildWatchSystemPrompt,
   marketWatchPacketSchema,
 } from "@agentforge/core/market";
+import { marketBriefingToMarkdown } from "@agentforge/core/artifacts";
 import liveBriefing from "./market/__fixtures__/live-briefing-2026-09-09.json";
 import {
   FIXTURE_HEADLINE,
@@ -25,9 +26,11 @@ import {
   buildMarketBriefing,
   defaultBriefingTitle,
   guardBriefingSection,
+  marketBriefingMarkdown,
   parseBriefingDraft,
   parseBriefingSection,
   sectionSystemPrompt,
+  teamAppendixMarkdown,
 } from "./market-briefing-build";
 
 const GENERATED_AT = FIXTURE_NOW.toISOString();
@@ -223,5 +226,68 @@ describe("sectionSystemPrompt", () => {
     const prompt = sectionSystemPrompt(input);
     expect(prompt.startsWith(buildWatchSystemPrompt(input))).toBe(true);
     expect(prompt.endsWith(SECTION_REWRITE_RULES)).toBe(true);
+  });
+});
+
+describe("marketBriefingMarkdown", () => {
+  const notes = {
+    analysts: [
+      {
+        analyst: "sentiment" as const,
+        summary: "StockTwits leaned bullish; Reddit was unavailable.",
+        keyPoints: ["3 bullish, 2 bearish"],
+        confidence: "low" as const,
+      },
+    ],
+    bull: { stance: "bull" as const, thesis: "Supply is tight.", points: ["HBM sold out"], rebuttals: ["Cycle risk"] },
+    bear: { stance: "bear" as const, thesis: "Margins compress.", points: [], rebuttals: [] },
+    risk: {
+      lenses: [
+        { lens: "aggressive" as const, view: "Tolerable.", keyRisks: ["Gap risk"] },
+        { lens: "neutral" as const, view: "Balanced.", keyRisks: [] },
+        { lens: "conservative" as const, view: "Drawdown dominates.", keyRisks: [] },
+      ],
+      volatility: "The range is wide.",
+      liquidity: "Thin outside the session.",
+    },
+    rounds: 1 as const,
+  };
+
+  function build(team?: typeof notes) {
+    return buildMarketBriefing(
+      { title: "Team briefing", sections: [{ heading: "Analyst notes", body: "One seat reported." }] },
+      packet(),
+      {
+        language: "en",
+        generatedAt: FIXTURE_NOW.toISOString(),
+        specialist: "saham",
+        ...(team ? { depth: "team" as const, team } : {}),
+      },
+    ).briefing;
+  }
+
+  it("splices the Team appendix in ahead of the closing disclaimer", () => {
+    const markdown = marketBriefingMarkdown(build(notes));
+
+    expect(markdown).toContain("## Team");
+    expect(markdown).toContain("### Analyst notes");
+    expect(markdown).toContain("**sentiment** (confidence: low)");
+    expect(markdown).toContain("StockTwits leaned bullish; Reddit was unavailable.");
+    expect(markdown).toContain("- 3 bullish, 2 bearish");
+    expect(markdown).toContain("### Bull case");
+    expect(markdown).toContain("**Rebuttals:**");
+    expect(markdown).toContain("### Bear case");
+    expect(markdown).toContain("### Risk read");
+    expect(markdown).toContain("**aggressive** — Tolerable.");
+    expect(markdown).toContain("**Volatility:** The range is wide.");
+    // The disclaimer is still the last thing in the document.
+    expect(markdown.indexOf("## Team")).toBeGreaterThan(markdown.indexOf("One seat reported."));
+    expect(markdown.lastIndexOf(`> ${MARKET_DISCLAIMER}`)).toBeGreaterThan(markdown.indexOf("## Team"));
+  });
+
+  it("is core's markdown, unchanged, for a quick briefing", () => {
+    const quick = build();
+    expect(marketBriefingMarkdown(quick)).toBe(marketBriefingToMarkdown(quick));
+    expect(teamAppendixMarkdown(quick)).toEqual([]);
   });
 });

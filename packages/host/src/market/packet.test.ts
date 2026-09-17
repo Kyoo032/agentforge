@@ -1,26 +1,38 @@
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@agentforge/core";
-import { MACRO_SYMBOLS, type MarketWatchRequest } from "@agentforge/core/market";
+import {
+  DEFAULT_MARKET_SPECIALIST,
+  MACRO_SYMBOLS,
+  harnessFor,
+  swingPoints,
+  type MarketWatchRequest,
+} from "@agentforge/core/market";
 import { ensureSchema } from "@agentforge/db/ensure-schema";
 import chartFixture from "./__fixtures__/yahoo-chart-mu.json";
 import quotesFixture from "./__fixtures__/yahoo-quotes.json";
 import searchFixture from "./__fixtures__/yahoo-search-mu.json";
+import summaryFixture from "./__fixtures__/yahoo-quote-summary-mu.json";
+import streamFixture from "./__fixtures__/stocktwits-mu.json";
+import { REDDIT_SEARCH_MU } from "./__fixtures__/reddit-search-mu";
 import tvFixture from "./__fixtures__/tradingview-scan.json";
 import { computedRef, history as historyFixture, technical as technicalFixture } from "./__fixtures__/watch";
 import { buildMarketWatchPacket, mergeTechnical, type PacketPhase } from "./packet";
 import { MACRO_CACHE_KEY, historyCacheKey, readCached } from "./repo";
 import type { TradingViewIndicators } from "./tradingview";
-import { HISTORY_MONTHS_DEFAULT, type YahooClient } from "./yahoo";
+import type { YahooClient } from "./yahoo";
 
 const NOW = new Date("2026-09-09T12:30:00.000Z");
 const now = () => NOW;
+/** Reddit is read one subreddit at a time with a real gap; no test pays for it. */
+const noDelay = async () => {};
+const SAHAM_MONTHS = harnessFor(DEFAULT_MARKET_SPECIALIST).historyMonths;
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-type Fault = { quote?: Error; chart?: Error; search?: Error; tradingview?: number };
+type Fault = { quote?: Error; chart?: Error; search?: Error; quoteSummary?: Error; tradingview?: number };
 
 function yahooClient(fault: Fault, log: string[]): YahooClient {
   return {
@@ -45,13 +57,30 @@ function yahooClient(fault: Fault, log: string[]): YahooClient {
       }
       return query === "MU" ? clone(searchFixture) : { news: [] };
     },
+    async quoteSummary(symbol) {
+      log.push(`quoteSummary:${symbol}`);
+      if (fault.quoteSummary) {
+        throw fault.quoteSummary;
+      }
+      return clone(summaryFixture);
+    },
   };
 }
 
 function fetchImpl(fault: Fault, log: string[]): typeof fetch {
   return (async (input: string | URL | Request) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-    const market = new URL(url).pathname.split("/")[1] as "america" | "indonesia";
+    const { hostname, pathname } = new URL(url);
+    // The saham desk reads the crowd too; those venues answer from fixtures like every other one.
+    if (hostname === "api.stocktwits.com") {
+      log.push("stocktwits");
+      return new Response(JSON.stringify(streamFixture), { status: 200 });
+    }
+    if (hostname === "www.reddit.com") {
+      log.push("reddit");
+      return new Response(REDDIT_SEARCH_MU, { status: 200 });
+    }
+    const market = pathname.split("/")[1] as "america" | "indonesia";
     log.push(`tv:${market}`);
     if (fault.tradingview) {
       return new Response("{}", { status: fault.tradingview });
@@ -67,6 +96,8 @@ function request(overrides: Partial<MarketWatchRequest> = {}): MarketWatchReques
     positionContext: "",
     language: "id",
     maxChars: 6000,
+    specialist: DEFAULT_MARKET_SPECIALIST,
+    depth: "quick",
     ...overrides,
   };
 }
@@ -91,7 +122,7 @@ describe("buildMarketWatchPacket", () => {
     return buildMarketWatchPacket(db, req, {
       now,
       signal,
-      clients: { yahoo: yahooClient(fault, log), fetchImpl: fetchImpl(fault, log) },
+      clients: { yahoo: yahooClient(fault, log), fetchImpl: fetchImpl(fault, log), delay: noDelay },
       onProgress: (phase, label) => {
         phases.push([phase, label]);
       },
@@ -177,7 +208,8 @@ describe("buildMarketWatchPacket", () => {
 
     expect(readCached(db, "MU", "quote")?.payload.price).toBe(1000.26);
     expect(readCached(db, "MU", "technical")?.payload.rsi14).toBe(57.66);
-    expect(readCached(db, historyCacheKey("MU", HISTORY_MONTHS_DEFAULT), "history")?.payload.bars).toHaveLength(10);
+    // The default desk (saham) asks the history fetcher for its own depth, not the adapter default.
+    expect(readCached(db, historyCacheKey("MU", SAHAM_MONTHS), "history")?.payload.bars).toHaveLength(10);
     expect(readCached(db, "MU", "news")?.payload.length).toBeGreaterThan(0);
     expect(readCached(db, MACRO_CACHE_KEY, "macro")?.payload.quotes).toHaveLength(3);
   });
@@ -298,5 +330,30 @@ describe("mergeTechnical", () => {
     });
     expect(computed.rsi14).toBe(55);
     expect(historyFixture("MU").bars).toHaveLength(6);
+  });
+});
+
+describe("buildMarketWatchPacket swings", () => {
+  // Only the wave desk lists `swings`; every other desk leaves the section off.
+  let db: Database.Database;
+
+  beforeEach(() => {
+    db = new Database(":memory:");
+    ensureSchema(db);
+  });
+
+  afterEach(() => {
+    db.close();
+  });
+
+  it("computes the citable pivot highs and lows from each ticker's bars", async () => {
+    const log: string[] = [];
+    const { packet } = await buildMarketWatchPacket(db, request({ specialist: "elliott-wave" }), {
+      now,
+      clients: { yahoo: yahooClient({}, log), fetchImpl: fetchImpl({}, log), delay: noDelay },
+    });
+    for (const ticker of packet.tickers) {
+      expect(ticker.swings).toEqual(ticker.history ? swingPoints(ticker.history.bars) : []);
+    }
   });
 });

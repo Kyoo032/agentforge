@@ -3,9 +3,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { sql } from "@agentforge/db";
 import { ApiError, type TenantContext } from "@agentforge/core";
 import { ensureSchema } from "@agentforge/db/ensure-schema";
 import { DATASET_MAX_ROWS, createDatasetStore, type DatasetStore } from "./datasets";
+import { listSources } from "./knowledge";
+import { upsertWorkSource } from "./knowledge-ingest";
+import { artifactWorkCard } from "./work-cards";
 import { datasetBrief } from "./data-generate";
 import { runReadOnlySql, runSqlTool, withActiveDataset, type SqlToolOutput } from "./sql-tool";
 
@@ -208,5 +212,68 @@ describe("run_sql tool", () => {
     expect(result.truncated).toBe(true);
     expect(result.rowCount).toBe(6);
     wide.close();
+  });
+});
+
+/**
+ * A Data card's origin is the **artifact** the analysis produced, not the dataset, so the card was
+ * only ever reachable through that artifact — and deleting the dataset removed neither. The store
+ * now deletes the artifacts it owns and asks the knowledge sweep to collect their cards.
+ */
+describe("dataset delete reaches the analysis cards", () => {
+  const desk: TenantContext = {
+    organizationId: "org-dataset-cascade",
+    workspaceId: `ws-dataset-${crypto.randomUUID()}`,
+    userId: "local",
+    role: "owner",
+  };
+  let dir: string;
+  let store: DatasetStore;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "af-datasets-cascade-"));
+    // The real kernel database: artifacts, knowledge sources and the sweep all live in one file.
+    store = createDatasetStore(sql, dir);
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  function seedArtifact(id: string, meta: Record<string, unknown>): void {
+    sql
+      .prepare(
+        `INSERT INTO artifacts (id, workspace_id, mode, kind, title, mime, body, meta, size_bytes, created_at, updated_at)
+         VALUES (?, ?, 'data', 'analysis', 'Spend analysis', 'text/markdown', 'body', ?, 4, ?, ?)`,
+      )
+      .run(id, desk.workspaceId, JSON.stringify(meta), Date.now(), Date.now());
+  }
+
+  it("deletes the dataset's artifacts and the knowledge cards that point at them", async () => {
+    const dataset = store.create(desk, { name: "Spend", filename: "spend.csv", bytes: Buffer.from(CSV) });
+    const mine = crypto.randomUUID();
+    const other = crypto.randomUUID();
+    seedArtifact(mine, { datasetId: dataset.id, model: "gpt-5.6-luna" });
+    seedArtifact(other, { datasetId: crypto.randomUUID() });
+    for (const artifactId of [mine, other]) {
+      await upsertWorkSource(
+        desk,
+        artifactWorkCard({
+          type: "Data",
+          artifactId,
+          title: `Analysis ${artifactId.slice(0, 6)}`,
+          markdown: "Acme is 70 percent of spend.",
+        }),
+      );
+    }
+    expect(listSources(desk)).toHaveLength(2);
+
+    expect(store.remove(desk, dataset.id)).toBe(true);
+    const artifacts = sql
+      .prepare("SELECT id FROM artifacts WHERE workspace_id = ?")
+      .all(desk.workspaceId) as Array<{ id: string }>;
+    expect(artifacts.map((row) => row.id)).toEqual([other]);
+    // The analysis of the deleted data no longer answers Chat; the unrelated one is untouched.
+    expect(listSources(desk).map((source) => source.origin)).toEqual([{ kind: "artifact", id: other }]);
   });
 });

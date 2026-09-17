@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   LOOP_STAGES,
-  barFraction,
   countSourcesByType,
   formatVerified,
   isWorkSourceType,
@@ -37,13 +36,6 @@ describe("knowledge loop counts", () => {
     expect(isWorkSourceType("Edit")).toBe(true);
     expect(isWorkSourceType("Paste")).toBe(false);
     expect(isWorkSourceType("Dossier")).toBe(false);
-  });
-
-  it("scales bars to the largest count and never above 1", () => {
-    expect(barFraction(2, 4)).toBe(0.5);
-    expect(barFraction(5, 4)).toBe(1);
-    expect(barFraction(0, 4)).toBe(0);
-    expect(barFraction(3, 0)).toBe(0);
   });
 });
 

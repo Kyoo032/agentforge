@@ -16,6 +16,22 @@ export function briefLooksLikeFigures(text: string): boolean {
   return /\d/.test(trimmed) || CURRENCY_TOKEN.test(trimmed);
 }
 
+/**
+ * The paste box after an upload hands its figures over.
+ *
+ * An empty box takes the uploaded text as it is. A box the owner already typed in keeps every
+ * character of it and the upload lands on the next line, so two files (or a file after a paste)
+ * parse as one list instead of one silently replacing the other.
+ */
+export function mergeFigures(current: string, added: string): string {
+  const typed = typeof current === "string" ? current : "";
+  const incoming = typeof added === "string" ? added.trim() : "";
+  if (incoming === "") {
+    return typed;
+  }
+  return typed.trim() === "" ? incoming : `${typed.replace(/\s+$/, "")}\n${incoming}`;
+}
+
 /** The host code for a parse that read no figures out of otherwise valid text. */
 const NO_FIGURES_CODE = "invalid_finance";
 

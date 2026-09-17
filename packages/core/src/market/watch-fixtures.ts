@@ -2,12 +2,22 @@
  * Test fixtures for Market Watch v2. Not exported from the package barrel.
  */
 import type {
+  CryptoGlobal,
+  GlobalNewsItem,
+  MarketSession,
+  MarketSignal,
   MarketWatchPacket,
+  MetalsContext,
+  RotationRow,
   PriceBar,
   PriceHistory,
   Quote,
   Technical,
   TickerPacket,
+  TickerCrypto,
+  TickerFundamentals,
+  TickerInsiders,
+  TickerSentiment,
   WatchNewsItem,
   WatchRef,
 } from "./watch-schemas";
@@ -134,6 +144,150 @@ export function makePacket(overrides: Partial<MarketWatchPacket> = {}): MarketWa
     },
     clock: { runAt: FIXTURE_NOW, usSession: "pre", note: "Run at 20:25 WIB = 09:25 ET, U.S. pre-market." },
     positionContext: "MU: avg cost $886.26, target $1,000. INTC: 200 shares at 31.5.",
+    ...overrides,
+  };
+}
+
+export function makeCrypto(overrides: Partial<TickerCrypto> = {}): TickerCrypto {
+  return {
+    marketCapUsd: 1_284_000_000_000,
+    volume24hUsd: 34_500_000_000,
+    change7dPct: -4.25,
+    dominancePct: 54.12,
+    fundingRatePct: 0.0112,
+    source: "web",
+    observedAt: FIXTURE_NOW,
+    ...overrides,
+  };
+}
+
+export function makeFundamentals(overrides: Partial<TickerFundamentals> = {}): TickerFundamentals {
+  return {
+    sector: "Technology",
+    industry: "Semiconductors",
+    marketCap: 9.9e11,
+    trailingPe: 24.53,
+    forwardPe: 18.21,
+    peg: 1.34,
+    priceToBook: 3.47,
+    epsTrailing: 8.11,
+    epsForward: 12.44,
+    dividendYieldPct: 0.45,
+    beta: 1.32,
+    revenueTtm: 37_100_000_000,
+    grossMarginPct: 45.21,
+    operatingMarginPct: 30.13,
+    profitMarginPct: 25.37,
+    roePct: 28.44,
+    roaPct: 15.12,
+    debtToEquity: 31.8,
+    currentRatio: 2.41,
+    freeCashflow: 4_260_000_000,
+    source: "yahoo",
+    observedAt: FIXTURE_NOW,
+    ...overrides,
+  };
+}
+
+export function makeInsiders(overrides: Partial<TickerInsiders> = {}): TickerInsiders {
+  return {
+    window: "90d",
+    buys: 3,
+    sells: 7,
+    netShares: -128_400,
+    source: "yahoo",
+    observedAt: FIXTURE_NOW,
+    ...overrides,
+  };
+}
+
+export function makeSentiment(overrides: Partial<TickerSentiment> = {}): TickerSentiment {
+  return {
+    stocktwits: { total: 184, bullish: 121, bearish: 39, sampled: 3 },
+    reddit: { posts: 17, subreddits: ["wallstreetbets", "stocks"] },
+    samples: [
+      { source: "stocktwits", title: "Volume looks heavy into the close", at: "2026-09-09T12:40:00.000Z" },
+      { source: "reddit", title: "Foundry update thread", at: "2026-09-09T11:05:00.000Z" },
+    ],
+    observedAt: FIXTURE_NOW,
+    ...overrides,
+  };
+}
+
+export const FIXTURE_GLOBAL_NEWS: readonly GlobalNewsItem[] = [
+  {
+    title: "Fed holds its policy rate at 4.25% and points to a slower path",
+    publisher: "Reuters",
+    at: "2026-09-09T09:00:00.000Z",
+    query: "Federal Reserve interest rate decision",
+  },
+  {
+    title: "Oil steadies as supply talks drag on",
+    publisher: "Bloomberg",
+    at: "2026-09-09T08:10:00.000Z",
+    query: "oil price energy markets",
+  },
+];
+
+export const FIXTURE_CRYPTO_GLOBAL: CryptoGlobal = {
+  totalMarketCapUsd: 3_912_000_000_000,
+  btcDominancePct: 54.12,
+  ethDominancePct: 13.24,
+  source: "web",
+  observedAt: FIXTURE_NOW,
+};
+
+export const FIXTURE_METALS: MetalsContext = {
+  dxy: 97.41,
+  us10y: 4.126,
+  goldSilverRatio: 82.53,
+  goldFuturesVsSpotPct: 0.34,
+  source: "computed",
+  observedAt: FIXTURE_NOW,
+};
+
+export const FIXTURE_SIGNALS: readonly MarketSignal[] = [
+  { ticker: "MU", kind: "rsi-overbought", value: 71.3, note: "RSI14 sits in the overbought band" },
+  { ticker: "INTC", kind: "52w-low", value: 401.2, note: "close sits within a hair of the 52-week low" },
+];
+
+export const FIXTURE_ROTATION: readonly RotationRow[] = [
+  { ticker: "MU", ret1dPct: -1.2, ret5dPct: 3.05, ret1mPct: 8.42, ret6mPct: 41.7, rank1m: 1 },
+  { ticker: "INTC", ret1dPct: 0.4, ret5dPct: -2.11, ret1mPct: -6.38, ret6mPct: null, rank1m: 2 },
+];
+
+export const FIXTURE_SESSIONS: readonly MarketSession[] = [
+  { exchange: "IDX", state: "closed", nextChangeAt: "2026-09-10T02:00:00.000Z" },
+  { exchange: "NYSE", state: "pre", nextChangeAt: "2026-09-09T13:30:00.000Z" },
+  { exchange: "CRYPTO", state: "always", nextChangeAt: null },
+];
+
+/** A packet carrying every harness section at once. Used to prove no section is left out of the guard. */
+export function makeFullPacket(overrides: Partial<MarketWatchPacket> = {}): MarketWatchPacket {
+  const base = makePacket();
+  return {
+    ...base,
+    tickers: base.tickers.map((ticker, index) =>
+      index === 0
+        ? {
+            ...ticker,
+            crypto: makeCrypto(),
+            fundamentals: makeFundamentals(),
+            insiders: makeInsiders(),
+            sentiment: makeSentiment(),
+            swings: [
+              { date: "2026-08-01", price: 910.5, kind: "high" as const },
+              { date: "2026-08-20", price: 700.25, kind: "low" as const },
+            ],
+          }
+        : ticker,
+    ),
+    cryptoGlobal: FIXTURE_CRYPTO_GLOBAL,
+    metals: FIXTURE_METALS,
+    signals: [...FIXTURE_SIGNALS],
+    rotation: [...FIXTURE_ROTATION],
+    sessions: [...FIXTURE_SESSIONS],
+    globalNews: [...FIXTURE_GLOBAL_NEWS],
     ...overrides,
   };
 }

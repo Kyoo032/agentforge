@@ -29,7 +29,18 @@ export async function upsertWorkSource(tenant: TenantContext, card: WorkCard): P
   const safeCard = titleHit ? { ...card, title: card.type } : card;
   // Knowledge chunks are plaintext (FTS) while chat messages are sealed at rest, so the card gets the
   // same PII masking the outbound prompt gets. Title too: it is shown in the Sources list.
-  const text = maskPii(renderWorkCard(safeCard));
+  //
+  // Field by field, never over the rendered card. `Pointer: artifact:<uuid>` is host-generated, and a
+  // UUID whose middle groups are all digits matches the intl phone pattern — `b73b2194-8471-4712-…`
+  // was indexed as `b73b[phone]-…`, so the retrieved copy of the card could not name its own
+  // artifact while the database row was fine. Only the owner's own words are masked now.
+  const maskedCard: WorkCard = {
+    ...safeCard,
+    title: maskPii(safeCard.title),
+    prompt: safeCard.prompt === undefined ? undefined : maskPii(safeCard.prompt),
+    body: maskPii(safeCard.body),
+  };
+  const text = renderWorkCard(maskedCard);
   if (!text.trim()) {
     return { status: "skipped", reason: "empty" };
   }
@@ -41,7 +52,10 @@ export async function upsertWorkSource(tenant: TenantContext, card: WorkCard): P
     return { status: "skipped", reason: "lookup_failed" };
   }
   const id = existing?.id ?? crypto.randomUUID();
-  const input = { id, name: maskPii(safeCard.title), type: card.type, origin: card.origin };
+  // The name is rewritten on every upsert, not only on create: a card's subject can be renamed
+  // (a Chat thread that gets a real title after turn 1) and the Sources list, the `[n] <name>`
+  // citation marker and the indexed `# <title>` line all have to follow it.
+  const input = { id, name: maskedCard.title, type: card.type, origin: card.origin };
   // A card that carries injection text would be retrieved into every later Chat as a trusted source.
   // Same guard and owner bypass as attachments / source material; the work itself already succeeded.
   const hit = bypass ? null : (scanInjection(card.body) ?? scanInjection(card.prompt ?? ""));

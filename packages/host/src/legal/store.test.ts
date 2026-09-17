@@ -3,8 +3,12 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { sql } from "@agentforge/db";
 import { ApiError, type TenantContext } from "@agentforge/core";
 import { LEGAL_CAPS, legalOutputCopy, type LegalManifest, type MatterDocCard } from "@agentforge/core/legal";
+import { listSources } from "../knowledge";
+import { upsertWorkSource } from "../knowledge-ingest";
+import { artifactWorkCard } from "../work-cards";
 import { DOCX_MIME, LEGAL_MATTER_MAX_BYTES, UNSUPPORTED_FILE_MESSAGE } from "./store-files";
 import { localeForRun } from "../run-context";
 import { type CreateMatterInput, type LegalRunRecord, type LegalStore, createLegalStore } from "./store";
@@ -249,5 +253,66 @@ describe("legal store", () => {
     expect(() => store.setRoles(otherDesk, matter.id, [{ id: "S1", role: "executed" }])).toThrow(/Matter not found/);
     expect(() => store.update(otherDesk, matter.id, { title: "x" })).toThrow(/Matter not found/);
     expect(store.get(tenant, matter.id)?.docs).toHaveLength(1);
+  });
+});
+
+/**
+ * `remove` used to drop the matter directory and stop. The deliverables it created are artifacts,
+ * and the matter's Knowledge card hangs off one of them, so a matter the owner believed they had
+ * deleted kept feeding its red-flags text into every later Chat turn in that workspace.
+ */
+describe("legal matter delete reaches its artifacts and its card", () => {
+  const desk: TenantContext = {
+    organizationId: "org-legal-cascade",
+    workspaceId: `ws-legal-${crypto.randomUUID()}`,
+    userId: "local",
+    role: "owner",
+  };
+  let dir: string;
+  let store: LegalStore;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "af-legal-cascade-"));
+    store = createLegalStore(dir);
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  function seedArtifact(id: string, meta: Record<string, unknown>): void {
+    sql
+      .prepare(
+        `INSERT INTO artifacts (id, workspace_id, mode, kind, title, mime, body, meta, size_bytes, created_at, updated_at)
+         VALUES (?, ?, 'legal', 'red-flags', 'Red flags', 'text/markdown', 'body', ?, 4, ?, ?)`,
+      )
+      .run(id, desk.workspaceId, JSON.stringify(meta), Date.now(), Date.now());
+  }
+
+  it("removes the matter's deliverables, its manifest, and its knowledge card", async () => {
+    const matter = store.create(desk, INPUT);
+    const redFlags = crypto.randomUUID();
+    const manifest = crypto.randomUUID();
+    const unrelated = crypto.randomUUID();
+    seedArtifact(redFlags, { matterId: matter.id, deliverable: "red-flags" });
+    seedArtifact(manifest, { matterId: matter.id });
+    seedArtifact(unrelated, { matterId: crypto.randomUUID() });
+    await upsertWorkSource(
+      desk,
+      artifactWorkCard({
+        type: "Legal",
+        artifactId: redFlags,
+        title: matter.title,
+        markdown: "Clause 12 shifts termination risk to the borrower.",
+      }),
+    );
+    expect(listSources(desk)).toHaveLength(1);
+
+    expect(store.remove(desk, matter.id)).toBe(true);
+    const left = sql.prepare("SELECT id FROM artifacts WHERE workspace_id = ?").all(desk.workspaceId) as Array<{
+      id: string;
+    }>;
+    expect(left.map((row) => row.id)).toEqual([unrelated]);
+    expect(listSources(desk)).toHaveLength(0);
   });
 });

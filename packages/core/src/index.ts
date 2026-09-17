@@ -94,6 +94,8 @@ export { redactSecrets } from "./security/redact";
 export { keyFingerprint, keyFingerprintOrNull } from "./security/fingerprint";
 export { scanPii, maskPii, maskPiiInParts, maskOutboundRunInput, piiWarning, PII_MASK } from "./security/pii";
 export type { PiiKind, PiiFinding } from "./security/pii";
+export { ID_PROVINCE_CODES, isNikDigits, isNpwpDigits, scanIndonesianIds } from "./security/pii-id";
+export type { IdPiiKind, IdPiiMatch } from "./security/pii-id";
 export { thinToolOutput } from "./security/tool-thin";
 export {
   scanInjection,
@@ -338,6 +340,15 @@ export {
   JOB_MODE_PREFERENCES,
 } from "./models/mode-defaults";
 export type { JobMode, ModeModelDefaults } from "./models/mode-defaults";
+export {
+  JOB_FALLBACK_TAIL,
+  MODEL_FALLBACK_NOTICE,
+  isGatewayUnavailableFailure,
+  jobFallbackChain,
+  modelFallbackNotice,
+  nextJobFallbackModel,
+} from "./models/job-fallback";
+export type { JobModelFallbackNotice } from "./models/job-fallback";
 export { applyJobThinking, jobThinkingExtras } from "./models/job-thinking";
 export {
   DEFAULT_OPENAI_BASE_URL,

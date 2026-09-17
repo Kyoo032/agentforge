@@ -19,21 +19,25 @@ import {
   resolveToolBackend,
   type TenantContext,
 } from "@agentforge/core";
-import {
-  marketBriefingSchema,
-  marketBriefingToMarkdown,
-  type BriefingSection,
-  type MarketBriefing,
-} from "@agentforge/core/artifacts";
+import { marketBriefingSchema, type BriefingSection, type MarketBriefing } from "@agentforge/core/artifacts";
 import type { JobEmitter } from "@agentforge/core/jobs";
 import {
+  DEFAULT_MARKET_SPECIALIST,
+  TEAM_MAX_CALLS,
+  analystsFor,
   buildWatchSystemPrompt,
+  harnessFor,
   marketWatchRequestSchema,
   packetToPromptBlock,
+  teamAvailable,
+  type MarketSpecialist,
+  type MarketToolKey as HarnessToolKey,
   type MarketWatchPacket,
   type MarketWatchRequest,
+  type TeamNotes,
 } from "@agentforge/core/market";
 import { artifactStore, type ArtifactStore } from "./artifacts";
+import { artifactWorkCard } from "./work-cards";
 import { appendRegenInstruction, collectJobAssistantText, readOptionalInstruction } from "./job-regen";
 import { throwIfJobAborted } from "./job-stream";
 import {
@@ -41,19 +45,34 @@ import {
   assertBriefingHasNoAdvice,
   buildMarketBriefing,
   guardBriefingSection,
+  marketBriefingMarkdown,
   parseBriefingDraft,
   parseBriefingSection,
   sectionSystemPrompt,
+  teamSectionSystemPrompt,
   type MarketGuardReport,
 } from "./market-briefing-build";
+import { upsertWorkSource } from "./knowledge-ingest";
 import { buildMarketWatchPacket, type PacketClients, type PacketPhase } from "./market/packet";
+import { guardTeamNotes, runTeamPipeline, type TeamAsk } from "./market-team";
 import { ensureToolsRegistered } from "./register-tools";
 import { localeForRun } from "./run-context";
 import { listSelectableModels, modeCatalogPayload } from "./selectable-models";
 import { loadSettings } from "./settings-store";
 
-/** Tools the drafting model may call: more headlines and quotes, arithmetic; web research when a search key is saved. */
-export const MARKET_TOOL_BINDINGS: readonly string[] = ["market_news", "market_quotes", "market_history", "calculator"];
+/**
+ * Core names a desk's tools in its own terms (`quotes`, `technical`, …); this
+ * table is the only place those become the host's registered binding names.
+ * Which of them a desk actually gets is `harnessFor(specialist).tools`.
+ */
+export const MARKET_TOOL_BINDINGS: Readonly<Record<HarnessToolKey, string>> = {
+  quotes: "market_quotes",
+  history: "market_history",
+  technical: "market_technical",
+  macro: "market_macro",
+  news: "market_news",
+  calculator: "calculator",
+};
 export const MARKET_WEB_TOOL_BINDINGS: readonly string[] = ["web_search", "web_fetch"];
 /** Character budget handed to the model for a single-section rewrite. */
 export const SECTION_MAX_CHARS = 3000;
@@ -111,6 +130,8 @@ export type MarketGenerateDeps = {
   buildPacket?: typeof buildMarketWatchPacket;
   /** Whether web_search / web_fetch have a backend key; defaults to core's tool routing. */
   webReady?: () => boolean;
+  /** Writes the briefing's work card into the Knowledge Base. Injected so tests never index. */
+  ingest?: typeof upsertWorkSource;
 };
 
 type Resolved = Required<MarketGenerateDeps>;
@@ -132,6 +153,7 @@ function resolveDeps(deps: MarketGenerateDeps): Resolved {
     clients: deps.clients ?? {},
     buildPacket: deps.buildPacket ?? buildMarketWatchPacket,
     webReady: deps.webReady ?? (() => resolveToolBackend("web").ready),
+    ingest: deps.ingest ?? upsertWorkSource,
   };
 }
 
@@ -182,12 +204,24 @@ export function withClientAbort<T>(work: Promise<T>, signal: AbortSignal | undef
   });
 }
 
-export function toolKeysFor(webReady: boolean): string[] {
-  return [...MARKET_TOOL_BINDINGS, ...(webReady ? MARKET_WEB_TOOL_BINDINGS : [])];
+/**
+ * The tools this desk may call. Web research is bound only when the desk asks
+ * for it AND a search backend key is saved — a scanner never gets a browser.
+ */
+export function toolKeysFor(specialist: MarketSpecialist, webReady: boolean): string[] {
+  const harness = harnessFor(specialist);
+  return [
+    ...harness.tools.map((key) => MARKET_TOOL_BINDINGS[key]),
+    ...(harness.webResearch && webReady ? MARKET_WEB_TOOL_BINDINGS : []),
+  ];
 }
 
-export function briefingPrompt(packet: MarketWatchPacket, instruction: string): string {
-  return `${packetToPromptBlock(packet)}\n\n${USER_INSTRUCTION_HEADING}\n${instruction.trim()}`;
+export function briefingPrompt(
+  packet: MarketWatchPacket,
+  instruction: string,
+  specialist: MarketSpecialist = DEFAULT_MARKET_SPECIALIST,
+): string {
+  return `${packetToPromptBlock(packet, specialist)}\n\n${USER_INSTRUCTION_HEADING}\n${instruction.trim()}`;
 }
 
 /** 400 when every input was an unknown symbol, 502 when a source was down for all of them. */
@@ -252,6 +286,10 @@ type LoadedPacket = {
 
 type VerifiedBriefing = { briefing: MarketBriefing; guard: MarketGuardReport };
 
+/** What the team stage produced, or nothing at all when the run was `quick`. */
+type TeamOutcome = { notes?: TeamNotes; failures: string[] };
+const NO_TEAM: TeamOutcome = { failures: [] };
+
 /**
  * Emit "Still drafting… <n>s" every `DRAFTING_HEARTBEAT_MS` until the returned
  * stop function runs. Tick-counted rather than clock-read so the label is
@@ -312,13 +350,14 @@ async function draftBriefing(run: WatchRun, packet: MarketWatchPacket): Promise<
           language: request.language,
           maxChars: request.maxChars,
           clockNote: packet.clock.note,
+          specialist: request.specialist,
         }),
         runPrefix: "market",
         agentId: "market",
         jobMode: "market",
         versionId: "market-briefing",
-        prompt: briefingPrompt(packet, request.prompt),
-        toolKeys: toolKeysFor(resolved.webReady()),
+        prompt: briefingPrompt(packet, request.prompt, request.specialist),
+        toolKeys: toolKeysFor(request.specialist, resolved.webReady()),
         streamWatchdog: MARKET_STREAM_WATCHDOG,
       }),
       abortSignal,
@@ -332,31 +371,109 @@ async function draftBriefing(run: WatchRun, packet: MarketWatchPacket): Promise<
   return raw;
 }
 
-/** Parse the draft and run both guards (numbers, advice) on every section. */
-function verifyBriefing(run: WatchRun, raw: string, packet: MarketWatchPacket): VerifiedBriefing {
+/**
+ * The analyst team: four analysts on their own slices, a bull, a bear, one risk
+ * read and the editor's synthesis — `TEAM_MAX_CALLS` model calls at most.
+ *
+ * A desk whose harness names no analysts (scanner, sector-rotation,
+ * elliott-wave) cannot run a team, so the run falls back to the quick draft and
+ * says so in `failures` rather than refusing the request.
+ */
+async function draftWithTeam(
+  run: WatchRun,
+  packet: MarketWatchPacket,
+): Promise<{ raw: string; team: TeamOutcome }> {
+  const { tenant, request, model, resolved, emit, abortSignal } = run;
+  if (!teamAvailable(request.specialist)) {
+    return {
+      raw: await draftBriefing(run, packet),
+      team: { failures: [`team: the ${request.specialist} desk has no analyst team; wrote a quick briefing instead`] },
+    };
+  }
+  const ask: TeamAsk = (call) =>
+    withClientAbort(
+      resolved.ask({
+        tenant,
+        model,
+        systemPrompt: call.systemPrompt,
+        runPrefix: "market-team",
+        agentId: "market",
+        jobMode: "market",
+        versionId: call.versionId,
+        prompt: call.prompt,
+        toolKeys: call.toolKeys,
+        streamWatchdog: MARKET_STREAM_WATCHDOG,
+      }),
+      abortSignal,
+    );
+  const result = await runTeamPipeline({
+    packet,
+    specialist: request.specialist,
+    language: request.language,
+    instruction: request.prompt,
+    analysts: analystsFor(request.specialist),
+    ask,
+    emit,
+    // Only the editor keeps the desk's tools; the analysts read their slice and nothing else.
+    synthesisToolKeys: toolKeysFor(request.specialist, resolved.webReady()),
+  });
+  if (result.calls > TEAM_MAX_CALLS) {
+    // Unreachable: the pipeline enforces the ceiling itself. Kept so a regression is loud.
+    throw new ApiError("generation_failed", `market: the team made ${result.calls} calls`, 500);
+  }
+  if (!result.raw.trim()) {
+    throw new ApiError("generation_failed", modeMessage("emptyMarketBriefing", localeForRun()), 502);
+  }
+  emit({ type: "job.step", phase: "synthesis", label: `${result.calls}/${TEAM_MAX_CALLS} model calls` });
+  return { raw: result.raw, team: { notes: result.notes, failures: result.failures } };
+}
+
+/** Parse the draft and run both guards (numbers, advice) on every section and on the stored team notes. */
+function verifyBriefing(
+  run: WatchRun,
+  raw: string,
+  packet: MarketWatchPacket,
+  team: TeamOutcome = NO_TEAM,
+): VerifiedBriefing {
   const { request, resolved, emit } = run;
   emit({ type: "job.phase", phase: "verifying", label: "Checking every figure and sentence" });
   const verified = buildMarketBriefing(parseBriefingDraft(raw), packet, {
     language: request.language,
+    specialist: request.specialist,
+    // A team run that fell back to a quick draft is a quick briefing, and says so.
+    depth: team.notes ? "team" : "quick",
+    ...(team.notes ? { team: guardTeamNotes(team.notes, allowedNumbers(packet)) } : {}),
     generatedAt: resolved.now().toISOString(),
   });
   emit({ type: "job.step", phase: "verifying", label: guardLabel(verified.guard) });
   return verified;
 }
 
-/** Final advice gate, markdown, and the `market` / `briefing` artifact. */
-function saveBriefing(run: WatchRun, verified: VerifiedBriefing, loaded: LoadedPacket): MarketWatchResult {
+/**
+ * Final advice gate, markdown, the `market` / `briefing` artifact, and the automatic work card.
+ *
+ * The card is the same auto-ingest every other analyst desk writes at this point (Finance, Data,
+ * Legal): without it a briefing was invisible to Chat unless the user noticed the "Send to
+ * Knowledge Base" button. `upsertWorkSource` is idempotent on the artifact origin and never
+ * throws, so a Knowledge Base that is down cannot lose a briefing that already generated.
+ */
+async function saveBriefing(run: WatchRun, verified: VerifiedBriefing, loaded: LoadedPacket): Promise<MarketWatchResult> {
   const { tenant, request, model, resolved, emit } = run;
   const { briefing, guard } = verified;
   const { packet, failures, tickerFailures } = loaded;
   emit({ type: "job.phase", phase: "saving", label: "Saving briefing" });
   assertBriefingHasNoAdvice(briefing.sections);
-  const markdown = marketBriefingToMarkdown(briefing);
+  const markdown = marketBriefingMarkdown(briefing);
   const artifactId = persistBriefing(resolved.artifacts(), tenant, briefing, markdown, {
     tickers: packet.tickers.map((ticker) => ticker.symbol.yahoo),
     question: request.prompt,
     model,
     language: request.language,
+    specialist: request.specialist,
+    depth: briefing.depth,
+    ...(briefing.team
+      ? { analysts: briefing.team.analysts.map((note) => note.analyst), teamRounds: briefing.team.rounds }
+      : {}),
     generatedAt: briefing.generatedAt,
     usSession: packet.clock.usSession,
     flagged: guard.total,
@@ -365,6 +482,19 @@ function saveBriefing(run: WatchRun, verified: VerifiedBriefing, loaded: LoadedP
     sourceCount: briefing.sources.length,
     failures: [...failures, ...tickerFailures],
   });
+  if (artifactId) {
+    await resolved.ingest(
+      tenant,
+      artifactWorkCard({
+        type: "Market",
+        artifactId,
+        title: briefing.title,
+        prompt: request.prompt,
+        markdown,
+        model,
+      }),
+    );
+  }
   return { briefing, artifactId, markdown, guard, failures };
 }
 
@@ -390,11 +520,17 @@ export async function generateMarketBriefing(
   throwIfJobAborted(abortSignal);
   const loaded = await loadPacket(run);
   throwIfJobAborted(abortSignal);
-  const raw = await draftBriefing(run, loaded.packet);
+  const drafted =
+    request.depth === "team"
+      ? await draftWithTeam(run, loaded.packet)
+      : { raw: await draftBriefing(run, loaded.packet), team: NO_TEAM };
   throwIfJobAborted(abortSignal);
-  const verified = verifyBriefing(run, raw, loaded.packet);
+  const verified = verifyBriefing(run, drafted.raw, loaded.packet, drafted.team);
   throwIfJobAborted(abortSignal);
-  return saveBriefing(run, verified, loaded);
+  return await saveBriefing(run, verified, {
+    ...loaded,
+    failures: [...loaded.failures, ...drafted.team.failures],
+  });
 }
 
 function readSectionIndex(body: Record<string, unknown>, length: number): number {
@@ -411,7 +547,9 @@ function sectionPrompt(briefing: MarketBriefing, index: number, current: Briefin
     .filter(Boolean)
     .join("\n");
   return [
-    packetToPromptBlock(briefing.packet),
+    packetToPromptBlock(briefing.packet, briefing.specialist),
+    // A team section was written over these notes; without them the rewrite could not keep attributing.
+    ...(briefing.team ? [`TEAM NOTES:\n${JSON.stringify(briefing.team, null, 2)}`] : []),
     `Briefing title: ${briefing.title}`,
     `Other sections:\n${others || "- none"}`,
     `Rewrite this section only.\nHeading: ${current.heading}\nBody:\n${current.body}`,
@@ -442,17 +580,22 @@ export async function regenerateBriefingSection(
   const raw = await resolved.ask({
     tenant,
     model,
-    systemPrompt: sectionSystemPrompt({
-      language: briefing.language,
-      maxChars: SECTION_MAX_CHARS,
-      clockNote: briefing.packet.clock.note,
-    }),
+    systemPrompt:
+      briefing.depth === "team"
+        ? teamSectionSystemPrompt(briefing)
+        : sectionSystemPrompt({
+            language: briefing.language,
+            maxChars: SECTION_MAX_CHARS,
+            clockNote: briefing.packet.clock.note,
+            // A rewritten section must obey the same desk's rules as the briefing around it.
+            specialist: briefing.specialist,
+          }),
     runPrefix: "market-section",
     agentId: "market",
     jobMode: "market",
     versionId: "market-section",
     prompt: appendRegenInstruction(sectionPrompt(briefing, index, current), readOptionalInstruction(record)),
-    toolKeys: toolKeysFor(resolved.webReady()),
+    toolKeys: toolKeysFor(briefing.specialist, resolved.webReady()),
     streamWatchdog: MARKET_STREAM_WATCHDOG,
   });
   const rewritten = guardBriefingSection(parseBriefingSection(raw), allowedNumbers(briefing.packet));

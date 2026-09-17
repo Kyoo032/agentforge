@@ -24,7 +24,7 @@ const NOW = new Date("2026-09-09T03:00:00.000Z");
 const now = () => NOW;
 const OBSERVED = NOW.toISOString();
 
-type Call = { method: "quote" | "chart" | "search"; args: unknown[]; signal: AbortSignal };
+type Call = { method: "quote" | "chart" | "search" | "quoteSummary"; args: unknown[]; signal: AbortSignal };
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -56,6 +56,10 @@ function fakeClient(overrides: Overrides = {}): YahooClient & { calls: Call[] } 
         return overrides.quote;
       }
       return rows().filter((row) => symbols.some((symbol) => symbol.toUpperCase() === row.symbol));
+    },
+    async quoteSummary(symbol, modules, signal) {
+      calls.push({ method: "quoteSummary", args: [symbol, modules], signal });
+      return {};
     },
     async chart(symbol, range, signal) {
       calls.push({ method: "chart", args: [symbol, range], signal });

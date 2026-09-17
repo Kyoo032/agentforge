@@ -13,6 +13,8 @@ export type WorkCard = {
   prompt?: string;
   /** `media:<id>`, `artifact:<id>`, or `thread:<id>` — how to find the bytes. */
   pointer: string;
+  /** Route to the stored file, when there is one. A header line: host-generated, never masked. */
+  file?: string;
   /** The result text (markdown, prompt notes, or the assistant answer). Capped by `renderWorkCard`. */
   body: string;
   model?: string;
@@ -46,13 +48,20 @@ export function titleFromPrompt(prompt: string, fallback: string): string {
   return first.length > WORK_CARD_TITLE_MAX ? `${first.slice(0, WORK_CARD_TITLE_MAX - 1).trimEnd()}…` : first;
 }
 
-/** The text that gets chunked and embedded. Header lines make the card self-describing when retrieved. */
+/**
+ * The text that gets chunked and embedded. Header lines make the card self-describing when retrieved.
+ *
+ * `Mode` / `Model` / `Pointer` / `File` are host-generated identifiers, and the ingest step masks the
+ * card's user text field by field rather than masking this string, so a UUID whose middle groups are
+ * all digits is no longer rewritten as `[phone]` by the PII masker.
+ */
 export function renderWorkCard(card: WorkCard): string {
   const header = [
     `# ${card.title}`,
     `Mode: ${card.type}`,
     card.model ? `Model: ${card.model}` : "",
     `Pointer: ${card.pointer}`,
+    card.file ? `File: ${card.file}` : "",
     card.prompt ? `Prompt: ${capText(card.prompt, WORK_CARD_PROMPT_MAX)}` : "",
   ]
     .filter(Boolean)
@@ -78,7 +87,14 @@ export type MediaWorkInput = {
   type?: WorkSourceType;
 };
 
-/** Images / Videos / Edit: the prompt and settings are the knowledge; the file is only pointed at. */
+/**
+ * Images / Videos / Edit: the prompt and settings are the knowledge; the file is only pointed at.
+ *
+ * The prompt appears **once**, in the body. It used to be written twice — body line and header line —
+ * which, on a card that is essentially nothing but its prompt, doubled the indexed text and doubled
+ * that prompt's term frequency against `bm25(knowledge_chunks)`, so media cards outranked every
+ * single-copy source on their own prompt words.
+ */
 export function mediaWorkCard(input: MediaWorkInput): WorkCard {
   const noun = input.kind === "image" ? "image" : "video clip";
   const lines = [
@@ -87,21 +103,21 @@ export function mediaWorkCard(input: MediaWorkInput): WorkCard {
     `Aspect: ${input.aspect}`,
     input.seconds ? `Duration: ${input.seconds} s` : "",
     input.resolution ? `Resolution: ${input.resolution}` : "",
-    `File: ${input.url}`,
   ].filter(Boolean);
   return {
     type: input.type ?? (input.kind === "image" ? "Images" : "Videos"),
     origin: { kind: "media", id: input.mediaId },
     title: titleFromPrompt(input.prompt, `Generated ${noun}`),
-    prompt: input.prompt,
+    prompt: undefined,
     pointer: `media:${input.mediaId}`,
+    file: input.url,
     body: lines.join("\n"),
     model: input.model,
   };
 }
 
 export type ArtifactWorkInput = {
-  type: Extract<WorkSourceType, "Research" | "Data" | "Finance" | "Documents" | "Presentation" | "Legal">;
+  type: Extract<WorkSourceType, "Research" | "Data" | "Finance" | "Market" | "Documents" | "Presentation" | "Legal">;
   artifactId: string;
   title: string;
   prompt?: string;
@@ -109,7 +125,7 @@ export type ArtifactWorkInput = {
   model?: string;
 };
 
-/** Research / Data / Finance / Documents / Presentation: the saved markdown, capped. */
+/** Research / Data / Finance / Market / Documents / Presentation / Legal: the saved markdown, capped. */
 export function artifactWorkCard(input: ArtifactWorkInput): WorkCard {
   return {
     type: input.type,

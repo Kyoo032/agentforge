@@ -11,22 +11,37 @@
 import { z } from "zod";
 import { dataChartSchema } from "../artifacts/data-analysis";
 import { httpUrlSchema } from "./schemas";
+import { DEFAULT_MARKET_SPECIALIST, MARKET_SPECIALISTS } from "./specialist-ids";
+import { DEFAULT_MARKET_DEPTH, MARKET_DEPTHS } from "./team";
+import { attribution, watchRefSchema } from "./watch-refs";
+import {
+  GLOBAL_NEWS_MAX,
+  globalNewsItemSchema,
+  tickerFundamentalsSchema,
+  tickerInsidersSchema,
+  tickerSentimentSchema,
+} from "./team-source-schemas";
 
-export const WATCH_SOURCES = ["yahoo", "tradingview", "computed", "rss", "web"] as const;
-export type WatchSource = (typeof WATCH_SOURCES)[number];
+/* The attribution primitives and the analyst-team sections keep their own
+ * files; this module stays the one import path for the whole packet. */
+export * from "./watch-refs";
+export * from "./team-source-schemas";
 
 export const WATCHLIST_MAX = 15;
 export const NEWS_PER_TICKER_MAX = 8;
 export const HISTORY_BARS_MAX = 800;
 export const BRIEFING_SECTIONS_MAX = 12;
 export const BRIEFING_SOURCES_MAX = 200;
-
-export const watchRefSchema = z.object({
-  source: z.enum(WATCH_SOURCES),
-  sourceUrl: httpUrlSchema,
-  observedAt: z.string().datetime({ offset: true }),
-});
-export type WatchRef = z.infer<typeof watchRefSchema>;
+/** Pivot highs/lows kept per ticker for the Elliott Wave agent to cite. */
+export const SWING_POINTS_MAX = 12;
+/** Signal groups one ticker can land in at once (RSI, MACD, SMA50, SMA200, 52-week, unusual move). */
+export const SIGNAL_KINDS_MAX = 6;
+/** Hard cap on the computed signals table: every watchlist entry in every group. */
+export const SIGNALS_MAX = WATCHLIST_MAX * SIGNAL_KINDS_MAX;
+/** The note beside a signal is a phrase, not a paragraph. */
+export const SIGNAL_NOTE_MAX = 120;
+/** One rotation row per watchlist entry. */
+export const ROTATION_MAX = WATCHLIST_MAX;
 
 export const MARKET_STATES = ["PRE", "REGULAR", "POST", "CLOSED", "UNKNOWN"] as const;
 export type MarketState = (typeof MARKET_STATES)[number];
@@ -120,6 +135,35 @@ export type PriceHistory = z.infer<typeof priceHistorySchema>;
 /** One daily/weekly bar of a PriceHistory (YYYY-MM-DD in exchange local time). */
 export type PriceBar = PriceHistory["bars"][number];
 
+/**
+ * One pivot high or low computed from the daily bars (see `swings.ts`). It
+ * exists so the Elliott Wave agent has dated, citable levels instead of
+ * eyeballing a chart; `price` is the bar's own high (or low), never a guess.
+ */
+export const swingPointSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  price: z.number(),
+  kind: z.enum(["high", "low"]),
+});
+export type SwingPoint = z.infer<typeof swingPointSchema>;
+
+/**
+ * Crypto-native figures for one coin, fetched by the host (CoinGecko, plus a
+ * public perp funding rate when the venue answers). Every figure is optional:
+ * a missing field is a field the provider did not give, never a guess.
+ */
+export const tickerCryptoSchema = z.object({
+  marketCapUsd: z.number().optional(),
+  volume24hUsd: z.number().optional(),
+  change7dPct: z.number().optional(),
+  /** Share of total crypto market cap. Only meaningful for BTC and ETH. */
+  dominancePct: z.number().optional(),
+  /** Perpetual funding rate in percent, when a keyless venue reports one. */
+  fundingRatePct: z.number().optional(),
+  ...attribution,
+});
+export type TickerCrypto = z.infer<typeof tickerCryptoSchema>;
+
 /** Everything fetched for one watchlist entry. Null sections mean "not available"; `failures` says why. */
 export const tickerPacketSchema = z.object({
   symbol: resolvedSymbolSchema,
@@ -128,6 +172,16 @@ export const tickerPacketSchema = z.object({
   history: priceHistorySchema.nullable().default(null),
   chart: dataChartSchema.nullable().default(null),
   news: z.array(watchNewsItemSchema).max(NEWS_PER_TICKER_MAX).default([]),
+  /** Pivot highs/lows from the daily bars. Absent when the host did not compute them. */
+  swings: z.array(swingPointSchema).max(SWING_POINTS_MAX).optional(),
+  /** Crypto-native figures. Absent for anything that is not a coin. */
+  crypto: tickerCryptoSchema.optional(),
+  /** Reported company figures. Absent unless the desk's harness asks for them. */
+  fundamentals: tickerFundamentalsSchema.optional(),
+  /** Insider transaction counts over the fixed window. Absent where the venue files none. */
+  insiders: tickerInsidersSchema.optional(),
+  /** The crowd read from the public social venues. */
+  sentiment: tickerSentimentSchema.optional(),
   failures: z.array(z.string()).default([]),
 });
 export type TickerPacket = z.infer<typeof tickerPacketSchema>;
@@ -159,10 +213,110 @@ export const marketClockSchema = z.object({
 });
 export type MarketClock = z.infer<typeof marketClockSchema>;
 
+/** Whole-market crypto context, so the crypto desk reads a coin against the asset class. */
+export const cryptoGlobalSchema = z.object({
+  totalMarketCapUsd: z.number(),
+  btcDominancePct: z.number(),
+  ethDominancePct: z.number(),
+  ...attribution,
+});
+export type CryptoGlobal = z.infer<typeof cryptoGlobalSchema>;
+
+/**
+ * The metals desk's cross-market context, derived by the host from quotes it
+ * already fetched (no extra network). Each figure is optional because the
+ * derivation needs both legs and the packet may carry only one.
+ */
+export const metalsContextSchema = z.object({
+  /** US dollar index level (DX-Y.NYB). */
+  dxy: z.number().optional(),
+  /** US 10-year yield (^TNX). */
+  us10y: z.number().optional(),
+  /** Gold divided by silver, both from the packet's own futures quotes. */
+  goldSilverRatio: z.number().optional(),
+  /** Futures premium or discount to spot gold (XAUUSD=X), in percent. */
+  goldFuturesVsSpotPct: z.number().optional(),
+  /**
+   * Futures premium or discount to the GLD ETF proxy (ten shares ~ one ounce),
+   * in percent. Named for what it actually is: GLD is an ETF share net of fees,
+   * not spot, so this figure never stands in for `goldFuturesVsSpotPct`.
+   */
+  goldFuturesVsGldPct: z.number().optional(),
+  ...attribution,
+});
+export type MetalsContext = z.infer<typeof metalsContextSchema>;
+
+/**
+ * The signal groups `signals.ts` computes. Named as observations of the chart
+ * ("close crossed above its SMA50"), never as an instruction — the guard and
+ * the C1 field lint both still apply, which is why the field below is `kind`.
+ */
+export const MARKET_SIGNAL_KINDS = [
+  "rsi-oversold",
+  "rsi-overbought",
+  "macd-bull-cross",
+  "macd-bear-cross",
+  "sma50-break-up",
+  "sma50-break-down",
+  "sma200-break-up",
+  "sma200-break-down",
+  "52w-high",
+  "52w-low",
+  "unusual-move",
+] as const;
+export type MarketSignalKind = (typeof MARKET_SIGNAL_KINDS)[number];
+
+/** One computed observation about one ticker. `value` is the packet figure behind it. */
+export const marketSignalSchema = z.object({
+  ticker: z.string().min(1),
+  kind: z.enum(MARKET_SIGNAL_KINDS),
+  value: z.number(),
+  note: z.string().max(SIGNAL_NOTE_MAX).default(""),
+});
+export type MarketSignal = z.infer<typeof marketSignalSchema>;
+
+/** Trailing returns for one ticker plus its 1-month rank. Null means the bars do not reach back that far. */
+export const rotationRowSchema = z.object({
+  ticker: z.string().min(1),
+  ret1dPct: z.number().nullable().default(null),
+  ret5dPct: z.number().nullable().default(null),
+  ret1mPct: z.number().nullable().default(null),
+  ret6mPct: z.number().nullable().default(null),
+  /** 1-based, best 1-month return first. */
+  rank1m: z.number().int().positive(),
+});
+export type RotationRow = z.infer<typeof rotationRowSchema>;
+
+export const MARKET_EXCHANGES = ["IDX", "NYSE", "LSE", "TSE", "HKEX", "SGX", "CRYPTO"] as const;
+export type MarketExchange = (typeof MARKET_EXCHANGES)[number];
+
+export const SESSION_STATES = ["pre", "open", "post", "closed", "always"] as const;
+export type SessionState = (typeof SESSION_STATES)[number];
+
+/** One row per exchange the watchlist touches. `nextChangeAt` is null for a market that never closes. */
+export const marketSessionSchema = z.object({
+  exchange: z.enum(MARKET_EXCHANGES),
+  state: z.enum(SESSION_STATES),
+  nextChangeAt: z.string().datetime({ offset: true }).nullable().default(null),
+});
+export type MarketSession = z.infer<typeof marketSessionSchema>;
+
 export const marketWatchPacketSchema = z.object({
   tickers: z.array(tickerPacketSchema).max(WATCHLIST_MAX),
   macro: macroSnapshotSchema,
   clock: marketClockSchema,
+  /** Whole-market crypto context. Absent unless the crypto desk asked for it. */
+  cryptoGlobal: cryptoGlobalSchema.optional(),
+  /** Dollar / yields / ratio context for the metals desk. */
+  metals: metalsContextSchema.optional(),
+  /** Code-computed chart observations (see `signals.ts`). */
+  signals: z.array(marketSignalSchema).max(SIGNALS_MAX).optional(),
+  /** Code-computed trailing-return ranking (see `rotation.ts`). */
+  rotation: z.array(rotationRowSchema).max(ROTATION_MAX).optional(),
+  /** Code-computed exchange clocks (see `sessions.ts`). */
+  sessions: z.array(marketSessionSchema).max(MARKET_EXCHANGES.length).optional(),
+  /** Macro headlines from the fixed global queries, deduped by the host. */
+  globalNews: z.array(globalNewsItemSchema).max(GLOBAL_NEWS_MAX).optional(),
   /** Free text the user supplied (positions, targets, preferences). Its numbers are allowed in prose. */
   positionContext: z.string().max(4000).default(""),
 });
@@ -178,6 +332,14 @@ export const marketWatchRequestSchema = z.object({
   positionContext: z.string().max(4000).default(""),
   language: z.enum(["id", "en"]).default("id"),
   maxChars: z.number().int().min(1000).max(20_000).default(6000),
+  /** Which named Market agent writes the briefing. Same pipeline, different rules. */
+  specialist: z.enum(MARKET_SPECIALISTS).default(DEFAULT_MARKET_SPECIALIST),
+  /**
+   * How the briefing is written: `quick` is the single-pass narration that has
+   * always shipped; `team` runs the analyst team (see `team.ts`) on the desks
+   * whose harness names analysts. Quick stays the default.
+   */
+  depth: z.enum(MARKET_DEPTHS).default(DEFAULT_MARKET_DEPTH),
   model: z.string().optional(),
 });
 export type MarketWatchRequest = z.infer<typeof marketWatchRequestSchema>;

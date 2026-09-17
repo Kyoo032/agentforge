@@ -3,7 +3,7 @@
  * neighbourhood, and lay it out deterministically in kind-based columns (no physics lib).
  */
 
-import { chartPalette } from "@/lib/chart-scale";
+import { chartPalette, truncateLabel } from "@/lib/chart-scale";
 
 export const GRAPH_NODE_KINDS = ["topic", "source", "thread"] as const;
 export const GRAPH_EDGE_KINDS = ["covers", "retrieved", "cites"] as const;
@@ -18,20 +18,27 @@ export type KnowledgeGraph = { nodes: GraphNode[]; edges: GraphEdge[] };
 /** The host caps `GET /api/v1/knowledge/graph?limit=200`; the panel refuses to draw more. */
 export const GRAPH_NODE_LIMIT = 200;
 
+/** What the map draws before the reader asks for the rest. Keeps the picture readable. */
+export const GRAPH_DRAW_LIMIT = 30;
+
+/** Node labels are cut to this many characters; the full text stays in the `<title>`. */
+export const GRAPH_LABEL_MAX = 18;
+
 const NODE_KIND_SET = new Set<string>(GRAPH_NODE_KINDS);
 const EDGE_KIND_SET = new Set<string>(GRAPH_EDGE_KINDS);
 
 /** Palette index per kind. Order is the CVD-safety mechanism; never re-sort. */
 const NODE_KIND_COLOR: Record<GraphNodeKind, number> = { topic: 0, source: 2, thread: 3 };
-const EDGE_KIND_COLOR: Record<GraphEdgeKind, number> = { covers: 5, retrieved: 1, cites: 4 };
 
 export function nodeKindColor(kind: GraphNodeKind): string {
   return chartPalette(NODE_KIND_COLOR[kind] ?? 0);
 }
 
-export function edgeKindColor(kind: GraphEdgeKind): string {
-  return chartPalette(EDGE_KIND_COLOR[kind] ?? 0);
-}
+/**
+ * Every edge is drawn in one muted ink, whatever its kind: crossing lines in six colours were
+ * the thing that made this panel unreadable. The kinds are named in the legend instead.
+ */
+export const GRAPH_EDGE_COLOR = "color-mix(in srgb, var(--text) 25%, transparent)";
 
 const MIN_STROKE = 1;
 const MAX_STROKE = 4;
@@ -125,19 +132,71 @@ export function capGraph(graph: KnowledgeGraph, limit: number = GRAPH_NODE_LIMIT
   return { nodes, edges: graph.edges.filter((edge) => keep.has(edge.from) && keep.has(edge.to)) };
 }
 
-export type GraphLayoutNode = GraphNode & { x: number; y: number };
+export type GraphLabelAnchor = "start" | "middle" | "end";
+
+export type GraphLayoutNode = GraphNode & {
+  x: number;
+  y: number;
+  /** Where the label sits — beside the node for the outer columns, under it in the middle. */
+  labelX: number;
+  labelY: number;
+  labelAnchor: GraphLabelAnchor;
+  /** The drawn (truncated) text. `label` stays intact for the `<title>` tooltip. */
+  labelText: string;
+};
 export type GraphLayoutEdge = GraphEdge & { x1: number; y1: number; x2: number; y2: number };
-export type GraphLayout = { nodes: GraphLayoutNode[]; edges: GraphLayoutEdge[]; width: number; height: number };
+export type GraphLayout = {
+  nodes: GraphLayoutNode[];
+  edges: GraphLayoutEdge[];
+  width: number;
+  height: number;
+  /** The row pitch this layout settled on, so a caller can assert it never squeezes. */
+  rowGap: number;
+};
 
 export const GRAPH_LAYOUT = {
-  width: 640,
-  columnInset: 92,
+  /**
+   * Wide enough that an 18-character label clears the column it hangs off without being
+   * clipped by the viewBox — caps-heavy ids ("KBFLOWTEXTA marke…") are the wide case.
+   */
+  width: 860,
+  columnInset: 168,
   rowGap: 34,
-  padY: 26,
+  /** Rows never come closer than this; a tall column grows the SVG instead. */
+  minRowGap: 28,
+  padY: 30,
   minHeight: 140,
+  labelPad: 12,
+  /** Middle-column labels drop below the dot by this much. */
+  labelDrop: 18,
+  /** Baseline nudge for a label set beside a dot. */
+  labelRise: 4,
 } as const;
 
 const COLUMN_ORDER: GraphNodeKind[] = ["topic", "source", "thread"];
+
+/** Column index per kind: sources in the middle, topics left, threads right. */
+export function graphColumn(kind: GraphNodeKind): number {
+  const index = COLUMN_ORDER.indexOf(kind);
+  return index === -1 ? 1 : index;
+}
+
+/**
+ * Row pitch for a column of `count` nodes: comfortable while the column is short, tightening
+ * to `minRowGap` and no further. Past that the canvas gets taller rather than denser.
+ */
+export function rowGapFor(count: number): number {
+  const rows = Number.isFinite(count) && count > 0 ? Math.trunc(count) : 1;
+  if (rows <= 10) {
+    return GRAPH_LAYOUT.rowGap;
+  }
+  return Math.max(GRAPH_LAYOUT.minRowGap, GRAPH_LAYOUT.rowGap - (rows - 10));
+}
+
+/** Drawn node label: cut to `GRAPH_LABEL_MAX`, ellipsis included. */
+export function truncateGraphLabel(label: string): string {
+  return truncateLabel(typeof label === "string" ? label : "", GRAPH_LABEL_MAX);
+}
 
 function columnX(kind: GraphNodeKind, width: number): number {
   if (kind === "topic") {
@@ -147,6 +206,23 @@ function columnX(kind: GraphNodeKind, width: number): number {
     return width - GRAPH_LAYOUT.columnInset;
   }
   return width / 2;
+}
+
+/** Label placement for one node, so the component never does geometry of its own. */
+function labelFor(
+  kind: GraphNodeKind,
+  x: number,
+  y: number,
+  label: string,
+): Pick<GraphLayoutNode, "labelX" | "labelY" | "labelAnchor" | "labelText"> {
+  const labelText = truncateGraphLabel(label);
+  if (kind === "topic") {
+    return { labelX: x - GRAPH_LAYOUT.labelPad, labelY: y + GRAPH_LAYOUT.labelRise, labelAnchor: "end", labelText };
+  }
+  if (kind === "thread") {
+    return { labelX: x + GRAPH_LAYOUT.labelPad, labelY: y + GRAPH_LAYOUT.labelRise, labelAnchor: "start", labelText };
+  }
+  return { labelX: x, labelY: y + GRAPH_LAYOUT.labelDrop, labelAnchor: "middle", labelText };
 }
 
 /**
@@ -159,16 +235,16 @@ export function layoutGraph(graph: KnowledgeGraph, width: number = GRAPH_LAYOUT.
     byKind.get(node.kind)?.push(node);
   }
   const tallest = COLUMN_ORDER.reduce((acc, kind) => Math.max(acc, byKind.get(kind)?.length ?? 0), 0);
-  const height = Math.max(
-    GRAPH_LAYOUT.minHeight,
-    (Math.max(tallest, 1) - 1) * GRAPH_LAYOUT.rowGap + GRAPH_LAYOUT.padY * 2,
-  );
+  const rowGap = rowGapFor(tallest);
+  const height = Math.max(GRAPH_LAYOUT.minHeight, (Math.max(tallest, 1) - 1) * rowGap + GRAPH_LAYOUT.padY * 2);
   const placed: GraphLayoutNode[] = [];
   for (const kind of COLUMN_ORDER) {
     const column = byKind.get(kind) ?? [];
-    const top = height / 2 - ((column.length - 1) * GRAPH_LAYOUT.rowGap) / 2;
+    const top = height / 2 - ((column.length - 1) * rowGap) / 2;
     column.forEach((node, index) => {
-      placed.push({ ...node, x: columnX(kind, width), y: top + index * GRAPH_LAYOUT.rowGap });
+      const x = columnX(kind, width);
+      const y = top + index * rowGap;
+      placed.push({ ...node, x, y, ...labelFor(kind, x, y, node.label) });
     });
   }
   const positions = new Map(placed.map((node) => [node.id, node]));
@@ -181,5 +257,5 @@ export function layoutGraph(graph: KnowledgeGraph, width: number = GRAPH_LAYOUT.
     }
     edges.push({ ...edge, x1: from.x, y1: from.y, x2: to.x, y2: to.y });
   }
-  return { nodes: placed, edges, width, height };
+  return { nodes: placed, edges, width, height, rowGap };
 }

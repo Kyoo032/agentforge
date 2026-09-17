@@ -1,6 +1,6 @@
 import JSZip from "jszip";
 import { describe, expect, it } from "vitest";
-import { MARKET_DISCLAIMER } from "@agentforge/core/market";
+import { MARKET_SPECIALIST_META, MARKET_DISCLAIMER } from "@agentforge/core/market";
 import {
   FIXTURE_HEADLINE,
   FIXTURE_NEWS_URL,
@@ -41,7 +41,7 @@ describe("buildMarketBriefingDocx", () => {
       ],
     },
     packet(),
-    { language: "en", generatedAt: FIXTURE_NOW.toISOString() },
+    { language: "en", generatedAt: FIXTURE_NOW.toISOString(), specialist: "gold" },
   );
 
   it("is a zip whose document carries title, disclaimer twice, sections, tables, charts, headlines, and sources", async () => {
@@ -116,5 +116,98 @@ describe("buildMarketBriefingDocx", () => {
     expect(text).not.toContain("Macro");
     expect(text).not.toContain("Headlines");
     expect(count(text, MARKET_DISCLAIMER)).toBe(2);
+  });
+});
+
+describe("buildMarketBriefingDocx specialist", () => {
+  it("names the agent under the title in the briefing's language", async () => {
+    const english = buildMarketBriefing(
+      { title: "Gold desk", sections: [{ heading: "TL;DR", body: "Gold held its range." }] },
+      packet(),
+      { language: "en", generatedAt: FIXTURE_NOW.toISOString(), specialist: "gold" },
+    ).briefing;
+    const text = await documentText((await buildMarketBriefingDocx(english)).buffer);
+    expect(text).toContain(MARKET_SPECIALIST_META.gold.label.en);
+
+    const indonesian = buildMarketBriefing(
+      { title: "Meja emas", sections: [{ heading: "TL;DR", body: "Emas bertahan." }] },
+      packet(),
+      { language: "id", generatedAt: FIXTURE_NOW.toISOString(), specialist: "gold" },
+    ).briefing;
+    const idText = await documentText((await buildMarketBriefingDocx(indonesian)).buffer);
+    expect(idText).toContain(MARKET_SPECIALIST_META.gold.label.id);
+  });
+});
+
+describe("buildMarketBriefingDocx team appendix", () => {
+  const notes = {
+    analysts: [
+      {
+        analyst: "technical" as const,
+        summary: "Price sits above SMA50.",
+        keyPoints: ["RSI14 is 57.66"],
+        confidence: "medium" as const,
+      },
+      { analyst: "news" as const, summary: "<unavailable>", keyPoints: [], confidence: "low" as const },
+    ],
+    bull: {
+      stance: "bull" as const,
+      thesis: "Supply is tight.",
+      points: ["HBM sold out"],
+      rebuttals: ["The bear over-reads the cycle"],
+    },
+    bear: { stance: "bear" as const, thesis: "Margins compress.", points: ["Pricing rolls over"], rebuttals: [] },
+    risk: {
+      lenses: [
+        { lens: "aggressive" as const, view: "Wide drawdown is tolerable.", keyRisks: ["Gap risk"] },
+        { lens: "neutral" as const, view: "Balanced.", keyRisks: [] },
+        { lens: "conservative" as const, view: "Drawdown dominates.", keyRisks: ["Cycle turn"] },
+      ],
+      volatility: "The range is wide.",
+      liquidity: "Volume thins outside the session.",
+    },
+    rounds: 1 as const,
+  };
+
+  const { briefing } = buildMarketBriefing(
+    { title: "Team briefing", sections: [{ heading: "Analyst notes", body: "Four seats reported." }] },
+    packet(),
+    { language: "en", generatedAt: FIXTURE_NOW.toISOString(), specialist: "saham", depth: "team", team: notes },
+  );
+
+  it("writes the analyst notes, both sides of the debate and the three lenses after the sections", async () => {
+    const text = await documentText((await buildMarketBriefingDocx(briefing)).buffer);
+
+    expect(text).toContain("Team");
+    expect(text).toContain("technical (confidence: medium)");
+    expect(text).toContain("Price sits above SMA50.");
+    expect(text).toContain("RSI14 is 57.66");
+    // A seat that came back empty is shown as empty, never dropped.
+    expect(text).toContain("news (confidence: low)");
+    expect(text).toContain("<unavailable>");
+    expect(text).toContain("Bull case");
+    expect(text).toContain("Supply is tight.");
+    expect(text).toContain("Rebuttals:");
+    expect(text).toContain("Bear case");
+    expect(text).toContain("Risk read");
+    for (const lens of ["aggressive", "neutral", "conservative"]) {
+      expect(text).toContain(lens);
+    }
+    expect(text).toContain("Volatility: The range is wide.");
+    expect(text).toContain("Liquidity: Volume thins outside the session.");
+    // Still after the sections and still before the closing disclaimer.
+    expect(text.indexOf("technical (confidence: medium)")).toBeGreaterThan(text.indexOf("Four seats reported."));
+    expect(text.lastIndexOf(MARKET_DISCLAIMER)).toBeGreaterThan(text.indexOf("Liquidity:"));
+  });
+
+  it("writes nothing at all for a quick briefing", async () => {
+    const { briefing: quick } = buildMarketBriefing(
+      { title: "Quick briefing", sections: [{ heading: "TL;DR", body: "MU at 1000.26." }] },
+      packet(),
+      { language: "en", generatedAt: FIXTURE_NOW.toISOString(), specialist: "saham" },
+    );
+    const text = await documentText((await buildMarketBriefingDocx(quick)).buffer);
+    expect(text).not.toContain("Risk read");
+    expect(text).not.toContain("confidence:");
   });
 });

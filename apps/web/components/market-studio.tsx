@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { DEFAULT_WATCH_PROMPT_EN, DEFAULT_WATCH_PROMPT_ID } from "@agentforge/core/market";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { usePathname, useSearchParams } from "@/lib/nav";
 import { ArtifactActions } from "@/components/artifact-actions";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { JobProgressList } from "@/components/job-progress";
@@ -12,20 +12,37 @@ import { MarketWatchlistInput } from "@/components/market-watchlist-input";
 import { ModelSelect } from "@/components/model-select";
 import {
   DEFAULT_MAX_CHARS,
+  DEFAULT_MARKET_DEPTH,
+  DEFAULT_MARKET_SPECIALIST,
+  MARKET_DEPTHS,
   MARKET_STARTERS,
   MAX_MAX_CHARS,
   MIN_MAX_CHARS,
   POSITION_PLACEHOLDER,
   applyRegeneratedSection,
+  defaultWatchPrompt,
   downloadMarketDocx,
   friendlyMarketError,
+  isMarketSpecialist,
+  localizeMarketProgress,
   needsKey,
+  nextDepth,
+  nextPrompt,
   regenerateBriefingSection,
+  specialistHint,
+  specialistLabel,
+  specialistStarterTickers,
+  teamAvailable,
+  type MarketDepth,
+  type MarketSpecialist,
   type MarketStarter,
   type MarketWatchRequest,
   type MarketWatchResult,
   type WatchLanguage,
 } from "@/lib/market-client";
+import { specialistSourcesLine } from "@/lib/market-specialist";
+import { loadWatchlist, saveWatchlist } from "@/lib/market-watchlists";
+import { useWorkspaceScope } from "@/lib/workspace-scope";
 import { useJobModel } from "@/lib/use-job-model";
 import { useJobStream } from "@/lib/use-job-stream";
 import { useMarketBoard } from "@/lib/use-market-board";
@@ -34,12 +51,12 @@ import { labeled } from "@/lib/ui-copy";
 import { useProductBrand } from "@/lib/product-brand";
 import { SettingsLinkHint } from "@/components/settings-link-hint";
 
-const DEFAULT_PROMPT: Record<WatchLanguage, string> = { id: DEFAULT_WATCH_PROMPT_ID, en: DEFAULT_WATCH_PROMPT_EN };
-const DEFAULT_PROMPTS = new Set<string>([DEFAULT_WATCH_PROMPT_ID, DEFAULT_WATCH_PROMPT_EN]);
-
 function isLanguage(value: string): value is WatchLanguage {
   return value === "id" || value === "en";
 }
+
+/** The rail links a desk as `/market?specialist=<id>`; this pane reads it back. */
+const MARKET_PATH = "/market";
 
 function clampMaxChars(value: number): number {
   if (!Number.isFinite(value)) {
@@ -52,9 +69,28 @@ export function MarketStudio() {
   const { productName } = useProductBrand();
   const { models, model, setModel } = useJobModel("market");
   const job = useJobStream<MarketWatchResult>();
-  const [tickers, setTickers] = useState<string[]>([]);
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { id: workspaceId } = useWorkspaceScope();
+
+  /*
+   * The agent is chosen in the rail, so the URL owns it. This pane is kept
+   * mounted behind the other work modes, and off `/market` the query string
+   * belongs to whatever page is showing — so the last desk seen on `/market`
+   * is what stays active rather than the default silently taking over.
+   */
+  const onMarket = pathname === MARKET_PATH;
+  const rawSpecialist = searchParams.get("specialist");
+  const urlSpecialist: MarketSpecialist = isMarketSpecialist(rawSpecialist)
+    ? rawSpecialist
+    : DEFAULT_MARKET_SPECIALIST;
+  const lastSpecialistRef = useRef<MarketSpecialist>(urlSpecialist);
+  const specialist = onMarket ? urlSpecialist : lastSpecialistRef.current;
+
+  const [tickers, setTickers] = useState<string[]>(() => loadWatchlist(workspaceId, specialist));
   const [language, setLanguage] = useState<WatchLanguage>(() => getLocale());
-  const [prompt, setPrompt] = useState<string>(DEFAULT_WATCH_PROMPT_ID);
+  const [depth, setDepth] = useState<MarketDepth>(DEFAULT_MARKET_DEPTH);
+  const [prompt, setPrompt] = useState<string>(() => defaultWatchPrompt(specialist, getLocale()));
   const [position, setPosition] = useState("");
   const [maxChars, setMaxChars] = useState<number>(DEFAULT_MAX_CHARS);
   const [showOptions, setShowOptions] = useState(false);
@@ -65,14 +101,59 @@ export function MarketStudio() {
   // A finished job keeps its error forever; this hides it once the user edits the watchlist.
   const [errorStale, setErrorStale] = useState(false);
   const board = useMarketBoard(tickers);
+  const scopeKey = `${workspaceId ?? ""}|${specialist}`;
+  const lastScopeRef = useRef(scopeKey);
 
   const rawError = errorStale ? null : (localError ?? job.error?.message ?? null);
   const error = rawError ? friendlyMarketError(rawError) : null;
   const locked = job.busy || busy !== null;
   const ready = tickers.length > 0 && prompt.trim().length > 0;
 
+  /*
+   * Only a desk whose harness names analysts can run the team. The state is
+   * still clamped on the way out rather than trusted: a desk switch and a
+   * render can race, and the host would have to refuse a depth this desk never
+   * offered. `teamReady` drives the control, `requestDepth` is what is sent.
+   */
+  const teamReady = teamAvailable(specialist);
+  const requestDepth = nextDepth({ depth, specialist });
+
+  /*
+   * `JobProgressList` shows the label the host streamed, and the packet phases
+   * are labelled there in English. The team phases are the first market phases
+   * the catalog carries, so they are swapped to the reader's language here; a
+   * phase the catalog does not know keeps whatever the host called it.
+   */
+  const teamProgress = localizeMarketProgress(job.progress, labeled);
+
+  /*
+   * Every desk keeps its own board. When the rail points the URL at another
+   * agent this pane swaps to that agent's watchlist — its starter list the
+   * first time it is opened — and, while the instruction box still holds one
+   * of our defaults, to that agent's default instruction. The board refetches
+   * off `tickers`, so nothing else has to be told about the move.
+   */
+  useEffect(() => {
+    const movedDesk = lastSpecialistRef.current !== specialist;
+    lastSpecialistRef.current = specialist;
+    if (!movedDesk && lastScopeRef.current === scopeKey) {
+      return;
+    }
+    lastScopeRef.current = scopeKey;
+    setTickers(loadWatchlist(workspaceId, specialist));
+    setLocalError(null);
+    setErrorStale(true);
+    if (movedDesk) {
+      setPrompt((current) => nextPrompt({ prompt: current, specialist, language }));
+      // A desk with no analysts cannot be read in team depth; drop back to quick.
+      setDepth((current) => nextDepth({ depth: current, specialist }));
+    }
+  }, [scopeKey, specialist, workspaceId, language]);
+
   function changeTickers(next: string[]): void {
     setTickers(next);
+    // Chips are the board; remember them for this desk and this agent alone.
+    saveWatchlist(workspaceId, specialist, next);
     setLocalError(null);
     setErrorStale(true);
   }
@@ -83,9 +164,7 @@ export function MarketStudio() {
     }
     setLanguage(next);
     // Swap the prefilled instruction only while the user has not written their own.
-    if (DEFAULT_PROMPTS.has(prompt.trim())) {
-      setPrompt(DEFAULT_PROMPT[next]);
-    }
+    setPrompt(nextPrompt({ prompt, specialist, language: next }));
   }
 
   async function onGenerate(event: FormEvent) {
@@ -96,10 +175,12 @@ export function MarketStudio() {
     setLocalError(null);
     setErrorStale(false);
     const body: MarketWatchRequest = {
-      prompt: (prompt.trim() || DEFAULT_PROMPT[language]).trim(),
+      prompt: (prompt.trim() || defaultWatchPrompt(specialist, language)).trim(),
       tickers,
       positionContext: position.trim(),
       language,
+      specialist,
+      depth: requestDepth,
       maxChars: clampMaxChars(maxChars),
       model: model || undefined,
     };
@@ -151,6 +232,93 @@ export function MarketStudio() {
     changeTickers([...starter.tickers]);
   }
 
+  // The catalog names the agents; the core meta is the fallback when a key is missing.
+  const uiLocale = getLocale();
+  const specialistName = (id: MarketSpecialist): string =>
+    labeled(`market.specialists.${id}.label`, specialistLabel(id, uiLocale));
+  const specialistTip = (id: MarketSpecialist): string =>
+    labeled(`market.specialists.${id}.hint`, specialistHint(id, uiLocale));
+
+  /*
+   * Where this agent's numbers come from, read off its harness. The vendor
+   * names stay in English; only the on-device wording is translated.
+   *
+   * A desk whose harness allows web research would earn a "· Web" item, but
+   * nothing the studio already loads says whether a web key is configured —
+   * `/api/v1/settings` carries no readiness flag and `useJobModel` keeps the
+   * payload to itself — so the badge stays silent about it rather than
+   * promising a source that may not be wired.
+   */
+  const specialistSources = specialistSourcesLine({
+    specialist,
+    prefix: t("market.studio.sourcesLabel"),
+    computedLabel: t("market.studio.sourcesComputed"),
+  });
+
+  /*
+   * The agent is picked in the left rail, under the Market entry, and the row
+   * that was clicked is in the URL — so the studio only has to say which desk
+   * is open. One header line, mounted once: beside the language select while a
+   * watchlist exists, and in the empty state above the starters.
+   */
+  const specialistPicker = (
+    <div className="flex flex-col gap-1" role="group" aria-label={t("market.studio.specialistAria")}>
+      <span className="panel-label">{t("market.studio.specialistLabel")}</span>
+      <span
+        className="text-sm font-medium text-[var(--text)]"
+        title={specialistTip(specialist)}
+        data-testid="market-specialist-current"
+      >
+        {specialistName(specialist)}
+      </span>
+      <span className="text-xs text-[var(--text-3)]" data-testid="market-specialist-hint">
+        {specialistTip(specialist)}
+      </span>
+      <span className="text-xs text-[var(--text-3)]" data-testid="market-specialist-sources">
+        {specialistSources}
+      </span>
+    </div>
+  );
+
+  /*
+   * Quick is one call over the packet; Team is four analyst reads, a bull and
+   * bear round, and a risk pass before the briefing is written. Written once
+   * and mounted beside both placements of the header above, so the two never
+   * drift apart. A desk with no analysts keeps the control visible but inert,
+   * with a line saying why — a control that vanishes reads as a bug.
+   */
+  const depthControl = (
+    <div className="flex flex-col gap-1" role="group" aria-label={t("market.depth.aria")} data-testid="market-depth">
+      <span className="panel-label">{t("market.depth.label")}</span>
+      {/* `w-fit self-start` keeps the pair hugging its two buttons: the column
+          is a flex item beside the language select, and without it the track
+          stretches to the row's full width. */}
+      <div className="inline-flex w-fit self-start rounded-md border border-[var(--line)] p-0.5">
+        {MARKET_DEPTHS.map((option) => (
+          <button
+            key={option}
+            type="button"
+            className={`rounded px-3 py-1 text-xs font-medium disabled:opacity-50 ${
+              requestDepth === option ? "bg-[var(--accent-soft)] text-[var(--text)]" : "text-[var(--text-2)]"
+            }`}
+            aria-pressed={requestDepth === option}
+            onClick={() => setDepth(option)}
+            disabled={locked || (option === "team" && !teamReady)}
+            data-testid={`market-depth-${option}`}
+          >
+            {t(`market.depth.${option}`)}
+          </button>
+        ))}
+      </div>
+      <span
+        className="text-xs text-[var(--text-3)]"
+        data-testid={teamReady ? "market-depth-hint" : "market-depth-unavailable"}
+      >
+        {teamReady ? t("market.depth.hint") : t("market.depth.unavailable")}
+      </span>
+    </div>
+  );
+
   return (
     <main className="px-6 pb-10 pt-8 text-[var(--text)]" data-testid="market-studio">
       <div className="kicker">{t("market.studio.kicker")}</div>
@@ -191,8 +359,24 @@ export function MarketStudio() {
           <MarketWatchlistInput tickers={tickers} onChange={changeTickers} disabled={locked} />
           {tickers.length === 0 ? (
             <div className="mt-3" data-testid="market-starters">
+              <div className="mb-3 flex flex-wrap items-end gap-4">
+                {specialistPicker}
+                {depthControl}
+              </div>
               <p className="text-xs text-[var(--text-3)]">{t("market.studio.startersLead")}</p>
               <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="rounded-md border border-[var(--line)] px-3 py-1.5 text-left text-xs text-[var(--text)] hover:bg-[var(--accent-soft)]"
+                  data-testid="market-specialist-starter"
+                  title={specialistStarterTickers(specialist).join(", ")}
+                  onClick={() => changeTickers(specialistStarterTickers(specialist))}
+                  disabled={locked}
+                >
+                  <span className="font-medium">
+                    {t("market.studio.specialistStarter", { label: specialistName(specialist) })}
+                  </span>
+                </button>
                 {MARKET_STARTERS.map((starter) => (
                   <button
                     key={starter.id}
@@ -253,6 +437,8 @@ export function MarketStudio() {
                 <option value="id">{t("common.bahasa")}</option>
                 <option value="en">{t("common.english")}</option>
               </select>
+              {depthControl}
+              {specialistPicker}
               <button
                 type="button"
                 className="text-xs text-[var(--text-2)] underline"
@@ -300,8 +486,8 @@ export function MarketStudio() {
                     <button
                       type="button"
                       className="btn text-xs"
-                      onClick={() => setPrompt(DEFAULT_PROMPT[language])}
-                      disabled={locked || prompt === DEFAULT_PROMPT[language]}
+                      onClick={() => setPrompt(defaultWatchPrompt(specialist, language))}
+                      disabled={locked || prompt === defaultWatchPrompt(specialist, language)}
                       data-testid="market-prompt-reset"
                     >
                       {t("market.studio.resetPrompt")}
@@ -361,10 +547,19 @@ export function MarketStudio() {
 
       <div className="mt-5 space-y-4">
         {job.busy || (job.progress.phases.length > 0 && !result) ? (
-          <JobProgressList progress={job.progress} busy={job.busy} testId="market-progress" />
+          <JobProgressList progress={teamProgress} busy={job.busy} testId="market-progress" />
         ) : null}
         {result ? (
           <>
+            <div className="flex flex-wrap items-baseline gap-2">
+              <h4 className="text-base font-medium text-[var(--text)]">{result.briefing.title}</h4>
+              <span
+                className="rounded-full border border-[var(--line)] px-2 py-0.5 text-xs text-[var(--text-2)]"
+                data-testid="market-briefing-specialist"
+              >
+                {specialistName(isMarketSpecialist(result.briefing.specialist) ? result.briefing.specialist : specialist)}
+              </span>
+            </div>
             <ArtifactActions
               title={result.briefing.title}
               markdown={result.markdown}

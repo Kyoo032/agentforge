@@ -2,11 +2,7 @@
   "title": "Chat",
   "agent": "Agent",
   "newChat": "New chat",
-  "newChatPlus": "+ New chat",
   "starting": "Starting chat…",
-  "sessions": "Sessions",
-  "sessionsEmpty": "Sessions show up here after you send.",
-  "resizeSessions": "Resize sessions",
   "deleteSession": "Delete session",
   "deleteConfirm": "Delete \"{title}\"? This cannot be undone.",
   "deleteAria": "Delete {title}",
@@ -45,11 +41,6 @@
     "thinking": "Thinking",
     "thinkingPlaceholder": "Thinking…"
   },
-  "threads": {
-    "today": "Today",
-    "yesterday": "Yesterday",
-    "earlier": "Earlier"
-  },
   "context": {
     "left": "{n} left",
     "used": "{n} used",
@@ -73,7 +64,8 @@
   "usage": {
     "placeholder": "Usage · —",
     "unlimited": "Usage · Unlimited",
-    "remaining": "Usage · {left}"
+    "remaining": "Usage · {left}",
+    "error": "Usage unavailable"
   },
   "enhance": {
     "busy": "Cancel enhance",
@@ -106,6 +98,7 @@
     "noStream": "No stream",
     "runFailed": "Run failed",
     "deleteSession": "Could not delete session",
+    "loadSessions": "Could not load sessions",
     "noImageInput": "This agent or model does not accept image input",
     "noVideoInput": "This agent or model does not accept video input",
     "emptySend": "Type a message or attach a file",

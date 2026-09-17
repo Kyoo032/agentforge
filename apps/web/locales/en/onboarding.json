@@ -3,11 +3,10 @@
   "intro": "Paste your {gatewayName} API key. Chat and job modes run on this machine.",
   "setupCheck": "Setup check",
   "ffmpegLater": "You can continue now and install ffmpeg later; the Edit studio shows the same guide until it is found.",
-  "endpointLabel": "Endpoint URL",
   "keyLabel": "API key",
   "keyPlaceholder": "From your gateway dashboard",
   "continue": "Continue to Chat",
-  "endpointLocked": "This endpoint is fixed and cannot be changed.",
+  "gatewayHost": "Gateway: {host}",
   "gate.invalidKey": "The gateway rejected this API key. Check the key at {gatewayName} and try again.",
   "gate.unreachable": "Could not reach {gatewayName}. Check your connection and try again.",
   "gate.error": "The gateway returned an unexpected error. Try again in a moment."
