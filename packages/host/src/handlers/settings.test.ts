@@ -375,6 +375,10 @@ describe("POST /api/v1/settings/reset", () => {
       "legal",
       "models-cache.json",
       "models-dev-cache.json",
+      // Downloaded native components and the installer's log: host-written and re-downloadable,
+      // so a full "Start over" takes them too.
+      "components",
+      "logs",
     ]);
     // Chromium's profile and the desktop status file are not the host's to delete.
     expect(marker.entries).not.toContain("host-status.json");

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { apiFetch, checkGateway, isElectron } from "@/lib/api-client";
+import { ComponentSetupPanel } from "@/components/component-setup";
 import { FfmpegSetupNotice } from "@/components/ffmpeg-setup-notice";
+import { useComponentSetup } from "@/lib/use-component-setup";
 import { fetchEditDoctor, type EditDoctor } from "@/lib/edit-client";
 import {
   gatewayReasonKey,
@@ -28,6 +30,10 @@ export function OnboardingScreen({ onDone, gateway }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [gate, setGate] = useState<GatewayGatePayload | null>(gateway ?? null);
   const [doctor, setDoctor] = useState<EditDoctor | null>(null);
+  // Optional native components install themselves here; the panel shows nothing when there is
+  // nothing to install, and neither it nor ffmpeg ever gates the key form below.
+  const componentSetup = useComponentSetup();
+  const needsFfmpeg = doctor?.ffmpeg?.found === false;
 
   // Pinned by the host and never editable here: only its host label is shown, never the full URL.
   const endpoint = gate?.endpoint ?? gateway?.endpoint ?? gatewayBaseUrl;
@@ -103,7 +109,7 @@ export function OnboardingScreen({ onDone, gateway }: Props) {
         {t("onboarding.welcome", { productName })}
       </h1>
       <p className="mt-2 text-[var(--text-2)]">{t("onboarding.intro", { gatewayName })}</p>
-      {doctor?.ffmpeg?.found === false ? (
+      {needsFfmpeg || componentSetup.visible ? (
         <section
           className="mt-6 overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface)]"
           data-testid="onboarding-setup-check"
@@ -111,8 +117,13 @@ export function OnboardingScreen({ onDone, gateway }: Props) {
           <h2 className="border-b border-[var(--line)] px-4 py-2 text-sm font-semibold">
             {t("onboarding.setupCheck")}
           </h2>
-          <FfmpegSetupNotice doctor={doctor} onDoctor={setDoctor} variant="full" />
-          <p className="px-4 py-2 text-xs text-[var(--text-2)]">{t("onboarding.ffmpegLater")}</p>
+          {needsFfmpeg && doctor ? (
+            <>
+              <FfmpegSetupNotice doctor={doctor} onDoctor={setDoctor} variant="full" />
+              <p className="px-4 py-2 text-xs text-[var(--text-2)]">{t("onboarding.ffmpegLater")}</p>
+            </>
+          ) : null}
+          <ComponentSetupPanel view={componentSetup} />
         </section>
       ) : null}
       <form onSubmit={(event) => void onSubmit(event)} className="mt-8 space-y-4" data-testid="onboarding-form">

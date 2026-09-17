@@ -283,6 +283,12 @@ export const HOST_RESET_ENTRIES = [
   "legal",
   "models-cache.json",
   "models-dev-cache.json",
+  // Downloaded native components (packages/host/src/components). Written by the host, inside the
+  // data dir, and re-downloadable — so a full "Start over" drops it like everything else the host
+  // wrote. The cost of being wrong here is one re-download, never data.
+  "components",
+  // The component installer's own diagnostics. Same reasoning; nothing in it is the owner's work.
+  "logs",
 ] as const;
 
 function resetGatewayKey(workspaceId: string): HostResult {

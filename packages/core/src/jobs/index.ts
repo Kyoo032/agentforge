@@ -1,6 +1,7 @@
 export {
   EMPTY_JOB_PROGRESS,
   JOB_EVENT_TYPES,
+  JOB_PHASE_STATES,
   JOB_SOURCE_STATUSES,
   isJobEvent,
   reduceJobProgress,
@@ -13,6 +14,7 @@ export type {
   JobEvent,
   JobPhaseEvent,
   JobPhaseState,
+  JobPhaseStateName,
   JobProgress,
   JobSourceEvent,
   JobSourceStatus,

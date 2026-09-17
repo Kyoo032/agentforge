@@ -19,6 +19,7 @@ import {
   handleGetArtifacts,
 } from "./handlers/artifacts";
 import { handleGetChat } from "./handlers/chat";
+import { handleGetComponents, handlePostComponentInstallStream } from "./handlers/components";
 import { handleDeleteDataset, handleGetDataset, handleGetDatasets, handlePostDatasets } from "./handlers/datasets";
 import {
   handleGetEditDoctor,
@@ -180,6 +181,10 @@ const routes: Route[] = [
   compile("POST", "/api/v1/settings/reset", handleResetApp),
   compile("DELETE", "/api/v1/settings/reset", handleCancelReset),
   compile("GET", "/api/v1/usage", handleGetUsage),
+  // Deliberately NOT behind `requireGatewayAllowed()`: a component installs during onboarding,
+  // before a key exists, and never touches the gateway. See handlers/components.ts.
+  compile("GET", "/api/v1/components", handleGetComponents),
+  compile("POST", "/api/v1/components/install/stream", handlePostComponentInstallStream),
   compile("GET", "/api/v1/chat", handleGetChat),
   compile("GET", "/api/v1/workspaces", handleGetWorkspaces),
   compile("POST", "/api/v1/workspaces", handlePostWorkspaces),
