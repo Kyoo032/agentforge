@@ -1,6 +1,6 @@
 # Unreleased changes (after public v0.14.27)
 
-**Purpose:** what is on `main` or on the cut branch but not inside the installers attached to the public **v0.14.27** release on `Kyoo032/DPSBuddy`. The `0.14.27` cut is `e2e477e` on `release/0.14.27` (PR #52, `e8a7118`, plus the version bump), with `apps/desktop/package.json` at `0.14.27`; everything this file used to list has been folded into [`0.14.27-changelog.md`](0.14.27-changelog.md). **0.14.27 is not published yet** — until it is, this file records only what lands *after* that cut. The next cut after it is **`0.14.28`** (per the 2026-09-07 rule; never `0.14.3+`, never `0.15` until Kyo says so). Convention unchanged: at the bump everything listed here is folded into `<version>-changelog.md` and this file starts over. Same rule as every changelog: nothing counts as shipped until it is staged, packed, installed, and driven on the packaged app.
+**Purpose:** what is on `main` or on the cut branch but not inside the installers attached to the public **v0.14.27** release on `Kyoo032/DPSBuddy` — published 2026-09-18 01:47 UTC (Windows `05e97a5`, mac `6da52d7`). The `0.14.27` cut is `e2e477e` on `release/0.14.27` (PR #52, `e8a7118`, plus the version bump), with `apps/desktop/package.json` at `0.14.27`; everything this file used to list has been folded into [`0.14.27-changelog.md`](0.14.27-changelog.md). **0.14.27 is not published yet** — until it is, this file records only what lands *after* that cut. The next cut after it is **`0.14.28`** (per the 2026-09-07 rule; never `0.14.3+`, never `0.15` until Kyo says so). Convention unchanged: at the bump everything listed here is folded into `<version>-changelog.md` and this file starts over. Same rule as every changelog: nothing counts as shipped until it is staged, packed, installed, and driven on the packaged app.
 
 Append-only. When 0.14.28 is published, record the artifact table below, fold any later items into the next changelog, and start this file over.
 
@@ -10,8 +10,8 @@ To be filled when 0.14.27 is packed and published — the pack lanes write their
 
 | Artifact | Source | Uploaded (UTC) |
 |---|---|---|
-| `DPSBuddy-Setup-0.14.27.exe` + `.blockmap` + `latest.yml` | `05e97a5`, worktree `agentforge-pack-0.14.27-05e97a5`, sha256 `D2FCD444…1A45D6`, 102 243 076 bytes, `latest.yml` sha512 `yHNJBKzW…nG9mw==` | *packed 2026-09-18 01:13 UTC, not published* |
-| `DPSBuddy-0.14.27-mac-arm64.dmg` / `.zip`, `-x64.dmg` / `.zip` | `6da52d7` (Docker Linux, `--arch all`, third pack — the first two shipped Linux anydoc binaries), `mac-0.14.27.sha256`, arm64 dmg `c2434f49…6b83d` / zip `70e4eab7…68d51`, x64 dmg `edda5e18…29aa1` / zip `16dff901…88d4fa` | *packed 2026-09-18 01:28 UTC, not published* |
+| `DPSBuddy-Setup-0.14.27.exe` + `.blockmap` + `latest.yml` | `05e97a5`, worktree `agentforge-pack-0.14.27-05e97a5`, sha256 `D2FCD444…1A45D6`, 102 243 076 bytes, `latest.yml` sha512 `yHNJBKzW…nG9mw==` | 2026-09-18 01:47 |
+| `DPSBuddy-0.14.27-mac-arm64.dmg` / `.zip`, `-x64.dmg` / `.zip` | `6da52d7` (Docker Linux, `--arch all`, third pack — the first two shipped Linux anydoc binaries), `mac-0.14.27.sha256`, arm64 dmg `c2434f49…6b83d` / zip `70e4eab7…68d51`, x64 dmg `edda5e18…29aa1` / zip `16dff901…88d4fa` | 2026-09-18 01:47 |
 
 Earlier releases: 0.14.26 (`e93c617`, published 2026-09-15 09:18 UTC, 7 assets) and everything before it are recorded in their own changelogs and in this file's history at `e2e477e`.
 
