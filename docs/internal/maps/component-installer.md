@@ -44,6 +44,7 @@ The only way DPSBuddy installs a native dependency. The owner never runs a comma
 - **No URL ever comes from a request.** The body carries an id; everything else is the manifest. Bumping a version means new integrity strings from `npm view <pkg>@<v> dist.integrity`.
 - **Start over removes it.** `components` and `logs` are in `HOST_RESET_ENTRIES` (`packages/host/src/handlers/settings.ts:286`); the wipe runs on the next boot before the module is loaded, so Windows never holds the `.node` open.
 - **webdev has no watcher.** A `:3000` started before these routes existed answers 404 until it is restarted.
+- **Mac packs bundle it too.** `apps/desktop/platform/macos/docker/build-mac.sh` fetches `anydoc-darwin-<arch>` per arch, checks the sha512 pinned in `manifest.ts`, and removes every other platform package before electron-builder runs; a Linux install alone would ship ELF `.node` files into the `.app` (first 0.14.27 mac pack, `verify: FAIL - 2 non-Mach-O native binaries`). Bump the manifest and that script together.
 - Bundled wins. On this desk `node_modules` has the module, so the panel never appears on webdev; that is correct, not a bug.
 
 ## Verify
