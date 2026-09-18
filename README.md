@@ -75,4 +75,4 @@ pnpm desktop:build
 
 ## License
 
-Proprietary / closed beta. All rights reserved unless a LICENSE file is added later.
+Copyright 2026 DPS. Licensed under the [Apache License 2.0](LICENSE).

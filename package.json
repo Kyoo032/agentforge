@@ -2,6 +2,7 @@
   "name": "agentforge",
   "private": true,
   "description": "Closed-beta local workbench for the Toko Token AI gateway",
+  "license": "Apache-2.0",
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
