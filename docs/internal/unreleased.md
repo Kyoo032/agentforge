@@ -10,8 +10,8 @@ To be filled when 0.14.27 is packed and published — the pack lanes write their
 
 | Artifact | Source | Uploaded (UTC) |
 |---|---|---|
-| `DPSBuddy-Setup-0.14.27.exe` + `.blockmap` + `latest.yml` | *to be filled* | *to be filled* |
-| `DPSBuddy-0.14.27-mac-arm64.dmg` / `.zip`, `-x64.dmg` / `.zip` | *to be filled* | *to be filled* |
+| `DPSBuddy-Setup-0.14.27.exe` + `.blockmap` + `latest.yml` | `05e97a5`, worktree `agentforge-pack-0.14.27-05e97a5`, sha256 `D2FCD444…1A45D6`, 102 243 076 bytes, `latest.yml` sha512 `yHNJBKzW…nG9mw==` | *packed 2026-09-18 01:13 UTC, not published* |
+| `DPSBuddy-0.14.27-mac-arm64.dmg` / `.zip`, `-x64.dmg` / `.zip` | `6da52d7` (Docker Linux, `--arch all`, third pack — the first two shipped Linux anydoc binaries), `mac-0.14.27.sha256`, arm64 dmg `c2434f49…6b83d` / zip `70e4eab7…68d51`, x64 dmg `edda5e18…29aa1` / zip `16dff901…88d4fa` | *packed 2026-09-18 01:28 UTC, not published* |
 
 Earlier releases: 0.14.26 (`e93c617`, published 2026-09-15 09:18 UTC, 7 assets) and everything before it are recorded in their own changelogs and in this file's history at `e2e477e`.
 
@@ -19,7 +19,7 @@ Earlier releases: 0.14.26 (`e93c617`, published 2026-09-15 09:18 UTC, 7 assets) 
 
 Nothing below is closed by 0.14.27. Carried forward as-is.
 
-- [ ] **Packaged bundled-anydoc load.** No packed Windows installer has been shown to load the bundled `@firecrawl/anydoc`. Proof owed: `doctor --desktop` plus `GET /api/v1/components` reporting `anydoc` `ready` with `source: "bundled"`.
+- [ ] **Packaged bundled-anydoc load.** The 0.14.27 packs carry `anydoc.win32-x64-msvc.node` and `anydoc.darwin-<arch>.node` in `app.asar.unpacked`, but no packed app has been shown to *load* them. Proof owed: `doctor --desktop` plus `GET /api/v1/components` reporting `anydoc` `ready` with `source: "bundled"`.
 - [ ] **Any macOS run of the component installer's download route.** Never done. An ad-hoc-signed, non-notarized app should be allowed to `dlopen` a downloaded `.node`; nobody has watched it happen.
 - [ ] **The onboarding component panel** (`component-setup`) has never been seen in a browser or on the packaged app — on this desk anydoc is bundled, so it correctly renders nothing.
 - [ ] **Webdev drives of the 0.14.27 product work:** Finance tasks, Finance import/export, the Market analyst team, the rail submenus and recent sessions, and `GET /api/v1/components`. The `:3000` host must be restarted after the host/core edits in PR #52 before any of it is drivable (`tsx server.ts` has no watcher).

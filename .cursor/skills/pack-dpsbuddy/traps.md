@@ -91,3 +91,11 @@ Source commits stay on `Kyoo032/agentforge`. `pnpm desktop:release` creates a Gi
 `git worktree add` is the **only** git write a pack agent may make. No `stash`, `checkout`, `switch`, `restore`, `reset`, `rebase`, no commit, no branch move — the pack reads a sha, it does not move the tree.
 
 A stash or checkout by any agent wipes every other worker's uncommitted edits in the shared checkout. This happened **twice on 2026-09-15** during a multi-worker pass, both times costing hours of unrelated work. If the tree is dirty and the pack needs a clean one, that is what the worktree is for.
+
+## Branch moving mid-pack (0.14.27)
+
+`mac-build-docker.mjs` clones HEAD **when the container starts**, not when the lane checked the sha. A docs-only commit landed on `release/0.14.27` between the mac lane's check (`05e97a5`) and the clone (`22f1f78`); harmless that time, but the recorded sha and the checked sha differed. While a Docker pack is running, nobody commits to the branch being packed. The orchestrator waits for the lane, then writes.
+
+## pnpm hoists platform packages — purge the store, not the links (0.14.27, mac)
+
+`@firecrawl/anydoc` has one optional dependency per platform. On the Linux install inside Docker pnpm fetches the `linux-*` ones, and `asarUnpack` `**/node_modules/@firecrawl/anydoc-*/**` then ships their ELF `.node` files into the Mac app; `verify-bundle` refuses it with `2 non-Mach-O native binaries`. Deleting the sibling symlinks under `.pnpm/@firecrawl+anydoc@<v>/node_modules/@firecrawl/` is **not** enough: pnpm also hoists every package into `node_modules/.pnpm/node_modules/` and keeps the real directory in `node_modules/.pnpm/@firecrawl+anydoc-linux-x64-gnu@<v>/`, and app-builder's `node-dep-tree` walks up into both. `build-mac.sh` now removes the non-darwin store entries and their links once after install, dies if a linux/win32 anydoc `.node` is still reachable, and swaps the pinned darwin package (sha512 from `packages/host/src/components/manifest.ts`) in beside anydoc per arch. Bump the manifest and the script together. It took three packs to learn this; the first two are in `superseded-e2e477e/` and the changelog.
