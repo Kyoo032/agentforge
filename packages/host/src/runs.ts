@@ -53,6 +53,7 @@ import { saveGeneratedImage, saveGeneratedVideo } from "./media";
 import { withRunContext } from "./run-context";
 import { getBootLocale } from "./locale-boot";
 import { formatPastSessionsHint } from "./session-recall";
+import { log } from "./log";
 
 const parsers = {
   text: parseTextRunInput,
@@ -392,7 +393,9 @@ export async function* startModalityRun(options: {
             }),
           );
         } catch (error) {
-          console.warn(`knowledge-ingest: chat card skipped (${error instanceof Error ? error.message : "unknown"})`);
+          log.warn("knowledge_ingest_chat_card_skipped", {
+            detail: error instanceof Error ? error.message : "unknown",
+          });
         }
       }
     } catch (error) {
@@ -459,7 +462,7 @@ async function mirrorToolMediaPart(tenant: TenantContext, part: ContentPart): Pr
     }
     return part;
   } catch (error) {
-    console.warn(`tool-media: generated media not mirrored (${error instanceof Error ? error.message : "unknown"})`);
+    log.warn("tool_media_not_mirrored", { detail: error instanceof Error ? error.message : "unknown" });
     return null;
   }
 }

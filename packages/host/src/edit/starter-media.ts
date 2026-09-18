@@ -8,6 +8,7 @@ import { eq } from "drizzle-orm";
 import { mediaRoot } from "../media-root";
 import { resolveFfmpeg } from "./ffmpeg-binary";
 import { probe } from "./ffmpeg/recipes";
+import { log } from "../log";
 
 type ProcessWithResources = NodeJS.Process & { resourcesPath?: string };
 
@@ -107,13 +108,13 @@ async function probeOrManifest(absPath: string, projectId: string, file: Starter
   try {
     const probed = await probe(absPath, projectId);
     if (probed.durationSeconds <= 0) {
-      console.warn(`[edit] ffprobe returned no duration for starter file ${path.basename(absPath)}; using manifest metadata`);
+      log.warn("edit_starter_probe_no_duration", { file: path.basename(absPath) });
       return fromManifest(file);
     }
     return probed;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.warn(`[edit] ffprobe failed for starter file ${path.basename(absPath)} (${message}); using manifest metadata`);
+    log.warn("edit_starter_probe_failed", { file: path.basename(absPath), detail: message });
     return fromManifest(file);
   }
 }
@@ -147,12 +148,12 @@ async function rollbackStored(stored: StoredFile[]): Promise<void> {
     try {
       await db.delete(media).where(eq(media.id, item.id));
     } catch (error) {
-      console.warn(`[edit] rollback: could not delete media row ${item.id}: ${String(error)}`);
+      log.warn("edit_starter_rollback_media_row_kept", { mediaId: item.id, error });
     }
     try {
       await unlink(item.fullPath);
     } catch (error) {
-      console.warn(`[edit] rollback: could not delete ${item.fullPath}: ${String(error)}`);
+      log.warn("edit_starter_rollback_file_kept", { path: item.fullPath, error });
     }
   }
 }

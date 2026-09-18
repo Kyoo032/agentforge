@@ -1,5 +1,6 @@
 import { sql } from "@agentforge/db";
 import type { TenantContext } from "@agentforge/core";
+import { log } from "../log";
 
 /**
  * The SQLite side of a remote retrieval backend: which knowledge base a workspace is bound to,
@@ -94,9 +95,9 @@ export function clearWorkspaceModelId(tenant: TenantContext): void {
       )
       .run(Date.now(), tenant.workspaceId);
   } catch (error) {
-    console.warn(
-      `knowledge-backend: model binding not cleared (${error instanceof Error ? error.message.slice(0, 120) : "error"})`,
-    );
+    log.warn("knowledge_backend_binding_not_cleared", {
+      detail: error instanceof Error ? error.message.slice(0, 120) : "error",
+    });
   }
 }
 

@@ -2,6 +2,7 @@ import { sql } from "@agentforge/db";
 import type { TenantContext } from "@agentforge/core";
 import type { RetrievedChunk } from "./knowledge/backend";
 import { projectRetrievalsToGraph } from "./knowledge-graph";
+import { log } from "./log";
 
 /**
  * The measured Retrieved stage of the knowledge loop: one row per chunk a run was actually given.
@@ -63,9 +64,9 @@ export function recordRetrievals(tenant: TenantContext, event: RetrievalEvent): 
     projectRetrievalsToGraph(tenant, [...new Set(event.chunks.map((chunk) => chunk.sourceId))]);
     return event.chunks.length;
   } catch (error) {
-    console.warn(
-      `knowledge-retrievals: not recorded (${error instanceof Error ? error.message.slice(0, 120) : "error"})`,
-    );
+    log.warn("knowledge_retrievals_not_recorded", {
+      detail: error instanceof Error ? error.message.slice(0, 120) : "error",
+    });
     return 0;
   }
 }
@@ -78,9 +79,9 @@ export function countRetrievals(tenant: TenantContext): number {
       .get(tenant.workspaceId) as { n: number } | undefined;
     return row?.n ?? 0;
   } catch (error) {
-    console.warn(
-      `knowledge-retrievals: count failed (${error instanceof Error ? error.message.slice(0, 120) : "error"})`,
-    );
+    log.warn("knowledge_retrievals_count_failed", {
+      detail: error instanceof Error ? error.message.slice(0, 120) : "error",
+    });
     return 0;
   }
 }

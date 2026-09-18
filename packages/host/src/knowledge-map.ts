@@ -19,6 +19,7 @@ import { reembedWorkspaceChunks } from "./knowledge-embed";
 import { projectMapToGraph } from "./knowledge-graph";
 import { loadSettings } from "./settings-store";
 import { localeForRun } from "./run-context";
+import { log } from "./log";
 
 function workspaceId(tenant: TenantContext): string {
   return tenant.workspaceId;
@@ -163,9 +164,9 @@ export async function mapKnowledge(
     try {
       projectMapToGraph(tenant, map);
     } catch (error) {
-      console.warn(
-        `knowledge-map: graph projection skipped (${error instanceof Error ? error.message.slice(0, 120) : "error"})`,
-      );
+      log.warn("knowledge_map_graph_projection_skipped", {
+        detail: error instanceof Error ? error.message.slice(0, 120) : "error",
+      });
     }
     return map;
   } catch (error) {

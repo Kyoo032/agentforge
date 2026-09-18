@@ -21,6 +21,7 @@ import { cosineSimilarity, type TenantContext } from "@agentforge/core";
 import type { BudgetSideLine, BudgetSimilarity } from "@agentforge/core/finance";
 import { getKnowledgeModels } from "../knowledge";
 import { STUB_EMBED_MODEL, embedTextsWithModel } from "../knowledge-embed";
+import { log } from "../log";
 
 /** Above this many labels the pairing stays local: an embedding per label stops being cheap. */
 export const BUDGET_EMBED_LABEL_MAX = 200;
@@ -104,7 +105,7 @@ export async function embedBudgetLabels(
     return { status: "used", similarity: lookupCosine(labels, vectors) };
   } catch (error) {
     const why = error instanceof Error ? error.message.slice(0, 80) : "error";
-    console.warn(`finance budget: label embeddings unavailable, pairing stays local (${why})`);
+    log.warn("finance_budget_embeddings_unavailable", { detail: why });
     return { status: "unavailable" };
   }
 }

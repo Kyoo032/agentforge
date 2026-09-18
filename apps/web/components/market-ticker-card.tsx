@@ -63,7 +63,7 @@ function Headline({ item, testId }: { item: WatchNewsItem; testId: string }) {
   return (
     <li className="text-sm text-[var(--text)]" data-testid={testId}>
       {href ? (
-        <a href={href} target="_blank" rel="noreferrer" className="underline-offset-2 hover:underline">
+        <a href={href} target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:underline">
           {item.title}
         </a>
       ) : (

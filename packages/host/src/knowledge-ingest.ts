@@ -7,6 +7,7 @@ import {
 } from "./knowledge";
 import { loadSettings } from "./settings-store";
 import { renderWorkCard, type WorkCard } from "./work-cards";
+import { log } from "./log";
 
 export type UpsertWorkSourceResult =
   | { status: "indexed" | "failed"; source: KnowledgeSource; created: boolean }
@@ -48,7 +49,7 @@ export async function upsertWorkSource(tenant: TenantContext, card: WorkCard): P
   try {
     existing = findSourceByOrigin(tenant, card.origin);
   } catch (error) {
-    console.warn(`knowledge-ingest: origin lookup failed (${errorCode(error)})`);
+    log.warn("knowledge_ingest_origin_lookup_failed", { code: errorCode(error) });
     return { status: "skipped", reason: "lookup_failed" };
   }
   const id = existing?.id ?? crypto.randomUUID();
@@ -64,7 +65,7 @@ export async function upsertWorkSource(tenant: TenantContext, card: WorkCard): P
     try {
       return { status: "failed", source: markSourceFailed(tenant, input, reason), created: !existing };
     } catch (error) {
-      console.warn(`knowledge-ingest: could not record blocked card (${errorCode(error)})`);
+      log.warn("knowledge_ingest_blocked_card_not_recorded", { code: errorCode(error) });
       return { status: "skipped", reason };
     }
   }
@@ -73,11 +74,11 @@ export async function upsertWorkSource(tenant: TenantContext, card: WorkCard): P
     return { status: source.status === "Indexed" ? "indexed" : "failed", source, created: !existing };
   } catch (error) {
     const reason = errorCode(error);
-    console.warn(`knowledge-ingest: ${card.type} card for ${card.pointer} failed (${reason})`);
+    log.warn("knowledge_ingest_card_failed", { cardType: card.type, pointer: card.pointer, reason });
     try {
       return { status: "failed", source: markSourceFailed(tenant, input, reason), created: !existing };
     } catch (inner) {
-      console.warn(`knowledge-ingest: could not record failure (${errorCode(inner)})`);
+      log.warn("knowledge_ingest_failure_not_recorded", { code: errorCode(inner) });
       return { status: "skipped", reason };
     }
   }
@@ -86,7 +87,7 @@ export async function upsertWorkSource(tenant: TenantContext, card: WorkCard): P
 /** Fire-and-forget variant for hot paths (Chat stream end). Logs, never rejects. */
 export function ingestWorkSource(tenant: TenantContext, card: WorkCard): void {
   void upsertWorkSource(tenant, card).catch((error: unknown) => {
-    console.warn(`knowledge-ingest: unexpected (${errorCode(error)})`);
+    log.warn("knowledge_ingest_unexpected", { code: errorCode(error) });
   });
 }
 

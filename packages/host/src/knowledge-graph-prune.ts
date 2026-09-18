@@ -1,5 +1,6 @@
 import { sql } from "@agentforge/db";
 import type { TenantContext } from "@agentforge/core";
+import { log } from "./log";
 
 /**
  * The delete side of the two knowledge projections that outlive their subject.
@@ -29,9 +30,10 @@ export type GraphPruneCounts = {
 const NO_CHANGES: GraphPruneCounts = { nodes: 0, edges: 0, retrievals: 0 };
 
 function warn(what: string, error: unknown): void {
-  console.warn(
-    `knowledge-graph-prune: ${what} skipped (${error instanceof Error ? error.message.slice(0, 120) : "error"})`,
-  );
+  log.warn("knowledge_graph_prune_step_skipped", {
+    step: what,
+    detail: error instanceof Error ? error.message.slice(0, 120) : "error",
+  });
 }
 
 /** The node itself plus every edge with it at either end. Statements only: the caller owns the transaction. */

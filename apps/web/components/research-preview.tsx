@@ -27,7 +27,7 @@ export function ResearchPreview({ notes }: Props) {
                   return (
                     <li key={`${source.url}-${source.title}`}>
                       {href ? (
-                        <a href={href} className="underline" target="_blank" rel="noreferrer">
+                        <a href={href} className="underline" target="_blank" rel="noopener noreferrer">
                           {source.title || source.url}
                         </a>
                       ) : (

@@ -7,7 +7,7 @@ import {
   searchVectors,
 } from "../../knowledge-embed";
 import { getKnowledgeModels } from "../../knowledge";
-import { knowledgeFtsQuery } from "../../knowledge-text";
+import { ftsSourceFilter, knowledgeFtsQuery } from "../../knowledge-text";
 import type {
   BackendHealth,
   BackendRetrieveOptions,
@@ -17,6 +17,7 @@ import type {
   RetrieveMode,
   RetrieveResult,
 } from "../backend";
+import { log } from "../../log";
 
 /**
  * The in-process backend: FTS5 (`knowledge_chunks`) plus JSON cosine vectors (`knowledge_vectors`),
@@ -115,16 +116,16 @@ function vectorChunkIndexes(workspaceId: string, sourceIds: string[]): Map<strin
  */
 function rowidRanks(workspaceId: string, sourceId: string): Map<number, number> {
   const out = new Map<number, number>();
-  const match = `source_id:"${sourceId.replace(/"/g, "")}"`;
+  const match = ftsSourceFilter(sourceId);
   try {
     const rows = sql.prepare(CHUNK_INDEX_QUERIES.ftsBySource).all(match, workspaceId) as Array<{ rid: number }>;
     rows.forEach((row, rank) => {
       out.set(row.rid, rank);
     });
   } catch (error) {
-    console.warn(
-      `knowledge-backend: chunk index fallback failed (${error instanceof Error ? error.message.slice(0, 120) : "error"})`,
-    );
+    log.warn("knowledge_backend_chunk_index_fallback_failed", {
+      detail: error instanceof Error ? error.message.slice(0, 120) : "error",
+    });
   }
   return out;
 }
@@ -219,9 +220,9 @@ function ftsRows(workspaceId: string, query: string, limit: number, exclude: str
       .all(workspaceId, query, ...exclude, limit) as FtsRow[];
   } catch (error) {
     // A malformed MATCH expression or a missing FTS table must degrade to "no results", never a 500.
-    console.warn(
-      `knowledge-backend: FTS query failed (${error instanceof Error ? error.message.slice(0, 120) : "error"})`,
-    );
+    log.warn("knowledge_backend_fts_query_failed", {
+      detail: error instanceof Error ? error.message.slice(0, 120) : "error",
+    });
     return [];
   }
 }

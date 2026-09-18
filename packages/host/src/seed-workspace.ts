@@ -12,6 +12,7 @@ import { agentPacks as universityAgentPacks } from "@agentforge/university";
 import { agentService } from "./tenant";
 import { ensureToolsRegistered } from "./register-tools";
 import { defaultSelectableModel, listSelectableModels } from "./selectable-models";
+import { log } from "./log";
 
 function allPacks(): AgentPack[] {
   return [defaultAgentPack, ...universityAgentPacks, ...marketingAgentPacks, ...legalAgentPacks];
@@ -100,11 +101,7 @@ export async function seedWorkspaceStarter(
     await agentService.publish(seedTenant, created.agent.id, created.version.id);
     return true;
   } catch (error) {
-    console.error("[seed-workspace] failed to seed starter agent", {
-      workspaceId,
-      templatePack,
-      error,
-    });
+    log.error("seed_workspace_starter_agent_failed", { workspaceId, templatePack, error });
     return false;
   }
 }

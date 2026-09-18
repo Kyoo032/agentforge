@@ -13,6 +13,7 @@ import { artifactStore } from "../artifacts";
 import { FINANCE_META_GUARD_KEY, FINANCE_META_MAX_BYTES, type FinanceStoredGuard } from "../finance-artifact";
 import type { TenantContext } from "@agentforge/core";
 import { financeReportSchema } from "./report-schema";
+import { log } from "../log";
 
 /** Meta key the stored report sits under, beside the brief's own key. */
 export const FINANCE_META_REPORT_KEY = "report";
@@ -56,7 +57,7 @@ export function financeTaskArtifactMeta(
 ): Record<string, unknown> {
   const stored = { [FINANCE_META_REPORT_KEY]: report, [FINANCE_META_GUARD_KEY]: guard };
   if (Buffer.byteLength(JSON.stringify(stored), "utf8") > FINANCE_META_MAX_BYTES) {
-    console.warn(`finance: report over ${FINANCE_META_MAX_BYTES} bytes; its export will fall back to the markdown`);
+    log.warn("finance_report_meta_too_large", { maxBytes: FINANCE_META_MAX_BYTES });
     return { ...provenance };
   }
   return { ...provenance, ...stored };
@@ -86,7 +87,7 @@ export function persistFinanceTaskReport(
     }).id;
   } catch (error) {
     const code = error instanceof ApiError ? error.code : "internal_error";
-    console.warn(`finance: could not save the ${report.task} report (${code})`);
+    log.warn("finance_report_not_saved", { task: report.task, code });
     return null;
   }
 }

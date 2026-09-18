@@ -31,7 +31,7 @@ function TemplateSource({ template }: { template: PromptTemplate }) {
       <a
         href={source.url}
         target="_blank"
-        rel="noreferrer"
+        rel="noopener noreferrer"
         className="block truncate underline text-[var(--text-2)] hover:text-[var(--text)]"
         title={source.url}
       >
@@ -106,7 +106,9 @@ export function EditPromptTemplates({ onPick, selectedId }: Props) {
                 <button
                   type="button"
                   className={`w-full rounded-md border px-2 py-1 text-left ${
-                    isSelected ? "border-[var(--text)] bg-[var(--line)]/40 text-[var(--text)]" : "border-[var(--line)] text-[var(--text)] hover:bg-[var(--line)]/30"
+                    isSelected
+                      ? "border-[var(--text)] bg-[var(--line)]/40 text-[var(--text)]"
+                      : "border-[var(--line)] text-[var(--text)] hover:bg-[var(--line)]/30"
                   }`}
                   aria-pressed={isSelected}
                   data-testid={`edit-prompt-template-${template.id}`}

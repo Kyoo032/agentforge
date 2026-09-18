@@ -650,3 +650,32 @@ export const marketCache = sqliteTable(
   },
   (table) => [index("market_cache_ticker_kind_idx").on(table.ticker, table.kind, table.observedAt)],
 );
+
+/**
+ * Browser sessions for the hosted deployment (docs/internal/web-migration-plan.md, Phase 2;
+ * docs/internal/web-security-spec.md row T1). The cookie carries `id` and nothing else; every
+ * attribute lives here. Idle timeout 12 h (`expires_at`, slid at most once per 5 min) and absolute
+ * 30 days (`absolute_expires_at`); sign-out sets `revoked_at` rather than deleting the row, so a
+ * revoked session reports itself instead of looking like a stranger.
+ *
+ * Desktop and webdev never write this table: they have no session at all.
+ */
+export const authSessions = sqliteTable(
+  "auth_sessions",
+  {
+    id: text("id").primaryKey(),
+    tenantId: text("tenant_id").notNull(),
+    userId: text("user_id").notNull(),
+    orgId: text("org_id").notNull(),
+    createdAt: integer("created_at").notNull(),
+    lastSeenAt: integer("last_seen_at").notNull(),
+    expiresAt: integer("expires_at").notNull(),
+    absoluteExpiresAt: integer("absolute_expires_at").notNull(),
+    revokedAt: integer("revoked_at"),
+  },
+  (table) => [
+    // The Phase 5 seat counter reads "members with a live session in the last 30 days" off this.
+    index("auth_sessions_user_seen_idx").on(table.userId, table.lastSeenAt),
+    index("auth_sessions_expires_idx").on(table.expiresAt),
+  ],
+);

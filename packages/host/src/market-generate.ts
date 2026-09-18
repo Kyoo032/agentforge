@@ -59,6 +59,7 @@ import { ensureToolsRegistered } from "./register-tools";
 import { localeForRun } from "./run-context";
 import { listSelectableModels, modeCatalogPayload } from "./selectable-models";
 import { loadSettings } from "./settings-store";
+import { log } from "./log";
 
 /**
  * Core names a desk's tools in its own terms (`quotes`, `technical`, …); this
@@ -261,7 +262,7 @@ function persistBriefing(
     }).id;
   } catch (error) {
     const code = error instanceof ApiError ? error.code : "internal_error";
-    console.warn(`market: could not save briefing (${code})`);
+    log.warn("market_briefing_not_saved", { code });
     return null;
   }
 }

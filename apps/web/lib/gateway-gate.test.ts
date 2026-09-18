@@ -1,3 +1,4 @@
+import { GATEWAY_BASE_URL } from "@agentforge/core/gateway";
 import { describe, expect, it } from "vitest";
 import {
   announceGate,
@@ -71,11 +72,40 @@ describe("resolveGate", () => {
     expect(resolveGate("ok", true)).toBe("onboarding");
   });
 
-  it("keeps webdev working when the host reports no gate", () => {
+  const unreported = [undefined, null, {}, { status: "ok" }, { allowed: true }, { status: "yes", allowed: true }, "ok"];
+
+  it("fails closed on the hosted build when the host reports no gate", () => {
+    for (const payload of unreported) {
+      expect(resolveGate(payload, false, true)).toBe("onboarding");
+      expect(resolveGate(payload, true, true)).toBe("onboarding");
+    }
+  });
+
+  it("keeps webdev open when the host reports no gate, exactly as before the hosted build existed", () => {
+    // A browser on a desk is the dev server: the settings call can be mid-flight, or the host can be
+    // an older build with no gate at all, and neither has ever meant "lock the app".
+    for (const payload of unreported) {
+      expect(resolveGate(payload, false, false)).toBe("app");
+    }
+  });
+
+  it("defaults `hosted` to the marker on the page, which no test page carries", () => {
+    // Same call the renderer makes, with the third argument left off.
     expect(resolveGate(undefined, false)).toBe("app");
-    expect(resolveGate(null, false)).toBe("app");
-    expect(resolveGate({}, false)).toBe("app");
-    expect(resolveGate({ status: "yes", allowed: true }, false)).toBe("app");
+    expect(resolveGate(undefined, true)).toBe("onboarding");
+  });
+
+  it("obeys a reported gate the same way whether or not this is the hosted build", () => {
+    for (const hosted of [true, false]) {
+      expect(resolveGate(gate({ status: "stub", allowed: true }), false, hosted)).toBe("app");
+      expect(resolveGate(gate({ status: "error", allowed: false }), false, hosted)).toBe("onboarding");
+    }
+  });
+
+  it("still opens webdev on the stub gate the host actually reports", () => {
+    const reported = { status: "stub", allowed: true, grace: false, endpoint: GATEWAY_BASE_URL, endpointLocked: true };
+    expect(resolveGate(reported, false)).toBe("app");
+    expect(resolveGate(parseGatewayGate(reported), false)).toBe("app");
   });
 
   it("has no bypass for a truthy-looking extra field", () => {

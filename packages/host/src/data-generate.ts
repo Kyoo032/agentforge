@@ -25,6 +25,7 @@ import { loadSettings } from "./settings-store";
 import { localeForRun } from "./run-context";
 import { DATASET_TABLE } from "./sql-guard";
 import { SQL_STEP_CAP, withActiveDataset, type SqlToolOutput } from "./sql-tool";
+import { log } from "./log";
 
 export const DATA_HISTORY_MAX = 5;
 const SAMPLE_ROWS = 20;
@@ -190,7 +191,7 @@ function persistAnalysis(
     }).id;
   } catch (error) {
     const code = error instanceof ApiError ? error.code : "internal_error";
-    console.warn(`data: could not save analysis (${code})`);
+    log.warn("data_analysis_not_saved", { code });
     return null;
   }
 }

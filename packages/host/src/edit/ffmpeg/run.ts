@@ -3,6 +3,7 @@ import { unlink } from "node:fs/promises";
 import { promisify } from "node:util";
 import { ApiError } from "@agentforge/core";
 import { trackChild, type TrackableChild } from "../../child-processes";
+import { ffmpegLimiter, withLimit, type Limiter } from "../../concurrency";
 import { resolveFfmpeg, resolveFfprobe } from "../ffmpeg-binary";
 import { minimalEnv } from "./env";
 
@@ -40,6 +41,17 @@ export function setExecFileForTests(next: ExecFileFn | null): void {
   execFileImpl = next ?? (defaultExecFile as ExecFileFn);
 }
 
+let limiterImpl: Limiter | null = null;
+
+/**
+ * Test seam for the hosted cap. The global limiter is chosen once, at module load, from the
+ * environment this process booted with; a test that wants to see the capped behaviour hands one in
+ * here instead of flipping `AGENTFORGE_SERVER` under every other suite in the file.
+ */
+export function setFfmpegLimiterForTests(next: Limiter | null): void {
+  limiterImpl = next;
+}
+
 function parseProgress(chunk: string): FfmpegProgress {
   const outTime = chunk.match(/out_time_us=(\d+)/);
   const ratio = chunk.match(/progress=(\w+)/);
@@ -49,7 +61,19 @@ function parseProgress(chunk: string): FfmpegProgress {
   };
 }
 
-export async function runFfmpeg(argv: string[], options: RunFfmpegOptions): Promise<{ stdout: string; stderr: string }> {
+/**
+ * Runs one ffmpeg / ffprobe under the global child cap (concurrency.ts). The cap sits outside the
+ * recipe: a hosted machine serving several tenants encodes `AGENTFORGE_MAX_FFMPEG` clips at a time
+ * and makes the rest wait, instead of spawning one encoder per request.
+ *
+ * On a desk the limiter is unbounded, so this is the same straight call through to `spawnFfmpeg` it
+ * has always been: no cap, no queue, and the child is spawned and tracked before this returns.
+ */
+export function runFfmpeg(argv: string[], options: RunFfmpegOptions): Promise<{ stdout: string; stderr: string }> {
+  return withLimit(limiterImpl ?? ffmpegLimiter, () => spawnFfmpeg(argv, options), options.signal);
+}
+
+async function spawnFfmpeg(argv: string[], options: RunFfmpegOptions): Promise<{ stdout: string; stderr: string }> {
   const resolved = options.bin === "ffprobe" ? resolveFfprobe() : resolveFfmpeg();
   if (!resolved.found || !resolved.path) {
     throw new ApiError("ffmpeg_missing", "ffmpeg is not available on this machine", 400);

@@ -23,6 +23,7 @@ import { type AnydocFormat, type AnydocLoader, type AnydocModule, loadAnydoc, to
 import { detectFormat } from "./detect";
 import { DEFAULT_FALLBACK, type FallbackExtractors, hasFallback, runFallback } from "./fallback";
 import { type ExtractedTable, markdownToText, parseMarkdownTables } from "./markdown-tables";
+import { log } from "../log";
 
 export type { ExtractedTable } from "./markdown-tables";
 export type { AnydocFormat, AnydocLoader, AnydocModule } from "./anydoc";
@@ -104,7 +105,7 @@ function tryLoad(loader: AnydocLoader): AnydocModule | null {
   try {
     return loader();
   } catch (error) {
-    console.warn(`file-extract: native converter unavailable, falling back (${extractDetail(error)})`);
+    log.warn("file_extract_native_converter_unavailable", { detail: extractDetail(error) });
     return null;
   }
 }

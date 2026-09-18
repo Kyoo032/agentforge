@@ -90,6 +90,8 @@ export {
   extractHtmlTitle,
 } from "./content/html-text";
 export type { HtmlTextResult } from "./content/html-text";
+export { isServerMode, trustedOrigins, normaliseOrigin } from "./server-mode";
+export type { EnvLike } from "./server-mode";
 export { redactSecrets } from "./security/redact";
 export { keyFingerprint, keyFingerprintOrNull } from "./security/fingerprint";
 export { scanPii, maskPii, maskPiiInParts, maskOutboundRunInput, piiWarning, PII_MASK } from "./security/pii";

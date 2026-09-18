@@ -447,9 +447,7 @@ describe("maybeRefreshGateway", () => {
 
   it("checks a key that has no verdict yet", () => {
     const box = counting();
-    expect(gate.maybeRefreshGateway(settings, { envRuntime: undefined, runCheck: box.run, nowMs: () => 0 })).toBe(
-      true,
-    );
+    expect(gate.maybeRefreshGateway(settings, { envRuntime: undefined, runCheck: box.run, nowMs: () => 0 })).toBe(true);
     expect(box.calls).toBe(1);
   });
 
@@ -499,5 +497,121 @@ describe("maybeRefreshGateway", () => {
     expect(gate.maybeRefreshGateway(settings, { envRuntime: "stub", runCheck: box.run })).toBe(false);
     expect(gate.maybeRefreshGateway({}, { envRuntime: undefined, runCheck: box.run })).toBe(false);
     expect(box.calls).toBe(0);
+  });
+});
+
+describe("deriveGatewayGate in server mode", () => {
+  const SERVER = { AGENTFORGE_SERVER: "1" };
+  const DESK = {};
+
+  it("does not let the stub runtime open the gate on the server", () => {
+    const payload = derive({ env: SERVER, envRuntime: "stub", hasKey: false, state: null });
+    expect(payload).toMatchObject({ status: "needs_key", allowed: false, grace: false });
+    expect(derive({ env: DESK, envRuntime: "stub", hasKey: false, state: null })).toMatchObject({
+      status: "stub",
+      allowed: true,
+    });
+  });
+
+  it("refuses to take an unverified key on trust", () => {
+    const payload = derive({ env: SERVER, state: null });
+    expect(payload).toMatchObject({ status: "error", allowed: false, grace: false });
+    expect(payload.message).toBe(gate.GATEWAY_UNVERIFIED_MESSAGE);
+    expect(payload.checkedAt).toBeNull();
+    expect(payload.lastOkAt).toBeNull();
+  });
+
+  it("refuses a verdict that belongs to a different key", () => {
+    const payload = derive({ env: SERVER, state: state({ fingerprint: "sha256:someone-else" }) });
+    expect(payload).toMatchObject({ status: "error", allowed: false, grace: false });
+  });
+
+  it("refuses a persisted stub or needs_key verdict, which is no verdict at all", () => {
+    for (const status of ["stub", "needs_key"] as const) {
+      expect(derive({ env: SERVER, state: state({ status }) })).toMatchObject({ status: "error", allowed: false });
+    }
+  });
+
+  it("still opens on a verdict the gateway actually gave", () => {
+    expect(derive({ env: SERVER, state: state() })).toMatchObject({ status: "ok", allowed: true, grace: false });
+  });
+
+  it("still grants the 7-day grace after a real ok, offline or past the TTL", () => {
+    const offline = derive({
+      env: SERVER,
+      state: state({ status: "unreachable", checkedAt: iso(0), lastOkAt: iso(3 * DAY_MS) }),
+    });
+    expect(offline).toMatchObject({ status: "unreachable", allowed: true, grace: true });
+
+    const stale = derive({ env: SERVER, state: state({ checkedAt: iso(2 * DAY_MS), lastOkAt: iso(2 * DAY_MS) }) });
+    expect(stale).toMatchObject({ status: "ok", allowed: true, grace: true });
+  });
+
+  it("never grants grace from a cold state", () => {
+    for (const status of ["unreachable", "error"] as const) {
+      const cold = derive({ env: SERVER, state: state({ status, checkedAt: iso(0), lastOkAt: null }) });
+      expect(cold).toMatchObject({ status, allowed: false, grace: false });
+    }
+    const expired = derive({
+      env: SERVER,
+      state: state({ status: "error", checkedAt: iso(0), lastOkAt: iso(8 * DAY_MS) }),
+    });
+    expect(expired).toMatchObject({ allowed: false, grace: false });
+  });
+
+  it("keeps needs_key and invalid_key exactly as they are, and closes the stub runtime", () => {
+    expect(derive({ env: SERVER, hasKey: false, fingerprint: null })).toMatchObject({
+      status: "needs_key",
+      allowed: false,
+    });
+    expect(derive({ env: SERVER, state: state({ status: "invalid_key", lastOkAt: iso(0) }) })).toMatchObject({
+      status: "invalid_key",
+      allowed: false,
+      grace: false,
+    });
+    // The stub runtime is a desk/CI convenience, never a hosted verdict: on the server it reads as
+    // "no usable key" instead of opening the gate.
+    expect(derive({ env: SERVER, envRuntime: "stub", hasKey: false })).toMatchObject({
+      status: "needs_key",
+      allowed: false,
+    });
+    expect(derive({ env: DESK, envRuntime: "stub", hasKey: false })).toMatchObject({ status: "stub", allowed: true });
+  });
+
+  it("closes the stub runtime on the server even when a key is saved", () => {
+    expect(derive({ env: SERVER, envRuntime: "stub", hasKey: true })).toMatchObject({
+      status: "needs_key",
+      allowed: false,
+    });
+  });
+
+  it("leaves trust-on-first-run untouched on a desk", () => {
+    for (const env of [DESK, { AGENTFORGE_SERVER: "0" }, { AGENTFORGE_SERVER: "" }]) {
+      expect(derive({ env, state: null })).toMatchObject({ status: "ok", allowed: true, grace: true });
+    }
+    expect(derive({ env: DESK, state: state({ fingerprint: "sha256:someone-else" }) })).toMatchObject({
+      status: "ok",
+      allowed: true,
+    });
+  });
+});
+
+describe("requireGatewayAllowed in server mode", () => {
+  it("blocks an unverified key with 403 gateway_blocked instead of trusting it", () => {
+    const settings = { openaiApiKey: KEY };
+    expect(() => gate.requireGatewayAllowed(settings, { envRuntime: undefined })).not.toThrow();
+
+    let thrown: unknown;
+    try {
+      gate.requireGatewayAllowed(settings, { envRuntime: undefined, env: { AGENTFORGE_SERVER: "true" } });
+    } catch (error) {
+      thrown = error;
+    }
+    expect(gate.isGatewayBlockedError(thrown)).toBe(true);
+    const blocked = thrown as InstanceType<Mod["GatewayBlockedError"]>;
+    expect(blocked.code).toBe("gateway_blocked");
+    expect(blocked.status).toBe(403);
+    expect(blocked.gateStatus).toBe("error");
+    expect(blocked.message).toMatch(/could not be validated/i);
   });
 });

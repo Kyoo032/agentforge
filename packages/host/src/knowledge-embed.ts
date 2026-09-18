@@ -11,6 +11,7 @@ import {
 } from "@agentforge/core";
 import { sql } from "@agentforge/db";
 import { loadSettings } from "./settings-store";
+import { log } from "./log";
 
 const EMBED_BATCH = 16;
 
@@ -105,9 +106,10 @@ export async function embedTextsWithModel(texts: string[], model: string, deskId
       out.push(...(await liveEmbedBatch(batch, model, deskId)));
     } catch (error) {
       embedDownUntil = Date.now() + EMBED_DOWN_MS;
-      console.warn(
-        `knowledge-embed: embeddings unavailable, using local vectors for ${EMBED_DOWN_MS / 60_000} min (${error instanceof Error ? error.message.slice(0, 80) : "error"})`,
-      );
+      log.warn("knowledge_embed_unavailable", {
+        localVectorMinutes: EMBED_DOWN_MS / 60_000,
+        detail: error instanceof Error ? error.message.slice(0, 80) : "error",
+      });
       return allStubbed(texts);
     }
   }
@@ -200,9 +202,10 @@ export async function indexSourceVectors(
     tx.immediate();
   } catch (error) {
     // Embed / write failure must not fail the source — FTS already indexed it — but it is never silent.
-    console.warn(
-      `knowledge-embed: vectors not written for ${sourceId} (${error instanceof Error ? error.message.slice(0, 120) : "error"})`,
-    );
+    log.warn("knowledge_embed_vectors_not_written", {
+      sourceId,
+      detail: error instanceof Error ? error.message.slice(0, 120) : "error",
+    });
   }
 }
 

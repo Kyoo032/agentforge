@@ -89,7 +89,12 @@ function SourceList({ briefing, testId }: { briefing: MarketBriefing; testId: st
             return (
               <li key={`${source.url}|${source.label}`}>
                 {href ? (
-                  <a href={href} target="_blank" rel="noreferrer" className="underline-offset-2 hover:underline">
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline-offset-2 hover:underline"
+                  >
                     {source.label}
                   </a>
                 ) : (
@@ -182,11 +187,7 @@ export function MarketBriefingView({
        */}
       {briefing.team ? (
         <div className="mt-10">
-          <MarketTeamPanel
-            team={briefing.team}
-            language={briefing.language}
-            testIdPrefix={`${testIdPrefix}-team`}
-          />
+          <MarketTeamPanel team={briefing.team} language={briefing.language} testIdPrefix={`${testIdPrefix}-team`} />
         </div>
       ) : null}
       <section className="mt-10">

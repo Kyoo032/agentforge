@@ -7,6 +7,7 @@ import {
   retrieveChunks,
   type SourceOrigin,
 } from "./knowledge";
+import { log } from "./log";
 
 /**
  * The Verified stage of the knowledge loop: prove, on demand, that a fact written into this
@@ -42,9 +43,9 @@ export function getKnowledgeVerify(tenant: TenantContext): KnowledgeVerifyRecord
       .get(tenant.workspaceId) as { ok: number; detail: string; created_at: number } | undefined;
     return row ? { ok: row.ok === 1, at: row.created_at, detail: row.detail } : null;
   } catch (error) {
-    console.warn(
-      `knowledge-verify: read failed (${error instanceof Error ? error.message.slice(0, 120) : "error"})`,
-    );
+    log.warn("knowledge_verify_read_failed", {
+      detail: error instanceof Error ? error.message.slice(0, 120) : "error",
+    });
     return null;
   }
 }
@@ -53,9 +54,9 @@ function save(tenant: TenantContext, record: KnowledgeVerifyRecord): KnowledgeVe
   try {
     sql.prepare(UPSERT_VERIFY).run(tenant.workspaceId, record.ok ? 1 : 0, record.detail, record.at);
   } catch (error) {
-    console.warn(
-      `knowledge-verify: not recorded (${error instanceof Error ? error.message.slice(0, 120) : "error"})`,
-    );
+    log.warn("knowledge_verify_not_recorded", {
+      detail: error instanceof Error ? error.message.slice(0, 120) : "error",
+    });
   }
   return record;
 }
@@ -76,9 +77,9 @@ function removePlant(tenant: TenantContext, sourceId: string | null): void {
       deleteSource(tenant, leftover.id);
     }
   } catch (error) {
-    console.warn(
-      `knowledge-verify: plant not removed (${error instanceof Error ? error.message.slice(0, 120) : "error"})`,
-    );
+    log.warn("knowledge_verify_plant_not_removed", {
+      detail: error instanceof Error ? error.message.slice(0, 120) : "error",
+    });
   }
 }
 

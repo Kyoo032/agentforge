@@ -15,6 +15,7 @@ import {
 } from "@agentforge/core";
 import { getLocalVaultKey, localDataDir } from "@agentforge/db/vault-key";
 import { readSelectedWorkspaceId } from "./workspace";
+import { log } from "./log";
 
 export { getLocalVaultKey, localDataDir } from "@agentforge/db/vault-key";
 
@@ -110,10 +111,7 @@ function tryDeleteLegacyPlaintext(): void {
   try {
     unlinkSync(legacySettingsPath());
   } catch {
-    console.warn(
-      "[agentforge] Could not delete leftover settings.json. API keys may still be in plaintext at",
-      legacySettingsPath(),
-    );
+    log.warn("settings_legacy_json_not_deleted", { path: legacySettingsPath() });
   }
 }
 type SettingsFileV2 = {
@@ -224,17 +222,15 @@ function quarantineUnreadableSettings(reason: unknown): void {
   const aside = `${file}.unreadable`;
   try {
     renameSync(file, aside);
-    console.warn(
-      "[agentforge] settings.enc could not be decrypted (wrap key changed or file is corrupt). Moved aside to",
-      aside,
-      reason instanceof Error ? reason.message : reason,
-    );
+    log.warn("settings_enc_moved_aside", {
+      path: aside,
+      detail: reason instanceof Error ? reason.message : reason,
+    });
   } catch (moveError) {
-    console.warn(
-      "[agentforge] settings.enc could not be decrypted and could not be moved aside.",
-      reason instanceof Error ? reason.message : reason,
-      moveError instanceof Error ? moveError.message : moveError,
-    );
+    log.warn("settings_enc_not_moved_aside", {
+      detail: reason instanceof Error ? reason.message : reason,
+      moveDetail: moveError instanceof Error ? moveError.message : moveError,
+    });
   }
 }
 
@@ -273,7 +269,7 @@ function withGatewayDefault(secrets: StoredSecrets): StoredSecrets {
   const stored = normalizeEndpoint(secrets.openaiBaseUrl);
   if (stored && !isGatewayBaseUrl(stored) && !warnedStoredGatewayEndpoint) {
     warnedStoredGatewayEndpoint = true;
-    console.warn("[agentforge] Ignoring a stored gateway endpoint: the endpoint is pinned by this build.");
+    log.warn("settings_stored_gateway_endpoint_ignored");
   }
   return { ...secrets, openaiBaseUrl: resolvedGatewayBaseUrl() };
 }

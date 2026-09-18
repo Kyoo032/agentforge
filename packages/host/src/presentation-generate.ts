@@ -31,6 +31,7 @@ import {
   presentationLocale,
   type PresentationLocale,
 } from "./presentation-locale";
+import { log } from "./log";
 
 const OUTLINE_SYSTEM = `You write finished presentation outlines a stranger can present from. Return ONLY JSON (no markdown fences).
 Shape:
@@ -131,7 +132,7 @@ function persistOutline(
     }).id;
   } catch (error) {
     const code = error instanceof ApiError ? error.code : "internal_error";
-    console.warn(`presentations: could not save outline (${code})`);
+    log.warn("presentation_outline_not_saved", { code });
     return null;
   }
 }
