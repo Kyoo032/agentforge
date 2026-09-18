@@ -40,4 +40,4 @@ Problems with an installer or update can be reported on the [issues page](https:
 
 ---
 
-© 2026 DPS. The installers in this repository are licensed under the [Apache License 2.0](LICENSE); this repository distributes binaries only.
+© DPS. The installers in this repository are proprietary software; this repository distributes binaries only.
