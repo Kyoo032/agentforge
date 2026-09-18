@@ -1,8 +1,10 @@
 # DPSBuddy
 
-A **local** Toko Token client at `https://api.tokotokenai.com/v1`. The person who installs it owns it. You paste a **gateway API key** (or, once the portal ships, sign in with a device code), keep **workspaces** on disk, and work in Chat plus job modes (Documents, Research, Market, Images, Videos, Presentation, Data, Finance, Legal, Edit). Custom-agent Build is parked — not the product identity. Hermes remains the tinkering surface for people who want to build agents.
+A **hosted, multi-user** Toko Token client at `https://api.tokotokenai.com/v1`. Kyo runs it on a server; users open it in a browser and sign in through the portal. Each tenant keeps its own **workspaces** on that server, and works in Chat plus job modes (Documents, Research, Market, Images, Videos, Presentation, Data, Finance, Legal, Edit). Custom-agent Build is parked — not the product identity. Hermes remains the tinkering surface for people who want to build agents.
 
 **Status: closed beta** (not prototype). Public entry point: [`README.md`](README.md).
+
+**Direction (Kyo, 2026-09-18): hosted web app.** DPSBuddy becomes a multi-user SaaS served from Kyo's server — the decision record, with the open decisions and the deploy log, is [`docs/internal/web-pivot-2026-09-18.md`](docs/internal/web-pivot-2026-09-18.md). The Windows/mac Electron desktop app is **frozen at 0.14.27**: maintenance-only, no new features and no new cuts unless Kyo asks. The gateway stays the model backend and gateway-first still holds.
 
 This file is the project source of truth for coding agents. Vault memory at `C:\Users\rizky\Documents\Obsidian` is for Kyo, not for this repo’s domain rules.
 
@@ -36,6 +38,8 @@ pstack `how` and `why` print to the chat and write nothing to disk. The map for 
 - A feature file’s opening paragraph links its map page once one exists; a map page names the feature file that verifies it. `how` runs read-only. A map page that disagrees with the code is fixed the same day or deleted; a stale map is worse than none.
 
 ### 3. Repack skill — `pack-dpsbuddy` becomes the Windows + macOS repack route
+
+**Since the 2026-09-18 pivot this is the desktop-maintenance route only** — it still works exactly as written, but it applies to the frozen 0.14.27 desktop app, never to the hosted web app.
 
 Today’s skill packs once from HEAD. A repack (same version, after a fix) must be a documented route in that skill, not improvisation:
 
@@ -71,7 +75,7 @@ Read this before any work on onboarding, Settings, `/api/v1/settings`, keys, or 
 
 - **Thin client.** The app holds no licence state and makes no entitlement decision. Seats, plan, spend, model allowlist are rows in the portal DB; the client only shows the reason code it was given.
 - **BYO key stays the floor.** Pasting a raw gateway key keeps working exactly as today. Login is a second, additive door. Bearer choice happens in one place, `resolveProviderKeys` in [`packages/core/src/secrets.ts`](packages/core/src/secrets.ts): explicit workspace key (unless `allow_byo_key` is `false`) → live session access token → stub.
-- **New machine-scoped `StoredSession`** in `packages/core/src/session.ts`, persisted to `<localDataDir()>/session.enc` by `packages/host/src/session-store.ts` using `encryptJson` / `decryptJson` from [`packages/core/src/crypto/envelope.ts`](packages/core/src/crypto/envelope.ts). Not new fields on `StoredSecrets` (that struct is per workspace and has a renderer-facing masked projection). No new keychain slot: `apps/desktop/main.cjs` does not change for login.
+- **New machine-scoped `StoredSession`** in `packages/core/src/session.ts`, persisted to `<localDataDir()>/session.enc` by `packages/host/src/session-store.ts` using `encryptJson` / `decryptJson` from [`packages/core/src/crypto/envelope.ts`](packages/core/src/crypto/envelope.ts). Not new fields on `StoredSecrets` (that struct is per workspace and has a renderer-facing masked projection). No new keychain slot: `apps/desktop/main.cjs` does not change for login. That is the frozen desktop path; the hosted web app needs a server-side equivalent for the session store and its wrap key — open decision 2 in [`docs/internal/web-pivot-2026-09-18.md`](docs/internal/web-pivot-2026-09-18.md) (browser login flow with the portal).
 - **Tokens never reach the renderer and never cross IPC.** Access token lives in host memory only; a cold start refreshes. `GET /api/v1/auth/session` returns ids, email, org, seats, device label, expiry — never tokens. `MaskedSecrets` gains no token field.
 - **Two device identifiers, never interchangeable.** `install_id` is client-minted (UUIDv4 in `<localDataDir()>/device.json`, mirrored in `session.enc`, never hardware-derived, survives sign-out). `device_id` is the server’s `devices.id`, returned by the token response, sent on every refresh, carried as the `did` claim.
 - **Boot never waits on the network.** `hasSession` is read from disk; refresh, tenant-config revalidation and the poll all run after first paint with 3 s / 5 s timeouts and backoff. A `401` with a terminal reason clears the session; a timeout does not.
@@ -101,8 +105,8 @@ Everything here is proven by unit tests and webdev only; none of it is packed. T
 
 - **Gateway-first.** DPSBuddy exists because buying a key at `api.tokotokenai.com` leaves the question “where do I use this?” Install, paste the key, work. Native Anthropic / Google / Ark stay in the settings store, unexposed. The endpoint is pinned to `https://api.tokotokenai.com/v1` since 0.14.26 (`8831bc4`) — the 0.14.21 owner override is gone — and hidden from Settings and onboarding since 2026-09-17: onboarding shows only a muted "Gateway: api.tokotokenai.com" line and Settings names the host in its intro sentence. `AGENTFORGE_GATEWAY_URL` is a dev/test-only hook, ignored when packaged or when `NODE_ENV=production`.
 - **Two doors, no password.** BYO gateway key today; portal device-code login next (section above). No e-mail/password, no Better Auth, no product session package. The portal is the only account concept, and it lives server-side.
-- **Single owner on the machine.** Data lives on disk. Everyone who installs it has their own copy.
-- **First-run needs:** a gateway API key or a portal sign-in (and later optional local models such as Ollama). Store keys in the OS keychain / a local secrets file, never in the renderer, never in git, never in `NEXT_PUBLIC_*`.
+- **One server, many tenants.** Every row belongs to a tenant; the host enforces tenancy, the renderer displays. Data lives in the server's data dir, not on a user's machine.
+- **First-run needs:** a gateway API key or a portal sign-in (and later optional local models such as Ollama). The wrap key comes from `AGENTFORGE_SECRETS_KEY` (env / secret manager) on the server; keys never reach the renderer, never go in git, never in `NEXT_PUBLIC_*`. The OS keychain is the frozen desktop path only.
 - **Workspaces** are the user’s own desks (which tabs they need) — not an org membership table they must join. Default already has every work mode. Creating another desk (Legal, Marketing, Students, or custom checkboxes) is optional.
 - Chat is ready immediately. Model picker + composer. Building custom agents is parked, not a gate.
 - Pack templates are optional workspace presets. Default Chat never uses a pack template.
@@ -110,9 +114,13 @@ Everything here is proven by unit tests and webdev only; none of it is packed. T
 - Do not merge **Toko Token** with **TokenKu** in copy or catalogs.
 - Custom agents / Studio stay in the tree and redirect to Chat. Do not add a GTM “hidden Build” door.
 
-### Desktop target
+### Web target
 
-Installer (**Electron**) + **SQLite** in the user data dir. No Docker Postgres. Optional later: on-prem campus server.
+The product is the existing **Express host** (`apps/web/server.ts`) serving the built **Vite renderer**, over HTTPS behind a reverse proxy on Kyo's server. **SQLite** in the server data dir for the first deployment; the tenancy model in the schema and SQLite vs Postgres are open decision 1 in [`docs/internal/web-pivot-2026-09-18.md`](docs/internal/web-pivot-2026-09-18.md), not rules — do not write "use Postgres".
+
+### Desktop (frozen at 0.14.27)
+
+Installer (**Electron**) + **SQLite** in the user data dir. No Docker Postgres. **Maintenance-only** since 2026-09-18: it still builds, packs and releases, but it gets no new features and no new cuts unless Kyo asks.
 
 ### What to keep from this repo
 
@@ -129,17 +137,18 @@ Harbor State seed as identity leftovers (`packages/university/src/labels.ts` sti
 - Never commit `.env`, API keys, or passwords.
 - Do not commit or push unless Kyo asks.
 - Login is only the portal device-code flow described in `docs/internal/portal/`. No password login, no Better Auth, no product e-mail/session package, no “multiplayer” login. The client makes no entitlement decision: the host enforces, the renderer displays.
-- Local process only. Local webdev binds `127.0.0.1:3000`. Packaged Electron has **no HTTP server** — the renderer talks to the host over IPC (`window.agentforge`). Mutating `/api` on webdev accepts localhost Origin only. Outbound HTTPS from the host to the gateway and the portal is the only network traffic that carries anything of the owner's. One exception, and it carries nothing: the component installer fetches pinned, sha512-verified packages from `registry.npmjs.org` (see **Components**); plus the keyless public market and search sources a mode calls by design.
+- **The HTTP server is the product.** Local webdev binds `127.0.0.1:3000`; the hosted app is the same Express host behind a reverse proxy. The loopback-only Origin allowlist in `packages/host/src/local-request.ts:75-84` (`isAllowedMutatingApiRequest`, wired at `packages/host/src/http-adapter.ts:188`) must become a trusted-origin allowlist **plus CSRF protection** before the web app is exposed — open decision 3. Until that lands the host still binds loopback and sits behind the proxy. Frozen desktop: packaged Electron has **no HTTP server** — the renderer talks to the host over IPC (`window.agentforge`). Outbound HTTPS from the host to the gateway and the portal is the only network traffic that carries anything of a tenant's. One exception, and it carries nothing: the component installer fetches pinned, sha512-verified packages from `registry.npmjs.org` (see **Components**); plus the keyless public market and search sources a mode calls by design.
+- Every row belongs to a tenant; the host enforces tenancy, the renderer displays.
 - Every user-facing string exists in both `en` and `id` catalogs, and every job harness applies the output-language rule (see **Locale**).
 
 ## Layout
 
 ```
-apps/web                 Vite + React Router renderer; Express on :3000 for webdev (local owner, no product login)
+apps/web                 Vite + React Router renderer; Express is the product server (webdev on :3000, hosted behind a proxy)
 apps/web/locales         en/ and id/ catalogs, one JSON per namespace (see Locale)
-apps/desktop             Electron shell + Windows installer (packaged: IPC host, no loopback HTTP)
-apps/desktop/branding    Per-brand brand.json (agentforge, kemenkeu, metranet); tenantSlug lands here for login
-apps/desktop/platform    Per-OS shell rules: README.md matrix + windows/ + macos/ (read before touching menus, quit, keychain, paths, installer, updater)
+apps/desktop             Electron shell + Windows installer (frozen 0.14.27; packaged: IPC host, no loopback HTTP)
+apps/desktop/branding    Per-brand brand.json (frozen 0.14.27) (agentforge, kemenkeu, metranet); tenantSlug lands here for login
+apps/desktop/platform    Per-OS shell rules (frozen 0.14.27): README.md matrix + windows/ + macos/ (read before touching menus, quit, keychain, paths, installer, updater)
 apps/mobile              Mobile client home (Expo, Android first, iOS after). Rules only until Phase 0 scaffold; see apps/mobile/AGENTS.md
 packages/host            Local API dispatch (webdev HTTP adapter + Electron IPC); job harnesses; locale boot; file-extract/ (local document reading); renderers/ (xlsx, pptx, docx export)
 packages/host/eval       Dev-only eval harnesses (finance); loopback against webdev, never bundled
@@ -151,7 +160,7 @@ packages/legal           Optional Legal templates
 docs/                    Product docs + docs/internal engineering notes (index: docs/internal/README.md); docs/internal/maps = one how-it-works page per subsystem
 ```
 
-**Shell vs app (locked).** UI lives in `apps/web`. Do not edit `apps/desktop` for features. Do not import `electron` from the renderer. The only file that may read `window.agentforge` is `apps/web/lib/desktop-bridge.ts`; everything else goes through `@/lib/api-client`. Lint/format is **Biome** (`pnpm lint`) — do not add ESLint or Prettier. Agents use `pnpm dev` for features. Packaged Windows: `pnpm desktop:build` + WinApp F5. Packaged Mac: on a Mac, `pnpm desktop:build:mac` / `desktop:build:mac:dir` then F5 the `.app` or `pnpm desktop:mac`. This Windows checkout cannot run Apple’s Simulator or a `.app`. **Platform rules (2026-09-07):** every OS-specific shell behavior is owned by a folder with its own `AGENTS.md`: [`apps/desktop/platform/windows`](apps/desktop/platform/windows/AGENTS.md), [`apps/desktop/platform/macos`](apps/desktop/platform/macos/AGENTS.md), and [`apps/mobile`](apps/mobile/AGENTS.md). A change to `main.cjs`, menus, quit, keychain, paths, installer, or updater is checked against each affected folder before it ships. Mobile lives in-repo under `apps/mobile` (supersedes the earlier sibling-repo note); Expo / iOS Simulator work starts there, not in `apps/desktop`.
+**Shell vs app (locked).** UI lives in `apps/web`. Since 2026-09-18 the web app is the primary target and `apps/desktop` is frozen at 0.14.27 — maintenance fixes only, never new features. Do not edit `apps/desktop` for features. Do not import `electron` from the renderer. The only file that may read `window.agentforge` is `apps/web/lib/desktop-bridge.ts`; everything else goes through `@/lib/api-client`. Lint/format is **Biome** (`pnpm lint`) — do not add ESLint or Prettier. Agents use `pnpm dev` for features. Packaged Windows: `pnpm desktop:build` + WinApp F5. Packaged Mac: on a Mac, `pnpm desktop:build:mac` / `desktop:build:mac:dir` then F5 the `.app` or `pnpm desktop:mac`. This Windows checkout cannot run Apple’s Simulator or a `.app`. **Platform rules (2026-09-07):** every OS-specific shell behavior is owned by a folder with its own `AGENTS.md`: [`apps/desktop/platform/windows`](apps/desktop/platform/windows/AGENTS.md), [`apps/desktop/platform/macos`](apps/desktop/platform/macos/AGENTS.md), and [`apps/mobile`](apps/mobile/AGENTS.md). A change to `main.cjs`, menus, quit, keychain, paths, installer, or updater is checked against each affected folder before it ships. Mobile lives in-repo under `apps/mobile` (supersedes the earlier sibling-repo note); Expo / iOS Simulator work starts there, not in `apps/desktop`.
 
 pnpm 9.15.9 + Turborepo. If corepack hits EPERM on Windows, use `npx pnpm@9.15.9`.
 
@@ -179,9 +188,9 @@ npx pnpm@9.15.9 dev               # http://127.0.0.1:3000 → /chat, no login
 
 Optional: `npx pnpm@9.15.9 db:push` (`drizzle-kit push` escape hatch). Canonical path is `drizzle-kit generate` in `packages/db` + app-side migrate (`ensureSchema`) on SQLite open.
 
-SQLite file: `data/agentforge.sqlite` (or `AGENTFORGE_DATA_DIR`). Do **not** set `DATABASE_URL` to Postgres. The portal’s Postgres in `docs/internal/portal/migrations/` is the backend team’s server database, never a product dependency.
+SQLite file: `data/agentforge.sqlite` (or `AGENTFORGE_DATA_DIR`). **SQLite until the tenancy design says otherwise** — do not set `DATABASE_URL` to Postgres on a hunch; Postgres for tenancy is open decision 1 in the pivot record. The portal’s Postgres in `docs/internal/portal/migrations/` is the backend team’s server database, never a product dependency.
 
-Desktop:
+**Desktop (frozen at 0.14.27, maintenance-only):**
 
 - **Webdev window:** `pnpm desktop:dev` — Electron around local Vite/Express on `:3000` (no preload / no IPC). Not the installed product.
 - **Packaged app:** `pnpm desktop:build` → NSIS x64 (Windows product path). Stages the Vite renderer + esbuild `host.cjs` (no bundled `node.exe`, no loopback port). Native modules (`better-sqlite3`, `keytar`) need `@electron/rebuild` **on Windows** — do not run that on Cloud. On launch the main process loads the renderer from `extraResources` and dispatches APIs over IPC. Writes `host-status.json` under Electron userData. Window close exits the whole process tree. Running setup.exe again replaces the existing install and keeps `%APPDATA%\DPSBuddy`. Uninstall (not upgrade) kills `DPSBuddy.exe`, deletes `%APPDATA%\DPSBuddy`, and removes Credential Manager `DPSBuddy` / `wrap-key`. mac/linux: `pnpm desktop:build:mac` / `pnpm desktop:build:linux` on that OS (unsigned; notarization is not done); `pnpm desktop:build:mac:docker --arch all` builds the static mac bundle from this Windows desk. Cloud cannot prove packaged Windows and must not run `pnpm desktop:build`. Move log: [`docs/internal/moves.md`](docs/internal/moves.md).
@@ -189,20 +198,27 @@ Desktop:
 - **Ship list for 0.14.26 (published 2026-09-15):** see [`docs/internal/0.14.26-changelog.md`](docs/internal/0.14.26-changelog.md) and [`docs/public/0.14.26-notes.md`](docs/public/0.14.26-notes.md) — host gateway gate + Start over, the Bahasa Indonesia sweep across every mode, the Finance fixes, the Images/Videos cost estimate, and the security passes; Kyo overrode the harness-first order above for this cut, so 0.14.26 was cut before the harness pass landed.
 - **Ship list for 0.14.25 (published 2026-09-12):** Market Watch, workspace desk management, and builtin Knowledge Phases 0–4, listed in [`docs/internal/0.14.25-changelog.md`](docs/internal/0.14.25-changelog.md); public notes in [`docs/public/0.14.25-notes.md`](docs/public/0.14.25-notes.md). Windows + mac preview (7 assets) on `Kyoo032/DPSBuddy`. Previous: [`docs/public/0.14.24-notes.md`](docs/public/0.14.24-notes.md) (published 2026-09-09, Windows-only); what is on `main` but not in the public installers is tracked in [`docs/internal/unreleased.md`](docs/internal/unreleased.md). Shipped: [`docs/internal/0.14.22-changelog.md`](docs/internal/0.14.22-changelog.md) (Research dossier / Data / Finance, macOS preview; plan in [`docs/internal/research-dossier-analyst-modes-plan.md`](docs/internal/research-dossier-analyst-modes-plan.md)), [`docs/internal/0.14.21-changelog.md`](docs/internal/0.14.21-changelog.md). Earlier: [`docs/internal/0.14.1-changelog.md`](docs/internal/0.14.1-changelog.md) is the reference of everything that must be inside the 0.14.1 `setup.exe`. Development and quick testing happen on **webdev** (`pnpm dev`, `:3000`), so a feature that works there is *not shipped* until it is staged into `host.cjs` + the renderer, packed, and driven on the installed app (`doctor --desktop`). Every agent that changes product code after 0.14.0 appends to the current changelog (`docs/internal/0.14.27-changelog.md` for this cut; `unreleased.md` for anything that lands after it, until the next changelog exists); the pack step reads it back as the checklist.
 
-### Two repos: verify in agentforge, release in DPSBuddy
+### Web release (hosted)
 
-- **`Kyoo032/agentforge` (private, this repo)** is where all work happens: source, branches, webdev, packing, and the full verify pass. Nothing leaves it until proven — staged into `host.cjs` + renderer, packed, installed, and driven on the packaged app (`doctor --desktop`).
-- **`Kyoo032/DPSBuddy` (public, "DPSBuddy")** is releases only: README + `DPSBuddy-Setup-<v>.exe` + `.blockmap` + `latest.yml`, published with `pnpm desktop:release` (never by hand, never `git push`). The packaged app's updater reads this repo unauthenticated. Never put source, flavor exes, `docs/internal/` notes, or any AI/agent marks there — release notes come from `docs/public/<version>-notes.md`, commits and releases are authored as Kyo, plain messages.
+- **Deploy = build the renderer, run the host.** `pnpm --filter web build` (`vite build` → `apps/web/dist`), then `NODE_ENV=production tsx server.ts` behind the reverse proxy on Kyo's server. Secrets come from the environment — `AGENTFORGE_SECRETS_KEY` first of all — never from a file in the repo.
+- **Nothing counts as shipped until it is deployed to the hosted environment and driven there.** A green webdev, a green `tsc` or a passing test is not a deploy.
+- **Every deploy is logged by commit sha** in the deploy log in [`docs/internal/web-pivot-2026-09-18.md`](docs/internal/web-pivot-2026-09-18.md). Web deploys carry no version number; the 0.14.2x scheme is desktop's.
+- **No Dockerfile for the web app exists yet.** Which server, the reverse proxy, TLS, backups of the data dir and the deploy command are open decision 4 — do not invent one in passing.
+
+### Two repos: verify in agentforge, release in DPSBuddy (desktop maintenance only)
+
+- **`Kyoo032/agentforge` (private, this repo)** is where all work happens: source, branches, webdev, packing, and the full verify pass. The DPSBuddy release flow below is **desktop-maintenance-only** since 2026-09-18; the hosted web app ships through the deploy above, not through a release repo. For a desktop maintenance cut nothing leaves this repo until proven — staged into `host.cjs` + renderer, packed, installed, and driven on the packaged app (`doctor --desktop`).
+- **`Kyoo032/DPSBuddy` (public, "DPSBuddy")** is desktop releases only: README + `DPSBuddy-Setup-<v>.exe` + `.blockmap` + `latest.yml`, published with `pnpm desktop:release` (never by hand, never `git push`). The packaged app's updater reads this repo unauthenticated. Never put source, flavor exes, `docs/internal/` notes, or any AI/agent marks there — release notes come from `docs/public/<version>-notes.md`, commits and releases are authored as Kyo, plain messages.
 - Order is fixed: work → verify inside agentforge → only when everything on the ship list is proven, cut the release into DPSBuddy.
 - **Pack/ship on this Windows desk:** [`.cursor/skills/pack-dpsbuddy`](.cursor/skills/pack-dpsbuddy/SKILL.md) (isolated NSIS worktree + Docker mac dmg). Cloud must not run it.
-- **Versioning (Kyo, 2026-09-07):** after 0.14.2 the next releases are `0.14.21`, `0.14.22`, … — do not use `0.14.3+` and do not bump to `0.15` until Kyo says so. Semver orders these correctly for the updater (21 > 2). Current tree: `apps/desktop/package.json` is `0.14.27`; the next cut is `0.14.28`.
+- **Versioning (Kyo, 2026-09-07; scoped 2026-09-18):** the `0.14.21`, `0.14.22`, … scheme continues **for desktop maintenance cuts only** — do not use `0.14.3+` and do not bump to `0.15` until Kyo says so. Semver orders these correctly for the updater (21 > 2). Current tree: `apps/desktop/package.json` is `0.14.27` and frozen there; a maintenance cut would be `0.14.28`. Web deploys are tracked by commit sha, not by this scheme.
 
 **Packaged Windows installer exists.** Cloud Linux must not run `pnpm desktop:build`.
 
 - Artifacts: `apps/desktop/dist/DPSBuddy Setup 0.14.27.exe` + mac arm64/x64 dmg/zip (gitignored), once the 0.14.27 packs land. The published 0.14.26 set is archived under `apps/desktop/dist/published-0.14.26/`; anything else older in `dist/` (`published-*`, `superseded-*`) is history, not current.
 - Packaged proof is an Electron window + `doctor.mjs --desktop` (in `.cursor/skills/verify-agentforge/scripts/`) reading `host-status.json` (`transport: "ipc"`). There is no `app-url.txt` and no child `node.exe`.
 
-No account today. Workspaces are local. Paste the gateway key in Settings. `AGENTFORGE_RUNTIME=stub` until a key is saved (then live models from the gateway). Env `AGENTFORGE_RUNTIME=ai` still uses `.env` keys.
+Webdev has no account: workspaces belong to the local owner and the gateway key is pasted in Settings. On the hosted app the portal session is the account and workspaces belong to the tenant (open decision 2 in the pivot record). `AGENTFORGE_RUNTIME=stub` until a key is saved (then live models from the gateway). Env `AGENTFORGE_RUNTIME=ai` still uses `.env` keys.
 
 ## Runtime and tools
 
@@ -219,7 +235,7 @@ Do not use Hermes tools or Hermes dashboard tokens to process DPSBuddy keys.
 
 - **Gateway key** → `settings.enc` (AES-256-GCM), per workspace.
 - **Portal session (Phase 1)** → `session.enc` next to it, machine-scoped, encrypted under a key derived from the same wrap key (`HKDF(wrapKey, "session-v1")`). Refresh token on disk only there; access token in host memory only.
-- **Wrap key** → Electron keytar `DPSBuddy` / `wrap-key` (injected as `AGENTFORGE_SECRETS_KEY`), or webdev `data/.master-key` / env. Never in the renderer, never in git, never in `NEXT_PUBLIC_*`. Login adds no keychain slot.
+- **Wrap key** → `AGENTFORGE_SECRETS_KEY` from the environment / a secret manager on the server: [`packages/db/src/vault-key.ts:37-51`](packages/db/src/vault-key.ts) reads the env first and only falls back to `data/.master-key` in the local data dir. That env path is the hosted product's; never a file in the repo. Electron keytar `DPSBuddy` / `wrap-key` (injected as the same env var by `apps/desktop/main.cjs`) is the **frozen desktop** path. Never in the renderer, never in git, never in `NEXT_PUBLIC_*`. Login adds no keychain slot.
 - Remote inference and portal URLs must be HTTPS. `http://` is only for loopback (Ollama).
 - DPSBuddy does not log prompts. Message bodies, system prompts, and tool I/O are encrypted at rest. Gateway retention is Toko Token’s policy, not ours.
 - OpenRouter’s `provider.zdr: true` is sent only when the saved URL is OpenRouter. Do not send that field to Toko Token.
@@ -243,7 +259,7 @@ Boot uses [`.cursor/environment.json`](.cursor/environment.json): `install` → 
 
 This image has **no Docker**. `docker`, `dockerd`, and `sudo service docker start` fail (`docker: unrecognized service`). Do not run `docker compose`. Product DB is SQLite. Default file: `data/agentforge.sqlite`.
 
-The Windows closed-beta checkout also uses SQLite (`ensureSchema` migrates on open; `pnpm db:push` is optional). Desktop Electron injects the wrap key from the OS keychain. Packaged uses IPC in-process — no loopback HTTP server.
+The Windows closed-beta checkout also uses SQLite (`ensureSchema` migrates on open; `pnpm db:push` is optional). Frozen desktop aside: Electron injects the wrap key from the OS keychain, and packaged uses IPC in-process — no loopback HTTP server. On the hosted web app the wrap key is `AGENTFORGE_SECRETS_KEY` from the environment.
 
 ### What a Cloud Agent on this VM can do
 
@@ -276,7 +292,7 @@ GitHub Actions (`.github/workflows/e2e.yml`) runs the same stub Playwright suite
 
 - Cursor’s browser can inject `data-cursor-ref` and block clicks. Use Chrome or Playwright.
 - Playwright `/studio/**` redirects to Chat (Build is parked).
-- Dev server binds `127.0.0.1:3000` (webdev only: Vite + Express + `@agentforge/host`). Playwright and the IDE browser must use `http://127.0.0.1:3000` (not a LAN IP). Packaged DPSBuddy has no HTTP port; `doctor.mjs --desktop` reads Electron userData `host-status.json` (Windows `%APPDATA%\DPSBuddy`, Linux `$XDG_CONFIG_HOME/DPSBuddy` or `~/.config/DPSBuddy`, macOS `~/Library/Application Support/DPSBuddy`). A phone on a LAN `:3000` is not a product surface — see [`docs/mobile.md`](docs/mobile.md).
+- Dev server binds `127.0.0.1:3000` (webdev only: Vite + Express + `@agentforge/host`). Playwright and the IDE browser must use `http://127.0.0.1:3000` (not a LAN IP). (desktop, frozen) Packaged DPSBuddy has no HTTP port; `doctor.mjs --desktop` reads Electron userData `host-status.json` (Windows `%APPDATA%\DPSBuddy`, Linux `$XDG_CONFIG_HOME/DPSBuddy` or `~/.config/DPSBuddy`, macOS `~/Library/Application Support/DPSBuddy`). A phone on a LAN `:3000` is not a product surface — see [`docs/mobile.md`](docs/mobile.md).
 - **Start over is destructive.** `settings-reset-all-submit` erases the desk it runs on and relaunches; `settings-reset-key-submit` forgets the key on every desk. Never press either on the operator’s shared Windows instance unless asked. Drive them on a throwaway `AGENTFORGE_DATA_DIR`.
 - Host tests read the operator’s `data/` unless the test file sets its own `AGENTFORGE_DATA_DIR` (`enhance-prompt.test.ts` fails when the desk locale is `id`). Do not fix that with one shared temp dir for the whole run: parallel workers then race `ensureSchema` (`table agent_tool_bindings already exists`). Isolation is a per-file `mkdtempSync`.
 - `pnpm -r test` stops at the first failing package and the db `drizzle-kit check` drift test is timing-sensitive under a full parallel run; re-run a package alone before calling it red.

@@ -5,7 +5,7 @@ Status: **rules only** (2026-09-07). No app code yet. This folder is the home fo
 ## Shape (locked)
 
 - **Direct gateway client.** The phone talks straight to the Toko Token gateway with its own pasted key: install, paste key, work. No account, no login, no sync, no cloud tenant. Phone and desktop are independent devices.
-- **No LAN bridge** to the desktop app. Packaged Electron has no HTTP server by design (`docs/mobile.md`). Do not add one on either side.
+- **No LAN bridge** to the desktop app. Packaged Electron has no HTTP server by design (`docs/mobile.md`). Do not add one on either side. **Premise changed (2026-09-18):** desktop is frozen at 0.14.27 and the product continues as a hosted, multi-user web app with a real HTTP server, so the reason this rule existed no longer applies as written — a future phone client would target the hosted app, not a desktop on the LAN. Nothing here is being rewritten yet: the mobile plan stays **paused** (Kyo, Sept 2026) until the web app ships. See [`web-pivot-2026-09-18.md`](../../docs/internal/web-pivot-2026-09-18.md).
 - **Same secrecy posture as desktop.** The key is stored in the OS keystore via `expo-secure-store`, never rendered back after save; the UI sees only `hasKey` plus a SHA-256 fingerprint. HTTPS only; port the guard from `packages/core/src/security/tls.ts`.
 - **Kernel stays neutral.** No `student` / `course` / campus nouns, no new kernel tables, no changes to `packages/db`. Packs (Legal / Marketing / University) are optional presets if desks ever ship on mobile.
 

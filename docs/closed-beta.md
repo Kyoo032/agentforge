@@ -1,16 +1,15 @@
 # Closed beta checklist
 
-For invited testers. Use the **installed app** — Windows Setup exe or macOS dmg from [Releases](https://github.com/Kyoo032/agentforge/releases). Do not clone the repo or run a local web server.
+For invited testers. DPSBuddy is a **hosted web app**: you use it in your browser. There is nothing to install, and you do not clone this repo or run a local server.
 
 ## Before you start
 
-1. Download the installer for your OS from [v0.1.0](https://github.com/Kyoo032/agentforge/releases/tag/v0.1.0) (Windows exe is up; macOS dmg when published)
-2. Install and open **DPSBuddy** from the Start menu (Windows) or Applications (macOS)
-3. Paste your Toko Token gateway key in **Settings** when you want live models
+1. Ask the operator for an invite and the hosted URL (it is not public)
+2. Open the URL in a current browser on a desktop or laptop
+3. Sign in through the Toko Token portal
+4. Paste your Toko Token gateway key in **Settings** when you want live models
 
 Without a key, Chat still works in offline demo mode.
-
-Windows SmartScreen may warn because the installer is unsigned. **More info** → **Run anyway** if you trust this build.
 
 ## What to try
 
@@ -21,9 +20,9 @@ Windows SmartScreen may warn because the installer is unsigned. **More info** �
 
 ## Notes
 
-- There is no mobile app. DPSBuddy is local to your machine — [`docs/mobile.md`](mobile.md).
-- First launch can take up to a minute while the bundled server starts.
+- There is no mobile app, and a phone browser is untested — [`docs/mobile.md`](mobile.md).
+- Report anything broken to the operator with the mode, what you did, and what you expected. Screenshots help. This is not a public support channel.
 
 ## Secrets
 
-Never paste a production gateway key into a shared machine, a PR comment, or git. Keep keys on the machine you own.
+Never paste a production gateway key into a shared machine, a PR comment, or git. Treat your invite and your key as yours alone.

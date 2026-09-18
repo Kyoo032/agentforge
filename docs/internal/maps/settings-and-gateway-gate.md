@@ -1,5 +1,9 @@
 # Map — Settings, the gateway gate, and Start over
 
+> **Desktop is frozen at 0.14.27 — maintenance only.** The product continues as a hosted, multi-user web app.
+> The host-decides/renderer-displays rule below is unchanged; the Electron-only transport and wipe details are frozen desktop behaviour.
+> Decision record: [`web-pivot-2026-09-18.md`](../web-pivot-2026-09-18.md).
+
 Last verified: 2026-09-17 at 01ea70a (working tree)
 
 > The 2026-09-17 "hide the endpoint" change is verified in the **working tree**, not in `01ea70a`:
@@ -336,7 +340,10 @@ installing an update or already exiting), races `clearRendererState()` — `clea
   detached child that the tree-walk would kill (`apps/desktop/main.cjs:203-207`).
 - **`POST /api/v1/settings/reset` also requires the transport header.** It is in `TRANSPORT_REQUIRED_PATHS`
   (`packages/host/src/http-adapter.ts:12`) on top of the loopback `Host` and `Origin` checks, so a cross-site
-  HTML form POST cannot reach it.
+  HTML form POST cannot reach it. The IPC-only transport and the loopback-only `Host` / `Origin` allowlist are
+  **(desktop, frozen)**: on the hosted web app the same host gate runs behind the HTTP adapter
+  (`packages/host/src/http-adapter.ts:188`), which is where the loopback check has to become a trusted-origin
+  allowlist plus CSRF before the app is exposed (open decision 3).
 
 ## Verify
 

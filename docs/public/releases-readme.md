@@ -1,5 +1,8 @@
 # DPSBuddy
 
+> **Desktop builds are frozen at 0.14.27 and receive maintenance fixes only.**
+> DPSBuddy continues as a hosted web app you sign in to from your browser; ask the operator for access.
+
 Desktop releases for **DPSBuddy**, the local-first agent workspace by DPS. This repository hosts installers and update feeds only; it contains no source code.
 
 ## Download

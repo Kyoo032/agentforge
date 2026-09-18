@@ -9,7 +9,7 @@ Status: **paused** (2026-09-07). Plan written; build deferred until the Research
 Rejected alternatives:
 
 - **Remote server / sync backend** — does not exist, contradicts "no login, single owner, local data". Not for closed beta.
-- **LAN bridge to the desktop app** — explicitly forbidden (`docs/mobile.md`); packaged Electron has no HTTP server by design.
+- **LAN bridge to the desktop app** — explicitly forbidden (`docs/mobile.md`); packaged Electron has no HTTP server by design. **Premise changed (2026-09-18):** the product continues as a hosted, multi-user web app with a real HTTP server, so "there is nothing to talk to" no longer holds — a phone would talk to the hosted app, not to a desktop on the LAN. The mobile plan stays **paused** (Kyo, Sept 2026) until the web app ships; see [`web-pivot-2026-09-18.md`](web-pivot-2026-09-18.md).
 
 Consequence: phone and desktop are **independent devices**. Threads/media do not sync in v1. Same key can be pasted on both; usage is per-key so `/usage` stays coherent.
 

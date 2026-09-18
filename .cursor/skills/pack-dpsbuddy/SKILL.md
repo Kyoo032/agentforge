@@ -10,6 +10,10 @@ description: >-
 
 # Pack DPSBuddy (this Windows PC)
 
+> **Desktop is frozen at 0.14.27 — maintenance only.** The product continues as a hosted, multi-user web app.
+> These pack and release routes still work and stay supported; use them for maintenance cuts only, and only when Kyo asks.
+> Decision record: [`web-pivot-2026-09-18.md`](../../../docs/internal/web-pivot-2026-09-18.md).
+
 Harness, not product. Same class as `verify-agentforge`. Do not vendor into `apps/`, the installer, or the UI.
 
 One Electron shell ships to both OSes. **How it is packed, how the user steers it, and what counts as proof are different.** Canon: [platform/README.md](../../../apps/desktop/platform/README.md), [windows/AGENTS.md](../../../apps/desktop/platform/windows/AGENTS.md), [macos/AGENTS.md](../../../apps/desktop/platform/macos/AGENTS.md). Code: `edit-menu.cjs`, `lifecycle.cjs`. Traps: [traps.md](traps.md).

@@ -1,5 +1,9 @@
 # Map — Desktop pack routes
 
+> **Desktop is frozen at 0.14.27 — maintenance only.** The product continues as a hosted, multi-user web app.
+> Everything below stays true and keeps working; it just gets no new features, and no new cut unless Kyo asks.
+> Decision record: [`web-pivot-2026-09-18.md`](../web-pivot-2026-09-18.md).
+
 Last verified: 2026-09-15 at b9f931a
 
 ## Overview

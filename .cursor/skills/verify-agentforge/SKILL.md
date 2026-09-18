@@ -7,7 +7,7 @@ description: Drives DPSBuddy the way a user does — webdev Vite/Express on 127.
 
 Agent guardrail, same class as `AGENTS.md`. Not part of the DPSBuddy app.
 
-- **Product** is `apps/`, `packages/`, the NSIS installer, Chat / Settings / Workspaces / job modes.
+- **Product** is `apps/`, `packages/`, Chat / Settings / Workspaces / job modes — served as a hosted, multi-user web app. The NSIS installer is the frozen desktop shell (0.14.27, maintenance only); see [`web-pivot-2026-09-18.md`](../../../docs/internal/web-pivot-2026-09-18.md).
 - **This directory** is how agents map and prove *this* repo (where to press, how to doctor, what counts as proof).
 - Original pstack skills stay in the Cursor pstack plugin. Call them. Do not copy them into product code or the desktop bundle.
 - **Map:** this `features/` map, then pstack `how` for how a subsystem works and where to fix.
@@ -16,12 +16,12 @@ Agent guardrail, same class as `AGENTS.md`. Not part of the DPSBuddy app.
 
 A cold agent reads this mid-task. Drive the real app. A green `tsc` or worker summary is not proof.
 
-**Surfaces.** Two products share UI code; they do **not** share a port.
+**Surfaces.** Two surfaces share UI code; they do **not** share a port. The **web** proof path is webdev `:3000` today, and the hosted environment once it exists. `--desktop` stays the proof path for the **frozen** Electron build (0.14.27, maintenance only) — it is not the default surface any more, and it is still the only thing that proves a packaged shell change.
 
 | Surface | How to reach it | Doctor | Port |
 |---|---|---|---|
 | **Local webdev** | `pnpm dev` → Chrome / IDE browser | `node .cursor/skills/verify-agentforge/scripts/doctor.mjs` | **3000 only** (`tsx server.ts` → Express + Vite on `127.0.0.1:3000`) |
-| **Packaged desktop** | Installed DPSBuddy, or local Kemenkeu AI / AIHub Metranet (Windows NSIS; mac/linux operator-built) | `node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop` | **None.** IPC only. Status in userData `host-status.json` (Windows `%APPDATA%\DPSBuddy` or `%APPDATA%\Kemenkeu AI` / `%APPDATA%\AIHub Metranet`; Linux `$XDG_CONFIG_HOME/DPSBuddy` or `~/.config/DPSBuddy`; macOS `~/Library/Application Support/DPSBuddy`) |
+| **Packaged desktop (frozen)** | Installed DPSBuddy, or local Kemenkeu AI / AIHub Metranet (Windows NSIS; mac/linux operator-built) | `node .cursor/skills/verify-agentforge/scripts/doctor.mjs --desktop` | **None.** IPC only. Status in userData `host-status.json` (Windows `%APPDATA%\DPSBuddy` or `%APPDATA%\Kemenkeu AI` / `%APPDATA%\AIHub Metranet`; Linux `$XDG_CONFIG_HOME/DPSBuddy` or `~/.config/DPSBuddy`; macOS `~/Library/Application Support/DPSBuddy`) |
 
 `pnpm desktop:dev` is the local webdev inside an Electron window (may reuse :3000). That is not packaged proof. APIs exist under `/api/v1/*` but proof is the user path, not an internal setter.
 

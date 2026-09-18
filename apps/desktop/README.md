@@ -1,5 +1,9 @@
 # DPSBuddy desktop
 
+> **Desktop is frozen at 0.14.27 — maintenance only.** The product continues as a hosted, multi-user web app.
+> The Electron shell below still exists, still ships and still gets bug fixes; it gets no new features.
+> Decision record: [`web-pivot-2026-09-18.md`](../../docs/internal/web-pivot-2026-09-18.md).
+
 Operator / agent only. Humans install from [GitHub Releases](https://github.com/Kyoo032/agentforge/releases), not this file.
 
 Electron **is** the packaged product. The main process owns SQLite, secrets, and media. The renderer talks over IPC. There is **no** bundled Next.js child, **no** loopback HTTP server, and **no** `app-url.txt`.

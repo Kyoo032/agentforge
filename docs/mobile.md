@@ -1,13 +1,13 @@
 # Mobile
 
-DPSBuddy is a **local desktop / loopback** workbench. There is no iOS or Android app.
+There is **no mobile app**. No iOS or Android client ships with DPSBuddy.
 
 - No App Store or Play Store listing.
 - No Capacitor, React Native, or Cordova project in this repo.
-- No electron-builder mobile target. Desktop targets are Windows NSIS, mac dmg/zip, and linux AppImage/deb only.
+- No electron-builder mobile target.
 
-A phone or tablet browser hitting a LAN `:3000` is **not** a product surface. Webdev binds `127.0.0.1:3000`. Packaged Electron has no HTTP server (IPC only). Other devices on the network cannot reach Chat, and that is intentional.
+DPSBuddy is now a hosted web app, so a phone or tablet browser can in principle reach it. That is **untested and unsupported for now**: the layout has not been driven at phone width and nothing about it is proven. Use a desktop or laptop browser.
 
-The mobile client is being built in-repo under [`apps/mobile`](../apps/mobile/AGENTS.md) (Expo, Android first, iOS after), as a direct gateway client, not a kernel change and not part of the desktop installer. Its rules live in that folder's `AGENTS.md`; read them before adding any React Native, Xcode, or Simulator work. This Windows checkout cannot run Apple’s Simulator. Plan: [`docs/internal/mobile-android-plan.md`](internal/mobile-android-plan.md).
+The Expo client under [`apps/mobile`](../apps/mobile/AGENTS.md) (Android first, iOS after) is paused; its rules live in that folder's `AGENTS.md`, and the plan is [`docs/internal/mobile-android-plan.md`](internal/mobile-android-plan.md). This Windows checkout cannot run Apple's Simulator.
 
-See the desktop shell: [`apps/desktop/README.md`](../apps/desktop/README.md). Verification map: [`.cursor/skills/verify-agentforge/features/mobile.md`](../.cursor/skills/verify-agentforge/features/mobile.md).
+Why this page changed: [`docs/internal/web-pivot-2026-09-18.md`](internal/web-pivot-2026-09-18.md). The desktop shell, frozen at 0.14.27: [`apps/desktop/README.md`](../apps/desktop/README.md). Verification map: [`.cursor/skills/verify-agentforge/features/mobile.md`](../.cursor/skills/verify-agentforge/features/mobile.md).
