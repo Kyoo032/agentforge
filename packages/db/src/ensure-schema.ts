@@ -231,6 +231,7 @@ export function ensureSchema(sqlite: Database.Database): void {
   ensureArtifactTables(sqlite);
   ensureDatasetTables(sqlite);
   ensureMarketTables(sqlite);
+  ensureAuthSessionTables(sqlite);
   ensureWorkspaceColumns(sqlite);
   assertKernelTables(sqlite);
 }
@@ -377,6 +378,28 @@ function ensureDatasetTables(sqlite: Database.Database): void {
 }
 
 /** Kernel-neutral job outputs. Mirrors drizzle/0006_artifacts.sql for DBs stamped before it existed. */
+/**
+ * Hosted browser sessions. Mirrors drizzle/0014_auth_sessions.sql for DBs stamped before it existed.
+ * Desktop and webdev never write it; the table is created anyway so one schema serves both targets.
+ */
+function ensureAuthSessionTables(sqlite: Database.Database): void {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS auth_sessions (
+      id text PRIMARY KEY NOT NULL,
+      tenant_id text NOT NULL,
+      user_id text NOT NULL,
+      org_id text NOT NULL,
+      created_at integer NOT NULL,
+      last_seen_at integer NOT NULL,
+      expires_at integer NOT NULL,
+      absolute_expires_at integer NOT NULL,
+      revoked_at integer
+    );
+    CREATE INDEX IF NOT EXISTS auth_sessions_user_seen_idx ON auth_sessions (user_id, last_seen_at);
+    CREATE INDEX IF NOT EXISTS auth_sessions_expires_idx ON auth_sessions (expires_at);
+  `);
+}
+
 function ensureArtifactTables(sqlite: Database.Database): void {
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS artifacts (

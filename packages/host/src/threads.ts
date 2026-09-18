@@ -8,6 +8,7 @@ import { localeForRun } from "./run-context";
 import { deleteSourceByOrigin } from "./knowledge";
 import { removeGraphForThread } from "./knowledge-graph-prune";
 import { messageText } from "./message-text";
+import { log } from "./log";
 
 const PREVIEW_MAX = 80;
 const READ_MESSAGE_MAX = 2_000;
@@ -143,7 +144,10 @@ export async function deleteThread(tenant: TenantContext, threadId: string): Pro
     deleteSourceByOrigin(tenant, { kind: "thread", id: threadId });
     removeGraphForThread(tenant, threadId);
   } catch (error) {
-    console.warn(`threads: could not drop knowledge card for ${threadId} (${error instanceof Error ? error.message : "unknown"})`);
+    log.warn("threads_knowledge_card_not_dropped", {
+      threadId,
+      detail: error instanceof Error ? error.message : "unknown",
+    });
   }
   return true;
 }

@@ -1,0 +1,135 @@
+# DPSBuddy hosted web app.
+#
+# Run from THIS folder:  docker compose -f compose.yml up -d
+# (the build context is the repo root, one level up)
+#
+# Network shape: apps/web/server.ts binds 127.0.0.1 and nothing in this folder edits it.
+# So `proxy` joins `app`'s network namespace (network_mode: "service:app") instead of
+# talking to it over a bridge. Both containers then share one loopback, Caddy can reach
+# 127.0.0.1:3000, and the published ports live on `app` (a service that shares another
+# service's namespace may not publish ports of its own).
+#
+# Hardening here covers security spec H2 (read-only root, /data the only writable mount,
+# no-new-privileges, non-root user) and L2 (bounded, rotated logs).
+
+name: dpsbuddy-web
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: webapp-deploy/Dockerfile
+    image: dpsbuddy-web:local
+    env_file:
+      # Non-secret settings only. deploy.sh refuses to run without this file; it is
+      # optional here so `docker compose config` parses on a fresh checkout.
+      - path: .env
+        required: false
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      AGENTFORGE_DATA_DIR: /data
+      # The root filesystem is read-only, so every tool that wants scratch space is
+      # pointed at the tmpfs below. tsx (the production entrypoint) caches transformed
+      # modules under os.tmpdir(); Node and corepack use the XDG/npm cache paths.
+      TMPDIR: /tmp
+      XDG_CACHE_HOME: /tmp/.cache
+      NPM_CONFIG_CACHE: /tmp/.npm
+      # Spec S2: the wrap key comes from Secrets Manager via deploy.sh, which exports it
+      # into this process. The shell value wins; .env is the local/staging fallback.
+      AGENTFORGE_SECRETS_KEY: ${AGENTFORGE_SECRETS_KEY:-}
+
+    # H2: the image is immutable at runtime. Everything the app writes - agentforge.sqlite,
+    # settings.enc, media/, edit/, datasets/, legal/, components/, logs/ - is under
+    # AGENTFORGE_DATA_DIR, which is the one writable mount.
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=512m,nosuid,nodev,noexec
+
+    volumes:
+      - dpsbuddy-data:/data
+      # Production alternative (placement doc section 4): a dedicated 200 GB CBS Premium
+      # SSD, separate from the system disk, mounted on the CVM and bind-mounted here.
+      # Replace the named volume above with:
+      #
+      #   - type: bind
+      #     source: /srv/dpsbuddy-data
+      #     target: /data
+      #
+      # and mount the disk on the host with nodev, in /etc/fstab:
+      #
+      #   /dev/vdb  /srv/dpsbuddy-data  ext4  defaults,nodev,noatime  0  2
+      #
+      # noexec is NOT set yet: spec H3 allows it only once the component installer stops
+      # loading native modules out of /data/components. anydoc is baked into the image
+      # today, so that flag becomes safe as soon as H3 is signed off.
+
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # The app listens on 3000, a high port, so it needs no capability to bind.
+
+    # Reap the ffmpeg / SQL worker children so a stuck run cannot walk into pids_limit.
+    init: true
+    pids_limit: 512
+    mem_limit: 6g
+    mem_reservation: 1g
+
+    # L2: bounded on disk. 10 MB x 5 per service. Ship these to CLS with the Docker log
+    # collector; do not let them be the only copy.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+    # Published here, used by `proxy`, because proxy shares this namespace.
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    restart: unless-stopped
+
+  proxy:
+    image: caddy:2-alpine
+    network_mode: "service:app"
+    depends_on:
+      - app
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data # ACME account + issued certificates (separate container from app's /data)
+      - caddy-config:/config
+
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=64m,nosuid,nodev,noexec
+
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      # Caddy binds 80 and 443 in the shared namespace; that is the only capability it
+      # needs back.
+      - NET_BIND_SERVICE
+
+    init: true
+    pids_limit: 128
+    mem_limit: 512m
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+    restart: unless-stopped
+
+volumes:
+  dpsbuddy-data:
+  caddy-data:
+  caddy-config:

@@ -1,4 +1,5 @@
 import { DEFAULT_APP_LOCALE, parseAppLocale, type AppLocale } from "@agentforge/core/locale";
+import enAuth from "../locales/en/auth.json";
 import enChat from "../locales/en/chat.json";
 import enCommon from "../locales/en/common.json";
 import enData from "../locales/en/data.json";
@@ -17,6 +18,7 @@ import enSettings from "../locales/en/settings.json";
 import enUsage from "../locales/en/usage.json";
 import enVideos from "../locales/en/videos.json";
 import enWorkspaces from "../locales/en/workspaces.json";
+import idAuth from "../locales/id/auth.json";
 import idChat from "../locales/id/chat.json";
 import idCommon from "../locales/id/common.json";
 import idData from "../locales/id/data.json";
@@ -55,6 +57,7 @@ const NAMESPACES = [
   "finance",
   "legal",
   "edit",
+  "auth",
 ] as const;
 type Namespace = (typeof NAMESPACES)[number];
 type MessageTree = { [key: string]: string | MessageTree };
@@ -79,6 +82,7 @@ const catalogs: Record<AppLocale, Record<Namespace, MessageTree>> = {
     finance: enFinance,
     legal: enLegal,
     edit: enEdit,
+    auth: enAuth,
   },
   id: {
     common: idCommon,
@@ -99,6 +103,7 @@ const catalogs: Record<AppLocale, Record<Namespace, MessageTree>> = {
     finance: idFinance,
     legal: idLegal,
     edit: idEdit,
+    auth: idAuth,
   },
 };
 

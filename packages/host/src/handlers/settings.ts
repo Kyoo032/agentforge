@@ -4,6 +4,7 @@ import {
   hasLiveProvider,
   HOME_WORKSPACE_NAME,
   isAppLocale,
+  isServerMode,
   listToolCapabilities,
   listToolRoutes,
   maskSecrets,
@@ -291,7 +292,24 @@ export const HOST_RESET_ENTRIES = [
   "logs",
 ] as const;
 
-function resetGatewayKey(workspaceId: string): HostResult {
+/** Reason code and message for a "Start over" that the hosted service does not offer. */
+const RESET_DISABLED_CODE = "reset_disabled";
+const RESET_DISABLED_MESSAGE =
+  "Starting over is not available on the hosted service. Delete the desks, threads or files you no longer want instead.";
+
+/**
+ * "Forget my key" is machine-wide, not tenant-wide, so the hosted service cannot offer it either:
+ * `clearGatewayKeyEverywhere` wipes the key out of every workspace slice on the box and
+ * `clearGateState` throws away the one gate verdict they all share. One tenant pressing it would
+ * sign every other tenant out of the gateway. Same refusal as "Start over", same reason code.
+ */
+const RESET_KEY_DISABLED_MESSAGE =
+  "Signing out of the gateway is not available on the hosted service. The gateway key is managed by the operator.";
+
+function resetGatewayKey(workspaceId: string, serverMode: boolean): HostResult {
+  if (serverMode) {
+    throw new ApiError(RESET_DISABLED_CODE, RESET_KEY_DISABLED_MESSAGE, 403);
+  }
   // Machine-wide: a key left on a second desk would keep the gate open after "forget my key".
   clearGatewayKeyEverywhere();
   clearGateState();
@@ -307,7 +325,16 @@ function resetGatewayKey(workspaceId: string): HostResult {
   });
 }
 
-function resetEverything(workspaceId: string, confirm: string | undefined): HostResult {
+/**
+ * "Start over" wipes the whole data dir, which on the hosted service is every tenant's work, not the
+ * caller's (docs/internal/web-security-spec.md, row T8). Until it is scoped per tenant it is simply
+ * off there. The refusal comes first, before the confirmation word and before anything is queued:
+ * the owner of one workspace must not be able to arm a wipe for everyone else's.
+ */
+function resetEverything(workspaceId: string, confirm: string | undefined, serverMode: boolean): HostResult {
+  if (serverMode) {
+    throw new ApiError(RESET_DISABLED_CODE, RESET_DISABLED_MESSAGE, 403);
+  }
   if (confirm !== RESET_CONFIRM_WORD) {
     throw new ApiError("invalid_request", `confirm must be "${RESET_CONFIRM_WORD}" to erase everything`, 400);
   }
@@ -323,16 +350,20 @@ function resetEverything(workspaceId: string, confirm: string | undefined): Host
   });
 }
 
-export async function handleResetApp(request: HostRequest): Promise<HostResult> {
+/** Injectable so a test can ask for hosted behaviour without touching the process environment. */
+export type ResetDeps = { isServerMode?: () => boolean };
+
+export async function handleResetApp(request: HostRequest, deps: ResetDeps = {}): Promise<HostResult> {
   try {
     const tenant = await getTenant(request.workspaceId);
     const body = (request.body ?? {}) as Record<string, unknown>;
     const scope = readOptionalString(body.scope);
+    const serverMode = deps.isServerMode ? deps.isServerMode() : isServerMode();
     if (scope === "key") {
-      return resetGatewayKey(tenant.workspaceId);
+      return resetGatewayKey(tenant.workspaceId, serverMode);
     }
     if (scope === "all") {
-      return resetEverything(tenant.workspaceId, readOptionalString(body.confirm));
+      return resetEverything(tenant.workspaceId, readOptionalString(body.confirm), serverMode);
     }
     throw new ApiError("invalid_request", 'scope must be "key" or "all"', 400);
   } catch (error) {

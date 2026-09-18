@@ -37,15 +37,71 @@ export function capKnowledgeText(text: string, max = KNOWLEDGE_TEXT_MAX_CHARS): 
   return `${text.slice(0, max)}${KNOWLEDGE_TEXT_TRUNCATED}`;
 }
 
-/** OR of the first meaningful words, each quoted as an FTS5 string so keywords and operators are literal. */
+/** Words a MATCH expression is built from. Past this the query costs more than it finds. */
+const FTS_MAX_TOKENS = 8;
+
+/** Shortest word worth an FTS5 phrase: below this a token is noise the index cannot narrow on. */
+const FTS_MIN_WORD = 3;
+
+/**
+ * One FTS5 phrase. A double quote is the *only* character with meaning inside a quoted FTS5
+ * string, and it is escaped by doubling — the same rule as a SQL string literal. Doubling rather
+ * than dropping keeps the user's text intact (`don"t` stays one phrase) while making it
+ * impossible for a quote to close the phrase and hand the rest of the word to the parser.
+ */
+function ftsPhrase(word: string): string {
+  return `"${word.replace(/"/g, '""')}"`;
+}
+
+/** Whitespace that is legal inside a query: tab, line feed, carriage return. Everything else below 32 is not. */
+const ALLOWED_CONTROL_CODES = new Set([9, 10, 13]);
+
+/** Highest code point of the C0 control block, and the one control character that sits above it. */
+const LAST_CONTROL_CODE = 31;
+const DELETE_CODE = 127;
+
+/**
+ * Drop the control characters a paste can carry. Written as a code-point filter rather than a
+ * regular expression on purpose: an escape sequence for NUL has a habit of landing in this file as
+ * a real control byte, and one of those makes git treat the whole module as binary.
+ */
+function stripControlCharacters(value: string): string {
+  return [...value]
+    .filter((character) => {
+      const code = character.codePointAt(0) ?? 0;
+      return (code > LAST_CONTROL_CODE || ALLOWED_CONTROL_CODES.has(code)) && code !== DELETE_CODE;
+    })
+    .join("");
+}
+
+/**
+ * FTS5 column filter that pins a MATCH to one source's chunks — the shape every chunk read uses,
+ * because an unqualified `SELECT … FROM knowledge_chunks` has no MATCH for FTS5 to plan on and
+ * scans the whole workspace. The id is a phrase, so a quote inside it cannot close the filter and
+ * hand the rest of the id to the parser as query syntax.
+ */
+export function ftsSourceFilter(sourceId: string): string {
+  return `source_id:${ftsPhrase(sourceId)}`;
+}
+
+/**
+ * OR of the first meaningful words, each quoted as an FTS5 phrase so keywords and operators
+ * (`AND`, `OR`, `NOT`, `NEAR`, `*`, `^`, `-`, `:`) are literal text rather than query syntax.
+ *
+ * Control characters are dropped first: SQLite reads a MATCH expression as a C string, so one
+ * embedded NUL ends it before the closing quote and the whole query dies with "unterminated
+ * string" — every result lost to a single stray byte in a paste.
+ *
+ * The value is still bound as a parameter by every caller; this is what stops *query* injection,
+ * which a bind parameter does not.
+ */
 export function knowledgeFtsQuery(query: string): string {
-  return query
+  return stripControlCharacters(query)
     .trim()
-    .replace(/['"]/g, " ")
     .split(/\s+/)
-    .filter((word) => word.length > 2)
-    .slice(0, 8)
-    .map((word) => `"${word}"`)
+    .filter((word) => word.length >= FTS_MIN_WORD)
+    .slice(0, FTS_MAX_TOKENS)
+    .map(ftsPhrase)
     .join(" OR ");
 }
 

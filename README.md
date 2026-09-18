@@ -1,32 +1,28 @@
 # DPSBuddy
 
-**Closed beta.** A local workbench for the [Toko Token](https://api.tokotokenai.com) OpenAI-compatible gateway.
+**Closed beta.** A hosted, multi-user workbench for the [Toko Token](https://api.tokotokenai.com) OpenAI-compatible gateway.
 
-Install it on your machine, paste a gateway API key, and work. No account. No cloud tenant. Your chats, workspaces, and media stay on disk.
+You open it in a browser, sign in, and work. Your chats, workspaces, and media live in your own tenant on the server.
 
 > Do not confuse **Toko Token** (`api.tokotokenai.com`) with TokenKu.
 
-## Download and install
+## Access
 
-You need the installer, not a clone of this repo. Node and pnpm are not required.
+DPSBuddy runs as a hosted web app. There is nothing to download and nothing to install.
 
-| OS | Installer |
-|----|-----------|
-| **Windows** | [DPSBuddy Setup 0.1.0.exe](https://github.com/Kyoo032/agentforge/releases/download/v0.1.0/DPSBuddy.Setup.0.1.0.exe) (~168 MB, unsigned) |
-| **macOS** | `.dmg` not published yet. It must be built on a Mac; it will land on the [same Releases page](https://github.com/Kyoo032/agentforge/releases/tag/v0.1.0) when it exists. |
+1. Ask the operator for an invite
+2. Open the hosted URL in your browser
+3. Sign in through the Toko Token portal
 
-Windows: run the Setup exe, then open **DPSBuddy** from the Start menu.
+The hosted URL is not public yet — it is handed out with the invite. Node and pnpm are not required, and you do not need a clone of this repo.
 
-The installer is unsigned. Windows SmartScreen may warn; that is expected in closed beta. Choose **More info** → **Run anyway** if you trust the operator who sent you this build.
+Windows and macOS installers still exist as a frozen **0.14.27** desktop build on the [DPSBuddy releases page](https://github.com/Kyoo032/DPSBuddy/releases); that build is maintenance-only and is not where the product continues.
 
-All current builds: [Releases](https://github.com/Kyoo032/agentforge/releases).
+## After you sign in
 
-## After install
-
-1. Open DPSBuddy
-2. Open **Settings**
-3. Paste your Toko Token gateway API key
-4. Start in **Chat**
+1. Open **Settings**
+2. Paste your Toko Token gateway API key
+3. Start in **Chat**
 
 Until a key is saved, Chat still works in offline demo mode.
 
@@ -48,16 +44,16 @@ Invited testers: [`docs/closed-beta.md`](docs/closed-beta.md). There is no mobil
 
 ## Privacy (closed beta)
 
-- Gateway key → encrypted `settings.enc` (AES-256-GCM)
-- Wrap key → OS keychain
-- Message bodies and tool I/O encrypted at rest on your machine
-- Remote inference URLs must be HTTPS (loopback `http://` only for local models such as Ollama)
+- Gateway key → encrypted at rest on the server (AES-256-GCM envelope)
+- Wrap key → the server's secret manager, never a file in this repo
+- Message bodies and tool I/O encrypted at rest on the server
+- Browser traffic is HTTPS only; remote inference URLs must be HTTPS
 
-Never share `.env`, `settings.enc`, or your gateway key.
+Never share your gateway key, and never paste it anywhere but Settings.
 
 ## Status
 
-Closed beta. Unsigned Windows installs, sharp edges, APIs that may change. Feedback from invited testers goes to the operator — this is not a public support channel yet.
+Closed beta. Sharp edges, APIs that may change, invite-only access. Feedback from invited testers goes to the operator — this is not a public support channel yet.
 
 ## Develop
 
@@ -68,10 +64,9 @@ pnpm install
 pnpm dev          # http://127.0.0.1:3000
 pnpm test         # Vitest
 pnpm lint         # Biome
-pnpm desktop:build
 ```
 
-`pnpm desktop:build:mac` and `pnpm desktop:mac` need a Mac. There is no mobile app.
+Desktop (frozen at 0.14.27): the `pnpm desktop:*` commands still build the Electron app for maintenance cuts only; `desktop:build:mac` and `desktop:mac` need a Mac. There is no mobile app.
 
 ## License
 

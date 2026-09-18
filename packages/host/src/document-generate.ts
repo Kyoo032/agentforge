@@ -29,6 +29,7 @@ import { localeForRun } from "./run-context";
 import { artifactStore } from "./artifacts";
 import { upsertWorkSource } from "./knowledge-ingest";
 import { artifactWorkCard, documentDraftMarkdown } from "./work-cards";
+import { log } from "./log";
 
 const FINANCE_SYSTEM = `You draft finished finance documents for DPSBuddy — not skeletons.
 Return ONLY valid JSON (no markdown fences, no commentary) with this exact shape:
@@ -144,7 +145,7 @@ function persistDraft(tenant: TenantContext, draft: DocumentDraft, markdown: str
     }).id;
   } catch (error) {
     const code = error instanceof ApiError ? error.code : "internal_error";
-    console.warn(`documents: could not save draft (${code})`);
+    log.warn("document_draft_not_saved", { code });
     return null;
   }
 }

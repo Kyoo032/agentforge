@@ -21,6 +21,7 @@ import { DOCX_MAX_INFLATED_BYTES, bodyOrder, declaredInflatedBytes, readDocx } f
 import { PDF_MAX_BYTES, PdfExtractError, extractPdfText, type PdfExtractOptions } from "@agentforge/core/pdf";
 import { FileExtractError, extractFile } from "./file-extract";
 import { KNOWLEDGE_TEXT_MAX_CHARS, capKnowledgeText } from "./knowledge-text";
+import { log } from "./log";
 
 export const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const PDF_MIME = "application/pdf";
@@ -148,7 +149,7 @@ async function documentText(name: string, mime: string, bytes: Buffer): Promise<
     if (error instanceof FileExtractError) {
       throw documentFailure(error);
     }
-    console.warn(`knowledge-extract: document conversion failed (${detailOf(error)})`);
+    log.warn("knowledge_extract_document_conversion_failed", { detail: detailOf(error) });
     throw new ApiError("document_malformed", "That file could not be read (it looks damaged).", 400);
   }
 }
@@ -198,11 +199,11 @@ export async function readDocxUnderCaps(
   try {
     declared = await declaredInflatedBytes(data);
   } catch (error) {
-    console.warn(`knowledge-extract: docx zip directory unreadable (${detailOf(error)})`);
+    log.warn("knowledge_extract_docx_directory_unreadable", { detail: detailOf(error) });
     throw docxFailure("invalid");
   }
   if (declared > (opts.maxInflatedBytes ?? DOCX_MAX_INFLATED_BYTES)) {
-    console.warn(`knowledge-extract: docx declares ${declared} inflated bytes, refusing to parse`);
+    log.warn("knowledge_extract_docx_too_large", { declaredBytes: declared });
     throw docxFailure("too_large");
   }
   try {
@@ -211,7 +212,7 @@ export async function readDocxUnderCaps(
     if (error instanceof ApiError) {
       throw error;
     }
-    console.warn(`knowledge-extract: docx parse failed (${detailOf(error)})`);
+    log.warn("knowledge_extract_docx_parse_failed", { detail: detailOf(error) });
     throw docxFailure("invalid");
   }
 }

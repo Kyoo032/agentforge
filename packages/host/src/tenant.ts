@@ -2,6 +2,7 @@ import { db, DrizzleAgentRepository, ensureLocalOwner, listLocalWorkspaces } fro
 import { AgentService, HOME_WORKSPACE_SLUG, type TenantContext } from "@agentforge/core";
 import { readSelectedWorkspaceId, writeSelectedWorkspaceId } from "./workspace";
 import { adoptLegacySettings } from "./settings-store";
+import { log } from "./log";
 
 export const agentService = new AgentService(new DrizzleAgentRepository(db));
 
@@ -19,10 +20,18 @@ function rememberSelectedWorkspace(workspaceId: string): void {
   try {
     writeSelectedWorkspaceId(workspaceId);
   } catch (error) {
-    console.warn("[agentforge] Could not record the selected desk.", error instanceof Error ? error.message : error);
+    log.warn("selected_desk_not_recorded", { detail: error instanceof Error ? error.message : error });
   }
 }
 
+/**
+ * Phase 3 (docs/internal/web-security-spec.md row T2): the tenant must come from the verified
+ * session — `request.session` (`packages/host/src/types.ts`), which the router's gate already
+ * attaches on every hosted request — and never from a client-supplied workspace id. This function
+ * still resolves the single local owner, so **until Phase 3 lands the hosted server is
+ * single-tenant**: every signed-in browser shares one desk. Changing that here means changing the
+ * 102 by-id call sites with it, plus the tenancy suite of row T3.
+ */
 export async function getTenant(preferredWorkspaceId?: string | null): Promise<TenantContext> {
   const explicit = preferredWorkspaceId?.trim();
   const selected = readSelectedWorkspaceId();

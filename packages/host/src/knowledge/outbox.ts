@@ -1,5 +1,6 @@
 import { sql } from "@agentforge/db";
 import type { TenantContext } from "@agentforge/core";
+import { log } from "../log";
 
 /**
  * What the retrieval backend still owes us.
@@ -78,7 +79,7 @@ export function enqueueOutbox(
     });
     tx.immediate();
   } catch (error) {
-    console.warn(`knowledge-outbox: ${entry.op} for ${entry.sourceId} not queued (${short(error)})`);
+    log.warn("knowledge_outbox_not_queued", { op: entry.op, sourceId: entry.sourceId, detail: short(error) });
   }
 }
 
@@ -127,14 +128,14 @@ export function removeOutbox(tenant: TenantContext, id: string): void {
   try {
     sql.prepare("DELETE FROM knowledge_backend_outbox WHERE workspace_id = ? AND id = ?").run(tenant.workspaceId, id);
   } catch (error) {
-    console.warn(`knowledge-outbox: row ${id} not removed (${short(error)})`);
+    log.warn("knowledge_outbox_row_not_removed", { rowId: id, detail: short(error) });
   }
 }
 
 /** Count a failed attempt, dropping the row once it has failed too often to be worth retrying. */
 export function failOutbox(tenant: TenantContext, entry: OutboxEntry): void {
   if (entry.attempts + 1 >= MAX_ATTEMPTS) {
-    console.warn(`knowledge-outbox: dropping ${entry.op} for ${entry.sourceId} after ${MAX_ATTEMPTS} attempts`);
+    log.warn("knowledge_outbox_entry_dropped", { op: entry.op, sourceId: entry.sourceId, attempts: MAX_ATTEMPTS });
     removeOutbox(tenant, entry.id);
     return;
   }
@@ -143,7 +144,7 @@ export function failOutbox(tenant: TenantContext, entry: OutboxEntry): void {
       .prepare("UPDATE knowledge_backend_outbox SET attempts = attempts + 1 WHERE workspace_id = ? AND id = ?")
       .run(tenant.workspaceId, entry.id);
   } catch (error) {
-    console.warn(`knowledge-outbox: attempt not recorded for ${entry.id} (${short(error)})`);
+    log.warn("knowledge_outbox_attempt_not_recorded", { entryId: entry.id, detail: short(error) });
   }
 }
 
@@ -151,7 +152,7 @@ export function clearOutbox(tenant: TenantContext): void {
   try {
     sql.prepare("DELETE FROM knowledge_backend_outbox WHERE workspace_id = ?").run(tenant.workspaceId);
   } catch (error) {
-    console.warn(`knowledge-outbox: not cleared (${short(error)})`);
+    log.warn("knowledge_outbox_not_cleared", { detail: short(error) });
   }
 }
 

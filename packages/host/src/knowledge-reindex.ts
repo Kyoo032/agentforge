@@ -5,8 +5,9 @@ import { sql } from "@agentforge/db";
 import { extractText } from "./knowledge-extract";
 import { getKnowledgeModels, markSourceFailed, nextCreatedAt, type SourceOriginKind } from "./knowledge";
 import { embedTextsWithModel } from "./knowledge-embed";
-import { CHUNK_OVERLAP, chunkKnowledgeText } from "./knowledge-text";
+import { CHUNK_OVERLAP, chunkKnowledgeText, ftsSourceFilter } from "./knowledge-text";
 import { mediaRoot } from "./media-root";
+import { log } from "./log";
 
 /**
  * Explicit re-index for the built-in engine: re-read one source's body, run the current chunker,
@@ -75,7 +76,7 @@ function short(error: unknown): string {
 }
 
 function warn(what: string, error: unknown): void {
-  console.warn(`knowledge-reindex: ${what} (${short(error)})`);
+  log.warn("knowledge_reindex_step_failed", { step: what, detail: short(error) });
 }
 
 function sourceRow(tenant: TenantContext, sourceId: string): ReindexRow | null {
@@ -99,7 +100,7 @@ function sourceRow(tenant: TenantContext, sourceId: string): ReindexRow | null {
  * `indexableSource`: an unqualified read has no MATCH to plan against and scans the workspace).
  */
 function storedChunks(tenant: TenantContext, sourceId: string): string[] {
-  const match = `source_id:"${sourceId.replace(/"/g, "")}"`;
+  const match = ftsSourceFilter(sourceId);
   try {
     const rows = sql
       .prepare(

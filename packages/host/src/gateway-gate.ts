@@ -12,8 +12,10 @@
 import {
   ApiError,
   assertAllowedEndpointUrl,
+  type EnvLike,
   type GatewayGatePayload,
   type GatewayGateStatus,
+  isServerMode,
   keyFingerprintOrNull,
   redactSecrets,
   resolveProviderKeys,
@@ -48,6 +50,13 @@ export const GATEWAY_REFRESH_THROTTLE_MS = 600_000;
 export const GATEWAY_UNCHECKED_MESSAGE = "Not checked yet.";
 
 /**
+ * Server mode has no "first run to trust": a tenant key nobody has validated buys nothing until the
+ * gateway answers for it. Reported as `error` — the one status whose copy already says the key could
+ * not be validated, in both catalogs — so no new status has to be taught to the renderer.
+ */
+export const GATEWAY_UNVERIFIED_MESSAGE = "This gateway key has not been verified with the gateway yet.";
+
+/**
  * What the gate says when the key itself saved but its verdict could not be refreshed or written —
  * an unwritable data dir, a full disk. English and redacted, like every other gate message: the
  * renderer only ever displays `message`, it never parses it.
@@ -79,6 +88,8 @@ export type DeriveGatewayGateInput = {
   now: Date;
   graceMs?: number;
   okTtlMs?: number;
+  /** Injected so the hosted rules are testable without touching `process.env`. */
+  env?: EnvLike;
 };
 
 export type GatewayGateOptions = {
@@ -86,6 +97,7 @@ export type GatewayGateOptions = {
   envRuntime?: string;
   graceMs?: number;
   okTtlMs?: number;
+  env?: EnvLike;
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
 };
@@ -250,28 +262,39 @@ function withinOkTtl(checkedAt: string | null, now: Date, okTtlMs: number): bool
  *
  * The only rules that close the gate are the ones the gateway actually answered: no key at all, a
  * rejected key, or a failure with no successful check inside the grace window. Silence — nothing
- * checked yet — opens it, because a desk that worked yesterday must not stop working because a new
- * build wants a verdict it has not had a chance to fetch.
+ * checked yet — opens it on a desk, because a desk that worked yesterday must not stop working
+ * because a new build wants a verdict it has not had a chance to fetch. In server mode
+ * (`isServerMode(input.env)`) silence closes it instead: a hosted tenant has no first run to trust,
+ * and `maybeRefreshGateway` turns that into a real verdict on the next settings read.
  */
 export function deriveGatewayGate(input: DeriveGatewayGateInput): GatewayGatePayload {
   const { endpoint, now } = input;
   const graceMs = input.graceMs ?? GATEWAY_GRACE_MS;
   const okTtlMs = input.okTtlMs ?? GATEWAY_OK_TTL_MS;
 
-  // Cloud, Playwright and the unit suites have no key and must keep working.
-  if (input.envRuntime === "stub") {
+  const serverMode = isServerMode(input.env ?? process.env);
+  // Cloud, Playwright and the unit suites have no key and must keep working. On the hosted server
+  // the stub runtime is a misconfiguration, never an open gate.
+  if (input.envRuntime === "stub" && !serverMode) {
     return payload(endpoint, "stub", true, false, null, null);
   }
-  if (!input.hasKey) {
+  if (!input.hasKey || input.envRuntime === "stub") {
     return payload(endpoint, "needs_key", false, false, null, null);
   }
 
+  // Hosted: nothing is taken on trust, so "no verdict for this key" is a closed gate rather than an
+  // open one. Everything below this line is a verdict the gateway actually gave, and reads the same
+  // on a desk and on the server — including the grace window, which needs a real `lastOkAt`.
+  const unverified = serverMode
+    ? payload(endpoint, "error", false, false, null, null, GATEWAY_UNVERIFIED_MESSAGE)
+    : payload(endpoint, "ok", true, true, null, null, GATEWAY_UNCHECKED_MESSAGE);
+
   const state = input.state;
   // No verdict, or one that belongs to a key the owner has replaced. This is every install that
-  // upgraded into the gate, so it must not lock the desk out: the key is taken on trust and
+  // upgraded into the gate, so on a desk it must not lock anyone out: the key is taken on trust and
   // `maybeRefreshGateway` validates it in the background. A real rejection arrives as invalid_key.
   if (!state || state.fingerprint !== input.fingerprint) {
-    return payload(endpoint, "ok", true, true, null, null, GATEWAY_UNCHECKED_MESSAGE);
+    return unverified;
   }
 
   if (state.status === "ok") {
@@ -292,7 +315,7 @@ export function deriveGatewayGate(input: DeriveGatewayGateInput): GatewayGatePay
     return payload(endpoint, state.status, allowed, allowed, state.checkedAt, state.lastOkAt, state.message);
   }
   // A persisted "stub" / "needs_key" is not a verdict about this key, so it reads as "never checked".
-  return payload(endpoint, "ok", true, true, null, null, GATEWAY_UNCHECKED_MESSAGE);
+  return unverified;
 }
 
 /**
@@ -370,6 +393,7 @@ export function reportGatewayGate(settings: StoredSecrets, opts: GatewayGateOpti
     now: opts.now ?? new Date(),
     graceMs: opts.graceMs,
     okTtlMs: opts.okTtlMs,
+    env: opts.env,
   });
 }
 

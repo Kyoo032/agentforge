@@ -22,6 +22,7 @@ import { removeGraphForSource, sweepOrphanGraph } from "./knowledge-graph-prune"
 import { defaultSoul, isLegacyDefaultSoul, type KnowledgeSoul } from "./knowledge-soul";
 import { modeCatalogPayload } from "./selectable-models";
 import { loadSettings } from "./settings-store";
+import { escapeLikePattern, LIKE_ESCAPE } from "./sql-guard";
 
 export { chunkKnowledgeText, knowledgeFtsQuery, sanitizeSourceName } from "./knowledge-text";
 export type { RetrievedChunk, RetrieveResult } from "./knowledge/backend";
@@ -219,6 +220,7 @@ export function findSourceByOrigin(tenant: TenantContext, origin: SourceOrigin):
 // Extraction (text, PDF, DOCX) with its own size/time caps and `pdf_*` / `docx_*` error codes moved to
 // `knowledge-extract.ts`; the import sits here, where the old inline parser was, to keep that visible.
 import { extractText } from "./knowledge-extract";
+import { log } from "./log";
 
 export type IndexSourceInput = {
   /** Reusing an existing id replaces that source's row, chunks, and vectors (work-card re-index). */
@@ -337,9 +339,10 @@ function replaceSourceRows(
  */
 function forgetInBackend(tenant: TenantContext, sourceId: string, externalId?: string | null): void {
   const warn = (error: unknown) => {
-    console.warn(
-      `knowledge: backend delete failed for ${sourceId} (${error instanceof Error ? error.message.slice(0, 120) : "error"})`,
-    );
+    log.warn("knowledge_backend_delete_failed", {
+      sourceId,
+      detail: error instanceof Error ? error.message.slice(0, 120) : "error",
+    });
   };
   try {
     // `.catch` alone is not enough: a backend whose delete is not `async` throws before it returns a
@@ -474,9 +477,10 @@ function removeStoredUpload(tenant: TenantContext, sourceId: string): number {
       rmSync(path.join(dir, entry), { force: true });
       removed += 1;
     } catch (error) {
-      console.warn(
-        `knowledge: stored upload for ${sourceId} could not be removed (${error instanceof Error ? error.message.slice(0, 120) : "error"})`,
-      );
+      log.warn("knowledge_stored_upload_not_removed", {
+        sourceId,
+        detail: error instanceof Error ? error.message.slice(0, 120) : "error",
+      });
     }
   }
   return removed;
@@ -649,9 +653,10 @@ function orphansOfKind(tenant: TenantContext, kind: SourceOriginKind): OrphanRow
       )
       .all(workspaceId(tenant), kind, owner.param(tenant)) as OrphanRow[];
   } catch (error) {
-    console.warn(
-      `knowledge: orphan sweep skipped ${kind} (${error instanceof Error ? error.message.slice(0, 120) : "error"})`,
-    );
+    log.warn("knowledge_orphan_sweep_skipped", {
+      kind,
+      detail: error instanceof Error ? error.message.slice(0, 120) : "error",
+    });
     return null;
   }
 }
@@ -730,9 +735,13 @@ export function deleteArtifactsByOwner(
     return 0;
   }
   try {
+    // `ownerId` is request text: a `%` or `_` in it is a LIKE wildcard, so the pattern is escaped
+    // and the statement names the escape character. Without both, an id of `%` shortlists every
+    // artifact in the workspace and the exact-meta check below is the only thing left guarding it.
+    const needle = escapeLikePattern(`${JSON.stringify(key)}:${JSON.stringify(ownerId)}`);
     const rows = db
-      .prepare("SELECT id, meta FROM artifacts WHERE workspace_id = ? AND meta LIKE ?")
-      .all(workspaceId(tenant), `%${JSON.stringify(key)}:${JSON.stringify(ownerId)}%`) as Array<{
+      .prepare(`SELECT id, meta FROM artifacts WHERE workspace_id = ? AND meta LIKE ? ESCAPE '${LIKE_ESCAPE}'`)
+      .all(workspaceId(tenant), `%${needle}%`) as Array<{
       id: string;
       meta: string;
     }>;
@@ -749,9 +758,11 @@ export function deleteArtifactsByOwner(
     }
     return owned.length;
   } catch (error) {
-    console.warn(
-      `knowledge: artifacts for ${key} ${ownerId} not removed (${error instanceof Error ? error.message.slice(0, 120) : "error"})`,
-    );
+    log.warn("knowledge_owned_artifacts_not_removed", {
+      originKind: key,
+      ownerId,
+      detail: error instanceof Error ? error.message.slice(0, 120) : "error",
+    });
     return 0;
   }
 }

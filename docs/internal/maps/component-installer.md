@@ -4,7 +4,7 @@ Last verified: 2026-09-17 at 8ab157b (working tree)
 
 ## Overview
 
-The only way DPSBuddy installs a native dependency. The owner never runs a command: a bundled copy is used when it loads, otherwise the host downloads a pinned, hash-checked package into the data dir during onboarding. Modelled on Hermes' bootstrap (manifest → stages → events → completion marker → idempotent). One component today, `anydoc` (the local document reader behind `packages/host/src/file-extract`). It is not an updater, not a plugin system, and ffmpeg is not in it yet.
+The only way DPSBuddy installs a native dependency. The owner never runs a command: a bundled copy is used when it loads, otherwise the host downloads a pinned, hash-checked package into the data dir during onboarding. Modelled on Hermes' bootstrap (manifest → stages → events → completion marker → idempotent). One component today, `anydoc` (the local document reader behind `packages/host/src/file-extract`). It is not an updater, not a plugin system, and ffmpeg is not in it yet. On a hosted server the installer runs **once per server**, not once per user — the data dir and the native module are shared by every tenant, so who triggers the install and when is open decision 6 in [`web-pivot-2026-09-18.md`](../web-pivot-2026-09-18.md).
 
 ## How it works
 

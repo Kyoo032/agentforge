@@ -1,4 +1,7 @@
-import { jsonOk } from "./errors";
+import { isServerMode } from "@agentforge/core";
+import { hostAuthRoutes, hostSessionStore, isSessionExemptPath, requireSessionFor } from "./auth";
+import type { SessionStore } from "./auth";
+import { jsonError, jsonOk } from "./errors";
 import {
   handleGetAgent,
   handleGetAgentCapabilities,
@@ -134,7 +137,7 @@ import {
   handlePostWorkspaces,
   handleSelectWorkspace,
 } from "./handlers/workspaces";
-import type { HostHandler, HostRequest, HostResult } from "./types";
+import type { HostHandler, HostRequest, HostResult, HostSession } from "./types";
 
 type Route = {
   method: string;
@@ -154,6 +157,11 @@ function compile(method: string, path: string, handler: HostHandler): Route {
 
 const routes: Route[] = [
   compile("GET", "/api/v1/ping", () => handlePing()),
+  // Phase 2, hosted only: the browser session. Exempt from the session gate below, by definition.
+  compile("POST", "/api/v1/auth/login", (req) => hostAuthRoutes().handleLogin(req)),
+  compile("POST", "/api/v1/auth/logout", (req) => hostAuthRoutes().handleLogout(req)),
+  compile("GET", "/api/v1/auth/session", (req) => hostAuthRoutes().handleSession(req)),
+  compile("POST", "/api/v1/auth/refresh", (req) => hostAuthRoutes().handleRefresh(req)),
   compile("GET", "/api/v1/edit/doctor", handleGetEditDoctor),
   compile("GET", "/api/v1/edit/metrics", handleGetEditMetrics),
   compile("GET", "/api/v1/edit/projects", handleGetEditProjects),
@@ -282,9 +290,74 @@ const routes: Route[] = [
   compile("GET", "/api/v1/organizations", handleGetOrganizations),
 ];
 
-export async function dispatch(request: HostRequest): Promise<HostResult> {
+const API_PREFIX = "/api/";
+
+/**
+ * Injected so a test never has to touch `process.env` or the real database
+ * (docs/internal/web-security-spec.md row T1). Defaults are the hosted server's.
+ */
+export type DispatchOptions = {
+  serverMode?: boolean;
+  sessionStore?: SessionStore;
+  now?: () => number;
+};
+
+type GateVerdict =
+  | { readonly ok: true; readonly session?: HostSession }
+  | { readonly ok: false; readonly result: HostResult };
+
+/**
+ * The hosted session gate: **every** `/api` call needs a verified session, whatever the method.
+ * A read is not safe here — a GET returns settings, threads, artifact bytes and event streams — so
+ * only `isSessionExemptPath` decides, never the method on its own.
+ *
+ * Off server mode this is never reached, so the desktop IPC path and webdev behave exactly as they
+ * did before Phase 2: neither of them has a session to present.
+ */
+async function gate(
+  request: HostRequest,
+  method: string,
+  path: string,
+  options: DispatchOptions,
+): Promise<GateVerdict> {
+  if (!path.startsWith(API_PREFIX) || isSessionExemptPath(method, path)) {
+    return { ok: true };
+  }
+  try {
+    const session = await requireSessionFor(request, {
+      store: options.sessionStore ?? hostSessionStore(),
+      now: options.now,
+    });
+    return {
+      ok: true,
+      session: {
+        id: session.id,
+        tenantId: session.tenantId,
+        orgId: session.orgId,
+        userId: session.userId,
+      },
+    };
+  } catch (error) {
+    // Answered before the route table is consulted: an unauthenticated caller learns nothing about
+    // which paths exist.
+    return { ok: false, result: jsonError(error) };
+  }
+}
+
+export async function dispatch(request: HostRequest, options: DispatchOptions = {}): Promise<HostResult> {
   const method = request.method.toUpperCase();
   const path = request.path.replace(/\/+$/, "") || "/";
+  // Read per request, never once at module load: a process that is told it is a server after this
+  // module was imported (and every test that stubs the variable) still gets the gate.
+  const serverMode = options.serverMode ?? isServerMode();
+  let session: HostSession | undefined;
+  if (serverMode) {
+    const verdict = await gate(request, method, path, options);
+    if (!verdict.ok) {
+      return verdict.result;
+    }
+    session = verdict.session;
+  }
   for (const route of routes) {
     if (route.method !== method) {
       continue;
@@ -297,7 +370,11 @@ export async function dispatch(request: HostRequest): Promise<HostResult> {
     route.keys.forEach((key, index) => {
       params[key] = decodeURIComponent(match[index + 1] ?? "");
     });
-    return route.handler({ ...request, params, path });
+    // A new request object every time: the caller's own is never written to. `session` is dropped
+    // first and only ever re-added from the gate above, so an invented one can never reach a
+    // handler as identity.
+    const { session: _invented, ...rest } = request;
+    return route.handler(session ? { ...rest, params, path, session } : { ...rest, params, path });
   }
   return jsonOk({ error: { code: "not_found", message: "Not found" } }, 404);
 }

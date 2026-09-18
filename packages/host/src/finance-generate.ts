@@ -40,6 +40,7 @@ import { throwIfJobAborted } from "./job-stream";
 import { readModelPinned, readPrompt, requireLive, resolveModel } from "./finance-tasks/live";
 import { runFinanceTask } from "./finance-tasks/runner";
 import type { FinanceTaskRunResult } from "./finance-tasks/types";
+import { log } from "./log";
 
 export { FIGURES_TEXT_MAX } from "./finance-parse-figures";
 export type { ParsedFigures } from "./finance-parse-figures";
@@ -135,7 +136,7 @@ function persistBrief(
     }).id;
   } catch (error) {
     const code = error instanceof ApiError ? error.code : "internal_error";
-    console.warn(`finance: could not save brief (${code})`);
+    log.warn("finance_brief_not_saved", { code });
     return null;
   }
 }

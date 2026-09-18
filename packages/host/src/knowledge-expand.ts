@@ -2,6 +2,8 @@ import { sql } from "@agentforge/db";
 import type { TenantContext } from "@agentforge/core";
 import type { RetrievedChunk, RetrieveResult } from "./knowledge/backend";
 import { getGraph } from "./knowledge-graph";
+import { ftsSourceFilter } from "./knowledge-text";
+import { log } from "./log";
 
 /**
  * Phase 4: the Graph stage feeding retrieval back.
@@ -136,7 +138,7 @@ function firstChunkOf(tenant: TenantContext, sourceId: string): { body: string; 
         `SELECT body FROM knowledge_chunks
          WHERE knowledge_chunks MATCH ? AND workspace_id = ? ORDER BY rowid LIMIT 1`,
       )
-      .get(`source_id:"${sourceId.replace(/"/g, "")}"`, tenant.workspaceId) as { body: string } | undefined;
+      .get(ftsSourceFilter(sourceId), tenant.workspaceId) as { body: string } | undefined;
     if (!row || row.body.trim().length === 0) {
       return null;
     }
@@ -145,11 +147,10 @@ function firstChunkOf(tenant: TenantContext, sourceId: string): { body: string; 
       .get(tenant.workspaceId, sourceId) as { name: string } | undefined;
     return { body: row.body, name: source?.name ?? sourceId };
   } catch (error) {
-    console.warn(
-      `knowledge-expand: chunk read failed for ${sourceId} (${
-        error instanceof Error ? error.message.slice(0, 120) : "error"
-      })`,
-    );
+    log.warn("knowledge_expand_chunk_read_failed", {
+      sourceId,
+      detail: error instanceof Error ? error.message.slice(0, 120) : "error",
+    });
     return null;
   }
 }

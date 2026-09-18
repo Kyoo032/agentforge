@@ -1,0 +1,150 @@
+# DPSBuddy reverse proxy. Caddy obtains and renews TLS automatically for
+# {$DPSBUDDY_DOMAIN} as long as ports 80 and 443 reach this host from the internet.
+#
+# Caddy runs in the app container's network namespace, so 127.0.0.1:3000 IS the app.
+#
+# Covers security spec N3 (TLS 1.2+, HSTS, HTTP->HTTPS), A3 (security headers) and L2
+# (access log). A4 (rate limiting) and the HTTP request filter live in the app -
+# packages/host/src/rate-limit.ts and packages/host/src/local-request.ts; see the note
+# above reverse_proxy for what this file has to keep forwarding for them to work.
+{
+	# Uncomment and set an address to get Let's Encrypt expiry notices:
+	# email you@example.com
+	admin off
+}
+
+# HTTP -> HTTPS. Caddy does this by default for any site with a hostname, but the
+# redirect is the first rule of "masked HTTPS" and it is written out so it cannot be
+# lost in a future edit. There is no site body on :80 other than this: nothing is
+# served, nothing is proxied, and the ACME HTTP-01 challenge is still answered by
+# Caddy itself ahead of this route.
+http://{$DPSBUDDY_DOMAIN} {
+	redir https://{host}{uri} permanent
+}
+
+{$DPSBUDDY_DOMAIN} {
+	# N3: TLS 1.2 is the floor. Caddy already defaults here; stated so a future edit
+	# has to argue with it.
+	tls {
+		protocols tls1.2 tls1.3
+	}
+
+	encode zstd gzip
+
+	header {
+		# A3. The built renderer has no inline script and no inline style block:
+		# apps/web/dist/index.html loads one module bundle and one stylesheet, both
+		# external, so script-src needs no hash and no 'unsafe-inline'.
+		#   style-src keeps 'unsafe-inline' because component libraries inject <style>
+		#   elements at runtime; scripts are the half this rule exists for.
+		#   img-src data: - apps/web/lib/renderable-media.ts renders inline
+		#   data:image/(png|jpeg|webp|gif); svg+xml is rejected there and stays blocked.
+		#   blob: - object URLs are created for downloads today, kept for media preview.
+		#   connect-src api.tokotokenai.com - the browser does NOT call the gateway
+		#   today (apps/web/lib/api-client.ts fetches same-origin /api/v1/* and the host
+		#   process makes the gateway call). Drop it once that is certain to stay true.
+		Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self'; connect-src 'self' https://api.tokotokenai.com; worker-src 'self' blob:; manifest-src 'self'"
+		# One year, every subdomain. No `preload`: that token is a submission to a list
+		# baked into browser binaries, and getting off it takes months of release trains
+		# during which every subdomain must keep working over HTTPS - a one-way door to
+		# open deliberately, not as a default. Add it when the domain and its subdomains
+		# are settled.
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "same-origin"
+		Cross-Origin-Opener-Policy "same-origin"
+		Cross-Origin-Resource-Policy "same-origin"
+		# Minimal: every powerful feature off. The app asks for none of them.
+		Permissions-Policy "accelerometer=(), autoplay=(), browsing-topics=(), camera=(), display-capture=(), encrypted-media=(), geolocation=(), gyroscope=(), interest-cohort=(), magnetometer=(), microphone=(), midi=(), payment=(), publickey-credentials-get=(), screen-wake-lock=(), serial=(), usb=(), xr-spatial-tracking=()"
+		# Identity masking: nothing on the wire names the software or its version.
+		# Caddy sends `Server: Caddy` unless it is removed here; `X-Powered-By` is
+		# Express's and is switched off in apps/web/server.ts as well, so both ends of
+		# the hop drop it. There is no `file_server` in this site, so there is no
+		# directory listing to disable - the app process serves every path.
+		-Server
+		-X-Powered-By
+	}
+
+	# L2: one JSON object per request on stdout - IP, path, status, latency. The log
+	# collector ships it to CLS with 30-day retention. L1: Cookie and Authorization are
+	# dropped before the line is written; Caddy never sees request bodies.
+	log {
+		output stdout
+		format filter {
+			wrap json
+			fields {
+				request>headers>Cookie delete
+				request>headers>Authorization delete
+				request>headers>Set-Cookie delete
+			}
+		}
+	}
+
+	# Incident response (spec L5). Uncomment these two lines and `docker compose restart
+	# proxy` to take the site read-only in about a second; comment them back out to
+	# restore writes. The README has the rest of the runbook.
+	# @mutating not method GET HEAD OPTIONS
+	# respond @mutating "DPSBuddy is temporarily read-only." 503
+
+	# X-FORWARDED-FOR AND WHO IS ALLOWED TO SET IT.
+	#
+	# The app keys its per-IP rate bucket on the LAST hop of `X-Forwarded-For`
+	# (packages/host/src/rate-limit.ts clientIp), because a client can send a header of
+	# its own and an appending proxy leaves that forged value first. The last entry is
+	# the one the proxy in front wrote.
+	#
+	# For that to be true, THIS Caddy must be the only thing between the internet and
+	# the app, and it must be the one deciding the header:
+	#   - Since Caddy 2.7 `reverse_proxy` REPLACES X-Forwarded-For with the real peer
+	#     address for a client that is not a trusted proxy, and only appends for one
+	#     that is; the default trusted set is empty, i.e. nothing is trusted. Verify on
+	#     the box with `caddy version` before relying on that behaviour - on an older
+	#     build the incoming header is appended to instead, which is exactly the shape
+	#     the last-hop rule is written to survive.
+	#   - If a CDN or a load balancer is ever put IN FRONT of this Caddy, its addresses
+	#     must be declared here so its header is preserved rather than replaced, and the
+	#     app's last-hop rule has to be revisited at the same time - an extra appending
+	#     hop moves the client address away from the end:
+	#         trusted_proxies static 10.0.0.0/8 <cdn ranges>
+	#     Anti-DDoS Basic (spec N4) is packet-level and adds no hop, so today there is
+	#     none and no `trusted_proxies` line is wanted.
+	#   - Nothing else may reach 127.0.0.1:3000: the app binds loopback and refuses any
+	#     request not marked `X-Forwarded-Proto: https` (403 https_required).
+	reverse_proxy 127.0.0.1:3000 {
+		# The Host header MUST pass through unchanged - which is what Caddy does by
+		# default, so there is deliberately no `header_up Host` line here. With
+		# AGENTFORGE_SERVER=1 the app checks the Host against the configured origins
+		# (isAllowedWebHostHeader, packages/host/src/local-request.ts) as well as the
+		# Origin, so rewriting Host to 127.0.0.1 - which the old loopback rule needed -
+		# now makes every POST / PATCH / DELETE answer 403 origin_forbidden. Loopback is
+		# not on the allowlist.
+		#
+		# Two things this depends on, both in .env:
+		#   AGENTFORGE_SERVER=1
+		#   AGENTFORGE_TRUSTED_ORIGINS=https://<the DPSBUDDY_DOMAIN value, spelled out>
+		#     (scheme included, no Caddy placeholder - .env is read by the app, not by
+		#     Caddy; comma-separated for more than one name. An empty list in server mode
+		#     accepts no write from any browser.)
+		# Never rewrite Origin here either: that is the CSRF hole the check exists to
+		# close. The CSRF half of the pair is a cookie the app sets and the renderer
+		# echoes; the proxy neither reads nor rewrites it.
+
+		# The host streams job progress as SSE (packages/host streamJob). Buffering would
+		# hold every job.step until the run ended.
+		flush_interval -1
+	}
+
+	# A4, rate limits: done in the APP, not here. caddy-ratelimit is a third-party
+	# module the official caddy:2-alpine image this stack pins does not ship, so there
+	# is no rate_limit directive to write. packages/host/src/rate-limit.ts carries it
+	# instead - per IP, per session and a tighter bucket on /api/v1/auth/*, all 429 with
+	# Retry-After, all server-mode only, and applied to every path including the page
+	# and the static assets. Two things it depends on from this file, both Caddy
+	# defaults that must not be removed:
+	#   X-Forwarded-For - the LAST hop is the client IP the limiter keys on; see the
+	#     block above reverse_proxy for who is allowed to set it.
+	#   X-Forwarded-Proto - the app refuses any request that is not marked https
+	#     (403 https_required), which is what stops a direct hit on 127.0.0.1:3000.
+	# In front of all of it sits Anti-DDoS Basic (spec N4).
+}

@@ -385,3 +385,76 @@ describe("POST /api/v1/settings/reset", () => {
     expect(marker.entries.some((entry) => entry.toLowerCase().includes("storage"))).toBe(false);
   });
 });
+
+describe("POST /api/v1/settings/reset in server mode", () => {
+  // The switch is injected, never read from the environment here: a stray AGENTFORGE_SERVER in this
+  // process would change every other test in the file.
+  const HOSTED = { isServerMode: () => true };
+
+  async function reset(body: Record<string, unknown>, deps?: { isServerMode: () => boolean }): Promise<JsonResponse> {
+    const { handleResetApp } = await import("./settings");
+    const result = await handleResetApp(request("POST", "/api/v1/settings/reset", { body }), deps);
+    if (result.type !== "json") {
+      throw new Error(`expected json, got ${result.type}`);
+    }
+    return { status: result.status, body: (result.body ?? {}) as Record<string, unknown> };
+  }
+
+  it("refuses scope all with reset_disabled and queues nothing", async () => {
+    const response = await reset({ scope: "all", confirm: "RESET" }, HOSTED);
+    expect(response.status).toBe(403);
+    expect(errorCode(response.body)).toBe("reset_disabled");
+    // Nothing was queued: the refusal happens before the wipe is written, not after.
+    expect(existsSync(MARKER_FILE)).toBe(false);
+    expect((await json("GET", "/api/v1/settings")).body.resetPending).toBe(false);
+  });
+
+  it("refuses scope all even with the confirmation word missing or wrong", async () => {
+    for (const body of [{ scope: "all" }, { scope: "all", confirm: "reset" }]) {
+      const response = await reset(body, HOSTED);
+      expect(response.status).toBe(403);
+      expect(errorCode(response.body)).toBe("reset_disabled");
+    }
+    expect(existsSync(MARKER_FILE)).toBe(false);
+  });
+
+  it("refuses scope key too, because forgetting the key is machine-wide", async () => {
+    // `clearGatewayKeyEverywhere` and `clearGateState` are not scoped to a tenant: one workspace
+    // asking to forget the key would log every other tenant on the box out of the gateway.
+    const response = await reset({ scope: "key" }, HOSTED);
+    expect(response.status).toBe(403);
+    expect(errorCode(response.body)).toBe("reset_disabled");
+  });
+
+  it("leaves the saved key in place when it refuses", async () => {
+    stubFetch(200);
+    await json("POST", "/api/v1/settings", { openaiApiKey: KEY });
+    const refused = await reset({ scope: "key" }, HOSTED);
+    expect(refused.status).toBe(403);
+    expect((await json("GET", "/api/v1/settings")).body.hasOpenai).toBe(true);
+    // Saved through the host, so cleared through the host: `afterEach` writes the default slice.
+    await json("POST", "/api/v1/settings", { openaiApiKey: "" });
+  });
+
+  it("keeps scope key working when server mode is off", async () => {
+    stubFetch(200);
+    await json("POST", "/api/v1/settings", { openaiApiKey: KEY });
+    const response = await reset({ scope: "key" }, { isServerMode: () => false });
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ ok: true, scope: "key", relaunch: false });
+    expect((await json("GET", "/api/v1/settings")).body.hasOpenai).toBe(false);
+  });
+
+  it("keeps scope all working when server mode is off", async () => {
+    const response = await reset({ scope: "all", confirm: "RESET" }, { isServerMode: () => false });
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ ok: true, scope: "all", relaunch: true, resetPending: true });
+    expect(existsSync(MARKER_FILE)).toBe(true);
+  });
+
+  it("defaults to the real switch, which is off for the desktop and webdev", async () => {
+    const response = await reset({ scope: "all", confirm: "RESET" });
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ ok: true, scope: "all" });
+  });
+});

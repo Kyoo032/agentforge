@@ -39,3 +39,20 @@ Nothing below is closed by 0.14.27. Carried forward as-is.
 ## Log
 
 - **2026-09-18** — 0.14.27 cut. PR #52 merged (`e8a7118`), version bumped to `0.14.27` (`e2e477e`) on `release/0.14.27`; everything from after the 0.14.26 cut folded into [`0.14.27-changelog.md`](0.14.27-changelog.md) and this file started over. Nothing packed, nothing published.
+
+## 2026-09-18 — direction change: hosted web app
+
+- **What changed.** Kyo decided the product continues as a hosted, multi-user web app (SaaS) served from `apps/web/server.ts` behind a reverse proxy, with per-tenant data on the server, portal browser login, and the seat paywall and entitlement gate server-side. The gateway stays the model backend.
+- **Desktop is frozen at 0.14.27.** Maintenance-only: no new features, no new cuts unless Kyo asks. The `Kyoo032/DPSBuddy` releases repo and `desktop:release` are desktop-maintenance-only. The published 0.14.27 artifacts and every open item above stand as recorded.
+- **Record:** [`web-pivot-2026-09-18.md`](web-pivot-2026-09-18.md) — rule changes, the seven open decisions, verified architecture facts, and the deploy log.
+
+This file’s “nothing counts as shipped until packed and installed” convention now applies to **desktop maintenance only**. Hosted deploys are not tracked here: every one appends a row to the deploy log in the decision record.
+
+## 2026-09-18 — hosted mode, Phase 1 and the Phase 2 backend
+
+- One switch, `AGENTFORGE_SERVER=1` (`packages/core/src/server-mode.ts`), turns on every hosted-only rule; webdev and the desktop never set it and behave exactly as before (every package suite green: core 2077, db 55, host 1448+, web 817).
+- Server mode: mutating `/api` needs a trusted Origin and Host (`AGENTFORGE_TRUSTED_ORIGINS`), a CSRF double-submit token (`__Host-agentforge_csrf` cookie on the server, `agentforge_csrf` on webdev, plus the `x-agentforge-csrf` header), and a portal session (`agentforge_session`, `session_required` 401). New codes: `origin_forbidden`, `csrf_missing`, `csrf_invalid`, `session_required`, `reset_disabled`, `too_many_jobs`, `portal_unavailable`.
+- Server mode: `AGENTFORGE_SECRETS_KEY` is mandatory (no `.master-key` file), the gateway gate fails closed (no trust-on-first-run, stub runtime closed), "Start over" scope `all` is refused, ffmpeg and SQL workers are capped (`AGENTFORGE_MAX_FFMPEG`, `AGENTFORGE_MAX_SQL_WORKERS`).
+- Host logging is one JSON logger (`packages/host/src/log.ts`) with secret redaction and dropped prompt/key fields; 68 console calls replaced.
+- New table `auth_sessions` (migration `0014`), new locales `auth.json` (en, id). Not shipped anywhere: the hosted environment does not exist yet; the desktop is frozen and untouched by these rules.
+

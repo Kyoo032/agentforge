@@ -13,6 +13,7 @@ import { runGenerateJob } from "./generate";
 import { ensureGenerateSubmitWired, loadMediaRow } from "./wire-generate";
 import { assetAbsPath, extractAudio, probe, render, silenceDetect } from "./ffmpeg/recipes";
 import { transcribeAudioChunks } from "./asr";
+import { log } from "../log";
 
 export type EnqueueJobInput = {
   kind: EditJobKind;
@@ -315,7 +316,7 @@ async function markPendingTargetsFailed(job: JobRow): Promise<void> {
       { actor: "owner" },
     );
   } catch (error) {
-    console.warn(`[edit] could not mark clips failed for job ${job.id}:`, error);
+    log.warn("edit_clips_not_marked_failed", { jobId: job.id, error });
   }
 }
 

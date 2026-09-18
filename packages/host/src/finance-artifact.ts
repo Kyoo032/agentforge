@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { financeBriefSchema, type ArtifactMeta, type FinanceBrief } from "@agentforge/core/artifacts";
+import { log } from "./log";
 
 /**
  * The structured brief a saved finance artifact carries beside its markdown.
@@ -39,7 +40,7 @@ export function financeArtifactMeta(
 ): Record<string, unknown> {
   const stored = { [FINANCE_META_BRIEF_KEY]: brief, [FINANCE_META_GUARD_KEY]: guard };
   if (Buffer.byteLength(JSON.stringify(stored), "utf8") > FINANCE_META_MAX_BYTES) {
-    console.warn(`finance: brief over ${FINANCE_META_MAX_BYTES} bytes; its export will fall back to the markdown`);
+    log.warn("finance_brief_meta_too_large", { maxBytes: FINANCE_META_MAX_BYTES });
     return { ...provenance };
   }
   return { ...provenance, ...stored };

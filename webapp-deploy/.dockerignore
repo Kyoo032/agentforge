@@ -1,0 +1,45 @@
+# Build context is the repo root. Keep it small: node_modules is ~1.1 GB, .git ~243 MB.
+#
+# IMPORTANT: BuildKit looks for `<dockerfile-path>.dockerignore` first and only then for
+# `<context>/.dockerignore`. Because the Dockerfile lives in webapp-deploy/ while the
+# context is the repo root, the file Docker actually reads is
+# webapp-deploy/Dockerfile.dockerignore. That file is a byte-for-byte copy of this one;
+# edit both together.
+
+.git
+.github
+.gitattributes
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/out
+**/coverage
+**/playwright-report
+**/test-results
+**/*.tsbuildinfo
+
+# Local state and secrets - never in an image
+.env
+.env.local
+data
+.verify-*
+.cursor-artifacts
+.claude
+.cursor
+.vscode
+**/*.log
+
+# Frozen desktop / mobile: the hosted app never builds these
+apps/desktop/dist
+apps/desktop/dist-*
+apps/desktop/out
+apps/desktop/resources
+apps/desktop/branding
+apps/mobile/android
+apps/mobile/ios
+
+# Docs and scratch
+_ref
+docs
+webapp-deploy/.env

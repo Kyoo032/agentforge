@@ -1,5 +1,6 @@
 import type { AppLocale } from "@agentforge/core/locale";
 import { GATEWAY_BASE_URL } from "@agentforge/core/gateway";
+import { isHostedBuild } from "./hosted-build";
 
 /**
  * Renderer view of the host's gateway key gate.
@@ -76,14 +77,24 @@ export function parseGatewayGate(value: unknown): GatewayGatePayload | null {
 /**
  * The only gate decision in the renderer.
  *
- * A reported gate is obeyed as-is. A missing or malformed gate fails closed on
- * the packaged desktop app; webdev (`pnpm dev`, Playwright) keeps working until
- * the host reports one.
+ * A reported gate is obeyed as-is, everywhere. The branch that differs is the
+ * missing or malformed one — "the host did not say":
+ *   - packaged desktop: closed, as it has always been (the host is in-process, so
+ *     silence there is a broken build, not a slow one);
+ *   - hosted build: closed, because a tenant must never see the app on a gate
+ *     nobody reported (security spec row T4);
+ *   - anything else (webdev, a browser on a desk): open, unchanged. The dev
+ *     server answers with `status: "stub", allowed: true`, and a settings call
+ *     that is merely in flight has never been a reason to lock the app.
+ *
+ * `hosted` is a fact the *server* stamped into the page (`hosted-build.ts`), and
+ * it can only make this stricter — there is no value of it that opens a gate the
+ * host closed.
  */
-export function resolveGate(payload: unknown, isElectron: boolean): GateView {
+export function resolveGate(payload: unknown, isElectron: boolean, hosted: boolean = isHostedBuild()): GateView {
   const gate = parseGatewayGate(payload);
   if (!gate) {
-    return isElectron ? "onboarding" : "app";
+    return hosted || isElectron ? "onboarding" : "app";
   }
   return gate.allowed ? "app" : "onboarding";
 }

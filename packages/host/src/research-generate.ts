@@ -28,6 +28,7 @@ import { collectJobAssistantText } from "./job-regen";
 import { throwIfJobAborted } from "./job-stream";
 import { RESEARCH_CAPS, runResearchDossier, type SearchHit } from "./research-dossier";
 import { localeForRun } from "./run-context";
+import { log } from "./log";
 
 /** Notes (existing preview shape) plus the saved dossier. `artifactId` mirrors `dossierId` for older callers. */
 export type ResearchResult = ResearchNotes & {
@@ -104,7 +105,7 @@ function persistDossier(tenant: TenantContext, dossier: Dossier, markdown: strin
   } catch (error) {
     // Persistence must never fail the job; the notes are still returned. Log the code only, never the body.
     const code = error instanceof ApiError ? error.code : "internal_error";
-    console.warn(`research: could not save dossier (${code})`);
+    log.warn("research_dossier_not_saved", { code });
     return null;
   }
 }

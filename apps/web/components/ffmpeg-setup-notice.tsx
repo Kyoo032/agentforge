@@ -69,7 +69,10 @@ export function FfmpegSetupNotice({ doctor, onDoctor, variant = "compact" }: Pro
         <span>
           <strong>{setup ? `${PLATFORM_LABEL[setup.platform]} setup:` : "Setup:"}</strong> {summary}
         </span>
-        <code className="rounded bg-[var(--surface)] px-2 py-0.5 font-mono text-xs" data-testid="ffmpeg-install-command">
+        <code
+          className="rounded bg-[var(--surface)] px-2 py-0.5 font-mono text-xs"
+          data-testid="ffmpeg-install-command"
+        >
           {command}
         </code>
         <button type="button" className="btn btn-ghost px-2 py-0.5 text-xs" onClick={() => void copy()}>
@@ -85,7 +88,7 @@ export function FfmpegSetupNotice({ doctor, onDoctor, variant = "compact" }: Pro
           {checking ? "Checking…" : "Check again"}
         </button>
         {setup?.installUrl ? (
-          <a className="underline" href={setup.installUrl} target="_blank" rel="noreferrer">
+          <a className="underline" href={setup.installUrl} target="_blank" rel="noopener noreferrer">
             Install guide
           </a>
         ) : null}

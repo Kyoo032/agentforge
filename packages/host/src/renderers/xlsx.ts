@@ -22,6 +22,7 @@ import {
   sizeColumns,
   styleHeaderRow,
 } from "./xlsx-style";
+import { log } from "../log";
 
 export const SUMMARY_SHEET = "Summary";
 export const INPUTS_SHEET = "Inputs";
@@ -216,7 +217,7 @@ export const renderXlsx: ReportRenderer = async (report: FinanceReport): Promise
     addTableSheet(workbook, sheetNameFor(table, taken), table, report.locale, (message) => warnings.push(message));
   }
   if (warnings.length > 0) {
-    console.warn(`finance xlsx: ${warnings.length} formula cell(s) had no value in the report: ${warnings.join(", ")}`);
+    log.warn("finance_xlsx_formula_cells_without_value", { count: warnings.length, cells: warnings });
   }
   const buffer = await workbook.xlsx.writeBuffer();
   return {

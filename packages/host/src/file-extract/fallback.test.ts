@@ -34,7 +34,10 @@ describe("extractFile without the native converter", () => {
       const result = await withoutBinding(csvFixture(), "figures.csv");
       expect(result.meta.engine).toBe("fallback");
       expect(warn).toHaveBeenCalled();
-      expect(String(warn.mock.calls[0]?.[0])).toContain("native converter unavailable");
+      expect(JSON.parse(String(warn.mock.calls[0]?.[0]))).toMatchObject({
+        level: "warn",
+        event: "file_extract_native_converter_unavailable",
+      });
     } finally {
       warn.mockRestore();
     }

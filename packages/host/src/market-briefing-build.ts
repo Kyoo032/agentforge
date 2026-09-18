@@ -41,6 +41,7 @@ import {
   type WatchSystemPromptInput,
 } from "@agentforge/core/market";
 import { extractJsonObject } from "./presentation-outline";
+import { log } from "./log";
 
 export type BriefingDraft = { title: string; sections: BriefingSection[] };
 
@@ -265,7 +266,9 @@ export function assertBriefingHasNoAdvice(sections: readonly BriefingSection[]):
     assertNoAdvice({ sections });
   } catch (error) {
     if (error instanceof AdviceLeakError) {
-      console.error(`market: advice leak after guarding at ${error.path} (matched ${JSON.stringify(error.match)})`);
+      // The matched phrase is the model's own output about this tenant's holdings, so only its
+      // shape is logged. The path says which section to look at; the text stays out of the log.
+      log.error("market_advice_leak_after_guard", { path: error.path, matchLength: error.match.length });
       throw new ApiError("advice_leak", "The briefing still contained directive language after guarding", 502);
     }
     throw error;

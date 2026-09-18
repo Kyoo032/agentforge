@@ -82,20 +82,92 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
  */
 const TRANSPORT_HEADER = "x-agentforge-transport";
 
-/** Returns a copy of `init` carrying the transport header; mutating calls only, safe methods untouched. */
-function withTransportHeader(init: RequestInit, method: string): RequestInit {
+/**
+ * Double-submit CSRF pair (docs/internal/web-security-spec.md A2). The host mints the token on the
+ * first `/api` GET as a cookie this code can read; echoing it in the header proves the call came from
+ * a page on our own origin, because a cross-site page cannot read the cookie.
+ *
+ * Two names, one token: the hosted HTTPS server mints the `__Host-` prefixed cookie, which a browser
+ * accepts only over TLS and lets no other host or path overwrite, while webdev and the desktop mint
+ * the plain name, because a `__Host-` cookie is rejected over plain http. This reads whichever is
+ * there, prefixed first.
+ */
+const CSRF_COOKIE_SECURE = "__Host-agentforge_csrf";
+const CSRF_COOKIE = "agentforge_csrf";
+const CSRF_HEADER = "x-agentforge-csrf";
+
+/** The cheapest GET on the API. The host mints the cookie on any `/api` GET that arrives without one. */
+const CSRF_PRIME_PATH = "/api/v1/ping";
+
+/** One cookie by exact name, or null when it is absent, empty or badly encoded. */
+function cookieValue(jar: string, name: string): string | null {
+  for (const part of jar.split(";")) {
+    const separator = part.indexOf("=");
+    if (separator === -1 || part.slice(0, separator).trim() !== name) {
+      continue;
+    }
+    try {
+      return decodeURIComponent(part.slice(separator + 1).trim()) || null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+/** The CSRF token the host minted for this browser, or null before an `/api` GET has answered. */
+export function readCsrfCookie(): string | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  const jar = document.cookie;
+  return cookieValue(jar, CSRF_COOKIE_SECURE) ?? cookieValue(jar, CSRF_COOKIE);
+}
+
+/**
+ * The token to echo on a mutating call, minting one first when the jar is empty.
+ *
+ * The cookie only exists once an `/api` GET has answered, so the first action after a cold
+ * navigation - a deep link that opens straight onto a form - would otherwise have nothing to send and
+ * would be refused by the hosted server. One `GET /api/v1/ping`, with the caller's own credentials so
+ * the browser keeps the `Set-Cookie`, fills the jar before the real call goes out. If that GET fails,
+ * the call is sent anyway and the host answers `csrf_missing`, rather than this layer inventing an
+ * error of its own.
+ */
+async function csrfTokenForMutation(init: RequestInit): Promise<string | null> {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  const existing = readCsrfCookie();
+  if (existing) {
+    return existing;
+  }
+  try {
+    await fetch(CSRF_PRIME_PATH, { method: "GET", credentials: init.credentials, signal: init.signal });
+  } catch {
+    return null;
+  }
+  return readCsrfCookie();
+}
+
+/** Returns a copy of `init` carrying the transport and CSRF headers; safe methods are untouched. */
+async function withMutatingHeaders(init: RequestInit, method: string): Promise<RequestInit> {
   if (SAFE_METHODS.has(method)) {
     return init;
   }
   const headers = new Headers(init.headers);
   headers.set(TRANSPORT_HEADER, "web");
+  const csrf = await csrfTokenForMutation(init);
+  if (csrf) {
+    headers.set(CSRF_HEADER, csrf);
+  }
   return { ...init, headers };
 }
 
 export async function apiFetch(input: string, init: RequestInit = {}): Promise<Response> {
   const method = (init.method ?? "GET").toUpperCase();
   if (!isElectron()) {
-    return fetch(input, withTransportHeader(init, method));
+    return fetch(input, await withMutatingHeaders(init, method));
   }
   throwIfAborted(init.signal);
   const { path, query } = parsePath(input);

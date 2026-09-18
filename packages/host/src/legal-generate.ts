@@ -30,6 +30,7 @@ import { listSelectableModels, modeCatalogPayload } from "./selectable-models";
 import { loadSettings } from "./settings-store";
 import { localeForRun } from "./run-context";
 import { artifactWorkCard } from "./work-cards";
+import { log } from "./log";
 
 export type LegalRunSummary = {
   runId: string;
@@ -150,7 +151,7 @@ function persistDeliverable(
     return { kind: item.kind, artifactId: record.id, filename: item.filename };
   } catch (error) {
     const code = error instanceof ApiError ? error.code : "internal_error";
-    console.warn(`legal: could not save ${item.kind} (${code})`);
+    log.warn("legal_deliverable_not_saved", { kind: item.kind, code });
     return null;
   }
 }
@@ -172,7 +173,7 @@ function persistManifest(
     });
   } catch (error) {
     const code = error instanceof ApiError ? error.code : "internal_error";
-    console.warn(`legal: could not save manifest (${code})`);
+    log.warn("legal_manifest_not_saved", { code });
   }
 }
 

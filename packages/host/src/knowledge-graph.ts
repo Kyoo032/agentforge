@@ -3,6 +3,7 @@ import { sql } from "@agentforge/db";
 import type { KnowledgeMap, TenantContext } from "@agentforge/core";
 import { sanitizeSourceName } from "./knowledge-text";
 import { sweepOrphanGraph } from "./knowledge-graph-prune";
+import { log } from "./log";
 
 /**
  * The Graph stage of the knowledge loop: topics, sources and threads, and the edges between them.
@@ -210,9 +211,9 @@ export function projectRetrievalsToGraph(
     }
     return { nodes: upsertNodes(tenant, nodes), edges: upsertEdges(tenant, edges) };
   } catch (error) {
-    console.warn(
-      `knowledge-graph: retrieval projection skipped (${error instanceof Error ? error.message.slice(0, 120) : "error"})`,
-    );
+    log.warn("knowledge_graph_retrieval_projection_skipped", {
+      detail: error instanceof Error ? error.message.slice(0, 120) : "error",
+    });
     return { nodes: 0, edges: 0 };
   }
 }
@@ -265,9 +266,9 @@ export function recordCites(tenant: TenantContext, cite: CiteInput): number {
     tx.immediate();
     return sourceIds.length;
   } catch (error) {
-    console.warn(
-      `knowledge-graph: cites not recorded (${error instanceof Error ? error.message.slice(0, 120) : "error"})`,
-    );
+    log.warn("knowledge_graph_cites_not_recorded", {
+      detail: error instanceof Error ? error.message.slice(0, 120) : "error",
+    });
     return 0;
   }
 }
@@ -323,9 +324,9 @@ export function getGraph(tenant: TenantContext, options: { limit?: number } = {}
     const edges = pooled.filter((edge) => kept.has(edge.from) && kept.has(edge.to)).slice(0, limit);
     return { nodes, edges };
   } catch (error) {
-    console.warn(
-      `knowledge-graph: read failed (${error instanceof Error ? error.message.slice(0, 120) : "error"})`,
-    );
+    log.warn("knowledge_graph_read_failed", {
+      detail: error instanceof Error ? error.message.slice(0, 120) : "error",
+    });
     return { nodes: [], edges: [] };
   }
 }
@@ -341,9 +342,9 @@ export function graphCounts(tenant: TenantContext): { nodes: number; edges: numb
       .get(tenant.workspaceId) as { n: number } | undefined;
     return { nodes: nodes?.n ?? 0, edges: edges?.n ?? 0 };
   } catch (error) {
-    console.warn(
-      `knowledge-graph: counts failed (${error instanceof Error ? error.message.slice(0, 120) : "error"})`,
-    );
+    log.warn("knowledge_graph_counts_failed", {
+      detail: error instanceof Error ? error.message.slice(0, 120) : "error",
+    });
     return { nodes: 0, edges: 0 };
   }
 }
