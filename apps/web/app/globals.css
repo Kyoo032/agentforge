@@ -75,7 +75,6 @@
   --space-6: 32px;
 
   --sidebar: 232px;
-  --thread: 200px;
   --composer-max: 720px;
 
   --motion-hover: 120ms ease;
@@ -126,6 +125,11 @@
   --shadow-lg: none;
   --shadow-card: none;
   --shadow-float: none;
+
+  /* Scrollbars ride on --text so they stay in the palette in both themes. */
+  --scroll-thumb: color-mix(in srgb, var(--text) 18%, transparent);
+  --scroll-thumb-hover: color-mix(in srgb, var(--text) 32%, transparent);
+  --scroll-thumb-active: color-mix(in srgb, var(--text) 45%, transparent);
 }
 
 .dark {
@@ -140,6 +144,52 @@
   --accent-soft: color-mix(in srgb, #0f766e 22%, #292929);
   --danger: #c4453c;
   --ok: #2f6f4e;
+
+  /* Light ink on a dark ground reads fainter, so nudge each step up. */
+  --scroll-thumb: color-mix(in srgb, var(--text) 22%, transparent);
+  --scroll-thumb-hover: color-mix(in srgb, var(--text) 38%, transparent);
+  --scroll-thumb-active: color-mix(in srgb, var(--text) 52%, transparent);
+}
+
+/* Firefox has no ::-webkit-scrollbar; Chromium drops the pseudo-elements as soon as
+   scrollbar-color is set, so keep the standard properties fenced off from it. */
+@supports not selector(::-webkit-scrollbar) {
+  html,
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scroll-thumb) transparent;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: var(--r-pill);
+  /* 3px of transparent border clipped to the padding box leaves a ~4px visible bar. */
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: var(--scroll-thumb-active);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 html,
@@ -333,6 +383,23 @@ h6 {
 
 @layer components {
   /* Stay in @layer components so Tailwind position/bg utilities win. */
+
+  /* A 32px-tall control that does not clip its own text.
+     `h-8` + `py-2` leaves a 14px content box, but a 14px Inter line box is ~17px,
+     and Chromium clips a <select> (overflow-y: clip) instead of letting it overflow,
+     so descenders and the baseline get cut. Drop the padding and let `leading-8`
+     centre the text in the full 30px content box instead. */
+  .select-field {
+    @apply h-8 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-0 text-sm leading-8 text-[var(--text)];
+    appearance: auto;
+  }
+
+  /* Same geometry for the text inputs that share the recipe. Inputs are clipped by
+     Chromium too, they just have no arrow and keep the transparent background. */
+  .text-field {
+    @apply h-8 rounded-lg border border-[var(--line)] bg-transparent px-3 py-0 text-sm leading-8 text-[var(--text)];
+  }
+
   .blueprint {
     position: relative;
     border: 1px solid var(--color-divider);

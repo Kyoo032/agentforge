@@ -2,13 +2,47 @@
   "title": "Keuangan",
   "kicker": "Ruang kerja",
   "subtitle": "Berikan angka Anda kepada {productName} sebagai pos. Margin, pertumbuhan, runway, titik impas, dan NPV dihitung di kode; model hanya menulis narasi, dan setiap angka yang tidak dapat dilacak akan dihapus.",
-  "download": "Unduh DOCX",
-  "downloading": "Menyusun…",
   "pasteFigures": "Tempel angka",
   "figuresPlaceholder": "Pendapatan 2025: $120.000. Hosting $30.000. Gaji $100.000. Kas $90.000…",
   "parse": "Uraikan menjadi pos",
   "parsing": "Membaca…",
   "parseHint": "Tidak ada yang dihitung sebelum Anda mengonfirmasi baris di bawah.",
+  "upload": {
+    "label": "Atau unggah berkas spreadsheet atau dokumen",
+    "dropHint": "Letakkan berkas .csv, .xlsx, .xls, .pdf, .docx, atau .pptx di sini, atau",
+    "choose": "Pilih berkas",
+    "reading": "Membaca…",
+    "replace": "Ganti",
+    "remove": "Hapus",
+    "fileAria": "Berkas spreadsheet atau dokumen yang dibaca",
+    "sheet": "Lembar",
+    "sheetAria": "Lembar yang dibaca",
+    "sheetOption": "{name} ({rows} baris)",
+    "previewLabel": "{count} baris pertama",
+    "use": "Pakai angka ini",
+    "useHint": "Angkanya masuk ke kotak di atas. Tidak ada yang dihitung sebelum Anda menguraikannya dan mengonfirmasi barisnya.",
+    "warningsTitle": "Sebagian isi berkas ini tidak ikut diimpor",
+    "warnings": {
+      "droppedColumns": "{n} kolom tidak ikut diimpor",
+      "droppedRows": "{n} baris tidak memuat angka, jadi tidak ikut diimpor",
+      "directionMismatch": "{n} baris tidak cocok dengan label arahnya",
+      "truncated": "{n} baris dipotong agar muat pada batas panjang angka",
+      "compacted": "Lembar ini ditulis ulang menjadi baris periode = nilai agar muat",
+      "cappedCells": "{n} sel terlalu panjang dan dipendekkan",
+      "piiAmountRestored": "{n} sel berisi angka yang sempat disembunyikan pemeriksaan data pribadi; angkanya dikembalikan"
+    },
+    "pii": "{n} data pribadi disembunyikan sebelum dikirim",
+    "errors": {
+      "type": "Hanya berkas .csv, .xlsx, .xls, .pdf, .docx, dan .pptx yang bisa dibaca.",
+      "tooLarge": "Berkas itu melebihi batas {mb} MB.",
+      "failed": "Berkas itu tidak bisa dibaca sebagai tabel",
+      "mismatch": "Isi berkas itu tidak sesuai dengan jenis yang tertulis di namanya.",
+      "needsOcr": "PDF ini hasil pindaian. Membaca hasil pindaian belum tersedia di komputer ini, dan tidak ada yang dikirim ke mana pun.",
+      "encrypted": "Berkas itu terkunci kata sandi. Lepaskan kata sandinya lalu coba lagi.",
+      "slow": "Berkas itu terlalu lama dibaca, jadi tidak jadi diimpor."
+    },
+    "allSheets": "Semua tabel ({{count}})"
+  },
   "orDataset": "Atau gunakan dataset tersimpan",
   "lineItemsBelow": "Pos di bawah",
   "datasetOption": "{name} ({rows} baris)",
@@ -151,5 +185,340 @@
     "amount": "Jumlah",
     "currency": "Mata uang",
     "none": "(tidak ada)"
+  },
+  "taskAria": "Tugas keuangan",
+  "phaseStripAria": "Langkah dalam tugas ini",
+  "taskUnavailable": "{task} punya langkah dan perhitungannya sendiri, dan keduanya masih dibangun. Belum ada yang bisa dijalankan di sini.",
+  "brief": {
+    "statedFacts": {
+      "title": "Tertulis di dokumen ({{count}})",
+      "hint": "Angka yang ditulis dokumen di dalam kalimat, bukan di tabel. Periksa namanya, atau hapus yang tidak ingin dikutip. Angka ini tidak pernah ikut dijumlahkan.",
+      "labelPlaceholder": "Angka ini tentang apa",
+      "labelAria": "Nama untuk angka yang tertulis ini",
+      "remove": "Hapus",
+      "removeAria": "Hapus angka tertulis ini"
+    }
+  },
+  "cashflow": {
+    "figures": "Kas masuk dan keluar, per periode",
+    "figuresPlaceholder": "Saldo awal 900.000.000. Jan masuk 200.000.000, keluar 260.000.000. Feb masuk 210.000.000, keluar 255.000.000.",
+    "read": "Baca periodenya",
+    "reading": "Membaca periode…",
+    "readHint": "Periode, kedua sisi, dan saldo awal dibaca oleh kode. Kamu yang mengonfirmasi sebelum ada satu pun angka dihitung.",
+    "openingCash": "Saldo awal",
+    "openingCashHint": "Terisi otomatis dari baris saldo awal di bukunya, kalau ada.",
+    "periods": "Periode",
+    "noPeriods": "Belum ada periode. Tempel atau unggah buku kas dulu, lalu baca.",
+    "period": "Periode",
+    "cashIn": "Kas masuk",
+    "cashOut": "Kas keluar",
+    "financing": "Pendanaan",
+    "net": "Bersih",
+    "closing": "Saldo akhir",
+    "variable": "Variabel",
+    "fixed": "Tetap",
+    "oneOff": "Sekali jalan",
+    "costBehaviour": "Perilaku biaya",
+    "classification": "Setiap baris dibaca sebagai apa",
+    "classificationHint": "Hasil aturan, bukan model. Ubah yang keliru dan semua angka dihitung ulang.",
+    "needsConfirming": "tolong dicek",
+    "inflow": "kas masuk",
+    "outflow": "kas keluar",
+    "opening": "saldo awal",
+    "whatIf": "Skenario what-if",
+    "whatIfHint": "Setiap tuas dihitung ulang oleh kode saat kamu mengetik. Ini bukan ramalan.",
+    "whatIfEmpty": "Isi salah satu tuas untuk melihat pengaruhnya ke burn dan runway.",
+    "salesLift": "Perubahan penjualan %",
+    "rentCut": "Potongan sewa %",
+    "hires": "Karyawan baru",
+    "costPerHire": "Biaya per orang, per periode",
+    "recurring": "Biaya rutin lain",
+    "oneOffCost": "Pengeluaran sekali jalan",
+    "closingCash": "Saldo kas akhir",
+    "netBurn": "Burn bersih",
+    "grossBurn": "Burn kotor",
+    "runway": "Runway",
+    "breakeven": "Omzet BEP per periode",
+    "scenarioRunway": "Runway setelah skenario",
+    "notAvailable": "tidak tersedia",
+    "warnings": "Yang perlu dilihat",
+    "sections": {
+      "position": "Posisi kas",
+      "burn-and-runway": "Burn dan runway",
+      "scenario": "Skenario what-if",
+      "flags": "Yang perlu diperhatikan"
+    }
+  },
+  "budget": {
+    "figures": "Anggaran dan realisasi",
+    "figuresPlaceholder": "Tempel kedua set, atau impor sheet anggaran dan sheet realisasi di atas.",
+    "read": "Baca kedua set",
+    "reading": "Membaca…",
+    "readHint": "Baris, periode, dan baris subtotal dibaca di kode. Pasangan di bawah masih berupa usulan.",
+    "thresholds": "Tandai baris bila",
+    "flagPct": "Batas persen",
+    "flagPctHint": "Baris ditandai bila selisihnya minimal sebesar porsi ini dari anggarannya sendiri.",
+    "flagAbs": "Batas nominal",
+    "flagAbsHint": "Baris ditandai bila selisih nominalnya minimal sebesar angka ini.",
+    "flagMode": "Cara kedua batas digabung",
+    "flagModeAnd": "Kedua batas (disarankan)",
+    "flagModeOr": "Salah satu batas",
+    "notAvailable": "tidak tersedia",
+    "noReport": "Proses ini selesai tanpa laporan, jadi belum ada yang bisa dibandingkan.",
+    "errors": {
+      "read": "Angka itu tidak bisa dibaca menjadi set anggaran dan set realisasi."
+    },
+    "preview": {
+      "heading": "Yang sudah terbaca dari baris ini",
+      "empty": "Baca kedua set dulu; sebelum itu tidak ada yang dihitung.",
+      "lines": "Baris dibandingkan",
+      "flagged": "Baris lewat batas",
+      "unmatched": "Baris tanpa pasangan",
+      "result": "Surplus/(defisit) terhadap anggaran",
+      "periods": "Periode: {periods}"
+    },
+    "pairing": {
+      "heading": "Cocokkan pasangan baris",
+      "hint": "Tiap pasangan adalah usulan lengkap dengan alasannya. Ubah dulu bila perlu sebelum laporan dibuat; satu baris hanya boleh punya satu pasangan.",
+      "empty": "Belum ada pasangan — baca kedua set dulu.",
+      "budgetSide": "Baris anggaran",
+      "actualSide": "Baris realisasi",
+      "confidence": "Alasan",
+      "none": "— tanpa pasangan —",
+      "selectAria": "Baris realisasi yang dipasangkan dengan {line}",
+      "budgetOnly": "Hanya di anggaran",
+      "actualOnly": "Hanya di realisasi",
+      "bucketEmpty": "Tidak ada sisa.",
+      "excluded": "{count} baris tidak ikut dibandingkan: {labels}",
+      "chip": "{stage} · {score}%",
+      "stageGroup": {
+        "exact": "label sama",
+        "synonym": "kamus keuangan",
+        "meaning": "makna mirip",
+        "manual": "diatur olehmu",
+        "ambiguous": "terlalu mirip untuk dipilih",
+        "unmatched": "tanpa pasangan"
+      },
+      "didYouMean": "Paling dekat:",
+      "candidateTitle": "Pasangkan dengan baris ini — {stage}, {score}%",
+      "meaningUnavailable": "Dicocokkan dari kata-katanya saja: pencocokan makna butuh gateway model, yang sedang tidak tersedia."
+    },
+    "chart": {
+      "flagged": "lewat batas"
+    }
+  },
+  "appraisal": {
+    "figures": "Modal awal dan arus kas tahunan",
+    "figuresPlaceholder": "Modal awal Rp 1.450.000.000 di Tahun 0. Tahun 1 Rp 285.000.000, Tahun 2 Rp 340.000.000… Atau unggah lembar kelayakannya.",
+    "read": "Baca arus kasnya",
+    "reading": "Sedang membaca arus kas…",
+    "flows": "Arus kas per tahun",
+    "flowsHint": "Satu arus kas bersih per tahun. Tahun 0 adalah modal awal dan tidak pernah didiskonto; ubah satu tahun untuk menimpa jumlah baris-barisnya.",
+    "amount": "Arus kas bersih",
+    "components": "Terdiri dari",
+    "addYear": "Tambah tahun",
+    "removeYearAria": "Hapus {period}",
+    "yearAria": "Arus kas bersih untuk {period}",
+    "discountRate": "Tingkat diskonto %",
+    "discountRateHint": "Ambang yang dipakai untuk semua NPV di bawah ini.",
+    "rateScenarios": "Tingkat diskonto untuk grid %",
+    "cashFlowShifts": "Pergeseran arus kas untuk grid %",
+    "axesHint": "Pisahkan dengan koma. Pergeseran hanya mengubah tahun setelah Tahun 0; modal awal tidak pernah ikut bergeser.",
+    "preview": "Sudah dihitung sekarang, sebelum ada narasi",
+    "npv": "NPV @ {rate}%",
+    "irr": "IRR",
+    "payback": "Payback",
+    "discountedPayback": "Payback terdiskonto",
+    "profitabilityIndex": "Profitability index",
+    "years": "tahun",
+    "irrNotUnique": "NPV(r) memotong nol {count} kali, jadi tidak ada IRR tunggal. MIRR dilaporkan sebagai gantinya.",
+    "negativeCells": "{count} dari {total} sel grid bernilai negatif.",
+    "negativeYears": "Tahun bernilai negatif: {periods}.",
+    "empty": "Tempel modal awal dan arus kas tahunan, atau unggah lembar kelayakannya, lalu konfirmasi tahun-tahun di atas.",
+    "confirmed": "{count} tahun dikonfirmasi",
+    "notAvailable": "tidak tersedia",
+    "noReport": "Kelayakan ini kembali tanpa laporan, jadi tidak ada yang bisa ditampilkan. Jalankan lagi."
+  },
+  "ratios": {
+    "paste": "Neraca dan laba rugi",
+    "pastePlaceholder": "Kas 2024: 2.340.000.000. Persediaan 2024: 4.725.000.000. Utang usaha 2024: 3.960.000.000…",
+    "parse": "Baca laporan",
+    "parsing": "Membaca…",
+    "parseHint": "Baris, periode, tanda, dan kelompok dibaca oleh kode. Konfirmasi setiap kelompok di bawah sebelum apa pun dihitung.",
+    "readCount": "{rows} baris terbaca pada {periods} periode.",
+    "subtotalsIgnored": "{count} baris jumlah dikeluarkan dan tidak ikut dijumlahkan.",
+    "modelAssist": "{placed} dari {asked} label tak dikenal ditempatkan model dengan keyakinan rendah. Mohon diperiksa.",
+    "modelAssistFailed": "{asked} label tidak dapat ditempatkan otomatis. Pilih kelompoknya satu per satu.",
+    "unplaced": "{count} baris belum masuk kelompok mana pun, jadi tidak masuk rasio mana pun.",
+    "period": "Periode yang dibaca",
+    "periodHint": "Setiap rasio memakai kolom periode ini saja. Antar periode tidak pernah dijumlahkan.",
+    "classification": "Pengelompokan pos",
+    "classificationHint": "Setiap baris, kelompok tempatnya, dan dasar penempatannya. Ubah kelompok mana pun yang tidak Anda setujui.",
+    "emptyRows": "Belum ada baris yang dibaca.",
+    "errors": {
+      "parse": "Laporan itu tidak bisa dibaca"
+    },
+    "columns": {
+      "label": "Pos",
+      "period": "Periode",
+      "amount": "Nilai",
+      "bucket": "Kelompok",
+      "confidence": "Keyakinan",
+      "bucketAria": "Kelompok untuk {label}"
+    },
+    "statement": {
+      "balance-sheet": "Neraca",
+      "income-statement": "Laba rugi",
+      "supporting": "Data pendukung",
+      "none": "Belum dikelompokkan"
+    },
+    "bucket": {
+      "cash": "Kas dan setara kas",
+      "receivables": "Piutang",
+      "inventory": "Persediaan",
+      "other-current-asset": "Aset lancar lain",
+      "fixed-asset": "Aset tetap",
+      "contra-asset": "Pengurang aset (kontra)",
+      "other-noncurrent-asset": "Aset tidak lancar lain",
+      "current-liability": "Liabilitas jangka pendek",
+      "short-term-debt": "Utang berbunga jangka pendek",
+      "current-portion-ltd": "Bagian lancar utang jangka panjang",
+      "long-term-debt": "Utang jangka panjang",
+      "other-noncurrent-liability": "Liabilitas jangka panjang lain",
+      "equity": "Ekuitas",
+      "revenue": "Pendapatan",
+      "cogs": "Harga pokok penjualan",
+      "opex": "Beban usaha",
+      "depreciation": "Penyusutan dan amortisasi",
+      "interest": "Beban bunga",
+      "tax": "Beban pajak",
+      "principal-repayment": "Pembayaran pokok pinjaman",
+      "other-income": "Pendapatan (beban) lain-lain",
+      "excluded": "Tidak masuk rasio mana pun"
+    },
+    "evidence": {
+      "derived": "importir: baris jumlah",
+      "label": "kamus label",
+      "section": "judul bagian",
+      "category": "kategori baris",
+      "model": "model, keyakinan rendah",
+      "override": "pilihan Anda",
+      "unknown": "tidak ada yang cocok"
+    },
+    "balance": {
+      "heading": "Uji keseimbangan neraca",
+      "ok": "{period}: jumlah aset {assets} sama dengan liabilitas ditambah ekuitas.",
+      "broken": "{period}: jumlah aset {assets} berselisih {difference} dari liabilitas {liabilities} ditambah ekuitas {equity}. Perbaiki kelompoknya sebelum membaca rasio.",
+      "unknown": "{period}: baris belum cukup untuk menguji keseimbangan."
+    },
+    "supporting": {
+      "heading": "Angka pendukung",
+      "hint": "Hanya dipakai bila tidak ada baris yang memuatnya. Baris yang sudah dikonfirmasi selalu menang.",
+      "depreciation": "Penyusutan dan amortisasi",
+      "principalRepayment": "Pembayaran pokok",
+      "daysPerYear": "Hari per tahun"
+    },
+    "bands": {
+      "heading": "Ambang rujukan",
+      "hint": "Ambang rujukan umum (rule of thumb), bukan tolok ukur industri dan bukan nasihat keuangan. Ubah barisnya dan kartu skor ikut berubah.",
+      "healthy": "Ambang sehat",
+      "watch": "Ambang waspada",
+      "reset": "Kembalikan ke bawaan",
+      "healthyAria": "Ambang sehat untuk {metric}",
+      "watchAria": "Ambang waspada untuk {metric}"
+    },
+    "scorecard": {
+      "heading": "Kartu skor",
+      "metric": "Rasio",
+      "empty": "Tidak ada rasio yang dapat dihitung dari baris ini."
+    }
+  },
+  "tasks": {
+    "brief": {
+      "label": "Brief Keuangan",
+      "hint": "Angka ditempel, baris dikonfirmasi, lalu satu brief naratif dengan semua metrik inti."
+    },
+    "cashflow": {
+      "label": "Arus Kas & Runway",
+      "hint": "Kas masuk dan keluar tiap bulan atas saldo awal: burn, runway, titik impas, dan satu skenario what-if."
+    },
+    "budget": {
+      "label": "Anggaran vs Realisasi",
+      "hint": "Dua set angka dipasangkan baris per baris: selisih nominal dan persen, lalu hanya yang lewat batas dijelaskan."
+    },
+    "appraisal": {
+      "label": "Kelayakan Investasi",
+      "hint": "Modal awal dan arus kas tahunan pada satu tingkat diskonto: NPV, IRR, payback, dan grid sensitivitas."
+    },
+    "ratios": {
+      "label": "Cek Kesehatan Rasio",
+      "hint": "Neraca dan laba rugi dikelompokkan ke pos-posnya: likuiditas, utang, dan DSCR, lalu dibandingkan dengan ambangnya."
+    }
+  },
+  "phases": {
+    "paste-figures": "Tempel angka",
+    "parse-items": "Baca jadi baris",
+    "confirm-rows": "Konfirmasi baris",
+    "core-metrics": "Semua metrik inti",
+    "narrate-sections": "Tulis bagian naratif",
+    "number-guard-export": "Penjaga angka + ekspor",
+    "monthly-flows": "Kas masuk dan keluar bulanan + saldo awal",
+    "parse-periods": "Baca jadi periode",
+    "confirm-periods": "Konfirmasi periode",
+    "runway-math": "Burn, runway, titik impas",
+    "scenario": "Skenario what-if",
+    "narrate-guard-export": "Narasi + penjaga + ekspor",
+    "budget-and-actuals": "Anggaran dan realisasi",
+    "parse-both-sets": "Baca kedua set",
+    "match-pairs": "Pasangkan baris",
+    "variance-math": "Selisih nominal + %",
+    "flag-over-limit": "Tandai baris yang lewat batas",
+    "explain-flagged": "Jelaskan yang ditandai saja",
+    "guard-export": "Penjaga + ekspor",
+    "outlay-and-flows": "Modal awal + arus kas tahunan",
+    "discount-rate": "Tetapkan tingkat diskonto",
+    "confirm-flows": "Konfirmasi arus kas",
+    "appraisal-math": "NPV, IRR, payback",
+    "sensitivity-grid": "Grid sensitivitas",
+    "memo-guard-export": "Memo + penjaga + ekspor",
+    "balance-and-pl": "Neraca + laba rugi",
+    "classify-buckets": "Kelompokkan ke pos",
+    "ratio-math": "Likuiditas, utang, DSCR",
+    "bands-vs-thresholds": "Band terhadap ambang",
+    "scorecard-guard-export": "Kartu skor + penjaga + ekspor"
+  },
+  "export": {
+    "button": "Ekspor",
+    "choose": "Pilih format ekspor",
+    "working": "Menyiapkan…",
+    "failed": "Tidak bisa membuat berkas ekspor",
+    "format": {
+      "xlsx": "Excel (.xlsx)",
+      "pptx": "PowerPoint (.pptx)",
+      "docx": "Word (.docx)"
+    }
+  },
+  "notice": {
+    "pii": "{n} data pribadi disembunyikan sebelum apa pun dikirim",
+    "modelFallback": "{from} sedang tidak tersedia; yang dipakai {to}"
+  },
+  "charts": {
+    "heading": "Grafik",
+    "empty": "Tidak ada grafik yang bisa dibuat dari angka ini.",
+    "alt": "{title}, grafik {kind}",
+    "kind": {
+      "line": "garis",
+      "bar": "batang",
+      "heat": "peta panas",
+      "gauge": "pengukur"
+    }
+  },
+  "rows": {
+    "derivedTitle": "Total yang sudah tertulis di berkas",
+    "derivedHint": "Baris ini adalah jumlah dari baris di atasnya. Disimpan sebagai pembanding, tidak pernah dijumlahkan lagi.",
+    "derivedBadge": "Total",
+    "statedFactsTitle": "Tertulis di dokumen",
+    "statedFactsHint": "Angka yang disebut berkas ini di dalam kalimat, bukan di dalam tabel.",
+    "removedSentence": "Satu kalimat dihapus karena angkanya tidak bisa ditelusuri."
   }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { maskOutboundRunInput, maskPii, maskPiiInParts, passesLuhn, piiWarning, scanPii } from "./pii";
+import { PII_MASK, maskOutboundRunInput, maskPii, maskPiiInParts, passesLuhn, piiWarning, scanPii } from "./pii";
 
 describe("scanPii", () => {
   it("finds email addresses", () => {
@@ -82,6 +82,115 @@ describe("maskPii", () => {
     expect(input.version.systemPrompt).toContain("alex.rivera@example.com");
     expect(masked.history[0]?.parts[0]).toMatchObject({ type: "text", text: expect.stringContaining("[phone]") });
     expect(masked.history[0]?.parts[0]).toMatchObject({ type: "text", text: expect.not.stringContaining("415") });
+  });
+});
+
+describe("Indonesian identifiers", () => {
+  // Invented numbers. `99` is the province code reserved for fixtures; the rest are format samples.
+  it("masks a NIK, an NPWP and an 08xx phone", () => {
+    expect(maskPii("NIK 3273010101900001")).toBe("NIK [nik]");
+    expect(maskPii("Karyawan 9901011505880042 aktif")).toBe("Karyawan [nik] aktif");
+    expect(maskPii("NPWP 09.254.294.3-407.000")).toBe("NPWP [npwp]");
+    expect(maskPii("HP 081234567890")).toBe("HP [phone]");
+    expect(maskPii("No. Rekening: 1234567890")).toBe("No. Rekening: [account]");
+  });
+
+  it("has a token for every kind it can report", () => {
+    expect(Object.keys(PII_MASK).sort()).toEqual([
+      "account",
+      "card",
+      "email",
+      "id",
+      "name",
+      "nik",
+      "npwp",
+      "phone",
+    ]);
+  });
+});
+
+describe("money is never masked", () => {
+  // F: `1.250.000.000.000` came back as `[phone]` and a Luhn-lucky bare total as `[card]`. Both
+  // rewrote a figure a Finance brief is built from, which is the one thing masking may not do.
+  it("leaves dot-grouped rupiah totals alone at every magnitude", () => {
+    for (const amount of [
+      "1.250.000.000",
+      "1.250.000.000.000",
+      "1.250.000.000.000.000",
+      "876.540.000.000.000.000",
+      "3.500.000,50",
+      "1,250,000,000",
+    ]) {
+      expect({ amount, masked: maskPii(amount) }).toEqual({ amount, masked: amount });
+    }
+  });
+
+  it("leaves bare totals alone even when they happen to pass Luhn", () => {
+    for (const amount of ["87654000000000", "8765400000000000", "876540000000000000", "1250000000000000"]) {
+      expect({ amount, masked: maskPii(amount) }).toEqual({ amount, masked: amount });
+    }
+    expect(passesLuhn("87654000000000")).toBe(true);
+  });
+
+  it("still masks a card a person actually wrote out", () => {
+    expect(maskPii("Pay with 4111 1111 1111 1111 today")).toBe("Pay with [card] today");
+    expect(maskPii("Card 4111111111111111 on file")).toBe("Card [card] on file");
+  });
+});
+
+describe("an accounting negative is still money", () => {
+  // F: a sheet wrote 2024 cost of sales as `(23.960.000.000)`. The opening bracket read as phone
+  // formatting, the grouping veto only knew bare digits, and the figure reached the parser as
+  // `[phone])` — the brief's EBIT, its interest cover and every ratio built on them went with it.
+  it("leaves bracketed, signed, spaced and currency-wrapped figures alone", () => {
+    for (const amount of [
+      "(23.960.000.000)",
+      "(4.025.000.000)",
+      "( 23.960.000.000 )",
+      "(1,234,567.00)",
+      "(23 960 000 000)",
+      "-23.960.000.000",
+      "+23.960.000.000",
+      "Rp (1.250.000.000)",
+      "(Rp1.250.000.000)",
+      "USD (65,000,000,000)",
+      "Rp 23.960.000.000",
+      "1.250.000,50",
+    ]) {
+      expect({ amount, masked: maskPii(amount) }).toEqual({ amount, masked: amount });
+    }
+  });
+
+  it("keeps both figures of the row the parser is handed", () => {
+    const row = "Harga Pokok Penjualan | (23.960.000.000) | (4.025.000.000)";
+    expect(maskPii(row)).toBe(row);
+  });
+
+  // F: a PDF flattens its table to one line, so two figures stand side by side with only a space
+  // between them. The matcher offered `368.000.000 9` — a phone-shaped slice cut across both — and
+  // masking it took `7.368.000.000` and `9.004.650.000` out of an annual report in one move.
+  it("never masks a slice cut out of two amounts standing side by side", () => {
+    for (const line of [
+      "Laba kotor 7.368.000.000 9.004.650.000",
+      "Beban penjualan 2.210.400.000 2.635.800.000",
+      "Kas dan setara kas awal tahun 1.120.000.000 1.586.500.000",
+      "Laba bersih 1,736,800,000 2,585,000,000",
+    ]) {
+      expect({ line, masked: maskPii(line) }).toEqual({ line, masked: line });
+    }
+  });
+
+  it("still masks a phone, whatever brackets or country code it carries", () => {
+    for (const phone of [
+      "+62 812-3456-7890",
+      "(021) 555-1234",
+      "(0812) 3456-789",
+      "0812 3456 7890",
+      "+1 (415) 555-2671",
+      "021-5551234",
+    ]) {
+      expect({ phone, masked: maskPii(phone) }).toEqual({ phone, masked: "[phone]" });
+    }
   });
 });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { briefLooksLikeFigures, parseFailureMessage } from "./finance-brief";
+import { briefLooksLikeFigures, mergeFigures, parseFailureMessage } from "./finance-brief";
 
 describe("briefLooksLikeFigures", () => {
   it("reads the Jakarta coffee chain brief as figures", () => {
@@ -34,6 +34,35 @@ describe("briefLooksLikeFigures", () => {
   it("does not throw on a non-string value", () => {
     expect(briefLooksLikeFigures(undefined as unknown as string)).toBe(false);
     expect(briefLooksLikeFigures(null as unknown as string)).toBe(false);
+  });
+});
+
+describe("mergeFigures", () => {
+  it("takes the uploaded text as it is when the box is empty", () => {
+    expect(mergeFigures("", "Revenue 2026 | 1200 | IDR")).toBe("Revenue 2026 | 1200 | IDR");
+    expect(mergeFigures("  \n ", "Revenue 2026 | 1200 | IDR")).toBe("Revenue 2026 | 1200 | IDR");
+  });
+
+  it("appends on a new line when the box already holds figures", () => {
+    expect(mergeFigures("Revenue 1200", "Opex 300")).toBe("Revenue 1200\nOpex 300");
+  });
+
+  it("does not stack blank lines on a box that ends in whitespace", () => {
+    expect(mergeFigures("Revenue 1200\n\n", "Opex 300")).toBe("Revenue 1200\nOpex 300");
+  });
+
+  it("keeps what was already typed, indentation and all", () => {
+    expect(mergeFigures("  Revenue 1200", "Opex 300")).toBe("  Revenue 1200\nOpex 300");
+  });
+
+  it("changes nothing when the upload read no figures", () => {
+    expect(mergeFigures("Revenue 1200", "   ")).toBe("Revenue 1200");
+    expect(mergeFigures("", "   ")).toBe("");
+  });
+
+  it("does not throw on a non-string value", () => {
+    expect(mergeFigures(undefined as unknown as string, "Opex 300")).toBe("Opex 300");
+    expect(mergeFigures("Revenue 1200", null as unknown as string)).toBe("Revenue 1200");
   });
 });
 

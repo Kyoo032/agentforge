@@ -3,12 +3,40 @@
   "intro": "Tempel kunci API {gatewayName} Anda. Chat dan mode kerja berjalan di mesin ini.",
   "setupCheck": "Pemeriksaan penyiapan",
   "ffmpegLater": "Anda dapat lanjut sekarang dan memasang ffmpeg nanti; studio Edit menampilkan panduan yang sama sampai ffmpeg ditemukan.",
-  "endpointLabel": "URL endpoint",
   "keyLabel": "Kunci API",
   "keyPlaceholder": "Dari dasbor gateway Anda",
   "continue": "Lanjut ke Chat",
-  "endpointLocked": "Endpoint ini tetap dan tidak dapat diubah.",
+  "gatewayHost": "Gateway: {host}",
   "gate.invalidKey": "Gateway menolak API key ini. Periksa key di {gatewayName} lalu coba lagi.",
   "gate.unreachable": "Tidak dapat menghubungi {gatewayName}. Periksa koneksi Anda lalu coba lagi.",
-  "gate.error": "Gateway mengembalikan kesalahan tak terduga. Coba lagi sebentar lagi."
+  "gate.error": "Gateway mengembalikan kesalahan tak terduga. Coba lagi sebentar lagi.",
+  "components": {
+    "title": "Menyiapkan {productName}",
+    "description": "Menambahkan pembaca lokal untuk berkas PDF, Word, PowerPoint, Excel, dan e-book. Setiap dokumen dibaca di mesin ini; tidak ada yang diunggah.",
+    "size": "Unduhan sekali saja, sekitar {mb} MB.",
+    "progress": "{done} dari {total} langkah · {percent}%",
+    "duration": "{seconds} dtk",
+    "steps": {
+      "check": "Memeriksa yang sudah tersedia",
+      "download": "Mengunduh pembaca",
+      "verify": "Memverifikasi unduhan",
+      "unpack": "Membongkar berkas",
+      "probe": "Memuat pembaca",
+      "marker": "Merampungkan"
+    },
+    "done": "Pembaca dokumen lokal sudah siap.",
+    "alreadyRunning": "Jendela lain sedang menyiapkannya; proses itu akan selesai dengan sendirinya.",
+    "retry": "Coba lagi",
+    "worksWithout": "{productName} tetap berjalan tanpanya — dokumen dibaca oleh pembaca lokal yang lebih sederhana sampai pembaca ini terpasang.",
+    "errors": {
+      "offline": "Tidak ada koneksi, sehingga pembaca tidak dapat diunduh.",
+      "download_failed": "Unduhan tidak selesai.",
+      "integrity_mismatch": "Unduhan tidak cocok dengan checksum-nya, jadi berkas itu dibuang.",
+      "unpack_failed": "Unduhan tidak dapat dibongkar.",
+      "probe_failed": "Pembaca sudah terpasang tetapi tidak mau dimuat.",
+      "unsupported_platform": "Tidak ada versi pembaca untuk sistem operasi ini.",
+      "busy": "Jendela lain sedang menyiapkannya.",
+      "unknown": "Penyiapan pembaca tidak selesai."
+    }
+  }
 }

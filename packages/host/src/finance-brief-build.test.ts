@@ -67,9 +67,25 @@ describe("brief draft and guard", () => {
 
   it("shows the model inputs and metrics as tables, never loose numbers", () => {
     const block = financePromptBlock(inputs, computed);
-    expect(block).toContain("| Sales | 2025 | revenue | 120000 | USD |");
-    expect(block).toContain("| gross_margin 2025 | Gross margin 2025 | 75% |");
+    expect(block).toContain("| Sales | 2025 | revenue | 120000 | USD | $120,000 |");
+    expect(block).toContain("| gross_margin 2025 | Gross margin 2025 | 75.0% |");
     expect(block).toContain("- discountRatePercent: 10");
+  });
+
+  it("hands every figure over pre-written in the reader's own language", () => {
+    const block = financePromptBlock(inputs, computed, "id");
+    expect(block).toContain("Tulis sebagai");
+    // 120000 in an Indonesian brief is 120.000, and a margin is one decimal, never four.
+    expect(block).toContain("| Sales | 2025 | revenue | 120000 | USD | $120.000 |");
+    expect(block).toContain("| 75,0% |");
+    expect(block).not.toMatch(/\d[.,]\d{4}%/);
+  });
+
+  it("names the metrics in the reader's language when the run asks for it", () => {
+    const localised = computeFinance(inputs.items, inputs.params, { locale: "id" });
+    const labels = localised.metrics.map((metric) => metric.label);
+    expect(labels).toContain("Marjin kotor 2025");
+    expect(labels).toContain("Beban usaha 2025");
   });
 
   it("builds a DOCX with tables", async () => {

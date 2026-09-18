@@ -48,9 +48,13 @@ export function formatContactProbeButton(attempt: number, locale: AppLocale = "e
  * module and `stream-watchdog.ts` actually write ("tidak dapat menghubungi …", "Model tidak dapat
  * dihubungi.", "Stream model habis waktu"), so a retried Indonesian error classifies like its English
  * twin instead of falling through as a hard stop.
+ *
+ * `unreachable` and `no response within` are the gateway probe's own words. It knew `unavailable`
+ * only, so "Gateway unreachable: no response within 10s" — a gateway that never answered at all —
+ * was read as a hard stop and the job died on a blip. The auth and 4xx guards below still run first.
  */
 const RETRYABLE_FAILURE =
-  /no available channel|could not be contacted|could not reach|econnrefused|enotfound|etimedout|econnreset|socket hang up|fetch failed|failed to fetch|networkerror|network|timed? ?out|overloaded|unavailable|\b429\b|\b502\b|\b503\b|\b504\b|the model stream failed|terminated|aborted|connect|tidak dapat dihubungi|tidak dapat menghubungi|tidak dapat dijangkau|habis waktu|kehabisan waktu|tidak tersedia|kelebihan beban|jaringan|koneksi|dibatalkan|dihentikan/i;
+  /no available channel|could not be contacted|could not reach|econnrefused|enotfound|etimedout|econnreset|socket hang up|fetch failed|failed to fetch|networkerror|network|timed? ?out|overloaded|unavailable|\b429\b|\b502\b|\b503\b|\b504\b|the model stream failed|terminated|aborted|connect|unreachable|no response within|tidak dapat dihubungi|tidak dapat menghubungi|tidak dapat dijangkau|habis waktu|kehabisan waktu|tidak tersedia|kelebihan beban|jaringan|koneksi|dibatalkan|dihentikan/i;
 
 export function isRetryableModelFailure(failed: string): boolean {
   const text = failed.trim();

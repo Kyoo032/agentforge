@@ -34,11 +34,17 @@ export function ChatUsageChip() {
       try {
         const res = await apiFetch("/api/v1/settings");
         if (!res.ok) {
+          if (!cancelled) setLabel(t("chat.usage.error"));
           return;
         }
         const payload = (await res.json()) as { usage?: SettingsUsage; error?: { message?: string } };
         if (cancelled) return;
-        if (payload.error || !payload.usage?.thisKey) {
+        if (payload.error) {
+          setLabel(t("chat.usage.error"));
+          setTitle(payload.error.message);
+          return;
+        }
+        if (!payload.usage?.thisKey) {
           setLabel(t("chat.usage.placeholder"));
           return;
         }
@@ -49,7 +55,8 @@ export function ChatUsageChip() {
           return;
         }
         if (thisKey.status === "error") {
-          setLabel(t("chat.usage.placeholder"));
+          // An error is not "no key yet": say so in the chip and keep the detail in the tooltip.
+          setLabel(t("chat.usage.error"));
           setTitle(thisKey.message);
           return;
         }
@@ -62,7 +69,7 @@ export function ChatUsageChip() {
         setLabel(t("chat.usage.remaining", { left }));
         setTitle(undefined);
       } catch {
-        if (!cancelled) setLabel(t("chat.usage.placeholder"));
+        if (!cancelled) setLabel(t("chat.usage.error"));
       }
     })();
     return () => {

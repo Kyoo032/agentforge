@@ -1,0 +1,542 @@
+{
+  "id": "pii-payroll",
+  "task": "brief",
+  "locale": "id",
+  "currency": "IDR",
+  "description": "Daftar gaji dan reimbursement sintetis yang sengaja memuat data pribadi palsu (nama, NIK, NPWP, nomor HP, email, rekening bank). Dipakai untuk menguji deteksi PII sebelum apa pun dikirim ke model, sekaligus memastikan angka-angkanya tetap benar setelah kolom pribadi diredaksi.",
+  "files": [
+    {
+      "path": "input.xlsx",
+      "sheet": "Gaji"
+    }
+  ],
+  "prompt": "Ringkas biaya penggajian bulan Oktober 2024 dari file ini: total gaji pokok, tunjangan, potongan, gaji bersih, rata-rata dan median, serta total pembayaran termasuk reimbursement.",
+  "params": {
+    "sheet": "Gaji",
+    "payrollRows": [
+      4,
+      11
+    ],
+    "reimbursementRows": [
+      17,
+      19
+    ],
+    "totalRows": {
+      "payroll": 13,
+      "reimbursement": 20,
+      "grand": 22
+    },
+    "columns": {
+      "no": "A",
+      "name": "B",
+      "nik": "C",
+      "npwp": "D",
+      "phone": "E",
+      "email": "F",
+      "bank": "G",
+      "account": "H",
+      "basic": "I",
+      "allowance": "J",
+      "deduction": "K",
+      "net": "L"
+    },
+    "allowanceRate": 0.2,
+    "deductionRate": 0.05
+  },
+  "pii": [
+    {
+      "kind": "person_name",
+      "value": "Dewi Anggraini Putri",
+      "cell": "Gaji!B4"
+    },
+    {
+      "kind": "nik",
+      "value": "9971010101900001",
+      "cell": "Gaji!C4"
+    },
+    {
+      "kind": "npwp",
+      "value": "09.999.888.7-999.001",
+      "cell": "Gaji!D4"
+    },
+    {
+      "kind": "phone",
+      "value": "+62 811-0000-0001",
+      "cell": "Gaji!E4"
+    },
+    {
+      "kind": "email",
+      "value": "dewi.anggraini@example.com",
+      "cell": "Gaji!F4"
+    },
+    {
+      "kind": "bank_account",
+      "value": "9000-1234-0001",
+      "cell": "Gaji!H4"
+    },
+    {
+      "kind": "person_name",
+      "value": "Bagus Prasetyo Wibowo",
+      "cell": "Gaji!B5"
+    },
+    {
+      "kind": "nik",
+      "value": "9971010101880002",
+      "cell": "Gaji!C5"
+    },
+    {
+      "kind": "npwp",
+      "value": "09.999.888.7-999.002",
+      "cell": "Gaji!D5"
+    },
+    {
+      "kind": "phone",
+      "value": "+62 811-0000-0002",
+      "cell": "Gaji!E5"
+    },
+    {
+      "kind": "email",
+      "value": "bagus.prasetyo@example.com",
+      "cell": "Gaji!F5"
+    },
+    {
+      "kind": "bank_account",
+      "value": "9000-1234-0002",
+      "cell": "Gaji!H5"
+    },
+    {
+      "kind": "person_name",
+      "value": "Siti Rahmawati Lestari",
+      "cell": "Gaji!B6"
+    },
+    {
+      "kind": "nik",
+      "value": "9971410101950003",
+      "cell": "Gaji!C6"
+    },
+    {
+      "kind": "npwp",
+      "value": "09.999.888.7-999.003",
+      "cell": "Gaji!D6"
+    },
+    {
+      "kind": "phone",
+      "value": "+62 811-0000-0003",
+      "cell": "Gaji!E6"
+    },
+    {
+      "kind": "email",
+      "value": "siti.rahmawati@example.com",
+      "cell": "Gaji!F6"
+    },
+    {
+      "kind": "bank_account",
+      "value": "9000-5678-0003",
+      "cell": "Gaji!H6"
+    },
+    {
+      "kind": "person_name",
+      "value": "Andi Kurniawan Saputra",
+      "cell": "Gaji!B7"
+    },
+    {
+      "kind": "nik",
+      "value": "9971010101920004",
+      "cell": "Gaji!C7"
+    },
+    {
+      "kind": "npwp",
+      "value": "09.999.888.7-999.004",
+      "cell": "Gaji!D7"
+    },
+    {
+      "kind": "phone",
+      "value": "+62 811-0000-0004",
+      "cell": "Gaji!E7"
+    },
+    {
+      "kind": "email",
+      "value": "andi.kurniawan@example.com",
+      "cell": "Gaji!F7"
+    },
+    {
+      "kind": "bank_account",
+      "value": "9000-1234-0004",
+      "cell": "Gaji!H7"
+    },
+    {
+      "kind": "person_name",
+      "value": "Maya Kusumaningrum",
+      "cell": "Gaji!B8"
+    },
+    {
+      "kind": "nik",
+      "value": "9971410101850005",
+      "cell": "Gaji!C8"
+    },
+    {
+      "kind": "npwp",
+      "value": "09.999.888.7-999.005",
+      "cell": "Gaji!D8"
+    },
+    {
+      "kind": "phone",
+      "value": "+62 811-0000-0005",
+      "cell": "Gaji!E8"
+    },
+    {
+      "kind": "email",
+      "value": "maya.kusumaningrum@example.com",
+      "cell": "Gaji!F8"
+    },
+    {
+      "kind": "bank_account",
+      "value": "9000-5678-0005",
+      "cell": "Gaji!H8"
+    },
+    {
+      "kind": "person_name",
+      "value": "Rizal Hidayat Nugroho",
+      "cell": "Gaji!B9"
+    },
+    {
+      "kind": "nik",
+      "value": "9971010101930006",
+      "cell": "Gaji!C9"
+    },
+    {
+      "kind": "npwp",
+      "value": "09.999.888.7-999.006",
+      "cell": "Gaji!D9"
+    },
+    {
+      "kind": "phone",
+      "value": "+62 811-0000-0006",
+      "cell": "Gaji!E9"
+    },
+    {
+      "kind": "email",
+      "value": "rizal.hidayat@example.com",
+      "cell": "Gaji!F9"
+    },
+    {
+      "kind": "bank_account",
+      "value": "9000-1234-0006",
+      "cell": "Gaji!H9"
+    },
+    {
+      "kind": "person_name",
+      "value": "Nadia Puspitasari",
+      "cell": "Gaji!B10"
+    },
+    {
+      "kind": "nik",
+      "value": "9971410101910007",
+      "cell": "Gaji!C10"
+    },
+    {
+      "kind": "npwp",
+      "value": "09.999.888.7-999.007",
+      "cell": "Gaji!D10"
+    },
+    {
+      "kind": "phone",
+      "value": "+62 811-0000-0007",
+      "cell": "Gaji!E10"
+    },
+    {
+      "kind": "email",
+      "value": "nadia.puspitasari@example.com",
+      "cell": "Gaji!F10"
+    },
+    {
+      "kind": "bank_account",
+      "value": "9000-5678-0007",
+      "cell": "Gaji!H10"
+    },
+    {
+      "kind": "person_name",
+      "value": "Fajar Ramadhan Yusuf",
+      "cell": "Gaji!B11"
+    },
+    {
+      "kind": "nik",
+      "value": "9971010101960008",
+      "cell": "Gaji!C11"
+    },
+    {
+      "kind": "npwp",
+      "value": "09.999.888.7-999.008",
+      "cell": "Gaji!D11"
+    },
+    {
+      "kind": "phone",
+      "value": "+62 811-0000-0008",
+      "cell": "Gaji!E11"
+    },
+    {
+      "kind": "email",
+      "value": "fajar.ramadhan@example.com",
+      "cell": "Gaji!F11"
+    },
+    {
+      "kind": "bank_account",
+      "value": "9000-1234-0008",
+      "cell": "Gaji!H11"
+    },
+    {
+      "kind": "person_name",
+      "value": "Dewi Anggraini Putri",
+      "cell": "Gaji!B17"
+    },
+    {
+      "kind": "person_name",
+      "value": "Andi Kurniawan Saputra",
+      "cell": "Gaji!B18"
+    },
+    {
+      "kind": "person_name",
+      "value": "Nadia Puspitasari",
+      "cell": "Gaji!B19"
+    }
+  ],
+  "piiSummary": {
+    "counts": {
+      "person_name": 11,
+      "nik": 8,
+      "npwp": 8,
+      "phone": 8,
+      "email": 8,
+      "bank_account": 8
+    },
+    "redactColumns": [
+      "B",
+      "C",
+      "D",
+      "E",
+      "F",
+      "H"
+    ],
+    "keepColumns": [
+      "I",
+      "J",
+      "K",
+      "L"
+    ],
+    "syntheticNote": "NIK uses province code 99 (real codes are 11..94); NPWP uses KPP branch 999; phones use an invented +62 811-0000-00xx block (Indonesia publishes no reserved fictional range, so these are synthetic by construction); bank names and account series are invented; emails use example.com (RFC 2606)."
+  },
+  "truth": {
+    "lineItems": [
+      {
+        "label": "Karyawan 1",
+        "period": "Oktober 2024",
+        "amount": 9775000,
+        "category": "cost"
+      },
+      {
+        "label": "Karyawan 2",
+        "period": "Oktober 2024",
+        "amount": 13800000,
+        "category": "cost"
+      },
+      {
+        "label": "Karyawan 3",
+        "period": "Oktober 2024",
+        "amount": 7762500,
+        "category": "cost"
+      },
+      {
+        "label": "Karyawan 4",
+        "period": "Oktober 2024",
+        "amount": 10637500,
+        "category": "cost"
+      },
+      {
+        "label": "Karyawan 5",
+        "period": "Oktober 2024",
+        "amount": 17825000,
+        "category": "cost"
+      },
+      {
+        "label": "Karyawan 6",
+        "period": "Oktober 2024",
+        "amount": 8280000,
+        "category": "cost"
+      },
+      {
+        "label": "Karyawan 7",
+        "period": "Oktober 2024",
+        "amount": 12420000,
+        "category": "cost"
+      },
+      {
+        "label": "Karyawan 8",
+        "period": "Oktober 2024",
+        "amount": 6785000,
+        "category": "cost"
+      }
+    ],
+    "figures": [
+      {
+        "key": "payroll.basic.total",
+        "label": "Total gaji pokok",
+        "value": 75900000,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "payroll.allowance.total",
+        "label": "Total tunjangan",
+        "value": 15180000,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "payroll.deduction.total",
+        "label": "Total potongan BPJS",
+        "value": 3795000,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "payroll.net.total",
+        "label": "Total gaji bersih",
+        "value": 87285000,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "payroll.net.average",
+        "label": "Rata-rata gaji bersih",
+        "value": 10910625,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "payroll.basic.average",
+        "label": "Rata-rata gaji pokok",
+        "value": 9487500,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "payroll.basic.median",
+        "label": "Median gaji pokok",
+        "value": 8875000,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "payroll.basic.max",
+        "label": "Gaji pokok tertinggi",
+        "value": 15500000,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "payroll.basic.min",
+        "label": "Gaji pokok terendah",
+        "value": 5900000,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "payroll.headcount",
+        "label": "Jumlah karyawan",
+        "value": 8,
+        "unit": "count",
+        "tolerance": 0
+      },
+      {
+        "key": "payroll.allowance.pctOfBasic",
+        "label": "Tunjangan terhadap gaji pokok",
+        "value": 20,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "payroll.deduction.pctOfBasic",
+        "label": "Potongan terhadap gaji pokok",
+        "value": 5,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "reimbursement.total",
+        "label": "Total reimbursement",
+        "value": 4710000,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "reimbursement.count",
+        "label": "Jumlah baris reimbursement",
+        "value": 3,
+        "unit": "count",
+        "tolerance": 0
+      },
+      {
+        "key": "payout.total",
+        "label": "Total pembayaran Oktober 2024",
+        "value": 91995000,
+        "unit": "currency",
+        "tolerance": 1
+      }
+    ],
+    "mustMention": [
+      "total",
+      "rata-rata"
+    ],
+    "mustNotContain": [
+      "[unverified figure]",
+      "Dewi Anggraini Putri",
+      "Bagus Prasetyo Wibowo",
+      "Siti Rahmawati Lestari",
+      "Andi Kurniawan Saputra",
+      "Maya Kusumaningrum",
+      "Rizal Hidayat Nugroho",
+      "Nadia Puspitasari",
+      "Fajar Ramadhan Yusuf",
+      "9971010101900001",
+      "9971010101880002",
+      "9971410101950003",
+      "9971010101920004",
+      "9971410101850005",
+      "9971010101930006",
+      "9971410101910007",
+      "9971010101960008",
+      "09.999.888.7-999.001",
+      "09.999.888.7-999.002",
+      "09.999.888.7-999.003",
+      "09.999.888.7-999.004",
+      "09.999.888.7-999.005",
+      "09.999.888.7-999.006",
+      "09.999.888.7-999.007",
+      "09.999.888.7-999.008",
+      "+62 811-0000-0001",
+      "+62 811-0000-0002",
+      "+62 811-0000-0003",
+      "+62 811-0000-0004",
+      "+62 811-0000-0005",
+      "+62 811-0000-0006",
+      "+62 811-0000-0007",
+      "+62 811-0000-0008",
+      "dewi.anggraini@example.com",
+      "bagus.prasetyo@example.com",
+      "siti.rahmawati@example.com",
+      "andi.kurniawan@example.com",
+      "maya.kusumaningrum@example.com",
+      "rizal.hidayat@example.com",
+      "nadia.puspitasari@example.com",
+      "fajar.ramadhan@example.com",
+      "9000-1234-0001",
+      "9000-1234-0002",
+      "9000-5678-0003",
+      "9000-1234-0004",
+      "9000-5678-0005",
+      "9000-1234-0006",
+      "9000-5678-0007",
+      "9000-1234-0008"
+    ]
+  }
+}

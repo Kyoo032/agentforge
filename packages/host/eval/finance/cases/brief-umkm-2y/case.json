@@ -1,0 +1,520 @@
+{
+  "id": "brief-umkm-2y",
+  "task": "brief",
+  "locale": "id",
+  "currency": "IDR",
+  "description": "Laporan laba rugi komparatif 2023-2024 sebuah UMKM Indonesia fiktif (CV Terang Sentosa Boga), satu berkas .xlsx dua sheet. Sheet 'Laba Rugi' memakai judul yang di-merge, format 'Rp', beberapa sel diketik sebagai TEKS dengan pemisah ribuan Indonesia (512.000.000), negatif dalam kurung, baris subtotal (Pendapatan Bersih, Jumlah HPP, LABA KOTOR, Jumlah Beban Usaha, LABA USAHA, LABA SEBELUM PAJAK, LABA BERSIH) yang TIDAK boleh ikut dijumlahkan sebagai line item, baris catatan, dan baris kosong pemisah. Sheet 'Operasional' berisi jumlah orang / gerai / pcs (bukan Rupiah), kecuali satu baris harga jual rata-rata yang memang Rupiah. Definisi yang dipakai truth (produk belum menyebutnya secara eksplisit): margin kotor = laba kotor / pendapatan bersih; margin bersih = laba bersih setelah bunga, lain-lain dan pajak / pendapatan bersih; 'laba usaha' = pendapatan - HPP - beban usaha, yaitu angka yang sama dengan metrik net_profit produk karena bunga, pendapatan lain-lain dan pajak dikategorikan 'other'. Runway = saldo kas ekspansi / burn kas bulanan program ekspansi = 1.180.000.000 / 152.000.000; burn diambil apa adanya dari sheet, bukan dihitung dari beban usaha. Toleransi setiap figure adalah pecahan RELATIF terhadap |value| (0,005 = 0,5%); toleransi 0 berarti harus persis.",
+  "files": [
+    {
+      "path": "input.xlsx",
+      "sheet": "Laba Rugi"
+    },
+    {
+      "path": "input.xlsx",
+      "sheet": "Operasional"
+    }
+  ],
+  "prompt": "Buatkan ringkasan kinerja keuangan CV Terang Sentosa Boga untuk 2023 dan 2024 dari lampiran ini: pertumbuhan pendapatan, margin kotor dan margin bersih, beban usaha terbesar, serta berapa bulan kas program ekspansi masih bertahan.",
+  "params": {
+    "monthlyBurn": 152000000,
+    "cashOnHand": 1180000000
+  },
+  "truth": {
+    "lineItems": [
+      {
+        "label": "Penjualan Produk Beku",
+        "period": "2023",
+        "amount": 5400000000,
+        "currency": "IDR",
+        "category": "revenue"
+      },
+      {
+        "label": "Penjualan Produk Beku",
+        "period": "2024",
+        "amount": 6900000000,
+        "currency": "IDR",
+        "category": "revenue"
+      },
+      {
+        "label": "Penjualan Katering Korporat",
+        "period": "2023",
+        "amount": 2350000000,
+        "currency": "IDR",
+        "category": "revenue"
+      },
+      {
+        "label": "Penjualan Katering Korporat",
+        "period": "2024",
+        "amount": 3120000000,
+        "currency": "IDR",
+        "category": "revenue"
+      },
+      {
+        "label": "Retur & Potongan Penjualan",
+        "period": "2023",
+        "amount": -180000000,
+        "currency": "IDR",
+        "category": "revenue"
+      },
+      {
+        "label": "Retur & Potongan Penjualan",
+        "period": "2024",
+        "amount": -245000000,
+        "currency": "IDR",
+        "category": "revenue"
+      },
+      {
+        "label": "Bahan Baku",
+        "period": "2023",
+        "amount": 3120000000,
+        "currency": "IDR",
+        "category": "cogs"
+      },
+      {
+        "label": "Bahan Baku",
+        "period": "2024",
+        "amount": 3980000000,
+        "currency": "IDR",
+        "category": "cogs"
+      },
+      {
+        "label": "Tenaga Kerja Langsung",
+        "period": "2023",
+        "amount": 780000000,
+        "currency": "IDR",
+        "category": "cogs"
+      },
+      {
+        "label": "Tenaga Kerja Langsung",
+        "period": "2024",
+        "amount": 965000000,
+        "currency": "IDR",
+        "category": "cogs"
+      },
+      {
+        "label": "Overhead Pabrik",
+        "period": "2023",
+        "amount": 415000000,
+        "currency": "IDR",
+        "category": "cogs"
+      },
+      {
+        "label": "Overhead Pabrik",
+        "period": "2024",
+        "amount": 512000000,
+        "currency": "IDR",
+        "category": "cogs"
+      },
+      {
+        "label": "Gaji & Tunjangan",
+        "period": "2023",
+        "amount": 1240000000,
+        "currency": "IDR",
+        "category": "opex"
+      },
+      {
+        "label": "Gaji & Tunjangan",
+        "period": "2024",
+        "amount": 1560000000,
+        "currency": "IDR",
+        "category": "opex"
+      },
+      {
+        "label": "Sewa & Utilitas",
+        "period": "2023",
+        "amount": 336000000,
+        "currency": "IDR",
+        "category": "opex"
+      },
+      {
+        "label": "Sewa & Utilitas",
+        "period": "2024",
+        "amount": 372000000,
+        "currency": "IDR",
+        "category": "opex"
+      },
+      {
+        "label": "Pemasaran",
+        "period": "2023",
+        "amount": 285000000,
+        "currency": "IDR",
+        "category": "opex"
+      },
+      {
+        "label": "Pemasaran",
+        "period": "2024",
+        "amount": 410000000,
+        "currency": "IDR",
+        "category": "opex"
+      },
+      {
+        "label": "Transportasi & Distribusi",
+        "period": "2023",
+        "amount": 198000000,
+        "currency": "IDR",
+        "category": "opex"
+      },
+      {
+        "label": "Transportasi & Distribusi",
+        "period": "2024",
+        "amount": 263000000,
+        "currency": "IDR",
+        "category": "opex"
+      },
+      {
+        "label": "Penyusutan",
+        "period": "2023",
+        "amount": 145000000,
+        "currency": "IDR",
+        "category": "opex"
+      },
+      {
+        "label": "Penyusutan",
+        "period": "2024",
+        "amount": 168000000,
+        "currency": "IDR",
+        "category": "opex"
+      },
+      {
+        "label": "Administrasi & Umum",
+        "period": "2023",
+        "amount": 112000000,
+        "currency": "IDR",
+        "category": "opex"
+      },
+      {
+        "label": "Administrasi & Umum",
+        "period": "2024",
+        "amount": 134000000,
+        "currency": "IDR",
+        "category": "opex"
+      },
+      {
+        "label": "Beban Bunga Pinjaman",
+        "period": "2023",
+        "amount": -96000000,
+        "currency": "IDR",
+        "category": "other"
+      },
+      {
+        "label": "Beban Bunga Pinjaman",
+        "period": "2024",
+        "amount": -128000000,
+        "currency": "IDR",
+        "category": "other"
+      },
+      {
+        "label": "Pendapatan Lain-lain",
+        "period": "2023",
+        "amount": 24000000,
+        "currency": "IDR",
+        "category": "other"
+      },
+      {
+        "label": "Pendapatan Lain-lain",
+        "period": "2024",
+        "amount": 31000000,
+        "currency": "IDR",
+        "category": "other"
+      },
+      {
+        "label": "Beban Pajak Penghasilan (22%)",
+        "period": "2023",
+        "amount": -190740000,
+        "currency": "IDR",
+        "category": "other"
+      },
+      {
+        "label": "Beban Pajak Penghasilan (22%)",
+        "period": "2024",
+        "amount": -289080000,
+        "currency": "IDR",
+        "category": "other"
+      },
+      {
+        "label": "Rata-rata Harga Jual per pcs",
+        "period": "2023",
+        "amount": 16800,
+        "currency": "IDR",
+        "category": "other"
+      },
+      {
+        "label": "Rata-rata Harga Jual per pcs",
+        "period": "2024",
+        "amount": 17900,
+        "currency": "IDR",
+        "category": "other"
+      },
+      {
+        "label": "Jumlah Karyawan Tetap (orang)",
+        "period": "2023",
+        "amount": 38,
+        "currency": "",
+        "category": "other"
+      },
+      {
+        "label": "Jumlah Karyawan Tetap (orang)",
+        "period": "2024",
+        "amount": 46,
+        "currency": "",
+        "category": "other"
+      },
+      {
+        "label": "Jumlah Karyawan Harian (orang)",
+        "period": "2023",
+        "amount": 24,
+        "currency": "",
+        "category": "other"
+      },
+      {
+        "label": "Jumlah Karyawan Harian (orang)",
+        "period": "2024",
+        "amount": 29,
+        "currency": "",
+        "category": "other"
+      },
+      {
+        "label": "Jumlah Gerai Mitra (outlet)",
+        "period": "2023",
+        "amount": 12,
+        "currency": "",
+        "category": "other"
+      },
+      {
+        "label": "Jumlah Gerai Mitra (outlet)",
+        "period": "2024",
+        "amount": 18,
+        "currency": "",
+        "category": "other"
+      },
+      {
+        "label": "Unit Produk Terjual (pcs)",
+        "period": "2023",
+        "amount": 412000,
+        "currency": "",
+        "category": "other"
+      },
+      {
+        "label": "Unit Produk Terjual (pcs)",
+        "period": "2024",
+        "amount": 528000,
+        "currency": "",
+        "category": "other"
+      },
+      {
+        "label": "Kapasitas Produksi (pcs/bulan)",
+        "period": "2023",
+        "amount": 45000,
+        "currency": "",
+        "category": "other"
+      },
+      {
+        "label": "Kapasitas Produksi (pcs/bulan)",
+        "period": "2024",
+        "amount": 58000,
+        "currency": "",
+        "category": "other"
+      },
+      {
+        "label": "Saldo Kas & Setara Kas",
+        "period": "2024",
+        "amount": 1180000000,
+        "currency": "IDR",
+        "category": "cash"
+      },
+      {
+        "label": "Rata-rata Burn Kas Bulanan Program Ekspansi",
+        "period": "bulanan",
+        "amount": 152000000,
+        "currency": "IDR",
+        "category": "other"
+      }
+    ],
+    "figures": [
+      {
+        "key": "revenue.2023",
+        "label": "Pendapatan bersih 2023",
+        "value": 7570000000,
+        "unit": "currency",
+        "tolerance": 0.001
+      },
+      {
+        "key": "revenue.2024",
+        "label": "Pendapatan bersih 2024",
+        "value": 9775000000,
+        "unit": "currency",
+        "tolerance": 0.001
+      },
+      {
+        "key": "cogs.2024",
+        "label": "Harga pokok penjualan 2024",
+        "value": 5457000000,
+        "unit": "currency",
+        "tolerance": 0.001
+      },
+      {
+        "key": "grossProfit.2023",
+        "label": "Laba kotor 2023",
+        "value": 3255000000,
+        "unit": "currency",
+        "tolerance": 0.001
+      },
+      {
+        "key": "grossProfit.2024",
+        "label": "Laba kotor 2024",
+        "value": 4318000000,
+        "unit": "currency",
+        "tolerance": 0.001
+      },
+      {
+        "key": "grossMarginPct.2023",
+        "label": "Margin kotor 2023",
+        "value": 42.9987,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "grossMarginPct.2024",
+        "label": "Margin kotor 2024",
+        "value": 44.1739,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "opex.2023",
+        "label": "Jumlah beban usaha 2023",
+        "value": 2316000000,
+        "unit": "currency",
+        "tolerance": 0.001
+      },
+      {
+        "key": "opex.2024",
+        "label": "Jumlah beban usaha 2024",
+        "value": 2907000000,
+        "unit": "currency",
+        "tolerance": 0.001
+      },
+      {
+        "key": "operatingProfit.2024",
+        "label": "Laba usaha 2024",
+        "value": 1411000000,
+        "unit": "currency",
+        "tolerance": 0.001
+      },
+      {
+        "key": "operatingMarginPct.2024",
+        "label": "Margin usaha 2024",
+        "value": 14.4348,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "pretaxProfit.2024",
+        "label": "Laba sebelum pajak 2024",
+        "value": 1314000000,
+        "unit": "currency",
+        "tolerance": 0.001
+      },
+      {
+        "key": "taxExpense.2024",
+        "label": "Beban pajak penghasilan 2024",
+        "value": 289080000,
+        "unit": "currency",
+        "tolerance": 0.001
+      },
+      {
+        "key": "netProfit.2023",
+        "label": "Laba bersih 2023",
+        "value": 676260000,
+        "unit": "currency",
+        "tolerance": 0.001
+      },
+      {
+        "key": "netProfit.2024",
+        "label": "Laba bersih 2024",
+        "value": 1024920000,
+        "unit": "currency",
+        "tolerance": 0.001
+      },
+      {
+        "key": "netMarginPct.2024",
+        "label": "Margin bersih 2024",
+        "value": 10.4851,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "revenueGrowthPct.2024",
+        "label": "Pertumbuhan pendapatan 2024",
+        "value": 29.1281,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "netProfitGrowthPct.2024",
+        "label": "Pertumbuhan laba bersih 2024",
+        "value": 51.5571,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "cogsRatioPct.2024",
+        "label": "Rasio HPP terhadap pendapatan 2024",
+        "value": 55.8261,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "cash.2024",
+        "label": "Saldo kas & setara kas 2024",
+        "value": 1180000000,
+        "unit": "currency",
+        "tolerance": 0.001
+      },
+      {
+        "key": "monthlyBurn",
+        "label": "Burn kas bulanan program ekspansi",
+        "value": 152000000,
+        "unit": "currency",
+        "tolerance": 0.001
+      },
+      {
+        "key": "runwayMonths",
+        "label": "Runway kas ekspansi (bulan)",
+        "value": 7.7632,
+        "unit": "months",
+        "tolerance": 0.005
+      },
+      {
+        "key": "headcountTotal.2024",
+        "label": "Total karyawan tetap + harian 2024",
+        "value": 75,
+        "unit": "count",
+        "tolerance": 0
+      },
+      {
+        "key": "unitsSold.2024",
+        "label": "Unit produk terjual 2024 (pcs)",
+        "value": 528000,
+        "unit": "count",
+        "tolerance": 0
+      },
+      {
+        "key": "avgPricePerUnit.2024",
+        "label": "Harga jual rata-rata per pcs 2024",
+        "value": 17900,
+        "unit": "currency",
+        "tolerance": 0.001
+      }
+    ],
+    "mustMention": [
+      "runway",
+      "margin",
+      "2024",
+      "2023"
+    ],
+    "mustNotContain": [
+      "[unverified figure]"
+    ]
+  }
+}

@@ -10,6 +10,12 @@ import {
   packetNumbers,
   packetToPromptBlock,
 } from "./briefing-prompt";
+import {
+  DEFAULT_MARKET_SPECIALIST,
+  MARKET_SPECIALISTS,
+  MARKET_SPECIALIST_META,
+  specialistSystemRules,
+} from "./specialists";
 import { makeNews, makePacket, makeQuote, makeTechnical, makeTickerPacket } from "./watch-fixtures";
 
 describe("DEFAULT_WATCH_PROMPT_ID / EN", () => {
@@ -269,5 +275,77 @@ describe("packetNumbers headline figures", () => {
     const numbers = packetNumbers(packet, "");
     expect(numbers).toContain(650);
     expect(numbers).toContain(575);
+  });
+});
+
+describe("buildWatchSystemPrompt with a specialist", () => {
+  it("appends that agent's rules and names it in both languages", () => {
+    for (const id of MARKET_SPECIALISTS) {
+      for (const language of ["id", "en"] as const) {
+        const prompt = buildWatchSystemPrompt({ language, maxChars: 6000, clockNote: "", specialist: id });
+        for (const rule of specialistSystemRules(id, language)) {
+          expect(prompt).toContain(rule);
+        }
+        expect(prompt).toContain(MARKET_SPECIALIST_META[id].label[language]);
+        // The shared contract survives whichever agent is chosen.
+        expect(prompt).toContain("DATA PACKET");
+        expect(prompt).toMatch(/never tell the reader to buy or sell now/i);
+        expect(prompt).toMatch(/ONLY JSON/);
+      }
+    }
+  });
+
+  it("falls back to the default agent when none is given", () => {
+    const input = { language: "id" as const, maxChars: 6000, clockNote: "" };
+    expect(buildWatchSystemPrompt(input)).toBe(
+      buildWatchSystemPrompt({ ...input, specialist: DEFAULT_MARKET_SPECIALIST }),
+    );
+  });
+
+  it("gives two different agents two different system prompts", () => {
+    const input = { language: "id" as const, maxChars: 6000, clockNote: "" };
+    expect(buildWatchSystemPrompt({ ...input, specialist: "forex" })).not.toBe(
+      buildWatchSystemPrompt({ ...input, specialist: "crypto" }),
+    );
+  });
+});
+
+describe("packetToPromptBlock swings", () => {
+  const swings = [
+    { date: "2026-08-01", price: 910.5, kind: "high" as const },
+    { date: "2026-08-20", price: 700.25, kind: "low" as const },
+  ];
+  const packet = makePacket({ tickers: [makeTickerPacket("MU", { swings })] });
+
+  it("shows the swing levels only for the wave counter", () => {
+    expect(packetToPromptBlock(packet)).not.toContain("swings:");
+    const text = packetToPromptBlock(packet, "elliott-wave");
+    expect(text).toContain("- swings:");
+    expect(text).toContain("2026-08-01 high 910.50");
+    expect(text).toContain("2026-08-20 low 700.25");
+  });
+
+  it("says so when the wave counter has no swings to cite", () => {
+    const bare = makePacket({ tickers: [makeTickerPacket("MU", { swings: [] })] });
+    expect(packetToPromptBlock(bare, "elliott-wave")).toContain("- swings: none");
+  });
+});
+
+describe("packetNumbers with swings", () => {
+  it("lets the guard keep every swing level the packet carries", () => {
+    const packet = makePacket({
+      positionContext: "",
+      tickers: [
+        makeTickerPacket("MU", {
+          swings: [
+            { date: "2026-08-01", price: 910.5, kind: "high" },
+            { date: "2026-08-20", price: 700.25, kind: "low" },
+          ],
+        }),
+      ],
+    });
+    const numbers = packetNumbers(packet, packet.positionContext);
+    expect(numbers).toContain(910.5);
+    expect(numbers).toContain(700.25);
   });
 });

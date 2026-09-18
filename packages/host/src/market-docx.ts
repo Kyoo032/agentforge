@@ -7,8 +7,8 @@
  */
 import { Document, HeadingLevel, Packer, Paragraph, TextRun, type Table } from "docx";
 import { resolvedProductName } from "@agentforge/core";
-import type { MarketBriefing } from "@agentforge/core/artifacts";
-import type { TickerPacket } from "@agentforge/core/market";
+import { specialistLabel, type MarketBriefing } from "@agentforge/core/artifacts";
+import { teamSectionHeadings, type TickerPacket } from "@agentforge/core/market";
 import { docxTable, type DocxCell } from "./docx-table";
 
 export const CHART_POINTS_MAX = 30;
@@ -32,6 +32,24 @@ const WATCHLIST_COLUMNS = [
   "SMA200",
 ] as const;
 const MACRO_COLUMNS = ["Macro", "Symbol", "Level", "Chg%", "State"] as const;
+
+/** Labels for the Team appendix. The five section headings inside it are core's. */
+const TEAM_LABELS = {
+  en: {
+    team: "Team",
+    confidence: "confidence",
+    rebuttals: "Rebuttals",
+    volatility: "Volatility",
+    liquidity: "Liquidity",
+  },
+  id: {
+    team: "Tim",
+    confidence: "keyakinan",
+    rebuttals: "Sanggahan",
+    volatility: "Volatilitas",
+    liquidity: "Likuiditas",
+  },
+} as const;
 
 function safeFilename(title: string): string {
   const base = title
@@ -83,7 +101,12 @@ function clockLine(briefing: MarketBriefing): string {
     briefing.guardedSections > 0
       ? `${briefing.guardedSections} section${briefing.guardedSections === 1 ? "" : "s"} touched by the advice guard.`
       : null;
-  return [`Generated ${briefing.generatedAt}. U.S. session: ${clock.usSession}.`, clock.note || null, guarded]
+  return [
+    `Agent: ${specialistLabel(briefing)}.`,
+    `Generated ${briefing.generatedAt}. U.S. session: ${clock.usSession}.`,
+    clock.note || null,
+    guarded,
+  ]
     .filter(Boolean)
     .join(" ");
 }
@@ -161,6 +184,43 @@ function headlinesBlock(briefing: MarketBriefing): Paragraph[] {
   return perTicker.length > 0 ? [heading("Headlines", HeadingLevel.HEADING_1, 28), ...perTicker] : [];
 }
 
+/**
+ * The team's own notes after the sections: each analyst with its confidence,
+ * both sides of the debate, and the three risk lenses. Empty for a quick
+ * briefing. The notes were guarded when they were stored, so this is rendering
+ * only — nothing here re-guards them.
+ */
+function teamBlock(briefing: MarketBriefing): Paragraph[] {
+  const notes = briefing.team;
+  if (!notes) {
+    return [];
+  }
+  const [analystNotes, bullHeading, bearHeading, riskHeading] = teamSectionHeadings(briefing.language);
+  const labels = briefing.language === "en" ? TEAM_LABELS.en : TEAM_LABELS.id;
+  const side = (title: string | undefined, entry: NonNullable<MarketBriefing["team"]>["bull"]): Paragraph[] => [
+    heading(title ?? entry.stance, HeadingLevel.HEADING_2, 24),
+    plain(entry.thesis),
+    ...entry.points.map(bullet),
+    ...(entry.rebuttals.length > 0 ? [plain(`${labels.rebuttals}:`), ...entry.rebuttals.map(bullet)] : []),
+  ];
+  return [
+    heading(labels.team, HeadingLevel.HEADING_1, 28),
+    heading(analystNotes ?? "Analyst notes", HeadingLevel.HEADING_2, 24),
+    ...notes.analysts.flatMap((note) => [
+      plain(`${note.analyst} (${labels.confidence}: ${note.confidence})`, { after: 80 }),
+      plain(note.summary),
+      ...note.keyPoints.map(bullet),
+    ]),
+    ...side(bullHeading, notes.bull),
+    ...side(bearHeading, notes.bear),
+    heading(riskHeading ?? "Risk read", HeadingLevel.HEADING_2, 24),
+    ...notes.risk.lenses.flatMap((lens) => [plain(`${lens.lens} — ${lens.view}`), ...lens.keyRisks.map(bullet)]),
+    plain(`${labels.volatility}: ${notes.risk.volatility}`),
+    plain(`${labels.liquidity}: ${notes.risk.liquidity}`),
+    spacer(),
+  ];
+}
+
 function sourcesBlock(briefing: MarketBriefing): Paragraph[] {
   const lines = briefing.sources.map(
     (source) => `${source.label}: ${source.url} (observed ${source.observedAt.slice(0, 10)})`,
@@ -192,6 +252,7 @@ export async function buildMarketBriefingDocx(
     ...macroBlock(briefing, locale),
     ...chartsBlock(briefing, locale),
     ...headlinesBlock(briefing),
+    ...teamBlock(briefing),
     ...sourcesBlock(briefing),
     plain(briefing.disclaimer, { italics: true, color: MUTED_COLOR, after: 0 }),
   ];

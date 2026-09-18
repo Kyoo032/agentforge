@@ -28,8 +28,34 @@ import {
 } from "@agentforge/core/market";
 import { knowledgeFtsQuery } from "../knowledge-text";
 import { errorMessage } from "./abort";
+import {
+  cryptoFundingSchema,
+  cryptoGlobalSchema,
+  cryptoMarketSchema,
+  type CryptoFunding,
+  type CryptoGlobal,
+  type CryptoMarket,
+} from "./coingecko";
+import { fundamentalsSchema, insidersSchema, type Fundamentals, type Insiders } from "./fundamentals";
+import { globalNewsSchema, type GlobalNews } from "./global-news";
+import { redditSentimentSchema, type RedditSentiment } from "./reddit";
+import { stocktwitsSentimentSchema, type StocktwitsSentiment } from "./stocktwits";
 
-export const MARKET_CACHE_KINDS = ["quote", "technical", "history", "news", "macro"] as const;
+export const MARKET_CACHE_KINDS = [
+  "quote",
+  "technical",
+  "history",
+  "news",
+  "macro",
+  "crypto-global",
+  "crypto-markets",
+  "crypto-funding",
+  "fundamentals",
+  "insiders",
+  "stocktwits",
+  "reddit",
+  "global-news",
+] as const;
 export type MarketCacheKind = (typeof MARKET_CACHE_KINDS)[number];
 
 /**
@@ -39,6 +65,29 @@ export type MarketCacheKind = (typeof MARKET_CACHE_KINDS)[number];
  */
 export const NEWS_TTL_SECONDS = 30 * 60;
 
+/**
+ * Dominance, market caps and funding move like a quote, not like a daily bar,
+ * so the three crypto kinds share the quote refresh interval. CoinGecko rate
+ * limits an anonymous caller hard; five minutes keeps a studio session inside
+ * the free tier.
+ */
+export const CRYPTO_TTL_SECONDS = 5 * 60;
+
+/**
+ * Valuation ratios, margins and the balance sheet are reported figures that
+ * change on an earnings date, not on a tick, so half a day is generous and
+ * still spares the analyst team a `quoteSummary` call per run.
+ */
+export const FUNDAMENTALS_TTL_SECONDS = 12 * 3600;
+/** Form 4 filings land in daily batches, and the window is 90 days wide; a day-old tally is the same tally. */
+export const INSIDERS_TTL_SECONDS = 24 * 3600;
+/** Retail chatter is the fastest-moving thing here; a quarter of an hour keeps it current without hammering the venue. */
+export const SENTIMENT_TTL_SECONDS = 15 * 60;
+/** Reddit is read three subreddits at a time and rate limits harder, so it is refreshed half as often. */
+export const REDDIT_TTL_SECONDS = 30 * 60;
+/** Macro headlines move at the same pace as per-ticker ones. */
+export const GLOBAL_NEWS_TTL_SECONDS = NEWS_TTL_SECONDS;
+
 /** Max age per kind before a fetch is attempted. quote / technical / history / macro come from core's TTL_SECONDS. */
 export const CACHE_TTL_SECONDS: Readonly<Record<MarketCacheKind, number>> = {
   quote: TTL_SECONDS.quote,
@@ -46,12 +95,28 @@ export const CACHE_TTL_SECONDS: Readonly<Record<MarketCacheKind, number>> = {
   history: TTL_SECONDS.history,
   news: NEWS_TTL_SECONDS,
   macro: TTL_SECONDS.macro,
+  "crypto-global": CRYPTO_TTL_SECONDS,
+  "crypto-markets": CRYPTO_TTL_SECONDS,
+  "crypto-funding": CRYPTO_TTL_SECONDS,
+  fundamentals: FUNDAMENTALS_TTL_SECONDS,
+  insiders: INSIDERS_TTL_SECONDS,
+  stocktwits: SENTIMENT_TTL_SECONDS,
+  reddit: REDDIT_TTL_SECONDS,
+  "global-news": GLOBAL_NEWS_TTL_SECONDS,
 };
 /** Headlines older than this leave the FTS index on every news write; the cache row itself follows its TTL. */
 export const NEWS_RETENTION_SECONDS = 7 * 86_400;
 export const NEWS_SEARCH_MAX = 20;
 /** The one macro snapshot shares a single row. */
 export const MACRO_CACHE_KEY = "__macro__";
+/** The one global crypto snapshot shares a single row, like macro. */
+export const CRYPTO_GLOBAL_CACHE_KEY = "__crypto_global__";
+/** Macro headlines are per language (the queries differ), not per ticker, so they share one row each. */
+export const GLOBAL_NEWS_CACHE_PREFIX = "__global_news__";
+
+export function globalNewsCacheKey(language: string): string {
+  return `${GLOBAL_NEWS_CACHE_PREFIX}@${language.trim().toLowerCase() || "en"}`;
+}
 
 const PAYLOAD_SCHEMAS = {
   quote: quoteSchema,
@@ -59,6 +124,14 @@ const PAYLOAD_SCHEMAS = {
   history: priceHistorySchema,
   news: z.array(watchNewsItemSchema),
   macro: macroSnapshotSchema,
+  "crypto-global": cryptoGlobalSchema,
+  "crypto-markets": cryptoMarketSchema,
+  "crypto-funding": cryptoFundingSchema,
+  fundamentals: fundamentalsSchema,
+  insiders: insidersSchema,
+  stocktwits: stocktwitsSentimentSchema,
+  reddit: redditSentimentSchema,
+  "global-news": globalNewsSchema,
 } as const;
 
 export type CachePayloadMap = {
@@ -67,6 +140,14 @@ export type CachePayloadMap = {
   history: PriceHistory;
   news: WatchNewsItem[];
   macro: MacroSnapshot;
+  "crypto-global": CryptoGlobal;
+  "crypto-markets": CryptoMarket;
+  "crypto-funding": CryptoFunding;
+  fundamentals: Fundamentals;
+  insiders: Insiders;
+  stocktwits: StocktwitsSentiment;
+  reddit: RedditSentiment;
+  "global-news": GlobalNews;
 };
 export type CachePayload = CachePayloadMap[MarketCacheKind];
 

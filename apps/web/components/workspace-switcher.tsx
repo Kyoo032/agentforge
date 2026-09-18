@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { Link } from "@/lib/nav";
 import { useRouter } from "@/lib/nav";
 import { apiFetch } from "@/lib/api-client";
+import { notifyThreadsChanged } from "@/lib/threads-events";
 import { BrandMark } from "@/components/brand-mark";
 
 type Workspace = { id: string; name: string; slug: string };
@@ -79,6 +80,8 @@ export function WorkspaceSwitcher({ workspaceName, compact = false, logoSrc = ""
 
   async function openWorkspace(id: string) {
     await apiFetch(`/api/v1/workspaces/${id}/select`, { method: "POST" });
+    // Sessions are per desk: tell every session list to reload before the route settles.
+    notifyThreadsChanged();
     setOpen(false);
     router.push("/chat");
     router.refresh();

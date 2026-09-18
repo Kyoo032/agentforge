@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { JobMode } from "@agentforge/core";
 import { apiFetch } from "./api-client";
 
@@ -53,16 +53,27 @@ function asString(value: unknown): string {
   return typeof value === "string" && value.trim() ? value.trim() : "";
 }
 
+/**
+ * The mode's models, the one that is selected, and whether the person chose it.
+ *
+ * `model` is always sent, because a request without one is a request the host guesses at. But a
+ * seeded default is not a decision: told that every request pinned its model, the host could never
+ * rescue a job whose default model was down. So `pinned` turns true only when the picker changes,
+ * and a mode switch re-seeds and clears it.
+ */
 export function useJobModel(mode: JobMode): {
   models: JobStudioModel[];
   model: string;
+  pinned: boolean;
   setModel: (id: string) => void;
 } {
   const [models, setModels] = useState<JobStudioModel[]>([]);
   const [model, setModel] = useState("");
+  const [pinned, setPinned] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
+    setPinned(false);
     void Promise.all([
       apiFetch("/api/v1/models").then((response) => response.json().catch(() => ({}))),
       apiFetch("/api/v1/settings").then((response) => response.json().catch(() => ({}))),
@@ -92,5 +103,10 @@ export function useJobModel(mode: JobMode): {
     };
   }, [mode]);
 
-  return { models, model, setModel };
+  const pickModel = useCallback((id: string) => {
+    setPinned(true);
+    setModel(id);
+  }, []);
+
+  return { models, model, pinned, setModel: pickModel };
 }

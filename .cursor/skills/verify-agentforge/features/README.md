@@ -46,15 +46,17 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 - [Settings](./settings.md) — gateway key, privacy note, stub/live runtime, gateway status row, language row, compact this-key + Open Usage. No Advanced tab.
 - [Gateway gate](./gateway-gate.md) — the host's open/closed decision: onboarding reasons, `settings-gateway-status` + re-check, 7-day grace, `403 gateway_blocked`, Start over. Advisory, fails open, never an entitlement check.
 - [Locale](./locale.md) — the Settings language select, the restart banner, and an `id` walk of the rail, Chat and one job mode. Testids do not move.
+- [Rail](./rail.md) — the left column: four groups, collapse/expand, resize and width prefs, theme toggle, and the `productModes` → visible-tabs → hidden-mode-redirect chain.
 - [Usage](./usage.md) — bottom-rail `/usage` Day/Week/Month stacked spend, this-key strip, desk by-model. Not a product mode.
 - [Workspaces](./workspaces.md) — rail switcher + `/workspaces` create/edit, presets and mode checkboxes, open → Chat.
 - [Models](./models.md) — curated Chat picker (Recommended + brand groups), doctor modeKeys/chatCount/curation on webdev. No `model-picker-all`.
 - [Templates](./templates.md) — example galleries on all five mode studios; click pre-fills the prompt.
 - [PII](./pii.md) — host masks outbound prompts (`[email]` / `[phone]` / …); the transcript keeps the typed text.
 - [Security](./security.md) — saved-key fingerprint on Settings (`key-fingerprint`); TLS note on `privacy-note`; at-rest envelope is existing work.
+- [Components](./components.md) — first-run installer for native dependencies (anydoc): status route, staged install stream, onboarding panel that starts itself. No key needed; renders nothing when the reader shipped inside the app.
 - [Research](./research.md) — studio shell on Default; live generate needs a key (and search backends).
 - [Documents](./documents.md) — starters, preview, section regen (503 without a key), DOCX download from a starter. Default has the tab.
-- [Finance](./finance.md) — figures-only brief, prompt-only auto-parse, DOCX + Markdown downloads after a live generate. No starter path any more; every download needs a working key. Default has the tab.
+- [Finance](./finance.md) — five tasks under the rail entry (brief, ratios, budget, cash flow, appraisal), file import (`.xlsx` / `.csv` / documents, read locally), deterministic figures with a model-written narrative, export menu (xlsx / pptx / docx). No starter path; generate needs a working key. Default has the tab.
 - [Data](./data.md) — pasted CSV + table notes, no web search, generate 503 without a key. Default has the tab.
 - [Market](./market.md) — watchlist ≤15 tickers → briefing → guarded brief + DOCX, disclaimer always, generate 503 without a key. Default has the tab.
 - [Legal](./legal.md) — .docx matter review with a verify/edit loop; uploads and roles without a key, run 503 without one. Default and the Legal preset have the tab.

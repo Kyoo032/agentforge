@@ -155,6 +155,8 @@ const BASE: MarketWatchResult = {
   briefing: {
     title: "Pre-market briefing",
     language: "id",
+    specialist: "saham",
+    depth: "quick",
     generatedAt: "2026-09-09T12:00:00+00:00",
     sections: [
       { heading: "One", body: `first ${ADVICE_MARKER}` },

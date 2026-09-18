@@ -1,0 +1,817 @@
+{
+  "id": "brief-saas-en",
+  "task": "brief",
+  "locale": "en",
+  "currency": "USD",
+  "description": "Eight quarters of unaudited quarterly P&L for an invented SaaS startup (Lumenstack Analytics, Inc.), one comma-delimited .csv. The export carries two title lines and a spacer above the header, quoted thousands (\"1,250,000\"), losses in parentheses (\"(593,000)\"), section header rows with no figures, and subtotal rows (Total Revenue, Total Cost of Revenue, Gross Profit, Total Operating Expenses, Operating Income) that must NOT be counted again as line items. Definitions this truth uses where the product leaves them open: gross margin = (revenue - cost of revenue) / revenue; operating margin = operating income / revenue; revenue CAGR is per QUARTER over 7 steps, (last/first)^(1/7)-1, so the annualised figure is (1+q)^4-1. Runway is given twice on purpose, because the product's own definition is ambiguous: runwayMonths.fy2024Burn = cash at Q4 2024 / (FY2024 total net burn / 12 months), and runwayMonths.latestQuarterBurn = cash at Q4 2024 / (Q4 2024 net burn / 3 months). Both must be reported against the burn basis named with them. Breakeven uses the params: fixedCosts is the Q4 2024 total operating expense run rate, and price / variable cost are per seat per quarter; breakeven seats = fixedCosts / (pricePerUnit - variableCostPerUnit). Every figure tolerance is a RELATIVE fraction of |value| (0.005 = 0.5%); a tolerance of 0 means an exact match.",
+  "files": [
+    {
+      "path": "input.csv"
+    }
+  ],
+  "prompt": "Write a performance brief for Lumenstack Analytics, Inc. from the attached quarterly P&L: revenue growth and CAGR, gross and operating margins, how the burn is trending, how much runway the cash gives us, and how many seats a quarter we need to cover fixed costs.",
+  "params": {
+    "fixedCosts": 2932000,
+    "pricePerUnit": 1200,
+    "variableCostPerUnit": 310
+  },
+  "truth": {
+    "lineItems": [
+      {
+        "label": "Subscription Revenue",
+        "period": "Q1 2023",
+        "amount": 1250000,
+        "currency": "USD",
+        "category": "revenue"
+      },
+      {
+        "label": "Subscription Revenue",
+        "period": "Q2 2023",
+        "amount": 1420000,
+        "currency": "USD",
+        "category": "revenue"
+      },
+      {
+        "label": "Subscription Revenue",
+        "period": "Q3 2023",
+        "amount": 1640000,
+        "currency": "USD",
+        "category": "revenue"
+      },
+      {
+        "label": "Subscription Revenue",
+        "period": "Q4 2023",
+        "amount": 1905000,
+        "currency": "USD",
+        "category": "revenue"
+      },
+      {
+        "label": "Subscription Revenue",
+        "period": "Q1 2024",
+        "amount": 2190000,
+        "currency": "USD",
+        "category": "revenue"
+      },
+      {
+        "label": "Subscription Revenue",
+        "period": "Q2 2024",
+        "amount": 2520000,
+        "currency": "USD",
+        "category": "revenue"
+      },
+      {
+        "label": "Subscription Revenue",
+        "period": "Q3 2024",
+        "amount": 2915000,
+        "currency": "USD",
+        "category": "revenue"
+      },
+      {
+        "label": "Subscription Revenue",
+        "period": "Q4 2024",
+        "amount": 3380000,
+        "currency": "USD",
+        "category": "revenue"
+      },
+      {
+        "label": "Professional Services Revenue",
+        "period": "Q1 2023",
+        "amount": 185000,
+        "currency": "USD",
+        "category": "revenue"
+      },
+      {
+        "label": "Professional Services Revenue",
+        "period": "Q2 2023",
+        "amount": 196000,
+        "currency": "USD",
+        "category": "revenue"
+      },
+      {
+        "label": "Professional Services Revenue",
+        "period": "Q3 2023",
+        "amount": 210000,
+        "currency": "USD",
+        "category": "revenue"
+      },
+      {
+        "label": "Professional Services Revenue",
+        "period": "Q4 2023",
+        "amount": 238000,
+        "currency": "USD",
+        "category": "revenue"
+      },
+      {
+        "label": "Professional Services Revenue",
+        "period": "Q1 2024",
+        "amount": 252000,
+        "currency": "USD",
+        "category": "revenue"
+      },
+      {
+        "label": "Professional Services Revenue",
+        "period": "Q2 2024",
+        "amount": 271000,
+        "currency": "USD",
+        "category": "revenue"
+      },
+      {
+        "label": "Professional Services Revenue",
+        "period": "Q3 2024",
+        "amount": 288000,
+        "currency": "USD",
+        "category": "revenue"
+      },
+      {
+        "label": "Professional Services Revenue",
+        "period": "Q4 2024",
+        "amount": 315000,
+        "currency": "USD",
+        "category": "revenue"
+      },
+      {
+        "label": "Usage Overage Revenue",
+        "period": "Q1 2023",
+        "amount": 64000,
+        "currency": "USD",
+        "category": "revenue"
+      },
+      {
+        "label": "Usage Overage Revenue",
+        "period": "Q2 2023",
+        "amount": 78000,
+        "currency": "USD",
+        "category": "revenue"
+      },
+      {
+        "label": "Usage Overage Revenue",
+        "period": "Q3 2023",
+        "amount": 92000,
+        "currency": "USD",
+        "category": "revenue"
+      },
+      {
+        "label": "Usage Overage Revenue",
+        "period": "Q4 2023",
+        "amount": 118000,
+        "currency": "USD",
+        "category": "revenue"
+      },
+      {
+        "label": "Usage Overage Revenue",
+        "period": "Q1 2024",
+        "amount": 141000,
+        "currency": "USD",
+        "category": "revenue"
+      },
+      {
+        "label": "Usage Overage Revenue",
+        "period": "Q2 2024",
+        "amount": 167000,
+        "currency": "USD",
+        "category": "revenue"
+      },
+      {
+        "label": "Usage Overage Revenue",
+        "period": "Q3 2024",
+        "amount": 199000,
+        "currency": "USD",
+        "category": "revenue"
+      },
+      {
+        "label": "Usage Overage Revenue",
+        "period": "Q4 2024",
+        "amount": 242000,
+        "currency": "USD",
+        "category": "revenue"
+      },
+      {
+        "label": "Hosting & Infrastructure",
+        "period": "Q1 2023",
+        "amount": 268000,
+        "currency": "USD",
+        "category": "cogs"
+      },
+      {
+        "label": "Hosting & Infrastructure",
+        "period": "Q2 2023",
+        "amount": 296000,
+        "currency": "USD",
+        "category": "cogs"
+      },
+      {
+        "label": "Hosting & Infrastructure",
+        "period": "Q3 2023",
+        "amount": 332000,
+        "currency": "USD",
+        "category": "cogs"
+      },
+      {
+        "label": "Hosting & Infrastructure",
+        "period": "Q4 2023",
+        "amount": 379000,
+        "currency": "USD",
+        "category": "cogs"
+      },
+      {
+        "label": "Hosting & Infrastructure",
+        "period": "Q1 2024",
+        "amount": 421000,
+        "currency": "USD",
+        "category": "cogs"
+      },
+      {
+        "label": "Hosting & Infrastructure",
+        "period": "Q2 2024",
+        "amount": 470000,
+        "currency": "USD",
+        "category": "cogs"
+      },
+      {
+        "label": "Hosting & Infrastructure",
+        "period": "Q3 2024",
+        "amount": 528000,
+        "currency": "USD",
+        "category": "cogs"
+      },
+      {
+        "label": "Hosting & Infrastructure",
+        "period": "Q4 2024",
+        "amount": 594000,
+        "currency": "USD",
+        "category": "cogs"
+      },
+      {
+        "label": "Customer Support",
+        "period": "Q1 2023",
+        "amount": 121000,
+        "currency": "USD",
+        "category": "cogs"
+      },
+      {
+        "label": "Customer Support",
+        "period": "Q2 2023",
+        "amount": 134000,
+        "currency": "USD",
+        "category": "cogs"
+      },
+      {
+        "label": "Customer Support",
+        "period": "Q3 2023",
+        "amount": 148000,
+        "currency": "USD",
+        "category": "cogs"
+      },
+      {
+        "label": "Customer Support",
+        "period": "Q4 2023",
+        "amount": 171000,
+        "currency": "USD",
+        "category": "cogs"
+      },
+      {
+        "label": "Customer Support",
+        "period": "Q1 2024",
+        "amount": 190000,
+        "currency": "USD",
+        "category": "cogs"
+      },
+      {
+        "label": "Customer Support",
+        "period": "Q2 2024",
+        "amount": 212000,
+        "currency": "USD",
+        "category": "cogs"
+      },
+      {
+        "label": "Customer Support",
+        "period": "Q3 2024",
+        "amount": 236000,
+        "currency": "USD",
+        "category": "cogs"
+      },
+      {
+        "label": "Customer Support",
+        "period": "Q4 2024",
+        "amount": 264000,
+        "currency": "USD",
+        "category": "cogs"
+      },
+      {
+        "label": "Third-party Data Licenses",
+        "period": "Q1 2023",
+        "amount": 58000,
+        "currency": "USD",
+        "category": "cogs"
+      },
+      {
+        "label": "Third-party Data Licenses",
+        "period": "Q2 2023",
+        "amount": 62000,
+        "currency": "USD",
+        "category": "cogs"
+      },
+      {
+        "label": "Third-party Data Licenses",
+        "period": "Q3 2023",
+        "amount": 68000,
+        "currency": "USD",
+        "category": "cogs"
+      },
+      {
+        "label": "Third-party Data Licenses",
+        "period": "Q4 2023",
+        "amount": 76000,
+        "currency": "USD",
+        "category": "cogs"
+      },
+      {
+        "label": "Third-party Data Licenses",
+        "period": "Q1 2024",
+        "amount": 84000,
+        "currency": "USD",
+        "category": "cogs"
+      },
+      {
+        "label": "Third-party Data Licenses",
+        "period": "Q2 2024",
+        "amount": 93000,
+        "currency": "USD",
+        "category": "cogs"
+      },
+      {
+        "label": "Third-party Data Licenses",
+        "period": "Q3 2024",
+        "amount": 103000,
+        "currency": "USD",
+        "category": "cogs"
+      },
+      {
+        "label": "Third-party Data Licenses",
+        "period": "Q4 2024",
+        "amount": 114000,
+        "currency": "USD",
+        "category": "cogs"
+      },
+      {
+        "label": "Sales & Marketing",
+        "period": "Q1 2023",
+        "amount": 780000,
+        "currency": "USD",
+        "category": "opex"
+      },
+      {
+        "label": "Sales & Marketing",
+        "period": "Q2 2023",
+        "amount": 845000,
+        "currency": "USD",
+        "category": "opex"
+      },
+      {
+        "label": "Sales & Marketing",
+        "period": "Q3 2023",
+        "amount": 930000,
+        "currency": "USD",
+        "category": "opex"
+      },
+      {
+        "label": "Sales & Marketing",
+        "period": "Q4 2023",
+        "amount": 1060000,
+        "currency": "USD",
+        "category": "opex"
+      },
+      {
+        "label": "Sales & Marketing",
+        "period": "Q1 2024",
+        "amount": 1185000,
+        "currency": "USD",
+        "category": "opex"
+      },
+      {
+        "label": "Sales & Marketing",
+        "period": "Q2 2024",
+        "amount": 1290000,
+        "currency": "USD",
+        "category": "opex"
+      },
+      {
+        "label": "Sales & Marketing",
+        "period": "Q3 2024",
+        "amount": 1395000,
+        "currency": "USD",
+        "category": "opex"
+      },
+      {
+        "label": "Sales & Marketing",
+        "period": "Q4 2024",
+        "amount": 1480000,
+        "currency": "USD",
+        "category": "opex"
+      },
+      {
+        "label": "Research & Development",
+        "period": "Q1 2023",
+        "amount": 620000,
+        "currency": "USD",
+        "category": "opex"
+      },
+      {
+        "label": "Research & Development",
+        "period": "Q2 2023",
+        "amount": 668000,
+        "currency": "USD",
+        "category": "opex"
+      },
+      {
+        "label": "Research & Development",
+        "period": "Q3 2023",
+        "amount": 715000,
+        "currency": "USD",
+        "category": "opex"
+      },
+      {
+        "label": "Research & Development",
+        "period": "Q4 2023",
+        "amount": 790000,
+        "currency": "USD",
+        "category": "opex"
+      },
+      {
+        "label": "Research & Development",
+        "period": "Q1 2024",
+        "amount": 860000,
+        "currency": "USD",
+        "category": "opex"
+      },
+      {
+        "label": "Research & Development",
+        "period": "Q2 2024",
+        "amount": 925000,
+        "currency": "USD",
+        "category": "opex"
+      },
+      {
+        "label": "Research & Development",
+        "period": "Q3 2024",
+        "amount": 985000,
+        "currency": "USD",
+        "category": "opex"
+      },
+      {
+        "label": "Research & Development",
+        "period": "Q4 2024",
+        "amount": 1040000,
+        "currency": "USD",
+        "category": "opex"
+      },
+      {
+        "label": "General & Administrative",
+        "period": "Q1 2023",
+        "amount": 245000,
+        "currency": "USD",
+        "category": "opex"
+      },
+      {
+        "label": "General & Administrative",
+        "period": "Q2 2023",
+        "amount": 262000,
+        "currency": "USD",
+        "category": "opex"
+      },
+      {
+        "label": "General & Administrative",
+        "period": "Q3 2023",
+        "amount": 284000,
+        "currency": "USD",
+        "category": "opex"
+      },
+      {
+        "label": "General & Administrative",
+        "period": "Q4 2023",
+        "amount": 311000,
+        "currency": "USD",
+        "category": "opex"
+      },
+      {
+        "label": "General & Administrative",
+        "period": "Q1 2024",
+        "amount": 338000,
+        "currency": "USD",
+        "category": "opex"
+      },
+      {
+        "label": "General & Administrative",
+        "period": "Q2 2024",
+        "amount": 362000,
+        "currency": "USD",
+        "category": "opex"
+      },
+      {
+        "label": "General & Administrative",
+        "period": "Q3 2024",
+        "amount": 389000,
+        "currency": "USD",
+        "category": "opex"
+      },
+      {
+        "label": "General & Administrative",
+        "period": "Q4 2024",
+        "amount": 412000,
+        "currency": "USD",
+        "category": "opex"
+      },
+      {
+        "label": "Cash & Equivalents, End of Quarter",
+        "period": "Q1 2023",
+        "amount": 12400000,
+        "currency": "USD",
+        "category": "cash"
+      },
+      {
+        "label": "Cash & Equivalents, End of Quarter",
+        "period": "Q2 2023",
+        "amount": 11790000,
+        "currency": "USD",
+        "category": "cash"
+      },
+      {
+        "label": "Cash & Equivalents, End of Quarter",
+        "period": "Q3 2023",
+        "amount": 11215000,
+        "currency": "USD",
+        "category": "cash"
+      },
+      {
+        "label": "Cash & Equivalents, End of Quarter",
+        "period": "Q4 2023",
+        "amount": 10660000,
+        "currency": "USD",
+        "category": "cash"
+      },
+      {
+        "label": "Cash & Equivalents, End of Quarter",
+        "period": "Q1 2024",
+        "amount": 10140000,
+        "currency": "USD",
+        "category": "cash"
+      },
+      {
+        "label": "Cash & Equivalents, End of Quarter",
+        "period": "Q2 2024",
+        "amount": 9725000,
+        "currency": "USD",
+        "category": "cash"
+      },
+      {
+        "label": "Cash & Equivalents, End of Quarter",
+        "period": "Q3 2024",
+        "amount": 9470000,
+        "currency": "USD",
+        "category": "cash"
+      },
+      {
+        "label": "Cash & Equivalents, End of Quarter",
+        "period": "Q4 2024",
+        "amount": 9380000,
+        "currency": "USD",
+        "category": "cash"
+      },
+      {
+        "label": "Net Quarterly Burn",
+        "period": "Q1 2023",
+        "amount": 640000,
+        "currency": "USD",
+        "category": "other"
+      },
+      {
+        "label": "Net Quarterly Burn",
+        "period": "Q2 2023",
+        "amount": 610000,
+        "currency": "USD",
+        "category": "other"
+      },
+      {
+        "label": "Net Quarterly Burn",
+        "period": "Q3 2023",
+        "amount": 575000,
+        "currency": "USD",
+        "category": "other"
+      },
+      {
+        "label": "Net Quarterly Burn",
+        "period": "Q4 2023",
+        "amount": 555000,
+        "currency": "USD",
+        "category": "other"
+      },
+      {
+        "label": "Net Quarterly Burn",
+        "period": "Q1 2024",
+        "amount": 520000,
+        "currency": "USD",
+        "category": "other"
+      },
+      {
+        "label": "Net Quarterly Burn",
+        "period": "Q2 2024",
+        "amount": 415000,
+        "currency": "USD",
+        "category": "other"
+      },
+      {
+        "label": "Net Quarterly Burn",
+        "period": "Q3 2024",
+        "amount": 255000,
+        "currency": "USD",
+        "category": "other"
+      },
+      {
+        "label": "Net Quarterly Burn",
+        "period": "Q4 2024",
+        "amount": 90000,
+        "currency": "USD",
+        "category": "other"
+      }
+    ],
+    "figures": [
+      {
+        "key": "totalRevenue.Q1-2023",
+        "label": "Total revenue Q1 2023",
+        "value": 1499000,
+        "unit": "currency",
+        "tolerance": 0.001
+      },
+      {
+        "key": "totalRevenue.Q4-2024",
+        "label": "Total revenue Q4 2024",
+        "value": 3937000,
+        "unit": "currency",
+        "tolerance": 0.001
+      },
+      {
+        "key": "totalRevenue.FY2023",
+        "label": "Total revenue FY2023",
+        "value": 7396000,
+        "unit": "currency",
+        "tolerance": 0.001
+      },
+      {
+        "key": "totalRevenue.FY2024",
+        "label": "Total revenue FY2024",
+        "value": 12880000,
+        "unit": "currency",
+        "tolerance": 0.001
+      },
+      {
+        "key": "revenueGrowthPct.FY2024",
+        "label": "Revenue growth FY2024 vs FY2023",
+        "value": 74.1482,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "revenueGrowthPctQoQ.Q4-2024",
+        "label": "Revenue growth Q4 2024 vs Q3 2024",
+        "value": 15.726,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "revenueCagrQuarterlyPct",
+        "label": "Revenue CAGR per quarter, Q1 2023 to Q4 2024",
+        "value": 14.7913,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "grossProfit.Q4-2024",
+        "label": "Gross profit Q4 2024",
+        "value": 2965000,
+        "unit": "currency",
+        "tolerance": 0.001
+      },
+      {
+        "key": "grossMarginPct.Q4-2024",
+        "label": "Gross margin Q4 2024",
+        "value": 75.3112,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "grossMarginPct.FY2023",
+        "label": "Gross margin FY2023",
+        "value": 71.4305,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "grossMarginPct.FY2024",
+        "label": "Gross margin FY2024",
+        "value": 74.309,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "opex.FY2024",
+        "label": "Total operating expenses FY2024",
+        "value": 10661000,
+        "unit": "currency",
+        "tolerance": 0.001
+      },
+      {
+        "key": "operatingIncome.Q4-2024",
+        "label": "Operating income Q4 2024",
+        "value": 33000,
+        "unit": "currency",
+        "tolerance": 0.001
+      },
+      {
+        "key": "operatingMarginPct.Q4-2024",
+        "label": "Operating margin Q4 2024",
+        "value": 0.8382,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "operatingIncome.FY2024",
+        "label": "Operating income (loss) FY2024",
+        "value": -1090000,
+        "unit": "currency",
+        "tolerance": 0.001
+      },
+      {
+        "key": "cash.Q4-2024",
+        "label": "Cash and equivalents at Q4 2024",
+        "value": 9380000,
+        "unit": "currency",
+        "tolerance": 0.001
+      },
+      {
+        "key": "netBurn.Q4-2024",
+        "label": "Net burn Q4 2024",
+        "value": 90000,
+        "unit": "currency",
+        "tolerance": 0.001
+      },
+      {
+        "key": "monthlyBurn.FY2024",
+        "label": "Average monthly net burn FY2024",
+        "value": 106666.67,
+        "unit": "currency",
+        "tolerance": 0.001
+      },
+      {
+        "key": "runwayMonths.fy2024Burn",
+        "label": "Runway on the FY2024 average burn (months)",
+        "value": 87.9375,
+        "unit": "months",
+        "tolerance": 0.005
+      },
+      {
+        "key": "runwayMonths.latestQuarterBurn",
+        "label": "Runway on the Q4 2024 burn alone (months)",
+        "value": 312.6667,
+        "unit": "months",
+        "tolerance": 0.005
+      },
+      {
+        "key": "contributionMarginPct",
+        "label": "Contribution margin per seat",
+        "value": 74.1667,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "breakevenUnits",
+        "label": "Seats per quarter to cover the Q4 2024 fixed cost base",
+        "value": 3294.382,
+        "unit": "count",
+        "tolerance": 0.005
+      },
+      {
+        "key": "breakevenRevenue",
+        "label": "Quarterly revenue at breakeven",
+        "value": 3953258.43,
+        "unit": "currency",
+        "tolerance": 0.001
+      },
+      {
+        "key": "quartersToOperatingBreakeven",
+        "label": "Quarters from Q1 2023 until operating income first turns positive",
+        "value": 8,
+        "unit": "count",
+        "tolerance": 0
+      }
+    ],
+    "mustMention": [
+      "runway",
+      "margin",
+      "breakeven",
+      "Q4 2024"
+    ],
+    "mustNotContain": [
+      "[unverified figure]"
+    ]
+  }
+}

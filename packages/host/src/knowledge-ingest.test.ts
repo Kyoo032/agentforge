@@ -18,7 +18,7 @@ import {
   sweepOrphanThreadSources,
 } from "./knowledge";
 import { indexSourceVectors } from "./knowledge-embed";
-import { chatWorkCard, mediaWorkCard } from "./work-cards";
+import { artifactWorkCard, chatWorkCard, mediaWorkCard } from "./work-cards";
 
 function tenant(): TenantContext {
   return {
@@ -189,6 +189,95 @@ describe("knowledge-ingest", () => {
     for (const vector of vectors) {
       expect(vector.body).not.toContain("jane.doe@example.com");
     }
+  });
+
+  it("leaves the host-generated header lines out of the PII mask", async () => {
+    const ctx = tenant();
+    // A UUID whose middle groups are all digits matches the intl phone pattern, so masking the
+    // rendered card rewrote `artifact:b73b2194-8471-4712-…` as `artifact:b73b[phone]-…` and the
+    // retrieved copy of the card could no longer name its own artifact.
+    const artifactId = "b73b2194-8471-4712-bde3-34ab10f85b5c";
+    const result = await upsertWorkSource(
+      ctx,
+      artifactWorkCard({
+        type: "Presentation",
+        artifactId,
+        title: "Weekly release cadence deck",
+        markdown: "Ship on Thursday. Mail questions to jane.doe@example.com.",
+        model: "gpt-5.6-luna",
+      }),
+    );
+    if (result.status === "skipped") {
+      throw new Error("unexpected skip");
+    }
+    const body = (
+      sql
+        .prepare("SELECT body FROM knowledge_chunks WHERE workspace_id = ? AND source_id = ?")
+        .get(ctx.workspaceId, result.source.id) as { body: string }
+    ).body;
+    expect(body).toContain(`Pointer: artifact:${artifactId}`);
+    expect(body).toContain("Mode: Presentation");
+    expect(body).toContain("Model: gpt-5.6-luna");
+    // The owner's own words are still masked.
+    expect(body).not.toContain("jane.doe@example.com");
+  });
+
+  it("keeps a media card's File line intact and out of the mask", async () => {
+    const ctx = tenant();
+    const mediaId = "b73b2194-8471-4712-bde3-34ab10f85b5c";
+    const result = await upsertWorkSource(
+      ctx,
+      mediaWorkCard({
+        kind: "image",
+        mediaId,
+        prompt: "harbor at dusk",
+        aspect: "16:9",
+        model: "gpt-image-2",
+        url: `/api/v1/media/${mediaId}/file`,
+      }),
+    );
+    if (result.status === "skipped") {
+      throw new Error("unexpected skip");
+    }
+    const body = (
+      sql
+        .prepare("SELECT body FROM knowledge_chunks WHERE workspace_id = ? AND source_id = ?")
+        .get(ctx.workspaceId, result.source.id) as { body: string }
+    ).body;
+    expect(body).toContain(`File: /api/v1/media/${mediaId}/file`);
+    expect(body).toContain(`Pointer: media:${mediaId}`);
+    expect(body).not.toContain("[phone]");
+  });
+
+  it("refreshes the card name when its subject is renamed, without adding a row", async () => {
+    const ctx = tenant();
+    const first = await upsertWorkSource(
+      ctx,
+      chatWorkCard({ threadId: "thread-renamed", title: "New chat", userText: "q1", assistantText: "a1" }),
+    );
+    const second = await upsertWorkSource(
+      ctx,
+      chatWorkCard({
+        threadId: "thread-renamed",
+        title: "Capital of Iceland",
+        userText: "q2",
+        assistantText: "Reykjavík",
+      }),
+    );
+    if (first.status === "skipped" || second.status === "skipped") {
+      throw new Error("unexpected skip");
+    }
+    expect(second.source.id).toBe(first.source.id);
+    expect(listSources(ctx)).toHaveLength(1);
+    expect(second.source.name).toBe("Capital of Iceland");
+    // The name is also the `# <title>` line inside the indexed chunk, which is what scores FTS hits.
+    const body = (
+      sql
+        .prepare("SELECT body FROM knowledge_chunks WHERE workspace_id = ? AND source_id = ?")
+        .get(ctx.workspaceId, second.source.id) as { body: string }
+    ).body;
+    expect(body).toContain("# Capital of Iceland");
+    expect(body).not.toContain("New chat");
   });
 
   it("refuses to index a card that carries prompt-injection text (Failed row, no chunks)", async () => {

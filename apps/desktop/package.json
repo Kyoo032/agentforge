@@ -21,6 +21,7 @@
     "test": "node brand-read.test.cjs && node auto-update.test.cjs && node edit-menu.test.cjs && node lifecycle.test.cjs && node navigation.test.cjs && node renderer-csp.test.cjs && node scripts/release-artifacts.test.mjs"
   },
   "dependencies": {
+    "@firecrawl/anydoc": "^0.2.4",
     "better-sqlite3": "^13.0.3",
     "electron-updater": "^6.8.9",
     "keytar": "^7.9.0"
@@ -100,7 +101,9 @@
     ],
     "asarUnpack": [
       "**/node_modules/better-sqlite3/**",
-      "**/node_modules/keytar/**"
+      "**/node_modules/keytar/**",
+      "**/node_modules/@firecrawl/anydoc/**",
+      "**/node_modules/@firecrawl/anydoc-*/**"
     ],
     "win": {
       "icon": "icon.ico",

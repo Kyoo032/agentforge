@@ -52,6 +52,8 @@ export type YahooClient = {
   quote(symbols: readonly string[], signal: AbortSignal): Promise<unknown>;
   chart(symbol: string, range: YahooChartRange, signal: AbortSignal): Promise<unknown>;
   search(query: string, newsCount: number, signal: AbortSignal): Promise<unknown>;
+  /** Company profile, valuation, margins and insider filings; see `fundamentals.ts` for the modules. */
+  quoteSummary(symbol: string, modules: readonly string[], signal: AbortSignal): Promise<unknown>;
 };
 
 export type YahooFetchOptions = {
@@ -98,6 +100,8 @@ export function createYahooClient(): YahooClient {
         { fetchOptions: { signal } },
       ),
     search: (query, newsCount, signal) => instance().search(query, { newsCount }, { fetchOptions: { signal } }),
+    quoteSummary: (symbol, modules, signal) =>
+      instance().quoteSummary(symbol, { modules: [...modules] as never }, { fetchOptions: { signal } }),
   };
 }
 

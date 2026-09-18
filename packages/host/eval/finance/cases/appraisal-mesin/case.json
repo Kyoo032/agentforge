@@ -1,0 +1,372 @@
+{
+  "id": "appraisal-mesin",
+  "task": "appraisal",
+  "locale": "id",
+  "currency": "IDR",
+  "description": "Pembelian mesin roasting (sintetis): investasi awal di Tahun 0, enam tahun arus kas bersih, dan nilai sisa di tahun terakhir. Tabel memakai kolom tahun (Tahun 0…6) dengan satu kolom label, dan baris terakhir 'Arus kas bersih' adalah SUBTOTAL — tidak boleh dijumlahkan lagi bersama baris komponennya. Konvensi oracle: (1) NPV memakai flows[0] di t = 0 TANPA didiskonto (sama dengan engine npv()), rate 12%; (2) IRR dicari dengan bisection sampai 1e-7 dan sudah diverifikasi tunggal (NPV(r) hanya sekali ganti tanda); (3) payback = tahun pertama arus kumulatif >= 0, dikurangi 1, ditambah |kumulatif tahun sebelumnya| / arus tahun itu; (4) payback terdiskonto memakai aturan yang sama atas arus yang sudah didiskonto 12%; (5) profitability index = (NPV - arus Tahun 0) / -arus Tahun 0, yaitu PV arus Tahun 1-6 dibagi investasi awal; (6) grid sensitivitas menggeser HANYA arus Tahun 1-6 sebesar -10% / 0 / +10%; investasi Tahun 0 tetap. Semua `tolerance` bersifat RELATIF terhadap nilai kebenaran (0.005 = 0,5%).",
+  "files": [
+    {
+      "path": "kelayakan-mesin-roasting.xlsx",
+      "sheet": "Kelayakan Mesin"
+    }
+  ],
+  "prompt": "Ini rencana pembelian mesin roasting kami. Diskonto 12% per tahun. Tolong hitung NPV, IRR, payback sederhana dan payback terdiskonto, profitability index, arus kas kumulatif tiap tahun, lalu buat grid sensitivitas NPV untuk diskonto 10%, 12%, 14% dikali arus kas -10%, dasar, dan +10%. Layak atau tidak?",
+  "params": {
+    "discountRate": 12,
+    "rateScenarios": [
+      10,
+      12,
+      14
+    ],
+    "cashFlowShifts": [
+      -10,
+      0,
+      10
+    ]
+  },
+  "truth": {
+    "lineItems": [
+      {
+        "label": "Investasi awal (mesin + instalasi)",
+        "period": "Tahun 0",
+        "amount": -1450000000,
+        "category": "asset"
+      },
+      {
+        "label": "Penghematan biaya & tambahan pendapatan",
+        "period": "Tahun 1",
+        "amount": 345000000,
+        "category": "cash"
+      },
+      {
+        "label": "Penghematan biaya & tambahan pendapatan",
+        "period": "Tahun 2",
+        "amount": 412000000,
+        "category": "cash"
+      },
+      {
+        "label": "Penghematan biaya & tambahan pendapatan",
+        "period": "Tahun 3",
+        "amount": 470000000,
+        "category": "cash"
+      },
+      {
+        "label": "Penghematan biaya & tambahan pendapatan",
+        "period": "Tahun 4",
+        "amount": 498000000,
+        "category": "cash"
+      },
+      {
+        "label": "Penghematan biaya & tambahan pendapatan",
+        "period": "Tahun 5",
+        "amount": 492000000,
+        "category": "cash"
+      },
+      {
+        "label": "Penghematan biaya & tambahan pendapatan",
+        "period": "Tahun 6",
+        "amount": 465000000,
+        "category": "cash"
+      },
+      {
+        "label": "Biaya operasi & perawatan",
+        "period": "Tahun 1",
+        "amount": -60000000,
+        "category": "cash"
+      },
+      {
+        "label": "Biaya operasi & perawatan",
+        "period": "Tahun 2",
+        "amount": -72000000,
+        "category": "cash"
+      },
+      {
+        "label": "Biaya operasi & perawatan",
+        "period": "Tahun 3",
+        "amount": -75000000,
+        "category": "cash"
+      },
+      {
+        "label": "Biaya operasi & perawatan",
+        "period": "Tahun 4",
+        "amount": -78000000,
+        "category": "cash"
+      },
+      {
+        "label": "Biaya operasi & perawatan",
+        "period": "Tahun 5",
+        "amount": -82000000,
+        "category": "cash"
+      },
+      {
+        "label": "Biaya operasi & perawatan",
+        "period": "Tahun 6",
+        "amount": -85000000,
+        "category": "cash"
+      },
+      {
+        "label": "Nilai sisa (salvage)",
+        "period": "Tahun 6",
+        "amount": 180000000,
+        "category": "cash"
+      }
+    ],
+    "figures": [
+      {
+        "key": "npv",
+        "label": "NPV @ 12%",
+        "value": 139939433.60188407,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "irrPct",
+        "label": "IRR",
+        "value": 15.016560997553164,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "paybackYears",
+        "label": "Payback sederhana",
+        "value": 4.024390243902439,
+        "unit": "years",
+        "tolerance": 0.000001
+      },
+      {
+        "key": "discountedPaybackYears",
+        "label": "Payback terdiskonto",
+        "value": 5.506757806080001,
+        "unit": "years",
+        "tolerance": 0.000001
+      },
+      {
+        "key": "profitabilityIndex",
+        "label": "Profitability index",
+        "value": 1.096509954208196,
+        "unit": "ratio",
+        "tolerance": 0.000001
+      },
+      {
+        "key": "netCashFlow.Tahun 0",
+        "label": "Arus kas bersih Tahun 0",
+        "value": -1450000000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netCashFlow.Tahun 1",
+        "label": "Arus kas bersih Tahun 1",
+        "value": 285000000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netCashFlow.Tahun 2",
+        "label": "Arus kas bersih Tahun 2",
+        "value": 340000000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netCashFlow.Tahun 3",
+        "label": "Arus kas bersih Tahun 3",
+        "value": 395000000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netCashFlow.Tahun 4",
+        "label": "Arus kas bersih Tahun 4",
+        "value": 420000000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netCashFlow.Tahun 5",
+        "label": "Arus kas bersih Tahun 5",
+        "value": 410000000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netCashFlow.Tahun 6",
+        "label": "Arus kas bersih Tahun 6",
+        "value": 560000000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "cumulativeCashFlow.Tahun 0",
+        "label": "Arus kas kumulatif Tahun 0",
+        "value": -1450000000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "cumulativeCashFlow.Tahun 1",
+        "label": "Arus kas kumulatif Tahun 1",
+        "value": -1165000000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "cumulativeCashFlow.Tahun 2",
+        "label": "Arus kas kumulatif Tahun 2",
+        "value": -825000000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "cumulativeCashFlow.Tahun 3",
+        "label": "Arus kas kumulatif Tahun 3",
+        "value": -430000000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "cumulativeCashFlow.Tahun 4",
+        "label": "Arus kas kumulatif Tahun 4",
+        "value": -10000000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "cumulativeCashFlow.Tahun 5",
+        "label": "Arus kas kumulatif Tahun 5",
+        "value": 400000000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "cumulativeCashFlow.Tahun 6",
+        "label": "Arus kas kumulatif Tahun 6",
+        "value": 960000000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "cumulativeDiscountedCashFlow.Tahun 0",
+        "label": "Arus terdiskonto kumulatif Tahun 0",
+        "value": -1450000000,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "cumulativeDiscountedCashFlow.Tahun 1",
+        "label": "Arus terdiskonto kumulatif Tahun 1",
+        "value": -1195535714.2857144,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "cumulativeDiscountedCashFlow.Tahun 2",
+        "label": "Arus terdiskonto kumulatif Tahun 2",
+        "value": -924489795.9183675,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "cumulativeDiscountedCashFlow.Tahun 3",
+        "label": "Arus terdiskonto kumulatif Tahun 3",
+        "value": -643336598.0320702,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "cumulativeDiscountedCashFlow.Tahun 4",
+        "label": "Arus terdiskonto kumulatif Tahun 4",
+        "value": -376419005.1020411,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "cumulativeDiscountedCashFlow.Tahun 5",
+        "label": "Arus terdiskonto kumulatif Tahun 5",
+        "value": -143773994.25741547,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "cumulativeDiscountedCashFlow.Tahun 6",
+        "label": "Arus terdiskonto kumulatif Tahun 6",
+        "value": 139939433.60188407,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "sensitivityNpv.rate10.flowsminus10",
+        "label": "NPV @ 10% dengan arus -10%",
+        "value": 74960706.96972868,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "sensitivityNpv.rate10.flowsbase",
+        "label": "NPV @ 10% dengan arus +0%",
+        "value": 244400785.52192053,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "sensitivityNpv.rate10.flowsplus10",
+        "label": "NPV @ 10% dengan arus +10%",
+        "value": 413840864.07411265,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "sensitivityNpv.rate12.flowsminus10",
+        "label": "NPV @ 12% dengan arus -10%",
+        "value": -19054509.758304268,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "sensitivityNpv.rate12.flowsbase",
+        "label": "NPV @ 12% dengan arus +0%",
+        "value": 139939433.60188407,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "sensitivityNpv.rate12.flowsplus10",
+        "label": "NPV @ 12% dengan arus +10%",
+        "value": 298933376.96207273,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "sensitivityNpv.rate14.flowsminus10",
+        "label": "NPV @ 14% dengan arus -10%",
+        "value": -104521560.25080809,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "sensitivityNpv.rate14.flowsbase",
+        "label": "NPV @ 14% dengan arus +0%",
+        "value": 44976044.1657688,
+        "unit": "currency",
+        "tolerance": 0.005
+      },
+      {
+        "key": "sensitivityNpv.rate14.flowsplus10",
+        "label": "NPV @ 14% dengan arus +10%",
+        "value": 194473648.5823457,
+        "unit": "currency",
+        "tolerance": 0.005
+      }
+    ],
+    "mustMention": [
+      "NPV",
+      "IRR",
+      "payback",
+      "sensitivitas"
+    ],
+    "mustNotContain": [
+      "[unverified figure]",
+      "[angka belum diverifikasi]"
+    ]
+  }
+}

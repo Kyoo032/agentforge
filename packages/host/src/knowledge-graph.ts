@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { sql } from "@agentforge/db";
 import type { KnowledgeMap, TenantContext } from "@agentforge/core";
 import { sanitizeSourceName } from "./knowledge-text";
+import { sweepOrphanGraph } from "./knowledge-graph-prune";
 
 /**
  * The Graph stage of the knowledge loop: topics, sources and threads, and the edges between them.
@@ -127,6 +128,9 @@ function threadLabels(workspaceId: string, ids: readonly string[]): Map<string, 
  * workspace no longer holds are dropped rather than drawn as dangling nodes.
  */
 export function projectMapToGraph(tenant: TenantContext, map: KnowledgeMap): { nodes: number; edges: number } {
+  // A rebuild is the cheapest moment to drop rows whose subject is already gone: the projection is
+  // about to be rewritten anyway, and a map run is the one place that reads the whole graph.
+  sweepOrphanGraph(tenant);
   const topics = Array.isArray(map.topics) ? map.topics : [];
   const referenced = [...new Set(topics.flatMap((topic) => topic.sourceIds ?? []))];
   const names = sourceLabels(tenant.workspaceId, referenced);
@@ -184,11 +188,18 @@ export function projectRetrievalsToGraph(
   since = Date.now() - RETRIEVAL_GRAPH_WINDOW_MS,
 ): { nodes: number; edges: number } {
   try {
-    const pairs = retrievalPairs(tenant.workspaceId, since, sourceIds);
+    const found = retrievalPairs(tenant.workspaceId, since, sourceIds);
+    if (found.length === 0) {
+      return { nodes: 0, edges: 0 };
+    }
+    const names = sourceLabels(tenant.workspaceId, [...new Set(found.map((pair) => pair.source_id))]);
+    // A retrieval row can outlive its source by a delete that raced this projection. Reprojecting it
+    // would resurrect the node the delete just removed, so a pair whose source row is gone is
+    // dropped rather than drawn under its bare id.
+    const pairs = found.filter((pair) => names.has(pair.source_id));
     if (pairs.length === 0) {
       return { nodes: 0, edges: 0 };
     }
-    const names = sourceLabels(tenant.workspaceId, [...new Set(pairs.map((pair) => pair.source_id))]);
     const titles = threadLabels(tenant.workspaceId, [...new Set(pairs.map((pair) => pair.thread_id))]);
     const nodes: GraphNodeInput[] = [];
     const edges: GraphEdgeInput[] = [];

@@ -1,0 +1,417 @@
+{
+  "id": "doc-laporan-tahunan",
+  "task": "brief",
+  "locale": "id",
+  "currency": "IDR",
+  "description": "Kutipan laporan tahunan sintetis empat halaman: paragraf naratif, satu tabel laba rugi dua tahun dan satu tabel posisi kas. Menguji jalur dokumen (anydoc -> Markdown -> angka), bukan jalur spreadsheet. Beberapa angka hanya muncul di narasi dan ditandai source \"prose\".",
+  "files": [
+    {
+      "path": "input.docx"
+    },
+    {
+      "path": "input.pdf"
+    }
+  ],
+  "prompt": "Baca kutipan laporan tahunan ini dan buat ringkasan kinerja 2024 dibanding 2023: pendapatan, marjin, laba bersih, posisi kas, dan hal operasional penting yang disebut di dalamnya.",
+  "params": {
+    "years": [
+      "2023",
+      "2024"
+    ],
+    "tables": [
+      "Laporan Laba Rugi Ringkas",
+      "Posisi Kas dan Arus Kas"
+    ]
+  },
+  "truth": {
+    "lineItems": [
+      {
+        "label": "Pendapatan usaha",
+        "period": "2023",
+        "amount": 18420000000,
+        "category": "revenue"
+      },
+      {
+        "label": "Pendapatan usaha",
+        "period": "2024",
+        "amount": 21965000000,
+        "category": "revenue"
+      },
+      {
+        "label": "Beban pokok pendapatan",
+        "period": "2023",
+        "amount": 11052000000,
+        "category": "cost"
+      },
+      {
+        "label": "Beban pokok pendapatan",
+        "period": "2024",
+        "amount": 12960350000,
+        "category": "cost"
+      },
+      {
+        "label": "Laba kotor",
+        "period": "2023",
+        "amount": 7368000000,
+        "category": "subtotal"
+      },
+      {
+        "label": "Laba kotor",
+        "period": "2024",
+        "amount": 9004650000,
+        "category": "subtotal"
+      },
+      {
+        "label": "Beban penjualan",
+        "period": "2023",
+        "amount": 2210400000,
+        "category": "cost"
+      },
+      {
+        "label": "Beban penjualan",
+        "period": "2024",
+        "amount": 2635800000,
+        "category": "cost"
+      },
+      {
+        "label": "Beban umum dan administrasi",
+        "period": "2023",
+        "amount": 3132000000,
+        "category": "cost"
+      },
+      {
+        "label": "Beban umum dan administrasi",
+        "period": "2024",
+        "amount": 3514400000,
+        "category": "cost"
+      },
+      {
+        "label": "Laba usaha",
+        "period": "2023",
+        "amount": 2025600000,
+        "category": "subtotal"
+      },
+      {
+        "label": "Laba usaha",
+        "period": "2024",
+        "amount": 2854450000,
+        "category": "subtotal"
+      },
+      {
+        "label": "Beban bunga",
+        "period": "2023",
+        "amount": 385200000,
+        "category": "cost"
+      },
+      {
+        "label": "Beban bunga",
+        "period": "2024",
+        "amount": 412700000,
+        "category": "cost"
+      },
+      {
+        "label": "Pendapatan lain-lain",
+        "period": "2023",
+        "amount": 96400000,
+        "category": "revenue"
+      },
+      {
+        "label": "Pendapatan lain-lain",
+        "period": "2024",
+        "amount": 143250000,
+        "category": "revenue"
+      },
+      {
+        "label": "Laba sebelum pajak",
+        "period": "2023",
+        "amount": 1736800000,
+        "category": "subtotal"
+      },
+      {
+        "label": "Laba sebelum pajak",
+        "period": "2024",
+        "amount": 2585000000,
+        "category": "subtotal"
+      },
+      {
+        "label": "Beban pajak penghasilan",
+        "period": "2023",
+        "amount": 382096000,
+        "category": "cost"
+      },
+      {
+        "label": "Beban pajak penghasilan",
+        "period": "2024",
+        "amount": 568700000,
+        "category": "cost"
+      },
+      {
+        "label": "Laba bersih tahun berjalan",
+        "period": "2023",
+        "amount": 1354704000,
+        "category": "subtotal"
+      },
+      {
+        "label": "Laba bersih tahun berjalan",
+        "period": "2024",
+        "amount": 2016300000,
+        "category": "subtotal"
+      },
+      {
+        "label": "Kas dan setara kas awal tahun",
+        "period": "2023",
+        "amount": 1120000000,
+        "category": "cash"
+      },
+      {
+        "label": "Kas dan setara kas awal tahun",
+        "period": "2024",
+        "amount": 1586500000,
+        "category": "cash"
+      },
+      {
+        "label": "Arus kas dari aktivitas operasi",
+        "period": "2023",
+        "amount": 1842300000,
+        "category": "cashflow"
+      },
+      {
+        "label": "Arus kas dari aktivitas operasi",
+        "period": "2024",
+        "amount": 2418900000,
+        "category": "cashflow"
+      },
+      {
+        "label": "Arus kas dari aktivitas investasi",
+        "period": "2023",
+        "amount": -985400000,
+        "category": "cashflow"
+      },
+      {
+        "label": "Arus kas dari aktivitas investasi",
+        "period": "2024",
+        "amount": -1312600000,
+        "category": "cashflow"
+      },
+      {
+        "label": "Arus kas dari aktivitas pendanaan",
+        "period": "2023",
+        "amount": -390400000,
+        "category": "cashflow"
+      },
+      {
+        "label": "Arus kas dari aktivitas pendanaan",
+        "period": "2024",
+        "amount": -342800000,
+        "category": "cashflow"
+      },
+      {
+        "label": "Kas dan setara kas akhir tahun",
+        "period": "2023",
+        "amount": 1586500000,
+        "category": "cash"
+      },
+      {
+        "label": "Kas dan setara kas akhir tahun",
+        "period": "2024",
+        "amount": 2350000000,
+        "category": "cash"
+      }
+    ],
+    "figures": [
+      {
+        "key": "revenue.2024",
+        "label": "Pendapatan usaha 2024",
+        "value": 21965000000,
+        "unit": "currency",
+        "tolerance": 1,
+        "source": "table"
+      },
+      {
+        "key": "revenueGrowthPct.2024",
+        "label": "Pertumbuhan pendapatan 2024",
+        "value": 19.245385450597176,
+        "unit": "percent",
+        "tolerance": 0.005,
+        "source": "table"
+      },
+      {
+        "key": "grossProfit.2024",
+        "label": "Laba kotor 2024",
+        "value": 9004650000,
+        "unit": "currency",
+        "tolerance": 1,
+        "source": "table"
+      },
+      {
+        "key": "grossMarginPct.2023",
+        "label": "Marjin kotor 2023",
+        "value": 40,
+        "unit": "percent",
+        "tolerance": 0.005,
+        "source": "table"
+      },
+      {
+        "key": "grossMarginPct.2024",
+        "label": "Marjin kotor 2024",
+        "value": 40.99544730252675,
+        "unit": "percent",
+        "tolerance": 0.005,
+        "source": "table"
+      },
+      {
+        "key": "operatingMarginPct.2024",
+        "label": "Marjin usaha 2024",
+        "value": 12.995447302526747,
+        "unit": "percent",
+        "tolerance": 0.005,
+        "source": "table"
+      },
+      {
+        "key": "netMarginPct.2024",
+        "label": "Marjin laba bersih 2024",
+        "value": 9.179603915319827,
+        "unit": "percent",
+        "tolerance": 0.005,
+        "source": "table"
+      },
+      {
+        "key": "netProfitGrowthPct.2024",
+        "label": "Pertumbuhan laba bersih 2024",
+        "value": 48.83694150161216,
+        "unit": "percent",
+        "tolerance": 0.005,
+        "source": "table"
+      },
+      {
+        "key": "opexTotal.2024",
+        "label": "Total beban usaha 2024",
+        "value": 6150200000,
+        "unit": "currency",
+        "tolerance": 1,
+        "source": "table"
+      },
+      {
+        "key": "effectiveTaxRatePct.2024",
+        "label": "Tarif pajak efektif 2024",
+        "value": 22,
+        "unit": "percent",
+        "tolerance": 0.005,
+        "source": "table"
+      },
+      {
+        "key": "interestCoverage.2024",
+        "label": "Kemampuan membayar bunga 2024",
+        "value": 6.916525321056458,
+        "unit": "ratio",
+        "tolerance": 0.005,
+        "source": "table"
+      },
+      {
+        "key": "freeCashFlow.2024",
+        "label": "Arus kas bebas 2024",
+        "value": 1106300000,
+        "unit": "currency",
+        "tolerance": 1,
+        "source": "table"
+      },
+      {
+        "key": "cashEnd.2024",
+        "label": "Kas akhir tahun 2024",
+        "value": 2350000000,
+        "unit": "currency",
+        "tolerance": 1,
+        "source": "table"
+      },
+      {
+        "key": "cashChange.2024",
+        "label": "Kenaikan kas 2024",
+        "value": 763500000,
+        "unit": "currency",
+        "tolerance": 1,
+        "source": "table"
+      },
+      {
+        "key": "operatingCashFlowGrowthPct.2024",
+        "label": "Pertumbuhan arus kas operasi 2024",
+        "value": 31.297834228952937,
+        "unit": "percent",
+        "tolerance": 0.005,
+        "source": "table"
+      },
+      {
+        "key": "headcount.2024",
+        "label": "Karyawan tetap akhir 2024",
+        "value": 148,
+        "unit": "count",
+        "tolerance": 0,
+        "source": "prose"
+      },
+      {
+        "key": "stores.2023",
+        "label": "Gerai aktif akhir 2023",
+        "value": 12,
+        "unit": "count",
+        "tolerance": 0,
+        "source": "prose"
+      },
+      {
+        "key": "stores.2024",
+        "label": "Gerai aktif akhir 2024",
+        "value": 17,
+        "unit": "count",
+        "tolerance": 0,
+        "source": "prose"
+      },
+      {
+        "key": "currentRatio.2024",
+        "label": "Rasio lancar 2024",
+        "value": 1.84,
+        "unit": "ratio",
+        "tolerance": 0.005,
+        "source": "prose"
+      },
+      {
+        "key": "capex.2024",
+        "label": "Belanja modal 2024",
+        "value": 1180000000,
+        "unit": "currency",
+        "tolerance": 1,
+        "source": "prose"
+      },
+      {
+        "key": "longTermBankDebt.2024",
+        "label": "Utang bank jangka panjang 2024",
+        "value": 3420000000,
+        "unit": "currency",
+        "tolerance": 1,
+        "source": "prose"
+      },
+      {
+        "key": "dividendPaid.2024",
+        "label": "Dividen tunai 2024",
+        "value": 250000000,
+        "unit": "currency",
+        "tolerance": 1,
+        "source": "prose"
+      }
+    ],
+    "proseFigureKeys": [
+      "headcount.2024",
+      "stores.2023",
+      "stores.2024",
+      "currentRatio.2024",
+      "capex.2024",
+      "longTermBankDebt.2024",
+      "dividendPaid.2024"
+    ],
+    "mustMention": [
+      "laba bersih",
+      "kas",
+      "gerai"
+    ],
+    "mustNotContain": [
+      "[unverified figure]"
+    ]
+  }
+}

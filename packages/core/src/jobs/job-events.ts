@@ -7,12 +7,24 @@
 export const JOB_SOURCE_STATUSES = ["found", "read", "unreachable"] as const;
 export type JobSourceStatus = (typeof JOB_SOURCE_STATUSES)[number];
 
+/**
+ * Jobs whose phases can end in more than one way (the component installer: a stage succeeds, is
+ * skipped because the work was already done, or fails) announce the outcome here. Optional, so a
+ * single-pass job that only marks a phase as started keeps emitting exactly what it always did.
+ */
+export const JOB_PHASE_STATES = ["running", "succeeded", "skipped", "failed"] as const;
+export type JobPhaseStateName = (typeof JOB_PHASE_STATES)[number];
+
 export type JobPhaseEvent = {
   type: "job.phase";
   /** Machine id: planning | searching | reading | drafting | distilling | saving. */
   phase: string;
   /** Human label shown in the progress list. */
   label: string;
+  /** Present only on jobs that report per-phase outcomes; absent means "started". */
+  state?: JobPhaseStateName;
+  /** Wall time of the phase, on the event that ends it. */
+  durationMs?: number;
 };
 
 export type JobStepEvent = {

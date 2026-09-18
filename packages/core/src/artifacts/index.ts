@@ -66,5 +66,6 @@ export {
   briefingSourceSchema,
   marketBriefingSchema,
   marketBriefingToMarkdown,
+  specialistLabel,
 } from "./market-briefing";
 export type { BriefingSection, BriefingSource, MarketBriefing } from "./market-briefing";

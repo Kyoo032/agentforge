@@ -6,6 +6,7 @@ import { getLocalVaultKey } from "@agentforge/db/vault-key";
 import { DEFAULT_THREAD_TITLES, defaultThreadTitle, isDefaultThreadTitle, titleFromParts } from "./thread-title";
 import { localeForRun } from "./run-context";
 import { deleteSourceByOrigin } from "./knowledge";
+import { removeGraphForThread } from "./knowledge-graph-prune";
 import { messageText } from "./message-text";
 
 const PREVIEW_MAX = 80;
@@ -134,9 +135,13 @@ export async function deleteThread(tenant: TenantContext, threadId: string): Pro
         eq(threads.id, threadId),
       ),
     );
-  // The thread's Knowledge work card goes with it; otherwise a deleted conversation keeps being retrieved.
+  // The thread's Knowledge work card goes with it; otherwise a deleted conversation keeps being
+  // retrieved. So do its graph node, the `retrieved` / `cites` edges pointing at it and the
+  // retrieval rows recorded against it — a deleted thread used to stay in the graph forever, with
+  // every edge intact, because nothing on this path had ever touched the projections.
   try {
     deleteSourceByOrigin(tenant, { kind: "thread", id: threadId });
+    removeGraphForThread(tenant, threadId);
   } catch (error) {
     console.warn(`threads: could not drop knowledge card for ${threadId} (${error instanceof Error ? error.message : "unknown"})`);
   }

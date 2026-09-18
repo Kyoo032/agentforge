@@ -13,6 +13,7 @@ import {
   type TabularTable,
   type TypedTable,
 } from "@agentforge/core/tabular";
+import { deleteArtifactsByOwner, sweepOrphanSources } from "./knowledge";
 import { DATASET_TABLE, quoteIdentifier, sqlTypeFor, toSqlIdentifier } from "./sql-guard";
 import { createQueryRunner, type QueryRunner, type RunnerLoad } from "./sql-runner";
 
@@ -299,6 +300,11 @@ export function createDatasetStore(db: Database.Database, rootDir: string): Data
       dispose(active);
       cache.delete(key);
       rmSync(path.join(rootDir, row.storage_path), { force: true });
+      // The analyses this dataset produced go with it. A Data card's origin is the artifact, not the
+      // dataset, so the card is only reachable through the artifacts — deleting the rows and then
+      // sweeping is what stops Chat answering from numbers whose data is gone.
+      deleteArtifactsByOwner(tenant, "datasetId", id, db);
+      sweepOrphanSources(tenant);
       return true;
     },
   };

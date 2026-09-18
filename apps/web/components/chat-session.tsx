@@ -102,6 +102,21 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
   toolsRef.current = tools;
   const threadIdRef = useRef(threadId);
   threadIdRef.current = threadId;
+  /** Last `initialThreadId` this pane saw, so leaving a thread (rail "+ New chat") empties it. */
+  const lastInitialThreadRef = useRef(initialThreadId);
+  /**
+   * `?thread=<id>` is known synchronously, but `threadIdRef` only fills once
+   * `GET /api/v1/threads/:id` resolves. A send inside that window has to land on the thread
+   * the URL already names, otherwise `ensureThread` forks a fresh one (rail sessions make
+   * this trivially reachable). Cleared whenever the pane is deliberately emptied or the
+   * initial load fails, so "+ New chat" and a dead id still fall through to a real create.
+   */
+  const pendingThreadRef = useRef<string | null>(initialThreadId ?? null);
+  const seenInitialThreadRef = useRef(initialThreadId);
+  if (seenInitialThreadRef.current !== initialThreadId) {
+    seenInitialThreadRef.current = initialThreadId;
+    pendingThreadRef.current = initialThreadId ?? null;
+  }
 
   useEffect(() => {
     try {
@@ -169,8 +184,10 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
   }
 
   async function ensureThread() {
-    if (threadIdRef.current) {
-      return threadIdRef.current;
+    // The loaded thread wins; the URL's thread is the fallback while its GET is still in flight.
+    const openThread = threadIdRef.current ?? pendingThreadRef.current;
+    if (openThread) {
+      return openThread;
     }
     if (!agentIdReady) {
       throw new Error(t("chat.error.loading"));
@@ -185,6 +202,8 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
     }
     const id = created.thread.id as string;
     threadIdRef.current = id;
+    pendingThreadRef.current = id;
+    seenInitialThreadRef.current = id;
     setThreadId(id);
     rememberModel(modelId, id);
     router.replace(`${chatPath()}?thread=${id}`);
@@ -193,6 +212,9 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
   }
 
   useEffect(() => {
+    // `?thread=<id>` -> `/chat` is the rail asking for a blank pane, not a re-render to ignore.
+    const leftThread = lastInitialThreadRef.current !== undefined && initialThreadId === undefined;
+    lastInitialThreadRef.current = initialThreadId;
     let cancelled = false;
     void (async () => {
       try {
@@ -255,22 +277,26 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
             return;
           }
           threadIdRef.current = payload.thread.id;
+          pendingThreadRef.current = payload.thread.id;
           setThreadId(payload.thread.id);
           setMessages(payload.messages ?? []);
           resetLive();
           return;
         }
 
-        if (threadIdRef.current) {
+        if (threadIdRef.current && !leftThread) {
           return;
         }
 
         threadIdRef.current = null;
+        pendingThreadRef.current = null;
         setThreadId(null);
         setMessages([]);
         resetLive();
       } catch (err) {
         if (!cancelled) {
+          // The URL's thread never loaded, so it is not a safe send target any more.
+          pendingThreadRef.current = threadIdRef.current;
           setError(err instanceof Error ? err.message : t("chat.error.open"));
         }
       }
@@ -354,7 +380,9 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
               className="wash rounded-lg px-3 py-1.5 text-xs text-[var(--text)] hover:bg-[var(--accent-soft)]"
               data-testid="new-chat"
               onClick={() => {
+                // Clear the URL fallback here too: `router.push` lands a render later.
                 threadIdRef.current = null;
+                pendingThreadRef.current = null;
                 setThreadId(null);
                 setMessages([]);
                 resetLive();

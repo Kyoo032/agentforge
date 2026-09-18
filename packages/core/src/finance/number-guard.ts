@@ -17,15 +17,24 @@ const YEAR_MIN = 1900;
 const YEAR_MAX = 2100;
 
 const NUMBER_TOKEN =
-  /(?<![\w.])[-+]?(?:\$|€|£|Rp\s?)?(\d{1,3}(?:[,.\s]\d{3})+|\d+)(?:[.,]\d+)?\s?(%|percent|k|m|bn|million|billion|thousand|x)?(?![\w])/gi;
+  /(?<![\w.])[-+]?(?:\$|€|£|Rp\s?)?(\d{1,3}(?:[,.\s]\d{3})+|\d+)(?:[.,]\d+)?\s?(%|percent|persen|million|billion|trillion|thousand|miliar|milyar|triliun|ribu|juta|bio|bn|rb|jt|k|m|x)?(?![\w])/gi;
 
 const SCALE: Record<string, number> = {
   k: 1e3,
   thousand: 1e3,
+  rb: 1e3,
+  ribu: 1e3,
   m: 1e6,
+  jt: 1e6,
+  juta: 1e6,
   million: 1e6,
   bn: 1e9,
+  bio: 1e9,
   billion: 1e9,
+  miliar: 1e9,
+  milyar: 1e9,
+  trillion: 1e12,
+  triliun: 1e12,
 };
 
 export type NumberToken = {
@@ -100,8 +109,12 @@ export function extractNumbers(text: string): NumberToken[] {
   for (const match of maskNonFigures(text).matchAll(NUMBER_TOKEN)) {
     const whole = match[0];
     const suffix = (match[2] ?? "").toLowerCase();
-    const numericPart = whole.replace(/\s?(%|percent|k|m|bn|million|billion|thousand|x)$/i, "");
-    const unit: NumberToken["unit"] = suffix === "%" || suffix === "percent" ? "%" : suffix === "x" ? "x" : "";
+    const numericPart = whole.replace(
+      /\s?(%|percent|persen|million|billion|trillion|thousand|miliar|milyar|triliun|ribu|juta|bio|bn|rb|jt|k|m|x)$/i,
+      "",
+    );
+    const unit: NumberToken["unit"] =
+      suffix === "%" || suffix === "percent" || suffix === "persen" ? "%" : suffix === "x" ? "x" : "";
     const reading = readNumber(numericPart, unit === "%");
     if (!Number.isFinite(reading.value)) {
       continue;

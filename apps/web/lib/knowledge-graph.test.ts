@@ -1,13 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
+  GRAPH_DRAW_LIMIT,
+  GRAPH_EDGE_COLOR,
+  GRAPH_LABEL_MAX,
+  GRAPH_LAYOUT,
   GRAPH_NODE_LIMIT,
   capGraph,
-  edgeKindColor,
   edgeStrokeWidth,
   egoSubgraph,
+  graphColumn,
   layoutGraph,
   nodeKindColor,
   normalizeGraph,
+  rowGapFor,
+  truncateGraphLabel,
 } from "./knowledge-graph";
 
 const graph = {
@@ -110,6 +116,52 @@ describe("capGraph", () => {
     expect(capGraph(graph, -5).nodes).toEqual([]);
     expect(GRAPH_NODE_LIMIT).toBe(200);
   });
+
+  it("draws at most 30 nodes until the reader asks for the rest", () => {
+    expect(GRAPH_DRAW_LIMIT).toBe(30);
+    expect(GRAPH_DRAW_LIMIT).toBeLessThan(GRAPH_NODE_LIMIT);
+    const big = {
+      nodes: Array.from({ length: 40 }, (_, index) => ({
+        id: `s${index}`,
+        kind: "source" as const,
+        label: `Source ${index}`,
+      })),
+      edges: [],
+    };
+    expect(capGraph(big, GRAPH_DRAW_LIMIT).nodes).toHaveLength(30);
+    expect(capGraph(big, GRAPH_NODE_LIMIT).nodes).toHaveLength(40);
+  });
+});
+
+describe("column assignment, row spacing, and label truncation", () => {
+  it("puts topics in the left column, sources in the middle, threads on the right", () => {
+    expect(graphColumn("topic")).toBe(0);
+    expect(graphColumn("source")).toBe(1);
+    expect(graphColumn("thread")).toBe(2);
+  });
+
+  it("keeps a comfortable pitch while short and never squeezes below 28px", () => {
+    expect(rowGapFor(1)).toBe(GRAPH_LAYOUT.rowGap);
+    expect(rowGapFor(10)).toBe(GRAPH_LAYOUT.rowGap);
+    expect(rowGapFor(12)).toBe(32);
+    expect(rowGapFor(40)).toBe(GRAPH_LAYOUT.minRowGap);
+    expect(rowGapFor(0)).toBe(GRAPH_LAYOUT.rowGap);
+    expect(rowGapFor(Number.NaN)).toBe(GRAPH_LAYOUT.rowGap);
+    expect(GRAPH_LAYOUT.minRowGap).toBe(28);
+  });
+
+  it("cuts a long label to 18 characters and leaves a short one alone", () => {
+    expect(GRAPH_LABEL_MAX).toBe(18);
+    expect(truncateGraphLabel("Planted note")).toBe("Planted note");
+    expect(truncateGraphLabel("A very long knowledge topic title").length).toBe(18);
+    expect(truncateGraphLabel("A very long knowledge topic title").endsWith("…")).toBe(true);
+    expect(truncateGraphLabel("")).toBe("");
+  });
+
+  it("draws every edge in one muted ink derived from --text", () => {
+    expect(GRAPH_EDGE_COLOR).toContain("var(--text)");
+    expect(GRAPH_EDGE_COLOR).toContain("25%");
+  });
 });
 
 describe("layoutGraph", () => {
@@ -125,6 +177,48 @@ describe("layoutGraph", () => {
     expect((topic?.x ?? 0) < (source?.x ?? 0)).toBe(true);
     expect((source?.x ?? 0) < (thread?.x ?? 0)).toBe(true);
     expect(byId.get("t1")?.y).not.toBe(byId.get("t2")?.y);
+  });
+
+  it("hangs each label off its column and never lets two rows collide", () => {
+    const laid = layoutGraph(graph);
+    const byId = new Map(laid.nodes.map((node) => [node.id, node]));
+    const topic = byId.get("t1");
+    const source = byId.get("s1");
+    const thread = byId.get("h1");
+    expect(topic?.labelAnchor).toBe("end");
+    expect(topic && topic.labelX < topic.x).toBe(true);
+    expect(thread?.labelAnchor).toBe("start");
+    expect(thread && thread.labelX > thread.x).toBe(true);
+    expect(source?.labelAnchor).toBe("middle");
+    expect(source?.labelX).toBe(source?.x);
+    expect(source && source.labelY > source.y).toBe(true);
+    // A left label must clear the canvas edge, a right label its far side.
+    expect((topic?.labelX ?? 0) > 0).toBe(true);
+    expect((thread?.labelX ?? 0) < laid.width).toBe(true);
+    const topicYs = laid.nodes.filter((node) => node.kind === "topic").map((node) => node.y);
+    expect(Math.abs((topicYs[1] ?? 0) - (topicYs[0] ?? 0))).toBeGreaterThanOrEqual(GRAPH_LAYOUT.minRowGap);
+  });
+
+  it("truncates the drawn label but keeps the full one for the tooltip", () => {
+    const laid = layoutGraph({
+      nodes: [{ id: "t1", kind: "topic", label: "An extremely long topic title that will not fit" }],
+      edges: [],
+    });
+    expect(laid.nodes[0]?.labelText.length).toBe(GRAPH_LABEL_MAX);
+    expect(laid.nodes[0]?.label).toBe("An extremely long topic title that will not fit");
+  });
+
+  it("grows the canvas instead of squeezing rows under 28px", () => {
+    const tall = layoutGraph({
+      nodes: Array.from({ length: 30 }, (_, index) => ({
+        id: `s${index}`,
+        kind: "source" as const,
+        label: `Source ${index}`,
+      })),
+      edges: [],
+    });
+    expect(tall.rowGap).toBeGreaterThanOrEqual(GRAPH_LAYOUT.minRowGap);
+    expect(tall.height).toBeGreaterThanOrEqual(29 * GRAPH_LAYOUT.minRowGap);
   });
 
   it("gives every edge both endpoints and grows the canvas with the tallest column", () => {
@@ -161,11 +255,9 @@ describe("edge and node styling", () => {
     expect(edgeStrokeWidth(Number.NaN)).toBe(1);
   });
 
-  it("gives every kind a stable distinct colour", () => {
-    const edges = [edgeKindColor("covers"), edgeKindColor("retrieved"), edgeKindColor("cites")];
-    expect(new Set(edges).size).toBe(3);
+  it("gives every node kind a stable distinct colour", () => {
     const nodes = [nodeKindColor("topic"), nodeKindColor("source"), nodeKindColor("thread")];
     expect(new Set(nodes).size).toBe(3);
-    expect(edgeKindColor("covers")).toBe(edgeKindColor("covers"));
+    expect(nodeKindColor("topic")).toBe(nodeKindColor("topic"));
   });
 });

@@ -1,8 +1,6 @@
 export const RAIL_WIDTH_KEY = "agentforge-rail-width";
-export const THREAD_WIDTH_KEY = "agentforge-thread-width";
 
 export const RAIL_WIDTH = { default: 232, min: 168, max: 360, collapsed: 68 } as const;
-export const THREAD_WIDTH = { default: 200, min: 160, max: 420 } as const;
 
 export function clampPanelWidth(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) {

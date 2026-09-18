@@ -1,0 +1,10 @@
+{
+  "symbol": "BTCUSDT",
+  "markPrice": "104250.10000000",
+  "indexPrice": "104231.44000000",
+  "estimatedSettlePrice": "104240.00000000",
+  "lastFundingRate": "0.00012500",
+  "interestRate": "0.00010000",
+  "nextFundingTime": 1789012800000,
+  "time": 1789000000000
+}

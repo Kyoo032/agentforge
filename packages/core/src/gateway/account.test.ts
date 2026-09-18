@@ -14,6 +14,7 @@ import {
   parseUsageRange,
   readLanguageModelUsage,
   summarizeUsageDesk,
+  USAGE_TOKEN_PATH,
   usageBucketKey,
 } from "./account";
 
@@ -204,10 +205,24 @@ describe("fetchThisKeyUsage", () => {
         );
       },
     });
-    expect(calls[0]).toBe("https://api.tokotokenai.com/api/usage/token");
+    expect(calls[0]).toBe("https://api.tokotokenai.com/api/usage/token/");
     expect(usage.usedUsd).toBeCloseTo(0.2);
     expect(usage.remainingUsd).toBeCloseTo(0.8);
     expect(JSON.stringify(usage)).not.toContain("sk-test");
+  });
+
+  it("asks for the trailing-slash usage path so the gateway never redirects", async () => {
+    const calls: string[] = [];
+    await fetchThisKeyUsage({
+      baseURL: GATEWAY_BASE_URL,
+      apiKey: "sk-test-key-value-long",
+      fetch: async (url) => {
+        calls.push(String(url));
+        return new Response(JSON.stringify({ data: { total_used: 0, total_available: 0 } }), { status: 200 });
+      },
+    });
+    expect(calls).toEqual([`${gatewayOriginFromBaseUrl(GATEWAY_BASE_URL)}${USAGE_TOKEN_PATH}`]);
+    expect(USAGE_TOKEN_PATH).toBe("/api/usage/token/");
   });
 
   it("falls back to dashboard billing when usage/token is 404", async () => {
@@ -215,7 +230,7 @@ describe("fetchThisKeyUsage", () => {
       apiKey: "sk-test-key-value-long",
       fetch: async (url) => {
         const target = String(url);
-        if (target.endsWith("/api/usage/token")) {
+        if (target.endsWith("/api/usage/token/")) {
           return new Response(JSON.stringify({ success: false }), { status: 404 });
         }
         if (target.endsWith("/v1/dashboard/billing/subscription")) {
@@ -323,6 +338,64 @@ describe("usage bucketing", () => {
 });
 
 describe("gateway account requests", () => {
+  it("returns parsed usage from a 200 without any redirect", async () => {
+    const calls: string[] = [];
+    const usage = await fetchThisKeyUsage({
+      baseURL: GATEWAY_BASE_URL,
+      apiKey: "sk-not-a-real-key",
+      fetch: async (url) => {
+        calls.push(String(url));
+        return new Response(
+          JSON.stringify({ data: { total_granted: 500_000, total_used: 100_000, total_available: 400_000 } }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      },
+    });
+    expect(calls).toHaveLength(1);
+    expect(usage.usedUsd).toBeCloseTo(0.2);
+    expect(usage.remainingUsd).toBeCloseTo(0.8);
+  });
+
+  it("follows a same-origin 301 once and reads usage from the target", async () => {
+    const origin = gatewayOriginFromBaseUrl(GATEWAY_BASE_URL);
+    const calls: string[] = [];
+    const usage = await fetchThisKeyUsage({
+      baseURL: GATEWAY_BASE_URL,
+      apiKey: "sk-not-a-real-key",
+      fetch: async (url, init) => {
+        const target = String(url);
+        calls.push(target);
+        expect(((init as RequestInit).headers as Record<string, string>).Authorization).toBe(
+          "Bearer sk-not-a-real-key",
+        );
+        if (calls.length === 1) {
+          return new Response(null, { status: 301, headers: { location: "/api/usage/token/v2" } });
+        }
+        return new Response(JSON.stringify({ data: { total_granted: 200_000, total_used: 200_000 } }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      },
+    });
+    expect(calls).toEqual([`${origin}${USAGE_TOKEN_PATH}`, `${origin}/api/usage/token/v2`]);
+    expect(usage.usedUsd).toBeCloseTo(0.4);
+  });
+
+  it("refuses a second same-origin hop", async () => {
+    const calls: string[] = [];
+    await expect(
+      fetchThisKeyUsage({
+        baseURL: GATEWAY_BASE_URL,
+        apiKey: "sk-not-a-real-key",
+        fetch: async (url) => {
+          calls.push(String(url));
+          return new Response(null, { status: 308, headers: { location: `/hop/${calls.length}` } });
+        },
+      }),
+    ).rejects.toThrow(/redirected \(308\)/);
+    expect(calls).toHaveLength(2);
+  });
+
   it("does not follow a redirect while carrying the gateway key", async () => {
     const calls: string[] = [];
     await expect(

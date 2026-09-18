@@ -1,0 +1,3412 @@
+{
+  "id": "budget-retail-en",
+  "task": "budget",
+  "locale": "en",
+  "currency": "USD",
+  "description": "Synthetic FY2025 budget-vs-actual for an invented retailer. One sheet, budget and actual side by side per quarter, 25 lines across revenue, COGS and operating expenses, with section subtotals and derived rows that must not be counted as lines. There is no full-year column: the full-year variance has to be summed.",
+  "files": [
+    {
+      "path": "input.xlsx",
+      "sheet": "Budget vs Actual FY2025"
+    }
+  ],
+  "prompt": "Take this FY2025 budget-vs-actual sheet and give me the variance for every line, per quarter and for the full year. Flag anything off by more than 8% and more than $2,000, and tell me whether each one is favourable or unfavourable.",
+  "params": {
+    "flagPct": 8,
+    "flagAbs": 2000,
+    "sheet": "Budget vs Actual FY2025",
+    "quarters": [
+      "Q1",
+      "Q2",
+      "Q3",
+      "Q4"
+    ]
+  },
+  "truth": {
+    "thresholds": {
+      "pct": 8,
+      "abs": 2000,
+      "rule": "flagged when |variance| >= abs AND |variancePct| >= pct"
+    },
+    "ignoredRows": [
+      "Total revenue",
+      "Total cost of goods sold",
+      "Gross profit",
+      "Total operating expenses",
+      "Operating income"
+    ],
+    "variances": [
+      {
+        "slug": "net-sales-flagship-store",
+        "label": "Net sales - flagship store",
+        "section": "Revenue",
+        "category": "revenue",
+        "quarters": {
+          "Q1": {
+            "budget": 420000,
+            "actual": 398000,
+            "variance": -22000,
+            "variancePct": -5.238095238095238,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q2": {
+            "budget": 435000,
+            "actual": 452000,
+            "variance": 17000,
+            "variancePct": 3.9080459770114944,
+            "direction": "favourable",
+            "flagged": false
+          },
+          "Q3": {
+            "budget": 455000,
+            "actual": 441000,
+            "variance": -14000,
+            "variancePct": -3.076923076923077,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q4": {
+            "budget": 610000,
+            "actual": 655000,
+            "variance": 45000,
+            "variancePct": 7.377049180327869,
+            "direction": "favourable",
+            "flagged": false
+          }
+        },
+        "fullYear": {
+          "budget": 1920000,
+          "actual": 1946000,
+          "variance": 26000,
+          "variancePct": 1.3541666666666667,
+          "direction": "favourable",
+          "flagged": false
+        }
+      },
+      {
+        "slug": "net-sales-mall-kiosks",
+        "label": "Net sales - mall kiosks",
+        "section": "Revenue",
+        "category": "revenue",
+        "quarters": {
+          "Q1": {
+            "budget": 185000,
+            "actual": 171000,
+            "variance": -14000,
+            "variancePct": -7.567567567567568,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q2": {
+            "budget": 192000,
+            "actual": 188000,
+            "variance": -4000,
+            "variancePct": -2.083333333333333,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q3": {
+            "budget": 198000,
+            "actual": 214000,
+            "variance": 16000,
+            "variancePct": 8.080808080808081,
+            "direction": "favourable",
+            "flagged": true
+          },
+          "Q4": {
+            "budget": 265000,
+            "actual": 249000,
+            "variance": -16000,
+            "variancePct": -6.037735849056604,
+            "direction": "unfavourable",
+            "flagged": false
+          }
+        },
+        "fullYear": {
+          "budget": 840000,
+          "actual": 822000,
+          "variance": -18000,
+          "variancePct": -2.142857142857143,
+          "direction": "unfavourable",
+          "flagged": false
+        }
+      },
+      {
+        "slug": "net-sales-online-store",
+        "label": "Net sales - online store",
+        "section": "Revenue",
+        "category": "revenue",
+        "quarters": {
+          "Q1": {
+            "budget": 240000,
+            "actual": 281000,
+            "variance": 41000,
+            "variancePct": 17.083333333333332,
+            "direction": "favourable",
+            "flagged": true
+          },
+          "Q2": {
+            "budget": 262000,
+            "actual": 305000,
+            "variance": 43000,
+            "variancePct": 16.412213740458014,
+            "direction": "favourable",
+            "flagged": true
+          },
+          "Q3": {
+            "budget": 288000,
+            "actual": 334000,
+            "variance": 46000,
+            "variancePct": 15.972222222222221,
+            "direction": "favourable",
+            "flagged": true
+          },
+          "Q4": {
+            "budget": 410000,
+            "actual": 486000,
+            "variance": 76000,
+            "variancePct": 18.536585365853657,
+            "direction": "favourable",
+            "flagged": true
+          }
+        },
+        "fullYear": {
+          "budget": 1200000,
+          "actual": 1406000,
+          "variance": 206000,
+          "variancePct": 17.166666666666668,
+          "direction": "favourable",
+          "flagged": true
+        }
+      },
+      {
+        "slug": "wholesale-accounts",
+        "label": "Wholesale accounts",
+        "section": "Revenue",
+        "category": "revenue",
+        "quarters": {
+          "Q1": {
+            "budget": 96000,
+            "actual": 96000,
+            "variance": 0,
+            "variancePct": 0,
+            "direction": "neutral",
+            "flagged": false
+          },
+          "Q2": {
+            "budget": 96000,
+            "actual": 96000,
+            "variance": 0,
+            "variancePct": 0,
+            "direction": "neutral",
+            "flagged": false
+          },
+          "Q3": {
+            "budget": 96000,
+            "actual": 96000,
+            "variance": 0,
+            "variancePct": 0,
+            "direction": "neutral",
+            "flagged": false
+          },
+          "Q4": {
+            "budget": 96000,
+            "actual": 96000,
+            "variance": 0,
+            "variancePct": 0,
+            "direction": "neutral",
+            "flagged": false
+          }
+        },
+        "fullYear": {
+          "budget": 384000,
+          "actual": 384000,
+          "variance": 0,
+          "variancePct": 0,
+          "direction": "neutral",
+          "flagged": false
+        }
+      },
+      {
+        "slug": "gift-card-breakage",
+        "label": "Gift card breakage",
+        "section": "Revenue",
+        "category": "revenue",
+        "quarters": {
+          "Q1": {
+            "budget": 12000,
+            "actual": 11200,
+            "variance": -800,
+            "variancePct": -6.666666666666667,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q2": {
+            "budget": 12500,
+            "actual": 13800,
+            "variance": 1300,
+            "variancePct": 10.4,
+            "direction": "favourable",
+            "flagged": false
+          },
+          "Q3": {
+            "budget": 13000,
+            "actual": 12100,
+            "variance": -900,
+            "variancePct": -6.923076923076923,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q4": {
+            "budget": 22000,
+            "actual": 24500,
+            "variance": 2500,
+            "variancePct": 11.363636363636363,
+            "direction": "favourable",
+            "flagged": true
+          }
+        },
+        "fullYear": {
+          "budget": 59500,
+          "actual": 61600,
+          "variance": 2100,
+          "variancePct": 3.5294117647058822,
+          "direction": "favourable",
+          "flagged": false
+        }
+      },
+      {
+        "slug": "shipping-revenue",
+        "label": "Shipping revenue",
+        "section": "Revenue",
+        "category": "revenue",
+        "quarters": {
+          "Q1": {
+            "budget": 50000,
+            "actual": 57500,
+            "variance": 7500,
+            "variancePct": 15,
+            "direction": "favourable",
+            "flagged": true
+          },
+          "Q2": {
+            "budget": 50000,
+            "actual": 42500,
+            "variance": -7500,
+            "variancePct": -15,
+            "direction": "unfavourable",
+            "flagged": true
+          },
+          "Q3": {
+            "budget": 50000,
+            "actual": 57500,
+            "variance": 7500,
+            "variancePct": 15,
+            "direction": "favourable",
+            "flagged": true
+          },
+          "Q4": {
+            "budget": 50000,
+            "actual": 42500,
+            "variance": -7500,
+            "variancePct": -15,
+            "direction": "unfavourable",
+            "flagged": true
+          }
+        },
+        "fullYear": {
+          "budget": 200000,
+          "actual": 200000,
+          "variance": 0,
+          "variancePct": 0,
+          "direction": "neutral",
+          "flagged": false
+        }
+      },
+      {
+        "slug": "merchandise-purchases",
+        "label": "Merchandise purchases",
+        "section": "Cost of goods sold",
+        "category": "cost",
+        "quarters": {
+          "Q1": {
+            "budget": 300000,
+            "actual": 315000,
+            "variance": 15000,
+            "variancePct": 5,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q2": {
+            "budget": 300000,
+            "actual": 315000,
+            "variance": 15000,
+            "variancePct": 5,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q3": {
+            "budget": 300000,
+            "actual": 315000,
+            "variance": 15000,
+            "variancePct": 5,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q4": {
+            "budget": 300000,
+            "actual": 315000,
+            "variance": 15000,
+            "variancePct": 5,
+            "direction": "unfavourable",
+            "flagged": false
+          }
+        },
+        "fullYear": {
+          "budget": 1200000,
+          "actual": 1260000,
+          "variance": 60000,
+          "variancePct": 5,
+          "direction": "unfavourable",
+          "flagged": false
+        }
+      },
+      {
+        "slug": "inbound-freight",
+        "label": "Inbound freight",
+        "section": "Cost of goods sold",
+        "category": "cost",
+        "quarters": {
+          "Q1": {
+            "budget": 38000,
+            "actual": 41500,
+            "variance": 3500,
+            "variancePct": 9.210526315789473,
+            "direction": "unfavourable",
+            "flagged": true
+          },
+          "Q2": {
+            "budget": 39000,
+            "actual": 37200,
+            "variance": -1800,
+            "variancePct": -4.615384615384616,
+            "direction": "favourable",
+            "flagged": false
+          },
+          "Q3": {
+            "budget": 41000,
+            "actual": 46800,
+            "variance": 5800,
+            "variancePct": 14.146341463414632,
+            "direction": "unfavourable",
+            "flagged": true
+          },
+          "Q4": {
+            "budget": 58000,
+            "actual": 62400,
+            "variance": 4400,
+            "variancePct": 7.586206896551724,
+            "direction": "unfavourable",
+            "flagged": false
+          }
+        },
+        "fullYear": {
+          "budget": 176000,
+          "actual": 187900,
+          "variance": 11900,
+          "variancePct": 6.761363636363636,
+          "direction": "unfavourable",
+          "flagged": false
+        }
+      },
+      {
+        "slug": "packaging-materials",
+        "label": "Packaging materials",
+        "section": "Cost of goods sold",
+        "category": "cost",
+        "quarters": {
+          "Q1": {
+            "budget": 22000,
+            "actual": 20500,
+            "variance": -1500,
+            "variancePct": -6.8181818181818175,
+            "direction": "favourable",
+            "flagged": false
+          },
+          "Q2": {
+            "budget": 23000,
+            "actual": 25900,
+            "variance": 2900,
+            "variancePct": 12.608695652173912,
+            "direction": "unfavourable",
+            "flagged": true
+          },
+          "Q3": {
+            "budget": 24000,
+            "actual": 23100,
+            "variance": -900,
+            "variancePct": -3.75,
+            "direction": "favourable",
+            "flagged": false
+          },
+          "Q4": {
+            "budget": 34000,
+            "actual": 38700,
+            "variance": 4700,
+            "variancePct": 13.823529411764707,
+            "direction": "unfavourable",
+            "flagged": true
+          }
+        },
+        "fullYear": {
+          "budget": 103000,
+          "actual": 108200,
+          "variance": 5200,
+          "variancePct": 5.048543689320388,
+          "direction": "unfavourable",
+          "flagged": false
+        }
+      },
+      {
+        "slug": "inventory-shrinkage",
+        "label": "Inventory shrinkage",
+        "section": "Cost of goods sold",
+        "category": "cost",
+        "quarters": {
+          "Q1": {
+            "budget": 15000,
+            "actual": 18600,
+            "variance": 3600,
+            "variancePct": 24,
+            "direction": "unfavourable",
+            "flagged": true
+          },
+          "Q2": {
+            "budget": 15000,
+            "actual": 16100,
+            "variance": 1100,
+            "variancePct": 7.333333333333333,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q3": {
+            "budget": 15000,
+            "actual": 21400,
+            "variance": 6400,
+            "variancePct": 42.66666666666667,
+            "direction": "unfavourable",
+            "flagged": true
+          },
+          "Q4": {
+            "budget": 15000,
+            "actual": 19800,
+            "variance": 4800,
+            "variancePct": 32,
+            "direction": "unfavourable",
+            "flagged": true
+          }
+        },
+        "fullYear": {
+          "budget": 60000,
+          "actual": 75900,
+          "variance": 15900,
+          "variancePct": 26.5,
+          "direction": "unfavourable",
+          "flagged": true
+        }
+      },
+      {
+        "slug": "store-payroll",
+        "label": "Store payroll",
+        "section": "Operating expenses",
+        "category": "cost",
+        "quarters": {
+          "Q1": {
+            "budget": 210000,
+            "actual": 216500,
+            "variance": 6500,
+            "variancePct": 3.0952380952380953,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q2": {
+            "budget": 214000,
+            "actual": 225800,
+            "variance": 11800,
+            "variancePct": 5.514018691588785,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q3": {
+            "budget": 219000,
+            "actual": 231400,
+            "variance": 12400,
+            "variancePct": 5.662100456621005,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q4": {
+            "budget": 268000,
+            "actual": 289600,
+            "variance": 21600,
+            "variancePct": 8.059701492537313,
+            "direction": "unfavourable",
+            "flagged": true
+          }
+        },
+        "fullYear": {
+          "budget": 911000,
+          "actual": 963300,
+          "variance": 52300,
+          "variancePct": 5.740944017563118,
+          "direction": "unfavourable",
+          "flagged": false
+        }
+      },
+      {
+        "slug": "head-office-salaries",
+        "label": "Head office salaries",
+        "section": "Operating expenses",
+        "category": "cost",
+        "quarters": {
+          "Q1": {
+            "budget": 148000,
+            "actual": 151200,
+            "variance": 3200,
+            "variancePct": 2.1621621621621623,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q2": {
+            "budget": 148000,
+            "actual": 151200,
+            "variance": 3200,
+            "variancePct": 2.1621621621621623,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q3": {
+            "budget": 148000,
+            "actual": 156800,
+            "variance": 8800,
+            "variancePct": 5.9459459459459465,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q4": {
+            "budget": 152000,
+            "actual": 156800,
+            "variance": 4800,
+            "variancePct": 3.1578947368421053,
+            "direction": "unfavourable",
+            "flagged": false
+          }
+        },
+        "fullYear": {
+          "budget": 596000,
+          "actual": 616000,
+          "variance": 20000,
+          "variancePct": 3.3557046979865772,
+          "direction": "unfavourable",
+          "flagged": false
+        }
+      },
+      {
+        "slug": "payroll-taxes-benefits",
+        "label": "Payroll taxes & benefits",
+        "section": "Operating expenses",
+        "category": "cost",
+        "quarters": {
+          "Q1": {
+            "budget": 64000,
+            "actual": 66300,
+            "variance": 2300,
+            "variancePct": 3.5937499999999996,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q2": {
+            "budget": 65000,
+            "actual": 68900,
+            "variance": 3900,
+            "variancePct": 6,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q3": {
+            "budget": 66000,
+            "actual": 70100,
+            "variance": 4100,
+            "variancePct": 6.212121212121212,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q4": {
+            "budget": 79000,
+            "actual": 85400,
+            "variance": 6400,
+            "variancePct": 8.10126582278481,
+            "direction": "unfavourable",
+            "flagged": true
+          }
+        },
+        "fullYear": {
+          "budget": 274000,
+          "actual": 290700,
+          "variance": 16700,
+          "variancePct": 6.094890510948906,
+          "direction": "unfavourable",
+          "flagged": false
+        }
+      },
+      {
+        "slug": "rent-flagship-store",
+        "label": "Rent - flagship store",
+        "section": "Operating expenses",
+        "category": "cost",
+        "quarters": {
+          "Q1": {
+            "budget": 40000,
+            "actual": 43200,
+            "variance": 3200,
+            "variancePct": 8,
+            "direction": "unfavourable",
+            "flagged": true
+          },
+          "Q2": {
+            "budget": 40000,
+            "actual": 43200,
+            "variance": 3200,
+            "variancePct": 8,
+            "direction": "unfavourable",
+            "flagged": true
+          },
+          "Q3": {
+            "budget": 40000,
+            "actual": 43200,
+            "variance": 3200,
+            "variancePct": 8,
+            "direction": "unfavourable",
+            "flagged": true
+          },
+          "Q4": {
+            "budget": 40000,
+            "actual": 43200,
+            "variance": 3200,
+            "variancePct": 8,
+            "direction": "unfavourable",
+            "flagged": true
+          }
+        },
+        "fullYear": {
+          "budget": 160000,
+          "actual": 172800,
+          "variance": 12800,
+          "variancePct": 8,
+          "direction": "unfavourable",
+          "flagged": true
+        }
+      },
+      {
+        "slug": "rent-mall-kiosks",
+        "label": "Rent - mall kiosks",
+        "section": "Operating expenses",
+        "category": "cost",
+        "quarters": {
+          "Q1": {
+            "budget": 36000,
+            "actual": 36000,
+            "variance": 0,
+            "variancePct": 0,
+            "direction": "neutral",
+            "flagged": false
+          },
+          "Q2": {
+            "budget": 36000,
+            "actual": 36000,
+            "variance": 0,
+            "variancePct": 0,
+            "direction": "neutral",
+            "flagged": false
+          },
+          "Q3": {
+            "budget": 36000,
+            "actual": 39600,
+            "variance": 3600,
+            "variancePct": 10,
+            "direction": "unfavourable",
+            "flagged": true
+          },
+          "Q4": {
+            "budget": 36000,
+            "actual": 39600,
+            "variance": 3600,
+            "variancePct": 10,
+            "direction": "unfavourable",
+            "flagged": true
+          }
+        },
+        "fullYear": {
+          "budget": 144000,
+          "actual": 151200,
+          "variance": 7200,
+          "variancePct": 5,
+          "direction": "unfavourable",
+          "flagged": false
+        }
+      },
+      {
+        "slug": "utilities",
+        "label": "Utilities",
+        "section": "Operating expenses",
+        "category": "cost",
+        "quarters": {
+          "Q1": {
+            "budget": 18000,
+            "actual": 19800,
+            "variance": 1800,
+            "variancePct": 10,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q2": {
+            "budget": 16500,
+            "actual": 15400,
+            "variance": -1100,
+            "variancePct": -6.666666666666667,
+            "direction": "favourable",
+            "flagged": false
+          },
+          "Q3": {
+            "budget": 21000,
+            "actual": 24300,
+            "variance": 3300,
+            "variancePct": 15.714285714285714,
+            "direction": "unfavourable",
+            "flagged": true
+          },
+          "Q4": {
+            "budget": 19500,
+            "actual": 21100,
+            "variance": 1600,
+            "variancePct": 8.205128205128204,
+            "direction": "unfavourable",
+            "flagged": false
+          }
+        },
+        "fullYear": {
+          "budget": 75000,
+          "actual": 80600,
+          "variance": 5600,
+          "variancePct": 7.466666666666668,
+          "direction": "unfavourable",
+          "flagged": false
+        }
+      },
+      {
+        "slug": "bank-card-processing-fees",
+        "label": "Bank & card processing fees",
+        "section": "Operating expenses",
+        "category": "cost",
+        "quarters": {
+          "Q1": {
+            "budget": 20000,
+            "actual": 21800,
+            "variance": 1800,
+            "variancePct": 9,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q2": {
+            "budget": 20000,
+            "actual": 21800,
+            "variance": 1800,
+            "variancePct": 9,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q3": {
+            "budget": 20000,
+            "actual": 21800,
+            "variance": 1800,
+            "variancePct": 9,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q4": {
+            "budget": 20000,
+            "actual": 21800,
+            "variance": 1800,
+            "variancePct": 9,
+            "direction": "unfavourable",
+            "flagged": false
+          }
+        },
+        "fullYear": {
+          "budget": 80000,
+          "actual": 87200,
+          "variance": 7200,
+          "variancePct": 9,
+          "direction": "unfavourable",
+          "flagged": true
+        }
+      },
+      {
+        "slug": "marketing-digital-ads",
+        "label": "Marketing - digital ads",
+        "section": "Operating expenses",
+        "category": "cost",
+        "quarters": {
+          "Q1": {
+            "budget": 55000,
+            "actual": 71500,
+            "variance": 16500,
+            "variancePct": 30,
+            "direction": "unfavourable",
+            "flagged": true
+          },
+          "Q2": {
+            "budget": 58000,
+            "actual": 69600,
+            "variance": 11600,
+            "variancePct": 20,
+            "direction": "unfavourable",
+            "flagged": true
+          },
+          "Q3": {
+            "budget": 62000,
+            "actual": 74400,
+            "variance": 12400,
+            "variancePct": 20,
+            "direction": "unfavourable",
+            "flagged": true
+          },
+          "Q4": {
+            "budget": 110000,
+            "actual": 141900,
+            "variance": 31900,
+            "variancePct": 28.999999999999996,
+            "direction": "unfavourable",
+            "flagged": true
+          }
+        },
+        "fullYear": {
+          "budget": 285000,
+          "actual": 357400,
+          "variance": 72400,
+          "variancePct": 25.403508771929822,
+          "direction": "unfavourable",
+          "flagged": true
+        }
+      },
+      {
+        "slug": "marketing-print-radio",
+        "label": "Marketing - print & radio",
+        "section": "Operating expenses",
+        "category": "cost",
+        "quarters": {
+          "Q1": {
+            "budget": 24000,
+            "actual": 18000,
+            "variance": -6000,
+            "variancePct": -25,
+            "direction": "favourable",
+            "flagged": true
+          },
+          "Q2": {
+            "budget": 24000,
+            "actual": 15600,
+            "variance": -8400,
+            "variancePct": -35,
+            "direction": "favourable",
+            "flagged": true
+          },
+          "Q3": {
+            "budget": 24000,
+            "actual": 21600,
+            "variance": -2400,
+            "variancePct": -10,
+            "direction": "favourable",
+            "flagged": true
+          },
+          "Q4": {
+            "budget": 30000,
+            "actual": 24500,
+            "variance": -5500,
+            "variancePct": -18.333333333333332,
+            "direction": "favourable",
+            "flagged": true
+          }
+        },
+        "fullYear": {
+          "budget": 102000,
+          "actual": 79700,
+          "variance": -22300,
+          "variancePct": -21.862745098039216,
+          "direction": "favourable",
+          "flagged": true
+        }
+      },
+      {
+        "slug": "software-subscriptions",
+        "label": "Software subscriptions",
+        "section": "Operating expenses",
+        "category": "cost",
+        "quarters": {
+          "Q1": {
+            "budget": 20000,
+            "actual": 22000,
+            "variance": 2000,
+            "variancePct": 10,
+            "direction": "unfavourable",
+            "flagged": true
+          },
+          "Q2": {
+            "budget": 20000,
+            "actual": 22000,
+            "variance": 2000,
+            "variancePct": 10,
+            "direction": "unfavourable",
+            "flagged": true
+          },
+          "Q3": {
+            "budget": 20000,
+            "actual": 22000,
+            "variance": 2000,
+            "variancePct": 10,
+            "direction": "unfavourable",
+            "flagged": true
+          },
+          "Q4": {
+            "budget": 20000,
+            "actual": 22000,
+            "variance": 2000,
+            "variancePct": 10,
+            "direction": "unfavourable",
+            "flagged": true
+          }
+        },
+        "fullYear": {
+          "budget": 80000,
+          "actual": 88000,
+          "variance": 8000,
+          "variancePct": 10,
+          "direction": "unfavourable",
+          "flagged": true
+        }
+      },
+      {
+        "slug": "professional-fees",
+        "label": "Professional fees",
+        "section": "Operating expenses",
+        "category": "cost",
+        "quarters": {
+          "Q1": {
+            "budget": 15000,
+            "actual": 16200,
+            "variance": 1200,
+            "variancePct": 8,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q2": {
+            "budget": 9000,
+            "actual": 8100,
+            "variance": -900,
+            "variancePct": -10,
+            "direction": "favourable",
+            "flagged": false
+          },
+          "Q3": {
+            "budget": 9000,
+            "actual": 11700,
+            "variance": 2700,
+            "variancePct": 30,
+            "direction": "unfavourable",
+            "flagged": true
+          },
+          "Q4": {
+            "budget": 27000,
+            "actual": 24300,
+            "variance": -2700,
+            "variancePct": -10,
+            "direction": "favourable",
+            "flagged": true
+          }
+        },
+        "fullYear": {
+          "budget": 60000,
+          "actual": 60300,
+          "variance": 300,
+          "variancePct": 0.5,
+          "direction": "unfavourable",
+          "flagged": false
+        }
+      },
+      {
+        "slug": "insurance",
+        "label": "Insurance",
+        "section": "Operating expenses",
+        "category": "cost",
+        "quarters": {
+          "Q1": {
+            "budget": 11000,
+            "actual": 11000,
+            "variance": 0,
+            "variancePct": 0,
+            "direction": "neutral",
+            "flagged": false
+          },
+          "Q2": {
+            "budget": 11000,
+            "actual": 11000,
+            "variance": 0,
+            "variancePct": 0,
+            "direction": "neutral",
+            "flagged": false
+          },
+          "Q3": {
+            "budget": 11000,
+            "actual": 11000,
+            "variance": 0,
+            "variancePct": 0,
+            "direction": "neutral",
+            "flagged": false
+          },
+          "Q4": {
+            "budget": 11000,
+            "actual": 11000,
+            "variance": 0,
+            "variancePct": 0,
+            "direction": "neutral",
+            "flagged": false
+          }
+        },
+        "fullYear": {
+          "budget": 44000,
+          "actual": 44000,
+          "variance": 0,
+          "variancePct": 0,
+          "direction": "neutral",
+          "flagged": false
+        }
+      },
+      {
+        "slug": "repairs-maintenance",
+        "label": "Repairs & maintenance",
+        "section": "Operating expenses",
+        "category": "cost",
+        "quarters": {
+          "Q1": {
+            "budget": 9000,
+            "actual": 7650,
+            "variance": -1350,
+            "variancePct": -15,
+            "direction": "favourable",
+            "flagged": false
+          },
+          "Q2": {
+            "budget": 9000,
+            "actual": 13950,
+            "variance": 4950,
+            "variancePct": 55.00000000000001,
+            "direction": "unfavourable",
+            "flagged": true
+          },
+          "Q3": {
+            "budget": 12000,
+            "actual": 10200,
+            "variance": -1800,
+            "variancePct": -15,
+            "direction": "favourable",
+            "flagged": false
+          },
+          "Q4": {
+            "budget": 9000,
+            "actual": 9450,
+            "variance": 450,
+            "variancePct": 5,
+            "direction": "unfavourable",
+            "flagged": false
+          }
+        },
+        "fullYear": {
+          "budget": 39000,
+          "actual": 41250,
+          "variance": 2250,
+          "variancePct": 5.769230769230769,
+          "direction": "unfavourable",
+          "flagged": false
+        }
+      },
+      {
+        "slug": "travel-entertainment",
+        "label": "Travel & entertainment",
+        "section": "Operating expenses",
+        "category": "cost",
+        "quarters": {
+          "Q1": {
+            "budget": 8000,
+            "actual": 6400,
+            "variance": -1600,
+            "variancePct": -20,
+            "direction": "favourable",
+            "flagged": false
+          },
+          "Q2": {
+            "budget": 8500,
+            "actual": 9775,
+            "variance": 1275,
+            "variancePct": 15,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q3": {
+            "budget": 9000,
+            "actual": 7650,
+            "variance": -1350,
+            "variancePct": -15,
+            "direction": "favourable",
+            "flagged": false
+          },
+          "Q4": {
+            "budget": 14000,
+            "actual": 11200,
+            "variance": -2800,
+            "variancePct": -20,
+            "direction": "favourable",
+            "flagged": true
+          }
+        },
+        "fullYear": {
+          "budget": 39500,
+          "actual": 35025,
+          "variance": -4475,
+          "variancePct": -11.329113924050633,
+          "direction": "favourable",
+          "flagged": true
+        }
+      },
+      {
+        "slug": "depreciation",
+        "label": "Depreciation",
+        "section": "Operating expenses",
+        "category": "cost",
+        "quarters": {
+          "Q1": {
+            "budget": 26000,
+            "actual": 26000,
+            "variance": 0,
+            "variancePct": 0,
+            "direction": "neutral",
+            "flagged": false
+          },
+          "Q2": {
+            "budget": 26000,
+            "actual": 26000,
+            "variance": 0,
+            "variancePct": 0,
+            "direction": "neutral",
+            "flagged": false
+          },
+          "Q3": {
+            "budget": 26000,
+            "actual": 28600,
+            "variance": 2600,
+            "variancePct": 10,
+            "direction": "unfavourable",
+            "flagged": true
+          },
+          "Q4": {
+            "budget": 26000,
+            "actual": 28600,
+            "variance": 2600,
+            "variancePct": 10,
+            "direction": "unfavourable",
+            "flagged": true
+          }
+        },
+        "fullYear": {
+          "budget": 104000,
+          "actual": 109200,
+          "variance": 5200,
+          "variancePct": 5,
+          "direction": "unfavourable",
+          "flagged": false
+        }
+      }
+    ],
+    "aggregates": {
+      "revenue": {
+        "quarters": {
+          "Q1": {
+            "budget": 1003000,
+            "actual": 1014700,
+            "variance": 11700,
+            "variancePct": 1.1665004985044864,
+            "direction": "favourable",
+            "flagged": false
+          },
+          "Q2": {
+            "budget": 1047500,
+            "actual": 1097300,
+            "variance": 49800,
+            "variancePct": 4.75417661097852,
+            "direction": "favourable",
+            "flagged": false
+          },
+          "Q3": {
+            "budget": 1100000,
+            "actual": 1154600,
+            "variance": 54600,
+            "variancePct": 4.963636363636364,
+            "direction": "favourable",
+            "flagged": false
+          },
+          "Q4": {
+            "budget": 1453000,
+            "actual": 1553000,
+            "variance": 100000,
+            "variancePct": 6.882312456985547,
+            "direction": "favourable",
+            "flagged": false
+          }
+        },
+        "fullYear": {
+          "budget": 4603500,
+          "actual": 4819600,
+          "variance": 216100,
+          "variancePct": 4.694254371673726,
+          "direction": "favourable",
+          "flagged": false
+        }
+      },
+      "cogs": {
+        "quarters": {
+          "Q1": {
+            "budget": 375000,
+            "actual": 395600,
+            "variance": 20600,
+            "variancePct": 5.493333333333333,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q2": {
+            "budget": 377000,
+            "actual": 394200,
+            "variance": 17200,
+            "variancePct": 4.562334217506631,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q3": {
+            "budget": 380000,
+            "actual": 406300,
+            "variance": 26300,
+            "variancePct": 6.921052631578947,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q4": {
+            "budget": 407000,
+            "actual": 435900,
+            "variance": 28900,
+            "variancePct": 7.100737100737101,
+            "direction": "unfavourable",
+            "flagged": false
+          }
+        },
+        "fullYear": {
+          "budget": 1539000,
+          "actual": 1632000,
+          "variance": 93000,
+          "variancePct": 6.042884990253411,
+          "direction": "unfavourable",
+          "flagged": false
+        }
+      },
+      "opex": {
+        "quarters": {
+          "Q1": {
+            "budget": 704000,
+            "actual": 733550,
+            "variance": 29550,
+            "variancePct": 4.197443181818182,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q2": {
+            "budget": 705000,
+            "actual": 738325,
+            "variance": 33325,
+            "variancePct": 4.7269503546099285,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q3": {
+            "budget": 723000,
+            "actual": 774350,
+            "variance": 51350,
+            "variancePct": 7.102351313969571,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q4": {
+            "budget": 861500,
+            "actual": 930450,
+            "variance": 68950,
+            "variancePct": 8.00348229831689,
+            "direction": "unfavourable",
+            "flagged": true
+          }
+        },
+        "fullYear": {
+          "budget": 2993500,
+          "actual": 3176675,
+          "variance": 183175,
+          "variancePct": 6.11909136462335,
+          "direction": "unfavourable",
+          "flagged": false
+        }
+      },
+      "grossProfit": {
+        "quarters": {
+          "Q1": {
+            "budget": 628000,
+            "actual": 619100,
+            "variance": -8900,
+            "variancePct": -1.4171974522292994,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q2": {
+            "budget": 670500,
+            "actual": 703100,
+            "variance": 32600,
+            "variancePct": 4.862043251304996,
+            "direction": "favourable",
+            "flagged": false
+          },
+          "Q3": {
+            "budget": 720000,
+            "actual": 748300,
+            "variance": 28300,
+            "variancePct": 3.930555555555556,
+            "direction": "favourable",
+            "flagged": false
+          },
+          "Q4": {
+            "budget": 1046000,
+            "actual": 1117100,
+            "variance": 71100,
+            "variancePct": 6.797323135755258,
+            "direction": "favourable",
+            "flagged": false
+          }
+        },
+        "fullYear": {
+          "budget": 3064500,
+          "actual": 3187600,
+          "variance": 123100,
+          "variancePct": 4.016968510360581,
+          "direction": "favourable",
+          "flagged": false
+        }
+      },
+      "operatingIncome": {
+        "quarters": {
+          "Q1": {
+            "budget": -76000,
+            "actual": -114450,
+            "variance": -38450,
+            "variancePct": 50.59210526315789,
+            "direction": "unfavourable",
+            "flagged": true
+          },
+          "Q2": {
+            "budget": -34500,
+            "actual": -35225,
+            "variance": -725,
+            "variancePct": 2.101449275362319,
+            "direction": "unfavourable",
+            "flagged": false
+          },
+          "Q3": {
+            "budget": -3000,
+            "actual": -26050,
+            "variance": -23050,
+            "variancePct": 768.3333333333334,
+            "direction": "unfavourable",
+            "flagged": true
+          },
+          "Q4": {
+            "budget": 184500,
+            "actual": 186650,
+            "variance": 2150,
+            "variancePct": 1.165311653116531,
+            "direction": "favourable",
+            "flagged": false
+          }
+        },
+        "fullYear": {
+          "budget": 71000,
+          "actual": 10925,
+          "variance": -60075,
+          "variancePct": -84.61267605633803,
+          "direction": "unfavourable",
+          "flagged": true
+        }
+      }
+    },
+    "flagged": {
+      "Q1": [
+        "net-sales-online-store",
+        "shipping-revenue",
+        "inbound-freight",
+        "inventory-shrinkage",
+        "rent-flagship-store",
+        "marketing-digital-ads",
+        "marketing-print-radio",
+        "software-subscriptions"
+      ],
+      "Q2": [
+        "net-sales-online-store",
+        "shipping-revenue",
+        "packaging-materials",
+        "rent-flagship-store",
+        "marketing-digital-ads",
+        "marketing-print-radio",
+        "software-subscriptions",
+        "repairs-maintenance"
+      ],
+      "Q3": [
+        "net-sales-mall-kiosks",
+        "net-sales-online-store",
+        "shipping-revenue",
+        "inbound-freight",
+        "inventory-shrinkage",
+        "rent-flagship-store",
+        "rent-mall-kiosks",
+        "utilities",
+        "marketing-digital-ads",
+        "marketing-print-radio",
+        "software-subscriptions",
+        "professional-fees",
+        "depreciation"
+      ],
+      "Q4": [
+        "net-sales-online-store",
+        "gift-card-breakage",
+        "shipping-revenue",
+        "packaging-materials",
+        "inventory-shrinkage",
+        "store-payroll",
+        "payroll-taxes-benefits",
+        "rent-flagship-store",
+        "rent-mall-kiosks",
+        "marketing-digital-ads",
+        "marketing-print-radio",
+        "software-subscriptions",
+        "professional-fees",
+        "travel-entertainment",
+        "depreciation"
+      ],
+      "FY": [
+        "net-sales-online-store",
+        "inventory-shrinkage",
+        "rent-flagship-store",
+        "bank-card-processing-fees",
+        "marketing-digital-ads",
+        "marketing-print-radio",
+        "software-subscriptions",
+        "travel-entertainment"
+      ]
+    },
+    "lineItems": [
+      {
+        "label": "Net sales - flagship store",
+        "period": "Q1 Budget",
+        "amount": 420000,
+        "category": "revenue"
+      },
+      {
+        "label": "Net sales - flagship store",
+        "period": "Q1 Actual",
+        "amount": 398000,
+        "category": "revenue"
+      },
+      {
+        "label": "Net sales - flagship store",
+        "period": "Q2 Budget",
+        "amount": 435000,
+        "category": "revenue"
+      },
+      {
+        "label": "Net sales - flagship store",
+        "period": "Q2 Actual",
+        "amount": 452000,
+        "category": "revenue"
+      },
+      {
+        "label": "Net sales - flagship store",
+        "period": "Q3 Budget",
+        "amount": 455000,
+        "category": "revenue"
+      },
+      {
+        "label": "Net sales - flagship store",
+        "period": "Q3 Actual",
+        "amount": 441000,
+        "category": "revenue"
+      },
+      {
+        "label": "Net sales - flagship store",
+        "period": "Q4 Budget",
+        "amount": 610000,
+        "category": "revenue"
+      },
+      {
+        "label": "Net sales - flagship store",
+        "period": "Q4 Actual",
+        "amount": 655000,
+        "category": "revenue"
+      },
+      {
+        "label": "Net sales - mall kiosks",
+        "period": "Q1 Budget",
+        "amount": 185000,
+        "category": "revenue"
+      },
+      {
+        "label": "Net sales - mall kiosks",
+        "period": "Q1 Actual",
+        "amount": 171000,
+        "category": "revenue"
+      },
+      {
+        "label": "Net sales - mall kiosks",
+        "period": "Q2 Budget",
+        "amount": 192000,
+        "category": "revenue"
+      },
+      {
+        "label": "Net sales - mall kiosks",
+        "period": "Q2 Actual",
+        "amount": 188000,
+        "category": "revenue"
+      },
+      {
+        "label": "Net sales - mall kiosks",
+        "period": "Q3 Budget",
+        "amount": 198000,
+        "category": "revenue"
+      },
+      {
+        "label": "Net sales - mall kiosks",
+        "period": "Q3 Actual",
+        "amount": 214000,
+        "category": "revenue"
+      },
+      {
+        "label": "Net sales - mall kiosks",
+        "period": "Q4 Budget",
+        "amount": 265000,
+        "category": "revenue"
+      },
+      {
+        "label": "Net sales - mall kiosks",
+        "period": "Q4 Actual",
+        "amount": 249000,
+        "category": "revenue"
+      },
+      {
+        "label": "Net sales - online store",
+        "period": "Q1 Budget",
+        "amount": 240000,
+        "category": "revenue"
+      },
+      {
+        "label": "Net sales - online store",
+        "period": "Q1 Actual",
+        "amount": 281000,
+        "category": "revenue"
+      },
+      {
+        "label": "Net sales - online store",
+        "period": "Q2 Budget",
+        "amount": 262000,
+        "category": "revenue"
+      },
+      {
+        "label": "Net sales - online store",
+        "period": "Q2 Actual",
+        "amount": 305000,
+        "category": "revenue"
+      },
+      {
+        "label": "Net sales - online store",
+        "period": "Q3 Budget",
+        "amount": 288000,
+        "category": "revenue"
+      },
+      {
+        "label": "Net sales - online store",
+        "period": "Q3 Actual",
+        "amount": 334000,
+        "category": "revenue"
+      },
+      {
+        "label": "Net sales - online store",
+        "period": "Q4 Budget",
+        "amount": 410000,
+        "category": "revenue"
+      },
+      {
+        "label": "Net sales - online store",
+        "period": "Q4 Actual",
+        "amount": 486000,
+        "category": "revenue"
+      },
+      {
+        "label": "Wholesale accounts",
+        "period": "Q1 Budget",
+        "amount": 96000,
+        "category": "revenue"
+      },
+      {
+        "label": "Wholesale accounts",
+        "period": "Q1 Actual",
+        "amount": 96000,
+        "category": "revenue"
+      },
+      {
+        "label": "Wholesale accounts",
+        "period": "Q2 Budget",
+        "amount": 96000,
+        "category": "revenue"
+      },
+      {
+        "label": "Wholesale accounts",
+        "period": "Q2 Actual",
+        "amount": 96000,
+        "category": "revenue"
+      },
+      {
+        "label": "Wholesale accounts",
+        "period": "Q3 Budget",
+        "amount": 96000,
+        "category": "revenue"
+      },
+      {
+        "label": "Wholesale accounts",
+        "period": "Q3 Actual",
+        "amount": 96000,
+        "category": "revenue"
+      },
+      {
+        "label": "Wholesale accounts",
+        "period": "Q4 Budget",
+        "amount": 96000,
+        "category": "revenue"
+      },
+      {
+        "label": "Wholesale accounts",
+        "period": "Q4 Actual",
+        "amount": 96000,
+        "category": "revenue"
+      },
+      {
+        "label": "Gift card breakage",
+        "period": "Q1 Budget",
+        "amount": 12000,
+        "category": "revenue"
+      },
+      {
+        "label": "Gift card breakage",
+        "period": "Q1 Actual",
+        "amount": 11200,
+        "category": "revenue"
+      },
+      {
+        "label": "Gift card breakage",
+        "period": "Q2 Budget",
+        "amount": 12500,
+        "category": "revenue"
+      },
+      {
+        "label": "Gift card breakage",
+        "period": "Q2 Actual",
+        "amount": 13800,
+        "category": "revenue"
+      },
+      {
+        "label": "Gift card breakage",
+        "period": "Q3 Budget",
+        "amount": 13000,
+        "category": "revenue"
+      },
+      {
+        "label": "Gift card breakage",
+        "period": "Q3 Actual",
+        "amount": 12100,
+        "category": "revenue"
+      },
+      {
+        "label": "Gift card breakage",
+        "period": "Q4 Budget",
+        "amount": 22000,
+        "category": "revenue"
+      },
+      {
+        "label": "Gift card breakage",
+        "period": "Q4 Actual",
+        "amount": 24500,
+        "category": "revenue"
+      },
+      {
+        "label": "Shipping revenue",
+        "period": "Q1 Budget",
+        "amount": 50000,
+        "category": "revenue"
+      },
+      {
+        "label": "Shipping revenue",
+        "period": "Q1 Actual",
+        "amount": 57500,
+        "category": "revenue"
+      },
+      {
+        "label": "Shipping revenue",
+        "period": "Q2 Budget",
+        "amount": 50000,
+        "category": "revenue"
+      },
+      {
+        "label": "Shipping revenue",
+        "period": "Q2 Actual",
+        "amount": 42500,
+        "category": "revenue"
+      },
+      {
+        "label": "Shipping revenue",
+        "period": "Q3 Budget",
+        "amount": 50000,
+        "category": "revenue"
+      },
+      {
+        "label": "Shipping revenue",
+        "period": "Q3 Actual",
+        "amount": 57500,
+        "category": "revenue"
+      },
+      {
+        "label": "Shipping revenue",
+        "period": "Q4 Budget",
+        "amount": 50000,
+        "category": "revenue"
+      },
+      {
+        "label": "Shipping revenue",
+        "period": "Q4 Actual",
+        "amount": 42500,
+        "category": "revenue"
+      },
+      {
+        "label": "Merchandise purchases",
+        "period": "Q1 Budget",
+        "amount": 300000,
+        "category": "cost"
+      },
+      {
+        "label": "Merchandise purchases",
+        "period": "Q1 Actual",
+        "amount": 315000,
+        "category": "cost"
+      },
+      {
+        "label": "Merchandise purchases",
+        "period": "Q2 Budget",
+        "amount": 300000,
+        "category": "cost"
+      },
+      {
+        "label": "Merchandise purchases",
+        "period": "Q2 Actual",
+        "amount": 315000,
+        "category": "cost"
+      },
+      {
+        "label": "Merchandise purchases",
+        "period": "Q3 Budget",
+        "amount": 300000,
+        "category": "cost"
+      },
+      {
+        "label": "Merchandise purchases",
+        "period": "Q3 Actual",
+        "amount": 315000,
+        "category": "cost"
+      },
+      {
+        "label": "Merchandise purchases",
+        "period": "Q4 Budget",
+        "amount": 300000,
+        "category": "cost"
+      },
+      {
+        "label": "Merchandise purchases",
+        "period": "Q4 Actual",
+        "amount": 315000,
+        "category": "cost"
+      },
+      {
+        "label": "Inbound freight",
+        "period": "Q1 Budget",
+        "amount": 38000,
+        "category": "cost"
+      },
+      {
+        "label": "Inbound freight",
+        "period": "Q1 Actual",
+        "amount": 41500,
+        "category": "cost"
+      },
+      {
+        "label": "Inbound freight",
+        "period": "Q2 Budget",
+        "amount": 39000,
+        "category": "cost"
+      },
+      {
+        "label": "Inbound freight",
+        "period": "Q2 Actual",
+        "amount": 37200,
+        "category": "cost"
+      },
+      {
+        "label": "Inbound freight",
+        "period": "Q3 Budget",
+        "amount": 41000,
+        "category": "cost"
+      },
+      {
+        "label": "Inbound freight",
+        "period": "Q3 Actual",
+        "amount": 46800,
+        "category": "cost"
+      },
+      {
+        "label": "Inbound freight",
+        "period": "Q4 Budget",
+        "amount": 58000,
+        "category": "cost"
+      },
+      {
+        "label": "Inbound freight",
+        "period": "Q4 Actual",
+        "amount": 62400,
+        "category": "cost"
+      },
+      {
+        "label": "Packaging materials",
+        "period": "Q1 Budget",
+        "amount": 22000,
+        "category": "cost"
+      },
+      {
+        "label": "Packaging materials",
+        "period": "Q1 Actual",
+        "amount": 20500,
+        "category": "cost"
+      },
+      {
+        "label": "Packaging materials",
+        "period": "Q2 Budget",
+        "amount": 23000,
+        "category": "cost"
+      },
+      {
+        "label": "Packaging materials",
+        "period": "Q2 Actual",
+        "amount": 25900,
+        "category": "cost"
+      },
+      {
+        "label": "Packaging materials",
+        "period": "Q3 Budget",
+        "amount": 24000,
+        "category": "cost"
+      },
+      {
+        "label": "Packaging materials",
+        "period": "Q3 Actual",
+        "amount": 23100,
+        "category": "cost"
+      },
+      {
+        "label": "Packaging materials",
+        "period": "Q4 Budget",
+        "amount": 34000,
+        "category": "cost"
+      },
+      {
+        "label": "Packaging materials",
+        "period": "Q4 Actual",
+        "amount": 38700,
+        "category": "cost"
+      },
+      {
+        "label": "Inventory shrinkage",
+        "period": "Q1 Budget",
+        "amount": 15000,
+        "category": "cost"
+      },
+      {
+        "label": "Inventory shrinkage",
+        "period": "Q1 Actual",
+        "amount": 18600,
+        "category": "cost"
+      },
+      {
+        "label": "Inventory shrinkage",
+        "period": "Q2 Budget",
+        "amount": 15000,
+        "category": "cost"
+      },
+      {
+        "label": "Inventory shrinkage",
+        "period": "Q2 Actual",
+        "amount": 16100,
+        "category": "cost"
+      },
+      {
+        "label": "Inventory shrinkage",
+        "period": "Q3 Budget",
+        "amount": 15000,
+        "category": "cost"
+      },
+      {
+        "label": "Inventory shrinkage",
+        "period": "Q3 Actual",
+        "amount": 21400,
+        "category": "cost"
+      },
+      {
+        "label": "Inventory shrinkage",
+        "period": "Q4 Budget",
+        "amount": 15000,
+        "category": "cost"
+      },
+      {
+        "label": "Inventory shrinkage",
+        "period": "Q4 Actual",
+        "amount": 19800,
+        "category": "cost"
+      },
+      {
+        "label": "Store payroll",
+        "period": "Q1 Budget",
+        "amount": 210000,
+        "category": "cost"
+      },
+      {
+        "label": "Store payroll",
+        "period": "Q1 Actual",
+        "amount": 216500,
+        "category": "cost"
+      },
+      {
+        "label": "Store payroll",
+        "period": "Q2 Budget",
+        "amount": 214000,
+        "category": "cost"
+      },
+      {
+        "label": "Store payroll",
+        "period": "Q2 Actual",
+        "amount": 225800,
+        "category": "cost"
+      },
+      {
+        "label": "Store payroll",
+        "period": "Q3 Budget",
+        "amount": 219000,
+        "category": "cost"
+      },
+      {
+        "label": "Store payroll",
+        "period": "Q3 Actual",
+        "amount": 231400,
+        "category": "cost"
+      },
+      {
+        "label": "Store payroll",
+        "period": "Q4 Budget",
+        "amount": 268000,
+        "category": "cost"
+      },
+      {
+        "label": "Store payroll",
+        "period": "Q4 Actual",
+        "amount": 289600,
+        "category": "cost"
+      },
+      {
+        "label": "Head office salaries",
+        "period": "Q1 Budget",
+        "amount": 148000,
+        "category": "cost"
+      },
+      {
+        "label": "Head office salaries",
+        "period": "Q1 Actual",
+        "amount": 151200,
+        "category": "cost"
+      },
+      {
+        "label": "Head office salaries",
+        "period": "Q2 Budget",
+        "amount": 148000,
+        "category": "cost"
+      },
+      {
+        "label": "Head office salaries",
+        "period": "Q2 Actual",
+        "amount": 151200,
+        "category": "cost"
+      },
+      {
+        "label": "Head office salaries",
+        "period": "Q3 Budget",
+        "amount": 148000,
+        "category": "cost"
+      },
+      {
+        "label": "Head office salaries",
+        "period": "Q3 Actual",
+        "amount": 156800,
+        "category": "cost"
+      },
+      {
+        "label": "Head office salaries",
+        "period": "Q4 Budget",
+        "amount": 152000,
+        "category": "cost"
+      },
+      {
+        "label": "Head office salaries",
+        "period": "Q4 Actual",
+        "amount": 156800,
+        "category": "cost"
+      },
+      {
+        "label": "Payroll taxes & benefits",
+        "period": "Q1 Budget",
+        "amount": 64000,
+        "category": "cost"
+      },
+      {
+        "label": "Payroll taxes & benefits",
+        "period": "Q1 Actual",
+        "amount": 66300,
+        "category": "cost"
+      },
+      {
+        "label": "Payroll taxes & benefits",
+        "period": "Q2 Budget",
+        "amount": 65000,
+        "category": "cost"
+      },
+      {
+        "label": "Payroll taxes & benefits",
+        "period": "Q2 Actual",
+        "amount": 68900,
+        "category": "cost"
+      },
+      {
+        "label": "Payroll taxes & benefits",
+        "period": "Q3 Budget",
+        "amount": 66000,
+        "category": "cost"
+      },
+      {
+        "label": "Payroll taxes & benefits",
+        "period": "Q3 Actual",
+        "amount": 70100,
+        "category": "cost"
+      },
+      {
+        "label": "Payroll taxes & benefits",
+        "period": "Q4 Budget",
+        "amount": 79000,
+        "category": "cost"
+      },
+      {
+        "label": "Payroll taxes & benefits",
+        "period": "Q4 Actual",
+        "amount": 85400,
+        "category": "cost"
+      },
+      {
+        "label": "Rent - flagship store",
+        "period": "Q1 Budget",
+        "amount": 40000,
+        "category": "cost"
+      },
+      {
+        "label": "Rent - flagship store",
+        "period": "Q1 Actual",
+        "amount": 43200,
+        "category": "cost"
+      },
+      {
+        "label": "Rent - flagship store",
+        "period": "Q2 Budget",
+        "amount": 40000,
+        "category": "cost"
+      },
+      {
+        "label": "Rent - flagship store",
+        "period": "Q2 Actual",
+        "amount": 43200,
+        "category": "cost"
+      },
+      {
+        "label": "Rent - flagship store",
+        "period": "Q3 Budget",
+        "amount": 40000,
+        "category": "cost"
+      },
+      {
+        "label": "Rent - flagship store",
+        "period": "Q3 Actual",
+        "amount": 43200,
+        "category": "cost"
+      },
+      {
+        "label": "Rent - flagship store",
+        "period": "Q4 Budget",
+        "amount": 40000,
+        "category": "cost"
+      },
+      {
+        "label": "Rent - flagship store",
+        "period": "Q4 Actual",
+        "amount": 43200,
+        "category": "cost"
+      },
+      {
+        "label": "Rent - mall kiosks",
+        "period": "Q1 Budget",
+        "amount": 36000,
+        "category": "cost"
+      },
+      {
+        "label": "Rent - mall kiosks",
+        "period": "Q1 Actual",
+        "amount": 36000,
+        "category": "cost"
+      },
+      {
+        "label": "Rent - mall kiosks",
+        "period": "Q2 Budget",
+        "amount": 36000,
+        "category": "cost"
+      },
+      {
+        "label": "Rent - mall kiosks",
+        "period": "Q2 Actual",
+        "amount": 36000,
+        "category": "cost"
+      },
+      {
+        "label": "Rent - mall kiosks",
+        "period": "Q3 Budget",
+        "amount": 36000,
+        "category": "cost"
+      },
+      {
+        "label": "Rent - mall kiosks",
+        "period": "Q3 Actual",
+        "amount": 39600,
+        "category": "cost"
+      },
+      {
+        "label": "Rent - mall kiosks",
+        "period": "Q4 Budget",
+        "amount": 36000,
+        "category": "cost"
+      },
+      {
+        "label": "Rent - mall kiosks",
+        "period": "Q4 Actual",
+        "amount": 39600,
+        "category": "cost"
+      },
+      {
+        "label": "Utilities",
+        "period": "Q1 Budget",
+        "amount": 18000,
+        "category": "cost"
+      },
+      {
+        "label": "Utilities",
+        "period": "Q1 Actual",
+        "amount": 19800,
+        "category": "cost"
+      },
+      {
+        "label": "Utilities",
+        "period": "Q2 Budget",
+        "amount": 16500,
+        "category": "cost"
+      },
+      {
+        "label": "Utilities",
+        "period": "Q2 Actual",
+        "amount": 15400,
+        "category": "cost"
+      },
+      {
+        "label": "Utilities",
+        "period": "Q3 Budget",
+        "amount": 21000,
+        "category": "cost"
+      },
+      {
+        "label": "Utilities",
+        "period": "Q3 Actual",
+        "amount": 24300,
+        "category": "cost"
+      },
+      {
+        "label": "Utilities",
+        "period": "Q4 Budget",
+        "amount": 19500,
+        "category": "cost"
+      },
+      {
+        "label": "Utilities",
+        "period": "Q4 Actual",
+        "amount": 21100,
+        "category": "cost"
+      },
+      {
+        "label": "Bank & card processing fees",
+        "period": "Q1 Budget",
+        "amount": 20000,
+        "category": "cost"
+      },
+      {
+        "label": "Bank & card processing fees",
+        "period": "Q1 Actual",
+        "amount": 21800,
+        "category": "cost"
+      },
+      {
+        "label": "Bank & card processing fees",
+        "period": "Q2 Budget",
+        "amount": 20000,
+        "category": "cost"
+      },
+      {
+        "label": "Bank & card processing fees",
+        "period": "Q2 Actual",
+        "amount": 21800,
+        "category": "cost"
+      },
+      {
+        "label": "Bank & card processing fees",
+        "period": "Q3 Budget",
+        "amount": 20000,
+        "category": "cost"
+      },
+      {
+        "label": "Bank & card processing fees",
+        "period": "Q3 Actual",
+        "amount": 21800,
+        "category": "cost"
+      },
+      {
+        "label": "Bank & card processing fees",
+        "period": "Q4 Budget",
+        "amount": 20000,
+        "category": "cost"
+      },
+      {
+        "label": "Bank & card processing fees",
+        "period": "Q4 Actual",
+        "amount": 21800,
+        "category": "cost"
+      },
+      {
+        "label": "Marketing - digital ads",
+        "period": "Q1 Budget",
+        "amount": 55000,
+        "category": "cost"
+      },
+      {
+        "label": "Marketing - digital ads",
+        "period": "Q1 Actual",
+        "amount": 71500,
+        "category": "cost"
+      },
+      {
+        "label": "Marketing - digital ads",
+        "period": "Q2 Budget",
+        "amount": 58000,
+        "category": "cost"
+      },
+      {
+        "label": "Marketing - digital ads",
+        "period": "Q2 Actual",
+        "amount": 69600,
+        "category": "cost"
+      },
+      {
+        "label": "Marketing - digital ads",
+        "period": "Q3 Budget",
+        "amount": 62000,
+        "category": "cost"
+      },
+      {
+        "label": "Marketing - digital ads",
+        "period": "Q3 Actual",
+        "amount": 74400,
+        "category": "cost"
+      },
+      {
+        "label": "Marketing - digital ads",
+        "period": "Q4 Budget",
+        "amount": 110000,
+        "category": "cost"
+      },
+      {
+        "label": "Marketing - digital ads",
+        "period": "Q4 Actual",
+        "amount": 141900,
+        "category": "cost"
+      },
+      {
+        "label": "Marketing - print & radio",
+        "period": "Q1 Budget",
+        "amount": 24000,
+        "category": "cost"
+      },
+      {
+        "label": "Marketing - print & radio",
+        "period": "Q1 Actual",
+        "amount": 18000,
+        "category": "cost"
+      },
+      {
+        "label": "Marketing - print & radio",
+        "period": "Q2 Budget",
+        "amount": 24000,
+        "category": "cost"
+      },
+      {
+        "label": "Marketing - print & radio",
+        "period": "Q2 Actual",
+        "amount": 15600,
+        "category": "cost"
+      },
+      {
+        "label": "Marketing - print & radio",
+        "period": "Q3 Budget",
+        "amount": 24000,
+        "category": "cost"
+      },
+      {
+        "label": "Marketing - print & radio",
+        "period": "Q3 Actual",
+        "amount": 21600,
+        "category": "cost"
+      },
+      {
+        "label": "Marketing - print & radio",
+        "period": "Q4 Budget",
+        "amount": 30000,
+        "category": "cost"
+      },
+      {
+        "label": "Marketing - print & radio",
+        "period": "Q4 Actual",
+        "amount": 24500,
+        "category": "cost"
+      },
+      {
+        "label": "Software subscriptions",
+        "period": "Q1 Budget",
+        "amount": 20000,
+        "category": "cost"
+      },
+      {
+        "label": "Software subscriptions",
+        "period": "Q1 Actual",
+        "amount": 22000,
+        "category": "cost"
+      },
+      {
+        "label": "Software subscriptions",
+        "period": "Q2 Budget",
+        "amount": 20000,
+        "category": "cost"
+      },
+      {
+        "label": "Software subscriptions",
+        "period": "Q2 Actual",
+        "amount": 22000,
+        "category": "cost"
+      },
+      {
+        "label": "Software subscriptions",
+        "period": "Q3 Budget",
+        "amount": 20000,
+        "category": "cost"
+      },
+      {
+        "label": "Software subscriptions",
+        "period": "Q3 Actual",
+        "amount": 22000,
+        "category": "cost"
+      },
+      {
+        "label": "Software subscriptions",
+        "period": "Q4 Budget",
+        "amount": 20000,
+        "category": "cost"
+      },
+      {
+        "label": "Software subscriptions",
+        "period": "Q4 Actual",
+        "amount": 22000,
+        "category": "cost"
+      },
+      {
+        "label": "Professional fees",
+        "period": "Q1 Budget",
+        "amount": 15000,
+        "category": "cost"
+      },
+      {
+        "label": "Professional fees",
+        "period": "Q1 Actual",
+        "amount": 16200,
+        "category": "cost"
+      },
+      {
+        "label": "Professional fees",
+        "period": "Q2 Budget",
+        "amount": 9000,
+        "category": "cost"
+      },
+      {
+        "label": "Professional fees",
+        "period": "Q2 Actual",
+        "amount": 8100,
+        "category": "cost"
+      },
+      {
+        "label": "Professional fees",
+        "period": "Q3 Budget",
+        "amount": 9000,
+        "category": "cost"
+      },
+      {
+        "label": "Professional fees",
+        "period": "Q3 Actual",
+        "amount": 11700,
+        "category": "cost"
+      },
+      {
+        "label": "Professional fees",
+        "period": "Q4 Budget",
+        "amount": 27000,
+        "category": "cost"
+      },
+      {
+        "label": "Professional fees",
+        "period": "Q4 Actual",
+        "amount": 24300,
+        "category": "cost"
+      },
+      {
+        "label": "Insurance",
+        "period": "Q1 Budget",
+        "amount": 11000,
+        "category": "cost"
+      },
+      {
+        "label": "Insurance",
+        "period": "Q1 Actual",
+        "amount": 11000,
+        "category": "cost"
+      },
+      {
+        "label": "Insurance",
+        "period": "Q2 Budget",
+        "amount": 11000,
+        "category": "cost"
+      },
+      {
+        "label": "Insurance",
+        "period": "Q2 Actual",
+        "amount": 11000,
+        "category": "cost"
+      },
+      {
+        "label": "Insurance",
+        "period": "Q3 Budget",
+        "amount": 11000,
+        "category": "cost"
+      },
+      {
+        "label": "Insurance",
+        "period": "Q3 Actual",
+        "amount": 11000,
+        "category": "cost"
+      },
+      {
+        "label": "Insurance",
+        "period": "Q4 Budget",
+        "amount": 11000,
+        "category": "cost"
+      },
+      {
+        "label": "Insurance",
+        "period": "Q4 Actual",
+        "amount": 11000,
+        "category": "cost"
+      },
+      {
+        "label": "Repairs & maintenance",
+        "period": "Q1 Budget",
+        "amount": 9000,
+        "category": "cost"
+      },
+      {
+        "label": "Repairs & maintenance",
+        "period": "Q1 Actual",
+        "amount": 7650,
+        "category": "cost"
+      },
+      {
+        "label": "Repairs & maintenance",
+        "period": "Q2 Budget",
+        "amount": 9000,
+        "category": "cost"
+      },
+      {
+        "label": "Repairs & maintenance",
+        "period": "Q2 Actual",
+        "amount": 13950,
+        "category": "cost"
+      },
+      {
+        "label": "Repairs & maintenance",
+        "period": "Q3 Budget",
+        "amount": 12000,
+        "category": "cost"
+      },
+      {
+        "label": "Repairs & maintenance",
+        "period": "Q3 Actual",
+        "amount": 10200,
+        "category": "cost"
+      },
+      {
+        "label": "Repairs & maintenance",
+        "period": "Q4 Budget",
+        "amount": 9000,
+        "category": "cost"
+      },
+      {
+        "label": "Repairs & maintenance",
+        "period": "Q4 Actual",
+        "amount": 9450,
+        "category": "cost"
+      },
+      {
+        "label": "Travel & entertainment",
+        "period": "Q1 Budget",
+        "amount": 8000,
+        "category": "cost"
+      },
+      {
+        "label": "Travel & entertainment",
+        "period": "Q1 Actual",
+        "amount": 6400,
+        "category": "cost"
+      },
+      {
+        "label": "Travel & entertainment",
+        "period": "Q2 Budget",
+        "amount": 8500,
+        "category": "cost"
+      },
+      {
+        "label": "Travel & entertainment",
+        "period": "Q2 Actual",
+        "amount": 9775,
+        "category": "cost"
+      },
+      {
+        "label": "Travel & entertainment",
+        "period": "Q3 Budget",
+        "amount": 9000,
+        "category": "cost"
+      },
+      {
+        "label": "Travel & entertainment",
+        "period": "Q3 Actual",
+        "amount": 7650,
+        "category": "cost"
+      },
+      {
+        "label": "Travel & entertainment",
+        "period": "Q4 Budget",
+        "amount": 14000,
+        "category": "cost"
+      },
+      {
+        "label": "Travel & entertainment",
+        "period": "Q4 Actual",
+        "amount": 11200,
+        "category": "cost"
+      },
+      {
+        "label": "Depreciation",
+        "period": "Q1 Budget",
+        "amount": 26000,
+        "category": "cost"
+      },
+      {
+        "label": "Depreciation",
+        "period": "Q1 Actual",
+        "amount": 26000,
+        "category": "cost"
+      },
+      {
+        "label": "Depreciation",
+        "period": "Q2 Budget",
+        "amount": 26000,
+        "category": "cost"
+      },
+      {
+        "label": "Depreciation",
+        "period": "Q2 Actual",
+        "amount": 26000,
+        "category": "cost"
+      },
+      {
+        "label": "Depreciation",
+        "period": "Q3 Budget",
+        "amount": 26000,
+        "category": "cost"
+      },
+      {
+        "label": "Depreciation",
+        "period": "Q3 Actual",
+        "amount": 28600,
+        "category": "cost"
+      },
+      {
+        "label": "Depreciation",
+        "period": "Q4 Budget",
+        "amount": 26000,
+        "category": "cost"
+      },
+      {
+        "label": "Depreciation",
+        "period": "Q4 Actual",
+        "amount": 28600,
+        "category": "cost"
+      }
+    ],
+    "figures": [
+      {
+        "key": "variance.fy.net-sales-flagship-store.amount",
+        "label": "FY variance - Net sales - flagship store",
+        "value": 26000,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.net-sales-flagship-store.pct",
+        "label": "FY variance % - Net sales - flagship store",
+        "value": 1.3541666666666667,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.fy.net-sales-mall-kiosks.amount",
+        "label": "FY variance - Net sales - mall kiosks",
+        "value": -18000,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.net-sales-mall-kiosks.pct",
+        "label": "FY variance % - Net sales - mall kiosks",
+        "value": -2.142857142857143,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.fy.net-sales-online-store.amount",
+        "label": "FY variance - Net sales - online store",
+        "value": 206000,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.net-sales-online-store.pct",
+        "label": "FY variance % - Net sales - online store",
+        "value": 17.166666666666668,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.fy.wholesale-accounts.amount",
+        "label": "FY variance - Wholesale accounts",
+        "value": 0,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.wholesale-accounts.pct",
+        "label": "FY variance % - Wholesale accounts",
+        "value": 0,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.fy.gift-card-breakage.amount",
+        "label": "FY variance - Gift card breakage",
+        "value": 2100,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.gift-card-breakage.pct",
+        "label": "FY variance % - Gift card breakage",
+        "value": 3.5294117647058822,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.fy.shipping-revenue.amount",
+        "label": "FY variance - Shipping revenue",
+        "value": 0,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.shipping-revenue.pct",
+        "label": "FY variance % - Shipping revenue",
+        "value": 0,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.fy.merchandise-purchases.amount",
+        "label": "FY variance - Merchandise purchases",
+        "value": 60000,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.merchandise-purchases.pct",
+        "label": "FY variance % - Merchandise purchases",
+        "value": 5,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.fy.inbound-freight.amount",
+        "label": "FY variance - Inbound freight",
+        "value": 11900,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.inbound-freight.pct",
+        "label": "FY variance % - Inbound freight",
+        "value": 6.761363636363636,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.fy.packaging-materials.amount",
+        "label": "FY variance - Packaging materials",
+        "value": 5200,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.packaging-materials.pct",
+        "label": "FY variance % - Packaging materials",
+        "value": 5.048543689320388,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.fy.inventory-shrinkage.amount",
+        "label": "FY variance - Inventory shrinkage",
+        "value": 15900,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.inventory-shrinkage.pct",
+        "label": "FY variance % - Inventory shrinkage",
+        "value": 26.5,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.fy.store-payroll.amount",
+        "label": "FY variance - Store payroll",
+        "value": 52300,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.store-payroll.pct",
+        "label": "FY variance % - Store payroll",
+        "value": 5.740944017563118,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.fy.head-office-salaries.amount",
+        "label": "FY variance - Head office salaries",
+        "value": 20000,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.head-office-salaries.pct",
+        "label": "FY variance % - Head office salaries",
+        "value": 3.3557046979865772,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.fy.payroll-taxes-benefits.amount",
+        "label": "FY variance - Payroll taxes & benefits",
+        "value": 16700,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.payroll-taxes-benefits.pct",
+        "label": "FY variance % - Payroll taxes & benefits",
+        "value": 6.094890510948906,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.fy.rent-flagship-store.amount",
+        "label": "FY variance - Rent - flagship store",
+        "value": 12800,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.rent-flagship-store.pct",
+        "label": "FY variance % - Rent - flagship store",
+        "value": 8,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.fy.rent-mall-kiosks.amount",
+        "label": "FY variance - Rent - mall kiosks",
+        "value": 7200,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.rent-mall-kiosks.pct",
+        "label": "FY variance % - Rent - mall kiosks",
+        "value": 5,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.fy.utilities.amount",
+        "label": "FY variance - Utilities",
+        "value": 5600,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.utilities.pct",
+        "label": "FY variance % - Utilities",
+        "value": 7.466666666666668,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.fy.bank-card-processing-fees.amount",
+        "label": "FY variance - Bank & card processing fees",
+        "value": 7200,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.bank-card-processing-fees.pct",
+        "label": "FY variance % - Bank & card processing fees",
+        "value": 9,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.fy.marketing-digital-ads.amount",
+        "label": "FY variance - Marketing - digital ads",
+        "value": 72400,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.marketing-digital-ads.pct",
+        "label": "FY variance % - Marketing - digital ads",
+        "value": 25.403508771929822,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.fy.marketing-print-radio.amount",
+        "label": "FY variance - Marketing - print & radio",
+        "value": -22300,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.marketing-print-radio.pct",
+        "label": "FY variance % - Marketing - print & radio",
+        "value": -21.862745098039216,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.fy.software-subscriptions.amount",
+        "label": "FY variance - Software subscriptions",
+        "value": 8000,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.software-subscriptions.pct",
+        "label": "FY variance % - Software subscriptions",
+        "value": 10,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.fy.professional-fees.amount",
+        "label": "FY variance - Professional fees",
+        "value": 300,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.professional-fees.pct",
+        "label": "FY variance % - Professional fees",
+        "value": 0.5,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.fy.insurance.amount",
+        "label": "FY variance - Insurance",
+        "value": 0,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.insurance.pct",
+        "label": "FY variance % - Insurance",
+        "value": 0,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.fy.repairs-maintenance.amount",
+        "label": "FY variance - Repairs & maintenance",
+        "value": 2250,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.repairs-maintenance.pct",
+        "label": "FY variance % - Repairs & maintenance",
+        "value": 5.769230769230769,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.fy.travel-entertainment.amount",
+        "label": "FY variance - Travel & entertainment",
+        "value": -4475,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.travel-entertainment.pct",
+        "label": "FY variance % - Travel & entertainment",
+        "value": -11.329113924050633,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.fy.depreciation.amount",
+        "label": "FY variance - Depreciation",
+        "value": 5200,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.depreciation.pct",
+        "label": "FY variance % - Depreciation",
+        "value": 5,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "total.fy.revenue.budget",
+        "label": "FY budget - revenue",
+        "value": 4603500,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "total.fy.revenue.actual",
+        "label": "FY actual - revenue",
+        "value": 4819600,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.total.revenue.amount",
+        "label": "FY variance - revenue",
+        "value": 216100,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.total.revenue.pct",
+        "label": "FY variance % - revenue",
+        "value": 4.694254371673726,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.q1.total.revenue.amount",
+        "label": "Q1 variance - revenue",
+        "value": 11700,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.q2.total.revenue.amount",
+        "label": "Q2 variance - revenue",
+        "value": 49800,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.q3.total.revenue.amount",
+        "label": "Q3 variance - revenue",
+        "value": 54600,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.q4.total.revenue.amount",
+        "label": "Q4 variance - revenue",
+        "value": 100000,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "total.fy.cogs.budget",
+        "label": "FY budget - cogs",
+        "value": 1539000,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "total.fy.cogs.actual",
+        "label": "FY actual - cogs",
+        "value": 1632000,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.total.cogs.amount",
+        "label": "FY variance - cogs",
+        "value": 93000,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.total.cogs.pct",
+        "label": "FY variance % - cogs",
+        "value": 6.042884990253411,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.q1.total.cogs.amount",
+        "label": "Q1 variance - cogs",
+        "value": 20600,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.q2.total.cogs.amount",
+        "label": "Q2 variance - cogs",
+        "value": 17200,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.q3.total.cogs.amount",
+        "label": "Q3 variance - cogs",
+        "value": 26300,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.q4.total.cogs.amount",
+        "label": "Q4 variance - cogs",
+        "value": 28900,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "total.fy.opex.budget",
+        "label": "FY budget - opex",
+        "value": 2993500,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "total.fy.opex.actual",
+        "label": "FY actual - opex",
+        "value": 3176675,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.total.opex.amount",
+        "label": "FY variance - opex",
+        "value": 183175,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.total.opex.pct",
+        "label": "FY variance % - opex",
+        "value": 6.11909136462335,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.q1.total.opex.amount",
+        "label": "Q1 variance - opex",
+        "value": 29550,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.q2.total.opex.amount",
+        "label": "Q2 variance - opex",
+        "value": 33325,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.q3.total.opex.amount",
+        "label": "Q3 variance - opex",
+        "value": 51350,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.q4.total.opex.amount",
+        "label": "Q4 variance - opex",
+        "value": 68950,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "total.fy.grossProfit.budget",
+        "label": "FY budget - grossProfit",
+        "value": 3064500,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "total.fy.grossProfit.actual",
+        "label": "FY actual - grossProfit",
+        "value": 3187600,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.total.grossProfit.amount",
+        "label": "FY variance - grossProfit",
+        "value": 123100,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.total.grossProfit.pct",
+        "label": "FY variance % - grossProfit",
+        "value": 4.016968510360581,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.q1.total.grossProfit.amount",
+        "label": "Q1 variance - grossProfit",
+        "value": -8900,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.q2.total.grossProfit.amount",
+        "label": "Q2 variance - grossProfit",
+        "value": 32600,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.q3.total.grossProfit.amount",
+        "label": "Q3 variance - grossProfit",
+        "value": 28300,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.q4.total.grossProfit.amount",
+        "label": "Q4 variance - grossProfit",
+        "value": 71100,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "total.fy.operatingIncome.budget",
+        "label": "FY budget - operatingIncome",
+        "value": 71000,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "total.fy.operatingIncome.actual",
+        "label": "FY actual - operatingIncome",
+        "value": 10925,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.total.operatingIncome.amount",
+        "label": "FY variance - operatingIncome",
+        "value": -60075,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.fy.total.operatingIncome.pct",
+        "label": "FY variance % - operatingIncome",
+        "value": -84.61267605633803,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.q1.total.operatingIncome.amount",
+        "label": "Q1 variance - operatingIncome",
+        "value": -38450,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.q2.total.operatingIncome.amount",
+        "label": "Q2 variance - operatingIncome",
+        "value": -725,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.q3.total.operatingIncome.amount",
+        "label": "Q3 variance - operatingIncome",
+        "value": -23050,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "variance.q4.total.operatingIncome.amount",
+        "label": "Q4 variance - operatingIncome",
+        "value": 2150,
+        "unit": "currency",
+        "tolerance": 0.5
+      },
+      {
+        "key": "flagged.q1.count",
+        "label": "Flagged lines - Q1",
+        "value": 8,
+        "unit": "count",
+        "tolerance": 0
+      },
+      {
+        "key": "flagged.q2.count",
+        "label": "Flagged lines - Q2",
+        "value": 8,
+        "unit": "count",
+        "tolerance": 0
+      },
+      {
+        "key": "flagged.q3.count",
+        "label": "Flagged lines - Q3",
+        "value": 13,
+        "unit": "count",
+        "tolerance": 0
+      },
+      {
+        "key": "flagged.q4.count",
+        "label": "Flagged lines - Q4",
+        "value": 15,
+        "unit": "count",
+        "tolerance": 0
+      },
+      {
+        "key": "flagged.fy.count",
+        "label": "Flagged lines - FY",
+        "value": 8,
+        "unit": "count",
+        "tolerance": 0
+      },
+      {
+        "key": "lines.total",
+        "label": "Line items on the sheet",
+        "value": 25,
+        "unit": "count",
+        "tolerance": 0
+      }
+    ],
+    "mustMention": [
+      "Marketing - digital ads",
+      "Net sales - online store"
+    ],
+    "mustNotContain": [
+      "[unverified figure]",
+      "Total revenue",
+      "Operating income"
+    ]
+  }
+}

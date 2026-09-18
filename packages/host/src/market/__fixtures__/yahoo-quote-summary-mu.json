@@ -1,0 +1,71 @@
+{
+  "summaryDetail": {
+    "marketCap": 129686761472,
+    "trailingPE": 22.41,
+    "forwardPE": 9.87,
+    "beta": 1.32,
+    "dividendYield": 0.0046,
+    "trailingAnnualDividendYield": 0.0044
+  },
+  "defaultKeyStatistics": {
+    "pegRatio": 0.61,
+    "priceToBook": 2.94,
+    "trailingEps": 5.18,
+    "forwardEps": 11.76
+  },
+  "financialData": {
+    "totalRevenue": 34800000000,
+    "grossMargins": 0.3512,
+    "operatingMargins": 0.2104,
+    "profitMargins": 0.1687,
+    "returnOnEquity": 0.1423,
+    "returnOnAssets": 0.0781,
+    "debtToEquity": 31.44,
+    "currentRatio": 2.68,
+    "freeCashflow": 4120000000
+  },
+  "assetProfile": {
+    "sector": "Technology",
+    "industry": "Semiconductors",
+    "country": "United States"
+  },
+  "insiderTransactions": {
+    "transactions": [
+      {
+        "startDate": "2026-08-20T00:00:00.000Z",
+        "transactionText": "Purchase at price 112.40 per share.",
+        "shares": 4000,
+        "filerName": "Jane Q Insider",
+        "filerRelation": "Director"
+      },
+      {
+        "startDate": "2026-07-15T00:00:00.000Z",
+        "transactionText": "Sale at price 118.10 per share.",
+        "shares": 1500,
+        "filerName": "John P Officer",
+        "filerRelation": "Chief Financial Officer"
+      },
+      {
+        "startDate": "2026-06-30T00:00:00.000Z",
+        "transactionText": "Sale at price 121.55 per share.",
+        "shares": 500,
+        "filerName": "John P Officer",
+        "filerRelation": "Chief Financial Officer"
+      },
+      {
+        "startDate": "2026-07-02T00:00:00.000Z",
+        "transactionText": "Stock Award(Grant)",
+        "shares": 9000,
+        "filerName": "Jane Q Insider",
+        "filerRelation": "Director"
+      },
+      {
+        "startDate": "2026-01-10T00:00:00.000Z",
+        "transactionText": "Purchase at price 88.20 per share.",
+        "shares": 20000,
+        "filerName": "Old Filing",
+        "filerRelation": "Director"
+      }
+    ]
+  }
+}

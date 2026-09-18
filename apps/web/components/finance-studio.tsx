@@ -1,43 +1,47 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
-import { ArtifactActions } from "@/components/artifact-actions";
-import { EnhancePromptButton } from "@/components/enhance-prompt-button";
-import { FinanceBriefView } from "@/components/finance-brief-view";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { usePathname, useSearchParams } from "@/lib/nav";
+import { FinanceExportMenu } from "@/components/finance-export-menu";
+import { applyBriefDraft, briefDraftOf, briefInputsBody } from "@/components/finance-steps/brief";
+import type { FinanceSource } from "@/components/finance-steps/finance-inputs-panel";
+import { FinancePhaseStrip } from "@/components/finance-steps/finance-phase-strip";
+import { FinancePromptBar } from "@/components/finance-steps/finance-prompt-bar";
+import { FinanceResultNotices } from "@/components/finance-steps/finance-result-notices";
+import { FinanceResultPanel } from "@/components/finance-steps/finance-result-panel";
+import { financeStepsFor } from "@/components/finance-steps/registry";
+import type { FinanceStepDraft, FinanceStepPayload } from "@/components/finance-steps/types";
 import { JobProgressList } from "@/components/job-progress";
 import type { JobRegenSubmit } from "@/components/job-regen-panel";
-import { LineItemEditor } from "@/components/line-item-editor";
-import { ModelSelect } from "@/components/model-select";
-import { apiFetch } from "@/lib/api-client";
 import { listDatasets, type DatasetSummary } from "@/lib/data-client";
 import { briefLooksLikeFigures, parseFailureMessage } from "@/lib/finance-brief";
 import {
-  FINANCE_PARAM_FIELDS,
-  downloadFinanceDocx,
-  parseFigures,
+  parseFinanceFigures,
+  regenerateFinanceSection,
   usableLineItems,
   type FinanceParams,
   type FinanceResult,
   type LineItem,
+  type StatedFact,
 } from "@/lib/finance-client";
+import { loadFinanceDraft, saveFinanceDraft } from "@/lib/finance-drafts";
+import { financePhaseLabel } from "@/lib/finance-phase-label";
+import {
+  FINANCE_PATH,
+  financeTaskAvailable,
+  financeTaskHint,
+  financeTaskLabel,
+  financeTaskPhases,
+  taskFromParam,
+  type FinanceTask,
+} from "@/lib/finance-task";
 import { useJobModel } from "@/lib/use-job-model";
 import { useJobStream } from "@/lib/use-job-stream";
 import { useProductBrand } from "@/lib/product-brand";
-import { t } from "@/lib/i18n";
+import { useWorkspaceScope } from "@/lib/workspace-scope";
+import { getLocale, t } from "@/lib/i18n";
 import { labeled } from "@/lib/ui-copy";
 import { SettingsLinkHint } from "@/components/settings-link-hint";
-
-type Source = { kind: "items" } | { kind: "dataset"; id: string };
-
-function errorMessage(payload: unknown, fallback: string): string {
-  if (payload && typeof payload === "object") {
-    const error = (payload as { error?: { message?: unknown } }).error;
-    if (error && typeof error.message === "string" && error.message.trim()) {
-      return error.message;
-    }
-  }
-  return fallback;
-}
 
 function needsSettingsHint(message: string): boolean {
   return /gateway|api key|settings|runtime_stub|live gateway/i.test(message);
@@ -45,16 +49,40 @@ function needsSettingsHint(message: string): boolean {
 
 export function FinanceStudio() {
   const { productName } = useProductBrand();
-  const { models, model, setModel } = useJobModel("finance");
+  const { models, model, pinned: modelPinned, setModel } = useJobModel("finance");
   const job = useJobStream<FinanceResult>();
-  const [prompt, setPrompt] = useState("");
-  const [figures, setFigures] = useState("");
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { id: workspaceId } = useWorkspaceScope();
+  const uiLocale = getLocale();
+
+  /*
+   * The task is chosen in the rail, so the URL owns it. This pane is kept
+   * mounted behind the other work modes, and off `/finance` the query string
+   * belongs to whatever page is showing — so the last task seen on `/finance`
+   * is what stays active rather than the default silently taking over.
+   */
+  const onFinance = pathname === FINANCE_PATH;
+  const urlTask = taskFromParam(searchParams.get("task"));
+  const lastTaskRef = useRef<FinanceTask>(urlTask);
+  const task = onFinance ? urlTask : lastTaskRef.current;
+
+  const available = financeTaskAvailable(task);
+  const scopeKey = `${workspaceId ?? ""}|${task}`;
+  const lastScopeRef = useRef(scopeKey);
+  const initialDraft = useRef(loadFinanceDraft(workspaceId, task));
+
+  const [prompt, setPrompt] = useState(initialDraft.current.prompt);
+  const [figures, setFigures] = useState(initialDraft.current.figures);
   const [items, setItems] = useState<LineItem[]>([]);
+  /** A document's prose, and the figures it states in a sentence. Both stay empty for a spreadsheet. */
+  const [proseText, setProseText] = useState("");
+  const [statedFacts, setStatedFacts] = useState<StatedFact[]>([]);
   const [params, setParams] = useState<FinanceParams>({});
-  const [source, setSource] = useState<Source>({ kind: "items" });
+  const [source, setSource] = useState<FinanceSource>({ kind: "items" });
   const [datasets, setDatasets] = useState<DatasetSummary[]>([]);
   const [result, setResult] = useState<FinanceResult | null>(null);
-  const [busy, setBusy] = useState<"parse" | "autoParse" | "download" | "regen" | null>(null);
+  const [busy, setBusy] = useState<"parse" | "autoParse" | "regen" | null>(null);
   const [regenIndex, setRegenIndex] = useState<number | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -65,6 +93,8 @@ export function FinanceStudio() {
   const ready = source.kind === "dataset" || confirmedItems.length > 0;
   const generateLabel =
     busy === "autoParse" ? t("finance.autoParsing") : job.busy ? t("finance.generating") : t("finance.generate");
+  const taskName = labeled(`finance.tasks.${task}.label`, financeTaskLabel(task, uiLocale));
+  const taskTip = labeled(`finance.tasks.${task}.hint`, financeTaskHint(task, uiLocale));
 
   useEffect(() => {
     let cancelled = false;
@@ -81,8 +111,61 @@ export function FinanceStudio() {
     };
   }, []);
 
+  /*
+   * Each task asks for its own inputs, so a task switch swaps the whole draft
+   * rather than carrying half a cash-flow paste into the brief. The scope is
+   * the desk and the task together: two desks never share one draft either.
+   */
+  useEffect(() => {
+    if (lastScopeRef.current === scopeKey) {
+      return;
+    }
+    lastScopeRef.current = scopeKey;
+    lastTaskRef.current = task;
+    const draft = loadFinanceDraft(workspaceId, task);
+    setPrompt(draft.prompt);
+    setFigures(draft.figures);
+    setItems([]);
+    setProseText("");
+    setStatedFacts([]);
+    setParams({});
+    setSource({ kind: "items" });
+    setResult(null);
+    setLocalError(null);
+    setNotice(null);
+  }, [scopeKey, workspaceId, task]);
+
+  /* Remember what is typed, but never under a scope the fields do not belong to yet. */
+  useEffect(() => {
+    if (lastScopeRef.current !== scopeKey) {
+      return;
+    }
+    saveFinanceDraft(workspaceId, task, { prompt, figures });
+  }, [scopeKey, workspaceId, task, prompt, figures]);
+
+  /*
+   * The studio is a shell: it owns the state, the task owns the steps. One bag of this task's draft
+   * goes down, one partial patch comes back — so four task flows can be built in parallel without
+   * any of them reaching into this file.
+   */
+  const steps = financeStepsFor(task);
+  const StepInputs = steps.Inputs;
+  const StepResult = steps.Result ?? FinanceResultPanel;
+  const briefState = { figures, items, params, source, datasets, parsing: busy === "parse", proseText, statedFacts };
+  const briefDraft = briefDraftOf(briefState);
+
+  function onStepDraft(patch: FinanceStepDraft): void {
+    applyBriefDraft(patch, { setFigures, setItems, setParams, setSource, setProseText, setStatedFacts });
+  }
+
+  function onStepAction(payload: FinanceStepPayload): void {
+    if (payload.kind === "parse") {
+      void onParse();
+    }
+  }
+
   function inputsBody(): Record<string, unknown> {
-    return source.kind === "dataset" ? { datasetId: source.id, params } : { items: confirmedItems, params };
+    return { ...briefInputsBody(briefState), task };
   }
 
   async function onParse() {
@@ -94,8 +177,9 @@ export function FinanceStudio() {
     setNotice(null);
     job.reset();
     try {
-      const parsed = await parseFigures(figures, model);
-      setItems(parsed);
+      const parsed = await parseFinanceFigures(figures, { model, task, proseText });
+      setItems(parsed.items);
+      setStatedFacts(parsed.statedFacts);
       setSource({ kind: "items" });
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : t("finance.errors.parse"));
@@ -111,14 +195,15 @@ export function FinanceStudio() {
     setNotice(null);
     job.reset();
     try {
-      const parsed = await parseFigures(brief, model);
-      if (parsed.length === 0) {
+      const parsed = await parseFinanceFigures(brief, { model, task, proseText });
+      if (parsed.items.length === 0) {
         setLocalError(t("finance.errors.addItems"));
         return;
       }
-      setItems(parsed);
+      setItems(parsed.items);
+      setStatedFacts(parsed.statedFacts);
       setSource({ kind: "items" });
-      setNotice(t("finance.autoParsed", { n: parsed.length }));
+      setNotice(t("finance.autoParsed", { n: parsed.items.length }));
     } catch (err) {
       setLocalError(parseFailureMessage(err, t("finance.errors.parse"), t("finance.errors.addItems")));
     } finally {
@@ -143,7 +228,9 @@ export function FinanceStudio() {
     }
     setLocalError(null);
     setNotice(null);
-    const next = await job.run("/api/v1/finance/stream", { prompt: brief, model: model || undefined, ...inputsBody() });
+    // Only a deliberate pick travels: a seeded default must stay rescuable by the host's fallback.
+    const pick = { model: model || undefined, ...(modelPinned ? { modelPinned: true } : {}) };
+    const next = await job.run("/api/v1/finance/stream", { prompt: brief, ...pick, ...inputsBody() });
     if (next) {
       setResult(next);
       if (source.kind === "dataset") {
@@ -160,24 +247,18 @@ export function FinanceStudio() {
     setRegenIndex(index);
     setLocalError(null);
     try {
-      const res = await apiFetch("/api/v1/finance/regenerate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      setResult(
+        await regenerateFinanceSection({
           brief: result.brief,
           sectionIndex: index,
           prompt,
-          instruction: payload.instruction || undefined,
+          instruction: payload.instruction,
           model: payload.model || model || undefined,
-          ...inputsBody(),
+          modelPinned: Boolean(payload.model) || modelPinned,
+          artifactId: result.artifactId ?? undefined,
+          inputs: inputsBody(),
         }),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        throw new Error(errorMessage(data, t("finance.errors.regen")));
-      }
-      // The saved artifact still holds the pre-rewrite brief; drop the id so downloads use the current markdown.
-      setResult(data as FinanceResult);
+      );
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : t("finance.errors.regen"));
     } finally {
@@ -186,40 +267,39 @@ export function FinanceStudio() {
     }
   }
 
-  async function onDownload() {
-    if (!result || locked) {
-      return;
-    }
-    setBusy("download");
-    setLocalError(null);
-    try {
-      await downloadFinanceDocx(result.brief);
-    } catch (err) {
-      setLocalError(err instanceof Error ? err.message : t("finance.errors.docx"));
-    } finally {
-      setBusy(null);
-    }
-  }
-
   return (
     <main className="px-6 pb-10 pt-8 text-[var(--text)]" data-testid="finance-studio">
       <div className="kicker">{t("finance.kicker")}</div>
-      <div className="mb-5 flex flex-wrap items-end gap-4">
+      <div className="mb-3 flex flex-wrap items-end gap-4">
         <div>
           <h3 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("finance.title")}</h3>
+          {/* The task is picked in the rail; this only names the one that is open. */}
+          <div className="mt-1.5 flex flex-col gap-0.5" role="group" aria-label={t("finance.taskAria")}>
+            <span className="text-sm font-medium text-[var(--text)]" title={taskTip} data-testid="finance-task-current">
+              {taskName}
+            </span>
+            <span className="max-w-xl text-xs text-[var(--text-3)]" data-testid="finance-task-hint">
+              {taskTip}
+            </span>
+          </div>
           <p className="mt-1.5 max-w-xl text-sm text-[var(--text-2)]">{t("finance.subtitle", { productName })}</p>
         </div>
-        {result ? (
-          <button
-            type="button"
-            onClick={() => void onDownload()}
-            disabled={locked}
-            className="btn btn-primary ml-auto"
-            data-testid="finance-download-docx"
-          >
-            {busy === "download" ? t("finance.downloading") : t("finance.download")}
-          </button>
+        {/* Excel by default, the deck and the document behind the chevron. The brief on screen is what is sent. */}
+        {result && available ? (
+          <div className="ml-auto">
+            <FinanceExportMenu
+              result={result}
+              task={task}
+              report={result.report}
+              artifactId={result.artifactId}
+              workspaceId={workspaceId}
+              disabled={locked}
+            />
+          </div>
         ) : null}
+      </div>
+      <div className="mb-5">
+        <FinancePhaseStrip phases={financeTaskPhases(task)} />
       </div>
       {error ? (
         <p className="mb-4 text-sm text-[var(--danger)]" role="alert" data-testid="finance-error">
@@ -237,187 +317,77 @@ export function FinanceStudio() {
           {notice}
         </p>
       ) : null}
-      <div className="grid items-start gap-5 lg:[grid-template-columns:420px_minmax(0,1fr)]">
-        <section
-          className="space-y-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4"
-          data-testid="finance-inputs"
-        >
-          <div>
-            <label htmlFor="finance-figures-input" className="panel-label">
-              {t("finance.pasteFigures")}
-            </label>
-            <textarea
-              id="finance-figures-input"
-              rows={5}
-              value={figures}
-              onChange={(event) => setFigures(event.target.value)}
-              className="input mt-2 text-[13px]"
-              placeholder={t("finance.figuresPlaceholder")}
-              disabled={locked}
-              data-testid="finance-figures-input"
-            />
-            <button
-              type="button"
-              className="btn mt-2"
-              onClick={() => void onParse()}
-              disabled={locked || !figures.trim()}
-              data-testid="finance-parse"
-            >
-              {busy === "parse" ? t("finance.parsing") : t("finance.parse")}
-            </button>
-            <p className="mt-1 text-xs text-[var(--text-3)]">{t("finance.parseHint")}</p>
-          </div>
-          {datasets.length > 0 ? (
-            <div>
-              <label htmlFor="finance-dataset" className="panel-label">
-                {t("finance.orDataset")}
-              </label>
-              <select
-                id="finance-dataset"
-                className="input mt-2"
-                value={source.kind === "dataset" ? source.id : ""}
-                onChange={(event) =>
-                  setSource(event.target.value ? { kind: "dataset", id: event.target.value } : { kind: "items" })
-                }
-                disabled={locked}
-                data-testid="finance-dataset"
-              >
-                <option value="">{t("finance.lineItemsBelow")}</option>
-                {datasets.map((dataset) => (
-                  <option key={dataset.id} value={dataset.id}>
-                    {t("finance.datasetOption", { name: dataset.name, rows: dataset.rows })}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : null}
-          <div>
-            <p className="panel-label">
-              {confirmedItems.length > 0
-                ? t("finance.lineItemsCount", { count: confirmedItems.length })
-                : t("finance.lineItems")}
-              {source.kind === "dataset" ? t("finance.fromDataset") : ""}
-            </p>
-            <div className="mt-2">
-              <LineItemEditor
-                items={items}
-                onChange={(next) => {
-                  setItems(next);
-                  setSource({ kind: "items" });
-                }}
-                disabled={locked}
-              />
-            </div>
-          </div>
-          <div>
-            <p className="panel-label">{t("finance.parameters")}</p>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              {FINANCE_PARAM_FIELDS.map((field) => (
-                <label
-                  key={field.key}
-                  className="text-xs text-[var(--text-2)]"
-                  title={labeled(`finance.params.${field.key}Hint`, field.hint)}
-                >
-                  {labeled(`finance.params.${field.key}`, field.label)}
-                  <input
-                    type="number"
-                    step="any"
-                    className="input mt-1 px-2 py-1 text-xs"
-                    value={params[field.key] ?? ""}
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      setParams((current) => {
-                        const { [field.key]: _dropped, ...rest } = current;
-                        return value === "" ? rest : { ...rest, [field.key]: Number(value) };
-                      });
-                    }}
-                    disabled={locked}
-                    data-testid={`finance-param-${field.key}`}
-                  />
-                </label>
-              ))}
-            </div>
-          </div>
-        </section>
-        <div className="space-y-4">
-          {job.busy || (job.progress.phases.length > 0 && !result) ? (
-            <JobProgressList progress={job.progress} busy={job.busy} testId="finance-progress" />
-          ) : null}
-          {result ? (
-            <>
-              <ArtifactActions
-                title={result.brief.title}
-                markdown={result.markdown}
-                artifactId={result.artifactId}
-                kbType="Brief"
-                disabled={locked}
-                testIdPrefix="finance"
-              />
-              <FinanceBriefView
-                brief={result.brief}
-                guard={result.guard}
-                models={models}
-                defaultModel={model}
-                regeneratingIndex={regenIndex}
-                onRegenerate={(index, payload) => void onRegenerate(index, payload)}
-              />
-            </>
-          ) : job.busy ? null : (
-            <div
-              className="wash rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-8 text-center text-[var(--text-2)]"
-              data-testid="finance-studio-empty"
-            >
-              <p>{ready ? t("finance.emptyReady") : t("finance.emptyWait")}</p>
-            </div>
-          )}
-        </div>
-      </div>
-      <form
-        className="mt-5 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4"
-        onSubmit={(event) => void onGenerate(event)}
-        data-testid="finance-studio-prompt-bar"
-      >
-        <div className="mb-2 flex items-center gap-2">
-          <EnhancePromptButton
-            text={prompt}
-            surface="finance"
+      {available ? (
+        <div className="grid items-start gap-5 lg:[grid-template-columns:420px_minmax(0,1fr)]">
+          <StepInputs
+            task={task}
+            workspaceId={workspaceId}
+            locked={locked}
             model={model}
-            disabled={locked}
-            testId="finance-enhance"
-            onApply={setPrompt}
+            onGenerate={onStepAction}
+            draft={briefDraft}
+            setDraft={onStepDraft}
           />
-          <ModelSelect
-            models={models}
-            value={model}
-            onChange={setModel}
-            disabled={locked}
-            testId="finance-studio-model"
-          />
+          <div className="space-y-4">
+            {job.busy || (job.progress.phases.length > 0 && !result) ? (
+              <JobProgressList
+                progress={job.progress}
+                busy={job.busy}
+                testId="finance-progress"
+                labelFor={financePhaseLabel}
+              />
+            ) : null}
+            {result ? (
+              <>
+                <FinanceResultNotices result={result} />
+                <StepResult
+                  result={result}
+                  task={task}
+                  locale={uiLocale}
+                  models={models}
+                  defaultModel={model}
+                  regeneratingIndex={regenIndex}
+                  onRegenerate={(index, payload) => void onRegenerate(index, payload)}
+                  disabled={locked}
+                />
+              </>
+            ) : job.busy ? null : (
+              <div
+                className="wash rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-8 text-center text-[var(--text-2)]"
+                data-testid="finance-studio-empty"
+              >
+                <p>{ready ? t("finance.emptyReady") : t("finance.emptyWait")}</p>
+              </div>
+            )}
+          </div>
         </div>
-        <div className="flex gap-2">
-          <input
-            value={prompt}
-            onChange={(event) => setPrompt(event.target.value)}
-            className="input min-w-0 flex-1"
-            placeholder={t("finance.promptPlaceholder")}
-            disabled={locked}
-            data-testid="finance-prompt"
-          />
-          {job.busy ? (
-            <button type="button" className="btn" onClick={job.cancel} data-testid="finance-cancel">
-              {t("finance.cancel")}
-            </button>
-          ) : null}
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={locked || !prompt.trim()}
-            data-testid="finance-generate"
-          >
-            {generateLabel}
-          </button>
-        </div>
-      </form>
+      ) : (
+        // The `available` flag is still the seam a task is added through: the core registry keeps
+        // it in step with the module map, and the host refuses a task without one. All five ship
+        // today, so this line is the fallback for the next task added to the catalog, not a screen
+        // anyone reaches — which is why it is one sentence rather than its own panel.
+        <p
+          className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-8 text-center text-[var(--text-2)]"
+          role="status"
+          data-testid="finance-task-unavailable"
+        >
+          {t("finance.taskUnavailable", { task: financeTaskLabel(task, uiLocale) })}
+        </p>
+      )}
+      {available ? (
+        <FinancePromptBar
+          prompt={prompt}
+          onPrompt={setPrompt}
+          onSubmit={(event) => void onGenerate(event)}
+          onCancel={job.cancel}
+          models={models}
+          model={model}
+          onModel={setModel}
+          locked={locked}
+          running={job.busy}
+          submitLabel={generateLabel}
+        />
+      ) : null}
     </main>
   );
 }

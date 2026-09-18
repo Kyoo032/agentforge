@@ -1,9 +1,9 @@
-import { ApiError } from "@agentforge/core";
+import { ApiError, type AppLocale } from "@agentforge/core";
 import { financeBriefSchema, markdownTable, type FinanceBrief, type FinanceSection } from "@agentforge/core/artifacts";
 import {
   UNVERIFIED_MARKER,
   computeFinance,
-  formatMetricForPrompt,
+  formatMetricValue,
   guardNumbers,
   lineItemsSchema,
   type ComputedFinance,
@@ -24,6 +24,8 @@ export type GuardReport = {
   /** Section index → figures that did not trace back to inputs or computed metrics. */
   flagged: Array<{ section: number; text: string }>;
   total: number;
+  /** Sentences taken out because their figure could not be traced even after one rewrite. */
+  removed?: number;
 };
 
 export type FinanceInputs = { items: LineItem[]; params: FinanceParams };
@@ -133,18 +135,89 @@ export function buildFinanceBrief(
   return { brief, guard: { flagged, total: flagged.length } };
 }
 
-/** The model sees inputs and computed metrics as Markdown tables, never raw prose numbers. */
-export function financePromptBlock(inputs: FinanceInputs, computed: ComputedFinance): string {
+const WRITE_AS: Record<AppLocale, string> = {
+  en: 'Write every figure exactly as its "Write as" cell spells it. Never reformat, re-round or re-group a number.',
+  id: 'Tulis setiap angka persis seperti di kolom "Tulis sebagai". Jangan mengubah format, pembulatan atau pemisah ribuannya.',
+};
+
+type PromptWords = {
+  readonly value: string;
+  readonly items: string;
+  readonly metrics: string;
+  readonly stated: string;
+  readonly params: string;
+  readonly empty: string;
+};
+
+const WORDS: Record<AppLocale, PromptWords> = {
+  en: {
+    value: "Write as",
+    items: "Line items (the only inputs):",
+    metrics: "Computed metrics (already calculated in code; cite by key):",
+    stated: "Stated in the source (the sheet's own totals, which agree with ours):",
+    params: "Parameters:",
+    empty: "(none could be computed from these items)",
+  },
+  id: {
+    value: "Tulis sebagai",
+    items: "Baris angka (satu-satunya masukan):",
+    metrics: "Metrik terhitung (sudah dihitung di kode; kutip lewat key-nya):",
+    stated: "Tertulis di sumber (total milik lembar itu sendiri, yang cocok dengan hitungan kami):",
+    params: "Parameter:",
+    empty: "(tidak ada yang bisa dihitung dari baris ini)",
+  },
+};
+
+function currencyOf(items: readonly LineItem[]): string {
+  return items.find((item) => item.currency)?.currency ?? "";
+}
+
+function statedBlock(
+  computed: ComputedFinance,
+  currency: string,
+  locale: AppLocale,
+  words: PromptWords,
+): string | null {
+  const stated = (computed.checks ?? []).filter((check) => check.matches !== false);
+  if (stated.length === 0) {
+    return null;
+  }
+  const table = markdownTable(
+    ["Label", "Period", words.value],
+    stated.map((check) => [
+      check.label,
+      check.period,
+      formatMetricValue({ value: check.stated, unit: currency }, locale),
+    ]),
+  );
+  return `${words.stated}\n${table}`;
+}
+
+/**
+ * The model sees inputs and computed metrics as Markdown tables, never raw prose numbers — and every
+ * figure arrives already written the way the reader should read it, so "copy this" is the only
+ * instruction it needs and a 29.1282% can never reach a sentence.
+ */
+export function financePromptBlock(inputs: FinanceInputs, computed: ComputedFinance, locale: AppLocale = "en"): string {
+  const words = WORDS[locale] ?? WORDS.en;
+  const currency = currencyOf(inputs.items);
   const items = markdownTable(
-    ["Label", "Period", "Category", "Amount", "Currency"],
-    inputs.items.map((item) => [item.label, item.period, item.category, item.amount, item.currency]),
+    ["Label", "Period", "Category", "Amount", "Currency", words.value],
+    inputs.items.map((item) => [
+      item.label,
+      item.period,
+      item.category,
+      item.amount,
+      item.currency,
+      formatMetricValue({ value: item.amount, unit: item.currency || currency }, locale),
+    ]),
   );
   const metrics = markdownTable(
-    ["Key", "Metric", "Value", "Period", "Formula"],
+    ["Key", "Metric", words.value, "Period", "Formula"],
     computed.metrics.map((entry) => [
       entry.key,
       entry.label,
-      formatMetricForPrompt(entry),
+      formatMetricValue(entry, locale),
       entry.period,
       entry.formula,
     ]),
@@ -153,11 +226,13 @@ export function financePromptBlock(inputs: FinanceInputs, computed: ComputedFina
     .map(([key, value]) => `- ${key}: ${value}`)
     .join("\n");
   return [
-    "Line items (the only inputs):",
+    WRITE_AS[locale] ?? WRITE_AS.en,
+    words.items,
     items,
-    params ? `Parameters:\n${params}` : null,
-    "Computed metrics (already calculated in code; cite by key):",
-    metrics || "(none could be computed from these items)",
+    params ? `${words.params}\n${params}` : null,
+    words.metrics,
+    metrics || words.empty,
+    statedBlock(computed, currency, locale, words),
   ]
     .filter(Boolean)
     .join("\n\n");

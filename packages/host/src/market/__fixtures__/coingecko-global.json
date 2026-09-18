@@ -1,0 +1,20 @@
+{
+  "data": {
+    "active_cryptocurrencies": 17342,
+    "total_market_cap": {
+      "btc": 32891234.5,
+      "usd": 3421987654321.2,
+      "idr": 55123456789012345
+    },
+    "total_volume": {
+      "usd": 142398765432.1
+    },
+    "market_cap_percentage": {
+      "btc": 57.42,
+      "eth": 12.08,
+      "usdt": 4.31
+    },
+    "market_cap_change_percentage_24h_usd": -1.24,
+    "updated_at": 1789000000
+  }
+}

@@ -50,7 +50,11 @@ export const MARKET_TOOL_DISCLAIMER =
 export const MARKET_NEWS_DEFAULT_LIMIT = 8;
 export const MARKET_NEWS_LIMIT_MAX = 10;
 
-const PII_MASK_TOKEN = /\[(?:email|phone|id|card)\]/g;
+/**
+ * Every placeholder `maskPii` can leave behind. It listed four of the eight, so a masked NIK, NPWP,
+ * account number or name went into the FTS query as the literal words `[nik]` and matched nothing.
+ */
+const PII_MASK_TOKEN = /\[(?:email|phone|id|card|nik|npwp|account|name)\]/g;
 
 export type MarketToolDeps = {
   /** The SQLite handle that owns `market_cache`; lazy so importing the tools never opens a database. */

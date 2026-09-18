@@ -1,24 +1,14 @@
-import {
-  ApiError,
-  gatewayRequiredMessage,
-  hasLiveProvider,
-  modeMessage,
-  resolveChatModel,
-  resolveRuntimeMode,
-  withOutputLanguage,
-  type TenantContext,
-} from "@agentforge/core";
+import { ApiError, modeMessage, withOutputLanguage, type AppLocale, type TenantContext } from "@agentforge/core";
 import { financeBriefSchema, financeBriefToMarkdown, type FinanceBrief } from "@agentforge/core/artifacts";
 import {
-  dropCountRows,
-  expandMagnitudes,
+  DEFAULT_FINANCE_TASK,
+  getFinanceTaskModule,
   lineItemsFromTable,
-  looksScaled,
-  parseLineItems,
   type LineItem,
 } from "@agentforge/core/finance";
 import type { JobEmitter } from "@agentforge/core/jobs";
 import { artifactStore } from "./artifacts";
+import { financeArtifactMeta } from "./finance-artifact";
 import { upsertWorkSource } from "./knowledge-ingest";
 import { artifactWorkCard } from "./work-cards";
 import { requireDataset } from "./datasets";
@@ -33,24 +23,26 @@ import {
   type FinanceInputs,
   type GuardReport,
 } from "./finance-brief-build";
-import { appendRegenInstruction, collectJobAssistantText, readOptionalInstruction } from "./job-regen";
+import { readFinanceLocale } from "./finance-locale";
+import { readStatedFacts, statedFactsBlock, withStatedFacts } from "./finance-stated";
+import { parseFiguresText, type ParsedFigures } from "./finance-parse-figures";
+import { repairUnverifiedSections } from "./finance-section-repair";
+import { guardFinanceInput, mergeFinancePii, type FinancePiiSummary } from "./finance-privacy";
+import { readFinanceTask, withFinanceTaskRules } from "./finance-task";
+import {
+  appendRegenInstruction,
+  collectJobAssistantRun,
+  readOptionalInstruction,
+  type JobAssistantRun,
+} from "./job-regen";
 import { readSourceText } from "./job-source";
 import { throwIfJobAborted } from "./job-stream";
-import { listSelectableModels, modeCatalogPayload } from "./selectable-models";
-import { loadSettings } from "./settings-store";
-import { localeForRun } from "./run-context";
+import { readModelPinned, readPrompt, requireLive, resolveModel } from "./finance-tasks/live";
+import { runFinanceTask } from "./finance-tasks/runner";
+import type { FinanceTaskRunResult } from "./finance-tasks/types";
 
-export const FIGURES_TEXT_MAX = 12_000;
-
-const PARSE_SYSTEM = `You turn pasted financial figures into line items. Return ONLY JSON:
-{"items": [{"label": string, "period": string, "amount": number, "currency": string, "category": "revenue"|"cogs"|"opex"|"cash"|"debt"|"equity"|"asset"|"liability"|"other"}]}
-Rules:
-- One item per figure in the text. amount is a plain number (no separators, no symbols); keep the sign the text implies.
-- period is the text's own label ("2025", "Q1", "Sep", "monthly") or "" when none is given.
-- currency is the ISO code when stated or clearly implied (Rp → IDR, $ → USD), else "".
-- Only monetary amounts and percentages or rates are items. Counts of things are not: skip outlets, stores, branches, employees, staff, headcount, units, months, weeks, days, customers and users when the number just says how many there are.
-- Amounts are already expanded to full integers; copy them exactly.
-- Never add figures that are not in the text. Do not compute totals or averages.`;
+export { FIGURES_TEXT_MAX } from "./finance-parse-figures";
+export type { ParsedFigures } from "./finance-parse-figures";
 
 const BRIEF_SYSTEM = `You write a finished finance brief for DPSBuddy from line items and metrics that were computed in code.
 Return ONLY valid JSON (no markdown fences) with this exact shape:
@@ -60,7 +52,7 @@ Return ONLY valid JSON (no markdown fences) with this exact shape:
   "assumptions": [string]
 }
 Rules:
-- Every number in a body must be one of the line-item amounts or a computed metric value, written with the same value (rounding to one decimal is fine). Anything else is stripped by a guard and shown as "[unverified figure]", so do not estimate.
+- Every number in a body must be copied from a "Write as" cell, character for character. Anything else is stripped by a guard, so do not estimate, reformat or re-round.
 - metrics lists the keys of the computed metrics the section relies on.
 - If the metrics you need are missing, say what input is missing instead of inventing it.
 - 3 to 6 sections, each 2 to 4 short paragraphs (\\n\\n between paragraphs). Headings are claims or jobs, not labels.
@@ -69,7 +61,7 @@ Rules:
 
 const SECTION_SYSTEM = `You rewrite one section of an DPSBuddy finance brief.
 Return ONLY valid JSON: { "heading": string, "body": string, "metrics": [string] }
-Rules: same as the brief. Only line-item amounts and computed metric values may appear as numbers; metrics lists the keys used. Stay on the same topic as the rest of the brief.`;
+Rules: same as the brief. Every number is copied from a "Write as" cell; metrics lists the keys used. Stay on the same topic as the rest of the brief.`;
 
 export type FinanceResult = {
   brief: FinanceBrief;
@@ -77,50 +69,19 @@ export type FinanceResult = {
   markdown: string;
   guard: GuardReport;
   items: LineItem[];
+  /** What the privacy guard hid before the prompt was built. The studio shows the count. */
+  pii: FinancePiiSummary;
+  /** The model that actually answered, and the notice when it was not the one asked for. */
+  model?: string;
+  notice?: JobAssistantRun["notice"];
 };
-
-export type ParsedFigures = { items: LineItem[]; needsConfirmation: true };
 
 const NO_EMIT: JobEmitter = () => {};
 
-function readPrompt(body: unknown): string {
-  if (!body || typeof body !== "object") {
-    throw new ApiError("invalid_request", "Request body must be a JSON object", 400);
-  }
-  const prompt = (body as { prompt?: unknown }).prompt;
-  if (typeof prompt !== "string" || !prompt.trim()) {
-    throw new ApiError("invalid_request", "prompt is required", 400);
-  }
-  return prompt.trim();
-}
-
-function readOptionalModel(body: unknown): string | undefined {
-  const model = (body as { model?: unknown }).model;
-  return typeof model === "string" && model.trim() ? model.trim() : undefined;
-}
-
-function requireLive(workspaceId: string): ReturnType<typeof loadSettings> {
-  const settings = loadSettings(workspaceId);
-  const mode = resolveRuntimeMode({
-    settingsHasKey: hasLiveProvider(settings),
-    envRuntime: process.env.AGENTFORGE_RUNTIME,
-  });
-  if (mode === "stub") {
-    throw new ApiError("runtime_stub", gatewayRequiredMessage("finance", localeForRun()), 503);
-  }
-  return settings;
-}
-
-function resolveModel(body: unknown, settings: ReturnType<typeof loadSettings>): string {
-  const { defaults } = modeCatalogPayload();
-  return resolveChatModel(
-    readOptionalModel(body),
-    settings.documentGenModel || defaults.finance,
-    listSelectableModels(),
-  );
-}
-
-/** Free text → line items via the model. Nothing is computed until the user confirms these. */
+/**
+ * Figures text → line items. An imported table is read in code; only free prose reaches the model,
+ * and even then only after the privacy guard has rewritten it.
+ */
 export async function parseFinanceFigures(tenant: TenantContext, body: unknown): Promise<ParsedFigures> {
   const figures = (body as { figures?: unknown } | null)?.figures;
   if (typeof figures !== "string" || !figures.trim()) {
@@ -128,38 +89,20 @@ export async function parseFinanceFigures(tenant: TenantContext, body: unknown):
   }
   const settings = requireLive(tenant.workspaceId);
   const model = resolveModel(body, settings);
-  const locale = localeForRun();
-  // "IDR 18.4B" becomes "IDR 18400000000" before the model sees it: a quiet-reasoning model copies
-  // the mantissa and drops the suffix, which stores every amount 1e9 short. Cap after expanding.
-  const source = figures.trim();
-  const expanded = expandMagnitudes(source, locale).slice(0, FIGURES_TEXT_MAX);
-  const raw = await collectJobAssistantText({
-    tenant,
-    model,
-    systemPrompt: PARSE_SYSTEM,
-    runPrefix: "finance-parse",
-    agentId: "finance",
-    jobMode: "finance",
-    versionId: "finance-parse",
-    prompt: `Figures:\n${expanded}`,
+  const locale = readFinanceLocale(body);
+  // Redacted first: the guard reads the owner's own text, and only the redacted copy ever leaves.
+  const guarded = guardFinanceInput({ figuresText: figures.trim() });
+  // A document's prose reaches the same reader, so it is redacted on the same terms first.
+  const raw = (body as { proseText?: unknown } | null)?.proseText;
+  const prose = typeof raw === "string" && raw.trim() ? guardFinanceInput({ figuresText: raw.trim() }) : null;
+  const parsed = await parseFiguresText({ tenant, model }, guarded.figuresText, locale, {
+    proseText: prose?.figuresText ?? "",
   });
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw.trim().replace(/^```(?:json)?\s*|\s*```$/g, ""));
-  } catch {
-    throw new ApiError("invalid_finance", "Model returned invalid JSON for the figures", 502);
-  }
-  // The prompt already asks for money only; this drops the count rows a model still slips in ("12 outlets").
-  // looksScaled reads the text the user typed, suffixes and all: that is the evidence a row lost its scale.
-  const items = looksScaled(source, dropCountRows(parseLineItems(parsed)), locale);
-  if (items.length === 0) {
-    throw new ApiError("invalid_finance", modeMessage("noFiguresParsed", localeForRun()), 422);
-  }
-  return { items, needsConfirmation: true };
+  return { ...parsed, pii: prose ? mergeFinancePii(guarded.pii, prose.pii) : guarded.pii };
 }
 
 /** Confirmed items, or a dataset's rows mapped to items. Free text must go through parseFinanceFigures first. */
-function resolveInputs(tenant: TenantContext, body: unknown): FinanceInputs {
+function resolveInputs(tenant: TenantContext, body: unknown, locale: AppLocale): FinanceInputs {
   const direct = readFinanceInputs(body);
   if (direct) {
     return direct;
@@ -168,7 +111,7 @@ function resolveInputs(tenant: TenantContext, body: unknown): FinanceInputs {
   if (typeof datasetId === "string" && datasetId.trim()) {
     const items = lineItemsFromTable(requireDataset(tenant, datasetId.trim()).table);
     if (items.length === 0) {
-      throw new ApiError("invalid_request", modeMessage("datasetNoNumericColumn", localeForRun()), 400);
+      throw new ApiError("invalid_request", modeMessage("datasetNoNumericColumn", locale), 400);
     }
     return { items, params: readFinanceInputs({ items, params: (body as { params?: unknown }).params })?.params ?? {} };
   }
@@ -202,16 +145,37 @@ export async function generateFinanceBrief(
   body: unknown,
   emit: JobEmitter = NO_EMIT,
   abortSignal?: AbortSignal,
-): Promise<FinanceResult> {
+): Promise<FinanceResult | FinanceTaskRunResult> {
+  // The rail chooses the task and the studio puts it on the body. `brief` adds no
+  // rules and is stamped on the artifact the way Market stamps its specialist.
+  const task = readFinanceTask(body);
+  // Every other task owns its own phases, its own maths and its own report, so it runs the generic
+  // runner instead of a second copy of this function. The brief keeps the path below, untouched.
+  const taskModule = task === DEFAULT_FINANCE_TASK ? null : getFinanceTaskModule(task);
+  if (taskModule) {
+    return runFinanceTask(taskModule, { tenant, body, emit, abortSignal });
+  }
   const question = readPrompt(body);
   const settings = requireLive(tenant.workspaceId);
   const model = resolveModel(body, settings);
-  const extra = readSourceText(body, { injectionGuardBypass: settings.injectionGuardBypass === true });
+  const locale = readFinanceLocale(body);
+  // Source material reaches the same prompt as the line items, so it is redacted on the same terms.
+  const source = guardFinanceInput({
+    figuresText: readSourceText(body, { injectionGuardBypass: settings.injectionGuardBypass === true }),
+  });
+  const extra = source.figuresText;
 
   throwIfJobAborted(abortSignal);
   emit({ type: "job.phase", phase: "computing", label: "Computing metrics" });
-  const inputs = resolveInputs(tenant, body);
-  const computed = computeFinance(inputs.items, inputs.params);
+  const supplied = resolveInputs(tenant, body, locale);
+  // Labels and periods are redacted before `financePromptBlock` writes them into the prompt table.
+  const guarded = guardFinanceInput({ lineItems: supplied.items });
+  const inputs: FinanceInputs = { items: guarded.lineItems, params: supplied.params };
+  const pii = mergeFinancePii(source.pii, guarded.pii);
+  // Facts the document stated in a sentence are quotations, not inputs: they may be cited and
+  // verified, and they never enter a sum.
+  const stated = readStatedFacts(body);
+  const computed = withStatedFacts(computeFinance(inputs.items, inputs.params, { locale }), stated, locale);
   emit({
     type: "job.step",
     phase: "computing",
@@ -220,29 +184,44 @@ export async function generateFinanceBrief(
 
   throwIfJobAborted(abortSignal);
   emit({ type: "job.phase", phase: "drafting", label: "Drafting the brief" });
-  const raw = await collectJobAssistantText({
+  const systemPrompt = withOutputLanguage(withFinanceTaskRules(BRIEF_SYSTEM, task, locale), "finance", locale);
+  const factsBlock = [financePromptBlock(inputs, computed, locale), statedFactsBlock(stated, locale)]
+    .filter(Boolean)
+    .join("\n\n");
+  const run = await collectJobAssistantRun({
     tenant,
     model,
-    systemPrompt: withOutputLanguage(BRIEF_SYSTEM, "finance", localeForRun()),
+    modelExplicit: readModelPinned(body),
+    systemPrompt,
     runPrefix: "finance",
     agentId: "finance",
     jobMode: "finance",
     versionId: "finance-brief",
-    prompt: [
-      financePromptBlock(inputs, computed),
-      extra ? `Extra context:\n${extra}` : null,
-      `Brief requested:\n${question}`,
-    ]
+    prompt: [factsBlock, extra ? `Extra context:\n${extra}` : null, `Brief requested:\n${question}`]
       .filter(Boolean)
       .join("\n\n"),
   });
-  if (!raw.trim()) {
-    throw new ApiError("generation_failed", modeMessage("emptyFinanceBrief", localeForRun()), 502);
+  if (!run.text.trim()) {
+    throw new ApiError("generation_failed", modeMessage("emptyFinanceBrief", locale), 502);
   }
 
   throwIfJobAborted(abortSignal);
   emit({ type: "job.phase", phase: "verifying", label: "Checking every figure" });
-  const { brief, guard } = buildFinanceBrief(parseBriefDraft(raw), computed);
+  const built = buildFinanceBrief(parseBriefDraft(run.text), computed);
+  // One rewrite for whatever the guard blanked, then a clean removal: the marker never ships.
+  const repaired = await repairUnverifiedSections(built.brief, computed, {
+    tenant,
+    model: run.model,
+    systemPrompt: withOutputLanguage(SECTION_SYSTEM, "finance", locale),
+    factsBlock,
+    locale,
+  });
+  const brief = financeBriefSchema.parse(repaired.brief);
+  const guard: GuardReport = {
+    flagged: [...built.guard.flagged, ...repaired.guard.flagged],
+    total: built.guard.total + repaired.guard.total,
+    removed: repaired.guard.removed ?? 0,
+  };
   emit({
     type: "job.step",
     phase: "verifying",
@@ -252,19 +231,53 @@ export async function generateFinanceBrief(
   throwIfJobAborted(abortSignal);
   emit({ type: "job.phase", phase: "saving", label: "Saving brief" });
   const markdown = financeBriefToMarkdown(brief);
-  const artifactId = persistBrief(tenant, brief, markdown, {
-    question,
-    model,
-    itemCount: inputs.items.length,
-    flagged: guard.total,
-  });
+  // The structured brief rides along with the provenance: markdown alone cannot give an export
+  // back its computed tables or its chart series, and this brief is saved once and read for years.
+  const artifactId = persistBrief(
+    tenant,
+    brief,
+    markdown,
+    financeArtifactMeta(
+      { question, model: run.model, task, itemCount: inputs.items.length, flagged: guard.total },
+      brief,
+      guard,
+    ),
+  );
   if (artifactId) {
     await upsertWorkSource(
       tenant,
-      artifactWorkCard({ type: "Finance", artifactId, title: brief.title, prompt: question, markdown, model }),
+      artifactWorkCard({
+        type: "Finance",
+        artifactId,
+        title: brief.title,
+        prompt: question,
+        markdown,
+        model: run.model,
+      }),
     );
   }
-  return { brief, artifactId, markdown, guard, items: inputs.items };
+  return {
+    brief,
+    artifactId,
+    markdown,
+    guard,
+    items: inputs.items,
+    pii,
+    model: run.model,
+    ...(run.notice ? { notice: run.notice } : {}),
+  };
+}
+
+/**
+ * The artifact the brief being rewritten was saved as, when the studio sends it.
+ *
+ * Regenerate used to answer `artifactId: null`, so "Send to Knowledge Base" after a rewrite took
+ * the no-artifact branch and pasted a second, near-identical row next to the card the original
+ * generate had already indexed. Carrying the id back makes that send idempotent.
+ */
+export function readRegenArtifactId(body: unknown): string | null {
+  const id = (body as { artifactId?: unknown } | null)?.artifactId;
+  return typeof id === "string" && id.trim() ? id.trim() : null;
 }
 
 function readSectionIndex(body: unknown, length: number): number {
@@ -292,13 +305,16 @@ export async function regenerateFinanceSection(tenant: TenantContext, body: unkn
   }
   const settings = requireLive(tenant.workspaceId);
   const model = resolveModel(body, settings);
-  const inputs = resolveInputs(tenant, body);
-  const computed = computeFinance(inputs.items, inputs.params);
+  const locale = readFinanceLocale(body);
+  const supplied = resolveInputs(tenant, body, locale);
+  const guarded = guardFinanceInput({ lineItems: supplied.items });
+  const inputs: FinanceInputs = { items: guarded.lineItems, params: supplied.params };
+  const computed = computeFinance(inputs.items, inputs.params, { locale });
   const topic =
     typeof (body as { prompt?: unknown }).prompt === "string" ? (body as { prompt: string }).prompt.trim() : "";
   const prompt = appendRegenInstruction(
     [
-      financePromptBlock(inputs, computed),
+      financePromptBlock(inputs, computed, locale),
       topic ? `Original brief request: ${topic}` : null,
       `Brief title: ${brief.title}`,
       `Other sections:\n${brief.sections
@@ -311,10 +327,11 @@ export async function regenerateFinanceSection(tenant: TenantContext, body: unkn
       .join("\n\n"),
     readOptionalInstruction(body),
   );
-  const raw = await collectJobAssistantText({
+  const run = await collectJobAssistantRun({
     tenant,
     model,
-    systemPrompt: withOutputLanguage(SECTION_SYSTEM, "finance", localeForRun()),
+    modelExplicit: readModelPinned(body),
+    systemPrompt: withOutputLanguage(SECTION_SYSTEM, "finance", locale),
     runPrefix: "finance-section",
     agentId: "finance",
     jobMode: "finance",
@@ -322,7 +339,7 @@ export async function regenerateFinanceSection(tenant: TenantContext, body: unkn
     prompt,
   });
   const knownKeys = new Set(computed.metrics.map((entry) => entry.key));
-  const rewritten = guardSection(parseBriefSection(raw), computed, knownKeys);
+  const rewritten = guardSection(parseBriefSection(run.text), computed, knownKeys);
   const next = financeBriefSchema.parse({
     ...brief,
     sections: brief.sections.map((section, at) => (at === index ? rewritten.section : section)),
@@ -332,5 +349,31 @@ export async function regenerateFinanceSection(tenant: TenantContext, body: unkn
     flagged: rewritten.flagged.map((text) => ({ section: index, text })),
     total: rewritten.flagged.length,
   };
-  return { brief: next, artifactId: null, markdown: financeBriefToMarkdown(next), guard, items: inputs.items };
+  const markdown = financeBriefToMarkdown(next);
+  // Same origin as the generate that created the artifact, so the loop rewrites that one card
+  // with the rewritten brief instead of the Knowledge Base ending up a version behind.
+  const artifactId = readRegenArtifactId(body);
+  if (artifactId) {
+    await upsertWorkSource(
+      tenant,
+      artifactWorkCard({
+        type: "Finance",
+        artifactId,
+        title: next.title,
+        prompt: topic || undefined,
+        markdown,
+        model: run.model,
+      }),
+    );
+  }
+  return {
+    brief: next,
+    artifactId,
+    markdown,
+    guard,
+    items: inputs.items,
+    pii: guarded.pii,
+    model: run.model,
+    ...(run.notice ? { notice: run.notice } : {}),
+  };
 }

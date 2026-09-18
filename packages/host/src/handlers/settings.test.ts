@@ -192,6 +192,26 @@ describe("host-side gateway enforcement", () => {
   });
 });
 
+describe("the job-model breaker follows the key", () => {
+  const DOWN = "gpt-5.6-sol";
+
+  it("is cleared by a settings save and by a key reset, like the embeddings breaker", async () => {
+    const circuit = await import("../job-model-fallback");
+    delete process.env.AGENTFORGE_RUNTIME;
+    stubFetch(200);
+
+    circuit.markJobModelDown(DOWN);
+    expect(circuit.isJobModelDown(DOWN)).toBe(true);
+    expect((await json("POST", "/api/v1/settings", { openaiApiKey: KEY })).status).toBe(200);
+    expect(circuit.isJobModelDown(DOWN)).toBe(false);
+
+    circuit.markJobModelDown(DOWN);
+    expect(circuit.isJobModelDown(DOWN)).toBe(true);
+    expect((await json("POST", "/api/v1/settings/reset", { scope: "key" })).status).toBe(200);
+    expect(circuit.isJobModelDown(DOWN)).toBe(false);
+  });
+});
+
 describe("POST /api/v1/settings", () => {
   it("checks a newly saved key and returns the fresh gate", async () => {
     delete process.env.AGENTFORGE_RUNTIME;
@@ -355,6 +375,10 @@ describe("POST /api/v1/settings/reset", () => {
       "legal",
       "models-cache.json",
       "models-dev-cache.json",
+      // Downloaded native components and the installer's log: host-written and re-downloadable,
+      // so a full "Start over" takes them too.
+      "components",
+      "logs",
     ]);
     // Chromium's profile and the desktop status file are not the host's to delete.
     expect(marker.entries).not.toContain("host-status.json");

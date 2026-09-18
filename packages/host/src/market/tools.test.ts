@@ -36,6 +36,10 @@ function yahooClient(log: string[]): YahooClient {
       log.push(`search:${query}`);
       return query === "MU" ? clone(searchFixture) : { news: [] };
     },
+    async quoteSummary(symbol) {
+      log.push(`quoteSummary:${symbol}`);
+      return {};
+    },
   };
 }
 
@@ -162,6 +166,16 @@ describe("market tools (v2)", () => {
     expect(out.data.hits.map((hit) => hit.title)).toEqual([newsItem().title]);
     expect(searchQueryFor("HBM mail kyo@example.com")).toBe("HBM mail");
     expect(log).toEqual([]);
+  });
+
+  it("drops every mask placeholder from the search query, not just the first four", () => {
+    // The kinds the finance scanner adds: a masked identifier must never become a search term.
+    expect(searchQueryFor("HBM [nik] [npwp] [account] [name] [email] [phone] [id] [card] shortage")).toBe(
+      "HBM shortage",
+    );
+    // The label survives, the identifier does not: `maskPii` turns the digits into `[nik]` and the
+    // placeholder is then dropped, so nothing of the number reaches the index.
+    expect(searchQueryFor("NIK 3273010101900001 chip demand")).toBe("NIK chip demand");
   });
 
   it("market_news requires a symbol or a query", () => {

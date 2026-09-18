@@ -14,12 +14,60 @@
     "empty": "Add a ticker above to see its price and chart.",
     "openSettings": "Open {settings}",
     "languageAria": "Briefing language",
+    "specialistLabel": "Specialist",
+    "specialistAria": "Market specialist",
+    "specialistStarter": "Use {label} starter list",
+    "sourcesLabel": "Sources",
+    "sourcesComputed": "Computed on device",
     "startersLead": "Or start from a ready-made list:",
     "positionLabel": "Your positions (optional)",
     "positionHelp": "What you own and at what price. The briefing may use these numbers; it invents nothing else.",
     "promptLabel": "What the briefing should cover",
     "resetPrompt": "Reset to default",
     "lengthLimit": "Length limit (characters)"
+  },
+  "depth": {
+    "label": "Analysis",
+    "aria": "Analysis mode",
+    "quick": "Single analyst",
+    "team": "Analyst team",
+    "hint": "Analyst team runs four analysts, one bull and bear round, and a risk read before the briefing is written.",
+    "unavailable": "This desk has no analyst team, so a single analyst writes its briefing."
+  },
+  "progress": {
+    "analysts": "Analyst notes",
+    "debate": "Bull and bear round",
+    "risk": "Risk read",
+    "synthesis": "Writing the briefing"
+  },
+  "team": {
+    "title": "Analyst team",
+    "show": "Show the analyst team",
+    "hide": "Hide the analyst team",
+    "notes": "Analyst notes",
+    "bull": "Bull case",
+    "bear": "Bear case",
+    "risk": "Risk read",
+    "rebuttals": "Rebuttals",
+    "volatility": "Volatility",
+    "liquidity": "Liquidity",
+    "analysts": {
+      "technical": "Technical",
+      "fundamentals": "Fundamentals",
+      "sentiment": "Sentiment",
+      "news": "News"
+    },
+    "lenses": {
+      "aggressive": "Aggressive",
+      "neutral": "Neutral",
+      "conservative": "Conservative"
+    },
+    "confidence": {
+      "label": "Confidence",
+      "low": "Low confidence",
+      "medium": "Medium confidence",
+      "high": "High confidence"
+    }
   },
   "errors": {
     "needsKey": "Quotes and charts work without a key. To write the briefing, add your API key in Settings.",
@@ -52,6 +100,52 @@
     "semis-macro": {
       "label": "Semis vs macro",
       "hint": "Semiconductor names against the volatility index."
+    }
+  },
+  "specialists": {
+    "saham": {
+      "label": "Stocks",
+      "hint": "Equities on any exchange — IDX, US, and beyond: ranked watchlist, sector read, session-aware."
+    },
+    "forex": {
+      "label": "Forex",
+      "hint": "Currency pairs read against the dollar, rate differentials, and session hours."
+    },
+    "gold": {
+      "label": "Gold & Minerals",
+      "hint": "Gold, silver and copper against the dollar and real yields, plus the Indonesian miners as beta."
+    },
+    "crypto": {
+      "label": "Crypto",
+      "hint": "A 24/7 market: bitcoin as the driver, dominance, and altcoin volatility."
+    },
+    "commodities": {
+      "label": "Commodities",
+      "hint": "Energy and metals: the futures curve, dollar sensitivity, and the exporter read."
+    },
+    "indices": {
+      "label": "Global Indices",
+      "hint": "The Asia-Europe-US session relay, futures against the cash indices."
+    },
+    "sector-rotation": {
+      "label": "Sector Rotation",
+      "hint": "Relative performance across IDX sectors and US sector ETFs, leaders and laggards."
+    },
+    "scanner": {
+      "label": "Market Scanner",
+      "hint": "A ranked setups table per signal group, with no narrative filler."
+    },
+    "summary": {
+      "label": "Market Summary",
+      "hint": "A one page overview: indices, futures, currencies, yields, and commodities."
+    },
+    "elliott-wave": {
+      "label": "Elliott Wave Count",
+      "hint": "A hedged wave count over the packet swings, with an invalidation level."
+    },
+    "news": {
+      "label": "News Aggregator",
+      "hint": "A headline digest by ticker and theme, with publisher, time, and a stale flag."
     }
   },
   "board": {

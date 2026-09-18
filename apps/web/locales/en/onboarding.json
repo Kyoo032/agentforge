@@ -3,12 +3,40 @@
   "intro": "Paste your {gatewayName} API key. Chat and job modes run on this machine.",
   "setupCheck": "Setup check",
   "ffmpegLater": "You can continue now and install ffmpeg later; the Edit studio shows the same guide until it is found.",
-  "endpointLabel": "Endpoint URL",
   "keyLabel": "API key",
   "keyPlaceholder": "From your gateway dashboard",
   "continue": "Continue to Chat",
-  "endpointLocked": "This endpoint is fixed and cannot be changed.",
+  "gatewayHost": "Gateway: {host}",
   "gate.invalidKey": "The gateway rejected this API key. Check the key at {gatewayName} and try again.",
   "gate.unreachable": "Could not reach {gatewayName}. Check your connection and try again.",
-  "gate.error": "The gateway returned an unexpected error. Try again in a moment."
+  "gate.error": "The gateway returned an unexpected error. Try again in a moment.",
+  "components": {
+    "title": "Setting up {productName}",
+    "description": "Adding the local reader for PDF, Word, PowerPoint, Excel and e-book files. Every document is read on this machine; nothing is uploaded.",
+    "size": "One-time download, about {mb} MB.",
+    "progress": "{done} of {total} steps · {percent}%",
+    "duration": "{seconds}s",
+    "steps": {
+      "check": "Checking what is already here",
+      "download": "Downloading the reader",
+      "verify": "Verifying the download",
+      "unpack": "Unpacking it",
+      "probe": "Loading it",
+      "marker": "Finishing up"
+    },
+    "done": "The local document reader is ready.",
+    "alreadyRunning": "Another window is already setting this up; it will finish on its own.",
+    "retry": "Try again",
+    "worksWithout": "{productName} works without it — documents are read by a simpler local reader until it is installed.",
+    "errors": {
+      "offline": "No connection, so the reader could not be downloaded.",
+      "download_failed": "The download did not finish.",
+      "integrity_mismatch": "The download did not match its checksum, so it was thrown away.",
+      "unpack_failed": "The download could not be unpacked.",
+      "probe_failed": "The reader was installed but would not load.",
+      "unsupported_platform": "There is no reader build for this operating system.",
+      "busy": "Another window is already setting this up.",
+      "unknown": "Setting up the reader did not finish."
+    }
+  }
 }

@@ -208,7 +208,7 @@ export function VideosStudio() {
       >
         <div className="flex flex-wrap gap-2">
           <select
-            className="h-8 rounded-lg border border-[var(--line)] bg-transparent px-3 py-2 text-sm text-[var(--text)]"
+            className="select-field"
             value={aspect}
             onChange={(event) => setAspect(event.target.value as (typeof ASPECTS)[number]["id"])}
             disabled={generating}
@@ -221,7 +221,7 @@ export function VideosStudio() {
             ))}
           </select>
           <select
-            className="h-8 rounded-lg border border-[var(--line)] bg-transparent px-3 py-2 text-sm text-[var(--text)]"
+            className="select-field"
             value={seconds}
             onChange={(event) => setSeconds(Number(event.target.value))}
             disabled={generating || !caps.seconds}
@@ -234,7 +234,7 @@ export function VideosStudio() {
             ))}
           </select>
           <select
-            className="h-8 rounded-lg border border-[var(--line)] bg-transparent px-3 py-2 text-sm text-[var(--text)] disabled:opacity-50"
+            className="select-field disabled:opacity-50"
             value={resolution}
             onChange={(event) => setResolution(event.target.value as (typeof RESOLUTIONS)[number])}
             disabled={generating || !caps.resolution}
@@ -252,7 +252,7 @@ export function VideosStudio() {
             onChange={setModel}
             disabled={generating || models.length === 0}
             testId="videos-studio-model"
-            className="min-w-[12rem] flex-1 h-8 rounded-lg border border-[var(--line)] bg-transparent px-3 py-2 text-sm text-[var(--text)]"
+            className="select-field min-w-[12rem] flex-1"
           />
         </div>
         {!model ? null : estimate.unknown ? (
@@ -274,7 +274,7 @@ export function VideosStudio() {
         {imageToVideo ? (
           <input
             type="url"
-            className="w-full h-8 rounded-lg border border-[var(--line)] bg-transparent px-3 py-2 text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-3)]"
+            className="text-field w-full outline-none placeholder:text-[var(--text-3)]"
             placeholder={t("videos.stillPlaceholder")}
             value={stillUrl}
             onChange={(event) => setStillUrl(event.target.value)}
@@ -288,7 +288,7 @@ export function VideosStudio() {
           <EnhancePromptButton text={prompt} surface="videos" model={model} disabled={generating} testId="videos-enhance" onApply={setPrompt} />
           <input
             type="text"
-            className="min-w-0 flex-1 h-8 rounded-lg border border-[var(--line)] bg-transparent px-3 py-2 text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-3)]"
+            className="text-field min-w-0 flex-1 outline-none placeholder:text-[var(--text-3)]"
             placeholder={t("videos.promptPlaceholder")}
             value={prompt}
             onChange={(event) => changePrompt(event.target.value)}

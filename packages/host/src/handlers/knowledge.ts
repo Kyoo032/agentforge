@@ -39,13 +39,24 @@ import { requireArtifact } from "../artifacts";
 import { getThread } from "../threads";
 import { artifactWorkCard } from "../work-cards";
 
-/** "Send to Knowledge Base" labels → the work type the auto-ingest loop writes for that artifact. */
-const KB_TYPE_TO_WORK: Partial<Record<PastedSourceType, Extract<WorkSourceType, "Research" | "Data" | "Finance"> | null>> = {
+/**
+ * "Send to Knowledge Base" labels → the work type to file the card under when the artifact's own
+ * mode does not name a desk. Only a fallback: labels are shared between desks (Market and Finance
+ * studios both send `Brief`), so `workTypeForArtifact` asks the artifact first.
+ */
+const KB_TYPE_TO_WORK: Partial<Record<PastedSourceType, ArtifactWorkType | null>> = {
   Dossier: "Research",
   Analysis: "Data",
   Brief: "Finance",
+  Memo: "Legal",
+  Playbook: "Legal",
   Paste: null,
 };
+
+type ArtifactWorkType = Extract<
+  WorkSourceType,
+  "Research" | "Data" | "Finance" | "Market" | "Documents" | "Presentation" | "Legal"
+>;
 
 /**
  * Send to Knowledge Base for a saved artifact. Idempotent against the auto-ingest origin: if the
@@ -61,7 +72,7 @@ async function sendArtifactToKnowledge(
     return jsonOk({ ...existing, alreadyIndexed: true }, 200);
   }
   const artifact = requireArtifact(tenant, artifactId);
-  const type = KB_TYPE_TO_WORK[kbType] ?? artifactModeToWork(artifact.mode);
+  const type = workTypeForArtifact(artifact.mode, kbType);
   const result = await upsertWorkSource(
     tenant,
     artifactWorkCard({
@@ -79,7 +90,18 @@ async function sendArtifactToKnowledge(
   return jsonOk({ ...result.source, alreadyIndexed: false }, result.status === "indexed" ? 201 : 200);
 }
 
-function artifactModeToWork(mode: string): Extract<WorkSourceType, "Research" | "Data" | "Finance" | "Documents" | "Presentation"> {
+/**
+ * The work type a saved artifact's card is filed under. The artifact's mode is authoritative — a
+ * Market briefing and a Finance brief both reach here labelled `Brief`, and filing the briefing as
+ * `Finance` told every later Chat retrieval it was a finance brief. The label map only answers for
+ * an artifact whose mode names no desk.
+ */
+export function workTypeForArtifact(mode: string, kbType: PastedSourceType): ArtifactWorkType {
+  return artifactModeToWork(mode) ?? KB_TYPE_TO_WORK[kbType] ?? "Documents";
+}
+
+/** `null` when the mode names no desk, so the caller can fall back to the label the studio sent. */
+function artifactModeToWork(mode: string): ArtifactWorkType | null {
   switch (mode) {
     case "research":
       return "Research";
@@ -87,10 +109,16 @@ function artifactModeToWork(mode: string): Extract<WorkSourceType, "Research" | 
       return "Data";
     case "finance":
       return "Finance";
+    case "market":
+      return "Market";
+    case "legal":
+      return "Legal";
     case "presentations":
       return "Presentation";
-    default:
+    case "documents":
       return "Documents";
+    default:
+      return null;
   }
 }
 

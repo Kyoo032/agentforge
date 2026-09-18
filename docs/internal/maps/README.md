@@ -43,10 +43,25 @@ Rules that keep these honest:
 | Page | Subsystem | Verified by |
 |---|---|---|
 | [`chat-send.md`](chat-send.md) | Chat send: composer → transport → run route → runtime → SSE → rendered message | `features/chat.md` |
-| [`settings-and-gateway-gate.md`](settings-and-gateway-gate.md) | Per-desk settings, the host gateway gate, Start over, key pinning | `features/settings.md` (+ `features/gateway-gate.md`, owed) |
-| [`locale-boot-and-run-harness.md`](locale-boot-and-run-harness.md) | App locale freeze + restart, and how `id` reaches the model | `features/settings.md` (+ `features/locale.md`, owed) |
+| [`settings-and-gateway-gate.md`](settings-and-gateway-gate.md) | Per-desk settings, the host gateway gate, Start over, key pinning | `features/settings.md`, `features/gateway-gate.md` |
+| [`locale-boot-and-run-harness.md`](locale-boot-and-run-harness.md) | App locale freeze + restart, and how `id` reaches the model | `features/settings.md`, `features/locale.md` |
 | [`knowledge-ingest-loop.md`](knowledge-ingest-loop.md) | Knowledge ingest, injection guard, embedding, retrieval, tenant scoping | `features/knowledge-ingest.md`, `features/knowledge.md` |
 | [`desktop-pack-routes.md`](desktop-pack-routes.md) | Windows NSIS worktree route, macOS Docker route, release and updater | `features/desktop.md` |
 | [`renderer-media.md`](renderer-media.md) | What a rendered answer may auto-load, and how remote media becomes host-served media | `features/images.md`, `features/videos.md`, `features/security.md` |
 | [`media-cost-estimate.md`](media-cost-estimate.md) | The price shown in the Images / Videos studio before generating | `features/images.md`, `features/videos.md` |
-| [`finance-parse-and-generate.md`](finance-parse-and-generate.md) | Finance brief → magnitudes → parse → line items → statements → narrative | `features/finance.md` |
+| [`finance-parse-and-generate.md`](finance-parse-and-generate.md) | The Finance spine: routes and gates, file import, deterministic parse, compute → narrate → number guard, persist and export | `features/finance.md` |
+| [`finance-tasks.md`](finance-tasks.md) | The five Finance tasks: ids, phase graph, the `FinanceTaskModule` contract, the generic runner, the dev-only eval harness | `features/finance.md` |
+| [`chat-sessions-and-rail.md`](chat-sessions-and-rail.md) | Chat sessions in the left rail: list, open, new, delete, desk scoping | `features/chat.md` |
+| [`shell-rail-and-workspaces.md`](shell-rail-and-workspaces.md) | The shell around a mode page: rail blocks, desk switcher, `/workspaces`, `/usage` | `features/rail.md`, `features/workspaces.md`, `features/usage.md` |
+| [`documents.md`](documents.md) | Documents job: brief + `sourceText` → JSON draft → HTML preview → `.docx` | `features/documents.md`, `features/templates.md` |
+| [`research-dossier.md`](research-dossier.md) | Research: plan → search → read → extract → synthesize, streamed as `job.*` | `features/research.md` |
+| [`data-analysis.md`](data-analysis.md) | Data: the dataset store, the `run_sql` tool, and host-materialized evidence | `features/data.md` |
+| [`presentations.md`](presentations.md) | Presentation: topic → one JSON outline → slide cards → `.pptx` | `features/presentations.md` |
+| [`legal-matter-run.md`](legal-matter-run.md) | Legal matter: `.docx` intake, role classification, the nine-stage run, deliverables | `features/legal.md` |
+| [`edit-timeline.md`](edit-timeline.md) | Edit: the append-only ops log, the agent turn, cards, the review gate, export | `features/edit.md` |
+| [`generate-studios.md`](generate-studios.md) | Images and Videos studios: knob snapping, generate, mirror, gallery | `features/images.md`, `features/videos.md` |
+| [`knowledge-flows.md`](knowledge-flows.md) | How each mode and each manual entry point reaches the Knowledge Base: trigger, stored text, retrieval, removal | `features/knowledge-ingest.md`, `features/knowledge.md` |
+| [`knowledge-base-page.md`](knowledge-base-page.md) | The `/knowledge` page: Sources, Soul, Memory, Map, and what Chat injects | `features/knowledge.md`, `features/knowledge-graph.md` |
+| [`pii-and-key-security.md`](pii-and-key-security.md) | PII masking on the outbound copy, and the gateway key envelope | `features/pii.md`, `features/security.md` |
+| [`market-watch.md`](market-watch.md) | Market Watch: rail desk → per-desk watchlist → keyless board → harness packet → guarded briefing | `features/market.md`, `features/rail.md` |
+| [`component-installer.md`](component-installer.md) | First-run installer for native components: manifest → stages → hash-checked download → marker | `features/components.md` |

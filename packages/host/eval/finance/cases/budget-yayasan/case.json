@@ -1,0 +1,694 @@
+{
+  "id": "budget-yayasan",
+  "task": "budget",
+  "locale": "id",
+  "currency": "IDR",
+  "description": "Anggaran vs realisasi satu yayasan (sintetis) dalam satu workbook dua sheet. Label baris yang sama ditulis berbeda di tiap sheet, urutan baris berbeda, dua baris hanya ada di anggaran dan dua hanya ada di realisasi, plus baris subtotal yang tidak boleh ikut dihitung.",
+  "files": [
+    {
+      "path": "input.xlsx",
+      "sheet": "Anggaran 2024"
+    },
+    {
+      "path": "input.xlsx",
+      "sheet": "Realisasi 2024"
+    }
+  ],
+  "prompt": "Bandingkan anggaran 2024 dengan realisasinya dari file ini. Cocokkan tiap baris walau namanya berbeda, hitung selisih rupiah dan persennya, dan tandai baris yang melenceng lebih dari 10% sekaligus lebih dari Rp 5.000.000.",
+  "params": {
+    "flagPct": 10,
+    "flagAbs": 5000000,
+    "budgetSheet": "Anggaran 2024",
+    "actualSheet": "Realisasi 2024"
+  },
+  "truth": {
+    "pairing": {
+      "Donasi individu": "Penerimaan donasi perorangan",
+      "Hibah korporasi": "Dana hibah perusahaan",
+      "Pendapatan jasa pelatihan": "Hasil program pelatihan",
+      "Pendapatan bunga bank": null,
+      "Gaji & tunjangan karyawan": "Beban gaji",
+      "Program beasiswa": "Penyaluran beasiswa",
+      "Sewa kantor": "Biaya sewa gedung",
+      "Listrik, air & internet": "Beban utilitas",
+      "Perjalanan dinas": "Biaya perjalanan",
+      "ATK": "Alat tulis kantor",
+      "Biaya rapat & konsumsi": "Beban konsumsi rapat",
+      "Cadangan dana darurat": null
+    },
+    "actualOnly": [
+      "Beban penyusutan inventaris",
+      "Biaya perbaikan atap kantor"
+    ],
+    "budgetOnly": [
+      "Pendapatan bunga bank",
+      "Cadangan dana darurat"
+    ],
+    "ignoredRows": [
+      "Subtotal Pendapatan",
+      "Subtotal Beban",
+      "Surplus/(Defisit) Anggaran",
+      "Jumlah Penerimaan",
+      "Jumlah Pengeluaran",
+      "Selisih Lebih/(Kurang)"
+    ],
+    "thresholds": {
+      "pct": 10,
+      "abs": 5000000,
+      "rule": "flagged when |variance| >= abs AND |variancePct| >= pct"
+    },
+    "variances": [
+      {
+        "slug": "donasi-individu",
+        "category": "revenue",
+        "budgetLabel": "Donasi individu",
+        "actualLabel": "Penerimaan donasi perorangan",
+        "budget": 1850000000,
+        "actual": 1642500000,
+        "variance": -207500000,
+        "variancePct": -11.216216216216218,
+        "direction": "unfavourable",
+        "flagged": true
+      },
+      {
+        "slug": "hibah-korporasi",
+        "category": "revenue",
+        "budgetLabel": "Hibah korporasi",
+        "actualLabel": "Dana hibah perusahaan",
+        "budget": 1200000000,
+        "actual": 1380000000,
+        "variance": 180000000,
+        "variancePct": 15,
+        "direction": "favourable",
+        "flagged": true
+      },
+      {
+        "slug": "jasa-pelatihan",
+        "category": "revenue",
+        "budgetLabel": "Pendapatan jasa pelatihan",
+        "actualLabel": "Hasil program pelatihan",
+        "budget": 450000000,
+        "actual": 468000000,
+        "variance": 18000000,
+        "variancePct": 4,
+        "direction": "favourable",
+        "flagged": false
+      },
+      {
+        "slug": "bunga-bank",
+        "category": "revenue",
+        "budgetLabel": "Pendapatan bunga bank",
+        "actualLabel": null,
+        "budget": 25000000,
+        "actual": 0,
+        "variance": -25000000,
+        "variancePct": -100,
+        "direction": "unfavourable",
+        "flagged": true
+      },
+      {
+        "slug": "gaji-tunjangan",
+        "category": "cost",
+        "budgetLabel": "Gaji & tunjangan karyawan",
+        "actualLabel": "Beban gaji",
+        "budget": 1320000000,
+        "actual": 1398400000,
+        "variance": 78400000,
+        "variancePct": 5.9393939393939394,
+        "direction": "unfavourable",
+        "flagged": false
+      },
+      {
+        "slug": "program-beasiswa",
+        "category": "cost",
+        "budgetLabel": "Program beasiswa",
+        "actualLabel": "Penyaluran beasiswa",
+        "budget": 900000000,
+        "actual": 885000000,
+        "variance": -15000000,
+        "variancePct": -1.6666666666666667,
+        "direction": "favourable",
+        "flagged": false
+      },
+      {
+        "slug": "sewa-kantor",
+        "category": "cost",
+        "budgetLabel": "Sewa kantor",
+        "actualLabel": "Biaya sewa gedung",
+        "budget": 240000000,
+        "actual": 264000000,
+        "variance": 24000000,
+        "variancePct": 10,
+        "direction": "unfavourable",
+        "flagged": true
+      },
+      {
+        "slug": "utilitas",
+        "category": "cost",
+        "budgetLabel": "Listrik, air & internet",
+        "actualLabel": "Beban utilitas",
+        "budget": 96000000,
+        "actual": 101750000,
+        "variance": 5750000,
+        "variancePct": 5.989583333333334,
+        "direction": "unfavourable",
+        "flagged": false
+      },
+      {
+        "slug": "perjalanan-dinas",
+        "category": "cost",
+        "budgetLabel": "Perjalanan dinas",
+        "actualLabel": "Biaya perjalanan",
+        "budget": 150000000,
+        "actual": 118400000,
+        "variance": -31600000,
+        "variancePct": -21.066666666666666,
+        "direction": "favourable",
+        "flagged": true
+      },
+      {
+        "slug": "atk",
+        "category": "cost",
+        "budgetLabel": "ATK",
+        "actualLabel": "Alat tulis kantor",
+        "budget": 36000000,
+        "actual": 41300000,
+        "variance": 5300000,
+        "variancePct": 14.722222222222223,
+        "direction": "unfavourable",
+        "flagged": true
+      },
+      {
+        "slug": "rapat-konsumsi",
+        "category": "cost",
+        "budgetLabel": "Biaya rapat & konsumsi",
+        "actualLabel": "Beban konsumsi rapat",
+        "budget": 24000000,
+        "actual": 27600000,
+        "variance": 3600000,
+        "variancePct": 15,
+        "direction": "unfavourable",
+        "flagged": false
+      },
+      {
+        "slug": "cadangan-darurat",
+        "category": "cost",
+        "budgetLabel": "Cadangan dana darurat",
+        "actualLabel": null,
+        "budget": 100000000,
+        "actual": 0,
+        "variance": -100000000,
+        "variancePct": -100,
+        "direction": "favourable",
+        "flagged": true
+      },
+      {
+        "slug": "penyusutan-inventaris",
+        "category": "cost",
+        "budgetLabel": null,
+        "actualLabel": "Beban penyusutan inventaris",
+        "budget": 0,
+        "actual": 72000000,
+        "variance": 72000000,
+        "variancePct": null,
+        "direction": "unfavourable",
+        "flagged": true
+      },
+      {
+        "slug": "perbaikan-atap",
+        "category": "cost",
+        "budgetLabel": null,
+        "actualLabel": "Biaya perbaikan atap kantor",
+        "budget": 0,
+        "actual": 58500000,
+        "variance": 58500000,
+        "variancePct": null,
+        "direction": "unfavourable",
+        "flagged": true
+      }
+    ],
+    "flagged": [
+      "donasi-individu",
+      "hibah-korporasi",
+      "bunga-bank",
+      "sewa-kantor",
+      "perjalanan-dinas",
+      "atk",
+      "cadangan-darurat",
+      "penyusutan-inventaris",
+      "perbaikan-atap"
+    ],
+    "lineItems": [
+      {
+        "label": "Donasi individu",
+        "period": "Anggaran 2024",
+        "amount": 1850000000,
+        "category": "revenue"
+      },
+      {
+        "label": "Hibah korporasi",
+        "period": "Anggaran 2024",
+        "amount": 1200000000,
+        "category": "revenue"
+      },
+      {
+        "label": "Pendapatan jasa pelatihan",
+        "period": "Anggaran 2024",
+        "amount": 450000000,
+        "category": "revenue"
+      },
+      {
+        "label": "Pendapatan bunga bank",
+        "period": "Anggaran 2024",
+        "amount": 25000000,
+        "category": "revenue"
+      },
+      {
+        "label": "Gaji & tunjangan karyawan",
+        "period": "Anggaran 2024",
+        "amount": 1320000000,
+        "category": "cost"
+      },
+      {
+        "label": "Program beasiswa",
+        "period": "Anggaran 2024",
+        "amount": 900000000,
+        "category": "cost"
+      },
+      {
+        "label": "Sewa kantor",
+        "period": "Anggaran 2024",
+        "amount": 240000000,
+        "category": "cost"
+      },
+      {
+        "label": "Listrik, air & internet",
+        "period": "Anggaran 2024",
+        "amount": 96000000,
+        "category": "cost"
+      },
+      {
+        "label": "Perjalanan dinas",
+        "period": "Anggaran 2024",
+        "amount": 150000000,
+        "category": "cost"
+      },
+      {
+        "label": "ATK",
+        "period": "Anggaran 2024",
+        "amount": 36000000,
+        "category": "cost"
+      },
+      {
+        "label": "Biaya rapat & konsumsi",
+        "period": "Anggaran 2024",
+        "amount": 24000000,
+        "category": "cost"
+      },
+      {
+        "label": "Cadangan dana darurat",
+        "period": "Anggaran 2024",
+        "amount": 100000000,
+        "category": "cost"
+      },
+      {
+        "label": "Hasil program pelatihan",
+        "period": "Realisasi 2024",
+        "amount": 468000000,
+        "category": "revenue"
+      },
+      {
+        "label": "Penerimaan donasi perorangan",
+        "period": "Realisasi 2024",
+        "amount": 1642500000,
+        "category": "revenue"
+      },
+      {
+        "label": "Dana hibah perusahaan",
+        "period": "Realisasi 2024",
+        "amount": 1380000000,
+        "category": "revenue"
+      },
+      {
+        "label": "Alat tulis kantor",
+        "period": "Realisasi 2024",
+        "amount": 41300000,
+        "category": "cost"
+      },
+      {
+        "label": "Biaya perjalanan",
+        "period": "Realisasi 2024",
+        "amount": 118400000,
+        "category": "cost"
+      },
+      {
+        "label": "Beban gaji",
+        "period": "Realisasi 2024",
+        "amount": 1398400000,
+        "category": "cost"
+      },
+      {
+        "label": "Biaya perbaikan atap kantor",
+        "period": "Realisasi 2024",
+        "amount": 58500000,
+        "category": "cost"
+      },
+      {
+        "label": "Beban utilitas",
+        "period": "Realisasi 2024",
+        "amount": 101750000,
+        "category": "cost"
+      },
+      {
+        "label": "Penyaluran beasiswa",
+        "period": "Realisasi 2024",
+        "amount": 885000000,
+        "category": "cost"
+      },
+      {
+        "label": "Beban penyusutan inventaris",
+        "period": "Realisasi 2024",
+        "amount": 72000000,
+        "category": "cost"
+      },
+      {
+        "label": "Beban konsumsi rapat",
+        "period": "Realisasi 2024",
+        "amount": 27600000,
+        "category": "cost"
+      },
+      {
+        "label": "Biaya sewa gedung",
+        "period": "Realisasi 2024",
+        "amount": 264000000,
+        "category": "cost"
+      }
+    ],
+    "figures": [
+      {
+        "key": "variance.donasi-individu.amount",
+        "label": "Selisih Donasi individu",
+        "value": -207500000,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "variance.donasi-individu.pct",
+        "label": "Selisih % Donasi individu",
+        "value": -11.216216216216218,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.hibah-korporasi.amount",
+        "label": "Selisih Hibah korporasi",
+        "value": 180000000,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "variance.hibah-korporasi.pct",
+        "label": "Selisih % Hibah korporasi",
+        "value": 15,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.jasa-pelatihan.amount",
+        "label": "Selisih Pendapatan jasa pelatihan",
+        "value": 18000000,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "variance.jasa-pelatihan.pct",
+        "label": "Selisih % Pendapatan jasa pelatihan",
+        "value": 4,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.bunga-bank.amount",
+        "label": "Selisih Pendapatan bunga bank",
+        "value": -25000000,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "variance.bunga-bank.pct",
+        "label": "Selisih % Pendapatan bunga bank",
+        "value": -100,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.gaji-tunjangan.amount",
+        "label": "Selisih Gaji & tunjangan karyawan",
+        "value": 78400000,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "variance.gaji-tunjangan.pct",
+        "label": "Selisih % Gaji & tunjangan karyawan",
+        "value": 5.9393939393939394,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.program-beasiswa.amount",
+        "label": "Selisih Program beasiswa",
+        "value": -15000000,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "variance.program-beasiswa.pct",
+        "label": "Selisih % Program beasiswa",
+        "value": -1.6666666666666667,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.sewa-kantor.amount",
+        "label": "Selisih Sewa kantor",
+        "value": 24000000,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "variance.sewa-kantor.pct",
+        "label": "Selisih % Sewa kantor",
+        "value": 10,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.utilitas.amount",
+        "label": "Selisih Listrik, air & internet",
+        "value": 5750000,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "variance.utilitas.pct",
+        "label": "Selisih % Listrik, air & internet",
+        "value": 5.989583333333334,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.perjalanan-dinas.amount",
+        "label": "Selisih Perjalanan dinas",
+        "value": -31600000,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "variance.perjalanan-dinas.pct",
+        "label": "Selisih % Perjalanan dinas",
+        "value": -21.066666666666666,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.atk.amount",
+        "label": "Selisih ATK",
+        "value": 5300000,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "variance.atk.pct",
+        "label": "Selisih % ATK",
+        "value": 14.722222222222223,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.rapat-konsumsi.amount",
+        "label": "Selisih Biaya rapat & konsumsi",
+        "value": 3600000,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "variance.rapat-konsumsi.pct",
+        "label": "Selisih % Biaya rapat & konsumsi",
+        "value": 15,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.cadangan-darurat.amount",
+        "label": "Selisih Cadangan dana darurat",
+        "value": -100000000,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "variance.cadangan-darurat.pct",
+        "label": "Selisih % Cadangan dana darurat",
+        "value": -100,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.penyusutan-inventaris.amount",
+        "label": "Selisih Beban penyusutan inventaris",
+        "value": 72000000,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "variance.penyusutan-inventaris.pct",
+        "label": "Selisih % Beban penyusutan inventaris",
+        "value": null,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.perbaikan-atap.amount",
+        "label": "Selisih Biaya perbaikan atap kantor",
+        "value": 58500000,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "variance.perbaikan-atap.pct",
+        "label": "Selisih % Biaya perbaikan atap kantor",
+        "value": null,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "total.budget.revenue",
+        "label": "Total anggaran pendapatan",
+        "value": 3525000000,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "total.budget.cost",
+        "label": "Total anggaran beban",
+        "value": 2866000000,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "total.budget.surplus",
+        "label": "Surplus anggaran",
+        "value": 659000000,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "total.actual.revenue",
+        "label": "Total realisasi penerimaan",
+        "value": 3490500000,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "total.actual.cost",
+        "label": "Total realisasi pengeluaran",
+        "value": 2966950000,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "total.actual.surplus",
+        "label": "Surplus realisasi",
+        "value": 523550000,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "variance.total.revenue.amount",
+        "label": "Selisih pendapatan",
+        "value": -34500000,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "variance.total.revenue.pct",
+        "label": "Selisih % pendapatan",
+        "value": -0.9787234042553191,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.total.cost.amount",
+        "label": "Selisih beban",
+        "value": 100950000,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "variance.total.cost.pct",
+        "label": "Selisih % beban",
+        "value": 3.522330774598744,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "variance.total.surplus.amount",
+        "label": "Selisih surplus",
+        "value": -135450000,
+        "unit": "currency",
+        "tolerance": 1
+      },
+      {
+        "key": "variance.total.surplus.pct",
+        "label": "Selisih % surplus",
+        "value": -20.553869499241276,
+        "unit": "percent",
+        "tolerance": 0.005
+      },
+      {
+        "key": "flagged.count",
+        "label": "Jumlah baris yang ditandai",
+        "value": 9,
+        "unit": "count",
+        "tolerance": 0
+      },
+      {
+        "key": "lines.total",
+        "label": "Jumlah baris gabungan",
+        "value": 14,
+        "unit": "count",
+        "tolerance": 0
+      }
+    ],
+    "mustMention": [
+      "Beban penyusutan inventaris",
+      "Biaya perbaikan atap kantor",
+      "Cadangan dana darurat"
+    ],
+    "mustNotContain": [
+      "[unverified figure]",
+      "Subtotal Pendapatan",
+      "Jumlah Pengeluaran"
+    ]
+  }
+}

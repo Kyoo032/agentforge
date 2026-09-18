@@ -39,6 +39,7 @@ import { probeSummary } from "../model-cache";
 import { db, hasPendingDataReset, listLocalWorkspaces, pendingResetPath, requestDataReset } from "@agentforge/db";
 import { rmSync } from "node:fs";
 import { resetEmbedCircuit } from "../knowledge-embed";
+import { resetJobModelCircuit } from "../job-model-fallback";
 import { revokeKnowledgeGatewayModel } from "../knowledge/backend-api";
 
 function readStringMap(value: unknown): Record<string, string> | undefined {
@@ -161,8 +162,10 @@ export async function handlePostSettings(request: HostRequest): Promise<HostResu
     };
     const saved = saveSettings(patch, tenant.workspaceId);
     clearThisKeyCache();
-    // A fixed key / URL must take effect now, not after the 5-minute embeddings breaker expires.
+    // A fixed key / URL must take effect now, not after the 5-minute embeddings breaker expires —
+    // and the job-side breaker skips a model for the same five minutes, so it is cleared with it.
     resetEmbedCircuit();
+    resetJobModelCircuit();
     // The retrieval sidecar holds a *copy* of the gateway key, inside the model row it embeds with.
     // A key that has been changed here but left in that database has not been rotated, so the row
     // is revoked; the next knowledge call mints a fresh one against the new credentials.
@@ -280,6 +283,12 @@ export const HOST_RESET_ENTRIES = [
   "legal",
   "models-cache.json",
   "models-dev-cache.json",
+  // Downloaded native components (packages/host/src/components). Written by the host, inside the
+  // data dir, and re-downloadable — so a full "Start over" drops it like everything else the host
+  // wrote. The cost of being wrong here is one re-download, never data.
+  "components",
+  // The component installer's own diagnostics. Same reasoning; nothing in it is the owner's work.
+  "logs",
 ] as const;
 
 function resetGatewayKey(workspaceId: string): HostResult {
@@ -288,6 +297,7 @@ function resetGatewayKey(workspaceId: string): HostResult {
   clearGateState();
   clearThisKeyCache();
   resetEmbedCircuit();
+  resetJobModelCircuit();
   return jsonOk({
     ok: true,
     scope: "key",

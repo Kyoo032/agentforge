@@ -1,0 +1,477 @@
+{
+  "id": "cashflow-startup-burn",
+  "task": "cashflow",
+  "locale": "en",
+  "currency": "USD",
+  "description": "Synthetic bank export for a seed-stage SaaS company: 120 transactions in LONG format (date, category, direction, amount) over nine months of 2024. Conventions this oracle used: (1) `amount` is ALREADY SIGNED — outflows are negative, inflows positive — and `direction` is a label only; four reversal rows (three vendor refunds booked `out` with a positive amount, one churned customer refunded `in` with a negative amount) mean a reader that re-applies a sign from `direction` double-negates them. (2) The May 2024 `Financing` inflow of $2,500,000 is a SAFE round: it moves the bank balance but is never operating revenue, so it is excluded from operating cash in, from gross burn and from net burn. (3) Gross burn = operating cash out per month; net burn = operating cash out - operating cash in; both are positive numbers. (4) Runway = closing cash on 30 Sep 2024 / average net burn over the last three months (engine convention runwayMonths(cash, burn) = cash / burn). (5) The what-if adds 3 engineers at $9,000/month each as a fully loaded cost — no extra payroll tax on top. Opening cash on 1 Jan 2024 is $1,850,000; it is stated in the prompt and in `params`, not in the file. All `tolerance` values are RELATIVE to the truth value (0.005 = 0.5%).",
+  "files": [
+    {
+      "path": "bank-export-2024.csv"
+    }
+  ],
+  "prompt": "Here is our bank transaction export for Jan–Sep 2024. We opened January with $1,850,000 in the bank. Give me the monthly cash in, cash out and net operating cash flow, our gross and net burn over the last three months, the closing balance and how much runway that leaves us. Treat the May financing inflow separately from revenue. Then show what happens to burn and runway if we hire 3 engineers at $9k/month.",
+  "params": {
+    "openingCash": 1850000,
+    "newEngineers": 3,
+    "costPerEngineer": 9000
+  },
+  "truth": {
+    "lineItems": [
+      {
+        "label": "Operating cash in",
+        "period": "2024-01",
+        "amount": 44980,
+        "category": "revenue"
+      },
+      {
+        "label": "Operating cash out",
+        "period": "2024-01",
+        "amount": 325680,
+        "category": "opex"
+      },
+      {
+        "label": "Operating cash in",
+        "period": "2024-02",
+        "amount": 65940,
+        "category": "revenue"
+      },
+      {
+        "label": "Operating cash out",
+        "period": "2024-02",
+        "amount": 310080,
+        "category": "opex"
+      },
+      {
+        "label": "Operating cash in",
+        "period": "2024-03",
+        "amount": 51300,
+        "category": "revenue"
+      },
+      {
+        "label": "Operating cash out",
+        "period": "2024-03",
+        "amount": 345360,
+        "category": "opex"
+      },
+      {
+        "label": "Operating cash in",
+        "period": "2024-04",
+        "amount": 76360,
+        "category": "revenue"
+      },
+      {
+        "label": "Operating cash out",
+        "period": "2024-04",
+        "amount": 333960,
+        "category": "opex"
+      },
+      {
+        "label": "Operating cash in",
+        "period": "2024-05",
+        "amount": 58120,
+        "category": "revenue"
+      },
+      {
+        "label": "Operating cash out",
+        "period": "2024-05",
+        "amount": 402560,
+        "category": "opex"
+      },
+      {
+        "label": "Operating cash in",
+        "period": "2024-06",
+        "amount": 78800,
+        "category": "revenue"
+      },
+      {
+        "label": "Operating cash out",
+        "period": "2024-06",
+        "amount": 413440,
+        "category": "opex"
+      },
+      {
+        "label": "Operating cash in",
+        "period": "2024-07",
+        "amount": 61250,
+        "category": "revenue"
+      },
+      {
+        "label": "Operating cash out",
+        "period": "2024-07",
+        "amount": 459040,
+        "category": "opex"
+      },
+      {
+        "label": "Operating cash in",
+        "period": "2024-08",
+        "amount": 98990,
+        "category": "revenue"
+      },
+      {
+        "label": "Operating cash out",
+        "period": "2024-08",
+        "amount": 423640,
+        "category": "opex"
+      },
+      {
+        "label": "Operating cash in",
+        "period": "2024-09",
+        "amount": 77630,
+        "category": "revenue"
+      },
+      {
+        "label": "Operating cash out",
+        "period": "2024-09",
+        "amount": 458220,
+        "category": "opex"
+      }
+    ],
+    "figures": [
+      {
+        "key": "operatingCashIn.2024-01",
+        "label": "Operating cash in 2024-01",
+        "value": 44980,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "operatingCashIn.2024-02",
+        "label": "Operating cash in 2024-02",
+        "value": 65940,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "operatingCashIn.2024-03",
+        "label": "Operating cash in 2024-03",
+        "value": 51300,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "operatingCashIn.2024-04",
+        "label": "Operating cash in 2024-04",
+        "value": 76360,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "operatingCashIn.2024-05",
+        "label": "Operating cash in 2024-05",
+        "value": 58120,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "operatingCashIn.2024-06",
+        "label": "Operating cash in 2024-06",
+        "value": 78800,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "operatingCashIn.2024-07",
+        "label": "Operating cash in 2024-07",
+        "value": 61250,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "operatingCashIn.2024-08",
+        "label": "Operating cash in 2024-08",
+        "value": 98990,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "operatingCashIn.2024-09",
+        "label": "Operating cash in 2024-09",
+        "value": 77630,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "operatingCashOut.2024-01",
+        "label": "Operating cash out 2024-01",
+        "value": 325680,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "operatingCashOut.2024-02",
+        "label": "Operating cash out 2024-02",
+        "value": 310080,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "operatingCashOut.2024-03",
+        "label": "Operating cash out 2024-03",
+        "value": 345360,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "operatingCashOut.2024-04",
+        "label": "Operating cash out 2024-04",
+        "value": 333960,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "operatingCashOut.2024-05",
+        "label": "Operating cash out 2024-05",
+        "value": 402560,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "operatingCashOut.2024-06",
+        "label": "Operating cash out 2024-06",
+        "value": 413440,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "operatingCashOut.2024-07",
+        "label": "Operating cash out 2024-07",
+        "value": 459040,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "operatingCashOut.2024-08",
+        "label": "Operating cash out 2024-08",
+        "value": 423640,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "operatingCashOut.2024-09",
+        "label": "Operating cash out 2024-09",
+        "value": 458220,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netOperatingCashFlow.2024-01",
+        "label": "Net operating cash flow 2024-01",
+        "value": -280700,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netOperatingCashFlow.2024-02",
+        "label": "Net operating cash flow 2024-02",
+        "value": -244140,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netOperatingCashFlow.2024-03",
+        "label": "Net operating cash flow 2024-03",
+        "value": -294060,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netOperatingCashFlow.2024-04",
+        "label": "Net operating cash flow 2024-04",
+        "value": -257600,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netOperatingCashFlow.2024-05",
+        "label": "Net operating cash flow 2024-05",
+        "value": -344440,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netOperatingCashFlow.2024-06",
+        "label": "Net operating cash flow 2024-06",
+        "value": -334640,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netOperatingCashFlow.2024-07",
+        "label": "Net operating cash flow 2024-07",
+        "value": -397790,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netOperatingCashFlow.2024-08",
+        "label": "Net operating cash flow 2024-08",
+        "value": -324650,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "netOperatingCashFlow.2024-09",
+        "label": "Net operating cash flow 2024-09",
+        "value": -380590,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "closingCash.2024-01",
+        "label": "Closing cash 2024-01",
+        "value": 1569300,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "closingCash.2024-02",
+        "label": "Closing cash 2024-02",
+        "value": 1325160,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "closingCash.2024-03",
+        "label": "Closing cash 2024-03",
+        "value": 1031100,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "closingCash.2024-04",
+        "label": "Closing cash 2024-04",
+        "value": 773500,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "closingCash.2024-05",
+        "label": "Closing cash 2024-05",
+        "value": 2929060,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "closingCash.2024-06",
+        "label": "Closing cash 2024-06",
+        "value": 2594420,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "closingCash.2024-07",
+        "label": "Closing cash 2024-07",
+        "value": 2196630,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "closingCash.2024-08",
+        "label": "Closing cash 2024-08",
+        "value": 1871980,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "closingCash.2024-09",
+        "label": "Closing cash 2024-09",
+        "value": 1491390,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "financingInflow.2024-05",
+        "label": "Financing inflow May 2024",
+        "value": 2500000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "operatingCashIn.total",
+        "label": "Operating cash in, 9 months",
+        "value": 613370,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "operatingCashOut.total",
+        "label": "Operating cash out, 9 months",
+        "value": 3471980,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "grossBurn.last3Months",
+        "label": "Average gross burn, last 3 months",
+        "value": 446966.6666666667,
+        "unit": "currency",
+        "tolerance": 0.000001
+      },
+      {
+        "key": "grossBurn.average9Months",
+        "label": "Average gross burn, 9 months",
+        "value": 385775.55555555556,
+        "unit": "currency",
+        "tolerance": 0.000001
+      },
+      {
+        "key": "netBurn.last3Months",
+        "label": "Average net burn, last 3 months",
+        "value": 367676.6666666667,
+        "unit": "currency",
+        "tolerance": 0.000001
+      },
+      {
+        "key": "netBurn.average9Months",
+        "label": "Average net burn, 9 months",
+        "value": 317623.3333333333,
+        "unit": "currency",
+        "tolerance": 0.000001
+      },
+      {
+        "key": "runwayMonths",
+        "label": "Runway from 30 Sep 2024",
+        "value": 4.056254136333553,
+        "unit": "months",
+        "tolerance": 0.000001
+      },
+      {
+        "key": "whatIf.monthlyHiringCost",
+        "label": "Added monthly cost of 3 engineers",
+        "value": 27000,
+        "unit": "currency",
+        "tolerance": 1e-9
+      },
+      {
+        "key": "whatIf.netBurn",
+        "label": "Net burn after the hires",
+        "value": 394676.6666666667,
+        "unit": "currency",
+        "tolerance": 0.000001
+      },
+      {
+        "key": "whatIf.grossBurn",
+        "label": "Gross burn after the hires",
+        "value": 473966.6666666667,
+        "unit": "currency",
+        "tolerance": 0.000001
+      },
+      {
+        "key": "whatIf.runwayMonths",
+        "label": "Runway after the hires",
+        "value": 3.7787640515865304,
+        "unit": "months",
+        "tolerance": 0.000001
+      }
+    ],
+    "mustMention": [
+      "runway",
+      "net burn",
+      "gross burn",
+      "financing"
+    ],
+    "mustNotContain": [
+      "[unverified figure]"
+    ]
+  }
+}

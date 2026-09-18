@@ -33,9 +33,6 @@ type Probe = {
 const fieldClass =
   "mt-1 w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)]";
 
-/** The pinned endpoint is text, not an input: the owner cannot change it. */
-const readOnlyFieldClass = `${fieldClass} break-all text-[var(--text-2)]`;
-
 function runtimeStatusLabel(mode: "ai" | "stub"): string {
   return mode === "ai" ? t("settings.runtimeLive") : t("settings.runtimeStub");
 }
@@ -81,6 +78,7 @@ export function SettingsPage() {
   // A queued wipe the host will apply on the next launch; the reset card offers to call it off.
   const [resetPending, setResetPending] = useState(false);
 
+  // Only the host label ever reaches the UI: the endpoint itself is pinned and stays hidden.
   const gatewayEndpoint = gateway?.endpoint ?? gatewayBaseUrl;
   const gatewayCheckedAt = formatGateTimestamp(gateway?.checkedAt, getLocale(), true);
   const gatewayLastOkAt = formatGateTimestamp(gateway?.lastOkAt, getLocale());
@@ -341,13 +339,6 @@ export function SettingsPage() {
             <h2 className="font-medium text-[var(--text)]">{t("settings.gatewayHeading", { gatewayName })}</h2>
             <p className="mt-1 text-xs text-[var(--text-3)]">{t("settings.gatewayHelp")}</p>
           </div>
-          <div className="block text-sm text-[var(--text)]">
-            {t("settings.endpointLabel")}
-            <p className={readOnlyFieldClass} data-testid="settings-endpoint">
-              {gatewayEndpoint}
-            </p>
-          </div>
-          <p className="-mt-2 text-xs text-[var(--text-3)]">{t("settings.endpointLocked")}</p>
           <div
             className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--text-3)]"
             data-testid="settings-gateway-status"
@@ -426,7 +417,7 @@ export function SettingsPage() {
         </section>
 
         <p className="text-sm text-[var(--text-3)]" data-testid="privacy-note">
-          {t("settings.privacy", { productName, gatewayName })}
+          {t("settings.privacy", { productName, gatewayName, gatewayHost: gatewayHostLabel(gatewayEndpoint) })}
         </p>
       </form>
 

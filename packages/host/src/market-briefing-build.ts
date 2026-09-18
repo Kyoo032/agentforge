@@ -10,7 +10,12 @@
  * disclaimer is stamped by code.
  */
 import { ApiError } from "@agentforge/core";
-import { marketBriefingSchema, type BriefingSection, type MarketBriefing } from "@agentforge/core/artifacts";
+import {
+  marketBriefingSchema,
+  marketBriefingToMarkdown,
+  type BriefingSection,
+  type MarketBriefing,
+} from "@agentforge/core/artifacts";
 import { type GuardResult, guardNumbers } from "@agentforge/core/finance";
 import {
   ADVICE_MARKER,
@@ -18,13 +23,20 @@ import {
   AdviceLeakError,
   BRIEFING_SECTIONS_MAX,
   BRIEFING_SOURCES_MAX,
+  DEFAULT_MARKET_DEPTH,
+  DEFAULT_MARKET_SPECIALIST,
   MARKET_DISCLAIMER,
   assertNoAdvice,
   buildWatchSystemPrompt,
   guardAdviceInText,
   packetNumbers,
+  synthesisPrompt,
+  teamSectionHeadings,
+  type MarketDepth,
+  type MarketSpecialist,
   type MarketWatchPacket,
   type MarketWatchRequest,
+  type TeamNotes,
   type TickerPacket,
   type WatchSystemPromptInput,
 } from "@agentforge/core/market";
@@ -52,6 +64,17 @@ export const SECTION_REWRITE_RULES = [
 /** The briefing system prompt plus the single-section output contract. */
 export function sectionSystemPrompt(input: WatchSystemPromptInput): string {
   return `${buildWatchSystemPrompt(input)}\n\n${SECTION_REWRITE_RULES}`;
+}
+
+/**
+ * The same contract for a section of a team briefing. A team section was
+ * written by the editor over the analysts' notes, so the rewrite is asked for
+ * under the editor's own rules rather than the quick briefing's — otherwise a
+ * rewritten section would stop attributing, and the reader could no longer tell
+ * which seat a claim came from.
+ */
+export function teamSectionSystemPrompt(briefing: Pick<MarketBriefing, "specialist" | "language">): string {
+  return [synthesisPrompt(briefing.specialist, briefing.language), "", SECTION_REWRITE_RULES].join("\n");
 }
 
 function text(value: unknown): string {
@@ -198,6 +221,12 @@ function guardedTitle(title: string, fallback: string): { text: string; replaced
 export type BuildBriefingInput = {
   language: MarketWatchRequest["language"];
   generatedAt: string;
+  /** The named agent that wrote the draft; defaults to the saham desk. */
+  specialist?: MarketSpecialist;
+  /** How it was written; defaults to the single-pass quick run. */
+  depth?: MarketDepth;
+  /** The team's notes, already guarded by the caller. Only a `team` run has them. */
+  team?: TeamNotes;
 };
 
 export function buildMarketBriefing(
@@ -213,6 +242,9 @@ export function buildMarketBriefing(
   const briefing = marketBriefingSchema.parse({
     title: title.text,
     language: input.language,
+    specialist: input.specialist ?? DEFAULT_MARKET_SPECIALIST,
+    depth: input.depth ?? DEFAULT_MARKET_DEPTH,
+    ...(input.team ? { team: input.team } : {}),
     generatedAt: input.generatedAt,
     sections: guarded.map((entry) => entry.section),
     packet,
@@ -238,4 +270,109 @@ export function assertBriefingHasNoAdvice(sections: readonly BriefingSection[]):
     }
     throw error;
   }
+}
+
+/* The Team appendix */
+
+/** Heading of the appendix, per language. The five section headings inside it are core's. */
+export const TEAM_APPENDIX_HEADING: Readonly<Record<MarketBriefing["language"], string>> = {
+  en: "Team",
+  id: "Tim",
+};
+
+function appendixLabels(language: MarketBriefing["language"]): {
+  confidence: string;
+  volatility: string;
+  liquidity: string;
+  rebuttals: string;
+  unavailable: string;
+} {
+  return language === "en"
+    ? {
+        confidence: "confidence",
+        volatility: "Volatility",
+        liquidity: "Liquidity",
+        rebuttals: "Rebuttals",
+        unavailable: "unavailable",
+      }
+    : {
+        confidence: "keyakinan",
+        volatility: "Volatilitas",
+        liquidity: "Likuiditas",
+        rebuttals: "Sanggahan",
+        unavailable: "tidak tersedia",
+      };
+}
+
+/**
+ * The team's own notes, rendered under the briefing so a reader can see the
+ * four seats behind the editor's text: each analyst with its confidence, both
+ * sides of the debate, and the three risk lenses.
+ *
+ * Empty for a quick briefing. The notes are already guarded when they are
+ * stored, so nothing here re-guards them; this is rendering only.
+ */
+export function teamAppendixMarkdown(briefing: MarketBriefing): string[] {
+  const notes = briefing.team;
+  if (!notes) {
+    return [];
+  }
+  const [analystNotes, bullHeading, bearHeading, riskHeading] = teamSectionHeadings(briefing.language);
+  const labels = appendixLabels(briefing.language);
+  const side = (heading: string | undefined, entry: TeamNotes["bull"]): string[] => [
+    `### ${heading ?? entry.stance}`,
+    "",
+    entry.thesis,
+    "",
+    ...entry.points.map((point) => `- ${point}`),
+    ...(entry.rebuttals.length > 0
+      ? ["", `**${labels.rebuttals}:**`, ...entry.rebuttals.map((point) => `- ${point}`)]
+      : []),
+    "",
+  ];
+  return [
+    `## ${TEAM_APPENDIX_HEADING[briefing.language]}`,
+    "",
+    `### ${analystNotes ?? "Analyst notes"}`,
+    "",
+    ...notes.analysts.flatMap((note) => [
+      `**${note.analyst}** (${labels.confidence}: ${note.confidence})`,
+      "",
+      note.summary,
+      "",
+      ...note.keyPoints.map((point) => `- ${point}`),
+      "",
+    ]),
+    ...side(bullHeading, notes.bull),
+    ...side(bearHeading, notes.bear),
+    `### ${riskHeading ?? "Risk read"}`,
+    "",
+    ...notes.risk.lenses.flatMap((lens) => [
+      `**${lens.lens}** — ${lens.view}`,
+      "",
+      ...lens.keyRisks.map((risk) => `- ${risk}`),
+      "",
+    ]),
+    `**${labels.volatility}:** ${notes.risk.volatility}`,
+    "",
+    `**${labels.liquidity}:** ${notes.risk.liquidity}`,
+    "",
+  ];
+}
+
+/**
+ * The briefing as markdown. Core renders the briefing itself; a team run gets
+ * the Team appendix spliced in ahead of the closing disclaimer, so the
+ * disclaimer stays the last line of the document whatever the depth.
+ */
+export function marketBriefingMarkdown(briefing: MarketBriefing): string {
+  const base = marketBriefingToMarkdown(briefing);
+  const appendix = teamAppendixMarkdown(briefing);
+  if (appendix.length === 0) {
+    return base;
+  }
+  const closing = `> ${briefing.disclaimer}`;
+  const at = base.lastIndexOf(closing);
+  const block = `${appendix.join("\n")}\n`;
+  return at < 0 ? `${base}\n${block}` : `${base.slice(0, at)}${block}${base.slice(at)}`;
 }

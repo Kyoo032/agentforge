@@ -21,6 +21,9 @@ function client(rows: unknown[] | Error): YahooClient & { asked: string[][] } {
     async chart() {
       throw new Error("not used");
     },
+    async quoteSummary() {
+      throw new Error("not used");
+    },
     async search() {
       throw new Error("not used");
     },

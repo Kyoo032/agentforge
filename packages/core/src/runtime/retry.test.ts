@@ -102,6 +102,20 @@ describe("shouldRetryModelContact", () => {
     ).toBe(false);
   });
 
+  it("retries a gateway that could not be reached at all, in either locale", () => {
+    expect(isRetryableModelFailure("Gateway unreachable: no response within 10s")).toBe(true);
+    expect(isRetryableModelFailure("Gateway unreachable")).toBe(true);
+    expect(isRetryableModelFailure("No response within 10s")).toBe(true);
+    expect(isRetryableModelFailure("Gateway tidak dapat dijangkau: tidak ada respons dalam 10 detik")).toBe(true);
+  });
+
+  it("still refuses an auth or bad-request failure that happens to say unreachable", () => {
+    expect(isRetryableModelFailure("401 Unauthorized: gateway unreachable")).toBe(false);
+    expect(isRetryableModelFailure("403 Forbidden — no response within the allowed window")).toBe(false);
+    expect(isRetryableModelFailure("400 invalid_request: host unreachable")).toBe(false);
+    expect(isRetryableModelFailure("invalid api key; gateway unreachable")).toBe(false);
+  });
+
   it("does not retry auth, missing models, stream watchdogs, or a turn that already streamed", () => {
     expect(isRetryableModelFailure("401 Unauthorized")).toBe(false);
     expect(isRetryableModelFailure("model_not_found: nope")).toBe(false);

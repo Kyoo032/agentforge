@@ -13,28 +13,64 @@
  */
 import type Database from "better-sqlite3";
 import {
+  GLOBAL_NEWS_MAX,
+  NEWS_PER_TICKER_MAX,
+  SENTIMENT_SAMPLES_MAX,
   buildPriceChart,
+  computeRotation,
+  computeSessions,
+  computeSignals,
   computeTechnical,
+  globalNewsQueries,
+  harnessFor,
   marketClock,
   marketWatchPacketSchema,
+  swingPoints,
   technicalSchema,
+  tickerSentimentSchema,
   tradingViewMarket,
+  type GlobalNewsItem,
+  type GlobalNewsLanguage,
   type MacroSnapshot,
+  type MarketHarnessSpec,
+  type MarketSource,
+  type MarketSpecialist,
   type MarketWatchPacket,
   type MarketWatchRequest,
   type PriceHistory,
   type Quote,
   type ResolvedSymbol,
   type Technical,
+  type TickerCrypto,
+  type TickerFundamentals,
+  type TickerInsiders,
   type TickerPacket,
+  type TickerSentiment,
   type WatchNewsItem,
   type WatchRef,
 } from "@agentforge/core/market";
 import { throwIfJobAborted } from "../job-stream";
+import {
+  coingeckoId,
+  cryptoGlobalUrl,
+  cryptoMarketsUrl,
+  fetchCryptoGlobal,
+  fetchCryptoMarkets,
+  fetchFundingRate,
+  fundingRateUrl,
+  type CryptoGlobal,
+  type CryptoMarket,
+} from "./coingecko";
+import { fetchFundamentals } from "./fundamentals";
+import { GLOBAL_NEWS_PER_QUERY, fetchGlobalNews } from "./global-news";
 import { fetchMacro } from "./macro";
 import { MAP_LIMIT_DEFAULT, mapLimit } from "./map-limit";
+import { deriveMetals } from "./metals";
+import { fetchReddit, redditPlanFor, redditSearchUrl } from "./reddit";
 import {
+  CRYPTO_GLOBAL_CACHE_KEY,
   MACRO_CACHE_KEY,
+  globalNewsCacheKey,
   historyCacheKey,
   readCached,
   readFresh,
@@ -42,9 +78,11 @@ import {
   writeCached,
   type CachedRow,
 } from "./repo";
+import { fetchStocktwits, stocktwitsStreamUrl, stocktwitsSymbol } from "./stocktwits";
 import { fetchTradingViewRatings, type TradingViewIndicators } from "./tradingview";
 import {
   HISTORY_MONTHS_DEFAULT,
+  NEWS_COUNT_DEFAULT,
   fetchHistory,
   fetchNewsFor,
   resolveSymbols,
@@ -64,8 +102,28 @@ export type PacketProgress = (phase: PacketPhase, label: string) => void;
 export type PacketSections = { news: boolean; macro: boolean };
 export const ALL_SECTIONS: PacketSections = { news: true, macro: true };
 
+/**
+ * What a packet fetches when the caller names no specialist (the watch board
+ * and the market tools). Exactly the sections that existed before the harness,
+ * so those two routes are byte-for-byte what they were; the harness sections
+ * (`crypto`, `metals`, `signals`, `rotation`, `sessions`) are opt-in only.
+ */
+export const LEGACY_SOURCES: readonly MarketSource[] = [
+  "quotes",
+  "history",
+  "technicals",
+  "macro",
+  "headlines",
+  "swings",
+];
+
 const NO_NEWS: LoadedNews = { news: [], failure: null };
 const NO_MACRO: LoadedMacro = { macro: { quotes: [], failures: [] }, failure: null };
+const NO_HISTORY: LoadedHistory = { history: null, failure: null };
+const NO_CRYPTO: LoadedCrypto = { markets: new Map(), funding: new Map(), failures: [] };
+const NO_FUNDAMENTALS: LoadedFundamentals = { failures: [] };
+const NO_SENTIMENT: LoadedSentiment = { failures: [] };
+const NO_GLOBAL_NEWS: LoadedGlobalNews = { items: [], failures: [] };
 
 function skipped<T>(value: T): PromiseSettledResult<T> {
   return { status: "fulfilled", value };
@@ -75,6 +133,11 @@ export type PacketClients = {
   yahoo?: YahooClient;
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
+  /**
+   * The politeness gap Reddit is read with, injected so a test does not sit
+   * through `REDDIT_DELAY_MS` per subreddit. Production leaves it alone.
+   */
+  delay?: (ms: number) => Promise<void>;
 };
 
 export type BuildPacketOptions = {
@@ -84,8 +147,19 @@ export type BuildPacketOptions = {
   onProgress?: PacketProgress;
   /** Fetches in flight per kind. */
   concurrency?: number;
-  /** Sections to fetch; defaults to all. */
+  /** Sections to fetch; defaults to all. An explicit flag still wins over the harness. */
   include?: Partial<PacketSections>;
+  /**
+   * Which desk is asking. Given one, the packet fetches and computes only what
+   * `harnessFor(specialist).sources` lists, at that desk's bar depth and
+   * headline cap. Omitted (watch board, market tools), the legacy set is used.
+   */
+  specialist?: MarketSpecialist;
+  /**
+   * Which phrasing of the fixed macro queries `globalNews` is fetched with, and
+   * which cache row it lands in. Defaults to Indonesian, like the request.
+   */
+  language?: GlobalNewsLanguage;
 };
 
 export type PacketBuild = {
@@ -104,10 +178,33 @@ export type PacketContext = {
   signal?: AbortSignal;
   concurrency: number;
   include: PacketSections;
+  /** The asking desk's harness, or null when no specialist was named. */
+  harness: MarketHarnessSpec | null;
+  /** The language the fixed macro queries are phrased in. */
+  language: GlobalNewsLanguage;
+  /** Passed to the Reddit adapter as its inter-subreddit wait; undefined means the real one. */
+  delay?: (ms: number) => Promise<void>;
 };
+
+/** Whether this packet fetches or computes one section. No harness means the legacy set. */
+export function hasSource(ctx: Pick<PacketContext, "harness">, source: MarketSource): boolean {
+  return ctx.harness ? ctx.harness.sources.includes(source) : LEGACY_SOURCES.includes(source);
+}
+
+/** Bars the history fetcher is asked for. The desk's depth, or the 36-month default. */
+export function historyMonthsFor(ctx: Pick<PacketContext, "harness">): number {
+  return ctx.harness?.historyMonths ?? HISTORY_MONTHS_DEFAULT;
+}
+
+/** Headlines kept per ticker, never above what a TickerPacket may hold. */
+export function headlineCapFor(ctx: Pick<PacketContext, "harness">): number {
+  return Math.min(ctx.harness?.headlineCap ?? NEWS_COUNT_DEFAULT, NEWS_PER_TICKER_MAX);
+}
 
 export function packetContext(db: Database.Database, opts: BuildPacketOptions = {}): PacketContext {
   const now = opts.now ?? (() => new Date());
+  const harness = opts.specialist ? harnessFor(opts.specialist) : null;
+  const wants = (source: MarketSource) => hasSource({ harness }, source);
   return {
     db,
     now,
@@ -116,7 +213,14 @@ export function packetContext(db: Database.Database, opts: BuildPacketOptions = 
     fetchImpl: opts.clients?.fetchImpl ?? fetch,
     signal: opts.signal,
     concurrency: opts.concurrency ?? MAP_LIMIT_DEFAULT,
-    include: { news: opts.include?.news ?? ALL_SECTIONS.news, macro: opts.include?.macro ?? ALL_SECTIONS.macro },
+    include: {
+      // A desk that lists headlines but caps them at zero gets none; an explicit flag still wins.
+      news: opts.include?.news ?? (wants("headlines") && (harness?.headlineCap ?? 1) > 0),
+      macro: opts.include?.macro ?? wants("macro"),
+    },
+    harness,
+    language: opts.language ?? "id",
+    delay: opts.clients?.delay,
   };
 }
 
@@ -362,6 +466,332 @@ export async function loadMacro(ctx: PacketContext): Promise<LoadedMacro> {
   return { macro: row?.payload ?? { quotes: [], failures: [] }, failure };
 }
 
+/* Crypto */
+
+export type LoadedCrypto = {
+  /** Whole-market context; absent when the watchlist holds no coin this host can map. */
+  global?: CryptoGlobal;
+  /** Yahoo symbol -> CoinGecko row. */
+  markets: Map<string, CryptoMarket>;
+  /** Yahoo symbol -> perp funding rate in percent. Best effort; a missing venue is not a failure. */
+  funding: Map<string, number>;
+  failures: string[];
+};
+
+/** Cache rows for a keyless HTTP source. `web` is the WatchSource; the payload names the provider itself. */
+function webRef(sourceUrl: string, observedAt: string): WatchRef {
+  return { source: "web", sourceUrl, observedAt };
+}
+
+/** Fresh rows are served as-is; every remaining coin goes into one CoinGecko batch. */
+async function loadCryptoMarkets(
+  tickers: readonly string[],
+  ctx: PacketContext,
+): Promise<{ markets: Map<string, CryptoMarket>; failures: string[] }> {
+  const markets = new Map<string, CryptoMarket>();
+  const pending: string[] = [];
+  for (const ticker of tickers) {
+    const row = readFresh(ctx.db, ticker, "crypto-markets", ctx.nowIso);
+    if (row) {
+      markets.set(ticker, row.payload);
+    } else {
+      pending.push(ticker);
+    }
+  }
+  if (pending.length === 0) {
+    return { markets, failures: [] };
+  }
+  const batch = await fetchCryptoMarkets(pending, {
+    fetchImpl: ctx.fetchImpl,
+    signal: ctx.signal,
+    now: ctx.now,
+    timeoutMs: ctx.yahoo.timeoutMs,
+  });
+  const url = cryptoMarketsUrl(pending.flatMap((ticker) => coingeckoId(ticker) ?? []));
+  const failures = [...batch.failures];
+  for (const ticker of pending) {
+    const row = batch.markets.get(ticker);
+    if (row) {
+      markets.set(ticker, row);
+      writeCached(ctx.db, ticker, "crypto-markets", row, webRef(url, row.observedAt), row.observedAt);
+      continue;
+    }
+    // The batch is down or omitted this coin: serve the stale row and say so.
+    const cached = readCached(ctx.db, ticker, "crypto-markets");
+    if (cached) {
+      markets.set(ticker, cached.payload);
+      failures.push(`crypto: ${ticker} serving cached market data`);
+    }
+  }
+  return { markets, failures };
+}
+
+/** One funding row per coin, four in flight. A venue that blocks the region is silently absent. */
+async function loadCryptoFunding(tickers: readonly string[], ctx: PacketContext): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  const results = await mapLimit(tickers, ctx.concurrency, async (ticker) => {
+    const resolved = await resolveCached(ctx.db, ticker, "crypto-funding", ctx.nowIso, async () => {
+      const funding = await fetchFundingRate(ticker, {
+        fetchImpl: ctx.fetchImpl,
+        signal: ctx.signal,
+        now: ctx.now,
+        timeoutMs: ctx.yahoo.timeoutMs,
+      });
+      if (!funding) {
+        return null;
+      }
+      const base = ticker.split("-")[0] ?? ticker;
+      return { payload: funding, ref: webRef(fundingRateUrl(base.toUpperCase()), funding.observedAt) };
+    });
+    return { ticker, rate: resolved.row?.payload.fundingRatePct ?? null };
+  });
+  for (const result of results) {
+    if (result.status === "fulfilled" && result.value.rate !== null) {
+      out.set(result.value.ticker, result.value.rate);
+    }
+  }
+  return out;
+}
+
+/**
+ * Global dominance plus per-coin market cap, volume, 7d change and funding.
+ * Only the watchlist entries this host has a CoinGecko id for are fetched;
+ * anything else is simply not a coin. Every failure is a string, never a throw.
+ */
+export async function loadCrypto(symbols: readonly ResolvedSymbol[], ctx: PacketContext): Promise<LoadedCrypto> {
+  const tickers = symbols.map((symbol) => symbol.yahoo).filter((ticker) => coingeckoId(ticker) !== null);
+  if (tickers.length === 0) {
+    return NO_CRYPTO;
+  }
+  const globalPending = resolveCached(ctx.db, CRYPTO_GLOBAL_CACHE_KEY, "crypto-global", ctx.nowIso, async () => {
+    const result = await fetchCryptoGlobal({
+      fetchImpl: ctx.fetchImpl,
+      signal: ctx.signal,
+      now: ctx.now,
+      timeoutMs: ctx.yahoo.timeoutMs,
+    });
+    if (!result.global) {
+      throw new Error((result.failure ?? "crypto-global: no data").replace(/^crypto-global: /, ""));
+    }
+    return { payload: result.global, ref: webRef(cryptoGlobalUrl(), result.global.observedAt) };
+  });
+  const [globalResult, marketsResult, funding] = await Promise.all([
+    globalPending,
+    loadCryptoMarkets(tickers, ctx),
+    loadCryptoFunding(tickers, ctx),
+  ]);
+  const globalFailure =
+    globalResult.failure && globalResult.row ? `${globalResult.failure} (serving cached levels)` : globalResult.failure;
+  return {
+    global: globalResult.row?.payload,
+    markets: marketsResult.markets,
+    funding,
+    failures: [...marketsResult.failures, ...(globalFailure ? [globalFailure] : [])],
+  };
+}
+
+/* Fundamentals + insiders */
+
+export type LoadedFundamentals = {
+  fundamentals?: TickerFundamentals;
+  insiders?: TickerInsiders;
+  failures: string[];
+};
+
+/**
+ * One `quoteSummary` call fills two cache rows, because they age at different
+ * speeds (reported ratios twice a day, insider filings once). The fundamentals
+ * row drives the refresh: when it is fresh, whatever insider row sits beside it
+ * is served as-is, and an absent one means the venue files none (`.JK` names),
+ * not that the tally is zero.
+ */
+export async function loadFundamentals(symbol: string, ctx: PacketContext): Promise<LoadedFundamentals> {
+  const cachedInsiders = () => readCached(ctx.db, symbol, "insiders");
+  const fresh = readFresh(ctx.db, symbol, "fundamentals", ctx.nowIso);
+  if (fresh) {
+    const insiders = readFresh(ctx.db, symbol, "insiders", ctx.nowIso);
+    return { fundamentals: fresh.payload, ...(insiders ? { insiders: insiders.payload } : {}), failures: [] };
+  }
+  const result = await fetchFundamentals(symbol, ctx.yahoo);
+  if (result.failure) {
+    // The vendor is down: serve whatever is on disk and say so, exactly as the other sections do.
+    const stale = readCached(ctx.db, symbol, "fundamentals");
+    const staleInsiders = stale ? cachedInsiders() : null;
+    return {
+      ...(stale ? { fundamentals: stale.payload } : {}),
+      ...(staleInsiders ? { insiders: staleInsiders.payload } : {}),
+      failures: [stale ? `${result.failure} (serving cached figures)` : result.failure],
+    };
+  }
+  const ref: WatchRef = { source: "yahoo", sourceUrl: yahooQuoteUrl(symbol), observedAt: ctx.nowIso };
+  if (result.fundamentals) {
+    writeCached(ctx.db, symbol, "fundamentals", result.fundamentals, ref, result.fundamentals.observedAt);
+  }
+  if (result.insiders) {
+    writeCached(ctx.db, symbol, "insiders", result.insiders, ref, result.insiders.observedAt);
+  }
+  return {
+    ...(result.fundamentals ? { fundamentals: result.fundamentals } : {}),
+    ...(result.insiders ? { insiders: result.insiders } : {}),
+    failures: [],
+  };
+}
+
+/* Sentiment */
+
+export type LoadedSentiment = { sentiment?: TickerSentiment; failures: string[] };
+
+/**
+ * StockTwits and Reddit for one ticker, merged into core's sentiment section.
+ *
+ * A venue this ticker is not listed on is never called and never noted — it was
+ * not asked. A venue that was asked and refused leaves its sub-section absent
+ * with a failure beside it, so "we could not look" never reads as "nobody is
+ * talking".
+ */
+export async function loadSentiment(symbol: string, ctx: PacketContext): Promise<LoadedSentiment> {
+  const [twits, reddit] = await Promise.all([loadStocktwits(symbol, ctx), loadReddit(symbol, ctx)]);
+  const failures = [...twits.failures, ...reddit.failures];
+  const crowd = twits.row;
+  const threads = reddit.row && !reddit.row.unavailable ? reddit.row : null;
+  const samples = [...(crowd?.samples ?? []), ...(reddit.row?.samples ?? [])].slice(0, SENTIMENT_SAMPLES_MAX);
+  if (!crowd && !threads && samples.length === 0) {
+    return { failures };
+  }
+  return {
+    sentiment: tickerSentimentSchema.parse({
+      ...(crowd
+        ? { stocktwits: { total: crowd.total, bullish: crowd.bullish, bearish: crowd.bearish, sampled: crowd.sampled } }
+        : {}),
+      ...(threads ? { reddit: { posts: threads.posts, subreddits: threads.subreddits } } : {}),
+      samples,
+      observedAt: crowd?.observedAt ?? reddit.row?.observedAt ?? ctx.nowIso,
+    }),
+    failures,
+  };
+}
+
+async function loadStocktwits(symbol: string, ctx: PacketContext) {
+  const venue = stocktwitsSymbol(symbol);
+  if (!venue) {
+    return { row: null, failures: [] as string[] };
+  }
+  const result = await resolveCached(ctx.db, symbol, "stocktwits", ctx.nowIso, async () => {
+    const fetched = await fetchStocktwits(symbol, {
+      fetchImpl: ctx.fetchImpl,
+      signal: ctx.signal,
+      now: ctx.now,
+      timeoutMs: ctx.yahoo.timeoutMs,
+    });
+    if (!fetched.sentiment) {
+      throw new Error((fetched.failure ?? "stocktwits: no data").replace(/^stocktwits: /, ""));
+    }
+    return {
+      payload: fetched.sentiment,
+      ref: webRef(stocktwitsStreamUrl(venue), fetched.sentiment.observedAt),
+    };
+  });
+  const failure = result.failure && result.row ? `${result.failure} (serving cached mood)` : result.failure;
+  return { row: result.row?.payload ?? null, failures: failure ? [failure] : [] };
+}
+
+async function loadReddit(symbol: string, ctx: PacketContext) {
+  const plan = redditPlanFor(symbol);
+  if (!plan) {
+    return { row: null, failures: [] as string[] };
+  }
+  const extra: string[] = [];
+  const result = await resolveCached(ctx.db, symbol, "reddit", ctx.nowIso, async () => {
+    const fetched = await fetchReddit(symbol, {
+      fetchImpl: ctx.fetchImpl,
+      signal: ctx.signal,
+      now: ctx.now,
+      timeoutMs: ctx.yahoo.timeoutMs,
+      ...(ctx.delay ? { delay: ctx.delay } : {}),
+    });
+    if (!fetched.sentiment) {
+      throw new Error("no data returned");
+    }
+    extra.push(...fetched.failures);
+    return {
+      payload: fetched.sentiment,
+      // The row spans several subreddits; the first one named is a stable, honest URL for it.
+      ref: webRef(redditSearchUrl(plan.subs[0] as string, plan.query), fetched.sentiment.observedAt),
+    };
+  });
+  const failure = result.failure && result.row ? `${result.failure} (serving cached threads)` : result.failure;
+  return { row: result.row?.payload ?? null, failures: [...extra, ...(failure ? [failure] : [])] };
+}
+
+/* Global news */
+
+export type LoadedGlobalNews = { items: GlobalNewsItem[]; failures: string[] };
+
+/** The macro headline set for the run's language: one cached row, shared by every ticker in the packet. */
+export async function loadGlobalNews(ctx: PacketContext): Promise<LoadedGlobalNews> {
+  const queries = globalNewsQueries(ctx.language);
+  const extra: string[] = [];
+  const result = await resolveCached(ctx.db, globalNewsCacheKey(ctx.language), "global-news", ctx.nowIso, async () => {
+    const fetched = await fetchGlobalNews(queries, { ...ctx.yahoo, perQuery: GLOBAL_NEWS_PER_QUERY });
+    if (fetched.news.items.length === 0) {
+      throw new Error(fetched.failures.join("; ") || "no macro headlines returned");
+    }
+    extra.push(...fetched.failures);
+    return {
+      payload: fetched.news,
+      ref: { source: "yahoo" as const, sourceUrl: "https://finance.yahoo.com/news/", observedAt: fetched.news.observedAt },
+    };
+  });
+  const failure = result.failure && result.row ? `${result.failure} (serving cached headlines)` : result.failure;
+  return {
+    items: (result.row?.payload.items ?? []).slice(0, GLOBAL_NEWS_MAX),
+    failures: [...extra, ...(failure ? [failure] : [])],
+  };
+}
+
+function numberOrUndefined(value: number | null | undefined): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+/** Dominance is a share of the whole market, so it only means anything for BTC and ETH. */
+function dominanceFor(ticker: string, global: CryptoGlobal | undefined): number | undefined {
+  const base = ticker.split("-")[0]?.toUpperCase();
+  if (base === "BTC") {
+    return global?.btcDominancePct;
+  }
+  return base === "ETH" ? global?.ethDominancePct : undefined;
+}
+
+/**
+ * The crypto section for one ticker in core's shape. `web` is the WatchSource
+ * for a keyless HTTP provider; a null the vendor gave is dropped rather than
+ * written as zero. Returns undefined when nothing at all was fetched.
+ */
+export function tickerCryptoFor(ticker: string, loaded: LoadedCrypto, observedAt: string): TickerCrypto | undefined {
+  const market = loaded.markets.get(ticker);
+  const dominancePct = dominanceFor(ticker, loaded.global);
+  const fundingRatePct = loaded.funding.get(ticker);
+  if (!market && dominancePct === undefined && fundingRatePct === undefined) {
+    return undefined;
+  }
+  const section: TickerCrypto = {
+    source: "web",
+    observedAt: market?.observedAt ?? observedAt,
+    ...(numberOrUndefined(market?.marketCapUsd) !== undefined
+      ? { marketCapUsd: numberOrUndefined(market?.marketCapUsd) }
+      : {}),
+    ...(numberOrUndefined(market?.volume24hUsd) !== undefined
+      ? { volume24hUsd: numberOrUndefined(market?.volume24hUsd) }
+      : {}),
+    ...(numberOrUndefined(market?.change7dPct) !== undefined
+      ? { change7dPct: numberOrUndefined(market?.change7dPct) }
+      : {}),
+    ...(dominancePct !== undefined ? { dominancePct } : {}),
+    ...(fundingRatePct !== undefined ? { fundingRatePct } : {}),
+  };
+  return section;
+}
+
 /* Assembly */
 
 function settledValue<T>(result: PromiseSettledResult<T> | undefined, fallback: T): T {
@@ -386,6 +816,10 @@ export type LoadedSections = {
   charts: Map<string, TickerPacket["chart"]>;
   newsResults: PromiseSettledResult<LoadedNews>[];
   macro: LoadedMacro;
+  crypto: LoadedCrypto;
+  fundamentalsResults: PromiseSettledResult<LoadedFundamentals>[];
+  sentimentResults: PromiseSettledResult<LoadedSentiment>[];
+  globalNews: LoadedGlobalNews;
 };
 
 /** resolving -> quotes: one batch that also validates the symbols. */
@@ -409,11 +843,24 @@ async function loadSections(
   progress: PacketProgress,
 ): Promise<LoadedSections> {
   throwIfJobAborted(ctx.signal);
-  const historiesPending = mapLimit(symbols, ctx.concurrency, (symbol) => loadHistory(symbol.yahoo, ctx));
+  const months = historyMonthsFor(ctx);
+  const cap = headlineCapFor(ctx);
+  const historiesPending = hasSource(ctx, "history")
+    ? mapLimit(symbols, ctx.concurrency, (symbol) => loadHistory(symbol.yahoo, ctx, months))
+    : Promise.resolve(symbols.map(() => skipped(NO_HISTORY)));
   const newsPending = ctx.include.news
-    ? mapLimit(symbols, ctx.concurrency, (symbol) => loadNews(symbol, ctx))
+    ? mapLimit(symbols, ctx.concurrency, (symbol) => loadNews(symbol, ctx, cap))
     : Promise.resolve(symbols.map(() => skipped(NO_NEWS)));
   const macroPending = ctx.include.macro ? loadMacro(ctx) : Promise.resolve(NO_MACRO);
+  const cryptoPending = hasSource(ctx, "crypto") ? loadCrypto(symbols, ctx) : Promise.resolve(NO_CRYPTO);
+  // The analyst-team sources. Each is gated by the desk's harness, so a scanner never pays for any of them.
+  const fundamentalsPending = hasSource(ctx, "fundamentals")
+    ? mapLimit(symbols, ctx.concurrency, (symbol) => loadFundamentals(symbol.yahoo, ctx))
+    : Promise.resolve(symbols.map(() => skipped(NO_FUNDAMENTALS)));
+  const sentimentPending = hasSource(ctx, "sentiment")
+    ? mapLimit(symbols, ctx.concurrency, (symbol) => loadSentiment(symbol.yahoo, ctx))
+    : Promise.resolve(symbols.map(() => skipped(NO_SENTIMENT)));
+  const globalNewsPending = hasSource(ctx, "globalNews") ? loadGlobalNews(ctx) : Promise.resolve(NO_GLOBAL_NEWS);
 
   const historyResults = await historiesPending;
   const histories = new Map(
@@ -423,8 +870,13 @@ async function loadSections(
     ]),
   );
   throwIfJobAborted(ctx.signal);
-  progress("technicals", "Computing technicals and reading TradingView ratings");
-  const technicals = await loadTechnicals(symbols, histories, ctx);
+  const wantsTechnicals = hasSource(ctx, "technicals");
+  if (wantsTechnicals) {
+    progress("technicals", "Computing technicals and reading TradingView ratings");
+  }
+  const technicals = wantsTechnicals
+    ? await loadTechnicals(symbols, histories, ctx)
+    : new Map<string, LoadedTechnical>();
 
   progress("charts", "Building a chart per ticker");
   const charts = new Map(
@@ -440,10 +892,31 @@ async function loadSections(
     progress("macro", "Reading macro levels");
   }
   const macro = await macroPending;
-  return { historyResults, histories, technicals, charts, newsResults, macro };
+  const crypto = await cryptoPending;
+  const fundamentalsResults = await fundamentalsPending;
+  const sentimentResults = await sentimentPending;
+  const globalNews = await globalNewsPending;
+  return {
+    historyResults,
+    histories,
+    technicals,
+    charts,
+    newsResults,
+    macro,
+    crypto,
+    fundamentalsResults,
+    sentimentResults,
+    globalNews,
+  };
 }
 
-function tickerPacketFor(symbol: ResolvedSymbol, index: number, loaded: LoadedQuotes, sections: LoadedSections) {
+function tickerPacketFor(
+  symbol: ResolvedSymbol,
+  index: number,
+  loaded: LoadedQuotes,
+  sections: LoadedSections,
+  ctx: Pick<PacketContext, "harness" | "nowIso">,
+) {
   const history = sections.historyResults[index];
   const news = sections.newsResults[index];
   const technical = sections.technicals.get(symbol.yahoo) ?? { technical: null, failures: [] };
@@ -453,39 +926,97 @@ function tickerPacketFor(symbol: ResolvedSymbol, index: number, loaded: LoadedQu
     ...technical.failures,
     settledValue(news, { news: [], failure: null }).failure ?? settledFailure(news, "news"),
   ].filter((entry): entry is string => entry !== null);
+  const priceHistory = sections.histories.get(symbol.yahoo) ?? null;
+  const crypto = hasSource(ctx, "crypto") ? tickerCryptoFor(symbol.yahoo, sections.crypto, ctx.nowIso) : undefined;
+  const company = settledValue(sections.fundamentalsResults[index], NO_FUNDAMENTALS);
+  const crowd = settledValue(sections.sentimentResults[index], NO_SENTIMENT);
+  failures.push(
+    ...company.failures,
+    ...crowd.failures,
+    ...[
+      settledFailure(sections.fundamentalsResults[index], "fundamentals"),
+      settledFailure(sections.sentimentResults[index], "sentiment"),
+    ].filter((entry): entry is string => entry !== null),
+  );
   return {
     symbol,
     quote: loaded.quotes.get(symbol.yahoo) ?? null,
     technical: technical.technical,
-    history: sections.histories.get(symbol.yahoo) ?? null,
+    history: priceHistory,
     chart: sections.charts.get(symbol.yahoo) ?? null,
     news: settledValue(news, { news: [], failure: null }).news,
+    // Dated pivot levels for the Elliott Wave agent; computed here so the model never eyeballs a chart.
+    ...(hasSource(ctx, "swings") ? { swings: swingPoints(priceHistory?.bars ?? []) } : {}),
+    ...(crypto ? { crypto } : {}),
+    ...(company.fundamentals ? { fundamentals: company.fundamentals } : {}),
+    ...(company.insiders ? { insiders: company.insiders } : {}),
+    ...(crowd.sentiment ? { sentiment: crowd.sentiment } : {}),
     failures,
   };
 }
 
 /** One TickerPacket per resolved symbol; a section that failed leaves a note in `failures`. Pure. */
-export function assembleTickerPackets(loaded: LoadedQuotes, sections: LoadedSections): TickerPacket[] {
-  return loaded.symbols.map((symbol, index) => tickerPacketFor(symbol, index, loaded, sections));
+export function assembleTickerPackets(
+  loaded: LoadedQuotes,
+  sections: LoadedSections,
+  ctx: Pick<PacketContext, "harness" | "nowIso">,
+): TickerPacket[] {
+  return loaded.symbols.map((symbol, index) => tickerPacketFor(symbol, index, loaded, sections, ctx));
+}
+
+/**
+ * The sections computed in code from what was already fetched. They run after
+ * the base packet is parsed, so `computeSignals` / `computeRotation` see the
+ * same validated rows the model will. Each is listed by the desk's harness;
+ * a desk that does not list one simply does not carry it.
+ */
+function computedSections(base: MarketWatchPacket, ctx: PacketContext): Partial<MarketWatchPacket> {
+  const tickers = base.tickers.map((ticker) => ticker.symbol.yahoo);
+  const metals = hasSource(ctx, "metals") ? deriveMetals(base.tickers, base.macro, ctx.nowIso) : undefined;
+  return {
+    // `deriveMetals` may also produce a GLD-proxy premium. Core's metals schema now carries
+    // it under its own name (`goldFuturesVsGldPct`), so it reaches the packet as itself and
+    // is still never passed off as a spot basis.
+    ...(metals ? { metals } : {}),
+    ...(hasSource(ctx, "signals") ? { signals: computeSignals(base) } : {}),
+    ...(hasSource(ctx, "rotation") ? { rotation: computeRotation(base) } : {}),
+    ...(hasSource(ctx, "sessions") ? { sessions: computeSessions(ctx.now(), tickers) } : {}),
+  };
 }
 
 export async function buildMarketWatchPacket(
   db: Database.Database,
-  request: Pick<MarketWatchRequest, "tickers" | "positionContext">,
+  request: Pick<MarketWatchRequest, "tickers" | "positionContext"> &
+    Partial<Pick<MarketWatchRequest, "specialist" | "language">>,
   opts: BuildPacketOptions = {},
 ): Promise<PacketBuild> {
-  const ctx = packetContext(db, opts);
+  const ctx = packetContext(db, {
+    ...opts,
+    specialist: opts.specialist ?? request.specialist,
+    language: opts.language ?? request.language,
+  });
   const progress: PacketProgress = opts.onProgress ?? (() => {});
 
   const loaded = await resolveWatchlist(request.tickers, ctx, progress);
   const sections = await loadSections(loaded.symbols, ctx, progress);
-  const tickers = assembleTickerPackets(loaded, sections);
+  const tickers = assembleTickerPackets(loaded, sections, ctx);
 
-  const packet = marketWatchPacketSchema.parse({
+  const base = marketWatchPacketSchema.parse({
     tickers,
     macro: sections.macro.macro,
     clock: marketClock(ctx.now()),
+    ...(sections.crypto.global ? { cryptoGlobal: { ...sections.crypto.global, source: "web" as const } } : {}),
+    ...(sections.globalNews.items.length > 0 ? { globalNews: sections.globalNews.items } : {}),
     positionContext: request.positionContext,
   });
-  return { packet, failures: [...loaded.failures, ...(sections.macro.failure ? [sections.macro.failure] : [])] };
+  const packet = marketWatchPacketSchema.parse({ ...base, ...computedSections(base, ctx) });
+  return {
+    packet,
+    failures: [
+      ...loaded.failures,
+      ...(sections.macro.failure ? [sections.macro.failure] : []),
+      ...sections.crypto.failures,
+      ...sections.globalNews.failures,
+    ],
+  };
 }

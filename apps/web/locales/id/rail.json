@@ -5,11 +5,18 @@
   "groupJobs": "Mode kerja",
   "groupAccount": "Akun",
   "chat": "Chat",
+  "newChat": "+ Chat baru",
+  "seeAllSessions": "Semua sesi",
+  "showFewerSessions": "Lebih sedikit",
+  "recentSessionsAria": "Sesi chat terbaru",
   "documents": "Dokumen",
   "research": "Riset",
   "finance": "Keuangan",
   "data": "Data",
   "market": "Pasar",
+  "marketSpecialistsAria": "Spesialis pasar",
+  "marketSpecialistsToggle": "Tampilkan spesialis",
+  "marketSpecialistsHide": "Sembunyikan spesialis",
   "legal": "Hukum",
   "images": "Gambar",
   "videos": "Video",
@@ -43,5 +50,8 @@
       "idle": "Rilis GitHub baru diunduh di sini, lalu DPSBuddy dimulai ulang.",
       "checkFailed": "Pemeriksaan pembaruan gagal."
     }
-  }
+  },
+  "financeTasksAria": "Tugas keuangan",
+  "financeTasksToggle": "Tampilkan tugas",
+  "financeTasksHide": "Sembunyikan tugas"
 }

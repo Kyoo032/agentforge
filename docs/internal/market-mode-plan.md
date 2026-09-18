@@ -47,3 +47,30 @@ Status: **v2 rebuilt 2026-09-09** on branch `feat/market-mode` after Kyo rejecte
 3. Market on Home by default, hidden on Legal / Marketing / Students like Finance and Data.
 4. Ranking and targets are analysis, allowed; imperatives are not (Kyo's prompt, 2026-09-09).
 5. OJK review of the disclaimer wording before public release remains open.
+
+## Specialists (2026-09-17)
+
+Kyo, in Indonesian: "Yg agent utk finance/saham, nama agennya dipisah masing2: saham, forex, gold, crypto, market scanner, market summary, elliot wave count, news aggregator dll." Market mode now offers separately named specialist agents, each with its own behaviour, inside the existing pipeline.
+
+### Contract
+
+`packages/core/src/market/specialists.ts` (ids in `specialist-ids.ts`, default instructions in `specialist-prompts.ts`, system rules in `specialist-rules.ts`; split so no file runs long):
+
+- `MARKET_SPECIALISTS = ["saham", "forex", "gold", "crypto", "commodities", "indices", "sector-rotation", "scanner", "summary", "elliott-wave", "news"]`, `MarketSpecialist`, `DEFAULT_MARKET_SPECIALIST = "saham"`, `isMarketSpecialist(value)`.
+- `MARKET_SPECIALIST_META: Readonly<Record<MarketSpecialist, MarketSpecialistMeta>>` — per agent an `id`, a `label` and a one-sentence `hint` in both languages, a `defaultPrompt` in both languages, a `starterTickers` list the symbol resolver accepts, and a distinct `focus` (`equities` / `fx` / `commodity` / `crypto` / `commodities` / `indices` / `rotation` / `scan` / `overview` / `waves` / `news`).
+- `specialistSystemRules(specialist, language): readonly string[]` — the extra bullets appended to `buildWatchSystemPrompt` describing that desk's job.
+- `defaultWatchPrompt(specialist, language)` for the studio's prefill.
+- `MarketWatchRequest.specialist` and `marketBriefingSchema.specialist` are `z.enum(MARKET_SPECIALISTS).default(DEFAULT_MARKET_SPECIALIST)`.
+
+### Decisions
+
+1. **One pipeline, one desk per run.** An agent is a prompt contract, not a second code path: `loadPacket -> draftBriefing -> verifyBriefing -> saveBriefing` is untouched, and so are both guards, the disclaimer, the tool bindings, and the curated chat model default. `buildWatchSystemPrompt` keeps the shared rules (figures only from the packet, no imperative directive, JSON out) and appends the desk's rules under a `Your desk ("<label>"):` heading, so a new agent can never quietly drop a house rule.
+2. **Both locales are first class.** Labels, hints, default prompts, and system rules are written separately in Indonesian and English; the Indonesian prompt is not a translation of the English one. The advice guard is asserted over every rule and every default prompt in `specialists.test.ts`, so an agent cannot ship a directive.
+3. **Starters resolve, they are not invented.** Every starter ticker passes `isValidTicker` and `toYahooSymbol` in test. IDX names use the `universe.json` aliasing (`BBCA` → `BBCA.JK`), which also covers the nine sector-rotation proxies (`UNVR`, `ICBP`, `ANTM`, `ADRO`, `PGAS` included); FX uses the repo's verified `IDR=X` form for USD/IDR next to `EURUSD=X` / `USDJPY=X` / `DX-Y.NYB`; gold uses `GC=F` with `GLD` as the spot-tracking proxy (no fixture or test in this repo evidences `XAUUSD=X`, so it is not shipped) plus `GDX` and `NEM` as the miners; commodities ships `CL=F` / `NG=F` / `HG=F` / `SI=F` and **drops palm oil** — neither `KPO=F` nor `FCPO` is evidenced anywhere in this repo, and the CPO angle survives in the commodities rules as an Indonesia read-through instead.
+4. **Elliott Wave needs citable levels.** `swingPoints(bars, lookback = 3, max = 12)` in `packages/core/src/market/swings.ts` returns the most recent pivot highs and lows as `{ date, price, kind }`, strict comparison so a plateau yields no pivot. The host packet builder computes them from the same six months of daily bars and stores them on `TickerPacket.swings` (zod optional, capped at `SWING_POINTS_MAX`). They are in `packetNumbers`, so the number guard accepts a swing level the model quotes, and they are rendered into `packetToPromptBlock` **only when the specialist is `elliott-wave`** — every other desk would pay prompt budget for levels it never labels.
+5. **The agent travels with the artifact.** `persistBriefing` writes `specialist` into the artifact meta, the Markdown line under the title and the DOCX subtitle name the agent in the briefing's own language (`specialistLabel`), and `/api/v1/market/regenerate` reads `briefing.specialist` so a rewritten section obeys the same desk's rules as the sections around it.
+6. **Guards unchanged.** `specialist` is not a forbidden field name; the C1 schema lint over the market schemas still returns clean.
+
+### Left to the renderer
+
+`apps/web` picks the agent (chips or a picker from `MARKET_SPECIALIST_META`), prefills the watchlist from `starterTickers` and the instruction from `defaultWatchPrompt`, and sends `specialist` on `/api/v1/market` and `/api/v1/market/stream`.

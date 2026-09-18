@@ -2,13 +2,47 @@
   "title": "Finance",
   "kicker": "Workspace",
   "subtitle": "Give {productName} your figures as line items. Margins, growth, runway, breakeven, and NPV are computed in code; the model only writes the narrative, and any figure it cannot trace is removed.",
-  "download": "Download DOCX",
-  "downloading": "Building…",
   "pasteFigures": "Paste figures",
   "figuresPlaceholder": "Revenue 2025: $120,000. Hosting $30,000. Payroll $100,000. Cash $90,000…",
   "parse": "Parse into line items",
   "parsing": "Reading…",
   "parseHint": "Nothing is computed until you confirm the rows below.",
+  "upload": {
+    "label": "Or upload a spreadsheet or document",
+    "dropHint": "Drop a .csv, .xlsx, .xls, .pdf, .docx or .pptx file here, or",
+    "choose": "Choose a file",
+    "reading": "Reading…",
+    "replace": "Replace",
+    "remove": "Remove",
+    "fileAria": "Spreadsheet or document to read",
+    "sheet": "Sheet",
+    "sheetAria": "Sheet to read",
+    "sheetOption": "{name} ({rows} rows)",
+    "previewLabel": "First {count} rows",
+    "use": "Use these figures",
+    "useHint": "The figures go into the box above. Nothing is computed until you parse them and confirm the rows.",
+    "warningsTitle": "Some of this file was not imported",
+    "warnings": {
+      "droppedColumns": "{n} columns were not imported",
+      "droppedRows": "{n} rows carried no figure and were not imported",
+      "directionMismatch": "{n} rows disagree with their direction label",
+      "truncated": "{n} lines were cut to fit the figures cap",
+      "compacted": "The sheet was rewritten as shorter period = value lines so it would fit",
+      "cappedCells": "{n} cells were too long and were shortened",
+      "piiAmountRestored": "{n} cells held a figure the privacy check had hidden; they were put back"
+    },
+    "pii": "{n} personal identifiers were hidden before sending",
+    "errors": {
+      "type": "Only .csv, .xlsx, .xls, .pdf, .docx and .pptx files can be read.",
+      "tooLarge": "That file is over the {mb} MB cap.",
+      "failed": "Could not read that file as a table",
+      "mismatch": "That file is not really the type its name claims.",
+      "needsOcr": "This PDF is scanned. Reading scans is not available on this machine yet, and nothing was sent anywhere.",
+      "encrypted": "That file is password protected. Remove the password and try again.",
+      "slow": "That file took too long to read and was not imported."
+    },
+    "allSheets": "All tables ({{count}})"
+  },
   "orDataset": "Or use a saved dataset",
   "lineItemsBelow": "Line items below",
   "datasetOption": "{name} ({rows} rows)",
@@ -151,5 +185,340 @@
     "amount": "Amount",
     "currency": "Currency",
     "none": "(none)"
+  },
+  "taskAria": "Finance task",
+  "phaseStripAria": "Steps in this task",
+  "taskUnavailable": "{task} has its own steps and its own maths, and both are still being built. Nothing here can be run yet.",
+  "brief": {
+    "statedFacts": {
+      "title": "Stated in the document ({{count}})",
+      "hint": "Figures the document wrote in a sentence, not in a table. Check the name, or remove one you do not want quoted. They are never added to anything.",
+      "labelPlaceholder": "What this figure is",
+      "labelAria": "Name for this stated figure",
+      "remove": "Remove",
+      "removeAria": "Remove this stated figure"
+    }
+  },
+  "cashflow": {
+    "figures": "Cash in and out, period by period",
+    "figuresPlaceholder": "Opening cash 90,000. Jan in 20,000, out 26,000. Feb in 21,000, out 25,500.",
+    "read": "Read the periods",
+    "reading": "Reading the periods…",
+    "readHint": "The periods, the two sides and the opening balance are read in code. You confirm them before anything is computed.",
+    "openingCash": "Opening cash",
+    "openingCashHint": "Prefilled from the book's own opening line when it has one.",
+    "periods": "Periods",
+    "noPeriods": "No periods yet. Paste or upload a cash book, then read it.",
+    "period": "Period",
+    "cashIn": "Cash in",
+    "cashOut": "Cash out",
+    "financing": "Financing",
+    "net": "Net",
+    "closing": "Closing",
+    "variable": "Variable",
+    "fixed": "Fixed",
+    "oneOff": "One-off",
+    "costBehaviour": "Cost behaviour",
+    "classification": "What each row was read as",
+    "classificationHint": "Rules, not a model. Change anything that is wrong and every figure folds again.",
+    "needsConfirming": "please check",
+    "inflow": "cash in",
+    "outflow": "cash out",
+    "opening": "opening balance",
+    "whatIf": "What if",
+    "whatIfHint": "Every lever is recomputed in code as you type. None of it is a forecast.",
+    "whatIfEmpty": "Set a lever to see what it does to the burn and the runway.",
+    "salesLift": "Sales change %",
+    "rentCut": "Rent cut %",
+    "hires": "New hires",
+    "costPerHire": "Cost per hire, per period",
+    "recurring": "Other recurring cost",
+    "oneOffCost": "One-off spend",
+    "closingCash": "Closing cash",
+    "netBurn": "Net burn",
+    "grossBurn": "Gross burn",
+    "runway": "Runway",
+    "breakeven": "Breakeven revenue per period",
+    "scenarioRunway": "Runway after the what-if",
+    "notAvailable": "not available",
+    "warnings": "Worth a look",
+    "sections": {
+      "position": "Where the cash stands",
+      "burn-and-runway": "Burn and runway",
+      "scenario": "The what-if",
+      "flags": "What to watch"
+    }
+  },
+  "budget": {
+    "figures": "Budget and actuals",
+    "figuresPlaceholder": "Paste both sets, or import the budget sheet and the actuals sheet above.",
+    "read": "Read both sets",
+    "reading": "Reading…",
+    "readHint": "Rows, periods and subtotal rows are read in code. The pairing below is only a proposal.",
+    "thresholds": "Flag a line when",
+    "flagPct": "Percent limit",
+    "flagPctHint": "A line is flagged when its variance is at least this share of its own budget.",
+    "flagAbs": "Amount limit",
+    "flagAbsHint": "A line is flagged when its variance is at least this many units of currency.",
+    "flagMode": "How the two limits combine",
+    "flagModeAnd": "Both limits (recommended)",
+    "flagModeOr": "Either limit",
+    "notAvailable": "not available",
+    "noReport": "That run came back without a report, so there is nothing to compare yet.",
+    "errors": {
+      "read": "Those figures could not be read into a budget set and an actuals set."
+    },
+    "preview": {
+      "heading": "What the rows already say",
+      "empty": "Read the two sets first; nothing is computed until then.",
+      "lines": "Lines compared",
+      "flagged": "Lines over the limit",
+      "unmatched": "Lines with no partner",
+      "result": "Result against budget",
+      "periods": "Periods: {periods}"
+    },
+    "pairing": {
+      "heading": "Match the line pairs",
+      "hint": "Every pair is a proposal with the reason it was made. Change any of them before you generate; one line can only be bound to one other.",
+      "empty": "No pairing yet — read the two sets first.",
+      "budgetSide": "Budget line",
+      "actualSide": "Actual line",
+      "confidence": "Why",
+      "none": "— no partner —",
+      "selectAria": "Actual line paired with {line}",
+      "budgetOnly": "Budget only",
+      "actualOnly": "Actual only",
+      "bucketEmpty": "Nothing left over.",
+      "excluded": "{count} row(s) left out of the comparison: {labels}",
+      "chip": "{stage} · {score}%",
+      "stageGroup": {
+        "exact": "same label",
+        "synonym": "finance dictionary",
+        "meaning": "similar meaning",
+        "manual": "set by you",
+        "ambiguous": "too close to call",
+        "unmatched": "no partner"
+      },
+      "didYouMean": "Closest:",
+      "candidateTitle": "Bind to this line — {stage}, {score}%",
+      "meaningUnavailable": "Matched on wording alone: meaning matching needs the model gateway, which is not available right now."
+    },
+    "chart": {
+      "flagged": "over the limit"
+    }
+  },
+  "appraisal": {
+    "figures": "Outlay and yearly flows",
+    "figuresPlaceholder": "Outlay 820,000 at Year 0. Year 1 138,000, Year 2 142,000, Year 5 -65,000… Or upload the appraisal sheet.",
+    "read": "Read the flows",
+    "reading": "Reading the flows…",
+    "flows": "Cash flow by year",
+    "flowsHint": "One net flow per year. Year 0 is the outlay and is never discounted; edit a year to override what its rows add up to.",
+    "amount": "Net cash flow",
+    "components": "Made up of",
+    "addYear": "Add a year",
+    "removeYearAria": "Remove {period}",
+    "yearAria": "Net cash flow for {period}",
+    "discountRate": "Discount rate %",
+    "discountRateHint": "The hurdle every NPV below is quoted at.",
+    "rateScenarios": "Grid discount rates %",
+    "cashFlowShifts": "Grid cash-flow shifts %",
+    "axesHint": "Comma separated. A shift scales the years after Year 0 only; the outlay never moves.",
+    "preview": "Computed now, before any narrative",
+    "npv": "NPV @ {rate}%",
+    "irr": "IRR",
+    "payback": "Payback",
+    "discountedPayback": "Discounted payback",
+    "profitabilityIndex": "Profitability index",
+    "years": "years",
+    "irrNotUnique": "NPV(r) crosses zero {count} times, so there is no single IRR. MIRR is reported instead.",
+    "negativeCells": "{count} of {total} grid cells are negative.",
+    "negativeYears": "Negative year(s): {periods}.",
+    "empty": "Paste the outlay and the yearly flows, or upload the appraisal sheet, then confirm the years above.",
+    "confirmed": "{count} year(s) confirmed",
+    "notAvailable": "not available",
+    "noReport": "The appraisal came back without a report, so there is nothing to show. Run it again."
+  },
+  "ratios": {
+    "paste": "Balance sheet and profit & loss",
+    "pastePlaceholder": "Cash 2024: 2,340,000,000. Inventory 2024: 4,725,000,000. Trade payables 2024: 3,960,000,000…",
+    "parse": "Read the statement",
+    "parsing": "Reading…",
+    "parseHint": "Rows, periods, signs and buckets are read in code. Confirm every bucket below before anything is computed.",
+    "readCount": "{rows} rows read across {periods} period(s).",
+    "subtotalsIgnored": "{count} total row(s) were left out and never added.",
+    "modelAssist": "{placed} of {asked} unknown label(s) were placed by the model at low confidence. Please check them.",
+    "modelAssistFailed": "{asked} label(s) could not be placed automatically. Pick a bucket for each.",
+    "unplaced": "{count} row(s) are in no bucket, so they are in no ratio.",
+    "period": "Period read",
+    "periodHint": "Every ratio uses this period's column alone. Periods are never summed together.",
+    "classification": "Line classification",
+    "classificationHint": "Each row, the bucket it was put in, and the evidence behind it. Change any bucket you disagree with.",
+    "emptyRows": "No rows have been read yet.",
+    "errors": {
+      "parse": "Could not read that statement"
+    },
+    "columns": {
+      "label": "Line",
+      "period": "Period",
+      "amount": "Amount",
+      "bucket": "Bucket",
+      "confidence": "Confidence",
+      "bucketAria": "Bucket for {label}"
+    },
+    "statement": {
+      "balance-sheet": "Balance sheet",
+      "income-statement": "Profit and loss",
+      "supporting": "Supporting data",
+      "none": "Not classified"
+    },
+    "bucket": {
+      "cash": "Cash and equivalents",
+      "receivables": "Receivables",
+      "inventory": "Inventory",
+      "other-current-asset": "Other current asset",
+      "fixed-asset": "Fixed asset",
+      "contra-asset": "Contra asset (deduction)",
+      "other-noncurrent-asset": "Other non-current asset",
+      "current-liability": "Current liability",
+      "short-term-debt": "Short-term debt (interest-bearing)",
+      "current-portion-ltd": "Current portion of long-term debt",
+      "long-term-debt": "Long-term debt",
+      "other-noncurrent-liability": "Other non-current liability",
+      "equity": "Equity",
+      "revenue": "Revenue",
+      "cogs": "Cost of sales",
+      "opex": "Operating expense",
+      "depreciation": "Depreciation and amortisation",
+      "interest": "Interest expense",
+      "tax": "Tax expense",
+      "principal-repayment": "Principal repayment",
+      "other-income": "Other income (expense)",
+      "excluded": "Not in any ratio"
+    },
+    "evidence": {
+      "derived": "importer: total row",
+      "label": "label dictionary",
+      "section": "section heading",
+      "category": "line category",
+      "model": "model, low confidence",
+      "override": "you chose it",
+      "unknown": "nothing matched"
+    },
+    "balance": {
+      "heading": "Balance check",
+      "ok": "{period}: assets of {assets} equal liabilities plus equity.",
+      "broken": "{period}: assets {assets} are {difference} away from liabilities {liabilities} plus equity {equity}. Fix the buckets before reading the ratios.",
+      "unknown": "{period}: not enough rows to check the balance."
+    },
+    "supporting": {
+      "heading": "Supporting figures",
+      "hint": "Only used when no row carries them. A confirmed row always wins.",
+      "depreciation": "Depreciation and amortisation",
+      "principalRepayment": "Principal repaid",
+      "daysPerYear": "Days per year"
+    },
+    "bands": {
+      "heading": "Reference bands",
+      "hint": "General rule-of-thumb thresholds, not an industry benchmark and not financial advice. Change any line and the scorecard moves with it.",
+      "healthy": "Healthy at",
+      "watch": "Watch at",
+      "reset": "Restore the defaults",
+      "healthyAria": "Healthy threshold for {metric}",
+      "watchAria": "Watch threshold for {metric}"
+    },
+    "scorecard": {
+      "heading": "Scorecard",
+      "metric": "Ratio",
+      "empty": "No ratio could be computed from these rows."
+    }
+  },
+  "tasks": {
+    "brief": {
+      "label": "Financial brief",
+      "hint": "Paste figures, confirm the rows, then one narrative brief over every core metric."
+    },
+    "cashflow": {
+      "label": "Cash flow & runway",
+      "hint": "Monthly cash in and out over an opening balance: burn, runway, breakeven, and one what-if."
+    },
+    "budget": {
+      "label": "Budget vs actual",
+      "hint": "Two sets matched line by line: variance in amount and percent, then only the lines over the limit are explained."
+    },
+    "appraisal": {
+      "label": "Investment appraisal",
+      "hint": "An outlay and yearly flows at one discount rate: NPV, IRR, payback, and a sensitivity grid."
+    },
+    "ratios": {
+      "label": "Ratio health check",
+      "hint": "A balance sheet and P&L sorted into buckets: liquidity, debt and DSCR, banded against their thresholds."
+    }
+  },
+  "phases": {
+    "paste-figures": "Paste figures",
+    "parse-items": "Parse line items",
+    "confirm-rows": "Confirm rows",
+    "core-metrics": "All core metrics",
+    "narrate-sections": "Narrate sections",
+    "number-guard-export": "Number guard + export",
+    "monthly-flows": "Monthly in and out + opening cash",
+    "parse-periods": "Parse into periods",
+    "confirm-periods": "Confirm periods",
+    "runway-math": "Burn, runway, breakeven",
+    "scenario": "What-if scenario",
+    "narrate-guard-export": "Narrate + guard + export",
+    "budget-and-actuals": "Budget and actuals",
+    "parse-both-sets": "Parse both sets",
+    "match-pairs": "Match line pairs",
+    "variance-math": "Variance amount + %",
+    "flag-over-limit": "Flag lines over limit",
+    "explain-flagged": "Explain flagged only",
+    "guard-export": "Guard + export",
+    "outlay-and-flows": "Outlay + yearly flows",
+    "discount-rate": "Set discount rate",
+    "confirm-flows": "Confirm flows",
+    "appraisal-math": "NPV, IRR, payback",
+    "sensitivity-grid": "Sensitivity grid",
+    "memo-guard-export": "Memo + guard + export",
+    "balance-and-pl": "Balance sheet + P&L",
+    "classify-buckets": "Classify into buckets",
+    "ratio-math": "Liquidity, debt, DSCR",
+    "bands-vs-thresholds": "Band vs thresholds",
+    "scorecard-guard-export": "Scorecard + guard + export"
+  },
+  "export": {
+    "button": "Export",
+    "choose": "Choose an export format",
+    "working": "Building…",
+    "failed": "Could not build the export file",
+    "format": {
+      "xlsx": "Excel (.xlsx)",
+      "pptx": "PowerPoint (.pptx)",
+      "docx": "Word (.docx)"
+    }
+  },
+  "notice": {
+    "pii": "{n} personal identifiers were hidden before anything was sent",
+    "modelFallback": "{from} is unavailable; used {to}"
+  },
+  "charts": {
+    "heading": "Charts",
+    "empty": "No chart could be built from these figures.",
+    "alt": "{title}, {kind} chart",
+    "kind": {
+      "line": "line",
+      "bar": "bar",
+      "heat": "heat map",
+      "gauge": "gauge"
+    }
+  },
+  "rows": {
+    "derivedTitle": "Totals the file already states",
+    "derivedHint": "These are sums of the rows above them. They are kept for reference and never added again.",
+    "derivedBadge": "Total",
+    "statedFactsTitle": "Stated in the document",
+    "statedFactsHint": "Figures the file states in a sentence rather than in a table.",
+    "removedSentence": "One sentence was removed because its figure could not be traced."
   }
 }

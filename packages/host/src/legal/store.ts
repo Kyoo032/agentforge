@@ -11,6 +11,7 @@ import { ApiError, type TenantContext } from "@agentforge/core";
 import type { DocxDocument } from "@agentforge/core/docx";
 import type { DeliverableKind, DocRole, LegalSide, LegalWorkType, MatterDocCard } from "@agentforge/core/legal";
 import { localDataDir } from "@agentforge/db/vault-key";
+import { deleteArtifactsByOwner, sweepOrphanSources } from "../knowledge";
 import { type LegalMatterRecord, type LegalRunRecord, legalMatterRecordSchema, legalRunRecordSchema } from "./records";
 import {
   LEGAL_LIST_LIMIT,
@@ -167,6 +168,11 @@ export function createLegalStore(rootDir: string): LegalStore {
         return false;
       }
       rmSync(dirFor(tenant, id), { recursive: true, force: true });
+      // The matter's deliverables and its manifest are artifacts, and its Knowledge card hangs off
+      // one of them. Removing the matter directory alone left the red-flags text feeding every later
+      // Chat turn in this workspace, named after a matter the owner believes they deleted.
+      deleteArtifactsByOwner(tenant, "matterId", id);
+      sweepOrphanSources(tenant);
       return true;
     },
 

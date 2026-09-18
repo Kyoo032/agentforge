@@ -1,6 +1,8 @@
 # Map — Knowledge ingest loop
 
-Last verified: 2026-09-15 at b9f931a
+Last verified: 2026-09-17 at 01ea70a (working tree)
+
+> **Read against the working tree, not the commit.** The extraction, delete-cascade and loop-chart sections below were re-read on **2026-09-17** against the uncommitted tree on `main`, after `packages/host/src/file-extract/` and `knowledge-graph-prune.ts` landed. `knowledge.ts` and `knowledge-extract.ts` moved several times that day; grep the function name rather than trusting a line number.
 
 ## Overview
 
@@ -35,7 +37,7 @@ There is no separate list route; listing rides on `GET /api/v1/knowledge`. `POST
 
 ### Ingest
 
-**Manual.** `addFileSource` (`packages/host/src/knowledge.ts:442-463`) mints a `crypto.randomUUID()`, calls `extractText(filename, mime, bytes)` (`packages/host/src/knowledge-extract.ts:166`), and on a `pdf_*` / `docx_*` `ApiError` records a `Failed` source row rather than throwing — an unsupported *type* still throws 400. It also writes the raw bytes to `mediaRoot()/knowledge/${organizationId}/${id}-${filename}` (`:458-461`). `addUrlSource` (`:468-485`) forces HTTPS via `assertAllowedEndpointUrl`, fetches through `fetchPublicHttps` (SSRF guards, per-hop revalidation, byte and time caps), then routes the body through `htmlToText` or `plainToText`. `addPastedSource` caps at 2,000,000 chars with a 413 (`:508`, `:527-528`).
+**Manual.** `addFileSource` (`packages/host/src/knowledge.ts:495`, working tree) mints a `crypto.randomUUID()` and calls `extractText(filename, mime, bytes)` (`packages/host/src/knowledge-extract.ts:225`). **Changed on 2026-09-17:** every extraction failure is now a structured 4xx with no row at all — `pdf_*`, `docx_*`, `document_*` and `unsupported_content_type` alike — where a `pdf_*` / `docx_*` failure used to be recorded as a `Failed` row answered `201`. The injection scan also runs *before* the write now, so a tripped upload is `400 injection_blocked` with no row and no stored bytes. It also writes the raw bytes to `mediaRoot()/knowledge/${organizationId}/${id}-${filename}` (`:458-461`). `addUrlSource` (`:468-485`) forces HTTPS via `assertAllowedEndpointUrl`, fetches through `fetchPublicHttps` (SSRF guards, per-hop revalidation, byte and time caps), then routes the body through `htmlToText` or `plainToText`. `addPastedSource` caps at 2,000,000 chars with a 413 (`:508`, `:527-528`).
 
 **Automatic — the loop.** Every finished Chat turn and every job mode (Research, Data, Finance, Documents, Presentation, Images, Videos, Edit) becomes one "work card" through `upsertWorkSource` (`packages/host/src/knowledge-ingest.ts:24-70`), fired and forgotten from `packages/host/src/runs.ts:384`. It is **idempotent per `(workspace, origin.kind, origin.id)`** via `findSourceByOrigin` (`packages/host/src/knowledge.ts:214-221`), so re-running a thread rewrites one row instead of piling up duplicates.
 
@@ -103,8 +105,10 @@ Every read and write is parameterized by `workspace_id` in application code. The
 
 | Case | Behaviour |
 |---|---|
-| Unsupported type (`.xlsx`, arbitrary binary) | 400 `unsupported_content_type` (`packages/host/src/knowledge-extract.ts:183-185`) |
-| PDF/DOCX parse failure, timeout, zip bomb, too large | `Failed` source row, not a thrown error |
+| Unsupported type (arbitrary binary) | 400 `unsupported_content_type` (`packages/host/src/knowledge-extract.ts:249-253`). **`.xlsx` is no longer an example of this** — it and nine other document formats are read by the converter as of 2026-09-17 |
+| PDF/DOCX parse failure, timeout, zip bomb, too large | a structured 4xx (`pdf_*` / `docx_*`), **no row**. Changed 2026-09-17; this used to be a `Failed` row answered `201` |
+| Converter refuses a `document` upload | `document_<code>` for the ten codes at `packages/host/src/file-extract/errors.ts:12-32` — `413` for `too_large`, `400` for the rest (`packages/host/src/knowledge-extract.ts:119-123`) |
+| Scanned PDF on the converter path | 400 `document_needs_ocr`. **No OCR runs and nothing is uploaded** — anydoc's `ocr: 'hosted'` option is unreachable because `file-extract/anydoc.ts:72-86` never builds an options object |
 | No extractable text | `Failed` / `NO_TEXT` — same row shape as an injection block (`packages/host/src/knowledge.ts:258`, `:374-377`) |
 | Injection hit | `Failed`, `error = injection_blocked (rule: …)`, never retrievable |
 | Embedding call fails mid-batch | **the whole batch** falls back to `stub-fnv-32` vectors and a 5-minute circuit breaker opens workspace-wide (`packages/host/src/knowledge-embed.ts:88-89`, `:94-115`). The FTS row is already committed, so the source still reads `Indexed` and is findable by keyword |
@@ -134,7 +138,10 @@ Every read and write is parameterized by `workspace_id` in application code. The
 
 - **The guard refuses; it does not clean.** There is no sanitized-and-indexed outcome. A tripped source is `Failed` and invisible to retrieval.
 - **A bypass leaves no audit line.** When `injectionGuardBypass` is true the scan is skipped with no log — only actual blocks get a `console.warn`. There is no record that a given source was ingested unscanned, and no test exercises the bypass on the knowledge path. **Finding.**
-- **An uploaded `.html` file keeps its markup.** `sourceKind()` (`packages/host/src/knowledge-extract.ts:44-60`) routes any `text/*` mime — `text/html` included — to the raw UTF-8 branch, unlike URL ingest which always runs `htmlToText`. **Finding.**
+- **An uploaded `.html` file used to keep its markup. Fixed 2026-09-17.** `sourceKind()` (`packages/host/src/knowledge-extract.ts:69-90`) now tests `text/html` / `application/xhtml+xml` and the `.html` / `.htm` extensions **ahead of** the `text/*` branch (`:80`) and routes them to the same `htmlToText` the URL path uses (`:242`). The comment at `:77-79` records why: HTML *is* text, and reading it as text is what put `<script>` bodies inside the trusted `## Retrieved sources` block.
+- **Ten document formats now go through one local converter, and it has no network path.** `.pptx .ppt .xlsx .xls .ods .odt .odp .doc .rtf .epub` (`KNOWLEDGE_DOCUMENT_EXTENSIONS`, `packages/host/src/knowledge-extract.ts:56-67`) reach `extractFile` (`packages/host/src/file-extract/index.ts:171`). anydoc is required through `createRequire` so a platform with no native binding degrades to the old pdf / docx / workbook extractors instead of failing the upload (`file-extract/anydoc.ts:53-67`, `file-extract/fallback.ts:70-81`) — and on that path `.pptx` / `.odt` / `.rtf` / `.epub` are `unsupported` again. `format_mismatch` is thrown when the extension and the magic bytes disagree (`file-extract/detect.ts:77-95`), which is how a renamed workbook is kept away from the CSV parser.
+- **The `.pdf` and `.docx` readers did not move.** Two readers now sit behind one upload dialog, with two failure vocabularies (`pdf_*` / `docx_*` versus `document_*`). The reason is recorded in the file header (`packages/host/src/knowledge-extract.ts:9-13`): the index, its page markers and its failure codes are built on the existing parsers.
+- **The converter's tables are parsed and then thrown away here.** `extractFile` returns `tables`, `meta.sheets` and `meta.truncated`; `documentText` keeps `extracted.text` only (`packages/host/src/knowledge-extract.ts:126-131`). A document truncated at `KNOWLEDGE_TEXT_MAX_CHARS` inside the converter is indexed with no marker on the knowledge side.
 - **Uploads leave a raw copy scoped to the organization, not the desk** (`packages/host/src/knowledge.ts:458-461`). Everything else on this path is workspace-scoped.
 - **Only Chat retrieves.** Job modes write cards and never call `knowledgeInjection`. A knowledge answer inside Finance does not exist.
 - **A thread cannot retrieve its own card.** `excludeThreadId` (`packages/host/src/knowledge.ts:619-625`) breaks the loop, which is why proving retrieval of a Chat-authored card needs a *fresh* thread.

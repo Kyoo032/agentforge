@@ -1,24 +1,87 @@
 import type { BriefingSection, MarketBriefing } from "@agentforge/core/artifacts";
+import type { JobProgress } from "@agentforge/core/jobs";
 import {
   ADVICE_MARKER,
   WATCHLIST_MAX,
   normalizeTickerInput,
   partitionTickerInput,
+  TEAM_SECTION_KEYS,
+  teamSectionHeadings,
+  type AnalystNote,
+  type DebateSide,
   type MacroSnapshot,
   type MarketBoard,
   type MarketClock,
   type MarketWatchPacket,
   type MarketWatchRequest,
   type Quote,
+  type RiskLens,
+  type RiskRead,
   type Technical,
+  type TeamSectionKey,
+  type TeamNotes,
   type TickerPacket,
   type WatchNewsItem,
 } from "@agentforge/core/market";
 import { apiFetch, isElectron } from "./api-client";
 import { saveBlob } from "./artifacts-client";
+import {
+  CONFIDENCE_LEVELS,
+  DEFAULT_MARKET_DEPTH,
+  DEFAULT_MARKET_SPECIALIST,
+  MARKET_ANALYSTS,
+  MARKET_DEPTHS,
+  MARKET_SPECIALISTS,
+  MARKET_SPECIALIST_META,
+  RISK_LENSES,
+  defaultWatchPrompt,
+  isMarketSpecialist,
+  nextDepth,
+  nextPrompt,
+  specialistAnalysts,
+  specialistHint,
+  specialistLabel,
+  specialistStarterTickers,
+  teamAvailable,
+  type MarketAnalyst,
+  type MarketDepth,
+  type MarketSpecialist,
+} from "./market-specialist";
+
+/*
+ * `MarketWatchRequest` already carries `specialist` (the core zod schema
+ * defaults it to `saham`), so the studio only has to put the chosen agent in
+ * the body it posts to /api/v1/market and /api/v1/market/stream. The rewrite
+ * route reads the agent back off `briefing.specialist`, so it needs no field
+ * of its own. These re-exports keep the studio on one import.
+ */
+export {
+  CONFIDENCE_LEVELS,
+  DEFAULT_MARKET_DEPTH,
+  DEFAULT_MARKET_SPECIALIST,
+  MARKET_ANALYSTS,
+  MARKET_DEPTHS,
+  MARKET_SPECIALISTS,
+  MARKET_SPECIALIST_META,
+  RISK_LENSES,
+  defaultWatchPrompt,
+  isMarketSpecialist,
+  nextDepth,
+  nextPrompt,
+  specialistAnalysts,
+  specialistHint,
+  specialistLabel,
+  specialistStarterTickers,
+  teamAvailable,
+  teamSectionHeadings,
+  TEAM_SECTION_KEYS,
+};
+export type { MarketAnalyst, MarketDepth, MarketSpecialist };
 
 export type {
+  AnalystNote,
   BriefingSection,
+  DebateSide,
   MacroSnapshot,
   MarketBoard,
   MarketBriefing,
@@ -26,7 +89,11 @@ export type {
   MarketWatchPacket,
   MarketWatchRequest,
   Quote,
+  RiskLens,
+  RiskRead,
   Technical,
+  TeamNotes,
+  TeamSectionKey,
   TickerPacket,
   WatchNewsItem,
 };
@@ -281,6 +348,50 @@ const SESSION_LABEL: Record<MarketClock["usSession"], string> = {
 
 export function sessionLabel(session: MarketClock["usSession"]): string {
   return SESSION_LABEL[session];
+}
+
+/**
+ * The phases the analyst-team run streams, in the order the host emits them.
+ *
+ * The packet phases (`resolving` … `macro`) are labelled by the host and shown
+ * verbatim by `JobProgressList`, which has no catalog of its own. The team run
+ * is the first market phase set the studio wants in the reader's language, so
+ * the studio relabels these four off `market.progress.*` and leaves every other
+ * phase — including a phase a newer host invents — on the host's own wording.
+ */
+export const MARKET_TEAM_PHASES = ["analysts", "debate", "risk", "synthesis"] as const;
+export type MarketTeamPhase = (typeof MARKET_TEAM_PHASES)[number];
+
+const TEAM_PHASE_KEYS: ReadonlySet<string> = new Set<string>(MARKET_TEAM_PHASES);
+
+/** The catalog key for a streamed phase, or null when the host label should stand. */
+export function marketPhaseKey(phase: string): string | null {
+  return TEAM_PHASE_KEYS.has(phase) ? `market.progress.${phase}` : null;
+}
+
+/**
+ * A copy of the streamed progress with the team phases relabelled. `translate`
+ * is the studio's `labeled(key, fallback)`; nothing is mutated, so the job
+ * stream's own state is untouched.
+ */
+export function localizeMarketProgress(
+  progress: JobProgress,
+  translate: (key: string, fallback: string) => string,
+): JobProgress {
+  let changed = false;
+  const phases = progress.phases.map((phase) => {
+    const key = marketPhaseKey(phase.phase);
+    if (!key) {
+      return phase;
+    }
+    const label = translate(key, phase.label);
+    if (label === phase.label) {
+      return phase;
+    }
+    changed = true;
+    return { ...phase, label };
+  });
+  return changed ? { ...progress, phases } : progress;
 }
 
 /** Every packet failure with the ticker it belongs to, macro last. */

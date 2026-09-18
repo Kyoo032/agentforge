@@ -3,16 +3,14 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api-client";
 import { t } from "@/lib/i18n";
-import { truncateLabel } from "@/lib/chart-scale";
 import {
+  GRAPH_DRAW_LIMIT,
+  GRAPH_EDGE_COLOR,
   GRAPH_EDGE_KINDS,
   GRAPH_NODE_KINDS,
   GRAPH_NODE_LIMIT,
-  type GraphLayoutNode,
-  type GraphNodeKind,
   type KnowledgeGraph,
   capGraph,
-  edgeKindColor,
   edgeStrokeWidth,
   egoSubgraph,
   layoutGraph,
@@ -29,37 +27,18 @@ type Props = {
 type Status = "idle" | "loading" | "ready" | "error";
 
 const MUTED = "text-[var(--text-2)]";
+const FAINT = "text-[var(--text-3)]";
 const NODE_R = 5;
 const FOCUS_R = 8;
 const LABEL_FONT = 12;
-const LABEL_PAD = 10;
-const EDGE_OPACITY = 0.45;
+const LABEL_OPACITY = 0.78;
 const EMPTY_GRAPH: KnowledgeGraph = { nodes: [], edges: [] };
 
-function labelAnchor(kind: GraphNodeKind): "start" | "middle" | "end" {
-  if (kind === "topic") {
-    return "end";
-  }
-  if (kind === "thread") {
-    return "start";
-  }
-  return "middle";
-}
-
-function labelX(node: GraphLayoutNode): number {
-  if (node.kind === "topic") {
-    return node.x - LABEL_PAD;
-  }
-  if (node.kind === "thread") {
-    return node.x + LABEL_PAD;
-  }
-  return node.x;
-}
-
 /**
- * Topic ↔ source ↔ thread links, collapsed by default under the loop chart. Opening it fetches
+ * Topic ↔ source ↔ thread links, collapsed by default under the health strip. Opening it fetches
  * `GET /api/v1/knowledge/graph?limit=200`; a host without that route just shows the error line.
- * Layout is a deterministic three-column SVG — no physics, no chart lib.
+ * Layout is a deterministic three-column SVG — no physics, no chart lib — and only the first
+ * `GRAPH_DRAW_LIMIT` nodes are drawn until the reader asks for the rest.
  */
 export function KnowledgeGraphPanel({ counts }: Props) {
   const [open, setOpen] = useState(false);
@@ -67,6 +46,7 @@ export function KnowledgeGraphPanel({ counts }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [graph, setGraph] = useState<KnowledgeGraph>(EMPTY_GRAPH);
   const [focus, setFocus] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
   const [reload, setReload] = useState(0);
 
   useEffect(() => {
@@ -104,16 +84,24 @@ export function KnowledgeGraphPanel({ counts }: Props) {
     };
   }, [open, reload]);
 
-  const capped = capGraph(graph, GRAPH_NODE_LIMIT);
-  const shown = focus ? egoSubgraph(capped, focus) : capped;
+  const full = capGraph(graph, GRAPH_NODE_LIMIT);
+  const scoped = focus ? egoSubgraph(full, focus) : full;
+  const shown = capGraph(scoped, expanded ? GRAPH_NODE_LIMIT : GRAPH_DRAW_LIMIT);
   const layout = layoutGraph(shown);
+  const hasMore = scoped.nodes.length > shown.nodes.length;
   const totalNodes = Math.max(counts?.nodes ?? 0, graph.nodes.length);
   const totalEdges = Math.max(counts?.edges ?? 0, graph.edges.length);
-  const focusLabel = focus ? (capped.nodes.find((node) => node.id === focus)?.label ?? focus) : null;
+  const focusLabel = focus ? (full.nodes.find((node) => node.id === focus)?.label ?? focus) : null;
+  const drawn = status === "ready" && full.nodes.length > 0;
 
   return (
-    <section className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4" data-testid="knowledge-graph-panel" aria-label={t("knowledge.graph.aria")}>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+    <section
+      className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4"
+      data-testid="knowledge-graph-panel"
+      aria-label={t("knowledge.graph.aria")}
+    >
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <p className="panel-label">{t("knowledge.graph.label")}</p>
         <button
           type="button"
           className="btn btn-ghost text-xs"
@@ -122,16 +110,40 @@ export function KnowledgeGraphPanel({ counts }: Props) {
           data-testid="knowledge-graph-toggle"
         >
           {open ? t("knowledge.graph.hide") : t("knowledge.graph.show")}
+          <span
+            className={FAINT}
+            data-testid="knowledge-graph-counts"
+            data-nodes={totalNodes}
+            data-edges={totalEdges}
+          >
+            {`· ${t("knowledge.graph.counts", { nodes: totalNodes, edges: totalEdges })}`}
+          </span>
         </button>
-        <p className="panel-label">{t("knowledge.graph.label")}</p>
-        <p
-          className={`text-xs ${MUTED}`}
-          data-testid="knowledge-graph-counts"
-          data-nodes={totalNodes}
-          data-edges={totalEdges}
-        >
-          {t("knowledge.graph.counts", { nodes: totalNodes, edges: totalEdges })}
-        </p>
+        {open && drawn ? (
+          <span
+            className={`text-xs ${FAINT}`}
+            data-testid="knowledge-graph-shown"
+            data-shown={layout.nodes.length}
+            data-total={totalNodes}
+          >
+            {/* Silent when the drawing already is the whole graph — the header states that. */}
+            {focusLabel
+              ? t("knowledge.graph.around", { label: focusLabel })
+              : hasMore
+                ? t("knowledge.graph.drawn", { shown: layout.nodes.length })
+                : ""}
+          </span>
+        ) : null}
+        {open && hasMore ? (
+          <button
+            type="button"
+            className="btn btn-ghost text-xs"
+            onClick={() => setExpanded(true)}
+            data-testid="knowledge-graph-show-all-nodes"
+          >
+            {t("knowledge.graph.showAllNodes", { total: scoped.nodes.length })}
+          </button>
+        ) : null}
         {focus ? (
           <button
             type="button"
@@ -153,7 +165,7 @@ export function KnowledgeGraphPanel({ counts }: Props) {
           ) : null}
           {status === "error" ? (
             <div className="flex flex-wrap items-center gap-2">
-              <p className="text-xs text-red-700" data-testid="knowledge-graph-error">
+              <p className="text-xs text-[var(--danger)]" data-testid="knowledge-graph-error">
                 {error ?? t("knowledge.errors.loadGraph")}
               </p>
               <button
@@ -166,20 +178,49 @@ export function KnowledgeGraphPanel({ counts }: Props) {
               </button>
             </div>
           ) : null}
-          {status === "ready" && capped.nodes.length === 0 ? (
+          {status === "ready" && full.nodes.length === 0 ? (
             <p className={`text-xs ${MUTED}`} data-testid="knowledge-graph-empty">
               {t("knowledge.graph.empty")}
             </p>
           ) : null}
-          {status === "ready" && capped.nodes.length > 0 ? (
+          {drawn ? (
             <>
-              <p className={`text-xs ${MUTED}`} data-testid="knowledge-graph-shown">
-                {t("knowledge.graph.showing", { shown: layout.nodes.length, total: totalNodes })}
-                {focusLabel ? t("knowledge.graph.around", { label: focusLabel }) : ""}
-              </p>
+              <ul
+                className={`flex flex-wrap gap-1.5 text-xs ${FAINT}`}
+                data-testid="knowledge-graph-legend"
+              >
+                {GRAPH_NODE_KINDS.map((kind) => (
+                  <li
+                    key={kind}
+                    className="inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--line)] px-2 py-0.5"
+                    title={t(`knowledge.graph.nodeHint.${kind}`)}
+                  >
+                    <span
+                      className="inline-block h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: nodeKindColor(kind) }}
+                      aria-hidden
+                    />
+                    {t(`knowledge.graph.node.${kind}`)}
+                  </li>
+                ))}
+                {GRAPH_EDGE_KINDS.map((kind) => (
+                  <li
+                    key={kind}
+                    className="inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--line)] px-2 py-0.5"
+                    title={t(`knowledge.graph.edgeHint.${kind}`)}
+                  >
+                    <span
+                      className="inline-block h-px w-4 shrink-0"
+                      style={{ backgroundColor: GRAPH_EDGE_COLOR }}
+                      aria-hidden
+                    />
+                    {t(`knowledge.graph.edge.${kind}`)}
+                  </li>
+                ))}
+              </ul>
               <svg
                 viewBox={`0 0 ${layout.width} ${layout.height}`}
-                className="mt-2 h-auto w-full"
+                className="mt-3 h-auto w-full"
                 role="img"
                 aria-label={t("knowledge.graph.svgAria")}
                 data-testid="knowledge-graph-svg"
@@ -191,11 +232,15 @@ export function KnowledgeGraphPanel({ counts }: Props) {
                     y1={edge.y1}
                     x2={edge.x2}
                     y2={edge.y2}
-                    stroke={edgeKindColor(edge.kind)}
-                    strokeOpacity={EDGE_OPACITY}
+                    stroke={GRAPH_EDGE_COLOR}
                     strokeWidth={edgeStrokeWidth(edge.weight)}
                   >
-                    <title>{t("knowledge.graph.edgeTitle", { kind: t(`knowledge.graph.edge.${edge.kind}`), weight: edge.weight })}</title>
+                    <title>
+                      {t("knowledge.graph.edgeTitle", {
+                        kind: t(`knowledge.graph.edge.${edge.kind}`),
+                        weight: edge.weight,
+                      })}
+                    </title>
                   </line>
                 ))}
                 {layout.nodes.map((node) => (
@@ -227,45 +272,18 @@ export function KnowledgeGraphPanel({ counts }: Props) {
                     ) : null}
                     <circle cx={node.x} cy={node.y} r={NODE_R} fill={nodeKindColor(node.kind)} />
                     <text
-                      x={labelX(node)}
-                      y={node.kind === "source" ? node.y - LABEL_PAD : node.y + 3}
-                      textAnchor={labelAnchor(node.kind)}
+                      x={node.labelX}
+                      y={node.labelY}
+                      textAnchor={node.labelAnchor}
                       fill="currentColor"
-                      style={{ fontSize: LABEL_FONT, opacity: 0.72 }}
+                      style={{ fontSize: LABEL_FONT, opacity: LABEL_OPACITY }}
                     >
-                      {truncateLabel(node.label)}
+                      {node.labelText}
                     </text>
                   </g>
                 ))}
               </svg>
-              <ul
-                className={`mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs ${MUTED}`}
-                data-testid="knowledge-graph-legend"
-              >
-                {GRAPH_NODE_KINDS.map((kind) => (
-                  <li key={kind} className="flex items-center gap-1.5" title={t(`knowledge.graph.nodeHint.${kind}`)}>
-                    <span
-                      className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-                      style={{ backgroundColor: nodeKindColor(kind) }}
-                      aria-hidden
-                    />
-                    {t(`knowledge.graph.node.${kind}`)}
-                  </li>
-                ))}
-                {GRAPH_EDGE_KINDS.map((kind) => (
-                  <li key={kind} className="flex items-center gap-1.5" title={t(`knowledge.graph.edgeHint.${kind}`)}>
-                    <span
-                      className="inline-block h-0.5 w-4 shrink-0"
-                      style={{ backgroundColor: edgeKindColor(kind) }}
-                      aria-hidden
-                    />
-                    {t(`knowledge.graph.edge.${kind}`)}
-                  </li>
-                ))}
-              </ul>
-              <p className={`mt-1 text-xs ${MUTED}`}>
-                {t("knowledge.graph.hint")}
-              </p>
+              <p className={`mt-1 text-xs ${FAINT}`}>{t("knowledge.graph.hint")}</p>
             </>
           ) : null}
         </div>

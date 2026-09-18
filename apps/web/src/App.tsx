@@ -8,6 +8,7 @@ import {
 } from "@agentforge/core/product-modes";
 import { HOME_WORKSPACE_NAME } from "@agentforge/core/local-owner";
 import { AppShell } from "@/components/app-shell";
+import { ComponentSetupSilent } from "@/components/component-setup";
 import { apiFetch } from "@/lib/api-client";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { SettingsPage } from "@/components/settings-page";
@@ -142,6 +143,8 @@ export function App() {
   return (
     <Shell key={localeEpoch}>
       <div className="relative h-full min-h-0 overflow-y-auto">
+        {/* An owner who onboarded long ago never sees the setup panel; this runs it with no UI. */}
+        <ComponentSetupSilent />
         <WorkModeKeepAlive />
         <Routes>
           <Route path="/" element={<HomeRedirect />} />
