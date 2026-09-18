@@ -87,6 +87,16 @@ for arch in $ARCHES; do
   actual="$(openssl dgst -sha512 -binary "$tgz" | base64 -w0)"
   [ "$actual" = "$(anydoc_integrity "$arch")" ] || { rm -f "$tgz"; die "anydoc darwin-$arch tarball sha512 mismatch"; }
 done
+# Removing the sibling symlinks is not enough (0.14.27, second failed pack): pnpm also hoists every
+# platform package into node_modules/.pnpm/node_modules and keeps its real directory under
+# node_modules/.pnpm/@firecrawl+anydoc-<platform>@<v>, and app-builder's node-dep-tree walks up into
+# both. Purge every non-darwin store entry and every link that pointed at one, once, before the loop.
+log "purging non-darwin anydoc platform packages from the pnpm store"
+find node_modules/.pnpm -maxdepth 1 -type d -name '@firecrawl+anydoc-*' ! -name '@firecrawl+anydoc-darwin-*' -exec rm -rf {} +
+find node_modules apps/desktop/node_modules -xtype l -path '*@firecrawl/anydoc-*' -delete 2>/dev/null || true
+find node_modules -maxdepth 4 -type l -path '*/.pnpm/node_modules/@firecrawl/anydoc-*' -delete 2>/dev/null || true
+leftover="$(find node_modules -name 'anydoc.linux-*.node' -o -name 'anydoc.win32-*.node' | head -n1)"
+[ -z "$leftover" ] || die "a non-darwin anydoc binary is still reachable: $leftover"
 for arch in $ARCHES; do
   [ -f "$PREBUILDS_KEEP/darwin-$arch.node" ] || die "better-sqlite3 has no prebuilds/darwin-$arch.node"
   tgz="/cache/keytar/keytar-v${KEYTAR_VERSION}-napi-v3-darwin-$arch.tar.gz"
@@ -116,6 +126,8 @@ for arch in $ARCHES; do
   anydoc_node="$(find "$ANYDOC_SIBLINGS/anydoc-darwin-$arch" -maxdepth 1 -name '*.node' | head -n1)"
   [ -n "$anydoc_node" ] || die "anydoc darwin-$arch tarball has no .node"
   file "$anydoc_node" | grep -q "Mach-O" || die "anydoc .node for $arch is not Mach-O"
+  # The hoisted view must agree with the store, or node-dep-tree may still find the other arch there.
+  find node_modules -maxdepth 4 -type l -path '*/.pnpm/node_modules/@firecrawl/anydoc-darwin-*' -delete 2>/dev/null || true
 
   log "electron-builder --mac --dir --$arch"
   npx electron-builder --mac --dir "--$arch" -c.npmRebuild=false -c.mac.identity=null --publish never \
