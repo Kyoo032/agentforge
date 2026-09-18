@@ -24,7 +24,7 @@ die() { echo "mac-build: ERROR: $*" >&2; exit 1; }
 
 [ -d "$SRC/.git" ] || die "/src is not a git checkout"
 [ -d "$OUT" ] || die "/out is not mounted"
-mkdir -p /cache/keytar /cache/electron /cache/electron-builder
+mkdir -p /cache/keytar /cache/anydoc /cache/electron /cache/electron-builder
 
 # ---------- 1. fresh clone of the committed tree ----------
 log "cloning committed tree"
@@ -62,6 +62,41 @@ KEYTAR_DIR="$(realpath apps/desktop/node_modules/keytar)"
 rm -rf "$SQLITE_DIR/build"
 PREBUILDS_KEEP=/tmp/better-sqlite3-prebuilds
 rm -rf "$PREBUILDS_KEEP" && cp -r "$SQLITE_DIR/prebuilds" "$PREBUILDS_KEEP"
+# @firecrawl/anydoc (the local document reader) is a napi-rs module: the Linux install fetched the
+# linux-* platform packages next to it, and asarUnpack would ship those ELF files into a Mac app (the
+# 0.14.27 first-pack failure: "2 non-Mach-O native binaries"). Fetch the darwin package per arch from
+# the npm registry, check its sha512 against packages/host/src/components/manifest.ts (same strings),
+# and swap it in where pnpm keeps anydoc's siblings so electron-builder collects it as an optional dep.
+ANYDOC_DIR="$(realpath apps/desktop/node_modules/@firecrawl/anydoc)"
+ANYDOC_SIBLINGS="$(dirname "$ANYDOC_DIR")"
+ANYDOC_VERSION="$(node -p "require('$ANYDOC_DIR/package.json').version")"
+grep -q "ANYDOC_VERSION = \"$ANYDOC_VERSION\"" "$SRC/packages/host/src/components/manifest.ts"   || die "anydoc $ANYDOC_VERSION in node_modules is not the version pinned in components/manifest.ts"
+anydoc_integrity() {
+  case "$1" in
+    arm64) echo "1Eg0rPGVMN052E7Y2+zswANS0KLaWhXvYb9CPgO8HEtclzu3hKAIJ00lIu5PF+DXafZ10ZS4fmrcP+9Ifct9qw==" ;;
+    x64) echo "fTM8y6COu+jBqWRJ0Je0OqaDDt7YxJ8LU4ISoypO5eOBNXI3+l6tK1ZRwUclYWXGBr/6JaUWEgdyJVFfd/fpJg==" ;;
+    *) die "no anydoc darwin integrity pinned for $1" ;;
+  esac
+}
+for arch in $ARCHES; do
+  tgz="/cache/anydoc/anydoc-darwin-$arch-$ANYDOC_VERSION.tgz"
+  if [ ! -f "$tgz" ]; then
+    log "downloading anydoc darwin-$arch $ANYDOC_VERSION"
+    curl -fsSL -o "$tgz" "https://registry.npmjs.org/@firecrawl/anydoc-darwin-$arch/-/anydoc-darwin-$arch-$ANYDOC_VERSION.tgz"
+  fi
+  actual="$(openssl dgst -sha512 -binary "$tgz" | base64 -w0)"
+  [ "$actual" = "$(anydoc_integrity "$arch")" ] || { rm -f "$tgz"; die "anydoc darwin-$arch tarball sha512 mismatch"; }
+done
+# Removing the sibling symlinks is not enough (0.14.27, second failed pack): pnpm also hoists every
+# platform package into node_modules/.pnpm/node_modules and keeps its real directory under
+# node_modules/.pnpm/@firecrawl+anydoc-<platform>@<v>, and app-builder's node-dep-tree walks up into
+# both. Purge every non-darwin store entry and every link that pointed at one, once, before the loop.
+log "purging non-darwin anydoc platform packages from the pnpm store"
+find node_modules/.pnpm -maxdepth 1 -type d -name '@firecrawl+anydoc-*' ! -name '@firecrawl+anydoc-darwin-*' -exec rm -rf {} +
+find node_modules apps/desktop/node_modules -xtype l -path '*@firecrawl/anydoc-*' -delete 2>/dev/null || true
+find node_modules -maxdepth 4 -type l -path '*/.pnpm/node_modules/@firecrawl/anydoc-*' -delete 2>/dev/null || true
+leftover="$(find node_modules -name 'anydoc.linux-*.node' -o -name 'anydoc.win32-*.node' | head -n1)"
+[ -z "$leftover" ] || die "a non-darwin anydoc binary is still reachable: $leftover"
 for arch in $ARCHES; do
   [ -f "$PREBUILDS_KEEP/darwin-$arch.node" ] || die "better-sqlite3 has no prebuilds/darwin-$arch.node"
   tgz="/cache/keytar/keytar-v${KEYTAR_VERSION}-napi-v3-darwin-$arch.tar.gz"
@@ -84,6 +119,15 @@ for arch in $ARCHES; do
   file "$KEYTAR_DIR/build/Release/keytar.node" | grep -q "Mach-O" || die "keytar.node for $arch is not Mach-O"
   rm -rf "$SQLITE_DIR/prebuilds" && mkdir -p "$SQLITE_DIR/prebuilds"
   cp "$PREBUILDS_KEEP/darwin-$arch.node" "$SQLITE_DIR/prebuilds/"
+  # Only this arch's darwin anydoc package may sit beside anydoc; every other platform package goes.
+  find "$ANYDOC_SIBLINGS" -maxdepth 1 -name 'anydoc-*' -exec rm -rf {} +
+  mkdir -p "$ANYDOC_SIBLINGS/anydoc-darwin-$arch"
+  tar -xzf "/cache/anydoc/anydoc-darwin-$arch-$ANYDOC_VERSION.tgz" --strip-components=1 -C "$ANYDOC_SIBLINGS/anydoc-darwin-$arch"
+  anydoc_node="$(find "$ANYDOC_SIBLINGS/anydoc-darwin-$arch" -maxdepth 1 -name '*.node' | head -n1)"
+  [ -n "$anydoc_node" ] || die "anydoc darwin-$arch tarball has no .node"
+  file "$anydoc_node" | grep -q "Mach-O" || die "anydoc .node for $arch is not Mach-O"
+  # The hoisted view must agree with the store, or node-dep-tree may still find the other arch there.
+  find node_modules -maxdepth 4 -type l -path '*/.pnpm/node_modules/@firecrawl/anydoc-darwin-*' -delete 2>/dev/null || true
 
   log "electron-builder --mac --dir --$arch"
   npx electron-builder --mac --dir "--$arch" -c.npmRebuild=false -c.mac.identity=null --publish never \
