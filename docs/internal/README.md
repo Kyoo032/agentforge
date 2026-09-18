@@ -9,7 +9,7 @@ Engineering and research notes. Not part of the closed-beta tester surface.
 | [`portal/device-code-login.md`](portal/device-code-login.md) | Device-code login between DPSBuddy and the Toko Token portal: flow, endpoints, tokens, reason codes, client integration plan |
 | [`portal/schema.md`](portal/schema.md) | Portal control-plane Postgres design: tables, RLS, seat count, wallet |
 | [`portal/migrations/`](portal/migrations/README.md) | SQL 0001–0005 for the portal database, run order, rollback notes |
-| [`unreleased.md`](unreleased.md) | What is on `main` but not yet in the published exe / dmg |
+| [`unreleased.md`](unreleased.md) | What is on `main` but not yet in the published exe / dmg; started over at the 0.14.27 cut, and carries the "Still open after the 0.14.27 cut" list |
 | [`blockers-2026-09-15.md`](blockers-2026-09-15.md) | Blockers before the 0.14.26 cut, verification owed, security audit findings and follow-ups |
 | [`moves.md`](moves.md) | Desktop / shell move log |
 | [`maps/`](maps/README.md) | Subsystem maps: user action → code path → where to fix, recorded from the pstack `how` / `why` mapper |
@@ -18,7 +18,8 @@ Engineering and research notes. Not part of the closed-beta tester surface.
 
 | Path | Purpose |
 |------|---------|
-| [`0.14.26-changelog.md`](0.14.26-changelog.md) | In progress 2026-09-15: gateway gate + Start over, id locale sweep, Finance fixes, media cost estimate, security pass |
+| [`0.14.27-changelog.md`](0.14.27-changelog.md) | Cut 2026-09-18, not yet published: Finance task modes, local file extraction, first-run component installer, PII Indonesian identifiers, job model fallback, Market specialists + analyst team, rail sessions, Knowledge hygiene and health |
+| [`0.14.26-changelog.md`](0.14.26-changelog.md) | Published 2026-09-15: gateway gate + Start over, id locale sweep, Finance fixes, media cost estimate, security pass |
 | [`0.14.25-changelog.md`](0.14.25-changelog.md) | Published 2026-09-12: Market Watch, desk management, Knowledge Phases 0–4 |
 | [`0.14.23-changelog.md`](0.14.23-changelog.md) | Published 2026-09-08: Legal mode v1, Knowledge ingest loop, hardening + offline, Videos example clips |
 | [`0.14.22-changelog.md`](0.14.22-changelog.md) | Research dossier, Data, Finance, macOS preview |
