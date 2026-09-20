@@ -9,6 +9,7 @@ import { getKnowledgeModels, putKnowledgeModels } from "./knowledge";
 
 function tenant(): TenantContext {
   return {
+    tenantId: "local-tenant",
     organizationId: "org-rag-test",
     workspaceId: `ws-rag-${crypto.randomUUID()}`,
     userId: "user-rag-test",

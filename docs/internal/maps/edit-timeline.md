@@ -98,6 +98,20 @@ Everything that changes a project goes through `appendOps` (`packages/host/src/e
 project id from another desk 404s before anything else runs (see the comments at
 `packages/host/src/handlers/edit.ts:182`, `:344`).
 
+Since Phase 3 lane A that is enforced rather than assumed. `workspaceId` is a **required** argument on
+`loadProjectRow` (`ops.ts:75`), `foldProject` (`:129`) and `appendOps` (via `AppendOpsOptions`, `:29`),
+and the desk is part of the `WHERE` clause instead of a follow-up comparison — a handler that forgets
+the scope no longer compiles. The same rule runs down the child tables, which carry only a
+`project_id`: `getEditJob` / `cancelEditJob` (`jobs.ts:121`, `:442`) pin a job to its project,
+`undoCard` / `keepCard` (`undo.ts:41`, `:83`) pin a card to its project, and the unplaced routes pin
+the item to the `:projectId` in their own path (`handlers/edit.ts:447`, `:494`). A wrong desk and a
+missing row both answer the same 404, so the error leaks nothing about what exists elsewhere.
+
+The job runner is the one caller with no request to scope by, so it has two named unscoped reads —
+`workerWorkspaceId` (`ops.ts:97`) and `workerJob` (`jobs.ts:141`) — which turn a job row the handler
+already checked back into a scope the rest of the store enforces. They are deliberate and auditable;
+`edit-scope.test.ts` fails if a handler ever imports one.
+
 ### 5. The renderer's copy, and the echo
 
 `EditStudio` opens `GET /api/v1/edit/projects/:id/events` as an SSE stream whenever a project id is set
@@ -228,8 +242,8 @@ A card with a live job (`queued` / `running`) shows `edit-card-progress` + `edit
 
 | Button | Path |
 |---|---|
-| `edit-card-keep` | `POST …/cards/:cardId/keep` → `keepCard` (`packages/host/src/edit/undo.ts:75-91`): strip the badge, re-snapshot, status `kept`. **No ops are written.** |
-| `edit-card-undo` | `POST …/undo {cardId}` → `undoCard` (`undo.ts:35-73`): cancel the card's job if any, replay the ops log up to each of the card's ops, `computeInverse` for each, append the inverses as `actor: "owner"` with `undoOf`, status `undone` |
+| `edit-card-keep` | `POST …/cards/:cardId/keep` → `keepCard(projectId, cardId, workspaceId)` (`packages/host/src/edit/undo.ts:83-100`): strip the badge, re-snapshot, status `kept`. **No ops are written.** |
+| `edit-card-undo` | `POST …/undo {cardId}` → `undoCard(projectId, cardId, workspaceId)` (`undo.ts:41-80`): cancel the card's job if any, replay the ops log up to each of the card's ops, `computeInverse` for each, append the inverses as `actor: "owner"` with `undoOf`, status `undone` |
 | `edit-card-tweak` | client-only — serialises the card args into `edit-composer` (`edit-studio.tsx:514-517`) |
 | `edit-plan-go` | `sendAgent("Go")` (`:527-529`) |
 
@@ -243,7 +257,7 @@ Two integers on the project (`review: {lastAgentSeq, ackSeq}`) and one compariso
 (`apps/web/lib/edit-client.ts:78-83`) both say `ackSeq >= lastAgentSeq`.
 
 - `lastAgentSeq` only moves inside `appendOps` when the op's actor starts with `agent:`
-  (`packages/host/src/edit/ops.ts:206-208`).
+  (`packages/host/src/edit/ops.ts:234-236`).
 - `ackSeq` only moves via a `review_ack` op, which the renderer posts from two places:
   `edit-review-ok` → `onReviewOk` (`edit-studio.tsx:531-536`), and `onScrubBucket` (`:410-424`) once
   every integer-second bucket of the timeline has been visited.
@@ -272,7 +286,7 @@ clears the selection (`changePrompt`, `:119-122`), which hides `edit-prompt-temp
 
 Submit posts `POST …/generate`; the handler gates on the gateway first, validates the model/still
 combination, and hands off to `startGenerateJob`
-(`packages/host/src/handlers/edit.ts:542-593` → `packages/host/src/edit/start-generate.ts:156`).
+(`packages/host/src/handlers/edit.ts:539-590` → `packages/host/src/edit/start-generate.ts:156`).
 A finished generate either lands a clip at `placeAt` or drops into the unplaced tray
 (`edit-tray` / `edit-tray-place` / `edit-tray-discard`, `edit-cards.tsx:124-156`), which is the only
 thing that populates the tray.
@@ -334,15 +348,15 @@ project's allow-list roots (`editAllowlistRoots` = media root + that project's s
 | `apps/web/lib/use-emit-lock.ts` | The 5 s agent-writing lock and the clip ids it dims |
 | `packages/host/src/router.ts:165-184` | The 20 `/api/v1/edit/*` routes |
 | `packages/host/src/handlers/edit.ts` | Every edit handler; upload limits and mime allow-list |
-| `packages/host/src/edit/ops.ts` | `appendOps`, `foldProject`, `writeSnapshot` — the one write path |
+| `packages/host/src/edit/ops.ts` | `appendOps`, `foldProject`, `loadProjectRow`, `writeSnapshot` — the one write path. Every one of them takes a required `workspaceId` |
 | `packages/host/src/edit/projects.ts` | Create, list, bundle, `mapCard` / `mapJob` / `mapUnplaced` |
 | `packages/host/src/edit/starter-media.ts` | Copies bundled starter files into the desk's media root |
 | `packages/host/src/edit/agent-run.ts` | The turn: live runtime or the scripted-input stub |
 | `packages/host/src/edit/backend.ts` | `EditToolBackend` — what the tools are allowed to do |
-| `packages/host/src/edit/undo.ts` | `keepCard`, `undoCard` (inverse ops appended forward) |
+| `packages/host/src/edit/undo.ts` | `keepCard`, `undoCard` (inverse ops appended forward); both take the desk and pin the card to its project |
 | `packages/host/src/edit/review.ts` | `reviewGateOpen` — two integers |
 | `packages/host/src/edit/budget.ts` | Per-turn cap from `settings.editTurnCapUsd` |
-| `packages/host/src/edit/jobs.ts` | Job queue, the ffmpeg runner, boot interruption |
+| `packages/host/src/edit/jobs.ts` | Job queue, the ffmpeg runner, boot interruption. `getEditJob` / `cancelEditJob` take the project; `workerJob` is the runner's own unscoped read |
 | `packages/host/src/edit/events.ts` | The project event bus and its SSE encoding |
 | `packages/host/src/edit/ffmpeg/recipes.ts` | `probe`, `render`, `frameAt`, `compileFilterGraph` |
 | `packages/host/src/edit/ffmpeg/paths.ts` | Scratch roots, the path allow-list, `escapeFilterPath` |

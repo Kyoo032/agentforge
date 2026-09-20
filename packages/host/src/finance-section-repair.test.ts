@@ -21,6 +21,7 @@ const { repairUnverifiedSections, splitSentences, stripMarkedSentences } = await
 const { readFinanceLocale } = await import("./finance-locale");
 
 const tenant: TenantContext = {
+  tenantId: "local-tenant",
   organizationId: "org",
   workspaceId: "ws-finance-repair",
   userId: "local",

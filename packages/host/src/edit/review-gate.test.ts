@@ -13,11 +13,11 @@ describe("review gate (G-10)", () => {
   it("blocks export until ackSeq catches lastAgentSeq", async () => {
     setEditJobRunnerForTests(async () => ({ outputAssetIds: ["/tmp/export.mp4"] }));
     const { project } = await seedEditProject("review");
-    await addReadyClip(project.id, "clip-rev");
+    await addReadyClip(project.id, project.workspaceId, "clip-rev");
     await appendOps(
       project.id,
       [{ type: "set_volume", payload: { clipId: "clip-rev", volume: 0.7 }, cardId: "card-rev" }],
-      { actor: "agent:run-rev", cardId: "card-rev" },
+      { actor: "agent:run-rev", cardId: "card-rev", workspaceId: project.workspaceId },
     );
     const blocked = await dispatch({
       method: "POST",
@@ -32,8 +32,8 @@ describe("review gate (G-10)", () => {
       expect(blocked.status).toBe(400);
       expect(blocked.body).toMatchObject({ error: { code: "review_required" } });
     }
-    const current = await foldProject(project.id);
-    await appendOps(project.id, [{ type: "review_ack", payload: { seq: current.review.lastAgentSeq } }], { actor: "owner" });
+    const current = await foldProject(project.id, project.workspaceId);
+    await appendOps(project.id, [{ type: "review_ack", payload: { seq: current.review.lastAgentSeq } }], { actor: "owner", workspaceId: project.workspaceId });
     const allowed = await dispatch({
       method: "POST",
       path: `/api/v1/edit/projects/${project.id}/export`,

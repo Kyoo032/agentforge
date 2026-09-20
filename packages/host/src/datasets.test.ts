@@ -13,7 +13,7 @@ import { artifactWorkCard } from "./work-cards";
 import { datasetBrief } from "./data-generate";
 import { runReadOnlySql, runSqlTool, withActiveDataset, type SqlToolOutput } from "./sql-tool";
 
-const tenant: TenantContext = { organizationId: "org", workspaceId: "ws-1", userId: "local", role: "owner" };
+const tenant: TenantContext = { tenantId: "local-tenant", organizationId: "org", workspaceId: "ws-1", userId: "local", role: "owner" };
 const otherDesk: TenantContext = { ...tenant, workspaceId: "ws-2" };
 
 const CSV =
@@ -222,6 +222,7 @@ describe("run_sql tool", () => {
  */
 describe("dataset delete reaches the analysis cards", () => {
   const desk: TenantContext = {
+    tenantId: "local-tenant",
     organizationId: "org-dataset-cascade",
     workspaceId: `ws-dataset-${crypto.randomUUID()}`,
     userId: "local",

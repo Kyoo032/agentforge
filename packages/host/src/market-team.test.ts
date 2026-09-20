@@ -25,7 +25,7 @@ import { generateMarketBriefing, type AskOptions, type MarketGenerateDeps } from
 import { guardTeamNotes, unavailableRisk, unavailableSide } from "./market-team";
 
 const KEY = wrappingKeyFromSecret("c".repeat(64));
-const tenant: TenantContext = { organizationId: "org", workspaceId: "ws-team", userId: "local", role: "owner" };
+const tenant: TenantContext = { tenantId: "local-tenant", organizationId: "org", workspaceId: "ws-team", userId: "local", role: "owner" };
 const now = () => FIXTURE_NOW;
 
 const REQUEST = {

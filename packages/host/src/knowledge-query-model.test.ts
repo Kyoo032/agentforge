@@ -22,6 +22,7 @@ const REAL_DIMS = 1536;
 
 function tenant(): TenantContext {
   return {
+    tenantId: "local-tenant",
     organizationId: "org-query-model",
     workspaceId: `ws-query-model-${crypto.randomUUID()}`,
     userId: "user-query-model",

@@ -9,6 +9,7 @@ import { editToolRefusal } from "./refusals";
 import { registerEditTools } from "./register";
 
 const tenant: TenantContext = {
+  tenantId: "local-tenant",
   organizationId: "org-1",
   workspaceId: "ws-1",
   userId: "user-1",

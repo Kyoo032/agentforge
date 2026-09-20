@@ -38,7 +38,7 @@ import {
 } from "./market-generate";
 
 const KEY = wrappingKeyFromSecret("b".repeat(64));
-const tenant: TenantContext = { organizationId: "org", workspaceId: "ws-1", userId: "local", role: "owner" };
+const tenant: TenantContext = { tenantId: "local-tenant", organizationId: "org", workspaceId: "ws-1", userId: "local", role: "owner" };
 const now = () => FIXTURE_NOW;
 
 const DRAFT = {
