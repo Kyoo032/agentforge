@@ -158,7 +158,7 @@ were reverted; none is in the diff.
 
 The third has since happened for real, on the merge (§4). A fourth was added after the verifier
 round below: `handleGetWorkspaceAgents` made to 404 unconditionally, which the new desk-check
-control caught while **all 62 route rows still passed**. That is the vacuous-pass failure mode in
+control caught while **all 63 route rows still passed**. That is the vacuous-pass failure mode in
 one line — the foreign/ghost comparison holds perfectly well on a route that is broken for
 everybody.
 
@@ -189,7 +189,7 @@ Result over the 53 non-destructive rows: **four flagged, none of them an unrepor
 open — the strongest possible evidence the row reaches the check. `GET /api/v1/videos/examples/
 :name/file` has no seed by design. And the `…/workspaces/:workspaceId/agents` pair refuses on a
 desk-identity check rather than a tenant lookup, which is the one structural case and now carries a
-control of its own (§4).
+control of its own (the fourth mutation at the top of this section, and §8).
 
 ## 6. One bug found and fixed
 
