@@ -11,7 +11,7 @@ Product names are Tencent Cloud's as of September 2026; check the console for cu
 
 ## 2. What the app stores today
 
-The host writes one data root (`AGENTFORGE_DATA_DIR`, `/data` in the container). Its entries are the `HOST_RESET_ENTRIES` list in `packages/host/src/handlers/settings.ts:273-292`, plus the SQLite file from `packages/db/src/vault-key.ts:21-35`:
+The host writes one data root (`AGENTFORGE_DATA_DIR`, `/data` in the container). Its entries are the `HOST_RESET_ENTRIES` list in `packages/host/src/handlers/settings.ts:274-296`, plus the SQLite file from `packages/db/src/vault-key.ts:21-35`:
 
 | Entry | What it is | Sensitivity |
 |---|---|---|
@@ -20,7 +20,7 @@ The host writes one data root (`AGENTFORGE_DATA_DIR`, `/data` in the container).
 | `.master-key` | file fallback for the wrap key; must not exist on the server (Phase 1 makes `AGENTFORGE_SECRETS_KEY` mandatory) | critical |
 | `settings.json` | legacy plaintext settings from before the envelope; must be empty or absent on the server, and the reset list still names it | medium |
 | `gateway-gate.json`, `desk-usage.json`, `workspace-id.txt`, `models*-cache.json` | per-install state that becomes per-tenant rows (Phases 3 and 5) | low to medium |
-| `media/<orgId>/…` | generated images, videos, uploads (`packages/host/src/media.ts:47-51`) | high: tenant content |
+| `media/<orgId>/…` | generated images, videos, uploads (`packages/host/src/media.ts:85-89`) | high: tenant content |
 | `edit/`, `datasets/`, `legal/` | job scratch and outputs (`edit/ffmpeg/paths.ts:42-44`, `datasets.ts:315-317`, `legal/store.ts:306`) | high |
 | `components/`, `logs/` | downloaded native components and the installer's diagnostics | none: re-downloadable |
 
@@ -63,7 +63,7 @@ What actually burns local CPU and RAM is small and known; everything model-shape
 | PDF extraction (worker thread) | 1 vCPU, 0.2-0.4 GB for a 25 MB / 500-page file, 20 s | **none** | `packages/core/src/pdf/index.ts:30-32` |
 | anydoc conversion (native, libuv pool) | 1 vCPU, 0.1-0.3 GB | **none** beyond the 4-thread libuv pool | `packages/host/src/file-extract/anydoc.ts:153-168` |
 | DOCX extraction | runs **on the request thread**, up to 20 s, blocks every other request meanwhile | none | `packages/host/src/knowledge-extract.ts:29-34` |
-| Buffered request body | up to 26 MB RAM each, held for the request | none | `packages/host/src/http-adapter.ts:33,111` |
+| Buffered request body | up to 26 MB RAM each, held for the request | none | `packages/host/src/http-adapter.ts:41,111` |
 | Node host baseline | 0.5-1 GB with SQLite page cache and caches | | |
 
 Worst case is set by the caps, not by the user count: raise `AGENTFORGE_MAX_FFMPEG` and you buy vCPUs for it. Assume 10 % of active users are inside a heavy job at the same moment and 10 % are mid-upload.

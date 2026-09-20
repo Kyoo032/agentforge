@@ -1,6 +1,6 @@
 # Map — Tenant resolution, the session seam and the workspace cookie
 
-Last verified: 2026-09-20 at df11317 + branch feat/web-phase3-lane-c-wivrgf (the commit that adds this page)
+Last verified: 2026-09-20 at c204e5e
 
 ## Overview
 
@@ -40,7 +40,7 @@ cannot be created and the app refuses everyone, rather than serving everyone one
 
 ### The ambient session
 
-`dispatch` (`packages/host/src/router.ts:387`) runs the matched handler inside
+`dispatch` (`packages/host/src/router.ts:432`) runs the matched handler inside
 `withRequestSession(session, …)` (`tenant-scope.ts:22`), an `AsyncLocalStorage` — the same idiom as
 `run-context.ts`, `edit/context.ts` and `sql-tool.ts`. So a handler that has not yet been swept to
 pass the request still resolves **the session's** tenant, and the desk id it passes is demoted to a

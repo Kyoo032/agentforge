@@ -1,6 +1,6 @@
 # Map — Edit timeline and agent
 
-Last verified: 2026-09-20 at ac2d182 (Phase 5 lane A: citations re-anchored by content)
+Last verified: 2026-09-20 at c204e5e
 
 ## Overview
 
@@ -53,7 +53,7 @@ cached probe (`resetFfmpegBinaryCache`) but is throttled to one forced re-probe 
 and the caller is a local web page. When ffmpeg is missing the report also carries a per-OS
 `setup` hint (`ffmpegSetupHint`, `doctor.ts:50`).
 
-`scripts/doctor.mjs` folds this endpoint into its own JSON as `edit`. A missing endpoint is a note,
+`.cursor/skills/verify-agentforge/scripts/doctor.mjs` folds this endpoint into its own JSON as `edit`. A missing endpoint is a note,
 not a doctor failure.
 
 ### 3. Creating a project, and starter media
@@ -62,16 +62,16 @@ not a doctor failure.
 `POST /api/v1/edit/projects` with `{name, aspect, fps: 30, starterId}`. The aspect is derived from the
 starter, not from the picker (`projectAspectFromStarter`, `:891-894`).
 
-`createEditProject` (`packages/host/src/edit/projects.ts:18-64`):
+`createEditProject` (`packages/host/src/edit/projects.ts:19-63`):
 
 1. Inserts the `edit_projects` row with `reviewJson = {lastAgentSeq: 0, ackSeq: 0}`.
-2. `seedStarterProject` (`:66-117`) adds an in-memory title clip, caption clip and `@music-bed`
+2. `seedStarterProject` (`:65-116`) adds an in-memory title clip, caption clip and `@music-bed`
    ingredient for the starters that ask for them.
-3. `seedStarterMedia` (`packages/host/src/edit/starter-media.ts:170-203`) copies the bundled sample
+3. `seedStarterMedia` (`packages/host/src/edit/starter-media.ts:171-204`) copies the bundled sample
    files out of `apps/desktop/resources/starters/` (packaged: `resources/starters`) into the desk's
    media root and lands them as clips. A file that is not there is **skipped and logged**, never
-   fetched (`starter-media.ts:181-203`). If seeding throws, the project row is deleted again
-   (`projects.ts:52-56`) so a half-seeded project never survives.
+   fetched (`starter-media.ts:182-204`). If seeding throws, the project row is deleted again
+   (`projects.ts:53-57`) so a half-seeded project never survives.
 4. `writeSnapshot(id, 0, doc)` — the starter lands in the **snapshot**, not the ops log. That is why a
    fresh `promo-16x9` project reads `edit-ops-count` = `ops 0` with four clips on screen.
 
@@ -96,7 +96,7 @@ Everything that changes a project goes through `appendOps` (`packages/host/src/e
 
 `foldProject(projectId, workspaceId)` is also the **tenant check**: every handler calls it first, so a
 project id from another desk 404s before anything else runs (see the comments at
-`packages/host/src/handlers/edit.ts:182`, `:344`).
+`packages/host/src/handlers/edit.ts:171`, `:333`).
 
 Since Phase 3 lane A that is enforced rather than assumed. `workspaceId` is a **required** argument on
 `loadProjectRow` (`ops.ts:75`), `foldProject` (`:129`) and `appendOps` (via `AppendOpsOptions`, `:29`),
@@ -117,7 +117,7 @@ already checked back into a scope the rest of the store enforces. They are delib
 `EditStudio` opens `GET /api/v1/edit/projects/:id/events` as an SSE stream whenever a project id is set
 (`apps/web/components/edit-studio.tsx:166-233`). The stream is a plain fan-out of the host event bus
 filtered by project id (`packages/host/src/edit/events.ts:21-31`; handler at
-`packages/host/src/handlers/edit.ts:341-375`, which folds the project first so the desk check happens
+`packages/host/src/handlers/edit.ts:330-364`, which folds the project first so the desk check happens
 before the first frame).
 
 The renderer reacts to four frame families (`edit-studio.tsx:193-232`):
@@ -174,12 +174,12 @@ empty track row — seeks. A click on a clip calls `stopPropagation` and only se
 
 - **Packaged (Electron):** `pickMedia()` over IPC returns a path, and the renderer posts
   `{sourcePath}` as JSON. The host accepts `sourcePath` **only** when the transport header says `ipc`
-  (`packages/host/src/handlers/edit.ts:214-217`) — over HTTP it is a 400. Extension → mime is a fixed
+  (`packages/host/src/handlers/edit.ts:203-206`) — over HTTP it is a 400. Extension → mime is a fixed
   ladder at `:222-242`.
 - **Webdev:** `fileRef.current?.click()` opens the hidden `<input type="file">` (`:745-757`), and
   `onImportFile` (`:290-307`) posts multipart to `POST /api/v1/edit/projects/:id/import`.
 
-Host side (`packages/host/src/handlers/edit.ts:205-320`):
+Host side (`packages/host/src/handlers/edit.ts:194-309`):
 
 1. `foldProject` (desk check), then `saveEditFile` (`:71-97`) — `assertEditUpload` enforces
    `EDIT_UPLOAD_MAX = 500 MB` and an allow-list of image/video/audio mimes (`:28-32`, `:600-607`),
@@ -196,10 +196,10 @@ Host side (`packages/host/src/handlers/edit.ts:205-320`):
 
 `edit-composer` → `edit-composer-send` → `sendAgent` (`edit-studio.tsx:426-492`) →
 `POST /api/v1/edit/projects/:id/agent` with `{text, tier}`, read as SSE. The handler
-(`packages/host/src/handlers/edit.ts:322-339`) calls `requireGatewayAllowed` **first** — a closed gate
+(`packages/host/src/handlers/edit.ts:311-328`) calls `requireGatewayAllowed` **first** — a closed gate
 is a flat `403 gateway_blocked` with no stream, exactly like Chat.
 
-`runEditAgent` (`packages/host/src/edit/agent-run.ts:135-197`) builds a per-turn budget from
+`runEditAgent` (`packages/host/src/edit/agent-run.ts:135-195`) builds a per-turn budget from
 `settings.editTurnCapUsd` (`:145`) and picks a path:
 
 - **Live** (a key is saved): `createRuntime(settings).execute(...)` with a compact project prompt
@@ -210,7 +210,7 @@ is a flat `403 gateway_blocked` with no stream, exactly like Chat.
   Generate scenario tables, and drives the **real tools** with canned arguments. It is scripted input,
   not a scripted result.
 
-`runStub`'s shape, in order (`agent-run.ts:206-362`):
+`runStub`'s shape, in order (`agent-run.ts:204-360`):
 
 1. No match → `assistant.delta` with the scripted help copy, `run.completed`. No card.
 2. `__undo__` (S10) → scripted undo copy only. **No card, no ops** — the owner still has to press
@@ -222,13 +222,13 @@ is a flat `403 gateway_blocked` with no stream, exactly like Chat.
    forward whatever it returned as `edit.ops` / `edit.card` / `edit.job` frames (`:337-354`).
 
 The tool's writes go through `hostEditBackend.applyAgentOps`
-(`packages/host/src/edit/backend.ts:106-138`): insert the `edit_cards` row **first**, then `appendOps`
+(`packages/host/src/edit/backend.ts:112-145`): insert the `edit_cards` row **first**, then `appendOps`
 with `actor: "agent:<runId>"` and the card id, then stamp `clip.badge = {cardId}` on the touched clips
 and write a snapshot, then emit `card.updated`. The card's `verb` is mechanical — `verbFor`
 (`backend.ts:51-57`) is just `ops[0].type.replaceAll("_", " ")` with the first touched clip id as the
 object. That is why an S1 "Remove the silences" turn shows a card reading **`split clip · <clip id>`**
 and not "Remove 3 silences": `stubEditCardCopy` is only used for the `assistant.delta` line
-(`agent-run.ts:357-358`), never for the card.
+(`agent-run.ts:355-356`), never for the card.
 
 ### 9. Cards — Keep, Undo, Tweak, plan
 
@@ -264,7 +264,7 @@ Two integers on the project (`review: {lastAgentSeq, ackSeq}`) and one compariso
 - Closed gate → `EditCards` renders `edit-review-card` + `edit-review-ok`, and `edit-export` is
   disabled (`edit-studio.tsx:659`).
 - The host enforces it independently: `handlePostEditExport` answers `400 review_required` when
-  `reviewGateOpen` is false (`packages/host/src/handlers/edit.ts:419-421`).
+  `reviewGateOpen` is false (`packages/host/src/handlers/edit.ts:408-410`).
 
 ### 11. Generate
 
@@ -288,7 +288,7 @@ Submit posts `POST …/generate`; the handler gates on the gateway first, valida
 combination, and hands off to `startGenerateJob`
 (`packages/host/src/handlers/edit.ts:539-590` → `packages/host/src/edit/start-generate.ts:156`).
 A finished generate either lands a clip at `placeAt` or drops into the unplaced tray
-(`edit-tray` / `edit-tray-place` / `edit-tray-discard`, `edit-cards.tsx:124-158`), which is the only
+(`edit-tray` / `edit-tray-place` / `edit-tray-discard`, `edit-cards.tsx:124-156`), which is the only
 thing that populates the tray.
 
 `edit-needs-key` is driven purely by `hasOpenai` from `GET /api/v1/settings` (plus `ready === false`
@@ -304,7 +304,7 @@ stream; `edit-export-progress` shows while it is live and `edit-export-download`
 `succeeded`, which then pulls `GET …/export/:jobId/file` and triggers a browser download
 (`onDownloadExport`, `:584-608`).
 
-The job itself runs in `packages/host/src/edit/jobs.ts:126-131` → `render`
+The job itself runs in `packages/host/src/edit/jobs.ts:164-169` → `render`
 (`packages/host/src/edit/ffmpeg/recipes.ts:221-261`): write an `.ass` document for titles and
 captions, compile the concat/scale/pad filter graph (`compileFilterGraph`, `:170-195`), and run ffmpeg
 into `data/edit/<projectId>/export-<uuid>.mp4`. Every input and output path is checked against the
@@ -325,8 +325,8 @@ project's allow-list roots (`editAllowlistRoots` = media root + that project's s
 | Project id from another desk | `foldProject(projectId, workspaceId)` | 404 before any work |
 | Job id from another project | `jobInProject` (`handlers/edit.ts:171-177`) | 404 |
 | Export before review | `handlePostEditExport` (`:419-421`) | `400 review_required` (the button is already disabled) |
-| ffmpeg render fails | `runFfmpeg` (`packages/host/src/edit/ffmpeg/run.ts:83-99`) | job `failed`, `error: "ffmpeg recipe failed"`, partial output unlinked. **Nothing at all in the UI** |
-| ffmpeg times out / cancelled | same, `:92-97` | `ffmpeg_timeout` / `job_cancelled` |
+| ffmpeg render fails | `spawnFfmpeg` under `runFfmpeg` (`packages/host/src/edit/ffmpeg/run.ts:107-123`) | job `failed`, `error: "ffmpeg recipe failed"`, partial output unlinked. **Nothing at all in the UI** |
+| ffmpeg times out / cancelled | same, `:116-121` | `ffmpeg_timeout` / `job_cancelled` |
 | Turn cap exceeded | `chargeTurnBudget` (`packages/host/src/edit/budget.ts:27-39`) | a refusal plus an `edit-plan-card`; no job is queued |
 | Export file requested early | `handleGetEditExportFile` (`:441-443`) | `404 not_found` "Export is not ready" |
 
@@ -346,7 +346,7 @@ project's allow-list roots (`editAllowlistRoots` = media root + that project's s
 | `apps/web/lib/edit-client.ts` | `postEditOps`, `foldApplied`, `isReviewOpen`, `turnSpendUsd`, the API wrappers |
 | `apps/web/lib/edit-badges.ts` | Which cards an owner touch auto-keeps |
 | `apps/web/lib/use-emit-lock.ts` | The 5 s agent-writing lock and the clip ids it dims |
-| `packages/host/src/router.ts:154-173` | The 20 `/api/v1/edit/*` routes |
+| `packages/host/src/router.ts:193-212` | The 20 `/api/v1/edit/*` routes |
 | `packages/host/src/handlers/edit.ts` | Every edit handler; upload limits and mime allow-list |
 | `packages/host/src/edit/ops.ts` | `appendOps`, `foldProject`, `loadProjectRow`, `writeSnapshot` — the one write path. Every one of them takes a required `workspaceId` |
 | `packages/host/src/edit/projects.ts` | Create, list, bundle, `mapCard` / `mapJob` / `mapUnplaced` |
@@ -370,12 +370,8 @@ project's allow-list roots (`editAllowlistRoots` = media root + that project's s
 
 ## Gotchas
 
-- **An agent turn leaves a usage row against its tenant.** `rememberJobUsage`
-  (`packages/host/src/edit/agent-run.ts:182`, and `:360` on the stub path) writes to
-  `tenant_usage` under mode `edit`. It used to append to one global untenanted
-  `desk-usage.json`. See [`tenant-usage-ledger.md`](tenant-usage-ledger.md).
 - **The event stream echoes your own ops, and two call sites re-apply them.** `appendOps` emits
-  `ops.appended` unconditionally (`packages/host/src/edit/ops.ts:249`) and the renderer folds every
+  `ops.appended` unconditionally (`packages/host/src/edit/ops.ts:277`) and the renderer folds every
   such frame (`apps/web/components/edit-studio.tsx:193-203`) with no dedupe. Import
   (`:302-303`) and the agent stream (`:474-479`) then apply the *same* ops a second time, `applyOp`
   throws a duplicate-id / invalid-split error out of the React state updater, and `EditStudio`
@@ -390,21 +386,21 @@ project's allow-list roots (`editAllowlistRoots` = media root + that project's s
 - **`edit-ops-count` is a session counter.** It renders `opsPosted` (`:836-838`), which counts ops this
   tab posted, not `project.seq`. It reads `ops 0` after every reload and after every starter seed.
 - **The starter is seeded into the snapshot, not the log**, so a four-clip `promo-16x9` project starts
-  at `ops 0` (`packages/host/src/edit/projects.ts:44-62`). Bundled files that are missing are skipped
-  with a `console.warn`, never downloaded (`starter-media.ts:181-203`).
+  at `ops 0` (`packages/host/src/edit/projects.ts:45-61`). Bundled files that are missing are skipped
+  with a `log.warn`, never downloaded (`starter-media.ts:182-204`).
 - **`edit-export` is disabled with no project**, not only when the gate is closed
   (`edit-studio.tsx:659`) — count it as three separate reasons: no project, gate closed, export in
   flight.
 - **The card verb is the op type, not the scenario copy.** `verbFor`
   (`packages/host/src/edit/backend.ts:51-57`) prints `ops[0].type.replaceAll("_", " ")`, so S1 shows
   `split clip · <clip id>`. The friendly `stubEditCardCopy` string only reaches the `assistant.delta`
-  line (`agent-run.ts:357-358`), which the Edit UI does not render at all.
+  line (`agent-run.ts:355-356`), which the Edit UI does not render at all.
 - **A card can exist with zero ops.** `applyAgentOps` inserts the card row before `appendOps`
   (`backend.ts:110-127`) and never reconciles. A stub scenario whose canned frames fall outside the
   clip (S1's 300–1395 on a short clip, S2's 450/900 on already-split clips) produces a `proposed` card
   with `opIds: []`, and `lastAgentSeq` never moves, so the review gate stays open.
 - **Undo does not reopen the review gate.** `undoCard` appends inverses as `actor: "owner"`
-  (`packages/host/src/edit/undo.ts:58-62`), and only `agent:` ops move `lastAgentSeq`.
+  (`packages/host/src/edit/undo.ts:65-69`), and only `agent:` ops move `lastAgentSeq`.
 - **Keep writes no ops at all** — it strips the badge, re-snapshots and flips a status
   (`undo.ts:75-91`). "Keep" is bookkeeping, not a commit.
 - **The owner touching an agent's clip silently keeps that card.** `postEditOps` collects
@@ -423,7 +419,7 @@ project's allow-list roots (`editAllowlistRoots` = media root + that project's s
   (`edit-studio.tsx:571-575`); a job that fails later just clears `exporting` (`:618-625`).
 - **There is no way back to the project list.** `edit-project-list` only renders in the `!project`
   branch (`:687-741`); switching projects needs a reload.
-- **`sourcePath` import is IPC-only** (`packages/host/src/handlers/edit.ts:214-217`). Do not try the
+- **`sourcePath` import is IPC-only** (`packages/host/src/handlers/edit.ts:203-206`). Do not try the
   packaged path against `:3000`.
 - **The Edit UI below the header is hardcoded English.** Only `edit-studio.tsx` calls `t`; the agent
   panel, cards, preview, timeline, generate tab, recipes and templates ship literal English while the
@@ -434,7 +430,7 @@ project's allow-list roots (`editAllowlistRoots` = media root + that project's s
 - **`edit-generate-storyboard` exists** (the sub-tab button). `edit-storyboard-generate` and
   `edit-storyboard-animate-all` do not. `animate_storyboard` is backend-only
   (`packages/core/src/tools/edit/tools.ts`).
-- **`mutatingCount > 3` in the stub is dead code** (`packages/host/src/edit/agent-run.ts:244-256`):
+- **`mutatingCount > 3` in the stub is dead code** (`packages/host/src/edit/agent-run.ts:242-254`):
   the counter is incremented at most once per turn.
 - **The turn cap is per request, not cumulative.** `createTurnBudget` is rebuilt on every
   `POST …/agent` (`agent-run.ts:145`), clamped to `[0.5, 50]`
@@ -471,10 +467,10 @@ DOM testids that prove it: `edit-studio` (`apps/web/components/edit-studio.tsx:6
 `edit-prompt-templates` / `edit-prompt-template-categories` / `edit-prompt-template-category-<id>` /
 `edit-prompt-template-list` / `edit-prompt-template-<id>` / `edit-prompt-template-source` /
 `edit-prompt-guide` (`apps/web/components/edit-prompt-templates.tsx:73`, `:75`, `:80`, `:91`,
-`:101`, `:112`, `:25`, `:54`),
+`:101`, `:114`, `:25`, `:54`),
 `edit-recipe-<id>` (`apps/web/components/edit-recipes-panel.tsx:19`),
 `edit-needs-ffmpeg` / `ffmpeg-install-command` / `ffmpeg-recheck` / `ffmpeg-setup-steps`
-(`apps/web/components/ffmpeg-setup-notice.tsx:65`, `:72`, `:83`, `:95`),
+(`apps/web/components/ffmpeg-setup-notice.tsx:65`, `:74`, `:86`, `:98`),
 `settings-edit-turn-cap` (`apps/web/components/settings-page.tsx:396`).
 
 Doctor proof: `node .cursor/skills/verify-agentforge/scripts/doctor.mjs` with
@@ -483,10 +479,10 @@ Doctor proof: `node .cursor/skills/verify-agentforge/scripts/doctor.mjs` with
 ## Why
 
 **Why the ops log is append-only with forward inverses rather than a stack.** `[Direct]` `undoCard`
-(`packages/host/src/edit/undo.ts:50-62`) replays the log prefix before each of the card's ops,
+(`packages/host/src/edit/undo.ts:57-69`) replays the log prefix before each of the card's ops,
 computes the inverse against that exact base, and appends the inverses as new ops with `undoOf` set —
 it never deletes a row. `[Supported]` `appendOps` stores `inverseJson` on every op at write time
-(`packages/host/src/edit/ops.ts:180`, `:219`) and snapshots every N ops (`:226-233`), which only makes
+(`packages/host/src/edit/ops.ts:208`, `:247`) and snapshots every N ops (`:254-261`), which only makes
 sense for a log meant to be replayed rather than rewound. `[Inferred]` the reason is that the owner and
 the agent share one log, so a stack pop would have to decide whose change to drop; a forward inverse
 keeps both histories intact and lets a card be undone out of order. **Confidence: high for the
@@ -496,12 +492,12 @@ mechanism, medium for the motive.**
 (`packages/host/src/edit/review.ts:1-3`) is `ackSeq >= lastAgentSeq`, and `lastAgentSeq` is written
 only by `appendOps` when the actor is an agent (`ops.ts:206-208`). `[Direct]` the same rule is
 duplicated in the renderer (`apps/web/lib/edit-client.ts:78-83`) so the button state and the host's
-`400 review_required` (`packages/host/src/handlers/edit.ts:419-421`) cannot disagree. `[Inferred]` a
+`400 review_required` (`packages/host/src/handlers/edit.ts:408-410`) cannot disagree. `[Inferred]` a
 sequence comparison means *any* agent write since the last ack closes the gate, which is stricter and
 much cheaper than tracking per-card acknowledgement — but it is also why an owner-actor undo does not
 reopen it. **Confidence: high for the mechanism.**
 
-**Why `sourcePath` import is refused over HTTP.** `[Direct]` `packages/host/src/handlers/edit.ts:214-217`
+**Why `sourcePath` import is refused over HTTP.** `[Direct]` `packages/host/src/handlers/edit.ts:203-206`
 returns `400 "sourcePath is only valid over IPC"` when the transport header is not `ipc`. `[Inferred]`
 the handler would otherwise `readFile` an arbitrary absolute path on behalf of any page that can reach
 `:3000` — a local file read primitive. The IPC check is the boundary because in the packaged app the

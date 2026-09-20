@@ -1,6 +1,6 @@
 # Map — Tenancy schema and TenantContext
 
-Last verified: 2026-09-20 at ac2d182 (Phase 5 lane A: citations re-anchored by content)
+Last verified: 2026-09-20 at c204e5e
 
 ## Overview
 
@@ -77,10 +77,10 @@ that could create one.
 | File | Role |
 |---|---|
 | `packages/db/src/schema.ts:32` | `tenants` table |
-| `packages/db/src/schema.ts:84` | `organizations`, now with `tenant_id` and the composite unique index |
+| `packages/db/src/schema.ts:41` | `organizations`, now with `tenant_id` and the composite unique index |
 | `packages/db/drizzle/0015_tenants.sql` | The migration: table, local row, column, backfill, index swap |
 | `packages/db/drizzle/meta/_journal.json` | Journal entry `idx: 15`, `when: 1788820000007` |
-| `packages/db/src/ensure-schema.ts:419` | `ensureTenantTables`, the baseline-stamp healer |
+| `packages/db/src/ensure-schema.ts:418` | `ensureTenantTables`, the baseline-stamp healer |
 | `packages/db/src/ensure-local-owner.ts` | Resolves the local owner inside `local-tenant` |
 | `packages/db/src/tenants.ts` | `ensureTenant` / `getTenantById` / `getLocalTenant`, for lane C |
 | `packages/db/src/client.ts:50` | `busy_timeout = 5000` |
@@ -99,7 +99,7 @@ that could create one.
 - **The healer does not assume `organizations.slug` exists.** It guards the unique-index swap on the
   column being present: this code runs before anything else can report a problem, so throwing here
   bricks the open rather than repairing it.
-- **`auth_sessions.tenant_id` (`schema.ts:735`) is not this column.** It predates Phase 3, comes
+- **`auth_sessions.tenant_id` (`schema.ts:692`) is not this column.** It predates Phase 3, comes
   from the portal session, and has no foreign key to `tenants`. Lane C is what joins them.
 - **Nothing creates a tenant row but the migration.** `ensureTenant` exists and is exported, but no
   route calls it; who is allowed to provision a tenant is still open.

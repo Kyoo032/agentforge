@@ -27,7 +27,7 @@ Preconditions:
 - Doctor exits 0.
 - `mode-research` is visible on Default. If count is 0, you are on a desk that hid Research — switch to Default or add the tab in Workspaces.
 - Stub proof stops at the studio shell + the template prefill + the refused generate. Everything from `research-preview` onward — tabs, `research-dossier-preview`, `research-progress`, `research-cancel`, `research-download`, `research-send-kb`, the two handoffs — needs a finished run.
-- A live generate needs **two** secrets: doctor `runtime: "ai"` for the model **and** a Tavily or Brave key for search (`packages/host/src/research-generate.ts:83-85`). Doctor reports nothing about the search backend, so `ai` alone does not mean Research will run. Only with the operator's say-so.
+- A live generate needs **two** secrets: doctor `runtime: "ai"` for the model **and** a Tavily or Brave key for search (`packages/host/src/research-generate.ts:84-86`). Doctor reports nothing about the search backend, so `ai` alone does not mean Research will run. Only with the operator's say-so.
 - `research-saved` is the one way to reach the artifact bar without a live run — but only on a desk that already has a saved `mode=research` dossier. The owner's :3000 had none on 2026-09-17.
 
 - **Open Research.** Click `mode-research`. URL matches `/research`. `research-studio` and `research-studio-model` are visible.
@@ -45,5 +45,5 @@ Preconditions:
 - `research-error` never shows an "Open Settings" link. The link is guarded by `!/settings/i.test(error)` (`apps/web/components/research-studio.tsx:101`) and both stock refusals already contain the word "Settings", so the branch is unreachable. Assert the banner text, not a link.
 - Search backends are not the gateway key. A missing Tavily / Brave key refuses on the studio's `POST /api/v1/research/stream` and on the uncalled `POST /api/v1/research` — which one is a real 503 is SKILL.md “Harness-wide gotchas” G2; read it before asserting a status.
 - `research-studio-model` renders empty and `disabled` for roughly a second after `research-studio` appears; on 2026-09-17 it settled at 101 options in 11 optgroups, default `gpt-5.6-luna`. Wait for a non-empty option list, not for the testid — see SKILL.md “Harness-wide gotchas” G1.
-- `locales/*/research.json` carries `stubTitle` / `stubSummary` / `stubFinding*` copy for an offline stub dossier. **That path does not exist** — `requireLiveResearch` refuses before anything is generated (`packages/host/src/research-generate.ts:80-82`). Unlike Documents, Research has no offline output. Do not go looking for it.
+- `locales/*/research.json` carries `stubTitle` / `stubSummary` / `stubFinding*` copy for an offline stub dossier. **That path does not exist** — `requireLiveResearch` refuses before anything is generated (`packages/host/src/research-generate.ts:81-83`). Unlike Documents, Research has no offline output. Do not go looking for it.
 - Do not POST `/api/v1/research` as a substitute for the prompt bar on a live proof.
