@@ -1,6 +1,6 @@
 # Map — Tenant usage ledger
 
-Last verified: 2026-09-20 at REPLACE_WITH_SHA (the commit that adds this page)
+Last verified: 2026-09-20 at ac2d182 (Phase 5 lane A: citations re-anchored by content)
 
 ## Overview
 
@@ -9,7 +9,7 @@ enforced against in Phase 5 lane C; today it only records, and nothing reads it 
 
 It replaces three separate answers to "what did this cost". Chat spend was in `runs.usage`, scoped
 by organization. Job and edit-agent spend was appended to `desk-usage.json` — **one global file with
-no tenant dimension**. Images and videos recorded nothing at all, and the numbers those screens
+no tenant dimension**. Images, videos and music recorded nothing at all, and the numbers those screens
 showed came from a static list-price table, which is a renderer estimate and not a meter. On top of
 that, USD was never persisted: it was recomputed per read from whatever pricing catalog happened to
 be cached, and a run the catalog could not price simply vanished from the sum.
@@ -28,12 +28,14 @@ nullable `cost_usd_micros` with an `unpriced_reason` beside it; the `run_id`; an
 milliseconds. Three indexes: `(tenant_id, at)` for the allowance query, `(tenant_id, mode, at)` for
 the per-mode split, `(unpriced_reason, at)` for finding what a repricing pass has to close.
 
-**Units.** `tokens`, `images` or `seconds` (`USAGE_UNITS`,
-`packages/core/src/usage/metering.ts:47`). One row carries exactly one unit and they are never
+**Units.** `tokens`, `images`, `seconds` or `jobs` (`USAGE_UNITS`,
+`packages/core/src/usage/metering.ts:53`). One row carries exactly one unit and they are never
 reconciled — only `cost_usd_micros` is comparable across rows, which is also why it is nullable
-rather than absent.
+rather than absent. `jobs` is the unit for anything the gateway bills a flat rate per call for,
+whatever it hands back: a music job is one charge and returns two takes, and a lyrics draft is one
+charge and returns text.
 
-**Cost is an integer.** `usdToMicros` (`packages/core/src/usage/metering.ts:112`) stores USD as
+**Cost is an integer.** `usdToMicros` (`packages/core/src/usage/metering.ts:118`) stores USD as
 millionths. An allowance decremented in floats bills the wrong number; a micro is ~1/500th of the
 gateway's own quota unit (`QUOTA_PER_USD = 500_000`, `packages/core/src/gateway.ts:96`), so no price
 this catalog can express is lost to the rounding.
@@ -50,8 +52,11 @@ either way, with its unit and quantity intact. `estimateRunUsd` is now a one-lin
 `cachedPricingCatalog(resolvedGatewayBaseUrl())` (`packages/host/src/account-usage.ts:164`), which
 **never fetches** — it reads the 10-minute in-memory cache, so a generation is never delayed by a
 gateway round trip. Media goes through `findMediaListPrice` + `estimateImageCost` /
-`estimateVideoCost` (`packages/core/src/models/media-pricing.ts:492`, `:568`, `:584`), the same
-curated table the studios quote from. An uncached desk therefore writes `catalog_unavailable` rows
+`estimateVideoCost` (`packages/core/src/models/media-pricing.ts:497`, `:573`, `:602`), the same
+curated table the studios quote from. Music has no vendor list price at all — Suno sells a consumer
+subscription, not an API — so `priceJobUsage` (`packages/host/src/usage-record.ts:102`) falls
+through to `gatewayFlatPrice` for the `track` unit, and records `catalog_unavailable` rather than
+`no_list_price` when there is no catalog to read. An uncached desk therefore writes `catalog_unavailable` rows
 that keep their unit and quantity, which a later pass can price in place.
 
 **Who writes a row**
@@ -61,11 +66,12 @@ that keep their unit and quantity, which a later pass can price in place.
 | chat | `recordChatRunUsage`, called from `packages/host/src/runs.ts:367` and `:417`, gated on `finishRun`'s return | tokens |
 | documents, presentations, research, data, finance, market, legal, knowledge | `rememberJobUsage` in the shared job runtime callback, `packages/host/src/job-regen.ts:145` | tokens |
 | edit agent | `rememberJobUsage`, `packages/host/src/edit/agent-run.ts:182` (live) and `:360` (stub) | tokens |
-| images | `recordImageUsage`, `packages/host/src/studio-generate.ts:183` | images |
-| videos | `recordVideoUsage`, `packages/host/src/studio-generate.ts:251` | seconds |
+| images | `recordImageUsage`, `packages/host/src/studio-generate.ts:295` | images |
+| videos | `recordVideoUsage`, `packages/host/src/studio-generate.ts:363` | seconds |
+| music | `recordMusicUsage`, `packages/host/src/studio-generate.ts:471` (a song) and `:534` (a lyrics draft) | jobs |
 
 **The mode label is derived, not passed.** `usageModeFromRunPrefix`
-(`packages/core/src/usage/metering.ts:134`) maps the `runPrefix` every job call site already carries
+(`packages/core/src/usage/metering.ts:140`) maps the `runPrefix` every job call site already carries
 (`document-section`, `finance-ratios-buckets`, `knowledge-verifier`, …) onto a `UsageMode`. That
 beats adding a required argument at twenty call sites, and beats `JobMode`, which five of those
 prefixes have no value for. An unrecognised prefix lands under `other` — it still leaves a row.
@@ -78,7 +84,7 @@ completion settles first gets `true`; the others get `false` and write nothing.
 image or clip by then, so a failure to save it must not be a call that vanishes from the ledger. The
 model recorded is the one that answered (`toolModel(output, model)`), not the one that was asked
 for, and a video's billable length is the snapped one
-(`snapVideoSeconds`, `packages/host/src/studio-generate.ts:228`) — a model that only does 5 s clips
+(`snapVideoSeconds`, `packages/host/src/studio-generate.ts:340`) — a model that only does 5 s clips
 bills 5 s for a 4 s request.
 
 **Failure modes**
@@ -103,7 +109,7 @@ bills 5 s for a 4 s request.
 | `packages/db/drizzle/0016_tenant_usage.sql` | The migration, and the reasoning for every nullable column |
 | `packages/db/src/ensure-schema.ts:460` | `ensureTenantUsageTable`, the baseline-stamp healer |
 | `packages/host/src/tenant-usage.ts` | The store: `createUsageStore`, `recordUsage`, `listTenantUsage`, `tenantUsageTotals`, and the `listJobUsageRecords` shim the account screen reads |
-| `packages/host/src/usage-record.ts` | Pricing at write time, and the five entry points the modes call |
+| `packages/host/src/usage-record.ts` | Pricing at write time, and the six entry points the modes call |
 | `packages/host/src/job-usage.ts` | `rememberJobUsage` — runtime event → tenanted row |
 | `packages/host/src/desk-usage.ts` | **Legacy, read-only.** The old untenanted `desk-usage.json`; nothing writes it any more |
 | `packages/host/src/account-usage.ts:43` | `deskRecords` — ledger rows plus any legacy file rows, for the account screen |

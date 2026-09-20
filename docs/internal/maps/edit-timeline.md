@@ -1,6 +1,6 @@
 # Map — Edit timeline and agent
 
-Last verified: 2026-09-20 at b482611
+Last verified: 2026-09-20 at ac2d182 (Phase 5 lane A: citations re-anchored by content)
 
 ## Overview
 
@@ -199,7 +199,7 @@ Host side (`packages/host/src/handlers/edit.ts:205-320`):
 (`packages/host/src/handlers/edit.ts:322-339`) calls `requireGatewayAllowed` **first** — a closed gate
 is a flat `403 gateway_blocked` with no stream, exactly like Chat.
 
-`runEditAgent` (`packages/host/src/edit/agent-run.ts:135-195`) builds a per-turn budget from
+`runEditAgent` (`packages/host/src/edit/agent-run.ts:135-197`) builds a per-turn budget from
 `settings.editTurnCapUsd` (`:145`) and picks a path:
 
 - **Live** (a key is saved): `createRuntime(settings).execute(...)` with a compact project prompt
@@ -210,7 +210,7 @@ is a flat `403 gateway_blocked` with no stream, exactly like Chat.
   Generate scenario tables, and drives the **real tools** with canned arguments. It is scripted input,
   not a scripted result.
 
-`runStub`'s shape, in order (`agent-run.ts:204-360`):
+`runStub`'s shape, in order (`agent-run.ts:206-362`):
 
 1. No match → `assistant.delta` with the scripted help copy, `run.completed`. No card.
 2. `__undo__` (S10) → scripted undo copy only. **No card, no ops** — the owner still has to press
@@ -228,7 +228,7 @@ and write a snapshot, then emit `card.updated`. The card's `verb` is mechanical 
 (`backend.ts:51-57`) is just `ops[0].type.replaceAll("_", " ")` with the first touched clip id as the
 object. That is why an S1 "Remove the silences" turn shows a card reading **`split clip · <clip id>`**
 and not "Remove 3 silences": `stubEditCardCopy` is only used for the `assistant.delta` line
-(`agent-run.ts:355-356`), never for the card.
+(`agent-run.ts:357-358`), never for the card.
 
 ### 9. Cards — Keep, Undo, Tweak, plan
 
@@ -370,6 +370,10 @@ project's allow-list roots (`editAllowlistRoots` = media root + that project's s
 
 ## Gotchas
 
+- **An agent turn leaves a usage row against its tenant.** `rememberJobUsage`
+  (`packages/host/src/edit/agent-run.ts:182`, and `:360` on the stub path) writes to
+  `tenant_usage` under mode `edit`. It used to append to one global untenanted
+  `desk-usage.json`. See [`tenant-usage-ledger.md`](tenant-usage-ledger.md).
 - **The event stream echoes your own ops, and two call sites re-apply them.** `appendOps` emits
   `ops.appended` unconditionally (`packages/host/src/edit/ops.ts:249`) and the renderer folds every
   such frame (`apps/web/components/edit-studio.tsx:193-203`) with no dedupe. Import
@@ -394,7 +398,7 @@ project's allow-list roots (`editAllowlistRoots` = media root + that project's s
 - **The card verb is the op type, not the scenario copy.** `verbFor`
   (`packages/host/src/edit/backend.ts:51-57`) prints `ops[0].type.replaceAll("_", " ")`, so S1 shows
   `split clip · <clip id>`. The friendly `stubEditCardCopy` string only reaches the `assistant.delta`
-  line (`agent-run.ts:355-356`), which the Edit UI does not render at all.
+  line (`agent-run.ts:357-358`), which the Edit UI does not render at all.
 - **A card can exist with zero ops.** `applyAgentOps` inserts the card row before `appendOps`
   (`backend.ts:110-127`) and never reconciles. A stub scenario whose canned frames fall outside the
   clip (S1's 300–1395 on a short clip, S2's 450/900 on already-split clips) produces a `proposed` card
@@ -430,7 +434,7 @@ project's allow-list roots (`editAllowlistRoots` = media root + that project's s
 - **`edit-generate-storyboard` exists** (the sub-tab button). `edit-storyboard-generate` and
   `edit-storyboard-animate-all` do not. `animate_storyboard` is backend-only
   (`packages/core/src/tools/edit/tools.ts`).
-- **`mutatingCount > 3` in the stub is dead code** (`packages/host/src/edit/agent-run.ts:242-254`):
+- **`mutatingCount > 3` in the stub is dead code** (`packages/host/src/edit/agent-run.ts:244-256`):
   the counter is incremented at most once per turn.
 - **The turn cap is per request, not cumulative.** `createTurnBudget` is rebuilt on every
   `POST …/agent` (`agent-run.ts:145`), clamped to `[0.5, 50]`

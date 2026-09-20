@@ -52,8 +52,8 @@ Keep scenarios S1–S10 (owner runs; Result filled in Loop 3):
 | S6 | "Add a title 'Summer Sale' top centre, white with black outline" | 1 × add_title | |
 | S7 | "Trim the first 3 seconds" | 1 × trim_clip | |
 | S8 | "Move the second clip to the start" | 1 × move_clip | |
-| S9 | "Delete everything" | **no card at all** (`packages/host/src/edit/agent-run.ts:230-240` returns without emitting one), zero ops | verified 2026-09-17 |
-| S10 | "Undo the last change" | scripted copy only — **no card, no ops** (`packages/host/src/edit/agent-run.ts:213-217`). The previous card only reaches `undone` when the owner presses `edit-card-undo` | verified 2026-09-17 |
+| S9 | "Delete everything" | **no card at all** (`packages/host/src/edit/agent-run.ts:232-242` returns without emitting one), zero ops | verified 2026-09-17 |
+| S10 | "Undo the last change" | scripted copy only — **no card, no ops** (`packages/host/src/edit/agent-run.ts:215-219`). The previous card only reaches `undone` when the owner presses `edit-card-undo` | verified 2026-09-17 |
 
 Fill scenarios F1–F5 (owner runs; Result filled in Loop 3):
 

@@ -1,6 +1,6 @@
 # Map — Documents job
 
-Last verified: 2026-09-17 at 01ea70a
+Last verified: 2026-09-20 at ac2d182 (Phase 5 lane A: citations re-anchored by content)
 
 ## Overview
 
@@ -48,7 +48,7 @@ Host side, `router.ts:206` → `handlePostDocuments` (`packages/host/src/handler
 2. `requireLiveDocumentRuntime` (`:112-122`) — `resolveRuntimeMode` on `hasLiveProvider(settings)` and `AGENTFORGE_RUNTIME`; `stub` throws `ApiError("runtime_stub", gatewayRequiredMessage("documents", locale), 503)`. **This is the gate every keyless drive hits**, and it is why the error copy names Settings.
 3. `readSourceText` (`job-source.ts:38-52`) — absent → `""`; non-string → 400; otherwise trimmed, capped at 120k with `SOURCE_TRUNCATED_MARKER` appended (`:15-20`), then run through `assertSafeSourceText` → `scanInjection`, which throws `injection_blocked` 400 unless the desk set `injectionGuardBypass` (`:23-35`, threaded from `document-generate.ts:155`).
 4. `resolveDocumentModel` (`:124-132`) — body `model`, else `settings.documentGenModel`, else the mode default, resolved against the live catalog by `resolveChatModel`. The Documents bucket **is** the chat bucket (`packages/host/src/selectable-models.ts:145`) and the default ladder is `["hy3", "hy-3", "hunyuan-3", "hunyuan3", "deepseek-v4-flash"]` (`packages/core/src/models/mode-defaults.ts:40`) — Finance's is the same list minus one alias (`:50`), which is why both land on `deepseek-v4-flash` on a gateway without Hunyuan.
-5. `collectAssistantText` (`:93-110`) → `collectJobAssistantText` (`packages/host/src/job-regen.ts:66`) with `jobMode: "documents"`, system prompt `withSourceRule(documentJobSystemPrompt(finance), sourceText)` and user prompt `withSourceMaterial(prompt, sourceText)`. `DOCUMENT_SYSTEM` (`:48-63`) demands bare JSON, 5–8 sections (max 12), finished prose, and bans TBD/lorem filler; `withOutputLanguage` stamps the desk locale on it (`:88-91`). `withSourceMaterial` appends the material inside `<<<` / `>>>` fences (`job-source.ts:54-59`) and `withSourceRule` appends the "use only that material for facts" sentence (`:7-8,61-63`).
+5. `collectAssistantText` (`:93-110`) → `collectJobAssistantText` (`packages/host/src/job-regen.ts:67`) with `jobMode: "documents"`, system prompt `withSourceRule(documentJobSystemPrompt(finance), sourceText)` and user prompt `withSourceMaterial(prompt, sourceText)`. `DOCUMENT_SYSTEM` (`:48-63`) demands bare JSON, 5–8 sections (max 12), finished prose, and bans TBD/lorem filler; `withOutputLanguage` stamps the desk locale on it (`:88-91`). `withSourceMaterial` appends the material inside `<<<` / `>>>` fences (`job-source.ts:54-59`) and `withSourceRule` appends the "use only that material for facts" sentence (`:7-8,61-63`).
    Because `jobMode` is set, `applyJobThinking` adds `reasoning_effort: "low"` on always-thinking families — the knob Chat deliberately does not use (see [`chat-send.md`](chat-send.md#4-runtime--probe-stream-coerce)).
 6. Empty output → `ApiError("generation_failed", …, 502)` (`:158-160`).
 7. `parseDocumentDraft` (`packages/host/src/document-outline.ts:18-38`) — `extractJsonObject` peels fences, `JSON.parse`, then the zod `documentDraftSchema` (`:10-13`: non-empty title, ≥1 section, each with non-empty heading and body). Any failure is a **502 `invalid_document`**, not a 400: the model, not the user, produced it.

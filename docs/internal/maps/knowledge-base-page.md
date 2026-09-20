@@ -1,6 +1,6 @@
 # Map — Knowledge Base page
 
-Last verified: 2026-09-17 at 01ea70a (working tree)
+Last verified: 2026-09-20 at ac2d182 (Phase 5 lane A: citations re-anchored by content)
 
 The page half of Knowledge. The ingest pipeline behind it — extract, guard, chunk, embed, work cards, tenant scoping — is [`knowledge-ingest-loop.md`](knowledge-ingest-loop.md); this page does not repeat it. Citations are anchored at `01ea70a`; `packages/host/src/knowledge.ts` and `apps/web/components/knowledge-page.tsx` carry uncommitted working-tree edits that shift their lines.<!-- re-anchor knowledge.ts and knowledge-page.tsx cites after those edits commit -->
 
@@ -101,7 +101,7 @@ The result renders as `knowledge-map` (`apps/web/components/knowledge-page.tsx:5
 
 ### 8. What Chat does with all of it
 
-Chat never reads the page's state; the host rebuilds it per turn. `startModalityRun` calls `knowledgeInjection(tenant, userText, { excludeThreadId: thread.id })` (`packages/host/src/runs.ts:152`) and concatenates the result onto the published agent's system prompt (`:157`).
+Chat never reads the page's state; the host rebuilds it per turn. `startModalityRun` calls `knowledgeInjection(tenant, userText, { excludeThreadId: thread.id })` (`packages/host/src/runs.ts:153`) and concatenates the result onto the published agent's system prompt (`:157`).
 
 `knowledgeInjection` (`packages/host/src/knowledge.ts:650-692`) assembles three sections under one `# Workspace knowledge` heading: `## Soul` from `getSoul`, `## Pinned memories` from the pinned subset of `listMemories`, and `## Retrieved sources` — `retrieveChunks(tenant, query, 4, …)` rendered as `[${index + 1}] ${sanitizeSourceName(chunk.sourceName)}\n${chunk.body}` (`:672-674`). An empty query skips retrieval entirely (`:657-659`). The anti-loop is `excludedSourceIds` (`:619-625`): the asking thread's own work card is looked up by origin and excluded, which is why proving retrieval of a Chat card needs a fresh thread.
 
@@ -109,7 +109,7 @@ Retrieval itself is `SqliteBuiltinBackend.retrieve` (`packages/host/src/knowledg
 
 That line reaches the user through `GET /api/v1/knowledge/context?threadId=` (`packages/host/src/handlers/knowledge.ts:284-299`, gated at `:288`) — the only other caller of `knowledgeInjection`. `ChatSession` fetches it (`apps/web/components/chat-session.tsx:327-335`) and hands the `parts` array to `ChatContextChip`, which renders `chat-context` (`apps/web/components/chat-context-chip.tsx:171`) and, on click, the portalled `chat-context-breakdown` (`:120`) with one row per part: Soul / Memories / Sources. The route returns `prompt` and `parts` only — `chunks` stays server-side because it is the retrieval record.
 
-After a **completed** run the host closes the loop: `recordRetrievals` writes one row per injected chunk and projects the `retrieved` edge, and `recordCites(…, citedSources(assistantText, knowledge.chunks))` turns bare `[n]` markers into `cites` edges (`packages/host/src/runs.ts:362-380`, mirrored at `:411-422`). `citedSources` (`packages/host/src/knowledge-cites.ts:64-76`) is positional: `chunks[marker - 1]`, deduped by source, and a marker past the injected count is silently dropped.
+After a **completed** run the host closes the loop: `recordRetrievals` writes one row per injected chunk and projects the `retrieved` edge, and `recordCites(…, citedSources(assistantText, knowledge.chunks))` turns bare `[n]` markers into `cites` edges (`packages/host/src/runs.ts:363-385`, mirrored at `:411-422`). `citedSources` (`packages/host/src/knowledge-cites.ts:64-76`) is positional: `chunks[marker - 1]`, deduped by source, and a marker past the injected count is silently dropped.
 
 ### Failure modes
 

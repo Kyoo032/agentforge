@@ -1,6 +1,6 @@
 # Map — Data analysis
 
-Last verified: 2026-09-17 at 01ea70a
+Last verified: 2026-09-20 at ac2d182 (Phase 5 lane A: citations re-anchored by content)
 
 ## Overview
 
@@ -42,7 +42,7 @@ The client refuses a file over 25 MB before it leaves the browser (`apps/web/lib
 
 ### 4. The store — a row, a file, and two SQLites
 
-`createDatasetStore` (`packages/host/src/datasets.ts:194-305`) is a repository over the kernel `datasets` table (`packages/db/src/schema.ts:616-631`, mirrored for older DBs at `packages/db/src/ensure-schema.ts:360-376`). `create` (`:207-252`):
+`createDatasetStore` (`packages/host/src/datasets.ts:194-305`) is a repository over the kernel `datasets` table (`packages/db/src/schema.ts:659-674`, mirrored for older DBs at `packages/db/src/ensure-schema.ts:361-377`). `create` (`:207-252`):
 
 1. `parseOrThrow` (`:125-142`) — 25 MB cap → 413, unparseable → 413, no header/data row → 400, more than `DATASET_MAX_ROWS = 200_000` rows → 413.
 2. Writes the raw bytes to `<datasetRoot()>/<workspaceId>/<uuid><ext>` (`:197-215`); `datasetRoot()` is `localDataDir()/datasets` (`:309-311`).
@@ -175,7 +175,7 @@ The studio renders the result through `ArtifactActions` (`apps/web/components/da
 | `packages/host/src/job-stream.ts` | `streamJob` — why a failed job is still HTTP 200 |
 | `packages/core/src/tabular/*` | Delimiter sniffing, RFC-4180 tokenizer, type inference, profile, XLSX |
 | `packages/core/src/artifacts/data-analysis.ts` | `dataAnalysisSchema`, `CHART_TYPES`, `dataAnalysisToMarkdown` |
-| `packages/db/src/schema.ts:616-631`, `packages/db/src/ensure-schema.ts:360-376` | The `datasets` table and its back-fill |
+| `packages/db/src/schema.ts:659-674`, `packages/db/src/ensure-schema.ts:361-377` | The `datasets` table and its back-fill |
 
 ## Gotchas
 

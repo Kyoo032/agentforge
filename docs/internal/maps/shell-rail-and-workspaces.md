@@ -1,6 +1,6 @@
 # Map — Shell, rail and workspaces
 
-Last verified: 2026-09-17 at 01ea70a
+Last verified: 2026-09-20 at ac2d182 (Phase 5 lane A: citations re-anchored by content)
 
 ## Overview
 
@@ -88,7 +88,7 @@ Host `handlePostWorkspaces` (`packages/host/src/handlers/workspaces.ts:51-83`) r
 
 **Delete.** `delete-workspace` only renders for a row that is neither `protected` nor `slug === "home"` (`:328`). The confirm panel (`:402`) requires the exact name typed into `delete-workspace-confirm-name`; `delete-workspace-confirm-submit` is disabled until it matches (`:419`) and the client re-checks before sending (`:186-189`). The DELETE carries `{ confirmName }` in the body.
 
-`handleDeleteWorkspace` (`packages/host/src/handlers/workspaces.ts:137-177`) re-checks everything the client checked: not found → 404, `HOME_WORKSPACE_SLUG` → **403 `protected`**, wrong or missing `confirmName` → 400 `confirm_required`. Then `deleteLocalWorkspace` wipes the six knowledge tables by hand (`packages/db/src/ensure-local-owner.ts:176-189`) — they key on `workspace_id` as plain text with no foreign key — and deletes the workspace row, which cascades threads, messages and runs (`packages/db/src/schema.ts:176-178`). Finally `dropWorkspaceSettings(workspaceId)` drops the desk's `settings.enc` entry (`packages/host/src/handlers/workspaces.ts:164`), and if the deleted desk was current, the selection falls back to the home desk (`:168-173`).
+`handleDeleteWorkspace` (`packages/host/src/handlers/workspaces.ts:137-177`) re-checks everything the client checked: not found → 404, `HOME_WORKSPACE_SLUG` → **403 `protected`**, wrong or missing `confirmName` → 400 `confirm_required`. Then `deleteLocalWorkspace` wipes the six knowledge tables by hand (`packages/db/src/ensure-local-owner.ts:176-189`) — they key on `workspace_id` as plain text with no foreign key — and deletes the workspace row, which cascades threads, messages and runs (`packages/db/src/schema.ts:219-221`). Finally `dropWorkspaceSettings(workspaceId)` drops the desk's `settings.enc` entry (`packages/host/src/handlers/workspaces.ts:164`), and if the deleted desk was current, the selection falls back to the home desk (`:168-173`).
 
 ### 7. `/usage` — one route, one query parameter
 
@@ -100,16 +100,16 @@ GET /api/v1/usage?range=day|week|month
 
 `parseUsage` (`:32-47`) is a defensive reader: a payload without a `thisKey.status` is treated as incomplete and surfaces `usage.errors.incomplete` rather than rendering zeros as fact.
 
-Host `handleGetUsage` (`packages/host/src/handlers/usage.ts:8-16`) is three lines: tenant, `parseUsageRange(request.query.range)` (anything not `day`/`week`/`month` → `day`, `packages/core/src/gateway/account.ts:444-449`), `loadRangeUsage`.
+Host `handleGetUsage` (`packages/host/src/handlers/usage.ts:8-16`) is three lines: tenant, `parseUsageRange(request.query.range)` (anything not `day`/`week`/`month` → `day`, `packages/core/src/gateway/account.ts:464-469`), `loadRangeUsage`.
 
-`loadRangeUsage` (`packages/host/src/account-usage.ts:297-345`) computes **two unrelated numbers**:
+`loadRangeUsage` (`packages/host/src/account-usage.ts:316-364`) computes **two unrelated numbers**:
 
 - **this-key wallet** — `thisKeyFor(settings)` asks the gateway what this API key has spent, 2-minute cached (`:55-67`). No key → `{ status: "needs_key" }`.
 - **desk estimate** — local run rows (`listRunUsage`) plus in-memory desk usage, filtered to the range's bucket keys (`:257-295`), priced against the gateway pricing catalog (10-minute cache, with a separate 2-minute *failure* cache at `:118-139` so an offline desk pays one timeout, not one per request), then `summarizeUsageDesk` + `buildUsageBuckets`.
 
 A pricing failure is **not** fatal: the message is redacted and attached as `desk.error` while buckets still render unpriced (`:322-343`). With no key and no runs in range the whole thing short-circuits to empty frames (`:306-320`).
 
-Bucket frames are fixed calendar windows, oldest → newest: **14 days, 8 weeks, 6 months** (`packages/core/src/gateway/account.ts:515-539`). Empty buckets are kept at `usd: 0` so the axis does not jump; `trimLeadingEmptyBuckets` then drops leading empties down to a floor of 7 (day) or 4 (week/month) (`apps/web/components/usage-range-chart.tsx:18-34`, floor from `apps/web/components/usage-page.tsx:49-57`).
+Bucket frames are fixed calendar windows, oldest → newest: **14 days, 8 weeks, 6 months** (`packages/core/src/gateway/account.ts:535-559`). Empty buckets are kept at `usd: 0` so the axis does not jump; `trimLeadingEmptyBuckets` then drops leading empties down to a floor of 7 (day) or 4 (week/month) (`apps/web/components/usage-range-chart.tsx:18-34`, floor from `apps/web/components/usage-page.tsx:49-57`).
 
 `UsageRangeChart` (`apps/web/components/usage-range-chart.tsx:50-191`) is hand-rolled SVG — no chart library — with three outcomes: `usage-range-empty` "No … runs in this range." when nothing is in the window (`:54-60`), `usage-range-empty` "Runs in this range are not priced yet." when there are runs but no price (`:61-67`), otherwise `usage-range-chart` with stacked `<rect>`s per bucket × model plus a legend (`:86-189`).
 
@@ -129,7 +129,7 @@ Bucket frames are fixed calendar windows, oldest → newest: **14 days, 8 weeks,
 | `/api/v1/usage` returns 404 | `apps/web/components/usage-page.tsx:73` | `usage.errors.unavailable` |
 | `/api/v1/usage` returns any other non-2xx | `:73` | `usage.errors.loadStatus` with the status number |
 | Usage payload missing `thisKey.status` | `parseUsage` → `:78-81` | `usage.errors.incomplete`; no zeros are shown as real |
-| Gateway pricing fetch fails | `packages/host/src/account-usage.ts:324-328` | `desk.error` (redacted); buckets still render, unpriced |
+| Gateway pricing fetch fails | `packages/host/src/account-usage.ts:343-347` | `desk.error` (redacted); buckets still render, unpriced |
 | No gateway key | `thisKeyFor` → `{ status: "needs_key" }` | `usage.thisKey.needsKey` copy; `usage-key-meter` not rendered |
 
 ## Where things live
@@ -174,13 +174,13 @@ Bucket frames are fixed calendar windows, oldest → newest: **14 days, 8 weeks,
 - **`resolveWorkspaceModes` treats `[]` as "unset".** An empty stored array yields all work modes (`packages/core/src/agents/product-modes.ts:113-116`), while `requireProductModes` **rejects** an empty submitted array (`:95`). Storing "no modes" is impossible by design.
 - **`/usage`, `/knowledge`, `/settings`, `/workspaces` are never redirected** (`:130-137`). A Legal desk still opens `/usage`; do not treat that as a leak.
 - **Desk estimate and this-key wallet are different numbers by construction** and the page says so in its footer (`apps/web/components/usage-page.tsx:233-235`). One is local token math against a price catalog, the other is what the gateway says the key spent across every app using it.
-- **Equal totals across Day / Week / Month are normal.** The three frames are 14 days / 8 weeks / 6 months (`packages/core/src/gateway/account.ts:515-539`); a desk whose runs are all recent lands every run in the newest bucket of all three. Only the bucket count and labels change. Observed on 2026-09-17: `$0.0018 · 1 model` in all three.
+- **Equal totals across Day / Week / Month are normal.** The three frames are 14 days / 8 weeks / 6 months (`packages/core/src/gateway/account.ts:535-559`); a desk whose runs are all recent lands every run in the newest bucket of all three. Only the bucket count and labels change. Observed on 2026-09-17: `$0.0018 · 1 model` in all three.
 - **`usage-range-empty` carries two different sentences** (`apps/web/components/usage-range-chart.tsx:56`, `:63`) — "No … runs in this range." and "Runs in this range are not priced yet." Matching the first one only will miss the has-runs-no-prices state.
 - **The chart's copy is hardcoded English** while `usage.chart.empty` / `unpriced` / `aria` / `barTitle` exist in both catalogs with zero call sites. Locale bug, recorded in `docs/internal/unreleased.md`, not something to work around in a recipe.
 - **`usage-key-meter` renders only when `thisKey.status === "ok"`** (`apps/web/components/usage-panel.tsx:86-89`). On a keyless desk it is count 0, which is the correct state, not a missing element.
 - **The switcher menu is portaled to `document.body`** (`apps/web/components/workspace-switcher.tsx:96-127`) because the rail is `overflow-hidden`. Scope a menu query to the document, not to the `<aside>`.
 - **Deleting a desk needs the name in two places** — the client's disabled-until-match check (`apps/web/components/workspaces-page.tsx:419`) and the host's `confirmName` body field (`packages/host/src/handlers/workspaces.ts:149-156`). An API-only delete without the body is a 400.
-- **Knowledge rows are wiped by hand, threads by cascade.** The six `knowledge_*` tables store `workspace_id` as plain text with no FK, so `wipeKnowledgeForWorkspace` deletes them explicitly (`packages/db/src/ensure-local-owner.ts:176-189`); threads and their children cascade from the workspace FK (`packages/db/src/schema.ts:176-178`).
+- **Knowledge rows are wiped by hand, threads by cascade.** The six `knowledge_*` tables store `workspace_id` as plain text with no FK, so `wipeKnowledgeForWorkspace` deletes them explicitly (`packages/db/src/ensure-local-owner.ts:176-189`); threads and their children cascade from the workspace FK (`packages/db/src/schema.ts:219-221`).
 
 ## Verify
 
@@ -198,4 +198,4 @@ DOM testids that prove it: rail — `product-brand` / `product-logo` (`apps/web/
 
 **Why the switcher menu is a `document.body` portal.** `[Direct]` `features/workspaces.md` Sub-features: "The menu is portaled so the rail `overflow-hidden` does not clip it." `[Direct]` the rail is in fact `overflow-hidden` (`apps/web/components/app-rail.tsx:236`). Same class of fix as the Chat model picker — see [`chat-send.md`](chat-send.md) §7. **Confidence: high.**
 
-**Why deleting a desk needs the name typed twice.** `[Supported]` The client disables the button until the name matches (`apps/web/components/workspaces-page.tsx:419`) *and* re-checks before sending (`:186-189`), while the host independently requires `confirmName` in the body (`packages/host/src/handlers/workspaces.ts:149-156`) — three checks for one action. A desk delete cascades every thread, message and run it owns (`packages/db/src/schema.ts:176-178`) and hand-wipes six knowledge tables (`packages/db/src/ensure-local-owner.ts:176-189`), which is unrecoverable locally. **Confidence: high for the mechanism; "because it is unrecoverable" is `[Inferred]` — no commit or changelog states the intent.**
+**Why deleting a desk needs the name typed twice.** `[Supported]` The client disables the button until the name matches (`apps/web/components/workspaces-page.tsx:419`) *and* re-checks before sending (`:186-189`), while the host independently requires `confirmName` in the body (`packages/host/src/handlers/workspaces.ts:149-156`) — three checks for one action. A desk delete cascades every thread, message and run it owns (`packages/db/src/schema.ts:219-221`) and hand-wipes six knowledge tables (`packages/db/src/ensure-local-owner.ts:176-189`), which is unrecoverable locally. **Confidence: high for the mechanism; "because it is unrecoverable" is `[Inferred]` — no commit or changelog states the intent.**

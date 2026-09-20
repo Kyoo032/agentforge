@@ -1,6 +1,6 @@
 # Map — Presentation
 
-Last verified: 2026-09-17 at 01ea70a
+Last verified: 2026-09-20 at ac2d182 (Phase 5 lane A: citations re-anchored by content)
 
 ## Overview
 
@@ -43,7 +43,7 @@ The model dropdown is the **chat catalog**, not a presentation-specific list: `u
 2. `requireLivePresentationRuntime` (`:98-108`) — `resolveRuntimeMode({settingsHasKey: hasLiveProvider(settings), envRuntime})`; stub throws `ApiError("runtime_stub", presentationGatewayMessage(locale), 503)`. **This is the state on an unkeyed desk** and it is the one the harness proves.
 3. `readSourceText` (`packages/host/src/job-source.ts:38-52`) — optional, trimmed, capped at 120 000 chars with a visible `[source material truncated at cap]` marker (`:4-19`), and run through the same injection guard Chat applies to attachments unless `settings.injectionGuardBypass` is on (`:23-35`, called from `presentation-generate.ts:144`).
 4. `resolvePresentationModel` (`:110-114`) — body `model` wins, then `settings.presentationGenModel`, then `defaults.presentations`.
-5. `collectAssistantText` (`:79-96`) → `collectJobAssistantText` (`packages/host/src/job-regen.ts:66-143`): builds a synthetic `AgentVersionRecord` with `OUTLINE_SYSTEM` (`presentation-generate.ts:35-50`, `{languageRule}` substituted) as the system prompt, one user turn, `createRuntime(settings)`, and accumulates `assistant.delta` text. It passes `jobMode: "presentations"` (`presentation-generate.ts:92`), which is what sends the thinking-off knob `reasoning_effort: "low"` on always-thinking families — **the opposite of Chat, which deliberately sets no `jobMode`** (see [`chat-send.md`](chat-send.md#4-runtime--probe-stream-coerce)). A `run.failed` event becomes a `502 generation_failed` (`job-regen.ts:140-142`).
+5. `collectAssistantText` (`:79-96`) → `collectJobAssistantText` (`packages/host/src/job-regen.ts:67-150`): builds a synthetic `AgentVersionRecord` with `OUTLINE_SYSTEM` (`presentation-generate.ts:35-50`, `{languageRule}` substituted) as the system prompt, one user turn, `createRuntime(settings)`, and accumulates `assistant.delta` text. It passes `jobMode: "presentations"` (`presentation-generate.ts:92`), which is what sends the thinking-off knob `reasoning_effort: "low"` on always-thinking families — **the opposite of Chat, which deliberately sets no `jobMode`** (see [`chat-send.md`](chat-send.md#4-runtime--probe-stream-coerce)). A `run.failed` event becomes a `502 generation_failed` (`job-regen.ts:147-149`).
 6. Empty text → `502` with `modeMessage("emptyPresentationOutline", locale)` (`:147-149`).
 7. `parsePresentationOutline` (`packages/host/src/presentation-outline.ts:88-108`): strip optional ```json fences, slice from the first `{` to the last `}` (`extractJsonObject`, `:73-85`), `JSON.parse`, then zod. Anything that is not `{title: string, slides: [≥1]}` is a `502 invalid_outline` — the studio never sees half an outline.
 8. `presentationOutlineMarkdown` (`packages/host/src/work-cards.ts:159-172`) renders the outline as `# title` + `## N. heading` blocks, which is saved as an artifact (`persistOutline`, `:117-137`, `mode: "presentations"`, `kind: "draft"`) and then ingested as a `Presentation` work card (`upsertWorkSource` + `artifactWorkCard`, `:158-161`). **Both are best-effort:** `persistOutline` swallows its own error and logs, and no artifact means no ingest, but the outline is still returned.
@@ -65,7 +65,7 @@ Layout is not taken at face value. `resolvePresentationSlideLayout` (`apps/web/l
 
 Submit uploads any held image through `POST /api/v1/media`, inlines any held `.txt` into the instruction (`:96-107`), then `onRegenerate` POSTs the **whole outline** plus `slideIndex` to `/api/v1/presentations/regenerate` (`apps/web/components/presentations-studio.tsx:86-98`; route `packages/host/src/router.ts:210`).
 
-`regeneratePresentationSlide` (`packages/host/src/presentation-generate.ts:188-235`) re-validates the posted outline with `parsePresentationOutlineBody` (400 if malformed), range-checks `slideIndex` (400), gates on live runtime (503), builds a prompt carrying the deck title, the other slides' headings, and the current slide's full body, appends the user instruction (`appendRegenInstruction`, `job-regen.ts:29-31`), runs `SLIDE_SYSTEM` (`:166-175`), parses one slide (`parsePresentationSlide`, `presentation-outline.ts:110-130`) and returns `mergePresentationSlide(outline, index, slide)` (`:132-142`) — a new outline object, immutably replaced in renderer state.
+`regeneratePresentationSlide` (`packages/host/src/presentation-generate.ts:188-235`) re-validates the posted outline with `parsePresentationOutlineBody` (400 if malformed), range-checks `slideIndex` (400), gates on live runtime (503), builds a prompt carrying the deck title, the other slides' headings, and the current slide's full body, appends the user instruction (`appendRegenInstruction`, `job-regen.ts:30-32`), runs `SLIDE_SYSTEM` (`:166-175`), parses one slide (`parsePresentationSlide`, `presentation-outline.ts:110-130`) and returns `mergePresentationSlide(outline, index, slide)` (`:132-142`) — a new outline object, immutably replaced in renderer state.
 
 ### 6. Download — the same outline, server-rendered to PPTX
 
@@ -95,9 +95,9 @@ Presentation is a **handoff target**, never a source. `HANDOFF_TARGETS = ["docum
 | Posted outline malformed (regen or PPTX) | `parsePresentationOutlineBody`, `presentation-outline.ts:144-154` | HTTP 400 `invalid_request` |
 | Model returned nothing | `presentation-generate.ts:147-149`, `:231-233` | HTTP 502 `generation_failed` |
 | Model returned non-JSON / wrong shape | `extractJsonObject` + zod, `presentation-outline.ts:73-130` | HTTP 502 `invalid_outline` |
-| Run failed mid-stream | `collectJobAssistantText`, `job-regen.ts:140-142` | HTTP 502 `generation_failed` carrying the runtime's own message |
-| Regen attachment not an image_url | `readJobRegenAttachments`, `job-regen.ts:33-64` | HTTP 400 `invalid_request` |
-| Regen attachment on a text-only model | `assertModelSupportsModality`, `job-regen.ts:90` | HTTP 4xx from core before any gateway call |
+| Run failed mid-stream | `collectJobAssistantText`, `job-regen.ts:147-149` | HTTP 502 `generation_failed` carrying the runtime's own message |
+| Regen attachment not an image_url | `readJobRegenAttachments`, `job-regen.ts:34-65` | HTTP 400 `invalid_request` |
+| Regen attachment on a text-only model | `assertModelSupportsModality`, `job-regen.ts:91` | HTTP 4xx from core before any gateway call |
 | Artifact save or KB ingest fails | `persistOutline` catch, `presentation-generate.ts:132-136` | **Nothing visible.** Warning on the host console; the outline still renders and still downloads |
 
 ## Where things live

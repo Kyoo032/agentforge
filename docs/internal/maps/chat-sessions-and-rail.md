@@ -1,6 +1,6 @@
 # Map — Chat sessions and the rail
 
-Last verified: 2026-09-17 at 01ea70a
+Last verified: 2026-09-20 at ac2d182 (Phase 5 lane A: citations re-anchored by content)
 
 The sibling page [`chat-send.md`](chat-send.md) owns one turn inside a session. This page owns the sessions themselves: where the list comes from, how a row opens a thread, and how the pane, the list and the desk stay in step. Verified against the working tree of 2026-09-17, which is dirty — the rail block itself (`rail-recent-threads.tsx`, `use-chat-threads.ts`, `thread-groups.ts`, `threads-events.ts`) is new and uncommitted at this sha. `apps/web/components/chat-session.tsx` is also uncommitted-modified and still moving; its citations here were re-anchored to the working tree at landing time.<!-- re-anchor after the chat rail work lands; the working tree already carries a `pendingThreadRef` fallback in `ensureThread` that appears to close the fork described under Gotchas -->
 
@@ -170,7 +170,7 @@ The header button `new-chat` (`:359-367`) does the same thing imperatively — n
 
 `handlePostThreads` (`packages/host/src/handlers/threads.ts:44-64`) validates that `agentId` and `title` are strings when present, 404s on an unknown agent, trims a supplied title to `THREAD_TITLE_MAX = 200` (`thread-title.ts:25`), and calls `createThread`, which defaults the title to `defaultThreadTitle(localeForRun())` (`packages/host/src/threads.ts:33-45`). That default is exactly the string the list filter throws away, so a thread created this way is **invisible in the rail until the first user message renames it**.
 
-The rename is `setThreadTitleFromParts` (`packages/host/src/threads.ts:234-241`), called once per run at `packages/host/src/runs.ts:247`. It takes the first text part, collapses whitespace and truncates to 48 characters with an ellipsis (`titleFromParts`, `thread-title.ts:29-49`) — and it **only writes when the current title is still a default** (`:240`). A caller-supplied title survives forever; there is no rename UI.
+The rename is `setThreadTitleFromParts` (`packages/host/src/threads.ts:234-241`), called once per run at `packages/host/src/runs.ts:248`. It takes the first text part, collapses whitespace and truncates to 48 characters with an ellipsis (`titleFromParts`, `thread-title.ts:29-49`) — and it **only writes when the current title is still a default** (`:240`). A caller-supplied title survives forever; there is no rename UI.
 
 ### 9. Deleting
 
