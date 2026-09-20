@@ -1,6 +1,6 @@
 # Map — Presentation
 
-Last verified: 2026-09-20 at c204e5e
+Last verified: 2026-09-20 at 6984d84
 
 ## Overview
 
@@ -35,7 +35,7 @@ The model dropdown is the **chat catalog**, not a presentation-specific list: `u
 
 `onGenerate` (`apps/web/components/presentations-studio.tsx:51-76`) POSTs `{ prompt, model?, sourceText? }` through `apiFetch`, so webdev and the packaged app share one call. Route table: `packages/host/src/router.ts:255`.
 
-`handlePostPresentations` (`packages/host/src/handlers/jobs.ts:211-220`) resolves the tenant and calls `requireGatewayAllowed(loadSettings(...))` **before** anything else — a closed gate is a flat `403 gateway_blocked` here, never a failed model call.
+`handlePostPresentations` (`packages/host/src/handlers/jobs.ts:211-220`) resolves the tenant and calls `requireGatewayAllowedFor(tenant)` **before** anything else — a closed gate is a flat `403 gateway_blocked` here, never a failed model call.
 
 `generatePresentationOutline` (`packages/host/src/presentation-generate.ts:141-165`) then:
 

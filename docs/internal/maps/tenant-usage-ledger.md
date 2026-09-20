@@ -1,6 +1,6 @@
 # Map — Tenant usage ledger
 
-Last verified: 2026-09-20 at 96e7790 (Phase 5 lane A, after the Meeting mode merged in)
+Last verified: 2026-09-20 at 6984d84 (Phase 5 lane A, after the Meeting mode merged in)
 
 ## Overview
 
@@ -67,7 +67,7 @@ that keep their unit and quantity, which a later pass can price in place.
 |---|---|---|
 | chat | `recordChatRunUsage`, called from `packages/host/src/runs.ts:367` and `:417`, gated on `finishRun`'s return | tokens |
 | documents, presentations, research, data, finance, market, legal, knowledge | `rememberJobUsage` in the shared job runtime callback, `packages/host/src/job-regen.ts:145` | tokens |
-| edit agent | `rememberJobUsage`, `packages/host/src/edit/agent-run.ts:182` (live) and `:360` (stub) | tokens |
+| edit agent | `rememberJobUsage`, `packages/host/src/edit/agent-run.ts:185` (live) and `:363` (stub) | tokens |
 | images | `recordImageUsage`, `packages/host/src/studio-generate.ts:295` | images |
 | videos | `recordVideoUsage`, `packages/host/src/studio-generate.ts:363` | seconds |
 | music | `recordMusicUsage`, `packages/host/src/studio-generate.ts:471` (a song) and `:534` (a lyrics draft) | jobs |
@@ -116,7 +116,7 @@ bills 5 s for a 4 s request.
 | `packages/host/src/usage-record.ts` | Pricing at write time, and the seven entry points the modes call |
 | `packages/host/src/job-usage.ts` | `rememberJobUsage` — runtime event → tenanted row |
 | `packages/host/src/desk-usage.ts` | **Legacy, read-only.** The old untenanted `desk-usage.json`; nothing writes it any more |
-| `packages/host/src/account-usage.ts:43` | `deskRecords` — ledger rows plus any legacy file rows, for the account screen |
+| `packages/host/src/account-usage.ts:47` | `deskRecords` — ledger rows plus any legacy file rows, for the account screen |
 
 ## Gotchas
 

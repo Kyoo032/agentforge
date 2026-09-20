@@ -4,10 +4,9 @@ import { and, eq } from "drizzle-orm";
 import { ApiError, modeMessage, videoCapabilities, type TenantContext } from "@agentforge/core";
 import { db, editUnplaced, media } from "@agentforge/db";
 import { jsonError, jsonOk } from "../errors";
-import { requireGatewayAllowed } from "../gateway-gate";
-import { loadSettings } from "../settings-store";
+import { requireGatewayAllowedFor } from "../gateway-gate";
 import { getTenant } from "../tenant";
-import { mediaRoot } from "../media-root";
+import { mediaFilePath, mediaRelativePath, mediaRoot } from "../media-root";
 import type { HostRequest, HostResult } from "../types";
 import { getEditDoctor } from "../edit/doctor";
 import { createEditProject, getEditProjectBundle, listEditProjects, mapJob, mapUnplaced } from "../edit/projects";
@@ -77,7 +76,7 @@ async function saveEditFile(
   assertEditUpload(mime, bytes.byteLength);
   const kind = kindFromMime(mime)!;
   const id = crypto.randomUUID();
-  const relative = `${tenant.organizationId}/${id}.${extFor(mime)}`;
+  const relative = mediaRelativePath(tenant.tenantId, [tenant.organizationId], `${id}.${extFor(mime)}`);
   const fullPath = path.join(mediaRoot(), relative);
   await mkdir(path.dirname(fullPath), { recursive: true });
   await writeFile(fullPath, bytes);
@@ -242,10 +241,10 @@ export async function handlePostEditImport(request: HostRequest): Promise<HostRe
       filename = file.filename;
     }
     const saved = await saveEditFile(tenant, bytes, mime, filename);
-    const abs = path.join(mediaRoot(), saved.storagePath);
+    const abs = mediaFilePath(tenant.tenantId, saved.storagePath);
     let probed: Awaited<ReturnType<typeof probe>>;
     try {
-      probed = await probe(abs, projectId);
+      probed = await probe(abs, { tenantId: tenant.tenantId, projectId });
     } catch {
       try {
         await unlink(abs);
@@ -312,7 +311,7 @@ export async function handlePostEditAgent(request: HostRequest): Promise<HostRes
   try {
     const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
-    requireGatewayAllowed(loadSettings(tenant.workspaceId));
+    requireGatewayAllowedFor(tenant);
     const body = asRecord(request.body);
     const text = typeof body.text === "string" ? body.text : "";
     const events = await runEditAgent({
@@ -517,7 +516,7 @@ export async function handlePostEditParity(request: HostRequest): Promise<HostRe
     const tenant = await getTenant(request);
     const body = asRecord(request.body);
     const frame = typeof body.frame === "number" ? body.frame : 0;
-    const result = await renderParityFrame(request.params.projectId, frame, tenant.workspaceId);
+    const result = await renderParityFrame(request.params.projectId, frame, tenant);
     return jsonOk({
       frame: result.frame,
       width: result.width,
@@ -540,7 +539,7 @@ export async function handlePostEditGenerate(request: HostRequest): Promise<Host
   try {
     const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
-    requireGatewayAllowed(loadSettings(tenant.workspaceId));
+    requireGatewayAllowedFor(tenant);
     const projectId = request.params.projectId;
     await foldProject(projectId, tenant.workspaceId);
     const body = asRecord(request.body);
@@ -552,7 +551,10 @@ export async function handlePostEditGenerate(request: HostRequest): Promise<Host
     const imageUrl = typeof body.imageUrl === "string" ? body.imageUrl : undefined;
     const model = typeof body.model === "string" ? body.model : undefined;
     if (kind === "generate_video" && imageUrl && model && !videoCapabilities(model).imageToVideo) {
-      return jsonOk({ error: { code: "video_still_unsupported", message: "This model does not accept a still image" } }, 400);
+      return jsonOk(
+        { error: { code: "video_still_unsupported", message: "This model does not accept a still image" } },
+        400,
+      );
     }
     const placeAt =
       body.placeAt && typeof body.placeAt === "object"
@@ -571,8 +573,7 @@ export async function handlePostEditGenerate(request: HostRequest): Promise<Host
         kind,
         prompt,
         aspect: typeof body.aspect === "string" ? body.aspect : undefined,
-        tier:
-          body.tier === "draft" || body.tier === "standard" || body.tier === "cinematic" ? body.tier : undefined,
+        tier: body.tier === "draft" || body.tier === "standard" || body.tier === "cinematic" ? body.tier : undefined,
         model,
         seconds: typeof body.seconds === "number" ? body.seconds : undefined,
         imageUrl,

@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { layoutTitle, type EditProject } from "@agentforge/core";
+import { layoutTitle, type EditProject, type TenantContext } from "@agentforge/core";
 import { foldProject } from "./ops";
 import { frameAt } from "./ffmpeg/recipes";
 
@@ -23,9 +23,9 @@ export function titleBoxForFrame(doc: EditProject, frame: number) {
   };
 }
 
-export async function renderParityFrame(projectId: string, frame: number, workspaceId: string) {
-  const doc = await foldProject(projectId, workspaceId);
-  const rendered = await frameAt(doc, frame);
+export async function renderParityFrame(projectId: string, frame: number, tenant: TenantContext) {
+  const doc = await foldProject(projectId, tenant.workspaceId);
+  const rendered = await frameAt(tenant.tenantId, doc, frame);
   const bytes = await readFile(rendered.file);
   return {
     bytes: new Uint8Array(bytes),

@@ -110,8 +110,8 @@ async function collectAssistantText(
   });
 }
 
-function requireLiveDocumentRuntime(workspaceId: string): ReturnType<typeof loadSettings> {
-  const settings = loadSettings(workspaceId);
+function requireLiveDocumentRuntime(tenant: TenantContext): ReturnType<typeof loadSettings> {
+  const settings = loadSettings(tenant);
   const mode = resolveRuntimeMode({
     settingsHasKey: hasLiveProvider(settings),
     envRuntime: process.env.AGENTFORGE_RUNTIME,
@@ -133,7 +133,12 @@ function resolveDocumentModel(body: unknown, settings: ReturnType<typeof loadSet
 }
 
 /** Save the draft as a `documents / draft` artifact. Never fails the job; returns null when it cannot save. */
-function persistDraft(tenant: TenantContext, draft: DocumentDraft, markdown: string, meta: Record<string, unknown>): string | null {
+function persistDraft(
+  tenant: TenantContext,
+  draft: DocumentDraft,
+  markdown: string,
+  meta: Record<string, unknown>,
+): string | null {
   try {
     return artifactStore().create(tenant, {
       mode: "documents",
@@ -152,7 +157,7 @@ function persistDraft(tenant: TenantContext, draft: DocumentDraft, markdown: str
 
 export async function generateDocumentDraft(tenant: TenantContext, body: unknown): Promise<DocumentDraft> {
   const prompt = readPrompt(body);
-  const settings = requireLiveDocumentRuntime(tenant.workspaceId);
+  const settings = requireLiveDocumentRuntime(tenant);
   const sourceText = readSourceText(body, { injectionGuardBypass: settings.injectionGuardBypass === true });
   const model = resolveDocumentModel(body, settings);
   const raw = await collectAssistantText(tenant, model, prompt, isFinanceJob(body), sourceText);
@@ -202,7 +207,7 @@ export async function regenerateDocumentSection(tenant: TenantContext, body: unk
   if (!current) {
     throw new ApiError("invalid_request", "sectionIndex is out of range", 400);
   }
-  const settings = requireLiveDocumentRuntime(tenant.workspaceId);
+  const settings = requireLiveDocumentRuntime(tenant);
   const model = resolveDocumentModel(body, settings);
   const attachments = readJobRegenAttachments(body);
   const sourceText = readSourceText(body, { injectionGuardBypass: settings.injectionGuardBypass === true });

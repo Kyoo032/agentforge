@@ -1,5 +1,7 @@
 /**
- * Channels — desk store over `localDataDir()/channels/<workspaceId>/`.
+ * Channels — desk store over `localDataDir()/channels/<tenant prefix><workspaceId>/`, where the
+ * tenant prefix is empty for `local-tenant` and `tenants/<tenantId>/` for everyone else (Phase 3
+ * lane D, `../tenant-paths.ts`; see `docs/internal/maps/tenant-storage.md`).
  *
  * ```
  * channels.json              the desk's channels
@@ -19,6 +21,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync 
 import { randomBytes, randomUUID } from "node:crypto";
 import path from "node:path";
 import { ApiError, type TenantContext } from "@agentforge/core";
+import { tenantScopedRoot } from "../tenant-paths";
 import {
   CHANNEL_CAPS,
   type ChannelChatType,
@@ -80,7 +83,7 @@ export interface ChannelStore {
   readOffset(tenant: TenantContext): number | null;
   writeOffset(tenant: TenantContext, offset: number | null): void;
   /** Everything this desk stored, dropped when the desk itself is deleted. */
-  dropWorkspace(workspaceId: string): void;
+  dropWorkspace(tenant: TenantContext, workspaceId: string): void;
 }
 
 function assertSafeId(value: string, label: string): string {
@@ -115,8 +118,11 @@ function readJson(file: string): unknown {
 }
 
 export function createChannelStore(rootDir: string): ChannelStore {
+  // Phase 3 lane D: the tenant comes before the desk. Desk ids are not unique across tenants, so
+  // without the prefix two tenants that happen to share one would read each other's bot identity,
+  // channel list, `getUpdates` offset and stored conversations.
   const deskDir = (tenant: TenantContext): string =>
-    path.join(rootDir, assertSafeId(tenant.workspaceId, "Workspace id"));
+    path.join(tenantScopedRoot(rootDir, tenant.tenantId), assertSafeId(tenant.workspaceId, "Workspace id"));
   const channelsFile = (tenant: TenantContext): string => path.join(deskDir(tenant), "channels.json");
   const stateFile = (tenant: TenantContext): string => path.join(deskDir(tenant), "state.json");
   const botFile = (tenant: TenantContext): string => path.join(deskDir(tenant), "bot.json");
@@ -283,12 +289,14 @@ export function createChannelStore(rootDir: string): ChannelStore {
       writeJsonAtomic(stateFile(tenant), { version: 1, updateOffset: offset });
     },
 
-    dropWorkspace(workspaceId) {
+    dropWorkspace(tenant, workspaceId) {
       const id = workspaceId.trim();
       if (!id || !ID_PATTERN.test(id)) {
         return;
       }
-      rmSync(path.join(rootDir, id), { force: true, recursive: true });
+      // Scoped by the caller's tenant, so deleting a desk never reaches into another tenant's tree
+      // even when the two happen to share a desk id.
+      rmSync(path.join(tenantScopedRoot(rootDir, tenant.tenantId), id), { force: true, recursive: true });
     },
   };
 }

@@ -103,7 +103,7 @@ export async function mapKnowledge(
   try {
     await reembedWorkspaceChunks(tenant, models.embeddingModel);
 
-    const settings = loadSettings(tenant.workspaceId);
+    const settings = loadSettings(tenant);
     const mode = resolveRuntimeMode({
       settingsHasKey: hasLiveProvider(settings),
       envRuntime: process.env.AGENTFORGE_RUNTIME,

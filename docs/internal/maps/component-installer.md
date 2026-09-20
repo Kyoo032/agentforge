@@ -1,6 +1,6 @@
 # Component installer (first run)
 
-Last verified: 2026-09-20 at c204e5e
+Last verified: 2026-09-20 at 6984d84
 
 ## Overview
 

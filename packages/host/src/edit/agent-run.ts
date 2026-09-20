@@ -124,8 +124,10 @@ function compactPrompt(doc: Awaited<ReturnType<typeof foldProject>>, budgetUsd: 
 }
 
 function firstClipId(doc: Awaited<ReturnType<typeof foldProject>>): string | undefined {
-  return doc.clips.find((clip) => doc.tracks.find((track) => track.id === clip.trackId)?.kind === "video")?.id
-    ?? doc.clips[0]?.id;
+  return (
+    doc.clips.find((clip) => doc.tracks.find((track) => track.id === clip.trackId)?.kind === "video")?.id ??
+    doc.clips[0]?.id
+  );
 }
 
 function firstAssetId(doc: Awaited<ReturnType<typeof foldProject>>): string | undefined {
@@ -140,13 +142,14 @@ export async function runEditAgent(input: {
 }): Promise<AsyncIterable<string>> {
   const queue = new StringQueue();
   const runId = crypto.randomUUID();
-  const settings = loadSettings(input.tenant.workspaceId);
+  const settings = loadSettings(input.tenant);
   ensureToolsRegistered();
   const budget = createTurnBudget({ capUsd: settings.editTurnCapUsd });
-  const stub = resolveRuntimeMode({
-    settingsHasKey: hasLiveProvider(settings),
-    envRuntime: process.env.AGENTFORGE_RUNTIME,
-  }) === "stub";
+  const stub =
+    resolveRuntimeMode({
+      settingsHasKey: hasLiveProvider(settings),
+      envRuntime: process.env.AGENTFORGE_RUNTIME,
+    }) === "stub";
 
   void (async () => {
     try {
@@ -204,9 +207,7 @@ async function runStub(
   queue: StringQueue,
 ): Promise<void> {
   const scenario =
-    matchStubEditScenario(input.text) ??
-    matchStubFillScenario(input.text) ??
-    matchStubGenerateScenario(input.text);
+    matchStubEditScenario(input.text) ?? matchStubFillScenario(input.text) ?? matchStubGenerateScenario(input.text);
   if (!scenario) {
     queue.push(encodeSse({ type: "assistant.delta", text: editStubAssistantCopy(localeForRun()).help }));
     queue.push(encodeSse({ type: "run.completed", runId }));
@@ -241,13 +242,20 @@ async function runStub(
     return;
   }
 
+  // An edit scenario carries `args`; a fill or generate scenario carries `buildArgs(text)` instead,
+  // and the union has neither in common. Resolve it once here rather than at each use below — the
+  // three sites further down that already inline `"buildArgs" in scenario ? … : scenario.args` are
+  // left as they are, so each of those still builds its own object.
+  const scenarioArgs: Record<string, unknown> =
+    "buildArgs" in scenario ? scenario.buildArgs(input.text) : scenario.args;
+
   let mutatingCount = 0;
   if (MUTATING.has(scenario.toolKey)) {
     mutatingCount += 1;
   }
   if (mutatingCount > 3) {
     const plan = await hostEditBackend.proposePlan(input.tenant, {
-      steps: [{ tool: scenario.toolKey, args: scenario.args }],
+      steps: [{ tool: scenario.toolKey, args: scenarioArgs }],
       totalUsd: 0,
     });
     queue.push(encodeEditSse({ type: "edit.plan", card: plan.card }));
@@ -255,16 +263,15 @@ async function runStub(
     return;
   }
   if (GENERATION.has(scenario.toolKey)) {
-    const seconds = typeof scenario.args.seconds === "number" ? scenario.args.seconds : 5;
-    const count = typeof scenario.args.count === "number" ? scenario.args.count : 1;
+    const seconds = typeof scenarioArgs.seconds === "number" ? scenarioArgs.seconds : 5;
+    const count = typeof scenarioArgs.count === "number" ? scenarioArgs.count : 1;
     const model =
-      typeof scenario.args.model === "string"
-        ? scenario.args.model
+      typeof scenarioArgs.model === "string"
+        ? scenarioArgs.model
         : scenario.toolKey === "generate_image"
           ? "gpt-image-2"
           : "grok-imagine-video";
-    const estimate =
-      scenario.toolKey === "transcribe" ? 0.02 : estimateEditJobUsd(model, { seconds, count });
+    const estimate = scenario.toolKey === "transcribe" ? 0.02 : estimateEditJobUsd(model, { seconds, count });
     const charged = chargeTurnBudget(budget, estimate);
     if (!charged.ok) {
       queue.push(encodeSse({ type: "tool.completed", toolKey: scenario.toolKey, output: charged.refusal }));
@@ -294,7 +301,10 @@ async function runStub(
     args.referenceClipId = clips[1]?.id ?? clips[0]?.id ?? args.referenceClipId;
   }
   if (scenario.toolKey === "propose_alt_cut") {
-    args.clipIds = doc.clips.filter((clip) => clip.trackId === "v1").map((clip) => clip.id).slice(0, 4);
+    args.clipIds = doc.clips
+      .filter((clip) => clip.trackId === "v1")
+      .map((clip) => clip.id)
+      .slice(0, 4);
     if (!Array.isArray(args.clipIds) || args.clipIds.length === 0) {
       args.clipIds = ["stub-a"];
     }

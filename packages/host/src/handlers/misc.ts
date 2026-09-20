@@ -22,7 +22,7 @@ export async function handleGetTools(request: HostRequest): Promise<HostResult> 
   try {
     const tenant = await getTenant(request);
     ensureToolsRegistered();
-    const routes = listToolRoutes(loadSettings(tenant.workspaceId));
+    const routes = listToolRoutes(loadSettings(tenant));
     return jsonOk({
       tools: listTools().map((tool) => ({
         key: tool.key,

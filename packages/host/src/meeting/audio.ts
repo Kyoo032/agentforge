@@ -2,7 +2,7 @@
  * Meeting mode — turning an uploaded recording into speech-grade audio chunks.
  *
  * Edit's `extractAudio` recipe does the same encode, but it resolves paths against Edit's project
- * allowlist (`edit/ffmpeg/paths.ts` `editAllowlistRoots`), so it cannot read a file that lives
+ * allowlist (`edit/ffmpeg/paths.ts` `editAllowlist`), so it cannot read a file that lives
  * under the meeting store. The ffmpeg runner, the path guard and the probe below are the shared
  * ones; only the allowlist root differs.
  */
@@ -12,7 +12,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { ApiError } from "@agentforge/core";
 import { resolveFfmpeg } from "../edit/ffmpeg-binary";
-import { assertExistingInput, assertInsidePath } from "../edit/ffmpeg/paths";
+import { assertExistingInput, assertInsidePath, type PathAllowlist } from "../edit/ffmpeg/paths";
 import { runFfmpeg } from "../edit/ffmpeg/run";
 
 /**
@@ -38,8 +38,8 @@ export function ffmpegAvailable(): boolean {
   return resolveFfmpeg().found;
 }
 
-export async function probeDuration(filePath: string, roots: string[]): Promise<number> {
-  const input = assertExistingInput(filePath, roots);
+export async function probeDuration(filePath: string, allow: PathAllowlist): Promise<number> {
+  const input = assertExistingInput(filePath, allow);
   const { stdout } = await runFfmpeg(["-v", "error", "-print_format", "json", "-show_format", input], {
     timeoutMs: 15_000,
     bin: "ffprobe",
@@ -57,7 +57,7 @@ export async function probeDuration(filePath: string, roots: string[]): Promise<
 export async function extractMeetingAudio(
   sourcePath: string,
   outDir: string,
-  roots: string[],
+  allow: PathAllowlist,
 ): Promise<ExtractedAudio> {
   if (!ffmpegAvailable()) {
     throw new ApiError(
@@ -66,11 +66,11 @@ export async function extractMeetingAudio(
       503,
     );
   }
-  const input = assertExistingInput(sourcePath, roots);
+  const input = assertExistingInput(sourcePath, allow);
   await rm(outDir, { recursive: true, force: true });
   await mkdir(outDir, { recursive: true });
-  const pattern = assertInsidePath(path.join(outDir, "chunk-%03d.mp3"), roots);
-  const durationSeconds = await probeDuration(input, roots);
+  const pattern = assertInsidePath(path.join(outDir, "chunk-%03d.mp3"), allow);
+  const durationSeconds = await probeDuration(input, allow);
   await runFfmpeg(
     [
       "-i",

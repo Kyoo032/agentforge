@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { asRunUsageRecord, type RunUsageRecord, type TimestampedRunUsage } from "@agentforge/core";
-import { localDataDir } from "@agentforge/db/vault-key";
+import { tenantDataDir } from "./tenant-paths";
 
 /**
  * LEGACY, READ-ONLY since Phase 5 lane A (docs/internal/web-phase5-lane-a.md).
@@ -18,8 +18,17 @@ import { localDataDir } from "@agentforge/db/vault-key";
  */
 type StoredDeskUsage = RunUsageRecord & { at?: string };
 
-function usagePath(): string {
-  return resolve(localDataDir(), "desk-usage.json");
+/**
+ * Phase 3 lane D: `<dataDir>/desk-usage.json` for the local tenant, under `tenants/<tenantId>/`
+ * for anyone else. One file for everybody meant tenant B's spend showed up in tenant A's usage
+ * panel, and every tenant appended to the same file.
+ *
+ * Phase 5 lane A has since built `tenant_usage` and stopped every writer, so what the tenant buys
+ * here is only that the *reads* above are scoped: a hosted tenant sees nothing, rather than the
+ * install's pre-migration rows. See `docs/internal/web-phase3-lane-d.md`.
+ */
+function usagePath(tenantId: string): string {
+  return resolve(tenantDataDir(tenantId), "desk-usage.json");
 }
 
 function readAt(item: unknown): string | undefined {
@@ -30,9 +39,9 @@ function readAt(item: unknown): string | undefined {
   return typeof at === "string" && at.trim() ? at.trim() : undefined;
 }
 
-function readEntries(): StoredDeskUsage[] {
+function readEntries(tenantId: string): StoredDeskUsage[] {
   try {
-    const parsed = JSON.parse(readFileSync(usagePath(), "utf8")) as unknown;
+    const parsed = JSON.parse(readFileSync(usagePath(tenantId), "utf8")) as unknown;
     const items = Array.isArray(parsed)
       ? parsed
       : parsed && typeof parsed === "object" && Array.isArray((parsed as { entries?: unknown }).entries)
@@ -51,13 +60,13 @@ function readEntries(): StoredDeskUsage[] {
   }
 }
 
-export function listDeskUsage(): RunUsageRecord[] {
-  return readEntries().map(({ at: _at, ...record }) => record);
+export function listDeskUsage(tenantId: string): RunUsageRecord[] {
+  return readEntries(tenantId).map(({ at: _at, ...record }) => record);
 }
 
-export function listTimedDeskUsage(): TimestampedRunUsage[] {
+export function listTimedDeskUsage(tenantId: string): TimestampedRunUsage[] {
   const timed: TimestampedRunUsage[] = [];
-  for (const row of readEntries()) {
+  for (const row of readEntries(tenantId)) {
     if (!row.at) {
       continue;
     }
@@ -76,18 +85,18 @@ export function listTimedDeskUsage(): TimestampedRunUsage[] {
   return timed;
 }
 
-export function appendDeskUsage(raw: unknown): void {
+export function appendDeskUsage(tenantId: string, raw: unknown): void {
   const record = asRunUsageRecord(raw);
   if (!record) {
     return;
   }
   const at = readAt(raw) ?? new Date().toISOString();
-  const next = [...readEntries(), { ...record, at }];
-  const dir = localDataDir();
+  const next = [...readEntries(tenantId), { ...record, at }];
+  const dir = tenantDataDir(tenantId);
   mkdirSync(dir, { recursive: true });
-  writeFileSync(usagePath(), `${JSON.stringify({ entries: next })}\n`, "utf8");
+  writeFileSync(usagePath(tenantId), `${JSON.stringify({ entries: next })}\n`, "utf8");
 }
 
-export function deskUsageFileExists(): boolean {
-  return existsSync(usagePath());
+export function deskUsageFileExists(tenantId: string): boolean {
+  return existsSync(usagePath(tenantId));
 }

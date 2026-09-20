@@ -118,7 +118,7 @@ export async function generateResearchNotes(
 ): Promise<ResearchResult> {
   ensureToolsRegistered();
   const question = readPrompt(body);
-  const settings = loadSettings(tenant.workspaceId);
+  const settings = loadSettings(tenant);
   requireLiveResearch(settings);
   const catalog = listSelectableModels();
   const { defaults } = modeCatalogPayload();

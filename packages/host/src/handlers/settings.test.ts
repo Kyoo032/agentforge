@@ -455,6 +455,8 @@ describe("POST /api/v1/settings/reset", () => {
       "media",
       "workspace-id.txt",
       "desk-usage.json",
+      // Phase 3 lane D: every non-local tenant's files.
+      "tenants",
       "datasets",
       "edit",
       "legal",

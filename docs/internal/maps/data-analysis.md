@@ -1,6 +1,6 @@
 # Map — Data analysis
 
-Last verified: 2026-09-20 at c204e5e
+Last verified: 2026-09-20 at 6984d84
 
 ## Overview
 
@@ -67,7 +67,7 @@ Both are `:memory:`, both set `hard_heap_limit = 128 MB` and `query_only = 1` (`
 
 `onGenerate` (`apps/web/components/data-studio.tsx:147-169`) refuses an empty prompt, and with no adopted dataset sets a **client-side** error from `data.errors.needTable` without touching the network (`:153-155`). Otherwise it posts to `/api/v1/data/stream` with `{ datasetId, prompt, model, history }` (`:158-163`).
 
-`handlePostDataStream` (`packages/host/src/handlers/jobs.ts:287-298`) resolves the tenant, calls `requireGatewayAllowed(loadSettings(...))` — a closed gateway gate is a flat `403 gateway_blocked` here, before any stream — and then wraps `analyzeDataset` in `streamJob`.
+`handlePostDataStream` (`packages/host/src/handlers/jobs.ts:287-298`) resolves the tenant, calls `requireGatewayAllowedFor(tenant)` — a closed gateway gate is a flat `403 gateway_blocked` here, before any stream — and then wraps `analyzeDataset` in `streamJob`.
 
 `streamJob` (`packages/host/src/job-stream.ts:30-86`) is the shape that matters for verification: it **always returns `{ type: "stream", status: 200 }`** (`:85`) and pushes the job's rejection onto the stream as a `job.error` event carrying the original code and status (`:57-59`, `jobErrorFromUnknown` at `:8-14`). On the client `settleJobEvents` (`apps/web/lib/job-stream.ts:34-46`) turns that event into a thrown `JobStreamError`, `useJobStream` stores it (`apps/web/lib/use-job-stream.ts:60-65`), and `DataStudio` renders `job.error.message` in `data-error` (`:73`, `:180-190`). So **the 503 is in the SSE payload, not on the wire** — the HTTP response to `POST /api/v1/data/stream` is 200 even when the desk has no key. The non-streaming twin `POST /api/v1/data` (`packages/host/src/handlers/jobs.ts:275-284`) does answer a real 503, but no UI calls it.
 

@@ -88,7 +88,7 @@ export async function parseFinanceFigures(tenant: TenantContext, body: unknown):
   if (typeof figures !== "string" || !figures.trim()) {
     throw new ApiError("invalid_request", "figures text is required", 400);
   }
-  const settings = requireLive(tenant.workspaceId);
+  const settings = requireLive(tenant);
   const model = resolveModel(body, settings);
   const locale = readFinanceLocale(body);
   // Redacted first: the guard reads the owner's own text, and only the redacted copy ever leaves.
@@ -157,7 +157,7 @@ export async function generateFinanceBrief(
     return runFinanceTask(taskModule, { tenant, body, emit, abortSignal });
   }
   const question = readPrompt(body);
-  const settings = requireLive(tenant.workspaceId);
+  const settings = requireLive(tenant);
   const model = resolveModel(body, settings);
   const locale = readFinanceLocale(body);
   // Source material reaches the same prompt as the line items, so it is redacted on the same terms.
@@ -304,7 +304,7 @@ export async function regenerateFinanceSection(tenant: TenantContext, body: unkn
   if (!current) {
     throw new ApiError("invalid_request", "sectionIndex is out of range", 400);
   }
-  const settings = requireLive(tenant.workspaceId);
+  const settings = requireLive(tenant);
   const model = resolveModel(body, settings);
   const locale = readFinanceLocale(body);
   const supplied = resolveInputs(tenant, body, locale);

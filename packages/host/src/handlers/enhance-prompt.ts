@@ -36,7 +36,7 @@ export async function handlePostEnhancePrompt(request: HostRequest): Promise<Hos
       request.body && typeof request.body === "object" ? (request.body as { surface?: unknown }).surface : "chat";
     const surface = isEnhanceSurface(rawSurface) ? rawSurface : "chat";
     const tenant = await getTenant(request);
-    const settings = loadSettings(tenant.workspaceId);
+    const settings = loadSettings(tenant);
     const locale = getBootLocale();
     const mode = resolveRuntimeMode({
       settingsHasKey: hasLiveProvider(settings),
@@ -46,7 +46,7 @@ export async function handlePostEnhancePrompt(request: HostRequest): Promise<Hos
       return jsonOk({ text: stubEnhancePrompt(text, surface, locale), source: "stub" });
     }
     // Past the stub short-circuit this is a real model call, so the gate decides.
-    requireGatewayAllowed(settings);
+    requireGatewayAllowed(settings, { tenant });
     const catalog = listSelectableModels();
     const { defaults } = modeCatalogPayload();
     const requested =

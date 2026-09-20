@@ -27,6 +27,8 @@ import {
   writeJsonAtomic,
 } from "./store-files";
 import { meetingRecordSchema, type MeetingRecord, type MeetingStatus } from "./records";
+import type { PathAllowlist } from "../edit/ffmpeg/paths";
+import { tenantDeniedRoots } from "../tenant-paths";
 
 export type { MeetingRecord, MeetingMinutesRecord } from "./records";
 
@@ -54,7 +56,7 @@ export interface MeetingStore {
   /** Absolute path of the stored recording, or null when the meeting has none. */
   recordingPath(tenant: TenantContext, id: string): string | null;
   /** Where ffmpeg may write this meeting's extracted audio, and the roots it may touch. */
-  audioWorkspace(tenant: TenantContext, id: string): { dir: string; roots: string[] };
+  audioWorkspace(tenant: TenantContext, id: string): { dir: string; allow: PathAllowlist };
 }
 
 const TITLE_MAX = 200;
@@ -100,7 +102,7 @@ function highestStatus(current: MeetingStatus, next: MeetingStatus): MeetingStat
 }
 
 export function createMeetingStore(rootDir: string = meetingsRoot()): MeetingStore {
-  const dirFor = (tenant: TenantContext, id: string) => meetingDir(rootDir, tenant.workspaceId, id);
+  const dirFor = (tenant: TenantContext, id: string) => meetingDir(rootDir, tenant.tenantId, tenant.workspaceId, id);
 
   function require(tenant: TenantContext, id: string): { dir: string; record: MeetingRecord } {
     const dir = dirFor(tenant, id);
@@ -137,7 +139,7 @@ export function createMeetingStore(rootDir: string = meetingsRoot()): MeetingSto
     },
 
     list(tenant) {
-      return listMeetingIds(rootDir, tenant.workspaceId)
+      return listMeetingIds(rootDir, tenant.tenantId, tenant.workspaceId)
         .map((id) => {
           try {
             return readRecord(dirFor(tenant, id));
@@ -217,7 +219,12 @@ export function createMeetingStore(rootDir: string = meetingsRoot()): MeetingSto
 
     audioWorkspace(tenant, id) {
       const dir = dirFor(tenant, assertSafeId(id, "Meeting id"));
-      return { dir: path.join(dir, "audio"), roots: [dir] };
+      // Phase 3 lane D: the local tenant's meetings root contains every other tenant's, so the
+      // allowlist carries the denial as well as the root. `assertInsidePath` checks denied first.
+      return {
+        dir: path.join(dir, "audio"),
+        allow: { roots: [dir], denied: tenantDeniedRoots(rootDir, tenant.tenantId) },
+      };
     },
   };
 }

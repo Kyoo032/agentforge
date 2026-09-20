@@ -1,7 +1,9 @@
 /**
  * Meeting mode — file-layer helpers for the meeting store.
  *
- * Layout under `<rootDir>/<workspaceId>/<meetingId>/`:
+ * Layout under `<rootDir>/<tenant prefix><workspaceId>/<meetingId>/`, where the tenant prefix is
+ * empty for `local-tenant` and `tenants/<tenantId>/` for everyone else (Phase 3 lane D,
+ * `../tenant-paths.ts`; see `docs/internal/maps/tenant-storage.md`):
  *   meeting.json        MeetingRecord
  *   recording/source.*  the uploaded bytes, one per meeting
  *   audio/              ffmpeg's extracted mono mp3, rebuilt on demand and safe to delete
@@ -14,6 +16,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { ApiError } from "@agentforge/core";
+import { assertPathSegment, tenantScopedRoot } from "../tenant-paths";
 
 /**
  * Per-recording cap. The HTTP adapter refuses a body over 26 MB outright
@@ -67,8 +70,13 @@ export function assertSafeId(value: string, label: string): string {
   return value;
 }
 
-export function meetingDir(rootDir: string, workspaceId: string, meetingId: string): string {
-  return path.join(rootDir, assertSafeId(workspaceId, "Workspace id"), assertSafeId(meetingId, "Meeting id"));
+/** The tenant's own slice of the meetings root. `tenants` is refused as a desk id so it cannot alias it. */
+export function tenantMeetingRoot(rootDir: string, tenantId: string, workspaceId: string): string {
+  return path.join(tenantScopedRoot(rootDir, tenantId), assertPathSegment(workspaceId, "Workspace id"));
+}
+
+export function meetingDir(rootDir: string, tenantId: string, workspaceId: string, meetingId: string): string {
+  return path.join(tenantMeetingRoot(rootDir, tenantId, workspaceId), assertSafeId(meetingId, "Meeting id"));
 }
 
 export function meetingFile(dir: string): string {
@@ -88,9 +96,9 @@ export function audioDir(dir: string): string {
   return path.join(dir, "audio");
 }
 
-/** Directories under `<rootDir>/<workspaceId>/` that carry a meeting.json. */
-export function listMeetingIds(rootDir: string, workspaceId: string): string[] {
-  const dir = path.join(rootDir, assertSafeId(workspaceId, "Workspace id"));
+/** Directories under that tenant's `<rootDir>/<workspaceId>/` that carry a meeting.json. */
+export function listMeetingIds(rootDir: string, tenantId: string, workspaceId: string): string[] {
+  const dir = tenantMeetingRoot(rootDir, tenantId, workspaceId);
   if (!existsSync(dir)) {
     return [];
   }

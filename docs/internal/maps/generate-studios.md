@@ -1,6 +1,6 @@
 # Map — Generate studios (Images and Videos)
 
-Last verified: 2026-09-20 at c204e5e
+Last verified: 2026-09-20 at 6984d84
 
 ## Overview
 
@@ -87,7 +87,7 @@ Images has one knob, `images-studio-aspect` (`square` / `landscape` / `portrait`
 On the host, `handlePostImages` / `handlePostVideos` (`packages/host/src/handlers/jobs.ts:67-77`, `:98-108`) are four lines each and in this order:
 
 1. `getTenant(request.workspaceId)`
-2. `requireGatewayAllowed(loadSettings(tenant.workspaceId))` — **this is the gate**, and it lives only on the POSTs. See [`settings-and-gateway-gate.md`](settings-and-gateway-gate.md).
+2. `requireGatewayAllowedFor(tenant)` — **this is the gate**, and it lives only on the POSTs. See [`settings-and-gateway-gate.md`](settings-and-gateway-gate.md).
 3. `parseImageGenerateBody` / `parseVideoGenerateBody` (`packages/host/src/studio-generate.ts:176-217`) — zod, a 400 on the first issue. The video parser adds one semantic check before anything runs: an `imageUrl` on a model whose `imageToVideo` is false is `video_still_unsupported`, 400 (`:103-105`).
 4. `generateStudioImage` / `generateStudioVideo`, answered `201`.
 

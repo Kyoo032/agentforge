@@ -1,7 +1,9 @@
 /**
- * Legal mode — matter store over `localDataDir()/legal/<workspaceId>/<matterId>/`.
+ * Legal mode — matter store over `localDataDir()/legal/tenants/<tenantId>/<workspaceId>/<matterId>/`,
+ * which for the local tenant is the pre-Phase-3 `localDataDir()/legal/<workspaceId>/<matterId>/`.
  *
- * Every method filters on `tenant.workspaceId`; records from another workspace read as missing.
+ * Every method filters on `tenant.tenantId` (through the path) and on `tenant.workspaceId`; records
+ * from another tenant or another workspace read as missing.
  * Records are immutable: each mutation persists and returns a new object.
  */
 
@@ -111,7 +113,8 @@ function definedEntries<T extends object>(patch: T): Partial<T> {
 }
 
 export function createLegalStore(rootDir: string): LegalStore {
-  const dirFor = (tenant: TenantContext, id: string): string => matterDir(rootDir, tenant.workspaceId, id);
+  const dirFor = (tenant: TenantContext, id: string): string =>
+    matterDir(rootDir, tenant.tenantId, tenant.workspaceId, id);
 
   const load = (tenant: TenantContext, id: string): LegalMatterRecord | null => {
     const raw = readJson(matterFile(dirFor(tenant, id)));
@@ -152,7 +155,7 @@ export function createLegalStore(rootDir: string): LegalStore {
     },
 
     list(tenant) {
-      return listMatterIds(rootDir, tenant.workspaceId)
+      return listMatterIds(rootDir, tenant.tenantId, tenant.workspaceId)
         .map((id) => load(tenant, id))
         .filter((matter): matter is LegalMatterRecord => matter !== null)
         .sort((a, b) => b.createdAt - a.createdAt)

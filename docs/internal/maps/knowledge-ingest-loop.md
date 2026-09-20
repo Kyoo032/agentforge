@@ -1,6 +1,6 @@
 # Map — Knowledge ingest loop
 
-Last verified: 2026-09-20 at c204e5e
+Last verified: 2026-09-20 at 6984d84
 
 > **`knowledge.ts` and `knowledge-extract.ts` move often.** Every line number below was re-read at `b482611`, but these two files are rewritten frequently; if a number looks wrong, grep the function name rather than trusting it.
 
@@ -37,7 +37,7 @@ There is no separate list route; listing rides on `GET /api/v1/knowledge`. `POST
 
 ### Ingest
 
-**Manual.** `addFileSource` (`packages/host/src/knowledge.ts:499`) mints a `crypto.randomUUID()` and calls `extractText(filename, mime, bytes)` (`packages/host/src/knowledge-extract.ts:243`). **Changed on 2026-09-17:** every extraction failure is now a structured 4xx with no row at all — `pdf_*`, `docx_*`, `document_*` and `unsupported_content_type` alike — where a `pdf_*` / `docx_*` failure used to be recorded as a `Failed` row answered `201`. The injection scan also runs *before* the write now, so a tripped upload is `400 injection_blocked` with no row and no stored bytes. It also writes the raw bytes to `mediaRoot()/knowledge/${organizationId}/${id}-${filename}` (`:513-516`). `addUrlSource` (`:523-540`) forces HTTPS via `assertAllowedEndpointUrl`, fetches through `fetchPublicHttps` (SSRF guards, per-hop revalidation, byte and time caps), then routes the body through `htmlToText` or `plainToText`. `addPastedSource` caps at 2,000,000 chars with a 413 (`:564`, `:583-584`).
+**Manual.** `addFileSource` (`packages/host/src/knowledge.ts:499`) mints a `crypto.randomUUID()` and calls `extractText(filename, mime, bytes)` (`packages/host/src/knowledge-extract.ts:243`). **Changed on 2026-09-17:** every extraction failure is now a structured 4xx with no row at all — `pdf_*`, `docx_*`, `document_*` and `unsupported_content_type` alike — where a `pdf_*` / `docx_*` failure used to be recorded as a `Failed` row answered `201`. The injection scan also runs *before* the write now, so a tripped upload is `400 injection_blocked` with no row and no stored bytes. It also writes the raw bytes to `tenantMediaRoot(tenant.tenantId)/knowledge/${organizationId}/${id}-${filename}` — the tenant prefix is empty for `local-tenant`, so a desktop install keeps `mediaRoot()/knowledge/<organizationId>/…` (`uploadDir`, `packages/host/src/knowledge.ts:450-452`; see [`tenant-storage.md`](tenant-storage.md)). `addUrlSource` (`:523-540`) forces HTTPS via `assertAllowedEndpointUrl`, fetches through `fetchPublicHttps` (SSRF guards, per-hop revalidation, byte and time caps), then routes the body through `htmlToText` or `plainToText`. `addPastedSource` caps at 2,000,000 chars with a 413 (`:564`, `:583-584`).
 
 **Automatic — the loop.** Every finished Chat turn and every job mode (Research, Data, Finance, Documents, Presentation, Images, Videos, Edit) becomes one "work card" through `upsertWorkSource` (`packages/host/src/knowledge-ingest.ts:25-85`), fired and forgotten from `packages/host/src/runs.ts:390`. It is **idempotent per `(workspace, origin.kind, origin.id)`** via `findSourceByOrigin` (`packages/host/src/knowledge.ts:211-218`), so re-running a thread rewrites one row instead of piling up duplicates.
 
@@ -49,7 +49,7 @@ On a hit it **does not strip or sanitize**. It refuses to index and writes a `Fa
 
 **The bypass** is the `injectionGuardBypass` boolean on `StoredSecrets` (`packages/core/src/secrets.ts:32`, `:87`), set through `POST /api/v1/settings` (`packages/host/src/handlers/settings.ts:162`), persisted per workspace in the encrypted settings file, read back at `packages/host/src/knowledge.ts:408-414` and `knowledge-ingest.ts:94-100`. When true the scan is skipped outright — `bypass ? null : scanInjection(...)`.
 
-Source **names** get the same treatment, deliberately: an upload filename or a remote `<title>` is attacker-controlled the same way body text is, so `sanitizeSourceName` runs at index time and again at render time (`packages/host/src/knowledge.ts:358-365`, `:852-856`).
+Source **names** get the same treatment, deliberately: an upload filename or a remote `<title>` is attacker-controlled the same way body text is, so `sanitizeSourceName` runs at index time and again at render time (`packages/host/src/knowledge.ts:366`, `:860`).
 
 ### Chunk, store, embed
 
@@ -73,7 +73,7 @@ Afterwards, on a *completed* run only: `recordRetrievals` (`packages/host/src/kn
 
 Two different things share the word "reindex":
 
-- **`reindexSource` / `reindexWorkspace`** (`packages/host/src/knowledge-reindex.ts:275`, `:313`) — explicit, re-reads the source body, **re-chunks** (so it picks up chunker changes), rewrites FTS and vectors. Routes `POST /knowledge/sources/:id/reindex` and `POST /knowledge/reindex`.
+- **`reindexSource` / `reindexWorkspace`** (`packages/host/src/knowledge-reindex.ts:270-308`, `:313`) — explicit, re-reads the source body, **re-chunks** (so it picks up chunker changes), rewrites FTS and vectors. Routes `POST /knowledge/sources/:id/reindex` and `POST /knowledge/reindex`.
 - **`reembedWorkspaceChunks`** (`packages/host/src/knowledge-embed.ts:212`) — implicit, runs at the start of **every** "Map knowledge" click (`packages/host/src/knowledge-map.ts:104`). Re-embeds the existing chunk rows under the current embedding model and deliberately does **not** re-chunk (`packages/host/src/knowledge-reindex.ts:16-18`).
 
 `runKnowledgeSelfCheck` (`packages/host/src/knowledge-verify.ts:129`) plants a token source, retrieves it, deletes it, and records one row per workspace. Throttled to once per 10 s.

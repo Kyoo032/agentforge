@@ -37,7 +37,7 @@ async function withTenant(request: HostRequest, run: TenantHandler): Promise<Hos
 export type ChannelDeps = { client?: (token: string) => TelegramClient };
 
 function savedToken(tenant: TenantContext): string | undefined {
-  return loadSettings(tenant.workspaceId).telegramBotToken;
+  return loadSettings(tenant).telegramBotToken;
 }
 
 /**
@@ -85,7 +85,7 @@ export function handlePostTelegramBot(request: HostRequest, deps: ChannelDeps = 
     const token = assertBotTokenShape(body.token);
     const client = deps.client ? deps.client(token) : new TelegramClient(token);
     const identity = await client.getMe();
-    saveSettings({ telegramBotToken: token }, tenant.workspaceId);
+    saveSettings({ telegramBotToken: token }, tenant);
     channelStore().writeBot(tenant, { ...identity, connectedAt: Date.now() });
     return jsonOk(botPayload(tenant));
   });
@@ -97,7 +97,7 @@ export function handlePostTelegramBot(request: HostRequest, deps: ChannelDeps = 
  */
 export function handleDeleteTelegramBot(request: HostRequest): Promise<HostResult> {
   return withTenant(request, (tenant) => {
-    saveSettings({ telegramBotToken: "" }, tenant.workspaceId);
+    saveSettings({ telegramBotToken: "" }, tenant);
     channelStore().clearBot(tenant);
     return jsonOk(botPayload(tenant));
   });

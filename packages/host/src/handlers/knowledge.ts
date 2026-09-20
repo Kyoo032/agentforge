@@ -1,8 +1,7 @@
 import { ApiError } from "@agentforge/core";
 import type { HostRequest, HostResult } from "../types";
 import { jsonError, jsonOk } from "../errors";
-import { requireGatewayAllowed } from "../gateway-gate";
-import { loadSettings } from "../settings-store";
+import { requireGatewayAllowedFor } from "../gateway-gate";
 import { getTenant } from "../tenant";
 import {
   addFileSource,
@@ -29,11 +28,7 @@ import { backendPayload, parseBackendId, selectKnowledgeBackend } from "../knowl
 import { countRetrievals } from "../knowledge-retrievals";
 import { getGraph, graphCounts } from "../knowledge-graph";
 import { reindexSource, reindexWorkspace } from "../knowledge-reindex";
-import {
-  getKnowledgeVerify,
-  runKnowledgeSelfCheck,
-  type KnowledgeVerifyRecord,
-} from "../knowledge-verify";
+import { getKnowledgeVerify, runKnowledgeSelfCheck, type KnowledgeVerifyRecord } from "../knowledge-verify";
 import { upsertWorkSource } from "../knowledge-ingest";
 import { requireArtifact } from "../artifacts";
 import { getThread } from "../threads";
@@ -176,7 +171,7 @@ export async function handlePostKnowledgeBackendReindex(request: HostRequest): P
   try {
     const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
-    requireGatewayAllowed(loadSettings(tenant.workspaceId));
+    requireGatewayAllowedFor(tenant);
     return jsonOk(await reindexWorkspace(tenant));
   } catch (error) {
     return jsonError(error);
@@ -193,7 +188,7 @@ export async function handlePostKnowledgeSourceReindex(request: HostRequest): Pr
   try {
     const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
-    requireGatewayAllowed(loadSettings(tenant.workspaceId));
+    requireGatewayAllowedFor(tenant);
     const outcome = await reindexSource(tenant, request.params.sourceId);
     if (outcome.status === "missing") {
       throw new ApiError("not_found", "Source not found", 404);
@@ -209,7 +204,7 @@ export async function handlePostKnowledgeReindex(request: HostRequest): Promise<
   try {
     const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
-    requireGatewayAllowed(loadSettings(tenant.workspaceId));
+    requireGatewayAllowedFor(tenant);
     return jsonOk(await reindexWorkspace(tenant));
   } catch (error) {
     return jsonError(error);
@@ -240,10 +235,7 @@ export const SELF_CHECK_MIN_INTERVAL_MS = 10_000;
  * A record stamped in the future — the clock moved backwards — is never considered fresh, or a
  * workspace could be locked out of checking itself for as long as the skew lasts.
  */
-export function throttledSelfCheck(
-  recent: KnowledgeVerifyRecord | null,
-  now: number,
-): KnowledgeVerifyRecord | null {
+export function throttledSelfCheck(recent: KnowledgeVerifyRecord | null, now: number): KnowledgeVerifyRecord | null {
   if (!recent || recent.at > now) {
     return null;
   }
@@ -258,7 +250,7 @@ export async function handlePostKnowledgeVerify(request: HostRequest): Promise<H
   try {
     const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
-    requireGatewayAllowed(loadSettings(tenant.workspaceId));
+    requireGatewayAllowedFor(tenant);
     const recent = throttledSelfCheck(getKnowledgeVerify(tenant), Date.now());
     if (recent) {
       return jsonOk({ ...recent, throttled: true });
@@ -293,7 +285,7 @@ export async function handlePostKnowledgeMap(request: HostRequest): Promise<Host
   try {
     const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
-    requireGatewayAllowed(loadSettings(tenant.workspaceId));
+    requireGatewayAllowedFor(tenant);
     const body = (request.body ?? {}) as {
       embeddingModel?: unknown;
       brainModel?: unknown;
@@ -315,7 +307,7 @@ export async function handleGetKnowledgeContext(request: HostRequest): Promise<H
   try {
     const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
-    requireGatewayAllowed(loadSettings(tenant.workspaceId));
+    requireGatewayAllowedFor(tenant);
     const query = typeof request.query.query === "string" ? request.query.query : "";
     const threadId = typeof request.query.threadId === "string" ? request.query.threadId.trim() : "";
     // Only the caller's own thread (workspace-scoped lookup) can be excluded from its Sources.
@@ -375,7 +367,7 @@ export async function handlePostKnowledgeSource(request: HostRequest): Promise<H
   try {
     const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
-    requireGatewayAllowed(loadSettings(tenant.workspaceId));
+    requireGatewayAllowedFor(tenant);
     const file = request.files?.find((item) => item.field === "file") ?? request.files?.[0];
     if (file) {
       return jsonOk(await addFileSource(tenant, file), 201);
@@ -408,7 +400,7 @@ export async function handlePostKnowledgeSourceUrl(request: HostRequest): Promis
   try {
     const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
-    requireGatewayAllowed(loadSettings(tenant.workspaceId));
+    requireGatewayAllowedFor(tenant);
     const url = request.body && typeof request.body === "object" ? (request.body as { url?: unknown }).url : undefined;
     if (typeof url !== "string") {
       throw new ApiError("invalid_request", "url is required", 400);

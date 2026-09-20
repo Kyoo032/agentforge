@@ -1,7 +1,9 @@
 /**
  * Legal mode — file-layer helpers for the matter store.
  *
- * Layout under `<rootDir>/<workspaceId>/<matterId>/`:
+ * Layout under `<rootDir>/tenants/<tenantId>/<workspaceId>/<matterId>/` — the tenant prefix is
+ * empty for the local tenant, so a pre-Phase-3 matter stays at `<rootDir>/<workspaceId>/<matterId>/`
+ * and is read and written in place (see `tenant-paths.ts`):
  *   matter.json          LegalMatterRecord
  *   files/<docId>.docx   original bytes
  *   parsed/<docId>.json  DocxDocument (cached reader output)
@@ -16,6 +18,7 @@ import type { DocxDocument } from "@agentforge/core/docx";
 import { LEGAL_CAPS, legalOutputCopy, type MatterDocCard } from "@agentforge/core/legal";
 import { readDocxUnderCaps } from "../knowledge-extract";
 import { localeForRun } from "../run-context";
+import { assertPathSegment, tenantScopedRoot } from "../tenant-paths";
 
 /** Per-file cap matches the IPC bytes envelope (tighter than LEGAL_CAPS.maxFileBytes). */
 export const LEGAL_FILE_MAX_BYTES = 25 * 1024 * 1024;
@@ -42,8 +45,13 @@ export function assertSafeId(value: string, label: string): string {
   return value;
 }
 
-export function matterDir(rootDir: string, workspaceId: string, matterId: string): string {
-  return path.join(rootDir, assertSafeId(workspaceId, "Workspace id"), assertSafeId(matterId, "Matter id"));
+/** The tenant's own slice of the legal root. `tenants` is refused as a desk id so it cannot alias it. */
+export function tenantLegalRoot(rootDir: string, tenantId: string, workspaceId: string): string {
+  return path.join(tenantScopedRoot(rootDir, tenantId), assertPathSegment(workspaceId, "Workspace id"));
+}
+
+export function matterDir(rootDir: string, tenantId: string, workspaceId: string, matterId: string): string {
+  return path.join(tenantLegalRoot(rootDir, tenantId, workspaceId), assertSafeId(matterId, "Matter id"));
 }
 
 export function matterFile(dir: string): string {
@@ -62,9 +70,9 @@ export function runFile(dir: string, runId: string): string {
   return path.join(dir, "runs", `${assertSafeId(runId, "Run id")}.json`);
 }
 
-/** Directories under `<rootDir>/<workspaceId>/` that carry a matter.json. */
-export function listMatterIds(rootDir: string, workspaceId: string): string[] {
-  const dir = path.join(rootDir, assertSafeId(workspaceId, "Workspace id"));
+/** Directories under this tenant's `<workspaceId>/` that carry a matter.json. */
+export function listMatterIds(rootDir: string, tenantId: string, workspaceId: string): string[] {
+  const dir = tenantLegalRoot(rootDir, tenantId, workspaceId);
   if (!existsSync(dir)) {
     return [];
   }

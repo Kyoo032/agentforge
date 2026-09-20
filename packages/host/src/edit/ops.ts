@@ -12,7 +12,7 @@ import {
   type EditProject,
   type OpType,
 } from "@agentforge/core";
-import { db, editOps, editProjects, editSnapshots } from "@agentforge/db";
+import { db, editOps, editProjects, editSnapshots, organizations } from "@agentforge/db";
 import { editEvents } from "./events";
 
 export const SNAPSHOT_EVERY = 200;
@@ -107,9 +107,30 @@ export async function workerWorkspaceId(projectId: string): Promise<string> {
   return row.workspaceId;
 }
 
+/**
+ * The tenant a project belongs to, for a background worker that has no request to scope by.
+ *
+ * Twin of `workerWorkspaceId`, and subject to the same rule: request handlers hold a tenant and
+ * must pass `tenant.tenantId`. The job runner needs it to place scratch files and to build the
+ * ffmpeg allowlist, so an `ffmpeg` argument cannot reach another tenant's tree.
+ * `edit-scope.test.ts` asserts no handler imports it.
+ */
+export async function workerTenantId(projectId: string): Promise<string> {
+  const rows = await db
+    .select({ tenantId: organizations.tenantId })
+    .from(editProjects)
+    .innerJoin(organizations, eq(organizations.id, editProjects.organizationId))
+    .where(eq(editProjects.id, projectId))
+    .limit(1);
+  const row = rows[0];
+  if (!row) {
+    throw new ApiError("not_found", "Edit project not found", 404);
+  }
+  return row.tenantId;
+}
+
 function seedDocFromRow(row: typeof editProjects.$inferSelect): EditProject {
-  const aspect =
-    row.width === row.height ? "1:1" : row.width > row.height ? "16:9" : "9:16";
+  const aspect = row.width === row.height ? "1:1" : row.width > row.height ? "16:9" : "9:16";
   const doc = emptyProject({
     id: row.id,
     workspaceId: row.workspaceId,
@@ -196,7 +217,7 @@ export async function appendOps(
       payload: input.payload,
       inverse: null,
       createdAt: new Date().toISOString(),
-      ...(input.cardId ?? options.cardId ? { cardId: input.cardId ?? options.cardId } : {}),
+      ...((input.cardId ?? options.cardId) ? { cardId: input.cardId ?? options.cardId } : {}),
     };
     assertAgentOpHasCard(staged);
   }

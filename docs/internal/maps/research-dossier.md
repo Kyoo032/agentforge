@@ -1,6 +1,6 @@
 # Map — Research dossier
 
-Last verified: 2026-09-20 at c204e5e
+Last verified: 2026-09-20 at 6984d84
 
 ## Overview
 
@@ -33,7 +33,7 @@ Two things to hold onto. **Research is the only mode that needs two secrets**: a
 | `POST /api/v1/research` | `handlePostResearch` (`packages/host/src/handlers/jobs.ts:250-259`) | real HTTP status (503 stub, 403 gate) with `{error:{code,message}}` |
 | `POST /api/v1/research/stream` | `handlePostResearchStream` (`packages/host/src/handlers/jobs.ts:262-272`) | **HTTP 200** + one `event: job.error` frame |
 
-Both call `requireGatewayAllowed(loadSettings(tenant.workspaceId))` **synchronously, before** the job starts (`:191`, `:203`), so a closed gate is the one failure that is a real `403 gateway_blocked` on the stream route too. See [`settings-and-gateway-gate.md`](settings-and-gateway-gate.md).
+Both call `requireGatewayAllowedFor(tenant)` **synchronously, before** the job starts (`:191`, `:203`), so a closed gate is the one failure that is a real `403 gateway_blocked` on the stream route too. See [`settings-and-gateway-gate.md`](settings-and-gateway-gate.md).
 
 Everything after that runs inside `streamJob` (`packages/host/src/job-stream.ts:30-86`). It returns `{ type: "stream", status: 200 }` immediately and starts `run()` in the background; the promise's rejection becomes `push(jobErrorFromUnknown(error))` (`:57-60`), which maps an `ApiError` to `{type:"job.error", code, message, status}` with the message run through `redactSecrets` (`:8-14`). `emit` drops any `job.done` / `job.error` a job tries to send itself (`:50-55`), and `push` drops everything after the first terminal frame (`:38-48`). The generator also stops as soon as the client aborts (`:65`).
 

@@ -35,13 +35,17 @@ import { listRunUsage } from "./threads";
  * keeps the history it can already see. The two cannot double-count: every row written from now on
  * goes to the ledger and none to the file.
  *
+ * Phase 3 lane D scopes that legacy read by tenant as well. The local tenant's path is the
+ * pre-Phase-3 one, so a desktop's history is unchanged; any other tenant has no such file and gets
+ * nothing, rather than the install's rows showing up on a hosted tenant's usage screen.
+ *
  * Media rows (images, videos) are metered and priced in the ledger but do not appear on this
  * screen yet: a `RunUsageRecord` has nowhere to put an image or a second, and widening
  * `AccountUsagePayload` is account-screen work that lane A deliberately leaves open. See
  * docs/internal/web-phase5-lane-a.md.
  */
 function deskRecords(tenant: TenantContext): RunUsageRecord[] {
-  return [...listJobUsageRecords(tenant), ...listDeskUsage()];
+  return [...listJobUsageRecords(tenant), ...listDeskUsage(tenant.tenantId)];
 }
 
 const PRICING_TTL_MS = 10 * 60 * 1000;
@@ -197,10 +201,7 @@ export async function loadLocalAccountUsage(
   };
 }
 
-export async function loadAccountUsage(
-  settings: StoredSecrets,
-  tenant: TenantContext,
-): Promise<AccountUsagePayload> {
+export async function loadAccountUsage(settings: StoredSecrets, tenant: TenantContext): Promise<AccountUsagePayload> {
   // With a key both gateway calls are needed; start pricing alongside this-key so an offline desk pays
   // one timeout, not two in a row (this sits on GET /settings, which the app shell waits for).
   const pricingEarly = settings.openaiApiKey
@@ -276,7 +277,7 @@ function emptyBuckets(range: UsageRange, now: Date): UsageBucket[] {
 function timedDeskInRange(tenant: TenantContext, range: UsageRange, now: Date): TimestampedRunUsage[] {
   const keySet = new Set(listUsageBucketFrames(range, now).map((frame) => frame.key));
   const timed: TimestampedRunUsage[] = [];
-  for (const row of [...listTimedJobUsage(tenant), ...listTimedDeskUsage()]) {
+  for (const row of [...listTimedJobUsage(tenant), ...listTimedDeskUsage(tenant.tenantId)]) {
     if (!keySet.has(usageBucketKey(row.startedAt, range))) {
       continue;
     }

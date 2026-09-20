@@ -6,7 +6,7 @@ import { extractText } from "./knowledge-extract";
 import { getKnowledgeModels, markSourceFailed, nextCreatedAt, type SourceOriginKind } from "./knowledge";
 import { embedTextsWithModel } from "./knowledge-embed";
 import { CHUNK_OVERLAP, chunkKnowledgeText, ftsSourceFilter } from "./knowledge-text";
-import { mediaRoot } from "./media-root";
+import { tenantMediaRoot } from "./media-root";
 import { log } from "./log";
 
 /**
@@ -103,9 +103,7 @@ function storedChunks(tenant: TenantContext, sourceId: string): string[] {
   const match = ftsSourceFilter(sourceId);
   try {
     const rows = sql
-      .prepare(
-        `SELECT body FROM knowledge_chunks WHERE knowledge_chunks MATCH ? AND workspace_id = ? ORDER BY rowid`,
-      )
+      .prepare(`SELECT body FROM knowledge_chunks WHERE knowledge_chunks MATCH ? AND workspace_id = ? ORDER BY rowid`)
       .all(match, tenant.workspaceId) as Array<{ body: string }>;
     return rows.map((row) => row.body);
   } catch (error) {
@@ -141,15 +139,14 @@ function mergeOverlap(chunks: readonly string[], overlap = CHUNK_OVERLAP): strin
 export function reconstructSourceBody(chunks: readonly string[]): string {
   const merged = mergeOverlap(chunks);
   const recounted = chunkKnowledgeText(merged);
-  const roundTrips =
-    recounted.length === chunks.length && recounted.every((body, index) => body === chunks[index]);
+  const roundTrips = recounted.length === chunks.length && recounted.every((body, index) => body === chunks[index]);
   return roundTrips ? merged : chunks.join("");
 }
 
 /** The stored upload for a source, if the desk still has one. Naming matches `addFileSource`. */
 async function findStoredUpload(tenant: TenantContext, sourceId: string): Promise<string | null> {
   try {
-    const dir = path.join(mediaRoot(), "knowledge", tenant.organizationId);
+    const dir = path.join(tenantMediaRoot(tenant.tenantId), "knowledge", tenant.organizationId);
     const entries = await readdir(dir);
     const name = entries.find((entry) => entry.startsWith(`${sourceId}-`));
     return name ? path.join(dir, name) : null;
@@ -203,7 +200,7 @@ async function uploadText(
  */
 async function replaceSourceRows(tenant: TenantContext, sourceId: string, chunks: string[]): Promise<void> {
   const models = getKnowledgeModels(tenant);
-  const { vectors, model: storedModel } = await embedTextsWithModel(chunks, models.embeddingModel, tenant.workspaceId);
+  const { vectors, model: storedModel } = await embedTextsWithModel(chunks, models.embeddingModel, tenant);
   const createdAt = nextCreatedAt();
   const ws = tenant.workspaceId;
   const insertChunk = sql.prepare("INSERT INTO knowledge_chunks (source_id, workspace_id, body) VALUES (?, ?, ?)");
@@ -254,9 +251,7 @@ function recordFailure(tenant: TenantContext, row: ReindexRow, reason: string): 
         name: row.name,
         type: row.type,
         origin:
-          row.origin_kind && row.origin_id
-            ? { kind: row.origin_kind as SourceOriginKind, id: row.origin_id }
-            : null,
+          row.origin_kind && row.origin_id ? { kind: row.origin_kind as SourceOriginKind, id: row.origin_id } : null,
       },
       reason,
     );

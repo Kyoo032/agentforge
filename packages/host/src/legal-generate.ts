@@ -59,8 +59,8 @@ export function encodeArtifactBody(mime: ArtifactMime, bytes: Uint8Array, text: 
   return text.trim() || new TextDecoder().decode(bytes);
 }
 
-function requireLive(workspaceId: string): ReturnType<typeof loadSettings> {
-  const settings = loadSettings(workspaceId);
+function requireLive(tenant: TenantContext): ReturnType<typeof loadSettings> {
+  const settings = loadSettings(tenant);
   const mode = resolveRuntimeMode({
     settingsHasKey: hasLiveProvider(settings),
     envRuntime: process.env.AGENTFORGE_RUNTIME,
@@ -208,7 +208,7 @@ export async function generateLegalRun(
   emit: JobEmitter,
   abortSignal?: AbortSignal,
 ): Promise<LegalRunSummary> {
-  requireLive(tenant.workspaceId);
+  requireLive(tenant);
   const matter = requireLegalMatter(tenant, matterId);
   const runBody = readRunBody(body);
   const models = resolveModels(runBody);

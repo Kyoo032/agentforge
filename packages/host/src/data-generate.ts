@@ -107,8 +107,8 @@ function resolveDataset(tenant: TenantContext, body: unknown): LoadedDataset {
   throw new ApiError("invalid_request", "datasetId (or a pasted csv) is required", 400);
 }
 
-function requireLive(workspaceId: string): ReturnType<typeof loadSettings> {
-  const settings = loadSettings(workspaceId);
+function requireLive(tenant: TenantContext): ReturnType<typeof loadSettings> {
+  const settings = loadSettings(tenant);
   const mode = resolveRuntimeMode({
     settingsHasKey: hasLiveProvider(settings),
     envRuntime: process.env.AGENTFORGE_RUNTIME,
@@ -203,7 +203,7 @@ export async function analyzeDataset(
   abortSignal?: AbortSignal,
 ): Promise<DataAnalysisResult> {
   const question = readPrompt(body);
-  const settings = requireLive(tenant.workspaceId);
+  const settings = requireLive(tenant);
   const history = readHistory(body);
   const extra = readSourceText(body, { injectionGuardBypass: settings.injectionGuardBypass === true });
   const catalog = listSelectableModels();

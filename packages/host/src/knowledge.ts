@@ -12,7 +12,7 @@ import {
   type KnowledgeModels,
   type TenantContext,
 } from "@agentforge/core";
-import { mediaRoot } from "./media-root";
+import { tenantMediaRoot } from "./media-root";
 import { fetchPublicHttps } from "./safe-fetch";
 import { KNOWLEDGE_TEXT_MAX_CHARS, SOURCE_NAME_MAX, chunkKnowledgeText, sanitizeSourceName } from "./knowledge-text";
 import { deleteThroughBackend, indexThroughBackend, retrieveThroughBackend } from "./knowledge/registry";
@@ -289,7 +289,9 @@ function replaceSourceRows(
       // Another row may already own this origin (a concurrent writer for the same thread / media).
       // Fold it into this write so the unique origin index never throws and no card is lost.
       const owner = sql
-        .prepare("SELECT id FROM knowledge_sources WHERE workspace_id = ? AND origin_kind = ? AND origin_id = ? AND id != ?")
+        .prepare(
+          "SELECT id FROM knowledge_sources WHERE workspace_id = ? AND origin_kind = ? AND origin_id = ? AND id != ?",
+        )
         .get(ws, input.origin.kind, input.origin.id, input.id) as { id: string } | undefined;
       if (owner) {
         const ownerExternalId = externalIdOf(ws, owner.id);
@@ -407,7 +409,7 @@ export function markSourceFailed(
 
 function injectionGuardBypass(tenant: TenantContext): boolean {
   try {
-    return loadSettings(tenant.workspaceId).injectionGuardBypass === true;
+    return loadSettings(tenant).injectionGuardBypass === true;
   } catch {
     return false;
   }
@@ -446,13 +448,13 @@ function indexSource(
 
 /** Where `addFileSource` keeps the raw upload, so a delete can find the bytes again. */
 function uploadDir(tenant: TenantContext): string {
-  return path.join(mediaRoot(), "knowledge", tenant.organizationId);
+  return path.join(tenantMediaRoot(tenant.tenantId), "knowledge", tenant.organizationId);
 }
 
 /**
  * Drop the raw bytes an upload left on disk.
  *
- * `addFileSource` writes every upload under `<mediaRoot>/knowledge/<organizationId>/<id>-<name>`,
+ * `addFileSource` writes every upload under `<tenantMediaRoot>/knowledge/<organizationId>/<id>-<name>`,
  * and that directory is organization-scoped while the source row is workspace-scoped: an owner who
  * removes a source believing they removed the document has to be right about that. The stored name
  * is mangled (`[^\w.-]` collapsed) so it is found by its `<id>-` prefix rather than rebuilt.
@@ -510,8 +512,9 @@ export async function addFileSource(
       400,
     );
   }
-  const relative = `knowledge/${tenant.organizationId}/${id}-${file.filename.replace(/[^\w.-]+/g, "_")}`;
-  const full = path.join(mediaRoot(), relative);
+  // The mangled name is not an id, so it goes through `path.join` under the tenant-scoped upload
+  // directory rather than through `mediaRelativePath`, whose segments are ids.
+  const full = path.join(uploadDir(tenant), `${id}-${file.filename.replace(/[^\w.-]+/g, "_")}`);
   await mkdir(path.dirname(full), { recursive: true });
   await writeFile(full, Buffer.from(file.bytes));
   return indexKnowledgeSource(tenant, { id, name: file.filename, type: "File", text });
@@ -630,13 +633,12 @@ export function deleteSource(tenant: TenantContext, id: string): boolean {
  * `media` is organization-scoped (the `media` table has no workspace column) while everything else
  * on the knowledge path is workspace-scoped; the card is still only swept inside its own workspace.
  */
-const ORIGIN_OWNERS: Readonly<
-  Record<SourceOriginKind, { select: string; param: (tenant: TenantContext) => string }>
-> = {
-  thread: { select: "SELECT id FROM threads WHERE workspace_id = ?", param: (tenant) => tenant.workspaceId },
-  artifact: { select: "SELECT id FROM artifacts WHERE workspace_id = ?", param: (tenant) => tenant.workspaceId },
-  media: { select: "SELECT id FROM media WHERE organization_id = ?", param: (tenant) => tenant.organizationId },
-};
+const ORIGIN_OWNERS: Readonly<Record<SourceOriginKind, { select: string; param: (tenant: TenantContext) => string }>> =
+  {
+    thread: { select: "SELECT id FROM threads WHERE workspace_id = ?", param: (tenant) => tenant.workspaceId },
+    artifact: { select: "SELECT id FROM artifacts WHERE workspace_id = ?", param: (tenant) => tenant.workspaceId },
+    media: { select: "SELECT id FROM media WHERE organization_id = ?", param: (tenant) => tenant.organizationId },
+  };
 
 type OrphanRow = { id: string; external_id: string | null };
 

@@ -1,6 +1,6 @@
 # Map — Tenant resolution, the session seam and the workspace cookie
 
-Last verified: 2026-09-20 at c204e5e
+Last verified: 2026-09-20 at 6984d84
 
 ## Overview
 
@@ -166,7 +166,8 @@ gate; a `login.md` recipe lands with the sign-in screen and is not written yet.
   open in [`../web-phase3-lane-c.md`](../web-phase3-lane-c.md).
 - **`adoptLegacySettings` runs only on the local path** (`tenant.ts:124`). It migrates a
   pre-desk settings slice into the home desk, which is a desktop-upgrade concern; running it per
-  tenant on a server would reach across the one shared `settings.enc`. Lane D owns per-tenant
-  settings.
+  tenant on a server would reach across another tenant's `settings.enc`. Lane D made the file per
+  tenant and made `adoptLegacySettings` a no-op in server mode for exactly this reason
+  (`settings-store.ts:389-400`); see [`tenant-storage.md`](tenant-storage.md).
 - **None of this has been driven.** Nothing on a server, no sign-in against a real portal, no two
   browsers. Tests and a typecheck are not proof under `.cursor/skills/verify-agentforge`.

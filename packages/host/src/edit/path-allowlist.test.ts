@@ -7,7 +7,7 @@ import { assertInsidePath, escapeFilterPath } from "./ffmpeg/paths";
 
 describe("path allowlist (G-14)", () => {
   it("rejects NUL, UNC, device, drive-relative, and empty paths", () => {
-    const roots = ["/tmp/edit-root"];
+    const roots = { roots: ["/tmp/edit-root"], denied: [] };
     expect(() => assertInsidePath("", roots)).toThrow(ApiError);
     expect(() => assertInsidePath("a\0b", roots)).toThrow(ApiError);
     expect(() => assertInsidePath("\\\\server\\share\\file", roots)).toThrow(ApiError);
@@ -19,7 +19,7 @@ describe("path allowlist (G-14)", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "edit-root-"));
     mkdirSync(dir, { recursive: true });
     writeFileSync(path.join(dir, "ok.txt"), "ok");
-    expect(() => assertInsidePath(path.join(dir, "..", "secret"), [dir])).toThrow(ApiError);
+    expect(() => assertInsidePath(path.join(dir, "..", "secret"), { roots: [dir], denied: [] })).toThrow(ApiError);
   });
 
   it("rejects a symlink that points outside the root", () => {
@@ -28,7 +28,7 @@ describe("path allowlist (G-14)", () => {
     writeFileSync(path.join(outside, "secret.txt"), "nope");
     const link = path.join(dir, "escape.txt");
     symlinkSync(path.join(outside, "secret.txt"), link);
-    expect(() => assertInsidePath(link, [dir])).toThrow(ApiError);
+    expect(() => assertInsidePath(link, { roots: [dir], denied: [] })).toThrow(ApiError);
   });
 
   it("escapes C:/ and apostrophes for ass= filters", () => {

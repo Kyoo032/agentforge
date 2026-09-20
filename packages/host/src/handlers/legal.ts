@@ -2,8 +2,7 @@ import { ApiError, type TenantContext } from "@agentforge/core";
 import { BUILTIN_PLAYBOOKS, findPlaybook } from "@agentforge/core/legal";
 import type { HostRequest, HostResult } from "../types";
 import { jsonError, jsonOk } from "../errors";
-import { requireGatewayAllowed } from "../gateway-gate";
-import { loadSettings } from "../settings-store";
+import { requireGatewayAllowedFor } from "../gateway-gate";
 import { getTenant } from "../tenant";
 import { streamJob } from "../job-stream";
 import { generateLegalRun } from "../legal-generate";
@@ -112,7 +111,7 @@ export function handleDeleteLegalMatterFile(request: HostRequest): Promise<HostR
 export function handlePostLegalRunStream(request: HostRequest): Promise<HostResult> {
   return withTenant(request, (tenant) => {
     // The only legal route that reaches the gateway; the rest is matter bookkeeping on disk.
-    requireGatewayAllowed(loadSettings(tenant.workspaceId));
+    requireGatewayAllowedFor(tenant);
     const body = parseLegalBody(runBodySchema, request.body);
     const matterId = request.params.matterId;
     requireLegalMatter(tenant, matterId);

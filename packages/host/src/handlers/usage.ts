@@ -9,7 +9,7 @@ export async function handleGetUsage(request: HostRequest): Promise<HostResult> 
   try {
     const tenant = await getTenant(request);
     const range = parseUsageRange(request.query.range);
-    return jsonOk(await loadRangeUsage(loadSettings(tenant.workspaceId), tenant, range));
+    return jsonOk(await loadRangeUsage(loadSettings(tenant), tenant, range));
   } catch (error) {
     return jsonError(error);
   }

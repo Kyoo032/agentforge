@@ -12,6 +12,7 @@ import {
   hasLiveProvider,
   resolveChatModel,
   resolveRuntimeMode,
+  type TenantContext,
 } from "@agentforge/core";
 import { localeForRun } from "../run-context";
 import { listSelectableModels, modeCatalogPayload } from "../selectable-models";
@@ -47,8 +48,8 @@ export function readModelPinned(body: unknown): boolean {
   return typeof body === "object" && body !== null && (body as { modelPinned?: unknown }).modelPinned === true;
 }
 
-export function requireLive(workspaceId: string): FinanceSettings {
-  const settings = loadSettings(workspaceId);
+export function requireLive(tenant: TenantContext): FinanceSettings {
+  const settings = loadSettings(tenant);
   const mode = resolveRuntimeMode({
     settingsHasKey: hasLiveProvider(settings),
     envRuntime: process.env.AGENTFORGE_RUNTIME,

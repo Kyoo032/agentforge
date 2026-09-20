@@ -1,6 +1,6 @@
 # Map — Edit timeline and agent
 
-Last verified: 2026-09-20 at c204e5e
+Last verified: 2026-09-20 at 6984d84
 
 ## Overview
 
@@ -264,7 +264,7 @@ Two integers on the project (`review: {lastAgentSeq, ackSeq}`) and one compariso
 - Closed gate → `EditCards` renders `edit-review-card` + `edit-review-ok`, and `edit-export` is
   disabled (`edit-studio.tsx:659`).
 - The host enforces it independently: `handlePostEditExport` answers `400 review_required` when
-  `reviewGateOpen` is false (`packages/host/src/handlers/edit.ts:408-410`).
+  `reviewGateOpen` is false (`packages/host/src/handlers/edit.ts:407-409`).
 
 ### 11. Generate
 
@@ -307,9 +307,13 @@ stream; `edit-export-progress` shows while it is live and `edit-export-download`
 The job itself runs in `packages/host/src/edit/jobs.ts:164-169` → `render`
 (`packages/host/src/edit/ffmpeg/recipes.ts:221-261`): write an `.ass` document for titles and
 captions, compile the concat/scale/pad filter graph (`compileFilterGraph`, `:170-195`), and run ffmpeg
-into `data/edit/<projectId>/export-<uuid>.mp4`. Every input and output path is checked against the
-project's allow-list roots (`editAllowlistRoots` = media root + that project's scratch dir,
-`packages/host/src/edit/ffmpeg/paths.ts:46-48`).
+into `data/edit/<projectId>/export-<uuid>.mp4` — or, for a tenant other than `local-tenant`,
+`data/tenants/<tenantId>/edit/<projectId>/…` (Phase 3 lane D; see [`tenant-storage.md`](tenant-storage.md)).
+Every input and output path is checked against the allow-list for that tenant and project
+(`editAllowlist({ tenantId, projectId })` = that tenant's media root + that project's scratch dir, plus the
+`denied` list that keeps the local tenant out of `tenants/`, `packages/host/src/edit/ffmpeg/paths.ts:63-69`).
+The job runner has no request to read a tenant from, so it reads one by project id through `workerTenantId`
+(`packages/host/src/edit/ops.ts:97-109`), the twin of lane A's `workerWorkspaceId`.
 
 ### Failure modes
 
@@ -414,7 +418,7 @@ project's allow-list roots (`editAllowlistRoots` = media root + that project's s
 - **The emit lock is unobservable on stub.** `onCard()` releases it (`apps/web/lib/use-emit-lock.ts:71-73`)
   and the stub emits `tool.started` and the card in the same tick, so `edit-emit-lock` never paints.
   Job-backed tools deliberately never take the lock at all (`use-emit-lock.ts:63-65`).
-- **`escapeFilterPath` under-escapes a Windows drive letter** (`packages/host/src/edit/ffmpeg/paths.ts:50-59`).
+- **`escapeFilterPath` under-escapes a Windows drive letter** (`packages/host/src/edit/ffmpeg/paths.ts:71-80`).
   It emits `C\:/…`, which ffmpeg unescapes once at the filtergraph level, leaving the option parser to
   split the path on its colon. Since `render()` always attaches an `.ass` file
   (`recipes.ts:225-228`, `:189-193`) — even with no captions and no titles — **every export on Windows
@@ -509,10 +513,11 @@ the handler would otherwise `readFile` an arbitrary absolute path on behalf of a
 path came from the OS file dialog (`pickMedia`), not from the page. **Confidence: high for the
 mechanism, high for the motive given the shape of the check.**
 
-**Why every ffmpeg path goes through an allow-list.** `[Direct]` `editAllowlistRoots`
-(`packages/host/src/edit/ffmpeg/paths.ts:46-48`) is the media root plus that one project's scratch
-dir, and `assertInsidePath` rejects empty paths, NUL bytes, UNC/device paths and drive-relative paths
-(`:61-73`) before resolving. `render` and `frameAt` run every input and output through it
-(`recipes.ts:225`, `:228`, `:233`). `[Inferred]` ffmpeg takes paths from a document that an agent can
+**Why every ffmpeg path goes through an allow-list.** `[Direct]` `editAllowlist`
+(`packages/host/src/edit/ffmpeg/paths.ts:63-69`) is that tenant's media root plus that one project's
+scratch dir, and `assertInsidePath` rejects empty paths, NUL bytes, UNC/device paths and drive-relative
+paths (`:82-94`) before resolving — then checks the `denied` roots before the allowed ones, which is what
+stops the local tenant reaching `media/tenants/<other>/…`. `render` and `frameAt` run every input and
+output through it (`recipes.ts:218`, `:224`, `:252`, `:258`). `[Inferred]` ffmpeg takes paths from a document that an agent can
 write, so the allow-list is the line between "the agent edits the owner's timeline" and "the agent
 names any file on the disk". **Confidence: high.**

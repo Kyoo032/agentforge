@@ -10,7 +10,7 @@ import {
   type TenantContext,
 } from "@agentforge/core";
 import { sql } from "@agentforge/db";
-import { loadSettings } from "./settings-store";
+import { loadSettings, type SettingsScope } from "./settings-store";
 import { log } from "./log";
 
 const EMBED_BATCH = 16;
@@ -43,8 +43,8 @@ function workspaceId(tenant: TenantContext): string {
   return tenant.workspaceId;
 }
 
-function isStubEmbedding(deskId?: string): boolean {
-  const settings = loadSettings(deskId);
+function isStubEmbedding(scope?: SettingsScope): boolean {
+  const settings = loadSettings(scope);
   return (
     resolveRuntimeMode({
       settingsHasKey: hasLiveProvider(settings),
@@ -53,8 +53,8 @@ function isStubEmbedding(deskId?: string): boolean {
   );
 }
 
-async function liveEmbedBatch(texts: string[], model: string, deskId?: string): Promise<number[][]> {
-  const settings = loadSettings(deskId);
+async function liveEmbedBatch(texts: string[], model: string, scope?: SettingsScope): Promise<number[][]> {
+  const settings = loadSettings(scope);
   const key = settings.openaiApiKey;
   if (!key) {
     return texts.map((text) => stubEmbed(text));
@@ -92,21 +92,25 @@ function allStubbed(texts: string[]): EmbeddedTexts {
  * Embed a batch and say which model id the result belongs to. A run that falls back part-way is
  * re-stubbed whole: one source's vectors must share one geometry, or cosine across them is noise.
  *
- * `deskId` is the workspace whose gateway key pays for the call; without it the read falls back to
+ * `scope` is the tenant and desk whose gateway key pays for the call; without it the read falls back to
  * the machine-wide selection, which is the wrong desk's key (or none at all).
  */
-export async function embedTextsWithModel(texts: string[], model: string, deskId?: string): Promise<EmbeddedTexts> {
+export async function embedTextsWithModel(
+  texts: string[],
+  model: string,
+  scope?: SettingsScope,
+): Promise<EmbeddedTexts> {
   if (texts.length === 0) {
     return { vectors: [], model };
   }
-  if (isStubEmbedding(deskId) || Date.now() < embedDownUntil) {
+  if (isStubEmbedding(scope) || Date.now() < embedDownUntil) {
     return allStubbed(texts);
   }
   const out: number[][] = [];
   for (let i = 0; i < texts.length; i += EMBED_BATCH) {
     const batch = texts.slice(i, i + EMBED_BATCH);
     try {
-      out.push(...(await liveEmbedBatch(batch, model, deskId)));
+      out.push(...(await liveEmbedBatch(batch, model, scope)));
     } catch (error) {
       embedDownUntil = Date.now() + EMBED_DOWN_MS;
       log.warn("knowledge_embed_unavailable", {
@@ -119,8 +123,8 @@ export async function embedTextsWithModel(texts: string[], model: string, deskId
   return { vectors: out, model };
 }
 
-export async function embedTexts(texts: string[], model: string, deskId?: string): Promise<number[][]> {
-  return (await embedTextsWithModel(texts, model, deskId)).vectors;
+export async function embedTexts(texts: string[], model: string, scope?: SettingsScope): Promise<number[][]> {
+  return (await embedTextsWithModel(texts, model, scope)).vectors;
 }
 
 /** A query vector plus the model id it was actually produced by. */
@@ -134,11 +138,11 @@ export type EmbeddedQuery = { vector: number[]; model: string };
  * against 1536-dim rows would score 32 of 1536 dimensions and call the noise a match. Callers use
  * the returned id to pick the rows this vector may legally be compared against.
  */
-export async function embedQuery(query: string, model: string, deskId?: string): Promise<EmbeddedQuery> {
+export async function embedQuery(query: string, model: string, scope?: SettingsScope): Promise<EmbeddedQuery> {
   if (model === STUB_EMBED_MODEL) {
     return { vector: stubEmbed(query), model: STUB_EMBED_MODEL };
   }
-  const { vectors, model: used } = await embedTextsWithModel([query], model, deskId);
+  const { vectors, model: used } = await embedTextsWithModel([query], model, scope);
   const vec = vectors[0];
   return vec ? { vector: vec, model: used } : { vector: stubEmbed(query), model: STUB_EMBED_MODEL };
 }
@@ -186,16 +190,7 @@ export async function indexSourceVectors(
         if (!embedding) {
           continue;
         }
-        insert.run(
-          crypto.randomUUID(),
-          ws,
-          sourceId,
-          i,
-          chunks[i],
-          JSON.stringify(embedding),
-          storedModel,
-          createdAt,
-        );
+        insert.run(crypto.randomUUID(), ws, sourceId, i, chunks[i], JSON.stringify(embedding), storedModel, createdAt);
       }
     });
     // BEGIN IMMEDIATE: this transaction reads then writes. A deferred transaction would take the
@@ -214,9 +209,7 @@ export async function indexSourceVectors(
 
 export async function reembedWorkspaceChunks(tenant: TenantContext, model: string): Promise<void> {
   const rows = sql
-    .prepare(
-      `SELECT source_id, body FROM knowledge_chunks WHERE workspace_id = ? ORDER BY source_id, rowid`,
-    )
+    .prepare(`SELECT source_id, body FROM knowledge_chunks WHERE workspace_id = ? ORDER BY source_id, rowid`)
     .all(workspaceId(tenant)) as Array<{ source_id: string; body: string }>;
   const bySource = new Map<string, string[]>();
   for (const row of rows) {
@@ -287,8 +280,7 @@ export async function searchVectors(
   if (!trimmed) {
     return { hits: [], model: null };
   }
-  const preferred =
-    preferredModel === undefined ? resolveVectorModel(tenant, models.embeddingModel) : preferredModel;
+  const preferred = preferredModel === undefined ? resolveVectorModel(tenant, models.embeddingModel) : preferredModel;
   if (!preferred) {
     return { hits: [], model: null };
   }

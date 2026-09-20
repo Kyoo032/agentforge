@@ -96,8 +96,8 @@ function collectAssistantText(
   });
 }
 
-function requireLivePresentationRuntime(workspaceId: string): ReturnType<typeof loadSettings> {
-  const settings = loadSettings(workspaceId);
+function requireLivePresentationRuntime(tenant: TenantContext): ReturnType<typeof loadSettings> {
+  const settings = loadSettings(tenant);
   const mode = resolveRuntimeMode({
     settingsHasKey: hasLiveProvider(settings),
     envRuntime: process.env.AGENTFORGE_RUNTIME,
@@ -140,7 +140,7 @@ function persistOutline(
 /** Generate a validated presentation outline via the same runtime path as chat. */
 export async function generatePresentationOutline(tenant: TenantContext, body: unknown): Promise<PresentationOutline> {
   const prompt = readPrompt(body);
-  const settings = requireLivePresentationRuntime(tenant.workspaceId);
+  const settings = requireLivePresentationRuntime(tenant);
   const locale = presentationLocale();
   const sourceText = readSourceText(body, { injectionGuardBypass: settings.injectionGuardBypass === true });
   const model = resolvePresentationModel(body, settings);
@@ -198,7 +198,7 @@ export async function regeneratePresentationSlide(tenant: TenantContext, body: u
   if (!current) {
     throw new ApiError("invalid_request", "slideIndex is out of range", 400);
   }
-  const settings = requireLivePresentationRuntime(tenant.workspaceId);
+  const settings = requireLivePresentationRuntime(tenant);
   const locale = presentationLocale();
   const model = resolvePresentationModel(body, settings);
   const attachments = readJobRegenAttachments(body);

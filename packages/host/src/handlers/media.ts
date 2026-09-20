@@ -1,11 +1,10 @@
-import path from "node:path";
 import { and, eq } from "drizzle-orm";
 import { db, media } from "@agentforge/db";
 import type { HostRequest, HostResult } from "../types";
 import { jsonError, jsonOk } from "../errors";
 import { getTenant } from "../tenant";
 import { saveMedia } from "../media";
-import { mediaRoot } from "../media-root";
+import { mediaFilePath } from "../media-root";
 import { readByteRange } from "../byte-range";
 
 export async function handlePostMedia(request: HostRequest): Promise<HostResult> {
@@ -36,7 +35,7 @@ export async function handleGetMediaFile(request: HostRequest): Promise<HostResu
     if (!item) {
       return jsonOk({ error: { code: "not_found", message: "Media not found" } }, 404);
     }
-    const ranged = await readByteRange(path.join(mediaRoot(), item.storagePath), request.headers.range);
+    const ranged = await readByteRange(mediaFilePath(tenant.tenantId, item.storagePath), request.headers.range);
     return {
       type: "bytes",
       status: ranged.status,

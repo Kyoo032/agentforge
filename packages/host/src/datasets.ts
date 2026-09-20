@@ -14,6 +14,7 @@ import {
   type TypedTable,
 } from "@agentforge/core/tabular";
 import { deleteArtifactsByOwner, sweepOrphanSources } from "./knowledge";
+import { resolveInsideTenantRoot, tenantRelativePath } from "./tenant-paths";
 import { DATASET_TABLE, quoteIdentifier, sqlTypeFor, toSqlIdentifier } from "./sql-guard";
 import { createQueryRunner, type QueryRunner, type RunnerLoad } from "./sql-runner";
 
@@ -189,8 +190,9 @@ function dispose(dataset: LoadedDataset | undefined): void {
 
 /**
  * Repository over the kernel `datasets` table. Raw files live under
- * `<rootDir>/<workspaceId>/<id>.<ext>`; parsed tables and their in-memory
- * SQLite are cached per process and rebuilt from the file after a restart.
+ * `<rootDir>/tenants/<tenantId>/<workspaceId>/<id>.<ext>` — the tenant prefix is empty for the
+ * local tenant, so a pre-Phase-3 file stays at `<rootDir>/<workspaceId>/<id>.<ext>`. Parsed tables
+ * and their in-memory SQLite are cached per process and rebuilt from the file after a restart.
  */
 export function createDatasetStore(db: Database.Database, rootDir: string): DatasetStore {
   const cache = new Map<string, LoadedDataset>();
@@ -201,7 +203,22 @@ export function createDatasetStore(db: Database.Database, rootDir: string): Data
         .extname(filename)
         .toLowerCase()
         .replace(/[^.a-z0-9]/g, "") || ".csv";
-    return path.join(tenant.workspaceId, `${id}${ext}`);
+    return tenantRelativePath(tenant.tenantId, [tenant.workspaceId], `${id}${ext}`);
+  };
+
+  /**
+   * A `storage_path` read back out of the row, resolved against the root and refused when it does
+   * not belong to this tenant. The row is already `workspace_id`-scoped; this is the second lock,
+   * so a row whose path was written for another tenant cannot be read through a desk id collision.
+   */
+  const filePath = (tenant: TenantContext, relative: string): string => {
+    // Symlinks resolved, like `mediaFilePath`: a link planted under this tenant's subtree would
+    // otherwise pass a purely lexical containment test.
+    const real = resolveInsideTenantRoot(rootDir, tenant.tenantId, path.resolve(rootDir, relative));
+    if (real === null) {
+      throw new ApiError("not_found", "Dataset not found", 404);
+    }
+    return real;
   };
 
   return {
@@ -273,7 +290,7 @@ export function createDatasetStore(db: Database.Database, rootDir: string): Data
       if (cached) {
         return cached;
       }
-      const full = path.join(rootDir, row.storage_path);
+      const full = filePath(tenant, row.storage_path);
       if (!existsSync(full)) {
         throw new ApiError("not_found", "Dataset file is missing on disk", 404);
       }
@@ -299,7 +316,7 @@ export function createDatasetStore(db: Database.Database, rootDir: string): Data
       db.prepare("DELETE FROM datasets WHERE workspace_id = ? AND id = ?").run(tenant.workspaceId, id);
       dispose(active);
       cache.delete(key);
-      rmSync(path.join(rootDir, row.storage_path), { force: true });
+      rmSync(filePath(tenant, row.storage_path), { force: true });
       // The analyses this dataset produced go with it. A Data card's origin is the artifact, not the
       // dataset, so the card is only reachable through the artifacts — deleting the rows and then
       // sweeping is what stops Chat answering from numbers whose data is gone.

@@ -25,7 +25,7 @@ import {
 } from "@agentforge/core/meeting";
 import type { MeetingTranscript, TranscriptSegment } from "@agentforge/core/meeting";
 import { loadModelCache } from "../model-cache";
-import { loadSettings } from "../settings-store";
+import { loadSettings, type SettingsScope } from "../settings-store";
 import { log } from "../log";
 
 export type MeetingAsrCapability = {
@@ -52,8 +52,8 @@ export function cachedModelIds(): string[] {
  * escape hatch Edit has as `AGENTFORGE_EDIT_ASR_MODEL`, for a gateway whose catalog is ahead of
  * the id lists in this repo.
  */
-export function resolveMeetingAsr(workspaceId?: string): MeetingAsrCapability {
-  const key = resolveProviderKeys(loadSettings(workspaceId)).openai;
+export function resolveMeetingAsr(tenant?: SettingsScope): MeetingAsrCapability {
+  const key = resolveProviderKeys(loadSettings(tenant)).openai;
   const pinned = process.env.AGENTFORGE_MEETING_ASR_MODEL?.trim();
   const model = pinned || pickTranscriptionModel(cachedModelIds()) || null;
   if (!model) {
@@ -69,7 +69,11 @@ export function resolveMeetingAsr(workspaceId?: string): MeetingAsrCapability {
 export type TranscribeOptions = {
   /** "en" / "id", or empty to let the recogniser decide. */
   language?: string;
-  workspaceId?: string;
+  /**
+   * Whose gateway key pays for the recognition. Phase 3 lane D: a `TenantContext`, never a bare
+   * desk id, because a hosted call that cannot name its tenant must not spend another tenant's key.
+   */
+  tenant?: SettingsScope;
   /** Offset of each chunk from the start of the recording, in seconds. */
   offsets?: number[];
   fetchImpl?: typeof fetch;
@@ -191,7 +195,7 @@ async function transcribeChunkViaMultipart(
  * `edit/asr.ts`, which skips a failed chunk and returns whatever is left.
  */
 export async function transcribeChunks(files: string[], options: TranscribeOptions = {}): Promise<MeetingTranscript> {
-  const capability = resolveMeetingAsr(options.workspaceId);
+  const capability = resolveMeetingAsr(options.tenant);
   if (!capability.available || !capability.model || !capability.wire) {
     throw new ApiError(
       "asr_unavailable",
@@ -201,7 +205,7 @@ export async function transcribeChunks(files: string[], options: TranscribeOptio
       503,
     );
   }
-  const keys = resolveProviderKeys(loadSettings(options.workspaceId));
+  const keys = resolveProviderKeys(loadSettings(options.tenant));
   const base = keys.openaiBaseUrl;
   const key = keys.openai;
   if (!base || !key) {

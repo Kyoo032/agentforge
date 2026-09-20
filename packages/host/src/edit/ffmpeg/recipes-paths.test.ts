@@ -36,6 +36,12 @@ describe("every scratch path in recipes.ts is checked before it is used", () => 
 
   it("checks the parity subtitle path that frameAt used to write blind", () => {
     const dollar = "$";
-    expect(source).toContain(`assertInsidePath(path.join(scratch, \`parity-${dollar}{frame}.ass\`), roots)`);
+    // Phase 3 lane D renamed the second argument: `roots` was a bare `string[]`, and is now the
+    // `PathAllowlist` (`allow`) that carries the denied roots keeping one tenant out of another's
+    // subtree. The guard being pinned here is unchanged — this path still goes through
+    // `assertInsidePath` before `writeFile` — so only the spelling of the allowlist moved.
+    expect(source).toContain(`assertInsidePath(path.join(scratch, \`parity-${dollar}{frame}.ass\`), allow)`);
+    // And it is the same allowlist `frameAt` builds for this tenant and project, not a wider one.
+    expect(source).toContain("const allow = editAllowlist({ tenantId, projectId: doc.id });");
   });
 });

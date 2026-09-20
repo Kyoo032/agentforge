@@ -34,6 +34,7 @@ export {
 export type { OpType, EditOp, ApplyableOp, InverseOp } from "./ops";
 export { foldOps, validateDoc } from "./fold";
 export { hex8ToAssColor, assColorToHex8, layoutTitle, titleToAssDialogue, buildAssDocument, framesToAssTime } from "./ass-subset";
+export type { TitleLayout } from "./ass-subset";
 export { EDIT_TIERS, CAMERA_CHIPS, routeEditModel } from "./tiers";
 export type { EditTier } from "./tiers";
 export { PRICE_TABLE, estimateJobUsd } from "./price-table";

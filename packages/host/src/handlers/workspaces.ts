@@ -167,10 +167,10 @@ export async function handleDeleteWorkspace(request: HostRequest): Promise<HostR
         result.code === "protected" ? "The Default desk cannot be deleted" : "Workspace not found";
       return jsonOk({ error: { code: result.code, message } }, status);
     }
-    dropWorkspaceSettings(workspaceId);
+    dropWorkspaceSettings(workspaceId, tenant);
     // The desk's channels and the conversations stored under them go with it: a deleted desk must
     // not leave an outside conversation on disk that nothing in the app can reach any more.
-    channelStore().dropWorkspace(workspaceId);
+    channelStore().dropWorkspace(tenant, workspaceId);
     if (tenant.workspaceId !== workspaceId) {
       return jsonOk({ ok: true });
     }

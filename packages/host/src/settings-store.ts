@@ -1,7 +1,9 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import type { AppLocale, SecretPatch, StoredSecrets } from "@agentforge/core";
+import type { AppLocale, SecretPatch, StoredSecrets, TenantContext } from "@agentforge/core";
 import {
+  ApiError,
+  LOCAL_TENANT_ID,
   resolvedGatewayBaseUrl,
   assertAllowedEndpointUrl,
   decryptJson,
@@ -9,12 +11,14 @@ import {
   isAppLocale,
   isEnvelope,
   isGatewayBaseUrl,
+  isServerMode,
   knowledgeBackendSetting,
   mergeSecrets,
   parseAppLocale,
 } from "@agentforge/core";
-import { getLocalVaultKey, localDataDir } from "@agentforge/db/vault-key";
+import { getLocalVaultKey } from "@agentforge/db/vault-key";
 import { readSelectedWorkspaceId } from "./workspace";
+import { assertTenantId, tenantDataDir } from "./tenant-paths";
 import { log } from "./log";
 
 export { getLocalVaultKey, localDataDir } from "@agentforge/db/vault-key";
@@ -24,12 +28,40 @@ export const LEGACY_SETTINGS_WORKSPACE = "__legacy__";
 /** Used only when no desk is selected (unit tests, first boot). */
 export const FALLBACK_SETTINGS_WORKSPACE = "__default__";
 
-function encryptedSettingsPath(): string {
-  return resolve(localDataDir(), "settings.enc");
+/**
+ * Phase 3 lane D — whose settings a call is about.
+ *
+ * A `TenantContext` names both the tenant and the desk. A bare string (or nothing) is the
+ * pre-Phase-3 spelling and means "this desk, on the local tenant": correct on the desktop and on
+ * webdev, and **refused in server mode**, where a call that cannot name its tenant must not fall
+ * back to somebody else's file. `packages/host/src/handlers` is swept to the tenant form; the
+ * remaining bare-string callers are listed in `docs/internal/web-phase3-lane-d.md`.
+ */
+export type SettingsScope = Pick<TenantContext, "tenantId" | "workspaceId"> | string | null | undefined;
+
+export type ResolvedSettingsScope = { tenantId: string; workspaceId: string };
+
+export function resolveSettingsScope(scope?: SettingsScope): ResolvedSettingsScope {
+  if (scope && typeof scope === "object") {
+    return { tenantId: assertTenantId(scope.tenantId), workspaceId: resolveSettingsWorkspaceId(scope.workspaceId) };
+  }
+  if (isServerMode()) {
+    throw new ApiError(
+      "tenant_required",
+      "This request reached the settings store without a tenant. Hosted requests must pass the tenant, never a bare desk id.",
+      500,
+    );
+  }
+  return { tenantId: LOCAL_TENANT_ID, workspaceId: resolveSettingsWorkspaceId(scope) };
 }
 
-function legacySettingsPath(): string {
-  return resolve(localDataDir(), "settings.json");
+/** `<dataDir>/settings.enc` for the local tenant; under `tenants/<tenantId>/` for anyone else. */
+function encryptedSettingsPath(tenantId: string): string {
+  return resolve(tenantDataDir(tenantId), "settings.enc");
+}
+
+function legacySettingsPath(tenantId: string): string {
+  return resolve(tenantDataDir(tenantId), "settings.json");
 }
 
 function readString(value: unknown): string | undefined {
@@ -94,9 +126,9 @@ function isMissingFile(error: unknown): boolean {
   return Boolean(error && typeof error === "object" && "code" in error && error.code === "ENOENT");
 }
 
-function readLegacyPlaintext(): StoredSecrets | null {
+function readLegacyPlaintext(tenantId: string): StoredSecrets | null {
   try {
-    const raw = readFileSync(legacySettingsPath(), "utf8");
+    const raw = readFileSync(legacySettingsPath(tenantId), "utf8");
     return normalizeSecrets(JSON.parse(raw) as StoredSecrets);
   } catch (error) {
     if (isMissingFile(error)) {
@@ -106,14 +138,15 @@ function readLegacyPlaintext(): StoredSecrets | null {
   }
 }
 
-function tryDeleteLegacyPlaintext(): void {
-  if (!existsSync(legacySettingsPath())) {
+function tryDeleteLegacyPlaintext(tenantId: string): void {
+  const path = legacySettingsPath(tenantId);
+  if (!existsSync(path)) {
     return;
   }
   try {
-    unlinkSync(legacySettingsPath());
+    unlinkSync(path);
   } catch {
-    log.warn("settings_legacy_json_not_deleted", { path: legacySettingsPath() });
+    log.warn("settings_legacy_json_not_deleted", { path });
   }
 }
 type SettingsFileV2 = {
@@ -122,8 +155,12 @@ type SettingsFileV2 = {
   workspaces: Record<string, StoredSecrets>;
 };
 
-type FileCache = { path: string; mtimeMs: number; file: SettingsFileV2 };
-let fileCache: FileCache | null = null;
+/**
+ * Keyed by path, not a single slot: two tenants alternating requests would otherwise evict each
+ * other on every call and re-decrypt the file each time.
+ */
+type FileCache = { mtimeMs: number; file: SettingsFileV2 };
+const fileCache = new Map<string, FileCache>();
 
 function emptySettingsFile(): SettingsFileV2 {
   return { version: 2, workspaces: {} };
@@ -176,12 +213,14 @@ function parseSettingsFile(decrypted: unknown): { file: SettingsFileV2; migrated
   return { file: emptySettingsFile(), migrated: false };
 }
 
-function persistEncrypted(file: SettingsFileV2): void {
-  const path = encryptedSettingsPath();
-  mkdirSync(localDataDir(), { recursive: true });
+function persistEncrypted(tenantId: string, file: SettingsFileV2): void {
+  const path = encryptedSettingsPath(tenantId);
+  // The vault key stays machine-wide (`vault-key.ts`): Phase 3 splits the file per tenant, Phase 4
+  // swaps the backend behind this same interface (spec §3e).
+  mkdirSync(tenantDataDir(tenantId), { recursive: true });
   const envelope = encryptJson(file, getLocalVaultKey());
   writeFileSync(path, `${JSON.stringify(envelope)}\n`, "utf8");
-  fileCache = null;
+  fileCache.delete(path);
 }
 
 export function resolveSettingsWorkspaceId(workspaceId?: string | null): string {
@@ -216,8 +255,8 @@ function assertSavedEndpoints(secrets: StoredSecrets): void {
   }
 }
 
-function quarantineUnreadableSettings(reason: unknown): void {
-  const file = encryptedSettingsPath();
+function quarantineUnreadableSettings(tenantId: string, reason: unknown): void {
+  const file = encryptedSettingsPath(tenantId);
   if (!existsSync(file)) {
     return;
   }
@@ -236,9 +275,9 @@ function quarantineUnreadableSettings(reason: unknown): void {
   }
 }
 
-function loadEncryptedPayload(): unknown | null {
+function loadEncryptedPayload(tenantId: string): unknown | null {
   try {
-    const raw = readFileSync(encryptedSettingsPath(), "utf8");
+    const raw = readFileSync(encryptedSettingsPath(tenantId), "utf8");
     const parsed: unknown = JSON.parse(raw);
     if (!isEnvelope(parsed)) {
       throw new Error("settings.enc is not a valid envelope");
@@ -248,7 +287,7 @@ function loadEncryptedPayload(): unknown | null {
     if (isMissingFile(error)) {
       return null;
     }
-    quarantineUnreadableSettings(error);
+    quarantineUnreadableSettings(tenantId, error);
     return null;
   }
 }
@@ -277,22 +316,23 @@ function withGatewayDefault(secrets: StoredSecrets): StoredSecrets {
 }
 
 function rememberFile(path: string, mtimeMs: number, file: SettingsFileV2): SettingsFileV2 {
-  fileCache = { path, mtimeMs, file };
+  fileCache.set(path, { mtimeMs, file });
   return file;
 }
 
-function loadSettingsFile(): SettingsFileV2 {
-  const path = encryptedSettingsPath();
+function loadSettingsFile(tenantId: string): SettingsFileV2 {
+  const path = encryptedSettingsPath(tenantId);
   try {
     const stats = statSync(path);
-    if (fileCache && fileCache.path === path && fileCache.mtimeMs === stats.mtimeMs) {
-      return fileCache.file;
+    const cached = fileCache.get(path);
+    if (cached && cached.mtimeMs === stats.mtimeMs) {
+      return cached.file;
     }
-    const payload = loadEncryptedPayload();
+    const payload = loadEncryptedPayload(tenantId);
     if (payload != null) {
       const parsed = parseSettingsFile(payload);
       if (parsed.migrated) {
-        persistEncrypted(parsed.file);
+        persistEncrypted(tenantId, parsed.file);
         try {
           return rememberFile(path, statSync(path).mtimeMs, parsed.file);
         } catch {
@@ -306,8 +346,8 @@ function loadSettingsFile(): SettingsFileV2 {
       throw error;
     }
   }
-  fileCache = null;
-  const legacy = readLegacyPlaintext();
+  fileCache.delete(path);
+  const legacy = readLegacyPlaintext(tenantId);
   if (!legacy) {
     return emptySettingsFile();
   }
@@ -315,8 +355,8 @@ function loadSettingsFile(): SettingsFileV2 {
     version: 2,
     workspaces: { [LEGACY_SETTINGS_WORKSPACE]: legacy },
   };
-  persistEncrypted(migrated);
-  tryDeleteLegacyPlaintext();
+  persistEncrypted(tenantId, migrated);
+  tryDeleteLegacyPlaintext(tenantId);
   try {
     return rememberFile(path, statSync(path).mtimeMs, migrated);
   } catch {
@@ -324,22 +364,22 @@ function loadSettingsFile(): SettingsFileV2 {
   }
 }
 
-export function loadSettings(workspaceId?: string | null): StoredSecrets {
-  const id = resolveSettingsWorkspaceId(workspaceId);
-  return withGatewayDefault(sliceFor(loadSettingsFile(), id));
+export function loadSettings(scope?: SettingsScope): StoredSecrets {
+  const { tenantId, workspaceId } = resolveSettingsScope(scope);
+  return withGatewayDefault(sliceFor(loadSettingsFile(tenantId), workspaceId));
 }
 
-export function saveSettings(patch: SecretPatch, workspaceId?: string | null): StoredSecrets {
-  const id = resolveSettingsWorkspaceId(workspaceId);
-  const file = loadSettingsFile();
-  const next = withGatewayDefault(mergeSecrets(sliceFor(file, id), patch));
+export function saveSettings(patch: SecretPatch, scope?: SettingsScope): StoredSecrets {
+  const { tenantId, workspaceId } = resolveSettingsScope(scope);
+  const file = loadSettingsFile(tenantId);
+  const next = withGatewayDefault(mergeSecrets(sliceFor(file, workspaceId), patch));
   assertSavedEndpoints(next);
-  persistEncrypted({
+  persistEncrypted(tenantId, {
     version: 2,
     locale: file.locale,
-    workspaces: { ...file.workspaces, [id]: next },
+    workspaces: { ...file.workspaces, [workspaceId]: next },
   });
-  tryDeleteLegacyPlaintext();
+  tryDeleteLegacyPlaintext(tenantId);
   return next;
 }
 
@@ -351,7 +391,13 @@ export function adoptLegacySettings(homeWorkspaceId: string): void {
   if (!id) {
     return;
   }
-  const file = loadSettingsFile();
+  // Desktop upgrade path only. `LEGACY_SETTINGS_WORKSPACE` is a v1 machine-wide payload, which only
+  // a pre-v2 desktop install has; a hosted tenant's file starts at v2 and never carries one. Called
+  // from `getTenant` on every request, so in server mode it must be a no-op rather than a throw.
+  if (isServerMode()) {
+    return;
+  }
+  const file = loadSettingsFile(LOCAL_TENANT_ID);
   const legacy = file.workspaces[LEGACY_SETTINGS_WORKSPACE];
   if (!legacy) {
     return;
@@ -361,17 +407,19 @@ export function adoptLegacySettings(homeWorkspaceId: string): void {
   if (!rest[id]) {
     rest[id] = legacy;
   }
-  persistEncrypted({ version: 2, locale: file.locale, workspaces: rest });
+  persistEncrypted(LOCAL_TENANT_ID, { version: 2, locale: file.locale, workspaces: rest });
 }
 
 /**
- * "Start over — key only": drop the gateway key from every desk in one write.
+ * "Start over — key only": drop the gateway key from every desk **of one tenant** in one write.
  *
  * A key saved on a second desk would otherwise keep the app open after the owner asked to forget
- * it, so this is machine-wide by design. Returns the desks that actually held a key.
+ * it, so this covers every desk — but only the caller's tenant, which is what makes it safe to
+ * reach in server mode at all. Returns the desks that actually held a key.
  */
-export function clearGatewayKeyEverywhere(): string[] {
-  const file = loadSettingsFile();
+export function clearGatewayKeyEverywhere(scope?: SettingsScope): string[] {
+  const { tenantId } = resolveSettingsScope(scope);
+  const file = loadSettingsFile(tenantId);
   const touched: string[] = [];
   const workspaces: Record<string, StoredSecrets> = {};
   for (const [id, slice] of Object.entries(file.workspaces)) {
@@ -383,31 +431,44 @@ export function clearGatewayKeyEverywhere(): string[] {
   if (touched.length === 0) {
     return [];
   }
-  persistEncrypted({ version: 2, locale: file.locale, workspaces });
+  persistEncrypted(tenantId, { version: 2, locale: file.locale, workspaces });
   return touched;
 }
 
-export function dropWorkspaceSettings(workspaceId: string): void {
+export function dropWorkspaceSettings(workspaceId: string, scope?: SettingsScope): void {
   const id = workspaceId.trim();
   if (!id) {
     return;
   }
-  const file = loadSettingsFile();
+  const { tenantId } = resolveSettingsScope(scope ?? workspaceId);
+  const file = loadSettingsFile(tenantId);
   if (!file.workspaces[id]) {
     return;
   }
   const rest = { ...file.workspaces };
   delete rest[id];
-  persistEncrypted({ version: 2, locale: file.locale, workspaces: rest });
+  persistEncrypted(tenantId, { version: 2, locale: file.locale, workspaces: rest });
 }
 
-/** Machine-wide UI locale. Not a per-desk secret. */
+/**
+ * Machine-wide UI locale. Not a per-desk secret, and **deliberately not per tenant either**: the
+ * host process freezes one boot locale (`locale-boot.ts:11-16`) that every copy catalogue and every
+ * `localeForRun()` reads, so a per-tenant value would be stored and never applied. It therefore
+ * stays in the local tenant's file, exactly where it is today. Making the locale per tenant means
+ * threading it through `run-context.ts`; that is listed as an open item in
+ * `docs/internal/web-phase3-lane-d.md`, not silently half-done here.
+ */
 export function loadOwnerLocale(): AppLocale {
-  return parseAppLocale(loadSettingsFile().locale);
+  return parseAppLocale(loadSettingsFile(LOCAL_TENANT_ID).locale);
 }
 
 export function saveOwnerLocale(locale: AppLocale): AppLocale {
-  const file = loadSettingsFile();
-  persistEncrypted({ version: 2, locale, workspaces: file.workspaces });
+  const file = loadSettingsFile(LOCAL_TENANT_ID);
+  persistEncrypted(LOCAL_TENANT_ID, { version: 2, locale, workspaces: file.workspaces });
   return locale;
+}
+
+/** Test seam: forget every decrypted file so a suite can rewrite the data dir underneath. */
+export function resetSettingsCacheForTests(): void {
+  fileCache.clear();
 }

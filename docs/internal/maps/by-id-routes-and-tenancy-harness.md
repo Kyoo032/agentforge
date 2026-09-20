@@ -1,6 +1,6 @@
 # Map — The by-id route surface and the tenancy harness
 
-Last verified: 2026-09-20 at c1daa8b (the merge of PR #81, which adds this page)
+Last verified: 2026-09-20 at 6984d84 (the merge of PR #81, which adds this page)
 
 ## Overview
 
@@ -43,7 +43,7 @@ four shapes in the tree, and knowing which one a handler uses is how you read it
 There is a fifth case that is not a scoping shape but decides what the caller sees: a route that
 opens an SSE stream answers 200 before the work begins, so its refusal arrives as a frame. The check
 is still the first thing the job does (`requireMeeting` at `packages/host/src/meeting/run.ts:152`, `:287` and `:362`,
-`foldProject` at `packages/host/src/edit/agent-run.ts:154`).
+`foldProject` at `packages/host/src/edit/agent-run.ts:157`).
 
 Neither the fourth shape nor the fifth gives a 404, and both are correct rather than gaps: an answer
 that is the same whether or not the row exists tells a prober less than a 404 does. What they need
@@ -135,7 +135,7 @@ the store, so the desktop's and webdev's lines are unchanged.
   belongs to exactly one tenant. Spec §8 q4 asks Kyo whether that is intended.
 - **The three edit sub-resources are seeded by direct insert**, not through a store function: a
   card, a job and an unplaced item are written by a job that has already produced output, and
-  `enqueueEditJob` (`packages/host/src/edit/jobs.ts:420`) starts a worker. The rows are the shape
+  `enqueueEditJob` (`packages/host/src/edit/jobs.ts:427`) starts a worker. The rows are the shape
   those paths write.
 - **`createLocalWorkspace`'s desk-member default was a hosted 500.** It wrote the membership row for
   `LOCAL_OWNER_ID`, which does not exist in a portal-provisioned database, so the insert violated

@@ -1,10 +1,5 @@
 import { maskPii, scanInjection, type TenantContext } from "@agentforge/core";
-import {
-  findSourceByOrigin,
-  indexKnowledgeSource,
-  markSourceFailed,
-  type KnowledgeSource,
-} from "./knowledge";
+import { findSourceByOrigin, indexKnowledgeSource, markSourceFailed, type KnowledgeSource } from "./knowledge";
 import { loadSettings } from "./settings-store";
 import { renderWorkCard, type WorkCard } from "./work-cards";
 import { log } from "./log";
@@ -93,7 +88,7 @@ export function ingestWorkSource(tenant: TenantContext, card: WorkCard): void {
 
 function injectionGuardBypass(tenant: TenantContext): boolean {
   try {
-    return loadSettings(tenant.workspaceId).injectionGuardBypass === true;
+    return loadSettings(tenant).injectionGuardBypass === true;
   } catch {
     return false;
   }

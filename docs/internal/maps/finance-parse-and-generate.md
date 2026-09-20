@@ -1,6 +1,6 @@
 # Map — Finance: parse and generate
 
-Last verified: 2026-09-20 at c204e5e
+Last verified: 2026-09-20 at 6984d84
 
 ## Overview
 
@@ -41,7 +41,7 @@ Seven routes, all `POST` (`packages/host/src/router.ts:260-266`):
 
 | Route | Handler | Gate | Live runtime |
 |---|---|---|---|
-| `/api/v1/finance` | `handlePostFinance` (`packages/host/src/handlers/finance.ts:14`) | yes (`:18`) | yes |
+| `/api/v1/finance` | `handlePostFinance` (`packages/host/src/handlers/finance.ts:13`) | yes (`:17`) | yes |
 | `/api/v1/finance/stream` | `handlePostFinanceStream` (`:29`) | yes (`:33`) | yes |
 | `/api/v1/finance/parse` | `handlePostFinanceParse` (`:49`) | yes (`:53`) | yes |
 | `/api/v1/finance/regenerate` | `handlePostFinanceRegen` (`:61`) | yes (`:65`) | yes |
@@ -49,7 +49,7 @@ Seven routes, all `POST` (`packages/host/src/router.ts:260-266`):
 | `/api/v1/finance/export` | `handlePostFinanceExport` (`packages/host/src/handlers/finance-export.ts:119`) | **no** | no |
 | `/api/v1/finance/import` | `handlePostFinanceImport` (`packages/host/src/handlers/finance-import.ts:290`) | **no** | no |
 
-**Gate first.** `requireGatewayAllowed(loadSettings(tenant.workspaceId))` runs at the top of the four gateway-bound handlers; a closed gate is `403 gateway_blocked` before any work — see [`settings-and-gateway-gate.md`](settings-and-gateway-gate.md). `requireFinanceTask` runs immediately after, so a bad `task` is a 400 before the model is reached.
+**Gate first.** `requireGatewayAllowedFor(tenant)` runs at the top of the four gateway-bound handlers; a closed gate is `403 gateway_blocked` before any work — see [`settings-and-gateway-gate.md`](settings-and-gateway-gate.md). `requireFinanceTask` runs immediately after, so a bad `task` is a 400 before the model is reached.
 
 **Then liveness.** `requireLive` (`packages/host/src/finance-tasks/live.ts:50-60`) resolves the runtime from the saved key and `AGENTFORGE_RUNTIME` and throws `ApiError("runtime_stub", gatewayRequiredMessage("finance", localeForRun()), 503)` on `stub`. Finance has no stub path.
 
@@ -148,7 +148,7 @@ The registry renders it (`packages/host/src/renderers/registry.ts:22-28`): `xlsx
 
 | Case | Where | Result |
 |---|---|---|
-| Gate closed | `requireGatewayAllowed`, `packages/host/src/handlers/finance.ts:18, 33, 53, 65` | 403 `gateway_blocked`; `/export`, `/docx` and `/import` are **deliberately** not gated — they never reach the gateway and a closed gate must not stop the owner reading or exporting their own files. Each handler says so; `handlers/finance-gate.test.ts` pins it |
+| Gate closed | `requireGatewayAllowedFor`, `packages/host/src/handlers/finance.ts:17, 32, 52, 64` | 403 `gateway_blocked`; `/export`, `/docx` and `/import` are **deliberately** not gated — they never reach the gateway and a closed gate must not stop the owner reading or exporting their own files. Each handler says so; `handlers/finance-gate.test.ts` pins it |
 | Task not built | `requireFinanceTask`, `packages/host/src/finance-task.ts:55-61` | 400 `finance_task_unavailable` — unreachable today, all five ship |
 | No key / stub runtime | `requireLive`, `packages/host/src/finance-tasks/live.ts:50-59` | `/parse`, `/finance`, `/regenerate`: **503** `runtime_stub`. `/finance/stream`: **200** with one `job.error` frame carrying `status: 503` |
 | Brief has no digit and no currency token | `briefLooksLikeFigures`, `apps/web/lib/finance-brief.ts:11` | no request at all; `finance-error` shows `finance.errors.addItems` (`finance-studio.tsx:226`) |

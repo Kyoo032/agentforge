@@ -6,7 +6,7 @@ import type { TenantContext } from "@agentforge/core";
 import { ApiError } from "@agentforge/core";
 import type { DownloadedMedia } from "./media-download";
 import { downloadGeneratedMedia } from "./media-download";
-import { mediaRoot } from "./media-root";
+import { mediaFilePath, mediaRelativePath, mediaRoot } from "./media-root";
 
 const IMAGE_MAX = 10 * 1024 * 1024;
 const VIDEO_MAX = 50 * 1024 * 1024;
@@ -82,7 +82,9 @@ export async function saveMedia(
 
   const id = crypto.randomUUID();
   const ext = mediaExt(mime);
-  const relative = `${tenant.organizationId}/${id}.${ext}`;
+  // Phase 3 lane D: the tenant prefix comes first, then the organization, so a tenant's blobs
+  // are one subtree. The local tenant's prefix is empty, so its rows keep the pre-Phase-3 shape.
+  const relative = mediaRelativePath(tenant.tenantId, [tenant.organizationId], `${id}.${ext}`);
   const fullPath = path.join(mediaRoot(), relative);
   await mkdir(path.dirname(fullPath), { recursive: true });
   const buffer = Buffer.from(await file.arrayBuffer());
@@ -115,7 +117,7 @@ export async function readMediaDataUrl(tenant: TenantContext, mediaId: string): 
     return null;
   }
   try {
-    const bytes = await readFile(path.join(mediaRoot(), item.storagePath));
+    const bytes = await readFile(mediaFilePath(tenant.tenantId, item.storagePath));
     return `data:${item.mime};base64,${bytes.toString("base64")}`;
   } catch {
     return null;

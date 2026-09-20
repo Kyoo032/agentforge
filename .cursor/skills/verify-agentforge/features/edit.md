@@ -79,5 +79,5 @@ Fill scenarios F1–F5 (owner runs; Result filled in Loop 3):
 - `edit-card-undo` does **not** reopen the export gate: `undoCard` appends inverses as `actor: "owner"` (`packages/host/src/edit/undo.ts:65-69`), and only `agent:` ops move `lastAgentSeq`.
 - `edit-card-keep` writes **no ops** — it strips the badge, re-snapshots and flips a status (`packages/host/src/edit/undo.ts:83-100`). Touching an agent clip by hand keeps its card automatically (`apps/web/lib/edit-client.ts:250-252`).
 - There is no way back to the project list once a project is open — `edit-project-list` only renders in the `!project` branch (`apps/web/components/edit-studio.tsx:687-741`). Reload between projects.
-- `createTurnBudget` is per request (`packages/host/src/edit/agent-run.ts:145`), so `settings-edit-turn-cap` never accumulates across turns.
+- `createTurnBudget` is per request (`packages/host/src/edit/agent-run.ts:27`), so `settings-edit-turn-cap` never accumulates across turns.
 - Never POST `/api/v1/edit/...` as a substitute for the UI.
