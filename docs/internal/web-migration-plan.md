@@ -96,10 +96,11 @@ a server flag is set.
 
 **Tests.** Extend `packages/host/src/local-request.test.ts` and `http-adapter.test.ts`: allowed origin
 passes, unlisted origin 403s, missing Origin 403s on the web rule and passes on the loopback rule,
-missing CSRF token 403s, a header that does not match the cookie 403s. (The double-submit token is bare
-randomness, not bound to a session — `csrf.ts:14-17` records binding as a follow-up for when a session
-exists, so "a token from another session" is not yet a case this can test.) A test that `.master-key` is
-not created when the server flag is set.
+missing CSRF token 403s, a header that does not match the cookie 403s. (At the time of writing the
+double-submit token was bare randomness, so "a token from another session" was not a case this could
+test. Phase 3 lane C bound the token to the session id and added that case —
+`packages/host/src/csrf.test.ts`, [`web-phase3-lane-c.md`](web-phase3-lane-c.md) §6.) A test that
+`.master-key` is not created when the server flag is set.
 
 **Done when.** The proxy passes the real `Host` through, webdev `:3000` still works unchanged (its
 origin is on the allowlist by default), and the desktop IPC path is untouched.
@@ -151,6 +152,13 @@ branch; `packages/db/src/ensure-local-owner.ts:17` is renamed to say what it is;
 need no edit if the signature change is source-compatible, which is the reason to change it here
 rather than at each call site; `requireTenant` (`types.ts:20`) is called at the top of `dispatch`;
 `packages/host/src/workspace.ts:8-24` becomes session state.
+
+*Landed differently in one place.* Lane C built the source-compatible `getTenant` and made
+`workspace-id.txt` desktop-only, but did **not** call `requireTenant` at the top of `dispatch`: that
+presumes `dispatch` resolves a tenant eagerly, which adds a database round-trip to every request
+including the ones that never ask. The guarantee it was there to give is given instead by the two
+refusals inside `getTenant` itself — see [`web-phase3-lane-c.md`](web-phase3-lane-c.md) §2 and the map
+[`maps/tenant-resolution.md`](maps/tenant-resolution.md).
 
 **Migration path for existing SQLite rows.** The existing local rows already carry an
 `organization_id` (the "Personal" org from `ensure-local-owner.ts:30-38`). A migration in
