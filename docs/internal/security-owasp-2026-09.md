@@ -44,7 +44,7 @@ now rather than a reason not to.
 | A05-1 | **Critical** | A production build with `AGENTFORGE_SERVER` unset boots with every control off | `apps/web/lib/hosted-mode-guard.ts` | Fixed |
 | A05-2 | **Critical** | `webapp-deploy/compose.yml` took `AGENTFORGE_SERVER` from an optional `.env` | `webapp-deploy/compose.yml:38` | Fixed |
 | A05-3 | Medium | Security headers existed only in the Caddyfile, not in the app | `packages/host/src/security-headers.ts` | Fixed |
-| A06-1 | Medium | No CI ran lint, unit tests or a dependency audit | `.github/workflows/ci.yml` | Fixed |
+| A06-1 | Medium | No CI ran lint, unit tests or a dependency audit | `.github/workflows/ci.yml` | Written, **cannot run** — Actions billing lock |
 | A06-2 | Low | The hosted image ships devDependencies | `webapp-deploy/Dockerfile:78-80` | **Recorded** — open |
 | A08-1 | Low | Workflows pin actions to mutable tags (`@v4`) | `.github/workflows/*.yml` | **Recorded** — open |
 | A09-1 | Medium | No request id: nothing correlated a user report to a log line | `packages/host/src/http-adapter.ts:86,435-437` | Fixed |
@@ -263,6 +263,18 @@ is the part that keeps this honest a year from now.
 The only workflows were `.github/workflows/e2e.yml` (Playwright) and `.github/workflows/desktop-mac.yml` (a release build). Nothing
 ran `pnpm lint`, nothing ran the unit suites, and nothing looked at advisories.
 
+> **The workflow added here does not run either, and cannot until a billing lock is cleared.**
+> Both of its jobs failed on this branch in two seconds with no runner assigned (`runner_id: 0`,
+> empty `runner_name`), logs that 404, and `billable.UBUNTU.total_ms: 0` — the same shape every
+> Actions run in this repository has had since it was created. The cause is recorded at
+> `docs/internal/0.14.22-changelog.md:118`: the account is locked for Actions over billing.
+> `docs/internal/0.14.27-changelog.md:187` records that kyo shipped 0.14.27 without the Playwright
+> check rather than clear it, so this is a standing decision and not news.
+>
+> The file below is therefore correct and reviewable, but **the control it describes is not in
+> force**, and A06-1 should be read as open until the lock is cleared. Nothing in this pass was
+> verified by CI.
+
 `.github/workflows/ci.yml` adds both. The audit job needed a decision, because the raw number is
 misleading: **the workspace reports 1 critical and 19 high advisories, and every one of them is
 reachable only from `apps/desktop`** (tar, electron, extract-zip, app-builder-lib,
@@ -414,6 +426,9 @@ Neither is an OWASP finding; both were blocking the CI job in A06-1, and both we
   (the whole of requirement G-13) on a machine without ffmpeg, and now runs them everywhere.
 
 ## Verification
+
+All of this was run locally in a cloud container. **None of it was run by CI**, for the reason
+under A06-1: Actions cannot start a runner on this account.
 
 - `pnpm test` — 8/8 packages, **4797 tests passing, 0 failing** (host 1722, core 2112, web 886,
   db 72, plus legal, university, marketing). Both previously failing host suites are fixed above.

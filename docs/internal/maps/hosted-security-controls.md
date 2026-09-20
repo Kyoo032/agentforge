@@ -211,7 +211,7 @@ Automated, and these are what actually prove this page:
 | `packages/core/src/security/safe-fetch.test.ts` (19) | scheme, credentials, per-hop redirects, DNS resolution |
 | `packages/db/src/vault-key.test.ts` (26) | length and randomness floors, `.master-key` corruption |
 | `apps/web/lib/hosted-mode-guard.test.ts` | the production-build refusal, and that compose still pins the flag |
-| `.github/workflows/ci.yml` | runs all of the above on every push and pull request |
+| `.github/workflows/ci.yml` | would run all of the above on every push and pull request — but Actions cannot start a runner on this account (`../security-owasp-2026-09.md`, A06-1), so today these are run by hand |
 
 **There is no `verify-agentforge` feature file for this page, and that is a gap rather than a
 choice.** The existing `features/security.md` covers the key-fingerprint UI and
