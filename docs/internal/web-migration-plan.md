@@ -32,7 +32,7 @@ The move is **additive**. Nothing is deleted to make room for the server.
 | Wrap key falls back to a `.master-key` file written on demand, mode 0600 | `readOrCreateMasterKeyFile` (`packages/db/src/vault-key.ts:107-114`), reached from `getLocalVaultKey` at `:126` | `AGENTFORGE_SECRETS_KEY` becomes **mandatory** on the server; the file fallback throws instead of self-creating | 1 |
 | Electron overrides the wrap key from the OS keychain | `apps/desktop/main.cjs:265-294` (keytar service/account) | Desktop-only, untouched. The server path must never load keytar | 4 |
 | `settings.enc` is one file for the whole install, holding a slice per workspace | `packages/host/src/settings-store.ts:26-27`, shape at `:120-122` (`version: 2; workspaces: Record<string, StoredSecrets>`), written at `:180-183` | A row per tenant, encrypted with the same AES-256-GCM envelope; the file becomes the desktop backend of a storage interface | 4 |
-| Mutating `/api` requires a loopback Origin **and** a loopback Host | `isAllowedMutatingApiRequest` (`packages/host/src/local-request.ts:80-89`), wired at `packages/host/src/http-adapter.ts:555`; the web rule chosen alongside it at `:529` | Trusted-origin allowlist from config, plus a CSRF token, plus the existing `x-agentforge-transport` header (`http-adapter.ts:10-12`) | 1 |
+| Mutating `/api` requires a loopback Origin **and** a loopback Host | `isAllowedMutatingApiRequest` (`packages/host/src/local-request.ts:80-89`), wired at `packages/host/src/http-adapter.ts:560`; the web rule chosen alongside it at `:529` | Trusted-origin allowlist from config, plus a CSRF token, plus the existing `x-agentforge-transport` header (`http-adapter.ts:10-12`) | 1 |
 | Missing Origin is treated as same-machine and allowed | `packages/host/src/local-request.ts:84-86` (documented at `:75-79`) | Missing Origin is rejected on the web adapter; still allowed for the desktop IPC path, which never reaches this function | 1 |
 | Server binds `127.0.0.1`, port from `PORT`, "never LAN-bind" | `apps/web/server.ts:110-115` via `resolveBindHost` (`apps/web/lib/bind-host.ts:17-27`) | `BIND_HOST` config, default `127.0.0.1`; the proxy in `webapp-deploy/` is the only public listener | 1 |
 | A single local owner is created on first touch of the DB | `packages/db/src/ensure-local-owner.ts:20`, inserted at `:20-26`; id from `packages/core/src/local-owner.ts:1` (`"local-owner"`); seeded by `packages/db/src/seed.ts:32` | The owner comes from the portal session. `ensureLocalOwner` becomes the desktop-only branch of a `resolveTenant(session)` | 2, 3 |
@@ -42,8 +42,8 @@ The move is **additive**. Nothing is deleted to make room for the server.
 | Selected desk is a file on disk, machine-wide | `selectedWorkspacePath` (`packages/host/src/workspace.ts:19-21`), read and written at `:12-40` (`workspace-id.txt`) | Per-session state, carried by the existing `WORKSPACE_COOKIE` (read at `http-adapter.ts:470`) and validated against the tenant's desks | 3 |
 | Media files land under the data dir, keyed by org | `packages/host/src/media-root.ts:4-8`; write at `packages/host/src/media.ts:85-89` (`${tenant.organizationId}/${id}.${ext}`) | Per-tenant prefix under a storage interface; local disk stays the desktop backend | 6 |
 | Job output and scratch files are on disk | `packages/host/src/edit/ffmpeg/paths.ts:42-44` (`<dataDir>/edit/<projectId>`), `packages/host/src/datasets.ts:315-317`, `packages/host/src/legal/store.ts:306` | Same storage interface, tenant-prefixed; ffmpeg path allowlist re-derived per tenant | 6 |
-| Component installer writes native modules into the data dir on first run | `packages/host/src/components/paths.ts:36`, log at `components/log.ts:15-19`, one component (`components/types.ts:10`, `anydoc`) from a pinned registry URL (`components/manifest.ts:15`); routes at `packages/host/src/router.ts:214-215`, ungated on purpose (`handlers/components.ts:1-9`) | Installed **once per server** at image build or first boot, not per tenant and not from a browser request | 7 |
-| Gateway gate trusts an unknown key on first run | `packages/host/src/gateway-gate.ts:273-275` — no state, or a fingerprint mismatch, returns `allowed: true` | Server-side the gate must fail closed for a tenant with no verified key; trust-on-first-run stays for the desktop | 5 |
+| Component installer writes native modules into the data dir on first run | `packages/host/src/components/paths.ts:36`, log at `components/log.ts:15-19`, one component (`components/types.ts:10`, `anydoc`) from a pinned registry URL (`components/manifest.ts:15`); routes at `packages/host/src/router.ts:223-224`, ungated on purpose (`handlers/components.ts:1-9`) | Installed **once per server** at image build or first boot, not per tenant and not from a browser request | 7 |
+| Gateway gate trusts an unknown key on first run | `packages/host/src/gateway-gate.ts:274-276` — no state, or a fingerprint mismatch, returns `allowed: true` | Server-side the gate must fail closed for a tenant with no verified key; trust-on-first-run stays for the desktop | 5 |
 | Gate state is one JSON file per install | `packages/host/src/gateway-gate.ts:27` (`gateway-gate.json`), path at `:101-103`; 7-day grace at `:33`, 1-day OK TTL at `:42` | A row per tenant. Grace and TTL constants stay as-is | 4, 5 |
 | A missing gate payload fails **open** in the browser | `apps/web/lib/gateway-gate.ts:83-89` (`return isElectron ? "onboarding" : "app"`) | On the hosted build a missing gate must fail closed. This is the single highest-risk line in the renderer | 5 |
 | "Start over" wipes a named list under the data dir and relaunches | `packages/host/src/handlers/settings.ts:274-296` (`HOST_RESET_ENTRIES`), queued at `:310-321`; applied next boot by `packages/db/src/reset.ts:248` under `packages/db/src/client.ts:35-37` | Web: a per-tenant purge inside a transaction plus a storage-prefix delete. No process relaunch, no shared-file deletion | 8 |
@@ -52,7 +52,7 @@ The move is **additive**. Nothing is deleted to make room for the server.
 | Electron-only renderer surfaces | `apps/web/components/settings-reset-card.tsx:179` (relaunch), `apps/web/lib/use-app-updates.ts:31`, `apps/web/components/edit-studio.tsx:310-312` (native file picker), `apps/web/lib/product-brand.tsx:73` | Gated off on the web build and replaced with a browser equivalent (file input, no relaunch, no updater) | 8 |
 | Updater points at the releases repo | `apps/desktop/auto-update.cjs` | Desktop-only, frozen. The web has no updater; a deploy is a container swap | 8 |
 | Playwright drives `127.0.0.1:3000`, boots `pnpm dev`, points at the shared `data/` dir | `apps/web/playwright.config.ts:11`, `:15-25` (`AGENTFORGE_DATA_DIR: ../../data`, `AGENTFORGE_RUNTIME: "stub"`) | A second project targeting the deployed base URL with a seeded test tenant and a real session cookie | 0, 2 |
-| Locale is one value for the whole install | `packages/host/src/settings-store.ts:123` (`locale?: AppLocale`), exported from `packages/core/src/index.ts:571-572` | **Copy and catalogues unchanged.** Only the storage of the chosen locale moves to per-user | 4 |
+| Locale is one value for the whole install | `packages/host/src/settings-store.ts:123` (`locale?: AppLocale`), exported from `packages/core/src/index.ts:607-608` | **Copy and catalogues unchanged.** Only the storage of the chosen locale moves to per-user | 4 |
 | Usage is per-install, not per-user: a global JSON file with no tenant dimension | `packages/host/src/desk-usage.ts:21-23` (`desk-usage.json`), append at `:66` | Per-tenant rows. Merged with the already-org-scoped run usage (`packages/host/src/threads.ts:308`, read at `:328`) | 5 |
 | USD is estimated live and never persisted | `packages/core/src/gateway/account.ts:165`, formula at `:149`; `QUOTA_PER_USD = 500_000` at `packages/core/src/gateway.ts:96`; entry points `packages/host/src/account-usage.ts:172,181,297` | Persisted per run, per tenant. This is the metering base for the Personal allowance and Enterprise pooled spend | 5 |
 | No plan, seat, subscription or billing code exists anywhere in `packages/` or `apps/` | verified by search; the design is docs-only (`docs/internal/portal/schema.md:36,70-72`) | New `tenant_plan` and `tenant_usage` tables plus a webhook route | 5 |
@@ -196,7 +196,7 @@ derived from `process.env` at request time.
 (desktop, unchanged) and a DB-row backend (web), keeping the envelope from
 `packages/core/src/crypto/envelope.ts` and `getLocalVaultKey()` (`vault-key.ts:46-52`) as the wrap key
 in both; `loadSettings` / `saveSettings` (`settings-store.ts:329,334`) take the tenant;
-`packages/host/src/gateway-gate.ts:101-103` moves its state to the same backend; the locale at
+`packages/host/src/gateway-gate.ts:102-104` moves its state to the same backend; the locale at
 `settings-store.ts:121` becomes per user.
 
 **Tests.** Two tenants with different gateway keys do not see each other's key or gate verdict;
@@ -222,7 +222,7 @@ Phase 3 (see above); Phase 4 only has to keep that scoping when the backend chan
 - The webhook route (`POST /api/v1/billing/webhook`) verifies the provider signature and writes the
   plan row. It is the only writer of `status`. It must be exempt from the CSRF rule from Phase 1 and
   instead authenticated by signature.
-- **The host check** goes into `requireGatewayAllowed` (`requireGatewayAllowed` (`packages/host/src/gateway-gate.ts:435`)),
+- **The host check** goes into `requireGatewayAllowed` (`requireGatewayAllowed` (`packages/host/src/gateway-gate.ts:436`)),
   which already has **30 call sites** in `packages/host/src/handlers/` and is the only choke point
   before a gateway call. Personal: refuse when `status !== "active"` or the period's
   `tenant_usage` sum exceeds `allowance_usd_micros`. Enterprise: refuse when `status !== "active"` or
@@ -276,7 +276,7 @@ shared box that is a denial-of-service between paying customers, not a hypotheti
 **Goal.** `anydoc` is present before the first request, installed once, by the operator.
 
 **Files.** `packages/host/src/components/install.ts` gains a CLI entry that `webapp-deploy/`'s image
-build or entrypoint calls; `packages/host/src/router.ts:214-215` keeps `GET /api/v1/components` for
+build or entrypoint calls; `packages/host/src/router.ts:223-224` keeps `GET /api/v1/components` for
 status and gates the install route off on the web build; the first-run UI
 (`apps/web/lib/use-component-setup.ts:42`, `apps/web/components/component-setup.tsx:150`) is skipped
 when the server reports the component already present.
@@ -325,7 +325,7 @@ and `.cursor/skills/verify-agentforge`.
 The shared shape is **one host, two adapters**:
 
 - `packages/host` holds every handler, every rule and every gate. It is the product.
-- The **HTTP adapter** (`packages/host/src/http-adapter.ts:182`) serves the web: trusted origins,
+- The **HTTP adapter** (`packages/host/src/http-adapter.ts:183`) serves the web: trusted origins,
   CSRF, session cookie, tenant from session.
 - The **IPC adapter** (`apps/desktop` → `apps/web/lib/desktop-bridge.ts:59-70`, selected at
   `apps/web/lib/api-client.ts:97-98`) serves the desktop: no origin check, no session, tenant from

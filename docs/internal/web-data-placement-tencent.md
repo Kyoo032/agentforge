@@ -63,7 +63,7 @@ What actually burns local CPU and RAM is small and known; everything model-shape
 | PDF extraction (worker thread) | 1 vCPU, 0.2-0.4 GB for a 25 MB / 500-page file, 20 s | **none** | `packages/core/src/pdf/index.ts:30-32` |
 | anydoc conversion (native, libuv pool) | 1 vCPU, 0.1-0.3 GB | **none** beyond the 4-thread libuv pool | `packages/host/src/file-extract/anydoc.ts:153-168` |
 | DOCX extraction | runs **on the request thread**, up to 20 s, blocks every other request meanwhile | none | `packages/host/src/knowledge-extract.ts:29-34` |
-| Buffered request body | up to 26 MB RAM each, held for the request | none | `packages/host/src/http-adapter.ts:41,111` |
+| Buffered request body | up to 26 MB RAM each, held for the request | none | `packages/host/src/http-adapter.ts:42,111` |
 | Node host baseline | 0.5-1 GB with SQLite page cache and caches | | |
 
 Worst case is set by the caps, not by the user count: raise `AGENTFORGE_MAX_FFMPEG` and you buy vCPUs for it. Assume 10 % of active users are inside a heavy job at the same moment and 10 % are mid-upload.

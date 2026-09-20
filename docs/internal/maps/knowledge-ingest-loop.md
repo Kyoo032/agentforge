@@ -14,7 +14,7 @@ Two things surprise people. **Only Chat retrieves** — job modes write cards bu
 
 ### Routes
 
-All in `packages/host/src/handlers/knowledge.ts`, registered at `packages/host/src/router.ts:320-335`.
+All in `packages/host/src/handlers/knowledge.ts`, registered at `packages/host/src/router.ts:337-352`.
 
 | Method | Path | Handler | Gate |
 |---|---|---|---|
@@ -80,7 +80,7 @@ Two different things share the word "reindex":
 
 ### Tenant scoping
 
-Every read and write is parameterized by `workspace_id` in application code. There is **no schema-level enforcement**: `knowledge_chunks` is a bare FTS5 virtual table with `workspace_id` as a plain column (`packages/db/src/ensure-schema.ts:707-711`), no foreign key, no row-level security. The actual guarantee is the tests: `packages/host/src/knowledge-reindex.test.ts:314-322` (reindexing another workspace's source id resolves `{status:"missing"}` and leaves its chunks untouched), `:369-394` (a workspace sweep never touches another), `packages/host/src/knowledge-retrievals.test.ts:61-64` ("Another workspace never shows up in this one's count").
+Every read and write is parameterized by `workspace_id` in application code. There is **no schema-level enforcement**: `knowledge_chunks` is a bare FTS5 virtual table with `workspace_id` as a plain column (`packages/db/src/ensure-schema.ts:768-772`), no foreign key, no row-level security. The actual guarantee is the tests: `packages/host/src/knowledge-reindex.test.ts:314-322` (reindexing another workspace's source id resolves `{status:"missing"}` and leaves its chunks untouched), `:369-394` (a workspace sweep never touches another), `packages/host/src/knowledge-retrievals.test.ts:61-64` ("Another workspace never shows up in this one's count").
 
 ### Storage
 
@@ -99,7 +99,7 @@ Every read and write is parameterized by `workspace_id` in application code. The
 
 ### Constants
 
-`KNOWLEDGE_FILE_MAX_BYTES = PDF_MAX_BYTES = 25 MB` (`packages/host/src/knowledge-extract.ts:32`), `DOCX_TIMEOUT_MS = 20_000` (`:34`), `DOCX_MAX_INFLATED_BYTES = 100 MB` (`packages/core/src/docx/zip-limits.ts:17`), `PDF_MAX_PAGES = 500` / `PDF_MIN_TEXT_CHARS = 20` (`packages/core/src/pdf/index.ts:32`, `:34`), `KNOWLEDGE_TEXT_MAX_CHARS = 2_000_000` (`packages/host/src/knowledge-text.ts:2`), `SOURCE_NAME_MAX = 120` (`:8`), `MAX_BODY_BYTES = 26 MB` (`packages/host/src/http-adapter.ts:38`), safe-fetch `5` hops / `1_500_000` bytes / `15_000` ms (`packages/core/src/security/safe-fetch.ts:4-6`), `EMBED_BATCH = 16` / `EMBED_TIMEOUT_MS = 4_000` / `EMBED_DOWN_MS = 5 min` (`packages/host/src/knowledge-embed.ts:16`, `:33-34`), `STUB_EMBED_MODEL = "stub-fnv-32"` (`:24`), `MIN_COSINE = 0.12` (`:260`), `RRF_K = 60` (`packages/host/src/knowledge/backends/builtin.ts:134`), `SELF_CHECK_MIN_INTERVAL_MS = 10_000` (`packages/host/src/handlers/knowledge.ts:236`).
+`KNOWLEDGE_FILE_MAX_BYTES = PDF_MAX_BYTES = 25 MB` (`packages/host/src/knowledge-extract.ts:32`), `DOCX_TIMEOUT_MS = 20_000` (`:34`), `DOCX_MAX_INFLATED_BYTES = 100 MB` (`packages/core/src/docx/zip-limits.ts:17`), `PDF_MAX_PAGES = 500` / `PDF_MIN_TEXT_CHARS = 20` (`packages/core/src/pdf/index.ts:32`, `:34`), `KNOWLEDGE_TEXT_MAX_CHARS = 2_000_000` (`packages/host/src/knowledge-text.ts:2`), `SOURCE_NAME_MAX = 120` (`:8`), `MAX_BODY_BYTES = 26 MB` (`packages/host/src/http-adapter.ts:39`), safe-fetch `5` hops / `1_500_000` bytes / `15_000` ms (`packages/core/src/security/safe-fetch.ts:4-6`), `EMBED_BATCH = 16` / `EMBED_TIMEOUT_MS = 4_000` / `EMBED_DOWN_MS = 5 min` (`packages/host/src/knowledge-embed.ts:16`, `:33-34`), `STUB_EMBED_MODEL = "stub-fnv-32"` (`:24`), `MIN_COSINE = 0.12` (`:260`), `RRF_K = 60` (`packages/host/src/knowledge/backends/builtin.ts:134`), `SELF_CHECK_MIN_INTERVAL_MS = 10_000` (`packages/host/src/handlers/knowledge.ts:236`).
 
 ### Failure modes
 

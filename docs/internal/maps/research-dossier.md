@@ -26,7 +26,7 @@ Two things to hold onto. **Research is the only mode that needs two secrets**: a
 
 ### 3. Host — gate, then stream
 
-`packages/host/src/router.ts:263-264` maps both routes:
+`packages/host/src/router.ts:280-281` maps both routes:
 
 | Route | Handler | On refusal |
 |---|---|---|
@@ -89,7 +89,7 @@ Back in `generateResearchNotes`: `throwIfJobAborted` again (`:160`) — **a canc
 | Model returned no usable findings | `parseSynthesis`, `:204-206` | `job.error {code:"invalid_research", status:502}` |
 | Model call itself failed | `collectJobAssistantText`, `packages/host/src/job-regen.ts:149-151` | `job.error {code:"generation_failed", status:502}` |
 | User pressed `research-cancel` | `throwIfJobAborted` → `ApiError("aborted", …, 499)`; client sees the abort first | **no banner** — `use-job-stream.ts:54-59` resets quietly |
-| Client tab closed mid-run | `res.on("close")` → `abort.abort()` (`packages/host/src/http-adapter.ts:465-472`, `:471`) | run stops between phases; nothing saved |
+| Client tab closed mid-run | `res.on("close")` → `abort.abort()` (`packages/host/src/http-adapter.ts:466-473`, `:471`) | run stops between phases; nothing saved |
 | Artifact could not be persisted | `persistDossier` catch, `packages/host/src/research-generate.ts:105-110` | **success** — notes render, `artifactId` is `null`, Download falls back to a client-side blob, no KB work card |
 | Stream ended with no `job.done` | `runJobStream`, `apps/web/lib/job-stream.ts:90-92` | `research-error` with `stream_ended` / 502 |
 

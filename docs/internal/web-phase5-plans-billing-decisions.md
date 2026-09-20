@@ -17,7 +17,7 @@ Parents: [`web-migration-plan.md`](web-migration-plan.md) §Phase 5 and open que
 Five things the Phase 5 section of `web-migration-plan.md` states that are no longer true of the tree.
 None of them changes the shape of the phase; all of them change what is owed.
 
-1. **`requireGatewayAllowed` moved.** It is at `packages/host/src/gateway-gate.ts:435`, not `:411-417`.
+1. **`requireGatewayAllowed` moved.** It is at `packages/host/src/gateway-gate.ts:436`, not `:411-417`.
    The **30 call sites** figure is correct and still exact — `packages/host/src/handlers/`:
    `jobs.ts` ×10, `knowledge.ts` ×8, `finance.ts` ×4, `market.ts` ×3, `edit.ts` ×2, and one each in
    `runs.ts`, `legal.ts`, `enhance-prompt.ts`. Three more handlers carry a comment saying they are
@@ -44,7 +44,7 @@ None of them changes the shape of the phase; all of them change what is owed.
    re-serialising a parsed object does not reproduce them. See D4.
 
 5. **The seat counter's data already exists, but it does not measure what the rule says.**
-   `auth_sessions` (`packages/db/src/schema.ts:706-724`) carries `tenant_id`, `org_id` and
+   `auth_sessions` (`packages/db/src/schema.ts:804-822`) carries `tenant_id`, `org_id` and
    `user_id`, and the index at `:678` was added for exactly this counter — its comment says so.
    What it can answer is "signed in at some point in the last 30 days", not "has a live session":
    see D5.

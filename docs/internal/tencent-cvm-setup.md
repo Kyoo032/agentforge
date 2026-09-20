@@ -501,7 +501,7 @@ and it is worth knowing both, because this is where a first deploy usually stops
   why: a component is installed before anyone has pasted a gateway key. So it answers before any key
   exists and without touching the database.
 - The header is what gets the probe past the transport filter. In server mode `rejectPlaintext`
-  (`packages/host/src/http-adapter.ts:314-317`, called at `:421`) answers `403 https_required` to
+  (`packages/host/src/http-adapter.ts:315-318`, called at `:421`) answers `403 https_required` to
   every request that does not carry it, on **every** path, before routing. A probe without the header
   fails every time, `deploy.sh` waits its five minutes and exits non-zero, and the logs show nothing
   but 403s. Sending the header from inside the container is safe: that process is already past the
@@ -558,8 +558,8 @@ fix that before going further. If the browser itself cannot write (every action 
 typed, scheme and all.
 
 **5. Sign-in and the gateway gate.** In server mode every `/api` call needs a portal session except
-`/api/v1/auth/*`, `GET /api/v1/ping` (`packages/host/src/router.ts:187`) and `GET /api/v1/components`
-(`:199`); the gate is applied at `packages/host/src/router.ts:380`. **There is no browser sign-in
+`/api/v1/auth/*`, `GET /api/v1/ping` (`packages/host/src/router.ts:196`) and `GET /api/v1/components`
+(`:199`); the gate is applied at `packages/host/src/router.ts:397`. **There is no browser sign-in
 screen yet**, so the browser path ends here for now and the API path is exercised against
 `/api/v1/auth/*` directly.
 

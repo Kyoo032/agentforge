@@ -50,7 +50,7 @@ fails outright if either is missed:
   `packages/host/src/handlers/components.ts:4-8`), so it answers before any gateway key exists and
   without opening the database.
 - **The probe sends `x-forwarded-proto: https`** (`Dockerfile:103`). In server mode `rejectPlaintext`
-  (`packages/host/src/http-adapter.ts:314-317`) answers `403 https_required` to any request without
+  (`packages/host/src/http-adapter.ts:315-318`) answers `403 https_required` to any request without
   that header, on every path, before routing reaches the ungated set
   (`transportRejection` is called at `:421`). A probe without it never goes healthy. The header is
   safe here only because the sender is inside the container, past the boundary the rule defends; see

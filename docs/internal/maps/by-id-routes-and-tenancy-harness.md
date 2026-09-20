@@ -18,7 +18,7 @@ prefixes and per-tenant settings are lane D.
 
 ### The surface, counted
 
-`packages/host/src/router.ts:219` is one array of `compile(method, path, handler)` rows. At
+`packages/host/src/router.ts:228` is one array of `compile(method, path, handler)` rows. At
 `28230f6` it holds **151 registrations, 63 of them by-id** — a route is by-id when `compile`
 (`router.ts:180`) extracted at least one `:param` name into `keys`.
 
