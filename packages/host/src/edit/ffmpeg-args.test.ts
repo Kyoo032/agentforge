@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@agentforge/core";
 import { assertKnownRecipe } from "./ffmpeg/recipes";
 import { minimalEnv, runFfmpeg, setExecFileForTests } from "./ffmpeg/run";
-import { resolveFfmpeg } from "./ffmpeg-binary";
 
 describe("ffmpeg args (G-13)", () => {
   afterEach(() => {
@@ -19,11 +18,11 @@ describe("ffmpeg args (G-13)", () => {
       return { stdout: "out_time_us=1000\nprogress=end\n", stderr: "" };
     });
     setExecFileForTests(execFile as never);
-    const ffmpeg = resolveFfmpeg();
-    if (!ffmpeg.found) {
-      await expect(runFfmpeg(["-version"], { timeoutMs: 1000 })).rejects.toBeInstanceOf(ApiError);
-      return;
-    }
+    // Unconditional now. This used to bail out with a bare "it rejects" whenever ffmpeg was not
+    // installed, which meant the env-stripping assertions inside the stub above — the whole point
+    // of G-13 — never ran on a machine without it, and so never ran in CI. `setExecFileForTests`
+    // reaches the stub whether or not a real binary exists (see ./ffmpeg/run.ts), so the checks
+    // now run everywhere. `run-missing-binary.test.ts` covers the refusal this replaces.
     await runFfmpeg(["-hide_banner", "-version"], { timeoutMs: 5_000 });
     expect(execFile).toHaveBeenCalled();
     const env = minimalEnv({ OPENAI_API_KEY: "sk", AGENTFORGE_SECRETS_KEY: "x", PATH: "/usr/bin" });

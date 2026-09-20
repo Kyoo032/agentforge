@@ -1,5 +1,7 @@
+import { randomBytes } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { isServerMode, trustedOrigins, WORKSPACE_COOKIE } from "@agentforge/core";
+import { contentDispositionAttachment } from "./content-disposition";
 import {
   checkCsrfToken,
   CSRF_HEADER,
@@ -21,6 +23,7 @@ import {
   isLoopbackHostHeader,
 } from "./local-request";
 import { RATE_LIMITED_CODE, RATE_LIMITED_MESSAGE, checkRequestRate, clientIp, sessionRateKey } from "./rate-limit";
+import { applySecurityHeaders } from "./security-headers";
 import type { HostCookie, HostFile, HostRequest, HostResult } from "./types";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
@@ -62,6 +65,35 @@ const HTTPS_PROTO = "https";
 const FILTERED_EVENT = "request_filtered";
 /** Written when a handler escaped with an exception; the answer the caller gets says nothing. */
 const FAILED_EVENT = "request_failed";
+/**
+ * Written when an /api call was answered 401 by the session gate
+ * (docs/internal/security-owasp-2026-09.md, finding A09-2).
+ *
+ * Nothing used to record these: `router.ts` turns a failed session into an envelope and returns it,
+ * and `auth/routes.ts` wraps every login, refresh and logout failure the same way. So a failed
+ * sign-in, an expired or revoked session presented, `seat_cap_reached` and — the one that matters
+ * most — `refresh_reused`, which is the portal's token-theft signal, all left no trace. There was
+ * no line to alert on and nothing to reconstruct an incident from.
+ *
+ * The reason CODE is logged and nothing else that identifies anyone: no session id, no path, no
+ * body. `log.ts` would drop a field named for a session anyway.
+ */
+const AUTH_FAILED_EVENT = "auth_failed";
+
+/** Response header carrying the request id, so an app line and a proxy line can be joined. */
+const REQUEST_ID_HEADER = "X-Request-Id";
+
+/**
+ * A short correlation id, minted per request (finding A09-1).
+ *
+ * `log.ts` has said "prefer log.child({ tenantId, requestId })" since it was written and nothing
+ * ever minted one, so the Caddy access log and the app's own lines could not be joined and one
+ * request's warnings could not be grouped. 8 bytes is plenty to tell concurrent requests apart in a
+ * log window; it is not a secret and is deliberately not derived from anything about the caller.
+ */
+function mintRequestId(): string {
+  return randomBytes(8).toString("hex");
+}
 
 const HTTPS_REQUIRED: HttpRejection = {
   status: 403,
@@ -244,7 +276,9 @@ export async function writeHostResult(
     res.setHeader("Cache-Control", "private, max-age=3600");
     res.setHeader("X-Content-Type-Options", "nosniff");
     if (result.filename) {
-      res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
+      // Built rather than interpolated: a `"` in the name would otherwise start a parameter of its
+      // own, and a non-Latin-1 character would make `setHeader` throw. See ./content-disposition.
+      res.setHeader("Content-Disposition", contentDispositionAttachment(result.filename));
     }
     for (const [name, value] of Object.entries(result.headers ?? {})) {
       res.setHeader(name, value);
@@ -279,6 +313,8 @@ type RequestContext = {
   readonly pathLength: number;
   readonly ip: string | null;
   readonly serverMode: boolean;
+  /** Correlation id for this request; on the response as `X-Request-Id`. */
+  readonly requestId: string;
 };
 
 /**
@@ -294,6 +330,7 @@ function respondRejection(res: ServerResponse, rejection: HttpRejection, context
       method: context.method,
       pathLength: context.pathLength,
       ip: context.ip,
+      requestId: context.requestId,
     });
   }
   res.statusCode = rejection.status;
@@ -388,6 +425,11 @@ export async function handleNodeRequest(req: IncomingMessage, res: ServerRespons
   for (const name of IDENTITY_HEADERS) {
     res.removeHeader(name);
   }
+  // Before anything else writes a header, and for EVERY request this adapter is handed — the page
+  // and the built bundles included, which is why it is here and not only on the /api answers. A
+  // route that needs something stricter still wins: a handler's own headers are applied after
+  // these (see `writeHostResult`). Off server mode this is a no-op. See ./security-headers.
+  applySecurityHeaders(res, serverMode);
   const path = normaliseApiPath(rawPath);
   // Upper-cased once: every method test below, and the body reader, must agree on the verb.
   const method = (req.method ?? "GET").toUpperCase();
@@ -398,11 +440,15 @@ export async function handleNodeRequest(req: IncomingMessage, res: ServerRespons
     remoteAddress: req.socket?.remoteAddress,
     serverMode,
   });
+  const requestId = mintRequestId();
+  if (serverMode) {
+    res.setHeader(REQUEST_ID_HEADER, requestId);
+  }
   // The session id the browser presents, unverified — the router's gate is what verifies it. That is
   // enough to bind a CSRF token to: a bogus id gets a token nobody else holds, and the request is
   // 401'd a frame later anyway.
   const presentedSessionId = cookies[sessionCookieName({ secure: serverMode })] ?? null;
-  const context: RequestContext = { method, pathLength: path.length, ip, serverMode };
+  const context: RequestContext = { method, pathLength: path.length, ip, serverMode, requestId };
   /*
    * Transport filtering runs first, for EVERY request this adapter is handed and not just the /api
    * ones: the page, the built bundles and every 404 probe arrive through the same socket, and a
@@ -501,7 +547,9 @@ export async function handleNodeRequest(req: IncomingMessage, res: ServerRespons
  */
 async function dispatchMasked(request: HostRequest, context: RequestContext): Promise<HostResult> {
   try {
-    return maskServerError(await dispatch(request), context.serverMode);
+    const result = maskServerError(await dispatch(request), context.serverMode);
+    logAuthFailure(result, context);
+    return result;
   } catch (error) {
     if (!context.serverMode) {
       throw error;
@@ -511,6 +559,7 @@ async function dispatchMasked(request: HostRequest, context: RequestContext): Pr
       method: context.method,
       pathLength: context.pathLength,
       ip: context.ip,
+      requestId: context.requestId,
       error,
     });
     return {
@@ -519,6 +568,23 @@ async function dispatchMasked(request: HostRequest, context: RequestContext): Pr
       body: { error: { code: INTERNAL_ERROR_CODE, message: INTERNAL_ERROR_MESSAGE } },
     };
   }
+}
+
+/**
+ * One line per 401, with the reason code the session gate chose and nothing that identifies the
+ * caller beyond the client IP the rate limiter already keys on. See `AUTH_FAILED_EVENT`.
+ */
+function logAuthFailure(result: HostResult, context: RequestContext): void {
+  if (!context.serverMode || result.type !== "json" || result.status !== 401) {
+    return;
+  }
+  log.warn(AUTH_FAILED_EVENT, {
+    code: reasonCodeOf(result.body),
+    method: context.method,
+    pathLength: context.pathLength,
+    ip: context.ip,
+    requestId: context.requestId,
+  });
 }
 
 type Rejection = { readonly code: string; readonly message: string };

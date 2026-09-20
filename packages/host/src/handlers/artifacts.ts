@@ -5,6 +5,7 @@ import { jsonError, jsonOk } from "../errors";
 import { deleteSourceByOrigin } from "../knowledge";
 import { getTenant } from "../tenant";
 import { artifactStore, requireArtifact } from "../artifacts";
+import { contentDispositionAttachment } from "../content-disposition";
 import { log } from "../log";
 
 export async function handleGetArtifacts(request: HostRequest): Promise<HostResult> {
@@ -70,18 +71,6 @@ export const INERT_ARTIFACT_MIME = "application/octet-stream";
  */
 export const ARTIFACT_FILE_CSP = "sandbox";
 
-/** A quote, a backslash or a control byte would end the parameter or start a header of its own. */
-function isUnsafeFilenameChar(char: string): boolean {
-  return char < " " || char === "" || char === '"' || char === "\\";
-}
-
-function quotableFilename(filename: string): string {
-  return Array.from(filename, (char) => (isUnsafeFilenameChar(char) ? " " : char))
-    .join("")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 /**
  * The content type and headers an artifact body is served with. Split out from the handler so the
  * audit's cases (html, svg, xhtml, png) can be pinned without writing such a row to the store,
@@ -96,7 +85,7 @@ export function artifactFileDelivery(
   return {
     contentType,
     headers: {
-      "Content-Disposition": `attachment; filename="${quotableFilename(filename)}"`,
+      "Content-Disposition": contentDispositionAttachment(filename),
       "X-Content-Type-Options": "nosniff",
       "Content-Security-Policy": ARTIFACT_FILE_CSP,
     },

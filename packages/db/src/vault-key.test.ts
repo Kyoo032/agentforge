@@ -1,12 +1,17 @@
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { wrappingKeyFromSecret } from "@agentforge/core";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
 import {
   getLocalVaultKey,
+  hasKeyLikeVariety,
+  MASTER_KEY_FILE,
+  MASTER_KEY_FILE_UNUSABLE,
+  MIN_DISTINCT_KEY_BYTES,
   MIN_VAULT_KEY_BYTES,
+  SERVER_VAULT_KEY_NOT_RANDOM,
   SERVER_VAULT_KEY_TOO_WEAK,
   sqliteFilePath,
   vaultKeyEntropyBytes,
@@ -170,10 +175,58 @@ describe("getLocalVaultKey in server mode", () => {
 
   it("uses a long enough env key exactly as it always has, in hex or base64", () => {
     const dir = dataDir();
-    expect(getLocalVaultKey(serverEnv({ AGENTFORGE_SECRETS_KEY: HEX_KEY }))).toEqual(wrappingKeyFromSecret(HEX_KEY));
-    const b64 = Buffer.alloc(32, 9).toString("base64");
+    const hex = randomBytes(32).toString("hex");
+    expect(getLocalVaultKey(serverEnv({ AGENTFORGE_SECRETS_KEY: hex }))).toEqual(wrappingKeyFromSecret(hex));
+    const b64 = randomBytes(32).toString("base64");
     expect(getLocalVaultKey(serverEnv({ AGENTFORGE_SECRETS_KEY: ` ${b64} ` }))).toEqual(wrappingKeyFromSecret(b64));
     expect(existsSync(join(dir, ".master-key"))).toBe(false);
+  });
+
+  /**
+   * The length check measures the ENCODING, so a typed pattern of the right length used to pass it.
+   * `wrappingKeyFromSecret` is an unsalted SHA-256, so a guessable input is a guessable AES key for
+   * every envelope on the install — which is the whole point of demanding a generated one.
+   */
+  it("refuses a key that is the right length but plainly a typed pattern", () => {
+    const dir = dataDir();
+    for (const pattern of [
+      HEX_KEY, // "bbbb…" — one distinct byte
+      "0".repeat(64),
+      "deadbeef".repeat(8), // four distinct bytes, repeated
+      "0123".repeat(16),
+      Buffer.alloc(32, 9).toString("base64"),
+      Buffer.alloc(32, 0).toString("base64"),
+    ]) {
+      expect(vaultKeyEntropyBytes(pattern), pattern).toBeGreaterThanOrEqual(MIN_VAULT_KEY_BYTES);
+      expect(() => getLocalVaultKey(serverEnv({ AGENTFORGE_SECRETS_KEY: pattern })), pattern).toThrow(
+        SERVER_VAULT_KEY_NOT_RANDOM,
+      );
+    }
+    expect(existsSync(join(dir, ".master-key"))).toBe(false);
+  });
+
+  it("never refuses a real generated key as a pattern", () => {
+    // 32 uniform bytes hold ~31 distinct values; the floor is 12, so this can only fail if the
+    // check is wrong. A hundred draws would catch a threshold set anywhere near the distribution.
+    for (let i = 0; i < 100; i += 1) {
+      const key = randomBytes(32);
+      expect(hasKeyLikeVariety(key)).toBe(true);
+      expect(() => getLocalVaultKey(serverEnv({ AGENTFORGE_SECRETS_KEY: key.toString("hex") }))).not.toThrow();
+    }
+  });
+});
+
+describe("hasKeyLikeVariety", () => {
+  it("counts distinct byte values, not length", () => {
+    expect(hasKeyLikeVariety(Buffer.alloc(32, 1))).toBe(false);
+    expect(hasKeyLikeVariety(Buffer.from(Array.from({ length: 32 }, (_, i) => i % 4)))).toBe(false);
+    expect(hasKeyLikeVariety(Buffer.from(Array.from({ length: 32 }, (_, i) => i % MIN_DISTINCT_KEY_BYTES)))).toBe(true);
+    expect(hasKeyLikeVariety(Buffer.alloc(0))).toBe(false);
+  });
+
+  it("sits well below what a generated key carries", () => {
+    expect(MIN_DISTINCT_KEY_BYTES).toBeLessThan(20);
+    expect(new Set(randomBytes(32)).size).toBeGreaterThan(MIN_DISTINCT_KEY_BYTES);
   });
 });
 
@@ -190,5 +243,35 @@ describe("getLocalVaultKey outside server mode", () => {
   it("still accepts a short env key on a desk", () => {
     const env = { AGENTFORGE_DATA_DIR: dataDir(), AGENTFORGE_SECRETS_KEY: "hunter2" };
     expect(getLocalVaultKey(env)).toEqual(wrappingKeyFromSecret("hunter2"));
+  });
+
+  /**
+   * Only the file's EXISTENCE used to be checked. An empty one made `wrappingKeyFromSecret("")` the
+   * wrap key — `SHA-256("")`, a fixed value anyone can compute — and every envelope written after
+   * that was sealed with it, silently.
+   */
+  it("refuses an empty, blank or truncated .master-key instead of deriving a known key", () => {
+    for (const contents of ["", "   ", "\n", "abcd", "a".repeat(63), "not a key at all"]) {
+      const dir = dataDir();
+      writeFileSync(join(dir, MASTER_KEY_FILE), contents, "utf8");
+      expect(() => getLocalVaultKey({ AGENTFORGE_DATA_DIR: dir }), JSON.stringify(contents)).toThrow(
+        MASTER_KEY_FILE_UNUSABLE,
+      );
+    }
+  });
+
+  it("never derives the SHA-256 of the empty string as a wrapping key", () => {
+    const dir = dataDir();
+    writeFileSync(join(dir, MASTER_KEY_FILE), "", "utf8");
+    const wellKnown = wrappingKeyFromSecret("");
+    expect(wellKnown.toString("hex")).toBe("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+    expect(() => getLocalVaultKey({ AGENTFORGE_DATA_DIR: dir })).toThrow();
+  });
+
+  it("accepts a .master-key the app itself wrote, and reads it back unchanged", () => {
+    const dir = dataDir();
+    const written = randomBytes(32).toString("hex");
+    writeFileSync(join(dir, MASTER_KEY_FILE), `${written}\n`, "utf8");
+    expect(getLocalVaultKey({ AGENTFORGE_DATA_DIR: dir })).toEqual(wrappingKeyFromSecret(written));
   });
 });

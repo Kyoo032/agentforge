@@ -29,6 +29,13 @@ services:
       NODE_ENV: production
       PORT: "3000"
       AGENTFORGE_DATA_DIR: /data
+      # Pinned here, NOT left to .env above, which is `required: false`. This one flag switches on
+      # the session gate, CSRF, the Origin/Host allowlist, the HTTPS-only refusal, the rate limiters
+      # and the mandatory wrap key (packages/core/src/server-mode.ts isServerMode). A missing .env
+      # used to start this container with all of them off, serving every GET /api/v1/* without a
+      # session while the health check below still reported healthy. apps/web/lib/hosted-mode-guard.ts
+      # now refuses to boot in that state; this line is what keeps it from ever arising.
+      AGENTFORGE_SERVER: "1"
       # The root filesystem is read-only, so every tool that wants scratch space is
       # pointed at the tmpfs below. tsx (the production entrypoint) caches transformed
       # modules under os.tmpdir(); Node and corepack use the XDG/npm cache paths.
