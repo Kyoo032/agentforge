@@ -258,7 +258,7 @@ Suite state on the merged branch:
 
 | Package | Result |
 |---|---|
-| `@agentforge/host` | 201 files, **2069 tests, no failures** |
+| `@agentforge/host` | 201 files, **2070 tests, no failures** |
 | `@agentforge/core` | 2206 passed, 1 skipped |
 | `@agentforge/db` | 110 tests |
 | `apps/web` | 903 tests |
@@ -269,11 +269,12 @@ them on `main`. This branch is the first lane with a clean host suite, which als
 is now this PR's and nobody else's. One transient failure was seen once in `@agentforge/core`
 (`src/pdf/index.test.ts`, a worker-thread release under load); the core suite was re-run and passed.
 
-Typecheck: `tsc -p packages/host` reports the **same 10 pre-existing errors** (in 4 places) on this branch
-as on `main` (`request-constraints.ts` `ReadableStreamReadResult`, `agent-run.ts` `StubFillScenario.args`,
-`backend.ts` `Ingredient`, `handlers/agents.ts`). No new ones. The merge with `main` briefly added three —
-`meeting/audio.ts` was written against the old `assertInsidePath(candidate, string[])` signature — and
-tenant-scoping the meeting store cleared them.
+Typecheck: `tsc -p packages/host --noEmit` reports **zero errors** on this branch. It reported the same ten
+pre-existing ones as `main` (in four places) until PR #84 landed the cleanup and this branch took the seven
+`agent-run.ts` `StubFillScenario.args` sites and the `TitleLayout` export described in §6 below. Two merges
+with `main` each briefly added errors of their own — `meeting/audio.ts` written against the old
+`assertInsidePath(candidate, string[])` signature, then `parity.ts` after PR #84 — and both are resolved
+rather than recorded.
 
 Biome: no new findings. The repo-wide counts move from 411 errors / 17 warnings on `main` to 415 / 16 here,
 and every error in both sets is the pre-existing CRLF-vs-LF format noise — `biome.json` sets
@@ -340,7 +341,17 @@ carries `buildArgs(text)` instead. Three other sites in the same function alread
 `"buildArgs" in scenario ? scenario.buildArgs(input.text) : scenario.args`; the seven now use the same
 guard, resolved once into a local `scenarioArgs` so `buildArgs` is not invoked six extra times. The three
 that inline it are left alone, so each still builds its own object and nothing about the stub path changes
-beyond the guard. With PR #84's fixes this takes `tsc -p packages/host` to clean.
+beyond the guard.
+
+Merging PR #84 on top of that surfaced one more, in this lane's own file. `edit/parity.ts` began reporting
+`TS2742` on both its exported functions: their inferred types name `TitleLayout`, which `ass-subset.ts`
+exports but `@agentforge/core` did not re-export, so the type could only be named through a
+`node_modules/.../src` path. `TitleLayout` is now exported from `edit/index.ts` and the core index, beside
+the types PR #84 added there; no annotation is needed once the type is nameable. A biome reflow of the
+`find` predicate in the same file — lane D changed two lines there, the third was formatting noise — is
+undone, which is F5's rule applied to this round.
+
+With those, `tsc -p packages/host --noEmit` reports **zero errors** on this branch.
 
 F1 to F3 share one cause worth naming: Meeting and Telegram both merged to `main` while this branch was
 open, and a lane that sweeps call sites is only correct against the tree it started from. Two of the three
