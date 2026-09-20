@@ -6,7 +6,7 @@ import { defaultSelectableModel, listSelectableModels } from "../selectable-mode
 
 export async function handleGetChat(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const ready = await agentService.ensureDefaultChat(tenant);
     const specialists = (await agentService.list(tenant))
       .filter((agent) => !isDefaultChatAgent(agent) && agent.currentVersionId)

@@ -10,7 +10,7 @@ import { log } from "../log";
 
 export async function handleGetArtifacts(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const mode = request.query.mode;
     if (mode !== undefined && mode !== "" && !isArtifactMode(mode)) {
       throw new ApiError("invalid_request", "Unknown artifact mode", 400);
@@ -24,7 +24,7 @@ export async function handleGetArtifacts(request: HostRequest): Promise<HostResu
 
 export async function handleGetArtifact(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     return jsonOk(requireArtifact(tenant, request.params.artifactId));
   } catch (error) {
     return jsonError(error);
@@ -33,7 +33,7 @@ export async function handleGetArtifact(request: HostRequest): Promise<HostResul
 
 export async function handleDeleteArtifact(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     if (!artifactStore().remove(tenant, request.params.artifactId)) {
       throw new ApiError("not_found", "Artifact not found", 404);
     }
@@ -95,7 +95,7 @@ export function artifactFileDelivery(
 /** Native save on desktop comes for free: `apiFetch` writes any bytes result with a filename. */
 export async function handleGetArtifactFile(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const artifact = requireArtifact(tenant, request.params.artifactId);
     const filename = artifactFilename(artifact.title, artifact.mime);
     const delivery = artifactFileDelivery(artifact.mime, filename);

@@ -123,7 +123,7 @@ async function settingsPayload(
 
 export async function handleGetSettings(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const settings = loadSettings(tenant.workspaceId);
     // A desk that upgraded into the gate has a key but no verdict, and a verdict goes stale after a
     // day. Both are opened on trust, so this is where the gateway actually gets asked. Fire-and-
@@ -201,7 +201,7 @@ export type ServerModeDeps = { isServerMode?: () => boolean };
 
 export async function handlePostSettings(request: HostRequest, deps: ServerModeDeps = {}): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const body = (request.body ?? {}) as Record<string, unknown>;
     const serverMode = deps.isServerMode ? deps.isServerMode() : isServerMode();
     if (serverMode && requestsOperatorOnlySettings(body)) {
@@ -277,7 +277,7 @@ export async function handlePostSettings(request: HostRequest, deps: ServerModeD
 
 export async function handleApplyLocale(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     applySavedLocaleAsBoot();
     return jsonOk(await settingsPayload(loadSettings(tenant.workspaceId), tenant));
   } catch (error) {
@@ -329,7 +329,7 @@ async function refreshGatewayGateAfterSave(
 
 export async function handleGatewayCheck(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const gateway = await runGatewayCheck(loadSettings(tenant.workspaceId));
     return jsonOk({ gateway });
   } catch (error) {
@@ -430,7 +430,7 @@ export type ResetDeps = { isServerMode?: () => boolean };
 
 export async function handleResetApp(request: HostRequest, deps: ResetDeps = {}): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const body = (request.body ?? {}) as Record<string, unknown>;
     const scope = readOptionalString(body.scope);
     const serverMode = deps.isServerMode ? deps.isServerMode() : isServerMode();
@@ -453,7 +453,7 @@ export async function handleResetApp(request: HostRequest, deps: ResetDeps = {})
  */
 export async function handleCancelReset(request: HostRequest, deps: ResetDeps = {}): Promise<HostResult> {
   try {
-    await getTenant(request.workspaceId);
+    await getTenant(request);
     // Symmetry with the two refusals above: the pending-reset marker is machine-wide, so one tenant
     // must not be able to reach it either way. Arming a wipe is already refused in server mode, so
     // this cannot fire on anything the hosted service itself queued — it closes the case where a

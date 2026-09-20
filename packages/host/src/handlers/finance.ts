@@ -13,7 +13,7 @@ import { streamJob } from "../job-stream";
 
 export async function handlePostFinance(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowed(loadSettings(tenant.workspaceId));
     // `task` is validated before anything reaches the gateway: a task that ships
@@ -28,7 +28,7 @@ export async function handlePostFinance(request: HostRequest): Promise<HostResul
 /** computing -> drafting -> verifying -> saving, as job.* SSE events. */
 export async function handlePostFinanceStream(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowed(loadSettings(tenant.workspaceId));
     requireFinanceTask(request.body ?? null);
@@ -48,7 +48,7 @@ export async function handlePostFinanceStream(request: HostRequest): Promise<Hos
  */
 export async function handlePostFinanceParse(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowed(loadSettings(tenant.workspaceId));
     const task = requireFinanceTask(request.body ?? null);
@@ -60,7 +60,7 @@ export async function handlePostFinanceParse(request: HostRequest): Promise<Host
 
 export async function handlePostFinanceRegen(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowed(loadSettings(tenant.workspaceId));
     requireFinanceTask(request.body ?? null);

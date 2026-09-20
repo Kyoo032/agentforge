@@ -38,7 +38,7 @@ import { analyzeDataset } from "../data-generate";
 
 export async function handleGetImages(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const items = await listStudioGallery(tenant, "image");
     const settings = loadSettings(tenant.workspaceId);
     // Price rows come from the curated list table, with the already-cached gateway catalog as a fallback.
@@ -66,7 +66,7 @@ export async function handleGetImages(request: HostRequest): Promise<HostResult>
 
 export async function handlePostImages(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowed(loadSettings(tenant.workspaceId));
     const result = await generateStudioImage(tenant, parseImageGenerateBody(request.body ?? {}));
@@ -78,7 +78,7 @@ export async function handlePostImages(request: HostRequest): Promise<HostResult
 
 export async function handleGetVideos(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const items = await listStudioGallery(tenant, "video");
     const settings = loadSettings(tenant.workspaceId);
     // Video list prices are per second, so the gateway's flat per-call rate is never substituted here.
@@ -104,7 +104,7 @@ export async function handleGetVideos(request: HostRequest): Promise<HostResult>
 
 export async function handlePostVideos(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowed(loadSettings(tenant.workspaceId));
     const result = await generateStudioVideo(tenant, parseVideoGenerateBody(request.body ?? {}));
@@ -116,7 +116,7 @@ export async function handlePostVideos(request: HostRequest): Promise<HostResult
 
 export async function handleGetMusic(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const items = await listStudioGallery(tenant, "audio");
     const settings = loadSettings(tenant.workspaceId);
     // Music is billed a flat rate per job, so the "track" unit takes the gateway catalog's per-call
@@ -150,7 +150,7 @@ export async function handleGetMusic(request: HostRequest): Promise<HostResult> 
 
 export async function handlePostMusic(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowed(loadSettings(tenant.workspaceId));
     const result = await generateStudioMusic(tenant, parseMusicGenerateBody(request.body ?? {}));
@@ -162,7 +162,7 @@ export async function handlePostMusic(request: HostRequest): Promise<HostResult>
 
 export async function handlePostMusicLyrics(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     requireGatewayAllowed(loadSettings(tenant.workspaceId));
     return jsonOk(await writeStudioLyrics(tenant, parseLyricsWriteBody(request.body ?? {})));
   } catch (error) {
@@ -172,7 +172,7 @@ export async function handlePostMusicLyrics(request: HostRequest): Promise<HostR
 
 export async function handlePostDocuments(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowed(loadSettings(tenant.workspaceId));
     return jsonOk(await generateDocumentDraft(tenant, request.body ?? null));
@@ -183,7 +183,7 @@ export async function handlePostDocuments(request: HostRequest): Promise<HostRes
 
 export async function handlePostDocumentsRegen(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowed(loadSettings(tenant.workspaceId));
     return jsonOk(await regenerateDocumentSection(tenant, request.body ?? null));
@@ -210,7 +210,7 @@ export async function handlePostDocumentsDocx(request: HostRequest): Promise<Hos
 
 export async function handlePostPresentations(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowed(loadSettings(tenant.workspaceId));
     return jsonOk(await generatePresentationOutline(tenant, request.body ?? null));
@@ -221,7 +221,7 @@ export async function handlePostPresentations(request: HostRequest): Promise<Hos
 
 export async function handlePostPresentationsRegen(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowed(loadSettings(tenant.workspaceId));
     return jsonOk(await regeneratePresentationSlide(tenant, request.body ?? null));
@@ -249,7 +249,7 @@ export async function handlePostPresentationsPptx(request: HostRequest): Promise
 
 export async function handlePostResearch(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowed(loadSettings(tenant.workspaceId));
     return jsonOk(await generateResearchNotes(tenant, request.body ?? null));
@@ -261,7 +261,7 @@ export async function handlePostResearch(request: HostRequest): Promise<HostResu
 /** Same job as POST /api/v1/research, streamed as job.* SSE events (phase → step → source → done). */
 export async function handlePostResearchStream(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowed(loadSettings(tenant.workspaceId));
     return streamJob((emit, abortSignal) => generateResearchNotes(tenant, request.body ?? null, emit, abortSignal), {
@@ -274,7 +274,7 @@ export async function handlePostResearchStream(request: HostRequest): Promise<Ho
 
 export async function handlePostData(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowed(loadSettings(tenant.workspaceId));
     return jsonOk(await analyzeDataset(tenant, request.body ?? null));
@@ -286,7 +286,7 @@ export async function handlePostData(request: HostRequest): Promise<HostResult> 
 /** Same job as POST /api/v1/data, streamed: profiling -> analyzing (one step per SQL query) -> verifying -> saving. */
 export async function handlePostDataStream(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowed(loadSettings(tenant.workspaceId));
     return streamJob((emit, abortSignal) => analyzeDataset(tenant, request.body ?? null, emit, abortSignal), {

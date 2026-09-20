@@ -127,12 +127,25 @@ export async function listLocalWorkspaces(db: Database, organizationId: string) 
   return db.select().from(workspaces).where(eq(workspaces.organizationId, organizationId));
 }
 
+/**
+ * Create a desk in an organisation and make one user its owner.
+ *
+ * `ownerUserId` defaults to `LOCAL_OWNER_ID`, which is right on the desktop and on webdev: there is
+ * one user there and this function predates there being any other. On the hosted server it was
+ * **wrong, and a 500** — a portal-provisioned database has no `local-owner` row, so the
+ * `workspace_members` insert below violated its foreign key and `POST /api/v1/workspaces` failed
+ * for every signed-in tenant. Found by the Phase 3 lane E tenancy harness, which could not seed a
+ * second desk for a portal tenant (`packages/host/src/tenancy-harness.test.ts`);
+ * `handlePostWorkspaces` now passes `tenant.userId`. The default is kept so the desktop's callers
+ * are untouched.
+ */
 export async function createLocalWorkspace(
   db: Database,
   organizationId: string,
   name: string,
   templatePack?: string,
   productModes?: ProductMode[],
+  ownerUserId: string = LOCAL_OWNER_ID,
 ) {
   const base = slugifyWorkspace(name);
   let slug = base;
@@ -161,7 +174,7 @@ export async function createLocalWorkspace(
   await db.insert(workspaceMembers).values({
     workspaceId: row.id,
     organizationId,
-    userId: LOCAL_OWNER_ID,
+    userId: ownerUserId,
     role: "owner",
   });
   return row;

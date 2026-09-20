@@ -26,7 +26,7 @@ export function datasetPayload(dataset: LoadedDataset) {
 
 export async function handlePostDatasets(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const file = request.files?.find((item) => item.field === "file") ?? request.files?.[0];
     if (file) {
       if (file.bytes.byteLength > DATASET_MAX_BYTES) {
@@ -58,7 +58,7 @@ export async function handlePostDatasets(request: HostRequest): Promise<HostResu
 
 export async function handleGetDatasets(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     return jsonOk({ items: datasetStore().list(tenant) });
   } catch (error) {
     return jsonError(error);
@@ -67,7 +67,7 @@ export async function handleGetDatasets(request: HostRequest): Promise<HostResul
 
 export async function handleGetDataset(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     return jsonOk(datasetPayload(requireDataset(tenant, request.params.datasetId)));
   } catch (error) {
     return jsonError(error);
@@ -76,7 +76,7 @@ export async function handleGetDataset(request: HostRequest): Promise<HostResult
 
 export async function handleDeleteDataset(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     if (!datasetStore().remove(tenant, request.params.datasetId)) {
       throw new ApiError("not_found", "Dataset not found", 404);
     }
