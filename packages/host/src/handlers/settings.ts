@@ -155,6 +155,7 @@ export async function handlePostSettings(request: HostRequest): Promise<HostResu
       toolBackends: readStringMap(body.toolBackends),
       imageGenModel: readOptionalString(body.imageGenModel),
       videoGenModel: readOptionalString(body.videoGenModel),
+      musicGenModel: readOptionalString(body.musicGenModel),
       documentGenModel: readOptionalString(body.documentGenModel),
       researchGenModel: readOptionalString(body.researchGenModel),
       presentationGenModel: readOptionalString(body.presentationGenModel),
@@ -162,7 +163,7 @@ export async function handlePostSettings(request: HostRequest): Promise<HostResu
       injectionGuardBypass: readOptionalBoolean(body.injectionGuardBypass),
       editTurnCapUsd: readOptionalNumber(body.editTurnCapUsd),
     };
-    const saved = saveSettings(patch, tenant.workspaceId);
+    const saved = saveSettings(patch, tenant);
     clearThisKeyCache();
     // A fixed key / URL must take effect now, not after the 5-minute embeddings breaker expires —
     // and the job-side breaker skips a model for the same five minutes, so it is cleared with it.

@@ -17,6 +17,7 @@ Gateway identity stays **Toko Token** (`api.tokotokenai.com/v1`). Do not merge T
 | Legal         | `legal`        | `/legal`           | Matter of .docx files → position-aware review → verified memo, tracked-changes redline, deviation report |
 | Images        | `images`       | `/images`          | Prompt → generate images → gallery |
 | Videos        | `videos`       | `/videos`          | Prompt → generate videos → gallery |
+| Music         | `music`        | `/music`           | Description or lyrics → generate music → gallery (two takes per job) |
 | Presentation  | `presentations`| `/presentations`   | Prompt → outline → HTML preview + PPTX |
 | Knowledge Base | —             | `/knowledge`       | Account-rail Soul / Memory / Sources / Map + models (not a product mode) |
 | Settings      | —              | `/settings`        | Gateway key, privacy (not a surface) |
@@ -97,6 +98,14 @@ Lumina-style **generate** studio: prompt bar + result gallery. Not a canvas edit
 ### Videos
 
 Same pattern for video: prompt, aspect, optional still (`image_url`), gallery. Direct generate path — not `/runs/video`. The picker lists **every** gateway video id. Cheap default is `grok-imagine-video` (or `omni-fast-v2v`); Seedance 2.5 stays in the picker as the quality option.
+
+### Music
+
+Third generate studio, same pattern as Images and Videos: a brief, a picker, a gallery. Two modes — **Describe** (a sentence the model turns into a song) and **Custom** (lyrics the desk wrote, plus style tags, a title and an instrumental switch). A **Draft lyrics** button writes lyrics into the box without spending a music charge.
+
+Unlike its siblings the wire is not a `/v1` route: the gateway's only music backend is an async Suno relay on the gateway origin (`POST /suno/submit/{music,lyrics}`, then `GET /suno/fetch/<id>`). Because Suno answers one submit with **two takes for one charge**, both are saved — each becomes its own media row, its own gallery tile and its own Knowledge card. Tracks are served by the existing `GET /api/v1/media/:id/file`.
+
+Text-to-speech is built but **off**: the gateway's only TTS id is realtime (WebSocket), which a job route cannot drive, so the studio states the reason instead of offering a control. It turns itself on with no code change the day a plain TTS id appears in the catalog. Transcription is not part of this mode.
 
 ### Presentation
 

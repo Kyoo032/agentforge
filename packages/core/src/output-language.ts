@@ -6,6 +6,7 @@ export const OUTPUT_LANGUAGE_SURFACES = [
   "finance",
   "data",
   "videos",
+  "music",
   "edit",
   "knowledge",
 ] as const;
@@ -36,6 +37,10 @@ const RULE: Record<OutputLanguageSurface, Record<AppLocale, string>> = {
   videos: {
     en: "Spoken dialogue, narration, and any on-screen text in this clip must be in English unless the prompt already names another language.",
     id: "Dialog, narasi, dan teks di layar pada klip ini harus dalam bahasa Indonesia, kecuali prompt sudah menyebut bahasa lain.",
+  },
+  music: {
+    en: "Write the lyrics, the title, and any spoken or sung words in English unless the prompt already names another language. Leave style and genre tags in English.",
+    id: "Tulis lirik, judul, dan setiap kata yang diucapkan atau dinyanyikan dalam bahasa Indonesia, kecuali prompt sudah menyebut bahasa lain. Biarkan tag gaya dan genre dalam bahasa Inggris.",
   },
   edit: {
     en: "Write user-facing Edit text (card verbs, titles, captions, assistant replies, and any on-image or on-video words) in English. Keep tool names and JSON keys in English.",
@@ -86,6 +91,7 @@ export const GATEWAY_REQUIRED_SURFACES = [
   "data",
   "market",
   "videos",
+  "music",
 ] as const;
 
 export type GatewayRequiredSurface = (typeof GATEWAY_REQUIRED_SURFACES)[number];
@@ -118,6 +124,10 @@ const GATEWAY_REQUIRED: Record<GatewayRequiredSurface, Record<AppLocale, string>
   videos: {
     en: "Add a Toko Token gateway key in Settings to generate videos.",
     id: "Tambahkan kunci gerbang Toko Token di Settings untuk membuat video.",
+  },
+  music: {
+    en: "Add a Toko Token gateway key in Settings to generate music.",
+    id: "Tambahkan kunci gerbang Toko Token di Settings untuk membuat musik.",
   },
 };
 

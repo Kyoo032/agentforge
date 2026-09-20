@@ -100,6 +100,7 @@ function normalizeSecrets(parsed: StoredSecrets): StoredSecrets {
     toolBackends: readStringMap(parsed.toolBackends),
     imageGenModel: readString(parsed.imageGenModel),
     videoGenModel: readString(parsed.videoGenModel),
+    musicGenModel: readString(parsed.musicGenModel),
     documentGenModel: readString(parsed.documentGenModel),
     researchGenModel: readString(parsed.researchGenModel),
     presentationGenModel: readString(parsed.presentationGenModel),

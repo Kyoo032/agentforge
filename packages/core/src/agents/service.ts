@@ -248,7 +248,7 @@ export class AgentService {
   async updateGenerateDefaults(
     tenant: TenantContext,
     agentId: string,
-    patch: { imageGenModel?: string | null; videoGenModel?: string | null },
+    patch: { imageGenModel?: string | null; videoGenModel?: string | null; musicGenModel?: string | null },
   ): Promise<AgentVersionRecord> {
     const agent = await this.requireOwned(tenant, agentId);
     if (!agent.currentVersionId) {

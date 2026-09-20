@@ -555,6 +555,7 @@ export const WORK_SOURCE_TYPES = [
   "Market",
   "Images",
   "Videos",
+  "Music",
   "Presentation",
   "Edit",
   "Legal",

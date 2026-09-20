@@ -19,7 +19,12 @@
 
 export type MediaPriceTier = "default" | "low" | "medium" | "high" | "480p" | "720p" | "1080p" | "4k";
 
-export type MediaPriceUnit = "image" | "second";
+/**
+ * `track` is a flat charge for one finished job, the way the gateway bills the Suno relay. It is not
+ * a second `image`: a music job returns two takes for one charge, so anything that counts units has
+ * to count jobs, never files.
+ */
+export type MediaPriceUnit = "image" | "second" | "track";
 
 export type MediaPriceConfidence = "high" | "medium" | "low";
 
@@ -579,6 +584,19 @@ export type VideoCostOptions = {
   seconds: number;
   resolution?: "480p" | "720p" | "1080p" | "4k";
 };
+
+/**
+ * Cost of `count` music jobs at a flat per-job price. There are no tiers to resolve: the gateway
+ * charges the same whatever the song is, and no vendor publishes a Suno API list price at all —
+ * Suno sells a consumer subscription — so a row reaching this function is almost always the
+ * gateway's own catalog figure.
+ */
+export function estimateMusicCost(price: MediaPrice, options: { count?: number } = {}): MediaEstimate {
+  const raw = options.count ?? 1;
+  const count = Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : 1;
+  const tier = price.defaultTier;
+  return estimateFrom(price, tier, false, count, price.tiers[tier] ?? 0);
+}
 
 /** Cost of one clip: per-second list price times the clip length. */
 export function estimateVideoCost(price: MediaPrice, options: VideoCostOptions): MediaEstimate {

@@ -6,15 +6,22 @@ import { agentService, getTenant } from "../tenant";
 import { loadSettings } from "../settings-store";
 import {
   defaultStudioImageModel,
+  defaultStudioMusicModel,
   defaultStudioVideoModel,
   generateStudioImage,
+  generateStudioMusic,
   generateStudioVideo,
   listStudioGallery,
   listStudioImageModels,
+  listStudioMusicModels,
   listStudioVideoModels,
   parseImageGenerateBody,
+  parseLyricsWriteBody,
+  parseMusicGenerateBody,
   parseVideoGenerateBody,
   studioRouteReady,
+  studioSpeechUnavailable,
+  writeStudioLyrics,
 } from "../studio-generate";
 import { attachMediaPrices } from "../media-price";
 import { cachedPricingCatalog } from "../account-usage";
@@ -102,6 +109,62 @@ export async function handlePostVideos(request: HostRequest): Promise<HostResult
     requireGatewayAllowedFor(tenant);
     const result = await generateStudioVideo(tenant, parseVideoGenerateBody(request.body ?? {}));
     return jsonOk(result, 201);
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+export async function handleGetMusic(request: HostRequest): Promise<HostResult> {
+  try {
+    const tenant = await getTenant(request.workspaceId);
+    const items = await listStudioGallery(tenant, "audio");
+    const settings = loadSettings(tenant);
+    // Music is billed a flat rate per job, so the "track" unit takes the gateway catalog's per-call
+    // figure. No vendor list price exists for Suno at all — it sells a consumer subscription, not an
+    // API — so a desk with no cached catalog honestly shows "no list price on file".
+    const models = attachMediaPrices(
+      listStudioMusicModels(),
+      "track",
+      cachedPricingCatalog(resolvedGatewayBaseUrl()),
+      resolvedGatewayBaseUrl(),
+    );
+    const sources = await agentService.listGenerateDefaultSources(tenant);
+    const defaultModel = resolveStudioGenerateDefault({
+      kind: "music",
+      sources,
+      settingsModel: settings.musicGenModel,
+      catalogPreferred: defaultStudioMusicModel(models),
+    });
+    return jsonOk({
+      items,
+      models,
+      defaultModel,
+      ready: studioRouteReady("music_gen", tenant),
+      // Why the voice-over control is off, or null when a reachable TTS model exists.
+      speechUnavailable: studioSpeechUnavailable(),
+    });
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+export async function handlePostMusic(request: HostRequest): Promise<HostResult> {
+  try {
+    const tenant = await getTenant(request.workspaceId);
+    // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
+    requireGatewayAllowedFor(tenant);
+    const result = await generateStudioMusic(tenant, parseMusicGenerateBody(request.body ?? {}));
+    return jsonOk(result, 201);
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+export async function handlePostMusicLyrics(request: HostRequest): Promise<HostResult> {
+  try {
+    const tenant = await getTenant(request.workspaceId);
+    requireGatewayAllowedFor(tenant);
+    return jsonOk(await writeStudioLyrics(tenant, parseLyricsWriteBody(request.body ?? {})));
   } catch (error) {
     return jsonError(error);
   }
