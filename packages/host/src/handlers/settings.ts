@@ -135,30 +135,80 @@ export async function handleGetSettings(request: HostRequest): Promise<HostResul
   }
 }
 
+/**
+ * Fields of `POST /api/v1/settings` that belong to the OPERATOR, not to the caller
+ * (docs/internal/security-owasp-2026-09.md, finding A01-2).
+ *
+ * The settings store is machine-wide, so every one of these is shared by every tenant on the box:
+ * the provider keys are the operator's gateway credentials, `toolKeys` / `toolBackends` are the
+ * credentials and endpoints every tenant's tools run through, and `injectionGuardBypass` switches
+ * off the prompt-injection guard for the whole process. The handler had no notion of privilege, so
+ * one signed-in tenant could rewrite any of them for everybody.
+ *
+ * Two shapes had to be told apart to fix this without breaking the Settings page. A key sent as the
+ * EMPTY string is not a change the caller asked for — it is the renderer echoing an input nobody
+ * typed in (`apps/web/components/settings-page.tsx` posts `openaiApiKey` from state on every save)
+ * — and `mergeSecrets` DELETES the stored key on an empty string, so the hosted Settings page was
+ * wiping the operator's gateway key for every tenant each time anyone saved a spend cap. Those are
+ * dropped silently. A real value is a real attempt, and answers 403 with the same reason code the
+ * "forget my key" refusal already uses.
+ */
+const OPERATOR_ONLY_CODE = "settings_operator_only";
+const OPERATOR_ONLY_MESSAGE =
+  "Those settings are managed by the operator on the hosted service: the gateway and provider keys, " +
+  "the tool credentials and backends, and the prompt-injection guard. They are shared by every " +
+  "tenant on this server, so they cannot be changed from here.";
+
+/** Provider key fields, which `mergeSecrets` clears on an empty string. */
+const OPERATOR_KEY_FIELDS = ["openaiApiKey", "googleApiKey", "anthropicApiKey", "volcengineApiKey"] as const;
+
+/** True when the body actually asks to CHANGE an operator-owned field, rather than echoing a blank. */
+export function requestsOperatorOnlySettings(body: Record<string, unknown>): boolean {
+  for (const field of OPERATOR_KEY_FIELDS) {
+    const value = body[field];
+    if (typeof value === "string" && value.trim().length > 0) {
+      return true;
+    }
+  }
+  for (const field of ["toolKeys", "toolBackends"] as const) {
+    const value = body[field];
+    if (value !== null && typeof value === "object" && Object.keys(value as object).length > 0) {
+      return true;
+    }
+  }
+  return body.injectionGuardBypass === true;
+}
+
 export async function handlePostSettings(request: HostRequest): Promise<HostResult> {
   try {
     const tenant = await getTenant(request.workspaceId);
     const body = (request.body ?? {}) as Record<string, unknown>;
+    const serverMode = isServerMode();
+    if (serverMode && requestsOperatorOnlySettings(body)) {
+      throw new ApiError(OPERATOR_ONLY_CODE, OPERATOR_ONLY_MESSAGE, 403);
+    }
     if (body.locale !== undefined) {
       if (!isAppLocale(body.locale)) {
         throw new ApiError("invalid_request", "locale must be en or id", 400);
       }
       saveOwnerLocale(body.locale);
     }
+    // In server mode the operator-owned fields never reach the patch at all: the check above proved
+    // none of them carries a value, and an empty one would otherwise DELETE the shared key.
     const patch: SecretPatch = {
-      openaiApiKey: typeof body.openaiApiKey === "string" ? body.openaiApiKey : undefined,
-      googleApiKey: typeof body.googleApiKey === "string" ? body.googleApiKey : undefined,
-      anthropicApiKey: typeof body.anthropicApiKey === "string" ? body.anthropicApiKey : undefined,
-      volcengineApiKey: typeof body.volcengineApiKey === "string" ? body.volcengineApiKey : undefined,
-      toolKeys: readStringMap(body.toolKeys),
-      toolBackends: readStringMap(body.toolBackends),
+      openaiApiKey: !serverMode && typeof body.openaiApiKey === "string" ? body.openaiApiKey : undefined,
+      googleApiKey: !serverMode && typeof body.googleApiKey === "string" ? body.googleApiKey : undefined,
+      anthropicApiKey: !serverMode && typeof body.anthropicApiKey === "string" ? body.anthropicApiKey : undefined,
+      volcengineApiKey: !serverMode && typeof body.volcengineApiKey === "string" ? body.volcengineApiKey : undefined,
+      toolKeys: serverMode ? undefined : readStringMap(body.toolKeys),
+      toolBackends: serverMode ? undefined : readStringMap(body.toolBackends),
       imageGenModel: readOptionalString(body.imageGenModel),
       videoGenModel: readOptionalString(body.videoGenModel),
       documentGenModel: readOptionalString(body.documentGenModel),
       researchGenModel: readOptionalString(body.researchGenModel),
       presentationGenModel: readOptionalString(body.presentationGenModel),
       disabledTools: readStringArray(body.disabledTools),
-      injectionGuardBypass: readOptionalBoolean(body.injectionGuardBypass),
+      injectionGuardBypass: serverMode ? undefined : readOptionalBoolean(body.injectionGuardBypass),
       editTurnCapUsd: readOptionalNumber(body.editTurnCapUsd),
     };
     const saved = saveSettings(patch, tenant.workspaceId);
@@ -379,6 +429,14 @@ export async function handleResetApp(request: HostRequest, deps: ResetDeps = {})
 export async function handleCancelReset(request: HostRequest): Promise<HostResult> {
   try {
     await getTenant(request.workspaceId);
+    // Symmetry with the two refusals above: the pending-reset marker is machine-wide, so one tenant
+    // must not be able to reach it either way. Arming a wipe is already refused in server mode, so
+    // this cannot fire on anything the hosted service itself queued — it closes the case where a
+    // marker arrives another way (a restored data dir, a desk volume mounted on the server) and one
+    // tenant quietly cancels a wipe the operator armed.
+    if (isServerMode()) {
+      throw new ApiError(RESET_DISABLED_CODE, RESET_DISABLED_MESSAGE, 403);
+    }
     // `recursive` so that a directory left at the marker path — a botched restore, a sync client —
     // is cleared like anything else instead of throwing EISDIR and turning "cancel my wipe" into a
     // 500 the owner cannot get past.

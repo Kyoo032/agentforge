@@ -78,10 +78,13 @@ export {
   SAFE_FETCH_DEFAULT_TIMEOUT_MS,
   SAFE_FETCH_MAX_HOPS,
   assertPublicHttpsUrl,
+  assertResolvesPublic,
   fetchPublicHttps,
   nextHopUrl,
 } from "./security/safe-fetch";
-export type { SafeFetchOptions, SafeFetchResult } from "./security/safe-fetch";
+export type { HostLookup, ResolvedAddress, SafeFetchOptions, SafeFetchResult } from "./security/safe-fetch";
+export { isPrivateHostname, isPrivateIpAddress, isPrivateIpLiteral, parseIpAddress } from "./security/ip-range";
+export type { IpAddress } from "./security/ip-range";
 export {
   HTML_TEXT_DEFAULT_MAX_CHARS,
   htmlToText,

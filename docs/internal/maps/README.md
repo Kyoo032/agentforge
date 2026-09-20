@@ -38,7 +38,7 @@ Rules that keep these honest:
 - **Add `Why` only where a decision needs a record** and a source exists — a commit message, a changelog entry, `AGENTS.md`, a PR. No sources, no `Why` section.
 - **Testids are DOM testids.** Sub-feature names in the verify skill (`chat-send`, `chat-probe`) are recipe names, not `data-testid` values; say which you mean.
 - **Read-only.** `how` runs never change product code. A product bug a mapping run finds is a finding for `docs/internal/unreleased.md`, not a fix in the map PR.
-- Line endings are CRLF, like every other doc in this tree.
+- Line endings are LF, like every other doc in this tree. (This line said CRLF until 2026-09-20; no page in `docs/` has ever been CRLF, and `.gitattributes` pins LF for the file types that must have it.)
 
 ## Pages
 
@@ -67,3 +67,4 @@ Rules that keep these honest:
 | [`pii-and-key-security.md`](pii-and-key-security.md) | PII masking on the outbound copy, and the gateway key envelope | `features/pii.md`, `features/security.md` |
 | [`market-watch.md`](market-watch.md) | Market Watch: rail desk → per-desk watchlist → keyless board → harness packet → guarded briefing | `features/market.md`, `features/rail.md` |
 | [`component-installer.md`](component-installer.md) | First-run installer for native components: manifest → stages → hash-checked download → marker | `features/components.md` |
+| [`hosted-security-controls.md`](hosted-security-controls.md) | The hosted perimeter: server mode, admission order, sessions, CSRF, rate limits, response headers, SSRF guard, container hardening | none yet — see the page's Verify section |
