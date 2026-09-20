@@ -1,6 +1,6 @@
 # Map — Generate studios (Images and Videos)
 
-Last verified: 2026-09-17 at 01ea70a
+Last verified: 2026-09-20 at b482611
 
 ## Overview
 
@@ -14,7 +14,7 @@ The second thing: **whatever the gateway returns is mirrored before the user see
 
 ### 1. Getting there, and staying there
 
-`mode-images` / `mode-videos` on the left rail are `mode-${href.slice(1)}` buttons (`apps/web/components/app-rail.tsx:294-300`). The route maps to a component in `WORK_MODE_COMPONENTS` (`apps/web/components/work-mode-keep-alive.tsx:16-28`): `/images` → `ImagesStudio`, `/videos` → `VideosStudio`.
+`mode-images` / `mode-videos` on the left rail are `mode-${href.slice(1)}` buttons (`apps/web/components/app-rail.tsx:307-318`). The route maps to a component in `WORK_MODE_COMPONENTS` (`apps/web/components/work-mode-keep-alive.tsx:16-28`): `/images` → `ImagesStudio`, `/videos` → `VideosStudio`.
 
 `WorkModePanes` (`apps/web/components/work-mode-keep-alive.tsx:46-77`) **keeps every visited work mode mounted** and hides the inactive ones with `hidden` plus a `hidden` class, so in-flight state survives a rail switch. The whole set remounts when the workspace scope id changes (`key={id ?? "boot"}`, `:41-44`). Consequence for anyone driving the app: after visiting `/images` and then `/videos`, `images-studio` is still in the DOM (count 1, not visible) and any testid the two pages share — `example-gallery` is the one that bites — resolves to **two** elements.
 
@@ -100,7 +100,7 @@ On the host, `handlePostImages` / `handlePostVideos` (`packages/host/src/handler
 3. `imageGenerateTool.execute({ prompt: withImageOutputLanguage(maskPii(prompt), locale), aspect_ratio, image_url, model })` (`:163-173`). **The prompt is PII-masked and locale-stamped before it leaves the process.**
 4. `toolSuccessUrl(output, "image")` (`:119-129`) insists on `success === true` plus a non-empty string. Anything else is `tool_failed`, 400, carrying the tool's own error text (`:174-177`).
 5. `saveGeneratedImage(tenant, url)` mirrors it (`:178-179`) → a local `/api/v1/media/<id>/file`.
-6. Sidecar meta (`:183-190`) and a Knowledge work card (`:191-202`, `packages/host/src/work-cards.ts:82-101`) — a text card holding the prompt, aspect, model and a `media:<id>` pointer. **No bytes go to Knowledge.**
+6. Sidecar meta (`:183-190`) and a Knowledge work card (`:191-202`, `packages/host/src/work-cards.ts:98-117`) — a text card holding the prompt, aspect, model and a `media:<id>` pointer. **No bytes go to Knowledge.**
 
 `generateStudioVideo` (`:207-268`) is the same shape with three differences: it re-checks `studioRouteReady("video_gen")` itself and 400s with `gatewayRequiredMessage` (`:212-214`) — the image path has no such check; it re-checks the still gate against the *resolved* model rather than the body's (`:218-220`); and it snaps the clip length server-side with `snapVideoSeconds(model, body.seconds)` (`:228`) so a hand-written body cannot ask Veo for 5 seconds. Its failure status is not a flat 400 but `studioVideoFailureStatus(message)` (`packages/core/src/tools/platform/gateway-media.ts:83-91`), which lifts 503 for "no live gateway channel" / upstream-rejected and 401 for a rejected key.
 
@@ -121,7 +121,7 @@ Both tools resolve their backend first and return a **structured failure rather 
 
 `items` render as a grid (`apps/web/components/images-studio.tsx:224-232`, `apps/web/components/videos-studio.tsx:322-339`), each `src` passed through `mediaSrc` (`apps/web/lib/api-client.ts:208-210` → `apps/web/lib/media-src.ts:12-23`), which rewrites `/api/v1/media/<id>/file` to `agentforge://media/<id>` inside the packaged shell and leaves it alone in the browser. Videos add a per-clip download anchor, `videos-studio-download` (`apps/web/components/videos-studio.tsx:328-335`). Empty lists show `images-studio-empty` / `videos-studio-empty` (`:216-222` / `:314-320`), but only once `loading` is false — the loading branch comes first.
 
-`GET /api/v1/media/:mediaId/file` → `handleGetMediaFile` (`packages/host/src/handlers/media.ts:26-50`), routed at `packages/host/src/router.ts:199`, ungated, scoped by `organizationId`, served through `readByteRange` (`packages/host/src/byte-range.ts:86-106`) so scrubbing a clip reads only the requested bytes. The bundled example clips have their own pair of routes (`packages/host/src/router.ts:204-205`).
+`GET /api/v1/media/:mediaId/file` → `handleGetMediaFile` (`packages/host/src/handlers/media.ts:26-50`), routed at `packages/host/src/router.ts:214`, ungated, scoped by `organizationId`, served through `readByteRange` (`packages/host/src/byte-range.ts:86-106`) so scrubbing a clip reads only the requested bytes. The bundled example clips have their own pair of routes (`packages/host/src/router.ts:219-220`).
 
 ### Failure modes
 
@@ -163,7 +163,7 @@ Both tools resolve their backend first and return a **structured failure rather 
 | `packages/core/src/agents/generate-defaults.ts` | Which model the picker opens on |
 | `packages/host/src/media.ts`, `handlers/media.ts`, `byte-range.ts` | Save, list and serve the bytes |
 | `packages/host/src/studio-media-meta.ts` | `studio-meta.json` sidecar: prompt / aspect / model per media id |
-| `packages/host/src/work-cards.ts:82-101` | The `media:<id>` Knowledge card a successful generate writes |
+| `packages/host/src/work-cards.ts:98-117` | The `media:<id>` Knowledge card a successful generate writes |
 
 ## Gotchas
 
@@ -194,12 +194,12 @@ DOM testids that prove it:
 |---|---|
 | `images-studio` / `videos-studio` | `apps/web/components/images-studio.tsx:121`, `apps/web/components/videos-studio.tsx:177` |
 | `images-studio-needs-key` / `videos-studio-needs-key` | `:128` / `:184` |
-| `images-studio-empty` / `videos-studio-empty` | `:218` / `:318` |
+| `images-studio-empty` / `videos-studio-empty` | `:218` / `:316` |
 | `images-studio-gallery` / `videos-studio-gallery` | `:212` / `:310` |
 | `images-studio-prompt-bar` / `videos-studio-prompt-bar` | `:149` / `:207` |
 | `images-studio-prompt` / `videos-studio-prompt` | `:199` / `:296` |
 | `images-studio-submit` / `videos-studio-submit` | `:205` / `:302` |
-| `images-studio-error` / `videos-studio-error` | `:138` / `:195` |
+| `images-studio-error` / `videos-studio-error` | `:138` / `:194` |
 | `images-studio-aspect` / `videos-studio-aspect` | `:157` / `:215` |
 | `videos-studio-seconds` / `videos-studio-resolution` / `videos-studio-still` | `apps/web/components/videos-studio.tsx:228` / `:241` / `:282` |
 | `videos-studio-download` | `apps/web/components/videos-studio.tsx:332` |
