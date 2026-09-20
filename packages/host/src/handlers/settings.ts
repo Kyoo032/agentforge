@@ -123,7 +123,7 @@ async function settingsPayload(
 
 export async function handleGetSettings(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const settings = loadSettings(tenant.workspaceId);
     // A desk that upgraded into the gate has a key but no verdict, and a verdict goes stale after a
     // day. Both are opened on trust, so this is where the gateway actually gets asked. Fire-and-
@@ -137,7 +137,7 @@ export async function handleGetSettings(request: HostRequest): Promise<HostResul
 
 export async function handlePostSettings(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const body = (request.body ?? {}) as Record<string, unknown>;
     if (body.locale !== undefined) {
       if (!isAppLocale(body.locale)) {
@@ -206,7 +206,7 @@ export async function handlePostSettings(request: HostRequest): Promise<HostResu
 
 export async function handleApplyLocale(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     applySavedLocaleAsBoot();
     return jsonOk(await settingsPayload(loadSettings(tenant.workspaceId), tenant));
   } catch (error) {
@@ -258,7 +258,7 @@ async function refreshGatewayGateAfterSave(
 
 export async function handleGatewayCheck(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const gateway = await runGatewayCheck(loadSettings(tenant.workspaceId));
     return jsonOk({ gateway });
   } catch (error) {
@@ -356,7 +356,7 @@ export type ResetDeps = { isServerMode?: () => boolean };
 
 export async function handleResetApp(request: HostRequest, deps: ResetDeps = {}): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const body = (request.body ?? {}) as Record<string, unknown>;
     const scope = readOptionalString(body.scope);
     const serverMode = deps.isServerMode ? deps.isServerMode() : isServerMode();
@@ -379,7 +379,7 @@ export async function handleResetApp(request: HostRequest, deps: ResetDeps = {})
  */
 export async function handleCancelReset(request: HostRequest): Promise<HostResult> {
   try {
-    await getTenant(request.workspaceId);
+    await getTenant(request);
     // `recursive` so that a directory left at the marker path — a botched restore, a sync client —
     // is cleared like anything else instead of throwing EISDIR and turning "cancel my wipe" into a
     // 500 the owner cannot get past.

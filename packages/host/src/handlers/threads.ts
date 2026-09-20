@@ -14,7 +14,7 @@ function parseScope(value: string | undefined): WorkspaceThreadScope {
 
 export async function handleGetThreads(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const scope = parseScope(request.query.scope);
     const agentId = request.query.agentId || undefined;
     if (scope === "agent" && agentId) {
@@ -43,7 +43,7 @@ export async function handleGetThreads(request: HostRequest): Promise<HostResult
 
 export async function handlePostThreads(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const body = (request.body ?? {}) as { agentId?: unknown; title?: unknown };
     if (body.agentId !== undefined && typeof body.agentId !== "string") {
       throw new ApiError("invalid_request", "agentId must be a string", 400);
@@ -65,7 +65,7 @@ export async function handlePostThreads(request: HostRequest): Promise<HostResul
 
 export async function handleGetThread(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const threadId = request.params.threadId;
     const thread = await getThread(tenant, threadId);
     if (!thread) {
@@ -80,7 +80,7 @@ export async function handleGetThread(request: HostRequest): Promise<HostResult>
 
 export async function handleDeleteThread(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const deleted = await deleteThread(tenant, request.params.threadId);
     if (!deleted) {
       throw new ApiError("not_found", "Thread not found", 404);

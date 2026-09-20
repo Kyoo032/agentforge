@@ -25,7 +25,7 @@ export async function handlePostMarketBoard(request: HostRequest): Promise<HostR
 /** `POST /api/v1/market` — body: MarketWatchRequest; result: MarketWatchResult. */
 export async function handlePostMarket(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowed(loadSettings(tenant.workspaceId));
     return jsonOk(await generateMarketBriefing(tenant, request.body ?? null));
@@ -37,7 +37,7 @@ export async function handlePostMarket(request: HostRequest): Promise<HostResult
 /** resolving -> quotes -> technicals -> charts -> news -> macro -> drafting -> verifying -> saving, as job.* SSE events. */
 export async function handlePostMarketStream(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowed(loadSettings(tenant.workspaceId));
     return streamJob((emit, abortSignal) => generateMarketBriefing(tenant, request.body ?? null, emit, abortSignal), {
@@ -51,7 +51,7 @@ export async function handlePostMarketStream(request: HostRequest): Promise<Host
 /** `POST /api/v1/market/regenerate` — body: { briefing, section, instruction?, model? }; result: { section, guard }. */
 export async function handlePostMarketRegen(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowed(loadSettings(tenant.workspaceId));
     return jsonOk(await regenerateBriefingSection(tenant, request.body ?? null));

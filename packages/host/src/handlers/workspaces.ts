@@ -37,7 +37,7 @@ function serializeWorkspace(row: {
 
 export async function handleGetWorkspaces(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const rows = await listLocalWorkspaces(db, tenant.organizationId);
     return jsonOk({
       workspaces: rows.map(serializeWorkspace),
@@ -50,7 +50,7 @@ export async function handleGetWorkspaces(request: HostRequest): Promise<HostRes
 
 export async function handlePostWorkspaces(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const body = (request.body ?? {}) as { name?: string; templatePack?: string; productModes?: unknown };
     const name = body.name?.trim();
     if (!name) {
@@ -64,12 +64,17 @@ export async function handlePostWorkspaces(request: HostRequest): Promise<HostRe
       body.productModes != null
         ? requireProductModes(body.productModes)
         : productModesForTemplate(templatePack || null);
+    // `tenant.userId`, not `createLocalWorkspace`'s `local-owner` default: on the hosted server that
+    // row does not exist, so the desk-membership insert inside it failed its foreign key and this
+    // route 500'd for every signed-in tenant. The desk has to belong to the signed-in user in any
+    // case, which is the same fix.
     const workspace = await createLocalWorkspace(
       db,
       tenant.organizationId,
       name,
       templatePack || undefined,
       productModes,
+      tenant.userId,
     );
     writeSelectedWorkspaceId(workspace.id);
     return jsonOk(
@@ -84,7 +89,7 @@ export async function handlePostWorkspaces(request: HostRequest): Promise<HostRe
 
 export async function handleSelectWorkspace(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const workspaceId = request.params.workspaceId;
     const rows = await listLocalWorkspaces(db, tenant.organizationId);
     const found = rows.find((row) => row.id === workspaceId);
@@ -104,7 +109,7 @@ export async function handleSelectWorkspace(request: HostRequest): Promise<HostR
 
 export async function handlePatchWorkspace(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const workspaceId = request.params.workspaceId;
     const rows = await listLocalWorkspaces(db, tenant.organizationId);
     const found = rows.find((row) => row.id === workspaceId);
@@ -136,7 +141,7 @@ export async function handlePatchWorkspace(request: HostRequest): Promise<HostRe
 
 export async function handleDeleteWorkspace(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const workspaceId = request.params.workspaceId;
     const rows = await listLocalWorkspaces(db, tenant.organizationId);
     const found = rows.find((row) => row.id === workspaceId);

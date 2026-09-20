@@ -2,6 +2,7 @@ import { isServerMode } from "@agentforge/core";
 import { hostAuthRoutes, hostSessionStore, isSessionExemptPath, requireSessionFor } from "./auth";
 import type { SessionStore } from "./auth";
 import { jsonError, jsonOk } from "./errors";
+import { withLogContext } from "./log";
 import { withRequestSession } from "./tenant-scope";
 import { clearedWorkspaceCookie } from "./workspace";
 import {
@@ -146,6 +147,8 @@ import type { HostHandler, HostRequest, HostResult, HostSession } from "./types"
 
 type Route = {
   method: string;
+  /** The literal registration, `:params` and all. Kept so the table can be read back — see below. */
+  path: string;
   pattern: RegExp;
   keys: string[];
   handler: HostHandler;
@@ -157,7 +160,32 @@ function compile(method: string, path: string, handler: HostHandler): Route {
     keys.push(key);
     return "([^/]+)";
   });
-  return { method, pattern: new RegExp(`^${source}$`), keys, handler };
+  return { method, path, pattern: new RegExp(`^${source}$`), keys, handler };
+}
+
+/** One route as the table declared it, with no handler attached. */
+export type RouteRegistration = {
+  readonly method: string;
+  readonly path: string;
+  /** The `:param` names in declaration order; empty for a route that takes none. */
+  readonly keys: readonly string[];
+};
+
+/**
+ * The route table, readable.
+ *
+ * Phase 3 lane E: `./tenancy-harness.test.ts` re-derives its list of by-id routes from here rather
+ * than from a hand-kept copy, so a by-id route added without a tenancy test fails the harness's
+ * completeness assertion instead of shipping unnoticed. Nothing in the running app calls this and
+ * it hands out no handlers — a caller can read what is registered, never invoke it out of band.
+ */
+export function routeRegistrations(): readonly RouteRegistration[] {
+  return routes.map((route) => ({ method: route.method, path: route.path, keys: [...route.keys] }));
+}
+
+/** True when a route's path carries at least one `:param` — the by-id surface lane E must cover. */
+export function isByIdRoute(route: RouteRegistration): boolean {
+  return route.keys.length > 0;
 }
 
 const routes: Route[] = [
@@ -387,10 +415,15 @@ export async function dispatch(request: HostRequest, options: DispatchOptions = 
       return route.handler(scoped);
     }
     // Phase 3 lane C: the verified session is the tenant, for this handler and for everything it
-    // awaits. `getTenant()` reads it from here (./tenant-scope.ts) until lane E sweeps the call
-    // sites to pass the request itself, so a handler that still passes a bare workspace id resolves
-    // the session's tenant rather than the local owner.
-    const result = await withRequestSession(session, () => route.handler(scoped));
+    // awaits. Lane E swept every host call site to `getTenant(request)`, so the session now reaches
+    // `getTenant` on the request itself; the store stays as the backstop for a handler added later
+    // that passes a bare workspace id (see ./tenant-scope.ts).
+    //
+    // Phase 3 lane E, security spec row L1: the same scope stamps the tenant id on every log line
+    // written under this handler. The id is the *session's*, never the client's workspace cookie.
+    const result = await withLogContext({ tenantId: session.tenantId, route: route.path }, () =>
+      withRequestSession(session, () => route.handler(scoped)),
+    );
     return clearStaleWorkspaceCookie(result);
   }
   return jsonOk({ error: { code: "not_found", message: "Not found" } }, 404);

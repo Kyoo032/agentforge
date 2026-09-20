@@ -10,7 +10,7 @@ import type { InputModality, Visibility } from "@agentforge/core";
 
 export async function handleGetAgent(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const agentId = request.params.agentId;
     const agent = await agentService.get(tenant, agentId);
     if (!agent) {
@@ -37,7 +37,7 @@ export async function handleGetAgent(request: HostRequest): Promise<HostResult> 
 
 export async function handleGetAgentCapabilities(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const agentId = request.params.agentId;
     const agent = await agentService.get(tenant, agentId);
     if (!agent) {
@@ -62,7 +62,7 @@ export async function handleGetAgentCapabilities(request: HostRequest): Promise<
 export async function handlePostAgentTools(request: HostRequest): Promise<HostResult> {
   try {
     ensureToolsRegistered();
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const agentId = request.params.agentId;
     const body = (request.body ?? {}) as { toolKey?: string };
     if (!getTool(body.toolKey ?? "")) {
@@ -83,7 +83,7 @@ export async function handlePostAgentTools(request: HostRequest): Promise<HostRe
 
 export async function handlePostAgentSoul(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const body = request.body && typeof request.body === "object" ? (request.body as Record<string, unknown>) : {};
     const { version } = await agentService.createRevision(tenant, request.params.agentId, {
       systemPrompt: typeof body.systemPrompt === "string" ? body.systemPrompt : undefined,
@@ -99,7 +99,7 @@ export async function handlePostAgentSoul(request: HostRequest): Promise<HostRes
 
 export async function handlePostAgentPublish(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const body = (request.body ?? {}) as { versionId?: string };
     const agent = await agentService.publish(tenant, request.params.agentId, body.versionId ?? "");
     return jsonOk({ agent });
@@ -110,7 +110,7 @@ export async function handlePostAgentPublish(request: HostRequest): Promise<Host
 
 export async function handlePostAgentShare(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const body = (request.body ?? {}) as { visibility?: Visibility };
     const agent = await agentService.share(tenant, request.params.agentId, body.visibility as Visibility);
     return jsonOk({ agent });
@@ -121,7 +121,7 @@ export async function handlePostAgentShare(request: HostRequest): Promise<HostRe
 
 export async function handlePostAgentProductModes(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const body = request.body && typeof request.body === "object" ? (request.body as { productModes?: unknown }) : {};
     const version = await agentService.updateProductModes(tenant, request.params.agentId, body.productModes);
     return jsonOk({ version });
@@ -132,7 +132,7 @@ export async function handlePostAgentProductModes(request: HostRequest): Promise
 
 export async function handlePostAgentGenerateDefaults(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const body = request.body && typeof request.body === "object" ? (request.body as Record<string, unknown>) : {};
     const version = await agentService.updateGenerateDefaults(tenant, request.params.agentId, {
       imageGenModel: "imageGenModel" in body ? ((body.imageGenModel as string | null) ?? null) : undefined,
@@ -147,7 +147,7 @@ export async function handlePostAgentGenerateDefaults(request: HostRequest): Pro
 
 export async function handleGetAgentThreads(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const agentId = request.query.agentId || request.params.agentId;
     if (!agentId) {
       return jsonOk({ error: { code: "invalid_content_part", message: "agentId required" } }, 400);
@@ -161,7 +161,7 @@ export async function handleGetAgentThreads(request: HostRequest): Promise<HostR
 
 export async function handleGetWorkspaceAgents(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     if (request.params.workspaceId !== tenant.workspaceId) {
       return jsonOk({ error: { code: "not_found", message: "Workspace not found" } }, 404);
     }
@@ -174,7 +174,7 @@ export async function handleGetWorkspaceAgents(request: HostRequest): Promise<Ho
 
 export async function handlePostWorkspaceAgents(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     if (request.params.workspaceId !== tenant.workspaceId) {
       return jsonOk({ error: { code: "not_found", message: "Workspace not found" } }, 404);
     }
