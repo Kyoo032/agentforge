@@ -91,6 +91,23 @@ export function priceVideoUsage(
 }
 
 /**
+ * Price one stretch of audio sent to a recogniser, at a transcribed per-second list price.
+ *
+ * Nobody has transcribed one yet, so today this always returns `no_list_price` — which is the point:
+ * the row still records how many seconds went through the gateway, and a single row in
+ * `media-pricing.ts` closes every meeting at once. There is no gateway fallback either, because
+ * `gatewayFlatPrice` only serves flat per-call rates and a flat rate is exactly wrong for audio that
+ * is billed by the minute.
+ */
+export function priceSecondsUsage(model: string, seconds: number): Priced {
+  const price = findMediaListPrice(model);
+  if (price?.unit !== "second") {
+    return { costUsdMicros: null, unpricedReason: "no_list_price" };
+  }
+  return priced(estimateVideoCost(price, { seconds }).usd, "no_list_price");
+}
+
+/**
  * Price one flat-rate gateway job (a music generation, a lyrics draft).
  *
  * Suno has no vendor list price at all — it sells a consumer subscription, not an API — so the only
@@ -253,4 +270,41 @@ export function recordChatRunUsage(
     return null;
   }
   return recordTokenUsage(tenant, record, { mode: "chat", runId });
+}
+
+export type TranscriptionUsageContext = {
+  model: string;
+  /** Length of the audio handed to the recogniser, in seconds. */
+  seconds: number;
+  runId?: string;
+};
+
+/**
+ * Record one meeting transcription. The unit is `seconds` of audio, which is what a recogniser
+ * bills for — not the tokens of the transcript it hands back, and not the number of chunks the host
+ * happened to split the recording into, which is an implementation detail of `extractMeetingAudio`
+ * and would change the bill if `CHUNK_SECONDS` ever changed.
+ *
+ * The minutes and the translation that follow a transcription are ordinary token runs and are
+ * metered by `rememberJobUsage` through their `meeting-minutes` / `meeting-translate` run prefixes.
+ * All three land under the `meetings` mode with different units, the same way a video studio call
+ * and its prompt do.
+ */
+export function recordTranscriptionUsage(
+  tenant: TenantContext,
+  context: TranscriptionUsageContext,
+): TenantUsageRow | null {
+  const raw = context.seconds;
+  const seconds = Number.isFinite(raw) && raw >= 1 ? Math.ceil(raw) : 1;
+  const event: UsageEvent = {
+    mode: "meetings",
+    model: context.model,
+    unit: "seconds",
+    quantity: seconds,
+    inputTokens: 0,
+    outputTokens: 0,
+    ...priceSecondsUsage(context.model, seconds),
+    ...(context.runId ? { runId: context.runId } : {}),
+  };
+  return recordUsage(tenant, event);
 }

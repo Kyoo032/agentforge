@@ -19,6 +19,7 @@ import {
   recordImageUsage,
   recordMusicUsage,
   recordTokenUsage,
+  recordTranscriptionUsage,
   recordVideoUsage,
 } from "./usage-record";
 
@@ -145,6 +146,42 @@ describe("usage recording", () => {
         unpricedReason: "no_list_price",
       });
       expect(store.list(tenant)).toHaveLength(2);
+    });
+
+    it("records a meeting transcription in seconds of audio, under the meetings mode", () => {
+      // The recording, not the transcript: a recogniser bills for the audio it was handed, and the
+      // number of chunks `extractMeetingAudio` split it into is a host detail that must not reach
+      // the bill.
+      const row = recordTranscriptionUsage(tenant, { model: "mimo-v2.5-asr", seconds: 754.2 });
+      expect(row).toMatchObject({
+        mode: "meetings",
+        unit: "seconds",
+        quantity: 755,
+        costUsdMicros: null,
+        unpricedReason: "no_list_price",
+      });
+      expect(store.list(tenant)).toHaveLength(1);
+      expect(store.list(tenant)[0]).toMatchObject({ tenantId: "local-tenant", organizationId: "org-a" });
+    });
+
+    it("keeps meeting minutes and their translation in tokens, under the same mode", () => {
+      // One meeting can leave three rows of two units. Only `costUsdMicros` adds up across them.
+      rememberJobUsage(completed("gpt-5.6-sol"), {
+        tenant,
+        mode: usageModeFromRunPrefix("meeting-minutes"),
+        runId: "meeting-minutes-1",
+      });
+      rememberJobUsage(completed("gpt-5.6-sol"), {
+        tenant,
+        mode: usageModeFromRunPrefix("meeting-translate"),
+        runId: "meeting-translate-1",
+      });
+      recordTranscriptionUsage(tenant, { model: "mimo-v2.5-asr", seconds: 60 });
+
+      const rows = store.list(tenant);
+      expect(rows).toHaveLength(3);
+      expect(rows.every((row) => row.mode === "meetings")).toBe(true);
+      expect(rows.map((row) => row.unit).sort()).toEqual(["seconds", "tokens", "tokens"]);
     });
 
     it("records a video in seconds, at the per-second list price times the clip length", () => {
@@ -302,6 +339,8 @@ describe("usage recording", () => {
       ["knowledge-verifier", "knowledge"],
       ["edit", "edit"],
       ["music", "music"],
+      ["meeting-minutes", "meetings"],
+      ["meeting-translate", "meetings"],
       ["chat", "chat"],
       ["enhance", "other"],
       ["", "other"],
