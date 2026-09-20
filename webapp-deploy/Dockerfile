@@ -88,10 +88,10 @@ EXPOSE 3000
 
 # Same command as apps/web/package.json "start", minus the pnpm wrapper:
 #   NODE_ENV=production tsx server.ts
-# NOTE: server.ts:51-52 hardcodes server.listen(port, "127.0.0.1"). The container
-# therefore only answers on its own loopback. See webapp-deploy/README.md — the proxy
-# joins this container's network namespace instead of talking to it over a bridge.
-# Honouring a HOST env (or binding 0.0.0.0) is a Phase 0/1 change in the migration plan.
+# NOTE: server.ts:114-115 binds resolveBindHost(process.env) (apps/web/lib/bind-host.ts),
+# which defaults to 127.0.0.1. BIND_HOST is not set here, so the container only answers on
+# its own loopback. See webapp-deploy/README.md - the proxy joins this container's network
+# namespace instead of talking to it over a bridge.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=5 \
   CMD node -e "const p=process.env.PORT||3000;fetch('http://127.0.0.1:'+p+'/api/v1/components').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 

@@ -13,6 +13,7 @@
     "db:push": "pnpm --filter @agentforge/db push",
     "db:seed": "pnpm --filter @agentforge/db seed",
     "db:studio": "pnpm --filter @agentforge/db studio",
+    "maps:check": "node scripts/map-rot.mjs",
     "edit:starters": "node scripts/edit-starters.mjs",
     "edit:starters:check": "node scripts/edit-starters.mjs --check",
     "videos:examples": "node scripts/video-examples.mjs",

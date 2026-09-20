@@ -1,6 +1,6 @@
 # Map — Edit timeline and agent
 
-Last verified: 2026-09-17 at 01ea70a
+Last verified: 2026-09-20 at b482611
 
 ## Overview
 
@@ -53,7 +53,7 @@ cached probe (`resetFfmpegBinaryCache`) but is throttled to one forced re-probe 
 and the caller is a local web page. When ffmpeg is missing the report also carries a per-OS
 `setup` hint (`ffmpegSetupHint`, `doctor.ts:50`).
 
-`scripts/doctor.mjs` folds this endpoint into its own JSON as `edit`. A missing endpoint is a note,
+`.cursor/skills/verify-agentforge/scripts/doctor.mjs` folds this endpoint into its own JSON as `edit`. A missing endpoint is a note,
 not a doctor failure.
 
 ### 3. Creating a project, and starter media
@@ -62,16 +62,16 @@ not a doctor failure.
 `POST /api/v1/edit/projects` with `{name, aspect, fps: 30, starterId}`. The aspect is derived from the
 starter, not from the picker (`projectAspectFromStarter`, `:891-894`).
 
-`createEditProject` (`packages/host/src/edit/projects.ts:18-64`):
+`createEditProject` (`packages/host/src/edit/projects.ts:19-63`):
 
 1. Inserts the `edit_projects` row with `reviewJson = {lastAgentSeq: 0, ackSeq: 0}`.
-2. `seedStarterProject` (`:66-117`) adds an in-memory title clip, caption clip and `@music-bed`
+2. `seedStarterProject` (`:65-116`) adds an in-memory title clip, caption clip and `@music-bed`
    ingredient for the starters that ask for them.
-3. `seedStarterMedia` (`packages/host/src/edit/starter-media.ts:170-203`) copies the bundled sample
+3. `seedStarterMedia` (`packages/host/src/edit/starter-media.ts:171-204`) copies the bundled sample
    files out of `apps/desktop/resources/starters/` (packaged: `resources/starters`) into the desk's
    media root and lands them as clips. A file that is not there is **skipped and logged**, never
-   fetched (`starter-media.ts:181-203`). If seeding throws, the project row is deleted again
-   (`projects.ts:52-56`) so a half-seeded project never survives.
+   fetched (`starter-media.ts:182-204`). If seeding throws, the project row is deleted again
+   (`projects.ts:53-57`) so a half-seeded project never survives.
 4. `writeSnapshot(id, 0, doc)` — the starter lands in the **snapshot**, not the ops log. That is why a
    fresh `promo-16x9` project reads `edit-ops-count` = `ops 0` with four clips on screen.
 
@@ -274,7 +274,7 @@ Submit posts `POST …/generate`; the handler gates on the gateway first, valida
 combination, and hands off to `startGenerateJob`
 (`packages/host/src/handlers/edit.ts:542-593` → `packages/host/src/edit/start-generate.ts:156`).
 A finished generate either lands a clip at `placeAt` or drops into the unplaced tray
-(`edit-tray` / `edit-tray-place` / `edit-tray-discard`, `edit-cards.tsx:124-158`), which is the only
+(`edit-tray` / `edit-tray-place` / `edit-tray-discard`, `edit-cards.tsx:124-156`), which is the only
 thing that populates the tray.
 
 `edit-needs-key` is driven purely by `hasOpenai` from `GET /api/v1/settings` (plus `ready === false`
@@ -290,7 +290,7 @@ stream; `edit-export-progress` shows while it is live and `edit-export-download`
 `succeeded`, which then pulls `GET …/export/:jobId/file` and triggers a browser download
 (`onDownloadExport`, `:584-608`).
 
-The job itself runs in `packages/host/src/edit/jobs.ts:126-131` → `render`
+The job itself runs in `packages/host/src/edit/jobs.ts:127-132` → `render`
 (`packages/host/src/edit/ffmpeg/recipes.ts:221-261`): write an `.ass` document for titles and
 captions, compile the concat/scale/pad filter graph (`compileFilterGraph`, `:170-195`), and run ffmpeg
 into `data/edit/<projectId>/export-<uuid>.mp4`. Every input and output path is checked against the
@@ -311,8 +311,8 @@ project's allow-list roots (`editAllowlistRoots` = media root + that project's s
 | Project id from another desk | `foldProject(projectId, workspaceId)` | 404 before any work |
 | Job id from another project | `jobInProject` (`handlers/edit.ts:171-177`) | 404 |
 | Export before review | `handlePostEditExport` (`:419-421`) | `400 review_required` (the button is already disabled) |
-| ffmpeg render fails | `runFfmpeg` (`packages/host/src/edit/ffmpeg/run.ts:83-99`) | job `failed`, `error: "ffmpeg recipe failed"`, partial output unlinked. **Nothing at all in the UI** |
-| ffmpeg times out / cancelled | same, `:92-97` | `ffmpeg_timeout` / `job_cancelled` |
+| ffmpeg render fails | `spawnFfmpeg` under `runFfmpeg` (`packages/host/src/edit/ffmpeg/run.ts:107-123`) | job `failed`, `error: "ffmpeg recipe failed"`, partial output unlinked. **Nothing at all in the UI** |
+| ffmpeg times out / cancelled | same, `:116-121` | `ffmpeg_timeout` / `job_cancelled` |
 | Turn cap exceeded | `chargeTurnBudget` (`packages/host/src/edit/budget.ts:27-39`) | a refusal plus an `edit-plan-card`; no job is queued |
 | Export file requested early | `handleGetEditExportFile` (`:441-443`) | `404 not_found` "Export is not ready" |
 
@@ -332,7 +332,7 @@ project's allow-list roots (`editAllowlistRoots` = media root + that project's s
 | `apps/web/lib/edit-client.ts` | `postEditOps`, `foldApplied`, `isReviewOpen`, `turnSpendUsd`, the API wrappers |
 | `apps/web/lib/edit-badges.ts` | Which cards an owner touch auto-keeps |
 | `apps/web/lib/use-emit-lock.ts` | The 5 s agent-writing lock and the clip ids it dims |
-| `packages/host/src/router.ts:154-173` | The 20 `/api/v1/edit/*` routes |
+| `packages/host/src/router.ts:165-184` | The 20 `/api/v1/edit/*` routes |
 | `packages/host/src/handlers/edit.ts` | Every edit handler; upload limits and mime allow-list |
 | `packages/host/src/edit/ops.ts` | `appendOps`, `foldProject`, `writeSnapshot` — the one write path |
 | `packages/host/src/edit/projects.ts` | Create, list, bundle, `mapCard` / `mapJob` / `mapUnplaced` |
@@ -372,8 +372,8 @@ project's allow-list roots (`editAllowlistRoots` = media root + that project's s
 - **`edit-ops-count` is a session counter.** It renders `opsPosted` (`:836-838`), which counts ops this
   tab posted, not `project.seq`. It reads `ops 0` after every reload and after every starter seed.
 - **The starter is seeded into the snapshot, not the log**, so a four-clip `promo-16x9` project starts
-  at `ops 0` (`packages/host/src/edit/projects.ts:44-62`). Bundled files that are missing are skipped
-  with a `console.warn`, never downloaded (`starter-media.ts:181-203`).
+  at `ops 0` (`packages/host/src/edit/projects.ts:45-61`). Bundled files that are missing are skipped
+  with a `log.warn`, never downloaded (`starter-media.ts:182-204`).
 - **`edit-export` is disabled with no project**, not only when the gate is closed
   (`edit-studio.tsx:659`) — count it as three separate reasons: no project, gate closed, export in
   flight.
@@ -453,10 +453,10 @@ DOM testids that prove it: `edit-studio` (`apps/web/components/edit-studio.tsx:6
 `edit-prompt-templates` / `edit-prompt-template-categories` / `edit-prompt-template-category-<id>` /
 `edit-prompt-template-list` / `edit-prompt-template-<id>` / `edit-prompt-template-source` /
 `edit-prompt-guide` (`apps/web/components/edit-prompt-templates.tsx:73`, `:75`, `:80`, `:91`,
-`:101`, `:112`, `:25`, `:54`),
+`:101`, `:114`, `:25`, `:54`),
 `edit-recipe-<id>` (`apps/web/components/edit-recipes-panel.tsx:19`),
 `edit-needs-ffmpeg` / `ffmpeg-install-command` / `ffmpeg-recheck` / `ffmpeg-setup-steps`
-(`apps/web/components/ffmpeg-setup-notice.tsx:65`, `:72`, `:83`, `:95`),
+(`apps/web/components/ffmpeg-setup-notice.tsx:65`, `:74`, `:86`, `:98`),
 `settings-edit-turn-cap` (`apps/web/components/settings-page.tsx:396`).
 
 Doctor proof: `node .cursor/skills/verify-agentforge/scripts/doctor.mjs` with

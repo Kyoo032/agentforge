@@ -1,6 +1,6 @@
 # Map — Media cost estimate
 
-Last verified: 2026-09-15 at b9f931a
+Last verified: 2026-09-20 at b482611
 
 ## Overview
 
@@ -29,7 +29,7 @@ Nothing on this path touches the network. The price table is compiled into the a
 | Low-confidence row (`omni-fast`, empty vendor) | `~`, no vendor name, explicit "(unverified)" suffix (`apps/web/lib/media-estimate.ts:175-176`) |
 | Catalog cache gone stale | Treated as no catalog: the gateway-fallback price disappears rather than going wrong |
 | Gate closed / no key | **No effect on the estimate.** `requireGatewayAllowed` is called from `handlePostImages` / `handlePostVideos` only (`packages/host/src/handlers/jobs.ts:64` and the video equivalent), never from the GETs that build the price list |
-| Bad inputs | `count` and `seconds` clamp to `>= 1`, integer (`packages/core/src/models/media-pricing.ts:570`, `:586`) |
+| Bad inputs | `count` clamps to `>= 1` and a whole number (`packages/core/src/models/media-pricing.ts:570`); `seconds` clamps to `>= 1` and may stay fractional (`:586`) |
 | Upstream vendor changes its price | Nothing detects it. See Gotchas |
 
 ## Where things live
