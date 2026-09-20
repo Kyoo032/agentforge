@@ -23,6 +23,7 @@ vi.mock("../job-regen", async (importOriginal) => {
 const { hasUnverifiedFigure, repairTaskProse, scrubReportMarkers, withRemovedFlag } = await import("./repair");
 
 const tenant: TenantContext = {
+  tenantId: "local-tenant",
   organizationId: "org",
   workspaceId: "ws-finance-task-repair",
   userId: "local",

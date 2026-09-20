@@ -5,6 +5,7 @@ import { runWithToolSecrets } from "../secret-scope";
 import { webSearchTool } from "./web-search";
 
 const tenant: TenantContext = {
+  tenantId: "local-tenant",
   organizationId: "org-1",
   workspaceId: "ws-1",
   userId: "user-1",

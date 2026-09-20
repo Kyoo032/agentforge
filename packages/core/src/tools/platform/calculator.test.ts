@@ -4,6 +4,7 @@ import { invokeTool } from "../define-tool";
 import { calculatorTool } from "./calculator";
 
 const tenant: TenantContext = {
+  tenantId: "local-tenant",
   organizationId: "org-1",
   workspaceId: "ws-1",
   userId: "user-1",

@@ -174,6 +174,29 @@ Pulls (`git pull --ff-only`), rebuilds, `up -d`, waits for the healthcheck, then
 ready-made row for `DEPLOY-LOG.md`. Append it there **and** to the deploy log in the
 decision record. Use `--no-pull` to redeploy the checkout as it stands.
 
+### Back up first when the deploy carries a migration
+
+`ensureSchema` runs pending migrations when the app opens the database, so `up -d` is what
+applies them. The runner is **forward-only**: it has no `down`, and SQLite before 3.35
+cannot drop a column at all. Recovering from a bad migration means restoring the volume.
+
+So on a deploy that carries a new `packages/db/drizzle/*.sql`, take a backup first and
+check it landed:
+
+```sh
+export BACKUP_KEY=...                       # from Secrets Manager
+sh webapp-deploy/scripts/backup.sh          # see "Back up" below
+sh webapp-deploy/scripts/deploy.sh
+```
+
+`deploy.sh` does **not** do this for you. It is a deliberate gap: `backup.sh` needs a
+running app container and a non-empty `BACKUP_KEY`, so calling it unconditionally would
+fail the very first deploy to a fresh server. Whether to automate it behind a flag is
+still open.
+
+`0015_tenants` (Phase 3 tenancy) is the first migration this applies to: it adds the
+`tenants` table and `organizations.tenant_id`, and is additive but one-way.
+
 ## Back up
 
 ```sh

@@ -12,6 +12,7 @@ import { deleteArtifactsByOwner } from "./knowledge";
  */
 
 const TENANT: TenantContext = {
+  tenantId: "local-tenant",
   organizationId: "org-owner",
   workspaceId: "ws-owner",
   userId: "user-owner",

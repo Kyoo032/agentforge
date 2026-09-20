@@ -1,4 +1,12 @@
 export const LOCAL_OWNER_ID = "local-owner";
+/**
+ * The one tenant every pre-Phase-3 database resolves to. Deterministic, not a UUID: a desktop that
+ * has already run migration 0015 and a fresh install must agree on the id, because it is written
+ * into `organizations.tenant_id` by the migration and read back by `ensureLocalOwner`.
+ */
+export const LOCAL_TENANT_ID = "local-tenant";
+export const LOCAL_TENANT_SLUG = "local";
+export const LOCAL_TENANT_NAME = "Local";
 export const PERSONAL_ORG_SLUG = "personal";
 export const HOME_WORKSPACE_SLUG = "home";
 export const HOME_WORKSPACE_NAME = "Default";
