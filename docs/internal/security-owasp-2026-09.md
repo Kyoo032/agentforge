@@ -21,7 +21,7 @@ against the code, not against the requirement table, and the table should be ref
 migrations and `packages/host/src/tenant.ts` / `getTenant` belong to the tenancy lanes running in parallel. A real
 cross-tenant bug in there is written up below as A01-1 and was left for lane A, because two
 branches editing the same 500 lines is a worse outcome than a bug that is already known and
-scheduled. Lane A has since landed (PR #62) and fixed it; this branch merged `main` and confirmed
+scheduled. Lane A has since landed (PR #60) and fixed it; this branch merged `main` and confirmed
 the fix without touching the file.
 
 **No finding here is a live exploit against a production deployment, because there is no
@@ -32,10 +32,10 @@ now rather than a reason not to.
 
 | ID | Severity | Finding | Where | Status |
 |---|---|---|---|---|
-| A01-1 | **High** | Any tenant can discard any other tenant's unplaced Edit item by id | `packages/host/src/handlers/edit.ts:494-512` | **Fixed on main** by Phase 3 lane A (PR #62) |
+| A01-1 | **High** | Any tenant can discard any other tenant's unplaced Edit item by id | `packages/host/src/handlers/edit.ts:494-512` | **Fixed on main** by Phase 3 lane A (PR #60) |
 | A01-2 | **High** | by-id routes across the app are not systematically tenant-scoped | app-wide | **Recorded** — Phase 3 lane E |
-| A01-3 | **High** | Hosted Settings let any signed-in user write operator-only keys | `packages/host/src/handlers/settings.ts:166-231` | Fixed |
-| A01-4 | **High** | "Start over" was reachable in server mode and wipes the whole deployment | `packages/host/src/handlers/settings.ts:346-438` | Fixed |
+| A01-3 | Medium | Hosted Settings let any tenant rewrite shared tool credentials and the injection guard, and wiped the operator's gateway key on every save | `packages/host/src/handlers/settings.ts:164-197` | Fixed |
+| A01-4 | Medium | The CANCEL half of "Start over" was reachable in server mode | `packages/host/src/handlers/settings.ts:462-464` | Fixed |
 | A01-5 | Medium | Component installer route reachable in server mode | `packages/host/src/handlers/components.ts:45-67` | Fixed |
 | A02-1 | **High** | A patterned env wrap key (`aaaa…`) passed the length check | `packages/db/src/vault-key.ts:82-86,192-199` | Fixed |
 | A02-2 | Medium | An empty or corrupt `.master-key` silently derived a key from `""` | `packages/db/src/vault-key.ts:164-175` | Fixed |
@@ -51,12 +51,12 @@ now rather than a reason not to.
 | A06-1 | Medium | No CI ran lint, unit tests or a dependency audit | `.github/workflows/ci.yml` | Written, **cannot run** — Actions billing lock |
 | A06-2 | Low | The hosted image ships devDependencies | `webapp-deploy/Dockerfile:78-80` | **Recorded** — open |
 | A08-1 | Low | Workflows pin actions to mutable tags (`@v4`) | `.github/workflows/*.yml` | **Recorded** — open |
-| A09-1 | Medium | No request id: nothing correlated a user report to a log line | `packages/host/src/http-adapter.ts:86,435-437` | Fixed |
+| A09-1 | Medium | No request id: nothing correlated a user report to a log line | `packages/host/src/http-adapter.ts:94,435-437` | Fixed |
 | A09-2 | Medium | Authentication failures were not logged at all | `packages/host/src/http-adapter.ts:577-588` | Fixed |
 | A10-1 | **High** | The private-range check missed most of IPv4 and nearly all of IPv6 | `packages/core/src/security/ip-range.ts` | Fixed |
 | A10-2 | **High** | IPv4-mapped, 6to4 and NAT64 IPv6 forms bypassed the check entirely | `packages/core/src/security/ip-range.ts:174-246` | Fixed |
 | A10-3 | **High** | A public hostname resolving to a private address passed | `packages/core/src/security/safe-fetch.ts:110-128` | Fixed |
-| A10-4 | **High** | Key-bearing outbound calls followed redirects, carrying the key | `packages/host/src/edit/asr.ts:25-32` and three others | Fixed |
+| A10-4 | **High** | Key-bearing outbound calls followed redirects, carrying the key | `packages/host/src/edit/asr.ts:31-39` and three others | Fixed |
 | A10-5 | Medium | fal.ai poll URLs were taken from the response body unvalidated | `packages/core/src/tools/platform/fal-queue.ts:25-37` | Fixed |
 
 Plus one open by nature rather than by choice, A10-6 (DNS rebinding), at the end.
@@ -81,7 +81,7 @@ primary-key match: any signed-in tenant who knew or guessed an item id discarded
 item.
 
 It was recorded rather than fixed because `packages/host/src/handlers/edit.ts` belongs to Phase 3
-lane A, and two branches editing the same lines is the worse outcome. **Lane A landed as PR #62
+lane A, and two branches editing the same lines is the worse outcome. **Lane A landed as PR #60
 while this branch was open, and it is now fixed** —
 `packages/host/src/handlers/edit.ts:494-512` scopes through
 `foldProject(projectId, tenant.workspaceId)` and the predicate is now
@@ -91,7 +91,7 @@ into this branch; nothing in this PR touches that file.
 A sweep of the handlers that call `await getTenant(…)` without binding the result finds three
 left, and none of them matters: `packages/host/src/handlers/misc.ts:58` and
 `packages/host/src/handlers/models.ts:10` return static catalogue data, and
-`packages/host/src/handlers/settings.ts:432` is the reset-cancel guard added by this branch — all
+`packages/host/src/handlers/settings.ts:456` is the reset-cancel guard added by this branch — all
 three are using `getTenant` purely as an auth gate, which is correct.
 
 ### A01-2 — by-id routes are not systematically scoped *(recorded, not fixed)*
@@ -101,27 +101,51 @@ of each handler remembering rather than of the query layer — is Phase 3 lane E
 call sites. Nothing in this branch changes it. The two new routes this branch touches add no new
 by-id surface.
 
-### A01-3 — Hosted Settings wrote operator-only keys
+### A01-3 — Hosted Settings wrote operator-owned fields, and wiped the gateway key
 
-`POST /api/v1/settings` accepted, from any signed-in user, the gateway key, the four provider API
-keys, `toolKeys`, `toolBackends` and `injectionGuardBypass`. On a hosted deployment those are the
-operator's, not the tenant's: the gateway key is the thing being billed, and
-`injectionGuardBypass` turns off the prompt-injection guard for the whole process.
+Two separate problems behind one route.
 
-Fixed at `packages/host/src/handlers/settings.ts:166-231`: `requestsOperatorOnlySettings` refuses the request with a 403 in
-server mode, and the patch builder drops the fields rather than writing them.
+**The one that was live and losing data.** `mergeSecrets` deletes a stored key when it is given an
+empty string, and `apps/web/components/settings-page.tsx` posts `openaiApiKey` from state on every
+save. So on a hosted deployment, any tenant saving a spend cap wiped the operator's gateway key for
+everybody. `keyFieldValue` (`packages/host/src/handlers/settings.ts:189-197`) drops a blank in
+server mode and forwards it on a desk, where clearing the field really does mean "forget my key".
 
-**This also fixed a live bug.** `mergeSecrets` deletes a key when it is given an empty string, and
-the SPA posts `openaiApiKey: ""` on every save. So on a hosted deployment, any tenant pressing Save
-on the Settings page wiped the operator's gateway key. That is why the check distinguishes an
-absent or echoed value from a real one instead of refusing every request that mentions the field.
+**The one that was a privilege hole.** `toolKeys` and `toolBackends` are the credentials and
+endpoints every tenant's tools run through, and `injectionGuardBypass` switches off the
+prompt-injection guard for the whole process. All three are machine-wide and any signed-in tenant
+could rewrite them. Now 403 in server mode.
 
-### A01-4 — "Start over" in server mode
+> **The first version of this fix also refused provider-key writes, and that was a mistake that
+> would have bricked the hosted deploy.** Onboarding and Settings are the only ways to supply the
+> gateway key and both post it to this route, and the environment fallback in
+> `packages/host/src/gateway-gate.ts:376-386` only applies when `AGENTFORGE_RUNTIME=ai`, which
+> `webapp-deploy/compose.yml` does not set and the runbook says to leave alone. A Phase 0 deploy
+> following the runbook would have ended on an onboarding screen whose only button answered 403,
+> with no other route to a working server. It also pre-empted Phase 4, where each tenant supplies
+> their own key and this becomes a scoping question rather than a privilege one.
+>
+> Caught by the verifier thread on this PR, not by me, and not by any test — which is the actual
+> lesson, and why `packages/host/src/handlers/settings.test.ts` now drives this route in server
+> mode. Key writes behave exactly as they did before this branch.
 
-`POST /api/v1/settings/reset` deletes the data directory. On a desk that is a feature; on a
-multi-tenant host it is one tenant deleting everybody's data. Refused with 403 in server mode, and
-so is the cancel path (`packages/host/src/handlers/settings.ts:438`) — the marker is machine-wide, so one tenant must not be
-able to call off a wipe the operator armed either.
+**Residual, and deliberately left open:** on a hosted box any tenant can still *set* the shared
+gateway key, because there is currently no notion of an operator account to distinguish them. That
+is Phase 4's per-tenant-key work, not something to bolt on here — and the alternative, as above, is
+a deployment nobody can set up.
+
+### A01-4 — The cancel half of "Start over" in server mode
+
+**Narrower than the first draft of this document said.** Arming a wipe was **already** refused in
+server mode before this branch — `RESET_DISABLED_CODE` and both of its 403s are in the tree at
+`b482611`, the branch point. The audit originally claimed the whole route; that was wrong, and the
+row above is corrected.
+
+What was open is the **cancel** path. `handleCancelReset` had no server-mode check, so where a
+pending-reset marker arrived some other way — a restored data dir, a desk volume mounted on the
+server — one tenant could quietly call off a wipe the operator had armed. Now 403 as well
+(`packages/host/src/handlers/settings.ts:462-464`), which also makes the three reset entry points
+agree instead of two of them agreeing and one not.
 
 ### A01-5 — Component installer in server mode
 
@@ -207,7 +231,7 @@ source-level regression test (`packages/host/src/edit/ffmpeg/recipes-paths.test.
 
 `setting()` reads a variable by name, which POSIX `sh` has no syntax for, so `eval` is
 unavoidable — and it runs whatever it is handed. Every caller passes a literal today, so nothing
-was exploitable; the guard at `webapp-deploy/scripts/_common.sh:43-49` is what keeps a future caller from passing
+was exploitable; the guard at `webapp-deploy/scripts/_common.sh:45-51` is what keeps a future caller from passing
 something off `.env` or off `argv`.
 
 ## A04 — Insecure design
@@ -405,7 +429,7 @@ must still pass, and a name that does not resolve cannot be connected to anyway.
 Four outbound calls carry a secret in an `Authorization` header and used `fetch`'s default
 `redirect: "follow"`. A 302 from the upstream — or from anything impersonating it — would have
 re-sent the header to the redirect target. Fixed with `redirect: "manual"` in
-`packages/host/src/edit/asr.ts:25-32`, `packages/host/src/gateway-gate.ts`,
+`packages/host/src/edit/asr.ts:31-39`, `packages/host/src/gateway-gate.ts`,
 `packages/host/src/knowledge-embed.ts` and `packages/core/src/tools/platform/fal-queue.ts`. The
 same change added timeouts (`AbortSignal.timeout`), which none of them had.
 
@@ -426,7 +450,7 @@ attempted, because a half-done version of that is worse than none.
 
 Neither is an OWASP finding; both were blocking the CI job in A06-1, and both were real.
 
-- `packages/host/src/edit/ffmpeg-binary.ts:78` used `path.join` to build a Windows path. Off
+- `packages/host/src/edit/ffmpeg-binary.ts:82` used `path.join` to build a Windows path. Off
   Windows that joins with `/`, so the absolute `where.exe` path this hardening exists to pin came
   out as `C:\Windows/System32/where.exe` — the test for it only passed when run on Windows.
   Now `path.win32.join`, which is the same function on Windows.

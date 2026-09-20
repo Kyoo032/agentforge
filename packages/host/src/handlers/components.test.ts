@@ -96,3 +96,47 @@ describe("the component routes are not behind the gateway gate", () => {
     expect(router).toContain('compile("POST", "/api/v1/components/install/stream", handlePostComponentInstallStream)');
   });
 });
+
+/**
+ * A01-5. The hosted image bakes anydoc in and `reportComponentStatus` resolves the bundled copy
+ * first, so the download path is dead weight there — and it is the one thing keeping `/data` from
+ * being mounted `noexec` (security spec H3). The env flag is safe to flip here because these
+ * handlers are called directly rather than through the router, whose session gate it would arm.
+ */
+describe("POST /api/v1/components/install/stream in server mode", () => {
+  async function installUnderServerMode(body: unknown) {
+    const saved = process.env.AGENTFORGE_SERVER;
+    process.env.AGENTFORGE_SERVER = "1";
+    try {
+      return await handlePostComponentInstallStream(request(body));
+    } finally {
+      if (saved === undefined) {
+        delete process.env.AGENTFORGE_SERVER;
+      } else {
+        process.env.AGENTFORGE_SERVER = saved;
+      }
+    }
+  }
+
+  it("refuses a valid install with install_disabled and never opens a stream", async () => {
+    const result = await installUnderServerMode({ id: "anydoc" });
+    expect(result.type).toBe("json");
+    if (result.type === "json") {
+      expect(result.status).toBe(403);
+      expect(result.body).toMatchObject({ error: { code: "install_disabled" } });
+    }
+  });
+
+  it("refuses before the body is even validated, so an unknown id is 403 and not 400", async () => {
+    const result = await installUnderServerMode({ id: "not-a-component" });
+    expect(result.type).toBe("json");
+    if (result.type === "json") {
+      expect(result.status).toBe(403);
+    }
+  });
+
+  it("still installs off server mode, so the desktop and webdev are untouched", async () => {
+    const result = await handlePostComponentInstallStream(request({ id: "anydoc" }));
+    expect(result.type).toBe("stream");
+  });
+});

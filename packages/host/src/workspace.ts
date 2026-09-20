@@ -48,7 +48,7 @@ export function writeSelectedWorkspaceId(id: string): void {
  * (`auth/session.ts`) and CSRF (`csrf.ts`) cookies both do. HSTS makes a cleartext request unlikely
  * rather than impossible — the very first navigation to a new host, before the HSTS entry exists,
  * is the gap — and a cookie that says which desk a tenant is on has no business travelling in the
- * clear (docs/internal/security-owasp-2026-09.md, A05-2). Off server mode nothing changes: webdev
+ * clear (docs/internal/security-owasp-2026-09.md, A02-3). Off server mode nothing changes: webdev
  * and the desktop speak plain http, where a `Secure` cookie is dropped by the browser.
  */
 export function workspaceCookie(id: string): { name: string; value: string; path: string; secure: boolean } {

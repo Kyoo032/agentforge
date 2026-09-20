@@ -67,7 +67,7 @@ const FILTERED_EVENT = "request_filtered";
 const FAILED_EVENT = "request_failed";
 /**
  * Written when an /api call was answered 401 by the session gate
- * (docs/internal/security-owasp-2026-09.md, finding A09-1).
+ * (docs/internal/security-owasp-2026-09.md, finding A09-2).
  *
  * Nothing used to record these: `router.ts` turns a failed session into an envelope and returns it,
  * and `auth/routes.ts` wraps every login, refresh and logout failure the same way. So a failed
@@ -84,7 +84,7 @@ const AUTH_FAILED_EVENT = "auth_failed";
 const REQUEST_ID_HEADER = "X-Request-Id";
 
 /**
- * A short correlation id, minted per request (finding A09-2).
+ * A short correlation id, minted per request (finding A09-1).
  *
  * `log.ts` has said "prefer log.child({ tenantId, requestId })" since it was written and nothing
  * ever minted one, so the Caddy access log and the app's own lines could not be joined and one

@@ -55,7 +55,7 @@ load-bearing; if that mount ever moves, the controls move with it.
 | 3 | `:455` | `transportRejection` — TLS, method allowlist, path filter, header cap, per-IP and per-session buckets | **every** request, not only `/api` |
 | 4 | `:461` | non-`/api` paths return `false`; Express serves the page | — |
 | 5 | `:470` | `mutatingRejection` — Origin/Host allowlist, double-submit CSRF, `x-agentforge-transport` | non-safe methods on `/api` |
-| 6 | `packages/host/src/router.ts:335-339` | `requireSessionFor` — the session gate, before the route table | `/api` minus the exempt paths |
+| 6 | `packages/host/src/router.ts:370-398` | `requireSessionFor` — the session gate, before the route table | `/api` minus the exempt paths |
 | 7 | `:533` | `logAuthFailure` | a 401 coming back out |
 | 8 | `:384` | `maskServerError` | any 5xx, in server mode |
 
@@ -89,7 +89,7 @@ the client can forge or read. Cookie is `__Host-agentforge_session` in server mo
 (`ABSOLUTE_LIFETIME_MS`, `:41`), sliding at most every 5 minutes (`SLIDE_INTERVAL_MS`, `:43`) so a
 busy tab does not write a row per request.
 
-The gate runs in `packages/host/src/router.ts:325-352`, **before the route table is consulted** — an
+The gate runs in `packages/host/src/router.ts:405-413`, **before the route table is consulted** — an
 unauthenticated caller learns nothing about which paths exist.
 
 ### 5. Rate limits
@@ -141,8 +141,8 @@ answer, so a public name pointing at `169.254.169.254` does not pass.
 
 | Route | Where | Why |
 |---|---|---|
-| `POST /api/v1/settings` — operator keys | `packages/host/src/handlers/settings.ts:166-231` | gateway key, provider keys, `toolKeys`, `toolBackends` and `injectionGuardBypass` are the operator's, not a tenant's |
-| `POST /api/v1/settings/reset` and its cancel | `packages/host/src/handlers/settings.ts:346-438` | "Start over" deletes the data directory, which on a host is everyone's |
+| `POST /api/v1/settings` — operator keys | `packages/host/src/handlers/settings.ts:164-197` | gateway key, provider keys, `toolKeys`, `toolBackends` and `injectionGuardBypass` are the operator's, not a tenant's |
+| `POST /api/v1/settings/reset` and its cancel | `packages/host/src/handlers/settings.ts:384-464` | "Start over" deletes the data directory, which on a host is everyone's |
 | component install stream | `packages/host/src/handlers/components.ts:45-67` | the image bakes anydoc in; the download path has nothing to do, and turning it off is what unblocks `noexec` on `/data` |
 
 ### 9. The container
@@ -226,7 +226,7 @@ Phase 0 deploy. Until then this page is proved by the suites above and not by a 
   `packages/core/src/server-mode.ts` carries no other export for composing them, so the design
   appears to be deliberate simplicity rather than an unfinished abstraction. The cost is stated in
   `docs/internal/security-owasp-2026-09.md` A05-1: a single point of failure, now guarded at boot.
-- **Headers in two places.** `[Direct]` `packages/host/src/security-headers.ts:1-20` states the
+- **Headers in two places.** `[Direct]` `packages/host/src/security-headers.ts:76-105` states the
   reasoning: the Caddyfile was the only copy, so any deployment behind a different proxy had no
   CSP at all.
 - **The audit gate is scoped to the deployed closure, not the workspace.** `[Direct]`
