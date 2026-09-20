@@ -8,6 +8,7 @@ export const OUTPUT_LANGUAGE_SURFACES = [
   "videos",
   "edit",
   "knowledge",
+  "meeting",
 ] as const;
 
 export type OutputLanguageSurface = (typeof OUTPUT_LANGUAGE_SURFACES)[number];
@@ -40,6 +41,10 @@ const RULE: Record<OutputLanguageSurface, Record<AppLocale, string>> = {
   edit: {
     en: "Write user-facing Edit text (card verbs, titles, captions, assistant replies, and any on-image or on-video words) in English. Keep tool names and JSON keys in English.",
     id: "Tulis teks Edit yang dilihat pengguna (kata kerja kartu, judul, teks overlay, balasan asisten, dan kata pada gambar atau video) dalam bahasa Indonesia. Pertahankan nama alat dan kunci JSON dalam bahasa Inggris.",
+  },
+  meeting: {
+    en: "Write the minutes — title, summary, decisions, action items, risks, and open questions — in English. Keep every person's name, figure, date, and product name exactly as the transcript said it. Keep JSON keys in English.",
+    id: "Tulis notulen — judul, ringkasan, keputusan, item tindakan, risiko, dan pertanyaan terbuka — dalam Bahasa Indonesia profesional (sapaan Anda). Pertahankan setiap nama orang, angka, tanggal, dan nama produk persis seperti yang disebut dalam transkrip. Kunci JSON tetap bahasa Inggris.",
   },
   knowledge: {
     en: "Write overview, topic titles, topic summaries, gap notes, and verifier notes in English. Keep JSON keys, source ids, and verbatim excerpts unchanged.",
@@ -86,6 +91,7 @@ export const GATEWAY_REQUIRED_SURFACES = [
   "data",
   "market",
   "videos",
+  "meeting",
 ] as const;
 
 export type GatewayRequiredSurface = (typeof GATEWAY_REQUIRED_SURFACES)[number];
@@ -118,6 +124,10 @@ const GATEWAY_REQUIRED: Record<GatewayRequiredSurface, Record<AppLocale, string>
   videos: {
     en: "Add a Toko Token gateway key in Settings to generate videos.",
     id: "Tambahkan kunci gerbang Toko Token di Settings untuk membuat video.",
+  },
+  meeting: {
+    en: "Meeting minutes need a live gateway. Paste a Toko Token API key in Settings, then try again.",
+    id: "Notulen rapat memerlukan gerbang yang aktif. Tempel kunci API Toko Token di Settings, lalu coba lagi.",
   },
 };
 

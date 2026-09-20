@@ -33,7 +33,8 @@
     "./docx/test-fixtures": "./src/docx/__fixtures__/build-zip.ts",
     "./pdf": "./src/pdf/index.ts",
     "./pdf/test-fixtures": "./src/pdf/__fixtures__/build-pdf.ts",
-    "./legal": "./src/legal/index.ts"
+    "./legal": "./src/legal/index.ts",
+    "./meeting": "./src/meeting/index.ts"
   },
   "scripts": {
     "test": "vitest run",

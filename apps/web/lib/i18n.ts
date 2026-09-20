@@ -10,6 +10,7 @@ import enImages from "../locales/en/images.json";
 import enKnowledge from "../locales/en/knowledge.json";
 import enLegal from "../locales/en/legal.json";
 import enMarket from "../locales/en/market.json";
+import enMeeting from "../locales/en/meeting.json";
 import enOnboarding from "../locales/en/onboarding.json";
 import enPresentation from "../locales/en/presentation.json";
 import enRail from "../locales/en/rail.json";
@@ -29,6 +30,7 @@ import idImages from "../locales/id/images.json";
 import idKnowledge from "../locales/id/knowledge.json";
 import idLegal from "../locales/id/legal.json";
 import idMarket from "../locales/id/market.json";
+import idMeeting from "../locales/id/meeting.json";
 import idOnboarding from "../locales/id/onboarding.json";
 import idPresentation from "../locales/id/presentation.json";
 import idRail from "../locales/id/rail.json";
@@ -57,6 +59,7 @@ const NAMESPACES = [
   "finance",
   "legal",
   "edit",
+  "meeting",
   "auth",
 ] as const;
 type Namespace = (typeof NAMESPACES)[number];
@@ -82,6 +85,7 @@ const catalogs: Record<AppLocale, Record<Namespace, MessageTree>> = {
     finance: enFinance,
     legal: enLegal,
     edit: enEdit,
+    meeting: enMeeting,
     auth: enAuth,
   },
   id: {
@@ -103,6 +107,7 @@ const catalogs: Record<AppLocale, Record<Namespace, MessageTree>> = {
     finance: idFinance,
     legal: idLegal,
     edit: idEdit,
+    meeting: idMeeting,
     auth: idAuth,
   },
 };

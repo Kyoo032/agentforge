@@ -18,7 +18,7 @@ const VIDEO_PREF = ["veo_3_1-fast", "grok-imagine-video", "omni-fast-v2v", "grok
 
 const OTHER =
   /(^|\/)(text-)?embedding|babbage|davinci|computer-use|omni-moderation|text-moderation|moderation/i;
-const AUDIO = /suno_|whisper|\btts\b|tts-1|lyria|transcribe|audio-/i;
+const AUDIO = /suno_|whisper|\btts\b|tts-1|lyria|transcribe|audio-|(?:^|[-_.])asr(?:[-_.]|$)/i;
 const VIDEO =
   /seedance|veo[_-]|kling|\bsora\b|happyhorse|mj_video|grok-imagine-video|-t2v|-i2v|-r2v|-v2v|video-edit|omni-fast-v2v/i;
 const IMAGE =

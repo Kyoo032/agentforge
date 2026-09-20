@@ -160,6 +160,7 @@ export function App() {
           <Route path="/edit" element={null} />
           <Route path="/presentations" element={null} />
           <Route path="/legal" element={null} />
+          <Route path="/meeting" element={null} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/usage" element={<UsagePage />} />
           <Route path="/workspaces" element={<WorkspacesPage />} />
