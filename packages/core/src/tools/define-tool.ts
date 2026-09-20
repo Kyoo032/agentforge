@@ -35,8 +35,8 @@ export function defineTool<TSchema extends ZodTypeAny>(config: {
   };
 }
 
-export async function invokeTool(
-  tool: ToolDefinition<ZodTypeAny>,
+export async function invokeTool<TSchema extends ZodTypeAny>(
+  tool: ToolDefinition<TSchema>,
   rawArgs: unknown,
   tenant: TenantContext,
 ): Promise<unknown> {

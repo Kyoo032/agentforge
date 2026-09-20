@@ -184,7 +184,7 @@ export async function handlePostWorkspaceAgents(request: HostRequest): Promise<H
       {
         name: body.name as string,
         description: body.description as string | undefined,
-        systemPrompt: body.systemPrompt as string | undefined,
+        systemPrompt: body.systemPrompt as string,
         model: (body.model as string | undefined) ?? DEFAULT_CHAT_MODEL,
         inputModalities: body.inputModalities as InputModality[] | undefined,
         productModes: body.productModes as never,

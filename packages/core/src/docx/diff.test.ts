@@ -2,12 +2,12 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { diffDocuments } from "./diff";
 import { readDocx } from "./read";
-import { type ParagraphSpec, loadFixture, makeDocument } from "./test-support";
+import { type FixtureName, type ParagraphSpec, loadFixture, makeDocument } from "./test-support";
 
 /** Unmarked changes in the fixture redlines are the handful of plain-text edits (e.g. the "[ADDED: ...]" banner). */
 const MAX_UNMARKED_SHARE = 0.25;
 
-async function expectMostlyMarkedChanges(priorName: string, nextName: string) {
+async function expectMostlyMarkedChanges(priorName: FixtureName, nextName: FixtureName) {
   const prior = await readDocx(loadFixture(priorName));
   const next = await readDocx(loadFixture(nextName));
   const diff = diffDocuments(prior, next);

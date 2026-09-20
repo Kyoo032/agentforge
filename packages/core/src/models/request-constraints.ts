@@ -135,8 +135,8 @@ export async function readHttpErrorBody(response: Response, timeoutMs = GATEWAY_
       const remaining = Math.max(1, timeoutMs - (Date.now() - started));
       const result = await Promise.race([
         reader.read(),
-        new Promise<ReadableStreamReadResult<Uint8Array>>((resolve) => {
-          setTimeout(() => resolve({ done: true }), remaining);
+        new Promise<{ done: true; value: undefined }>((resolve) => {
+          setTimeout(() => resolve({ done: true, value: undefined }), remaining);
         }),
       ]);
       if (result.done) {

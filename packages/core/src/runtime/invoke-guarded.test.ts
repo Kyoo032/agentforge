@@ -3,9 +3,16 @@ import { z } from "zod";
 import { defineTool } from "../tools/define-tool";
 import { runWithToolSecrets } from "../tools/secret-scope";
 import { invokeToolGuarded } from "./invoke-guarded";
+import type { TenantContext } from "../tenancy/types";
 import { runWithToolIoSink, takeLastToolIo } from "./tool-io";
 
-const tenant = { tenantId: "local-tenant", organizationId: "org", workspaceId: "ws", userId: "user" };
+const tenant: TenantContext = {
+  tenantId: "local-tenant",
+  organizationId: "org",
+  workspaceId: "ws",
+  userId: "user",
+  role: "builder",
+};
 
 describe("invokeToolGuarded", () => {
   it("blocked args never call execute", async () => {

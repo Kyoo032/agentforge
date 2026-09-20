@@ -1,7 +1,7 @@
 import { config } from "dotenv";
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import SqliteDatabase from "better-sqlite3";
+import SqliteDatabase, { type Database as SqliteConnection } from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { ensureSchema } from "./ensure-schema";
 import { applyPendingDataReset } from "./reset";
@@ -17,7 +17,7 @@ const file = sqliteFilePath();
 mkdirSync(dirname(file), { recursive: true });
 
 const globalForDb = globalThis as unknown as {
-  sqlite?: SqliteDatabase.Database;
+  sqlite?: SqliteConnection;
 };
 
 /**
@@ -36,7 +36,7 @@ if (process.env.AGENTFORGE_APPLY_PENDING_RESET === "1" && !globalForDb.sqlite) {
   applyPendingDataReset(localDataDir());
 }
 
-export const sql = globalForDb.sqlite ?? new SqliteDatabase(file);
+export const sql: SqliteConnection = globalForDb.sqlite ?? new SqliteDatabase(file);
 if (process.env.NODE_ENV !== "production") {
   globalForDb.sqlite = sql;
 }
