@@ -8,6 +8,7 @@ import { DataStudio } from "@/components/data-studio";
 import { MarketStudio } from "@/components/market-studio";
 import { ImagesStudio } from "@/components/images-studio";
 import { VideosStudio } from "@/components/videos-studio";
+import { MusicStudio } from "@/components/music-studio";
 import { EditStudio } from "@/components/edit-studio";
 import { PresentationsStudio } from "@/components/presentations-studio";
 import { LegalStudio } from "@/components/legal-studio";
@@ -23,6 +24,7 @@ const WORK_MODE_COMPONENTS: Record<string, ComponentType> = {
   "/market": MarketStudio,
   "/images": ImagesStudio,
   "/videos": VideosStudio,
+  "/music": MusicStudio,
   "/edit": EditStudio,
   "/presentations": PresentationsStudio,
   "/legal": LegalStudio,
@@ -38,7 +40,7 @@ const WORK_MODE_PATHS = Object.keys(WORK_MODE_COMPONENTS);
  * The active pane is `absolute inset-0` so Chat/Edit can `h-full` and scroll
  * internally. It must be `overflow-y-auto`, not `overflow-hidden`: Research,
  * Finance, Data, Documents, Images, Videos, and Presentation grow past the
- * pane and have no inner scroller.
+ * pane and have no inner scroller — Music included.
  */
 export function WorkModeKeepAlive() {
   const { id } = useWorkspaceScope();

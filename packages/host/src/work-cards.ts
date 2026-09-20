@@ -116,6 +116,45 @@ export function mediaWorkCard(input: MediaWorkInput): WorkCard {
   };
 }
 
+export type MusicWorkInput = {
+  mediaId: string;
+  /** The description, or the lyrics when the desk wrote them itself. */
+  prompt: string;
+  model: string;
+  url: string;
+  mode: "describe" | "custom";
+  title?: string;
+  style?: string;
+  instrumental?: boolean;
+  durationSeconds?: number;
+};
+
+/**
+ * Music: same contract as `mediaWorkCard` — the bytes stay in the media store and the card carries
+ * only the words. Lyrics are the whole point of a song card, so `custom` mode indexes them as the
+ * body; `describe` mode indexes the brief instead. Either way the text appears once, for the same
+ * bm25 reason the media card comment explains.
+ */
+export function musicWorkCard(input: MusicWorkInput): WorkCard {
+  const lines = [
+    "Generated music track.",
+    input.mode === "custom" ? `Lyrics: ${input.prompt.trim()}` : `Brief: ${input.prompt.trim()}`,
+    input.style ? `Style: ${input.style}` : "",
+    input.instrumental ? "Instrumental: yes" : "",
+    input.durationSeconds ? `Duration: ${Math.round(input.durationSeconds)} s` : "",
+  ].filter(Boolean);
+  return {
+    type: "Music",
+    origin: { kind: "media", id: input.mediaId },
+    title: input.title?.trim() || titleFromPrompt(input.prompt, "Generated track"),
+    prompt: undefined,
+    pointer: `media:${input.mediaId}`,
+    file: input.url,
+    body: lines.join("\n"),
+    model: input.model,
+  };
+}
+
 export type ArtifactWorkInput = {
   type: Extract<
     WorkSourceType,

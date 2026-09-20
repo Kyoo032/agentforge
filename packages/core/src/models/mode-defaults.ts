@@ -2,6 +2,7 @@ import {
   firstLiveId,
   pickPreferredEmbeddingModel,
   pickPreferredImageModel,
+  pickPreferredMusicModel,
   pickPreferredVideoModel,
 } from "./media-kind";
 
@@ -29,6 +30,7 @@ export type ModeModelDefaults = {
   legalVerifier: string;
   image: string;
   video: string;
+  music: string;
   embedding: string;
   knowledgeBrain: string;
   knowledgeVerifier: string;
@@ -84,6 +86,7 @@ export function resolveModeDefaults(input: {
   chatIds: string[];
   imageIds: string[];
   videoIds: string[];
+  musicIds?: string[];
   embeddingIds?: string[];
   chatDefault: string;
 }): ModeModelDefaults {
@@ -100,6 +103,7 @@ export function resolveModeDefaults(input: {
     legalVerifier: pickPreferredJobModel("research", input.chatIds, input.chatDefault),
     image: pickPreferredImageModel(input.imageIds),
     video: pickPreferredVideoModel(input.videoIds),
+    music: pickPreferredMusicModel(input.musicIds ?? []),
     embedding: pickPreferredEmbeddingModel(input.embeddingIds ?? []),
     knowledgeBrain: input.chatDefault,
     knowledgeVerifier: pickPreferredJobModel("research", input.chatIds, input.chatDefault),

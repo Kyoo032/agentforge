@@ -10,14 +10,31 @@ import { mediaRoot } from "./media-root";
 
 const IMAGE_MAX = 10 * 1024 * 1024;
 const VIDEO_MAX = 50 * 1024 * 1024;
+/** A Suno take is a few minutes of mp3; 25 MB covers that with room, well under the video cap. */
+const AUDIO_MAX = 25 * 1024 * 1024;
 
 const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 const VIDEO_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime"]);
+const AUDIO_TYPES = new Set(["audio/mpeg", "audio/mp4", "audio/wav", "audio/x-wav", "audio/ogg", "audio/webm", "audio/flac"]);
+
+/** File extension for a stored mime, where the subtype is not already the extension. */
+const MEDIA_EXT: Record<string, string> = {
+  "video/quicktime": "mov",
+  "audio/mpeg": "mp3",
+  "audio/mp4": "m4a",
+  "audio/x-wav": "wav",
+};
+
+function mediaExt(mime: string): string {
+  return MEDIA_EXT[mime] ?? mime.split("/")[1] ?? "bin";
+}
 
 export { mediaRoot } from "./media-root";
 export { mediaIdFromUrl } from "./media-id";
 
-export async function listMediaByKind(tenant: TenantContext, kind: "image" | "video") {
+export type StoredMediaKind = "image" | "video" | "audio";
+
+export async function listMediaByKind(tenant: TenantContext, kind: StoredMediaKind) {
   return db
     .select()
     .from(media)
@@ -25,25 +42,46 @@ export async function listMediaByKind(tenant: TenantContext, kind: "image" | "vi
     .orderBy(desc(media.createdAt));
 }
 
-export async function saveMedia(tenant: TenantContext, file: File) {
-  const mime = file.type;
-  let kind: "image" | "video";
-  if (IMAGE_TYPES.has(mime)) {
-    kind = "image";
-    if (file.size > IMAGE_MAX) {
-      throw new ApiError("invalid_image_url", "Image exceeds 10 MB", 400);
-    }
-  } else if (VIDEO_TYPES.has(mime)) {
-    kind = "video";
-    if (file.size > VIDEO_MAX) {
-      throw new ApiError("invalid_video_url", "Video exceeds 50 MB", 400);
-    }
-  } else {
-    throw new ApiError("unsupported_content_type", "Only image and video uploads are allowed", 400);
+/**
+ * Kinds a caller is willing to store.
+ *
+ * The chat upload route keeps the narrow default on purpose (G-27, `edit/import.test.ts`): Edit owns
+ * its own 500 MB import path with its own guard, and generated audio never arrives as an upload at
+ * all — it comes through `saveGeneratedAudio`. Widening this default would quietly turn the chat
+ * media route into a second, unguarded audio import.
+ */
+export const DEFAULT_UPLOAD_KINDS: readonly StoredMediaKind[] = ["image", "video"];
+
+const KIND_FOR_TYPE: Array<{ kind: StoredMediaKind; types: Set<string>; max: number; code: string; label: string }> = [
+  { kind: "image", types: IMAGE_TYPES, max: IMAGE_MAX, code: "invalid_image_url", label: "Image exceeds 10 MB" },
+  { kind: "video", types: VIDEO_TYPES, max: VIDEO_MAX, code: "invalid_video_url", label: "Video exceeds 50 MB" },
+  { kind: "audio", types: AUDIO_TYPES, max: AUDIO_MAX, code: "invalid_audio_url", label: "Audio exceeds 25 MB" },
+];
+
+function listKinds(allow: readonly StoredMediaKind[]): string {
+  if (allow.length <= 1) {
+    return allow[0] ?? "no";
   }
+  return `${allow.slice(0, -1).join(", ")} and ${allow[allow.length - 1]}`;
+}
+
+export async function saveMedia(
+  tenant: TenantContext,
+  file: File,
+  allow: readonly StoredMediaKind[] = DEFAULT_UPLOAD_KINDS,
+) {
+  const mime = file.type;
+  const match = KIND_FOR_TYPE.find((entry) => entry.types.has(mime) && allow.includes(entry.kind));
+  if (!match) {
+    throw new ApiError("unsupported_content_type", `Only ${listKinds(allow)} uploads are allowed`, 400);
+  }
+  if (file.size > match.max) {
+    throw new ApiError(match.code, match.label, 400);
+  }
+  const kind = match.kind;
 
   const id = crypto.randomUUID();
-  const ext = mime.split("/")[1] === "quicktime" ? "mov" : mime.split("/")[1];
+  const ext = mediaExt(mime);
   const relative = `${tenant.organizationId}/${id}.${ext}`;
   const fullPath = path.join(mediaRoot(), relative);
   await mkdir(path.dirname(fullPath), { recursive: true });
@@ -105,6 +143,27 @@ export async function saveGeneratedImage(tenant: TenantContext, url: string): Pr
   return saved.url;
 }
 
+/**
+ * Audio twin of `saveGeneratedImage`. Music arrives as a remote URL from the Suno relay; speech
+ * arrives as a data URL because `/v1/audio/speech` answers with bytes rather than a link.
+ */
+export async function saveGeneratedAudio(tenant: TenantContext, url: string): Promise<string> {
+  if (url.startsWith("/api/v1/media/")) {
+    return url;
+  }
+  const downloaded = url.startsWith("data:audio/")
+    ? decodeMediaDataUrl(url, "audio")
+    : await downloadGeneratedMedia(url, "audio");
+  const saved = await saveMedia(
+    tenant,
+    new File([new Uint8Array(downloaded.bytes)], `generated.${mediaExt(downloaded.mime)}`, {
+      type: downloaded.mime,
+    }),
+    ["audio"],
+  );
+  return saved.url;
+}
+
 /** Video twin of `saveGeneratedImage`; plain http:// is not a mirrorable source. */
 export async function saveGeneratedVideo(tenant: TenantContext, url: string): Promise<string> {
   if (url.startsWith("/api/v1/media/")) {
@@ -122,7 +181,7 @@ export async function saveGeneratedVideo(tenant: TenantContext, url: string): Pr
   return saved.url;
 }
 
-function decodeMediaDataUrl(url: string, kind: "image" | "video"): DownloadedMedia {
+function decodeMediaDataUrl(url: string, kind: StoredMediaKind): DownloadedMedia {
   const match = url.match(new RegExp(`^data:(${kind}/[a-zA-Z0-9.+-]+);base64,(.+)$`, "s"));
   if (!match?.[1] || !match[2]) {
     throw new ApiError(`invalid_${kind}_url`, `Generated ${kind} is not a readable data URL`, 400);

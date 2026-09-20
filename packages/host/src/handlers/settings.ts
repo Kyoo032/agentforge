@@ -154,6 +154,7 @@ export async function handlePostSettings(request: HostRequest): Promise<HostResu
       toolBackends: readStringMap(body.toolBackends),
       imageGenModel: readOptionalString(body.imageGenModel),
       videoGenModel: readOptionalString(body.videoGenModel),
+      musicGenModel: readOptionalString(body.musicGenModel),
       documentGenModel: readOptionalString(body.documentGenModel),
       researchGenModel: readOptionalString(body.researchGenModel),
       presentationGenModel: readOptionalString(body.presentationGenModel),
