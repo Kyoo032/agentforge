@@ -67,6 +67,7 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 - [Knowledge graph](./knowledge-graph.md) — Phase 4 builtin: completed Chat replies with `[n]` markers add `cites` edges; one-hop `covers` expansion is behind `knowledge.graphExpand` (off in Chat); panel is the existing Phase 2 base. Drive on webdev :3000.
 - [Images](./images.md) — studio shell on Default; needs-key without a gateway key.
 - [Videos](./videos.md) — studio shell and `videos-studio-needs-key` without a key.
+- [Meeting](./meeting.md) — recording → transcript → minutes → EN/ID translation (`mode-meeting`). Create, upload and paste work without a key; only the run reaches the gateway.
 - [Music](./music.md) — studio shell and `music-studio-needs-key` without a key; describe-or-lyrics brief, two takes per charge, voice-over reported unavailable rather than offered.
 - [Edit](./edit.md) — CapCut-style timeline + agent panel (`mode-edit`), shipped in 0.14.22. Storyboard generate is still a Phase 3 placeholder and `animate_storyboard` is backend-only.
 - [Presentation](./presentations.md) — starters, preview, slide regen (503 without a key), PPTX download from a starter.

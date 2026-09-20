@@ -12,6 +12,20 @@ import {
 } from "./media-kind";
 
 describe("mediaKind", () => {
+  /**
+   * Regression: `mimo-v2.5-asr` is the gateway's only speech recogniser and is labelled Audio in
+   * gateway-roles.ts, but the AUDIO pattern matched neither its name nor "asr", so it fell through
+   * to the chat bucket — offered in the chat model picker, and invisible to every ASR probe.
+   */
+  it("routes a speech recogniser to audio, not chat", () => {
+    expect(mediaKind("mimo-v2.5-asr")).toBe("audio");
+    expect(mediaKind("whisper-1")).toBe("audio");
+  });
+
+  it("does not treat a chat id that merely contains the letters asr as audio", () => {
+    expect(mediaKind("qwen3-disaster-preview")).toBe("chat");
+  });
+
   it("keeps chat models as chat", () => {
     expect(mediaKind("gpt-5.6-sol")).toBe("chat");
     expect(mediaKind("claude-sonnet-5")).toBe("chat");
