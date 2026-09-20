@@ -1,6 +1,6 @@
 # OWASP pass — hosted web app, September 2026
 
-Audited 2026-09-20 at b482611, on branch `feat/owasp-security-pass-ahr8y1`.
+Audited 2026-09-20 at b482611 and re-anchored at b06e0a4 after merging `main`, on branch `feat/owasp-security-pass-ahr8y1`.
 
 ## Overview
 
