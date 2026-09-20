@@ -21,18 +21,18 @@ Each line verified against the tree.
 | `isServerMode()` / `trustedOrigins()` | `packages/core/src/server-mode.ts:12`, `:22` | Done. `AGENTFORGE_SERVER=1`; in server mode `trustedOrigins` defaults to `[]` (`server-mode.ts:27-29`), so an unconfigured server accepts no mutating call. |
 | Web Origin rule | `packages/host/src/local-request.ts:96-102` (`isAllowedWebOrigin`, missing Origin rejected at `:98-100`) | Done. Loopback sibling `isAllowedMutatingApiRequest` unchanged at `local-request.ts:77-86`. |
 | Host-header allowlist | `packages/host/src/local-request.ts:110-116`, default-port spelling at `:120-133` | Done. |
-| The one branch point | `packages/host/src/http-adapter.ts:338-349` inside `mutatingRejection` | Done. Server mode → origin+host+CSRF; else the loopback rule. |
-| CSRF double-submit | `packages/host/src/csrf.ts:52` (mint), `:74-77` (`Set-Cookie`), `:84-101` (constant-time check); minted at `http-adapter.ts:263-266`, checked at `:343-346`; renderer echoes at `apps/web/lib/api-client.ts:95-97,137` | Done. `__Host-agentforge_csrf` on HTTPS, `agentforge_csrf` on plain http (`csrf.ts:21,24`). |
+| The one branch point | `packages/host/src/http-adapter.ts:346-357` inside `mutatingRejection` | Done. Server mode → origin+host+CSRF; else the loopback rule. |
+| CSRF double-submit | `packages/host/src/csrf.ts:93` (mint), `:74-77` (`Set-Cookie`), `:84-101` (constant-time check); minted at `http-adapter.ts:263-266`, checked at `:343-346`; renderer echoes at `apps/web/lib/api-client.ts:95-97,137` | Done. `__Host-agentforge_csrf` on HTTPS, `agentforge_csrf` on plain http (`csrf.ts:21,24`). |
 | `BIND_HOST` | `apps/web/lib/bind-host.ts:15-26`, wired at `apps/web/server.ts:109-110` | Done. Non-loopback bind throws unless server mode (`bind-host.ts:20-25`). |
 | Mandatory wrap key | `packages/db/src/vault-key.ts:123-135`; entropy floor at `:90-105`; `.master-key` self-create only off server mode (`:125-127`) | Done. |
 | Gate fails closed on the server | `packages/host/src/gateway-gate.ts:275` (`serverMode`), `:278-280` (stub runtime no longer opens it), `:288-290` (unverified key = `error`, not `ok`) | Done. |
 | Hosted meta marker | `apps/web/lib/hosted-build.ts:21` (tag), `:55-57` (`isHostedBuild`), `:65-76` (`injectHostedMarker`); stamped at `apps/web/server.ts:53,95` | Done. |
 | Renderer gate fails closed on hosted | `apps/web/lib/gateway-gate.ts:94-99` — `hosted \|\| isElectron ? "onboarding" : "app"` at `:97` | Done (was `isElectron ? … : "app"`). |
-| "Start over" refused | `packages/host/src/handlers/settings.ts:296-298` (`reset_disabled`), thrown at `:335-337` before the confirm word | Done. `HOST_RESET_ENTRIES` at `:274-293` is still machine-wide, which is why it is refused rather than scoped. |
+| "Start over" refused | `packages/host/src/handlers/settings.ts:297-299` (`reset_disabled`), thrown at `:335-337` before the confirm word | Done. `HOST_RESET_ENTRIES` at `:274-293` is still machine-wide, which is why it is refused rather than scoped. |
 | Global limiters | `packages/host/src/concurrency.ts:288,290` (`ffmpegLimiter`, `sqlLimiter`), `createJobLimiter` at `:241`; wired at `packages/host/src/edit/ffmpeg/run.ts:73` and `packages/host/src/sql-runner.ts:95,172` | Done — **global, not per tenant** (`concurrency.ts:10-13`: caps apply only in server mode). |
 | JSON logger with redaction | `packages/host/src/log.ts:217` (`createLogger`), `:240` (`log`), `redactSecrets` applied at `:145,157,176,208` | Done. Does **not** yet add a tenant id or request id as fields (spec row L1 asks for both). |
 | Session backend | `packages/host/src/auth/session.ts:81` (`createSession`), `:105` (`verifySession`), `:122` (`slidSession`), `:131` (`revokedSession`); store at `auth/session-store.ts`; portal client at `auth/portal-client.ts`; routes at `auth/routes.ts:192` | Done. Idle 12 h / absolute 30 d (`session.ts:18-19`), slide ≤ once per 5 min (`:21`). |
-| Router session gate | `packages/host/src/router.ts:317-345`, invoked at `:352-359`; exemptions at `auth/routes.ts:94-99` (`/api/v1/auth/*`, `GET /api/v1/ping`, `GET /api/v1/components` — `UNGATED_GETS` at `:44`) | Done. Every method on every other `/api` path 401s `session_required`. |
+| Router session gate | `packages/host/src/router.ts:325-353`, invoked at `:352-359`; exemptions at `auth/routes.ts:94-99` (`/api/v1/auth/*`, `GET /api/v1/ping`, `GET /api/v1/components` — `UNGATED_GETS` at `:44`) | Done. Every method on every other `/api` path 401s `session_required`. |
 | `HostRequest.session` | `packages/host/src/types.ts:31-36` (`HostSession`), `:53`; populated at `router.ts:333-338`, re-attached at `:376-377` (the caller's own object is never mutated, and a forged `session` field is dropped) | Done. |
 | `auth_sessions` + migration `0014` | `packages/db/src/schema.ts:688-706`; `packages/db/drizzle/0014_auth_sessions.sql:12-27`; journal entry idx 14 | Done. Carries `tenant_id`, `org_id`, `user_id` already. |
 | Reason-code copy | `apps/web/locales/en/auth.json`, `apps/web/locales/id/auth.json` — all nine portal codes plus `session_required`, `invalid_request`, `invalid_grant`, `portal_unavailable` | Done. |
@@ -60,7 +60,7 @@ Each line verified against the tree.
 
 - **`TenantContext`** — `packages/core/src/tenancy/types.ts:13-20`: `{ organizationId, workspaceId, userId, role }`.
   No `tenantId`, no plan. `requireTenant` at `:20-25` has no call site in `packages/host/src`.
-- **`getTenant()`** — `packages/host/src/tenant.ts:35-50`. Signature `(preferredWorkspaceId?: string | null)`.
+- **`getTenant()`** — `packages/host/src/tenant.ts:88-103`. Lane C changed the signature to `(input?: TenantInput)`, source-compatible with the old `(preferredWorkspaceId?: string | null)` (spec §3c). Originally `(preferredWorkspaceId?: string | null)`.
   It calls `ensureLocalOwner(db, explicit || selected)` at `:38`, then `listLocalWorkspaces` at `:39`, adopts
   legacy settings at `:42`, and stamps the selected desk file at `:46-48`.
   **Call-site count: 102.** (`grep -ro "getTenant(" packages/host/src --include=*.ts | grep -v '\.test\.ts'`
@@ -75,7 +75,7 @@ Each line verified against the tree.
   `PERSONAL_ORG_SLUG = "personal"`, `HOME_WORKSPACE_SLUG = "home"`, `WORKSPACE_COOKIE = "agentforge_workspace"`.
   `pickWorkspaceId` at `:16-31` accepts a preferred id **only if it is in the list passed in** (`:20-22`),
   otherwise falls back to home (`:23-26`) — it never errors on a foreign id, it silently substitutes.
-- **Workspace selection** — `packages/host/src/workspace.ts:8-24`: `<dataDir>/workspace-id.txt`, machine-wide.
+- **Workspace selection** — `packages/host/src/workspace.ts:19-41`: `<dataDir>/workspace-id.txt`, machine-wide.
   The cookie flow: `http-adapter.ts:309` sets `workspaceId: cookies[WORKSPACE_COOKIE] || readSelectedWorkspaceId() || null`,
   which reaches `getTenant(request.workspaceId)` at all 102 call sites. The cookie is entirely client-supplied;
   the only thing standing between it and a foreign desk is `pickWorkspaceId`'s membership test, which today
@@ -336,7 +336,7 @@ a copied real database.
 
 ## 5. Handler audit
 
-`packages/host/src/router.ts:158-291` — **129 route registrations, 55 of them by-id.** Per family:
+`packages/host/src/router.ts:163-299` — **129 route registrations, 55 of them by-id.** Per family:
 
 | Family (router.ts lines) | Store module | Org/workspace filter today | Phase 3 change |
 |---|---|---|---|

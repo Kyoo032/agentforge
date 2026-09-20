@@ -19,9 +19,14 @@ Companions, and what each is for:
 
 > **Who this deployment is for today.** Phase 1 and Phase 2 are merged (PR #56): mutating `/api`
 > needs a trusted Origin, a matching `Host` and a CSRF token, and in server mode every `/api` call
-> outside a short exempt list needs a portal session. **There is no browser sign-in screen yet**, and
-> the schema has no tenant dimension, so a server stood up from this page is a private, single-tenant
-> deployment for Kyo. Do not hand the URL to a second person until Phase 3 lands. The rest of the
+> outside a short exempt list needs a portal session. Phase 3 has since landed lanes A, B and C, so
+> the schema now carries a `tenants` table and `organizations.tenant_id`, and `getTenant()` resolves
+> the tenant from the verified session rather than from the single local owner
+> (`packages/host/src/tenant.ts:88-103`). **What is still missing is the part a second person would
+> need: there is no browser sign-in screen**, per-tenant files and storage prefixes are lane D, and
+> the sweep that proves every by-id route 404s across tenants is lane E. So a server stood up from
+> this page is still a private deployment for Kyo, and the URL should not go to a second person
+> until lanes D and E land. The rest of the
 > gaps are in [`../../webapp-deploy/README.md`](../../webapp-deploy/README.md) under *What is not
 > done yet*.
 
@@ -173,7 +178,7 @@ Install the Tencent CLI too — `deploy.sh` uses it to read secrets, and `backup
 upload:
 
 ```sh
-sudo apt-get install -y python3-pip && pip3 install tccli
+sudo apt-get install -y python3-pip && pip3 install --user tccli   # lands in ~/.local/bin; step 10 needs that on cron's PATH
 # coscli: download the release binary from Tencent's COS tools page and put it on PATH
 ```
 
@@ -193,7 +198,19 @@ sudo mkfs.ext4 /dev/vdb
 sudo mkdir -p /srv/dpsbuddy-data
 echo '/dev/vdb  /srv/dpsbuddy-data  ext4  defaults,nodev,noatime  0  2' | sudo tee -a /etc/fstab
 sudo mount -a
+sudo chown 1000:1000 /srv/dpsbuddy-data   # the `node` uid:gid inside the image
 df -h /srv/dpsbuddy-data
+```
+
+**The `chown` is not optional.** A fresh ext4 mount is `root:root 0755`, the container runs as `node`
+(`webapp-deploy/Dockerfile:85`) with `read_only: true`, and the image's own
+`chown -R node:node /data` (`Dockerfile:82`) is hidden the moment a bind mount covers `/data`. Without
+it the first boot dies with `EACCES` creating `agentforge.sqlite`, and all you see is a container that
+never goes healthy. `1000:1000` is the `node` user in `node:22-bookworm-slim`; `restore.sh:75-83` does
+the same `chown` after unpacking, for the same reason. Confirm it before you bring the stack up:
+
+```sh
+stat -c '%u:%g %a %n' /srv/dpsbuddy-data    # expect 1000:1000 755
 ```
 
 `nodev` is in the flags on purpose. `noexec` is **not**, and must not be added yet: the component
@@ -280,8 +297,11 @@ elsewhere, adjust them.
 ### Every environment variable, and which ones are secret
 
 The template at [`../../webapp-deploy/.env.example`](../../webapp-deploy/.env.example) carries a line
-of meaning for each. This is the same list grouped by what you actually have to decide, with the ones
-that are **secret** marked. A secret here means: never in git, never in the image, never in a log line,
+of meaning for each, and it is the authority. What follows covers every key you have to **decide**,
+grouped by the decision, with the ones that are **secret** marked. It is deliberately not exhaustive:
+`COS_BACKUP_PREFIX`, `SSM_VERSION_STAGE`, `AGENTFORGE_EDIT_ASR_MODEL` and the four `*_BASE_URL` keys
+have working defaults you do not touch on a first deploy — read them in the template if you need
+them. A secret here means: never in git, never in the image, never in a log line,
 and on this server never in `.env` at all.
 
 **Must be set before first boot**
@@ -462,9 +482,22 @@ for the container healthcheck, and prints a ready-made row for the deploy log.
 Then run these five checks **in order**. Each one is written so a failure tells you which layer broke.
 
 **1. The container is healthy.** The image's own `HEALTHCHECK` hits `GET /api/v1/components` on
-loopback. That route is ungated on purpose — `packages/host/src/handlers/components.ts:4-8` explains
-why: a component is installed before anyone has pasted a gateway key — so it answers before any key
-exists and without touching the database.
+loopback, **with an `x-forwarded-proto: https` header**. Two things have to be true for that to pass,
+and it is worth knowing both, because this is where a first deploy usually stops:
+
+- The route is ungated on purpose. It is one of the two `UNGATED_GETS`
+  (`packages/host/src/auth/routes.ts:45`) and `packages/host/src/handlers/components.ts:4-8` explains
+  why: a component is installed before anyone has pasted a gateway key. So it answers before any key
+  exists and without touching the database.
+- The header is what gets the probe past the transport filter. In server mode `rejectPlaintext`
+  (`packages/host/src/http-adapter.ts:314-317`, called at `:421`) answers `403 https_required` to
+  every request that does not carry it, on **every** path, before routing. A probe without the header
+  fails every time, `deploy.sh` waits its five minutes and exits non-zero, and the logs show nothing
+  but 403s. Sending the header from inside the container is safe: that process is already past the
+  boundary the control exists to defend, and the port is loopback-only anyway.
+
+This is the one place where an inside-the-box caller is allowed to look like the proxy, and check 3
+below proves nobody else can.
 
 ```sh
 docker ps                                   # both containers up, app healthy
@@ -490,9 +523,11 @@ sudo ss -ltnp | grep -E ':(80|443|3000)'     # 3000 must be loopback only
 curl -si http://127.0.0.1:3000/api/v1/ping | head -1
 ```
 
-That last one should answer **403 `https_required`**, not `200`. In server mode the app refuses any
-request that does not arrive marked `X-Forwarded-Proto: https`, which is what makes a direct hit from
-inside the box useless. From outside the VPC, port-scan and expect only 80 and 443:
+That last one should answer **403 `https_required`**, not `200` — a bare `curl` sends no
+`X-Forwarded-Proto`, and in server mode the app refuses every request that does not arrive marked
+`X-Forwarded-Proto: https`. That is the same rule the healthcheck in check 1 satisfies by sending the
+header deliberately; this check proves that anything which does *not* send it gets nothing. If this
+returns `200`, the transport filter is off and `AGENTFORGE_SERVER` is not set — stop here. From outside the VPC, port-scan and expect only 80 and 443:
 
 ```sh
 nmap -Pn -p 1-65535 <public-ip>
@@ -512,8 +547,8 @@ fix that before going further. If the browser itself cannot write (every action 
 typed, scheme and all.
 
 **5. Sign-in and the gateway gate.** In server mode every `/api` call needs a portal session except
-`/api/v1/auth/*`, `GET /api/v1/ping` (`packages/host/src/router.ts:159`) and `GET /api/v1/components`
-(`:194`); the gate is applied at `packages/host/src/router.ts:327`. **There is no browser sign-in
+`/api/v1/auth/*`, `GET /api/v1/ping` (`packages/host/src/router.ts:164`) and `GET /api/v1/components`
+(`:199`); the gate is applied at `packages/host/src/router.ts:335`. **There is no browser sign-in
 screen yet**, so the browser path ends here for now and the API path is exercised against
 `/api/v1/auth/*` directly.
 
@@ -532,11 +567,39 @@ deploy that is not in that table did not happen.
 
 ## 10. Backups
 
-RPO is one hour. Install the cron as the deploy user, `crontab -e`:
+RPO is one hour. Two things first, or the cron will look installed and never actually run.
+
+**Give cron a PATH that contains `tccli`.** `pip3 install --user tccli` in step 3 puts it in
+`~/.local/bin`. Cron's default `PATH` is `/usr/bin:/bin`, so without this the fetch prints
+`tccli: not found`, `BACKUP_KEY` comes out empty, and `backup.sh:29-33` refuses to run rather than
+writing a plaintext archive — correct behaviour, silent failure. Confirm the path first:
+
+```sh
+command -v tccli                       # e.g. /home/ubuntu/.local/bin/tccli
+```
+
+**Create the log file and give it to the deploy user.** `/var/log` is `root`-owned, so a non-root
+crontab cannot create `dpsbuddy-backup.log` and the error only lands in cron's local mail, which
+nobody reads:
+
+```sh
+sudo touch /var/log/dpsbuddy-backup.log
+sudo chown "$USER":"$USER" /var/log/dpsbuddy-backup.log
+```
+
+Then install the cron as the deploy user, `crontab -e`. The `PATH=` line must come before the job:
 
 ```cron
+PATH=/home/ubuntu/.local/bin:/usr/local/bin:/usr/bin:/bin
 # m h  dom mon dow  command
 17 * * * * BACKUP_KEY="$(tccli ssm get-secret-value --region ap-jakarta --SecretName dpsbuddy/prod/backup-key --VersionStage SSMCurrent | python3 -c 'import json,sys;print(json.load(sys.stdin)["SecretString"],end="")')" /bin/sh /srv/dpsbuddy/webapp-deploy/scripts/backup.sh >> /var/log/dpsbuddy-backup.log 2>&1
+```
+
+Replace `/home/ubuntu` with whatever `command -v tccli` printed. Prove the cron environment works
+before you trust it, rather than waiting until :17 past the hour:
+
+```sh
+env -i PATH=/home/ubuntu/.local/bin:/usr/bin:/bin sh -c 'tccli --version'
 ```
 
 The passphrase is fetched with the instance role at each run and never lands in the crontab or on
@@ -581,6 +644,9 @@ sh webapp-deploy/scripts/deploy.sh --no-pull
 ```
 
 **Roll back data** — destructive, and it replaces everything in `/data`:
+
+The `tccli` here is the same one the cron needs on its `PATH` (step 10); in an interactive shell it
+is already there.
 
 ```sh
 export BACKUP_KEY="$(tccli ssm get-secret-value --region ap-jakarta --SecretName dpsbuddy/prod/backup-key --VersionStage SSMCurrent | python3 -c 'import json,sys;print(json.load(sys.stdin)["SecretString"],end="")')"
@@ -664,11 +730,15 @@ The shape this runbook builds is the first column.
 | COS — backups now, media after Phase 6 | $2 | 700 GB — $17 | 2 TB — $50 |
 | Outbound traffic at $0.12/GB | 50 GB — $6 | 500 GB — $60 | 2 TB — $240 |
 | CLS logs | $5 | $15 | $30 |
-| Secrets Manager + KMS | $5 | $5 | $5 |
+| Secrets Manager + KMS — the one line with no list price | $5 | $5 | $5 |
 | TencentDB for PostgreSQL | none — SQLite | $250–300 (Phase 3) | $500–600 |
 | CLB | none — Caddy on the box | none | $17 |
 | WAF Advanced, once paying tenants exist | none | optional $550 | $550 |
 | **Total (list)** | **≈ $165/month** | **≈ $910–960** ($1,500 with WAF) | **≈ $2,100–2,200** ($2,750 with WAF) |
+
+Every line above is sourced to `web-data-placement-tencent.md` §4c except Secrets Manager + KMS: the
+placement doc says only "a few dollars, verify in the console" (`web-data-placement-tencent.md:86`),
+so that $5 is a guess, not a read price. Check it in the console on the first bill.
 
 Four things that move the bill more than the instance choice:
 
@@ -705,8 +775,8 @@ The rows it does not, and which are still open: `L2` and `L3` produce log lines 
 to CLS or raises an alarm yet, and `L1` — no prompts, bodies, keys or tokens in any log line — is the
 application logger's to prove, not the proxy's.
 
-And the standing gaps that are nobody's configuration mistake: no browser sign-in screen, no tenancy,
-no seat or plan enforcement, one SQLite file on one server, no image registry and no CI build, no
+And the standing gaps that are nobody's configuration mistake: no browser sign-in screen, tenancy
+landed only as far as lane C (no per-tenant files yet, no cross-tenant route sweep), no seat or plan enforcement, one SQLite file on one server, no image registry and no CI build, no
 ffmpeg in the image, and dev dependencies shipping because `tsx` is the entrypoint. They are listed
 with their owning phase in [`../../webapp-deploy/README.md`](../../webapp-deploy/README.md) under
 *What is not done yet*.

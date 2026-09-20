@@ -1,27 +1,27 @@
 # Map — Portal browser session (hosted server)
 
-Last verified: 2026-09-20 at 69afca9
+Last verified: 2026-09-20 at d14cd8f
 
 ## Overview
 
 The server-side half of signing in to the hosted deployment: four `/api/v1/auth/*` routes, an opaque
 cookie, a SQLite row per session, and a gate in the router that refuses every other `/api` call
 without one. It landed in PR #56 (`6ae177a`) and runs **only** when `AGENTFORGE_SERVER` is `1`
-(`packages/core/src/server-mode.ts:12-15`, read per request at `packages/host/src/router.ts:352`), so
+(`packages/core/src/server-mode.ts:12-15`, read per request at `packages/host/src/router.ts:360`), so
 the desktop IPC path and webdev never mint, read or require a session.
 
 It is a backend. There is no sign-in screen — see **Not built** below. The verified session rides on
 `request.session` for Phase 3, but `getTenant()` does not read it yet, so the hosted server is
-single-tenant until Phase 3 lands (`packages/host/src/tenant.ts:27-34`).
+single-tenant until Phase 3 lands (`packages/host/src/tenant.ts:42-47`).
 
 ## How it works
 
 ### Sign in — `POST /api/v1/auth/login`
 
-Routed at `packages/host/src/router.ts:161` to `handleLogin`
-(`packages/host/src/auth/routes.ts:219-241`).
+Routed at `packages/host/src/router.ts:166` to `handleLogin`
+(`packages/host/src/auth/routes.ts:233-265`).
 
-1. `readCode` (`packages/host/src/auth/routes.ts:179-185`) demands a non-empty string `code` in the
+1. `readCode` (`packages/host/src/auth/routes.ts:193-199`) demands a non-empty string `code` in the
    JSON body. Anything else is `invalid_request` at 400 — the portal is never called.
 2. `portal.exchangeCode({ code })` posts `{ grant_type: "authorization_code", code }` to
    `{AGENTFORGE_PORTAL_URL}/auth/token` (`packages/host/src/auth/portal-client.ts:212-214`,
@@ -38,17 +38,17 @@ Routed at `packages/host/src/router.ts:161` to `handleLogin`
    (`packages/host/src/auth/session.ts:99-101`) and stamps `createdAt = lastSeenAt = now`,
    `expiresAt = now + 12 h`, `absoluteExpiresAt = now + 30 days`, `revokedAt = null`
    (`packages/host/src/auth/session.ts:40-41`).
-5. The row goes to the store (`packages/host/src/auth/routes.ts:234`); the portal's access and
+5. The row goes to the store (`packages/host/src/auth/routes.ts:258`); the portal's access and
    refresh tokens and `device_id` go to the in-memory vault keyed by session id
-   (`packages/host/src/auth/routes.ts:235-239`).
+   (`packages/host/src/auth/routes.ts:259-263`).
 6. The answer is `sessionSummary` — `{ signedIn: true, userId, orgId, tenantId, expiresAt }`, with no
    token in it (`packages/host/src/auth/session.ts:152-160`) — plus the session cookie
-   (`packages/host/src/auth/routes.ts:240`).
+   (`packages/host/src/auth/routes.ts:264`).
 
 **Failure mode.** A portal refusal arrives as a `PortalError` and is converted by `fromPortal` into
 the host's `ApiError`, keeping the portal's reason code, its HTTP status and its `message_en`
-(`packages/host/src/auth/routes.ts:81-86`, `packages/host/src/auth/routes.ts:77-79`). Every handler
-is wrapped in `guarded` (`packages/host/src/auth/routes.ts:188-198`), so that leaves as the standard
+(`packages/host/src/auth/routes.ts:87-100`, `packages/host/src/auth/routes.ts:83-85`). Every handler
+is wrapped in `guarded` (`packages/host/src/auth/routes.ts:202-212`), so that leaves as the standard
 `{ error: { code, message } }` envelope with the reason as the code
 (`packages/host/src/errors.ts:17-32`). No token ever reaches a message: `PortalError` composes its own
 text from the reason alone (`packages/host/src/auth/portal-client.ts:72-73`), and a `fetch` rejection
@@ -58,40 +58,40 @@ is swallowed without attaching the cause, because that cause can carry the reque
 ### Every other call — the session gate
 
 `dispatch` upper-cases the method and strips trailing slashes once
-(`packages/host/src/router.ts:348-349`), resolves server mode **per request** rather than at import
-(`packages/host/src/router.ts:350-352`), and runs the gate only in server mode
-(`packages/host/src/router.ts:354-360`).
+(`packages/host/src/router.ts:356-357`), resolves server mode **per request** rather than at import
+(`packages/host/src/router.ts:358-360`), and runs the gate only in server mode
+(`packages/host/src/router.ts:362-368`).
 
-`gate` (`packages/host/src/router.ts:317-345`) lets a path through untouched when it is not under
-`/api/` (`packages/host/src/router.ts:293`, `packages/host/src/router.ts:323`) or when
+`gate` (`packages/host/src/router.ts:325-353`) lets a path through untouched when it is not under
+`/api/` (`packages/host/src/router.ts:301`, `packages/host/src/router.ts:331`) or when
 `isSessionExemptPath` says so. That function
-(`packages/host/src/auth/routes.ts:94-99`) exempts exactly three things:
+(`packages/host/src/auth/routes.ts:108-113`) exempts exactly three things:
 
 | Exempt | Why |
 |---|---|
-| anything under `/api/v1/auth/`, **any** method | nobody has a session yet (`packages/host/src/auth/routes.ts:38`) |
-| `GET /api/v1/ping` | the health probe the proxy polls (`packages/host/src/auth/routes.ts:44`) |
-| `GET /api/v1/components` | the first-run installer's status read (`packages/host/src/auth/routes.ts:44`) |
+| anything under `/api/v1/auth/`, **any** method | nobody has a session yet (`packages/host/src/auth/routes.ts:39`) |
+| `GET /api/v1/ping` | the health probe the proxy polls (`packages/host/src/auth/routes.ts:45`) |
+| `GET /api/v1/components` | the first-run installer's status read (`packages/host/src/auth/routes.ts:45`) |
 
 Nothing else, for any method. A read is not safe here — a GET returns settings, threads, artifact
 bytes and event streams — so the method alone never exempts anything, and the same path with a
 different method is a different answer: `GET /api/v1/components` is exempt while
-`POST /api/v1/components/install/stream` is not (`packages/host/src/auth/routes.ts:88-99`).
+`POST /api/v1/components/install/stream` is not (`packages/host/src/auth/routes.ts:102-113`).
 
-Everything else calls `requireSessionFor` (`packages/host/src/auth/routes.ts:136-142`), which throws
+Everything else calls `requireSessionFor` (`packages/host/src/auth/routes.ts:150-156`), which throws
 `authError(reason, 401)` on any bad verdict. That 401 is produced **before the route table is
-consulted** (`packages/host/src/router.ts:340-344`), so an unauthenticated caller cannot learn which
+consulted** (`packages/host/src/router.ts:348-352`), so an unauthenticated caller cannot learn which
 paths exist: an unknown path and a real one both answer `401 session_required`.
 
 On success the four identifiers are attached to the request as `request.session`
-(`packages/host/src/router.ts:331-339`, `packages/host/src/types.ts:32-37`). `dispatch` destructures
+(`packages/host/src/router.ts:339-347`, `packages/host/src/types.ts:32-37`). `dispatch` destructures
 any `session` the caller supplied off the request first and re-adds only the gate's own
-(`packages/host/src/router.ts:376-377`), so an invented session can never reach a handler as identity,
+(`packages/host/src/router.ts:384-385`), so an invented session can never reach a handler as identity,
 and the caller's request object is never written to.
 
 ### Verify, slide, expire
 
-`loadSession` (`packages/host/src/auth/routes.ts:119-133`) reads the cookie, looks the row up and
+`loadSession` (`packages/host/src/auth/routes.ts:133-147`) reads the cookie, looks the row up and
 runs `verifySession`. The cookie read is `readSessionCookie`
 (`packages/host/src/auth/session.ts:193-210`): it splits the raw `Cookie` header, matches this mode's
 name exactly, and returns null for a value that will not `decodeURIComponent`
@@ -112,41 +112,41 @@ caller that read the plain name on the hosted server would hand back the session
 
 A slide re-opens the 12 h idle window but is clamped to the absolute expiry
 (`packages/host/src/auth/session.ts:139-145`), and it is persisted only when it actually happened
-(`packages/host/src/auth/routes.ts:129-131`), so a busy tab does not write a row per request.
+(`packages/host/src/auth/routes.ts:143-145`), so a busy tab does not write a row per request.
 
 ### Refresh — `POST /api/v1/auth/refresh`
 
-`handleRefresh` (`packages/host/src/auth/routes.ts:268-298`) needs a live session first, then the
+`handleRefresh` (`packages/host/src/auth/routes.ts:292-322`) needs a live session first, then the
 vault entry behind it.
 
 - **No vault entry** — the host restarted since this browser signed in. The session is ended and the
-  answer is `refresh_expired` at 401 (`packages/host/src/auth/routes.ts:271-276`).
+  answer is `refresh_expired` at 401 (`packages/host/src/auth/routes.ts:295-300`).
 - **Portal refresh** posts `{ grant_type: "refresh_token", refresh_token, device_id? }`, omitting
   `device_id` entirely when the session has none
   (`packages/host/src/auth/portal-client.ts:215-221`).
 - **`portal_unavailable`** is offline, not refused: the error is rethrown and the session *survives*
-  (`packages/host/src/auth/routes.ts:282-285`).
+  (`packages/host/src/auth/routes.ts:306-309`).
 - **Every other reason** is terminal. The session is ended and the answer carries the cleared cookie
-  alongside the error envelope (`packages/host/src/auth/routes.ts:286-288`).
+  alongside the error envelope (`packages/host/src/auth/routes.ts:310-312`).
 - **Success** replaces the vault entry with the rotated pair, saves a slid session and re-issues the
-  cookie with a fresh `Max-Age` (`packages/host/src/auth/routes.ts:290-297`).
+  cookie with a fresh `Max-Age` (`packages/host/src/auth/routes.ts:314-321`).
 
 ### Sign out — `POST /api/v1/auth/logout`
 
-`handleLogout` (`packages/host/src/auth/routes.ts:243-257`) is idempotent at both ends. An absent or
+`handleLogout` (`packages/host/src/auth/routes.ts:267-281`) is idempotent at both ends. An absent or
 stale cookie still returns 200 `{ signedIn: false }` with the cleared cookie and never calls the
-portal (`packages/host/src/auth/routes.ts:245-249`). With a row, the portal's
+portal (`packages/host/src/auth/routes.ts:269-273`). With a row, the portal's
 `POST /auth/logout` (Bearer access token, body `{ all_devices: false }`) is called best-effort and its
 refusal is swallowed twice over — once in the client
 (`packages/host/src/auth/portal-client.ts:222-230`) and once at the call site
-(`packages/host/src/auth/routes.ts:253`) — because an unreachable or unhappy portal must not block
-the local wipe. `endSession` (`packages/host/src/auth/routes.ts:214-217`) then saves a revoked copy
+(`packages/host/src/auth/routes.ts:277`) — because an unreachable or unhappy portal must not block
+the local wipe. `endSession` (`packages/host/src/auth/routes.ts:228-231`) then saves a revoked copy
 and deletes the vault entry. Re-revoking keeps the **first** revocation time, so an audit reads the
 moment the session actually died (`packages/host/src/auth/session.ts:148-150`).
 
 ### Status — `GET /api/v1/auth/session`
 
-`handleSession` (`packages/host/src/auth/routes.ts:259-266`) always answers 200. A live session
+`handleSession` (`packages/host/src/auth/routes.ts:283-290`) always answers 200. A live session
 returns the summary. A visitor who never signed in is not an error and gets `{ signedIn: false }`
 with **no** reason to render; a visitor who presented a cookie that failed gets
 `{ signedIn: false, reason }`.
@@ -169,16 +169,16 @@ browser silently drops a `__Host-` cookie over plain http.
 
 The routes build a `HostCookie`, never a `Set-Cookie` string:
 `{ path: "/", sameSite: "Lax", httpOnly: true, secure: serverMode, maxAge }`
-(`packages/host/src/auth/routes.ts:150-163`). `maxAge` tracks the **absolute** expiry in whole
+(`packages/host/src/auth/routes.ts:164-177`). `maxAge` tracks the **absolute** expiry in whole
 seconds, floored and never negative (`packages/host/src/auth/session.ts:169-171`) — the 12 h idle
 timeout is enforced server-side only. `Lax` rather than `Strict` because sign-in returns through a
 top-level navigation from the portal (`packages/host/src/auth/session.ts:162-168`). Clearing uses the
-same attributes with `maxAge: 0` (`packages/host/src/auth/routes.ts:165-177`).
+same attributes with `maxAge: 0` (`packages/host/src/auth/routes.ts:179-191`).
 
 The adapter serialises it once, and is the only place any cookie of this app becomes a header:
 `Path`, then `Max-Age` when set, then `SameSite` (defaulting to `Strict`), then `HttpOnly` unless
 explicitly false, then `Secure` when set — and never a `Domain`, which `__Host-` also requires
-(`packages/host/src/http-adapter.ts:201-210`).
+(`packages/host/src/http-adapter.ts:209-218`).
 
 ### How it relates to the CSRF cookie and `WORKSPACE_COOKIE`
 
@@ -186,20 +186,25 @@ Three cookies, one serialiser, one origin:
 
 | Cookie | Name(s) | Attributes | Set by |
 |---|---|---|---|
-| session | `__Host-agentforge_session` / `agentforge_session` (`packages/host/src/auth/session.ts:29-30`) | `HttpOnly; SameSite=Lax; Path=/; Secure` on the server | the auth routes (`packages/host/src/auth/routes.ts:150-163`) |
-| CSRF | `__Host-agentforge_csrf` / `agentforge_csrf` (`packages/host/src/csrf.ts:21`, `packages/host/src/csrf.ts:24`) | `Path=/; SameSite=Lax; Secure` on the server — deliberately **not** `HttpOnly` (`packages/host/src/csrf.ts:74-77`) | the adapter itself, on the first GET that arrives without one (`packages/host/src/http-adapter.ts:431-432`) |
-| workspace | `agentforge_workspace` (`packages/core/src/local-owner.ts:14`) | `SameSite=Strict; HttpOnly` by the serialiser's defaults (`packages/host/src/http-adapter.ts:206-207`) | handlers; read back into `request.workspaceId` (`packages/host/src/http-adapter.ts:470`) |
+| session | `__Host-agentforge_session` / `agentforge_session` (`packages/host/src/auth/session.ts:29-30`) | `HttpOnly; SameSite=Lax; Path=/; Secure` on the server | the auth routes (`packages/host/src/auth/routes.ts:164-177`) |
+| CSRF | `__Host-agentforge_csrf` / `agentforge_csrf` (`packages/host/src/csrf.ts:23`, `packages/host/src/csrf.ts:26`) | `Path=/; SameSite=Lax; Secure` on the server — deliberately **not** `HttpOnly` (`packages/host/src/csrf.ts:133-136`) | the adapter itself, on the first GET that arrives without one, or whose token is bound to a different session (`packages/host/src/http-adapter.ts:447-450`) |
+| workspace | `agentforge_workspace` (`packages/core/src/local-owner.ts:14`) | `SameSite=Strict; HttpOnly` by the serialiser's defaults (`packages/host/src/http-adapter.ts:214-215`) | handlers; read back into `request.workspaceId` (`packages/host/src/http-adapter.ts:488`) |
 
 The session cookie and the CSRF cookie make exactly the same `secure`-picks-the-name split, for the
 same reason, and neither reads the other's mode. They are otherwise independent controls in series:
 the CSRF double-submit check runs **in the adapter**, before dispatch, on every non-safe method
-(`packages/host/src/http-adapter.ts:423-428`, `packages/host/src/http-adapter.ts:516-538`), while the
-session gate runs inside `dispatch`. The session id is *not* bound to the CSRF token yet; that is a
-recorded Phase 2 follow-up, not a shipped property (`packages/host/src/csrf.ts:14-17`,
-`packages/host/src/csrf.ts:89-90`).
+(`packages/host/src/http-adapter.ts:435-440`, `packages/host/src/http-adapter.ts:534-557`), while the
+session gate runs inside `dispatch`. **Since Phase 3 lane C the token is bound to the session**: it
+is `<salt>.<HMAC(key, sessionId.salt)>` rather than bare randomness
+(`mintCsrfTokenFor`, `packages/host/src/csrf.ts:87-90`; `sign`, `:56-58`), so a token minted for one
+session is refused when another echoes it — the double-submit pair alone proves same-origin script,
+not same-signed-in-person (`packages/host/src/csrf.ts:14-19`). Off server mode there is no session
+and the binding is to the empty id, so webdev and the desktop behave exactly as before. The adapter
+re-mints on a GET whose cookie does not match the presented session
+(`packages/host/src/http-adapter.ts:448-450`).
 
 The adapter forwards the raw `Cookie` header to the host request alongside the jar it parses for
-itself (`packages/host/src/http-adapter.ts:463`), which is what `readSessionCookie` reads.
+itself (`packages/host/src/http-adapter.ts:481`), which is what `readSessionCookie` reads.
 
 ### The table
 
@@ -238,7 +243,7 @@ only (`packages/host/src/auth/session-store.ts:66-92`,
 Phase 4, and a raw refresh token in SQLite would be the one plaintext secret in the schema
 (`packages/host/src/auth/session-store.ts:55-65`). The cost is stated and implemented: a restart
 drops every vault entry, and each browser's next refresh answers `refresh_expired`
-(`packages/host/src/auth/routes.ts:271-276`).
+(`packages/host/src/auth/routes.ts:295-300`).
 
 ### The tighter auth rate bucket
 
@@ -268,11 +273,11 @@ when an auth flood is what tripped it (`packages/host/src/rate-limit.ts:227-230`
 
 The session bucket never sees a cookie value in the clear — it keys on the first 32 hex characters of
 its SHA-256 (`packages/host/src/rate-limit.ts:147-153`), read with this mode's cookie name
-(`packages/host/src/http-adapter.ts:408`). All three run in the adapter before the Origin, CSRF and
+(`packages/host/src/http-adapter.ts:404`, hashed at `:420`). All three run in the adapter before the Origin, CSRF and
 session rules, and before the body is read
-(`packages/host/src/http-adapter.ts:407-413`, `packages/host/src/http-adapter.ts:316-339`). A refusal
+(`packages/host/src/http-adapter.ts:419-425`, `packages/host/src/http-adapter.ts:324-347`). A refusal
 is 429 `rate_limited` with `Retry-After` in whole seconds, never 0
-(`packages/host/src/rate-limit.ts:102-105`, `packages/host/src/http-adapter.ts:294-297`).
+(`packages/host/src/rate-limit.ts:102-105`, `packages/host/src/http-adapter.ts:302-305`).
 
 ### The reason vocabulary
 
@@ -291,11 +296,11 @@ in the RFC 6749 `error` slot survives as itself; everything else is `invalid_gra
 (`packages/host/src/auth/session.ts:70-72`) — so the host never invents a code, and never forwards
 one it cannot render.
 
-English fallback copy lives in `REASON_COPY_EN` (`packages/host/src/auth/routes.ts:56-70`) and is
-used only when the portal sent no `message_en` (`packages/host/src/auth/routes.ts:77-79`). The same
+English fallback copy lives in `REASON_COPY_EN` (`packages/host/src/auth/routes.ts:62-76`) and is
+used only when the portal sent no `message_en` (`packages/host/src/auth/routes.ts:83-85`). The same
 thirteen keys exist in both renderer catalogs, `apps/web/locales/en/auth.json` and
 `apps/web/locales/id/auth.json`, registered as the `auth` namespace
-(`apps/web/lib/i18n.ts:60`, `apps/web/lib/i18n.ts:85`, `apps/web/lib/i18n.ts:106`) — and nothing reads
+(`apps/web/lib/i18n.ts:63`, `apps/web/lib/i18n.ts:89`, `apps/web/lib/i18n.ts:111`) — and nothing reads
 them yet.
 
 ### What of the portal contract is assumed, not verified
@@ -314,20 +319,20 @@ below is "matches the design document".
 | The error body `{ error, reason, message_en, message_id, retry_after }` | Matches the doc (`docs/internal/portal/device-code-login.md:85-94`). `retry_after` is parsed onto `PortalError` (`packages/host/src/auth/portal-client.ts:65`, `packages/host/src/auth/portal-client.ts:117-121`) and then **never read** by any route. |
 | The reason codes and their English copy | Matches the doc's table (`docs/internal/portal/device-code-login.md:407-425`). |
 | The portal's own `GET /auth/session` (`docs/internal/portal/device-code-login.md:232-234`) | **Not implemented.** `PortalClient` has three methods (`packages/host/src/auth/portal-client.ts:49-56`); the host answers `/api/v1/auth/session` from its own row and never asks the portal for status. |
-| The doc's 7-day offline grace (`docs/internal/portal/device-code-login.md:484`) | **Not implemented as a window.** What exists is narrower: a refresh that fails with `portal_unavailable` leaves the session alive (`packages/host/src/auth/routes.ts:282-285`). There is no `lastRefreshOkAt`, no counter and no banner anywhere under `packages/host/src/auth/`. |
+| The doc's 7-day offline grace (`docs/internal/portal/device-code-login.md:484`) | **Not implemented as a window.** What exists is narrower: a refresh that fails with `portal_unavailable` leaves the session alive (`packages/host/src/auth/routes.ts:306-309`). There is no `lastRefreshOkAt`, no counter and no banner anywhere under `packages/host/src/auth/`. |
 
 ### Not built: there is no browser sign-in screen
 
 Stated as a fact, from four reads:
 
-- `apps/web/src/App.tsx:149-171` is the whole route table. There is no `/login`, no `/signin`, no
+- `apps/web/src/App.tsx:149-172` is the whole route table. There is no `/login`, no `/signin`, no
   auth route; the catch-all sends everything unknown to `/chat`.
 - `apps/web/src/pages/` contains one file, `chat-page.tsx`.
 - Nothing in `apps/web/` references `signedIn`, `session_required` or `/api/v1/auth/` — a grep over
   every `.ts` and `.tsx` in that tree returns no hits, and `apps/web/lib/api-client.ts` has no auth
   call.
 - The `auth` namespace is registered and both catalogs are complete
-  (`apps/web/lib/i18n.ts:60`), but no component reads a key from it: the only match for `"auth"` in
+  (`apps/web/lib/i18n.ts:63`), but no component reads a key from it: the only match for `"auth"` in
   the whole app is that registration line.
 
 The plan says the same: "backend landed … no UI yet … The sign-in screen and the Playwright project
@@ -359,20 +364,20 @@ The hosted deployment is not usable through a browser until that screen exists.
 
 - **Comment citations into `http-adapter.ts` are stale.** `packages/host/src/auth/routes.ts:17` says
   the adapter forwards the raw cookie at `http-adapter.ts:263`; it is at
-  `packages/host/src/http-adapter.ts:463`. `packages/host/src/auth/routes.ts:146-147` says the
+  `packages/host/src/http-adapter.ts:481`. `packages/host/src/auth/routes.ts:160-161` says the
   attributes are serialised at `http-adapter.ts:138-146`; `serialiseCookie` is at
-  `packages/host/src/http-adapter.ts:201-210`, and `packages/host/src/auth/routes.test.ts:370`
+  `packages/host/src/http-adapter.ts:209-218`, and `packages/host/src/auth/routes.test.ts:370`
   repeats the same stale reference. The behaviour described is right; the line numbers are not. Grep for the identifier, never trust a line number in prose.
 - **`DispatchOptions.serverMode` does not pick the cookie name.** The gate passes only `store` and
-  `now` into `requireSessionFor` (`packages/host/src/router.ts:327-330`), so `cookieMode` falls back
-  to `isServerMode()` (`packages/host/src/auth/routes.ts:110-112`). A test that passes
+  `now` into `requireSessionFor` (`packages/host/src/router.ts:335-338`), so `cookieMode` falls back
+  to `isServerMode()` (`packages/host/src/auth/routes.ts:124-126`). A test that passes
   `serverMode: true` while `AGENTFORGE_SERVER` is unset is gated but reads the **plain** cookie name
   — which is exactly what `packages/host/src/auth/session-gate.test.ts:205-212` does, deliberately.
-  `createAuthRoutes` does inject the flag (`packages/host/src/auth/routes.ts:50-51`), so the four
+  `createAuthRoutes` does inject the flag (`packages/host/src/auth/routes.ts:51-52`), so the four
   routes and the gate can disagree about the name in a mixed setup.
 - **A 403 comes before the 401.** An unauthenticated mutating call that carries no CSRF token is
   refused by the adapter with `csrf_missing` at 403 before `dispatch` ever runs
-  (`packages/host/src/http-adapter.ts:423-428`). `session_required` is what an unauthenticated *read*
+  (`packages/host/src/http-adapter.ts:435-440`). `session_required` is what an unauthenticated *read*
   gets. Do not read a 403 here as "the session gate is broken".
 - **`session_revoked` beats `refresh_expired`.** A revoked row that is also past its expiry reports
   `session_revoked` (`packages/host/src/auth/session.ts:126-131`), because the copy differs and the
@@ -380,18 +385,18 @@ The hosted deployment is not usable through a browser until that screen exists.
 - **A server restart signs everyone out at their next refresh, not immediately.** The rows survive;
   the tokens do not (`packages/host/src/auth/session-store.ts:55-65`). Sessions keep verifying until
   a refresh finds an empty vault and ends them
-  (`packages/host/src/auth/routes.ts:271-276`).
+  (`packages/host/src/auth/routes.ts:295-300`).
 - **`sessionCookieMaxAge` tracks the absolute expiry, not the idle one.** The browser keeps the
   cookie for up to 30 days while the server may have idled the session out after 12 h
   (`packages/host/src/auth/session.ts:162-171`). A cookie that still exists is not a session that
   still works.
 - **Sign-out never deletes a row.** It sets `revokedAt` so the next request can say `session_revoked`
-  rather than `session_required` (`packages/host/src/auth/routes.ts:214-217`,
+  rather than `session_required` (`packages/host/src/auth/routes.ts:228-231`,
   `packages/db/drizzle/0014_auth_sessions.sql:4-7`). Only the 15-minute purge removes anything, and
   only past the absolute expiry (`packages/host/src/auth/session-store.ts:126-131`).
 - **`hostSessionStore()` starts a timer as a side effect of first use**
   (`packages/host/src/auth/index.ts:112-118`). A test that touches it must call
-  `resetHostAuthForTests()` (`packages/host/src/auth/index.ts:136-143`) or it leaks an interval —
+  `resetHostAuthForTests()` (`packages/host/src/auth/index.ts:144-151`) or it leaks an interval —
   `unref()`'d, so the process still exits, but the sweep keeps firing.
 - **`portalBaseUrl` throws when `AGENTFORGE_PORTAL_URL` is unset**
   (`packages/host/src/auth/portal-client.ts:86-89`). That is correct on a server and wrong
@@ -401,9 +406,9 @@ The hosted deployment is not usable through a browser until that screen exists.
 - **`retry_after` is parsed and then dropped.** `PortalError` carries it
   (`packages/host/src/auth/portal-client.ts:65`) but no route puts it on the answer; the only
   `Retry-After` a client sees from this subsystem is the rate limiter's
-  (`packages/host/src/http-adapter.ts:294-297`).
+  (`packages/host/src/http-adapter.ts:302-305`).
 - **The 401 body is not masked; a 500 is.** `maskServerError` only rewrites status ≥ 500
-  (`packages/host/src/http-adapter.ts:347-356`), so the reason code and its copy reach the browser
+  (`packages/host/src/http-adapter.ts:355-364`), so the reason code and its copy reach the browser
   intact — which is the whole point of the vocabulary.
 
 ## Verify
@@ -435,8 +440,8 @@ and `GET /api/v1/settings` answers `401 session_required` with the same envelope
 ## Why
 
 **The hosted server gates reads as hard as writes.**
-`[Direct]` — `packages/host/src/router.ts:309-316` and
-`packages/host/src/auth/routes.ts:88-93` both record the reasoning: a GET returns settings, threads,
+`[Direct]` — `packages/host/src/router.ts:317-324` and
+`packages/host/src/auth/routes.ts:102-107` both record the reasoning: a GET returns settings, threads,
 artifact bytes and event streams, so "safe method" is not a meaningful category here, and the method
 is part of the exemption key rather than an exemption of its own.
 
@@ -459,13 +464,13 @@ secret in the schema. The cost — a restart forces every browser to sign in aga
 
 **The hosted server is single-tenant until Phase 3, even though the gate knows who the caller is.**
 `[Direct]` — the PR #56 commit message (`6ae177a`) states it outright, and
-`packages/host/src/tenant.ts:27-34` records why it was not done in the same change: the tenant must
+`packages/host/src/tenant.ts:42-47` records why it was not done in the same change: the tenant must
 come from `request.session` rather than a client-supplied workspace id, and moving it means moving
 102 by-id call sites and the tenancy suite of row T3 with it.
 
 **The `__Host-` prefix, not merely `Secure`.**
 `[Supported]` — `packages/host/src/auth/session.ts:18-28` and the matching note in
-`packages/host/src/csrf.ts:35-42` give the same reason twice: the prefix is the only cookie attribute
+`packages/host/src/csrf.ts:63-70` give the same reason twice: the prefix is the only cookie attribute
 that stops a sibling subdomain or a related host writing the cookie, which is session fixation
 rather than mere interception. `packages/host/src/http-adapter.test.ts:1321-1341` pins the
 consequence — the hosted server keys its session bucket on the prefixed name and ignores the plain

@@ -1,6 +1,6 @@
 # Map — Tenant resolution, the session seam and the workspace cookie
 
-Last verified: 2026-09-20 at df11317 + branch feat/web-phase3-lane-c-wivrgf (the commit that adds this page)
+Last verified: 2026-09-20 at d14cd8f
 
 ## Overview
 

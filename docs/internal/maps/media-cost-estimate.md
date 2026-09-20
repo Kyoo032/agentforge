@@ -1,6 +1,6 @@
 # Map — Media cost estimate
 
-Last verified: 2026-09-20 at 69afca9
+Last verified: 2026-09-20 at d14cd8f
 
 ## Overview
 
@@ -12,24 +12,24 @@ Nothing on this path touches the network. The price table is compiled into the a
 
 **User opens the Images studio.** `ImagesStudio` fetches `GET /api/v1/images` on mount (`apps/web/components/images-studio.tsx:59`, effect at `:80`). Videos does the same against `/api/v1/videos`.
 
-**Host enriches the model list.** `handleGetImages` (`packages/host/src/handlers/jobs.ts:32`) wraps `listStudioImageModels()` in `attachMediaPrices(..., "image", cachedPricingCatalog(resolvedGatewayBaseUrl()), ...)` at `packages/host/src/handlers/jobs.ts:41-46`; videos at `:79-84` with unit `"second"`. `attachMediaPrices` (`packages/host/src/media-price.ts:69-80`) returns a new array — it never mutates the model list — where each row gains `price: MediaPrice | null`.
+**Host enriches the model list.** `handleGetImages` (`packages/host/src/handlers/jobs.ts:39`) wraps `listStudioImageModels()` in `attachMediaPrices(..., "image", cachedPricingCatalog(resolvedGatewayBaseUrl()), ...)` at `packages/host/src/handlers/jobs.ts:48-53`; videos at `:79-84` with unit `"second"`. `attachMediaPrices` (`packages/host/src/media-price.ts:72-83`) returns a new array — it never mutates the model list — where each row gains `price: MediaPrice | null`.
 
-**Price lookup, curated first.** `findMediaListPrice(model.id)` (`packages/core/src/models/media-pricing.ts:492-503`) tries an exact lowercased id against `EXACT_INDEX`, then walks the ordered regex `pattern`s; narrower patterns (`-fast`, `-mini`, `-1.5-preview`) sit above their family so they win. 23 curated entries, `CHECKED = "2026-09-15"` (`packages/core/src/models/media-pricing.ts:93`). Miss → the gateway fallback below → else `null`. Nothing is ever fabricated.
+**Price lookup, curated first.** `findMediaListPrice(model.id)` (`packages/core/src/models/media-pricing.ts:497-508`) tries an exact lowercased id against `EXACT_INDEX`, then walks the ordered regex `pattern`s; narrower patterns (`-fast`, `-mini`, `-1.5-preview`) sit above their family so they win. 23 curated entries, `CHECKED = "2026-09-15"` (`packages/core/src/models/media-pricing.ts:98`). Miss → the gateway fallback below → else `null`. Nothing is ever fabricated.
 
-**Gateway fallback is cache-only.** `gatewayFlatPrice` (`packages/host/src/media-price.ts:32-66`) fires only for `unit === "image"`, only from an already-cached `PricingCatalog`, only for a flat row (`quotaType === 1 && modelPrice > 0`, not `isUnpricedBilling`), and computes `modelPrice * DEFAULT_GROUP_RATIO` (`= 1`, `packages/core/src/gateway.ts:99`), tagged `origin: "gateway"`, `confidence: "medium"`. The catalog comes from `cachedPricingCatalog()` (`packages/host/src/account-usage.ts:145-151`), which **reads the 10-minute in-memory cache and never fetches** (`PRICING_TTL_MS = 10 * 60 * 1000`, `packages/host/src/account-usage.ts:28`). The cache is warmed by the Settings Usage panel (`loadAccountUsage` / `pricingFor`), not by the studio. On a desk that has not opened Usage recently, or has no key, the fallback is simply `null`.
+**Gateway fallback is cache-only.** `gatewayFlatPrice` (`packages/host/src/media-price.ts:35-69`) fires only for `unit === "image"`, only from an already-cached `PricingCatalog`, only for a flat row (`quotaType === 1 && modelPrice > 0`, not `isUnpricedBilling`), and computes `modelPrice * DEFAULT_GROUP_RATIO` (`= 1`, `packages/core/src/gateway.ts:99`), tagged `origin: "gateway"`, `confidence: "medium"`. The catalog comes from `cachedPricingCatalog()` (`packages/host/src/account-usage.ts:145-151`), which **reads the 10-minute in-memory cache and never fetches** (`PRICING_TTL_MS = 10 * 60 * 1000`, `packages/host/src/account-usage.ts:28`). The cache is warmed by the Settings Usage panel (`loadAccountUsage` / `pricingFor`), not by the studio. On a desk that has not opened Usage recently, or has no key, the fallback is simply `null`.
 
-**Renderer computes the string, from state only.** `apps/web/components/images-studio.tsx:85` — `useMemo(() => imageEstimateView({ model, models, aspect }))`; Videos also depends on `seconds` and `resolution` (`apps/web/components/videos-studio.tsx:112-121`). `imageEstimateView` / `videoEstimateView` (`apps/web/lib/media-estimate.ts:187-217`) call `estimateImageCost` / `estimateVideoCost` and format through `t()` + `formatUsd`. Rendered at `apps/web/components/images-studio.tsx:174-187` and `apps/web/components/videos-studio.tsx:258-271`.
+**Renderer computes the string, from state only.** `apps/web/components/images-studio.tsx:85` — `useMemo(() => imageEstimateView({ model, models, aspect }))`; Videos also depends on `seconds` and `resolution` (`apps/web/components/videos-studio.tsx:112-121`). `imageEstimateView` / `videoEstimateView` (`apps/web/lib/media-estimate.ts:196-226`) call `estimateImageCost` / `estimateVideoCost` and format through `t()` + `formatUsd`. Rendered at `apps/web/components/images-studio.tsx:174-187` and `apps/web/components/videos-studio.tsx:258-271`.
 
 **Failure modes**
 
 | Case | What happens |
 |---|---|
-| Model has no curated entry and no cached catalog row | `price: null` → `unknownView()` (`apps/web/lib/media-estimate.ts:151-153`) → the `*-estimate-unknown` testid, "No list price on file for this model" |
-| Priced model, missing tier (e.g. `seedance-2.5` at 1080p) | `resolveTier` (`packages/core/src/models/media-pricing.ts:509-536`) falls to the nearest lower published tier, else higher, sets `approx: true`; the UI leads with `~` instead of `≈` (`apps/web/lib/media-estimate.ts:164`) |
-| Low-confidence row (`omni-fast`, empty vendor) | `~`, no vendor name, explicit "(unverified)" suffix (`apps/web/lib/media-estimate.ts:175-176`) |
+| Model has no curated entry and no cached catalog row | `price: null` → `unknownView()` (`apps/web/lib/media-estimate.ts:160-162`) → the `*-estimate-unknown` testid, "No list price on file for this model" |
+| Priced model, missing tier (e.g. `seedance-2.5` at 1080p) | `resolveTier` (`packages/core/src/models/media-pricing.ts:514-541`) falls to the nearest lower published tier, else higher, sets `approx: true`; the UI leads with `~` instead of `≈` (`apps/web/lib/media-estimate.ts:173`) |
+| Low-confidence row (`omni-fast`, empty vendor) | `~`, no vendor name, explicit "(unverified)" suffix (`apps/web/lib/media-estimate.ts:184-185`) |
 | Catalog cache gone stale | Treated as no catalog: the gateway-fallback price disappears rather than going wrong |
-| Gate closed / no key | **No effect on the estimate.** `requireGatewayAllowed` is called from `handlePostImages` / `handlePostVideos` only (`packages/host/src/handlers/jobs.ts:64` and the video equivalent), never from the GETs that build the price list |
-| Bad inputs | `count` clamps to `>= 1` and a whole number (`packages/core/src/models/media-pricing.ts:570`); `seconds` clamps to `>= 1` and may stay fractional (`:586`) |
+| Gate closed / no key | **No effect on the estimate.** `requireGatewayAllowed` is called from `handlePostImages` / `handlePostVideos` only (`packages/host/src/handlers/jobs.ts:71` and the video equivalent), never from the GETs that build the price list |
+| Bad inputs | `count` clamps to `>= 1` and a whole number (`packages/core/src/models/media-pricing.ts:575`); `seconds` clamps to `>= 1` and may stay fractional (`:586`) |
 | Upstream vendor changes its price | Nothing detects it. See Gotchas |
 
 ## Where things live
@@ -45,7 +45,7 @@ Nothing on this path touches the network. The price table is compiled into the a
 | `apps/web/components/images-studio.tsx`, `videos-studio.tsx` | Fetch, memoise the estimate, render it |
 | `packages/core/src/gateway.ts:95-118` | `DEFAULT_GROUP_RATIO`, `formatUsd` |
 
-`MediaPrice` shape (`packages/core/src/models/media-pricing.ts:20-53`): `{ vendor, unit: "image" | "second", tiers, defaultTier, source, citation?, checkedAt, confidence: "high" | "medium" | "low", origin: "list" | "gateway", aspectMultipliers?, note? }`. USD only.
+`MediaPrice` shape (`packages/core/src/models/media-pricing.ts:20-58`): `{ vendor, unit: "image" | "second", tiers, defaultTier, source, citation?, checkedAt, confidence: "high" | "medium" | "low", origin: "list" | "gateway", aspectMultipliers?, note? }`. USD only.
 
 ## Gotchas
 

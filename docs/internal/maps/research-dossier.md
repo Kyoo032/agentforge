@@ -1,6 +1,6 @@
 # Map — Research dossier
 
-Last verified: 2026-09-20 at 69afca9
+Last verified: 2026-09-20 at d14cd8f
 
 ## Overview
 
@@ -12,7 +12,7 @@ Two things to hold onto. **Research is the only mode that needs two secrets**: a
 
 ### 1. Studio → request
 
-`ResearchStudio` (`apps/web/components/research-studio.tsx:42`) is mounted permanently by `WorkModeKeepAlive` (`apps/web/components/work-mode-keep-alive.tsx:19`); the `/research` route element in `apps/web/src/App.tsx:154` is `null` so the studio is not double-mounted.
+`ResearchStudio` (`apps/web/components/research-studio.tsx:42`) is mounted permanently by `WorkModeKeepAlive` (`apps/web/components/work-mode-keep-alive.tsx:20`); the `/research` route element in `apps/web/src/App.tsx:154` is `null` so the studio is not double-mounted.
 
 `onGenerate` (`:51-68`) trims the prompt, refuses when it is empty or a job is already running, and calls `job.run("/api/v1/research/stream", { prompt, model })` (`:57`). `model` comes from `useJobModel("research")` (`:44`), which seeds the `research-studio-model` select from `GET /api/v1/models` `modes.research` + `defaults.research`, overridden by `settings.researchGenModel` (`apps/web/lib/use-job-model.ts:63-104`, `:18-26`). On success the result is split (`:59-65`): the notes go to the Notes tab, `dossier.markdown` to the Dossier tab, and `dossierId ?? artifactId` becomes the artifact the action bar acts on.
 
@@ -26,12 +26,12 @@ Two things to hold onto. **Research is the only mode that needs two secrets**: a
 
 ### 3. Host — gate, then stream
 
-`packages/host/src/router.ts:227-228` maps both routes:
+`packages/host/src/router.ts:235-236` maps both routes:
 
 | Route | Handler | On refusal |
 |---|---|---|
-| `POST /api/v1/research` | `handlePostResearch` (`packages/host/src/handlers/jobs.ts:187-196`) | real HTTP status (503 stub, 403 gate) with `{error:{code,message}}` |
-| `POST /api/v1/research/stream` | `handlePostResearchStream` (`packages/host/src/handlers/jobs.ts:199-209`) | **HTTP 200** + one `event: job.error` frame |
+| `POST /api/v1/research` | `handlePostResearch` (`packages/host/src/handlers/jobs.ts:250-259`) | real HTTP status (503 stub, 403 gate) with `{error:{code,message}}` |
+| `POST /api/v1/research/stream` | `handlePostResearchStream` (`packages/host/src/handlers/jobs.ts:262-272`) | **HTTP 200** + one `event: job.error` frame |
 
 Both call `requireGatewayAllowed(loadSettings(tenant.workspaceId))` **synchronously, before** the job starts (`:191`, `:203`), so a closed gate is the one failure that is a real `403 gateway_blocked` on the stream route too. See [`settings-and-gateway-gate.md`](settings-and-gateway-gate.md).
 
@@ -42,9 +42,9 @@ Everything after that runs inside `streamJob` (`packages/host/src/job-stream.ts:
 `generateResearchNotes` (`packages/host/src/research-generate.ts:113-171`) starts with `requireLiveResearch` (`:76-87`):
 
 1. `resolveRuntimeMode({ settingsHasKey: hasLiveProvider(settings), envRuntime: AGENTFORGE_RUNTIME })` — `stub` throws `ApiError("runtime_stub", gatewayRequiredMessage("research", locale), 503)`.
-2. `listToolRoutes(settings).web?.ready` (`packages/core/src/tools/credentials.ts:318-328`) — no Tavily/Brave route throws `ApiError("tool_failed", searchKeyRequiredMessage(locale), 503)`.
+2. `listToolRoutes(settings).web?.ready` (`packages/core/src/tools/credentials.ts:350-360`) — no Tavily/Brave route throws `ApiError("tool_failed", searchKeyRequiredMessage(locale), 503)`.
 
-Both messages come from `packages/core/src/output-language.ts:102-105` and `:124-127`, **not** from `apps/web/locales/*/research.json` (see Gotchas). Nothing is written before this point: no artifact, no work card, no search call.
+Both messages come from `packages/core/src/output-language.ts:108-111` and `:124-127`, **not** from `apps/web/locales/*/research.json` (see Gotchas). Nothing is written before this point: no artifact, no work card, no search call.
 
 ### 5. The pipeline — plan → search → read → extract → synthesize
 
@@ -61,7 +61,7 @@ All three model calls go through `collectJobAssistantText` (`packages/host/src/j
 
 ### 6. Saving, and the two things that happen after
 
-Back in `generateResearchNotes`: `throwIfJobAborted` again (`:160`) — **a cancelled run is never saved** — then `job.phase "saving"` (`:161`), `dossierToMarkdown` (`packages/core/src/artifacts/dossier.ts:97-125`: YAML frontmatter, then the fixed `## Question / ## Queries run / ## Sources / ## Findings / ## Contradictions / ## Open questions` skeleton), then `persistDossier` (`:89-111`) into the shared `artifacts` table as `mode: "research", kind: "dossier"`. **Persistence can never fail the job** — the catch logs the error code only and returns `null`, and the notes are still returned (`:105-110`). When it succeeded, `upsertWorkSource(artifactWorkCard({type:"Research", …}))` files a Knowledge work card pointing at `artifact:<id>` (`:164-169`, `packages/host/src/work-cards.ts:129-139`).
+Back in `generateResearchNotes`: `throwIfJobAborted` again (`:160`) — **a cancelled run is never saved** — then `job.phase "saving"` (`:161`), `dossierToMarkdown` (`packages/core/src/artifacts/dossier.ts:97-125`: YAML frontmatter, then the fixed `## Question / ## Queries run / ## Sources / ## Findings / ## Contradictions / ## Open questions` skeleton), then `persistDossier` (`:89-111`) into the shared `artifacts` table as `mode: "research", kind: "dossier"`. **Persistence can never fail the job** — the catch logs the error code only and returns `null`, and the notes are still returned (`:105-110`). When it succeeded, `upsertWorkSource(artifactWorkCard({type:"Research", …}))` files a Knowledge work card pointing at `artifact:<id>` (`:164-169`, `packages/host/src/work-cards.ts:168-178`).
 
 ### 7. Dossier → screen, and the four handoffs
 
@@ -78,7 +78,7 @@ Back in `generateResearchNotes`: `throwIfJobAborted` again (`:160`) — **a canc
 
 | Failure | Where | What the client gets |
 |---|---|---|
-| Gate closed | `requireGatewayAllowed`, `packages/host/src/handlers/jobs.ts:203` | real **HTTP 403** `gateway_blocked` on both routes (thrown before `streamJob`) |
+| Gate closed | `requireGatewayAllowed`, `packages/host/src/handlers/jobs.ts:266` | real **HTTP 403** `gateway_blocked` on both routes (thrown before `streamJob`) |
 | Stub runtime (no gateway key) | `requireLiveResearch`, `packages/host/src/research-generate.ts:81-83` | stream: **HTTP 200** + `job.error {code:"runtime_stub", status:503}`. Non-stream: HTTP 503 |
 | No Tavily / Brave route | `requireLiveResearch`, `:84-86` | same shape, `code:"tool_failed"` |
 | Missing / empty `prompt` | `readPrompt`, `:42-51` | `job.error {code:"invalid_request", status:400}` (HTTP 200 on the stream route) |
@@ -89,7 +89,7 @@ Back in `generateResearchNotes`: `throwIfJobAborted` again (`:160`) — **a canc
 | Model returned no usable findings | `parseSynthesis`, `:204-206` | `job.error {code:"invalid_research", status:502}` |
 | Model call itself failed | `collectJobAssistantText`, `packages/host/src/job-regen.ts:142-144` | `job.error {code:"generation_failed", status:502}` |
 | User pressed `research-cancel` | `throwIfJobAborted` → `ApiError("aborted", …, 499)`; client sees the abort first | **no banner** — `use-job-stream.ts:54-59` resets quietly |
-| Client tab closed mid-run | `res.on("close")` → `abort.abort()` (`packages/host/src/http-adapter.ts:447-454`, `:471`) | run stops between phases; nothing saved |
+| Client tab closed mid-run | `res.on("close")` → `abort.abort()` (`packages/host/src/http-adapter.ts:465-472`, `:471`) | run stops between phases; nothing saved |
 | Artifact could not be persisted | `persistDossier` catch, `packages/host/src/research-generate.ts:105-110` | **success** — notes render, `artifactId` is `null`, Download falls back to a client-side blob, no KB work card |
 | Stream ended with no `job.done` | `runJobStream`, `apps/web/lib/job-stream.ts:90-92` | `research-error` with `stream_ended` / 502 |
 
@@ -120,9 +120,9 @@ Back in `generateResearchNotes`: `throwIfJobAborted` again (`:160`) — **a canc
 
 ## Gotchas
 
-- **The streaming route never returns 503.** `POST /api/v1/research/stream` answers `HTTP 200 text/event-stream` and puts the 503 inside `job.error` (`packages/host/src/job-stream.ts:57-60`, proved by curl on 2026-09-17). Only `POST /api/v1/research` gives a real HTTP 503 (`packages/host/src/handlers/jobs.ts:187-196`). The studio only ever uses the stream route (`apps/web/components/research-studio.tsx:57`), so "Research 503s without a key" is true of the payload, not of the response.
-- **The gate is the one exception.** `requireGatewayAllowed` runs before `streamJob`, so a closed gate *is* a real HTTP 403 on the stream route (`packages/host/src/handlers/jobs.ts:203`) and `runJobStream` takes its JSON branch (`apps/web/lib/job-stream.ts:61-63`) instead of parsing SSE.
-- **The "Open Settings" link is dead code.** `needsSettingsHint` matches `/gateway|api key|settings|runtime_stub|live gateway|tavily|brave/i`, but the render is guarded by `needsSettingsHint(error) && !/settings/i.test(error)` (`apps/web/components/research-studio.tsx:32-34`, `:101`). Both stock refusals already contain the word "Settings" (`packages/core/src/output-language.ts:103`, `:125`), so the second clause is always false and the `<Link>` never appears — the drive measured `<a>` count 0. `research.openSettings` is loaded but unreachable for the only two errors that trigger the hint.
+- **The streaming route never returns 503.** `POST /api/v1/research/stream` answers `HTTP 200 text/event-stream` and puts the 503 inside `job.error` (`packages/host/src/job-stream.ts:57-60`, proved by curl on 2026-09-17). Only `POST /api/v1/research` gives a real HTTP 503 (`packages/host/src/handlers/jobs.ts:250-259`). The studio only ever uses the stream route (`apps/web/components/research-studio.tsx:57`), so "Research 503s without a key" is true of the payload, not of the response.
+- **The gate is the one exception.** `requireGatewayAllowed` runs before `streamJob`, so a closed gate *is* a real HTTP 403 on the stream route (`packages/host/src/handlers/jobs.ts:266`) and `runJobStream` takes its JSON branch (`apps/web/lib/job-stream.ts:61-63`) instead of parsing SSE.
+- **The "Open Settings" link is dead code.** `needsSettingsHint` matches `/gateway|api key|settings|runtime_stub|live gateway|tavily|brave/i`, but the render is guarded by `needsSettingsHint(error) && !/settings/i.test(error)` (`apps/web/components/research-studio.tsx:32-34`, `:101`). Both stock refusals already contain the word "Settings" (`packages/core/src/output-language.ts:109`, `:125`), so the second clause is always false and the `<Link>` never appears — the drive measured `<a>` count 0. `research.openSettings` is loaded but unreachable for the only two errors that trigger the hint.
 - **`research-studio-model` is empty and `disabled` for about a second after the studio paints.** `useJobModel` awaits `/api/v1/models` and `/api/v1/settings` in parallel (`apps/web/lib/use-job-model.ts:74-100`) and `ModelSelect` disables itself while `models.length === 0` (`apps/web/components/model-select.tsx:63`). A drive that counts options on the first frame reads 0; wait for a non-empty `inputValue` instead (measured 2026-09-17: 0 options at t+0, 101 options in 11 optgroups at t+1s).
 - **Most of `locales/*/research.json` is unreferenced.** 34 of its 65 keys have no reader anywhere in `apps/` or `packages/` — `phasePlanning`…`phaseSaving`, `headingQuestion`…`headingOpenQuestions`, `errorGateway` / `errorSearch` / `errorNoHttps`, `previewKicker`, `notesSources`, `fallbackTitle`, `fallbackSummary`, `unreadPage`, `noneRecorded`, `untitled`, `urlNone`, `keyPassages`, `notesLabel`, `urlLabel`, `retrievedLabel`, `foundByLabel`, `statusLabel`, and all seven `stub*` keys. The strings that actually ship are hardcoded English in `packages/host/src/research-dossier.ts:316`, `:326`, `:342`, `:360` (phase labels), `packages/host/src/research-generate.ts:161`, `packages/core/src/artifacts/dossier.ts:41-48` and `:69-95` (the Markdown skeleton), and `apps/web/components/research-preview.tsx:15` (the `Research` kicker). Consequence on an `id` desk: the phase list and the whole dossier Markdown are English while the chrome is Indonesian. The skeleton headings are deliberate (`packages/core/src/artifacts/dossier.ts:40`: "Other modes navigate the Markdown by these"); the phase labels and the kicker are not.
 - **`stub*` keys promise a stub dossier that does not exist.** `research.stubTitle` / `stubFindingBody` / `stubSourceTitle` describe an offline demo dossier, but `requireLiveResearch` refuses at 503 before anything is generated (`packages/host/src/research-generate.ts:81-83`). Unlike Documents, Research has **no** offline path.

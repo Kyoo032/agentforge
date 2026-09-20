@@ -1,6 +1,6 @@
 # Map — webapp-deploy: the hosted deployment stack
 
-Last verified: 2026-09-20 at 69afca9
+Last verified: 2026-09-20 at d14cd8f
 
 ## Overview
 
@@ -41,10 +41,20 @@ Debian rather than Alpine is deliberate: `pnpm-lock.yaml` resolves `@firecrawl/a
 `-linux-x64-gnu` / `-linux-arm64-gnu` packages, and musl would pick different ones and force a
 `better-sqlite3` rebuild (`Dockerfile:15-17`).
 
-The container's own `HEALTHCHECK` (`Dockerfile:95-96`) calls `GET /api/v1/components` on loopback with
-`node -e fetch` — there is no curl in the image. That route is ungated on purpose
-(`packages/host/src/handlers/components.ts:4-8`), so it answers before any gateway key exists and
-without opening the database.
+The container's own `HEALTHCHECK` (`Dockerfile:95-103`) calls `GET /api/v1/components` on loopback with
+`node -e fetch` — there is no curl in the image. Two rules have to be satisfied at once, and the probe
+fails outright if either is missed:
+
+- The route is ungated on purpose. It is one of the two `UNGATED_GETS`
+  (`packages/host/src/auth/routes.ts:45`; the reason is at
+  `packages/host/src/handlers/components.ts:4-8`), so it answers before any gateway key exists and
+  without opening the database.
+- **The probe sends `x-forwarded-proto: https`** (`Dockerfile:103`). In server mode `rejectPlaintext`
+  (`packages/host/src/http-adapter.ts:314-317`) answers `403 https_required` to any request without
+  that header, on every path, before routing reaches the ungated set
+  (`transportRejection` is called at `:421`). A probe without it never goes healthy. The header is
+  safe here only because the sender is inside the container, past the boundary the rule defends; see
+  [hosted-server-mode.md](hosted-server-mode.md).
 
 ### Run: two containers, one network namespace
 

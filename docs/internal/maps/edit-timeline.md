@@ -1,6 +1,6 @@
 # Map — Edit timeline and agent
 
-Last verified: 2026-09-20 at 69afca9
+Last verified: 2026-09-20 at d14cd8f
 
 ## Overview
 
@@ -346,7 +346,7 @@ project's allow-list roots (`editAllowlistRoots` = media root + that project's s
 | `apps/web/lib/edit-client.ts` | `postEditOps`, `foldApplied`, `isReviewOpen`, `turnSpendUsd`, the API wrappers |
 | `apps/web/lib/edit-badges.ts` | Which cards an owner touch auto-keeps |
 | `apps/web/lib/use-emit-lock.ts` | The 5 s agent-writing lock and the clip ids it dims |
-| `packages/host/src/router.ts:165-184` | The 20 `/api/v1/edit/*` routes |
+| `packages/host/src/router.ts:170-189` | The 20 `/api/v1/edit/*` routes |
 | `packages/host/src/handlers/edit.ts` | Every edit handler; upload limits and mime allow-list |
 | `packages/host/src/edit/ops.ts` | `appendOps`, `foldProject`, `loadProjectRow`, `writeSnapshot` — the one write path. Every one of them takes a required `workspaceId` |
 | `packages/host/src/edit/projects.ts` | Create, list, bundle, `mapCard` / `mapJob` / `mapUnplaced` |

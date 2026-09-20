@@ -4,7 +4,7 @@
 > The host-decides/renderer-displays rule below is unchanged; the Electron-only transport and wipe details are frozen desktop behaviour.
 > Decision record: [`web-pivot-2026-09-18.md`](../web-pivot-2026-09-18.md).
 
-Last verified: 2026-09-20 at 69afca9
+Last verified: 2026-09-20 at d14cd8f
 
 > The 2026-09-17 "hide the endpoint" change was verified in the working tree when this page was
 > first written; it is committed as of `b482611`. `apps/web/components/settings-page.tsx`,
@@ -28,9 +28,9 @@ the renderer branches on; it never re-derives a decision from `hasOpenai` or fro
 
 Despite the name, there is **one encrypted file**, not a directory per desk: `<localDataDir()>/settings.enc`,
 holding `{ version: 2, locale, workspaces: { [workspaceId]: StoredSecrets } }` — the type is `SettingsFileV2`
-(`packages/host/src/settings-store.ts:117-121`). "Per desk" is a key in that map.
+(`packages/host/src/settings-store.ts:118-122`). "Per desk" is a key in that map.
 
-`loadSettings(workspaceId?)` / `saveSettings(patch, workspaceId?)` (`packages/host/src/settings-store.ts:325-342`)
+`loadSettings(workspaceId?)` / `saveSettings(patch, workspaceId?)` (`packages/host/src/settings-store.ts:326-343`)
 resolve the desk through `resolveSettingsWorkspaceId` (`:185-191`): explicit id → `readSelectedWorkspaceId()`
 → `FALLBACK_SETTINGS_WORKSPACE`. `sliceFor()` (`:193-202`) picks that desk's slice, falling through to the
 `LEGACY_SETTINGS_WORKSPACE` slice **only** when the resolved id is the fallback (`:198-199`).
@@ -39,9 +39,9 @@ The two sentinels are string constants, not magic literals scattered around:
 `LEGACY_SETTINGS_WORKSPACE = "__legacy__"` (`:23`) and `FALLBACK_SETTINGS_WORKSPACE = "__default__"` (`:25`).
 The literal `"__default__"` appears exactly once in the repo, at `:25`.
 
-**`workspace-id.txt`** (`<localDataDir()>/workspace-id.txt`, `packages/host/src/workspace.ts:8-24`) is the
+**`workspace-id.txt`** (`<localDataDir()>/workspace-id.txt`, `packages/host/src/workspace.ts:19-41`) is the
 stamp that stops a request from landing in the fallback slice. `getTenant(preferredWorkspaceId)`
-(`packages/host/src/tenant.ts:35-50`) calls `adoptLegacySettings(home.id)` on every call (`:42`), and — only
+(`packages/host/src/tenant.ts:88-103`) reaches `resolveLocalOwner` (`:117-132`) off the hosted path, which calls `adoptLegacySettings(home.id)` on every call (`:124`), and — only
 when the caller named no desk and nothing was on disk — writes the resolved desk id (`:46-48`). A desk named
 by the per-request `WORKSPACE_COOKIE` is **never** promoted into the file (comment at `:15-17`), pinned by
 `packages/host/src/tenant.test.ts:47-55`.
@@ -54,10 +54,10 @@ and the desk reports stub. The defence is a **source-grep test**:
 named exceptions (`studio-generate.ts`, `handlers/jobs.ts`, listed at `:22-23`).
 
 **`settingsPayload()`** (`packages/host/src/handlers/settings.ts:85-122`) is what the renderer sees. Keys are
-never in it: `maskSecrets` (`packages/core/src/secrets.ts:232-258`) emits booleans (`hasOpenai`, …) and
+never in it: `maskSecrets` (`packages/core/src/secrets.ts:236-263`) emits booleans (`hasOpenai`, …) and
 fingerprints (`sha256:` + the first 12 hex chars of SHA-256 over the trimmed secret,
 `packages/core/src/security/fingerprint.ts:9-15`). `openaiBaseUrl` in the payload is always
-`resolvedGatewayBaseUrl()`, never a stored value (`packages/core/src/secrets.ts:242-243`).
+`resolvedGatewayBaseUrl()`, never a stored value (`packages/core/src/secrets.ts:246-247`).
 
 **What the owner can actually change on this page.** Two fields, and the POST body says so: the settings form
 submits exactly `{ openaiApiKey, editTurnCapUsd }` (`apps/web/components/settings-page.tsx:189-197`, with the
@@ -66,7 +66,7 @@ of `{ locale }` (`:219-229`) — see [`locale-boot-and-run-harness.md`](locale-b
 turn cap (`settings-edit-turn-cap`, `:396`) is a number input clamped to 0.5–50 on the way in and again on the
 way out (`:162-166`, `:388-395`), default 2.
 
-**Key resolution.** `resolveProviderKeys(settings, env)` (`packages/core/src/secrets.ts:278-309`), today:
+**Key resolution.** `resolveProviderKeys(settings, env)` (`packages/core/src/secrets.ts:283-314`), today:
 
 ```
 openai        = settings.openaiApiKey || env.OPENAI_API_KEY
@@ -78,7 +78,7 @@ volcengine    = settings.volcengineApiKey || env.ARK_API_KEY || env.VOLCENGINE_A
 
 `reuseOpenAI(dialect)` hands the OpenAI-slot key to another provider's slot when `guessDialectFromKey` says it
 actually belongs there — i.e. someone pasted an Anthropic key into the one key field. Stub vs live is a separate
-call, `resolveRuntimeMode({ settingsHasKey, envRuntime })` (`packages/core/src/secrets.ts:271-276`).
+call, `resolveRuntimeMode({ settingsHasKey, envRuntime })` (`packages/core/src/secrets.ts:276-281`).
 
 **Endpoint pinning.** `PINNED_GATEWAY_BASE_URL = "https://api.tokotokenai.com/v1"`
 (`packages/core/src/gateway/pinned.ts:8`), with a SHA-256 of the literal checked by
@@ -111,7 +111,7 @@ from the renderer, together with the `settings.endpointLabel` / `settings.endpoi
 
 Host and core logic are unchanged. This is a fourth, presentation-only layer on top of the three real pins.
 
-**What a save does besides saving.** `handlePostSettings` (`packages/host/src/handlers/settings.ts:138-204`)
+**What a save does besides saving.** `handlePostSettings` (`packages/host/src/handlers/settings.ts:138-205`)
 runs `saveSettings(patch, tenant.workspaceId)` and then four side effects, in order, so a corrected key or URL
 takes effect on the next request instead of after a breaker expires:
 
@@ -162,9 +162,9 @@ forward only for the same fingerprint (`:475`), persists, and — when the verdi
 answers `status: "error"` with `allowed` untouched (`:488-492`).
 
 It runs on a key save (`refreshGatewayGateAfterSave` → `runGatewayCheck`,
-`packages/host/src/handlers/settings.ts:241-256`, with `gateVerdictFor` at `:230-239` deciding which verdict the
+`packages/host/src/handlers/settings.ts:242-257`, with `gateVerdictFor` at `:230-239` deciding which verdict the
 save response carries) and on `POST /api/v1/settings/gateway/check` (`handleGatewayCheck`, `:258-266`, route at
-`packages/host/src/router.ts:188`). Separately, `maybeRefreshGateway` (`packages/host/src/gateway-gate.ts:527-557`)
+`packages/host/src/router.ts:193`). Separately, `maybeRefreshGateway` (`packages/host/src/gateway-gate.ts:527-557`)
 fires an un-awaited check at most once per key per 10 minutes from `handleGetSettings` — that is what turns
 "opened on trust" into a real verdict over time.
 
@@ -212,17 +212,17 @@ Card `settings-reset` (`apps/web/components/settings-reset-card.tsx:159`), mount
 `apps/web/components/settings-page.tsx:424`, fed by `resetPending` on the settings payload.
 
 **Sign out (`scope: "key"`)** — no typed confirmation, fully synchronous. `resetGatewayKey`
-(`packages/host/src/handlers/settings.ts:309`) calls `clearGatewayKeyEverywhere()`
-(`packages/host/src/settings-store.ts:371-386` — **machine-wide**, because "a key left on a second desk would
+(`packages/host/src/handlers/settings.ts:310`) calls `clearGatewayKeyEverywhere()`
+(`packages/host/src/settings-store.ts:372-387` — **machine-wide**, because "a key left on a second desk would
 keep the gate open after 'forget my key'"), then `clearGateState()`, `clearThisKeyCache()`,
-`resetEmbedCircuit()` and — added 2026-09-17 — `resetJobModelCircuit()` (`packages/host/src/handlers/settings.ts:318`). Returns `relaunch: false`. Threads, desks and media are untouched. The card navigates to
+`resetEmbedCircuit()` and — added 2026-09-17 — `resetJobModelCircuit()` (`packages/host/src/handlers/settings.ts:319`). Returns `relaunch: false`. Threads, desks and media are untouched. The card navigates to
 `/chat` and calls `announceGate(result.gateway)`, which dispatches `GATE_EVENT` and drops the shell to
 onboarding.
 
 **Fresh install (`scope: "all"`)** — typed `RESET` required. The button is disabled until
 `typed.trim() === RESET_CONFIRM_WORD`, but what travels is **what the owner actually typed**
 (`apps/web/components/settings-reset-card.tsx:134-136`), and the host re-checks it independently
-(`packages/host/src/handlers/settings.ts:338-340`, 400 otherwise). Then
+(`packages/host/src/handlers/settings.ts:339-341`, 400 otherwise). Then
 `requestDataReset(localDataDir(), [...HOST_RESET_ENTRIES])` (`:342`) writes the marker — nothing is deleted yet,
 because "the database is open and ffmpeg may still be writing" (`:341`) — followed by `killTrackedChildren()`,
 and the answer is `{ relaunch: true, resetPending: true }`.
@@ -230,7 +230,7 @@ and the answer is `{ relaunch: true, resetPending: true }`.
 The marker is `reset-pending.json` (`RESET_MARKER_FILE`, `packages/db/src/reset.ts:26`), written
 temp-file-then-`renameSync` so a crash cannot leave a half-written marker that parses.
 
-**The wipe list is named entries, never the directory** (`packages/host/src/handlers/settings.ts:274-293`),
+**The wipe list is named entries, never the directory** (`packages/host/src/handlers/settings.ts:275-294`),
 because in the packaged app that same folder is Electron's userData / Chromium profile:
 
 ```
@@ -242,7 +242,7 @@ models-cache.json  models-dev-cache.json  components  logs
 plus, always, `SQLITE_ENTRIES` — `agentforge.sqlite`, `-wal`, `-shm` (`packages/db/src/reset.ts:29`), which
 `applyPendingDataReset` unions onto the marker's own list at `packages/db/src/reset.ts:270` ("the SQLite trio is
 added by `applyPendingDataReset`, because `@agentforge/db` owns it",
-`packages/host/src/handlers/settings.ts:271-272`), and, when `DATABASE_URL` points out of tree, that trio by
+`packages/host/src/handlers/settings.ts:272-273`), and, when `DATABASE_URL` points out of tree, that trio by
 absolute path (`packages/db/src/reset.ts:188-242`). Pinned exactly by
 `packages/host/src/handlers/settings.test.ts:365-382`, which also asserts `host-status.json` and anything
 containing "storage" never appear (`:384-385`). Preserved: `host-status.json`, `Local Storage/`, every other
@@ -271,7 +271,7 @@ installing an update or already exiting), races `clearRendererState()` — `clea
 | Verdict cannot be written | `saveGateState` warns and returns `{persisted:false}` (`:173-197`, warn at `:184-196`); `runGatewayCheck` then answers `status:"error"` with `allowed` as derived (`:488-492`) — "an unwritable data dir must not close a desk" |
 | Live check throws / times out | mapped to `unreachable` (`:469-473`), never thrown |
 | Background re-check throws | swallowed (`:549-555`); the un-awaited promise also carries its own `.catch` (`:552`) |
-| Save with an empty key string | `clearGateState()` and no check at all (`packages/host/src/handlers/settings.ts:248-251`) |
+| Save with an empty key string | `clearGateState()` and no check at all (`packages/host/src/handlers/settings.ts:249-252`) |
 | Reset queued, app killed before reboot | `reset-pending.json` persists; the wipe applies on the next boot regardless of how the process died |
 | Reset while runs are in flight | only *tracked* ffmpeg/ffprobe children are signalled (`packages/host/src/child-processes.ts:42-55`); an in-flight chat turn or embed job is simply cut off at exit. No coverage |
 | Partial removal | per-entry errors are warned and skipped, and `dropMarker()` still runs (`packages/db/src/reset.ts:281`) — no retry, and the result still says applied |
@@ -316,7 +316,7 @@ installing an update or already exiting), races `clearRendererState()` — `clea
   answer; unreachable is not.
 - **Per-desk settings are one file.** Anything that reasons about "the desk's settings directory" is wrong.
 - **`getTenant` reads and compares the settings file on every single request** because `adoptLegacySettings` is
-  unconditional (`packages/host/src/tenant.ts:42`). It is a no-op once the legacy slice is gone, but it is not
+  unconditional (`packages/host/src/tenant.ts:124`). It is a no-op once the legacy slice is gone, but it is not
   free.
 - **A pasted key can quietly fill other providers' slots.** `reuseOpenAI` + `guessDialectFromKey` means one key
   field can populate the Anthropic, Google or Volcengine slot when the key *looks* like theirs.
@@ -339,10 +339,10 @@ installing an update or already exiting), races `clearRendererState()` — `clea
 - **`app.relaunch()` / `app.exit(0)`, not the Windows `taskkill /T` path**, because Electron's relauncher is a
   detached child that the tree-walk would kill (`apps/desktop/main.cjs:203-207`).
 - **`POST /api/v1/settings/reset` also requires the transport header.** It is in `TRANSPORT_REQUIRED_PATHS`
-  (`packages/host/src/http-adapter.ts:24`) on top of the loopback `Host` and `Origin` checks, so a cross-site
+  (`packages/host/src/http-adapter.ts:32`) on top of the loopback `Host` and `Origin` checks, so a cross-site
   HTML form POST cannot reach it. The IPC-only transport and the loopback-only `Host` / `Origin` allowlist are
   **(desktop, frozen)**: on the hosted web app the same host gate runs behind the HTTP adapter
-  (`packages/host/src/http-adapter.ts:516-544`). The loopback check **became** a trusted-origin allowlist plus a
+  (`packages/host/src/http-adapter.ts:534-563`). The loopback check **became** a trusted-origin allowlist plus a
   double-submit CSRF token in Phase 1 ([PR #56](https://github.com/Kyoo032/agentforge/pull/56), commit
   `6ae177a`): `isAllowedWebOrigin` / `isAllowedWebHostHeader` (`local-request.ts:99,113`) and
   `packages/host/src/csrf.ts`, reached only under `isServerMode()`.
@@ -396,11 +396,11 @@ always open (`:278-280`). **Confidence: high.** The design record is prose in `A
 `8831bc4` and `4db009a`, and `4db009a`'s message is about locale and layout, not the gate.
 
 **Why sign-out clears the key on every desk rather than the current one.** `[Direct]` the comment at
-`packages/host/src/settings-store.ts:369-375`: a key left on a second desk would keep the gate open after "forget
+`packages/host/src/settings-store.ts:370-376`: a key left on a second desk would keep the gate open after "forget
 my key". **Confidence: high.**
 
 **Why the fresh-install wipe is a named list and deferred to boot.** `[Direct]` two comments:
-`packages/host/src/handlers/settings.ts:268-273` — "Deliberately a named list, never the directory: in the packaged
+`packages/host/src/handlers/settings.ts:269-274` — "Deliberately a named list, never the directory: in the packaged
 app this same folder is Electron's userData / Chromium profile, so `host-status.json`, `Local Storage/`, caches
 and cookies are not ours to delete"; and `:341` — "the database is open and ffmpeg may still be writing, so the
 wipe is queued for the next boot". `[Supported]` `packages/host/src/handlers/settings.test.ts:365-385` pins the

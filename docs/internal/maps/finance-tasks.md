@@ -1,6 +1,6 @@
 # Map — Finance tasks: the catalog and the generic runner
 
-Last verified: 2026-09-20 at 69afca9
+Last verified: 2026-09-20 at d14cd8f
 
 ## Overview
 

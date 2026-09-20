@@ -1,6 +1,6 @@
 # Map — Presentation
 
-Last verified: 2026-09-20 at 69afca9
+Last verified: 2026-09-20 at d14cd8f
 
 ## Overview
 
@@ -12,9 +12,9 @@ The thing to hold onto: **the outline lives in React state and nowhere else.** `
 
 ### 1. Reaching the studio
 
-The rail tab is `mode-presentations` (`mode-${href.slice(1)}`), and `/presentations` is one of the work-mode routes that renders **`null`** in the router (`apps/web/src/App.tsx:161`). The real component is mounted by `WorkModeKeepAlive`, which maps `/presentations` → `PresentationsStudio` (`apps/web/components/work-mode-keep-alive.tsx:26`) and keeps every visited mode mounted, hidden when inactive (`:48-54`). Consequence, verified on the desk: switch to Chat and back and the loaded deck is still there; reload and it is gone.
+The rail tab is `mode-presentations` (`mode-${href.slice(1)}`), and `/presentations` is one of the work-mode routes that renders **`null`** in the router (`apps/web/src/App.tsx:162`). The real component is mounted by `WorkModeKeepAlive`, which maps `/presentations` → `PresentationsStudio` (`apps/web/components/work-mode-keep-alive.tsx:28`) and keeps every visited mode mounted, hidden when inactive (`:48-54`). Consequence, verified on the desk: switch to Chat and back and the loaded deck is still there; reload and it is gone.
 
-The pane is `absolute inset-0 … overflow-y-auto` (`apps/web/components/work-mode-keep-alive.tsx:68`) precisely because Presentation has no inner scroller — the comment at `:32-40` names it.
+The pane is `absolute inset-0 … overflow-y-auto` (`apps/web/components/work-mode-keep-alive.tsx:70`) precisely because Presentation has no inner scroller — the comment at `:32-40` names it.
 
 ### 2. The shell — four input surfaces, one of which needs no key
 
@@ -29,13 +29,13 @@ The pane is `absolute inset-0 … overflow-y-auto` (`apps/web/components/work-mo
 
 The gallery entries come from core (`packages/core/src/templates/library.ts:502-643`, six `mode: "presentations"` rows) and are localized by slug through `localizedLibrary` (`apps/web/lib/ui-copy.ts:34-52`) against the `presentation.templates.*` keys. Clicking a card only calls `setPrompt(entry.prompt)` (`apps/web/components/presentations-studio.tsx:186`) — it never generates.
 
-The model dropdown is the **chat catalog**, not a presentation-specific list: `useJobModel("presentations")` (`apps/web/lib/use-job-model.ts:63`) fetches `/api/v1/models` + `/api/v1/settings` in parallel and seeds from `modes.presentations` / `defaults.presentations` / `settings.presentationGenModel` (`:84-99`). Host side, `modeCatalogPayload` hands presentations `curated.chat` verbatim (`packages/host/src/selectable-models.ts:147`) and `resolveModeDefaults` picks the first live id out of `JOB_MODE_PREFERENCES.presentations` = `glm-5.3-flash`, `glm-5.3-flash-preview`, `glm-5.2-fast-preview`, `glm-5.2`, `glm-5.3`, `kimi-k3` (`packages/core/src/models/mode-defaults.ts:49-56`). On this desk that resolved to `glm-5.3-flash` out of 110 catalog ids, rendered as 101 `<option>`s because `ModelSelect` runs them through `pickerGroups` (`apps/web/components/model-select.tsx:56`).
+The model dropdown is the **chat catalog**, not a presentation-specific list: `useJobModel("presentations")` (`apps/web/lib/use-job-model.ts:63`) fetches `/api/v1/models` + `/api/v1/settings` in parallel and seeds from `modes.presentations` / `defaults.presentations` / `settings.presentationGenModel` (`:84-99`). Host side, `modeCatalogPayload` hands presentations `curated.chat` verbatim (`packages/host/src/selectable-models.ts:168`) and `resolveModeDefaults` picks the first live id out of `JOB_MODE_PREFERENCES.presentations` = `glm-5.3-flash`, `glm-5.3-flash-preview`, `glm-5.2-fast-preview`, `glm-5.2`, `glm-5.3`, `kimi-k3` (`packages/core/src/models/mode-defaults.ts:51-58`). On this desk that resolved to `glm-5.3-flash` out of 110 catalog ids, rendered as 101 `<option>`s because `ModelSelect` runs them through `pickerGroups` (`apps/web/components/model-select.tsx:56`).
 
 ### 3. Generate — prompt bar → `POST /api/v1/presentations` → one JSON outline
 
-`onGenerate` (`apps/web/components/presentations-studio.tsx:51-76`) POSTs `{ prompt, model?, sourceText? }` through `apiFetch`, so webdev and the packaged app share one call. Route table: `packages/host/src/router.ts:224`.
+`onGenerate` (`apps/web/components/presentations-studio.tsx:51-76`) POSTs `{ prompt, model?, sourceText? }` through `apiFetch`, so webdev and the packaged app share one call. Route table: `packages/host/src/router.ts:232`.
 
-`handlePostPresentations` (`packages/host/src/handlers/jobs.ts:148-157`) resolves the tenant and calls `requireGatewayAllowed(loadSettings(...))` **before** anything else — a closed gate is a flat `403 gateway_blocked` here, never a failed model call.
+`handlePostPresentations` (`packages/host/src/handlers/jobs.ts:211-220`) resolves the tenant and calls `requireGatewayAllowed(loadSettings(...))` **before** anything else — a closed gate is a flat `403 gateway_blocked` here, never a failed model call.
 
 `generatePresentationOutline` (`packages/host/src/presentation-generate.ts:141-165`) then:
 
@@ -46,7 +46,7 @@ The model dropdown is the **chat catalog**, not a presentation-specific list: `u
 5. `collectAssistantText` (`:80-97`) → `collectJobAssistantText` (`packages/host/src/job-regen.ts:192-194`) → `collectJobAssistantRun` (`:170-190`) → `runJobAssistantOnce` (`:68-146`): builds a synthetic `AgentVersionRecord` with `OUTLINE_SYSTEM` (`presentation-generate.ts:36-51`, `{languageRule}` substituted) as the system prompt, one user turn, `createRuntime(settings)`, and accumulates `assistant.delta` text. It passes `jobMode: "presentations"` (`presentation-generate.ts:93`), which is what sends the thinking-off knob `reasoning_effort: "low"` on always-thinking families — **the opposite of Chat, which deliberately sets no `jobMode`** (see [`chat-send.md`](chat-send.md#4-runtime--probe-stream-coerce)). A `run.failed` event becomes a `502 generation_failed` (`job-regen.ts:142-144`).
 6. Empty text → `502` with `modeMessage("emptyPresentationOutline", locale)` (`:148-150`).
 7. `parsePresentationOutline` (`packages/host/src/presentation-outline.ts:88-108`): strip optional ```json fences, slice from the first `{` to the last `}` (`extractJsonObject`, `:73-85`), `JSON.parse`, then zod. Anything that is not `{title: string, slides: [≥1]}` is a `502 invalid_outline` — the studio never sees half an outline.
-8. `presentationOutlineMarkdown` (`packages/host/src/work-cards.ts:175-188`) renders the outline as `# title` + `## N. heading` blocks, which is saved as an artifact (`persistOutline`, `:118-138`, `mode: "presentations"`, `kind: "draft"`) and then ingested as a `Presentation` work card (`upsertWorkSource` + `artifactWorkCard`, `:159-162`). **Both are best-effort:** `persistOutline` swallows its own error and logs, and no artifact means no ingest, but the outline is still returned.
+8. `presentationOutlineMarkdown` (`packages/host/src/work-cards.ts:214-227`) renders the outline as `# title` + `## N. heading` blocks, which is saved as an artifact (`persistOutline`, `:118-138`, `mode: "presentations"`, `kind: "draft"`) and then ingested as a `Presentation` work card (`upsertWorkSource` + `artifactWorkCard`, `:159-162`). **Both are best-effort:** `persistOutline` swallows its own error and logs, and no artifact means no ingest, but the outline is still returned.
 
 ### 4. Preview — the outline becomes slide cards
 
@@ -63,7 +63,7 @@ Layout is not taken at face value. `resolvePresentationSlideLayout` (`apps/web/l
 
 `presentations-regen` toggles `openIndex` (`apps/web/components/presentation-preview.tsx:148`) and mounts the shared `JobRegenPanel` with `testIdPrefix="presentations"` (`:166-176`), which is where `presentations-regen-panel` / `-prompt` / `-model` / `-file` / `-attach` / `-submit` come from (`apps/web/components/job-regen-panel.tsx:120`, `:137`, `:145`, `:155`, `:185`, `:201`). Opening the panel makes **no** request.
 
-Submit uploads any held image through `POST /api/v1/media`, inlines any held `.txt` into the instruction (`:96-107`), then `onRegenerate` POSTs the **whole outline** plus `slideIndex` to `/api/v1/presentations/regenerate` (`apps/web/components/presentations-studio.tsx:86-98`; route `packages/host/src/router.ts:225`).
+Submit uploads any held image through `POST /api/v1/media`, inlines any held `.txt` into the instruction (`:96-107`), then `onRegenerate` POSTs the **whole outline** plus `slideIndex` to `/api/v1/presentations/regenerate` (`apps/web/components/presentations-studio.tsx:86-98`; route `packages/host/src/router.ts:233`).
 
 `regeneratePresentationSlide` (`packages/host/src/presentation-generate.ts:189-236`) re-validates the posted outline with `parsePresentationOutlineBody` (400 if malformed), range-checks `slideIndex` (400), gates on live runtime (503), builds a prompt carrying the deck title, the other slides' headings, and the current slide's full body, appends the user instruction (`appendRegenInstruction`, `job-regen.ts:31-33`), runs `SLIDE_SYSTEM` (`:167-176`), parses one slide (`parsePresentationSlide`, `presentation-outline.ts:110-130`) and returns `mergePresentationSlide(outline, index, slide)` (`:132-142`) — a new outline object, immutably replaced in renderer state.
 
@@ -71,7 +71,7 @@ Submit uploads any held image through `POST /api/v1/media`, inlines any held `.t
 
 `onDownload` (`apps/web/components/presentations-studio.tsx:112-143`) POSTs the raw outline to `/api/v1/presentations/pptx`, reads the blob, pulls the filename out of `Content-Disposition`, and clicks a synthetic `<a download>`.
 
-`handlePostPresentationsPptx` (`packages/host/src/handlers/jobs.ts:170-184`) is the odd one out: **no `getTenant`, no `requireGatewayAllowed`, no runtime check.** It validates the body and builds bytes. That is deliberate in effect — nothing here reaches the gateway — but it means a desk with a closed gate can still export a deck it is holding.
+`handlePostPresentationsPptx` (`packages/host/src/handlers/jobs.ts:233-247`) is the odd one out: **no `getTenant`, no `requireGatewayAllowed`, no runtime check.** It validates the body and builds bytes. That is deliberate in effect — nothing here reaches the gateway — but it means a desk with a closed gate can still export a deck it is holding.
 
 `buildPresentationPptx` (`packages/host/src/presentation-pptx.ts:230-256`) defines a 13.333 × 7.5 in layout, stamps `author`/`title` from `resolvedProductName()` and the outline title, adds the title slide (`:72-104`, kicker from `presentationKicker(locale)`), then one content slide per outline slide through the *same* `resolvePresentationSlideLayout` the preview used (`:137`). Speaker notes become real PPTX notes (`addNotes`, `:66-70`). Colors are the quiet-tool tokens as Office hex (`:9-17`), font Calibri (`:19`). The filename is `safeFilename` (`:21-28`): strip non-word characters, spaces to hyphens, cut at 60 chars, fall back to `presentation.pptx`.
 
@@ -87,7 +87,7 @@ Presentation is a **handoff target**, never a source. `HANDOFF_TARGETS = ["docum
 
 | Failure | Where | What the user gets |
 |---|---|---|
-| Gate closed | `requireGatewayAllowed`, `packages/host/src/handlers/jobs.ts:152`, `:163` | HTTP 403, **flat** `{error:"gateway_blocked", status, message}` (`packages/host/src/errors.ts:20-25`) → the studio's `errorMessage()` cannot read it and shows the generic fallback (see Gotchas) |
+| Gate closed | `requireGatewayAllowed`, `packages/host/src/handlers/jobs.ts:215`, `:163` | HTTP 403, **flat** `{error:"gateway_blocked", status, message}` (`packages/host/src/errors.ts:20-25`) → the studio's `errorMessage()` cannot read it and shows the generic fallback (see Gotchas) |
 | No gateway key / `AGENTFORGE_RUNTIME=stub` | `requireLivePresentationRuntime`, `presentation-generate.ts:99-109` | HTTP 503 `runtime_stub`; `presentations-error` shows the gateway copy + an `Open Settings` link |
 | Empty / missing `prompt` | `readPrompt`, `:53-62` | HTTP 400 `invalid_request` (the Generate button is disabled on an empty prompt, `presentations-studio.tsx:265`, so this needs a direct POST) |
 | `sourceText` not a string / injection hit | `job-source.ts:38-52`, `:23-35` | HTTP 400 `invalid_request` / `injection_blocked` |
@@ -115,21 +115,21 @@ Presentation is a **handoff target**, never a source. `HANDOFF_TARGETS = ["docum
 | `apps/web/lib/mode-handoff.ts`, `apps/web/components/artifact-actions.tsx` | "Make a presentation" handoff into the mode |
 | `apps/web/components/work-mode-keep-alive.tsx`, `apps/web/src/App.tsx` | Why `/presentations` renders `null` in the router and stays mounted |
 | `apps/web/locales/{en,id}/presentation.json` | Renderer chrome, gallery copy, six template briefs |
-| `packages/host/src/router.ts:224-226` | The three routes |
-| `packages/host/src/handlers/jobs.ts:148-184` | Gate + tenant for generate/regen; **neither** for pptx |
+| `packages/host/src/router.ts:232-234` | The three routes |
+| `packages/host/src/handlers/jobs.ts:211-247` | Gate + tenant for generate/regen; **neither** for pptx |
 | `packages/host/src/presentation-generate.ts` | `OUTLINE_SYSTEM`, `SLIDE_SYSTEM`, runtime gate, model resolve, artifact + KB persist |
 | `packages/host/src/presentation-outline.ts` | Host copy of the schema, JSON extraction, merge, layout resolve |
 | `packages/host/src/presentation-pptx.ts` | pptxgenjs deck: layout, chrome, four slide kinds, notes, filename |
 | `packages/host/src/presentation-locale.ts` | `presentationLocale` / `presentationLanguageRule` / `presentationKicker` / `presentationGatewayMessage` |
 | `packages/host/src/job-regen.ts`, `packages/host/src/job-source.ts` | Shared job runtime call and the `sourceText` contract |
-| `packages/host/src/work-cards.ts:175` | `presentationOutlineMarkdown` — the artifact body and the KB card body |
-| `packages/core/src/models/mode-defaults.ts:49-56` | Ranked model preference for the mode |
+| `packages/host/src/work-cards.ts:214` | `presentationOutlineMarkdown` — the artifact body and the KB card body |
+| `packages/core/src/models/mode-defaults.ts:51-58` | Ranked model preference for the mode |
 | `packages/core/src/templates/library.ts:502-643` | The six gallery entries |
 
 ## Gotchas
 
 - **`presentation-outline.ts` exists twice, byte-identical.** `apps/web/lib/presentation-outline.ts` and `packages/host/src/presentation-outline.ts` differ only in the `ApiError` import specifier (`@agentforge/core/errors` vs `@agentforge/core`); their test files are duplicated the same way. `resolvePresentationSlideLayout` is what makes the HTML preview and the PPTX agree, so a one-sided edit silently desynchronizes what the user saw from what they downloaded.
-- **`/api/v1/presentations/pptx` is ungated.** `packages/host/src/handlers/jobs.ts:170-184` calls neither `getTenant` nor `requireGatewayAllowed`, unlike its two siblings at `:148` and `:159`. Nothing leaks (the body is the outline the caller already holds and nothing reaches the gateway), but it is the one presentations route a closed gate does not stop.
+- **`/api/v1/presentations/pptx` is ungated.** `packages/host/src/handlers/jobs.ts:233-247` calls neither `getTenant` nor `requireGatewayAllowed`, unlike its two siblings at `:148` and `:159`. Nothing leaks (the body is the outline the caller already holds and nothing reaches the gateway), but it is the one presentations route a closed gate does not stop.
 - **The model dropdown is empty and disabled for the first few hundred ms.** `useJobModel` starts at `models: []` (`apps/web/lib/use-job-model.ts:69-70`) and `ModelSelect` disables itself while the list is empty (`apps/web/components/model-select.tsx:63`). A drive that asserts `presentations-studio-model` *visible* passes instantly; one that reads its options must wait for them. Measured on the desk: 0 options at first paint, 101 after `/api/v1/models` resolved.
 - **The "Open Settings" link is suppressed on an English desk, on purpose.** The condition at `apps/web/components/presentations-studio.tsx:174` is `matches gateway|api key|settings|runtime_stub|live gateway` **and** `does not match settings` — and the English 503 copy already says "…in Settings" (`packages/host/src/presentation-locale.ts:26`). The Indonesian copy says "Pengaturan", so the link *does* render there. Same banner, different anatomy per locale.
 - **Two error vocabularies for the same wall.** The host 503 string lives in `presentation-locale.ts:22-26`; the renderer also ships `presentation.gatewayError` with the identical sentence in both catalogs — with **zero references** anywhere in `apps/` or `packages/`. Same for `presentation.kicker` (the kicker is produced host-side by `presentationKicker`). Dead keys that look authoritative.

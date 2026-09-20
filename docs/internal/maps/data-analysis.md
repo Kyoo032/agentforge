@@ -1,6 +1,6 @@
 # Map — Data analysis
 
-Last verified: 2026-09-20 at 69afca9
+Last verified: 2026-09-20 at d14cd8f
 
 ## Overview
 
@@ -14,7 +14,7 @@ It is not Research. `analyzeDataset` passes `toolKeys: ["run_sql", "calculator"]
 
 ### 1. Rail → studio
 
-`mode-data` is a rail tab whose testid is `mode-${href.slice(1)}`; Default carries it. `/data` is declared in `App.tsx` as `element={null}` (`apps/web/src/App.tsx:156`) because every work mode actually mounts through `WorkModeKeepAlive`, which maps `"/data" → DataStudio` (`apps/web/components/work-mode-keep-alive.tsx:21`) and keeps the component alive across tab switches. That is why an in-progress analysis and the adopted dataset survive a hop to Chat and back, and why there is no route-level unmount to reset the studio.
+`mode-data` is a rail tab whose testid is `mode-${href.slice(1)}`; Default carries it. `/data` is declared in `App.tsx` as `element={null}` (`apps/web/src/App.tsx:156`) because every work mode actually mounts through `WorkModeKeepAlive`, which maps `"/data" → DataStudio` (`apps/web/components/work-mode-keep-alive.tsx:22`) and keeps the component alive across tab switches. That is why an in-progress analysis and the adopted dataset survive a hop to Chat and back, and why there is no route-level unmount to reset the studio.
 
 On mount the studio does one thing: `listDatasets()` → `GET /api/v1/datasets` (`apps/web/components/data-studio.tsx:76-89`, `apps/web/lib/data-client.ts:72-76`). No key is needed and none is checked; the studio shell is fully functional on a stub desk.
 
@@ -67,9 +67,9 @@ Both are `:memory:`, both set `hard_heap_limit = 128 MB` and `query_only = 1` (`
 
 `onGenerate` (`apps/web/components/data-studio.tsx:147-169`) refuses an empty prompt, and with no adopted dataset sets a **client-side** error from `data.errors.needTable` without touching the network (`:153-155`). Otherwise it posts to `/api/v1/data/stream` with `{ datasetId, prompt, model, history }` (`:158-163`).
 
-`handlePostDataStream` (`packages/host/src/handlers/jobs.ts:224-235`) resolves the tenant, calls `requireGatewayAllowed(loadSettings(...))` — a closed gateway gate is a flat `403 gateway_blocked` here, before any stream — and then wraps `analyzeDataset` in `streamJob`.
+`handlePostDataStream` (`packages/host/src/handlers/jobs.ts:287-298`) resolves the tenant, calls `requireGatewayAllowed(loadSettings(...))` — a closed gateway gate is a flat `403 gateway_blocked` here, before any stream — and then wraps `analyzeDataset` in `streamJob`.
 
-`streamJob` (`packages/host/src/job-stream.ts:30-86`) is the shape that matters for verification: it **always returns `{ type: "stream", status: 200 }`** (`:85`) and pushes the job's rejection onto the stream as a `job.error` event carrying the original code and status (`:57-59`, `jobErrorFromUnknown` at `:8-14`). On the client `settleJobEvents` (`apps/web/lib/job-stream.ts:34-46`) turns that event into a thrown `JobStreamError`, `useJobStream` stores it (`apps/web/lib/use-job-stream.ts:60-65`), and `DataStudio` renders `job.error.message` in `data-error` (`:73`, `:180-190`). So **the 503 is in the SSE payload, not on the wire** — the HTTP response to `POST /api/v1/data/stream` is 200 even when the desk has no key. The non-streaming twin `POST /api/v1/data` (`packages/host/src/handlers/jobs.ts:212-221`) does answer a real 503, but no UI calls it.
+`streamJob` (`packages/host/src/job-stream.ts:30-86`) is the shape that matters for verification: it **always returns `{ type: "stream", status: 200 }`** (`:85`) and pushes the job's rejection onto the stream as a `job.error` event carrying the original code and status (`:57-59`, `jobErrorFromUnknown` at `:8-14`). On the client `settleJobEvents` (`apps/web/lib/job-stream.ts:34-46`) turns that event into a thrown `JobStreamError`, `useJobStream` stores it (`apps/web/lib/use-job-stream.ts:60-65`), and `DataStudio` renders `job.error.message` in `data-error` (`:73`, `:180-190`). So **the 503 is in the SSE payload, not on the wire** — the HTTP response to `POST /api/v1/data/stream` is 200 even when the desk has no key. The non-streaming twin `POST /api/v1/data` (`packages/host/src/handlers/jobs.ts:275-284`) does answer a real 503, but no UI calls it.
 
 `analyzeDataset` (`packages/host/src/data-generate.ts:199-288`) then runs four emitted phases: `profiling` → `analyzing` → `verifying` → `saving`. `requireLive` (`:110-120`) is checked **before** the dataset is resolved, so a keyless generate never builds a worker: `resolveRuntimeMode` returning `stub` throws `ApiError("runtime_stub", gatewayRequiredMessage("data", localeForRun()), 503)`.
 
@@ -128,7 +128,7 @@ The studio renders the result through `ArtifactActions` (`apps/web/components/da
 
 | Failure | Where | What the user gets |
 |---|---|---|
-| Gate closed | `requireGatewayAllowed`, `packages/host/src/handlers/jobs.ts:228` | HTTP 403 flat `gateway_blocked`; `runJobStream` sees a JSON body and throws (`apps/web/lib/job-stream.ts:61-62`) → `data-error` |
+| Gate closed | `requireGatewayAllowed`, `packages/host/src/handlers/jobs.ts:291` | HTTP 403 flat `gateway_blocked`; `runJobStream` sees a JSON body and throws (`apps/web/lib/job-stream.ts:61-62`) → `data-error` |
 | No key / stub runtime | `requireLive`, `packages/host/src/data-generate.ts:110-120` | HTTP **200** stream, `job.error` `runtime_stub` status 503 → `data-error` with the Toko Token / Settings hint |
 | No dataset adopted | client, `apps/web/components/data-studio.tsx:153-155` | `data-error` from `data.errors.needTable`, **no network call at all** |
 | Empty prompt | client `:150` then `readPrompt` `:64-73` | button disabled (`:367`); a direct post is 400 `prompt is required` |
@@ -162,9 +162,9 @@ The studio renders the result through `ArtifactActions` (`apps/web/components/da
 | `apps/web/lib/data-client.ts` | The four dataset routes plus `DATASET_ACCEPT` and the 25 MB mirror |
 | `apps/web/lib/use-job-stream.ts`, `apps/web/lib/job-stream.ts` | Job SSE: progress reducer, `job.error` → thrown `JobStreamError` |
 | `apps/web/components/work-mode-keep-alive.tsx` | Why `/data` is `element={null}` and the studio never unmounts |
-| `packages/host/src/router.ts:241-246` | The six data routes |
+| `packages/host/src/router.ts:249-254` | The six data routes |
 | `packages/host/src/handlers/datasets.ts` | Upload / paste / list / get / delete; `datasetPayload` (profile + 100-row preview) |
-| `packages/host/src/handlers/jobs.ts:212-235` | `POST /api/v1/data` (real 503) and `/data/stream` (always 200 + SSE) |
+| `packages/host/src/handlers/jobs.ts:275-298` | `POST /api/v1/data` (real 503) and `/data/stream` (always 200 + SSE) |
 | `packages/host/src/datasets.ts` | The store: caps, parse, profile, file layout, cache, both SQLites, delete |
 | `packages/host/src/data-generate.ts` | `analyzeDataset`: system prompt, brief + injection guard, phases, artifact, KB card |
 | `packages/host/src/data-analysis-build.ts` | Draft JSON → re-run SQL → evidence tables and charts |

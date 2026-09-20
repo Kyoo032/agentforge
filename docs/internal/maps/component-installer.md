@@ -1,6 +1,6 @@
 # Component installer (first run)
 
-Last verified: 2026-09-20 at 69afca9
+Last verified: 2026-09-20 at d14cd8f
 
 ## Overview
 
@@ -8,7 +8,7 @@ The only way DPSBuddy installs a native dependency. The owner never runs a comma
 
 ## How it works
 
-1. **Status.** `GET /api/v1/components` (`packages/host/src/router.ts:194` → `handleGetComponents`, `packages/host/src/handlers/components.ts:30`) answers `{ components: [{ id, version, auto, state, source, bytes, error? }] }`. `componentStatus` (`packages/host/src/components/status.ts:65`) asks the probe: `resolveAnydoc` tries the bundled module, then the downloaded one, which only counts when the marker exists (`packages/host/src/file-extract/anydoc.ts`, `loadBundledAnydoc` / `loadDownloadedAnydoc`). A platform with no package in the manifest is `unsupported`, not an error (`manifest.ts:109`).
+1. **Status.** `GET /api/v1/components` (`packages/host/src/router.ts:199` → `handleGetComponents`, `packages/host/src/handlers/components.ts:30`) answers `{ components: [{ id, version, auto, state, source, bytes, error? }] }`. `componentStatus` (`packages/host/src/components/status.ts:65`) asks the probe: `resolveAnydoc` tries the bundled module, then the downloaded one, which only counts when the marker exists (`packages/host/src/file-extract/anydoc.ts`, `loadBundledAnydoc` / `loadDownloadedAnydoc`). A platform with no package in the manifest is `unsupported`, not an error (`manifest.ts:109`).
 2. **Auto.** `auto` is false when `AGENTFORGE_RUNTIME=stub` is set or under test (`status.ts:51`), so Cloud and Playwright never download. The renderer only starts on its own when `state === "missing" && auto` (`apps/web/lib/components-client.ts:144`).
 3. **Trigger.** Onboarding mounts `ComponentSetupPanel` inside `onboarding-setup-check` (`apps/web/components/onboarding-screen.tsx:3`, `:113-127`); an already-onboarded desk mounts `ComponentSetupSilent` from `apps/web/src/App.tsx:11`, rendered at `:147`. Both use `useComponentSetup` (`apps/web/lib/use-component-setup.ts:42`): fetch, auto-install once, abort on unmount, `retry()`.
 4. **Install.** `POST /api/v1/components/install/stream` with `{ id }` (`router.ts:195`, `handlers/components.ts:44`; unknown id → 400) streams `job.*` through `streamJob`, so it works over webdev SSE and Electron IPC alike. `installComponent` (`packages/host/src/components/install.ts:199`) holds one run per component (`busy` otherwise) and walks the stages:
@@ -42,7 +42,7 @@ The only way DPSBuddy installs a native dependency. The owner never runs a comma
 - **The probe stage must not need the marker.** The first live run failed `probe_failed` on every real download for exactly that reason; unit tests with an injected probe did not see it. Prove changes with one real install into a temp `AGENTFORGE_DATA_DIR`.
 - **`import.meta` is `{}` inside `host.cjs`.** `createRequire(import.meta.url)` throws in the packaged bundle; the loader uses `typeof require === "function" ? require : createRequire(import.meta.url)`.
 - **No URL ever comes from a request.** The body carries an id; everything else is the manifest. Bumping a version means new integrity strings from `npm view <pkg>@<v> dist.integrity`.
-- **Start over removes it.** `components` and `logs` are in `HOST_RESET_ENTRIES` (`packages/host/src/handlers/settings.ts:274`, the two entries at `:290-292`); the wipe runs on the next boot before the module is loaded, so Windows never holds the `.node` open.
+- **Start over removes it.** `components` and `logs` are in `HOST_RESET_ENTRIES` (`packages/host/src/handlers/settings.ts:275`, the two entries at `:290-292`); the wipe runs on the next boot before the module is loaded, so Windows never holds the `.node` open.
 - **webdev has no watcher.** A `:3000` started before these routes existed answers 404 until it is restarted.
 - **Mac packs bundle it too.** `apps/desktop/platform/macos/docker/build-mac.sh` fetches `anydoc-darwin-<arch>` per arch, checks the sha512 pinned in `manifest.ts`, and removes every other platform package before electron-builder runs; a Linux install alone would ship ELF `.node` files into the `.app` (first 0.14.27 mac pack, `verify: FAIL - 2 non-Mach-O native binaries`). Bump the manifest and that script together.
 - Bundled wins. On this desk `node_modules` has the module, so the panel never appears on webdev; that is correct, not a bug.

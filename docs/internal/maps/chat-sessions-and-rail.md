@@ -1,6 +1,6 @@
 # Map — Chat sessions and the rail
 
-Last verified: 2026-09-20 at 69afca9
+Last verified: 2026-09-20 at d14cd8f
 
 The sibling page [`chat-send.md`](chat-send.md) owns one turn inside a session. This page owns the sessions themselves: where the list comes from, how a row opens a thread, and how the pane, the list and the desk stay in step. The rail block (`rail-recent-threads.tsx`, `use-chat-threads.ts`, `thread-groups.ts`, `threads-events.ts`) landed in 0.14.27 ([`../0.14.27-changelog.md`](../0.14.27-changelog.md), PR #52); every citation below is re-anchored to the committed tree at `b482611`.
 
@@ -23,7 +23,7 @@ It is **not** a global thread rail: only the `quick-chat` agent's threads, only 
 {collapsed ? null : <RailRecentThreads />}
 ```
 
-(`apps/web/components/app-rail.tsx:301-302`.) The JOB MODES label follows at `:306`, so the sessions are wedged between Chat and the job modes by ordering alone — there is no container to reorder. Collapse is the `rail-collapse` / `rail-expand` button at `:408`, whose state comes from `apps/web/lib/rail-prefs.ts`; collapsing unmounts the whole block, so `rail-thread-list`, `thread-item` and `new-chat-link` all drop to count 0 (driven; `evidence/chat/2026-09-17-cc-map/08-rail-collapsed-no-sessions.png`).
+(`apps/web/components/app-rail.tsx:309-310`.) The JOB MODES label follows at `:306`, so the sessions are wedged between Chat and the job modes by ordering alone — there is no container to reorder. Collapse is the `rail-collapse` / `rail-expand` button at `:408`, whose state comes from `apps/web/lib/rail-prefs.ts`; collapsing unmounts the whole block, so `rail-thread-list`, `thread-item` and `new-chat-link` all drop to count 0 (driven; `evidence/chat/2026-09-17-cc-map/08-rail-collapsed-no-sessions.png`).
 
 ### 2. `RailRecentThreads` — one list, one local boolean
 
@@ -108,7 +108,7 @@ There is no polling and no push from the host. A thread created by anything othe
 
 `threadsPath` builds `?scope=chat` and only rides `agentId` along on the agent scope (`apps/web/lib/use-chat-threads.ts:25-31`) — the host ignores it on `chat` and sending it would widen the list.
 
-Route → `handleGetThreads` (`packages/host/src/router.ts:204`, `packages/host/src/handlers/threads.ts:15-42`). `parseScope` accepts only `chat` and `agent`; anything else, including a missing value, becomes `all` (`:8-13`). Then `listWorkspaceThreads` (`packages/host/src/threads.ts:82-122`):
+Route → `handleGetThreads` (`packages/host/src/router.ts:209`, `packages/host/src/handlers/threads.ts:15-42`). `parseScope` accepts only `chat` and `agent`; anything else, including a missing value, becomes `all` (`:8-13`). Then `listWorkspaceThreads` (`packages/host/src/threads.ts:82-122`):
 
 - tenancy is three equalities — organization, workspace, user (`:93-95`);
 - `scope: "chat"` adds `eq(agents.slug, DEFAULT_CHAT_SLUG)`, which is how the rail gets Chat sessions and not job or agent threads (`:99-101`);
@@ -188,7 +188,7 @@ removeGraphForThread(tenant, threadId);
 
 ### 10. Keep-alive
 
-`WorkModeKeepAlive` (`apps/web/components/work-mode-keep-alive.tsx:41-77`) keeps every visited work-mode page mounted and merely `hidden`, so leaving Chat for Documents does not unmount `ChatSession`, and drafts plus in-flight SSE survive. It is keyed on the workspace id (`:43`), so a desk switch **does** blow all panes away — which is the correct pairing with the rail's workspace-scoped list.
+`WorkModeKeepAlive` (`apps/web/components/work-mode-keep-alive.tsx:43-79`) keeps every visited work-mode page mounted and merely `hidden`, so leaving Chat for Documents does not unmount `ChatSession`, and drafts plus in-flight SSE survive. It is keyed on the workspace id (`:43`), so a desk switch **does** blow all panes away — which is the correct pairing with the rail's workspace-scoped list.
 
 ### Failure modes
 
@@ -245,7 +245,7 @@ removeGraphForThread(tenant, threadId);
 
 `.cursor/skills/verify-agentforge/features/chat.md` — sub-features `chat-rail-sessions`, `chat-threads-expand`, `chat-switch`, `chat-new`, `chat-rail`, `chat-keep-alive`.
 
-DOM testids that prove it: `rail-thread-list` (`apps/web/components/rail-recent-threads.tsx:47`), `new-chat-link` (`:51`), `thread-item` (`:70`) with `aria-current="true"` on the open row (`:71`), `thread-delete` (`:85`), `rail-thread-error` (`:57`), `threads-see-all` with `aria-expanded` (`:98-99`), `rail-collapse` / `rail-expand` (`apps/web/components/app-rail.tsx:408`), `mode-chat` (`:299`), and the pane's own `chat-empty` / `message-list` / `message-output`. Source-level contract in `apps/web/lib/rail-threads-wiring.test.ts`; the Playwright walk is `apps/web/tests/e2e/foundation.spec.ts`, retargeted to `rail-thread-list`.
+DOM testids that prove it: `rail-thread-list` (`apps/web/components/rail-recent-threads.tsx:47`), `new-chat-link` (`:51`), `thread-item` (`:70`) with `aria-current="true"` on the open row (`:71`), `thread-delete` (`:85`), `rail-thread-error` (`:57`), `threads-see-all` with `aria-expanded` (`:98-99`), `rail-collapse` / `rail-expand` (`apps/web/components/app-rail.tsx:416`), `mode-chat` (`:299`), and the pane's own `chat-empty` / `message-list` / `message-output`. Source-level contract in `apps/web/lib/rail-threads-wiring.test.ts`; the Playwright walk is `apps/web/tests/e2e/foundation.spec.ts`, retargeted to `rail-thread-list`.
 
 Driven on the owner's webdev (`http://127.0.0.1:3000`, doctor `runtime: stub`) on 2026-09-17 with six seeded threads: 4 rows → `Semua sesi` → 6 rows → `Lebih sedikit` → 4 rows, open a row (`aria-current`), `+ Chat baru` with a turn on screen (pane cleared, thread intact), `thread-delete` with the confirm accepted, collapsed rail empty, reload starts collapsed. Evidence under `.cursor/skills/verify-agentforge/evidence/chat/2026-09-17-cc-map/`.
 

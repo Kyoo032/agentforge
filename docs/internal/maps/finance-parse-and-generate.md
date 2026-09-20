@@ -1,6 +1,6 @@
 # Map — Finance: parse and generate
 
-Last verified: 2026-09-20 at 69afca9
+Last verified: 2026-09-20 at d14cd8f
 
 ## Overview
 
@@ -37,7 +37,7 @@ Drafts are per desk **and per task**: key `agentforge-finance-draft:<scope>:<tas
 
 ### 3. Routes and the two gates
 
-Seven routes, all `POST` (`packages/host/src/router.ts:229-235`):
+Seven routes, all `POST` (`packages/host/src/router.ts:237-243`):
 
 | Route | Handler | Gate | Live runtime |
 |---|---|---|---|
@@ -175,7 +175,7 @@ The registry renders it (`packages/host/src/renderers/registry.ts:22-28`): `xlsx
 
 | File | Role |
 |---|---|
-| `packages/host/src/router.ts:229-235` | The seven Finance routes |
+| `packages/host/src/router.ts:237-243` | The seven Finance routes |
 | `packages/host/src/handlers/finance.ts` | Generate, stream, parse, regenerate, docx; the gate and the task check |
 | `packages/host/src/handlers/finance-export.ts` | `/finance/export` — report first, brief second, artifact third |
 | `packages/host/src/handlers/finance-import.ts` | `/finance/import` — spreadsheet or document to figures text |
@@ -219,8 +219,8 @@ The registry renders it (`packages/host/src/renderers/registry.ts:22-28`): `xlsx
 - **An export by `artifactId` alone is only as good as that artifact's meta.** Stored report, then stored brief, then markdown (`packages/host/src/handlers/finance-export.ts:75-86`). A brief over the 256 KB cap, or one saved before the meta landed, exports as prose. A sparse workbook from an old id is not a renderer bug.
 - **Export formats are one route, not three.** `format` selects the renderer; `pdf` is registered and answers 501 on purpose. Assert the content type, not the route.
 - **`finance-prompt` is an `<input>` now, not a textarea** (`apps/web/components/finance-steps/finance-prompt-bar.tsx:54-61`), and `finance-generate` is a real form submit (`:67-71`) — a click before hydration reloads `/finance` and silently loses the prompt.
-- **Three things pick the model, and the dropdown is only the first.** `resolveModel` (`packages/host/src/finance-tasks/live.ts:62-69`) takes the request's `model`, else `settings.documentGenModel`, else `modeCatalogPayload().defaults.finance` — `pickPreferredJobModel("finance", …)` over `JOB_MODE_PREFERENCES.finance = ["hy3","hy-3","hunyuan-3","deepseek-v4-flash"]` (`packages/core/src/models/mode-defaults.ts:57`). None of the `hy3` ids are on this gateway, so the fourth entry wins.
-- **`EFFECTIVE_JOB_MODEL` is documentation, not a code path** (`packages/core/src/models/mode-defaults.ts:36`). The preference list is what delivers `deepseek-v4-flash`.
+- **Three things pick the model, and the dropdown is only the first.** `resolveModel` (`packages/host/src/finance-tasks/live.ts:62-69`) takes the request's `model`, else `settings.documentGenModel`, else `modeCatalogPayload().defaults.finance` — `pickPreferredJobModel("finance", …)` over `JOB_MODE_PREFERENCES.finance = ["hy3","hy-3","hunyuan-3","deepseek-v4-flash"]` (`packages/core/src/models/mode-defaults.ts:59`). None of the `hy3` ids are on this gateway, so the fourth entry wins.
+- **`EFFECTIVE_JOB_MODEL` is documentation, not a code path** (`packages/core/src/models/mode-defaults.ts:38`). The preference list is what delivers `deepseek-v4-flash`.
 - **`modelPinned` matters.** Only a deliberate pick travels (`apps/web/components/finance-studio.tsx:232`, `readModelPinned`, `packages/host/src/finance-tasks/live.ts:46-48`); a seeded default stays rescuable by the job fallback, which is why a run can answer on a different model with a `finance-result-model-fallback` notice.
 - **There is still no stub Finance brief.** `apps/web/locales/{en,id}/finance.json` carries a `finance.stub.*` block describing one; nothing references it. See `docs/internal/unreleased.md`.
 

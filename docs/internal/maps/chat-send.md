@@ -1,6 +1,6 @@
 # Map — Chat send
 
-Last verified: 2026-09-20 at 69afca9
+Last verified: 2026-09-20 at d14cd8f
 
 Supersedes the `## how — Chat send (pstack) — 2026-09-06` block in [`../0.14-changelog.md`](../0.14-changelog.md), which described the 0.14 shape. Several details in it are no longer true; see Gotchas.
 
@@ -34,7 +34,7 @@ Either way `apiFetch` hands back a `Response` with `Content-Type: text/event-str
 
 ### 3. Host — gate, then run
 
-`packages/host/src/router.ts:208-210` maps the route to `handleRun` (`packages/host/src/handlers/runs.ts:27`). First thing it does, before touching the database or the gateway: `requireGatewayAllowed(loadSettings(tenant.workspaceId))` (`packages/host/src/handlers/runs.ts:31`). A closed gate throws `GatewayBlockedError` and the request answers a flat `403 { error: "gateway_blocked", status, message }` (`packages/host/src/errors.ts:20-25`) with no SSE stream at all. See [`settings-and-gateway-gate.md`](settings-and-gateway-gate.md).
+`packages/host/src/router.ts:213-215` maps the route to `handleRun` (`packages/host/src/handlers/runs.ts:27`). First thing it does, before touching the database or the gateway: `requireGatewayAllowed(loadSettings(tenant.workspaceId))` (`packages/host/src/handlers/runs.ts:31`). A closed gate throws `GatewayBlockedError` and the request answers a flat `403 { error: "gateway_blocked", status, message }` (`packages/host/src/errors.ts:20-25`) with no SSE stream at all. See [`settings-and-gateway-gate.md`](settings-and-gateway-gate.md).
 
 Otherwise `startModalityRun` (`packages/host/src/runs.ts:125`) runs the turn:
 
@@ -90,7 +90,7 @@ Fixed in `e93c617`. The composer toolbar's single-row `overflow-hidden` layout (
 | Upstream non-OK | `readHttpErrorBody` → `gatewayFailure` | retried up to 3 attempts with `run.probing` frames, then `run.failed` + `run.completed` |
 | Inner watchdog | `AiSdkRuntime.consume` | retried like any failure, **except** "no first token" wording, which is a hard stop |
 | Run-stall guard | `packages/host/src/run-stall.ts` | `run.failed` + `run.completed`, run row failed, partial text discarded |
-| Client abort / socket close | `res.on("close")` (`packages/host/src/http-adapter.ts:449-454`) or `host:stream-abort` | same as stall |
+| Client abort / socket close | `res.on("close")` (`packages/host/src/http-adapter.ts:467-472`) or `host:stream-abort` | same as stall |
 | Model returns nothing | `shouldFailEmptyAssistant`, `packages/core/src/runtime/retry.ts:146-152` | `run.failed` + `run.completed` |
 | Tool ran, later fetch failed | `shouldKeepToolTurn`, `packages/core/src/runtime/retry.ts:155-157` | turn kept: `run.completed` with no `run.failed` |
 

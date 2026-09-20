@@ -92,7 +92,14 @@ EXPOSE 3000
 # which defaults to 127.0.0.1. BIND_HOST is not set here, so the container only answers on
 # its own loopback. See webapp-deploy/README.md - the proxy joins this container's network
 # namespace instead of talking to it over a bridge.
+# The `x-forwarded-proto: https` header is REQUIRED, not decoration. In server mode
+# `rejectPlaintext` (packages/host/src/http-adapter.ts:314-317, called at :421) answers 403 https_required to every
+# request that does not carry it, for every path, and it runs before routing. A probe without it
+# fails 100% of the time and the container never reports healthy. Sending it here is safe: this
+# process is inside the container, so it is past the boundary that control exists to defend.
+# `/api/v1/components` is one of the two ungated GETs (packages/host/src/auth/routes.ts:45), so it
+# answers before anyone has signed in.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=5 \
-  CMD node -e "const p=process.env.PORT||3000;fetch('http://127.0.0.1:'+p+'/api/v1/components').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD node -e "const p=process.env.PORT||3000;fetch('http://127.0.0.1:'+p+'/api/v1/components',{headers:{'x-forwarded-proto':'https'}}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 CMD ["./node_modules/.bin/tsx", "server.ts"]

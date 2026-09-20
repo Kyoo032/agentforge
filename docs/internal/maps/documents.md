@@ -1,6 +1,6 @@
 # Map — Documents job
 
-Last verified: 2026-09-20 at 69afca9
+Last verified: 2026-09-20 at d14cd8f
 
 ## Overview
 
@@ -14,7 +14,7 @@ What it is not: a Word editor, a streaming mode, or a `/runs/*` consumer. It nev
 
 ### 1. Mounting — the pane is never unmounted
 
-`/documents` has a `<Route path="/documents" element={null} />` in `apps/web/src/App.tsx:153`; the comment on `:151` says why. The real component is mounted by `WorkModeKeepAlive` (`apps/web/components/work-mode-keep-alive.tsx:41-44`), which maps `"/documents" → DocumentsStudio` (`:18`) and keeps **every visited** work-mode pane in the DOM, hiding the inactive ones (`:56-76`, the `hidden={!active}` / `className="hidden"` pair at `:65-68`). Panes are re-keyed on workspace change (`:43`).
+`/documents` has a `<Route path="/documents" element={null} />` in `apps/web/src/App.tsx:153`; the comment on `:151` says why. The real component is mounted by `WorkModeKeepAlive` (`apps/web/components/work-mode-keep-alive.tsx:43-46`), which maps `"/documents" → DocumentsStudio` (`:18`) and keeps **every visited** work-mode pane in the DOM, hiding the inactive ones (`:56-76`, the `hidden={!active}` / `className="hidden"` pair at `:65-68`). Panes are re-keyed on workspace change (`:43`).
 
 Consequence, and it bites tests: after one visit to `/documents`, `documents-studio` still has count 1 on `/chat` and `/research`, with `isVisible() === false`, and `documents-prompt` keeps whatever was typed. Assert visibility, not count, when you mean "this mode is not showing".
 
@@ -40,20 +40,20 @@ Consequence, and it bites tests: after one visit to `/documents`, `documents-stu
 
 `onGenerate` (`documents-studio.tsx:55-80`) trims the prompt, bails if empty or busy, and posts `{ prompt, model, sourceText }` through `apiFetch` (`:64-68`) — `sourceText` only when non-empty. A non-OK response becomes `error` via `errorMessage` (`:19-27`), which prefers `payload.error.message` and otherwise falls back to the localized `documents.errors.generate`. On failure `draft` is cleared (`:75`), so a failed generate also wipes whatever was on screen.
 
-Host side, `router.ts:221` → `handlePostDocuments` (`packages/host/src/handlers/jobs.ts:110-119`): `getTenant`, then `requireGatewayAllowed(loadSettings(...))` **before** anything else, then `generateDocumentDraft`.
+Host side, `router.ts:221` → `handlePostDocuments` (`packages/host/src/handlers/jobs.ts:173-182`): `getTenant`, then `requireGatewayAllowed(loadSettings(...))` **before** anything else, then `generateDocumentDraft`.
 
 `generateDocumentDraft` (`packages/host/src/document-generate.ts:153-172`) in order:
 
 1. `readPrompt` — a non-string or blank `prompt` is a 400 (`:66-75`).
 2. `requireLiveDocumentRuntime` (`:113-123`) — `resolveRuntimeMode` on `hasLiveProvider(settings)` and `AGENTFORGE_RUNTIME`; `stub` throws `ApiError("runtime_stub", gatewayRequiredMessage("documents", locale), 503)`. **This is the gate every keyless drive hits**, and it is why the error copy names Settings.
 3. `readSourceText` (`job-source.ts:38-52`) — absent → `""`; non-string → 400; otherwise trimmed, capped at 120k with `SOURCE_TRUNCATED_MARKER` appended (`:15-20`), then run through `assertSafeSourceText` → `scanInjection`, which throws `injection_blocked` 400 unless the desk set `injectionGuardBypass` (`:23-35`, threaded from `document-generate.ts:156`).
-4. `resolveDocumentModel` (`:125-133`) — body `model`, else `settings.documentGenModel`, else the mode default, resolved against the live catalog by `resolveChatModel`. The Documents bucket **is** the chat bucket (`packages/host/src/selectable-models.ts:145`) and the default ladder is `["hy3", "hy-3", "hunyuan-3", "hunyuan3", "deepseek-v4-flash"]` (`packages/core/src/models/mode-defaults.ts:47`) — Finance's is the same list minus one alias (`:57`), which is why both land on `deepseek-v4-flash` on a gateway without Hunyuan.
+4. `resolveDocumentModel` (`:125-133`) — body `model`, else `settings.documentGenModel`, else the mode default, resolved against the live catalog by `resolveChatModel`. The Documents bucket **is** the chat bucket (`packages/host/src/selectable-models.ts:166`) and the default ladder is `["hy3", "hy-3", "hunyuan-3", "hunyuan3", "deepseek-v4-flash"]` (`packages/core/src/models/mode-defaults.ts:49`) — Finance's is the same list minus one alias (`:57`), which is why both land on `deepseek-v4-flash` on a gateway without Hunyuan.
 5. `collectAssistantText` (`:94-111`) → `collectJobAssistantText` (`packages/host/src/job-regen.ts:192`) with `jobMode: "documents"`, system prompt `withSourceRule(documentJobSystemPrompt(finance), sourceText)` and user prompt `withSourceMaterial(prompt, sourceText)`. `DOCUMENT_SYSTEM` (`:49-64`) demands bare JSON, 5–8 sections (max 12), finished prose, and bans TBD/lorem filler; `withOutputLanguage` stamps the desk locale on it (`:89-92`). `withSourceMaterial` appends the material inside `<<<` / `>>>` fences (`job-source.ts:54-59`) and `withSourceRule` appends the "use only that material for facts" sentence (`:7-8,61-63`).
    Because `jobMode` is set, `applyJobThinking` adds `reasoning_effort: "low"` on always-thinking families — the knob Chat deliberately does not use (see [`chat-send.md`](chat-send.md#4-runtime--probe-stream-coerce)).
 6. Empty output → `ApiError("generation_failed", …, 502)` (`:159-161`).
 7. `parseDocumentDraft` (`packages/host/src/document-outline.ts:18-38`) — `extractJsonObject` peels fences, `JSON.parse`, then the zod `documentDraftSchema` (`:10-13`: non-empty title, ≥1 section, each with non-empty heading and body). Any failure is a **502 `invalid_document`**, not a 400: the model, not the user, produced it.
 8. `persistDraft` (`:135-151`) saves a `mode: "documents", kind: "draft"` markdown artifact — wrapped in try/catch and explicitly documented as never failing the job.
-9. If that saved, `upsertWorkSource(artifactWorkCard({ type: "Documents", … }))` files a knowledge work card (`:165-170`, `packages/host/src/work-cards.ts:129`, `:168`).
+9. If that saved, `upsertWorkSource(artifactWorkCard({ type: "Documents", … }))` files a knowledge work card (`:165-170`, `packages/host/src/work-cards.ts:168`, `:168`).
 
 There is no `finance` toggle in the Documents UI; `isFinanceJob` (`:85-87`) reads a `job: "finance"` body field that only the Finance path sets, and it selects `FINANCE_SYSTEM` (`:34-47`) and the finance model default instead.
 
@@ -79,7 +79,7 @@ There is no `finance` toggle in the Documents UI; `isFinanceJob` (`:85-87`) read
 
 `onDownload` (`documents-studio.tsx:116-147`) posts the draft as the bare body, reads the response as a `Blob`, pulls the filename out of `Content-Disposition` (`:133-135`), and clicks a synthetic `<a download>` (`:136-141`).
 
-`handlePostDocumentsDocx` (`packages/host/src/handlers/jobs.ts:132-146`) is the odd one out: **no `getTenant`, no `requireGatewayAllowed`**. It parses the body with `parseDocumentDraftBody` (400 on a bad shape) and returns a `type: "bytes"` result with the OOXML content type and a filename.
+`handlePostDocumentsDocx` (`packages/host/src/handlers/jobs.ts:195-209`) is the odd one out: **no `getTenant`, no `requireGatewayAllowed`**. It parses the body with `parseDocumentDraftBody` (400 on a bad shape) and returns a `type: "bytes"` result with the OOXML content type and a filename.
 
 `buildDocumentDocx` (`packages/host/src/document-docx.ts:31-58`) uses the `docx` npm package directly: a `HeadingLevel.TITLE` run in Calibri 24pt `#0D2137`, then per section a `HEADING_1` run in 14pt `#1565C0` and the body split on blank lines into spaced paragraphs (`:14-29`). `safeFilename` (`:5-12`) strips non-word characters, collapses whitespace to `-`, truncates at 60 chars, and falls back to `document.docx`. The document `creator` is `resolvedProductName()`, so packaged brands stamp their own name.
 
@@ -93,7 +93,7 @@ This is **not** `packages/core/src/docx/*` — that toolkit reads, diffs and val
 
 | Failure | Where | What the client gets |
 |---|---|---|
-| Gate closed | `requireGatewayAllowed`, `packages/host/src/handlers/jobs.ts:114`, `:125` | HTTP 403 `gateway_blocked` on generate and regenerate. **`/documents/docx` has no gate and still returns bytes** |
+| Gate closed | `requireGatewayAllowed`, `packages/host/src/handlers/jobs.ts:177`, `:125` | HTTP 403 `gateway_blocked` on generate and regenerate. **`/documents/docx` has no gate and still returns bytes** |
 | No gateway key (stub) | `requireLiveDocumentRuntime`, `packages/host/src/document-generate.ts:113-123` | HTTP **503** `runtime_stub`, message naming Settings; rendered in `documents-error` |
 | Blank / missing `prompt` | `readPrompt`, `:66-75` | HTTP 400 `invalid_request`. In practice unreachable from the UI — `documents-generate` is disabled on a blank prompt (`documents-studio.tsx:270`) |
 | `sourceText` not a string | `readSourceText`, `packages/host/src/job-source.ts:46-48` | HTTP 400 `invalid_request` |
@@ -123,8 +123,8 @@ This is **not** `packages/core/src/docx/*` — that toolkit reads, diffs and val
 | `apps/web/lib/use-job-model.ts` | Job-mode → `documentGenModel` settings field |
 | `packages/core/src/templates/library.ts` | The 6 Documents example cards |
 | `packages/core/src/models/mode-defaults.ts` | The `hy3 → deepseek-v4-flash` default ladder shared with Finance |
-| `packages/host/src/router.ts:221-223` | The three route registrations |
-| `packages/host/src/handlers/jobs.ts:110-146` | The three handlers; the docx one has no gate |
+| `packages/host/src/router.ts:229-231` | The three route registrations |
+| `packages/host/src/handlers/jobs.ts:173-209` | The three handlers; the docx one has no gate |
 | `packages/host/src/document-generate.ts` | System prompts, runtime gate, model resolution, generate + regenerate, artifact persist |
 | `packages/host/src/document-outline.ts` | zod schema, JSON parsing, immutable section merge |
 | `packages/host/src/document-docx.ts` | `buildDocumentDocx` — the only DOCX writer this mode uses |
@@ -135,7 +135,7 @@ This is **not** `packages/core/src/docx/*` — that toolkit reads, diffs and val
 ## Gotchas
 
 - **Regenerate never updates the saved artifact.** `generateDocumentDraft` persists a `documents/draft` artifact and a knowledge work card (`packages/host/src/document-generate.ts:164-170`), but `regenerateDocumentSection` ends at `return mergeDocumentSection(...)` (`:239`) with no persist call. Rewrite a section and the artifact the picker offers — and the text the Knowledge Base indexed — are the *pre-rewrite* version, silently. The DOCX the user downloads is built from the in-memory draft, so it will not match either. **Finding, not design.**
-- **`/api/v1/documents/docx` is the only Documents route with neither a tenant nor a gate** (`packages/host/src/handlers/jobs.ts:132-146`). That is what makes the starter → download path work in stub, which is exactly what `features/documents.md` asks you to prove — but it also means a desk whose gateway gate is closed can still produce `.docx` files, unlike every other job-mode download.
+- **`/api/v1/documents/docx` is the only Documents route with neither a tenant nor a gate** (`packages/host/src/handlers/jobs.ts:195-209`). That is what makes the starter → download path work in stub, which is exactly what `features/documents.md` asks you to prove — but it also means a desk whose gateway gate is closed can still produce `.docx` files, unlike every other job-mode download.
 - **A failed generate destroys the preview.** `onGenerate`'s catch does `setDraft(null)` before setting the error (`apps/web/components/documents-studio.tsx:74-77`). A user who loaded a starter, then typed a topic and pressed Generate without a key, loses the starter draft and gets an error. `onRegenerate`'s catch does *not* clear the draft (`:108-110`) — the two paths disagree.
 - **`needsSettingsHint` is a no-op.** `documents-studio.tsx:29-31` tests a regex and returns `message` on both branches. The live behaviour comes from the separate condition at `:178`, which appends a Settings `<Link>` only when the message mentions a gateway **and does not already mention "settings"**. The `runtime_stub` copy always says "Settings", so on this desk that link never renders. Dead branch plus an unclickable hint.
 - **`documents-prompt` is an `<input type="text">`** (`:257-266`), yet template cards prefill it with a 1 300-char multi-paragraph brief. The DOM strips newlines from an input's value, so the brief arrives as one run-on line ("…bukan kerangka.Peran: kepala staf…"). The same applies to `research-prompt`, `presentations-prompt`, `images-studio-prompt` and `videos-studio-prompt` — all five are `<input>`.
@@ -145,7 +145,7 @@ This is **not** `packages/core/src/docx/*` — that toolkit reads, diffs and val
 - **The 120k cap silently truncates.** `capSourceText` appends `[source material truncated at cap]` and returns (`job-source.ts:15-20`); no error, no header, no UI signal beyond the field's red counter.
 - **Schema failures are 502s, not 400s.** `parseDocumentDraft` and `parseDocumentSection` throw `invalid_document` at 502 (`document-outline.ts:20,27,34`), while `parseDocumentDraftBody` — the one that reads a *caller-supplied* draft — throws `invalid_request` at 400 (`:73`). Same zod schema, different blame.
 - **Documents and Finance share `documentGenModel`.** `apps/web/lib/use-job-model.ts:19-25` maps `documents`, `finance`, `market` and `legal` all onto `documentGenModel`. Changing the model in the Documents bar changes Finance's default too.
-- **The Documents model bucket is the chat bucket.** `packages/host/src/selectable-models.ts:145` sets `documents: curated.chat`, so all 110 curated chat models appear in `documents-studio-model`. There is no Documents-specific catalog.
+- **The Documents model bucket is the chat bucket.** `packages/host/src/selectable-models.ts:166` sets `documents: curated.chat`, so all 110 curated chat models appear in `documents-studio-model`. There is no Documents-specific catalog.
 
 ## Verify
 
@@ -155,7 +155,7 @@ DOM testids that prove it:
 
 | testid | Source |
 |---|---|
-| `mode-documents` | `apps/web/components/app-rail.tsx:316` (built as `mode-${href.slice(1)}`) |
+| `mode-documents` | `apps/web/components/app-rail.tsx:324` (built as `mode-${href.slice(1)}`) |
 | `documents-studio`, `documents-download`, `documents-error`, `documents-studio-empty`, `documents-starter`, `documents-studio-prompt-bar`, `documents-prompt`, `documents-generate` | `apps/web/components/documents-studio.tsx:150`, `:164`, `:175`, `:203`, `:216`, `:230`, `:264`, `:271` |
 | `documents-studio-model` | `documents-studio.tsx:245` via `apps/web/components/model-select.tsx:64` |
 | `documents-enhance` / `documents-enhance-revert` | `documents-studio.tsx:254` via `apps/web/components/enhance-prompt-button.tsx:106` |
@@ -170,10 +170,10 @@ Keyless proof stops at: starters (2), 5 and 6 sections, regen panel, regen **503
 
 ## Why
 
-**Why `/documents` renders through a `null` route.** `[Direct]` the comment at `apps/web/src/App.tsx:151` — "Work modes render via WorkModeKeepAlive — null here avoids double-mount." `[Direct]` the header comment on `apps/web/components/work-mode-keep-alive.tsx:32-40` gives the motive: keep visited panes mounted "so in-flight UI/SSE state survives rail switches", and it goes on to record that the active pane must be `overflow-y-auto` rather than `overflow-hidden` because Documents (among others) "grow past the pane and have no inner scroller". **Confidence: high.**
+**Why `/documents` renders through a `null` route.** `[Direct]` the comment at `apps/web/src/App.tsx:151` — "Work modes render via WorkModeKeepAlive — null here avoids double-mount." `[Direct]` the header comment on `apps/web/components/work-mode-keep-alive.tsx:34-42` gives the motive: keep visited panes mounted "so in-flight UI/SSE state survives rail switches", and it goes on to record that the active pane must be `overflow-y-auto` rather than `overflow-hidden` because Documents (among others) "grow past the pane and have no inner scroller". **Confidence: high.**
 
 **Why the handoff is a module variable and a window event rather than router state or storage.** `[Direct]` the file header at `apps/web/lib/mode-handoff.ts:1-5`: "Modes stay mounted (WorkModeKeepAlive), so a module-level pending payload plus a window event is enough: no router state, no storage." The cost — a reload loses the payload — is the direct consequence, and is `[Inferred]` from the mechanism rather than recorded anywhere. **Confidence: high for the decision, medium for it having been weighed.**
 
 **Why source material carries an injection guard at all.** `[Direct]` the comment at `packages/host/src/job-source.ts:22`: "Same guard chat applies to attachments; source material goes straight into the prompt so it must pass too." `[Supported]` the bypass is the same desk-level `injectionGuardBypass` switch the chat attachment path reads, threaded in at `packages/host/src/document-generate.ts:156` and `:208`. **Confidence: high.**
 
-**Why Documents and Finance resolve to the same model.** `[Direct]` `packages/core/src/models/mode-defaults.ts:47` and `:57` declare near-identical preference ladders that both end at `deepseek-v4-flash`. `[Supported]` `docs/product-modes.md` describes the Documents default as "a cheap writing default (`hy3` when live, else `deepseek-v4-flash`)". `[Supported]` `features/documents.md` already records the operational consequence — the quiet drafting phase and the 240 s / 180 s watchdog floors — and [`chat-send.md`](chat-send.md#why) records why `QUIET_REASONING_FAMILY` had to be widened for exactly this model. **Confidence: high.**
+**Why Documents and Finance resolve to the same model.** `[Direct]` `packages/core/src/models/mode-defaults.ts:49` and `:57` declare near-identical preference ladders that both end at `deepseek-v4-flash`. `[Supported]` `docs/product-modes.md` describes the Documents default as "a cheap writing default (`hy3` when live, else `deepseek-v4-flash`)". `[Supported]` `features/documents.md` already records the operational consequence — the quiet drafting phase and the 240 s / 180 s watchdog floors — and [`chat-send.md`](chat-send.md#why) records why `QUIET_REASONING_FAMILY` had to be widened for exactly this model. **Confidence: high.**

@@ -1,6 +1,6 @@
 # Map — Music mode
 
-Last verified: 2026-09-20 at the PR #65 merge with main (69afca9); cites re-checked by the verifier
+Last verified: 2026-09-20 at d14cd8f
 
 ## Overview
 

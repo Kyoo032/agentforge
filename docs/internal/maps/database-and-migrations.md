@@ -1,6 +1,6 @@
 # Map — Database and migrations
 
-Last verified: 2026-09-20 at 69afca9
+Last verified: 2026-09-20 at d14cd8f
 
 ## Overview
 
@@ -188,7 +188,7 @@ There is exactly one user row, and it is a constant, not a login:
 on it (`:2-6`).
 
 `ensureLocalOwner(db, preferredWorkspaceId?)` (`packages/db/src/ensure-local-owner.ts:20-124`) is
-idempotent and runs on every tenant resolution (`packages/host/src/tenant.ts:38`). It, in order:
+idempotent and runs on every tenant resolution (`packages/host/src/tenant.ts:120`). It, in order:
 inserts the owner row if absent (`:21-29`, email `local@agentforge.local`); re-asserts the
 `local-tenant` row (`:31-41`) for a test schema built without migration 0015 or the healer; looks up
 the `personal` org **by tenant and slug together** and inserts it with `tenantId: LOCAL_TENANT_ID`
@@ -223,7 +223,7 @@ next boot**, because the database is open and ffmpeg may still be writing.
   renames it (`:99-104`) — a half-written marker would be read as malformed on the next boot and
   silently cancel the wipe. The caller is the Settings handler:
   `requestDataReset(localDataDir(), [...HOST_RESET_ENTRIES])`
-  (`packages/host/src/handlers/settings.ts:342`, list at `:274-293`).
+  (`packages/host/src/handlers/settings.ts:343`, list at `:274-293`).
 - `applyPendingDataReset(dir)` (`:248-283`) is safe on every boot. No marker → no-op (`:252-256`). A
   marker that is unreadable or not a valid v1 object is **deleted and the data kept** (`:257-268`) —
   a wipe is never inferred. Otherwise it removes each listed entry plus the SQLite trio
@@ -361,7 +361,7 @@ is `home` (`:11`), and `Home` is the legacy **name** that `ensureLocalOwner` mig
 (`packages/db/src/ensure-local-owner.ts:77-81`). Name, slug and legacy name are three different
 strings; do not match on the printed one.
 
-**A "Start over" removes `.master-key`** (`packages/host/src/handlers/settings.ts:277`). Anything
+**A "Start over" removes `.master-key`** (`packages/host/src/handlers/settings.ts:278`). Anything
 still sealed with the old wrap key after that is unreadable by design — which is why the SQLite trio
 goes with it (`packages/db/src/reset.ts:29`, `:270`).
 
@@ -413,13 +413,17 @@ otherwise" with the tenancy model listed as an open decision at `:36`. `[Support
 The row's own wording about `NODE_ENV` no longer matches the code (see Gotchas), so this is the
 *intent* the row records, not a description of the current gate. `[Supported]`
 
-**Claim: the schema has a tenant dimension, but the hosted server still resolves one tenant.**
-The two halves are separate lanes and only the first has landed. The schema half is real:
-`tenants` and `organizations.tenant_id` exist (`packages/db/src/schema.ts:32-39`, `:45-47`) and
-migration 0015 backfills every existing row to `local-tenant`. The resolution half has not:
-`getTenant` still calls `ensureLocalOwner` and ignores the session
-(`packages/host/src/tenant.ts:35-38`), and its header records the obligation in so many words —
-"until Phase 3 lands the hosted server is single-tenant: every signed-in browser shares one desk",
-naming the 102 by-id call sites that move with it (`:27-34`). `ensureTenant` exists but nothing
-calls it yet, by design (`packages/db/src/tenants.ts:16-25`). `packages/host/src/handlers/settings.ts:330-332`
-still gives single-tenancy as the reason "Start over" is disabled on the server. `[Direct]`
+**Claim: the tenant dimension is real in the schema and now also in request resolution, and the two
+arrived as separate lanes.** The schema half is lane B: `tenants` and `organizations.tenant_id`
+exist (`packages/db/src/schema.ts:32-39`, `:45-47`) and migration 0015 backfills every existing row
+to `local-tenant`. The resolution half is lane C: `getTenant` now takes the verified browser session
+and resolves the tenant from it, falling back to the single local owner only off the hosted path
+(`packages/host/src/tenant.ts:88-103`, `resolveFromSession` at `:105`, `resolveLocalOwner` at
+`:117-132`). In server mode a request with no session is a 401 rather than a fall back to
+`local-tenant` (`:96-101`). `ensureTenant`, which lane B defined and left uncalled, has a caller
+now: `ensurePortalOwner` writes the tenant row on sign-in (`packages/db/src/portal-owner.ts:89-94`).
+
+What has *not* moved is "Start over": it is still refused on the server, and the reason is still
+that a data-dir wipe is every tenant's work rather than the caller's
+(`packages/host/src/handlers/settings.ts:330-337`), which is scoping, not resolution. The full
+resolution path is its own page: [tenant-resolution.md](tenant-resolution.md). `[Direct]`

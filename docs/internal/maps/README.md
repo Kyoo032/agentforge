@@ -62,6 +62,28 @@ dismissing it; that is the shape most drift takes.
 The check is mechanical. It cannot tell you that a page describes behaviour the code no longer has, which
 is the failure that actually costs someone an afternoon. Only re-reading the cited lines does that.
 
+**It also under-reports pure line drift, and you should assume it does.** A citation whose code simply
+moved down the file still points at a real line in a real file, so it is not HARD, and SOFT only fires
+when the surrounding sentence carries a distinctive backticked identifier that the cited range no longer
+names. On 2026-09-20, after three Phase 3 lanes merged in one afternoon, 63 citations across 12 pages
+pointed at moved code and this script flagged 9 of them. So **"0 hard" means "nothing is provably
+broken", never "nothing has drifted"**. After a merge that touches code a page cites, re-anchor by
+diffing the old and new versions of each changed file and mapping the cited lines through, rather than
+by running the script and reading the exit code.
+
+`scripts/map-drift.mjs` does exactly that re-anchoring:
+
+```sh
+node scripts/map-drift.mjs <the sha on the Last verified line>          # report
+node scripts/map-drift.mjs <that sha> HEAD --write                      # re-anchor, then bump the line
+```
+
+It maps every citation into a file that changed between the two refs through the diff, leaves alone
+any line the newer ref itself wrote, and reports as **UNMAPPED** each citation whose line was deleted
+or rewritten — those need a person, because the sentence around them may no longer be true. It is not
+idempotent: run it once, from the recorded sha, then bump `Last verified:`. Run it again from the new
+sha and a settled tree reports zero.
+
 ## Pages
 
 | Page | Subsystem | Verified by |
