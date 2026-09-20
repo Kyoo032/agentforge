@@ -2,6 +2,7 @@ import { DEFAULT_GROUP_RATIO, gatewayOriginFromBaseUrl, quotaToUsd, resolvedGate
 import { isNetworkUnreachableError } from "../models/probe";
 import { redactSecrets } from "../security/redact";
 import { assertAllowedEndpointUrl } from "../security/tls";
+import type { UnpricedReason } from "../usage/metering";
 
 /** GET /api/v1/settings awaits these; the app shell waits on that request, so keep it short offline. */
 const FETCH_MS = 3_000;
@@ -124,30 +125,49 @@ export function isUnpricedBilling(model: PricingModel): boolean {
   );
 }
 
+/**
+ * Priced or not, and — when not — which of the three reasons it was. The ledger needs the reason:
+ * a row with no cost is recorded rather than dropped (Phase 5 lane A), and `catalog_unavailable`
+ * is fixable by a later repricing pass while `tiered_billing` never will be.
+ *
+ * `catalog_unavailable` is the caller's to report — it is the case where there is no catalog to
+ * pass in at all, so this function is not reached.
+ */
+export type RunUsdEstimate = { usd: number } | { usd: null; reason: UnpricedReason };
+
+/** Estimate USD for one run, with the reason attached when no number can honestly be produced. */
+export function explainRunUsd(
+  usage: RunUsageRecord,
+  catalog: PricingCatalog,
+  groupRatio = DEFAULT_GROUP_RATIO,
+): RunUsdEstimate {
+  if (usage.unknown) {
+    return { usd: null, reason: "usage_unknown" };
+  }
+  const model = lookupModel(catalog, usage.model);
+  if (!model) {
+    return { usd: null, reason: "model_not_in_catalog" };
+  }
+  if (isUnpricedBilling(model)) {
+    return { usd: null, reason: "tiered_billing" };
+  }
+  const group = Number.isFinite(groupRatio) && groupRatio > 0 ? groupRatio : DEFAULT_GROUP_RATIO;
+  if (model.quotaType === 1) {
+    return { usd: model.modelPrice * group };
+  }
+  const completion = model.completionRatio > 0 ? model.completionRatio : 1;
+  const ratio = model.modelRatio > 0 ? model.modelRatio : 1;
+  const quota = (usage.inputTokens + usage.outputTokens * completion) * ratio * group;
+  return { usd: quotaToUsd(quota) };
+}
+
 /** Estimate USD for one run. `null` means do not invent a number (tiered / missing catalog). */
 export function estimateRunUsd(
   usage: RunUsageRecord,
   catalog: PricingCatalog,
   groupRatio = DEFAULT_GROUP_RATIO,
 ): number | null {
-  if (usage.unknown) {
-    return null;
-  }
-  const model = lookupModel(catalog, usage.model);
-  if (!model) {
-    return null;
-  }
-  if (isUnpricedBilling(model)) {
-    return null;
-  }
-  const group = Number.isFinite(groupRatio) && groupRatio > 0 ? groupRatio : DEFAULT_GROUP_RATIO;
-  if (model.quotaType === 1) {
-    return model.modelPrice * group;
-  }
-  const completion = model.completionRatio > 0 ? model.completionRatio : 1;
-  const ratio = model.modelRatio > 0 ? model.modelRatio : 1;
-  const quota = (usage.inputTokens + usage.outputTokens * completion) * ratio * group;
-  return quotaToUsd(quota);
+  return explainRunUsd(usage, catalog, groupRatio).usd;
 }
 
 export function estimateDeskUsd(

@@ -151,6 +151,7 @@ export function modeCatalogPayload(models: ChatModel[] = listCatalogModels()): {
     data: SelectableModel[];
     market: SelectableModel[];
     legal: SelectableModel[];
+    meeting: SelectableModel[];
     music: SelectableModel[];
     embedding: ChatModel[];
   };
@@ -170,6 +171,7 @@ export function modeCatalogPayload(models: ChatModel[] = listCatalogModels()): {
       data: curated.chat,
       market: curated.chat,
       legal: curated.chat,
+      meeting: curated.chat,
       music: curated.audio.filter((model) => isMusicModelId(model.id)),
       embedding,
     },

@@ -44,7 +44,7 @@ None of them changes the shape of the phase; all of them change what is owed.
    re-serialising a parsed object does not reproduce them. See D4.
 
 5. **The seat counter's data already exists, but it does not measure what the rule says.**
-   `auth_sessions` (`packages/db/src/schema.ts:663-681`) carries `tenant_id`, `org_id` and
+   `auth_sessions` (`packages/db/src/schema.ts:706-724`) carries `tenant_id`, `org_id` and
    `user_id`, and the index at `:678` was added for exactly this counter — its comment says so.
    What it can answer is "signed in at some point in the last 30 days", not "has a live session":
    see D5.
@@ -102,6 +102,15 @@ which is honest for a spend display and useless for an allowance: you cannot sub
 
 Nothing in D1-D5 is safe until that is closed, which is why it is lane A below and has no
 dependency on any decision.
+
+> **Closed 2026-09-20.** Lane A shipped: `tenant_usage` (migration `0016`) now takes one row per
+> gateway call for every mode, tenant-scoped and priced at write time, with "unpriced" recorded as
+> a row with a stated reason rather than an absence. What it deliberately left open — a repricing
+> pass, media on the account screen, pooled spend across orgs — is in
+> [`web-phase5-lane-a.md`](web-phase5-lane-a.md); the code path is in
+> [`maps/tenant-usage-ledger.md`](maps/tenant-usage-ledger.md). **§1 above is left as written: it
+> is the record of the code as it stood at `b482611`, and its line citations point at that commit,
+> not at today's tree.**
 
 ---
 
@@ -324,8 +333,14 @@ can refuse to ignore, rather than a `null` that silently vanishes from a sum.
 **Done when:** a generated image and a generated video each leave a priced usage record; no usage
 record is written to an untenanted path; the sum of a tenant's spend over a period is a number with
 a stated confidence, and a run the catalog cannot price is visible in it rather than absent.
+**Done — 2026-09-20.** See [`web-phase5-lane-a.md`](web-phase5-lane-a.md). Lane A also created
+`tenant_usage` and migration `0016` with the full column set, since it needed somewhere tenanted to
+write; **lane B therefore alters that table rather than creating it**, and adds `tenant_plan`, the
+`seat_cap`, the allowance columns and the resolved plan on `TenantContext`.
 
-**Lane B — `tenant_plan`, `tenant_usage`, migration `0016`.** *No dependencies (Phase 3's is `0015`,
+**Lane B — `tenant_plan`, and `tenant_usage` extended. Migration `0017`** (lane A took `0016`).
+*No dependencies.* Originally written as `0016`; read the note under lane A first.
+*(original text)* **Lane B — `tenant_plan`, `tenant_usage`, migration `0016`.** *No dependencies (Phase 3's is `0015`,
 journal idx 14 today).*
 Files: `packages/db/src/schema.ts`, `drizzle/0016_tenant_plans.sql`, `drizzle/meta/_journal.json`,
 `packages/db/src/ensure-schema.ts`, `migrate-0016.test.ts` (new), `packages/core/src/tenancy/types.ts`.

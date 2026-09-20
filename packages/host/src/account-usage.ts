@@ -23,7 +23,26 @@ import {
 import type { TenantContext } from "@agentforge/core";
 import { createHash } from "node:crypto";
 import { listDeskUsage, listTimedDeskUsage } from "./desk-usage";
+import { listJobUsageRecords, listTimedJobUsage } from "./tenant-usage";
 import { listRunUsage } from "./threads";
+
+/**
+ * Job, media and edit-agent spend used to be read out of `desk-usage.json` — one global file with
+ * no tenant dimension. Since Phase 5 lane A it is read out of the tenant-scoped `tenant_usage`
+ * ledger instead, and nothing writes the file any more.
+ *
+ * The file is still read here so a desktop that has been generating since before the migration
+ * keeps the history it can already see. The two cannot double-count: every row written from now on
+ * goes to the ledger and none to the file.
+ *
+ * Media rows (images, videos) are metered and priced in the ledger but do not appear on this
+ * screen yet: a `RunUsageRecord` has nowhere to put an image or a second, and widening
+ * `AccountUsagePayload` is account-screen work that lane A deliberately leaves open. See
+ * docs/internal/web-phase5-lane-a.md.
+ */
+function deskRecords(tenant: TenantContext): RunUsageRecord[] {
+  return [...listJobUsageRecords(tenant), ...listDeskUsage()];
+}
 
 const PRICING_TTL_MS = 10 * 60 * 1000;
 const THIS_KEY_TTL_MS = 2 * 60 * 1000;
@@ -162,7 +181,7 @@ export async function loadLocalAccountUsage(
       fromRuns.push(record);
     }
   }
-  const records = [...fromRuns, ...listDeskUsage()];
+  const records = [...fromRuns, ...deskRecords(tenant)];
   const unknownCount = records.length;
   return {
     thisKey: settings.openaiApiKey
@@ -198,7 +217,7 @@ export async function loadAccountUsage(
       fromRuns.push(record);
     }
   }
-  const records = [...fromRuns, ...listDeskUsage()];
+  const records = [...fromRuns, ...deskRecords(tenant)];
 
   if (!settings.openaiApiKey && records.length === 0) {
     return {
@@ -254,10 +273,10 @@ function emptyBuckets(range: UsageRange, now: Date): UsageBucket[] {
   }));
 }
 
-function timedDeskInRange(range: UsageRange, now: Date): TimestampedRunUsage[] {
+function timedDeskInRange(tenant: TenantContext, range: UsageRange, now: Date): TimestampedRunUsage[] {
   const keySet = new Set(listUsageBucketFrames(range, now).map((frame) => frame.key));
   const timed: TimestampedRunUsage[] = [];
-  for (const row of listTimedDeskUsage()) {
+  for (const row of [...listTimedJobUsage(tenant), ...listTimedDeskUsage()]) {
     if (!keySet.has(usageBucketKey(row.startedAt, range))) {
       continue;
     }
@@ -293,7 +312,7 @@ function timedRunsInRange(
   return timed;
 }
 
-/** Timestamped SQLite runs plus desk-usage.json rows that stored `at`. */
+/** Timestamped SQLite runs, plus tenant ledger rows and any legacy desk-usage.json rows. */
 export async function loadRangeUsage(
   settings: StoredSecrets,
   tenant: TenantContext,
@@ -301,7 +320,7 @@ export async function loadRangeUsage(
   now = new Date(),
 ): Promise<RangeUsagePayload> {
   const [thisKey, runRows] = await Promise.all([thisKeyFor(settings), listRunUsage(tenant)]);
-  const timed = [...timedRunsInRange(runRows, range, now), ...timedDeskInRange(range, now)];
+  const timed = [...timedRunsInRange(runRows, range, now), ...timedDeskInRange(tenant, range, now)];
 
   if (!settings.openaiApiKey && timed.length === 0) {
     return {

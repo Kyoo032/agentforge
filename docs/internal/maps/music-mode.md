@@ -1,6 +1,6 @@
 # Map — Music mode
 
-Last verified: 2026-09-20 at the PR #65 merge with main (69afca9); cites re-checked by the verifier
+Last verified: 2026-09-20 at c204e5e
 
 ## Overview
 
@@ -20,9 +20,9 @@ What this page is *not*: transcription (nothing here reads audio) and text-to-sp
 
 ### 1. Getting there
 
-`music` is a `PRODUCT_MODES` entry (`packages/core/src/agents/product-modes.ts:14`), which is the single list that drives the rail, the route table and the workspace `productModes` set. The rail renders it as `mode-music` through the same `mode-${href.slice(1)}` rule every mode uses (`apps/web/components/app-rail.tsx:108` for the icon, `:40` for the `IconName` union).
+`music` is a `PRODUCT_MODES` entry (`packages/core/src/agents/product-modes.ts:15`), which is the single list that drives the rail, the route table and the workspace `productModes` set. The rail renders it as `mode-music` through the same `mode-${href.slice(1)}` rule every mode uses (`apps/web/components/app-rail.tsx:117` for the icon, `:40` for the `IconName` union).
 
-`/music` is declared in the router with `element={null}` (`apps/web/src/App.tsx:160`) because the actual component is mounted by the keep-alive layer: `WORK_MODE_COMPONENTS` maps `/music` → `MusicStudio` (`apps/web/components/work-mode-keep-alive.tsx:26`). So the G-3 rule applies here exactly as it does to Images and Videos — after visiting `/music` and then leaving it, `music-studio` is still in the DOM. Assert `isVisible()`, never `count()`.
+`/music` is declared in the router with `element={null}` (`apps/web/src/App.tsx:161`) because the actual component is mounted by the keep-alive layer: `WORK_MODE_COMPONENTS` maps `/music` → `MusicStudio` (`apps/web/components/work-mode-keep-alive.tsx:27`). So the G-3 rule applies here exactly as it does to Images and Videos — after visiting `/music` and then leaving it, `music-studio` is still in the DOM. Assert `isVisible()`, never `count()`.
 
 ### 2. Mount → `GET /api/v1/music`
 
@@ -34,9 +34,9 @@ What this page is *not*: transcription (nothing here reads audio) and text-to-sp
 
 Like the Images and Videos GETs it is **ungated** — no `requireGatewayAllowed` — so the page renders fully on a keyless desk.
 
-- `items` ← `listStudioGallery(tenant, "audio")` (`packages/host/src/studio-generate.ts:519-543`). Same function the other two studios use; `StudioKind` was widened to `"image" | "video" | "audio"` (`:53`) and the item now also carries `title`, `style`, `instrumental` and `durationSeconds` from the sidecar.
+- `items` ← `listStudioGallery(tenant, "audio")` (`packages/host/src/studio-generate.ts:542-566`). Same function the other two studios use; `StudioKind` was widened to `"image" | "video" | "audio"` (`:53`) and the item now also carries `title`, `style`, `instrumental` and `durationSeconds` from the sidecar.
 - `models` ← `listStudioMusicModels()` (`:152-154`) then `attachMediaPrices(..., "track", ...)`. `"track"` is a new `MediaPriceUnit` (`packages/core/src/models/media-pricing.ts:27`): a flat charge for one finished job, which is how the gateway bills the relay.
-- `defaultModel` ← `resolveStudioGenerateDefault({ kind: "music", ... })` — the agent pin, then the Settings pin (`settings.musicGenModel`), then `defaultStudioMusicModel()` (`packages/host/src/studio-generate.ts:156-158`).
+- `defaultModel` ← `resolveStudioGenerateDefault({ kind: "music", ... })` — the agent pin, then the Settings pin (`settings.musicGenModel`), then `defaultStudioMusicModel()` (`packages/host/src/studio-generate.ts:157-159`).
 - `ready` ← `studioRouteReady("music_gen", workspaceId)` (`:258-264`).
 - `speechUnavailable` ← `studioSpeechUnavailable()` (`:167-169`), the reason code the voice-over section renders.
 
@@ -64,7 +64,7 @@ The studio re-derives both on every render and shows only the controls the curre
 
 ### 5. Submit → `POST /api/v1/music`
 
-`handlePostMusic` (`packages/host/src/handlers/jobs.ts:151-161`) calls `requireGatewayAllowed` first — a closed gate is a `403 gateway_blocked` here rather than a failed call — then `parseMusicGenerateBody` (`packages/host/src/studio-generate.ts:194-208`), which refuses two briefs before anything can be billed for them:
+`handlePostMusic` (`packages/host/src/handlers/jobs.ts:151-161`) calls `requireGatewayAllowed` first — a closed gate is a `403 gateway_blocked` here rather than a failed call — then `parseMusicGenerateBody` (`packages/host/src/studio-generate.ts:195-209`), which refuses two briefs before anything can be billed for them:
 
 - `mode: "custom"` with no lyrics → `400`, `musicLyricsRequired`
 - `mode: "describe"` with no prompt → `400`, `musicPromptRequired`
@@ -99,7 +99,7 @@ Teaching the store about audio required widening `saveMedia`, and that is where 
 
 ### 8. Lyrics helper — `POST /api/v1/music/lyrics`
 
-`writeStudioLyrics` (`packages/host/src/studio-generate.ts:492-517`) runs `lyricsWriteTool` against `suno_lyrics` through the same relay with `action: "lyrics"`, and hands the text straight back. **Nothing is stored**: it exists so the desk can fill the lyrics box and then edit it before spending a music charge.
+`writeStudioLyrics` (`packages/host/src/studio-generate.ts:511-540`) runs `lyricsWriteTool` against `suno_lyrics` through the same relay with `action: "lyrics"`, and hands the text straight back. **Nothing is stored**: it exists so the desk can fill the lyrics box and then edit it before spending a music charge.
 
 ### 9. Voice-over, and why it is off
 
@@ -122,12 +122,17 @@ So instead of rendering a dead control, the host answers with a machine-readable
 | `packages/host/src/handlers/jobs.ts` | `handleGetMusic`, `handlePostMusic`, `handlePostMusicLyrics` |
 | `packages/host/src/studio-generate.ts` | Body schemas and parse guards, `generateStudioMusic`, `writeStudioLyrics`, `listStudioGallery` |
 | `packages/host/src/media.ts` | `DEFAULT_UPLOAD_KINDS`, the `allow` parameter, `saveGeneratedAudio` |
-| `packages/host/src/router.ts:224-226` | The three routes |
+| `packages/host/src/router.ts:247-249` | The three routes |
 | `apps/web/components/music-studio.tsx` | The page: mode, model, lyrics, style, title, instrumental, draft-lyrics, library |
 | `apps/web/lib/media-estimate.ts:232` | `musicEstimateView` — the price line above the button |
 | `scripts/probe-gateway-music.ts` | Live three-step probe: catalog → submit → poll |
 
 ## Gotchas
+
+- **A music job leaves one usage row, not two.** `recordMusicUsage`
+  (`packages/host/src/studio-generate.ts:471`) records unit `jobs`, quantity 1, however many
+  takes come back — that is how the gateway bills it. A lyrics draft (`:534`) is its own
+  flat-rate call and gets its own row. See [`tenant-usage-ledger.md`](tenant-usage-ledger.md).
 
 - **The relay is on the origin, not under `/v1`.** `https://api.tokotokenai.com/suno/submit/music`, not `…/v1/suno/…`. Every other generate wire in this repo is a `/v1` route, so this is the first thing to get wrong.
 - **Two takes, one charge.** `POST /api/v1/music` answers with a `tracks` array, not a single `url`. Code that reads `tracks[0]` and stops is throwing away a file the desk already paid for.
@@ -136,7 +141,7 @@ So instead of rendering a dead control, the host answers with a machine-readable
 - **The chat media route stays narrow (G-27).** `POST /api/v1/media` accepts image and video only. Generated audio never arrives as an upload; it comes through `saveGeneratedAudio`. `edit/import.test.ts > "does not loosen the chat media route"` is the guard, and it caught this exact mistake during the build.
 - **`MUSIC_ID` must not contain `udio`.** It matches *inside* `qwen-audio-…`, which classifies TTS ids as music and switches voice-over off. Udio is not in this catalog; the pattern is `/suno_music|\bmusic\b|lyria/i`.
 - **No new by-id routes.** Tracks are served by the existing `GET /api/v1/media/:mediaId/file`. Nothing new needs covering in the tenancy harness beyond the three routes above.
-- **`media.kind` is free text** (`packages/db/src/schema.ts:486`), so `"audio"` needed no migration. That was deliberate: Phase 3 tenancy owns `packages/db` migrations and this change does not touch them.
+- **`media.kind` is free text** (`packages/db/src/schema.ts:529`), so `"audio"` needed no migration. That was deliberate: Phase 3 tenancy owns `packages/db` migrations and this change does not touch them.
 - **Suno has no vendor list price.** It sells a consumer subscription, not an API, so the price line shows the gateway's per-call figure or honestly says there is none on file. Do not invent a comparison.
 - **The wire is unproven live.** See the callout at the top. `scripts/probe-gateway-music.ts` is the check; exit 0 is what promotes this section from "documented" to "verified".
 

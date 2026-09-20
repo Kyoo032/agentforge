@@ -38,6 +38,49 @@ export const tenants = sqliteTable("tenants", {
   createdAt: createdAt(),
 });
 
+/**
+ * The tenant usage ledger: one row per gateway call, for every mode (Phase 5 lane A,
+ * docs/internal/web-phase5-lane-a.md). Written by `tenant-usage.ts` in `@agentforge/host`.
+ *
+ * `organizationId` deliberately carries no foreign key — see drizzle/0016_tenant_usage.sql for why
+ * a ledger must not cascade off an organization. `costUsdMicros` is nullable on purpose: an
+ * unpriced call is recorded with its unit, its quantity and an `unpricedReason`, never dropped.
+ */
+export const tenantUsage = sqliteTable(
+  "tenant_usage",
+  {
+    id: uuidPk(),
+    tenantId: text("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    organizationId: text("organization_id").notNull(),
+    workspaceId: text("workspace_id"),
+    /** Null where no user is behind the call (a scheduled regen, a desktop with no session). */
+    userId: text("user_id"),
+    /** `UsageMode` from @agentforge/core: chat, documents, images, videos, edit, … */
+    mode: text("mode").notNull(),
+    model: text("model").notNull(),
+    /** `UsageUnit` from @agentforge/core: tokens | images | seconds. */
+    unit: text("unit").notNull(),
+    quantity: integer("quantity").notNull(),
+    inputTokens: integer("input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    /** Integer millionths of a USD, or null with `unpricedReason` set. Never a float. */
+    costUsdMicros: integer("cost_usd_micros"),
+    /** `UnpricedReason` from @agentforge/core, set exactly when `costUsdMicros` is null. */
+    unpricedReason: text("unpriced_reason"),
+    runId: text("run_id"),
+    at: integer("at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => [
+    index("tenant_usage_tenant_at_idx").on(table.tenantId, table.at),
+    index("tenant_usage_tenant_mode_idx").on(table.tenantId, table.mode, table.at),
+    index("tenant_usage_unpriced_idx").on(table.unpricedReason, table.at),
+  ],
+);
+
 export const organizations = sqliteTable(
   "organizations",
   {

@@ -24,7 +24,7 @@ function tierRank(id: string): number {
 }
 
 const NOT_DEFAULT =
-  /(mj_|suno_|veo_|seedance|imagine|embedding|whisper|tts|-i2v|-t2v|-r2v|image-edit|video-edit|omni-moderation)/i;
+  /(mj_|suno_|veo_|seedance|imagine|embedding|whisper|tts|-asr|-i2v|-t2v|-r2v|image-edit|video-edit|omni-moderation)/i;
 
 type Family = {
   label: string;

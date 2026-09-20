@@ -1,8 +1,8 @@
 # Map — Chat sessions and the rail
 
-Last verified: 2026-09-17 at 01ea70a
+Last verified: 2026-09-20 at c204e5e
 
-The sibling page [`chat-send.md`](chat-send.md) owns one turn inside a session. This page owns the sessions themselves: where the list comes from, how a row opens a thread, and how the pane, the list and the desk stay in step. Verified against the working tree of 2026-09-17, which is dirty — the rail block itself (`rail-recent-threads.tsx`, `use-chat-threads.ts`, `thread-groups.ts`, `threads-events.ts`) is new and uncommitted at this sha. `apps/web/components/chat-session.tsx` is also uncommitted-modified and still moving; its citations here were re-anchored to the working tree at landing time.<!-- re-anchor after the chat rail work lands; the working tree already carries a `pendingThreadRef` fallback in `ensureThread` that appears to close the fork described under Gotchas -->
+The sibling page [`chat-send.md`](chat-send.md) owns one turn inside a session. This page owns the sessions themselves: where the list comes from, how a row opens a thread, and how the pane, the list and the desk stay in step. The rail block (`rail-recent-threads.tsx`, `use-chat-threads.ts`, `thread-groups.ts`, `threads-events.ts`) landed in 0.14.27 ([`../0.14.27-changelog.md`](../0.14.27-changelog.md), PR #52); every citation below is re-anchored to the committed tree at `b482611`.
 
 ## Overview
 
@@ -23,7 +23,7 @@ It is **not** a global thread rail: only the `quick-chat` agent's threads, only 
 {collapsed ? null : <RailRecentThreads />}
 ```
 
-(`apps/web/components/app-rail.tsx:286-287`.) The JOB MODES label follows at `:291`, so the sessions are wedged between Chat and the job modes by ordering alone — there is no container to reorder. Collapse is the `rail-collapse` / `rail-expand` button at `:350`, whose state comes from `apps/web/lib/rail-prefs.ts`; collapsing unmounts the whole block, so `rail-thread-list`, `thread-item` and `new-chat-link` all drop to count 0 (driven; `evidence/chat/2026-09-17-cc-map/08-rail-collapsed-no-sessions.png`).
+(`apps/web/components/app-rail.tsx:324-325`.) The JOB MODES label follows at `:306`, so the sessions are wedged between Chat and the job modes by ordering alone — there is no container to reorder. Collapse is the `rail-collapse` / `rail-expand` button at `:408`, whose state comes from `apps/web/lib/rail-prefs.ts`; collapsing unmounts the whole block, so `rail-thread-list`, `thread-item` and `new-chat-link` all drop to count 0 (driven; `evidence/chat/2026-09-17-cc-map/08-rail-collapsed-no-sessions.png`).
 
 ### 2. `RailRecentThreads` — one list, one local boolean
 
@@ -71,7 +71,7 @@ window.addEventListener(THREADS_CHANGED_EVENT, onChange);
 
 (`:104`, `:131`, `:136`.) Three things about it matter:
 
-1. **The workspace id is a dependency, not decoration.** `WorkspaceScope` (`apps/web/lib/workspace-scope.tsx:9-16`) is filled by the shell from `GET /api/v1/workspaces` (`apps/web/src/App.tsx:34`, provided at `:66`). Switching desks re-renders the shell **without** remounting the rail, so without this dependency the rail would keep showing the previous desk's titles. `WorkspaceSwitcher` also fires the event after `POST /api/v1/workspaces/:id/select` (`apps/web/components/workspace-switcher.tsx:82-84`), so the list is refreshed twice over — by the id change and by the event.
+1. **The workspace id is a dependency, not decoration.** `WorkspaceScope` (`apps/web/lib/workspace-scope.tsx:9-16`) is filled by the shell from `GET /api/v1/workspaces` (`apps/web/src/App.tsx:41`, provided at `:67`). Switching desks re-renders the shell **without** remounting the rail, so without this dependency the rail would keep showing the previous desk's titles. `WorkspaceSwitcher` also fires the event after `POST /api/v1/workspaces/:id/select` (`apps/web/components/workspace-switcher.tsx:82-84`), so the list is refreshed twice over — by the id change and by the event.
 2. **A failed load keeps the last good list.** The catch sets `error` and returns; it never calls `setThreads([])` (`:119-125`). The rail shows stale-but-real rows plus one error line rather than going blank.
 3. **The fetch is defensive about rows.** `toThread` (`:45-62`) drops any row missing `id` / `title` / `createdAt` instead of rendering a blank pill.
 
@@ -98,7 +98,7 @@ Publishers, all of them:
 | Publisher | When | Source |
 |---|---|---|
 | `ChatSession.ensureThread` | a composer send created the thread | `apps/web/components/chat-session.tsx:210` |
-| `ChatComposer` `onComplete` | a run finished, so the title may have changed | `apps/web/components/chat-session.tsx:527` |
+| `ChatComposer` `onComplete` | a run finished, so the title may have changed | `apps/web/components/chat-session.tsx:528` |
 | `useChatThreads.removeThread` | a delete succeeded | `apps/web/lib/use-chat-threads.ts:151` |
 | `WorkspaceSwitcher` | after `POST /api/v1/workspaces/:id/select` | `apps/web/components/workspace-switcher.tsx:84` |
 
@@ -108,11 +108,11 @@ There is no polling and no push from the host. A thread created by anything othe
 
 `threadsPath` builds `?scope=chat` and only rides `agentId` along on the agent scope (`apps/web/lib/use-chat-threads.ts:25-31`) — the host ignores it on `chat` and sending it would widen the list.
 
-Route → `handleGetThreads` (`packages/host/src/router.ts:189`, `packages/host/src/handlers/threads.ts:15-42`). `parseScope` accepts only `chat` and `agent`; anything else, including a missing value, becomes `all` (`:8-13`). Then `listWorkspaceThreads` (`packages/host/src/threads.ts:80-120`):
+Route → `handleGetThreads` (`packages/host/src/router.ts:232`, `packages/host/src/handlers/threads.ts:15-42`). `parseScope` accepts only `chat` and `agent`; anything else, including a missing value, becomes `all` (`:8-13`). Then `listWorkspaceThreads` (`packages/host/src/threads.ts:82-122`):
 
-- tenancy is three equalities — organization, workspace, user (`:91-95`);
-- `scope: "chat"` adds `eq(agents.slug, DEFAULT_CHAT_SLUG)`, which is how the rail gets Chat sessions and not job or agent threads (`:98-100`);
-- `orderBy(desc(threads.createdAt))` and `.limit(limit)` with `limit = options.limit ?? 40` (`:88`, `:113-114`). The handler never passes a limit, so **40 is the hard ceiling for the expanded rail**; there is no paging and no "older" affordance.
+- tenancy is three equalities — organization, workspace, user (`:93-95`);
+- `scope: "chat"` adds `eq(agents.slug, DEFAULT_CHAT_SLUG)`, which is how the rail gets Chat sessions and not job or agent threads (`:99-101`);
+- `orderBy(desc(threads.createdAt))` and `.limit(limit)` with `limit = options.limit ?? 40` (`:90`, `:115-116`). The handler never passes a limit, so **40 is the hard ceiling for the expanded rail**; there is no paging and no "older" affordance.
 
 The handler then filters:
 
@@ -135,9 +135,9 @@ const thread = params.get("thread") ?? undefined;
 <ChatSession initialThreadId={thread} />
 ```
 
-`ChatSession`'s load effect (`apps/web/components/chat-session.tsx:213-307`, deps `[agentId, initialThreadId, router]`) resolves the agent, then:
+`ChatSession`'s load effect (`apps/web/components/chat-session.tsx:214-307`, deps `[agentId, initialThreadId, router]`) resolves the agent, then:
 
-- **with `initialThreadId`** — early-return if it already equals `threadIdRef.current`, else `GET /api/v1/threads/:id`, adopt the id into both the ref and the state, `setMessages(payload.messages ?? [])`, `resetLive()` (`:247-266`). If the thread belongs to a non-default agent it redirects to `/agents/<id>?thread=<id>` instead (`:257-261`).
+- **with `initialThreadId`** — early-return if it already equals `threadIdRef.current`, else `GET /api/v1/threads/:id`, adopt the id into both the ref and the state, `setMessages(payload.messages ?? [])`, `resetLive()` (`:263-284`). If the thread belongs to a non-default agent it redirects to `/agents/<id>?thread=<id>` instead (`:274-277`).
 - **without it** — blank the pane, but only if this is a real departure.
 
 ### 7. `+ New chat` with a thread open — the `leftThread` latch
@@ -162,30 +162,33 @@ resetLive();
 
 (`apps/web/components/chat-session.tsx:106`, `:215-216`, `:287-295`.) Driven: with one stub turn on screen, `new-chat-link` took the URL back to `/chat`, `message-output` to 0, and `aria-current` rows to 0, while the thread itself kept its turn when reopened (`11-new-chat-link-pane-reset.png`, `13-rail-click-reopen.png`).
 
-The header button `new-chat` (`:359-367`) does the same thing imperatively — null the ref, clear messages and live state, `router.push("/chat")` — and does not rely on the latch at all. Two buttons, two mechanisms, one outcome.
+The header button `new-chat` (`:378-394`) does the same thing imperatively — null the ref, clear messages and live state, `router.push("/chat")` — and does not rely on the latch at all. Two buttons, two mechanisms, one outcome.
 
 ### 8. Creating and naming a session
 
 `ensureThread` (`apps/web/components/chat-session.tsx:186-212`) returns `threadIdRef.current` when it has one; otherwise it `POST`s `/api/v1/threads` with just `{ agentId }`, adopts the id, `router.replace("/chat?thread=<id>")`, and fires `notifyThreadsChanged()`.
 
-`handlePostThreads` (`packages/host/src/handlers/threads.ts:44-64`) validates that `agentId` and `title` are strings when present, 404s on an unknown agent, trims a supplied title to `THREAD_TITLE_MAX = 200` (`thread-title.ts:25`), and calls `createThread`, which defaults the title to `defaultThreadTitle(localeForRun())` (`packages/host/src/threads.ts:33-45`). That default is exactly the string the list filter throws away, so a thread created this way is **invisible in the rail until the first user message renames it**.
+`handlePostThreads` (`packages/host/src/handlers/threads.ts:44-64`) validates that `agentId` and `title` are strings when present, 404s on an unknown agent, trims a supplied title to `THREAD_TITLE_MAX = 200` (`thread-title.ts:25`), and calls `createThread`, which defaults the title to `defaultThreadTitle(localeForRun())` (`packages/host/src/threads.ts:35-47`). That default is exactly the string the list filter throws away, so a thread created this way is **invisible in the rail until the first user message renames it**.
 
-The rename is `setThreadTitleFromParts` (`packages/host/src/threads.ts:234-241`), called once per run at `packages/host/src/runs.ts:247`. It takes the first text part, collapses whitespace and truncates to 48 characters with an ellipsis (`titleFromParts`, `thread-title.ts:29-49`) — and it **only writes when the current title is still a default** (`:240`). A caller-supplied title survives forever; there is no rename UI.
+The rename is `setThreadTitleFromParts` (`packages/host/src/threads.ts:243-256`), called once per run at `packages/host/src/runs.ts:249`. It takes the first text part, collapses whitespace and truncates to 48 characters with an ellipsis (`titleFromParts`, `thread-title.ts:29-49`) — and it **only writes when the current title is still a default** (`:249`). A caller-supplied title survives forever; there is no rename UI.
 
 ### 9. Deleting
 
-`DELETE /api/v1/threads/:id` → `handleDeleteThread` (`packages/host/src/handlers/threads.ts:81-92`) → `deleteThread` (`packages/host/src/threads.ts:122-144`): read it under the tenant triple first (404 when it is not yours), delete the row, then drop the Knowledge work card that the thread wrote:
+`DELETE /api/v1/threads/:id` → `handleDeleteThread` (`packages/host/src/handlers/threads.ts:81-92`) → `deleteThread` (`packages/host/src/threads.ts:124-153`): read it under the tenant triple first (404 when it is not yours), delete the row, then drop the Knowledge work card that the thread wrote:
 
 ```ts
-// The thread's Knowledge work card goes with it; otherwise a deleted conversation keeps being retrieved.
+// The thread's Knowledge work card goes with it; otherwise a deleted conversation keeps being
+// retrieved. So do its graph node, the `retrieved` / `cites` edges pointing at it and the
+// retrieval rows recorded against it.
 deleteSourceByOrigin(tenant, { kind: "thread", id: threadId });
+removeGraphForThread(tenant, threadId);
 ```
 
-(`:137-139`.) That call is wrapped in try/catch and only warns, so a knowledge failure never fails the delete.
+(`:139-151`.) Both calls sit in one try/catch that only warns, so a knowledge or graph failure never fails the delete.
 
 ### 10. Keep-alive
 
-`WorkModeKeepAlive` (`apps/web/components/work-mode-keep-alive.tsx:41-77`) keeps every visited work-mode page mounted and merely `hidden`, so leaving Chat for Documents does not unmount `ChatSession`, and drafts plus in-flight SSE survive. It is keyed on the workspace id (`:43`), so a desk switch **does** blow all panes away — which is the correct pairing with the rail's workspace-scoped list.
+`WorkModeKeepAlive` (`apps/web/components/work-mode-keep-alive.tsx:45-81`) keeps every visited work-mode page mounted and merely `hidden`, so leaving Chat for Documents does not unmount `ChatSession`, and drafts plus in-flight SSE survive. It is keyed on the workspace id (`:43`), so a desk switch **does** blow all panes away — which is the correct pairing with the rail's workspace-scoped list.
 
 ### Failure modes
 
@@ -198,9 +201,9 @@ deleteSourceByOrigin(tenant, { kind: "thread", id: threadId });
 | A second delete while one is in flight | `:140-142` | ignored; the busy row keeps `opacity-100` via `deletingId` |
 | Deleted thread was the open one | `rail-recent-threads.tsx:41-43` | `router.push("/chat")`, pane blanks |
 | `?thread=` points at a missing / foreign thread | `chat-session.tsx:267-269` | `chat-error` with `chat.error.threadMissing`; the rail row is already gone |
-| More than 40 chat threads on the desk | `packages/host/src/threads.ts:88`, `:114` | `All sessions` shows the newest 40 and stops; nothing tells the user the list was cut |
+| More than 40 chat threads on the desk | `packages/host/src/threads.ts:90`, `:116` | `All sessions` shows the newest 40 and stops; nothing tells the user the list was cut |
 | Thread created but never messaged | `handlers/threads.ts:29` + `thread-title.ts:20-22` | never appears in the rail |
-| Rail collapsed | `app-rail.tsx:287` | no session rows at all; `mode-chat` icon only |
+| Rail collapsed | `app-rail.tsx:302` | no session rows at all; `mode-chat` icon only |
 
 ## Where things live
 
@@ -219,7 +222,7 @@ deleteSourceByOrigin(tenant, { kind: "thread", id: threadId });
 | `packages/host/src/handlers/threads.ts` | `GET` / `POST` / `GET :id` / `DELETE` handlers; scope parsing; the default-title filter |
 | `packages/host/src/threads.ts` | `listWorkspaceThreads` (40-row cap, tenancy, `quick-chat` scope), `createThread`, `deleteThread`, `setThreadTitleFromParts` |
 | `packages/host/src/thread-title.ts` | Per-locale default titles, `isDefaultThreadTitle`, `titleFromParts`, `THREAD_TITLE_MAX` |
-| `packages/host/src/router.ts` | Route table, `:189-192` |
+| `packages/host/src/router.ts` | Route table, `:204-207` |
 | `apps/web/lib/rail-threads-wiring.test.ts` | Source-level contract: which testids exist, that the retired column is gone, that the toggle expands in place |
 
 ## Gotchas
@@ -230,28 +233,28 @@ deleteSourceByOrigin(tenant, { kind: "thread", id: threadId });
 - **`thread-delete` is `opacity-0`, not hidden** (`:78-80`). Playwright happily calls it visible and clicks it without a hover; a human must hover or tab into the row. Do not "fix" a driver by forcing `visible` — hover the parent row.
 - **The delete confirm is a native `window.confirm`** (`use-chat-threads.ts:143`), so a driver must register a dialog handler *before* clicking or the click hangs. It is localized through `chat.deleteConfirm` and quotes the thread title.
 - **An unnamed thread is invisible, not lost.** `handlers/threads.ts:29` filters every locale's default title. `GET /api/v1/threads?scope=all` will not show a freshly-`POST`ed thread unless you supplied a title, even though `GET /api/v1/threads/:id` returns it fine.
-- **A supplied title is never overwritten.** `setThreadTitleFromParts` bails unless the stored title is still a default (`packages/host/src/threads.ts:240`). Seeding with `title: "VERIFY …"` and then sending in that thread leaves the seeded name, so the rail row will not echo the prompt.
-- **40 is a silent ceiling.** `listWorkspaceThreads` defaults `limit` to 40 and the handler never overrides it (`packages/host/src/threads.ts:88`). `All sessions` means "all forty newest".
+- **A supplied title is never overwritten.** `setThreadTitleFromParts` bails unless the stored title is still a default (`packages/host/src/threads.ts:249`). Seeding with `title: "VERIFY …"` and then sending in that thread leaves the seeded name, so the rail row will not echo the prompt.
+- **40 is a silent ceiling.** `listWorkspaceThreads` defaults `limit` to 40 and the handler never overrides it (`packages/host/src/threads.ts:90`). `All sessions` means "all forty newest".
 - **`aria-current` is on the row only while the pathname is `/chat`** (`rail-recent-threads.tsx:33-35`). Open a thread, go to Documents, and nothing is marked current even though `?thread` is still in the Chat pane's own history entry.
-- **Opening a row and sending immediately can fork a new thread.** `ensureThread` reads `threadIdRef.current`, which is only filled once the thread `GET` resolves (`chat-session.tsx:186-188` vs `:279-280`); the URL already says `?thread=<id>` before that. Send inside that window and a brand new thread is created and the URL is rewritten to it. Reproduced deterministically by delaying the thread `GET` (see `docs/internal/unreleased.md` findings). **Drivers must wait for the transcript, not just for the URL, before typing.**
+- **Opening a row and sending immediately used to fork a new thread — fixed in 0.14.27.** `ensureThread` once read `threadIdRef.current` alone, which is only filled when the thread `GET` resolves, while the URL already said `?thread=<id>`; a send inside that window created a second thread. It now falls back to `pendingThreadRef`, seeded synchronously from `initialThreadId` and re-synced on every param change (`chat-session.tsx:114-118`, `:186-191`), and dropped back to whatever really loaded — `null` when the pane is emptied, `threadIdRef.current` when the load failed (`:291-292`, `:299`). Recorded in `docs/internal/0.14.27-changelog.md:84`; pinned by `apps/web/lib/rail-threads-wiring.test.ts:100-107`.
 - **Nothing pushes.** The list only refreshes on the four `notifyThreadsChanged()` publishers and on a workspace-id change. A thread created by curl, by another tab, or by the packaged window will not appear in an open rail.
-- **`preview` is typed but never sent.** `ChatThread.preview` exists on the client (`use-chat-threads.ts:18`, `:60`) and `handleGetThreads` never populates it; the row that does carry a preview is `PastSessionSummary` on a different path (`packages/host/src/threads.ts:146-151`, filled by `listPastSessionsForAgent` at `:153`).
+- **`preview` is typed but never sent.** `ChatThread.preview` exists on the client (`use-chat-threads.ts:18`, `:60`) and `handleGetThreads` never populates it; the row that does carry a preview is `PastSessionSummary` on a different path (`packages/host/src/threads.ts:155-160`, filled by `listPastSessionsForAgent` at `:162`).
 - **The pane is full width now.** The old "480px window leaves the chat pane ~48px" arithmetic is dead: there is no second column to subtract, only the 232px rail, and expanding the list scrolls the rail rather than narrowing the pane.
 
 ## Verify
 
 `.cursor/skills/verify-agentforge/features/chat.md` — sub-features `chat-rail-sessions`, `chat-threads-expand`, `chat-switch`, `chat-new`, `chat-rail`, `chat-keep-alive`.
 
-DOM testids that prove it: `rail-thread-list` (`apps/web/components/rail-recent-threads.tsx:47`), `new-chat-link` (`:51`), `thread-item` (`:70`) with `aria-current="true"` on the open row (`:71`), `thread-delete` (`:85`), `rail-thread-error` (`:57`), `threads-see-all` with `aria-expanded` (`:98-99`), `rail-collapse` / `rail-expand` (`apps/web/components/app-rail.tsx:350`), `mode-chat` (`:284`), and the pane's own `chat-empty` / `message-list` / `message-output`. Source-level contract in `apps/web/lib/rail-threads-wiring.test.ts`; the Playwright walk is `apps/web/tests/e2e/foundation.spec.ts`, retargeted to `rail-thread-list`.
+DOM testids that prove it: `rail-thread-list` (`apps/web/components/rail-recent-threads.tsx:47`), `new-chat-link` (`:51`), `thread-item` (`:70`) with `aria-current="true"` on the open row (`:71`), `thread-delete` (`:85`), `rail-thread-error` (`:57`), `threads-see-all` with `aria-expanded` (`:98-99`), `rail-collapse` / `rail-expand` (`apps/web/components/app-rail.tsx:439`), `mode-chat` (`:299`), and the pane's own `chat-empty` / `message-list` / `message-output`. Source-level contract in `apps/web/lib/rail-threads-wiring.test.ts`; the Playwright walk is `apps/web/tests/e2e/foundation.spec.ts`, retargeted to `rail-thread-list`.
 
 Driven on the owner's webdev (`http://127.0.0.1:3000`, doctor `runtime: stub`) on 2026-09-17 with six seeded threads: 4 rows → `Semua sesi` → 6 rows → `Lebih sedikit` → 4 rows, open a row (`aria-current`), `+ Chat baru` with a turn on screen (pane cleared, thread intact), `thread-delete` with the confirm accepted, collapsed rail empty, reload starts collapsed. Evidence under `.cursor/skills/verify-agentforge/evidence/chat/2026-09-17-cc-map/`.
 
 ## Why
 
-**Why the sessions moved into the rail and the second column was deleted.** `[Direct]` `docs/product-modes.md:39`: "A few recent **Chat** sessions sit under the Chat entry in the rail (owner decision 2026-09-17), capped at `RAIL_RECENT_THREADS` (4) with `+ New chat` above them and an `All sessions` row when more exist. That row is a toggle: the rail list expands in place to every session the host returns, and there is no second column at all." `[Direct]` the same file's boundary table at `:129` names "a separate all-sessions column" as an explicit non-goal, alongside "Mixing job-mode artifacts or every session into the global nav". `[Direct]` `docs/internal/unreleased.md:37` records the change and its parts: "The old second column `chat-thread-list.tsx` is deleted, `THREAD_WIDTH` and the `chat.threads.*`/`newChatPlus`/`sessions*` keys with it." **Confidence: high.**
+**Why the sessions moved into the rail and the second column was deleted.** `[Direct]` `docs/product-modes.md:39`: "A few recent **Chat** sessions sit under the Chat entry in the rail (owner decision 2026-09-17), capped at `RAIL_RECENT_THREADS` (4) with `+ New chat` above them and an `All sessions` row when more exist. That row is a toggle: the rail list expands in place to every session the host returns, and there is no second column at all." `[Direct]` the same file's boundary table at `:129` names "a separate all-sessions column" as an explicit non-goal, alongside "Mixing job-mode artifacts or every session into the global nav". `[Direct]` `docs/internal/0.14.27-changelog.md:80` records the change and its parts: "`chat-thread-list.tsx` — the old second column — is **deleted**, with `THREAD_WIDTH` and the `chat.threads.*` / `newChatPlus` / `sessions*` keys." **Confidence: high.**
 
-**Why the hook depends on the workspace id rather than remounting.** `[Direct]` the comment at `apps/web/lib/use-chat-threads.ts:99-102`: "threads are per desk: switching desks re-renders the shell without remounting the rail, and a stale list would show the previous desk's titles." `[Supported]` the host enforces the same boundary in SQL — the three tenancy equalities in `listWorkspaceThreads` (`packages/host/src/threads.ts:91-95`) — and `docs/internal/unreleased.md:49` records "threads not workspace-scoped" as a 2026-09-08 hardening fix, so the renderer-side scoping is the second half of a bug that was already paid for once. **Confidence: high.**
+**Why the hook depends on the workspace id rather than remounting.** `[Direct]` the comment at `apps/web/lib/use-chat-threads.ts:99-102`: "threads are per desk: switching desks re-renders the shell without remounting the rail, and a stale list would show the previous desk's titles." `[Supported]` the host enforces the same boundary in SQL — the three tenancy equalities in `listWorkspaceThreads` (`packages/host/src/threads.ts:93-95`) — and `docs/internal/0.14.23-changelog.md:57` records "threads were not workspace-scoped" as a CRITICAL 2026-09-08 hardening fix, so the renderer-side scoping is the second half of a bug that was already paid for once. **Confidence: high.**
 
-**Why a transient load failure keeps the old rows.** `[Direct]` the comment at `apps/web/lib/use-chat-threads.ts:123`: "A transient failure keeps the last good list on screen; only the error line is new." `[Supported]` `apps/web/lib/rail-threads-wiring.test.ts:107-110` pins it as a contract by asserting the hook does **not** contain `setThreads([]);`. **Confidence: high.**
+**Why a transient load failure keeps the old rows.** `[Direct]` the comment at `apps/web/lib/use-chat-threads.ts:123`: "A transient failure keeps the last good list on screen; only the error line is new." `[Supported]` `apps/web/lib/rail-threads-wiring.test.ts:131-134` pins it as a contract by asserting the hook does **not** contain `setThreads([]);`. **Confidence: high.**
 
-**Why unnamed threads are filtered out of the list.** `[Inferred]` no commit or doc states the reason. The chain: `ensureThread` creates the row *before* the first message is sent (`apps/web/components/chat-session.tsx:195-204`), `createThread` gives it the locale default title (`packages/host/src/threads.ts:41`), and `handleGetThreads` filters exactly those titles (`packages/host/src/handlers/threads.ts:29`). Without the filter, every composer that created a thread and then failed, aborted, or was abandoned would leave a `New thread` row in a four-row rail. **Confidence: medium — the mechanism is certain, the motive is read off the mechanism.**
+**Why unnamed threads are filtered out of the list.** `[Inferred]` no commit or doc states the reason. The chain: `ensureThread` creates the row *before* the first message is sent (`apps/web/components/chat-session.tsx:195-204`), `createThread` gives it the locale default title (`packages/host/src/threads.ts:43`), and `handleGetThreads` filters exactly those titles (`packages/host/src/handlers/threads.ts:29`). Without the filter, every composer that created a thread and then failed, aborted, or was abandoned would leave a `New thread` row in a four-row rail. **Confidence: medium — the mechanism is certain, the motive is read off the mechanism.**
