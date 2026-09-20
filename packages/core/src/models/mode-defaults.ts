@@ -6,7 +6,15 @@ import {
   pickPreferredVideoModel,
 } from "./media-kind";
 
-export type JobMode = "documents" | "research" | "presentations" | "finance" | "data" | "market" | "legal";
+export type JobMode =
+  | "documents"
+  | "research"
+  | "presentations"
+  | "finance"
+  | "data"
+  | "market"
+  | "legal"
+  | "meeting";
 
 export type ModeModelDefaults = {
   chat: string;
@@ -17,6 +25,7 @@ export type ModeModelDefaults = {
   data: string;
   market: string;
   legal: string;
+  meeting: string;
   /** Second model for the Legal verify pass: checklist grading and the opposing-counsel review. */
   legalVerifier: string;
   image: string;
@@ -61,6 +70,12 @@ export const JOB_MODE_PREFERENCES: Record<JobMode, string[]> = {
   market: ["hy3", "hy-3", "hunyuan-3", "deepseek-v4-flash"],
   /** Long contracts and strict JSON: prefer the larger everyday models. */
   legal: ["gpt-5.6-sol", "gpt-5.6-luna", "kimi-k3", "deepseek-v4-flash"],
+  /**
+   * Minutes are schema-bound JSON read off a transcript that can run to tens of thousands of
+   * tokens, so the heads are the ids that rank for both strict output (§1.4) and long input
+   * (§1.6) in docs/internal/gateway-model-selection.md. The same model writes the translation.
+   */
+  meeting: ["gpt-5.6-sol", "gpt-5.6-terra", "gemini-3.5-flash", "MiniMax-M3", "deepseek-v4-flash"],
 };
 
 export function pickPreferredJobModel(mode: JobMode, chatIds: string[], fallback: string): string {
@@ -84,6 +99,7 @@ export function resolveModeDefaults(input: {
     data: pickPreferredJobModel("data", input.chatIds, input.chatDefault),
     market: pickPreferredJobModel("market", input.chatIds, input.chatDefault),
     legal: pickPreferredJobModel("legal", input.chatIds, input.chatDefault),
+    meeting: pickPreferredJobModel("meeting", input.chatIds, input.chatDefault),
     legalVerifier: pickPreferredJobModel("research", input.chatIds, input.chatDefault),
     image: pickPreferredImageModel(input.imageIds),
     video: pickPreferredVideoModel(input.videoIds),

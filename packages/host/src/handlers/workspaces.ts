@@ -15,6 +15,7 @@ import {
 import type { HostRequest, HostResult } from "../types";
 import { jsonError, jsonOk } from "../errors";
 import { dropWorkspaceSettings } from "../settings-store";
+import { channelStore } from "../channels/store";
 import { getTenant } from "../tenant";
 import { writeSelectedWorkspaceId, workspaceCookie } from "../workspace";
 
@@ -162,6 +163,9 @@ export async function handleDeleteWorkspace(request: HostRequest): Promise<HostR
       return jsonOk({ error: { code: result.code, message } }, status);
     }
     dropWorkspaceSettings(workspaceId);
+    // The desk's channels and the conversations stored under them go with it: a deleted desk must
+    // not leave an outside conversation on disk that nothing in the app can reach any more.
+    channelStore().dropWorkspace(workspaceId);
     if (tenant.workspaceId !== workspaceId) {
       return jsonOk({ ok: true });
     }

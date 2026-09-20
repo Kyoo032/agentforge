@@ -8,6 +8,7 @@ export const ARTIFACT_MODES = [
   "documents",
   "presentations",
   "legal",
+  "meeting",
 ] as const;
 export const ARTIFACT_KINDS = [
   "dossier",
@@ -21,6 +22,8 @@ export const ARTIFACT_KINDS = [
   "summary",
   "red-flags",
   "matter",
+  "transcript",
+  "minutes",
 ] as const;
 export const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 export const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";

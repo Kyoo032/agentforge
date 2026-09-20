@@ -2,7 +2,13 @@ import { mediaKind, resolvedGatewayBaseUrl } from "@agentforge/core";
 import { loadModelCache } from "../model-cache";
 import { loadSettings } from "../settings-store";
 
-const ASR_ID = /whisper|transcribe/i;
+/**
+ * Whisper-shaped ids, plus the bare `asr` marker: the Toko Token catalog's one speech
+ * recogniser is `mimo-v2.5-asr` (docs/internal/gateway-model-selection.md §5.3), which matches
+ * neither "whisper" nor "transcribe", so auto captions reported themselves unavailable on every
+ * live desk.
+ */
+const ASR_ID = /whisper|transcribe|(?:^|[-_.])asr(?:[-_.]|$)/i;
 
 /**
  * How long one chunk of audio may take before the request is given up on.

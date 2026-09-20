@@ -373,6 +373,8 @@ describe("POST /api/v1/settings/reset", () => {
       "datasets",
       "edit",
       "legal",
+      // Channel lists and stored conversations; the bot token itself is inside settings.enc.
+      "channels",
       "models-cache.json",
       "models-dev-cache.json",
       // Downloaded native components and the installer's log: host-written and re-downloadable,

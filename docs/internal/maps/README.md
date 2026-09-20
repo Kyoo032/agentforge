@@ -44,6 +44,7 @@ Rules that keep these honest:
 
 | Page | Subsystem | Verified by |
 |---|---|---|
+| [`channels.md`](channels.md) | Channels: Telegram bot token, desk channel store, send and poll, pinned egress | `features/channels.md` |
 | [`chat-send.md`](chat-send.md) | Chat send: composer → transport → run route → runtime → SSE → rendered message | `features/chat.md` |
 | [`settings-and-gateway-gate.md`](settings-and-gateway-gate.md) | Per-desk settings, the host gateway gate, Start over, key pinning | `features/settings.md`, `features/gateway-gate.md` |
 | [`locale-boot-and-run-harness.md`](locale-boot-and-run-harness.md) | App locale freeze + restart, and how `id` reaches the model | `features/settings.md`, `features/locale.md` |
@@ -61,6 +62,7 @@ Rules that keep these honest:
 | [`research-dossier.md`](research-dossier.md) | Research: plan → search → read → extract → synthesize, streamed as `job.*` | `features/research.md` |
 | [`data-analysis.md`](data-analysis.md) | Data: the dataset store, the `run_sql` tool, and host-materialized evidence | `features/data.md` |
 | [`presentations.md`](presentations.md) | Presentation: topic → one JSON outline → slide cards → `.pptx` | `features/presentations.md` |
+| [`meeting-minutes.md`](meeting-minutes.md) | Meeting: recording intake, ffmpeg chunking, gateway transcription, minutes, the name guard, EN/ID translation | `features/meeting.md` |
 | [`legal-matter-run.md`](legal-matter-run.md) | Legal matter: `.docx` intake, role classification, the nine-stage run, deliverables | `features/legal.md` |
 | [`edit-timeline.md`](edit-timeline.md) | Edit: the append-only ops log, the agent turn, cards, the review gate, export | `features/edit.md` |
 | [`generate-studios.md`](generate-studios.md) | Images and Videos studios: knob snapping, generate, mirror, gallery | `features/images.md`, `features/videos.md` |
