@@ -77,10 +77,10 @@ that could create one.
 | File | Role |
 |---|---|
 | `packages/db/src/schema.ts:32` | `tenants` table |
-| `packages/db/src/schema.ts:41` | `organizations`, now with `tenant_id` and the composite unique index |
+| `packages/db/src/schema.ts:84` | `organizations`, now with `tenant_id` and the composite unique index |
 | `packages/db/drizzle/0015_tenants.sql` | The migration: table, local row, column, backfill, index swap |
 | `packages/db/drizzle/meta/_journal.json` | Journal entry `idx: 15`, `when: 1788820000007` |
-| `packages/db/src/ensure-schema.ts:418` | `ensureTenantTables`, the baseline-stamp healer |
+| `packages/db/src/ensure-schema.ts:419` | `ensureTenantTables`, the baseline-stamp healer |
 | `packages/db/src/ensure-local-owner.ts` | Resolves the local owner inside `local-tenant` |
 | `packages/db/src/tenants.ts` | `ensureTenant` / `getTenantById` / `getLocalTenant`, for lane C |
 | `packages/db/src/client.ts:50` | `busy_timeout = 5000` |

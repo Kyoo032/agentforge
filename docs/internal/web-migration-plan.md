@@ -52,9 +52,9 @@ The move is **additive**. Nothing is deleted to make room for the server.
 | Electron-only renderer surfaces | `apps/web/components/settings-reset-card.tsx:179` (relaunch), `apps/web/lib/use-app-updates.ts:31`, `apps/web/components/edit-studio.tsx:310-312` (native file picker), `apps/web/lib/product-brand.tsx:73` | Gated off on the web build and replaced with a browser equivalent (file input, no relaunch, no updater) | 8 |
 | Updater points at the releases repo | `apps/desktop/auto-update.cjs` | Desktop-only, frozen. The web has no updater; a deploy is a container swap | 8 |
 | Playwright drives `127.0.0.1:3000`, boots `pnpm dev`, points at the shared `data/` dir | `apps/web/playwright.config.ts:11`, `:15-25` (`AGENTFORGE_DATA_DIR: ../../data`, `AGENTFORGE_RUNTIME: "stub"`) | A second project targeting the deployed base URL with a seeded test tenant and a real session cookie | 0, 2 |
-| Locale is one value for the whole install | `packages/host/src/settings-store.ts:123` (`locale?: AppLocale`), exported from `packages/core/src/index.ts:555-556` | **Copy and catalogues unchanged.** Only the storage of the chosen locale moves to per-user | 4 |
-| Usage is per-install, not per-user: a global JSON file with no tenant dimension | `packages/host/src/desk-usage.ts:8-10` (`desk-usage.json`), append at `:66` | Per-tenant rows. Merged with the already-org-scoped run usage (`packages/host/src/threads.ts:308`, read at `:328`) | 5 |
-| USD is estimated live and never persisted | `packages/core/src/gateway/account.ts:128`, formula at `:149`; `QUOTA_PER_USD = 500_000` at `packages/core/src/gateway.ts:96`; entry points `packages/host/src/account-usage.ts:153,181,297` | Persisted per run, per tenant. This is the metering base for the Personal allowance and Enterprise pooled spend | 5 |
+| Locale is one value for the whole install | `packages/host/src/settings-store.ts:123` (`locale?: AppLocale`), exported from `packages/core/src/index.ts:571-572` | **Copy and catalogues unchanged.** Only the storage of the chosen locale moves to per-user | 4 |
+| Usage is per-install, not per-user: a global JSON file with no tenant dimension | `packages/host/src/desk-usage.ts:21-23` (`desk-usage.json`), append at `:66` | Per-tenant rows. Merged with the already-org-scoped run usage (`packages/host/src/threads.ts:308`, read at `:328`) | 5 |
+| USD is estimated live and never persisted | `packages/core/src/gateway/account.ts:165`, formula at `:149`; `QUOTA_PER_USD = 500_000` at `packages/core/src/gateway.ts:96`; entry points `packages/host/src/account-usage.ts:172,181,297` | Persisted per run, per tenant. This is the metering base for the Personal allowance and Enterprise pooled spend | 5 |
 | No plan, seat, subscription or billing code exists anywhere in `packages/` or `apps/` | verified by search; the design is docs-only (`docs/internal/portal/schema.md:36,70-72`) | New `tenant_plan` and `tenant_usage` tables plus a webhook route | 5 |
 | ffmpeg and SQL worker children are tracked in one process-wide set | `packages/host/src/child-processes.ts` (module-level `Set`); caps at `packages/host/src/sql-runner.ts:8-11` | Per-tenant concurrency caps on top of the global registry | 6 |
 
@@ -231,10 +231,10 @@ Phase 3 (see above); Phase 4 only has to keep that scoping when the backend chan
   the last 30 days (`docs/internal/portal/schema.md:328`, restated at
   `docs/internal/portal/device-code-login.md:510`). Time-based, counted from session rows, never a
   stored counter.
-- **Metering.** `packages/host/src/desk-usage.ts:66` (the untenanted JSON append) is replaced on the
-  web by a `tenant_usage` insert; `packages/core/src/gateway/account.ts:128,149` keeps computing the
+- **Metering.** `packages/host/src/desk-usage.ts:79` (the untenanted JSON append) is replaced on the
+  web by a `tenant_usage` insert; `packages/core/src/gateway/account.ts:165,149` keeps computing the
   USD estimate and the result is now persisted rather than recomputed; the readers at
-  `packages/host/src/account-usage.ts:153,181,297` merge from the table.
+  `packages/host/src/account-usage.ts:172,181,297` merge from the table.
 - `apps/web/lib/gateway-gate.ts:83-89` must fail **closed** on the web build.
 
 **Tests.** A Personal tenant at 99% of allowance passes and at 101% is refused; a `past_due` tenant is

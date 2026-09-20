@@ -34,7 +34,7 @@ Each line verified against the tree.
 | Session backend | `packages/host/src/auth/session.ts:81` (`createSession`), `:105` (`verifySession`), `:122` (`slidSession`), `:131` (`revokedSession`); store at `auth/session-store.ts`; portal client at `auth/portal-client.ts`; routes at `auth/routes.ts:192` | Done. Idle 12 h / absolute 30 d (`session.ts:18-19`), slide ≤ once per 5 min (`:21`). |
 | Router session gate | `packages/host/src/router.ts:370-398`, invoked at `:352-359`; exemptions at `auth/routes.ts:94-99` (`/api/v1/auth/*`, `GET /api/v1/ping`, `GET /api/v1/components` — `UNGATED_GETS` at `:44`) | Done. Every method on every other `/api` path 401s `session_required`. |
 | `HostRequest.session` | `packages/host/src/types.ts:31-36` (`HostSession`), `:53`; populated at `router.ts:333-338`, re-attached at `:376-377` (the caller's own object is never mutated, and a forged `session` field is dropped) | Done. |
-| `auth_sessions` + migration `0014` | `packages/db/src/schema.ts:688-706`; `packages/db/drizzle/0014_auth_sessions.sql:12-27`; journal entry idx 14 | Done. Carries `tenant_id`, `org_id`, `user_id` already. |
+| `auth_sessions` + migration `0014` | `packages/db/src/schema.ts:731-749`; `packages/db/drizzle/0014_auth_sessions.sql:12-27`; journal entry idx 14 | Done. Carries `tenant_id`, `org_id`, `user_id` already. |
 | Reason-code copy | `apps/web/locales/en/auth.json`, `apps/web/locales/id/auth.json` — all nine portal codes plus `session_required`, `invalid_request`, `invalid_grant`, `portal_unavailable` | Done. |
 
 ### Not done

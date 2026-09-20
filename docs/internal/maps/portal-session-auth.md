@@ -213,10 +213,10 @@ itself (`packages/host/src/http-adapter.ts:481`), which is what `readSessionCook
 `packages/db/drizzle/meta/_journal.json:103-109`). Nine columns, epoch milliseconds throughout, and
 two indexes: `auth_sessions_user_seen_idx` on `(user_id, last_seen_at)` for the Phase 5 seat counter,
 and `auth_sessions_expires_idx` on `expires_at`. The drizzle definition is
-`packages/db/src/schema.ts:688-706`.
+`packages/db/src/schema.ts:731-749`.
 
 Every statement is `IF NOT EXISTS`, and the same DDL is mirrored in
-`ensureAuthSessionTables` (`packages/db/src/ensure-schema.ts:386-452`, called at
+`ensureAuthSessionTables` (`packages/db/src/ensure-schema.ts:387-453`, called at
 `packages/db/src/ensure-schema.ts:234`), because a database baseline-stamped past this migration has
 the journal row without the table.
 

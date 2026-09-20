@@ -44,7 +44,7 @@ None of them changes the shape of the phase; all of them change what is owed.
    re-serialising a parsed object does not reproduce them. See D4.
 
 5. **The seat counter's data already exists, but it does not measure what the rule says.**
-   `auth_sessions` (`packages/db/src/schema.ts:663-681`) carries `tenant_id`, `org_id` and
+   `auth_sessions` (`packages/db/src/schema.ts:706-724`) carries `tenant_id`, `org_id` and
    `user_id`, and the index at `:678` was added for exactly this counter — its comment says so.
    What it can answer is "signed in at some point in the last 30 days", not "has a live session":
    see D5.

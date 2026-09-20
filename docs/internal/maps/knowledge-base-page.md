@@ -101,7 +101,7 @@ The result renders as `knowledge-map` (`apps/web/components/knowledge-page.tsx:6
 
 ### 8. What Chat does with all of it
 
-Chat never reads the page's state; the host rebuilds it per turn. `startModalityRun` calls `knowledgeInjection(tenant, userText, { excludeThreadId: thread.id })` (`packages/host/src/runs.ts:153`) and concatenates the result onto the published agent's system prompt (`:158`).
+Chat never reads the page's state; the host rebuilds it per turn. `startModalityRun` calls `knowledgeInjection(tenant, userText, { excludeThreadId: thread.id })` (`packages/host/src/runs.ts:154`) and concatenates the result onto the published agent's system prompt (`:158`).
 
 `knowledgeInjection` (`packages/host/src/knowledge.ts:835-877`) assembles three sections under one `# Workspace knowledge` heading: `## Soul` from `getSoul`, `## Pinned memories` from the pinned subset of `listMemories`, and `## Retrieved sources` — `retrieveChunks(tenant, query, 4, …)` rendered as `[${index + 1}] ${sanitizeSourceName(chunk.sourceName)}\n${chunk.body}` (`:855-857`). An empty query skips retrieval entirely (`:840-842`). The anti-loop is `excludedSourceIds` (`:802-808`): the asking thread's own work card is looked up by origin and excluded, which is why proving retrieval of a Chat card needs a fresh thread.
 
@@ -109,7 +109,7 @@ Retrieval itself is `SqliteBuiltinBackend.retrieve` (`packages/host/src/knowledg
 
 That line reaches the user through `GET /api/v1/knowledge/context?threadId=` (`packages/host/src/handlers/knowledge.ts:314-329`, gated at `:316`) — the only other caller of `knowledgeInjection`. `ChatSession` fetches it (`apps/web/components/chat-session.tsx:347-357`) and hands the `parts` array to `ChatContextChip`, which renders `chat-context` (`apps/web/components/chat-context-chip.tsx:171`) and, on click, the portalled `chat-context-breakdown` (`:120`) with one row per part: Soul / Memories / Sources. The route returns `prompt` and `parts` only — `chunks` stays server-side because it is the retrieval record.
 
-After a **completed** run the host closes the loop: `recordRetrievals` writes one row per injected chunk and projects the `retrieved` edge, and `recordCites(…, citedSources(assistantText, knowledge.chunks))` turns bare `[n]` markers into `cites` edges (`packages/host/src/runs.ts:362-380`, mirrored at `:411-422`). `citedSources` (`packages/host/src/knowledge-cites.ts:64-76`) is positional: `chunks[marker - 1]`, deduped by source, and a marker past the injected count is silently dropped.
+After a **completed** run the host closes the loop: `recordRetrievals` writes one row per injected chunk and projects the `retrieved` edge, and `recordCites(…, citedSources(assistantText, knowledge.chunks))` turns bare `[n]` markers into `cites` edges (`packages/host/src/runs.ts:363-385`, mirrored at `:411-422`). `citedSources` (`packages/host/src/knowledge-cites.ts:64-76`) is positional: `chunks[marker - 1]`, deduped by source, and a marker past the injected count is silently dropped.
 
 ### Failure modes
 

@@ -57,7 +57,7 @@ Both messages come from `packages/core/src/output-language.ts:114-117` and `:124
 5. **Drafting** — one `ask(SYNTHESIS_SYSTEM, …)` over `sourcePromptBlock`s (`:235-243`, `:361-365`). `parseSynthesis` (`:187-216`) unions the ids the model listed with the ids it actually cited in the body (`citedSourceIds`, `packages/core/src/artifacts/dossier.ts:128-134`) and **intersects with the known ids**, so a hallucinated `[S99]` is dropped rather than rendered. Zero usable findings is `invalid_research` / 502 (`:204-206`).
 6. `dossierSchema.parse` (`:367-377`) is the last gate, and `notesFromDossier` (`:219-233`) derives the preview shape deterministically — each note's sources are looked up by id, so **every citation in the Notes tab resolves to a real source row**.
 
-All three model calls go through `collectJobAssistantText` (`packages/host/src/job-regen.ts:192-194`) with `jobMode: "research"` and `withOutputLanguage(system, "research", localeForRun())`, and all three are parsed with `extractJsonObject` + `JSON.parse`; a non-JSON answer is `invalid_research` / 502 (`research-dossier.ts:77-83`).
+All three model calls go through `collectJobAssistantText` (`packages/host/src/job-regen.ts:199-201`) with `jobMode: "research"` and `withOutputLanguage(system, "research", localeForRun())`, and all three are parsed with `extractJsonObject` + `JSON.parse`; a non-JSON answer is `invalid_research` / 502 (`research-dossier.ts:77-83`).
 
 ### 6. Saving, and the two things that happen after
 
@@ -87,7 +87,7 @@ Back in `generateResearchNotes`: `throwIfJobAborted` again (`:160`) — **a canc
 | One page unreadable / blocked by the injection guard | `readSource` catch, `:293-305` | **not a failure** — `job.source` status `unreachable`, snippet kept as the passage |
 | Model returned non-JSON | `parseJson`, `:77-83` | `job.error {code:"invalid_research", status:502}` |
 | Model returned no usable findings | `parseSynthesis`, `:204-206` | `job.error {code:"invalid_research", status:502}` |
-| Model call itself failed | `collectJobAssistantText`, `packages/host/src/job-regen.ts:142-144` | `job.error {code:"generation_failed", status:502}` |
+| Model call itself failed | `collectJobAssistantText`, `packages/host/src/job-regen.ts:149-151` | `job.error {code:"generation_failed", status:502}` |
 | User pressed `research-cancel` | `throwIfJobAborted` → `ApiError("aborted", …, 499)`; client sees the abort first | **no banner** — `use-job-stream.ts:54-59` resets quietly |
 | Client tab closed mid-run | `res.on("close")` → `abort.abort()` (`packages/host/src/http-adapter.ts:465-472`, `:471`) | run stops between phases; nothing saved |
 | Artifact could not be persisted | `persistDossier` catch, `packages/host/src/research-generate.ts:105-110` | **success** — notes render, `artifactId` is `null`, Download falls back to a client-side blob, no KB work card |

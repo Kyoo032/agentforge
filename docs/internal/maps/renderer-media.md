@@ -49,16 +49,16 @@ That asymmetry is the design: the host's collector decides what is worth mirrori
 
 ### Host mirroring
 
-In a Chat run (`packages/host/src/runs.ts:344-352`), every `tool.completed` output goes through the host collector, then each part through `mirrorToolMediaPart` (`:453-468`):
+In a Chat run (`packages/host/src/runs.ts:345-353`), every `tool.completed` output goes through the host collector, then each part through `mirrorToolMediaPart` (`:453-468`):
 
 - `image_url` → `saveGeneratedImage`, `video_url` → `saveGeneratedVideo` (`packages/host/src/media.ts:131-182`). An already-local `/api/v1/media/…` URL is returned as-is; a `data:` URL is decoded directly (`decodeMediaDataUrl`, `:125-131`); anything else goes to `downloadGeneratedMedia`.
 - `downloadGeneratedMedia` (`packages/host/src/media-download.ts:39-55`) calls `fetchPublicHttps` with a per-kind byte cap, requires a 2xx, and takes the served content type only when it starts with `image/` or `video/` — otherwise it falls back to `image/png` / `video/mp4`. **The failing URL never appears in the error**, which surfaces to the client (`:26-31`).
 - The bytes go to `saveMedia` (`packages/host/src/media.ts:68-105`), which re-validates mime and size, writes under `mediaRoot()`, inserts a `media` row scoped to `tenant.organizationId`, and returns `/api/v1/media/${id}/file`.
-- **A part that cannot be mirrored is dropped, not persisted** (`packages/host/src/runs.ts:464-467`): "the turn keeps its text and drops the picture rather than carrying a remote URL."
+- **A part that cannot be mirrored is dropped, not persisted** (`packages/host/src/runs.ts:472-475`): "the turn keeps its text and drops the picture rather than carrying a remote URL."
 
 `fetchPublicHttps` (`packages/core/src/security/safe-fetch.ts`) is the hardening: HTTPS only, no credentials in the URL, no private or loopback host (`isPrivateHost`, `:29-38`), every redirect hop re-validated (`:60-65`, up to `SAFE_FETCH_MAX_HOPS = 5`), and `readCapped` (`:68-88`) cancels the reader the moment the streamed total exceeds the cap, before the body is buffered.
 
-The Images and Videos studios do the same thing directly (`packages/host/src/studio-generate.ts:290-291`, `:239-240`).
+The Images and Videos studios do the same thing directly (`packages/host/src/studio-generate.ts:296-297`, `:239-240`).
 
 ### Serving it back
 
@@ -70,7 +70,7 @@ In the packaged shell the same bytes are also reachable as `agentforge://media/�
 
 Worth understanding because it looks like a bug and is a consequence of the lock-down.
 
-The SSE `tool.completed` frame carries **`event.output` — the raw tool output** (`packages/host/src/runs.ts:335`), while the mirrored parts go only into the persisted assistant message (`mediaParts`, pushed at `:351`). Mid-run, `ChatTurn` recomputes `liveMedia` from the in-flight tool list on every render (`apps/web/components/chat-turn.tsx:35-37`) and paints it at `:92` — but through the **renderer's** collector, which rejects remote URLs.
+The SSE `tool.completed` frame carries **`event.output` — the raw tool output** (`packages/host/src/runs.ts:336`), while the mirrored parts go only into the persisted assistant message (`mediaParts`, pushed at `:351`). Mid-run, `ChatTurn` recomputes `liveMedia` from the in-flight tool list on every render (`apps/web/components/chat-turn.tsx:35-37`) and paints it at `:92` — but through the **renderer's** collector, which rejects remote URLs.
 
 So when a tool returns a remote `https://` URL, there is **no mid-stream preview**: the picture appears only after `onComplete` runs `refreshMessages` and the persisted, mirrored `/api/v1/media/…` part arrives. When a tool returns an already-local path, the preview shows immediately.
 
@@ -116,8 +116,8 @@ How the policy is injected, and why at pack time, is in [`desktop-pack-routes.md
 | `packages/host/src/media-download.ts` | `downloadGeneratedMedia` — per-kind caps over `fetchPublicHttps` |
 | `packages/core/src/security/safe-fetch.ts` | `fetchPublicHttps`, `assertPublicHttpsUrl`, `readCapped` |
 | `packages/host/src/media.ts` | `saveMedia`, `saveGeneratedImage`, `saveGeneratedVideo`, `mediaRoot` |
-| `packages/host/src/runs.ts:453-468` | `mirrorToolMediaPart` for Chat runs |
-| `packages/host/src/studio-generate.ts:290-291, 239-240` | The same mirroring for Images / Videos |
+| `packages/host/src/runs.ts:461-476` | `mirrorToolMediaPart` for Chat runs |
+| `packages/host/src/studio-generate.ts:296-297, 239-240` | The same mirroring for Images / Videos |
 | `packages/host/src/handlers/media.ts`, `byte-range.ts` | Serving, with `Range` support |
 | `apps/web/components/chat-turn.tsx:35-37, 92` | Mid-stream `liveMedia` render |
 | `apps/web/components/chat-session.tsx:527-564` | The post-completion media fallback |
