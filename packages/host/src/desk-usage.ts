@@ -3,6 +3,19 @@ import { resolve } from "node:path";
 import { asRunUsageRecord, type RunUsageRecord, type TimestampedRunUsage } from "@agentforge/core";
 import { localDataDir } from "@agentforge/db/vault-key";
 
+/**
+ * LEGACY, READ-ONLY since Phase 5 lane A (docs/internal/web-phase5-lane-a.md).
+ *
+ * `desk-usage.json` was one global file with no tenant dimension: every tenant on a hosted
+ * deployment appended job and edit-agent spend to the same array, and no allowance could be
+ * enforced against it. Job spend now goes to the tenant-scoped `tenant_usage` ledger
+ * (`tenant-usage.ts`) and **nothing in the app writes this file any more**.
+ *
+ * The readers stay so a desktop that has been generating since before the migration keeps the
+ * history the account screen already showed it. `appendDeskUsage` stays only because the reader
+ * tests need a writer; no production call site uses it, and none should be added — a new writer
+ * here is a usage record with no tenant on it, which is the exact hole this lane closed.
+ */
 type StoredDeskUsage = RunUsageRecord & { at?: string };
 
 function usagePath(): string {

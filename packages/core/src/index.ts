@@ -34,6 +34,7 @@ export {
   parsePricingCatalog,
   parseTokenUsage,
   estimateRunUsd,
+  explainRunUsd,
   estimateDeskUsd,
   estimateDeskByModel,
   isUnpricedBilling,
@@ -61,7 +62,21 @@ export type {
   UsageBucketFrame,
   UsageDeskByModel,
   UsageDeskSummary,
+  RunUsdEstimate,
 } from "./gateway/account";
+export {
+  USAGE_MODES,
+  USAGE_UNITS,
+  UNPRICED_REASONS,
+  USD_MICROS,
+  isUsageMode,
+  isUsageUnit,
+  isUnpricedReason,
+  usdToMicros,
+  microsToUsd,
+  usageModeFromRunPrefix,
+} from "./usage/metering";
+export type { UsageMode, UsageUnit, UnpricedReason, UsageEvent } from "./usage/metering";
 export { ApiError, ContentParseError } from "./errors";
 export {
   wrappingKeyFromSecret,

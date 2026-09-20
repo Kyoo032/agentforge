@@ -12,6 +12,7 @@ Engineering and research notes. Not part of the closed-beta tester surface.
 | [`portal/device-code-login.md`](portal/device-code-login.md) | Device-code login between DPSBuddy and the Toko Token portal: flow, endpoints, tokens, reason codes, client integration plan |
 - [`web-phase3-tenancy-spec.md`](web-phase3-tenancy-spec.md) — Phase 3 (tenancy) spec: handler audit, migration 0015, five lanes, open questions.
 - [`web-phase5-plans-billing-decisions.md`](web-phase5-plans-billing-decisions.md) — Phase 5 (plans and billing) decision doc: the five open choices with a recommendation and the cost of each, the metering hole, five lanes. Decides nothing; Kyo answers.
+- [`web-phase5-lane-a.md`](web-phase5-lane-a.md) — Phase 5 lane A, the tenant usage ledger: what the three metering holes were, what `tenant_usage` records, what the lane deliberately left open, and the live tests still owed on Kyo's machine.
 - [`worklog-2026-09-18.md`](worklog-2026-09-18.md) — what landed on day one of the pivot, the known gaps, and where to start next.
 - [`handover-2026-09-20.md`](handover-2026-09-20.md) — the running record of everything built, verified and merged on 2026-09-20, one entry per PR, for Kyo to read cold.
 | [`portal/schema.md`](portal/schema.md) | Portal control-plane Postgres design: tables, RLS, seat count, wallet |
