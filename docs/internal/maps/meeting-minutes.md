@@ -108,6 +108,15 @@ All seven by-id routes resolve through `meetingStore()`, which filters on `tenan
 
 ## Gotchas
 
+- **One meeting can leave three usage rows, in two units.** The transcription is metered in
+  seconds of audio (`recordTranscriptionUsage`, `packages/host/src/meeting/run.ts:188`), because
+  that is what a recogniser bills for — not the tokens of the transcript, and not the number of
+  chunks `extractMeetingAudio` happened to split the recording into. The minutes and the
+  translation are ordinary token runs, metered through their `meeting-minutes` and
+  `meeting-translate` run prefixes. All three land under the `meetings` mode. Nobody has
+  transcribed a per-second ASR list price yet, so the transcription row records its seconds with a
+  null cost and `no_list_price` until one lands. See
+  [`tenant-usage-ledger.md`](tenant-usage-ledger.md).
 - **The gateway legs are source-traced, not driven.** This branch was built in a sandbox whose egress policy denies `api.tokotokenai.com` and `api.tokenku.ai` (403 to CONNECT), so transcription, minutes and translation have never run against the real gateway. The request *shape* is pinned by `packages/host/src/meeting/transcribe.test.ts`; what is unproven is that the gateway answers it. See the PR for the exact commands to drive it live.
 - **`mimo-v2.5-asr` over chat completions is documented, not verified.** Row 147 of the model-selection doc is sourced from mimo.mi.com, and §2.1 says ASR ids use "their vendor's non-chat schema behind" the `openai` endpoint type. If the live gateway disagrees, `AGENTFORGE_MEETING_ASR_MODEL` pins another id and `transcriptionWireFor` decides the wire from it.
 - **No ffmpeg, no recording path.** `extractMeetingAudio` raises `ffmpeg_missing` (503) rather than guessing. The capability block on `GET /api/v1/meetings` reports it so the studio can say so up front.
@@ -120,3 +129,4 @@ All seven by-id routes resolve through `meetingStore()`, which filters on `tenan
 - [`legal-matter-run.md`](legal-matter-run.md) — the file-job pattern this follows
 - [`gateway-model-selection.md`](../gateway-model-selection.md) — §2.1 endpoint types, §5.3 speech models, row 147
 - [`edit-timeline.md`](edit-timeline.md) — the other ASR caller
+- [`tenant-usage-ledger.md`](tenant-usage-ledger.md) — where a meeting's spend is recorded

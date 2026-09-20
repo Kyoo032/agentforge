@@ -33,11 +33,12 @@ CREATE TABLE IF NOT EXISTS `tenant_usage` (
   -- Null where the call has no user behind it (a scheduled regen, a desktop with no session).
   `user_id` text,
   -- chat | documents | presentations | research | data | finance | market | legal | knowledge
-  -- | images | videos | edit | other. See USAGE_MODES in packages/core/src/usage/metering.ts.
+  -- | images | videos | music | meetings | edit | other.
+  -- See USAGE_MODES in packages/core/src/usage/metering.ts.
   `mode` text NOT NULL,
   -- The gateway model id that actually answered, never the one that was asked for.
   `model` text NOT NULL,
-  -- tokens | images | seconds. One row carries exactly one unit; only `cost_usd_micros` is
+  -- tokens | images | seconds | jobs. One row carries exactly one unit; only `cost_usd_micros` is
   -- comparable across units, which is the other reason it is recorded even when it is null.
   `unit` text NOT NULL,
   `quantity` integer NOT NULL,

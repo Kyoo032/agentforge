@@ -43,6 +43,7 @@ import { loadSettings } from "../settings-store";
 import { listSelectableModels, modeCatalogPayload } from "../selectable-models";
 import { localeForRun } from "../run-context";
 import { log } from "../log";
+import { recordTranscriptionUsage } from "../usage-record";
 import { extractMeetingAudio } from "./audio";
 import { meetingStore, requireMeeting, type MeetingRecord } from "./store";
 import { resolveMeetingAsr, transcribeChunks } from "./transcribe";
@@ -181,6 +182,12 @@ export async function transcribeMeeting(
       signal: options.abortSignal,
       onChunk: (current, total) =>
         emit({ type: "job.step", phase: "transcribing", label: "Audio", current, total }),
+    });
+    // Recorded before the transcript is judged: the gateway has already charged for the audio,
+    // so a recogniser that answers with nothing is still a call the tenant pays for.
+    recordTranscriptionUsage(tenant, {
+      model: transcript.model || capability.model || "",
+      seconds: audio.durationSeconds,
     });
     if (!transcriptPlainText(transcript)) {
       throw new ApiError("transcription_empty", "The recogniser returned nothing for that recording", 502);

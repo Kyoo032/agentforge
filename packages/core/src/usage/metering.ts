@@ -30,6 +30,7 @@ export const USAGE_MODES = [
   "images",
   "videos",
   "music",
+  "meetings",
   "edit",
   "other",
 ] as const;
@@ -169,6 +170,11 @@ export function usageModeFromRunPrefix(prefix: string): UsageMode {
   }
   if (id.startsWith("music")) {
     return "music";
+  }
+  // `meeting-minutes`, `meeting-translate`. The transcription itself is metered in seconds
+  // rather than through a runPrefix, but it lands under the same mode.
+  if (id.startsWith("meeting")) {
+    return "meetings";
   }
   if (id.startsWith("edit")) {
     return "edit";

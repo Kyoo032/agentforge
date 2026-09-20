@@ -77,6 +77,8 @@ describe("usageModeFromRunPrefix", () => {
     expect(usageModeFromRunPrefix("data")).toBe("data");
     expect(usageModeFromRunPrefix("edit")).toBe("edit");
     expect(usageModeFromRunPrefix("music")).toBe("music");
+    expect(usageModeFromRunPrefix("meeting-minutes")).toBe("meetings");
+    expect(usageModeFromRunPrefix("meeting-translate")).toBe("meetings");
   });
 
   it("is case- and whitespace-insensitive", () => {
