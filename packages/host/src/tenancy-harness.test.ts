@@ -22,9 +22,10 @@
  * `dispatch` with two provisioned tenants. It is not a driven app. The phase's own "done when" —
  * two tenants on a running server — still needs a deploy (`docs/internal/web-phase3-lane-e.md` §6).
  */
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const dataDir = mkdtempSync(join(tmpdir(), "agentforge-tenancy-harness-"));
@@ -42,7 +43,14 @@ import type { TenantContext } from "@agentforge/core";
 import { dispatch, isByIdRoute, routeRegistrations } from "./router";
 import { createSession } from "./auth/session";
 import { createMemorySessionStore } from "./auth/session-store";
-import type { HostBytesResult, HostJsonResult, HostRequest, HostResult, HostStreamResult } from "./types";
+import type {
+  HostBytesResult,
+  HostFile,
+  HostJsonResult,
+  HostRequest,
+  HostResult,
+  HostStreamResult,
+} from "./types";
 
 const T0 = Date.UTC(2026, 8, 20, 9, 0, 0);
 
@@ -87,6 +95,12 @@ type ByIdRoute = {
   readonly path: string;
   readonly params: Readonly<Record<string, SeedKey>>;
   readonly body?: unknown;
+  /**
+   * Multipart routes. Sent on the ones that refuse a request with no file *before* they look the
+   * resource up — without it the call 400s on the missing file and the refusal under test never
+   * runs. Resolved lazily in `requestFor`, because a `.docx` fixture is read off disk.
+   */
+  readonly files?: () => HostFile[];
   readonly refusal?: Refusal;
   /** Required when `refusal` is `"indistinguishable"`: what the handler does instead, and why. */
   readonly why?: string;
@@ -111,6 +125,8 @@ type Seeds = {
   memoryId: string;
   sourceId: string;
   agentId: string;
+  channelId: string;
+  meetingId: string;
 };
 
 const BY_ID_ROUTES: readonly ByIdRoute[] = [
@@ -259,13 +275,9 @@ const BY_ID_ROUTES: readonly ByIdRoute[] = [
     method: "POST",
     path: "/api/v1/legal/matters/:matterId/files",
     params: { matterId: "matterId" },
-    body: {},
-    refusal: "indistinguishable",
-    why:
-      "The route is multipart and refuses a request with no file at all — 400, before the matter " +
-      "is looked up (handlers/legal.ts handlePostLegalMatterFile). Reaching the ownership check " +
-      "needs a real .docx fixture, which this harness does not carry; the 400 is identical for any " +
-      "`:matterId`, so nothing about A's matter is disclosed. Recorded in the lane doc as owed.",
+    // A real .docx: the route refuses a fileless request with a 400 before it looks the matter up,
+    // so without one the refusal under test would never run.
+    files: () => [docxFixture()],
   },
   {
     method: "DELETE",
@@ -335,6 +347,74 @@ const BY_ID_ROUTES: readonly ByIdRoute[] = [
   { method: "POST", path: "/api/v1/agents/:agentId/share", params: { agentId: "agentId" }, body: {} },
   { method: "POST", path: "/api/v1/agents/:agentId/product-modes", params: { agentId: "agentId" }, body: {} },
   { method: "POST", path: "/api/v1/agents/:agentId/generate-defaults", params: { agentId: "agentId" }, body: {} },
+
+  // --- channels (Telegram, PR #67) --------------------------------------------------------------
+  { method: "GET", path: "/api/v1/channels/:channelId", params: { channelId: "channelId" } },
+  { method: "DELETE", path: "/api/v1/channels/:channelId", params: { channelId: "channelId" } },
+  { method: "GET", path: "/api/v1/channels/:channelId/messages", params: { channelId: "channelId" } },
+  {
+    method: "POST",
+    path: "/api/v1/channels/:channelId/send",
+    params: { channelId: "channelId" },
+    // Sendable text, so the call reaches `requireChannel` rather than 400ing on an empty message.
+    // It never reaches Telegram: the channel is refused first.
+    body: { text: "tenant B was here" },
+  },
+
+  // --- meetings (PR #66) -------------------------------------------------------------------------
+  { method: "GET", path: "/api/v1/meetings/:meetingId", params: { meetingId: "meetingId" } },
+  { method: "DELETE", path: "/api/v1/meetings/:meetingId", params: { meetingId: "meetingId" } },
+  {
+    method: "POST",
+    path: "/api/v1/meetings/:meetingId/recording",
+    params: { meetingId: "meetingId" },
+    files: () => [audioFixture()],
+  },
+  {
+    method: "POST",
+    path: "/api/v1/meetings/:meetingId/transcript",
+    params: { meetingId: "meetingId" },
+    body: { text: "tenant B was here" },
+  },
+  {
+    method: "POST",
+    path: "/api/v1/meetings/:meetingId/transcribe/stream",
+    params: { meetingId: "meetingId" },
+    body: {},
+    refusal: "indistinguishable",
+    why:
+      "`streamJob` answers 200 and opens the SSE stream before the work starts, so the refusal " +
+      "arrives as a frame rather than as a status. `requireMeeting(tenant, meetingId)` is the " +
+      "second statement of the job (meeting/run.ts:151, :202, :352 — after the gate check and " +
+      "before anything of the meeting is read), and a meeting that does not exist takes exactly " +
+      "the same path. Same shape as POST /api/v1/edit/projects/:projectId/agent above.",
+  },
+  {
+    method: "POST",
+    path: "/api/v1/meetings/:meetingId/minutes/stream",
+    params: { meetingId: "meetingId" },
+    body: {},
+    refusal: "indistinguishable",
+    why:
+      "`streamJob` answers 200 and opens the SSE stream before the work starts, so the refusal " +
+      "arrives as a frame rather than as a status. `requireMeeting(tenant, meetingId)` is the " +
+      "second statement of the job (meeting/run.ts:151, :202, :352 — after the gate check and " +
+      "before anything of the meeting is read), and a meeting that does not exist takes exactly " +
+      "the same path. Same shape as POST /api/v1/edit/projects/:projectId/agent above.",
+  },
+  {
+    method: "POST",
+    path: "/api/v1/meetings/:meetingId/run/stream",
+    params: { meetingId: "meetingId" },
+    body: {},
+    refusal: "indistinguishable",
+    why:
+      "`streamJob` answers 200 and opens the SSE stream before the work starts, so the refusal " +
+      "arrives as a frame rather than as a status. `requireMeeting(tenant, meetingId)` is the " +
+      "second statement of the job (meeting/run.ts:151, :202, :352 — after the gate check and " +
+      "before anything of the meeting is read), and a meeting that does not exist takes exactly " +
+      "the same path. Same shape as POST /api/v1/edit/projects/:projectId/agent above.",
+  },
 ];
 
 let store: ReturnType<typeof createMemorySessionStore>;
@@ -391,6 +471,8 @@ async function seedTenantA(): Promise<Seeds> {
   const { datasetStore } = await import("./datasets");
   const { legalStore } = await import("./legal/store");
   const { addMemory, addPastedSource } = await import("./knowledge");
+  const { channelStore } = await import("./channels/store");
+  const { meetingStore } = await import("./meeting/store");
   const { saveMedia } = await import("./media");
   const { listChatModels } = await import("@agentforge/core");
 
@@ -501,6 +583,17 @@ async function seedTenantA(): Promise<Seeds> {
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
     "base64",
   );
+  const channel = await step("channel", () =>
+    channelStore().create(tenantA, {
+      transport: "telegram",
+      chatTarget: "@tenant-a-harness",
+      chatId: "-1001234567890",
+      title: LEAK_MARKER,
+      chatType: "channel",
+    }),
+  );
+  const meeting = await step("meeting", () => meetingStore().create(tenantA, { title: LEAK_MARKER, locale: "en" }));
+
   const mediaRow = await step("media", () =>
     saveMedia(tenantA, new File([png], `${LEAK_MARKER}.png`, { type: "image/png" })),
   );
@@ -516,20 +609,44 @@ async function seedTenantA(): Promise<Seeds> {
     mediaId: mediaRow.id,
     datasetId: dataset.id,
     matterId: matter.id,
-    // No seed: `addFile` parses a real .docx, which is a fixture this suite does not need — the
-    // route's `:matterId` is tenant A's own matter, so the refusal under test still has a real
-    // owner to be foreign to. Recorded in docs/internal/web-phase3-lane-e.md §4.
-    docId: UNSEEDED_ID,
+    // No seed of its own. `addFile` assigns document ids sequentially inside a matter, so a real
+    // `:docId` would have to be created through tenant A's matter — and the only route that takes
+    // one, `DELETE …/files/:docId`, refuses on the `:matterId` first (handlers/legal.ts
+    // handleDeleteLegalMatterFile → removeFile, which loads the matter before reading its docs).
+    // So the `:matterId` in that path is tenant A's real matter and carries the refusal.
+    docId: "S1",
     runId,
     artifactId: artifact.id,
     memoryId: memory.id,
     sourceId: source.id,
     agentId: agent.agent.id,
+    channelId: channel.id,
+    meetingId: meeting.id,
   };
 }
 
 /** An id no row has. Used for a `:param` whose kind has no seed yet. */
 const UNSEEDED_ID = "00000000-0000-4000-8000-000000000000";
+
+/** A real .docx, so the Legal file route gets past its own "attach a file" 400. */
+function docxFixture(): HostFile {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const file = join(here, "../../core/src/docx/fixtures/original-term-sheet.docx");
+  return {
+    field: "file",
+    filename: "harness.docx",
+    mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    bytes: new Uint8Array(readFileSync(file)),
+  };
+}
+
+/**
+ * Bytes for the meeting recording route. `addRecording` looks the meeting up **before** it checks
+ * the file (`meeting/store.ts` addRecording), so the content only has to exist.
+ */
+function audioFixture(): HostFile {
+  return { field: "file", filename: "harness.m4a", mime: "audio/mp4", bytes: new Uint8Array(1024) };
+}
 
 /**
  * `mode: "foreign"` fills the path with tenant A's real ids — the call under test.
@@ -555,6 +672,7 @@ function requestFor(route: ByIdRoute, sessionId: string, mode: "foreign" | "ghos
     params: {},
     headers: { cookie: `agentforge_session=${sessionId}` },
     body: route.body,
+    files: route.files?.(),
   };
 }
 
