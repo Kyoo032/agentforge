@@ -264,7 +264,7 @@ Two integers on the project (`review: {lastAgentSeq, ackSeq}`) and one compariso
 - Closed gate → `EditCards` renders `edit-review-card` + `edit-review-ok`, and `edit-export` is
   disabled (`edit-studio.tsx:659`).
 - The host enforces it independently: `handlePostEditExport` answers `400 review_required` when
-  `reviewGateOpen` is false (`packages/host/src/handlers/edit.ts:408-410`).
+  `reviewGateOpen` is false (`packages/host/src/handlers/edit.ts:20-22`).
 
 ### 11. Generate
 
@@ -313,7 +313,7 @@ Every input and output path is checked against the allow-list for that tenant an
 (`editAllowlist({ tenantId, projectId })` = that tenant's media root + that project's scratch dir, plus the
 `denied` list that keeps the local tenant out of `tenants/`, `packages/host/src/edit/ffmpeg/paths.ts:63-69`).
 The job runner has no request to read a tenant from, so it reads one by project id through `workerTenantId`
-(`packages/host/src/edit/ops.ts:118-130`), the twin of lane A's `workerWorkspaceId`.
+(`packages/host/src/edit/ops.ts:97-109`), the twin of lane A's `workerWorkspaceId`.
 
 ### Failure modes
 
@@ -325,11 +325,11 @@ The job runner has no request to read a tenant from, so it reads one by project 
 | Unsupported / oversized upload | `assertEditUpload` (`handlers/edit.ts:598-605`) | `400 invalid_request` / `unsupported_content_type` |
 | ffmpeg cannot read the upload | probe catch (`handlers/edit.ts:257-270`) | `400 unsupported_media`, the saved file is unlinked |
 | `sourcePath` over HTTP | `handlers/edit.ts:214-217` | `400` — IPC only |
-| Op invalid (duplicate id, split outside the clip) | `applyOp` (`packages/core/src/edit/ops.ts:342-551`) | server side: the append throws, `jsonError` → 400. **Renderer side: uncaught, the studio unmounts** — see Gotchas |
+| Op invalid (duplicate id, split outside the clip) | `applyOp` (`packages/core/src/edit/ops.ts:336-545`) | server side: the append throws, `jsonError` → 400. **Renderer side: uncaught, the studio unmounts** — see Gotchas |
 | Project id from another desk | `foldProject(projectId, workspaceId)` | 404 before any work |
 | Job id from another project | `jobInProject` (`handlers/edit.ts:171-177`) | 404 |
 | Export before review | `handlePostEditExport` (`:419-421`) | `400 review_required` (the button is already disabled) |
-| ffmpeg render fails | `spawnFfmpeg` under `runFfmpeg` (`packages/host/src/edit/ffmpeg/run.ts:107-123`) | job `failed`, `error: "ffmpeg recipe failed"`, partial output unlinked. **Nothing at all in the UI** |
+| ffmpeg render fails | `spawnFfmpeg` under `runFfmpeg` (`packages/host/src/edit/ffmpeg/run.ts:42-84`) | job `failed`, `error: "ffmpeg recipe failed"`, partial output unlinked. **Nothing at all in the UI** |
 | ffmpeg times out / cancelled | same, `:116-121` | `ffmpeg_timeout` / `job_cancelled` |
 | Turn cap exceeded | `chargeTurnBudget` (`packages/host/src/edit/budget.ts:27-39`) | a refusal plus an `edit-plan-card`; no job is queued |
 | Export file requested early | `handleGetEditExportFile` (`:441-443`) | `404 not_found` "Export is not ready" |
@@ -386,9 +386,9 @@ The job runner has no request to read a tenant from, so it reads one by project 
   throws a duplicate-id / invalid-split error out of the React state updater, and `EditStudio`
   unmounts — the studio disappears until a reload. `commitOps` (`:235-259`) escapes this only because
   it assigns a plain value instead of an updater. **Treat as a finding, not a design** (see
-  `unreleased.md`). `foldApplied`'s `catch` (`apps/web/lib/edit-client.ts:219-228`) does not save you:
+  `unreleased.md`). `foldApplied`'s `catch` (`apps/web/lib/edit-client.ts:215-224`) does not save you:
   its fallback loop calls `applyOp` again and rethrows.
-- **`edit-parity-check` has no `onClick`** (`apps/web/components/edit-studio.tsx:652-654`). The Parity
+- **`edit-parity-check` has no `onClick`** (`apps/web/components/edit-studio.tsx:660-662`). The Parity
   button is inert; `POST …/parity` and `renderParityFrame` have no caller in `apps/web`.
 - **There is no `Ctrl+Z`.** The only keys the studio binds are Space/K, S, Delete/Backspace, J and L
   (`edit-studio.tsx:344-397`). Undo is `edit-card-undo`, and only on an agent card.
@@ -418,7 +418,7 @@ The job runner has no request to read a tenant from, so it reads one by project 
 - **The emit lock is unobservable on stub.** `onCard()` releases it (`apps/web/lib/use-emit-lock.ts:71-73`)
   and the stub emits `tool.started` and the card in the same tick, so `edit-emit-lock` never paints.
   Job-backed tools deliberately never take the lock at all (`use-emit-lock.ts:63-65`).
-- **`escapeFilterPath` under-escapes a Windows drive letter** (`packages/host/src/edit/ffmpeg/paths.ts:50-59`).
+- **`escapeFilterPath` under-escapes a Windows drive letter** (`packages/host/src/edit/ffmpeg/paths.ts:71-80`).
   It emits `C\:/…`, which ffmpeg unescapes once at the filtergraph level, leaving the option parser to
   split the path on its colon. Since `render()` always attaches an `.ass` file
   (`recipes.ts:225-228`, `:189-193`) — even with no captions and no titles — **every export on Windows

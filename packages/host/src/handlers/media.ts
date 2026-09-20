@@ -9,7 +9,7 @@ import { readByteRange } from "../byte-range";
 
 export async function handlePostMedia(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const file = request.files?.find((item) => item.field === "file") ?? request.files?.[0];
     if (!file) {
       return jsonOk({ error: { code: "invalid_content_part", message: "file is required" } }, 400);
@@ -24,7 +24,7 @@ export async function handlePostMedia(request: HostRequest): Promise<HostResult>
 
 export async function handleGetMediaFile(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const mediaId = request.params.mediaId;
     const rows = await db
       .select()

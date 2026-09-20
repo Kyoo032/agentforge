@@ -32,7 +32,7 @@ function readOptionalString(value: unknown): string | undefined {
 
 export async function handleGetMeetings(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     return jsonOk({
       items: meetingStore().list(tenant),
       // What this desk can actually do right now, so the studio can say "paste the transcript"
@@ -46,7 +46,7 @@ export async function handleGetMeetings(request: HostRequest): Promise<HostResul
 
 export async function handlePostMeetings(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const input = body(request);
     const title = readOptionalString(input.title);
     if (!title) {
@@ -64,7 +64,7 @@ export async function handlePostMeetings(request: HostRequest): Promise<HostResu
 
 export async function handleGetMeeting(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     return jsonOk(requireMeeting(tenant, request.params.meetingId ?? ""));
   } catch (error) {
     return jsonError(error);
@@ -73,7 +73,7 @@ export async function handleGetMeeting(request: HostRequest): Promise<HostResult
 
 export async function handleDeleteMeeting(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const removed = meetingStore().remove(tenant, request.params.meetingId ?? "");
     if (!removed) {
       throw new ApiError("not_found", "Meeting not found", 404);
@@ -90,7 +90,7 @@ export async function handleDeleteMeeting(request: HostRequest): Promise<HostRes
  */
 export async function handlePostMeetingRecording(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const file = request.files?.find((item) => item.field === "file") ?? request.files?.[0];
     if (!file) {
       throw new ApiError("invalid_content_part", "file is required", 400);
@@ -109,7 +109,7 @@ export async function handlePostMeetingRecording(request: HostRequest): Promise<
 /** A transcript the owner already has. No gateway involved, so no gate. */
 export async function handlePostMeetingTranscript(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const meetingId = request.params.meetingId ?? "";
     const input = body(request);
     const text = typeof input.text === "string" ? input.text.trim() : "";
@@ -134,7 +134,7 @@ export async function handlePostMeetingTranscript(request: HostRequest): Promise
 
 export async function handlePostMeetingTranscribe(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowedFor(tenant);
     const meetingId = request.params.meetingId ?? "";
@@ -150,7 +150,7 @@ export async function handlePostMeetingTranscribe(request: HostRequest): Promise
 
 export async function handlePostMeetingMinutes(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowedFor(tenant);
     const meetingId = request.params.meetingId ?? "";
@@ -169,7 +169,7 @@ export async function handlePostMeetingMinutes(request: HostRequest): Promise<Ho
 /** Upload to minutes in one stream: what the studio's single button calls. */
 export async function handlePostMeetingRunStream(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowedFor(tenant);
     const meetingId = request.params.meetingId ?? "";

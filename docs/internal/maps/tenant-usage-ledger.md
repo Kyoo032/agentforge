@@ -67,7 +67,7 @@ that keep their unit and quantity, which a later pass can price in place.
 |---|---|---|
 | chat | `recordChatRunUsage`, called from `packages/host/src/runs.ts:367` and `:417`, gated on `finishRun`'s return | tokens |
 | documents, presentations, research, data, finance, market, legal, knowledge | `rememberJobUsage` in the shared job runtime callback, `packages/host/src/job-regen.ts:145` | tokens |
-| edit agent | `rememberJobUsage`, `packages/host/src/edit/agent-run.ts:182` (live) and `:360` (stub) | tokens |
+| edit agent | `rememberJobUsage`, `packages/host/src/edit/agent-run.ts:19` (live) and `:360` (stub) | tokens |
 | images | `recordImageUsage`, `packages/host/src/studio-generate.ts:295` | images |
 | videos | `recordVideoUsage`, `packages/host/src/studio-generate.ts:363` | seconds |
 | music | `recordMusicUsage`, `packages/host/src/studio-generate.ts:471` (a song) and `:534` (a lyrics draft) | jobs |
@@ -116,7 +116,7 @@ bills 5 s for a 4 s request.
 | `packages/host/src/usage-record.ts` | Pricing at write time, and the seven entry points the modes call |
 | `packages/host/src/job-usage.ts` | `rememberJobUsage` — runtime event → tenanted row |
 | `packages/host/src/desk-usage.ts` | **Legacy, read-only.** The old untenanted `desk-usage.json`; nothing writes it any more |
-| `packages/host/src/account-usage.ts:43` | `deskRecords` — ledger rows plus any legacy file rows, for the account screen |
+| `packages/host/src/account-usage.ts:47` | `deskRecords` — ledger rows plus any legacy file rows, for the account screen |
 
 ## Gotchas
 
@@ -141,7 +141,7 @@ bills 5 s for a 4 s request.
   `media-pricing.ts`. The seconds are recorded regardless, so one row there closes every meeting
   already in the ledger once a repricing pass exists.
 - **The edit timeline's own worker jobs are not metered.** `defaultRunner`
-  (`packages/host/src/edit/jobs.ts:150`) runs the timeline's `asr`, `generate_image` and
+  (`packages/host/src/edit/jobs.ts:45`) runs the timeline's `asr`, `generate_image` and
   `generate_video` jobs from a worker that has a `workspaceId` but no `TenantContext`, so there is
   nothing to key a row on. The edit **agent** is metered; these three are the hole lane A left
   open, and closing it means threading a tenant through the edit job row.

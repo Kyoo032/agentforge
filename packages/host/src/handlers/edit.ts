@@ -102,7 +102,7 @@ export async function handleGetEditDoctor(request?: HostRequest): Promise<HostRe
 
 export async function handleGetEditProjects(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     return jsonOk({ items: await listEditProjects(tenant) });
   } catch (error) {
     return jsonError(error);
@@ -111,7 +111,7 @@ export async function handleGetEditProjects(request: HostRequest): Promise<HostR
 
 export async function handlePostEditProjects(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const body = asRecord(request.body);
     const project = await createEditProject(tenant, {
       name: typeof body.name === "string" ? body.name : undefined,
@@ -127,7 +127,7 @@ export async function handlePostEditProjects(request: HostRequest): Promise<Host
 
 export async function handleGetEditProject(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     return jsonOk(await getEditProjectBundle(tenant, request.params.projectId));
   } catch (error) {
     return jsonError(error);
@@ -136,7 +136,7 @@ export async function handleGetEditProject(request: HostRequest): Promise<HostRe
 
 export async function handlePostEditOps(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     await foldProject(request.params.projectId, tenant.workspaceId);
     const body = asRecord(request.body);
     const ops = Array.isArray(body.ops) ? body.ops : [];
@@ -166,7 +166,7 @@ export async function handlePostEditOps(request: HostRequest): Promise<HostResul
 
 export async function handlePostEditUndo(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Scope first: without it another desk's project id is enough to rewind this one.
     await foldProject(request.params.projectId, tenant.workspaceId);
     const body = asRecord(request.body);
@@ -182,7 +182,7 @@ export async function handlePostEditUndo(request: HostRequest): Promise<HostResu
 
 export async function handlePostEditKeep(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     await foldProject(request.params.projectId, tenant.workspaceId);
     return jsonOk(await keepCard(request.params.projectId, request.params.cardId, tenant.workspaceId));
   } catch (error) {
@@ -192,7 +192,7 @@ export async function handlePostEditKeep(request: HostRequest): Promise<HostResu
 
 export async function handlePostEditImport(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const projectId = request.params.projectId;
     const doc = await foldProject(projectId, tenant.workspaceId);
     const body = asRecord(request.body);
@@ -309,7 +309,7 @@ export async function handlePostEditImport(request: HostRequest): Promise<HostRe
 
 export async function handlePostEditAgent(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowedFor(tenant);
     const body = asRecord(request.body);
@@ -330,7 +330,7 @@ export async function handleGetEditEvents(request: HostRequest): Promise<HostRes
   const projectId = request.params.projectId;
   try {
     // The stream carries every op on the project, so the desk check belongs before the first frame.
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     await foldProject(projectId, tenant.workspaceId);
   } catch (error) {
     return jsonError(error);
@@ -364,7 +364,7 @@ export async function handleGetEditEvents(request: HostRequest): Promise<HostRes
 
 export async function handlePostEditJobs(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     await foldProject(request.params.projectId, tenant.workspaceId);
     const body = asRecord(request.body);
     const job = await enqueueEditJob(request.params.projectId, {
@@ -381,7 +381,7 @@ export async function handlePostEditJobs(request: HostRequest): Promise<HostResu
 
 export async function handleGetEditJob(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     await foldProject(request.params.projectId, tenant.workspaceId);
     return jsonOk(mapJob(await getEditJob(request.params.jobId, request.params.projectId)));
   } catch (error) {
@@ -391,7 +391,7 @@ export async function handleGetEditJob(request: HostRequest): Promise<HostResult
 
 export async function handlePostEditJobCancel(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     await foldProject(request.params.projectId, tenant.workspaceId);
     await getEditJob(request.params.jobId, request.params.projectId);
     return jsonOk(mapJob(await cancelEditJob(request.params.jobId, request.params.projectId)));
@@ -402,7 +402,7 @@ export async function handlePostEditJobCancel(request: HostRequest): Promise<Hos
 
 export async function handlePostEditExport(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const doc = await foldProject(request.params.projectId, tenant.workspaceId);
     if (!reviewGateOpen(doc.review)) {
       return jsonOk({ error: { code: "review_required", message: "Review the timeline before export" } }, 400);
@@ -422,7 +422,7 @@ export async function handlePostEditExport(request: HostRequest): Promise<HostRe
 
 export async function handleGetEditExportFile(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     await foldProject(request.params.projectId, tenant.workspaceId);
     const job = await getEditJob(request.params.jobId, request.params.projectId);
     const file = job.outputAssetIdsJson?.[0];
@@ -445,7 +445,7 @@ export async function handleGetEditExportFile(request: HostRequest): Promise<Hos
 
 export async function handlePostEditUnplacedPlace(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const projectId = request.params.projectId;
     const doc = await foldProject(projectId, tenant.workspaceId);
     const body = asRecord(request.body);
@@ -492,7 +492,7 @@ export async function handlePostEditUnplacedPlace(request: HostRequest): Promise
 
 export async function handlePostEditUnplacedDiscard(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const projectId = request.params.projectId;
     // Scope first, exactly as ...Place does: edit_unplaced carries only project_id, so without this
     // the item id alone would soft-delete and read back another desk's row.
@@ -513,7 +513,7 @@ export async function handlePostEditUnplacedDiscard(request: HostRequest): Promi
 
 export async function handlePostEditParity(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const body = asRecord(request.body);
     const frame = typeof body.frame === "number" ? body.frame : 0;
     const result = await renderParityFrame(request.params.projectId, frame, tenant);
@@ -537,7 +537,7 @@ export async function handleGetEditMetrics(request: HostRequest): Promise<HostRe
 
 export async function handlePostEditGenerate(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowedFor(tenant);
     const projectId = request.params.projectId;

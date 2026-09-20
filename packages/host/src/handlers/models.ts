@@ -12,7 +12,7 @@ import { loadSettings } from "../settings-store";
 
 export async function handleGetModels(request: HostRequest): Promise<HostResult> {
   try {
-    await getTenant(request.workspaceId);
+    await getTenant(request);
     const models = listSelectableModels();
     const catalog = modeCatalogPayload();
     return jsonOk({
@@ -28,7 +28,7 @@ export async function handleGetModels(request: HostRequest): Promise<HostResult>
 
 export async function handlePostModels(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Explicit refresh from the UI: also re-download the models.dev registry.
     const probe = await refreshModelCache(loadSettings(tenant), { forceRegistry: true });
     const models = listSelectableModels();

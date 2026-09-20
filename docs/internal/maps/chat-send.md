@@ -84,7 +84,7 @@ Fixed in `e93c617`. The composer toolbar's single-row `overflow-hidden` layout (
 
 | Failure | Where | What the client gets |
 |---|---|---|
-| Gate closed | `requireGatewayAllowed`, `packages/host/src/handlers/runs.ts:31` | HTTP 403, flat `{error:"gateway_blocked", status, message}`, no stream |
+| Gate closed | `requireGatewayAllowed`, `packages/host/src/handlers/runs.ts:4` | HTTP 403, flat `{error:"gateway_blocked", status, message}`, no stream |
 | Empty / invalid content | `parseTextRunInput` | HTTP 400, nested `{error:{code,message}}`, pre-stream |
 | Thread missing | `packages/host/src/runs.ts:140-142` | HTTP 404, pre-stream |
 | Upstream non-OK | `readHttpErrorBody` → `gatewayFailure` | retried up to 3 attempts with `run.probing` frames, then `run.failed` + `run.completed` |

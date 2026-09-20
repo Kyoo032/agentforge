@@ -63,6 +63,15 @@ onto a path themselves.
 | `isInside` | `:105` | plain containment, `path.relative` based, no string prefixes |
 | `isInsideTenantRoot` | `:117` | containment **minus** the denied roots — denials checked first |
 
+`resolveInsideTenantRoot` (`:172`) is the one to use when the path will actually be opened: it
+canonicalises both sides before comparing and hands back the path to open, so the caller opens what was
+checked rather than the link that was checked. `path.resolve` walks `..` but follows no symlinks, so the
+first cut of `mediaFilePath` and `datasets.filePath` were lexical — a link planted at
+`tenants/beta/<org>/link.png` pointing at another tenant's file passed. `edit/ffmpeg/paths.ts` already
+resolved and denied exactly that, so this is that rule shared rather than a new one. A path whose file
+*and* parent are both absent falls back to the lexical test, because there is nothing there to be a link;
+that is what keeps a missing row answering 404 instead of throwing.
+
 The validator is deliberately a whitelist rather than a blacklist: `..`, `/`, `\`, a drive letter and a NUL
 are all rejected by *not matching*, so there is no list of nasties to keep current.
 
@@ -135,10 +144,37 @@ local tenant's ffmpeg run cannot reach `meetings/tenants/<other>/…`.
 **`knowledge.ts` / `knowledge-reindex.ts`** — `uploadDir` is `tenantMediaRoot(tenant.tenantId)`.
 
 **Every gated route** — `requireGatewayAllowed(loadSettings(…))` became
-`requireGatewayAllowedFor(tenant)` across the handlers and generators. The last holdout was
-`handlers/enhance-prompt.ts:49`, which resolved the tenant, loaded its settings and then called the gate
-with no tenant at all; it now passes the tenant it already has. There are no bare-scope `loadSettings`,
-`saveSettings` or `requireGatewayAllowed` call sites left in `packages/host/src` outside the tests.
+`requireGatewayAllowedFor(tenant)` across the handlers and generators, including
+`handlers/enhance-prompt.ts`, which resolved the tenant, loaded its settings and then called the gate
+with no tenant at all.
+
+An earlier revision of this page claimed at this point that no bare-scope call sites were left. That was
+wrong, and the PR #80 verifier was right to fail it: ten remained, in the two modes that landed on `main`
+while this branch was open. **Meeting** (`handlers/meetings.ts`, `meeting/run.ts`, `meeting/transcribe.ts`)
+and **Telegram** (`handlers/channels.ts`) both called the settings store with `tenant.workspaceId`, so on a
+hosted server every gated Meeting route and both Telegram bot routes answered 500 `tenant_required`. On the
+desktop the same lines read the local tenant, which is the pre-Phase-3 behaviour, so nothing failed there
+and no test went red.
+
+They are swept now, and the claim is no longer made on trust: `tenant-state.test.ts` reads every
+non-test source under `packages/host/src` and fails if one hands `loadSettings` or `saveSettings` a
+workspace id, or calls `requireGatewayAllowed` without a tenant. `settings-store.ts` and `gateway-gate.ts`
+are exempt because they own the contract. The guard was confirmed red against the original
+`handlers/channels.ts` line before the fix. Two modes slipping through in one lane is the argument for
+testing the shape of the call rather than the behaviour of any one route — the next mode to land gets
+caught by the build, not by a verifier.
+
+**`channels/store.ts`** (Telegram, PR #67) — the desk directory is
+`tenantScopedRoot(rootDir, tenantId)/<workspaceId>/`. Desk ids are not unique across tenants, so keying
+on the desk alone meant two tenants that happened to share one read each other's bot identity, channel
+list, `getUpdates` offset and stored conversations — and every hosted tenant's channel files sat outside
+`tenants/<id>/`, against this lane's own rule. `dropWorkspace` takes the tenant too, so deleting a desk
+cannot reach into another tenant's tree.
+
+**`studio-media-meta.ts`** — `studio-meta.json` is per tenant. One file held every tenant's prompts,
+titles and styles, and two tenants generating at once read-modify-wrote over each other. No route ever
+read across tenants through it (the gallery starts from org-scoped media rows), but it is per-tenant
+content and it belongs in the per-tenant tree.
 
 **`handlers/settings.ts`** — the tenant is threaded through every gate and settings call, and `"tenants"`
 was added to `HOST_RESET_ENTRIES` so "Start over" on the desktop removes the directory if one was ever
@@ -173,6 +209,10 @@ resolve call, only what it passes downstream.
 - **`settings.enc` is still a file per tenant, not a row.** Spec Phase 4 owns per-tenant secrets and the
   data directory. This lane gives each tenant its own file at its own path, which is what Phase 4 needs as
   a starting point; it does not change the envelope, the key derivation or the backend.
+- **Four files stay machine-wide**, and should be looked at in Phase 4 and Phase 8 rather than
+  assumed done: `edit/metrics.ts` (`<data>/edit/metrics.jsonl`, which carries project, run and job ids),
+  `model-cache.ts`, `models-dev-cache.ts` and `workspace.ts`. The two caches are catalog data that is the
+  same for everyone on one gateway; the metrics file is the one with tenant content in it.
 - **No Lane E harness.** Out of scope by the brief.
 
 ## 6. Proof
@@ -198,6 +238,19 @@ leaves B's key standing; server mode refuses a bare desk id; two tenants hold `o
 verdicts in separate files; `clearGateState(A)` leaves B's verdict; the local verdict path is unchanged;
 the refresh throttle is keyed per tenant; desk usage is disjoint per tenant.
 
+Three more suites after the PR #80 verification round:
+
+`tenant-paths.test.ts` gained three symlink cases — a link under tenant A pointing at tenant B's file is
+lexically inside A and is still refused; a link pointing clean out of the media root is refused; and a path
+whose file and parent do not exist yet is allowed, which is the fallback that keeps a missing row answering
+404. `channels/store.test.ts` gained three cross-tenant cases: two tenants with the same desk id see neither
+each other's channels, bot nor offset; a hosted tenant's files land under `tenants/<id>/` while the local
+tenant's stay where a desktop install has them; and dropping a desk does not delete another tenant's desk of
+the same name.
+
+`tenant-state.test.ts` gained the sweep guard described in §3. It is the one that matters most, because it
+is the only test here that holds against code nobody has written yet.
+
 That covers the three cases the brief named — disjoint paths, no escape from the prefix, desktop unchanged —
 and the spec's four "done when" clauses.
 
@@ -205,16 +258,16 @@ Suite state on the merged branch:
 
 | Package | Result |
 |---|---|
-| `@agentforge/host` | 190 of 192 files, 1914 tests passed; **2 pre-existing failures** |
-| `@agentforge/core` | 2169 passed, 1 skipped |
-| `@agentforge/db` | 103 tests |
-| `apps/web` | 894 tests |
+| `@agentforge/host` | 201 files, **2069 tests, no failures** |
+| `@agentforge/core` | 2206 passed, 1 skipped |
+| `@agentforge/db` | 110 tests |
+| `apps/web` | 903 tests |
 
-The two host failures are the same two lane A recorded and are environmental, not caused by this change:
-`edit/ffmpeg-binary.test.ts` asserts a Windows `System32\where.exe` path, and `edit/import-ipc.test.ts`
-expects 201 and gets 400. Both fail identically on `main` in this container. One transient failure was seen
-once in `@agentforge/core` (`src/pdf/index.test.ts`, a worker-thread release under load); the core suite was
-re-run twice on this branch and passed both times.
+The two host failures every earlier lane recorded (`edit/ffmpeg-binary.test.ts` asserting a Windows
+`System32\where.exe` path, `edit/import-ipc.test.ts` expecting 201 and getting 400) are gone: PR #71 fixed
+them on `main`. This branch is the first lane with a clean host suite, which also means a host failure here
+is now this PR's and nobody else's. One transient failure was seen once in `@agentforge/core`
+(`src/pdf/index.test.ts`, a worker-thread release under load); the core suite was re-run and passed.
 
 Typecheck: `tsc -p packages/host` reports the **same 10 pre-existing errors** (in 4 places) on this branch
 as on `main` (`request-constraints.ts` `ReadableStreamReadResult`, `agent-run.ts` `StubFillScenario.args`,
@@ -234,7 +287,7 @@ restored afterwards and verified byte-identical to `main`; **the lockfile change
 ### Maps
 
 New page [`maps/tenant-storage.md`](maps/tenant-storage.md), registered in the maps `README.md`.
-Fifteen existing pages were touched, and all sixteen carry `Last verified: 2026-09-20 at a504555`.
+Fifteen existing pages were touched.
 
 Be precise about what that stamp claims here. On the pages this change actually alters —
 `tenant-storage`, `settings-and-gateway-gate`, `tenant-resolution`, `edit-timeline`,
@@ -244,12 +297,35 @@ lines were re-read. On the rest (`chat-send`, `documents`, `data-analysis`, `pre
 the `requireGatewayAllowed(loadSettings(…))` → `requireGatewayAllowedFor(tenant)` spelling, and only the
 gate lines were re-read, not every cite on the page.
 
-Four cites were already drifted on `main` and are corrected here as a side effect
-(`handlers/edit.ts:600-607` → `:598-605`, `handlers/media.ts:26-50` → `:25-49` on two pages,
-`knowledge-loop.tsx:156-316` → `:127-247`, `tenant.test.ts:44-57` → `:44-56`). A sweep of the
-1428 `file:line` cites across the touched pages found no others out of range. Three pages carried
-stale `(working tree)` suffixes on their verified line from when the work they describe was
-uncommitted; those are dropped.
+`node scripts/map-rot.mjs` on the final head: **0 hard, 124 soft**, against `main`'s 0 hard and 143 soft.
+Nothing this branch does breaks a citation, and **19 that were already drifted on `main` are re-anchored
+here** as a side effect of checking.
+
+Getting there took one correction. The PR #80 verifier found 3 hard citations on the branch and 0 on main,
+caused by two files (`knowledge-map.ts`, `handlers/workspaces.ts`) that this lane touched for one line each
+and that a `biome check --write` then reflowed wholesale, moving every symbol under them. Both are back to
+`main`'s formatting with only the real one-line change applied, and two more files that had been reflowed
+the same way (`research-generate.ts`, `edit/starter-media.ts`) are too. A lane that edits one line should
+show one line.
+
+### What the PR #80 verifier caught
+
+The first round of this lane failed verification, and the record should say why rather than read as if it
+passed first time. Five findings, all of them real:
+
+| | Finding | Where it is fixed |
+|---|---|---|
+| F1 | Every gated Meeting route 500s `tenant_required` for a hosted tenant | §3, the Meeting entries |
+| F2 | Telegram connect and disconnect the same | §3, `handlers/channels.ts` |
+| F3 | The channels store was not tenant-scoped at all | §3, `channels/store.ts` |
+| F4 | This page claimed a sweep that had not happened | §3, and the guard test that now proves it |
+| F5 | Three map citations broken by incidental reformatting | §Maps |
+
+F1 to F3 share one cause worth naming: Meeting and Telegram both merged to `main` while this branch was
+open, and a lane that sweeps call sites is only correct against the tree it started from. Two of the three
+were invisible to every test because the failure mode is hosted-only — on the desktop a bare desk id
+resolves to the local tenant and always has. The guard test in §3 is the answer to that, and the symlink
+cases and cross-tenant channel cases below are the answer to the two non-blocking findings.
 
 ### The verify skill
 

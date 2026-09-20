@@ -46,7 +46,7 @@ Note this path deliberately does **not** reuse `saveMedia` (`packages/host/src/m
 
 1. `resolveMeetingAsr()` first, so a desk with no recogniser is refused before ffmpeg burns CPU (`run.ts:150-159`).
 2. `extractMeetingAudio` (`packages/host/src/meeting/audio.ts:57`) decodes to mono 16 kHz 64 kbps mp3 and **segments at `CHUNK_SECONDS` = 600**, about 4.8 MB a chunk, which every transcription route accepts in one request base64-inflated. `MAX_CHUNKS` = 36 caps a pathological file at six hours. This is its own recipe rather than Edit's `extractAudio` because that one resolves paths against Edit's project allowlist (`packages/host/src/edit/ffmpeg/paths.ts:44-46`) and cannot read the meeting store; the ffmpeg runner and the path guard are the shared ones.
-3. `transcribeChunks` (`packages/host/src/meeting/transcribe.ts:193`) posts each chunk in order, emitting a `job.step` per chunk.
+3. `transcribeChunks` (`packages/host/src/meeting/transcribe.ts:197`) posts each chunk in order, emitting a `job.step` per chunk.
 4. The chunks are deleted in a `finally` (`run.ts:180-184`) — they are a cache of a recording that is still on disk.
 
 An empty chunk is logged and skipped, but an empty *transcript* is a hard `transcription_empty` (`run.ts:175-177`). That is deliberately unlike `edit/asr.ts:65-82`, which drops a failed chunk silently and returns whatever is left.

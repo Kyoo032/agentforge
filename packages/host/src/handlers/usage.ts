@@ -7,7 +7,7 @@ import { loadRangeUsage } from "../account-usage";
 
 export async function handleGetUsage(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const range = parseUsageRange(request.query.range);
     return jsonOk(await loadRangeUsage(loadSettings(tenant), tenant, range));
   } catch (error) {

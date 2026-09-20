@@ -65,7 +65,7 @@ async function reportFromArtifact(
   artifactId: string,
   body: ExportRequest,
 ): Promise<ResolvedReport> {
-  const tenant: TenantContext = await getTenant(request.workspaceId);
+  const tenant: TenantContext = await getTenant(request);
   const artifact = requireArtifact(tenant, artifactId);
   if (artifact.mode !== "finance") {
     throw new ApiError("invalid_request", "That artifact is not a finance brief", 400);

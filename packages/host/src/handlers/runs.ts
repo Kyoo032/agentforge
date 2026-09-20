@@ -25,7 +25,7 @@ async function asStream(events: AsyncIterable<string>): Promise<HostResult> {
 
 export async function handleRun(request: HostRequest, modality: InputModality): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowedFor(tenant);
     return await asStream(

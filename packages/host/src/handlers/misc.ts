@@ -20,7 +20,7 @@ import { localePayload } from "../locale-boot";
 
 export async function handleGetTools(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     ensureToolsRegistered();
     const routes = listToolRoutes(loadSettings(tenant));
     return jsonOk({
@@ -40,7 +40,7 @@ export async function handleGetTools(request: HostRequest): Promise<HostResult> 
 
 export async function handleGetContext(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const [organization] = await db
       .select()
       .from(organizations)
@@ -55,7 +55,7 @@ export async function handleGetContext(request: HostRequest): Promise<HostResult
 
 export async function handleGetTemplates(request: HostRequest): Promise<HostResult> {
   try {
-    await getTenant(request.workspaceId);
+    await getTenant(request);
     return jsonOk({
       packs: [defaultAgentPack, ...agentPacks, ...marketingAgentPacks, ...legalAgentPacks],
     });
@@ -66,7 +66,7 @@ export async function handleGetTemplates(request: HostRequest): Promise<HostResu
 
 export async function handleGetOrganizations(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const [organization] = await db
       .select()
       .from(organizations)

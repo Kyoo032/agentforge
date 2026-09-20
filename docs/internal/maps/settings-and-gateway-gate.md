@@ -171,7 +171,7 @@ forward only for the same fingerprint (`:475`), persists, and — when the verdi
 answers `status: "error"` with `allowed` untouched (`:488-492`).
 
 It runs on a key save (`refreshGatewayGateAfterSave` → `runGatewayCheck`,
-`packages/host/src/handlers/settings.ts:242-257`, with `gateVerdictFor` at `:230-239` deciding which verdict the
+`packages/host/src/handlers/settings.ts:270-285`, with `gateVerdictFor` at `:230-239` deciding which verdict the
 save response carries) and on `POST /api/v1/settings/gateway/check` (`handleGatewayCheck`, `:258-266`, route at
 `packages/host/src/router.ts:216`). Separately, `maybeRefreshGateway` (`packages/host/src/gateway-gate.ts:527-557`)
 fires an un-awaited check at most once per key per 10 minutes from `handleGetSettings` — that is what turns
@@ -250,7 +250,7 @@ models-cache.json  models-dev-cache.json  components  logs
 ```
 
 plus, always, `SQLITE_ENTRIES` — `agentforge.sqlite`, `-wal`, `-shm` (`packages/db/src/reset.ts:29`), which
-`applyPendingDataReset` unions onto the marker's own list at `packages/db/src/reset.ts:270` ("the SQLite trio is
+`applyPendingDataReset` unions onto the marker's own list at `packages/db/src/reset.ts:194` ("the SQLite trio is
 added by `applyPendingDataReset`, because `@agentforge/db` owns it",
 `packages/host/src/handlers/settings.ts:272-273`), and, when `DATABASE_URL` points out of tree, that trio by
 absolute path (`packages/db/src/reset.ts:188-242`). Pinned exactly by
@@ -320,7 +320,7 @@ installing an update or already exiting), races `clearRendererState()` — `clea
   verdict both derive as `ok` + `grace:true`; only `message: "Not checked yet."` and `checkedAt === null` reveal
   there is no real verdict. Do not read `status` alone as "we asked and it worked".
 - **A stub desk's status row carries no timestamp.** `settings-gateway-status` renders the status word, then
-  `Last checked` **only when `checkedAt` is non-null** (`apps/web/components/settings-page.tsx:344-357`). On
+  `Last checked` **only when `checkedAt` is non-null** (`apps/web/components/settings-page.tsx:83-96`). On
   `stub`, `needs_key` and never-checked desks the row is just the word and the Re-check link — driven on the
   owner's desk on 2026-09-17, where it read "Demo luring · Periksa ulang".
 - **`invalid_key` is the only status with zero grace**, however recently the key worked. A rejection is an
@@ -350,7 +350,7 @@ installing an update or already exiting), races `clearRendererState()` — `clea
 - **`app.relaunch()` / `app.exit(0)`, not the Windows `taskkill /T` path**, because Electron's relauncher is a
   detached child that the tree-walk would kill (`apps/desktop/main.cjs:203-207`).
 - **`POST /api/v1/settings/reset` also requires the transport header.** It is in `TRANSPORT_REQUIRED_PATHS`
-  (`packages/host/src/http-adapter.ts:32`) on top of the loopback `Host` and `Origin` checks, so a cross-site
+  (`packages/host/src/http-adapter.ts:3`) on top of the loopback `Host` and `Origin` checks, so a cross-site
   HTML form POST cannot reach it. The IPC-only transport and the loopback-only `Host` / `Origin` allowlist are
   **(desktop, frozen)**: on the hosted web app the same host gate runs behind the HTTP adapter
   (`packages/host/src/http-adapter.ts:534-563`). The loopback check **became** a trusted-origin allowlist plus a

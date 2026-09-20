@@ -21,7 +21,7 @@ type TenantHandler = (tenant: TenantContext, request: HostRequest) => Promise<Ho
 /** Shared shape of every legal handler: resolve the tenant, run, and map errors to JSON. */
 async function withTenant(request: HostRequest, run: TenantHandler): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     return await run(tenant, request);
   } catch (error) {
     return jsonError(error);

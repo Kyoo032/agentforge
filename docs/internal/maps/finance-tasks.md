@@ -61,7 +61,7 @@ The authoring contract is `packages/core/src/finance/tasks/README.md`: seven fil
 
 ### 4. Parse: one route, five hooks, and mostly no model at all
 
-`handlePostFinanceParse` dispatches through `financeTaskParser(task)` (`packages/host/src/handlers/finance.ts:55`). Each hook turns free text — or an imported sheet's figures text — into the confirmed input its schema accepts, and every one of them redacts what it answers with:
+`handlePostFinanceParse` dispatches through `financeTaskParser(task)` (`packages/host/src/handlers/finance.ts:48`). Each hook turns free text — or an imported sheet's figures text — into the confirmed input its schema accepts, and every one of them redacts what it answers with:
 
 - **brief** — `parse-brief.ts`, the line-item read unchanged (`:2-5`). Table first, model only for categories; prose falls through to `PARSE_SYSTEM`. Calls `requireLive`.
 - **cashflow** — `parse-cashflow.ts`, fully deterministic (`:4-7`): which columns are months, which rows are totals, what the opening balance was are all already in the importer's text, so `cellValue` transcribes every amount. It answers one cash-in and one cash-out per period, the financing, the opening balance and each category's cost behaviour, for the owner to confirm (`:9-12`).

@@ -49,7 +49,7 @@ On a hit it **does not strip or sanitize**. It refuses to index and writes a `Fa
 
 **The bypass** is the `injectionGuardBypass` boolean on `StoredSecrets` (`packages/core/src/secrets.ts:32`, `:87`), set through `POST /api/v1/settings` (`packages/host/src/handlers/settings.ts:162`), persisted per workspace in the encrypted settings file, read back at `packages/host/src/knowledge.ts:408-414` and `knowledge-ingest.ts:94-100`. When true the scan is skipped outright — `bypass ? null : scanInjection(...)`.
 
-Source **names** get the same treatment, deliberately: an upload filename or a remote `<title>` is attacker-controlled the same way body text is, so `sanitizeSourceName` runs at index time and again at render time (`packages/host/src/knowledge.ts:358-365`, `:852-856`).
+Source **names** get the same treatment, deliberately: an upload filename or a remote `<title>` is attacker-controlled the same way body text is, so `sanitizeSourceName` runs at index time and again at render time (`packages/host/src/knowledge.ts:17-24`, `:852-856`).
 
 ### Chunk, store, embed
 
@@ -59,7 +59,7 @@ Source **names** get the same treatment, deliberately: an upload filename or a r
 
 Then `indexThroughBackend` → `indexSourceVectors` (`packages/host/src/knowledge-embed.ts:149`) → `embedTextsWithModel` (`:95`), which POSTs to `${pinnedBase}/embeddings` in batches of 16 (`EMBED_BATCH`, `:16`). The endpoint is pinned the same way chat is: `resolveProviderKeys(settings).openaiBaseUrl` always returns `resolvedGatewayBaseUrl()`, so an owner-edited endpoint is silently ignored for embeddings (`packages/host/src/knowledge-embed.ts:62-64`, `packages/core/src/secrets.ts:313-314`).
 
-Vectors go to `knowledge_vectors` with the embedding stored as a **JSON-stringified `number[]`** (`packages/host/src/knowledge-embed.ts:192`, `:319`) — no vector column type, no ANN index.
+Vectors go to `knowledge_vectors` with the embedding stored as a **JSON-stringified `number[]`** (`packages/host/src/knowledge-embed.ts:152`, `:319`) — no vector column type, no ANN index.
 
 ### Retrieve and inject
 
@@ -73,7 +73,7 @@ Afterwards, on a *completed* run only: `recordRetrievals` (`packages/host/src/kn
 
 Two different things share the word "reindex":
 
-- **`reindexSource` / `reindexWorkspace`** (`packages/host/src/knowledge-reindex.ts:275`, `:313`) — explicit, re-reads the source body, **re-chunks** (so it picks up chunker changes), rewrites FTS and vectors. Routes `POST /knowledge/sources/:id/reindex` and `POST /knowledge/reindex`.
+- **`reindexSource` / `reindexWorkspace`** (`packages/host/src/knowledge-reindex.ts:270-308`, `:313`) — explicit, re-reads the source body, **re-chunks** (so it picks up chunker changes), rewrites FTS and vectors. Routes `POST /knowledge/sources/:id/reindex` and `POST /knowledge/reindex`.
 - **`reembedWorkspaceChunks`** (`packages/host/src/knowledge-embed.ts:212`) — implicit, runs at the start of **every** "Map knowledge" click (`packages/host/src/knowledge-map.ts:104`). Re-embeds the existing chunk rows under the current embedding model and deliberately does **not** re-chunk (`packages/host/src/knowledge-reindex.ts:16-18`).
 
 `runKnowledgeSelfCheck` (`packages/host/src/knowledge-verify.ts:129`) plants a token source, retrieves it, deletes it, and records one row per workspace. Throttled to once per 10 s.

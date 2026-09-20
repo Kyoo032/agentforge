@@ -13,6 +13,7 @@
  *      value is replaced by `DROPPED_MARKER` so the shape of the line still shows it was there.
  * The call site can still be careless; the logger stays the floor.
  */
+import { AsyncLocalStorage } from "node:async_hooks";
 import { redactSecrets } from "@agentforge/core";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
@@ -224,7 +225,10 @@ export function createLogger(options: LoggerOptions = {}): Logger {
     if (LEVEL_RANK[level] < threshold) {
       return;
     }
-    sink(level, lineFor(level, event, fields ? { ...base, ...fields } : base));
+    // Widest scope first: the ambient request context (below), then the logger's own bound fields
+    // from `child`, then the call site's, which still wins over both exactly as it did before the
+    // ambient layer existed.
+    sink(level, lineFor(level, event, { ...currentLogContext(), ...base, ...fields }));
   };
 
   return {
@@ -236,5 +240,32 @@ export function createLogger(options: LoggerOptions = {}): Logger {
   };
 }
 
-/** The host's logger. Prefer `log.child({ tenantId, requestId })` inside a request. */
+/**
+ * Fields stamped on every line written while a request is being handled.
+ *
+ * Phase 3 lane E, security spec row L1. `dispatch` (`./router.ts`) opens this around the handler
+ * with the **verified session's** tenant id, so every line that handler or anything it awaits
+ * writes names the tenant it was written for, without 300 call sites having to thread a logger.
+ * The id is the session's own and never the client-supplied workspace cookie, so a line can be
+ * trusted to say who the work was actually done for.
+ *
+ * Off server mode nothing opens the store, so the desktop's and webdev's lines are byte-identical
+ * to what they were: there is one tenant there, and naming it on every line says nothing.
+ *
+ * The same async-local idiom as `./tenant-scope.ts`, with the same limit — work that outlives its
+ * request loses the context, which is correct, because it is no longer that request's work.
+ */
+const logContext = new AsyncLocalStorage<LogFields>();
+
+/** Run `fn` with `fields` stamped on every line it, and everything it awaits, writes. */
+export function withLogContext<T>(fields: LogFields, fn: () => Promise<T>): Promise<T> {
+  return logContext.run({ ...logContext.getStore(), ...fields }, fn);
+}
+
+/** The ambient request fields, or an empty object outside a request. */
+export function currentLogContext(): LogFields {
+  return logContext.getStore() ?? {};
+}
+
+/** The host's logger. Every line inside a request also carries `withLogContext`'s fields. */
 export const log: Logger = createLogger();

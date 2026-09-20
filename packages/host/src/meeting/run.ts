@@ -281,8 +281,11 @@ export async function generateMinutes(
   options: { emit?: JobEmitter; abortSignal?: AbortSignal; model?: string; translate?: boolean } = {},
 ): Promise<MeetingRecord> {
   const emit = options.emit ?? NO_EMIT;
-  requireLiveMeetingRuntime(tenant);
+  // Ownership before the runtime gate: a meeting that is not this tenant's is refused the same way
+  // whether or not the desk has a key, so a keyless desk cannot be used to probe another tenant's
+  // ids, and the tenancy harness reaches this check under the stub runtime.
   const meeting = requireMeeting(tenant, meetingId);
+  requireLiveMeetingRuntime(tenant);
   if (!meeting.transcript) {
     throw new ApiError("invalid_request", "Transcribe the recording, or paste a transcript, first", 400);
   }
@@ -355,8 +358,9 @@ export async function runMeeting(
   meetingId: string,
   options: { emit?: JobEmitter; abortSignal?: AbortSignal; model?: string; translate?: boolean } = {},
 ): Promise<MeetingRecord> {
-  requireLiveMeetingRuntime(tenant);
+  // Ownership first, as in `generateMinutes` above.
   const meeting = requireMeeting(tenant, meetingId);
+  requireLiveMeetingRuntime(tenant);
   if (!meeting.transcript && meeting.recording) {
     await transcribeMeeting(tenant, meetingId, { emit: options.emit, abortSignal: options.abortSignal });
   }

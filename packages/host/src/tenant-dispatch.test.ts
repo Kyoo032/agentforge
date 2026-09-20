@@ -1,9 +1,9 @@
 /**
  * Phase 3 lane C at the `dispatch` seam (packages/host/src/router.ts): the verified session is put
  * in async-local storage around the handler, so a handler that still calls
- * `getTenant(request.workspaceId)` — all 102 of them until lane E sweeps the call sites — resolves
- * the session's tenant and not the local owner. And a workspace cookie naming a desk the session's
- * tenant does not own answers 404 **and** clears the cookie.
+ * `getTenant(request.workspaceId)` — the pre-lane-E shape, swept out of the handlers now but kept
+ * here deliberately — still resolves the session's tenant and not the local owner. And a workspace
+ * cookie naming a desk the session's tenant does not own answers 404 **and** clears the cookie.
  *
  * `GET /api/v1/tools` stands in for any gated route; the stub calls `getTenant` the way a real
  * handler does, so what the router set up around it is visible without a real handler's payload.

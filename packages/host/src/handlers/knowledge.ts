@@ -121,7 +121,7 @@ function artifactModeToWork(mode: string): ArtifactWorkType | null {
 
 export async function handleGetKnowledge(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     return jsonOk({
       soul: getSoul(tenant),
       memories: listMemories(tenant),
@@ -155,7 +155,7 @@ function drainOnRead(_tenant: { workspaceId: string }): void {
 /** Builtin retrieval engine. `400` if a sidecar id is sent. */
 export async function handlePutKnowledgeBackend(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     return jsonOk(await selectKnowledgeBackend(tenant, parseBackendId(request.body)));
   } catch (error) {
     return jsonError(error);
@@ -169,7 +169,7 @@ export async function handlePutKnowledgeBackend(request: HostRequest): Promise<H
  */
 export async function handlePostKnowledgeBackendReindex(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowedFor(tenant);
     return jsonOk(await reindexWorkspace(tenant));
@@ -186,7 +186,7 @@ export async function handlePostKnowledgeBackendReindex(request: HostRequest): P
  */
 export async function handlePostKnowledgeSourceReindex(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowedFor(tenant);
     const outcome = await reindexSource(tenant, request.params.sourceId);
@@ -202,7 +202,7 @@ export async function handlePostKnowledgeSourceReindex(request: HostRequest): Pr
 /** Re-index every `Indexed` source of one workspace; answers with the per-source outcomes. */
 export async function handlePostKnowledgeReindex(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowedFor(tenant);
     return jsonOk(await reindexWorkspace(tenant));
@@ -214,7 +214,7 @@ export async function handlePostKnowledgeReindex(request: HostRequest): Promise<
 /** The knowledge graph for drawing: highest-degree nodes first, edges wholly inside that set. */
 export async function handleGetKnowledgeGraph(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const raw = typeof request.query.limit === "string" ? Number.parseInt(request.query.limit, 10) : Number.NaN;
     const limit = Number.isFinite(raw) && raw > 0 ? raw : undefined;
     return jsonOk(getGraph(tenant, { limit }));
@@ -248,7 +248,7 @@ export function throttledSelfCheck(recent: KnowledgeVerifyRecord | null, now: nu
  */
 export async function handlePostKnowledgeVerify(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowedFor(tenant);
     const recent = throttledSelfCheck(getKnowledgeVerify(tenant), Date.now());
@@ -263,7 +263,7 @@ export async function handlePostKnowledgeVerify(request: HostRequest): Promise<H
 
 export async function handlePutKnowledgeModels(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const body = (request.body ?? {}) as {
       embeddingModel?: unknown;
       brainModel?: unknown;
@@ -283,7 +283,7 @@ export async function handlePutKnowledgeModels(request: HostRequest): Promise<Ho
 
 export async function handlePostKnowledgeMap(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowedFor(tenant);
     const body = (request.body ?? {}) as {
@@ -305,7 +305,7 @@ export async function handlePostKnowledgeMap(request: HostRequest): Promise<Host
 
 export async function handleGetKnowledgeContext(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowedFor(tenant);
     const query = typeof request.query.query === "string" ? request.query.query : "";
@@ -322,7 +322,7 @@ export async function handleGetKnowledgeContext(request: HostRequest): Promise<H
 
 export async function handlePutKnowledgeSoul(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const body = (request.body ?? {}) as { name?: unknown; role?: unknown; voice?: unknown; rules?: unknown };
     const rules = Array.isArray(body.rules)
       ? body.rules.filter((item): item is string => typeof item === "string")
@@ -342,7 +342,7 @@ export async function handlePutKnowledgeSoul(request: HostRequest): Promise<Host
 
 export async function handlePostKnowledgeMemory(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     const body = (request.body ?? {}) as { text?: unknown; pinned?: unknown };
     if (typeof body.text !== "string") {
       throw new ApiError("invalid_request", "text is required", 400);
@@ -355,7 +355,7 @@ export async function handlePostKnowledgeMemory(request: HostRequest): Promise<H
 
 export async function handleDeleteKnowledgeMemory(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     deleteMemory(tenant, request.params.memoryId);
     return jsonOk({ ok: true });
   } catch (error) {
@@ -365,7 +365,7 @@ export async function handleDeleteKnowledgeMemory(request: HostRequest): Promise
 
 export async function handlePostKnowledgeSource(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowedFor(tenant);
     const file = request.files?.find((item) => item.field === "file") ?? request.files?.[0];
@@ -398,7 +398,7 @@ export async function handlePostKnowledgeSource(request: HostRequest): Promise<H
 
 export async function handlePostKnowledgeSourceUrl(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
     requireGatewayAllowedFor(tenant);
     const url = request.body && typeof request.body === "object" ? (request.body as { url?: unknown }).url : undefined;
@@ -413,7 +413,7 @@ export async function handlePostKnowledgeSourceUrl(request: HostRequest): Promis
 
 export async function handleDeleteKnowledgeSource(request: HostRequest): Promise<HostResult> {
   try {
-    const tenant = await getTenant(request.workspaceId);
+    const tenant = await getTenant(request);
     deleteSource(tenant, request.params.sourceId);
     return jsonOk({ ok: true });
   } catch (error) {
