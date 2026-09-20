@@ -8,7 +8,7 @@ export async function seedEditProject(name = "Edit test") {
   return { tenant, project };
 }
 
-export async function addReadyClip(projectId: string, clipId = crypto.randomUUID()) {
+export async function addReadyClip(projectId: string, workspaceId: string, clipId: string = crypto.randomUUID()) {
   const assetId = crypto.randomUUID();
   await appendOps(
     projectId,
@@ -33,7 +33,7 @@ export async function addReadyClip(projectId: string, clipId = crypto.randomUUID
         },
       },
     ],
-    { actor: "owner" },
+    { actor: "owner", workspaceId },
   );
-  return { clipId, assetId, doc: await foldProject(projectId) };
+  return { clipId, assetId, doc: await foldProject(projectId, workspaceId) };
 }

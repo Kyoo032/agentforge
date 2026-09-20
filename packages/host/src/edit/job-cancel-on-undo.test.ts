@@ -14,7 +14,7 @@ describe("job cancel on undo (G-08)", () => {
 
   it("cancels a pending job when the card is undone", async () => {
     const { project } = await seedEditProject("undo-job");
-    await addReadyClip(project.id, "clip-job");
+    await addReadyClip(project.id, project.workspaceId, "clip-job");
     const cardId = crypto.randomUUID();
     await db.insert(editCards).values({
       id: cardId,
@@ -47,10 +47,10 @@ describe("job cancel on undo (G-08)", () => {
     await appendOps(
       project.id,
       [{ type: "set_clip_status", payload: { clipId: "clip-job", status: "pending", jobId: job.id }, cardId }],
-      { actor: "agent:run-job", cardId },
+      { actor: "agent:run-job", cardId, workspaceId: project.workspaceId },
     );
-    await undoCard(project.id, cardId);
-    const cancelled = await getEditJob(job.id);
+    await undoCard(project.id, cardId, project.workspaceId);
+    const cancelled = await getEditJob(job.id, project.id);
     expect(cancelled.status).toBe("cancelled");
   });
 });
