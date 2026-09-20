@@ -1,5 +1,6 @@
 import { DEFAULT_APP_LOCALE, parseAppLocale, type AppLocale } from "@agentforge/core/locale";
 import enAuth from "../locales/en/auth.json";
+import enChannels from "../locales/en/channels.json";
 import enChat from "../locales/en/chat.json";
 import enCommon from "../locales/en/common.json";
 import enData from "../locales/en/data.json";
@@ -20,6 +21,7 @@ import enUsage from "../locales/en/usage.json";
 import enVideos from "../locales/en/videos.json";
 import enWorkspaces from "../locales/en/workspaces.json";
 import idAuth from "../locales/id/auth.json";
+import idChannels from "../locales/id/channels.json";
 import idChat from "../locales/id/chat.json";
 import idCommon from "../locales/id/common.json";
 import idData from "../locales/id/data.json";
@@ -55,6 +57,7 @@ const NAMESPACES = [
   "knowledge",
   "workspaces",
   "usage",
+  "channels",
   "market",
   "data",
   "finance",
@@ -79,6 +82,7 @@ const catalogs: Record<AppLocale, Record<Namespace, MessageTree>> = {
     music: enMusic,
     presentation: enPresentation,
     knowledge: enKnowledge,
+    channels: enChannels,
     workspaces: enWorkspaces,
     usage: enUsage,
     market: enMarket,
@@ -101,6 +105,7 @@ const catalogs: Record<AppLocale, Record<Namespace, MessageTree>> = {
     music: idMusic,
     presentation: idPresentation,
     knowledge: idKnowledge,
+    channels: idChannels,
     workspaces: idWorkspaces,
     usage: idUsage,
     market: idMarket,

@@ -44,6 +44,7 @@ Rules that keep these honest:
 
 | Page | Subsystem | Verified by |
 |---|---|---|
+| [`channels.md`](channels.md) | Channels: Telegram bot token, desk channel store, send and poll, pinned egress | `features/channels.md` |
 | [`chat-send.md`](chat-send.md) | Chat send: composer → transport → run route → runtime → SSE → rendered message | `features/chat.md` |
 | [`settings-and-gateway-gate.md`](settings-and-gateway-gate.md) | Per-desk settings, the host gateway gate, Start over, key pinning | `features/settings.md`, `features/gateway-gate.md` |
 | [`locale-boot-and-run-harness.md`](locale-boot-and-run-harness.md) | App locale freeze + restart, and how `id` reaches the model | `features/settings.md`, `features/locale.md` |
