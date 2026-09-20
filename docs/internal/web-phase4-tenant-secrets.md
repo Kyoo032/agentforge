@@ -143,9 +143,22 @@ cannot reintroduce the fallback by omission. Every site above goes through it, a
   operator's key while the call it gated used the same one.
 - `edit/asr.ts` asks `resolveProviderKeys` which bearer pays, the way `meeting/transcribe.ts`
   already did, rather than reaching past it.
+- `packages/core/src/tools/secret-scope.ts` — the fifth, found by the verifier after the four above
+  were closed, and the one that proves the point. `getSecret(name)` fell back to
+  `process.env[name]`: a **dynamic** index, so the sweep written for the other four could not see
+  it, and a grep for `OPENAI_API_KEY` never would have either. The scope it falls back from is the
+  tenant's; the environment underneath is the operator's, so on a hosted box a tenant's run picked
+  up the operator's `TAVILY_API_KEY`, `BRAVE_SEARCH_API_KEY` or `FAL_KEY` by asking for it by name.
+  The gateway half of that was unreachable in practice — route checks and the stub runtime — but the
+  search half was **live for any hosted tenant with web search bound**.
 - `packages/core/src/provider-env-sweep.test.ts` greps both packages and fails on any shipped source
-  outside `server-mode.ts` that reads one of these variables off `process.env`. Reviewing the four
-  sites was not the fix; the fix is that a fifth cannot appear unnoticed. The sweep carries its own
+  outside `server-mode.ts` that reads one of these variables off `process.env`. Reviewing the sites
+  found is never the fix; the fix is that the next one cannot appear unnoticed. It now covers three
+  shapes, because the mistake had three: a named read, a **dynamic** `process.env[…]` index, and
+  destructuring a credential out of `process.env`. The dynamic rule has an allowlist of two entries
+  (`gateway.ts`'s `envTrim`, `edit/ffmpeg-binary.ts`'s `resolveNamed`), and an exception does not
+  merely get named — a case reads each one's call sites and asserts every name it can be called
+  with is an `AGENTFORGE_*` configuration variable, never a credential. The sweep carries its own
   bait case, so an empty result means it looked.
 - A hosted tenant with no key of its own gets `needs_key` and sees onboarding. **That is the
   intended state**, not a misconfiguration, and it is what the plan's "two tenants each paste their
@@ -157,6 +170,20 @@ cannot reintroduce the fallback by omission. Every site above goes through it, a
 are commented out in the example and `compose.yml` passes none — so no deployment changes behaviour;
 what changes is that following the runbook can no longer produce a server where one tenant spends
 the operator's credit.
+
+**A consequence to schedule, not a defect here.** Closing the tool-key fallback closes the only
+route a hosted tenant had to web search or FAL. Tool-key *writes* are refused in server mode
+(`requestsOperatorOnlySettings` treats `toolKeys` and `toolBackends` as operator-owned — A01-3's
+other half), and the deploy runbook never lists `TAVILY_API_KEY`, `BRAVE_SEARCH_API_KEY` or
+`FAL_KEY`, so after this change **a hosted tenant cannot obtain one at all**: not by saving it, and
+no longer by borrowing the operator's. That is the right end state for a credential nobody could
+attribute or meter, and the wrong end state for the feature. What is needed is an
+operator-provided tool-key path — a key the operator supplies *per tenant*, or a server-side
+brokered search the host calls on the tenant's behalf and meters like any other gateway call. It is
+a phase's worth of design (plan, billing, quota), so it is in §10 as an open item rather than
+improvised here. Until it lands, hosted web search and FAL are off, and they should be described
+that way rather than appearing broken. Desks and webdev are unaffected: BYOK in Settings Extras and
+the environment fallback both still work there.
 
 **One thing loosened rather than tightened.** `DELETE /api/v1/settings/reset` with `scope: "key"`
 was a 403 in server mode, and the reason was true when it was written: `clearGatewayKeyEverywhere`
@@ -352,7 +379,7 @@ quietly.
 
 Three new suites, 42 tests. Everything below was run in this container.
 
-`packages/host/src/tenant-secrets.test.ts` (20) — the phase's own "done when", against the backend
+`packages/host/src/tenant-secrets.test.ts` (21) — the phase's own "done when", against the backend
 that actually serves a hosted tenant. Two tenants save different keys and each reads its own, as
 **rows**, with `readdirSync(dataDir)` asserted empty — not "the right files", *no* files. The stored
 row is asserted not to contain the key or the string `openaiApiKey`, and to parse as the
@@ -366,7 +393,13 @@ cases assert the exact lane D paths and **zero rows**. The operator-key cases dr
 under `AGENTFORGE_RUNTIME=ai` with `OPENAI_API_KEY` set. One of them drives the Edit ASR hole
 directly — hosted tenant with no key of its own, operator key in the environment, and the gateway
 asserted **never called**; then its own key saved and the call made with that bearer; then the same
-job on a desk still using the documented env fallback. Five locale cases, including two users on
+job on a desk still using the documented env fallback. Another drives the tool-scope hole the same
+way, through the scope a run actually executes in rather than by calling the helper: with the
+operator's `TAVILY_API_KEY` in the environment and a keyed hosted tenant, the built scope carries
+the tenant's own gateway key and none of the operator's, `getSecret` returns nothing for Tavily,
+Brave or FAL inside `runWithToolSecrets`, and `listToolRoutes` reports web search **not ready**
+rather than ready on somebody else's key — then the same settings on a desk autodetect Tavily and
+report ready, which is the BYOK path this must not have taken away. Five locale cases, including two users on
 one tenant and one desk reading different languages. And the decrypt-failure case: the read throws,
 the row is still there, and the right key gets the key back.
 
@@ -385,13 +418,17 @@ after the version above passed while the script itself was broken (§5). It spaw
 real run re-seals the row so the new key opens it and the old one does not, a wrong current key
 exits 1 with the row byte-identical, and no output on any path contains either key.
 
-`packages/core/src/provider-env-sweep.test.ts` (5) — the guard from §3 and the behaviour under it.
+`packages/core/src/provider-env-sweep.test.ts` (8) — the guard from §3 and the behaviour under it.
 The sweep walks both `packages/core/src` and `packages/host/src`, strips comments, and fails on any
-shipped source outside `server-mode.ts` reading one of thirteen credential variables off
-`process.env`; a bait case proves the regex and the file walk both work, so an empty offender list
-means it looked. Then three cases on `providerEnv` itself: unchanged off server mode, empty in it,
-and frozen so a caller cannot write a key back into it. Verified by reintroducing the `edit/asr.ts`
-read and watching it go red, naming that file.
+shipped source outside `server-mode.ts` that reads one of thirteen credential variables off
+`process.env`, that indexes `process.env` dynamically without an allowlisted exception, or that
+destructures a credential out of it. A further case holds each of the two exceptions to the names
+it can actually be called with — every one an `AGENTFORGE_*` configuration variable — so an
+exception cannot quietly widen into a credential read. A bait case proves the regex and the file
+walk both work, so an empty offender list means it looked. Then three cases on `providerEnv`
+itself: unchanged off server mode, empty in it, and frozen so a caller cannot write a key back into
+it. Verified by reintroducing first the `edit/asr.ts` read and then the `secret-scope.ts` one, and
+watching each go red naming its file.
 
 `packages/db/src/migrate-0018.test.ts` (12) — the table on a fresh database and via the healer after
 `DROP TABLE`; the composite key refusing a duplicate and accepting an upsert; the cascade; the
@@ -416,8 +453,8 @@ Suite state on this branch:
 
 | Package | Result |
 |---|---|
-| `@agentforge/host` | 204 files, **2108 tests, no failures** |
-| `@agentforge/core` | 183 files, **2211 passed, 1 skipped** |
+| `@agentforge/host` | 204 files, **2109 tests, no failures** |
+| `@agentforge/core` | 183 files, **2214 passed, 1 skipped** |
 | `@agentforge/db` | 10 files, **122 tests** |
 | `apps/web` | 96 files, **903 tests** |
 
@@ -572,6 +609,10 @@ action on a running app. §9 lists what that leaves owing.
 - **`desk-usage.json` is still a per-tenant file.** Phase 5 lane A made it legacy and read-only and
   owns moving the reads to `tenant_usage`; this phase deliberately did not touch it.
 - **`scope: "all"` is still refused in server mode.** Per-tenant reset is Phase 8's "done when".
+- **Hosted tenants have no way to get a tool key.** §3. Web search and FAL are unreachable on a
+  hosted server now that the operator's environment is not borrowed and tool-key writes are refused.
+  Needs an operator-provided per-tenant key path, or a brokered search the host meters — design
+  work, and it touches Phase 5's metering, so it belongs to a phase rather than to a patch.
 - **`map-drift.mjs` does not see bare `:line` citations** (§8). It re-anchors `path.ts:line` tokens
   only, so the `:line` follow-ups the map pages use for a run of citations into one file are left
   behind by every run. They were fixed by hand here. The tool should inherit the file from the last

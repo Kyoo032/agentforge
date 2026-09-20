@@ -299,6 +299,56 @@ describe("the operator's key is not a tenant's key", () => {
     }
   });
 
+  /**
+   * The fifth door, and the one both earlier sweeps were blind to.
+   *
+   * `getSecret(name)` fell back to `process.env[name]` — a dynamic index, invisible to a sweep that
+   * matches spellings — so a hosted tenant's run picked up the operator's `TAVILY_API_KEY`,
+   * `BRAVE_SEARCH_API_KEY` or `FAL_KEY` through the tool scope. Unlike the gateway half, which
+   * route checks and the stub runtime kept out of reach, this one was live for any hosted tenant
+   * with web search bound. Driven here through the scope a run actually executes in, not by calling
+   * the helper directly.
+   */
+  it("does not lend a hosted tenant the operator's tool keys through the run scope", async () => {
+    const { buildToolSecretScope, listToolRoutes, runWithToolSecrets, getSecret } = await import("@agentforge/core");
+    process.env.TAVILY_API_KEY = "tvly-operator-key-do-not-share";
+    process.env.OPENAI_API_KEY = "sk-operator-key-do-not-share";
+    try {
+      hosted();
+      settingsStore.saveSettings({ openaiApiKey: KEY_A }, A);
+      const settings = settingsStore.loadSettings(A);
+
+      // The scope a run is executed with carries the tenant's own key and nothing of the operator's.
+      const scope = buildToolSecretScope(settings);
+      expect(scope.secrets.OPENAI_API_KEY).toBe(KEY_A);
+      expect(scope.secrets.TAVILY_API_KEY).toBeUndefined();
+
+      // And the fallback under it is empty, so a tool asking by name gets nothing either.
+      runWithToolSecrets(scope, () => {
+        expect(getSecret("TAVILY_API_KEY")).toBeUndefined();
+        expect(getSecret("BRAVE_SEARCH_API_KEY")).toBeUndefined();
+        expect(getSecret("FAL_KEY")).toBeUndefined();
+        expect(getSecret("OPENAI_API_KEY")).toBe(KEY_A);
+      });
+
+      // Which is why the route is honestly not ready rather than ready on somebody else's key.
+      expect(listToolRoutes(settings)).toMatchObject({ web: { ready: false } });
+
+      // A desk is unchanged: autodetecting a tool key from the environment is the documented
+      // BYOK path there, and this must not have taken it away.
+      delete process.env.AGENTFORGE_SERVER;
+      const deskScope = buildToolSecretScope(settings);
+      expect(deskScope.secrets.TAVILY_API_KEY).toBe("tvly-operator-key-do-not-share");
+      runWithToolSecrets(deskScope, () => {
+        expect(getSecret("TAVILY_API_KEY")).toBe("tvly-operator-key-do-not-share");
+      });
+      expect(listToolRoutes(settings)).toMatchObject({ web: { ready: true, backend: "tavily", envVar: "TAVILY_API_KEY" } });
+    } finally {
+      delete process.env.TAVILY_API_KEY;
+      delete process.env.OPENAI_API_KEY;
+    }
+  });
+
   it("leaves the hosted gate reporting needs_key rather than opening on the operator's key", () => {
     const hostedEnv = { AGENTFORGE_SERVER: "1" } as NodeJS.ProcessEnv;
     process.env.OPENAI_API_KEY = "sk-operator-key-do-not-share";

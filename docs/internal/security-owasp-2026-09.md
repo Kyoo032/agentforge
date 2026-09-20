@@ -159,10 +159,27 @@ a deployment nobody can set up.
 > tool scope) and `packages/host/src/edit/asr.ts`. The last one was exploitable: Edit's auto-captions
 > run on the timeline worker **after** the request is gone, where no gate can answer `403`, so a
 > hosted tenant could enqueue a transcription while keyed, sign out, and have it charged to the
-> operator. All four now take their fallback from one function, `providerEnv`
+> operator.
+>
+> **A fifth was found after those four were closed, and it is the one that makes the point.**
+> `getSecret(name)` in `packages/core/src/tools/secret-scope.ts` fell back to `process.env[name]` —
+> a dynamic index, invisible both to the first sweep and to any grep for a key's name. It is the
+> fallback every platform tool uses when its scope lacks a key, so a hosted tenant's run picked up
+> the operator's `TAVILY_API_KEY`, `BRAVE_SEARCH_API_KEY` or `FAL_KEY` by asking for it by name. The
+> gateway half of that was unreachable in practice (route checks, stub runtime); the search half was
+> live for any hosted tenant with web search bound.
+>
+> All five now take their fallback from one function, `providerEnv`
 > (`packages/core/src/server-mode.ts`), and `packages/core/src/provider-env-sweep.test.ts` fails the
-> build if a fifth appears. The lesson is the same one as the box above: reviewing the sites found
-> is not the fix, a guard against the next one is.
+> build on a sixth in any of the three shapes the mistake took: a named read, a dynamic index
+> without an allowlisted exception, or a destructure. The lesson is the same one as the box above,
+> twice over: reviewing the sites found is not the fix, a guard against the next one is — and a
+> guard that only catches the spelling of a mistake catches it once.
+>
+> **Knock-on, tracked rather than fixed here:** with the borrowed key gone and tool-key writes
+> refused in server mode, a hosted tenant has no route to a search or FAL key at all. An
+> operator-provided per-tenant key path is owed;
+> `docs/internal/web-phase4-tenant-secrets.md` §3 and §10 carry it.
 >
 > One thing loosened rather than tightened, and it belongs to the same finding: `DELETE
 > /api/v1/settings/reset` with `scope: "key"` used to be a 403 in server mode, because forgetting
