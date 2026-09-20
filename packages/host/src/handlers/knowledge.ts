@@ -55,7 +55,7 @@ const KB_TYPE_TO_WORK: Partial<Record<PastedSourceType, ArtifactWorkType | null>
 
 type ArtifactWorkType = Extract<
   WorkSourceType,
-  "Research" | "Data" | "Finance" | "Market" | "Documents" | "Presentation" | "Legal"
+  "Research" | "Data" | "Finance" | "Market" | "Documents" | "Presentation" | "Legal" | "Meeting"
 >;
 
 /**
@@ -117,6 +117,8 @@ function artifactModeToWork(mode: string): ArtifactWorkType | null {
       return "Presentation";
     case "documents":
       return "Documents";
+    case "meeting":
+      return "Meeting";
     default:
       return null;
   }

@@ -1,5 +1,6 @@
 import { DEFAULT_APP_LOCALE, parseAppLocale, type AppLocale } from "@agentforge/core/locale";
 import enAuth from "../locales/en/auth.json";
+import enChannels from "../locales/en/channels.json";
 import enChat from "../locales/en/chat.json";
 import enCommon from "../locales/en/common.json";
 import enData from "../locales/en/data.json";
@@ -10,6 +11,7 @@ import enImages from "../locales/en/images.json";
 import enKnowledge from "../locales/en/knowledge.json";
 import enLegal from "../locales/en/legal.json";
 import enMarket from "../locales/en/market.json";
+import enMeeting from "../locales/en/meeting.json";
 import enMusic from "../locales/en/music.json";
 import enOnboarding from "../locales/en/onboarding.json";
 import enPresentation from "../locales/en/presentation.json";
@@ -20,6 +22,7 @@ import enUsage from "../locales/en/usage.json";
 import enVideos from "../locales/en/videos.json";
 import enWorkspaces from "../locales/en/workspaces.json";
 import idAuth from "../locales/id/auth.json";
+import idChannels from "../locales/id/channels.json";
 import idChat from "../locales/id/chat.json";
 import idCommon from "../locales/id/common.json";
 import idData from "../locales/id/data.json";
@@ -30,6 +33,7 @@ import idImages from "../locales/id/images.json";
 import idKnowledge from "../locales/id/knowledge.json";
 import idLegal from "../locales/id/legal.json";
 import idMarket from "../locales/id/market.json";
+import idMeeting from "../locales/id/meeting.json";
 import idMusic from "../locales/id/music.json";
 import idOnboarding from "../locales/id/onboarding.json";
 import idPresentation from "../locales/id/presentation.json";
@@ -55,11 +59,13 @@ const NAMESPACES = [
   "knowledge",
   "workspaces",
   "usage",
+  "channels",
   "market",
   "data",
   "finance",
   "legal",
   "edit",
+  "meeting",
   "auth",
 ] as const;
 type Namespace = (typeof NAMESPACES)[number];
@@ -79,6 +85,7 @@ const catalogs: Record<AppLocale, Record<Namespace, MessageTree>> = {
     music: enMusic,
     presentation: enPresentation,
     knowledge: enKnowledge,
+    channels: enChannels,
     workspaces: enWorkspaces,
     usage: enUsage,
     market: enMarket,
@@ -86,6 +93,7 @@ const catalogs: Record<AppLocale, Record<Namespace, MessageTree>> = {
     finance: enFinance,
     legal: enLegal,
     edit: enEdit,
+    meeting: enMeeting,
     auth: enAuth,
   },
   id: {
@@ -101,6 +109,7 @@ const catalogs: Record<AppLocale, Record<Namespace, MessageTree>> = {
     music: idMusic,
     presentation: idPresentation,
     knowledge: idKnowledge,
+    channels: idChannels,
     workspaces: idWorkspaces,
     usage: idUsage,
     market: idMarket,
@@ -108,6 +117,7 @@ const catalogs: Record<AppLocale, Record<Namespace, MessageTree>> = {
     finance: idFinance,
     legal: idLegal,
     edit: idEdit,
+    meeting: idMeeting,
     auth: idAuth,
   },
 };
