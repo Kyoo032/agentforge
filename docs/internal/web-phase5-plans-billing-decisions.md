@@ -67,7 +67,7 @@ Facts, not a target design. Everything in the decisions below is priced against 
 | `requireGatewayAllowed(settings, opts)` is **synchronous** and takes no tenant. It reads a JSON file and throws. | `gateway-gate.ts:435-441`, via `reportGatewayGate` `:384` |
 | Every one of the 30 call sites already has a `tenant` in scope and passes only `loadSettings(tenant.workspaceId)` | e.g. `handlers/jobs.ts:64`, `handlers/knowledge.ts:177` |
 | A blocked gate is a flat `403 {"error":"gateway_blocked","status","message"}`, not the nested envelope | `GatewayBlockedError`, `gateway-gate.ts:415-423` |
-| `GatewayGateStatus` is a closed union of six values, all of them about a **key**: `stub`, `needs_key`, `ok`, `invalid_key`, `unreachable`, `error` | `gateway-gate.ts:117-125` |
+| `GatewayGateStatus` is a closed union of six values, all of them about a **key**: `stub`, `needs_key`, `ok`, `invalid_key`, `unreachable`, `error` | `packages/core/src/gateway/gate-types.ts:5`; the host's guard `isGatewayGateStatus` enumerates it at `gateway-gate.ts:117-125` |
 | The renderer sends any `allowed: false` to the onboarding screen — the paste-your-key screen, with no rail and no Settings | `apps/web/lib/gateway-gate.ts:94-99`; behaviour described in `features/gateway-gate.md` |
 | Routes deliberately left open on a closed gate so it is recoverable: settings, workspaces, threads, artifacts, media, usage, model refresh | `features/gateway-gate.md` (`gate-open-routes`) |
 | Chat run spend is written to `runs.usage`, scoped by `organizationId` | `finishRun`, `threads.ts:312-330`; called from `runs.ts:362,409` |
@@ -190,13 +190,16 @@ tenant. Phase 5 needs its own reason codes and its own renderer branch, to the a
 
 *Plan open question 6. The real question is the selling entity; the API is downstream of it.*
 
-Checked 2026-09-20 against each provider's own docs. **Verify before signing anything** — these are
-commercial terms that change, and two of the three answers turn on facts about Kyo's entity that
-are not in this repo.
+Read on 2026-09-20 from the four provider pages linked in the table below: Stripe's "Requirements to
+open a Stripe account in Indonesia", Paddle's supported-countries help page and its webhook
+signature-verification doc, and Xendit's "Handling webhooks". Each quoted phrase comes from the page
+it is linked to. **Confirm against those pages before D4 is answered and before anything is signed** —
+these are commercial terms that change without notice, and two of the three answers turn on facts
+about Kyo's selling entity that are not in this repo and that no page can settle.
 
 | Provider | Seller eligibility | Webhook authentication | Cost against this code |
 |---|---|---|---|
-| **Stripe** | Indonesia is **invite-only**, payouts **IDR only**, and — decisively — "we don't support cross-border or international transactions from a Stripe account based in Indonesia" ([Stripe support](https://support.stripe.com/questions/requirements-to-open-a-stripe-account-in-indonesia)) | `Stripe-Signature`, HMAC-SHA256 over `timestamp.rawBody` | **Needs the raw-body path** (correction 4). And if the selling entity is Indonesian, it cannot bill a foreign customer at all, which rules it out for anything but a domestic-only Personal plan. |
+| **Stripe** | Indonesia is **invite-only**, payouts **IDR only**, and "we don't support cross-border or international transactions from a Stripe account based in Indonesia" ([Stripe support](https://support.stripe.com/questions/requirements-to-open-a-stripe-account-in-indonesia)) | `Stripe-Signature`, HMAC-SHA256 over `timestamp.rawBody` | **Needs the raw-body path** (correction 4). If that page still holds when Kyo asks, an Indonesian entity on Stripe cannot bill a foreign customer at all, which would leave it serving a domestic-only Personal plan and nothing else. Confirm with Stripe directly: this is the one option a single line on a support page eliminates, so it deserves a real answer rather than an inference. |
 | **Xendit** | Indonesian entity, IDR, and the local rails the portal's tenants actually pay with (QRIS, VA, e-wallets, cards) | A static token in the `x-callback-token` header, retried up to six times with exponential backoff ([Xendit docs](https://docs.xendit.co/docs/handling-webhooks)) | **Cheapest by a wide margin**: a constant-time compare of one header — `csrf.ts:84-101` already has the constant-time helper — and **no raw body needed**, so correction 4 does not apply. No tax handling: the entity invoices and remits PPN itself. The six retries mean the route must be idempotent on event id. |
 | **Paddle** | Merchant of record — Paddle is the seller, and handles VAT, sales tax and invoicing worldwide. Sellers are accepted anywhere not on its sanctions list; Indonesia is not on it ([Paddle help](https://www.paddle.com/help/start/intro-to-paddle/which-countries-are-supported-by-paddle)) | `Paddle-Signature`, HMAC-SHA256 over `ts:rawBody`, with an explicit "don't transform or process the raw body" ([Paddle docs](https://developer.paddle.com/webhooks/signature-verification)) | **Needs the raw-body path.** Costs more per transaction than a PSP, and buys away the entire cross-border tax problem. |
 
@@ -280,7 +283,7 @@ maintained on write and read in O(1) — not a `SUM` computed per call.
 
 ### (b) A plan refusal is not a gateway refusal
 
-`GatewayGateStatus` (`gateway-gate.ts:117-125`) is six values about a key. `GatewayBlockedError`
+`GatewayGateStatus` (`packages/core/src/gateway/gate-types.ts:5`) is six values about a key. `GatewayBlockedError`
 (`:415-423`) throws a flat 403 that the renderer turns into onboarding (`apps/web/lib/gateway-gate.ts:97`)
 — a screen with one input, the key, and no rail and no Settings.
 
@@ -327,7 +330,10 @@ journal idx 14 today).*
 Files: `packages/db/src/schema.ts`, `drizzle/0016_tenant_plans.sql`, `drizzle/meta/_journal.json`,
 `packages/db/src/ensure-schema.ts`, `migrate-0016.test.ts` (new), `packages/core/src/tenancy/types.ts`.
 Work: both tables per the plan, `seat_cap` nullable, allowance in USD micros, `(tenant_id, at)`
-indexed on `tenant_usage`, and the resolved plan added to `TenantContext`.
+indexed on `tenant_usage`, and the resolved plan added to `TenantContext`. If Phase 3 lane D landed
+first it will already have created `tenant_usage` with only the columns Phase 3 needed
+(`web-phase3-tenancy-spec.md:207,264-266`), so this lane **alters** that table rather than creating
+it — check which before writing `0016`.
 **Done when:** the migration test passes on a real copy and a baseline-stamped copy; the desktop
 boots against an existing database with no plan row and behaves exactly as it does today.
 
@@ -352,7 +358,7 @@ event unblocks a blocked tenant on the next call.
 
 **Lane E — the account and plan screen, and the harness.** *Depends on B and C.*
 Files: `apps/web/components/` (account/plan screen), `apps/web/lib/media-estimate.ts`,
-`packages/host/src/handlers/account.ts`, `packages/host/src/plans-harness.test.ts` (new),
+`packages/host/src/handlers/account.ts` (new), `packages/host/src/plans-harness.test.ts` (new),
 `.cursor/skills/verify-agentforge/features/gateway-gate.md` and `usage.md` (correction 0.5).
 Work: the screen that shows allowance, spend and plan state and carries the top-up path; a harness
 that drives each refusal reason; refresh the two map pages the phase makes false.
@@ -368,8 +374,8 @@ The five, restated as the one-line answers lane B and lane D need:
 1. **D1** — operator key, per-tenant operator-minted token, or BYOK? *Recommended: per-tenant token.*
 2. **D2** — the margin multiple, the quote currency, and calendar month vs anniversary period.
 3. **D3** — block, meter, or block with top-up? *Recommended: block with top-up, warn at 80%.*
-4. **D4** — the selling entity, and therefore Xendit, Paddle or Stripe. *Stripe is ruled out if the
-   entity is Indonesian.*
+4. **D4** — the selling entity, and therefore Xendit, Paddle or Stripe. *Stripe appears ruled out if
+   the entity is Indonesian — confirm with Stripe before relying on it.*
 5. **D5** — free an idle seat, or hold until revoked? *Recommended: hold, and let the portal remain
    the seat authority.*
 
