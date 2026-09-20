@@ -16,12 +16,12 @@ There is no built DPSBuddy iOS or Android app. No App Store / Play listing, no C
 Preconditions:
 
 - **No mobile app ships**, so there is nothing to launch: no store build, no mobile electron-builder target, no `--mobile` doctor flag.
-- The product binds `127.0.0.1` only (`apps/web/server.ts:52` — `server.listen(port, "127.0.0.1", …)`), so a phone on the LAN cannot reach it by design.
+- The product binds `127.0.0.1` unless this is a hosted server (`apps/web/server.ts:114-115` — `server.listen(port, resolveBindHost(process.env), …)`; `apps/web/lib/bind-host.ts:15-26` returns loopback when `BIND_HOST` is unset and throws rather than let a local run go LAN-wide without `AGENTFORGE_SERVER`), so a phone on the LAN cannot reach a local webdev by design.
 - `apps/mobile/` holds **rules only** for a paused Android-first Expo client and nothing drivable (`git ls-files apps/mobile` → `AGENTS.md`, `CLAUDE.md`; `apps/mobile/AGENTS.md:3` "Status: **rules only** (2026-09-07). No app code yet."). Read those rules before touching anything mobile; do not start a mobile toolchain to satisfy this file.
 - A driver marks mobile `verified-unreachable (no mobile app)` and moves on.
 - Doctor with no args is webdev. Doctor `--desktop` is packaged desktop. There is no `--mobile`.
 
-- **Confirm docs only.** This file, [`docs/mobile.md`](../../../docs/mobile.md) and `apps/mobile/AGENTS.md` exist; `apps/mobile` holds no app code (`git ls-files apps/mobile` → `AGENTS.md`, `CLAUDE.md`). `apps/desktop/package.json:105-153` has `build.win` / `build.mac` / `build.linux` and no ios/android/capacitor target.
+- **Confirm docs only.** This file, [`docs/mobile.md`](../../../docs/mobile.md) and `apps/mobile/AGENTS.md` exist; `apps/mobile` holds no app code (`git ls-files apps/mobile` → `AGENTS.md`, `CLAUDE.md`). `apps/desktop/package.json:108-156` has `build.win` / `build.mac` / `build.linux` and no ios/android/capacitor target.
 - **Do not** point a phone at `http://<lan-ip>:3000`. Drive `127.0.0.1` only.
 - **Record.** Mark `mobile-none` and `mobile-lan-not-product` `verified-unreachable (no mobile app)`, not a Cloud or Windows fail.
 
