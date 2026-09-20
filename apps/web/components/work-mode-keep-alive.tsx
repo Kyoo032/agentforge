@@ -12,6 +12,7 @@ import { MusicStudio } from "@/components/music-studio";
 import { EditStudio } from "@/components/edit-studio";
 import { PresentationsStudio } from "@/components/presentations-studio";
 import { LegalStudio } from "@/components/legal-studio";
+import { MeetingStudio } from "@/components/meeting-studio";
 import { useWorkspaceScope } from "@/lib/workspace-scope";
 
 const WORK_MODE_COMPONENTS: Record<string, ComponentType> = {
@@ -27,6 +28,7 @@ const WORK_MODE_COMPONENTS: Record<string, ComponentType> = {
   "/edit": EditStudio,
   "/presentations": PresentationsStudio,
   "/legal": LegalStudio,
+  "/meeting": MeetingStudio,
 };
 
 const WORK_MODE_PATHS = Object.keys(WORK_MODE_COMPONENTS);

@@ -69,10 +69,17 @@ both together.** Without them the context is ~1.4 GB (`node_modules` plus `.git`
   changes.
 - Runs as the non-root `node` user. `/data` is owned by `node` and declared a volume.
 - `HEALTHCHECK` hits `GET /api/v1/components` on `127.0.0.1:$PORT` with `node -e fetch`
-  (no curl in the image). That route is deliberately ungated —
-  `packages/host/src/router.ts:186` has the comment explaining why — so it answers
-  before any gateway key exists. `GET /api/v1/workspaces` would also work but opens the
-  database on every probe.
+  (no curl in the image), **sending `x-forwarded-proto: https`**. Both parts matter.
+  The route is deliberately ungated — `packages/host/src/router.ts:219-221` has the
+  comment explaining why — so it answers before any gateway key exists, and
+  `GET /api/v1/workspaces` would also work but opens the database on every probe.
+  The header is what gets the probe past `rejectPlaintext`
+  (`packages/host/src/http-adapter.ts:314-317`), which in server mode answers
+  `403 https_required` to every request that arrives without it, on every path,
+  before routing. Drop the header and the container never reports healthy and
+  `deploy.sh` times out after five minutes with nothing in the log but 403s. Sending
+  it from inside the container is safe: that caller is already past the boundary the
+  rule defends, and the port is loopback-only.
 
 ### Native modules
 
@@ -90,20 +97,25 @@ both together.** Without them the context is ~1.4 GB (`node_modules` plus `.git`
 - **ffmpeg / ffprobe are not in the image.** The Edit desk degrades without them. Adding
   them is a migration-plan decision, not a silent `apt-get`.
 
-## The loopback problem, and why the proxy shares a network namespace
+## The loopback bind, and why the proxy shares a network namespace
 
-`apps/web/server.ts:50-52` is:
+`apps/web/server.ts:114-115` binds whatever `resolveBindHost` returns:
 
 ```ts
-const port = Number(process.env.PORT) || 3000;
-server.listen(port, "127.0.0.1", () => {
+const host = resolveBindHost(process.env);
+server.listen(port, host, () => {
 ```
 
-The bind address is hardcoded. There is no `HOST` env. A container that listens on
-`127.0.0.1` cannot be reached from another container over a Docker bridge network.
+`resolveBindHost` (`apps/web/lib/bind-host.ts:17-27`) defaults to `127.0.0.1` and **throws**
+on a non-loopback `BIND_HOST` unless `AGENTFORGE_SERVER` is on, so a webdev run can never
+go LAN-wide by accident. A container that listens on `127.0.0.1` cannot be reached from
+another container over a Docker bridge network.
 
-This folder does **not** edit `server.ts`. Instead the proxy joins the app container's
-network namespace:
+**Historical note.** Until Phase 1 landed (PR #56) the bind address really was hardcoded
+and there was no env for it, which is the reason this stack was built the way it is. The
+namespace-sharing arrangement below is kept because it is what has been tested and because
+loopback-only means nothing on the host but Caddy can reach the app port — not because
+there is no alternative any more. The proxy joins the app container's network namespace:
 
 ```yaml
 proxy:
@@ -116,9 +128,10 @@ Both containers then share one loopback interface, so Caddy's
 service's namespace cannot publish ports of its own, which is why `80`, `443` and
 `443/udp` are published on the **app** service in `compose.yml`.
 
-Binding `0.0.0.0` (behind a `HOST` env, defaulting to loopback so webdev is unchanged)
-is a **Phase 0/1 change in the migration plan**, not a change made here. Until it lands,
-the namespace-sharing trick is the only way to front this app without editing code.
+Binding `0.0.0.0` inside the container and putting the two services on an ordinary bridge
+network is now possible — set `BIND_HOST=0.0.0.0` with `AGENTFORGE_SERVER=1` — but it is
+not what this stack ships or what has been driven. Changing it is a deliberate deployment
+change, not a tidy-up.
 
 **The proxy must pass `Host` through unchanged.** With `AGENTFORGE_SERVER=1` the app no
 longer wants a loopback `Host`: a mutating `/api` call is accepted only when its `Origin`
@@ -410,7 +423,7 @@ Rows marked *(code)* are **not** satisfiable from this folder - see
 - [ ] **A6** Every 4xx/5xx is the `{code, message}` envelope - no stack traces, paths or SQL
 - [ ] **T4** *(code)* The gateway gate fails **closed** on the hosted build
 - [ ] **T8** *(code)* "Start over" is scoped to the caller's tenant, or disabled on the web build
-- [ ] **S1** *(code)* `AGENTFORGE_SECRETS_KEY` is mandatory; the `.master-key` fallback throws when `NODE_ENV=production`
+- [ ] **S1** *(code)* `AGENTFORGE_SECRETS_KEY` is mandatory; the `.master-key` fallback throws in server mode
 - [ ] **S2** The wrap key comes from Secrets Manager at deploy time and is not in `.env`, the image, or git. `deploy.sh` with `USE_SSM=1`
 - [ ] **S5** CBS disk encryption on; COS SSE-KMS on both buckets
 - [ ] **S6** Backups encrypted before upload. `backup.sh` with `BACKUP_KEY`
@@ -504,7 +517,7 @@ and this folder is deliberately additive - it does not edit `apps/` or `packages
 | **A1** | **Landed 2026-09-18.** With `AGENTFORGE_SERVER=1` mutating `/api` needs an Origin and a Host from `AGENTFORGE_TRUSTED_ORIGINS` (a missing Origin is rejected) plus the CSRF token (`__Host-agentforge_csrf` cookie, `x-agentforge-csrf` header). The proxy passes `Host` through unchanged. | `packages/host/src/local-request.ts`, `http-adapter.ts`, `csrf.ts` |
 | **T4** | **Landed 2026-09-18.** The gate fails closed on the hosted build (meta marker injected by `server.ts`), and in server mode the host takes no key on trust and the stub runtime does not open it | `apps/web/lib/gateway-gate.ts`, `packages/host/src/gateway-gate.ts` |
 | **T8** | **Landed 2026-09-18.** Both reset scopes answer `403 reset_disabled` in server mode; per-tenant reset is Phase 3 | `packages/host/src/handlers/settings.ts` |
-| **S1** | `AGENTFORGE_SECRETS_KEY` must be mandatory on the server - the `.master-key` file fallback has to throw when `NODE_ENV=production`. `compose.yml` passes the key in and the README says to set it, but nothing *enforces* it, and a writable `/data` means the fallback would quietly succeed | `packages/db/src/vault-key.ts:37-51` |
+| **S1** | **Landed 2026-09-18.** With `AGENTFORGE_SERVER=1`, `getLocalVaultKey` throws `SERVER_VAULT_KEY_REQUIRED` when `AGENTFORGE_SECRETS_KEY` is unset and `SERVER_VAULT_KEY_TOO_WEAK` when it carries under 32 bytes of entropy; the `.master-key` fallback is unreachable on the server. The gate is server mode, not `NODE_ENV` | `packages/db/src/vault-key.ts:123-134` |
 | **L1** | No prompts, message bodies, keys or tokens in any log line, with tenant id and request id as fields. Caddy's access log is filtered here, but the application logger is the one that sees prompts | host logger |
 
 **A4** rate limiting has no Caddy module in the pinned `caddy:2-alpine` image, so it is

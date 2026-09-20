@@ -107,10 +107,12 @@ describe("maskSecrets", () => {
       hasGoogle: false,
       hasAnthropic: false,
       hasVolcengine: false,
+      hasTelegramBot: false,
       openaiKeyFingerprint: keyFingerprint("sk-secret"),
       googleKeyFingerprint: null,
       anthropicKeyFingerprint: null,
       volcengineKeyFingerprint: null,
+      telegramBotFingerprint: null,
       openaiBaseUrl: DEFAULT_OPENAI_BASE_URL,
       googleBaseUrl: undefined,
       anthropicBaseUrl: undefined,
@@ -131,6 +133,22 @@ describe("maskSecrets", () => {
       injectionGuardBypass: false,
       editTurnCapUsd: undefined,
     });
+  });
+
+  it("reports a saved Telegram bot token as a boolean and a fingerprint, never as the token", () => {
+    const token = "123456789:AAtokenvaluegoeshere0000000000000000";
+    const masked = maskSecrets({ telegramBotToken: token });
+    expect(masked.hasTelegramBot).toBe(true);
+    expect(masked.telegramBotFingerprint).toBe(keyFingerprint(token));
+    expect(JSON.stringify(masked)).not.toContain(token);
+  });
+
+  it("clears the Telegram bot token on an empty patch, like every other key", () => {
+    const token = "123456789:AAtokenvaluegoeshere0000000000000000";
+    expect(mergeSecrets({}, { telegramBotToken: ` ${token} ` }).telegramBotToken).toBe(token);
+    expect(mergeSecrets({ telegramBotToken: token }, { telegramBotToken: "" }).telegramBotToken).toBeUndefined();
+    // A saved bot token is not a model provider: it must not flip the runtime to live.
+    expect(hasLiveProvider({ telegramBotToken: token })).toBe(false);
   });
 
   it("exposes sha256 fingerprints and never embeds the raw keys in JSON", () => {

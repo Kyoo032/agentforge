@@ -126,6 +126,12 @@ which also means a desk may not be named `tenants`.
 **`datasets.ts`** — `storagePath` is `tenantRelativePath(tenant.tenantId, [tenant.workspaceId], …)`, and a
 private `filePath(tenant, relative)` guards `get` and `remove` with `isInsideTenantRoot`.
 
+**`meeting/store-files.ts` / `meeting/store.ts` / `meeting/audio.ts`** — Meeting mode (PR #66) landed on
+`main` while this branch was open, with its own file store at `<data>/meetings/<deskId>/<meetingId>/` and
+its own ffmpeg allowlist. It gets the same treatment as Legal: `tenantMeetingRoot(rootDir, tenantId,
+workspaceId)`, and `audioWorkspace` now returns a `PathAllowlist` carrying `tenantDeniedRoots`, so the
+local tenant's ffmpeg run cannot reach `meetings/tenants/<other>/…`.
+
 **`knowledge.ts` / `knowledge-reindex.ts`** — `uploadDir` is `tenantMediaRoot(tenant.tenantId)`.
 
 **Every gated route** — `requireGatewayAllowed(loadSettings(…))` became
@@ -153,10 +159,12 @@ resolve call, only what it passes downstream.
 ## 5. Deliberately not done
 
 - **No `tenant_usage` table, and no migration.** Spec §4 allows lane D to create it early with a subset of
-  columns, and the brief repeated the offer; the Phase 5 metering lane has since taken migration `0016`
-  and creates it with the **full** column set (PR #74). Creating a partial table here would only give that
-  lane something to alter. `desk-usage.json` therefore stays a file, now a per-tenant one, and the comment
-  in `desk-usage.ts` records why so the next reader does not think it was missed.
+  columns, and the brief repeated the offer; the Phase 5 metering lane took migration `0016` and created it
+  with the **full** column set (PR #74, now on `main`). Creating a partial table here would only have given
+  that lane something to alter. That lane also made `desk-usage.json` legacy and read-only: nothing writes
+  it any more, and job spend goes to the ledger. The merge keeps both — `rememberJobUsage` is PR #74's, and
+  the surviving *reads* of the legacy file are tenant-scoped, so a hosted tenant does not see the install's
+  pre-migration rows on its usage screen. `appendDeskUsage` remains for the reader tests only.
 - **Locale stays machine-wide.** `loadOwnerLocale` / `saveOwnerLocale` (`settings-store.ts:460`, `:464`)
   read and write the local tenant's file whoever asks. The app locale is frozen at boot
   (`maps/locale-boot-and-run-harness.md`); making it per tenant means a per-request locale and a restart
@@ -197,10 +205,10 @@ Suite state on the merged branch:
 
 | Package | Result |
 |---|---|
-| `@agentforge/host` | 183 of 185 files, 1784 tests passed; **2 pre-existing failures** |
-| `@agentforge/core` | 178/178 files, 2118 tests |
-| `@agentforge/db` | 8/8 files, 94 tests |
-| `apps/web` | 93/93 files, 881 tests |
+| `@agentforge/host` | 190 of 192 files, 1914 tests passed; **2 pre-existing failures** |
+| `@agentforge/core` | 2169 passed, 1 skipped |
+| `@agentforge/db` | 103 tests |
+| `apps/web` | 894 tests |
 
 The two host failures are the same two lane A recorded and are environmental, not caused by this change:
 `edit/ffmpeg-binary.test.ts` asserts a Windows `System32\where.exe` path, and `edit/import-ipc.test.ts`
@@ -208,9 +216,11 @@ expects 201 and gets 400. Both fail identically on `main` in this container. One
 once in `@agentforge/core` (`src/pdf/index.test.ts`, a worker-thread release under load); the core suite was
 re-run twice on this branch and passed both times.
 
-Typecheck: `tsc -p packages/host` reports the **same 10 pre-existing errors** (in 4 places) on this branch as on `main`
-(`request-constraints.ts` `ReadableStreamReadResult`, `agent-run.ts` `StubFillScenario.args`, `backend.ts`
-`Ingredient`, `handlers/agents.ts`). No new ones.
+Typecheck: `tsc -p packages/host` reports the **same 10 pre-existing errors** (in 4 places) on this branch
+as on `main` (`request-constraints.ts` `ReadableStreamReadResult`, `agent-run.ts` `StubFillScenario.args`,
+`backend.ts` `Ingredient`, `handlers/agents.ts`). No new ones. The merge with `main` briefly added three —
+`meeting/audio.ts` was written against the old `assertInsidePath(candidate, string[])` signature — and
+tenant-scoping the meeting store cleared them.
 
 Biome: no new findings. The repo-wide counts move from 411 errors / 17 warnings on `main` to 415 / 16 here,
 and every error in both sets is the pre-existing CRLF-vs-LF format noise — `biome.json` sets

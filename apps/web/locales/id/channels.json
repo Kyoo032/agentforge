@@ -1,0 +1,56 @@
+{
+  "kicker": "Akun",
+  "title": "Kanal",
+  "intro": "Hubungkan bot Telegram ke meja ini, lalu kirim pesan ke grup atau kanal dan baca balasannya. Ringkasan pasar bisa dikirim ke sini pada tahap berikutnya.",
+  "privacy": "Semua yang dikirim atau diterima di sini melewati Telegram tanpa enkripsi tambahan. Jangan kirim hal yang tidak pantas ditaruh di obrolan grup.",
+  "bot": {
+    "label": "Bot Telegram",
+    "intro": "Buat bot lewat @BotFather di Telegram, lalu tempel token yang diberikan. Token disimpan terenkripsi di meja ini dan tidak ditampilkan lagi.",
+    "placeholder": "123456789:AA…",
+    "connect": "Hubungkan bot",
+    "connected": "Terhubung sebagai @{username}",
+    "disconnect": "Putuskan",
+    "sandbox": "Aplikasi ini diarahkan ke server uji lokal, bukan ke Telegram."
+  },
+  "list": {
+    "label": "Kanal di meja ini",
+    "placeholder": "@namakanal atau -1001234567890",
+    "addAria": "ID chat atau @username",
+    "add": "Tambah",
+    "remove": "Hapus",
+    "hint": "Tambahkan bot ke grup atau kanal terlebih dahulu. Maksimal {max} kanal per meja.",
+    "empty": "Belum ada kanal."
+  },
+  "conversation": {
+    "none": "Pilih satu kanal untuk melihat percakapannya.",
+    "empty": "Belum ada pesan terkirim atau diterima.",
+    "sentBy": "Dikirim oleh {author}",
+    "receivedFrom": "Dari {author}"
+  },
+  "composer": {
+    "placeholder": "Tulis pesan untuk kanal ini",
+    "aria": "Pesan yang akan dikirim",
+    "send": "Kirim"
+  },
+  "poll": {
+    "check": "Periksa pesan baru",
+    "done": "{received} pesan baru.",
+    "someUnmatched": "{received} pesan baru. {unmatched} berasal dari obrolan yang belum ditambahkan di meja ini."
+  },
+  "chatType": {
+    "channel": "Kanal",
+    "group": "Grup",
+    "supergroup": "Grup",
+    "private": "Pesan langsung"
+  },
+  "errors": {
+    "load": "Tidak bisa memuat kanal di meja ini.",
+    "connect": "Telegram menolak token tersebut.",
+    "disconnect": "Tidak bisa memutuskan bot.",
+    "add": "Tidak bisa menambahkan kanal tersebut.",
+    "remove": "Tidak bisa menghapus kanal tersebut.",
+    "send": "Telegram menolak pesan tersebut.",
+    "poll": "Tidak bisa memeriksa pesan baru.",
+    "notConnected": "Hubungkan bot Telegram untuk meja ini terlebih dahulu."
+  }
+}

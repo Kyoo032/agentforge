@@ -23,6 +23,18 @@ import {
   handleGetArtifactFile,
   handleGetArtifacts,
 } from "./handlers/artifacts";
+import {
+  handleDeleteChannel,
+  handleDeleteTelegramBot,
+  handleGetChannel,
+  handleGetChannelMessages,
+  handleGetChannels,
+  handleGetTelegramBot,
+  handlePostChannelSend,
+  handlePostChannels,
+  handlePostTelegramBot,
+  handlePostTelegramPoll,
+} from "./handlers/channels";
 import { handleGetChat } from "./handlers/chat";
 import { handleGetComponents, handlePostComponentInstallStream } from "./handlers/components";
 import { handleDeleteDataset, handleGetDataset, handleGetDatasets, handlePostDatasets } from "./handlers/datasets";
@@ -115,6 +127,17 @@ import {
   handlePostLegalRunStream,
 } from "./handlers/legal";
 import { handleGetMediaFile, handlePostMedia } from "./handlers/media";
+import {
+  handleDeleteMeeting,
+  handleGetMeeting,
+  handleGetMeetings,
+  handlePostMeetingMinutes,
+  handlePostMeetingRecording,
+  handlePostMeetingRunStream,
+  handlePostMeetingTranscribe,
+  handlePostMeetingTranscript,
+  handlePostMeetings,
+} from "./handlers/meetings";
 import {
   handleGetContext,
   handleGetOrganizations,
@@ -252,6 +275,19 @@ const routes: Route[] = [
   compile("POST", "/api/v1/datasets", handlePostDatasets),
   compile("GET", "/api/v1/datasets/:datasetId", handleGetDataset),
   compile("DELETE", "/api/v1/datasets/:datasetId", handleDeleteDataset),
+  // Channels (docs/internal/telegram-channels-plan.md). The two-segment `telegram/*` paths sit
+  // above `:channelId` in the table, and cannot be shadowed by it either way: a route pattern
+  // matches one path segment.
+  compile("GET", "/api/v1/channels/telegram/bot", handleGetTelegramBot),
+  compile("POST", "/api/v1/channels/telegram/bot", (req) => handlePostTelegramBot(req)),
+  compile("DELETE", "/api/v1/channels/telegram/bot", handleDeleteTelegramBot),
+  compile("POST", "/api/v1/channels/telegram/poll", (req) => handlePostTelegramPoll(req)),
+  compile("GET", "/api/v1/channels", handleGetChannels),
+  compile("POST", "/api/v1/channels", (req) => handlePostChannels(req)),
+  compile("GET", "/api/v1/channels/:channelId", handleGetChannel),
+  compile("DELETE", "/api/v1/channels/:channelId", handleDeleteChannel),
+  compile("GET", "/api/v1/channels/:channelId/messages", handleGetChannelMessages),
+  compile("POST", "/api/v1/channels/:channelId/send", (req) => handlePostChannelSend(req)),
   compile("GET", "/api/v1/legal/playbooks", handleGetLegalPlaybooks),
   compile("GET", "/api/v1/legal/matters", handleGetLegalMatters),
   compile("POST", "/api/v1/legal/matters", handlePostLegalMatters),
@@ -262,6 +298,15 @@ const routes: Route[] = [
   compile("DELETE", "/api/v1/legal/matters/:matterId/files/:docId", handleDeleteLegalMatterFile),
   compile("POST", "/api/v1/legal/matters/:matterId/run/stream", handlePostLegalRunStream),
   compile("GET", "/api/v1/legal/matters/:matterId/runs/:runId", handleGetLegalRun),
+  compile("GET", "/api/v1/meetings", handleGetMeetings),
+  compile("POST", "/api/v1/meetings", handlePostMeetings),
+  compile("GET", "/api/v1/meetings/:meetingId", handleGetMeeting),
+  compile("DELETE", "/api/v1/meetings/:meetingId", handleDeleteMeeting),
+  compile("POST", "/api/v1/meetings/:meetingId/recording", handlePostMeetingRecording),
+  compile("POST", "/api/v1/meetings/:meetingId/transcript", handlePostMeetingTranscript),
+  compile("POST", "/api/v1/meetings/:meetingId/transcribe/stream", handlePostMeetingTranscribe),
+  compile("POST", "/api/v1/meetings/:meetingId/minutes/stream", handlePostMeetingMinutes),
+  compile("POST", "/api/v1/meetings/:meetingId/run/stream", handlePostMeetingRunStream),
   compile("POST", "/api/v1/prompts/enhance", handlePostEnhancePrompt),
   compile("GET", "/api/v1/artifacts", handleGetArtifacts),
   compile("GET", "/api/v1/artifacts/:artifactId", handleGetArtifact),

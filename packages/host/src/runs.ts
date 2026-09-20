@@ -45,6 +45,7 @@ import {
   setThreadTitleFromParts,
 } from "./threads";
 import { ensureToolsRegistered } from "./register-tools";
+import { recordChatRunUsage } from "./usage-record";
 import { loadSettings } from "./settings-store";
 import { defaultSelectableModel, listSelectableModels } from "./selectable-models";
 import { collectToolMediaParts } from "./tool-media";
@@ -360,6 +361,10 @@ export async function* startModalityRun(options: {
       }
       await persistAssistant();
       const finished = await finishRun(options.tenant, run.id, "completed", undefined, runUsage);
+      // Chat spend joins the tenant ledger here, guarded by `finished`: `finishRun` only transitions
+      // a `streaming` row, so whichever of the watchdog, the client abort and the completion settles
+      // first writes exactly one usage row (Phase 5 lane A).
+      recordChatRunUsage(options.tenant, run.id, finished, runUsage);
       // The Retrieved edge of the knowledge loop: one row per chunk this run was actually given.
       // Counted only for a completed run, and never allowed to fail one.
       if (recordsRetrievals(finished, "completed")) {
@@ -407,6 +412,9 @@ export async function* startModalityRun(options: {
       if (runId) {
         const status = saved ? "completed" : "failed";
         const finished = await finishRun(options.tenant, runId, status, saved ? undefined : message, runUsage);
+        // A run that broke mid-stream still reached the gateway and still cost the tenant money, so
+        // it is metered on the same terms as the happy path.
+        recordChatRunUsage(options.tenant, runId, finished, runUsage);
         // A run that broke mid-stream but still saved partial text ends `completed`, and it was
         // given the same chunks the happy path was. Counting it there and not here would undercount
         // the Retrieved edge exactly when retrieval is most worth measuring.

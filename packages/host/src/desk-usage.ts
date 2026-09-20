@@ -3,6 +3,19 @@ import { resolve } from "node:path";
 import { asRunUsageRecord, type RunUsageRecord, type TimestampedRunUsage } from "@agentforge/core";
 import { tenantDataDir } from "./tenant-paths";
 
+/**
+ * LEGACY, READ-ONLY since Phase 5 lane A (docs/internal/web-phase5-lane-a.md).
+ *
+ * `desk-usage.json` was one global file with no tenant dimension: every tenant on a hosted
+ * deployment appended job and edit-agent spend to the same array, and no allowance could be
+ * enforced against it. Job spend now goes to the tenant-scoped `tenant_usage` ledger
+ * (`tenant-usage.ts`) and **nothing in the app writes this file any more**.
+ *
+ * The readers stay so a desktop that has been generating since before the migration keeps the
+ * history the account screen already showed it. `appendDeskUsage` stays only because the reader
+ * tests need a writer; no production call site uses it, and none should be added — a new writer
+ * here is a usage record with no tenant on it, which is the exact hole this lane closed.
+ */
 type StoredDeskUsage = RunUsageRecord & { at?: string };
 
 /**
@@ -10,9 +23,9 @@ type StoredDeskUsage = RunUsageRecord & { at?: string };
  * for anyone else. One file for everybody meant tenant B's spend showed up in tenant A's usage
  * panel, and every tenant appended to the same file.
  *
- * The spec (§3e) wants this in a `tenant_usage` row rather than a file. That is a schema change
- * Phase 5 owns end to end, and §4 says Phase 3 creates the table only if this lane lands the move;
- * it does not, so the file stays and gains the tenant. See `docs/internal/web-phase3-lane-d.md`.
+ * Phase 5 lane A has since built `tenant_usage` and stopped every writer, so what the tenant buys
+ * here is only that the *reads* above are scoped: a hosted tenant sees nothing, rather than the
+ * install's pre-migration rows. See `docs/internal/web-phase3-lane-d.md`.
  */
 function usagePath(tenantId: string): string {
   return resolve(tenantDataDir(tenantId), "desk-usage.json");

@@ -12,6 +12,7 @@ import {
   type StreamWatchdogLimits,
   type TenantContext,
   type ToolBindingRecord,
+  usageModeFromRunPrefix,
 } from "@agentforge/core";
 import { isRenderableImageUrl } from "./composer-attach";
 import { inlineLocalMediaParts } from "./inline-local-media";
@@ -104,6 +105,12 @@ async function runJobAssistantOnce(options: {
     createdAt: new Date(),
   };
 
+  // Every job run is metered against its tenant, under the mode its `runPrefix` names. Derived
+  // rather than passed: the twenty job call sites already carry a prefix, and five of them have no
+  // `JobMode` to give. See `usageModeFromRunPrefix` in @agentforge/core.
+  const usageMode = usageModeFromRunPrefix(options.jobMode ?? options.runPrefix);
+  const runId = `${options.runPrefix}-${Date.now()}`;
+
   let assistantText = "";
   let failedMessage = "";
   const parts: ContentPart[] = [{ type: "text", text: options.prompt }, ...imageParts];
@@ -118,7 +125,7 @@ async function runJobAssistantOnce(options: {
 
   await runtime.execute({
     tenant: options.tenant,
-    runId: `${options.runPrefix}-${Date.now()}`,
+    runId,
     modality: "text",
     version,
     bindings,
@@ -135,7 +142,7 @@ async function runJobAssistantOnce(options: {
         failedMessage = event.message;
       }
       options.onEvent?.(event);
-      rememberJobUsage(options.tenant.tenantId, event);
+      rememberJobUsage(event, { tenant: options.tenant, mode: usageMode, runId });
     },
   });
 

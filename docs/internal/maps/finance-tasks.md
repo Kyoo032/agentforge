@@ -1,6 +1,6 @@
 # Map — Finance tasks: the catalog and the generic runner
 
-Last verified: 2026-09-17 at 01ea70a (working tree)
+Last verified: 2026-09-20 at c204e5e
 
 ## Overview
 
@@ -73,7 +73,7 @@ That is the practical consequence worth remembering: **`/finance/parse` is not u
 
 ### 5. The generic runner
 
-`generateFinanceBrief` hands anything that is not the brief to `runFinanceTask` (`packages/host/src/finance-generate.ts:151-157`). One pipeline, every task (`packages/host/src/finance-tasks/runner.ts:204-301`):
+`generateFinanceBrief` hands anything that is not the brief to `runFinanceTask` (`packages/host/src/finance-generate.ts:152-158`). One pipeline, every task (`packages/host/src/finance-tasks/runner.ts:204-301`):
 
 1. `readPrompt`, `requireLive`, `resolveModel` (`:209-211`).
 2. Source text redacted with `guardFinanceInput` on the same terms as the task's own rows (`:214-216`).
@@ -81,11 +81,11 @@ That is the practical consequence worth remembering: **`/finance/parse` is not u
 4. One `job.phase` per math step the graph draws (`:224-226`).
 5. `readInput` → `module.inputSchema.safeParse`, a 400 that says "parse the figures first and confirm them" (`:90-100`).
 6. `module.compute(input)` and `module.allowedNumbers(...)`, then a `job.step` with the figure count (`:228-230`).
-7. `narrate` (`:102-141`): `FINANCE_TASK_SYSTEM` (`packages/host/src/finance-tasks/narrate.ts:18-31`) plus the task's own bullet rules and the output-language rule, with a prompt of `promptFacts` + `sectionRequest` + source text + the question. Empty answer is 502 `generation_failed` (`:137-139`).
+7. `narrate` (`:102-141`): `FINANCE_TASK_SYSTEM` (`packages/host/src/finance-tasks/narrate.ts:18-31`) plus the task's own bullet rules and the output-language rule, with a prompt of `promptFacts` + `sectionRequest` + source text + the question. Empty answer is 502 `generation_failed` (`runner.ts:137-139`).
 8. `parseNarration` (`narrate.ts:64`) keeps only the section ids the task asked for, in order; zero survivors is 502 `invalid_finance` (`:84-86`).
 9. `verifyNarration` (`runner.ts:161-194`): `guardNumbers` over every body against `allowedNumbers`, then **one** rewrite of each marked section through `repairTaskProse` (`packages/host/src/finance-tasks/repair.ts:78`), which is an adapter onto the brief's `repairUnverifiedSections` — the logic lives in one place (`repair.ts:1-11`).
 10. `module.buildReport(...)`, then `scrubReportMarkers` (`repair.ts:129`) sweeps the report's own notes and chart captions, because a builder may write prose too; `withRemovedFlag` (`:144`) tells the reader once.
-11. Markdown via `renderMd`, then `persistFinanceTaskReport` (`packages/host/src/finance-tasks/persist.ts:72`) with `financeTaskArtifactMeta` (`:52`) — the whole `FinanceReport` under `meta.report` (`:18`) behind the same 256 KB cap — and a Knowledge Base work card when an id came back (`runner.ts:276-288`).
+11. Markdown via `renderMd`, then `persistFinanceTaskReport` (`packages/host/src/finance-tasks/persist.ts:73`) with `financeTaskArtifactMeta` (`:53`) — the whole `FinanceReport` under `meta.report` (`:19`) behind the same 256 KB cap — and a Knowledge Base work card when an id came back (`runner.ts:276-288`).
 
 The result is `FinanceTaskRunResult` (`packages/host/src/finance-tasks/types.ts:22-38`): `task`, `report`, `artifactId`, `markdown`, `guard`, `pii`, and optionally `model`, `notice` and `warnings`. The brief answers with a `FinanceBrief` instead; the studio branches on which arrived (`apps/web/components/finance-steps/finance-result-panel.tsx:43-46`).
 
@@ -117,7 +117,7 @@ Chart ids, which become `finance-chart-<id>` (`apps/web/components/finance-chart
 
 It is fenced to the machine it runs on: `LOOPBACK = new Set(["127.0.0.1","localhost","::1"])` (`runner/client.mjs:36`) with `requireLoopbackBase` (`:41-56`) enforced up front and again on every request, because a case file is the owner's financial data. Run traces land in `results/`, which is gitignored for the same reason (`packages/host/eval/finance/.gitignore:1-4`).
 
-**It cannot reach a product build.** `@agentforge/host` is `"private": true` and its export map exposes only `./src/index.ts` and `./src/http-adapter.ts` (`packages/host/package.json:4-9`), so nothing outside can import `eval/`. The tree is `.mjs` outside `src`, and the desktop bundle is esbuilt from a single entry that re-exports `@agentforge/host` alone; electron-builder's `files` list is file-by-file under `apps/desktop/` (`apps/desktop/package.json:48-61`). Nothing in `packages/host/src` imports it. The whole `packages/host/eval/` tree is currently untracked, so today it is not even in git history.
+**It cannot reach a product build.** `@agentforge/host` is `"private": true` and its export map exposes only `./src/index.ts` and `./src/http-adapter.ts` (`packages/host/package.json:4-9`), so nothing outside can import `eval/`. The tree is `.mjs` outside `src`, and the desktop bundle is esbuilt from a single entry that re-exports `@agentforge/host` alone; electron-builder's `files` list is file-by-file under `apps/desktop/` (`apps/desktop/package.json:48-61`). Nothing in `packages/host/src` imports it. The tree is committed now (95 files under `packages/host/eval/`), so it is in git history — but only `results/` is gitignored (`packages/host/eval/finance/.gitignore:4`), and nothing outside `eval/` reaches in.
 
 ## Where things live
 

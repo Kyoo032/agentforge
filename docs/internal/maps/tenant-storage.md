@@ -30,8 +30,9 @@ migration `0015` stamps onto the single organization every pre-Phase-3 database 
 | Media root | `<mediaRoot>` | `<mediaRoot>/tenants/<tenantId>` |
 | Secrets | `<dataDir>/settings.enc` | `<dataDir>/tenants/<id>/settings.enc` |
 | Gateway verdict | `<dataDir>/gateway-gate.json` | `<dataDir>/tenants/<id>/gateway-gate.json` |
-| Usage log | `<dataDir>/desk-usage.json` | `<dataDir>/tenants/<id>/desk-usage.json` |
+| Usage log (legacy, read-only) | `<dataDir>/desk-usage.json` | `<dataDir>/tenants/<id>/desk-usage.json` |
 | Legal matter | `<dataDir>/legal/<deskId>/<matterId>/` | `<dataDir>/tenants/<id>/legal/<deskId>/<matterId>/` |
+| Meeting | `<dataDir>/meetings/<deskId>/<meetingId>/` | `<dataDir>/meetings/tenants/<id>/<deskId>/<meetingId>/` |
 | ffmpeg scratch | `<dataDir>/edit/<projectId>/` | `<dataDir>/tenants/<id>/edit/<projectId>/` |
 | `media.storage_path` | `<orgId>/<uuid>.<ext>` | `tenants/<id>/<orgId>/<uuid>.<ext>` |
 | `datasets.storage_path` | `<deskId>/<uuid>.<ext>` | `tenants/<id>/<deskId>/<uuid>.<ext>` |
@@ -91,9 +92,10 @@ that it must carry the tenant rather than resolve one; the edit job runner does 
 | `packages/host/src/media-root.ts` | `mediaRoot`, `tenantMediaRoot`, `mediaRelativePath`, `mediaFilePath` |
 | `packages/host/src/settings-store.ts` | `SettingsScope`, `resolveSettingsScope`, the per-tenant `settings.enc` |
 | `packages/host/src/gateway-gate.ts` | `statePath(tenantId)`, the per-tenant verdict file, `requireGatewayAllowedFor` |
-| `packages/host/src/desk-usage.ts` | The per-tenant usage log |
+| `packages/host/src/desk-usage.ts` | The legacy usage file, now read per tenant |
 | `packages/host/src/edit/ffmpeg/paths.ts` | `EditScope`, `PathAllowlist`, `editScratchRoot`, `editAllowlist` |
 | `packages/host/src/legal/store-files.ts` | `tenantLegalRoot`, `matterDir`, `listMatterIds` |
+| `packages/host/src/meeting/store-files.ts` | `tenantMeetingRoot`, `meetingDir`, `listMeetingIds` |
 | `packages/host/src/datasets.ts` | `storagePath` and the `filePath` containment check |
 | `packages/host/src/knowledge.ts` | `uploadDir` — knowledge uploads under the tenant media root |
 
@@ -109,8 +111,10 @@ that it must carry the tenant rather than resolve one; the edit job runner does 
   (`packages/host/src/locale-boot.ts:11-16`) that every catalogue reads, so `loadOwnerLocale` /
   `saveOwnerLocale` stay on the local tenant's file (`settings-store.ts:452-466`). Making it per tenant
   means threading it through `run-context.ts`; that is open, not done.
-- **`desk-usage.json` is still a file.** The spec wants a `tenant_usage` row; Phase 5 owns that table and
-  has taken migration `0016` for it. Lane D scoped the file instead of racing that migration.
+- **`desk-usage.json` is legacy and read-only.** The spec wants a `tenant_usage` row; Phase 5 built that
+  table on migration `0016` (PR #74, [`tenant-usage-ledger.md`](tenant-usage-ledger.md)) and nothing writes
+  the file any more. Lane D scoped what still *reads* it, so a hosted tenant does not inherit the install's
+  pre-migration rows. `appendDeskUsage` survives for the reader tests; no production call site may use it.
 - **"Start over" is still refused in server mode** (`handlers/settings.ts`), so `tenants` in
   `HOST_RESET_ENTRIES` is belt and braces for a webdev instance that resolved a second tenant.
 

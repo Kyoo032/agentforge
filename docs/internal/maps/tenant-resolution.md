@@ -40,7 +40,7 @@ cannot be created and the app refuses everyone, rather than serving everyone one
 
 ### The ambient session
 
-`dispatch` (`packages/host/src/router.ts:387`) runs the matched handler inside
+`dispatch` (`packages/host/src/router.ts:432`) runs the matched handler inside
 `withRequestSession(session, …)` (`tenant-scope.ts:22`), an `AsyncLocalStorage` — the same idiom as
 `run-context.ts`, `edit/context.ts` and `sql-tool.ts`. So a handler that has not yet been swept to
 pass the request still resolves **the session's** tenant, and the desk id it passes is demoted to a
@@ -168,6 +168,6 @@ gate; a `login.md` recipe lands with the sign-in screen and is not written yet.
   pre-desk settings slice into the home desk, which is a desktop-upgrade concern; running it per
   tenant on a server would reach across another tenant's `settings.enc`. Lane D made the file per
   tenant and made `adoptLegacySettings` a no-op in server mode for exactly this reason
-  (`settings-store.ts:395-404`); see [`tenant-storage.md`](tenant-storage.md).
+  (`settings-store.ts:389-400`); see [`tenant-storage.md`](tenant-storage.md).
 - **None of this has been driven.** Nothing on a server, no sign-in against a real portal, no two
   browsers. Tests and a typecheck are not proof under `.cursor/skills/verify-agentforge`.

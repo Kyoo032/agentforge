@@ -559,6 +559,7 @@ export const WORK_SOURCE_TYPES = [
   "Presentation",
   "Edit",
   "Legal",
+  "Meeting",
 ] as const;
 export type WorkSourceType = (typeof WORK_SOURCE_TYPES)[number];
 
