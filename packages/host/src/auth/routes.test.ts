@@ -10,6 +10,7 @@ import {
 import { createMemorySessionStore, createMemoryTokenVault, type SessionStore, type TokenVault } from "./session-store";
 import { PortalError, createFakePortalClient, type FakePortalClient } from "./portal-client";
 import { createAuthRoutes, isSessionExemptPath, reasonMessage, requireSessionFor, type AuthRouteDeps } from "./routes";
+import type { PortalIdentity } from "@agentforge/db";
 import type { HostJsonResult, HostRequest } from "../types";
 
 const T0 = Date.UTC(2026, 8, 18, 9, 0, 0);
@@ -20,16 +21,37 @@ type Harness = {
   vault: TokenVault;
   portal: FakePortalClient;
   deps: AuthRouteDeps;
+  /** Every identity `handleLogin` provisioned, in order. Lane C: first sign-in writes the tenant. */
+  provisioned: PortalIdentity[];
 };
 
 function harness(
-  options: { portal?: FakePortalClient; store?: SessionStore; vault?: TokenVault; serverMode?: boolean } = {},
+  options: {
+    portal?: FakePortalClient;
+    store?: SessionStore;
+    vault?: TokenVault;
+    serverMode?: boolean;
+    provision?: (identity: PortalIdentity) => Promise<unknown>;
+  } = {},
 ): Harness {
   const store = options.store ?? createMemorySessionStore();
   const vault = options.vault ?? createMemoryTokenVault();
   const portal = options.portal ?? createFakePortalClient();
-  const deps: AuthRouteDeps = { store, vault, portal, serverMode: options.serverMode ?? true, now: () => T0 };
-  return { routes: createAuthRoutes(deps), store, vault, portal, deps };
+  const provisioned: PortalIdentity[] = [];
+  const provision =
+    options.provision ??
+    (async (identity: PortalIdentity) => {
+      provisioned.push(identity);
+    });
+  const deps: AuthRouteDeps = {
+    store,
+    vault,
+    portal,
+    provision,
+    serverMode: options.serverMode ?? true,
+    now: () => T0,
+  };
+  return { routes: createAuthRoutes(deps), store, vault, portal, deps, provisioned };
 }
 
 function request(overrides: Partial<HostRequest> = {}): HostRequest {
@@ -79,6 +101,46 @@ describe("POST /api/v1/auth/login", () => {
     expect(id).toMatch(/^[A-Za-z0-9_-]{43}$/);
     const stored = await h.store.find(id);
     expect(stored).toMatchObject({ userId: "usr_fake", orgId: "org_fake", tenantId: "tnt_fake", revokedAt: null });
+  });
+
+  // Phase 3 lane C: first sign-in is what provisions the tenant, because it is the one moment the
+  // portal has just vouched for these three ids. Every later request only reads them.
+  it("provisions the tenant, org and user from the ids the portal returned", async () => {
+    const h = harness();
+    await signIn(h);
+    expect(h.provisioned).toEqual([{ tenantId: "tnt_fake", orgId: "org_fake", userId: "usr_fake" }]);
+  });
+
+  it("provisions before the session exists, so a refused sign-in leaves no session behind", async () => {
+    const order: string[] = [];
+    const store = createMemorySessionStore();
+    const h = harness({
+      store: {
+        ...store,
+        create: async (session) => {
+          order.push("session");
+          return store.create(session);
+        },
+      },
+      provision: async () => {
+        order.push("provision");
+      },
+    });
+    await signIn(h);
+    expect(order).toEqual(["provision", "session"]);
+  });
+
+  it("refuses the sign-in when the host already holds that org under another tenant", async () => {
+    const mismatch = Object.assign(new Error("org_tenant_mismatch"), { name: "PortalProvisionError" });
+    const h = harness({
+      provision: async () => {
+        throw mismatch;
+      },
+    });
+    const result = await h.routes.handleLogin(request({ body: { code: "K7M4PQ9T" } }));
+    expect(result.status).toBe(403);
+    expect((result.body as { error: { code: string } }).error.code).toBe("org_inactive");
+    expect(result.cookies).toBeUndefined();
   });
 
   it("keeps the portal tokens out of the response and in the vault", async () => {

@@ -4,7 +4,7 @@ Agent-facing map (where to press). Not product. Pair with pstack `how` for how a
 
 This directory is the maintained source for verifying user-facing DPSBuddy behavior. Read this index before driving, then use the matching feature file as the recipe.
 
-Documents, Research, Finance, Data, Market, Legal, Images, Videos, Presentation, and Edit are product modes. **Default already unlocks all of them.** A Legal (or other) workspace can hide some tabs. Knowledge is Account-rail, not a mode checkbox. Custom agents do not unlock the rail. Edit shipped in 0.14.22 and `mode-edit` is a real rail tab on Default; the parts of the Edit studio still owed are named in [edit.md](./edit.md), not here.
+Documents, Research, Finance, Data, Market, Legal, Images, Videos, Music, Presentation, and Edit are product modes. **Default already unlocks all of them.** A Legal (or other) workspace can hide some tabs. Knowledge is Account-rail, not a mode checkbox. Custom agents do not unlock the rail. Edit shipped in 0.14.22 and `mode-edit` is a real rail tab on Default; the parts of the Edit studio still owed are named in [edit.md](./edit.md), not here.
 
 ## Baseline preconditions
 
@@ -66,6 +66,7 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 - [Knowledge graph](./knowledge-graph.md) — Phase 4 builtin: completed Chat replies with `[n]` markers add `cites` edges; one-hop `covers` expansion is behind `knowledge.graphExpand` (off in Chat); panel is the existing Phase 2 base. Drive on webdev :3000.
 - [Images](./images.md) — studio shell on Default; needs-key without a gateway key.
 - [Videos](./videos.md) — studio shell and `videos-studio-needs-key` without a key.
+- [Music](./music.md) — studio shell and `music-studio-needs-key` without a key; describe-or-lyrics brief, two takes per charge, voice-over reported unavailable rather than offered.
 - [Edit](./edit.md) — CapCut-style timeline + agent panel (`mode-edit`), shipped in 0.14.22. Storyboard generate is still a Phase 3 placeholder and `animate_storyboard` is backend-only.
 - [Presentation](./presentations.md) — starters, preview, slide regen (503 without a key), PPTX download from a starter.
 - [Desktop](./desktop.md) — Electron one-window launch, splash → Chat, IPC host (no loopback HTTP). Windows NSIS exists; mac/linux are builder targets.

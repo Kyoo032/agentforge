@@ -17,6 +17,11 @@ export const MODE_MESSAGE_KEYS = [
   "emptySlide",
   "videoGenerateFailed",
   "videoStillUnsupported",
+  "musicGenerateFailed",
+  "musicPromptRequired",
+  "musicLyricsRequired",
+  "lyricsGenerateFailed",
+  "speechUnavailable",
   "noFiguresParsed",
   "datasetNoNumericColumn",
   "webSearchFailed",
@@ -65,6 +70,26 @@ const MODE_MESSAGES: Record<ModeMessageKey, Record<AppLocale, string>> = {
   videoStillUnsupported: {
     en: "This model does not accept a still image",
     id: "Model ini tidak menerima gambar diam",
+  },
+  musicGenerateFailed: {
+    en: "Music generation failed",
+    id: "Pembuatan musik gagal",
+  },
+  musicPromptRequired: {
+    en: "Describe the song you want",
+    id: "Deskripsikan lagu yang Anda inginkan",
+  },
+  musicLyricsRequired: {
+    en: "Write or paste the lyrics for a custom track",
+    id: "Tulis atau tempel lirik untuk lagu kustom",
+  },
+  lyricsGenerateFailed: {
+    en: "Lyrics generation failed",
+    id: "Pembuatan lirik gagal",
+  },
+  speechUnavailable: {
+    en: "This gateway serves no text-to-speech model that a job route can reach",
+    id: "Gerbang ini tidak menyediakan model teks-ke-suara yang dapat dijangkau rute job",
   },
   noFiguresParsed: {
     en: "No figures could be read from that text",

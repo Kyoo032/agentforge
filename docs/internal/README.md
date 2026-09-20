@@ -12,6 +12,8 @@ Engineering and research notes. Not part of the closed-beta tester surface.
 | [`web-data-placement-tencent.md`](web-data-placement-tencent.md) | Where each kind of data lives on Tencent Cloud, by migration phase; sizing, backup targets and the price tables |
 | [`tencent-cvm-setup.md`](tencent-cvm-setup.md) | **Runbook:** standing the hosted app up on a fresh Tencent Cloud CVM, step by step - sizing, Docker, secrets, TLS, first-run checks, backups, update, rollback, cost |
 | [`web-phase3-tenancy-spec.md`](web-phase3-tenancy-spec.md) | Phase 3 (tenancy) spec: handler audit, migration 0015, five lanes, open questions |
+| [`web-phase3-lane-a.md`](web-phase3-lane-a.md) | Phase 3 lane A: the edit store's required scope argument and the cross-tenant discard bug it closed |
+| [`web-phase3-lane-c.md`](web-phase3-lane-c.md) | Phase 3 lane C: the tenant resolved from the browser session, first-sign-in provisioning, the scoped workspace cookie, session-bound CSRF, and what is still open |
 | [`portal/device-code-login.md`](portal/device-code-login.md) | Device-code login between DPSBuddy and the Toko Token portal: flow, endpoints, tokens, reason codes, client integration plan |
 | [`web-phase5-plans-billing-decisions.md`](web-phase5-plans-billing-decisions.md) | Phase 5 (plans and billing) decision doc: the five open choices with a recommendation and the cost of each, the metering hole, five lanes. Decides nothing; Kyo answers |
 | [`worklog-2026-09-18.md`](worklog-2026-09-18.md) | What landed on day one of the pivot, the known gaps, and where to start next |

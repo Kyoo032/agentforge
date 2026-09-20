@@ -1,6 +1,14 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { isServerMode, trustedOrigins, WORKSPACE_COOKIE } from "@agentforge/core";
-import { checkCsrfToken, CSRF_HEADER, csrfSetCookie, mintCsrfToken, readCsrfCookie, type CsrfMode } from "./csrf";
+import {
+  checkCsrfToken,
+  CSRF_HEADER,
+  csrfSetCookie,
+  csrfTokenMatchesSession,
+  mintCsrfTokenFor,
+  readCsrfCookie,
+  type CsrfMode,
+} from "./csrf";
 import { dispatch } from "./router";
 import { readSelectedWorkspaceId } from "./workspace";
 import { sessionCookieName } from "./auth/session";
@@ -390,6 +398,10 @@ export async function handleNodeRequest(req: IncomingMessage, res: ServerRespons
     remoteAddress: req.socket?.remoteAddress,
     serverMode,
   });
+  // The session id the browser presents, unverified — the router's gate is what verifies it. That is
+  // enough to bind a CSRF token to: a bogus id gets a token nobody else holds, and the request is
+  // 401'd a frame later anyway.
+  const presentedSessionId = cookies[sessionCookieName({ secure: serverMode })] ?? null;
   const context: RequestContext = { method, pathLength: path.length, ip, serverMode };
   /*
    * Transport filtering runs first, for EVERY request this adapter is handed and not just the /api
@@ -405,7 +417,7 @@ export async function handleNodeRequest(req: IncomingMessage, res: ServerRespons
    * it. If that mount ever moves, these controls move with it.
    */
   if (serverMode) {
-    const sessionKey = sessionRateKey(cookies[sessionCookieName({ secure: serverMode })]);
+    const sessionKey = sessionRateKey(presentedSessionId ?? undefined);
     const rejection = transportRejection(req, path, method, ip, sessionKey);
     if (rejection) {
       return respondRejection(res, rejection, context);
@@ -421,15 +433,21 @@ export async function handleNodeRequest(req: IncomingMessage, res: ServerRespons
     void handleBootEditJobs();
   }
   if (!SAFE_METHODS.has(method)) {
-    const rejection = mutatingRejection(req, path, cookies, csrfMode);
+    const rejection = mutatingRejection(req, path, cookies, csrfMode, presentedSessionId);
     if (rejection) {
       return respondRejection(res, { status: 403, ...rejection }, context);
     }
   }
   // Minted in every mode so the renderer's echo path is exercised on webdev too; only the hosted
   // server enforces it, so webdev and the desktop keep behaving exactly as before.
+  //
+  // Re-minted, not only minted: a token is bound to a session id (`./csrf.ts`), so the cookie a
+  // browser carries from before it signed in — or from before this process restarted — no longer
+  // verifies, and without a re-mint every mutating call would 403 with nothing able to fix it.
+  const csrfCookie = readCsrfCookie(cookies, csrfMode);
+  const csrfNeedsMint = !csrfCookie || !csrfTokenMatchesSession(csrfCookie, presentedSessionId);
   const mintedCookies =
-    method === "GET" && !readCsrfCookie(cookies, csrfMode) ? [csrfSetCookie(mintCsrfToken(), csrfMode)] : ([] as const);
+    method === "GET" && csrfNeedsMint ? [csrfSetCookie(mintCsrfTokenFor(presentedSessionId), csrfMode)] : ([] as const);
   let parsed: { body?: unknown; files?: HostFile[] };
   try {
     parsed = await readBody(req, method);
@@ -518,6 +536,7 @@ function mutatingRejection(
   path: string,
   cookies: Record<string, string>,
   csrfMode: CsrfMode,
+  sessionId: string | null,
 ): Rejection | null {
   const origin = header(req, "origin");
   const host = header(req, "host");
@@ -529,7 +548,7 @@ function mutatingRejection(
     if (!isAllowedWebOrigin(origin, allowlist) || !isAllowedWebHostHeader(host, allowlist)) {
       return { code: "origin_forbidden", message: ORIGIN_FORBIDDEN_MESSAGE };
     }
-    const csrf = checkCsrfToken(cookies, header(req, CSRF_HEADER), csrfMode);
+    const csrf = checkCsrfToken(cookies, header(req, CSRF_HEADER), csrfMode, sessionId);
     if (!csrf.ok) {
       return { code: csrf.code, message: csrf.message };
     }

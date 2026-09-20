@@ -6,6 +6,8 @@ import {
   chooseDefaultModel,
   detectCompatibleApi,
   isEmbeddingModelId,
+  isMusicModelId,
+  isSpeechModelId,
   mediaKind,
   mergeChatCatalog,
   probeAnthropicModels,
@@ -92,6 +94,24 @@ export function listVideoModels(): ChatModel[] {
   return listRoutedModels().video;
 }
 
+/**
+ * The audio catalog, split by what each id can actually do. `routeModelsByKind` lumps music, lyrics,
+ * TTS and ASR into one `audio` bucket, which is the right shape for the picker but the wrong shape
+ * for a studio: a song request sent to a transcriber bills the desk and returns nothing.
+ */
+export function listAudioModels(): ChatModel[] {
+  return listRoutedModels().audio;
+}
+
+export function listMusicModels(): ChatModel[] {
+  return listAudioModels().filter((model) => isMusicModelId(model.id));
+}
+
+/** Non-realtime text-to-speech only; empty on this gateway today. */
+export function listSpeechModels(): ChatModel[] {
+  return listAudioModels().filter((model) => isSpeechModelId(model.id));
+}
+
 /** Embedding ids are never curated — PICKER_HIDE strips them from chat. */
 export function listEmbeddingModels(models: ChatModel[] = listCatalogModels()): ChatModel[] {
   const embeddings = models.filter((model) => isEmbeddingModelId(model.id));
@@ -131,6 +151,7 @@ export function modeCatalogPayload(models: ChatModel[] = listCatalogModels()): {
     data: SelectableModel[];
     market: SelectableModel[];
     legal: SelectableModel[];
+    music: SelectableModel[];
     embedding: ChatModel[];
   };
   defaults: ModeModelDefaults;
@@ -149,12 +170,14 @@ export function modeCatalogPayload(models: ChatModel[] = listCatalogModels()): {
       data: curated.chat,
       market: curated.chat,
       legal: curated.chat,
+      music: curated.audio.filter((model) => isMusicModelId(model.id)),
       embedding,
     },
     defaults: resolveModeDefaults({
       chatIds: curated.chat.map((model) => model.id),
       imageIds: curated.image.map((model) => model.id),
       videoIds: curated.video.map((model) => model.id),
+      musicIds: curated.audio.map((model) => model.id),
       embeddingIds: embedding.map((model) => model.id),
       chatDefault,
     }),
