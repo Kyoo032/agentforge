@@ -34,7 +34,9 @@
     "./docx/test-fixtures": "./src/docx/__fixtures__/build-zip.ts",
     "./pdf": "./src/pdf/index.ts",
     "./pdf/test-fixtures": "./src/pdf/__fixtures__/build-pdf.ts",
-    "./legal": "./src/legal/index.ts"
+    "./legal": "./src/legal/index.ts",
+    "./channels": "./src/channels/index.ts",
+    "./channels/pinned": "./src/channels/pinned.ts"
   },
   "scripts": {
     "test": "vitest run",

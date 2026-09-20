@@ -20,10 +20,11 @@ Gateway identity stays **Toko Token** (`api.tokotokenai.com/v1`). Do not merge T
 | Music         | `music`        | `/music`           | Description or lyrics → generate music → gallery (two takes per job) |
 | Presentation  | `presentations`| `/presentations`   | Prompt → outline → HTML preview + PPTX |
 | Knowledge Base | —             | `/knowledge`       | Account-rail Soul / Memory / Sources / Map + models (not a product mode) |
+| Channels      | —              | `/channels`        | Account-rail Telegram bot + desk channels: send and receive (not a product mode) |
 | Settings      | —              | `/settings`        | Gateway key, privacy (not a surface) |
 | Usage         | —              | `/usage`           | This-key + desk spend by range (not a surface) |
 
-Account rail (not modes): Knowledge Base, Workspaces, Usage, Settings, theme. Collapse prefs stay on `apps/web/lib/rail-prefs.ts`. Marketing / Students presets stay as seeded — they do not gain Finance, Data, or Legal unless the owner checks those boxes. The Legal preset seeds the Legal mode.
+Account rail (not modes): Knowledge Base, Channels, Workspaces, Usage, Settings, theme. Collapse prefs stay on `apps/web/lib/rail-prefs.ts`. Marketing / Students presets stay as seeded — they do not gain Finance, Data, or Legal unless the owner checks those boxes. The Legal preset seeds the Legal mode.
 
 Agents / Studio are parked. `/agents` and `/studio/**` redirect to Chat. Files stay in the tree for a later pass.
 
@@ -86,6 +87,10 @@ Matter review, not a chatbot with a contract pasted in. v1 accepts **.docx only*
 ### Data
 
 Table analyst, not Research. Upload a CSV / TSV / XLSX (25 MB cap) or paste a table; the host parses and profiles it in code (`@agentforge/core/tabular`), stores the file under `localDataDir()/datasets`, and loads it into a per-dataset in-memory SQLite (`packages/host/src/datasets.ts`). The model gets the column identifiers, the profile, and 20 sample rows, and answers through the `run_sql` tool (SELECT-only guard, 8 queries, 500 rows, table `data`). Every evidence table and chart is produced by re-running the model's SQL in code (`data-analysis-build.ts`); the SQL is shown under each finding. Output is a `DataAnalysis` artifact (`kind: analysis`) with the same action row as Research; follow-up questions reuse the dataset. Routes: `POST /api/v1/datasets` (file or text), `GET /api/v1/datasets[/:id]`, `DELETE`, `POST /api/v1/data` (+ `/stream`). No `web_search`. Live analyze is 503 without a key; upload and profile work without one.
+
+### Channels
+
+Not a product mode. Account-rail page at `/channels`: connect a Telegram bot to the desk (token stored like the gateway key, shown back only as `hasTelegramBot` and a fingerprint), add the groups or channels that bot is in, post to one, and pull replies with **Check for new messages**. A channel belongs to one desk; nothing is shared between desks. The first mode that will *use* a channel is Market — the "market blast" — in a later pass, and market trading after that. Design and phases: [`internal/telegram-channels-plan.md`](internal/telegram-channels-plan.md); how it works: [`internal/maps/channels.md`](internal/maps/channels.md).
 
 ### Knowledge Base
 

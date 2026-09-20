@@ -1,0 +1,56 @@
+{
+  "kicker": "Account",
+  "title": "Channels",
+  "intro": "Connect a Telegram bot to this desk, then post to a group or a channel and read what comes back. Market briefings can be sent here in a later pass.",
+  "privacy": "Everything sent or received here travels through Telegram in the clear. Do not post anything you would not put in a group chat.",
+  "bot": {
+    "label": "Telegram bot",
+    "intro": "Create a bot with @BotFather in Telegram, then paste the token it gives you. It is stored encrypted on this desk and never shown again.",
+    "placeholder": "123456789:AA…",
+    "connect": "Connect bot",
+    "connected": "Connected as @{username}",
+    "disconnect": "Disconnect",
+    "sandbox": "This app is pointed at a local test server, not at Telegram."
+  },
+  "list": {
+    "label": "Channels on this desk",
+    "placeholder": "@channelname or -1001234567890",
+    "addAria": "Chat id or @username",
+    "add": "Add",
+    "remove": "Remove",
+    "hint": "Add the bot to the group or channel first. Up to {max} channels on a desk.",
+    "empty": "No channels yet."
+  },
+  "conversation": {
+    "none": "Pick a channel to see its conversation.",
+    "empty": "Nothing sent or received yet.",
+    "sentBy": "Sent by {author}",
+    "receivedFrom": "From {author}"
+  },
+  "composer": {
+    "placeholder": "Write a message for this channel",
+    "aria": "Message to send",
+    "send": "Send"
+  },
+  "poll": {
+    "check": "Check for new messages",
+    "done": "{received} new messages.",
+    "someUnmatched": "{received} new messages. {unmatched} arrived from a chat this desk has not added."
+  },
+  "chatType": {
+    "channel": "Channel",
+    "group": "Group",
+    "supergroup": "Group",
+    "private": "Direct message"
+  },
+  "errors": {
+    "load": "Could not load this desk's channels.",
+    "connect": "Telegram did not accept that token.",
+    "disconnect": "Could not disconnect the bot.",
+    "add": "Could not add that channel.",
+    "remove": "Could not remove that channel.",
+    "send": "Telegram did not accept that message.",
+    "poll": "Could not check for new messages.",
+    "notConnected": "Connect a Telegram bot for this desk first."
+  }
+}

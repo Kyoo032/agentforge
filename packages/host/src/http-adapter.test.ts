@@ -6,7 +6,7 @@ import { PassThrough } from "node:stream";
 import { WORKSPACE_COOKIE } from "@agentforge/core";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SESSION_COOKIE, SESSION_COOKIE_SECURE } from "./auth/session";
-import { CSRF_COOKIE, CSRF_COOKIE_SECURE, CSRF_HEADER, csrfSetCookie, mintCsrfToken } from "./csrf";
+import { CSRF_COOKIE, CSRF_COOKIE_SECURE, CSRF_HEADER, csrfSetCookie, mintCsrfToken, mintCsrfTokenFor } from "./csrf";
 import { DEFAULT_AUTH_BURST, DEFAULT_IP_BURST, DEFAULT_SESSION_BURST, resetRateLimiters } from "./rate-limit";
 import type { HostRequest } from "./types";
 
@@ -583,6 +583,50 @@ describe("handleNodeRequest CSRF cookie minting", () => {
       captured.res,
     );
     expect(captured.headerValues("set-cookie").some((value) => value.startsWith(`${CSRF_COOKIE_SECURE}=`))).toBe(true);
+  });
+
+  // Phase 3 lane C: the token is bound to a session id, so a cookie that no longer verifies has to
+  // be replaced or every mutating call 403s with nothing able to fix it.
+  it("re-mints when the cookie was minted before this browser signed in", async () => {
+    useServerMode();
+    const captured = fakeResponse();
+    await handleNodeRequest(
+      fakeRequest({
+        method: "GET",
+        url: "/api/v1/ping",
+        headers: { cookie: `${CSRF_COOKIE_SECURE}=${mintCsrfTokenFor(null)}; ${SESSION_COOKIE_SECURE}=sid-1` },
+      }),
+      captured.res,
+    );
+    expect(captured.headerValues("set-cookie").some((value) => value.startsWith(`${CSRF_COOKIE_SECURE}=`))).toBe(true);
+  });
+
+  it("re-mints when the cookie belongs to a different session", async () => {
+    useServerMode();
+    const captured = fakeResponse();
+    await handleNodeRequest(
+      fakeRequest({
+        method: "GET",
+        url: "/api/v1/ping",
+        headers: { cookie: `${CSRF_COOKIE_SECURE}=${mintCsrfTokenFor("sid-other")}; ${SESSION_COOKIE_SECURE}=sid-1` },
+      }),
+      captured.res,
+    );
+    expect(captured.headerValues("set-cookie").some((value) => value.startsWith(`${CSRF_COOKIE_SECURE}=`))).toBe(true);
+  });
+
+  it("leaves a cookie that is already bound to this session alone", async () => {
+    useServerMode();
+    const captured = fakeResponse();
+    await handleNodeRequest(
+      fakeRequest({
+        method: "GET",
+        url: "/api/v1/ping",
+        headers: { cookie: `${CSRF_COOKIE_SECURE}=${mintCsrfTokenFor("sid-1")}; ${SESSION_COOKIE_SECURE}=sid-1` },
+      }),
+      captured.res,
+    );
+    expect(captured.headerValues("set-cookie").some((value) => value.startsWith(`${CSRF_COOKIE_SECURE}=`))).toBe(false);
   });
 
   it("does not re-mint when the request already carries a token", async () => {
