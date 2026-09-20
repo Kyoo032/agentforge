@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
+import type { TenantContext } from "../tenancy/types";
 import { createRuntime } from "./create-runtime";
 
-const tenant = { tenantId: "local-tenant", organizationId: "org", workspaceId: "ws", userId: "user" };
+const tenant: TenantContext = {
+  tenantId: "local-tenant",
+  organizationId: "org",
+  workspaceId: "ws",
+  userId: "user",
+  role: "builder",
+};
 
 describe("createRuntime outbound PII mask", () => {
   it("lets the stub reply on the masked prompt, not the raw email", async () => {
