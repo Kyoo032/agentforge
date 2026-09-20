@@ -12,7 +12,7 @@ import { removeGraphForSource, removeGraphForThread, sweepOrphanGraph } from "./
 
 function tenant(): TenantContext {
   return {
-    organizationId: `org-prune-${crypto.randomUUID()}`,
+    tenantId: "local-tenant", organizationId: `org-prune-${crypto.randomUUID()}`,
     workspaceId: `ws-prune-${crypto.randomUUID()}`,
     userId: "user-prune",
     role: "owner",

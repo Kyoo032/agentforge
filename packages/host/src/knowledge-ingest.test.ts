@@ -22,6 +22,7 @@ import { artifactWorkCard, chatWorkCard, mediaWorkCard } from "./work-cards";
 
 function tenant(): TenantContext {
   return {
+    tenantId: "local-tenant",
     organizationId: "org-ingest-test",
     workspaceId: `ws-ingest-${crypto.randomUUID()}`,
     userId: "user-ingest-test",

@@ -13,7 +13,7 @@ import { DOCX_MIME, LEGAL_MATTER_MAX_BYTES, UNSUPPORTED_FILE_MESSAGE } from "./s
 import { localeForRun } from "../run-context";
 import { type CreateMatterInput, type LegalRunRecord, type LegalStore, createLegalStore } from "./store";
 
-const tenant: TenantContext = { organizationId: "org", workspaceId: "ws-1", userId: "local", role: "owner" };
+const tenant: TenantContext = { tenantId: "local-tenant", organizationId: "org", workspaceId: "ws-1", userId: "local", role: "owner" };
 const otherDesk: TenantContext = { ...tenant, workspaceId: "ws-2" };
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), "../../../core/src/docx/fixtures");
@@ -263,6 +263,7 @@ describe("legal store", () => {
  */
 describe("legal matter delete reaches its artifacts and its card", () => {
   const desk: TenantContext = {
+    tenantId: "local-tenant",
     organizationId: "org-legal-cascade",
     workspaceId: `ws-legal-${crypto.randomUUID()}`,
     userId: "local",

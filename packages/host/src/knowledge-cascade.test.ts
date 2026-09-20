@@ -25,7 +25,7 @@ import { artifactWorkCard, mediaWorkCard } from "./work-cards";
 
 function tenant(): TenantContext {
   return {
-    organizationId: `org-cascade-${crypto.randomUUID()}`,
+    tenantId: "local-tenant", organizationId: `org-cascade-${crypto.randomUUID()}`,
     workspaceId: `ws-cascade-${crypto.randomUUID()}`,
     userId: "user-cascade",
     role: "owner",

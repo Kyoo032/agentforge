@@ -14,7 +14,7 @@ import type { YahooClient } from "./yahoo";
 
 const NOW = new Date("2026-09-09T12:30:00.000Z");
 const now = () => NOW;
-const tenant: TenantContext = { organizationId: "org", workspaceId: "ws-1", userId: "local", role: "owner" };
+const tenant: TenantContext = { tenantId: "local-tenant", organizationId: "org", workspaceId: "ws-1", userId: "local", role: "owner" };
 
 type Output = { success: boolean; error?: string; data?: unknown; failures?: string[] };
 

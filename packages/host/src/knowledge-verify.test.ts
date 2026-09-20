@@ -21,6 +21,7 @@ import type { HostRequest } from "./types";
 
 function tenant(): TenantContext {
   return {
+    tenantId: "local-tenant",
     organizationId: "org-verify",
     workspaceId: `ws-verify-${crypto.randomUUID()}`,
     userId: "user-verify",

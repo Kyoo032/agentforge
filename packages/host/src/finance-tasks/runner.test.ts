@@ -49,6 +49,7 @@ const { readStoredFinanceReport } = await import("./persist");
 const { artifactStore } = await import("../artifacts");
 
 const tenant: TenantContext = {
+  tenantId: "local-tenant",
   organizationId: "org",
   workspaceId: "ws-finance-runner",
   userId: "local",

@@ -45,6 +45,7 @@ function plantedToken(): string {
 
 function tenant(): TenantContext {
   return {
+    tenantId: "local-tenant",
     organizationId: "org-backend-contract",
     workspaceId: `ws-backend-${crypto.randomUUID()}`,
     userId: "user-backend-contract",
