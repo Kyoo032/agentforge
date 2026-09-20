@@ -59,8 +59,8 @@ describe("the ledger vocabulary", () => {
     expect(isUsageMode(undefined)).toBe(false);
   });
 
-  it("meters the three units the modes actually consume", () => {
-    expect([...USAGE_UNITS]).toEqual(["tokens", "images", "seconds"]);
+  it("meters the four units the modes actually consume", () => {
+    expect([...USAGE_UNITS]).toEqual(["tokens", "images", "seconds", "jobs"]);
   });
 });
 
@@ -76,6 +76,7 @@ describe("usageModeFromRunPrefix", () => {
     expect(usageModeFromRunPrefix("legal")).toBe("legal");
     expect(usageModeFromRunPrefix("data")).toBe("data");
     expect(usageModeFromRunPrefix("edit")).toBe("edit");
+    expect(usageModeFromRunPrefix("music")).toBe("music");
   });
 
   it("is case- and whitespace-insensitive", () => {

@@ -12,10 +12,12 @@ import { rememberJobUsage } from "./job-usage";
 import { createUsageStore, setUsageStoreForTests, type UsageStore } from "./tenant-usage";
 import {
   priceImageUsage,
+  priceJobUsage,
   priceTokenUsage,
   priceVideoUsage,
   recordChatRunUsage,
   recordImageUsage,
+  recordMusicUsage,
   recordTokenUsage,
   recordVideoUsage,
 } from "./usage-record";
@@ -117,6 +119,32 @@ describe("usage recording", () => {
       const rows = store.list(tenant);
       expect(rows).toHaveLength(1);
       expect(rows[0]).toMatchObject({ tenantId: "local-tenant", mode: "images", unit: "images" });
+    });
+
+    it("records a music job in jobs — one charge, however many takes come back", () => {
+      // Suno has no vendor list price, so the only figure is the gateway's flat per-call rate.
+      const catalog: PricingCatalog = {
+        models: [{ modelName: "suno-v5", quotaType: 1, modelRatio: 0, completionRatio: 0, modelPrice: 0.08 }],
+        groupRatio: {},
+      };
+      const row = recordMusicUsage(tenant, { model: "suno-v5", catalog });
+      expect(row).toMatchObject({ mode: "music", unit: "jobs", quantity: 1, costUsdMicros: 80_000 });
+      expect(store.list(tenant)).toHaveLength(1);
+    });
+
+    it("records a music job the gateway catalog cannot price yet", () => {
+      expect(recordMusicUsage(tenant, { model: "suno-v5", catalog: null })).toMatchObject({
+        unit: "jobs",
+        quantity: 1,
+        costUsdMicros: null,
+        unpricedReason: "catalog_unavailable",
+      });
+      expect(recordMusicUsage(tenant, { model: "suno-v5", catalog })).toMatchObject({
+        unit: "jobs",
+        costUsdMicros: null,
+        unpricedReason: "no_list_price",
+      });
+      expect(store.list(tenant)).toHaveLength(2);
     });
 
     it("records a video in seconds, at the per-second list price times the clip length", () => {
@@ -241,6 +269,12 @@ describe("usage recording", () => {
       expect(priceImageUsage("seedream-4.5", 3)).toEqual({ costUsdMicros: 120_000 });
       expect(priceVideoUsage("veo-3.1-lite", 4, "720p")).toEqual({ costUsdMicros: 200_000 });
       expect(priceImageUsage("nope", 1)).toEqual({ costUsdMicros: null, unpricedReason: "no_list_price" });
+      // A flat-rate job with no catalog is `catalog_unavailable`, not `no_list_price`: one is
+      // fixable by a warm cache, the other is not.
+      expect(priceJobUsage("suno-v5", 1, null)).toEqual({
+        costUsdMicros: null,
+        unpricedReason: "catalog_unavailable",
+      });
       expect(priceVideoUsage("nope", 4)).toEqual({ costUsdMicros: null, unpricedReason: "no_list_price" });
     });
   });
@@ -267,6 +301,7 @@ describe("usage recording", () => {
       ["knowledge-brain", "knowledge"],
       ["knowledge-verifier", "knowledge"],
       ["edit", "edit"],
+      ["music", "music"],
       ["chat", "chat"],
       ["enhance", "other"],
       ["", "other"],

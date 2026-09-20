@@ -193,6 +193,7 @@ export {
   MEDIA_PRICE_ENTRIES,
   costTier,
   estimateImageCost,
+  estimateMusicCost,
   estimateVideoCost,
   findMediaListPrice,
   relativeFactor,

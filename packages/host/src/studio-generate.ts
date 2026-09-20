@@ -43,7 +43,7 @@ import { mediaWorkCard, musicWorkCard } from "./work-cards";
 import type { WorkSourceType } from "./knowledge";
 import { imageGenerateFailedMessage, withImageOutputLanguage } from "./image-output-locale";
 import { localeForRun } from "./run-context";
-import { recordImageUsage, recordVideoUsage } from "./usage-record";
+import { recordImageUsage, recordMusicUsage, recordVideoUsage } from "./usage-record";
 
 export type StudioGenerateOptions = {
   /** Knowledge source type for the work card. Defaults to Images / Videos; Edit passes "Edit". */
@@ -466,6 +466,9 @@ export async function generateStudioMusic(
     );
   }
   const usedModel = toolModel(output, model);
+  // One charge, however many takes come back — so the unit is `jobs` and the quantity is 1. Metered
+  // before the takes are stored, like the other studios: the gateway has already billed for them.
+  recordMusicUsage(tenant, { model: usedModel });
   const { saveGeneratedAudio } = await import("./media");
   const saved: StudioTrackResult[] = [];
   for (const track of tracks) {
@@ -525,10 +528,14 @@ export async function writeStudioLyrics(
   if (record.success !== true || !text) {
     throw new ApiError("tool_failed", toolFailureMessage(output, modeMessage("lyricsGenerateFailed", locale)), 400);
   }
+  const usedModel = toolModel(output, body.model ?? "");
+  // A lyrics draft is its own flat-rate gateway call, billed whether or not the desk goes on to
+  // generate a song from it.
+  recordMusicUsage(tenant, { model: usedModel });
   return {
     text,
     title: typeof record.title === "string" && record.title.trim() ? record.title.trim() : undefined,
-    model: toolModel(output, body.model ?? ""),
+    model: usedModel,
   };
 }
 

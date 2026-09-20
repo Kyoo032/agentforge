@@ -2,6 +2,7 @@ import {
   asRunUsageRecord,
   DEFAULT_GROUP_RATIO,
   estimateImageCost,
+  estimateMusicCost,
   estimateVideoCost,
   explainRunUsd,
   findMediaListPrice,
@@ -16,6 +17,7 @@ import {
   type UsageMode,
 } from "@agentforge/core";
 import { cachedPricingCatalog } from "./account-usage";
+import { gatewayFlatPrice } from "./media-price";
 import { recordUsage, type TenantUsageRow } from "./tenant-usage";
 
 /**
@@ -86,6 +88,65 @@ export function priceVideoUsage(
     return { costUsdMicros: null, unpricedReason: "no_list_price" };
   }
   return priced(estimateVideoCost(price, { seconds, ...(resolution ? { resolution } : {}) }).usd, "no_list_price");
+}
+
+/**
+ * Price one flat-rate gateway job (a music generation, a lyrics draft).
+ *
+ * Suno has no vendor list price at all — it sells a consumer subscription, not an API — so the only
+ * figure that exists is the gateway's own per-call rate, which is exactly what `gatewayFlatPrice`
+ * reads for the `track` unit. With no catalog in memory there is no number to have, and the row is
+ * recorded as `catalog_unavailable` rather than `no_list_price`: one is fixable by a warm cache,
+ * the other is not.
+ */
+export function priceJobUsage(model: string, count: number, catalog: PricingCatalog | null): Priced {
+  const listed = findMediaListPrice(model);
+  if (listed) {
+    return priced(estimateMusicCost(listed, { count }).usd, "no_list_price");
+  }
+  if (!catalog) {
+    return { costUsdMicros: null, unpricedReason: "catalog_unavailable" };
+  }
+  let flat = null;
+  try {
+    flat = gatewayFlatPrice(catalog, model, "track", resolvedGatewayBaseUrl());
+  } catch {
+    flat = null;
+  }
+  if (!flat) {
+    return { costUsdMicros: null, unpricedReason: "no_list_price" };
+  }
+  return priced(estimateMusicCost(flat, { count }).usd, "no_list_price");
+}
+
+export type MusicUsageContext = {
+  model: string;
+  /** Flat-rate jobs, not takes: one music call is one charge however many takes come back. */
+  count?: number;
+  /** Catalog override, for tests. Defaults to whatever is cached for the pinned gateway. */
+  catalog?: PricingCatalog | null;
+  runId?: string;
+};
+
+/**
+ * Record one music generation or one lyrics draft. The unit is `jobs`, because the gateway bills a
+ * flat rate per call: a music job returns two takes for one charge, so counting takes would bill
+ * double, and counting seconds of audio would bill something the gateway never charged for.
+ */
+export function recordMusicUsage(tenant: TenantContext, context: MusicUsageContext): TenantUsageRow | null {
+  const count = Number.isFinite(context.count) && (context.count ?? 0) >= 1 ? Math.floor(context.count as number) : 1;
+  const catalog = context.catalog === undefined ? tokenCatalog() : context.catalog;
+  const event: UsageEvent = {
+    mode: "music",
+    model: context.model,
+    unit: "jobs",
+    quantity: count,
+    inputTokens: 0,
+    outputTokens: 0,
+    ...priceJobUsage(context.model, count, catalog),
+    ...(context.runId ? { runId: context.runId } : {}),
+  };
+  return recordUsage(tenant, event);
 }
 
 export type TokenUsageContext = {

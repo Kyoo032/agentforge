@@ -14,7 +14,7 @@
 
 /**
  * The product surface the call was made from. This is a *metering* label, wider than `JobMode`:
- * it also covers chat, the edit agent and the two media studios, none of which are job modes.
+ * it also covers chat, the edit agent and the three media studios, none of which are job modes.
  * `other` is the honest answer for a call site nobody has classified yet — it still gets a row.
  */
 export const USAGE_MODES = [
@@ -29,6 +29,7 @@ export const USAGE_MODES = [
   "knowledge",
   "images",
   "videos",
+  "music",
   "edit",
   "other",
 ] as const;
@@ -41,10 +42,15 @@ export function isUsageMode(value: unknown): value is UsageMode {
 
 /**
  * What `quantity` counts. One row carries exactly one unit: a text run is metered in tokens, an
- * image in images, a clip in seconds. They are deliberately not reconciled into a single unit —
- * only `costUsdMicros` is comparable across rows, and it is nullable for exactly that reason.
+ * image in images, a clip in seconds, and a flat-rate call in jobs. They are deliberately not
+ * reconciled into a single unit — only `costUsdMicros` is comparable across rows, and it is
+ * nullable for exactly that reason.
+ *
+ * `jobs` is the unit for anything the gateway charges a flat rate per call for, whatever it hands
+ * back: a music job is one charge and returns two takes, and a lyrics draft is one charge and
+ * returns text. Counting either in takes or in words would bill the wrong thing.
  */
-export const USAGE_UNITS = ["tokens", "images", "seconds"] as const;
+export const USAGE_UNITS = ["tokens", "images", "seconds", "jobs"] as const;
 
 export type UsageUnit = (typeof USAGE_UNITS)[number];
 
@@ -160,6 +166,9 @@ export function usageModeFromRunPrefix(prefix: string): UsageMode {
   }
   if (id.startsWith("data")) {
     return "data";
+  }
+  if (id.startsWith("music")) {
+    return "music";
   }
   if (id.startsWith("edit")) {
     return "edit";
