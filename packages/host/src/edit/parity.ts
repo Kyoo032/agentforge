@@ -5,7 +5,10 @@ import { frameAt } from "./ffmpeg/recipes";
 
 export function titleBoxForFrame(doc: EditProject, frame: number) {
   const clip = doc.clips.find(
-    (item) => item.title && frame >= item.timelineStartFrame && frame < item.timelineStartFrame + item.durationFrames,
+    (item) =>
+      item.title &&
+      frame >= item.timelineStartFrame &&
+      frame < item.timelineStartFrame + item.durationFrames,
   );
   if (!clip?.title) {
     return null;
