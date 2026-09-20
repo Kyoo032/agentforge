@@ -131,7 +131,7 @@ export async function* startModalityRun(options: {
 }): AsyncIterable<string> {
   ensureToolsRegistered();
   const parsed = parsers[options.modality](options.body as { content?: unknown; stream?: unknown });
-  const settings = loadSettings(options.tenant.workspaceId);
+  const settings = loadSettings(options.tenant);
   const userParts = settings.injectionGuardBypass === true ? parsed.parts : redactAttachedParts(parsed.parts);
   const reasoningEffort = readOptionalReasoningEffort(options.body);
   const thinkingEnabled = reasoningEffort !== "none";

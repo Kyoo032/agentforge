@@ -1,8 +1,7 @@
 import type { InputModality } from "@agentforge/core";
 import type { HostRequest, HostResult } from "../types";
 import { jsonError } from "../errors";
-import { requireGatewayAllowed } from "../gateway-gate";
-import { loadSettings } from "../settings-store";
+import { requireGatewayAllowedFor } from "../gateway-gate";
 import { getTenant } from "../tenant";
 import { startModalityRun } from "../runs";
 
@@ -28,7 +27,7 @@ export async function handleRun(request: HostRequest, modality: InputModality): 
   try {
     const tenant = await getTenant(request.workspaceId);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
-    requireGatewayAllowed(loadSettings(tenant.workspaceId));
+    requireGatewayAllowedFor(tenant);
     return await asStream(
       startModalityRun({
         tenant,

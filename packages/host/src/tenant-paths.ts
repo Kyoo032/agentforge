@@ -1,0 +1,123 @@
+/**
+ * Phase 3 lane D — the one place a tenant turns into a directory.
+ *
+ * The rule, and there is only one: **`local-tenant`'s storage root is the install root itself;
+ * every other tenant gets a `tenants/<tenantId>/` subtree inside it.**
+ *
+ * `local-tenant` is not a tenant someone signed up for — it is the id migration `0015` stamped onto
+ * the single organization every pre-Phase-3 database already had (`local-owner.ts:7`). Its files
+ * are the install's files. Giving it a prefix would mean moving a desktop user's media, matters and
+ * `settings.enc` on upgrade, so it keeps the layout it has and nothing is moved: a desktop data
+ * directory is byte-identical before and after this change, and every `storage_path` already in
+ * `media` / `datasets` still resolves verbatim.
+ *
+ * The one thing that rule costs: a second tenant's subtree sits *inside* the local tenant's root, so
+ * "is this path mine?" is not a plain prefix test for the local tenant. `tenantDeniedRoots` is that
+ * exception, made explicit, and `isInsideTenantRoot` is the check every path guard should use.
+ */
+import path from "node:path";
+import { ApiError, LOCAL_TENANT_ID } from "@agentforge/core";
+import { localDataDir } from "@agentforge/db/vault-key";
+
+/** The directory that holds every non-local tenant. Reserved: no id may be spelled this. */
+export const TENANTS_DIR = "tenants";
+
+/**
+ * Same shape as `assertSafeId` in `legal/store-files.ts:38`. Deliberately narrower than "a string":
+ * a tenant id reaches the filesystem, so `..`, `/`, `\`, a drive letter and a NUL are all rejected
+ * by not matching rather than by being listed.
+ */
+const SAFE_SEGMENT = /^[A-Za-z0-9_-]{1,80}$/;
+
+function denied(message: string): never {
+  throw new ApiError("invalid_request", message, 400);
+}
+
+export function assertTenantId(tenantId: string): string {
+  if (!SAFE_SEGMENT.test(tenantId) || tenantId === TENANTS_DIR) {
+    denied("Tenant id is malformed");
+  }
+  return tenantId;
+}
+
+/**
+ * A caller-supplied path segment. `tenants` is rejected everywhere, not only in first position: the
+ * local tenant's prefix is empty, so a segment spelled `tenants` would be indistinguishable from
+ * another tenant's subtree.
+ */
+export function assertPathSegment(segment: string, label: string): string {
+  if (!SAFE_SEGMENT.test(segment) || segment === TENANTS_DIR) {
+    denied(`${label} is malformed`);
+  }
+  return segment;
+}
+
+export function isLocalTenant(tenantId: string): boolean {
+  return assertTenantId(tenantId) === LOCAL_TENANT_ID;
+}
+
+/** The segments a tenant adds under a shared root. Empty for the local tenant, by the rule above. */
+export function tenantSegments(tenantId: string): string[] {
+  return isLocalTenant(tenantId) ? [] : [TENANTS_DIR, tenantId];
+}
+
+/** `root` for the local tenant; `<root>/tenants/<tenantId>` for every other tenant. */
+export function tenantScopedRoot(root: string, tenantId: string): string {
+  return path.join(root, ...tenantSegments(tenantId));
+}
+
+/**
+ * A `/`-joined relative path under a shared root, tenant-prefixed. This is what goes into a
+ * `storage_path` column, so it stays POSIX-shaped on every platform exactly as the pre-Phase-3
+ * writers did (`media.ts:47`).
+ */
+export function tenantRelativePath(tenantId: string, segments: readonly string[], filename: string): string {
+  assertTenantId(tenantId);
+  const checked = segments.map((segment, index) => assertPathSegment(segment, `Path segment ${index + 1}`));
+  if (!filename || filename.includes("/") || filename.includes("\\") || filename.includes("\0")) {
+    denied("Filename is malformed");
+  }
+  if (filename === "." || filename === "..") {
+    denied("Filename is malformed");
+  }
+  return [...tenantSegments(tenantId), ...checked, filename].join("/");
+}
+
+/** `<dataDir>` for the local tenant; `<dataDir>/tenants/<tenantId>` otherwise. */
+export function tenantDataDir(tenantId: string): string {
+  return tenantScopedRoot(localDataDir(), tenantId);
+}
+
+/**
+ * Sub-trees of a tenant's own root that are *not* that tenant's. Only the local tenant has any:
+ * its root is the install root, so `tenants/` inside it belongs to everybody else.
+ */
+export function tenantDeniedRoots(root: string, tenantId: string): string[] {
+  return isLocalTenant(tenantId) ? [path.join(root, TENANTS_DIR)] : [];
+}
+
+function normalizeForCompare(value: string): string {
+  const resolved = path.resolve(value);
+  return process.platform === "win32" ? resolved.toLowerCase() : resolved;
+}
+
+/** True when `candidate` is at or under `root` — no `..`, no sibling that merely shares a prefix. */
+export function isInside(root: string, candidate: string): boolean {
+  const rel = path.relative(normalizeForCompare(root), normalizeForCompare(candidate));
+  if (!rel) {
+    return true;
+  }
+  return !path.isAbsolute(rel) && rel.split(/[\\/]/)[0] !== "..";
+}
+
+/**
+ * The containment test every per-tenant path guard should use: inside this tenant's root, and not
+ * inside a subtree that belongs to another tenant.
+ */
+export function isInsideTenantRoot(root: string, tenantId: string, candidate: string): boolean {
+  const scoped = tenantScopedRoot(root, tenantId);
+  if (!isInside(scoped, candidate)) {
+    return false;
+  }
+  return !tenantDeniedRoots(root, tenantId).some((other) => isInside(other, candidate));
+}

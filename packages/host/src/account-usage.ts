@@ -162,7 +162,7 @@ export async function loadLocalAccountUsage(
       fromRuns.push(record);
     }
   }
-  const records = [...fromRuns, ...listDeskUsage()];
+  const records = [...fromRuns, ...listDeskUsage(tenant.tenantId)];
   const unknownCount = records.length;
   return {
     thisKey: settings.openaiApiKey
@@ -178,10 +178,7 @@ export async function loadLocalAccountUsage(
   };
 }
 
-export async function loadAccountUsage(
-  settings: StoredSecrets,
-  tenant: TenantContext,
-): Promise<AccountUsagePayload> {
+export async function loadAccountUsage(settings: StoredSecrets, tenant: TenantContext): Promise<AccountUsagePayload> {
   // With a key both gateway calls are needed; start pricing alongside this-key so an offline desk pays
   // one timeout, not two in a row (this sits on GET /settings, which the app shell waits for).
   const pricingEarly = settings.openaiApiKey
@@ -198,7 +195,7 @@ export async function loadAccountUsage(
       fromRuns.push(record);
     }
   }
-  const records = [...fromRuns, ...listDeskUsage()];
+  const records = [...fromRuns, ...listDeskUsage(tenant.tenantId)];
 
   if (!settings.openaiApiKey && records.length === 0) {
     return {
@@ -254,10 +251,10 @@ function emptyBuckets(range: UsageRange, now: Date): UsageBucket[] {
   }));
 }
 
-function timedDeskInRange(range: UsageRange, now: Date): TimestampedRunUsage[] {
+function timedDeskInRange(tenantId: string, range: UsageRange, now: Date): TimestampedRunUsage[] {
   const keySet = new Set(listUsageBucketFrames(range, now).map((frame) => frame.key));
   const timed: TimestampedRunUsage[] = [];
-  for (const row of listTimedDeskUsage()) {
+  for (const row of listTimedDeskUsage(tenantId)) {
     if (!keySet.has(usageBucketKey(row.startedAt, range))) {
       continue;
     }
@@ -301,7 +298,7 @@ export async function loadRangeUsage(
   now = new Date(),
 ): Promise<RangeUsagePayload> {
   const [thisKey, runRows] = await Promise.all([thisKeyFor(settings), listRunUsage(tenant)]);
-  const timed = [...timedRunsInRange(runRows, range, now), ...timedDeskInRange(range, now)];
+  const timed = [...timedRunsInRange(runRows, range, now), ...timedDeskInRange(tenant.tenantId, range, now)];
 
   if (!settings.openaiApiKey && timed.length === 0) {
     return {

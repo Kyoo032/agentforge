@@ -85,7 +85,7 @@ async function runJobAssistantOnce(options: {
   /** App locale for runtime copy (timeouts, contact errors). Defaults to the run context. */
   locale?: AppLocale;
 }): Promise<string> {
-  const settings = loadSettings(options.tenant.workspaceId);
+  const settings = loadSettings(options.tenant);
   const runtime = createRuntime(settings);
   const attachments = options.attachments ?? [];
   if (attachments.length > 0) {
@@ -135,7 +135,7 @@ async function runJobAssistantOnce(options: {
         failedMessage = event.message;
       }
       options.onEvent?.(event);
-      rememberJobUsage(event);
+      rememberJobUsage(options.tenant.tenantId, event);
     },
   });
 

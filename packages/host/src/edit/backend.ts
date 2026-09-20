@@ -1,14 +1,14 @@
 import { and, eq } from "drizzle-orm";
-import {
-  type ApplyableOp,
-  type Clip,
-  type EditProject,
-  type Ingredient,
-  type TenantContext,
-  type EditStartJobInput,
-  type EditStartGenerateJobInput,
-  type EditPlanInput,
-  type EditToolBackend,
+import type {
+  ApplyableOp,
+  Clip,
+  EditProject,
+  Ingredient,
+  TenantContext,
+  EditStartJobInput,
+  EditStartGenerateJobInput,
+  EditPlanInput,
+  EditToolBackend,
 } from "@agentforge/core";
 import { db, editCards } from "@agentforge/db";
 import { requireEditToolContext } from "./context";
@@ -74,7 +74,7 @@ export const hostEditBackend: EditToolBackend = {
     if (!asset) {
       return { error: "asset_not_found" };
     }
-    return probeFile(assetAbsPath(asset), project.id);
+    return probeFile(assetAbsPath(tenant.tenantId, asset), { tenantId: tenant.tenantId, projectId: project.id });
   },
   async listIngredients(tenant): Promise<Ingredient[]> {
     const project = await hostEditBackend.getProject(tenant);
@@ -86,7 +86,13 @@ export const hostEditBackend: EditToolBackend = {
     if (!asset) {
       return { ranges: [] };
     }
-    return silenceDetect(assetAbsPath(asset), project.id, project.fps, args.noiseDb, args.minSeconds);
+    return silenceDetect(
+      assetAbsPath(tenant.tenantId, asset),
+      { tenantId: tenant.tenantId, projectId: project.id },
+      project.fps,
+      args.noiseDb,
+      args.minSeconds,
+    );
   },
   async detectScenes(tenant, args) {
     const project = await hostEditBackend.getProject(tenant);
@@ -94,7 +100,12 @@ export const hostEditBackend: EditToolBackend = {
     if (!asset) {
       return { frames: [] };
     }
-    return sceneDetect(assetAbsPath(asset), project.id, project.fps, args.threshold);
+    return sceneDetect(
+      assetAbsPath(tenant.tenantId, asset),
+      { tenantId: tenant.tenantId, projectId: project.id },
+      project.fps,
+      args.threshold,
+    );
   },
   async asrAvailable() {
     return resolveAsrCapability().available;
@@ -127,11 +138,15 @@ export const hostEditBackend: EditToolBackend = {
         thumbsJson: [],
       })
       .returning();
-    const applied = await appendOps(ctx.projectId, ops.map((op) => ({ ...op, cardId })), {
-      actor: `agent:${ctx.runId}`,
-      cardId,
-      workspaceId: ctx.tenant.workspaceId,
-    });
+    const applied = await appendOps(
+      ctx.projectId,
+      ops.map((op) => ({ ...op, cardId })),
+      {
+        actor: `agent:${ctx.runId}`,
+        cardId,
+        workspaceId: ctx.tenant.workspaceId,
+      },
+    );
     await db
       .update(editCards)
       .set({ opIdsJson: applied.applied.map((op) => op.id) })

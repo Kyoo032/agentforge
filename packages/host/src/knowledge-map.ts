@@ -56,22 +56,14 @@ function saveMap(
          error = excluded.error,
          created_at = excluded.created_at`,
     )
-    .run(
-      workspaceId(tenant),
-      JSON.stringify(payload ?? {}),
-      status,
-      error,
-      Date.now(),
-    );
+    .run(workspaceId(tenant), JSON.stringify(payload ?? {}), status, error, Date.now());
 }
 
 function sourceExcerpts(tenant: TenantContext): Array<{ id: string; name: string; excerpt: string }> {
   const sources = listSources(tenant);
   return sources.map((source) => {
     const row = sql
-      .prepare(
-        `SELECT body FROM knowledge_chunks WHERE workspace_id = ? AND source_id = ? LIMIT 1`,
-      )
+      .prepare(`SELECT body FROM knowledge_chunks WHERE workspace_id = ? AND source_id = ? LIMIT 1`)
       .get(workspaceId(tenant), source.id) as { body: string } | undefined;
     return {
       id: source.id,
@@ -81,16 +73,9 @@ function sourceExcerpts(tenant: TenantContext): Array<{ id: string; name: string
   });
 }
 
-export async function mapKnowledge(
-  tenant: TenantContext,
-  overrides?: Partial<KnowledgeModels>,
-): Promise<KnowledgeMap> {
+export async function mapKnowledge(tenant: TenantContext, overrides?: Partial<KnowledgeModels>): Promise<KnowledgeMap> {
   let models = getKnowledgeModels(tenant);
-  if (
-    overrides?.embeddingModel ||
-    overrides?.brainModel ||
-    overrides?.verifierModel
-  ) {
+  if (overrides?.embeddingModel || overrides?.brainModel || overrides?.verifierModel) {
     models = putKnowledgeModels(tenant, {
       embeddingModel: overrides.embeddingModel ?? models.embeddingModel,
       brainModel: overrides.brainModel ?? models.brainModel,
@@ -103,7 +88,7 @@ export async function mapKnowledge(
   try {
     await reembedWorkspaceChunks(tenant, models.embeddingModel);
 
-    const settings = loadSettings(tenant.workspaceId);
+    const settings = loadSettings(tenant);
     const mode = resolveRuntimeMode({
       settingsHasKey: hasLiveProvider(settings),
       envRuntime: process.env.AGENTFORGE_RUNTIME,
@@ -135,9 +120,7 @@ export async function mapKnowledge(
       if (!draft) {
         throw new ApiError("generation_failed", modeMessage("invalidKnowledgeMap", localeForRun()), 502);
       }
-      const evidence = excerpts
-        .map((item) => `[${item.id}] ${item.name}\n${item.excerpt}`)
-        .join("\n\n");
+      const evidence = excerpts.map((item) => `[${item.id}] ${item.name}\n${item.excerpt}`).join("\n\n");
       const verifierRaw = await collectJobAssistantText({
         tenant,
         model: models.verifierModel,

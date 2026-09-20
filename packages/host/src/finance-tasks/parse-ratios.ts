@@ -153,7 +153,7 @@ async function askModelForBuckets(
   labels: readonly string[],
 ): Promise<{ overrides: readonly RatioBucketOverride[]; error: string | null }> {
   try {
-    const settings = requireLive(tenant.workspaceId);
+    const settings = requireLive(tenant);
     const raw = await collectJobAssistantText({
       tenant,
       model: resolveModel(body, settings),
@@ -208,15 +208,15 @@ export async function parseRatiosFigures(tenant: TenantContext, body: unknown): 
   const guardedRows = guardFinanceInput({ lineItems: rows.map((row) => toLineItem(row, read.currency)) });
   return {
     items: guardedRows.lineItems,
-    buckets: rows.map((row, index) => classifiedRow(row, guardedRows.lineItems[index] ?? toLineItem(row, read.currency))),
+    buckets: rows.map((row, index) =>
+      classifiedRow(row, guardedRows.lineItems[index] ?? toLineItem(row, read.currency)),
+    ),
     periods: read.periods,
     subtotalsIgnored: read.subtotals.length,
     // Read off the already-guarded text, so these labels carry the same redaction the rows do.
     stated: read.subtotals.map((row) => ({ label: row.label, period: row.period ?? "", amount: row.amount })),
     modelAssist:
-      assist === null
-        ? null
-        : { asked: leftovers.length, placed: assist.overrides.length, error: assist.error },
+      assist === null ? null : { asked: leftovers.length, placed: assist.overrides.length, error: assist.error },
     needsConfirmation: true,
     pii: mergeFinancePii(guardedText.pii, guardedRows.pii),
   };

@@ -158,8 +158,8 @@ function resolveDeps(deps: MarketGenerateDeps): Resolved {
   };
 }
 
-function requireLive(workspaceId: string): ReturnType<typeof loadSettings> {
-  const settings = loadSettings(workspaceId);
+function requireLive(tenant: TenantContext): ReturnType<typeof loadSettings> {
+  const settings = loadSettings(tenant);
   const mode = resolveRuntimeMode({
     settingsHasKey: hasLiveProvider(settings),
     envRuntime: process.env.AGENTFORGE_RUNTIME,
@@ -380,10 +380,7 @@ async function draftBriefing(run: WatchRun, packet: MarketWatchPacket): Promise<
  * elliott-wave) cannot run a team, so the run falls back to the quick draft and
  * says so in `failures` rather than refusing the request.
  */
-async function draftWithTeam(
-  run: WatchRun,
-  packet: MarketWatchPacket,
-): Promise<{ raw: string; team: TeamOutcome }> {
+async function draftWithTeam(run: WatchRun, packet: MarketWatchPacket): Promise<{ raw: string; team: TeamOutcome }> {
   const { tenant, request, model, resolved, emit, abortSignal } = run;
   if (!teamAvailable(request.specialist)) {
     return {
@@ -458,7 +455,11 @@ function verifyBriefing(
  * Knowledge Base" button. `upsertWorkSource` is idempotent on the artifact origin and never
  * throws, so a Knowledge Base that is down cannot lose a briefing that already generated.
  */
-async function saveBriefing(run: WatchRun, verified: VerifiedBriefing, loaded: LoadedPacket): Promise<MarketWatchResult> {
+async function saveBriefing(
+  run: WatchRun,
+  verified: VerifiedBriefing,
+  loaded: LoadedPacket,
+): Promise<MarketWatchResult> {
   const { tenant, request, model, resolved, emit } = run;
   const { briefing, guard } = verified;
   const { packet, failures, tickerFailures } = loaded;
@@ -508,7 +509,7 @@ export async function generateMarketBriefing(
 ): Promise<MarketWatchResult> {
   // A malformed client payload is a 400 whatever the runtime; the gateway check comes once the body is sound.
   const request = parseWatchRequest(body);
-  const settings = requireLive(tenant.workspaceId);
+  const settings = requireLive(tenant);
   const run: WatchRun = {
     tenant,
     request,
@@ -574,7 +575,7 @@ export async function regenerateBriefingSection(
   assertBriefingHasNoAdvice(briefing.sections);
   const index = readSectionIndex(record, briefing.sections.length);
   const current = briefing.sections[index] as BriefingSection;
-  const settings = requireLive(tenant.workspaceId);
+  const settings = requireLive(tenant);
   const model = resolveModel(typeof record.model === "string" ? record.model : undefined, settings);
   const resolved = resolveDeps(deps);
 

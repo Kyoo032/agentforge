@@ -5,9 +5,10 @@ import { applyOp, secondsToFrames, type EditProject, type TenantContext } from "
 import { starterMediaFile, starterTrackFor, type StarterMediaFile, type StarterProject } from "@agentforge/core/edit";
 import { db, media } from "@agentforge/db";
 import { eq } from "drizzle-orm";
-import { mediaRoot } from "../media-root";
+import { mediaRelativePath, mediaRoot } from "../media-root";
 import { resolveFfmpeg } from "./ffmpeg-binary";
 import { probe } from "./ffmpeg/recipes";
+import type { EditScope } from "./ffmpeg/paths";
 import { log } from "../log";
 
 type ProcessWithResources = NodeJS.Process & { resourcesPath?: string };
@@ -101,12 +102,12 @@ function fromManifest(file: StarterMediaFile): Probed {
   };
 }
 
-async function probeOrManifest(absPath: string, projectId: string, file: StarterMediaFile): Promise<Probed> {
+async function probeOrManifest(absPath: string, scope: EditScope, file: StarterMediaFile): Promise<Probed> {
   if (!resolveFfmpeg().found) {
     return fromManifest(file);
   }
   try {
-    const probed = await probe(absPath, projectId);
+    const probed = await probe(absPath, scope);
     if (probed.durationSeconds <= 0) {
       log.warn("edit_starter_probe_no_duration", { file: path.basename(absPath) });
       return fromManifest(file);
@@ -123,7 +124,7 @@ async function copyIntoMediaRoot(tenant: TenantContext, source: string, file: St
   const bytes = await readFile(source);
   const id = crypto.randomUUID();
   const ext = file.mime === "audio/mp4" ? "m4a" : "mp4";
-  const relative = `${tenant.organizationId}/${id}.${ext}`;
+  const relative = mediaRelativePath(tenant.tenantId, [tenant.organizationId], `${id}.${ext}`);
   const fullPath = path.join(mediaRoot(), relative);
   await mkdir(path.dirname(fullPath), { recursive: true });
   await writeFile(fullPath, bytes);
@@ -183,7 +184,12 @@ export async function seedStarterMedia(
   const storedFiles: StoredFile[] = [];
   let next = doc;
   const cursor: Record<"v1" | "a1", number> = {
-    v1: Math.max(0, ...next.clips.filter((clip) => clip.trackId === "v1").map((clip) => clip.timelineStartFrame + clip.durationFrames)),
+    v1: Math.max(
+      0,
+      ...next.clips
+        .filter((clip) => clip.trackId === "v1")
+        .map((clip) => clip.timelineStartFrame + clip.durationFrames),
+    ),
     a1: 0,
   };
   try {
@@ -205,7 +211,7 @@ export async function seedStarterMedia(
     }
     const stored = await copyIntoMediaRoot(tenant, path.join(dir, name), file);
     storedFiles.push({ id: stored.id, fullPath: stored.fullPath });
-    const probed = await probeOrManifest(stored.fullPath, next.id, file);
+    const probed = await probeOrManifest(stored.fullPath, { tenantId: tenant.tenantId, projectId: next.id }, file);
     const durationFrames = Math.max(1, secondsToFrames(probed.durationSeconds, probed.fps));
     const track = starterTrackFor(file);
     const assetId = crypto.randomUUID();

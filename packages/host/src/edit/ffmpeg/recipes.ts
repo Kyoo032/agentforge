@@ -1,9 +1,23 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { ApiError, buildAssDocument, framesToSeconds, secondsToFrames, type Asset, type EditProject } from "@agentforge/core";
-import { mediaRoot } from "../../media-root";
+import {
+  ApiError,
+  buildAssDocument,
+  framesToSeconds,
+  secondsToFrames,
+  type Asset,
+  type EditProject,
+} from "@agentforge/core";
+import { mediaFilePath } from "../../media-root";
 import { resolveFfmpeg } from "../ffmpeg-binary";
-import { assertExistingInput, assertInsidePath, editAllowlistRoots, editScratchRoot, escapeFilterPath } from "./paths";
+import {
+  assertExistingInput,
+  assertInsidePath,
+  editAllowlist,
+  editScratchRoot,
+  escapeFilterPath,
+  type EditScope,
+} from "./paths";
 import { runFfmpeg } from "./run";
 
 export const RECIPE_KINDS = [
@@ -38,13 +52,12 @@ export type ProbeResult = {
   sampleRate?: number;
 };
 
-export async function probe(filePath: string, projectId: string): Promise<ProbeResult> {
-  const roots = editAllowlistRoots(projectId);
-  const input = assertExistingInput(filePath, roots);
-  const { stdout } = await runFfmpeg(
-    ["-v", "error", "-print_format", "json", "-show_streams", "-show_format", input],
-    { timeoutMs: 15_000, bin: "ffprobe" },
-  );
+export async function probe(filePath: string, scope: EditScope): Promise<ProbeResult> {
+  const input = assertExistingInput(filePath, editAllowlist(scope));
+  const { stdout } = await runFfmpeg(["-v", "error", "-print_format", "json", "-show_streams", "-show_format", input], {
+    timeoutMs: 15_000,
+    bin: "ffprobe",
+  });
   const parsed = JSON.parse(stdout || "{}") as {
     streams?: Array<Record<string, unknown>>;
     format?: { duration?: string };
@@ -72,13 +85,13 @@ export async function probe(filePath: string, projectId: string): Promise<ProbeR
 
 export async function silenceDetect(
   filePath: string,
-  projectId: string,
+  scope: EditScope,
   fps: number,
   noiseDb = -30,
   minSeconds = 0.6,
 ): Promise<{ ranges: Array<{ startFrame: number; endFrame: number }> }> {
-  const input = assertExistingInput(filePath, editAllowlistRoots(projectId));
-  const probed = await probe(filePath, projectId);
+  const input = assertExistingInput(filePath, editAllowlist(scope));
+  const probed = await probe(filePath, scope);
   const { stderr } = await runFfmpeg(
     ["-i", input, "-af", `silencedetect=noise=${noiseDb}dB:d=${minSeconds}`, "-f", "null", "-"],
     { timeoutMs: timeoutForMedia(probed.durationSeconds) },
@@ -104,18 +117,17 @@ export async function silenceDetect(
 
 export async function sceneDetect(
   filePath: string,
-  projectId: string,
+  scope: EditScope,
   fps: number,
   threshold = 0.4,
 ): Promise<{ frames: number[] }> {
-  const input = assertExistingInput(filePath, editAllowlistRoots(projectId));
-  const probed = await probe(filePath, projectId);
+  const input = assertExistingInput(filePath, editAllowlist(scope));
+  const probed = await probe(filePath, scope);
   let stderr = "";
   try {
-    const result = await runFfmpeg(
-      ["-i", input, "-vf", `scdet=t=${threshold}`, "-f", "null", "-"],
-      { timeoutMs: timeoutForMedia(probed.durationSeconds) },
-    );
+    const result = await runFfmpeg(["-i", input, "-vf", `scdet=t=${threshold}`, "-f", "null", "-"], {
+      timeoutMs: timeoutForMedia(probed.durationSeconds),
+    });
     stderr = result.stderr;
   } catch {
     const result = await runFfmpeg(
@@ -134,36 +146,36 @@ export async function sceneDetect(
   return { frames: [...new Set(frames)].sort((a, b) => a - b) };
 }
 
-export async function extractAudio(filePath: string, projectId: string): Promise<{ files: string[] }> {
-  const roots = editAllowlistRoots(projectId);
-  const input = assertExistingInput(filePath, roots);
-  const scratch = editScratchRoot(projectId);
+export async function extractAudio(filePath: string, scope: EditScope): Promise<{ files: string[] }> {
+  const allow = editAllowlist(scope);
+  const input = assertExistingInput(filePath, allow);
+  const scratch = editScratchRoot(scope);
   await mkdir(scratch, { recursive: true });
-  const out = assertInsidePath(path.join(scratch, `audio-${crypto.randomUUID()}.mp3`), roots);
-  await runFfmpeg(
-    ["-i", input, "-vn", "-ac", "1", "-ar", "16000", "-c:a", "libmp3lame", "-b:a", "64k", out],
-    { timeoutMs: 120_000, outputPath: out },
-  );
+  const out = assertInsidePath(path.join(scratch, `audio-${crypto.randomUUID()}.mp3`), allow);
+  await runFfmpeg(["-i", input, "-vn", "-ac", "1", "-ar", "16000", "-c:a", "libmp3lame", "-b:a", "64k", out], {
+    timeoutMs: 120_000,
+    outputPath: out,
+  });
   return { files: [out] };
 }
 
 export async function thumbnail(
   filePath: string,
-  projectId: string,
+  scope: EditScope,
   frame: number,
   fps: number,
   width = 160,
 ): Promise<{ file: string }> {
-  const roots = editAllowlistRoots(projectId);
-  const input = assertExistingInput(filePath, roots);
-  const scratch = editScratchRoot(projectId);
+  const allow = editAllowlist(scope);
+  const input = assertExistingInput(filePath, allow);
+  const scratch = editScratchRoot(scope);
   await mkdir(scratch, { recursive: true });
-  const out = assertInsidePath(path.join(scratch, `thumb-${crypto.randomUUID()}.jpg`), roots);
+  const out = assertInsidePath(path.join(scratch, `thumb-${crypto.randomUUID()}.jpg`), allow);
   const t = framesToSeconds(frame, fps);
-  await runFfmpeg(
-    ["-ss", String(t), "-i", input, "-frames:v", "1", "-vf", `scale=${width}:-2`, out],
-    { timeoutMs: 15_000, outputPath: out },
-  );
+  await runFfmpeg(["-ss", String(t), "-i", input, "-frames:v", "1", "-vf", `scale=${width}:-2`, out], {
+    timeoutMs: 15_000,
+    outputPath: out,
+  });
   return { file: out };
 }
 
@@ -194,43 +206,61 @@ function compileFilterGraph(doc: EditProject, assPath?: string): { filter: strin
   return { filter: `${parts.join(";")};${tail}`, inputs };
 }
 
-export async function frameAt(doc: EditProject, frame: number): Promise<{ file: string; bytes?: Buffer }> {
+export async function frameAt(
+  tenantId: string,
+  doc: EditProject,
+  frame: number,
+): Promise<{ file: string; bytes?: Buffer }> {
   const ffmpeg = resolveFfmpeg();
   if (!ffmpeg.found) {
     throw new ApiError("ffmpeg_missing", "ffmpeg is not available on this machine", 400);
   }
-  const roots = editAllowlistRoots(doc.id);
-  const scratch = editScratchRoot(doc.id);
+  const allow = editAllowlist({ tenantId, projectId: doc.id });
+  const scratch = editScratchRoot({ tenantId, projectId: doc.id });
   await mkdir(scratch, { recursive: true });
   const assPath = path.join(scratch, `parity-${frame}.ass`);
   await writeFile(assPath, buildAssDocument(doc), "utf8");
   const graph = compileFilterGraph(doc, assPath);
-  const out = assertInsidePath(path.join(scratch, `frame-${frame}.png`), roots);
+  const out = assertInsidePath(path.join(scratch, `frame-${frame}.png`), allow);
   const argv: string[] = [];
   for (const input of graph.inputs) {
-    argv.push("-i", assertExistingInput(path.isAbsolute(input) ? input : path.join(mediaRoot(), input), roots));
+    argv.push("-i", assertExistingInput(assetPath(tenantId, input), allow));
   }
   if (graph.inputs.length === 0) {
     argv.push("-f", "lavfi", "-i", `color=c=black:s=${doc.width}x${doc.height}:d=1`);
   }
-  argv.push("-filter_complex", graph.filter, "-map", "[vout]", "-ss", String(framesToSeconds(frame, doc.fps)), "-frames:v", "1", out);
+  argv.push(
+    "-filter_complex",
+    graph.filter,
+    "-map",
+    "[vout]",
+    "-ss",
+    String(framesToSeconds(frame, doc.fps)),
+    "-frames:v",
+    "1",
+    out,
+  );
   await runFfmpeg(argv, { timeoutMs: 30_000, outputPath: out });
   return { file: out };
 }
 
-export async function render(doc: EditProject, preset: "h264-1080p" | "h264-720p"): Promise<{ file: string }> {
-  const roots = editAllowlistRoots(doc.id);
-  const scratch = editScratchRoot(doc.id);
+export async function render(
+  tenantId: string,
+  doc: EditProject,
+  preset: "h264-1080p" | "h264-720p",
+): Promise<{ file: string }> {
+  const allow = editAllowlist({ tenantId, projectId: doc.id });
+  const scratch = editScratchRoot({ tenantId, projectId: doc.id });
   await mkdir(scratch, { recursive: true });
-  const assPath = assertInsidePath(path.join(scratch, `export-${crypto.randomUUID()}.ass`), roots);
+  const assPath = assertInsidePath(path.join(scratch, `export-${crypto.randomUUID()}.ass`), allow);
   await writeFile(assPath, buildAssDocument(doc), "utf8");
   const graph = compileFilterGraph(doc, assPath);
-  const out = assertInsidePath(path.join(scratch, `export-${crypto.randomUUID()}.mp4`), roots);
-  const timelineSeconds = doc.clips.reduce((max, clip) => Math.max(max, clip.timelineStartFrame + clip.durationFrames), 0) / doc.fps;
+  const out = assertInsidePath(path.join(scratch, `export-${crypto.randomUUID()}.mp4`), allow);
+  const timelineSeconds =
+    doc.clips.reduce((max, clip) => Math.max(max, clip.timelineStartFrame + clip.durationFrames), 0) / doc.fps;
   const argv: string[] = [];
   for (const input of graph.inputs) {
-    const abs = path.isAbsolute(input) ? input : path.join(mediaRoot(), input);
-    argv.push("-i", assertExistingInput(abs, roots));
+    argv.push("-i", assertExistingInput(assetPath(tenantId, input), allow));
   }
   if (graph.inputs.length === 0) {
     argv.push("-f", "lavfi", "-i", `color=c=black:s=${doc.width}x${doc.height}:d=1`);
@@ -261,6 +291,15 @@ export async function render(doc: EditProject, preset: "h264-1080p" | "h264-720p
   return { file: out };
 }
 
-export function assetAbsPath(asset: Asset): string {
-  return path.isAbsolute(asset.storagePath) ? asset.storagePath : path.join(mediaRoot(), asset.storagePath);
+/**
+ * A clip source as ffmpeg must see it. An absolute path is one the document already carries (the
+ * starter media seeder writes one); anything relative is a `storage_path` and is resolved against
+ * this tenant's media root, which refuses a path pointing outside it.
+ */
+function assetPath(tenantId: string, storagePath: string): string {
+  return path.isAbsolute(storagePath) ? storagePath : mediaFilePath(tenantId, storagePath);
+}
+
+export function assetAbsPath(tenantId: string, asset: Asset): string {
+  return assetPath(tenantId, asset.storagePath);
 }

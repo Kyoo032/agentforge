@@ -36,7 +36,7 @@ export async function handlePostEnhancePrompt(request: HostRequest): Promise<Hos
       request.body && typeof request.body === "object" ? (request.body as { surface?: unknown }).surface : "chat";
     const surface = isEnhanceSurface(rawSurface) ? rawSurface : "chat";
     const tenant = await getTenant(request.workspaceId);
-    const settings = loadSettings(tenant.workspaceId);
+    const settings = loadSettings(tenant);
     const locale = getBootLocale();
     const mode = resolveRuntimeMode({
       settingsHasKey: hasLiveProvider(settings),

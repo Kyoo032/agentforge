@@ -118,7 +118,7 @@ export async function generateResearchNotes(
 ): Promise<ResearchResult> {
   ensureToolsRegistered();
   const question = readPrompt(body);
-  const settings = loadSettings(tenant.workspaceId);
+  const settings = loadSettings(tenant);
   requireLiveResearch(settings);
   const catalog = listSelectableModels();
   const { defaults } = modeCatalogPayload();
@@ -164,7 +164,14 @@ export async function generateResearchNotes(
   if (dossierId) {
     await upsertWorkSource(
       tenant,
-      artifactWorkCard({ type: "Research", artifactId: dossierId, title: dossier.title, prompt: question, markdown, model }),
+      artifactWorkCard({
+        type: "Research",
+        artifactId: dossierId,
+        title: dossier.title,
+        prompt: question,
+        markdown,
+        model,
+      }),
     );
   }
   return { ...notes, artifactId: dossierId, dossierId, dossier: { title: dossier.title, markdown } };

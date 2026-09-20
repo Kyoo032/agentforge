@@ -10,6 +10,8 @@ delete process.env.AGENTFORGE_SETTINGS_PATH;
 delete process.env.AGENTFORGE_RUNTIME;
 delete process.env.OPENAI_API_KEY;
 
+import { LOCAL_TENANT_ID } from "@agentforge/core";
+
 type Mod = typeof import("./gateway-gate");
 let gate: Mod;
 
@@ -265,7 +267,7 @@ describe("runGatewayCheck", () => {
       envRuntime: undefined,
       fetchImpl: fakeFetch(() => new Response("{}", { status: 200 })),
     });
-    const okAt = gate.loadGateState()?.lastOkAt;
+    const okAt = gate.loadGateState(LOCAL_TENANT_ID)?.lastOkAt;
 
     const payload = await gate.runGatewayCheck(settings, {
       envRuntime: undefined,
@@ -274,7 +276,7 @@ describe("runGatewayCheck", () => {
       }),
     });
     expect(payload).toMatchObject({ status: "unreachable", allowed: true, grace: true });
-    expect(gate.loadGateState()?.lastOkAt).toBe(okAt);
+    expect(gate.loadGateState(LOCAL_TENANT_ID)?.lastOkAt).toBe(okAt);
   });
 
   it("drops the old lastOkAt when the key changed", async () => {
@@ -293,7 +295,7 @@ describe("runGatewayCheck", () => {
       },
     );
     expect(payload).toMatchObject({ status: "unreachable", allowed: false, grace: false });
-    expect(gate.loadGateState()?.lastOkAt).toBeNull();
+    expect(gate.loadGateState(LOCAL_TENANT_ID)?.lastOkAt).toBeNull();
   });
 
   it("never touches the network in stub runtime or without a key", async () => {
@@ -317,18 +319,18 @@ describe("runGatewayCheck", () => {
 
 describe("gate state file", () => {
   it("round-trips, clears, and treats a corrupt file as absent", () => {
-    expect(gate.loadGateState()).toBeNull();
-    gate.saveGateState({
+    expect(gate.loadGateState(LOCAL_TENANT_ID)).toBeNull();
+    gate.saveGateState(LOCAL_TENANT_ID, {
       version: 1,
       fingerprint: "sha256:abcdef123456",
       status: "ok",
       checkedAt: iso(0),
       lastOkAt: iso(0),
     });
-    expect(gate.loadGateState()).toMatchObject({ status: "ok", fingerprint: "sha256:abcdef123456" });
+    expect(gate.loadGateState(LOCAL_TENANT_ID)).toMatchObject({ status: "ok", fingerprint: "sha256:abcdef123456" });
 
     writeFileSync(join(dataDir, gate.GATEWAY_GATE_FILE), "{not json", "utf8");
-    expect(gate.loadGateState()).toBeNull();
+    expect(gate.loadGateState(LOCAL_TENANT_ID)).toBeNull();
 
     gate.clearGateState();
     expect(existsSync(join(dataDir, gate.GATEWAY_GATE_FILE))).toBe(false);
@@ -434,11 +436,11 @@ describe("maybeRefreshGateway", () => {
       envRuntime: undefined,
       fetchImpl: fakeFetch(() => new Response("{}", { status: 200 })),
     });
-    const saved = gate.loadGateState();
+    const saved = gate.loadGateState(LOCAL_TENANT_ID);
     if (!saved) {
       throw new Error("expected a saved verdict");
     }
-    gate.saveGateState({ ...saved, checkedAt, lastOkAt: checkedAt });
+    gate.saveGateState(LOCAL_TENANT_ID, { ...saved, checkedAt, lastOkAt: checkedAt });
   }
 
   beforeEach(() => {

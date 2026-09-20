@@ -72,11 +72,7 @@ export async function handlePostWorkspaces(request: HostRequest): Promise<HostRe
       productModes,
     );
     writeSelectedWorkspaceId(workspace.id);
-    return jsonOk(
-      { workspace: serializeWorkspace(workspace), seeded: false },
-      201,
-      [workspaceCookie(workspace.id)],
-    );
+    return jsonOk({ workspace: serializeWorkspace(workspace), seeded: false }, 201, [workspaceCookie(workspace.id)]);
   } catch (error) {
     return jsonError(error);
   }
@@ -92,11 +88,9 @@ export async function handleSelectWorkspace(request: HostRequest): Promise<HostR
       return jsonOk({ error: { code: "not_found", message: "Workspace not found" } }, 404);
     }
     writeSelectedWorkspaceId(found.id);
-    return jsonOk(
-      { workspace: { id: found.id, name: found.name, slug: found.slug } },
-      200,
-      [workspaceCookie(found.id)],
-    );
+    return jsonOk({ workspace: { id: found.id, name: found.name, slug: found.slug } }, 200, [
+      workspaceCookie(found.id),
+    ]);
   } catch (error) {
     return jsonError(error);
   }
@@ -149,19 +143,15 @@ export async function handleDeleteWorkspace(request: HostRequest): Promise<HostR
     const body = (request.body ?? {}) as { confirmName?: unknown };
     const confirmName = typeof body.confirmName === "string" ? body.confirmName.trim() : "";
     if (!confirmName || confirmName !== found.name) {
-      return jsonOk(
-        { error: { code: "confirm_required", message: "Type the desk name to confirm deletion" } },
-        400,
-      );
+      return jsonOk({ error: { code: "confirm_required", message: "Type the desk name to confirm deletion" } }, 400);
     }
     const result = await deleteLocalWorkspace(db, tenant.organizationId, workspaceId);
     if (!result.ok) {
       const status = result.code === "protected" ? 403 : 404;
-      const message =
-        result.code === "protected" ? "The Default desk cannot be deleted" : "Workspace not found";
+      const message = result.code === "protected" ? "The Default desk cannot be deleted" : "Workspace not found";
       return jsonOk({ error: { code: result.code, message } }, status);
     }
-    dropWorkspaceSettings(workspaceId);
+    dropWorkspaceSettings(workspaceId, tenant);
     if (tenant.workspaceId !== workspaceId) {
       return jsonOk({ ok: true });
     }

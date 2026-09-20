@@ -10,6 +10,7 @@ import {
   maskSecrets,
   redactSecrets,
   resolvedGatewayName,
+  type TenantContext,
   resolvedProductName,
   resolveRuntimeMode,
   RESET_CONFIRM_WORD,
@@ -100,7 +101,7 @@ async function settingsPayload(
       envRuntime: process.env.AGENTFORGE_RUNTIME,
     }),
     // The host decides; the renderer only displays `allowed`. See gateway-gate.ts.
-    gateway: reportGatewayGate(settings),
+    gateway: reportGatewayGate(settings, { tenant }),
     // True while a queued wipe is waiting for the next boot, so Settings can offer to call it off.
     resetPending: hasPendingDataReset(localDataDir()),
     probe: probeSummary(),
@@ -124,11 +125,11 @@ async function settingsPayload(
 export async function handleGetSettings(request: HostRequest): Promise<HostResult> {
   try {
     const tenant = await getTenant(request.workspaceId);
-    const settings = loadSettings(tenant.workspaceId);
+    const settings = loadSettings(tenant);
     // A desk that upgraded into the gate has a key but no verdict, and a verdict goes stale after a
     // day. Both are opened on trust, so this is where the gateway actually gets asked. Fire-and-
     // forget and throttled: the response never waits for it.
-    maybeRefreshGateway(settings);
+    maybeRefreshGateway(settings, { tenant });
     return jsonOk(await settingsPayload(settings, tenant));
   } catch (error) {
     return jsonError(error);
@@ -179,7 +180,7 @@ export async function handlePostSettings(request: HostRequest): Promise<HostResu
     let gateRefreshFailed = false;
     let freshGate: GatewayGatePayload | null = null;
     try {
-      freshGate = await refreshGatewayGateAfterSave(body, saved);
+      freshGate = await refreshGatewayGateAfterSave(body, saved, tenant);
     } catch (error) {
       // The key is already on disk by the time we get here. A verdict that could not be refreshed
       // or written — an unwritable data dir, a full disk, a directory squatting on
@@ -207,7 +208,7 @@ export async function handleApplyLocale(request: HostRequest): Promise<HostResul
   try {
     const tenant = await getTenant(request.workspaceId);
     applySavedLocaleAsBoot();
-    return jsonOk(await settingsPayload(loadSettings(tenant.workspaceId), tenant));
+    return jsonOk(await settingsPayload(loadSettings(tenant), tenant));
   } catch (error) {
     return jsonError(error);
   }
@@ -241,24 +242,25 @@ function gateVerdictFor(
 async function refreshGatewayGateAfterSave(
   body: Record<string, unknown>,
   saved: ReturnType<typeof saveSettings>,
+  tenant: TenantContext,
 ): Promise<GatewayGatePayload | null> {
   if (typeof body.openaiApiKey !== "string") {
     return null;
   }
   if (body.openaiApiKey.trim().length === 0) {
-    clearGateState();
+    clearGateState(tenant);
     return null;
   }
   // The verdict this returns is the one the response carries. Re-deriving it from disk instead
   // would throw away the one case where the two differ: a verdict that was reached but could not
   // be written, which disk reads back as "never checked".
-  return await runGatewayCheck(saved);
+  return await runGatewayCheck(saved, { tenant });
 }
 
 export async function handleGatewayCheck(request: HostRequest): Promise<HostResult> {
   try {
     const tenant = await getTenant(request.workspaceId);
-    const gateway = await runGatewayCheck(loadSettings(tenant.workspaceId));
+    const gateway = await runGatewayCheck(loadSettings(tenant), { tenant });
     return jsonOk({ gateway });
   } catch (error) {
     return jsonError(error);
@@ -279,6 +281,10 @@ export const HOST_RESET_ENTRIES = [
   "media",
   "workspace-id.txt",
   "desk-usage.json",
+  // Phase 3 lane D: every non-local tenant's settings, verdict, usage, datasets, matters and
+  // scratch live under here. "Start over" is refused in server mode, so on the desktop this is
+  // normally absent; a webdev instance that resolved a second tenant is the case it covers.
+  "tenants",
   "datasets",
   "edit",
   "legal",
@@ -306,13 +312,14 @@ const RESET_DISABLED_MESSAGE =
 const RESET_KEY_DISABLED_MESSAGE =
   "Signing out of the gateway is not available on the hosted service. The gateway key is managed by the operator.";
 
-function resetGatewayKey(workspaceId: string, serverMode: boolean): HostResult {
+function resetGatewayKey(tenant: TenantContext, serverMode: boolean): HostResult {
   if (serverMode) {
     throw new ApiError(RESET_DISABLED_CODE, RESET_KEY_DISABLED_MESSAGE, 403);
   }
-  // Machine-wide: a key left on a second desk would keep the gate open after "forget my key".
-  clearGatewayKeyEverywhere();
-  clearGateState();
+  // Every desk of this tenant: a key left on a second desk would keep the gate open after "forget
+  // my key". Phase 3 lane D narrowed both calls from the whole install to the caller's tenant.
+  clearGatewayKeyEverywhere(tenant);
+  clearGateState(tenant);
   clearThisKeyCache();
   resetEmbedCircuit();
   resetJobModelCircuit();
@@ -321,7 +328,7 @@ function resetGatewayKey(workspaceId: string, serverMode: boolean): HostResult {
     scope: "key",
     relaunch: false,
     resetPending: hasPendingDataReset(localDataDir()),
-    gateway: reportGatewayGate(loadSettings(workspaceId)),
+    gateway: reportGatewayGate(loadSettings(tenant), { tenant }),
   });
 }
 
@@ -331,7 +338,7 @@ function resetGatewayKey(workspaceId: string, serverMode: boolean): HostResult {
  * off there. The refusal comes first, before the confirmation word and before anything is queued:
  * the owner of one workspace must not be able to arm a wipe for everyone else's.
  */
-function resetEverything(workspaceId: string, confirm: string | undefined, serverMode: boolean): HostResult {
+function resetEverything(tenant: TenantContext, confirm: string | undefined, serverMode: boolean): HostResult {
   if (serverMode) {
     throw new ApiError(RESET_DISABLED_CODE, RESET_DISABLED_MESSAGE, 403);
   }
@@ -346,7 +353,7 @@ function resetEverything(workspaceId: string, confirm: string | undefined, serve
     scope: "all",
     relaunch: true,
     resetPending: hasPendingDataReset(localDataDir()),
-    gateway: reportGatewayGate(loadSettings(workspaceId)),
+    gateway: reportGatewayGate(loadSettings(tenant), { tenant }),
   });
 }
 
@@ -360,10 +367,10 @@ export async function handleResetApp(request: HostRequest, deps: ResetDeps = {})
     const scope = readOptionalString(body.scope);
     const serverMode = deps.isServerMode ? deps.isServerMode() : isServerMode();
     if (scope === "key") {
-      return resetGatewayKey(tenant.workspaceId, serverMode);
+      return resetGatewayKey(tenant, serverMode);
     }
     if (scope === "all") {
-      return resetEverything(tenant.workspaceId, readOptionalString(body.confirm), serverMode);
+      return resetEverything(tenant, readOptionalString(body.confirm), serverMode);
     }
     throw new ApiError("invalid_request", 'scope must be "key" or "all"', 400);
   } catch (error) {

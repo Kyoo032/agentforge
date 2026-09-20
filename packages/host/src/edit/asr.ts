@@ -1,6 +1,6 @@
 import { mediaKind, resolvedGatewayBaseUrl } from "@agentforge/core";
 import { loadModelCache } from "../model-cache";
-import { loadSettings } from "../settings-store";
+import { loadSettings, type SettingsScope } from "../settings-store";
 
 const ASR_ID = /whisper|transcribe/i;
 
@@ -35,14 +35,14 @@ export async function transcribeAudioChunks(
   files: string[],
   language?: string,
   fetchImpl: typeof fetch = fetch,
-  /** Desk whose gateway key pays for the transcription. */
-  deskId?: string,
+  /** Tenant and desk whose gateway key pays for the transcription. */
+  scope?: SettingsScope,
 ): Promise<{ text: string }> {
   const cap = resolveAsrCapability();
   if (!cap.available || !cap.model) {
     return { text: "" };
   }
-  const settings = loadSettings(deskId);
+  const settings = loadSettings(scope);
   const key = settings.openaiApiKey || process.env.OPENAI_API_KEY;
   if (!key) {
     return { text: "" };

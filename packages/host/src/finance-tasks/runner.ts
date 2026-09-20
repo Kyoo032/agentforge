@@ -207,7 +207,7 @@ export async function runFinanceTask<I, C>(
 ): Promise<FinanceTaskRunResult> {
   const { tenant, body, emit, abortSignal } = ctx;
   const question = readPrompt(body);
-  const settings = requireLive(tenant.workspaceId);
+  const settings = requireLive(tenant);
   const model = resolveModel(body, settings);
   // Source material reaches the same prompt as the task's figures, so it is redacted on the same
   // terms. The task's OWN rows are redacted where they are read: see `parse-<task>.ts`.

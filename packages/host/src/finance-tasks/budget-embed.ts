@@ -98,7 +98,7 @@ export async function embedBudgetLabels(
   const models = deps.models ?? getKnowledgeModels;
   try {
     const wanted = models(tenant).embeddingModel;
-    const { vectors, model } = await embed([...labels], wanted, tenant.workspaceId);
+    const { vectors, model } = await embed([...labels], wanted, tenant);
     if (model === STUB_EMBED_MODEL || vectors.length !== labels.length) {
       return { status: "unavailable" };
     }

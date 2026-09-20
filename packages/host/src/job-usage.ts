@@ -8,9 +8,10 @@ export function usageFromRuntimeEvent(event: RuntimeEvent): RunUsageRecord | nul
   return asRunUsageRecord(event.usage);
 }
 
-export function rememberJobUsage(event: RuntimeEvent): void {
+/** Phase 3 lane D: metered against the tenant that ran the job, not the install. */
+export function rememberJobUsage(tenantId: string, event: RuntimeEvent): void {
   const record = usageFromRuntimeEvent(event);
   if (record) {
-    appendDeskUsage(record);
+    appendDeskUsage(tenantId, record);
   }
 }

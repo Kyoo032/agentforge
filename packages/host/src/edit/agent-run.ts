@@ -124,8 +124,10 @@ function compactPrompt(doc: Awaited<ReturnType<typeof foldProject>>, budgetUsd: 
 }
 
 function firstClipId(doc: Awaited<ReturnType<typeof foldProject>>): string | undefined {
-  return doc.clips.find((clip) => doc.tracks.find((track) => track.id === clip.trackId)?.kind === "video")?.id
-    ?? doc.clips[0]?.id;
+  return (
+    doc.clips.find((clip) => doc.tracks.find((track) => track.id === clip.trackId)?.kind === "video")?.id ??
+    doc.clips[0]?.id
+  );
 }
 
 function firstAssetId(doc: Awaited<ReturnType<typeof foldProject>>): string | undefined {
@@ -140,13 +142,14 @@ export async function runEditAgent(input: {
 }): Promise<AsyncIterable<string>> {
   const queue = new StringQueue();
   const runId = crypto.randomUUID();
-  const settings = loadSettings(input.tenant.workspaceId);
+  const settings = loadSettings(input.tenant);
   ensureToolsRegistered();
   const budget = createTurnBudget({ capUsd: settings.editTurnCapUsd });
-  const stub = resolveRuntimeMode({
-    settingsHasKey: hasLiveProvider(settings),
-    envRuntime: process.env.AGENTFORGE_RUNTIME,
-  }) === "stub";
+  const stub =
+    resolveRuntimeMode({
+      settingsHasKey: hasLiveProvider(settings),
+      envRuntime: process.env.AGENTFORGE_RUNTIME,
+    }) === "stub";
 
   void (async () => {
     try {
@@ -177,7 +180,7 @@ export async function runEditAgent(input: {
             onEvent: async (event: RuntimeEvent) => {
               queue.push(encodeSse(event));
               if (event.type === "run.completed") {
-                rememberJobUsage(event);
+                rememberJobUsage(input.tenant.tenantId, event);
               }
             },
           });
@@ -202,9 +205,7 @@ async function runStub(
   queue: StringQueue,
 ): Promise<void> {
   const scenario =
-    matchStubEditScenario(input.text) ??
-    matchStubFillScenario(input.text) ??
-    matchStubGenerateScenario(input.text);
+    matchStubEditScenario(input.text) ?? matchStubFillScenario(input.text) ?? matchStubGenerateScenario(input.text);
   if (!scenario) {
     queue.push(encodeSse({ type: "assistant.delta", text: editStubAssistantCopy(localeForRun()).help }));
     queue.push(encodeSse({ type: "run.completed", runId }));
@@ -261,8 +262,7 @@ async function runStub(
         : scenario.toolKey === "generate_image"
           ? "gpt-image-2"
           : "grok-imagine-video";
-    const estimate =
-      scenario.toolKey === "transcribe" ? 0.02 : estimateEditJobUsd(model, { seconds, count });
+    const estimate = scenario.toolKey === "transcribe" ? 0.02 : estimateEditJobUsd(model, { seconds, count });
     const charged = chargeTurnBudget(budget, estimate);
     if (!charged.ok) {
       queue.push(encodeSse({ type: "tool.completed", toolKey: scenario.toolKey, output: charged.refusal }));
@@ -292,7 +292,10 @@ async function runStub(
     args.referenceClipId = clips[1]?.id ?? clips[0]?.id ?? args.referenceClipId;
   }
   if (scenario.toolKey === "propose_alt_cut") {
-    args.clipIds = doc.clips.filter((clip) => clip.trackId === "v1").map((clip) => clip.id).slice(0, 4);
+    args.clipIds = doc.clips
+      .filter((clip) => clip.trackId === "v1")
+      .map((clip) => clip.id)
+      .slice(0, 4);
     if (!Array.isArray(args.clipIds) || args.clipIds.length === 0) {
       args.clipIds = ["stub-a"];
     }
@@ -355,7 +358,7 @@ async function runStub(
   const card = stubEditCardCopy(scenario, localeForRun());
   queue.push(encodeSse({ type: "assistant.delta", text: `${card.verb} · ${card.object}` }));
   const completed: RuntimeEvent = { type: "run.completed", runId };
-  rememberJobUsage(completed);
+  rememberJobUsage(input.tenant.tenantId, completed);
   queue.push(encodeSse(completed));
   appendEditMetric({ projectId: input.projectId, runId, event: "agent.turn" });
 }

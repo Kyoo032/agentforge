@@ -21,10 +21,12 @@ import {
   resolveProviderKeys,
   resolvedGatewayBaseUrl,
   type StoredSecrets,
+  type TenantContext,
 } from "@agentforge/core";
 import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { localDataDir } from "@agentforge/db/vault-key";
+import { tenantDataDir } from "./tenant-paths";
+import { loadSettings, resolveSettingsScope, type SettingsScope } from "./settings-store";
 
 export const GATEWAY_GATE_FILE = "gateway-gate.json";
 
@@ -93,6 +95,13 @@ export type DeriveGatewayGateInput = {
 };
 
 export type GatewayGateOptions = {
+  /**
+   * Phase 3 lane D: whose verdict this is. Same rule as `loadSettings` — a `TenantContext` names
+   * the tenant, a bare string or nothing means the local tenant and is refused in server mode.
+   * Without it two tenants would overwrite each other's verdict in one file, and in server mode
+   * "no verdict for this key" closes the gate, so tenant A's check would lock tenant B out.
+   */
+  tenant?: SettingsScope;
   now?: Date;
   envRuntime?: string;
   graceMs?: number;
@@ -110,8 +119,13 @@ export type MaybeRefreshGatewayOptions = GatewayGateOptions & {
   runCheck?: (settings: StoredSecrets, opts: GatewayGateOptions) => Promise<unknown>;
 };
 
-function statePath(): string {
-  return resolve(localDataDir(), GATEWAY_GATE_FILE);
+/** `<dataDir>/gateway-gate.json` for the local tenant; under `tenants/<tenantId>/` for anyone else. */
+function statePath(tenantId: string): string {
+  return resolve(tenantDataDir(tenantId), GATEWAY_GATE_FILE);
+}
+
+function tenantOf(opts: GatewayGateOptions): string {
+  return resolveSettingsScope(opts.tenant).tenantId;
 }
 
 function isGatewayGateStatus(value: unknown): value is GatewayGateStatus {
@@ -135,10 +149,10 @@ function errorText(error: unknown): string {
 }
 
 /** The saved verdict, or null when there is none / it cannot be trusted. Never throws. */
-export function loadGateState(): GateState | null {
+export function loadGateState(tenantId: string): GateState | null {
   let parsed: unknown;
   try {
-    parsed = JSON.parse(readFileSync(statePath(), "utf8")) as unknown;
+    parsed = JSON.parse(readFileSync(statePath(tenantId), "utf8")) as unknown;
   } catch {
     // Absent, unreadable or not JSON: treat as "never checked" and let the next save rewrite it.
     return null;
@@ -170,14 +184,14 @@ export type SaveGateStateResult = {
   persisted: boolean;
 };
 
-export function saveGateState(state: GateState): SaveGateStateResult {
+export function saveGateState(tenantId: string, state: GateState): SaveGateStateResult {
   // A fingerprint is a SHA-256 prefix, never the key, so this file is safe at rest next to settings.enc.
   // Written to a sibling temp file and renamed: a crash mid-write must not leave a half verdict that
   // `loadGateState` would read as "never checked".
-  const path = statePath();
+  const path = statePath(tenantId);
   const temp = `${path}.tmp`;
   try {
-    mkdirSync(localDataDir(), { recursive: true });
+    mkdirSync(tenantDataDir(tenantId), { recursive: true });
     writeFileSync(temp, `${JSON.stringify(state, null, 2)}\n`, "utf8");
     renameSync(temp, path);
     return { state, persisted: true };
@@ -196,12 +210,13 @@ export function saveGateState(state: GateState): SaveGateStateResult {
   return { state, persisted: false };
 }
 
-export function clearGateState(): void {
-  if (!existsSync(statePath())) {
+export function clearGateState(scope?: SettingsScope): void {
+  const path = statePath(resolveSettingsScope(scope).tenantId);
+  if (!existsSync(path)) {
     return;
   }
   try {
-    unlinkSync(statePath());
+    unlinkSync(path);
   } catch {
     // Nothing to do: a stale verdict for a key that is gone derives as "needs_key" anyway.
   }
@@ -389,7 +404,7 @@ export function reportGatewayGate(settings: StoredSecrets, opts: GatewayGateOpti
     hasKey: Boolean(key),
     fingerprint: keyFingerprintOrNull(key),
     endpoint: gatewayEndpointFor(settings),
-    state: loadGateState(),
+    state: loadGateState(tenantOf(opts)),
     now: opts.now ?? new Date(),
     graceMs: opts.graceMs,
     okTtlMs: opts.okTtlMs,
@@ -441,6 +456,18 @@ export function requireGatewayAllowed(settings: StoredSecrets, opts: GatewayGate
 }
 
 /**
+ * The spelling every route should use: one argument, and the tenant reaches both the settings file
+ * and the verdict file. `requireGatewayAllowedFor(tenant)` — the pre-Phase-3
+ * form — reads the local tenant's key and the local tenant's verdict whoever is calling.
+ */
+export function requireGatewayAllowedFor(
+  tenant: Pick<TenantContext, "tenantId" | "workspaceId">,
+  opts: Omit<GatewayGateOptions, "tenant"> = {},
+): GatewayGatePayload {
+  return requireGatewayAllowed(loadSettings(tenant), { ...opts, tenant });
+}
+
+/**
  * Validate the saved key against the gateway and persist the verdict, then report the fresh gate.
  * `lastOkAt` survives a failed check of the *same* key — that is what grace is made of — and is
  * dropped the moment the key changes. Never throws: the worst case is a persisted `unreachable`.
@@ -456,8 +483,9 @@ export async function runGatewayCheck(
     return reportGatewayGate(settings, opts);
   }
 
+  const tenantId = tenantOf(opts);
   const fingerprint = keyFingerprintOrNull(key);
-  const previous = loadGateState();
+  const previous = loadGateState(tenantId);
   let result: GatewayCheckResult;
   try {
     result = await checkGatewayLive({
@@ -473,7 +501,7 @@ export async function runGatewayCheck(
   }
 
   const carriedOkAt = previous?.fingerprint === fingerprint ? (previous?.lastOkAt ?? null) : null;
-  const { persisted } = saveGateState({
+  const { persisted } = saveGateState(tenantId, {
     version: 1,
     fingerprint,
     status: result.status,
@@ -492,7 +520,7 @@ export async function runGatewayCheck(
   return { ...gate, status: "error", message: GATEWAY_VERDICT_UNWRITABLE_MESSAGE };
 }
 
-/** Last background re-check per fingerprint, for this process only. Cleared by the tests. */
+/** Last background re-check per tenant and fingerprint, for this process only. Cleared by the tests. */
 const refreshedAt = new Map<string, number>();
 
 /** Test seam: forget the throttle so the next `maybeRefreshGateway` may fire again. */
@@ -501,12 +529,7 @@ export function resetGatewayRefreshThrottle(): void {
 }
 
 /** (a) no verdict for this key, or (b) the `ok` verdict has aged past the TTL. */
-function needsGatewayRefresh(
-  state: GateState | null,
-  fingerprint: string | null,
-  now: Date,
-  okTtlMs: number,
-): boolean {
+function needsGatewayRefresh(state: GateState | null, fingerprint: string | null, now: Date, okTtlMs: number): boolean {
   if (!state || state.fingerprint !== fingerprint) {
     return true;
   }
@@ -534,14 +557,17 @@ export function maybeRefreshGateway(settings: StoredSecrets, opts: MaybeRefreshG
     return false;
   }
   const nowMs = opts.nowMs?.() ?? Date.now();
+  const tenantId = tenantOf(opts);
   const fingerprint = keyFingerprintOrNull(key);
-  const slot = fingerprint ?? "";
+  // Keyed by tenant as well as key: two tenants that happen to share a key must each get a check,
+  // because each writes its own verdict file.
+  const slot = `${tenantId}:${fingerprint ?? ""}`;
   const last = refreshedAt.get(slot);
   if (last !== undefined && nowMs - last < (opts.throttleMs ?? GATEWAY_REFRESH_THROTTLE_MS)) {
     return false;
   }
   const now = opts.now ?? new Date(nowMs);
-  if (!needsGatewayRefresh(loadGateState(), fingerprint, now, opts.okTtlMs ?? GATEWAY_OK_TTL_MS)) {
+  if (!needsGatewayRefresh(loadGateState(tenantId), fingerprint, now, opts.okTtlMs ?? GATEWAY_OK_TTL_MS)) {
     return false;
   }
   refreshedAt.set(slot, nowMs);
@@ -549,7 +575,12 @@ export function maybeRefreshGateway(settings: StoredSecrets, opts: MaybeRefreshG
   try {
     // Started here and never awaited: the caller is a request handler that must not wait on a network
     // round trip. `runGatewayCheck` persists `unreachable` rather than throwing; the rest is belt and braces.
-    void check(settings, { envRuntime, fetchImpl: opts.fetchImpl, timeoutMs: opts.timeoutMs }).catch(() => undefined);
+    void check(settings, {
+      tenant: opts.tenant,
+      envRuntime,
+      fetchImpl: opts.fetchImpl,
+      timeoutMs: opts.timeoutMs,
+    }).catch(() => undefined);
   } catch {
     // A check that threw synchronously is still not the settings response's problem.
   }

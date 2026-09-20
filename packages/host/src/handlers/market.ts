@@ -1,8 +1,7 @@
 import { ApiError } from "@agentforge/core";
 import { marketBriefingSchema } from "@agentforge/core/artifacts";
 import { jsonError, jsonOk } from "../errors";
-import { requireGatewayAllowed } from "../gateway-gate";
-import { loadSettings } from "../settings-store";
+import { requireGatewayAllowedFor } from "../gateway-gate";
 import { streamJob } from "../job-stream";
 import { buildMarketBoard } from "../market-board";
 import { assertBriefingHasNoAdvice } from "../market-briefing-build";
@@ -27,7 +26,7 @@ export async function handlePostMarket(request: HostRequest): Promise<HostResult
   try {
     const tenant = await getTenant(request.workspaceId);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
-    requireGatewayAllowed(loadSettings(tenant.workspaceId));
+    requireGatewayAllowedFor(tenant);
     return jsonOk(await generateMarketBriefing(tenant, request.body ?? null));
   } catch (error) {
     return jsonError(error);
@@ -39,7 +38,7 @@ export async function handlePostMarketStream(request: HostRequest): Promise<Host
   try {
     const tenant = await getTenant(request.workspaceId);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
-    requireGatewayAllowed(loadSettings(tenant.workspaceId));
+    requireGatewayAllowedFor(tenant);
     return streamJob((emit, abortSignal) => generateMarketBriefing(tenant, request.body ?? null, emit, abortSignal), {
       abortSignal: request.abortSignal,
     });
@@ -53,7 +52,7 @@ export async function handlePostMarketRegen(request: HostRequest): Promise<HostR
   try {
     const tenant = await getTenant(request.workspaceId);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
-    requireGatewayAllowed(loadSettings(tenant.workspaceId));
+    requireGatewayAllowedFor(tenant);
     return jsonOk(await regenerateBriefingSection(tenant, request.body ?? null));
   } catch (error) {
     return jsonError(error);

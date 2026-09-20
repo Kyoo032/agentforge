@@ -1,17 +1,17 @@
-import path from "node:path";
 import { and, eq } from "drizzle-orm";
 import { ApiError, secondsToFrames, type Asset, type EditJobKind, type TenantContext } from "@agentforge/core";
 import { db, editCards, editJobs, editUnplaced } from "@agentforge/db";
 import { readMediaDataUrl } from "../media";
-import { mediaRoot } from "../media-root";
+import { mediaFilePath } from "../media-root";
 import { withInlinedStill } from "./still-source";
-import { appendOps, foldProject, workerWorkspaceId } from "./ops";
+import { appendOps, foldProject, workerTenantId, workerWorkspaceId } from "./ops";
 import { editEvents } from "./events";
 import { appendEditMetric } from "./metrics";
 import { mapJob } from "./projects";
 import { runGenerateJob } from "./generate";
 import { ensureGenerateSubmitWired, loadMediaRow } from "./wire-generate";
 import { assetAbsPath, extractAudio, probe, render, silenceDetect } from "./ffmpeg/recipes";
+import type { EditScope } from "./ffmpeg/paths";
 import { transcribeAudioChunks } from "./asr";
 import { log } from "../log";
 
@@ -37,14 +37,17 @@ let ffmpegRunning = 0;
 const generationByProject = new Map<string, number>();
 const waiters: Array<() => void> = [];
 let bootDone = false;
-let runnerOverride: ((job: JobRow, signal: AbortSignal, onProgress: (n: number) => void) => Promise<{ outputAssetIds: string[] }>) | null =
-  null;
+let runnerOverride:
+  | ((job: JobRow, signal: AbortSignal, onProgress: (n: number) => void) => Promise<{ outputAssetIds: string[] }>)
+  | null = null;
 
 const FFMPEG_KINDS = new Set(["ffmpeg_op", "render", "asr"]);
 const GEN_KINDS = new Set(["generate_image", "generate_video"]);
 
 export function setEditJobRunnerForTests(
-  next: ((job: JobRow, signal: AbortSignal, onProgress: (n: number) => void) => Promise<{ outputAssetIds: string[] }>) | null,
+  next:
+    | ((job: JobRow, signal: AbortSignal, onProgress: (n: number) => void) => Promise<{ outputAssetIds: string[] }>)
+    | null,
 ): void {
   runnerOverride = next;
 }
@@ -93,11 +96,7 @@ function releaseSlot(kind: string, projectId: string): void {
   wake();
 }
 
-async function patchJob(
-  id: string,
-  projectId: string,
-  values: Partial<typeof editJobs.$inferInsert>,
-): Promise<JobRow> {
+async function patchJob(id: string, projectId: string, values: Partial<typeof editJobs.$inferInsert>): Promise<JobRow> {
   const rows = await db
     .update(editJobs)
     .set(values)
@@ -154,6 +153,10 @@ async function defaultRunner(
 ): Promise<{ outputAssetIds: string[] }> {
   onProgress(0.1);
   const workspaceId = await workerWorkspaceId(job.projectId);
+  // Phase 3 lane D: scratch files and the ffmpeg allowlist are per tenant, and the worker has no
+  // request to read one from. Same reasoning as `workerWorkspaceId` one line up.
+  const tenantId = await workerTenantId(job.projectId);
+  const scope = { tenantId, projectId: job.projectId };
   if (job.kind === "generate_image" || job.kind === "generate_video") {
     const request = await withInlinedStill(job.requestJson as Record<string, unknown>, (mediaId) => {
       const tenant = (job.requestJson as { tenant?: TenantContext }).tenant;
@@ -164,7 +167,7 @@ async function defaultRunner(
   if (job.kind === "render") {
     const doc = await foldProject(job.projectId, workspaceId);
     const preset = (job.requestJson as { preset?: "h264-1080p" | "h264-720p" })?.preset ?? "h264-1080p";
-    const out = await render(doc, preset);
+    const out = await render(tenantId, doc, preset);
     onProgress(1);
     return { outputAssetIds: [out.file] };
   }
@@ -175,13 +178,11 @@ async function defaultRunner(
     if (!asset) {
       return { outputAssetIds: [] };
     }
-    const extracted = await extractAudio(assetAbsPath(asset), job.projectId);
-    await transcribeAudioChunks(
-      extracted.files,
-      (job.requestJson as { language?: string }).language,
-      undefined,
-      doc.workspaceId,
-    );
+    const extracted = await extractAudio(assetAbsPath(tenantId, asset), scope);
+    await transcribeAudioChunks(extracted.files, (job.requestJson as { language?: string }).language, undefined, {
+      tenantId,
+      workspaceId: doc.workspaceId,
+    });
     onProgress(1);
     return { outputAssetIds: extracted.files };
   }
@@ -197,7 +198,7 @@ async function defaultRunner(
     }
     const asset = request.assetId ? doc.assets[request.assetId] : undefined;
     if (request.recipe === "silenceDetect" && asset) {
-      await silenceDetect(assetAbsPath(asset), job.projectId, doc.fps);
+      await silenceDetect(assetAbsPath(tenantId, asset), scope, doc.fps);
     }
     onProgress(1);
     return { outputAssetIds: [] };
@@ -209,6 +210,7 @@ async function resolveGenerateAsset(
   job: JobRow,
   doc: Awaited<ReturnType<typeof foldProject>>,
   outputId: string | undefined,
+  tenantId: string,
 ): Promise<{ assetId: string; addOps: Array<{ type: "add_asset"; payload: unknown }> }> {
   if (outputId && doc.assets[outputId]) {
     return { assetId: outputId, addOps: [] };
@@ -218,7 +220,8 @@ async function resolveGenerateAsset(
     if (row) {
       const assetId = crypto.randomUUID();
       const kind = row.kind === "image" || row.kind === "audio" ? row.kind : "video";
-      const meta = kind === "video" ? await probeGeneratedMeta(row.storagePath, job.projectId) : {};
+      const meta =
+        kind === "video" ? await probeGeneratedMeta(row.storagePath, { tenantId, projectId: job.projectId }) : {};
       return {
         assetId,
         addOps: [
@@ -263,14 +266,17 @@ async function resolveGenerateAsset(
 
 async function completeSucceeded(job: JobRow, outputAssetIds: string[]): Promise<void> {
   const workspaceId = await workerWorkspaceId(job.projectId);
+  const tenantId = await workerTenantId(job.projectId);
   const doc = await foldProject(job.projectId, workspaceId);
   const existing = job.targetClipIdsJson.filter((id) => doc.clips.some((clip) => clip.id === id));
   if (existing.length > 0) {
-    const resolved = await resolveGenerateAsset(job, doc, outputAssetIds[0]);
+    const resolved = await resolveGenerateAsset(job, doc, outputAssetIds[0], tenantId);
     const assetId = resolved.assetId;
-    const ensureAsset: Array<{ type: "add_asset"; payload: unknown } | { type: "set_source"; payload: unknown } | { type: "set_clip_status"; payload: unknown }> = [
-      ...resolved.addOps,
-    ];
+    const ensureAsset: Array<
+      | { type: "add_asset"; payload: unknown }
+      | { type: "set_source"; payload: unknown }
+      | { type: "set_clip_status"; payload: unknown }
+    > = [...resolved.addOps];
     const ops = [
       ...ensureAsset,
       ...existing.flatMap((clipId) => [
@@ -280,7 +286,7 @@ async function completeSucceeded(job: JobRow, outputAssetIds: string[]): Promise
     ];
     await appendOps(job.projectId, ops, { actor: "owner", workspaceId });
   } else if (outputAssetIds.length > 0) {
-    const resolved = await resolveGenerateAsset(job, doc, outputAssetIds[0]);
+    const resolved = await resolveGenerateAsset(job, doc, outputAssetIds[0], tenantId);
     if (resolved.addOps.length > 0) {
       await appendOps(job.projectId, resolved.addOps, { actor: "owner", workspaceId });
     }
@@ -292,9 +298,10 @@ async function completeSucceeded(job: JobRow, outputAssetIds: string[]): Promise
         projectId: job.projectId,
         jobId: job.id,
         assetId,
-        prompt: typeof (job.requestJson as { prompt?: unknown })?.prompt === "string"
-          ? ((job.requestJson as { prompt: string }).prompt)
-          : null,
+        prompt:
+          typeof (job.requestJson as { prompt?: unknown })?.prompt === "string"
+            ? (job.requestJson as { prompt: string }).prompt
+            : null,
       })
       .returning();
     editEvents.emitEvent({ type: "unplaced.landed", projectId: job.projectId, item });
@@ -366,10 +373,10 @@ async function markPendingTargetsFailed(job: JobRow): Promise<void> {
 /** Real dimensions and length of a generated video, when ffprobe is available. */
 async function probeGeneratedMeta(
   storagePath: string,
-  projectId: string,
+  scope: EditScope,
 ): Promise<Partial<Pick<Asset, "durationFrames" | "width" | "height" | "fps" | "hasAudio">>> {
   try {
-    const probed = await probe(path.join(mediaRoot(), storagePath), projectId);
+    const probed = await probe(mediaFilePath(scope.tenantId, storagePath), scope);
     return {
       durationFrames: Math.max(1, secondsToFrames(probed.durationSeconds || 1 / 30, probed.fps || 30)),
       width: probed.width,

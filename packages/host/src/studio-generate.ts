@@ -146,8 +146,8 @@ async function persistMeta(meta: StudioMediaMeta): Promise<void> {
   }
 }
 
-export function studioRouteReady(capability: "image_gen" | "video_gen", workspaceId: string): boolean {
-  const routes = listToolRoutes(loadSettings(workspaceId));
+export function studioRouteReady(capability: "image_gen" | "video_gen", tenant: TenantContext): boolean {
+  const routes = listToolRoutes(loadSettings(tenant));
   return Boolean(routes[capability]?.ready);
 }
 
@@ -156,7 +156,7 @@ export async function generateStudioImage(
   body: ImageGenerateBody,
   options: StudioGenerateOptions = {},
 ): Promise<StudioGenerateResult> {
-  const settings = loadSettings(tenant.workspaceId);
+  const settings = loadSettings(tenant);
   const locale = localeForRun();
   const scope = buildToolSecretScope(settings);
   const model = body.model || settings.imageGenModel || defaultStudioImageModel();
@@ -209,10 +209,10 @@ export async function generateStudioVideo(
   body: VideoGenerateBody,
   options: StudioGenerateOptions = {},
 ): Promise<StudioGenerateResult> {
-  if (!studioRouteReady("video_gen", tenant.workspaceId)) {
+  if (!studioRouteReady("video_gen", tenant)) {
     throw new ApiError("invalid_request", gatewayRequiredMessage("videos", localeForRun()), 400);
   }
-  const settings = loadSettings(tenant.workspaceId);
+  const settings = loadSettings(tenant);
   const scope = buildToolSecretScope(settings);
   const model = body.model || settings.videoGenModel || defaultStudioVideoModel();
   if (body.imageUrl && !videoCapabilities(model).imageToVideo) {
@@ -267,10 +267,7 @@ export async function generateStudioVideo(
   return { id, url: stored, prompt: body.prompt, aspect: body.aspect, model: usedModel };
 }
 
-export async function listStudioGallery(
-  tenant: TenantContext,
-  kind: "image" | "video",
-): Promise<StudioGalleryItem[]> {
+export async function listStudioGallery(tenant: TenantContext, kind: "image" | "video"): Promise<StudioGalleryItem[]> {
   const { listMediaByKind } = await import("./media");
   const rows = await listMediaByKind(tenant, kind);
   const items: StudioGalleryItem[] = [];
