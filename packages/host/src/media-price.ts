@@ -26,8 +26,11 @@ function gatewayPricingSource(baseURL: string | undefined): GatewaySource | null
 /**
  * Flat per-call price from the gateway's own catalog, used only when nobody has transcribed a vendor
  * list price. `quotaType === 1` is the gateway's "one fixed charge per call" mode, which lines up with
- * one image — it does **not** line up with a per-second video rate, so video models get no gateway
- * fallback rather than a number that would be wrong once the clip length changes.
+ * one image and with one music job — it does **not** line up with a per-second video rate, so video
+ * models get no gateway fallback rather than a number that would be wrong once the clip length changes.
+ *
+ * For music this is the only price there will ever be: Suno publishes no API rate card, so a `track`
+ * row with no gateway figure is honestly "no list price on file" rather than a guess.
  */
 export function gatewayFlatPrice(
   catalog: PricingCatalog,
@@ -36,7 +39,7 @@ export function gatewayFlatPrice(
   baseURL: string | undefined,
   now: Date = new Date(),
 ): MediaPrice | null {
-  if (unit !== "image") {
+  if (unit !== "image" && unit !== "track") {
     return null;
   }
   const source = gatewayPricingSource(baseURL);

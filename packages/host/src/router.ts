@@ -65,6 +65,7 @@ import {
 } from "./handlers/market";
 import {
   handleGetImages,
+  handleGetMusic,
   handleGetVideos,
   handlePostData,
   handlePostDataStream,
@@ -77,6 +78,8 @@ import {
   handlePostPresentationsRegen,
   handlePostResearch,
   handlePostResearchStream,
+  handlePostMusic,
+  handlePostMusicLyrics,
   handlePostVideos,
 } from "./handlers/jobs";
 import {
@@ -218,6 +221,9 @@ const routes: Route[] = [
   compile("POST", "/api/v1/videos", handlePostVideos),
   compile("GET", "/api/v1/videos/examples", handleGetVideoExamples),
   compile("GET", "/api/v1/videos/examples/:name/file", handleGetVideoExampleFile),
+  compile("GET", "/api/v1/music", handleGetMusic),
+  compile("POST", "/api/v1/music", handlePostMusic),
+  compile("POST", "/api/v1/music/lyrics", handlePostMusicLyrics),
   compile("POST", "/api/v1/documents", handlePostDocuments),
   compile("POST", "/api/v1/documents/regenerate", handlePostDocumentsRegen),
   compile("POST", "/api/v1/documents/docx", handlePostDocumentsDocx),

@@ -3,8 +3,9 @@ import { ApiError, fetchPublicHttps } from "@agentforge/core";
 /** Byte caps for media mirrored into the local store; they match `saveMedia`'s own limits. */
 export const GENERATED_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 export const GENERATED_VIDEO_MAX_BYTES = 50 * 1024 * 1024;
+export const GENERATED_AUDIO_MAX_BYTES = 25 * 1024 * 1024;
 
-export type GeneratedMediaKind = "image" | "video";
+export type GeneratedMediaKind = "image" | "video" | "audio";
 
 export type DownloadedMedia = { mime: string; bytes: Buffer };
 
@@ -13,14 +14,20 @@ export type DownloadGeneratedMediaOptions = {
   signal?: AbortSignal;
 };
 
-const DEFAULT_MIME: Record<GeneratedMediaKind, string> = { image: "image/png", video: "video/mp4" };
+const DEFAULT_MIME: Record<GeneratedMediaKind, string> = {
+  image: "image/png",
+  video: "video/mp4",
+  audio: "audio/mpeg",
+};
 const MAX_BYTES: Record<GeneratedMediaKind, number> = {
   image: GENERATED_IMAGE_MAX_BYTES,
   video: GENERATED_VIDEO_MAX_BYTES,
+  audio: GENERATED_AUDIO_MAX_BYTES,
 };
 const ERROR_CODE: Record<GeneratedMediaKind, string> = {
   image: "invalid_image_url",
   video: "invalid_video_url",
+  audio: "invalid_audio_url",
 };
 
 /**
