@@ -77,6 +77,42 @@ export {
   usageModeFromRunPrefix,
 } from "./usage/metering";
 export type { UsageMode, UsageUnit, UnpricedReason, UsageEvent } from "./usage/metering";
+export {
+  PLAN_KINDS,
+  PLAN_STATUSES,
+  ENTITLEMENT_BLOCKS,
+  ENTITLEMENT_WARNINGS,
+  WARN_AT_FRACTION,
+  PASS_THROUGH_MARGIN_MICROS,
+  DEFAULT_QUOTE_CURRENCY,
+  isPlanKind,
+  isPlanStatus,
+  isEntitlementBlock,
+  isEntitlementWarning,
+  calendarMonthPeriod,
+  rolledPlan,
+  entitlementBlock,
+  resolveEntitlement,
+  seatAdmission,
+  quotedPriceUsdMicros,
+  defaultPlanRecord,
+} from "./entitlement/types";
+export type {
+  PlanKind,
+  PlanStatus,
+  EntitlementBlock,
+  EntitlementWarning,
+  TenantPlanRecord,
+  TenantEntitlement,
+} from "./entitlement/types";
+export {
+  BILLING_EVENT_KINDS,
+  isBillingEventKind,
+  parseBillingEvent,
+  applyBillingEvent,
+  billingEventDecision,
+} from "./entitlement/webhook";
+export type { BillingEventKind, BillingEvent, BillingEntitlementPatch } from "./entitlement/webhook";
 export { ApiError, ContentParseError } from "./errors";
 export {
   wrappingKeyFromSecret,

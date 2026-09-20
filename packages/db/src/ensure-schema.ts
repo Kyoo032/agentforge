@@ -243,6 +243,7 @@ export function ensureSchema(sqlite: Database.Database): void {
   ensureAuthSessionTables(sqlite);
   ensureTenantTables(sqlite);
   ensureTenantUsageTable(sqlite);
+  ensureTenantPlanTables(sqlite);
   ensureTenantStateTable(sqlite);
   ensureWorkspaceColumns(sqlite);
   assertKernelTables(sqlite);
@@ -489,6 +490,66 @@ function ensureTenantUsageTable(sqlite: Database.Database): void {
     CREATE INDEX IF NOT EXISTS tenant_usage_tenant_at_idx ON tenant_usage (tenant_id, at);
     CREATE INDEX IF NOT EXISTS tenant_usage_tenant_mode_idx ON tenant_usage (tenant_id, mode, at);
     CREATE INDEX IF NOT EXISTS tenant_usage_unpriced_idx ON tenant_usage (unpriced_reason, at);
+  `);
+  // Phase 5 lane B added the period stamp (drizzle/0017_tenant_plan.sql). `CREATE TABLE IF NOT
+  // EXISTS` above is a no-op for a database that already has the table, so the column is added
+  // explicitly — the same shape `ensureKnowledgeBackendTables` uses for 0013's two late columns,
+  // and the reason a database baseline-stamped past 0017 still gets it.
+  const usage = new Set(tableColumns(sqlite, "tenant_usage"));
+  if (usage.size > 0 && !usage.has("billing_period_start")) {
+    sqlite.exec("ALTER TABLE `tenant_usage` ADD `billing_period_start` integer");
+  }
+  sqlite.exec(
+    "CREATE INDEX IF NOT EXISTS tenant_usage_period_idx ON tenant_usage (tenant_id, billing_period_start)",
+  );
+}
+
+/**
+ * Phase 5 lane B: the entitlement, the seats and the webhook's idempotency record, for a database
+ * stamped past 0017 without them. Mirrors drizzle/0017_tenant_plan.sql exactly — including the
+ * deliberate absence of a foreign key on `billing_events.tenant_id`, so a delivery for a tenant
+ * this host has not provisioned yet is still recorded rather than refused and retried forever.
+ *
+ * `tenant_plan` has no seed row on purpose: a tenant with no row is an active, uncapped, unmetered
+ * plan (`defaultPlanRecord` in @agentforge/core), which is what makes a desktop database and a
+ * hosted database that has never met the webhook behave exactly as they did before Phase 5.
+ */
+function ensureTenantPlanTables(sqlite: Database.Database): void {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS tenant_plan (
+      tenant_id text PRIMARY KEY NOT NULL REFERENCES tenants(id) ON DELETE cascade,
+      kind text NOT NULL DEFAULT 'personal',
+      status text NOT NULL DEFAULT 'active',
+      allowance_usd_micros integer,
+      spent_usd_micros integer DEFAULT 0 NOT NULL,
+      unpriced_count integer DEFAULT 0 NOT NULL,
+      period_start integer NOT NULL,
+      period_end integer NOT NULL,
+      seat_cap integer,
+      margin_multiple_micros integer DEFAULT 1000000 NOT NULL,
+      currency text DEFAULT 'USD' NOT NULL,
+      updated_at integer NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS tenant_seat (
+      tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE cascade,
+      user_id text NOT NULL,
+      organization_id text NOT NULL,
+      claimed_at integer NOT NULL,
+      revoked_at integer,
+      revoked_by text,
+      PRIMARY KEY (tenant_id, user_id)
+    );
+    CREATE INDEX IF NOT EXISTS tenant_seat_live_idx ON tenant_seat (tenant_id, revoked_at);
+    CREATE TABLE IF NOT EXISTS billing_events (
+      event_id text PRIMARY KEY NOT NULL,
+      tenant_id text NOT NULL,
+      kind text NOT NULL,
+      occurred_at integer NOT NULL,
+      received_at integer NOT NULL,
+      applied integer DEFAULT 0 NOT NULL,
+      detail text
+    );
+    CREATE INDEX IF NOT EXISTS billing_events_tenant_idx ON billing_events (tenant_id, received_at);
   `);
 }
 

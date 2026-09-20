@@ -23,6 +23,8 @@ type Harness = {
   deps: AuthRouteDeps;
   /** Every identity `handleLogin` provisioned, in order. Lane C: first sign-in writes the tenant. */
   provisioned: PortalIdentity[];
+  /** Every identity `handleLogin` claimed a seat for, in order. Lane B: the seat cap at sign-in. */
+  seated: PortalIdentity[];
 };
 
 function harness(
@@ -32,6 +34,7 @@ function harness(
     vault?: TokenVault;
     serverMode?: boolean;
     provision?: (identity: PortalIdentity) => Promise<unknown>;
+    claimSeat?: (identity: PortalIdentity) => Promise<{ readonly ok: boolean }>;
   } = {},
 ): Harness {
   const store = options.store ?? createMemorySessionStore();
@@ -43,15 +46,25 @@ function harness(
     (async (identity: PortalIdentity) => {
       provisioned.push(identity);
     });
+  const seated: PortalIdentity[] = [];
+  // The default admits everybody, which is what a tenant with no plan row gets from the real
+  // wiring: a null seat cap. A case that wants the refusal passes its own.
+  const claimSeat =
+    options.claimSeat ??
+    (async (identity: PortalIdentity) => {
+      seated.push(identity);
+      return { ok: true };
+    });
   const deps: AuthRouteDeps = {
     store,
     vault,
     portal,
     provision,
+    claimSeat,
     serverMode: options.serverMode ?? true,
     now: () => T0,
   };
-  return { routes: createAuthRoutes(deps), store, vault, portal, deps, provisioned };
+  return { routes: createAuthRoutes(deps), store, vault, portal, deps, provisioned, seated };
 }
 
 function request(overrides: Partial<HostRequest> = {}): HostRequest {
