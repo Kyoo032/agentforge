@@ -137,6 +137,7 @@ export async function handlePostAgentGenerateDefaults(request: HostRequest): Pro
     const version = await agentService.updateGenerateDefaults(tenant, request.params.agentId, {
       imageGenModel: "imageGenModel" in body ? ((body.imageGenModel as string | null) ?? null) : undefined,
       videoGenModel: "videoGenModel" in body ? ((body.videoGenModel as string | null) ?? null) : undefined,
+      musicGenModel: "musicGenModel" in body ? ((body.musicGenModel as string | null) ?? null) : undefined,
     });
     return jsonOk({ version });
   } catch (error) {
@@ -189,13 +190,16 @@ export async function handlePostWorkspaceAgents(request: HostRequest): Promise<H
         productModes: body.productModes as never,
         visibility: body.visibility as never,
         config:
-          body.imageGenModel || body.videoGenModel
+          body.imageGenModel || body.videoGenModel || body.musicGenModel
             ? {
                 ...(typeof body.imageGenModel === "string" && body.imageGenModel.trim()
                   ? { imageGenModel: body.imageGenModel.trim() }
                   : {}),
                 ...(typeof body.videoGenModel === "string" && body.videoGenModel.trim()
                   ? { videoGenModel: body.videoGenModel.trim() }
+                  : {}),
+                ...(typeof body.musicGenModel === "string" && body.musicGenModel.trim()
+                  ? { musicGenModel: body.musicGenModel.trim() }
                   : {}),
               }
             : undefined,

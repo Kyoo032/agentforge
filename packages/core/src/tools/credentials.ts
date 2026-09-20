@@ -32,6 +32,7 @@ export type ToolSecretStore = {
   toolBackends?: Record<string, string>;
   imageGenModel?: string;
   videoGenModel?: string;
+  musicGenModel?: string;
   disabledTools?: string[];
   injectionGuardBypass?: boolean;
 };
@@ -129,6 +130,36 @@ export const TOOL_CAPABILITIES: ToolCapabilitySpec[] = [
       },
     ],
     autodectOrder: ["gateway", "fal"],
+  },
+  {
+    id: "music_gen",
+    label: "Music generation",
+    description:
+      "music_generate / lyrics_write. Toko Token gateway only — the catalog's music backend is an async Suno relay with no second vendor.",
+    backends: [
+      {
+        id: "gateway",
+        label: "Toko Token gateway",
+        envVars: ["OPENAI_API_KEY"],
+        urlVars: ["OPENAI_BASE_URL"],
+      },
+    ],
+    autodectOrder: ["gateway"],
+  },
+  {
+    id: "speech_gen",
+    label: "Text to speech",
+    description:
+      "speech_generate via gateway POST /v1/audio/speech. Needs a non-realtime text-to-speech id in the live catalog; the gateway lists none today.",
+    backends: [
+      {
+        id: "gateway",
+        label: "Toko Token gateway",
+        envVars: ["OPENAI_API_KEY"],
+        urlVars: ["OPENAI_BASE_URL"],
+      },
+    ],
+    autodectOrder: ["gateway"],
   },
   {
     id: "asr",
@@ -282,6 +313,7 @@ export function secretMapFromSettings(
   put("ARK_BASE_URL", settings.volcengineBaseUrl || env.ARK_BASE_URL || env.VOLCENGINE_BASE_URL);
   put("IMAGE_GEN_MODEL", settings.imageGenModel || env.IMAGE_GEN_MODEL);
   put("VIDEO_GEN_MODEL", settings.videoGenModel || env.VIDEO_GEN_MODEL);
+  put("MUSIC_GEN_MODEL", settings.musicGenModel || env.MUSIC_GEN_MODEL);
   for (const [name, value] of Object.entries(settings.toolKeys ?? {})) {
     put(name, value);
   }

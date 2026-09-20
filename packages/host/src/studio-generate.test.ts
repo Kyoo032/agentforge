@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { ApiError, studioVideoFailureStatus } from "@agentforge/core";
 import {
+  defaultStudioMusicModel,
   listStudioImageModels,
+  listStudioMusicModels,
   listStudioVideoModels,
   parseImageGenerateBody,
+  parseLyricsWriteBody,
+  parseMusicGenerateBody,
   parseVideoGenerateBody,
+  studioSpeechUnavailable,
 } from "./studio-generate";
 import { mediaIdFromUrl } from "./media-id";
 
@@ -159,5 +164,82 @@ describe("studioVideoFailureStatus", () => {
         "代理预付账户的异步任务仅支持发送前可确定上限的固定按次价格 Seedance video on this gateway is billed by tokens after the job finishes, not a fixed per-call price.",
       ),
     ).toBe(400);
+  });
+});
+
+describe("parseMusicGenerateBody", () => {
+  it("defaults to describe mode with no instrumental", () => {
+    expect(parseMusicGenerateBody({ prompt: "calm lo-fi" })).toMatchObject({
+      mode: "describe",
+      prompt: "calm lo-fi",
+      instrumental: false,
+    });
+  });
+
+  it("requires a description in describe mode", () => {
+    expect(() => parseMusicGenerateBody({})).toThrow(ApiError);
+    expect(() => parseMusicGenerateBody({ prompt: "   " })).toThrow(ApiError);
+  });
+
+  it("requires lyrics in custom mode, even with a style and a title", () => {
+    expect(() => parseMusicGenerateBody({ mode: "custom", style: "lo-fi", title: "Rain" })).toThrow(ApiError);
+  });
+
+  it("accepts a full custom brief", () => {
+    expect(
+      parseMusicGenerateBody({
+        mode: "custom",
+        lyrics: "[Verse]\nrain",
+        style: "lo-fi, mellow",
+        title: "Rainy Window",
+        instrumental: true,
+        model: "suno_music",
+      }),
+    ).toMatchObject({
+      mode: "custom",
+      lyrics: "[Verse]\nrain",
+      style: "lo-fi, mellow",
+      title: "Rainy Window",
+      instrumental: true,
+      model: "suno_music",
+    });
+  });
+
+  it("rejects an unknown mode rather than guessing one", () => {
+    expect(() => parseMusicGenerateBody({ mode: "remix", prompt: "x" })).toThrow(ApiError);
+  });
+
+  it("refuses a description longer than the relay accepts", () => {
+    expect(() => parseMusicGenerateBody({ prompt: "a".repeat(2_000) })).toThrow(ApiError);
+  });
+});
+
+describe("parseLyricsWriteBody", () => {
+  it("requires a prompt", () => {
+    expect(() => parseLyricsWriteBody({})).toThrow(ApiError);
+    expect(parseLyricsWriteBody({ prompt: "a song about rain" })).toMatchObject({ prompt: "a song about rain" });
+  });
+});
+
+describe("music model lists", () => {
+  const models = [
+    { id: "suno_music", label: "suno_music", provider: "openai" as const, inputModalities: ["text"] },
+    { id: "suno_lyrics", label: "suno_lyrics", provider: "openai" as const, inputModalities: ["text"] },
+    { id: "whisper-1", label: "whisper-1", provider: "openai" as const, inputModalities: ["text"] },
+    {
+      id: "qwen3-tts-instruct-flash-realtime",
+      label: "tts",
+      provider: "openai" as const,
+      inputModalities: ["text"],
+    },
+  ];
+
+  it("offers only the song generator, never the lyric writer or the transcriber", () => {
+    expect(listStudioMusicModels(models).map((model) => model.id)).toEqual(["suno_music"]);
+    expect(defaultStudioMusicModel(listStudioMusicModels(models))).toBe("suno_music");
+  });
+
+  it("explains that the only speech id on this gateway is realtime", () => {
+    expect(studioSpeechUnavailable(models)).toBe("realtime_only");
   });
 });

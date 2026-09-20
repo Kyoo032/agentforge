@@ -2,6 +2,7 @@ import { formatUsd } from "@agentforge/core/gateway";
 import {
   costTier,
   estimateImageCost,
+  estimateMusicCost,
   estimateVideoCost,
   relativeFactor,
   type MediaAspect,
@@ -32,6 +33,9 @@ export type MediaEstimateView = {
 
 export type VideoResolution = "480p" | "720p" | "1080p";
 
+/** Every studio that shows a price. The namespace is also the locale namespace. */
+export type EstimateNamespace = "images" | "videos" | "music";
+
 export type ImageEstimateInput = {
   model: string;
   models: readonly PricedModel[];
@@ -45,6 +49,11 @@ export type VideoEstimateInput = {
   models: readonly PricedModel[];
   seconds: number;
   resolution?: VideoResolution;
+};
+
+export type MusicEstimateInput = {
+  model: string;
+  models: readonly PricedModel[];
 };
 
 type Peer = { id: string; usd: number; approx: boolean };
@@ -90,7 +99,7 @@ function formatCheckedAt(iso: string): string {
  * a low-confidence row has no vendor page at all, a `citation` row is somebody else's transcription,
  * and only a real vendor URL earns the words "list price".
  */
-function sourceLine(namespace: "images" | "videos", estimate: MediaEstimate): string {
+function sourceLine(namespace: EstimateNamespace, estimate: MediaEstimate): string {
   const date = formatCheckedAt(estimate.checkedAt);
   if (estimate.confidence === "low") {
     return t(`${namespace}.estimate.sourceUnverified`);
@@ -121,7 +130,7 @@ function peerCosts(models: readonly PricedModel[], cost: (price: MediaPrice) => 
  * as fact while resting on a price nobody published.
  */
 function compareLine(
-  namespace: "images" | "videos",
+  namespace: EstimateNamespace,
   models: readonly PricedModel[],
   peers: readonly Peer[],
   self: MediaEstimate,
@@ -148,12 +157,12 @@ function compareLine(
   return against.approx || self.approx ? `${SOFT}${sentence}` : sentence;
 }
 
-function unknownView(namespace: "images" | "videos"): MediaEstimateView {
+function unknownView(namespace: EstimateNamespace): MediaEstimateView {
   return { line: t(`${namespace}.estimate.unknown`), compare: null, tier: null, unknown: true, unverified: false };
 }
 
 function assemble(
-  namespace: "images" | "videos",
+  namespace: EstimateNamespace,
   estimate: MediaEstimate,
   head: string,
   extras: string[],
@@ -216,8 +225,23 @@ export function videoEstimateView(input: VideoEstimateInput): MediaEstimateView 
   return assemble("videos", estimate, head, extras, input.models, peerCosts(input.models, cost));
 }
 
-/** Short price tag for the model picker: "$0.03/img" or "$0.12/s". */
-export function mediaPriceHint(namespace: "images" | "videos", price: MediaPrice | null | undefined): string | null {
+/**
+ * One flat charge per music job, whatever the song is — so there is no length or tier to fold in,
+ * and the peer comparison is a straight price-against-price read.
+ */
+export function musicEstimateView(input: MusicEstimateInput): MediaEstimateView {
+  const price = priceOf(input.models, input.model);
+  if (!price) {
+    return unknownView("music");
+  }
+  const cost = (candidate: MediaPrice): MediaEstimate => estimateMusicCost(candidate);
+  const estimate = cost(price);
+  const head = t("music.estimate.perTrack", { usd: formatUsd(estimate.usd) });
+  return assemble("music", estimate, head, [], input.models, peerCosts(input.models, cost));
+}
+
+/** Short price tag for the model picker: "$0.03/img", "$0.12/s" or "$0.04/song". */
+export function mediaPriceHint(namespace: EstimateNamespace, price: MediaPrice | null | undefined): string | null {
   const usd = price ? price.tiers[price.defaultTier] : undefined;
   if (!price || typeof usd !== "number" || usd <= 0) {
     return null;
@@ -227,7 +251,7 @@ export function mediaPriceHint(namespace: "images" | "videos", price: MediaPrice
 
 /** Model id → picker hint, for every row that has a price. */
 export function mediaPriceHints(
-  namespace: "images" | "videos",
+  namespace: EstimateNamespace,
   models: readonly PricedModel[],
 ): Record<string, string> {
   const pairs = models.flatMap((model) => {

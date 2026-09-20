@@ -37,6 +37,7 @@ type IconName =
   | "legal"
   | "images"
   | "videos"
+  | "music"
   | "edit"
   | "presentations"
   | "knowledge"
@@ -102,6 +103,13 @@ const RAIL_ICON_PATHS: Record<IconName, ReactNode> = {
     <>
       <path d="m22 8-6 4 6 4V8Z" />
       <rect x="2" y="6" width="14" height="12" />
+    </>
+  ),
+  music: (
+    <>
+      <path d="M9 18V5l12-2v13" />
+      <circle cx="6" cy="18" r="3" />
+      <circle cx="18" cy="16" r="3" />
     </>
   ),
   edit: (

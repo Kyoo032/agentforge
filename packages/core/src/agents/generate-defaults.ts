@@ -1,16 +1,18 @@
 import { isDefaultChatAgent } from "./default-chat";
 import { sanitizeProductModes, type ProductMode } from "./product-modes";
 
-export type GeneratePinKind = "image" | "video";
+export type GeneratePinKind = "image" | "video" | "music";
 
 const MODE_FOR_KIND: Record<GeneratePinKind, ProductMode> = {
   image: "images",
   video: "videos",
+  music: "music",
 };
 
-const PIN_KEY: Record<GeneratePinKind, "imageGenModel" | "videoGenModel"> = {
+const PIN_KEY: Record<GeneratePinKind, "imageGenModel" | "videoGenModel" | "musicGenModel"> = {
   image: "imageGenModel",
   video: "videoGenModel",
+  music: "musicGenModel",
 };
 
 export function readGeneratePin(
@@ -30,7 +32,7 @@ export function readGeneratePin(
 
 export function mergeGeneratePins(
   current: Record<string, unknown> | null | undefined,
-  patch: { imageGenModel?: string | null; videoGenModel?: string | null },
+  patch: { imageGenModel?: string | null; videoGenModel?: string | null; musicGenModel?: string | null },
 ): Record<string, unknown> {
   const next: Record<string, unknown> = { ...(current ?? {}) };
   if ("imageGenModel" in patch) {
@@ -47,6 +49,14 @@ export function mergeGeneratePins(
       next.videoGenModel = trimmed;
     } else {
       delete next.videoGenModel;
+    }
+  }
+  if ("musicGenModel" in patch) {
+    const trimmed = typeof patch.musicGenModel === "string" ? patch.musicGenModel.trim() : "";
+    if (trimmed) {
+      next.musicGenModel = trimmed;
+    } else {
+      delete next.musicGenModel;
     }
   }
   return next;
@@ -73,6 +83,7 @@ function createdAtMs(value: Date | string | number): number {
 function sourceUnlocks(source: GenerateDefaultSource, mode: ProductMode): boolean {
   const modes = sanitizeProductModes(source.productModes);
   if (modes === undefined) {
+    // Legacy agents predate Music, so an absent list unlocks only the two surfaces it could mean.
     return mode === "images" || mode === "videos";
   }
   return modes.includes(mode);
