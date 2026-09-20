@@ -1,6 +1,6 @@
 # Map — Tenant usage ledger
 
-Last verified: 2026-09-20 at 31abcee (Phase 5 lane A, after the Meeting mode merged in)
+Last verified: 2026-09-20 at 96e7790 (Phase 5 lane A, after the Meeting mode merged in)
 
 ## Overview
 
