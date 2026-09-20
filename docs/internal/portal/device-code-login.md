@@ -459,9 +459,9 @@ export type StoredSession = {
 
 The renderer reaches these through `apps/web/lib/api-client.ts` like everything else; `apps/web/lib/desktop-bridge.ts` stays the only file touching `window.agentforge`. No token ever crosses IPC.
 
-**Renderer gate.** `apps/web/src/App.tsx:66-93` becomes `setGate(payload.hasOpenai || payload.hasSession ? "app" : "onboarding")`. `hasSession` is added to the `GET /api/v1/settings` response by `packages/host/src/handlers/settings.ts` and read purely from disk — no network, so the gate decision is as fast offline as online. The shell's `host-status.json` (`apps/desktop/main.cjs:429-433`) keeps writing `hasOpenai` unchanged; it is a shell status file and gains nothing here.
+**Renderer gate.** `apps/web/src/App.tsx:67-94` becomes `setGate(payload.hasOpenai || payload.hasSession ? "app" : "onboarding")`. `hasSession` is added to the `GET /api/v1/settings` response by `packages/host/src/handlers/settings.ts` and read purely from disk — no network, so the gate decision is as fast offline as online. The shell's `host-status.json` (`apps/desktop/main.cjs:429-433`) keeps writing `hasOpenai` unchanged; it is a shell status file and gains nothing here.
 
-**Choosing the `/v1` Bearer.** One choke point: `resolveProviderKeys` in `packages/core/src/secrets.ts:282`, called from `packages/core/src/runtime/create-runtime.ts:33`. Rule, in order:
+**Choosing the `/v1` Bearer.** One choke point: `resolveProviderKeys` in `packages/core/src/secrets.ts:298`, called from `packages/core/src/runtime/create-runtime.ts:33`. Rule, in order:
 
 1. Workspace has an explicit `openaiApiKey` **and** `tenant_config.feature_flags.allow_byo_key` is not `false` → use the BYO key (explicit user intent).
 2. Live session exists → use the in-memory access token, base URL from the session's tenant config.
@@ -498,7 +498,7 @@ This ordering does not create a seat-cap loophole: a BYO key carries no `oid`, s
 | Refresh replay | `rotate_refresh_token` reuse detection revokes the whole chain and the session (diagram c). |
 | Clock skew | The gateway allows ±120 s on `exp`/`iat`. The client refreshes at `exp − 5 min` and, if it ever sees a `401` with an expiry reason while its own clock says the token is fresh, refreshes immediately instead of trusting local time. Never gate anything on the client clock alone. |
 | Downgrade to BYO key to dodge the seat cap | Not a loophole by construction: a BYO key carries no `oid`, so it cannot spend the org wallet, cannot see org models beyond what that key already buys, and gets no support. An org that wants it blocked sets `tenant_config.feature_flags.allow_byo_key = false`, which the client honours in `resolveProviderKeys`; server-side, a gateway API key with a null `org_id` is never billed to an org — `usage` rows on that path carry `api_key_id` and no `org_id`, and `wallet_ledger.org_id` is NOT NULL, so no wallet in this database can receive the charge. What *does* receive it is open question 9. |
-| Token leakage to the renderer | Tokens exist only in the host process. `MaskedSecrets` (`packages/core/src/secrets.ts:66-91`) grows no token field, and `GET /api/v1/auth/session` returns identifiers and expiry only. |
+| Token leakage to the renderer | Tokens exist only in the host process. `MaskedSecrets` (`packages/core/src/secrets.ts:72-99`) grows no token field, and `GET /api/v1/auth/session` returns identifiers and expiry only. |
 | TLS downgrade / SSRF on portal calls | Reuse `assertAllowedEndpointUrl` (`packages/core/src/security/tls.ts`), already applied to gateway calls. Portal origin is pinned from brand config, not user input. |
 | Log leakage | Reuse `redactSecrets` (`packages/core/src/security/redact.ts`) on every auth response before logging. `user_code`, `device_code`, refresh tokens and JWTs are never logged at any level. |
 

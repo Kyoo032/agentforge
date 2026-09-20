@@ -70,7 +70,7 @@ both together.** Without them the context is ~1.4 GB (`node_modules` plus `.git`
 - Runs as the non-root `node` user. `/data` is owned by `node` and declared a volume.
 - `HEALTHCHECK` hits `GET /api/v1/components` on `127.0.0.1:$PORT` with `node -e fetch`
   (no curl in the image), **sending `x-forwarded-proto: https`**. Both parts matter.
-  The route is deliberately ungated — `packages/host/src/router.ts:196-198` has the
+  The route is deliberately ungated — `packages/host/src/router.ts:219-221` has the
   comment explaining why — so it answers before any gateway key exists, and
   `GET /api/v1/workspaces` would also work but opens the database on every probe.
   The header is what gets the probe past `rejectPlaintext`

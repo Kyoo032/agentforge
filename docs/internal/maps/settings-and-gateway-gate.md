@@ -4,7 +4,7 @@
 > The host-decides/renderer-displays rule below is unchanged; the Electron-only transport and wipe details are frozen desktop behaviour.
 > Decision record: [`web-pivot-2026-09-18.md`](../web-pivot-2026-09-18.md).
 
-Last verified: 2026-09-20 at d14cd8f
+Last verified: 2026-09-20 at c204e5e
 
 > The 2026-09-17 "hide the endpoint" change was verified in the working tree when this page was
 > first written; it is committed as of `b482611`. `apps/web/components/settings-page.tsx`,
@@ -28,9 +28,9 @@ the renderer branches on; it never re-derives a decision from `hasOpenai` or fro
 
 Despite the name, there is **one encrypted file**, not a directory per desk: `<localDataDir()>/settings.enc`,
 holding `{ version: 2, locale, workspaces: { [workspaceId]: StoredSecrets } }` — the type is `SettingsFileV2`
-(`packages/host/src/settings-store.ts:118-122`). "Per desk" is a key in that map.
+(`packages/host/src/settings-store.ts:119-123`). "Per desk" is a key in that map.
 
-`loadSettings(workspaceId?)` / `saveSettings(patch, workspaceId?)` (`packages/host/src/settings-store.ts:326-343`)
+`loadSettings(workspaceId?)` / `saveSettings(patch, workspaceId?)` (`packages/host/src/settings-store.ts:327-344`)
 resolve the desk through `resolveSettingsWorkspaceId` (`:185-191`): explicit id → `readSelectedWorkspaceId()`
 → `FALLBACK_SETTINGS_WORKSPACE`. `sliceFor()` (`:193-202`) picks that desk's slice, falling through to the
 `LEGACY_SETTINGS_WORKSPACE` slice **only** when the resolved id is the fallback (`:198-199`).
@@ -54,10 +54,10 @@ and the desk reports stub. The defence is a **source-grep test**:
 named exceptions (`studio-generate.ts`, `handlers/jobs.ts`, listed at `:22-23`).
 
 **`settingsPayload()`** (`packages/host/src/handlers/settings.ts:85-122`) is what the renderer sees. Keys are
-never in it: `maskSecrets` (`packages/core/src/secrets.ts:236-263`) emits booleans (`hasOpenai`, …) and
+never in it: `maskSecrets` (`packages/core/src/secrets.ts:250-279`) emits booleans (`hasOpenai`, …) and
 fingerprints (`sha256:` + the first 12 hex chars of SHA-256 over the trimmed secret,
 `packages/core/src/security/fingerprint.ts:9-15`). `openaiBaseUrl` in the payload is always
-`resolvedGatewayBaseUrl()`, never a stored value (`packages/core/src/secrets.ts:246-247`).
+`resolvedGatewayBaseUrl()`, never a stored value (`packages/core/src/secrets.ts:262-263`).
 
 **What the owner can actually change on this page.** Two fields, and the POST body says so: the settings form
 submits exactly `{ openaiApiKey, editTurnCapUsd }` (`apps/web/components/settings-page.tsx:189-197`, with the
@@ -66,7 +66,7 @@ of `{ locale }` (`:219-229`) — see [`locale-boot-and-run-harness.md`](locale-b
 turn cap (`settings-edit-turn-cap`, `:396`) is a number input clamped to 0.5–50 on the way in and again on the
 way out (`:162-166`, `:388-395`), default 2.
 
-**Key resolution.** `resolveProviderKeys(settings, env)` (`packages/core/src/secrets.ts:283-314`), today:
+**Key resolution.** `resolveProviderKeys(settings, env)` (`packages/core/src/secrets.ts:299-330`), today:
 
 ```
 openai        = settings.openaiApiKey || env.OPENAI_API_KEY
@@ -78,7 +78,7 @@ volcengine    = settings.volcengineApiKey || env.ARK_API_KEY || env.VOLCENGINE_A
 
 `reuseOpenAI(dialect)` hands the OpenAI-slot key to another provider's slot when `guessDialectFromKey` says it
 actually belongs there — i.e. someone pasted an Anthropic key into the one key field. Stub vs live is a separate
-call, `resolveRuntimeMode({ settingsHasKey, envRuntime })` (`packages/core/src/secrets.ts:276-281`).
+call, `resolveRuntimeMode({ settingsHasKey, envRuntime })` (`packages/core/src/secrets.ts:292-297`).
 
 **Endpoint pinning.** `PINNED_GATEWAY_BASE_URL = "https://api.tokotokenai.com/v1"`
 (`packages/core/src/gateway/pinned.ts:8`), with a SHA-256 of the literal checked by
@@ -164,7 +164,7 @@ answers `status: "error"` with `allowed` untouched (`:488-492`).
 It runs on a key save (`refreshGatewayGateAfterSave` → `runGatewayCheck`,
 `packages/host/src/handlers/settings.ts:242-257`, with `gateVerdictFor` at `:230-239` deciding which verdict the
 save response carries) and on `POST /api/v1/settings/gateway/check` (`handleGatewayCheck`, `:258-266`, route at
-`packages/host/src/router.ts:193`). Separately, `maybeRefreshGateway` (`packages/host/src/gateway-gate.ts:527-557`)
+`packages/host/src/router.ts:216`). Separately, `maybeRefreshGateway` (`packages/host/src/gateway-gate.ts:527-557`)
 fires an un-awaited check at most once per key per 10 minutes from `handleGetSettings` — that is what turns
 "opened on trust" into a real verdict over time.
 
@@ -199,7 +199,7 @@ must always be recoverable.
 `allowed` or returns `null`; `MISSING_GATEWAY_GATE` fails closed. `resolveGate(payload, isElectron, hosted)` (`:94-100`)
 obeys a reported gate as-is, and on a missing or malformed one falls closed **under Electron and on a hosted build** — webdev and
 Playwright keep working before the host answers. `App.tsx` holds `gate` / `gateway` / `localeEpoch` state
-(`apps/web/src/App.tsx:76-78`), listens for `GATE_EVENT = "agentforge-gate"`
+(`apps/web/src/App.tsx:77-79`), listens for `GATE_EVENT = "agentforge-gate"`
 (`apps/web/lib/gateway-gate.ts:108`, listener at `App.tsx:89-97`), re-fetches settings and re-resolves on every
 locale epoch (`:99-122`), and renders `OnboardingScreen` when `gate === "onboarding"` (`:139-140`). Reason copy
 maps through `REASON_KEYS` (`apps/web/lib/gateway-gate.ts:123-127`) to
@@ -212,17 +212,17 @@ Card `settings-reset` (`apps/web/components/settings-reset-card.tsx:159`), mount
 `apps/web/components/settings-page.tsx:424`, fed by `resetPending` on the settings payload.
 
 **Sign out (`scope: "key"`)** — no typed confirmation, fully synchronous. `resetGatewayKey`
-(`packages/host/src/handlers/settings.ts:310`) calls `clearGatewayKeyEverywhere()`
-(`packages/host/src/settings-store.ts:372-387` — **machine-wide**, because "a key left on a second desk would
+(`packages/host/src/handlers/settings.ts:313`) calls `clearGatewayKeyEverywhere()`
+(`packages/host/src/settings-store.ts:373-388` — **machine-wide**, because "a key left on a second desk would
 keep the gate open after 'forget my key'"), then `clearGateState()`, `clearThisKeyCache()`,
-`resetEmbedCircuit()` and — added 2026-09-17 — `resetJobModelCircuit()` (`packages/host/src/handlers/settings.ts:319`). Returns `relaunch: false`. Threads, desks and media are untouched. The card navigates to
+`resetEmbedCircuit()` and — added 2026-09-17 — `resetJobModelCircuit()` (`packages/host/src/handlers/settings.ts:322`). Returns `relaunch: false`. Threads, desks and media are untouched. The card navigates to
 `/chat` and calls `announceGate(result.gateway)`, which dispatches `GATE_EVENT` and drops the shell to
 onboarding.
 
 **Fresh install (`scope: "all"`)** — typed `RESET` required. The button is disabled until
 `typed.trim() === RESET_CONFIRM_WORD`, but what travels is **what the owner actually typed**
 (`apps/web/components/settings-reset-card.tsx:134-136`), and the host re-checks it independently
-(`packages/host/src/handlers/settings.ts:339-341`, 400 otherwise). Then
+(`packages/host/src/handlers/settings.ts:342-344`, 400 otherwise). Then
 `requestDataReset(localDataDir(), [...HOST_RESET_ENTRIES])` (`:342`) writes the marker — nothing is deleted yet,
 because "the database is open and ffmpeg may still be writing" (`:341`) — followed by `killTrackedChildren()`,
 and the answer is `{ relaunch: true, resetPending: true }`.
@@ -230,7 +230,7 @@ and the answer is `{ relaunch: true, resetPending: true }`.
 The marker is `reset-pending.json` (`RESET_MARKER_FILE`, `packages/db/src/reset.ts:26`), written
 temp-file-then-`renameSync` so a crash cannot leave a half-written marker that parses.
 
-**The wipe list is named entries, never the directory** (`packages/host/src/handlers/settings.ts:275-294`),
+**The wipe list is named entries, never the directory** (`packages/host/src/handlers/settings.ts:275-297`),
 because in the packaged app that same folder is Electron's userData / Chromium profile:
 
 ```
@@ -396,7 +396,7 @@ always open (`:278-280`). **Confidence: high.** The design record is prose in `A
 `8831bc4` and `4db009a`, and `4db009a`'s message is about locale and layout, not the gate.
 
 **Why sign-out clears the key on every desk rather than the current one.** `[Direct]` the comment at
-`packages/host/src/settings-store.ts:370-376`: a key left on a second desk would keep the gate open after "forget
+`packages/host/src/settings-store.ts:371-377`: a key left on a second desk would keep the gate open after "forget
 my key". **Confidence: high.**
 
 **Why the fresh-install wipe is a named list and deferred to boot.** `[Direct]` two comments:

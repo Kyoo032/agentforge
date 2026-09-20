@@ -1,6 +1,6 @@
 # Map — PII masking and key security
 
-Last verified: 2026-09-20 at d14cd8f
+Last verified: 2026-09-20 at c204e5e
 
 ## Overview
 
@@ -72,7 +72,7 @@ Two shapes of use:
 - **Attachments.** `redactAttachedText` (`:129-138`) finds `--- <filename> ---` blocks (`ATTACH_BLOCK_RE`, `:126`), runs `scanInjection` (`:77-88`) on each body, and replaces a hit with `[Attachment blocked by injection guard (rule: <rule>)]`. `redactAttachedParts` (`:140-147`) maps that over text parts. Chat calls it at `packages/host/src/runs.ts:135`.
 - **Everything ingested.** Knowledge sources (`packages/host/src/knowledge.ts:430`), work cards (`packages/host/src/knowledge-ingest.ts:29`), research pages (`packages/host/src/research-generate.ts:150`), and every job's `readSourceText` (`packages/host/src/job-source.ts:12,24`, called from `finance-generate.ts:165`, `data-generate.ts:208`, `document-generate.ts:156`, `presentation-generate.ts:145`) run `scanInjection` on fetched or uploaded text.
 
-One switch turns all of it off: `injectionGuardBypass` on `StoredSecrets` (`packages/core/src/secrets.ts:32`, `:87`), set through `POST /api/v1/settings` (`packages/host/src/handlers/settings.ts:162`), persisted at `packages/host/src/settings-store.ts:76`, and returned to the UI by `maskSecrets`. It is stored only when `true` (`packages/core/src/secrets.ts:215-219`), so the protected state is the default. The comment at `packages/core/src/security/injection-guard.ts:72-76` is explicit that there is no "this looks like a security discussion, skip it" carve-out — the bypass setting is the only escape hatch, on purpose.
+One switch turns all of it off: `injectionGuardBypass` on `StoredSecrets` (`packages/core/src/secrets.ts:32`, `:87`), set through `POST /api/v1/settings` (`packages/host/src/handlers/settings.ts:162`), persisted at `packages/host/src/settings-store.ts:76`, and returned to the UI by `maskSecrets`. It is stored only when `true` (`packages/core/src/secrets.ts:229-233`), so the protected state is the default. The comment at `packages/core/src/security/injection-guard.ts:72-76` is explicit that there is no "this looks like a security discussion, skip it" carve-out — the bypass setting is the only escape hatch, on purpose.
 
 Knowledge also masks PII on its own path, because knowledge chunks are FTS plaintext while messages are sealed: `packages/host/src/knowledge-ingest.ts:42` (body) and `:40` (title).
 
@@ -93,7 +93,7 @@ Sealed today:
 | `messages.content` | `packages/host/src/threads.ts:279` (`sealJson`, `:17-22`) | `packages/host/src/threads.ts:264` (`openJson`, `:24-33`) |
 | `tool_invocations.input` / `output` | `packages/host/src/threads.ts:351-352` | same `openJson` |
 | `agent_versions.system_prompt` | `packages/db/src/repos/drizzle-agent-repository.ts:87` (`sealText`, `:16-18`) | `:57` (`openText`, `:20-33`) |
-| `settings.enc` (whole file) | `packages/host/src/settings-store.ts:178-184` | `:237-252` |
+| `settings.enc` (whole file) | `packages/host/src/settings-store.ts:179-185` | `:237-252` |
 
 Plaintext on purpose: `threads.title` (`packages/db/src/schema.ts:208`, written unsealed at `packages/host/src/threads.ts:43` and `:252-255`), `agent_versions.model` (`packages/db/src/schema.ts:154`), `runs.usage` / `runs.error` (`packages/db/src/schema.ts:246-247`, written unsealed at `packages/host/src/threads.ts:322-325`), and the key fingerprints themselves.
 
@@ -108,30 +108,30 @@ Plaintext on purpose: `threads.title` (`packages/db/src/schema.ts:208`, written 
 
 In the **packaged app (desktop, frozen)** the env var is what is set, from the OS keychain: service = product name (`apps/desktop/main.cjs:65`), account `wrap-key` (`:66`), read/minted in `wrapKey()` (`:282-298`) with a legacy-service fallback for upgraded installs (`readLegacyWrapKey`, `:271-280`), then injected at `:620-625` inside `bootstrapPackaged()` — which only runs when `app.isPackaged` (`:815-816`). Webdev therefore never touches keytar.
 
-The trap is `apps/desktop/main.cjs:293-297`: if keytar throws, the catch returns a **fresh random 32-byte key for this process only**, unpersisted. The app boots, but `settings.enc` no longer opens — and rather than crashing, `loadEncryptedPayload` calls `quarantineUnreadableSettings` (`packages/host/src/settings-store.ts:218-236`) and renames the file to `settings.enc.unreadable`. From the owner's side that reads as "my key vanished", and the harness already tells you to note a keytar fallback in evidence.
+The trap is `apps/desktop/main.cjs:293-297`: if keytar throws, the catch returns a **fresh random 32-byte key for this process only**, unpersisted. The app boots, but `settings.enc` no longer opens — and rather than crashing, `loadEncryptedPayload` calls `quarantineUnreadableSettings` (`packages/host/src/settings-store.ts:219-237`) and renames the file to `settings.enc.unreadable`. From the owner's side that reads as "my key vanished", and the harness already tells you to note a keytar fallback in evidence.
 
 ### 7. `settings.enc`
 
-Path `resolve(localDataDir(), "settings.enc")` (`packages/host/src/settings-store.ts:27-29`), legacy plaintext sibling `settings.json` (`:31-33`). File shape `SettingsFileV2` (`:117-121`): `{ version: 2, locale?, workspaces: Record<workspaceId, StoredSecrets> }` — settings are **per workspace**, which is why `saveSettings` takes a `workspaceId`. `StoredSecrets` (`packages/core/src/secrets.ts:6-52`) holds the gateway key `openaiApiKey`, the non-GTM extras `googleApiKey` / `anthropicApiKey` / `volcengineApiKey`, `toolKeys`, tool backends, model defaults and the WeKnora sidecar creds.
+Path `resolve(localDataDir(), "settings.enc")` (`packages/host/src/settings-store.ts:27-29`), legacy plaintext sibling `settings.json` (`:31-33`). File shape `SettingsFileV2` (`:117-121`): `{ version: 2, locale?, workspaces: Record<workspaceId, StoredSecrets> }` — settings are **per workspace**, which is why `saveSettings` takes a `workspaceId`. `StoredSecrets` (`packages/core/src/secrets.ts:6-58`) holds the gateway key `openaiApiKey`, the non-GTM extras `googleApiKey` / `anthropicApiKey` / `volcengineApiKey`, `toolKeys`, tool backends, model defaults and the WeKnora sidecar creds.
 
 Writer `persistEncrypted` (`:177-183`) → `encryptJson(file, getLocalVaultKey())`. Reader `loadEncryptedPayload` (`:237-252`) → `isEnvelope` check then `decryptJson`.
 
 ### 8. What `GET /api/v1/settings` may say
 
-`settingsPayload()` (`packages/host/src/handlers/settings.ts:85-122`) spreads `...maskSecrets(settings)` at `:92` and never spreads the raw `StoredSecrets`. `maskSecrets` (`packages/core/src/secrets.ts:236-263`) touches the four key fields in exactly two ways:
+`settingsPayload()` (`packages/host/src/handlers/settings.ts:85-122`) spreads `...maskSecrets(settings)` at `:92` and never spreads the raw `StoredSecrets`. `maskSecrets` (`packages/core/src/secrets.ts:250-279`) touches the four key fields in exactly two ways:
 
 - `Boolean(...)` → `hasOpenai` / `hasGoogle` / `hasAnthropic` / `hasVolcengine` (`:234-237`); `hasToolKeys` is the same idea per tool name (`packages/core/src/tools/credentials.ts:362-373`).
 - `keyFingerprintOrNull(...)` → `openaiKeyFingerprint` and the three extras (`:238-241`).
 
 `keyFingerprint` (`packages/core/src/security/fingerprint.ts:8-15`): trim, `sha256` hex, return `sha256:` + the **first 12 hex characters** (48 bits). `keyFingerprintOrNull` (`:18-23`) is the null-safe wrapper.
 
-`openaiBaseUrl` is not the stored value either — `maskSecrets` returns `resolvedGatewayBaseUrl()` (`packages/core/src/secrets.ts:247`), and `withGatewayDefault` (`packages/host/src/settings-store.ts:269-276`) discards any persisted base URL on load and save. The endpoint is pinned in code (`packages/core/src/gateway/pinned.ts:8`), which is why `settings-endpoint`, `settings-endpoint-reset` and `openai-base-url` all have count 0 in the UI.
+`openaiBaseUrl` is not the stored value either — `maskSecrets` returns `resolvedGatewayBaseUrl()` (`packages/core/src/secrets.ts:263`), and `withGatewayDefault` (`packages/host/src/settings-store.ts:270-277`) discards any persisted base URL on load and save. The endpoint is pinned in code (`packages/core/src/gateway/pinned.ts:8`), which is why `settings-endpoint`, `settings-endpoint-reset` and `openai-base-url` all have count 0 in the UI.
 
 Driven on the owner's keyless desk (2026-09-17, `runtime: stub`): the 222,715-byte response contained `hasOpenai: false`, `openaiKeyFingerprint: null`, and no `openaiKey` / `apiKey` / `sk-` substring anywhere.
 
 ### 9. Save, and what the browser shows
 
-`POST /api/v1/settings` → `handlePostSettings` (`packages/host/src/handlers/settings.ts:138-205`) builds a `SecretPatch` (`:148-163`) and calls `saveSettings` (`:164`). `mergeSecrets` (`packages/core/src/secrets.ts:114-139`) decides what a field means:
+`POST /api/v1/settings` → `handlePostSettings` (`packages/host/src/handlers/settings.ts:138-205`) builds a `SecretPatch` (`:148-163`) and calls `saveSettings` (`:164`). `mergeSecrets` (`packages/core/src/secrets.ts:128-153`) decides what a field means:
 
 - field **absent** from the body → `continue`, existing key kept. This is what makes the empty password box safe.
 - field present and **empty after trim** → `delete next[field]` (`:117-122`), the key is cleared.
@@ -150,11 +150,11 @@ Doctor mirrors the same gate: `.cursor/skills/verify-agentforge/scripts/doctor.m
 | Prompt contains `1.250.000.000.000` (rupiah grouping) or a bare total that happens to pass Luhn | `looksLikeAmount` (`:116-119`), `bareRunLooksLikeCard` (`:151-156`), `slicedFromNumber` (`:131-137`) | **not** masked. These three guards were added on 2026-09-17 after a property test caught the scanner rewriting figures |
 | Attachment carries `ignore previous instructions` | `packages/core/src/security/injection-guard.ts:129-138` | that block is replaced with a `[Attachment blocked …]` line; the run continues |
 | Same, with `injectionGuardBypass: true` | `packages/host/src/runs.ts:135` | guard skipped entirely, no audit line is written |
-| `settings.enc` will not decrypt (wrap key changed / keytar fell back) | `packages/host/src/settings-store.ts:218-236` | renamed to `settings.enc.unreadable`; app boots keyless and shows onboarding |
-| `settings.enc` is not an envelope | `packages/host/src/settings-store.ts:243` | throws `"settings.enc is not a valid envelope"` → same quarantine |
+| `settings.enc` will not decrypt (wrap key changed / keytar fell back) | `packages/host/src/settings-store.ts:219-237` | renamed to `settings.enc.unreadable`; app boots keyless and shows onboarding |
+| `settings.enc` is not an envelope | `packages/host/src/settings-store.ts:244` | throws `"settings.enc is not a valid envelope"` → same quarantine |
 | A sealed column holds pre-encryption plaintext | `packages/core/src/crypto/envelope.ts:62`, `:65` | returned as-is; no error, no re-seal |
-| Client sends `openaiApiKey: ""` | `packages/core/src/secrets.ts:121-126` | key deleted, `hasOpenai` goes false |
-| Client omits `openaiApiKey` | `packages/core/src/secrets.ts:114-139` | key untouched |
+| Client sends `openaiApiKey: ""` | `packages/core/src/secrets.ts:135-140` | key deleted, `hasOpenai` goes false |
+| Client omits `openaiApiKey` | `packages/core/src/secrets.ts:128-153` | key untouched |
 | No key saved | `apps/web/components/settings-page.tsx:399` | `key-fingerprint` not rendered; `privacy-note` still visible; doctor `keyFingerprint: false` — **not** a doctor fail |
 
 ## Where things live
@@ -191,9 +191,9 @@ Doctor mirrors the same gate: `.cursor/skills/verify-agentforge/scripts/doctor.m
 - **`openPayload` cannot tell "legacy plaintext" from "someone replaced the envelope with plaintext".** `packages/core/src/crypto/envelope.ts:62`/`:65` return the value whenever it does not look like an envelope. The GCM tag protects a sealed row; it protects nothing about a row that was never sealed.
 - **Thread titles are plaintext and derived from the first user message.** `packages/host/src/threads.ts:201`, `:228` open the sealed content and write a title with `.set({ title })` at `:252-255`, unsealed. A message body that is sealed at rest can still surface, truncated, in a plaintext `threads.title` column.
 - **The fingerprint is 48 bits.** `sha256:` plus 12 hex characters (`packages/core/src/security/fingerprint.ts:13-14`). It identifies which key is saved; it is not a proof of possession and must never be pasted into `openai-key`.
-- **Extras have fingerprints but no GTM UI.** `googleKeyFingerprint` / `anthropicKeyFingerprint` / `volcengineKeyFingerprint` are always in the response (`packages/core/src/secrets.ts:243-245`) even though Settings shows only `hasGoogle` / `hasAnthropic` / `hasVolcengine`. Do not read a non-null extras fingerprint as a UI regression.
+- **Extras have fingerprints but no GTM UI.** `googleKeyFingerprint` / `anthropicKeyFingerprint` / `volcengineKeyFingerprint` are always in the response (`packages/core/src/secrets.ts:258-260`) even though Settings shows only `hasGoogle` / `hasAnthropic` / `hasVolcengine`. Do not read a non-null extras fingerprint as a UI regression.
 - **`AGENTFORGE_PACKAGED` is never set.** `isPackagedRuntime()` (`packages/core/src/gateway/pinned.ts:25-27`) reads it, `gatewayUrlOverrideAllowed()` (`:34-36`) depends on it, and the comment at `:24` says "`main.cjs` sets this before `host.cjs` loads" — but a repo-wide grep finds it only in `pinned.ts` and `pinned.test.ts`. `apps/desktop/main.cjs:79-81` sets `AGENTFORGE_PRODUCT_NAME` / `_GATEWAY_NAME` / `_GATEWAY_URL` and nothing else. So in a packaged build the "dev/test hook" is live — which is exactly how Kemenkeu AI and AIHub Metranet get their `https://aihub.metranet.co.id/v1` lock, and also why the pin is not actually enforced there. See `findings.md` for this run.
-- **Settings are per workspace.** `settings.enc` is `{ workspaces: { <id>: StoredSecrets } }` (`packages/host/src/settings-store.ts:118-122`). A key saved on one desk is not a key on another, and `clearGatewayKeyEverywhere` (`:371-386`) exists precisely because the per-workspace shape makes "remove my key" a multi-row operation.
+- **Settings are per workspace.** `settings.enc` is `{ workspaces: { <id>: StoredSecrets } }` (`packages/host/src/settings-store.ts:119-123`). A key saved on one desk is not a key on another, and `clearGatewayKeyEverywhere` (`:371-386`) exists precisely because the per-workspace shape makes "remove my key" a multi-row operation.
 - **`apps/desktop/host.cjs` is a build artifact** (gitignored, `.gitignore:35`) and is regenerated while a dev build watches. Never cite `file:line` in it; the tracked source is `apps/desktop/main.cjs`.
 
 ## Verify
@@ -213,7 +213,7 @@ Non-DOM checks: `doctor.mjs` `keyFingerprint` must be `false` on a keyless desk 
 
 **Why the fingerprint is a prefix rather than the whole digest.** `[Supported]` `.cursor/skills/verify-agentforge/features/security.md` describes it as a way to "confirm which gateway key is saved without ever showing the raw secret", and the implementation truncates to 12 hex (`packages/core/src/security/fingerprint.ts:13-14`). `[Inferred]` a full digest of a key drawn from a small keyspace would be closer to an offline-checkable commitment to the key itself; 48 bits is enough to tell two of the owner's keys apart and short enough to read at a glance. The inference chain is: the stated purpose is identification, not proof; truncation reduces what an exfiltrated payload is worth; no source states the bit count was chosen for that reason. **Confidence: medium.**
 
-**Why the gateway base URL is returned from `resolvedGatewayBaseUrl()` instead of storage.** `[Direct]` `packages/core/src/gateway/pinned.ts:1-3` — "Pinned: the owner cannot change it from Settings, and a stored `openaiBaseUrl` from an older build is tolerated on read but never honoured." `[Direct]` `packages/host/src/settings-store.ts:269-276` (`withGatewayDefault`) implements the discard. `[Supported]` SKILL.md requires `settings-endpoint` / `settings-endpoint-reset` / `openai-base-url` to have count 0 since 2026-09-17, which is the UI half of the same decision. **Confidence: high.**
+**Why the gateway base URL is returned from `resolvedGatewayBaseUrl()` instead of storage.** `[Direct]` `packages/core/src/gateway/pinned.ts:1-3` — "Pinned: the owner cannot change it from Settings, and a stored `openaiBaseUrl` from an older build is tolerated on read but never honoured." `[Direct]` `packages/host/src/settings-store.ts:270-277` (`withGatewayDefault`) implements the discard. `[Supported]` SKILL.md requires `settings-endpoint` / `settings-endpoint-reset` / `openai-base-url` to have count 0 since 2026-09-17, which is the UI half of the same decision. **Confidence: high.**
 
 
 ## Finance privacy guard (added 2026-09-17)

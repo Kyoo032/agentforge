@@ -1,13 +1,13 @@
 # Map — Portal browser session (hosted server)
 
-Last verified: 2026-09-20 at d14cd8f
+Last verified: 2026-09-20 at c204e5e
 
 ## Overview
 
 The server-side half of signing in to the hosted deployment: four `/api/v1/auth/*` routes, an opaque
 cookie, a SQLite row per session, and a gate in the router that refuses every other `/api` call
 without one. It landed in PR #56 (`6ae177a`) and runs **only** when `AGENTFORGE_SERVER` is `1`
-(`packages/core/src/server-mode.ts:12-15`, read per request at `packages/host/src/router.ts:360`), so
+(`packages/core/src/server-mode.ts:12-15`, read per request at `packages/host/src/router.ts:405`), so
 the desktop IPC path and webdev never mint, read or require a session.
 
 It is a backend. There is no sign-in screen — see **Not built** below. The verified session rides on
@@ -18,7 +18,7 @@ single-tenant until Phase 3 lands (`packages/host/src/tenant.ts:42-47`).
 
 ### Sign in — `POST /api/v1/auth/login`
 
-Routed at `packages/host/src/router.ts:166` to `handleLogin`
+Routed at `packages/host/src/router.ts:189` to `handleLogin`
 (`packages/host/src/auth/routes.ts:233-265`).
 
 1. `readCode` (`packages/host/src/auth/routes.ts:193-199`) demands a non-empty string `code` in the
@@ -58,12 +58,12 @@ is swallowed without attaching the cause, because that cause can carry the reque
 ### Every other call — the session gate
 
 `dispatch` upper-cases the method and strips trailing slashes once
-(`packages/host/src/router.ts:356-357`), resolves server mode **per request** rather than at import
-(`packages/host/src/router.ts:358-360`), and runs the gate only in server mode
-(`packages/host/src/router.ts:362-368`).
+(`packages/host/src/router.ts:401-402`), resolves server mode **per request** rather than at import
+(`packages/host/src/router.ts:403-405`), and runs the gate only in server mode
+(`packages/host/src/router.ts:407-413`).
 
-`gate` (`packages/host/src/router.ts:325-353`) lets a path through untouched when it is not under
-`/api/` (`packages/host/src/router.ts:301`, `packages/host/src/router.ts:331`) or when
+`gate` (`packages/host/src/router.ts:370-398`) lets a path through untouched when it is not under
+`/api/` (`packages/host/src/router.ts:346`, `packages/host/src/router.ts:376`) or when
 `isSessionExemptPath` says so. That function
 (`packages/host/src/auth/routes.ts:108-113`) exempts exactly three things:
 
@@ -80,13 +80,13 @@ different method is a different answer: `GET /api/v1/components` is exempt while
 
 Everything else calls `requireSessionFor` (`packages/host/src/auth/routes.ts:150-156`), which throws
 `authError(reason, 401)` on any bad verdict. That 401 is produced **before the route table is
-consulted** (`packages/host/src/router.ts:348-352`), so an unauthenticated caller cannot learn which
+consulted** (`packages/host/src/router.ts:393-397`), so an unauthenticated caller cannot learn which
 paths exist: an unknown path and a real one both answer `401 session_required`.
 
 On success the four identifiers are attached to the request as `request.session`
-(`packages/host/src/router.ts:339-347`, `packages/host/src/types.ts:32-37`). `dispatch` destructures
+(`packages/host/src/router.ts:384-392`, `packages/host/src/types.ts:32-37`). `dispatch` destructures
 any `session` the caller supplied off the request first and re-adds only the gate's own
-(`packages/host/src/router.ts:384-385`), so an invented session can never reach a handler as identity,
+(`packages/host/src/router.ts:429-430`), so an invented session can never reach a handler as identity,
 and the caller's request object is never written to.
 
 ### Verify, slide, expire
@@ -300,7 +300,7 @@ English fallback copy lives in `REASON_COPY_EN` (`packages/host/src/auth/routes.
 used only when the portal sent no `message_en` (`packages/host/src/auth/routes.ts:83-85`). The same
 thirteen keys exist in both renderer catalogs, `apps/web/locales/en/auth.json` and
 `apps/web/locales/id/auth.json`, registered as the `auth` namespace
-(`apps/web/lib/i18n.ts:63`, `apps/web/lib/i18n.ts:89`, `apps/web/lib/i18n.ts:111`) — and nothing reads
+(`apps/web/lib/i18n.ts:69`, `apps/web/lib/i18n.ts:97`, `apps/web/lib/i18n.ts:121`) — and nothing reads
 them yet.
 
 ### What of the portal contract is assumed, not verified
@@ -325,14 +325,14 @@ below is "matches the design document".
 
 Stated as a fact, from four reads:
 
-- `apps/web/src/App.tsx:149-172` is the whole route table. There is no `/login`, no `/signin`, no
+- `apps/web/src/App.tsx:150-175` is the whole route table. There is no `/login`, no `/signin`, no
   auth route; the catch-all sends everything unknown to `/chat`.
 - `apps/web/src/pages/` contains one file, `chat-page.tsx`.
 - Nothing in `apps/web/` references `signedIn`, `session_required` or `/api/v1/auth/` — a grep over
   every `.ts` and `.tsx` in that tree returns no hits, and `apps/web/lib/api-client.ts` has no auth
   call.
 - The `auth` namespace is registered and both catalogs are complete
-  (`apps/web/lib/i18n.ts:63`), but no component reads a key from it: the only match for `"auth"` in
+  (`apps/web/lib/i18n.ts:69`), but no component reads a key from it: the only match for `"auth"` in
   the whole app is that registration line.
 
 The plan says the same: "backend landed … no UI yet … The sign-in screen and the Playwright project
@@ -369,7 +369,7 @@ The hosted deployment is not usable through a browser until that screen exists.
   `packages/host/src/http-adapter.ts:209-218`, and `packages/host/src/auth/routes.test.ts:370`
   repeats the same stale reference. The behaviour described is right; the line numbers are not. Grep for the identifier, never trust a line number in prose.
 - **`DispatchOptions.serverMode` does not pick the cookie name.** The gate passes only `store` and
-  `now` into `requireSessionFor` (`packages/host/src/router.ts:335-338`), so `cookieMode` falls back
+  `now` into `requireSessionFor` (`packages/host/src/router.ts:380-383`), so `cookieMode` falls back
   to `isServerMode()` (`packages/host/src/auth/routes.ts:124-126`). A test that passes
   `serverMode: true` while `AGENTFORGE_SERVER` is unset is gated but reads the **plain** cookie name
   — which is exactly what `packages/host/src/auth/session-gate.test.ts:205-212` does, deliberately.
@@ -440,7 +440,7 @@ and `GET /api/v1/settings` answers `401 session_required` with the same envelope
 ## Why
 
 **The hosted server gates reads as hard as writes.**
-`[Direct]` — `packages/host/src/router.ts:317-324` and
+`[Direct]` — `packages/host/src/router.ts:362-369` and
 `packages/host/src/auth/routes.ts:102-107` both record the reasoning: a GET returns settings, threads,
 artifact bytes and event streams, so "safe method" is not a meaningful category here, and the method
 is part of the exemption key rather than an exemption of its own.

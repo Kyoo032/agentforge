@@ -11,7 +11,7 @@ Product names are Tencent Cloud's as of September 2026; check the console for cu
 
 ## 2. What the app stores today
 
-The host writes one data root (`AGENTFORGE_DATA_DIR`, `/data` in the container). Its entries are the `HOST_RESET_ENTRIES` list in `packages/host/src/handlers/settings.ts:274-293`, plus the SQLite file from `packages/db/src/vault-key.ts:21-35`:
+The host writes one data root (`AGENTFORGE_DATA_DIR`, `/data` in the container). Its entries are the `HOST_RESET_ENTRIES` list in `packages/host/src/handlers/settings.ts:274-296`, plus the SQLite file from `packages/db/src/vault-key.ts:21-35`:
 
 | Entry | What it is | Sensitivity |
 |---|---|---|

@@ -1,6 +1,6 @@
 # Map — Renderer media: what an answer is allowed to load
 
-Last verified: 2026-09-20 at d14cd8f
+Last verified: 2026-09-20 at c204e5e
 
 ## Overview
 
@@ -62,7 +62,7 @@ The Images and Videos studios do the same thing directly (`packages/host/src/stu
 
 ### Serving it back
 
-`GET /api/v1/media/:mediaId/file` → `handleGetMediaFile` (`packages/host/src/handlers/media.ts:26-50`), routed at `packages/host/src/router.ts:219`, with HTTP `Range` support via `packages/host/src/byte-range.ts`. It is **ungated** — media is on the list of routes that stay open so a closed gate is always recoverable. Its only scoping is `getTenant(request.workspaceId)` plus an `organizationId` match on the row.
+`GET /api/v1/media/:mediaId/file` → `handleGetMediaFile` (`packages/host/src/handlers/media.ts:26-50`), routed at `packages/host/src/router.ts:242`, with HTTP `Range` support via `packages/host/src/byte-range.ts`. It is **ungated** — media is on the list of routes that stay open so a closed gate is always recoverable. Its only scoping is `getTenant(request.workspaceId)` plus an `organizationId` match on the row.
 
 In the packaged shell the same bytes are also reachable as `agentforge://media/…` through `registerMediaProtocol()`.
 

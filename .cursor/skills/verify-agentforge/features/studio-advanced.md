@@ -20,5 +20,5 @@ Preconditions:
 
 ## Gotchas
 
-- `/studio/<uuid>` matches the same `/studio/*` rule as `/studio/new` (`apps/web/src/App.tsx:168`); there is no separate agent-id route. Assert `agent-prompt` **and** `save-soul` at count 0 — both were 0 on 2026-09-17.
+- `/studio/<uuid>` matches the same `/studio/*` rule as `/studio/new` (`apps/web/src/App.tsx:171`); there is no separate agent-id route. Assert `agent-prompt` **and** `save-soul` at count 0 — both were 0 on 2026-09-17.
 - Un-park together with [build.md](./build.md) when custom agents return to the product.

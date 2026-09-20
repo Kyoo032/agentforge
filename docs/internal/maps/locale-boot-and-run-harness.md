@@ -1,6 +1,6 @@
 # Map — App locale: boot freeze and the run harness
 
-Last verified: 2026-09-20 at d14cd8f
+Last verified: 2026-09-20 at c204e5e
 
 ## Overview
 
@@ -19,8 +19,8 @@ switch would leave in-flight runs and server state split between two languages m
 `AppLocale = "en" | "id"`, `DEFAULT_APP_LOCALE = "en"`, `parseAppLocale` maps anything unknown (including
 `"ID"`, `"fr"`, `undefined`) to `en` (`packages/core/src/locale.ts`, pinned by
 `packages/core/src/locale.test.ts`). It is **machine-wide, not per-desk** — "Not a per-desk secret"
-(`packages/host/src/settings-store.ts:403`), stored as the top-level `locale` field of the settings envelope
-(`packages/host/src/settings-store.ts:120`). There is deliberately **no env override**: `AGENTFORGE_LOCALE` is
+(`packages/host/src/settings-store.ts:404`), stored as the top-level `locale` field of the settings envelope
+(`packages/host/src/settings-store.ts:121`). There is deliberately **no env override**: `AGENTFORGE_LOCALE` is
 not read on the boot path (`packages/host/src/locale-boot.ts:8-9`), asserted at
 `packages/host/src/locale-boot.test.ts:45`.
 
@@ -45,7 +45,7 @@ not read on the boot path (`packages/host/src/locale-boot.ts:8-9`), asserted at
    `applyLocale` (not `freezeLocale`, which no-ops after the first call).
 
 `freezeLocale` vs `applyLocale` is deliberate: the first is the boot path and is idempotent, the second always
-overwrites and "Settings Restart is the only product caller" (`apps/web/lib/i18n.ts:126`).
+overwrites and "Settings Restart is the only product caller" (`apps/web/lib/i18n.ts:136`).
 
 ### What the restart actually changes
 
@@ -70,11 +70,11 @@ from `gatewayHostLabel()` — see [`settings-and-gateway-gate.md`](settings-and-
 ### UI strings
 
 Catalogs are `apps/web/locales/{en,id}/<namespace>.json`, statically imported and assembled into
-`Record<AppLocale, Record<Namespace, MessageTree>>` (`apps/web/lib/i18n.ts:68-113`). 19 namespaces (`:41-61`):
+`Record<AppLocale, Record<Namespace, MessageTree>>` (`apps/web/lib/i18n.ts:74-123`). 19 namespaces (`:41-61`):
 `common, rail, settings, onboarding, chat, documents, research, images, videos, presentation, knowledge,
 workspaces, usage, market, data, finance, legal, edit, auth` — roughly 1,500 leaf keys each side.
 
-`t("namespace.path.to.key", vars?)` (`apps/web/lib/i18n.ts:184-191`) resolves through `lookup` (`:149-166`) and
+`t("namespace.path.to.key", vars?)` (`apps/web/lib/i18n.ts:194-201`) resolves through `lookup` (`:149-166`) and
 `interpolate` (`:168-176`), which replaces `{name}` placeholders. **Missing keys fail closed**: current locale →
 the `en` catalog if the locale is `id` → the raw key string (`:181-184`, pinned at
 `apps/web/lib/i18n.test.ts:43`).
@@ -105,7 +105,7 @@ locale — but it means the `RunContext` branch is Chat-only in practice.
 There are **two independent locale channels per job call**, and getting one right does not fix the other:
 
 **Channel 1 — the instruction the model reads.** `withOutputLanguage(prompt, surface, locale)`
-(`packages/core/src/output-language.ts:71-81`) appends a per-surface en/id rule to the system prompt, guarded by
+(`packages/core/src/output-language.ts:76-86`) appends a per-surface en/id rule to the system prompt, guarded by
 `prompt.includes(rule)` so a retry cannot double-append. Call sites:
 
 | Surface | Call site |
@@ -119,7 +119,7 @@ There are **two independent locale channels per job call**, and getting one righ
 | videos | `packages/host/src/studio-generate.ts:336` |
 
 Five surfaces keep their own mechanism instead, and the shared table says so at
-`packages/core/src/output-language.ts:99-102`: **Chat** → `withChatOutputLanguage`
+`packages/core/src/output-language.ts:105-108`: **Chat** → `withChatOutputLanguage`
 (`packages/host/src/runs.ts:158`); **Images** → `withImageOutputLanguage`, which is about text *drawn on the
 image* (`packages/host/src/studio-generate.ts:278`); **Presentation** → `presentationLanguageRule` spliced into
 the outline and slide templates (`packages/host/src/presentation-generate.ts:72-78`); **Legal** →
@@ -165,7 +165,7 @@ while the screen reads "The gateway rejected this API key. Check the key at Toko
 | `packages/core/src/locale.ts` | `AppLocale`, `parseAppLocale`, `isAppLocale` |
 | `packages/host/src/locale-boot.ts` | The host freeze: `getBootLocale`, `getSavedLocale`, `applySavedLocaleAsBoot`, `localePayload` |
 | `packages/host/src/run-context.ts` | `RunContext`, `withRunContext`, `localeForRun` |
-| `packages/host/src/settings-store.ts:403-412` | `loadOwnerLocale` / `saveOwnerLocale` |
+| `packages/host/src/settings-store.ts:404-413` | `loadOwnerLocale` / `saveOwnerLocale` |
 | `packages/host/src/handlers/settings.ts` | Save, and `handleApplyLocale` behind `POST /api/v1/settings/apply-locale` (`:206`) |
 | `apps/web/lib/i18n.ts` | Catalogs, `t()`, `freezeLocale` / `applyLocale`, `LOCALE_RESTART_EVENT` |
 | `apps/web/locales/{en,id}/*.json` | 19 namespaces, ~1,500 keys each |
@@ -248,7 +248,7 @@ support ticket says which rule closed the gate". `[Supported]` the renderer inde
 display copy; driven on 2026-09-17, a rejected key showed the localized sentence on screen while the payload
 carried `"HTTP 401"`. **Confidence: high.**
 
-**Why some surfaces keep their own locale tables.** `[Direct]` `packages/core/src/output-language.ts:99-102` names
+**Why some surfaces keep their own locale tables.** `[Direct]` `packages/core/src/output-language.ts:105-108` names
 Legal and Presentation explicitly: Legal keeps its own `stubError`, Presentation keeps
 `presentationGatewayMessage` host-side. `[Inferred]` Images is separate for a different reason —
 `withImageOutputLanguage` governs text rendered *into* the image, which is not the same decision as the language

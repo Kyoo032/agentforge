@@ -1,6 +1,6 @@
 # Map — Media cost estimate
 
-Last verified: 2026-09-20 at d14cd8f
+Last verified: 2026-09-20 at c204e5e
 
 ## Overview
 

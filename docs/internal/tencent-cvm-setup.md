@@ -547,8 +547,8 @@ fix that before going further. If the browser itself cannot write (every action 
 typed, scheme and all.
 
 **5. Sign-in and the gateway gate.** In server mode every `/api` call needs a portal session except
-`/api/v1/auth/*`, `GET /api/v1/ping` (`packages/host/src/router.ts:164`) and `GET /api/v1/components`
-(`:199`); the gate is applied at `packages/host/src/router.ts:335`. **There is no browser sign-in
+`/api/v1/auth/*`, `GET /api/v1/ping` (`packages/host/src/router.ts:187`) and `GET /api/v1/components`
+(`:199`); the gate is applied at `packages/host/src/router.ts:380`. **There is no browser sign-in
 screen yet**, so the browser path ends here for now and the API path is exercised against
 `/api/v1/auth/*` directly.
 

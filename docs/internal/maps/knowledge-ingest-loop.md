@@ -1,6 +1,6 @@
 # Map — Knowledge ingest loop
 
-Last verified: 2026-09-20 at d14cd8f
+Last verified: 2026-09-20 at c204e5e
 
 > **`knowledge.ts` and `knowledge-extract.ts` move often.** Every line number below was re-read at `b482611`, but these two files are rewritten frequently; if a number looks wrong, grep the function name rather than trusting it.
 
@@ -14,7 +14,7 @@ Two things surprise people. **Only Chat retrieves** — job modes write cards bu
 
 ### Routes
 
-All in `packages/host/src/handlers/knowledge.ts`, registered at `packages/host/src/router.ts:270-285`.
+All in `packages/host/src/handlers/knowledge.ts`, registered at `packages/host/src/router.ts:315-330`.
 
 | Method | Path | Handler | Gate |
 |---|---|---|---|
@@ -57,15 +57,15 @@ Source **names** get the same treatment, deliberately: an upload filename or a r
 
 `replaceSourceRows` (`packages/host/src/knowledge.ts:271-334`) commits the source row and one `knowledge_chunks` FTS5 row per chunk in **one immediate transaction, before embedding**. That ordering is the reason keyword search always works even when the embedding call fails.
 
-Then `indexThroughBackend` → `indexSourceVectors` (`packages/host/src/knowledge-embed.ts:149`) → `embedTextsWithModel` (`:95`), which POSTs to `${pinnedBase}/embeddings` in batches of 16 (`EMBED_BATCH`, `:16`). The endpoint is pinned the same way chat is: `resolveProviderKeys(settings).openaiBaseUrl` always returns `resolvedGatewayBaseUrl()`, so an owner-edited endpoint is silently ignored for embeddings (`packages/host/src/knowledge-embed.ts:62-64`, `packages/core/src/secrets.ts:297-298`).
+Then `indexThroughBackend` → `indexSourceVectors` (`packages/host/src/knowledge-embed.ts:149`) → `embedTextsWithModel` (`:95`), which POSTs to `${pinnedBase}/embeddings` in batches of 16 (`EMBED_BATCH`, `:16`). The endpoint is pinned the same way chat is: `resolveProviderKeys(settings).openaiBaseUrl` always returns `resolvedGatewayBaseUrl()`, so an owner-edited endpoint is silently ignored for embeddings (`packages/host/src/knowledge-embed.ts:62-64`, `packages/core/src/secrets.ts:313-314`).
 
 Vectors go to `knowledge_vectors` with the embedding stored as a **JSON-stringified `number[]`** (`packages/host/src/knowledge-embed.ts:192`, `:319`) — no vector column type, no ANN index.
 
 ### Retrieve and inject
 
-`retrieveChunks` (`packages/host/src/knowledge.ts:782-796`) → `SqliteBuiltinBackend.retrieve` (`packages/host/src/knowledge/backends/builtin.ts:250-273`) runs FTS5 bm25 and a cosine scan in parallel and fuses them with Reciprocal Rank Fusion (`fuseRrf`, `:155-176`, `RRF_K = 60`). Default `limit` is 4 (`packages/host/src/knowledge.ts:785`), vector floor `MIN_COSINE = 0.12` (`packages/host/src/knowledge-embed.ts:260`).
+`retrieveChunks` (`packages/host/src/knowledge.ts:783-797`) → `SqliteBuiltinBackend.retrieve` (`packages/host/src/knowledge/backends/builtin.ts:250-273`) runs FTS5 bm25 and a cosine scan in parallel and fuses them with Reciprocal Rank Fusion (`fuseRrf`, `:155-176`, `RRF_K = 60`). Default `limit` is 4 (`packages/host/src/knowledge.ts:786`), vector floor `MIN_COSINE = 0.12` (`packages/host/src/knowledge-embed.ts:260`).
 
-`knowledgeInjection` (`packages/host/src/knowledge.ts:834-876`) renders the hits as `[n] <name>\n<body>` inside a `## Retrieved sources` block. It is called from exactly one product path: `startModalityRun` (`packages/host/src/runs.ts:153`), appended to the agent's system prompt at `:158`. The Knowledge context popover route is the only other caller.
+`knowledgeInjection` (`packages/host/src/knowledge.ts:835-877`) renders the hits as `[n] <name>\n<body>` inside a `## Retrieved sources` block. It is called from exactly one product path: `startModalityRun` (`packages/host/src/runs.ts:153`), appended to the agent's system prompt at `:158`. The Knowledge context popover route is the only other caller.
 
 Afterwards, on a *completed* run only: `recordRetrievals` (`packages/host/src/knowledge-retrievals.ts:39-72`) writes one row per served chunk and projects a `retrieved` graph edge, and `recordCites` parses `[n]` markers out of the reply (`packages/host/src/knowledge-cites.ts`, fenced code excluded) and bumps `cites` edge weights.
 
@@ -99,7 +99,7 @@ Every read and write is parameterized by `workspace_id` in application code. The
 
 ### Constants
 
-`KNOWLEDGE_FILE_MAX_BYTES = PDF_MAX_BYTES = 25 MB` (`packages/host/src/knowledge-extract.ts:32`), `DOCX_TIMEOUT_MS = 20_000` (`:34`), `DOCX_MAX_INFLATED_BYTES = 100 MB` (`packages/core/src/docx/zip-limits.ts:17`), `PDF_MAX_PAGES = 500` / `PDF_MIN_TEXT_CHARS = 20` (`packages/core/src/pdf/index.ts:32`, `:34`), `KNOWLEDGE_TEXT_MAX_CHARS = 2_000_000` (`packages/host/src/knowledge-text.ts:2`), `SOURCE_NAME_MAX = 120` (`:8`), `MAX_BODY_BYTES = 26 MB` (`packages/host/src/http-adapter.ts:38`), safe-fetch `5` hops / `1_500_000` bytes / `15_000` ms (`packages/core/src/security/safe-fetch.ts:4-6`), `EMBED_BATCH = 16` / `EMBED_TIMEOUT_MS = 4_000` / `EMBED_DOWN_MS = 5 min` (`packages/host/src/knowledge-embed.ts:16`, `:33-34`), `STUB_EMBED_MODEL = "stub-fnv-32"` (`:24`), `MIN_COSINE = 0.12` (`:260`), `RRF_K = 60` (`packages/host/src/knowledge/backends/builtin.ts:134`), `SELF_CHECK_MIN_INTERVAL_MS = 10_000` (`packages/host/src/handlers/knowledge.ts:234`).
+`KNOWLEDGE_FILE_MAX_BYTES = PDF_MAX_BYTES = 25 MB` (`packages/host/src/knowledge-extract.ts:32`), `DOCX_TIMEOUT_MS = 20_000` (`:34`), `DOCX_MAX_INFLATED_BYTES = 100 MB` (`packages/core/src/docx/zip-limits.ts:17`), `PDF_MAX_PAGES = 500` / `PDF_MIN_TEXT_CHARS = 20` (`packages/core/src/pdf/index.ts:32`, `:34`), `KNOWLEDGE_TEXT_MAX_CHARS = 2_000_000` (`packages/host/src/knowledge-text.ts:2`), `SOURCE_NAME_MAX = 120` (`:8`), `MAX_BODY_BYTES = 26 MB` (`packages/host/src/http-adapter.ts:38`), safe-fetch `5` hops / `1_500_000` bytes / `15_000` ms (`packages/core/src/security/safe-fetch.ts:4-6`), `EMBED_BATCH = 16` / `EMBED_TIMEOUT_MS = 4_000` / `EMBED_DOWN_MS = 5 min` (`packages/host/src/knowledge-embed.ts:16`, `:33-34`), `STUB_EMBED_MODEL = "stub-fnv-32"` (`:24`), `MIN_COSINE = 0.12` (`:260`), `RRF_K = 60` (`packages/host/src/knowledge/backends/builtin.ts:134`), `SELF_CHECK_MIN_INTERVAL_MS = 10_000` (`packages/host/src/handlers/knowledge.ts:236`).
 
 ### Failure modes
 
@@ -144,7 +144,7 @@ Every read and write is parameterized by `workspace_id` in application code. The
 - **The converter's tables are parsed and then thrown away here.** `extractFile` returns `tables`, `meta.sheets` and `meta.truncated`; `documentText` keeps `extracted.text` only (`packages/host/src/knowledge-extract.ts:143-155`). A document truncated at `KNOWLEDGE_TEXT_MAX_CHARS` inside the converter is indexed with no marker on the knowledge side.
 - **Uploads leave a raw copy scoped to the organization, not the desk** (`packages/host/src/knowledge.ts:448-450`). Everything else on this path is workspace-scoped.
 - **Only Chat retrieves.** Job modes write cards and never call `knowledgeInjection`. A knowledge answer inside Finance does not exist.
-- **A thread cannot retrieve its own card.** `excludeThreadId` (`packages/host/src/knowledge.ts:803-809`) breaks the loop, which is why proving retrieval of a Chat-authored card needs a *fresh* thread.
+- **A thread cannot retrieve its own card.** `excludeThreadId` (`packages/host/src/knowledge.ts:804-810`) breaks the loop, which is why proving retrieval of a Chat-authored card needs a *fresh* thread.
 - **Embedding degradation is whole-source, on purpose.** "One source's vectors must share one geometry, or cosine across them is noise" (`packages/host/src/knowledge-embed.ts:89-90`). A stub-vector source still reads `Indexed`, so "indexed" does not mean "semantically searchable".
 - **32-dim stub vectors and 1536-dim real ones would silently "match" on noise** if compared, because `cosineSimilarity` truncates to the shorter vector — which is why stub rows are always stored under `stub-fnv-32` and never mixed (`:128-131`).
 - **There is no ANN index.** `packages/host/src/knowledge/ann.ts` is unused scaffolding pending a `sqlite-vec` spike; every vector search is a full linear scan.

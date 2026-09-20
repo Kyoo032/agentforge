@@ -1,6 +1,6 @@
 # Map — Database and migrations
 
-Last verified: 2026-09-20 at d14cd8f
+Last verified: 2026-09-20 at c204e5e
 
 ## Overview
 
@@ -223,7 +223,7 @@ next boot**, because the database is open and ffmpeg may still be writing.
   renames it (`:99-104`) — a half-written marker would be read as malformed on the next boot and
   silently cancel the wipe. The caller is the Settings handler:
   `requestDataReset(localDataDir(), [...HOST_RESET_ENTRIES])`
-  (`packages/host/src/handlers/settings.ts:343`, list at `:274-293`).
+  (`packages/host/src/handlers/settings.ts:346`, list at `:274-293`).
 - `applyPendingDataReset(dir)` (`:248-283`) is safe on every boot. No marker → no-op (`:252-256`). A
   marker that is unreadable or not a valid v1 object is **deleted and the data kept** (`:257-268`) —
   a wipe is never inferred. Otherwise it removes each listed entry plus the SQLite trio
@@ -425,5 +425,5 @@ now: `ensurePortalOwner` writes the tenant row on sign-in (`packages/db/src/port
 
 What has *not* moved is "Start over": it is still refused on the server, and the reason is still
 that a data-dir wipe is every tenant's work rather than the caller's
-(`packages/host/src/handlers/settings.ts:330-337`), which is scoping, not resolution. The full
+(`packages/host/src/handlers/settings.ts:333-340`), which is scoping, not resolution. The full
 resolution path is its own page: [tenant-resolution.md](tenant-resolution.md). `[Direct]`

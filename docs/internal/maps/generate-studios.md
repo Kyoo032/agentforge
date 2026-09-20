@@ -1,6 +1,6 @@
 # Map — Generate studios (Images and Videos)
 
-Last verified: 2026-09-20 at d14cd8f
+Last verified: 2026-09-20 at c204e5e
 
 ## Overview
 
@@ -14,9 +14,9 @@ The second thing: **whatever the gateway returns is mirrored before the user see
 
 ### 1. Getting there, and staying there
 
-`mode-images` / `mode-videos` on the left rail are `mode-${href.slice(1)}` buttons (`apps/web/components/app-rail.tsx:315-326`). The route maps to a component in `WORK_MODE_COMPONENTS` (`apps/web/components/work-mode-keep-alive.tsx:17-30`): `/images` → `ImagesStudio`, `/videos` → `VideosStudio`.
+`mode-images` / `mode-videos` on the left rail are `mode-${href.slice(1)}` buttons (`apps/web/components/app-rail.tsx:330-341`). The route maps to a component in `WORK_MODE_COMPONENTS` (`apps/web/components/work-mode-keep-alive.tsx:18-32`): `/images` → `ImagesStudio`, `/videos` → `VideosStudio`.
 
-`WorkModePanes` (`apps/web/components/work-mode-keep-alive.tsx:48-79`) **keeps every visited work mode mounted** and hides the inactive ones with `hidden` plus a `hidden` class, so in-flight state survives a rail switch. The whole set remounts when the workspace scope id changes (`key={id ?? "boot"}`, `:41-44`). Consequence for anyone driving the app: after visiting `/images` and then `/videos`, `images-studio` is still in the DOM (count 1, not visible) and any testid the two pages share — `example-gallery` is the one that bites — resolves to **two** elements.
+`WorkModePanes` (`apps/web/components/work-mode-keep-alive.tsx:50-81`) **keeps every visited work mode mounted** and hides the inactive ones with `hidden` plus a `hidden` class, so in-flight state survives a rail switch. The whole set remounts when the workspace scope id changes (`key={id ?? "boot"}`, `:41-44`). Consequence for anyone driving the app: after visiting `/images` and then `/videos`, `images-studio` is still in the DOM (count 1, not visible) and any testid the two pages share — `example-gallery` is the one that bites — resolves to **two** elements.
 
 ### 2. Mount → `GET /api/v1/images` (or `/videos`)
 
@@ -37,7 +37,7 @@ On the host, `handleGetImages` (`packages/host/src/handlers/jobs.ts:39-65`) and 
 
 The picker is **not** fed by the app's own `/api/v1/models`. It is fed by the studio GET, which reads the same in-process catalog:
 
-1. **Probe.** `refreshModelCache` (`packages/host/src/selectable-models.ts:221-312`) calls `detectCompatibleApi` against the pinned gateway, which is a `GET /v1/models` with the saved key. A desk with no key and no custom gateway **never calls out** (`:207-225`) — and on the way through it also clears any stale `openaiError` so a keyless desk does not keep showing "unreachable".
+1. **Probe.** `refreshModelCache` (`packages/host/src/selectable-models.ts:223-314`) calls `detectCompatibleApi` against the pinned gateway, which is a `GET /v1/models` with the saved key. A desk with no key and no custom gateway **never calls out** (`:207-225`) — and on the way through it also clears any stale `openaiError` so a keyless desk does not keep showing "unreachable".
 2. **Persist.** The result lands in `models-cache.json` under the desk's data dir (`packages/host/src/model-cache.ts:22-30`). **This file outlives the key.** Removing the key does not empty the picker — the owner's `:3000` desk is keyless and still lists 40 image ids and 22 video ids, from the last live probe.
 3. **Merge.** `listCatalogModels()` (`packages/host/src/selectable-models.ts:57-74`) merges the four dialect caches and stamps context lengths from the models.dev registry, memoized on the two cache files' mtime+size.
 4. **Bucket.** `routeModelsByKind` (`packages/core/src/models/media-kind.ts:116-128`) puts every id in exactly one of `chat / image / video / audio / other` by running `mediaKind(id)` (`:27-52`). The order is load-bearing: `OTHER` first, then `AUDIO`, then `VIDEO`, then `IMAGE`, then two lowercase substring fallbacks. `listImageModels()` / `listVideoModels()` are just `routed.image` / `routed.video` (`packages/host/src/selectable-models.ts:89-95`), and `listStudioImageModels` filters once more with the same predicate (`packages/host/src/studio-generate.ts:136-142`).
@@ -121,7 +121,7 @@ Both tools resolve their backend first and return a **structured failure rather 
 
 `items` render as a grid (`apps/web/components/images-studio.tsx:224-232`, `apps/web/components/videos-studio.tsx:322-339`), each `src` passed through `mediaSrc` (`apps/web/lib/api-client.ts:208-210` → `apps/web/lib/media-src.ts:12-23`), which rewrites `/api/v1/media/<id>/file` to `agentforge://media/<id>` inside the packaged shell and leaves it alone in the browser. Videos add a per-clip download anchor, `videos-studio-download` (`apps/web/components/videos-studio.tsx:328-335`). Empty lists show `images-studio-empty` / `videos-studio-empty` (`:216-222` / `:314-320`), but only once `loading` is false — the loading branch comes first.
 
-`GET /api/v1/media/:mediaId/file` → `handleGetMediaFile` (`packages/host/src/handlers/media.ts:26-50`), routed at `packages/host/src/router.ts:219`, ungated, scoped by `organizationId`, served through `readByteRange` (`packages/host/src/byte-range.ts:86-106`) so scrubbing a clip reads only the requested bytes. The bundled example clips have their own pair of routes (`packages/host/src/router.ts:224-225`).
+`GET /api/v1/media/:mediaId/file` → `handleGetMediaFile` (`packages/host/src/handlers/media.ts:26-50`), routed at `packages/host/src/router.ts:242`, ungated, scoped by `organizationId`, served through `readByteRange` (`packages/host/src/byte-range.ts:86-106`) so scrubbing a clip reads only the requested bytes. The bundled example clips have their own pair of routes (`packages/host/src/router.ts:247-248`).
 
 ### Failure modes
 
@@ -176,7 +176,7 @@ Both tools resolve their backend first and return a **structured failure rather 
 - **`generateStudioVideo` re-checks readiness and `generateStudioImage` does not** (`packages/host/src/studio-generate.ts:324-326`). The image path relies entirely on the tool's own backend check, which is why its keyless failure is a `tool_failed` 400 rather than an `invalid_request` 400. Same status, different code, different message.
 - **Every gateway image request carries OpenAI pixel sizes**, whatever the vendor (`packages/core/src/tools/platform/gateway-media.ts:145-153`, used unconditionally at `:309`). `quality: "medium"` is added only for `gpt-image` ids (`:311-313`) — which is also why the estimate line says "at medium quality" for exactly those models.
 - **`gateway_blocked` is swallowed here too.** The host answers a flat body whose `error` is a string (`packages/host/src/errors.ts:20-25`), and both studios read `data.error?.message` (`apps/web/components/images-studio.tsx:108`, `apps/web/components/videos-studio.tsx:163`). `.message` on a string is `undefined`, so a closed gate shows the generic "generate failed" copy. The same finding is recorded for Chat in [`chat-send.md`](chat-send.md).
-- **Visiting a studio leaves it mounted.** `WorkModeKeepAlive` (`apps/web/components/work-mode-keep-alive.tsx:48-79`) hides rather than unmounts, so `example-gallery` resolves to two elements once both studios have been visited, and `images-studio` has count 1 while the user is on `/videos`. Driven; it is a Playwright strict-mode violation on any shared testid.
+- **Visiting a studio leaves it mounted.** `WorkModeKeepAlive` (`apps/web/components/work-mode-keep-alive.tsx:50-81`) hides rather than unmounts, so `example-gallery` resolves to two elements once both studios have been visited, and `images-studio` has count 1 while the user is on `/videos`. Driven; it is a Playwright strict-mode violation on any shared testid.
 - **The empty state is behind the loading state.** `loading` starts `true` and both the `*-studio-needs-key` box and `*-studio-empty` are suppressed until it flips. Snapshotting the page as soon as `images-studio` becomes visible reads `null` for both. Wait for `*-studio-model` to gain options instead.
 - **A missing media file is a 500, not a 404, and the message contains the absolute path.** `handleGetMediaFile` (`packages/host/src/handlers/media.ts:39`) only 404s on a missing *row*; a missing *file* throws ENOENT out of `stat` and lands in `jsonError`'s catch-all (`packages/host/src/errors.ts:42-46`), whose `redactSecrets` does not touch paths. Driven on `:3000`: `500 {"error":{"code":"internal_error","message":"ENOENT: no such file or directory, stat 'C:\\…\\data\\media\\<organizationId>\\<mediaId>.mp4'"}}`. **Finding, not a design.**
 - **The gallery is org-scoped, not desk-scoped**, exactly like the rest of the media store — open finding `b9`, see [`renderer-media.md`](renderer-media.md).

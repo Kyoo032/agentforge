@@ -28,11 +28,11 @@ Each line verified against the tree.
 | Gate fails closed on the server | `packages/host/src/gateway-gate.ts:275` (`serverMode`), `:278-280` (stub runtime no longer opens it), `:288-290` (unverified key = `error`, not `ok`) | Done. |
 | Hosted meta marker | `apps/web/lib/hosted-build.ts:21` (tag), `:55-57` (`isHostedBuild`), `:65-76` (`injectHostedMarker`); stamped at `apps/web/server.ts:53,95` | Done. |
 | Renderer gate fails closed on hosted | `apps/web/lib/gateway-gate.ts:94-99` — `hosted \|\| isElectron ? "onboarding" : "app"` at `:97` | Done (was `isElectron ? … : "app"`). |
-| "Start over" refused | `packages/host/src/handlers/settings.ts:297-299` (`reset_disabled`), thrown at `:335-337` before the confirm word | Done. `HOST_RESET_ENTRIES` at `:274-293` is still machine-wide, which is why it is refused rather than scoped. |
+| "Start over" refused | `packages/host/src/handlers/settings.ts:300-302` (`reset_disabled`), thrown at `:335-337` before the confirm word | Done. `HOST_RESET_ENTRIES` at `:274-293` is still machine-wide, which is why it is refused rather than scoped. |
 | Global limiters | `packages/host/src/concurrency.ts:288,290` (`ffmpegLimiter`, `sqlLimiter`), `createJobLimiter` at `:241`; wired at `packages/host/src/edit/ffmpeg/run.ts:73` and `packages/host/src/sql-runner.ts:95,172` | Done — **global, not per tenant** (`concurrency.ts:10-13`: caps apply only in server mode). |
 | JSON logger with redaction | `packages/host/src/log.ts:217` (`createLogger`), `:240` (`log`), `redactSecrets` applied at `:145,157,176,208` | Done. Does **not** yet add a tenant id or request id as fields (spec row L1 asks for both). |
 | Session backend | `packages/host/src/auth/session.ts:81` (`createSession`), `:105` (`verifySession`), `:122` (`slidSession`), `:131` (`revokedSession`); store at `auth/session-store.ts`; portal client at `auth/portal-client.ts`; routes at `auth/routes.ts:192` | Done. Idle 12 h / absolute 30 d (`session.ts:18-19`), slide ≤ once per 5 min (`:21`). |
-| Router session gate | `packages/host/src/router.ts:325-353`, invoked at `:352-359`; exemptions at `auth/routes.ts:94-99` (`/api/v1/auth/*`, `GET /api/v1/ping`, `GET /api/v1/components` — `UNGATED_GETS` at `:44`) | Done. Every method on every other `/api` path 401s `session_required`. |
+| Router session gate | `packages/host/src/router.ts:370-398`, invoked at `:352-359`; exemptions at `auth/routes.ts:94-99` (`/api/v1/auth/*`, `GET /api/v1/ping`, `GET /api/v1/components` — `UNGATED_GETS` at `:44`) | Done. Every method on every other `/api` path 401s `session_required`. |
 | `HostRequest.session` | `packages/host/src/types.ts:31-36` (`HostSession`), `:53`; populated at `router.ts:333-338`, re-attached at `:376-377` (the caller's own object is never mutated, and a forged `session` field is dropped) | Done. |
 | `auth_sessions` + migration `0014` | `packages/db/src/schema.ts:688-706`; `packages/db/drizzle/0014_auth_sessions.sql:12-27`; journal entry idx 14 | Done. Carries `tenant_id`, `org_id`, `user_id` already. |
 | Reason-code copy | `apps/web/locales/en/auth.json`, `apps/web/locales/id/auth.json` — all nine portal codes plus `session_required`, `invalid_request`, `invalid_grant`, `portal_unavailable` | Done. |
@@ -336,7 +336,7 @@ a copied real database.
 
 ## 5. Handler audit
 
-`packages/host/src/router.ts:163-299` — **129 route registrations, 55 of them by-id.** Per family:
+`packages/host/src/router.ts:186-344` — **129 route registrations, 55 of them by-id.** Per family:
 
 | Family (router.ts lines) | Store module | Org/workspace filter today | Phase 3 change |
 |---|---|---|---|

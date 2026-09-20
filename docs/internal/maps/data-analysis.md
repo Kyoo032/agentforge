@@ -1,6 +1,6 @@
 # Map — Data analysis
 
-Last verified: 2026-09-20 at d14cd8f
+Last verified: 2026-09-20 at c204e5e
 
 ## Overview
 
@@ -14,7 +14,7 @@ It is not Research. `analyzeDataset` passes `toolKeys: ["run_sql", "calculator"]
 
 ### 1. Rail → studio
 
-`mode-data` is a rail tab whose testid is `mode-${href.slice(1)}`; Default carries it. `/data` is declared in `App.tsx` as `element={null}` (`apps/web/src/App.tsx:156`) because every work mode actually mounts through `WorkModeKeepAlive`, which maps `"/data" → DataStudio` (`apps/web/components/work-mode-keep-alive.tsx:22`) and keeps the component alive across tab switches. That is why an in-progress analysis and the adopted dataset survive a hop to Chat and back, and why there is no route-level unmount to reset the studio.
+`mode-data` is a rail tab whose testid is `mode-${href.slice(1)}`; Default carries it. `/data` is declared in `App.tsx` as `element={null}` (`apps/web/src/App.tsx:157`) because every work mode actually mounts through `WorkModeKeepAlive`, which maps `"/data" → DataStudio` (`apps/web/components/work-mode-keep-alive.tsx:23`) and keeps the component alive across tab switches. That is why an in-progress analysis and the adopted dataset survive a hop to Chat and back, and why there is no route-level unmount to reset the studio.
 
 On mount the studio does one thing: `listDatasets()` → `GET /api/v1/datasets` (`apps/web/components/data-studio.tsx:76-89`, `apps/web/lib/data-client.ts:72-76`). No key is needed and none is checked; the studio shell is fully functional on a stub desk.
 
@@ -162,7 +162,7 @@ The studio renders the result through `ArtifactActions` (`apps/web/components/da
 | `apps/web/lib/data-client.ts` | The four dataset routes plus `DATASET_ACCEPT` and the 25 MB mirror |
 | `apps/web/lib/use-job-stream.ts`, `apps/web/lib/job-stream.ts` | Job SSE: progress reducer, `job.error` → thrown `JobStreamError` |
 | `apps/web/components/work-mode-keep-alive.tsx` | Why `/data` is `element={null}` and the studio never unmounts |
-| `packages/host/src/router.ts:249-254` | The six data routes |
+| `packages/host/src/router.ts:272-277` | The six data routes |
 | `packages/host/src/handlers/datasets.ts` | Upload / paste / list / get / delete; `datasetPayload` (profile + 100-row preview) |
 | `packages/host/src/handlers/jobs.ts:275-298` | `POST /api/v1/data` (real 503) and `/data/stream` (always 200 + SSE) |
 | `packages/host/src/datasets.ts` | The store: caps, parse, profile, file layout, cache, both SQLites, delete |

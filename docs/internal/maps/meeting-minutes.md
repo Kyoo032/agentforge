@@ -1,6 +1,6 @@
 # Map — Meeting: recording → transcript → minutes → translation
 
-Last verified: 2026-09-20 on `feat/meeting-minutes-p92shd` (source-traced; the gateway legs have not been driven live — see [Gotchas](#gotchas)).
+Last verified: 2026-09-20 at c204e5e (source-traced; the gateway legs have not been driven live — see [Gotchas](#gotchas)).
 
 ## Overview
 
@@ -28,7 +28,7 @@ Unlike Legal, there is a create form: title plus the language spoken (`apps/web/
 
 ### 3. Upload — audio or video, 25 MB, sniffed on mime
 
-`handlePostMeetingRecording` (`packages/host/src/handlers/meetings.ts:90`) takes the usual `request.files` field `"file"`. Caps in `assertRecordingCaps` (`packages/host/src/meeting/store-files.ts:171-182`):
+`handlePostMeetingRecording` (`packages/host/src/handlers/meetings.ts:90`) takes the usual `request.files` field `"file"`. Caps in `assertRecordingCaps` (`packages/host/src/meeting/store-files.ts:151-161`):
 
 - empty file → 400
 - over `MEETING_RECORDING_MAX_BYTES` (25 MB) → 413

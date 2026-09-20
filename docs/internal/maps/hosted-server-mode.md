@@ -1,12 +1,12 @@
 # Map — Hosted server mode and the transport security pass
 
-Last verified: 2026-09-20 at d14cd8f
+Last verified: 2026-09-20 at c204e5e
 
 ## Overview
 
 The hosted, multi-user web deployment and the rules that only exist there. One environment variable — `AGENTFORGE_SERVER=1` — turns on a different transport contract: HTTPS proof from the proxy, a configured Origin/Host allowlist instead of the loopback rule, a double-submit CSRF token, request filtering and rate limiting on every path, masked 5xx bodies, global job caps, a mandatory wrap key, a gate that fails closed and a "Start over" that refuses. Everything on this page landed in one commit, `6ae177a` (PR #56).
 
-What this page is **not**: the desktop or webdev path. Every rule below is a branch on one flag, and with the flag off the code takes the path it took before the commit. It is also not the tenancy story — the hosted server is single-tenant today and per-tenant scoping, per-tenant caps and a scoped "Start over" are Phase 3 and Phase 5 (`packages/host/src/concurrency.ts:16`, `packages/host/src/handlers/settings.ts:329-334`).
+What this page is **not**: the desktop or webdev path. Every rule below is a branch on one flag, and with the flag off the code takes the path it took before the commit. It is also not the tenancy story — the hosted server is single-tenant today and per-tenant scoping, per-tenant caps and a scoped "Start over" are Phase 3 and Phase 5 (`packages/host/src/concurrency.ts:16`, `packages/host/src/handlers/settings.ts:332-337`).
 
 ## How it works
 
@@ -79,7 +79,7 @@ Where the renderer sends it: `apps/web/lib/api-client.ts`. `withMutatingHeaders`
 
 `maskServerError(result, serverMode)` (`:347-357`): only a **json** result with `status >= 500` is touched (`:348`). The reason code survives if it looks like one — `/^[a-z0-9_]+$/` (`:46`, `reasonCodeOf` at `:359-363`) — and everything else is replaced by `INTERNAL_ERROR_MESSAGE = "The server could not complete this request."` (`:43`). 4xx bodies are untouched: those are this repo's own honest messages, not a driver's.
 
-The hosted session gate sits behind all of this, inside `dispatch` (`packages/host/src/router.ts:355-368`, `gate` at `:317-345`): in server mode **every** `/api` call needs a verified session whatever the method, except `/api/v1/auth/*` and `GET /api/v1/ping` / `GET /api/v1/components` (`packages/host/src/auth/routes.ts:39`, `:44`, `:94-99`). It is answered before the route table is consulted, so an unauthenticated caller learns nothing about which paths exist (`router.ts:341-344`).
+The hosted session gate sits behind all of this, inside `dispatch` (`packages/host/src/router.ts:400-413`, `gate` at `:317-345`): in server mode **every** `/api` call needs a verified session whatever the method, except `/api/v1/auth/*` and `GET /api/v1/ping` / `GET /api/v1/components` (`packages/host/src/auth/routes.ts:39`, `:44`, `:94-99`). It is answered before the route table is consulted, so an unauthenticated caller learns nothing about which paths exist (`router.ts:341-344`).
 
 ### 5. HTTP request filtering
 
@@ -168,7 +168,7 @@ The `request_filtered` line is the one the transport rules write (`FILTERED_EVEN
 - "no verdict, or a verdict for a different key fingerprint" is `{status:"ok", allowed:true, grace:true}` on a desk and `{status:"error", allowed:false, grace:false}` with `GATEWAY_UNVERIFIED_MESSAGE` (`:57`) on the server (`:288-290`, `:296-298`). A hosted tenant has no first run to take on trust. Everything below that line is a verdict the gateway actually gave and reads the same in both modes.
 The renderer half matches: `resolveGate(payload, isElectron, hosted)` (`apps/web/lib/gateway-gate.ts:94-100`) falls closed on a missing or malformed gate when `hosted || isElectron`, and stays open otherwise.
 
-**"Start over" answers 403.** `handleResetApp` (`packages/host/src/handlers/settings.ts:357-373`, route `packages/host/src/router.ts:194`) resolves `serverMode` through an injectable dep (`ResetDeps`, `:354`, resolved `:361`) and refuses both scopes:
+**"Start over" answers 403.** `handleResetApp` (`packages/host/src/handlers/settings.ts:360-376`, route `packages/host/src/router.ts:217`) resolves `serverMode` through an injectable dep (`ResetDeps`, `:354`, resolved `:361`) and refuses both scopes:
 - `scope: "all"` → `ApiError("reset_disabled", …, 403)` (`:334-337`, message `:297-298`). The refusal comes **first**, before the confirmation word is checked and before anything is queued, so one workspace's owner cannot arm a wipe of everyone else's data.
 - `scope: "key"` → the same code with a different message (`:309-312`, `:306-307`), because `clearGatewayKeyEverywhere()` is machine-wide: one tenant pressing it would sign every other tenant out of the gateway.
 Off server mode both do exactly what they did before (`:313-325`, `:338-350`).
@@ -260,7 +260,7 @@ There are no DOM testids for any of this. It is all transport; nothing on this p
 
 **Why the caps are off on a desk.** `[Supported]` `packages/host/src/concurrency.ts:10-14` records the regression that forced it: capping a single-owner desk "turned a batch of eight exports into a queue, and the ninth into a 429 the desktop had never produced before." That is a first-person account in the source rather than an external record, so it is the *reason given*, not an independent one. **Confidence: medium-high.**
 
-**Why "Start over" is refused rather than scoped.** `[Direct]` `docs/internal/web-security-spec.md:67` (row T8): "'Start over' is scoped to the caller's tenant, or disabled on the web build; today it wipes the whole data dir". The second option was taken, and the refusal is placed before the confirmation word so a wipe cannot even be armed. `[Supported]` The "forget my key" scope was refused for a different reason — the key clear is machine-wide and the gate verdict is shared, so one tenant would sign out every other (`packages/host/src/handlers/settings.ts:301-308`). **Confidence: high.**
+**Why "Start over" is refused rather than scoped.** `[Direct]` `docs/internal/web-security-spec.md:67` (row T8): "'Start over' is scoped to the caller's tenant, or disabled on the web build; today it wipes the whole data dir". The second option was taken, and the refusal is placed before the confirmation word so a wipe cannot even be armed. `[Supported]` The "forget my key" scope was refused for a different reason — the key clear is machine-wide and the gate verdict is shared, so one tenant would sign out every other (`packages/host/src/handlers/settings.ts:304-311`). **Confidence: high.**
 
 **Why the gate fails closed on the hosted build.** `[Direct]` `docs/internal/web-security-spec.md:63` (row T4) asks for exactly both halves: the renderer must treat a missing or malformed gate as blocked, and "the host stops taking an unverified key on trust". Both landed (`apps/web/lib/gateway-gate.ts:94-100`, `packages/host/src/gateway-gate.ts:288-290`). **Confidence: high.**
 

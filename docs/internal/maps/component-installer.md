@@ -1,6 +1,6 @@
 # Component installer (first run)
 
-Last verified: 2026-09-20 at d14cd8f
+Last verified: 2026-09-20 at c204e5e
 
 ## Overview
 
@@ -8,7 +8,7 @@ The only way DPSBuddy installs a native dependency. The owner never runs a comma
 
 ## How it works
 
-1. **Status.** `GET /api/v1/components` (`packages/host/src/router.ts:199` → `handleGetComponents`, `packages/host/src/handlers/components.ts:30`) answers `{ components: [{ id, version, auto, state, source, bytes, error? }] }`. `componentStatus` (`packages/host/src/components/status.ts:65`) asks the probe: `resolveAnydoc` tries the bundled module, then the downloaded one, which only counts when the marker exists (`packages/host/src/file-extract/anydoc.ts`, `loadBundledAnydoc` / `loadDownloadedAnydoc`). A platform with no package in the manifest is `unsupported`, not an error (`manifest.ts:109`).
+1. **Status.** `GET /api/v1/components` (`packages/host/src/router.ts:222` → `handleGetComponents`, `packages/host/src/handlers/components.ts:30`) answers `{ components: [{ id, version, auto, state, source, bytes, error? }] }`. `componentStatus` (`packages/host/src/components/status.ts:65`) asks the probe: `resolveAnydoc` tries the bundled module, then the downloaded one, which only counts when the marker exists (`packages/host/src/file-extract/anydoc.ts`, `loadBundledAnydoc` / `loadDownloadedAnydoc`). A platform with no package in the manifest is `unsupported`, not an error (`manifest.ts:109`).
 2. **Auto.** `auto` is false when `AGENTFORGE_RUNTIME=stub` is set or under test (`status.ts:51`), so Cloud and Playwright never download. The renderer only starts on its own when `state === "missing" && auto` (`apps/web/lib/components-client.ts:144`).
 3. **Trigger.** Onboarding mounts `ComponentSetupPanel` inside `onboarding-setup-check` (`apps/web/components/onboarding-screen.tsx:3`, `:113-127`); an already-onboarded desk mounts `ComponentSetupSilent` from `apps/web/src/App.tsx:11`, rendered at `:147`. Both use `useComponentSetup` (`apps/web/lib/use-component-setup.ts:42`): fetch, auto-install once, abort on unmount, `retry()`.
 4. **Install.** `POST /api/v1/components/install/stream` with `{ id }` (`router.ts:195`, `handlers/components.ts:44`; unknown id → 400) streams `job.*` through `streamJob`, so it works over webdev SSE and Electron IPC alike. `installComponent` (`packages/host/src/components/install.ts:199`) holds one run per component (`busy` otherwise) and walks the stages:

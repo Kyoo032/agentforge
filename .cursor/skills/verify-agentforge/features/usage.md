@@ -33,7 +33,7 @@ Preconditions:
 
 ## Gotchas
 
-- `/usage` is exempt from the hidden-mode redirect (`packages/core/src/agents/product-modes.ts:131-138`). A desk that hides every job mode still opens Usage; that is not a leak.
+- `/usage` is exempt from the hidden-mode redirect (`packages/core/src/agents/product-modes.ts:132-139`). A desk that hides every job mode still opens Usage; that is not a leak.
 - The chart's empty copy, its `aria-label` and its bar tooltips are hardcoded English (`apps/web/components/usage-range-chart.tsx:56-66`, `:92`, `:152-154`) while `usage.chart.empty` / `unpriced` / `aria` / `barTitle` sit unused in both catalogs. Record it, do not work around it — see `docs/internal/unreleased.md`.
 - Usage is not in `PRODUCT_MODES`. Do not hunt for `mode-usage`.
 - Desk estimate and this-key wallet will not match (footer note). Chat chips `chat-usage` / `chat-context` stay on Chat.
