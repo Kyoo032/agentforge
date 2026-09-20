@@ -194,7 +194,10 @@ describe("0015_tenants on a fresh database", () => {
       (name) => name !== "tenants" && name !== "organizations" && columnNames(sqlite, name).includes("tenant_id"),
     );
     // auth_sessions carries the portal's tenant id from Phase 2; it predates this migration.
-    expect(carriers).toEqual(["auth_sessions"]);
+    // tenant_usage is the Phase 5 lane A ledger (0016): it is keyed on the tenant rather than
+    // reached through an organization, because a billable event has to outlive the org it came
+    // from. Nothing else is allowed to carry a second tenant_id.
+    expect(carriers.sort()).toEqual(["auth_sessions", "tenant_usage"]);
   });
 
   it("moves organization slug uniqueness onto (tenant_id, slug)", () => {

@@ -199,7 +199,7 @@ Host side (`packages/host/src/handlers/edit.ts:194-309`):
 (`packages/host/src/handlers/edit.ts:311-328`) calls `requireGatewayAllowed` **first** — a closed gate
 is a flat `403 gateway_blocked` with no stream, exactly like Chat.
 
-`runEditAgent` (`packages/host/src/edit/agent-run.ts:135-195`) builds a per-turn budget from
+`runEditAgent` (`packages/host/src/edit/agent-run.ts:135-197`) builds a per-turn budget from
 `settings.editTurnCapUsd` (`:145`) and picks a path:
 
 - **Live** (a key is saved): `createRuntime(settings).execute(...)` with a compact project prompt
@@ -370,6 +370,11 @@ project's allow-list roots (`editAllowlistRoots` = media root + that project's s
 
 ## Gotchas
 
+- **An agent turn leaves a usage row against its tenant.** `rememberJobUsage`
+  (`packages/host/src/edit/agent-run.ts:182`, and `:360` on the stub path) writes to
+  `tenant_usage` under mode `edit`. It used to append to one global untenanted
+  `desk-usage.json`. See [`tenant-usage-ledger.md`](tenant-usage-ledger.md).
+
 - **The event stream echoes your own ops, and two call sites re-apply them.** `appendOps` emits
   `ops.appended` unconditionally (`packages/host/src/edit/ops.ts:277`) and the renderer folds every
   such frame (`apps/web/components/edit-studio.tsx:193-203`) with no dedupe. Import
@@ -430,7 +435,7 @@ project's allow-list roots (`editAllowlistRoots` = media root + that project's s
 - **`edit-generate-storyboard` exists** (the sub-tab button). `edit-storyboard-generate` and
   `edit-storyboard-animate-all` do not. `animate_storyboard` is backend-only
   (`packages/core/src/tools/edit/tools.ts`).
-- **`mutatingCount > 3` in the stub is dead code** (`packages/host/src/edit/agent-run.ts:242-254`):
+- **`mutatingCount > 3` in the stub is dead code** (`packages/host/src/edit/agent-run.ts:244-256`):
   the counter is incremented at most once per turn.
 - **The turn cap is per request, not cumulative.** `createTurnBudget` is rebuilt on every
   `POST …/agent` (`agent-run.ts:145`), clamped to `[0.5, 50]`

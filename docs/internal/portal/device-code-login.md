@@ -479,7 +479,7 @@ This ordering does not create a seat-cap loophole: a BYO key carries no `oid`, s
 | after first paint | `GET /tenant/config` with `If-None-Match` | 3 s |
 | lazily, on first `/v1` use | ensure a fresh access token; refresh inline if needed | 5 s |
 
-3 s matches the existing account/billing budget (`packages/core/src/gateway/account.ts:7`), which the settings request already waits on. Background refresh timer: fire at `exp − 5 min`; on failure back off 30 s → 2 min → 10 min → 30 min with jitter.
+3 s matches the existing account/billing budget (`packages/core/src/gateway/account.ts:8`), which the settings request already waits on. Background refresh timer: fire at `exp − 5 min`; on failure back off 30 s → 2 min → 10 min → 30 min with jitter.
 
 **Offline.** The app stays signed in on the cached session for a **7-day grace** measured from `lastRefreshOkAt`. During grace the gate is open, cached tenant config drives branding and the model list, local features work, and `/v1` calls fail with the normal network error. Past 7 days without a successful refresh the app shows a non-blocking "Reconnect to continue" banner but still does not force onboarding — only an explicit server `401` with a terminal reason clears the session.
 

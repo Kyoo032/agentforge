@@ -177,7 +177,9 @@ export async function runEditAgent(input: {
             onEvent: async (event: RuntimeEvent) => {
               queue.push(encodeSse(event));
               if (event.type === "run.completed") {
-                rememberJobUsage(event);
+                // Edit-agent spend is metered against the tenant now, not appended to one global
+                // untenanted file (Phase 5 lane A).
+                rememberJobUsage(event, { tenant: input.tenant, mode: "edit", runId });
               }
             },
           });
@@ -355,7 +357,7 @@ async function runStub(
   const card = stubEditCardCopy(scenario, localeForRun());
   queue.push(encodeSse({ type: "assistant.delta", text: `${card.verb} · ${card.object}` }));
   const completed: RuntimeEvent = { type: "run.completed", runId };
-  rememberJobUsage(completed);
+  rememberJobUsage(completed, { tenant: input.tenant, mode: "edit", runId });
   queue.push(encodeSse(completed));
   appendEditMetric({ projectId: input.projectId, runId, event: "agent.turn" });
 }

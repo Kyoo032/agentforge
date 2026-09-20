@@ -42,10 +42,10 @@ Both of the "must have a separator" rules exist for one reason, stated in the co
 
 The feature file says "`createRuntime()` masks". That is exactly right, and the call is not in `packages/host` at all:
 
-1. `packages/host/src/runs.ts:278` — `const runtime = createRuntime(settings);`
+1. `packages/host/src/runs.ts:279` — `const runtime = createRuntime(settings);`
 2. `packages/core/src/runtime/create-runtime.ts:32-40` — builds `AiSdkRuntime` or `StubRuntime` (`:38`) and wraps it in `withToolSecrets(runtime, settings)` (`:39`).
 3. `packages/core/src/runtime/create-runtime.ts:11-30` — the wrapper's own `execute` (`:14-28`) calls `runtime.execute(maskOutboundRunInput(input))` at `:26`.
-4. `packages/host/src/runs.ts:282` — `await runtime.execute({...})` hits that wrapper, so the mask is applied for **stub and live alike**.
+4. `packages/host/src/runs.ts:283` — `await runtime.execute({...})` hits that wrapper, so the mask is applied for **stub and live alike**.
 
 Because it is the wrapper, not the runtime, a future runtime added under `createRuntime` inherits the mask for free; a runtime constructed directly does not.
 
@@ -55,11 +55,11 @@ Ordering inside `startModalityRun`:
 
 | Step | Line | What it holds |
 |---|---|---|
-| parse + injection-guard the parts | `packages/host/src/runs.ts:135` | original text, attachments possibly blocked |
-| persist the user message | `packages/host/src/runs.ts:247` | **original**, sealed at rest |
-| read history back | `packages/host/src/runs.ts:256` | original |
-| build the runtime | `packages/host/src/runs.ts:278` | — |
-| execute | `packages/host/src/runs.ts:282` | **masked copy** |
+| parse + injection-guard the parts | `packages/host/src/runs.ts:136` | original text, attachments possibly blocked |
+| persist the user message | `packages/host/src/runs.ts:248` | **original**, sealed at rest |
+| read history back | `packages/host/src/runs.ts:257` | original |
+| build the runtime | `packages/host/src/runs.ts:279` | — |
+| execute | `packages/host/src/runs.ts:283` | **masked copy** |
 
 `insertMessage` (`packages/host/src/threads.ts:267-286`) writes `content: sealJson(content)` at `:279` — it seals, it does not mask. `listMessages` (`:258-265`) opens the same bytes. So `message-list` renders the email the owner typed and the model saw `[email]`, and no code path exists that could reverse that.
 
@@ -69,7 +69,7 @@ Ordering inside `startModalityRun`:
 
 Two shapes of use:
 
-- **Attachments.** `redactAttachedText` (`:129-138`) finds `--- <filename> ---` blocks (`ATTACH_BLOCK_RE`, `:126`), runs `scanInjection` (`:77-88`) on each body, and replaces a hit with `[Attachment blocked by injection guard (rule: <rule>)]`. `redactAttachedParts` (`:140-147`) maps that over text parts. Chat calls it at `packages/host/src/runs.ts:135`.
+- **Attachments.** `redactAttachedText` (`:129-138`) finds `--- <filename> ---` blocks (`ATTACH_BLOCK_RE`, `:126`), runs `scanInjection` (`:77-88`) on each body, and replaces a hit with `[Attachment blocked by injection guard (rule: <rule>)]`. `redactAttachedParts` (`:140-147`) maps that over text parts. Chat calls it at `packages/host/src/runs.ts:136`.
 - **Everything ingested.** Knowledge sources (`packages/host/src/knowledge.ts:430`), work cards (`packages/host/src/knowledge-ingest.ts:29`), research pages (`packages/host/src/research-generate.ts:150`), and every job's `readSourceText` (`packages/host/src/job-source.ts:12,24`, called from `finance-generate.ts:165`, `data-generate.ts:208`, `document-generate.ts:156`, `presentation-generate.ts:145`) run `scanInjection` on fetched or uploaded text.
 
 One switch turns all of it off: `injectionGuardBypass` on `StoredSecrets` (`packages/core/src/secrets.ts:32`, `:87`), set through `POST /api/v1/settings` (`packages/host/src/handlers/settings.ts:162`), persisted at `packages/host/src/settings-store.ts:76`, and returned to the UI by `maskSecrets`. It is stored only when `true` (`packages/core/src/secrets.ts:229-233`), so the protected state is the default. The comment at `packages/core/src/security/injection-guard.ts:72-76` is explicit that there is no "this looks like a security discussion, skip it" carve-out — the bypass setting is the only escape hatch, on purpose.
@@ -95,7 +95,7 @@ Sealed today:
 | `agent_versions.system_prompt` | `packages/db/src/repos/drizzle-agent-repository.ts:87` (`sealText`, `:16-18`) | `:57` (`openText`, `:20-33`) |
 | `settings.enc` (whole file) | `packages/host/src/settings-store.ts:179-185` | `:237-252` |
 
-Plaintext on purpose: `threads.title` (`packages/db/src/schema.ts:208`, written unsealed at `packages/host/src/threads.ts:43` and `:252-255`), `agent_versions.model` (`packages/db/src/schema.ts:154`), `runs.usage` / `runs.error` (`packages/db/src/schema.ts:246-247`, written unsealed at `packages/host/src/threads.ts:322-325`), and the key fingerprints themselves.
+Plaintext on purpose: `threads.title` (`packages/db/src/schema.ts:251`, written unsealed at `packages/host/src/threads.ts:43` and `:252-255`), `agent_versions.model` (`packages/db/src/schema.ts:197`), `runs.usage` / `runs.error` (`packages/db/src/schema.ts:289-290`, written unsealed at `packages/host/src/threads.ts:322-325`), and the key fingerprints themselves.
 
 ### 6. The wrap key — three sources, one of them a trap
 
@@ -149,7 +149,7 @@ Doctor mirrors the same gate: `.cursor/skills/verify-agentforge/scripts/doctor.m
 | Prompt contains a bare 13-digit market cap | `:229-230`, `:72` | **not** masked, by design |
 | Prompt contains `1.250.000.000.000` (rupiah grouping) or a bare total that happens to pass Luhn | `looksLikeAmount` (`:116-119`), `bareRunLooksLikeCard` (`:151-156`), `slicedFromNumber` (`:131-137`) | **not** masked. These three guards were added on 2026-09-17 after a property test caught the scanner rewriting figures |
 | Attachment carries `ignore previous instructions` | `packages/core/src/security/injection-guard.ts:129-138` | that block is replaced with a `[Attachment blocked …]` line; the run continues |
-| Same, with `injectionGuardBypass: true` | `packages/host/src/runs.ts:135` | guard skipped entirely, no audit line is written |
+| Same, with `injectionGuardBypass: true` | `packages/host/src/runs.ts:136` | guard skipped entirely, no audit line is written |
 | `settings.enc` will not decrypt (wrap key changed / keytar fell back) | `packages/host/src/settings-store.ts:219-237` | renamed to `settings.enc.unreadable`; app boots keyless and shows onboarding |
 | `settings.enc` is not an envelope | `packages/host/src/settings-store.ts:244` | throws `"settings.enc is not a valid envelope"` → same quarantine |
 | A sealed column holds pre-encryption plaintext | `packages/core/src/crypto/envelope.ts:62`, `:65` | returned as-is; no error, no re-seal |
@@ -182,11 +182,11 @@ Doctor mirrors the same gate: `.cursor/skills/verify-agentforge/scripts/doctor.m
 
 ## Gotchas
 
-- **No host job calls `maskPii`, and every host job is still masked.** Grep `packages/host` for `maskPii` and you find studio prompts (`packages/host/src/studio-generate.ts:278`, `:224`), edit retries (`packages/host/src/edit/generate.ts:38`), search queries (`packages/host/src/research-generate.ts:147`, `packages/host/src/market/tools.ts:88`) and knowledge cards (`packages/host/src/knowledge-ingest.ts:40`, `:42`) — and none of Chat, Finance, Data, Documents, Presentations, Market or Legal. That absence used to read as "host jobs are not masked". It is the opposite: **every** job goes through `collectJobAssistantText` (`packages/host/src/job-regen.ts:88-89`), which builds the runtime with `createRuntime(settings)` and therefore lands on the same wrapper Chat does (`packages/core/src/runtime/create-runtime.ts:26`). Finance reaches it from `finance-generate.ts` and `finance-tasks/runner.ts`. The mask is a property of the runtime, not of any one call site — which is why nobody has to remember to call it.
+- **No host job calls `maskPii`, and every host job is still masked.** Grep `packages/host` for `maskPii` and you find studio prompts (`packages/host/src/studio-generate.ts:279`, `:224`), edit retries (`packages/host/src/edit/generate.ts:38`), search queries (`packages/host/src/research-generate.ts:147`, `packages/host/src/market/tools.ts:88`) and knowledge cards (`packages/host/src/knowledge-ingest.ts:40`, `:42`) — and none of Chat, Finance, Data, Documents, Presentations, Market or Legal. That absence used to read as "host jobs are not masked". It is the opposite: **every** job goes through `collectJobAssistantText` (`packages/host/src/job-regen.ts:89-90`), which builds the runtime with `createRuntime(settings)` and therefore lands on the same wrapper Chat does (`packages/core/src/runtime/create-runtime.ts:26`). Finance reaches it from `finance-generate.ts` and `finance-tasks/runner.ts`. The mask is a property of the runtime, not of any one call site — which is why nobody has to remember to call it.
 - **Finance has a second, earlier guard.** The wrapper above masks the outbound copy of the run; `packages/host/src/finance-privacy.ts` redacts the input before the prompt is built, with column context the shared scanner cannot have. See "Finance privacy guard" at the end of this page.
-- **`piiWarning()` is dead code.** It exists (`packages/core/src/security/pii.ts:299-314`), is exported (`packages/core/src/index.ts:97`) and is tested (`packages/core/src/security/pii.test.ts:197-211`), but no product code calls it. It is the leftover of the removed banner; `pii-warning` and `pii-send-anyway` are 0 everywhere in `apps/` and `packages/`.
+- **`piiWarning()` is dead code.** It exists (`packages/core/src/security/pii.ts:299-314`), is exported (`packages/core/src/index.ts:112`) and is tested (`packages/core/src/security/pii.test.ts:197-211`), but no product code calls it. It is the leftover of the removed banner; `pii-warning` and `pii-send-anyway` are 0 everywhere in `apps/` and `packages/`.
 - **The market-tool query masks and then un-masks.** `searchQueryFor` (`packages/host/src/market/tools.ts:87-89`) runs `maskPii` and then strips the `[email]`-style tokens back out with `PII_MASK_TOKEN` (`:57`), because an FTS query containing a literal `[email]` matches nothing. The net effect is deletion, not substitution. That regex now lists **all eight** tokens — `email|phone|id|card|nik|npwp|account|name` — so the four kinds added on 2026-09-17 are stripped like the rest.
-- **A bypass leaves no trace.** Nothing logs when `injectionGuardBypass` skips a scan, on any of the eight call sites. Already recorded as a finding in [`knowledge-ingest-loop.md`](knowledge-ingest-loop.md) for the knowledge path; it is true of the Chat path (`packages/host/src/runs.ts:135`) too.
+- **A bypass leaves no trace.** Nothing logs when `injectionGuardBypass` skips a scan, on any of the eight call sites. Already recorded as a finding in [`knowledge-ingest-loop.md`](knowledge-ingest-loop.md) for the knowledge path; it is true of the Chat path (`packages/host/src/runs.ts:136`) too.
 - **The envelope key is a bare SHA-256, not a KDF.** `wrappingKeyFromSecret` (`packages/core/src/crypto/envelope.ts:14-16`) is correct here only because both inputs are already 32 random bytes (`apps/desktop/main.cjs:290`, `packages/db/src/vault-key.ts:111`). Anyone who lets a human-chosen `AGENTFORGE_SECRETS_KEY` into that path has turned it into an unsalted password hash.
 - **`openPayload` cannot tell "legacy plaintext" from "someone replaced the envelope with plaintext".** `packages/core/src/crypto/envelope.ts:62`/`:65` return the value whenever it does not look like an envelope. The GCM tag protects a sealed row; it protects nothing about a row that was never sealed.
 - **Thread titles are plaintext and derived from the first user message.** `packages/host/src/threads.ts:201`, `:228` open the sealed content and write a title with `.set({ title })` at `:252-255`, unsealed. A message body that is sealed at rest can still surface, truncated, in a plaintext `threads.title` column.

@@ -233,6 +233,7 @@ export function ensureSchema(sqlite: Database.Database): void {
   ensureMarketTables(sqlite);
   ensureAuthSessionTables(sqlite);
   ensureTenantTables(sqlite);
+  ensureTenantUsageTable(sqlite);
   ensureWorkspaceColumns(sqlite);
   assertKernelTables(sqlite);
 }
@@ -449,6 +450,36 @@ function ensureTenantTables(sqlite: Database.Database): void {
       CREATE UNIQUE INDEX IF NOT EXISTS organizations_tenant_slug ON organizations (tenant_id, slug);
     `);
   }
+}
+
+/**
+ * The Phase 5 usage ledger, for a database stamped past 0016 without it (the baseline-stamp case
+ * every healer above covers). Mirrors drizzle/0016_tenant_usage.sql exactly, including the
+ * deliberate absence of a foreign key on `organization_id`.
+ */
+function ensureTenantUsageTable(sqlite: Database.Database): void {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS tenant_usage (
+      id text PRIMARY KEY NOT NULL,
+      tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE cascade,
+      organization_id text NOT NULL,
+      workspace_id text,
+      user_id text,
+      mode text NOT NULL,
+      model text NOT NULL,
+      unit text NOT NULL,
+      quantity integer NOT NULL,
+      input_tokens integer DEFAULT 0 NOT NULL,
+      output_tokens integer DEFAULT 0 NOT NULL,
+      cost_usd_micros integer,
+      unpriced_reason text,
+      run_id text,
+      at integer NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS tenant_usage_tenant_at_idx ON tenant_usage (tenant_id, at);
+    CREATE INDEX IF NOT EXISTS tenant_usage_tenant_mode_idx ON tenant_usage (tenant_id, mode, at);
+    CREATE INDEX IF NOT EXISTS tenant_usage_unpriced_idx ON tenant_usage (unpriced_reason, at);
+  `);
 }
 
 function ensureArtifactTables(sqlite: Database.Database): void {

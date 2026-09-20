@@ -43,6 +43,7 @@ import { mediaWorkCard, musicWorkCard } from "./work-cards";
 import type { WorkSourceType } from "./knowledge";
 import { imageGenerateFailedMessage, withImageOutputLanguage } from "./image-output-locale";
 import { localeForRun } from "./run-context";
+import { recordImageUsage, recordMusicUsage, recordVideoUsage } from "./usage-record";
 
 export type StudioGenerateOptions = {
   /** Knowledge source type for the work card. Defaults to Images / Videos; Edit passes "Edit". */
@@ -287,9 +288,13 @@ export async function generateStudioImage(
   if (!url) {
     throw new ApiError("tool_failed", toolFailureMessage(output, imageGenerateFailedMessage(locale)), 400);
   }
+  // Metered here, not after the file is stored: the gateway has already charged for this image, so
+  // a failure to save it must not be a call that vanishes from the ledger (Phase 5 lane A). The
+  // model recorded is the one that answered, which is not always the one that was asked for.
+  const usedModel = toolModel(output, model);
+  recordImageUsage(tenant, { model: usedModel, count: 1, aspect: body.aspect });
   const { saveGeneratedImage } = await import("./media");
   const stored = await saveGeneratedImage(tenant, url);
-  const usedModel = toolModel(output, model);
   const id = mediaIdFromUrl(stored);
   if (id) {
     await persistMeta({
@@ -330,6 +335,9 @@ export async function generateStudioVideo(
   if (body.imageUrl && !videoCapabilities(model).imageToVideo) {
     throw new ApiError("video_still_unsupported", modeMessage("videoStillUnsupported", localeForRun()), 400);
   }
+  // The billable length is the snapped one the gateway is actually asked for, never `body.seconds`:
+  // a model that only does 5 s clips bills 5 s for a 4 s request.
+  const seconds = snapVideoSeconds(model, body.seconds);
   const output = await runWithToolSecrets(scope, () =>
     videoGenerateTool.execute(
       {
@@ -337,7 +345,7 @@ export async function generateStudioVideo(
         aspect_ratio: body.aspect,
         image_url: body.imageUrl,
         model,
-        seconds: snapVideoSeconds(model, body.seconds),
+        seconds,
         resolution: body.resolution,
       },
       tenant,
@@ -348,9 +356,17 @@ export async function generateStudioVideo(
     const message = toolFailureMessage(output, modeMessage("videoGenerateFailed", localeForRun()));
     throw new ApiError("tool_failed", message, studioVideoFailureStatus(message));
   }
+  // Same rule as images: the gateway has been paid, so the row is written before the file is
+  // stored. Videos are metered in seconds because every list price in `media-pricing.ts` is
+  // per second, and the clip length is the only thing that moves the number.
+  const usedModel = toolModel(output, model);
+  recordVideoUsage(tenant, {
+    model: usedModel,
+    seconds,
+    ...(body.resolution ? { resolution: body.resolution } : {}),
+  });
   const { saveGeneratedVideo } = await import("./media");
   const stored = await saveGeneratedVideo(tenant, url);
-  const usedModel = toolModel(output, model);
   const id = mediaIdFromUrl(stored);
   if (id) {
     await persistMeta({
@@ -450,6 +466,9 @@ export async function generateStudioMusic(
     );
   }
   const usedModel = toolModel(output, model);
+  // One charge, however many takes come back — so the unit is `jobs` and the quantity is 1. Metered
+  // before the takes are stored, like the other studios: the gateway has already billed for them.
+  recordMusicUsage(tenant, { model: usedModel });
   const { saveGeneratedAudio } = await import("./media");
   const saved: StudioTrackResult[] = [];
   for (const track of tracks) {
@@ -509,10 +528,14 @@ export async function writeStudioLyrics(
   if (record.success !== true || !text) {
     throw new ApiError("tool_failed", toolFailureMessage(output, modeMessage("lyricsGenerateFailed", locale)), 400);
   }
+  const usedModel = toolModel(output, body.model ?? "");
+  // A lyrics draft is its own flat-rate gateway call, billed whether or not the desk goes on to
+  // generate a song from it.
+  recordMusicUsage(tenant, { model: usedModel });
   return {
     text,
     title: typeof record.title === "string" && record.title.trim() ? record.title.trim() : undefined,
-    model: toolModel(output, body.model ?? ""),
+    model: usedModel,
   };
 }
 

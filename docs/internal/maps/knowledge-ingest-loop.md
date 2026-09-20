@@ -39,7 +39,7 @@ There is no separate list route; listing rides on `GET /api/v1/knowledge`. `POST
 
 **Manual.** `addFileSource` (`packages/host/src/knowledge.ts:499`) mints a `crypto.randomUUID()` and calls `extractText(filename, mime, bytes)` (`packages/host/src/knowledge-extract.ts:243`). **Changed on 2026-09-17:** every extraction failure is now a structured 4xx with no row at all — `pdf_*`, `docx_*`, `document_*` and `unsupported_content_type` alike — where a `pdf_*` / `docx_*` failure used to be recorded as a `Failed` row answered `201`. The injection scan also runs *before* the write now, so a tripped upload is `400 injection_blocked` with no row and no stored bytes. It also writes the raw bytes to `mediaRoot()/knowledge/${organizationId}/${id}-${filename}` (`:513-516`). `addUrlSource` (`:523-540`) forces HTTPS via `assertAllowedEndpointUrl`, fetches through `fetchPublicHttps` (SSRF guards, per-hop revalidation, byte and time caps), then routes the body through `htmlToText` or `plainToText`. `addPastedSource` caps at 2,000,000 chars with a 413 (`:564`, `:583-584`).
 
-**Automatic — the loop.** Every finished Chat turn and every job mode (Research, Data, Finance, Documents, Presentation, Images, Videos, Edit) becomes one "work card" through `upsertWorkSource` (`packages/host/src/knowledge-ingest.ts:25-85`), fired and forgotten from `packages/host/src/runs.ts:385`. It is **idempotent per `(workspace, origin.kind, origin.id)`** via `findSourceByOrigin` (`packages/host/src/knowledge.ts:211-218`), so re-running a thread rewrites one row instead of piling up duplicates.
+**Automatic — the loop.** Every finished Chat turn and every job mode (Research, Data, Finance, Documents, Presentation, Images, Videos, Edit) becomes one "work card" through `upsertWorkSource` (`packages/host/src/knowledge-ingest.ts:25-85`), fired and forgotten from `packages/host/src/runs.ts:390`. It is **idempotent per `(workspace, origin.kind, origin.id)`** via `findSourceByOrigin` (`packages/host/src/knowledge.ts:211-218`), so re-running a thread rewrites one row instead of piling up duplicates.
 
 ### The injection guard
 
@@ -65,7 +65,7 @@ Vectors go to `knowledge_vectors` with the embedding stored as a **JSON-stringif
 
 `retrieveChunks` (`packages/host/src/knowledge.ts:783-797`) → `SqliteBuiltinBackend.retrieve` (`packages/host/src/knowledge/backends/builtin.ts:250-273`) runs FTS5 bm25 and a cosine scan in parallel and fuses them with Reciprocal Rank Fusion (`fuseRrf`, `:155-176`, `RRF_K = 60`). Default `limit` is 4 (`packages/host/src/knowledge.ts:786`), vector floor `MIN_COSINE = 0.12` (`packages/host/src/knowledge-embed.ts:260`).
 
-`knowledgeInjection` (`packages/host/src/knowledge.ts:835-877`) renders the hits as `[n] <name>\n<body>` inside a `## Retrieved sources` block. It is called from exactly one product path: `startModalityRun` (`packages/host/src/runs.ts:153`), appended to the agent's system prompt at `:158`. The Knowledge context popover route is the only other caller.
+`knowledgeInjection` (`packages/host/src/knowledge.ts:835-877`) renders the hits as `[n] <name>\n<body>` inside a `## Retrieved sources` block. It is called from exactly one product path: `startModalityRun` (`packages/host/src/runs.ts:154`), appended to the agent's system prompt at `:158`. The Knowledge context popover route is the only other caller.
 
 Afterwards, on a *completed* run only: `recordRetrievals` (`packages/host/src/knowledge-retrievals.ts:39-72`) writes one row per served chunk and projects a `retrieved` graph edge, and `recordCites` parses `[n]` markers out of the reply (`packages/host/src/knowledge-cites.ts`, fenced code excluded) and bumps `cites` edge weights.
 
@@ -80,7 +80,7 @@ Two different things share the word "reindex":
 
 ### Tenant scoping
 
-Every read and write is parameterized by `workspace_id` in application code. There is **no schema-level enforcement**: `knowledge_chunks` is a bare FTS5 virtual table with `workspace_id` as a plain column (`packages/db/src/ensure-schema.ts:645-649`), no foreign key, no row-level security. The actual guarantee is the tests: `packages/host/src/knowledge-reindex.test.ts:314-322` (reindexing another workspace's source id resolves `{status:"missing"}` and leaves its chunks untouched), `:369-394` (a workspace sweep never touches another), `packages/host/src/knowledge-retrievals.test.ts:61-64` ("Another workspace never shows up in this one's count").
+Every read and write is parameterized by `workspace_id` in application code. There is **no schema-level enforcement**: `knowledge_chunks` is a bare FTS5 virtual table with `workspace_id` as a plain column (`packages/db/src/ensure-schema.ts:676-680`), no foreign key, no row-level security. The actual guarantee is the tests: `packages/host/src/knowledge-reindex.test.ts:314-322` (reindexing another workspace's source id resolves `{status:"missing"}` and leaves its chunks untouched), `:369-394` (a workspace sweep never touches another), `packages/host/src/knowledge-retrievals.test.ts:61-64` ("Another workspace never shows up in this one's count").
 
 ### Storage
 
