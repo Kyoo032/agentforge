@@ -457,8 +457,8 @@ export function requireGatewayAllowed(settings: StoredSecrets, opts: GatewayGate
 
 /**
  * The spelling every route should use: one argument, and the tenant reaches both the settings file
- * and the verdict file. `requireGatewayAllowedFor(tenant)` — the pre-Phase-3
- * form — reads the local tenant's key and the local tenant's verdict whoever is calling.
+ * and the verdict file. The pre-Phase-3 form, `requireGatewayAllowed(loadSettings())`, reads the
+ * local tenant's key and the local tenant's verdict whoever is calling.
  */
 export function requireGatewayAllowedFor(
   tenant: Pick<TenantContext, "tenantId" | "workspaceId">,

@@ -5,7 +5,7 @@
  * every other tenant gets a `tenants/<tenantId>/` subtree inside it.**
  *
  * `local-tenant` is not a tenant someone signed up for — it is the id migration `0015` stamped onto
- * the single organization every pre-Phase-3 database already had (`local-owner.ts:7`). Its files
+ * the single organization every pre-Phase-3 database already had (`packages/core/src/local-owner.ts:7`). Its files
  * are the install's files. Giving it a prefix would mean moving a desktop user's media, matters and
  * `settings.enc` on upgrade, so it keeps the layout it has and nothing is moved: a desktop data
  * directory is byte-identical before and after this change, and every `storage_path` already in

@@ -46,7 +46,7 @@ export async function handlePostEnhancePrompt(request: HostRequest): Promise<Hos
       return jsonOk({ text: stubEnhancePrompt(text, surface, locale), source: "stub" });
     }
     // Past the stub short-circuit this is a real model call, so the gate decides.
-    requireGatewayAllowed(settings);
+    requireGatewayAllowed(settings, { tenant });
     const catalog = listSelectableModels();
     const { defaults } = modeCatalogPayload();
     const requested =
