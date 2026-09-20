@@ -15,7 +15,7 @@ const PAD_R = 10;
 const PAD_T = 14;
 const PAD_B = 32;
 
-export function trimLeadingEmptyBuckets<T extends { usd: number; models: { length: number }[] }>(
+export function trimLeadingEmptyBuckets<T extends { usd: number; models: unknown[] }>(
   buckets: T[],
   minKeep: number,
 ): T[] {

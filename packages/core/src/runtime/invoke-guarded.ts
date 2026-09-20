@@ -25,8 +25,8 @@ const NETWORK_SOURCED_TOOLS = new Set([
   "market_macro",
 ]);
 
-export async function invokeToolGuarded(
-  tool: ToolDefinition<ZodTypeAny>,
+export async function invokeToolGuarded<TSchema extends ZodTypeAny>(
+  tool: ToolDefinition<TSchema>,
   rawArgs: unknown,
   tenant: TenantContext,
 ): Promise<unknown> {

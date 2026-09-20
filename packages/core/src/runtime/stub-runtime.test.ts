@@ -2,11 +2,18 @@ import { describe, expect, it } from "vitest";
 import { registerPlatformTools } from "../tools/platform/register";
 import { StubRuntime } from "./stub-runtime";
 import type { AgentVersionRecord, ToolBindingRecord } from "../agents/service";
+import type { TenantContext } from "../tenancy/types";
 import type { RuntimeEvent } from "./types";
 
 registerPlatformTools();
 
-const tenant = { tenantId: "local-tenant", organizationId: "org", workspaceId: "ws", userId: "user" };
+const tenant: TenantContext = {
+  tenantId: "local-tenant",
+  organizationId: "org",
+  workspaceId: "ws",
+  userId: "user",
+  role: "builder",
+};
 
 const version: AgentVersionRecord = {
   id: "v1",

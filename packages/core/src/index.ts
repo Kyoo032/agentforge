@@ -236,7 +236,7 @@ export {
   OP_TYPES,
   ASPECT_SIZE,
 } from "./edit";
-export type { EditProject, Asset, Clip, ApplyableOp, EditOp, AspectRatio, OpType } from "./edit";
+export type { EditProject, Asset, Clip, Ingredient, ApplyableOp, EditOp, AspectRatio, OpType } from "./edit";
 export { registerEditTools, setEditToolBackend, getEditToolBackend, editToolRefusal } from "./tools/edit";
 export type {
   EditToolBackend,
