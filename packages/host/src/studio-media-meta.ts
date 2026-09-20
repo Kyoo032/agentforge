@@ -4,11 +4,17 @@ import { mediaRoot } from "./media-root";
 
 export type StudioMediaMeta = {
   mediaId: string;
-  kind: "image" | "video";
+  kind: "image" | "video" | "audio";
   prompt: string;
+  /** Images and videos only; a track has no canvas, so Music writes an empty string. */
   aspect: string;
   model: string;
   createdAt: string;
+  /** Music only. The take's own title, the style tags it was given, and whether it has vocals. */
+  title?: string;
+  style?: string;
+  instrumental?: boolean;
+  durationSeconds?: number;
 };
 
 type MetaStore = Record<string, StudioMediaMeta>;
@@ -47,7 +53,7 @@ export async function getStudioMediaMeta(mediaId: string): Promise<StudioMediaMe
   return store[mediaId] ?? null;
 }
 
-export async function listStudioMediaMeta(kind: "image" | "video"): Promise<StudioMediaMeta[]> {
+export async function listStudioMediaMeta(kind: StudioMediaMeta["kind"]): Promise<StudioMediaMeta[]> {
   const store = await readStore();
   return Object.values(store)
     .filter((entry) => entry.kind === kind)

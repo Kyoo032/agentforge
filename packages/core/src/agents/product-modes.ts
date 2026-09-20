@@ -11,6 +11,7 @@ export const PRODUCT_MODES = [
   { id: "legal", label: "Legal", href: "/legal" },
   { id: "images", label: "Images", href: "/images" },
   { id: "videos", label: "Videos", href: "/videos" },
+  { id: "music", label: "Music", href: "/music" },
   { id: "edit", label: "Edit", href: "/edit" },
   { id: "presentations", label: "Presentation", href: "/presentations" },
 ] as const;

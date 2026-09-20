@@ -18,6 +18,8 @@ export type StoredSecrets = {
   imageGenModel?: string;
   /** Default model id for video_generate (not a secret). */
   videoGenModel?: string;
+  /** Default model id for music_generate (not a secret). */
+  musicGenModel?: string;
   /** Default chat model for Documents jobs. */
   documentGenModel?: string;
   /** Default chat model for Research jobs. */
@@ -88,6 +90,7 @@ export type MaskedSecrets = {
   toolBackends: Record<string, string>;
   imageGenModel?: string;
   videoGenModel?: string;
+  musicGenModel?: string;
   documentGenModel?: string;
   researchGenModel?: string;
   presentationGenModel?: string;
@@ -116,6 +119,7 @@ const WEKNORA_FIELDS = [
 const MODEL_FIELDS = [
   "imageGenModel",
   "videoGenModel",
+  "musicGenModel",
   "documentGenModel",
   "researchGenModel",
   "presentationGenModel",
@@ -264,6 +268,7 @@ export function maskSecrets(current: StoredSecrets): MaskedSecrets {
     toolBackends: current.toolBackends ?? {},
     imageGenModel: current.imageGenModel,
     videoGenModel: current.videoGenModel,
+    musicGenModel: current.musicGenModel,
     documentGenModel: current.documentGenModel,
     researchGenModel: current.researchGenModel,
     presentationGenModel: current.presentationGenModel,
