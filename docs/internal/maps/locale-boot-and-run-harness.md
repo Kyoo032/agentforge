@@ -70,9 +70,9 @@ from `gatewayHostLabel()` — see [`settings-and-gateway-gate.md`](settings-and-
 ### UI strings
 
 Catalogs are `apps/web/locales/{en,id}/<namespace>.json`, statically imported and assembled into
-`Record<AppLocale, Record<Namespace, MessageTree>>` (`apps/web/lib/i18n.ts:74-123`). 19 namespaces (`:41-61`):
+`Record<AppLocale, Record<Namespace, MessageTree>>` (`apps/web/lib/i18n.ts:74-123`). 22 namespaces (`:47-70`):
 `common, rail, settings, onboarding, chat, documents, research, images, videos, presentation, knowledge,
-workspaces, usage, market, data, finance, legal, edit, auth` — roughly 1,500 leaf keys each side.
+workspaces, usage, market, data, finance, legal, edit, auth, music, channels, meeting` — roughly 1,500 leaf keys each side.
 
 `t("namespace.path.to.key", vars?)` (`apps/web/lib/i18n.ts:194-201`) resolves through `lookup` (`:149-166`) and
 `interpolate` (`:168-176`), which replaces `{name}` placeholders. **Missing keys fail closed**: current locale →
@@ -168,7 +168,7 @@ while the screen reads "The gateway rejected this API key. Check the key at Toko
 | `packages/host/src/settings-store.ts:404-413` | `loadOwnerLocale` / `saveOwnerLocale` |
 | `packages/host/src/handlers/settings.ts` | Save, and `handleApplyLocale` behind `POST /api/v1/settings/apply-locale` (`:206`) |
 | `apps/web/lib/i18n.ts` | Catalogs, `t()`, `freezeLocale` / `applyLocale`, `LOCALE_RESTART_EVENT` |
-| `apps/web/locales/{en,id}/*.json` | 19 namespaces, ~1,500 keys each |
+| `apps/web/locales/{en,id}/*.json` | 22 namespaces, ~1,500 keys each |
 | `apps/web/components/settings-page.tsx:255-333` | The restart handler, the select, the banner and its button |
 | `packages/core/src/output-language.ts` | `withOutputLanguage`, `outputLanguageRule`, `gatewayRequiredMessage`, `searchKeyRequiredMessage` |
 | `packages/core/src/mode-messages.ts` | `modeMessage` — empty-result and failure fallbacks |
