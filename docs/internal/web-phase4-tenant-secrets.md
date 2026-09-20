@@ -369,6 +369,41 @@ not touch and getting the same finding. The one `lint/style/noNonNullAssertion` 
 `settings-store.ts` is pre-existing and carried verbatim from `main`. Two genuine findings in the
 new tests were fixed rather than suppressed.
 
+### Maps
+
+`pnpm maps:check` (`scripts/map-rot.mjs`): **75 docs, 2,135 citations, 0 hard, 129 soft** — against
+`main`'s 141 soft, so this branch leaves the maps in better shape than it found them, not worse.
+
+`map-drift.mjs` was read but **never run with `--write`**, per the brief: it re-points a citation
+onto whatever the diff maps its line to, which for a rewritten line is often an import. Instead its
+output was applied through a script that, for every proposed move, checked that the *new* line holds
+byte-for-byte the same text as the old one, and rewrote whole citation tokens rather than
+substrings. 123 citations were re-anchored that way. Everything it could not verify was read and
+rewritten by hand — those are the claims this diff did not merely move but invalidated:
+
+| Page | What was no longer true |
+|---|---|
+| `hosted-server-mode.md`, `hosted-security-controls.md` | "Start over refuses both scopes" — `scope: "key"` is now served on the server |
+| `pii-and-key-security.md` | `encryptedSettingsPath` is gone; `SettingsFileV2` gained `users`; an undecryptable payload refuses in server mode instead of quarantining |
+| `settings-and-gateway-gate.md` | `statePath` is gone, `keyFor` refuses the operator's environment, `resolveProviderKeys` takes an empty env in server mode |
+| `tenant-storage.md` | two rows of the layout table are files only on a desk; the locale is per user |
+| `locale-boot-and-run-harness.md` | the locale is no longer one machine-wide setting |
+| `tenancy-schema.md`, `database-and-migrations.md` | `tenant_state`, migration `0018`, and the reserved `0017` gap |
+
+Two citations in `legal-matter-run.md` and `documents.md` were already wrong on `main` — they named
+route ranges that had drifted onto other modes' routes — and were corrected while re-anchoring them.
+
+New page: [`maps/tenant-secrets-backend.md`](maps/tenant-secrets-backend.md), registered in
+`maps/README.md`.
+
+**Honest residue.** `map-drift.mjs` still reports moves and three unmapped citations against `main`.
+That is the tool reading this branch's *own* citations as if they were `main` line numbers — the two
+in `hosted-server-mode.md` and `settings-and-gateway-gate.md` are lines this branch wrote and are
+correct as they stand. The third is in `web-migration-plan.md`, whose gap table is a survey of what
+the code looked like when the plan was written; re-anchoring it would falsify the record, so it and
+the other dated documents (the handover, the lane docs, the blockers file) were deliberately left
+alone. 25 proposed moves fall in those files.
+
 Line endings: every file this branch changes matches `main`'s, checked file by file, including the
 three the brief named (`packages/core/src/index.ts`, `handlers/jobs.ts`, `handlers/settings.ts` —
 all CRLF, still CRLF).

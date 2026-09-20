@@ -26,7 +26,7 @@ Two things to hold onto. **Research is the only mode that needs two secrets**: a
 
 ### 3. Host — gate, then stream
 
-`packages/host/src/router.ts:258-259` maps both routes:
+`packages/host/src/router.ts:263-264` maps both routes:
 
 | Route | Handler | On refusal |
 |---|---|---|

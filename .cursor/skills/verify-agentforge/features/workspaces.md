@@ -41,7 +41,7 @@ Preconditions:
 
 - Create does not just add a desk — `handlePostWorkspaces` calls `writeSelectedWorkspaceId` before returning 201 (`packages/host/src/handlers/workspaces.ts:75`), so the new desk becomes current. There is no "create without switching".
 - The current desk is a **process-global file**, `data/workspace-id.txt` (`packages/host/src/workspace.ts:35-41`), not a per-browser session. Switching desks in an automated drive switches them in the operator's open window too. Switch back to Default before you finish.
-- Deleting a desk cascades its threads, messages and runs (`packages/db/src/schema.ts:244-246`), hand-wipes six `knowledge_*` tables (`packages/db/src/ensure-local-owner.ts:199-212`) and drops the desk's `settings.enc` entry. It is not recoverable locally.
+- Deleting a desk cascades its threads, messages and runs (`packages/db/src/schema.ts:267-269`), hand-wipes six `knowledge_*` tables (`packages/db/src/ensure-local-owner.ts:199-212`) and drops the desk's `settings.enc` entry. It is not recoverable locally.
 - Both collapsed and expanded `AppRail` branches must carry `data-testid="workspaces-link"` and `workspaces-switcher`. A single branch only is a harness bug.
 - Workspaces is not a product mode. The page control is `workspaces-link`, not `mode-workspaces`.
 - Create/Open navigate to `/chat`, not `/agents`.

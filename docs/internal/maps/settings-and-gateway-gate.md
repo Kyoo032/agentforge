@@ -74,10 +74,10 @@ and the desk reports stub. The defence is a **source-grep test**:
 named exceptions (`studio-generate.ts`, `handlers/jobs.ts`, listed at `:22-23`).
 
 **`settingsPayload()`** (`packages/host/src/handlers/settings.ts:85-122`) is what the renderer sees. Keys are
-never in it: `maskSecrets` (`packages/core/src/secrets.ts:250-279`) emits booleans (`hasOpenai`, …) and
+never in it: `maskSecrets` (`packages/core/src/secrets.ts:258-287`) emits booleans (`hasOpenai`, …) and
 fingerprints (`sha256:` + the first 12 hex chars of SHA-256 over the trimmed secret,
 `packages/core/src/security/fingerprint.ts:9-15`). `openaiBaseUrl` in the payload is always
-`resolvedGatewayBaseUrl()`, never a stored value (`packages/core/src/secrets.ts:262-263`).
+`resolvedGatewayBaseUrl()`, never a stored value (`packages/core/src/secrets.ts:270-271`).
 
 **What the owner can actually change on this page.** Two fields, and the POST body says so: the settings form
 submits exactly `{ openaiApiKey, editTurnCapUsd }` (`apps/web/components/settings-page.tsx:189-197`, with the
@@ -86,7 +86,7 @@ of `{ locale }` (`:219-229`) — see [`locale-boot-and-run-harness.md`](locale-b
 turn cap (`settings-edit-turn-cap`, `:396`) is a number input clamped to 0.5–50 on the way in and again on the
 way out (`:162-166`, `:388-395`), default 2.
 
-**Key resolution.** `resolveProviderKeys(settings, env)` (`packages/core/src/secrets.ts:299-330`), today:
+**Key resolution.** `resolveProviderKeys(settings, env)` (`packages/core/src/secrets.ts:322-334` for the signature, the body through `:360`), today — where `env` is the process environment on a desk and a **frozen empty object** in server mode, which is Phase 4's change (`:335-337`):
 
 ```
 openai        = settings.openaiApiKey || env.OPENAI_API_KEY
@@ -98,7 +98,7 @@ volcengine    = settings.volcengineApiKey || env.ARK_API_KEY || env.VOLCENGINE_A
 
 `reuseOpenAI(dialect)` hands the OpenAI-slot key to another provider's slot when `guessDialectFromKey` says it
 actually belongs there — i.e. someone pasted an Anthropic key into the one key field. Stub vs live is a separate
-call, `resolveRuntimeMode({ settingsHasKey, envRuntime })` (`packages/core/src/secrets.ts:292-297`).
+call, `resolveRuntimeMode({ settingsHasKey, envRuntime })` (`packages/core/src/secrets.ts:300-305`).
 
 **Endpoint pinning.** `PINNED_GATEWAY_BASE_URL = "https://api.tokotokenai.com/v1"`
 (`packages/core/src/gateway/pinned.ts:8`), with a SHA-256 of the literal checked by
@@ -449,19 +449,19 @@ file. That is the right trade for a local-first desk that has to keep working of
 licence service, against the bearer on the request.** … If a limit can be defeated by editing a local file, it
 was never enforced."
 
-`[Supported]` The code agrees at every branch: missing or unreadable verdict opens
-(`packages/host/src/gateway-gate.ts:138-162`), an unwritable data dir costs a cached decision and nothing else
-(`:173-197`, `:488-492`), the background re-check swallows its own failures (`:549-555`), and the stub runtime is
-always open (`:278-280`). **Confidence: high.** The design record is prose in `AGENTS.md`, not a commit body —
+`[Supported]` The code agrees at every branch: a missing or unreadable verdict opens
+(`loadGateState`, `packages/host/src/gateway-gate.ts:157-187`), an unwritable store costs a cached decision and
+nothing else (`saveGateState`, `:198-213`; `runGatewayCheck`, `:522-529`), the background re-check swallows its
+own failures (`:593-595`), and the stub runtime is always open off server mode (`:291-293`). **Confidence: high.** The design record is prose in `AGENTS.md`, not a commit body —
 `git log --oneline -20 -- packages/host/src/gateway-gate.ts packages/core/src/gateway/gate-types.ts` returns only
 `8831bc4` and `4db009a`, and `4db009a`'s message is about locale and layout, not the gate.
 
 **Why sign-out clears the key on every desk rather than the current one.** `[Direct]` the comment at
-`packages/host/src/settings-store.ts:371-377`: a key left on a second desk would keep the gate open after "forget
+`packages/host/src/settings-store.ts:522-538`: a key left on a second desk would keep the gate open after "forget
 my key". **Confidence: high.**
 
 **Why the fresh-install wipe is a named list and deferred to boot.** `[Direct]` two comments:
-`packages/host/src/handlers/settings.ts:269-274` — "Deliberately a named list, never the directory: in the packaged
+`packages/host/src/handlers/settings.ts:275-280` — "Deliberately a named list, never the directory: in the packaged
 app this same folder is Electron's userData / Chromium profile, so `host-status.json`, `Local Storage/`, caches
 and cookies are not ours to delete"; and `:341` — "the database is open and ffmpeg may still be writing, so the
 wipe is queued for the next boot". `[Supported]` `packages/host/src/handlers/settings.test.ts:365-385` pins the

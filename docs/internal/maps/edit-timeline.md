@@ -350,7 +350,7 @@ The job runner has no request to read a tenant from, so it reads one by project 
 | `apps/web/lib/edit-client.ts` | `postEditOps`, `foldApplied`, `isReviewOpen`, `turnSpendUsd`, the API wrappers |
 | `apps/web/lib/edit-badges.ts` | Which cards an owner touch auto-keeps |
 | `apps/web/lib/use-emit-lock.ts` | The 5 s agent-writing lock and the clip ids it dims |
-| `packages/host/src/router.ts:193-212` | The 20 `/api/v1/edit/*` routes |
+| `packages/host/src/router.ts:198-217` | The 20 `/api/v1/edit/*` routes |
 | `packages/host/src/handlers/edit.ts` | Every edit handler; upload limits and mime allow-list |
 | `packages/host/src/edit/ops.ts` | `appendOps`, `foldProject`, `loadProjectRow`, `writeSnapshot` — the one write path. Every one of them takes a required `workspaceId` |
 | `packages/host/src/edit/projects.ts` | Create, list, bundle, `mapCard` / `mapJob` / `mapUnplaced` |

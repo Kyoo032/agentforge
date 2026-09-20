@@ -37,7 +37,7 @@ Drafts are per desk **and per task**: key `agentforge-finance-draft:<scope>:<tas
 
 ### 3. Routes and the two gates
 
-Seven routes, all `POST` (`packages/host/src/router.ts:260-266`):
+Seven routes, all `POST` (`packages/host/src/router.ts:265-271`):
 
 | Route | Handler | Gate | Live runtime |
 |---|---|---|---|
@@ -175,7 +175,7 @@ The registry renders it (`packages/host/src/renderers/registry.ts:22-28`): `xlsx
 
 | File | Role |
 |---|---|
-| `packages/host/src/router.ts:260-266` | The seven Finance routes |
+| `packages/host/src/router.ts:265-271` | The seven Finance routes |
 | `packages/host/src/handlers/finance.ts` | Generate, stream, parse, regenerate, docx; the gate and the task check |
 | `packages/host/src/handlers/finance-export.ts` | `/finance/export` — report first, brief second, artifact third |
 | `packages/host/src/handlers/finance-import.ts` | `/finance/import` — spreadsheet or document to figures text |

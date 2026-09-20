@@ -97,7 +97,7 @@ the client can forge or read. Cookie is `__Host-agentforge_session` in server mo
 (`ABSOLUTE_LIFETIME_MS`, `:41`), sliding at most every 5 minutes (`SLIDE_INTERVAL_MS`, `:43`) so a
 busy tab does not write a row per request.
 
-The gate runs in `packages/host/src/router.ts:405-413`, **before the route table is consulted** — an
+The gate runs in `packages/host/src/router.ts:410-418`, **before the route table is consulted** — an
 unauthenticated caller learns nothing about which paths exist.
 
 ### 5. Rate limits
@@ -149,8 +149,8 @@ answer, so a public name pointing at `169.254.169.254` does not pass.
 
 | Route | Where | Why |
 |---|---|---|
-| `POST /api/v1/settings` — operator keys | `packages/host/src/handlers/settings.ts:164-197` | gateway key, provider keys, `toolKeys`, `toolBackends` and `injectionGuardBypass` are the operator's, not a tenant's |
-| `POST /api/v1/settings/reset` and its cancel | `packages/host/src/handlers/settings.ts:384-464` | "Start over" deletes the data directory, which on a host is everyone's |
+| `POST /api/v1/settings` — operator keys | `packages/host/src/handlers/settings.ts:168-201` | gateway key, provider keys, `toolKeys`, `toolBackends` and `injectionGuardBypass` are the operator's, not a tenant's |
+| `POST /api/v1/settings/reset` scope `all`, and its cancel | `resetEverything`, `packages/host/src/handlers/settings.ts:423-440` | "Start over" deletes the data directory, which on a host is everyone's. Scope `key` is **allowed** on the server since Phase 4 — it only forgets the caller's own key (`resetGatewayKey`, `:400-415`) |
 | component install stream | `packages/host/src/handlers/components.ts:45-67` | the image bakes anydoc in; the download path has nothing to do, and turning it off is what unblocks `noexec` on `/data` |
 
 ### 9. The container

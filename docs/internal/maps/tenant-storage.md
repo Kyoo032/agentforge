@@ -82,9 +82,9 @@ project's scratch dir, with the denial list attached.
 ### Requests, and work that outlives them
 
 A handler has a `TenantContext` and passes it: `loadSettings(tenant)`,
-`requireGatewayAllowedFor(tenant)` (`packages/host/src/gateway-gate.ts:463-468`). A bare desk id still
+`requireGatewayAllowedFor(tenant)` (`packages/host/src/gateway-gate.ts:467-472`). A bare desk id still
 works on the desktop and on webdev, and **throws `tenant_required` in server mode**
-(`resolveSettingsScope`, `packages/host/src/settings-store.ts:44-56`) rather than silently reading the
+(`resolveSettingsScope`, `packages/host/src/settings-store.ts:45-57`) rather than silently reading the
 local tenant's file.
 
 Background work has no request. Lane C's note ([`../web-phase3-lane-c.md`](../web-phase3-lane-c.md)) is

@@ -122,7 +122,7 @@ So instead of rendering a dead control, the host answers with a machine-readable
 | `packages/host/src/handlers/jobs.ts` | `handleGetMusic`, `handlePostMusic`, `handlePostMusicLyrics` |
 | `packages/host/src/studio-generate.ts` | Body schemas and parse guards, `generateStudioMusic`, `writeStudioLyrics`, `listStudioGallery` |
 | `packages/host/src/media.ts` | `DEFAULT_UPLOAD_KINDS`, the `allow` parameter, `saveGeneratedAudio` |
-| `packages/host/src/router.ts:247-249` | The three routes |
+| `packages/host/src/router.ts:252-254` | The three routes |
 | `apps/web/components/music-studio.tsx` | The page: mode, model, lyrics, style, title, instrumental, draft-lyrics, library |
 | `apps/web/lib/media-estimate.ts:232` | `musicEstimateView` — the price line above the button |
 | `scripts/probe-gateway-music.ts` | Live three-step probe: catalog → submit → poll |
@@ -141,7 +141,7 @@ So instead of rendering a dead control, the host answers with a machine-readable
 - **The chat media route stays narrow (G-27).** `POST /api/v1/media` accepts image and video only. Generated audio never arrives as an upload; it comes through `saveGeneratedAudio`. `edit/import.test.ts > "does not loosen the chat media route"` is the guard, and it caught this exact mistake during the build.
 - **`MUSIC_ID` must not contain `udio`.** It matches *inside* `qwen-audio-…`, which classifies TTS ids as music and switches voice-over off. Udio is not in this catalog; the pattern is `/suno_music|\bmusic\b|lyria/i`.
 - **No new by-id routes.** Tracks are served by the existing `GET /api/v1/media/:mediaId/file`. Nothing new needs covering in the tenancy harness beyond the three routes above.
-- **`media.kind` is free text** (`packages/db/src/schema.ts:529`), so `"audio"` needed no migration. That was deliberate: Phase 3 tenancy owns `packages/db` migrations and this change does not touch them.
+- **`media.kind` is free text** (`packages/db/src/schema.ts:552`), so `"audio"` needed no migration. That was deliberate: Phase 3 tenancy owns `packages/db` migrations and this change does not touch them.
 - **Suno has no vendor list price.** It sells a consumer subscription, not an API, so the price line shows the gateway's per-call figure or honestly says there is none on file. Do not invent a comparison.
 - **The wire is unproven live.** See the callout at the top. `scripts/probe-gateway-music.ts` is the check; exit 0 is what promotes this section from "documented" to "verified".
 

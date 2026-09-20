@@ -7,7 +7,7 @@ Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenan
 The server-side half of signing in to the hosted deployment: four `/api/v1/auth/*` routes, an opaque
 cookie, a SQLite row per session, and a gate in the router that refuses every other `/api` call
 without one. It landed in PR #56 (`6ae177a`) and runs **only** when `AGENTFORGE_SERVER` is `1`
-(`packages/core/src/server-mode.ts:12-15`, read per request at `packages/host/src/router.ts:405`), so
+(`packages/core/src/server-mode.ts:12-15`, read per request at `packages/host/src/router.ts:410`), so
 the desktop IPC path and webdev never mint, read or require a session.
 
 It is a backend. There is no sign-in screen — see **Not built** below. The verified session rides on
@@ -58,12 +58,12 @@ is swallowed without attaching the cause, because that cause can carry the reque
 ### Every other call — the session gate
 
 `dispatch` upper-cases the method and strips trailing slashes once
-(`packages/host/src/router.ts:401-402`), resolves server mode **per request** rather than at import
-(`packages/host/src/router.ts:403-405`), and runs the gate only in server mode
-(`packages/host/src/router.ts:407-413`).
+(`packages/host/src/router.ts:406-407`), resolves server mode **per request** rather than at import
+(`packages/host/src/router.ts:408-410`), and runs the gate only in server mode
+(`packages/host/src/router.ts:412-418`).
 
-`gate` (`packages/host/src/router.ts:370-398`) lets a path through untouched when it is not under
-`/api/` (`packages/host/src/router.ts:346`, `packages/host/src/router.ts:376`) or when
+`gate` (`packages/host/src/router.ts:375-403`) lets a path through untouched when it is not under
+`/api/` (`packages/host/src/router.ts:351`, `packages/host/src/router.ts:381`) or when
 `isSessionExemptPath` says so. That function
 (`packages/host/src/auth/routes.ts:108-113`) exempts exactly three things:
 
@@ -80,13 +80,13 @@ different method is a different answer: `GET /api/v1/components` is exempt while
 
 Everything else calls `requireSessionFor` (`packages/host/src/auth/routes.ts:150-156`), which throws
 `authError(reason, 401)` on any bad verdict. That 401 is produced **before the route table is
-consulted** (`packages/host/src/router.ts:393-397`), so an unauthenticated caller cannot learn which
+consulted** (`packages/host/src/router.ts:398-402`), so an unauthenticated caller cannot learn which
 paths exist: an unknown path and a real one both answer `401 session_required`.
 
 On success the four identifiers are attached to the request as `request.session`
-(`packages/host/src/router.ts:384-392`, `packages/host/src/types.ts:32-37`). `dispatch` destructures
+(`packages/host/src/router.ts:389-397`, `packages/host/src/types.ts:32-37`). `dispatch` destructures
 any `session` the caller supplied off the request first and re-adds only the gate's own
-(`packages/host/src/router.ts:429-430`), so an invented session can never reach a handler as identity,
+(`packages/host/src/router.ts:434-435`), so an invented session can never reach a handler as identity,
 and the caller's request object is never written to.
 
 ### Verify, slide, expire
@@ -213,10 +213,10 @@ itself (`packages/host/src/http-adapter.ts:481`), which is what `readSessionCook
 `packages/db/drizzle/meta/_journal.json:103-109`). Nine columns, epoch milliseconds throughout, and
 two indexes: `auth_sessions_user_seen_idx` on `(user_id, last_seen_at)` for the Phase 5 seat counter,
 and `auth_sessions_expires_idx` on `expires_at`. The drizzle definition is
-`packages/db/src/schema.ts:731-749`.
+`packages/db/src/schema.ts:754-772`.
 
 Every statement is `IF NOT EXISTS`, and the same DDL is mirrored in
-`ensureAuthSessionTables` (`packages/db/src/ensure-schema.ts:387-453`, called at
+`ensureAuthSessionTables` (`packages/db/src/ensure-schema.ts:388-454`, called at
 `packages/db/src/ensure-schema.ts:234`), because a database baseline-stamped past this migration has
 the journal row without the table.
 
@@ -440,7 +440,7 @@ and `GET /api/v1/settings` answers `401 session_required` with the same envelope
 ## Why
 
 **The hosted server gates reads as hard as writes.**
-`[Direct]` — `packages/host/src/router.ts:362-369` and
+`[Direct]` — `packages/host/src/router.ts:367-374` and
 `packages/host/src/auth/routes.ts:102-107` both record the reasoning: a GET returns settings, threads,
 artifact bytes and event streams, so "safe method" is not a meaningful category here, and the method
 is part of the exemption key rather than an exemption of its own.

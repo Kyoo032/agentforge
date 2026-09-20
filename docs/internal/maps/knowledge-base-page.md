@@ -109,7 +109,7 @@ Retrieval itself is `SqliteBuiltinBackend.retrieve` (`packages/host/src/knowledg
 
 That line reaches the user through `GET /api/v1/knowledge/context?threadId=` (`packages/host/src/handlers/knowledge.ts:314-329`, gated at `:316`) — the only other caller of `knowledgeInjection`. `ChatSession` fetches it (`apps/web/components/chat-session.tsx:347-357`) and hands the `parts` array to `ChatContextChip`, which renders `chat-context` (`apps/web/components/chat-context-chip.tsx:171`) and, on click, the portalled `chat-context-breakdown` (`:120`) with one row per part: Soul / Memories / Sources. The route returns `prompt` and `parts` only — `chunks` stays server-side because it is the retrieval record.
 
-After a **completed** run the host closes the loop: `recordRetrievals` writes one row per injected chunk and projects the `retrieved` edge, and `recordCites(…, citedSources(assistantText, knowledge.chunks))` turns bare `[n]` markers into `cites` edges (`packages/host/src/runs.ts:363-385`, mirrored at `:411-422`). `citedSources` (`packages/host/src/knowledge-cites.ts:64-76`) is positional: `chunks[marker - 1]`, deduped by source, and a marker past the injected count is silently dropped.
+After a **completed** run the host closes the loop: `recordRetrievals` writes one row per injected chunk and projects the `retrieved` edge, and `recordCites(…, citedSources(assistantText, knowledge.chunks))` turns bare `[n]` markers into `cites` edges (`packages/host/src/runs.ts:366-388`, mirrored at `:411-422`). `citedSources` (`packages/host/src/knowledge-cites.ts:64-76`) is positional: `chunks[marker - 1]`, deduped by source, and a marker past the injected count is silently dropped.
 
 ### Failure modes
 

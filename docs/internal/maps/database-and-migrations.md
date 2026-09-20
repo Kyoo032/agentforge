@@ -124,7 +124,7 @@ Two tables exist only in SQL and have no Drizzle declaration, because they are F
 
 ### Migrations
 
-`ensureSchema(sqlite)` (`packages/db/src/ensure-schema.ts:192-239`) runs on **every boot**, from
+`ensureSchema(sqlite)` (`packages/db/src/ensure-schema.ts:192-240`) runs on **every boot**, from
 `client.ts:51`. There is no separate migrate step in the app's start path.
 
 `migrationsFolder()` (`:64-79`) resolves the committed folder: `AGENTFORGE_MIGRATIONS_DIR` when set
@@ -233,7 +233,7 @@ next boot**, because the database is open and ffmpeg may still be writing.
   renames it (`:99-104`) — a half-written marker would be read as malformed on the next boot and
   silently cancel the wipe. The caller is the Settings handler:
   `requestDataReset(localDataDir(), [...HOST_RESET_ENTRIES])`
-  (`packages/host/src/handlers/settings.ts:346`, list at `:274-293`).
+  (`packages/host/src/handlers/settings.ts:352`, list at `:274-293`).
 - `applyPendingDataReset(dir)` (`:248-283`) is safe on every boot. No marker → no-op (`:252-256`). A
   marker that is unreadable or not a valid v1 object is **deleted and the data kept** (`:257-268`) —
   a wipe is never inferred. Otherwise it removes each listed entry plus the SQLite trio
@@ -371,7 +371,7 @@ is `home` (`:11`), and `Home` is the legacy **name** that `ensureLocalOwner` mig
 (`packages/db/src/ensure-local-owner.ts:77-81`). Name, slug and legacy name are three different
 strings; do not match on the printed one.
 
-**A "Start over" removes `.master-key`** (`packages/host/src/handlers/settings.ts:278`). Anything
+**A "Start over" removes `.master-key`** (`packages/host/src/handlers/settings.ts:284`). Anything
 still sealed with the old wrap key after that is unreadable by design — which is why the SQLite trio
 goes with it (`packages/db/src/reset.ts:29`, `:270`).
 
@@ -435,5 +435,5 @@ now: `ensurePortalOwner` writes the tenant row on sign-in (`packages/db/src/port
 
 What has *not* moved is "Start over": it is still refused on the server, and the reason is still
 that a data-dir wipe is every tenant's work rather than the caller's
-(`packages/host/src/handlers/settings.ts:333-340`), which is scoping, not resolution. The full
+(`packages/host/src/handlers/settings.ts:339-346`), which is scoping, not resolution. The full
 resolution path is its own page: [tenant-resolution.md](tenant-resolution.md). `[Direct]`
