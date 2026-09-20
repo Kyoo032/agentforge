@@ -22,6 +22,7 @@ import { addPastedSource, retrieveChunks } from "./knowledge";
 
 function tenant(): TenantContext {
   return {
+    tenantId: "local-tenant",
     organizationId: "org-stub-vec",
     workspaceId: `ws-stub-vec-${crypto.randomUUID()}`,
     userId: "user-stub-vec",

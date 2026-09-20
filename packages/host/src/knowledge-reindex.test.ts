@@ -31,6 +31,7 @@ const LEGACY_TEXT = Array.from(
 
 function tenant(): TenantContext {
   return {
+    tenantId: "local-tenant",
     organizationId: ORG,
     workspaceId: `ws-reindex-${crypto.randomUUID()}`,
     userId: "user-reindex",

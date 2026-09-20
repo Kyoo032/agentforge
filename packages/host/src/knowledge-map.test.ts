@@ -8,6 +8,7 @@ import { mapKnowledge, getKnowledgeMap } from "./knowledge-map";
 
 function tenant(): TenantContext {
   return {
+    tenantId: "local-tenant",
     organizationId: "org-map-test",
     workspaceId: `ws-map-${crypto.randomUUID()}`,
     userId: "user-map-test",

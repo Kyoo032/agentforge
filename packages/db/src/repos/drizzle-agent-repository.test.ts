@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { isEnvelope, openPayload, sealPayload } from "@agentforge/core";
+import { LOCAL_TENANT_ID, isEnvelope, openPayload, sealPayload } from "@agentforge/core";
 import { ensureSchema } from "../ensure-schema";
 import * as schema from "../schema";
 import { agentVersions, agents, messages, organizations, threads, workspaces } from "../schema";
@@ -54,6 +54,7 @@ describe("DrizzleAgentRepository at-rest seal", () => {
     const now = new Date();
     await db.insert(organizations).values({
       id: orgId,
+      tenantId: LOCAL_TENANT_ID,
       name: "Personal",
       slug: "personal-seal",
       industryPack: "generic",

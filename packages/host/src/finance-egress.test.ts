@@ -240,6 +240,7 @@ vi.mock("./knowledge-ingest", () => ({
 const { parseFinanceFigures, regenerateFinanceSection } = await import("./finance-generate");
 
 const tenant: TenantContext = {
+  tenantId: "local-tenant",
   organizationId: "org",
   workspaceId: "ws-finance-egress",
   userId: "local",

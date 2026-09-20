@@ -3,7 +3,7 @@ import type { TenantContext } from "@agentforge/core";
 import { parseRatiosFigures } from "./parse-ratios";
 import { parseRatiosInput } from "./parse-ratios";
 
-const tenant: TenantContext = { organizationId: "org", workspaceId: "ws-1", userId: "local", role: "owner" };
+const tenant: TenantContext = { tenantId: "local-tenant", organizationId: "org", workspaceId: "ws-1", userId: "local", role: "owner" };
 
 /**
  * The figures text the spreadsheet importer writes for a two-sheet Indonesian statement — section

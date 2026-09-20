@@ -6,7 +6,7 @@ import type { RuntimeEvent } from "./types";
 
 registerPlatformTools();
 
-const tenant = { organizationId: "org", workspaceId: "ws", userId: "user" };
+const tenant = { tenantId: "local-tenant", organizationId: "org", workspaceId: "ws", userId: "user" };
 
 const version: AgentVersionRecord = {
   id: "v1",

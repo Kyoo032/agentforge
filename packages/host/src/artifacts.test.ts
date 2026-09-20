@@ -6,7 +6,7 @@ import { ARTIFACT_BODY_MAX_BYTES, createArtifactStore, type ArtifactStore } from
 
 const KEY = wrappingKeyFromSecret("b".repeat(64));
 
-const tenant: TenantContext = { organizationId: "org", workspaceId: "ws-1", userId: "local", role: "owner" };
+const tenant: TenantContext = { tenantId: "local-tenant", organizationId: "org", workspaceId: "ws-1", userId: "local", role: "owner" };
 const otherDesk: TenantContext = { ...tenant, workspaceId: "ws-2" };
 
 describe("artifact store", () => {

@@ -22,16 +22,16 @@ describe("job completion (G-07)", () => {
 
   it("set_source targets clip id so a moved placeholder keeps its placement", async () => {
     const { project } = await seedEditProject("complete");
-    const { clipId, assetId } = await addReadyClip(project.id, "ph-1");
+    const { clipId, assetId } = await addReadyClip(project.id, project.workspaceId, "ph-1");
     await appendOps(
       project.id,
       [{ type: "set_clip_status", payload: { clipId, status: "pending" } }],
-      { actor: "owner" },
+      { actor: "owner", workspaceId: project.workspaceId },
     );
     await appendOps(
       project.id,
       [{ type: "move_clip", payload: { clipId, trackId: "v1", timelineStartFrame: 90 } }],
-      { actor: "owner" },
+      { actor: "owner", workspaceId: project.workspaceId },
     );
     setEditJobRunnerForTests(async () => ({ outputAssetIds: [assetId] }));
     const job = await enqueueEditJob(project.id, {
@@ -40,10 +40,10 @@ describe("job completion (G-07)", () => {
       targetClipIds: [clipId],
     });
     await waitFor(async () => {
-      const doc = await foldProject(project.id);
+      const doc = await foldProject(project.id, project.workspaceId);
       return doc.clips.find((item) => item.id === clipId)?.status === "ready";
     });
-    const doc = await foldProject(project.id);
+    const doc = await foldProject(project.id, project.workspaceId);
     const clip = doc.clips.find((item) => item.id === clipId);
     expect(clip?.timelineStartFrame).toBe(90);
     expect(clip?.source?.assetId).toBe(assetId);

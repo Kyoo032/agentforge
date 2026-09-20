@@ -132,7 +132,20 @@ describe("ensureSchema", () => {
       if (name === "workspaces") {
         continue;
       }
-      if (name === "user") {
+      if (name === "organizations") {
+        // Migrations replayed from 0001 onward touch these columns (0015 re-keys slug uniqueness
+        // onto (tenant_id, slug)), so the stub has to carry what a real 0001-era database has.
+        sqlite.exec(
+          `CREATE TABLE organizations (
+            id text PRIMARY KEY NOT NULL,
+            name text NOT NULL,
+            slug text NOT NULL,
+            industry_pack text NOT NULL,
+            created_at integer NOT NULL
+          );
+          CREATE UNIQUE INDEX organizations_slug_unique ON organizations (slug);`,
+        );
+      } else if (name === "user") {
         sqlite.exec(
           `CREATE TABLE "user" (
             id text PRIMARY KEY NOT NULL,

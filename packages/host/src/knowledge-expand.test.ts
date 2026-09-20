@@ -14,6 +14,7 @@ import { EXPAND_CHUNK_CAP, EXPAND_TOP_SCORE_THRESHOLD, expandRetrievedChunks, is
 
 function tenant(): TenantContext {
   return {
+    tenantId: "local-tenant",
     organizationId: "org-expand",
     workspaceId: `ws-expand-${crypto.randomUUID()}`,
     userId: "user-expand",
