@@ -156,7 +156,10 @@ export function musicWorkCard(input: MusicWorkInput): WorkCard {
 }
 
 export type ArtifactWorkInput = {
-  type: Extract<WorkSourceType, "Research" | "Data" | "Finance" | "Market" | "Documents" | "Presentation" | "Legal">;
+  type: Extract<
+    WorkSourceType,
+    "Research" | "Data" | "Finance" | "Market" | "Documents" | "Presentation" | "Legal" | "Meeting"
+  >;
   artifactId: string;
   title: string;
   prompt?: string;
@@ -164,7 +167,7 @@ export type ArtifactWorkInput = {
   model?: string;
 };
 
-/** Research / Data / Finance / Market / Documents / Presentation / Legal: the saved markdown, capped. */
+/** Research / Data / Finance / Market / Documents / Presentation / Legal / Meeting: the saved markdown, capped. */
 export function artifactWorkCard(input: ArtifactWorkInput): WorkCard {
   return {
     type: input.type,

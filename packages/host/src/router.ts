@@ -128,6 +128,17 @@ import {
 } from "./handlers/legal";
 import { handleGetMediaFile, handlePostMedia } from "./handlers/media";
 import {
+  handleDeleteMeeting,
+  handleGetMeeting,
+  handleGetMeetings,
+  handlePostMeetingMinutes,
+  handlePostMeetingRecording,
+  handlePostMeetingRunStream,
+  handlePostMeetingTranscribe,
+  handlePostMeetingTranscript,
+  handlePostMeetings,
+} from "./handlers/meetings";
+import {
   handleGetContext,
   handleGetOrganizations,
   handleGetTemplates,
@@ -287,6 +298,15 @@ const routes: Route[] = [
   compile("DELETE", "/api/v1/legal/matters/:matterId/files/:docId", handleDeleteLegalMatterFile),
   compile("POST", "/api/v1/legal/matters/:matterId/run/stream", handlePostLegalRunStream),
   compile("GET", "/api/v1/legal/matters/:matterId/runs/:runId", handleGetLegalRun),
+  compile("GET", "/api/v1/meetings", handleGetMeetings),
+  compile("POST", "/api/v1/meetings", handlePostMeetings),
+  compile("GET", "/api/v1/meetings/:meetingId", handleGetMeeting),
+  compile("DELETE", "/api/v1/meetings/:meetingId", handleDeleteMeeting),
+  compile("POST", "/api/v1/meetings/:meetingId/recording", handlePostMeetingRecording),
+  compile("POST", "/api/v1/meetings/:meetingId/transcript", handlePostMeetingTranscript),
+  compile("POST", "/api/v1/meetings/:meetingId/transcribe/stream", handlePostMeetingTranscribe),
+  compile("POST", "/api/v1/meetings/:meetingId/minutes/stream", handlePostMeetingMinutes),
+  compile("POST", "/api/v1/meetings/:meetingId/run/stream", handlePostMeetingRunStream),
   compile("POST", "/api/v1/prompts/enhance", handlePostEnhancePrompt),
   compile("GET", "/api/v1/artifacts", handleGetArtifacts),
   compile("GET", "/api/v1/artifacts/:artifactId", handleGetArtifact),
