@@ -156,7 +156,40 @@ were reverted; none is in the diff.
 | `deleteMemory` loses its `workspace_id` from the `WHERE` | the survivor check | A's memory was gone after B's call, while every status assertion still passed |
 | A new by-id route added to the router, absent from the table | the completeness assertion | Named the route in the failure message |
 
-The third has since happened for real, on the merge (§4).
+The third has since happened for real, on the merge (§4). A fourth was added after the verifier
+round below: `handleGetWorkspaceAgents` made to 404 unconditionally, which the new desk-check
+control caught while **all 62 route rows still passed**. That is the vacuous-pass failure mode in
+one line — the foreign/ghost comparison holds perfectly well on a route that is broken for
+everybody.
+
+### The verifier's finding, and the sweep it prompted
+
+The PR #81 verifier thread found **three rows passing vacuously** — satisfying both assertions
+without ever reaching the ownership check they exist to prove. Two meeting streams called
+`requireLiveMeetingRuntime` before `requireMeeting`, so under the harness's stub runtime the
+foreign and the ghost call both got a `runtime_stub` frame and the comparison held for the wrong
+reason; and `POST /api/v1/agents/:agentId/tools` was sent `{ tools: [] }`, so the handler's own
+"Tool not found" 404 fired before the agent lookup. The fix reorders the two meeting jobs to check
+ownership first (which is also the better order on its own terms) and sends a registered tool key.
+
+That is a whole class of defect, not three instances, so the remaining rows were swept for it with
+a throwaway probe: call each route **as tenant A against A's own ids** and compare the shape to the
+foreigner's. Where the owner's answer is shaped like the foreigner's, the row cannot be reaching a
+check that distinguishes them. Two things about that probe are worth writing down, because both
+made its first two runs useless:
+
+- **It is destructive.** A route called as its real owner really runs — a `DELETE` really deletes —
+  so on a shared seed every row after a destructive sibling 404s for its owner too. The first run
+  flagged 22 rows and almost all of them were the probe eating its own seed.
+- **Re-seeding per route does not work either**: the channel seed is unique per desk, so the second
+  seed fails. The run that counts skips the destructive routes instead.
+
+Result over the 53 non-destructive rows: **four flagged, none of them an unreported hole.**
+`GET /api/v1/edit/projects/:projectId/events` hangs for its owner, which is an SSE stream staying
+open — the strongest possible evidence the row reaches the check. `GET /api/v1/videos/examples/
+:name/file` has no seed by design. And the `…/workspaces/:workspaceId/agents` pair refuses on a
+desk-identity check rather than a tenant lookup, which is the one structural case and now carries a
+control of its own (§4).
 
 ## 6. One bug found and fixed
 
@@ -225,7 +258,7 @@ compose — one is a `dispatch` scope, the other an adapter field.
 
 | File | Covers |
 |---|---|
-| `packages/host/src/tenancy-harness.test.ts` (72) | The 63 by-id routes under a foreign tenant, the seed check, six of tenant A's own rows read back, the knowledge survivor check, the completeness assertion |
+| `packages/host/src/tenancy-harness.test.ts` (73) | The 63 by-id routes under a foreign tenant, the seed check, six of tenant A's own rows read back, the knowledge survivor check, the workspace desk-check control, the completeness assertion |
 | `packages/host/src/log-context.test.ts` (8) | The ambient context in isolation: stamping, crossing an await, nesting, precedence under a child and under the call site, not leaking out of scope, still redacted |
 | `packages/host/src/tenant-log-scope.test.ts` (5) | That `dispatch` opens it: the session's tenant id and the route, two sessions, the workspace cookie ignored, nothing off server mode, the scope closed again |
 
