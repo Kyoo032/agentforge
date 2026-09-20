@@ -5,6 +5,7 @@ import type { TenantContext } from "../tenancy/types";
 import { defineTool, invokeTool } from "./define-tool";
 
 const tenant: TenantContext = {
+  tenantId: "local-tenant",
   organizationId: "org-1",
   workspaceId: "ws-1",
   userId: "user-1",

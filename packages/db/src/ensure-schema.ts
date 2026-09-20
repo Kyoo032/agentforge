@@ -232,6 +232,7 @@ export function ensureSchema(sqlite: Database.Database): void {
   ensureDatasetTables(sqlite);
   ensureMarketTables(sqlite);
   ensureAuthSessionTables(sqlite);
+  ensureTenantTables(sqlite);
   ensureWorkspaceColumns(sqlite);
   assertKernelTables(sqlite);
 }
@@ -398,6 +399,56 @@ function ensureAuthSessionTables(sqlite: Database.Database): void {
     CREATE INDEX IF NOT EXISTS auth_sessions_user_seen_idx ON auth_sessions (user_id, last_seen_at);
     CREATE INDEX IF NOT EXISTS auth_sessions_expires_idx ON auth_sessions (expires_at);
   `);
+}
+
+/**
+ * The tenant root and `organizations.tenant_id`. Mirrors drizzle/0015_tenants.sql for DBs stamped
+ * before it existed — in particular a **baseline-stamped** database (`ensureSchema` above marks
+ * every migration applied without running it when all kernel tables are present and the journal is
+ * empty), which would otherwise carry the 0015 journal row and no `tenants` table.
+ *
+ * `tenants` is deliberately NOT in `REQUIRED_TABLES`: an existing desktop database has every
+ * current kernel table and no `tenants`, which would make the partial-init check above throw
+ * "Refusing to migrate or baseline-stamp" on the frozen desktop's first launch. This healer is
+ * what covers that case instead.
+ *
+ * Idempotent, and safe with `foreign_keys = ON`: the added column has no NOT NULL and defaults to
+ * NULL, which is the one shape SQLite allows `ADD COLUMN ... REFERENCES` to take.
+ */
+function ensureTenantTables(sqlite: Database.Database): void {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS tenants (
+      id text PRIMARY KEY NOT NULL,
+      slug text NOT NULL,
+      name text NOT NULL,
+      status text DEFAULT 'active' NOT NULL,
+      created_at integer NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS tenants_slug_unique ON tenants (slug);
+    INSERT OR IGNORE INTO tenants (id, slug, name, status, created_at)
+    VALUES ('local-tenant', 'local', 'Local', 'active', CAST(strftime('%s','now') AS INTEGER) * 1000);
+  `);
+
+  const have = new Set(tableColumns(sqlite, "organizations"));
+  if (have.size === 0) {
+    return;
+  }
+  if (!have.has("tenant_id")) {
+    sqlite.exec(
+      "ALTER TABLE `organizations` ADD `tenant_id` text REFERENCES `tenants`(`id`) ON DELETE cascade",
+    );
+  }
+  // Backfills the column this healer just added, and repairs any row a partial 0015 left null.
+  sqlite.exec("UPDATE `organizations` SET `tenant_id` = 'local-tenant' WHERE `tenant_id` IS NULL");
+  sqlite.exec("CREATE INDEX IF NOT EXISTS organizations_tenant_idx ON organizations (tenant_id)");
+  // Guarded rather than assumed: this healer runs on every boot, and a stripped or hand-built
+  // schema without `slug` must not throw here — that would brick the open, not repair it.
+  if (have.has("slug")) {
+    sqlite.exec(`
+      DROP INDEX IF EXISTS organizations_slug_unique;
+      CREATE UNIQUE INDEX IF NOT EXISTS organizations_tenant_slug ON organizations (tenant_id, slug);
+    `);
+  }
 }
 
 function ensureArtifactTables(sqlite: Database.Database): void {

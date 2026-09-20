@@ -39,6 +39,7 @@ Nothing below is closed by 0.14.27. Carried forward as-is.
 ## Log
 
 - **2026-09-18** — 0.14.27 cut. PR #52 merged (`e8a7118`), version bumped to `0.14.27` (`e2e477e`) on `release/0.14.27`; everything from after the 0.14.26 cut folded into [`0.14.27-changelog.md`](0.14.27-changelog.md) and this file started over. Nothing packed, nothing published.
+- **2026-09-20** — Phase 3 lane A (tenancy in the edit store). Closed the confirmed IDOR on `POST /api/v1/edit/projects/:projectId/unplaced/:itemId/discard`, which updated `edit_unplaced` by item id alone and returned the row: any desk could soft-delete and read back any other desk's unplaced item. Hardened the edit store so the scope is a required argument and lives in the `WHERE` clause rather than a follow-up comparison — `loadProjectRow`, `foldProject`, `appendOps`, `getEditJob`, `patchJob`, `cancelEditJob`, `undoCard`, `keepCard`. New `packages/host/src/edit/edit-scope.test.ts` (12 tests); the two discard cases were confirmed red against the old handler before the fix. Schema untouched — lane B owns migration `0015`. Map page [`maps/edit-timeline.md`](maps/edit-timeline.md) refreshed in place.
 
 ## 2026-09-18 — direction change: hosted web app
 

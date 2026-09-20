@@ -26,6 +26,8 @@ export type AppendOpInput = {
 
 export type AppendOpsOptions = {
   actor: "owner" | `agent:${string}`;
+  /** The desk the ops are written on behalf of. Required so no caller can append by project id alone. */
+  workspaceId: string;
   parent?: string | null;
   clock?: number;
   cardId?: string;
@@ -63,16 +65,46 @@ export function rowToEditOp(row: typeof editOps.$inferSelect): EditOp {
   };
 }
 
-export async function loadProjectRow(projectId: string, workspaceId?: string) {
-  const rows = await db.select().from(editProjects).where(eq(editProjects.id, projectId)).limit(1);
+/**
+ * Load a project, scoped to the desk that asked for it.
+ *
+ * The workspace is part of the WHERE clause, not an afterthought: a caller that holds only an id
+ * cannot reach another desk's project, and "wrong desk" is indistinguishable from "no such project"
+ * so the 404 leaks nothing about what exists elsewhere.
+ */
+export async function loadProjectRow(projectId: string, workspaceId: string) {
+  const rows = await db
+    .select()
+    .from(editProjects)
+    .where(and(eq(editProjects.id, projectId), eq(editProjects.workspaceId, workspaceId)))
+    .limit(1);
   const row = rows[0];
   if (!row) {
     throw new ApiError("not_found", "Edit project not found", 404);
   }
-  if (workspaceId && row.workspaceId !== workspaceId) {
+  return row;
+}
+
+/**
+ * The workspace a project belongs to, for a background worker that has no request to scope by.
+ *
+ * The job runner reaches a project through a job row that a handler already proved belonged to the
+ * caller's desk, so there is no session left to check against; this turns that job row back into a
+ * scope the rest of the store can enforce. Request handlers must never call it — they hold a tenant
+ * and pass `tenant.workspaceId`, which puts the check in the WHERE clause instead of trusting the
+ * caller. `edit-scope.test.ts` asserts no handler imports it.
+ */
+export async function workerWorkspaceId(projectId: string): Promise<string> {
+  const rows = await db
+    .select({ workspaceId: editProjects.workspaceId })
+    .from(editProjects)
+    .where(eq(editProjects.id, projectId))
+    .limit(1);
+  const row = rows[0];
+  if (!row) {
     throw new ApiError("not_found", "Edit project not found", 404);
   }
-  return row;
+  return row.workspaceId;
 }
 
 function seedDocFromRow(row: typeof editProjects.$inferSelect): EditProject {
@@ -94,7 +126,7 @@ function seedDocFromRow(row: typeof editProjects.$inferSelect): EditProject {
   return doc;
 }
 
-export async function foldProject(projectId: string, workspaceId?: string): Promise<EditProject> {
+export async function foldProject(projectId: string, workspaceId: string): Promise<EditProject> {
   const row = await loadProjectRow(projectId, workspaceId);
   const snaps = await db
     .select()
@@ -133,15 +165,11 @@ export async function appendOps(
   options: AppendOpsOptions,
 ): Promise<{ applied: EditOp[]; seq: number; doc: EditProject }> {
   if (inputs.length === 0) {
-    const doc = await foldProject(projectId);
+    const doc = await foldProject(projectId, options.workspaceId);
     return { applied: [], seq: doc.seq, doc };
   }
 
-  const rows = await db.select().from(editProjects).where(eq(editProjects.id, projectId)).limit(1);
-  const project = rows[0];
-  if (!project) {
-    throw new ApiError("not_found", "Edit project not found", 404);
-  }
+  const project = await loadProjectRow(projectId, options.workspaceId);
 
   const lastOps = await db
     .select()
@@ -153,7 +181,7 @@ export async function appendOps(
   let seq = project.seq;
   let parent = options.parent ?? last?.id ?? null;
   let clock = Math.max(options.clock ?? 0, last?.clock ?? 0);
-  let doc = await foldProject(projectId);
+  let doc = await foldProject(projectId, options.workspaceId);
 
   for (const input of inputs) {
     parseOpPayload(input.type as OpType, input.payload);
@@ -244,7 +272,7 @@ export async function appendOps(
       height: doc.height,
       updatedAt: new Date(),
     })
-    .where(eq(editProjects.id, projectId));
+    .where(and(eq(editProjects.id, projectId), eq(editProjects.workspaceId, options.workspaceId)));
 
   editEvents.emitEvent({ type: "ops.appended", projectId, ops: applied, seq });
   return { applied, seq, doc };

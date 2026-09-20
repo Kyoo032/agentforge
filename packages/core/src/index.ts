@@ -533,6 +533,9 @@ export { preferredOpenAiWire, usesResponsesApi, shouldFallbackFromResponses } fr
 export { encodeSse } from "./sse";
 export {
   LOCAL_OWNER_ID,
+  LOCAL_TENANT_ID,
+  LOCAL_TENANT_SLUG,
+  LOCAL_TENANT_NAME,
   PERSONAL_ORG_SLUG,
   HOME_WORKSPACE_SLUG,
   HOME_WORKSPACE_NAME,

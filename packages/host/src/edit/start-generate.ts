@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import {
   ApiError,
   estimateJobUsd,
@@ -215,7 +215,7 @@ export async function startGenerateJob(
   const applied = await appendOps(
     projectId,
     ops.map((op) => ({ ...op, cardId })),
-    { actor, cardId },
+    { actor, cardId, workspaceId: tenant.workspaceId },
   );
   const targetClipIds =
     toolKey === "regenerate_clip" && parent ? [parent.id] : clips.map((clip) => clip.id);
@@ -242,9 +242,9 @@ export async function startGenerateJob(
   const [updated] = await db
     .update(editCards)
     .set({ jobId: job.id, opIdsJson: applied.applied.map((op) => op.id) })
-    .where(eq(editCards.id, cardId))
+    .where(and(eq(editCards.id, cardId), eq(editCards.projectId, projectId)))
     .returning();
-  const folded = await foldProject(projectId);
+  const folded = await foldProject(projectId, tenant.workspaceId);
   const stamped = structuredClone(folded);
   for (const clip of stamped.clips) {
     if (targetClipIds.includes(clip.id)) {

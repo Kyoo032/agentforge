@@ -32,6 +32,7 @@ vi.mock("./knowledge/registry", () => ({
 
 function tenant(): TenantContext {
   return {
+    tenantId: "local-tenant",
     organizationId: "org-forget",
     workspaceId: `ws-forget-${crypto.randomUUID()}`,
     userId: "user-forget",

@@ -23,7 +23,7 @@ export function titleBoxForFrame(doc: EditProject, frame: number) {
   };
 }
 
-export async function renderParityFrame(projectId: string, frame: number, workspaceId?: string) {
+export async function renderParityFrame(projectId: string, frame: number, workspaceId: string) {
   const doc = await foldProject(projectId, workspaceId);
   const rendered = await frameAt(doc, frame);
   const bytes = await readFile(rendered.file);

@@ -4,6 +4,7 @@ import { canBuild, requireTenant, type TenantContext } from "./types";
 describe("requireTenant", () => {
   it("returns the tenant when present", () => {
     const tenant: TenantContext = {
+      tenantId: "local-tenant",
       organizationId: "org-1",
       workspaceId: "ws-1",
       userId: "user-1",

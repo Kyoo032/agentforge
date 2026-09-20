@@ -1,11 +1,11 @@
 import path from "node:path";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { ApiError, secondsToFrames, type Asset, type EditJobKind, type TenantContext } from "@agentforge/core";
 import { db, editCards, editJobs, editUnplaced } from "@agentforge/db";
 import { readMediaDataUrl } from "../media";
 import { mediaRoot } from "../media-root";
 import { withInlinedStill } from "./still-source";
-import { appendOps, foldProject } from "./ops";
+import { appendOps, foldProject, workerWorkspaceId } from "./ops";
 import { editEvents } from "./events";
 import { appendEditMetric } from "./metrics";
 import { mapJob } from "./projects";
@@ -93,8 +93,16 @@ function releaseSlot(kind: string, projectId: string): void {
   wake();
 }
 
-async function patchJob(id: string, values: Partial<typeof editJobs.$inferInsert>): Promise<JobRow> {
-  const rows = await db.update(editJobs).set(values).where(eq(editJobs.id, id)).returning();
+async function patchJob(
+  id: string,
+  projectId: string,
+  values: Partial<typeof editJobs.$inferInsert>,
+): Promise<JobRow> {
+  const rows = await db
+    .update(editJobs)
+    .set(values)
+    .where(and(eq(editJobs.id, id), eq(editJobs.projectId, projectId)))
+    .returning();
   const row = rows[0];
   if (!row) {
     throw new ApiError("not_found", "Edit job not found", 404);
@@ -102,7 +110,35 @@ async function patchJob(id: string, values: Partial<typeof editJobs.$inferInsert
   return row;
 }
 
-export async function getEditJob(jobId: string): Promise<JobRow> {
+/**
+ * Read a job, pinned to the project it must belong to.
+ *
+ * A job id alone says nothing about who owns it, and `edit_jobs` carries no workspace of its own.
+ * The caller has already proved the project belongs to its desk, so pinning the job to that project
+ * is what keeps one desk's id from reaching another's job — and it is in the WHERE clause, so a
+ * caller cannot forget the follow-up check.
+ */
+export async function getEditJob(jobId: string, projectId: string): Promise<JobRow> {
+  const rows = await db
+    .select()
+    .from(editJobs)
+    .where(and(eq(editJobs.id, jobId), eq(editJobs.projectId, projectId)))
+    .limit(1);
+  const row = rows[0];
+  if (!row) {
+    throw new ApiError("not_found", "Edit job not found", 404);
+  }
+  return row;
+}
+
+/**
+ * Read a job by id alone, for the background runner that was handed the id and nothing else.
+ *
+ * Nothing a request carries reaches this: `processJob` is driven by ids this module minted itself
+ * in `enqueueEditJob`. Every request path must use `getEditJob(jobId, projectId)` instead.
+ * `edit-scope.test.ts` asserts no handler imports it.
+ */
+async function workerJob(jobId: string): Promise<JobRow> {
   const rows = await db.select().from(editJobs).where(eq(editJobs.id, jobId)).limit(1);
   const row = rows[0];
   if (!row) {
@@ -117,6 +153,7 @@ async function defaultRunner(
   onProgress: (n: number) => void,
 ): Promise<{ outputAssetIds: string[] }> {
   onProgress(0.1);
+  const workspaceId = await workerWorkspaceId(job.projectId);
   if (job.kind === "generate_image" || job.kind === "generate_video") {
     const request = await withInlinedStill(job.requestJson as Record<string, unknown>, (mediaId) => {
       const tenant = (job.requestJson as { tenant?: TenantContext }).tenant;
@@ -125,14 +162,14 @@ async function defaultRunner(
     return runGenerateJob(job.kind, request, signal);
   }
   if (job.kind === "render") {
-    const doc = await foldProject(job.projectId);
+    const doc = await foldProject(job.projectId, workspaceId);
     const preset = (job.requestJson as { preset?: "h264-1080p" | "h264-720p" })?.preset ?? "h264-1080p";
     const out = await render(doc, preset);
     onProgress(1);
     return { outputAssetIds: [out.file] };
   }
   if (job.kind === "asr") {
-    const doc = await foldProject(job.projectId);
+    const doc = await foldProject(job.projectId, workspaceId);
     const assetId = (job.requestJson as { assetId?: string })?.assetId;
     const asset = assetId ? doc.assets[assetId] : undefined;
     if (!asset) {
@@ -150,7 +187,7 @@ async function defaultRunner(
   }
   if (job.kind === "ffmpeg_op") {
     const request = job.requestJson as { recipe?: string; assetId?: string; clipId?: string; note?: string };
-    const doc = await foldProject(job.projectId);
+    const doc = await foldProject(job.projectId, workspaceId);
     if (request.recipe === "matchLook") {
       onProgress(1);
       const clipId = request.clipId;
@@ -225,7 +262,8 @@ async function resolveGenerateAsset(
 }
 
 async function completeSucceeded(job: JobRow, outputAssetIds: string[]): Promise<void> {
-  const doc = await foldProject(job.projectId);
+  const workspaceId = await workerWorkspaceId(job.projectId);
+  const doc = await foldProject(job.projectId, workspaceId);
   const existing = job.targetClipIdsJson.filter((id) => doc.clips.some((clip) => clip.id === id));
   if (existing.length > 0) {
     const resolved = await resolveGenerateAsset(job, doc, outputAssetIds[0]);
@@ -240,11 +278,11 @@ async function completeSucceeded(job: JobRow, outputAssetIds: string[]): Promise
         { type: "set_clip_status" as const, payload: { clipId, status: "ready" as const } },
       ]),
     ];
-    await appendOps(job.projectId, ops, { actor: "owner" });
+    await appendOps(job.projectId, ops, { actor: "owner", workspaceId });
   } else if (outputAssetIds.length > 0) {
     const resolved = await resolveGenerateAsset(job, doc, outputAssetIds[0]);
     if (resolved.addOps.length > 0) {
-      await appendOps(job.projectId, resolved.addOps, { actor: "owner" });
+      await appendOps(job.projectId, resolved.addOps, { actor: "owner", workspaceId });
     }
     const assetId = resolved.assetId;
     const [item] = await db
@@ -265,23 +303,26 @@ async function completeSucceeded(job: JobRow, outputAssetIds: string[]): Promise
       await db
         .update(editCards)
         .set({ status: "ready", decidedAt: new Date() })
-        .where(eq(editCards.id, job.cardId));
+        .where(and(eq(editCards.id, job.cardId), eq(editCards.projectId, job.projectId)));
     }
   }
-  const finished = await patchJob(job.id, {
+  const finished = await patchJob(job.id, job.projectId, {
     status: "succeeded",
     progress: 1,
     outputAssetIdsJson: outputAssetIds,
     finishedAt: new Date(),
   });
   if (job.cardId && existing.length > 0) {
-    await db.update(editCards).set({ status: "ready" }).where(eq(editCards.id, job.cardId));
+    await db
+      .update(editCards)
+      .set({ status: "ready" })
+      .where(and(eq(editCards.id, job.cardId), eq(editCards.projectId, job.projectId)));
   }
   editEvents.emitEvent({ type: "job.done", projectId: job.projectId, job: mapJob(finished) });
 }
 
 async function failJob(job: JobRow, status: "failed" | "cancelled" | "interrupted", error?: string): Promise<JobRow> {
-  const finished = await patchJob(job.id, {
+  const finished = await patchJob(job.id, job.projectId, {
     status,
     error,
     finishedAt: new Date(),
@@ -289,8 +330,9 @@ async function failJob(job: JobRow, status: "failed" | "cancelled" | "interrupte
   });
   if (job.cardId) {
     const cardStatus = status === "cancelled" ? "undone" : "failed";
-    await db.update(editCards).set({ status: cardStatus, decidedAt: new Date() }).where(eq(editCards.id, job.cardId));
-    const cards = await db.select().from(editCards).where(eq(editCards.id, job.cardId)).limit(1);
+    const cardScope = and(eq(editCards.id, job.cardId), eq(editCards.projectId, job.projectId));
+    await db.update(editCards).set({ status: cardStatus, decidedAt: new Date() }).where(cardScope);
+    const cards = await db.select().from(editCards).where(cardScope).limit(1);
     if (cards[0]) {
       editEvents.emitEvent({ type: "card.updated", projectId: job.projectId, card: cards[0] });
     }
@@ -303,7 +345,8 @@ async function failJob(job: JobRow, status: "failed" | "cancelled" | "interrupte
 /** A failed generation must not leave its placeholder clips shimmering "pending" forever. */
 async function markPendingTargetsFailed(job: JobRow): Promise<void> {
   try {
-    const doc = await foldProject(job.projectId);
+    const workspaceId = await workerWorkspaceId(job.projectId);
+    const doc = await foldProject(job.projectId, workspaceId);
     const pending = job.targetClipIdsJson.filter((id) =>
       doc.clips.some((clip) => clip.id === id && clip.status === "pending"),
     );
@@ -313,7 +356,7 @@ async function markPendingTargetsFailed(job: JobRow): Promise<void> {
     await appendOps(
       job.projectId,
       pending.map((clipId) => ({ type: "set_clip_status" as const, payload: { clipId, status: "failed" as const } })),
-      { actor: "owner" },
+      { actor: "owner", workspaceId },
     );
   } catch (error) {
     log.warn("edit_clips_not_marked_failed", { jobId: job.id, error });
@@ -340,7 +383,7 @@ async function probeGeneratedMeta(
 }
 
 async function processJob(jobId: string): Promise<void> {
-  const job = await getEditJob(jobId);
+  const job = await workerJob(jobId);
   if (job.status !== "queued") {
     return;
   }
@@ -348,21 +391,21 @@ async function processJob(jobId: string): Promise<void> {
   const controller = new AbortController();
   active.set(jobId, { controller, partials: [] });
   try {
-    const running = await patchJob(jobId, { status: "running", startedAt: new Date() });
+    const running = await patchJob(jobId, job.projectId, { status: "running", startedAt: new Date() });
     const onProgress = (progress: number) => {
-      void patchJob(jobId, { progress }).then((row) => {
+      void patchJob(jobId, job.projectId, { progress }).then((row) => {
         editEvents.emitEvent({ type: "job.progress", projectId: row.projectId, jobId, progress });
       });
     };
     const runner = runnerOverride ?? defaultRunner;
     const result = await runner(running, controller.signal, onProgress);
-    const current = await getEditJob(jobId);
+    const current = await workerJob(jobId);
     if (current.status === "cancelled") {
       return;
     }
     await completeSucceeded(current, result.outputAssetIds);
   } catch (error) {
-    const current = await getEditJob(jobId).catch(() => job);
+    const current = await workerJob(jobId).catch(() => job);
     if (current.status === "cancelled") {
       return;
     }
@@ -396,8 +439,8 @@ export async function enqueueEditJob(projectId: string, input: EnqueueJobInput):
   return row;
 }
 
-export async function cancelEditJob(jobId: string, reason = "cancel"): Promise<JobRow> {
-  const job = await getEditJob(jobId);
+export async function cancelEditJob(jobId: string, projectId: string, reason = "cancel"): Promise<JobRow> {
+  const job = await getEditJob(jobId, projectId);
   if (job.status === "succeeded" || job.status === "failed" || job.status === "interrupted") {
     return job;
   }

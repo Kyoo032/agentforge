@@ -24,8 +24,8 @@ describe("unplaced (G-09)", () => {
 
   it("lands in the tray when every target clip was deleted", async () => {
     const { project } = await seedEditProject("unplaced");
-    const { clipId, assetId } = await addReadyClip(project.id, "gone");
-    await appendOps(project.id, [{ type: "delete_clip", payload: { clipId } }], { actor: "owner" });
+    const { clipId, assetId } = await addReadyClip(project.id, project.workspaceId, "gone");
+    await appendOps(project.id, [{ type: "delete_clip", payload: { clipId } }], { actor: "owner", workspaceId: project.workspaceId });
     setEditJobRunnerForTests(async () => ({ outputAssetIds: [assetId] }));
     await enqueueEditJob(project.id, {
       kind: "ffmpeg_op",

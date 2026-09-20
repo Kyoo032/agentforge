@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import {
   type ApplyableOp,
   type Clip,
@@ -100,7 +100,13 @@ export const hostEditBackend: EditToolBackend = {
     return resolveAsrCapability().available;
   },
   async reviewGateOpen(projectId) {
-    const project = await foldProject(projectId);
+    // The tool contract passes only an id. The run's own context is the scope: a tool cannot ask
+    // about a project its run was not opened on.
+    const ctx = requireEditToolContext();
+    if (projectId !== ctx.projectId) {
+      throw new Error("edit_project_mismatch");
+    }
+    const project = await foldProject(ctx.projectId, ctx.tenant.workspaceId);
     return reviewGateOpen(project.review);
   },
   async applyAgentOps(tenant, ops) {
@@ -124,11 +130,12 @@ export const hostEditBackend: EditToolBackend = {
     const applied = await appendOps(ctx.projectId, ops.map((op) => ({ ...op, cardId })), {
       actor: `agent:${ctx.runId}`,
       cardId,
+      workspaceId: ctx.tenant.workspaceId,
     });
     await db
       .update(editCards)
       .set({ opIdsJson: applied.applied.map((op) => op.id) })
-      .where(eq(editCards.id, cardId));
+      .where(and(eq(editCards.id, cardId), eq(editCards.projectId, ctx.projectId)));
     const badged = stampBadges(applied.doc, cardId, touchingClipIds(ops));
     await writeSnapshot(ctx.projectId, applied.seq, badged);
     const card = mapCard({ ...cardRow, opIdsJson: applied.applied.map((op) => op.id) });
@@ -174,8 +181,13 @@ export const hostEditBackend: EditToolBackend = {
     void tenant;
     return { card };
   },
-  async cancelJob(_tenant, jobId) {
-    return cancelEditJob(jobId);
+  async cancelJob(tenant, jobId) {
+    const ctx = requireEditToolContext();
+    if (tenant.workspaceId !== ctx.tenant.workspaceId) {
+      throw new Error("edit_workspace_mismatch");
+    }
+    // Pins the job to the run's project, so a job id alone cannot cancel another desk's work.
+    return cancelEditJob(jobId, ctx.projectId);
   },
 };
 

@@ -27,6 +27,7 @@ import {
 
 function tenant(): TenantContext {
   return {
+    tenantId: "local-tenant",
     organizationId: "org-graph",
     workspaceId: `ws-graph-${crypto.randomUUID()}`,
     userId: "user-graph",
