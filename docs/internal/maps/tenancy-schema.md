@@ -1,6 +1,6 @@
 # Map — Tenancy schema and TenantContext
 
-Last verified: 2026-09-20 at b482611 + branch feat/web-phase3-lane-b-7k76cm (the commit that adds this page)
+Last verified: 2026-09-20 at c204e5e
 
 ## Overview
 

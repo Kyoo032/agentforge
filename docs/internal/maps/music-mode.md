@@ -1,6 +1,6 @@
 # Map — Music mode
 
-Last verified: 2026-09-20 at the PR #65 merge with main (69afca9); cites re-checked by the verifier
+Last verified: 2026-09-20 at c204e5e
 
 ## Overview
 
@@ -20,9 +20,9 @@ What this page is *not*: transcription (nothing here reads audio) and text-to-sp
 
 ### 1. Getting there
 
-`music` is a `PRODUCT_MODES` entry (`packages/core/src/agents/product-modes.ts:14`), which is the single list that drives the rail, the route table and the workspace `productModes` set. The rail renders it as `mode-music` through the same `mode-${href.slice(1)}` rule every mode uses (`apps/web/components/app-rail.tsx:108` for the icon, `:40` for the `IconName` union).
+`music` is a `PRODUCT_MODES` entry (`packages/core/src/agents/product-modes.ts:15`), which is the single list that drives the rail, the route table and the workspace `productModes` set. The rail renders it as `mode-music` through the same `mode-${href.slice(1)}` rule every mode uses (`apps/web/components/app-rail.tsx:117` for the icon, `:40` for the `IconName` union).
 
-`/music` is declared in the router with `element={null}` (`apps/web/src/App.tsx:160`) because the actual component is mounted by the keep-alive layer: `WORK_MODE_COMPONENTS` maps `/music` → `MusicStudio` (`apps/web/components/work-mode-keep-alive.tsx:26`). So the G-3 rule applies here exactly as it does to Images and Videos — after visiting `/music` and then leaving it, `music-studio` is still in the DOM. Assert `isVisible()`, never `count()`.
+`/music` is declared in the router with `element={null}` (`apps/web/src/App.tsx:161`) because the actual component is mounted by the keep-alive layer: `WORK_MODE_COMPONENTS` maps `/music` → `MusicStudio` (`apps/web/components/work-mode-keep-alive.tsx:27`). So the G-3 rule applies here exactly as it does to Images and Videos — after visiting `/music` and then leaving it, `music-studio` is still in the DOM. Assert `isVisible()`, never `count()`.
 
 ### 2. Mount → `GET /api/v1/music`
 
@@ -122,7 +122,7 @@ So instead of rendering a dead control, the host answers with a machine-readable
 | `packages/host/src/handlers/jobs.ts` | `handleGetMusic`, `handlePostMusic`, `handlePostMusicLyrics` |
 | `packages/host/src/studio-generate.ts` | Body schemas and parse guards, `generateStudioMusic`, `writeStudioLyrics`, `listStudioGallery` |
 | `packages/host/src/media.ts` | `DEFAULT_UPLOAD_KINDS`, the `allow` parameter, `saveGeneratedAudio` |
-| `packages/host/src/router.ts:224-226` | The three routes |
+| `packages/host/src/router.ts:247-249` | The three routes |
 | `apps/web/components/music-studio.tsx` | The page: mode, model, lyrics, style, title, instrumental, draft-lyrics, library |
 | `apps/web/lib/media-estimate.ts:232` | `musicEstimateView` — the price line above the button |
 | `scripts/probe-gateway-music.ts` | Live three-step probe: catalog → submit → poll |

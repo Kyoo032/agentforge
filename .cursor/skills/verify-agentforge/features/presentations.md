@@ -45,5 +45,5 @@ Preconditions:
 - The title card has its own testid, `presentations-slide-title`. A "6-slide" starter therefore renders 7 cards and pages read `n / 7` (`total = slides.length + 1`, `apps/web/components/presentation-preview.tsx:113`).
 - Regen opens a panel; it does not POST until `presentations-regen-submit`. Stub is HTTP 503.
 - Do not POST `/api/v1/presentations` as a substitute for the prompt bar on a live proof.
-- `presentations-download` is the one presentations route with **no gateway gate and no tenant** (`packages/host/src/handlers/jobs.ts:170-184`). It answers 200 on a stub desk and would answer 200 with the gate closed. Getting a PPTX is therefore not evidence of a working key.
+- `presentations-download` is the one presentations route with **no gateway gate and no tenant** (`packages/host/src/handlers/jobs.ts:233-247`). It answers 200 on a stub desk and would answer 200 with the gate closed. Getting a PPTX is therefore not evidence of a working key.
 - A closed gate (403 `gateway_blocked`) does **not** surface here: the flat error body is unreadable to the studio's `errorMessage()` and the banner falls back to the generic "could not generate" string with no Settings link. Expect that, and see `docs/internal/unreleased.md`.
