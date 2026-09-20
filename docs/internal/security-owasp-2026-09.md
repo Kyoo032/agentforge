@@ -51,8 +51,8 @@ now rather than a reason not to.
 | A06-1 | Medium | No CI ran lint, unit tests or a dependency audit | `.github/workflows/ci.yml` | Written, **cannot run** — Actions billing lock |
 | A06-2 | Low | The hosted image ships devDependencies | `webapp-deploy/Dockerfile:78-80` | **Recorded** — open |
 | A08-1 | Low | Workflows pin actions to mutable tags (`@v4`) | `.github/workflows/*.yml` | **Recorded** — open |
-| A09-1 | Medium | No request id: nothing correlated a user report to a log line | `packages/host/src/http-adapter.ts:94,435-437` | Fixed |
-| A09-2 | Medium | Authentication failures were not logged at all | `packages/host/src/http-adapter.ts:577-588` | Fixed |
+| A09-1 | Medium | No request id: nothing correlated a user report to a log line | `packages/host/src/http-adapter.ts:95,435-437` | Fixed |
+| A09-2 | Medium | Authentication failures were not logged at all | `packages/host/src/http-adapter.ts:582-593` | Fixed |
 | A10-1 | **High** | The private-range check missed most of IPv4 and nearly all of IPv6 | `packages/core/src/security/ip-range.ts` | Fixed |
 | A10-2 | **High** | IPv4-mapped, 6to4 and NAT64 IPv6 forms bypassed the check entirely | `packages/core/src/security/ip-range.ts:174-246` | Fixed |
 | A10-3 | **High** | A public hostname resolving to a private address passed | `packages/core/src/security/safe-fetch.ts:110-128` | Fixed |
@@ -126,7 +126,7 @@ could rewrite them. Now 403 in server mode.
 > **The first version of this fix also refused provider-key writes, and that was a mistake that
 > would have bricked the hosted deploy.** Onboarding and Settings are the only ways to supply the
 > gateway key and both post it to this route, and the environment fallback in
-> `packages/host/src/gateway-gate.ts:376-386` only applies when `AGENTFORGE_RUNTIME=ai`, which
+> `packages/host/src/gateway-gate.ts:377-387` only applies when `AGENTFORGE_RUNTIME=ai`, which
 > `webapp-deploy/compose.yml` does not set and the runbook says to leave alone. A Phase 0 deploy
 > following the runbook would have ended on an onboarding screen whose only button answered 403,
 > with no other route to a working server. It also pre-empted Phase 4, where each tenant supplies
@@ -426,7 +426,7 @@ read and is sound; A01-5 turns the route off in server mode regardless.
 
 ### A09-1 — No request correlation
 
-Nothing tied a user's report to a log line. `mintRequestId` (`packages/host/src/http-adapter.ts:94`) puts 8 random
+Nothing tied a user's report to a log line. `mintRequestId` (`packages/host/src/http-adapter.ts:95`) puts 8 random
 bytes on every request, returns it as `X-Request-Id` in server mode (`:435-437`), and carries it
 into `request_filtered`, `request_failed` and the new `auth_failed`.
 
@@ -436,7 +436,7 @@ The adapter logged requests the *transport filter* refused — malformed paths, 
 limits. A well-formed request with a wrong or stolen session cookie was answered 401 and logged
 nothing, so a password-spray or a cookie replay across a thousand accounts left no trace at all.
 
-`logAuthFailure` (`packages/host/src/http-adapter.ts:577-588`) writes one `warn` line per 401 carrying the reason
+`logAuthFailure` (`packages/host/src/http-adapter.ts:582-593`) writes one `warn` line per 401 carrying the reason
 code, method, path *length*, client IP and request id — and nothing that identifies the caller
 beyond the IP the rate limiter already keys on. The test asserts the path, the cookie and the
 token never appear in the line.

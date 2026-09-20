@@ -28,7 +28,7 @@ What this page is **not**: the desktop or webdev path. Every rule below is a bra
 
 ### 2. The two mutating rules — loopback, and the web allowlist
 
-`mutatingRejection` (`packages/host/src/http-adapter.ts:534-563`) is the one place the two are chosen between, on `csrfMode.secure` — which *is* `serverMode` (`:526`, set at `:387`).
+`mutatingRejection` (`packages/host/src/http-adapter.ts:539-568`) is the one place the two are chosen between, on `csrfMode.secure` — which *is* `serverMode` (`:526`, set at `:387`).
 
 **Off server mode (the rule that was always there).** `isAllowedMutatingApiRequest(origin)` (`packages/host/src/local-request.ts:80-89`): a **missing Origin is allowed**, because curl, native tooling and same-origin GETs honestly have none; a present Origin must resolve to `localhost`, `127.0.0.1` or `::1` (`isLocalRequestUrl`, `:32-37` → `isLocalRequestHost`, `:20-29`). The `referer` argument is accepted and ignored (`:82`) — a remote Origin is never rescued by a local Referer. `isLoopbackHostHeader(host)` (`:66-73`) is the second half, and a **missing Host is rejected** (reasoning in the comment at `:56-65`). Failure is `403 { code: "forbidden", message: "Local requests only" }` (`http-adapter.ts:536-538`, `:26`).
 
@@ -55,7 +55,7 @@ Where the renderer sends it: `apps/web/lib/api-client.ts`. `withMutatingHeaders`
 
 ### 4. The adapter, in the order it actually runs
 
-`handleNodeRequest(req, res)` (`packages/host/src/http-adapter.ts:375-494`), mounted as the **first** Express middleware (`apps/web/server.ts:45-51`) — above `express.static` and the vite middlewares, which is what puts the transport controls in front of pages and assets as well as `/api`.
+`handleNodeRequest(req, res)` (`packages/host/src/http-adapter.ts:376-495`), mounted as the **first** Express middleware (`apps/web/server.ts:45-51`) — above `express.static` and the vite middlewares, which is what puts the transport controls in front of pages and assets as well as `/api`.
 
 1. `pathnameOf` → raw path and query (`:368`, `:103-111`).
 2. `isApiPath` is tested on the **raw** path (`:372`); normalising only removes slashes, so it can never turn a non-`/api` path into an `/api` one (comment `:370-371`).
@@ -79,7 +79,7 @@ Where the renderer sends it: `apps/web/lib/api-client.ts`. `withMutatingHeaders`
 
 `maskServerError(result, serverMode)` (`:347-357`): only a **json** result with `status >= 500` is touched (`:348`). The reason code survives if it looks like one — `/^[a-z0-9_]+$/` (`:46`, `reasonCodeOf` at `:359-363`) — and everything else is replaced by `INTERNAL_ERROR_MESSAGE = "The server could not complete this request."` (`:43`). 4xx bodies are untouched: those are this repo's own honest messages, not a driver's.
 
-The hosted session gate sits behind all of this, inside `dispatch` (`packages/host/src/router.ts:405-418`, `gate` at `:317-345`): in server mode **every** `/api` call needs a verified session whatever the method, except `/api/v1/auth/*` and `GET /api/v1/ping` / `GET /api/v1/components` (`packages/host/src/auth/routes.ts:39`, `:44`, `:94-99`). It is answered before the route table is consulted, so an unauthenticated caller learns nothing about which paths exist (`router.ts:341-344`).
+The hosted session gate sits behind all of this, inside `dispatch` (`packages/host/src/router.ts:422-435`, `gate` at `:317-345`): in server mode **every** `/api` call needs a verified session whatever the method, except `/api/v1/auth/*` and `GET /api/v1/ping` / `GET /api/v1/components` (`packages/host/src/auth/routes.ts:39`, `:44`, `:94-99`). It is answered before the route table is consulted, so an unauthenticated caller learns nothing about which paths exist (`router.ts:341-344`).
 
 ### 5. HTTP request filtering
 
@@ -99,7 +99,7 @@ The hosted session gate sits behind all of this, inside `dispatch` (`packages/ho
 | Declared length | `Content-Length` above the cap, refused before a byte is read | `413 payload_too_large` | `:297-300` |
 | Media type | `ALLOWED_BODY_CONTENT_TYPES` = `application/json`, `multipart/form-data`, `text/plain` | `415 unsupported_media_type` | `:169`, `:304-311` |
 
-`MAX_BODY_BYTES` is **not** in this file — the cap is passed in as `maxBodyBytes` (`:187`, `:298`) and the value lives at `packages/host/src/http-adapter.ts:38`.
+`MAX_BODY_BYTES` is **not** in this file — the cap is passed in as `maxBodyBytes` (`:187`, `:298`) and the value lives at `packages/host/src/http-adapter.ts:39`.
 
 The media-type check deliberately excludes `application/x-www-form-urlencoded`: that is the cross-site form shape, and it is refused on a mutating request even when the sender declared no length (`:289-295`, `:304-311`). GET/HEAD/OPTIONS are exempt from the media-type check entirely (`BODYLESS_METHODS`, `:172`, `:301-303`).
 
@@ -163,12 +163,12 @@ The `request_filtered` line is the one the transport rules write (`FILTERED_EVEN
 
 **The wrap key becomes mandatory.** `getLocalVaultKey(env)` (`packages/db/src/vault-key.ts:123-135`): off server mode, `AGENTFORGE_SECRETS_KEY` if set, else the self-creating `.master-key` file (`:107-114`, `MASTER_KEY_FILE` at `:37`) — unchanged. In server mode the env key is required (`SERVER_VAULT_KEY_REQUIRED`, `:46-49`) and must measure at least `MIN_VAULT_KEY_BYTES = 32` (`:40`) through `vaultKeyEntropyBytes` (`:90-105`), else `SERVER_VAULT_KEY_TOO_WEAK` (`:51-54`). The file fallback is not reached at all. `vaultKeyEntropyBytes` counts only hex (even digit count) and *canonical* base64/base64url — it re-encodes the decoded bytes and demands the same string back (`isCanonical`, `:80-82`), which refuses a passphrase that merely happened to be long enough. The file names its own limit at `:75-78`: a 43-character alphanumeric string is a valid base64 encoding of 32 bytes and passes.
 
-**The gateway gate fails closed.** `deriveGatewayGate` (`packages/host/src/gateway-gate.ts:268-296`) reads `isServerMode(input.env ?? process.env)` at `:275` and changes two rules:
+**The gateway gate fails closed.** `deriveGatewayGate` (`packages/host/src/gateway-gate.ts:269-297`) reads `isServerMode(input.env ?? process.env)` at `:275` and changes two rules:
 - `envRuntime === "stub"` opens the gate on a desk but falls through to `needs_key` on the server (`:278-283`) — a stub runtime is a hosted misconfiguration, never an open gate.
 - "no verdict, or a verdict for a different key fingerprint" is `{status:"ok", allowed:true, grace:true}` on a desk and `{status:"error", allowed:false, grace:false}` with `GATEWAY_UNVERIFIED_MESSAGE` (`:57`) on the server (`:288-290`, `:296-298`). A hosted tenant has no first run to take on trust. Everything below that line is a verdict the gateway actually gave and reads the same in both modes.
 The renderer half matches: `resolveGate(payload, isElectron, hosted)` (`apps/web/lib/gateway-gate.ts:94-100`) falls closed on a missing or malformed gate when `hosted || isElectron`, and stays open otherwise.
 
-**"Start over" answers 403; "Sign out" does not.** `handleResetApp` (`packages/host/src/handlers/settings.ts:445-461`, route `packages/host/src/router.ts:250`) resolves `serverMode` through an injectable dep (`ResetDeps`, `:443`, resolved `:450`). Phase 4 split the two scopes rather than refusing both:
+**"Start over" answers 403; "Sign out" does not.** `handleResetApp` (`packages/host/src/handlers/settings.ts:445-461`, route `packages/host/src/router.ts:259`) resolves `serverMode` through an injectable dep (`ResetDeps`, `:443`, resolved `:450`). Phase 4 split the two scopes rather than refusing both:
 - `scope: "all"` → `ApiError(RESET_DISABLED_CODE, RESET_DISABLED_MESSAGE, 403)` (`resetEverything`, `:423-440`, refusal at `:424-426`, constants `:383-386`). The refusal comes **first**, before the confirmation word is checked and before anything is queued, so one workspace's owner cannot arm a wipe of everyone else's data.
 - `DELETE /api/v1/settings/reset` (cancel) refuses the same way (`:477`).
 - `scope: "key"` **no longer refuses** (`resetGatewayKey`, `:400-415`). It used to, on the reasoning that `clearGatewayKeyEverywhere()` was machine-wide — which stopped being true in Phase 3 lane D, when both it and `clearGateState` were narrowed to the caller's tenant. Phase 4 dropped the 403 and the dead `RESET_KEY_DISABLED_MESSAGE` with it, because refusing it left a hosted tenant with no way to remove a saved key: a blank `openaiApiKey` in a settings POST is dropped rather than applied (`keyFieldValue`, `:194-202`). Pinned by `packages/host/src/handlers/settings.test.ts`.
@@ -263,8 +263,8 @@ There are no DOM testids for any of this. It is all transport; nothing on this p
 
 **Why "Start over" is refused rather than scoped.** `[Direct]` `docs/internal/web-security-spec.md:67` (row T8): "'Start over' is scoped to the caller's tenant, or disabled on the web build; today it wipes the whole data dir". The second option was taken, and the refusal is placed before the confirmation word so a wipe cannot even be armed. `[Supported]` The "forget my key" scope was refused for a different reason — the key clear is machine-wide and the gate verdict is shared, so one tenant would sign out every other (`packages/host/src/handlers/settings.ts:310-317`). **Confidence: high.**
 
-**Why the gate fails closed on the hosted build.** `[Direct]` `docs/internal/web-security-spec.md:63` (row T4) asks for exactly both halves: the renderer must treat a missing or malformed gate as blocked, and "the host stops taking an unverified key on trust". Both landed (`apps/web/lib/gateway-gate.ts:94-100`, `packages/host/src/gateway-gate.ts:286-288`). **Confidence: high.**
+**Why the gate fails closed on the hosted build.** `[Direct]` `docs/internal/web-security-spec.md:63` (row T4) asks for exactly both halves: the renderer must treat a missing or malformed gate as blocked, and "the host stops taking an unverified key on trust". Both landed (`apps/web/lib/gateway-gate.ts:94-100`, `packages/host/src/gateway-gate.ts:287-289`). **Confidence: high.**
 
 **Why the wrap key is mandatory on the server.** `[Direct]` `docs/internal/web-security-spec.md:74` (row S1). `[Supported]` `packages/db/src/vault-key.ts:42-45` gives the mechanism the row implies: an invented `.master-key` on a container layer "is a key that disappears with the container and takes every sealed envelope with it." **Confidence: high.**
 
-**Why 5xx bodies are masked but 4xx are not.** `[Direct]` `docs/internal/web-security-spec.md:47` (row A6) asks for "no stack traces, no file paths, no SQL" on every 4xx/5xx, and `:52` (row A11) names `maskServerError` as the landed answer. `[Inferred]` The split — 5xx replaced, 4xx left alone — is not stated in the spec; the reason given in `packages/host/src/http-adapter.ts:351-353` is that a 4xx message is written by this repo and is the honest reason the caller asked for, while the detail on a 500 is where a driver's paths and SQL leak. Since that is the change's own account of itself, treat it as the intent recorded rather than an independently sourced decision. **Confidence: medium.**
+**Why 5xx bodies are masked but 4xx are not.** `[Direct]` `docs/internal/web-security-spec.md:47` (row A6) asks for "no stack traces, no file paths, no SQL" on every 4xx/5xx, and `:52` (row A11) names `maskServerError` as the landed answer. `[Inferred]` The split — 5xx replaced, 4xx left alone — is not stated in the spec; the reason given in `packages/host/src/http-adapter.ts:352-354` is that a 4xx message is written by this repo and is the honest reason the caller asked for, while the detail on a 500 is where a driver's paths and SQL leak. Since that is the change's own account of itself, treat it as the intent recorded rather than an independently sourced decision. **Confidence: medium.**

@@ -40,7 +40,7 @@ cannot be created and the app refuses everyone, rather than serving everyone one
 
 ### The ambient session
 
-`dispatch` (`packages/host/src/router.ts:437`) runs the matched handler inside
+`dispatch` (`packages/host/src/router.ts:454`) runs the matched handler inside
 `withRequestSession(session, …)` (`tenant-scope.ts:22`), an `AsyncLocalStorage` — the same idiom as
 `run-context.ts`, `edit/context.ts` and `sql-tool.ts`. So a handler that has not yet been swept to
 pass the request still resolves **the session's** tenant, and the desk id it passes is demoted to a
@@ -70,7 +70,7 @@ row, not from a constant. Status and message per code: `tenant.ts:48-60`.
 ### Where the rows come from: first sign-in
 
 `resolvePortalTenant` creates nothing, so something else must. That something is the sign-in, and
-only the sign-in: `handleLogin` calls `deps.provision(...)` (`packages/host/src/auth/routes.ts:248`)
+only the sign-in: `handleLogin` calls `deps.provision(...)` (`packages/host/src/auth/routes.ts:281`)
 immediately after the portal returns tokens and **before** the session row exists, so a refused
 provisioning leaves no session behind. The real implementation is `ensurePortalOwner`
 (`portal-owner.ts:89`), wired in at `packages/host/src/auth/index.ts:136` through a dynamic
@@ -96,7 +96,7 @@ rows are never re-homed.
 ### The workspace cookie
 
 `agentforge_workspace` is entirely client-supplied: the HTTP adapter copies it onto the request at
-`packages/host/src/http-adapter.ts:488`. On the desktop, `pickWorkspaceId`
+`packages/host/src/http-adapter.ts:489`. On the desktop, `pickWorkspaceId`
 (`packages/core/src/local-owner.ts:16-31`) silently substitutes home for an id it does not
 recognise. On the hosted server that substitution is gone: a desk the session's org does not own is
 `workspace_not_found`, 404, and `dispatch` attaches a cleared cookie on the way out —

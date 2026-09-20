@@ -73,11 +73,20 @@ export const tenantUsage = sqliteTable(
     at: integer("at", { mode: "timestamp_ms" })
       .notNull()
       .$defaultFn(() => new Date()),
+    /**
+     * Phase 5 lane B: the billing period this row was counted against, epoch ms — the same value
+     * as `tenant_plan.period_start` at the moment of the write. Null on every row written before
+     * lane B and on any row recorded outside server mode, where no plan is enforced. It is what
+     * turns "does the counter match the ledger" into an equality instead of a re-derivation from
+     * `at`, which stops being true as soon as a period boundary moves.
+     */
+    billingPeriodStart: integer("billing_period_start"),
   },
   (table) => [
     index("tenant_usage_tenant_at_idx").on(table.tenantId, table.at),
     index("tenant_usage_tenant_mode_idx").on(table.tenantId, table.mode, table.at),
     index("tenant_usage_unpriced_idx").on(table.unpricedReason, table.at),
+    index("tenant_usage_period_idx").on(table.tenantId, table.billingPeriodStart),
   ],
 );
 
@@ -102,6 +111,95 @@ export const tenantState = sqliteTable(
       .$defaultFn(() => new Date()),
   },
   (table) => [primaryKey({ columns: [table.tenantId, table.key] }), index("tenant_state_key_idx").on(table.key)],
+);
+
+/**
+ * What a tenant is entitled to: one row per tenant (Phase 5 lane B,
+ * drizzle/0017_tenant_plan.sql). Read and written by `entitlement-store.ts` in `@agentforge/host`.
+ *
+ * A tenant with NO row is not blocked — `defaultPlanRecord` in `@agentforge/core` gives it an
+ * active, uncapped, unmetered plan, so a database that has never met the billing webhook behaves
+ * exactly as it did before Phase 5. The desktop never has a row at all.
+ *
+ * `allowanceUsdMicros` and `spentUsdMicros` are USD of GATEWAY COST, the unit the ledger records;
+ * `marginMultipleMicros` is what a subscription charges for that cost and takes no part in the
+ * block decision.
+ */
+export const tenantPlan = sqliteTable("tenant_plan", {
+  tenantId: text("tenant_id")
+    .primaryKey()
+    .references(() => tenants.id, { onDelete: "cascade" }),
+  /** `PlanKind` from @agentforge/core: personal | enterprise. */
+  kind: text("kind").notNull().default("personal"),
+  /** `PlanStatus` from @agentforge/core. The billing webhook is the only writer of this column. */
+  status: text("status").notNull().default("active"),
+  /** Null means no allowance is enforced: spend is recorded and nothing is ever refused for it. */
+  allowanceUsdMicros: integer("allowance_usd_micros"),
+  /** Gateway cost accrued this period, maintained on every ledger write. Never a float. */
+  spentUsdMicros: integer("spent_usd_micros").notNull().default(0),
+  /** Ledger rows this period nobody could price: counted as zero, surfaced as a warning. */
+  unpricedCount: integer("unpriced_count").notNull().default(0),
+  periodStart: integer("period_start", { mode: "timestamp_ms" }).notNull(),
+  periodEnd: integer("period_end", { mode: "timestamp_ms" }).notNull(),
+  /** Null on Personal and on any tenant the webhook has not spoken about; null admits everybody. */
+  seatCap: integer("seat_cap"),
+  /** 1_000_000 is 1.0 (pass-through), the default until kyo names a margin. */
+  marginMultipleMicros: integer("margin_multiple_micros").notNull().default(1_000_000),
+  /** ISO 4217, for display and invoicing. The micro columns above are always USD. */
+  currency: text("currency").notNull().default("USD"),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+/**
+ * A seat, held until an admin revokes it (decision doc D5(b)) — never freed by going idle, and
+ * never derived from `auth_sessions`, which answers a looser question than the portal's own rule.
+ * A revoked seat keeps its row so an admin screen can say who was revoked and when.
+ */
+export const tenantSeat = sqliteTable(
+  "tenant_seat",
+  {
+    tenantId: text("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull(),
+    organizationId: text("organization_id").notNull(),
+    claimedAt: integer("claimed_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    /** Null means the seat is held, and a held seat is what the cap counts. */
+    revokedAt: integer("revoked_at", { mode: "timestamp_ms" }),
+    revokedBy: text("revoked_by"),
+  },
+  (table) => [
+    primaryKey({ columns: [table.tenantId, table.userId] }),
+    index("tenant_seat_live_idx").on(table.tenantId, table.revokedAt),
+  ],
+);
+
+/**
+ * Webhook idempotency: one row per provider delivery, keyed on the provider's own event id.
+ *
+ * `tenantId` deliberately carries no foreign key — an event can arrive for a tenant this host has
+ * not provisioned yet, and refusing it on a foreign key would make the route un-replayable. Such a
+ * delivery is stored with `applied` false and a `detail` saying why.
+ */
+export const billingEvents = sqliteTable(
+  "billing_events",
+  {
+    eventId: text("event_id").primaryKey(),
+    tenantId: text("tenant_id").notNull(),
+    /** `BillingEventKind` from @agentforge/core. */
+    kind: text("kind").notNull(),
+    occurredAt: integer("occurred_at", { mode: "timestamp_ms" }).notNull(),
+    receivedAt: integer("received_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    applied: integer("applied", { mode: "boolean" }).notNull().default(false),
+    detail: text("detail"),
+  },
+  (table) => [index("billing_events_tenant_idx").on(table.tenantId, table.receivedAt)],
 );
 
 export const organizations = sqliteTable(

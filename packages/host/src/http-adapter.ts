@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { isServerMode, trustedOrigins, WORKSPACE_COOKIE } from "@agentforge/core";
+import { BILLING_TOKEN_HEADER } from "./billing/authenticate";
 import { contentDispositionAttachment } from "./content-disposition";
 import {
   checkCsrfToken,
@@ -478,7 +479,7 @@ export async function handleNodeRequest(req: IncomingMessage, res: ServerRespons
     const { handleBootEditJobs } = await import("./handlers/edit");
     void handleBootEditJobs();
   }
-  if (!SAFE_METHODS.has(method)) {
+  if (!SAFE_METHODS.has(method) && !CSRF_EXEMPT_PATHS.has(path)) {
     const rejection = mutatingRejection(req, path, cookies, csrfMode, presentedSessionId);
     if (rejection) {
       return respondRejection(res, { status: 403, ...rejection }, context);
@@ -527,6 +528,10 @@ export async function handleNodeRequest(req: IncomingMessage, res: ServerRespons
       cookie: header(req, "cookie"),
       "content-type": header(req, "content-type"),
       range: header(req, "range"),
+      // Phase 5 lane B: the billing webhook's shared secret. Forwarded like the others rather than
+      // read from the raw request inside the handler, so the handler stays adapter-agnostic and
+      // the desktop IPC path — which never carries it — reads `undefined` and refuses.
+      [BILLING_TOKEN_HEADER]: header(req, BILLING_TOKEN_HEADER),
       "x-agentforge-transport": "http",
     },
     body,
@@ -597,6 +602,19 @@ type Rejection = { readonly code: string; readonly message: string };
  * rejected), the Host must be one of those origins' hosts, and the double-submit CSRF token must
  * match. The `x-agentforge-transport` requirement on the destructive routes is unchanged in both.
  */
+/**
+ * Phase 5 lane B: paths a mutating request may reach without an Origin on the allowlist and
+ * without a CSRF token (decision doc §3(c), the first of the webhook's three exemptions).
+ *
+ * The double-submit CSRF rule and the Origin allowlist both assume a BROWSER made the request.
+ * A payment provider's server sends neither header and has no cookie jar, so the rule it is held
+ * to instead is a shared secret compared in constant time, checked inside the handler
+ * (`billing/authenticate.ts`) — which also means an unconfigured deployment refuses rather than
+ * accepting anything. One literal path, never a prefix: `/api/v1/billing/top-up` is a browser
+ * call and keeps every rule.
+ */
+const CSRF_EXEMPT_PATHS: ReadonlySet<string> = new Set(["/api/v1/billing/webhook"]);
+
 function mutatingRejection(
   req: IncomingMessage,
   path: string,

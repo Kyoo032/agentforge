@@ -68,7 +68,7 @@ of that rule. Creating rows is the sign-in's job and the sign-in's alone.
 ## 4. First sign-in provisions the tenant
 
 Per the decision already made: a `tenants` row is created on first sign-in.
-`handleLogin` calls `deps.provision(...)` (`auth/routes.ts:248`) right after the portal returns
+`handleLogin` calls `deps.provision(...)` (`auth/routes.ts:281`) right after the portal returns
 tokens and **before** `store.create(session)`, so a refused provisioning leaves no session behind.
 The implementation is `ensurePortalOwner` (`portal-owner.ts:89`): tenant, org, user, org
 membership, home desk, desk membership — idempotent, so a second sign-in reads and returns.

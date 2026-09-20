@@ -12,6 +12,7 @@ import {
   type UsageMode,
   type UsageUnit,
 } from "@agentforge/core";
+import { accrueSpend } from "./entitlement-store";
 import { log } from "./log";
 
 /**
@@ -36,6 +37,13 @@ export type TenantUsageRow = UsageEvent & {
   userId: string | null;
   /** Epoch milliseconds, as everywhere else in this schema. */
   at: number;
+  /**
+   * Phase 5 lane B: the billing period this call was counted against (`tenant_plan.period_start`),
+   * or `null` where no plan was counting — every desk, and every row written before lane B. It is
+   * what makes "does the counter match the ledger" an equality rather than a re-derivation from
+   * `at`, which stops being true the moment a period boundary moves.
+   */
+  billingPeriodStart: number | null;
 };
 
 export type UsageQuery = {
@@ -66,7 +74,7 @@ export type UsageTotals = {
 };
 
 export type UsageStore = {
-  record(tenant: TenantContext, event: UsageEvent): TenantUsageRow | null;
+  record(tenant: TenantContext, event: UsageEvent, billingPeriodStart?: number | null): TenantUsageRow | null;
   list(tenant: TenantContext, query?: UsageQuery): TenantUsageRow[];
   totals(tenant: TenantContext, query?: UsageQuery): UsageTotals;
 };
@@ -87,6 +95,7 @@ type Row = {
   unpriced_reason: string | null;
   run_id: string | null;
   at: number;
+  billing_period_start: number | null;
 };
 
 function nonNegativeInt(value: unknown): number {
@@ -99,7 +108,11 @@ function nonNegativeInt(value: unknown): number {
  * a bug upstream, and a ledger row that cannot be attributed is worse than no row: it inflates the
  * unpriced count without telling anybody whose call it was.
  */
-function validate(tenant: TenantContext, event: UsageEvent): TenantUsageRow | null {
+function validate(
+  tenant: TenantContext,
+  event: UsageEvent,
+  billingPeriodStart: number | null,
+): TenantUsageRow | null {
   const model = typeof event.model === "string" ? event.model.trim() : "";
   if (!tenant?.tenantId?.trim() || !tenant?.organizationId?.trim() || !model) {
     return null;
@@ -133,6 +146,7 @@ function validate(tenant: TenantContext, event: UsageEvent): TenantUsageRow | nu
     ...(unpricedReason ? { unpricedReason } : {}),
     ...(event.runId?.trim() ? { runId: event.runId.trim() } : {}),
     at: Date.now(),
+    billingPeriodStart: typeof billingPeriodStart === "number" ? billingPeriodStart : null,
   };
 }
 
@@ -153,6 +167,7 @@ function rowFrom(raw: Row): TenantUsageRow {
     ...(isUnpricedReason(raw.unpriced_reason) ? { unpricedReason: raw.unpriced_reason } : {}),
     ...(raw.run_id ? { runId: raw.run_id } : {}),
     at: raw.at,
+    billingPeriodStart: typeof raw.billing_period_start === "number" ? raw.billing_period_start : null,
   };
 }
 
@@ -183,16 +198,17 @@ function whereFor(tenantId: string, query: UsageQuery): { clause: string; params
 /** Repository over the `tenant_usage` table. Nothing here reaches the network or prices anything. */
 export function createUsageStore(db: Database.Database): UsageStore {
   return {
-    record(tenant, event) {
-      const row = validate(tenant, event);
+    record(tenant, event, billingPeriodStart = null) {
+      const row = validate(tenant, event, billingPeriodStart);
       if (!row) {
         return null;
       }
       db.prepare(
         `INSERT INTO tenant_usage
            (id, tenant_id, organization_id, workspace_id, user_id, mode, model, unit, quantity,
-            input_tokens, output_tokens, cost_usd_micros, unpriced_reason, run_id, at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            input_tokens, output_tokens, cost_usd_micros, unpriced_reason, run_id, at,
+            billing_period_start)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         row.id,
         row.tenantId,
@@ -209,6 +225,7 @@ export function createUsageStore(db: Database.Database): UsageStore {
         row.unpricedReason ?? null,
         row.runId ?? null,
         row.at,
+        row.billingPeriodStart,
       );
       return row;
     },
@@ -282,7 +299,30 @@ export function setUsageStoreForTests(store: UsageStore | null): void {
  */
 export function recordUsage(tenant: TenantContext, event: UsageEvent): TenantUsageRow | null {
   try {
-    return usageStore().record(tenant, event);
+    // Phase 5 lane B: the allowance counter moves with the ledger row, inside the same request, so
+    // the next gateway call sees this one. Off server mode `accrueSpend` returns before it asks
+    // for a connection, so a desk still writes exactly the row lane A wrote and reads no plan.
+    //
+    // The accrual is inside this `try` on purpose. If it throws, the ledger row is lost with it —
+    // which is the honest failure: a call that was spent but not counted is an allowance that
+    // undercounts silently, the one thing lane A's whole design refuses to do. The `catch` below
+    // logs it as `usage_write_failed` either way, and the generation the tenant already paid the
+    // gateway for still succeeds.
+    //
+    // **These two writes are NOT one transaction, and the audit has to know it.** The order is
+    // counter first, ledger row second, so the failure that is actually possible — the INSERT
+    // throwing after the UPDATE committed — leaves the counter AHEAD of the ledger. That direction
+    // is deliberate: it over-counts a tenant's spend by one call rather than letting a call escape
+    // the allowance, which is the failure lane A exists to prevent. The consequence is that the
+    // `SUM(cost_usd_micros) = spent_usd_micros` audit can read short by the cost of a failed write,
+    // and `usage_write_failed` in the log is how an operator tells that apart from a real gap.
+    // Making it one transaction means one `db.transaction` spanning this module and the store's
+    // own connection handle; it is worth doing and it is not this lane's (lane record §9).
+    const billingPeriodStart = accrueSpend({
+      tenantId: tenant.tenantId,
+      costUsdMicros: event.costUsdMicros,
+    });
+    return usageStore().record(tenant, event, billingPeriodStart);
   } catch (error) {
     log.warn("usage_write_failed", {
       mode: event.mode,

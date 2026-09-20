@@ -95,13 +95,13 @@ bills 5 s for a 4 s request.
 
 | Case | What happens |
 |---|---|
-| The ledger write throws | `recordUsage` (`packages/host/src/tenant-usage.ts:283`) logs `usage_write_failed` and swallows it. Metering never fails a generation the tenant has already been charged for. The cost is a lost row, which is why it is a warning and not a debug line |
+| The ledger write throws | `recordUsage` (`packages/host/src/tenant-usage.ts:300`) logs `usage_write_failed` and swallows it. Metering never fails a generation the tenant has already been charged for. The cost is a lost row, which is why it is a warning and not a debug line |
 | No tenant, organization or model on the event | `validate` (`:102`) returns null and nothing is written. A row that cannot be attributed inflates the unpriced count without saying whose call it was |
 | A cost with no reason, or a reason with a cost | Reconciled in `validate`: a null cost always gets a reason, defaulting to `catalog_unavailable` |
 | The pricing catalog is cold | `catalog_unavailable` rows; unit and quantity are still right |
 | The tenant row is deleted | The ledger goes with it (`ON DELETE cascade` on `tenant_id`) |
 | An organization is deleted | **The ledger stays.** `organization_id` is deliberately not a foreign key: deleting one org inside a live tenant must not erase spend still to be billed |
-| A database baseline-stamped past 0016 | `ensureTenantUsageTable` (`packages/db/src/ensure-schema.ts:470`, called at `:245`) re-creates the table and its indexes |
+| A database baseline-stamped past 0016 | `ensureTenantUsageTable` (`packages/db/src/ensure-schema.ts:471`, called at `:245`) re-creates the table and its indexes |
 
 ## Where things live
 
@@ -111,7 +111,7 @@ bills 5 s for a 4 s request.
 | `packages/core/src/gateway/account.ts:139` | `explainRunUsd` — priced, or the reason it is not |
 | `packages/db/src/schema.ts:49` | The `tenantUsage` drizzle table |
 | `packages/db/drizzle/0016_tenant_usage.sql` | The migration, and the reasoning for every nullable column |
-| `packages/db/src/ensure-schema.ts:470` | `ensureTenantUsageTable`, the baseline-stamp healer |
+| `packages/db/src/ensure-schema.ts:471` | `ensureTenantUsageTable`, the baseline-stamp healer |
 | `packages/host/src/tenant-usage.ts` | The store: `createUsageStore`, `recordUsage`, `listTenantUsage`, `tenantUsageTotals`, and the `listJobUsageRecords` shim the account screen reads |
 | `packages/host/src/usage-record.ts` | Pricing at write time, and the seven entry points the modes call |
 | `packages/host/src/job-usage.ts` | `rememberJobUsage` — runtime event → tenanted row |
@@ -133,7 +133,7 @@ bills 5 s for a 4 s request.
 - **The store is synchronous.** It writes through the same `better-sqlite3` handle as
   `artifacts.ts`, because every caller is inside a runtime `onEvent` or a generate handler, and a
   fire-and-forget promise there is a row that silently does not exist when the process exits.
-- **`setUsageStoreForTests` is a test seam** (`packages/host/src/tenant-usage.ts:274`). Nothing in
+- **`setUsageStoreForTests` is a test seam** (`packages/host/src/tenant-usage.ts:291`). Nothing in
   the app may call it.
 - **ASR has no list price on file, and no gateway fallback.** `gatewayFlatPrice` only serves flat
   per-call rates, which is exactly the wrong shape for audio billed by the minute, so every

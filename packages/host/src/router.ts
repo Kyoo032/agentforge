@@ -4,6 +4,10 @@ import { isServerMode } from "@agentforge/core";
 // `@agentforge/db` opens the database and `settings-store.ts` is reached from unit tests that have
 // no database. Without it server mode refuses to read or write a tenant's settings at all.
 import "./tenant-state-db";
+// Phase 5 lane B: installs the entitlement backend the same way and for the same reason — the
+// allowance check sits inside `requireGatewayAllowed`, which every gateway route calls, and with
+// no connection installed server mode refuses rather than letting a call through uncounted.
+import "./entitlement-db";
 import { hostAuthRoutes, hostSessionStore, isSessionExemptPath, requireSessionFor } from "./auth";
 import type { SessionStore } from "./auth";
 import { jsonError, jsonOk } from "./errors";
@@ -41,6 +45,11 @@ import {
   handlePostTelegramBot,
   handlePostTelegramPoll,
 } from "./handlers/channels";
+import {
+  handleGetBillingPlan,
+  handlePostBillingTopUp,
+  handlePostBillingWebhook,
+} from "./handlers/billing";
 import { handleGetChat } from "./handlers/chat";
 import { handleGetComponents, handlePostComponentInstallStream } from "./handlers/components";
 import { handleDeleteDataset, handleGetDataset, handleGetDatasets, handlePostDatasets } from "./handlers/datasets";
@@ -250,6 +259,14 @@ const routes: Route[] = [
   compile("POST", "/api/v1/settings/reset", handleResetApp),
   compile("DELETE", "/api/v1/settings/reset", handleCancelReset),
   compile("GET", "/api/v1/usage", handleGetUsage),
+  // Phase 5 lane B, hosted only. The webhook is exempt from the session gate below and from the
+  // CSRF rule in `http-adapter.ts`, and authenticates on a shared secret instead — no browser
+  // calls it. The other two ARE session-gated and are deliberately NOT behind
+  // `requireGatewayAllowed()`: a tenant the plan has blocked must still be able to read why and
+  // pay, or the block is a dead end (decision doc §3(b)).
+  compile("POST", "/api/v1/billing/webhook", handlePostBillingWebhook),
+  compile("GET", "/api/v1/billing/plan", handleGetBillingPlan),
+  compile("POST", "/api/v1/billing/top-up", handlePostBillingTopUp),
   // Deliberately NOT behind `requireGatewayAllowed()`: a component installs during onboarding,
   // before a key exists, and never touches the gateway. See handlers/components.ts.
   compile("GET", "/api/v1/components", handleGetComponents),

@@ -25,6 +25,7 @@ import {
   type TenantContext,
 } from "@agentforge/core";
 import { TENANT_STATE_FILENAMES, tenantStateBackend } from "./tenant-state-store";
+import { requireEntitlementAllowed } from "./entitlement-store";
 import { loadSettings, resolveSettingsScope, type SettingsScope } from "./settings-store";
 
 /**
@@ -455,8 +456,25 @@ export function isGatewayBlockedError(error: unknown): error is GatewayBlockedEr
  * The host-side enforcement point. Every route that reaches the gateway calls this first, so a
  * closed gate is a 403 from the host and not something the renderer could route around. Stub
  * runtime derives `allowed: true`, so Playwright and Cloud never see it.
+ *
+ * **Phase 5 lane B: the plan is checked here too, and it is checked first.**
+ *
+ * Here, because this is the only choke point before a gateway call and it already takes the
+ * tenant — so every call site gained the allowance without one of them changing, directly or
+ * through `requireGatewayAllowedFor`, and none of them gained an `await`, which is what the
+ * decision doc's §3(a) asked for. `better-sqlite3` is
+ * synchronous, so the entitlement read costs no asynchrony; off server mode it costs nothing at
+ * all, because `requireEntitlementAllowed` returns before it asks for a connection.
+ *
+ * First, because the two refusals send the renderer to different screens and only one of them is
+ * actionable. A hosted tenant that is past due or out of allowance holds no gateway key of its
+ * own, so answering `needs_key` would route it to the paste-your-key onboarding screen — whose
+ * only exits are a key, a re-check, or deleting a file on the server's disk (decision doc §3(b)).
+ * The plan refusal names the account screen, where paying is possible. On a desk neither ordering
+ * is observable: there is no plan.
  */
 export function requireGatewayAllowed(settings: StoredSecrets, opts: GatewayGateOptions = {}): GatewayGatePayload {
+  requireEntitlementAllowed(tenantOf(opts));
   const gate = reportGatewayGate(settings, opts);
   if (!gate.allowed) {
     throw new GatewayBlockedError(gate);

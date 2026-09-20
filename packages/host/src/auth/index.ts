@@ -137,6 +137,22 @@ export function hostAuthRoutes(): AuthRoutes {
       const { db, ensurePortalOwner } = await import("@agentforge/db");
       return ensurePortalOwner(db, identity);
     },
+    // Phase 5 lane B. Dynamic for the same reason `provision` is: `entitlement-db.ts` imports
+    // `@agentforge/db`, which opens SQLite at import, and the desktop imports this module without
+    // ever signing in. `currentPlanRecord` gives a tenant with no plan row a null cap, which
+    // admits everybody — so a deployment the billing webhook has never spoken to signs people in
+    // exactly as it did before this lane.
+    claimSeat: async (identity) => {
+      await import("../entitlement-db");
+      const { claimSeat, currentPlanRecord } = await import("../entitlement-store");
+      const plan = currentPlanRecord(identity.tenantId);
+      return claimSeat({
+        tenantId: identity.tenantId,
+        userId: identity.userId,
+        organizationId: identity.orgId,
+        seatCap: plan.seatCap,
+      });
+    },
   });
   return routes;
 }

@@ -34,7 +34,7 @@ Unlike Legal, there is a create form: title plus the language spoken (`apps/web/
 - over `MEETING_RECORDING_MAX_BYTES` (25 MB) → 413
 - a mime outside `MEETING_AUDIO_TYPES` ∪ `MEETING_VIDEO_TYPES` → 400 `unsupported_content_type`
 
-**Why 25 MB and not more:** the HTTP adapter refuses any request body over `MAX_BODY_BYTES` = 26 MB (`packages/host/src/http-adapter.ts:38`). A larger cap in the store would only turn a clear 413 into a confusing transport failure. Roughly an hour of speech-grade mono audio fits; a longer meeting goes in as a pasted transcript.
+**Why 25 MB and not more:** the HTTP adapter refuses any request body over `MAX_BODY_BYTES` = 26 MB (`packages/host/src/http-adapter.ts:39`). A larger cap in the store would only turn a clear 413 into a confusing transport failure. Roughly an hour of speech-grade mono audio fits; a longer meeting goes in as a pasted transcript.
 
 Bytes land at `recording/source.<ext>`, extension from the mime with the filename as a fallback (`extensionFor`, `store-files.ts:152-160`). `recordingFile()` re-checks that a stored relative path still resolves inside the meeting directory before anything reads it back (`store-files.ts:76-83`).
 

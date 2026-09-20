@@ -150,7 +150,7 @@ Contract: `packages/core/src/gateway/gate-types.ts` —
 `{ status, allowed, grace, endpoint, endpointLocked: true, checkedAt, lastOkAt, message? }`, `status` in
 `stub | needs_key | ok | invalid_key | unreachable | error`.
 
-`reportGatewayGate(settings)` (`packages/host/src/gateway-gate.ts:408-422`) resolves the key to judge
+`reportGatewayGate(settings)` (`packages/host/src/gateway-gate.ts:410-424`) resolves the key to judge
 (`keyFor`, `:395-405`), fingerprints it, loads that tenant's verdict (`loadGateState`, `:157-187` — **the
 verdict is keyed by fingerprint; the key itself is never written**), and hands both to the pure
 `deriveGatewayGate` (`:283-332`), which applies in order:
@@ -196,7 +196,7 @@ Constants (`packages/host/src/gateway-gate.ts`): `GATEWAY_GRACE_MS = 7 * 86_400_
 inclusive — exactly 7 days still counts (`withinGrace`, `:254-257`, pinned at
 `packages/host/src/gateway-gate.test.ts:146-155`); the TTL check is `withinOkTtl` (`:267-270`).
 
-**The live check** is `checkGatewayLive` (`packages/host/src/gateway-gate.ts:347-382`): `GET {baseUrl}/models`
+**The live check** is `checkGatewayLive` (`packages/host/src/gateway-gate.ts:348-383`): `GET {baseUrl}/models`
 with `Authorization: Bearer <key>` under `AbortSignal.timeout(3_000)`, after `assertAllowedEndpointUrl` rejects
 plain-HTTP remotes. 2xx → `ok`; 401/403 → `invalid_key` (message is `HTTP {status}`, the key is never echoed);
 other non-OK → `error`; thrown/timeout → `unreachable`. `runGatewayCheck` (`:484-530`) wraps it: it
@@ -208,23 +208,34 @@ It runs on a key save (`refreshGatewayGateAfterSave` → `runGatewayCheck`,
 `packages/host/src/handlers/settings.ts:320-336`), and which verdict the save response carries is decided by
 `gateVerdictFor` (`packages/host/src/handlers/settings.ts:309-318`). It also runs on
 `POST /api/v1/settings/gateway/check` (`handleGatewayCheck`,
-`packages/host/src/handlers/settings.ts:338-346`, route at `packages/host/src/router.ts:249`). Separately, `maybeRefreshGateway` (`packages/host/src/gateway-gate.ts:559-597`)
+`packages/host/src/handlers/settings.ts:338-346`, route at `packages/host/src/router.ts:258`). Separately, `maybeRefreshGateway` (`packages/host/src/gateway-gate.ts:593-614`)
 fires an un-awaited check at most once per key per 10 minutes from `handleGetSettings` — that is what turns
 "opened on trust" into a real verdict over time.
 
-**Enforcement.** `requireGatewayAllowed(settings)` (`packages/host/src/gateway-gate.ts:459-465`) throws
+**Enforcement.** `requireGatewayAllowed(settings)` (`packages/host/src/gateway-gate.ts:476-483`) throws
 `GatewayBlockedError` when `!gate.allowed`, and `jsonError` flattens it (`packages/host/src/errors.ts:17-26`) to
 `403 { error: "gateway_blocked", status, message }` — a flat body, deliberately not the usual
 `{error:{code,message}}` envelope, so `parseGatewayBlocked` can read it without unwrapping. Call sites, all
-verified at this sha: `handlers/runs.ts:31`; `handlers/jobs.ts:64, 102, 114, 125, 152, 163, 191, 203, 216, 228`;
-`handlers/knowledge.ts:177, 194, 210, 259, 294, 316, 376, 409`; `handlers/finance.ts:18, 33, 53, 65, 76`;
-`handlers/market.ts:30, 42, 56`; `handlers/edit.ts:326, 546`; `handlers/enhance-prompt.ts:49`;
-`handlers/legal.ts:115`.
+verified at this sha: `handlers/runs.ts:30`; `handlers/jobs.ts:71, 109, 155, 166, 177, 188, 215, 226, 254, 266, 279, 291`;
+`handlers/knowledge.ts:174, 191, 207, 253, 288, 310, 370, 403`; `handlers/finance.ts:17, 32, 52, 64`;
+`handlers/market.ts:29, 41, 55`; `handlers/edit.ts:314, 542`; `handlers/enhance-prompt.ts:49`;
+`handlers/legal.ts:114`; `handlers/meetings.ts:139, 155, 174`.
+
+**Phase 5 lane B: the plan is enforced in the same function, and first.** `requireGatewayAllowed`
+calls `requireEntitlementAllowed(tenantOf(opts))` (`packages/host/src/entitlement-store.ts:431-452`)
+before it derives the gate, so every call site above gained the allowance without one of them
+changing, and none of them gained an `await` — `better-sqlite3` is synchronous, and off server mode
+the function returns before it asks for a connection. A refusal is a `PlanBlockedError` carrying
+`plan_past_due`, `plan_cancelled` or `plan_allowance_exhausted`, never `gateway_blocked`: that code
+routes the renderer to onboarding, which is a dead end for a hosted tenant who holds no key. See
+[`tenant-entitlement.md`](tenant-entitlement.md).
 
 Deliberately **open**: settings, workspaces, threads, artifacts, media, usage, model refresh — proved by the
 absence of the import in those handler files and directly by
 `packages/host/src/handlers/settings.test.ts:186-192` ("does not gate settings, usage or threads"). A closed gate
-must always be recoverable.
+must always be recoverable. Phase 5 lane B adds two more for the same reason: `GET /api/v1/billing/plan`
+and `POST /api/v1/billing/top-up` (`packages/host/src/router.ts:268-269`), so a tenant the **plan**
+has blocked can still read why and pay.
 
 **What a closed gate actually looks like** (driven 2026-09-17 on an isolated desk started with
 `AGENTFORGE_RUNTIME=ai` and no key; evidence in `evidence/gateway-gate/2026-09-17-cc-map/`):
@@ -325,7 +336,7 @@ installing an update or already exiting), races `clearRendererState()` — `clea
 
 | Case | Behaviour |
 |---|---|
-| Verdict missing, unreadable, or not JSON | `loadGateState` returns `null` (`packages/host/src/gateway-gate.ts:157-187`) → opens on trust. Deliberately unlike the sealed settings payload, which refuses rather than reset: a verdict is a cache of something the gateway said, so losing one costs a re-check |
+| Verdict missing, unreadable, or not JSON | `loadGateState` returns `null` (`packages/host/src/gateway-gate.ts:158-188`) → opens on trust. Deliberately unlike the sealed settings payload, which refuses rather than reset: a verdict is a cache of something the gateway said, so losing one costs a re-check |
 | Verdict cannot be written | `saveGateState` warns and returns `{persisted:false}` (`:198-213`, warn at `:210`); `runGatewayCheck` then answers `status:"error"` with `allowed` as derived (`:522-529`) — "an unwritable data dir must not close a desk" |
 | Live check throws / times out | mapped to `unreachable` (`:506-510`), never thrown |
 | Background re-check throws | swallowed (`:593-595`); the un-awaited promise also carries its own `.catch` (`:592`) |
@@ -404,10 +415,10 @@ installing an update or already exiting), races `clearRendererState()` — `clea
 - **`app.relaunch()` / `app.exit(0)`, not the Windows `taskkill /T` path**, because Electron's relauncher is a
   detached child that the tree-walk would kill (`apps/desktop/main.cjs:203-207`).
 - **`POST /api/v1/settings/reset` also requires the transport header.** It is in `TRANSPORT_REQUIRED_PATHS`
-  (`packages/host/src/http-adapter.ts:32`) on top of the loopback `Host` and `Origin` checks, so a cross-site
+  (`packages/host/src/http-adapter.ts:36`) on top of the loopback `Host` and `Origin` checks, so a cross-site
   HTML form POST cannot reach it. The IPC-only transport and the loopback-only `Host` / `Origin` allowlist are
   **(desktop, frozen)**: on the hosted web app the same host gate runs behind the HTTP adapter
-  (`packages/host/src/http-adapter.ts:534-563`). The loopback check **became** a trusted-origin allowlist plus a
+  (`packages/host/src/http-adapter.ts:539-568`). The loopback check **became** a trusted-origin allowlist plus a
   double-submit CSRF token in Phase 1 ([PR #56](https://github.com/Kyoo032/agentforge/pull/56), commit
   `6ae177a`): `isAllowedWebOrigin` / `isAllowedWebHostHeader` (`local-request.ts:99,113`) and
   `packages/host/src/csrf.ts`, reached only under `isServerMode()`.
@@ -454,7 +465,7 @@ licence service, against the bearer on the request.** … If a limit can be defe
 was never enforced."
 
 `[Supported]` The code agrees at every branch: a missing or unreadable verdict opens
-(`loadGateState`, `packages/host/src/gateway-gate.ts:157-187`), an unwritable store costs a cached decision and
+(`loadGateState`, `packages/host/src/gateway-gate.ts:158-188`), an unwritable store costs a cached decision and
 nothing else (`saveGateState`, `:198-213`; `runGatewayCheck`, `:522-529`), the background re-check swallows its
 own failures (`:593-595`), and the stub runtime is always open off server mode (`:291-293`). **Confidence: high.** The design record is prose in `AGENTS.md`, not a commit body —
 `git log --oneline -20 -- packages/host/src/gateway-gate.ts packages/core/src/gateway/gate-types.ts` returns only

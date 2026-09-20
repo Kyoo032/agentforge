@@ -9,7 +9,14 @@ import { ensureSchema } from "./ensure-schema";
 const packageDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const realMigrations = path.join(packageDir, "drizzle");
 
-/** Every column the Phase 5 lane A ledger must carry, whichever path created the table. */
+/**
+ * Every column the Phase 5 lane A ledger must carry, whichever path created the table.
+ *
+ * Exact equality, not a subset: a column added to this table without a line here is a column
+ * nobody reviewed. `billing_period_start` is lane B's, added by drizzle/0017_tenant_plan.sql and
+ * by the healer, and it is in this list rather than in a second one because the two paths have to
+ * agree about the *whole* shape of the table — which is the property these cases exist to hold.
+ */
 const LEDGER_COLUMNS = [
   "id",
   "tenant_id",
@@ -26,6 +33,8 @@ const LEDGER_COLUMNS = [
   "unpriced_reason",
   "run_id",
   "at",
+  // Phase 5 lane B (drizzle/0017_tenant_plan.sql): the billing period this row counted against.
+  "billing_period_start",
 ] as const;
 
 function tableNames(sqlite: Database.Database): string[] {

@@ -45,7 +45,7 @@ Neither figure is a correction of a mistake, and both moved twice.
   handlers too.
 
 The route counts are re-derived, not hand-counted: `routeRegistrations()`
-(`packages/host/src/router.ts:205`) hands the table back and `isByIdRoute` (`:210`) filters it, and
+(`packages/host/src/router.ts:214`) hands the table back and `isByIdRoute` (`:210`) filters it, and
 the harness asserts on that list.
 
 ## 3. The sweep
@@ -243,7 +243,7 @@ at from the router's own registration table rather than from reading the diff.
 Spec §7 puts "the log carries a tenant id" in lane E's done-when (security spec row L1).
 
 `dispatch` opens `withLogContext({ tenantId, route })` around the handler
-(`packages/host/src/router.ts:469`) with the **verified session's** tenant id — never the
+(`packages/host/src/router.ts:486`) with the **verified session's** tenant id — never the
 client-supplied workspace cookie, so a line can be trusted to say who the work was actually done
 for. `log.ts` merges that ambient context **under** a child logger's bound fields and **under** the
 call site's own (`log.ts:231`), so nothing that worked before changes precedence, and the existing

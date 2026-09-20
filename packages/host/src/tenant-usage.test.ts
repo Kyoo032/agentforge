@@ -56,13 +56,16 @@ describe("tenant usage ledger", () => {
     db.close();
   });
 
-  it("ensureSchema creates tenant_usage with the full lane A column set", () => {
+  it("ensureSchema creates tenant_usage with the full ledger column set", () => {
     const columns = (db.prepare("PRAGMA table_info(tenant_usage)").all() as Array<{ name: string }>).map(
       (row) => row.name,
     );
     expect(columns.sort()).toEqual(
       [
         "at",
+        // Phase 5 lane B (drizzle/0017_tenant_plan.sql): the billing period this call counted
+        // against. Null on a desk and on every row lane A wrote, because nothing was counting.
+        "billing_period_start",
         "cost_usd_micros",
         "id",
         "input_tokens",

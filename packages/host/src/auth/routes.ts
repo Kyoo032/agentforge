@@ -44,6 +44,17 @@ export const AUTH_ROUTE_PREFIX = "/api/v1/auth/";
  */
 export const UNGATED_GETS: ReadonlySet<string> = new Set(["/api/v1/ping", "/api/v1/components"]);
 
+/**
+ * Phase 5 lane B: the one POST under `/api` that runs without a session.
+ *
+ * `isSessionExemptPath` is GET-only outside the auth prefix, by design and with a comment saying
+ * so, so this is a deliberate widening and it is kept to a single literal path rather than a
+ * prefix: no browser calls the billing webhook, the caller is a payment provider's server, and it
+ * authenticates on a shared secret compared in constant time (`../billing/authenticate.ts`).
+ * Nothing else may join this set without the same two properties.
+ */
+export const UNGATED_POSTS: ReadonlySet<string> = new Set(["/api/v1/billing/webhook"]);
+
 export type AuthRouteDeps = {
   readonly store: SessionStore;
   readonly vault: TokenVault;
@@ -55,6 +66,19 @@ export type AuthRouteDeps = {
    * exercise the sign-in without a database, the same way `store` and `portal` already are.
    */
   readonly provision: (identity: PortalIdentity) => Promise<unknown>;
+  /**
+   * Phase 5 lane B: take a seat for this person, or refuse the sign-in.
+   *
+   * Sign-in is where a seat cap belongs. The portal already refuses here and already has the
+   * reason code (`seat_cap_reached`, which this module has carried English and Indonesian copy for
+   * since Phase 2); the gateway gate is the wrong place to discover you have no seat, because by
+   * then you are signed in and working (decision doc D5).
+   *
+   * Injected like `provision`, so a test drives the refusal without a database, and so the
+   * desktop — which never signs in — never reaches the store at all. The default supplied by
+   * `../auth/index.ts` admits everybody when no cap is configured.
+   */
+  readonly claimSeat: (identity: PortalIdentity) => Promise<{ readonly ok: boolean }>;
   readonly now?: () => number;
 };
 
@@ -109,7 +133,11 @@ export function isSessionExemptPath(method: string, path: string): boolean {
   if (path.startsWith(AUTH_ROUTE_PREFIX)) {
     return true;
   }
-  return method.toUpperCase() === "GET" && UNGATED_GETS.has(path);
+  const verb = method.toUpperCase();
+  if (verb === "POST") {
+    return UNGATED_POSTS.has(path);
+  }
+  return verb === "GET" && UNGATED_GETS.has(path);
 }
 
 /**
@@ -244,10 +272,24 @@ export function createAuthRoutes(deps: AuthRouteDeps): AuthRoutes {
     // request only ever READS them (`resolvePortalTenant`), which is what makes a session the host
     // has never provisioned a refusal rather than a new desk. Off server mode nothing signs in, so
     // the desktop never reaches this line.
+    const identity: PortalIdentity = {
+      tenantId: tokens.tenantId,
+      orgId: tokens.orgId,
+      userId: tokens.userId,
+    };
     try {
-      await deps.provision({ tenantId: tokens.tenantId, orgId: tokens.orgId, userId: tokens.userId });
+      await deps.provision(identity);
     } catch (error) {
       throw fromPortal(error);
+    }
+    // Phase 5 lane B, and in this order deliberately: provisioning writes the tenant row the seat
+    // has a foreign key to, so the seat cannot be claimed before the tenant exists. A refusal here
+    // leaves the rows provisioning wrote — they are the portal's facts about who this person is,
+    // and they are what an admin raising the cap or revoking a seat acts on. No session is created
+    // and no cookie is set, so the browser is exactly as signed out as it was.
+    const seat = await deps.claimSeat(identity);
+    if (!seat.ok) {
+      throw authError("seat_cap_reached", 403);
     }
     const session = createSession({
       tenantId: tokens.tenantId,
