@@ -60,7 +60,7 @@ export const tenantUsage = sqliteTable(
     /** `UsageMode` from @agentforge/core: chat, documents, images, videos, edit, … */
     mode: text("mode").notNull(),
     model: text("model").notNull(),
-    /** `UsageUnit` from @agentforge/core: tokens | images | seconds. */
+    /** `UsageUnit` from @agentforge/core: tokens | images | seconds | jobs. */
     unit: text("unit").notNull(),
     quantity: integer("quantity").notNull(),
     inputTokens: integer("input_tokens").notNull().default(0),
