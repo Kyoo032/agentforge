@@ -1,7 +1,7 @@
 import path from "node:path";
 import { ApiError } from "@agentforge/core";
 import { localDataDir } from "@agentforge/db/vault-key";
-import { isInsideTenantRoot, tenantRelativePath, tenantScopedRoot } from "./tenant-paths";
+import { resolveInsideTenantRoot, tenantRelativePath, tenantScopedRoot } from "./tenant-paths";
 
 export function mediaRoot(): string {
   if (process.env.MEDIA_ROOT) {
@@ -32,9 +32,13 @@ export function mediaRelativePath(tenantId: string, segments: readonly string[],
  * no prefix, which is exactly the local tenant's layout, so they keep resolving.
  */
 export function mediaFilePath(tenantId: string, storagePath: string): string {
-  const full = path.resolve(mediaRoot(), storagePath);
-  if (!isInsideTenantRoot(mediaRoot(), tenantId, full)) {
+  const root = mediaRoot();
+  // Symlinks resolved, not just `..` segments: a link planted under this tenant's subtree passes a
+  // lexical test while pointing at another tenant's file. The resolved path is what comes back, so
+  // the caller opens what was checked and not the link.
+  const real = resolveInsideTenantRoot(root, tenantId, path.resolve(root, storagePath));
+  if (real === null) {
     throw new ApiError("not_found", "Media is not available on this desk", 404);
   }
-  return full;
+  return real;
 }

@@ -164,14 +164,7 @@ export async function generateResearchNotes(
   if (dossierId) {
     await upsertWorkSource(
       tenant,
-      artifactWorkCard({
-        type: "Research",
-        artifactId: dossierId,
-        title: dossier.title,
-        prompt: question,
-        markdown,
-        model,
-      }),
+      artifactWorkCard({ type: "Research", artifactId: dossierId, title: dossier.title, prompt: question, markdown, model }),
     );
   }
   return { ...notes, artifactId: dossierId, dossierId, dossier: { title: dossier.title, markdown } };

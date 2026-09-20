@@ -5,7 +5,7 @@
  * asserts: two tenants hold different gateway keys and get different verdicts, and
  * `clearGatewayKeyEverywhere` clears one tenant. Desktop mode keeps its file paths.
  */
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -186,5 +186,67 @@ describe("desk usage is per tenant", () => {
     deskUsage.appendDeskUsage(LOCAL_TENANT_ID, { model: "model-local", inputTokens: 2, outputTokens: 2 });
     expect(existsSync(path.join(dataDir, "desk-usage.json"))).toBe(true);
     expect(deskUsage.deskUsageFileExists(LOCAL_TENANT_ID)).toBe(true);
+  });
+});
+
+/**
+ * The guard that would have caught verifier findings F1 and F2 on PR #80.
+ *
+ * Twice over, a mode landed on `main` while this lane was open (Meeting, then Telegram) calling the
+ * settings store with `tenant.workspaceId`. On the desktop that silently reads the local tenant, so
+ * every test stayed green; on a hosted server `resolveSettingsScope` throws `tenant_required` and
+ * the route 500s. A sweep is the only thing that holds against the *next* mode, so this asserts the
+ * shape of the call rather than the behaviour of any one route.
+ *
+ * Same idea as lane A's `edit-scope.test.ts` guard: a rule the compiler cannot express, tested.
+ */
+describe("no host source passes a bare desk id to the settings store", () => {
+  /** Owns the contract itself, so it is the one place allowed to speak in bare ids. */
+  const OWNERS = new Set(["settings-store.ts", "gateway-gate.ts"]);
+
+  function sourceFiles(dir: string): string[] {
+    const out: string[] = [];
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        out.push(...sourceFiles(full));
+      } else if (entry.name.endsWith(".ts") && !entry.name.endsWith(".test.ts") && !OWNERS.has(entry.name)) {
+        out.push(full);
+      }
+    }
+    return out;
+  }
+
+  const SRC = path.join(__dirname);
+
+  /** Comments talk about `requireGatewayAllowed()` a lot; only real calls count. */
+  function withoutComments(text: string): string {
+    return text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+  }
+
+  it("never hands loadSettings or saveSettings a workspace id", () => {
+    const offenders: string[] = [];
+    for (const file of sourceFiles(SRC)) {
+      const text = withoutComments(readFileSync(file, "utf8"));
+      for (const match of text.matchAll(/\b(loadSettings|saveSettings)\(([^()]*)\)/g)) {
+        if (/workspaceId/.test(match[2] ?? "")) {
+          offenders.push(`${path.relative(SRC, file)}: ${match[0]}`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("never calls the gateway gate without a tenant", () => {
+    const offenders: string[] = [];
+    for (const file of sourceFiles(SRC)) {
+      const text = withoutComments(readFileSync(file, "utf8"));
+      for (const match of text.matchAll(/\brequireGatewayAllowed\(([^();]*)\)/g)) {
+        if (!/\btenant\b/.test(match[1] ?? "")) {
+          offenders.push(`${path.relative(SRC, file)}: ${match[0]}`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 });

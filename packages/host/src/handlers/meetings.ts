@@ -2,14 +2,13 @@ import { ApiError, isAppLocale, parseAppLocale, type AppLocale } from "@agentfor
 import { TRANSCRIPT_MAX_CHARS, meetingTranscriptSchema } from "@agentforge/core/meeting";
 import type { HostRequest, HostResult } from "../types";
 import { jsonError, jsonOk } from "../errors";
-import { requireGatewayAllowed } from "../gateway-gate";
+import { requireGatewayAllowedFor } from "../gateway-gate";
 import { streamJob } from "../job-stream";
 import { generateMinutes, runMeeting, saveTranscript, transcribeMeeting } from "../meeting/run";
 import { meetingStore, requireMeeting } from "../meeting/store";
 import { resolveMeetingAsr } from "../meeting/transcribe";
 import { ffmpegAvailable } from "../meeting/audio";
 import { localeForRun } from "../run-context";
-import { loadSettings } from "../settings-store";
 import { getTenant } from "../tenant";
 
 function body(request: HostRequest): Record<string, unknown> {
@@ -38,7 +37,7 @@ export async function handleGetMeetings(request: HostRequest): Promise<HostResul
       items: meetingStore().list(tenant),
       // What this desk can actually do right now, so the studio can say "paste the transcript"
       // before the owner uploads 25 MB and finds out.
-      capability: { ...resolveMeetingAsr(tenant.workspaceId), ffmpeg: ffmpegAvailable() },
+      capability: { ...resolveMeetingAsr(tenant), ffmpeg: ffmpegAvailable() },
     });
   } catch (error) {
     return jsonError(error);
@@ -137,7 +136,7 @@ export async function handlePostMeetingTranscribe(request: HostRequest): Promise
   try {
     const tenant = await getTenant(request.workspaceId);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
-    requireGatewayAllowed(loadSettings(tenant.workspaceId));
+    requireGatewayAllowedFor(tenant);
     const meetingId = request.params.meetingId ?? "";
     const language = readOptionalString(body(request).language);
     return streamJob(
@@ -153,7 +152,7 @@ export async function handlePostMeetingMinutes(request: HostRequest): Promise<Ho
   try {
     const tenant = await getTenant(request.workspaceId);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
-    requireGatewayAllowed(loadSettings(tenant.workspaceId));
+    requireGatewayAllowedFor(tenant);
     const meetingId = request.params.meetingId ?? "";
     const input = body(request);
     const model = readOptionalString(input.model);
@@ -172,7 +171,7 @@ export async function handlePostMeetingRunStream(request: HostRequest): Promise<
   try {
     const tenant = await getTenant(request.workspaceId);
     // Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call.
-    requireGatewayAllowed(loadSettings(tenant.workspaceId));
+    requireGatewayAllowedFor(tenant);
     const meetingId = request.params.meetingId ?? "";
     const input = body(request);
     const model = readOptionalString(input.model);

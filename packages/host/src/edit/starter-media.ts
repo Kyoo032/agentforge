@@ -184,12 +184,7 @@ export async function seedStarterMedia(
   const storedFiles: StoredFile[] = [];
   let next = doc;
   const cursor: Record<"v1" | "a1", number> = {
-    v1: Math.max(
-      0,
-      ...next.clips
-        .filter((clip) => clip.trackId === "v1")
-        .map((clip) => clip.timelineStartFrame + clip.durationFrames),
-    ),
+    v1: Math.max(0, ...next.clips.filter((clip) => clip.trackId === "v1").map((clip) => clip.timelineStartFrame + clip.durationFrames)),
     a1: 0,
   };
   try {

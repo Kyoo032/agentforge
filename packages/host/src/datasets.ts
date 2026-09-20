@@ -14,7 +14,7 @@ import {
   type TypedTable,
 } from "@agentforge/core/tabular";
 import { deleteArtifactsByOwner, sweepOrphanSources } from "./knowledge";
-import { isInsideTenantRoot, tenantRelativePath } from "./tenant-paths";
+import { resolveInsideTenantRoot, tenantRelativePath } from "./tenant-paths";
 import { DATASET_TABLE, quoteIdentifier, sqlTypeFor, toSqlIdentifier } from "./sql-guard";
 import { createQueryRunner, type QueryRunner, type RunnerLoad } from "./sql-runner";
 
@@ -212,11 +212,13 @@ export function createDatasetStore(db: Database.Database, rootDir: string): Data
    * so a row whose path was written for another tenant cannot be read through a desk id collision.
    */
   const filePath = (tenant: TenantContext, relative: string): string => {
-    const full = path.resolve(rootDir, relative);
-    if (!isInsideTenantRoot(rootDir, tenant.tenantId, full)) {
+    // Symlinks resolved, like `mediaFilePath`: a link planted under this tenant's subtree would
+    // otherwise pass a purely lexical containment test.
+    const real = resolveInsideTenantRoot(rootDir, tenant.tenantId, path.resolve(rootDir, relative));
+    if (real === null) {
       throw new ApiError("not_found", "Dataset not found", 404);
     }
-    return full;
+    return real;
   };
 
   return {

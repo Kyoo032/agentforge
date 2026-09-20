@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -8,6 +8,8 @@ import { createChannelStore, type ChannelStore, type CreateChannelInput } from "
 
 const tenant: TenantContext = { tenantId: "local-tenant", organizationId: "org", workspaceId: "ws-1", userId: "local", role: "owner" };
 const otherDesk: TenantContext = { ...tenant, workspaceId: "ws-2" };
+/** Same desk id as `tenant`, different tenant: what a hosted server actually collides on. */
+const otherTenant: TenantContext = { ...tenant, tenantId: "beta", organizationId: "org-beta" };
 
 const INPUT: CreateChannelInput = {
   transport: "telegram",
@@ -128,7 +130,7 @@ describe("channel store", () => {
     const channel = store.create(tenant, INPUT);
     store.writeBot(tenant, { id: "1", username: "desk_bot", name: "Desk", connectedAt: 10 });
     store.append(tenant, channel.id, [{ direction: "in", externalId: "1", author: "@kyo", text: "hi", at: 1 }]);
-    store.dropWorkspace("ws-1");
+    store.dropWorkspace(tenant, "ws-1");
     expect(store.list(tenant)).toEqual([]);
     expect(store.readBot(tenant)).toBeNull();
   });
@@ -158,5 +160,45 @@ describe("channel store", () => {
     };
     expect(parsed.version).toBe(1);
     expect(parsed.channels.map((row) => row.id)).toEqual([channel.id]);
+  });
+});
+
+/**
+ * Verifier finding F3 on PR #80: the store keyed only on the desk, so two tenants that happened to
+ * share a desk id read each other's bot identity, channel list, `getUpdates` offset and stored
+ * conversations — and every hosted tenant's channel files sat outside `tenants/<id>/`.
+ */
+describe("two tenants sharing a desk id", () => {
+  it("do not see each other's channels, bot or offset", () => {
+    store.create(tenant, INPUT);
+    store.writeBot(tenant, { id: "1", username: "local_bot", name: "Local", connectedAt: 10 });
+    store.writeOffset(tenant, 42);
+
+    expect(store.list(otherTenant)).toEqual([]);
+    expect(store.readBot(otherTenant)).toBeNull();
+    expect(store.readOffset(otherTenant)).toBeNull();
+
+    store.writeBot(otherTenant, { id: "2", username: "beta_bot", name: "Beta", connectedAt: 20 });
+    expect(store.readBot(tenant)).toMatchObject({ username: "local_bot" });
+    expect(store.readBot(otherTenant)).toMatchObject({ username: "beta_bot" });
+  });
+
+  it("keeps a hosted tenant's files under tenants/<id>/ and the local tenant's where they were", () => {
+    store.writeBot(tenant, { id: "1", username: "local_bot", name: "Local", connectedAt: 10 });
+    store.writeBot(otherTenant, { id: "2", username: "beta_bot", name: "Beta", connectedAt: 20 });
+
+    expect(existsSync(join(root, "ws-1", "bot.json"))).toBe(true);
+    expect(existsSync(join(root, "tenants", "beta", "ws-1", "bot.json"))).toBe(true);
+    expect(existsSync(join(root, "tenants", "local-tenant"))).toBe(false);
+  });
+
+  it("does not delete another tenant's desk of the same name", () => {
+    store.create(tenant, INPUT);
+    store.create(otherTenant, INPUT);
+
+    store.dropWorkspace(otherTenant, "ws-1");
+
+    expect(store.list(otherTenant)).toEqual([]);
+    expect(store.list(tenant)).toHaveLength(1);
   });
 });

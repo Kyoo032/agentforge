@@ -15,6 +15,7 @@
  * "is this path mine?" is not a plain prefix test for the local tenant. `tenantDeniedRoots` is that
  * exception, made explicit, and `isInsideTenantRoot` is the check every path guard should use.
  */
+import { existsSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { ApiError, LOCAL_TENANT_ID } from "@agentforge/core";
 import { localDataDir } from "@agentforge/db/vault-key";
@@ -120,4 +121,66 @@ export function isInsideTenantRoot(root: string, tenantId: string, candidate: st
     return false;
   }
   return !tenantDeniedRoots(root, tenantId).some((other) => isInside(other, candidate));
+}
+
+/**
+ * `path.resolve` follows no symlinks, so a link planted inside a tenant's subtree passes a purely
+ * lexical containment test while pointing anywhere on disk. Canonicalise before comparing — the
+ * file itself when it exists, otherwise its parent directory, so a path about to be written is
+ * still checked against the real tree. Returns null only when neither exists, in which case there
+ * is nothing on disk to be a link and the caller falls back to the lexical test.
+ *
+ * `edit/ffmpeg/paths.ts` `assertInsidePath` does the same thing for ffmpeg arguments; this is that
+ * rule, shared, so every per-tenant guard resolves rather than only some of them.
+ */
+export function realPathOrNull(candidate: string): string | null {
+  const resolved = path.resolve(candidate);
+  try {
+    if (existsSync(resolved)) {
+      return realpathSync(resolved);
+    }
+    const parent = path.dirname(resolved);
+    if (!existsSync(parent)) {
+      return null;
+    }
+    return path.join(realpathSync(parent), path.basename(resolved));
+  } catch {
+    return null;
+  }
+}
+
+/** A root canonicalised when it exists, plain-resolved when it does not. */
+function realRoot(root: string): string {
+  try {
+    return existsSync(root) ? realpathSync(root) : path.resolve(root);
+  } catch {
+    return path.resolve(root);
+  }
+}
+
+/**
+ * The containment test for a path that will actually be opened: `isInsideTenantRoot` with symlinks
+ * resolved on both sides. Returns the path to open — canonical when the tree exists — or null when
+ * it does not belong to this tenant.
+ *
+ * Returning the resolved path rather than a boolean is the point: the caller then opens what was
+ * checked, not the link that was checked.
+ *
+ * When nothing along the path exists, this is exactly the lexical test, because a path with no file
+ * and no parent directory cannot be a symlink to anywhere.
+ */
+export function resolveInsideTenantRoot(root: string, tenantId: string, candidate: string): string | null {
+  const resolved = path.resolve(candidate);
+  const real = realPathOrNull(resolved);
+  if (real === null) {
+    return isInsideTenantRoot(root, tenantId, resolved) ? resolved : null;
+  }
+  const scoped = realRoot(tenantScopedRoot(root, tenantId));
+  if (!isInside(scoped, real)) {
+    return null;
+  }
+  if (tenantDeniedRoots(root, tenantId).some((other) => isInside(realRoot(other), real))) {
+    return null;
+  }
+  return real;
 }

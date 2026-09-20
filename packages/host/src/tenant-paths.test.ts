@@ -4,7 +4,7 @@
  * Three questions, per the lane's test plan: two tenants get disjoint paths, a path never escapes
  * its tenant's prefix, and desktop mode keeps the exact layout it has today.
  */
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
@@ -25,6 +25,7 @@ const {
   tenantRelativePath,
   tenantScopedRoot,
   tenantSegments,
+  resolveInsideTenantRoot,
 } = await import("./tenant-paths");
 const { mediaRelativePath, mediaFilePath, mediaRoot, tenantMediaRoot } = await import("./media-root");
 const { editAllowlist, editScratchRoot, assertInsidePath } = await import("./edit/ffmpeg/paths");
@@ -156,5 +157,53 @@ describe("desktop mode: the local tenant keeps the pre-Phase-3 layout", () => {
   it("still resolves a storage_path written before Phase 3", () => {
     const legacy = `${ORG}/old.png`;
     expect(mediaFilePath(LOCAL_TENANT_ID, legacy)).toBe(path.resolve(mediaRoot(), legacy));
+  });
+});
+
+/**
+ * Verifier finding N2 on PR #80: `path.resolve` walks `..` but follows no symlinks, so a link
+ * planted inside a tenant's subtree passed a purely lexical containment test while pointing at
+ * another tenant's file. Only someone with disk access can plant one, but the ffmpeg guard already
+ * resolved and denied exactly this, so the media and dataset guards should not be the weaker pair.
+ */
+describe("a symlink cannot smuggle a path out of its tenant prefix", () => {
+  it("refuses a link under tenant A that points into tenant B", () => {
+    const victim = path.join(tenantMediaRoot(B), ORG, "secret.png");
+    mkdirSync(path.dirname(victim), { recursive: true });
+    writeFileSync(victim, "B's bytes");
+
+    const attackerDir = path.join(tenantMediaRoot(A), ORG);
+    mkdirSync(attackerDir, { recursive: true });
+    const link = path.join(attackerDir, "link.png");
+    symlinkSync(victim, link);
+
+    // Lexically it looks like A's own file, which is the whole trap.
+    expect(isInsideTenantRoot(mediaRoot(), A, link)).toBe(true);
+    // Resolved, it is B's, so A is refused and the 404 is the same one a missing row gets.
+    expect(resolveInsideTenantRoot(mediaRoot(), A, link)).toBeNull();
+    expect(() => mediaFilePath(A, `${TENANTS_DIR}/${A}/${ORG}/link.png`)).toThrow(ApiError);
+    // B reaches its own file through the link, and gets the real path back rather than the link.
+    expect(mediaFilePath(B, `${TENANTS_DIR}/${B}/${ORG}/secret.png`)).toBe(realpathSync(victim));
+  });
+
+  it("refuses a link that points clean out of the media root", () => {
+    const outside = path.join(dataDir, "outside.png");
+    writeFileSync(outside, "not media at all");
+    const dir = path.join(tenantMediaRoot(A), ORG);
+    mkdirSync(dir, { recursive: true });
+    const link = path.join(dir, "escape.png");
+    symlinkSync(outside, link);
+
+    expect(resolveInsideTenantRoot(mediaRoot(), A, link)).toBeNull();
+  });
+
+  it("still allows a path whose file does not exist yet, which cannot be a link", () => {
+    // The fallback that keeps `mediaFilePath` answering 404 for a missing row rather than throwing
+    // on a directory that was never created.
+    const notYet = path.join(tenantMediaRoot(A), ORG, "unwritten.png");
+    expect(resolveInsideTenantRoot(mediaRoot(), A, notYet)).not.toBeNull();
+    const noParent = path.join(tenantMediaRoot(A), "never", "made", "x.png");
+    expect(resolveInsideTenantRoot(mediaRoot(), A, noParent)).not.toBeNull();
+    expect(resolveInsideTenantRoot(mediaRoot(), B, noParent)).toBeNull();
   });
 });

@@ -39,7 +39,7 @@ import type { JobEmitter } from "@agentforge/core/jobs";
 import { throwIfJobAborted } from "../job-stream";
 import { artifactWorkCard } from "../work-cards";
 import { upsertWorkSource } from "../knowledge-ingest";
-import { loadSettings } from "../settings-store";
+import { loadSettings, type SettingsScope } from "../settings-store";
 import { listSelectableModels, modeCatalogPayload } from "../selectable-models";
 import { localeForRun } from "../run-context";
 import { log } from "../log";
@@ -56,8 +56,8 @@ export function otherLocale(locale: AppLocale): AppLocale {
   return locale === "en" ? "id" : "en";
 }
 
-function requireLiveMeetingRuntime(workspaceId: string): void {
-  const settings = loadSettings(workspaceId);
+function requireLiveMeetingRuntime(tenant: SettingsScope): void {
+  const settings = loadSettings(tenant);
   const mode = resolveRuntimeMode({
     settingsHasKey: hasLiveProvider(settings),
     envRuntime: process.env.AGENTFORGE_RUNTIME,
@@ -67,8 +67,8 @@ function requireLiveMeetingRuntime(workspaceId: string): void {
   }
 }
 
-export function resolveMeetingModel(explicit: string | undefined, workspaceId: string): string {
-  const settings = loadSettings(workspaceId);
+export function resolveMeetingModel(explicit: string | undefined, tenant: SettingsScope): string {
+  const settings = loadSettings(tenant);
   const { defaults } = modeCatalogPayload();
   return resolveChatModel(explicit, settings.documentGenModel || defaults.meeting, listSelectableModels());
 }
@@ -154,7 +154,7 @@ export async function transcribeMeeting(
   if (!source) {
     throw new ApiError("invalid_request", "Upload a recording before transcribing", 400);
   }
-  const capability = resolveMeetingAsr(tenant.workspaceId);
+  const capability = resolveMeetingAsr(tenant);
   if (!capability.available) {
     throw new ApiError(
       "asr_unavailable",
@@ -177,7 +177,7 @@ export async function transcribeMeeting(
   try {
     const transcript = await transcribeChunks(audio.files, {
       language: options.language ?? meeting.locale,
-      workspaceId: tenant.workspaceId,
+      tenant,
       offsets: audio.offsets,
       signal: options.abortSignal,
       onChunk: (current, total) =>
@@ -281,7 +281,7 @@ export async function generateMinutes(
   options: { emit?: JobEmitter; abortSignal?: AbortSignal; model?: string; translate?: boolean } = {},
 ): Promise<MeetingRecord> {
   const emit = options.emit ?? NO_EMIT;
-  requireLiveMeetingRuntime(tenant.workspaceId);
+  requireLiveMeetingRuntime(tenant);
   const meeting = requireMeeting(tenant, meetingId);
   if (!meeting.transcript) {
     throw new ApiError("invalid_request", "Transcribe the recording, or paste a transcript, first", 400);
@@ -290,7 +290,7 @@ export async function generateMinutes(
   if (!transcript) {
     throw new ApiError("invalid_request", "That transcript is empty", 400);
   }
-  const model = resolveMeetingModel(options.model, tenant.workspaceId);
+  const model = resolveMeetingModel(options.model, tenant);
   const locale = parseAppLocale(meeting.locale);
 
   throwIfJobAborted(options.abortSignal);
@@ -355,7 +355,7 @@ export async function runMeeting(
   meetingId: string,
   options: { emit?: JobEmitter; abortSignal?: AbortSignal; model?: string; translate?: boolean } = {},
 ): Promise<MeetingRecord> {
-  requireLiveMeetingRuntime(tenant.workspaceId);
+  requireLiveMeetingRuntime(tenant);
   const meeting = requireMeeting(tenant, meetingId);
   if (!meeting.transcript && meeting.recording) {
     await transcribeMeeting(tenant, meetingId, { emit: options.emit, abortSignal: options.abortSignal });

@@ -248,9 +248,9 @@ function toolModel(output: unknown, fallback: string): string {
   return fallback;
 }
 
-async function persistMeta(meta: StudioMediaMeta): Promise<void> {
+async function persistMeta(tenantId: string, meta: StudioMediaMeta): Promise<void> {
   try {
-    await saveStudioMediaMeta(meta);
+    await saveStudioMediaMeta(tenantId, meta);
   } catch {
     // Gallery still works from the media table without sidecar fields.
   }
@@ -297,7 +297,7 @@ export async function generateStudioImage(
   const stored = await saveGeneratedImage(tenant, url);
   const id = mediaIdFromUrl(stored);
   if (id) {
-    await persistMeta({
+    await persistMeta(tenant.tenantId, {
       mediaId: id,
       kind: "image",
       prompt: body.prompt,
@@ -369,7 +369,7 @@ export async function generateStudioVideo(
   const stored = await saveGeneratedVideo(tenant, url);
   const id = mediaIdFromUrl(stored);
   if (id) {
-    await persistMeta({
+    await persistMeta(tenant.tenantId, {
       mediaId: id,
       kind: "video",
       prompt: body.prompt,
@@ -475,7 +475,7 @@ export async function generateStudioMusic(
     const stored = await saveGeneratedAudio(tenant, track.url);
     const id = mediaIdFromUrl(stored);
     if (id) {
-      await persistMeta({
+      await persistMeta(tenant.tenantId, {
         mediaId: id,
         kind: "audio",
         prompt,
@@ -547,7 +547,7 @@ export async function listStudioGallery(
   const rows = await listMediaByKind(tenant, kind);
   const items: StudioGalleryItem[] = [];
   for (const row of rows) {
-    const meta = await getStudioMediaMeta(row.id);
+    const meta = await getStudioMediaMeta(tenant.tenantId, row.id);
     items.push({
       id: row.id,
       url: row.url,
