@@ -6,6 +6,7 @@ import { defaultSoul, LEGACY_DEFAULT_SOUL } from "./knowledge-soul";
 
 function tenant(): TenantContext {
   return {
+    tenantId: "local-tenant",
     organizationId: "org-soul-test",
     workspaceId: `ws-soul-${crypto.randomUUID()}`,
     userId: "user-soul-test",

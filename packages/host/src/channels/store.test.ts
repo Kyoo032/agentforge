@@ -6,7 +6,7 @@ import { ApiError, type TenantContext } from "@agentforge/core";
 import { CHANNEL_CAPS } from "@agentforge/core/channels";
 import { createChannelStore, type ChannelStore, type CreateChannelInput } from "./store";
 
-const tenant: TenantContext = { organizationId: "org", workspaceId: "ws-1", userId: "local", role: "owner" };
+const tenant: TenantContext = { tenantId: "local-tenant", organizationId: "org", workspaceId: "ws-1", userId: "local", role: "owner" };
 const otherDesk: TenantContext = { ...tenant, workspaceId: "ws-2" };
 
 const INPUT: CreateChannelInput = {

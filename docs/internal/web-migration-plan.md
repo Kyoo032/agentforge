@@ -82,7 +82,7 @@ whole reason Phase 1 exists and must not be worked around by loosening the check
 
 ### Phase 1 — Trusted origins, CSRF, bind config, mandatory wrap key
 
-**Status 2026-09-18: landed on the tree, uncommitted.** One switch, `isServerMode()` in `packages/core/src/server-mode.ts` (`AGENTFORGE_SERVER=1`), gates every hosted-only rule. `isAllowedWebOrigin` / `isAllowedWebHostHeader` in `local-request.ts`, the web-vs-loopback choice and the CSRF cookie in `http-adapter.ts` + `csrf.ts`, `BIND_HOST` via `apps/web/lib/bind-host.ts`, the mandatory wrap key in `vault-key.ts`. Also landed from the security spec's before-traffic rows: the gate fails closed (T4, `gateway-gate.ts`, and the stub runtime no longer opens it on the server), "Start over" refused with `reset_disabled` (T8), global ffmpeg/SQL caps in `concurrency.ts` (T9), the JSON logger with redaction in `log.ts` (L1). Proven on a throwaway server-mode host: no Origin 403 `origin_forbidden`, no token 403 `csrf_missing`, wrong Host 403, webdev :3000 unchanged.
+**Status: landed and merged.** Shipped in [PR #56](https://github.com/Kyoo032/agentforge/pull/56), on `main` as commit `6ae177a`. This closes open decision 3 in [`web-pivot-2026-09-18.md`](web-pivot-2026-09-18.md). One switch, `isServerMode()` in `packages/core/src/server-mode.ts` (`AGENTFORGE_SERVER=1`), gates every hosted-only rule. `isAllowedWebOrigin` / `isAllowedWebHostHeader` in `local-request.ts`, the web-vs-loopback choice and the CSRF cookie in `http-adapter.ts` + `csrf.ts`, `BIND_HOST` via `apps/web/lib/bind-host.ts`, the mandatory wrap key in `vault-key.ts`. Also landed from the security spec's before-traffic rows: the gate fails closed (T4, `gateway-gate.ts`, and the stub runtime no longer opens it on the server), "Start over" refused with `reset_disabled` (T8), global ffmpeg/SQL caps in `concurrency.ts` (T9), the JSON logger with redaction in `log.ts` (L1). Proven on a throwaway server-mode host: no Origin 403 `origin_forbidden`, no token 403 `csrf_missing`, wrong Host 403, webdev :3000 unchanged.
 
 **Goal.** The host accepts mutating calls from a configured public origin, on its own merits.
 
@@ -96,8 +96,10 @@ a server flag is set.
 
 **Tests.** Extend `packages/host/src/local-request.test.ts` and `http-adapter.test.ts`: allowed origin
 passes, unlisted origin 403s, missing Origin 403s on the web rule and passes on the loopback rule,
-missing CSRF token 403s, a valid token from a different session 403s. A test that `.master-key` is not
-created when the server flag is set.
+missing CSRF token 403s, a header that does not match the cookie 403s. (The double-submit token is bare
+randomness, not bound to a session — `csrf.ts:14-17` records binding as a follow-up for when a session
+exists, so "a token from another session" is not yet a case this can test.) A test that `.master-key` is
+not created when the server flag is set.
 
 **Done when.** The proxy passes the real `Host` through, webdev `:3000` still works unchanged (its
 origin is on the allowlist by default), and the desktop IPC path is untouched.
@@ -108,7 +110,7 @@ the `WORKSPACE_COOKIE` (`http-adapter.ts:241`) must not collide on `SameSite` or
 
 ### Phase 2 — Portal browser session
 
-**Status 2026-09-18: backend landed, uncommitted; no UI yet.** `packages/host/src/auth/` (session mint/verify/slide/revoke, SQLite store `auth_sessions` via migration `0014`, portal client with the doc's reason codes, four routes) and the server-mode-only session gate in `router.ts` (`session_required` 401 on every `/api` route, any method, except `/api/v1/auth/*`, `GET /api/v1/ping` and `GET /api/v1/components`; the verified session rides on `request.session` for Phase 3, and until Phase 3 the hosted server is single-tenant). Assumed portal contract: `POST /auth/token` with `grant_type=authorization_code` + `code`; refresh and logout verbatim from the login doc. The sign-in screen and the Playwright project are still open.
+**Status: backend landed and merged; no UI yet.** The backend shipped with Phase 1 in [PR #56](https://github.com/Kyoo032/agentforge/pull/56), on `main` as commit `6ae177a`. `packages/host/src/auth/` (session mint/verify/slide/revoke, SQLite store `auth_sessions` via migration `0014`, portal client with the doc's reason codes, four routes) and the server-mode-only session gate in `router.ts` (`session_required` 401 on every `/api` route, any method, except `/api/v1/auth/*`, `GET /api/v1/ping` and `GET /api/v1/components`; the verified session rides on `request.session` for Phase 3, and until Phase 3 the hosted server is single-tenant). Assumed portal contract: `POST /auth/token` with `grant_type=authorization_code` + `code`; refresh and logout verbatim from the login doc. The sign-in screen and the Playwright project are still open.
 
 **Goal.** A visitor signs in through the portal in a browser and gets a session; the device-code
 client is not used on the web.
@@ -155,9 +157,19 @@ rather than at each call site; `requireTenant` (`types.ts:20`) is called at the 
 `packages/db/drizzle/` creates the tenant table and maps that one org to one tenant. No row rewrite
 is needed for the desktop, so the frozen app's database keeps opening.
 
+**Gateway key reset is scoped here, not in Phase 4.** `clearGatewayKeyEverywhere`
+(`packages/host/src/settings-store.ts:371-386`) is deliberately machine-wide today. In server mode
+"everywhere" must mean "this tenant's desks", or the first tenant to reset their key signs out every
+other tenant on the box. Phase 3 is the phase that scopes it, because Phase 3 is when a second tenant
+first exists — shipping tenancy with a machine-wide reset still in the tree is the bug, not a Phase 4
+follow-up. The storage backend behind `settings.enc` still moves in Phase 4; only the scoping of this
+one function comes forward. Lane D owns it (`web-phase3-tenancy-spec.md` § 3e, § 5 settings row, § 7
+Lane D).
+
 **Tests.** A cross-tenant read test per table family: tenant A's session cannot fetch tenant B's
 threads, artifacts, datasets, knowledge sources, edit projects or media. A migration test that an
-existing single-owner database opens and lands in exactly one tenant.
+existing single-owner database opens and lands in exactly one tenant. `clearGatewayKeyEverywhere`
+called by tenant A leaves tenant B's key and gate verdict intact.
 
 **Done when.** Two tenants on the hosted server see disjoint data, and the desktop opens its existing
 database with no re-seed.
@@ -179,14 +191,16 @@ in both; `loadSettings` / `saveSettings` (`settings-store.ts:329,334`) take the 
 `settings-store.ts:121` becomes per user.
 
 **Tests.** Two tenants with different gateway keys do not see each other's key or gate verdict;
-`clearGatewayKeyEverywhere` (`settings-store.ts:375-388`) clears one tenant only; a wrap-key rotation
-re-encrypts without data loss.
+a wrap-key rotation re-encrypts without data loss. The `clearGatewayKeyEverywhere` scoping test
+already exists from Phase 3 and must stay green across the backend swap.
 
 **Done when.** Two tenants each paste their own key and each gets their own gate verdict on the
 hosted server.
 
-**Risk.** `clearGatewayKeyEverywhere` is deliberately machine-wide today. On the server, "everywhere"
-must mean "this tenant's desks", or one tenant's reset silently signs out the rest.
+**Risk.** Moving `settings.enc` from a per-tenant file to a DB-row backend is a live data move: the
+envelope and wrap key stay the same, but the read and write paths change under tenants who already
+have keys. `clearGatewayKeyEverywhere` is **not** a Phase 4 risk — it is scoped to one tenant in
+Phase 3 (see above); Phase 4 only has to keep that scoping when the backend changes.
 
 ### Phase 5 — Plans: Personal subscription with an allowance, Enterprise seats
 
