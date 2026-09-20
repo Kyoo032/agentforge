@@ -1,6 +1,6 @@
 # Map — Hosted security controls
 
-Last verified: 2026-09-20 at 26a69de
+Last verified: 2026-09-20 at 79cc6f2
 
 ## Overview
 
@@ -16,11 +16,19 @@ registry of controls. Each control asks the environment itself. That makes the c
 read one at a time and makes the switch a single point of failure, which is why
 `apps/web/lib/hosted-mode-guard.ts` exists to refuse a production build that answers `false`.
 
-This page is the hosted perimeter: how a request is admitted and what a response carries. It is
-not the secrets-at-rest story — that is [`docs/internal/maps/pii-and-key-security.md`](pii-and-key-security.md) — and
-it is not the gateway key gate, which is
-[`docs/internal/maps/settings-and-gateway-gate.md`](settings-and-gateway-gate.md). Tenant scoping *inside* an
-admitted request is Phase 3's and is not described here.
+This page is the hosted perimeter: how a request is admitted and what a response carries, **as it
+stands after the OWASP pass**. Four neighbouring pages own the parts it does not:
+
+- [`hosted-server-mode.md`](hosted-server-mode.md) describes the same perimeter **as PR #56 built
+  it**, commit by commit. Where the two disagree about a detail, this page is the newer reading —
+  the OWASP pass changed several of these controls — but that page carries the history and the
+  reasoning behind the original design, which is not repeated here.
+- [`portal-session-auth.md`](portal-session-auth.md) owns the session itself: minting, verifying,
+  refreshing and revoking. This page covers only where the gate sits in the admission order.
+- [`pii-and-key-security.md`](pii-and-key-security.md) owns secrets at rest.
+- [`settings-and-gateway-gate.md`](settings-and-gateway-gate.md) owns the gateway key gate.
+
+Tenant scoping *inside* an admitted request is Phase 3's and is not described here.
 
 ## How it works
 
@@ -66,8 +74,8 @@ rather than about the hop it arrived on.
 
 ### 3. Origin, Host and CSRF
 
-`mutatingRejection` chooses between two rules (`packages/host/src/http-adapter.ts:361` onward and the block at
-`:470`):
+`mutatingRejection` (`packages/host/src/http-adapter.ts:600-629`) chooses between two rules — the
+hosted branch at `:612-620` and the desk branch at `:621-623`:
 
 - **Off server mode**, unchanged from the desk: a missing `Origin` means same-machine, and `Host`
   must be loopback.
