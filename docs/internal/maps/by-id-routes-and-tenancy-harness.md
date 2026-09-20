@@ -1,6 +1,6 @@
 # Map — The by-id route surface and the tenancy harness
 
-Last verified: 2026-09-20 at cdb3076 + branch feat/web-phase3-lane-e-j6rp29 (the commit that adds this page)
+Last verified: 2026-09-20 at c1daa8b (the merge of PR #81, which adds this page)
 
 ## Overview
 
