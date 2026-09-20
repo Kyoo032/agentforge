@@ -33,7 +33,7 @@ now rather than a reason not to.
 | ID | Severity | Finding | Where | Status |
 |---|---|---|---|---|
 | A01-1 | **High** | Any tenant can discard any other tenant's unplaced Edit item by id | `packages/host/src/handlers/edit.ts:494-512` | **Fixed on main** by Phase 3 lane A (PR #60) |
-| A01-2 | **High** | by-id routes across the app are not systematically tenant-scoped | app-wide | **Recorded** — Phase 3 lane E |
+| A01-2 | **High** | by-id routes across the app are not systematically tenant-scoped | app-wide | **Fixed on main** by Phase 3 lane E (PR #81): 114 call sites swept to `getTenant(request)`, `packages/host/src/tenancy-harness.test.ts` drives all 63 by-id routes as a second tenant |
 | A01-3 | Medium | Hosted Settings let any tenant rewrite shared tool credentials and the injection guard, and wiped the operator's gateway key on every save | `packages/host/src/handlers/settings.ts:164-197` | Fixed |
 | A01-4 | Medium | The CANCEL half of "Start over" was reachable in server mode | `packages/host/src/handlers/settings.ts:462-464` | Fixed |
 | A01-5 | Medium | Component installer route reachable in server mode | `packages/host/src/handlers/components.ts:45-67` | Fixed |
@@ -94,12 +94,19 @@ left, and none of them matters: `packages/host/src/handlers/misc.ts:58` and
 `packages/host/src/handlers/settings.ts:456` is the reset-cancel guard added by this branch — all
 three are using `getTenant` purely as an auth gate, which is correct.
 
-### A01-2 — by-id routes are not systematically scoped *(recorded, not fixed)*
+### A01-2 — by-id routes are not systematically scoped *(fixed on main by PR #81)*
 
 A01-1 is the instance that happens to be visible. The general problem — that scoping is a property
 of each handler remembering rather than of the query layer — is Phase 3 lane E's sweep of the 102
 call sites. Nothing in this branch changes it. The two new routes this branch touches add no new
 by-id surface.
+
+Closed after this pass by Phase 3 lane E (PR #81, merged 2026-09-20): every host call site passes
+the request to `getTenant`, and `packages/host/src/tenancy-harness.test.ts` calls all 63 by-id
+routes as a second tenant against a first tenant's seeded rows, asserting no marker in the bytes,
+no existence oracle (a foreign id answers exactly as a non-existent one) and 404 outside a written
+seven-route exception list; a completeness assertion reads the router table so a new by-id route
+without a tenancy test fails the suite by name.
 
 ### A01-3 — Hosted Settings wrote operator-owned fields, and wiped the gateway key
 
