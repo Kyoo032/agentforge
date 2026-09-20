@@ -213,7 +213,7 @@ Card `settings-reset` (`apps/web/components/settings-reset-card.tsx:159`), mount
 
 **Sign out (`scope: "key"`)** — no typed confirmation, fully synchronous. `resetGatewayKey`
 (`packages/host/src/handlers/settings.ts:288-302`) calls `clearGatewayKeyEverywhere()`
-(`packages/host/src/settings-store.ts:375-390` — **machine-wide**, because "a key left on a second desk would
+(`packages/host/src/settings-store.ts:371-385` — **machine-wide**, because "a key left on a second desk would
 keep the gate open after 'forget my key'"), then `clearGateState()`, `clearThisKeyCache()`,
 `resetEmbedCircuit()` and — added 2026-09-17 — `resetJobModelCircuit()` (`:294`). Returns `relaunch: false`. Threads, desks and media are untouched. The card navigates to
 `/chat` and calls `announceGate(result.gateway)`, which dispatches `GATE_EVENT` and drops the shell to
