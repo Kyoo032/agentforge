@@ -202,6 +202,12 @@ const BY_ID_ROUTES: readonly ByIdRoute[] = [
     params: { workspaceId: "workspaceId" },
     body: { confirmName: LEAK_MARKER },
   },
+  // The one pair whose refusal is a desk-identity check rather than a tenant lookup: both handlers
+  // compare the path id against `tenant.workspaceId`, the desk the session is currently on, so they
+  // refuse another desk of tenant A's own exactly as they refuse tenant B's. Strictly stronger than
+  // a tenant check, but it means the seeded second desk 404s for A too — see the "refuses the
+  // workspace-agents pair on the desk check" control below, which is what rules out the row holding
+  // for the wrong reason.
   { method: "GET", path: "/api/v1/workspaces/:workspaceId/agents", params: { workspaceId: "workspaceId" } },
   {
     method: "POST",
@@ -811,6 +817,43 @@ describe("every by-id route refuses another tenant's id", () => {
     const { listMemories, listSources } = await import("./knowledge");
     expect(listMemories(tenantA).map((row) => row.id)).toContain(seeds.memoryId);
     expect(listSources(tenantA).map((row) => row.id)).toContain(seeds.sourceId);
+  });
+
+  it("refuses the workspace-agents pair on the desk check, not on something upstream", async () => {
+    // These two rows are the one pair whose refusal is NOT a tenant lookup. `handleGetWorkspaceAgents`
+    // (`handlers/agents.ts:165`) compares the path id against `tenant.workspaceId` — the desk the
+    // session is currently on — so it refuses another desk of *tenant A's own* exactly as it refuses
+    // tenant B's. That is strictly stronger than a tenant check, but it means the harness's seeded
+    // second desk answers 404 for A as well as for B, and the row would hold even if the route were
+    // broken upstream and 404'd everything.
+    //
+    // This is the control that rules that out: the same route, same session, on the desk A is
+    // actually on, answers 200. So the 404 the row asserts is the desk comparison firing.
+    const onOwnDesk = await dispatch(
+      {
+        method: "GET",
+        path: `/api/v1/workspaces/${tenantA.workspaceId}/agents`,
+        query: {},
+        params: {},
+        headers: { cookie: `agentforge_session=${sessionA.id}` },
+      },
+      { serverMode: true, sessionStore: store, now: () => T0 },
+    );
+    expect(onOwnDesk.status, "tenant A could not list agents on its own current desk").toBe(200);
+    expect(Object.keys(((onOwnDesk as HostJsonResult).body ?? {}) as object)).toContain("agents");
+
+    // And the seeded second desk — A's own, but not the one A is on — is refused all the same.
+    const onOtherOwnDesk = await dispatch(
+      {
+        method: "GET",
+        path: `/api/v1/workspaces/${seeds.workspaceId}/agents`,
+        query: {},
+        params: {},
+        headers: { cookie: `agentforge_session=${sessionA.id}` },
+      },
+      { serverMode: true, sessionStore: store, now: () => T0 },
+    );
+    expect(onOtherOwnDesk.status, "the desk check should refuse A's other desk too").toBe(404);
   });
 
   it("covers every by-id route the router registers", () => {
