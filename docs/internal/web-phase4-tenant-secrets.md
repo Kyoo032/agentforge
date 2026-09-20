@@ -480,6 +480,15 @@ line holds byte-for-byte what the old one held. 44 moved that way; 5 were delibe
 plan, the Phase 3 spec, the portal design doc, the runbook and the OWASP record, because those are
 dated documents whose citations describe the code as it was when they were written.
 
+That pass also made a mistake worth writing down, because it is the one `map-drift.mjs` already
+guards against and my script did not: **it re-anchored two citations that the same commit had just
+written against the new tree**, treating them as old coordinates and shifting them again. The
+verification sweep missed them precisely because those two pages had gained citations, so it
+reported "count changed, check by hand" and moved on — and nobody checked by hand. Both were caught
+afterwards by resolving every citation on every line those pages *gained* and reading what it
+actually named, and fixed in `f258f2d`. The rule is the tool's own: a line the newer commit added
+is already in the newer commit's coordinates.
+
 One thing that pass exposed: **`map-drift.mjs` only sees full `path.ts:line` tokens, not the bare
 `:line` follow-ups the map pages use for a run of citations into the same file.** Those had been
 left behind, silently, by every drift run so far. 35 of them were re-anchored here by the same
