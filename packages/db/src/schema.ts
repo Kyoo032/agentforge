@@ -81,6 +81,29 @@ export const tenantUsage = sqliteTable(
   ],
 );
 
+/**
+ * Per-tenant secrets and gate state as rows (Phase 4, drizzle/0018_tenant_state.sql).
+ *
+ * The hosted backend behind `packages/host/src/tenant-state-store.ts`. `value` holds byte for byte
+ * what the desktop's file holds: the sealed envelope for `settings`, the plain JSON verdict for
+ * `gateway_gate`. The desktop never writes here — its backend is still the files lane D placed.
+ */
+export const tenantState = sqliteTable(
+  "tenant_state",
+  {
+    tenantId: text("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    /** `TenantStateKey` from @agentforge/core: settings | gateway_gate. */
+    key: text("key").notNull(),
+    value: text("value").notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => [primaryKey({ columns: [table.tenantId, table.key] }), index("tenant_state_key_idx").on(table.key)],
+);
+
 export const organizations = sqliteTable(
   "organizations",
   {

@@ -1,6 +1,6 @@
 # Map — Portal browser session (hosted server)
 
-Last verified: 2026-09-20 at c204e5e
+Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c`
 
 ## Overview
 
@@ -18,7 +18,7 @@ single-tenant until Phase 3 lands (`packages/host/src/tenant.ts:42-47`).
 
 ### Sign in — `POST /api/v1/auth/login`
 
-Routed at `packages/host/src/router.ts:189` to `handleLogin`
+Routed at `packages/host/src/router.ts:222` to `handleLogin`
 (`packages/host/src/auth/routes.ts:233-265`).
 
 1. `readCode` (`packages/host/src/auth/routes.ts:193-199`) demands a non-empty string `code` in the
@@ -369,7 +369,7 @@ The hosted deployment is not usable through a browser until that screen exists.
   `packages/host/src/http-adapter.ts:209-218`, and `packages/host/src/auth/routes.test.ts:370`
   repeats the same stale reference. The behaviour described is right; the line numbers are not. Grep for the identifier, never trust a line number in prose.
 - **`DispatchOptions.serverMode` does not pick the cookie name.** The gate passes only `store` and
-  `now` into `requireSessionFor` (`packages/host/src/router.ts:380-383`), so `cookieMode` falls back
+  `now` into `requireSessionFor` (`packages/host/src/router.ts:413-416`), so `cookieMode` falls back
   to `isServerMode()` (`packages/host/src/auth/routes.ts:124-126`). A test that passes
   `serverMode: true` while `AGENTFORGE_SERVER` is unset is gated but reads the **plain** cookie name
   — which is exactly what `packages/host/src/auth/session-gate.test.ts:205-212` does, deliberately.

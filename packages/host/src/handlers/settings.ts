@@ -23,7 +23,7 @@ import {
   clearGatewayKeyEverywhere,
   loadSettings,
   localDataDir,
-  saveOwnerLocale,
+  saveUserLocale,
   saveSettings,
 } from "../settings-store";
 import {
@@ -91,7 +91,7 @@ async function settingsPayload(
   const current = rows.find((row) => row.id === tenant.workspaceId);
   return {
     ...maskSecrets(settings),
-    ...localePayload(),
+    ...localePayload(tenant),
     workspaceId: tenant.workspaceId,
     workspaceName: current?.name ?? HOME_WORKSPACE_NAME,
     productName: resolvedProductName(),
@@ -140,27 +140,31 @@ export async function handleGetSettings(request: HostRequest): Promise<HostResul
  * Fields of `POST /api/v1/settings` that belong to the OPERATOR, not to the caller
  * (docs/internal/security-owasp-2026-09.md, finding A01-3).
  *
- * The settings store is machine-wide, so each of these is shared by every tenant on the box:
- * `toolKeys` / `toolBackends` are the credentials and endpoints every tenant's tools run through,
- * and `injectionGuardBypass` switches off the prompt-injection guard for the whole process. The
- * handler had no notion of privilege, so one signed-in tenant could rewrite any of them for
- * everybody. In server mode a request that carries one is refused.
+ * These three really are machine-wide, and still are after Phase 4: `toolKeys` / `toolBackends` are
+ * the credentials and endpoints every tenant's tools run through, and `injectionGuardBypass`
+ * switches off the prompt-injection guard for the whole process. The handler had no notion of
+ * privilege, so one signed-in tenant could rewrite any of them for everybody. In server mode a
+ * request that carries one is refused.
  *
- * THE PROVIDER KEYS ARE DELIBERATELY NOT IN THIS LIST, and the first version of this fix had them
- * here — which bricked the hosted deploy. Onboarding and Settings are the only ways to supply the
- * gateway key, both post it here, and the environment fallback in `gateway-gate.ts` only applies
- * when `AGENTFORGE_RUNTIME=ai`, which `webapp-deploy/compose.yml` does not set and the runbook says
- * to leave alone. Refusing key writes therefore left a Phase 0 deploy on an onboarding screen whose
- * only button answered 403, with no other route to a working server. It also pre-empted Phase 4,
- * where each tenant supplies their own key and this becomes a scoping question rather than a
- * privilege one. So key writes behave exactly as they did before this branch.
+ * THE PROVIDER KEYS ARE DELIBERATELY NOT IN THIS LIST. Onboarding and Settings are the only ways to
+ * supply the gateway key and both post it here, so refusing key writes leaves a Phase 0 deploy on an
+ * onboarding screen whose only button answers 403 — which is what the first version of the A01-3 fix
+ * did, and why it was reverted.
  *
- * What DID need fixing about the keys is narrower and is handled by `keyFieldValue` below: a key
- * sent as the EMPTY string is not a change anyone asked for — it is the renderer echoing an input
- * nobody typed in (`apps/web/components/settings-page.tsx` posts `openaiApiKey` from state on every
- * save) — and `mergeSecrets` DELETES the stored key on an empty string. So on the hosted service
- * the Settings page was wiping the operator's gateway key, for every tenant, each time anyone saved
- * a spend cap.
+ * **Phase 4 is what makes that safe rather than merely necessary.** A01-3 left a residual: "on a
+ * hosted box any tenant can still set the shared gateway key". There is no shared key to set any
+ * more. Lane D put each tenant's `settings.enc` in its own place, Phase 4 put it in its own
+ * `tenant_state` row, and `resolveProviderKeys` no longer falls back to the operator's
+ * `OPENAI_API_KEY` in server mode. So a key write reaches the caller's tenant and nothing else, and
+ * the operator's own key is not writable OR readable from a tenant session. The residual is closed;
+ * see `docs/internal/web-phase4-tenant-secrets.md` §3.
+ *
+ * What still needs `keyFieldValue` below is narrower and has nothing to do with sharing: a key sent
+ * as the EMPTY string is not a change anyone asked for — it is the renderer echoing an input nobody
+ * typed in (`apps/web/components/settings-page.tsx` posts `openaiApiKey` from state on every save) —
+ * and `mergeSecrets` DELETES the stored key on an empty string. Dropping the blank in server mode is
+ * what stops a tenant's own Settings save from wiping their own key. Meaning it is "forget my key"
+ * is `DELETE /api/v1/settings/reset` with `scope: "key"`, which Phase 4 opens on the server.
  */
 const OPERATOR_ONLY_CODE = "settings_operator_only";
 const OPERATOR_ONLY_MESSAGE =
@@ -184,7 +188,7 @@ export function requestsOperatorOnlySettings(body: Record<string, unknown>): boo
  *
  * Off server mode this is the identity on any string, so a desk owner clearing the field still
  * means "forget my key" and `mergeSecrets` still deletes it. In server mode a blank is dropped
- * instead of forwarded, which is what stops the shared key being wiped by a Settings save that
+ * instead of forwarded, which is what stops a tenant's own key being wiped by a Settings save that
  * never meant to touch it. A real value passes through in both.
  */
 export function keyFieldValue(raw: unknown, serverMode: boolean): string | undefined {
@@ -212,7 +216,9 @@ export async function handlePostSettings(request: HostRequest, deps: ServerModeD
       if (!isAppLocale(body.locale)) {
         throw new ApiError("invalid_request", "locale must be en or id", 400);
       }
-      saveOwnerLocale(body.locale);
+      // Phase 4: the person's language, not the install's. On a desk `saveUserLocale` still
+      // writes the install locale too, so `getBootLocale()` and the Restart control are unchanged.
+      saveUserLocale(tenant, body.locale);
     }
     // Keys pass through in both modes; only a blank is dropped in server mode, where it would
     // DELETE the key every tenant shares. `toolKeys`, `toolBackends` and `injectionGuardBypass`
@@ -379,18 +385,19 @@ const RESET_DISABLED_MESSAGE =
   "Starting over is not available on the hosted service. Delete the desks, threads or files you no longer want instead.";
 
 /**
- * "Forget my key" is machine-wide, not tenant-wide, so the hosted service cannot offer it either:
- * `clearGatewayKeyEverywhere` wipes the key out of every workspace slice on the box and
- * `clearGateState` throws away the one gate verdict they all share. One tenant pressing it would
- * sign every other tenant out of the gateway. Same refusal as "Start over", same reason code.
+ * "Forget my key", and **Phase 4 turns it on for the hosted service**.
+ *
+ * It used to be refused there, and the reason was true when it was written: the key and the verdict
+ * were machine-wide, so one tenant pressing this signed every other tenant out of the gateway. Lane
+ * D scoped both calls to the caller's tenant and Phase 4 moved both payloads into that tenant's own
+ * `tenant_state` rows, so what this clears now is the caller's key on the caller's desks and the
+ * caller's verdict — nobody else's. Leaving it refused would mean a hosted tenant who pasted the
+ * wrong key had no way to take it back, since `keyFieldValue` drops a blank in server mode by
+ * design, and that is the whole of the route out.
+ *
+ * "Start over" stays refused: that one really does still wipe the shared data directory.
  */
-const RESET_KEY_DISABLED_MESSAGE =
-  "Signing out of the gateway is not available on the hosted service. The gateway key is managed by the operator.";
-
-function resetGatewayKey(tenant: TenantContext, serverMode: boolean): HostResult {
-  if (serverMode) {
-    throw new ApiError(RESET_DISABLED_CODE, RESET_KEY_DISABLED_MESSAGE, 403);
-  }
+function resetGatewayKey(tenant: TenantContext): HostResult {
   // Every desk of this tenant: a key left on a second desk would keep the gate open after "forget
   // my key". Phase 3 lane D narrowed both calls from the whole install to the caller's tenant.
   clearGatewayKeyEverywhere(tenant);
@@ -442,7 +449,7 @@ export async function handleResetApp(request: HostRequest, deps: ResetDeps = {})
     const scope = readOptionalString(body.scope);
     const serverMode = deps.isServerMode ? deps.isServerMode() : isServerMode();
     if (scope === "key") {
-      return resetGatewayKey(tenant, serverMode);
+      return resetGatewayKey(tenant);
     }
     if (scope === "all") {
       return resetEverything(tenant, readOptionalString(body.confirm), serverMode);

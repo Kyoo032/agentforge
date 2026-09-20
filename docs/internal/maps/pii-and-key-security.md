@@ -1,6 +1,6 @@
 # Map — PII masking and key security
 
-Last verified: 2026-09-20 at 6984d84
+Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c`
 
 ## Overview
 
@@ -69,7 +69,7 @@ Ordering inside `startModalityRun`:
 
 Two shapes of use:
 
-- **Attachments.** `redactAttachedText` (`:129-138`) finds `--- <filename> ---` blocks (`ATTACH_BLOCK_RE`, `:126`), runs `scanInjection` (`:77-88`) on each body, and replaces a hit with `[Attachment blocked by injection guard (rule: <rule>)]`. `redactAttachedParts` (`:140-147`) maps that over text parts. Chat calls it at `packages/host/src/runs.ts:136`.
+- **Attachments.** `redactAttachedText` (`:129-138`) finds `--- <filename> ---` blocks (`ATTACH_BLOCK_RE`, `:126`), runs `scanInjection` (`:77-88`) on each body, and replaces a hit with `[Attachment blocked by injection guard (rule: <rule>)]`. `redactAttachedParts` (`:140-147`) maps that over text parts. Chat calls it at `packages/host/src/runs.ts:135`.
 - **Everything ingested.** Knowledge sources (`packages/host/src/knowledge.ts:430`), work cards (`packages/host/src/knowledge-ingest.ts:29`), research pages (`packages/host/src/research-generate.ts:150`), and every job's `readSourceText` (`packages/host/src/job-source.ts:12,24`, called from `finance-generate.ts:165`, `data-generate.ts:208`, `document-generate.ts:156`, `presentation-generate.ts:145`) run `scanInjection` on fetched or uploaded text.
 
 One switch turns all of it off: `injectionGuardBypass` on `StoredSecrets` (`packages/core/src/secrets.ts:32`, `:87`), set through `POST /api/v1/settings` (`packages/host/src/handlers/settings.ts:162`), persisted at `packages/host/src/settings-store.ts:76`, and returned to the UI by `maskSecrets`. It is stored only when `true` (`packages/core/src/secrets.ts:229-233`), so the protected state is the default. The comment at `packages/core/src/security/injection-guard.ts:72-76` is explicit that there is no "this looks like a security discussion, skip it" carve-out — the bypass setting is the only escape hatch, on purpose.
@@ -153,8 +153,8 @@ Doctor mirrors the same gate: `.cursor/skills/verify-agentforge/scripts/doctor.m
 | `settings.enc` will not decrypt (wrap key changed / keytar fell back) | `packages/host/src/settings-store.ts:219-237` | renamed to `settings.enc.unreadable`; app boots keyless and shows onboarding |
 | `settings.enc` is not an envelope | `packages/host/src/settings-store.ts:244` | throws `"settings.enc is not a valid envelope"` → same quarantine |
 | A sealed column holds pre-encryption plaintext | `packages/core/src/crypto/envelope.ts:62`, `:65` | returned as-is; no error, no re-seal |
-| Client sends `openaiApiKey: ""` | `packages/core/src/secrets.ts:135-140` | key deleted, `hasOpenai` goes false |
-| Client omits `openaiApiKey` | `packages/core/src/secrets.ts:128-153` | key untouched |
+| Client sends `openaiApiKey: ""` | `mergeSecrets`, `packages/core/src/secrets.ts:136-149` | key deleted, so `hasOpenai` (`packages/core/src/secrets.ts:260`) goes false |
+| Client omits `openaiApiKey` | `mergeSecrets`, `packages/core/src/secrets.ts:136-149` | key untouched |
 | No key saved | `apps/web/components/settings-page.tsx:399` | `key-fingerprint` not rendered; `privacy-note` still visible; doctor `keyFingerprint: false` — **not** a doctor fail |
 
 ## Where things live
@@ -186,12 +186,12 @@ Doctor mirrors the same gate: `.cursor/skills/verify-agentforge/scripts/doctor.m
 - **Finance has a second, earlier guard.** The wrapper above masks the outbound copy of the run; `packages/host/src/finance-privacy.ts` redacts the input before the prompt is built, with column context the shared scanner cannot have. See "Finance privacy guard" at the end of this page.
 - **`piiWarning()` is dead code.** It exists (`packages/core/src/security/pii.ts:299-314`), is exported (`packages/core/src/index.ts:112`) and is tested (`packages/core/src/security/pii.test.ts:197-211`), but no product code calls it. It is the leftover of the removed banner; `pii-warning` and `pii-send-anyway` are 0 everywhere in `apps/` and `packages/`.
 - **The market-tool query masks and then un-masks.** `searchQueryFor` (`packages/host/src/market/tools.ts:87-89`) runs `maskPii` and then strips the `[email]`-style tokens back out with `PII_MASK_TOKEN` (`:57`), because an FTS query containing a literal `[email]` matches nothing. The net effect is deletion, not substitution. That regex now lists **all eight** tokens — `email|phone|id|card|nik|npwp|account|name` — so the four kinds added on 2026-09-17 are stripped like the rest.
-- **A bypass leaves no trace.** Nothing logs when `injectionGuardBypass` skips a scan, on any of the eight call sites. Already recorded as a finding in [`knowledge-ingest-loop.md`](knowledge-ingest-loop.md) for the knowledge path; it is true of the Chat path (`packages/host/src/runs.ts:136`) too.
+- **A bypass leaves no trace.** Nothing logs when `injectionGuardBypass` skips a scan, on any of the eight call sites. Already recorded as a finding in [`knowledge-ingest-loop.md`](knowledge-ingest-loop.md) for the knowledge path; it is true of the Chat path (`packages/host/src/runs.ts:135`) too.
 - **The envelope key is a bare SHA-256, not a KDF.** `wrappingKeyFromSecret` (`packages/core/src/crypto/envelope.ts:14-16`) is correct here only because both inputs are already 32 random bytes (`apps/desktop/main.cjs:290`, `packages/db/src/vault-key.ts:111`). Anyone who lets a human-chosen `AGENTFORGE_SECRETS_KEY` into that path has turned it into an unsalted password hash.
 - **`openPayload` cannot tell "legacy plaintext" from "someone replaced the envelope with plaintext".** `packages/core/src/crypto/envelope.ts:62`/`:65` return the value whenever it does not look like an envelope. The GCM tag protects a sealed row; it protects nothing about a row that was never sealed.
 - **Thread titles are plaintext and derived from the first user message.** `packages/host/src/threads.ts:201`, `:228` open the sealed content and write a title with `.set({ title })` at `:252-255`, unsealed. A message body that is sealed at rest can still surface, truncated, in a plaintext `threads.title` column.
 - **The fingerprint is 48 bits.** `sha256:` plus 12 hex characters (`packages/core/src/security/fingerprint.ts:13-14`). It identifies which key is saved; it is not a proof of possession and must never be pasted into `openai-key`.
-- **Extras have fingerprints but no GTM UI.** `googleKeyFingerprint` / `anthropicKeyFingerprint` / `volcengineKeyFingerprint` are always in the response (`packages/core/src/secrets.ts:258-260`) even though Settings shows only `hasGoogle` / `hasAnthropic` / `hasVolcengine`. Do not read a non-null extras fingerprint as a UI regression.
+- **Extras have fingerprints but no GTM UI.** `googleKeyFingerprint` / `anthropicKeyFingerprint` / `volcengineKeyFingerprint` are always in the response (`packages/core/src/secrets.ts:266-268`) even though Settings shows only `hasGoogle` / `hasAnthropic` / `hasVolcengine`. Do not read a non-null extras fingerprint as a UI regression.
 - **`AGENTFORGE_PACKAGED` is never set.** `isPackagedRuntime()` (`packages/core/src/gateway/pinned.ts:25-27`) reads it, `gatewayUrlOverrideAllowed()` (`:34-36`) depends on it, and the comment at `:24` says "`main.cjs` sets this before `host.cjs` loads" — but a repo-wide grep finds it only in `pinned.ts` and `pinned.test.ts`. `apps/desktop/main.cjs:79-81` sets `AGENTFORGE_PRODUCT_NAME` / `_GATEWAY_NAME` / `_GATEWAY_URL` and nothing else. So in a packaged build the "dev/test hook" is live — which is exactly how Kemenkeu AI and AIHub Metranet get their `https://aihub.metranet.co.id/v1` lock, and also why the pin is not actually enforced there. See `findings.md` for this run.
 - **Settings are per tenant, then per workspace.** One `settings.enc` per tenant, and inside it `{ workspaces: { <id>: StoredSecrets } }` (`packages/host/src/settings-store.ts:152-156`). A key saved on one desk is not a key on another, and `clearGatewayKeyEverywhere(scope)` (`:420-436`) exists precisely because the per-workspace shape makes "remove my key" a multi-row operation — it clears every desk of **one tenant**, not of the install.
 - **`apps/desktop/host.cjs` is a build artifact** (gitignored, `.gitignore:35`) and is regenerated while a dev build watches. Never cite `file:line` in it; the tracked source is `apps/desktop/main.cjs`.

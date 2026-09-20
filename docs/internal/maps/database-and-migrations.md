@@ -1,6 +1,6 @@
 # Map — Database and migrations
 
-Last verified: 2026-09-20 at c204e5e
+Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c`
 
 ## Overview
 
@@ -172,6 +172,16 @@ The committed migrations, in journal order (`packages/db/drizzle/meta/_journal.j
 | `0013_knowledge_weknora.sql` | `knowledge_workspace_backend` and `knowledge_backend_outbox`. `knowledge_sources.external_id` is deliberately **not** here — a bare `ALTER` would fail on a second application, so `ensureKnowledgeBackendTables` owns it (`0013_knowledge_weknora.sql:13-18`) |
 | `0014_auth_sessions.sql` | `auth_sessions` + `auth_sessions_user_seen_idx`, `auth_sessions_expires_idx` |
 | `0015_tenants.sql` | `tenants` + `tenants_slug_unique`, the `local-tenant` row, `organizations.tenant_id` backfilled to it, and the move of organization slug uniqueness from `organizations_slug_unique` to `organizations_tenant_slug` (`0015_tenants.sql:42-46`). Additive and one-way: the runner has no `down` and SQLite before 3.35 cannot drop a column (`0015_tenants.sql:12-13`) |
+| `0016_tenant_usage.sql` | `tenant_usage` — one row per gateway call, priced in USD micros. See [`tenant-usage-ledger.md`](tenant-usage-ledger.md) |
+| `0018_tenant_state.sql` | `tenant_state` + `tenant_state_key_idx` — a tenant's sealed settings and gateway verdict as rows on the hosted server, keyed `(tenant_id, key)` and cascading on tenant delete. See [`tenant-secrets-backend.md`](tenant-secrets-backend.md) |
+
+**There is no `0017`, and the gap is deliberate.** Phase 5 lane B reserved that number while Phase 4 was in
+flight, so the journal jumps from `idx: 16` (`when: 1788820000008`) to `idx: 18` (`when: 1788820000010`).
+This matters because the runner is forward-only on `when`, not on `idx`: it applies an entry when
+`lastAppliedCreatedAt < entry.when` (`applyPendingMigrations`, `packages/db/src/ensure-schema.ts:154-190`). A `0017` added later with
+a `when` **below** `1788820000010` would be silently skipped on every database that has already run `0018`.
+Lane B's migration must carry a `when` above it. `packages/db/src/migrate-0018.test.ts` asserts the journal
+stays in ascending `when` order and that no `0017` tag has appeared without one.
 
 From `0010` onward each file re-declares its tables with `CREATE TABLE IF NOT EXISTS`, on the stated
 reasoning that a baseline-stamped database has the journal row but not necessarily the table
@@ -279,7 +289,7 @@ a package script only, not exposed at the root (`packages/db/package.json:12`).
 | `packages/db/src/client.ts` | Opens better-sqlite3, sets pragmas, runs the reset hook and `ensureSchema`, exports `db` / `sql` / `Database`. |
 | `packages/db/src/schema.ts` | Every Drizzle table. No queries. |
 | `packages/db/src/ensure-schema.ts` | `migrationsFolder()`, `ensureSchema()`, baseline stamping, the `ensure*` healers, `assertKernelTables`. |
-| `packages/db/drizzle/` | The 15 committed `.sql` migrations plus `meta/_journal.json`. |
+| `packages/db/drizzle/` | The 18 committed `.sql` migrations (numbered `0000`-`0018` with `0017` reserved) plus `meta/_journal.json`. |
 | `packages/db/src/ensure-local-owner.ts` | The single owner, org, home workspace, and workspace CRUD. |
 | `packages/core/src/local-owner.ts` | The id/slug/name constants and `pickWorkspaceId`. |
 | `packages/db/src/seed.ts` | `db:seed` entry point. |
@@ -315,7 +325,7 @@ and writes no journal row, so a pushed database and a migrated one can end up st
 **Baseline stamping means a journal row is not proof a migration ran.** A database with all 20 kernel
 tables and an empty journal gets every hash inserted without executing anything
 (`packages/db/src/ensure-schema.ts:209-213`). That is the whole reason the `ensure*` healers and the
-defensive `CREATE TABLE IF NOT EXISTS` in `0010`-`0015` exist. When you add a migration that
+defensive `CREATE TABLE IF NOT EXISTS` in `0010`-`0018` exist. When you add a migration that
 `ALTER`s a table, add a matching healer — a bare `ALTER` will fail on a second application.
 
 **A partially initialized database refuses to boot rather than repairing itself**
@@ -365,7 +375,7 @@ strings; do not match on the printed one.
 still sealed with the old wrap key after that is unreadable by design — which is why the SQLite trio
 goes with it (`packages/db/src/reset.ts:29`, `:270`).
 
-**`market_cache` has no scope column** (`packages/db/src/schema.ts:709-720`). It is a read-through
+**`market_cache` has no scope column** (`packages/db/src/schema.ts:732-743`). It is a read-through
 cache keyed `(ticker, kind)` shared by every workspace on the install; it is not per-desk data and a
 desk wipe does not isolate it.
 

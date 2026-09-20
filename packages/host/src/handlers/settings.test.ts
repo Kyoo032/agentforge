@@ -533,22 +533,40 @@ describe("POST /api/v1/settings/reset in server mode", () => {
     expect(existsSync(MARKER_FILE)).toBe(false);
   });
 
-  it("refuses scope key too, because forgetting the key is machine-wide", async () => {
-    // `clearGatewayKeyEverywhere` and `clearGateState` are not scoped to a tenant: one workspace
-    // asking to forget the key would log every other tenant on the box out of the gateway.
-    const response = await reset({ scope: "key" }, HOSTED);
-    expect(response.status).toBe(403);
-    expect(errorCode(response.body)).toBe("reset_disabled");
-  });
-
-  it("leaves the saved key in place when it refuses", async () => {
+  /**
+   * Phase 4 turned this one around, and the reason it used to be refused is worth keeping in view:
+   * `clearGatewayKeyEverywhere` and `clearGateState` were not scoped to a tenant, so one workspace
+   * asking to forget the key logged every tenant on the box out of the gateway. Lane D scoped both
+   * and Phase 4 moved both payloads into the caller's own `tenant_state` rows, so this now clears
+   * the caller's key and nobody else's. "Start over" (`scope: "all"`) stays refused above — that one
+   * really does still wipe a shared data directory.
+   */
+  it("allows scope key, because the key it forgets is the caller's own", async () => {
     stubFetch(200);
     await json("POST", "/api/v1/settings", { openaiApiKey: KEY });
-    const refused = await reset({ scope: "key" }, HOSTED);
-    expect(refused.status).toBe(403);
     expect((await json("GET", "/api/v1/settings")).body.hasOpenai).toBe(true);
-    // Saved through the host, so cleared through the host: `afterEach` writes the default slice.
-    await json("POST", "/api/v1/settings", { openaiApiKey: "" });
+
+    const response = await reset({ scope: "key" }, HOSTED);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ ok: true, scope: "key", relaunch: false });
+    expect((await json("GET", "/api/v1/settings")).body.hasOpenai).toBe(false);
+  });
+
+  it("is the only way a hosted tenant can clear its key, because a blank save is dropped", async () => {
+    stubFetch(200);
+    const { handlePostSettings } = await import("./settings");
+    const hostedSave = (body: Record<string, unknown>) =>
+      handlePostSettings(request("POST", "/api/v1/settings", { body }), HOSTED);
+
+    await hostedSave({ openaiApiKey: KEY });
+    // The SPA posts `openaiApiKey` from state on every save; in server mode a blank is dropped
+    // rather than forwarded (`keyFieldValue`), so this must NOT be a way to wipe the key.
+    await hostedSave({ openaiApiKey: "", editTurnCapUsd: 5 });
+    expect((await json("GET", "/api/v1/settings")).body.hasOpenai).toBe(true);
+
+    await reset({ scope: "key" }, HOSTED);
+    expect((await json("GET", "/api/v1/settings")).body.hasOpenai).toBe(false);
   });
 
   it("keeps scope key working when server mode is off", async () => {

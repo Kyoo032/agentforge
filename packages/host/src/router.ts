@@ -1,4 +1,9 @@
 import { isServerMode } from "@agentforge/core";
+// Phase 4: installs the hosted tenant-state backend as an import side effect. It lives here, on the
+// one module every request goes through, rather than under `settings-store.ts`, because importing
+// `@agentforge/db` opens the database and `settings-store.ts` is reached from unit tests that have
+// no database. Without it server mode refuses to read or write a tenant's settings at all.
+import "./tenant-state-db";
 import { hostAuthRoutes, hostSessionStore, isSessionExemptPath, requireSessionFor } from "./auth";
 import type { SessionStore } from "./auth";
 import { jsonError, jsonOk } from "./errors";

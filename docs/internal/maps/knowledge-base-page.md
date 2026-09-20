@@ -1,6 +1,6 @@
 # Map — Knowledge Base page
 
-Last verified: 2026-09-20 at 6984d84
+Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c`
 
 The page half of Knowledge. The ingest pipeline behind it — extract, guard, chunk, embed, work cards, tenant scoping — is [`knowledge-ingest-loop.md`](knowledge-ingest-loop.md); this page does not repeat it. Citations are anchored at `b482611`; `packages/host/src/knowledge.ts` and `apps/web/components/knowledge-page.tsx` are rewritten often, so grep the function or testid name if a number looks wrong.
 
@@ -101,7 +101,7 @@ The result renders as `knowledge-map` (`apps/web/components/knowledge-page.tsx:6
 
 ### 8. What Chat does with all of it
 
-Chat never reads the page's state; the host rebuilds it per turn. `startModalityRun` calls `knowledgeInjection(tenant, userText, { excludeThreadId: thread.id })` (`packages/host/src/runs.ts:154`) and concatenates the result onto the published agent's system prompt (`:158`).
+Chat never reads the page's state; the host rebuilds it per turn. `startModalityRun` calls `knowledgeInjection(tenant, userText, { excludeThreadId: thread.id })` (`packages/host/src/runs.ts:125`) and concatenates the result onto the published agent's system prompt (`:158`).
 
 `knowledgeInjection` (`packages/host/src/knowledge.ts:835-877`) assembles three sections under one `# Workspace knowledge` heading: `## Soul` from `getSoul`, `## Pinned memories` from the pinned subset of `listMemories`, and `## Retrieved sources` — `retrieveChunks(tenant, query, 4, …)` rendered as `[${index + 1}] ${sanitizeSourceName(chunk.sourceName)}\n${chunk.body}` (`:855-857`). An empty query skips retrieval entirely (`:840-842`). The anti-loop is `excludedSourceIds` (`:802-808`): the asking thread's own work card is looked up by origin and excluded, which is why proving retrieval of a Chat card needs a fresh thread.
 

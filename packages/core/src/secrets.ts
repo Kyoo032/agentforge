@@ -2,6 +2,14 @@ import { guessDialectFromKey } from "./models/probe";
 import { resolvedGatewayBaseUrl } from "./gateway";
 import { keyFingerprintOrNull } from "./security/fingerprint";
 import { maskToolKeys } from "./tools/credentials";
+import { isServerMode } from "./server-mode";
+
+/**
+ * The environment a hosted process is allowed to read provider credentials from: none of it.
+ * A frozen empty object rather than a branch per field, so a field added later cannot quietly
+ * reintroduce the fallback by forgetting the check.
+ */
+const EMPTY_PROVIDER_ENV: NodeJS.ProcessEnv = Object.freeze({});
 
 export type StoredSecrets = {
   openaiApiKey?: string;
@@ -296,6 +304,21 @@ export function resolveRuntimeMode(input: { settingsHasKey: boolean; envRuntime?
   return input.envRuntime === "ai" ? "ai" : "stub";
 }
 
+/**
+ * Phase 4 — the operator's own keys are not a tenant's keys.
+ *
+ * Off the hosted server these env vars are the documented headless fallback and a dev box's `.env`,
+ * and they behave exactly as they always have. In server mode they are refused: a process-wide
+ * `OPENAI_API_KEY` there is the OPERATOR's credential, and falling back to it would hand it to
+ * every signed-in tenant who has not saved one — billed to the operator, metered against nobody,
+ * and readable from any tenant session by making a call. That is the residual
+ * `docs/internal/security-owasp-2026-09.md` A01-3 left for this phase ("on a hosted box any tenant
+ * can still set the shared gateway key"): Phase 3 lane D made the SAVED key per tenant, and this is
+ * the other half — the unsaved one. A hosted tenant with no key of its own gets no key at all, the
+ * gate reports `needs_key`, and onboarding asks for one. Fail closed.
+ *
+ * `settings` still wins wherever it is set, in both modes, so a tenant's own key is unaffected.
+ */
 export function resolveProviderKeys(
   settings: StoredSecrets,
   env: NodeJS.ProcessEnv = process.env,
@@ -309,7 +332,9 @@ export function resolveProviderKeys(
   anthropicBaseUrl?: string;
   volcengineBaseUrl?: string;
 } {
-  const openai = settings.openaiApiKey || env.OPENAI_API_KEY || undefined;
+  // In server mode nothing here may come from the process environment; see the note above.
+  const fallback = isServerMode(env) ? EMPTY_PROVIDER_ENV : env;
+  const openai = settings.openaiApiKey || fallback.OPENAI_API_KEY || undefined;
   // Pinned endpoint: neither the stored value nor OPENAI_BASE_URL can re-point the gateway.
   const openaiBaseUrl = resolvedGatewayBaseUrl();
   const openaiKeyDialect = openai ? guessDialectFromKey(openai) : undefined;
@@ -318,13 +343,18 @@ export function resolveProviderKeys(
 
   return {
     openai,
-    google: settings.googleApiKey || env.GOOGLE_GENERATIVE_AI_API_KEY || reuseOpenAI("google"),
-    anthropic: settings.anthropicApiKey || env.ANTHROPIC_API_KEY || reuseOpenAI("anthropic"),
+    google: settings.googleApiKey || fallback.GOOGLE_GENERATIVE_AI_API_KEY || reuseOpenAI("google"),
+    anthropic: settings.anthropicApiKey || fallback.ANTHROPIC_API_KEY || reuseOpenAI("anthropic"),
     volcengine:
-      settings.volcengineApiKey || env.ARK_API_KEY || env.VOLCENGINE_API_KEY || reuseOpenAI("volcengine"),
+      settings.volcengineApiKey ||
+      fallback.ARK_API_KEY ||
+      fallback.VOLCENGINE_API_KEY ||
+      reuseOpenAI("volcengine"),
     openaiBaseUrl,
-    googleBaseUrl: settings.googleBaseUrl || env.GOOGLE_GENERATIVE_AI_BASE_URL,
-    anthropicBaseUrl: settings.anthropicBaseUrl || env.ANTHROPIC_BASE_URL,
-    volcengineBaseUrl: settings.volcengineBaseUrl || env.ARK_BASE_URL || env.VOLCENGINE_BASE_URL,
+    // The base URLs follow the keys. An operator endpoint with no operator key behind it would
+    // point a tenant's own key at a host that tenant never chose.
+    googleBaseUrl: settings.googleBaseUrl || fallback.GOOGLE_GENERATIVE_AI_BASE_URL,
+    anthropicBaseUrl: settings.anthropicBaseUrl || fallback.ANTHROPIC_BASE_URL,
+    volcengineBaseUrl: settings.volcengineBaseUrl || fallback.ARK_BASE_URL || fallback.VOLCENGINE_BASE_URL,
   };
 }

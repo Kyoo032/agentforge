@@ -145,6 +145,8 @@ export {
   canAdminister,
 } from "./tenancy/types";
 export type { MembershipRole, IndustryPack, Visibility, InputModality, TenantContext } from "./tenancy/types";
+export { TENANT_STATE_KEYS, isTenantStateKey } from "./tenancy/state-keys";
+export type { TenantStateKey } from "./tenancy/state-keys";
 export type {
   ContentPart,
   TextPart,

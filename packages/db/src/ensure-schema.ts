@@ -234,6 +234,7 @@ export function ensureSchema(sqlite: Database.Database): void {
   ensureAuthSessionTables(sqlite);
   ensureTenantTables(sqlite);
   ensureTenantUsageTable(sqlite);
+  ensureTenantStateTable(sqlite);
   ensureWorkspaceColumns(sqlite);
   assertKernelTables(sqlite);
 }
@@ -479,6 +480,27 @@ function ensureTenantUsageTable(sqlite: Database.Database): void {
     CREATE INDEX IF NOT EXISTS tenant_usage_tenant_at_idx ON tenant_usage (tenant_id, at);
     CREATE INDEX IF NOT EXISTS tenant_usage_tenant_mode_idx ON tenant_usage (tenant_id, mode, at);
     CREATE INDEX IF NOT EXISTS tenant_usage_unpriced_idx ON tenant_usage (unpriced_reason, at);
+  `);
+}
+
+/**
+ * Per-tenant secrets and gate state (Phase 4), for a database stamped past 0018 without the table.
+ * Mirrors drizzle/0018_tenant_state.sql exactly, composite primary key included.
+ *
+ * This healer is also the net under the journal gap that migration's header describes: a hosted
+ * database whose `__drizzle_migrations` row ordering skipped 0018 still gets the table here, so a
+ * tenant's key is never written to a table that does not exist.
+ */
+function ensureTenantStateTable(sqlite: Database.Database): void {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS tenant_state (
+      tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE cascade,
+      key text NOT NULL,
+      value text NOT NULL,
+      updated_at integer NOT NULL,
+      PRIMARY KEY (tenant_id, key)
+    );
+    CREATE INDEX IF NOT EXISTS tenant_state_key_idx ON tenant_state (key);
   `);
 }
 

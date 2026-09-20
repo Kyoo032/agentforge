@@ -1,6 +1,6 @@
 # Map — Chat send
 
-Last verified: 2026-09-20 at 6984d84
+Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c`
 
 Supersedes the `## how — Chat send (pstack) — 2026-09-06` block in [`../0.14-changelog.md`](../0.14-changelog.md), which described the 0.14 shape. Several details in it are no longer true; see Gotchas.
 
@@ -36,7 +36,7 @@ Either way `apiFetch` hands back a `Response` with `Content-Type: text/event-str
 
 `packages/host/src/router.ts:236-238` maps the route to `handleRun` (`packages/host/src/handlers/runs.ts:27`). First thing it does, before touching the database or the gateway: `requireGatewayAllowedFor(tenant)` (`packages/host/src/handlers/runs.ts:31`). A closed gate throws `GatewayBlockedError` and the request answers a flat `403 { error: "gateway_blocked", status, message }` (`packages/host/src/errors.ts:20-25`) with no SSE stream at all. See [`settings-and-gateway-gate.md`](settings-and-gateway-gate.md).
 
-Otherwise `startModalityRun` (`packages/host/src/runs.ts:126`) runs the turn:
+Otherwise `startModalityRun` (`packages/host/src/runs.ts:125`) runs the turn:
 
 1. Parse and validate the body (`parseTextRunInput`, `packages/core/src/content/parse-run-input.ts:114`) — empty content or an `image_url` part on the text route is a 400.
 2. Redact attachments unless `injectionGuardBypass`; load the thread (404 if missing); resolve the model; build the knowledge injection and the final system prompt.
@@ -63,7 +63,7 @@ One rule, `streamWatchdogDeadline` (`packages/core/src/runtime/stream-watchdog.t
 | Instance | Scope | On fire |
 |---|---|---|
 | `AiSdkRuntime.consume` (`packages/core/src/runtime/ai-sdk-runtime.ts:599`) | one gateway call | aborts that call; the probe loop may retry it |
-| `armRunStallGuard` (`packages/host/src/run-stall.ts`, armed at `packages/host/src/runs.ts:192`) | the whole SSE run | `run.failed` + `run.completed`, stream closed, run marked failed — never retried |
+| `armRunStallGuard` (`packages/host/src/run-stall.ts`, armed at `packages/host/src/runs.ts:195`) | the whole SSE run | `run.failed` + `run.completed`, stream closed, run marked failed — never retried |
 | `apps/web/components/chat-composer.tsx:222` | the browser tab | aborts the fetch, shows `abortErrorMessage` |
 
 Budgets (`packages/core/src/runtime/stream-watchdog.ts`): `STREAM_TTFB_MS = 120_000` / `STREAM_IDLE_MS = 60_000` for ordinary models; `STREAM_REASONING_TTFB_MS = 240_000` / `STREAM_REASONING_IDLE_MS = 180_000` for reasoning models. `isWatchdogReasoningModel` (`:43-49`) covers the Claude 4/5 families plus `QUIET_REASONING_FAMILY` — `^(deepseek-v4|glm-5\.3|kimi-k3|qwen3\.8-max)` (`:40`).
@@ -119,7 +119,7 @@ Fixed in `e93c617`. The composer toolbar's single-row `overflow-hidden` layout (
 ## Gotchas
 
 - **A completed run now writes twice.** `runs.usage` still carries the per-run detail on the run
-  row; `recordChatRunUsage` (`packages/host/src/runs.ts:367`, and `:417` on the mid-stream error
+  row; `recordChatRunUsage` (`packages/host/src/runs.ts:370`, and `:420` on the mid-stream error
   path) also writes a `tenant_usage` row, gated on `finishRun`'s return so one run is exactly one
   row. Anything summing both double-counts chat. See [`tenant-usage-ledger.md`](tenant-usage-ledger.md).
 

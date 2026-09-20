@@ -202,7 +202,7 @@ describe("desk usage is per tenant", () => {
  */
 describe("no host source passes a bare desk id to the settings store", () => {
   /** Owns the contract itself, so it is the one place allowed to speak in bare ids. */
-  const OWNERS = new Set(["settings-store.ts", "gateway-gate.ts"]);
+  const OWNERS = new Set(["settings-store.ts", "gateway-gate.ts", "tenant-state-store.ts"]);
 
   function sourceFiles(dir: string): string[] {
     const out: string[] = [];
@@ -224,17 +224,53 @@ describe("no host source passes a bare desk id to the settings store", () => {
     return text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
   }
 
-  it("never hands loadSettings or saveSettings a workspace id", () => {
+  it("never hands a settings-store entry point a workspace id", () => {
     const offenders: string[] = [];
     for (const file of sourceFiles(SRC)) {
       const text = withoutComments(readFileSync(file, "utf8"));
-      for (const match of text.matchAll(/\b(loadSettings|saveSettings)\(([^()]*)\)/g)) {
+      // Phase 4 added `loadUserLocale` / `saveUserLocale`, which take a tenant AND a user. Both are
+      // swept here for the same reason as the other two: a bare desk id compiles and then 500s on a
+      // hosted request, and on a desk it silently reads the local tenant so nothing goes red.
+      for (const match of text.matchAll(
+        /\b(loadSettings|saveSettings|loadUserLocale|saveUserLocale)\(([^()]*)\)/g,
+      )) {
         if (/workspaceId/.test(match[2] ?? "")) {
           offenders.push(`${path.relative(SRC, file)}: ${match[0]}`);
         }
       }
     }
     expect(offenders).toEqual([]);
+  });
+
+  /**
+   * Phase 4 — the desktop's file layout has exactly one owner.
+   *
+   * Lane D froze `settings.enc` and `gateway-gate.json` at the paths a desktop install already has,
+   * and Phase 4 made them one backend of two. A second module spelling either name is how a desk
+   * ends up half on the files and half on the rows, so the names live in `TENANT_STATE_FILENAMES`
+   * and nowhere else. `handlers/settings.ts` is the one exception — "Start over" has to name the
+   * entries it deletes — and the case below pins its list to the backend's so the two cannot drift.
+   */
+  it("lets only the state store name the desktop's files", () => {
+    const offenders: string[] = [];
+    for (const file of sourceFiles(SRC)) {
+      if (path.relative(SRC, file) === path.join("handlers", "settings.ts")) {
+        continue;
+      }
+      const text = withoutComments(readFileSync(file, "utf8"));
+      for (const match of text.matchAll(/"(settings\.enc|gateway-gate\.json)"/g)) {
+        offenders.push(`${path.relative(SRC, file)}: ${match[0]}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("keeps the Start over list and the backend's filenames in step", async () => {
+    const { HOST_RESET_ENTRIES } = await import("./handlers/settings");
+    const { TENANT_STATE_FILENAMES } = await import("./tenant-state-store");
+    for (const filename of Object.values(TENANT_STATE_FILENAMES)) {
+      expect(HOST_RESET_ENTRIES).toContain(filename);
+    }
   });
 
   it("never calls the gateway gate without a tenant", () => {

@@ -46,13 +46,12 @@ import {
 } from "./threads";
 import { ensureToolsRegistered } from "./register-tools";
 import { recordChatRunUsage } from "./usage-record";
-import { loadSettings } from "./settings-store";
+import { loadSettings, loadUserLocale } from "./settings-store";
 import { defaultSelectableModel, listSelectableModels } from "./selectable-models";
 import { collectToolMediaParts } from "./tool-media";
 import { inlineLocalMediaParts, shouldInlineLocalMediaForProvider } from "./inline-local-media";
 import { saveGeneratedImage, saveGeneratedVideo } from "./media";
 import { withRunContext } from "./run-context";
-import { getBootLocale } from "./locale-boot";
 import { formatPastSessionsHint } from "./session-recall";
 import { log } from "./log";
 
@@ -152,7 +151,11 @@ export async function* startModalityRun(options: {
     .join("\n");
   // The thread's own work card is skipped so Chat never retrieves its last reply back into itself.
   const knowledge = await knowledgeInjection(options.tenant, userText, { excludeThreadId: thread.id });
-  const locale = getBootLocale();
+  // Phase 4: the language of the person who sent the message, not the language the process booted
+  // in. On a desk they are the same value, because `saveUserLocale` writes both; on a hosted server
+  // two people on one desk each get their own, and `withRunContext` below carries it through every
+  // `localeForRun()` in the run.
+  const locale = loadUserLocale(options.tenant);
   const version = {
     ...published.version,
     model,

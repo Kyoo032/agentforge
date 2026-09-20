@@ -1,6 +1,6 @@
 # Map — Knowledge flows
 
-Last verified: 2026-09-20 at 6984d84
+Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c`
 
 > **The knowledge path moves often.** This page was first written against an uncommitted tree on 2026-09-17; every line number below was re-read at `b482611`. `knowledge.ts`, `knowledge-ingest.ts`, `handlers/knowledge.ts`, `market-generate.ts` and `finance-generate.ts` are rewritten frequently, so every citation into them names the **function** as well as the line — grep the function name if a number looks wrong. Gotchas says which findings have since been fixed and which are still open.
 
@@ -73,7 +73,7 @@ Two things on this page are **organization**-scoped instead: the raw bytes a fil
 
 ### 5. Retrieval — Chat, and only Chat
 
-`knowledgeInjection` (`knowledge.ts:833`) has exactly two callers: `startModalityRun` (`packages/host/src/runs.ts:154`), whose result is concatenated onto the agent's system prompt at `:158`, and the read-only popover route `GET /api/v1/knowledge/context` (`handlers/knowledge.ts:312`). Since `handleRun` serves `/runs/text`, `/runs/image` and `/runs/video` (`router.ts:208-210`), the retrieving surface is precisely "a run inside a Chat thread, of any input modality" — not the `chat` product mode as such.
+`knowledgeInjection` (`knowledge.ts:833`) has exactly two callers: `startModalityRun` (`packages/host/src/runs.ts:153`), whose result is concatenated onto the agent's system prompt at `:162`, and the read-only popover route `GET /api/v1/knowledge/context` (`handlers/knowledge.ts:312`). Since `handleRun` serves `/runs/text`, `/runs/image` and `/runs/video` (`router.ts:208-210`), the retrieving surface is precisely "a run inside a Chat thread, of any input modality" — not the `chat` product mode as such.
 
 - **Top-k is a hardcoded `4`**, in both `knowledgeInjection` and the `retrieveChunks` default (`knowledge.ts:784`). No setting, no query parameter, no per-mode override. An empty query skips retrieval entirely.
 - **Anti-loop.** `excludedSourceIds` (`knowledge.ts:802`) resolves the asking thread's own card by origin and excludes it — which is why proving retrieval of a Chat-authored card needs a *fresh* thread.

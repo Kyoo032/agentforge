@@ -196,8 +196,10 @@ describe("0015_tenants on a fresh database", () => {
     // auth_sessions carries the portal's tenant id from Phase 2; it predates this migration.
     // tenant_usage is the Phase 5 lane A ledger (0016): it is keyed on the tenant rather than
     // reached through an organization, because a billable event has to outlive the org it came
-    // from. Nothing else is allowed to carry a second tenant_id.
-    expect(carriers.sort()).toEqual(["auth_sessions", "tenant_usage"]);
+    // from. tenant_state is the Phase 4 secrets and gate store (0018): a tenant's sealed settings
+    // are the tenant's, not any one organization's, and the tenant is all a wrap-key rotation has
+    // to walk. Nothing else is allowed to carry a second tenant_id.
+    expect(carriers.sort()).toEqual(["auth_sessions", "tenant_state", "tenant_usage"]);
   });
 
   it("moves organization slug uniqueness onto (tenant_id, slug)", () => {
