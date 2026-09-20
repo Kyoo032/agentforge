@@ -1,7 +1,8 @@
 # Phase 3: tenancy in the schema and every handler
 
-**Status:** implementation spec, 2026-09-18. Verified against the working tree (Phase 1 + Phase 2 backend
-landed, uncommitted). Every `file:line` below was read in that tree.
+**Status:** implementation spec, 2026-09-18. Verified against the working tree that became
+[PR #56](https://github.com/Kyoo032/agentforge/pull/56) (Phase 1 + Phase 2 backend + the security pass), merged
+to `main` as commit `6ae177a`. Every `file:line` below was read in that tree.
 Parents: [`web-migration-plan.md`](web-migration-plan.md) §Phase 3, [`web-security-spec.md`](web-security-spec.md)
 rows T1-T3, T8, [`web-pivot-2026-09-18.md`](web-pivot-2026-09-18.md).
 
@@ -205,12 +206,15 @@ it: on a shared box the last browser to load the app would repoint every deskles
 |---|---|---|---|
 | Gateway gate | `gateway-gate.ts:29,113` — one JSON file | **A row per `(tenant_id, org_id)`** | Read on nearly every settings call and written by `maybeRefreshGateway` (`:527`); a file per tenant would be N handles on a hot path. A row also makes "which tenants are blocked" one query. |
 | Desk usage | `desk-usage.ts:8-10` — one JSON file, appended at `:66`, no tenant parameter anywhere (`:41-76`) | **A row per tenant** (the Phase 5 `tenant_usage` table, created early with only the columns Phase 3 needs) | Append-only metering; a file every tenant appends to is a write-contention point and cannot be queried per period. |
-| `settings.enc` | `settings-store.ts:28`, shape `:118-120` | **Stays a file, per tenant, at `<dataDir>/tenants/<tenantId>/settings.enc`** | Keeping it a file preserves the AES-256-GCM envelope and `getLocalVaultKey()` (`vault-key.ts:123`) unchanged, keeps the desktop backend byte-identical, and lets a tenant's secrets be deleted by removing a directory. The row backend is Phase 4's job (`web-migration-plan.md:174-179`); doing it here collides with that lane. |
+| `settings.enc` | `settings-store.ts:28`, shape `:118-120` | **Stays a file, per tenant, at `<dataDir>/tenants/<tenantId>/settings.enc`** | Keeping it a file preserves the AES-256-GCM envelope and `getLocalVaultKey()` (`vault-key.ts:123`) unchanged, keeps the desktop backend byte-identical, and lets a tenant's secrets be deleted by removing a directory. The row backend is Phase 4's job (`web-migration-plan.md:184-189`); doing it here collides with that lane. |
 
 The machine-wide locale (`settings-store.ts:402-409`) moves into the same per-tenant file; copy and catalogues
 are untouched. `clearGatewayKeyEverywhere` (`:371-384`) is deliberately machine-wide — in server mode
 "everywhere" must mean "this tenant's desks", or one tenant's key reset signs out every other tenant. That is a
-Phase 3 fix, not a Phase 4 one, because Phase 3 is when a second tenant exists.
+Phase 3 fix, not a Phase 4 one, because Phase 3 is when a second tenant exists. **The parent plan agrees:**
+`web-migration-plan.md` § Phase 3 now owns the scoping and § Phase 4 only has to keep it green across the
+backend swap. The scoping and the backend are separate changes — only the scoping comes forward; `settings.enc`
+stays a file until Phase 4.
 
 ### (f) Per-tenant storage prefix now
 
@@ -261,7 +265,7 @@ having a "personal" org is normal, so the unique index must become
 portal is the authority on who belongs to which org (`portal/schema.md:97-103`). A host-side tenant membership
 table would be a second, staler copy.
 
-**No `tenant_plan` columns.** Deferred to Phase 5 (`web-migration-plan.md:196-198`), which owns both
+**No `tenant_plan` columns.** Deferred to Phase 5 (`web-migration-plan.md:208-210`), which owns both
 `tenant_plan` and `tenant_usage`. Phase 3 creates `tenant_usage` only if lane D lands the desk-usage move; if it
 slips, the JSON file stays and Phase 5 does it.
 
@@ -489,7 +493,8 @@ front door, not a broken one.
    first tenants, or does the per-tenant cap move forward into lane D?
 7. **`settings.enc` per tenant is a file, not a row** (§3e). Confirm the two-step is intended — Phase 3 splits
    the file per tenant, Phase 4 swaps the backend behind the same interface
-   (`web-migration-plan.md:174-178`) — so it is not re-litigated mid-Phase-4.
+   (`web-migration-plan.md:184-188`) — so it is not re-litigated mid-Phase-4. The plan now records the same
+   two-step, so this is a confirmation, not a conflict between the two docs.
 8. **SQLite write concurrency is unmeasured.** §3(b) proposes `busy_timeout = 5000` and a Postgres trigger. Who
    runs the measurement, against what load? *(Plan q1.)*
 9. **The `0015` rollback story.** SQLite cannot drop a column before 3.35 and the runner
