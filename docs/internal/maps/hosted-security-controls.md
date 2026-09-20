@@ -1,6 +1,6 @@
 # Map — Hosted security controls
 
-Last verified: 2026-09-20 at b06e0a4 (working tree)
+Last verified: 2026-09-20 at 26a69de
 
 ## Overview
 
