@@ -27,7 +27,7 @@ POST /api/v1/threads/:threadId/runs/text
 
 `apiFetch` (`apps/web/lib/api-client.ts:167-238`) is the only place that knows whether this is webdev or the packaged app.
 
-- **Web:** plain `fetch`, stamped with `x-agentforge-transport: web` on mutating methods only (`apps/web/lib/api-client.ts:153-165`).
+- **Web:** plain `fetch`, stamped by `withMutatingHeaders` (`apps/web/lib/api-client.ts:153-165`) on mutating methods only: `x-agentforge-transport: web`, and alongside it the double-submit CSRF token in `x-agentforge-csrf` when one is available. The CSRF half is a hosted-mode rule and is mapped in [`hosted-server-mode.md`](hosted-server-mode.md), not here.
 - **Packaged:** `invokeDesktop` → `window.agentforge.invoke` → `ipcRenderer.invoke("host:request", …)` (`apps/desktop/preload.cjs:25`). A `{type:"stream"}` result is rebuilt into a real `ReadableStream` fed by `host:stream-chunk` / `host:stream-end` / `host:stream-error` (`apps/desktop/preload.cjs:27-56`), and abort goes back out over `host:stream-abort` (`apps/web/lib/ipc-abort.ts:18-28`).
 
 Either way `apiFetch` hands back a `Response` with `Content-Type: text/event-stream`, so `readSse` never learns which transport ran.
