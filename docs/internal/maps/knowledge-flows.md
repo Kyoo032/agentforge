@@ -1,6 +1,6 @@
 # Map — Knowledge flows
 
-Last verified: 2026-09-20 at c204e5e
+Last verified: 2026-09-20 at 6984d84
 
 > **The knowledge path moves often.** This page was first written against an uncommitted tree on 2026-09-17; every line number below was re-read at `b482611`. `knowledge.ts`, `knowledge-ingest.ts`, `handlers/knowledge.ts`, `market-generate.ts` and `finance-generate.ts` are rewritten frequently, so every citation into them names the **function** as well as the line — grep the function name if a number looks wrong. Gotchas says which findings have since been fixed and which are still open.
 

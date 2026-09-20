@@ -1,6 +1,6 @@
 # Map — Generate studios (Images and Videos)
 
-Last verified: 2026-09-20 at a504555
+Last verified: 2026-09-20 at 6984d84
 
 ## Overview
 
@@ -121,7 +121,7 @@ Both tools resolve their backend first and return a **structured failure rather 
 
 `items` render as a grid (`apps/web/components/images-studio.tsx:224-232`, `apps/web/components/videos-studio.tsx:322-339`), each `src` passed through `mediaSrc` (`apps/web/lib/api-client.ts:208-210` → `apps/web/lib/media-src.ts:12-23`), which rewrites `/api/v1/media/<id>/file` to `agentforge://media/<id>` inside the packaged shell and leaves it alone in the browser. Videos add a per-clip download anchor, `videos-studio-download` (`apps/web/components/videos-studio.tsx:328-335`). Empty lists show `images-studio-empty` / `videos-studio-empty` (`:216-222` / `:314-320`), but only once `loading` is false — the loading branch comes first.
 
-`GET /api/v1/media/:mediaId/file` → `handleGetMediaFile` (`packages/host/src/handlers/media.ts:25-49`), routed at `packages/host/src/router.ts:242`, ungated, scoped by `organizationId`, served through `readByteRange` (`packages/host/src/byte-range.ts:86-106`) so scrubbing a clip reads only the requested bytes. The bundled example clips have their own pair of routes (`packages/host/src/router.ts:247-248`).
+`GET /api/v1/media/:mediaId/file` → `handleGetMediaFile` (`packages/host/src/handlers/media.ts:26-50`), routed at `packages/host/src/router.ts:242`, ungated, scoped by `organizationId`, served through `readByteRange` (`packages/host/src/byte-range.ts:86-106`) so scrubbing a clip reads only the requested bytes. The bundled example clips have their own pair of routes (`packages/host/src/router.ts:247-248`).
 
 ### Failure modes
 

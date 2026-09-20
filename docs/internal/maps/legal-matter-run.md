@@ -1,6 +1,6 @@
 # Map — Legal matter run
 
-Last verified: 2026-09-20 at a504555
+Last verified: 2026-09-20 at 6984d84
 
 ## Overview
 
@@ -121,14 +121,14 @@ Exhausting all three rounds is **not an error**: the run returns normally and `m
 
 | Failure | Where | What the client gets |
 |---|---|---|
-| Gate closed (key saved but not allowed) | `requireGatewayAllowed`, `packages/host/src/handlers/legal.ts:5` | HTTP **403** `gateway_blocked`, no SSE stream |
+| Gate closed (key saved but not allowed) | `requireGatewayAllowedFor`, `packages/host/src/handlers/legal.ts:114` | HTTP **403** `gateway_blocked`, no SSE stream |
 | Runtime resolves to stub (no key at all) | `requireLive`, `packages/host/src/legal-generate.ts:68-69` | HTTP **200** SSE carrying one `job.error` frame `{code:"runtime_stub", status:503}` → `legal-error` |
 | Zero documents on the matter | `packages/host/src/legal-generate.ts:125-127` | `invalid_request` 400 inside the stream |
 | Parsed JSON or bytes missing from the store | `packages/host/src/legal-generate.ts:119-121` | `internal_error` 500 inside the stream |
 | Client pressed `legal-cancel` / closed the tab | `throwIfJobAborted`, `packages/host/src/job-stream.ts:19-23` | `aborted` 499; partial deliverables discarded |
 | Matter id unknown | `packages/host/src/legal/store.ts:128-134`, `:317-323` | HTTP 404 on GET / PATCH / DELETE / run |
 | Malformed body | `parseLegalBody`, `packages/host/src/legal/input.ts:82-90` | HTTP 400 `invalid_request` with the first zod path |
-| Not a real .docx (magic sniff or reader) | `packages/host/src/legal/store-files.ts:32-34`, `:154-169` | HTTP 400 `unsupported_content_type` |
+| Not a real .docx (magic sniff or reader) | `packages/host/src/legal/store-files.ts:32-34`, `:153-169` | HTTP 400 `unsupported_content_type` |
 | File > 25 MB / matter > 100 MB / > 60 files | `assertFileCaps`, `store-files.ts:129-141` | HTTP 413 `invalid_request` |
 | Same sha256 already in the matter | `packages/host/src/legal/store.ts:183-190` | HTTP 409 `conflict` |
 | Stored `matter.json` / run JSON fails re-validation | `store.ts:121-124`, `:290-297` | HTTP 500 `internal_error` |
@@ -194,4 +194,4 @@ Stub proof stops at intake, upload, role editing and the stream's `runtime_stub`
 
 **Why the per-file cap is 25 MB rather than the core 40 MB.** `[Direct]` the comment at `packages/host/src/legal/store-files.ts:20` ties `LEGAL_FILE_MAX_BYTES` to "the IPC bytes envelope", i.e. the packaged desktop transport is the binding constraint, not the parser. `[Supported]` the client repeats the same 25 MB number before the network (`apps/web/lib/legal-client.ts:20`, `:312-314`) and the handler re-checks it (`packages/host/src/handlers/legal.ts:94-96`), so all three layers agree. **Confidence: high.**
 
-**Why on-disk records are re-validated on every read.** `[Direct]` `packages/host/src/legal/store.ts:126-129` and `:290-297` throw `internal_error` when a stored record fails its zod schema, and the file's own doc comment treats disk content as untrusted input. The matter folder is user-writable, so a hand-edited `matter.json` is an injection surface rather than a convenience. **Confidence: high for the mechanism; the injection-surface reading is `[Inferred]` from the comment's wording.**
+**Why on-disk records are re-validated on every read.** `[Direct]` `packages/host/src/legal/store.ts:126` and `:296` throw `internal_error` when a stored record fails its zod schema, and the file's own doc comment treats disk content as untrusted input. The matter folder is user-writable, so a hand-edited `matter.json` is an injection surface rather than a convenience. **Confidence: high for the mechanism; the injection-surface reading is `[Inferred]` from the comment's wording.**

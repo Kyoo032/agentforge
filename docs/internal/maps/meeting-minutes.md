@@ -1,6 +1,6 @@
 # Map — Meeting: recording → transcript → minutes → translation
 
-Last verified: 2026-09-20 at c204e5e (source-traced; the gateway legs have not been driven live — see [Gotchas](#gotchas)).
+Last verified: 2026-09-20 at 6984d84 (source-traced; the gateway legs have not been driven live — see [Gotchas](#gotchas)).
 
 ## Overview
 

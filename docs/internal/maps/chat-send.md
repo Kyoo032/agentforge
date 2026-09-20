@@ -1,6 +1,6 @@
 # Map — Chat send
 
-Last verified: 2026-09-20 at a504555
+Last verified: 2026-09-20 at 6984d84
 
 Supersedes the `## how — Chat send (pstack) — 2026-09-06` block in [`../0.14-changelog.md`](../0.14-changelog.md), which described the 0.14 shape. Several details in it are no longer true; see Gotchas.
 
@@ -84,7 +84,7 @@ Fixed in `e93c617`. The composer toolbar's single-row `overflow-hidden` layout (
 
 | Failure | Where | What the client gets |
 |---|---|---|
-| Gate closed | `requireGatewayAllowed`, `packages/host/src/handlers/runs.ts:4` | HTTP 403, flat `{error:"gateway_blocked", status, message}`, no stream |
+| Gate closed | `requireGatewayAllowedFor`, `packages/host/src/handlers/runs.ts:30` | HTTP 403, flat `{error:"gateway_blocked", status, message}`, no stream |
 | Empty / invalid content | `parseTextRunInput` | HTTP 400, nested `{error:{code,message}}`, pre-stream |
 | Thread missing | `packages/host/src/runs.ts:140-142` | HTTP 404, pre-stream |
 | Upstream non-OK | `readHttpErrorBody` → `gatewayFailure` | retried up to 3 attempts with `run.probing` frames, then `run.failed` + `run.completed` |

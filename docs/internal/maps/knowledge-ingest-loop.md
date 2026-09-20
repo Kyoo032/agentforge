@@ -1,6 +1,6 @@
 # Map — Knowledge ingest loop
 
-Last verified: 2026-09-20 at a504555
+Last verified: 2026-09-20 at 6984d84
 
 > **`knowledge.ts` and `knowledge-extract.ts` move often.** Every line number below was re-read at `b482611`, but these two files are rewritten frequently; if a number looks wrong, grep the function name rather than trusting it.
 
@@ -49,7 +49,7 @@ On a hit it **does not strip or sanitize**. It refuses to index and writes a `Fa
 
 **The bypass** is the `injectionGuardBypass` boolean on `StoredSecrets` (`packages/core/src/secrets.ts:32`, `:87`), set through `POST /api/v1/settings` (`packages/host/src/handlers/settings.ts:162`), persisted per workspace in the encrypted settings file, read back at `packages/host/src/knowledge.ts:408-414` and `knowledge-ingest.ts:94-100`. When true the scan is skipped outright — `bypass ? null : scanInjection(...)`.
 
-Source **names** get the same treatment, deliberately: an upload filename or a remote `<title>` is attacker-controlled the same way body text is, so `sanitizeSourceName` runs at index time and again at render time (`packages/host/src/knowledge.ts:17-24`, `:852-856`).
+Source **names** get the same treatment, deliberately: an upload filename or a remote `<title>` is attacker-controlled the same way body text is, so `sanitizeSourceName` runs at index time and again at render time (`packages/host/src/knowledge.ts:366`, `:860`).
 
 ### Chunk, store, embed
 
@@ -59,7 +59,7 @@ Source **names** get the same treatment, deliberately: an upload filename or a r
 
 Then `indexThroughBackend` → `indexSourceVectors` (`packages/host/src/knowledge-embed.ts:149`) → `embedTextsWithModel` (`:95`), which POSTs to `${pinnedBase}/embeddings` in batches of 16 (`EMBED_BATCH`, `:16`). The endpoint is pinned the same way chat is: `resolveProviderKeys(settings).openaiBaseUrl` always returns `resolvedGatewayBaseUrl()`, so an owner-edited endpoint is silently ignored for embeddings (`packages/host/src/knowledge-embed.ts:62-64`, `packages/core/src/secrets.ts:313-314`).
 
-Vectors go to `knowledge_vectors` with the embedding stored as a **JSON-stringified `number[]`** (`packages/host/src/knowledge-embed.ts:152`, `:319`) — no vector column type, no ANN index.
+Vectors go to `knowledge_vectors` with the embedding stored as a **JSON-stringified `number[]`** (`packages/host/src/knowledge-embed.ts:192`, `:319`) — no vector column type, no ANN index.
 
 ### Retrieve and inject
 

@@ -1,6 +1,6 @@
 # Map — Documents job
 
-Last verified: 2026-09-20 at a504555
+Last verified: 2026-09-20 at 6984d84
 
 ## Overview
 
@@ -134,7 +134,7 @@ This is **not** `packages/core/src/docx/*` — that toolkit reads, diffs and val
 
 ## Gotchas
 
-- **Regenerate never updates the saved artifact.** `generateDocumentDraft` persists a `documents/draft` artifact and a knowledge work card (`packages/host/src/document-generate.ts:158-198`), but `regenerateDocumentSection` ends at `return mergeDocumentSection(...)` (`:239`) with no persist call. Rewrite a section and the artifact the picker offers — and the text the Knowledge Base indexed — are the *pre-rewrite* version, silently. The DOCX the user downloads is built from the in-memory draft, so it will not match either. **Finding, not design.**
+- **Regenerate never updates the saved artifact.** `generateDocumentDraft` persists a `documents/draft` artifact and a knowledge work card (`packages/host/src/document-generate.ts:164-170`), but `regenerateDocumentSection` ends at `return mergeDocumentSection(...)` (`:239`) with no persist call. Rewrite a section and the artifact the picker offers — and the text the Knowledge Base indexed — are the *pre-rewrite* version, silently. The DOCX the user downloads is built from the in-memory draft, so it will not match either. **Finding, not design.**
 - **`/api/v1/documents/docx` is the only Documents route with neither a tenant nor a gate** (`packages/host/src/handlers/jobs.ts:195-209`). That is what makes the starter → download path work in stub, which is exactly what `features/documents.md` asks you to prove — but it also means a desk whose gateway gate is closed can still produce `.docx` files, unlike every other job-mode download.
 - **A failed generate destroys the preview.** `onGenerate`'s catch does `setDraft(null)` before setting the error (`apps/web/components/documents-studio.tsx:74-77`). A user who loaded a starter, then typed a topic and pressed Generate without a key, loses the starter draft and gets an error. `onRegenerate`'s catch does *not* clear the draft (`:108-110`) — the two paths disagree.
 - **`needsSettingsHint` is a no-op.** `documents-studio.tsx:29-31` tests a regex and returns `message` on both branches. The live behaviour comes from the separate condition at `:178`, which appends a Settings `<Link>` only when the message mentions a gateway **and does not already mention "settings"**. The `runtime_stub` copy always says "Settings", so on this desk that link never renders. Dead branch plus an unclickable hint.

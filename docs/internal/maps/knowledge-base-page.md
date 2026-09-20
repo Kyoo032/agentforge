@@ -1,6 +1,6 @@
 # Map — Knowledge Base page
 
-Last verified: 2026-09-20 at c204e5e
+Last verified: 2026-09-20 at 6984d84
 
 The page half of Knowledge. The ingest pipeline behind it — extract, guard, chunk, embed, work cards, tenant scoping — is [`knowledge-ingest-loop.md`](knowledge-ingest-loop.md); this page does not repeat it. Citations are anchored at `b482611`; `packages/host/src/knowledge.ts` and `apps/web/components/knowledge-page.tsx` are rewritten often, so grep the function or testid name if a number looks wrong.
 
@@ -34,11 +34,11 @@ Three entry points, all in the `knowledge-sources` block (`apps/web/components/k
 
 | Control | testid | Request | Handler |
 |---|---|---|---|
-| HTTPS URL | `knowledge-url` + `knowledge-add-url` (`:392`, `:398`) | `POST /api/v1/knowledge/sources/url` (`:233-251`) | `handlePostKnowledgeSourceUrl` (`packages/host/src/handlers/knowledge.ts:407`) → `addUrlSource` (`packages/host/src/knowledge.ts:523`) |
-| Pasted text | `knowledge-paste` + `knowledge-add-paste` (`:409`, `:416`) | `POST /api/v1/knowledge/sources` JSON (`:253-271`) | `handlePostKnowledgeSource` (`packages/host/src/handlers/knowledge.ts:374`) → `addPastedSource` (`packages/host/src/knowledge.ts:579`) |
+| HTTPS URL | `knowledge-url` + `knowledge-add-url` (`:392`, `:398`) | `POST /api/v1/knowledge/sources/url` (`:233-251`) | `handlePostKnowledgeSourceUrl` (`packages/host/src/handlers/knowledge.ts:399`) → `addUrlSource` (`packages/host/src/knowledge.ts:523`) |
+| Pasted text | `knowledge-paste` + `knowledge-add-paste` (`:409`, `:416`) | `POST /api/v1/knowledge/sources` JSON (`:253-271`) | `handlePostKnowledgeSource` (`packages/host/src/handlers/knowledge.ts:366`) → `addPastedSource` (`packages/host/src/knowledge.ts:579`) |
 | File | `knowledge-file` (`apps/web/components/knowledge-page.tsx:426`) | `POST /api/v1/knowledge/sources` multipart (`:427-447`) | same handler → `addFileSource` (`packages/host/src/knowledge.ts:499`) |
 
-All three are gated (`requireGatewayAllowed`, `packages/host/src/handlers/knowledge.ts:4`, `:409`) because all three may need an embedding call. All three end in `await reload()`, which is why a new row and the loop numbers land together.
+All three are gated (`requireGatewayAllowedFor`, `packages/host/src/handlers/knowledge.ts:370`, `:403`) because all three may need an embedding call. All three end in `await reload()`, which is why a new row and the loop numbers land together.
 
 **The paste box cannot name its source.** `addPaste` sends `name: t("knowledge.sources.pastedName")` (`apps/web/components/knowledge-page.tsx:262`) — the localized constant "Pasted notes" / "Catatan tempelan" (`apps/web/locales/en/knowledge.json:36`, `id/knowledge.json:36`). The host takes any name (`addPastedSource`, `packages/host/src/knowledge.ts:579-590`); the page just never offers a field. Every pasted source on a desk therefore carries the same name, and so does its `[n] <name>` citation marker.
 
@@ -117,7 +117,7 @@ After a **completed** run the host closes the loop: `recordRetrievals` writes on
 |---|---|---|
 | Gate closed on add / verify / map / context | `requireGatewayAllowed` (`packages/host/src/handlers/knowledge.ts:378`, `:409`, `:259`, `:294`, `:316`) | `403 gateway_blocked`; the page paints its red `error` line (`apps/web/components/knowledge-page.tsx:325`). `GET /api/v1/knowledge` and `/graph` stay open, so the page still renders |
 | `file://` or non-HTTPS URL | `addUrlSource` → `assertAllowedEndpointUrl` (`packages/host/src/knowledge.ts:526-528`) | error line, no row |
-| Pasted text over 2 MB | `addPastedSource` (`packages/host/src/knowledge.ts:582-583`) | `413`, error line |
+| Pasted text over 2 MB | `addPastedSource` (`packages/host/src/knowledge.ts:585-586`) | `413`, error line |
 | Unsupported file type | `extractText` (`packages/host/src/knowledge-extract.ts:266-271`) | `400 unsupported_content_type`, error line, no row. The sentence now names the whole list, `.txt` through `.epub` |
 | A `.pptx` / `.xlsx` / `.odt` / `.rtf` / `.epub` the converter refuses | `documentText` (`packages/host/src/knowledge-extract.ts:143-155`) | `400` (or `413` for `too_large`) as `document_<code>`, error line, no row. A scanned PDF is `document_needs_ocr` and the sentence says plainly that nothing was sent anywhere |
 | PDF/DOCX parse failure, no text, injection hit on an upload | `addFileSource` (`packages/host/src/knowledge.ts:499-512`) | **a structured 4xx and no row** as of 2026-09-17. This used to be a `Failed` row answered `201`; a `Failed` row with a hover reason is now only how a *pasted* or *fetched* source fails |

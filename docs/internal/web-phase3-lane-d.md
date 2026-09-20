@@ -287,7 +287,7 @@ restored afterwards and verified byte-identical to `main`; **the lockfile change
 ### Maps
 
 New page [`maps/tenant-storage.md`](maps/tenant-storage.md), registered in the maps `README.md`.
-Fifteen existing pages were touched.
+Twenty-four existing pages were touched.
 
 Be precise about what that stamp claims here. On the pages this change actually alters —
 `tenant-storage`, `settings-and-gateway-gate`, `tenant-resolution`, `edit-timeline`,
@@ -297,9 +297,21 @@ lines were re-read. On the rest (`chat-send`, `documents`, `data-analysis`, `pre
 the `requireGatewayAllowed(loadSettings(…))` → `requireGatewayAllowedFor(tenant)` spelling, and only the
 gate lines were re-read, not every cite on the page.
 
-`node scripts/map-rot.mjs` on the final head: **0 hard, 124 soft**, against `main`'s 0 hard and 143 soft.
-Nothing this branch does breaks a citation, and **19 that were already drifted on `main` are re-anchored
-here** as a side effect of checking.
+`node scripts/map-rot.mjs` on the final head: **0 hard, 141 soft**, against `main`'s 0 hard and 143 soft.
+Nothing this branch does breaks a citation, and nothing it does adds a soft one: comparing the two runs by
+`(page, citation)` rather than by count — page line numbers shift, so a raw diff of the two outputs is
+noise — gives **0 new soft findings and 1 pre-existing one fixed**.
+
+An earlier head of this branch reported 124 soft, and that number was worse than it looked. It came from
+`node scripts/map-drift.mjs <sha> HEAD --write`, which re-anchors a citation by mapping its line through
+the diff. Where lane D's own edits had moved a call site, the mapping landed on the **import** of the
+symbol rather than on the call: `handlers/runs.ts:31` for `requireGatewayAllowed` became `:4`, which is
+`import { requireGatewayAllowedFor } from "../gateway-gate";`. That satisfies the soft check — the cited
+range does name the symbol — while pointing a reader at the least useful line in the file. Thirty-nine
+such re-anchors are reverted to `main`'s text, the nineteen citations that genuinely drifted are
+re-anchored **by hand** against the real definition or call site, and the twenty-four pages this branch
+touches are stamped at the head above. The lesson for the next lane: `map-drift --write` is a starting
+point, not a result, and a falling soft count is not evidence on its own.
 
 Getting there took one correction. The PR #80 verifier found 3 hard citations on the branch and 0 on main,
 caused by two files (`knowledge-map.ts`, `handlers/workspaces.ts`) that this lane touched for one line each
@@ -320,6 +332,15 @@ passed first time. Five findings, all of them real:
 | F3 | The channels store was not tenant-scoped at all | §3, `channels/store.ts` |
 | F4 | This page claimed a sweep that had not happened | §3, and the guard test that now proves it |
 | F5 | Three map citations broken by incidental reformatting | §Maps |
+
+One thing outside the F-list rides along, at the coordinator's request. `packages/host/src/edit/agent-run.ts`
+is this PR's file, and seven sites in the stub path read `scenario.args` where the type is
+`StubEditScenario | StubFillScenario` — only the first of those has `args`, and a fill or generate scenario
+carries `buildArgs(text)` instead. Three other sites in the same function already guard it with
+`"buildArgs" in scenario ? scenario.buildArgs(input.text) : scenario.args`; the seven now use the same
+guard, resolved once into a local `scenarioArgs` so `buildArgs` is not invoked six extra times. The three
+that inline it are left alone, so each still builds its own object and nothing about the stub path changes
+beyond the guard. With PR #84's fixes this takes `tsc -p packages/host` to clean.
 
 F1 to F3 share one cause worth naming: Meeting and Telegram both merged to `main` while this branch was
 open, and a lane that sweeps call sites is only correct against the tree it started from. Two of the three

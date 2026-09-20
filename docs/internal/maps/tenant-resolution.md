@@ -1,6 +1,6 @@
 # Map — Tenant resolution, the session seam and the workspace cookie
 
-Last verified: 2026-09-20 at a504555
+Last verified: 2026-09-20 at 6984d84
 
 ## Overview
 

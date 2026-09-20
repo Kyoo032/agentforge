@@ -242,13 +242,20 @@ async function runStub(
     return;
   }
 
+  // An edit scenario carries `args`; a fill or generate scenario carries `buildArgs(text)` instead,
+  // and the union has neither in common. Resolve it once here rather than at each use below — the
+  // three sites further down that already inline `"buildArgs" in scenario ? … : scenario.args` are
+  // left as they are, so each of those still builds its own object.
+  const scenarioArgs: Record<string, unknown> =
+    "buildArgs" in scenario ? scenario.buildArgs(input.text) : scenario.args;
+
   let mutatingCount = 0;
   if (MUTATING.has(scenario.toolKey)) {
     mutatingCount += 1;
   }
   if (mutatingCount > 3) {
     const plan = await hostEditBackend.proposePlan(input.tenant, {
-      steps: [{ tool: scenario.toolKey, args: scenario.args }],
+      steps: [{ tool: scenario.toolKey, args: scenarioArgs }],
       totalUsd: 0,
     });
     queue.push(encodeEditSse({ type: "edit.plan", card: plan.card }));
@@ -256,11 +263,11 @@ async function runStub(
     return;
   }
   if (GENERATION.has(scenario.toolKey)) {
-    const seconds = typeof scenario.args.seconds === "number" ? scenario.args.seconds : 5;
-    const count = typeof scenario.args.count === "number" ? scenario.args.count : 1;
+    const seconds = typeof scenarioArgs.seconds === "number" ? scenarioArgs.seconds : 5;
+    const count = typeof scenarioArgs.count === "number" ? scenarioArgs.count : 1;
     const model =
-      typeof scenario.args.model === "string"
-        ? scenario.args.model
+      typeof scenarioArgs.model === "string"
+        ? scenarioArgs.model
         : scenario.toolKey === "generate_image"
           ? "gpt-image-2"
           : "grok-imagine-video";
