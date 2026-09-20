@@ -70,4 +70,4 @@ Desktop (frozen at 0.14.27): the `pnpm desktop:*` commands still build the Elect
 
 ## License
 
-Copyright 2026 DPS. Licensed under the [Apache License 2.0](LICENSE).
+Copyright 2026 Muhammad Rizky Rahmatullah. Licensed under the [Apache License 2.0](LICENSE).

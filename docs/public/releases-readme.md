@@ -43,4 +43,4 @@ Problems with an installer or update can be reported on the [issues page](https:
 
 ---
 
-© DPS. The installers in this repository are proprietary software; this repository distributes binaries only.
+Copyright 2026 Muhammad Rizky Rahmatullah. Licensed under the Apache License 2.0.
