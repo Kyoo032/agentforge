@@ -308,6 +308,16 @@ export function recordUsage(tenant: TenantContext, event: UsageEvent): TenantUsa
     // undercounts silently, the one thing lane A's whole design refuses to do. The `catch` below
     // logs it as `usage_write_failed` either way, and the generation the tenant already paid the
     // gateway for still succeeds.
+    //
+    // **These two writes are NOT one transaction, and the audit has to know it.** The order is
+    // counter first, ledger row second, so the failure that is actually possible — the INSERT
+    // throwing after the UPDATE committed — leaves the counter AHEAD of the ledger. That direction
+    // is deliberate: it over-counts a tenant's spend by one call rather than letting a call escape
+    // the allowance, which is the failure lane A exists to prevent. The consequence is that the
+    // `SUM(cost_usd_micros) = spent_usd_micros` audit can read short by the cost of a failed write,
+    // and `usage_write_failed` in the log is how an operator tells that apart from a real gap.
+    // Making it one transaction means one `db.transaction` spanning this module and the store's
+    // own connection handle; it is worth doing and it is not this lane's (lane record §9).
     const billingPeriodStart = accrueSpend({
       tenantId: tenant.tenantId,
       costUsdMicros: event.costUsdMicros,

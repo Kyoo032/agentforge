@@ -70,11 +70,11 @@ both together.** Without them the context is ~1.4 GB (`node_modules` plus `.git`
 - Runs as the non-root `node` user. `/data` is owned by `node` and declared a volume.
 - `HEALTHCHECK` hits `GET /api/v1/components` on `127.0.0.1:$PORT` with `node -e fetch`
   (no curl in the image), **sending `x-forwarded-proto: https`**. Both parts matter.
-  The route is deliberately ungated — `packages/host/src/router.ts:219-221` has the
+  The route is deliberately ungated — `packages/host/src/router.ts:270-273` has the
   comment explaining why — so it answers before any gateway key exists, and
   `GET /api/v1/workspaces` would also work but opens the database on every probe.
   The header is what gets the probe past `rejectPlaintext`
-  (`packages/host/src/http-adapter.ts:314-317`), which in server mode answers
+  (`packages/host/src/http-adapter.ts:352-355`), which in server mode answers
   `403 https_required` to every request that arrives without it, on every path,
   before routing. Drop the header and the container never reports healthy and
   `deploy.sh` times out after five minutes with nothing in the log but 403s. Sending

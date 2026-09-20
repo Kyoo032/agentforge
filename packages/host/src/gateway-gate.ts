@@ -460,8 +460,9 @@ export function isGatewayBlockedError(error: unknown): error is GatewayBlockedEr
  * **Phase 5 lane B: the plan is checked here too, and it is checked first.**
  *
  * Here, because this is the only choke point before a gateway call and it already takes the
- * tenant — so all 34 call sites gained the allowance without one of them changing, and none of
- * them gained an `await`, which is what the decision doc's §3(a) asked for. `better-sqlite3` is
+ * tenant — so every call site gained the allowance without one of them changing, directly or
+ * through `requireGatewayAllowedFor`, and none of them gained an `await`, which is what the
+ * decision doc's §3(a) asked for. `better-sqlite3` is
  * synchronous, so the entitlement read costs no asynchrony; off server mode it costs nothing at
  * all, because `requireEntitlementAllowed` returns before it asks for a connection.
  *

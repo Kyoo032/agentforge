@@ -346,18 +346,46 @@ export function findBillingEvent(eventId: string): BillingEventRow | null {
 }
 
 /**
+ * The provider's timestamp on the newest event this host has **applied** for the tenant, or `null`
+ * when the webhook has never changed this tenant's plan.
+ *
+ * This is the only correct input to the ordering rule, and it is deliberately not
+ * `tenant_plan.updated_at`: that column moves on every ledger write (`accrueSpend`) and on every
+ * persisted period roll, so a tenant that is actively generating would read as newer than every
+ * delivery the provider makes and could never be topped up again. See `billingEventDecision`.
+ *
+ * `applied = 1` is the filter, not merely "seen": a delivery that was refused as `stale` or as
+ * `unknown_tenant` changed nothing, so it must not raise the bar for the deliveries after it.
+ */
+export function lastAppliedEventAt(tenantId: string): number | null {
+  const row = requireSql()
+    .prepare("SELECT max(occurred_at) AS at FROM billing_events WHERE tenant_id = ? AND applied = 1")
+    .get(tenantId) as { at: number | null } | undefined;
+  return typeof row?.at === "number" ? row.at : null;
+}
+
+/**
  * Record that a delivery was seen. Written for every delivery, applied or not — an event dropped
  * as stale or refused for an unknown tenant is still an event that must not be re-applied later,
  * and `detail` is how an operator finds out why the plan did not change.
  *
- * `INSERT OR IGNORE`: the primary key is the idempotency, and two concurrent deliveries of the
- * same id must leave exactly one row rather than one of them throwing.
+ * The primary key is the idempotency, and two concurrent deliveries of the same id must leave
+ * exactly one row rather than one of them throwing. The upsert promotes a row **only** from
+ * unapplied to applied: a delivery refused as `unknown_tenant` before the tenant first signed in
+ * leaves a row that a later retry can still turn into a sale, while an event already applied is
+ * never rewritten by a replay of itself. `applied = 1` is therefore terminal, which is what
+ * `lastAppliedEventAt` and the `duplicate` test both rely on.
  */
 export function recordBillingEvent(row: BillingEventRow): void {
   requireSql()
     .prepare(
-      `INSERT OR IGNORE INTO billing_events (event_id, tenant_id, kind, occurred_at, received_at, applied, detail)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO billing_events (event_id, tenant_id, kind, occurred_at, received_at, applied, detail)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(event_id) DO UPDATE SET
+         received_at = excluded.received_at,
+         applied = excluded.applied,
+         detail = excluded.detail
+       WHERE billing_events.applied = 0`,
     )
     .run(row.eventId, row.tenantId, row.kind, row.occurredAt, row.receivedAt, row.applied ? 1 : 0, row.detail);
 }
@@ -417,8 +445,8 @@ export function resolveTenantEntitlement(tenantId: string, nowMs = Date.now()): 
 }
 
 /**
- * The host-side enforcement point for the plan, called from `requireGatewayAllowed` so that all 34
- * gateway call sites are covered without one of them changing (decision doc §3(a) — the value is
+ * The host-side enforcement point for the plan, called from `requireGatewayAllowed` so that every
+ * gateway call site is covered without one of them changing (decision doc §3(a) — the value is
  * identical at every site within a request, and making the gate async would have touched every
  * `catch` around it).
  *

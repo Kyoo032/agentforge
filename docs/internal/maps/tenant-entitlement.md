@@ -51,11 +51,11 @@ and the warnings: `allowance_low` at `WARN_AT_FRACTION` (`:79`, 0.8) and `unpric
 this period holds calls nobody could price.
 
 **Enforcement is one line inside the gateway gate.** `requireGatewayAllowed`
-(`packages/host/src/gateway-gate.ts:492-499`) calls `requireEntitlementAllowed`
-(`packages/host/src/entitlement-store.ts:431-452`) before it derives the gate. All 34 gateway call
-sites gained the allowance without one of them changing, and none of them gained an `await`:
+(`packages/host/src/gateway-gate.ts:476-483`) calls `requireEntitlementAllowed`
+(`packages/host/src/entitlement-store.ts:459-480`) before it derives the gate. Every gateway call
+site gained the allowance without one of them changing, and none of them gained an `await`:
 `better-sqlite3` is synchronous, so the entitlement read costs no asynchrony (decision doc §3(a)).
-The refusal is a `PlanBlockedError` (`packages/host/src/entitlement-store.ts:390`) — a flat 403 in
+The refusal is a `PlanBlockedError` (`packages/host/src/entitlement-store.ts:418`) — a flat 403 in
 the same shape `jsonError` and the renderer's parser already handle, carrying a `plan_*` code and
 **never** `gateway_blocked`, which routes the renderer to the paste-your-key onboarding screen.
 
@@ -75,7 +75,7 @@ read-modify-write, so two concurrent generations both land.
 
 **Seats are held until an admin revokes them** (decision doc D5(b)), never freed by going idle and
 never derived from `auth_sessions`. `claimSeat` (`packages/host/src/entitlement-store.ts:217`) runs
-at sign-in, from `handleLogin` (`packages/host/src/auth/routes.ts:247`, at the call
+at sign-in, from `handleLogin` (`packages/host/src/auth/routes.ts:261`, at the call
 `packages/host/src/auth/routes.ts:290`) through the injected
 `claimSeat` dependency (`packages/host/src/auth/routes.ts:81`, wired at
 `packages/host/src/auth/index.ts:145-155`), **after** provisioning, because the seat row has a
@@ -89,10 +89,19 @@ languages since Phase 2.
 `packages/core/src/entitlement/webhook.ts` defines the event shape a provider's payload is
 translated *into* (`BILLING_EVENT_KINDS`, `:47`), how it is read (`parseBillingEvent`, `:115`), what
 it does to a plan row (`applyBillingEvent`, `:189`) and when it must be ignored
-(`billingEventDecision`, `:224` — `duplicate` on the event id, `stale` when it is older than the row
-it would write). `handlePostBillingWebhook` (`packages/host/src/handlers/billing.ts:53`) is the
-route: authenticate, parse, decide, apply, and record the delivery in `billing_events` **either
-way**. Every authenticated, parseable delivery answers 200 — a non-2xx to a webhook means "retry",
+(`billingEventDecision`, `:224` — `duplicate` on an event id already **applied**, `stale` when the
+event is older than the newest delivery this host has applied for the tenant).
+`handlePostBillingWebhook` (`packages/host/src/handlers/billing.ts:53`) is the route: authenticate,
+parse, decide, apply, and record the delivery in `billing_events` **either way**.
+
+**The ordering bar is `lastAppliedEventAt`, never `tenant_plan.updated_at`** — the trap this route
+fell into once and the thing to check first if a provider reports deliveries vanishing.
+`accrueSpend` bumps `updated_at` on every ledger write and the persisted period roll bumps it
+again, so comparing against it makes any tenant that is generating look newer than the provider,
+and every top-up and seat-cap raise arrives `stale` forever. Only a webhook can date a webhook.
+Because `applied = 1` is the filter, a delivery refused as `stale` or `unknown_tenant` never raises
+the bar for the ones after it — which is also what lets a retry land a plan sold before the
+tenant's first sign-in. Every authenticated, parseable delivery answers 200 — a non-2xx to a webhook means "retry",
 and retrying a delivery the host has deliberately refused ends with the provider retiring the event.
 
 **Three exemptions, because no browser calls it** (decision doc §3(c)): the session gate
@@ -120,8 +129,8 @@ gate: a tenant that cannot see why it is blocked, or pay, is a churned tenant.
 | `packages/db/drizzle/0017_tenant_plan.sql` | `tenant_plan`, `tenant_seat`, `billing_events`, and the period stamp on the ledger |
 | `packages/db/src/schema.ts:128` | `tenantPlan`; `tenantSeat` at `:160`, `billingEvents` at `:188`, `billingPeriodStart` at `:83` |
 | `packages/db/src/ensure-schema.ts:517` | `ensureTenantPlanTables`, the healer for a baseline-stamped database; the ledger's late column at `:499` |
-| `packages/host/src/gateway-gate.ts:475` | `requireGatewayAllowed` — where the plan check sits, before the key check |
-| `packages/host/src/auth/routes.ts:247` | `handleLogin` — where the seat cap sits, after provisioning |
+| `packages/host/src/gateway-gate.ts:476` | `requireGatewayAllowed` — where the plan check sits, before the key check |
+| `packages/host/src/auth/routes.ts:261` | `handleLogin` — where the seat cap sits, after provisioning |
 
 ## Gotchas
 

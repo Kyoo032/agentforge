@@ -212,7 +212,7 @@ It runs on a key save (`refreshGatewayGateAfterSave` → `runGatewayCheck`,
 fires an un-awaited check at most once per key per 10 minutes from `handleGetSettings` — that is what turns
 "opened on trust" into a real verdict over time.
 
-**Enforcement.** `requireGatewayAllowed(settings)` (`packages/host/src/gateway-gate.ts:492-499`) throws
+**Enforcement.** `requireGatewayAllowed(settings)` (`packages/host/src/gateway-gate.ts:476-483`) throws
 `GatewayBlockedError` when `!gate.allowed`, and `jsonError` flattens it (`packages/host/src/errors.ts:17-26`) to
 `403 { error: "gateway_blocked", status, message }` — a flat body, deliberately not the usual
 `{error:{code,message}}` envelope, so `parseGatewayBlocked` can read it without unwrapping. Call sites, all
@@ -234,7 +234,7 @@ Deliberately **open**: settings, workspaces, threads, artifacts, media, usage, m
 absence of the import in those handler files and directly by
 `packages/host/src/handlers/settings.test.ts:186-192` ("does not gate settings, usage or threads"). A closed gate
 must always be recoverable. Phase 5 lane B adds two more for the same reason: `GET /api/v1/billing/plan`
-and `POST /api/v1/billing/top-up` (`packages/host/src/router.ts:279-280`), so a tenant the **plan**
+and `POST /api/v1/billing/top-up` (`packages/host/src/router.ts:268-269`), so a tenant the **plan**
 has blocked can still read why and pay.
 
 **What a closed gate actually looks like** (driven 2026-09-17 on an isolated desk started with
@@ -415,7 +415,7 @@ installing an update or already exiting), races `clearRendererState()` — `clea
 - **`app.relaunch()` / `app.exit(0)`, not the Windows `taskkill /T` path**, because Electron's relauncher is a
   detached child that the tree-walk would kill (`apps/desktop/main.cjs:203-207`).
 - **`POST /api/v1/settings/reset` also requires the transport header.** It is in `TRANSPORT_REQUIRED_PATHS`
-  (`packages/host/src/http-adapter.ts:33`) on top of the loopback `Host` and `Origin` checks, so a cross-site
+  (`packages/host/src/http-adapter.ts:36`) on top of the loopback `Host` and `Origin` checks, so a cross-site
   HTML form POST cannot reach it. The IPC-only transport and the loopback-only `Host` / `Origin` allowlist are
   **(desktop, frozen)**: on the hosted web app the same host gate runs behind the HTTP adapter
   (`packages/host/src/http-adapter.ts:539-568`). The loopback check **became** a trusted-origin allowlist plus a

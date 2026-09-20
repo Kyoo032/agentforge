@@ -202,6 +202,62 @@ describe("applying a delivery", () => {
     expect(currentPlanRecord(IDENTITY.tenantId, T0).status).toBe("active");
   });
 
+  it("applies a delivery whose timestamp precedes the tenant's last generation", async () => {
+    // The regression this route shipped with. `accrueSpend` — every ledger write — bumps
+    // `tenant_plan.updated_at`, and the ordering test used to compare against that column. A
+    // provider's `occurred_at` always precedes its delivery, so any tenant that was still
+    // generating could never be topped up, have its seat cap raised, or receive any
+    // `entitlement.set` again: every one of them read as `stale` forever.
+    await send(delivery({ eventId: "evt-sold", occurredAt: T0 - 3_600_000 }));
+
+    const { accrueSpend } = await import("../entitlement-store");
+    accrueSpend({ tenantId: IDENTITY.tenantId, costUsdMicros: 500, nowMs: T0 });
+    // The mechanism, asserted rather than assumed: the row is now newer than the delivery below.
+    expect(currentPlanRecord(IDENTITY.tenantId, T0).updatedAt).toBe(T0);
+
+    const topUp = await send(
+      delivery({ eventId: "evt-topup", kind: "allowance.topup", occurredAt: T0 - 30_000, topUpUsdMicros: 1_000 }),
+    );
+
+    expect(body(topUp)).toMatchObject({ outcome: "applied" });
+    expect(currentPlanRecord(IDENTITY.tenantId, T0).allowanceUsdMicros).toBe(6_000);
+  });
+
+  it("still refuses a delivery older than the last one it applied", async () => {
+    // The other half of the same rule: moving the bar to the last applied webhook must not stop
+    // the webhook ordering itself. A generation in between changes nothing about this.
+    await send(delivery({ eventId: "evt-new", occurredAt: T0, entitlement: { status: "active" } }));
+    const { accrueSpend } = await import("../entitlement-store");
+    accrueSpend({ tenantId: IDENTITY.tenantId, costUsdMicros: 10, nowMs: T0 });
+
+    const stale = await send(
+      delivery({ eventId: "evt-old", occurredAt: T0 - 60_000, entitlement: { status: "past_due" } }),
+    );
+
+    expect(body(stale)).toMatchObject({ outcome: "stale" });
+    expect(currentPlanRecord(IDENTITY.tenantId, T0).status).toBe("active");
+  });
+
+  it("lets a retry land the sale once the tenant has signed in", async () => {
+    // A plan sold before first sign-in. The delivery is stored unapplied; the provider's retry
+    // after the tenant exists must apply it rather than read as `duplicate` forever.
+    const late = { tenantId: "billing-tenant-late", orgId: "billing-org-late", userId: "billing-user-late" };
+    const first = await send(delivery({ eventId: "evt-presold", tenantId: late.tenantId }));
+    expect(body(first)).toMatchObject({ outcome: "unknown_tenant" });
+
+    const { db, ensurePortalOwner } = await import("@agentforge/db");
+    await ensurePortalOwner(db, late);
+
+    const retry = await send(delivery({ eventId: "evt-presold", tenantId: late.tenantId }));
+
+    expect(body(retry)).toMatchObject({ outcome: "applied" });
+    expect(currentPlanRecord(late.tenantId, T0).allowanceUsdMicros).toBe(5_000);
+    // And the row is promoted, so a third delivery of the same id is a duplicate again.
+    const again = await send(delivery({ eventId: "evt-presold", tenantId: late.tenantId }));
+    expect(body(again)).toMatchObject({ outcome: "duplicate" });
+    db.$client.prepare("DELETE FROM tenant_plan WHERE tenant_id = ?").run(late.tenantId);
+  });
+
   it("records a delivery for a tenant it has never heard of instead of dropping it", async () => {
     const result = await send(delivery({ eventId: "evt-early", tenantId: "tenant-not-provisioned" }));
     expect(json(result).status).toBe(200);

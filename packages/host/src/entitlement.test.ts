@@ -405,8 +405,8 @@ describe("the gateway gate carries the plan check", () => {
   /**
    * These three tenants all hold no gateway key, so the gate's own answer is `needs_key` — which
    * is exactly what makes the ordering visible: whichever refusal comes out names which check ran
-   * first. The whole reason the plan check lives inside `requireGatewayAllowed` is that all 34
-   * call sites gained it without one of them changing, and none of them gained an `await`.
+   * first. The whole reason the plan check lives inside `requireGatewayAllowed` is that every
+   * call site gained it without one of them changing, and none of them gained an `await`.
    */
   it("refuses a blocked tenant with the plan code, not with the key's", () => {
     givePlan(TENANT, { allowanceUsdMicros: 10, spentUsdMicros: 99 });

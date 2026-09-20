@@ -25,7 +25,7 @@ to change each is the last column.
 |---|---|---|---|
 | D4 | Quote currency | **USD.** The ledger is USD micros already, so anything else needs an FX rate nobody has sourced | `tenant_plan.currency`, per tenant. `DEFAULT_QUOTE_CURRENCY` in `packages/core/src/entitlement/types.ts:82` is only the default for a row nobody has written |
 | D4 | Margin multiple | **1.0, pass-through.** Charge exactly gateway cost until kyo picks a number | `tenant_plan.margin_multiple_micros`, per tenant. `1_500_000` is 1.5×. `PASS_THROUGH_MARGIN_MICROS` (`types.ts:79`) is the default for an unwritten row |
-| D3 | Monthly vs anniversary reset | **Calendar month, UTC.** It needs no provider event to roll, so a deployment whose webhook has never fired still rolls correctly | `calendarMonthPeriod` (`types.ts:151-159`) is the default period. An anniversary period is already supported without a code change: the webhook's `period.reset` (or an `entitlement.set` carrying `periodStart`/`periodEnd`) sets any window the provider wants, and `rolledPlan` only rolls a period that has **ended** |
+| D3 | Monthly vs anniversary reset | **Calendar month, UTC.** It needs no provider event to roll, so a deployment whose webhook has never fired still rolls correctly | `calendarMonthPeriod` (`types.ts:151-159`) is the default period. An anniversary window can be **set** without a code change — `period.reset`, or an `entitlement.set` carrying `periodStart`/`periodEnd` — but it does not survive its own end: `rolledPlan` (`types.ts:174`) rolls into the **calendar** month whenever `now >= periodEnd`, so an anniversary period snaps back unless the provider fires `period.reset` before each window closes. Making anniversary self-sustaining is a change in `rolledPlan` (§9) |
 | open | Does an unpriced usage row count against the allowance? | **Zero against the allowance, surfaced as a warning count.** Blocking on a row nobody could price refuses a call the tenant cannot see the cost of; hiding it loses the signal | `tenant_plan.unpriced_count` is maintained either way. The `unpriced_usage` warning is in `ENTITLEMENT_WARNINGS` (`types.ts:70`). Making it count would be a change in `accrueSpend`, one statement |
 | D4 | Billing provider (Xendit / Paddle / Stripe) | **Left abstract.** This lane defines the entitlement record and a provider-neutral inbound contract; the Xendit or Paddle adapter is a later lane | Nothing here to change. The adapter translates a provider's payload into one of three `BILLING_EVENT_KINDS` and POSTs it, or calls `parseBillingEvent` directly |
 
@@ -130,10 +130,11 @@ export function requireGatewayAllowed(settings: StoredSecrets, opts: GatewayGate
 }
 ```
 
-**Why there.** That function is already the single thing every gateway path calls — 34 call sites,
-across chat, jobs, edit, media, meetings and channels. Putting the check inside it covers all 34
-with no call-site change, which is decision doc §3(a) satisfied by construction rather than by a
-sweep somebody has to keep green. `better-sqlite3` is synchronous, so the check adds no `await` to a
+**Why there.** That function is already the single thing every gateway path calls, across chat,
+jobs, edit, media, meetings and channels — directly, or through `requireGatewayAllowedFor`, which
+is a one-line wrapper around it. Putting the check inside it covers every one of them with no
+call-site change, which is decision doc §3(a) satisfied by construction rather than by a sweep
+somebody has to keep green. `better-sqlite3` is synchronous, so the check adds no `await` to a
 synchronous function and no call site had to change shape.
 
 **Why first.** The order is the whole point of §3(b). A hosted tenant over its allowance holds no
@@ -158,7 +159,7 @@ call, which is the fail-closed rule from Phase 3 lane C.
 generations. Off-request work (jobs, the edit runner, channels) already carries its tenant
 explicitly since Phase 3 lane D, so nothing here reads an ambient session.
 
-**The seat cap is checked at sign-in.** `handleLogin` (`auth/routes.ts:247`) provisions the tenant,
+**The seat cap is checked at sign-in.** `handleLogin` (`auth/routes.ts:261`) provisions the tenant,
 then claims a seat (`:290`) **before** `createSession`, and refuses with `seat_cap_reached`, 403.
 Claiming is an idempotent upsert that clears `revoked_at`, so a returning user re-takes their own
 seat and a re-claim never double-counts. The dependency is injected (`AuthRouteDeps.claimSeat`) and
@@ -189,11 +190,31 @@ browser calls it and it holds a bearer secret instead; the header is forwarded e
   anniversary period is a provider call rather than a code change.
 
 **Idempotent and replay-safe, as two separate rules.** `duplicate` is the provider retrying a
-delivery that already landed, caught on the `billing_events` primary key — expected, healthy, and
-the reason the route answers **200** to it. `stale` is a delivery that arrived out of order and
-would undo a newer one, caught by comparing `occurredAt` against the **stored** row's `updated_at`
-(`findPlanRecord`, not `currentPlanRecord` — the synthesised default carries `updatedAt = now`, which
-would call every event stale for a tenant that has no row yet; that was a real bug caught in test).
+delivery that **already applied**, caught on the `billing_events` primary key — expected, healthy,
+and the reason the route answers **200** to it. `stale` is a delivery that arrived out of order and
+would undo a newer one.
+
+**The ordering rule compares one webhook against another, and nothing else.** `stale` is decided by
+comparing the event's `occurredAt` with `max(occurred_at)` over the deliveries this host has
+**applied** for the tenant (`lastAppliedEventAt`), never with `tenant_plan.updated_at`. The first
+version of this route used `updated_at`, and that was a real bug the verifier caught: `accrueSpend`
+bumps that column on **every ledger write**, and so does the persisted period roll, so a provider's
+timestamp — which always precedes its own delivery — read as older than the row for any tenant that
+was still generating. The consequence was that a busy tenant could never receive a top-up, a
+seat-cap raise or any `entitlement.set` again: the 80% self-serve path led nowhere for exactly the
+tenants who needed it. Two route-level tests hold the line now, one for each direction: a top-up
+whose timestamp precedes the tenant's last generation is **applied**, and a genuinely out-of-order
+`past_due` is still **stale** even with a generation in between.
+
+**A plan sold before the tenant's first sign-in is not lost.** The plan row has a foreign key to
+`tenants`, so an event naming a tenant this host has never seen cannot be applied; it is stored
+unapplied as `unknown_tenant`. The provider's next retry of that same id is then **reconsidered**
+rather than dismissed as a duplicate, and applies the moment the tenant exists — `alreadySeen` means
+"already applied", and the `billing_events` upsert promotes a row only from unapplied to applied.
+What this does **not** do is replay on its own: the table deliberately stores no payload, so if the
+provider has already retired the event, an operator must re-send it with a fresh id. That is the
+choice taken here rather than adding a payload column and a replay path on the sign-in hot path
+(§9).
 
 **The route always answers 200 once it is authenticated and parseable**, with
 `{received, outcome}` where outcome is `applied`, `duplicate`, `stale` or `unknown_tenant`. A
@@ -325,19 +346,28 @@ the portal.
 3. **Recover on a webhook.** POST an `allowance.topup` with the `x-callback-token` header. The very
    next generation must succeed **with no restart**. Then POST the same delivery again and confirm
    the response is `{outcome: "duplicate"}` at 200 and the allowance did **not** rise twice.
-4. **Recover on the period roll.** Move the row's `period_end` into the past and confirm the next
+4. **The top-up lands on a tenant that is still working** — the regression the verifier caught.
+   Generate once, then deliver an `allowance.topup` whose `occurredAt` is a minute or two in the
+   **past**, as a real provider's will be. It must answer `{outcome: "applied"}`, not `stale`. This
+   is the one to run first: before the fix, every top-up to an active tenant was dropped silently.
+5. **A plan sold before first sign-in.** Deliver an `entitlement.set` for a tenant nobody has signed
+   in as; expect `{outcome: "unknown_tenant"}`. Sign in as that tenant, re-send the **same**
+   `eventId`, and confirm it now answers `applied` and the plan is there.
+6. **Recover on the period roll.** Move the row's `period_end` into the past and confirm the next
    request rolls the period, zeroes `spent_usd_micros` and lifts the block.
-5. **A seat past the cap is refused.** Set `seat_cap = 1` on a tenant that has one live seat. A
+7. **A seat past the cap is refused.** Set `seat_cap = 1` on a tenant that has one live seat. A
    second person signing in must get `seat_cap_reached`, 403. The person who already holds the seat
    must keep signing in fine — sign them out and back in to prove it.
-6. **Seat recovery, both ways.** Raise the cap by webhook and confirm the second person gets in;
+8. **Seat recovery, both ways.** Raise the cap by webhook and confirm the second person gets in;
    then revoke the first seat and confirm a third person gets in on the freed one.
-7. **The desk is untouched.** Open the desktop on an existing data directory. No `tenant_plan`,
+9. **The desk is untouched.** Open the desktop on an existing data directory. No `tenant_plan`,
    `tenant_seat` or `billing_events` behaviour may appear: generations run with no plan row, nothing
    asks for a seat, and `POST /api/v1/billing/webhook` answers **404**.
-8. **The ledger audit holds.** After the runs above, confirm
-   `SUM(cost_usd_micros) WHERE billing_period_start = tenant_plan.period_start` equals
-   `tenant_plan.spent_usd_micros` for that tenant.
+10. **The ledger audit holds.** After the runs above, confirm
+    `SUM(cost_usd_micros) WHERE billing_period_start = tenant_plan.period_start` equals
+    `tenant_plan.spent_usd_micros` for that tenant. A mismatch is only a bug if there is no
+    `usage_write_failed` in the log: the counter and the ledger row are two statements, not one
+    transaction, so a failed INSERT leaves the counter ahead on purpose (§9).
 
 ## 9. Open items this lane leaves
 
@@ -352,3 +382,19 @@ the portal.
 - **A repricing pass still does not exist** (lane A's own open item). Unpriced rows stay zero.
 - **The margin multiple is carried and quoted but never charged**, because nothing charges yet.
   `quotedPriceUsdMicros` exists so the later adapter has one function to price against.
+- **The counter and the ledger row are not one transaction.** `recordUsage` runs `accrueSpend` and
+  then the INSERT. An INSERT that throws leaves the counter ahead of the ledger — the safe
+  direction, since the other one would let a call escape the allowance — but the §8 audit reads
+  short by that call, and `usage_write_failed` in the log is how to tell that from a real gap.
+  Fixing it means one `db.transaction` spanning this module and the usage store's own connection
+  handle.
+- **An anniversary period does not survive its own end.** `rolledPlan` rolls into the calendar
+  month whenever `now >= periodEnd`, so a window set by `entitlement.set` snaps back unless the
+  provider fires `period.reset` before it closes. Self-sustaining anniversary periods are a change
+  in `rolledPlan`, and they are only worth making once kyo has answered D3.
+- **A pre-sale event is replayed only if the provider retries it.** The route now reconsiders a
+  stored `unknown_tenant` delivery instead of calling it a duplicate, so a retry after first
+  sign-in lands. It does not replay on its own, because `billing_events` stores no payload;
+  doing that means a payload column plus a replay step at provision, which this lane did not
+  take. Until then a plan sold to a tenant who never signs in within the provider's retry window
+  has to be re-sent with a fresh event id.

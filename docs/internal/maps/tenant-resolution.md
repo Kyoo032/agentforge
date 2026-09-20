@@ -70,7 +70,7 @@ row, not from a constant. Status and message per code: `tenant.ts:48-60`.
 ### Where the rows come from: first sign-in
 
 `resolvePortalTenant` creates nothing, so something else must. That something is the sign-in, and
-only the sign-in: `handleLogin` calls `deps.provision(...)` (`packages/host/src/auth/routes.ts:248`)
+only the sign-in: `handleLogin` calls `deps.provision(...)` (`packages/host/src/auth/routes.ts:281`)
 immediately after the portal returns tokens and **before** the session row exists, so a refused
 provisioning leaves no session behind. The real implementation is `ensurePortalOwner`
 (`portal-owner.ts:89`), wired in at `packages/host/src/auth/index.ts:136` through a dynamic

@@ -30,7 +30,7 @@ import { getTenant } from "../tenant";
 import {
   currentPlanRecord,
   findBillingEvent,
-  findPlanRecord,
+  lastAppliedEventAt,
   recordBillingEvent,
   savePlanRecord,
   seatsInUse,
@@ -73,20 +73,25 @@ export async function handlePostBillingWebhook(request: HostRequest): Promise<Ho
 
     const seen = findBillingEvent(event.eventId);
     const known = tenantExists(event.tenantId);
-    // Two different reads, on purpose.
+    // The ordering test compares this delivery against the newest delivery the webhook has
+    // APPLIED for the tenant — never against `tenant_plan.updated_at`.
     //
-    // The ORDERING test uses the stored row and only the stored row (`findPlanRecord`), because
-    // "older than what is already written" is a question about something that was written. A
-    // tenant with no row has nothing to be older than, and the default record's `updatedAt` is
-    // just the clock — using it would make the first event about every tenant arrive stale.
+    // That was the bug this route shipped with: `updated_at` moves on every ledger write and on
+    // every persisted period roll, so a tenant that was still generating read as newer than the
+    // provider and could never receive a top-up, a seat-cap raise or any `entitlement.set` again.
+    // A provider's `occurred_at` always precedes its delivery, so the only question worth asking
+    // is "would this undo a newer webhook?", and only another webhook can answer it.
     //
-    // The VALUE the event is applied to is `currentPlanRecord`, which fills in the default and
-    // rolls the period, because that is the record the next gateway call will read.
-    const written = known ? findPlanRecord(event.tenantId) : null;
+    // The VALUE the event is applied to is still `currentPlanRecord`, which fills in the default
+    // and rolls the period, because that is the record the next gateway call will read.
     const decision = billingEventDecision({
       event,
-      alreadySeen: Boolean(seen),
-      recordUpdatedAt: written?.updatedAt ?? null,
+      // A delivery already seen but never applied — an `unknown_tenant` from before this tenant
+      // first signed in — is reconsidered rather than dismissed, so a provider that retries it
+      // lands the sale instead of getting `duplicate` forever. Re-running an applied event is
+      // still refused, which is what idempotency means here.
+      alreadySeen: Boolean(seen?.applied),
+      lastAppliedOccurredAt: lastAppliedEventAt(event.tenantId),
     });
 
     let outcome: BillingWebhookOutcome;

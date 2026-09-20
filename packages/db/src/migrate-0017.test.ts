@@ -317,13 +317,27 @@ describe("0017_tenant_plan is in the committed migration set", () => {
   it("applies 0017 on a database that already ran 0018 — the skip hazard, driven", () => {
     // 0018's header says a `when` below its own would be SILENTLY skipped here. This is that
     // claim as a test: stamp a database at exactly 0018's `when` and watch 0017 still apply.
+    //
+    // The assertion is the JOURNAL ROW, not the table. `ensureSchema` runs `applyPendingMigrations`
+    // and THEN the healers (`ensureTenantPlanTables`), so "`tenant_plan` exists afterwards" is
+    // true even when the migration was skipped — the healer would have built it. Only a row
+    // stamped with 0017's own `when` proves the migration itself ran, which is the hazard this
+    // test exists for.
     const sqlite = databaseStoppedAt0016();
     sqlite.exec(
       `INSERT INTO __drizzle_migrations (hash, created_at) VALUES ('0018-stand-in', ${whenOf("0018_tenant_state")})`,
     );
+    const stampedFor0017 = (): number =>
+      (
+        sqlite
+          .prepare("SELECT count(*) AS n FROM __drizzle_migrations WHERE created_at = ?")
+          .get(whenOf("0017_tenant_plan")) as { n: number }
+      ).n;
+    expect(stampedFor0017()).toBe(0);
 
     ensureSchema(sqlite);
 
+    expect(stampedFor0017()).toBe(1);
     expect(tableNames(sqlite)).toContain("tenant_plan");
     expect(columnNames(sqlite, "tenant_usage")).toContain("billing_period_start");
     sqlite.close();

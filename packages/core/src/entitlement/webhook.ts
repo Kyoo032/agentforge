@@ -214,22 +214,31 @@ export function applyBillingEvent(record: TenantPlanRecord, event: BillingEvent,
 }
 
 /**
- * Should this event be applied at all, given what is already stored?
+ * Should this event be applied at all, given what the webhook has already applied?
  *
  * Two independent refusals, and they mean different things to whoever is reading the log:
  * `duplicate` is the provider retrying a delivery that already landed — expected, healthy, and the
  * reason the route answers 200 to it. `stale` is a delivery that arrived out of order and would
  * undo a newer one.
+ *
+ * **`lastAppliedOccurredAt` is the provider's timestamp on the newest event this host has applied
+ * for the tenant — never the plan row's `updated_at`.** Those are not the same clock and the
+ * difference is a bug that bites in production, not a nicety. `tenant_plan.updated_at` moves on
+ * every ledger write (`accrueSpend`) and on every persisted period roll, so comparing against it
+ * means any tenant that is still generating reads as "newer than the provider", and its top-up,
+ * its seat-cap raise and every `entitlement.set` arrive `stale` forever. A provider's
+ * `occurred_at` always precedes delivery — network, queueing, a retry an hour later — so the only
+ * comparison that answers "would this undo a newer decision?" is one webhook against another.
  */
 export function billingEventDecision(args: {
   readonly event: BillingEvent;
   readonly alreadySeen: boolean;
-  readonly recordUpdatedAt: number | null;
+  readonly lastAppliedOccurredAt: number | null;
 }): { readonly apply: true } | { readonly apply: false; readonly reason: "duplicate" | "stale" } {
   if (args.alreadySeen) {
     return { apply: false, reason: "duplicate" };
   }
-  if (args.recordUpdatedAt !== null && args.event.occurredAt < args.recordUpdatedAt) {
+  if (args.lastAppliedOccurredAt !== null && args.event.occurredAt < args.lastAppliedOccurredAt) {
     return { apply: false, reason: "stale" };
   }
   return { apply: true };

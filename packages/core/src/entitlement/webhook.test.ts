@@ -172,35 +172,35 @@ describe("applying a delivery", () => {
 
 describe("whether a delivery should be applied at all", () => {
   it("drops a delivery whose id has already been seen", () => {
-    expect(billingEventDecision({ event: event(), alreadySeen: true, recordUpdatedAt: null })).toEqual({
+    expect(billingEventDecision({ event: event(), alreadySeen: true, lastAppliedOccurredAt: null })).toEqual({
       apply: false,
       reason: "duplicate",
     });
   });
 
-  it("drops a delivery older than the row it would write", () => {
+  it("drops a delivery older than the newest webhook already applied", () => {
     // Out-of-order retries are normal. A retried `past_due` must not land on top of the `active`
-    // that already fixed it.
+    // that already fixed it. The bar is the last APPLIED delivery, not the plan row's mtime.
     expect(
-      billingEventDecision({ event: event({ occurredAt: NOW - 1 }), alreadySeen: false, recordUpdatedAt: NOW }),
+      billingEventDecision({ event: event({ occurredAt: NOW - 1 }), alreadySeen: false, lastAppliedOccurredAt: NOW }),
     ).toEqual({ apply: false, reason: "stale" });
   });
 
-  it("applies a delivery that is exactly as old as the row", () => {
+  it("applies a delivery that is exactly as old as the last applied one", () => {
     // Same millisecond is not out of order: two writes inside one millisecond are ordinary, and
     // refusing them would drop legitimate deliveries on a fast machine.
     expect(
-      billingEventDecision({ event: event({ occurredAt: NOW }), alreadySeen: false, recordUpdatedAt: NOW }).apply,
+      billingEventDecision({ event: event({ occurredAt: NOW }), alreadySeen: false, lastAppliedOccurredAt: NOW }).apply,
     ).toBe(true);
   });
 
-  it("applies the first delivery about a tenant that has no row yet", () => {
-    expect(billingEventDecision({ event: event(), alreadySeen: false, recordUpdatedAt: null }).apply).toBe(true);
+  it("applies the first delivery about a tenant the webhook has never touched", () => {
+    expect(billingEventDecision({ event: event(), alreadySeen: false, lastAppliedOccurredAt: null }).apply).toBe(true);
   });
 
   it("calls a replay duplicate even when it is also newer", () => {
     expect(
-      billingEventDecision({ event: event({ occurredAt: NOW + 10 }), alreadySeen: true, recordUpdatedAt: NOW }),
+      billingEventDecision({ event: event({ occurredAt: NOW + 10 }), alreadySeen: true, lastAppliedOccurredAt: NOW }),
     ).toEqual({ apply: false, reason: "duplicate" });
   });
 });
