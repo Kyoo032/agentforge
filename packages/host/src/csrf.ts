@@ -1,4 +1,4 @@
-import { randomBytes, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 /**
  * Double-submit CSRF token for the HTTP adapter (docs/internal/web-security-spec.md A2).
@@ -11,10 +11,12 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
  * The cookie is minted in every mode so the renderer path is exercised on webdev; only the hosted
  * server (`isServerMode`) rejects a call that fails the check. Webdev and the desktop are unchanged.
  *
- * Phase 2 follow-up: bind the token to the portal session by minting it as
- * HMAC(server key, session id) + salt instead of bare randomness, so a token issued to one session
- * cannot be replayed by another. Until the session lands there is nothing to bind to, and the
- * comparison below is already constant-time and length-safe, so the shape does not change.
+ * **Bound to the session since Phase 3 lane C.** The token is `<salt>.<HMAC(key, sessionId.salt)>`
+ * rather than bare randomness, so a token minted for one session is refused when it is echoed by
+ * another — the double-submit pair alone proves same-origin script, not same-signed-in-person, and
+ * a shared machine or a stolen-then-reused cookie is exactly where that gap bites. Off server mode
+ * there is no session, so the binding is to the empty id: one code path, and webdev and the desktop
+ * behave exactly as before.
  */
 
 /** Cookie the renderer reads off the hosted server. Deliberately NOT HttpOnly. */
@@ -26,8 +28,34 @@ export const CSRF_COOKIE = "agentforge_csrf";
 /** Header the renderer echoes the cookie in on every mutating call. */
 export const CSRF_HEADER = "x-agentforge-csrf";
 
-/** 32 bytes of randomness: 256 bits, the same order as a session id. */
-const TOKEN_BYTES = 32;
+/** Salt in the token, so two tokens for one session still differ. */
+const SALT_BYTES = 16;
+
+/**
+ * The HMAC key. Process-lifetime randomness: a token only has to outlive the process that minted
+ * it, and `mintCsrfTokenFor` is re-run for any cookie that does not verify, so a restart costs one
+ * re-mint on the next GET rather than a wedged browser.
+ *
+ * **Single-process assumption.** Two app processes behind the proxy would each mint tokens the
+ * other refuses. The hosted deployment is one Express host today (`apps/web/server.ts`); running
+ * more than one means a shared key from the environment, and that is a deploy-time decision, not a
+ * default invented here. Recorded in docs/internal/web-phase3-lane-c.md.
+ */
+let signingKey: Buffer | null = null;
+
+function csrfSigningKey(): Buffer {
+  signingKey ??= randomBytes(32);
+  return signingKey;
+}
+
+/** Tests only: forget the process key so the next mint starts a new one. */
+export function resetCsrfSigningKeyForTests(): void {
+  signingKey = null;
+}
+
+function sign(sessionId: string, salt: string, key: Buffer): string {
+  return createHmac("sha256", key).update(`${sessionId}.${salt}`).digest("base64url");
+}
 
 const MISSING_MESSAGE = "Missing CSRF token";
 const INVALID_MESSAGE = "CSRF token does not match this session";
@@ -48,9 +76,40 @@ export type CsrfCheck =
   | { readonly ok: true; readonly code?: undefined; readonly message?: undefined }
   | { readonly ok: false; readonly code: CsrfErrorCode; readonly message: string };
 
-/** A fresh, unguessable token in base64url, safe to put in a cookie and a header unencoded. */
+/**
+ * A fresh, unguessable token bound to `sessionId`, in base64url plus one `.`, safe to put in a
+ * cookie and a header unencoded.
+ *
+ * An absent session id (webdev, the desktop, and a hosted visitor who has not signed in yet) binds
+ * to the empty string, which is what `checkCsrfToken` then verifies against — so an anonymous token
+ * stops working the moment the browser signs in, and the next GET mints the bound one.
+ */
+export function mintCsrfTokenFor(sessionId: string | null | undefined, key: Buffer = csrfSigningKey()): string {
+  const salt = randomBytes(SALT_BYTES).toString("base64url");
+  return `${salt}.${sign(sessionId ?? "", salt, key)}`;
+}
+
+/** A fresh token bound to no session. Kept for callers that have no session to bind to. */
 export function mintCsrfToken(): string {
-  return randomBytes(TOKEN_BYTES).toString("base64url");
+  return mintCsrfTokenFor(null);
+}
+
+/**
+ * Does this token carry this process's signature over this session id?
+ *
+ * A token minted before a restart, before a sign-in, or for a different session all fail here, and
+ * all are answered the same way: the adapter mints a replacement on the next safe request.
+ */
+export function csrfTokenMatchesSession(
+  token: string | null | undefined,
+  sessionId: string | null | undefined,
+  key: Buffer = csrfSigningKey(),
+): boolean {
+  const parts = token?.trim().split(".");
+  if (parts?.length !== 2 || parts[0].length === 0 || parts[1].length === 0) {
+    return false;
+  }
+  return equalsInConstantTime(parts[1], sign(sessionId ?? "", parts[0], key));
 }
 
 /** The cookie name this mode mints and reads; the other mode's name is ignored entirely. */
@@ -85,16 +144,19 @@ export function checkCsrfToken(
   cookies: Readonly<Record<string, string>>,
   headerToken: string | null | undefined,
   mode: CsrfMode,
+  sessionId?: string | null,
 ): CsrfCheck {
-  // Phase 2 follow-up: bind the token to the portal session - mint it as HMAC(server key, session id)
-  // and verify that HMAC here - so a token issued to one session cannot be replayed in another. There
-  // is no session to bind to until the portal exchange lands; the comparison below does not change.
   const cookie = readCsrfCookie(cookies, mode)?.trim();
   const header = headerToken?.trim();
   if (!cookie || !header) {
     return { ok: false, code: "csrf_missing", message: MISSING_MESSAGE };
   }
   if (!equalsInConstantTime(cookie, header)) {
+    return { ok: false, code: "csrf_invalid", message: INVALID_MESSAGE };
+  }
+  // The pair matching proves same-origin script. This proves it is *this* browser session's token:
+  // a token lifted from another session, or minted before this one signed in, does not verify.
+  if (!csrfTokenMatchesSession(cookie, sessionId)) {
     return { ok: false, code: "csrf_invalid", message: INVALID_MESSAGE };
   }
   return { ok: true };

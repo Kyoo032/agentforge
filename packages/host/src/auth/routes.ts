@@ -17,6 +17,7 @@
  * raw (`http-adapter.ts:263`) alongside the cookies it parses for itself.
  */
 import { ApiError, isServerMode } from "@agentforge/core";
+import type { PortalIdentity } from "@agentforge/db";
 import { jsonError, jsonOk } from "../errors";
 import type { HostJsonResult, HostRequest } from "../types";
 import { PortalError, type PortalTokens } from "./portal-client";
@@ -49,6 +50,11 @@ export type AuthRouteDeps = {
   readonly portal: PortalClient;
   /** Hosted deployment? Decides the cookie's `Secure` flag; injected so tests never touch env. */
   readonly serverMode: boolean;
+  /**
+   * Writes the host's rows for a portal identity on first sign-in (lane C). Injected so a test can
+   * exercise the sign-in without a database, the same way `store` and `portal` already are.
+   */
+  readonly provision: (identity: PortalIdentity) => Promise<unknown>;
   readonly now?: () => number;
 };
 
@@ -81,6 +87,14 @@ export function authError(reason: AuthReason, status: number, message?: string |
 function fromPortal(error: unknown): ApiError {
   if (error instanceof PortalError) {
     return authError(error.reason, error.status, error.messageEn);
+  }
+  // Matched by name, not `instanceof`: importing the class as a value would pull `@agentforge/db`'s
+  // barrel in statically and open SQLite when this module is imported, which the module comment at
+  // ./index.ts forbids and `createHostSessionStore` goes out of its way to avoid.
+  if (error instanceof Error && error.name === "PortalProvisionError") {
+    // The host already holds this org under a different tenant. Never re-home the rows: refuse the
+    // sign-in and let an operator look, because one of the two tenants owns that data.
+    return authError("org_inactive", 403);
   }
   throw error;
 }
@@ -225,6 +239,16 @@ export function createAuthRoutes(deps: AuthRouteDeps): AuthRoutes {
       throw fromPortal(error);
     }
     const now = clock();
+    // Phase 3 lane C: first sign-in is what provisions the tenant. The portal has just vouched for
+    // these three ids, so this is the one moment the host may write rows for them; every later
+    // request only ever READS them (`resolvePortalTenant`), which is what makes a session the host
+    // has never provisioned a refusal rather than a new desk. Off server mode nothing signs in, so
+    // the desktop never reaches this line.
+    try {
+      await deps.provision({ tenantId: tokens.tenantId, orgId: tokens.orgId, userId: tokens.userId });
+    } catch (error) {
+      throw fromPortal(error);
+    }
     const session = createSession({
       tenantId: tokens.tenantId,
       userId: tokens.userId,

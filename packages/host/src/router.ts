@@ -2,6 +2,8 @@ import { isServerMode } from "@agentforge/core";
 import { hostAuthRoutes, hostSessionStore, isSessionExemptPath, requireSessionFor } from "./auth";
 import type { SessionStore } from "./auth";
 import { jsonError, jsonOk } from "./errors";
+import { withRequestSession } from "./tenant-scope";
+import { clearedWorkspaceCookie } from "./workspace";
 import {
   handleGetAgent,
   handleGetAgentCapabilities,
@@ -21,6 +23,18 @@ import {
   handleGetArtifactFile,
   handleGetArtifacts,
 } from "./handlers/artifacts";
+import {
+  handleDeleteChannel,
+  handleDeleteTelegramBot,
+  handleGetChannel,
+  handleGetChannelMessages,
+  handleGetChannels,
+  handleGetTelegramBot,
+  handlePostChannelSend,
+  handlePostChannels,
+  handlePostTelegramBot,
+  handlePostTelegramPoll,
+} from "./handlers/channels";
 import { handleGetChat } from "./handlers/chat";
 import { handleGetComponents, handlePostComponentInstallStream } from "./handlers/components";
 import { handleDeleteDataset, handleGetDataset, handleGetDatasets, handlePostDatasets } from "./handlers/datasets";
@@ -261,6 +275,19 @@ const routes: Route[] = [
   compile("POST", "/api/v1/datasets", handlePostDatasets),
   compile("GET", "/api/v1/datasets/:datasetId", handleGetDataset),
   compile("DELETE", "/api/v1/datasets/:datasetId", handleDeleteDataset),
+  // Channels (docs/internal/telegram-channels-plan.md). The two-segment `telegram/*` paths sit
+  // above `:channelId` in the table, and cannot be shadowed by it either way: a route pattern
+  // matches one path segment.
+  compile("GET", "/api/v1/channels/telegram/bot", handleGetTelegramBot),
+  compile("POST", "/api/v1/channels/telegram/bot", (req) => handlePostTelegramBot(req)),
+  compile("DELETE", "/api/v1/channels/telegram/bot", handleDeleteTelegramBot),
+  compile("POST", "/api/v1/channels/telegram/poll", (req) => handlePostTelegramPoll(req)),
+  compile("GET", "/api/v1/channels", handleGetChannels),
+  compile("POST", "/api/v1/channels", (req) => handlePostChannels(req)),
+  compile("GET", "/api/v1/channels/:channelId", handleGetChannel),
+  compile("DELETE", "/api/v1/channels/:channelId", handleDeleteChannel),
+  compile("GET", "/api/v1/channels/:channelId/messages", handleGetChannelMessages),
+  compile("POST", "/api/v1/channels/:channelId/send", (req) => handlePostChannelSend(req)),
   compile("GET", "/api/v1/legal/playbooks", handleGetLegalPlaybooks),
   compile("GET", "/api/v1/legal/matters", handleGetLegalMatters),
   compile("POST", "/api/v1/legal/matters", handlePostLegalMatters),
@@ -400,7 +427,33 @@ export async function dispatch(request: HostRequest, options: DispatchOptions = 
     // first and only ever re-added from the gate above, so an invented one can never reach a
     // handler as identity.
     const { session: _invented, ...rest } = request;
-    return route.handler(session ? { ...rest, params, path, session } : { ...rest, params, path });
+    const scoped = session ? { ...rest, params, path, session } : { ...rest, params, path };
+    if (!session) {
+      return route.handler(scoped);
+    }
+    // Phase 3 lane C: the verified session is the tenant, for this handler and for everything it
+    // awaits. `getTenant()` reads it from here (./tenant-scope.ts) until lane E sweeps the call
+    // sites to pass the request itself, so a handler that still passes a bare workspace id resolves
+    // the session's tenant rather than the local owner.
+    const result = await withRequestSession(session, () => route.handler(scoped));
+    return clearStaleWorkspaceCookie(result);
   }
   return jsonOk({ error: { code: "not_found", message: "Not found" } }, 404);
+}
+
+/**
+ * A `WORKSPACE_COOKIE` naming a desk the caller's tenant does not own answers 404 (spec §3d) — and
+ * the cookie goes with it, so the next request resolves the session's home desk instead of 404ing
+ * forever. Only the code `getTenant` throws for a foreign desk is matched, so a handler's own
+ * "not found" (a thread, an artifact) never clears a desk selection.
+ */
+function clearStaleWorkspaceCookie(result: HostResult): HostResult {
+  if (result.type !== "json" || result.status !== 404) {
+    return result;
+  }
+  const envelope = (result.body as { error?: { code?: unknown } } | null | undefined)?.error;
+  if (envelope?.code !== "workspace_not_found") {
+    return result;
+  }
+  return { ...result, cookies: [...(result.cookies ?? []), clearedWorkspaceCookie()] };
 }

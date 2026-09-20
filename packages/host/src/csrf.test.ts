@@ -3,10 +3,12 @@ import {
   checkCsrfToken,
   csrfCookieName,
   csrfSetCookie,
+  csrfTokenMatchesSession,
   CSRF_COOKIE,
   CSRF_COOKIE_SECURE,
   CSRF_HEADER,
   mintCsrfToken,
+  mintCsrfTokenFor,
   readCsrfCookie,
 } from "./csrf";
 
@@ -14,15 +16,81 @@ const LOCAL = { secure: false } as const;
 const HOSTED = { secure: true } as const;
 
 describe("mintCsrfToken", () => {
-  it("mints a base64url token of 32 random bytes", () => {
+  // Since Phase 3 lane C the token is `<salt>.<HMAC>`, not bare randomness: a 16-byte salt in
+  // base64url (22 chars) and a SHA-256 digest in base64url (43 chars).
+  it("mints a salt and a signature, both base64url", () => {
     const token = mintCsrfToken();
-    expect(token).toMatch(/^[A-Za-z0-9_-]{43}$/);
-    expect(Buffer.from(token, "base64url")).toHaveLength(32);
+    expect(token).toMatch(/^[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}$/);
   });
 
   it("never repeats a token", () => {
     const tokens = new Set(Array.from({ length: 64 }, () => mintCsrfToken()));
     expect(tokens.size).toBe(64);
+  });
+
+  it("never repeats a token for one session either, because the salt is fresh", () => {
+    const tokens = new Set(Array.from({ length: 64 }, () => mintCsrfTokenFor("session-1")));
+    expect(tokens.size).toBe(64);
+  });
+});
+
+describe("csrfTokenMatchesSession", () => {
+  it("verifies a token against the session it was minted for", () => {
+    expect(csrfTokenMatchesSession(mintCsrfTokenFor("session-1"), "session-1")).toBe(true);
+  });
+
+  it("refuses a token minted for a different session", () => {
+    expect(csrfTokenMatchesSession(mintCsrfTokenFor("session-1"), "session-2")).toBe(false);
+  });
+
+  it("refuses an anonymous token once the browser has a session, and the reverse", () => {
+    expect(csrfTokenMatchesSession(mintCsrfTokenFor(null), "session-1")).toBe(false);
+    expect(csrfTokenMatchesSession(mintCsrfTokenFor("session-1"), null)).toBe(false);
+  });
+
+  it("treats a missing session id and an empty one as the same anonymous binding", () => {
+    const token = mintCsrfTokenFor(null);
+    expect(csrfTokenMatchesSession(token, undefined)).toBe(true);
+    expect(csrfTokenMatchesSession(token, "")).toBe(true);
+  });
+
+  it("refuses a malformed token without throwing", () => {
+    for (const bad of ["", ".", "nodot", "a.b.c", ".sig", "salt."]) {
+      expect(csrfTokenMatchesSession(bad, "session-1")).toBe(false);
+    }
+    expect(csrfTokenMatchesSession(null, "session-1")).toBe(false);
+  });
+
+  it("refuses a token whose signature was tampered with but whose salt was kept", () => {
+    const token = mintCsrfTokenFor("session-1");
+    const [salt] = token.split(".");
+    expect(csrfTokenMatchesSession(`${salt}.${"A".repeat(43)}`, "session-1")).toBe(false);
+  });
+});
+
+describe("checkCsrfToken binds the pair to the session", () => {
+  it("accepts a matching pair minted for this session", () => {
+    const token = mintCsrfTokenFor("session-1");
+    expect(checkCsrfToken({ [CSRF_COOKIE]: token }, token, LOCAL, "session-1").ok).toBe(true);
+  });
+
+  // The attack this closes: two people on one machine, or a cookie lifted from another browser.
+  // The double-submit pair still matches — it is the same pair — so only the binding refuses it.
+  it("refuses a matching pair that was minted for another session", () => {
+    const token = mintCsrfTokenFor("session-1");
+    const result = checkCsrfToken({ [CSRF_COOKIE]: token }, token, LOCAL, "session-2");
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe("csrf_invalid");
+  });
+
+  it("refuses a pair minted before the browser signed in", () => {
+    const token = mintCsrfTokenFor(null);
+    expect(checkCsrfToken({ [CSRF_COOKIE]: token }, token, LOCAL, "session-1").code).toBe("csrf_invalid");
+  });
+
+  it("accepts an anonymous pair when there is no session, which is webdev and the desktop", () => {
+    const token = mintCsrfToken();
+    expect(checkCsrfToken({ [CSRF_COOKIE]: token }, token, LOCAL).ok).toBe(true);
   });
 });
 

@@ -15,6 +15,7 @@ import { SettingsPage } from "@/components/settings-page";
 import { UsagePage } from "@/components/usage-page";
 import { WorkspacesPage } from "@/components/workspaces-page";
 import { KnowledgePage } from "@/components/knowledge-page";
+import { ChannelsPage } from "@/components/channels-page";
 import { WorkModeKeepAlive } from "@/components/work-mode-keep-alive";
 import { OnboardingScreen } from "@/components/onboarding-screen";
 import { isElectron } from "@/lib/api-client";
@@ -166,6 +167,7 @@ export function App() {
           <Route path="/usage" element={<UsagePage />} />
           <Route path="/workspaces" element={<WorkspacesPage />} />
           <Route path="/knowledge" element={<KnowledgePage />} />
+          <Route path="/channels" element={<ChannelsPage />} />
           <Route path="/studio/*" element={<Navigate to="/chat" replace />} />
           <Route path="/agents/*" element={<Navigate to="/chat" replace />} />
           <Route path="/workspace" element={<Navigate to="/chat" replace />} />
