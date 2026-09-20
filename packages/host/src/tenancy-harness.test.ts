@@ -341,7 +341,15 @@ const BY_ID_ROUTES: readonly ByIdRoute[] = [
       "id nobody owns gets. Its siblings 404 first because they look the agent up; this one does " +
       "not need to, and making it would add a query to tell a prober something.",
   },
-  { method: "POST", path: "/api/v1/agents/:agentId/tools", params: { agentId: "agentId" }, body: { tools: [] } },
+  {
+    method: "POST",
+    path: "/api/v1/agents/:agentId/tools",
+    params: { agentId: "agentId" },
+    // A registered tool key, so the call gets past the handler's own "Tool not found" and reaches
+    // the agent lookup (`listVersions(tenant.organizationId, agentId)`), which is the check under
+    // test. With an unknown key both calls 404 on the tool and the ownership check never runs.
+    body: { toolKey: "calculator" },
+  },
   { method: "POST", path: "/api/v1/agents/:agentId/soul", params: { agentId: "agentId" }, body: {} },
   { method: "POST", path: "/api/v1/agents/:agentId/publish", params: { agentId: "agentId" }, body: {} },
   { method: "POST", path: "/api/v1/agents/:agentId/share", params: { agentId: "agentId" }, body: {} },
@@ -385,9 +393,10 @@ const BY_ID_ROUTES: readonly ByIdRoute[] = [
     why:
       "`streamJob` answers 200 and opens the SSE stream before the work starts, so the refusal " +
       "arrives as a frame rather than as a status. `requireMeeting(tenant, meetingId)` is the " +
-      "second statement of the job (meeting/run.ts:151, :202, :352 — after the gate check and " +
-      "before anything of the meeting is read), and a meeting that does not exist takes exactly " +
-      "the same path. Same shape as POST /api/v1/edit/projects/:projectId/agent above.",
+      "first statement of the job (meeting/run.ts:152, :287, :362 — before the runtime gate, so " +
+      "this check is reached under the stub runtime too, and before anything of the meeting is " +
+      "read), and a meeting that does not exist takes exactly the same path. Same shape as " +
+      "POST /api/v1/edit/projects/:projectId/agent above.",
   },
   {
     method: "POST",
@@ -398,9 +407,10 @@ const BY_ID_ROUTES: readonly ByIdRoute[] = [
     why:
       "`streamJob` answers 200 and opens the SSE stream before the work starts, so the refusal " +
       "arrives as a frame rather than as a status. `requireMeeting(tenant, meetingId)` is the " +
-      "second statement of the job (meeting/run.ts:151, :202, :352 — after the gate check and " +
-      "before anything of the meeting is read), and a meeting that does not exist takes exactly " +
-      "the same path. Same shape as POST /api/v1/edit/projects/:projectId/agent above.",
+      "first statement of the job (meeting/run.ts:152, :287, :362 — before the runtime gate, so " +
+      "this check is reached under the stub runtime too, and before anything of the meeting is " +
+      "read), and a meeting that does not exist takes exactly the same path. Same shape as " +
+      "POST /api/v1/edit/projects/:projectId/agent above.",
   },
   {
     method: "POST",
@@ -411,9 +421,10 @@ const BY_ID_ROUTES: readonly ByIdRoute[] = [
     why:
       "`streamJob` answers 200 and opens the SSE stream before the work starts, so the refusal " +
       "arrives as a frame rather than as a status. `requireMeeting(tenant, meetingId)` is the " +
-      "second statement of the job (meeting/run.ts:151, :202, :352 — after the gate check and " +
-      "before anything of the meeting is read), and a meeting that does not exist takes exactly " +
-      "the same path. Same shape as POST /api/v1/edit/projects/:projectId/agent above.",
+      "first statement of the job (meeting/run.ts:152, :287, :362 — before the runtime gate, so " +
+      "this check is reached under the stub runtime too, and before anything of the meeting is " +
+      "read), and a meeting that does not exist takes exactly the same path. Same shape as " +
+      "POST /api/v1/edit/projects/:projectId/agent above.",
   },
 ];
 

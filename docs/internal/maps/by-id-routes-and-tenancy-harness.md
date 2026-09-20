@@ -42,7 +42,7 @@ four shapes in the tree, and knowing which one a handler uses is how you read it
 
 There is a fifth case that is not a scoping shape but decides what the caller sees: a route that
 opens an SSE stream answers 200 before the work begins, so its refusal arrives as a frame. The check
-is still the first thing the job does (`requireMeeting` at `packages/host/src/meeting/run.ts:152`,
+is still the first thing the job does (`requireMeeting` at `packages/host/src/meeting/run.ts:152`, `:287` and `:362`,
 `foldProject` at `packages/host/src/edit/agent-run.ts:154`).
 
 Neither the fourth shape nor the fifth gives a 404, and both are correct rather than gaps: an answer

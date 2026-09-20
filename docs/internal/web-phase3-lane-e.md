@@ -100,14 +100,19 @@ check: a delete that crossed the boundary shows up there and nowhere else.
 Each is a handler that was read, not a route that was waved through. They fall into two groups.
 
 **A stream answers 200 before the work starts**, so the refusal arrives as a frame. In every case the
-ownership check is the first thing the job does, before anything of the resource is read:
+ownership check is the first thing the job does, before anything of the resource is read. In
+`generateMinutes` and `runMeeting` it also comes **before** the live-runtime gate: the verifier found
+that with the gate first, the harness (which runs under `AGENTFORGE_RUNTIME=stub`) got a
+`runtime_stub` frame for the foreign id and the ghost id alike and never reached `requireMeeting`,
+so those two rows were passing vacuously. Ownership first means a keyless desk cannot be used to
+probe another tenant's meeting ids either.
 
 | Route | Where the check is |
 |---|---|
 | `POST /api/v1/edit/projects/:projectId/agent` | `foldProject(projectId, tenant.workspaceId)`, `packages/host/src/edit/agent-run.ts:154` |
 | `POST /api/v1/meetings/:meetingId/transcribe/stream` | `requireMeeting`, `packages/host/src/meeting/run.ts:152` (in `transcribeMeeting`) |
-| `POST /api/v1/meetings/:meetingId/minutes/stream` | `requireMeeting`, `packages/host/src/meeting/run.ts:285` (in `generateMinutes`) |
-| `POST /api/v1/meetings/:meetingId/run/stream` | `requireMeeting`, `packages/host/src/meeting/run.ts:359` (in `runMeeting`) |
+| `POST /api/v1/meetings/:meetingId/minutes/stream` | `requireMeeting`, `packages/host/src/meeting/run.ts:287` (in `generateMinutes`) |
+| `POST /api/v1/meetings/:meetingId/run/stream` | `requireMeeting`, `packages/host/src/meeting/run.ts:362` (in `runMeeting`) |
 
 **A route whose honest answer is silence:**
 
