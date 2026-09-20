@@ -3,7 +3,7 @@ import type { TenantContext } from "../../tenancy/types";
 import { invokeTool, type ToolDefinition } from "../define-tool";
 import { fetchPageText, webFetchTool } from "./web-fetch";
 
-const tenant: TenantContext = { organizationId: "org-1", workspaceId: "ws-1", userId: "user-1", role: "member" };
+const tenant: TenantContext = { tenantId: "local-tenant", organizationId: "org-1", workspaceId: "ws-1", userId: "user-1", role: "member" };
 const tool = webFetchTool as unknown as ToolDefinition;
 
 function stubFetch(body: string, init: { status?: number; contentType?: string } = {}) {

@@ -43,6 +43,11 @@ if (process.env.NODE_ENV !== "production") {
 
 sql.pragma("journal_mode = WAL");
 sql.pragma("foreign_keys = ON");
+// WAL gives concurrent readers with one writer, but without this a second writer gets
+// SQLITE_BUSY immediately instead of waiting. 5 s is the Phase 3 database-engine change
+// (docs/internal/web-phase3-tenancy-spec.md §3b); a SQLITE_BUSY still reaching a client
+// after it is the trigger for revisiting the engine choice.
+sql.pragma("busy_timeout = 5000");
 ensureSchema(sql);
 
 export const db = drizzle(sql, { schema });

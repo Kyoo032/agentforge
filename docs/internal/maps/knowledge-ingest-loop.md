@@ -1,6 +1,6 @@
 # Map — Knowledge ingest loop
 
-Last verified: 2026-09-20 at b482611
+Last verified: 2026-09-20 at 69afca9
 
 > **`knowledge.ts` and `knowledge-extract.ts` move often.** Every line number below was re-read at `b482611`, but these two files are rewritten frequently; if a number looks wrong, grep the function name rather than trusting it.
 
@@ -80,7 +80,7 @@ Two different things share the word "reindex":
 
 ### Tenant scoping
 
-Every read and write is parameterized by `workspace_id` in application code. There is **no schema-level enforcement**: `knowledge_chunks` is a bare FTS5 virtual table with `workspace_id` as a plain column (`packages/db/src/ensure-schema.ts:594-598`), no foreign key, no row-level security. The actual guarantee is the tests: `packages/host/src/knowledge-reindex.test.ts:314-322` (reindexing another workspace's source id resolves `{status:"missing"}` and leaves its chunks untouched), `:369-394` (a workspace sweep never touches another), `packages/host/src/knowledge-retrievals.test.ts:61-64` ("Another workspace never shows up in this one's count").
+Every read and write is parameterized by `workspace_id` in application code. There is **no schema-level enforcement**: `knowledge_chunks` is a bare FTS5 virtual table with `workspace_id` as a plain column (`packages/db/src/ensure-schema.ts:645-649`), no foreign key, no row-level security. The actual guarantee is the tests: `packages/host/src/knowledge-reindex.test.ts:314-322` (reindexing another workspace's source id resolves `{status:"missing"}` and leaves its chunks untouched), `:369-394` (a workspace sweep never touches another), `packages/host/src/knowledge-retrievals.test.ts:61-64` ("Another workspace never shows up in this one's count").
 
 ### Storage
 

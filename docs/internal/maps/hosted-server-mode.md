@@ -1,6 +1,6 @@
 # Map — Hosted server mode and the transport security pass
 
-Last verified: 2026-09-20 at b482611
+Last verified: 2026-09-20 at 69afca9
 
 ## Overview
 
@@ -74,7 +74,7 @@ Where the renderer sends it: `apps/web/lib/api-client.ts`. `withMutatingHeaders`
 11. CSRF cookie minted if needed (`:431-432`).
 12. Body read (`:434-445`): `MAX_BODY_BYTES = 26 * 1024 * 1024` enforced on the bytes actually read (`:30`, `:134-137`) → `413 payload_too_large`; a JSON parse failure → `400 invalid_json` (`:440-443`). Multipart is parsed by hand (`:161-194`).
 13. An abort controller wired to `res.on("close")` so a client that walks away cancels the run (`:449-454`).
-14. The `HostRequest` is built (`:455-472`). Its `workspaceId` is `cookies[WORKSPACE_COOKIE] || readSelectedWorkspaceId() || null` (`:470`) — `WORKSPACE_COOKIE = "agentforge_workspace"` (`packages/core/src/local-owner.ts:6`, re-exported `packages/host/src/workspace.ts:6`). That cookie is a per-request desk selection and is never promoted to `workspace-id.txt`; the handler-set copy is `SameSite=Strict; HttpOnly` by the serialiser's defaults (`http-adapter.ts:201-210`, `packages/host/src/workspace.ts:26-28`).
+14. The `HostRequest` is built (`:455-472`). Its `workspaceId` is `cookies[WORKSPACE_COOKIE] || readSelectedWorkspaceId() || null` (`:470`) — `WORKSPACE_COOKIE = "agentforge_workspace"` (`packages/core/src/local-owner.ts:14`, re-exported `packages/host/src/workspace.ts:6`). That cookie is a per-request desk selection and is never promoted to `workspace-id.txt`; the handler-set copy is `SameSite=Strict; HttpOnly` by the serialiser's defaults (`http-adapter.ts:201-210`, `packages/host/src/workspace.ts:26-28`).
 15. `dispatchMasked(request, context)` (`:473` → `:484-504`) calls `dispatch` and runs the result through `maskServerError`. Its `catch` is the belt to the router's brace: an exception on the way in or out would otherwise reach Express and be answered with its default HTML error page and stack. In server mode it becomes a `500 internal_error` plus one `log.error("request_failed", …)` line (`:491-502`); off server mode it is rethrown (`:488-490`).
 
 `maskServerError(result, serverMode)` (`:347-357`): only a **json** result with `status >= 500` is touched (`:348`). The reason code survives if it looks like one — `/^[a-z0-9_]+$/` (`:46`, `reasonCodeOf` at `:359-363`) — and everything else is replaced by `INTERNAL_ERROR_MESSAGE = "The server could not complete this request."` (`:43`). 4xx bodies are untouched: those are this repo's own honest messages, not a driver's.

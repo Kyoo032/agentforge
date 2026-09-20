@@ -4,6 +4,9 @@ import {
   HOME_WORKSPACE_SLUG,
   LEGACY_HOME_WORKSPACE_NAME,
   LOCAL_OWNER_ID,
+  LOCAL_TENANT_ID,
+  LOCAL_TENANT_NAME,
+  LOCAL_TENANT_SLUG,
   PERSONAL_ORG_SLUG,
   WORK_PRODUCT_MODES,
   pickWorkspaceId,
@@ -12,7 +15,7 @@ import {
   type TenantContext,
 } from "@agentforge/core";
 import type { Database } from "./client";
-import { organizationMembers, organizations, user, workspaceMembers, workspaces } from "./schema";
+import { organizationMembers, organizations, tenants, user, workspaceMembers, workspaces } from "./schema";
 
 export async function ensureLocalOwner(db: Database, preferredWorkspaceId?: string | null): Promise<TenantContext> {
   let [owner] = await db.select().from(user).where(eq(user.id, LOCAL_OWNER_ID)).limit(1);
@@ -25,11 +28,30 @@ export async function ensureLocalOwner(db: Database, preferredWorkspaceId?: stri
     });
   }
 
-  let [org] = await db.select().from(organizations).where(eq(organizations.slug, PERSONAL_ORG_SLUG)).limit(1);
+  // Migration 0015 writes this row, and `ensureTenantTables` heals it onto a baseline-stamped
+  // database. Re-asserting it here covers a test that builds a schema without either.
+  const [localTenant] = await db.select().from(tenants).where(eq(tenants.id, LOCAL_TENANT_ID)).limit(1);
+  if (!localTenant) {
+    await db.insert(tenants).values({
+      id: LOCAL_TENANT_ID,
+      slug: LOCAL_TENANT_SLUG,
+      name: LOCAL_TENANT_NAME,
+      status: "active",
+    });
+  }
+
+  // Scoped by tenant as well as slug: `organizations.slug` is only unique within a tenant from
+  // 0015 on, so slug alone would pick an arbitrary tenant's "personal" org once a second exists.
+  let [org] = await db
+    .select()
+    .from(organizations)
+    .where(and(eq(organizations.tenantId, LOCAL_TENANT_ID), eq(organizations.slug, PERSONAL_ORG_SLUG)))
+    .limit(1);
   if (!org) {
     const inserted = await db
       .insert(organizations)
       .values({
+        tenantId: LOCAL_TENANT_ID,
         name: "Personal",
         slug: PERSONAL_ORG_SLUG,
         industryPack: "generic",
@@ -91,6 +113,7 @@ export async function ensureLocalOwner(db: Database, preferredWorkspaceId?: stri
   }
 
   const tenant: TenantContext = {
+    tenantId: org.tenantId,
     organizationId: org.id,
     workspaceId,
     userId: LOCAL_OWNER_ID,

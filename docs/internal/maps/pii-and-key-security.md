@@ -1,6 +1,6 @@
 # Map — PII masking and key security
 
-Last verified: 2026-09-20 at b482611
+Last verified: 2026-09-20 at 69afca9
 
 ## Overview
 
@@ -95,7 +95,7 @@ Sealed today:
 | `agent_versions.system_prompt` | `packages/db/src/repos/drizzle-agent-repository.ts:87` (`sealText`, `:16-18`) | `:57` (`openText`, `:20-33`) |
 | `settings.enc` (whole file) | `packages/host/src/settings-store.ts:177-183` | `:237-252` |
 
-Plaintext on purpose: `threads.title` (`packages/db/src/schema.ts:183`, written unsealed at `packages/host/src/threads.ts:43` and `:252-255`), `agent_versions.model` (`packages/db/src/schema.ts:129`), `runs.usage` / `runs.error` (`packages/db/src/schema.ts:221-222`, written unsealed at `packages/host/src/threads.ts:322-325`), and the key fingerprints themselves.
+Plaintext on purpose: `threads.title` (`packages/db/src/schema.ts:208`, written unsealed at `packages/host/src/threads.ts:43` and `:252-255`), `agent_versions.model` (`packages/db/src/schema.ts:154`), `runs.usage` / `runs.error` (`packages/db/src/schema.ts:246-247`, written unsealed at `packages/host/src/threads.ts:322-325`), and the key fingerprints themselves.
 
 ### 6. The wrap key — three sources, one of them a trap
 

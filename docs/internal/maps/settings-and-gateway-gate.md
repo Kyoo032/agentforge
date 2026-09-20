@@ -4,7 +4,7 @@
 > The host-decides/renderer-displays rule below is unchanged; the Electron-only transport and wipe details are frozen desktop behaviour.
 > Decision record: [`web-pivot-2026-09-18.md`](../web-pivot-2026-09-18.md).
 
-Last verified: 2026-09-20 at b482611
+Last verified: 2026-09-20 at 69afca9
 
 > The 2026-09-17 "hide the endpoint" change was verified in the working tree when this page was
 > first written; it is committed as of `b482611`. `apps/web/components/settings-page.tsx`,

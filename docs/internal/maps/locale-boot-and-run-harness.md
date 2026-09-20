@@ -1,6 +1,6 @@
 # Map — App locale: boot freeze and the run harness
 
-Last verified: 2026-09-20 at b482611
+Last verified: 2026-09-20 at 69afca9
 
 ## Overview
 

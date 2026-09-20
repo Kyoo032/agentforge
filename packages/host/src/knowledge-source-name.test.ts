@@ -17,6 +17,7 @@ import { SOURCE_NAME_MAX, sanitizeSourceName } from "./knowledge-text";
 
 function tenant(): TenantContext {
   return {
+    tenantId: "local-tenant",
     organizationId: "org-source-name",
     workspaceId: `ws-name-${crypto.randomUUID()}`,
     userId: "user-source-name",

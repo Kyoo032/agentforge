@@ -1,6 +1,6 @@
 # Map — Chat send
 
-Last verified: 2026-09-20 at b482611
+Last verified: 2026-09-20 at 69afca9
 
 Supersedes the `## how — Chat send (pstack) — 2026-09-06` block in [`../0.14-changelog.md`](../0.14-changelog.md), which described the 0.14 shape. Several details in it are no longer true; see Gotchas.
 

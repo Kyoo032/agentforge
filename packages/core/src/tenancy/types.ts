@@ -11,6 +11,8 @@ export const INPUT_MODALITIES = ["text", "image", "video"] as const;
 export type InputModality = (typeof INPUT_MODALITIES)[number];
 
 export type TenantContext = {
+  /** The whitelabel partner the row belongs to. `LOCAL_TENANT_ID` on desktop and webdev. */
+  tenantId: string;
   organizationId: string;
   workspaceId: string;
   userId: string;

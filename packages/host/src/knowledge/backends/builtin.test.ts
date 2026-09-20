@@ -15,6 +15,7 @@ import { CHUNK_INDEX_QUERIES } from "./builtin";
 
 function tenant(): TenantContext {
   return {
+    tenantId: "local-tenant",
     organizationId: "org-builtin-plan",
     workspaceId: `ws-builtin-${crypto.randomUUID()}`,
     userId: "user-builtin-plan",

@@ -9,6 +9,7 @@ import { addFileSource, listSources } from "./knowledge";
 
 function tenant(): TenantContext {
   return {
+    tenantId: "local-tenant",
     organizationId: "org-file-source-test",
     workspaceId: `ws-file-${crypto.randomUUID()}`,
     userId: "user-file-source-test",

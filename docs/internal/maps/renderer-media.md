@@ -1,6 +1,6 @@
 # Map — Renderer media: what an answer is allowed to load
 
-Last verified: 2026-09-20 at b482611
+Last verified: 2026-09-20 at 69afca9
 
 ## Overview
 

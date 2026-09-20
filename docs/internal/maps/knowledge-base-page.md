@@ -1,6 +1,6 @@
 # Map — Knowledge Base page
 
-Last verified: 2026-09-20 at b482611
+Last verified: 2026-09-20 at 69afca9
 
 The page half of Knowledge. The ingest pipeline behind it — extract, guard, chunk, embed, work cards, tenant scoping — is [`knowledge-ingest-loop.md`](knowledge-ingest-loop.md); this page does not repeat it. Citations are anchored at `b482611`; `packages/host/src/knowledge.ts` and `apps/web/components/knowledge-page.tsx` are rewritten often, so grep the function or testid name if a number looks wrong.
 

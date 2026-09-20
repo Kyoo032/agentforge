@@ -1,6 +1,6 @@
 # Map — Database and migrations
 
-Last verified: 2026-09-20 at b482611
+Last verified: 2026-09-20 at 69afca9
 
 ## Overview
 
@@ -10,10 +10,13 @@ wraps the secrets inside it. Every other package reaches storage through it — 
 imports `db` for rows and `@agentforge/db/vault-key` for paths.
 
 It is not a database abstraction. Postgres is refused out loud, not fallen back from
-(`packages/db/src/vault-key.ts:23-27`), and there is no connection pool, no migration CLI in the
-boot path, and no tenant dimension: no `tenants` table exists in the schema today and no table
-carries a `tenant_id` column except `auth_sessions`, which stores one as a plain string for the
-hosted session row (`packages/db/src/schema.ts:663-681`).
+(`packages/db/src/vault-key.ts:23-27`), and there is no connection pool and no migration CLI in the
+boot path. The tenant dimension landed with Phase 3 lane B and is deliberately narrow: one `tenants`
+table (`packages/db/src/schema.ts:32-39`) and exactly one `tenant_id` foreign key, on `organizations`
+(`:45-47`), because every content table already reaches an organization directly or through
+`workspaces.organization_id`. `auth_sessions` carries a `tenant_id` as well (`:692`), but as a plain
+string copied off the session rather than a reference. The data model itself is mapped on its own
+page: [tenancy-schema.md](tenancy-schema.md).
 
 ## How it works
 
@@ -95,34 +98,34 @@ packaged shell's `bootstrapPackaged()` (`apps/desktop/main.cjs:631`).
 
 ### The schema
 
-`packages/db/src/schema.ts` (681 lines) is Drizzle `sqliteTable` declarations only — no queries. Two
+`packages/db/src/schema.ts` (706 lines) is Drizzle `sqliteTable` declarations only — no queries. Two
 helpers set the house conventions: `uuidPk()` gives a text primary key defaulted from
 `crypto.randomUUID()` (`:3-7`), and `createdAt()` gives a `timestamp_ms` integer (`:9-13`). Newer
 tables skip both and declare plain `text("id").primaryKey()` with raw integer timestamps
-(`artifacts`, `:598-615`).
+(`artifacts`, `:623-639`).
 
 The families:
 
 | Family | Tables | Scope columns |
 |---|---|---|
-| Identity and tenancy | `user` (`:15`), `organizations` (`:27`), `organization_members` (`:35`), `workspaces` (`:53`), `workspace_members` (`:72`) | `organization_id` from `organization_members` down; `workspaces` carries `organization_id` (`:57`) |
-| Agents | `agents` (`:93`), `agent_versions` (`:117`), `tools` (`:138`), `agent_tool_bindings` (`:152`) | `agents` carries both (`:97`, `:100`); `tools.organization_id` is **nullable** (`:142`) because platform tools are global |
-| Conversation | `threads` (`:169`), `messages` (`:189`), `runs` (`:206`), `tool_invocations` (`:231`) | `threads` carries both (`:173`, `:176`); the other three carry `organization_id` only |
-| Knowledge | `knowledge_soul` (`:249`), `knowledge_memories` (`:258`), `knowledge_sources` (`:270`), `knowledge_workspace_backend` (`:301`), `knowledge_backend_outbox` (`:322`), `knowledge_settings` (`:339`), `knowledge_vectors` (`:347`), `knowledge_retrievals` (`:372`), `knowledge_graph_nodes` (`:401`), `knowledge_graph_edges` (`:420`), `knowledge_verify` (`:438`), `knowledge_maps` (`:445`) | `workspace_id` on every one, as primary key on the singleton tables |
-| Media | `media` (`:453`) | `organization_id` only (`:457`) — no workspace column |
-| Edit | `edit_projects` (`:471`), `edit_ops` (`:495`), `edit_snapshots` (`:516`), `edit_jobs` (`:530`), `edit_cards` (`:557`), `edit_unplaced` (`:580`) | only `edit_projects` carries `organization_id` + `workspace_id` (`:475`, `:478`); the other five hang off `project_id` |
-| Job outputs | `artifacts` (`:598`), `datasets` (`:617`) | `workspace_id` only (`:602`, `:621`) |
-| Market | `market_cache` (`:641`) | **neither** — keyed `(ticker, kind)`, shared across the install (`:634-639`) |
-| Hosted sessions | `auth_sessions` (`:663`) | `tenant_id`, `user_id`, `org_id` as plain strings (`:667-669`); desktop and webdev never write it (`:661`) |
+| Identity and tenancy | `tenants` (`:32`), `user` (`:15`), `organizations` (`:41`), `organization_members` (`:60`), `workspaces` (`:78`), `workspace_members` (`:97`) | `organizations.tenant_id` (`:45`) is the only foreign key into `tenants`; `organization_id` from `organization_members` down; `workspaces` carries `organization_id` (`:82`) |
+| Agents | `agents` (`:118`), `agent_versions` (`:142`), `tools` (`:163`), `agent_tool_bindings` (`:177`) | `agents` carries both (`:122`, `:125`); `tools.organization_id` is **nullable** (`:167`) because platform tools are global |
+| Conversation | `threads` (`:194`), `messages` (`:214`), `runs` (`:231`), `tool_invocations` (`:256`) | `threads` carries both (`:198`, `:201`); the other three carry `organization_id` only |
+| Knowledge | `knowledge_soul` (`:274`), `knowledge_memories` (`:283`), `knowledge_sources` (`:295`), `knowledge_workspace_backend` (`:326`), `knowledge_backend_outbox` (`:347`), `knowledge_settings` (`:364`), `knowledge_vectors` (`:372`), `knowledge_retrievals` (`:397`), `knowledge_graph_nodes` (`:426`), `knowledge_graph_edges` (`:445`), `knowledge_verify` (`:463`), `knowledge_maps` (`:470`) | `workspace_id` on every one, as primary key on the singleton tables |
+| Media | `media` (`:478`) | `organization_id` only (`:482`) — no workspace column |
+| Edit | `edit_projects` (`:496`), `edit_ops` (`:520`), `edit_snapshots` (`:541`), `edit_jobs` (`:555`), `edit_cards` (`:582`), `edit_unplaced` (`:605`) | only `edit_projects` carries `organization_id` + `workspace_id` (`:500`, `:503`); the other five hang off `project_id` |
+| Job outputs | `artifacts` (`:623`), `datasets` (`:642`) | `workspace_id` only (`:627`, `:646`) |
+| Market | `market_cache` (`:666`) | **neither** — keyed `(ticker, kind)`, shared across the install (`:659-664`) |
+| Hosted sessions | `auth_sessions` (`:688`) | `tenant_id`, `user_id`, `org_id` as plain strings (`:692-694`); desktop and webdev never write it (`:686`) |
 
 Two tables exist only in SQL and have no Drizzle declaration, because they are FTS5 virtual tables:
 `knowledge_chunks` (`packages/db/drizzle/0003_knowledge.sql`) and `market_news_fts`
-(`packages/db/drizzle/0009_market.sql`). The schema file says so at `:638-639`.
+(`packages/db/drizzle/0009_market.sql`). The schema file says so at `:662-664`.
 
 ### Migrations
 
-`ensureSchema(sqlite)` (`packages/db/src/ensure-schema.ts:192-237`) runs on **every boot**, from
-`client.ts:46`. There is no separate migrate step in the app's start path.
+`ensureSchema(sqlite)` (`packages/db/src/ensure-schema.ts:192-238`) runs on **every boot**, from
+`client.ts:51`. There is no separate migrate step in the app's start path.
 
 `migrationsFolder()` (`:64-79`) resolves the committed folder: `AGENTFORGE_MIGRATIONS_DIR` when set
 *and existing* (`:66-72`), else `../../packages/db/drizzle` relative to `process.cwd()` (`:73-77`),
@@ -135,16 +138,19 @@ What `ensureSchema` then does:
    `drizzle-orm/migrator.js` (`readMigrations`, `:81-103`, hash at `:99`).
 2. Counts the 20 `REQUIRED_TABLES` (`:8-29`). A database with *some* but not all of them **refuses to
    run** — `"SQLite schema is partially initialized"` (`:197-202`) — unless the only missing ones are
-   the six edit tables (`missingOnlyEditTables`, `:31-42`), which are healed below.
+   the six edit tables (`missingOnlyEditTables`, `:40-42`), which are healed below.
 3. Turns `foreign_keys` **off** for the DDL (`:206`), because generated migrations are not
    topologically ordered and SQLite validates parents on `CREATE` when FKs are on. Back on at `:224`.
 4. Either **baseline-stamps** (all kernel tables present but zero journal rows: insert every
    migration's hash without running it, `:209-213`, `stampMigrations` at `:146-152`) or **applies
    pending** ones in one transaction, skipping anything whose `when` is not strictly greater than the
    newest applied `created_at` (`applyPendingMigrations`, `:154-176`, the comparison at `:163-165`).
-5. Runs eleven idempotent `ensure*` healers (`:225-235`) that re-declare or `ALTER` their way to the
+5. Runs twelve idempotent `ensure*` healers (`:225-236`) that re-declare or `ALTER` their way to the
    current shape for databases that were baseline-stamped past a migration they never actually ran.
-6. `assertKernelTables` (`:236`, defined `:642-648`) throws if anything is still missing.
+   `ensureTenantTables` (`:235`, defined `:418-452`) is the newest, and its header explains why
+   `tenants` is deliberately **not** in `REQUIRED_TABLES` (`:410-413`): an existing desktop database
+   has every other kernel table and no `tenants`, which would make step 2 throw on first launch.
+6. `assertKernelTables` (`:237`, defined `:693-699`) throws if anything is still missing.
 
 The committed migrations, in journal order (`packages/db/drizzle/meta/_journal.json`):
 
@@ -165,6 +171,7 @@ The committed migrations, in journal order (`packages/db/drizzle/meta/_journal.j
 | `0012_knowledge_vectors_model_idx.sql` | `knowledge_vectors_ws_model_idx` on `(workspace_id, model)` — the hybrid-retrieval lookup was a full table scan without it (`0012_knowledge_vectors_model_idx.sql:1-4`) |
 | `0013_knowledge_weknora.sql` | `knowledge_workspace_backend` and `knowledge_backend_outbox`. `knowledge_sources.external_id` is deliberately **not** here — a bare `ALTER` would fail on a second application, so `ensureKnowledgeBackendTables` owns it (`0013_knowledge_weknora.sql:13-18`) |
 | `0014_auth_sessions.sql` | `auth_sessions` + `auth_sessions_user_seen_idx`, `auth_sessions_expires_idx` |
+| `0015_tenants.sql` | `tenants` + `tenants_slug_unique`, the `local-tenant` row, `organizations.tenant_id` backfilled to it, and the move of organization slug uniqueness from `organizations_slug_unique` to `organizations_tenant_slug` (`0015_tenants.sql:42-46`). Additive and one-way: the runner has no `down` and SQLite before 3.35 cannot drop a column (`0015_tenants.sql:12-13`) |
 
 From `0010` onward each file re-declares its tables with `CREATE TABLE IF NOT EXISTS`, on the stated
 reasoning that a baseline-stamped database has the journal row but not necessarily the table
@@ -175,24 +182,31 @@ reasoning that a baseline-stamped database has the journal row but not necessari
 There is exactly one user row, and it is a constant, not a login:
 `LOCAL_OWNER_ID = "local-owner"`, `PERSONAL_ORG_SLUG = "personal"`, `HOME_WORKSPACE_SLUG = "home"`,
 `HOME_WORKSPACE_NAME = "Default"`, `LEGACY_HOME_WORKSPACE_NAME = "Home"`
-(`packages/core/src/local-owner.ts:1-5`).
+(`packages/core/src/local-owner.ts:1-14`). Phase 3 added the tenant trio beside them:
+`LOCAL_TENANT_ID = "local-tenant"`, `LOCAL_TENANT_SLUG = "local"`, `LOCAL_TENANT_NAME = "Local"`
+(`:7-9`). The id is deterministic rather than a UUID so a migrated desktop and a fresh install agree
+on it (`:2-6`).
 
-`ensureLocalOwner(db, preferredWorkspaceId?)` (`packages/db/src/ensure-local-owner.ts:17-101`) is
+`ensureLocalOwner(db, preferredWorkspaceId?)` (`packages/db/src/ensure-local-owner.ts:20-124`) is
 idempotent and runs on every tenant resolution (`packages/host/src/tenant.ts:38`). It, in order:
-inserts the owner row if absent (`:18-26`, email `local@agentforge.local`); inserts the `personal`
-org if absent (`:28-39`); creates the `home` workspace named `Default` with `WORK_PRODUCT_MODES` if
-the org owns none (`:41-53`); **renames a leftover `Home` to `Default`** on the home slug (`:55-59`);
-ensures the org membership (`:61-72`) and the workspace membership (`:79-91`); and returns the
-`TenantContext` (`:93-100`). The workspace is chosen by `pickWorkspaceId`
-(`packages/core/src/local-owner.ts:16-31`): the preferred id when it exists, else the `home` slug,
-else the first row, else `throw new Error("workspace_missing")`.
+inserts the owner row if absent (`:21-29`, email `local@agentforge.local`); re-asserts the
+`local-tenant` row (`:31-41`) for a test schema built without migration 0015 or the healer; looks up
+the `personal` org **by tenant and slug together** and inserts it with `tenantId: LOCAL_TENANT_ID`
+if absent (`:43-61`, the reason at `:43-44`: slug alone would pick an arbitrary tenant's "personal"
+org once a second tenant exists); creates the `home` workspace named `Default` with
+`WORK_PRODUCT_MODES` if the org owns none (`:63-75`); **renames a leftover `Home` to `Default`** on
+the home slug (`:77-81`); ensures the org membership (`:83-94`) and the workspace membership
+(`:101-113`); and returns the `TenantContext`, now carrying `tenantId: org.tenantId` (`:115-123`).
+The workspace is chosen by `pickWorkspaceId` (`packages/core/src/local-owner.ts:24-39`): the
+preferred id when it exists, else the `home` slug, else the first row, else
+`throw new Error("workspace_missing")`.
 
-The same file owns the workspace CRUD the rail uses: `listLocalWorkspaces` (`:103-105`),
-`createLocalWorkspace` (`:107-145`, slug collisions get a random 8-char suffix, up to 8 attempts,
-`:116-126`), `updateLocalWorkspace` (`:147-170`) and `deleteLocalWorkspace` (`:191-210`), which
-**refuses to delete the `home` desk** with `code: "protected"` (`:204-206`) and wipes that
+The same file owns the workspace CRUD the rail uses: `listLocalWorkspaces` (`:126-128`),
+`createLocalWorkspace` (`:130-168`, slug collisions get a random 8-char suffix, up to 8 attempts,
+`:139-149`), `updateLocalWorkspace` (`:170-193`) and `deleteLocalWorkspace` (`:214-233`), which
+**refuses to delete the `home` desk** with `code: "protected"` (`:227-229`) and wipes that
 workspace's knowledge rows through raw `db.$client` statements first (`wipeKnowledgeForWorkspace`,
-`:176-189`).
+`:199-212`).
 
 `packages/db/src/seed.ts` is the `db:seed` entry point: it registers the platform and university tool
 catalogs (`:14-15`), inserts any tool key not already present with `organizationId: null` (`:17-30`),
@@ -295,31 +309,35 @@ a different file than the app does, on exactly the environments where the app wo
 start.
 
 **`db:push` is not how the schema is applied.** Boot uses `ensureSchema` over the committed journal
-(`packages/db/src/client.ts:46`). `drizzle-kit push` diffs `src/schema.ts` against the live database
+(`packages/db/src/client.ts:51`). `drizzle-kit push` diffs `src/schema.ts` against the live database
 and writes no journal row, so a pushed database and a migrated one can end up stamped differently.
 
 **Baseline stamping means a journal row is not proof a migration ran.** A database with all 20 kernel
 tables and an empty journal gets every hash inserted without executing anything
 (`packages/db/src/ensure-schema.ts:209-213`). That is the whole reason the `ensure*` healers and the
-defensive `CREATE TABLE IF NOT EXISTS` in `0010`-`0014` exist. When you add a migration that
+defensive `CREATE TABLE IF NOT EXISTS` in `0010`-`0015` exist. When you add a migration that
 `ALTER`s a table, add a matching healer — a bare `ALTER` will fail on a second application.
 
 **A partially initialized database refuses to boot rather than repairing itself**
 (`packages/db/src/ensure-schema.ts:197-202`), with one carve-out for the six edit tables
-(`:31-42`). The error names the missing tables; the fix is to restore or delete the file, not to
+(`:40-42`). The error names the missing tables; the fix is to restore or delete the file, not to
 re-run migrations.
 
-**`meta/` holds only four snapshots** — `0000`, `0001`, `0002`, `0005` — for fifteen journal entries.
+**`meta/` holds only four snapshots** — `0000`, `0001`, `0002`, `0005` — for sixteen journal entries.
 `ensureSchema` never reads snapshots (it reads `_journal.json` and the `.sql` files,
 `packages/db/src/ensure-schema.ts:81-103`), so boot is unaffected; `drizzle-kit generate` is the tool
 that wants them, and it should be expected to behave oddly here.
 
 **Foreign keys are off during migration and on afterwards** (`:206`, `:224`), and `client.ts` sets
-`foreign_keys = ON` *before* calling `ensureSchema` (`:45-46`). The pragma you observe at runtime is
+`foreign_keys = ON` *before* calling `ensureSchema` (`:45`, `:51`). The pragma you observe at runtime is
 the post-migration one.
 
-**`busy_timeout` is not set.** The only pragmas are `journal_mode = WAL` and `foreign_keys = ON`
-(`packages/db/src/client.ts:44-45`). One writer is assumed.
+**`busy_timeout` is 5 s since Phase 3, and that is the whole concurrency story.** The pragmas are
+`journal_mode = WAL` (`packages/db/src/client.ts:44`), `foreign_keys = ON` (`:45`) and
+`busy_timeout = 5000` (`:50`). WAL gives concurrent readers with one writer; without the timeout a
+second writer got `SQLITE_BUSY` immediately instead of waiting. The comment above it (`:46-49`) makes
+a `SQLITE_BUSY` that still reaches a client the trigger for revisiting the engine choice, so treat
+one as a finding, not a flake.
 
 **The connection is cached on `globalThis` only outside production** (`:40-42`). In production every
 import of a fresh module graph opens a new handle — and skips the reset hook, which is gated on the
@@ -338,16 +356,16 @@ appears nowhere in the file; lines `37-51` are the constant declarations. Read t
 
 **`seed.ts` prints the wrong desk name.** Its success line says "Seeded local owner, Default
 workspace, and tools" (`packages/db/src/seed.ts:33`), which happens to match
-`HOME_WORKSPACE_NAME = "Default"` (`packages/core/src/local-owner.ts:4`) — but the workspace *slug*
-is `home` (`:3`), and `Home` is the legacy **name** that `ensureLocalOwner` migrates away from
-(`packages/db/src/ensure-local-owner.ts:55-59`). Name, slug and legacy name are three different
+`HOME_WORKSPACE_NAME = "Default"` (`packages/core/src/local-owner.ts:12`) — but the workspace *slug*
+is `home` (`:11`), and `Home` is the legacy **name** that `ensureLocalOwner` migrates away from
+(`packages/db/src/ensure-local-owner.ts:77-81`). Name, slug and legacy name are three different
 strings; do not match on the printed one.
 
 **A "Start over" removes `.master-key`** (`packages/host/src/handlers/settings.ts:277`). Anything
 still sealed with the old wrap key after that is unreadable by design — which is why the SQLite trio
 goes with it (`packages/db/src/reset.ts:29`, `:270`).
 
-**`market_cache` has no scope column** (`packages/db/src/schema.ts:641-652`). It is a read-through
+**`market_cache` has no scope column** (`packages/db/src/schema.ts:666-677`). It is a read-through
 cache keyed `(ticker, kind)` shared by every workspace on the install; it is not per-desk data and a
 desk wipe does not isolate it.
 
@@ -395,8 +413,13 @@ otherwise" with the tenancy model listed as an open decision at `:36`. `[Support
 The row's own wording about `NODE_ENV` no longer matches the code (see Gotchas), so this is the
 *intent* the row records, not a description of the current gate. `[Supported]`
 
-**Claim: `packages/db` has no tenant dimension today and the hosted server is single-tenant.**
-`packages/host/src/tenant.ts:28-33` records it as a Phase 3 obligation — "until Phase 3 lands the
-hosted server is single-tenant: every signed-in browser shares one desk" — and
-`packages/host/src/handlers/settings.ts:330-332` gives the same reason for disabling "Start over" on
-the server. `[Supported]`
+**Claim: the schema has a tenant dimension, but the hosted server still resolves one tenant.**
+The two halves are separate lanes and only the first has landed. The schema half is real:
+`tenants` and `organizations.tenant_id` exist (`packages/db/src/schema.ts:32-39`, `:45-47`) and
+migration 0015 backfills every existing row to `local-tenant`. The resolution half has not:
+`getTenant` still calls `ensureLocalOwner` and ignores the session
+(`packages/host/src/tenant.ts:35-38`), and its header records the obligation in so many words —
+"until Phase 3 lands the hosted server is single-tenant: every signed-in browser shares one desk",
+naming the 102 by-id call sites that move with it (`:27-34`). `ensureTenant` exists but nothing
+calls it yet, by design (`packages/db/src/tenants.ts:16-25`). `packages/host/src/handlers/settings.ts:330-332`
+still gives single-tenancy as the reason "Start over" is disabled on the server. `[Direct]`

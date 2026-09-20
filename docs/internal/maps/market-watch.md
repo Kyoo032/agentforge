@@ -1,6 +1,6 @@
 # Map — Market watch
 
-Last verified: 2026-09-20 at b482611
+Last verified: 2026-09-20 at 69afca9
 
 > The rail block was extracted into a shared `rail-submenu.tsx` by a parallel Finance change; `rail-market-specialists.tsx` is now the 82-line adapter that names it.
 

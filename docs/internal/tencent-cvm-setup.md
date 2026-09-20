@@ -597,6 +597,23 @@ confirmation unless you pass `--yes`.
 the migration. Take a backup before any deploy that carries one — which, from Phase 3 on, is most of
 them.
 
+`0015_tenants.sql` is the first one where that matters in practice. It adds the `tenants` table and
+`organizations.tenant_id`, backfills every existing organization to the `local-tenant` row, and moves
+organization-slug uniqueness from `organizations_slug_unique` to `(tenant_id, slug)`. It says so in
+its own header: the runner is forward-only and has no `down`, and the SQLite build in the image
+cannot drop a column at all (`packages/db/drizzle/0015_tenants.sql:12-13`). Recovering from a bad
+0015 means restoring the data volume, so run `backup.sh` immediately before the deploy that first
+carries it and keep that archive until the site has been up for a day:
+
+```sh
+cd /srv/dpsbuddy
+sh webapp-deploy/scripts/backup.sh          # note the archive name it prints
+sh webapp-deploy/scripts/deploy.sh
+```
+
+The change is additive and touches no content table, so an existing database opens with no re-seed.
+On a first deploy to an empty volume there is nothing to back up and nothing to undo.
+
 **If something is actively wrong**, take the site read-only first and diagnose second. Two commented
 lines in the `Caddyfile` plus a proxy restart do it in about a second, and reads keep working. That
 and the rest of the incident runbook — evidence preservation, wrap-key rotation, the 72-hour UU PDP

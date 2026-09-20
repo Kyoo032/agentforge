@@ -4,7 +4,7 @@
 > Everything below stays true and keeps working; it just gets no new features, and no new cut unless Kyo asks.
 > Decision record: [`web-pivot-2026-09-18.md`](../web-pivot-2026-09-18.md).
 
-Last verified: 2026-09-20 at b482611
+Last verified: 2026-09-20 at 69afca9
 
 ## Overview
 

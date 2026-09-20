@@ -3,6 +3,7 @@ import { invokeTool, type TenantContext } from "@agentforge/core";
 import { courseCatalogSearchTool } from "./course-catalog";
 
 const tenant: TenantContext = {
+  tenantId: "local-tenant",
   organizationId: "org-1",
   workspaceId: "ws-1",
   userId: "user-1",

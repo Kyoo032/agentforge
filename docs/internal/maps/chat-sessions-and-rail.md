@@ -1,6 +1,6 @@
 # Map — Chat sessions and the rail
 
-Last verified: 2026-09-20 at b482611
+Last verified: 2026-09-20 at 69afca9
 
 The sibling page [`chat-send.md`](chat-send.md) owns one turn inside a session. This page owns the sessions themselves: where the list comes from, how a row opens a thread, and how the pane, the list and the desk stay in step. The rail block (`rail-recent-threads.tsx`, `use-chat-threads.ts`, `thread-groups.ts`, `threads-events.ts`) landed in 0.14.27 ([`../0.14.27-changelog.md`](../0.14.27-changelog.md), PR #52); every citation below is re-anchored to the committed tree at `b482611`.
 

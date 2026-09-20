@@ -1,6 +1,6 @@
 # Map — Portal browser session (hosted server)
 
-Last verified: 2026-09-20 at b482611
+Last verified: 2026-09-20 at 69afca9
 
 ## Overview
 
@@ -188,7 +188,7 @@ Three cookies, one serialiser, one origin:
 |---|---|---|---|
 | session | `__Host-agentforge_session` / `agentforge_session` (`packages/host/src/auth/session.ts:29-30`) | `HttpOnly; SameSite=Lax; Path=/; Secure` on the server | the auth routes (`packages/host/src/auth/routes.ts:150-163`) |
 | CSRF | `__Host-agentforge_csrf` / `agentforge_csrf` (`packages/host/src/csrf.ts:21`, `packages/host/src/csrf.ts:24`) | `Path=/; SameSite=Lax; Secure` on the server — deliberately **not** `HttpOnly` (`packages/host/src/csrf.ts:74-77`) | the adapter itself, on the first GET that arrives without one (`packages/host/src/http-adapter.ts:431-432`) |
-| workspace | `agentforge_workspace` (`packages/core/src/local-owner.ts:6`) | `SameSite=Strict; HttpOnly` by the serialiser's defaults (`packages/host/src/http-adapter.ts:206-207`) | handlers; read back into `request.workspaceId` (`packages/host/src/http-adapter.ts:470`) |
+| workspace | `agentforge_workspace` (`packages/core/src/local-owner.ts:14`) | `SameSite=Strict; HttpOnly` by the serialiser's defaults (`packages/host/src/http-adapter.ts:206-207`) | handlers; read back into `request.workspaceId` (`packages/host/src/http-adapter.ts:470`) |
 
 The session cookie and the CSRF cookie make exactly the same `secure`-picks-the-name split, for the
 same reason, and neither reads the other's mode. They are otherwise independent controls in series:
@@ -208,10 +208,10 @@ itself (`packages/host/src/http-adapter.ts:463`), which is what `readSessionCook
 `packages/db/drizzle/meta/_journal.json:103-109`). Nine columns, epoch milliseconds throughout, and
 two indexes: `auth_sessions_user_seen_idx` on `(user_id, last_seen_at)` for the Phase 5 seat counter,
 and `auth_sessions_expires_idx` on `expires_at`. The drizzle definition is
-`packages/db/src/schema.ts:663-681`.
+`packages/db/src/schema.ts:688-706`.
 
 Every statement is `IF NOT EXISTS`, and the same DDL is mirrored in
-`ensureAuthSessionTables` (`packages/db/src/ensure-schema.ts:385-401`, called at
+`ensureAuthSessionTables` (`packages/db/src/ensure-schema.ts:386-452`, called at
 `packages/db/src/ensure-schema.ts:234`), because a database baseline-stamped past this migration has
 the journal row without the table.
 

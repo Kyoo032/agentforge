@@ -1,6 +1,6 @@
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { ApiError, modeMessage, videoCapabilities, type TenantContext } from "@agentforge/core";
 import { db, editUnplaced, media } from "@agentforge/db";
 import { jsonError, jsonOk } from "../errors";
@@ -154,6 +154,7 @@ export async function handlePostEditOps(request: HostRequest): Promise<HostResul
       }),
       {
         actor: "owner",
+        workspaceId: tenant.workspaceId,
         parent: typeof body.parent === "string" ? body.parent : null,
         clock: typeof body.clock === "number" ? body.clock : undefined,
       },
@@ -162,18 +163,6 @@ export async function handlePostEditOps(request: HostRequest): Promise<HostResul
   } catch (error) {
     return jsonError(error);
   }
-}
-
-/**
- * A job id alone says nothing about who owns it. The caller has already proved the project belongs
- * to its desk; this pins the job to that same project so one desk's id cannot reach another's job.
- */
-async function jobInProject(jobId: string, projectId: string): Promise<Awaited<ReturnType<typeof getEditJob>>> {
-  const job = await getEditJob(jobId);
-  if (job.projectId !== projectId) {
-    throw new ApiError("not_found", "Edit job not found", 404);
-  }
-  return job;
 }
 
 export async function handlePostEditUndo(request: HostRequest): Promise<HostResult> {
@@ -186,7 +175,7 @@ export async function handlePostEditUndo(request: HostRequest): Promise<HostResu
     if (!cardId) {
       return jsonOk({ error: { code: "invalid_request", message: "cardId is required" } }, 400);
     }
-    return jsonOk(await undoCard(request.params.projectId, cardId));
+    return jsonOk(await undoCard(request.params.projectId, cardId, tenant.workspaceId));
   } catch (error) {
     return jsonError(error);
   }
@@ -196,7 +185,7 @@ export async function handlePostEditKeep(request: HostRequest): Promise<HostResu
   try {
     const tenant = await getTenant(request.workspaceId);
     await foldProject(request.params.projectId, tenant.workspaceId);
-    return jsonOk(await keepCard(request.params.projectId, request.params.cardId));
+    return jsonOk(await keepCard(request.params.projectId, request.params.cardId, tenant.workspaceId));
   } catch (error) {
     return jsonError(error);
   }
@@ -311,7 +300,7 @@ export async function handlePostEditImport(request: HostRequest): Promise<HostRe
           },
         },
       ],
-      { actor: "owner" },
+      { actor: "owner", workspaceId: tenant.workspaceId },
     );
     return jsonOk({ asset: applied.doc.assets[assetId], op: applied.applied[0], clipId }, 201);
   } catch (error) {
@@ -395,7 +384,7 @@ export async function handleGetEditJob(request: HostRequest): Promise<HostResult
   try {
     const tenant = await getTenant(request.workspaceId);
     await foldProject(request.params.projectId, tenant.workspaceId);
-    return jsonOk(mapJob(await jobInProject(request.params.jobId, request.params.projectId)));
+    return jsonOk(mapJob(await getEditJob(request.params.jobId, request.params.projectId)));
   } catch (error) {
     return jsonError(error);
   }
@@ -405,8 +394,8 @@ export async function handlePostEditJobCancel(request: HostRequest): Promise<Hos
   try {
     const tenant = await getTenant(request.workspaceId);
     await foldProject(request.params.projectId, tenant.workspaceId);
-    await jobInProject(request.params.jobId, request.params.projectId);
-    return jsonOk(mapJob(await cancelEditJob(request.params.jobId)));
+    await getEditJob(request.params.jobId, request.params.projectId);
+    return jsonOk(mapJob(await cancelEditJob(request.params.jobId, request.params.projectId)));
   } catch (error) {
     return jsonError(error);
   }
@@ -436,7 +425,7 @@ export async function handleGetEditExportFile(request: HostRequest): Promise<Hos
   try {
     const tenant = await getTenant(request.workspaceId);
     await foldProject(request.params.projectId, tenant.workspaceId);
-    const job = await jobInProject(request.params.jobId, request.params.projectId);
+    const job = await getEditJob(request.params.jobId, request.params.projectId);
     const file = job.outputAssetIdsJson?.[0];
     if (!file || job.status !== "succeeded") {
       return jsonOk({ error: { code: "not_found", message: "Export is not ready" } }, 404);
@@ -461,9 +450,13 @@ export async function handlePostEditUnplacedPlace(request: HostRequest): Promise
     const projectId = request.params.projectId;
     const doc = await foldProject(projectId, tenant.workspaceId);
     const body = asRecord(request.body);
-    const rows = await db.select().from(editUnplaced).where(eq(editUnplaced.id, request.params.itemId)).limit(1);
+    const rows = await db
+      .select()
+      .from(editUnplaced)
+      .where(and(eq(editUnplaced.id, request.params.itemId), eq(editUnplaced.projectId, projectId)))
+      .limit(1);
     const item = rows[0];
-    if (!item || item.projectId !== projectId) {
+    if (!item) {
       return jsonOk({ error: { code: "not_found", message: "Unplaced item not found" } }, 404);
     }
     const clipId = crypto.randomUUID();
@@ -486,12 +479,12 @@ export async function handlePostEditUnplacedPlace(request: HostRequest): Promise
           },
         },
       ],
-      { actor: "owner" },
+      { actor: "owner", workspaceId: tenant.workspaceId },
     );
     await db
       .update(editUnplaced)
       .set({ placedClipId: clipId })
-      .where(eq(editUnplaced.id, item.id));
+      .where(and(eq(editUnplaced.id, item.id), eq(editUnplaced.projectId, projectId)));
     return jsonOk({ applied: applied.applied, item: { ...mapUnplaced(item), placedClipId: clipId } });
   } catch (error) {
     return jsonError(error);
@@ -500,11 +493,15 @@ export async function handlePostEditUnplacedPlace(request: HostRequest): Promise
 
 export async function handlePostEditUnplacedDiscard(request: HostRequest): Promise<HostResult> {
   try {
-    await getTenant(request.workspaceId);
+    const tenant = await getTenant(request.workspaceId);
+    const projectId = request.params.projectId;
+    // Scope first, exactly as ...Place does: edit_unplaced carries only project_id, so without this
+    // the item id alone would soft-delete and read back another desk's row.
+    await foldProject(projectId, tenant.workspaceId);
     const rows = await db
       .update(editUnplaced)
       .set({ discardedAt: new Date() })
-      .where(eq(editUnplaced.id, request.params.itemId))
+      .where(and(eq(editUnplaced.id, request.params.itemId), eq(editUnplaced.projectId, projectId)))
       .returning();
     if (!rows[0]) {
       return jsonOk({ error: { code: "not_found", message: "Unplaced item not found" } }, 404);
