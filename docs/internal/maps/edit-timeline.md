@@ -1,6 +1,6 @@
 # Map — Edit timeline and agent
 
-Last verified: 2026-09-20 at b482611
+Last verified: 2026-09-20 at a504555
 
 ## Overview
 
@@ -307,9 +307,13 @@ stream; `edit-export-progress` shows while it is live and `edit-export-download`
 The job itself runs in `packages/host/src/edit/jobs.ts:126-131` → `render`
 (`packages/host/src/edit/ffmpeg/recipes.ts:221-261`): write an `.ass` document for titles and
 captions, compile the concat/scale/pad filter graph (`compileFilterGraph`, `:170-195`), and run ffmpeg
-into `data/edit/<projectId>/export-<uuid>.mp4`. Every input and output path is checked against the
-project's allow-list roots (`editAllowlistRoots` = media root + that project's scratch dir,
-`packages/host/src/edit/ffmpeg/paths.ts:46-48`).
+into `data/edit/<projectId>/export-<uuid>.mp4` — or, for a tenant other than `local-tenant`,
+`data/tenants/<tenantId>/edit/<projectId>/…` (Phase 3 lane D; see [`tenant-storage.md`](tenant-storage.md)).
+Every input and output path is checked against the allow-list for that tenant and project
+(`editAllowlist({ tenantId, projectId })` = that tenant's media root + that project's scratch dir, plus the
+`denied` list that keeps the local tenant out of `tenants/`, `packages/host/src/edit/ffmpeg/paths.ts:41-74`).
+The job runner has no request to read a tenant from, so it reads one by project id through `workerTenantId`
+(`packages/host/src/edit/ops.ts:110-130`), the twin of lane A's `workerWorkspaceId`.
 
 ### Failure modes
 
@@ -318,7 +322,7 @@ project's allow-list roots (`editAllowlistRoots` = media root + that project's s
 | ffmpeg missing | `resolveFfmpeg` via `getEditDoctor` | `edit-needs-ffmpeg` banner with an install command and `ffmpeg-recheck`; probe/cut/captions/export refuse |
 | No gateway key | `hasOpenai` false | `edit-needs-key` in the Generate tab, `edit-generate-submit` disabled; everything else still works |
 | Gateway gate closed | `requireGatewayAllowed` (`handlers/edit.ts:326`, `:546`) | flat `403 gateway_blocked`, no stream; the composer surfaces `edit.errors.agentFailed` |
-| Unsupported / oversized upload | `assertEditUpload` (`handlers/edit.ts:600-607`) | `400 invalid_request` / `unsupported_content_type` |
+| Unsupported / oversized upload | `assertEditUpload` (`handlers/edit.ts:598-605`) | `400 invalid_request` / `unsupported_content_type` |
 | ffmpeg cannot read the upload | probe catch (`handlers/edit.ts:257-270`) | `400 unsupported_media`, the saved file is unlinked |
 | `sourcePath` over HTTP | `handlers/edit.ts:214-217` | `400` — IPC only |
 | Op invalid (duplicate id, split outside the clip) | `applyOp` (`packages/core/src/edit/ops.ts:342-551`) | server side: the append throws, `jsonError` → 400. **Renderer side: uncaught, the studio unmounts** — see Gotchas |
@@ -504,8 +508,8 @@ the handler would otherwise `readFile` an arbitrary absolute path on behalf of a
 path came from the OS file dialog (`pickMedia`), not from the page. **Confidence: high for the
 mechanism, high for the motive given the shape of the check.**
 
-**Why every ffmpeg path goes through an allow-list.** `[Direct]` `editAllowlistRoots`
-(`packages/host/src/edit/ffmpeg/paths.ts:46-48`) is the media root plus that one project's scratch
+**Why every ffmpeg path goes through an allow-list.** `[Direct]` `editAllowlist`
+(`packages/host/src/edit/ffmpeg/paths.ts:63-74`) is that tenant's media root plus that one project's scratch
 dir, and `assertInsidePath` rejects empty paths, NUL bytes, UNC/device paths and drive-relative paths
 (`:61-73`) before resolving. `render` and `frameAt` run every input and output through it
 (`recipes.ts:225`, `:228`, `:233`). `[Inferred]` ffmpeg takes paths from a document that an agent can

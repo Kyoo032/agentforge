@@ -1,6 +1,6 @@
 # Map — PII masking and key security
 
-Last verified: 2026-09-17 at 01ea70a (working tree)
+Last verified: 2026-09-20 at a504555
 
 ## Overview
 
@@ -112,7 +112,7 @@ The trap is `apps/desktop/main.cjs:293-297`: if keytar throws, the catch returns
 
 ### 7. `settings.enc`
 
-Path `resolve(localDataDir(), "settings.enc")` (`packages/host/src/settings-store.ts:26-28`), legacy plaintext sibling `settings.json` (`:30-32`). File shape `SettingsFileV2` (`:119-123`): `{ version: 2, locale?, workspaces: Record<workspaceId, StoredSecrets> }` — settings are **per workspace**, which is why `saveSettings` takes a `workspaceId`. `StoredSecrets` (`packages/core/src/secrets.ts:6-50`) holds the gateway key `openaiApiKey`, the non-GTM extras `googleApiKey` / `anthropicApiKey` / `volcengineApiKey`, `toolKeys`, tool backends, model defaults and the WeKnora sidecar creds.
+Path `resolve(tenantDataDir(tenantId), "settings.enc")` (`encryptedSettingsPath`, `packages/host/src/settings-store.ts:59-61`), legacy plaintext sibling `settings.json` (`:63-65`). `tenantDataDir` is `localDataDir()` for `local-tenant` and `<localDataDir()>/tenants/<tenantId>` for every other tenant (Phase 3 lane D; [`tenant-storage.md`](tenant-storage.md)), so a desktop install's path is unchanged. File shape `SettingsFileV2` (`:151-155`): `{ version: 2, locale?, workspaces: Record<workspaceId, StoredSecrets> }` — settings are **per tenant in the file, per workspace in the map**, which is why `saveSettings` takes a `SettingsScope` (`:40`). `StoredSecrets` (`packages/core/src/secrets.ts:6-50`) holds the gateway key `openaiApiKey`, the non-GTM extras `googleApiKey` / `anthropicApiKey` / `volcengineApiKey`, `toolKeys`, tool backends, model defaults and the WeKnora sidecar creds.
 
 Writer `persistEncrypted` (`:179-185`) → `encryptJson(file, getLocalVaultKey())`. Reader `loadEncryptedPayload` (`:241-256`) → `isEnvelope` check then `decryptJson`.
 
@@ -193,7 +193,7 @@ Doctor mirrors the same gate: `.cursor/skills/verify-agentforge/scripts/doctor.m
 - **The fingerprint is 48 bits.** `sha256:` plus 12 hex characters (`packages/core/src/security/fingerprint.ts:13-14`). It identifies which key is saved; it is not a proof of possession and must never be pasted into `openai-key`.
 - **Extras have fingerprints but no GTM UI.** `googleKeyFingerprint` / `anthropicKeyFingerprint` / `volcengineKeyFingerprint` are always in the response (`packages/core/src/secrets.ts:239-241`) even though Settings shows only `hasGoogle` / `hasAnthropic` / `hasVolcengine`. Do not read a non-null extras fingerprint as a UI regression.
 - **`AGENTFORGE_PACKAGED` is never set.** `isPackagedRuntime()` (`packages/core/src/gateway/pinned.ts:25-27`) reads it, `gatewayUrlOverrideAllowed()` (`:34-36`) depends on it, and the comment at `:24` says "`main.cjs` sets this before `host.cjs` loads" — but a repo-wide grep finds it only in `pinned.ts` and `pinned.test.ts`. `apps/desktop/main.cjs:79-81` sets `AGENTFORGE_PRODUCT_NAME` / `_GATEWAY_NAME` / `_GATEWAY_URL` and nothing else. So in a packaged build the "dev/test hook" is live — which is exactly how Kemenkeu AI and AIHub Metranet get their `https://aihub.metranet.co.id/v1` lock, and also why the pin is not actually enforced there. See `findings.md` for this run.
-- **Settings are per workspace.** `settings.enc` is `{ workspaces: { <id>: StoredSecrets } }` (`packages/host/src/settings-store.ts:119-123`). A key saved on one desk is not a key on another, and `clearGatewayKeyEverywhere` (`:371-386`) exists precisely because the per-workspace shape makes "remove my key" a multi-row operation.
+- **Settings are per tenant, then per workspace.** One `settings.enc` per tenant, and inside it `{ workspaces: { <id>: StoredSecrets } }` (`packages/host/src/settings-store.ts:151-155`). A key saved on one desk is not a key on another, and `clearGatewayKeyEverywhere(scope)` (`:419-434`) exists precisely because the per-workspace shape makes "remove my key" a multi-row operation — it clears every desk of **one tenant**, not of the install.
 - **`apps/desktop/host.cjs` is a build artifact** (gitignored, `.gitignore:35`) and is regenerated while a dev build watches. Never cite `file:line` in it; the tracked source is `apps/desktop/main.cjs`.
 
 ## Verify

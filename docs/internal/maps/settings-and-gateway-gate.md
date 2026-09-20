@@ -4,7 +4,7 @@
 > The host-decides/renderer-displays rule below is unchanged; the Electron-only transport and wipe details are frozen desktop behaviour.
 > Decision record: [`web-pivot-2026-09-18.md`](../web-pivot-2026-09-18.md).
 
-Last verified: 2026-09-17 at 01ea70a (working tree)
+Last verified: 2026-09-20 at a504555
 
 > The 2026-09-17 "hide the endpoint" change is verified in the **working tree**, not in `01ea70a`:
 > `apps/web/components/settings-page.tsx`, `apps/web/components/onboarding-screen.tsx` and
@@ -26,14 +26,21 @@ the renderer branches on; it never re-derives a decision from `hasOpenai` or fro
 
 ### Settings per desk
 
-Despite the name, there is **one encrypted file**, not a directory per desk: `<localDataDir()>/settings.enc`,
-holding `{ version: 2, locale, workspaces: { [workspaceId]: StoredSecrets } }` — the type is `SettingsFileV2`
-(`packages/host/src/settings-store.ts:119-123`). "Per desk" is a key in that map.
+**One encrypted file per tenant, one slice per desk inside it.** Phase 3 lane D split the file; the slices
+inside it are unchanged. `encryptedSettingsPath(tenantId)` (`packages/host/src/settings-store.ts:59-61`)
+answers `<localDataDir()>/settings.enc` for `local-tenant` and
+`<localDataDir()>/tenants/<tenantId>/settings.enc` for every other tenant — see
+[`tenant-storage.md`](tenant-storage.md) for why the local tenant keeps the bare path. The file holds
+`{ version: 2, locale, workspaces: { [workspaceId]: StoredSecrets } }` — the type is `SettingsFileV2`
+(`:151-155`). "Per desk" is a key in that map; "per tenant" is which file.
 
-`loadSettings(workspaceId?)` / `saveSettings(patch, workspaceId?)` (`packages/host/src/settings-store.ts:329-346`)
-resolve the desk through `resolveSettingsWorkspaceId` (`:187-193`): explicit id → `readSelectedWorkspaceId()`
-→ `FALLBACK_SETTINGS_WORKSPACE`. `sliceFor()` (`:195-204`) picks that desk's slice, falling through to the
-`LEGACY_SETTINGS_WORKSPACE` slice **only** when the resolved id is the fallback (`:200-201`).
+`loadSettings(scope?)` / `saveSettings(patch, scope?)` (`packages/host/src/settings-store.ts:366-385`) take a
+`SettingsScope` (`:40`): a `TenantContext`, or a bare desk id. `resolveSettingsScope` (`:44-56`) turns either
+into `{ tenantId, workspaceId }` — and a bare desk id **throws `tenant_required` in server mode**, because a
+hosted call that cannot name its tenant must not fall back to the local tenant's file. The desk half still
+goes through `resolveSettingsWorkspaceId` (`:225-231`): explicit id → `readSelectedWorkspaceId()` →
+`FALLBACK_SETTINGS_WORKSPACE`. `sliceFor()` (`:233-242`) picks that desk's slice, falling through to the
+`LEGACY_SETTINGS_WORKSPACE` slice **only** when the resolved id is the fallback.
 
 The two sentinels are string constants, not magic literals scattered around:
 `LEGACY_SETTINGS_WORKSPACE = "__legacy__"` (`:22`) and `FALLBACK_SETTINGS_WORKSPACE = "__default__"` (`:24`).
@@ -44,7 +51,7 @@ stamp that stops a request from landing in the fallback slice. `getTenant(prefer
 (`packages/host/src/tenant.ts:26-41`) calls `adoptLegacySettings(home.id)` on every call (`:33`), and — only
 when the caller named no desk and nothing was on disk — writes the resolved desk id (`:37-39`). A desk named
 by the per-request `WORKSPACE_COOKIE` is **never** promoted into the file (comment at `:14-16`), pinned by
-`packages/host/src/tenant.test.ts:44-57`.
+`packages/host/src/tenant.test.ts:44-56`.
 
 **The fallback-slice trap.** If a request resolves to `__default__` — e.g. a bare `loadSettings()` before the
 stamp exists — it reads an orphan slice no real desk ever sees, so a key saved on the real desk looks absent
@@ -131,8 +138,10 @@ Contract: `packages/core/src/gateway/gate-types.ts` —
 `stub | needs_key | ok | invalid_key | unreachable | error`.
 
 `reportGatewayGate(settings)` (`packages/host/src/gateway-gate.ts:361-400`) resolves the key to judge
-(`keyFor`, `:348-359`), fingerprints it, loads the verdict from `<dataDir>/gateway-gate.json` (**the verdict is
-keyed by fingerprint; the key itself is never written**), and hands both to the pure `deriveGatewayGate`
+(`keyFor`, `:348-359`), fingerprints it, loads the verdict from that tenant's `gateway-gate.json` (**the verdict is
+keyed by fingerprint; the key itself is never written**; `statePath(tenantId)`,
+`packages/host/src/gateway-gate.ts:123-125` — `<dataDir>/gateway-gate.json` for `local-tenant`, under
+`tenants/<tenantId>/` otherwise, which is what stops two tenants overwriting each other's verdict), and hands both to the pure `deriveGatewayGate`
 (`:256-296`), which applies in order:
 
 | Condition | Result | Line |
@@ -212,9 +221,10 @@ Card `settings-reset` (`apps/web/components/settings-reset-card.tsx:159`), mount
 `apps/web/components/settings-page.tsx:424`, fed by `resetPending` on the settings payload.
 
 **Sign out (`scope: "key"`)** — no typed confirmation, fully synchronous. `resetGatewayKey`
-(`packages/host/src/handlers/settings.ts:309`) calls `clearGatewayKeyEverywhere()`
-(`packages/host/src/settings-store.ts:371-386` — **machine-wide**, because "a key left on a second desk would
-keep the gate open after 'forget my key'"), then `clearGateState()`, `clearThisKeyCache()`,
+calls `clearGatewayKeyEverywhere(tenant)`
+(`packages/host/src/settings-store.ts:419-434` — **every desk of the caller's tenant**, because "a key left on
+a second desk would keep the gate open after 'forget my key'"; Phase 3 lane D narrowed it from the whole
+install, and the route is refused in server mode anyway), then `clearGateState(tenant)`, `clearThisKeyCache()`,
 `resetEmbedCircuit()` and — added 2026-09-17 — `resetJobModelCircuit()` (`:294`). Returns `relaunch: false`. Threads, desks and media are untouched. The card navigates to
 `/chat` and calls `announceGate(result.gateway)`, which dispatches `GATE_EVENT` and drops the shell to
 onboarding.
@@ -235,7 +245,7 @@ because in the packaged app that same folder is Electron's userData / Chromium p
 
 ```
 settings.enc  settings.json  .master-key  gateway-gate.json  media
-workspace-id.txt  desk-usage.json  datasets  edit  legal
+workspace-id.txt  desk-usage.json  tenants  datasets  edit  legal
 models-cache.json  models-dev-cache.json
 ```
 
@@ -281,12 +291,13 @@ installing an update or already exiting), races `clearRendererState()` — `clea
 
 | File | Role |
 |---|---|
-| `packages/host/src/settings-store.ts` | The one encrypted store; `resolveSettingsWorkspaceId`, `sliceFor`, `clearGatewayKeyEverywhere`, `loadOwnerLocale` |
+| `packages/host/src/settings-store.ts` | The encrypted store, one file per tenant; `SettingsScope`, `resolveSettingsScope`, `resolveSettingsWorkspaceId`, `sliceFor`, `clearGatewayKeyEverywhere`, `loadOwnerLocale` |
+| `packages/host/src/tenant-paths.ts` | The one place a tenant becomes a directory — see [`tenant-storage.md`](tenant-storage.md) |
 | `packages/host/src/workspace.ts` | `workspace-id.txt` read/write |
 | `packages/host/src/tenant.ts` | `getTenant` — desk resolution, stamping, legacy adoption |
 | `packages/host/src/handlers/settings.ts` | `settingsPayload`, GET/POST settings, `gateVerdictFor`, `refreshGatewayGateAfterSave`, `handleGatewayCheck`, reset, cancel; `HOST_RESET_ENTRIES` |
 | `packages/core/src/gateway/gate-types.ts` | The gate contract |
-| `packages/host/src/gateway-gate.ts` | Derivation, verdict file, live check, `requireGatewayAllowed`, background refresh |
+| `packages/host/src/gateway-gate.ts` | Derivation, per-tenant verdict file, live check, `requireGatewayAllowed` / `requireGatewayAllowedFor`, background refresh |
 | `packages/core/src/gateway/pinned.ts` | The pinned URL, its integrity hash, the dev-only override rule |
 | `packages/core/src/secrets.ts` | `resolveProviderKeys`, `maskSecrets`, `resolveRuntimeMode` |
 | `packages/core/src/security/fingerprint.ts` | `keyFingerprint` |

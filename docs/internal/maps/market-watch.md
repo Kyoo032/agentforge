@@ -1,6 +1,6 @@
 # Map — Market watch
 
-Last verified: 2026-09-17 at 01ea70a (working tree; Market host/core/renderer uncommitted)
+Last verified: 2026-09-20 at a504555
 
 > The rail block was extracted into a shared `rail-submenu.tsx` by a parallel Finance change; `rail-market-specialists.tsx` is now the 82-line adapter that names it.
 
@@ -118,7 +118,7 @@ Failures never throw: they accumulate as strings, per ticker (`packet.ts:923-928
 
 `market-studio.tsx:177-186` builds the body — `{ prompt, tickers, positionContext, language, specialist, depth, maxChars, model }` — and `job.run("/api/v1/market/stream", body)` (`:187`) drives it through `useJobStream`. `depth` is `requestDepth`, the depth control's value clamped through `nextDepth` (`:119`) so a desk with no analysts can never send `team`.
 
-`handlePostMarketStream` (`packages/host/src/handlers/market.ts:38-49`) gets the tenant, calls `requireGatewayAllowed(loadSettings(tenant.workspaceId))` (`:42`) — "Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call" (`:41`) — then wraps `generateMarketBriefing` in `streamJob` (`:43`).
+`handlePostMarketStream` (`packages/host/src/handlers/market.ts:38-49`) gets the tenant, calls `requireGatewayAllowedFor(tenant)` (`:42`) — "Every path below reaches the gateway, so a closed gate is a 403 here and not a failed call" (`:41`) — then wraps `generateMarketBriefing` in `streamJob` (`:43`).
 
 `generateMarketBriefing` (`packages/host/src/market-generate.ts:501-534`) runs: `parseWatchRequest` (`:509`) → `requireLive` (`:510`) → `loadPacket` (`:521`) → the depth branch, `draftWithTeam` or `draftBriefing` (`:523-526`) → `verifyBriefing` (`:528`) → `saveBriefing` (`:530`), each preceded by an abort check. A malformed body is a 400 whatever the runtime; the gateway check comes once the body is sound (`:508`).
 

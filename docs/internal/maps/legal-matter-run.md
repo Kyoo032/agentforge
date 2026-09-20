@@ -1,6 +1,6 @@
 # Map — Legal matter run
 
-Last verified: 2026-09-17 at 01ea70a
+Last verified: 2026-09-20 at a504555
 
 ## Overview
 
@@ -53,7 +53,7 @@ Roles are not cosmetic: `DOC_ROLE_PRIORITY` (`packages/core/src/legal/types.ts:2
 
 Transport is a POST that streams SSE, not `EventSource` and not polling: `runJobStream` (`apps/web/lib/job-stream.ts:47-56`) does `fetch(..., { method: "POST", signal })` and hand-reads `res.body.getReader()` through `consumeSse`; `useJobStream` (`apps/web/lib/use-job-stream.ts:23-77`) folds each `JobEvent` into `JobProgress`. **Cancel is a client-side `AbortController.abort()`** (`use-job-stream.ts:29-32`) wired to `legal-cancel` (`apps/web/components/legal-run-view.tsx:50`) — there is no cancel route.
 
-Host side: `handlePostLegalRunStream` (`packages/host/src/handlers/legal.ts:112-122`) calls `requireGatewayAllowed(loadSettings(...))` at `:115` — the only legal route that does — then wraps `generateLegalRun` in `streamJob` (`packages/host/src/job-stream.ts:29-58`).
+Host side: `handlePostLegalRunStream` (`packages/host/src/handlers/legal.ts:112-122`) calls `requireGatewayAllowedFor(tenant)` at `:115` — the only legal route that does — then wraps `generateLegalRun` in `streamJob` (`packages/host/src/job-stream.ts:29-58`).
 
 ### 6. `generateLegalRun` — the per-run host orchestrator
 

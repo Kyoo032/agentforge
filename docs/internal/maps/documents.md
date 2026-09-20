@@ -1,6 +1,6 @@
 # Map — Documents job
 
-Last verified: 2026-09-17 at 01ea70a
+Last verified: 2026-09-20 at a504555
 
 ## Overview
 
@@ -40,7 +40,7 @@ Consequence, and it bites tests: after one visit to `/documents`, `documents-stu
 
 `onGenerate` (`documents-studio.tsx:55-80`) trims the prompt, bails if empty or busy, and posts `{ prompt, model, sourceText }` through `apiFetch` (`:64-68`) — `sourceText` only when non-empty. A non-OK response becomes `error` via `errorMessage` (`:19-27`), which prefers `payload.error.message` and otherwise falls back to the localized `documents.errors.generate`. On failure `draft` is cleared (`:75`), so a failed generate also wipes whatever was on screen.
 
-Host side, `router.ts:206` → `handlePostDocuments` (`packages/host/src/handlers/jobs.ts:110-119`): `getTenant`, then `requireGatewayAllowed(loadSettings(...))` **before** anything else, then `generateDocumentDraft`.
+Host side, `router.ts:206` → `handlePostDocuments` (`packages/host/src/handlers/jobs.ts:110-119`): `getTenant`, then `requireGatewayAllowedFor(tenant)` **before** anything else, then `generateDocumentDraft`.
 
 `generateDocumentDraft` (`packages/host/src/document-generate.ts:152-171`) in order:
 

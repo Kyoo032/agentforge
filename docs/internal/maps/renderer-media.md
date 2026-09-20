@@ -1,6 +1,6 @@
 # Map — Renderer media: what an answer is allowed to load
 
-Last verified: 2026-09-15 at b9f931a
+Last verified: 2026-09-20 at a504555
 
 ## Overview
 
@@ -62,7 +62,7 @@ The Images and Videos studios do the same thing directly (`packages/host/src/stu
 
 ### Serving it back
 
-`GET /api/v1/media/:mediaId/file` → `handleGetMediaFile` (`packages/host/src/handlers/media.ts:26-50`), routed at `packages/host/src/router.ts:199`, with HTTP `Range` support via `packages/host/src/byte-range.ts`. It is **ungated** — media is on the list of routes that stay open so a closed gate is always recoverable. Its only scoping is `getTenant(request.workspaceId)` plus an `organizationId` match on the row.
+`GET /api/v1/media/:mediaId/file` → `handleGetMediaFile` (`packages/host/src/handlers/media.ts:25-49`), routed at `packages/host/src/router.ts:199`, with HTTP `Range` support via `packages/host/src/byte-range.ts`. It is **ungated** — media is on the list of routes that stay open so a closed gate is always recoverable. Scoping is `getTenant(request.workspaceId)` plus an `organizationId` match on the row, and then the path itself: `mediaFilePath(tenant.tenantId, item.storagePath)` (`packages/host/src/media-root.ts:34-40`) refuses a `storage_path` that resolves outside the caller's tenant root with the same 404, so a row whose `storage_path` was tampered with cannot serve another tenant's bytes ([`tenant-storage.md`](tenant-storage.md)).
 
 In the packaged shell the same bytes are also reachable as `agentforge://media/…` through `registerMediaProtocol()`.
 

@@ -1,6 +1,6 @@
 # Map — Chat send
 
-Last verified: 2026-09-15 at b9f931a
+Last verified: 2026-09-20 at a504555
 
 Supersedes the `## how — Chat send (pstack) — 2026-09-06` block in [`../0.14-changelog.md`](../0.14-changelog.md), which described the 0.14 shape. Several details in it are no longer true; see Gotchas.
 
@@ -34,7 +34,7 @@ Either way `apiFetch` hands back a `Response` with `Content-Type: text/event-str
 
 ### 3. Host — gate, then run
 
-`packages/host/src/router.ts:193-195` maps the route to `handleRun` (`packages/host/src/handlers/runs.ts:27`). First thing it does, before touching the database or the gateway: `requireGatewayAllowed(loadSettings(tenant.workspaceId))` (`packages/host/src/handlers/runs.ts:31`). A closed gate throws `GatewayBlockedError` and the request answers a flat `403 { error: "gateway_blocked", status, message }` (`packages/host/src/errors.ts:20-25`) with no SSE stream at all. See [`settings-and-gateway-gate.md`](settings-and-gateway-gate.md).
+`packages/host/src/router.ts:193-195` maps the route to `handleRun` (`packages/host/src/handlers/runs.ts:27`). First thing it does, before touching the database or the gateway: `requireGatewayAllowedFor(tenant)` (`packages/host/src/handlers/runs.ts:31`). A closed gate throws `GatewayBlockedError` and the request answers a flat `403 { error: "gateway_blocked", status, message }` (`packages/host/src/errors.ts:20-25`) with no SSE stream at all. See [`settings-and-gateway-gate.md`](settings-and-gateway-gate.md).
 
 Otherwise `startModalityRun` (`packages/host/src/runs.ts:124`) runs the turn:
 
