@@ -7,6 +7,7 @@ import { DEFAULT_CHAT_MODEL } from "./default-chat";
 
 function tenant(overrides: Partial<TenantContext> = {}): TenantContext {
   return {
+    tenantId: "local-tenant",
     organizationId: "org-a",
     workspaceId: "ws-a",
     userId: "user-a",

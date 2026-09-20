@@ -39,6 +39,7 @@ Nothing below is closed by 0.14.27. Carried forward as-is.
 ## Log
 
 - **2026-09-18** — 0.14.27 cut. PR #52 merged (`e8a7118`), version bumped to `0.14.27` (`e2e477e`) on `release/0.14.27`; everything from after the 0.14.26 cut folded into [`0.14.27-changelog.md`](0.14.27-changelog.md) and this file started over. Nothing packed, nothing published.
+- **2026-09-20** — Phase 3 lane A (tenancy in the edit store). Closed the confirmed IDOR on `POST /api/v1/edit/projects/:projectId/unplaced/:itemId/discard`, which updated `edit_unplaced` by item id alone and returned the row: any desk could soft-delete and read back any other desk's unplaced item. Hardened the edit store so the scope is a required argument and lives in the `WHERE` clause rather than a follow-up comparison — `loadProjectRow`, `foldProject`, `appendOps`, `getEditJob`, `patchJob`, `cancelEditJob`, `undoCard`, `keepCard`. New `packages/host/src/edit/edit-scope.test.ts` (12 tests); the two discard cases were confirmed red against the old handler before the fix. Schema untouched — lane B owns migration `0015`. Map page [`maps/edit-timeline.md`](maps/edit-timeline.md) refreshed in place.
 
 ## 2026-09-18 — direction change: hosted web app
 
@@ -56,3 +57,14 @@ This file’s “nothing counts as shipped until packed and installed” convent
 - Host logging is one JSON logger (`packages/host/src/log.ts`) with secret redaction and dropped prompt/key fields; 68 console calls replaced.
 - New table `auth_sessions` (migration `0014`), new locales `auth.json` (en, id). Not shipped anywhere: the hosted environment does not exist yet; the desktop is frozen and untouched by these rules.
 
+
+## 2026-09-20 — Music mode
+
+- **New product mode `music`** (`/music`), the third generate studio, built to the Images / Videos pattern: rail entry, one fetch-on-mount, a form, a gallery. Two modes — Describe (a sentence) and Custom (lyrics + style tags + title + instrumental) — plus a **Draft lyrics** button that writes lyrics without spending a music charge.
+- **Three new routes, no new by-id routes:** `GET /api/v1/music`, `POST /api/v1/music`, `POST /api/v1/music/lyrics`. Generated tracks are served by the existing `GET /api/v1/media/:mediaId/file` and stored under the existing `<dataDir>/media/<organizationId>/` layout. Nothing in `packages/db` changed: `media.kind` is free text, so `"audio"` needed no migration.
+- **The wire is an async Suno relay on the gateway origin**, not a `/v1` route: `POST /suno/submit/{music,lyrics}` then `GET /suno/fetch/<taskId>`. New file `packages/core/src/tools/platform/gateway-audio.ts`. One job returns **two takes for one charge**, and both are saved — one media row, one sidecar entry and one Knowledge card each.
+- **Text-to-speech is built but unreachable on this gateway.** `speech_generate` / `POST /v1/audio/speech` work, but the catalog's only TTS id is `qwen3-tts-instruct-flash-realtime`, which speaks WebSocket behind an `openai` endpoint label and cannot be driven from a job route. Rather than shipping a dead control or guessing an id, `GET /api/v1/music` answers `speechUnavailable: "realtime_only" | "no_audio_models" | null` and the studio renders the reason. It turns itself on with no code change the day a plain TTS id appears.
+- **Fixed on the way through:** widening the media store to accept audio had silently opened `POST /api/v1/media` — the chat upload route — to `audio/mpeg`. `saveMedia` now takes an explicit `allow` list defaulting to `["image", "video"]`; only `saveGeneratedAudio` passes `["audio"]`. Caught by `packages/host/src/edit/import.test.ts` (harness gotcha G-27) and now also guarded in `packages/host/src/handlers/music.test.ts`.
+- **[ ] The Suno relay has never been driven against the live gateway.** It was written from [`gateway-model-selection.md`](gateway-model-selection.md) §5.3 and the NewAPI relay action map it cites; Cloud agents have no egress to `api.tokotokenai.com`, so every automated test stubs `fetch`. Proof owed, one command on a keyed desk: `OPENAI_API_KEY=… pnpm exec tsx scripts/probe-gateway-music.ts` (exit 0 = catalog listed a music id, relay accepted a submit, a finished job returned a playable URL). Until it exits 0, the request and response shapes are documented, not verified.
+- **[ ] No UI drive.** `features/music.md` has never been walked in a browser; the recipe is written, not run.
+- Map: [`maps/music-mode.md`](maps/music-mode.md). Where to press: `.cursor/skills/verify-agentforge/features/music.md`.

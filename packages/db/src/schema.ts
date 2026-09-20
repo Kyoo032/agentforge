@@ -24,13 +24,38 @@ export const user = sqliteTable("user", {
     .$defaultFn(() => new Date()),
 });
 
-export const organizations = sqliteTable("organizations", {
-  id: uuidPk(),
-  name: text("name").notNull(),
+/**
+ * The whitelabel partner, from the portal (docs/internal/portal/schema.md:54-60), and the root of
+ * every tenancy scope. One row per portal `tenants.id`. The desktop and any database migrated from
+ * before Phase 3 hold exactly the `LOCAL_TENANT_ID` row, written by drizzle/0015_tenants.sql.
+ */
+export const tenants = sqliteTable("tenants", {
+  id: text("id").primaryKey(),
   slug: text("slug").notNull().unique(),
-  industryPack: text("industry_pack").notNull(),
+  name: text("name").notNull(),
+  /** active | inactive — drives the portal's `tenant_inactive` reason code. */
+  status: text("status").notNull().default("active"),
   createdAt: createdAt(),
 });
+
+export const organizations = sqliteTable(
+  "organizations",
+  {
+    id: uuidPk(),
+    tenantId: text("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    // Unique per tenant, not globally: two tenants both having a "personal" org is normal.
+    slug: text("slug").notNull(),
+    industryPack: text("industry_pack").notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("organizations_tenant_slug").on(table.tenantId, table.slug),
+    index("organizations_tenant_idx").on(table.tenantId),
+  ],
+);
 
 export const organizationMembers = sqliteTable(
   "organization_members",

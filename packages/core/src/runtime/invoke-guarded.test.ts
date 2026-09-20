@@ -5,7 +5,7 @@ import { runWithToolSecrets } from "../tools/secret-scope";
 import { invokeToolGuarded } from "./invoke-guarded";
 import { runWithToolIoSink, takeLastToolIo } from "./tool-io";
 
-const tenant = { organizationId: "org", workspaceId: "ws", userId: "user" };
+const tenant = { tenantId: "local-tenant", organizationId: "org", workspaceId: "ws", userId: "user" };
 
 describe("invokeToolGuarded", () => {
   it("blocked args never call execute", async () => {

@@ -6,6 +6,7 @@ import type { RetrievedChunk } from "./knowledge/backend";
 
 function tenant(): TenantContext {
   return {
+    tenantId: "local-tenant",
     organizationId: "org-retrievals-test",
     workspaceId: `ws-retrievals-${crypto.randomUUID()}`,
     userId: "user-retrievals-test",

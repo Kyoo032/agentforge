@@ -27,7 +27,7 @@ vi.mock("@agentforge/core", async (importOriginal) => {
 
 vi.mock("./settings-store", () => ({ loadSettings: () => ({}), loadOwnerLocale: () => "en" }));
 
-const tenant: TenantContext = { organizationId: "org", workspaceId: "ws-1", userId: "local", role: "owner" };
+const tenant: TenantContext = { tenantId: "local-tenant", organizationId: "org", workspaceId: "ws-1", userId: "local", role: "owner" };
 
 describe("collectJobAssistantText", () => {
   beforeEach(() => {

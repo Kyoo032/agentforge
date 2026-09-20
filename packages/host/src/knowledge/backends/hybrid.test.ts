@@ -15,6 +15,7 @@ import { RRF_K, fuseRrf } from "./builtin";
 
 function tenant(): TenantContext {
   return {
+    tenantId: "local-tenant",
     organizationId: "org-hybrid",
     workspaceId: `ws-hybrid-${crypto.randomUUID()}`,
     userId: "user-hybrid",

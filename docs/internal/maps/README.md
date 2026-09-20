@@ -53,6 +53,8 @@ Rules that keep these honest:
 | [`media-cost-estimate.md`](media-cost-estimate.md) | The price shown in the Images / Videos studio before generating | `features/images.md`, `features/videos.md` |
 | [`finance-parse-and-generate.md`](finance-parse-and-generate.md) | The Finance spine: routes and gates, file import, deterministic parse, compute → narrate → number guard, persist and export | `features/finance.md` |
 | [`finance-tasks.md`](finance-tasks.md) | The five Finance tasks: ids, phase graph, the `FinanceTaskModule` contract, the generic runner, the dev-only eval harness | `features/finance.md` |
+| [`tenancy-schema.md`](tenancy-schema.md) | The tenant in the schema: `tenants`, `organizations.tenant_id`, migration 0015 and its healer, `TenantContext.tenantId` | no feature file; `packages/db/src/migrate-0015.test.ts` |
+| [`tenant-resolution.md`](tenant-resolution.md) | Whose data a request may read: `getTenant`, the session seam, first-sign-in provisioning, the scoped workspace cookie, session-bound CSRF | no feature file yet (`features/login.md` lands with the sign-in screen); `packages/host/src/tenant-session.test.ts` |
 | [`chat-sessions-and-rail.md`](chat-sessions-and-rail.md) | Chat sessions in the left rail: list, open, new, delete, desk scoping | `features/chat.md` |
 | [`shell-rail-and-workspaces.md`](shell-rail-and-workspaces.md) | The shell around a mode page: rail blocks, desk switcher, `/workspaces`, `/usage` | `features/rail.md`, `features/workspaces.md`, `features/usage.md` |
 | [`documents.md`](documents.md) | Documents job: brief + `sourceText` → JSON draft → HTML preview → `.docx` | `features/documents.md`, `features/templates.md` |
@@ -62,6 +64,7 @@ Rules that keep these honest:
 | [`legal-matter-run.md`](legal-matter-run.md) | Legal matter: `.docx` intake, role classification, the nine-stage run, deliverables | `features/legal.md` |
 | [`edit-timeline.md`](edit-timeline.md) | Edit: the append-only ops log, the agent turn, cards, the review gate, export | `features/edit.md` |
 | [`generate-studios.md`](generate-studios.md) | Images and Videos studios: knob snapping, generate, mirror, gallery | `features/images.md`, `features/videos.md` |
+| [`music-mode.md`](music-mode.md) | Music: rail desk → describe/custom brief → Suno relay submit + poll → two takes mirrored into the media store | `features/music.md` |
 | [`knowledge-flows.md`](knowledge-flows.md) | How each mode and each manual entry point reaches the Knowledge Base: trigger, stored text, retrieval, removal | `features/knowledge-ingest.md`, `features/knowledge.md` |
 | [`knowledge-base-page.md`](knowledge-base-page.md) | The `/knowledge` page: Sources, Soul, Memory, Map, and what Chat injects | `features/knowledge.md`, `features/knowledge-graph.md` |
 | [`pii-and-key-security.md`](pii-and-key-security.md) | PII masking on the outbound copy, and the gateway key envelope | `features/pii.md`, `features/security.md` |

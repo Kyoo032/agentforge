@@ -90,7 +90,7 @@ describe("edit generate host (G-20 / G-23)", () => {
     expect(body.job?.kind).toBe("generate_image");
     expect(body.clips?.length).toBeGreaterThan(0);
     expect(body.clips?.[0]?.status).toBe("pending");
-    const doc = await foldProject(project.id);
+    const doc = await foldProject(project.id, project.workspaceId);
     expect(doc.clips.some((clip) => clip.status === "pending")).toBe(true);
   });
 });
@@ -104,10 +104,8 @@ describe("job completion media to asset", () => {
 
   it("turns a media table id into an edit asset with mediaId and storagePath", async () => {
     const { tenant, project } = await seedEditProject("gen-media");
-    const { clipId } = await addReadyClip(project.id, "ph-gen");
-    await appendOps(project.id, [{ type: "set_clip_status", payload: { clipId, status: "pending" } }], {
-      actor: "owner",
-    });
+    const { clipId } = await addReadyClip(project.id, project.workspaceId, "ph-gen");
+    await appendOps(project.id, [{ type: "set_clip_status", payload: { clipId, status: "pending" } }], { actor: "owner", workspaceId: project.workspaceId });
     const mediaId = crypto.randomUUID();
     const storagePath = `${tenant.organizationId}/${mediaId}.mp4`;
     await db.insert(media).values({
@@ -127,10 +125,10 @@ describe("job completion media to asset", () => {
       targetClipIds: [clipId],
     });
     await waitFor(async () => {
-      const doc = await foldProject(project.id);
+      const doc = await foldProject(project.id, project.workspaceId);
       return doc.clips.find((item) => item.id === clipId)?.status === "ready";
     });
-    const doc = await foldProject(project.id);
+    const doc = await foldProject(project.id, project.workspaceId);
     const clip = doc.clips.find((item) => item.id === clipId);
     const asset = clip?.source?.assetId ? doc.assets[clip.source.assetId] : undefined;
     expect(asset?.mediaId).toBe(mediaId);

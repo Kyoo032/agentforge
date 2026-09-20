@@ -157,6 +157,7 @@ export function App() {
           <Route path="/market" element={null} />
           <Route path="/images" element={null} />
           <Route path="/videos" element={null} />
+          <Route path="/music" element={null} />
           <Route path="/edit" element={null} />
           <Route path="/presentations" element={null} />
           <Route path="/legal" element={null} />

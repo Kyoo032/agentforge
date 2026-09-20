@@ -6,8 +6,10 @@ Audited 2026-09-20 at b482611, on branch `feat/owasp-security-pass-ahr8y1`.
 
 A pass over the OWASP Top 10 against the hosted web app as it stands after Phase 1 and 2
 (PR #56), covering `packages/host`, `packages/core`, `packages/db`, `apps/web` and
-`webapp-deploy/`. **27 findings.** 22 are fixed on this branch with a test each; 5 are recorded
-and left alone (two for the Phase 3 tenancy lanes, three open with the reason stated).
+`webapp-deploy/`. **27 findings.** 21 are fixed on this branch with a test each. Of the rest: one
+(A01-1) was found here and has since been fixed on `main` by Phase 3 lane A; one (A06-1) is written
+but cannot take effect until an Actions billing lock is cleared; and four are recorded open with
+the reason stated — one for Phase 3 lane E, three blocked on something outside this branch.
 
 Two things shaped what is here:
 
@@ -17,8 +19,10 @@ against the code, not against the requirement table, and the table should be ref
 
 **Phase 3 files were read but not touched.** `packages/host/src/handlers/edit.ts`, the db
 migrations and `packages/host/src/tenant.ts` / `getTenant` belong to the tenancy lanes running in parallel. A real
-cross-tenant bug in there is written up below as A01-1 and left for lane A, because two branches
-editing the same 500 lines is a worse outcome than a bug that is already known and scheduled.
+cross-tenant bug in there is written up below as A01-1 and was left for lane A, because two
+branches editing the same 500 lines is a worse outcome than a bug that is already known and
+scheduled. Lane A has since landed (PR #62) and fixed it; this branch merged `main` and confirmed
+the fix without touching the file.
 
 **No finding here is a live exploit against a production deployment, because there is no
 production deployment yet.** The Phase 0 deploy has not happened. That is the reason to fix them
@@ -28,14 +32,14 @@ now rather than a reason not to.
 
 | ID | Severity | Finding | Where | Status |
 |---|---|---|---|---|
-| A01-1 | **High** | Any tenant can discard any other tenant's unplaced Edit item by id | `packages/host/src/handlers/edit.ts:501-517` | **Recorded** — Phase 3 lane A |
+| A01-1 | **High** | Any tenant can discard any other tenant's unplaced Edit item by id | `packages/host/src/handlers/edit.ts:494-512` | **Fixed on main** by Phase 3 lane A (PR #62) |
 | A01-2 | **High** | by-id routes across the app are not systematically tenant-scoped | app-wide | **Recorded** — Phase 3 lane E |
 | A01-3 | **High** | Hosted Settings let any signed-in user write operator-only keys | `packages/host/src/handlers/settings.ts:166-231` | Fixed |
 | A01-4 | **High** | "Start over" was reachable in server mode and wipes the whole deployment | `packages/host/src/handlers/settings.ts:346-438` | Fixed |
 | A01-5 | Medium | Component installer route reachable in server mode | `packages/host/src/handlers/components.ts:45-67` | Fixed |
 | A02-1 | **High** | A patterned env wrap key (`aaaa…`) passed the length check | `packages/db/src/vault-key.ts:82-86,192-199` | Fixed |
 | A02-2 | Medium | An empty or corrupt `.master-key` silently derived a key from `""` | `packages/db/src/vault-key.ts:164-175` | Fixed |
-| A02-3 | Medium | Workspace cookie had no `Secure` flag in server mode | `packages/host/src/workspace.ts:38` | Fixed |
+| A02-3 | Medium | Workspace cookie had no `Secure` flag in server mode | `packages/host/src/workspace.ts:55` | Fixed |
 | A03-1 | Medium | `Content-Disposition` quoting was dead code, and threw 500 on non-Latin-1 names | `packages/host/src/content-disposition.ts` | Fixed |
 | A03-2 | Medium | Project name and font family could write their own ASS directives | `packages/core/src/edit/ass-subset.ts:80-111` | Fixed |
 | A03-3 | Medium | `frameAt` wrote a scratch path without the allowlist check | `packages/host/src/edit/ffmpeg/recipes.ts:208` | Fixed |
@@ -48,7 +52,7 @@ now rather than a reason not to.
 | A06-2 | Low | The hosted image ships devDependencies | `webapp-deploy/Dockerfile:78-80` | **Recorded** — open |
 | A08-1 | Low | Workflows pin actions to mutable tags (`@v4`) | `.github/workflows/*.yml` | **Recorded** — open |
 | A09-1 | Medium | No request id: nothing correlated a user report to a log line | `packages/host/src/http-adapter.ts:86,435-437` | Fixed |
-| A09-2 | Medium | Authentication failures were not logged at all | `packages/host/src/http-adapter.ts:559-570` | Fixed |
+| A09-2 | Medium | Authentication failures were not logged at all | `packages/host/src/http-adapter.ts:577-588` | Fixed |
 | A10-1 | **High** | The private-range check missed most of IPv4 and nearly all of IPv6 | `packages/core/src/security/ip-range.ts` | Fixed |
 | A10-2 | **High** | IPv4-mapped, 6to4 and NAT64 IPv6 forms bypassed the check entirely | `packages/core/src/security/ip-range.ts:174-246` | Fixed |
 | A10-3 | **High** | A public hostname resolving to a private address passed | `packages/core/src/security/safe-fetch.ts:110-128` | Fixed |
@@ -59,28 +63,36 @@ Plus one open by nature rather than by choice, A10-6 (DNS rebinding), at the end
 
 ## A01 — Broken access control
 
-### A01-1 — Cross-tenant discard of an Edit unplaced item *(recorded, not fixed)*
+### A01-1 — Cross-tenant discard of an Edit unplaced item *(found here, fixed on main by lane A)*
 
-`handlePostEditUnplacedDiscard` resolves the tenant and then throws the result away:
+When this branch was cut, `handlePostEditUnplacedDiscard` resolved the tenant and threw the result
+away:
 
 ```ts
-await getTenant(request.workspaceId);           // edit.ts:503 — result discarded
+await getTenant(request.workspaceId);                  // result discarded
 const rows = await db
   .update(editUnplaced)
   .set({ discardedAt: new Date() })
-  .where(eq(editUnplaced.id, request.params.itemId))   // edit.ts:507 — id only
+  .where(eq(editUnplaced.id, request.params.itemId))   // id only, no scope
 ```
 
-Every sibling handler in the file passes `tenant` into its store call
-(`getEditProjectBundle(tenant, …)` at `packages/host/src/handlers/edit.ts:132`, `listEditProjects(tenant)` at `:107`). This
-one does not, so the `where` clause is an unqualified primary-key match: any signed-in tenant who
-knows or guesses an item id discards another tenant's item.
+Every sibling handler passed `tenant` into its store call, so the `where` here was an unqualified
+primary-key match: any signed-in tenant who knew or guessed an item id discarded another tenant's
+item.
 
-A sweep of all four handlers that call `await getTenant(…)` without binding the result found this
-is the only one where it matters — `packages/host/src/handlers/misc.ts:58` and `packages/host/src/handlers/models.ts:10` return static catalogue data
-and are using `getTenant` purely as an auth gate, which is correct.
+It was recorded rather than fixed because `packages/host/src/handlers/edit.ts` belongs to Phase 3
+lane A, and two branches editing the same lines is the worse outcome. **Lane A landed as PR #62
+while this branch was open, and it is now fixed** —
+`packages/host/src/handlers/edit.ts:494-512` scopes through
+`foldProject(projectId, tenant.workspaceId)` and the predicate is now
+`and(eq(editUnplaced.id, …), eq(editUnplaced.projectId, projectId))`. Verified after merging main
+into this branch; nothing in this PR touches that file.
 
-**Left for Phase 3 lane A**, which owns this file and this exact line range.
+A sweep of the handlers that call `await getTenant(…)` without binding the result finds three
+left, and none of them matters: `packages/host/src/handlers/misc.ts:58` and
+`packages/host/src/handlers/models.ts:10` return static catalogue data, and
+`packages/host/src/handlers/settings.ts:432` is the reset-cancel guard added by this branch — all
+three are using `getTenant` purely as an auth gate, which is correct.
 
 ### A01-2 — by-id routes are not systematically scoped *(recorded, not fixed)*
 
@@ -143,7 +155,7 @@ as the wrapping key, silently. Now validated, with `MASTER_KEY_FILE_UNUSABLE` th
 
 `workspaceCookie` set `path` but no `secure`, so it went over plain HTTP if anything ever reached
 the app that way. The session and CSRF cookies already had it. Now `secure: isServerMode()`
-(`packages/host/src/workspace.ts:38`), matching the other two.
+(`packages/host/src/workspace.ts:55`), matching the other two.
 
 ## A03 — Injection
 
@@ -337,7 +349,7 @@ read and is sound; A01-5 turns the route off in server mode regardless.
 
 ### A09-1 — No request correlation
 
-Nothing tied a user's report to a log line. `mintRequestId` (`packages/host/src/http-adapter.ts:86`) puts 8 random
+Nothing tied a user's report to a log line. `mintRequestId` (`packages/host/src/http-adapter.ts:94`) puts 8 random
 bytes on every request, returns it as `X-Request-Id` in server mode (`:435-437`), and carries it
 into `request_filtered`, `request_failed` and the new `auth_failed`.
 
@@ -347,7 +359,7 @@ The adapter logged requests the *transport filter* refused — malformed paths, 
 limits. A well-formed request with a wrong or stolen session cookie was answered 401 and logged
 nothing, so a password-spray or a cookie replay across a thousand accounts left no trace at all.
 
-`logAuthFailure` (`packages/host/src/http-adapter.ts:559-570`) writes one `warn` line per 401 carrying the reason
+`logAuthFailure` (`packages/host/src/http-adapter.ts:577-588`) writes one `warn` line per 401 carrying the reason
 code, method, path *length*, client IP and request id — and nothing that identifies the caller
 beyond the IP the rate limiter already keys on. The test asserts the path, the cookie and the
 token never appear in the line.

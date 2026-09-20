@@ -129,6 +129,14 @@ export function hostAuthRoutes(): AuthRoutes {
     vault: hostTokenVault(),
     portal: createLazyPortalClient(),
     serverMode: isServerMode(),
+    // Lane C: first sign-in writes the tenant, org, user, membership and home desk. The import is
+    // dynamic for the same reason `createHostSessionStore` makes its one dynamic: the desktop and
+    // webdev import this module and never sign in, so `@agentforge/db` — which opens SQLite at
+    // import — must not be pulled in statically from here.
+    provision: async (identity) => {
+      const { db, ensurePortalOwner } = await import("@agentforge/db");
+      return ensurePortalOwner(db, identity);
+    },
   });
   return routes;
 }

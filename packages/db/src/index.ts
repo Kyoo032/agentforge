@@ -11,6 +11,10 @@ export {
 export type { ResetMarker, ResetOutcome } from "./reset";
 export * from "./schema";
 export { DrizzleAgentRepository } from "./repos/drizzle-agent-repository";
+export { ensureTenant, getTenantById, getLocalTenant } from "./tenants";
+export type { TenantRow, ProvisionTenantInput } from "./tenants";
+export { ensurePortalOwner, resolvePortalTenant, PortalProvisionError } from "./portal-owner";
+export type { PortalIdentity, PortalResolution, PortalResolveFailure } from "./portal-owner";
 export {
   ensureLocalOwner,
   listLocalWorkspaces,

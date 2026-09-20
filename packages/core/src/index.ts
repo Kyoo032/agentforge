@@ -317,17 +317,26 @@ export { curateModel, applyCuration, isEverydayModel, isThinkingModel } from "./
 export type { ModelTier, CuratedModelMeta } from "./models/curation";
 export {
   mediaKind,
+  audioRole,
   routeModelsByKind,
   pickPreferredImageModel,
   pickPreferredVideoModel,
+  pickPreferredMusicModel,
+  pickPreferredLyricsModel,
+  pickPreferredSpeechModel,
   pickPreferredEmbeddingModel,
   isEmbeddingModelId,
+  isMusicModelId,
+  isLyricsModelId,
+  isSpeechModelId,
   firstLiveId,
   DEFAULT_GATEWAY_IMAGE_MODEL,
   DEFAULT_GATEWAY_VIDEO_MODEL,
+  DEFAULT_GATEWAY_MUSIC_MODEL,
+  DEFAULT_GATEWAY_LYRICS_MODEL,
   DEFAULT_EMBEDDING_MODEL,
 } from "./models/media-kind";
-export type { MediaKind, RoutedModels } from "./models/media-kind";
+export type { AudioRole, MediaKind, RoutedModels } from "./models/media-kind";
 export {
   cosineSimilarity,
   stubEmbed,
@@ -432,6 +441,32 @@ export { webFetchTool, fetchPageText, WEB_FETCH_MAX_CHARS_CAP } from "./tools/pl
 export type { WebFetchPage, WebFetchOutput } from "./tools/platform/web-fetch";
 export { imageGenerateTool } from "./tools/platform/image-generate";
 export { videoGenerateTool } from "./tools/platform/video-generate";
+export { musicGenerateTool, lyricsWriteTool, speechGenerateTool } from "./tools/platform/music-generate";
+export {
+  generateGatewayMusic,
+  generateGatewayLyrics,
+  generateGatewaySpeech,
+  buildSunoMusicPayload,
+  extractSunoTracks,
+  extractSunoLyrics,
+  MUSIC_MAX_POLLS,
+  MUSIC_POLL_MS,
+} from "./tools/platform/gateway-audio";
+export type { GatewayTrack } from "./tools/platform/gateway-audio";
+export {
+  MUSIC_MODES,
+  MUSIC_LYRICS_MAX,
+  MUSIC_PROMPT_MAX,
+  MUSIC_STYLE_MAX,
+  MUSIC_TITLE_MAX,
+  isMusicMode,
+  musicCapabilities,
+  resolveMusicMode,
+  speechReachable,
+  speechUnavailableReason,
+  usesSunoMusicWire,
+} from "./models/audio-capabilities";
+export type { MusicCapabilities, MusicMode, SpeechUnavailableReason } from "./models/audio-capabilities";
 export {
   formatVideoGatewayFailure,
   httpStatusForGatewayFailure,
@@ -501,6 +536,9 @@ export { preferredOpenAiWire, usesResponsesApi, shouldFallbackFromResponses } fr
 export { encodeSse } from "./sse";
 export {
   LOCAL_OWNER_ID,
+  LOCAL_TENANT_ID,
+  LOCAL_TENANT_SLUG,
+  LOCAL_TENANT_NAME,
   PERSONAL_ORG_SLUG,
   HOME_WORKSPACE_SLUG,
   HOME_WORKSPACE_NAME,
