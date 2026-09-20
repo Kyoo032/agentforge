@@ -156,7 +156,7 @@ rather than at each call site; `requireTenant` (`types.ts:20`) is called at the 
 is needed for the desktop, so the frozen app's database keeps opening.
 
 **Gateway key reset is scoped here, not in Phase 4.** `clearGatewayKeyEverywhere`
-(`packages/host/src/settings-store.ts:375-388`) is deliberately machine-wide today. In server mode
+(`packages/host/src/settings-store.ts:371-385`) is deliberately machine-wide today. In server mode
 "everywhere" must mean "this tenant's desks", or the first tenant to reset their key signs out every
 other tenant on the box. Phase 3 is the phase that scopes it, because Phase 3 is when a second tenant
 first exists — shipping tenancy with a machine-wide reset still in the tree is the bug, not a Phase 4

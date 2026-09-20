@@ -209,7 +209,7 @@ it: on a shared box the last browser to load the app would repoint every deskles
 | `settings.enc` | `settings-store.ts:28`, shape `:118-120` | **Stays a file, per tenant, at `<dataDir>/tenants/<tenantId>/settings.enc`** | Keeping it a file preserves the AES-256-GCM envelope and `getLocalVaultKey()` (`vault-key.ts:123`) unchanged, keeps the desktop backend byte-identical, and lets a tenant's secrets be deleted by removing a directory. The row backend is Phase 4's job (`web-migration-plan.md:184-189`); doing it here collides with that lane. |
 
 The machine-wide locale (`settings-store.ts:402-409`) moves into the same per-tenant file; copy and catalogues
-are untouched. `clearGatewayKeyEverywhere` (`:371-384`) is deliberately machine-wide — in server mode
+are untouched. `clearGatewayKeyEverywhere` (`:371-385`) is deliberately machine-wide — in server mode
 "everywhere" must mean "this tenant's desks", or one tenant's key reset signs out every other tenant. That is a
 Phase 3 fix, not a Phase 4 one, because Phase 3 is when a second tenant exists. **The parent plan agrees:**
 `web-migration-plan.md` § Phase 3 now owns the scoping and § Phase 4 only has to keep it green across the
