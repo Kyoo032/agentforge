@@ -136,23 +136,94 @@ export async function handleGetSettings(request: HostRequest): Promise<HostResul
   }
 }
 
-export async function handlePostSettings(request: HostRequest): Promise<HostResult> {
+/**
+ * Fields of `POST /api/v1/settings` that belong to the OPERATOR, not to the caller
+ * (docs/internal/security-owasp-2026-09.md, finding A01-3).
+ *
+ * The settings store is machine-wide, so each of these is shared by every tenant on the box:
+ * `toolKeys` / `toolBackends` are the credentials and endpoints every tenant's tools run through,
+ * and `injectionGuardBypass` switches off the prompt-injection guard for the whole process. The
+ * handler had no notion of privilege, so one signed-in tenant could rewrite any of them for
+ * everybody. In server mode a request that carries one is refused.
+ *
+ * THE PROVIDER KEYS ARE DELIBERATELY NOT IN THIS LIST, and the first version of this fix had them
+ * here — which bricked the hosted deploy. Onboarding and Settings are the only ways to supply the
+ * gateway key, both post it here, and the environment fallback in `gateway-gate.ts` only applies
+ * when `AGENTFORGE_RUNTIME=ai`, which `webapp-deploy/compose.yml` does not set and the runbook says
+ * to leave alone. Refusing key writes therefore left a Phase 0 deploy on an onboarding screen whose
+ * only button answered 403, with no other route to a working server. It also pre-empted Phase 4,
+ * where each tenant supplies their own key and this becomes a scoping question rather than a
+ * privilege one. So key writes behave exactly as they did before this branch.
+ *
+ * What DID need fixing about the keys is narrower and is handled by `keyFieldValue` below: a key
+ * sent as the EMPTY string is not a change anyone asked for — it is the renderer echoing an input
+ * nobody typed in (`apps/web/components/settings-page.tsx` posts `openaiApiKey` from state on every
+ * save) — and `mergeSecrets` DELETES the stored key on an empty string. So on the hosted service
+ * the Settings page was wiping the operator's gateway key, for every tenant, each time anyone saved
+ * a spend cap.
+ */
+const OPERATOR_ONLY_CODE = "settings_operator_only";
+const OPERATOR_ONLY_MESSAGE =
+  "Those settings are managed by the operator on the hosted service: the tool credentials and " +
+  "backends, and the prompt-injection guard. They are shared by every tenant on this server, so " +
+  "they cannot be changed from here.";
+
+/** True when the body asks to change a field the operator owns. Keys are not among them — see above. */
+export function requestsOperatorOnlySettings(body: Record<string, unknown>): boolean {
+  for (const field of ["toolKeys", "toolBackends"] as const) {
+    const value = body[field];
+    if (value !== null && typeof value === "object" && Object.keys(value as object).length > 0) {
+      return true;
+    }
+  }
+  return body.injectionGuardBypass === true;
+}
+
+/**
+ * A provider key on its way into the patch.
+ *
+ * Off server mode this is the identity on any string, so a desk owner clearing the field still
+ * means "forget my key" and `mergeSecrets` still deletes it. In server mode a blank is dropped
+ * instead of forwarded, which is what stops the shared key being wiped by a Settings save that
+ * never meant to touch it. A real value passes through in both.
+ */
+export function keyFieldValue(raw: unknown, serverMode: boolean): string | undefined {
+  if (typeof raw !== "string") {
+    return undefined;
+  }
+  if (serverMode && raw.trim().length === 0) {
+    return undefined;
+  }
+  return raw;
+}
+
+/** Injected like `ResetDeps` below, so a test can exercise hosted behaviour without the env flag. */
+export type ServerModeDeps = { isServerMode?: () => boolean };
+
+export async function handlePostSettings(request: HostRequest, deps: ServerModeDeps = {}): Promise<HostResult> {
   try {
     const tenant = await getTenant(request.workspaceId);
     const body = (request.body ?? {}) as Record<string, unknown>;
+    const serverMode = deps.isServerMode ? deps.isServerMode() : isServerMode();
+    if (serverMode && requestsOperatorOnlySettings(body)) {
+      throw new ApiError(OPERATOR_ONLY_CODE, OPERATOR_ONLY_MESSAGE, 403);
+    }
     if (body.locale !== undefined) {
       if (!isAppLocale(body.locale)) {
         throw new ApiError("invalid_request", "locale must be en or id", 400);
       }
       saveOwnerLocale(body.locale);
     }
+    // Keys pass through in both modes; only a blank is dropped in server mode, where it would
+    // DELETE the key every tenant shares. `toolKeys`, `toolBackends` and `injectionGuardBypass`
+    // never reach the patch in server mode — the check above proved none of them carries a value.
     const patch: SecretPatch = {
-      openaiApiKey: typeof body.openaiApiKey === "string" ? body.openaiApiKey : undefined,
-      googleApiKey: typeof body.googleApiKey === "string" ? body.googleApiKey : undefined,
-      anthropicApiKey: typeof body.anthropicApiKey === "string" ? body.anthropicApiKey : undefined,
-      volcengineApiKey: typeof body.volcengineApiKey === "string" ? body.volcengineApiKey : undefined,
-      toolKeys: readStringMap(body.toolKeys),
-      toolBackends: readStringMap(body.toolBackends),
+      openaiApiKey: keyFieldValue(body.openaiApiKey, serverMode),
+      googleApiKey: keyFieldValue(body.googleApiKey, serverMode),
+      anthropicApiKey: keyFieldValue(body.anthropicApiKey, serverMode),
+      volcengineApiKey: keyFieldValue(body.volcengineApiKey, serverMode),
+      toolKeys: serverMode ? undefined : readStringMap(body.toolKeys),
+      toolBackends: serverMode ? undefined : readStringMap(body.toolBackends),
       imageGenModel: readOptionalString(body.imageGenModel),
       videoGenModel: readOptionalString(body.videoGenModel),
       musicGenModel: readOptionalString(body.musicGenModel),
@@ -160,7 +231,7 @@ export async function handlePostSettings(request: HostRequest): Promise<HostResu
       researchGenModel: readOptionalString(body.researchGenModel),
       presentationGenModel: readOptionalString(body.presentationGenModel),
       disabledTools: readStringArray(body.disabledTools),
-      injectionGuardBypass: readOptionalBoolean(body.injectionGuardBypass),
+      injectionGuardBypass: serverMode ? undefined : readOptionalBoolean(body.injectionGuardBypass),
       editTurnCapUsd: readOptionalNumber(body.editTurnCapUsd),
     };
     const saved = saveSettings(patch, tenant);
@@ -387,9 +458,17 @@ export async function handleResetApp(request: HostRequest, deps: ResetDeps = {})
  * cancel. Idempotent on purpose: the owner asked for nothing to be pending, and after this nothing
  * is, whether or not anything was.
  */
-export async function handleCancelReset(request: HostRequest): Promise<HostResult> {
+export async function handleCancelReset(request: HostRequest, deps: ResetDeps = {}): Promise<HostResult> {
   try {
     await getTenant(request.workspaceId);
+    // Symmetry with the two refusals above: the pending-reset marker is machine-wide, so one tenant
+    // must not be able to reach it either way. Arming a wipe is already refused in server mode, so
+    // this cannot fire on anything the hosted service itself queued — it closes the case where a
+    // marker arrives another way (a restored data dir, a desk volume mounted on the server) and one
+    // tenant quietly cancels a wipe the operator armed.
+    if (deps.isServerMode ? deps.isServerMode() : isServerMode()) {
+      throw new ApiError(RESET_DISABLED_CODE, RESET_DISABLED_MESSAGE, 403);
+    }
     // `recursive` so that a directory left at the marker path — a botched restore, a sync client —
     // is cleared like anything else instead of throwing EISDIR and turning "cancel my wipe" into a
     // 500 the owner cannot get past.

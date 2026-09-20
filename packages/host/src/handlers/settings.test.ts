@@ -282,6 +282,91 @@ describe("POST /api/v1/settings", () => {
   });
 });
 
+/**
+ * A01-3. The operator's shared settings on a hosted box, and the one narrow thing that had to
+ * change about the provider keys.
+ *
+ * The first version of this fix refused key writes outright in server mode, which bricked the
+ * hosted deploy: onboarding and Settings are the only ways to supply the gateway key, both post it
+ * here, and `gateway-gate.ts` only falls back to `OPENAI_API_KEY` when `AGENTFORGE_RUNTIME=ai`,
+ * which `webapp-deploy/compose.yml` does not set. The first test below is the one that would have
+ * caught that.
+ *
+ * The switch is injected rather than set in the environment, like the reset suite below: flipping
+ * `AGENTFORGE_SERVER` in this process would turn on the router's session gate and answer 401 to
+ * everything, and would change every other test in the file.
+ */
+describe("POST /api/v1/settings in server mode", () => {
+  const HOSTED = { isServerMode: () => true };
+  const DESK = { isServerMode: () => false };
+
+  async function save(
+    body: Record<string, unknown>,
+    deps: { isServerMode: () => boolean },
+  ): Promise<JsonResponse> {
+    const { handlePostSettings } = await import("./settings");
+    const result = await handlePostSettings(request("POST", "/api/v1/settings", { body }), deps);
+    if (result.type !== "json") {
+      throw new Error(`expected json, got ${result.type}`);
+    }
+    return { status: result.status, body: (result.body ?? {}) as Record<string, unknown> };
+  }
+
+  beforeEach(() => {
+    delete process.env.AGENTFORGE_RUNTIME;
+    stubFetch(200);
+  });
+
+  it("lets the operator save the gateway key, because nothing else can", async () => {
+    const response = await save({ openaiApiKey: KEY }, HOSTED);
+    expect(response.status).toBe(200);
+    expect(response.body.hasOpenai).toBe(true);
+  });
+
+  it("ignores a blank key instead of deleting the one every tenant shares", async () => {
+    await save({ openaiApiKey: KEY }, HOSTED);
+    // Exactly what the Settings page posts when someone saves a spend cap without touching the key
+    // field. Before this, `mergeSecrets` read the empty string as "forget my key".
+    const response = await save({ openaiApiKey: "", editTurnCapUsd: 5 }, HOSTED);
+    expect(response.status).toBe(200);
+    expect(response.body.hasOpenai).toBe(true);
+  });
+
+  it("ignores a whitespace-only key too", async () => {
+    await save({ openaiApiKey: KEY }, HOSTED);
+    const response = await save({ openaiApiKey: "   " }, HOSTED);
+    expect(response.body.hasOpenai).toBe(true);
+  });
+
+  it("still lets a desk owner clear their own key off server mode", async () => {
+    await save({ openaiApiKey: KEY }, DESK);
+    const response = await save({ openaiApiKey: "" }, DESK);
+    expect(response.body.hasOpenai).toBe(false);
+  });
+
+  it("refuses tool credentials, tool backends and the injection-guard bypass", async () => {
+    for (const body of [
+      { toolKeys: { tavily: "tvly-whatever" } },
+      { toolBackends: { search: "https://attacker.example" } },
+      { injectionGuardBypass: true },
+    ]) {
+      const response = await save(body, HOSTED);
+      expect(response.status, JSON.stringify(body)).toBe(403);
+      expect(errorCode(response.body)).toBe("settings_operator_only");
+    }
+  });
+
+  it("lets an empty tool map and a false bypass through, since neither changes anything", async () => {
+    const response = await save({ toolKeys: {}, toolBackends: {}, injectionGuardBypass: false }, HOSTED);
+    expect(response.status).toBe(200);
+  });
+
+  it("does not refuse any of it off server mode", async () => {
+    const response = await save({ toolKeys: { tavily: "tvly-desk" } }, DESK);
+    expect(response.status).toBe(200);
+  });
+});
+
 describe("POST /api/v1/settings/gateway/check", () => {
   it("short-circuits in stub runtime without calling the gateway", async () => {
     let calls = 0;
@@ -403,6 +488,32 @@ describe("POST /api/v1/settings/reset in server mode", () => {
     }
     return { status: result.status, body: (result.body ?? {}) as Record<string, unknown> };
   }
+
+  async function cancel(deps: { isServerMode: () => boolean }): Promise<JsonResponse> {
+    const { handleCancelReset } = await import("./settings");
+    const result = await handleCancelReset(request("POST", "/api/v1/settings/reset/cancel"), deps);
+    if (result.type !== "json") {
+      throw new Error(`expected json, got ${result.type}`);
+    }
+    return { status: result.status, body: (result.body ?? {}) as Record<string, unknown> };
+  }
+
+  /**
+   * A01-4. Arming a wipe was already refused in server mode before this branch; the CANCEL path is
+   * what was open. The marker is machine-wide, so a marker that arrives another way — a restored
+   * data dir, a desk volume mounted on the server — must not be callable off by one tenant.
+   */
+  it("refuses the cancel path too, so one tenant cannot call off the operator's wipe", async () => {
+    const response = await cancel(HOSTED);
+    expect(response.status).toBe(403);
+    expect(errorCode(response.body)).toBe("reset_disabled");
+  });
+
+  it("still cancels off server mode, where the owner armed it themselves", async () => {
+    const response = await cancel({ isServerMode: () => false });
+    expect(response.status).toBe(200);
+    expect(response.body.resetPending).toBe(false);
+  });
 
   it("refuses scope all with reset_disabled and queues nothing", async () => {
     const response = await reset({ scope: "all", confirm: "RESET" }, HOSTED);

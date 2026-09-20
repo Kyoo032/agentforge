@@ -122,3 +122,4 @@ sha and a settled tree reports zero.
 | [`portal-session-auth.md`](portal-session-auth.md) | The portal browser session: mint, verify, refresh, revoke, and the server-mode session gate on `/api` | unit tests under `packages/host/src/auth/` |
 | [`database-and-migrations.md`](database-and-migrations.md) | `packages/db`: the data dir, the wrap key, the SQLite connection, the schema, the committed migrations, Start over | `features/settings.md`, `features/data.md` (partial) |
 | [`webapp-deploy.md`](webapp-deploy.md) | The hosted deployment stack: image, compose, Caddy, and the build / deploy / backup / restore scripts | none — see `../tencent-cvm-setup.md` §9 |
+| [`hosted-security-controls.md`](hosted-security-controls.md) | The hosted perimeter: server mode, admission order, sessions, CSRF, rate limits, response headers, SSRF guard, container hardening | none yet — see the page's Verify section |

@@ -69,6 +69,9 @@ async function liveEmbedBatch(texts: string[], model: string, scope?: SettingsSc
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ model, input: texts }),
+    // Same rule as every other key-bearing call: never follow a redirect with the bearer token
+    // attached (docs/internal/security-owasp-2026-09.md, A10-4). A 3xx is not ok, so it throws.
+    redirect: "manual",
     signal: AbortSignal.timeout(EMBED_TIMEOUT_MS),
   });
   if (!res.ok) {

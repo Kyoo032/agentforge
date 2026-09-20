@@ -36,9 +36,21 @@ export type RunFfmpegOptions = {
 export { minimalEnv };
 
 let execFileImpl: ExecFileFn = defaultExecFile as ExecFileFn;
+/**
+ * Whether `execFileImpl` above is a test's stub rather than the real `execFile`.
+ *
+ * `spawnFfmpeg` refuses up front when ffmpeg or ffprobe is not installed, which is right for the
+ * app and wrong for a test that has already replaced the thing that would spawn it: nothing is
+ * going to be executed, so the machine's PATH is not this test's business. Without this, every
+ * suite built on `setExecFileForTests` passed or failed on whether the person running it happened
+ * to have ffmpeg — `src/edit/import-ipc.test.ts` failed on any runner without it, which is every
+ * CI runner, which is why `.github/workflows/ci.yml` could not have been added while it stood.
+ */
+let execFileIsStubbed = false;
 
 export function setExecFileForTests(next: ExecFileFn | null): void {
   execFileImpl = next ?? (defaultExecFile as ExecFileFn);
+  execFileIsStubbed = next !== null;
 }
 
 let limiterImpl: Limiter | null = null;
@@ -75,15 +87,17 @@ export function runFfmpeg(argv: string[], options: RunFfmpegOptions): Promise<{ 
 
 async function spawnFfmpeg(argv: string[], options: RunFfmpegOptions): Promise<{ stdout: string; stderr: string }> {
   const resolved = options.bin === "ffprobe" ? resolveFfprobe() : resolveFfmpeg();
-  if (!resolved.found || !resolved.path) {
+  if ((!resolved.found || !resolved.path) && !execFileIsStubbed) {
     throw new ApiError("ffmpeg_missing", "ffmpeg is not available on this machine", 400);
   }
+  // Only ever reached with a stub in place, per the flag's comment; the stub ignores it.
+  const binary = resolved.path ?? (options.bin === "ffprobe" ? "ffprobe" : "ffmpeg");
   const args = [...argv];
   if (options.bin !== "ffprobe" && options.onProgress && !args.includes("-progress")) {
     args.push("-progress", "pipe:1", "-nostats");
   }
   try {
-    const pending = execFileImpl(resolved.path, args, {
+    const pending = execFileImpl(binary, args, {
       timeout: options.timeoutMs,
       windowsHide: true,
       env: minimalEnv(),

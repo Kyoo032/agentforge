@@ -77,6 +77,39 @@ function escapeAssText(text: string): string {
   return text.replace(/\\/g, "\\\\").replace(/\r?\n/g, "\\N").replace(/\{/g, "\\{").replace(/\}/g, "\\}");
 }
 
+/**
+ * ASS is line-oriented with no quoting at all, so a value carrying a newline ends its directive and
+ * starts one of the caller's choosing, and a value carrying a comma shifts every field after it on
+ * a `Style:` line. `escapeAssText` above covers Dialogue *text* only, which is the last field on
+ * its line and has `\N` to stand in for a newline; the values below are neither, so the only thing
+ * that works is dropping the characters that would break out.
+ *
+ * Both values reach here straight off the edit project the caller PUTs: `project.name` lands in the
+ * `[Script Info]` header and `style.fontFamily` inside a `Style:` line, and the document is then
+ * handed to ffmpeg's `ass` filter, which is a real parser reading a real file. See
+ * docs/internal/security-owasp-2026-09.md, finding A03-2.
+ */
+const ASS_VALUE_LIMIT = 200;
+
+/** Anything below a space, plus DEL: the characters that would end the directive. */
+function isUnsafeAssChar(char: string): boolean {
+  return char < " " || char === "\u007f";
+}
+
+/** For a value that owns the rest of its line, such as `Title:`. Commas are harmless there. */
+function assLineValue(value: string): string {
+  return Array.from(value, (char) => (isUnsafeAssChar(char) ? " " : char))
+    .join("")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, ASS_VALUE_LIMIT);
+}
+
+/** For a value that is one comma-separated field among many, such as a style's font family. */
+function assFieldValue(value: string): string {
+  return assLineValue(value).replace(/,/g, " ").replace(/\s+/g, " ").trim();
+}
+
 function styleKey(style: TitleStyle): string {
   return JSON.stringify(style);
 }
@@ -88,7 +121,7 @@ function assStyleLine(name: string, style: TitleStyle): string {
     "Style: ",
     name,
     ",",
-    style.fontFamily,
+    assFieldValue(style.fontFamily),
     ",",
     style.fontSizePx,
     ",",
@@ -163,7 +196,7 @@ export function buildAssDocument(project: EditProject): string {
   const styleLines = styles.map((entry) => assStyleLine(entry.name, entry.style));
   return [
     "[Script Info]",
-    `Title: ${project.name}`,
+    `Title: ${assLineValue(project.name)}`,
     "ScriptType: v4.00+",
     `PlayResX: ${project.width}`,
     `PlayResY: ${project.height}`,

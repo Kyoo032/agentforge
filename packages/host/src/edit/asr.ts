@@ -10,6 +10,34 @@ import { loadSettings, type SettingsScope } from "../settings-store";
  */
 const ASR_ID = /whisper|transcribe|(?:^|[-_.])asr(?:[-_.]|$)/i;
 
+/**
+ * How long one chunk of audio may take before the request is given up on.
+ *
+ * There was no timeout at all: a gateway that accepted the connection and then went quiet held the
+ * Edit job open forever, and the 5xx retry below re-uploaded the whole chunk on top of it
+ * (docs/internal/security-owasp-2026-09.md, A10-4). Generous, because this is a model call over an
+ * upload, not an API ping.
+ */
+const ASR_TIMEOUT_MS = 120_000;
+
+/**
+ * The options every transcription request shares.
+ *
+ * `redirect: "manual"` is the security half: this request carries the gateway key as a bearer
+ * token, and the default "follow" would replay that key to whatever host a 3xx names. The gateway
+ * base URL is pinned (`resolvedGatewayBaseUrl`), so a redirect is not something the app asks for;
+ * with this set, one arrives as a non-ok response and the chunk is simply skipped.
+ */
+function asrRequestInit(key: string, form: FormData): RequestInit {
+  return {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}` },
+    body: form,
+    redirect: "manual",
+    signal: AbortSignal.timeout(ASR_TIMEOUT_MS),
+  };
+}
+
 export type AsrCapability = {
   available: boolean;
   backend: string | null;
@@ -63,18 +91,10 @@ export async function transcribeAudioChunks(
     if (language) {
       form.set("language", language);
     }
-    const response = await fetchImpl(`${base}/audio/transcriptions`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${key}` },
-      body: form,
-    });
+    const response = await fetchImpl(`${base}/audio/transcriptions`, asrRequestInit(key, form));
     if (!response.ok) {
       if (response.status >= 500) {
-        const retry = await fetchImpl(`${base}/audio/transcriptions`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${key}` },
-          body: form,
-        });
+        const retry = await fetchImpl(`${base}/audio/transcriptions`, asrRequestInit(key, form));
         if (!retry.ok) {
           continue;
         }

@@ -70,7 +70,9 @@ dc stop proxy app
 echo "==> emptying and unpacking /data"
 # cap_drop: ALL in compose.yml takes CHOWN away even from root, and both tar -x and
 # the chown below need it. Hand back exactly those three for this one-shot container.
-decrypt_to_stdout | dc run --rm --no-deps -T --user root \n	--cap-add CHOWN --cap-add FOWNER --cap-add DAC_OVERRIDE \n	--entrypoint sh app -c '
+decrypt_to_stdout | dc run --rm --no-deps -T --user root \
+	--cap-add CHOWN --cap-add FOWNER --cap-add DAC_OVERRIDE \
+	--entrypoint sh app -c '
 set -e
 rm -rf /data/..?* /data/.[!.]* /data/* 2>/dev/null || true
 tar -xzf - -C /data

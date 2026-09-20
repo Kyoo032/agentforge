@@ -218,7 +218,10 @@ export async function frameAt(
   const allow = editAllowlist({ tenantId, projectId: doc.id });
   const scratch = editScratchRoot({ tenantId, projectId: doc.id });
   await mkdir(scratch, { recursive: true });
-  const assPath = path.join(scratch, `parity-${frame}.ass`);
+  // Through `assertInsidePath` like every other path here, and like `render` below already does.
+  // `frame` is typed a number but arrives off a JSON body, so nothing before this point stops a
+  // string from reaching `path.join` and walking out of the scratch root (finding A03-3).
+  const assPath = assertInsidePath(path.join(scratch, `parity-${frame}.ass`), roots);
   await writeFile(assPath, buildAssDocument(doc), "utf8");
   const graph = compileFilterGraph(doc, assPath);
   const out = assertInsidePath(path.join(scratch, `frame-${frame}.png`), allow);

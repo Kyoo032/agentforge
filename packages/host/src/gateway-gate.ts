@@ -362,6 +362,11 @@ export async function checkGatewayLive(input: {
         Accept: "application/json",
         Authorization: `Bearer ${input.key}`,
       },
+      // The key rides this request, and the default "follow" would replay it to whatever host a 3xx
+      // names (docs/internal/security-owasp-2026-09.md, A10-4). The base URL is pinned, so a
+      // redirect is never something this app asked for: it arrives below as a non-ok status and is
+      // reported as "could not ask", which is the honest verdict.
+      redirect: "manual",
       signal: AbortSignal.timeout(input.timeoutMs ?? GATEWAY_CHECK_TIMEOUT_MS),
     });
     if (response.ok) {
