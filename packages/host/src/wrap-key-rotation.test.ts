@@ -230,6 +230,28 @@ describe("rotating the hosted row store", () => {
     expect(rowValue(A)).toBe(goodA);
   });
 
+  /**
+   * Every case above and below hands `rotateWrapKey` a backend, and that is exactly how the drill
+   * shipped broken: pointed at a hosted deployment the way its own header says to, the script died
+   * with `tenant_state_backend_missing` before reading a byte, because nothing had installed a
+   * database connection and the store fails closed rather than quietly reading the desk's files.
+   *
+   * So this one passes no backend. It is the call the script makes.
+   */
+  it("picks the hosted store itself when the caller injects nothing", () => {
+    process.env.AGENTFORGE_SERVER = "1";
+    try {
+      putRow(A, sealed(payloadFor("desk-a", "sk-alpha-key-0000"), OLD_KEY));
+
+      const result = rotateWrapKey({ from: OLD_KEY, to: NEW_KEY });
+
+      expect(result).toMatchObject({ backend: "db", rotated: [A] });
+      expect(openWith(rowValue(A), NEW_KEY)).toEqual(payloadFor("desk-a", "sk-alpha-key-0000"));
+    } finally {
+      delete process.env.AGENTFORGE_SERVER;
+    }
+  });
+
   it("leaves the gate verdict alone, because no wrap key opens it", () => {
     putRow(A, sealed(payloadFor("desk-a", "sk-alpha-key-0000"), OLD_KEY));
     sqlite

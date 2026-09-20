@@ -186,6 +186,25 @@ key — so there is nothing to re-wrap, and losing one costs a re-check.
 
 The operator runbook is [`../web-phase4-tenant-secrets.md`](../web-phase4-tenant-secrets.md) §5.
 
+**The CLI is the only entry point that is not a request, and it shipped broken.** Run against the hosted
+store, as its own header documents, it died with `tenant_state_backend_missing` before reading a tenant: only
+`router.ts` installs a connection, and every rotation test injected a backend, so nothing covered it. Two
+rules came out of the fix, both load-bearing:
+
+- **Every host import in `scripts/rotate-wrap-key.ts` is dynamic and has to stay that way**
+  (`scripts/rotate-wrap-key.ts:27-41`, `:84-98`). `tsx` compiles the file to CJS, so a static `import` is a
+  `require` while an `await import()` goes through the ESM loader; mix the two over the same host module and
+  the process holds two copies of `tenant-state-store.ts` — the connection installs into one, the rotation
+  reads the other, and it fails exactly as if nothing had been installed. Keeping the whole graph behind the
+  server-mode branch is also what stops a desk rotation opening a database it is not rotating.
+- **`migrationsFolder` now also resolves from the repository root** (`packages/db/src/ensure-schema.ts:63-84`).
+  It only looked at `../../packages/db/drizzle`, i.e. from a package directory such as `apps/web`, so opening
+  the database from the repo root — where operator scripts are documented to run — threw before the rotation
+  began.
+
+`packages/host/src/wrap-key-rotation-script.test.ts` spawns the real file in a real process against a real
+database, because neither bug was visible from a unit test.
+
 ### The schema
 
 Migration `packages/db/drizzle/0018_tenant_state.sql`:
@@ -213,7 +232,10 @@ this migration is `0018` and the journal has a gap at `idx: 17`. The runner is f
 (`lastAppliedCreatedAt < entry.when`, `packages/db/src/ensure-schema.ts`), so a `0017` added *later* with a
 `when` below this file's would be **skipped** on any database that already ran this one. Lane B must give its
 migration a `when` above `1788820000010`. The migration file's own header says so, and
-`packages/db/src/migrate-0018.test.ts` asserts the journal ordering and that no `0017` tag has appeared.
+`packages/db/src/migrate-0018.test.ts:142-170` asserts that ordering: that `0018`'s `when` is above `0016`'s,
+and that **any** `0017` entry's `when` is above `0018`'s. It deliberately does not assert that `0017` is
+absent, which is what it did first — lane B's perfectly correct migration would have turned that red, and the
+obvious way to clear a red like that is to delete the line, taking the real rule with it.
 
 ## Where things live
 

@@ -24,7 +24,23 @@
  * set it to 1 for a hosted deployment (rows in `tenant_state`), leave it unset for a desk (the
  * per-tenant files). Rotating the wrong store is a no-op that reports 0 tenants, not a loss.
  */
-import { rotateWrapKey, WrapKeyRotationError } from "../packages/host/src/wrap-key-rotation";
+import { isServerMode } from "../packages/core/src/server-mode";
+
+/**
+ * Every import of the host below is dynamic, and they all have to stay that way.
+ *
+ * `tsx` compiles this file to CJS, so a static `import` here becomes a `require` while an
+ * `await import()` goes through Node's ESM loader. Mix the two over the same host module and the
+ * process ends up with two copies of `tenant-state-store.ts`: the connection installs into one and
+ * the rotation reads the other, which fails with `tenant_state_backend_missing` as surely as
+ * installing nothing at all. `wrap-key-rotation-script.test.ts` runs this file for real and would
+ * go red again if a static host import crept back in.
+ *
+ * Keeping the whole graph behind the server-mode branch also keeps the desk case honest: importing
+ * `@agentforge/db` OPENS the SQLite file and runs its migrations as a side effect, and a `--dry-run`
+ * rehearsal on a desk has no business touching a database it is not rotating.
+ */
+type HostRotation = typeof import("../packages/host/src/wrap-key-rotation");
 
 type Args = { from: string; to: string; dryRun: boolean };
 
@@ -65,8 +81,26 @@ function parseArgs(argv: string[]): Args {
   };
 }
 
-function main(): void {
+/**
+ * Load the rotation, with the hosted store's database connection installed if that is the store.
+ *
+ * `router.ts` installs it for a request; this process is not a request, so nothing had, and pointed
+ * at a hosted deployment — the one thing its own header tells an operator to do — the script died
+ * with `tenant_state_backend_missing` before reading a byte. `tenant-state-store.ts` fails closed
+ * rather than silently reading the desktop's files, which is the right call and is why this showed
+ * up as a crash instead of a rotation that quietly did nothing. Every test until now injected a
+ * backend, so none of them went near it.
+ */
+async function loadRotation(): Promise<HostRotation> {
+  if (isServerMode()) {
+    await import("../packages/host/src/tenant-state-db");
+  }
+  return await import("../packages/host/src/wrap-key-rotation");
+}
+
+async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
+  const { rotateWrapKey, WrapKeyRotationError } = await loadRotation();
   try {
     const result = rotateWrapKey({ from: args.from, to: args.to, dryRun: args.dryRun });
     const verb = result.dryRun ? "would re-seal" : "re-sealed";
@@ -91,4 +125,9 @@ function main(): void {
   }
 }
 
-main();
+main().catch((error: unknown) => {
+  // A throw past `main`'s own handler is a bug, not a refusal; it exits 1 like any other failure to
+  // rotate, but with its stack, because nothing has been written at that point either.
+  console.error(error);
+  process.exit(1);
+});

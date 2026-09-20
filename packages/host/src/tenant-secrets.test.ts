@@ -252,6 +252,53 @@ describe("the operator's key is not a tenant's key", () => {
       .anthropicBaseUrl).toBe("https://operator.example/v1");
   });
 
+  /**
+   * The live hole, and the reason the sweep in `packages/core/src/provider-env-sweep.test.ts`
+   * exists: `resolveProviderKeys` was not the only door.
+   *
+   * Edit's auto-captions run on the timeline worker, after the request that enqueued them has gone.
+   * Nothing re-checks the gate there — it cannot, there is no request to answer 403 to — so the
+   * `process.env.OPENAI_API_KEY` fallback this used to carry meant a hosted tenant could enqueue a
+   * job while keyed, sign out, and have the transcription billed to the OPERATOR. The route is
+   * asserted by its side effect: whether the gateway is called at all.
+   */
+  it("does not transcribe an Edit job on the operator's key after the tenant's is gone", async () => {
+    const asr = await import("./edit/asr");
+    process.env.AGENTFORGE_EDIT_ASR_MODEL = "mimo-v2.5-asr";
+    process.env.OPENAI_API_KEY = "sk-operator-key-do-not-share";
+    const chunk = path.join(dataDir, "chunk.mp3");
+    writeFileSync(chunk, "not really audio");
+    const calls: Array<string | undefined> = [];
+    const spy: typeof fetch = async (_url, init) => {
+      calls.push(new Headers(init?.headers).get("authorization") ?? undefined);
+      return new Response(JSON.stringify({ text: "transcribed" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    };
+    try {
+      hosted();
+      // The tenant has saved no key of its own — it signed out, or never pasted one.
+      expect(await asr.transcribeAudioChunks([chunk], undefined, spy, A)).toEqual({ text: "" });
+      expect(calls).toEqual([]);
+
+      // Its own key still pays for its own job.
+      settingsStore.saveSettings({ openaiApiKey: KEY_A }, A);
+      expect(await asr.transcribeAudioChunks([chunk], undefined, spy, A)).toEqual({ text: "transcribed" });
+      expect(calls).toEqual([`Bearer ${KEY_A}`]);
+
+      // And a desk still honours the documented env fallback, unchanged by any of this.
+      delete process.env.AGENTFORGE_SERVER;
+      settingsStore.resetSettingsCacheForTests();
+      const local = { tenantId: LOCAL_TENANT_ID, workspaceId: "home", userId: "owner" };
+      expect(await asr.transcribeAudioChunks([chunk], undefined, spy, local)).toEqual({ text: "transcribed" });
+      expect(calls.at(-1)).toBe("Bearer sk-operator-key-do-not-share");
+    } finally {
+      delete process.env.AGENTFORGE_EDIT_ASR_MODEL;
+      delete process.env.OPENAI_API_KEY;
+    }
+  });
+
   it("leaves the hosted gate reporting needs_key rather than opening on the operator's key", () => {
     const hostedEnv = { AGENTFORGE_SERVER: "1" } as NodeJS.ProcessEnv;
     process.env.OPENAI_API_KEY = "sk-operator-key-do-not-share";

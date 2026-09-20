@@ -17,6 +17,7 @@
  */
 
 import { resolvedGatewayBaseUrl } from "../gateway";
+import { providerEnv } from "../server-mode";
 import { getSecret, getToolSelection, type ToolSecretScope } from "./secret-scope";
 
 export type ToolSecretStore = {
@@ -294,10 +295,21 @@ export function resolveToolBackend(
   return { capability: capabilityId, backend: fallback, source: "autodetect", ready: false };
 }
 
+/**
+ * Phase 4 — in server mode this reads no credential out of the process environment.
+ *
+ * Every env read below (the inference keys, the Ark base URL, and the `TOOL_CAPABILITIES` sweep
+ * that picks up TAVILY_API_KEY, BRAVE_SEARCH_API_KEY, FAL_KEY and friends) is an OPERATOR
+ * credential on a hosted box, and this map becomes the tool secret scope a tenant's run executes
+ * with. `providerEnv` hands back an empty environment there; off the hosted server it returns
+ * `rawEnv` unchanged, so webdev and the frozen desktop autodetect exactly as before. The two other
+ * exports in this file both build their scope from here, so this is the only place to filter.
+ */
 export function secretMapFromSettings(
   settings: ToolSecretStore,
-  env: NodeJS.ProcessEnv = process.env,
+  rawEnv: NodeJS.ProcessEnv = process.env,
 ): Record<string, string> {
+  const env = providerEnv(rawEnv);
   const map: Record<string, string> = {};
   const put = (name: string, value?: string) => {
     if (value && value.trim().length > 0) {

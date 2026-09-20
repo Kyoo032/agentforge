@@ -42,6 +42,7 @@ import {
 } from "../models/reasoning-effort";
 import type { ReasoningEffort } from "../models/reasoning-effort";
 import { parseAppLocale } from "../locale";
+import { providerEnv } from "../server-mode";
 import { redactSecrets } from "../security/redact";
 import { gatewayHttpFailure } from "../gateway-http-copy";
 import { abortErrorMessage, armStreamWatchdog, watchAsyncIterable } from "./stream-watchdog";
@@ -160,14 +161,17 @@ export class AiSdkRuntime implements AgentRuntime {
   ) {}
 
   async execute(input: Parameters<AgentRuntime["execute"]>[0]): Promise<void> {
-    const openaiKey = this.keys.openai ?? process.env.OPENAI_API_KEY;
-    const googleKey = this.keys.google ?? process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-    const anthropicKey = this.keys.anthropic ?? process.env.ANTHROPIC_API_KEY;
-    const volcengineKey = this.keys.volcengine ?? process.env.ARK_API_KEY;
-    const openaiBaseUrl = this.keys.openaiBaseUrl ?? process.env.OPENAI_BASE_URL ?? DEFAULT_OPENAI_BASE_URL;
-    const googleBaseUrl = this.keys.googleBaseUrl ?? process.env.GOOGLE_GENERATIVE_AI_BASE_URL;
-    const anthropicBaseUrl = this.keys.anthropicBaseUrl ?? process.env.ANTHROPIC_BASE_URL;
-    const volcengineBaseUrl = this.keys.volcengineBaseUrl ?? process.env.ARK_BASE_URL;
+    // Phase 4 — `this.keys` is the tenant's own, already resolved by `resolveProviderKeys`. The env
+    // fallback behind it is the operator's, so on a hosted box it is empty; see `providerEnv`.
+    const env = providerEnv();
+    const openaiKey = this.keys.openai ?? env.OPENAI_API_KEY;
+    const googleKey = this.keys.google ?? env.GOOGLE_GENERATIVE_AI_API_KEY;
+    const anthropicKey = this.keys.anthropic ?? env.ANTHROPIC_API_KEY;
+    const volcengineKey = this.keys.volcengine ?? env.ARK_API_KEY;
+    const openaiBaseUrl = this.keys.openaiBaseUrl ?? env.OPENAI_BASE_URL ?? DEFAULT_OPENAI_BASE_URL;
+    const googleBaseUrl = this.keys.googleBaseUrl ?? env.GOOGLE_GENERATIVE_AI_BASE_URL;
+    const anthropicBaseUrl = this.keys.anthropicBaseUrl ?? env.ANTHROPIC_BASE_URL;
+    const volcengineBaseUrl = this.keys.volcengineBaseUrl ?? env.ARK_BASE_URL;
     const modelName = input.version.model;
     const runLocale = parseAppLocale(input.locale);
     // One place turns a gateway 4xx/5xx into words: app-locale headline, upstream text to the log.
@@ -406,7 +410,7 @@ export class AiSdkRuntime implements AgentRuntime {
     const messages = toCoreMessages(input.version.systemPrompt, input.history);
     const hasTools = Object.keys(tools).length > 0;
     const officialOpenAI = isOfficialOpenAIBaseUrl(
-      this.keys.openaiBaseUrl ?? process.env.OPENAI_BASE_URL ?? DEFAULT_OPENAI_BASE_URL,
+      this.keys.openaiBaseUrl ?? providerEnv().OPENAI_BASE_URL ?? DEFAULT_OPENAI_BASE_URL,
     );
     const rawEffort = resolveRequestReasoningEffort(input);
     let activeModel = model;
@@ -588,7 +592,7 @@ export class AiSdkRuntime implements AgentRuntime {
     usage: { inputTokens: number; outputTokens: number };
   }> {
     const officialOpenAI = isOfficialOpenAIBaseUrl(
-      this.keys.openaiBaseUrl ?? process.env.OPENAI_BASE_URL ?? DEFAULT_OPENAI_BASE_URL,
+      this.keys.openaiBaseUrl ?? providerEnv().OPENAI_BASE_URL ?? DEFAULT_OPENAI_BASE_URL,
     );
     const providerOptions =
       options.messages || options.google

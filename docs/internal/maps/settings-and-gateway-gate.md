@@ -86,7 +86,7 @@ of `{ locale }` (`:219-229`) — see [`locale-boot-and-run-harness.md`](locale-b
 turn cap (`settings-edit-turn-cap`, `:396`) is a number input clamped to 0.5–50 on the way in and again on the
 way out (`:162-166`, `:388-395`), default 2.
 
-**Key resolution.** `resolveProviderKeys(settings, env)` (`packages/core/src/secrets.ts:322-334` for the signature, the body through `:360`), today — where `env` is the process environment on a desk and a **frozen empty object** in server mode, which is Phase 4's change (`:335-337`):
+**Key resolution.** `resolveProviderKeys(settings, env)` (`packages/core/src/secrets.ts:322-334` for the signature, the body through `:360`), today — where `env` is not the process environment directly but `providerEnv(env)` (`packages/core/src/server-mode.ts:34-60`), which is `env` unchanged on a desk and a **frozen empty object** in server mode. That is Phase 4's change, and it is shared: the same helper backs the tool secret scope (`packages/core/src/tools/credentials.ts:296-308`), the runtime's per-provider fallback (`packages/core/src/runtime/ai-sdk-runtime.ts:163-174`) and, indirectly, Edit's off-request transcription (`packages/host/src/edit/asr.ts:79-87`, which asks `resolveProviderKeys` rather than the environment). `packages/core/src/provider-env-sweep.test.ts` fails the build if any other shipped source reads one of these variables off `process.env`:
 
 ```
 openai        = settings.openaiApiKey || env.OPENAI_API_KEY
@@ -180,10 +180,14 @@ verdict is keyed by fingerprint; the key itself is never written**), and hands b
 - **`keyFor` refuses the process environment in server mode** (`:395-405`). A saved key is still the key.
   But with none saved, an `OPENAI_API_KEY` in the host's own environment belongs to the **operator**, and
   handing it to a tenant who has saved nothing is residual A01-3. The gate now answers `needs_key` there,
-  which is what `resolveProviderKeys` does on the call path (`packages/core/src/secrets.ts:322-337`,
-  the fallback swapped for an empty environment at `:335-337`), so the verdict and the call agree about
+  which is what `resolveProviderKeys` does on the call path (`packages/core/src/secrets.ts:322-330`,
+  the fallback taken from `providerEnv` at `:329`), so the verdict and the call agree about
   whether this tenant has a key at all. Off server mode nothing moved: a
   desk running `AGENTFORGE_RUNTIME=ai` with a key in its environment still works exactly as before.
+  The gate is only half of it, though: it can only protect work that happens **inside a request**.
+  Edit's auto-captions run on the timeline worker afterwards, where there is no request to answer
+  `403` to, which is why `edit/asr.ts` resolving its own bearer mattered rather than being tidiness
+  — see [`tenant-secrets-backend.md`](tenant-secrets-backend.md).
 
 Constants (`packages/host/src/gateway-gate.ts`): `GATEWAY_GRACE_MS = 7 * 86_400_000` (`:47`),
 `GATEWAY_CHECK_TIMEOUT_MS = 3_000` (`:50`), `GATEWAY_OK_TTL_MS = 86_400_000` (`:56`),

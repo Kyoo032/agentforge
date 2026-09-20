@@ -70,10 +70,19 @@ export function migrationsFolder(): string {
       return envDir;
     }
   }
+  // The app's own cwd: `apps/web`, `packages/host`, any package directory.
   const relative = path.resolve(process.cwd(), "../../packages/db/drizzle");
   tried.push(relative);
   if (existsSync(relative)) {
     return relative;
+  }
+  // The repository root, which is where the operator scripts document being run from
+  // (`scripts/rotate-wrap-key.ts`). Without this the wrap-key rotation drill could not open the
+  // hosted database at all: it failed here, on the import, before reading a single tenant.
+  const fromRoot = path.resolve(process.cwd(), "packages/db/drizzle");
+  tried.push(fromRoot);
+  if (existsSync(fromRoot)) {
+    return fromRoot;
   }
   throw new Error(`DPSBuddy migrations folder not found. Tried:\n${tried.map((p) => `  - ${p}`).join("\n")}`);
 }

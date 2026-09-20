@@ -117,14 +117,36 @@ not saved a key of their own was silently spending it: billed to the operator, a
 nobody, and reachable from any tenant session by making one call. The gate's own `keyFor`
 (`gateway-gate.ts:398`) had the same fallback behind `AGENTFORGE_RUNTIME=ai`.
 
-Both now refuse whenever `AGENTFORGE_SERVER=1`. Concretely:
+**And `resolveProviderKeys` was not the only door.** The first pass at this closed that one function
+and said the residual was closed. It was not: the verifier found three more sites reading the same
+variables straight off `process.env`, and one of them was live.
 
-- `resolveProviderKeys` substitutes a frozen empty env for the fallback in server mode, so the keys
-  *and the base URLs* come from the tenant's own settings or from nowhere. A frozen object rather
-  than a branch per field, so a provider added later cannot reintroduce the fallback by omission.
-- `keyFor` refuses in server mode too, so the gate's verdict and the call path agree about whether
-  this tenant has a key. Without that, the gate would report `ok` on the operator's key while the
-  call it gated used the same one.
+- `packages/core/src/runtime/ai-sdk-runtime.ts` fell back per provider inside `execute`, behind the
+  keys the caller had already resolved.
+- `packages/core/src/tools/credentials.ts` built the tool secret scope a run executes with from the
+  environment — the inference keys, and the `TOOL_CAPABILITIES` sweep that picks up
+  `TAVILY_API_KEY`, `BRAVE_SEARCH_API_KEY`, `FAL_KEY`.
+- `packages/host/src/edit/asr.ts` was the one that was actually exploitable. Edit's auto-captions
+  run on the timeline worker, **after** the request that enqueued them has gone, and nothing
+  re-checks the gate there — it cannot, there is no request to answer `403` to. So a hosted tenant
+  could enqueue a transcription while keyed, sign out, and have it charged to the operator.
+
+So the rule is now one function rather than a habit: `providerEnv`
+(`packages/core/src/server-mode.ts`), which returns a frozen empty environment in server mode and
+`env` unchanged off it. A frozen object rather than a branch per field, so a provider added later
+cannot reintroduce the fallback by omission. Every site above goes through it, and:
+
+- `resolveProviderKeys` takes its fallback from it, so the keys *and the base URLs* come from the
+  tenant's own settings or from nowhere.
+- `keyFor` (`gateway-gate.ts`) refuses in server mode too, so the gate's verdict and the call path
+  agree about whether this tenant has a key. Without that, the gate would report `ok` on the
+  operator's key while the call it gated used the same one.
+- `edit/asr.ts` asks `resolveProviderKeys` which bearer pays, the way `meeting/transcribe.ts`
+  already did, rather than reaching past it.
+- `packages/core/src/provider-env-sweep.test.ts` greps both packages and fails on any shipped source
+  outside `server-mode.ts` that reads one of these variables off `process.env`. Reviewing the four
+  sites was not the fix; the fix is that a fifth cannot appear unnoticed. The sweep carries its own
+  bait case, so an empty result means it looked.
 - A hosted tenant with no key of its own gets `needs_key` and sees onboarding. **That is the
   intended state**, not a misconfiguration, and it is what the plan's "two tenants each paste their
   own key" requires.
@@ -234,6 +256,29 @@ message carries one. Exit codes: `0` rotated (or would have), `1` refused before
 `AGENTFORGE_SERVER` decides which store is rotated, exactly as it decides which one the app uses.
 Rotating the wrong store reports 0 tenants; it is a no-op, not a loss.
 
+**The hosted half of that shipped broken, and this is how it was found.** Run exactly as written
+above, the script died with `tenant_state_backend_missing` before reading a tenant: the hosted store
+fails closed when no database connection has been installed, and only `router.ts` installs one — a
+CLI is not a request. Every case in `wrap-key-rotation.test.ts` handed the rotation a backend, so
+none of them went near it. The file store, which needs no connection, worked throughout.
+
+Two things were wrong behind that one symptom, and both are fixed:
+
+- The script installs the connection itself in server mode. Every host import in it is dynamic and
+  has to stay that way: `tsx` compiles the file to CJS, so a static `import` is a `require` while an
+  `await import()` goes through the ESM loader, and mixing the two gives the process two copies of
+  `tenant-state-store.ts` — the connection installs into one and the rotation reads the other, which
+  fails in exactly the same way as installing nothing.
+- `migrationsFolder` (`packages/db/src/ensure-schema.ts`) resolved the migrations only from a
+  package directory (`../../packages/db/drizzle`), so opening the database from the repository
+  root — where this script is documented to run — threw before the rotation began. It now tries the
+  repository root too.
+
+`packages/host/src/wrap-key-rotation-script.test.ts` runs the real script in a real process against
+a real database, because neither of those was visible from a unit test. It is the slowest test in
+the package and worth it once. `wrap-key-rotation.test.ts` also has one case that injects no backend
+at all, which is the call the script makes.
+
 The current key only has to be long enough to be a key; the new one must also look generated. That
 asymmetry is deliberate: rotating *away* from a weak key is a thing someone would want this for,
 rotating *onto* one is not.
@@ -307,7 +352,7 @@ quietly.
 
 Three new suites, 42 tests. Everything below was run in this container.
 
-`packages/host/src/tenant-secrets.test.ts` (19) — the phase's own "done when", against the backend
+`packages/host/src/tenant-secrets.test.ts` (20) — the phase's own "done when", against the backend
 that actually serves a hosted tenant. Two tenants save different keys and each reads its own, as
 **rows**, with `readdirSync(dataDir)` asserted empty — not "the right files", *no* files. The stored
 row is asserted not to contain the key or the string `openaiApiKey`, and to parse as the
@@ -318,11 +363,14 @@ unregistered, both a read and a write throw. Adoption imports a lane D file once
 `settings.enc.adopted`; another tenant's file is not adopted and no row is invented. The desktop
 cases assert the exact lane D paths and **zero rows**. The operator-key cases drive
 `resolveProviderKeys` in both modes, including the base URLs, and the gate reporting `needs_key`
-under `AGENTFORGE_RUNTIME=ai` with `OPENAI_API_KEY` set. Five locale cases, including two users on
+under `AGENTFORGE_RUNTIME=ai` with `OPENAI_API_KEY` set. One of them drives the Edit ASR hole
+directly — hosted tenant with no key of its own, operator key in the environment, and the gateway
+asserted **never called**; then its own key saved and the call made with that bearer; then the same
+job on a desk still using the documented env fallback. Five locale cases, including two users on
 one tenant and one desk reading different languages. And the decrypt-failure case: the read throws,
 the row is still there, and the right key gets the key back.
 
-`packages/host/src/wrap-key-rotation.test.ts` (11) — both backends. The cases that matter most are
+`packages/host/src/wrap-key-rotation.test.ts` (12) — both backends. The cases that matter most are
 the refusals: one tenant sealed under a different key makes the whole run throw and the *other*
 tenant's bytes are asserted byte-identical afterwards, which is the two-phase commit actually
 holding. The error names the tenant and contains neither key. `--dry-run` leaves the bytes alone.
@@ -330,6 +378,20 @@ The file walk finds the local tenant at the install root as well as everyone und
 D's one rule seen from the rotation's side, and a walk that only looked under `tenants/` would
 silently skip the desktop owner's own key. Weak and malformed keys are refused on both sides, with
 `from` allowed to be weak on purpose. The gate verdict is left alone.
+
+`packages/host/src/wrap-key-rotation-script.test.ts` (4) — the drill as an operator runs it, added
+after the version above passed while the script itself was broken (§5). It spawns the real file with
+`tsx`, in server mode, against a real seeded database: the dry run writes nothing and says so, the
+real run re-seals the row so the new key opens it and the old one does not, a wrong current key
+exits 1 with the row byte-identical, and no output on any path contains either key.
+
+`packages/core/src/provider-env-sweep.test.ts` (5) — the guard from §3 and the behaviour under it.
+The sweep walks both `packages/core/src` and `packages/host/src`, strips comments, and fails on any
+shipped source outside `server-mode.ts` reading one of thirteen credential variables off
+`process.env`; a bait case proves the regex and the file walk both work, so an empty offender list
+means it looked. Then three cases on `providerEnv` itself: unchanged off server mode, empty in it,
+and frozen so a caller cannot write a key back into it. Verified by reintroducing the `edit/asr.ts`
+read and watching it go red, naming that file.
 
 `packages/db/src/migrate-0018.test.ts` (12) — the table on a fresh database and via the healer after
 `DROP TABLE`; the composite key refusing a duplicate and accepting an upsert; the cascade; the
@@ -354,8 +416,8 @@ Suite state on this branch:
 
 | Package | Result |
 |---|---|
-| `@agentforge/host` | 203 files, **2102 tests, no failures** |
-| `@agentforge/core` | 182 files, **2206 passed, 1 skipped** |
+| `@agentforge/host` | 204 files, **2108 tests, no failures** |
+| `@agentforge/core` | 183 files, **2211 passed, 1 skipped** |
 | `@agentforge/db` | 10 files, **122 tests** |
 | `apps/web` | 96 files, **903 tests** |
 
@@ -464,7 +526,10 @@ action on a running app. §9 lists what that leaves owing.
 2. **The rotation drill against a real data directory.** §5, all five steps, on a directory with at
    least two tenants' keys in it. Run the `--dry-run` first and confirm it reports the tenant count
    you expect; run the real thing; restart with the new key; sign in and check the saved key is
-   still there. This is a procedure, and a procedure nobody has walked is a document.
+   still there. This is a procedure, and a procedure nobody has walked is a document — and this one
+   walked into two bugs (§5) that a test spawning the real script found only after the fact. Worth
+   doing on the file store too: that half was driven here (three tenants rotated, a corrupt fourth
+   aborting with every byte identical) but never on a real desk.
 3. **The desktop opened on an existing data directory.** Media, legal matters, the saved gateway key
    and the chosen language must all still be there, no `tenants/` directory should appear, and
    `tenant_state` should be empty.

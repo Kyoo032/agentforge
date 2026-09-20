@@ -152,10 +152,20 @@ describe("0018_tenant_state is in the committed migration set", () => {
       return entry.when;
     };
     // The runner applies a migration only when `lastAppliedCreatedAt < entry.when`, so ordering by
-    // `when` is what actually decides what runs. 0017 is reserved for Phase 5 lane B, which must
-    // take a `when` ABOVE this one — see the header of 0018_tenant_state.sql.
+    // `when` is what actually decides what runs — the `idx` gap at 17 is cosmetic.
     expect(whenOf("0018_tenant_state")).toBeGreaterThan(whenOf("0016_tenant_usage"));
-    expect(journal.entries.some((entry) => entry.tag.startsWith("0017"))).toBe(false);
+
+    // 0017 is reserved for Phase 5 lane B, which was in flight when this landed. When it arrives it
+    // must take a `when` ABOVE this one (see the header of 0018_tenant_state.sql): a lower one on an
+    // already-migrated database is forward-only skipped and its ALTERs never run.
+    //
+    // This asserts that ordering rather than 0017's absence on purpose. The earlier version of this
+    // case demanded no `0017` tag exist at all, which would have gone red on lane B's perfectly
+    // correct migration — and the obvious way to make a red like that go away is to delete the line,
+    // taking the real rule with it.
+    for (const entry of journal.entries.filter((row) => row.tag.startsWith("0017"))) {
+      expect(entry.when).toBeGreaterThan(whenOf("0018_tenant_state"));
+    }
   });
 
   it("creates the same table the ensure-schema healer does", () => {

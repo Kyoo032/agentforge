@@ -2,14 +2,7 @@ import { guessDialectFromKey } from "./models/probe";
 import { resolvedGatewayBaseUrl } from "./gateway";
 import { keyFingerprintOrNull } from "./security/fingerprint";
 import { maskToolKeys } from "./tools/credentials";
-import { isServerMode } from "./server-mode";
-
-/**
- * The environment a hosted process is allowed to read provider credentials from: none of it.
- * A frozen empty object rather than a branch per field, so a field added later cannot quietly
- * reintroduce the fallback by forgetting the check.
- */
-const EMPTY_PROVIDER_ENV: NodeJS.ProcessEnv = Object.freeze({});
+import { providerEnv } from "./server-mode";
 
 export type StoredSecrets = {
   openaiApiKey?: string;
@@ -305,17 +298,9 @@ export function resolveRuntimeMode(input: { settingsHasKey: boolean; envRuntime?
 }
 
 /**
- * Phase 4 — the operator's own keys are not a tenant's keys.
- *
- * Off the hosted server these env vars are the documented headless fallback and a dev box's `.env`,
- * and they behave exactly as they always have. In server mode they are refused: a process-wide
- * `OPENAI_API_KEY` there is the OPERATOR's credential, and falling back to it would hand it to
- * every signed-in tenant who has not saved one — billed to the operator, metered against nobody,
- * and readable from any tenant session by making a call. That is the residual
- * `docs/internal/security-owasp-2026-09.md` A01-3 left for this phase ("on a hosted box any tenant
- * can still set the shared gateway key"): Phase 3 lane D made the SAVED key per tenant, and this is
- * the other half — the unsaved one. A hosted tenant with no key of its own gets no key at all, the
- * gate reports `needs_key`, and onboarding asks for one. Fail closed.
+ * Phase 4 — the operator's own keys are not a tenant's keys, so the env fallback here goes through
+ * `providerEnv`, which is empty in server mode. The reasoning is on that function in
+ * `packages/core/src/server-mode.ts`.
  *
  * `settings` still wins wherever it is set, in both modes, so a tenant's own key is unaffected.
  */
@@ -333,7 +318,7 @@ export function resolveProviderKeys(
   volcengineBaseUrl?: string;
 } {
   // In server mode nothing here may come from the process environment; see the note above.
-  const fallback = isServerMode(env) ? EMPTY_PROVIDER_ENV : env;
+  const fallback = providerEnv(env);
   const openai = settings.openaiApiKey || fallback.OPENAI_API_KEY || undefined;
   // Pinned endpoint: neither the stored value nor OPENAI_BASE_URL can re-point the gateway.
   const openaiBaseUrl = resolvedGatewayBaseUrl();

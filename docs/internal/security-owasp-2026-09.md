@@ -152,6 +152,18 @@ a deployment nobody can set up.
 > `keyFor` (`packages/host/src/gateway-gate.ts`), so the two agree about whether a tenant has a key.
 > A tenant with none sees onboarding, which is the intended state. Desks and webdev are unchanged.
 >
+> **And closing one function was not enough — three more doors were open, one of them live.** The
+> verifier on the Phase 4 PR found the same variables read straight off `process.env` in
+> `packages/core/src/runtime/ai-sdk-runtime.ts`, `packages/core/src/tools/credentials.ts` (which
+> also carried the operator's `TAVILY_API_KEY`, `BRAVE_SEARCH_API_KEY` and `FAL_KEY` into a tenant's
+> tool scope) and `packages/host/src/edit/asr.ts`. The last one was exploitable: Edit's auto-captions
+> run on the timeline worker **after** the request is gone, where no gate can answer `403`, so a
+> hosted tenant could enqueue a transcription while keyed, sign out, and have it charged to the
+> operator. All four now take their fallback from one function, `providerEnv`
+> (`packages/core/src/server-mode.ts`), and `packages/core/src/provider-env-sweep.test.ts` fails the
+> build if a fifth appears. The lesson is the same one as the box above: reviewing the sites found
+> is not the fix, a guard against the next one is.
+>
 > One thing loosened rather than tightened, and it belongs to the same finding: `DELETE
 > /api/v1/settings/reset` with `scope: "key"` used to be a 403 in server mode, because forgetting
 > the key was machine-wide. It is the caller's own key now, so it is allowed — and it has to be,
