@@ -96,8 +96,10 @@ a server flag is set.
 
 **Tests.** Extend `packages/host/src/local-request.test.ts` and `http-adapter.test.ts`: allowed origin
 passes, unlisted origin 403s, missing Origin 403s on the web rule and passes on the loopback rule,
-missing CSRF token 403s, a valid token from a different session 403s. A test that `.master-key` is not
-created when the server flag is set.
+missing CSRF token 403s, a header that does not match the cookie 403s. (The double-submit token is bare
+randomness, not bound to a session — `csrf.ts:14-17` records binding as a follow-up for when a session
+exists, so "a token from another session" is not yet a case this can test.) A test that `.master-key` is
+not created when the server flag is set.
 
 **Done when.** The proxy passes the real `Host` through, webdev `:3000` still works unchanged (its
 origin is on the allowlist by default), and the desktop IPC path is untouched.
@@ -156,7 +158,7 @@ rather than at each call site; `requireTenant` (`types.ts:20`) is called at the 
 is needed for the desktop, so the frozen app's database keeps opening.
 
 **Gateway key reset is scoped here, not in Phase 4.** `clearGatewayKeyEverywhere`
-(`packages/host/src/settings-store.ts:371-385`) is deliberately machine-wide today. In server mode
+(`packages/host/src/settings-store.ts:371-386`) is deliberately machine-wide today. In server mode
 "everywhere" must mean "this tenant's desks", or the first tenant to reset their key signs out every
 other tenant on the box. Phase 3 is the phase that scopes it, because Phase 3 is when a second tenant
 first exists — shipping tenancy with a machine-wide reset still in the tree is the bug, not a Phase 4

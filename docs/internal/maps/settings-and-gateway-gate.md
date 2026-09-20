@@ -212,8 +212,8 @@ Card `settings-reset` (`apps/web/components/settings-reset-card.tsx:159`), mount
 `apps/web/components/settings-page.tsx:424`, fed by `resetPending` on the settings payload.
 
 **Sign out (`scope: "key"`)** — no typed confirmation, fully synchronous. `resetGatewayKey`
-(`packages/host/src/handlers/settings.ts:288-302`) calls `clearGatewayKeyEverywhere()`
-(`packages/host/src/settings-store.ts:371-385` — **machine-wide**, because "a key left on a second desk would
+(`packages/host/src/handlers/settings.ts:309`) calls `clearGatewayKeyEverywhere()`
+(`packages/host/src/settings-store.ts:371-386` — **machine-wide**, because "a key left on a second desk would
 keep the gate open after 'forget my key'"), then `clearGateState()`, `clearThisKeyCache()`,
 `resetEmbedCircuit()` and — added 2026-09-17 — `resetJobModelCircuit()` (`:294`). Returns `relaunch: false`. Threads, desks and media are untouched. The card navigates to
 `/chat` and calls `announceGate(result.gateway)`, which dispatches `GATE_EVENT` and drops the shell to
@@ -342,8 +342,10 @@ installing an update or already exiting), races `clearRendererState()` — `clea
   (`packages/host/src/http-adapter.ts:12`) on top of the loopback `Host` and `Origin` checks, so a cross-site
   HTML form POST cannot reach it. The IPC-only transport and the loopback-only `Host` / `Origin` allowlist are
   **(desktop, frozen)**: on the hosted web app the same host gate runs behind the HTTP adapter
-  (`packages/host/src/http-adapter.ts:188`), which is where the loopback check has to become a trusted-origin
-  allowlist plus CSRF before the app is exposed (open decision 3).
+  (`packages/host/src/http-adapter.ts:188`). The loopback check **became** a trusted-origin allowlist plus a
+  double-submit CSRF token in Phase 1 ([PR #56](https://github.com/Kyoo032/agentforge/pull/56), commit
+  `6ae177a`): `isAllowedWebOrigin` / `isAllowedWebHostHeader` (`local-request.ts:99,113`) and
+  `packages/host/src/csrf.ts`, reached only under `isServerMode()`.
 
 ## Verify
 
