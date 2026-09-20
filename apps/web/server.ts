@@ -11,6 +11,7 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import { handleNodeRequest } from "@agentforge/host/http";
 import { resolveBindHost } from "./lib/bind-host";
+import { assertHostedModeCoherent } from "./lib/hosted-mode-guard";
 import { injectHostedMarker } from "./lib/hosted-build";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
@@ -34,6 +35,10 @@ function sendAppShell(res: express.Response, html: string): void {
 }
 
 async function main() {
+  // A production build with AGENTFORGE_SERVER off would serve every GET /api/v1/* without a
+  // session while the health check still passed, so it refuses to boot instead. See
+  // ./lib/hosted-mode-guard.
+  assertHostedModeCoherent(process.env);
   const app = express();
   // Identity masking: Express stamps `X-Powered-By: Express` from its init middleware on every
   // response, before any handler of ours runs. Nothing about the software answering should be on the

@@ -75,7 +75,11 @@ function whichCommand(): string {
     return "which";
   }
   const systemRoot = process.env.SystemRoot || process.env.SYSTEMROOT || "C:\\Windows";
-  return path.join(systemRoot, "System32", "where.exe");
+  // `path.win32`, not `path.join`: this branch is building a Windows path by hand, and on Windows
+  // the two are the same function. Off Windows `path.join` joins with "/", so the absolute path
+  // this is supposed to pin came out as `C:\Windows/System32/where.exe` — which is why the test
+  // for this hardening only passed when it ran on Windows, i.e. never in CI.
+  return path.win32.join(systemRoot, "System32", "where.exe");
 }
 
 function whichOnPath(name: string): string | null {

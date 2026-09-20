@@ -41,6 +41,9 @@ vi.mock("./log", () => {
 /** Paths the mocked router answers badly on purpose, so the masking rules can be exercised. */
 const THROWING_PATH = "/api/v1/boom";
 const LEAKY_500_PATH = "/api/v1/leaky";
+/** Stands in for a route the session gate refuses; the gate itself lives behind the mocked router. */
+const UNAUTHORIZED_PATH = "/api/v1/locked";
+const UNAUTHORIZED_CODE = "session_required";
 const THROWN_MESSAGE = "ENOENT /data/x";
 const LEAKY_MESSAGE = "SQLITE_ERROR: no such column workspaces.secret at /data/agentforge.sqlite";
 
@@ -55,6 +58,13 @@ vi.mock("./router", () => ({
         type: "json" as const,
         status: 500,
         body: { error: { code: "internal_error", message: LEAKY_MESSAGE } },
+      };
+    }
+    if (request.path === UNAUTHORIZED_PATH) {
+      return {
+        type: "json" as const,
+        status: 401,
+        body: { error: { code: UNAUTHORIZED_CODE, message: "Sign in to continue" } },
       };
     }
     if (request.path.endsWith("/stream")) {
@@ -1551,5 +1561,113 @@ describe("maskServerError", () => {
       status: 500,
       body: { error: { code: "internal_error", message: INTERNAL_ERROR_MESSAGE } },
     });
+  });
+});
+
+/**
+ * A05/A09: every answer carries an id the operator can quote, and every refused sign-in leaves one
+ * line behind. Before this, a 401 was indistinguishable from a 200 in the logs, so a password-spray
+ * or a stolen-cookie replay across a thousand accounts was invisible: the only lines the adapter
+ * wrote were for requests the transport filter had already refused, which a real attacker's
+ * well-formed request never trips.
+ */
+describe("request correlation and authentication-failure logging", () => {
+  const apiHeaders = { host: WEB_HOST, origin: WEB_ORIGIN, ...TRANSPORT };
+
+  function authLines() {
+    return logged.filter((line) => line.event === "auth_failed");
+  }
+
+  it("stamps X-Request-Id on the answer in server mode", async () => {
+    useServerMode();
+    const captured = fakeResponse();
+    await handleNodeRequest(fakeRequest({ method: "GET", url: GATEWAY_CHECK_PATH, headers: apiHeaders }), captured.res);
+    expect(captured.status()).toBe(200);
+    expect(captured.header("X-Request-Id")).toMatch(/^[0-9a-f]{16}$/);
+  });
+
+  it("stamps a different id on each request, so two reports cannot be confused", async () => {
+    useServerMode();
+    const ids = new Set<string | undefined>();
+    for (let i = 0; i < 5; i += 1) {
+      const captured = fakeResponse();
+      await handleNodeRequest(
+        fakeRequest({ method: "GET", url: GATEWAY_CHECK_PATH, headers: apiHeaders }),
+        captured.res,
+      );
+      ids.add(captured.header("X-Request-Id"));
+    }
+    expect(ids.size).toBe(5);
+  });
+
+  it("sends no request id off server mode, so the desktop's responses are unchanged", async () => {
+    useLocalMode();
+    const captured = fakeResponse();
+    await handleNodeRequest(
+      fakeRequest({ method: "GET", url: GATEWAY_CHECK_PATH, headers: { host: LOOPBACK_HOST, ...TRANSPORT } }),
+      captured.res,
+    );
+    expect(captured.status()).toBe(200);
+    expect(captured.header("X-Request-Id")).toBeUndefined();
+  });
+
+  it("writes one warn line for a 401, carrying the reason code and the caller's IP", async () => {
+    useServerMode();
+    const captured = fakeResponse();
+    await handleNodeRequest(fakeRequest({ method: "GET", url: UNAUTHORIZED_PATH, headers: apiHeaders }), captured.res);
+    expect(captured.status()).toBe(401);
+    const lines = authLines();
+    expect(lines).toHaveLength(1);
+    expect(lines[0].level).toBe("warn");
+    expect(lines[0].fields).toMatchObject({
+      code: UNAUTHORIZED_CODE,
+      method: "GET",
+      ip: TEST_CLIENT_IP,
+      pathLength: UNAUTHORIZED_PATH.length,
+    });
+  });
+
+  it("ties the logged line to the id the caller was given", async () => {
+    useServerMode();
+    const captured = fakeResponse();
+    await handleNodeRequest(fakeRequest({ method: "GET", url: UNAUTHORIZED_PATH, headers: apiHeaders }), captured.res);
+    expect(authLines()[0].fields.requestId).toBe(captured.header("X-Request-Id"));
+  });
+
+  it("logs the path's length and never the path, the cookie or the token itself", async () => {
+    useServerMode();
+    const secret = "s".repeat(43);
+    const captured = fakeResponse();
+    await handleNodeRequest(
+      fakeRequest({
+        method: "GET",
+        url: `${UNAUTHORIZED_PATH}?token=${secret}`,
+        headers: { ...apiHeaders, cookie: `${SESSION_COOKIE_SECURE}=${secret}` },
+      }),
+      captured.res,
+    );
+    const serialised = JSON.stringify(authLines());
+    expect(serialised).not.toContain(secret);
+    expect(serialised).not.toContain(UNAUTHORIZED_PATH);
+    expect(serialised).not.toContain("cookie");
+  });
+
+  it("stays quiet for an answer that is not a 401", async () => {
+    useServerMode();
+    const captured = fakeResponse();
+    await handleNodeRequest(fakeRequest({ method: "GET", url: GATEWAY_CHECK_PATH, headers: apiHeaders }), captured.res);
+    expect(captured.status()).toBe(200);
+    expect(authLines()).toHaveLength(0);
+  });
+
+  it("stays quiet off server mode, where every call is the one local user's", async () => {
+    useLocalMode();
+    const captured = fakeResponse();
+    await handleNodeRequest(
+      fakeRequest({ method: "GET", url: UNAUTHORIZED_PATH, headers: { host: LOOPBACK_HOST, ...TRANSPORT } }),
+      captured.res,
+    );
+    expect(captured.status()).toBe(401);
+    expect(authLines()).toHaveLength(0);
   });
 });

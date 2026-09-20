@@ -1,0 +1,75 @@
+# Lint, unit tests and a dependency-advisory check on every push and pull request.
+#
+# WHY THIS EXISTS. Until this file, the only workflows were `e2e.yml` (Playwright) and
+# `desktop-mac.yml` (a release build). Nothing ran `pnpm lint`, nothing ran the unit suites, and
+# nothing looked at advisories — so a change could land with a failing test, and a newly published
+# CVE in a shipped dependency would surface only when somebody thought to look. That is OWASP
+# A06 (vulnerable and outdated components) and A08 (software and data integrity failures), and the
+# answer to both is a job that runs on its own. See docs/internal/security-owasp-2026-09.md,
+# findings A06-1 and A08-2.
+
+name: ci
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "9.15.9"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Lint
+        run: pnpm lint
+      - name: Unit tests
+        run: pnpm test
+
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "9.15.9"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Tooling tests
+        run: node --test "scripts/*.test.mjs"
+
+      # The gate is the closure the hosted image actually installs, not the workspace-wide number.
+      # scripts/audit-deployed.mjs explains at length why; the short version is that today's
+      # 1 critical and 19 high advisories are all reachable only from apps/desktop, which the
+      # hosted pipeline never builds, so gating on them would mean a board nobody can turn green.
+      - name: Audit the deployed closure (gate)
+        run: node scripts/audit-deployed.mjs --level high
+
+      # The whole picture, including the desktop advisories, kept visible without being able to
+      # block a web deploy.
+      - name: Audit the whole workspace (advisory)
+        continue-on-error: true
+        run: pnpm audit --audit-level moderate
