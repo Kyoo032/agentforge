@@ -63,7 +63,7 @@ const realFetch = globalThis.fetch;
  */
 function stubRelay(): { calls: string[] } {
   const calls: string[] = [];
-  globalThis.fetch = (async (input: RequestInfo | URL) => {
+  globalThis.fetch = (async (input: string | URL | Request) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     calls.push(url);
     const body = url.includes("/suno/submit/")

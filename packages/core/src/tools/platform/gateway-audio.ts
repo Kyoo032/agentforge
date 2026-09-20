@@ -10,7 +10,7 @@
  *
  * **Unproven against the live gateway.** Cloud agents have no egress to `api.tokotokenai.com`, so
  * this wire was written from the catalog docs and has never been driven. The first live run belongs
- * on the owner's desk (`scripts/probe-gateway-music.mjs`), and `RELAY_MISSING` below is written to
+ * on the owner's desk (`scripts/probe-gateway-music.ts`), and `RELAY_MISSING` below is written to
  * say exactly that if the relay turns out to live somewhere else — a wrong path should cost one
  * line, not a debugging session.
  *

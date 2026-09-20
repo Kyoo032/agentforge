@@ -223,14 +223,14 @@ describe("parseLyricsWriteBody", () => {
 
 describe("music model lists", () => {
   const models = [
-    { id: "suno_music", label: "suno_music", provider: "openai" as const, inputModalities: ["text"] },
-    { id: "suno_lyrics", label: "suno_lyrics", provider: "openai" as const, inputModalities: ["text"] },
-    { id: "whisper-1", label: "whisper-1", provider: "openai" as const, inputModalities: ["text"] },
+    { id: "suno_music", label: "suno_music", provider: "openai" as const, inputModalities: ["text" as const] },
+    { id: "suno_lyrics", label: "suno_lyrics", provider: "openai" as const, inputModalities: ["text" as const] },
+    { id: "whisper-1", label: "whisper-1", provider: "openai" as const, inputModalities: ["text" as const] },
     {
       id: "qwen3-tts-instruct-flash-realtime",
       label: "tts",
       provider: "openai" as const,
-      inputModalities: ["text"],
+      inputModalities: ["text" as const],
     },
   ];
 
