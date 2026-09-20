@@ -1,6 +1,6 @@
 # Channels (Telegram)
 
-Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c`
+Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c` (through e37b3a1)
 
 ## Overview
 
@@ -18,10 +18,10 @@ Rail → Account → **Channels** (`apps/web/components/app-rail.tsx:394-401`) �
 
 1. `assertBotTokenShape` (`packages/host/src/channels/telegram.ts:68`) rejects anything that is not `<digits>:<secret>` **before** the value can reach a URL.
 2. `TelegramClient.getMe` (`telegram.ts:206`) asks Telegram who the token belongs to. A token Telegram will not identify is never written — the failure lands at the paste, not at the first send.
-3. `saveSettings({ telegramBotToken })` (`handlers/channels.ts:88`) puts it in the desk's slice of `settings.enc`, through the same `KEY_FIELDS` path as the gateway key (`packages/core/src/secrets.ts:110-116`).
+3. `saveSettings({ telegramBotToken })` (`handlers/channels.ts:88`) puts it in the desk's slice of `settings.enc`, through the same `KEY_FIELDS` path as the gateway key (`packages/core/src/secrets.ts:103-109`).
 4. The bot's `@username` is cached in `channels/<workspaceId>/bot.json` (`packages/host/src/channels/store.ts:263-274`) so the page can name it without a network call.
 
-The renderer only ever sees `connected`, `username`, `connectedAt`, a `sha256:` fingerprint and `pinnedOrigin` (`handlers/channels.ts:57-70`). `GET /api/v1/settings` reports the same as `hasTelegramBot` / `telegramBotFingerprint` (`packages/core/src/secrets.ts:264,269`).
+The renderer only ever sees `connected`, `username`, `connectedAt`, a `sha256:` fingerprint and `pinnedOrigin` (`handlers/channels.ts:57-70`). `GET /api/v1/settings` reports the same as `hasTelegramBot` / `telegramBotFingerprint` (`packages/core/src/secrets.ts:257,269`).
 
 **Failure modes:** bad shape → 400 with no call made; Telegram rejects → `channel_forbidden`; no `AGENTFORGE_SECRETS_KEY` → the settings store's own failure, same as the gateway key.
 

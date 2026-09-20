@@ -111,7 +111,7 @@ it in a per-tenant row. A key write reaches the caller's tenant and stops there.
 needed.
 
 **The unsaved key** was the half nobody had looked at. `resolveProviderKeys`
-(`packages/core/src/secrets.ts:344`) fell back to `env.OPENAI_API_KEY` unconditionally. On a hosted
+(`packages/core/src/secrets.ts:329`) fell back to `env.OPENAI_API_KEY` unconditionally. On a hosted
 box that environment variable is the **operator's** credential, so every signed-in tenant who had
 not saved a key of their own was silently spending it: billed to the operator, attributable to
 nobody, and reachable from any tenant session by making one call. The gate's own `keyFor`
@@ -433,8 +433,23 @@ new tests were fixed rather than suppressed.
 
 ### Maps
 
-`pnpm maps:check` (`scripts/map-rot.mjs`): **75 docs, 2,135 citations, 0 hard, 129 soft** — against
+`pnpm maps:check` (`scripts/map-rot.mjs`): **75 docs, 2,142 citations, 0 hard, 129 soft** — against
 `main`'s 141 soft, so this branch leaves the maps in better shape than it found them, not worse.
+
+The verifier round moved lines again (the `providerEnv` helper, the extra `migrationsFolder`
+candidate), so the citations were re-anchored a second time, the same way: `map-drift.mjs` was run
+once as a **report**, never with `--write`, and each proposed move was applied only where the new
+line holds byte-for-byte what the old one held. 44 moved that way; 5 were deliberately left, in the
+plan, the Phase 3 spec, the portal design doc, the runbook and the OWASP record, because those are
+dated documents whose citations describe the code as it was when they were written.
+
+One thing that pass exposed: **`map-drift.mjs` only sees full `path.ts:line` tokens, not the bare
+`:line` follow-ups the map pages use for a run of citations into the same file.** Those had been
+left behind, silently, by every drift run so far. 35 of them were re-anchored here by the same
+byte-for-byte rule, walking each page and inheriting the file from the last full citation. Then
+every changed citation on every map page — full and bare, 2,142 of them — was checked independently
+against both trees: **0 mis-anchored**. Teaching `map-drift.mjs` itself about bare citations is in
+§10; it is a tooling fix, not a Phase 4 one.
 
 `map-drift.mjs` was read but **never run with `--write`**, per the brief: it re-points a citation
 onto whatever the diff maps its line to, which for a rewritten line is often an import. Instead its
@@ -557,5 +572,14 @@ action on a running app. §9 lists what that leaves owing.
 - **`desk-usage.json` is still a per-tenant file.** Phase 5 lane A made it legacy and read-only and
   owns moving the reads to `tenant_usage`; this phase deliberately did not touch it.
 - **`scope: "all"` is still refused in server mode.** Per-tenant reset is Phase 8's "done when".
-- **The GitHub Actions billing lock** makes every workflow run in this repository fail in about two
-  seconds with no runner. Not a signal about this branch; only kyo can clear it.
+- **`map-drift.mjs` does not see bare `:line` citations** (§8). It re-anchors `path.ts:line` tokens
+  only, so the `:line` follow-ups the map pages use for a run of citations into one file are left
+  behind by every run. They were fixed by hand here. The tool should inherit the file from the last
+  full citation the way a reader does — a small change, and it belongs with the known `--write`
+  defect (it re-points a rewritten line onto whatever the diff maps it to, often an import).
+- **`docs/internal/portal/device-code-login.md` cites `packages/core/src/secrets.ts:5-51` for
+  `StoredSecrets`**, which that range did not name before this branch either. A Phase 1 design doc
+  citing an older shape; left alone rather than re-anchored, like the other dated records.
+- **The GitHub Actions billing lock** makes every workflow run in this repository fail with no
+  runner (`billable.UBUNTU.total_ms: 0`, `runner_id: 0`). Not a signal about this branch; only kyo
+  can clear it.

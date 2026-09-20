@@ -1,6 +1,6 @@
 # Map — The per-tenant state backend and the wrap-key rotation drill
 
-Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c`
+Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c` (through e37b3a1)
 
 ## Overview
 
@@ -192,12 +192,12 @@ store, as its own header documents, it died with `tenant_state_backend_missing` 
 rules came out of the fix, both load-bearing:
 
 - **Every host import in `scripts/rotate-wrap-key.ts` is dynamic and has to stay that way**
-  (`scripts/rotate-wrap-key.ts:27-41`, `:84-98`). `tsx` compiles the file to CJS, so a static `import` is a
+  (`scripts/rotate-wrap-key.ts:27-43`, `:84-99`). `tsx` compiles the file to CJS, so a static `import` is a
   `require` while an `await import()` goes through the ESM loader; mix the two over the same host module and
   the process holds two copies of `tenant-state-store.ts` — the connection installs into one, the rotation
   reads the other, and it fails exactly as if nothing had been installed. Keeping the whole graph behind the
   server-mode branch is also what stops a desk rotation opening a database it is not rotating.
-- **`migrationsFolder` now also resolves from the repository root** (`packages/db/src/ensure-schema.ts:63-84`).
+- **`migrationsFolder` now also resolves from the repository root** (`packages/db/src/ensure-schema.ts:63-88`, the root candidate at `:79-85`).
   It only looked at `../../packages/db/drizzle`, i.e. from a package directory such as `apps/web`, so opening
   the database from the repo root — where operator scripts are documented to run — threw before the rotation
   began.
@@ -221,7 +221,7 @@ CREATE INDEX IF NOT EXISTS `tenant_state_key_idx` ON `tenant_state` (`key`);
 ```
 
 Drizzle table: `tenantState`, `packages/db/src/schema.ts`. Healer for a baseline-stamped database:
-`ensureTenantStateTable` (`packages/db/src/ensure-schema.ts:494`), called from `:237`.
+`ensureTenantStateTable` (`packages/db/src/ensure-schema.ts:503`), called from `:246`.
 
 It is keyed on the **tenant**, not on an organization: a tenant's sealed settings are the tenant's, not any
 one org's, and the tenant is all a rotation has to walk. `packages/db/src/migrate-0015.test.ts` asserts the
@@ -232,7 +232,7 @@ this migration is `0018` and the journal has a gap at `idx: 17`. The runner is f
 (`lastAppliedCreatedAt < entry.when`, `packages/db/src/ensure-schema.ts`), so a `0017` added *later* with a
 `when` below this file's would be **skipped** on any database that already ran this one. Lane B must give its
 migration a `when` above `1788820000010`. The migration file's own header says so, and
-`packages/db/src/migrate-0018.test.ts:142-170` asserts that ordering: that `0018`'s `when` is above `0016`'s,
+`packages/db/src/migrate-0018.test.ts:142-169` asserts that ordering: that `0018`'s `when` is above `0016`'s,
 and that **any** `0017` entry's `when` is above `0018`'s. It deliberately does not assert that `0017` is
 absent, which is what it did first — lane B's perfectly correct migration would have turned that red, and the
 obvious way to clear a red like that is to delete the line, taking the real rule with it.

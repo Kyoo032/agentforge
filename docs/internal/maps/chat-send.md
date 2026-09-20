@@ -1,6 +1,6 @@
 # Map — Chat send
 
-Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c`
+Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c` (through e37b3a1)
 
 Supersedes the `## how — Chat send (pstack) — 2026-09-06` block in [`../0.14-changelog.md`](../0.14-changelog.md), which described the 0.14 shape. Several details in it are no longer true; see Gotchas.
 
@@ -49,12 +49,12 @@ Otherwise `startModalityRun` (`packages/host/src/runs.ts:125`) runs the turn:
 
 ### 4. Runtime — probe, stream, coerce
 
-`AiSdkRuntime.execute` (`packages/core/src/runtime/ai-sdk-runtime.ts`) builds the wire body, resolves effort, and enters the contact loop: up to `MODEL_CONTACT_ATTEMPTS = 3` (`packages/core/src/runtime/retry.ts:4`), each retry emitting a fresh `run.probing` frame (`packages/core/src/runtime/ai-sdk-runtime.ts:439`). A non-OK upstream response is read through `readHttpErrorBody` under a 2 s cap (`GATEWAY_ERROR_BODY_MS`, `packages/core/src/models/request-constraints.ts:123`) and turned into a `gatewayFailure`; `isRetryableModelFailure` (`packages/core/src/runtime/retry.ts:59-81`) decides whether to try again — with one carve-out, the "no first token / no stream events" wording is a hard stop, never retried (`:76-79`).
+`AiSdkRuntime.execute` (`packages/core/src/runtime/ai-sdk-runtime.ts`) builds the wire body, resolves effort, and enters the contact loop: up to `MODEL_CONTACT_ATTEMPTS = 3` (`packages/core/src/runtime/retry.ts:4`), each retry emitting a fresh `run.probing` frame (`packages/core/src/runtime/ai-sdk-runtime.ts:443`). A non-OK upstream response is read through `readHttpErrorBody` under a 2 s cap (`GATEWAY_ERROR_BODY_MS`, `packages/core/src/models/request-constraints.ts:123`) and turned into a `gatewayFailure`; `isRetryableModelFailure` (`packages/core/src/runtime/retry.ts:59-81`) decides whether to try again — with one carve-out, the "no first token / no stream events" wording is a hard stop, never retried (`:76-79`).
 
 Reasoning effort has **two unrelated mechanisms** that both land as `reasoning_effort` on the wire:
 
 - **Chat's own Thinking picker.** `readOptionalReasoningEffort` (`packages/core/src/models/reasoning-effort.ts:67`) defaults to `medium`, coerces to `none` when `thinking: false`, and accepts the UI aliases. The runtime then calls `snapReasoningEffort` (`packages/core/src/runtime/effort-allowlist.ts:74-81`), which picks the per-model, per-wire allowlist and snaps through `closestReasoningEffort` (ties go cheaper; `none` is never upgraded when `none` is itself allowed). `GPT_6_EFFORTS` (`packages/core/src/runtime/effort-allowlist.ts:18`) simply omits `none`, which is how a GPT-6 request that asked for Off comes out as `low`. Finally `applyReasoningEffortToChatBody` writes `reasoning_effort` onto chat-completions bodies only (`packages/core/src/models/reasoning-effort.ts:156-162`); Anthropic Messages and Gemini `generateContent` get their own shapes from `packages/core/src/runtime/chat-wire.ts:189-252`.
-- **The job knob, which Chat never uses.** `applyJobThinking` (`packages/core/src/models/job-thinking.ts:49-58`) forces `reasoning_effort: "low"` on always-thinking families, but only when `input.jobMode` is set (`packages/core/src/runtime/ai-sdk-runtime.ts:270-273`). `packages/host/src/runs.ts:286-296` builds the `runtime.execute` options with **no `jobMode` key at all** — grep `runs.ts` for `jobMode` and you get nothing. The contract says so out loud: "Chat leaves this unset and keeps its own Thinking control" (`packages/core/src/runtime/types.ts:54-58`).
+- **The job knob, which Chat never uses.** `applyJobThinking` (`packages/core/src/models/job-thinking.ts:49-58`) forces `reasoning_effort: "low"` on always-thinking families, but only when `input.jobMode` is set (`packages/core/src/runtime/ai-sdk-runtime.ts:274-277`). `packages/host/src/runs.ts:286-296` builds the `runtime.execute` options with **no `jobMode` key at all** — grep `runs.ts` for `jobMode` and you get nothing. The contract says so out loud: "Chat leaves this unset and keeps its own Thinking control" (`packages/core/src/runtime/types.ts:54-58`).
 
 ### 5. The watchdogs — there are three
 
@@ -62,7 +62,7 @@ One rule, `streamWatchdogDeadline` (`packages/core/src/runtime/stream-watchdog.t
 
 | Instance | Scope | On fire |
 |---|---|---|
-| `AiSdkRuntime.consume` (`packages/core/src/runtime/ai-sdk-runtime.ts:599`) | one gateway call | aborts that call; the probe loop may retry it |
+| `AiSdkRuntime.consume` (`packages/core/src/runtime/ai-sdk-runtime.ts:603`) | one gateway call | aborts that call; the probe loop may retry it |
 | `armRunStallGuard` (`packages/host/src/run-stall.ts`, armed at `packages/host/src/runs.ts:195`) | the whole SSE run | `run.failed` + `run.completed`, stream closed, run marked failed — never retried |
 | `apps/web/components/chat-composer.tsx:222` | the browser tab | aborts the fetch, shows `abortErrorMessage` |
 
@@ -145,6 +145,6 @@ DOM testids that prove it: `composer` / `composer-text` / `composer-send` / `com
 
 **Why `QUIET_REASONING_FAMILY` exists.** `[Direct]` `docs/internal/0.14.26-changelog.md:123`: the resolved Finance/Documents/Market default is `deepseek-v4-flash`, DeepSeek V4 thinks on by default, "its thinking streams as `delta.reasoning_content`, which AI SDK 4 drops (the same gap `packages/core/src/runtime/minimax-compat.ts` was written for), so nothing at all reached the watchdog for the ~50 s the model spent drafting." The fix was to widen the family, not to change any model default (`:125`). **Confidence: high.**
 
-**Why Chat is excluded from the job thinking knob.** `[Direct]` the type comment at `packages/core/src/runtime/types.ts:54-58` states it, and `packages/core/src/runtime/ai-sdk-runtime.ts:270` carries the matching inline note. `[Supported]` `docs/internal/blockers-2026-09-15.md:226` closes blocker P1 with "Jobs send `{"reasoning_effort":"low"}` and nothing else (`packages/core/src/models/job-thinking.ts`, applied in `ai-sdk-runtime.ts` only when `execute` carries `jobMode`; Chat's body unchanged)." The reason to keep them apart is that Chat's effort is a user choice with a visible picker, and overriding it to `low` would silently disobey the user. **Confidence: high for the mechanism; the "would disobey the user" reading is `[Inferred]` from the picker's existence.**
+**Why Chat is excluded from the job thinking knob.** `[Direct]` the type comment at `packages/core/src/runtime/types.ts:54-58` states it, and `packages/core/src/runtime/ai-sdk-runtime.ts:274` carries the matching inline note. `[Supported]` `docs/internal/blockers-2026-09-15.md:226` closes blocker P1 with "Jobs send `{"reasoning_effort":"low"}` and nothing else (`packages/core/src/models/job-thinking.ts`, applied in `ai-sdk-runtime.ts` only when `execute` carries `jobMode`; Chat's body unchanged)." The reason to keep them apart is that Chat's effort is a user choice with a visible picker, and overriding it to `low` would silently disobey the user. **Confidence: high for the mechanism; the "would disobey the user" reading is `[Inferred]` from the picker's existence.**
 
 **Why the job knob is `reasoning_effort: "low"` and not thinking-off.** See [`finance-parse-and-generate.md`](finance-parse-and-generate.md#why) — the same decision, recorded there because that is where it was driven.

@@ -35,8 +35,8 @@ Tenant scoping *inside* an admitted request is Phase 3's and is not described he
 ### 1. The switch
 
 `packages/core/src/server-mode.ts:12` — `isServerMode(env = process.env)` is true when
-`AGENTFORGE_SERVER` is set to `1`. `trustedOrigins` (`:22`) reads `AGENTFORGE_TRUSTED_ORIGINS`,
-a comma-separated list normalised by `normaliseOrigin` (`:58`).
+`AGENTFORGE_SERVER` is set to `1`. `trustedOrigins` (`:52`) reads `AGENTFORGE_TRUSTED_ORIGINS`,
+a comma-separated list normalised by `normaliseOrigin` (`:88`).
 
 Two things pin the flag on for a real deployment:
 

@@ -1,6 +1,6 @@
 # Map — Hosted server mode and the transport security pass
 
-Last verified: 2026-09-20 at c204e5e
+Last verified: 2026-09-20 at c204e5e; citations re-anchored at e37b3a1
 
 ## Overview
 
@@ -14,15 +14,15 @@ What this page is **not**: the desktop or webdev path. Every rule below is a bra
 
 `isServerMode(env = process.env)` (`packages/core/src/server-mode.ts:12-15`) is the whole of it: `AGENTFORGE_SERVER` trimmed and lower-cased, true for `1` or `true`, false for anything else including unset. `WEBDEV_DEFAULT_PORT = "3000"` (`:10`) is the only other constant in the file.
 
-`trustedOrigins(env)` (`packages/core/src/server-mode.ts:22-33`) answers the allowlist:
+`trustedOrigins(env)` (`packages/core/src/server-mode.ts:52-63`) answers the allowlist:
 
 | Input | Result | Line |
 |---|---|---|
 | `AGENTFORGE_TRUSTED_ORIGINS` set and non-blank | that comma list, parsed | `:25-27` |
-| unset, **not** server mode | `http://127.0.0.1:${PORT ?? 3000}` and the `localhost` spelling of it | `:31-32` |
+| unset, **not** server mode | `http://127.0.0.1:${PORT ?? 3000}` and the `localhost` spelling of it | `:61-62` |
 | unset, **server mode** | `[]` — an unconfigured server trusts no browser at all | `:28-30` |
 
-`parseOriginList(raw, httpsOnly)` (`:46-55`) normalises each entry and, in server mode only, **drops any `http:` entry** (`:50`, `HTTPS_SCHEME` at `:36`). So a cleartext origin cannot be put on the hosted allowlist by configuration mistake. Off server mode nothing is filtered, because webdev and the desktop *are* http loopback.
+`parseOriginList(raw, httpsOnly)` (`:46-55`) normalises each entry and, in server mode only, **drops any `http:` entry** (`:80`, `HTTPS_SCHEME` at `:66`). So a cleartext origin cannot be put on the hosted allowlist by configuration mistake. Off server mode nothing is filtered, because webdev and the desktop *are* http loopback.
 
 `normaliseOrigin(value)` (`:58-73`) is the comparison unit everywhere below: `new URL(value).origin` lower-cased, `null` for anything that is not an `http:`/`https:` URL.
 
@@ -209,7 +209,7 @@ Off server mode nothing about either scope changed.
 
 **The CSRF token is not yet bound to a session.** It is bare randomness compared against itself; binding it as `HMAC(server key, session id)` is a recorded follow-up (`csrf.ts:14-17`, `:89-91`). Today a token minted for one session is not rejected in another.
 
-**An unconfigured hosted server accepts no writes.** `trustedOrigins()` defaults to `[]` in server mode (`packages/core/src/server-mode.ts:28-30`), and both `isAllowedWebOrigin` and `isAllowedWebHostHeader` match nothing against an empty list. Every POST/PATCH/DELETE answers `403 origin_forbidden` until `AGENTFORGE_TRUSTED_ORIGINS` is set. The matching proxy trap: Caddy must **not** rewrite `Host` to `127.0.0.1`, which the old loopback rule needed and which now fails the Host half of the check (`webapp-deploy/Caddyfile:114-131`).
+**An unconfigured hosted server accepts no writes.** `trustedOrigins()` defaults to `[]` in server mode (`packages/core/src/server-mode.ts:58-60`), and both `isAllowedWebOrigin` and `isAllowedWebHostHeader` match nothing against an empty list. Every POST/PATCH/DELETE answers `403 origin_forbidden` until `AGENTFORGE_TRUSTED_ORIGINS` is set. The matching proxy trap: Caddy must **not** rewrite `Host` to `127.0.0.1`, which the old loopback rule needed and which now fails the Host half of the check (`webapp-deploy/Caddyfile:114-131`).
 
 **Lowering an rpm lowers its burst too.** `bucketConfig` clamps burst to `max(1, min(defaultBurst, rpm || defaultBurst))` (`rate-limit.ts:178-182`), so `AGENTFORGE_RATE_IP_RPM=10` gives burst 10, not 100. A non-numeric value silently falls back to the default; an explicit `0` switches that limiter off entirely (`:82-84`). Buckets are also thrown away whenever the resolved config changes (`:193-205`).
 

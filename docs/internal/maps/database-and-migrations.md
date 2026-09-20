@@ -1,6 +1,6 @@
 # Map — Database and migrations
 
-Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c`
+Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c` (through e37b3a1)
 
 ## Overview
 
@@ -59,7 +59,7 @@ every sealed envelope on the install. Its behaviour splits on `isServerMode(env)
   `.master-key` file. `readOrCreateMasterKeyFile` (`:107-114`) creates the data dir, and on first use
   writes 32 random bytes as hex with mode `0o600` (`:111`), then reads it back trimmed (`:113`). No
   strength check is applied on a desk at all — a one-character `AGENTFORGE_SECRETS_KEY` is accepted.
-- **In server mode** (`:128-134`): the env key is mandatory (`:128-130`, message at `:46-49`), and it
+- **In server mode** (`:128-134`): the env key is mandatory (`:128-130`, message at `:76-79`), and it
   must measure at least `MIN_VAULT_KEY_BYTES` = 32 (`:40`, checked at `:131-133`). The `.master-key`
   fallback is never reached, because a file invented on a container layer disappears with the
   container and takes every sealed envelope with it.
@@ -124,12 +124,12 @@ Two tables exist only in SQL and have no Drizzle declaration, because they are F
 
 ### Migrations
 
-`ensureSchema(sqlite)` (`packages/db/src/ensure-schema.ts:192-240`) runs on **every boot**, from
+`ensureSchema(sqlite)` (`packages/db/src/ensure-schema.ts:201-249`) runs on **every boot**, from
 `client.ts:51`. There is no separate migrate step in the app's start path.
 
 `migrationsFolder()` (`:64-79`) resolves the committed folder: `AGENTFORGE_MIGRATIONS_DIR` when set
 *and existing* (`:66-72`), else `../../packages/db/drizzle` relative to `process.cwd()` (`:73-77`),
-else a throw that lists what it tried (`:78`). The packaged shell sets the env var to
+else a throw that lists what it tried (`:87`). The packaged shell sets the env var to
 `process.resourcesPath/drizzle` (`apps/desktop/main.cjs:256-261`, assigned at `:626`).
 
 What `ensureSchema` then does:
@@ -178,7 +178,7 @@ The committed migrations, in journal order (`packages/db/drizzle/meta/_journal.j
 **There is no `0017`, and the gap is deliberate.** Phase 5 lane B reserved that number while Phase 4 was in
 flight, so the journal jumps from `idx: 16` (`when: 1788820000008`) to `idx: 18` (`when: 1788820000010`).
 This matters because the runner is forward-only on `when`, not on `idx`: it applies an entry when
-`lastAppliedCreatedAt < entry.when` (`applyPendingMigrations`, `packages/db/src/ensure-schema.ts:154-190`). A `0017` added later with
+`lastAppliedCreatedAt < entry.when` (`applyPendingMigrations`, `packages/db/src/ensure-schema.ts:163-199`). A `0017` added later with
 a `when` **below** `1788820000010` would be silently skipped on every database that has already run `0018`.
 Lane B's migration must carry a `when` above it. `packages/db/src/migrate-0018.test.ts` asserts the journal
 stays in ascending `when` order and that no `0017` tag has appeared without one.
@@ -324,21 +324,21 @@ and writes no journal row, so a pushed database and a migrated one can end up st
 
 **Baseline stamping means a journal row is not proof a migration ran.** A database with all 20 kernel
 tables and an empty journal gets every hash inserted without executing anything
-(`packages/db/src/ensure-schema.ts:209-213`). That is the whole reason the `ensure*` healers and the
+(`packages/db/src/ensure-schema.ts:218-222`). That is the whole reason the `ensure*` healers and the
 defensive `CREATE TABLE IF NOT EXISTS` in `0010`-`0018` exist. When you add a migration that
 `ALTER`s a table, add a matching healer — a bare `ALTER` will fail on a second application.
 
 **A partially initialized database refuses to boot rather than repairing itself**
-(`packages/db/src/ensure-schema.ts:197-202`), with one carve-out for the six edit tables
+(`packages/db/src/ensure-schema.ts:206-211`), with one carve-out for the six edit tables
 (`:40-42`). The error names the missing tables; the fix is to restore or delete the file, not to
 re-run migrations.
 
 **`meta/` holds only four snapshots** — `0000`, `0001`, `0002`, `0005` — for sixteen journal entries.
 `ensureSchema` never reads snapshots (it reads `_journal.json` and the `.sql` files,
-`packages/db/src/ensure-schema.ts:81-103`), so boot is unaffected; `drizzle-kit generate` is the tool
+`packages/db/src/ensure-schema.ts:90-112`), so boot is unaffected; `drizzle-kit generate` is the tool
 that wants them, and it should be expected to behave oddly here.
 
-**Foreign keys are off during migration and on afterwards** (`:206`, `:224`), and `client.ts` sets
+**Foreign keys are off during migration and on afterwards** (`:215`, `:233`), and `client.ts` sets
 `foreign_keys = ON` *before* calling `ensureSchema` (`:45`, `:51`). The pragma you observe at runtime is
 the post-migration one.
 

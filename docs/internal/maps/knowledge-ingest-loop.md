@@ -1,6 +1,6 @@
 # Map — Knowledge ingest loop
 
-Last verified: 2026-09-20 at 6984d84
+Last verified: 2026-09-20 at 6984d84; citations re-anchored at e37b3a1
 
 > **`knowledge.ts` and `knowledge-extract.ts` move often.** Every line number below was re-read at `b482611`, but these two files are rewritten frequently; if a number looks wrong, grep the function name rather than trusting it.
 
@@ -47,7 +47,7 @@ There is no separate list route; listing rides on `GET /api/v1/knowledge`. `POST
 
 On a hit it **does not strip or sanitize**. It refuses to index and writes a `Failed` source row whose `error` is `injection_blocked (rule: <rule>)` (`packages/host/src/knowledge.ts:440-443`, `packages/host/src/knowledge-ingest.ts:63-70`).
 
-**The bypass** is the `injectionGuardBypass` boolean on `StoredSecrets` (`packages/core/src/secrets.ts:40`, `:87`), set through `POST /api/v1/settings` (`requestsOperatorOnlySettings`, `packages/host/src/handlers/settings.ts:176-184`), persisted per workspace in the encrypted settings file, read back at `packages/host/src/knowledge.ts:408-414` and `knowledge-ingest.ts:94-100`. When true the scan is skipped outright — `bypass ? null : scanInjection(...)`.
+**The bypass** is the `injectionGuardBypass` boolean on `StoredSecrets` (`packages/core/src/secrets.ts:33`, `:80`), set through `POST /api/v1/settings` (`requestsOperatorOnlySettings`, `packages/host/src/handlers/settings.ts:176-184`), persisted per workspace in the encrypted settings file, read back at `packages/host/src/knowledge.ts:408-414` and `knowledge-ingest.ts:94-100`. When true the scan is skipped outright — `bypass ? null : scanInjection(...)`.
 
 Source **names** get the same treatment, deliberately: an upload filename or a remote `<title>` is attacker-controlled the same way body text is, so `sanitizeSourceName` runs at index time and again at render time (`packages/host/src/knowledge.ts:366`, `:860`).
 
@@ -57,7 +57,7 @@ Source **names** get the same treatment, deliberately: an upload filename or a r
 
 `replaceSourceRows` (`packages/host/src/knowledge.ts:271-334`) commits the source row and one `knowledge_chunks` FTS5 row per chunk in **one immediate transaction, before embedding**. That ordering is the reason keyword search always works even when the embedding call fails.
 
-Then `indexThroughBackend` → `indexSourceVectors` (`packages/host/src/knowledge-embed.ts:149`) → `embedTextsWithModel` (`:95`), which POSTs to `${pinnedBase}/embeddings` in batches of 16 (`EMBED_BATCH`, `:16`). The endpoint is pinned the same way chat is: `resolveProviderKeys(settings).openaiBaseUrl` always returns `resolvedGatewayBaseUrl()`, so an owner-edited endpoint is silently ignored for embeddings (`packages/host/src/knowledge-embed.ts:62-64`, `packages/core/src/secrets.ts:338-339`).
+Then `indexThroughBackend` → `indexSourceVectors` (`packages/host/src/knowledge-embed.ts:149`) → `embedTextsWithModel` (`:95`), which POSTs to `${pinnedBase}/embeddings` in batches of 16 (`EMBED_BATCH`, `:16`). The endpoint is pinned the same way chat is: `resolveProviderKeys(settings).openaiBaseUrl` always returns `resolvedGatewayBaseUrl()`, so an owner-edited endpoint is silently ignored for embeddings (`packages/host/src/knowledge-embed.ts:62-64`, `packages/core/src/secrets.ts:323-324`).
 
 Vectors go to `knowledge_vectors` with the embedding stored as a **JSON-stringified `number[]`** (`packages/host/src/knowledge-embed.ts:192`, `:319`) — no vector column type, no ANN index.
 
@@ -80,7 +80,7 @@ Two different things share the word "reindex":
 
 ### Tenant scoping
 
-Every read and write is parameterized by `workspace_id` in application code. There is **no schema-level enforcement**: `knowledge_chunks` is a bare FTS5 virtual table with `workspace_id` as a plain column (`packages/db/src/ensure-schema.ts:698-702`), no foreign key, no row-level security. The actual guarantee is the tests: `packages/host/src/knowledge-reindex.test.ts:314-322` (reindexing another workspace's source id resolves `{status:"missing"}` and leaves its chunks untouched), `:369-394` (a workspace sweep never touches another), `packages/host/src/knowledge-retrievals.test.ts:61-64` ("Another workspace never shows up in this one's count").
+Every read and write is parameterized by `workspace_id` in application code. There is **no schema-level enforcement**: `knowledge_chunks` is a bare FTS5 virtual table with `workspace_id` as a plain column (`packages/db/src/ensure-schema.ts:707-711`), no foreign key, no row-level security. The actual guarantee is the tests: `packages/host/src/knowledge-reindex.test.ts:314-322` (reindexing another workspace's source id resolves `{status:"missing"}` and leaves its chunks untouched), `:369-394` (a workspace sweep never touches another), `packages/host/src/knowledge-retrievals.test.ts:61-64` ("Another workspace never shows up in this one's count").
 
 ### Storage
 

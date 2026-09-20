@@ -4,7 +4,7 @@
 > The host-decides/renderer-displays rule below is unchanged; the Electron-only transport and wipe details are frozen desktop behaviour.
 > Decision record: [`web-pivot-2026-09-18.md`](../web-pivot-2026-09-18.md).
 
-Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c`
+Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c` (through e37b3a1)
 
 > The 2026-09-17 "hide the endpoint" change was verified in the working tree when this page was
 > first written; it is committed as of `b482611`. `apps/web/components/settings-page.tsx`,
@@ -74,10 +74,10 @@ and the desk reports stub. The defence is a **source-grep test**:
 named exceptions (`studio-generate.ts`, `handlers/jobs.ts`, listed at `:22-23`).
 
 **`settingsPayload()`** (`packages/host/src/handlers/settings.ts:85-122`) is what the renderer sees. Keys are
-never in it: `maskSecrets` (`packages/core/src/secrets.ts:258-287`) emits booleans (`hasOpenai`, …) and
+never in it: `maskSecrets` (`packages/core/src/secrets.ts:251-280`) emits booleans (`hasOpenai`, …) and
 fingerprints (`sha256:` + the first 12 hex chars of SHA-256 over the trimmed secret,
 `packages/core/src/security/fingerprint.ts:9-15`). `openaiBaseUrl` in the payload is always
-`resolvedGatewayBaseUrl()`, never a stored value (`packages/core/src/secrets.ts:270-271`).
+`resolvedGatewayBaseUrl()`, never a stored value (`packages/core/src/secrets.ts:263-264`).
 
 **What the owner can actually change on this page.** Two fields, and the POST body says so: the settings form
 submits exactly `{ openaiApiKey, editTurnCapUsd }` (`apps/web/components/settings-page.tsx:189-197`, with the
@@ -86,7 +86,7 @@ of `{ locale }` (`:219-229`) — see [`locale-boot-and-run-harness.md`](locale-b
 turn cap (`settings-edit-turn-cap`, `:396`) is a number input clamped to 0.5–50 on the way in and again on the
 way out (`:162-166`, `:388-395`), default 2.
 
-**Key resolution.** `resolveProviderKeys(settings, env)` (`packages/core/src/secrets.ts:322-334` for the signature, the body through `:360`), today — where `env` is not the process environment directly but `providerEnv(env)` (`packages/core/src/server-mode.ts:34-60`), which is `env` unchanged on a desk and a **frozen empty object** in server mode. That is Phase 4's change, and it is shared: the same helper backs the tool secret scope (`packages/core/src/tools/credentials.ts:296-308`), the runtime's per-provider fallback (`packages/core/src/runtime/ai-sdk-runtime.ts:163-174`) and, indirectly, Edit's off-request transcription (`packages/host/src/edit/asr.ts:79-87`, which asks `resolveProviderKeys` rather than the environment). `packages/core/src/provider-env-sweep.test.ts` fails the build if any other shipped source reads one of these variables off `process.env`:
+**Key resolution.** `resolveProviderKeys(settings, env)` (`packages/core/src/secrets.ts:307-319` for the signature, the body through `:330`), today — where `env` is not the process environment directly but `providerEnv(env)` (`packages/core/src/server-mode.ts:43-45`, with the rule written out at `:52-72`), which is `env` unchanged on a desk and a **frozen empty object** in server mode. That is Phase 4's change, and it is shared: the same helper backs the tool secret scope (`packages/core/src/tools/credentials.ts:308-312`), the runtime's per-provider fallback (`packages/core/src/runtime/ai-sdk-runtime.ts:163-174`) and, indirectly, Edit's off-request transcription (`packages/host/src/edit/asr.ts:79-87`, which asks `resolveProviderKeys` rather than the environment). `packages/core/src/provider-env-sweep.test.ts` fails the build if any other shipped source reads one of these variables off `process.env`:
 
 ```
 openai        = settings.openaiApiKey || env.OPENAI_API_KEY
@@ -98,7 +98,7 @@ volcengine    = settings.volcengineApiKey || env.ARK_API_KEY || env.VOLCENGINE_A
 
 `reuseOpenAI(dialect)` hands the OpenAI-slot key to another provider's slot when `guessDialectFromKey` says it
 actually belongs there — i.e. someone pasted an Anthropic key into the one key field. Stub vs live is a separate
-call, `resolveRuntimeMode({ settingsHasKey, envRuntime })` (`packages/core/src/secrets.ts:300-305`).
+call, `resolveRuntimeMode({ settingsHasKey, envRuntime })` (`packages/core/src/secrets.ts:293-298`).
 
 **Endpoint pinning.** `PINNED_GATEWAY_BASE_URL = "https://api.tokotokenai.com/v1"`
 (`packages/core/src/gateway/pinned.ts:8`), with a SHA-256 of the literal checked by
@@ -180,8 +180,8 @@ verdict is keyed by fingerprint; the key itself is never written**), and hands b
 - **`keyFor` refuses the process environment in server mode** (`:395-405`). A saved key is still the key.
   But with none saved, an `OPENAI_API_KEY` in the host's own environment belongs to the **operator**, and
   handing it to a tenant who has saved nothing is residual A01-3. The gate now answers `needs_key` there,
-  which is what `resolveProviderKeys` does on the call path (`packages/core/src/secrets.ts:322-330`,
-  the fallback taken from `providerEnv` at `:329`), so the verdict and the call agree about
+  which is what `resolveProviderKeys` does on the call path (`packages/core/src/secrets.ts:307-319`,
+  the fallback taken from `providerEnv` at `:306`), so the verdict and the call agree about
   whether this tenant has a key at all. Off server mode nothing moved: a
   desk running `AGENTFORGE_RUNTIME=ai` with a key in its environment still works exactly as before.
   The gate is only half of it, though: it can only protect work that happens **inside a request**.
@@ -189,11 +189,11 @@ verdict is keyed by fingerprint; the key itself is never written**), and hands b
   `403` to, which is why `edit/asr.ts` resolving its own bearer mattered rather than being tidiness
   — see [`tenant-secrets-backend.md`](tenant-secrets-backend.md).
 
-Constants (`packages/host/src/gateway-gate.ts`): `GATEWAY_GRACE_MS = 7 * 86_400_000` (`:47`),
-`GATEWAY_CHECK_TIMEOUT_MS = 3_000` (`:50`), `GATEWAY_OK_TTL_MS = 86_400_000` (`:56`),
-`GATEWAY_REFRESH_THROTTLE_MS = 600_000` (`:59`), `GATEWAY_UNCHECKED_MESSAGE = "Not checked yet."` (`:62`),
-`GATEWAY_UNVERIFIED_MESSAGE` (`:69`), `GATEWAY_VERDICT_UNWRITABLE_MESSAGE` (`:76`). The grace boundary is
-inclusive — exactly 7 days still counts (`withinGrace`, `:261-264`, pinned at
+Constants (`packages/host/src/gateway-gate.ts`): `GATEWAY_GRACE_MS = 7 * 86_400_000` (`:40`),
+`GATEWAY_CHECK_TIMEOUT_MS = 3_000` (`:43`), `GATEWAY_OK_TTL_MS = 86_400_000` (`:49`),
+`GATEWAY_REFRESH_THROTTLE_MS = 600_000` (`:52`), `GATEWAY_UNCHECKED_MESSAGE = "Not checked yet."` (`:55`),
+`GATEWAY_UNVERIFIED_MESSAGE` (`:62`), `GATEWAY_VERDICT_UNWRITABLE_MESSAGE` (`:69`). The grace boundary is
+inclusive — exactly 7 days still counts (`withinGrace`, `:254-257`, pinned at
 `packages/host/src/gateway-gate.test.ts:146-155`); the TTL check is `withinOkTtl` (`:267-270`).
 
 **The live check** is `checkGatewayLive` (`packages/host/src/gateway-gate.ts:347-382`): `GET {baseUrl}/models`

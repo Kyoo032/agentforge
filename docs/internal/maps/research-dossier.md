@@ -1,6 +1,6 @@
 # Map — Research dossier
 
-Last verified: 2026-09-20 at 6984d84
+Last verified: 2026-09-20 at 6984d84; citations re-anchored at e37b3a1
 
 ## Overview
 
@@ -42,7 +42,7 @@ Everything after that runs inside `streamJob` (`packages/host/src/job-stream.ts:
 `generateResearchNotes` (`packages/host/src/research-generate.ts:113-171`) starts with `requireLiveResearch` (`:76-87`):
 
 1. `resolveRuntimeMode({ settingsHasKey: hasLiveProvider(settings), envRuntime: AGENTFORGE_RUNTIME })` — `stub` throws `ApiError("runtime_stub", gatewayRequiredMessage("research", locale), 503)`.
-2. `listToolRoutes(settings).web?.ready` (`packages/core/src/tools/credentials.ts:350-360`) — no Tavily/Brave route throws `ApiError("tool_failed", searchKeyRequiredMessage(locale), 503)`.
+2. `listToolRoutes(settings).web?.ready` (`packages/core/src/tools/credentials.ts:362-372`) — no Tavily/Brave route throws `ApiError("tool_failed", searchKeyRequiredMessage(locale), 503)`.
 
 Both messages come from `packages/core/src/output-language.ts:114-117` and `:124-127`, **not** from `apps/web/locales/*/research.json` (see Gotchas). Nothing is written before this point: no artifact, no work card, no search call.
 

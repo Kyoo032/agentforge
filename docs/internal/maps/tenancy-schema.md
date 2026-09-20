@@ -1,6 +1,6 @@
 # Map — Tenancy schema and TenantContext
 
-Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c`
+Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c` (through e37b3a1)
 
 ## Overview
 
@@ -43,15 +43,15 @@ existing database opens with no re-seed. The column lands nullable because SQLit
 `ADD COLUMN ... NOT NULL REFERENCES` without a non-null default; `notNull` is a drizzle-level claim
 plus `packages/db/src/migrate-0015.test.ts`.
 
-**Two paths apply it.** `ensureSchema` (`packages/db/src/ensure-schema.ts:192`) runs pending
-migrations against the journal. A database that was **baseline-stamped** (`:208-213` — every kernel
+**Two paths apply it.** `ensureSchema` (`packages/db/src/ensure-schema.ts:201`) runs pending
+migrations against the journal. A database that was **baseline-stamped** (`:217-222` — every kernel
 table present, zero journal rows) has `0015` marked applied without ever running, so
-`ensureTenantTables` (`:418`, called at `:235`) re-creates the table, re-inserts the row and
+`ensureTenantTables` (`:427`, called at `:244`) re-creates the table, re-inserts the row and
 backfills the column. Same idempotent `PRAGMA table_info` shape as the knowledge and workspace
 healers beside it.
 
 **`tenants` is deliberately not in `REQUIRED_TABLES`** (`:8`). That list drives the partial-init
-refusal at `:197`. An existing desktop database has every current kernel table and no `tenants`,
+refusal at `:206`. An existing desktop database has every current kernel table and no `tenants`,
 which would make `present.length > 0 && missing.length > 0` true and throw "Refusing to migrate or
 baseline-stamp" on the frozen desktop's first launch. The healer covers that case instead.
 
@@ -97,8 +97,8 @@ that could create one.
 | `packages/db/src/schema.ts:91-105` | `tenantState` — Phase 4, the per-tenant secrets and gate rows |
 | `packages/db/drizzle/0015_tenants.sql` | The migration: table, local row, column, backfill, index swap |
 | `packages/db/drizzle/meta/_journal.json` | Journal entry `idx: 15`, `when: 1788820000007` |
-| `packages/db/src/ensure-schema.ts:420` | `ensureTenantTables`, the baseline-stamp healer |
-| `packages/db/src/ensure-schema.ts:494` | `ensureTenantStateTable`, the same healer shape for `tenant_state` |
+| `packages/db/src/ensure-schema.ts:429` | `ensureTenantTables`, the baseline-stamp healer |
+| `packages/db/src/ensure-schema.ts:503` | `ensureTenantStateTable`, the same healer shape for `tenant_state` |
 | `packages/db/src/ensure-local-owner.ts` | Resolves the local owner inside `local-tenant` |
 | `packages/db/src/tenants.ts` | `ensureTenant` / `getTenantById` / `getLocalTenant`, for lane C |
 | `packages/db/src/client.ts:50` | `busy_timeout = 5000` |

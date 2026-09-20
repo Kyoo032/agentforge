@@ -1,6 +1,6 @@
 # Map — Portal browser session (hosted server)
 
-Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c`
+Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c` (through e37b3a1)
 
 ## Overview
 
@@ -216,8 +216,8 @@ and `auth_sessions_expires_idx` on `expires_at`. The drizzle definition is
 `packages/db/src/schema.ts:754-772`.
 
 Every statement is `IF NOT EXISTS`, and the same DDL is mirrored in
-`ensureAuthSessionTables` (`packages/db/src/ensure-schema.ts:388-454`, called at
-`packages/db/src/ensure-schema.ts:234`), because a database baseline-stamped past this migration has
+`ensureAuthSessionTables` (`packages/db/src/ensure-schema.ts:397-463`, called at
+`packages/db/src/ensure-schema.ts:243`), because a database baseline-stamped past this migration has
 the journal row without the table.
 
 `createDrizzleSessionStore` (`packages/host/src/auth/session-store.ts:103-132`) is the SQLite

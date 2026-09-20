@@ -1,6 +1,6 @@
 # Map — Knowledge flows
 
-Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c`
+Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c` (through e37b3a1)
 
 > **The knowledge path moves often.** This page was first written against an uncommitted tree on 2026-09-17; every line number below was re-read at `b482611`. `knowledge.ts`, `knowledge-ingest.ts`, `handlers/knowledge.ts`, `market-generate.ts` and `finance-generate.ts` are rewritten frequently, so every citation into them names the **function** as well as the line — grep the function name if a number looks wrong. Gotchas says which findings have since been fixed and which are still open.
 
@@ -67,7 +67,7 @@ In practice: a media card is one chunk, a Chat turn one, a short document two or
 
 ### 4. Tenant scoping
 
-Everything is parameterized by `tenant.workspaceId` in application code; `knowledge_chunks` is a bare FTS5 virtual table with `workspace_id` as a plain column, no foreign key and no row-level security (`packages/db/src/ensure-schema.ts:698-702`). The guarantee is the tests, not the schema.
+Everything is parameterized by `tenant.workspaceId` in application code; `knowledge_chunks` is a bare FTS5 virtual table with `workspace_id` as a plain column, no foreign key and no row-level security (`packages/db/src/ensure-schema.ts:707-711`). The guarantee is the tests, not the schema.
 
 Two things on this page are **organization**-scoped instead: the raw bytes a file upload leaves on disk (`uploadDir`, `knowledge.ts:448-450`), and the `media` table the sweep consults for Images / Videos / Edit cards (`ORIGIN_OWNERS`, `knowledge.ts:631` — the `media` table has no workspace column). Everything else on the path is per-desk.
 

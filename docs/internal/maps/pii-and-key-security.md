@@ -1,6 +1,6 @@
 # Map — PII masking and key security
 
-Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c`
+Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c` (through e37b3a1)
 
 ## Overview
 
@@ -72,7 +72,7 @@ Two shapes of use:
 - **Attachments.** `redactAttachedText` (`:129-138`) finds `--- <filename> ---` blocks (`ATTACH_BLOCK_RE`, `:126`), runs `scanInjection` (`:77-88`) on each body, and replaces a hit with `[Attachment blocked by injection guard (rule: <rule>)]`. `redactAttachedParts` (`:140-147`) maps that over text parts. Chat calls it at `packages/host/src/runs.ts:135`.
 - **Everything ingested.** Knowledge sources (`packages/host/src/knowledge.ts:430`), work cards (`packages/host/src/knowledge-ingest.ts:29`), research pages (`packages/host/src/research-generate.ts:150`), and every job's `readSourceText` (`packages/host/src/job-source.ts:12,24`, called from `finance-generate.ts:165`, `data-generate.ts:208`, `document-generate.ts:156`, `presentation-generate.ts:145`) run `scanInjection` on fetched or uploaded text.
 
-One switch turns all of it off: `injectionGuardBypass` on `StoredSecrets` (`packages/core/src/secrets.ts:40`, `:87`), set through `POST /api/v1/settings` (`requestsOperatorOnlySettings`, `packages/host/src/handlers/settings.ts:176-184`), persisted at `packages/host/src/settings-store.ts:132`, and returned to the UI by `maskSecrets`. It is stored only when `true` (`packages/core/src/secrets.ts:237-241`), so the protected state is the default. The comment at `packages/core/src/security/injection-guard.ts:72-76` is explicit that there is no "this looks like a security discussion, skip it" carve-out — the bypass setting is the only escape hatch, on purpose.
+One switch turns all of it off: `injectionGuardBypass` on `StoredSecrets` (`packages/core/src/secrets.ts:33`, `:80`), set through `POST /api/v1/settings` (`requestsOperatorOnlySettings`, `packages/host/src/handlers/settings.ts:176-184`), persisted at `packages/host/src/settings-store.ts:132`, and returned to the UI by `maskSecrets`. It is stored only when `true` (`packages/core/src/secrets.ts:230-234`), so the protected state is the default. The comment at `packages/core/src/security/injection-guard.ts:72-76` is explicit that there is no "this looks like a security discussion, skip it" carve-out — the bypass setting is the only escape hatch, on purpose.
 
 Knowledge also masks PII on its own path, because knowledge chunks are FTS plaintext while messages are sealed: `packages/host/src/knowledge-ingest.ts:42` (body) and `:40` (title).
 
@@ -112,29 +112,29 @@ The trap is `apps/desktop/main.cjs:293-297`: if keytar throws, the catch returns
 
 ### 7. `settings.enc`
 
-Phase 4 moved this behind a backend: off server mode it is still `resolve(tenantDataDir(tenantId), "settings.enc")` (`statePath` over `TENANT_STATE_FILENAMES`, `packages/host/src/tenant-state-store.ts:86-88`, `:48-51`), and in server mode it is a `tenant_state` row ([`tenant-secrets-backend.md`](tenant-secrets-backend.md)). The legacy plaintext sibling `settings.json` is the one path `settings-store.ts` still spells itself (`legacyPlaintextPath`, `packages/host/src/settings-store.ts:87-89`). `tenantDataDir` is `localDataDir()` for `local-tenant` and `<localDataDir()>/tenants/<tenantId>` for every other tenant (Phase 3 lane D; [`tenant-storage.md`](tenant-storage.md)), so a desktop install's path is unchanged. File shape `SettingsFileV2` (`packages/host/src/settings-store.ts:186-196`): `{ version: 2, locale?, users?: Record<userId, { locale? }>, workspaces: Record<workspaceId, StoredSecrets> }` — `users` is Phase 4's per-person locale, and the version stayed at 2 on purpose, so an older build reads the file rather than treating it as a v1 blob — settings are **per tenant in the file, per workspace in the map**, which is why `saveSettings` takes a `SettingsScope` (`packages/host/src/settings-store.ts:41`). `StoredSecrets` (`packages/core/src/secrets.ts:14-66`) holds the gateway key `openaiApiKey`, the non-GTM extras `googleApiKey` / `anthropicApiKey` / `volcengineApiKey`, `toolKeys`, tool backends, model defaults and the WeKnora sidecar creds.
+Phase 4 moved this behind a backend: off server mode it is still `resolve(tenantDataDir(tenantId), "settings.enc")` (`statePath` over `TENANT_STATE_FILENAMES`, `packages/host/src/tenant-state-store.ts:86-88`, `:48-51`), and in server mode it is a `tenant_state` row ([`tenant-secrets-backend.md`](tenant-secrets-backend.md)). The legacy plaintext sibling `settings.json` is the one path `settings-store.ts` still spells itself (`legacyPlaintextPath`, `packages/host/src/settings-store.ts:87-89`). `tenantDataDir` is `localDataDir()` for `local-tenant` and `<localDataDir()>/tenants/<tenantId>` for every other tenant (Phase 3 lane D; [`tenant-storage.md`](tenant-storage.md)), so a desktop install's path is unchanged. File shape `SettingsFileV2` (`packages/host/src/settings-store.ts:186-196`): `{ version: 2, locale?, users?: Record<userId, { locale? }>, workspaces: Record<workspaceId, StoredSecrets> }` — `users` is Phase 4's per-person locale, and the version stayed at 2 on purpose, so an older build reads the file rather than treating it as a v1 blob — settings are **per tenant in the file, per workspace in the map**, which is why `saveSettings` takes a `SettingsScope` (`packages/host/src/settings-store.ts:41`). `StoredSecrets` (`packages/core/src/secrets.ts:7-59`) holds the gateway key `openaiApiKey`, the non-GTM extras `googleApiKey` / `anthropicApiKey` / `volcengineApiKey`, `toolKeys`, tool backends, model defaults and the WeKnora sidecar creds.
 
-Writer `persistEncrypted` (`:177-183`) → `encryptJson(file, getLocalVaultKey())`. Reader `loadEncryptedPayload` (`:237-252`) → `isEnvelope` check then `decryptJson`.
+Writer `persistEncrypted` (`:177-183`) → `encryptJson(file, getLocalVaultKey())`. Reader `loadEncryptedPayload` (`:230-245`) → `isEnvelope` check then `decryptJson`.
 
 ### 8. What `GET /api/v1/settings` may say
 
-`settingsPayload()` (`packages/host/src/handlers/settings.ts:85-122`) spreads `...maskSecrets(settings)` at `:92` and never spreads the raw `StoredSecrets`. `maskSecrets` (`packages/core/src/secrets.ts:258-287`) touches the four key fields in exactly two ways:
+`settingsPayload()` (`packages/host/src/handlers/settings.ts:85-122`) spreads `...maskSecrets(settings)` at `:92` and never spreads the raw `StoredSecrets`. `maskSecrets` (`packages/core/src/secrets.ts:251-280`) touches the four key fields in exactly two ways:
 
-- `Boolean(...)` → `hasOpenai` / `hasGoogle` / `hasAnthropic` / `hasVolcengine` (`:234-237`); `hasToolKeys` is the same idea per tool name (`packages/core/src/tools/credentials.ts:362-373`).
-- `keyFingerprintOrNull(...)` → `openaiKeyFingerprint` and the three extras (`:238-241`).
+- `Boolean(...)` → `hasOpenai` / `hasGoogle` / `hasAnthropic` / `hasVolcengine` (`:227-230`); `hasToolKeys` is the same idea per tool name (`packages/core/src/tools/credentials.ts:374-385`).
+- `keyFingerprintOrNull(...)` → `openaiKeyFingerprint` and the three extras (`:239-242`).
 
 `keyFingerprint` (`packages/core/src/security/fingerprint.ts:8-15`): trim, `sha256` hex, return `sha256:` + the **first 12 hex characters** (48 bits). `keyFingerprintOrNull` (`:18-23`) is the null-safe wrapper.
 
-`openaiBaseUrl` is not the stored value either — `maskSecrets` returns `resolvedGatewayBaseUrl()` (`packages/core/src/secrets.ts:271`), and `withGatewayDefault` (`packages/host/src/settings-store.ts:348-355`) discards any persisted base URL on load and save. The endpoint is pinned in code (`packages/core/src/gateway/pinned.ts:8`), which is why `settings-endpoint`, `settings-endpoint-reset` and `openai-base-url` all have count 0 in the UI.
+`openaiBaseUrl` is not the stored value either — `maskSecrets` returns `resolvedGatewayBaseUrl()` (`packages/core/src/secrets.ts:264`), and `withGatewayDefault` (`packages/host/src/settings-store.ts:348-355`) discards any persisted base URL on load and save. The endpoint is pinned in code (`packages/core/src/gateway/pinned.ts:8`), which is why `settings-endpoint`, `settings-endpoint-reset` and `openai-base-url` all have count 0 in the UI.
 
 Driven on the owner's keyless desk (2026-09-17, `runtime: stub`): the 222,715-byte response contained `hasOpenai: false`, `openaiKeyFingerprint: null`, and no `openaiKey` / `apiKey` / `sk-` substring anywhere.
 
 ### 9. Save, and what the browser shows
 
-`POST /api/v1/settings` → `handlePostSettings` (`packages/host/src/handlers/settings.ts:138-209`) builds a `SecretPatch` (`:148-163`) and calls `saveSettings` (`:164`). `mergeSecrets` (`packages/core/src/secrets.ts:136-161`) decides what a field means:
+`POST /api/v1/settings` → `handlePostSettings` (`packages/host/src/handlers/settings.ts:138-209`) builds a `SecretPatch` (`:148-163`) and calls `saveSettings` (`:164`). `mergeSecrets` (`packages/core/src/secrets.ts:129-154`) decides what a field means:
 
 - field **absent** from the body → `continue`, existing key kept. This is what makes the empty password box safe.
-- field present and **empty after trim** → `delete next[field]` (`:117-122`), the key is cleared.
+- field present and **empty after trim** → `delete next[field]` (`:110-115`), the key is cleared.
 
 The UI renders `key-fingerprint` at `apps/web/components/settings-page.tsx:400`, gated at `:399` by `hasOpenai && openaiKeyFingerprint` — both, so a fingerprint without a key cannot paint. `openai-key` is the `type="password"` input at `:377` (placeholder swaps on `hasOpenai`, `:374`), `runtime-status` at `:290`, `privacy-note` at `:419`. The fingerprint state is only ever assigned from the response (`:124-128`); a grep of `apps/web` for `sha256` / `createHash` / `keyFingerprint` finds nothing, so the browser never hashes.
 
@@ -153,8 +153,8 @@ Doctor mirrors the same gate: `.cursor/skills/verify-agentforge/scripts/doctor.m
 | `settings.enc` will not decrypt (wrap key changed / keytar fell back) | `onUndecryptableSettings`, `packages/host/src/settings-store.ts:373-385` | **Desk:** quarantined to `settings.enc.unreadable`; app boots keyless and shows onboarding, unchanged. **Server (Phase 4):** refused with `settings_unreadable` (500) and the payload left untouched — quarantining one tenant's key on a shared box is a loss they cannot undo |
 | `settings.enc` is not an envelope | `packages/host/src/settings-store.ts:311` | throws `"settings.enc is not a valid envelope"` → same quarantine |
 | A sealed column holds pre-encryption plaintext | `packages/core/src/crypto/envelope.ts:62`, `:65` | returned as-is; no error, no re-seal |
-| Client sends `openaiApiKey: ""` | `mergeSecrets`, `packages/core/src/secrets.ts:136-149` | key deleted, so `hasOpenai` (`packages/core/src/secrets.ts:260`) goes false |
-| Client omits `openaiApiKey` | `mergeSecrets`, `packages/core/src/secrets.ts:136-149` | key untouched |
+| Client sends `openaiApiKey: ""` | `mergeSecrets`, `packages/core/src/secrets.ts:129-142` | key deleted, so `hasOpenai` (`packages/core/src/secrets.ts:253`) goes false |
+| Client omits `openaiApiKey` | `mergeSecrets`, `packages/core/src/secrets.ts:129-142` | key untouched |
 | No key saved | `apps/web/components/settings-page.tsx:399` | `key-fingerprint` not rendered; `privacy-note` still visible; doctor `keyFingerprint: false` — **not** a doctor fail |
 
 ## Where things live
@@ -191,7 +191,7 @@ Doctor mirrors the same gate: `.cursor/skills/verify-agentforge/scripts/doctor.m
 - **`openPayload` cannot tell "legacy plaintext" from "someone replaced the envelope with plaintext".** `packages/core/src/crypto/envelope.ts:62`/`:65` return the value whenever it does not look like an envelope. The GCM tag protects a sealed row; it protects nothing about a row that was never sealed.
 - **Thread titles are plaintext and derived from the first user message.** `packages/host/src/threads.ts:201`, `:228` open the sealed content and write a title with `.set({ title })` at `:252-255`, unsealed. A message body that is sealed at rest can still surface, truncated, in a plaintext `threads.title` column.
 - **The fingerprint is 48 bits.** `sha256:` plus 12 hex characters (`packages/core/src/security/fingerprint.ts:13-14`). It identifies which key is saved; it is not a proof of possession and must never be pasted into `openai-key`.
-- **Extras have fingerprints but no GTM UI.** `googleKeyFingerprint` / `anthropicKeyFingerprint` / `volcengineKeyFingerprint` are always in the response (`packages/core/src/secrets.ts:266-268`) even though Settings shows only `hasGoogle` / `hasAnthropic` / `hasVolcengine`. Do not read a non-null extras fingerprint as a UI regression.
+- **Extras have fingerprints but no GTM UI.** `googleKeyFingerprint` / `anthropicKeyFingerprint` / `volcengineKeyFingerprint` are always in the response (`packages/core/src/secrets.ts:259-261`) even though Settings shows only `hasGoogle` / `hasAnthropic` / `hasVolcengine`. Do not read a non-null extras fingerprint as a UI regression.
 - **`AGENTFORGE_PACKAGED` is never set.** `isPackagedRuntime()` (`packages/core/src/gateway/pinned.ts:25-27`) reads it, `gatewayUrlOverrideAllowed()` (`:34-36`) depends on it, and the comment at `:24` says "`main.cjs` sets this before `host.cjs` loads" — but a repo-wide grep finds it only in `pinned.ts` and `pinned.test.ts`. `apps/desktop/main.cjs:79-81` sets `AGENTFORGE_PRODUCT_NAME` / `_GATEWAY_NAME` / `_GATEWAY_URL` and nothing else. So in a packaged build the "dev/test hook" is live — which is exactly how Kemenkeu AI and AIHub Metranet get their `https://aihub.metranet.co.id/v1` lock, and also why the pin is not actually enforced there. See `findings.md` for this run.
 - **Settings are per tenant, then per workspace.** One `settings.enc` per tenant, and inside it `{ workspaces: { <id>: StoredSecrets } }` (`packages/host/src/settings-store.ts:186-196`). A key saved on one desk is not a key on another, and `clearGatewayKeyEverywhere(scope)` (`:420-436`) exists precisely because the per-workspace shape makes "remove my key" a multi-row operation — it clears every desk of **one tenant**, not of the install.
 - **`apps/desktop/host.cjs` is a build artifact** (gitignored, `.gitignore:35`) and is regenerated while a dev build watches. Never cite `file:line` in it; the tracked source is `apps/desktop/main.cjs`.
