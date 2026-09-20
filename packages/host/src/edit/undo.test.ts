@@ -8,8 +8,8 @@ import { undoCard } from "./undo";
 describe("undo (G-05)", () => {
   it("restores clip volume after undoing an agent card", async () => {
     const { project } = await seedEditProject("undo");
-    await addReadyClip(project.id, "clip-undo");
-    const before = await foldProject(project.id);
+    await addReadyClip(project.id, project.workspaceId, "clip-undo");
+    const before = await foldProject(project.id, project.workspaceId);
     const original = before.clips.find((item) => item.id === "clip-undo")?.volume ?? 1;
     await db.insert(editCards).values({
       id: crypto.randomUUID(),
@@ -27,10 +27,10 @@ describe("undo (G-05)", () => {
     await appendOps(
       project.id,
       [{ type: "set_volume", payload: { clipId: "clip-undo", volume: 0.1 }, cardId }],
-      { actor: "agent:run-1", cardId },
+      { actor: "agent:run-1", cardId, workspaceId: project.workspaceId },
     );
-    await undoCard(project.id, cardId);
-    const after = await foldProject(project.id);
+    await undoCard(project.id, cardId, project.workspaceId);
+    const after = await foldProject(project.id, project.workspaceId);
     expect(after.clips.find((item) => item.id === "clip-undo")?.volume ?? 1).toBe(original);
   });
 });
