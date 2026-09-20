@@ -1,12 +1,12 @@
 # Map — Hosted server mode and the transport security pass
 
-Last verified: 2026-09-20 at c204e5e
+Last verified: 2026-09-20 at c204e5e; citations re-anchored at e37b3a1
 
 ## Overview
 
 The hosted, multi-user web deployment and the rules that only exist there. One environment variable — `AGENTFORGE_SERVER=1` — turns on a different transport contract: HTTPS proof from the proxy, a configured Origin/Host allowlist instead of the loopback rule, a double-submit CSRF token, request filtering and rate limiting on every path, masked 5xx bodies, global job caps, a mandatory wrap key, a gate that fails closed and a "Start over" that refuses. Everything on this page landed in one commit, `6ae177a` (PR #56).
 
-What this page is **not**: the desktop or webdev path. Every rule below is a branch on one flag, and with the flag off the code takes the path it took before the commit. It is also not the tenancy story — the hosted server is single-tenant today and per-tenant scoping, per-tenant caps and a scoped "Start over" are Phase 3 and Phase 5 (`packages/host/src/concurrency.ts:16`, `packages/host/src/handlers/settings.ts:332-337`).
+What this page is **not**: the desktop or webdev path. Every rule below is a branch on one flag, and with the flag off the code takes the path it took before the commit. It is also not the tenancy story — the hosted server is single-tenant today and per-tenant scoping, per-tenant caps and a scoped "Start over" are Phase 3 and Phase 5 (`packages/host/src/concurrency.ts:16`, `packages/host/src/handlers/settings.ts:338-343`).
 
 ## How it works
 
@@ -14,15 +14,15 @@ What this page is **not**: the desktop or webdev path. Every rule below is a bra
 
 `isServerMode(env = process.env)` (`packages/core/src/server-mode.ts:12-15`) is the whole of it: `AGENTFORGE_SERVER` trimmed and lower-cased, true for `1` or `true`, false for anything else including unset. `WEBDEV_DEFAULT_PORT = "3000"` (`:10`) is the only other constant in the file.
 
-`trustedOrigins(env)` (`packages/core/src/server-mode.ts:22-33`) answers the allowlist:
+`trustedOrigins(env)` (`packages/core/src/server-mode.ts:52-63`) answers the allowlist:
 
 | Input | Result | Line |
 |---|---|---|
 | `AGENTFORGE_TRUSTED_ORIGINS` set and non-blank | that comma list, parsed | `:25-27` |
-| unset, **not** server mode | `http://127.0.0.1:${PORT ?? 3000}` and the `localhost` spelling of it | `:31-32` |
+| unset, **not** server mode | `http://127.0.0.1:${PORT ?? 3000}` and the `localhost` spelling of it | `:61-62` |
 | unset, **server mode** | `[]` — an unconfigured server trusts no browser at all | `:28-30` |
 
-`parseOriginList(raw, httpsOnly)` (`:46-55`) normalises each entry and, in server mode only, **drops any `http:` entry** (`:50`, `HTTPS_SCHEME` at `:36`). So a cleartext origin cannot be put on the hosted allowlist by configuration mistake. Off server mode nothing is filtered, because webdev and the desktop *are* http loopback.
+`parseOriginList(raw, httpsOnly)` (`:46-55`) normalises each entry and, in server mode only, **drops any `http:` entry** (`:80`, `HTTPS_SCHEME` at `:66`). So a cleartext origin cannot be put on the hosted allowlist by configuration mistake. Off server mode nothing is filtered, because webdev and the desktop *are* http loopback.
 
 `normaliseOrigin(value)` (`:58-73`) is the comparison unit everywhere below: `new URL(value).origin` lower-cased, `null` for anything that is not an `http:`/`https:` URL.
 
@@ -79,7 +79,7 @@ Where the renderer sends it: `apps/web/lib/api-client.ts`. `withMutatingHeaders`
 
 `maskServerError(result, serverMode)` (`:347-357`): only a **json** result with `status >= 500` is touched (`:348`). The reason code survives if it looks like one — `/^[a-z0-9_]+$/` (`:46`, `reasonCodeOf` at `:359-363`) — and everything else is replaced by `INTERNAL_ERROR_MESSAGE = "The server could not complete this request."` (`:43`). 4xx bodies are untouched: those are this repo's own honest messages, not a driver's.
 
-The hosted session gate sits behind all of this, inside `dispatch` (`packages/host/src/router.ts:400-413`, `gate` at `:317-345`): in server mode **every** `/api` call needs a verified session whatever the method, except `/api/v1/auth/*` and `GET /api/v1/ping` / `GET /api/v1/components` (`packages/host/src/auth/routes.ts:39`, `:44`, `:94-99`). It is answered before the route table is consulted, so an unauthenticated caller learns nothing about which paths exist (`router.ts:341-344`).
+The hosted session gate sits behind all of this, inside `dispatch` (`packages/host/src/router.ts:405-418`, `gate` at `:317-345`): in server mode **every** `/api` call needs a verified session whatever the method, except `/api/v1/auth/*` and `GET /api/v1/ping` / `GET /api/v1/components` (`packages/host/src/auth/routes.ts:39`, `:44`, `:94-99`). It is answered before the route table is consulted, so an unauthenticated caller learns nothing about which paths exist (`router.ts:341-344`).
 
 ### 5. HTTP request filtering
 
@@ -163,15 +163,16 @@ The `request_filtered` line is the one the transport rules write (`FILTERED_EVEN
 
 **The wrap key becomes mandatory.** `getLocalVaultKey(env)` (`packages/db/src/vault-key.ts:123-135`): off server mode, `AGENTFORGE_SECRETS_KEY` if set, else the self-creating `.master-key` file (`:107-114`, `MASTER_KEY_FILE` at `:37`) — unchanged. In server mode the env key is required (`SERVER_VAULT_KEY_REQUIRED`, `:46-49`) and must measure at least `MIN_VAULT_KEY_BYTES = 32` (`:40`) through `vaultKeyEntropyBytes` (`:90-105`), else `SERVER_VAULT_KEY_TOO_WEAK` (`:51-54`). The file fallback is not reached at all. `vaultKeyEntropyBytes` counts only hex (even digit count) and *canonical* base64/base64url — it re-encodes the decoded bytes and demands the same string back (`isCanonical`, `:80-82`), which refuses a passphrase that merely happened to be long enough. The file names its own limit at `:75-78`: a 43-character alphanumeric string is a valid base64 encoding of 32 bytes and passes.
 
-**The gateway gate fails closed.** `deriveGatewayGate` (`packages/host/src/gateway-gate.ts:270-298`) reads `isServerMode(input.env ?? process.env)` at `:275` and changes two rules:
+**The gateway gate fails closed.** `deriveGatewayGate` (`packages/host/src/gateway-gate.ts:268-296`) reads `isServerMode(input.env ?? process.env)` at `:275` and changes two rules:
 - `envRuntime === "stub"` opens the gate on a desk but falls through to `needs_key` on the server (`:278-283`) — a stub runtime is a hosted misconfiguration, never an open gate.
 - "no verdict, or a verdict for a different key fingerprint" is `{status:"ok", allowed:true, grace:true}` on a desk and `{status:"error", allowed:false, grace:false}` with `GATEWAY_UNVERIFIED_MESSAGE` (`:57`) on the server (`:288-290`, `:296-298`). A hosted tenant has no first run to take on trust. Everything below that line is a verdict the gateway actually gave and reads the same in both modes.
 The renderer half matches: `resolveGate(payload, isElectron, hosted)` (`apps/web/lib/gateway-gate.ts:94-100`) falls closed on a missing or malformed gate when `hosted || isElectron`, and stays open otherwise.
 
-**"Start over" answers 403.** `handleResetApp` (`packages/host/src/handlers/settings.ts:360-376`, route `packages/host/src/router.ts:217`) resolves `serverMode` through an injectable dep (`ResetDeps`, `:354`, resolved `:361`) and refuses both scopes:
-- `scope: "all"` → `ApiError("reset_disabled", …, 403)` (`:334-337`, message `:297-298`). The refusal comes **first**, before the confirmation word is checked and before anything is queued, so one workspace's owner cannot arm a wipe of everyone else's data.
-- `scope: "key"` → the same code with a different message (`:309-312`, `:306-307`), because `clearGatewayKeyEverywhere()` is machine-wide: one tenant pressing it would sign every other tenant out of the gateway.
-Off server mode both do exactly what they did before (`:313-325`, `:338-350`).
+**"Start over" answers 403; "Sign out" does not.** `handleResetApp` (`packages/host/src/handlers/settings.ts:445-461`, route `packages/host/src/router.ts:250`) resolves `serverMode` through an injectable dep (`ResetDeps`, `:443`, resolved `:450`). Phase 4 split the two scopes rather than refusing both:
+- `scope: "all"` → `ApiError(RESET_DISABLED_CODE, RESET_DISABLED_MESSAGE, 403)` (`resetEverything`, `:423-440`, refusal at `:424-426`, constants `:383-386`). The refusal comes **first**, before the confirmation word is checked and before anything is queued, so one workspace's owner cannot arm a wipe of everyone else's data.
+- `DELETE /api/v1/settings/reset` (cancel) refuses the same way (`:477`).
+- `scope: "key"` **no longer refuses** (`resetGatewayKey`, `:400-415`). It used to, on the reasoning that `clearGatewayKeyEverywhere()` was machine-wide — which stopped being true in Phase 3 lane D, when both it and `clearGateState` were narrowed to the caller's tenant. Phase 4 dropped the 403 and the dead `RESET_KEY_DISABLED_MESSAGE` with it, because refusing it left a hosted tenant with no way to remove a saved key: a blank `openaiApiKey` in a settings POST is dropped rather than applied (`keyFieldValue`, `:194-202`). Pinned by `packages/host/src/handlers/settings.test.ts`.
+Off server mode nothing about either scope changed.
 
 ## Where things live
 
@@ -208,7 +209,7 @@ Off server mode both do exactly what they did before (`:313-325`, `:338-350`).
 
 **The CSRF token is not yet bound to a session.** It is bare randomness compared against itself; binding it as `HMAC(server key, session id)` is a recorded follow-up (`csrf.ts:14-17`, `:89-91`). Today a token minted for one session is not rejected in another.
 
-**An unconfigured hosted server accepts no writes.** `trustedOrigins()` defaults to `[]` in server mode (`packages/core/src/server-mode.ts:28-30`), and both `isAllowedWebOrigin` and `isAllowedWebHostHeader` match nothing against an empty list. Every POST/PATCH/DELETE answers `403 origin_forbidden` until `AGENTFORGE_TRUSTED_ORIGINS` is set. The matching proxy trap: Caddy must **not** rewrite `Host` to `127.0.0.1`, which the old loopback rule needed and which now fails the Host half of the check (`webapp-deploy/Caddyfile:114-131`).
+**An unconfigured hosted server accepts no writes.** `trustedOrigins()` defaults to `[]` in server mode (`packages/core/src/server-mode.ts:58-60`), and both `isAllowedWebOrigin` and `isAllowedWebHostHeader` match nothing against an empty list. Every POST/PATCH/DELETE answers `403 origin_forbidden` until `AGENTFORGE_TRUSTED_ORIGINS` is set. The matching proxy trap: Caddy must **not** rewrite `Host` to `127.0.0.1`, which the old loopback rule needed and which now fails the Host half of the check (`webapp-deploy/Caddyfile:114-131`).
 
 **Lowering an rpm lowers its burst too.** `bucketConfig` clamps burst to `max(1, min(defaultBurst, rpm || defaultBurst))` (`rate-limit.ts:178-182`), so `AGENTFORGE_RATE_IP_RPM=10` gives burst 10, not 100. A non-numeric value silently falls back to the default; an explicit `0` switches that limiter off entirely (`:82-84`). Buckets are also thrown away whenever the resolved config changes (`:193-205`).
 
@@ -260,9 +261,9 @@ There are no DOM testids for any of this. It is all transport; nothing on this p
 
 **Why the caps are off on a desk.** `[Supported]` `packages/host/src/concurrency.ts:10-14` records the regression that forced it: capping a single-owner desk "turned a batch of eight exports into a queue, and the ninth into a 429 the desktop had never produced before." That is a first-person account in the source rather than an external record, so it is the *reason given*, not an independent one. **Confidence: medium-high.**
 
-**Why "Start over" is refused rather than scoped.** `[Direct]` `docs/internal/web-security-spec.md:67` (row T8): "'Start over' is scoped to the caller's tenant, or disabled on the web build; today it wipes the whole data dir". The second option was taken, and the refusal is placed before the confirmation word so a wipe cannot even be armed. `[Supported]` The "forget my key" scope was refused for a different reason — the key clear is machine-wide and the gate verdict is shared, so one tenant would sign out every other (`packages/host/src/handlers/settings.ts:304-311`). **Confidence: high.**
+**Why "Start over" is refused rather than scoped.** `[Direct]` `docs/internal/web-security-spec.md:67` (row T8): "'Start over' is scoped to the caller's tenant, or disabled on the web build; today it wipes the whole data dir". The second option was taken, and the refusal is placed before the confirmation word so a wipe cannot even be armed. `[Supported]` The "forget my key" scope was refused for a different reason — the key clear is machine-wide and the gate verdict is shared, so one tenant would sign out every other (`packages/host/src/handlers/settings.ts:310-317`). **Confidence: high.**
 
-**Why the gate fails closed on the hosted build.** `[Direct]` `docs/internal/web-security-spec.md:63` (row T4) asks for exactly both halves: the renderer must treat a missing or malformed gate as blocked, and "the host stops taking an unverified key on trust". Both landed (`apps/web/lib/gateway-gate.ts:94-100`, `packages/host/src/gateway-gate.ts:288-290`). **Confidence: high.**
+**Why the gate fails closed on the hosted build.** `[Direct]` `docs/internal/web-security-spec.md:63` (row T4) asks for exactly both halves: the renderer must treat a missing or malformed gate as blocked, and "the host stops taking an unverified key on trust". Both landed (`apps/web/lib/gateway-gate.ts:94-100`, `packages/host/src/gateway-gate.ts:286-288`). **Confidence: high.**
 
 **Why the wrap key is mandatory on the server.** `[Direct]` `docs/internal/web-security-spec.md:74` (row S1). `[Supported]` `packages/db/src/vault-key.ts:42-45` gives the mechanism the row implies: an invented `.master-key` on a container layer "is a key that disappears with the container and takes every sealed envelope with it." **Confidence: high.**
 

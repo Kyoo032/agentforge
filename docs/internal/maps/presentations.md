@@ -33,7 +33,7 @@ The model dropdown is the **chat catalog**, not a presentation-specific list: `u
 
 ### 3. Generate — prompt bar → `POST /api/v1/presentations` → one JSON outline
 
-`onGenerate` (`apps/web/components/presentations-studio.tsx:51-76`) POSTs `{ prompt, model?, sourceText? }` through `apiFetch`, so webdev and the packaged app share one call. Route table: `packages/host/src/router.ts:255`.
+`onGenerate` (`apps/web/components/presentations-studio.tsx:51-76`) POSTs `{ prompt, model?, sourceText? }` through `apiFetch`, so webdev and the packaged app share one call. Route table: `packages/host/src/router.ts:260`.
 
 `handlePostPresentations` (`packages/host/src/handlers/jobs.ts:211-220`) resolves the tenant and calls `requireGatewayAllowedFor(tenant)` **before** anything else — a closed gate is a flat `403 gateway_blocked` here, never a failed model call.
 
@@ -63,7 +63,7 @@ Layout is not taken at face value. `resolvePresentationSlideLayout` (`apps/web/l
 
 `presentations-regen` toggles `openIndex` (`apps/web/components/presentation-preview.tsx:148`) and mounts the shared `JobRegenPanel` with `testIdPrefix="presentations"` (`:166-176`), which is where `presentations-regen-panel` / `-prompt` / `-model` / `-file` / `-attach` / `-submit` come from (`apps/web/components/job-regen-panel.tsx:120`, `:137`, `:145`, `:155`, `:185`, `:201`). Opening the panel makes **no** request.
 
-Submit uploads any held image through `POST /api/v1/media`, inlines any held `.txt` into the instruction (`:96-107`), then `onRegenerate` POSTs the **whole outline** plus `slideIndex` to `/api/v1/presentations/regenerate` (`apps/web/components/presentations-studio.tsx:86-98`; route `packages/host/src/router.ts:256`).
+Submit uploads any held image through `POST /api/v1/media`, inlines any held `.txt` into the instruction (`:96-107`), then `onRegenerate` POSTs the **whole outline** plus `slideIndex` to `/api/v1/presentations/regenerate` (`apps/web/components/presentations-studio.tsx:86-98`; route `packages/host/src/router.ts:261`).
 
 `regeneratePresentationSlide` (`packages/host/src/presentation-generate.ts:189-236`) re-validates the posted outline with `parsePresentationOutlineBody` (400 if malformed), range-checks `slideIndex` (400), gates on live runtime (503), builds a prompt carrying the deck title, the other slides' headings, and the current slide's full body, appends the user instruction (`appendRegenInstruction`, `job-regen.ts:31-33`), runs `SLIDE_SYSTEM` (`:167-176`), parses one slide (`parsePresentationSlide`, `presentation-outline.ts:110-130`) and returns `mergePresentationSlide(outline, index, slide)` (`:132-142`) — a new outline object, immutably replaced in renderer state.
 
@@ -115,7 +115,7 @@ Presentation is a **handoff target**, never a source. `HANDOFF_TARGETS = ["docum
 | `apps/web/lib/mode-handoff.ts`, `apps/web/components/artifact-actions.tsx` | "Make a presentation" handoff into the mode |
 | `apps/web/components/work-mode-keep-alive.tsx`, `apps/web/src/App.tsx` | Why `/presentations` renders `null` in the router and stays mounted |
 | `apps/web/locales/{en,id}/presentation.json` | Renderer chrome, gallery copy, six template briefs |
-| `packages/host/src/router.ts:255-257` | The three routes |
+| `packages/host/src/router.ts:260-262` | The three routes |
 | `packages/host/src/handlers/jobs.ts:211-247` | Gate + tenant for generate/regen; **neither** for pptx |
 | `packages/host/src/presentation-generate.ts` | `OUTLINE_SYSTEM`, `SLIDE_SYSTEM`, runtime gate, model resolve, artifact + KB persist |
 | `packages/host/src/presentation-outline.ts` | Host copy of the schema, JSON extraction, merge, layout resolve |

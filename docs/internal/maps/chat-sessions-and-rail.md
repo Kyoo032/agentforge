@@ -108,7 +108,7 @@ There is no polling and no push from the host. A thread created by anything othe
 
 `threadsPath` builds `?scope=chat` and only rides `agentId` along on the agent scope (`apps/web/lib/use-chat-threads.ts:25-31`) — the host ignores it on `chat` and sending it would widen the list.
 
-Route → `handleGetThreads` (`packages/host/src/router.ts:232`, `packages/host/src/handlers/threads.ts:15-42`). `parseScope` accepts only `chat` and `agent`; anything else, including a missing value, becomes `all` (`:8-13`). Then `listWorkspaceThreads` (`packages/host/src/threads.ts:82-122`):
+Route → `handleGetThreads` (`packages/host/src/router.ts:237`, `packages/host/src/handlers/threads.ts:15-42`). `parseScope` accepts only `chat` and `agent`; anything else, including a missing value, becomes `all` (`:8-13`). Then `listWorkspaceThreads` (`packages/host/src/threads.ts:82-122`):
 
 - tenancy is three equalities — organization, workspace, user (`:93-95`);
 - `scope: "chat"` adds `eq(agents.slug, DEFAULT_CHAT_SLUG)`, which is how the rail gets Chat sessions and not job or agent threads (`:99-101`);
@@ -170,7 +170,7 @@ The header button `new-chat` (`:378-394`) does the same thing imperatively — n
 
 `handlePostThreads` (`packages/host/src/handlers/threads.ts:44-64`) validates that `agentId` and `title` are strings when present, 404s on an unknown agent, trims a supplied title to `THREAD_TITLE_MAX = 200` (`thread-title.ts:25`), and calls `createThread`, which defaults the title to `defaultThreadTitle(localeForRun())` (`packages/host/src/threads.ts:35-47`). That default is exactly the string the list filter throws away, so a thread created this way is **invisible in the rail until the first user message renames it**.
 
-The rename is `setThreadTitleFromParts` (`packages/host/src/threads.ts:243-256`), called once per run at `packages/host/src/runs.ts:249`. It takes the first text part, collapses whitespace and truncates to 48 characters with an ellipsis (`titleFromParts`, `thread-title.ts:29-49`) — and it **only writes when the current title is still a default** (`:249`). A caller-supplied title survives forever; there is no rename UI.
+The rename is `setThreadTitleFromParts` (`packages/host/src/threads.ts:243-256`), called once per run at `packages/host/src/runs.ts:252`. It takes the first text part, collapses whitespace and truncates to 48 characters with an ellipsis (`titleFromParts`, `thread-title.ts:29-49`) — and it **only writes when the current title is still a default** (`:249`). A caller-supplied title survives forever; there is no rename UI.
 
 ### 9. Deleting
 

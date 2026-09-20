@@ -40,7 +40,7 @@ Rules that keep these honest:
 - **Read-only.** `how` runs never change product code. A product bug a mapping run finds is a finding for `docs/internal/unreleased.md`, not a fix in the map PR.
 - **Cite a symbol, not just a number.** A bare `file:123` rots the next time anything above it moves. Name
   the function, constant or heading in the same sentence and let the line number be the hint that finds
-  it — `handlePostSettings` (`packages/host/src/handlers/settings.ts:138`), not `settings.ts:138` alone.
+  it — `handlePostSettings` (`packages/host/src/handlers/settings.ts:207`), not `settings.ts:138` alone.
   That is what makes the rot check below able to tell a moved line from a wrong claim, and what lets a
   reader recover when both have drifted.
 - **Line endings are LF.** Every file in this tree is committed with LF; an editor set to write CRLF turns
@@ -103,6 +103,7 @@ sha and a settled tree reports zero.
 | [`tenant-resolution.md`](tenant-resolution.md) | Whose data a request may read: `getTenant`, the session seam, first-sign-in provisioning, the scoped workspace cookie, session-bound CSRF | no feature file yet (`features/login.md` lands with the sign-in screen); `packages/host/src/tenant-session.test.ts` |
 | [`by-id-routes-and-tenancy-harness.md`](by-id-routes-and-tenancy-harness.md) | The by-id route surface: how each handler is scoped, the `getTenant(request)` sweep, the cross-tenant harness and its completeness assertion, the tenant id on every log line | no feature file (two tenants on a running server needs a portal sign-in); `packages/host/src/tenancy-harness.test.ts` |
 | [`tenant-storage.md`](tenant-storage.md) | Where a tenant's bytes go: the `tenants/<id>/` prefix, the local tenant's bare root, per-tenant `settings.enc` and gate state | no feature file; `packages/host/src/tenant-paths.test.ts`, `packages/host/src/tenant-state.test.ts` |
+| [`tenant-secrets-backend.md`](tenant-secrets-backend.md) | Phase 4: the `settings` and `gateway_gate` payloads behind one backend chosen by mode, `tenant_state` and migration 0018, legacy-file adoption, the wrap-key rotation drill | no feature file; `packages/host/src/tenant-secrets.test.ts`, `packages/host/src/wrap-key-rotation.test.ts`, `packages/db/src/migrate-0018.test.ts` |
 | [`chat-sessions-and-rail.md`](chat-sessions-and-rail.md) | Chat sessions in the left rail: list, open, new, delete, desk scoping | `features/chat.md` |
 | [`shell-rail-and-workspaces.md`](shell-rail-and-workspaces.md) | The shell around a mode page: rail blocks, desk switcher, `/workspaces`, `/usage` | `features/rail.md`, `features/workspaces.md`, `features/usage.md` |
 | [`documents.md`](documents.md) | Documents job: brief + `sourceText` → JSON draft → HTML preview → `.docx` | `features/documents.md`, `features/templates.md` |

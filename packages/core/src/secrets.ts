@@ -2,6 +2,7 @@ import { guessDialectFromKey } from "./models/probe";
 import { resolvedGatewayBaseUrl } from "./gateway";
 import { keyFingerprintOrNull } from "./security/fingerprint";
 import { maskToolKeys } from "./tools/credentials";
+import { providerEnv } from "./server-mode";
 
 export type StoredSecrets = {
   openaiApiKey?: string;
@@ -296,6 +297,13 @@ export function resolveRuntimeMode(input: { settingsHasKey: boolean; envRuntime?
   return input.envRuntime === "ai" ? "ai" : "stub";
 }
 
+/**
+ * Phase 4 — the operator's own keys are not a tenant's keys, so the env fallback here goes through
+ * `providerEnv`, which is empty in server mode. The reasoning is on that function in
+ * `packages/core/src/server-mode.ts`.
+ *
+ * `settings` still wins wherever it is set, in both modes, so a tenant's own key is unaffected.
+ */
 export function resolveProviderKeys(
   settings: StoredSecrets,
   env: NodeJS.ProcessEnv = process.env,
@@ -309,7 +317,9 @@ export function resolveProviderKeys(
   anthropicBaseUrl?: string;
   volcengineBaseUrl?: string;
 } {
-  const openai = settings.openaiApiKey || env.OPENAI_API_KEY || undefined;
+  // In server mode nothing here may come from the process environment; see the note above.
+  const fallback = providerEnv(env);
+  const openai = settings.openaiApiKey || fallback.OPENAI_API_KEY || undefined;
   // Pinned endpoint: neither the stored value nor OPENAI_BASE_URL can re-point the gateway.
   const openaiBaseUrl = resolvedGatewayBaseUrl();
   const openaiKeyDialect = openai ? guessDialectFromKey(openai) : undefined;
@@ -318,13 +328,18 @@ export function resolveProviderKeys(
 
   return {
     openai,
-    google: settings.googleApiKey || env.GOOGLE_GENERATIVE_AI_API_KEY || reuseOpenAI("google"),
-    anthropic: settings.anthropicApiKey || env.ANTHROPIC_API_KEY || reuseOpenAI("anthropic"),
+    google: settings.googleApiKey || fallback.GOOGLE_GENERATIVE_AI_API_KEY || reuseOpenAI("google"),
+    anthropic: settings.anthropicApiKey || fallback.ANTHROPIC_API_KEY || reuseOpenAI("anthropic"),
     volcengine:
-      settings.volcengineApiKey || env.ARK_API_KEY || env.VOLCENGINE_API_KEY || reuseOpenAI("volcengine"),
+      settings.volcengineApiKey ||
+      fallback.ARK_API_KEY ||
+      fallback.VOLCENGINE_API_KEY ||
+      reuseOpenAI("volcengine"),
     openaiBaseUrl,
-    googleBaseUrl: settings.googleBaseUrl || env.GOOGLE_GENERATIVE_AI_BASE_URL,
-    anthropicBaseUrl: settings.anthropicBaseUrl || env.ANTHROPIC_BASE_URL,
-    volcengineBaseUrl: settings.volcengineBaseUrl || env.ARK_BASE_URL || env.VOLCENGINE_BASE_URL,
+    // The base URLs follow the keys. An operator endpoint with no operator key behind it would
+    // point a tenant's own key at a host that tenant never chose.
+    googleBaseUrl: settings.googleBaseUrl || fallback.GOOGLE_GENERATIVE_AI_BASE_URL,
+    anthropicBaseUrl: settings.anthropicBaseUrl || fallback.ANTHROPIC_BASE_URL,
+    volcengineBaseUrl: settings.volcengineBaseUrl || fallback.ARK_BASE_URL || fallback.VOLCENGINE_BASE_URL,
   };
 }

@@ -1,6 +1,6 @@
 # Channels (Telegram)
 
-Last verified: 2026-09-20 at c204e5e
+Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c` (through e37b3a1)
 
 ## Overview
 
@@ -14,14 +14,14 @@ It is **not** a product mode (no rail mode, no `productModes` entry, no pack see
 
 Rail → Account → **Channels** (`apps/web/components/app-rail.tsx:394-401`) → `/channels` (`apps/web/src/App.tsx:170`) → `ChannelsPage` (`apps/web/components/channels-page.tsx:149`).
 
-`POST /api/v1/channels/telegram/bot` (`packages/host/src/router.ts:263`) → `handlePostTelegramBot` (`packages/host/src/handlers/channels.ts:82`):
+`POST /api/v1/channels/telegram/bot` (`packages/host/src/router.ts:268`) → `handlePostTelegramBot` (`packages/host/src/handlers/channels.ts:82`):
 
 1. `assertBotTokenShape` (`packages/host/src/channels/telegram.ts:68`) rejects anything that is not `<digits>:<secret>` **before** the value can reach a URL.
 2. `TelegramClient.getMe` (`telegram.ts:206`) asks Telegram who the token belongs to. A token Telegram will not identify is never written — the failure lands at the paste, not at the first send.
-3. `saveSettings({ telegramBotToken })` (`handlers/channels.ts:88`) puts it in the desk's slice of `settings.enc`, through the same `KEY_FIELDS` path as the gateway key (`packages/core/src/secrets.ts:102-108`).
+3. `saveSettings({ telegramBotToken })` (`handlers/channels.ts:88`) puts it in the desk's slice of `settings.enc`, through the same `KEY_FIELDS` path as the gateway key (`packages/core/src/secrets.ts:103-109`).
 4. The bot's `@username` is cached in `channels/<workspaceId>/bot.json` (`packages/host/src/channels/store.ts:263-274`) so the page can name it without a network call.
 
-The renderer only ever sees `connected`, `username`, `connectedAt`, a `sha256:` fingerprint and `pinnedOrigin` (`handlers/channels.ts:57-70`). `GET /api/v1/settings` reports the same as `hasTelegramBot` / `telegramBotFingerprint` (`packages/core/src/secrets.ts:256-261`).
+The renderer only ever sees `connected`, `username`, `connectedAt`, a `sha256:` fingerprint and `pinnedOrigin` (`handlers/channels.ts:57-70`). `GET /api/v1/settings` reports the same as `hasTelegramBot` / `telegramBotFingerprint` (`packages/core/src/secrets.ts:257,269`).
 
 **Failure modes:** bad shape → 400 with no call made; Telegram rejects → `channel_forbidden`; no `AGENTFORGE_SECRETS_KEY` → the settings store's own failure, same as the gateway key.
 
@@ -60,13 +60,13 @@ Pull only. There is no webhook and no inbound route: the host binds loopback beh
 | `packages/host/src/channels/records.ts` | Zod schemas every stored file is read through |
 | `packages/host/src/channels/__fixtures__/bot-api.ts` | In-memory stand-in for the Bot API, shared by the tests and the sandbox script |
 | `packages/host/src/handlers/channels.ts` | The ten routes |
-| `packages/host/src/router.ts:281-290` | Route table entries |
+| `packages/host/src/router.ts:286-295` | Route table entries |
 | `apps/web/components/channels-page.tsx` | The page |
 | `apps/web/lib/channels-client.ts` | Its fetch layer and error codes |
 | `apps/web/locales/{en,id}/channels.json` | Copy, both locales |
 | `scripts/telegram-sandbox.ts` | The sandbox over real HTTP, for driving the app without BotFather |
 
-Storage layout, under `localDataDir()/channels/<workspaceId>/`: `channels.json`, `bot.json`, `state.json` (the `getUpdates` cursor), `messages/<channelId>.json`. Dropped by "Start over" (`HOST_RESET_ENTRIES`, `packages/host/src/handlers/settings.ts:287`) and when the desk itself is deleted (`packages/host/src/handlers/workspaces.ts:168`).
+Storage layout, under `localDataDir()/channels/<workspaceId>/`: `channels.json`, `bot.json`, `state.json` (the `getUpdates` cursor), `messages/<channelId>.json`. Dropped by "Start over" (`HOST_RESET_ENTRIES`, `packages/host/src/handlers/settings.ts:293`) and when the desk itself is deleted (`packages/host/src/handlers/workspaces.ts:168`).
 
 ## Gotchas
 

@@ -1,4 +1,4 @@
-import { mediaKind, resolvedGatewayBaseUrl } from "@agentforge/core";
+import { mediaKind, resolveProviderKeys, resolvedGatewayBaseUrl } from "@agentforge/core";
 import { loadModelCache } from "../model-cache";
 import { loadSettings, type SettingsScope } from "../settings-store";
 
@@ -77,7 +77,11 @@ export async function transcribeAudioChunks(
     return { text: "" };
   }
   const settings = loadSettings(scope);
-  const key = settings.openaiApiKey || process.env.OPENAI_API_KEY;
+  // Phase 4 — this runs off-request, on the Edit timeline worker, with no gate re-check behind it.
+  // A bare `process.env.OPENAI_API_KEY` fallback here meant a hosted tenant could enqueue a job
+  // while keyed, sign out, and have the transcription charged to the OPERATOR's key. One resolver
+  // decides which bearer pays, in every mode: see `resolveProviderKeys` / `providerEnv`.
+  const key = resolveProviderKeys(settings).openai;
   if (!key) {
     return { text: "" };
   }

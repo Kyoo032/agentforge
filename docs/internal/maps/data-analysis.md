@@ -1,6 +1,6 @@
 # Map — Data analysis
 
-Last verified: 2026-09-20 at 6984d84
+Last verified: 2026-09-20 at 6984d84; citations re-anchored at e37b3a1
 
 ## Overview
 
@@ -42,10 +42,10 @@ The client refuses a file over 25 MB before it leaves the browser (`apps/web/lib
 
 ### 4. The store — a row, a file, and two SQLites
 
-`createDatasetStore` (`packages/host/src/datasets.ts:195-311`) is a repository over the kernel `datasets` table (`packages/db/src/schema.ts:684-699`, mirrored for older DBs at `packages/db/src/ensure-schema.ts:363-380`). `create` (`:208-253`):
+`createDatasetStore` (`packages/host/src/datasets.ts:195-311`) is a repository over the kernel `datasets` table (`packages/db/src/schema.ts:707-722`, mirrored for older DBs at `packages/db/src/ensure-schema.ts:373-390`). `create` (`:208-253`):
 
-1. `parseOrThrow` (`:126-143`) — 25 MB cap → 413, unparseable → 413, no header/data row → 400, more than `DATASET_MAX_ROWS = 200_000` rows → 413.
-2. Writes the raw bytes to `<datasetRoot()>/<workspaceId>/<uuid><ext>` (`:198-216`); `datasetRoot()` is `localDataDir()/datasets` (`:315-317`).
+1. `parseOrThrow` (`:135-152`) — 25 MB cap → 413, unparseable → 413, no header/data row → 400, more than `DATASET_MAX_ROWS = 200_000` rows → 413.
+2. Writes the raw bytes to `<datasetRoot()>/<workspaceId>/<uuid><ext>` (`:207-225`); `datasetRoot()` is `localDataDir()/datasets` (`:315-317`).
 3. `loadFromTable` (`:165-177`) builds the in-process view: `toTypedTable`, `datasetColumns`, `profileTable`, **`buildDatasetDb`** and **`createQueryRunner`**.
 4. Inserts the row. **If the insert throws, the loaded dataset is disposed and the file is unlinked** (`:245-250`) — no row means no dataset, and no orphan on disk.
 5. Caches the loaded dataset under `<workspaceId>:<id>`.
@@ -162,7 +162,7 @@ The studio renders the result through `ArtifactActions` (`apps/web/components/da
 | `apps/web/lib/data-client.ts` | The four dataset routes plus `DATASET_ACCEPT` and the 25 MB mirror |
 | `apps/web/lib/use-job-stream.ts`, `apps/web/lib/job-stream.ts` | Job SSE: progress reducer, `job.error` → thrown `JobStreamError` |
 | `apps/web/components/work-mode-keep-alive.tsx` | Why `/data` is `element={null}` and the studio never unmounts |
-| `packages/host/src/router.ts:272-277` | The six data routes |
+| `packages/host/src/router.ts:277-282` | The six data routes |
 | `packages/host/src/handlers/datasets.ts` | Upload / paste / list / get / delete; `datasetPayload` (profile + 100-row preview) |
 | `packages/host/src/handlers/jobs.ts:275-298` | `POST /api/v1/data` (real 503) and `/data/stream` (always 200 + SSE) |
 | `packages/host/src/datasets.ts` | The store: caps, parse, profile, file layout, cache, both SQLites, delete |
@@ -175,7 +175,7 @@ The studio renders the result through `ArtifactActions` (`apps/web/components/da
 | `packages/host/src/job-stream.ts` | `streamJob` — why a failed job is still HTTP 200 |
 | `packages/core/src/tabular/*` | Delimiter sniffing, RFC-4180 tokenizer, type inference, profile, XLSX |
 | `packages/core/src/artifacts/data-analysis.ts` | `dataAnalysisSchema`, `CHART_TYPES`, `dataAnalysisToMarkdown` |
-| `packages/db/src/schema.ts:684-699`, `packages/db/src/ensure-schema.ts:363-380` | The `datasets` table and its back-fill |
+| `packages/db/src/schema.ts:707-722`, `packages/db/src/ensure-schema.ts:373-390` | The `datasets` table and its back-fill |
 
 ## Gotchas
 

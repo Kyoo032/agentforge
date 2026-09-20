@@ -1,16 +1,28 @@
 # Map — App locale: boot freeze and the run harness
 
-Last verified: 2026-09-20 at 6984d84
+Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c`
 
 ## Overview
 
 Two locales, one setting. **The UI locale** decides what the chrome says; **the run locale** decides what
-language the model writes in. Both come from one machine-wide owner setting (`en` or `id`), both are **frozen at
-boot** rather than switched live, and each side keeps its own frozen copy — the renderer in
+language the model writes in. On a desk both come from one machine-wide owner setting (`en` or `id`), both are
+**frozen at boot** rather than switched live, and each side keeps its own frozen copy — the renderer in
 `apps/web/lib/i18n.ts`, the host in `packages/host/src/locale-boot.ts`.
 
 The freeze is the design, not an oversight: reloading the renderer does not restart the host process, so a live
 switch would leave in-flight runs and server state split between two languages mid-session.
+
+**Phase 4 made the choice per user, and only the hosted server feels it.** A person's language is stored
+against their portal user id inside their tenant's settings payload, under `users` on `SettingsFileV2`
+(`packages/host/src/settings-store.ts:186-196`).
+`loadUserLocale` reads it (`packages/host/src/settings-store.ts:582-588`).
+On a desk nothing changed by construction: `saveUserLocale`
+(`packages/host/src/settings-store.ts:598-613`) also writes the install's `locale`, which is what
+`getBootLocale()` freezes, so the boot freeze and the Restart banner behave exactly as they did. In server
+mode it does not write the install's locale — one tenant's user must not set the language every other
+tenant's process boots in — and nothing is frozen per user, so a change applies on the next request and the
+Restart banner never appears (`localePayload`, `packages/host/src/locale-boot.ts:55-61`;
+`applySavedLocaleAsBoot` is a no-op there, `:34-40`).
 
 ## How it works
 
@@ -18,9 +30,9 @@ switch would leave in-flight runs and server state split between two languages m
 
 `AppLocale = "en" | "id"`, `DEFAULT_APP_LOCALE = "en"`, `parseAppLocale` maps anything unknown (including
 `"ID"`, `"fr"`, `undefined`) to `en` (`packages/core/src/locale.ts`, pinned by
-`packages/core/src/locale.test.ts`). It is **machine-wide, not per-desk** — "Not a per-desk secret"
-(`packages/host/src/settings-store.ts:404`), stored as the top-level `locale` field of the settings envelope
-(`packages/host/src/settings-store.ts:121`). There is deliberately **no env override**: `AGENTFORGE_LOCALE` is
+`packages/core/src/locale.test.ts`). It is **not a per-desk secret**: it sits beside the workspaces rather than inside one, as the top-level
+`locale` field of the settings envelope, with each user's own choice under `users`
+(`SettingsFileV2`, `packages/host/src/settings-store.ts:186-196`). There is deliberately **no env override**: `AGENTFORGE_LOCALE` is
 not read on the boot path (`packages/host/src/locale-boot.ts:8-9`), asserted at
 `packages/host/src/locale-boot.test.ts:45`.
 
@@ -28,16 +40,17 @@ not read on the boot path (`packages/host/src/locale-boot.ts:8-9`), asserted at
 
 1. The Settings select (`settings-locale`, `apps/web/components/settings-page.tsx:313`) validates with
    `isAppLocale`, sets `savedLocale` optimistically, and POSTs `/api/v1/settings { locale }` (`:219-229`).
-2. `handlePostSettings` (`packages/host/src/handlers/settings.ts:140-144`) validates and calls
-   `saveOwnerLocale` — and does **not** touch the frozen boot locale.
-3. Every settings response carries `...localePayload()` (`packages/host/src/locale-boot.ts:35-37`):
+2. `handlePostSettings` (`packages/host/src/handlers/settings.ts:207-283`) validates the value with
+   `isAppLocale` and calls `saveUserLocale(tenant, …)`
+   (`packages/host/src/handlers/settings.ts:215-222`) — and does **not** touch the frozen boot locale.
+3. Every settings response carries `...localePayload(tenant)` (`packages/host/src/locale-boot.ts:55-61`):
    `{ locale: getBootLocale(), savedLocale: getSavedLocale() }`. `getBootLocale` is cached from the first read;
    `getSavedLocale` always re-reads disk. Those two values differing is the entire signal.
 4. The restart banner renders only while `savedLocale !== locale` (`settings-locale-restart`,
    `apps/web/components/settings-page.tsx:321-333`).
 5. The button (`settings-locale-restart-button`, `:326`) does three things in order (`:255-276`): POST
    `/api/v1/settings/apply-locale` → `applySavedLocaleAsBoot()` re-reads disk and re-freezes the host
-   (`packages/host/src/locale-boot.ts:26-29`); `applyLocale(applied.locale)` re-freezes the renderer and sets
+   (`packages/host/src/locale-boot.ts:34-40`); `applyLocale(applied.locale)` re-freezes the renderer and sets
    `document.documentElement.lang`; then `relaunchDesktopApp()` to actually restart the process.
 6. If the relaunch is refused — webdev has no bridge, or Electron is installing an update / already exiting /
    the sender is untrusted — the code dispatches `LOCALE_RESTART_EVENT` as a fallback so the UI still reflects
@@ -97,7 +110,7 @@ return getRunContext()?.locale ?? getBootLocale();
 ```
 
 `RunContext` is an `AsyncLocalStorage` store, and **only Chat ever populates it** —
-`withRunContext({ threadId, agentId, locale }, …)` at `packages/host/src/runs.ts:282` is the sole product call
+`withRunContext({ threadId, agentId, locale }, …)` at `packages/host/src/runs.ts:285` is the sole product call
 site (the only other is `packages/host/src/job-regen.test.ts:75`). So for every job mode, `localeForRun()`
 resolves straight to the frozen boot locale. That is correct today, because no job route accepts a per-run
 locale — but it means the `RunContext` branch is Chat-only in practice.
@@ -120,7 +133,7 @@ There are **two independent locale channels per job call**, and getting one righ
 
 Five surfaces keep their own mechanism instead, and the shared table says so at
 `packages/core/src/output-language.ts:105-108`: **Chat** → `withChatOutputLanguage`
-(`packages/host/src/runs.ts:159`); **Images** → `withImageOutputLanguage`, which is about text *drawn on the
+(`packages/host/src/runs.ts:162`); **Images** → `withImageOutputLanguage`, which is about text *drawn on the
 image* (`packages/host/src/studio-generate.ts:279`); **Presentation** → `presentationLanguageRule` spliced into
 the outline and slide templates (`packages/host/src/presentation-generate.ts:72-78`); **Legal** →
 `legalUserFacingLanguageInstruction` (defined at `packages/core/src/legal/locale.ts:21-34`, imported at
@@ -139,7 +152,7 @@ replies — localized, but generated by the host, not by the model.
 would otherwise throw an English `ApiError`. Both fall back to English for any locale that is not `en` or `id`.
 
 **Gateway error copy is mapped in the renderer, not the host.** `GatewayBlockedError` carries **English-only**
-`BLOCKED_MESSAGES` (`packages/host/src/gateway-gate.ts:421-428`) — "English, redacted, and specific enough that a
+`BLOCKED_MESSAGES` (`packages/host/src/gateway-gate.ts:425-432`) — "English, redacted, and specific enough that a
 support ticket says which rule closed the gate" — and `jsonError` emits it flat. The renderer's
 `parseGatewayBlocked` reads only `status`, discards that English message for display, and maps through
 `gatewayReasonKey` / `gatewayStatusKey` (`apps/web/lib/gateway-gate.ts:123-137`) to
@@ -151,7 +164,8 @@ while the screen reads "The gateway rejected this API key. Check the key at Toko
 
 | Case | Behaviour |
 |---|---|
-| Unknown locale value posted | 400 `invalid_request` from `isAppLocale` (`packages/host/src/handlers/settings.ts:140-144`) |
+| Unknown locale value posted | 400 `invalid_request` from `isAppLocale` (`packages/host/src/handlers/settings.ts:215-218`) |
+| Hosted user has never chosen a language | `loadUserLocale` falls through to the tenant's own stored locale, then to `en` — never to another tenant's payload (`packages/host/src/settings-store.ts:582-588`) |
 | Unknown locale reaching `parseAppLocale` | silently `en` |
 | Missing catalog key | `id` → `en` → the raw key string; never a crash, never blank |
 | Locale saved but not restarted | UI chrome unchanged, model output unchanged, banner shown; `getBootLocale()` still the old value |
@@ -165,7 +179,8 @@ while the screen reads "The gateway rejected this API key. Check the key at Toko
 | `packages/core/src/locale.ts` | `AppLocale`, `parseAppLocale`, `isAppLocale` |
 | `packages/host/src/locale-boot.ts` | The host freeze: `getBootLocale`, `getSavedLocale`, `applySavedLocaleAsBoot`, `localePayload` |
 | `packages/host/src/run-context.ts` | `RunContext`, `withRunContext`, `localeForRun` |
-| `packages/host/src/settings-store.ts:461-469` | `loadOwnerLocale` / `saveOwnerLocale` |
+| `packages/host/src/settings-store.ts:564-572` | `loadOwnerLocale` / `saveOwnerLocale` — the install's locale, still what the desk freezes |
+| `packages/host/src/settings-store.ts:582-613` | `loadUserLocale` / `saveUserLocale` — Phase 4, the person's own locale |
 | `packages/host/src/handlers/settings.ts` | Save, and `handleApplyLocale` behind `POST /api/v1/settings/apply-locale` (`:206`) |
 | `apps/web/lib/i18n.ts` | Catalogs, `t()`, `freezeLocale` / `applyLocale`, `LOCALE_RESTART_EVENT` |
 | `apps/web/locales/{en,id}/*.json` | 22 namespaces, ~1,500 keys each |
@@ -189,7 +204,7 @@ while the screen reads "The gateway rejected this API key. Check the key at Toko
   `apps/web/components/settings-page.tsx:266-267` says the fallback exists so "the language change would not look
   like it did nothing" — but the host-side boot locale only moved if `apply-locale` had already succeeded.
   **Worth a finding.**
-- **`localeForRun()` never consults a run context for jobs.** Only `packages/host/src/runs.ts:282` populates the
+- **`localeForRun()` never consults a run context for jobs.** Only `packages/host/src/runs.ts:285` populates the
   store. If someone adds a per-run locale to a job body later, the plumbing is there but unused today.
 - **Market is the only surface with a client-selectable output language.** `request.language`
   (`packages/core/src/market/watch-schemas.ts:333`, default `"id"`) comes from a dropdown seeded from
@@ -235,14 +250,14 @@ files.
 ## Why
 
 **Why the locale is frozen at boot instead of switched live.** `[Direct]` the comment at
-`packages/host/src/locale-boot.ts:22-25`: "Reloading the renderer does not restart this process (webdev or
+`packages/host/src/locale-boot.ts:26-33`: "Reloading the renderer does not restart this process (webdev or
 packaged IPC), so boot locale must be re-read from disk here." `[Inferred]` the stronger reason — that a live
 switch would split an in-flight run's prompt, its error copy and its UI between two languages — follows from
 `localeForRun()` feeding both the system prompt and `runtime.execute`'s `locale`, but no source states it in those
 words. **Confidence: high for the mechanism, medium for the rationale.**
 
 **Why the gateway 403 message is English on the host and localized in the renderer.** `[Direct]` the comment at
-`packages/host/src/gateway-gate.ts:400`: the blocked messages are "English, redacted, and specific enough that a
+`packages/host/src/gateway-gate.ts:404`: the blocked messages are "English, redacted, and specific enough that a
 support ticket says which rule closed the gate". `[Supported]` the renderer independently re-derives copy from
 `status` alone (`apps/web/lib/gateway-gate.ts:123-137`), so the host's string is a log and support artifact, not
 display copy; driven on 2026-09-17, a rejected key showed the localized sentence on screen while the payload

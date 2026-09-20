@@ -1,6 +1,6 @@
 # Map — Database and migrations
 
-Last verified: 2026-09-20 at c204e5e
+Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c` (through e37b3a1)
 
 ## Overview
 
@@ -59,7 +59,7 @@ every sealed envelope on the install. Its behaviour splits on `isServerMode(env)
   `.master-key` file. `readOrCreateMasterKeyFile` (`:107-114`) creates the data dir, and on first use
   writes 32 random bytes as hex with mode `0o600` (`:111`), then reads it back trimmed (`:113`). No
   strength check is applied on a desk at all — a one-character `AGENTFORGE_SECRETS_KEY` is accepted.
-- **In server mode** (`:128-134`): the env key is mandatory (`:128-130`, message at `:46-49`), and it
+- **In server mode** (`:128-134`): the env key is mandatory (`:128-130`, message at `:76-79`), and it
   must measure at least `MIN_VAULT_KEY_BYTES` = 32 (`:40`, checked at `:131-133`). The `.master-key`
   fallback is never reached, because a file invented on a container layer disappears with the
   container and takes every sealed envelope with it.
@@ -124,12 +124,12 @@ Two tables exist only in SQL and have no Drizzle declaration, because they are F
 
 ### Migrations
 
-`ensureSchema(sqlite)` (`packages/db/src/ensure-schema.ts:192-239`) runs on **every boot**, from
+`ensureSchema(sqlite)` (`packages/db/src/ensure-schema.ts:201-249`) runs on **every boot**, from
 `client.ts:51`. There is no separate migrate step in the app's start path.
 
 `migrationsFolder()` (`:64-79`) resolves the committed folder: `AGENTFORGE_MIGRATIONS_DIR` when set
 *and existing* (`:66-72`), else `../../packages/db/drizzle` relative to `process.cwd()` (`:73-77`),
-else a throw that lists what it tried (`:78`). The packaged shell sets the env var to
+else a throw that lists what it tried (`:87`). The packaged shell sets the env var to
 `process.resourcesPath/drizzle` (`apps/desktop/main.cjs:256-261`, assigned at `:626`).
 
 What `ensureSchema` then does:
@@ -172,6 +172,16 @@ The committed migrations, in journal order (`packages/db/drizzle/meta/_journal.j
 | `0013_knowledge_weknora.sql` | `knowledge_workspace_backend` and `knowledge_backend_outbox`. `knowledge_sources.external_id` is deliberately **not** here — a bare `ALTER` would fail on a second application, so `ensureKnowledgeBackendTables` owns it (`0013_knowledge_weknora.sql:13-18`) |
 | `0014_auth_sessions.sql` | `auth_sessions` + `auth_sessions_user_seen_idx`, `auth_sessions_expires_idx` |
 | `0015_tenants.sql` | `tenants` + `tenants_slug_unique`, the `local-tenant` row, `organizations.tenant_id` backfilled to it, and the move of organization slug uniqueness from `organizations_slug_unique` to `organizations_tenant_slug` (`0015_tenants.sql:42-46`). Additive and one-way: the runner has no `down` and SQLite before 3.35 cannot drop a column (`0015_tenants.sql:12-13`) |
+| `0016_tenant_usage.sql` | `tenant_usage` — one row per gateway call, priced in USD micros. See [`tenant-usage-ledger.md`](tenant-usage-ledger.md) |
+| `0018_tenant_state.sql` | `tenant_state` + `tenant_state_key_idx` — a tenant's sealed settings and gateway verdict as rows on the hosted server, keyed `(tenant_id, key)` and cascading on tenant delete. See [`tenant-secrets-backend.md`](tenant-secrets-backend.md) |
+
+**There is no `0017`, and the gap is deliberate.** Phase 5 lane B reserved that number while Phase 4 was in
+flight, so the journal jumps from `idx: 16` (`when: 1788820000008`) to `idx: 18` (`when: 1788820000010`).
+This matters because the runner is forward-only on `when`, not on `idx`: it applies an entry when
+`lastAppliedCreatedAt < entry.when` (`applyPendingMigrations`, `packages/db/src/ensure-schema.ts:163-199`). A `0017` added later with
+a `when` **below** `1788820000010` would be silently skipped on every database that has already run `0018`.
+Lane B's migration must carry a `when` above it. `packages/db/src/migrate-0018.test.ts` asserts the journal
+stays in ascending `when` order and that no `0017` tag has appeared without one.
 
 From `0010` onward each file re-declares its tables with `CREATE TABLE IF NOT EXISTS`, on the stated
 reasoning that a baseline-stamped database has the journal row but not necessarily the table
@@ -223,7 +233,7 @@ next boot**, because the database is open and ffmpeg may still be writing.
   renames it (`:99-104`) — a half-written marker would be read as malformed on the next boot and
   silently cancel the wipe. The caller is the Settings handler:
   `requestDataReset(localDataDir(), [...HOST_RESET_ENTRIES])`
-  (`packages/host/src/handlers/settings.ts:346`, list at `:274-293`).
+  (`packages/host/src/handlers/settings.ts:352`, list at `:274-293`).
 - `applyPendingDataReset(dir)` (`:248-283`) is safe on every boot. No marker → no-op (`:252-256`). A
   marker that is unreadable or not a valid v1 object is **deleted and the data kept** (`:257-268`) —
   a wipe is never inferred. Otherwise it removes each listed entry plus the SQLite trio
@@ -279,7 +289,7 @@ a package script only, not exposed at the root (`packages/db/package.json:12`).
 | `packages/db/src/client.ts` | Opens better-sqlite3, sets pragmas, runs the reset hook and `ensureSchema`, exports `db` / `sql` / `Database`. |
 | `packages/db/src/schema.ts` | Every Drizzle table. No queries. |
 | `packages/db/src/ensure-schema.ts` | `migrationsFolder()`, `ensureSchema()`, baseline stamping, the `ensure*` healers, `assertKernelTables`. |
-| `packages/db/drizzle/` | The 15 committed `.sql` migrations plus `meta/_journal.json`. |
+| `packages/db/drizzle/` | The 18 committed `.sql` migrations (numbered `0000`-`0018` with `0017` reserved) plus `meta/_journal.json`. |
 | `packages/db/src/ensure-local-owner.ts` | The single owner, org, home workspace, and workspace CRUD. |
 | `packages/core/src/local-owner.ts` | The id/slug/name constants and `pickWorkspaceId`. |
 | `packages/db/src/seed.ts` | `db:seed` entry point. |
@@ -314,21 +324,21 @@ and writes no journal row, so a pushed database and a migrated one can end up st
 
 **Baseline stamping means a journal row is not proof a migration ran.** A database with all 20 kernel
 tables and an empty journal gets every hash inserted without executing anything
-(`packages/db/src/ensure-schema.ts:209-213`). That is the whole reason the `ensure*` healers and the
-defensive `CREATE TABLE IF NOT EXISTS` in `0010`-`0015` exist. When you add a migration that
+(`packages/db/src/ensure-schema.ts:218-222`). That is the whole reason the `ensure*` healers and the
+defensive `CREATE TABLE IF NOT EXISTS` in `0010`-`0018` exist. When you add a migration that
 `ALTER`s a table, add a matching healer — a bare `ALTER` will fail on a second application.
 
 **A partially initialized database refuses to boot rather than repairing itself**
-(`packages/db/src/ensure-schema.ts:197-202`), with one carve-out for the six edit tables
+(`packages/db/src/ensure-schema.ts:206-211`), with one carve-out for the six edit tables
 (`:40-42`). The error names the missing tables; the fix is to restore or delete the file, not to
 re-run migrations.
 
 **`meta/` holds only four snapshots** — `0000`, `0001`, `0002`, `0005` — for sixteen journal entries.
 `ensureSchema` never reads snapshots (it reads `_journal.json` and the `.sql` files,
-`packages/db/src/ensure-schema.ts:81-103`), so boot is unaffected; `drizzle-kit generate` is the tool
+`packages/db/src/ensure-schema.ts:90-112`), so boot is unaffected; `drizzle-kit generate` is the tool
 that wants them, and it should be expected to behave oddly here.
 
-**Foreign keys are off during migration and on afterwards** (`:206`, `:224`), and `client.ts` sets
+**Foreign keys are off during migration and on afterwards** (`:215`, `:233`), and `client.ts` sets
 `foreign_keys = ON` *before* calling `ensureSchema` (`:45`, `:51`). The pragma you observe at runtime is
 the post-migration one.
 
@@ -361,11 +371,11 @@ is `home` (`:11`), and `Home` is the legacy **name** that `ensureLocalOwner` mig
 (`packages/db/src/ensure-local-owner.ts:77-81`). Name, slug and legacy name are three different
 strings; do not match on the printed one.
 
-**A "Start over" removes `.master-key`** (`packages/host/src/handlers/settings.ts:278`). Anything
+**A "Start over" removes `.master-key`** (`packages/host/src/handlers/settings.ts:284`). Anything
 still sealed with the old wrap key after that is unreadable by design — which is why the SQLite trio
 goes with it (`packages/db/src/reset.ts:29`, `:270`).
 
-**`market_cache` has no scope column** (`packages/db/src/schema.ts:709-720`). It is a read-through
+**`market_cache` has no scope column** (`packages/db/src/schema.ts:732-743`). It is a read-through
 cache keyed `(ticker, kind)` shared by every workspace on the install; it is not per-desk data and a
 desk wipe does not isolate it.
 
@@ -425,5 +435,5 @@ now: `ensurePortalOwner` writes the tenant row on sign-in (`packages/db/src/port
 
 What has *not* moved is "Start over": it is still refused on the server, and the reason is still
 that a data-dir wipe is every tenant's work rather than the caller's
-(`packages/host/src/handlers/settings.ts:333-340`), which is scoping, not resolution. The full
+(`packages/host/src/handlers/settings.ts:339-346`), which is scoping, not resolution. The full
 resolution path is its own page: [tenant-resolution.md](tenant-resolution.md). `[Direct]`

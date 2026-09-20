@@ -350,10 +350,21 @@ installer's download; leave unset for normal gateway-first behaviour), `MEDIA_RO
 `AGENTFORGE_GATEWAY_URL`, `AGENTFORGE_GATEWAY_NAME`, `AGENTFORGE_PRODUCT_NAME`, `AGENTFORGE_LOCALE`,
 `AGENTFORGE_SETTINGS_PATH`, `AGENTFORGE_MIGRATIONS_DIR`, `AGENTFORGE_FFMPEG_PATH` /
 `AGENTFORGE_FFPROBE_PATH` (neither binary is in the image, so Edit export stays degraded until one
-is), the model-cache overrides, and 🔒 the direct provider keys (`OPENAI_API_KEY`,
-`ANTHROPIC_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY`, `ARK_API_KEY`). Those provider keys are a
-headless fallback; the product's own path is the gateway key saved in Settings, which is encrypted at
-rest. Prefer Settings.
+is), and the model-cache overrides.
+
+**The direct provider keys are no longer a fallback on this server.** `OPENAI_API_KEY`,
+`ANTHROPIC_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY` and `ARK_API_KEY` are ignored whenever
+`AGENTFORGE_SERVER=1` (Phase 4, `resolveProviderKeys` in `packages/core/src/secrets.ts`). They are
+the OPERATOR's credentials, and on a box with tenants on it, handing them to whichever tenant has
+not saved a key of their own means the operator pays for calls nobody can attribute — and any
+signed-in tenant can spend them. Each tenant supplies its own gateway key through onboarding or
+Settings, sealed under `AGENTFORGE_SECRETS_KEY` in that tenant's own row. A tenant with no key sees
+onboarding, which is the intended state and not a misconfiguration. On a desk, and on webdev, the
+env fallback behaves exactly as it always has.
+
+`AGENTFORGE_SECRETS_KEY` can be changed without losing anybody's settings — see the rotation drill
+in [`web-phase4-tenant-secrets.md`](web-phase4-tenant-secrets.md) §5. Do not simply edit it in the
+compose file: every tenant's sealed settings would stop opening.
 
 **Do not set, ever**
 

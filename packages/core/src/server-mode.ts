@@ -15,6 +15,36 @@ export function isServerMode(env: EnvLike = process.env): boolean {
 }
 
 /**
+ * The environment a hosted process is allowed to read provider credentials from: none of it.
+ * A frozen empty object rather than a branch per field, so a field added later cannot quietly
+ * reintroduce the fallback by forgetting the check.
+ */
+const EMPTY_PROVIDER_ENV: NodeJS.ProcessEnv = Object.freeze({});
+
+/**
+ * Phase 4 — the operator's own keys are not a tenant's keys.
+ *
+ * Every read of a provider credential (inference key, provider base URL, tool key) out of the
+ * process environment goes through this one function, which hands back an empty environment in
+ * server mode. Off the hosted server it returns `env` unchanged, so webdev's `.env`, the documented
+ * headless fallback and the frozen desktop behave exactly as they always have.
+ *
+ * In server mode a process-wide `OPENAI_API_KEY` is the OPERATOR's credential. Falling back to it
+ * would hand it to every signed-in tenant who has not saved one — billed to the operator, metered
+ * against nobody, and usable from any tenant session by making a call. That is the residual
+ * `docs/internal/security-owasp-2026-09.md` A01-3 left for this phase ("on a hosted box any tenant
+ * can still set the shared gateway key"): Phase 3 lane D made the SAVED key per tenant, and this is
+ * the other half — the unsaved one. A hosted tenant with no key of its own gets no key at all, the
+ * gate reports `needs_key`, and onboarding asks for one. Fail closed.
+ *
+ * The call sites are asserted by the static sweep in
+ * `packages/core/src/provider-env-sweep.test.ts`, so a fourth one cannot appear unreviewed.
+ */
+export function providerEnv(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  return isServerMode(env) ? EMPTY_PROVIDER_ENV : env;
+}
+
+/**
  * Origins allowed to make mutating `/api` calls. Explicit `AGENTFORGE_TRUSTED_ORIGINS` (comma list)
  * wins; outside server mode the webdev loopback origins are the default; in server mode there is no
  * default, so an unconfigured server accepts no mutating call from a browser.

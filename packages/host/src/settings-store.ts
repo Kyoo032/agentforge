@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, renameSync, unlinkSync } from "node:fs";
 import { resolve } from "node:path";
 import type { AppLocale, SecretPatch, StoredSecrets, TenantContext } from "@agentforge/core";
 import {
@@ -19,6 +19,7 @@ import {
 import { getLocalVaultKey } from "@agentforge/db/vault-key";
 import { readSelectedWorkspaceId } from "./workspace";
 import { assertTenantId, tenantDataDir } from "./tenant-paths";
+import { tenantStateBackend, type TenantStateBackend } from "./tenant-state-store";
 import { log } from "./log";
 
 export { getLocalVaultKey, localDataDir } from "@agentforge/db/vault-key";
@@ -55,12 +56,35 @@ export function resolveSettingsScope(scope?: SettingsScope): ResolvedSettingsSco
   return { tenantId: LOCAL_TENANT_ID, workspaceId: resolveSettingsWorkspaceId(scope) };
 }
 
-/** `<dataDir>/settings.enc` for the local tenant; under `tenants/<tenantId>/` for anyone else. */
-function encryptedSettingsPath(tenantId: string): string {
-  return resolve(tenantDataDir(tenantId), "settings.enc");
-}
+/**
+ * Phase 4 — whose settings a call is about, *and which user is asking*.
+ *
+ * The secrets themselves are per tenant and per desk, exactly as lane D left them. The UI locale is
+ * neither: it belongs to the person looking at the screen, and on a hosted server two people share
+ * both a tenant and a desk. `loadUserLocale` / `saveUserLocale` take this rather than a
+ * `SettingsScope` so a call that cannot name a user is a compile error and not a silent fall back
+ * onto the install's locale.
+ */
+export type UserScope = Pick<TenantContext, "tenantId" | "workspaceId" | "userId">;
 
-function legacySettingsPath(tenantId: string): string {
+/**
+ * Phase 4 — where the payload actually lives.
+ *
+ * `settings.enc` is a file on a desk and a `tenant_state` row on the hosted server, and the choice
+ * is made by mode in `tenant-state-store.ts`, never here. Everything below this line works in
+ * strings: it seals a payload, hands the bytes to the backend, and takes bytes back. There is no
+ * path in this module any more.
+ */
+const SETTINGS_KEY = "settings" as const;
+
+/**
+ * `<dataDir>/settings.json` for the local tenant, under `tenants/<tenantId>/` for anyone else.
+ *
+ * The one path this module still knows, and deliberately: this is the pre-encryption v1 plaintext
+ * file, which only a desktop install that upgraded through it can have. It is read once, folded
+ * into the sealed payload and deleted. A hosted tenant never had one, so this never fires there.
+ */
+function legacyPlaintextPath(tenantId: string): string {
   return resolve(tenantDataDir(tenantId), "settings.json");
 }
 
@@ -128,7 +152,7 @@ function isMissingFile(error: unknown): boolean {
 
 function readLegacyPlaintext(tenantId: string): StoredSecrets | null {
   try {
-    const raw = readFileSync(legacySettingsPath(tenantId), "utf8");
+    const raw = readFileSync(legacyPlaintextPath(tenantId), "utf8");
     return normalizeSecrets(JSON.parse(raw) as StoredSecrets);
   } catch (error) {
     if (isMissingFile(error)) {
@@ -139,7 +163,7 @@ function readLegacyPlaintext(tenantId: string): StoredSecrets | null {
 }
 
 function tryDeleteLegacyPlaintext(tenantId: string): void {
-  const path = legacySettingsPath(tenantId);
+  const path = legacyPlaintextPath(tenantId);
   if (!existsSync(path)) {
     return;
   }
@@ -149,18 +173,36 @@ function tryDeleteLegacyPlaintext(tenantId: string): void {
     log.warn("settings_legacy_json_not_deleted", { path });
   }
 }
+
+/**
+ * Per-user state inside a tenant's sealed payload. Only the UI locale today.
+ *
+ * It rides in the same envelope rather than in a table of its own because it is written by the
+ * same save, read by the same read and thrown away by the same "start over" — and because a second
+ * store would be a second thing to rotate, back up and keep in step.
+ */
+type UserPrefs = { locale?: AppLocale };
+
 type SettingsFileV2 = {
   version: 2;
+  /**
+   * The install's locale. Phase 4 made the locale per user (`users` below); this stays because it
+   * is what `getBootLocale()` freezes on a desk, and because a v2 file written by an older build
+   * has it and nothing else.
+   */
   locale?: AppLocale;
+  users?: Record<string, UserPrefs>;
   workspaces: Record<string, StoredSecrets>;
 };
 
 /**
- * Keyed by path, not a single slot: two tenants alternating requests would otherwise evict each
- * other on every call and re-decrypt the file each time.
+ * Keyed by where the payload lives, not a single slot: two tenants alternating requests would
+ * otherwise evict each other on every call and re-decrypt on each one. The stamp is the backend's
+ * own change token (a file's mtime, a row's `updated_at`), so a payload rewritten by another
+ * process is picked up rather than served from here.
  */
-type FileCache = { mtimeMs: number; file: SettingsFileV2 };
-const fileCache = new Map<string, FileCache>();
+type PayloadCache = { stamp: string; file: SettingsFileV2 };
+const payloadCache = new Map<string, PayloadCache>();
 
 function emptySettingsFile(): SettingsFileV2 {
   return { version: 2, workspaces: {} };
@@ -193,12 +235,36 @@ function readLocaleField(value: unknown): AppLocale | undefined {
   return isAppLocale(value) ? value : undefined;
 }
 
+/**
+ * The `users` map, kept to what it claims to be. An unknown key or a locale nothing can serve is
+ * dropped rather than carried: the fallback is the install's locale, which always resolves.
+ */
+function usersMap(value: unknown): Record<string, UserPrefs> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+  const next: Record<string, UserPrefs> = {};
+  for (const [userId, prefs] of Object.entries(value as Record<string, unknown>)) {
+    if (!userId.trim() || !prefs || typeof prefs !== "object") {
+      continue;
+    }
+    const locale = readLocaleField((prefs as UserPrefs).locale);
+    if (locale) {
+      next[userId] = { locale };
+    }
+  }
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
 function parseSettingsFile(decrypted: unknown): { file: SettingsFileV2; migrated: boolean } {
   if (isSettingsFileV2(decrypted)) {
+    const source = decrypted as SettingsFileV2;
+    const users = usersMap(source.users);
     return {
       file: {
         version: 2,
-        locale: readLocaleField((decrypted as SettingsFileV2).locale),
+        locale: readLocaleField(source.locale),
+        ...(users ? { users } : {}),
         workspaces: secretsMap(decrypted.workspaces as Record<string, unknown>),
       },
       migrated: false,
@@ -214,13 +280,14 @@ function parseSettingsFile(decrypted: unknown): { file: SettingsFileV2; migrated
 }
 
 function persistEncrypted(tenantId: string, file: SettingsFileV2): void {
-  const path = encryptedSettingsPath(tenantId);
-  // The vault key stays machine-wide (`vault-key.ts`): Phase 3 splits the file per tenant, Phase 4
-  // swaps the backend behind this same interface (spec §3e).
-  mkdirSync(tenantDataDir(tenantId), { recursive: true });
+  // The wrap key stays machine-wide (`vault-key.ts`) and the envelope is unchanged: Phase 3 split
+  // the payload per tenant, Phase 4 moved it behind `tenant-state-store.ts`. What the backend
+  // stores is exactly the bytes a desk's `settings.enc` holds, which is what lets
+  // `wrap-key-rotation.ts` re-seal a row and a file with the same code.
+  const backend = tenantStateBackend();
   const envelope = encryptJson(file, getLocalVaultKey());
-  writeFileSync(path, `${JSON.stringify(envelope)}\n`, "utf8");
-  fileCache.delete(path);
+  backend.write(tenantId, SETTINGS_KEY, `${JSON.stringify(envelope)}\n`);
+  payloadCache.delete(backend.describe(tenantId, SETTINGS_KEY));
 }
 
 export function resolveSettingsWorkspaceId(workspaceId?: string | null): string {
@@ -255,8 +322,19 @@ function assertSavedEndpoints(secrets: StoredSecrets): void {
   }
 }
 
-function quarantineUnreadableSettings(tenantId: string, reason: unknown): void {
-  const file = encryptedSettingsPath(tenantId);
+/**
+ * A stored payload that is not a sealed envelope at all — truncated, hand-edited, half-written.
+ * There is nothing in it to lose, so it is moved aside and the tenant starts empty, which is what
+ * this module has always done.
+ *
+ * Only ever reached on the file backend: a `tenant_state` row is written in one statement and
+ * cannot be half a value, and there is nowhere to move a row aside to.
+ */
+function quarantineUnreadableSettings(tenantId: string, backend: TenantStateBackend, reason: unknown): void {
+  if (backend.kind !== "file") {
+    return;
+  }
+  const file = backend.describe(tenantId, SETTINGS_KEY);
   if (!existsSync(file)) {
     return;
   }
@@ -275,20 +353,54 @@ function quarantineUnreadableSettings(tenantId: string, reason: unknown): void {
   }
 }
 
-function loadEncryptedPayload(tenantId: string): unknown | null {
+/**
+ * What a sealed payload that will not open means. Phase 4 splits this from the case above, because
+ * the two have opposite right answers and until now they shared one.
+ *
+ * A decrypt failure says the wrap key is wrong, not that the payload is rubbish: the bytes are
+ * every key that tenant ever saved, and they come back the moment the right `AGENTFORGE_SECRETS_KEY`
+ * is supplied. Moving them aside on a hosted server would mean one bad environment variable
+ * quarantining every tenant's vault on the next boot, in a sweep, with no one watching — which is
+ * also exactly what a mis-keyed run of the rotation drill would look like. So in server mode this
+ * refuses and leaves the payload where it is.
+ *
+ * On a desk it still quarantines, and that is deliberate rather than an oversight: the behaviour is
+ * unchanged from before this phase, there is one owner who can restore a backup, and the app has to
+ * be able to start so that "Start over" is reachable at all. `vault-key.ts` already refuses to
+ * re-mint a bad `.master-key` for the same reason this refuses on the server — the difference is
+ * only who is watching, and how many vaults one mistake reaches.
+ */
+function onUndecryptableSettings(tenantId: string, backend: TenantStateBackend, reason: unknown): null {
+  if (isServerMode()) {
+    log.error("settings_payload_undecryptable", { tenantId, backend: backend.kind });
+    throw new ApiError(
+      "settings_unreadable",
+      "This tenant's saved settings could not be decrypted with the current wrap key. They have not been " +
+        "changed. Check AGENTFORGE_SECRETS_KEY against the value the settings were sealed with.",
+      500,
+    );
+  }
+  quarantineUnreadableSettings(tenantId, backend, reason);
+  return null;
+}
+
+/** The decrypted payload, or null when there is nothing usable to read. */
+function decodeStoredPayload(tenantId: string, backend: TenantStateBackend, raw: string): unknown | null {
+  let parsed: unknown;
   try {
-    const raw = readFileSync(encryptedSettingsPath(tenantId), "utf8");
-    const parsed: unknown = JSON.parse(raw);
-    if (!isEnvelope(parsed)) {
-      throw new Error("settings.enc is not a valid envelope");
-    }
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    quarantineUnreadableSettings(tenantId, backend, error);
+    return null;
+  }
+  if (!isEnvelope(parsed)) {
+    quarantineUnreadableSettings(tenantId, backend, new Error("settings payload is not a valid envelope"));
+    return null;
+  }
+  try {
     return decryptJson<unknown>(parsed, getLocalVaultKey());
   } catch (error) {
-    if (isMissingFile(error)) {
-      return null;
-    }
-    quarantineUnreadableSettings(tenantId, error);
-    return null;
+    return onUndecryptableSettings(tenantId, backend, error);
   }
 }
 
@@ -315,38 +427,32 @@ function withGatewayDefault(secrets: StoredSecrets): StoredSecrets {
   return { ...secrets, openaiBaseUrl: resolvedGatewayBaseUrl() };
 }
 
-function rememberFile(path: string, mtimeMs: number, file: SettingsFileV2): SettingsFileV2 {
-  fileCache.set(path, { mtimeMs, file });
-  return file;
-}
-
 function loadSettingsFile(tenantId: string): SettingsFileV2 {
-  const path = encryptedSettingsPath(tenantId);
-  try {
-    const stats = statSync(path);
-    const cached = fileCache.get(path);
-    if (cached && cached.mtimeMs === stats.mtimeMs) {
+  const backend = tenantStateBackend();
+  const slot = backend.describe(tenantId, SETTINGS_KEY);
+  const stored = backend.read(tenantId, SETTINGS_KEY);
+
+  if (stored) {
+    const cached = payloadCache.get(slot);
+    if (cached && cached.stamp === stored.stamp) {
       return cached.file;
     }
-    const payload = loadEncryptedPayload(tenantId);
+    const payload = decodeStoredPayload(tenantId, backend, stored.value);
     if (payload != null) {
       const parsed = parseSettingsFile(payload);
       if (parsed.migrated) {
+        // A v1 machine-wide payload found inside the envelope. Rewriting it as v2 changes the
+        // stamp, so the cache is populated by the next read rather than from a token that is
+        // already stale.
         persistEncrypted(tenantId, parsed.file);
-        try {
-          return rememberFile(path, statSync(path).mtimeMs, parsed.file);
-        } catch {
-          return parsed.file;
-        }
+        return parsed.file;
       }
-      return rememberFile(path, stats.mtimeMs, parsed.file);
-    }
-  } catch (error) {
-    if (!isMissingFile(error)) {
-      throw error;
+      payloadCache.set(slot, { stamp: stored.stamp, file: parsed.file });
+      return parsed.file;
     }
   }
-  fileCache.delete(path);
+
+  payloadCache.delete(slot);
   const legacy = readLegacyPlaintext(tenantId);
   if (!legacy) {
     return emptySettingsFile();
@@ -357,11 +463,7 @@ function loadSettingsFile(tenantId: string): SettingsFileV2 {
   };
   persistEncrypted(tenantId, migrated);
   tryDeleteLegacyPlaintext(tenantId);
-  try {
-    return rememberFile(path, statSync(path).mtimeMs, migrated);
-  } catch {
-    return migrated;
-  }
+  return migrated;
 }
 
 export function loadSettings(scope?: SettingsScope): StoredSecrets {
@@ -375,8 +477,8 @@ export function saveSettings(patch: SecretPatch, scope?: SettingsScope): StoredS
   const next = withGatewayDefault(mergeSecrets(sliceFor(file, workspaceId), patch));
   assertSavedEndpoints(next);
   persistEncrypted(tenantId, {
+    ...file,
     version: 2,
-    locale: file.locale,
     workspaces: { ...file.workspaces, [workspaceId]: next },
   });
   tryDeleteLegacyPlaintext(tenantId);
@@ -392,8 +494,8 @@ export function adoptLegacySettings(homeWorkspaceId: string): void {
     return;
   }
   // Desktop upgrade path only. `LEGACY_SETTINGS_WORKSPACE` is a v1 machine-wide payload, which only
-  // a pre-v2 desktop install has; a hosted tenant's file starts at v2 and never carries one. Called
-  // from `getTenant` on every request, so in server mode it must be a no-op rather than a throw.
+  // a pre-v2 desktop install has; a hosted tenant's payload starts at v2 and never carries one.
+  // Called from `getTenant` on every request, so in server mode it must be a no-op rather than a throw.
   if (isServerMode()) {
     return;
   }
@@ -407,7 +509,7 @@ export function adoptLegacySettings(homeWorkspaceId: string): void {
   if (!rest[id]) {
     rest[id] = legacy;
   }
-  persistEncrypted(LOCAL_TENANT_ID, { version: 2, locale: file.locale, workspaces: rest });
+  persistEncrypted(LOCAL_TENANT_ID, { ...file, version: 2, workspaces: rest });
 }
 
 /**
@@ -431,7 +533,7 @@ export function clearGatewayKeyEverywhere(scope?: SettingsScope): string[] {
   if (touched.length === 0) {
     return [];
   }
-  persistEncrypted(tenantId, { version: 2, locale: file.locale, workspaces });
+  persistEncrypted(tenantId, { ...file, version: 2, workspaces });
   return touched;
 }
 
@@ -447,16 +549,17 @@ export function dropWorkspaceSettings(workspaceId: string, scope?: SettingsScope
   }
   const rest = { ...file.workspaces };
   delete rest[id];
-  persistEncrypted(tenantId, { version: 2, locale: file.locale, workspaces: rest });
+  persistEncrypted(tenantId, { ...file, version: 2, workspaces: rest });
 }
 
 /**
- * Machine-wide UI locale. Not a per-desk secret, and **deliberately not per tenant either**: the
- * host process freezes one boot locale (`locale-boot.ts:11-16`) that every copy catalogue and every
- * `localeForRun()` reads, so a per-tenant value would be stored and never applied. It therefore
- * stays in the local tenant's file, exactly where it is today. Making the locale per tenant means
- * threading it through `run-context.ts`; that is listed as an open item in
- * `docs/internal/web-phase3-lane-d.md`, not silently half-done here.
+ * The install's UI locale, and the one `getBootLocale()` freezes for this process.
+ *
+ * Still the local tenant's value and still machine-wide, because that is what it is for: the host
+ * freezes one boot locale that every copy catalogue reads, and on a desk there is one owner whose
+ * choice that is. Phase 4 did not make this per tenant; it made the *user's* locale a separate
+ * thing (`loadUserLocale`), which is what a hosted server needs — two people on one tenant and one
+ * desk, each reading their own language.
  */
 export function loadOwnerLocale(): AppLocale {
   return parseAppLocale(loadSettingsFile(LOCAL_TENANT_ID).locale);
@@ -464,11 +567,52 @@ export function loadOwnerLocale(): AppLocale {
 
 export function saveOwnerLocale(locale: AppLocale): AppLocale {
   const file = loadSettingsFile(LOCAL_TENANT_ID);
-  persistEncrypted(LOCAL_TENANT_ID, { version: 2, locale, workspaces: file.workspaces });
+  persistEncrypted(LOCAL_TENANT_ID, { ...file, version: 2, locale });
   return locale;
 }
 
-/** Test seam: forget every decrypted file so a suite can rewrite the data dir underneath. */
+/**
+ * Phase 4 — the locale of the person asking.
+ *
+ * Falls back to the tenant's own stored locale, then to the parser's default, and never to another
+ * tenant's payload: a user with no saved choice gets English, not whatever the operator picked for
+ * the install. On a desk the fall-through lands on exactly the value `loadOwnerLocale` returns, so
+ * a desktop owner who set Indonesian before this phase still sees Indonesian without re-choosing.
+ */
+export function loadUserLocale(scope: UserScope): AppLocale {
+  const { tenantId } = resolveSettingsScope(scope);
+  const file = loadSettingsFile(tenantId);
+  const userId = scope.userId?.trim();
+  const own = userId ? file.users?.[userId]?.locale : undefined;
+  return parseAppLocale(own ?? file.locale);
+}
+
+/**
+ * Save one person's locale.
+ *
+ * On a desk this also writes the install's locale, because `getBootLocale()` reads that and the
+ * desktop's single owner choosing a language must still change the app they are looking at. In
+ * server mode it does not: the install's locale is shared, and one tenant's user must not be able
+ * to set the language every other tenant's process boots in.
+ */
+export function saveUserLocale(scope: UserScope, locale: AppLocale): AppLocale {
+  const { tenantId } = resolveSettingsScope(scope);
+  const userId = scope.userId?.trim();
+  const file = loadSettingsFile(tenantId);
+  const users = { ...(file.users ?? {}) };
+  if (userId) {
+    users[userId] = { ...users[userId], locale };
+  }
+  persistEncrypted(tenantId, {
+    ...file,
+    version: 2,
+    ...(isServerMode() ? {} : { locale }),
+    users,
+  });
+  return locale;
+}
+
+/** Test seam: forget every decrypted payload so a suite can rewrite the store underneath. */
 export function resetSettingsCacheForTests(): void {
-  fileCache.clear();
+  payloadCache.clear();
 }

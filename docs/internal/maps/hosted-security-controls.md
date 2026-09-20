@@ -1,6 +1,6 @@
 # Map — Hosted security controls
 
-Last verified: 2026-09-20 at 79cc6f2
+Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c`
 
 ## Overview
 
@@ -35,8 +35,8 @@ Tenant scoping *inside* an admitted request is Phase 3's and is not described he
 ### 1. The switch
 
 `packages/core/src/server-mode.ts:12` — `isServerMode(env = process.env)` is true when
-`AGENTFORGE_SERVER` is set to `1`. `trustedOrigins` (`:22`) reads `AGENTFORGE_TRUSTED_ORIGINS`,
-a comma-separated list normalised by `normaliseOrigin` (`:58`).
+`AGENTFORGE_SERVER` is set to `1`. `trustedOrigins` (`:52`) reads `AGENTFORGE_TRUSTED_ORIGINS`,
+a comma-separated list normalised by `normaliseOrigin` (`:88`).
 
 Two things pin the flag on for a real deployment:
 
@@ -63,7 +63,7 @@ load-bearing; if that mount ever moves, the controls move with it.
 | 3 | `:455` | `transportRejection` — TLS, method allowlist, path filter, header cap, per-IP and per-session buckets | **every** request, not only `/api` |
 | 4 | `:461` | non-`/api` paths return `false`; Express serves the page | — |
 | 5 | `:470` | `mutatingRejection` — Origin/Host allowlist, double-submit CSRF, `x-agentforge-transport` | non-safe methods on `/api` |
-| 6 | `packages/host/src/router.ts:370-398` | `requireSessionFor` — the session gate, before the route table | `/api` minus the exempt paths |
+| 6 | `packages/host/src/router.ts:412-416` | `requireSessionFor` — the session gate, before the route table | `/api` minus the exempt paths |
 | 7 | `:533` | `logAuthFailure` | a 401 coming back out |
 | 8 | `:384` | `maskServerError` | any 5xx, in server mode |
 
@@ -97,7 +97,7 @@ the client can forge or read. Cookie is `__Host-agentforge_session` in server mo
 (`ABSOLUTE_LIFETIME_MS`, `:41`), sliding at most every 5 minutes (`SLIDE_INTERVAL_MS`, `:43`) so a
 busy tab does not write a row per request.
 
-The gate runs in `packages/host/src/router.ts:405-413`, **before the route table is consulted** — an
+The gate runs in `packages/host/src/router.ts:410-418`, **before the route table is consulted** — an
 unauthenticated caller learns nothing about which paths exist.
 
 ### 5. Rate limits
@@ -149,8 +149,8 @@ answer, so a public name pointing at `169.254.169.254` does not pass.
 
 | Route | Where | Why |
 |---|---|---|
-| `POST /api/v1/settings` — operator keys | `packages/host/src/handlers/settings.ts:164-197` | gateway key, provider keys, `toolKeys`, `toolBackends` and `injectionGuardBypass` are the operator's, not a tenant's |
-| `POST /api/v1/settings/reset` and its cancel | `packages/host/src/handlers/settings.ts:384-464` | "Start over" deletes the data directory, which on a host is everyone's |
+| `POST /api/v1/settings` — operator keys | `packages/host/src/handlers/settings.ts:168-201` | gateway key, provider keys, `toolKeys`, `toolBackends` and `injectionGuardBypass` are the operator's, not a tenant's |
+| `POST /api/v1/settings/reset` scope `all`, and its cancel | `resetEverything`, `packages/host/src/handlers/settings.ts:423-440` | "Start over" deletes the data directory, which on a host is everyone's. Scope `key` is **allowed** on the server since Phase 4 — it only forgets the caller's own key (`resetGatewayKey`, `:400-415`) |
 | component install stream | `packages/host/src/handlers/components.ts:45-67` | the image bakes anydoc in; the download path has nothing to do, and turning it off is what unblocks `noexec` on `/data` |
 
 ### 9. The container

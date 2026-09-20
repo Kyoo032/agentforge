@@ -1,6 +1,6 @@
 # Map — Per-tenant storage and state
 
-Last verified: 2026-09-20 at 6984d84
+Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c`
 
 ## Overview
 
@@ -41,6 +41,14 @@ migration `0015` stamps onto the single organization every pre-Phase-3 database 
 Nothing moves on upgrade, and every `storage_path` already in `media` or `datasets` resolves verbatim,
 because the local tenant's relative paths are exactly the ones those rows already hold.
 
+**Phase 4: two of those rows are files only on a desk.** The secrets payload and the gateway verdict now go
+through a backend chosen by mode — the files above off server mode, `tenant_state` rows on the hosted server
+(`tenantStateBackend`, `packages/host/src/tenant-state-store.ts:319-321`). The desktop column is unchanged
+by construction: the file backend maps each payload back to exactly the filename in the table
+(`TENANT_STATE_FILENAMES`, `packages/host/src/tenant-state-store.ts:48-51`), so an existing data directory
+opens with nothing moved. Every other row on this table is still a path in both modes; moving media and job
+storage off the disk is Phase 6. See [`tenant-secrets-backend.md`](tenant-secrets-backend.md).
+
 ### The one place that knows
 
 `packages/host/src/tenant-paths.ts` is the only module that turns a tenant into a directory.
@@ -74,9 +82,9 @@ project's scratch dir, with the denial list attached.
 ### Requests, and work that outlives them
 
 A handler has a `TenantContext` and passes it: `loadSettings(tenant)`,
-`requireGatewayAllowedFor(tenant)` (`packages/host/src/gateway-gate.ts:463-468`). A bare desk id still
+`requireGatewayAllowedFor(tenant)` (`packages/host/src/gateway-gate.ts:467-472`). A bare desk id still
 works on the desktop and on webdev, and **throws `tenant_required` in server mode**
-(`resolveSettingsScope`, `packages/host/src/settings-store.ts:44-56`) rather than silently reading the
+(`resolveSettingsScope`, `packages/host/src/settings-store.ts:45-57`) rather than silently reading the
 local tenant's file.
 
 Background work has no request. Lane C's note ([`../web-phase3-lane-c.md`](../web-phase3-lane-c.md)) is
@@ -90,8 +98,9 @@ that it must carry the tenant rather than resolve one; the edit job runner does 
 |---|---|
 | `packages/host/src/tenant-paths.ts` | The rule, the validation, the containment test |
 | `packages/host/src/media-root.ts` | `mediaRoot`, `tenantMediaRoot`, `mediaRelativePath`, `mediaFilePath` |
-| `packages/host/src/settings-store.ts` | `SettingsScope`, `resolveSettingsScope`, the per-tenant `settings.enc` |
-| `packages/host/src/gateway-gate.ts` | `statePath(tenantId)`, the per-tenant verdict file, `requireGatewayAllowedFor` |
+| `packages/host/src/settings-store.ts` | `SettingsScope`, `resolveSettingsScope`, the per-tenant secrets payload |
+| `packages/host/src/gateway-gate.ts` | The per-tenant verdict, `requireGatewayAllowedFor` |
+| `packages/host/src/tenant-state-store.ts` | Phase 4 — which of the two the secrets and the verdict actually use, and the desktop filenames |
 | `packages/host/src/desk-usage.ts` | The legacy usage file, now read per tenant |
 | `packages/host/src/edit/ffmpeg/paths.ts` | `EditScope`, `PathAllowlist`, `editScratchRoot`, `editAllowlist` |
 | `packages/host/src/legal/store-files.ts` | `tenantLegalRoot`, `matterDir`, `listMatterIds` |
@@ -107,10 +116,16 @@ that it must carry the tenant rather than resolve one; the edit job runner does 
   an empty prefix a segment spelled `tenants` would be indistinguishable from another tenant's subtree.
 - **Old rows keep their old path.** `media.storage_path` and `datasets.storage_path` are read verbatim;
   only new writes take a prefix. `mediaFilePath` still refuses a row whose path is not this tenant's.
-- **The locale is deliberately not per tenant.** The host freezes one boot locale
-  (`packages/host/src/locale-boot.ts:11-16`) that every catalogue reads, so `loadOwnerLocale` /
-  `saveOwnerLocale` stay on the local tenant's file (`settings-store.ts:452-466`). Making it per tenant
-  means threading it through `run-context.ts`; that is open, not done.
+- **The locale is per user, not per tenant.** Phase 4 closed the lane-D gap, but not by making the locale
+  a tenant thing: a person's language is stored against their portal user id inside their own tenant's
+  payload (`loadUserLocale` / `saveUserLocale`, `packages/host/src/settings-store.ts:582-613`), because two
+  people on one hosted tenant read different languages. The host still freezes one boot locale
+  (`getBootLocale`, `packages/host/src/locale-boot.ts:15-20`) and `loadOwnerLocale` / `saveOwnerLocale`
+  (`packages/host/src/settings-store.ts:564-572`) still name the install's, which is what a desk renders
+  in; in server mode nothing is frozen per user and `localePayload` answers from the caller
+  (`packages/host/src/locale-boot.ts:55-61`). Threading it through `run-context.ts` for background work is
+  still open — a chat run takes it from the caller's tenant (`packages/host/src/runs.ts:159`), but a job
+  the edit runner picks up off-request has no user to read.
 - **`desk-usage.json` is legacy and read-only.** The spec wants a `tenant_usage` row; Phase 5 built that
   table on migration `0016` (PR #74, [`tenant-usage-ledger.md`](tenant-usage-ledger.md)) and nothing writes
   the file any more. Lane D scoped what still *reads* it, so a hosted tenant does not inherit the install's

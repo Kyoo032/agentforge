@@ -34,7 +34,7 @@ now rather than a reason not to.
 |---|---|---|---|---|
 | A01-1 | **High** | Any tenant can discard any other tenant's unplaced Edit item by id | `packages/host/src/handlers/edit.ts:494-512` | **Fixed on main** by Phase 3 lane A (PR #60) |
 | A01-2 | **High** | by-id routes across the app are not systematically tenant-scoped | app-wide | **Fixed on main** by Phase 3 lane E (PR #81): 114 call sites swept to `getTenant(request)`, `packages/host/src/tenancy-harness.test.ts` drives all 63 by-id routes as a second tenant |
-| A01-3 | Medium | Hosted Settings let any tenant rewrite shared tool credentials and the injection guard, and wiped the operator's gateway key on every save | `packages/host/src/handlers/settings.ts:164-197` | Fixed |
+| A01-3 | Medium | Hosted Settings let any tenant rewrite shared tool credentials and the injection guard, and wiped the operator's gateway key on every save | `packages/host/src/handlers/settings.ts:164-197` | Fixed; the per-tenant-key residual is closed by Phase 4 |
 | A01-4 | Medium | The CANCEL half of "Start over" was reachable in server mode | `packages/host/src/handlers/settings.ts:462-464` | Fixed |
 | A01-5 | Medium | Component installer route reachable in server mode | `packages/host/src/handlers/components.ts:45-67` | Fixed |
 | A02-1 | **High** | A patterned env wrap key (`aaaa…`) passed the length check | `packages/db/src/vault-key.ts:82-86,192-199` | Fixed |
@@ -140,6 +140,52 @@ could rewrite them. Now 403 in server mode.
 gateway key, because there is currently no notion of an operator account to distinguish them. That
 is Phase 4's per-tenant-key work, not something to bolt on here — and the alternative, as above, is
 a deployment nobody can set up.
+
+> **CLOSED by Phase 4** (`docs/internal/web-phase4-tenant-secrets.md`). There is no shared gateway
+> key to set any more, and it took two changes rather than one. Phase 3 lane D gave each tenant its
+> own `settings.enc`, and Phase 4 gave each tenant its own `tenant_state` row, so a key write
+> reaches the caller's tenant and stops there — that is the *saved* key. The *unsaved* one was the
+> half nobody had looked at: `resolveProviderKeys` fell back to the process's `OPENAI_API_KEY`
+> unconditionally, so on a hosted box the operator's own credential was handed to every tenant who
+> had not saved one, billed to the operator and attributable to nobody. It is now refused whenever
+> `AGENTFORGE_SERVER=1`, on both the call path (`packages/core/src/secrets.ts`) and the gate's
+> `keyFor` (`packages/host/src/gateway-gate.ts`), so the two agree about whether a tenant has a key.
+> A tenant with none sees onboarding, which is the intended state. Desks and webdev are unchanged.
+>
+> **And closing one function was not enough — three more doors were open, one of them live.** The
+> verifier on the Phase 4 PR found the same variables read straight off `process.env` in
+> `packages/core/src/runtime/ai-sdk-runtime.ts`, `packages/core/src/tools/credentials.ts` (which
+> also carried the operator's `TAVILY_API_KEY`, `BRAVE_SEARCH_API_KEY` and `FAL_KEY` into a tenant's
+> tool scope) and `packages/host/src/edit/asr.ts`. The last one was exploitable: Edit's auto-captions
+> run on the timeline worker **after** the request is gone, where no gate can answer `403`, so a
+> hosted tenant could enqueue a transcription while keyed, sign out, and have it charged to the
+> operator.
+>
+> **A fifth was found after those four were closed, and it is the one that makes the point.**
+> `getSecret(name)` in `packages/core/src/tools/secret-scope.ts` fell back to `process.env[name]` —
+> a dynamic index, invisible both to the first sweep and to any grep for a key's name. It is the
+> fallback every platform tool uses when its scope lacks a key, so a hosted tenant's run picked up
+> the operator's `TAVILY_API_KEY`, `BRAVE_SEARCH_API_KEY` or `FAL_KEY` by asking for it by name. The
+> gateway half of that was unreachable in practice (route checks, stub runtime); the search half was
+> live for any hosted tenant with web search bound.
+>
+> All five now take their fallback from one function, `providerEnv`
+> (`packages/core/src/server-mode.ts`), and `packages/core/src/provider-env-sweep.test.ts` fails the
+> build on a sixth in any of the three shapes the mistake took: a named read, a dynamic index
+> without an allowlisted exception, or a destructure. The lesson is the same one as the box above,
+> twice over: reviewing the sites found is not the fix, a guard against the next one is — and a
+> guard that only catches the spelling of a mistake catches it once.
+>
+> **Knock-on, tracked rather than fixed here:** with the borrowed key gone and tool-key writes
+> refused in server mode, a hosted tenant has no route to a search or FAL key at all. An
+> operator-provided per-tenant key path is owed;
+> `docs/internal/web-phase4-tenant-secrets.md` §3 and §10 carry it.
+>
+> One thing loosened rather than tightened, and it belongs to the same finding: `DELETE
+> /api/v1/settings/reset` with `scope: "key"` used to be a 403 in server mode, because forgetting
+> the key was machine-wide. It is the caller's own key now, so it is allowed — and it has to be,
+> since `keyFieldValue` still drops a blank in server mode by design, which leaves it as the only
+> route a hosted tenant has to take a wrong key back. `scope: "all"` stays refused.
 
 ### A01-4 — The cancel half of "Start over" in server mode
 

@@ -1,6 +1,6 @@
 # Map — Tenant usage ledger
 
-Last verified: 2026-09-20 at 6984d84 (Phase 5 lane A, after the Meeting mode merged in)
+Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c` (through e37b3a1)
 
 ## Overview
 
@@ -65,7 +65,7 @@ that keep their unit and quantity, which a later pass can price in place.
 
 | Mode | Where | Unit |
 |---|---|---|
-| chat | `recordChatRunUsage`, called from `packages/host/src/runs.ts:367` and `:417`, gated on `finishRun`'s return | tokens |
+| chat | `recordChatRunUsage`, called from `packages/host/src/runs.ts:370` and `:417`, gated on `finishRun`'s return | tokens |
 | documents, presentations, research, data, finance, market, legal, knowledge | `rememberJobUsage` in the shared job runtime callback, `packages/host/src/job-regen.ts:145` | tokens |
 | edit agent | `rememberJobUsage`, `packages/host/src/edit/agent-run.ts:185` (live) and `:363` (stub) | tokens |
 | images | `recordImageUsage`, `packages/host/src/studio-generate.ts:295` | images |
@@ -101,7 +101,7 @@ bills 5 s for a 4 s request.
 | The pricing catalog is cold | `catalog_unavailable` rows; unit and quantity are still right |
 | The tenant row is deleted | The ledger goes with it (`ON DELETE cascade` on `tenant_id`) |
 | An organization is deleted | **The ledger stays.** `organization_id` is deliberately not a foreign key: deleting one org inside a live tenant must not erase spend still to be billed |
-| A database baseline-stamped past 0016 | `ensureTenantUsageTable` (`packages/db/src/ensure-schema.ts:460`, called at `:236`) re-creates the table and its indexes |
+| A database baseline-stamped past 0016 | `ensureTenantUsageTable` (`packages/db/src/ensure-schema.ts:470`, called at `:245`) re-creates the table and its indexes |
 
 ## Where things live
 
@@ -111,7 +111,7 @@ bills 5 s for a 4 s request.
 | `packages/core/src/gateway/account.ts:139` | `explainRunUsd` — priced, or the reason it is not |
 | `packages/db/src/schema.ts:49` | The `tenantUsage` drizzle table |
 | `packages/db/drizzle/0016_tenant_usage.sql` | The migration, and the reasoning for every nullable column |
-| `packages/db/src/ensure-schema.ts:460` | `ensureTenantUsageTable`, the baseline-stamp healer |
+| `packages/db/src/ensure-schema.ts:470` | `ensureTenantUsageTable`, the baseline-stamp healer |
 | `packages/host/src/tenant-usage.ts` | The store: `createUsageStore`, `recordUsage`, `listTenantUsage`, `tenantUsageTotals`, and the `listJobUsageRecords` shim the account screen reads |
 | `packages/host/src/usage-record.ts` | Pricing at write time, and the seven entry points the modes call |
 | `packages/host/src/job-usage.ts` | `rememberJobUsage` — runtime event → tenanted row |

@@ -6,8 +6,9 @@
  * `GatewayGatePayload` in `@agentforge/core` (`gateway/gate-types.ts`).
  *
  * Split in two on purpose: `deriveGatewayGate` is pure (every rule is unit-testable with no disk
- * and no network), and the rest is the IO around it — a small state file next to the settings, and
- * one live call to the gateway on a 3 s budget.
+ * and no network), and the rest is the IO around it — one stored verdict per tenant, held by
+ * `tenant-state-store.ts` (a file on a desk, a `tenant_state` row on the hosted server), and one
+ * live call to the gateway on a 3 s budget.
  */
 import {
   ApiError,
@@ -23,12 +24,21 @@ import {
   type StoredSecrets,
   type TenantContext,
 } from "@agentforge/core";
-import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { tenantDataDir } from "./tenant-paths";
+import { TENANT_STATE_FILENAMES, tenantStateBackend } from "./tenant-state-store";
 import { loadSettings, resolveSettingsScope, type SettingsScope } from "./settings-store";
 
-export const GATEWAY_GATE_FILE = "gateway-gate.json";
+/**
+ * The desktop's filename for the verdict, and still exactly that on a desk. Phase 4 put the payload
+ * behind `tenant-state-store.ts`, which maps the `gateway_gate` key back to this name on the file
+ * backend and to a `tenant_state` row on the hosted server. Re-exported rather than re-spelled, so
+ * there is exactly one module in the host that knows what a desk's files are called — which is what
+ * the guard in `tenant-state.test.ts` checks. Still exported because the tests assert the desktop
+ * layout by path.
+ */
+export const GATEWAY_GATE_FILE = TENANT_STATE_FILENAMES.gateway_gate;
+
+/** Phase 4 — which payload this module owns. See `tenant-state-store.ts` for what a key means. */
+const GATE_KEY = "gateway_gate" as const;
 
 /**
  * Offline grace: the same key, validated within this window, keeps the app open. Kyo has not
@@ -119,11 +129,6 @@ export type MaybeRefreshGatewayOptions = GatewayGateOptions & {
   runCheck?: (settings: StoredSecrets, opts: GatewayGateOptions) => Promise<unknown>;
 };
 
-/** `<dataDir>/gateway-gate.json` for the local tenant; under `tenants/<tenantId>/` for anyone else. */
-function statePath(tenantId: string): string {
-  return resolve(tenantDataDir(tenantId), GATEWAY_GATE_FILE);
-}
-
 function tenantOf(opts: GatewayGateOptions): string {
   return resolveSettingsScope(opts.tenant).tenantId;
 }
@@ -152,9 +157,15 @@ function errorText(error: unknown): string {
 export function loadGateState(tenantId: string): GateState | null {
   let parsed: unknown;
   try {
-    parsed = JSON.parse(readFileSync(statePath(tenantId), "utf8")) as unknown;
+    const stored = tenantStateBackend().read(tenantId, GATE_KEY);
+    if (!stored) {
+      return null;
+    }
+    parsed = JSON.parse(stored.value) as unknown;
   } catch {
     // Absent, unreadable or not JSON: treat as "never checked" and let the next save rewrite it.
+    // A verdict is a cache of something the gateway said, so losing one costs a re-check and
+    // nothing else — the opposite of the sealed settings payload, which refuses rather than reset.
     return null;
   }
   if (!parsed || typeof parsed !== "object") {
@@ -185,38 +196,25 @@ export type SaveGateStateResult = {
 };
 
 export function saveGateState(tenantId: string, state: GateState): SaveGateStateResult {
-  // A fingerprint is a SHA-256 prefix, never the key, so this file is safe at rest next to settings.enc.
-  // Written to a sibling temp file and renamed: a crash mid-write must not leave a half verdict that
-  // `loadGateState` would read as "never checked".
-  const path = statePath(tenantId);
-  const temp = `${path}.tmp`;
+  // A fingerprint is a SHA-256 prefix, never the key, so this payload is safe at rest beside the
+  // sealed settings. The atomic temp-file-and-rename this used to do itself now belongs to the file
+  // backend, and the row backend writes one statement, so neither can leave half a verdict.
   try {
-    mkdirSync(tenantDataDir(tenantId), { recursive: true });
-    writeFileSync(temp, `${JSON.stringify(state, null, 2)}\n`, "utf8");
-    renameSync(temp, path);
+    tenantStateBackend().write(tenantId, GATE_KEY, `${JSON.stringify(state, null, 2)}\n`);
     return { state, persisted: true };
   } catch (error) {
     // Swallow-and-warn, exactly like `clearGateState`. A read-only data dir, a full disk or a
-    // directory squatting on the path costs us a cached verdict and nothing else: `loadGateState`
-    // then reads "never checked" and `deriveGatewayGate` opens the gate on trust. It must never be
-    // the reason a key the owner just pasted comes back as a failed save.
+    // locked database costs us a cached verdict and nothing else: `loadGateState` then reads
+    // "never checked" and `deriveGatewayGate` opens the gate on trust. It must never be the reason
+    // a key the owner just pasted comes back as a failed save.
     console.warn(`could not persist the gateway verdict: ${redactSecrets(errorText(error))}`);
-    try {
-      unlinkSync(temp);
-    } catch {
-      // A leftover `gateway-gate.json.tmp` is inert and gitignored; there is nothing to recover.
-    }
   }
   return { state, persisted: false };
 }
 
 export function clearGateState(scope?: SettingsScope): void {
-  const path = statePath(resolveSettingsScope(scope).tenantId);
-  if (!existsSync(path)) {
-    return;
-  }
   try {
-    unlinkSync(path);
+    tenantStateBackend().remove(resolveSettingsScope(scope).tenantId, GATE_KEY);
   } catch {
     // Nothing to do: a stale verdict for a key that is gone derives as "needs_key" anyway.
   }
@@ -384,26 +382,32 @@ export async function checkGatewayLive(input: {
 }
 
 /**
- * The key the gate judges: the one the owner saved, else `OPENAI_API_KEY` — but only on a desk that
- * asked for the live runtime. `resolveProviderKeys` would hand back the env key unconditionally, and
- * on a dev box with a stray export that turned "forget my key" into `error` instead of `needs_key`.
+ * The key the gate judges: the one the tenant saved, else `OPENAI_API_KEY` — but only on a desk
+ * that asked for the live runtime, and never on the hosted server.
+ *
+ * Two separate refusals, for two separate reasons. `envRuntime !== "ai"` is the older one: a dev
+ * box with a stray export would otherwise turn "forget my key" into `error` instead of `needs_key`.
+ * Server mode is Phase 4's: a process-wide key there belongs to the OPERATOR, and a tenant who has
+ * saved none must be told to save one rather than quietly spending the operator's credit — the same
+ * rule `resolveProviderKeys` now enforces on the call path, applied here so the gate's verdict and
+ * the call agree about whether this tenant has a key at all.
  */
-function keyFor(settings: StoredSecrets, envRuntime: string | undefined): string | undefined {
+function keyFor(settings: StoredSecrets, envRuntime: string | undefined, env: EnvLike = process.env): string | undefined {
   const saved = settings.openaiApiKey?.trim();
   if (saved) {
     return saved;
   }
-  if (envRuntime !== "ai") {
+  if (envRuntime !== "ai" || isServerMode(env)) {
     return undefined;
   }
-  const fromEnv = process.env.OPENAI_API_KEY?.trim();
+  const fromEnv = env.OPENAI_API_KEY?.trim();
   return fromEnv || undefined;
 }
 
 /** The current gate for this desk, derived from the saved verdict. No network, no throw. */
 export function reportGatewayGate(settings: StoredSecrets, opts: GatewayGateOptions = {}): GatewayGatePayload {
   const envRuntime = opts.envRuntime ?? process.env.AGENTFORGE_RUNTIME;
-  const key = keyFor(settings, envRuntime);
+  const key = keyFor(settings, envRuntime, opts.env);
   return deriveGatewayGate({
     envRuntime,
     hasKey: Boolean(key),
@@ -482,7 +486,7 @@ export async function runGatewayCheck(
   opts: GatewayGateOptions = {},
 ): Promise<GatewayGatePayload> {
   const envRuntime = opts.envRuntime ?? process.env.AGENTFORGE_RUNTIME;
-  const key = keyFor(settings, envRuntime);
+  const key = keyFor(settings, envRuntime, opts.env);
   // Stub runtime and "no key saved" are decided without asking anyone.
   if (envRuntime === "stub" || !key) {
     return reportGatewayGate(settings, opts);
@@ -557,7 +561,7 @@ export function maybeRefreshGateway(settings: StoredSecrets, opts: MaybeRefreshG
   if (envRuntime === "stub") {
     return false;
   }
-  const key = keyFor(settings, envRuntime);
+  const key = keyFor(settings, envRuntime, opts.env);
   if (!key) {
     return false;
   }

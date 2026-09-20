@@ -1,6 +1,6 @@
 # Map — Generate studios (Images and Videos)
 
-Last verified: 2026-09-20 at 6984d84
+Last verified: 2026-09-20 at 6984d84; citations re-anchored at e37b3a1
 
 ## Overview
 
@@ -55,7 +55,7 @@ The picker is **not** fed by the app's own `/api/v1/models`. It is fed by the st
 
 (`apps/web/components/images-studio.tsx:125-132`; videos at `:181-188`.) `SettingsLinkHint` (`apps/web/components/settings-link-hint.tsx:7-31`) splits the catalog string on a sentinel and drops a real `<a href="/settings">` in the gap, so the banner is always a working link and never hard-codes English.
 
-`ready` walks back to `listToolRoutes` (`packages/core/src/tools/credentials.ts:350-360`) resolving the `image_gen` / `video_gen` capability. Both declare backends `gateway` → `fal` → (`openai` / `volcengine`) with an autodetect order of `["gateway", "fal"]` (`:83-107`, `:108-132`), and a backend is ready when its env var is populated from `secretMapFromSettings` (`:266-298`). No `OPENAI_API_KEY` and no `FAL_KEY` means no ready backend means `ready: false`.
+`ready` walks back to `listToolRoutes` (`packages/core/src/tools/credentials.ts:362-372`) resolving the `image_gen` / `video_gen` capability. Both declare backends `gateway` → `fal` → (`openai` / `volcengine`) with an autodetect order of `["gateway", "fal"]` (`:83-107`, `:108-132`), and a backend is ready when its env var is populated from `secretMapFromSettings` (`:267-309`). No `OPENAI_API_KEY` and no `FAL_KEY` means no ready backend means `ready: false`.
 
 **The two studios then disagree about what to do with that.** `videos-studio-submit` is disabled while `!ready` (`apps/web/components/videos-studio.tsx:301`); `images-studio-submit` is not (`apps/web/components/images-studio.tsx:204`). So on a keyless desk the Videos button is inert and the Images button is live and will produce a 400. This asymmetry is in the code, not in any changelog.
 
@@ -121,7 +121,7 @@ Both tools resolve their backend first and return a **structured failure rather 
 
 `items` render as a grid (`apps/web/components/images-studio.tsx:224-232`, `apps/web/components/videos-studio.tsx:322-339`), each `src` passed through `mediaSrc` (`apps/web/lib/api-client.ts:208-210` → `apps/web/lib/media-src.ts:12-23`), which rewrites `/api/v1/media/<id>/file` to `agentforge://media/<id>` inside the packaged shell and leaves it alone in the browser. Videos add a per-clip download anchor, `videos-studio-download` (`apps/web/components/videos-studio.tsx:328-335`). Empty lists show `images-studio-empty` / `videos-studio-empty` (`:216-222` / `:314-320`), but only once `loading` is false — the loading branch comes first.
 
-`GET /api/v1/media/:mediaId/file` → `handleGetMediaFile` (`packages/host/src/handlers/media.ts:26-50`), routed at `packages/host/src/router.ts:242`, ungated, scoped by `organizationId`, served through `readByteRange` (`packages/host/src/byte-range.ts:86-106`) so scrubbing a clip reads only the requested bytes. The bundled example clips have their own pair of routes (`packages/host/src/router.ts:247-248`).
+`GET /api/v1/media/:mediaId/file` → `handleGetMediaFile` (`packages/host/src/handlers/media.ts:26-50`), routed at `packages/host/src/router.ts:247`, ungated, scoped by `organizationId`, served through `readByteRange` (`packages/host/src/byte-range.ts:86-106`) so scrubbing a clip reads only the requested bytes. The bundled example clips have their own pair of routes (`packages/host/src/router.ts:252-253`).
 
 ### Failure modes
 

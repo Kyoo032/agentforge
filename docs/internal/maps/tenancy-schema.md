@@ -1,6 +1,6 @@
 # Map — Tenancy schema and TenantContext
 
-Last verified: 2026-09-20 at c204e5e
+Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c` (through e37b3a1)
 
 ## Overview
 
@@ -43,19 +43,35 @@ existing database opens with no re-seed. The column lands nullable because SQLit
 `ADD COLUMN ... NOT NULL REFERENCES` without a non-null default; `notNull` is a drizzle-level claim
 plus `packages/db/src/migrate-0015.test.ts`.
 
-**Two paths apply it.** `ensureSchema` (`packages/db/src/ensure-schema.ts:192`) runs pending
-migrations against the journal. A database that was **baseline-stamped** (`:208-213` — every kernel
+**Two paths apply it.** `ensureSchema` (`packages/db/src/ensure-schema.ts:201`) runs pending
+migrations against the journal. A database that was **baseline-stamped** (`:217-222` — every kernel
 table present, zero journal rows) has `0015` marked applied without ever running, so
-`ensureTenantTables` (`:418`, called at `:235`) re-creates the table, re-inserts the row and
+`ensureTenantTables` (`:427`, called at `:244`) re-creates the table, re-inserts the row and
 backfills the column. Same idempotent `PRAGMA table_info` shape as the knowledge and workspace
 healers beside it.
 
 **`tenants` is deliberately not in `REQUIRED_TABLES`** (`:8`). That list drives the partial-init
-refusal at `:197`. An existing desktop database has every current kernel table and no `tenants`,
+refusal at `:206`. An existing desktop database has every current kernel table and no `tenants`,
 which would make `present.length > 0 && missing.length > 0` true and throw "Refusing to migrate or
 baseline-stamp" on the frozen desktop's first launch. The healer covers that case instead.
 
-**The context.** `TenantContext` (`packages/core/src/tenancy/types.ts:15`) gains
+**What else hangs off the tenant.** Two later tables are keyed on `tenants.id` rather than on an
+organization, and both are listed by `packages/db/src/migrate-0015.test.ts`'s assertion about which tables
+carry a `tenant_id`:
+
+| Table | Migration | Page |
+|---|---|---|
+| `tenant_usage` | `0016` (Phase 5 lane A) | [`tenant-usage-ledger.md`](tenant-usage-ledger.md) |
+| `tenant_state` | `0018` (Phase 4) | [`tenant-secrets-backend.md`](tenant-secrets-backend.md) |
+
+`tenant_state` holds a tenant's sealed settings and its gateway verdict on the hosted server, one row per
+`(tenant_id, key)`, cascading on tenant delete. It is on the tenant and not on an organization because a
+tenant's sealed settings are the tenant's, not any one org's, and because the tenant is all a wrap-key
+rotation has to walk. Note the journal gap: `0017` is reserved for Phase 5 lane B, so lane B's migration
+must carry a `when` **above** `1788820000010` or the runner will skip it on any database that already ran
+`0018`.
+
+**The context.** `TenantContext` (`packages/core/src/tenancy/types.ts:13`) gains
 `tenantId: string` ahead of `organizationId`. `ensureLocalOwner`
 (`packages/db/src/ensure-local-owner.ts:116`) returns the tenant of the org it resolved, and looks
 that org up by `(tenant_id, slug)` (`:48`) rather than slug alone, because slug alone would pick an
@@ -77,16 +93,19 @@ that could create one.
 | File | Role |
 |---|---|
 | `packages/db/src/schema.ts:32` | `tenants` table |
-| `packages/db/src/schema.ts:84` | `organizations`, now with `tenant_id` and the composite unique index |
+| `packages/db/src/schema.ts:107` | `organizations`, now with `tenant_id` and the composite unique index |
+| `packages/db/src/schema.ts:91-105` | `tenantState` — Phase 4, the per-tenant secrets and gate rows |
 | `packages/db/drizzle/0015_tenants.sql` | The migration: table, local row, column, backfill, index swap |
 | `packages/db/drizzle/meta/_journal.json` | Journal entry `idx: 15`, `when: 1788820000007` |
-| `packages/db/src/ensure-schema.ts:419` | `ensureTenantTables`, the baseline-stamp healer |
+| `packages/db/src/ensure-schema.ts:429` | `ensureTenantTables`, the baseline-stamp healer |
+| `packages/db/src/ensure-schema.ts:503` | `ensureTenantStateTable`, the same healer shape for `tenant_state` |
 | `packages/db/src/ensure-local-owner.ts` | Resolves the local owner inside `local-tenant` |
 | `packages/db/src/tenants.ts` | `ensureTenant` / `getTenantById` / `getLocalTenant`, for lane C |
 | `packages/db/src/client.ts:50` | `busy_timeout = 5000` |
 | `packages/core/src/local-owner.ts:7` | `LOCAL_TENANT_ID`, beside `LOCAL_OWNER_ID` |
-| `packages/core/src/tenancy/types.ts:15` | `TenantContext.tenantId` |
+| `packages/core/src/tenancy/types.ts:13` | `TenantContext.tenantId` |
 | `packages/db/src/migrate-0015.test.ts` | Fresh, single-org and baseline-stamped proofs |
+| `packages/db/src/migrate-0018.test.ts` | `tenant_state`: shape, cascade, FK, index, journal ordering, healer |
 
 ## Gotchas
 
