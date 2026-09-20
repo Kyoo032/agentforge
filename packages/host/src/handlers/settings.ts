@@ -282,6 +282,9 @@ export const HOST_RESET_ENTRIES = [
   "datasets",
   "edit",
   "legal",
+  // Desk channels: the bot token lives in settings.enc, but the channel list and the stored
+  // conversation are files here, and they are the host's own writes like everything else on this list.
+  "channels",
   "models-cache.json",
   "models-dev-cache.json",
   // Downloaded native components (packages/host/src/components). Written by the host, inside the

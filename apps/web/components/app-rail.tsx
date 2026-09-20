@@ -40,6 +40,7 @@ type IconName =
   | "edit"
   | "presentations"
   | "knowledge"
+  | "channels"
   | "workspaces"
   | "usage"
   | "settings";
@@ -123,6 +124,12 @@ const RAIL_ICON_PATHS: Record<IconName, ReactNode> = {
     <>
       <path d="M4 19.5V5a2 2 0 0 1 2-2h13v18H6.2A2.2 2.2 0 0 1 4 18.8Z" />
       <path d="M8 7h7M8 11h7" />
+    </>
+  ),
+  channels: (
+    <>
+      <path d="M21 4 3 11l6 2.5L21 4Z" />
+      <path d="m21 4-9 16-2.5-6.5" />
     </>
   ),
   workspaces: (
@@ -367,6 +374,14 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
           active={pathname.startsWith("/knowledge")}
           collapsed={collapsed}
           testId="mode-knowledge"
+        />
+        <RailItem
+          href="/channels"
+          label={t("rail.channels")}
+          icon="channels"
+          active={pathname.startsWith("/channels")}
+          collapsed={collapsed}
+          testId="channels-link"
         />
         <RailItem
           href="/workspaces"

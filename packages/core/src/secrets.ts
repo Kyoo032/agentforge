@@ -47,6 +47,12 @@ export type StoredSecrets = {
    * revoked key that is still sitting in a third-party database has not actually been revoked.
    */
   weknoraRevokedModelIds?: string;
+  /**
+   * Telegram Bot API token for this desk's channels (docs/internal/telegram-channels-plan.md).
+   * Handled exactly like the gateway key: same envelope, same clear-on-empty rule, never returned
+   * to the renderer — `hasTelegramBot` and the fingerprint are all it ever sees.
+   */
+  telegramBotToken?: string;
 };
 
 /** The retrieval engines a desk may select. */
@@ -67,11 +73,13 @@ export type MaskedSecrets = {
   hasGoogle: boolean;
   hasAnthropic: boolean;
   hasVolcengine: boolean;
+  hasTelegramBot: boolean;
   /** SHA-256 prefix of the saved gateway key, or null when none. Never the raw secret. */
   openaiKeyFingerprint: string | null;
   googleKeyFingerprint: string | null;
   anthropicKeyFingerprint: string | null;
   volcengineKeyFingerprint: string | null;
+  telegramBotFingerprint: string | null;
   openaiBaseUrl?: string;
   googleBaseUrl?: string;
   anthropicBaseUrl?: string;
@@ -88,7 +96,13 @@ export type MaskedSecrets = {
   editTurnCapUsd?: number;
 };
 
-const KEY_FIELDS = ["openaiApiKey", "googleApiKey", "anthropicApiKey", "volcengineApiKey"] as const;
+const KEY_FIELDS = [
+  "openaiApiKey",
+  "googleApiKey",
+  "anthropicApiKey",
+  "volcengineApiKey",
+  "telegramBotToken",
+] as const;
 const URL_FIELDS = ["openaiBaseUrl", "googleBaseUrl", "anthropicBaseUrl", "volcengineBaseUrl"] as const;
 /** Opaque local strings: stored verbatim, cleared by an empty patch value. */
 const WEKNORA_FIELDS = [
@@ -235,10 +249,12 @@ export function maskSecrets(current: StoredSecrets): MaskedSecrets {
     hasGoogle: Boolean(current.googleApiKey),
     hasAnthropic: Boolean(current.anthropicApiKey),
     hasVolcengine: Boolean(current.volcengineApiKey),
+    hasTelegramBot: Boolean(current.telegramBotToken),
     openaiKeyFingerprint: keyFingerprintOrNull(current.openaiApiKey),
     googleKeyFingerprint: keyFingerprintOrNull(current.googleApiKey),
     anthropicKeyFingerprint: keyFingerprintOrNull(current.anthropicApiKey),
     volcengineKeyFingerprint: keyFingerprintOrNull(current.volcengineApiKey),
+    telegramBotFingerprint: keyFingerprintOrNull(current.telegramBotToken),
     // Pinned: a value stored by an older build is tolerated on read but never reported back.
     openaiBaseUrl: resolvedGatewayBaseUrl(),
     googleBaseUrl: current.googleBaseUrl,
