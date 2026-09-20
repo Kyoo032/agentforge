@@ -105,9 +105,9 @@ ownership check is the first thing the job does, before anything of the resource
 | Route | Where the check is |
 |---|---|
 | `POST /api/v1/edit/projects/:projectId/agent` | `foldProject(projectId, tenant.workspaceId)`, `packages/host/src/edit/agent-run.ts:154` |
-| `POST /api/v1/meetings/:meetingId/transcribe/stream` | `requireMeeting`, `packages/host/src/meeting/run.ts:151` |
-| `POST /api/v1/meetings/:meetingId/minutes/stream` | `requireMeeting`, `packages/host/src/meeting/run.ts:202` |
-| `POST /api/v1/meetings/:meetingId/run/stream` | `requireMeeting`, `packages/host/src/meeting/run.ts:352` |
+| `POST /api/v1/meetings/:meetingId/transcribe/stream` | `requireMeeting`, `packages/host/src/meeting/run.ts:152` (in `transcribeMeeting`) |
+| `POST /api/v1/meetings/:meetingId/minutes/stream` | `requireMeeting`, `packages/host/src/meeting/run.ts:285` (in `generateMinutes`) |
+| `POST /api/v1/meetings/:meetingId/run/stream` | `requireMeeting`, `packages/host/src/meeting/run.ts:359` (in `runMeeting`) |
 
 **A route whose honest answer is silence:**
 
@@ -176,6 +176,30 @@ id nothing matched rather than against a desk that exists and belongs to somebod
 D's work — per-tenant settings, storage prefixes, per-tenant usage rows — is about files and
 counters, not about which row a by-id route may read, so no route in the table is waiting on it.
 
+**The OWASP pass's cross-tenant finding.** The brief asked this lane to take the finding the OWASP
+thread left for the tenancy lanes if it turned out to be a handler-scope issue
+([`security-owasp-2026-09.md`](security-owasp-2026-09.md), merged as PR #71). There are two, and
+the split is clean:
+
+- **A01-1**, the cross-tenant discard of an unplaced Edit item, was **already fixed on `main` by
+  lane A** before this branch merged it. `handlePostEditUnplacedDiscard`
+  (`packages/host/src/handlers/edit.ts:494`) calls `foldProject(projectId, tenant.workspaceId)`
+  before the update, and its predicate matches on `projectId` as well as the item id
+  (`edit.ts:504`) — `edit_unplaced` carries only `project_id`, so the item id on its own would have
+  reached another desk's row. Nothing was left for this lane to do. Both routes that reach that
+  table, `POST .../unplaced/:itemId/place` and `POST .../unplaced/:itemId/discard`, are in the
+  harness table, so the fix is now held in place by a test rather than by the reviewer who happened
+  to notice it.
+- **A01-2**, "by-id routes are not systematically scoped", is recorded in the audit as Phase 3 lane
+  E's and is what this PR is. The audit names the general shape of it exactly: scoping was "a
+  property of each handler remembering rather than of the query layer". This branch does not move
+  scoping into the query layer — that would be a far larger change — but it does stop the property
+  depending on memory, because a route that forgets now fails a test that names it.
+
+One cross-check fell out of the merge. The audit states that PR #71 "add[s] no new by-id surface",
+and the completeness assertion passed unchanged across that merge, which is the same claim arrived
+at from the router's own registration table rather than from reading the diff.
+
 ## 7. The tenant id on every log line
 
 Spec §7 puts "the log carries a tenant id" in lane E's done-when (security spec row L1).
@@ -207,20 +231,22 @@ confirms it):
 
 - `turbo run test` before the merge: **7 of 8 packages green**, `@agentforge/host` 1832 passed / 2
   failed, `@agentforge/db` 94 passed.
-- The `@agentforge/host` suite re-run on the merged tree, which is what this PR asks to be read:
-  **1975 passed / 2 failed, 191 of 193 files green**, 65.9 s. The rise from 1832 is the eleven new
-  by-id routes the merge brought in plus the other lanes' own tests; the two failures are the same
-  two, below.
-- Both host failures are the pre-existing pair the handover file already records, in files this
-  branch does not touch (`edit/ffmpeg-binary.test.ts` asserts a Windows `System32\where.exe` path;
-  `edit/import-ipc.test.ts` expects 201 and gets 400). Re-run on a clean `main` in this same
-  container: the same two, the same way.
-- `tsc --noEmit` on `packages/host`, re-run on the merged tree and again on a clean `28230f6`
-  checkout in the same container: **10 errors on each, the same 10, `diff` empty**. None is in a
-  file this branch touches; the nearest, `handlers/agents.ts:187`, was introduced by `de3cf46`,
-  which is not this branch. `packages/db`: 1, in `packages/core`, also pre-existing.
+- The `@agentforge/host` suite on the tree this PR actually asks to be read — after merging
+  `cdb3076`, which is PR #71, the OWASP pass: **2037 passed, 0 failed, 199 of 199 files green**,
+  68.2 s.
+- The two failures this branch carried until that merge are gone, and not by anything here. They
+  were the pre-existing pair the handover file records — `edit/ffmpeg-binary.test.ts` asserting a
+  Windows `System32\where.exe` path and `edit/import-ipc.test.ts` expecting 201 and getting 400 —
+  and PR #71 fixed both. The intermediate state is kept in this record rather than tidied away:
+  before that merge this branch read 1975 passed / 2 failed, and those two failures were reproduced
+  the same way on a clean `main` in this container at the time.
+- `tsc --noEmit` on `packages/host`, run on this branch and again on a clean `cdb3076` checkout in
+  the same container: **10 errors on each, the same 10, `diff` empty**. None is in a file this
+  branch touches; the nearest, `handlers/agents.ts:187`, was introduced by `de3cf46`, which is not
+  this branch. `packages/db`: 1, in `packages/core`, also pre-existing.
 - `biome check --formatter-enabled=false --assist-enabled=false .`: 182 warnings, 30 infos, **0
-  errors** — identical to `main`'s totals in this container.
+  errors** — the same three totals on this branch (1501 files) and on a clean `cdb3076` (1498), so
+  the three files this branch adds contribute no diagnostic of any kind.
 
 A note for the next person who reaches for `biome check --write`: the repository's committed
 formatting disagrees with the formatter on files nobody is editing, so a `--write` over a directory
@@ -281,5 +307,8 @@ two tenants, for the reason in §10.
    so the harness has nothing to say about it; the question stands.
 4. **The three edit sub-resources are seeded by direct insert.** If `enqueueEditJob` ever grows a
    test-mode entry point that does not start a worker, the seeds should move to it.
-5. **`AGENTS.md`'s map count was one short** (it said 25; there were 26 pages and 26 index rows).
-   Corrected to 27 with this page added. Worth a glance from whoever owns the map sweep.
+5. **`AGENTS.md`'s map count drifts, and nothing catches it.** It said 25 when there were 26 pages;
+   after merging PR #71 and adding this page there are **35 pages and 35 index rows**, and `main`
+   still said 25. Corrected to 35 here, counted rather than incremented. This is the second time in
+   one day the number was wrong, so it is worth a line in the map sweep's own tooling — a count is
+   exactly the sort of claim a test can hold, and nothing holds it today.
