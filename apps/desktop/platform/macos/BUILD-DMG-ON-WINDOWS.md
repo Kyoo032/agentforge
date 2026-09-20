@@ -58,7 +58,7 @@ Why signing matters even though the app is "unsigned": Electron's prebuilt binar
 
 ## What it does not prove
 
-That the app launches. Nobody has opened these files on a Mac. Owed on hardware: the 7-step smoke list in `AGENTS.md`, especially Keychain "Always Allow", Dock reopen, Cmd+Q killing ffmpeg, and that Apple silicon accepts the re-signed binaries. Testers' reports are that proof. Known deviations from a Mac-made build: HFS+ instead of APFS inside the dmg (mounts on every macOS since 10.12), symlink mode 0644 in the catalog (ignored by macOS), no bundled ffmpeg (Homebrew, see the public notes), no `latest-mac.yml` (updater is off on darwin by design).
+That the app launches. This build path never opens the files on a Mac; the owner did, on 2026-09-15, closing blocker V2 (`docs/internal/blockers-2026-09-15.md:220`), so a launch has been confirmed on hardware at least once. Owed on hardware: the 7-step smoke list in `AGENTS.md`, especially Keychain "Always Allow", Dock reopen, Cmd+Q killing ffmpeg, and that Apple silicon accepts the re-signed binaries. Testers' reports are that proof. Known deviations from a Mac-made build: HFS+ instead of APFS inside the dmg (mounts on every macOS since 10.12), symlink mode 0644 in the catalog (ignored by macOS), no bundled ffmpeg (Homebrew, see the public notes), no `latest-mac.yml` (updater is off on darwin by design).
 
 ## Re-verifying a finished artifact without rebuilding
 

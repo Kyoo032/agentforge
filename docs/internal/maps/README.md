@@ -38,7 +38,51 @@ Rules that keep these honest:
 - **Add `Why` only where a decision needs a record** and a source exists — a commit message, a changelog entry, `AGENTS.md`, a PR. No sources, no `Why` section.
 - **Testids are DOM testids.** Sub-feature names in the verify skill (`chat-send`, `chat-probe`) are recipe names, not `data-testid` values; say which you mean.
 - **Read-only.** `how` runs never change product code. A product bug a mapping run finds is a finding for `docs/internal/unreleased.md`, not a fix in the map PR.
-- Line endings are LF, like every other doc in this tree. (This line said CRLF until 2026-09-20; no page in `docs/` has ever been CRLF, and `.gitattributes` pins LF for the file types that must have it.)
+- **Cite a symbol, not just a number.** A bare `file:123` rots the next time anything above it moves. Name
+  the function, constant or heading in the same sentence and let the line number be the hint that finds
+  it — `handlePostSettings` (`packages/host/src/handlers/settings.ts:138`), not `settings.ts:138` alone.
+  That is what makes the rot check below able to tell a moved line from a wrong claim, and what lets a
+  reader recover when both have drifted.
+- **Line endings are LF.** Every file in this tree is committed with LF; an editor set to write CRLF turns
+  a one-line correction into a whole-file diff.
+
+## Checking for rot
+
+```sh
+node scripts/map-rot.mjs          # these pages plus .cursor/skills/verify-agentforge/
+node scripts/map-rot.mjs --all    # every .md in the repo
+```
+
+It reads every `file:line` citation and reports two kinds of finding. **HARD** — the cited path does not
+exist, or the cited line is past the end of the file — is always wrong and exits non-zero. **SOFT** — the
+cited range names none of the distinctive symbols the sentence around it claims — is a lead, not a verdict:
+a page may legitimately cite a call site rather than a definition. Read every soft finding before
+dismissing it; that is the shape most drift takes.
+
+The check is mechanical. It cannot tell you that a page describes behaviour the code no longer has, which
+is the failure that actually costs someone an afternoon. Only re-reading the cited lines does that.
+
+**It also under-reports pure line drift, and you should assume it does.** A citation whose code simply
+moved down the file still points at a real line in a real file, so it is not HARD, and SOFT only fires
+when the surrounding sentence carries a distinctive backticked identifier that the cited range no longer
+names. On 2026-09-20, after three Phase 3 lanes merged in one afternoon, 63 citations across 12 pages
+pointed at moved code and this script flagged 9 of them. So **"0 hard" means "nothing is provably
+broken", never "nothing has drifted"**. After a merge that touches code a page cites, re-anchor by
+diffing the old and new versions of each changed file and mapping the cited lines through, rather than
+by running the script and reading the exit code.
+
+`scripts/map-drift.mjs` does exactly that re-anchoring:
+
+```sh
+node scripts/map-drift.mjs <the sha on the Last verified line>          # report
+node scripts/map-drift.mjs <that sha> HEAD --write                      # re-anchor, then bump the line
+```
+
+It maps every citation into a file that changed between the two refs through the diff, leaves alone
+any line the newer ref itself wrote, and reports as **UNMAPPED** each citation whose line was deleted
+or rewritten — those need a person, because the sentence around them may no longer be true. It is not
+idempotent: run it once, from the recorded sha, then bump `Last verified:`. Run it again from the new
+sha and a settled tree reports zero.
 
 ## Pages
 
@@ -55,6 +99,7 @@ Rules that keep these honest:
 | [`finance-parse-and-generate.md`](finance-parse-and-generate.md) | The Finance spine: routes and gates, file import, deterministic parse, compute → narrate → number guard, persist and export | `features/finance.md` |
 | [`finance-tasks.md`](finance-tasks.md) | The five Finance tasks: ids, phase graph, the `FinanceTaskModule` contract, the generic runner, the dev-only eval harness | `features/finance.md` |
 | [`tenancy-schema.md`](tenancy-schema.md) | The tenant in the schema: `tenants`, `organizations.tenant_id`, migration 0015 and its healer, `TenantContext.tenantId` | no feature file; `packages/db/src/migrate-0015.test.ts` |
+| [`tenant-usage-ledger.md`](tenant-usage-ledger.md) | The tenant usage ledger: one `tenant_usage` row per gateway call for every mode, priced at write time in USD micros, migration 0016 | no feature file; `packages/host/src/usage-record.test.ts`, `packages/db/src/migrate-0016.test.ts` |
 | [`tenant-resolution.md`](tenant-resolution.md) | Whose data a request may read: `getTenant`, the session seam, first-sign-in provisioning, the scoped workspace cookie, session-bound CSRF | no feature file yet (`features/login.md` lands with the sign-in screen); `packages/host/src/tenant-session.test.ts` |
 | [`chat-sessions-and-rail.md`](chat-sessions-and-rail.md) | Chat sessions in the left rail: list, open, new, delete, desk scoping | `features/chat.md` |
 | [`shell-rail-and-workspaces.md`](shell-rail-and-workspaces.md) | The shell around a mode page: rail blocks, desk switcher, `/workspaces`, `/usage` | `features/rail.md`, `features/workspaces.md`, `features/usage.md` |
@@ -72,4 +117,8 @@ Rules that keep these honest:
 | [`pii-and-key-security.md`](pii-and-key-security.md) | PII masking on the outbound copy, and the gateway key envelope | `features/pii.md`, `features/security.md` |
 | [`market-watch.md`](market-watch.md) | Market Watch: rail desk → per-desk watchlist → keyless board → harness packet → guarded briefing | `features/market.md`, `features/rail.md` |
 | [`component-installer.md`](component-installer.md) | First-run installer for native components: manifest → stages → hash-checked download → marker | `features/components.md` |
+| [`hosted-server-mode.md`](hosted-server-mode.md) | Server mode: the Origin/Host allowlist, CSRF, the HTTP filter, rate limits, masked errors, the redacting logger | `features/security.md` (partial) |
+| [`portal-session-auth.md`](portal-session-auth.md) | The portal browser session: mint, verify, refresh, revoke, and the server-mode session gate on `/api` | unit tests under `packages/host/src/auth/` |
+| [`database-and-migrations.md`](database-and-migrations.md) | `packages/db`: the data dir, the wrap key, the SQLite connection, the schema, the committed migrations, Start over | `features/settings.md`, `features/data.md` (partial) |
+| [`webapp-deploy.md`](webapp-deploy.md) | The hosted deployment stack: image, compose, Caddy, and the build / deploy / backup / restore scripts | none — see `../tencent-cvm-setup.md` §9 |
 | [`hosted-security-controls.md`](hosted-security-controls.md) | The hosted perimeter: server mode, admission order, sessions, CSRF, rate limits, response headers, SSRF guard, container hardening | none yet — see the page's Verify section |

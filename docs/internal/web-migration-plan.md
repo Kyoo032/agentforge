@@ -29,32 +29,32 @@ The move is **additive**. Nothing is deleted to make room for the server.
 |---|---|---|---|
 | Data dir is one folder on this machine | `packages/db/src/vault-key.ts:6-19` (`AGENTFORGE_SETTINGS_PATH` → `AGENTFORGE_DATA_DIR` → `../../data`) | One server data root, with a per-tenant subtree resolved from the request, not from `process.env` | 4 |
 | SQLite is one file next to the data dir; Postgres throws | `packages/db/src/vault-key.ts:21-35` (`"Postgres is not supported."` at `:24-26`) | Stays SQLite for Phase 0-2. Phase 3 is the decision point: one file with a tenant column, or a file per tenant, or Postgres | 3 |
-| Wrap key falls back to a `.master-key` file written on demand, mode 0600 | `packages/db/src/vault-key.ts:37-44`, read at `:46-52` | `AGENTFORGE_SECRETS_KEY` becomes **mandatory** on the server; the file fallback throws instead of self-creating | 1 |
+| Wrap key falls back to a `.master-key` file written on demand, mode 0600 | `readOrCreateMasterKeyFile` (`packages/db/src/vault-key.ts:107-114`), reached from `getLocalVaultKey` at `:126` | `AGENTFORGE_SECRETS_KEY` becomes **mandatory** on the server; the file fallback throws instead of self-creating | 1 |
 | Electron overrides the wrap key from the OS keychain | `apps/desktop/main.cjs:265-294` (keytar service/account) | Desktop-only, untouched. The server path must never load keytar | 4 |
 | `settings.enc` is one file for the whole install, holding a slice per workspace | `packages/host/src/settings-store.ts:26-27`, shape at `:120-122` (`version: 2; workspaces: Record<string, StoredSecrets>`), written at `:180-183` | A row per tenant, encrypted with the same AES-256-GCM envelope; the file becomes the desktop backend of a storage interface | 4 |
-| Mutating `/api` requires a loopback Origin **and** a loopback Host | `packages/host/src/local-request.ts:75-84`, wired at `packages/host/src/http-adapter.ts:185-198` | Trusted-origin allowlist from config, plus a CSRF token, plus the existing `x-agentforge-transport` header (`http-adapter.ts:10-12`) | 1 |
-| Missing Origin is treated as same-machine and allowed | `packages/host/src/local-request.ts:79-82` | Missing Origin is rejected on the web adapter; still allowed for the desktop IPC path, which never reaches this function | 1 |
-| Server binds `127.0.0.1`, port from `PORT`, "never LAN-bind" | `apps/web/server.ts:49-54` | `BIND_HOST` config, default `127.0.0.1`; the proxy in `webapp-deploy/` is the only public listener | 1 |
-| A single local owner is created on first touch of the DB | `packages/db/src/ensure-local-owner.ts:17`, inserted at `:20-26`; id from `packages/core/src/local-owner.ts:1` (`"local-owner"`); seeded by `packages/db/src/seed.ts:32` | The owner comes from the portal session. `ensureLocalOwner` becomes the desktop-only branch of a `resolveTenant(session)` | 2, 3 |
-| `TenantContext` has no tenant id and no plan | `packages/core/src/tenancy/types.ts:13-18` (`organizationId`, `workspaceId`, `userId`, `role`) | Gains `tenantId` and a resolved `plan`; `requireTenant` (`types.ts:20`) gets its first real call sites | 3, 5 |
-| `getTenant()` takes only a preferred workspace id — no identity input at all | `packages/host/src/tenant.ts:26-41`; **102 non-test call sites** across `packages/host/src` | `getTenant(request)` derives identity from the session. This is the single seam for tenancy — every handler already goes through it | 3 |
+| Mutating `/api` requires a loopback Origin **and** a loopback Host | `isAllowedMutatingApiRequest` (`packages/host/src/local-request.ts:80-89`), wired at `packages/host/src/http-adapter.ts:555`; the web rule chosen alongside it at `:529` | Trusted-origin allowlist from config, plus a CSRF token, plus the existing `x-agentforge-transport` header (`http-adapter.ts:10-12`) | 1 |
+| Missing Origin is treated as same-machine and allowed | `packages/host/src/local-request.ts:84-86` (documented at `:75-79`) | Missing Origin is rejected on the web adapter; still allowed for the desktop IPC path, which never reaches this function | 1 |
+| Server binds `127.0.0.1`, port from `PORT`, "never LAN-bind" | `apps/web/server.ts:110-115` via `resolveBindHost` (`apps/web/lib/bind-host.ts:17-27`) | `BIND_HOST` config, default `127.0.0.1`; the proxy in `webapp-deploy/` is the only public listener | 1 |
+| A single local owner is created on first touch of the DB | `packages/db/src/ensure-local-owner.ts:20`, inserted at `:20-26`; id from `packages/core/src/local-owner.ts:1` (`"local-owner"`); seeded by `packages/db/src/seed.ts:32` | The owner comes from the portal session. `ensureLocalOwner` becomes the desktop-only branch of a `resolveTenant(session)` | 2, 3 |
+| `TenantContext` has no tenant id and no plan | `packages/core/src/tenancy/types.ts:13-20` (`organizationId`, `workspaceId`, `userId`, `role`) | Gains `tenantId` and a resolved `plan`; `requireTenant` (`types.ts:20`) gets its first real call sites | 3, 5 |
+| `getTenant()` takes only a preferred workspace id — no identity input at all | `packages/host/src/tenant.ts:38-123`; **102 non-test call sites** across `packages/host/src` | `getTenant(request)` derives identity from the session. This is the single seam for tenancy — every handler already goes through it | 3 |
 | Org/workspace scoping is real in SQL but collapsed to one value | e.g. `packages/host/src/threads.ts:332` filters on `runs.organizationId`; role is always `"owner"` (`ensure-local-owner.ts`) | Same columns, many values. The filters already exist; what changes is that they stop being a single constant | 3 |
-| Selected desk is a file on disk, machine-wide | `packages/host/src/workspace.ts:8-24` (`workspace-id.txt`) | Per-session state, carried by the existing `WORKSPACE_COOKIE` (`http-adapter.ts:241`) and validated against the tenant's desks | 3 |
-| Media files land under the data dir, keyed by org | `packages/host/src/media-root.ts:4-8`; write at `packages/host/src/media.ts:47-51` (`${tenant.organizationId}/${id}.${ext}`) | Per-tenant prefix under a storage interface; local disk stays the desktop backend | 6 |
+| Selected desk is a file on disk, machine-wide | `selectedWorkspacePath` (`packages/host/src/workspace.ts:19-21`), read and written at `:12-40` (`workspace-id.txt`) | Per-session state, carried by the existing `WORKSPACE_COOKIE` (read at `http-adapter.ts:470`) and validated against the tenant's desks | 3 |
+| Media files land under the data dir, keyed by org | `packages/host/src/media-root.ts:4-8`; write at `packages/host/src/media.ts:85-89` (`${tenant.organizationId}/${id}.${ext}`) | Per-tenant prefix under a storage interface; local disk stays the desktop backend | 6 |
 | Job output and scratch files are on disk | `packages/host/src/edit/ffmpeg/paths.ts:42-44` (`<dataDir>/edit/<projectId>`), `packages/host/src/datasets.ts:315-317`, `packages/host/src/legal/store.ts:306` | Same storage interface, tenant-prefixed; ffmpeg path allowlist re-derived per tenant | 6 |
-| Component installer writes native modules into the data dir on first run | `packages/host/src/components/paths.ts:36`, log at `components/log.ts:15-19`, one component (`components/types.ts:10`, `anydoc`) from a pinned registry URL (`components/manifest.ts:15`); routes at `packages/host/src/router.ts:186-187`, ungated on purpose (`handlers/components.ts:1-9`) | Installed **once per server** at image build or first boot, not per tenant and not from a browser request | 7 |
+| Component installer writes native modules into the data dir on first run | `packages/host/src/components/paths.ts:36`, log at `components/log.ts:15-19`, one component (`components/types.ts:10`, `anydoc`) from a pinned registry URL (`components/manifest.ts:15`); routes at `packages/host/src/router.ts:214-215`, ungated on purpose (`handlers/components.ts:1-9`) | Installed **once per server** at image build or first boot, not per tenant and not from a browser request | 7 |
 | Gateway gate trusts an unknown key on first run | `packages/host/src/gateway-gate.ts:273-275` — no state, or a fingerprint mismatch, returns `allowed: true` | Server-side the gate must fail closed for a tenant with no verified key; trust-on-first-run stays for the desktop | 5 |
 | Gate state is one JSON file per install | `packages/host/src/gateway-gate.ts:27` (`gateway-gate.json`), path at `:101-103`; 7-day grace at `:33`, 1-day OK TTL at `:42` | A row per tenant. Grace and TTL constants stay as-is | 4, 5 |
 | A missing gate payload fails **open** in the browser | `apps/web/lib/gateway-gate.ts:83-89` (`return isElectron ? "onboarding" : "app"`) | On the hosted build a missing gate must fail closed. This is the single highest-risk line in the renderer | 5 |
-| "Start over" wipes a named list under the data dir and relaunches | `packages/host/src/handlers/settings.ts:273-292` (`HOST_RESET_ENTRIES`), queued at `:310-321`; applied next boot by `packages/db/src/reset.ts:248` under `packages/db/src/client.ts:35-37` | Web: a per-tenant purge inside a transaction plus a storage-prefix delete. No process relaunch, no shared-file deletion | 8 |
+| "Start over" wipes a named list under the data dir and relaunches | `packages/host/src/handlers/settings.ts:274-296` (`HOST_RESET_ENTRIES`), queued at `:310-321`; applied next boot by `packages/db/src/reset.ts:248` under `packages/db/src/client.ts:35-37` | Web: a per-tenant purge inside a transaction plus a storage-prefix delete. No process relaunch, no shared-file deletion | 8 |
 | `host-status.json` describes the Electron host | written only at `apps/desktop/main.cjs:300-312`, single call site `:682`; read by `.cursor/skills/verify-agentforge/scripts/doctor.mjs:78-104` | Desktop-only; untouched. The web gets a `/api/v1/health` route the proxy and deploy script probe | 8 |
 | IPC bridge shapes every renderer call | `apps/web/lib/desktop-bridge.ts:59-70`, branch at `apps/web/lib/api-client.ts:97-98` | Stays. It is the second adapter, not legacy | 8 |
 | Electron-only renderer surfaces | `apps/web/components/settings-reset-card.tsx:179` (relaunch), `apps/web/lib/use-app-updates.ts:31`, `apps/web/components/edit-studio.tsx:310-312` (native file picker), `apps/web/lib/product-brand.tsx:73` | Gated off on the web build and replaced with a browser equivalent (file input, no relaunch, no updater) | 8 |
 | Updater points at the releases repo | `apps/desktop/auto-update.cjs` | Desktop-only, frozen. The web has no updater; a deploy is a container swap | 8 |
 | Playwright drives `127.0.0.1:3000`, boots `pnpm dev`, points at the shared `data/` dir | `apps/web/playwright.config.ts:11`, `:15-25` (`AGENTFORGE_DATA_DIR: ../../data`, `AGENTFORGE_RUNTIME: "stub"`) | A second project targeting the deployed base URL with a seeded test tenant and a real session cookie | 0, 2 |
-| Locale is one value for the whole install | `packages/host/src/settings-store.ts:121` (`locale?: AppLocale`), exported from `packages/core/src/index.ts:517-518` | **Copy and catalogues unchanged.** Only the storage of the chosen locale moves to per-user | 4 |
-| Usage is per-install, not per-user: a global JSON file with no tenant dimension | `packages/host/src/desk-usage.ts:8-10` (`desk-usage.json`), append at `:66` | Per-tenant rows. Merged with the already-org-scoped run usage (`packages/host/src/threads.ts:308`, read at `:328`) | 5 |
-| USD is estimated live and never persisted | `packages/core/src/gateway/account.ts:128`, formula at `:149`; `QUOTA_PER_USD = 500_000` at `packages/core/src/gateway.ts:96`; entry points `packages/host/src/account-usage.ts:153,181,297` | Persisted per run, per tenant. This is the metering base for the Personal allowance and Enterprise pooled spend | 5 |
+| Locale is one value for the whole install | `packages/host/src/settings-store.ts:123` (`locale?: AppLocale`), exported from `packages/core/src/index.ts:571-572` | **Copy and catalogues unchanged.** Only the storage of the chosen locale moves to per-user | 4 |
+| Usage is per-install, not per-user: a global JSON file with no tenant dimension | `packages/host/src/desk-usage.ts:21-23` (`desk-usage.json`), append at `:66` | Per-tenant rows. Merged with the already-org-scoped run usage (`packages/host/src/threads.ts:308`, read at `:328`) | 5 |
+| USD is estimated live and never persisted | `packages/core/src/gateway/account.ts:165`, formula at `:149`; `QUOTA_PER_USD = 500_000` at `packages/core/src/gateway.ts:96`; entry points `packages/host/src/account-usage.ts:172,181,297` | Persisted per run, per tenant. This is the metering base for the Personal allowance and Enterprise pooled spend | 5 |
 | No plan, seat, subscription or billing code exists anywhere in `packages/` or `apps/` | verified by search; the design is docs-only (`docs/internal/portal/schema.md:36,70-72`) | New `tenant_plan` and `tenant_usage` tables plus a webhook route | 5 |
 | ffmpeg and SQL worker children are tracked in one process-wide set | `packages/host/src/child-processes.ts` (module-level `Set`); caps at `packages/host/src/sql-runner.ts:8-11` | Per-tenant concurrency caps on top of the global registry | 6 |
 
@@ -86,13 +86,14 @@ whole reason Phase 1 exists and must not be worked around by loosening the check
 
 **Goal.** The host accepts mutating calls from a configured public origin, on its own merits.
 
-**Files.** `packages/host/src/local-request.ts:75-84` gains an allowlist-aware sibling
-(`isAllowedWebOrigin`) that rejects a **missing** Origin; `packages/host/src/http-adapter.ts:185-198`
-chooses between the loopback rule and the web rule from config; a CSRF token is minted on first GET,
+**Files.** `isAllowedMutatingApiRequest` (`packages/host/src/local-request.ts:80-89`) gains an allowlist-aware sibling
+(`isAllowedWebOrigin`) that rejects a **missing** Origin; `packages/host/src/http-adapter.ts` chooses
+between the web rule (`:529`) and the loopback rule (`:536`) from config; a CSRF token is minted on first GET,
 set as a `SameSite=Lax` cookie, and required on every mutating call alongside the existing
-`x-agentforge-transport` header; `apps/web/lib/api-client.ts:86-93` sends it; `apps/web/server.ts:51-54`
-reads `BIND_HOST`; `packages/db/src/vault-key.ts:37-52` throws instead of creating `.master-key` when
-a server flag is set.
+`x-agentforge-transport` header; `csrfTokenForMutation` (`apps/web/lib/api-client.ts:137`) sends it;
+`resolveBindHost` (`apps/web/lib/bind-host.ts:17`) reads `BIND_HOST` for `apps/web/server.ts:114-115`;
+`getLocalVaultKey` (`packages/db/src/vault-key.ts:123-134`) throws instead of creating `.master-key`
+when the server flag is set.
 
 **Tests.** Extend `packages/host/src/local-request.test.ts` and `http-adapter.test.ts`: allowed origin
 passes, unlisted origin 403s, missing Origin 403s on the web rule and passes on the loopback rule,
@@ -106,8 +107,8 @@ test. Phase 3 lane C bound the token to the session id and added that case —
 origin is on the allowlist by default), and the desktop IPC path is untouched.
 
 **Risk.** Loosening the check for the web accidentally loosens it for the desktop. Keep two named
-functions and choose between them once, at `http-adapter.ts:188`. A second risk: the CSRF cookie and
-the `WORKSPACE_COOKIE` (`http-adapter.ts:241`) must not collide on `SameSite` or path.
+functions and choose between them once, at `http-adapter.ts:529-536`. A second risk: the CSRF cookie
+and the `WORKSPACE_COOKIE` (read at `http-adapter.ts:470`) must not collide on `SameSite` or path.
 
 ### Phase 2 — Portal browser session
 
@@ -146,12 +147,12 @@ already filter on it (`packages/host/src/threads.ts:332`). Staying on SQLite kee
 Postgres becomes necessary when write concurrency across tenants exceeds what one SQLite writer can
 take, not before; the `DATABASE_URL` guard at `vault-key.ts:23-26` is the switch.
 
-**Files.** `packages/core/src/tenancy/types.ts:13-18` gains `tenantId`; `packages/host/src/tenant.ts:26`
+**Files.** `packages/core/src/tenancy/types.ts:13-20` gains `tenantId`; `packages/host/src/tenant.ts:38`
 becomes `getTenant(request)` and resolves from the session, keeping `ensureLocalOwner` as the desktop
-branch; `packages/db/src/ensure-local-owner.ts:17` is renamed to say what it is; the 102 call sites
+branch; `packages/db/src/ensure-local-owner.ts:20` is renamed to say what it is; the 102 call sites
 need no edit if the signature change is source-compatible, which is the reason to change it here
 rather than at each call site; `requireTenant` (`types.ts:20`) is called at the top of `dispatch`;
-`packages/host/src/workspace.ts:8-24` becomes session state.
+`packages/host/src/workspace.ts:19-41` becomes session state.
 
 *Landed differently in one place.* Lane C built the source-compatible `getTenant` and made
 `workspace-id.txt` desktop-only, but did **not** call `requireTenant` at the top of `dispatch`: that
@@ -166,7 +167,7 @@ refusals inside `getTenant` itself — see [`web-phase3-lane-c.md`](web-phase3-l
 is needed for the desktop, so the frozen app's database keeps opening.
 
 **Gateway key reset is scoped here, not in Phase 4.** `clearGatewayKeyEverywhere`
-(`packages/host/src/settings-store.ts:371-386`) is deliberately machine-wide today. In server mode
+(`packages/host/src/settings-store.ts:373-388`) is deliberately machine-wide today. In server mode
 "everywhere" must mean "this tenant's desks", or the first tenant to reset their key signs out every
 other tenant on the box. Phase 3 is the phase that scopes it, because Phase 3 is when a second tenant
 first exists — shipping tenancy with a machine-wide reset still in the tree is the bug, not a Phase 4
@@ -221,7 +222,7 @@ Phase 3 (see above); Phase 4 only has to keep that scoping when the backend chan
 - The webhook route (`POST /api/v1/billing/webhook`) verifies the provider signature and writes the
   plan row. It is the only writer of `status`. It must be exempt from the CSRF rule from Phase 1 and
   instead authenticated by signature.
-- **The host check** goes into `requireGatewayAllowed` (`packages/host/src/gateway-gate.ts:411-417`),
+- **The host check** goes into `requireGatewayAllowed` (`requireGatewayAllowed` (`packages/host/src/gateway-gate.ts:435`)),
   which already has **30 call sites** in `packages/host/src/handlers/` and is the only choke point
   before a gateway call. Personal: refuse when `status !== "active"` or the period's
   `tenant_usage` sum exceeds `allowance_usd_micros`. Enterprise: refuse when `status !== "active"` or
@@ -230,10 +231,10 @@ Phase 3 (see above); Phase 4 only has to keep that scoping when the backend chan
   the last 30 days (`docs/internal/portal/schema.md:328`, restated at
   `docs/internal/portal/device-code-login.md:510`). Time-based, counted from session rows, never a
   stored counter.
-- **Metering.** `packages/host/src/desk-usage.ts:66` (the untenanted JSON append) is replaced on the
-  web by a `tenant_usage` insert; `packages/core/src/gateway/account.ts:128,149` keeps computing the
+- **Metering.** `packages/host/src/desk-usage.ts:79` (the untenanted JSON append) is replaced on the
+  web by a `tenant_usage` insert; `packages/core/src/gateway/account.ts:165,149` keeps computing the
   USD estimate and the result is now persisted rather than recomputed; the readers at
-  `packages/host/src/account-usage.ts:153,181,297` merge from the table.
+  `packages/host/src/account-usage.ts:172,181,297` merge from the table.
 - `apps/web/lib/gateway-gate.ts:83-89` must fail **closed** on the web build.
 
 **Tests.** A Personal tenant at 99% of allowance passes and at 101% is refused; a `past_due` tenant is
@@ -254,7 +255,7 @@ working assumption) determines whether a per-tenant quota is even enforceable at
 **Goal.** Bytes are addressed by tenant, and one tenant cannot read another's file or exhaust the box.
 
 **Files.** A storage interface behind `packages/host/src/media-root.ts:4-8`, with the local-disk
-backend kept for the desktop; the write at `packages/host/src/media.ts:47-51` gains a tenant prefix
+backend kept for the desktop; the write at `packages/host/src/media.ts:85-89` gains a tenant prefix
 ahead of the existing org segment; the same for `packages/host/src/edit/ffmpeg/paths.ts:42-44`,
 `packages/host/src/datasets.ts:315-317` and `packages/host/src/legal/store.ts:306`; the ffmpeg path
 allowlist (`edit/ffmpeg/paths.ts:47`) is re-derived per tenant; per-tenant concurrency caps on top of
@@ -275,7 +276,7 @@ shared box that is a denial-of-service between paying customers, not a hypotheti
 **Goal.** `anydoc` is present before the first request, installed once, by the operator.
 
 **Files.** `packages/host/src/components/install.ts` gains a CLI entry that `webapp-deploy/`'s image
-build or entrypoint calls; `packages/host/src/router.ts:186-187` keeps `GET /api/v1/components` for
+build or entrypoint calls; `packages/host/src/router.ts:214-215` keeps `GET /api/v1/components` for
 status and gates the install route off on the web build; the first-run UI
 (`apps/web/lib/use-component-setup.ts:42`, `apps/web/components/component-setup.tsx:150`) is skipped
 when the server reports the component already present.
@@ -298,7 +299,7 @@ this is a resource problem rather than a supply-chain one — but it is still a 
 relaunch); `apps/web/lib/use-app-updates.ts:31` (already `unavailable` off Electron — remove the entry
 point); `apps/web/components/edit-studio.tsx:310-312` (native picker → browser file input);
 `apps/web/lib/product-brand.tsx:73` (brand from server config rather than the bridge);
-`packages/host/src/handlers/settings.ts:310-321` gets a web branch that deletes the tenant's rows and
+`packages/host/src/handlers/settings.ts:314-325` gets a web branch that deletes the tenant's rows and
 storage prefix in a transaction instead of queueing `HOST_RESET_ENTRIES` (`:273-292`) — the file list
 is machine-wide and would wipe every tenant; a `GET /api/v1/health` route replaces `host-status.json`
 for the deploy probe.
@@ -324,7 +325,7 @@ and `.cursor/skills/verify-agentforge`.
 The shared shape is **one host, two adapters**:
 
 - `packages/host` holds every handler, every rule and every gate. It is the product.
-- The **HTTP adapter** (`packages/host/src/http-adapter.ts:174`) serves the web: trusted origins,
+- The **HTTP adapter** (`packages/host/src/http-adapter.ts:182`) serves the web: trusted origins,
   CSRF, session cookie, tenant from session.
 - The **IPC adapter** (`apps/desktop` → `apps/web/lib/desktop-bridge.ts:59-70`, selected at
   `apps/web/lib/api-client.ts:97-98`) serves the desktop: no origin check, no session, tenant from
