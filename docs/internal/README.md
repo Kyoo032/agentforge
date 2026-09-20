@@ -11,6 +11,7 @@ Engineering and research notes. Not part of the closed-beta tester surface.
 - [`web-security-spec.md`](web-security-spec.md) — security requirements for the hosted app, with the before-traffic acceptance list.
 | [`portal/device-code-login.md`](portal/device-code-login.md) | Device-code login between DPSBuddy and the Toko Token portal: flow, endpoints, tokens, reason codes, client integration plan |
 - [`web-phase3-tenancy-spec.md`](web-phase3-tenancy-spec.md) — Phase 3 (tenancy) spec: handler audit, migration 0015, five lanes, open questions.
+- [`web-phase5-plans-billing-decisions.md`](web-phase5-plans-billing-decisions.md) — Phase 5 (plans and billing) decision doc: the five open choices with a recommendation and the cost of each, the metering hole, five lanes. Decides nothing; Kyo answers.
 - [`worklog-2026-09-18.md`](worklog-2026-09-18.md) — what landed on day one of the pivot, the known gaps, and where to start next.
 | [`portal/schema.md`](portal/schema.md) | Portal control-plane Postgres design: tables, RLS, seat count, wallet |
 | [`portal/migrations/`](portal/migrations/README.md) | SQL 0001–0005 for the portal database, run order, rollback notes |
