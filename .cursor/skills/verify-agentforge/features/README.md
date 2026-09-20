@@ -4,7 +4,7 @@ Agent-facing map (where to press). Not product. Pair with pstack `how` for how a
 
 This directory is the maintained source for verifying user-facing DPSBuddy behavior. Read this index before driving, then use the matching feature file as the recipe.
 
-Documents, Research, Finance, Data, Market, Legal, Images, Videos, Music, Presentation, and Edit are product modes. **Default already unlocks all of them.** A Legal (or other) workspace can hide some tabs. Knowledge is Account-rail, not a mode checkbox. Custom agents do not unlock the rail. Edit shipped in 0.14.22 and `mode-edit` is a real rail tab on Default; the parts of the Edit studio still owed are named in [edit.md](./edit.md), not here.
+Documents, Research, Finance, Data, Market, Legal, Images, Videos, Music, Meeting, Presentation, and Edit are product modes. **Default already unlocks all of them.** A Legal (or other) workspace can hide some tabs. Knowledge is Account-rail, not a mode checkbox. Custom agents do not unlock the rail. Edit shipped in 0.14.22 and `mode-edit` is a real rail tab on Default; the parts of the Edit studio still owed are named in [edit.md](./edit.md), not here.
 
 ## Baseline preconditions
 
