@@ -39,6 +39,7 @@ import { dispatch } from "./router";
 import { createSession } from "./auth/session";
 import { createMemorySessionStore } from "./auth/session-store";
 import { assertExistingInput, editAllowlist } from "./edit/ffmpeg/paths";
+import { setExecFileForTests } from "./edit/ffmpeg/run";
 import { mediaRelativePath, mediaRoot } from "./media-root";
 import { tenantObjectCacheRoot } from "./tenant-paths";
 import {
@@ -225,9 +226,10 @@ describe("POST /api/v1/edit/projects/:projectId/import", () => {
   });
 
   it("gives the bytes back when the probe rejects the file", async () => {
-    // There is no ffmpeg in this container, so every import fails its probe here — which makes this
-    // the refund path, and the refund is only possible if the write went through the store in the
-    // first place. A route that wrote the disk directly could neither charge nor refund.
+    // Two machines, one outcome. Without ffmpeg the probe throws `ffmpeg_missing`; with it,
+    // ffprobe exits 0 on this rubbish and reports `width: 0, height: 0`. Both are unsupported
+    // media and both refund — which is only possible because the write went through the store in
+    // the first place. A route that wrote the disk directly could neither charge nor refund.
     process.env.AGENTFORGE_TENANT_STORAGE_BYTES = "100000";
     const projectId = await newProject();
     const before = Number(body(await send({})).usedBytes);
@@ -241,6 +243,42 @@ describe("POST /api/v1/edit/projects/:projectId/import", () => {
     // And no orphan object was left behind under the tenant's prefix.
     const report = await tenantStorageReport(ALPHA.tenantId);
     expect(report.objectBytes).toBe(before);
+  });
+
+  /**
+   * SR-27, pinned without depending on whether this machine has ffmpeg.
+   *
+   * The stub is what a real ffprobe prints for a broken PNG: **exit 0**, a video stream, and zeros
+   * where the dimensions should be. Those zeros used to reach `assetSchema`, whose `positive()`
+   * refusal arrived as `invalid_op` from the route's OUTER catch — past the refund — so the tenant
+   * paid for an import that could never succeed and the object was orphaned. The case asserts the
+   * code, the counter, the object store and the `media` row, because a refund that leaves any one
+   * of the four behind is not a refund.
+   */
+  it("refunds a file ffprobe accepted but could not measure", async () => {
+    process.env.AGENTFORGE_TENANT_STORAGE_BYTES = "100000";
+    const projectId = await newProject();
+    const before = Number(body(await send({})).usedBytes);
+    setExecFileForTests(async () => ({
+      stdout: JSON.stringify({
+        streams: [{ codec_type: "video", width: 0, height: 0, avg_frame_rate: "0/0" }],
+        format: {},
+      }),
+      stderr: "",
+    }));
+    try {
+      const rejected = await importOf(projectId, 4096);
+      expect(errorCode(rejected)).not.toBe("invalid_op");
+      expect(errorCode(rejected)).toBe("unsupported_media");
+      expect(json(rejected).status).toBe(400);
+    } finally {
+      setExecFileForTests(null);
+    }
+
+    expect(Number(body(await send({})).usedBytes)).toBe(before);
+    expect((await tenantStorageReport(ALPHA.tenantId)).objectBytes).toBe(before);
+    const { db } = await import("@agentforge/db");
+    expect(db.$client.prepare("SELECT count(*) AS n FROM media").get()).toMatchObject({ n: 0 });
   });
 });
 
