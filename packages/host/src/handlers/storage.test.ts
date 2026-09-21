@@ -67,10 +67,9 @@ function upload(identity: { tenantId: string }, size: number): Promise<HostResul
   return send(identity, {
     method: "POST",
     path: "/api/v1/media",
-    headers: {
-      cookie: cookies.get(identity.tenantId) ?? "",
-      "x-agentforge-csrf": cookies.get(`${identity.tenantId}:csrf`) ?? "",
-    },
+    // No CSRF header: the double-submit check lives in `http-adapter.ts`, above `dispatch`, and
+    // `tenant-resolution.md` owns proving it. What is on trial here is the storage rule.
+    headers: { cookie: cookies.get(identity.tenantId) ?? "" },
     files: [
       {
         field: "file",
@@ -90,7 +89,6 @@ beforeAll(async () => {
     const session = createSession({ ...identity, now: T0 });
     await store.create(session);
     cookies.set(identity.tenantId, `__Host-agentforge_session=${session.id}`);
-    cookies.set(`${identity.tenantId}:csrf`, session.csrfToken);
   }
 });
 
