@@ -6,7 +6,7 @@
  * 403 is asserted next door in `../handlers/components.test.ts`; this file is about the half that
  * decides whether a fresh container is actually equipped.
  */
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, sep } from "node:path";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
@@ -80,6 +80,36 @@ describe("where a component may be loaded from", () => {
       expect(managedComponentsRoot(withEnv({ [COMPONENTS_DIR_ENV]: inside }))).toBeNull();
     }
     expect(managedComponentsRoot(withEnv({ [COMPONENTS_DIR_ENV]: "   " }))).toBeNull();
+  });
+
+  /**
+   * Round 1 finding 6. `isInside` is `path.resolve` only, so it answers about the SPELLING of a
+   * path. A link at an outside-looking path whose target is the tenant volume used to read as
+   * managed, and its component loaded in server mode — which makes the sentence "no native module
+   * is loaded out of `/data`" true of the spelling and not of the inode. Only an operator can
+   * plant that link and a real `noexec` mount is enforced by the kernel either way, but the claim
+   * has to hold on its own.
+   */
+  it("refuses a root that only looks outside the data dir, following the link", () => {
+    const linkParent = mkdtempSync(join(tmpdir(), "agentforge-components-link-"));
+    const link = join(linkParent, "components");
+    const target = join(dataDir, "linked-components");
+    mkdirSync(target, { recursive: true });
+    symlinkSync(target, link, "dir");
+    try {
+      expect(managedComponentsRoot(withEnv({ [COMPONENTS_DIR_ENV]: link }))).toBeNull();
+      expect(downloadedComponentsAllowed(withEnv({ AGENTFORGE_SERVER: "1", [COMPONENTS_DIR_ENV]: link }))).toBe(false);
+
+      // A link pointing anywhere else is still an operator-owned root, so it stays managed.
+      const elsewhere = mkdtempSync(join(tmpdir(), "agentforge-components-real-"));
+      const outsideLink = join(linkParent, "outside");
+      symlinkSync(elsewhere, outsideLink, "dir");
+      expect(managedComponentsRoot(withEnv({ [COMPONENTS_DIR_ENV]: outsideLink }))).toBe(resolve(outsideLink));
+      rmSync(elsewhere, { recursive: true, force: true });
+    } finally {
+      rmSync(linkParent, { recursive: true, force: true });
+      rmSync(target, { recursive: true, force: true });
+    }
   });
 
   it("lets a desk load from its own data dir, always", () => {

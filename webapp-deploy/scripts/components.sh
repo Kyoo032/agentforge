@@ -4,14 +4,25 @@
 #   sh webapp-deploy/scripts/components.sh            # what the running container has
 #   sh webapp-deploy/scripts/components.sh status     # the same thing, spelled out
 #   sh webapp-deploy/scripts/components.sh check      # exit 1 if one does not load
-#   sh webapp-deploy/scripts/components.sh install    # install whatever is missing
+#   sh webapp-deploy/scripts/components.sh install    # repair: fetch anything that does not load
 #
 # The image already carries every required component — the build fails otherwise, see
-# webapp-deploy/Dockerfile — so `install` is for the case between images: the manifest pins a new
-# version and you would rather not rebuild and restart yet. It downloads into
-# /opt/agentforge/components, which is a volume of its own (compose.yml) and NOT the tenant data
-# volume: the app refuses to load a native module out of /data, which is what lets /data be mounted
-# noexec (docs/internal/web-security-spec.md H3).
+# webapp-deploy/Dockerfile — so on a healthy box `install` finds nothing to do and says so.
+#
+# `install` IS NOT AN UPGRADE PATH. It fetches only what does NOT load, so it cannot replace a
+# working bundled copy with a newer manifest version. A version bump is a rebuild (section 11 of
+# docs/internal/tencent-cvm-setup.md). What `install` is for is the container whose bundled copy is
+# there but broken on this machine — a corrupt layer, a binding for the wrong libc — where it gets
+# document reading back without waiting for a rebuild.
+#
+# RESTART THE APP after an install that installed something. The running process memoised the load,
+# failure included, and this runs in another process:
+#
+#   docker compose -f webapp-deploy/compose.yml restart app
+#
+# It downloads into /opt/agentforge/components, which is a volume of its own (compose.yml) and NOT
+# the tenant data volume: the app refuses to load a native module out of /data, which is what lets
+# /data be mounted noexec (docs/internal/web-security-spec.md H3).
 #
 # Everything runs INSIDE the app container, through the same pinned manifest and the same hash
 # check the desk's first run uses. Nothing here reaches the install HTTP route, which answers 403

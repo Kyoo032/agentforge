@@ -49,7 +49,7 @@ now rather than a reason not to.
 | A05-2 | **Critical** | `webapp-deploy/compose.yml` took `AGENTFORGE_SERVER` from an optional `.env` | `webapp-deploy/compose.yml:44` | Fixed |
 | A05-3 | Medium | Security headers existed only in the Caddyfile, not in the app | `packages/host/src/security-headers.ts` | Fixed |
 | A06-1 | Medium | No CI ran lint, unit tests or a dependency audit | `.github/workflows/ci.yml` | Written, **cannot run** — Actions billing lock |
-| A06-2 | Low | The hosted image ships devDependencies | `webapp-deploy/Dockerfile:78-80` | **Recorded** — open |
+| A06-2 | Low | The hosted image ships devDependencies | `webapp-deploy/Dockerfile:99-102` | **Recorded** — open |
 | A08-1 | Low | Workflows pin actions to mutable tags (`@v4`) | `.github/workflows/*.yml` | **Recorded** — open |
 | A09-1 | Medium | No request id: nothing correlated a user report to a log line | `packages/host/src/http-adapter.ts:95,435-437` | Fixed |
 | A09-2 | Medium | Authentication failures were not logged at all | `packages/host/src/http-adapter.ts:582-593` | Fixed |
@@ -203,9 +203,14 @@ agree instead of two of them agreeing and one not.
 ### A01-5 — Component installer in server mode
 
 `handlePostComponentInstallStream` downloads and unpacks a native component into
-`/data/components`. The hosted image bakes anydoc in, so the route has nothing to do there, and it
-is also the one thing standing between `noexec` on the data mount and the spec's H3 sign-off.
+`/data/components`. The hosted image bakes anydoc in, so the route has nothing to do there.
 403 in server mode (`packages/host/src/handlers/components.ts:67`).
+
+Phase 7 finished the job this fix started. Refusing the route stopped a tenant *asking* for a
+download; the host now also refuses to **load** a native module out of `AGENTFORGE_DATA_DIR` in
+server mode, and the image puts the components root on its own volume outside `/data`
+(`packages/host/src/components/paths.ts:101-103`). The code side of spec `H3` is closed; adding
+`noexec` to the mount is an operator action on the CVM.
 
 ## A02 — Cryptographic failures
 
@@ -395,7 +400,7 @@ size and type limits in front of it are doing real work.
 
 ### A06-2 — The image ships devDependencies *(recorded, open)*
 
-`webapp-deploy/Dockerfile:78-80` copies the whole `/app` tree and does not run
+`webapp-deploy/Dockerfile:99-102` copies the whole `/app` tree and does not run
 `pnpm prune --prod`, because `tsx` is a devDependency of `@agentforge/web` and is the production
 entrypoint — pruning would delete the thing that boots the app. The result is 484 packages in the
 image instead of 277, and it is why four of the six advisories above are in scope at all.

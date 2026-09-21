@@ -57,11 +57,26 @@ a request would — `createRequire` on the real native binding — and exits non
 the image fails to build instead of shipping a silent downgrade. It runs on the same Debian/glibc
 base the runtime stage uses, so a binding that loads there loads in the container.
 
-**The operator, not a tenant, installs anything else.** `scripts/components.ts install` runs the same
-stage runner the desk's first run uses, with the same manifest, the same sha512 check before a byte is
+**The operator, not a tenant, repairs a box.** `scripts/components.ts install` runs the same stage
+runner the desk's first run uses, with the same manifest, the same sha512 check before a byte is
 unpacked, and the same atomic promote and completion marker. `webapp-deploy/scripts/components.sh`
 drives it inside the running container. Nothing here touches the HTTP route, which stays 403 for
 everybody.
+
+Be precise about what that command is for, because the obvious reading of it is wrong. **It is a
+repair, not an upgrade path.** `installMissing` acts only on a row whose probe returned nothing; on
+an image that passed the build check every probe resolves the bundled copy, so `install` prints
+`already loads … nothing to install` and exits 0. It therefore *cannot* replace a working bundled
+copy with a newer manifest version, and it is not meant to: **a manifest bump is a rebuild, full
+stop** — new version in `manifest.ts`, new image, deploy. The one case `install` exists for is the
+container whose bundled copy is present but does not load on this machine (a corrupt layer, a
+binding built against the wrong libc), where fetching the manifest's copy into the managed root
+restores document reading without waiting for a rebuild.
+
+And a repair needs a restart. `file-extract/anydoc.ts:131-150` memoises the loader result for the
+life of the process, failure included, and only the in-process `resetAnydocCache()` clears it — which
+the CLI, being a separate process, cannot call. The command prints the restart line when it actually
+installs something; `components.sh`, the runbook §12a and `webapp-deploy/README.md` all say it too.
 
 **Executable content lives off the data volume.** `AGENTFORGE_COMPONENTS_DIR` moves the components
 root; the image sets it to `/opt/agentforge/components`, which `compose.yml` gives its own volume. In
@@ -89,7 +104,13 @@ acyclic.
 
 - `managedComponentsRoot(env)` — the configured root, or `null`. `null` covers both "unset" and "set
   to a path that lands back inside the data dir anyway", which buys nothing: the point of the
-  variable is to put executable content somewhere the tenant volume is not.
+  variable is to put executable content somewhere the tenant volume is not. The inside test is run
+  **twice**, and `null` wins if either says inside: once lexically with `isInside` from
+  `tenant-paths.ts`, and once on both paths canonicalised through `realPathOrNull` from the same
+  file. Lexical alone would let `/opt/agentforge/components` be a symlink whose target is
+  `/data/components` and read as outside; the claim this function makes is about the inode, so it
+  has to resolve. Keeping the lexical test as well is the fail-closed half, for a path that is
+  plainly inside but has nothing on disk yet to resolve.
 - `downloadedComponentsAllowed(env)` — `true` off server mode, always. In server mode, `true` only
   when there is a managed root.
 
@@ -123,7 +144,7 @@ Three verbs, run from the repository root:
 |---|---|---|
 | `status` | prints mode, components root and a row per component | always 0 |
 | `check` | the same, and fails when one does not load | 0 / 1 |
-| `install` | installs whatever is missing, then re-reads and checks | 0 / 1 |
+| `install` | fetches only what does **not** load (a repair, never an upgrade), then re-reads and checks, and prints a restart line if it installed anything | 0 / 1 |
 
 Called wrongly it exits 2, like `scripts/rotate-wrap-key.ts`. Every host import is dynamic, for the
 reason that script documents: `tsx` compiles to CJS, a static `import` becomes a `require` while
@@ -137,9 +158,13 @@ install and a component that keeps reporting `missing`.
 
 ### `webapp-deploy/` — the image, the stack and the operator script
 
-- `Dockerfile`: `RUN apps/web/node_modules/.bin/tsx scripts/components.ts check` in the build stage;
-  `AGENTFORGE_COMPONENTS_DIR=/opt/agentforge/components` in the runtime environment; that directory
-  created, owned by `node`, and declared a volume.
+- `Dockerfile`: `RUN … tsx scripts/components.ts check` in the build stage, run with
+  `AGENTFORGE_SERVER=1` and the runtime stage's `AGENTFORGE_COMPONENTS_DIR` so the check's printout
+  is the container's (`mode: server`, root `/opt/agentforge/components`) rather than a desk's —
+  which changes nothing about what loads, since the bundled copy inside `node_modules` is what
+  resolves either way and `check` never downloads. The runtime stage sets
+  `AGENTFORGE_COMPONENTS_DIR=/opt/agentforge/components`, creates that directory, owns it to `node`
+  and declares it a volume.
 - `compose.yml`: the same variable, a `dpsbuddy-components` volume mounted at that path, and a
   comment saying why it is a separate volume — it holds executable content, so it is the one mount
   that may never be `noexec`, which is precisely why it is not a directory inside `/data`.
@@ -188,11 +213,11 @@ afterwards and `git diff --name-only` checked before every commit.
 
 | Suite | Result |
 |---|---|
-| `@agentforge/host` | 211 files, **2249 passed** |
+| `@agentforge/host` | 211 files, **2250 passed** |
 | `@agentforge/web` | 96 files, **906 passed** |
 | `@agentforge/core` | 186 files, **2283 passed**, 1 skipped |
 | `@agentforge/db` | 12 files, **154 passed** |
-| `node --test scripts/*.test.mjs` | 12 passed (9 deploy-script, 3 CLI) |
+| `node --test scripts/*.test.mjs` | 19 passed across all three files (9 `deploy-scripts`, 7 `audit-deployed`, 3 `components-cli`) |
 
 > Run the web suite from `apps/web`, not with `vitest --root apps/web` from the repository root.
 > `lib/finance-stated-facts.test.ts` reads its fixtures with `join(process.cwd(), …)`, so from the
@@ -211,20 +236,28 @@ zero errors — the same baseline the branch point has. Lint: the repository's o
 ### Driven for real
 
 - `apps/web/node_modules/.bin/tsx scripts/components.ts check` was run in this container, against the
-  real `@firecrawl/anydoc-linux-x64-gnu` binding, and printed `ok anydoc@0.2.4 — bundled with the app`
-  and exited 0. That is the exact command the Dockerfile build stage runs, on the same platform key.
+  real `@firecrawl/anydoc-linux-x64-gnu` binding, with the same `AGENTFORGE_SERVER=1` and
+  `AGENTFORGE_COMPONENTS_DIR=/opt/agentforge/components` the Dockerfile's `RUN` now carries. It
+  printed `mode: server (AGENTFORGE_SERVER=1)`, `components root: /opt/agentforge/components` and
+  `ok anydoc@0.2.4 — bundled with the app (the container image, on a server)`, and exited 0. That is
+  the exact command and environment the build stage runs, on the same platform key.
 - `scripts/components-cli.test.mjs` spawns the CLI for the wrong-usage, `status` and refusal cases.
 - The verify skill (`.cursor/skills/verify-agentforge`) — see §7.
 
 ### Maps
 
-`docs/internal/maps/component-installer.md` re-anchored by hand against this branch and extended with
-the per-server half; `docs/internal/maps/webapp-deploy.md` and `maps/hosted-security-controls.md`
-updated where they describe the image and H3. `pnpm maps:check`: **0 hard, 128 soft** across 77 docs and 2207 citations — the same soft count as
-`main` (2200 citations), so this branch's seven new citations add none. `pnpm maps:drift main HEAD`
-named five moved citations and one whose line was rewritten; all six were re-anchored by hand and
-re-read against the tree, because `map-drift --write` mis-points onto import lines and `maps:check`
-does not catch a range that names the wrong lines.
+`docs/internal/maps/component-installer.md` re-anchored by hand against this branch and extended
+with the per-server half. `docs/internal/maps/webapp-deploy.md` gained a *Components are the
+image's* section, a sixth script row, a corrected `noexec` gotcha and re-anchored Dockerfile and
+`compose.yml` ranges (Phase 7 moved both files' line numbers); `maps/hosted-security-controls.md`
+and `maps/database-and-migrations.md` were re-anchored where they cite lines this branch moved. `pnpm maps:check`: **0 hard, 128 soft** across 77 docs and 2210 citations — the same soft count as
+`main` (2200 citations), so this branch's ten new citations add none. `pnpm maps:drift main HEAD`
+named the citations this branch's own edits moved; every one was re-anchored **by hand** and each
+cited range re-read against the working tree, because `map-drift --write` mis-points onto import
+lines and `maps:check` does not catch a range that names the wrong lines. Note that `maps:drift` run
+after the fact keeps proposing to shift citations that are already correct for the working tree —
+it maps `main`'s line numbers forward and cannot tell an already-updated citation from a stale one.
+`maps:check`, which reads the tree, is the check that matters.
 
 ---
 
@@ -255,11 +288,14 @@ a result can be reported by number.
 
 **On the CVM, the running stack:**
 
-7. `sh webapp-deploy/scripts/components.sh` prints `mode: server (AGENTFORGE_SERVER=1)`, the managed
-   root, and `ok anydoc@0.2.4 — bundled with the app`.
+7. `sh webapp-deploy/scripts/components.sh` prints `mode: server (AGENTFORGE_SERVER=1)`,
+   `components root: /opt/agentforge/components`, and
+   `ok anydoc@0.2.4 — bundled with the app (the container image, on a server)` — the same three
+   lines the build log shows.
 8. `sh webapp-deploy/scripts/components.sh check` exits 0. Check with `echo $?`.
-9. `sh webapp-deploy/scripts/components.sh install` says the component is already here and does
-   nothing. It must not download.
+9. `sh webapp-deploy/scripts/components.sh install` prints
+   `anydoc@0.2.4 already loads … nothing to install` and exits 0. It must not download, and it must
+   not print the restart line.
 10. Sign in as a tenant and open onboarding: no component install panel, no progress bar, nothing to
     click. `GET /api/v1/components` in the browser's network tab shows `"managed": true` and
     `"auto": false`.
@@ -272,11 +308,21 @@ a result can be reported by number.
 13. **The H3 flip.** Add `noexec` to the `/data` mount (`/etc/fstab`, then remount) and restart the
     stack. Upload a `.docx` and confirm it still converts — proof that nothing is executing out of
     `/data`. Keep `/opt/agentforge/components` without `noexec`. Only sign H3 off after this passes.
-14. Between images: bump `ANYDOC_VERSION` in the manifest on a scratch branch, deploy that build with
-    the old image still running, run `components.sh install`, and confirm it downloads into
-    `/opt/agentforge/components`, that `status` then reports `installed in the components root`, and
-    that a document still converts. Then restart the container and confirm the bundled copy wins
-    again. (Both are correct answers; the point is that neither breaks.)
+14. **The repair path, which is the only thing `install` is for.** In a throwaway container, break
+    the bundled copy — `docker compose exec -u root app mv
+    /app/node_modules/.pnpm/@firecrawl+anydoc-linux-x64-gnu*/node_modules/@firecrawl/anydoc-linux-x64-gnu
+    /tmp/` or equivalent — and restart the app so it re-resolves. `components.sh` must then print
+    `MISSING`, and a `.docx` upload must fall back to the reduced reader. Run
+    `components.sh install`: it downloads into `/opt/agentforge/components`, verifies the sha512, and
+    prints the restart line. **Before** the restart, confirm the app still uses the fallback (the
+    loader memoised its failure); **after**
+    `docker compose -f webapp-deploy/compose.yml restart app`, confirm `status` reports
+    `installed in the components root` and the same `.docx` converts properly. Then throw the
+    container away — a box that needed this needs a rebuild.
+
+    Note what is *not* being tested: bumping the manifest version and expecting `install` to fetch
+    it. It will not, by design — the bundled copy still loads, so `install` skips it. A version bump
+    is a rebuild.
 15. Restart the stack and confirm the `dpsbuddy-components` volume survived, i.e. an operator install
     is not lost on `docker compose down && up`.
 
@@ -326,12 +372,22 @@ than in this repository, so only kyo can run those, and no UI was driven here.
    instead of offering an install, which is right, but a tenant who wonders why a scanned PDF read
    poorly has nowhere to look. A read-only row in settings, fed by the route that already answers, is
    small and was left out of this phase deliberately.
-3. **`components.sh install` is manual.** Nothing schedules it and nothing alerts when the manifest
-   moves ahead of the image. The honest posture is that a version bump is a rebuild; the script is for
-   the case where a rebuild has to wait.
+3. **Nothing alerts when the manifest moves ahead of the image.** A version bump lands in
+   `manifest.ts`, and only the next rebuild picks it up; no check compares a running container's
+   component versions against the manifest on `main`. `components.sh install` does **not** cover this
+   gap — it fetches only what does not load, so it will skip a component whose older bundled copy is
+   working fine. Closing it properly means a deploy-time or monitoring check, not a wider `install`.
 4. **H3 is satisfiable, not signed off.** The mount option is an operator action on the CVM (live test
    13), not a code change, and the runbook now says so in §4.
-5. **The components volume is not in the backup set.** `backup.sh` already excludes `components/`
+5. **There is no integrity check at load time, only at install time.** The sha512 in `manifest.ts`
+   is verified before a byte reaches the final directory, and the completion marker is written last,
+   but `loadDownloadedAnydoc` then `createRequire`s whatever is under the marker without re-hashing
+   it. Anyone who can write into the components root can therefore get code executed in the host
+   process. This is pre-existing and identical on the desk; what Phase 7 changes is the exposure — on
+   a server that root is `/opt/agentforge/components`, a volume no tenant can write to and which the
+   app itself only writes during an operator-run install, whereas the tenant volume is now refused
+   outright. Re-verifying at load, or signing the marker, is the real fix and was not in scope here.
+6. **The components volume is not in the backup set.** `backup.sh` already excludes `components/`
    under `/data` as re-downloadable, and the new volume is the same kind of content, so it is excluded
    by simply not being `/data`. Worth a line in the runbook if the volume ever holds anything that is
    not re-downloadable from the manifest.

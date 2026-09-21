@@ -203,8 +203,8 @@ df -h /srv/dpsbuddy-data
 ```
 
 **The `chown` is not optional.** A fresh ext4 mount is `root:root 0755`, the container runs as `node`
-(`webapp-deploy/Dockerfile:85`) with `read_only: true`, and the image's own
-`chown -R node:node /data` (`Dockerfile:82`) is hidden the moment a bind mount covers `/data`. Without
+(`webapp-deploy/Dockerfile:121`) with `read_only: true`, and the image's own
+`chown -R node:node /data` (`Dockerfile:104`) is hidden the moment a bind mount covers `/data`. Without
 it the first boot dies with `EACCES` creating `agentforge.sqlite`, and all you see is a container that
 never goes healthy. `1000:1000` is the `node` user in `node:22-bookworm-slim`; `restore.sh:75-83` does
 the same `chown` after unpacking, for the same reason. Confirm it before you bring the stack up:
@@ -801,21 +801,40 @@ mode, which is what makes the `noexec` mount in §4 possible.
 ```sh
 sh webapp-deploy/scripts/components.sh            # what this box has, and from where
 sh webapp-deploy/scripts/components.sh check      # the same, exit 1 if one is missing
-sh webapp-deploy/scripts/components.sh install    # install what is missing, from the pinned manifest
+sh webapp-deploy/scripts/components.sh install    # repair: fetch anything that does not load
 ```
 
 A healthy box prints `mode: server (AGENTFORGE_SERVER=1)` and
-`ok anydoc@<version> — bundled with the app`.
+`ok anydoc@<version> — bundled with the app (the container image, on a server)`.
 
-**When to run `install`.** Almost never. A manifest version bump is normally a rebuild and a restart
-(§11), which is cleaner. `install` is for the case where a rebuild has to wait: it downloads into the
-components volume from the same pinned URL and sha512 the desktop uses, and `status` then reports
-`installed in the components root`. A later restart of a rebuilt image goes back to the bundled copy,
-which is also correct.
+**A new version is a rebuild, full stop.** `install` is not an upgrade path and will not act as one.
+It fetches only what does **not load**, and on an image that passed the build check every component
+loads — so on a healthy box `install` prints
+`anydoc@<version> already loads … nothing to install` and exits 0. It cannot replace a working
+bundled copy with a newer manifest version, and it is not meant to: a version bump goes into the
+manifest, into a new image, through §11 like every other change.
 
-**If it says MISSING.** That is an image problem, not a runtime one. Rebuild (§11) and read the build
-log for the check step; it names the component. Do not reach for `install` first — a box whose image
-lost `anydoc` will lose it again on the next deploy.
+**When to run `install`.** One case: a container whose bundled copy is present but does **not** load
+on this machine — a corrupt layer, a binding built against the wrong libc, a platform package that
+resolved wrong. `status` shows `MISSING` while the image itself is otherwise fine. `install` then
+downloads the manifest's copy, with the same pinned URL and sha512 the desktop uses, into
+`/opt/agentforge/components`, and document reading works again without waiting for a rebuild.
+
+**After an install, restart the app.** The running process memoised its answer — including the
+failure — when it first tried to load the component, and only an in-process reset clears that;
+`components.sh` runs in a different process, so the server keeps using the reduced fallback reader
+until it restarts. The command says so when it actually installs something:
+
+```sh
+docker compose -f webapp-deploy/compose.yml restart app
+sh webapp-deploy/scripts/components.sh check     # expect `installed in the components root`
+```
+
+Then upload a `.docx` and confirm it converts — that is the proof, not the exit code.
+
+**Treat a repair as a symptom.** A box whose image lost `anydoc` will lose it again on the next
+deploy. Rebuild (§11) and read the build log for the check step; it names the component. `install`
+buys you the hours until that rebuild, nothing more.
 
 ---
 

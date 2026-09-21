@@ -15,8 +15,20 @@
  *
  * `check` is what the image build runs (`webapp-deploy/Dockerfile`), so a container that would boot
  * without `anydoc` fails to build instead of serving reduced document reading to everybody, quietly,
- * for a month. `install` is what an operator runs on a CVM through
- * `webapp-deploy/scripts/components.sh` when a version is bumped between images.
+ * for a month.
+ *
+ * `install` IS A REPAIR, NOT AN UPGRADE PATH. A manifest bump is a rebuild, full stop: the image
+ * carries the components, the build check proves it, and a new version reaches a server the same
+ * way every other change does. What `install` is for is the box whose bundled copy is present but
+ * does not load — a corrupt layer, a binding built for the wrong libc — where fetching the
+ * manifest's copy into the operator-owned root gets document reading back without waiting for a
+ * rebuild. It installs only what is MISSING and skips anything the probe already loads, so on an
+ * image that passed the build check it does nothing at all, by design.
+ *
+ * AFTER AN INSTALL THAT ACTUALLY INSTALLED SOMETHING, RESTART THE APP.
+ * `packages/host/src/file-extract/anydoc.ts` memoises the load for the life of the process,
+ * failure included, and this script is a different process from the server. Until the app restarts
+ * it keeps using the fallback reader it already decided on.
  *
  * Exit codes are the result, so a Dockerfile `RUN` and a shell `if` both work:
  *
@@ -104,30 +116,46 @@ function refuseUnmanagedServerInstall(modules: ComponentsModules): void {
   );
 }
 
-async function installMissing(modules: ComponentsModules): Promise<void> {
+/**
+ * Install the components that do not load, and nothing else.
+ *
+ * Returns how many were actually installed, because that decides whether the caller has to say
+ * "restart". Zero is the normal answer on a healthy image: the build check passed, so every probe
+ * already resolves the bundled copy and there is nothing to fetch. That is not a silent no-op
+ * pretending to be an upgrade — a new manifest version arrives in a new image, and this command
+ * exists for the box whose bundled copy stopped loading.
+ */
+async function installMissing(modules: ComponentsModules): Promise<number> {
   refuseUnmanagedServerInstall(modules);
+  let installed = 0;
   for (const row of modules.server.serverComponentReport().rows) {
     if (row.ok) {
-      console.log(`  ${row.id}@${row.version} is already here (${row.detail}); nothing to do.`);
+      console.log(
+        `  ${row.id}@${row.version} already loads (${row.detail}); nothing to install. ` +
+          "A newer version comes with a new image, not with this command.",
+      );
       continue;
     }
     console.log(`  installing ${row.id}@${row.version} …`);
     try {
       const status = await modules.install.installComponent(row.id);
       console.log(`  ${row.id}: ${status.state}${status.source ? ` (${status.source})` : ""}`);
+      installed += 1;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       fail(`  ${row.id}: install failed — ${message}`, 1);
     }
   }
+  return installed;
 }
 
 async function main(): Promise<void> {
   const command = parseCommand(process.argv.slice(2));
   const modules = await load();
 
+  let installed = 0;
   if (command === "install") {
-    await installMissing(modules);
+    installed = await installMissing(modules);
   }
 
   // Re-read after an install so what is printed is what the app would load, not what we hoped.
@@ -145,6 +173,18 @@ async function main(): Promise<void> {
     fail(`Missing on this machine: ${missing}. Run "tsx scripts/components.ts install".`, 1);
   }
   console.log("Every required component loads.");
+  if (installed > 0) {
+    /*
+     * The running server has not noticed. `file-extract/anydoc.ts` caches its loader result,
+     * failure included, for the life of the process, and only an in-process `resetAnydocCache()`
+     * clears it — which this separate process cannot call. The install is on disk; the app is not
+     * using it yet.
+     */
+    console.log(
+      "Restart the app so it picks this up: docker compose -f webapp-deploy/compose.yml restart app " +
+        "(the running process cached its previous answer and will keep using the fallback reader).",
+    );
+  }
 }
 
 main().catch((error: unknown) => {

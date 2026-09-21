@@ -73,7 +73,14 @@ RUN pnpm --filter @agentforge/web build
 # createRequire on the real native binding - and exits non-zero if one does not load, which fails
 # the build. This runs in the build stage, on the same linux/glibc base the runtime stage uses, so
 # a binding that loads here loads there.
-RUN apps/web/node_modules/.bin/tsx scripts/components.ts check
+#
+# The two variables are the runtime stage's, set here so the check runs under the rules the
+# container will run under and PRINTS what the container will print - `mode: server`, and
+# /opt/agentforge/components as the components root - instead of reporting itself as a desk. They
+# change nothing about what loads: the bundled copy inside node_modules is what resolves either
+# way, and `check` never downloads.
+RUN AGENTFORGE_SERVER=1 AGENTFORGE_COMPONENTS_DIR=/opt/agentforge/components \
+    apps/web/node_modules/.bin/tsx scripts/components.ts check
 
 # ---------------------------------------------------------------------------
 # runtime
@@ -81,7 +88,8 @@ RUN apps/web/node_modules/.bin/tsx scripts/components.ts check
 FROM base AS runtime
 
 # Data dir lives on a volume. packages/db/src/vault-key.ts reads AGENTFORGE_DATA_DIR
-# and puts agentforge.sqlite, settings.enc, media, logs and components under it.
+# and puts agentforge.sqlite, settings.enc, media and logs under it. Components do NOT go there on
+# a server - see AGENTFORGE_COMPONENTS_DIR below and the VOLUME further down.
 ENV NODE_ENV=production \
     PORT=3000 \
     AGENTFORGE_DATA_DIR=/data \
@@ -102,10 +110,11 @@ VOLUME ["/data"]
 # /data is what every tenant writes into, and the host refuses to createRequire a native module out
 # of it in server mode (packages/host/src/components/paths.ts, downloadedComponentsAllowed). That
 # refusal is what makes /data mountable `noexec` (docs/internal/web-security-spec.md H3). The
-# directory below is the operator's instead: empty in the image, because the image's own copy of
-# anydoc is the one that loads, and written only by `webapp-deploy/scripts/components.sh install`
-# when a version is bumped between images. compose.yml gives it its own volume so that install
-# survives a restart.
+# directory below is the operator's instead, and it stays EMPTY on a healthy box: the image's own
+# copy of anydoc is what loads, and a newer version arrives in a newer image, never through a
+# download into a running container. It is written only when
+# `webapp-deploy/scripts/components.sh install` repairs a box whose bundled copy stopped loading.
+# compose.yml gives it its own volume so such a repair survives a restart.
 RUN mkdir -p /opt/agentforge/components && chown -R node:node /opt/agentforge
 VOLUME ["/opt/agentforge/components"]
 

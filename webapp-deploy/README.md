@@ -99,7 +99,10 @@ both together.** Without them the context is ~1.4 GB (`node_modules` plus `.git`
   on the separate `dpsbuddy-components` volume, deliberately **not** under `/data`: in server
   mode the host refuses to load a native module from inside the tenant data volume, which is what
   lets `/data` be mounted `noexec` (security spec H3). `scripts/components.sh` is how an operator
-  looks at or changes this; no tenant can, since the install route answers `403 install_disabled`.
+  looks at this; no tenant can, since the install route answers `403 install_disabled`.
+  Its `install` is a **repair**, not an upgrade path — it fetches only what does not load, so on a
+  healthy image it does nothing, and a new version comes in a new image. A repair needs an app
+  restart before the running process uses it.
   See [`docs/internal/web-phase7-component-installer.md`](../docs/internal/web-phase7-component-installer.md)
   and [`docs/internal/maps/component-installer.md`](../docs/internal/maps/component-installer.md).
 - **ffmpeg / ffprobe are not in the image.** The Edit desk degrades without them. Adding

@@ -30,7 +30,7 @@ Many tenants share one host process and one database. The assets are tenant work
 | # | Requirement | When | Check |
 |---|---|---|---|
 | H1 | Ubuntu LTS with unattended security updates; reboot window weekly | **before traffic** | `unattended-upgrades` status |
-| H2 | Container runs as the non-root `node` user, read-only root filesystem, `/data` the only writable mount, `no-new-privileges` | **before traffic** | `compose.yml` |
+| H2 | Container runs as the non-root `node` user, read-only root filesystem, `no-new-privileges`, and exactly two writable mounts: `/data` for tenant work and `/opt/agentforge/components` for the operator's components (Phase 7). Only the latter is executable | **before traffic** | `compose.yml` |
 | H3 | `/data` mounted `nodev`, and `noexec`. Phase 7 removed the blocker in code: in server mode the host refuses to load a component from a root inside `AGENTFORGE_DATA_DIR` at all (`packages/host/src/components/paths.ts` `downloadedComponentsAllowed`), the image sets `AGENTFORGE_COMPONENTS_DIR=/opt/agentforge/components` on its own volume, and the build fails if the image does not carry `anydoc`. What remains is the operator action: add `noexec` to the `/data` mount and confirm a `.docx` still converts (`web-phase7-component-installer.md` §6 live test 13) | Phase 7, code done; mount owed | `mount` |
 | H4 | Images are built from a pinned commit sha and tagged with it; the running sha is recorded in `webapp-deploy/DEPLOY-LOG.md` | **before traffic** | log row per deploy |
 | H5 | Dependency audit in CI on the tree the image actually ships. The image keeps devDependencies because `tsx` is the production entrypoint, so audit without `--prod` until the server is bundled; rebuild on high or critical | Phase 1 | CI |

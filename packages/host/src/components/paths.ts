@@ -20,7 +20,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { type EnvLike, isServerMode } from "@agentforge/core";
 import { localDataDir } from "@agentforge/db/vault-key";
-import { isInside } from "../tenant-paths";
+import { isInside, realPathOrNull } from "../tenant-paths";
 import { platformKey } from "./manifest";
 import type { ComponentId } from "./types";
 
@@ -65,7 +65,24 @@ export function managedComponentsRoot(env: EnvLike = process.env): string | null
     return null;
   }
   const root = componentsRootDir(env);
-  return isInside(localDataDir(env), root) ? null : root;
+  const dataDir = localDataDir(env);
+  /*
+   * Compared twice, and `null` if EITHER comparison says inside.
+   *
+   * `isInside` is `path.resolve` only, so it answers about the spelling of a path rather than the
+   * place on disk it names: `AGENTFORGE_COMPONENTS_DIR=/opt/agentforge/components` pointing at a
+   * symlink whose target is `/data/components` reads as outside the data dir and is not. The claim
+   * this function makes — that no native module is loaded out of the tenant volume — has to be
+   * true of the inode, so both sides are canonicalised with the same helper every per-tenant guard
+   * uses (`tenant-paths.ts`). Keeping the lexical test as well is the fail-closed half: a path that
+   * is plainly inside stays refused even where nothing on disk exists yet to resolve.
+   */
+  const realRoot = realPathOrNull(root) ?? root;
+  const realDataDir = realPathOrNull(dataDir) ?? dataDir;
+  if (isInside(dataDir, root) || isInside(realDataDir, realRoot)) {
+    return null;
+  }
+  return root;
 }
 
 /**

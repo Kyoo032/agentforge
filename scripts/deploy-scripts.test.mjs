@@ -125,7 +125,7 @@ test("the image build fails when a required component is missing", () => {
   const dockerfile = readDeploy("Dockerfile");
   assert.match(
     dockerfile,
-    /^RUN .*tsx scripts\/components\.ts check$/m,
+    /^RUN [\s\S]*?tsx scripts\/components\.ts check$/m,
     "the Dockerfile no longer proves the image carries its components",
   );
   // In the build stage: the runtime stage has no pnpm store to install from and no need to.
@@ -134,6 +134,12 @@ test("the image build fails when a required component is missing", () => {
     dockerfile.indexOf("FROM base AS runtime"),
   );
   assert.match(buildStage, /tsx scripts\/components\.ts check/);
+  // The check runs under the runtime stage's rules, so its printout is the container's rather than
+  // a desk's. Without these it reports `mode: desk / webdev` and a components root the container
+  // will never use, which is a build log that quietly describes a different machine.
+  const checkStep = buildStage.slice(buildStage.lastIndexOf("\nRUN ", buildStage.indexOf("components.ts check")));
+  assert.match(checkStep, /AGENTFORGE_SERVER=1/);
+  assert.match(checkStep, new RegExp(`${COMPONENTS_DIR_ENV}=${COMPONENTS_PATH}`));
 });
 
 test("the components root is set, and is not inside the data dir", () => {
