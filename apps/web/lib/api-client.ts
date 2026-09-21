@@ -17,6 +17,8 @@ import {
 } from "./reset-app";
 import { errorFromAbortSignal, onAbort, throwIfAborted } from "./ipc-abort";
 import { desktopMediaSrc } from "./media-src";
+import { notePlanResponse } from "./plan-block";
+import { noteApiResponse } from "./session-signal";
 
 export type { IpcHostRequest, IpcHostResponse };
 export type { CancelResetResult, ResetResult, ResetScope } from "./reset-app";
@@ -167,7 +169,16 @@ async function withMutatingHeaders(init: RequestInit, method: string): Promise<R
 export async function apiFetch(input: string, init: RequestInit = {}): Promise<Response> {
   const method = (init.method ?? "GET").toUpperCase();
   if (!isElectron()) {
-    return fetch(input, await withMutatingHeaders(init, method));
+    const response = await fetch(input, await withMutatingHeaders(init, method));
+    // Phase 9: a 401 anywhere is the hosted host saying this session is over. Reported on a clone,
+    // so the caller's body is untouched, and a no-op unless something is listening (`session-signal`).
+    noteApiResponse(response);
+    // ...and a 403/503 anywhere may be the tenant's PLAN refusing, which is a whole-app state and
+    // not this call's error. Also on a clone, also a no-op off those two statuses. Before this, the
+    // paywall could only be raised from a job stream, so the same blocked tenant saw a full-screen
+    // explanation or a red banner depending on which button they happened to press (`plan-block`).
+    notePlanResponse(response);
+    return response;
   }
   throwIfAborted(init.signal);
   const { path, query } = parsePath(input);
