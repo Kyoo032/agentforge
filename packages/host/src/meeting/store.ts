@@ -22,6 +22,8 @@ import {
   meetingFile,
   readJson,
   recordingFile,
+  removeDerivedAudio,
+  removeStaleRecordings,
   sanitizeFilename,
   sha256Hex,
   writeJsonAtomic,
@@ -182,6 +184,16 @@ export function createMeetingStore(rootDir: string = meetingsRoot()): MeetingSto
       const absolute = recordingFile(dir, relative);
       mkdirSync(path.dirname(absolute), { recursive: true });
       writeFileSync(absolute, file.bytes);
+      // SR-13. A meeting holds one recording, but its filename comes from the mime type, so
+      // replacing an .mp3 with a .webm writes a second file rather than overwriting the first.
+      // Cleaning up AFTER the write, never before: a write that fails must leave the tenant with
+      // the recording they already had, not with neither.
+      removeStaleRecordings(dir, absolute);
+      // The extracted chunks under `audio/` are a cache of the recording that has just been
+      // replaced. `meeting/run.ts` clears them after each transcription and `extractMeetingAudio`
+      // clears them again before the next one, so this only ever finds what a killed run left —
+      // which is still the old recording's audio, and goes with it.
+      removeDerivedAudio(dir);
       return writeRecord(dir, {
         ...record,
         status: highestStatus(record.status, "recorded"),
