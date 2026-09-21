@@ -141,6 +141,13 @@
       "when": 1788820000012,
       "tag": "0019_tenant_storage",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1788820000013,
+      "tag": "0020_tenant_reset_audit",
+      "breakpoints": true
     }
   ]
 }

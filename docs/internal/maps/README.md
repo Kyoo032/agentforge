@@ -40,7 +40,7 @@ Rules that keep these honest:
 - **Read-only.** `how` runs never change product code. A product bug a mapping run finds is a finding for `docs/internal/unreleased.md`, not a fix in the map PR.
 - **Cite a symbol, not just a number.** A bare `file:123` rots the next time anything above it moves. Name
   the function, constant or heading in the same sentence and let the line number be the hint that finds
-  it — `handlePostSettings` (`packages/host/src/handlers/settings.ts:207`), not `settings.ts:138` alone.
+  it — `handlePostSettings` (`packages/host/src/handlers/settings.ts:209`), not `settings.ts:138` alone.
   That is what makes the rot check below able to tell a moved line from a wrong claim, and what lets a
   reader recover when both have drifted.
 - **Line endings are LF.** Every file in this tree is committed with LF; an editor set to write CRLF turns

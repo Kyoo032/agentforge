@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { DEFAULT_PRODUCT_NAME, GATEWAY_BASE_URL, GATEWAY_NAME } from "@agentforge/core/gateway";
-import { apiFetch, getDesktopBrand, getDesktopBrandLogo, isElectron } from "@/lib/api-client";
+import { getDesktopBrand, getDesktopBrandLogo, isElectron } from "@/lib/api-client";
+import { pingOnce } from "@/lib/host-ping";
 
 export type ProductBrand = {
   productName: string;
@@ -87,14 +88,15 @@ export function ProductBrandProvider({ children }: { children: ReactNode }) {
   }, [brand.productName]);
 
   useEffect(() => {
-    void apiFetch("/api/v1/ping")
-      .then((res) => res.json())
-      .then((payload) => {
+    // Phase 8: one shared `/api/v1/ping`, because the capabilities provider reads the same payload.
+    // Two fetches would race to mint the CSRF cookie and one of them would lose its token.
+    void pingOnce().then((payload) => {
+      if (payload !== null) {
         setBrand((current) => mergePingBrand(current, payload));
-      })
-      .catch(() => {
-        // packaged preload already supplied the flavor; webdev keeps defaults
-      });
+      }
+      // A null payload is a failed ping: the packaged preload already supplied the flavor and
+      // webdev keeps the defaults, exactly as the old `.catch` left them.
+    });
   }, []);
 
   return <BrandContext.Provider value={brand}>{children}</BrandContext.Provider>;

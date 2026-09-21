@@ -246,6 +246,7 @@ export function ensureSchema(sqlite: Database.Database): void {
   ensureTenantPlanTables(sqlite);
   ensureTenantStateTable(sqlite);
   ensureTenantStorageTable(sqlite);
+  ensureTenantResetAuditTable(sqlite);
   ensureWorkspaceColumns(sqlite);
   assertKernelTables(sqlite);
 }
@@ -588,6 +589,29 @@ function ensureTenantStorageTable(sqlite: Database.Database): void {
       measured_at integer,
       updated_at integer NOT NULL
     );
+  `);
+}
+
+/**
+ * The per-tenant reset audit trail (Phase 8), for a database stamped past 0020 without the table.
+ * Mirrors drizzle/0020_tenant_reset_audit.sql exactly.
+ */
+function ensureTenantResetAuditTable(sqlite: Database.Database): void {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS tenant_reset_audit (
+      id text PRIMARY KEY NOT NULL,
+      tenant_id text NOT NULL REFERENCES tenants(id) ON DELETE cascade,
+      user_id text NOT NULL,
+      organization_id text NOT NULL,
+      outcome text NOT NULL,
+      detail text,
+      rows_deleted integer DEFAULT 0 NOT NULL,
+      objects_deleted integer DEFAULT 0 NOT NULL,
+      bytes_freed integer DEFAULT 0 NOT NULL,
+      started_at integer NOT NULL,
+      finished_at integer
+    );
+    CREATE INDEX IF NOT EXISTS tenant_reset_audit_tenant_idx ON tenant_reset_audit (tenant_id, started_at);
   `);
 }
 

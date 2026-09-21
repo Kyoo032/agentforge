@@ -69,18 +69,28 @@ both together.** Without them the context is ~1.4 GB (`node_modules` plus `.git`
   moving `tsx` to a dependency) is a migration-plan item, not something this folder
   changes.
 - Runs as the non-root `node` user. `/data` is owned by `node` and declared a volume.
-- `HEALTHCHECK` hits `GET /api/v1/components` on `127.0.0.1:$PORT` with `node -e fetch`
-  (no curl in the image), **sending `x-forwarded-proto: https`**. Both parts matter.
-  The route is deliberately ungated — `packages/host/src/router.ts:277-280` has the
-  comment explaining why — so it answers before any gateway key exists, and
-  `GET /api/v1/workspaces` would also work but opens the database on every probe.
-  The header is what gets the probe past `rejectPlaintext`
-  (`packages/host/src/http-adapter.ts:352-355`), which in server mode answers
-  `403 https_required` to every request that arrives without it, on every path,
-  before routing. Drop the header and the container never reports healthy and
-  `deploy.sh` times out after five minutes with nothing in the log but 403s. Sending
-  it from inside the container is safe: that caller is already past the boundary the
-  rule defends, and the port is loopback-only.
+- `HEALTHCHECK` hits `GET /healthz` on `127.0.0.1:$PORT` with `node -e fetch` (there is
+  still no curl in the image), **and sends no headers**. Phase 8 changed both halves of
+  that line; before it, the probe was `GET /api/v1/components` with
+  `x-forwarded-proto: https` stamped on.
+  `/healthz` is answered in the HTTP adapter before routing
+  (`packages/host/src/http-adapter.ts:534-536`), so it never reaches `dispatch`, never
+  opens the database, and is outside the session gate by construction rather than by an
+  entry in an exemption list. Its whole body is `{"status":"ok"}` — a liveness route that
+  named a version, a path or a component would be handing reconnaissance to the one
+  caller on this box that never signs in.
+  The header is gone because `/healthz` is the single carve-out from `rejectPlaintext`
+  (`packages/host/src/http-adapter.ts:388-391`, reached through `transportRejection` at
+  `:398-408`, and the carve-out passed as `isLiveness` at `:529`), which in server mode
+  answers `403 https_required` to every *other* request that arrives without it, on every
+  path, before routing. The probe runs inside the container against the app's own loopback
+  port with no proxy in front of it, so it has no proxy header to forward and stamping one
+  on would only prove the app accepts the header. Everything else still runs over the
+  probe — the request-line filter, the method allowlist, the header cap and the per-IP
+  bucket — and the port is loopback-only.
+  If you are looking at an older image and the container never reports healthy while the
+  log fills with 403s, it is running the pre-Phase-8 probe against a route that no longer
+  gets the header: rebuild.
 
 ### Native modules
 

@@ -495,23 +495,36 @@ for the container healthcheck, and prints a ready-made row for the deploy log.
 
 Then run these five checks **in order**. Each one is written so a failure tells you which layer broke.
 
-**1. The container is healthy.** The image's own `HEALTHCHECK` hits `GET /api/v1/components` on
-loopback, **with an `x-forwarded-proto: https` header**. Two things have to be true for that to pass,
-and it is worth knowing both, because this is where a first deploy usually stops:
+**1. The container is healthy.** The image's own `HEALTHCHECK` hits `GET /healthz` on loopback, with
+**no headers at all**. Two things have to be true for that to pass, and it is worth knowing both,
+because this is where a first deploy usually stops:
 
-- The route is ungated on purpose. It is one of the two `UNGATED_GETS`
-  (`packages/host/src/auth/routes.ts:45`) and `packages/host/src/handlers/components.ts:4-8` explains
-  why: a component is installed before anyone has pasted a gateway key. So it answers before any key
-  exists and without touching the database.
-- The header is what gets the probe past the transport filter. In server mode `rejectPlaintext`
-  (`packages/host/src/http-adapter.ts:315-318`, called at `:421`) answers `403 https_required` to
-  every request that does not carry it, on **every** path, before routing. A probe without the header
-  fails every time, `deploy.sh` waits its five minutes and exits non-zero, and the logs show nothing
-  but 403s. Sending the header from inside the container is safe: that process is already past the
-  boundary the control exists to defend, and the port is loopback-only anyway.
+- The route is unauthenticated on purpose, and it is answered *before* routing
+  (`packages/host/src/http-adapter.ts:534-536`), so it never reaches `dispatch`, never opens the
+  database and is outside the session gate by construction rather than by an entry in an exemption
+  list. Its whole body is `{"status":"ok"}`: no version, no path, no tenant, no component list. It
+  is the only route on this box that answers a stranger, so it hands one nothing.
+- The missing header is deliberate, and it is the one carve-out in the transport filter. In server
+  mode `rejectPlaintext` (`packages/host/src/http-adapter.ts:388-391`, reached through
+  `transportRejection` at `:398-408`) answers `403 https_required` to every request that does not
+  carry `x-forwarded-proto: https`, on **every** path, before routing. `/healthz` is exempt from
+  that rule and that rule only (`allowPlaintext`, passed as `isLiveness` at `:529`), because this
+  probe runs inside the container against the app's own loopback port with no proxy in front of it.
+  A probe that had to stamp the proxy's header on itself would keep reporting healthy the day the
+  proxy rule changed and no real request could get through. Everything else still applies to it:
+  the request-line filter, the method allowlist, the header cap and the per-IP bucket.
 
-This is the one place where an inside-the-box caller is allowed to look like the proxy, and check 3
-below proves nobody else can.
+Caddy polls the same route (`health_uri /healthz` in the `reverse_proxy` block), for the same
+reason: an active health check is a request Caddy makes itself, not a proxied one, so it carries no
+`X-Forwarded-Proto` either.
+
+**If you are redeploying an image built before Phase 8**, its `HEALTHCHECK` probes
+`GET /api/v1/components` with `x-forwarded-proto: https` stamped on. That still works — nothing was
+removed — but rebuild anyway: the old probe leaves an ungated route that reports component ids and
+versions to anything that can reach the port, and it proves the app accepts the proxy header rather
+than that the app is alive.
+
+Check 3 below proves that nothing outside the box can reach the port at all.
 
 ```sh
 docker ps                                   # both containers up, app healthy

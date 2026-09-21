@@ -43,6 +43,8 @@ import { rmSync } from "node:fs";
 import { resetEmbedCircuit } from "../knowledge-embed";
 import { resetJobModelCircuit } from "../job-model-fallback";
 import { revokeKnowledgeGatewayModel } from "../knowledge/backend-api";
+// Phase 8: the hosted "Start over". Everything policy-shaped is checked in there, not here.
+import { resetTenant } from "../tenant-reset";
 
 function readStringMap(value: unknown): Record<string, string> | undefined {
   if (!value || typeof value !== "object") {
@@ -439,6 +441,38 @@ function resetEverything(tenant: TenantContext, confirm: string | undefined, ser
   });
 }
 
+/**
+ * Phase 8 — "Start over" for a hosted tenant, which is a different act with a different blast
+ * radius, so it is a different scope rather than a hosted branch inside `scope: "all"`.
+ *
+ * Writing it as a third scope is what makes the two mutually unreachable: `all` is refused in
+ * server mode and `tenant` is refused off it, both before the confirmation word is read, so no
+ * client of either target can reach the other's button by sending the wrong string. A hosted
+ * branch inside `all` would have made an existing desk client's request mean something new the
+ * day the flag flipped.
+ *
+ * The work itself is `../tenant-reset.ts`; everything policy-shaped (server mode, owner, the
+ * confirmation, the local-tenant guard) is checked there, so this handler stays a router.
+ *
+ * `relaunch` is `false` and `resetPending` is `false` on purpose. Both belong to the desk's staged
+ * wipe — a marker on disk applied by the next boot — and nothing about the hosted reset is staged:
+ * by the time this answers, it has already happened.
+ */
+async function resetThisTenant(tenant: TenantContext, confirm: string | undefined): Promise<HostResult> {
+  const outcome = await resetTenant(tenant, confirm);
+  return jsonOk({
+    ok: true,
+    scope: "tenant",
+    relaunch: false,
+    resetPending: false,
+    workspaceId: outcome.workspaceId,
+    rowsDeleted: outcome.rowsDeleted,
+    objectsDeleted: outcome.objectsDeleted,
+    bytesFreed: outcome.bytesFreed,
+    gateway: reportGatewayGate(loadSettings(tenant), { tenant }),
+  });
+}
+
 /** Injectable so a test can ask for hosted behaviour without touching the process environment. */
 export type ResetDeps = { isServerMode?: () => boolean };
 
@@ -454,7 +488,10 @@ export async function handleResetApp(request: HostRequest, deps: ResetDeps = {})
     if (scope === "all") {
       return resetEverything(tenant, readOptionalString(body.confirm), serverMode);
     }
-    throw new ApiError("invalid_request", 'scope must be "key" or "all"', 400);
+    if (scope === "tenant") {
+      return await resetThisTenant(tenant, readOptionalString(body.confirm));
+    }
+    throw new ApiError("invalid_request", 'scope must be "key", "all" or "tenant"', 400);
   } catch (error) {
     return jsonError(error);
   }

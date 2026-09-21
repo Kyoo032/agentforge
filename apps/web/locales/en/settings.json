@@ -52,5 +52,22 @@
   "reset.pendingCancel": "Keep my data",
   "reset.pendingRestart": "Restart now",
   "reset.pendingCancelled": "The queued reset is called off. Nothing will be deleted.",
-  "reset.failed": "Could not finish that just now. Try again in a moment."
+  "reset.failed": "Could not finish that just now. Try again in a moment.",
+  "reset.eraseAccount": "Erase this account",
+  "reset.eraseAccountHelp": "Deletes every desk, thread, file and saved key on this account. Your plan, your seats and your billing history are kept. Nobody else's account is touched.",
+  "reset.eraseAccountWarning": "This deletes everything on this account for everyone who uses it, and it cannot be undone.",
+  "reset.eraseAccountSubmit": "Erase this account",
+  "reset.eraseAccountDone": "This account has been erased. You are starting from a new, empty desk.",
+  "storage.heading": "Storage",
+  "storage.help": "How much space this account is using, and what is using it.",
+  "storage.loading": "Reading your storage…",
+  "storage.failed": "Could not read your storage.",
+  "storage.used": "{used} of {limit} used ({percent}%).",
+  "storage.usedNoLimit": "{used} used.",
+  "storage.low": "You are close to the limit. Delete something to make room.",
+  "storage.full": "You have used all of your storage. Delete something before uploading again.",
+  "storage.biggest": "Biggest files",
+  "storage.empty": "Nothing is stored on this account yet.",
+  "storage.delete": "Delete",
+  "storage.deleteFailed": "Could not delete that file."
 }

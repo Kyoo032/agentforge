@@ -67,7 +67,7 @@ In practice: a media card is one chunk, a Chat turn one, a short document two or
 
 ### 4. Tenant scoping
 
-Everything is parameterized by `tenant.workspaceId` in application code; `knowledge_chunks` is a bare FTS5 virtual table with `workspace_id` as a plain column, no foreign key and no row-level security (`packages/db/src/ensure-schema.ts:785-789`). The guarantee is the tests, not the schema.
+Everything is parameterized by `tenant.workspaceId` in application code; `knowledge_chunks` is a bare FTS5 virtual table with `workspace_id` as a plain column, no foreign key and no row-level security (`packages/db/src/ensure-schema.ts:809-813`). The guarantee is the tests, not the schema.
 
 Two things on this page are **organization**-scoped instead: the raw bytes a file upload leaves on disk (`uploadDir`, `knowledge.ts:448-450`), and the `media` table the sweep consults for Images / Videos / Edit cards (`ORIGIN_OWNERS`, `knowledge.ts:631` — the `media` table has no workspace column). Everything else on the path is per-desk.
 

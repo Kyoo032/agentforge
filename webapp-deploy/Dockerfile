@@ -128,14 +128,26 @@ EXPOSE 3000
 # which defaults to 127.0.0.1. BIND_HOST is not set here, so the container only answers on
 # its own loopback. See webapp-deploy/README.md - the proxy joins this container's network
 # namespace instead of talking to it over a bridge.
-# The `x-forwarded-proto: https` header is REQUIRED, not decoration. In server mode
-# `rejectPlaintext` (packages/host/src/http-adapter.ts:314-317, called at :421) answers 403 https_required to every
-# request that does not carry it, for every path, and it runs before routing. A probe without it
-# fails 100% of the time and the container never reports healthy. Sending it here is safe: this
-# process is inside the container, so it is past the boundary that control exists to defend.
-# `/api/v1/components` is one of the two ungated GETs (packages/host/src/auth/routes.ts:45), so it
-# answers before anyone has signed in.
+# `GET /healthz` is the liveness probe (packages/host/src/handlers/health.ts). It is answered in
+# the HTTP adapter before routing (packages/host/src/http-adapter.ts:534-536), so it never reaches
+# `dispatch`, never opens the database and is outside the session gate by construction rather than
+# by an entry in an exemption list. Its whole body is `{"status":"ok"}` - no version, no path, no
+# tenant, no component list - because an unauthenticated route must hand a stranger nothing.
+#
+# No `x-forwarded-proto: https` header, and that is the change Phase 8 made. In server mode
+# `rejectPlaintext` (packages/host/src/http-adapter.ts:388-391, called via `transportRejection` at
+# :398-408) answers 403 https_required to every request that does not carry it, on every path,
+# before routing. `/healthz` is the one carve-out (`allowPlaintext`, passed only as `isLiveness` at
+# :529), because this probe runs inside the container and hits the app's own loopback port with no
+# proxy in front of it. A probe that had to stamp the proxy's own header would be a probe that
+# lies the day the proxy rule changes - it would keep reporting healthy against a process that no
+# real request could reach. Everything else still runs over the probe: the request-line filter,
+# the method allowlist, the header cap and the per-IP bucket.
+#
+# Until Phase 8 this probed `GET /api/v1/components` with the header stamped on. That worked, but
+# it opened a route that reports component ids and versions to anything that can reach the port,
+# and it proved the proxy header was accepted rather than that the app was alive.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=5 \
-  CMD node -e "const p=process.env.PORT||3000;fetch('http://127.0.0.1:'+p+'/api/v1/components',{headers:{'x-forwarded-proto':'https'}}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD node -e "const p=process.env.PORT||3000;fetch('http://127.0.0.1:'+p+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 CMD ["./node_modules/.bin/tsx", "server.ts"]

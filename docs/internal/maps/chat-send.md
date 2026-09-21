@@ -90,7 +90,7 @@ Fixed in `e93c617`. The composer toolbar's single-row `overflow-hidden` layout (
 | Upstream non-OK | `readHttpErrorBody` → `gatewayFailure` | retried up to 3 attempts with `run.probing` frames, then `run.failed` + `run.completed` |
 | Inner watchdog | `AiSdkRuntime.consume` | retried like any failure, **except** "no first token" wording, which is a hard stop |
 | Run-stall guard | `packages/host/src/run-stall.ts` | `run.failed` + `run.completed`, run row failed, partial text discarded |
-| Client abort / socket close | `res.on("close")` (`packages/host/src/http-adapter.ts:468-473`) or `host:stream-abort` | same as stall |
+| Client abort / socket close | `res.on("close")` (`packages/host/src/http-adapter.ts:579-583`) or `host:stream-abort` | same as stall |
 | Model returns nothing | `shouldFailEmptyAssistant`, `packages/core/src/runtime/retry.ts:146-152` | `run.failed` + `run.completed` |
 | Tool ran, later fetch failed | `shouldKeepToolTurn`, `packages/core/src/runtime/retry.ts:155-157` | turn kept: `run.completed` with no `run.failed` |
 

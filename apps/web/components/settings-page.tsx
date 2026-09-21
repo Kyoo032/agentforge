@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { DEFAULT_GATEWAY_IMAGE_MODEL, DEFAULT_GATEWAY_VIDEO_MODEL } from "@agentforge/core/media-kind";
 import { SettingsResetCard } from "./settings-reset-card";
+// Phase 8: renders only where there is a ceiling to show (hosted); null on a desk.
+import { SettingsStorageCard } from "./settings-storage-card";
 import { UsagePanel, type AccountUsage } from "./usage-panel";
 import { apiFetch, checkGateway, relaunchDesktopApp } from "@/lib/api-client";
 import {
@@ -421,6 +423,7 @@ export function SettingsPage() {
         </p>
       </form>
 
+      <SettingsStorageCard />
       <SettingsResetCard resetPending={resetPending} />
     </main>
   );

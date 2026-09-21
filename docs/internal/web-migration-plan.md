@@ -49,7 +49,7 @@ The move is **additive**. Nothing is deleted to make room for the server.
 | "Start over" wipes a named list under the data dir and relaunches | `packages/host/src/handlers/settings.ts:274-296` (`HOST_RESET_ENTRIES`), queued at `:310-321`; applied next boot by `packages/db/src/reset.ts:248` under `packages/db/src/client.ts:35-37` | Web: a per-tenant purge inside a transaction plus a storage-prefix delete. No process relaunch, no shared-file deletion | 8 |
 | `host-status.json` describes the Electron host | written only at `apps/desktop/main.cjs:300-312`, single call site `:682`; read by `.cursor/skills/verify-agentforge/scripts/doctor.mjs:78-104` | Desktop-only; untouched. The web gets a `/api/v1/health` route the proxy and deploy script probe | 8 |
 | IPC bridge shapes every renderer call | `apps/web/lib/desktop-bridge.ts:59-70`, branch at `apps/web/lib/api-client.ts:97-98` | Stays. It is the second adapter, not legacy | 8 |
-| Electron-only renderer surfaces | `apps/web/components/settings-reset-card.tsx:179` (relaunch), `apps/web/lib/use-app-updates.ts:31`, `apps/web/components/edit-studio.tsx:310-312` (native file picker), `apps/web/lib/product-brand.tsx:73` | Gated off on the web build and replaced with a browser equivalent (file input, no relaunch, no updater) | 8 |
+| Electron-only renderer surfaces | `apps/web/components/settings-reset-card.tsx:229` (relaunch), `apps/web/lib/use-app-updates.ts:31`, `apps/web/components/edit-studio.tsx:322-324` (native file picker), `apps/web/lib/product-brand.tsx:73` | Gated off on the web build and replaced with a browser equivalent (file input, no relaunch, no updater) | 8 |
 | Updater points at the releases repo | `apps/desktop/auto-update.cjs` | Desktop-only, frozen. The web has no updater; a deploy is a container swap | 8 |
 | Playwright drives `127.0.0.1:3000`, boots `pnpm dev`, points at the shared `data/` dir | `apps/web/playwright.config.ts:11`, `:15-25` (`AGENTFORGE_DATA_DIR: ../../data`, `AGENTFORGE_RUNTIME: "stub"`) | A second project targeting the deployed base URL with a seeded test tenant and a real session cookie | 0, 2 |
 | Locale is one value for the whole install | `packages/host/src/settings-store.ts:123` (`locale?: AppLocale`), exported from `packages/core/src/index.ts:621-622` | **Copy and catalogues unchanged.** Only the storage of the chosen locale moves to per-user | 4 |
@@ -310,9 +310,9 @@ this is a resource problem rather than a supply-chain one — but it is still a 
 
 **Goal.** The web build shows nothing that only Electron can do.
 
-**Files.** `apps/web/components/settings-reset-card.tsx:179` (relaunch → per-tenant purge, no
+**Files.** `apps/web/components/settings-reset-card.tsx:229` (relaunch → per-tenant purge, no
 relaunch); `apps/web/lib/use-app-updates.ts:31` (already `unavailable` off Electron — remove the entry
-point); `apps/web/components/edit-studio.tsx:310-312` (native picker → browser file input);
+point); `apps/web/components/edit-studio.tsx:322-324` (native picker → browser file input);
 `apps/web/lib/product-brand.tsx:73` (brand from server config rather than the bridge);
 `packages/host/src/handlers/settings.ts:314-325` gets a web branch that deletes the tenant's rows and
 storage prefix in a transaction instead of queueing `HOST_RESET_ENTRIES` (`:273-292`) — the file list

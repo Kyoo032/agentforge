@@ -110,7 +110,10 @@ http://{$DPSBUDDY_DOMAIN} {
 	#     Anti-DDoS Basic (spec N4) is packet-level and adds no hop, so today there is
 	#     none and no `trusted_proxies` line is wanted.
 	#   - Nothing else may reach 127.0.0.1:3000: the app binds loopback and refuses any
-	#     request not marked `X-Forwarded-Proto: https` (403 https_required).
+	#     request not marked `X-Forwarded-Proto: https` (403 https_required). The one
+	#     exception is `GET /healthz`, the liveness probe, which by design answers a
+	#     plaintext loopback hit so that a probe never has to stamp the proxy's own
+	#     header on itself - see the health_uri block below.
 	reverse_proxy 127.0.0.1:3000 {
 		# The Host header MUST pass through unchanged - which is what Caddy does by
 		# default, so there is deliberately no `header_up Host` line here. With
@@ -129,6 +132,22 @@ http://{$DPSBUDDY_DOMAIN} {
 		# Never rewrite Origin here either: that is the CSRF hole the check exists to
 		# close. The CSRF half of the pair is a cookie the app sets and the renderer
 		# echoes; the proxy neither reads nor rewrites it.
+
+		# Active health checking, Phase 8. Caddy polls this upstream itself and takes it
+		# out of rotation when it stops answering, so a wedged app process gets a 502
+		# from Caddy rather than a request that hangs until the client gives up.
+		#
+		# `/healthz` and not `/api/v1/...`: an active health check is a request Caddy
+		# makes on its own, NOT a proxied one, so it does not carry the
+		# `X-Forwarded-Proto: https` that `header_up` adds to real traffic. Every other
+		# path answers 403 https_required to it. `/healthz` is the one carve-out
+		# (packages/host/src/http-adapter.ts, `allowPlaintext`), which is exactly what
+		# this probe and the container's own HEALTHCHECK need. The app also answers it
+		# before routing, so a poll every 10s opens no database connection.
+		health_uri /healthz
+		health_interval 10s
+		health_timeout 5s
+		health_status 200
 
 		# The host streams job progress as SSE (packages/host streamJob). Buffering would
 		# hold every job.step until the run ended.

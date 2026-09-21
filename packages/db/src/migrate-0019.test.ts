@@ -140,9 +140,19 @@ describe("0019_tenant_storage is in the committed migration set", () => {
     // what decides what runs. 0018 took 1788820000010 and 0017 took 1788820000011, which is why
     // the idx column reads 18 then 17; anything below the highest of those would be skipped on
     // every database that has run them, and this table would never exist on a live server.
+    //
+    // "Already in the journal" means the entries BEFORE this one, which is what the sentence above
+    // says and what the rule actually is. It used to be written as "above every other entry", and
+    // that read correctly only while 0019 happened to be last: Phase 8's 0020 sits above it, as it
+    // must, and turned this assertion red without anything being wrong.
     const mine = whenOf("0019_tenant_storage");
-    for (const entry of journal.entries.filter((row) => row.tag !== "0019_tenant_storage")) {
-      expect(mine).toBeGreaterThan(entry.when);
+    const before = journal.entries.slice(
+      0,
+      journal.entries.findIndex((row) => row.tag === "0019_tenant_storage"),
+    );
+    expect(before.length).toBeGreaterThan(0);
+    for (const entry of before) {
+      expect(mine, `${entry.tag} is at or above 0019`).toBeGreaterThan(entry.when);
     }
   });
 

@@ -160,6 +160,9 @@ export type { HtmlTextResult } from "./content/html-text";
 export { isServerMode, trustedOrigins, normaliseOrigin, objectStorageKind } from "./server-mode";
 export type { ObjectStorageKind } from "./server-mode";
 export type { EnvLike } from "./server-mode";
+// Phase 8: what this deployment can do, resolved once from the mode and read by both sides.
+export { hostCapabilities, parseCapabilities } from "./capabilities";
+export type { HostCapabilities } from "./capabilities";
 export { redactSecrets } from "./security/redact";
 export { keyFingerprint, keyFingerprintOrNull } from "./security/fingerprint";
 export { scanPii, maskPii, maskPiiInParts, maskOutboundRunInput, piiWarning, PII_MASK } from "./security/pii";

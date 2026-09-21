@@ -264,7 +264,7 @@ maps through `REASON_KEYS` (`apps/web/lib/gateway-gate.ts:123-127`) to
 ### Start over
 
 Card `settings-reset` (`apps/web/components/settings-reset-card.tsx:159`), mounted at
-`apps/web/components/settings-page.tsx:424`, fed by `resetPending` on the settings payload.
+`apps/web/components/settings-page.tsx:427`, fed by `resetPending` on the settings payload.
 
 **Sign out (`scope: "key"`)** — no typed confirmation, fully synchronous. `resetGatewayKey`
 (`packages/host/src/handlers/settings.ts:400-415`) calls `clearGatewayKeyEverywhere(tenant)`
@@ -385,7 +385,7 @@ installing an update or already exiting), races `clearRendererState()` — `clea
   verdict both derive as `ok` + `grace:true`; only `message: "Not checked yet."` and `checkedAt === null` reveal
   there is no real verdict. Do not read `status` alone as "we asked and it worked".
 - **A stub desk's status row carries no timestamp.** `settings-gateway-status` renders the status word, then
-  `Last checked` **only when `checkedAt` is non-null** (`apps/web/components/settings-page.tsx:344-357`). On
+  `Last checked` **only when `checkedAt` is non-null** (`apps/web/components/settings-page.tsx:344-362`). On
   `stub`, `needs_key` and never-checked desks the row is just the word and the Re-check link — driven on the
   owner's desk on 2026-09-17, where it read "Demo luring · Periksa ulang".
 - **`invalid_key` is the only status with zero grace**, however recently the key worked. A rejection is an

@@ -31,6 +31,7 @@ import {
   type CosConfig,
   type FetchLike,
 } from "./tenant-storage-cos";
+import { purgeProgressOf } from "./tenant-object-keys";
 
 const A = "tenant-alpha";
 const B = "tenant-beta";
@@ -438,5 +439,85 @@ describe("configuration", () => {
         COS_ENDPOINT: "http://b.example.com",
       } as NodeJS.ProcessEnv),
     ).toThrow(/https/);
+  });
+});
+
+/**
+ * Purging a prefix, and what a purge that fails half way is allowed to claim.
+ *
+ * The walk is not atomic — it is a DELETE per key and a bucket can refuse at any point — so the
+ * honest answer to a partial failure is "run it again". What it must not do is report the failure
+ * as though nothing had gone: the reset's audit row is the only record of a failed reset, and
+ * `bytesFreed: 0` after two objects were deleted is the one number an operator would read to decide
+ * whether a retry is safe.
+ */
+describe("purging a tenant's prefix", () => {
+  const page = (entries: Array<[string, number]>, truncated: boolean, nextMarker?: string): string =>
+    `<ListBucketResult>${entries
+      .map(([key, size]) => `<Contents><Key>${key}</Key><Size>${size}</Size></Contents>`)
+      .join(
+        "",
+      )}<IsTruncated>${truncated}</IsTruncated>${nextMarker ? `<NextMarker>${nextMarker}</NextMarker>` : ""}</ListBucketResult>`;
+
+  it("deletes every owned key and reports what went", async () => {
+    const { store, calls } = storeWith([
+      {
+        status: 200,
+        body: page(
+          [
+            [`tenants/${A}/org/a.png`, 100],
+            [`tenants/${A}/org/b.png`, 250],
+          ],
+          false,
+        ),
+      },
+      { status: 204 },
+      { status: 204 },
+    ]);
+    expect(await store.removePrefix(A)).toEqual({ usedBytes: 350, objectCount: 2 });
+    expect(calls.filter((call) => call.method === "DELETE")).toHaveLength(2);
+  });
+
+  it("carries out what it had already deleted when the bucket refuses half way", async () => {
+    const { store } = storeWith([
+      {
+        status: 200,
+        body: page(
+          [
+            [`tenants/${A}/org/a.png`, 100],
+            [`tenants/${A}/org/b.png`, 250],
+            [`tenants/${A}/org/c.png`, 500],
+          ],
+          false,
+        ),
+      },
+      { status: 204 },
+      { status: 204 },
+      { status: 403, body: "<Error><Code>AccessDenied</Code></Error>" },
+    ]);
+
+    const error = await store.removePrefix(A).then(
+      () => null,
+      (thrown: unknown) => thrown,
+    );
+    expect(error).not.toBeNull();
+    // Two objects really are gone, and the error says so rather than leaving the caller to assume
+    // nothing happened.
+    expect(purgeProgressOf(error)).toEqual({ usedBytes: 350, objectCount: 2 });
+  });
+
+  it("carries a zero rather than nothing when it fails on the listing itself", async () => {
+    const { store } = storeWith([{ status: 500, body: "<Error><Code>InternalError</Code></Error>" }]);
+    const error = await store.removePrefix(A).then(
+      () => null,
+      (thrown: unknown) => thrown,
+    );
+    expect(purgeProgressOf(error)).toEqual({ usedBytes: 0, objectCount: 0 });
+  });
+
+  it("refuses the local tenant, whose prefix is the whole bucket", async () => {
+    const { store, calls } = storeWith([]);
+    await expect(store.removePrefix(LOCAL_TENANT_ID)).rejects.toMatchObject({ code: "storage_purge_refused" });
+    expect(calls).toHaveLength(0);
   });
 });

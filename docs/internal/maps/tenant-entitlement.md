@@ -106,7 +106,7 @@ and retrying a delivery the host has deliberately refused ends with the provider
 
 **Three exemptions, because no browser calls it** (decision doc §3(c)): the session gate
 (`UNGATED_POSTS`, `packages/host/src/auth/routes.ts:56`, read by `isSessionExemptPath` at `:132`),
-the CSRF and Origin rule (`CSRF_EXEMPT_PATHS`, `packages/host/src/http-adapter.ts:616`, applied at
+the CSRF and Origin rule (`CSRF_EXEMPT_PATHS`, `packages/host/src/http-adapter.ts:680`, applied at
 `:482`), and in their place a shared secret compared in constant time (`verifyBillingRequest`,
 `packages/host/src/billing/authenticate.ts:47`). Each exemption is a single literal path, never a
 prefix. A deployment with no secret configured refuses every delivery rather than accepting any.
@@ -127,8 +127,8 @@ gate: a tenant that cannot see why it is blocked, or pay, is a churned tenant.
 | `packages/host/src/billing/authenticate.ts` | Who may write a plan: the header, the env var, the constant-time compare |
 | `packages/host/src/handlers/billing.ts` | The webhook, the plan read and the top-up stub |
 | `packages/db/drizzle/0017_tenant_plan.sql` | `tenant_plan`, `tenant_seat`, `billing_events`, and the period stamp on the ledger |
-| `packages/db/src/schema.ts:155` | `tenantPlan`; `tenantSeat` at `:160`, `billingEvents` at `:188`, `billingPeriodStart` at `:83` |
-| `packages/db/src/ensure-schema.ts:518` | `ensureTenantPlanTables`, the healer for a baseline-stamped database; the ledger's late column at `:499` |
+| `packages/db/src/schema.ts:192` | `tenantPlan`; `tenantSeat` at `:160`, `billingEvents` at `:188`, `billingPeriodStart` at `:83` |
+| `packages/db/src/ensure-schema.ts:519` | `ensureTenantPlanTables`, the healer for a baseline-stamped database; the ledger's late column at `:499` |
 | `packages/host/src/gateway-gate.ts:476` | `requireGatewayAllowed` — where the plan check sits, before the key check |
 | `packages/host/src/auth/routes.ts:261` | `handleLogin` — where the seat cap sits, after provisioning |
 

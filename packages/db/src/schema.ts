@@ -141,6 +141,43 @@ export const tenantStorage = sqliteTable("tenant_storage", {
 });
 
 /**
+ * Phase 8 — one row per per-tenant reset (drizzle/0020_tenant_reset_audit.sql).
+ *
+ * The reset is self-serve and destroys the evidence of itself: afterwards there are no threads, no
+ * runs and no media left to say what was there. This row is the operator's only durable record
+ * that it happened, who asked and how much went. It is not a backup and not an undo.
+ *
+ * It hangs off `tenants`, which a reset deliberately keeps, so it outlives every reset but the
+ * deletion of the tenant itself. `userId` and `organizationId` carry no foreign key on purpose —
+ * the reset removes the membership rows and the org, and a key would either cascade the audit away
+ * or refuse the delete.
+ *
+ * `outcome` is `started` | `completed` | `failed`, written `started` before anything is deleted and
+ * updated in place, so a process killed mid-reset leaves a `started` row rather than none. Retry is
+ * safe, so a `started` row is a prompt, never a lock.
+ */
+export const tenantResetAudit = sqliteTable(
+  "tenant_reset_audit",
+  {
+    id: text("id").primaryKey(),
+    tenantId: text("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull(),
+    organizationId: text("organization_id").notNull(),
+    outcome: text("outcome").notNull().$type<"started" | "completed" | "failed">(),
+    /** A short fixed phrase when something went wrong. Never a thrown message or a path. */
+    detail: text("detail"),
+    rowsDeleted: integer("rows_deleted").notNull().default(0),
+    objectsDeleted: integer("objects_deleted").notNull().default(0),
+    bytesFreed: integer("bytes_freed").notNull().default(0),
+    startedAt: integer("started_at").notNull(),
+    finishedAt: integer("finished_at"),
+  },
+  (table) => [index("tenant_reset_audit_tenant_idx").on(table.tenantId, table.startedAt)],
+);
+
+/**
  * What a tenant is entitled to: one row per tenant (Phase 5 lane B,
  * drizzle/0017_tenant_plan.sql). Read and written by `entitlement-store.ts` in `@agentforge/host`.
  *

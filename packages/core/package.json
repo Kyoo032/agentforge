@@ -9,6 +9,7 @@
     "./errors": "./src/errors.ts",
     "./local-owner": "./src/local-owner.ts",
     "./gateway": "./src/gateway.ts",
+    "./capabilities": "./src/capabilities.ts",
     "./media-kind": "./src/models/media-kind.ts",
     "./preferred": "./src/models/preferred.ts",
     "./curation": "./src/models/curation.ts",

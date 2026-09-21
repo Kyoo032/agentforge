@@ -91,9 +91,12 @@ describe("parseResetResult", () => {
     expect(parseResetResult(500, { resetPending: true }, "all").resetPending).toBe(true);
   });
 
-  it("ships the literal confirm word and both scopes", () => {
+  it("ships the literal confirm word and all three scopes", () => {
     expect(RESET_CONFIRM_WORD).toBe("RESET");
-    expect([...RESET_SCOPES]).toEqual(["key", "all"]);
+    // Phase 8 added `tenant`: the hosted account erase. It is a third scope rather than a hosted
+    // branch inside `all`, so an existing desk client's request never changes meaning and neither
+    // target's button can reach the other's behaviour.
+    expect([...RESET_SCOPES]).toEqual(["key", "all", "tenant"]);
   });
 });
 

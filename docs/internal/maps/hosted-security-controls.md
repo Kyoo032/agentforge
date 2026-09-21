@@ -63,7 +63,7 @@ load-bearing; if that mount ever moves, the controls move with it.
 | 3 | `:455` | `transportRejection` — TLS, method allowlist, path filter, header cap, per-IP and per-session buckets | **every** request, not only `/api` |
 | 4 | `:461` | non-`/api` paths return `false`; Express serves the page | — |
 | 5 | `:470` | `mutatingRejection` — Origin/Host allowlist, double-submit CSRF, `x-agentforge-transport` | non-safe methods on `/api` |
-| 6 | `packages/host/src/router.ts:436-440` | `requireSessionFor` — the session gate, before the route table | `/api` minus the exempt paths |
+| 6 | `packages/host/src/router.ts:448-452` | `requireSessionFor` — the session gate, before the route table | `/api` minus the exempt paths |
 | 7 | `:533` | `logAuthFailure` | a 401 coming back out |
 | 8 | `:384` | `maskServerError` | any 5xx, in server mode |
 
@@ -74,7 +74,7 @@ rather than about the hop it arrived on.
 
 ### 3. Origin, Host and CSRF
 
-`mutatingRejection` (`packages/host/src/http-adapter.ts:618-647`) chooses between two rules — the
+`mutatingRejection` (`packages/host/src/http-adapter.ts:682-711`) chooses between two rules — the
 hosted branch at `:612-620` and the desk branch at `:621-623`:
 
 - **Off server mode**, unchanged from the desk: a missing `Origin` means same-machine, and `Host`
@@ -123,7 +123,7 @@ limiter cannot itself become the memory exhaustion.
   value wins on the real deployment and nothing is duplicated. The app is the floor, the proxy is
   the ceiling.
 - **Identity headers stripped.** `X-Powered-By` and `Server` are removed in the adapter
-  (`IDENTITY_HEADERS`, `packages/host/src/http-adapter.ts:52`) and again at the proxy.
+  (`IDENTITY_HEADERS`, `packages/host/src/http-adapter.ts:53`) and again at the proxy.
 - **Errors masked.** `maskServerError` (`:384`) replaces any 5xx message with a fixed string and
   keeps only a code matching `/^[a-z0-9_]+$/` (`:49`), so a SQLite error naming a column or a path
   never reaches the client. Off server mode it is a no-op and webdev's error path is untouched.

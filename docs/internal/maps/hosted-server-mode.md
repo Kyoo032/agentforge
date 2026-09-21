@@ -99,7 +99,7 @@ The hosted session gate sits behind all of this, inside `dispatch` (`packages/ho
 | Declared length | `Content-Length` above the cap, refused before a byte is read | `413 payload_too_large` | `:297-300` |
 | Media type | `ALLOWED_BODY_CONTENT_TYPES` = `application/json`, `multipart/form-data`, `text/plain` | `415 unsupported_media_type` | `:169`, `:304-311` |
 
-`MAX_BODY_BYTES` is **not** in this file — the cap is passed in as `maxBodyBytes` (`:187`, `:298`) and the value lives at `packages/host/src/http-adapter.ts:39`.
+`MAX_BODY_BYTES` is **not** in this file — the cap is passed in as `maxBodyBytes` (`:187`, `:298`) and the value lives at `packages/host/src/http-adapter.ts:43`.
 
 The media-type check deliberately excludes `application/x-www-form-urlencoded`: that is the cross-site form shape, and it is refused on a mutating request even when the sender declared no length (`:289-295`, `:304-311`). GET/HEAD/OPTIONS are exempt from the media-type check entirely (`BODYLESS_METHODS`, `:172`, `:301-303`).
 

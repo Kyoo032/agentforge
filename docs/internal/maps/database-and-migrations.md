@@ -375,7 +375,7 @@ strings; do not match on the printed one.
 still sealed with the old wrap key after that is unreadable by design — which is why the SQLite trio
 goes with it (`packages/db/src/reset.ts:29`, `:270`).
 
-**`market_cache` has no scope column** (`packages/db/src/schema.ts:857-868`). It is a read-through
+**`market_cache` has no scope column** (`packages/db/src/schema.ts:894-905`). It is a read-through
 cache keyed `(ticker, kind)` shared by every workspace on the install; it is not per-desk data and a
 desk wipe does not isolate it.
 
