@@ -136,7 +136,7 @@ Driven on the owner's keyless desk (2026-09-17, `runtime: stub`): the 222,715-by
 - field **absent** from the body → `continue`, existing key kept. This is what makes the empty password box safe.
 - field present and **empty after trim** → `delete next[field]` (`:110-115`), the key is cleared.
 
-The UI renders `key-fingerprint` at `apps/web/components/settings-page.tsx:400`, gated at `:399` by `hasOpenai && openaiKeyFingerprint` — both, so a fingerprint without a key cannot paint. `openai-key` is the `type="password"` input at `:377` (placeholder swaps on `hasOpenai`, `:374`), `runtime-status` at `:290`, `privacy-note` at `:419`. The fingerprint state is only ever assigned from the response (`:124-128`); a grep of `apps/web` for `sha256` / `createHash` / `keyFingerprint` finds nothing, so the browser never hashes.
+The UI renders `key-fingerprint` at `apps/web/components/settings-page.tsx:401`, gated at `:399` by `hasOpenai && openaiKeyFingerprint` — both, so a fingerprint without a key cannot paint. `openai-key` is the `type="password"` input at `:377` (placeholder swaps on `hasOpenai`, `:374`), `runtime-status` at `:290`, `privacy-note` at `:419`. The fingerprint state is only ever assigned from the response (`:124-128`); a grep of `apps/web` for `sha256` / `createHash` / `keyFingerprint` finds nothing, so the browser never hashes.
 
 Doctor mirrors the same gate: `.cursor/skills/verify-agentforge/scripts/doctor.mjs:210-216` reports `keyFingerprint: true` only when `hasOpenai` and the string starts with `sha256:` and has content past the prefix.
 

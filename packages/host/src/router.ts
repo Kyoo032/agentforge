@@ -12,6 +12,9 @@ import "./entitlement-db";
 // on the upload path against `tenant_storage`, and with no connection installed the accounting
 // refuses rather than quietly not counting — a quota that stops counting is not a quota.
 import "./tenant-storage-db";
+// Phase 8: installs the connection the readiness route reads. Same seam, same reason; without it
+// the database check reports "did not answer" rather than a silent ok.
+import "./health-db";
 import { hostAuthRoutes, hostSessionStore, isSessionExemptPath, requireSessionFor } from "./auth";
 import type { SessionStore } from "./auth";
 import { jsonError, jsonOk } from "./errors";
@@ -55,6 +58,7 @@ import {
   handlePostBillingWebhook,
 } from "./handlers/billing";
 import { handleGetChat } from "./handlers/chat";
+import { handleGetHealth } from "./handlers/health";
 import { handleGetComponents, handlePostComponentInstallStream } from "./handlers/components";
 import { handleDeleteDataset, handleGetDataset, handleGetDatasets, handlePostDatasets } from "./handlers/datasets";
 import {
@@ -145,7 +149,7 @@ import {
   handlePostLegalMatters,
   handlePostLegalRunStream,
 } from "./handlers/legal";
-import { handleGetMediaFile, handlePostMedia } from "./handlers/media";
+import { handleDeleteMedia, handleGetMediaFile, handlePostMedia } from "./handlers/media";
 import {
   handleDeleteMeeting,
   handleGetMeeting,
@@ -266,6 +270,10 @@ const routes: Route[] = [
   compile("GET", "/api/v1/usage", handleGetUsage),
   // Phase 6: what this tenant is holding and what it is allowed to hold.
   compile("GET", "/api/v1/storage/usage", handleGetStorageUsage),
+  // Phase 8, readiness. Session-gated like everything else under /api; the UNAUTHENTICATED
+  // liveness probe is `GET /healthz`, which never reaches this table because `dispatch` only
+  // serves `/api` — see handlers/health.ts and http-adapter.ts.
+  compile("GET", "/api/v1/health", handleGetHealth),
   // Phase 5 lane B, hosted only. The webhook is exempt from the session gate below and from the
   // CSRF rule in `http-adapter.ts`, and authenticates on a shared secret instead — no browser
   // calls it. The other two ARE session-gated and are deliberately NOT behind
@@ -297,6 +305,10 @@ const routes: Route[] = [
   compile("POST", "/api/v1/models", handlePostModels),
   compile("POST", "/api/v1/media", handlePostMedia),
   compile("GET", "/api/v1/media/:mediaId/file", handleGetMediaFile),
+  // Phase 8: the door out of a full account. Deliberately NOT behind `requireGatewayAllowed()` —
+  // a tenant the plan or the quota has blocked must still be able to free space, or the block is
+  // a dead end in exactly the case it exists for. See handlers/media.ts.
+  compile("DELETE", "/api/v1/media/:mediaId", handleDeleteMedia),
   compile("GET", "/api/v1/images", handleGetImages),
   compile("POST", "/api/v1/images", handlePostImages),
   compile("GET", "/api/v1/videos", handleGetVideos),

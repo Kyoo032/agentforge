@@ -34,6 +34,7 @@ import { parseByteRange, type RangedBytes } from "./byte-range";
 import { log } from "./log";
 import {
   assertObjectKey,
+  assertPurgeableTenant,
   isObjectKeyInsideTenant,
   tenantKeyPrefix,
   type ObjectHead,
@@ -354,6 +355,74 @@ export function createCosObjectStore(options: CosClientOptions = {}): TenantObje
     throw new ApiError("not_found", "That file is not available on this account", 404);
   };
 
+  /**
+   * One paginated listing walk over a tenant's prefix, used to measure and to purge.
+   *
+   * A bucket listing is paginated and a tenant can hold more than one page. The loop is bounded by
+   * the listing itself: COS only sets `IsTruncated` while there is more, and a marker that does not
+   * move would spin, so an unmoved marker ends the walk.
+   *
+   * The marker has to follow the **last key of the page**, not the last key this tenant owns. For
+   * the local tenant the prefix is empty, so a page can be entirely other tenants' objects;
+   * advancing only on an owned entry left the marker where it was, and a truncated page with no
+   * `NextMarker` then re-fetched the same page until the cap below — 10,000 billed calls.
+   *
+   * `onOwned` runs for each entry that belongs to `tenantId` and for no other, which is what keeps
+   * a purge of the local tenant's (empty) prefix from reaching every other tenant's objects even
+   * if the guard above it were ever removed.
+   */
+  const walkPrefix = async (
+    tenantId: string,
+    onOwned: ((key: string) => Promise<void>) | null,
+  ): Promise<TenantStorageUse> => {
+    const prefix = tenantKeyPrefix(tenantId);
+    let marker = "";
+    let usedBytes = 0;
+    let objectCount = 0;
+    for (let page = 0; page < 10_000; page += 1) {
+      const startedAt = marker;
+      const query: Record<string, string> = { "max-keys": "1000" };
+      if (prefix) {
+        query.prefix = prefix;
+      }
+      if (marker) {
+        query.marker = marker;
+      }
+      const response = await send("GET", "", { query });
+      if (response.status !== 200) {
+        fail("listing", prefix, response);
+      }
+      const body = Buffer.from(response.bytes).toString("utf8");
+      for (const entry of parseCosListing(body)) {
+        // Every entry moves the marker; only this tenant's entries are counted or acted on. The
+        // local tenant's prefix is empty, so a plain listing would otherwise count every OTHER
+        // tenant's objects as its own. This is `tenantDeniedRoots` on the bucket.
+        marker = entry.key;
+        if (!isObjectKeyInsideTenant(tenantId, entry.key)) {
+          continue;
+        }
+        usedBytes += entry.sizeBytes;
+        objectCount += 1;
+        if (onOwned) {
+          await onOwned(entry.key);
+        }
+      }
+      if (xmlText(body, "IsTruncated") !== "true") {
+        break;
+      }
+      const next = xmlText(body, "NextMarker");
+      if (next) {
+        marker = next;
+      }
+      // Nothing to ask for next, or the same request as last time: stop rather than spin. COS
+      // documents `NextMarker` on every truncated response, so this is the guard, not the path.
+      if (!marker || marker === startedAt) {
+        break;
+      }
+    }
+    return { usedBytes, objectCount };
+  };
+
   const store: TenantObjectStore = {
     kind: "cos",
 
@@ -452,57 +521,37 @@ export function createCosObjectStore(options: CosClientOptions = {}): TenantObje
     },
 
     async measure(tenantId) {
-      const prefix = tenantKeyPrefix(tenantId);
-      let marker = "";
-      let usedBytes = 0;
-      let objectCount = 0;
-      // A bucket listing is paginated and a tenant can hold more than one page. The loop is bounded
-      // by the listing itself: COS only sets `IsTruncated` while there is more, and a marker that
-      // does not move would spin, so an unmoved marker ends the walk.
-      //
-      // The marker has to follow the **last key of the page**, not the last key this tenant owns.
-      // For the local tenant the prefix is empty, so a page can be entirely other tenants' objects;
-      // advancing only on an owned entry left the marker where it was, and a truncated page with no
-      // `NextMarker` then re-fetched the same page until the cap below — 10,000 billed calls.
-      for (let page = 0; page < 10_000; page += 1) {
-        const startedAt = marker;
-        const query: Record<string, string> = { "max-keys": "1000" };
-        if (prefix) {
-          query.prefix = prefix;
+      return walkPrefix(tenantId, null);
+    },
+
+    /**
+     * Phase 8 — delete every object this tenant holds, one page of the listing at a time.
+     *
+     * The same walk `measure` runs, with a DELETE per owned entry. Page by page rather than
+     * "collect every key, then delete": a tenant with a full 20 GiB of small objects has a lot of
+     * keys, and holding all of them in memory to save nothing is the wrong trade. Deleting inside
+     * the walk is safe because the marker is a *key position* in a sorted listing, not a cursor
+     * into a snapshot — the next page is "keys after this one", and keys that are now gone simply
+     * do not come back.
+     *
+     * A DELETE per object rather than the batch POST: the batch API is one more signed shape to
+     * get right for an operation that runs once per account, ever, and a per-key delete is the one
+     * `remove` already proves against a real bucket. If a reset ever becomes slow enough to matter,
+     * this is the line to change.
+     *
+     * NOT atomic. A failure part way leaves some objects deleted and some not, which is why the
+     * reset that drives this is safe to run again — a second pass deletes what the first missed
+     * and reports zero for what it already took.
+     */
+    async removePrefix(tenantId) {
+      assertPurgeableTenant(tenantId);
+      return walkPrefix(tenantId, async (key) => {
+        const response = await send("DELETE", key);
+        // 204 for a delete, 204 again for a key that was never there, 200 from some gateways.
+        if (response.status !== 204 && response.status !== 200 && response.status !== 404) {
+          fail("delete", key, response);
         }
-        if (marker) {
-          query.marker = marker;
-        }
-        const response = await send("GET", "", { query });
-        if (response.status !== 200) {
-          fail("listing", prefix, response);
-        }
-        const body = Buffer.from(response.bytes).toString("utf8");
-        for (const entry of parseCosListing(body)) {
-          // Every entry moves the marker; only this tenant's entries are counted. The local
-          // tenant's prefix is empty, so a plain listing would otherwise count every OTHER
-          // tenant's objects as its own. This is `tenantDeniedRoots` on the bucket.
-          marker = entry.key;
-          if (!isObjectKeyInsideTenant(tenantId, entry.key)) {
-            continue;
-          }
-          usedBytes += entry.sizeBytes;
-          objectCount += 1;
-        }
-        if (xmlText(body, "IsTruncated") !== "true") {
-          break;
-        }
-        const next = xmlText(body, "NextMarker");
-        if (next) {
-          marker = next;
-        }
-        // Nothing to ask for next, or the same request as last time: stop rather than spin. COS
-        // documents `NextMarker` on every truncated response, so this is the guard, not the path.
-        if (!marker || marker === startedAt) {
-          break;
-        }
-      }
-      return { usedBytes, objectCount };
+      });
     },
 
     describe(tenantId, key) {

@@ -1671,3 +1671,159 @@ describe("request correlation and authentication-failure logging", () => {
     expect(authLines()).toHaveLength(0);
   });
 });
+
+/**
+ * Phase 8 — `GET /healthz`, the one path outside `/api` this adapter answers.
+ *
+ * What these have to prove is not that it returns 200 — it is that it returns 200 while telling a
+ * stranger nothing, and that it never reaches `dispatch`. The `dispatched` array is the assertion
+ * for the second: a liveness probe that showed up there would be a probe inside the session gate.
+ */
+describe("handleNodeRequest liveness probe", () => {
+  const LIVENESS_URL = "/healthz";
+  const proxied = { host: WEB_HOST, origin: WEB_ORIGIN, ...TRANSPORT };
+
+  it("answers one word on the hosted server, with no session and no CSRF token", async () => {
+    useServerMode();
+    const captured = fakeResponse();
+    const handled = await handleNodeRequest(
+      fakeRequest({ method: "GET", url: LIVENESS_URL, headers: proxied }),
+      captured.res,
+    );
+    expect(handled).toBe(true);
+    expect(captured.status()).toBe(200);
+    expect(captured.json()).toEqual({ status: "ok" });
+    // The gate lives behind `dispatch`; never arriving there is what keeps this ungated.
+    expect(dispatched).toHaveLength(0);
+  });
+
+  it("says nothing about the deployment", async () => {
+    useServerMode();
+    const captured = fakeResponse();
+    await handleNodeRequest(fakeRequest({ method: "GET", url: LIVENESS_URL, headers: proxied }), captured.res);
+    const payload = JSON.stringify(captured.json());
+    // The reconnaissance list from `handlers/health.ts`: a version, a path, a backend, a tenant.
+    for (const leak of ["version", "path", "tenant", "cos", "sqlite", "component", "/data", dataDir]) {
+      expect(payload.toLowerCase()).not.toContain(leak.toLowerCase());
+    }
+    expect(Object.keys(captured.json() as Record<string, unknown>)).toEqual(["status"]);
+  });
+
+  it("is not cached, so a dead process cannot keep answering through a proxy", async () => {
+    useServerMode();
+    const captured = fakeResponse();
+    await handleNodeRequest(fakeRequest({ method: "GET", url: LIVENESS_URL, headers: proxied }), captured.res);
+    expect(captured.header("cache-control")).toBe("no-store");
+    expect(captured.header("x-content-type-options")).toBe("nosniff");
+  });
+
+  it("answers HEAD with the right Content-Length and no body", async () => {
+    useServerMode();
+    const captured = fakeResponse();
+    await handleNodeRequest(fakeRequest({ method: "HEAD", url: LIVENESS_URL, headers: proxied }), captured.res);
+    expect(captured.status()).toBe(200);
+    // A body on a HEAD answer is a protocol error; the length still has to be the GET's length.
+    expect(captured.header("content-length")).toBe(String(Buffer.byteLength(JSON.stringify({ status: "ok" }))));
+    expect(captured.json()).toEqual({});
+  });
+
+  it("answers off server mode too, so the same healthcheck works against webdev", async () => {
+    useLocalMode();
+    const captured = fakeResponse();
+    const handled = await handleNodeRequest(
+      fakeRequest({ method: "GET", url: LIVENESS_URL, headers: { host: LOOPBACK_HOST } }),
+      captured.res,
+    );
+    expect(handled).toBe(true);
+    expect(captured.json()).toEqual({ status: "ok" });
+  });
+
+  it("tolerates the trailing slash a healthcheck config tends to grow", async () => {
+    useServerMode();
+    const captured = fakeResponse();
+    await handleNodeRequest(fakeRequest({ method: "GET", url: "/healthz/", headers: proxied }), captured.res);
+    expect(captured.json()).toEqual({ status: "ok" });
+  });
+
+  it("leaves any other verb to the page server rather than answering it", async () => {
+    useServerMode();
+    const captured = fakeResponse();
+    const handled = await handleNodeRequest(
+      fakeRequest({ method: "POST", url: LIVENESS_URL, headers: proxied, body: "{}" }),
+      captured.res,
+    );
+    // Whatever happens to it, it is not a liveness answer: only GET and HEAD are recognised.
+    expect(captured.json()).not.toEqual({ status: "ok" });
+    expect(handled === false || captured.status() !== 200).toBe(true);
+  });
+
+  it("writes no log line, because it fires every few seconds forever", async () => {
+    useServerMode();
+    const captured = fakeResponse();
+    await handleNodeRequest(fakeRequest({ method: "GET", url: LIVENESS_URL, headers: proxied }), captured.res);
+    expect(captured.status()).toBe(200);
+    expect(logged).toHaveLength(0);
+  });
+
+  it("does not answer a path that merely starts with the probe's name", async () => {
+    useServerMode();
+    const captured = fakeResponse();
+    await handleNodeRequest(fakeRequest({ method: "GET", url: "/healthz-internal", headers: proxied }), captured.res);
+    expect(captured.json()).not.toEqual({ status: "ok" });
+  });
+});
+
+/**
+ * Phase 8 — the probe answers the caller it exists for, and only that rule bends for it.
+ *
+ * `docker healthcheck` runs inside the container and hits the app's own loopback port; Caddy's
+ * upstream probe does the same. Neither stamps `X-Forwarded-Proto`, and a liveness route that
+ * refused them could not tell an orchestrator the app is dead while the proxy is up.
+ */
+describe("handleNodeRequest liveness on the loopback port", () => {
+  const LIVENESS_URL = "/healthz";
+  /** No proxy header at all: a direct hit on the app's own port, which is the healthcheck's shape. */
+  const direct = { host: "127.0.0.1:3000" };
+
+  it("answers a direct hit that carries no X-Forwarded-Proto", async () => {
+    useServerMode();
+    const captured = fakeResponse();
+    const handled = await handleNodeRequest(
+      fakeRequest({ method: "GET", url: LIVENESS_URL, headers: direct, forwardedProto: null }),
+      captured.res,
+    );
+    expect(handled).toBe(true);
+    expect(captured.status()).toBe(200);
+    expect(captured.json()).toEqual({ status: "ok" });
+  });
+
+  it("still refuses every other path on that same hop", async () => {
+    useServerMode();
+    const captured = fakeResponse();
+    await handleNodeRequest(
+      fakeRequest({ method: "GET", url: "/api/v1/settings", headers: direct, forwardedProto: null }),
+      captured.res,
+    );
+    // The carve-out is one path wide. Anything else on a plaintext hop is refused as it always was.
+    expect(captured.status()).toBe(403);
+    expect(captured.json().error?.code).toBe("https_required");
+  });
+
+  it("is still inside the per-IP bucket, so it cannot be used as an unmetered socket", async () => {
+    useServerMode();
+    freezeClock();
+    for (let i = 0; i < DEFAULT_IP_BURST; i += 1) {
+      await handleNodeRequest(
+        fakeRequest({ method: "GET", url: LIVENESS_URL, headers: direct, forwardedProto: null }),
+        fakeResponse().res,
+      );
+    }
+    const captured = fakeResponse();
+    await handleNodeRequest(
+      fakeRequest({ method: "GET", url: LIVENESS_URL, headers: direct, forwardedProto: null }),
+      captured.res,
+    );
+    // Exempt from the TLS hop only: the bucket, the header cap and the method allowlist still run.
+    expect(captured.status()).toBe(429);
+  });
+});

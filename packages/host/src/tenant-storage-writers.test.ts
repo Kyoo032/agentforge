@@ -50,6 +50,7 @@ import {
   tenantJobRoots,
   tenantStorageReport,
 } from "./tenant-storage";
+import { assertPurgeableTenant, isObjectKeyInsideTenant } from "./tenant-object-keys";
 import type { TenantObjectStore } from "./tenant-object-keys";
 import type { HostJsonResult, HostRequest, HostResult } from "./types";
 import type { SessionStore } from "./auth/session-store";
@@ -282,6 +283,22 @@ describe("under the COS backend", () => {
           usedBytes += value.bytes.byteLength;
         }
         return { usedBytes, objectCount: objects.size };
+      },
+      // Phase 8: the stub bucket's whole-prefix delete. Only this tenant's keys, so a test that
+      // purges one tenant can still assert another tenant's objects are untouched.
+      async removePrefix(tenantId) {
+        assertPurgeableTenant(tenantId);
+        let usedBytes = 0;
+        let objectCount = 0;
+        for (const key of [...objects.keys()]) {
+          if (!isObjectKeyInsideTenant(tenantId, key)) {
+            continue;
+          }
+          usedBytes += objects.get(key)?.bytes.byteLength ?? 0;
+          objectCount += 1;
+          objects.delete(key);
+        }
+        return { usedBytes, objectCount };
       },
       describe(_tenantId, key) {
         return `cos://stub/${key}`;

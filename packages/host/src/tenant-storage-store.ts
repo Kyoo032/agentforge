@@ -144,6 +144,60 @@ export function addTenantStorageBytes(
   return readTenantStorageCounter(tenantId) ?? { bytesUsed: 0, objectCount: 0, measuredAt: null };
 }
 
+/**
+ * Phase 8 — move the counter **only if the result stays inside `budgetBytes`**, in one statement.
+ *
+ * This is what makes the quota an enforced ceiling rather than a number that happens to be right
+ * afterwards. Phase 6 checked the counter, then wrote the object, then moved the counter, and
+ * serialised those three steps behind a per-tenant promise chain — which held for one process and
+ * said so in its own comment: "two hosts behind the proxy would still race, and the fix for that is
+ * a conditional update in SQL, not a mutex". The CVM runbook's own scaling step is a second app
+ * container behind the same Caddy, so that was a real gap with a date on it. This is the fix.
+ *
+ * The test is in the WHERE clause, so SQLite evaluates it against the row under the row's own lock:
+ * two uploads arriving together from two processes both try the same UPDATE, and the second one
+ * sees the first one's bytes because it cannot have read the row before the first one wrote it.
+ * `changes()` — returned here as a boolean — is the verdict, and a `false` is a refusal, never a
+ * retry.
+ *
+ * **`budgetBytes` is the ceiling minus what the counter does not know about.** The job trees on
+ * local disk (ffmpeg scratch, dataset files, meeting recordings) are measured rather than counted,
+ * so the caller subtracts them and hands this the room that is left for objects. Passing `null`
+ * means "no ceiling": the delta is applied unconditionally, which is the operator's
+ * `AGENTFORGE_TENANT_STORAGE_BYTES=0`.
+ *
+ * **A delta of zero or less is always applied.** Freeing space must never be refused, and after an
+ * operator lowers the ceiling a tenant is over it by definition — a conditional that also blocked
+ * shrinking writes would leave them unable to get back under it.
+ *
+ * There is no `max(0, …)` on `bytes_used` here, unlike `addTenantStorageBytes`: this function only
+ * ever runs against a row that exists and only ever with a delta the caller computed from a real
+ * `head()`. The clamp stays on the refund path, which is where a double delete can happen.
+ */
+export function reserveTenantStorageBytes(
+  tenantId: string,
+  delta: { bytes: number; objects: number },
+  budgetBytes: number | null,
+): boolean {
+  const bytes = Math.trunc(delta.bytes);
+  const objects = Math.trunc(delta.objects);
+  if (budgetBytes === null || bytes <= 0) {
+    addTenantStorageBytes(tenantId, { bytes, objects });
+    return true;
+  }
+  const result = requireSql()
+    .prepare(
+      `UPDATE tenant_storage
+          SET bytes_used = bytes_used + ?,
+              object_count = max(0, object_count + ?),
+              updated_at = ?
+        WHERE tenant_id = ?
+          AND bytes_used + ? <= ?`,
+    )
+    .run(bytes, objects, Date.now(), tenantId, bytes, Math.trunc(budgetBytes)) as { changes?: number };
+  return Number(result.changes ?? 0) > 0;
+}
+
 /** Drop a tenant's counter. Used by the reset path and by the tests; idempotent. */
 export function clearTenantStorageCounter(tenantId: string): void {
   requireSql().prepare("DELETE FROM tenant_storage WHERE tenant_id = ?").run(tenantId);

@@ -364,8 +364,10 @@ describe("two writes at once", () => {
   it("does not let both cross the ceiling between the check and the counter", async () => {
     // Round 1 shipped head -> admit -> put with nothing holding the tenant between them: two
     // 600-byte writes against a 1000-byte ceiling both read 100, both were admitted, and the tenant
-    // ended at 1300. The atomic SQL delta kept the counter honest afterwards, which is not the same
-    // as having enforced the ceiling. `putTenantObject` now runs a tenant's writes in a chain.
+    // ended at 1300. Phase 6 fixed that with a per-tenant promise chain, which held for one process
+    // and said so in its own comment. Phase 8 replaced the chain with a conditional UPDATE
+    // (`reserveTenantStorageBytes`), so the ceiling is now enforced by the row rather than by this
+    // process's scheduler — and this case must keep the same verdict either way.
     serverMode(1000);
     await storage.putTenantObject(A, key(A, "org", "seed.bin"), bytes(100), "application/octet-stream");
 
@@ -386,7 +388,8 @@ describe("two writes at once", () => {
   });
 
   it("does not make one tenant's write wait behind another tenant's", async () => {
-    // The chain is per tenant. A shared lock would turn one 500 MB import into everybody's latency.
+    // Nothing serialises tenants against each other any more, and nothing may start to: a shared
+    // lock would turn one 500 MB import into everybody's latency.
     serverMode(100_000);
     const order: string[] = [];
     await Promise.all([
@@ -403,11 +406,98 @@ describe("two writes at once", () => {
   });
 
   it("keeps serving writes after one of them fails", async () => {
-    // A rejected write must not poison the chain every later write waits on.
+    // A rejected write must leave nothing behind that a later write trips over — a poisoned chain
+    // under Phase 6, a reserved-but-never-refunded delta under Phase 8.
     serverMode(100_000);
     await expect(storage.putTenantObject(A, "tenants/other/x.bin", bytes(10), "application/octet-stream")).rejects.toThrow();
     await storage.putTenantObject(A, key(A, "org", "after.bin"), bytes(20), "application/octet-stream");
     expect(await storage.tenantStorageReport(A).then((report) => report.usedBytes)).toBe(20);
+  });
+});
+
+/**
+ * Phase 8 — the ceiling is held by the row, not by this process.
+ *
+ * `reserveTenantStorageBytes` is a single UPDATE whose WHERE clause carries the test, so SQLite
+ * evaluates it under the row's own lock. These drive that function directly, because the property
+ * worth asserting is the one `putTenantObject` cannot show from one process: that the SECOND caller
+ * sees the first caller's bytes with no shared JavaScript state between them at all.
+ */
+describe("the conditional reservation", () => {
+  it("admits a delta that fits and refuses the one that no longer does", () => {
+    serverMode(1000);
+    // `putTenantObject` seeds the row from a real measure before it ever reserves; these cases
+    // stand in for that step, because the UPDATE deliberately acts on an existing row only.
+    store.setTenantStorageCounter(A, { bytesUsed: 0, objectCount: 0 });
+    expect(store.reserveTenantStorageBytes(A, { bytes: 600, objects: 1 }, 1000)).toBe(true);
+    // The budget is the same number both times; what changed is the row, which is the point.
+    expect(store.reserveTenantStorageBytes(A, { bytes: 600, objects: 1 }, 1000)).toBe(false);
+    expect(store.readTenantStorageCounter(A)?.bytesUsed).toBe(600);
+  });
+
+  it("admits a write that lands exactly on the ceiling", () => {
+    serverMode(1000);
+    store.setTenantStorageCounter(A, { bytesUsed: 0, objectCount: 0 });
+    // `<=`, not `<`: a tenant is entitled to the last byte of what they are paying for.
+    expect(store.reserveTenantStorageBytes(A, { bytes: 1000, objects: 1 }, 1000)).toBe(true);
+    expect(store.readTenantStorageCounter(A)?.bytesUsed).toBe(1000);
+    expect(store.reserveTenantStorageBytes(A, { bytes: 1, objects: 1 }, 1000)).toBe(false);
+  });
+
+  it("never refuses a write that frees space, even from over the ceiling", () => {
+    serverMode(1000);
+    // The shape an operator makes by lowering the ceiling: over it by definition, and the only way
+    // back under is a delete. A conditional that also blocked shrinking writes would trap them.
+    store.setTenantStorageCounter(A, { bytesUsed: 5000, objectCount: 3 });
+    expect(store.reserveTenantStorageBytes(A, { bytes: -2000, objects: -1 }, 1000)).toBe(true);
+    expect(store.readTenantStorageCounter(A)?.bytesUsed).toBe(3000);
+    expect(store.reserveTenantStorageBytes(A, { bytes: 0, objects: 0 }, 1000)).toBe(true);
+  });
+
+  it("applies the delta unconditionally when the operator set no ceiling", () => {
+    serverMode();
+    // `AGENTFORGE_TENANT_STORAGE_BYTES=0` is "no quota", which reaches here as a null budget. No
+    // row is seeded first on purpose: with no ceiling the delta goes through `addTenantStorageBytes`,
+    // which upserts, so this also pins which of the two paths a null budget takes.
+    expect(store.reserveTenantStorageBytes(A, { bytes: 9_000_000, objects: 1 }, null)).toBe(true);
+    expect(store.readTenantStorageCounter(A)?.bytesUsed).toBe(9_000_000);
+  });
+
+  it("refuses without moving the row, so a refusal owes no refund", () => {
+    serverMode(1000);
+    store.setTenantStorageCounter(A, { bytesUsed: 900, objectCount: 2 });
+    const before = store.readTenantStorageCounter(A);
+    expect(store.reserveTenantStorageBytes(A, { bytes: 200, objects: 1 }, 1000)).toBe(false);
+    expect(store.readTenantStorageCounter(A)?.bytesUsed).toBe(before?.bytesUsed);
+    expect(store.readTenantStorageCounter(A)?.objectCount).toBe(before?.objectCount);
+  });
+
+  it("judges each tenant against its own row", () => {
+    serverMode(1000);
+    store.setTenantStorageCounter(A, { bytesUsed: 900, objectCount: 1 });
+    store.setTenantStorageCounter(B, { bytesUsed: 0, objectCount: 0 });
+    expect(store.reserveTenantStorageBytes(A, { bytes: 200, objects: 1 }, 1000)).toBe(false);
+    // B is full of nothing; A being full says nothing about it.
+    expect(store.reserveTenantStorageBytes(B, { bytes: 200, objects: 1 }, 1000)).toBe(true);
+  });
+
+  it("refuses a tenant with no counter row rather than inventing one", () => {
+    serverMode(1000);
+    // The seeding is `putTenantObject`'s job and it measures the backend first. If the row is
+    // missing here the UPDATE matches nothing, and "no row matched" must read as a refusal: an
+    // INSERT at this point would start a tenant's accounting at zero on the word of the caller.
+    expect(store.reserveTenantStorageBytes("tenant-with-no-row", { bytes: 10, objects: 1 }, 1000)).toBe(false);
+  });
+
+  it("refunds a failed put rather than charging for bytes that never landed", async () => {
+    serverMode(10_000);
+    await storage.putTenantObject(A, key(A, "org", "kept.bin"), bytes(100), "application/octet-stream");
+    // A key outside the tenant is refused by the guard after the reservation is taken, which is
+    // exactly the window the refund exists for.
+    await expect(
+      storage.putTenantObject(A, `${TENANTS_DIR}/${B}/org/stolen.bin`, bytes(500), "application/octet-stream"),
+    ).rejects.toThrow(ApiError);
+    expect((await storage.tenantStorageReport(A)).usedBytes).toBe(100);
   });
 });
 

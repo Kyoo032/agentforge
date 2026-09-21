@@ -1,5 +1,6 @@
 import {
   defaultAgentPack,
+  hostCapabilities,
   listToolRoutes,
   listTools,
   resolvedGatewayBaseUrl,
@@ -82,6 +83,21 @@ export async function handleGetOrganizations(request: HostRequest): Promise<Host
   }
 }
 
+/**
+ * The cheapest GET on the API, and since Phase 8 the one place the renderer learns what this
+ * deployment can do.
+ *
+ * `capabilities` is the migration plan's §4 shape ("resolved once at boot and read by both the
+ * host and the renderer"), and it belongs here rather than on a route of its own for three
+ * reasons: this is one of the two ungated GETs (`../auth/routes.ts`), so the onboarding screen can
+ * read it before anybody has signed in; it is what the renderer already fetches first, to prime
+ * the CSRF cookie and the brand; and both transports answer it identically, so the packaged
+ * desktop reads its own capabilities through the same code path as a browser.
+ *
+ * Nothing in it is per tenant, per user or per plan — every flag is a fact about the target, which
+ * is what makes it safe to hand an anonymous caller. A plan's allowance stays on
+ * `GET /api/v1/billing/plan`, behind the session.
+ */
 export async function handlePing(): Promise<HostResult> {
   return jsonOk({
     ok: true,
@@ -89,6 +105,7 @@ export async function handlePing(): Promise<HostResult> {
     productName: resolvedProductName(),
     gatewayName: resolvedGatewayName(),
     gatewayBaseUrl: resolvedGatewayBaseUrl(),
+    capabilities: hostCapabilities(),
     ...localePayload(),
   });
 }

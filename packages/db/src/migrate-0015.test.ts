@@ -202,11 +202,14 @@ describe("0015_tenants on a fresh database", () => {
     // entitlement, a seat and a provider's delivery are all bought by the tenant, and none of them
     // has an organization to be reached through. tenant_storage is Phase 6 (0019): how many bytes
     // a tenant is holding is a property of the tenant, and the quota it feeds is per tenant, not
-    // per organization. Nothing else is allowed to carry a second tenant_id.
+    // per organization. tenant_reset_audit is Phase 8 (0020): it records that a tenant erased its
+    // own content, so it has to hang off the thing that survives that act — the tenant — and never
+    // off the organization the reset deletes. Nothing else is allowed to carry a second tenant_id.
     expect(carriers.sort()).toEqual([
       "auth_sessions",
       "billing_events",
       "tenant_plan",
+      "tenant_reset_audit",
       "tenant_seat",
       "tenant_state",
       "tenant_storage",

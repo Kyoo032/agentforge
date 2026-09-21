@@ -1,6 +1,6 @@
 import path from "node:path";
 import { and, eq } from "drizzle-orm";
-import { ApiError, modeMessage, videoCapabilities, type TenantContext } from "@agentforge/core";
+import { ApiError, isServerMode, modeMessage, videoCapabilities, type TenantContext } from "@agentforge/core";
 import { db, editUnplaced, media } from "@agentforge/db";
 import { jsonError, jsonOk } from "../errors";
 import { requireGatewayAllowedFor } from "../gateway-gate";
@@ -193,6 +193,12 @@ export async function handlePostEditKeep(request: HostRequest): Promise<HostResu
   }
 }
 
+/** Reason code and message for a file path the hosted service will not read. */
+export const LOCAL_PATH_DISABLED_CODE = "local_path_disabled";
+export const LOCAL_PATH_DISABLED_MESSAGE =
+  "Importing by file path is not available on the hosted service, because the path would be a " +
+  "path on the server rather than on your machine. Upload the file instead.";
+
 export async function handlePostEditImport(request: HostRequest): Promise<HostResult> {
   try {
     const tenant = await getTenant(request);
@@ -203,6 +209,32 @@ export async function handlePostEditImport(request: HostRequest): Promise<HostRe
     let mime = "application/octet-stream";
     let filename = "upload.bin";
     if (typeof body.sourcePath === "string") {
+      /*
+       * Phase 8 — a path is a desktop idea, and the hosted server refuses it by name.
+       *
+       * The transport check below has kept this branch off HTTP since it was written, and it is
+       * still the rule for the desktop and webdev. What it does not do is SAY anything: a hosted
+       * tenant who sends a path gets `invalid_request`, the same answer a typo gets, and the
+       * refusal reads as an accident of plumbing rather than as policy. It is policy — reading a
+       * caller-named path off the server's own filesystem is the whole of what a hosted deployment
+       * must never do — so in server mode it gets its own code, checked first, and a capability
+       * flag (`localPaths`) that tells the renderer not to offer the picker at all.
+       *
+       * Belt and braces on purpose. `nativeFilePicker` hides the button, `localPaths` says why,
+       * this refuses the route, and the transport check refuses it again for anything that is not
+       * the packaged shell. A hidden button is a courtesy; the refusal is the control.
+       */
+      if (isServerMode()) {
+        return jsonOk(
+          {
+            error: {
+              code: LOCAL_PATH_DISABLED_CODE,
+              message: LOCAL_PATH_DISABLED_MESSAGE,
+            },
+          },
+          403,
+        );
+      }
       if (transportOf(request) !== "ipc") {
         return jsonOk({ error: { code: "invalid_request", message: "sourcePath is only valid over IPC" } }, 400);
       }

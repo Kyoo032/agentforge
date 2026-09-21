@@ -9,7 +9,13 @@ import { parseGatewayGate, type GatewayGatePayload } from "./gateway-gate";
  * which is why the host asks the app to relaunch.
  */
 
-export const RESET_SCOPES = ["key", "all"] as const;
+/**
+ * Phase 8 adds `tenant`: the hosted "Start over", which erases the signed-in account's own content
+ * and leaves every other tenant on the box untouched. It is a third scope rather than a hosted
+ * reading of `all` so that neither target can reach the other's button — the host refuses `all` in
+ * server mode and `tenant` off it, both before it reads the confirmation word.
+ */
+export const RESET_SCOPES = ["key", "all", "tenant"] as const;
 
 export type ResetScope = (typeof RESET_SCOPES)[number];
 
@@ -27,6 +33,10 @@ export const RESET_CONFIRM_WORD = "RESET";
 export type ResetResult = {
   ok: boolean;
   scope: ResetScope;
+  /** Phase 8, `tenant` only: the home desk the account lands on once it has been erased. */
+  workspaceId?: string;
+  /** Phase 8, `tenant` only: object bytes the erase actually freed, for the confirmation line. */
+  bytesFreed?: number;
   /** The host wipes on the next start, so the app has to restart to finish. */
   relaunch: boolean;
   /** A wipe is queued in `reset-pending.json` and will be applied by the next packaged boot. */
@@ -86,7 +96,15 @@ export function parseResetResult(status: number, body: unknown, requested: Reset
     const message = errorMessage(record);
     return { ok: false, scope, relaunch: false, resetPending, gateway, ...(message ? { error: message } : {}) };
   }
-  return { ok: true, scope, relaunch: record.relaunch === true, resetPending, gateway };
+  return {
+    ok: true,
+    scope,
+    relaunch: record.relaunch === true,
+    resetPending,
+    gateway,
+    ...(typeof record.workspaceId === "string" ? { workspaceId: record.workspaceId } : {}),
+    ...(typeof record.bytesFreed === "number" ? { bytesFreed: record.bytesFreed } : {}),
+  };
 }
 
 /**

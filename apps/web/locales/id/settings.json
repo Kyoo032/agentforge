@@ -52,5 +52,22 @@
   "reset.pendingCancel": "Simpan data saya",
   "reset.pendingRestart": "Mulai ulang sekarang",
   "reset.pendingCancelled": "Reset yang diantrekan dibatalkan. Tidak ada yang akan dihapus.",
-  "reset.failed": "Tidak dapat menyelesaikannya saat ini. Coba lagi sebentar lagi."
+  "reset.failed": "Tidak dapat menyelesaikannya saat ini. Coba lagi sebentar lagi.",
+  "reset.eraseAccount": "Hapus akun ini",
+  "reset.eraseAccountHelp": "Menghapus semua meja, percakapan, berkas, dan kunci tersimpan di akun ini. Paket, kursi, dan riwayat tagihan Anda tetap ada. Akun orang lain tidak tersentuh.",
+  "reset.eraseAccountWarning": "Ini menghapus semua isi akun ini untuk semua penggunanya, dan tidak bisa dibatalkan.",
+  "reset.eraseAccountSubmit": "Hapus akun ini",
+  "reset.eraseAccountDone": "Akun ini sudah dihapus. Anda memulai dari meja baru yang kosong.",
+  "storage.heading": "Penyimpanan",
+  "storage.help": "Berapa banyak ruang yang dipakai akun ini, dan apa yang memakainya.",
+  "storage.loading": "Membaca penyimpanan Anda…",
+  "storage.failed": "Tidak bisa membaca penyimpanan Anda.",
+  "storage.used": "{used} dari {limit} terpakai ({percent}%).",
+  "storage.usedNoLimit": "{used} terpakai.",
+  "storage.low": "Anda hampir mencapai batas. Hapus sesuatu untuk memberi ruang.",
+  "storage.full": "Penyimpanan Anda sudah penuh. Hapus sesuatu sebelum mengunggah lagi.",
+  "storage.biggest": "Berkas terbesar",
+  "storage.empty": "Belum ada apa pun yang tersimpan di akun ini.",
+  "storage.delete": "Hapus",
+  "storage.deleteFailed": "Tidak bisa menghapus berkas itu."
 }

@@ -21,7 +21,7 @@ in ways that look surprising.
 ### 1. Rail → `/edit` → shell
 
 `mode-edit` is an ordinary work-mode rail tab (`mode-${href.slice(1)}`), present on Default since
-0.14.22. The route renders `EditStudio` (`apps/web/components/edit-studio.tsx:61`), which mounts as
+0.14.22. The route renders `EditStudio` (`apps/web/components/edit-studio.tsx:62`), which mounts as
 `data-testid="edit-studio"` (`:630`).
 
 On mount it fires four independent reads (`apps/web/components/edit-studio.tsx:129-163`):
@@ -196,7 +196,7 @@ Host side (`packages/host/src/handlers/edit.ts:194-309`):
 
 `edit-composer` → `edit-composer-send` → `sendAgent` (`edit-studio.tsx:426-492`) →
 `POST /api/v1/edit/projects/:id/agent` with `{text, tier}`, read as SSE. The handler
-(`packages/host/src/handlers/edit.ts:311-328`) calls `requireGatewayAllowed` **first** — a closed gate
+(`packages/host/src/handlers/edit.ts:343-360`) calls `requireGatewayAllowed` **first** — a closed gate
 is a flat `403 gateway_blocked` with no stream, exactly like Chat.
 
 `runEditAgent` (`packages/host/src/edit/agent-run.ts:135-197`) builds a per-turn budget from
@@ -264,7 +264,7 @@ Two integers on the project (`review: {lastAgentSeq, ackSeq}`) and one compariso
 - Closed gate → `EditCards` renders `edit-review-card` + `edit-review-ok`, and `edit-export` is
   disabled (`edit-studio.tsx:659`).
 - The host enforces it independently: `handlePostEditExport` answers `400 review_required` when
-  `reviewGateOpen` is false (`packages/host/src/handlers/edit.ts:411-415`).
+  `reviewGateOpen` is false (`packages/host/src/handlers/edit.ts:443-447`).
 
 ### 11. Generate
 
@@ -388,7 +388,7 @@ The job runner has no request to read a tenant from, so it reads one by project 
   it assigns a plain value instead of an updater. **Treat as a finding, not a design** (see
   `unreleased.md`). `foldApplied`'s `catch` (`apps/web/lib/edit-client.ts:219-228`) does not save you:
   its fallback loop calls `applyOp` again and rethrows.
-- **`edit-parity-check` has no `onClick`** (`apps/web/components/edit-studio.tsx:652-654`). The Parity
+- **`edit-parity-check` has no `onClick`** (`apps/web/components/edit-studio.tsx:667-673`). The Parity
   button is inert; `POST …/parity` and `renderParityFrame` have no caller in `apps/web`.
 - **There is no `Ctrl+Z`.** The only keys the studio binds are Space/K, S, Delete/Backspace, J and L
   (`edit-studio.tsx:344-397`). Undo is `edit-card-undo`, and only on an agent card.
@@ -428,7 +428,7 @@ The job runner has no request to read a tenant from, so it reads one by project 
   (`edit-studio.tsx:571-575`); a job that fails later just clears `exporting` (`:618-625`).
 - **There is no way back to the project list.** `edit-project-list` only renders in the `!project`
   branch (`:687-741`); switching projects needs a reload.
-- **`sourcePath` import is IPC-only** (`packages/host/src/handlers/edit.ts:203-206`). Do not try the
+- **`sourcePath` import is IPC-only** (`packages/host/src/handlers/edit.ts:209-238`). Do not try the
   packaged path against `:3000`.
 - **The Edit UI below the header is hardcoded English.** Only `edit-studio.tsx` calls `t`; the agent
   panel, cards, preview, timeline, generate tab, recipes and templates ship literal English while the
@@ -506,7 +506,7 @@ sequence comparison means *any* agent write since the last ack closes the gate, 
 much cheaper than tracking per-card acknowledgement — but it is also why an owner-actor undo does not
 reopen it. **Confidence: high for the mechanism.**
 
-**Why `sourcePath` import is refused over HTTP.** `[Direct]` `packages/host/src/handlers/edit.ts:203-206`
+**Why `sourcePath` import is refused over HTTP.** `[Direct]` `packages/host/src/handlers/edit.ts:209-238`
 returns `400 "sourcePath is only valid over IPC"` when the transport header is not `ipc`. `[Inferred]`
 the handler would otherwise `readFile` an arbitrary absolute path on behalf of any page that can reach
 `:3000` — a local file read primitive. The IPC check is the boundary because in the packaged app the

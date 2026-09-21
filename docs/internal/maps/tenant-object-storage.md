@@ -50,7 +50,7 @@ tree rather than a rewrite of the database.
    `tenants/…`, which is `tenantDeniedRoots` as a string test. It runs before any IO in both
    backends, so a crafted key never becomes a request or an `open()`.
 2. **`resolveInsideTenantRoot`** (lane D, `packages/host/src/tenant-paths.ts`) — only the file
-   backend needs it, through `objectPath` (`packages/host/src/tenant-storage.ts:116-123`): a symlink
+   backend needs it, through `objectPath` (`packages/host/src/tenant-storage.ts:125-132`): a symlink
    planted inside a tenant's own subtree passes any lexical test while pointing anywhere on disk.
    COS has no symlinks, so there the first guard is the whole story.
 
@@ -64,13 +64,13 @@ the key with `mediaRelativePath` and calls `putTenantObject`
 (`packages/host/src/tenant-storage.ts:445-462`), which does three things in this order and no other:
 
 1. `head()` the key, so an overwrite is charged the difference rather than the whole object again.
-2. `assertStorageAdmits` (`packages/host/src/tenant-storage.ts:450-462`) — the check runs **before**
+2. `assertStorageAdmits` (`packages/host/src/tenant-storage.ts:487-499`) — the check runs **before**
    the write, so a refusal never leaves a partial object.
 3. `put()`, then `addTenantStorageBytes` (`packages/host/src/tenant-storage-store.ts:126-145`) — the
    counter moves only after the backend took the write, so a failed put never charges for bytes
    nobody stored.
 
-A read is `readTenantObjectRange` (`packages/host/src/tenant-storage.ts:535-541`) from
+A read is `readTenantObjectRange` (`packages/host/src/tenant-storage.ts:592-598`) from
 `handleGetMediaFile` (`packages/host/src/handlers/media.ts:24-50`). The file backend streams only
 the requested bytes; the COS backend HEADs for the size and then GETs with a `Range` header.
 
@@ -96,10 +96,10 @@ the requested bytes; the COS backend HEADs for the size and then GETs with a `Ra
   a 500 MB import queues nobody else, and per process — two hosts would still race, which is a
   conditional SQL update rather than a mutex.
 - **The counter is a cache, the backend is the truth.** A tenant with no row is seeded from a real
-  measure on first use (`objectUse`, `packages/host/src/tenant-storage.ts:375-393`) rather than from
+  measure on first use (`objectUse`, `packages/host/src/tenant-storage.ts:412-430`) rather than from
   zero, so an upgraded data volume is not declared empty; `recomputeTenantStorage`
   (`packages/host/src/tenant-storage.ts:540-554`) is the operator's reconciliation.
-- **The refusal** is `StorageQuotaError` (`packages/host/src/tenant-storage.ts:409-419`): a flat 403
+- **The refusal** is `StorageQuotaError` (`packages/host/src/tenant-storage.ts:446-456`): a flat 403
   with code `storage_quota_exceeded`, the same shape as `GatewayBlockedError` and `PlanBlockedError`
   and deliberately a third code. `gateway_blocked` routes the renderer to the paste-your-key
   onboarding screen, which is a dead end for a tenant whose problem is that their prefix is full.
@@ -108,7 +108,7 @@ the requested bytes; the COS backend HEADs for the size and then GETs with a `Ra
 
 ### The COS backend
 
-`createCosObjectStore` (`packages/host/src/tenant-storage-cos.ts:289-505`) signs its own requests
+`createCosObjectStore` (`packages/host/src/tenant-storage-cos.ts:290-563`) signs its own requests
 rather than vendoring the SDK, because the adapter has to be provable against a stub in an
 environment that cannot reach Tencent. `signCosRequest`
 (`packages/host/src/tenant-storage-cos.ts:241-259`) is the v5 scheme:
@@ -132,7 +132,7 @@ bill it for the whole bucket.
 
 ### ffmpeg, which cannot be handed bytes
 
-`materializeTenantObject` (`packages/host/src/tenant-storage.ts:570-599`) is the one seam between an
+`materializeTenantObject` (`packages/host/src/tenant-storage.ts:627-656`) is the one seam between an
 object store and a process that takes a path. Under the file backend it returns the object's own
 resolved path and copies nothing. Under COS it downloads once into `tenantObjectCacheRoot`
 (`packages/host/src/tenant-paths.ts:104-106`), keyed by the SHA-256 of the key, reused while the size

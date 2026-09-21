@@ -54,10 +54,17 @@ import { parseByteRange, type RangedBytes } from "./byte-range";
 import { createCosObjectStore } from "./tenant-storage-cos";
 import { log } from "./log";
 import { mediaRoot } from "./media-root";
-import { assertObjectKey, objectNotFound, type TenantObjectStore } from "./tenant-object-keys";
+import {
+  assertObjectKey,
+  assertPurgeableTenant,
+  objectNotFound,
+  type TenantObjectStore,
+} from "./tenant-object-keys";
 import {
   assertTenantId,
+  isInside,
   isLocalTenant,
+  realPathOrNull,
   resolveInsideTenantRoot,
   tenantDataDir,
   tenantObjectCacheRoot,
@@ -67,6 +74,7 @@ import {
 import {
   addTenantStorageBytes,
   readTenantStorageCounter,
+  reserveTenantStorageBytes,
   setTenantStorageCounter,
   type TenantStorageCounter,
 } from "./tenant-storage-store";
@@ -106,6 +114,7 @@ function unsatisfiable(size: number): RangedBytes {
  */
 export {
   assertObjectKey,
+  assertPurgeableTenant,
   isObjectKeyInsideTenant,
   tenantKeyPrefix,
   objectNotFound,
@@ -239,6 +248,34 @@ export const fileObjectStore: TenantObjectStore = {
   async measure(tenantId) {
     const root = mediaRoot();
     return walkBytes(tenantScopedRoot(root, tenantId), deniedUnder(root, tenantId));
+  },
+
+  async removePrefix(tenantId) {
+    assertPurgeableTenant(tenantId);
+    const root = mediaRoot();
+    const scoped = tenantScopedRoot(root, tenantId);
+    // Measured before the delete, because after it there is nothing left to measure and the audit
+    // row is the only place this number ever appears.
+    const use = await walkBytes(scoped, []);
+    // Resolved for real before anything recursive happens: the name check above proves the
+    // spelling is this tenant's, and `realPathOrNull` proves the inode is, which is what stops a
+    // symlink planted at `tenants/<id>/` from turning a per-tenant purge into an `rm -rf` of
+    // wherever it points. Same two-step `managedComponentsRoot` uses (Phase 7) and `removeEntry`
+    // in `@agentforge/db`'s reset.
+    const real = realPathOrNull(scoped);
+    if (real === null) {
+      // Nothing on disk at that path. Nothing to delete, and nothing to be wrong about.
+      return { usedBytes: 0, objectCount: 0 };
+    }
+    if (!isInside(root, real) || real === path.resolve(root)) {
+      throw new ApiError(
+        "storage_purge_refused",
+        "This tenant's storage prefix does not resolve inside the media root, so it was not deleted.",
+        500,
+      );
+    }
+    await rm(real, { recursive: true, force: true });
+    return use;
   },
 
   describe(tenantId, key) {
@@ -462,48 +499,41 @@ export async function assertStorageAdmits(tenantId: string, incomingBytes: numbe
 }
 
 /**
- * One tenant's in-flight writes, so the quota check and the counter move cannot interleave.
+ * Store an object for a tenant: **reserve the space, write the bytes, refund on failure.**
  *
- * The SQL delta is already atomic against the row (`tenant-storage-store.ts`), which keeps the
- * counter correct — but correct-after-the-fact is not the same as enforced. Two 600-byte uploads
- * arriving together under a 1000-byte ceiling both read 100, both admitted, and the tenant ended at
- * 1300. The overshoot was bounded (in-flight writes × the per-file cap) but it was real, and on a
- * 500 MB Edit import the bound is not small.
+ * Phase 6 did this as check, then put, then count, with a per-tenant promise chain holding the
+ * three together. That was honest about its own limit — it serialised one tenant's writes *in this
+ * process*, and its comment said the real fix was a conditional update in SQL — and Phase 8 is
+ * where that limit stopped being theoretical: the runbook's scaling step is a second app container
+ * behind the same proxy, and two containers share a database, not a promise chain.
  *
- * A promise chain per tenant is the whole mechanism: each write waits for the previous one to
- * finish check-put-count before starting its own. It serialises one tenant's writes **in this
- * process** only, which is the honest limit — two hosts behind the proxy would still race, and the
- * fix for that is a conditional update in SQL, not a mutex. The chain is cleared when it drains so
- * the map cannot grow with the tenant list.
- */
-const putChains = new Map<string, Promise<unknown>>();
-
-function serializePut<T>(tenantId: string, run: () => Promise<T>): Promise<T> {
-  const previous = putChains.get(tenantId) ?? Promise.resolve();
-  // `run` on both settlement paths: one failed write must not fail every write queued behind it.
-  const next = previous.then(run, run);
-  // The chain the next writer waits on never rejects, for the same reason.
-  const tail = next.then(
-    () => undefined,
-    () => undefined,
-  );
-  putChains.set(tenantId, tail);
-  void tail.then(() => {
-    // Only when nothing newer has taken the slot: otherwise a queued write loses its predecessor.
-    if (putChains.get(tenantId) === tail) {
-      putChains.delete(tenantId);
-    }
-  });
-  return next;
-}
-
-/**
- * Store an object for a tenant: quota first, backend second, counter third.
+ * **So the ceiling now lives in the WHERE clause.** `reserveTenantStorageBytes` adds the delta only
+ * if the row's own `bytes_used` plus that delta still fits in the budget, and reports whether it
+ * applied. Two uploads racing from two hosts both attempt the same UPDATE; the second one sees the
+ * first one's bytes because SQLite will not let it read the row in between. No mutex, no chain, and
+ * the guarantee holds for however many hosts the deployment grows to.
  *
- * The order matters. The check runs before the bytes are written, so a refusal never leaves a
- * partial object behind; the counter moves only after the backend has taken the write, so a failed
- * put never charges the tenant for bytes nobody stored. All three steps run inside this tenant's
- * write chain, so a second write cannot read the counter between them.
+ * **Reserve first, then write.** The bytes are charged before the backend is asked to take them,
+ * which is the opposite of Phase 6's order and the right way round for a ceiling: a write that is
+ * going to be refused is refused before a byte is sent to a bucket. The cost is that a failed put
+ * would leave the tenant charged for bytes nobody stored, so the failure path refunds the exact
+ * delta it reserved — and `addTenantStorageBytes` clamps at zero, so a refund that races a
+ * reconciliation cannot drive the counter negative.
+ *
+ * **The budget is the ceiling minus the job trees.** Those bytes (ffmpeg scratch, dataset files,
+ * meeting recordings, knowledge uploads) are measured rather than counted, so they cannot be part
+ * of an atomic SQL test. Subtracting them first is what keeps the one number the tenant sees and
+ * the number the UPDATE enforces the same number.
+ *
+ * **What is no longer guaranteed, said out loud.** With the chain gone, two writes to the *same
+ * key* in the same instant can both read the same `head()` and both reserve a full delta, so the
+ * counter can over-count one object's worth until something reconciles it. That is a drift, not a
+ * breach — it charges the tenant too much rather than too little — and `recomputeTenantStorage` is
+ * the operator's answer to it, exactly as Phase 6's `tenant_storage` header already says: the
+ * counter is a cache of the backend, never the authority.
+ *
+ * Off server mode none of this runs: there is no ceiling (`tenantStorageLimitBytes` is `null`) and
+ * no counter row, so a desk puts the bytes and nothing else, byte for byte as before Phase 6.
  */
 export async function putTenantObject(
   tenantId: string,
@@ -512,18 +542,45 @@ export async function putTenantObject(
   contentType: string,
 ): Promise<void> {
   assertObjectKey(tenantId, key);
-  return serializePut(tenantId, async () => {
-    const store = tenantObjectStore();
-    const existing = await store.head(tenantId, key);
-    await assertStorageAdmits(tenantId, bytes.byteLength, existing?.sizeBytes ?? 0);
+  const store = tenantObjectStore();
+  const existing = await store.head(tenantId, key);
+  const replacing = existing?.sizeBytes ?? 0;
+
+  if (!isServerMode()) {
+    // The desk: measure and report, refuse nothing, count nothing.
     await store.put(tenantId, key, bytes, contentType);
-    if (isServerMode()) {
-      addTenantStorageBytes(tenantId, {
-        bytes: bytes.byteLength - (existing?.sizeBytes ?? 0),
-        objects: existing ? 0 : 1,
-      });
-    }
-  });
+    return;
+  }
+
+  const limitBytes = tenantStorageLimitBytes();
+  const delta = { bytes: bytes.byteLength - replacing, objects: existing ? 0 : 1 };
+  // Seeds the counter row from a real measure when this host has never counted this tenant, which
+  // is what stops a restored data volume from declaring an existing tree empty. The UPDATE below
+  // needs a row to act on, so this is also what makes the conditional test meaningful at all.
+  await objectUse(tenantId);
+  const jobs = await measureTenantJobBytes(tenantId);
+  const budget = limitBytes === null ? null : limitBytes - jobs.usedBytes;
+
+  if (!reserveTenantStorageBytes(tenantId, delta, budget)) {
+    const counter = readTenantStorageCounter(tenantId);
+    const usedBytes = (counter?.bytesUsed ?? 0) + jobs.usedBytes;
+    log.warn("tenant_storage_quota_refused", {
+      tenantId,
+      usedBytes,
+      limitBytes,
+      incomingBytes: bytes.byteLength,
+    });
+    throw new StorageQuotaError(usedBytes, limitBytes ?? 0);
+  }
+
+  try {
+    await store.put(tenantId, key, bytes, contentType);
+  } catch (error) {
+    // Give back exactly what was reserved. Not `setTenantStorageCounter`: another write may have
+    // landed in between, and overwriting the row would take its bytes with ours.
+    addTenantStorageBytes(tenantId, { bytes: -delta.bytes, objects: -delta.objects });
+    throw error;
+  }
 }
 
 /** Read a whole object. A key that is not this tenant's is a 404 before any IO. */

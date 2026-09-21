@@ -17,7 +17,8 @@ import { EditRecipesPanel } from "@/components/edit-recipes-panel";
 import { EditPreview } from "@/components/edit-preview";
 import { EditTimeline } from "@/components/edit-timeline";
 import { apiFetch } from "@/lib/api-client";
-import { isElectron, pickMedia } from "@/lib/desktop-bridge";
+import { pickMedia } from "@/lib/desktop-bridge";
+import { hasNativeFilePicker, useHostCapabilities } from "@/lib/host-capabilities";
 import {
   activeJobs,
   createEditProject,
@@ -60,6 +61,7 @@ type StudioModel = { id: string; label: string; provider?: string; inputModaliti
 
 export function EditStudio() {
   const { gatewayName } = useProductBrand();
+  const capabilities = useHostCapabilities();
   const emitLock = useEmitLock();
   const fileRef = useRef<HTMLInputElement>(null);
   const eventsAbort = useRef<AbortController | null>(null);
@@ -307,7 +309,17 @@ export function EditStudio() {
   }
 
   async function onImportClick() {
-    if (isElectron() && project) {
+    /*
+     * Phase 8 — the native picker is a capability now, not just a bridge check.
+     *
+     * `isElectron()` alone was almost right and said the wrong thing: it is false on webdev as
+     * well as on the hosted server, so it was really testing "is this the packaged app". What this
+     * branch actually needs is "may a path on this machine mean anything to the host", which is
+     * what `nativeFilePicker` says, and the host refuses a `sourcePath` in server mode with
+     * `local_path_disabled` whatever the renderer decides. Both halves, because neither is enough:
+     * the flag alone would offer a picker on webdev, where there is no shell to ask.
+     */
+    if (hasNativeFilePicker(capabilities) && project) {
       try {
         const [sourcePath] = await pickMedia();
         if (!sourcePath) {

@@ -253,6 +253,21 @@ const BY_ID_ROUTES: readonly ByIdRoute[] = [
   // --- media ---------------------------------------------------------------------------------
   { method: "GET", path: "/api/v1/media/:mediaId/file", params: { mediaId: "mediaId" } },
   {
+    method: "DELETE",
+    path: "/api/v1/media/:mediaId",
+    params: { mediaId: "mediaId" },
+    refusal: "indistinguishable",
+    why:
+      "Phase 8. `handleDeleteMedia` (handlers/media.ts) looks the row up with " +
+      "`and(eq(media.organizationId, tenant.organizationId), eq(media.id, mediaId))` and answers " +
+      "`{ ok: true, deleted: false, id }` when it finds nothing — the same answer an id that " +
+      "never existed gets, and the same answer a second delete of the caller's own object gets. " +
+      "A 404 would be the wrong answer here: a delete that is safe to retry has to say `ok` for " +
+      "the object that is already gone, and the retry after a lost response is the normal case. " +
+      "The property that matters is proved instead by the ghost comparison above and by the " +
+      "survivor check below, which reads A's row after B has been through the whole table.",
+  },
+  {
     method: "GET",
     path: "/api/v1/videos/examples/:name/file",
     params: { name: "unseeded" },
@@ -808,6 +823,28 @@ describe("every by-id route refuses another tenant's id", () => {
     );
     expect(result.status, `${method} ${path} did not answer tenant A`).toBe(200);
     expect(JSON.stringify((result as HostJsonResult).body)).toContain(LEAK_MARKER);
+  });
+
+  it("leaves tenant A's media row and its bytes alone, though the delete answered ok", async () => {
+    // Phase 8's `DELETE /api/v1/media/:mediaId`, which no-ops rather than 404s. An unscoped no-op
+    // would have taken A's row AND its object and still answered `{ ok: true }` — and it ran above,
+    // as tenant B, with A's real id. This is the only assertion that can tell those two apart.
+    const { db, media } = await import("@agentforge/db");
+    const { eq } = await import("drizzle-orm");
+    const rows = await db.select().from(media).where(eq(media.id, seeds.mediaId));
+    expect(rows).toHaveLength(1);
+    const file = await dispatch(
+      {
+        method: "GET",
+        path: `/api/v1/media/${seeds.mediaId}/file`,
+        query: {},
+        params: {},
+        headers: { cookie: `agentforge_session=${sessionA.id}` },
+      },
+      { serverMode: true, sessionStore: store, now: () => T0 },
+    );
+    // The bytes as well as the row: a delete that went through the store would have taken these.
+    expect(file.type).toBe("bytes");
   });
 
   it("leaves tenant A's knowledge rows alone, though the deletes answered ok", async () => {

@@ -200,3 +200,125 @@ describe("POST /api/v1/media under a quota", () => {
     expect(json(stolen).status).toBe(404);
   });
 });
+
+/**
+ * Phase 8 — the two halves of "a tenant at the ceiling can neither see nor free space".
+ *
+ * `largest` is what the screen reads to say WHICH object is taking the room, and
+ * `DELETE /api/v1/media/:mediaId` is what it calls to take it back. They are tested together
+ * because the pair is the claim: the number the screen shows and the number after a delete have to
+ * be the same arithmetic, and a delete that freed bytes without moving the counter would leave a
+ * tenant refused for space they no longer use.
+ */
+describe("GET /api/v1/storage/usage largest", () => {
+  it("names the biggest objects first, with the sizes the screen needs", async () => {
+    process.env.AGENTFORGE_TENANT_STORAGE_BYTES = "100000";
+    await upload(ALPHA, 100);
+    await upload(ALPHA, 900);
+    await upload(ALPHA, 400);
+
+    const largest = body(await send(ALPHA, {})).largest as Array<Record<string, unknown>>;
+    expect(largest.map((row) => row.sizeBytes)).toEqual([900, 400, 100]);
+    expect(largest[0]).toMatchObject({ kind: "image", mime: "image/png" });
+    expect(typeof largest[0]?.id).toBe("string");
+  });
+
+  it("lists only this tenant's objects", async () => {
+    process.env.AGENTFORGE_TENANT_STORAGE_BYTES = "100000";
+    await upload(ALPHA, 700);
+    await upload(BETA, 800);
+
+    const alpha = body(await send(ALPHA, {})).largest as Array<Record<string, unknown>>;
+    // Beta's object is the bigger one; if scoping were wrong it would be at the top of this list.
+    expect(alpha.map((row) => row.sizeBytes)).toEqual([700]);
+  });
+
+  it("is an empty list for a tenant holding nothing, not a missing key", async () => {
+    const report = body(await send(ALPHA, {}));
+    expect(report.largest).toEqual([]);
+  });
+
+  it("is still listed for a tenant that is over its ceiling", async () => {
+    // Same reason the usage number is: this is the list the refused tenant deletes from.
+    process.env.AGENTFORGE_TENANT_STORAGE_BYTES = "1000";
+    await upload(ALPHA, 900);
+    process.env.AGENTFORGE_TENANT_STORAGE_BYTES = "500";
+
+    const report = body(await send(ALPHA, {}));
+    expect(report.blocked).toBe(true);
+    expect((report.largest as unknown[]).length).toBe(1);
+  });
+});
+
+describe("DELETE /api/v1/media/:mediaId", () => {
+  function remove(identity: { tenantId: string }, mediaId: string): Promise<HostResult> {
+    return send(identity, {
+      method: "DELETE",
+      path: `/api/v1/media/${mediaId}`,
+      params: { mediaId },
+    });
+  }
+
+  it("frees the bytes and gives the tenant the room back", async () => {
+    process.env.AGENTFORGE_TENANT_STORAGE_BYTES = "1000";
+    const created = body(await upload(ALPHA, 900));
+    expect(body(await send(ALPHA, {})).usedBytes).toBe(900);
+
+    const deleted = await remove(ALPHA, String(created.id));
+    expect(json(deleted).status).toBe(200);
+    expect(body(deleted)).toMatchObject({ ok: true, deleted: true, bytesFreed: 900 });
+
+    // The counter moved, not just the row: the next upload is the proof a tenant cares about.
+    expect(body(await send(ALPHA, {})).usedBytes).toBe(0);
+    expect(json(await upload(ALPHA, 900)).status).toBe(201);
+  });
+
+  it("takes the object as well as the row", async () => {
+    process.env.AGENTFORGE_TENANT_STORAGE_BYTES = "10000";
+    const created = body(await upload(ALPHA, 64));
+    await remove(ALPHA, String(created.id));
+
+    const fetched = await send(ALPHA, {
+      path: `/api/v1/media/${created.id}/file`,
+      params: { mediaId: String(created.id) },
+    });
+    expect(json(fetched).status).toBe(404);
+    expect(body(await send(ALPHA, {})).largest).toEqual([]);
+  });
+
+  it("is safe to call twice, because a retry after a lost answer is the normal case", async () => {
+    process.env.AGENTFORGE_TENANT_STORAGE_BYTES = "10000";
+    const created = body(await upload(ALPHA, 200));
+    await remove(ALPHA, String(created.id));
+
+    const again = await remove(ALPHA, String(created.id));
+    expect(json(again).status).toBe(200);
+    // `deleted: false` rather than a 404: nothing is wrong, there was simply nothing left to take.
+    expect(body(again)).toMatchObject({ ok: true, deleted: false });
+    expect(body(await send(ALPHA, {})).usedBytes).toBe(0);
+  });
+
+  it("will not delete another tenant's object, even holding the id", async () => {
+    process.env.AGENTFORGE_TENANT_STORAGE_BYTES = "10000";
+    const created = body(await upload(ALPHA, 128));
+
+    const stolen = await remove(BETA, String(created.id));
+    // The same answer a missing id gets. A 403 here would confirm the id exists.
+    expect(body(stolen)).toMatchObject({ ok: true, deleted: false });
+    expect(body(await send(ALPHA, {})).usedBytes).toBe(128);
+    // Still served to its owner: a `bytes` result rather than the 404 a deleted object gets.
+    const stillThere = await send(ALPHA, {
+      path: `/api/v1/media/${created.id}/file`,
+      params: { mediaId: String(created.id) },
+    });
+    expect(stillThere.type).toBe("bytes");
+  });
+
+  it("needs a session like every other by-tenant route", async () => {
+    const result = await dispatch(
+      { method: "DELETE", path: "/api/v1/media/anything", query: {}, params: { mediaId: "anything" }, headers: {} },
+      { serverMode: true, sessionStore: store, now: () => T0 },
+    );
+    expect(json(result).status).toBe(401);
+  });
+});

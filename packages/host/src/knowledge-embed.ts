@@ -167,7 +167,7 @@ export async function indexSourceVectors(
   try {
     // The id the vectors are *stored* under is the one the embedder actually used, which is
     // `stub-fnv-32` whenever the live endpoint was unavailable — never the configured model.
-    const { vectors: embeddings, model: storedModel } = await embedTextsWithModel(chunks, model, workspaceId(tenant));
+    const { vectors: embeddings, model: storedModel } = await embedTextsWithModel(chunks, model, tenant);
     const insert = sql.prepare(
       `INSERT INTO knowledge_vectors (id, workspace_id, source_id, chunk_index, body, embedding, model, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -284,7 +284,7 @@ export async function searchVectors(
   if (!preferred) {
     return { hits: [], model: null };
   }
-  const { vector: queryVec, model } = await embedQuery(trimmed, preferred, workspaceId(tenant));
+  const { vector: queryVec, model } = await embedQuery(trimmed, preferred, tenant);
   // The embedder fell back (or was already down) while this workspace holds rows of another model:
   // there is nothing here this vector can be compared against, so the answer is "no vector hits".
   if (model !== preferred && countVectorsForModel(tenant, model) === 0) {

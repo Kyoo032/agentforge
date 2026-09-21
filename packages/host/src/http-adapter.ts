@@ -13,6 +13,7 @@ import {
   type CsrfMode,
 } from "./csrf";
 import { dispatch } from "./router";
+import { LIVENESS_BODY, LIVENESS_PATH } from "./handlers/health";
 import { readSelectedWorkspaceId } from "./workspace";
 import { sessionCookieName } from "./auth/session";
 import { log } from "./log";
@@ -323,6 +324,32 @@ type RequestContext = {
  * one structured log line. Only server mode logs, so the desktop and webdev write exactly what they
  * always wrote.
  */
+/**
+ * Answer the liveness probe: one word, no cache, and nothing about this deployment.
+ *
+ * `Cache-Control: no-store` because a proxy that cached "ok" for sixty seconds would keep saying a
+ * dead process is alive for sixty seconds, which is the only failure this route has. HEAD gets the
+ * headers with the correct `Content-Length` and no body, because `docker healthcheck` and several
+ * proxies probe with HEAD and a body on a HEAD response is a protocol error.
+ *
+ * Nothing is logged: this fires every few seconds for the life of the deployment, and a log line
+ * per probe buries everything else.
+ */
+function respondLiveness(res: ServerResponse, method: string): true {
+  const body = JSON.stringify(LIVENESS_BODY);
+  res.statusCode = 200;
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Content-Length", String(Buffer.byteLength(body)));
+  if (method === "HEAD") {
+    res.end();
+    return true;
+  }
+  res.end(body);
+  return true;
+}
+
 function respondRejection(res: ServerResponse, rejection: HttpRejection, context: RequestContext): true {
   if (context.serverMode) {
     log.warn(FILTERED_EVENT, {
@@ -348,6 +375,15 @@ function respondRejection(res: ServerResponse, rejection: HttpRejection, context
  * HTTPS-ONLY (server mode). The reverse proxy terminates TLS and stamps `X-Forwarded-Proto: https`
  * on every request it forwards, so the only caller that can lack it is something already inside the
  * box talking to the app's loopback port directly - which is exactly what must not be served.
+ *
+ * Phase 8 carves out exactly one exception, the liveness probe, because that caller is the whole
+ * reason the probe exists: `docker healthcheck` runs inside the container and hits the app's own
+ * loopback port with no proxy in front of it, and Caddy's upstream probe does the same. A liveness
+ * route that only answered through the proxy could not tell an orchestrator that the app is dead
+ * while the proxy is up, which is the one failure it is there to catch. Nothing else moves: the
+ * request-line filter, the header cap, the method allowlist and the per-IP bucket all still run
+ * over it (see `transportRejection`), and what it answers is a frozen one-word body that carries
+ * nothing a plaintext hop could leak.
  */
 function rejectPlaintext(req: IncomingMessage): HttpRejection | null {
   const proto = header(req, FORWARDED_PROTO_HEADER)?.split(",")[0]?.trim().toLowerCase();
@@ -365,9 +401,11 @@ function transportRejection(
   method: string,
   ip: string | null,
   sessionKey: string | null,
+  /** The liveness probe, which is exempt from the TLS hop alone. See `rejectPlaintext`. */
+  allowPlaintext = false,
 ): HttpRejection | null {
   const rejection =
-    rejectPlaintext(req) ??
+    (allowPlaintext ? null : rejectPlaintext(req)) ??
     filterHttpRequest({ method, url: req.url ?? "/", headers: req.headers, maxBodyBytes: MAX_BODY_BYTES });
   if (rejection) {
     return rejection;
@@ -418,10 +456,35 @@ export async function handleNodeRequest(req: IncomingMessage, res: ServerRespons
   const isApiPath = rawPath.startsWith(API_PREFIX);
   // One switch decides which rule this process runs: the hosted web rule or the local loopback rule.
   const serverMode = isServerMode();
+  /*
+   * Phase 8 — the liveness probe, and the one path outside `/api` this adapter answers.
+   *
+   * It lives here rather than in the router's table because that table is `/api`-only and
+   * `dispatch` never sees another path. That is also what keeps it out of the hosted session gate
+   * BY CONSTRUCTION rather than by an entry in an exemption set: there is no code path from here
+   * into `requireSessionFor`, so it cannot be gated by accident and cannot be un-gated by an
+   * edit somewhere else. Its body is a frozen literal with one word in it (handlers/health.ts) —
+   * the readiness detail an operator wants is `GET /api/v1/health`, behind a session.
+   *
+   * It is answered AFTER the transport filter below in server mode, so the request-line filter,
+   * the method allowlist, the header cap and the per-IP bucket all apply to it exactly as they do
+   * to everything else on the socket. The one rule it is exempt from is the TLS hop, because the
+   * caller it exists for — the container healthcheck, and Caddy's own upstream probe — is inside
+   * the box hitting the loopback port with no proxy in front of it; see `rejectPlaintext`. Only
+   * GET and HEAD are recognised; any other verb falls through to the page server, which is where
+   * an unrecognised path belongs.
+   */
+  // Upper-cased once: every method test below, the liveness test here and the body reader must all
+  // agree on the verb.
+  const method = (req.method ?? "GET").toUpperCase();
+  const isLiveness =
+    (method === "GET" || method === "HEAD") && (rawPath.replace(/\/+$/, "") || "/") === LIVENESS_PATH;
   // Off server mode nothing here applies to a page or an asset, so the desktop shell and webdev see
-  // exactly the early return they always saw: no parsing, no bucket, no log line.
+  // exactly the early return they always saw: no parsing, no bucket, no log line. The probe is the
+  // one addition, and it answers in both modes so a developer can point the same healthcheck at
+  // webdev as at the container.
   if (!serverMode && !isApiPath) {
-    return false;
+    return isLiveness ? respondLiveness(res, method) : false;
   }
   for (const name of IDENTITY_HEADERS) {
     res.removeHeader(name);
@@ -432,8 +495,6 @@ export async function handleNodeRequest(req: IncomingMessage, res: ServerRespons
   // these (see `writeHostResult`). Off server mode this is a no-op. See ./security-headers.
   applySecurityHeaders(res, serverMode);
   const path = normaliseApiPath(rawPath);
-  // Upper-cased once: every method test below, and the body reader, must agree on the verb.
-  const method = (req.method ?? "GET").toUpperCase();
   const cookies = parseCookies(req);
   const csrfMode = { secure: serverMode };
   const ip = clientIp({
@@ -465,10 +526,13 @@ export async function handleNodeRequest(req: IncomingMessage, res: ServerRespons
    */
   if (serverMode) {
     const sessionKey = sessionRateKey(presentedSessionId ?? undefined);
-    const rejection = transportRejection(req, path, method, ip, sessionKey);
+    const rejection = transportRejection(req, path, method, ip, sessionKey, isLiveness);
     if (rejection) {
       return respondRejection(res, rejection, context);
     }
+  }
+  if (isLiveness) {
+    return respondLiveness(res, method);
   }
   // Clean, but not ours: the web server serves the page or the asset from here.
   if (!isApiPath) {

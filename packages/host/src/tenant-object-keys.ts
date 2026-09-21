@@ -13,7 +13,7 @@
 import { ApiError } from "@agentforge/core";
 import type { ObjectStorageKind, TenantStorageUse } from "@agentforge/core";
 import type { RangedBytes } from "./byte-range";
-import { assertTenantId, tenantSegments, TENANTS_DIR } from "./tenant-paths";
+import { assertTenantId, isLocalTenant, tenantSegments, TENANTS_DIR } from "./tenant-paths";
 
 /** No key may be longer than this. COS's own limit is 850 bytes UTF-8; this is well under it. */
 const KEY_MAX = 512;
@@ -80,6 +80,31 @@ export function isObjectKeyInsideTenant(tenantId: string, key: string): boolean 
   }
 }
 
+/**
+ * Phase 8 — may a whole-prefix delete run for this tenant at all?
+ *
+ * Only `local-tenant` is refused, and it is refused here rather than at the caller, because the
+ * reason is a property of the layout and not of any one route: lane D gives the local tenant the
+ * *bare root* in both the bucket and the tree, so "delete everything under this tenant's prefix"
+ * is literally "delete everything", including every hosted tenant's objects. The hosted reset
+ * never resolves the local tenant, and a mis-resolved one must hit a wall here rather than an
+ * `rm -rf`.
+ *
+ * A 400 rather than a 404: this is not a key that might or might not exist, it is a request that
+ * does not mean what it says, and the operator reading the log deserves to see that difference.
+ */
+export function assertPurgeableTenant(tenantId: string): string {
+  assertTenantId(tenantId);
+  if (isLocalTenant(tenantId)) {
+    throw new ApiError(
+      "storage_purge_refused",
+      "The local tenant's prefix is the whole store, so it cannot be purged as a tenant.",
+      400,
+    );
+  }
+  return tenantId;
+}
+
 /** The key prefix every one of this tenant's objects starts with. `""` for the local tenant. */
 export function tenantKeyPrefix(tenantId: string): string {
   const segments = tenantSegments(tenantId);
@@ -106,6 +131,20 @@ export interface TenantObjectStore {
   remove(tenantId: string, key: string): Promise<void>;
   /** Walk or list everything under this tenant's prefix. The authority the counter caches. */
   measure(tenantId: string): Promise<TenantStorageUse>;
+  /**
+   * Phase 8 — remove everything under this tenant's prefix, and report what went.
+   *
+   * The one operation that is not keyed, which is why it carries a guard the others do not need:
+   * **the local tenant has no prefix** (lane D gives it the bare root, `tenantKeyPrefix` returns
+   * `""`), so "everything under its prefix" is every other tenant's objects as well. Both backends
+   * therefore refuse `local-tenant` outright rather than interpreting it. That refusal is the only
+   * thing standing between a mis-resolved tenant id and an empty bucket.
+   *
+   * Idempotent: a prefix with nothing under it removes nothing and reports zero. Not atomic — a
+   * backend can fail half way — so the caller must be safe to retry, which is what makes the
+   * reset's "run it again" the right answer to a partial failure.
+   */
+  removePrefix(tenantId: string): Promise<TenantStorageUse>;
   /** Where the object lives, for a log line or an error message. Never its bytes. */
   describe(tenantId: string, key: string): string;
 }
