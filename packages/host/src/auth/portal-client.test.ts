@@ -1,11 +1,25 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  PORTAL_AUTHORIZE_PATH,
   PORTAL_TIMEOUT_MS,
   PortalError,
+  buildAuthorizeUrl,
   createFakePortalClient,
   createPortalClient,
   portalBaseUrl,
 } from "./portal-client";
+
+/**
+ * The confidential-client half of the exchange, spread into every call so the wire contract is
+ * typed at each one: Phase 9 lane F made `redirect_uri` and the client credentials required
+ * arguments rather than optional ones, because an exchange that silently omits them is exactly the
+ * unauthenticated fallback the deployment template says never happens.
+ */
+const EXCHANGE = {
+  redirectUri: "https://app.example.test/auth/callback",
+  clientId: "cli_abc",
+  clientSecret: "sec_xyz",
+} as const;
 
 const TOKEN_BODY = {
   access_token: "acc-secret",
@@ -62,11 +76,18 @@ describe("exchangeCode", () => {
   it("posts the browser code to /auth/token and maps the response", async () => {
     const { calls, impl } = recordingFetch(() => json(TOKEN_BODY));
     const client = createPortalClient({ baseUrl, fetchImpl: impl });
-    const tokens = await client.exchangeCode({ code: "K7M4PQ9T" });
+    const tokens = await client.exchangeCode({ code: "K7M4PQ9T", ...EXCHANGE });
     expect(calls).toHaveLength(1);
     expect(calls[0].url).toBe("https://api.tokotokenai.com/auth/token");
     expect(calls[0].init.method).toBe("POST");
-    expect(JSON.parse(String(calls[0].init.body))).toEqual({ grant_type: "authorization_code", code: "K7M4PQ9T" });
+    // The wire contract lane B implements the other side of. Every field, spelled exactly once.
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({
+      grant_type: "authorization_code",
+      code: "K7M4PQ9T",
+      redirect_uri: "https://app.example.test/auth/callback",
+      client_id: "cli_abc",
+      client_secret: "sec_xyz",
+    });
     expect(tokens).toEqual({
       accessToken: "acc-secret",
       expiresIn: 3600,
@@ -82,7 +103,7 @@ describe("exchangeCode", () => {
 
   it("carries a timeout signal on every call", async () => {
     const { calls, impl } = recordingFetch(() => json(TOKEN_BODY));
-    await createPortalClient({ baseUrl, fetchImpl: impl }).exchangeCode({ code: "c" });
+    await createPortalClient({ baseUrl, fetchImpl: impl }).exchangeCode({ code: "c", ...EXCHANGE });
     expect(calls[0].init.signal).toBeInstanceOf(AbortSignal);
     expect(PORTAL_TIMEOUT_MS).toBe(5000);
   });
@@ -93,7 +114,7 @@ describe("exchangeCode", () => {
         init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
       })) as typeof fetch;
     const client = createPortalClient({ baseUrl, fetchImpl: impl, timeoutMs: 10 });
-    await expect(client.exchangeCode({ code: "c" })).rejects.toMatchObject({
+    await expect(client.exchangeCode({ code: "c", ...EXCHANGE })).rejects.toMatchObject({
       reason: "portal_unavailable",
       status: 503,
     });
@@ -108,7 +129,7 @@ describe("exchangeCode", () => {
       retry_after: 5,
     };
     const client = createPortalClient({ baseUrl, fetchImpl: recordingFetch(() => json(body, 403)).impl });
-    const error = await client.exchangeCode({ code: "c" }).catch((caught: unknown) => caught);
+    const error = await client.exchangeCode({ code: "c", ...EXCHANGE }).catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(PortalError);
     expect(error).toMatchObject({
       reason: "seat_cap_reached",
@@ -134,7 +155,7 @@ describe("exchangeCode", () => {
       baseUrl,
       fetchImpl: recordingFetch(() => json({ error: "invalid_grant", reason }, status)).impl,
     });
-    await expect(client.exchangeCode({ code: "c" })).rejects.toMatchObject({ reason, status });
+    await expect(client.exchangeCode({ code: "c", ...EXCHANGE })).rejects.toMatchObject({ reason, status });
   });
 
   it("falls back to the RFC family when the portal sends no reason", async () => {
@@ -142,7 +163,10 @@ describe("exchangeCode", () => {
       baseUrl,
       fetchImpl: recordingFetch(() => json({ error: "invalid_request" }, 400)).impl,
     });
-    await expect(client.exchangeCode({ code: "" })).rejects.toMatchObject({ reason: "invalid_request", status: 400 });
+    await expect(client.exchangeCode({ code: "", ...EXCHANGE })).rejects.toMatchObject({
+      reason: "invalid_request",
+      status: 400,
+    });
   });
 
   it("maps an unknown reason to invalid_grant rather than inventing a code", async () => {
@@ -150,7 +174,7 @@ describe("exchangeCode", () => {
       baseUrl,
       fetchImpl: recordingFetch(() => json({ error: "invalid_grant", reason: "banana" }, 400)).impl,
     });
-    await expect(client.exchangeCode({ code: "c" })).rejects.toMatchObject({ reason: "invalid_grant" });
+    await expect(client.exchangeCode({ code: "c", ...EXCHANGE })).rejects.toMatchObject({ reason: "invalid_grant" });
   });
 
   it("maps a portal 500 and a malformed body to portal_unavailable", async () => {
@@ -158,12 +182,12 @@ describe("exchangeCode", () => {
       baseUrl,
       fetchImpl: recordingFetch(() => new Response("<html>oops</html>", { status: 500 })).impl,
     });
-    await expect(boom.exchangeCode({ code: "c" })).rejects.toMatchObject({ reason: "portal_unavailable" });
+    await expect(boom.exchangeCode({ code: "c", ...EXCHANGE })).rejects.toMatchObject({ reason: "portal_unavailable" });
     const garbage = createPortalClient({
       baseUrl,
       fetchImpl: recordingFetch(() => new Response("not json", { status: 200 })).impl,
     });
-    await expect(garbage.exchangeCode({ code: "c" })).rejects.toMatchObject({
+    await expect(garbage.exchangeCode({ code: "c", ...EXCHANGE })).rejects.toMatchObject({
       reason: "portal_unavailable",
       status: 502,
     });
@@ -173,7 +197,9 @@ describe("exchangeCode", () => {
     const impl = (async () => {
       throw new TypeError("fetch failed");
     }) as typeof fetch;
-    await expect(createPortalClient({ baseUrl, fetchImpl: impl }).exchangeCode({ code: "c" })).rejects.toMatchObject({
+    await expect(
+      createPortalClient({ baseUrl, fetchImpl: impl }).exchangeCode({ code: "c", ...EXCHANGE }),
+    ).rejects.toMatchObject({
       reason: "portal_unavailable",
       status: 503,
     });
@@ -184,7 +210,9 @@ describe("exchangeCode", () => {
       baseUrl,
       fetchImpl: recordingFetch(() => json({ access_token: "a" })).impl,
     });
-    await expect(client.exchangeCode({ code: "c" })).rejects.toMatchObject({ reason: "portal_unavailable" });
+    await expect(client.exchangeCode({ code: "c", ...EXCHANGE })).rejects.toMatchObject({
+      reason: "portal_unavailable",
+    });
   });
 });
 
@@ -240,7 +268,7 @@ describe("secrets", () => {
       vi.spyOn(console, level).mockImplementation(() => {}),
     );
     const ok = createPortalClient({ baseUrl, fetchImpl: recordingFetch(() => json(TOKEN_BODY)).impl });
-    await ok.exchangeCode({ code: "K7M4PQ9T" });
+    await ok.exchangeCode({ code: "K7M4PQ9T", ...EXCHANGE });
     const bad = createPortalClient({
       baseUrl,
       fetchImpl: recordingFetch(() => json({ error: "invalid_grant", reason: "refresh_expired" }, 401)).impl,
@@ -261,16 +289,74 @@ describe("secrets", () => {
   });
 });
 
+describe("buildAuthorizeUrl", () => {
+  it("is the frozen wire contract, parameter for parameter and in order", () => {
+    expect(PORTAL_AUTHORIZE_PATH).toBe("/authorize");
+    expect(
+      buildAuthorizeUrl({
+        baseUrl: "https://portal.example.test/api",
+        clientId: "cli_abc",
+        redirectUri: "https://app.example.test/auth/callback",
+        state: "st_1",
+      }),
+    ).toBe(
+      "https://portal.example.test/api/authorize?response_type=code&client_id=cli_abc" +
+        "&redirect_uri=https%3A%2F%2Fapp.example.test%2Fauth%2Fcallback&state=st_1",
+    );
+  });
+
+  it("percent-encodes every value it is handed", () => {
+    const url = new URL(
+      buildAuthorizeUrl({
+        baseUrl: "https://portal.example.test",
+        clientId: "cli abc&x=1",
+        redirectUri: "https://app.example.test/auth/callback?next=/chat",
+        state: "a+b/c=",
+      }),
+    );
+    expect(url.searchParams.get("client_id")).toBe("cli abc&x=1");
+    expect(url.searchParams.get("redirect_uri")).toBe("https://app.example.test/auth/callback?next=/chat");
+    expect(url.searchParams.get("state")).toBe("a+b/c=");
+  });
+
+  it("never carries the client secret", () => {
+    const url = buildAuthorizeUrl({
+      baseUrl: "https://portal.example.test",
+      clientId: "cli_abc",
+      redirectUri: "https://app.example.test/auth/callback",
+      state: "st_1",
+    });
+    expect(url).not.toContain("secret");
+    expect(new URL(url).searchParams.get("client_secret")).toBeNull();
+  });
+});
+
 describe("createFakePortalClient", () => {
   it("hands back the seeded tokens and records the calls", async () => {
     const fake = createFakePortalClient({ tokens: { userId: "usr_9" } });
-    const tokens = await fake.exchangeCode({ code: "abc" });
+    const tokens = await fake.exchangeCode({ code: "abc", ...EXCHANGE });
     expect(tokens.userId).toBe("usr_9");
-    expect(fake.calls).toEqual([{ kind: "exchange", code: "abc" }]);
+    expect(fake.calls).toEqual([
+      {
+        kind: "exchange",
+        code: "abc",
+        redirectUri: "https://app.example.test/auth/callback",
+        clientId: "cli_abc",
+      },
+    ]);
+    // The fake records what a test may assert on. The client secret is not that.
+    expect(JSON.stringify(fake.calls)).not.toContain("sec_xyz");
+  });
+
+  it("refuses an exchange that is missing the confidential client's credentials", async () => {
+    const fake = createFakePortalClient();
+    await expect(fake.exchangeCode({ ...EXCHANGE, code: "abc", clientSecret: "" })).rejects.toMatchObject({
+      reason: "invalid_request",
+    });
   });
 
   it("throws the seeded PortalError", async () => {
     const fake = createFakePortalClient({ failWith: new PortalError("org_past_due", 403) });
-    await expect(fake.exchangeCode({ code: "abc" })).rejects.toMatchObject({ reason: "org_past_due" });
+    await expect(fake.exchangeCode({ code: "abc", ...EXCHANGE })).rejects.toMatchObject({ reason: "org_past_due" });
   });
 });

@@ -1,7 +1,9 @@
 /**
- * The four session routes of the hosted deployment (docs/internal/web-migration-plan.md Phase 2):
+ * The session routes of the hosted deployment (docs/internal/web-migration-plan.md Phase 2;
+ * the browser login flow is Phase 9, docs/internal/web-phase9-portal-login.md):
  *
- *   POST /api/v1/auth/login    { code }            → sets the session cookie
+ *   GET  /api/v1/auth/start                        → { authorizeUrl } + the state cookie
+ *   POST /api/v1/auth/login    { code, state }     → sets the session cookie
  *   POST /api/v1/auth/logout                       → revokes it, portal-side and here
  *   GET  /api/v1/auth/session                      → { signedIn, … } | { signedIn: false, reason? }
  *   POST /api/v1/auth/refresh                      → rotates the portal tokens, extends the session
@@ -11,17 +13,28 @@
  * the portal's `message_en` when it sent one, otherwise the same English copy the doc's table gives
  * (:409-423). The renderer localises by code — apps/web/locales/{en,id}/auth.json.
  *
- * `POST /login` takes `{ code }` because the doc leaves the browser half open (see ./portal-client).
+ * `POST /login` takes `{ code, state }`: the wire contract the portal implements the other side of
+ * is written out in full at the top of ./portal-client.ts, and the `state` is the login-CSRF
+ * binding minted by `/auth/start` (./login-state.ts).
  *
  * Reading the cookie: this module reads `request.headers.cookie`, which the HTTP adapter forwards
  * raw (`http-adapter.ts:263`) alongside the cookies it parses for itself.
  */
 import { ApiError, isServerMode } from "@agentforge/core";
+import type { EnvLike } from "@agentforge/core";
 import type { PortalIdentity } from "@agentforge/db";
 import { jsonError, jsonOk } from "../errors";
-import type { HostJsonResult, HostRequest } from "../types";
-import { PortalError, type PortalTokens } from "./portal-client";
+import type { HostCookie, HostJsonResult, HostRequest } from "../types";
+import { PortalError, buildAuthorizeUrl, type PortalTokens } from "./portal-client";
 import type { PortalClient } from "./portal-client";
+import {
+  LOGIN_STATE_MAX_AGE_SECONDS,
+  loginStateCookieName,
+  mintLoginState,
+  readLoginStateCookie,
+  statesMatch,
+} from "./login-state";
+import { portalClientCredentials, portalLoginConfig, publicRedirectUri } from "./portal-config";
 import type { SessionStore, TokenVault } from "./session-store";
 import {
   sessionCookieMaxAge,
@@ -37,6 +50,11 @@ import {
 } from "./session";
 
 export const AUTH_ROUTE_PREFIX = "/api/v1/auth/";
+
+/** The portal's own sign-out (`apps/portal/src/routes/logout.ts`). */
+const PORTAL_LOGOUT_PATH = "/logout";
+/** The renderer route a signed-out browser lands on (`apps/web/components/account-session-row.tsx`). */
+const SIGNED_OUT_PATH = "/sign-in";
 /**
  * The two reads that have to answer before anyone can sign in: the health probe the proxy polls,
  * and the component status the first-run installer shows (router.ts:186, handlers/components.ts:1-9).
@@ -79,6 +97,12 @@ export type AuthRouteDeps = {
    * `../auth/index.ts` admits everybody when no cap is configured.
    */
   readonly claimSeat: (identity: PortalIdentity) => Promise<{ readonly ok: boolean }>;
+  /**
+   * Phase 9: where the portal URL, the client credentials and the public origin are read from.
+   * Injected for the same reason `serverMode` is — so a case drives a misconfigured deployment
+   * without writing to `process.env` and racing every other file in the suite.
+   */
+  readonly env?: EnvLike;
   readonly now?: () => number;
 };
 
@@ -218,12 +242,54 @@ function clearedCookie(deps: Pick<AuthRouteDeps, "serverMode">): HostJsonResult[
   ];
 }
 
+/**
+ * The state cookie `/auth/start` set: same attributes as the session cookie but ten minutes long,
+ * and the same `__Host-` split, because a browser on plain http drops the prefixed name silently.
+ */
+function stateCookieFor(deps: Pick<AuthRouteDeps, "serverMode">, value: string, maxAge: number): HostCookie {
+  return {
+    name: loginStateCookieName(cookieMode(deps)),
+    value,
+    path: "/",
+    sameSite: "Lax",
+    httpOnly: true,
+    secure: deps.serverMode,
+    maxAge,
+  };
+}
+
+/**
+ * One state, one attempt. The cookie is cleared on **every** answer this route gives — the sign-in
+ * that worked, the one the portal refused, and the one whose state did not match — so a state that
+ * has been presented once can never be presented again.
+ */
+function clearedStateCookie(deps: Pick<AuthRouteDeps, "serverMode">): HostCookie {
+  return stateCookieFor(deps, "", 0);
+}
+
 function readCode(body: unknown): string {
   const code = (body as { code?: unknown } | undefined)?.code;
   if (typeof code !== "string" || code.trim().length === 0) {
     throw authError("invalid_request", 400, "A sign-in code is required.");
   }
   return code.trim();
+}
+
+/**
+ * The login-CSRF check (plan §Browser flow step 3).
+ *
+ * Without it anybody who can make a browser POST here plants **their** authorization code in
+ * somebody else's browser, and the victim then works inside the attacker's tenant. The comparison
+ * is constant time and neither value is ever echoed back: the refusal is the same
+ * `invalid_request` whether the state was absent, stale or forged, because telling the caller
+ * which one it was is telling an attacker how close they are.
+ */
+function readState(request: HostRequest, deps: CookieDeps): void {
+  const presented = (request.body as { state?: unknown } | undefined)?.state;
+  const expected = readLoginStateCookie(request.headers.cookie ?? null, cookieMode(deps));
+  if (typeof presented !== "string" || !statesMatch(presented, expected)) {
+    throw authError("invalid_request", 400, "This sign-in link has expired. Start again.");
+  }
 }
 
 /** Handlers catch and return the envelope, exactly like every other handler in `handlers/`. */
@@ -244,6 +310,7 @@ function withCookies(result: HostJsonResult, cookies: HostJsonResult["cookies"])
 }
 
 export type AuthRoutes = {
+  handleStart: (request: HostRequest) => Promise<HostJsonResult>;
   handleLogin: (request: HostRequest) => Promise<HostJsonResult>;
   handleLogout: (request: HostRequest) => Promise<HostJsonResult>;
   handleSession: (request: HostRequest) => Promise<HostJsonResult>;
@@ -252,17 +319,47 @@ export type AuthRoutes = {
 
 export function createAuthRoutes(deps: AuthRouteDeps): AuthRoutes {
   const clock = () => (deps.now ?? Date.now)();
+  const env = (): EnvLike => deps.env ?? process.env;
 
   async function endSession(session: SessionRecord, at: number): Promise<void> {
     await deps.store.save(revokedSession(session, at));
     await deps.vault.delete(session.id);
   }
 
-  const handleLogin = guarded(async (request: HostRequest) => {
+  /**
+   * Hop one of the browser sign-in: mint a state, keep it where no page script can read it, and
+   * say where to send the person.
+   *
+   * Hosted only, and a 404 rather than a refusal off server mode — exactly what the billing webhook
+   * does, and for the same reason: webdev and the desktop have no portal, no client credentials and
+   * no public origin, and a desk should not learn that this route exists elsewhere.
+   */
+  const handleStart = guarded(async () => {
+    if (!deps.serverMode) {
+      throw new ApiError("not_found", "Not found", 404);
+    }
+    // Before the state is minted: a misconfigured deployment sets no cookie at all.
+    const config = portalLoginConfig(env());
+    const state = mintLoginState();
+    const authorizeUrl = buildAuthorizeUrl({
+      baseUrl: config.portalBaseUrl,
+      clientId: config.clientId,
+      redirectUri: config.redirectUri,
+      state,
+    });
+    return jsonOk({ authorizeUrl }, 200, [stateCookieFor(deps, state, LOGIN_STATE_MAX_AGE_SECONDS)]);
+  });
+
+  const exchange = guarded(async (request: HostRequest) => {
     const code = readCode(request.body);
+    // Before any portal call, and before the code is read as anything but a string: a request that
+    // cannot prove it started at this deployment's own `/auth/start` is not worth a round trip.
+    readState(request, deps);
+    const credentials = portalClientCredentials(env());
+    const redirectUri = publicRedirectUri(env());
     let tokens: PortalTokens;
     try {
-      tokens = await deps.portal.exchangeCode({ code });
+      tokens = await deps.portal.exchangeCode({ code, redirectUri, ...credentials });
     } catch (error) {
       throw fromPortal(error);
     }
@@ -306,12 +403,56 @@ export function createAuthRoutes(deps: AuthRouteDeps): AuthRoutes {
     return jsonOk(sessionSummary(session), 200, cookieFor(deps, session));
   });
 
+  /**
+   * The state is spent whatever happened, so the clearing cookie rides on every answer — the
+   * success, the portal's refusal and the mismatch alike. Appended here rather than inside
+   * `exchange` because `guarded` turns a thrown `ApiError` into an envelope with no cookies at all,
+   * and a failure that left the state behind would leave it replayable.
+   */
+  const handleLogin = async (request: HostRequest): Promise<HostJsonResult> => {
+    const result = await exchange(request);
+    return { ...result, cookies: [...(result.cookies ?? []), clearedStateCookie(deps)] };
+  };
+
+  /**
+   * Where to send the browser after the local sign-out, so the PORTAL's own session ends too.
+   *
+   * Clearing this deployment's cookie is only half of a sign-out: the portal keeps a 30-day
+   * browser session of its own, and while it is live `GET /authorize` answers with a code and no
+   * OTP at all — so on a shared browser the next person to press "Sign in" was signed in as the
+   * person who just left (`docs/internal/security-register.md`, SR-21). The portal's `/logout`
+   * clears that cookie and redirects back, and it only redirects to a URI on an origin the client
+   * has registered, which is this deployment's own.
+   *
+   * `null` rather than a throw when sign-in is not configured: a desk with no portal still signs
+   * out locally, and the renderer falls back to its own `/sign-in`.
+   */
+  function portalLogoutUrl(): string | null {
+    try {
+      const config = portalLoginConfig(env());
+      const url = new URL(`${config.portalBaseUrl}${PORTAL_LOGOUT_PATH}`);
+      url.searchParams.set("client_id", config.clientId);
+      // The callback's origin, with the sign-in path — `redirectUri` is built from
+      // `AGENTFORGE_PUBLIC_URL`, which is the origin the portal has in its allowlist.
+      url.searchParams.set("post_logout_redirect_uri", new URL(SIGNED_OUT_PATH, config.redirectUri).toString());
+      return url.toString();
+    } catch {
+      return null;
+    }
+  }
+
+  function signedOutBody(): Record<string, unknown> {
+    const portalLogout = portalLogoutUrl();
+    return { signedIn: false, ...(portalLogout ? { portalLogoutUrl: portalLogout } : {}) };
+  }
+
   const handleLogout = guarded(async (request: HostRequest) => {
     const id = sessionIdOf(request, deps);
     const session = id ? await deps.store.find(id) : null;
     if (!session) {
-      // Idempotent: a stale or absent cookie still leaves the browser signed out.
-      return jsonOk({ signedIn: false }, 200, clearedCookie(deps));
+      // Idempotent: a stale or absent cookie still leaves the browser signed out — and still needs
+      // the portal hop, because the portal cookie can outlive this one.
+      return jsonOk(signedOutBody(), 200, clearedCookie(deps));
     }
     const tokens = await deps.vault.get(session.id);
     if (tokens) {
@@ -319,7 +460,7 @@ export function createAuthRoutes(deps: AuthRouteDeps): AuthRoutes {
       await deps.portal.logout({ accessToken: tokens.accessToken }).catch(() => undefined);
     }
     await endSession(session, clock());
-    return jsonOk({ signedIn: false }, 200, clearedCookie(deps));
+    return jsonOk(signedOutBody(), 200, clearedCookie(deps));
   });
 
   const handleSession = guarded(async (request: HostRequest) => {
@@ -363,5 +504,5 @@ export function createAuthRoutes(deps: AuthRouteDeps): AuthRoutes {
     return jsonOk(sessionSummary(extended), 200, cookieFor(deps, extended));
   });
 
-  return { handleLogin, handleLogout, handleSession, handleRefresh };
+  return { handleStart, handleLogin, handleLogout, handleSession, handleRefresh };
 }
