@@ -188,11 +188,16 @@ afterwards and `git diff --name-only` checked before every commit.
 
 | Suite | Result |
 |---|---|
-| `@agentforge/host` | see PR body |
-| `@agentforge/web` | see PR body |
-| `@agentforge/core` | see PR body |
-| `@agentforge/db` | see PR body |
-| `node --test scripts/*.test.mjs` | see PR body |
+| `@agentforge/host` | 211 files, **2249 passed** |
+| `@agentforge/web` | 96 files, **906 passed** |
+| `@agentforge/core` | 186 files, **2283 passed**, 1 skipped |
+| `@agentforge/db` | 12 files, **154 passed** |
+| `node --test scripts/*.test.mjs` | 12 passed (9 deploy-script, 3 CLI) |
+
+> Run the web suite from `apps/web`, not with `vitest --root apps/web` from the repository root.
+> `lib/finance-stated-facts.test.ts` reads its fixtures with `join(process.cwd(), …)`, so from the
+> wrong working directory two of its cases fail with `ENOENT` — on `main` as much as on this branch.
+> That is a harness artifact, not a failure.
 
 Typechecks: `tsc --noEmit` per touched package (`packages/host`, `apps/web`, `packages/core`), each at
 zero errors — the same baseline the branch point has. Lint: the repository's own
@@ -215,7 +220,11 @@ zero errors — the same baseline the branch point has. Lint: the repository's o
 
 `docs/internal/maps/component-installer.md` re-anchored by hand against this branch and extended with
 the per-server half; `docs/internal/maps/webapp-deploy.md` and `maps/hosted-security-controls.md`
-updated where they describe the image and H3. `pnpm maps:check` and `pnpm maps:drift` — see PR body.
+updated where they describe the image and H3. `pnpm maps:check`: **0 hard, 128 soft** across 77 docs and 2207 citations — the same soft count as
+`main` (2200 citations), so this branch's seven new citations add none. `pnpm maps:drift main HEAD`
+named five moved citations and one whose line was rewritten; all six were re-anchored by hand and
+re-read against the tree, because `map-drift --write` mis-points onto import lines and `maps:check`
+does not catch a range that names the wrong lines.
 
 ---
 
@@ -275,9 +284,35 @@ a result can be reported by number.
 
 ## 7. The verify skill
 
-`.cursor/skills/verify-agentforge` — see the PR body for the output. Its doctor step wants a running
-app on `127.0.0.1:3000`; the cloud container has none, and the pstack verifier and mapper halves live
-in kyo's Cursor plugin rather than in this repository, so only kyo can run those.
+`.cursor/skills/verify-agentforge`. Nothing answered on `127.0.0.1:3000` in this container, so the
+doctor was run against an isolated stub instance on a spare port with its own data directory, as the
+skill allows:
+
+```
+verify-agentforge doctor: OK — stub runtime. Safe for Chat send without a live gateway.
+  url: http://127.0.0.1:3187   surface: webdev   chatStatus: 200   runtime: stub
+  hasOpenai: false   keyFingerprint: false   (ffmpeg missing: expected in this container)
+```
+
+Two live reads off that instance, and off a second one started with `AGENTFORGE_SERVER=1`, a wrap key
+and a trusted origin:
+
+```
+desk    GET /api/v1/components -> {"id":"anydoc","version":"0.2.4","auto":false,"managed":false,
+                                   "state":"ready","source":"bundled","bytes":0}
+server  GET /api/v1/components -> {"id":"anydoc","version":"0.2.4","auto":false,"managed":true,
+                                   "state":"ready","source":"bundled","bytes":0}
+```
+
+The CLI against the server instance's data directory printed
+`mode: server (AGENTFORGE_SERVER=1)` and `ok anydoc@0.2.4 — bundled with the app`, and reported the
+managed root correctly with and without `AGENTFORGE_COMPONENTS_DIR` set.
+
+`POST /api/v1/components/install/stream` on the server instance answered 403, but **without a
+session**, so that 403 is the session gate rather than this phase's refusal; the handler-level
+`install_disabled` is asserted directly in `packages/host/src/handlers/components.test.ts` and is
+live test 11. The pstack verifier and mapper halves of the skill live in kyo's Cursor plugin rather
+than in this repository, so only kyo can run those, and no UI was driven here.
 
 ---
 
