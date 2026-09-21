@@ -164,7 +164,6 @@ export function parseBillingEvent(body: unknown, nowMs: number): BillingEventPar
   if (kind === "allowance.topup" && (topUp === undefined || topUp === null || topUp <= 0)) {
     return { ok: false, reason: "billing_event_topup_amount_missing" };
   }
-
   return {
     ok: true,
     event: {

@@ -406,6 +406,7 @@ export {
   DEFAULT_GATEWAY_MUSIC_MODEL,
   DEFAULT_GATEWAY_LYRICS_MODEL,
   DEFAULT_EMBEDDING_MODEL,
+  RELAY_ONLY_MUSIC_MODEL_IDS,
 } from "./models/media-kind";
 export type { AudioRole, MediaKind, RoutedModels } from "./models/media-kind";
 export {
@@ -658,3 +659,6 @@ export {
   stubEnhancePrompt,
 } from "./enhance-prompt";
 export type { EnhanceSurface } from "./enhance-prompt";
+// Phase 9: the placeholder plan catalog the pricing page renders (`@agentforge/core/plans`).
+export { PLAN_CATALOG_CURRENCY, PLAN_TIERS, findTier, formatPlanPrice, matchTier } from "./plans/catalog";
+export type { PlanTier } from "./plans/catalog";
