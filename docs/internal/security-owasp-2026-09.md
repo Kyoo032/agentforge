@@ -46,7 +46,7 @@ now rather than a reason not to.
 | A03-4 | Low | `eval` on an unvalidated variable name in the deploy scripts | `webapp-deploy/scripts/_common.sh:36-52` | Fixed |
 | A04-1 | **High** | `webapp-deploy/scripts/restore.sh` was broken: literal `\n` instead of line continuations | `webapp-deploy/scripts/restore.sh:73-75` | Fixed |
 | A05-1 | **Critical** | A production build with `AGENTFORGE_SERVER` unset boots with every control off | `apps/web/lib/hosted-mode-guard.ts` | Fixed |
-| A05-2 | **Critical** | `webapp-deploy/compose.yml` took `AGENTFORGE_SERVER` from an optional `.env` | `webapp-deploy/compose.yml:38` | Fixed |
+| A05-2 | **Critical** | `webapp-deploy/compose.yml` took `AGENTFORGE_SERVER` from an optional `.env` | `webapp-deploy/compose.yml:44` | Fixed |
 | A05-3 | Medium | Security headers existed only in the Caddyfile, not in the app | `packages/host/src/security-headers.ts` | Fixed |
 | A06-1 | Medium | No CI ran lint, unit tests or a dependency audit | `.github/workflows/ci.yml` | Written, **cannot run** — Actions billing lock |
 | A06-2 | Low | The hosted image ships devDependencies | `webapp-deploy/Dockerfile:78-80` | **Recorded** — open |
@@ -319,7 +319,7 @@ reported healthy, because the app was working exactly as a desktop app is suppos
 
 Fixed twice over, deliberately:
 
-1. `AGENTFORGE_SERVER: "1"` pinned in `webapp-deploy/compose.yml:38` under `environment:`, which beats
+1. `AGENTFORGE_SERVER: "1"` pinned in `webapp-deploy/compose.yml:44` under `environment:`, which beats
    `env_file:`.
 2. `assertHostedModeCoherent` (`apps/web/lib/hosted-mode-guard.ts`) refuses to boot a
    `NODE_ENV=production` build that is not in server mode, called as the first statement of

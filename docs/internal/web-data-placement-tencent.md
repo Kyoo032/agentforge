@@ -61,7 +61,7 @@ What actually burns local CPU and RAM is small and known; everything model-shape
 | ffmpeg render (h264 crf 20, preset medium, project resolution) | 2-4 vCPU, 0.3-0.6 GB, up to `10 x timeline + 60 s` | `AGENTFORGE_MAX_FFMPEG` (2), queue 4x | `packages/host/src/edit/ffmpeg/run.ts:72-124`, `recipes.ts:221-262` |
 | SQL worker (in-memory SQLite) | 1 vCPU burst, 128 MB heap hard limit, 2 s per query | `AGENTFORGE_MAX_SQL_WORKERS` (4) | `packages/host/src/sql-runner.ts`, `datasets.ts:110-111` |
 | PDF extraction (worker thread) | 1 vCPU, 0.2-0.4 GB for a 25 MB / 500-page file, 20 s | **none** | `packages/core/src/pdf/index.ts:30-32` |
-| anydoc conversion (native, libuv pool) | 1 vCPU, 0.1-0.3 GB | **none** beyond the 4-thread libuv pool | `packages/host/src/file-extract/anydoc.ts:153-168` |
+| anydoc conversion (native, libuv pool) | 1 vCPU, 0.1-0.3 GB | **none** beyond the 4-thread libuv pool | `packages/host/src/file-extract/anydoc.ts:169-184` |
 | DOCX extraction | runs **on the request thread**, up to 20 s, blocks every other request meanwhile | none | `packages/host/src/knowledge-extract.ts:29-34` |
 | Buffered request body | up to 26 MB RAM each, held for the request | none | `packages/host/src/http-adapter.ts:42,111` |
 | Node host baseline | 0.5-1 GB with SQLite page cache and caches | | |
