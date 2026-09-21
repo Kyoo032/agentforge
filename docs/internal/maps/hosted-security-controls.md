@@ -1,6 +1,10 @@
 # Map — Hosted security controls
 
-Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c`
+Last verified: 2026-09-21 at 4938747 + working tree. The boot guards and the response headers were
+re-verified against that tree ([SR-14](../security-register.md#sr-14),
+[SR-04](../security-register.md#sr-04)); the boot-guard path, the ffmpeg failure detail and the
+top-up link were re-checked again after the fix pass of the same day. Anything not named in those
+sections was last walked on 2026-09-20 at `a053245`, on the Phase 4 branch.
 
 ## Overview
 
@@ -14,7 +18,7 @@ The thing to hold onto: **`isServerMode()` is the whole switch, and it is read a
 use rather than captured once.** There is no `SecurityConfig` object, no middleware stack, no
 registry of controls. Each control asks the environment itself. That makes the controls easy to
 read one at a time and makes the switch a single point of failure, which is why
-`apps/web/lib/hosted-mode-guard.ts` exists to refuse a production build that answers `false`.
+`apps/web/server/hosted-mode-guard.ts` exists to refuse a production build that answers `false`.
 
 This page is the hosted perimeter: how a request is admitted and what a response carries, **as it
 stands after the OWASP pass**. Four neighbouring pages own the parts it does not:
@@ -38,16 +42,36 @@ Tenant scoping *inside* an admitted request is Phase 3's and is not described he
 `AGENTFORGE_SERVER` is set to `1`. `trustedOrigins` (`:52`) reads `AGENTFORGE_TRUSTED_ORIGINS`,
 a comma-separated list normalised by `normaliseOrigin` (`:88`).
 
-Two things pin the flag on for a real deployment:
+Three things pin the flag on for a real deployment, and check that the deployment behind it is
+usable:
 
 | Where | What it does |
 |---|---|
 | `webapp-deploy/compose.yml:44` | `AGENTFORGE_SERVER: "1"` under `environment:`, which beats `env_file:` — and `.env` is `required: false`, so it can be absent |
 | `apps/web/server.ts:41` | `assertHostedModeCoherent(process.env)`, the first statement of `main()`, throws before `server.listen` if `NODE_ENV=production` and server mode is off |
+| `apps/web/server.ts:45` | `assertHostedEnvComplete(process.env)`, the second statement, throws before `server.listen` when the server mode flag IS on but the environment behind it is not usable |
 
 The second exists because the first only covers this compose file. A `NODE_ENV=production` build
 that is not in server mode serves every `GET /api/v1/*` without a session **and passes its health
 check**, because that is exactly how the desktop app is meant to behave.
+
+The third exists because a *correctly* flagged server was still allowed to start with nothing
+behind the flag. Every hosted variable was read at first use, so a container with no wrap key
+answered `/healthz` (which routes before anything and opens no database), passed Caddy's active
+check, and failed for the first person who signed in — `../security-register.md` SR-04. Since
+2026-09-21 the check is `packages/host/src/hosted-env.ts`: in server mode it refuses to listen
+unless `AGENTFORGE_SECRETS_KEY` passes `getLocalVaultKey`, at least one https origin survives
+`trustedOrigins`, `AGENTFORGE_PORTAL_URL` passes `portalBaseUrl` → `assertAllowedEndpointUrl`, both
+portal client credentials pass `portalClientCredentials`, an explicitly set `AGENTFORGE_PUBLIC_URL`
+passes `publicBaseUrl`, and — on `NODE_ENV=production` only — `AGENTFORGE_BILLING_WEBHOOK_SECRET`
+is set. Off production a missing billing secret is a startup warning instead. **It borrows every
+rule from the code that will later enforce it and restates none**, which is the point: a second
+copy of "what a good wrap key looks like" is how two answers to the same question appear. The
+message names every broken variable at once and never prints a value. It lives in the host package
+rather than in `apps/web` because those rules sit in three packages and `apps/web` can see only
+two; `apps/web/server/hosted-mode-guard.ts:28` re-exports it so `server.ts` reaches both guards
+through one module. Off server mode both calls return immediately, so webdev, the e2e run and the
+desktop are untouched.
 
 ### 2. Admission — the order in `handleNodeRequest`
 
@@ -63,7 +87,7 @@ load-bearing; if that mount ever moves, the controls move with it.
 | 3 | `:455` | `transportRejection` — TLS, method allowlist, path filter, header cap, per-IP and per-session buckets | **every** request, not only `/api` |
 | 4 | `:461` | non-`/api` paths return `false`; Express serves the page | — |
 | 5 | `:470` | `mutatingRejection` — Origin/Host allowlist, double-submit CSRF, `x-agentforge-transport` | non-safe methods on `/api` |
-| 6 | `packages/host/src/router.ts:448-452` | `requireSessionFor` — the session gate, before the route table | `/api` minus the exempt paths |
+| 6 | `packages/host/src/router.ts:455-461` | `requireSessionFor` — the session gate, before the route table | `/api` minus the exempt paths |
 | 7 | `:533` | `logAuthFailure` | a 401 coming back out |
 | 8 | `:384` | `maskServerError` | any 5xx, in server mode |
 
@@ -117,16 +141,44 @@ limiter cannot itself become the memory exhaustion.
 
 - **Headers.** `packages/host/src/security-headers.ts` writes CSP, HSTS, `X-Frame-Options: DENY`,
   `nosniff`, `Referrer-Policy`, both COOP/CORP and a `Permissions-Policy` that turns every
-  powerful feature off. Server mode only: webdev's inline module preloads and the desktop's custom
-  protocol would both break under a CSP written for the built bundle. `webapp-deploy/Caddyfile`
-  sets the same set; Caddy's `header` directive **replaces** rather than appends, so the proxy's
-  value wins on the real deployment and nothing is duplicated. The app is the floor, the proxy is
-  the ceiling.
+  powerful feature off **except the two Meeting recording needs**: since 2026-09-21
+  (`../security-register.md` SR-14) `microphone=(self)` and `display-capture=(self)` are allowed
+  and the other sixteen stay `()`, `camera` included. `(self)` is this origin and nothing else —
+  `apps/web` renders no `<iframe>`, so no `allow=` attribute exists to delegate either feature; an
+  artifact body is served under `Content-Security-Policy: sandbox` (`handlers/artifacts.ts:72`),
+  which puts it in an opaque origin that `self` never matches; and `frame-ancestors 'none'` keeps
+  the app out of anyone else's frame. Server mode only: webdev's inline module preloads and the
+  desktop's custom protocol would both break under a CSP written for the built bundle.
+  `webapp-deploy/Caddyfile` sets the same set; Caddy's `header` directive **replaces** rather than
+  appends, so the proxy's value wins on the real deployment and nothing is duplicated. The app is
+  the floor, the proxy is the ceiling — and `security-headers.test.ts` parses the Caddyfile and
+  fails if the two policies stop agreeing, so "changed one, forgot the other" is a red test rather
+  than a header nobody sends.
 - **Identity headers stripped.** `X-Powered-By` and `Server` are removed in the adapter
   (`IDENTITY_HEADERS`, `packages/host/src/http-adapter.ts:53`) and again at the proxy.
 - **Errors masked.** `maskServerError` (`:384`) replaces any 5xx message with a fixed string and
   keeps only a code matching `/^[a-z0-9_]+$/` (`:49`), so a SQLite error naming a column or a path
   never reaches the client. Off server mode it is a no-op and webdev's error path is untouched.
+- **4xx is NOT masked, which is where the leaks live.** `maskServerError` only touches 5xx, and a
+  deliberately malformed upload is answered `400`. The one that got through was ffmpeg: a failed
+  run put `execFile`'s own message — the absolute path of the binary followed by every argument,
+  which for this app is the absolute path of a tenant's media inside the data dir — plus 300
+  characters of raw stderr into `ApiError("ffmpeg_failed", …)`, which `jsonError` serialises to the
+  browser and Meeting streams as an SSE `job.error` frame. Since 2026-09-21 the detail goes to
+  `log.warn("ffmpeg_failed", …)` — redacted, structured, server-side — and the client gets a fixed
+  sentence plus a reason class chosen from the failure rather than copied out of it: `unreadable
+  input`, `an unsupported codec`, `the tool could not be started`, `an invalid run request`, `too
+  much output`, or `exit code N` (`packages/host/src/edit/ffmpeg/run.ts:80-138`, `:195-199`).
+  `run-failure-detail.test.ts` asserts that no absolute path, argv fragment or tenant filename
+  survives into the message.
+- **An operator's string is not a URL.** `AGENTFORGE_BILLING_TOPUP_URL` was echoed to the browser
+  verbatim and turned into an `href` on a page inside the tenant's session, so a `javascript:` or
+  `data:` value in the deployment's environment would have been script execution. It is validated
+  at the source now (`packages/host/src/billing/topup-url.ts`): anything that is not an absolute
+  http(s) URL answers `available: false`, and the operator is warned at boot and on first use by
+  **variable name only** — never the value, in case a secret was pasted into the wrong slot. The
+  renderer's own `safeCheckoutUrl` (`apps/web/lib/plans-api.ts`) stays: a control at the source and
+  a control at the sink are the two ends of one string, not a duplicate.
 - **Downloads.** `packages/host/src/content-disposition.ts` builds every attachment header —
   quoted ASCII `filename` plus an RFC 5987 `filename*` when the name is not Latin-1. Applied in
   the adapter (`:273`) so a new download route cannot forget it.
@@ -165,7 +217,8 @@ app's network namespace so `127.0.0.1:3000` *is* the app and nothing is exposed 
 | File | Role |
 |---|---|
 | `packages/core/src/server-mode.ts` | `isServerMode`, `trustedOrigins`, `normaliseOrigin` — the switch |
-| `apps/web/lib/hosted-mode-guard.ts` | Refuses to boot a production build that is not in server mode |
+| `apps/web/server/hosted-mode-guard.ts` | Refuses to boot a production build that is not in server mode; re-exports the environment check below |
+| `packages/host/src/hosted-env.ts` | Refuses to boot a server-mode process whose hosted environment is incomplete, naming every variable at once |
 | `packages/host/src/http-adapter.ts` | Admission order, request id, error masking, auth-failure log |
 | `packages/host/src/local-request.ts` | `filterHttpRequest`: method allowlist, path filter, header and body caps |
 | `packages/host/src/csrf.ts` | Double-submit token mint and check |
@@ -214,11 +267,12 @@ Automated, and these are what actually prove this page:
 | Suite | Proves |
 |---|---|
 | `packages/host/src/http-adapter.test.ts` (98) | admission order, Origin/Host/CSRF, rate limits, masking, request id, `auth_failed` |
-| `packages/host/src/security-headers.test.ts` (10) | the header set, and Caddyfile parity |
+| `packages/host/src/security-headers.test.ts` (14) | the header set, the exact `Permissions-Policy` string, and Caddyfile parity |
 | `packages/core/src/security/ip-range.test.ts` (14) | CIDR membership, the v4-in-v6 forms |
 | `packages/core/src/security/safe-fetch.test.ts` (19) | scheme, credentials, per-hop redirects, DNS resolution |
 | `packages/db/src/vault-key.test.ts` (26) | length and randomness floors, `.master-key` corruption |
-| `apps/web/lib/hosted-mode-guard.test.ts` | the production-build refusal, and that compose still pins the flag |
+| `apps/web/server/hosted-mode-guard.test.ts` (13) | the production-build refusal, that compose still pins the flag, and that both boot guards run before `server.listen` |
+| `packages/host/src/hosted-env.test.ts` (32) | one row per hosted variable, the aggregated message, that no value is printed, and that local mode is untouched |
 | `.github/workflows/ci.yml` | would run all of the above on every push and pull request — but Actions cannot start a runner on this account (`../security-owasp-2026-09.md`, A06-1), so today these are run by hand |
 
 **There is no `verify-agentforge` feature file for this page, and that is a gap rather than a
@@ -234,7 +288,7 @@ Phase 0 deploy. Until then this page is proved by the suites above and not by a 
   `packages/core/src/server-mode.ts` carries no other export for composing them, so the design
   appears to be deliberate simplicity rather than an unfinished abstraction. The cost is stated in
   `docs/internal/security-owasp-2026-09.md` A05-1: a single point of failure, now guarded at boot.
-- **Headers in two places.** `[Direct]` `packages/host/src/security-headers.ts:76-105` states the
+- **Headers in two places.** `[Direct]` `packages/host/src/security-headers.ts:1-20` states the
   reasoning: the Caddyfile was the only copy, so any deployment behind a different proxy had no
   CSP at all.
 - **The audit gate is scoped to the deployed closure, not the workspace.** `[Direct]`

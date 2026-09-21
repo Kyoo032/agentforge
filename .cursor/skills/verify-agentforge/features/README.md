@@ -11,7 +11,7 @@ Documents, Research, Finance, Data, Market, Legal, Images, Videos, Music, Meetin
 - **Webdev:** the operator's instance answers at `http://127.0.0.1:3000` (never a LAN IP). Doctor with no args. An isolated instance you started yourself on another port is doctored with `--base http://127.0.0.1:<port>`.
 - **Packaged desktop:** Electron window; doctor `--desktop` reads `host-status.json` (`transport: "ipc"`). No HTTP port.
 - SQLite is `data/agentforge.sqlite` (webdev) or Electron userData (packaged: `%APPDATA%\DPSBuddy`, `$XDG_CONFIG_HOME/DPSBuddy` or `~/.config/DPSBuddy`, `~/Library/Application Support/DPSBuddy`).
-- No product login. A gateway key is optional; stub Chat works without one. When login lands it is the device-code door against the Toko Token portal — never a password field, and never an e-mail domain used to pick a tenant.
+- **No product login on webdev or the desktop.** A gateway key is optional; stub Chat works without one. The hosted deployment is different: since Phase 9 it has a sign-in, and it is the portal door — an e-mail and a six-digit code, never a password field, and never an e-mail domain used to pick a tenant. Drive it with [login.md](./login.md) on the review instance, never on `:3000`.
 - The **gateway gate** decides whether a desk opens at all: `allowed: false` puts the whole app on onboarding and answers `403 gateway_blocked` on every gateway-calling route. See [gateway-gate.md](./gateway-gate.md).
 - Windows: drive webdev with the IDE browser where you have one. A Claude Code session has no IDE browser — it drives its own isolated instance with a short Playwright script (see SKILL.md **Drive**) and still never runs `pnpm test:e2e` against the operator's desk.
 - Cloud / GHA: `AGENTFORGE_RUNTIME=stub` and Playwright `foundation.spec.ts` against **webdev** :3000.
@@ -45,6 +45,8 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 - [Chat](./chat.md) — composer send, new thread, switch sessions, stub reply. Default rail shows every work mode.
 - [Settings](./settings.md) — gateway key, privacy note, stub/live runtime, gateway status row, language row, compact this-key + Open Usage. No Advanced tab.
 - [Gateway gate](./gateway-gate.md) — the host's open/closed decision: onboarding reasons, `settings-gateway-status` + re-check, 7-day grace, `403 gateway_blocked`, Start over. Advisory, fails open, never an entitlement check.
+- [Login](./login.md) — **hosted only.** The one door: `auth-signin` → the portal's e-mail and six-digit-code forms → `/auth/callback` → signed in. Needs the review instance, a seeded tenant and a **real browser**; on webdev and the desktop every testid has count 0. No password, ever.
+- [Plans](./plans.md) — `/pricing` and its `pricing-*` cards, `account-plan` on Settings, and the blocked screens. Every number is a placeholder. `?preview=` reaches the blocked screens on a local build only.
 - [Locale](./locale.md) — the Settings language select, the restart banner, and an `id` walk of the rail, Chat and one job mode. Testids do not move.
 - [Rail](./rail.md) — the left column: four groups, collapse/expand, resize and width prefs, theme toggle, and the `productModes` → visible-tabs → hidden-mode-redirect chain.
 - [Channels](./channels.md) — account-rail `/channels`: connect a Telegram bot to the desk, add a group or channel, send, and poll for replies. Not a product mode; drive it against `scripts/telegram-sandbox.ts` rather than a real bot.
@@ -67,7 +69,7 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 - [Knowledge graph](./knowledge-graph.md) — Phase 4 builtin: completed Chat replies with `[n]` markers add `cites` edges; one-hop `covers` expansion is behind `knowledge.graphExpand` (off in Chat); panel is the existing Phase 2 base. Drive on webdev :3000.
 - [Images](./images.md) — studio shell on Default; needs-key without a gateway key.
 - [Videos](./videos.md) — studio shell and `videos-studio-needs-key` without a key.
-- [Meeting](./meeting.md) — recording → transcript → minutes → EN/ID translation (`mode-meeting`). Create, upload and paste work without a key; only the run reaches the gateway.
+- [Meeting](./meeting.md) — recording → transcript → minutes → EN/ID translation (`mode-meeting`). Create, upload, paste and the in-browser recorder's controls work without a key; only the run reaches the gateway. A **granted microphone** needs a real Chrome window and is still unverified.
 - [Music](./music.md) — studio shell and `music-studio-needs-key` without a key; describe-or-lyrics brief, two takes per charge, voice-over reported unavailable rather than offered.
 - [Edit](./edit.md) — CapCut-style timeline + agent panel (`mode-edit`), shipped in 0.14.22. Storyboard generate is still a Phase 3 placeholder and `animate_storyboard` is backend-only.
 - [Presentation](./presentations.md) — starters, preview, slide regen (503 without a key), PPTX download from a starter.
