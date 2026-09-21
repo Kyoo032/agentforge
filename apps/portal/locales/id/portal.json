@@ -1,0 +1,89 @@
+{
+  "product": "DPSBuddy",
+  "signIn": {
+    "title": "Masuk",
+    "intro": "Masukkan alamat e-mail kerja Anda. Kami akan mengirim kode enam digit.",
+    "emailLabel": "Alamat e-mail",
+    "submit": "Kirim kode"
+  },
+  "sent": {
+    "title": "Periksa e-mail Anda",
+    "body": "Jika alamat itu punya akun, kode enam digit sedang dikirim. Kode berlaku {minutes} menit.",
+    "codeLabel": "Kode enam digit",
+    "submit": "Lanjutkan",
+    "resend": "Belum menerimanya? Mulai lagi."
+  },
+  "code": {
+    "invalid": "Kode itu tidak cocok. Sisa {attempts} percobaan.",
+    "expired": "Kode itu sudah kedaluwarsa. Mulai lagi.",
+    "exhausted": "Terlalu banyak percobaan untuk kode itu. Mulai lagi.",
+    "missing": "Masukkan enam digit dari e-mail."
+  },
+  "approve": {
+    "title": "Setujui perangkat ini?",
+    "intro": "Sebuah perangkat meminta masuk ke akun Anda.",
+    "userCode": "Kode",
+    "platform": "Platform",
+    "device": "Perangkat",
+    "warning": "Lanjutkan hanya jika Anda baru saja memulai proses masuk di perangkat itu.",
+    "approve": "Setujui",
+    "deny": "Tolak",
+    "codeIntro": "Ketik kode yang tampil di perangkat yang sedang Anda masuki.",
+    "codeLabel": "Kode perangkat",
+    "codeSubmit": "Lanjutkan",
+    "unknownCode": "Kode itu sudah tidak berlaku. Mulai lagi proses masuk di perangkat tersebut."
+  },
+  "approved": {
+    "title": "Perangkat disetujui",
+    "body": "Kembali ke perangkat itu. Proses masuk akan selesai dengan sendirinya."
+  },
+  "denied": {
+    "title": "Masuk ditolak",
+    "body": "Tidak ada yang disetujui. Anda boleh menutup halaman ini."
+  },
+  "success": {
+    "title": "Berhasil masuk",
+    "body": "Mengembalikan Anda ke {product}."
+  },
+  "signedOut": {
+    "title": "Sudah keluar",
+    "body": "Sesi masuk di peramban ini sudah berakhir. Lain kali Anda akan diminta alamat e-mail dan kode lagi."
+  },
+  "error": {
+    "title": "Tidak dapat melanjutkan",
+    "generic": "Terjadi kesalahan. Tutup halaman ini lalu mulai lagi.",
+    "invalidClient": "Tautan masuk ini tidak sah. Mulai lagi dari aplikasi.",
+    "invalidRedirect": "Tautan masuk ini tidak sah. Mulai lagi dari aplikasi.",
+    "badRequest": "Permintaan itu tidak dikenali.",
+    "expiredForm": "Halaman ini kedaluwarsa. Mulai lagi.",
+    "rateLimited": "Terlalu banyak percobaan. Coba lagi beberapa menit lagi."
+  },
+  "platform": {
+    "windows": "Windows",
+    "macos": "macOS",
+    "linux": "Linux",
+    "android": "Android",
+    "ios": "iOS",
+    "web": "Peramban web",
+    "unknown": "Tidak diketahui"
+  },
+  "reason": {
+    "tenant_inactive": "Akun penyedia Anda tidak aktif. Hubungi dukungan.",
+    "org_inactive": "Organisasi Anda tidak aktif.",
+    "org_past_due": "Pembayaran organisasi Anda tertunggak.",
+    "user_inactive": "Akun Anda dinonaktifkan.",
+    "seat_cap_reached": "Tidak ada kursi tersisa di organisasi Anda.",
+    "device_revoked": "Perangkat ini telah dikeluarkan oleh admin.",
+    "session_revoked": "Anda telah keluar. Silakan masuk lagi.",
+    "refresh_reused": "Keluar demi keamanan. Silakan masuk lagi.",
+    "refresh_expired": "Sesi Anda berakhir. Silakan masuk lagi.",
+    "device_code_expired": "Kode kedaluwarsa. Mulai masuk lagi.",
+    "device_code_denied": "Masuk ditolak.",
+    "invalid_request": "Permintaan itu tidak dikenali.",
+    "invalid_grant": "Proses masuk itu tidak dapat diselesaikan. Mulai lagi.",
+    "rate_limited": "Terlalu banyak percobaan. Coba lagi beberapa menit lagi."
+  },
+  "footer": {
+    "note": "Jangan pernah membagikan kode masuk kepada siapa pun."
+  }
+}

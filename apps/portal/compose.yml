@@ -1,0 +1,69 @@
+# Local portal dependencies. Loopback only — nothing here is reachable from the network.
+#
+#   export PORTAL_POSTGRES_PASSWORD="$(node -e "console.log(require('crypto').randomBytes(18).toString('base64url'))")"
+#   docker compose -f apps/portal/compose.yml up -d
+#   PORTAL_DATABASE_URL=postgres://portal:$PORTAL_POSTGRES_PASSWORD@127.0.0.1:5433/tokotoken_portal pnpm portal:dev
+#
+# `scripts/review-instance.ps1` exports `PORTAL_POSTGRES_PASSWORD` around its `docker compose up`,
+# so the review route needs nothing extra.
+#
+# **The password has no default on purpose.** `${VAR:?message}` makes `docker compose` refuse to
+# start rather than fall back to a literal in a file that is in git — a password in a checked-in
+# compose file is a password, published. If the variable is unset you get the message below and
+# nothing starts.
+#
+# **An existing volume keeps the password it was created with.** `POSTGRES_PASSWORD` is only read
+# by `initdb`, on the very first start of an empty `portal-pgdata`. A dev machine whose volume was
+# created before this change still wants the old password (`portal`) in its DSN, and changing this
+# variable will not change it. To adopt a new one, either
+#   `docker compose -f apps/portal/compose.yml exec postgres psql -U portal -c "\password portal"`,
+# or drop the volume and re-migrate:
+#   `docker compose -f apps/portal/compose.yml down -v` (this deletes every local portal row).
+# The test suite is unaffected either way: it runs its own PostgreSQL (`embedded-postgres`, see
+# `test/global-setup.ts`) and never touches this volume.
+#
+# The port is 5433, not 5432, so this never collides with a Postgres someone already runs.
+# Mailpit is the sandbox inbox: the portal sends real SMTP to it and nobody reads a code from a log.
+name: agentforge-portal
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    # 127.0.0.1 prefix is load-bearing: without it Docker publishes on 0.0.0.0.
+    ports:
+      - "127.0.0.1:5433:5432"
+    environment:
+      POSTGRES_USER: portal
+      POSTGRES_PASSWORD: ${PORTAL_POSTGRES_PASSWORD:?set PORTAL_POSTGRES_PASSWORD before docker compose up}
+      POSTGRES_DB: tokotoken_portal
+      # Deterministic collation, so an index built here behaves like one built on TencentDB.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - portal-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U portal -d tokotoken_portal"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:1025:1025" # SMTP  -> PORTAL_SMTP_HOST/PORT
+      - "127.0.0.1:8025:8025" # web UI -> http://127.0.0.1:8025
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+      MP_MAX_MESSAGES: "500"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+volumes:
+  portal-pgdata:
