@@ -1,0 +1,83 @@
+{
+  "kicker": "Plans",
+  "title": "Choose a plan",
+  "intro": "Both plans open every work mode. What differs is how many people share the account.",
+  "placeholderNotice": "Indicative pricing — not final.",
+  "period": {
+    "month": "/ month"
+  },
+  "seats": {
+    "uncapped": "One seat",
+    "capped": "Up to {count} seats"
+  },
+  "currentBadge": "Your plan",
+  "featuresLabel": "What you get",
+  "tier": {
+    "personal": {
+      "name": "Personal",
+      "description": "One person, every work mode, workspaces nobody else can open."
+    },
+    "enterprise": {
+      "name": "Enterprise",
+      "description": "A team on one account, with shared workspaces and seats you manage yourself."
+    }
+  },
+  "feature": {
+    "allWorkModes": "Every work mode, from Chat to Finance",
+    "privateWorkspaces": "Private workspaces only you can open",
+    "emailSupport": "Support by email",
+    "sharedWorkspaces": "Shared workspaces for the whole team",
+    "seatManagement": "Add and remove seats yourself",
+    "usageReports": "Usage reports per person and per model",
+    "prioritySupport": "Priority support"
+  },
+  "cta": {
+    "choose": "Choose {plan}",
+    "current": "This is your plan",
+    "contact": "Contact us to activate",
+    "contactHelp": "There is no checkout yet. Ask whoever runs this deployment and they will switch the account on.",
+    "checkoutFailed": "That link could not be opened. Contact whoever runs this deployment."
+  },
+  "blocked": {
+    "seePlans": "See plans",
+    "topUp": "Update payment",
+    "retry": "Try again",
+    "contact": "Contact us",
+    "plan_past_due": {
+      "title": "Payment overdue",
+      "body": "The last payment on this account did not go through. Once it is settled, the desk opens again and nothing you saved is lost."
+    },
+    "plan_cancelled": {
+      "title": "No active plan",
+      "body": "This account has no plan running. Start one and the desk opens again with all of your work where you left it."
+    },
+    "plan_allowance_exhausted": {
+      "title": "Usage limit reached",
+      "body": "This account has reached its usage limit for now. Contact us and we will lift it; your work is untouched."
+    },
+    "plan_unavailable": {
+      "title": "The plan could not be read",
+      "body": "This is not a payment problem — the server could not read this account's plan just now. Try again in a moment."
+    }
+  },
+  "account": {
+    "label": "Plan",
+    "heading": "Plan",
+    "loading": "Reading this account's plan…",
+    "failed": "This account's plan could not be read just now.",
+    "noPlan": "No plan on this account yet.",
+    "seats": "{used} of {cap} seats in use",
+    "periodEnd": "Current period ends {date}",
+    "notEnforced": "Plans are not enforced on this installation.",
+    "seePlans": "See plans",
+    "status": {
+      "active": "Active",
+      "past_due": "Payment overdue",
+      "cancelled": "Cancelled"
+    },
+    "warning": {
+      "allowance_low": "This account is close to its usage limit for the period.",
+      "unpriced_usage": "Some calls this period could not be priced."
+    }
+  }
+}

@@ -1,5 +1,6 @@
 import { isJobEvent, type JobEvent } from "@agentforge/core/jobs";
 import { apiFetch } from "./api-client";
+import { reportPlanBlocked } from "./plan-block";
 import { consumeSse } from "./sse-client";
 
 /** Pull job events out of an SSE buffer; returns the unconsumed tail. */
@@ -20,14 +21,45 @@ export class JobStreamError extends Error {
   }
 }
 
-function errorFromJson(payload: unknown, status: number): JobStreamError {
+const FALLBACK_CODE = "request_failed";
+const FALLBACK_MESSAGE = "Request failed";
+
+function text(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+/**
+ * A JSON refusal → the typed error a studio shows.
+ *
+ * Two shapes reach here. Nearly every route answers the envelope
+ * `{ error: { code, message } }` (`packages/host/src/errors.ts`). The two **blocked** errors are
+ * flat instead — `{ error: "<code>", message }` — and one of those is a plan refusal
+ * (`plan_past_due`, `plan_cancelled`, `plan_allowance_exhausted` at 403, `plan_unavailable` at
+ * 503, `packages/host/src/entitlement-store.ts`). Read only through the enveloped shape, as this
+ * did, a past-due tenant's job answered `request_failed` / "Request failed": a dead end with no
+ * code to branch on and nothing to read.
+ *
+ * So the flat shape is read **only** for plan codes, and `reportPlanBlocked` is called first so the
+ * boundary in `App.tsx` puts the right screen up whatever this error then does. `gateway_blocked`
+ * is deliberately left as it was: it is the other flat code, nothing consumes it from a job stream
+ * today, and it has its own parser and its own screen.
+ */
+export function errorFromJson(payload: unknown, status: number): JobStreamError {
+  // Before anything is narrowed: a plan refusal is a whole-app state, not this job's error.
+  const plan = reportPlanBlocked(payload);
+  const record = payload && typeof payload === "object" && !Array.isArray(payload) ? (payload as Record<string, unknown>) : null;
+  if (plan) {
+    return new JobStreamError(plan, text(record?.message) ?? FALLBACK_MESSAGE, status);
+  }
   const error =
-    payload && typeof payload === "object"
-      ? (payload as { error?: { code?: unknown; message?: unknown } }).error
+    record?.error && typeof record.error === "object"
+      ? (record.error as { code?: unknown; message?: unknown })
       : null;
-  const code = error && typeof error.code === "string" ? error.code : "request_failed";
-  const message = error && typeof error.message === "string" && error.message.trim() ? error.message : "Request failed";
-  return new JobStreamError(code, message, status);
+  return new JobStreamError(
+    text(error?.code) ?? FALLBACK_CODE,
+    text(error?.message) ?? FALLBACK_MESSAGE,
+    status,
+  );
 }
 
 /** Fold a job stream: resolves the `job.done` payload, rejects on `job.error` or a JSON error. */

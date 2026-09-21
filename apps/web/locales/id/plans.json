@@ -1,0 +1,83 @@
+{
+  "kicker": "Paket",
+  "title": "Pilih paket",
+  "intro": "Kedua paket membuka semua mode kerja. Yang berbeda hanya berapa orang yang memakai satu akun.",
+  "placeholderNotice": "Harga indikatif — belum final.",
+  "period": {
+    "month": "/ bulan"
+  },
+  "seats": {
+    "uncapped": "Satu kursi",
+    "capped": "Hingga {count} kursi"
+  },
+  "currentBadge": "Paket Anda",
+  "featuresLabel": "Yang Anda dapat",
+  "tier": {
+    "personal": {
+      "name": "Personal",
+      "description": "Satu orang, semua mode kerja, ruang kerja yang tidak bisa dibuka siapa pun selain Anda."
+    },
+    "enterprise": {
+      "name": "Enterprise",
+      "description": "Satu tim dalam satu akun, dengan ruang kerja bersama dan kursi yang Anda atur sendiri."
+    }
+  },
+  "feature": {
+    "allWorkModes": "Semua mode kerja, dari Chat sampai Finance",
+    "privateWorkspaces": "Ruang kerja pribadi yang hanya bisa Anda buka",
+    "emailSupport": "Dukungan lewat email",
+    "sharedWorkspaces": "Ruang kerja bersama untuk satu tim",
+    "seatManagement": "Tambah dan cabut kursi sendiri",
+    "usageReports": "Laporan pemakaian per orang dan per model",
+    "prioritySupport": "Dukungan prioritas"
+  },
+  "cta": {
+    "choose": "Pilih {plan}",
+    "current": "Ini paket Anda",
+    "contact": "Hubungi kami untuk mengaktifkan",
+    "contactHelp": "Belum ada proses pembayaran. Hubungi pengelola instalasi ini dan akun Anda akan diaktifkan.",
+    "checkoutFailed": "Tautan itu tidak bisa dibuka. Hubungi pengelola instalasi ini."
+  },
+  "blocked": {
+    "seePlans": "Lihat paket",
+    "topUp": "Perbarui pembayaran",
+    "retry": "Coba lagi",
+    "contact": "Hubungi kami",
+    "plan_past_due": {
+      "title": "Pembayaran tertunggak",
+      "body": "Pembayaran terakhir pada akun ini tidak berhasil. Begitu dilunasi, meja kerja terbuka lagi dan tidak ada pekerjaan Anda yang hilang."
+    },
+    "plan_cancelled": {
+      "title": "Tidak ada paket aktif",
+      "body": "Akun ini belum punya paket yang berjalan. Mulai satu paket dan meja kerja terbuka lagi dengan semua pekerjaan Anda seperti semula."
+    },
+    "plan_allowance_exhausted": {
+      "title": "Batas pemakaian tercapai",
+      "body": "Akun ini sudah mencapai batas pemakaiannya untuk saat ini. Hubungi kami dan kami akan menaikkannya; pekerjaan Anda tidak tersentuh."
+    },
+    "plan_unavailable": {
+      "title": "Paket tidak bisa dibaca",
+      "body": "Ini bukan masalah pembayaran — server sedang tidak bisa membaca paket akun ini. Coba lagi sebentar lagi."
+    }
+  },
+  "account": {
+    "label": "Paket",
+    "heading": "Paket",
+    "loading": "Membaca paket akun ini…",
+    "failed": "Paket akun ini sedang tidak bisa dibaca.",
+    "noPlan": "Akun ini belum punya paket.",
+    "seats": "{used} dari {cap} kursi terpakai",
+    "periodEnd": "Periode berjalan berakhir {date}",
+    "notEnforced": "Paket tidak diberlakukan pada instalasi ini.",
+    "seePlans": "Lihat paket",
+    "status": {
+      "active": "Aktif",
+      "past_due": "Pembayaran tertunggak",
+      "cancelled": "Dibatalkan"
+    },
+    "warning": {
+      "allowance_low": "Akun ini sudah mendekati batas pemakaian untuk periode ini.",
+      "unpriced_usage": "Sebagian panggilan pada periode ini tidak bisa dihitung biayanya."
+    }
+  }
+}
