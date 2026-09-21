@@ -15,6 +15,7 @@ import {
   probeVolcengineModels,
   redactSecrets,
   resolveModeDefaults,
+  RELAY_ONLY_MUSIC_MODEL_IDS,
   resolveProviderKeys,
   resolvedGatewayBaseUrl,
   routeModelsByKind,
@@ -103,8 +104,42 @@ export function listAudioModels(): ChatModel[] {
   return listRoutedModels().audio;
 }
 
+/** A picker row for an id the live catalog does not carry. Minimal on purpose: no price, no hints. */
+function relayModelRow(id: string): ChatModel {
+  return { id, label: id, provider: "openai", inputModalities: ["text"] };
+}
+
+/**
+ * The catalog's music models plus the relay-only ones the gateway never lists.
+ *
+ * `GET /v1/models` on this gateway returns the OpenAI-shaped models only, so `suno_music` — a task
+ * model reached at `POST {origin}/suno/submit/music` — is absent from it even on a key that can use
+ * it. Filtering the live catalog alone therefore produced an empty Music picker on a working desk.
+ *
+ * The catalog wins every collision: if the gateway does list the id, its own row (with its price and
+ * curation) is kept and nothing is appended, whatever the case of the spelling. The input list is
+ * never mutated, and the same list comes back untouched when there is nothing to add.
+ */
+export function withRelayMusicModels(
+  models: readonly ChatModel[],
+  extraIds: readonly string[] = RELAY_ONLY_MUSIC_MODEL_IDS,
+): ChatModel[] {
+  const seen = new Set(models.map((model) => model.id.trim().toLowerCase()));
+  const added: ChatModel[] = [];
+  for (const raw of extraIds) {
+    const id = raw.trim();
+    const key = id.toLowerCase();
+    if (!id || seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    added.push(relayModelRow(id));
+  }
+  return added.length === 0 ? [...models] : [...models, ...added];
+}
+
 export function listMusicModels(): ChatModel[] {
-  return listAudioModels().filter((model) => isMusicModelId(model.id));
+  return withRelayMusicModels(listAudioModels().filter((model) => isMusicModelId(model.id)));
 }
 
 /** Non-realtime text-to-speech only; empty on this gateway today. */
@@ -161,6 +196,9 @@ export function modeCatalogPayload(models: ChatModel[] = listCatalogModels()): {
   const curated = curateRouted(routed);
   const embedding = listEmbeddingModels(models);
   const chatDefault = defaultSelectableModel(curated.chat);
+  // The relay music model is merged here too, so `/api/v1/models` cannot report a music mode whose
+  // list is missing the very id `defaults.music` names.
+  const music = applyCuration(withRelayMusicModels(curated.audio.filter((model) => isMusicModelId(model.id))));
   return {
     modes: {
       ...curated,
@@ -172,14 +210,14 @@ export function modeCatalogPayload(models: ChatModel[] = listCatalogModels()): {
       market: curated.chat,
       legal: curated.chat,
       meeting: curated.chat,
-      music: curated.audio.filter((model) => isMusicModelId(model.id)),
+      music,
       embedding,
     },
     defaults: resolveModeDefaults({
       chatIds: curated.chat.map((model) => model.id),
       imageIds: curated.image.map((model) => model.id),
       videoIds: curated.video.map((model) => model.id),
-      musicIds: curated.audio.map((model) => model.id),
+      musicIds: music.map((model) => model.id),
       embeddingIds: embedding.map((model) => model.id),
       chatDefault,
     }),

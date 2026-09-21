@@ -17,6 +17,21 @@ const IMAGE_PREF = ["gpt-image-2", "seedream-5.0-pro", "doubao-seedream-5-0-pro-
 
 /** The only music generator on this gateway (2026-09; docs/internal/gateway-model-selection.md 5.3). */
 const MUSIC_PREF = ["suno_music"];
+
+/**
+ * Music models the gateway serves but never lists in `GET /v1/models`.
+ *
+ * new-api / one-api style gateways list the OpenAI-shaped models there and nothing else. A *relay*
+ * model is driven through its own mount on the gateway origin — for Suno, `POST /suno/submit/music`
+ * and `GET /suno/fetch/{id}` — and is billed as a task, so it never appears in the chat catalog even
+ * on a key that can use it. Building the Music picker by filtering the live catalog therefore
+ * produced an empty, disabled dropdown on a desk where music works (owner report, 2026-09-21).
+ *
+ * This is a fixed list in the repo, like `MUSIC_PREF` above: it is never read from a request, a
+ * response, or settings, so nothing a gateway says can add an id here. Every entry must satisfy
+ * `isMusicModelId`, or the Music filter would drop it again straight after the merge.
+ */
+export const RELAY_ONLY_MUSIC_MODEL_IDS: readonly string[] = Object.freeze([DEFAULT_GATEWAY_MUSIC_MODEL]);
 const LYRICS_PREF = ["suno_lyrics"];
 /** Non-realtime text-to-speech. Empty on this gateway today — see `speechModelRole` below. */
 const SPEECH_PREF = ["qwen-audio-3.0-tts", "tts-1-hd", "tts-1"];

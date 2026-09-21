@@ -29,6 +29,10 @@
   "untitled": "Untitled take",
   "duration": "{n}s",
   "takesNote": "One job returns two takes and is billed once. Both are saved.",
+  "noModels": {
+    "title": "No music model to pick",
+    "body": "This desk was not offered a music model. Music runs on the gateway's Suno relay, which its model list does not advertise — if this persists, refresh the model list in Settings and tell the gateway operator that {gateway} is not serving the relay for this key."
+  },
   "voiceHeading": "Voice-over",
   "voiceUnavailable": {
     "realtimeOnly": "This gateway's only text-to-speech model is realtime (WebSocket), which a job route cannot reach. Voice-over turns on by itself once a standard speech model appears in the catalog.",

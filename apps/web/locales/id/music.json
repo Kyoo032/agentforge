@@ -29,6 +29,10 @@
   "untitled": "Versi tanpa judul",
   "duration": "{n}dtk",
   "takesNote": "Satu job menghasilkan dua versi dan ditagih sekali. Keduanya disimpan.",
+  "noModels": {
+    "title": "Tidak ada model musik untuk dipilih",
+    "body": "Desk ini tidak mendapat satu pun model musik. Musik berjalan lewat relay Suno milik gateway, yang tidak diumumkan di daftar modelnya — jika terus begini, segarkan daftar model di Pengaturan dan beri tahu operator gateway bahwa {gateway} tidak melayani relay tersebut untuk kunci ini."
+  },
   "voiceHeading": "Sulih suara",
   "voiceUnavailable": {
     "realtimeOnly": "Satu-satunya model teks-ke-suara di gateway ini bersifat realtime (WebSocket), yang tidak dapat dijangkau rute job. Sulih suara akan aktif sendiri begitu model suara biasa muncul di katalog.",

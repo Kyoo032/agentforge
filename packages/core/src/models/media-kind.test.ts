@@ -4,11 +4,15 @@ import {
   routeModelsByKind,
   pickPreferredImageModel,
   pickPreferredVideoModel,
+  pickPreferredMusicModel,
   pickPreferredEmbeddingModel,
   isEmbeddingModelId,
+  isMusicModelId,
   DEFAULT_GATEWAY_IMAGE_MODEL,
   DEFAULT_GATEWAY_VIDEO_MODEL,
+  DEFAULT_GATEWAY_MUSIC_MODEL,
   DEFAULT_EMBEDDING_MODEL,
+  RELAY_ONLY_MUSIC_MODEL_IDS,
 } from "./media-kind";
 
 describe("mediaKind", () => {
@@ -170,6 +174,36 @@ describe("routeModelsByKind", () => {
     expect(routed.video.map((model) => model.id)).toEqual(TOKO_VIDEO_IDS);
     expect(routed.image.some((model) => model.id === "mj_imagine")).toBe(true);
     expect(routed.video.some((model) => model.id === "mj_video")).toBe(true);
+  });
+});
+
+/**
+ * Regression, 2026-09-21: the owner's desk showed an empty, disabled Music picker on a gateway that
+ * serves music perfectly well. `GET /v1/models` on a new-api / one-api gateway lists the
+ * OpenAI-shaped models only; `suno_music` is driven through a relay mounted on the origin
+ * (`POST /suno/submit/music`) and is never in that list, so a picker filtered from the live catalog
+ * alone can never contain it.
+ */
+describe("RELAY_ONLY_MUSIC_MODEL_IDS", () => {
+  it("names the gateway's relay music model", () => {
+    expect(RELAY_ONLY_MUSIC_MODEL_IDS).toContain(DEFAULT_GATEWAY_MUSIC_MODEL);
+    expect(RELAY_ONLY_MUSIC_MODEL_IDS).toContain("suno_music");
+  });
+
+  it("holds only ids the music picker would accept, with no duplicates", () => {
+    for (const id of RELAY_ONLY_MUSIC_MODEL_IDS) {
+      // An id the Music filter would drop again is worse than no entry: it would merge in and vanish.
+      expect(isMusicModelId(id)).toBe(true);
+      expect(id.trim()).toBe(id);
+    }
+    const lowered = RELAY_ONLY_MUSIC_MODEL_IDS.map((id) => id.toLowerCase());
+    expect(new Set(lowered).size).toBe(lowered.length);
+  });
+
+  it("every relay id survives the picker's own preference pass", () => {
+    for (const id of RELAY_ONLY_MUSIC_MODEL_IDS) {
+      expect(pickPreferredMusicModel([id])).toBe(id);
+    }
   });
 });
 
