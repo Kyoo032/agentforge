@@ -204,7 +204,7 @@ df -h /srv/dpsbuddy-data
 
 **The `chown` is not optional.** A fresh ext4 mount is `root:root 0755`, the container runs as `node`
 (`webapp-deploy/Dockerfile:121`) with `read_only: true`, and the image's own
-`chown -R node:node /data` (`Dockerfile:104`) is hidden the moment a bind mount covers `/data`. Without
+`chown -R node:node /data` (`Dockerfile:105`) is hidden the moment a bind mount covers `/data`. Without
 it the first boot dies with `EACCES` creating `agentforge.sqlite`, and all you see is a container that
 never goes healthy. `1000:1000` is the `node` user in `node:22-bookworm-slim`; `restore.sh:75-83` does
 the same `chown` after unpacking, for the same reason. Confirm it before you bring the stack up:

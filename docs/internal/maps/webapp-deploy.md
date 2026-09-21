@@ -34,8 +34,8 @@ the repo root**, not this folder (`Dockerfile:5-6`).
    app and its workspace dependencies only, so `apps/desktop` and `apps/mobile` are never installed —
    and `pnpm --filter @agentforge/web build` (`:62`), which is `vite build` into `apps/web/dist`. It
    ends by proving the image carries its components (`:82-83`); see *Components are the image's* below.
-3. **`runtime`** (`Dockerfile:88-141`) copies the built workspace wholesale (`:102`), creates and chowns
-   `/data` and declares it a volume (`:104-105`), does the same for the components root
+3. **`runtime`** (`Dockerfile:88-141`) copies the built workspace wholesale (`:103`), creates and chowns
+   `/data` and declares it a volume (`:105-106`), does the same for the components root
    (`:118-119`), drops to the non-root `node` user (`:121`), and starts `tsx server.ts` (`:141`).
 
 Debian rather than Alpine is deliberate: `pnpm-lock.yaml` resolves `@firecrawl/anydoc` to the
@@ -72,7 +72,7 @@ Two lines in this folder make that true rather than hoped for:
   instead of shipping a container that boots healthy and silently reads every document with the
   reduced fallback extractor. It runs with `AGENTFORGE_SERVER=1` and the runtime stage's
   `AGENTFORGE_COMPONENTS_DIR` so its printout is the container's.
-- The runtime stage puts that directory at `/opt/agentforge/components` (`Dockerfile:92-95`,
+- The runtime stage puts that directory at `/opt/agentforge/components` (`Dockerfile:92-96`,
   `:116-119`) — **outside** `/data`, on its own volume (`compose.yml:64-68`). See the `noexec`
   gotcha below for why that separation is the point.
 
@@ -163,7 +163,7 @@ a plaintext archive; `restore.sh` is destructive and prompts unless given `--yes
   (`webapp-deploy/README.md:46-52`).
 - **Dev dependencies ship on purpose.** `tsx` is a devDependency of `@agentforge/web` and **is** the
   production entrypoint, and every `@agentforge/*` package exports TypeScript source rather than a
-  build. `pnpm prune --prod` would delete the thing that boots the app (`Dockerfile:99-102`).
+  build. `pnpm prune --prod` would delete the thing that boots the app (`Dockerfile:100-103`).
 - **The proxy must not rewrite `Host` or `Origin`.** With `AGENTFORGE_SERVER=1` a mutating `/api` call
   needs both to match `AGENTFORGE_TRUSTED_ORIGINS`. Caddy passes them through by default, which is why
   the `Caddyfile` deliberately has no `header_up Host` line — the loopback-rewriting config an older
