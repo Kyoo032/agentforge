@@ -281,6 +281,15 @@ shared box that is a denial-of-service between paying customers, not a hypotheti
 
 **Goal.** `anydoc` is present before the first request, installed once, by the operator.
 
+> **Landed.** See [`web-phase7-component-installer.md`](web-phase7-component-installer.md) and
+> [`maps/component-installer.md`](maps/component-installer.md) for what was actually built. Two
+> differences from the text below. The CLI is `scripts/components.ts` rather than an entry point
+> inside `install.ts`, so the image build can run it without importing a route's module graph; and
+> the phase also moved the components root off the tenant data volume
+> (`AGENTFORGE_COMPONENTS_DIR`, defaulting to the old path), which is what makes security spec H3's
+> `noexec` mount possible and was the reason H3 named this phase. The route's 403 was already there:
+> it landed in [PR #88](https://github.com/Kyoo032/agentforge/pull/88) as OWASP A01-3.
+
 **Files.** `packages/host/src/components/install.ts` gains a CLI entry that `webapp-deploy/`'s image
 build or entrypoint calls; `packages/host/src/router.ts:228-229` keeps `GET /api/v1/components` for
 status and gates the install route off on the web build; the first-run UI

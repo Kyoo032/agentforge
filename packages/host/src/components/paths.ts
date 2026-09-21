@@ -9,14 +9,24 @@
  * `localDataDir()` is also Electron's userData in the packaged app — see `packages/db/src/reset.ts`.
  * `components` is listed in `HOST_RESET_ENTRIES` so "Start over" drops it with everything else the
  * host wrote; it is re-downloadable, so losing it costs a download and no data.
+ *
+ * PHASE 7 — `AGENTFORGE_COMPONENTS_DIR` moves that root somewhere else. A hosted server points it
+ * at an operator-owned directory outside the tenant data volume, which is what lets `/data` be
+ * mounted `noexec` (security spec H3): no native module is ever loaded out of the volume tenants
+ * write to. Unset — every desk, every webdev — the path is exactly what it always was, and the
+ * "Start over" entry keeps matching it.
  */
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { type EnvLike, isServerMode } from "@agentforge/core";
 import { localDataDir } from "@agentforge/db/vault-key";
+import { isInside } from "../tenant-paths";
 import { platformKey } from "./manifest";
 import type { ComponentId } from "./types";
 
 export const COMPONENTS_DIR = "components";
+/** The environment variable an operator sets to move the components root off the data volume. */
+export const COMPONENTS_DIR_ENV = "AGENTFORGE_COMPONENTS_DIR";
 export const COMPONENT_MARKER_FILE = ".component-complete.json";
 export const COMPONENT_MARKER_SCHEMA = 1;
 
@@ -31,9 +41,53 @@ export type ComponentMarker = {
   readonly completedAt: string;
 };
 
-/** `<data>/components/<id>` — the parent every version of one component shares. */
+/**
+ * The directory every component is unpacked under.
+ *
+ * `AGENTFORGE_COMPONENTS_DIR` wins when it is set; otherwise `<localDataDir()>/components`, which is
+ * what `HOST_RESET_ENTRIES` names. Read per call, not frozen at import, for the same reason
+ * `isServerMode()` is: the suites and `apps/web` both set environment after the module graph loads.
+ */
+export function componentsRootDir(env: EnvLike = process.env): string {
+  const configured = env.AGENTFORGE_COMPONENTS_DIR?.trim();
+  return configured ? resolve(configured) : resolve(localDataDir(env), COMPONENTS_DIR);
+}
+
+/**
+ * The operator-owned components root, or `null` when there is none.
+ *
+ * `null` means either that `AGENTFORGE_COMPONENTS_DIR` is unset (so the root is inside the data
+ * dir) or that it was set to a path inside the data dir anyway, which buys nothing: the point of
+ * the variable is to put executable content somewhere the tenant volume is not.
+ */
+export function managedComponentsRoot(env: EnvLike = process.env): string | null {
+  if (!env[COMPONENTS_DIR_ENV]?.trim()) {
+    return null;
+  }
+  const root = componentsRootDir(env);
+  return isInside(localDataDir(env), root) ? null : root;
+}
+
+/**
+ * May a component be loaded out of the components root at all?
+ *
+ * Off server mode: yes, always — that root is the desk's own data directory and the first-run
+ * installer is the whole feature. In server mode: only from a managed root. A hosted box whose
+ * operator has not set `AGENTFORGE_COMPONENTS_DIR` loads the copy baked into the image and nothing
+ * else, which is the posture the image ships in and the one security spec H3 wants kept: `/data`
+ * can be mounted `noexec` exactly when no native module is ever loaded out of it.
+ *
+ * This is a LOAD rule, not only an install rule. Refusing the install route (`handlers/components.ts`)
+ * stops a tenant asking for a download; this stops a directory that is already there — left by an
+ * older build, or written by anything else with the volume mounted — from being `createRequire`d.
+ */
+export function downloadedComponentsAllowed(env: EnvLike = process.env): boolean {
+  return isServerMode(env) ? managedComponentsRoot(env) !== null : true;
+}
+
+/** `<components root>/<id>` — the parent every version of one component shares. */
 export function componentVersionsDir(id: ComponentId): string {
-  return resolve(localDataDir(), COMPONENTS_DIR, id);
+  return resolve(componentsRootDir(), id);
 }
 
 export function componentRoot(id: ComponentId, version: string): string {

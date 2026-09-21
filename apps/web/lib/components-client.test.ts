@@ -37,6 +37,7 @@ const READY: ComponentStatus = {
   state: "ready",
   source: "bundled",
   auto: true,
+  managed: false,
   bytes: 0,
 };
 
@@ -46,8 +47,12 @@ const MISSING: ComponentStatus = {
   state: "missing",
   source: null,
   auto: true,
+  managed: false,
   bytes: 8_000_000,
 };
+
+/** What a hosted server reports: the component is missing, and it is not this tenant's to install. */
+const HOSTED_MISSING: ComponentStatus = { ...MISSING, auto: false, managed: true };
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -123,6 +128,15 @@ describe("component payload validation", () => {
     expect(rows).toEqual([MISSING]);
   });
 
+  it("reads a host that predates `managed` as a desk, which is what one is", () => {
+    const [row] = parseComponents({
+      components: [{ id: "anydoc", version: "0.2.4", auto: true, state: "missing", source: null, bytes: 8_000_000 }],
+    });
+    expect(row?.managed).toBe(false);
+    // Anything other than a literal `true` is a desk too: a truthy string must not disable the panel.
+    expect(parseComponents({ components: [{ ...MISSING, managed: "yes" }] })[0]?.managed).toBe(false);
+  });
+
   it("drops an error whose code is not one of the seven", () => {
     const [row] = parseComponents({
       components: [{ ...MISSING, state: "failed", error: { code: "kaboom", message: "nope" } }],
@@ -140,6 +154,20 @@ describe("the auto-install decision", () => {
     expect(shouldAutoInstall({ ...MISSING, state: "installing" })).toBe(false);
     expect(shouldAutoInstall({ ...MISSING, state: "failed" })).toBe(false);
     expect(shouldAutoInstall(null)).toBe(false);
+  });
+
+  /**
+   * Phase 7. On a hosted server the install route answers `install_disabled` (403) to every
+   * caller, so a renderer that started an install would only ever show a tenant a failure about
+   * something only the operator can fix. Both gates are checked: `auto` false is what the host
+   * sends today, and `managed` true is what says whose component it is.
+   */
+  it("never installs, and shows nothing, for a component the server manages", () => {
+    expect(shouldAutoInstall(HOSTED_MISSING)).toBe(false);
+    expect(shouldAutoInstall({ ...HOSTED_MISSING, auto: true })).toBe(false);
+    expect(pickComponentToSetUp([HOSTED_MISSING])).toBeNull();
+    expect(pickComponentToSetUp([{ ...HOSTED_MISSING, auto: true }])).toBeNull();
+    expect(pickComponentToSetUp([{ ...HOSTED_MISSING, auto: true, state: "failed" }])).toBeNull();
   });
 
   it("shows nothing at all for a component that is ready, unsupported, or not automatic", () => {

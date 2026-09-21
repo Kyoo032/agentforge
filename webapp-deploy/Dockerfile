@@ -61,6 +61,20 @@ RUN pnpm install --frozen-lockfile --filter "@agentforge/web..."
 # Renderer -> apps/web/dist, which server.ts serves statically when NODE_ENV=production.
 RUN pnpm --filter @agentforge/web build
 
+# PHASE 7 - the image must CARRY every component this server needs, not download one on first
+# request. `anydoc` arrives through the install above (it is a dependency of @agentforge/host and
+# pnpm-lock.yaml resolves the -linux-*-gnu prebuilt), which is easy to break without noticing: a
+# filter change, a hoisting change, or a platform package that stops publishing would all leave a
+# container that boots, answers healthy, and silently reads every document with the reduced
+# fallback extractor instead.
+#
+# So prove it here. The check loads each component in
+# packages/host/src/components/server.ts SERVER_COMPONENT_IDS the same way a request would -
+# createRequire on the real native binding - and exits non-zero if one does not load, which fails
+# the build. This runs in the build stage, on the same linux/glibc base the runtime stage uses, so
+# a binding that loads here loads there.
+RUN apps/web/node_modules/.bin/tsx scripts/components.ts check
+
 # ---------------------------------------------------------------------------
 # runtime
 # ---------------------------------------------------------------------------
@@ -70,7 +84,8 @@ FROM base AS runtime
 # and puts agentforge.sqlite, settings.enc, media, logs and components under it.
 ENV NODE_ENV=production \
     PORT=3000 \
-    AGENTFORGE_DATA_DIR=/data
+    AGENTFORGE_DATA_DIR=/data \
+    AGENTFORGE_COMPONENTS_DIR=/opt/agentforge/components
 
 WORKDIR /app
 
@@ -81,6 +96,18 @@ COPY --from=build --chown=node:node /app /app
 
 RUN mkdir -p /data && chown -R node:node /data
 VOLUME ["/data"]
+
+# PHASE 7 - components live OUTSIDE the tenant data volume.
+#
+# /data is what every tenant writes into, and the host refuses to createRequire a native module out
+# of it in server mode (packages/host/src/components/paths.ts, downloadedComponentsAllowed). That
+# refusal is what makes /data mountable `noexec` (docs/internal/web-security-spec.md H3). The
+# directory below is the operator's instead: empty in the image, because the image's own copy of
+# anydoc is the one that loads, and written only by `webapp-deploy/scripts/components.sh install`
+# when a version is bumped between images. compose.yml gives it its own volume so that install
+# survives a restart.
+RUN mkdir -p /opt/agentforge/components && chown -R node:node /opt/agentforge
+VOLUME ["/opt/agentforge/components"]
 
 USER node
 WORKDIR /app/apps/web

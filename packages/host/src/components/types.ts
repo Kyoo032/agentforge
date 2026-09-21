@@ -44,8 +44,17 @@ export type ComponentStatus = {
   readonly version: string;
   readonly state: ComponentState;
   readonly source: ComponentSource | null;
-  /** False when the app must never download by itself: stub runtime, or a test / Playwright run. */
+  /** False when the app must never download by itself: stub runtime, a test / Playwright run, or a hosted server. */
   readonly auto: boolean;
+  /**
+   * Phase 7 — the operator owns this component, not whoever is looking at it.
+   *
+   * True on a hosted server and only there. The renderer reads it as "report what is here, never
+   * offer to change it": a hosted tenant sees a component as present or absent and has nowhere to
+   * click, which matches the install route answering `install_disabled` (403) to anyone who tries
+   * anyway. On a desk it is false and the first-run panel behaves exactly as it always has.
+   */
+  readonly managed: boolean;
   /** What the download costs on this platform, from the manifest. 0 when bundled or unsupported. */
   readonly bytes: number;
   readonly error?: ComponentFailure;

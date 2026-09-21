@@ -36,6 +36,7 @@ const COMPONENT: ComponentStatus = {
   state: "missing",
   source: null,
   auto: true,
+  managed: false,
   bytes: 8_247_151,
 };
 

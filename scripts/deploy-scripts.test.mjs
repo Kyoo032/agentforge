@@ -69,7 +69,11 @@ function callSetting(name, extra = "") {
     setting ${name}
   `;
   try {
-    return { stdout: execFileSync("sh", ["-c", script], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }), stderr: "", ok: true };
+    return {
+      stdout: execFileSync("sh", ["-c", script], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }),
+      stderr: "",
+      ok: true,
+    };
   } catch (error) {
     return { stdout: String(error.stdout ?? ""), stderr: String(error.stderr ?? ""), ok: false };
   }
@@ -98,5 +102,61 @@ test("setting still accepts every name the deploy scripts actually pass", () => 
   assert.ok(callers.length > 0, "no setting() callers found; has the helper been renamed?");
   for (const name of new Set(callers)) {
     assert.equal(callSetting(`${name} ok`).stdout, "ok", `${name} is refused by the guard`);
+  }
+});
+
+/**
+ * Phase 7 — the image carries its components, and they do not live on the tenant volume.
+ *
+ * Both halves are one-line edits away from being undone by somebody tidying the Dockerfile, and
+ * neither fails loudly if it is: without the build check a container ships without `anydoc` and
+ * reads every document with the reduced fallback extractor while reporting healthy, and without
+ * the separate root the component directory is back inside `/data`, where the host refuses to load
+ * it (`packages/host/src/components/paths.ts`) and where security spec H3's `noexec` mount cannot
+ * be turned on.
+ */
+const deployDir = fileURLToPath(new URL("../webapp-deploy/", import.meta.url));
+const readDeploy = (name) => readFileSync(deployDir + name, "utf8");
+
+const COMPONENTS_DIR_ENV = "AGENTFORGE_COMPONENTS_DIR";
+const COMPONENTS_PATH = "/opt/agentforge/components";
+
+test("the image build fails when a required component is missing", () => {
+  const dockerfile = readDeploy("Dockerfile");
+  assert.match(
+    dockerfile,
+    /^RUN .*tsx scripts\/components\.ts check$/m,
+    "the Dockerfile no longer proves the image carries its components",
+  );
+  // In the build stage: the runtime stage has no pnpm store to install from and no need to.
+  const buildStage = dockerfile.slice(
+    dockerfile.indexOf("FROM base AS build"),
+    dockerfile.indexOf("FROM base AS runtime"),
+  );
+  assert.match(buildStage, /tsx scripts\/components\.ts check/);
+});
+
+test("the components root is set, and is not inside the data dir", () => {
+  const dockerfile = readDeploy("Dockerfile");
+  assert.match(dockerfile, new RegExp(`${COMPONENTS_DIR_ENV}=${COMPONENTS_PATH}`));
+  assert.match(dockerfile, new RegExp(`mkdir -p ${COMPONENTS_PATH}`));
+
+  const compose = readDeploy("compose.yml");
+  assert.match(compose, new RegExp(`${COMPONENTS_DIR_ENV}: ${COMPONENTS_PATH}`));
+  // Its own volume, so an operator install survives a restart and /data stays separable.
+  assert.match(compose, new RegExp(`- dpsbuddy-components:${COMPONENTS_PATH}`));
+  assert.match(compose, /^ {2}dpsbuddy-components:$/m);
+
+  for (const source of [dockerfile, compose]) {
+    assert.doesNotMatch(source, new RegExp(`${COMPONENTS_DIR_ENV}[=:] ?/data`), "the components root is back on /data");
+  }
+});
+
+test("components.sh drives the CLI inside the container, never the HTTP route", () => {
+  const source = read("components.sh");
+  assert.match(source, /dc exec -T app .*tsx .*scripts\/components\.ts/);
+  assert.doesNotMatch(source, /api\/v1\/components/, "the install route is 403 on this server, for everyone");
+  for (const action of ["status", "check", "install"]) {
+    assert.match(source, new RegExp(`\\b${action}\\b`), `${action} is no longer offered`);
   }
 });

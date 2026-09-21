@@ -114,7 +114,18 @@ describe("where the setup runs", () => {
 describe("the hook's rules", () => {
   it("installs only what the host called missing and automatic", () => {
     expect(hook).toContain("shouldAutoInstall(found)");
-    expect(client).toContain('status?.auto === true && status?.state === "missing"');
+    expect(client).toContain('status?.auto === true && status?.managed !== true && status?.state === "missing"');
+  });
+
+  /**
+   * Phase 7. On a hosted server the install route answers `install_disabled` (403) to every caller,
+   * so the panel must not mount at all — a tenant cannot fix what only the operator can. Pinned in
+   * the source, like the rule above, because this is the one decision made in the renderer rather
+   * than asserted against a live host.
+   */
+  it("never offers an install for a component the server manages", () => {
+    expect(client).toContain("row.auto && !row.managed");
+    expect(client).toContain("status?.managed !== true");
   });
 
   it("lets Retry re-run an install the host still remembers as failed", () => {

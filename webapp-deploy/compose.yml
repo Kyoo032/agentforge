@@ -29,6 +29,12 @@ services:
       NODE_ENV: production
       PORT: "3000"
       AGENTFORGE_DATA_DIR: /data
+      # Phase 7: the components root, deliberately NOT under /data. The image already carries
+      # anydoc; this directory only ever holds what `scripts/components.sh install` puts there
+      # between image builds. In server mode the host refuses to load a native module from inside
+      # AGENTFORGE_DATA_DIR at all, which is the precondition security spec H3 sets for mounting
+      # /data noexec.
+      AGENTFORGE_COMPONENTS_DIR: /opt/agentforge/components
       # Pinned here, NOT left to .env above, which is `required: false`. This one flag switches on
       # the session gate, CSRF, the Origin/Host allowlist, the HTTPS-only refusal, the rate limiters
       # and the mandatory wrap key (packages/core/src/server-mode.ts isServerMode). A missing .env
@@ -55,6 +61,9 @@ services:
 
     volumes:
       - dpsbuddy-data:/data
+      # Executable content, so this one may never be mounted noexec - which is exactly why it is a
+      # separate volume from the tenant data above rather than a directory inside it.
+      - dpsbuddy-components:/opt/agentforge/components
       # Production alternative (placement doc section 4): a dedicated 200 GB CBS Premium
       # SSD, separate from the system disk, mounted on the CVM and bind-mounted here.
       # Replace the named volume above with:
@@ -138,5 +147,6 @@ services:
 
 volumes:
   dpsbuddy-data:
+  dpsbuddy-components:
   caddy-data:
   caddy-config:

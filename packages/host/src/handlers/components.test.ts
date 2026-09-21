@@ -47,8 +47,8 @@ describe("GET /api/v1/components", () => {
     const body = result.body as { components: Array<Record<string, unknown>> };
     expect(body.components).toHaveLength(COMPONENT_IDS.length);
     const [anydoc] = body.components;
-    expect(Object.keys(anydoc).sort()).toEqual(["auto", "bytes", "id", "source", "state", "version"]);
-    expect(anydoc).toMatchObject({ id: "anydoc", version: "0.2.4", auto: false });
+    expect(Object.keys(anydoc).sort()).toEqual(["auto", "bytes", "id", "managed", "source", "state", "version"]);
+    expect(anydoc).toMatchObject({ id: "anydoc", version: "0.2.4", auto: false, managed: false });
     expect(["ready", "missing", "installing", "failed", "unsupported"]).toContain(anydoc.state);
   });
 });
@@ -138,5 +138,32 @@ describe("POST /api/v1/components/install/stream in server mode", () => {
   it("still installs off server mode, so the desktop and webdev are untouched", async () => {
     const result = await handlePostComponentInstallStream(request({ id: "anydoc" }));
     expect(result.type).toBe("stream");
+  });
+
+  /**
+   * Phase 7: the status route is the hosted tenant's only component surface, and it stays
+   * readable for everyone — the healthcheck and the renderer both hit it before any session
+   * exists. What changes is that it says the component is not theirs, so the renderer reports it
+   * rather than offering a button that would collect a 403.
+   */
+  it("still answers the status route, and marks the component the operator's", async () => {
+    const saved = process.env.AGENTFORGE_SERVER;
+    process.env.AGENTFORGE_SERVER = "1";
+    try {
+      const result = await handleGetComponents(request(null));
+      expect(result.type).toBe("json");
+      if (result.type !== "json") {
+        return;
+      }
+      expect(result.status).toBe(200);
+      const [anydoc] = (result.body as { components: Array<Record<string, unknown>> }).components;
+      expect(anydoc).toMatchObject({ id: "anydoc", version: "0.2.4", managed: true, auto: false });
+    } finally {
+      if (saved === undefined) {
+        delete process.env.AGENTFORGE_SERVER;
+      } else {
+        process.env.AGENTFORGE_SERVER = saved;
+      }
+    }
   });
 });

@@ -48,6 +48,12 @@ export type ComponentStatus = {
   readonly state: ComponentState;
   readonly source: ComponentSource | null;
   readonly auto: boolean;
+  /**
+   * Phase 7 — the server installed this component and the operator owns it; there is nothing here
+   * to offer. Absent on an older host (the frozen desktop, a webdev that predates the field), which
+   * is read as `false`: a desk has always owned its own components.
+   */
+  readonly managed: boolean;
   readonly bytes: number;
   readonly error?: ComponentFailure;
 };
@@ -123,6 +129,7 @@ export function parseComponent(value: unknown): ComponentStatus | null {
     state: row.state,
     source: isOneOf(COMPONENT_SOURCES, row.source) ? row.source : null,
     auto: row.auto,
+    managed: row.managed === true,
     bytes,
   };
   return failure ? { ...status, error: failure } : status;
@@ -140,17 +147,25 @@ export function parseComponents(payload: unknown): readonly ComponentStatus[] {
   return rows.map(parseComponent).filter((row): row is ComponentStatus => row !== null);
 }
 
-/** Start an install by ourselves only for a component the host marked both missing and automatic. */
+/**
+ * Start an install by ourselves only for a component the host marked both missing and automatic,
+ * and never for one the server manages — `managed` cannot be true while `auto` is, but this panel
+ * is the thing that would post the install, so it checks the flag that says "not yours" directly.
+ */
 export function shouldAutoInstall(status: ComponentStatus | null | undefined): boolean {
-  return status?.auto === true && status?.state === "missing";
+  return status?.auto === true && status?.managed !== true && status?.state === "missing";
 }
 
 /**
  * The one component this panel speaks for, or `null` when there is nothing to say.
- * `ready` and `unsupported` show nothing; so does a component the owner must install themselves.
+ * `ready` and `unsupported` show nothing; so does a component the owner must install themselves,
+ * and so does one the hosted server manages — there the answer to "it is missing" is the
+ * operator's, and a tenant is shown no install screen at all (Phase 7).
  */
 export function pickComponentToSetUp(components: readonly ComponentStatus[]): ComponentStatus | null {
-  return components.find((row) => row.auto && row.state !== "ready" && row.state !== "unsupported") ?? null;
+  return (
+    components.find((row) => row.auto && !row.managed && row.state !== "ready" && row.state !== "unsupported") ?? null
+  );
 }
 
 export async function fetchComponents(signal?: AbortSignal): Promise<readonly ComponentStatus[]> {
