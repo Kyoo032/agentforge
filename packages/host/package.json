@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./http": "./src/http-adapter.ts"
+    "./http": "./src/http-adapter.ts",
+    "./hosted-env": "./src/hosted-env.ts"
   },
   "scripts": {
     "test": "vitest run"

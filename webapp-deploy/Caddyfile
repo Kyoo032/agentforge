@@ -55,8 +55,16 @@ http://{$DPSBUDDY_DOMAIN} {
 		Referrer-Policy "same-origin"
 		Cross-Origin-Opener-Policy "same-origin"
 		Cross-Origin-Resource-Policy "same-origin"
-		# Minimal: every powerful feature off. The app asks for none of them.
-		Permissions-Policy "accelerometer=(), autoplay=(), browsing-topics=(), camera=(), display-capture=(), encrypted-media=(), geolocation=(), gyroscope=(), interest-cohort=(), magnetometer=(), microphone=(), midi=(), payment=(), publickey-credentials-get=(), screen-wake-lock=(), serial=(), usb=(), xr-spatial-tracking=()"
+		# Minimal: every powerful feature off, except the two Meeting recording needs.
+		#   microphone=(self)      - getUserMedia, the microphone leg
+		#   display-capture=(self) - getDisplayMedia, the tab-audio leg
+		# (self) is this origin and nothing else: the app embeds no iframe, an artifact
+		# body is served under `Content-Security-Policy: sandbox` so it sits in an opaque
+		# origin that `self` never matches, and frame-ancestors 'none' keeps the app out
+		# of anyone else's frame. camera stays off - the recorder asks for audio only.
+		# Changing this line without packages/host/src/security-headers.ts fails
+		# security-headers.test.ts, which parses this file. See security-register SR-14.
+		Permissions-Policy "accelerometer=(), autoplay=(), browsing-topics=(), camera=(), display-capture=(self), encrypted-media=(), geolocation=(), gyroscope=(), interest-cohort=(), magnetometer=(), microphone=(self), midi=(), payment=(), publickey-credentials-get=(), screen-wake-lock=(), serial=(), usb=(), xr-spatial-tracking=()"
 		# Identity masking: nothing on the wire names the software or its version.
 		# Caddy sends `Server: Caddy` unless it is removed here; `X-Powered-By` is
 		# Express's and is switched off in apps/web/server.ts as well, so both ends of

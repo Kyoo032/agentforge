@@ -10,7 +10,9 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["lib/**/*.test.ts", "lib/**/*.test.tsx"],
+    // `lib` is the renderer's; `server` holds the boot guards `server.ts` loads, which import
+    // `@agentforge/host` and must not sit in a directory a component can reach through `@/lib`.
+    include: ["lib/**/*.test.ts", "lib/**/*.test.tsx", "server/**/*.test.ts"],
     passWithNoTests: true,
   },
 });

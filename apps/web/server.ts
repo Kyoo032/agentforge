@@ -11,8 +11,8 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import { handleNodeRequest } from "@agentforge/host/http";
 import { resolveBindHost } from "./lib/bind-host";
-import { assertHostedModeCoherent } from "./lib/hosted-mode-guard";
-import { injectHostedMarker } from "./lib/hosted-build";
+import { assertHostedEnvComplete, assertHostedModeCoherent } from "./server/hosted-mode-guard";
+import { injectHostedMarker, rootRelativeAssets } from "./lib/hosted-build";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const isProd = process.env.NODE_ENV === "production";
@@ -34,11 +34,27 @@ function sendAppShell(res: express.Response, html: string): void {
   res.status(200).type("html").send(html);
 }
 
+/**
+ * The one shell the hosted server hands to every navigation: marked, and with its own asset URLs
+ * made absolute.
+ *
+ * Both halves are hosted-only and both are no-ops off it, so the desktop and webdev keep the html
+ * they have always had. `rootRelativeAssets` is what makes `/auth/callback` work — see the comment
+ * on it; without it the SPA fallback answers the shell's own `./assets/…` with the shell.
+ */
+function hostedShell(html: string): string {
+  return injectHostedMarker(rootRelativeAssets(html), true);
+}
+
 async function main() {
   // A production build with AGENTFORGE_SERVER off would serve every GET /api/v1/* without a
   // session while the health check still passed, so it refuses to boot instead. See
-  // ./lib/hosted-mode-guard.
+  // ./server/hosted-mode-guard.
   assertHostedModeCoherent(process.env);
+  // And a hosted server with no wrap key, no trusted origin or no portal would report healthy and
+  // fail for the first person who signed in, so it names every missing variable and refuses too.
+  // Local mode is untouched: both calls return immediately. See ./server/hosted-mode-guard.
+  assertHostedEnvComplete(process.env);
   const app = express();
   // Identity masking: Express stamps `X-Powered-By: Express` from its init middleware on every
   // response, before any handler of ours runs. Nothing about the software answering should be on the
@@ -60,7 +76,7 @@ async function main() {
     const indexFile = path.join(dist, "index.html");
     // Read and marked once at boot: the built shell never changes under a running server, and a
     // per-request read would put the disk in front of every navigation.
-    const marked = hosted ? injectHostedMarker(readFileSync(indexFile, "utf8"), true) : null;
+    const marked = hosted ? hostedShell(readFileSync(indexFile, "utf8")) : null;
     if (marked) {
       // Ahead of `express.static`, which would otherwise answer `/` and `/index.html` from disk and
       // hand out the one copy of the shell without the marker.
@@ -102,7 +118,7 @@ async function main() {
         }
         void readFile(path.join(dir, "index.html"), "utf8")
           .then((template) => vite.transformIndexHtml(req.originalUrl, template))
-          .then((html) => sendAppShell(res, injectHostedMarker(html, true)))
+          .then((html) => sendAppShell(res, hostedShell(html)))
           .catch((error: unknown) => {
             vite.ssrFixStacktrace(error as Error);
             next(error);

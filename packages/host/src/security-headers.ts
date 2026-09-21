@@ -47,19 +47,42 @@ export const CONTENT_SECURITY_POLICY = [
 /** One year, every subdomain, no `preload` — the same call the Caddyfile documents. */
 export const STRICT_TRANSPORT_SECURITY = "max-age=31536000; includeSubDomains";
 
-/** Every powerful feature off; the app asks for none of them. */
+/**
+ * Every powerful feature off, except the two the Meeting recorder cannot work without — and those
+ * two are `(self)`, this origin and nothing else.
+ *
+ * `microphone` is `getUserMedia({ audio: true })` and `display-capture` is `getDisplayMedia`, the
+ * tab-audio leg (`apps/web/lib/meeting-recorder-media.ts`, `meeting-recorder.ts`). With both at
+ * `()` the browser refuses before any product code runs, so the record button did nothing on the
+ * hosted deployment and there was no error worth reading — `docs/internal/security-register.md`,
+ * SR-14.
+ *
+ * WHY `(self)` AND NOT `*`. `(self)` is the app's own origin only. Nothing else can inherit it:
+ * the renderer embeds no iframe, an artifact body is served under `Content-Security-Policy:
+ * sandbox` (`handlers/artifacts.ts:72`) which puts it in an opaque origin that `self` never
+ * matches, and `frame-ancestors 'none'` plus `X-Frame-Options: DENY` keep the app itself out of
+ * anyone else's frame. A feature is only ever delegated by an explicit `allow=` on an iframe, and
+ * there is no iframe to carry one.
+ *
+ * `camera=()` stays off: the recorder asks for audio only, and `getDisplayMedia` needs a video
+ * track merely to be offered a tab picker — that track is stopped the instant the stream arrives.
+ *
+ * Nothing else in the response set changes for the recorder. `MediaRecorder` and `AudioContext`
+ * are not fetches and have no CSP directive; the upload is the same-origin
+ * `POST /api/v1/meetings/:id/recording`, already covered by `connect-src 'self'`.
+ */
 export const PERMISSIONS_POLICY = [
   "accelerometer=()",
   "autoplay=()",
   "browsing-topics=()",
   "camera=()",
-  "display-capture=()",
+  "display-capture=(self)",
   "encrypted-media=()",
   "geolocation=()",
   "gyroscope=()",
   "interest-cohort=()",
   "magnetometer=()",
-  "microphone=()",
+  "microphone=(self)",
   "midi=()",
   "payment=()",
   "publickey-credentials-get=()",
