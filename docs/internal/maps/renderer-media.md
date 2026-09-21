@@ -51,9 +51,9 @@ That asymmetry is the design: the host's collector decides what is worth mirrori
 
 In a Chat run (`packages/host/src/runs.ts:348-356`), every `tool.completed` output goes through the host collector, then each part through `mirrorToolMediaPart` (`:453-468`):
 
-- `image_url` → `saveGeneratedImage`, `video_url` → `saveGeneratedVideo` (`packages/host/src/media.ts:131-182`). An already-local `/api/v1/media/…` URL is returned as-is; a `data:` URL is decoded directly (`decodeMediaDataUrl`, `:125-131`); anything else goes to `downloadGeneratedMedia`.
+- `image_url` → `saveGeneratedImage`, `video_url` → `saveGeneratedVideo` (`packages/host/src/media.ts:132-183`). An already-local `/api/v1/media/…` URL is returned as-is; a `data:` URL is decoded directly (`decodeMediaDataUrl`, `:125-131`); anything else goes to `downloadGeneratedMedia`.
 - `downloadGeneratedMedia` (`packages/host/src/media-download.ts:39-55`) calls `fetchPublicHttps` with a per-kind byte cap, requires a 2xx, and takes the served content type only when it starts with `image/` or `video/` — otherwise it falls back to `image/png` / `video/mp4`. **The failing URL never appears in the error**, which surfaces to the client (`:26-31`).
-- The bytes go to `saveMedia` (`packages/host/src/media.ts:68-105`), which re-validates mime and size, writes under `mediaRoot()`, inserts a `media` row scoped to `tenant.organizationId`, and returns `/api/v1/media/${id}/file`.
+- The bytes go to `saveMedia` (`packages/host/src/media.ts:67-108`), which re-validates mime and size, stores the object through the per-tenant store (`putTenantObject`, `packages/host/src/tenant-storage.ts:445-462` — the media root on a desk, a COS bucket on a server that sets `AGENTFORGE_STORAGE=cos`, and the tenant's quota checked before the write), inserts a `media` row scoped to `tenant.organizationId`, and returns `/api/v1/media/${id}/file`. An upload over the ceiling is refused with `storage_quota_exceeded` ([`tenant-object-storage.md`](tenant-object-storage.md)).
 - **A part that cannot be mirrored is dropped, not persisted** (`packages/host/src/runs.ts:475-478`): "the turn keeps its text and drops the picture rather than carrying a remote URL."
 
 `fetchPublicHttps` (`packages/core/src/security/safe-fetch.ts`) is the hardening: HTTPS only, no credentials in the URL, no private or loopback host (`isPrivateHost`, `:29-38`), every redirect hop re-validated (`:60-65`, up to `SAFE_FETCH_MAX_HOPS = 5`), and `readCapped` (`:68-88`) cancels the reader the moment the streamed total exceeds the cap, before the body is buffered.
@@ -62,7 +62,7 @@ The Images and Videos studios do the same thing directly (`packages/host/src/stu
 
 ### Serving it back
 
-`GET /api/v1/media/:mediaId/file` → `handleGetMediaFile` (`packages/host/src/handlers/media.ts:25-49`), routed at `packages/host/src/router.ts:292`, with HTTP `Range` support via `packages/host/src/byte-range.ts`. It is **ungated** — media is on the list of routes that stay open so a closed gate is always recoverable. Scoping is `getTenant(request.workspaceId)` plus an `organizationId` match on the row, and then the path itself: `mediaFilePath(tenant.tenantId, item.storagePath)` (`packages/host/src/media-root.ts:34-40`) refuses a `storage_path` that resolves outside the caller's tenant root with the same 404, so a row whose `storage_path` was tampered with cannot serve another tenant's bytes ([`tenant-storage.md`](tenant-storage.md)).
+`GET /api/v1/media/:mediaId/file` → `handleGetMediaFile` (`packages/host/src/handlers/media.ts:24-50`), routed at `packages/host/src/router.ts:299`, with HTTP `Range` support via `packages/host/src/byte-range.ts`. It is **ungated** — media is on the list of routes that stay open so a closed gate is always recoverable. Scoping is `getTenant(request)` plus an `organizationId` match on the row, and then the key itself: `readTenantObjectRange(tenant.tenantId, item.storagePath, …)` (`packages/host/src/tenant-storage.ts:470-476`) refuses a `storage_path` that is not the caller's with the same 404 — a pure string check before any IO, plus symlink resolution on the file backend — so a row whose `storage_path` was tampered with cannot serve another tenant's bytes ([`tenant-object-storage.md`](tenant-object-storage.md), [`tenant-storage.md`](tenant-storage.md)).
 
 In the packaged shell the same bytes are also reachable as `agentforge://media/…` through `registerMediaProtocol()`.
 
@@ -97,9 +97,9 @@ How the policy is injected, and why at pack time, is in [`desktop-pack-routes.md
 |---|---|---|
 | `GENERATED_IMAGE_MAX_BYTES` | 10 MB | `packages/host/src/media-download.ts:4` |
 | `GENERATED_VIDEO_MAX_BYTES` | 50 MB | `packages/host/src/media-download.ts:5` |
-| `IMAGE_MAX` / `VIDEO_MAX` (on save) | 10 MB / 50 MB | `packages/host/src/media.ts:11-17` |
-| Allowed image mimes | `image/png`, `image/jpeg`, `image/webp`, `image/gif` | `packages/host/src/media.ts:11-17` |
-| Allowed video mimes | `video/mp4`, `video/webm`, `video/quicktime` | `packages/host/src/media.ts:11-17` |
+| `IMAGE_MAX` / `VIDEO_MAX` (on save) | 10 MB / 50 MB | `packages/host/src/media.ts:10-16` |
+| Allowed image mimes | `image/png`, `image/jpeg`, `image/webp`, `image/gif` | `packages/host/src/media.ts:10-16` |
+| Allowed video mimes | `video/mp4`, `video/webm`, `video/quicktime` | `packages/host/src/media.ts:10-16` |
 | `SAFE_FETCH_MAX_HOPS` | 5 | `packages/core/src/security/safe-fetch.ts:4` |
 | `SAFE_FETCH_DEFAULT_TIMEOUT_MS` | 15 000 | `packages/core/src/security/safe-fetch.ts:6` |
 | Default mime when the server declares none of the right family | `image/png` / `video/mp4` | `packages/host/src/media-download.ts:17-21` |

@@ -124,7 +124,7 @@ Two tables exist only in SQL and have no Drizzle declaration, because they are F
 
 ### Migrations
 
-`ensureSchema(sqlite)` (`packages/db/src/ensure-schema.ts:201-250`) runs on **every boot**, from
+`ensureSchema(sqlite)` (`packages/db/src/ensure-schema.ts:201-251`) runs on **every boot**, from
 `client.ts:51`. There is no separate migrate step in the app's start path.
 
 `migrationsFolder()` (`:64-79`) resolves the committed folder: `AGENTFORGE_MIGRATIONS_DIR` when set
@@ -375,7 +375,7 @@ strings; do not match on the printed one.
 still sealed with the old wrap key after that is unreadable by design — which is why the SQLite trio
 goes with it (`packages/db/src/reset.ts:29`, `:270`).
 
-**`market_cache` has no scope column** (`packages/db/src/schema.ts:830-841`). It is a read-through
+**`market_cache` has no scope column** (`packages/db/src/schema.ts:857-868`). It is a read-through
 cache keyed `(ticker, kind)` shared by every workspace on the install; it is not per-desk data and a
 desk wipe does not isolate it.
 

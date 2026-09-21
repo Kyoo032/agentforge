@@ -113,6 +113,19 @@ export {
   billingEventDecision,
 } from "./entitlement/webhook";
 export type { BillingEventKind, BillingEvent, BillingEntitlementPatch } from "./entitlement/webhook";
+export {
+  DEFAULT_TENANT_STORAGE_BYTES,
+  TENANT_STORAGE_BYTES_ENV,
+  STORAGE_WARN_AT_FRACTION,
+  STORAGE_BLOCK,
+  STORAGE_BLOCK_MESSAGE,
+  STORAGE_WARNINGS,
+  tenantStorageLimitBytes,
+  storageReport,
+  storageAdmission,
+  formatBytes,
+} from "./storage/quota";
+export type { StorageBlock, StorageWarning, TenantStorageUse, TenantStorageReport } from "./storage/quota";
 export { ApiError, ContentParseError } from "./errors";
 export {
   wrappingKeyFromSecret,
@@ -144,7 +157,8 @@ export {
   extractHtmlTitle,
 } from "./content/html-text";
 export type { HtmlTextResult } from "./content/html-text";
-export { isServerMode, trustedOrigins, normaliseOrigin } from "./server-mode";
+export { isServerMode, trustedOrigins, normaliseOrigin, objectStorageKind } from "./server-mode";
+export type { ObjectStorageKind } from "./server-mode";
 export type { EnvLike } from "./server-mode";
 export { redactSecrets } from "./security/redact";
 export { keyFingerprint, keyFingerprintOrNull } from "./security/fingerprint";

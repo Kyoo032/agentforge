@@ -20,7 +20,7 @@ The host writes one data root (`AGENTFORGE_DATA_DIR`, `/data` in the container).
 | `.master-key` | file fallback for the wrap key; must not exist on the server (Phase 1 makes `AGENTFORGE_SECRETS_KEY` mandatory) | critical |
 | `settings.json` | legacy plaintext settings from before the envelope; must be empty or absent on the server, and the reset list still names it | medium |
 | `gateway-gate.json`, `desk-usage.json`, `workspace-id.txt`, `models*-cache.json` | per-install state that becomes per-tenant rows (Phases 3 and 5) | low to medium |
-| `media/<orgId>/…` | generated images, videos, uploads (`packages/host/src/media.ts:85-89`) | high: tenant content |
+| `media/<orgId>/…` | generated images, videos, uploads (`packages/host/src/media.ts:86-92`). Phase 6 put this behind an object store: still these paths on a desk, a COS bucket when `AGENTFORGE_STORAGE=cos` ([`web-phase6-tenant-storage.md`](web-phase6-tenant-storage.md)) | high: tenant content |
 | `edit/`, `datasets/`, `legal/` | job scratch and outputs (`edit/ffmpeg/paths.ts:42-44`, `datasets.ts:315-317`, `legal/store.ts:306`) | high |
 | `components/`, `logs/` | downloaded native components and the installer's diagnostics | none: re-downloadable |
 

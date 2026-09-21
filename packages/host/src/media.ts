@@ -1,12 +1,11 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { and, desc, eq } from "drizzle-orm";
 import { db, media } from "@agentforge/db";
 import type { TenantContext } from "@agentforge/core";
 import { ApiError } from "@agentforge/core";
 import type { DownloadedMedia } from "./media-download";
 import { downloadGeneratedMedia } from "./media-download";
-import { mediaFilePath, mediaRelativePath, mediaRoot } from "./media-root";
+import { mediaRelativePath } from "./media-root";
+import { putTenantObject, readTenantObject } from "./tenant-storage";
 
 const IMAGE_MAX = 10 * 1024 * 1024;
 const VIDEO_MAX = 50 * 1024 * 1024;
@@ -85,10 +84,12 @@ export async function saveMedia(
   // Phase 3 lane D: the tenant prefix comes first, then the organization, so a tenant's blobs
   // are one subtree. The local tenant's prefix is empty, so its rows keep the pre-Phase-3 shape.
   const relative = mediaRelativePath(tenant.tenantId, [tenant.organizationId], `${id}.${ext}`);
-  const fullPath = path.join(mediaRoot(), relative);
-  await mkdir(path.dirname(fullPath), { recursive: true });
   const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(fullPath, buffer);
+  // Phase 6: the bytes go through the per-tenant object store, which checks the tenant's quota
+  // BEFORE it writes and moves the counter after. `relative` is the key under either backend —
+  // a path under the media root on a desk, an object key in the bucket on a hosted server — so
+  // the row this function writes is the same row either way.
+  await putTenantObject(tenant.tenantId, relative, buffer, mime);
   const url = `/api/v1/media/${id}/file`;
   const [row] = await db
     .insert(media)
@@ -117,8 +118,8 @@ export async function readMediaDataUrl(tenant: TenantContext, mediaId: string): 
     return null;
   }
   try {
-    const bytes = await readFile(mediaFilePath(tenant.tenantId, item.storagePath));
-    return `data:${item.mime};base64,${bytes.toString("base64")}`;
+    const bytes = await readTenantObject(tenant.tenantId, item.storagePath);
+    return `data:${item.mime};base64,${Buffer.from(bytes).toString("base64")}`;
   } catch {
     return null;
   }

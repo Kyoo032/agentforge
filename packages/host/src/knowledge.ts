@@ -13,6 +13,7 @@ import {
   type TenantContext,
 } from "@agentforge/core";
 import { tenantMediaRoot } from "./media-root";
+import { tenantDataDir } from "./tenant-paths";
 import { fetchPublicHttps } from "./safe-fetch";
 import { KNOWLEDGE_TEXT_MAX_CHARS, SOURCE_NAME_MAX, chunkKnowledgeText, sanitizeSourceName } from "./knowledge-text";
 import { deleteThroughBackend, indexThroughBackend, retrieveThroughBackend } from "./knowledge/registry";
@@ -446,24 +447,58 @@ function indexSource(
   return indexKnowledgeSource(tenant, { id, name, type, text });
 }
 
-/** Where `addFileSource` keeps the raw upload, so a delete can find the bytes again. */
+/**
+ * Where `addFileSource` keeps the raw upload, so a delete and a re-index can find the bytes again.
+ *
+ * **These bytes stay on local disk under both storage backends, and that is deliberate.** Three
+ * readers find an upload by scanning this directory for a `<sourceId>-` prefix rather than by
+ * addressing a key — the stored name is the mangled filename, which is not reconstructible — so
+ * putting them in the object store would mean giving the store a list-by-prefix call and paying for
+ * it on every delete. They are instead a `tenantJobRoots` entry (`tenant-storage.ts`), counted
+ * against the same ceiling as ffmpeg scratch and dataset files, which is the rule for every byte a
+ * path-taking reader needs.
+ *
+ * Phase 6 moved them out of `<tenantMediaRoot>/knowledge/` for exactly that reason: inside the media
+ * root the file backend's `measure()` counted them, but no counter move happened on the write, so a
+ * tenant's reported usage jumped only when an operator ran a recompute.
+ */
 function uploadDir(tenant: TenantContext): string {
+  return path.join(tenantDataDir(tenant.tenantId), "knowledge", tenant.organizationId);
+}
+
+/**
+ * The pre-Phase-6 location, still read so an upgraded desk does not lose the bytes behind sources it
+ * already has. Nothing writes here any more; a file found here is counted as an object by the file
+ * backend's measure, which is where it has always been counted.
+ */
+export function legacyUploadDir(tenant: TenantContext): string {
   return path.join(tenantMediaRoot(tenant.tenantId), "knowledge", tenant.organizationId);
 }
 
 /**
  * Drop the raw bytes an upload left on disk.
  *
- * `addFileSource` writes every upload under `<tenantMediaRoot>/knowledge/<organizationId>/<id>-<name>`,
+ * `addFileSource` writes every upload under `<tenantDataDir>/knowledge/<organizationId>/<id>-<name>`,
  * and that directory is organization-scoped while the source row is workspace-scoped: an owner who
  * removes a source believing they removed the document has to be right about that. The stored name
  * is mangled (`[^\w.-]` collapsed) so it is found by its `<id>-` prefix rather than rebuilt.
+ *
+ * The pre-Phase-6 directory is swept too, so a desk that upgraded still loses the bytes it was told
+ * it lost.
  *
  * Sync on purpose: `deleteSource` answers the route synchronously, and a delete that reports success
  * before the bytes are gone is the bug this closes. A missing directory or file is not an error.
  */
 function removeStoredUpload(tenant: TenantContext, sourceId: string): number {
-  const dir = uploadDir(tenant);
+  let removed = 0;
+  for (const dir of [uploadDir(tenant), legacyUploadDir(tenant)]) {
+    removed += removeFrom(dir, sourceId);
+  }
+  return removed;
+}
+
+/** One directory's worth of `removeStoredUpload`. A missing directory is not an error. */
+function removeFrom(dir: string, sourceId: string): number {
   let entries: string[];
   try {
     entries = readdirSync(dir);
@@ -513,7 +548,8 @@ export async function addFileSource(
     );
   }
   // The mangled name is not an id, so it goes through `path.join` under the tenant-scoped upload
-  // directory rather than through `mediaRelativePath`, whose segments are ids.
+  // directory rather than through `mediaRelativePath`, whose segments are ids. That directory is a
+  // counted job root, so these bytes are charged against the tenant's ceiling on the write.
   const full = path.join(uploadDir(tenant), `${id}-${file.filename.replace(/[^\w.-]+/g, "_")}`);
   await mkdir(path.dirname(full), { recursive: true });
   await writeFile(full, Buffer.from(file.bytes));

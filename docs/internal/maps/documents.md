@@ -123,7 +123,7 @@ This is **not** `packages/core/src/docx/*` — that toolkit reads, diffs and val
 | `apps/web/lib/use-job-model.ts` | Job-mode → `documentGenModel` settings field |
 | `packages/core/src/templates/library.ts` | The 6 Documents example cards |
 | `packages/core/src/models/mode-defaults.ts` | The `hy3 → deepseek-v4-flash` default ladder shared with Finance |
-| `packages/host/src/router.ts:302-304` | The three route registrations |
+| `packages/host/src/router.ts:309-311` | The three route registrations |
 | `packages/host/src/handlers/jobs.ts:173-209` | The three handlers; the docx one has no gate |
 | `packages/host/src/document-generate.ts` | System prompts, runtime gate, model resolution, generate + regenerate, artifact persist |
 | `packages/host/src/document-outline.ts` | zod schema, JSON parsing, immutable section merge |

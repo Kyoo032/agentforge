@@ -32,9 +32,9 @@ Each line verified against the tree.
 | Global limiters | `packages/host/src/concurrency.ts:288,290` (`ffmpegLimiter`, `sqlLimiter`), `createJobLimiter` at `:241`; wired at `packages/host/src/edit/ffmpeg/run.ts:73` and `packages/host/src/sql-runner.ts:95,172` | Done — **global, not per tenant** (`concurrency.ts:10-13`: caps apply only in server mode). |
 | JSON logger with redaction | `packages/host/src/log.ts:217` (`createLogger`), `:240` (`log`), `redactSecrets` applied at `:145,157,176,208` | Done. Does **not** yet add a tenant id or request id as fields (spec row L1 asks for both). |
 | Session backend | `packages/host/src/auth/session.ts:81` (`createSession`), `:105` (`verifySession`), `:122` (`slidSession`), `:131` (`revokedSession`); store at `auth/session-store.ts`; portal client at `auth/portal-client.ts`; routes at `auth/routes.ts:192` | Done. Idle 12 h / absolute 30 d (`session.ts:18-19`), slide ≤ once per 5 min (`:21`). |
-| Router session gate | `packages/host/src/router.ts:387-415`, invoked at `:352-359`; exemptions at `auth/routes.ts:94-99` (`/api/v1/auth/*`, `GET /api/v1/ping`, `GET /api/v1/components` — `UNGATED_GETS` at `:44`) | Done. Every method on every other `/api` path 401s `session_required`. |
+| Router session gate | `packages/host/src/router.ts:394-422`, invoked at `:352-359`; exemptions at `auth/routes.ts:94-99` (`/api/v1/auth/*`, `GET /api/v1/ping`, `GET /api/v1/components` — `UNGATED_GETS` at `:44`) | Done. Every method on every other `/api` path 401s `session_required`. |
 | `HostRequest.session` | `packages/host/src/types.ts:31-36` (`HostSession`), `:53`; populated at `router.ts:333-338`, re-attached at `:376-377` (the caller's own object is never mutated, and a forged `session` field is dropped) | Done. |
-| `auth_sessions` + migration `0014` | `packages/db/src/schema.ts:829-847`; `packages/db/drizzle/0014_auth_sessions.sql:12-27`; journal entry idx 14 | Done. Carries `tenant_id`, `org_id`, `user_id` already. |
+| `auth_sessions` + migration `0014` | `packages/db/src/schema.ts:856-874`; `packages/db/drizzle/0014_auth_sessions.sql:12-27`; journal entry idx 14 | Done. Carries `tenant_id`, `org_id`, `user_id` already. |
 | Reason-code copy | `apps/web/locales/en/auth.json`, `apps/web/locales/id/auth.json` — all nine portal codes plus `session_required`, `invalid_request`, `invalid_grant`, `portal_unavailable` | Done. |
 
 ### Not done
@@ -336,7 +336,7 @@ a copied real database.
 
 ## 5. Handler audit
 
-`packages/host/src/router.ts:195-361` — **129 route registrations, 55 of them by-id.** Per family:
+`packages/host/src/router.ts:200-368` — **129 route registrations, 55 of them by-id.** Per family:
 
 | Family (router.ts lines) | Store module | Org/workspace filter today | Phase 3 change |
 |---|---|---|---|

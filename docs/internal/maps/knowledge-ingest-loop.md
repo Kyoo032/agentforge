@@ -14,7 +14,7 @@ Two things surprise people. **Only Chat retrieves** — job modes write cards bu
 
 ### Routes
 
-All in `packages/host/src/handlers/knowledge.ts`, registered at `packages/host/src/router.ts:337-352`.
+All in `packages/host/src/handlers/knowledge.ts`, registered at `packages/host/src/router.ts:344-359`.
 
 | Method | Path | Handler | Gate |
 |---|---|---|---|
@@ -49,7 +49,7 @@ On a hit it **does not strip or sanitize**. It refuses to index and writes a `Fa
 
 **The bypass** is the `injectionGuardBypass` boolean on `StoredSecrets` (`packages/core/src/secrets.ts:33`, `:80`), set through `POST /api/v1/settings` (`requestsOperatorOnlySettings`, `packages/host/src/handlers/settings.ts:176-184`), persisted per workspace in the encrypted settings file, read back at `packages/host/src/knowledge.ts:408-414` and `knowledge-ingest.ts:94-100`. When true the scan is skipped outright — `bypass ? null : scanInjection(...)`.
 
-Source **names** get the same treatment, deliberately: an upload filename or a remote `<title>` is attacker-controlled the same way body text is, so `sanitizeSourceName` runs at index time and again at render time (`packages/host/src/knowledge.ts:366`, `:860`).
+Source **names** get the same treatment, deliberately: an upload filename or a remote `<title>` is attacker-controlled the same way body text is, so `sanitizeSourceName` runs at index time and again at render time (`packages/host/src/knowledge.ts:367`, `:860`).
 
 ### Chunk, store, embed
 
@@ -80,7 +80,7 @@ Two different things share the word "reindex":
 
 ### Tenant scoping
 
-Every read and write is parameterized by `workspace_id` in application code. There is **no schema-level enforcement**: `knowledge_chunks` is a bare FTS5 virtual table with `workspace_id` as a plain column (`packages/db/src/ensure-schema.ts:768-772`), no foreign key, no row-level security. The actual guarantee is the tests: `packages/host/src/knowledge-reindex.test.ts:314-322` (reindexing another workspace's source id resolves `{status:"missing"}` and leaves its chunks untouched), `:369-394` (a workspace sweep never touches another), `packages/host/src/knowledge-retrievals.test.ts:61-64` ("Another workspace never shows up in this one's count").
+Every read and write is parameterized by `workspace_id` in application code. There is **no schema-level enforcement**: `knowledge_chunks` is a bare FTS5 virtual table with `workspace_id` as a plain column (`packages/db/src/ensure-schema.ts:785-789`), no foreign key, no row-level security. The actual guarantee is the tests: `packages/host/src/knowledge-reindex.test.ts:314-322` (reindexing another workspace's source id resolves `{status:"missing"}` and leaves its chunks untouched), `:369-394` (a workspace sweep never touches another), `packages/host/src/knowledge-retrievals.test.ts:61-64` ("Another workspace never shows up in this one's count").
 
 ### Storage
 
@@ -109,7 +109,7 @@ Every read and write is parameterized by `workspace_id` in application code. The
 | PDF/DOCX parse failure, timeout, zip bomb, too large | a structured 4xx (`pdf_*` / `docx_*`), **no row**. Changed 2026-09-17; this used to be a `Failed` row answered `201` |
 | Converter refuses a `document` upload | `document_<code>` for the ten codes at `packages/host/src/file-extract/errors.ts:12-32` — `413` for `too_large`, `400` for the rest (`packages/host/src/knowledge-extract.ts:137-141`) |
 | Scanned PDF on the converter path | 400 `document_needs_ocr`. **No OCR runs and nothing is uploaded** — anydoc's `ocr: 'hosted'` option is unreachable because `file-extract/anydoc.ts:150-164` never builds an options object |
-| No extractable text | `Failed` / `NO_TEXT` — same row shape as an injection block (`packages/host/src/knowledge.ts:256`, `:374-377`) |
+| No extractable text | `Failed` / `NO_TEXT` — same row shape as an injection block (`packages/host/src/knowledge.ts:257`, `:374-377`) |
 | Injection hit | `Failed`, `error = injection_blocked (rule: …)`, never retrievable |
 | Embedding call fails mid-batch | **the whole batch** falls back to `stub-fnv-32` vectors and a 5-minute circuit breaker opens workspace-wide (`packages/host/src/knowledge-embed.ts:89-90`, `:95-117`). The FTS row is already committed, so the source still reads `Indexed` and is findable by keyword |
 | Duplicate manual ingest | not deduped — a second upload of the same file is a second source row |
@@ -144,7 +144,7 @@ Every read and write is parameterized by `workspace_id` in application code. The
 - **The converter's tables are parsed and then thrown away here.** `extractFile` returns `tables`, `meta.sheets` and `meta.truncated`; `documentText` keeps `extracted.text` only (`packages/host/src/knowledge-extract.ts:143-155`). A document truncated at `KNOWLEDGE_TEXT_MAX_CHARS` inside the converter is indexed with no marker on the knowledge side.
 - **Uploads leave a raw copy scoped to the organization, not the desk** (`packages/host/src/knowledge.ts:448-450`). Everything else on this path is workspace-scoped.
 - **Only Chat retrieves.** Job modes write cards and never call `knowledgeInjection`. A knowledge answer inside Finance does not exist.
-- **A thread cannot retrieve its own card.** `excludeThreadId` (`packages/host/src/knowledge.ts:804-810`) breaks the loop, which is why proving retrieval of a Chat-authored card needs a *fresh* thread.
+- **A thread cannot retrieve its own card.** `excludeThreadId` (`packages/host/src/knowledge.ts:837-840`) breaks the loop, which is why proving retrieval of a Chat-authored card needs a *fresh* thread.
 - **Embedding degradation is whole-source, on purpose.** "One source's vectors must share one geometry, or cosine across them is noise" (`packages/host/src/knowledge-embed.ts:89-90`). A stub-vector source still reads `Indexed`, so "indexed" does not mean "semantically searchable".
 - **32-dim stub vectors and 1536-dim real ones would silently "match" on noise** if compared, because `cosineSimilarity` truncates to the shorter vector — which is why stub rows are always stored under `stub-fnv-32` and never mixed (`:128-131`).
 - **There is no ANN index.** `packages/host/src/knowledge/ann.ts` is unused scaffolding pending a `sqlite-vec` spike; every vector search is a full linear scan.

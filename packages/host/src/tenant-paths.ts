@@ -90,6 +90,22 @@ export function tenantDataDir(tenantId: string): string {
 }
 
 /**
+ * Where the host keeps its own local copies of a tenant's objects.
+ *
+ * Phase 6: under the COS backend there is no local path for an object, so `materializeTenantObject`
+ * downloads one here for the readers that cannot be handed bytes — ffmpeg and ffprobe open a file,
+ * seek in it and read a fraction of a long clip. It lives under the tenant's own data directory so
+ * one tenant's cache can never be another's, and it is deliberately **not** a `tenantJobRoots`
+ * entry: the copy is the host's cost, and charging a tenant twice for one video would be wrong.
+ *
+ * It is declared here, beside the other per-tenant roots, rather than in `tenant-storage.ts`,
+ * because `edit/ffmpeg/paths.ts` has to allow it and must not import the storage module to do it.
+ */
+export function tenantObjectCacheRoot(tenantId: string): string {
+  return path.join(tenantDataDir(tenantId), "cache", "objects");
+}
+
+/**
  * Sub-trees of a tenant's own root that are *not* that tenant's. Only the local tenant has any:
  * its root is the install root, so `tenants/` inside it belongs to everybody else.
  */

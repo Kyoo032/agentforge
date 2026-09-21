@@ -40,9 +40,9 @@ The move is **additive**. Nothing is deleted to make room for the server.
 | `getTenant()` takes only a preferred workspace id — no identity input at all | `packages/host/src/tenant.ts:38-123`; **102 non-test call sites** across `packages/host/src` | `getTenant(request)` derives identity from the session. This is the single seam for tenancy — every handler already goes through it | 3 |
 | Org/workspace scoping is real in SQL but collapsed to one value | e.g. `packages/host/src/threads.ts:332` filters on `runs.organizationId`; role is always `"owner"` (`ensure-local-owner.ts`) | Same columns, many values. The filters already exist; what changes is that they stop being a single constant | 3 |
 | Selected desk is a file on disk, machine-wide | `selectedWorkspacePath` (`packages/host/src/workspace.ts:19-21`), read and written at `:12-40` (`workspace-id.txt`) | Per-session state, carried by the existing `WORKSPACE_COOKIE` (read at `http-adapter.ts:470`) and validated against the tenant's desks | 3 |
-| Media files land under the data dir, keyed by org | `packages/host/src/media-root.ts:4-8`; write at `packages/host/src/media.ts:85-89` (`${tenant.organizationId}/${id}.${ext}`) | Per-tenant prefix under a storage interface; local disk stays the desktop backend | 6 |
+| Media files land under the data dir, keyed by org | `packages/host/src/media-root.ts:4-8`; write at `packages/host/src/media.ts:86-92` | Per-tenant prefix under a storage interface; local disk stays the desktop backend. **Done in Phase 6**: `packages/host/src/tenant-storage.ts` | 6 |
 | Job output and scratch files are on disk | `packages/host/src/edit/ffmpeg/paths.ts:42-44` (`<dataDir>/edit/<projectId>`), `packages/host/src/datasets.ts:315-317`, `packages/host/src/legal/store.ts:306` | Same storage interface, tenant-prefixed; ffmpeg path allowlist re-derived per tenant | 6 |
-| Component installer writes native modules into the data dir on first run | `packages/host/src/components/paths.ts:36`, log at `components/log.ts:15-19`, one component (`components/types.ts:10`, `anydoc`) from a pinned registry URL (`components/manifest.ts:15`); routes at `packages/host/src/router.ts:223-224`, ungated on purpose (`handlers/components.ts:1-9`) | Installed **once per server** at image build or first boot, not per tenant and not from a browser request | 7 |
+| Component installer writes native modules into the data dir on first run | `packages/host/src/components/paths.ts:36`, log at `components/log.ts:15-19`, one component (`components/types.ts:10`, `anydoc`) from a pinned registry URL (`components/manifest.ts:15`); routes at `packages/host/src/router.ts:228-229`, ungated on purpose (`handlers/components.ts:1-9`) | Installed **once per server** at image build or first boot, not per tenant and not from a browser request | 7 |
 | Gateway gate trusts an unknown key on first run | `packages/host/src/gateway-gate.ts:274-276` — no state, or a fingerprint mismatch, returns `allowed: true` | Server-side the gate must fail closed for a tenant with no verified key; trust-on-first-run stays for the desktop | 5 |
 | Gate state is one JSON file per install | `packages/host/src/gateway-gate.ts:27` (`gateway-gate.json`), path at `:101-103`; 7-day grace at `:33`, 1-day OK TTL at `:42` | A row per tenant. Grace and TTL constants stay as-is | 4, 5 |
 | A missing gate payload fails **open** in the browser | `apps/web/lib/gateway-gate.ts:83-89` (`return isElectron ? "onboarding" : "app"`) | On the hosted build a missing gate must fail closed. This is the single highest-risk line in the renderer | 5 |
@@ -52,7 +52,7 @@ The move is **additive**. Nothing is deleted to make room for the server.
 | Electron-only renderer surfaces | `apps/web/components/settings-reset-card.tsx:179` (relaunch), `apps/web/lib/use-app-updates.ts:31`, `apps/web/components/edit-studio.tsx:310-312` (native file picker), `apps/web/lib/product-brand.tsx:73` | Gated off on the web build and replaced with a browser equivalent (file input, no relaunch, no updater) | 8 |
 | Updater points at the releases repo | `apps/desktop/auto-update.cjs` | Desktop-only, frozen. The web has no updater; a deploy is a container swap | 8 |
 | Playwright drives `127.0.0.1:3000`, boots `pnpm dev`, points at the shared `data/` dir | `apps/web/playwright.config.ts:11`, `:15-25` (`AGENTFORGE_DATA_DIR: ../../data`, `AGENTFORGE_RUNTIME: "stub"`) | A second project targeting the deployed base URL with a seeded test tenant and a real session cookie | 0, 2 |
-| Locale is one value for the whole install | `packages/host/src/settings-store.ts:123` (`locale?: AppLocale`), exported from `packages/core/src/index.ts:607-608` | **Copy and catalogues unchanged.** Only the storage of the chosen locale moves to per-user | 4 |
+| Locale is one value for the whole install | `packages/host/src/settings-store.ts:123` (`locale?: AppLocale`), exported from `packages/core/src/index.ts:621-622` | **Copy and catalogues unchanged.** Only the storage of the chosen locale moves to per-user | 4 |
 | Usage is per-install, not per-user: a global JSON file with no tenant dimension | `packages/host/src/desk-usage.ts:21-23` (`desk-usage.json`), append at `:66` | Per-tenant rows. Merged with the already-org-scoped run usage (`packages/host/src/threads.ts:308`, read at `:328`) | 5 |
 | USD is estimated live and never persisted | `packages/core/src/gateway/account.ts:165`, formula at `:149`; `QUOTA_PER_USD = 500_000` at `packages/core/src/gateway.ts:96`; entry points `packages/host/src/account-usage.ts:172,181,297` | Persisted per run, per tenant. This is the metering base for the Personal allowance and Enterprise pooled spend | 5 |
 | No plan, seat, subscription or billing code exists anywhere in `packages/` or `apps/` | verified by search; the design is docs-only (`docs/internal/portal/schema.md:36,70-72`) | New `tenant_plan` and `tenant_usage` tables plus a webhook route | 5 |
@@ -254,15 +254,21 @@ working assumption) determines whether a per-tenant quota is even enforceable at
 
 **Goal.** Bytes are addressed by tenant, and one tenant cannot read another's file or exhaust the box.
 
+> **Landed.** See [`web-phase6-tenant-storage.md`](web-phase6-tenant-storage.md) and
+> [`maps/tenant-object-storage.md`](maps/tenant-object-storage.md) for what was actually built, and
+> which parts of the text below were deliberately not: the per-tenant ffmpeg and SQL-worker
+> concurrency caps are still open, and the job trees are counted against the quota rather than moved
+> off the disk, because ffmpeg and the dataset runner open files by path.
+
 **Files.** A storage interface behind `packages/host/src/media-root.ts:4-8`, with the local-disk
-backend kept for the desktop; the write at `packages/host/src/media.ts:85-89` gains a tenant prefix
+backend kept for the desktop; the write at `packages/host/src/media.ts:86-92` gains a tenant prefix
 ahead of the existing org segment; the same for `packages/host/src/edit/ffmpeg/paths.ts:42-44`,
 `packages/host/src/datasets.ts:315-317` and `packages/host/src/legal/store.ts:306`; the ffmpeg path
 allowlist (`edit/ffmpeg/paths.ts:47`) is re-derived per tenant; per-tenant concurrency caps on top of
 `packages/host/src/child-processes.ts`.
 
 **Tests.** Tenant B cannot fetch tenant A's media by id (the byte-range route at
-`packages/host/src/handlers/media.ts:39`); a path-traversal filename cannot escape the tenant prefix;
+`packages/host/src/handlers/media.ts:40`); a path-traversal filename cannot escape the tenant prefix;
 a tenant at its concurrency cap queues rather than spawning.
 
 **Done when.** Two tenants upload and render on the hosted server with disjoint trees, and a disk
@@ -276,7 +282,7 @@ shared box that is a denial-of-service between paying customers, not a hypotheti
 **Goal.** `anydoc` is present before the first request, installed once, by the operator.
 
 **Files.** `packages/host/src/components/install.ts` gains a CLI entry that `webapp-deploy/`'s image
-build or entrypoint calls; `packages/host/src/router.ts:223-224` keeps `GET /api/v1/components` for
+build or entrypoint calls; `packages/host/src/router.ts:228-229` keeps `GET /api/v1/components` for
 status and gates the install route off on the web build; the first-run UI
 (`apps/web/lib/use-component-setup.ts:42`, `apps/web/components/component-setup.tsx:150`) is skipped
 when the server reports the component already present.

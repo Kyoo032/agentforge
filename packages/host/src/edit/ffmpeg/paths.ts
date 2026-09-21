@@ -3,7 +3,7 @@ import path from "node:path";
 import { ApiError } from "@agentforge/core";
 import { localDataDir } from "@agentforge/db/vault-key";
 import { mediaRoot, tenantMediaRoot } from "../../media-root";
-import { assertPathSegment, tenantDataDir, tenantDeniedRoots } from "../../tenant-paths";
+import { assertPathSegment, tenantDataDir, tenantDeniedRoots, tenantObjectCacheRoot } from "../../tenant-paths";
 
 function pathDenied(message: string): never {
   throw new ApiError("path_denied", message, 400);
@@ -63,7 +63,12 @@ export function editScratchRoot(scope: EditScope): string {
 export function editAllowlist(scope: EditScope): PathAllowlist {
   const scratch = editScratchRoot(scope);
   return {
-    roots: [tenantMediaRoot(scope.tenantId), scratch],
+    // The object cache is the third root because under the COS backend an asset has no path in the
+    // media root at all: `materializeTenantObject` downloads it to `tenantObjectCacheRoot` and hands
+    // ffmpeg that. Without it every probe, frame, render, silence scan and audio extract on a
+    // COS-backed asset is refused as `path_denied`, which is the whole of Edit for a hosted tenant.
+    // It is still one tenant's own directory, and the denials below still win over all three roots.
+    roots: [tenantMediaRoot(scope.tenantId), scratch, tenantObjectCacheRoot(scope.tenantId)],
     denied: [...tenantDeniedRoots(mediaRoot(), scope.tenantId), ...tenantDeniedRoots(localDataDir(), scope.tenantId)],
   };
 }

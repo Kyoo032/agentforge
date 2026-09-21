@@ -128,7 +128,7 @@ Ordered by how much it matters to lanes B–E.
    audio billed by the minute. One row in `packages/core/src/models/media-pricing.ts` closes every
    meeting already in the ledger, once the repricing pass in (1) exists.
 7. **The edit timeline's own worker jobs are not metered.** `defaultRunner`
-   (`packages/host/src/edit/jobs.ts:150`) runs the timeline's `asr`, `generate_image` and
+   (`packages/host/src/edit/jobs.ts:151`) runs the timeline's `asr`, `generate_image` and
    `generate_video` jobs from a worker that carries a `workspaceId` but no `TenantContext`, so
    there is nothing to key a row on. The edit **agent** is metered; these three are not. Closing
    it means threading a tenant through the edit job row, which is Phase 3 lane D's territory and

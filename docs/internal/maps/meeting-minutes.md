@@ -38,7 +38,7 @@ Unlike Legal, there is a create form: title plus the language spoken (`apps/web/
 
 Bytes land at `recording/source.<ext>`, extension from the mime with the filename as a fallback (`extensionFor`, `store-files.ts:152-160`). `recordingFile()` re-checks that a stored relative path still resolves inside the meeting directory before anything reads it back (`store-files.ts:76-83`).
 
-Note this path deliberately does **not** reuse `saveMedia` (`packages/host/src/media.ts:38-40`), which rejects audio outright, nor `saveEditFile` (`packages/host/src/handlers/edit.ts:70-97`), which accepts it but belongs to Edit.
+Note this path deliberately does **not** reuse `saveMedia` (`packages/host/src/media.ts:37-39`), which rejects audio outright, nor `saveEditFile` (`packages/host/src/handlers/edit.ts:70-97`), which accepts it but belongs to Edit.
 
 ### 4. Transcribe — ffmpeg, then one gateway call per chunk
 

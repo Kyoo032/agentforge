@@ -108,7 +108,7 @@ There is no polling and no push from the host. A thread created by anything othe
 
 `threadsPath` builds `?scope=chat` and only rides `agentId` along on the agent scope (`apps/web/lib/use-chat-threads.ts:25-31`) — the host ignores it on `chat` and sending it would widen the list.
 
-Route → `handleGetThreads` (`packages/host/src/router.ts:246`, `packages/host/src/handlers/threads.ts:15-42`). `parseScope` accepts only `chat` and `agent`; anything else, including a missing value, becomes `all` (`:8-13`). Then `listWorkspaceThreads` (`packages/host/src/threads.ts:82-122`):
+Route → `handleGetThreads` (`packages/host/src/router.ts:251`, `packages/host/src/handlers/threads.ts:15-42`). `parseScope` accepts only `chat` and `agent`; anything else, including a missing value, becomes `all` (`:8-13`). Then `listWorkspaceThreads` (`packages/host/src/threads.ts:82-122`):
 
 - tenancy is three equalities — organization, workspace, user (`:93-95`);
 - `scope: "chat"` adds `eq(agents.slug, DEFAULT_CHAT_SLUG)`, which is how the rail gets Chat sessions and not job or agent threads (`:99-101`);

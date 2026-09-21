@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -14,6 +14,7 @@ import {
 } from "./knowledge";
 import { upsertEdges, upsertNodes } from "./knowledge-graph";
 import { mediaRoot } from "./media-root";
+import { tenantDataDir } from "./tenant-paths";
 import { upsertWorkSource } from "./knowledge-ingest";
 import { artifactWorkCard, mediaWorkCard } from "./work-cards";
 
@@ -120,7 +121,10 @@ describe("knowledge delete cascade", () => {
       mime: "text/plain",
       bytes: Buffer.from("The Alder Point beacon flashes 77 times per minute."),
     });
-    const dir = join(mediaRoot(), "knowledge", ctx.organizationId);
+    // Phase 6 moved uploads out of the media root and into the tenant's data directory, where they
+    // are a counted job root: inside the media root the file backend measured them but no write
+    // ever moved the counter, so a tenant's usage jumped only on an operator's recompute.
+    const dir = join(tenantDataDir(ctx.tenantId), "knowledge", ctx.organizationId);
     expect(readdirSync(dir).filter((entry) => entry.startsWith(`${source.id}-`))).toHaveLength(1);
 
     expect(deleteSource(ctx, source.id)).toBe(true);
@@ -128,6 +132,23 @@ describe("knowledge delete cascade", () => {
     // A second delete finds neither row nor bytes and still does not throw.
     expect(deleteSource(ctx, source.id)).toBe(false);
     expect(existsSync(join(dir, `${source.id}-kbmm_file.txt`))).toBe(false);
+  });
+
+  it("deletes bytes a pre-Phase-6 desk left in the media root", async () => {
+    // The upgrade case. An owner who removes a source believing they removed the document has to be
+    // right about that whether the bytes were written before or after the move.
+    const ctx = tenant();
+    const source = await addFileSource(ctx, {
+      filename: "old notes.txt",
+      mime: "text/plain",
+      bytes: Buffer.from("The old beacon is still on the old disk."),
+    });
+    const legacy = join(mediaRoot(), "knowledge", ctx.organizationId);
+    mkdirSync(legacy, { recursive: true });
+    writeFileSync(join(legacy, `${source.id}-old_notes.txt`), "stale copy");
+
+    expect(deleteSource(ctx, source.id)).toBe(true);
+    expect(existsSync(join(legacy, `${source.id}-old_notes.txt`))).toBe(false);
   });
 
   it("sweeps media work cards whose media row is gone and keeps the ones that still have one", async () => {

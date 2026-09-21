@@ -8,6 +8,10 @@ import "./tenant-state-db";
 // allowance check sits inside `requireGatewayAllowed`, which every gateway route calls, and with
 // no connection installed server mode refuses rather than letting a call through uncounted.
 import "./entitlement-db";
+// Phase 6: installs the storage accounting backend the same way. The per-tenant quota is checked
+// on the upload path against `tenant_storage`, and with no connection installed the accounting
+// refuses rather than quietly not counting — a quota that stops counting is not a quota.
+import "./tenant-storage-db";
 import { hostAuthRoutes, hostSessionStore, isSessionExemptPath, requireSessionFor } from "./auth";
 import type { SessionStore } from "./auth";
 import { jsonError, jsonOk } from "./errors";
@@ -172,6 +176,7 @@ import {
 } from "./handlers/settings";
 import { handleDeleteThread, handleGetThread, handleGetThreads, handlePostThreads } from "./handlers/threads";
 import { handleGetUsage } from "./handlers/usage";
+import { handleGetStorageUsage } from "./handlers/storage";
 import { handleGetVideoExampleFile, handleGetVideoExamples } from "./handlers/video-examples";
 import {
   handleDeleteWorkspace,
@@ -259,6 +264,8 @@ const routes: Route[] = [
   compile("POST", "/api/v1/settings/reset", handleResetApp),
   compile("DELETE", "/api/v1/settings/reset", handleCancelReset),
   compile("GET", "/api/v1/usage", handleGetUsage),
+  // Phase 6: what this tenant is holding and what it is allowed to hold.
+  compile("GET", "/api/v1/storage/usage", handleGetStorageUsage),
   // Phase 5 lane B, hosted only. The webhook is exempt from the session gate below and from the
   // CSRF rule in `http-adapter.ts`, and authenticates on a shared secret instead — no browser
   // calls it. The other two ARE session-gated and are deliberately NOT behind

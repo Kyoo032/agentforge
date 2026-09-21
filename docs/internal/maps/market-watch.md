@@ -43,7 +43,7 @@ Starters: `market-specialist-starter` fills the box with the current desk's own 
 
 `useMarketBoard` (`apps/web/lib/use-market-board.ts:32-66`) keys its effect on `reloadKey`, the refresh tick plus the joined ticker list (`:35`), and waits `BOARD_DEBOUNCE_MS = 400` (`:7`) before firing (`:59`), so pasting a list is one request. Every fetch carries an `AbortController` that is aborted on cleanup (`:43`, `:61-63`), so a superseded response is dropped. There is **no polling**: the board refetches only when the ticker list changes or `refresh()` bumps `tick` (`:66`), which is what `market-board-refresh` (`apps/web/components/market-board.tsx:146`) calls.
 
-`fetchMarketBoard` POSTs `{ tickers }` to `/api/v1/market/board` (`apps/web/lib/market-client.ts:207-215`). The route is `compile("POST", "/api/v1/market/board", handlePostMarketBoard)` (`packages/host/src/router.ts:290`).
+`fetchMarketBoard` POSTs `{ tickers }` to `/api/v1/market/board` (`apps/web/lib/market-client.ts:207-215`). The route is `compile("POST", "/api/v1/market/board", handlePostMarketBoard)` (`packages/host/src/router.ts:297`).
 
 `handlePostMarketBoard` (`packages/host/src/handlers/market.ts:16-22`) is three lines and — uniquely among the Market handlers — **does not call `requireGatewayAllowed`**. Its doc comment says so out loud: "Needs no gateway key." (`:15`).
 
@@ -256,7 +256,7 @@ Driven against an isolated stub instance on 2026-09-17; statuses are the observe
 | `apps/web/lib/market-specialist.ts` | `nextPrompt` / `isDefaultWatchPrompt`, `nextDepth`, labels and hints, the provenance badge |
 | `apps/web/lib/market-client.ts` | `fetchMarketBoard`, regenerate, docx, `needsKey`, `friendlyMarketError`, the team phase relabeller |
 | `apps/web/components/market-briefing-view.tsx`, `market-ticker-card.tsx`, `market-watch-tables.tsx` | The rendered briefing |
-| `packages/host/src/router.ts:289-293` | The five Market routes |
+| `packages/host/src/router.ts:296-300` | The five Market routes |
 | `packages/host/src/handlers/market.ts` | Gate check per route; the board's deliberate lack of one |
 | `packages/host/src/market-board.ts` | Keyless board: the packet with news + macro switched off and no desk named |
 | `packages/host/src/market-generate.ts` | The job: parse, `requireLive`, packet, draft (quick or team), verify, save; tool bindings |

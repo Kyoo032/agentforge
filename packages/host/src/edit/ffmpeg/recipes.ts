@@ -8,7 +8,7 @@ import {
   type Asset,
   type EditProject,
 } from "@agentforge/core";
-import { mediaFilePath } from "../../media-root";
+import { materializeTenantObject } from "../../tenant-storage";
 import { resolveFfmpeg } from "../ffmpeg-binary";
 import {
   assertExistingInput,
@@ -227,7 +227,7 @@ export async function frameAt(
   const out = assertInsidePath(path.join(scratch, `frame-${frame}.png`), allow);
   const argv: string[] = [];
   for (const input of graph.inputs) {
-    argv.push("-i", assertExistingInput(assetPath(tenantId, input), allow));
+    argv.push("-i", assertExistingInput(await assetPath(tenantId, input), allow));
   }
   if (graph.inputs.length === 0) {
     argv.push("-f", "lavfi", "-i", `color=c=black:s=${doc.width}x${doc.height}:d=1`);
@@ -263,7 +263,7 @@ export async function render(
     doc.clips.reduce((max, clip) => Math.max(max, clip.timelineStartFrame + clip.durationFrames), 0) / doc.fps;
   const argv: string[] = [];
   for (const input of graph.inputs) {
-    argv.push("-i", assertExistingInput(assetPath(tenantId, input), allow));
+    argv.push("-i", assertExistingInput(await assetPath(tenantId, input), allow));
   }
   if (graph.inputs.length === 0) {
     argv.push("-f", "lavfi", "-i", `color=c=black:s=${doc.width}x${doc.height}:d=1`);
@@ -299,10 +299,14 @@ export async function render(
  * starter media seeder writes one); anything relative is a `storage_path` and is resolved against
  * this tenant's media root, which refuses a path pointing outside it.
  */
-function assetPath(tenantId: string, storagePath: string): string {
-  return path.isAbsolute(storagePath) ? storagePath : mediaFilePath(tenantId, storagePath);
+async function assetPath(tenantId: string, storagePath: string): Promise<string> {
+  // Phase 6: async because the object store may have to fetch the object before ffmpeg can open
+  // it. Under the file backend `materializeTenantObject` resolves the same path `mediaFilePath`
+  // returned and copies nothing; under COS it downloads once into the tenant's cache directory,
+  // because ffmpeg takes a path and a bucket has none.
+  return path.isAbsolute(storagePath) ? storagePath : materializeTenantObject(tenantId, storagePath);
 }
 
-export function assetAbsPath(tenantId: string, asset: Asset): string {
+export async function assetAbsPath(tenantId: string, asset: Asset): Promise<string> {
   return assetPath(tenantId, asset.storagePath);
 }

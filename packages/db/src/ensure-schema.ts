@@ -245,6 +245,7 @@ export function ensureSchema(sqlite: Database.Database): void {
   ensureTenantUsageTable(sqlite);
   ensureTenantPlanTables(sqlite);
   ensureTenantStateTable(sqlite);
+  ensureTenantStorageTable(sqlite);
   ensureWorkspaceColumns(sqlite);
   assertKernelTables(sqlite);
 }
@@ -571,6 +572,22 @@ function ensureTenantStateTable(sqlite: Database.Database): void {
       PRIMARY KEY (tenant_id, key)
     );
     CREATE INDEX IF NOT EXISTS tenant_state_key_idx ON tenant_state (key);
+  `);
+}
+
+/**
+ * The per-tenant byte counter (Phase 6), for a database stamped past 0019 without the table.
+ * Mirrors drizzle/0019_tenant_storage.sql exactly.
+ */
+function ensureTenantStorageTable(sqlite: Database.Database): void {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS tenant_storage (
+      tenant_id text PRIMARY KEY NOT NULL REFERENCES tenants(id) ON DELETE cascade,
+      bytes_used integer DEFAULT 0 NOT NULL,
+      object_count integer DEFAULT 0 NOT NULL,
+      measured_at integer,
+      updated_at integer NOT NULL
+    );
   `);
 }
 
