@@ -24,12 +24,15 @@ export {
 export type { TranscriptSegment, MeetingTranscript } from "./transcript";
 
 export {
+  AUDIO_ENCODINGS,
   TRANSCRIPTION_WIRES,
   TRANSCRIPTION_PREF,
   isTranscriptionModelId,
+  transcriptionCandidates,
+  transcriptionShapeFor,
   transcriptionWireFor,
   pickTranscriptionModel,
 } from "./asr-model";
-export type { TranscriptionWire } from "./asr-model";
+export type { AudioEncoding, TranscriptionShape, TranscriptionWire } from "./asr-model";
 
 export { MEETING_MINUTES_SYSTEM, MEETING_TRANSLATE_SYSTEM, minutesPrompt, translatePrompt } from "./prompts";

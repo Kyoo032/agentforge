@@ -51,6 +51,25 @@ function bodyJson(call: Call): Record<string, unknown> {
   return JSON.parse(String(call.init.body)) as Record<string, unknown>;
 }
 
+/** An OpenAI-style SSE answer, the shape the streaming families send back. */
+function eventStreamReply(deltas: string[]): Response {
+  const body = [
+    ...deltas.map((content) => `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}`),
+    "data: [DONE]",
+    "",
+  ].join("\n\n");
+  return new Response(body, { status: 200, headers: { "Content-Type": "text/event-stream" } });
+}
+
+/** What the desk has seen from the gateway, so the chain has something to walk. */
+function seedCatalog(ids: string[]): void {
+  writeFileSync(
+    join(dataDir, "models-cache.json"),
+    JSON.stringify({ openai: ids.map((id) => ({ id, label: id, inputModalities: ["text"] })) }),
+    "utf8",
+  );
+}
+
 beforeAll(async () => {
   chunkA = join(dataDir, "chunk-000.mp3");
   chunkB = join(dataDir, "chunk-001.mp3");
@@ -149,7 +168,9 @@ describe("transcribeChunks over the chat wire", () => {
   });
 
   it("reads an omni model's content-part array as well as a plain string", async () => {
-    process.env.AGENTFORGE_MEETING_ASR_MODEL = "qwen3.5-omni-flash";
+    // Was pinned to `qwen3.5-omni-flash` before the 2026-09-21 live drive; that family streams now
+    // (the data-URI suite below), so a non-streaming id carries this case.
+    process.env.AGENTFORGE_MEETING_ASR_MODEL = "gemini-3.5-flash";
     process.env.OPENAI_API_KEY = "sk-test";
     const { fetchImpl } = recorder(
       () =>
@@ -215,6 +236,7 @@ describe("transcribeChunks over the multipart wire", () => {
 describe("transcribeChunks with nothing to transcribe with", () => {
   it("refuses with asr_unavailable instead of returning an empty transcript", async () => {
     delete process.env.AGENTFORGE_MEETING_ASR_MODEL;
+    seedCatalog([]);
     process.env.OPENAI_API_KEY = "sk-test";
     const { fetchImpl } = recorder(() => chatReply("never reached"));
     await expect(transcribeChunks([chunkA], { fetchImpl })).rejects.toBeInstanceOf(ApiError);
@@ -222,5 +244,165 @@ describe("transcribeChunks with nothing to transcribe with", () => {
       code: "asr_unavailable",
       status: 503,
     });
+  });
+});
+
+/**
+ * Everything below was learned by driving the live gateway on 2026-09-21. Each expectation stands
+ * for a 400 that cost a real call to find, so the shape is pinned per model family rather than as
+ * one constant.
+ */
+describe("the audio payload each model family accepts", () => {
+  function audioPart(call: Call): { data: string; format: string } {
+    const body = bodyJson(call);
+    const content = (body.messages as Array<{ content: Array<Record<string, unknown>> }>)[0]?.content ?? [];
+    const part = content.find((item) => item.type === "input_audio") as
+      | { input_audio: { data: string; format: string } }
+      | undefined;
+    return part?.input_audio ?? { data: "", format: "" };
+  }
+
+  it("sends the OpenAI audio family bare base64 and no stream flag", async () => {
+    process.env.AGENTFORGE_MEETING_ASR_MODEL = "gpt-audio-mini";
+    process.env.OPENAI_API_KEY = "sk-test";
+    const { calls, fetchImpl } = recorder(() => chatReply("Daniel Brooks: good morning."));
+    await transcribeChunks([chunkA], { fetchImpl });
+
+    const audio = audioPart(calls[0] as Call);
+    expect(audio.data).toBe(Buffer.from([0xff, 0xfb, 0x90, 0x00]).toString("base64"));
+    expect(audio.data.startsWith("data:")).toBe(false);
+    expect(bodyJson(calls[0] as Call).stream).toBeUndefined();
+  });
+
+  it("sends the qwen/omni family a data URI and asks it to stream", async () => {
+    process.env.AGENTFORGE_MEETING_ASR_MODEL = "qwen3-omni-flash-2025-12-01";
+    process.env.OPENAI_API_KEY = "sk-test";
+    const { calls, fetchImpl } = recorder(() => eventStreamReply(["Good ", "morning", "."]));
+    const transcript = await transcribeChunks([chunkA], { fetchImpl });
+
+    const audio = audioPart(calls[0] as Call);
+    expect(audio.data).toBe(`data:audio/mp3;base64,${Buffer.from([0xff, 0xfb, 0x90, 0x00]).toString("base64")}`);
+    expect(bodyJson(calls[0] as Call).stream).toBe(true);
+    expect(transcript.text).toBe("Good morning.");
+  });
+
+  it("ignores a keepalive and the [DONE] sentinel while accumulating a stream", async () => {
+    process.env.AGENTFORGE_MEETING_ASR_MODEL = "qwen3-omni-flash-2025-12-01";
+    process.env.OPENAI_API_KEY = "sk-test";
+    const body = [
+      ": keepalive",
+      `data: ${JSON.stringify({ choices: [{ delta: { role: "assistant", content: "" } }] })}`,
+      `data: ${JSON.stringify({ choices: [{ delta: { content: "Only words." } }] })}`,
+      "data: [DONE]",
+      "",
+    ].join("\n\n");
+    const { fetchImpl } = recorder(() => new Response(body, { status: 200 }));
+    const transcript = await transcribeChunks([chunkA], { fetchImpl });
+    expect(transcript.text).toBe("Only words.");
+  });
+});
+
+describe("the fallback chain", () => {
+  it("moves to the next model when the first one's supply pool is dead", async () => {
+    delete process.env.AGENTFORGE_MEETING_ASR_MODEL;
+    seedCatalog(["gemini-3.5-flash", "gpt-audio-mini"]);
+    process.env.OPENAI_API_KEY = "sk-test";
+    const { calls, fetchImpl } = recorder((_call, index) =>
+      index === 0
+        ? new Response(JSON.stringify({ error: { code: "get_channel_failed", message: "Supply pool unavailable" } }), {
+            status: 503,
+          })
+        : chatReply("Second model heard it."),
+    );
+    const transcript = await transcribeChunks([chunkA], { fetchImpl });
+
+    expect(calls).toHaveLength(2);
+    expect(bodyJson(calls[0] as Call).model).toBe("gemini-3.5-flash");
+    expect(bodyJson(calls[1] as Call).model).toBe("gpt-audio-mini");
+    expect(transcript.text).toBe("Second model heard it.");
+    expect(transcript.model).toBe("gpt-audio-mini");
+  });
+
+  it("treats a 200 with no words as a refusal and asks the next model", async () => {
+    delete process.env.AGENTFORGE_MEETING_ASR_MODEL;
+    seedCatalog(["gemini-3.5-flash", "gpt-audio-mini"]);
+    process.env.OPENAI_API_KEY = "sk-test";
+    const { calls, fetchImpl } = recorder((_call, index) => chatReply(index === 0 ? "" : "Heard on the retry."));
+    const transcript = await transcribeChunks([chunkA], { fetchImpl });
+    expect(calls).toHaveLength(2);
+    expect(transcript.text).toBe("Heard on the retry.");
+  });
+
+  it("asks the model that worked first for every chunk after it", async () => {
+    delete process.env.AGENTFORGE_MEETING_ASR_MODEL;
+    seedCatalog(["gemini-3.5-flash", "gpt-audio-mini"]);
+    process.env.OPENAI_API_KEY = "sk-test";
+    const { calls, fetchImpl } = recorder((call) =>
+      bodyJson(call).model === "gemini-3.5-flash"
+        ? new Response("nope", { status: 503 })
+        : chatReply(`chunk ${calls.length}`),
+    );
+    await transcribeChunks([chunkA, chunkB], { fetchImpl });
+    // First chunk: gemini refuses, gpt-audio-mini answers. Second chunk: gpt-audio-mini only.
+    expect(calls.map((call) => bodyJson(call).model)).toEqual([
+      "gemini-3.5-flash",
+      "gpt-audio-mini",
+      "gpt-audio-mini",
+    ]);
+  });
+
+  it("names every model it asked, and what each said, when none of them can read it", async () => {
+    delete process.env.AGENTFORGE_MEETING_ASR_MODEL;
+    seedCatalog(["gemini-3.5-flash", "gpt-audio-mini"]);
+    process.env.OPENAI_API_KEY = "sk-test";
+    const { fetchImpl } = recorder(
+      () =>
+        new Response(JSON.stringify({ error: { message: "Supply pool unavailable" } }), {
+          status: 503,
+        }),
+    );
+    const failure = await transcribeChunks([chunkA], { fetchImpl }).catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(ApiError);
+    expect((failure as ApiError).code).toBe("transcription_failed");
+    expect((failure as Error).message).toContain("gemini-3.5-flash");
+    expect((failure as Error).message).toContain("gpt-audio-mini");
+    expect((failure as Error).message).toContain("Supply pool unavailable");
+  });
+
+  it("honours a pinned model without quietly substituting another", async () => {
+    process.env.AGENTFORGE_MEETING_ASR_MODEL = "mimo-v2.5-asr";
+    seedCatalog(["gemini-3.5-flash", "gpt-audio-mini"]);
+    process.env.OPENAI_API_KEY = "sk-test";
+    const { calls, fetchImpl } = recorder(() => new Response("model not found", { status: 404 }));
+    await expect(transcribeChunks([chunkA], { fetchImpl })).rejects.toMatchObject({ status: 400 });
+    expect(calls).toHaveLength(1);
+    expect(bodyJson(calls[0] as Call).model).toBe("mimo-v2.5-asr");
+  });
+});
+
+describe("the per-request budget", () => {
+  it("bounds the call even when the caller supplies its own abort signal", async () => {
+    process.env.AGENTFORGE_MEETING_ASR_MODEL = "gpt-audio-mini";
+    process.env.OPENAI_API_KEY = "sk-test";
+    const controller = new AbortController();
+    const { calls, fetchImpl } = recorder(() => chatReply("text"));
+    await transcribeChunks([chunkA], { fetchImpl, signal: controller.signal });
+    // PR #66 finding 7: the caller's signal used to REPLACE the timeout, so a hung gateway call
+    // waited for the browser to disconnect. It is now composed with one.
+    expect(calls[0]?.init.signal).toBeInstanceOf(AbortSignal);
+    expect(calls[0]?.init.signal).not.toBe(controller.signal);
+  });
+
+  it("gives up rather than walking the chain when the caller has cancelled", async () => {
+    delete process.env.AGENTFORGE_MEETING_ASR_MODEL;
+    seedCatalog(["gemini-3.5-flash", "gpt-audio-mini"]);
+    process.env.OPENAI_API_KEY = "sk-test";
+    const controller = new AbortController();
+    const { calls, fetchImpl } = recorder(() => {
+      controller.abort();
+      throw new Error("aborted");
+    });
+    await expect(transcribeChunks([chunkA], { fetchImpl, signal: controller.signal })).rejects.toThrow();
+    expect(calls).toHaveLength(1);
   });
 });
