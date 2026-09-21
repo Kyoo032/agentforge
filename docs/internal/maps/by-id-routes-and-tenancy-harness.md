@@ -18,7 +18,7 @@ prefixes and per-tenant settings are lane D.
 
 ### The surface, counted
 
-`packages/host/src/router.ts:228` is one array of `compile(method, path, handler)` rows. At
+`packages/host/src/router.ts:233` is one array of `compile(method, path, handler)` rows. At
 `28230f6` it holds **151 registrations, 63 of them by-id** — a route is by-id when `compile`
 (`router.ts:180`) extracted at least one `:param` name into `keys`.
 
@@ -130,12 +130,12 @@ the store, so the desktop's and webdev's lines are unchanged.
   (`packages/host/src/video-examples.ts:115`) takes no tenant and reads a directory beside the
   binary. It is in the table, called and asserted, because leaving a by-id route out is exactly what
   the completeness assertion exists to prevent — but there is no owner for it to be foreign to.
-- **`media` is org-scoped, not desk-scoped** (`packages/host/src/media.ts:37`), deliberately. Two
+- **`media` is org-scoped, not desk-scoped** (`packages/host/src/media.ts:36`), deliberately. Two
   desks in one org share an image pool; the tenant boundary still holds because an organisation
   belongs to exactly one tenant. Spec §8 q4 asks Kyo whether that is intended.
 - **The three edit sub-resources are seeded by direct insert**, not through a store function: a
   card, a job and an unplaced item are written by a job that has already produced output, and
-  `enqueueEditJob` (`packages/host/src/edit/jobs.ts:427`) starts a worker. The rows are the shape
+  `enqueueEditJob` (`packages/host/src/edit/jobs.ts:432`) starts a worker. The rows are the shape
   those paths write.
 - **`createLocalWorkspace`'s desk-member default was a hosted 500.** It wrote the membership row for
   `LOCAL_OWNER_ID`, which does not exist in a portal-provisioned database, so the insert violated

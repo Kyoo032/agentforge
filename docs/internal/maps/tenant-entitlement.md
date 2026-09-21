@@ -113,7 +113,7 @@ prefix. A deployment with no secret configured refuses every delivery rather tha
 
 **Two routes stay open to a blocked tenant.** `GET /api/v1/billing/plan`
 (`packages/host/src/handlers/billing.ts:128`) and `POST /api/v1/billing/top-up` (`:176`), routed at
-`packages/host/src/router.ts:267-269`, are session-gated and deliberately not behind the gateway
+`packages/host/src/router.ts:274-276`, are session-gated and deliberately not behind the gateway
 gate: a tenant that cannot see why it is blocked, or pay, is a churned tenant.
 
 ## Where things live
@@ -127,8 +127,8 @@ gate: a tenant that cannot see why it is blocked, or pay, is a churned tenant.
 | `packages/host/src/billing/authenticate.ts` | Who may write a plan: the header, the env var, the constant-time compare |
 | `packages/host/src/handlers/billing.ts` | The webhook, the plan read and the top-up stub |
 | `packages/db/drizzle/0017_tenant_plan.sql` | `tenant_plan`, `tenant_seat`, `billing_events`, and the period stamp on the ledger |
-| `packages/db/src/schema.ts:128` | `tenantPlan`; `tenantSeat` at `:160`, `billingEvents` at `:188`, `billingPeriodStart` at `:83` |
-| `packages/db/src/ensure-schema.ts:517` | `ensureTenantPlanTables`, the healer for a baseline-stamped database; the ledger's late column at `:499` |
+| `packages/db/src/schema.ts:155` | `tenantPlan`; `tenantSeat` at `:160`, `billingEvents` at `:188`, `billingPeriodStart` at `:83` |
+| `packages/db/src/ensure-schema.ts:518` | `ensureTenantPlanTables`, the healer for a baseline-stamped database; the ledger's late column at `:499` |
 | `packages/host/src/gateway-gate.ts:476` | `requireGatewayAllowed` — where the plan check sits, before the key check |
 | `packages/host/src/auth/routes.ts:261` | `handleLogin` — where the seat cap sits, after provisioning |
 

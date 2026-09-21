@@ -40,7 +40,7 @@ cannot be created and the app refuses everyone, rather than serving everyone one
 
 ### The ambient session
 
-`dispatch` (`packages/host/src/router.ts:454`) runs the matched handler inside
+`dispatch` (`packages/host/src/router.ts:461`) runs the matched handler inside
 `withRequestSession(session, …)` (`tenant-scope.ts:22`), an `AsyncLocalStorage` — the same idiom as
 `run-context.ts`, `edit/context.ts` and `sql-tool.ts`. So a handler that has not yet been swept to
 pass the request still resolves **the session's** tenant, and the desk id it passes is demoted to a

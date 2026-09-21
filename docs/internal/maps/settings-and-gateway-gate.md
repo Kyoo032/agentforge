@@ -208,7 +208,7 @@ It runs on a key save (`refreshGatewayGateAfterSave` → `runGatewayCheck`,
 `packages/host/src/handlers/settings.ts:320-336`), and which verdict the save response carries is decided by
 `gateVerdictFor` (`packages/host/src/handlers/settings.ts:309-318`). It also runs on
 `POST /api/v1/settings/gateway/check` (`handleGatewayCheck`,
-`packages/host/src/handlers/settings.ts:338-346`, route at `packages/host/src/router.ts:258`). Separately, `maybeRefreshGateway` (`packages/host/src/gateway-gate.ts:593-614`)
+`packages/host/src/handlers/settings.ts:338-346`, route at `packages/host/src/router.ts:263`). Separately, `maybeRefreshGateway` (`packages/host/src/gateway-gate.ts:593-614`)
 fires an un-awaited check at most once per key per 10 minutes from `handleGetSettings` — that is what turns
 "opened on trust" into a real verdict over time.
 
@@ -234,7 +234,7 @@ Deliberately **open**: settings, workspaces, threads, artifacts, media, usage, m
 absence of the import in those handler files and directly by
 `packages/host/src/handlers/settings.test.ts:186-192` ("does not gate settings, usage or threads"). A closed gate
 must always be recoverable. Phase 5 lane B adds two more for the same reason: `GET /api/v1/billing/plan`
-and `POST /api/v1/billing/top-up` (`packages/host/src/router.ts:268-269`), so a tenant the **plan**
+and `POST /api/v1/billing/top-up` (`packages/host/src/router.ts:275-276`), so a tenant the **plan**
 has blocked can still read why and pay.
 
 **What a closed gate actually looks like** (driven 2026-09-17 on an isolated desk started with

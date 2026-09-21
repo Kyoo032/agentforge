@@ -63,7 +63,7 @@ load-bearing; if that mount ever moves, the controls move with it.
 | 3 | `:455` | `transportRejection` — TLS, method allowlist, path filter, header cap, per-IP and per-session buckets | **every** request, not only `/api` |
 | 4 | `:461` | non-`/api` paths return `false`; Express serves the page | — |
 | 5 | `:470` | `mutatingRejection` — Origin/Host allowlist, double-submit CSRF, `x-agentforge-transport` | non-safe methods on `/api` |
-| 6 | `packages/host/src/router.ts:429-433` | `requireSessionFor` — the session gate, before the route table | `/api` minus the exempt paths |
+| 6 | `packages/host/src/router.ts:436-440` | `requireSessionFor` — the session gate, before the route table | `/api` minus the exempt paths |
 | 7 | `:533` | `logAuthFailure` | a 401 coming back out |
 | 8 | `:384` | `maskServerError` | any 5xx, in server mode |
 
@@ -97,7 +97,7 @@ the client can forge or read. Cookie is `__Host-agentforge_session` in server mo
 (`ABSOLUTE_LIFETIME_MS`, `:41`), sliding at most every 5 minutes (`SLIDE_INTERVAL_MS`, `:43`) so a
 busy tab does not write a row per request.
 
-The gate runs in `packages/host/src/router.ts:427-435`, **before the route table is consulted** — an
+The gate runs in `packages/host/src/router.ts:434-442`, **before the route table is consulted** — an
 unauthenticated caller learns nothing about which paths exist.
 
 ### 5. Rate limits

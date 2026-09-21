@@ -221,7 +221,7 @@ CREATE INDEX IF NOT EXISTS `tenant_state_key_idx` ON `tenant_state` (`key`);
 ```
 
 Drizzle table: `tenantState`, `packages/db/src/schema.ts`. Healer for a baseline-stamped database:
-`ensureTenantStateTable` (`packages/db/src/ensure-schema.ts:564`), called from `:246`.
+`ensureTenantStateTable` (`packages/db/src/ensure-schema.ts:565`), called from `:246`.
 
 It is keyed on the **tenant**, not on an organization: a tenant's sealed settings are the tenant's, not any
 one org's, and the tenant is all a rotation has to walk. `packages/db/src/migrate-0015.test.ts` asserts the

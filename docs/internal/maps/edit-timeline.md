@@ -304,7 +304,7 @@ stream; `edit-export-progress` shows while it is live and `edit-export-download`
 `succeeded`, which then pulls `GET …/export/:jobId/file` and triggers a browser download
 (`onDownloadExport`, `:584-608`).
 
-The job itself runs in `packages/host/src/edit/jobs.ts:164-169` → `render`
+The job itself runs in `packages/host/src/edit/jobs.ts:165-170` → `render`
 (`packages/host/src/edit/ffmpeg/recipes.ts:221-261`): write an `.ass` document for titles and
 captions, compile the concat/scale/pad filter graph (`compileFilterGraph`, `:170-195`), and run ffmpeg
 into `data/edit/<projectId>/export-<uuid>.mp4` — or, for a tenant other than `local-tenant`,
@@ -350,7 +350,7 @@ The job runner has no request to read a tenant from, so it reads one by project 
 | `apps/web/lib/edit-client.ts` | `postEditOps`, `foldApplied`, `isReviewOpen`, `turnSpendUsd`, the API wrappers |
 | `apps/web/lib/edit-badges.ts` | Which cards an owner touch auto-keeps |
 | `apps/web/lib/use-emit-lock.ts` | The 5 s agent-writing lock and the clip ids it dims |
-| `packages/host/src/router.ts:207-226` | The 20 `/api/v1/edit/*` routes |
+| `packages/host/src/router.ts:212-231` | The 20 `/api/v1/edit/*` routes |
 | `packages/host/src/handlers/edit.ts` | Every edit handler; upload limits and mime allow-list |
 | `packages/host/src/edit/ops.ts` | `appendOps`, `foldProject`, `loadProjectRow`, `writeSnapshot` — the one write path. Every one of them takes a required `workspaceId` |
 | `packages/host/src/edit/projects.ts` | Create, list, bundle, `mapCard` / `mapJob` / `mapUnplaced` |
