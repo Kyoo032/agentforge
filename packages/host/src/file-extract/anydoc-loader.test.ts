@@ -72,4 +72,42 @@ describe("loadDownloadedAnydoc", () => {
 
     expect(loadDownloadedAnydoc()).toMatchObject({ fromComponentDir: true });
   });
+
+  /**
+   * Phase 7. On a hosted server the components root is inside `/data` unless the operator moved
+   * it, and `/data` is the volume every tenant writes into. A complete, marked, perfectly loadable
+   * component there is still refused, because `createRequire`-ing a `.node` file out of the tenant
+   * volume is the one thing standing between the deployment and a `noexec` mount (security spec
+   * H3). The refusal looks like absence, so `resolveAnydoc` returns null and the reduced reader
+   * takes over rather than anything throwing at a request.
+   */
+  it("refuses to load out of the tenant data volume on a server, marker or not", () => {
+    const root = componentRoot("anydoc", VERSION);
+    const pkg = componentPackageDir(root, "@firecrawl/anydoc");
+    mkdirSync(pkg, { recursive: true });
+    writeFileSync(join(pkg, "package.json"), JSON.stringify({ name: "@firecrawl/anydoc", main: "index.js" }));
+    writeFileSync(join(pkg, "index.js"), "module.exports = { fromComponentDir: true };\n");
+    writeComponentMarker("anydoc", VERSION, root);
+
+    process.env.AGENTFORGE_SERVER = "1";
+    try {
+      expect(() => loadDownloadedAnydoc()).toThrowError(/not allowed on this server/);
+      expect(resolveAnydoc({ bundled: missing, downloaded: loadDownloadedAnydoc })).toBeNull();
+
+      // The operator's own root, outside the data dir, is loaded exactly as a desk's is.
+      const managed = mkdtempSync(join(tmpdir(), "agentforge-managed-components-"));
+      process.env.AGENTFORGE_COMPONENTS_DIR = managed;
+      const managedPkg = componentPackageDir(componentRoot("anydoc", VERSION), "@firecrawl/anydoc");
+      mkdirSync(managedPkg, { recursive: true });
+      writeFileSync(join(managedPkg, "package.json"), JSON.stringify({ name: "@firecrawl/anydoc", main: "index.js" }));
+      writeFileSync(join(managedPkg, "index.js"), "module.exports = { fromManagedRoot: true };\n");
+      writeComponentMarker("anydoc", VERSION, componentRoot("anydoc", VERSION));
+
+      expect(loadDownloadedAnydoc()).toMatchObject({ fromManagedRoot: true });
+      rmSync(managed, { recursive: true, force: true });
+    } finally {
+      delete process.env.AGENTFORGE_SERVER;
+      delete process.env.AGENTFORGE_COMPONENTS_DIR;
+    }
+  });
 });

@@ -1,6 +1,6 @@
 # Map — webapp-deploy: the hosted deployment stack
 
-Last verified: 2026-09-20 at c204e5e
+Last verified: 2026-09-21 at 2d44f0f + the Phase 7 branch `claude/web-phase7-component-installer-7f5d5l`
 
 ## Overview
 
@@ -25,23 +25,24 @@ folder: what each file does, what depends on what, and the things about it that 
 `webapp-deploy/Dockerfile` is three stages over `node:22-bookworm-slim`, and the **build context is
 the repo root**, not this folder (`Dockerfile:5-6`).
 
-1. **`base`** (`Dockerfile:24-40`) enables corepack and pins pnpm `9.15.9`, matching the root
+1. **`base`** (`Dockerfile:24-38`) enables corepack and pins pnpm `9.15.9`, matching the root
    `packageManager` field. It then `chmod a+x`es every `.py` under the corepack home — without that,
    `better-sqlite3`'s regenerated Makefile re-runs `gyp_main.py` directly and dies with `EACCES`
-   (`Dockerfile:34-40`).
-2. **`build`** (`Dockerfile:47-62`) installs `python3`, `make` and `g++` for `better-sqlite3`'s node-gyp
+   (`Dockerfile:33-38`).
+2. **`build`** (`Dockerfile:47-83`) installs `python3`, `make` and `g++` for `better-sqlite3`'s node-gyp
    fallback, then runs `pnpm install --frozen-lockfile --filter "@agentforge/web..."` (`:59`) — the web
    app and its workspace dependencies only, so `apps/desktop` and `apps/mobile` are never installed —
-   and `pnpm --filter @agentforge/web build` (`:62`), which is `vite build` into `apps/web/dist`.
-3. **`runtime`** (`Dockerfile:67-98`) copies the built workspace wholesale (`:80`), creates and chowns
-   `/data` and declares it a volume (`:82-83`), drops to the non-root `node` user (`:85`), and starts
-   `tsx server.ts` (`:98`).
+   and `pnpm --filter @agentforge/web build` (`:62`), which is `vite build` into `apps/web/dist`. It
+   ends by proving the image carries its components (`:82-83`); see *Components are the image's* below.
+3. **`runtime`** (`Dockerfile:88-141`) copies the built workspace wholesale (`:102`), creates and chowns
+   `/data` and declares it a volume (`:104-105`), does the same for the components root
+   (`:118-119`), drops to the non-root `node` user (`:121`), and starts `tsx server.ts` (`:141`).
 
 Debian rather than Alpine is deliberate: `pnpm-lock.yaml` resolves `@firecrawl/anydoc` to the
 `-linux-x64-gnu` / `-linux-arm64-gnu` packages, and musl would pick different ones and force a
 `better-sqlite3` rebuild (`Dockerfile:15-17`).
 
-The container's own `HEALTHCHECK` (`Dockerfile:95-103`) calls `GET /api/v1/components` on loopback with
+The container's own `HEALTHCHECK` (`Dockerfile:138-139`) calls `GET /api/v1/components` on loopback with
 `node -e fetch` — there is no curl in the image. Two rules have to be satisfied at once, and the probe
 fails outright if either is missed:
 
@@ -49,26 +50,52 @@ fails outright if either is missed:
   (`packages/host/src/auth/routes.ts:45`; the reason is at
   `packages/host/src/handlers/components.ts:4-8`), so it answers before any gateway key exists and
   without opening the database.
-- **The probe sends `x-forwarded-proto: https`** (`Dockerfile:103`). In server mode `rejectPlaintext`
+- **The probe sends `x-forwarded-proto: https`** (`Dockerfile:139`). In server mode `rejectPlaintext`
   (`packages/host/src/http-adapter.ts:315-318`) answers `403 https_required` to any request without
   that header, on every path, before routing reaches the ungated set
   (`transportRejection` is called at `:421`). A probe without it never goes healthy. The header is
   safe here only because the sender is inside the container, past the boundary the rule defends; see
   [hosted-server-mode.md](hosted-server-mode.md).
 
+### Components are the image's, not a download
+
+The app can install a native component at runtime — that is how a desk gets `@firecrawl/anydoc` on
+first use. A server does not. The component directory and the binary in it are shared by every
+tenant, so `handlers/components.ts` answers `403 install_disabled` to the install route whenever
+`isServerMode()`, and the image is expected to carry what the server needs instead.
+
+Two lines in this folder make that true rather than hoped for:
+
+- The build stage runs `scripts/components.ts check` (`Dockerfile:82-83`), which loads every id in
+  `packages/host/src/components/server.ts` `SERVER_COMPONENT_IDS` the way a request would and exits
+  non-zero if one does not. A filter change or an unpublished platform package fails the build
+  instead of shipping a container that boots healthy and silently reads every document with the
+  reduced fallback extractor. It runs with `AGENTFORGE_SERVER=1` and the runtime stage's
+  `AGENTFORGE_COMPONENTS_DIR` so its printout is the container's.
+- The runtime stage puts that directory at `/opt/agentforge/components` (`Dockerfile:92-95`,
+  `:116-119`) — **outside** `/data`, on its own volume (`compose.yml:64-68`). See the `noexec`
+  gotcha below for why that separation is the point.
+
+`components.sh install` is a **repair**, not an upgrade path: a newer version arrives in a newer
+image. It exists for the box whose bundled copy stopped loading, and an install there needs an app
+restart before the running process uses it — the loader memoises its answer, failure included
+(`packages/host/src/file-extract/anydoc.ts:136-150`). Full picture:
+[`component-installer.md`](component-installer.md).
+
 ### Run: two containers, one network namespace
 
 `webapp-deploy/compose.yml` defines `app` and `proxy`.
 
-`app` builds from the repo root, runs with `read_only: true` and a `/tmp` tmpfs (`compose.yml:45-48`),
-`no-new-privileges` and `cap_drop: ALL` (`:67-71`), `init: true` to reap ffmpeg and SQL worker children
-(`:73-74`), and `pids_limit` / `mem_limit` caps (`:75-76`). `/data` is the one writable mount
-(`:49-50`). Logs are json-file, 10 MB × 5.
+`app` builds from the repo root, runs with `read_only: true` and a `/tmp` tmpfs (`compose.yml:60-62`),
+`no-new-privileges` and `cap_drop: ALL` (`:88-91`), `init: true` to reap ffmpeg and SQL worker children
+(`:94-95`), and `pids_limit` / `mem_limit` caps (`:96-98`). Two mounts are writable and no others:
+`/data` for tenant work and `/opt/agentforge/components` for the operator's components
+(`:64-68`). Logs are json-file, 10 MB × 5.
 
-`proxy` is `caddy:2-alpine` with `network_mode: "service:app"` (`compose.yml:95-96`). It joins the app
+`proxy` is `caddy:2-alpine` with `network_mode: "service:app"` (`compose.yml:115-117`). It joins the app
 container's network namespace rather than talking to it over a bridge, because the app binds
 `127.0.0.1` inside the container. A service sharing another's namespace cannot publish ports of its
-own, which is why `80`, `443` and `443/udp` are published on **`app`** (`compose.yml:88-91`). `proxy`
+own, which is why `80`, `443` and `443/udp` are published on **`app`** (`compose.yml:109-112`). `proxy`
 gets `NET_BIND_SERVICE` back — the only capability it needs — to bind those ports.
 
 The app binds whatever `resolveBindHost` returns (`apps/web/server.ts:114-115`,
@@ -90,7 +117,7 @@ which stops Caddy buffering the SSE job stream.
 Two commented lines under *Incident response* (`Caddyfile:87-88`) take the site read-only on a proxy
 restart.
 
-### Operate: the five scripts
+### Operate: the six scripts
 
 All of them source `scripts/_common.sh`, which resolves the folder and repo root, defines `dc()` as
 `docker compose -f compose.yml` with a legacy fallback, and reads `.env` values with `sed` rather than
@@ -103,6 +130,7 @@ by sourcing the file — a stray backtick in a value would otherwise execute.
 | `backup.sh` | Consistent SQLite snapshot via `VACUUM INTO`; tar of `/data` minus `components/`, `logs/` and `.master-key`; `openssl enc -aes-256-cbc -pbkdf2 -iter 200000` before the bytes leave the host; decrypt-and-list verification; upload with `coscli`, else `tccli cos`, else a loud warning; local retention prune |
 | `restore.sh` | Checks the archive decrypts **before** deleting anything; stops both services; empties `/data`; unpacks; promotes the consistent snapshot over `agentforge.sqlite` and drops the stale `-wal`/`-shm`; starts back up |
 | `logs.sh` | Prints container health, then follows logs for one or both services |
+| `components.sh` | Phase 7. `status` / `check` / `install` against the running container, through `dc exec -T app ./node_modules/.bin/tsx ../../scripts/components.ts` (`webapp-deploy/scripts/components.sh:54-55`). Nothing here reaches the install HTTP route, which answers `403 install_disabled` on a server for every caller |
 
 Failure modes worth knowing: `deploy.sh` exits non-zero and dumps 80 log lines if health does not go
 green in five minutes; `backup.sh` refuses to run at all with an empty `BACKUP_KEY` rather than writing
@@ -121,7 +149,7 @@ a plaintext archive; `restore.sh` is destructive and prompts unless given `--yes
 | `webapp-deploy/.env.example` | Every env var the host reads, one line of meaning each |
 | `webapp-deploy/DEPLOY-LOG.md` | date / sha / env / who / notes. Mirrors the log in `../web-pivot-2026-09-18.md`, which is the one of record |
 | `webapp-deploy/scripts/_common.sh` | Shared helpers. Sourced, not run |
-| `webapp-deploy/scripts/{build,deploy,backup,restore,logs}.sh` | As above |
+| `webapp-deploy/scripts/{build,deploy,backup,restore,logs,components}.sh` | As above |
 | `../tencent-cvm-setup.md` | The step-by-step runbook for a fresh CVM |
 | `../web-data-placement-tencent.md` | Which Tencent service holds which data; sizing; the price tables |
 | `../web-security-spec.md` | The numbered rows (`N2`, `S2`, `H2`…) this folder keeps citing |
@@ -135,7 +163,7 @@ a plaintext archive; `restore.sh` is destructive and prompts unless given `--yes
   (`webapp-deploy/README.md:46-52`).
 - **Dev dependencies ship on purpose.** `tsx` is a devDependency of `@agentforge/web` and **is** the
   production entrypoint, and every `@agentforge/*` package exports TypeScript source rather than a
-  build. `pnpm prune --prod` would delete the thing that boots the app (`Dockerfile:77-79`).
+  build. `pnpm prune --prod` would delete the thing that boots the app (`Dockerfile:99-102`).
 - **The proxy must not rewrite `Host` or `Origin`.** With `AGENTFORGE_SERVER=1` a mutating `/api` call
   needs both to match `AGENTFORGE_TRUSTED_ORIGINS`. Caddy passes them through by default, which is why
   the `Caddyfile` deliberately has no `header_up Host` line — the loopback-rewriting config an older
@@ -149,9 +177,13 @@ a plaintext archive; `restore.sh` is destructive and prompts unless given `--yes
 - **Rate limiting is not in this folder.** The official `caddy:2-alpine` image ships no rate-limit
   module, so the buckets live in the app (`packages/host/src/rate-limit.ts`). See
   [`hosted-server-mode.md`](hosted-server-mode.md).
-- **`noexec` is not set on `/data`.** Security spec `H3` allows it only once the component installer
-  stops loading native modules from `/data/components`. anydoc is baked into the image today, so the
-  flag becomes safe as soon as `H3` is signed off (`compose.yml:62-65`).
+- **`noexec` on `/data` is correct since Phase 7, and was not before it.** The app used to install
+  native modules into `/data/components` and load them from there. It now refuses to load one out of
+  `AGENTFORGE_DATA_DIR` in server mode at all (`packages/host/src/components/paths.ts:101-103`,
+  `downloadedComponentsAllowed`), and what it does load lives on the separate
+  `/opt/agentforge/components` volume, which must stay executable. The code side of spec `H3` is
+  therefore closed; the mount flag itself is still an operator action on the CVM
+  (`compose.yml:77-86`, `../tencent-cvm-setup.md` §4).
 - **The build runs on the production server.** There is no image registry and no CI build, so
   `deploy.sh` builds in place — and the build stage's `apt-get` goes to `deb.debian.org` over plain
   HTTP, which collides with the outbound-443-only security group rule
@@ -159,7 +191,7 @@ a plaintext archive; `restore.sh` is destructive and prompts unless given `--yes
 - **Rolling code back is a rebuild at an older sha**, for the same reason. There is no
   `docker pull <old-tag>` path.
 - **`caddy-data` is not the app's `/data`.** The proxy's `/data` volume holds the ACME account and the
-  issued certificates; they are different volumes in different containers (`compose.yml:102-105`).
+  issued certificates; they are different volumes in different containers (`compose.yml:123-126`).
 - **`restore.sh` hands three capabilities back.** `cap_drop: ALL` takes `CHOWN` away even from root,
   and both `tar -x` and the chown need it, so the one-shot restore container re-adds `CHOWN`,
   `FOWNER` and `DAC_OVERRIDE`.

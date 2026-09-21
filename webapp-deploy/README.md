@@ -37,6 +37,7 @@ webapp-deploy/
    ├─ deploy.sh               secrets from SSM, build, up -d, health, log the sha
    ├─ backup.sh               SQLite snapshot + encrypted tar of /data -> COS
    ├─ restore.sh              decrypt and restore an archive into the volume
+   ├─ components.sh           status / check / install the server's native components
    └─ logs.sh                 health + follow logs
 ```
 
@@ -89,11 +90,21 @@ both together.** Without them the context is ~1.4 GB (`node_modules` plus `.git`
 - **anydoc** (`@firecrawl/anydoc`, the component installer's one component): it is a real
   dependency of `packages/host`, so pnpm installs the Linux package at build time and the
   **bundled** loader wins. The component installer therefore has nothing to download —
-  `GET /api/v1/components` reports it as present. No extra step and no extra volume.
-  If a future component is ever downloaded instead, it is written to
-  `<AGENTFORGE_DATA_DIR>/components/`, which is on the `dpsbuddy-data` volume already.
-  See [`docs/internal/maps/component-installer.md`](../docs/internal/maps/component-installer.md);
-  who runs the installer on a shared server is open decision 6 in the decision record.
+  `GET /api/v1/components` reports it as present.
+  **The build proves it** (Phase 7): a `RUN tsx scripts/components.ts check` step in the build
+  stage loads every required component the way a request would and fails the image if one does
+  not. Without it, a lost dependency would ship a container that boots, reports healthy, and
+  reads every document with the reduced fallback extractor.
+  Anything installed later goes to `AGENTFORGE_COMPONENTS_DIR` — `/opt/agentforge/components`,
+  on the separate `dpsbuddy-components` volume, deliberately **not** under `/data`: in server
+  mode the host refuses to load a native module from inside the tenant data volume, which is what
+  lets `/data` be mounted `noexec` (security spec H3). `scripts/components.sh` is how an operator
+  looks at this; no tenant can, since the install route answers `403 install_disabled`.
+  Its `install` is a **repair**, not an upgrade path — it fetches only what does not load, so on a
+  healthy image it does nothing, and a new version comes in a new image. A repair needs an app
+  restart before the running process uses it.
+  See [`docs/internal/web-phase7-component-installer.md`](../docs/internal/web-phase7-component-installer.md)
+  and [`docs/internal/maps/component-installer.md`](../docs/internal/maps/component-installer.md).
 - **ffmpeg / ffprobe are not in the image.** The Edit desk degrades without them. Adding
   them is a migration-plan decision, not a silent `apt-get`.
 
@@ -534,7 +545,8 @@ matter:
 |---|---|
 | `DPSBUDDY_DOMAIN` | Public hostname Caddy serves and gets a certificate for |
 | `AGENTFORGE_SECRETS_KEY` | 32-byte hex wrap key for `settings.enc` and sealed prompts (`openssl rand -hex 32`). Generate once. Changing it makes the vault unreadable |
-| `AGENTFORGE_DATA_DIR` | `/data` — SQLite, settings, media, logs, components. On the volume |
+| `AGENTFORGE_DATA_DIR` | `/data` — SQLite, settings, media, logs. On the volume |
+| `AGENTFORGE_COMPONENTS_DIR` | `/opt/agentforge/components` — native components, on their own volume. Must not be inside `AGENTFORGE_DATA_DIR`: a server refuses to load a module from there |
 | `NODE_ENV` | `production` — anything else starts Vite dev middleware |
 | `PORT` | `3000` inside the container only |
 | `AGENTFORGE_RUNTIME` | `ai` or `stub`. `stub` answers without a model **and** disables the component installer's auto-download. Leave unset for normal gateway-first behaviour |

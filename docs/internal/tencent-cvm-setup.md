@@ -203,8 +203,8 @@ df -h /srv/dpsbuddy-data
 ```
 
 **The `chown` is not optional.** A fresh ext4 mount is `root:root 0755`, the container runs as `node`
-(`webapp-deploy/Dockerfile:85`) with `read_only: true`, and the image's own
-`chown -R node:node /data` (`Dockerfile:82`) is hidden the moment a bind mount covers `/data`. Without
+(`webapp-deploy/Dockerfile:121`) with `read_only: true`, and the image's own
+`chown -R node:node /data` (`Dockerfile:104`) is hidden the moment a bind mount covers `/data`. Without
 it the first boot dies with `EACCES` creating `agentforge.sqlite`, and all you see is a container that
 never goes healthy. `1000:1000` is the `node` user in `node:22-bookworm-slim`; `restore.sh:75-83` does
 the same `chown` after unpacking, for the same reason. Confirm it before you bring the stack up:
@@ -213,10 +213,13 @@ the same `chown` after unpacking, for the same reason. Confirm it before you bri
 stat -c '%u:%g %a %n' /srv/dpsbuddy-data    # expect 1000:1000 755
 ```
 
-`nodev` is in the flags on purpose. `noexec` is **not**, and must not be added yet: the component
-installer can load native modules out of `/data/components`, so `noexec` becomes safe only once
-security spec `H3` is signed off. The comment block in `webapp-deploy/compose.yml` says the same
-thing next to the volume definition.
+`nodev` is in the flags on purpose. `noexec` is **not** in the shipped flags, but since Phase 7 it is
+safe to add: in server mode the app refuses to load a native module out of anything inside
+`AGENTFORGE_DATA_DIR`, and components live on their own volume at `/opt/agentforge/components`
+instead (§12a below, and [`web-phase7-component-installer.md`](web-phase7-component-installer.md)).
+Add `noexec` to the flags, remount, then upload a `.docx` and confirm it still converts before you
+sign security spec `H3` off — that conversion is the thing `noexec` would break if anything were
+still executing out of `/data`.
 
 Then point the stack at this disk. In `webapp-deploy/compose.yml`, replace the named volume on the
 `app` service:
@@ -776,6 +779,64 @@ gets much smaller and **stops covering tenants' uploads**. The bucket is then th
 **versioning on** for the media bucket (as the backup bucket already has) and consider cross-region
 replication to `ap-singapore` for the media bucket too. The SQLite database, the per-tenant secrets
 and the job trees are still in the tarball.
+
+## 12a. Components on this server
+
+Native components — today just `anydoc`, the local document reader — are **the operator's, installed
+once per box**. A tenant cannot start one: `POST /api/v1/components/install/stream` answers
+`403 install_disabled` in server mode, for every caller including you, and the hosted app shows no
+install screen at all. Full record:
+[`web-phase7-component-installer.md`](web-phase7-component-installer.md).
+
+**The image already has it.** `webapp-deploy/Dockerfile` runs a check in its build stage that loads
+every required component the way a request would; if one does not load, the build fails. So a
+container that starts is a container that has `anydoc`. There is nothing to do on a fresh deploy.
+
+**Where it lives.** `/opt/agentforge/components`, on the `dpsbuddy-components` volume — deliberately
+not under `/data`. The app will not load a native module from inside `AGENTFORGE_DATA_DIR` in server
+mode, which is what makes the `noexec` mount in §4 possible.
+
+**Checking.** From the repository root on the CVM:
+
+```sh
+sh webapp-deploy/scripts/components.sh            # what this box has, and from where
+sh webapp-deploy/scripts/components.sh check      # the same, exit 1 if one is missing
+sh webapp-deploy/scripts/components.sh install    # repair: fetch anything that does not load
+```
+
+A healthy box prints `mode: server (AGENTFORGE_SERVER=1)` and
+`ok anydoc@<version> — bundled with the app (the container image, on a server)`.
+
+**A new version is a rebuild, full stop.** `install` is not an upgrade path and will not act as one.
+It fetches only what does **not load**, and on an image that passed the build check every component
+loads — so on a healthy box `install` prints
+`anydoc@<version> already loads … nothing to install` and exits 0. It cannot replace a working
+bundled copy with a newer manifest version, and it is not meant to: a version bump goes into the
+manifest, into a new image, through §11 like every other change.
+
+**When to run `install`.** One case: a container whose bundled copy is present but does **not** load
+on this machine — a corrupt layer, a binding built against the wrong libc, a platform package that
+resolved wrong. `status` shows `MISSING` while the image itself is otherwise fine. `install` then
+downloads the manifest's copy, with the same pinned URL and sha512 the desktop uses, into
+`/opt/agentforge/components`, and document reading works again without waiting for a rebuild.
+
+**After an install, restart the app.** The running process memoised its answer — including the
+failure — when it first tried to load the component, and only an in-process reset clears that;
+`components.sh` runs in a different process, so the server keeps using the reduced fallback reader
+until it restarts. The command says so when it actually installs something:
+
+```sh
+docker compose -f webapp-deploy/compose.yml restart app
+sh webapp-deploy/scripts/components.sh check     # expect `installed in the components root`
+```
+
+Then upload a `.docx` and confirm it converts — that is the proof, not the exit code.
+
+**Treat a repair as a symptom.** A box whose image lost `anydoc` will lose it again on the next
+deploy. Rebuild (§11) and read the build log for the check step; it names the component. `install`
+buys you the hours until that rebuild, nothing more.
+
+---
 
 ## 13. Rough monthly cost
 

@@ -16,7 +16,12 @@
  */
 import { createRequire } from "node:module";
 import { componentManifest } from "../components/manifest";
-import { componentRequireAnchor, componentRoot, hasComponentMarker } from "../components/paths";
+import {
+  componentRequireAnchor,
+  componentRoot,
+  downloadedComponentsAllowed,
+  hasComponentMarker,
+} from "../components/paths";
 import { FileExtractError } from "./errors";
 
 /** Spelled once, and only here: the loader below is the single require site for the converter. */
@@ -78,12 +83,23 @@ export function loadBundledAnydoc(): AnydocModule {
 }
 
 /**
- * The copy the first-run installer put in the data dir. Only ever tried when the completion marker
- * is there: a half-unpacked directory must look missing, not broken.
+ * The copy the installer put in the components root. Only ever tried when the completion marker is
+ * there: a half-unpacked directory must look missing, not broken.
+ *
+ * PHASE 7 — and only when the server is allowed to load from that root at all. On a desk and on
+ * webdev it always is. On a hosted server it is not, unless the operator has pointed
+ * `AGENTFORGE_COMPONENTS_DIR` at a directory outside the tenant data volume: `/data` is what every
+ * tenant writes into, and `createRequire`-ing a `.node` file out of it is the one thing standing
+ * between the deployment and a `noexec` mount (security spec H3). A refused root is reported as
+ * missing, exactly like an absent one, so the reduced local reader takes over and nothing throws at
+ * a request.
  */
 export function loadDownloadedAnydoc(): AnydocModule {
   const { version } = componentManifest("anydoc");
   const root = componentRoot("anydoc", version);
+  if (!downloadedComponentsAllowed()) {
+    throw new Error(`Loading components from ${root} is not allowed on this server`);
+  }
   if (!hasComponentMarker("anydoc", version, root)) {
     throw new Error(`No installed anydoc component at ${root}`);
   }

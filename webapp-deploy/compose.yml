@@ -29,6 +29,12 @@ services:
       NODE_ENV: production
       PORT: "3000"
       AGENTFORGE_DATA_DIR: /data
+      # Phase 7: the components root, deliberately NOT under /data. The image already carries
+      # anydoc; this directory only ever holds what `scripts/components.sh install` puts there
+      # between image builds. In server mode the host refuses to load a native module from inside
+      # AGENTFORGE_DATA_DIR at all, which is the precondition security spec H3 sets for mounting
+      # /data noexec.
+      AGENTFORGE_COMPONENTS_DIR: /opt/agentforge/components
       # Pinned here, NOT left to .env above, which is `required: false`. This one flag switches on
       # the session gate, CSRF, the Origin/Host allowlist, the HTTPS-only refusal, the rate limiters
       # and the mandatory wrap key (packages/core/src/server-mode.ts isServerMode). A missing .env
@@ -46,15 +52,20 @@ services:
       # into this process. The shell value wins; .env is the local/staging fallback.
       AGENTFORGE_SECRETS_KEY: ${AGENTFORGE_SECRETS_KEY:-}
 
-    # H2: the image is immutable at runtime. Everything the app writes - agentforge.sqlite,
-    # settings.enc, media/, edit/, datasets/, legal/, components/, logs/ - is under
-    # AGENTFORGE_DATA_DIR, which is the one writable mount.
+    # H2: the image is immutable at runtime. Everything a TENANT's work writes - agentforge.sqlite,
+    # settings.enc, media/, edit/, datasets/, legal/, logs/ - is under AGENTFORGE_DATA_DIR. Since
+    # Phase 7 there is a second writable mount, and only a second: /opt/agentforge/components, which
+    # holds executable content and belongs to the operator, never to a tenant. Nothing else in the
+    # container is writable.
     read_only: true
     tmpfs:
       - /tmp:mode=1777,size=512m,nosuid,nodev,noexec
 
     volumes:
       - dpsbuddy-data:/data
+      # Executable content, so this one may never be mounted noexec - which is exactly why it is a
+      # separate volume from the tenant data above rather than a directory inside it.
+      - dpsbuddy-components:/opt/agentforge/components
       # Production alternative (placement doc section 4): a dedicated 200 GB CBS Premium
       # SSD, separate from the system disk, mounted on the CVM and bind-mounted here.
       # Replace the named volume above with:
@@ -63,13 +74,16 @@ services:
       #     source: /srv/dpsbuddy-data
       #     target: /data
       #
-      # and mount the disk on the host with nodev, in /etc/fstab:
+      # and mount the disk on the host with nodev AND noexec, in /etc/fstab:
       #
-      #   /dev/vdb  /srv/dpsbuddy-data  ext4  defaults,nodev,noatime  0  2
+      #   /dev/vdb  /srv/dpsbuddy-data  ext4  defaults,nodev,noexec,noatime  0  2
       #
-      # noexec is NOT set yet: spec H3 allows it only once the component installer stops
-      # loading native modules out of /data/components. anydoc is baked into the image
-      # today, so that flag becomes safe as soon as H3 is signed off.
+      # noexec is correct as of Phase 7 and was not before it. The app used to install native
+      # modules into /data/components and load them from there; it now refuses to load one out of
+      # AGENTFORGE_DATA_DIR in server mode at all (packages/host/src/components/paths.ts,
+      # downloadedComponentsAllowed), and the components it does load live on the separate volume
+      # above. Spec H3 tracks the mount itself, which is an operator action on the CVM - see
+      # docs/internal/tencent-cvm-setup.md section 4.
 
     security_opt:
       - no-new-privileges:true
@@ -138,5 +152,6 @@ services:
 
 volumes:
   dpsbuddy-data:
+  dpsbuddy-components:
   caddy-data:
   caddy-config:

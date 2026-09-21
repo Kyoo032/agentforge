@@ -42,7 +42,7 @@ The move is **additive**. Nothing is deleted to make room for the server.
 | Selected desk is a file on disk, machine-wide | `selectedWorkspacePath` (`packages/host/src/workspace.ts:19-21`), read and written at `:12-40` (`workspace-id.txt`) | Per-session state, carried by the existing `WORKSPACE_COOKIE` (read at `http-adapter.ts:470`) and validated against the tenant's desks | 3 |
 | Media files land under the data dir, keyed by org | `packages/host/src/media-root.ts:4-8`; write at `packages/host/src/media.ts:86-92` | Per-tenant prefix under a storage interface; local disk stays the desktop backend. **Done in Phase 6**: `packages/host/src/tenant-storage.ts` | 6 |
 | Job output and scratch files are on disk | `packages/host/src/edit/ffmpeg/paths.ts:42-44` (`<dataDir>/edit/<projectId>`), `packages/host/src/datasets.ts:315-317`, `packages/host/src/legal/store.ts:306` | Same storage interface, tenant-prefixed; ffmpeg path allowlist re-derived per tenant | 6 |
-| Component installer writes native modules into the data dir on first run | `packages/host/src/components/paths.ts:36`, log at `components/log.ts:15-19`, one component (`components/types.ts:10`, `anydoc`) from a pinned registry URL (`components/manifest.ts:15`); routes at `packages/host/src/router.ts:228-229`, ungated on purpose (`handlers/components.ts:1-9`) | Installed **once per server** at image build or first boot, not per tenant and not from a browser request | 7 |
+| Component installer writes native modules into the data dir on first run | `packages/host/src/components/paths.ts:89-91` (root at `:51-54`), log at `components/log.ts:15-19`, one component (`components/types.ts:10`, `anydoc`) from a pinned registry URL (`components/manifest.ts:15`); routes at `packages/host/src/router.ts:279-280`, ungated on purpose (`handlers/components.ts:1-9`) | **Done in Phase 7**: installed once per server at image build, never per tenant and never from a browser request. `AGENTFORGE_COMPONENTS_DIR` (`components/paths.ts:51`) takes the root off the tenant volume, and a server refuses to load from inside the data dir (`:84`) | 7 |
 | Gateway gate trusts an unknown key on first run | `packages/host/src/gateway-gate.ts:274-276` — no state, or a fingerprint mismatch, returns `allowed: true` | Server-side the gate must fail closed for a tenant with no verified key; trust-on-first-run stays for the desktop | 5 |
 | Gate state is one JSON file per install | `packages/host/src/gateway-gate.ts:27` (`gateway-gate.json`), path at `:101-103`; 7-day grace at `:33`, 1-day OK TTL at `:42` | A row per tenant. Grace and TTL constants stay as-is | 4, 5 |
 | A missing gate payload fails **open** in the browser | `apps/web/lib/gateway-gate.ts:83-89` (`return isElectron ? "onboarding" : "app"`) | On the hosted build a missing gate must fail closed. This is the single highest-risk line in the renderer | 5 |
@@ -280,6 +280,15 @@ shared box that is a denial-of-service between paying customers, not a hypotheti
 ### Phase 7 — Component installer per server
 
 **Goal.** `anydoc` is present before the first request, installed once, by the operator.
+
+> **Landed.** See [`web-phase7-component-installer.md`](web-phase7-component-installer.md) and
+> [`maps/component-installer.md`](maps/component-installer.md) for what was actually built. Two
+> differences from the text below. The CLI is `scripts/components.ts` rather than an entry point
+> inside `install.ts`, so the image build can run it without importing a route's module graph; and
+> the phase also moved the components root off the tenant data volume
+> (`AGENTFORGE_COMPONENTS_DIR`, defaulting to the old path), which is what makes security spec H3's
+> `noexec` mount possible and was the reason H3 named this phase. The route's 403 was already there:
+> it landed in [PR #88](https://github.com/Kyoo032/agentforge/pull/88) as OWASP A01-3.
 
 **Files.** `packages/host/src/components/install.ts` gains a CLI entry that `webapp-deploy/`'s image
 build or entrypoint calls; `packages/host/src/router.ts:228-229` keeps `GET /api/v1/components` for

@@ -54,6 +54,7 @@ describe("componentStatus", () => {
       state: "ready",
       source: "bundled",
       auto: false,
+      managed: false,
       bytes: 0,
     });
   });

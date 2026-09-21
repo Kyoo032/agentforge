@@ -6,6 +6,7 @@
  * that to one of five states. A machine the manifest has no prebuilt for is `unsupported`, which is
  * an answer, not an error: `file-extract/fallback.ts` still reads the formats it always read.
  */
+import { isServerMode } from "@agentforge/core";
 import { manifestBytes, componentManifest, platformKey, platformPackage } from "./manifest";
 import type { ComponentManifestEntry } from "./manifest";
 import { loadAnydocFrom, resolveAnydoc } from "../file-extract/anydoc";
@@ -47,9 +48,14 @@ export function componentProbe(id: ComponentId): ComponentProbe {
  * False under the stub runtime and in any test / Playwright process: Cloud and CI must never reach
  * `registry.npmjs.org`, and a unit test that downloaded 8 MB would not be a unit test. An explicit
  * install request still works — `auto` gates the automatic first run, not the owner's button.
+ *
+ * PHASE 7 — also false on a hosted server, where there is no owner's button either. Components
+ * there are installed once per box by the operator (`components/server.ts`), the install route
+ * answers `install_disabled` (403), and a renderer that auto-started would only ever collect that
+ * 403 and show a tenant a failure about something the tenant cannot fix.
  */
 export function componentAutoInstallAllowed(env: NodeJS.ProcessEnv = process.env): boolean {
-  return env.AGENTFORGE_RUNTIME?.trim() !== "stub" && env.NODE_ENV !== "test";
+  return !isServerMode(env) && env.AGENTFORGE_RUNTIME?.trim() !== "stub" && env.NODE_ENV !== "test";
 }
 
 export type StatusOptions = {
@@ -65,8 +71,9 @@ export type StatusOptions = {
 export function componentStatus(id: ComponentId, options: StatusOptions = {}): ComponentStatus {
   const entry = options.manifest ?? componentManifest(id);
   const key = options.platform ?? platformKey();
-  const auto = componentAutoInstallAllowed(options.env ?? process.env);
-  const base = { id, version: entry.version, auto } as const;
+  const env = options.env ?? process.env;
+  const auto = componentAutoInstallAllowed(env);
+  const base = { id, version: entry.version, auto, managed: isServerMode(env) } as const;
 
   const source = (options.probe ?? componentProbe(id))();
   if (source) {

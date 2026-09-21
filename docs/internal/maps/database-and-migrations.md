@@ -304,7 +304,7 @@ a package script only, not exposed at the root (`packages/db/package.json:12`).
 `mkdirSync`, possibly a data wipe, the connection, the pragmas, the migrations (`:11-48`). Anything
 that only wants a *path* must import `@agentforge/db/vault-key` instead
 (`packages/db/package.json:8`), which is what the host does throughout
-(`packages/host/src/datasets.ts:5`, `packages/host/src/components/paths.ts:15`,
+(`packages/host/src/datasets.ts:5`, `packages/host/src/components/paths.ts:22`,
 `packages/host/src/components/log.ts:13`).
 
 **The data dir depends on the working directory.** The last fallback is

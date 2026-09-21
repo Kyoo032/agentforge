@@ -156,6 +156,7 @@ describe("installComponent", () => {
       state: "ready",
       source: "downloaded",
       auto: false,
+      managed: false,
       bytes: TOTAL_BYTES,
     });
     expect(calls(fetchImpl)).toHaveLength(2);

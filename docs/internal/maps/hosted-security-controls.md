@@ -42,7 +42,7 @@ Two things pin the flag on for a real deployment:
 
 | Where | What it does |
 |---|---|
-| `webapp-deploy/compose.yml:38` | `AGENTFORGE_SERVER: "1"` under `environment:`, which beats `env_file:` — and `.env` is `required: false`, so it can be absent |
+| `webapp-deploy/compose.yml:44` | `AGENTFORGE_SERVER: "1"` under `environment:`, which beats `env_file:` — and `.env` is `required: false`, so it can be absent |
 | `apps/web/server.ts:41` | `assertHostedModeCoherent(process.env)`, the first statement of `main()`, throws before `server.listen` if `NODE_ENV=production` and server mode is off |
 
 The second exists because the first only covers this compose file. A `NODE_ENV=production` build
