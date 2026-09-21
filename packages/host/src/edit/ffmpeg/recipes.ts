@@ -38,8 +38,9 @@ export function assertKnownRecipe(kind: string): asserts kind is RecipeKind {
   }
 }
 
+/** Whole milliseconds — a probed duration is fractional and `execFile` refuses a fractional timeout. */
 function timeoutForMedia(seconds: number): number {
-  return Math.max(15_000, 2 * seconds * 1000 + 30_000);
+  return Math.ceil(Math.max(15_000, 2 * seconds * 1000 + 30_000));
 }
 
 export type ProbeResult = {
