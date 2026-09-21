@@ -200,14 +200,16 @@ describe("0015_tenants on a fresh database", () => {
     // are the tenant's, not any one organization's, and the tenant is all a wrap-key rotation has
     // to walk. tenant_plan, tenant_seat and billing_events are Phase 5 lane B (0017): an
     // entitlement, a seat and a provider's delivery are all bought by the tenant, and none of them
-    // has an organization to be reached through. Nothing else is allowed to carry a second
-    // tenant_id.
+    // has an organization to be reached through. tenant_storage is Phase 6 (0019): how many bytes
+    // a tenant is holding is a property of the tenant, and the quota it feeds is per tenant, not
+    // per organization. Nothing else is allowed to carry a second tenant_id.
     expect(carriers.sort()).toEqual([
       "auth_sessions",
       "billing_events",
       "tenant_plan",
       "tenant_seat",
       "tenant_state",
+      "tenant_storage",
       "tenant_usage",
     ]);
   });

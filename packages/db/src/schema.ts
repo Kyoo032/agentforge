@@ -114,6 +114,33 @@ export const tenantState = sqliteTable(
 );
 
 /**
+ * How many bytes a tenant is holding (Phase 6, drizzle/0019_tenant_storage.sql). Read and written
+ * by `tenant-storage-store.ts` in `@agentforge/host`.
+ *
+ * A COUNTER, not a sum: it is maintained on every object write and delete, the same shape
+ * `tenantPlan.spentUsdMicros` has, because the alternative is a directory walk or a billed COS
+ * LIST on the upload path. `measuredAt` says when it was last reconciled against the backend
+ * itself; the backend is the truth and this is the cache of it.
+ *
+ * A tenant with NO row is holding nothing this host has counted. The desktop never has a row: its
+ * quota is `null` (`tenantStorageLimitBytes` off server mode) and its storage report measures the
+ * tree directly.
+ */
+export const tenantStorage = sqliteTable("tenant_storage", {
+  tenantId: text("tenant_id")
+    .primaryKey()
+    .notNull()
+    .references(() => tenants.id, { onDelete: "cascade" }),
+  /** Clamped at zero by the accounting: a double delete must not hand the tenant free space. */
+  bytesUsed: integer("bytes_used").notNull().default(0),
+  objectCount: integer("object_count").notNull().default(0),
+  measuredAt: integer("measured_at", { mode: "timestamp_ms" }),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+/**
  * What a tenant is entitled to: one row per tenant (Phase 5 lane B,
  * drizzle/0017_tenant_plan.sql). Read and written by `entitlement-store.ts` in `@agentforge/host`.
  *

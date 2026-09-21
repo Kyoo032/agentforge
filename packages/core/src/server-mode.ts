@@ -101,3 +101,29 @@ export function normaliseOrigin(value: string | null | undefined): string | null
   }
   return url.origin.toLowerCase();
 }
+
+/**
+ * Phase 6 — which backend holds a tenant's objects.
+ *
+ * `file` is the disk layout Phase 3 lane D established and the frozen desktop's only answer; `cos`
+ * is a Tencent COS bucket, keyed with the same `tenants/<id>/` prefixes. The picker is an
+ * environment variable read per call, exactly as `isServerMode()` is: the suites and `apps/web`
+ * both flip environment after the module graph is loaded, and a backend frozen at import time
+ * would answer for the mode the process started in.
+ *
+ * **Why this is its own variable rather than `AGENTFORGE_SERVER`.** A hosted server without a
+ * bucket is a real deployment — the runbook's own staging step, and the box as it stands today
+ * (`docs/internal/tencent-cvm-setup.md` §12: "Nothing in packages/host/src talks to COS") — and
+ * tying object storage to the server flag would have Phase 6 break every such box on upgrade. The
+ * operator turns COS on when the bucket is ready, and the desk can never turn it on by accident
+ * because the desk is not the one setting deployment environment.
+ *
+ * Unset, empty or anything unrecognised means `file`. There is no fallback in the other direction:
+ * once `cos` is configured the COS backend refuses rather than writing to the disk, because a
+ * silent fall back to a directory nobody backs up is how a tenant's uploads disappear.
+ */
+export type ObjectStorageKind = "file" | "cos";
+
+export function objectStorageKind(env: EnvLike = process.env): ObjectStorageKind {
+  return env.AGENTFORGE_STORAGE?.trim().toLowerCase() === "cos" ? "cos" : "file";
+}

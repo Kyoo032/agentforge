@@ -217,12 +217,18 @@ describe("0017_tenant_plan is in the committed migration set", () => {
     expect(whenOf("0017_tenant_plan")).toBeGreaterThan(whenOf("0016_tenant_usage"));
   });
 
-  it("sits last in the entries array, so array order and `when` order agree", () => {
+  it("sits after 0018 in the entries array, so array order and `when` order agree", () => {
     // The runner iterates the array, and `lastAppliedCreatedAt` is read once before the loop, so
     // the two orders agreeing is what keeps "read the journal top to bottom" an honest way to
     // understand what happens. The `idx` gap at 17 is cosmetic and stays that way.
+    //
+    // This asserts the ORDER rather than "0017 is the last entry", which is what it said when 0017
+    // was the newest migration in the repository. Phase 6's 0019 then made that line red without
+    // anything being wrong, and the obvious way to make a red like that go away is to delete it,
+    // taking the real rule with it. The rule is: ascending by `when`, and after 0018.
     const entries = journal().entries;
-    expect(entries[entries.length - 1]?.tag).toBe("0017_tenant_plan");
+    const tags = entries.map((entry) => entry.tag);
+    expect(tags.indexOf("0017_tenant_plan")).toBeGreaterThan(tags.indexOf("0018_tenant_state"));
     const whens = entries.map((entry) => entry.when);
     expect([...whens].sort((a, b) => a - b)).toEqual(whens);
   });

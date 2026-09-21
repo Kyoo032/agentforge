@@ -2,7 +2,8 @@ import { and, eq } from "drizzle-orm";
 import { ApiError, secondsToFrames, type Asset, type EditJobKind, type TenantContext } from "@agentforge/core";
 import { db, editCards, editJobs, editUnplaced } from "@agentforge/db";
 import { readMediaDataUrl } from "../media";
-import { mediaFilePath } from "../media-root";
+import { mediaRelativePath } from "../media-root";
+import { materializeTenantObject } from "../tenant-storage";
 import { withInlinedStill } from "./still-source";
 import { appendOps, foldProject, workerTenantId, workerWorkspaceId } from "./ops";
 import { editEvents } from "./events";
@@ -178,7 +179,7 @@ async function defaultRunner(
     if (!asset) {
       return { outputAssetIds: [] };
     }
-    const extracted = await extractAudio(assetAbsPath(tenantId, asset), scope);
+    const extracted = await extractAudio(await assetAbsPath(tenantId, asset), scope);
     await transcribeAudioChunks(extracted.files, (job.requestJson as { language?: string }).language, undefined, {
       tenantId,
       workspaceId: doc.workspaceId,
@@ -198,7 +199,7 @@ async function defaultRunner(
     }
     const asset = request.assetId ? doc.assets[request.assetId] : undefined;
     if (request.recipe === "silenceDetect" && asset) {
-      await silenceDetect(assetAbsPath(tenantId, asset), scope, doc.fps);
+      await silenceDetect(await assetAbsPath(tenantId, asset), scope, doc.fps);
     }
     onProgress(1);
     return { outputAssetIds: [] };
@@ -256,7 +257,11 @@ async function resolveGenerateAsset(
           asset: {
             id: assetId,
             kind,
-            storagePath: `edit/${job.projectId}/${assetId}.${ext}`,
+            // Phase 6: tenant-prefixed, like every other storage path since lane D. Before this
+            // it was a bare `edit/<projectId>/…`, which resolves under the media root's TOP level
+            // — inside the local tenant's subtree and outside every hosted tenant's, so a hosted
+            // tenant's generated asset was refused by its own containment check and answered 404.
+            storagePath: mediaRelativePath(tenantId, ["edit", job.projectId], `${assetId}.${ext}`),
           },
         },
       },
@@ -376,7 +381,7 @@ async function probeGeneratedMeta(
   scope: EditScope,
 ): Promise<Partial<Pick<Asset, "durationFrames" | "width" | "height" | "fps" | "hasAudio">>> {
   try {
-    const probed = await probe(mediaFilePath(scope.tenantId, storagePath), scope);
+    const probed = await probe(await materializeTenantObject(scope.tenantId, storagePath), scope);
     return {
       durationFrames: Math.max(1, secondsToFrames(probed.durationSeconds || 1 / 30, probed.fps || 30)),
       width: probed.width,

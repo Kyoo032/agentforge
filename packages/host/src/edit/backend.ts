@@ -74,7 +74,7 @@ export const hostEditBackend: EditToolBackend = {
     if (!asset) {
       return { error: "asset_not_found" };
     }
-    return probeFile(assetAbsPath(tenant.tenantId, asset), { tenantId: tenant.tenantId, projectId: project.id });
+    return probeFile(await assetAbsPath(tenant.tenantId, asset), { tenantId: tenant.tenantId, projectId: project.id });
   },
   async listIngredients(tenant): Promise<Ingredient[]> {
     const project = await hostEditBackend.getProject(tenant);
@@ -87,7 +87,7 @@ export const hostEditBackend: EditToolBackend = {
       return { ranges: [] };
     }
     return silenceDetect(
-      assetAbsPath(tenant.tenantId, asset),
+      await assetAbsPath(tenant.tenantId, asset),
       { tenantId: tenant.tenantId, projectId: project.id },
       project.fps,
       args.noiseDb,
@@ -101,7 +101,7 @@ export const hostEditBackend: EditToolBackend = {
       return { frames: [] };
     }
     return sceneDetect(
-      assetAbsPath(tenant.tenantId, asset),
+      await assetAbsPath(tenant.tenantId, asset),
       { tenantId: tenant.tenantId, projectId: project.id },
       project.fps,
       args.threshold,

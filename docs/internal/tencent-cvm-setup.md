@@ -701,26 +701,81 @@ notification clock — are in [`../../webapp-deploy/README.md`](../../webapp-dep
 
 ## 12. Phase 6: moving media to COS
 
-> **Not yet. This section is a placeholder to fill in when Phase 6 lands.** Everything below describes
-> intent, not something you can configure today. Nothing in `packages/host/src` talks to COS.
+> **The code is in; the switch is off by default.** Phase 6 put every tenant's media behind a storage
+> interface with a COS backend and a per-tenant quota
+> ([`web-phase6-tenant-storage.md`](web-phase6-tenant-storage.md),
+> [`maps/tenant-object-storage.md`](maps/tenant-object-storage.md)). A box that does nothing keeps
+> writing to the CBS disk exactly as before. This section is what to do when you want the bucket.
 
-Today media, uploads and job outputs are files under the data dir: `media/<orgId>/…`, plus `edit/`,
-`datasets/` and `legal/` scratch. They are on the CBS disk from step 4, they are in the hourly
-backup tarball, and they are the reason that tarball stops being workable as the disk grows.
+**What moves and what does not.** Media — uploads, generated images, video, music, meeting audio —
+becomes objects in `COS_MEDIA_BUCKET`, keyed `tenants/<tenantId>/<orgId>/<uuid>.<ext>`, which is the
+same string the on-disk layout already uses. **Job scratch stays on the disk**: ffmpeg and the SQL
+worker open files by path, so `edit/` and `datasets/` are still under the data dir, still one subtree
+per tenant. Both are counted against the same per-tenant ceiling.
 
-Phase 6 moves them behind a storage interface with a COS backend, keyed `tenants/<tenantId>/…`,
-delivered through short-lived pre-signed URLs, with a per-tenant quota reported back to the app. When
-it lands, this section gets:
+### a. Before you switch anything
 
-- the bucket and lifecycle settings for `COS_MEDIA_BUCKET` (already reserved in `.env.example`);
-- how to migrate the existing `media/` tree into the bucket without downtime;
-- what changes in `backup.sh`, which currently tars everything;
-- the per-tenant quota configuration.
+1. The media bucket from [§5](#5-secrets-cam-and-secrets-manager) step 5 already exists, private and
+   SSE-KMS. Add a **lifecycle rule** to abort incomplete multipart uploads after 7 days; leave the
+   objects themselves alone — a tenant's media has no expiry.
+2. Extend the CAM policy on the instance role so it covers the media bucket with `GetObject`,
+   `PutObject`, `HeadObject`, `DeleteObject` **and `GetBucket`** (the listing, which the quota's
+   recompute uses). Without `GetBucket`, uploads work and the usage recompute 403s.
+3. Set `COS_CAM_ROLE` in `.env` to that role's name. Leave `COS_SECRET_ID` and `COS_SECRET_KEY`
+   empty on the CVM — a long-lived key pair on the box is exactly what spec `S2` says not to have.
 
-The bucket from step 5 exists so that the CAM policy and the encryption settings are already right
-when that day comes. Until then it stays empty.
+### b. Copying the existing tree, without downtime
 
----
+Nothing migrates the tree for you, and an object that is not in the bucket answers **404** the moment
+you flip the switch. So copy first, flip second, and copy again:
+
+```bash
+# 1. First pass, while the app is still writing to disk. Minutes to hours, depending on size.
+coscli sync /srv/agentforge/data/media/ cos://$COS_MEDIA_BUCKET/ --recursive
+
+# 2. Stop the app, so nothing new lands on the disk.
+cd /srv/agentforge && docker compose stop app
+
+# 3. Second pass. Only what changed since the first one.
+coscli sync /srv/agentforge/data/media/ cos://$COS_MEDIA_BUCKET/ --recursive
+
+# 4. Flip the switch and start.
+sed -i 's/^AGENTFORGE_STORAGE=.*/AGENTFORGE_STORAGE=cos/' .env
+docker compose up -d app
+```
+
+**Do not delete the disk tree** until you have opened media for two different tenants in a browser
+and seen bytes. It costs disk and nothing else, and it is the only rollback: setting
+`AGENTFORGE_STORAGE` back to `file` restores the old behaviour exactly, as long as the files are
+still there.
+
+The app refuses to start serving objects if `AGENTFORGE_STORAGE=cos` and the bucket, region or
+credentials are missing (`storage_not_configured`). It never falls back to the disk — that is
+deliberate, and it is what stops a misconfigured deploy from quietly scattering a tenant's uploads
+into a directory the backup no longer covers.
+
+### c. The per-tenant quota
+
+`AGENTFORGE_TENANT_STORAGE_BYTES` is the ceiling in bytes, per tenant, counting the bucket **and** the
+on-disk job trees. The default is 20 GiB. `0`, `off`, `none` or `unlimited` switches it off; a value
+that cannot be parsed falls back to the default rather than to unlimited, so a typo cannot remove it.
+A write over the ceiling answers `403 storage_quota_exceeded` — its own code, not the gateway's, so
+the renderer shows a storage message rather than asking for an API key. `GET /api/v1/storage/usage`
+reports `usedBytes`, `limitBytes`, `percent` and a `storage_low` warning from 80%, and stays readable
+for a tenant that is already blocked.
+
+The byte counter lives in `tenant_storage` (migration `0019`) and is maintained on every write and
+delete. It is a cache of the bucket, not the authority: a tenant with no row is seeded from a real
+measure on first use, so upgrading over an existing tree does not declare it empty. If a counter ever
+drifts, `recomputeTenantStorage` re-measures that tenant from the backend.
+
+### d. What changes in `backup.sh`
+
+`backup.sh` still tars the data dir, which after the switch no longer holds media — so the tarball
+gets much smaller and **stops covering tenants' uploads**. The bucket is then the only copy, so turn
+**versioning on** for the media bucket (as the backup bucket already has) and consider cross-region
+replication to `ap-singapore` for the media bucket too. The SQLite database, the per-tenant secrets
+and the job trees are still in the tarball.
 
 ## 13. Rough monthly cost
 

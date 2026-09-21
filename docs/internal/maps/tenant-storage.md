@@ -9,6 +9,11 @@ files and four storage roots into per-tenant ones. This page is about **paths**:
 tenant's secrets, gateway verdict, usage log, media, datasets, matters and ffmpeg scratch land in, and
 what stops one tenant reaching another's.
 
+Phase 6 put the media half of this behind an object-storage interface with a COS backend and a
+per-tenant quota: that is [`tenant-object-storage.md`](tenant-object-storage.md), which depends on
+the rule below rather than replacing it. The paths on this page are still the paths, and a COS
+object key is the same string with slashes.
+
 It is **not** about who a request belongs to — that is [`tenant-resolution.md`](tenant-resolution.md),
 lane C — and not about row scoping in SQL, which is per table and lives in each subsystem's own map.
 
