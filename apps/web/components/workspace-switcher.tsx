@@ -14,9 +14,11 @@ type Props = {
   workspaceName: string;
   compact?: boolean;
   logoSrc?: string;
+  /** The product name, so the mark is announced rather than skipped. Never a hard-coded brand. */
+  logoAlt?: string;
 };
 
-export function WorkspaceSwitcher({ workspaceName, compact = false, logoSrc = "" }: Props) {
+export function WorkspaceSwitcher({ workspaceName, compact = false, logoSrc = "", logoAlt = "" }: Props) {
   const router = useRouter();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -156,7 +158,7 @@ export function WorkspaceSwitcher({ workspaceName, compact = false, logoSrc = ""
       >
         {compact ? (
           logoSrc ? (
-            <img src={logoSrc} alt="" className="h-5 w-5 object-contain" data-testid="product-logo" />
+            <img src={logoSrc} alt={logoAlt} className="h-5 w-5 object-contain" data-testid="product-logo" />
           ) : (
             <BrandMark size={20} className="text-[var(--accent)]" testId="product-logo" />
           )
