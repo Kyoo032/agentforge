@@ -8,7 +8,7 @@
  * The COS backend has its own file (`tenant-storage-cos.test.ts`). Everything here is the file
  * backend, the accounting and the rules that sit above both.
  */
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
@@ -518,5 +518,99 @@ describe("the backend picker", () => {
     // The failure this whole module exists to prevent: a hosted tenant silently writing to a
     // directory nobody backs up because the bucket was misconfigured.
     expect(() => storage.tenantObjectStore()).toThrow(/COS_MEDIA_BUCKET/);
+  });
+});
+
+/**
+ * The purge, against a tree somebody has planted a symlink in.
+ *
+ * The guard `removePrefix` had before this suite refused a link that pointed *outside* the media
+ * root — and every target worth pointing one at is inside it. A link at `tenants/<alpha>` aimed at
+ * `tenants/<beta>`, at `tenants/` itself, or at any other directory under the root passed the
+ * check and was deleted recursively, and the reset that drives it answered 200.
+ *
+ * The precondition is a symlink on the data volume, which is not something a tenant can write over
+ * the API — a restored backup archive is the realistic way one arrives. That is why these are unit
+ * tests against the backend rather than route tests: the shape is a filesystem shape, and the wall
+ * belongs in the function that calls `rm -rf`.
+ */
+describe("the purge and symlinks", () => {
+  /** Plant `<mediaRoot>/tenants/<id>` as a link to `target`, the way a bad restore would. */
+  function linkTenantRoot(tenantId: string, target: string): void {
+    const link = path.join(mediaRoot(), TENANTS_DIR, tenantId);
+    mkdirSync(path.dirname(link), { recursive: true });
+    rmSync(link, { recursive: true, force: true });
+    symlinkSync(target, link, "dir");
+  }
+
+  it("deletes its own subtree when nothing is linked", async () => {
+    await storage.putTenantObject(A, key(A, "org", "a.bin"), bytes(40), "application/octet-stream");
+    await storage.putTenantObject(B, key(B, "org", "b.bin"), bytes(60), "application/octet-stream");
+
+    expect(await storage.tenantObjectStore().removePrefix(A)).toEqual({ usedBytes: 40, objectCount: 1 });
+    expect(existsSync(path.join(mediaRoot(), key(A, "org", "a.bin")))).toBe(false);
+    // The neighbour is the control: if this ever goes red, the guard has stopped guarding.
+    expect(existsSync(path.join(mediaRoot(), key(B, "org", "b.bin")))).toBe(true);
+  });
+
+  it("refuses a tenant root linked to another tenant's, and deletes nothing", async () => {
+    await storage.putTenantObject(B, key(B, "org", "b.bin"), bytes(60), "application/octet-stream");
+    const betaRoot = path.join(mediaRoot(), TENANTS_DIR, B);
+    linkTenantRoot(A, betaRoot);
+
+    await expect(storage.tenantObjectStore().removePrefix(A)).rejects.toMatchObject({
+      code: "storage_purge_refused",
+    });
+    expect(existsSync(path.join(mediaRoot(), key(B, "org", "b.bin")))).toBe(true);
+  });
+
+  it("refuses a tenant root linked to the whole tenants directory", async () => {
+    await storage.putTenantObject(B, key(B, "org", "b.bin"), bytes(60), "application/octet-stream");
+    // The link has to be made somewhere else and moved in, because it points at its own parent.
+    const tenantsDir = path.join(mediaRoot(), TENANTS_DIR);
+    const link = path.join(tenantsDir, A);
+    rmSync(link, { recursive: true, force: true });
+    symlinkSync(tenantsDir, link, "dir");
+
+    await expect(storage.tenantObjectStore().removePrefix(A)).rejects.toMatchObject({
+      code: "storage_purge_refused",
+    });
+    expect(existsSync(path.join(mediaRoot(), key(B, "org", "b.bin")))).toBe(true);
+    expect(existsSync(tenantsDir)).toBe(true);
+  });
+
+  it("refuses a tenant root linked to the media root itself", async () => {
+    await storage.putTenantObject(LOCAL_TENANT_ID, "org/local.bin", bytes(30), "application/octet-stream");
+    linkTenantRoot(A, mediaRoot());
+
+    await expect(storage.tenantObjectStore().removePrefix(A)).rejects.toMatchObject({
+      code: "storage_purge_refused",
+    });
+    expect(existsSync(path.join(mediaRoot(), "org", "local.bin"))).toBe(true);
+  });
+
+  it("refuses a tenant root linked outside the media root", async () => {
+    const outside = path.join(dataDir, "not-media");
+    mkdirSync(outside, { recursive: true });
+    writeFileSync(path.join(outside, "keep.bin"), Buffer.from("not the store's"));
+    linkTenantRoot(A, outside);
+
+    await expect(storage.tenantObjectStore().removePrefix(A)).rejects.toMatchObject({
+      code: "storage_purge_refused",
+    });
+    expect(existsSync(path.join(outside, "keep.bin"))).toBe(true);
+    rmSync(outside, { recursive: true, force: true });
+  });
+
+  it("reports zero for a tenant with nothing on disk, and does not refuse", async () => {
+    expect(await storage.tenantObjectStore().removePrefix(A)).toEqual({ usedBytes: 0, objectCount: 0 });
+  });
+
+  it("refuses the local tenant outright, because its prefix is the whole store", async () => {
+    await storage.putTenantObject(LOCAL_TENANT_ID, "org/local.bin", bytes(30), "application/octet-stream");
+    await expect(storage.tenantObjectStore().removePrefix(LOCAL_TENANT_ID)).rejects.toMatchObject({
+      code: "storage_purge_refused",
+    });
+    expect(existsSync(path.join(mediaRoot(), "org", "local.bin"))).toBe(true);
   });
 });

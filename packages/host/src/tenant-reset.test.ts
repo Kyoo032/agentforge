@@ -15,7 +15,7 @@
  * - the tenant's very next request, which is the one that used to 403 with `org_inactive` when the
  *   re-provision step was left out.
  */
-import { mkdtempSync, existsSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, existsSync, mkdirSync, symlinkSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -37,7 +37,7 @@ import { createSession } from "./auth/session";
 import { createMemorySessionStore } from "./auth/session-store";
 import { mediaRelativePath } from "./media-root";
 import { tenantPurgeRoots } from "./tenant-reset";
-import { tenantDataDir } from "./tenant-paths";
+import { tenantDataDir, TENANTS_DIR } from "./tenant-paths";
 import {
   forgetTenantJobBytes,
   putTenantObject,
@@ -173,10 +173,6 @@ describe("POST /api/v1/settings/reset with scope tenant", () => {
   afterEach(() => {
     delete process.env.AGENTFORGE_SERVER;
     delete process.env.AGENTFORGE_TENANT_STORAGE_BYTES;
-  });
-
-  afterAll(() => {
-    rmSync(dataDir, { recursive: true, force: true });
   });
 
   it("erases the caller's rows, objects and local files", async () => {
@@ -362,4 +358,143 @@ describe("the local tenant can never be purged as a tenant", () => {
       expect(root).toContain(ALPHA.tenantId);
     }
   });
+});
+
+/**
+ * The route, against a data directory somebody has planted a symlink in.
+ *
+ * `removePrefix`'s own symlink shapes are proved in `tenant-storage.test.ts`; this is the other
+ * half of the same finding — step 4 of the reset, which deletes the five local roots — and it is
+ * proved through `dispatch` because the answer matters as much as the filesystem. Before the fix
+ * the route answered **200** with a `completed` audit row while the linked-to tree was gone, which
+ * is the worst possible pairing: the owner is told their account was erased cleanly and the thing
+ * that was actually erased belongs to somebody else.
+ */
+describe("the reset and symlinks", () => {
+  beforeEach(async () => {
+    process.env.AGENTFORGE_SERVER = "1";
+    const { db, ensurePortalOwner } = await import("@agentforge/db");
+    db.$client.prepare("DELETE FROM tenant_reset_audit").run();
+    resetObjectStoreForTests();
+    forgetTenantJobBytes();
+    await ensurePortalOwner(db, ALPHA);
+    await ensurePortalOwner(db, BETA);
+  });
+
+  afterEach(() => {
+    delete process.env.AGENTFORGE_SERVER;
+    rmSync(join(dataDir, TENANTS_DIR, ALPHA.tenantId), { recursive: true, force: true });
+  });
+
+  it("refuses when the tenant's data directory is a link to another tree, and keeps that tree", async () => {
+    // The media root is the realistic target: it is inside the data directory, so a guard that only
+    // asked "does this still resolve under the data directory?" said yes and deleted it.
+    const decoy = join(dataDir, "media", "org");
+    mkdirSync(decoy, { recursive: true });
+    writeFileSync(join(decoy, "everyones.bin"), Buffer.alloc(64, 1));
+
+    const link = join(dataDir, TENANTS_DIR, ALPHA.tenantId);
+    mkdirSync(join(dataDir, TENANTS_DIR), { recursive: true });
+    rmSync(link, { recursive: true, force: true });
+    symlinkSync(join(dataDir, "media"), link, "dir");
+
+    const result = await send("alpha", resetBody("tenant", RESET_CONFIRM_WORD));
+    expect(json(result).status).toBe(500);
+    expect(errorCode(result)).toBe("tenant_reset_refused");
+    expect(existsSync(join(decoy, "everyones.bin"))).toBe(true);
+
+    // And the audit row says `failed`, so the owner is not told a refused reset succeeded.
+    const rows = await audits(ALPHA.tenantId);
+    expect(rows.at(-1)?.outcome).toBe("failed");
+  });
+
+  it("refuses when the tenant's data directory is a link to another tenant's", async () => {
+    const betaRoot = join(dataDir, TENANTS_DIR, BETA.tenantId, "edit");
+    mkdirSync(betaRoot, { recursive: true });
+    writeFileSync(join(betaRoot, "beta.bin"), Buffer.alloc(32, 2));
+
+    const link = join(dataDir, TENANTS_DIR, ALPHA.tenantId);
+    rmSync(link, { recursive: true, force: true });
+    symlinkSync(join(dataDir, TENANTS_DIR, BETA.tenantId), link, "dir");
+
+    const result = await send("alpha", resetBody("tenant", RESET_CONFIRM_WORD));
+    expect(json(result).status).toBe(500);
+    expect(errorCode(result)).toBe("tenant_reset_refused");
+    expect(existsSync(join(betaRoot, "beta.bin"))).toBe(true);
+  });
+});
+
+/**
+ * Everybody else in the org, after an owner erases the account.
+ *
+ * The cascade from `organizations` takes `organization_members`, and step 6 re-provisions only the
+ * caller — so before this, every colleague's live session answered `403 user_inactive` on its next
+ * request, and when they signed in again the pre-Phase-3 "first signed-in user owns their own org"
+ * rule handed each of them `owner`. Erasing an account empties it; it must not re-staff it.
+ */
+describe("the reset and the other members", () => {
+  const COLLEAGUE = "reset-user-a-colleague";
+
+  async function memberRole(userId: string): Promise<string | null> {
+    const { db } = await import("@agentforge/db");
+    const row = db.$client
+      .prepare("SELECT role FROM organization_members WHERE organization_id = ? AND user_id = ?")
+      .get(ALPHA.orgId, userId) as { role?: string } | undefined;
+    return row?.role ?? null;
+  }
+
+  beforeEach(async () => {
+    process.env.AGENTFORGE_SERVER = "1";
+    const { db, ensurePortalOwner } = await import("@agentforge/db");
+    db.$client.prepare("DELETE FROM tenant_reset_audit").run();
+    resetObjectStoreForTests();
+    forgetTenantJobBytes();
+    await ensurePortalOwner(db, ALPHA);
+    // A second person on the same org, as a plain member rather than an owner. Inserted through
+    // drizzle because `user.created_at` and `user.updated_at` are NOT NULL with defaults applied in
+    // JS, so a raw `INSERT OR IGNORE` would skip the row and take the membership's foreign key
+    // down with it.
+    const { user } = await import("@agentforge/db");
+    await db
+      .insert(user)
+      .values({ id: COLLEAGUE, name: COLLEAGUE, email: `${COLLEAGUE}@example.invalid`, emailVerified: false })
+      .onConflictDoNothing();
+    db.$client
+      .prepare(
+        "INSERT OR IGNORE INTO organization_members (id, organization_id, user_id, role) VALUES (?, ?, ?, 'member')",
+      )
+      .run(`${COLLEAGUE}-membership`, ALPHA.orgId, COLLEAGUE);
+  });
+
+  afterEach(() => {
+    delete process.env.AGENTFORGE_SERVER;
+  });
+
+  it("puts the other members back with the roles they had", async () => {
+    expect(await memberRole(COLLEAGUE)).toBe("member");
+
+    const result = await send("alpha", resetBody("tenant", RESET_CONFIRM_WORD));
+    expect(json(result).status).toBe(200);
+
+    // Still a member, and still only a member: coming back as an owner would be a privilege
+    // escalation handed out by somebody else pressing a button in their own settings.
+    expect(await memberRole(COLLEAGUE)).toBe("member");
+    expect(await memberRole(ALPHA.userId)).toBe("owner");
+  });
+
+  it("is safe to run twice, and does not duplicate a membership row", async () => {
+    expect(json(await send("alpha", resetBody("tenant", RESET_CONFIRM_WORD))).status).toBe(200);
+    expect(json(await send("alpha", resetBody("tenant", RESET_CONFIRM_WORD))).status).toBe(200);
+
+    const { db } = await import("@agentforge/db");
+    const row = db.$client
+      .prepare("SELECT count(*) AS n FROM organization_members WHERE organization_id = ? AND user_id = ?")
+      .get(ALPHA.orgId, COLLEAGUE) as { n: number };
+    expect(row.n).toBe(1);
+    expect(await memberRole(COLLEAGUE)).toBe("member");
+  });
+});
+
+afterAll(() => {
+  rmSync(dataDir, { recursive: true, force: true });
 });

@@ -37,6 +37,7 @@ import {
   assertPurgeableTenant,
   isObjectKeyInsideTenant,
   tenantKeyPrefix,
+  withPurgeProgress,
   type ObjectHead,
   type TenantObjectStore,
 } from "./tenant-object-keys";
@@ -375,6 +376,21 @@ export function createCosObjectStore(options: CosClientOptions = {}): TenantObje
     tenantId: string,
     onOwned: ((key: string) => Promise<void>) | null,
   ): Promise<TenantStorageUse> => {
+    const done = { usedBytes: 0, objectCount: 0 };
+    try {
+      return await walkPrefixInner(tenantId, onOwned, done);
+    } catch (error) {
+      // What had actually gone before the bucket refused, so the reset's audit row reports a
+      // partial delete as a partial delete. See `withPurgeProgress`.
+      throw withPurgeProgress(error, done);
+    }
+  };
+
+  const walkPrefixInner = async (
+    tenantId: string,
+    onOwned: ((key: string) => Promise<void>) | null,
+    done: { usedBytes: number; objectCount: number },
+  ): Promise<TenantStorageUse> => {
     const prefix = tenantKeyPrefix(tenantId);
     let marker = "";
     let usedBytes = 0;
@@ -405,6 +421,10 @@ export function createCosObjectStore(options: CosClientOptions = {}): TenantObje
         objectCount += 1;
         if (onOwned) {
           await onOwned(entry.key);
+          // Counted only once the entry is really gone, so the partial totals a throw carries out
+          // name what was deleted rather than what was reached.
+          done.usedBytes += entry.sizeBytes;
+          done.objectCount += 1;
         }
       }
       if (xmlText(body, "IsTruncated") !== "true") {

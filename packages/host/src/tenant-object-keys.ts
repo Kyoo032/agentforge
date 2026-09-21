@@ -148,3 +148,45 @@ export interface TenantObjectStore {
   /** Where the object lives, for a log line or an error message. Never its bytes. */
   describe(tenantId: string, key: string): string;
 }
+
+/**
+ * How much a purge had already deleted when it threw.
+ *
+ * `removePrefix` returns its totals, and a throw returns nothing — so a backend that refuses half
+ * way through a prefix used to leave the reset's audit row reporting zero objects and zero bytes
+ * after some had actually gone. That row is the only record of a failed reset, and a row that says
+ * "nothing happened" about a partial delete is worse than no row: it is the one number an operator
+ * would use to decide whether a retry is safe, and it was wrong in the direction that matters.
+ *
+ * Carried on the error rather than returned, because the throw is the whole point — the caller
+ * must still fail — and a second return channel would mean every caller remembering to read it.
+ */
+const PURGE_PROGRESS = Symbol.for("agentforge.purgeProgress");
+
+/** Stamp what had gone onto the error on its way out of a purge. Returns the same error. */
+export function withPurgeProgress<E>(error: E, progress: TenantStorageUse): E {
+  if (typeof error === "object" && error !== null) {
+    Object.defineProperty(error, PURGE_PROGRESS, {
+      value: { usedBytes: progress.usedBytes, objectCount: progress.objectCount },
+      enumerable: false,
+      configurable: true,
+    });
+  }
+  return error;
+}
+
+/** What a failed purge had already deleted, or null when the error carries no count. */
+export function purgeProgressOf(error: unknown): TenantStorageUse | null {
+  if (typeof error !== "object" || error === null) {
+    return null;
+  }
+  const carried = (error as Record<symbol, unknown>)[PURGE_PROGRESS];
+  if (typeof carried !== "object" || carried === null) {
+    return null;
+  }
+  const { usedBytes, objectCount } = carried as Partial<TenantStorageUse>;
+  if (typeof usedBytes !== "number" || typeof objectCount !== "number") {
+    return null;
+  }
+  return { usedBytes, objectCount };
+}

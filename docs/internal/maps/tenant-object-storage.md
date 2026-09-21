@@ -26,7 +26,7 @@ money and bytes are two different ceilings with two different codes.
 rather than frozen at import because the suites and `apps/web` both set environment after the module
 graph is loaded. There is no per-tenant branch to get wrong and **no fallback at read time**: with
 `cos` set and the bucket unconfigured, `createCosObjectStore` throws
-(`packages/host/src/tenant-storage-cos.ts:88-104`) rather than handing back the disk. A silent fall
+(`packages/host/src/tenant-storage-cos.ts:89-105`) rather than handing back the disk. A silent fall
 back to a directory nobody backs up is the failure the module exists to prevent — the same shape
 Phase 4 gave `tenant-state-store.ts`.
 
@@ -50,7 +50,7 @@ tree rather than a rewrite of the database.
    `tenants/…`, which is `tenantDeniedRoots` as a string test. It runs before any IO in both
    backends, so a crafted key never becomes a request or an `open()`.
 2. **`resolveInsideTenantRoot`** (lane D, `packages/host/src/tenant-paths.ts`) — only the file
-   backend needs it, through `objectPath` (`packages/host/src/tenant-storage.ts:125-132`): a symlink
+   backend needs it, through `objectPath` (`packages/host/src/tenant-storage.ts:124-131`): a symlink
    planted inside a tenant's own subtree passes any lexical test while pointing anywhere on disk.
    COS has no symlinks, so there the first guard is the whole story.
 
@@ -61,17 +61,17 @@ A key that is not the caller's is a **404, not a 403** (`objectNotFound`,
 
 `POST /api/v1/media` → `handlePostMedia` → `saveMedia` (`packages/host/src/media.ts:67-108`) builds
 the key with `mediaRelativePath` and calls `putTenantObject`
-(`packages/host/src/tenant-storage.ts:445-462`), which does three things in this order and no other:
+(`packages/host/src/tenant-storage.ts:447-464`), which does three things in this order and no other:
 
 1. `head()` the key, so an overwrite is charged the difference rather than the whole object again.
-2. `assertStorageAdmits` (`packages/host/src/tenant-storage.ts:487-499`) — the check runs **before**
+2. `assertStorageAdmits` (`packages/host/src/tenant-storage.ts:489-501`) — the check runs **before**
    the write, so a refusal never leaves a partial object.
 3. `put()`, then `addTenantStorageBytes` (`packages/host/src/tenant-storage-store.ts:126-145`) — the
    counter moves only after the backend took the write, so a failed put never charges for bytes
    nobody stored.
 
-A read is `readTenantObjectRange` (`packages/host/src/tenant-storage.ts:592-598`) from
-`handleGetMediaFile` (`packages/host/src/handlers/media.ts:24-50`). The file backend streams only
+A read is `readTenantObjectRange` (`packages/host/src/tenant-storage.ts:594-600`) from
+`handleGetMediaFile` (`packages/host/src/handlers/media.ts:25-51`). The file backend streams only
 the requested bytes; the COS backend HEADs for the size and then GETs with a `Range` header.
 
 ### The quota
@@ -84,9 +84,9 @@ the requested bytes; the COS backend HEADs for the size and then GETs with a `Ra
 - **What is counted** is objects **plus** the job trees that stay on local disk under either backend
   because the processes that write them take paths: ffmpeg scratch, Knowledge uploads, dataset
   files, Meeting recordings and Legal matter files (`tenantJobRoots`,
-  `packages/host/src/tenant-storage.ts:306-328`). Objects are held in the counter row; the job trees
+  `packages/host/src/tenant-storage.ts:308-330`). Objects are held in the counter row; the job trees
   are walked and memoised for ten seconds (`measureTenantJobBytes`,
-  `packages/host/src/tenant-storage.ts:342-357`). Knowledge uploads moved out of the media root into
+  `packages/host/src/tenant-storage.ts:344-359`). Knowledge uploads moved out of the media root into
   `<tenantDataDir>/knowledge/` to get here: inside the media root the file backend measured them but
   no write moved the counter, so a tenant's number changed on an operator's recompute rather than on
   their own upload. The old location is still read by `deleteSource` and `reindexSource` so an
@@ -96,10 +96,10 @@ the requested bytes; the COS backend HEADs for the size and then GETs with a `Ra
   a 500 MB import queues nobody else, and per process — two hosts would still race, which is a
   conditional SQL update rather than a mutex.
 - **The counter is a cache, the backend is the truth.** A tenant with no row is seeded from a real
-  measure on first use (`objectUse`, `packages/host/src/tenant-storage.ts:412-430`) rather than from
+  measure on first use (`objectUse`, `packages/host/src/tenant-storage.ts:414-432`) rather than from
   zero, so an upgraded data volume is not declared empty; `recomputeTenantStorage`
-  (`packages/host/src/tenant-storage.ts:540-554`) is the operator's reconciliation.
-- **The refusal** is `StorageQuotaError` (`packages/host/src/tenant-storage.ts:446-456`): a flat 403
+  (`packages/host/src/tenant-storage.ts:542-556`) is the operator's reconciliation.
+- **The refusal** is `StorageQuotaError` (`packages/host/src/tenant-storage.ts:448-458`): a flat 403
   with code `storage_quota_exceeded`, the same shape as `GatewayBlockedError` and `PlanBlockedError`
   and deliberately a third code. `gateway_blocked` routes the renderer to the paste-your-key
   onboarding screen, which is a dead end for a tenant whose problem is that their prefix is full.
@@ -108,10 +108,10 @@ the requested bytes; the COS backend HEADs for the size and then GETs with a `Ra
 
 ### The COS backend
 
-`createCosObjectStore` (`packages/host/src/tenant-storage-cos.ts:290-563`) signs its own requests
+`createCosObjectStore` (`packages/host/src/tenant-storage-cos.ts:291-583`) signs its own requests
 rather than vendoring the SDK, because the adapter has to be provable against a stub in an
 environment that cannot reach Tencent. `signCosRequest`
-(`packages/host/src/tenant-storage-cos.ts:241-259`) is the v5 scheme:
+(`packages/host/src/tenant-storage-cos.ts:242-260`) is the v5 scheme:
 
 ```
 SignKey      = HMAC-SHA1(SecretKey, KeyTime)
@@ -124,7 +124,7 @@ Signature    = HMAC-SHA1(SignKey, StringToSign)
 because it changes which bytes come back and nothing about who may have them. Credentials come from
 `COS_SECRET_ID`/`COS_SECRET_KEY` or, in production, the CVM instance role via the metadata service,
 refreshed five minutes before expiry and only once per burst
-(`createCredentialProvider`, `packages/host/src/tenant-storage-cos.ts:118-190`).
+(`createCredentialProvider`, `packages/host/src/tenant-storage-cos.ts:119-191`).
 
 `measure` lists the tenant's prefix, following the marker through pages, and **filters every entry
 through `isObjectKeyInsideTenant`** — the local tenant's prefix is empty, so a plain listing would
@@ -132,7 +132,7 @@ bill it for the whole bucket.
 
 ### ffmpeg, which cannot be handed bytes
 
-`materializeTenantObject` (`packages/host/src/tenant-storage.ts:627-656`) is the one seam between an
+`materializeTenantObject` (`packages/host/src/tenant-storage.ts:629-658`) is the one seam between an
 object store and a process that takes a path. Under the file backend it returns the object's own
 resolved path and copies nothing. Under COS it downloads once into `tenantObjectCacheRoot`
 (`packages/host/src/tenant-paths.ts:104-106`), keyed by the SHA-256 of the key, reused while the size

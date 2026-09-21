@@ -187,13 +187,13 @@ Three cookies, one serialiser, one origin:
 | Cookie | Name(s) | Attributes | Set by |
 |---|---|---|---|
 | session | `__Host-agentforge_session` / `agentforge_session` (`packages/host/src/auth/session.ts:29-30`) | `HttpOnly; SameSite=Lax; Path=/; Secure` on the server | the auth routes (`packages/host/src/auth/routes.ts:192-205`) |
-| CSRF | `__Host-agentforge_csrf` / `agentforge_csrf` (`packages/host/src/csrf.ts:23`, `packages/host/src/csrf.ts:26`) | `Path=/; SameSite=Lax; Secure` on the server — deliberately **not** `HttpOnly` (`packages/host/src/csrf.ts:133-136`) | the adapter itself, on the first GET that arrives without one, or whose token is bound to a different session (`packages/host/src/http-adapter.ts:448-451`) |
-| workspace | `agentforge_workspace` (`packages/core/src/local-owner.ts:14`) | `SameSite=Strict; HttpOnly` by the serialiser's defaults (`packages/host/src/http-adapter.ts:215-216`) | handlers; read back into `request.workspaceId` (`packages/host/src/http-adapter.ts:489`) |
+| CSRF | `__Host-agentforge_csrf` / `agentforge_csrf` (`packages/host/src/csrf.ts:23`, `packages/host/src/csrf.ts:26`) | `Path=/; SameSite=Lax; Secure` on the server — deliberately **not** `HttpOnly` (`packages/host/src/csrf.ts:133-136`) | the adapter itself, on the first GET that arrives without one, or whose token is bound to a different session (`packages/host/src/http-adapter.ts:555-561`) |
+| workspace | `agentforge_workspace` (`packages/core/src/local-owner.ts:14`) | `SameSite=Strict; HttpOnly` by the serialiser's defaults (`packages/host/src/http-adapter.ts:248-249`) | handlers; read back into `request.workspaceId` (`packages/host/src/http-adapter.ts:603`) |
 
 The session cookie and the CSRF cookie make exactly the same `secure`-picks-the-name split, for the
 same reason, and neither reads the other's mode. They are otherwise independent controls in series:
 the CSRF double-submit check runs **in the adapter**, before dispatch, on every non-safe method
-(`packages/host/src/http-adapter.ts:546-551`, `packages/host/src/http-adapter.ts:539-562`), while the
+(`packages/host/src/http-adapter.ts:546-551`, `packages/host/src/http-adapter.ts:682-711`), while the
 session gate runs inside `dispatch`. **Since Phase 3 lane C the token is bound to the session**: it
 is `<salt>.<HMAC(key, sessionId.salt)>` rather than bare randomness
 (`mintCsrfTokenFor`, `packages/host/src/csrf.ts:87-90`; `sign`, `:56-58`), so a token minted for one

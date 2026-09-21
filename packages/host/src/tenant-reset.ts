@@ -29,7 +29,9 @@
  *    `organizations` row leaves every live session of this tenant resolving to `org_inactive`
  *    (`resolvePortalTenant` only ever reads — it provisions nothing), so without this the tenant
  *    is not reset, they are bricked until they sign out and back in. `ensurePortalOwner` writes
- *    the org back under the same id the session carries, with a fresh home desk.
+ *    the org back under the same id the session carries, with a fresh home desk — and then the
+ *    memberships read in step 2 go back with the roles they had, because that call re-members only
+ *    the caller and the org's other members would otherwise be locked out and return as owners.
  * 7. **The audit row again**, `completed`, with what actually went.
  *
  * ## Idempotent, and safe to retry after a partial failure
@@ -59,8 +61,8 @@ import { clearGatewayKeyEverywhere } from "./settings-store";
 import { clearThisKeyCache } from "./account-usage";
 import { resetEmbedCircuit } from "./knowledge-embed";
 import { resetJobModelCircuit } from "./job-model-fallback";
-import { assertPurgeableTenant } from "./tenant-object-keys";
-import { isInside, realPathOrNull, tenantDataDir, tenantScopedRoot } from "./tenant-paths";
+import { assertPurgeableTenant, purgeProgressOf } from "./tenant-object-keys";
+import { resolveTenantPurgeRoot, tenantScopedRoot } from "./tenant-paths";
 import { forgetTenantJobBytes, tenantObjectStore } from "./tenant-storage";
 
 /**
@@ -93,54 +95,111 @@ export type TenantResetOutcome = {
 };
 
 /**
- * Every directory outside the object store that holds this tenant's bytes.
+ * The shared roots that hold this tenant's bytes outside the object store.
+ *
+ * Shared roots rather than tenant paths, because the guard in `removeTenantRoot` canonicalises the
+ * root as well as the subtree and so has to be handed the root itself; `tenantPurgeRoots` below is
+ * the same list with the tenant's prefix applied, for callers that only want to name the paths.
  *
  * Lane D's layout, read back: a hosted tenant's files live under `tenants/<id>/` inside each shared
- * root. `tenantDataDir` covers the ffmpeg scratch, the knowledge uploads, the object cache and —
- * on a deployment that has not adopted the `tenant_state` rows — the settings envelope and the
- * gate verdict. The other four are the shared roots that are not the media root, which the object
- * store owns.
+ * root. The data directory itself covers the ffmpeg scratch, the knowledge uploads, the object
+ * cache and — on a deployment that has not adopted the `tenant_state` rows — the settings envelope
+ * and the gate verdict. The other four are the shared roots that are not the media root, which the
+ * object store owns.
  *
  * Declared here rather than derived from `tenantJobRoots` because the two answer different
  * questions: that one is "what does this tenant get charged for" (and deliberately excludes the
  * host's own object cache), this one is "what has to go". A byte the host cached on the tenant's
  * behalf is not the tenant's to be charged for and IS theirs to have deleted.
  */
-export function tenantPurgeRoots(tenantId: string): string[] {
+export function tenantPurgeSharedRoots(): string[] {
   const dataDir = localDataDir();
   return [
-    tenantDataDir(tenantId),
-    tenantScopedRoot(path.join(dataDir, "datasets"), tenantId),
-    tenantScopedRoot(path.join(dataDir, "meetings"), tenantId),
-    tenantScopedRoot(path.join(dataDir, "legal"), tenantId),
-    tenantScopedRoot(path.join(dataDir, "channels"), tenantId),
+    dataDir,
+    path.join(dataDir, "datasets"),
+    path.join(dataDir, "meetings"),
+    path.join(dataDir, "legal"),
+    path.join(dataDir, "channels"),
   ];
 }
 
+/** The same five roots, as the tenant-scoped directories they resolve to. */
+export function tenantPurgeRoots(tenantId: string): string[] {
+  return tenantPurgeSharedRoots().map((root) => tenantScopedRoot(root, tenantId));
+}
+
 /**
- * Remove one directory, having proved twice that it really is under the data directory.
+ * Remove one shared root's tenant subtree, having proved that it really is this tenant's.
  *
- * The spelling is checked by `isInside` and the inode by `realPathOrNull`, and a path that is
- * plainly the data directory itself is refused outright. This is the same two-step Phase 7 gave
- * `managedComponentsRoot` and `@agentforge/db`'s `removeEntry` gives a reset entry, and it exists
- * for the same reason: a symlink planted at `tenants/<id>/` passes any lexical test while pointing
- * at `/`, and this function's whole job is a recursive delete.
+ * The spelling is checked by `tenantScopedRoot` and the inode by `resolveTenantPurgeRoot`, which
+ * canonicalises the shared root as well as the candidate and requires the result to land inside
+ * `realpath(<root>)/tenants/<id>`. That last part is the whole check: a symlink planted at
+ * `tenants/<id>/` passes any lexical test while pointing anywhere, and — the case a guard written
+ * against the shared root alone lets through — the targets worth pointing it at are all *inside*
+ * that root. `tenants/<beta>`, `tenants/` and `<dataDir>/media` are each inside the data
+ * directory, so "does it still resolve under the data directory?" is a test they all pass.
+ *
+ * This function's whole job is a recursive delete, so it deletes the path it checked and refuses
+ * rather than guesses.
  */
-async function removeTenantRoot(root: string): Promise<void> {
-  const dataDir = path.resolve(localDataDir());
-  const resolved = path.resolve(root);
-  if (!isInside(dataDir, resolved)) {
-    throw new ApiError("tenant_reset_refused", "A per-tenant path resolved outside the data directory.", 500);
+async function removeTenantRoot(sharedRoot: string, tenantId: string): Promise<void> {
+  const target = resolveTenantPurgeRoot(sharedRoot, tenantId);
+  if (target.kind === "refused") {
+    throw new ApiError(
+      "tenant_reset_refused",
+      "A per-tenant path does not resolve inside this tenant's own subtree of the data directory.",
+      500,
+    );
   }
-  const real = realPathOrNull(resolved);
-  if (real === null) {
+  if (target.kind === "nothing") {
     // Nothing on disk at that path. Nothing to delete, and nothing to be wrong about.
     return;
   }
-  if (!isInside(dataDir, real) || real === dataDir) {
-    throw new ApiError("tenant_reset_refused", "A per-tenant path links outside the data directory.", 500);
+  await rm(target.path, { recursive: true, force: true });
+}
+
+/** One row of `organization_members`, kept across the purge so the account is not re-staffed. */
+type OrgMember = { readonly userId: string; readonly role: string };
+
+/**
+ * Who belonged to this org, read before the purge takes the rows.
+ *
+ * `organization_members` is in `CASCADED_TABLES` — SQLite deletes it when the `organizations` row
+ * goes — and nothing else records a role. Read it here or lose it.
+ */
+function readOrgMembers(organizationId: string): OrgMember[] {
+  const rows = sql
+    .prepare("SELECT user_id AS userId, role FROM organization_members WHERE organization_id = ?")
+    .all(organizationId) as Array<{ userId: string; role: string }>;
+  return rows.map((row) => ({ userId: row.userId, role: row.role }));
+}
+
+/**
+ * Put the memberships back after the re-provision, with the roles they had.
+ *
+ * The caller is skipped because `ensurePortalOwner` has already written their row, and it writes
+ * `owner` — which is what they were, since only an owner reaches this code at all.
+ *
+ * `INSERT OR IGNORE` against the `(organization_id, user_id)` unique index rather than a plain
+ * insert: this runs in the same retry-safe spirit as every other step, and a second pass over an
+ * account that is already re-membered must be a no-op rather than a constraint error. A member
+ * whose `user` row has since gone takes the foreign key with it, so the insert is per row and a
+ * failure on one is logged rather than allowed to fail a reset that has already succeeded.
+ */
+function restoreOrgMembers(organizationId: string, members: readonly OrgMember[], callerUserId: string): void {
+  const insert = sql.prepare(
+    "INSERT OR IGNORE INTO organization_members (id, organization_id, user_id, role) VALUES (?, ?, ?, ?)",
+  );
+  for (const member of members) {
+    if (member.userId === callerUserId) {
+      continue;
+    }
+    try {
+      insert.run(randomUUID(), organizationId, member.userId, member.role);
+    } catch (error) {
+      log.error("tenant_reset_membership_restore_failed", { organizationId, userId: member.userId, error });
+    }
   }
-  await rm(real, { recursive: true, force: true });
 }
 
 type AuditRow = {
@@ -228,7 +287,9 @@ export async function resetTenant(tenant: TenantContext, confirm: string | undef
   const totals = { rowsDeleted: 0, objectsDeleted: 0, bytesFreed: 0 };
   try {
     // 2. The rows, in one transaction. Nothing on disk has been touched yet, so a failure here
-    //    leaves the tenant exactly as they were.
+    //    leaves the tenant exactly as they were. The memberships are read first, because the
+    //    cascade from `organizations` takes them and step 6 puts back only the caller.
+    const members = readOrgMembers(tenant.organizationId);
     const purged = purgeTenantRows(sql, tenant.tenantId);
     totals.rowsDeleted = purged.rowsDeleted;
 
@@ -237,9 +298,10 @@ export async function resetTenant(tenant: TenantContext, confirm: string | undef
     totals.objectsDeleted = removed.objectCount;
     totals.bytesFreed = removed.usedBytes;
 
+
     // 4. The bytes the store does not hold.
-    for (const root of tenantPurgeRoots(tenant.tenantId)) {
-      await removeTenantRoot(root);
+    for (const root of tenantPurgeSharedRoots()) {
+      await removeTenantRoot(root, tenant.tenantId);
     }
     forgetTenantJobBytes(tenant.tenantId);
 
@@ -259,6 +321,13 @@ export async function resetTenant(tenant: TenantContext, confirm: string | undef
       orgId: tenant.organizationId,
       userId: tenant.userId,
     });
+    // ...and put everybody else back with the role they had. `ensurePortalOwner` re-members only
+    // the caller, so without this every colleague's live session answers `user_inactive` on its
+    // next request and — worse — the pre-Phase-3 rule that "the first signed-in user owns their
+    // own org" (`db/src/portal-owner.ts`) would hand each of them `owner` when they signed back
+    // in, which is a privilege escalation nobody asked for. Erasing an account empties it; it
+    // does not re-staff it.
+    restoreOrgMembers(tenant.organizationId, members, tenant.userId);
 
     closeAudit(audit, "completed", totals, null);
     log.warn("tenant_reset_completed", {
@@ -277,6 +346,14 @@ export async function resetTenant(tenant: TenantContext, confirm: string | undef
       workspaceId: provisioned.workspaceId,
     };
   } catch (error) {
+    // A backend that refused half way through the prefix carries out what it had already deleted,
+    // so the audit row reports a partial delete rather than the zero it would otherwise inherit
+    // from the assignment that never ran.
+    const partial = purgeProgressOf(error);
+    if (partial) {
+      totals.objectsDeleted = partial.objectCount;
+      totals.bytesFreed = partial.usedBytes;
+    }
     closeAudit(audit, "failed", totals, auditDetail(error));
     log.error("tenant_reset_failed", { tenantId: tenant.tenantId, auditId: audit.id, error });
     throw error;

@@ -28,9 +28,25 @@ tell policy from plumbing, and neither could the next person reading the code.
 directory, which on a hosted box is every tenant's data. It was correctly refused and nothing was
 offered in its place, so a tenant who wanted to clear their account had to ask an operator.
 
-**There was no health route.** The deploy probe was `host-status.json`
-(`apps/desktop/main.cjs`), a file written by the Electron shell that a hosted container does not
-have. The runbook's Caddy config and the compose file had nothing to point a healthcheck at.
+**There was no health route, and the container was probing a route that is not one.** The desktop's
+deploy probe is `host-status.json` (`apps/desktop/main.cjs`), a file written by the Electron shell
+that a hosted container does not have — so when #68 built the image it reached for the nearest
+thing that answered without a session and pointed the `HEALTHCHECK` at `GET /api/v1/components`
+(`webapp-deploy/Dockerfile`, documented at `webapp-deploy/README.md:72` and as check 1 of the
+runbook). That worked, and it was wrong in two ways worth naming, because this phase changes both:
+
+- **It had to stamp `x-forwarded-proto: https` on itself.** In server mode `rejectPlaintext`
+  answers `403 https_required` to everything without that header, on every path, so the probe
+  forged the proxy's own marking to get past a rule about the proxy. A probe written that way keeps
+  reporting healthy the day the proxy rule changes and no real request can get through — it proves
+  the app accepts the header, not that the app is alive. That is the whole reason `/healthz` gets a
+  carve-out from that one rule instead.
+- **It answered with the component list.** `/api/v1/components` reports component ids, states and
+  versions, and it is ungated by design so that a component can be installed before anyone has
+  pasted a key. Using it as the liveness probe left that reachable to anything that could reach the
+  port, for no reason beyond "it answers".
+
+Caddy had no `health_uri` at all, so nothing took a wedged app process out of rotation.
 
 **A tenant at the storage ceiling could neither see nor free space.** Phase 6 built the ceiling, the
 counter and `GET /api/v1/storage/usage`, and deliberately left that route readable while blocked —
@@ -128,6 +144,19 @@ Kept on purpose: `tenants`, `tenant_plan`, `tenant_seat`, `tenant_usage`, `billi
 `tenant_reset_audit`, and `auth_sessions` — a reset empties an account, it does not sign its people
 out, and it does not erase the invoice.
 
+**Keeping `auth_sessions` is not enough to keep anyone signed in, and that took a second pass to
+get right.** `organization_members` is in `CASCADED_TABLES`: SQLite deletes it with the org, and the
+re-provision in step 6 writes back only the caller's membership. So on the first cut of this phase
+every *other* member of the org answered `403 user_inactive` on their next request, and when they
+signed in again the pre-Phase-3 rule that "the first signed-in user owns their own org"
+(`packages/db/src/portal-owner.ts`) handed each of them `owner` — a privilege escalation handed out
+by somebody else pressing a button in their own settings. The fix is two lines of bookkeeping either
+side of the purge: read `organization_members` for the org before the transaction, and re-insert
+them with the roles they had after `ensurePortalOwner` returns. `INSERT OR IGNORE` against the
+`(organization_id, user_id)` unique index, so a retry is a no-op like every other step. Erasing an
+account empties it; it does not re-staff it. `tenant-reset.test.ts` → "the reset and the other
+members".
+
 ### Migration `0020_tenant_reset_audit`
 
 `when` 1788820000013, above 0019's. It exists because the reset destroys its own evidence. It hangs
@@ -156,6 +185,22 @@ upstream probe make. A liveness route that only answered through the proxy could
 orchestrator the app is dead while the proxy is up — the one failure it exists to catch. The
 carve-out is one path wide; anything else on a plaintext hop is still refused, and
 `http-adapter.test.ts` asserts both halves plus that the probe is still inside the per-IP bucket.
+
+**The alternative was what the image already did, and the carve-out exists so it can stop.** Since
+#68 the `HEALTHCHECK` stamped `x-forwarded-proto: https` on its own request — a probe forging the
+proxy's marking to get past a rule about the proxy. It works until the proxy rule changes, and then
+it reports healthy against a process no real request can reach. So this phase moves three places
+onto `/healthz` with no header at all:
+
+| File | Before | After |
+|---|---|---|
+| `webapp-deploy/Dockerfile` | `HEALTHCHECK` → `GET /api/v1/components`, `x-forwarded-proto: https` | `HEALTHCHECK` → `GET /healthz`, no headers |
+| `webapp-deploy/Caddyfile` | no active health checking | `health_uri /healthz`, `health_interval 10s` |
+| `docs/internal/tencent-cvm-setup.md` check 1 | "the header is what gets the probe past the transport filter" | the carve-out, and why a probe must not forge the header |
+
+`webapp-deploy/README.md` carries the same correction and a line for anyone redeploying an image
+built before this phase: the old probe still works, but rebuild, because it leaves the component
+list answering to anything that can reach the port.
 
 `GET /api/v1/health` — readiness. Session-gated, because it says what liveness refuses to: which
 backend, which components, ready or not. Three checks: `SELECT 1`; building the configured object
@@ -350,12 +395,20 @@ Nothing below has been run. Numbers 1–7 are kyo's machine; 8–14 need the CVM
 
 CVM, after the runbook's Phase 0 deploy:
 
-8. **The container healthcheck.** Add `HEALTHCHECK CMD curl -f http://127.0.0.1:3000/healthz` (or
-   the compose equivalent) and confirm Docker reports the container healthy, then `kill -STOP` the
-   app process and confirm it reports unhealthy. **This is the most valuable test in this list** —
-   it is the one the TLS carve-out exists for, and the cloud can only simulate the request shape.
-9. **Caddy's upstream probe.** Point it at `/healthz` and confirm no `https_required` in the app log
-   and no access-log line per probe.
+8. **The container healthcheck, on the rebuilt image.** The image already carries a `HEALTHCHECK`
+   and this PR changes it — `GET /healthz` with no headers, in place of `GET /api/v1/components`
+   with `x-forwarded-proto: https`. There is no curl in the image and none is wanted: it stays
+   `node -e fetch`. So: rebuild (`webapp-deploy/deploy.sh`), then `docker inspect --format
+   '{{.State.Health.Status}} {{len .State.Health.Log}}'` on the app container and confirm `healthy`
+   with the log growing; then `kill -STOP` the app process inside the container and confirm it goes
+   `unhealthy` within `interval × retries` (30s × 5); then `kill -CONT` and confirm it recovers.
+   Read `docker inspect --format '{{json .State.Health.Log}}'` and confirm no probe came back
+   `403 https_required`. **This is the most valuable test in this list** — it is the one the TLS
+   carve-out exists for, and the cloud can only simulate the request shape.
+9. **Caddy's upstream probe.** `health_uri /healthz` is now in the `Caddyfile`. Reload Caddy and
+   confirm `curl -s localhost:2019/reverse_proxy/upstreams` shows the upstream healthy, that the app
+   log has no `https_required` from it, and that the access log is not growing one line per probe
+   (the app answers `/healthz` before routing, so it writes none).
 10. **A reset on a tenant with real bytes under COS.** Sign in as a tenant with uploads, Knowledge
     sources and an Edit project; note the usage number; erase the account with the typed
     confirmation. Then: the storage number is zero, the COS prefix is empty, the tenant's plan, seat
@@ -396,6 +449,15 @@ it is a tidiness bug rather than a leak. It wants its own PR.
   retry test is what says that is safe.
 - `tenant_reset_audit` is never pruned. One row per reset is not a volume problem, but nothing
   deletes them either.
+- **The reset does not stop the tenant's in-flight jobs**, and the desk's `scope: "all"` does
+  (`killTrackedChildren`, `handlers/settings.ts`). It is left alone deliberately: the child-process
+  tracker is process-wide (`packages/host/src/child-processes.ts` keeps one set, with no tenant on
+  it), so calling it here would kill every *other* tenant's ffmpeg to tidy up after one — a worse
+  bug than the one it fixes. The consequence today is that an edit or meeting job still running
+  when its tenant resets writes into a purged tree and then throws on a job row the cascade took;
+  nothing asserts either way. The real fix is a tenant id on the tracked child, and it belongs with
+  whoever next touches `child-processes.ts`. **Owner: unassigned; raise with kyo at the Phase 8
+  handover.**
 - The storage card lists media rows only. Knowledge uploads, Edit job trees and meeting recordings
   count toward the ceiling and are not on the list, so a tenant whose bytes are mostly job trees
   sees a number they cannot act on. The usage line is still correct; the list is incomplete, and

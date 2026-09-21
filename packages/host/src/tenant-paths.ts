@@ -200,3 +200,58 @@ export function resolveInsideTenantRoot(root: string, tenantId: string, candidat
   }
   return real;
 }
+
+/**
+ * What a per-tenant purge may do with one shared root.
+ *
+ * Three answers rather than a boolean, because "there is nothing there" and "that is not yours"
+ * are different facts and a recursive delete has to treat them differently: the first is a no-op
+ * and the second is a refusal the operator has to see.
+ */
+export type TenantPurgeTarget =
+  /** Nothing exists at that path and nothing has to be deleted. */
+  | { readonly kind: "nothing" }
+  /** Something is there, but it is not this tenant's own subtree. Refuse; delete nothing. */
+  | { readonly kind: "refused" }
+  /** The canonical directory to delete. Delete THIS path, never the one that was looked up. */
+  | { readonly kind: "delete"; readonly path: string };
+
+/**
+ * The containment test for a path that is about to be deleted recursively.
+ *
+ * `resolveInsideTenantRoot` is the read-side twin and this is the write-side one, and the reason
+ * they are separate functions is the direction of the danger. A read that follows a link leaks one
+ * file; a recursive delete that follows a link takes a whole tree. So this one canonicalises **the
+ * root as well as the candidate** and requires the result to land inside this tenant's own subtree
+ * of the canonical root.
+ *
+ * That difference is the whole finding this function exists to close. Canonicalising only the
+ * candidate and asking "is it still under the shared root?" passes a symlink planted at
+ * `tenants/<alpha>/` that points at `tenants/<beta>/`, at `tenants/` itself, or at any other
+ * directory inside the root — every target that matters is *inside* the root, so a check that only
+ * refuses targets outside it refuses nothing. Resolving the root too means the comparison is
+ * between two canonical paths, and a link at `tenants/<alpha>` can no longer canonicalise to
+ * anything that is under `realpath(root)/tenants/<alpha>`.
+ *
+ * A root that is itself a symlink — `<dataDir>/media` pointed at a second volume, which is how a
+ * real deployment grows — still works, because the root is canonicalised before the comparison.
+ * A link one level up (`tenants/` moved to another volume) is refused, and that is deliberate: the
+ * safe way to move a root is to move the root.
+ */
+export function resolveTenantPurgeRoot(sharedRoot: string, tenantId: string): TenantPurgeTarget {
+  assertTenantId(tenantId);
+  if (isLocalTenant(tenantId)) {
+    // The local tenant's scoped root IS the shared root, so there is no subtree to delete and the
+    // only thing a purge could do here is take everybody's files. Callers refuse this earlier with
+    // a message of their own; this is the wall behind that one.
+    return { kind: "refused" };
+  }
+  const real = realPathOrNull(tenantScopedRoot(sharedRoot, tenantId));
+  if (real === null) {
+    return { kind: "nothing" };
+  }
+  if (!isInsideTenantRoot(realRoot(sharedRoot), tenantId, real)) {
+    return { kind: "refused" };
+  }
+  return { kind: "delete", path: real };
+}

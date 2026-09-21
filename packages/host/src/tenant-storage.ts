@@ -62,10 +62,9 @@ import {
 } from "./tenant-object-keys";
 import {
   assertTenantId,
-  isInside,
   isLocalTenant,
-  realPathOrNull,
   resolveInsideTenantRoot,
+  resolveTenantPurgeRoot,
   tenantDataDir,
   tenantObjectCacheRoot,
   tenantScopedRoot,
@@ -253,28 +252,31 @@ export const fileObjectStore: TenantObjectStore = {
   async removePrefix(tenantId) {
     assertPurgeableTenant(tenantId);
     const root = mediaRoot();
-    const scoped = tenantScopedRoot(root, tenantId);
-    // Measured before the delete, because after it there is nothing left to measure and the audit
-    // row is the only place this number ever appears.
-    const use = await walkBytes(scoped, []);
-    // Resolved for real before anything recursive happens: the name check above proves the
-    // spelling is this tenant's, and `realPathOrNull` proves the inode is, which is what stops a
-    // symlink planted at `tenants/<id>/` from turning a per-tenant purge into an `rm -rf` of
-    // wherever it points. Same two-step `managedComponentsRoot` uses (Phase 7) and `removeEntry`
-    // in `@agentforge/db`'s reset.
-    const real = realPathOrNull(scoped);
-    if (real === null) {
-      // Nothing on disk at that path. Nothing to delete, and nothing to be wrong about.
-      return { usedBytes: 0, objectCount: 0 };
-    }
-    if (!isInside(root, real) || real === path.resolve(root)) {
+    // Resolved before anything is measured or deleted: the name check above proves the spelling is
+    // this tenant's, and `resolveTenantPurgeRoot` proves the inode is, by canonicalising the media
+    // root as well as the path and requiring the result to land inside this tenant's own subtree
+    // of it. That is what stops a symlink planted at `tenants/<id>/` from turning a per-tenant
+    // purge into an `rm -rf` of wherever it points — including, and this is the case a check
+    // against the root alone misses entirely, another tenant's subtree or the whole `tenants/`
+    // directory, both of which are *inside* the root.
+    const target = resolveTenantPurgeRoot(root, tenantId);
+    if (target.kind === "refused") {
       throw new ApiError(
         "storage_purge_refused",
-        "This tenant's storage prefix does not resolve inside the media root, so it was not deleted.",
+        "This tenant's storage prefix does not resolve inside its own subtree of the media root, so it was not deleted.",
         500,
       );
     }
-    await rm(real, { recursive: true, force: true });
+    if (target.kind === "nothing") {
+      // Nothing on disk at that path. Nothing to delete, and nothing to be wrong about.
+      return { usedBytes: 0, objectCount: 0 };
+    }
+    // Measured on the canonical path and before the delete, because after it there is nothing left
+    // to measure and the audit row is the only place this number ever appears. Walking the path
+    // that was *checked* rather than the one that was looked up is the same rule as deleting it:
+    // a walk of an unresolved link measures 0 and would under-report a purge that then took bytes.
+    const use = await walkBytes(target.path, []);
+    await rm(target.path, { recursive: true, force: true });
     return use;
   },
 

@@ -69,7 +69,7 @@ hosted server alike, and webdev has "Start over" while the hosted server must no
 | Surface | Flag that hides it | Route that refuses it | Code | Test |
 |---|---|---|---|---|
 | Start over | `startOver` | `POST /api/v1/settings/reset` `scope: "all"` | `RESET_DISABLED_CODE` 403 (`packages/host/src/handlers/settings.ts:385`, refused in `resetEverything` at `:426`) | `packages/host/src/tenant-reset.test.ts` |
-| Erase account | `tenantReset` | same route, `scope: "tenant"` | `TENANT_RESET_DISABLED_CODE` 403 (`packages/host/src/tenant-reset.ts:77`, refused in `resetTenant` at `:207`) | `packages/host/src/tenant-reset.test.ts` |
+| Erase account | `tenantReset` | same route, `scope: "tenant"` | `TENANT_RESET_DISABLED_CODE` 403 (`packages/host/src/tenant-reset.ts:79`, refused in `resetTenant` at `:266`) | `packages/host/src/tenant-reset.test.ts` |
 | Native file picker | `nativeFilePicker` | — (renderer only; the import route is the control) | `apps/web/components/edit-studio.tsx` | `apps/web/lib/host-capabilities.test.tsx` |
 | Import by path | `localPaths` | `POST /api/v1/edit/projects/:projectId/import` with `sourcePath` | `LOCAL_PATH_DISABLED_CODE` 403 (`packages/host/src/handlers/edit.ts:197`, refused in `handlePostEditImport` at `:227`) | `packages/host/src/edit/local-path-refusal.test.ts` |
 | Component install | `componentInstall` | `POST /api/v1/components/install` | `install_disabled` 403 (Phase 7) | `packages/host/src/components/server.test.ts` |
@@ -86,19 +86,20 @@ than a hosted branch inside `"all"`, so an existing desk client's request never 
 neither target's button can reach the other's behaviour (`packages/host/src/handlers/settings.ts:491-494`;
 `RESET_SCOPES` in `apps/web/lib/reset-app.ts`).
 
-`resetTenant(tenant, confirm)` (`packages/host/src/tenant-reset.ts:206`) refuses in this order, and
+`resetTenant(tenant, confirm)` (`packages/host/src/tenant-reset.ts:265`) refuses in this order, and
 every refusal happens before anything is deleted:
 
-1. off server mode → `TENANT_RESET_DISABLED_CODE` 403 (`:207-209`)
-2. `tenant.role !== "owner"` → `TENANT_RESET_FORBIDDEN_CODE` 403 (`resetTenant`, `:213-215`) — never `gateway_blocked`
-3. wrong or missing confirmation → `invalid_request` 400 (`:216-220`)
+1. off server mode → `TENANT_RESET_DISABLED_CODE` 403 (`:266-268`)
+2. `tenant.role !== "owner"` → `TENANT_RESET_FORBIDDEN_CODE` 403 (`resetTenant`, `:272-274`) — never `gateway_blocked`
+3. wrong or missing confirmation → `invalid_request` 400 (`:275-279`)
 4. `assertPurgeableTenant(tenant.tenantId)` (`packages/host/src/tenant-object-keys.ts:96`) → the
    local tenant's prefix is the whole store, so a mis-resolved id hits a wall before the `rm -rf`
 
-Then, in order (`:227-262`): open an audit row as `started` → `purgeTenantRows` in one transaction →
+Then, in order (`:286-347`): open an audit row as `started` → `purgeTenantRows` in one transaction →
 `removePrefix` through the configured store → the local job trees → forget the memoised job bytes →
 clear the gateway key, the gate verdict and the circuit breakers → **`ensurePortalOwner` to put the
-account back** → close the audit as `completed`. A throw closes it `failed` with a category-only
+account back, then `restoreOrgMembers` to put everybody else back with their roles** → close the
+audit as `completed`. A throw closes it `failed` with a category-only
 `detail` and rethrows.
 
 Step 6 is not optional. `resolvePortalTenant` only reads, so a reset that deleted `organizations`
@@ -118,6 +119,14 @@ take the rest, then the tenant-scoped tables — all inside one `sql.transaction
 Kept on purpose: `tenants`, `tenant_plan`, `tenant_seat`, `tenant_usage`, `billing_events`,
 `tenant_reset_audit`, and `auth_sessions` — a reset empties an account, it does not sign its people
 out.
+
+Keeping `auth_sessions` is not on its own enough to keep them signed in: `organization_members` is
+cascaded, and a session whose membership row is gone resolves to `user_inactive`. So `resetTenant`
+reads the org's memberships before the purge (`readOrgMembers`) and re-inserts them with their roles
+after `ensurePortalOwner` (`restoreOrgMembers`), `INSERT OR IGNORE` so a retry is a no-op. Without
+that, every other member is locked out until they sign in again — and comes back as an **owner**,
+because the `organizationMembers` insert in `ensurePortalOwner`
+(`packages/db/src/portal-owner.ts:131-138`) gives a member with no membership row the `owner` role.
 
 `rowsDeleted` counts only the rows the purge's own statements deleted, not the cascade, so it is a
 floor (`packages/db/src/tenant-purge.ts:189-193`).
@@ -148,6 +157,11 @@ is exempt from is the TLS hop (`rejectPlaintext`, `:388`; `allowPlaintext` in `t
 upstream probe hit the app's loopback port with no proxy in front of them, and a probe that refused
 them could not tell an orchestrator the app is dead while the proxy is up. The carve-out is one path
 wide — anything else on a plaintext hop is still `https_required`.
+
+That carve-out is what lets the deploy tree stop forging the header. Since #68 the image's
+`HEALTHCHECK` stamped `x-forwarded-proto: https` on its own request and probed `/api/v1/components`;
+Phase 8 points it, Caddy's new `health_uri` and runbook check 1 at `/healthz` with no headers
+(`webapp-deploy/Dockerfile`, `webapp-deploy/Caddyfile`, `docs/internal/tencent-cvm-setup.md`).
 
 **`GET /api/v1/health` — readiness.** `handleGetHealth` (`packages/host/src/handlers/health.ts:187`),
 session-gated, reporting `ready`, `mode`, `capabilities` and three checks:
@@ -192,7 +206,7 @@ its bytes after tenant B has been through the whole table with A's id.
 test (`bytes_used + ? <= ?`), so SQLite evaluates it against the row under the row's own lock and
 `changes()` is the verdict. It replaces Phase 6's per-tenant promise chain, which held for one
 process and said so in its own comment; the CVM runbook's scaling step is a second app container
-behind the same Caddy. `putTenantObject` (`packages/host/src/tenant-storage.ts:538`) seeds the
+behind the same Caddy. `putTenantObject` (`packages/host/src/tenant-storage.ts:540`) seeds the
 counter row from a real measure first, subtracts the measured job trees to get the budget, reserves,
 and refunds with a negated delta if the put then fails.
 
@@ -205,6 +219,8 @@ and refunds with a negated delta if the put then fails.
 | `apps/web/lib/host-ping.ts` | One memoised `GET /api/v1/ping` for every provider that reads it |
 | `apps/web/lib/host-capabilities.tsx` | The context, the closed default, the two bridge-ANDed tests |
 | `packages/host/src/tenant-reset.ts` | The host half of the account erase: the refusals, the order, the audit |
+| `packages/host/src/tenant-paths.ts` | `resolveTenantPurgeRoot` — the containment test in front of every recursive delete |
+| `packages/host/src/tenant-object-keys.ts` | `assertPurgeableTenant`, and the partial totals a failed purge carries out |
 | `packages/db/src/tenant-purge.ts` | Which tables a reset takes, as a classification with a completeness test |
 | `packages/db/drizzle/0020_tenant_reset_audit.sql` | The audit table; healer mirror in `ensure-schema.ts` |
 | `packages/host/src/handlers/health.ts` | The liveness constants and the readiness route |
@@ -215,6 +231,7 @@ and refunds with a negated delta if the put then fails.
 | `packages/host/src/tenant-storage-store.ts` | `reserveTenantStorageBytes`, the conditional update |
 | `apps/web/components/settings-storage-card.tsx` | The usage screen and the per-object delete |
 | `apps/web/components/settings-reset-card.tsx` | Both resets, each behind its own flag |
+| `webapp-deploy/Dockerfile`, `webapp-deploy/Caddyfile` | Where the deploy tree probes `/healthz` from |
 
 ## Gotchas
 
@@ -228,8 +245,20 @@ and refunds with a negated delta if the put then fails.
 - **The reset keeps the money.** `tenant_plan`, `tenant_seat`, `tenant_usage` and `billing_events`
   survive. A tenant who erases their account is not erasing their invoice, and the allowance they
   have already spent does not come back.
-- **The reset does not sign anyone out.** `auth_sessions` is kept, and step 6 re-provisions the org
-  under the same id, so the tab that pressed the button keeps working.
+- **The reset does not sign anyone out — but it takes two steps, not one.** `auth_sessions` is
+  kept and step 6 re-provisions the org under the same id, so the tab that pressed the button keeps
+  working. Everybody *else* needs `restoreOrgMembers` as well, because their membership row goes
+  with the cascade; drop that call and the whole org is locked out and returns as owners.
+- **The purge guard compares two canonical paths, not one.** `resolveTenantPurgeRoot`
+  (`packages/host/src/tenant-paths.ts`) canonicalises the shared root as well as the candidate and
+  requires the result to land inside `realpath(<root>)/tenants/<id>`. A guard that canonicalises
+  only the candidate and asks "is it still under the root?" refuses nothing that matters: a symlink
+  at `tenants/<alpha>` pointing at `tenants/<beta>`, at `tenants/` or at the media root is *inside*
+  the root in every case. Both callers (`removePrefix` and `removeTenantRoot`) then delete the path
+  they checked, never the one they looked up.
+- **The reset does not stop in-flight jobs**, unlike the desk's `scope: "all"`, which calls
+  `killTrackedChildren`. The tracker is process-wide with no tenant on it, so calling it here would
+  kill every other tenant's ffmpeg. Open item in the lane record §9.
 - **`/healthz` answers on a plaintext hop and nothing else does.** If a future change moves the
   liveness test above `transportRejection`, the rate limiter stops covering it.
 - **Readiness does not reach the bucket.** A bucket that exists but refuses this key is what the
