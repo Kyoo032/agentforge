@@ -32,6 +32,35 @@
   "settings": "Settings",
   "model": "Model",
   "delete": "Delete",
+  "record": {
+    "start": "Record",
+    "stop": "Stop",
+    "pause": "Pause",
+    "resume": "Resume",
+    "requesting": "Waiting for permission…",
+    "stopping": "Finishing the recording…",
+    "source": "Capture",
+    "sourceMic": "Microphone",
+    "sourceTab": "Microphone + tab audio",
+    "sourceTabHint": "Pick the tab your online meeting is in and tick “Share tab audio”, so the other people are recorded too.",
+    "capped": "The 25 MB limit was reached, so the recording stopped there. Everything up to that point was kept.",
+    "dismiss": "Dismiss",
+    "queued": "The recording is waiting to be uploaded…",
+    "uploadFailed": "That recording was not uploaded. It is still here, so try again or save it to your device.",
+    "retryUpload": "Retry upload",
+    "saveToDevice": "Save to device",
+    "errors": {
+      "insecure_context": "Recording needs a secure page (https, or localhost). Upload a file instead.",
+      "unsupported_browser": "This browser cannot record audio. Use Chrome or Edge, or upload a file instead.",
+      "permission_denied": "The microphone was blocked. Allow it in the browser's site settings, then try again.",
+      "no_device": "No microphone was found. Plug one in, or upload a file instead.",
+      "display_unsupported": "This browser cannot share tab audio. Record the microphone alone instead.",
+      "display_cancelled": "Nothing was shared, so the recording did not start.",
+      "display_no_audio": "That share carried no audio. Share a tab and tick “Share tab audio”, or record the microphone alone.",
+      "recorder_failed": "The recording stopped unexpectedly. Try again, or upload a file instead.",
+      "empty_recording": "Nothing was captured. Check that the right microphone is selected, then try again."
+    }
+  },
   "minutes": {
     "attendees": "Attendees",
     "decisions": "Decisions",
@@ -48,6 +77,7 @@
     "upload": "Could not upload that recording.",
     "transcript": "Could not save that transcript.",
     "run": "Could not produce the minutes.",
-    "load": "Could not load meetings."
+    "load": "Could not load meetings.",
+    "noMeeting": "Choose a meeting first, then this recording can be uploaded."
   }
 }

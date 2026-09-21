@@ -32,6 +32,35 @@
   "settings": "Settings",
   "model": "Model",
   "delete": "Hapus",
+  "record": {
+    "start": "Rekam",
+    "stop": "Berhenti",
+    "pause": "Jeda",
+    "resume": "Lanjutkan",
+    "requesting": "Menunggu izin…",
+    "stopping": "Menyelesaikan rekaman…",
+    "source": "Sumber suara",
+    "sourceMic": "Mikrofon",
+    "sourceTab": "Mikrofon + suara tab",
+    "sourceTabHint": "Pilih tab tempat rapat daring berlangsung dan centang “Share tab audio”, supaya suara peserta lain ikut terekam.",
+    "capped": "Batas 25 MB tercapai, jadi rekaman berhenti di situ. Semua yang sudah terekam tetap tersimpan.",
+    "dismiss": "Tutup",
+    "queued": "Rekaman menunggu giliran untuk diunggah…",
+    "uploadFailed": "Rekaman itu belum terunggah. Rekamannya masih ada, jadi coba lagi atau simpan ke perangkat Anda.",
+    "retryUpload": "Coba unggah lagi",
+    "saveToDevice": "Simpan ke perangkat",
+    "errors": {
+      "insecure_context": "Merekam memerlukan halaman yang aman (https, atau localhost). Unggah berkas saja.",
+      "unsupported_browser": "Peramban ini tidak bisa merekam audio. Pakai Chrome atau Edge, atau unggah berkas saja.",
+      "permission_denied": "Mikrofon diblokir. Izinkan lewat pengaturan situs di peramban, lalu coba lagi.",
+      "no_device": "Mikrofon tidak ditemukan. Pasang satu, atau unggah berkas saja.",
+      "display_unsupported": "Peramban ini tidak bisa membagikan suara tab. Rekam mikrofon saja.",
+      "display_cancelled": "Tidak ada yang dibagikan, jadi perekaman tidak dimulai.",
+      "display_no_audio": "Yang dibagikan tidak membawa suara. Bagikan tab lalu centang “Share tab audio”, atau rekam mikrofon saja.",
+      "recorder_failed": "Perekaman berhenti tiba-tiba. Coba lagi, atau unggah berkas saja.",
+      "empty_recording": "Tidak ada suara yang terekam. Pastikan mikrofon yang benar dipilih, lalu coba lagi."
+    }
+  },
   "minutes": {
     "attendees": "Peserta",
     "decisions": "Keputusan",
@@ -48,6 +77,7 @@
     "upload": "Rekaman itu tidak dapat diunggah.",
     "transcript": "Transkrip itu tidak dapat disimpan.",
     "run": "Notulen tidak dapat dibuat.",
-    "load": "Daftar rapat tidak dapat dimuat."
+    "load": "Daftar rapat tidak dapat dimuat.",
+    "noMeeting": "Pilih rapat dulu, baru rekaman ini bisa diunggah."
   }
 }

@@ -6,11 +6,15 @@ import type { MeetingMinutes, MeetingTranscript } from "@agentforge/core/meeting
 import { Link } from "@/lib/nav";
 import { JobProgressList } from "@/components/job-progress";
 import { MeetingMinutesView } from "@/components/meeting-minutes-view";
+import { MeetingRecorderPanel } from "@/components/meeting-recorder";
 import { ModelSelect } from "@/components/model-select";
 import { apiFetch } from "@/lib/api-client";
 import { t } from "@/lib/i18n";
+import { postMeetingRecording, saveClipToDevice, type UploadOutcome } from "@/lib/meeting-upload";
 import { useJobModel } from "@/lib/use-job-model";
 import { useJobStream } from "@/lib/use-job-stream";
+import { useMeetingRecorder } from "@/lib/use-meeting-recorder";
+import { useMeetingUpload } from "@/lib/use-meeting-upload";
 
 type MinutesRecord = {
   locale: AppLocale;
@@ -72,8 +76,12 @@ export function MeetingStudio() {
   const [error, setError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
   const job = useJobStream<Meeting>();
+  const recorder = useMeetingRecorder();
 
   const selected = meetings.find((meeting) => meeting.id === selectedId) ?? null;
+  // Read by `sendRecording`, which the upload controller may call a render after it was built.
+  const selectedRef = useRef<Meeting | null>(selected);
+  selectedRef.current = selected;
 
   const load = useCallback(async () => {
     try {
@@ -93,6 +101,44 @@ export function MeetingStudio() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  /**
+   * A finished recording takes exactly the path a chosen file does — same route, same "file" field,
+   * same `merge`, so the Run button lights up for a recording the way it does for an upload.
+   *
+   * What differs is who holds the bytes. `MeetingUploadController` does, from the moment the clip
+   * is offered until the host answers 2xx; this studio only says which meeting it goes to and when
+   * it is busy. Clearing the recorder before the POST, which is what this used to do, destroyed the
+   * only copy of an hour of audio whenever that POST failed — see `@/lib/meeting-upload`.
+   */
+  const upload = useMeetingUpload(sendRecording);
+
+  const { clip: recordedClip, clearClip, status: recorderStatus } = recorder;
+  const { offer: offerClip, setBlocked, recordingStarted } = upload;
+
+  useEffect(() => {
+    if (!recordedClip) {
+      return;
+    }
+    // Ownership moves first; only then is the recorder's copy dropped.
+    offerClip(recordedClip);
+    clearClip();
+  }, [recordedClip, clearClip, offerClip]);
+
+  // Busy is a queue, not a bin: a clip offered mid-upload waits here instead of being dropped.
+  useEffect(() => {
+    setBlocked(busy !== null || !selected);
+  }, [setBlocked, busy, selected]);
+
+  // A new recording replaces the last one's size-cap notice; nothing else clears it but Dismiss.
+  useEffect(() => {
+    if (recorderStatus === "requesting-permission" || recorderStatus === "recording") {
+      recordingStarted();
+    }
+  }, [recorderStatus, recordingStarted]);
+
+  /** True while the microphone is open: choosing a file mid-recording would fight it for the slot. */
+  const recording = recorderStatus !== "idle" && recorderStatus !== "error";
 
   /** Replace one meeting in place so the list does not jump while a job is running. */
   function merge(meeting: Meeting) {
@@ -132,27 +178,43 @@ export function MeetingStudio() {
     }
   }
 
-  async function onUpload(file: File) {
-    if (!selected || busy) {
-      return;
+  /**
+   * The one sender, for a chosen file and for a recording alike.
+   *
+   * It reports rather than decides: the outcome goes back to whoever asked, so the file input can
+   * put a message in the page banner and the upload controller can keep the clip and offer Retry.
+   * `selectedRef` rather than `selected` because the controller may call this from a queue, one
+   * render after the closure was made.
+   */
+  async function sendRecording(file: File): Promise<UploadOutcome> {
+    const target = selectedRef.current;
+    if (!target) {
+      return { ok: false, message: t("meeting.errors.noMeeting") };
     }
     setBusy("upload");
     setError(null);
     try {
-      const form = new FormData();
-      form.set("file", file, file.name);
-      const res = await apiFetch(`/api/v1/meetings/${selected.id}/recording`, { method: "POST", body: form });
-      const data = (await res.json()) as Meeting;
-      if (!res.ok) {
-        setError(errorMessage(data, t("meeting.errors.upload")));
-        return;
+      const outcome = await postMeetingRecording(target.id, file);
+      if (outcome.ok) {
+        merge(outcome.meeting as Meeting);
       }
-      merge(data);
+      return outcome;
     } finally {
       setBusy(null);
-      if (fileInput.current) {
-        fileInput.current.value = "";
-      }
+    }
+  }
+
+  /** The file input's path: the same POST, with the failure shown in the page's error banner. */
+  async function onChooseFile(file: File) {
+    if (!selected || busy) {
+      return;
+    }
+    const outcome = await sendRecording(file);
+    if (!outcome.ok) {
+      setError(outcome.message);
+    }
+    if (fileInput.current) {
+      fileInput.current.value = "";
     }
   }
 
@@ -349,15 +411,23 @@ export function MeetingStudio() {
                   ref={fileInput}
                   type="file"
                   accept="audio/*,video/*"
+                  // Choosing a file mid-recording would race the clip that is about to arrive for
+                  // the same upload slot, and the winner would be whichever finished first.
+                  disabled={busy !== null || recording}
                   onChange={(event) => {
                     const file = event.target.files?.[0];
                     if (file) {
-                      void onUpload(file);
+                      void onChooseFile(file);
                     }
                   }}
                   className="text-sm text-[var(--text-2)]"
                   data-testid="meeting-file"
                 />
+                {busy === "upload" ? (
+                  <span className="text-xs text-[var(--text-3)]" data-testid="meeting-uploading">
+                    {t("meeting.uploading")}
+                  </span>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => void onRun()}
@@ -382,7 +452,29 @@ export function MeetingStudio() {
                   </button>
                 ) : null}
               </div>
-              <p className="mt-1 text-xs text-[var(--text-3)]">{t("meeting.cap")}</p>
+
+              <div className="mt-3">
+                <MeetingRecorderPanel
+                  // A clip still in hand is a reason not to start another one: this controller
+                  // holds exactly one recording, and a second would replace bytes nothing else has.
+                  disabled={busy !== null || job.busy || upload.pending !== null}
+                  view={recorder}
+                  clip={{
+                    capped: upload.capped,
+                    status: upload.status,
+                    errorMessage: upload.errorMessage,
+                    dismissCapped: upload.dismissCapped,
+                    retry: upload.retry,
+                    save: () => {
+                      if (upload.pending) {
+                        saveClipToDevice(upload.pending);
+                      }
+                    },
+                  }}
+                />
+              </div>
+
+              <p className="mt-2 text-xs text-[var(--text-3)]">{t("meeting.cap")}</p>
 
               {!selected.transcript ? (
                 <div className="mt-5">
