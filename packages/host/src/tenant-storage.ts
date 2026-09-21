@@ -60,6 +60,7 @@ import {
   isLocalTenant,
   resolveInsideTenantRoot,
   tenantDataDir,
+  tenantObjectCacheRoot,
   tenantScopedRoot,
   TENANTS_DIR,
 } from "./tenant-paths";
@@ -256,6 +257,19 @@ export function resetObjectStoreForTests(): void {
 }
 
 /**
+ * Test seam: use this COS store instead of building one from the environment.
+ *
+ * It exists so a suite can drive the **routes** over a stubbed bucket — `createCosObjectStore`
+ * takes a `fetchImpl`, but nothing between a request and the store could pass one in, which is why
+ * no test in the first round of this lane ran a handler under the COS backend. `AGENTFORGE_STORAGE`
+ * still has to say `cos`, so this cannot silently swap the backend out from under a real process.
+ */
+export function setCosObjectStoreForTests(store: TenantObjectStore | null): void {
+  cosStore = store;
+  jobBytesCache.clear();
+}
+
+/**
  * The store this process uses, resolved per call rather than once at import: the suites and
  * `apps/web` both set environment after the module graph is loaded, and a store frozen at import
  * time would answer for the mode the process started in.
@@ -290,14 +304,26 @@ export type TenantJobRoot = {
 };
 
 export function tenantJobRoots(tenantId: string): TenantJobRoot[] {
-  const datasets = path.resolve(localDataDir(), "datasets");
+  const dataDir = localDataDir();
+  const datasets = path.resolve(dataDir, "datasets");
+  const meetings = path.resolve(dataDir, "meetings");
+  const legal = path.resolve(dataDir, "legal");
   return [
     // ffmpeg scratch. `tenantDataDir` has already applied the prefix, and a project id spelled
     // `tenants` is refused by `assertPathSegment`, so nothing of anyone else's can be under it.
     { root: path.join(tenantDataDir(tenantId), "edit"), denied: [] },
+    // Knowledge uploads. Same shape as the scratch root: already under the tenant's data directory,
+    // so no other tenant's tree is inside it. See `knowledge.ts` for why these bytes stay on disk
+    // under both backends — three readers find them by a readdir prefix scan, not by key.
+    { root: path.join(tenantDataDir(tenantId), "knowledge"), denied: [] },
     // Dataset files. For the local tenant the scoped root IS `<dataDir>/datasets`, so every other
     // tenant's dataset subtree sits inside the directory being walked and has to be skipped.
     { root: tenantScopedRoot(datasets, tenantId), denied: deniedUnder(datasets, tenantId) },
+    // Meeting recordings. 25 MB each and unbounded in number, so leaving them out was the one gap
+    // through which a tenant could fill the disk with the quota reading 0%.
+    { root: tenantScopedRoot(meetings, tenantId), denied: deniedUnder(meetings, tenantId) },
+    // Legal matter files: a per-matter cap, but no cap on matters.
+    { root: tenantScopedRoot(legal, tenantId), denied: deniedUnder(legal, tenantId) },
   ];
 }
 
@@ -436,11 +462,48 @@ export async function assertStorageAdmits(tenantId: string, incomingBytes: numbe
 }
 
 /**
+ * One tenant's in-flight writes, so the quota check and the counter move cannot interleave.
+ *
+ * The SQL delta is already atomic against the row (`tenant-storage-store.ts`), which keeps the
+ * counter correct — but correct-after-the-fact is not the same as enforced. Two 600-byte uploads
+ * arriving together under a 1000-byte ceiling both read 100, both admitted, and the tenant ended at
+ * 1300. The overshoot was bounded (in-flight writes × the per-file cap) but it was real, and on a
+ * 500 MB Edit import the bound is not small.
+ *
+ * A promise chain per tenant is the whole mechanism: each write waits for the previous one to
+ * finish check-put-count before starting its own. It serialises one tenant's writes **in this
+ * process** only, which is the honest limit — two hosts behind the proxy would still race, and the
+ * fix for that is a conditional update in SQL, not a mutex. The chain is cleared when it drains so
+ * the map cannot grow with the tenant list.
+ */
+const putChains = new Map<string, Promise<unknown>>();
+
+function serializePut<T>(tenantId: string, run: () => Promise<T>): Promise<T> {
+  const previous = putChains.get(tenantId) ?? Promise.resolve();
+  // `run` on both settlement paths: one failed write must not fail every write queued behind it.
+  const next = previous.then(run, run);
+  // The chain the next writer waits on never rejects, for the same reason.
+  const tail = next.then(
+    () => undefined,
+    () => undefined,
+  );
+  putChains.set(tenantId, tail);
+  void tail.then(() => {
+    // Only when nothing newer has taken the slot: otherwise a queued write loses its predecessor.
+    if (putChains.get(tenantId) === tail) {
+      putChains.delete(tenantId);
+    }
+  });
+  return next;
+}
+
+/**
  * Store an object for a tenant: quota first, backend second, counter third.
  *
  * The order matters. The check runs before the bytes are written, so a refusal never leaves a
  * partial object behind; the counter moves only after the backend has taken the write, so a failed
- * put never charges the tenant for bytes nobody stored.
+ * put never charges the tenant for bytes nobody stored. All three steps run inside this tenant's
+ * write chain, so a second write cannot read the counter between them.
  */
 export async function putTenantObject(
   tenantId: string,
@@ -449,16 +512,18 @@ export async function putTenantObject(
   contentType: string,
 ): Promise<void> {
   assertObjectKey(tenantId, key);
-  const store = tenantObjectStore();
-  const existing = await store.head(tenantId, key);
-  await assertStorageAdmits(tenantId, bytes.byteLength, existing?.sizeBytes ?? 0);
-  await store.put(tenantId, key, bytes, contentType);
-  if (isServerMode()) {
-    addTenantStorageBytes(tenantId, {
-      bytes: bytes.byteLength - (existing?.sizeBytes ?? 0),
-      objects: existing ? 0 : 1,
-    });
-  }
+  return serializePut(tenantId, async () => {
+    const store = tenantObjectStore();
+    const existing = await store.head(tenantId, key);
+    await assertStorageAdmits(tenantId, bytes.byteLength, existing?.sizeBytes ?? 0);
+    await store.put(tenantId, key, bytes, contentType);
+    if (isServerMode()) {
+      addTenantStorageBytes(tenantId, {
+        bytes: bytes.byteLength - (existing?.sizeBytes ?? 0),
+        objects: existing ? 0 : 1,
+      });
+    }
+  });
 }
 
 /** Read a whole object. A key that is not this tenant's is a 404 before any IO. */
@@ -513,7 +578,7 @@ export async function materializeTenantObject(tenantId: string, key: string): Pr
     objectNotFound();
   }
   const digest = createHash("sha256").update(`${tenantId}\u0000${key}`).digest("hex");
-  const dir = path.join(tenantDataDir(tenantId), "cache", "objects", digest);
+  const dir = path.join(tenantObjectCacheRoot(tenantId), digest);
   const target = path.join(dir, path.basename(key));
   try {
     if ((await stat(target)).size === head.sizeBytes) {

@@ -14,7 +14,7 @@
 -- `measured_at` records when it was last reconciled against the real backend.
 --
 -- THE COUNTER IS NOT THE TRUTH, THE BACKEND IS. `recomputeTenantStorage` in
--- packages/host/src/tenant-storage-store.ts re-measures a tenant from the backend and overwrites
+-- packages/host/src/tenant-storage.ts re-measures a tenant from the backend and overwrites
 -- both columns; a fresh tenant is seeded by a measure on its first write rather than starting at
 -- zero, so an upgrade does not pretend an existing tree is empty. A drift between the two is an
 -- operator's problem to reconcile, not a reason to refuse a write.

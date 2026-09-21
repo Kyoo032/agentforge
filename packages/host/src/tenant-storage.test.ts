@@ -360,6 +360,57 @@ describe("the quota", () => {
   });
 });
 
+describe("two writes at once", () => {
+  it("does not let both cross the ceiling between the check and the counter", async () => {
+    // Round 1 shipped head -> admit -> put with nothing holding the tenant between them: two
+    // 600-byte writes against a 1000-byte ceiling both read 100, both were admitted, and the tenant
+    // ended at 1300. The atomic SQL delta kept the counter honest afterwards, which is not the same
+    // as having enforced the ceiling. `putTenantObject` now runs a tenant's writes in a chain.
+    serverMode(1000);
+    await storage.putTenantObject(A, key(A, "org", "seed.bin"), bytes(100), "application/octet-stream");
+
+    const results = await Promise.allSettled([
+      storage.putTenantObject(A, key(A, "org", "one.bin"), bytes(600), "application/octet-stream"),
+      storage.putTenantObject(A, key(A, "org", "two.bin"), bytes(600), "application/octet-stream"),
+    ]);
+
+    const accepted = results.filter((result) => result.status === "fulfilled");
+    const refused = results.filter((result) => result.status === "rejected");
+    expect(accepted).toHaveLength(1);
+    expect(refused).toHaveLength(1);
+    expect((refused[0] as PromiseRejectedResult).reason).toBeInstanceOf(storage.StorageQuotaError);
+
+    const report = await storage.tenantStorageReport(A);
+    expect(report.usedBytes).toBe(700);
+    expect(report.usedBytes).toBeLessThanOrEqual(1000);
+  });
+
+  it("does not make one tenant's write wait behind another tenant's", async () => {
+    // The chain is per tenant. A shared lock would turn one 500 MB import into everybody's latency.
+    serverMode(100_000);
+    const order: string[] = [];
+    await Promise.all([
+      storage.putTenantObject(A, key(A, "org", "a.bin"), bytes(10), "application/octet-stream").then(() => {
+        order.push("a");
+      }),
+      storage.putTenantObject(B, key(B, "org", "b.bin"), bytes(10), "application/octet-stream").then(() => {
+        order.push("b");
+      }),
+    ]);
+    expect(order).toHaveLength(2);
+    expect(await storage.tenantStorageReport(A).then((report) => report.usedBytes)).toBe(10);
+    expect(await storage.tenantStorageReport(B).then((report) => report.usedBytes)).toBe(10);
+  });
+
+  it("keeps serving writes after one of them fails", async () => {
+    // A rejected write must not poison the chain every later write waits on.
+    serverMode(100_000);
+    await expect(storage.putTenantObject(A, "tenants/other/x.bin", bytes(10), "application/octet-stream")).rejects.toThrow();
+    await storage.putTenantObject(A, key(A, "org", "after.bin"), bytes(20), "application/octet-stream");
+    expect(await storage.tenantStorageReport(A).then((report) => report.usedBytes)).toBe(20);
+  });
+});
+
 describe("the backend picker", () => {
   it("is the file backend unless the variable says COS", () => {
     expect(storage.tenantObjectStore().kind).toBe("file");

@@ -306,6 +306,34 @@ describe("measuring a tenant's prefix", () => {
     expect(await store.measure(LOCAL_TENANT_ID)).toEqual({ usedBytes: 10, objectCount: 1 });
   });
 
+  it("stops instead of re-fetching a page whose marker did not move", async () => {
+    // Round 1 advanced the marker only on an entry this tenant owns. The local tenant's prefix is
+    // empty, so a truncated page of somebody else's keys with no `NextMarker` left the marker where
+    // it was and the same page was requested until the 10,000 cap — 10,000 billed LIST calls.
+    // Every page after the first is the SAME truncated page of somebody else's keys, carrying no
+    // `NextMarker` — which is exactly what a server that repeats itself looks like from here.
+    const answers = [{ status: 200, body: page([["org/mine.png", 10]], true) }];
+    for (let index = 0; index < 40; index += 1) {
+      answers.push({ status: 200, body: page([[`tenants/${A}/stuck.png`, 5]], true) });
+    }
+    const { store, calls } = storeWith(answers);
+
+    const measured = await store.measure(LOCAL_TENANT_ID);
+    expect(measured).toEqual({ usedBytes: 10, objectCount: 1 });
+    // Two pages at most: the first, then the one whose marker repeats, which ends the walk.
+    expect(calls.length).toBeLessThanOrEqual(3);
+  });
+
+  it("keeps walking when a page is entirely another tenant's but the marker advances", async () => {
+    // The other half of the same rule: a foreign page must not end the walk either, or the local
+    // tenant's own objects behind it would go uncounted.
+    const { store } = storeWith([
+      { status: 200, body: page([[`tenants/${A}/theirs-1.png`, 900]], true) },
+      { status: 200, body: page([["org/mine.png", 42]], false) },
+    ]);
+    expect(await store.measure(LOCAL_TENANT_ID)).toEqual({ usedBytes: 42, objectCount: 1 });
+  });
+
   it("skips a listing entry it cannot read rather than guessing at it", () => {
     const entries = parseCosListing(
       "<Contents><Key>a</Key><Size>5</Size></Contents><Contents><Size>9</Size></Contents>",

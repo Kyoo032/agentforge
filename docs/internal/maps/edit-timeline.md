@@ -264,7 +264,7 @@ Two integers on the project (`review: {lastAgentSeq, ackSeq}`) and one compariso
 - Closed gate → `EditCards` renders `edit-review-card` + `edit-review-ok`, and `edit-export` is
   disabled (`edit-studio.tsx:659`).
 - The host enforces it independently: `handlePostEditExport` answers `400 review_required` when
-  `reviewGateOpen` is false (`packages/host/src/handlers/edit.ts:407-409`).
+  `reviewGateOpen` is false (`packages/host/src/handlers/edit.ts:411-415`).
 
 ### 11. Generate
 

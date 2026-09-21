@@ -459,7 +459,13 @@ export function createCosObjectStore(options: CosClientOptions = {}): TenantObje
       // A bucket listing is paginated and a tenant can hold more than one page. The loop is bounded
       // by the listing itself: COS only sets `IsTruncated` while there is more, and a marker that
       // does not move would spin, so an unmoved marker ends the walk.
+      //
+      // The marker has to follow the **last key of the page**, not the last key this tenant owns.
+      // For the local tenant the prefix is empty, so a page can be entirely other tenants' objects;
+      // advancing only on an owned entry left the marker where it was, and a truncated page with no
+      // `NextMarker` then re-fetched the same page until the cap below — 10,000 billed calls.
       for (let page = 0; page < 10_000; page += 1) {
+        const startedAt = marker;
         const query: Record<string, string> = { "max-keys": "1000" };
         if (prefix) {
           query.prefix = prefix;
@@ -473,14 +479,15 @@ export function createCosObjectStore(options: CosClientOptions = {}): TenantObje
         }
         const body = Buffer.from(response.bytes).toString("utf8");
         for (const entry of parseCosListing(body)) {
-          // The local tenant's prefix is empty, so a plain listing would count every OTHER tenant's
-          // objects as its own. This is `tenantDeniedRoots` on the bucket.
+          // Every entry moves the marker; only this tenant's entries are counted. The local
+          // tenant's prefix is empty, so a plain listing would otherwise count every OTHER
+          // tenant's objects as its own. This is `tenantDeniedRoots` on the bucket.
+          marker = entry.key;
           if (!isObjectKeyInsideTenant(tenantId, entry.key)) {
             continue;
           }
           usedBytes += entry.sizeBytes;
           objectCount += 1;
-          marker = entry.key;
         }
         if (xmlText(body, "IsTruncated") !== "true") {
           break;
@@ -489,7 +496,9 @@ export function createCosObjectStore(options: CosClientOptions = {}): TenantObje
         if (next) {
           marker = next;
         }
-        if (!marker) {
+        // Nothing to ask for next, or the same request as last time: stop rather than spin. COS
+        // documents `NextMarker` on every truncated response, so this is the guard, not the path.
+        if (!marker || marker === startedAt) {
           break;
         }
       }

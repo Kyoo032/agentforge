@@ -64,13 +64,13 @@ the key with `mediaRelativePath` and calls `putTenantObject`
 (`packages/host/src/tenant-storage.ts:445-462`), which does three things in this order and no other:
 
 1. `head()` the key, so an overwrite is charged the difference rather than the whole object again.
-2. `assertStorageAdmits` (`packages/host/src/tenant-storage.ts:424-436`) — the check runs **before**
+2. `assertStorageAdmits` (`packages/host/src/tenant-storage.ts:450-462`) — the check runs **before**
    the write, so a refusal never leaves a partial object.
 3. `put()`, then `addTenantStorageBytes` (`packages/host/src/tenant-storage-store.ts:126-145`) — the
    counter moves only after the backend took the write, so a failed put never charges for bytes
    nobody stored.
 
-A read is `readTenantObjectRange` (`packages/host/src/tenant-storage.ts:470-476`) from
+A read is `readTenantObjectRange` (`packages/host/src/tenant-storage.ts:535-541`) from
 `handleGetMediaFile` (`packages/host/src/handlers/media.ts:24-50`). The file backend streams only
 the requested bytes; the COS backend HEADs for the size and then GETs with a `Range` header.
 
@@ -82,15 +82,24 @@ the requested bytes; the COS backend HEADs for the size and then GETs with a `Ra
   never to `null`**, so a typo cannot remove the only bound between one tenant and the disk. `0`,
   `off`, `none` and `unlimited` turn it off explicitly.
 - **What is counted** is objects **plus** the job trees that stay on local disk under either backend
-  because the processes that write them take paths: ffmpeg scratch and dataset files
-  (`tenantJobRoots`, `packages/host/src/tenant-storage.ts:292-302`). Objects live in the
-  `tenant_storage` counter; the job trees are walked and memoised for ten seconds
-  (`measureTenantJobBytes`, `packages/host/src/tenant-storage.ts:316-331`).
+  because the processes that write them take paths: ffmpeg scratch, Knowledge uploads, dataset
+  files, Meeting recordings and Legal matter files (`tenantJobRoots`,
+  `packages/host/src/tenant-storage.ts:306-328`). Objects are held in the counter row; the job trees
+  are walked and memoised for ten seconds (`measureTenantJobBytes`,
+  `packages/host/src/tenant-storage.ts:342-357`). Knowledge uploads moved out of the media root into
+  `<tenantDataDir>/knowledge/` to get here: inside the media root the file backend measured them but
+  no write moved the counter, so a tenant's number changed on an operator's recompute rather than on
+  their own upload. The old location is still read by `deleteSource` and `reindexSource` so an
+  upgraded desk keeps the bytes it has.
+- **One tenant's writes are serialised.** `putTenantObject` runs them in a promise chain, so a second
+  write cannot read the counter between the first one's check and its increment. It is per tenant, so
+  a 500 MB import queues nobody else, and per process — two hosts would still race, which is a
+  conditional SQL update rather than a mutex.
 - **The counter is a cache, the backend is the truth.** A tenant with no row is seeded from a real
-  measure on first use (`objectUse`, `packages/host/src/tenant-storage.ts:349-367`) rather than from
+  measure on first use (`objectUse`, `packages/host/src/tenant-storage.ts:375-393`) rather than from
   zero, so an upgraded data volume is not declared empty; `recomputeTenantStorage`
   (`packages/host/src/tenant-storage.ts:540-554`) is the operator's reconciliation.
-- **The refusal** is `StorageQuotaError` (`packages/host/src/tenant-storage.ts:383-393`): a flat 403
+- **The refusal** is `StorageQuotaError` (`packages/host/src/tenant-storage.ts:409-419`): a flat 403
   with code `storage_quota_exceeded`, the same shape as `GatewayBlockedError` and `PlanBlockedError`
   and deliberately a third code. `gateway_blocked` routes the renderer to the paste-your-key
   onboarding screen, which is a dead end for a tenant whose problem is that their prefix is full.
@@ -123,12 +132,27 @@ bill it for the whole bucket.
 
 ### ffmpeg, which cannot be handed bytes
 
-`materializeTenantObject` (`packages/host/src/tenant-storage.ts:505-534`) is the one seam between an
+`materializeTenantObject` (`packages/host/src/tenant-storage.ts:570-599`) is the one seam between an
 object store and a process that takes a path. Under the file backend it returns the object's own
-resolved path and copies nothing. Under COS it downloads once into `<tenantDataDir>/cache/objects/`,
-keyed by the SHA-256 of the key, reused while the size still matches. That cache is **outside**
-`tenantJobRoots` on purpose: it is the host's cost, not the tenant's, and charging a tenant twice
-for one video because the host had to make a local copy would be wrong.
+resolved path and copies nothing. Under COS it downloads once into `tenantObjectCacheRoot`
+(`packages/host/src/tenant-paths.ts:104-106`), keyed by the SHA-256 of the key, reused while the size
+still matches. That cache is **outside** `tenantJobRoots` on purpose: it is the host's cost, not the
+tenant's, and charging a tenant twice for one video because the host had to make a local copy would
+be wrong.
+
+**The cache root has to be in the ffmpeg allowlist, or none of this works.** `editAllowlist`
+(`packages/host/src/edit/ffmpeg/paths.ts:63-74`) lists three roots — the tenant's media root, the
+project's scratch root, and the cache root — because under COS a materialized asset is in the third
+and `assertInsidePath` refuses anything outside them. Without it every probe, frame, render, silence
+scan and audio extract on a COS-backed asset fails as `path_denied` before ffmpeg is invoked. The
+denials still run first, so the local tenant cannot reach another tenant's cache through it.
+
+**Every writer of media bytes goes through the store.** `saveMedia`, the Edit import route
+(`packages/host/src/handlers/edit.ts:70-99`) and the starter-media seeder
+(`packages/host/src/edit/starter-media.ts:133-151`) all call `putTenantObject`; a writer that builds
+a path from `mediaRoot()` and writes it is unmetered under the file backend and, under COS, writes to
+a disk the read path never consults. `packages/host/src/tenant-storage-writers.test.ts` sweeps the
+host tree for that shape, because the two writers above were missed by tests that named `saveMedia`.
 
 ## Where things live
 

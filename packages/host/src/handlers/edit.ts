@@ -1,4 +1,3 @@
-import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { and, eq } from "drizzle-orm";
 import { ApiError, modeMessage, videoCapabilities, type TenantContext } from "@agentforge/core";
@@ -6,7 +5,8 @@ import { db, editUnplaced, media } from "@agentforge/db";
 import { jsonError, jsonOk } from "../errors";
 import { requireGatewayAllowedFor } from "../gateway-gate";
 import { getTenant } from "../tenant";
-import { mediaFilePath, mediaRelativePath, mediaRoot } from "../media-root";
+import { mediaRelativePath } from "../media-root";
+import { materializeTenantObject, putTenantObject, removeTenantObject } from "../tenant-storage";
 import type { HostRequest, HostResult } from "../types";
 import { getEditDoctor } from "../edit/doctor";
 import { createEditProject, getEditProjectBundle, listEditProjects, mapJob, mapUnplaced } from "../edit/projects";
@@ -77,9 +77,12 @@ async function saveEditFile(
   const kind = kindFromMime(mime)!;
   const id = crypto.randomUUID();
   const relative = mediaRelativePath(tenant.tenantId, [tenant.organizationId], `${id}.${extFor(mime)}`);
-  const fullPath = path.join(mediaRoot(), relative);
-  await mkdir(path.dirname(fullPath), { recursive: true });
-  await writeFile(fullPath, bytes);
+  // Through the object store, like every other media writer: it is what applies the tenant's
+  // ceiling (a 500 MB Edit import is the largest single write the product takes), moves the
+  // counter, and puts the bytes where `GET /api/v1/media/:id/file` will look for them. Writing the
+  // media root directly left this route unmetered, and under the COS backend it left the file on a
+  // disk the reader never consults, so an import answered 201 and then 404'd on playback.
+  await putTenantObject(tenant.tenantId, relative, bytes, mime);
   const url = `/api/v1/media/${id}/file`;
   await db.insert(media).values({
     id,
@@ -241,13 +244,16 @@ export async function handlePostEditImport(request: HostRequest): Promise<HostRe
       filename = file.filename;
     }
     const saved = await saveEditFile(tenant, bytes, mime, filename);
-    const abs = mediaFilePath(tenant.tenantId, saved.storagePath);
+    // ffprobe takes a path, so the object is materialized: under the file backend that is the
+    // object itself, under COS a cached copy in the tenant's own cache root.
+    const abs = await materializeTenantObject(tenant.tenantId, saved.storagePath);
     let probed: Awaited<ReturnType<typeof probe>>;
     try {
       probed = await probe(abs, { tenantId: tenant.tenantId, projectId });
     } catch {
       try {
-        await unlink(abs);
+        // Through the store so the refund reaches the counter; the bytes are unreadable either way.
+        await removeTenantObject(tenant.tenantId, saved.storagePath);
       } catch {
         // ignore
       }

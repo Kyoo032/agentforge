@@ -1,11 +1,12 @@
 import { existsSync, lstatSync, realpathSync } from "node:fs";
-import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { applyOp, secondsToFrames, type EditProject, type TenantContext } from "@agentforge/core";
 import { starterMediaFile, starterTrackFor, type StarterMediaFile, type StarterProject } from "@agentforge/core/edit";
 import { db, media } from "@agentforge/db";
 import { eq } from "drizzle-orm";
-import { mediaRelativePath, mediaRoot } from "../media-root";
+import { mediaRelativePath } from "../media-root";
+import { materializeTenantObject, putTenantObject, removeTenantObject } from "../tenant-storage";
 import { resolveFfmpeg } from "./ffmpeg-binary";
 import { probe } from "./ffmpeg/recipes";
 import type { EditScope } from "./ffmpeg/paths";
@@ -120,14 +121,22 @@ async function probeOrManifest(absPath: string, scope: EditScope, file: StarterM
   }
 }
 
+/**
+ * Copy one bundled starter clip into the tenant's storage.
+ *
+ * Through `putTenantObject` rather than a direct write to the media root: a seeded starter is media
+ * the tenant now holds, so it is charged against their ceiling and moves the counter like an upload
+ * does, and under the COS backend it reaches the bucket the media route reads from. `fullPath` is
+ * the materialized path for the probe that follows — the object itself under the file backend, a
+ * cached copy under COS.
+ */
 async function copyIntoMediaRoot(tenant: TenantContext, source: string, file: StarterMediaFile) {
   const bytes = await readFile(source);
   const id = crypto.randomUUID();
   const ext = file.mime === "audio/mp4" ? "m4a" : "mp4";
   const relative = mediaRelativePath(tenant.tenantId, [tenant.organizationId], `${id}.${ext}`);
-  const fullPath = path.join(mediaRoot(), relative);
-  await mkdir(path.dirname(fullPath), { recursive: true });
-  await writeFile(fullPath, bytes);
+  await putTenantObject(tenant.tenantId, relative, bytes, file.mime);
+  const fullPath = await materializeTenantObject(tenant.tenantId, relative);
   await db.insert(media).values({
     id,
     organizationId: tenant.organizationId,
@@ -141,10 +150,10 @@ async function copyIntoMediaRoot(tenant: TenantContext, source: string, file: St
   return { id, relative, fullPath };
 }
 
-type StoredFile = { id: string; fullPath: string };
+type StoredFile = { id: string; key: string };
 
 /** Undo copies from a partial seed so no orphan media rows or files are left behind. */
-async function rollbackStored(stored: StoredFile[]): Promise<void> {
+async function rollbackStored(tenant: TenantContext, stored: StoredFile[]): Promise<void> {
   for (const item of stored) {
     try {
       await db.delete(media).where(eq(media.id, item.id));
@@ -152,9 +161,11 @@ async function rollbackStored(stored: StoredFile[]): Promise<void> {
       log.warn("edit_starter_rollback_media_row_kept", { mediaId: item.id, error });
     }
     try {
-      await unlink(item.fullPath);
+      // Through the store, so a rolled-back seed gives the tenant its bytes back on the counter
+      // as well as removing the object.
+      await removeTenantObject(tenant.tenantId, item.key);
     } catch (error) {
-      log.warn("edit_starter_rollback_file_kept", { path: item.fullPath, error });
+      log.warn("edit_starter_rollback_file_kept", { key: item.key, error });
     }
   }
 }
@@ -192,7 +203,7 @@ export async function seedStarterMedia(
       next = await placeOne(name);
     }
   } catch (error) {
-    await rollbackStored(storedFiles);
+    await rollbackStored(tenant, storedFiles);
     throw error;
   }
   return { doc: next, placed, missing };
@@ -205,7 +216,7 @@ export async function seedStarterMedia(
       return next;
     }
     const stored = await copyIntoMediaRoot(tenant, path.join(dir, name), file);
-    storedFiles.push({ id: stored.id, fullPath: stored.fullPath });
+    storedFiles.push({ id: stored.id, key: stored.relative });
     const probed = await probeOrManifest(stored.fullPath, { tenantId: tenant.tenantId, projectId: next.id }, file);
     const durationFrames = Math.max(1, secondsToFrames(probed.durationSeconds, probed.fps));
     const track = starterTrackFor(file);

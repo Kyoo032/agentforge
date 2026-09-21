@@ -7,6 +7,7 @@ import { getKnowledgeModels, markSourceFailed, nextCreatedAt, type SourceOriginK
 import { embedTextsWithModel } from "./knowledge-embed";
 import { CHUNK_OVERLAP, chunkKnowledgeText, ftsSourceFilter } from "./knowledge-text";
 import { tenantMediaRoot } from "./media-root";
+import { tenantDataDir } from "./tenant-paths";
 import { log } from "./log";
 
 /**
@@ -143,17 +144,30 @@ export function reconstructSourceBody(chunks: readonly string[]): string {
   return roundTrips ? merged : chunks.join("");
 }
 
-/** The stored upload for a source, if the desk still has one. Naming matches `addFileSource`. */
+/**
+ * The stored upload for a source, if the desk still has one. Naming matches `addFileSource`.
+ *
+ * Two directories, in order: the Phase 6 location under the tenant's data directory, then the
+ * pre-Phase-6 one inside the media root, so a re-index on an upgraded desk still finds the bytes
+ * behind sources that were uploaded before the move.
+ */
 async function findStoredUpload(tenant: TenantContext, sourceId: string): Promise<string | null> {
-  try {
-    const dir = path.join(tenantMediaRoot(tenant.tenantId), "knowledge", tenant.organizationId);
-    const entries = await readdir(dir);
-    const name = entries.find((entry) => entry.startsWith(`${sourceId}-`));
-    return name ? path.join(dir, name) : null;
-  } catch {
-    // No upload directory / source dir: nothing was stored for this source (or it was cleaned up).
-    return null;
+  const dirs = [
+    path.join(tenantDataDir(tenant.tenantId), "knowledge", tenant.organizationId),
+    path.join(tenantMediaRoot(tenant.tenantId), "knowledge", tenant.organizationId),
+  ];
+  for (const dir of dirs) {
+    try {
+      const entries = await readdir(dir);
+      const name = entries.find((entry) => entry.startsWith(`${sourceId}-`));
+      if (name) {
+        return path.join(dir, name);
+      }
+    } catch {
+      // No upload directory: nothing was stored here for this source (or it was cleaned up).
+    }
   }
+  return null;
 }
 
 function isFormatFailure(error: unknown): error is ApiError {

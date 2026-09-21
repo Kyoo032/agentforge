@@ -210,16 +210,44 @@ exists for.
 
 ## 4. What the quota counts, and what it does not refuse
 
-`usedBytes` is **objects plus the job trees that stay on local disk**: ffmpeg scratch under
-`<tenantDataDir>/edit/` and dataset files under `<dataDir>/datasets/tenants/<id>/`. Those stay on disk
-under either backend because the processes that write them — ffmpeg, and the in-memory SQLite dataset
-runner — take file paths, not buffers. They are already disjoint per tenant from lane D; Phase 6
-measures them (memoised for ten seconds, so an upload burst pays for the walk once) and counts them.
+`usedBytes` is **objects plus the job trees that stay on local disk**. The job trees, all of them,
+with the mode each one belongs to:
 
-**What is enforced, honestly stated:** the ceiling is checked on every object write. A dataset upload
-or an ffmpeg render is *not* pre-refused — the render's inputs were already admitted, and its output
-size is not known before it runs. Both are still reported, and the next object write sees them. Closing
-that gap means a pre-flight estimate on the render path, which is its own change.
+| Root | Written by | Why it is not an object |
+| --- | --- | --- |
+| `<tenantDataDir>/edit/` | ffmpeg scratch | ffmpeg opens a path and seeks in it |
+| `<tenantDataDir>/knowledge/<org>/` | Knowledge uploads | three readers find a file by a `readdir` prefix scan, not by key |
+| `<dataDir>/datasets/tenants/<id>/` | Data mode | the in-memory SQLite runner reads a path |
+| `<dataDir>/meetings/tenants/<id>/` | Meeting recordings | written and re-read as files through the meeting record |
+| `<dataDir>/legal/tenants/<id>/` | Legal matter files | same, per matter |
+
+They stay on disk under either backend because the processes that write them take file paths, not
+buffers. They are already disjoint per tenant from lane D; Phase 6 measures them (memoised for ten
+seconds, so an upload burst pays for the walk once) and counts them.
+
+**Round 2 added the last three rows.** Round 1 counted only `edit/` and `datasets/`, which left a
+25 MB-per-file Meeting recording, an unbounded number of them, and every Legal document outside the
+ceiling entirely — a tenant could fill the disk with the quota reporting 0%. Knowledge uploads were
+worse than uncounted: they were written *inside* the media root, so the file backend's `measure()`
+found them at a seed or a recompute but no write ever moved the counter, and a tenant's reported usage
+jumped only when an operator reconciled. They now live under the tenant's data directory like the other
+path-taking trees. The pre-Phase-6 location is still **read** — by `deleteSource` and by
+`reindexSource`, both of which try the new directory and then the old one — so an upgraded desk does
+not lose the bytes behind sources it already has. Nothing migrates them; a legacy file is still counted,
+as an object, where it already sits.
+
+**What is enforced, honestly stated:** the ceiling is checked on every object write. A job-tree write
+is *not* pre-refused — a render's inputs were already admitted and its output size is not known before
+it runs, and a meeting recording is written through the meeting record rather than the store. All of
+them are reported, and the next object write sees them. Closing that gap means a pre-flight estimate on
+each of those paths, which is its own change.
+
+**Two writes at once.** `putTenantObject` runs one tenant's writes in a promise chain, so a second
+write cannot read the counter between the first one's check and its increment. Round 1 had no such
+hold: two 600-byte writes against a 1000-byte ceiling were both admitted and the tenant ended at 1300.
+The chain is per tenant, so one tenant's 500 MB import does not queue anybody else's, and it holds
+**within one process** only — two hosts behind the proxy would still race, and the fix for that is a
+conditional update in SQL rather than a mutex. It is not needed while the deployment is one host.
 
 ---
 
@@ -228,6 +256,24 @@ that gap means a pre-flight estimate on the render path, which is its own change
 - **`packages/host/src/media.ts`** — `saveMedia` writes through `putTenantObject` instead of
   `mkdir`+`writeFile`; `readMediaDataUrl` reads through `readTenantObject`. The row it writes is
   unchanged, because the key *is* the `storage_path`.
+- **`packages/host/src/handlers/edit.ts`** (round 2) — `saveEditFile` writes through
+  `putTenantObject`, and the probe that follows it takes `materializeTenantObject` rather than
+  `mediaFilePath`, refunding through `removeTenantObject` when the file turns out to be unreadable.
+  This is the 500 MB-per-file Edit import route: round 1 left it writing the media root directly, so
+  it was unmetered under the file backend and, under COS, wrote to a disk the media route never reads
+  — an import answered `201` and then `404`d on playback.
+- **`packages/host/src/edit/starter-media.ts`** (round 2) — the same, for the bundled clips a starter
+  project seeds. Rollback removes the object rather than unlinking a path, so a half-seeded project
+  gives the bytes back on the counter too.
+- **`packages/host/src/edit/ffmpeg/paths.ts`** (round 2) — `editAllowlist` gains
+  `tenantObjectCacheRoot(tenantId)` as a third root. Under COS a materialized object is a file in the
+  tenant's own cache directory, which the allowlist did not include, so **every** probe, frame, render,
+  silence scan and audio extract on a COS-backed asset was refused as `path_denied` before ffmpeg was
+  invoked. The denials still win over all three roots, so the local tenant still cannot reach another
+  tenant's cache through it.
+- **`packages/host/src/tenant-paths.ts`** (round 2) — `tenantObjectCacheRoot` is declared here, beside
+  the other per-tenant roots, so the ffmpeg path guard can allow it without importing the storage
+  module.
 - **`packages/host/src/handlers/media.ts`** — the byte-range route serves through the store, so a
   hosted deployment reads the bucket and a desk reads the file with the same check in front of both.
 - **`packages/host/src/edit/jobs.ts:264`** — the bug in §1(3): the generated asset's `storagePath` now
@@ -272,35 +318,52 @@ so no COS call was made against a real bucket; §8 is that proof.
 
 | Suite | Result |
 |---|---|
-| `packages/host` | **209 files, 2221 tests, 0 failures** |
+| `packages/host` | **210 files, 2236 tests, 0 failures** |
 | `packages/core` | **186 files, 2283 passed, 1 skipped** |
 | `packages/db` | **12 files, 154 tests, 0 failures** |
 | `apps/web` | **96 files, 903 tests, 0 failures** |
 | `tsc --noEmit` | clean for `packages/core`, `packages/host`, `packages/db`, `apps/web` |
-| `pnpm lint` | 183 warnings, 30 infos, **0 errors** — unchanged from `main`; none in the new files |
+| `pnpm lint` | 193 warnings, 30 infos, **0 errors** — the same counts `main` produces; none in the new files |
 
 The install used the documented cloud workaround for the blocked `cdn.sheetjs.com` tarball (xlsx
 pinned to `0.18.5` for the run only). `packages/core/package.json`, `package.json` and
 `pnpm-lock.yaml` were restored before committing and `git diff --name-only` confirms none of them
 carries the downgrade.
 
-### New tests — 75 cases
+### New tests — 90 cases
 
 - `packages/core/src/storage/quota.test.ts` (16) — the desk is never limited; junk falls back to the
   default and not to unlimited; the admission test is on the resulting total; a write of zero bytes is
   never refused; the code is not `gateway_blocked`.
-- `packages/host/src/tenant-storage.test.ts` (27) — every spelling that walks out of a prefix
+- `packages/host/src/tenant-storage-writers.test.ts` (8, round 2) — the three shapes round 1 missed,
+  written as rules rather than as one case each. A **sweep of the host tree** that fails on any source
+  which builds a path from the media root and writes through it (the two round-1 offenders were
+  exactly that shape, and a test naming them could not have failed for a third); the Edit import route
+  driven through `dispatch` over its ceiling and refused with `storage_quota_exceeded`; the same route
+  refunding the counter when the probe rejects the file, which is only possible if the write went
+  through the store; `materializeTenantObject` under a stubbed COS bucket handed straight to
+  `assertExistingInput` with the real `editAllowlist` — the two calls no test had ever made together;
+  the local tenant still refused another tenant's materialized cache; an import landing in the bucket
+  and **not** on the disk; and the job roots covering Meeting, Legal and Knowledge, with a meeting
+  recording actually moving `jobBytes`.
+- `packages/host/src/tenant-storage.test.ts` (30) — every spelling that walks out of a prefix
   (`..`, `.`, `//`, leading `/`, backslash, drive letter, NUL, over-long, the neighbour's prefix, and
   `tenant-alpha-2` against `tenant-alpha`); the local tenant's inverted rule; a **symlink planted
   inside the tenant's own subtree** refused; two tenants disjoint; the local tenant not billed for
   `tenants/`; a refusal leaving no partial object; an overwrite charged the difference; a double
   delete not handing back bytes twice; **the counter seeded from a measure rather than zero**; the job
-  trees counted; a drifted counter recomputed; the picker refusing rather than falling back.
-- `packages/host/src/tenant-storage-cos.test.ts` (27) — the signature **recomputed independently** from
+  trees counted; a drifted counter recomputed; the picker refusing rather than falling back. Round 2
+  adds the concurrency rule: two writes that would cross the ceiling together end with one accepted
+  and one refused rather than both landing, one tenant's write does not queue behind another's, and a
+  failed write does not poison the chain behind it.
+- `packages/host/src/tenant-storage-cos.test.ts` (29) — the signature **recomputed independently** from
   Tencent's algorithm rather than pasted as a magic string; the header and parameter lists; RFC 3986
   encoding; each verb's exact request line and headers; 404 vs 502 mapping; 416 answered from the HEAD
   with no GET; the credential refresh once per burst; the listing walked by marker; the local tenant
-  not billed for the bucket; and **a foreign key producing zero HTTP calls**.
+  not billed for the bucket; and **a foreign key producing zero HTTP calls**. Round 2 adds the two
+  halves of the marker rule: a truncated page that repeats itself ends the walk instead of spinning to
+  the 10,000-call cap, and a page that is entirely another tenant's does **not** end it, or the local
+  tenant's own objects behind it would go uncounted.
 - `packages/host/src/handlers/storage.test.ts` (8) — through `dispatch`: the report's numbers, each
   tenant seeing only its own, the route readable while blocked, 401 without a session, an upload
   refused with `storage_quota_exceeded`, one tenant not charged for another's upload, and one tenant's
@@ -379,6 +442,18 @@ Numbered, in the order they make sense to run. Nothing below can be done from th
 12. **The backup is still honest.** Run `backup.sh` after the switch and confirm the tarball no longer
     carries media, then turn **versioning on** for the media bucket — §12(d). The bucket becomes the
     only copy of tenants' uploads, which is a decision to make deliberately rather than discover.
+13. **An Edit import under COS, end to end** (round 2). As a hosted tenant with `AGENTFORGE_STORAGE=cos`,
+    import a real video into an Edit project. It must reach the bucket (not the disk), render its
+    thumbnail, scrub, and survive a render — that exercises `putTenantObject` on the import route and
+    `materializeTenantObject` through the ffmpeg allowlist, which are the two round-1 blocking bugs.
+    Then open a starter project as the same tenant and confirm its bundled clips are on the timeline.
+14. **A meeting recording moves the quota** (round 2). Note `GET /api/v1/storage/usage`, upload a
+    recording in Meeting mode, read it again: `jobBytes` and `usedBytes` both move by the size of the
+    file. Repeat with a Legal document and with a Knowledge upload. Before round 2 all three read zero.
+15. **An upgraded desk keeps its Knowledge uploads** (round 2). On a data directory that has Knowledge
+    file sources from before this change, confirm a re-index still reads the old bytes from
+    `media/knowledge/<org>/` and that deleting such a source removes them. New uploads land under
+    `<dataDir>/knowledge/<org>/` instead; nothing migrates the old ones.
 
 ---
 
@@ -393,3 +468,6 @@ Numbered, in the order they make sense to run. Nothing below can be done from th
 | **The COS cache is never evicted.** `<tenantDataDir>/cache/objects/` grows with every distinct asset ffmpeg touches. It is uncounted host cost, so it does not affect a tenant, but it does fill a disk eventually. A size-bounded LRU or a sweep on boot. | none |
 | **`GET /api/v1/storage/usage` has no screen.** The route exists and is tested; nothing in `apps/web` renders it yet, so a tenant sees the refusal without seeing the number. | Phase 8, with the other hosted surfaces |
 | **A delete path for media.** `removeTenantObject` exists and is tested, but no route calls it — there is no "delete this image" anywhere in the product, so a tenant that hits the ceiling today can only ask an operator. Worth pairing with the screen above. | none |
+| **`studio-media-meta.ts` writes one sidecar per tenant into the media root**, outside the store: `<tenantMediaRoot>/studio-meta.json`, a few KB of generation metadata, read-modify-written whole. It keeps its location so a desktop install does not lose the file it has, and the file backend's `measure()` counts it — but the write does not move the counter, and under COS it stays on local disk. Bounded at one small file per tenant, and named as the single allowed exception in the writer sweep rather than left to be rediscovered. | none |
+| **The put chain is per process.** Two hosts behind the proxy could still admit two writes that together cross the ceiling (§4). The fix is a conditional `UPDATE … WHERE bytes_used + ? <= ?` rather than a mutex, and it is not needed while the deployment is one host. | Phase 8, with the second host |
+| **Job-tree writes are counted but not refused.** Meeting, Legal, Knowledge and dataset writes are measured and reported, and the next object write sees them, but none of them is pre-refused on the ceiling. Each would need its own admission call on its own write path. | none |

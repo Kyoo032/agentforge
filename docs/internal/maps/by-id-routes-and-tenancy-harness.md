@@ -38,7 +38,7 @@ four shapes in the tree, and knowing which one a handler uses is how you read it
 | The scope is in the `WHERE` and a miss throws | `requireArtifact` (`packages/host/src/artifacts.ts:191`) | 404 |
 | The scope is in the `WHERE` and a miss returns null, the handler throws | `handleGetThread` → `getThread` (`packages/host/src/threads.ts:49`) | 404 |
 | The handler lists what the tenant owns and looks in that list | `handleSelectWorkspace` (`packages/host/src/handlers/workspaces.ts:98`) | 404 |
-| The scope is in the `WHERE` of a `DELETE` that reports nothing | `deleteMemory` (`packages/host/src/knowledge.ts:199`) | `{ ok: true }`, zero rows touched |
+| The scope is in the `WHERE` of a `DELETE` that reports nothing | `deleteMemory` (`packages/host/src/knowledge.ts:200`) | `{ ok: true }`, zero rows touched |
 
 There is a fifth case that is not a scoping shape but decides what the caller sees: a route that
 opens an SSE stream answers 200 before the work begins, so its refusal arrives as a frame. The check

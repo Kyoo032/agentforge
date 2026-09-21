@@ -249,7 +249,9 @@ describe("reindexSource", () => {
     // The row is legacy AND the stored upload changed under the same id: the re-index must read
     // the file, or it would keep the old copy alive forever.
     const replacement = "The rewritten notes say the archive was replaced in full. ".repeat(60);
-    const storedPath = join(mediaDir, "knowledge", ORG, `${source.id}-notes.txt`);
+    // Phase 6 location: uploads live under the tenant's data directory, where they are counted
+    // against the quota. The media root below is still read as the pre-Phase-6 fallback.
+    const storedPath = join(settingsDir, "knowledge", ORG, `${source.id}-notes.txt`);
     writeFileSync(storedPath, replacement);
     sql.prepare("DELETE FROM knowledge_chunks WHERE workspace_id = ? AND source_id = ?").run(ctx.workspaceId, source.id);
     sql.prepare("DELETE FROM knowledge_vectors WHERE workspace_id = ? AND source_id = ?").run(ctx.workspaceId, source.id);
@@ -262,6 +264,22 @@ describe("reindexSource", () => {
     const expected = chunkKnowledgeText(replacement);
     expect(chunkBodies(ctx, source.id)).toEqual(expected);
     expect(vectorRows(ctx, source.id).map((row) => row.body)).toEqual(expected);
+  });
+
+  it("reads an upload a pre-Phase-6 desk left in the media root", async () => {
+    // The upgrade case: nothing was migrated, so a re-index has to find the old copy where it is.
+    const ctx = tenant();
+    const id = crypto.randomUUID();
+    seedSource(ctx, { id, name: "notes.txt", type: "File", chunkBodies: oldSlices(LEGACY_TEXT) });
+    writeStaleVectors(ctx, id, oldSlices(LEGACY_TEXT));
+    const legacyDir = join(mediaDir, "knowledge", ORG);
+    mkdirSync(legacyDir, { recursive: true });
+    const body = "The pre-Phase-6 upload is still readable from the media root. ".repeat(60);
+    writeFileSync(join(legacyDir, `${id}-notes.txt`), body);
+
+    const outcome = await reindexSource(ctx, id);
+    expect(outcome.status).toBe("reindexed");
+    expect(chunkBodies(ctx, id)).toEqual(chunkKnowledgeText(body));
   });
 
   it("falls back to the stored chunks when the upload is gone", async () => {
