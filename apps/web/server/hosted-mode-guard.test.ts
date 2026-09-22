@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { assertHostedModeCoherent, HOSTED_MODE_REQUIRED } from "./hosted-mode-guard";
+import { assertHostedEnvComplete, assertHostedModeCoherent, HOSTED_MODE_REQUIRED } from "./hosted-mode-guard";
 
 const serverSource = readFileSync(fileURLToPath(new URL("../server.ts", import.meta.url)), "utf8");
 const composeSource = readFileSync(
@@ -48,6 +48,43 @@ describe("the guard is actually wired into the boot path", () => {
     expect(serverSource.indexOf("assertHostedModeCoherent(process.env)")).toBeLessThan(
       serverSource.indexOf("server.listen("),
     );
+  });
+});
+
+/**
+ * SR-04. The rules themselves are `packages/host/src/hosted-env.ts` and are covered by
+ * `hosted-env.test.ts` — thirty-two cases, one per variable and one per local mode. What belongs
+ * here is the half that file cannot see: that the second guard is reached from this module and
+ * actually runs at boot, beside the first one and ahead of `server.listen`.
+ */
+describe("the hosted environment check runs at the same boot site", () => {
+  it("server.ts calls it inside main()", () => {
+    expect(serverSource).toContain("assertHostedEnvComplete(process.env)");
+  });
+
+  it("calls it after the mode check and before the listener is opened", () => {
+    const mode = serverSource.indexOf("assertHostedModeCoherent(process.env)");
+    const env = serverSource.indexOf("assertHostedEnvComplete(process.env)");
+    expect(mode).toBeGreaterThan(-1);
+    expect(env).toBeGreaterThan(mode);
+    expect(env).toBeLessThan(serverSource.indexOf("server.listen("));
+  });
+
+  it("refuses a hosted boot with nothing configured, naming the variables", () => {
+    let message = "";
+    try {
+      assertHostedEnvComplete({ NODE_ENV: "production", AGENTFORGE_SERVER: "1" }, () => {});
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+    expect(message).toContain("AGENTFORGE_SECRETS_KEY");
+    expect(message).toContain("AGENTFORGE_TRUSTED_ORIGINS");
+    expect(message).toContain("AGENTFORGE_PORTAL_URL");
+  });
+
+  it("leaves webdev and the desktop alone, which is why it can sit on the boot path", () => {
+    expect(() => assertHostedEnvComplete({}, () => {})).not.toThrow();
+    expect(() => assertHostedEnvComplete({ NODE_ENV: "development" }, () => {})).not.toThrow();
   });
 });
 

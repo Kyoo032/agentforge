@@ -40,15 +40,45 @@ export {
 } from "./session-store";
 export type { PortalTokenSet, SessionStore, TokenVault } from "./session-store";
 export {
+  PORTAL_AUTHORIZE_PATH,
   PORTAL_TIMEOUT_MS,
   PORTAL_URL_ENV,
   PortalError,
+  buildAuthorizeUrl,
   createFakePortalClient,
   createPortalClient,
   mapPortalError,
   portalBaseUrl,
 } from "./portal-client";
-export type { FakePortalClient, PortalClient, PortalClientOptions, PortalTokens } from "./portal-client";
+export type {
+  FakePortalClient,
+  PortalClient,
+  PortalClientOptions,
+  PortalExchangeInput,
+  PortalTokens,
+} from "./portal-client";
+export {
+  LOGIN_STATE_BYTES,
+  LOGIN_STATE_COOKIE,
+  LOGIN_STATE_COOKIE_SECURE,
+  LOGIN_STATE_MAX_AGE_SECONDS,
+  loginStateCookieName,
+  mintLoginState,
+  readLoginStateCookie,
+  statesMatch,
+} from "./login-state";
+export {
+  AUTH_CALLBACK_PATH,
+  LOGIN_CONFIG_ERROR,
+  PORTAL_CLIENT_ID_ENV,
+  PORTAL_CLIENT_SECRET_ENV,
+  PUBLIC_URL_ENV,
+  portalClientCredentials,
+  portalLoginConfig,
+  publicBaseUrl,
+  publicRedirectUri,
+} from "./portal-config";
+export type { PortalClientCredentials, PortalLoginConfig } from "./portal-config";
 export {
   AUTH_ROUTE_PREFIX,
   UNGATED_GETS,

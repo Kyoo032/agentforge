@@ -111,6 +111,21 @@ describe("music handlers via the router", () => {
     }
   });
 
+  /**
+   * Regression, 2026-09-21. The owner's desk answered `{"models":[],"defaultModel":"suno_music"}`:
+   * the gateway's `GET /v1/models` lists OpenAI-shaped models only, and `suno_music` is a relay task
+   * model mounted on the origin, so filtering the live catalog could never produce it. The picker
+   * rendered empty and disabled while the default pointed at a model the list did not contain.
+   */
+  it("offers the relay music model even though the live catalog never lists it", async () => {
+    const body = (await json("GET", "/api/v1/music")).body as MusicListBody;
+    const ids = body.models.map((row) => row.id);
+    expect(ids).toContain("suno_music");
+    // The picker must be able to show what generate will actually use.
+    expect(ids).toContain(body.defaultModel);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
   it("reports why voice-over is off instead of offering a control that cannot work", async () => {
     const body = (await json("GET", "/api/v1/music")).body as MusicListBody;
     // A stub desk has no catalog at all, so the honest answer is "no audio models", never null.

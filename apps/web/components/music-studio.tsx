@@ -13,6 +13,7 @@ import { ModelSelect } from "@/components/model-select";
 import { SettingsLinkHint } from "@/components/settings-link-hint";
 import { t } from "@/lib/i18n";
 import { mediaPriceHints, musicEstimateView } from "@/lib/media-estimate";
+import { musicPickerEmpty, readApiErrorMessage } from "@/lib/music-models";
 import { apiFetch, mediaSrc } from "@/lib/api-client";
 import { useProductBrand } from "@/lib/product-brand";
 
@@ -81,11 +82,9 @@ export function MusicStudio() {
     setError(null);
     try {
       const response = await apiFetch("/api/v1/music");
-      const data = (await response.json().catch(() => ({}))) as LibraryResponse & {
-        error?: { message?: string };
-      };
+      const data = (await response.json().catch(() => ({}))) as LibraryResponse;
       if (!response.ok) {
-        setError(data.error?.message ?? t("music.loadError"));
+        setError(readApiErrorMessage(data, t("music.loadError")));
         setReady(false);
         return;
       }
@@ -124,6 +123,8 @@ export function MusicStudio() {
 
   const brief = mode === "custom" ? lyrics : prompt;
   const busy = generating || drafting;
+  // A disabled select with no options says nothing. If the host ever hands back an empty list, say why.
+  const noModels = musicPickerEmpty({ loading, models });
 
   async function draftLyrics() {
     if (!prompt.trim() || busy) {
@@ -137,13 +138,9 @@ export function MusicStudio() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: prompt.trim() }),
       });
-      const data = (await response.json().catch(() => ({}))) as {
-        text?: string;
-        title?: string;
-        error?: { message?: string };
-      };
+      const data = (await response.json().catch(() => ({}))) as { text?: string; title?: string };
       if (!response.ok || !data.text) {
-        setError(data.error?.message ?? t("music.lyricsError"));
+        setError(readApiErrorMessage(data, t("music.lyricsError")));
         return;
       }
       setLyrics(data.text);
@@ -179,9 +176,11 @@ export function MusicStudio() {
           model: model || undefined,
         }),
       });
-      const data = (await response.json().catch(() => ({}))) as { error?: { message?: string } };
+      const data = (await response.json().catch(() => ({}))) as unknown;
       if (!response.ok) {
-        setError(data.error?.message ?? t("music.generateError"));
+        // Whatever the gateway said — model not enabled for this key, quota exhausted, relay missing —
+        // is in one of the host's two error shapes. Both reach the banner; neither is swallowed.
+        setError(readApiErrorMessage(data, t("music.generateError")));
         return;
       }
       await load();
@@ -236,15 +235,27 @@ export function MusicStudio() {
               </option>
             ))}
           </select>
-          <ModelSelect
-            models={modelOptions}
-            value={model}
-            onChange={setModel}
-            disabled={busy || models.length === 0}
-            testId="music-studio-model"
-            className="select-field min-w-[12rem] flex-1"
-          />
+          {noModels ? null : (
+            <ModelSelect
+              models={modelOptions}
+              value={model}
+              onChange={setModel}
+              disabled={busy}
+              testId="music-studio-model"
+              className="select-field min-w-[12rem] flex-1"
+            />
+          )}
         </div>
+
+        {noModels ? (
+          <div
+            className="rounded-lg border border-[var(--line)] px-3 py-2"
+            data-testid="music-studio-no-models"
+          >
+            <p className="text-sm font-medium text-[var(--text)]">{t("music.noModels.title")}</p>
+            <p className="mt-1 text-xs text-[var(--text-2)]">{t("music.noModels.body", { gateway: gatewayName })}</p>
+          </div>
+        ) : null}
 
         <p className="text-xs text-[var(--text-3)]" data-testid="music-studio-mode-hint">
           {t(MODES.find((item) => item.id === mode)?.hintKey ?? "music.describeHint")}
@@ -331,7 +342,7 @@ export function MusicStudio() {
               type="button"
               className="shrink-0 wash inline-flex h-8 items-center rounded-pill border border-[var(--line)] px-3 py-2 text-sm text-[var(--text-2)] disabled:opacity-45"
               onClick={() => void draftLyrics()}
-              disabled={busy || !ready || !prompt.trim()}
+              disabled={busy || !ready || noModels || !prompt.trim()}
               data-testid="music-studio-draft-lyrics"
             >
               {drafting ? t("music.writingLyrics") : t("music.writeLyrics")}
@@ -350,7 +361,7 @@ export function MusicStudio() {
           <button
             type="submit"
             className="shrink-0 wash inline-flex h-8 items-center rounded-pill bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--surface)] disabled:opacity-45"
-            disabled={busy || !ready || !brief.trim()}
+            disabled={busy || !ready || noModels || !brief.trim()}
             data-testid="music-studio-submit"
           >
             {generating ? t("music.generating") : t("music.generate")}

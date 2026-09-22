@@ -36,6 +36,17 @@ describe("music locale JSON", () => {
     }
   });
 
+  it("explains an empty model picker instead of leaving a disabled select", () => {
+    // The relay merge should keep this state unreachable, but a picker that does go empty has to say
+    // why rather than render a dead control the owner reads as "music is broken".
+    for (const locale of ["en", "id"] as const) {
+      const music = load(locale, "music.json") as { noModels?: Record<string, unknown> };
+      expect(typeof music.noModels?.title).toBe("string");
+      expect(typeof music.noModels?.body).toBe("string");
+      expect(String(music.noModels?.body).length).toBeGreaterThan(0);
+    }
+  });
+
   it("carries a reason for each way voice-over can be unavailable", () => {
     // The host answers with one of these two reason codes; a missing key would render blank.
     for (const locale of ["en", "id"] as const) {

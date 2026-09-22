@@ -4,6 +4,7 @@ import {
   HOSTED_MARKER_META,
   HOSTED_MARKER_TAG,
   injectHostedMarker,
+  rootRelativeAssets,
   isHostedBuild,
   type HostedScope,
 } from "./hosted-build";
@@ -110,5 +111,54 @@ describe("injectHostedMarker", () => {
   it("never rewrites anything but the head", () => {
     const out = injectHostedMarker(HTML, true);
     expect(out.replace(HOSTED_MARKER_TAG, "")).toBe(HTML);
+  });
+});
+
+describe("rootRelativeAssets", () => {
+  /**
+   * The real built shell. `apps/web/vite.config.ts` sets `base: "./"`, which the packaged desktop
+   * needs — it loads the bundle off disk, where there is no origin to be absolute against.
+   */
+  const BUILT =
+    '<!doctype html>\n<html lang="en">\n  <head>\n' +
+    '    <link rel="icon" type="image/png" href="./brand/logo.png" />\n' +
+    '    <script type="module" crossorigin src="./assets/index-abc.js"></script>\n' +
+    '    <link rel="stylesheet" crossorigin href="./assets/index-abc.css">\n' +
+    "  </head>\n  <body></body>\n</html>\n";
+
+  /**
+   * The bug this exists for. The hosted server answers every GET that is not `/api/` with this one
+   * shell, so `/auth/callback` — where the portal drops a person after they sign in, by top-level
+   * navigation — gets a document whose own URL makes `./assets/index-abc.js` mean
+   * `/auth/assets/index-abc.js`. That path is not a file, so the SPA fallback answers it with the
+   * shell again, as `text/html`, and the browser refuses the module. Nothing renders, the callback
+   * never posts its code, and sign-in cannot complete on the hosted deployment at all.
+   */
+  it("makes the built shell's asset URLs absolute, so a nested route loads them", () => {
+    const out = rootRelativeAssets(BUILT);
+    expect(out).toContain('src="/assets/index-abc.js"');
+    expect(out).toContain('href="/assets/index-abc.css"');
+    expect(out).toContain('href="/brand/logo.png"');
+    expect(out).not.toContain('"./');
+  });
+
+  it("leaves an already absolute shell alone", () => {
+    const absolute = BUILT.replace(/"\.\//g, '"/');
+    expect(rootRelativeAssets(absolute)).toBe(absolute);
+  });
+
+  it("is idempotent", () => {
+    const once = rootRelativeAssets(BUILT);
+    expect(rootRelativeAssets(once)).toBe(once);
+  });
+
+  it("touches only src and href, never text or a data URI", () => {
+    const html = '<p>see ./assets/readme.md</p><img src="data:image/png;base64,AAA" />';
+    expect(rootRelativeAssets(html)).toBe(html);
+  });
+
+  it("does not turn a protocol-relative or external URL into a path", () => {
+    const html = '<script src="https://cdn.example.test/x.js"></script><link href="//cdn/x.css">';
+    expect(rootRelativeAssets(html)).toBe(html);
   });
 });

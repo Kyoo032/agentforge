@@ -1,6 +1,8 @@
 # Map — Tenant entitlement: the allowance, the seat cap and the billing webhook
 
-Last verified: 2026-09-20 at 8dc684f
+Last verified: 2026-09-21 at 4938747 + working tree. Eight citations had drifted since 2026-09-20
+and were re-anchored by hand; the tier-label and plan-refusal sections were rewritten again after
+the fix pass of the same day.
 
 ## Overview
 
@@ -36,8 +38,8 @@ block decision — `quotedPriceUsdMicros` (`packages/core/src/entitlement/types.
 thing that reads it, and nothing in the enforcement path calls it.
 
 **The period is the calendar month, in UTC.** `calendarMonthPeriod`
-(`packages/core/src/entitlement/types.ts:151-159`), rolled by `rolledPlan`
-(`packages/core/src/entitlement/types.ts:170-177`). A roll resets the spend
+(`packages/core/src/entitlement/types.ts:151-168`), rolled by
+`rolledPlan` (`packages/core/src/entitlement/types.ts:170-180`). A roll resets the spend
 and the unpriced count and nothing else: the allowance, the seat cap, the margin and the status
 belong to the subscription, not to the month. `rolledPlan` is pure and idempotent, so a read path
 can roll a record in memory and answer correctly even when the write that makes it durable loses a
@@ -75,9 +77,9 @@ read-modify-write, so two concurrent generations both land.
 
 **Seats are held until an admin revokes them** (decision doc D5(b)), never freed by going idle and
 never derived from `auth_sessions`. `claimSeat` (`packages/host/src/entitlement-store.ts:217`) runs
-at sign-in, from `handleLogin` (`packages/host/src/auth/routes.ts:261`, at the call
-`packages/host/src/auth/routes.ts:290`) through the injected
-`claimSeat` dependency (`packages/host/src/auth/routes.ts:81`, wired at
+at sign-in, from `handleLogin` (`packages/host/src/auth/routes.ts:407`, at the call
+`packages/host/src/auth/routes.ts:382`) through the injected
+`claimSeat` dependency (`packages/host/src/auth/routes.ts:94`, wired at
 `packages/host/src/auth/index.ts:145-155`), **after** provisioning, because the seat row has a
 foreign key to the tenant that provisioning writes. `seatAdmission`
 (`packages/core/src/entitlement/types.ts:246`) is the rule: somebody who already holds a seat is
@@ -91,7 +93,7 @@ translated *into* (`BILLING_EVENT_KINDS`, `:47`), how it is read (`parseBillingE
 it does to a plan row (`applyBillingEvent`, `:189`) and when it must be ignored
 (`billingEventDecision`, `:224` — `duplicate` on an event id already **applied**, `stale` when the
 event is older than the newest delivery this host has applied for the tenant).
-`handlePostBillingWebhook` (`packages/host/src/handlers/billing.ts:53`) is the route: authenticate,
+`handlePostBillingWebhook` (`packages/host/src/handlers/billing.ts:60`) is the route: authenticate,
 parse, decide, apply, and record the delivery in `billing_events` **either way**.
 
 **The ordering bar is `lastAppliedEventAt`, never `tenant_plan.updated_at`** — the trap this route
@@ -105,16 +107,99 @@ tenant's first sign-in. Every authenticated, parseable delivery answers 200 — 
 and retrying a delivery the host has deliberately refused ends with the provider retiring the event.
 
 **Three exemptions, because no browser calls it** (decision doc §3(c)): the session gate
-(`UNGATED_POSTS`, `packages/host/src/auth/routes.ts:56`, read by `isSessionExemptPath` at `:132`),
+(`UNGATED_POSTS`, `packages/host/src/auth/routes.ts:69`, read by `isSessionExemptPath` at `:151-157`),
 the CSRF and Origin rule (`CSRF_EXEMPT_PATHS`, `packages/host/src/http-adapter.ts:680`, applied at
 `:482`), and in their place a shared secret compared in constant time (`verifyBillingRequest`,
 `packages/host/src/billing/authenticate.ts:47`). Each exemption is a single literal path, never a
 prefix. A deployment with no secret configured refuses every delivery rather than accepting any.
 
-**Two routes stay open to a blocked tenant.** `GET /api/v1/billing/plan`
-(`packages/host/src/handlers/billing.ts:128`) and `POST /api/v1/billing/top-up` (`:176`), routed at
-`packages/host/src/router.ts:274-276`, are session-gated and deliberately not behind the gateway
-gate: a tenant that cannot see why it is blocked, or pay, is a churned tenant.
+**Three routes stay open to a blocked tenant.** `GET /api/v1/billing/plan`, `POST
+/api/v1/billing/top-up` and — since Phase 9 lane F — `GET /api/v1/billing/plans`
+(`handleGetBillingPlans`, `packages/host/src/handlers/billing.ts:204`, routed at
+`packages/host/src/router.ts:292`) are session-gated and deliberately not behind the gateway gate:
+a tenant that cannot see why it is blocked, what it could buy, or how to pay, is a churned tenant.
+
+**Phase 9 lane F: the catalog, and the tier label.** `/billing/plans` answers
+`{ currency, tiers, current }` — the frozen `PLAN_TIERS` from `@agentforge/core/plans` plus the
+one thing an import cannot answer, which tier *this* tenant is on. Off server mode it answers the
+same catalog with `current: null`, so a desk can render the pricing page without branching on the
+deployment. `/billing/plan` gained `tierId` the same way. **No token field on either route** —
+nobody is metered against a token budget (owner, 2026-09-21), and both tiers leave
+`allowance_usd_micros` null.
+
+**The label reads the stored row; enforcement reads the default.** Both `tierId` and `current` come
+from `storedTierId` (`packages/host/src/handlers/billing.ts:146-162`): `findPlanRecord`, which is
+`null` when the tenant has no `tenant_plan` row, and `matchTier` on that row's `kind` and `seatCap`
+only when there is one. Enforcement is untouched and still reads `currentPlanRecord`, which fills in
+`defaultPlanRecord` and rolls the period so that a missing row fails **open**
+(`packages/host/src/entitlement-store.ts:154-186`).
+
+Conflating the two was a bug fixed on 2026-09-21. Labelling from `currentPlanRecord` described a
+tenant with no row by the fail-open default — personal, `seatCap: null`, `active` — which is
+byte-for-byte the Personal tier, so `matchTier` named it: `tierId: "personal"`, Settings showing
+"Personal / Active", and `/pricing` replacing the Personal call to action with "This is your plan"
+for tenants nobody had sold anything to. `matchTier` itself is unchanged and still pure — it is a
+lookup on two columns and cannot tell where they came from, which is exactly why the caller must
+(`packages/core/src/plans/catalog.ts:148-183`). A hand-set cap still matches nothing and is still
+`null`, and the plan panel renders `account-plan-none` ("no plan on this account yet", plus the
+link to `/pricing`) for either kind of `null`.
+
+### Phase 9 lane G: the three renderer surfaces
+
+Until this round the entitlement backend had **no reader**. A past-due tenant's job answered
+`request_failed` / "Request failed" — a dead end with no code to branch on and nothing to read.
+
+**`/pricing`** (`apps/web/components/pricing-page.tsx`) renders `PLAN_TIERS` directly from
+`@agentforge/core/plans`, so it needs no session, no key and no network. It is one of the three
+public routes in `apps/web/src/App.tsx`, which is why a `seat_cap_reached` refusal can send somebody
+there while they are signed out by definition. Testids: `pricing-page`, `pricing-placeholder`, and
+per tier `pricing-tier-<id>`, `pricing-price-<id>`, `pricing-seats-<id>`, `pricing-features-<id>`,
+`pricing-cta-<id>`, plus `pricing-contact-help` when no checkout is configured. The call to action is
+one of exactly three real things and never a dead fourth — an operator checkout link, a plain
+statement for the tier the tenant is already on, or a control that says who to ask.
+
+**The plan panel** (`apps/web/components/account-plan-panel.tsx`) sits on Settings, gated on
+`capabilities.plans`, and renders nothing of substance on a desk. Testids: `account-plan`,
+`account-plan-tier`, `account-plan-status`, `account-plan-seats`, `account-plan-period`,
+`account-plan-warnings`.
+
+**The blocked screens** (`apps/web/components/plan-blocked-screen.tsx`) are put up by
+`PlanBlockBoundary` in `App.tsx`, wrapping both the loading and the onboarding branches — so a
+past-due tenant is **never** routed to the paste-your-key screen. Four codes:
+`plan_past_due`, `plan_cancelled`, `plan_allowance_exhausted` (403) and `plan_unavailable` (503),
+the last of which is a **retry, not a paywall**. Testids: `plan-blocked`, `plan-blocked-plans`,
+`plan-blocked-checkout`, `plan-blocked-retry`, `plan-blocked-contact`.
+
+**The flat-error seam, and where it is read.** Plan refusals are flat — `{ error: "<code>", message }`
+— while nearly every other route answers the envelope `{ error: { code, message } }`. Two readers,
+with different jobs:
+
+- **Every response**, in the shared path. `notePlanResponse` (`apps/web/lib/plan-block.ts`) is
+  called from `apiFetch` beside `noteApiResponse` (`apps/web/lib/api-client.ts:174-181`). It does
+  nothing off `403`/`503`; on those two it reads a **clone**, so the caller's body is untouched, and
+  announces the code in either shape — flat, or an envelope carrying a plan code, which at that
+  status is a plan refusal by any reading. Until 2026-09-21 the only caller of `reportPlanBlocked`
+  was the job stream, so the same blocked tenant got the full-screen explanation for a job and an
+  ordinary red banner for a chat send, a settings save or a music generate.
+- **The job stream**, for the message. `errorFromJson` (`apps/web/lib/job-stream.ts:47-63`) still
+  calls `reportPlanBlocked` before narrowing, which is what gives a blocked job a readable message
+  instead of "Request failed".
+
+`gateway_blocked` is deliberately left alone in both: it is the other flat code, it has its own
+parser and its own screen, and a paywall in front of it would be a door that cannot open.
+`session_required` belongs to `session-signal.ts` and raises nothing here.
+
+**A local-only preview door.** `?preview=<code>` on `/pricing` renders a blocked screen, and
+`previewCode` (`apps/web/components/pricing-page.tsx:34-40`) refuses unless the ping says plans are
+not enforced and there is a single owner — so an unanswered ping refuses it rather than opening it
+([SR-35](../security-register.md#sr-35)).
+
+**One disagreement, unresolved on purpose.** Personal's `seatCap` is `null`, which `seatAdmission`
+reads as "no cap configured" and admits everybody, while `pricing-seats-personal` renders
+`plans.seats.uncapped` — **"One seat"**. Copy and behaviour contradict each other and it is an open
+owner decision: [SR-22](../security-register.md#sr-22).
+
+Where to press: [`features/plans.md`](../../../.cursor/skills/verify-agentforge/features/plans.md).
 
 ## Where things live
 
@@ -130,7 +215,7 @@ gate: a tenant that cannot see why it is blocked, or pay, is a churned tenant.
 | `packages/db/src/schema.ts:192` | `tenantPlan`; `tenantSeat` at `:160`, `billingEvents` at `:188`, `billingPeriodStart` at `:83` |
 | `packages/db/src/ensure-schema.ts:519` | `ensureTenantPlanTables`, the healer for a baseline-stamped database; the ledger's late column at `:499` |
 | `packages/host/src/gateway-gate.ts:476` | `requireGatewayAllowed` — where the plan check sits, before the key check |
-| `packages/host/src/auth/routes.ts:261` | `handleLogin` — where the seat cap sits, after provisioning |
+| `packages/host/src/auth/routes.ts:407` | `handleLogin` — where the seat cap sits, after provisioning (the `claimSeat` call is at `:382`) |
 
 ## Gotchas
 

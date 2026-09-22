@@ -30,8 +30,13 @@ export type ExtractedAudio = {
   offsets: number[];
 };
 
+/**
+ * Whole milliseconds: a probed duration is fractional (`65.556063`), and `execFile` refuses a
+ * fractional timeout outright. `runFfmpeg` rounds too, but a budget that is honest at its source
+ * is one less thing to reason about.
+ */
 function timeoutForMedia(seconds: number): number {
-  return Math.max(30_000, 2 * seconds * 1000 + 30_000);
+  return Math.ceil(Math.max(30_000, 2 * seconds * 1000 + 30_000));
 }
 
 export function ffmpegAvailable(): boolean {

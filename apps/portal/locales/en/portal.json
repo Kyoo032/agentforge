@@ -1,0 +1,89 @@
+{
+  "product": "DPSBuddy",
+  "signIn": {
+    "title": "Sign in",
+    "intro": "Enter your work e-mail address. We will send you a six-digit code.",
+    "emailLabel": "E-mail address",
+    "submit": "Send code"
+  },
+  "sent": {
+    "title": "Check your e-mail",
+    "body": "If that address has an account, a six-digit code is on its way. It expires in {minutes} minutes.",
+    "codeLabel": "Six-digit code",
+    "submit": "Continue",
+    "resend": "Did not get it? Start again."
+  },
+  "code": {
+    "invalid": "That code is not right. {attempts} attempts left.",
+    "expired": "That code has expired. Start again.",
+    "exhausted": "Too many attempts on that code. Start again.",
+    "missing": "Enter the six digits from the e-mail."
+  },
+  "approve": {
+    "title": "Approve this device?",
+    "intro": "A device asked to sign in to your account.",
+    "userCode": "Code",
+    "platform": "Platform",
+    "device": "Device",
+    "warning": "Only continue if you just started a sign-in on that device.",
+    "approve": "Approve",
+    "deny": "Deny",
+    "codeIntro": "Type the code shown on the device you are signing in.",
+    "codeLabel": "Device code",
+    "codeSubmit": "Continue",
+    "unknownCode": "That code is not valid any more. Start the sign-in again on the device."
+  },
+  "approved": {
+    "title": "Device approved",
+    "body": "Go back to the device. It finishes signing in on its own."
+  },
+  "denied": {
+    "title": "Sign-in denied",
+    "body": "Nothing was approved. You can close this page."
+  },
+  "success": {
+    "title": "Signed in",
+    "body": "Taking you back to {product}."
+  },
+  "signedOut": {
+    "title": "Signed out",
+    "body": "Your sign-in on this browser has ended. You will be asked for your e-mail and a code next time."
+  },
+  "error": {
+    "title": "Cannot continue",
+    "generic": "Something went wrong. Close this page and start again.",
+    "invalidClient": "This sign-in link is not valid. Start again from the app.",
+    "invalidRedirect": "This sign-in link is not valid. Start again from the app.",
+    "badRequest": "That request was not understood.",
+    "expiredForm": "This page expired. Start again.",
+    "rateLimited": "Too many attempts. Try again in a few minutes."
+  },
+  "platform": {
+    "windows": "Windows",
+    "macos": "macOS",
+    "linux": "Linux",
+    "android": "Android",
+    "ios": "iOS",
+    "web": "Web browser",
+    "unknown": "Unknown"
+  },
+  "reason": {
+    "tenant_inactive": "Your provider's account is not active. Contact support.",
+    "org_inactive": "Your organisation is not active.",
+    "org_past_due": "Your organisation's payment is overdue.",
+    "user_inactive": "Your account is disabled.",
+    "seat_cap_reached": "No seats left in your organisation.",
+    "device_revoked": "This device was signed out by an admin.",
+    "session_revoked": "You were signed out. Please sign in again.",
+    "refresh_reused": "Signed out for security. Please sign in again.",
+    "refresh_expired": "Your session expired. Please sign in again.",
+    "device_code_expired": "The code expired. Start sign-in again.",
+    "device_code_denied": "Sign-in was denied.",
+    "invalid_request": "That request was not understood.",
+    "invalid_grant": "That sign-in could not be completed. Start again.",
+    "rate_limited": "Too many attempts. Try again in a few minutes."
+  },
+  "footer": {
+    "note": "Never share a sign-in code with anyone."
+  }
+}

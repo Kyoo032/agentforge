@@ -1,6 +1,10 @@
 # Map — Hosted server mode and the transport security pass
 
-Last verified: 2026-09-20 at c204e5e; citations re-anchored at e37b3a1
+Last verified: 2026-09-21 at 4938747 + working tree; four citations re-anchored and the
+review-instance section added, then the boot-guard path re-checked after the fix pass of the same
+day (the guards moved from `apps/web/lib/` to `apps/web/server/`, because `lib` is the renderer's
+namespace and that module re-exports `@agentforge/host`). The rest was last read at c204e5e /
+e37b3a1.
 
 ## Overview
 
@@ -139,7 +143,7 @@ A refusal is `429 { code: "rate_limited", message: "Too many requests. Please sl
 
 | Pool | Cap env | Default | Wired at |
 |---|---|---|---|
-| ffmpeg / ffprobe children | `AGENTFORGE_MAX_FFMPEG` (`:27`) | 2 (`:29`) | `:288`, used by `packages/host/src/edit/ffmpeg/run.ts:73` |
+| ffmpeg / ffprobe children | `AGENTFORGE_MAX_FFMPEG` (`:27`) | 2 (`:29`) | `:288`, used by `packages/host/src/edit/ffmpeg/run.ts:101` |
 | dataset SQL workers | `AGENTFORGE_MAX_SQL_WORKERS` (`:28`) | 4 (`:30`) | `:290`, used by `packages/host/src/sql-runner.ts:186`, `:278` |
 
 `AGENTFORGE_JOB_QUEUE_TIMEOUT_MS` (`:33`, default 60 000, `:34`) is how long a job may sit in the waiting room before it is refused instead (`:162-167`); the timer is `unref`'d so a waiting room never keeps the process alive (`:169`). Both the full-waiting-room case (`:203-205`) and the timeout case answer the same `ApiError("too_many_jobs", …, 429)` (`:21-22`, `:92-98`) — it is the same answer, reached a minute later.
@@ -199,9 +203,9 @@ Off server mode nothing about either scope changed.
 
 **`MAX_BODY_BYTES` is not where the other caps are.** `MAX_REQUEST_PATH_LENGTH`, `MAX_QUERY_PARAMS` and `MAX_HEADER_BYTES` are in `local-request.ts:160-166`; the body cap is `http-adapter.ts:30` and is *passed in* as `maxBodyBytes` (`local-request.ts:187`). It is also enforced twice, for different reasons: the declared `Content-Length` is refused before a byte is read (`local-request.ts:297-300`), and the bytes actually read are counted again as they stream in (`http-adapter.ts:134-137`), because a chunked body declares no length.
 
-**The security spec is a decision record, not a citation source.** Its rows A1, T4, T8, T9 and S1 (`docs/internal/web-security-spec.md`) were still describing the pre-PR-56 tree until 2026-09-20, when they were rewritten against this commit — including S1, which said the `.master-key` fallback throws "when `NODE_ENV=production`" where the code actually keys on `isServerMode` (`packages/db/src/vault-key.ts:125`). Read those rows for *what was decided and why*; read this page or the code for where it lives.
+**The security spec is a decision record, not a citation source.** Its rows A1, T4, T8, T9 and S1 (`docs/internal/web-security-spec.md`) were still describing the pre-PR-56 tree until 2026-09-20, when they were rewritten against this commit — including S1, which said the `.master-key` fallback throws "when `NODE_ENV=production`" where the code actually keys on `isServerMode` (`packages/db/src/vault-key.ts:186`). Read those rows for *what was decided and why*; read this page or the code for where it lives.
 
-**Transport filtering runs on every path, not just `/api`.** In server mode the TLS rule, the method allowlist, the path filter, the header cap and the per-IP bucket apply to page loads, bundles and 404 probes too (`http-adapter.ts:407-413`, reasoning at `:394-406`). Only the Origin / CSRF / session rules stay `/api`-only. **This depends on `handleNodeRequest` being the first middleware in `apps/web/server.ts:45-51`.** Move that mount and the controls move with it.
+**Transport filtering runs on every path, not just `/api`.** In server mode the TLS rule, the method allowlist, the path filter, the header cap and the per-IP bucket apply to page loads, bundles and 404 probes too (`http-adapter.ts:407-413`, reasoning at `:394-406`). Only the Origin / CSRF / session rules stay `/api`-only. **This depends on `handleNodeRequest` being the first middleware in `apps/web/server.ts:66-72`.** Move that mount and the controls move with it.
 
 **A plaintext flood is not rate-limited.** `rejectPlaintext` runs before `checkRequestRate` inside `transportRejection` (`http-adapter.ts:323-329`), so a request without `X-Forwarded-Proto: https` gets its 403 without spending a token. That is cheap to answer, but it means the per-IP bucket is not the control for that traffic — the proxy and the loopback bind are.
 
@@ -209,7 +213,7 @@ Off server mode nothing about either scope changed.
 
 **The CSRF token is not yet bound to a session.** It is bare randomness compared against itself; binding it as `HMAC(server key, session id)` is a recorded follow-up (`csrf.ts:14-17`, `:89-91`). Today a token minted for one session is not rejected in another.
 
-**An unconfigured hosted server accepts no writes.** `trustedOrigins()` defaults to `[]` in server mode (`packages/core/src/server-mode.ts:58-60`), and both `isAllowedWebOrigin` and `isAllowedWebHostHeader` match nothing against an empty list. Every POST/PATCH/DELETE answers `403 origin_forbidden` until `AGENTFORGE_TRUSTED_ORIGINS` is set. The matching proxy trap: Caddy must **not** rewrite `Host` to `127.0.0.1`, which the old loopback rule needed and which now fails the Host half of the check (`webapp-deploy/Caddyfile:114-131`).
+**An unconfigured hosted server accepts no writes.** `trustedOrigins()` defaults to `[]` in server mode (`packages/core/src/server-mode.ts:54-60`), and both `isAllowedWebOrigin` and `isAllowedWebHostHeader` match nothing against an empty list. Every POST/PATCH/DELETE answers `403 origin_forbidden` until `AGENTFORGE_TRUSTED_ORIGINS` is set. The matching proxy trap: Caddy must **not** rewrite `Host` to `127.0.0.1`, which the old loopback rule needed and which now fails the Host half of the check (`webapp-deploy/Caddyfile:114-131`).
 
 **Lowering an rpm lowers its burst too.** `bucketConfig` clamps burst to `max(1, min(defaultBurst, rpm || defaultBurst))` (`rate-limit.ts:178-182`), so `AGENTFORGE_RATE_IP_RPM=10` gives burst 10, not 100. A non-numeric value silently falls back to the default; an explicit `0` switches that limiter off entirely (`:82-84`). Buckets are also thrown away whenever the resolved config changes (`:193-205`).
 
@@ -227,7 +231,28 @@ Off server mode nothing about either scope changed.
 
 The closest existing feature file is [`.cursor/skills/verify-agentforge/features/security.md`](../../../.cursor/skills/verify-agentforge/features/security.md), and it is **not** the verification for this page. It covers the key fingerprint on Settings (`key-fingerprint`), the `privacy-note` copy, the at-rest AES-256-GCM envelope inventory and the doctor's `keyFingerprint` field. It says nothing about `AGENTFORGE_SERVER`, the Origin allowlist, CSRF, rate limits or masked errors.
 
-**No feature file drives the hosted transport path end to end today.** Nothing in `.cursor/skills/verify-agentforge/features/` brings up an instance with `AGENTFORGE_SERVER=1` behind a proxy and proves the answers from the outside. That is the gap, and it is the honest state at this commit: everything on this page is proved by unit suites against the pure functions, not by a driven run.
+**Since 2026-09-21 there is a way to bring the real thing up**, and one feature file that uses it: [`features/login.md`](../../../.cursor/skills/verify-agentforge/features/login.md) drives sign-in on the review instance described below. That still does not prove the transport rules from the outside — nothing walks the Origin allowlist, the method filter or the rate buckets against a running hosted instance — so the gap is narrower than it was and has not closed. Everything on this page is proved by unit suites against the pure functions plus whatever a login drive happens to exercise.
+
+### The review instance (harness, never ships)
+
+`scripts/review-instance.ps1` exists because **hosted mode cannot be reviewed over plain http**: `rejectPlaintext` answers `403 https_required` without `X-Forwarded-Proto: https`, and `trustedOrigins` drops every `http://` entry in server mode. Both are rules on this page; the harness is what lets a human meet them on a desk.
+
+Four things on loopback:
+
+| Piece | Where | What it is |
+|---|---|---|
+| Postgres 16 + Mailpit | `apps/portal/compose.yml`, `127.0.0.1:5433` / `:1025` | the portal's store and its SMTP sandbox, published on loopback only |
+| portal | `127.0.0.1:4000` | `apps/portal`, its own data dir ([`portal-service.md`](portal-service.md)) |
+| app | `127.0.0.1:3100` | `AGENTFORGE_SERVER=1`, its **own** `AGENTFORGE_DATA_DIR` — never `.webdev-data` |
+| proxy | `127.0.0.1:3443` | `scripts/review-proxy.mjs`: terminates TLS on a self-signed pair, stamps `X-Forwarded-Proto: https`, appends `X-Forwarded-For`, passes `Host` unchanged |
+
+Three properties of the script are load-bearing rather than convenience. **Default is print, not run**: without `-Start` it prints exactly what it would launch and exits 0. **`-Stop` kills only the three process ids it recorded**, and only when the running process still has the start time recorded with the id — never by port, never by image name. And it **refuses a data dir that resolves inside the checkout or is named `.webdev-data`**, because `:3000` is the operator's shared webdev and this must never touch it.
+
+`-Production` runs the app the way the deployment does — `NODE_ENV=production`, the built bundle from `apps/web/dist` rather than Vite. That is the only configuration in which the production CSP, the built shell, the hosted marker and the `apps/web/server/hosted-mode-guard.ts` boot refusals are exercised at all.
+
+With `-AppPublicUrl` / `-PortalPublicUrl` the same command serves a second topology: the four variables that have to agree with the public names — `AGENTFORGE_TRUSTED_ORIGINS`, `AGENTFORGE_PUBLIC_URL`, `AGENTFORGE_PORTAL_URL`, `PORTAL_PUBLIC_URL` — are derived from them rather than edited by hand in four places, and `PORTAL_TRUST_PROXY` switches on exactly when there really is a proxy in front. That is the shape the two Cloudflare quick tunnels of 2026-09-21 used ([SR-28](../security-register.md#sr-28)); they are ephemeral and must be closed after the review.
+
+Secrets and TLS material live under `$HOME\.dpsbuddy-review`, never in the checkout ([SR-11](../security-register.md#sr-11)). One gap is recorded there: `--upstream` is not loopback-checked the way `--listen` is. Neither script may be copied into `webapp-deploy/` — `webapp-deploy/Caddyfile` stays the only proxy the product ships behind. Proved by `node --test scripts/review-proxy.test.mjs scripts/review-instance.test.mjs`, 26 passed on 2026-09-21.
 
 What does prove it, and what a feature file would have to keep in step with:
 

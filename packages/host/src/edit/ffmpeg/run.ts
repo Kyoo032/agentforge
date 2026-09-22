@@ -4,6 +4,7 @@ import { promisify } from "node:util";
 import { ApiError } from "@agentforge/core";
 import { trackChild, type TrackableChild } from "../../child-processes";
 import { ffmpegLimiter, withLimit, type Limiter } from "../../concurrency";
+import { log } from "../../log";
 import { resolveFfmpeg, resolveFfprobe } from "../ffmpeg-binary";
 import { minimalEnv } from "./env";
 
@@ -64,6 +65,81 @@ export function setFfmpegLimiterForTests(next: Limiter | null): void {
   limiterImpl = next;
 }
 
+/** How much of a failing binary's stderr is worth carrying into the SERVER LOG. Never the client. */
+const FAILURE_DETAIL_CHARS = 300;
+
+/**
+ * `execFile` refuses a fractional or non-finite timeout with `ERR_OUT_OF_RANGE` and spawns nothing,
+ * so a recipe that derives its budget from a probed duration (`2 * 65.556063 * 1000 + 30_000`) used
+ * to fail before ffmpeg was ever started. Rounding up here rather than at each call site means a
+ * new recipe cannot reintroduce it. See `./run-timeout.test.ts`.
+ */
+function wholeMilliseconds(timeoutMs: number): number {
+  return Number.isFinite(timeoutMs) && timeoutMs > 0 ? Math.max(1, Math.ceil(timeoutMs)) : 0;
+}
+
+/**
+ * Everything worth knowing about a failed run, FOR THE SERVER LOG ONLY.
+ *
+ * `execFile`'s own `message` is the full command line — the absolute path of the binary and every
+ * argument, which for this app means the absolute path of a tenant's media inside the data dir —
+ * and the stderr tail is whatever ffmpeg chose to print, which routinely repeats those paths. All
+ * of it used to be concatenated into the `ApiError` message, which reaches the browser through
+ * `jsonError` and, for Meeting, through an SSE `job.error` frame. That is the server's filesystem
+ * layout and another tenant's storage prefix handed to whoever provoked the error.
+ *
+ * It goes through `log`, which redacts secrets and is the only place it belongs.
+ */
+function failureDetail(error: ExecFileException & { stderr?: string }): string {
+  const stderr = String(error.stderr ?? "")
+    .trim()
+    .slice(-FAILURE_DETAIL_CHARS);
+  return [error.code === undefined ? "" : `exit ${error.code}`, error.message?.trim(), stderr]
+    .filter((part) => Boolean(part))
+    .join(" — ");
+}
+
+/** ffmpeg's own words for "this file is not something I can read". Matched, never forwarded. */
+const UNREADABLE_INPUT = /invalid data found|moov atom not found|end of file|invalid argument/i;
+
+/** ...and for "this build has no codec for that", which is a deployment problem, not a bad file. */
+const UNSUPPORTED_CODEC = /unknown (?:encoder|decoder|format)|could not find codec|codec .*not found/i;
+
+/** Node's own refusals, raised before anything is spawned. A bug here, never the caller's file. */
+const BAD_RUN_REQUEST = new Set(["ERR_OUT_OF_RANGE", "ERR_INVALID_ARG_TYPE", "ERR_INVALID_ARG_VALUE"]);
+
+/**
+ * What to tell the caller: one of a handful of fixed phrases, chosen from the failure rather than
+ * copied out of it.
+ *
+ * A reason class is enough to act on — "unreadable input" means try another file, "an unsupported
+ * codec" and "exit code 1" mean tell the operator — and it cannot leak a path, an argument or a
+ * tenant's filename, because no part of it comes from the process's own text.
+ * `run-failure-detail.test.ts` holds that line.
+ */
+function failureReason(error: ExecFileException & { stderr?: string }): string {
+  const stderr = String(error.stderr ?? "");
+  if (error.code === "ENOENT") {
+    return "the tool could not be started";
+  }
+  if (typeof error.code === "string" && BAD_RUN_REQUEST.has(error.code)) {
+    return "an invalid run request";
+  }
+  if (error.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER") {
+    return "too much output";
+  }
+  if (UNSUPPORTED_CODEC.test(stderr)) {
+    return "an unsupported codec";
+  }
+  if (UNREADABLE_INPUT.test(stderr)) {
+    return "unreadable input";
+  }
+  if (typeof error.code === "number") {
+    return `exit code ${error.code}`;
+  }
+  return "an unknown error";
+}
+
 function parseProgress(chunk: string): FfmpegProgress {
   const outTime = chunk.match(/out_time_us=(\d+)/);
   const ratio = chunk.match(/progress=(\w+)/);
@@ -98,7 +174,7 @@ async function spawnFfmpeg(argv: string[], options: RunFfmpegOptions): Promise<{
   }
   try {
     const pending = execFileImpl(binary, args, {
-      timeout: options.timeoutMs,
+      timeout: wholeMilliseconds(options.timeoutMs),
       windowsHide: true,
       env: minimalEnv(),
       signal: options.signal,
@@ -133,6 +209,10 @@ async function spawnFfmpeg(argv: string[], options: RunFfmpegOptions): Promise<{
     if (typeof err.code === "number" && err.killed) {
       throw new ApiError("ffmpeg_timeout", "ffmpeg timed out", 400);
     }
-    throw new ApiError("ffmpeg_failed", "ffmpeg recipe failed", 400);
+    // Two audiences, two messages. The operator gets the argv and the stderr, redacted, in the
+    // log; the caller gets a stable sentence and a reason class with no path in it.
+    const reason = failureReason(err);
+    log.warn("ffmpeg_failed", { bin: options.bin ?? "ffmpeg", reason, detail: failureDetail(err) });
+    throw new ApiError("ffmpeg_failed", `ffmpeg could not process that media (${reason})`, 400);
   }
 }

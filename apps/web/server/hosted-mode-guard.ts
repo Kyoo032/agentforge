@@ -1,6 +1,33 @@
 import { isServerMode, type EnvLike } from "@agentforge/core";
 
 /**
+ * WHY THIS FILE IS IN `apps/web/server/` AND NOT IN `apps/web/lib/`.
+ *
+ * It re-exports `@agentforge/host`, which is the server side — `@agentforge/db`, `better-sqlite3`,
+ * `node:fs`, the whole host. `apps/web/lib` is the RENDERER's namespace: every file there is
+ * reachable from a component through the `@/lib` alias, and one import of this module from a
+ * component is all it would take for Vite to start pulling the host into a browser bundle.
+ * AGENTS.md "Shell vs app" is the rule, and `meeting-recorder-media.ts` duplicates a host constant
+ * by hand rather than break it — while this module sat in the middle of the renderer's own
+ * directory as the single exception, which is how exceptions stop being noticed.
+ *
+ * It is loaded only by `server.ts`. `renderer-imports.test.ts` holds the boundary from the other
+ * side, so nothing under `components/`, `lib/` or `src/` can reach the host again without a test
+ * saying so.
+ *
+ * The second half of the boot refusal, and the reason this module re-exports rather than defines
+ * it (docs/internal/security-register.md, SR-04).
+ *
+ * `assertHostedModeCoherent` below answers "is this process the hosted server at all?". It does not
+ * answer "can this hosted server serve anybody?" — that needs the wrap-key rule from
+ * `@agentforge/db`, the endpoint rule from `@agentforge/core` and the portal-client rule from
+ * `@agentforge/host`, and the point of SR-04 is to reuse those rules rather than restate them. So
+ * the check itself lives at `packages/host/src/hosted-env.ts`, where all three are in scope, and
+ * `server.ts` reaches both guards through this one module.
+ */
+export { assertHostedEnvComplete, HOSTED_ENV_INCOMPLETE } from "@agentforge/host/hosted-env";
+
+/**
  * Refuses to boot a production build that is not in server mode
  * (docs/internal/security-owasp-2026-09.md, finding A05-1).
  *

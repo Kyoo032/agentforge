@@ -17,6 +17,17 @@ export const DEFAULT_PRODUCT_BRAND: ProductBrand = {
   logoSrc: "",
 };
 
+/**
+ * The chevron lockup, served from `apps/web/public/brand/`.
+ *
+ * The MARK is the only thing the hosted web adds to the brand. The NAME is
+ * `DEFAULT_PRODUCT_NAME` -- the same constant `/api/v1/ping` answers `productName` with -- so the
+ * shell, the renderer and the host cannot disagree about what the product is called. There used to
+ * be a `WEB_PRODUCT_NAME` here saying something else, and `mergePingBrand` spent a branch keeping
+ * the two apart; deleting the second name deletes the drift rather than managing it.
+ */
+export const WEB_LOGO_SRC = "/brand/logo.png";
+
 const BrandContext = createContext<ProductBrand>(DEFAULT_PRODUCT_BRAND);
 
 export function useProductBrand(): ProductBrand {
@@ -72,7 +83,10 @@ export function mergePingBrand(current: ProductBrand, payload: unknown): Product
 
 function preloadBrand(): ProductBrand {
   if (!isElectron()) {
-    return DEFAULT_PRODUCT_BRAND;
+    // Name from the shared default, mark from the web's own asset. `/api/v1/ping` answers the same
+    // name, so the ping that follows confirms it rather than replacing it -- and a tenant flavor
+    // in that ping still wins, which is the whole point of leaving the name at the default here.
+    return { ...DEFAULT_PRODUCT_BRAND, logoSrc: WEB_LOGO_SRC };
   }
   return {
     ...brandFromUnknown(getDesktopBrand(), DEFAULT_PRODUCT_BRAND),

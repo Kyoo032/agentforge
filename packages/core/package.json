@@ -19,6 +19,7 @@
     "./video-capabilities": "./src/models/video-capabilities.ts",
     "./audio-capabilities": "./src/models/audio-capabilities.ts",
     "./media-pricing": "./src/models/media-pricing.ts",
+    "./plans": "./src/plans/catalog.ts",
     "./edit": "./src/edit/index.ts",
     "./content": "./src/content/transcript.ts",
     "./reasoning-effort": "./src/models/reasoning-effort.ts",

@@ -1,0 +1,32 @@
+{
+  "name": "@agentforge/portal",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Stand-in for the Toko Token portal control plane. Postgres only. Never imported by the product.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./store": "./src/store/types.ts"
+  },
+  "scripts": {
+    "dev": "tsx src/main.ts",
+    "migrate": "tsx scripts/migrate.ts",
+    "seed": "tsx scripts/seed.ts",
+    "otp": "tsx scripts/otp.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "nodemailer": "^6.10.1",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.2.0",
+    "@types/nodemailer": "^6.4.17",
+    "@types/pg": "^8.11.10",
+    "embedded-postgres": "16.14.0-beta.17",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

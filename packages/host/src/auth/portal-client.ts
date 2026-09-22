@@ -1,5 +1,5 @@
 /**
- * The host's half of the Toko Token AI portal contract
+ * The host's half of the Toko Token portal contract
  * (docs/internal/portal/device-code-login.md).
  *
  * What the doc freezes and this file implements verbatim:
@@ -11,20 +11,41 @@
  *     reason-code list (doc :222 and the table at :409-423), reused **verbatim**: this file never
  *     invents a code.
  *
- * What the doc leaves open, and what we assume here: the doc's client half is the Electron
- * device-code flow (`/auth/device/code` → `/activate` → `/auth/device/approve` →
- * `/auth/device/token`), and it says at the top that the hosted web app "needs a browser-session
- * variant of this flow", which is open decision 2 in web-pivot-2026-09-18.md. So the *browser*
- * login exchange is assumed, in the shape the doc already uses for its other grant:
+ * # THE BROWSER LOGIN WIRE CONTRACT (Phase 9, frozen 2026-09-21)
  *
- *     POST {AGENTFORGE_PORTAL_URL}/auth/token   { "grant_type": "authorization_code", "code": "<code>" }
+ * The doc's client half is the Electron device-code flow (`/auth/device/code` → `/activate` →
+ * `/auth/device/approve` → `/auth/device/token`) and it says at the top that the hosted web app
+ * "needs a browser-session variant of this flow" — open decision 2 in web-pivot-2026-09-18.md.
+ * Phase 9 settles that variant. **The portal implements the other side of exactly this and nothing
+ * else; neither half deviates without changing this comment.**
  *
- * returning the same token body as `/auth/device/token`. If the portal team picks another shape,
- * this one function changes and nothing else does.
+ * 1. **Authorize** — a top-level browser navigation, built by `buildAuthorizeUrl` below and handed
+ *    to the browser by `GET /api/v1/auth/start`:
+ *
+ *        {AGENTFORGE_PORTAL_URL}/authorize
+ *          ?response_type=code
+ *          &client_id=<AGENTFORGE_PORTAL_CLIENT_ID>
+ *          &redirect_uri=<public base>/auth/callback
+ *          &state=<opaque>
+ *
+ *    `redirect_uri` is validated by the portal against that client's registered allowlist; `state`
+ *    is the host's login-CSRF binding (`./login-state.ts`) and is echoed back unchanged.
+ *
+ * 2. **Code exchange** — confidential client, so it is made by the host process and never by the
+ *    browser:
+ *
+ *        POST {AGENTFORGE_PORTAL_URL}/auth/token
+ *        { "grant_type": "authorization_code", "code": "<code>", "redirect_uri": "<the same one>",
+ *          "client_id": "<id>", "client_secret": "<secret>" }
+ *
+ *    The answer is the same token body `/auth/device/token` returns, read by `toTokens` below.
+ *
+ * 3. **Refresh and logout are unchanged**, and so are the response and error bodies: `toTokens`
+ *    and `mapPortalError` are exactly what they were before Phase 9.
  *
  * Rules that are not negotiable here: 5 s timeout on every call, the base URL comes from
- * `AGENTFORGE_PORTAL_URL` (never from user input), and no token is ever logged or put in an error
- * message.
+ * `AGENTFORGE_PORTAL_URL` (never from user input), and no token, code, state or client secret is
+ * ever logged or put in an error message.
  */
 import { assertAllowedEndpointUrl } from "@agentforge/core";
 import type { EnvLike } from "@agentforge/core";
@@ -32,6 +53,17 @@ import { isAuthReason, type AuthReason } from "./session";
 
 export const PORTAL_TIMEOUT_MS = 5000;
 export const PORTAL_URL_ENV = "AGENTFORGE_PORTAL_URL";
+/** Step 1 of the contract above: where the browser is sent to sign in. */
+export const PORTAL_AUTHORIZE_PATH = "/authorize";
+
+/** What the host must present to redeem a browser code. Every field is required — see step 2. */
+export type PortalExchangeInput = {
+  readonly code: string;
+  /** Byte-identical to the one in the authorize URL; the portal compares them. */
+  readonly redirectUri: string;
+  readonly clientId: string;
+  readonly clientSecret: string;
+};
 
 /** The portal's token response, in this repo's camelCase. Tokens never leave the host process. */
 export type PortalTokens = {
@@ -47,8 +79,8 @@ export type PortalTokens = {
 };
 
 export interface PortalClient {
-  /** Browser login: redeem the one-time code the portal handed the browser. */
-  exchangeCode(input: { code: string }): Promise<PortalTokens>;
+  /** Browser login: redeem the one-time code the portal handed the browser (contract step 2). */
+  exchangeCode(input: PortalExchangeInput): Promise<PortalTokens>;
   /** `grant_type=refresh_token`; rotation and reuse detection are the portal's job. */
   refresh(input: { refreshToken: string; deviceId?: string | null }): Promise<PortalTokens>;
   /** Idempotent by contract: a portal failure never blocks the local sign-out. */
@@ -89,6 +121,40 @@ export function portalBaseUrl(env: EnvLike = process.env): string {
   }
   assertAllowedEndpointUrl(raw);
   return raw.replace(/\/+$/, "");
+}
+
+/**
+ * Step 1 of the contract, as a pure function of its four arguments.
+ *
+ * `URLSearchParams` both orders and percent-encodes the query, so a `redirect_uri` with its own
+ * query string survives intact and nothing a caller passes can inject a fifth parameter. The client
+ * **secret** is not here and never is: the authorize hop happens in the browser's address bar.
+ */
+export function buildAuthorizeUrl(input: {
+  baseUrl: string;
+  clientId: string;
+  redirectUri: string;
+  state: string;
+}): string {
+  const query = new URLSearchParams([
+    ["response_type", "code"],
+    ["client_id", input.clientId],
+    ["redirect_uri", input.redirectUri],
+    ["state", input.state],
+  ]);
+  return `${input.baseUrl.replace(/\/+$/, "")}${PORTAL_AUTHORIZE_PATH}?${query.toString()}`;
+}
+
+/**
+ * The exchange is never made half-configured. A blank client id or secret would be an
+ * unauthenticated exchange and a blank `redirect_uri` an unverifiable one, so both refuse here —
+ * in the client, where every implementation including the test double goes through it — rather
+ * than relying on each caller to have checked.
+ */
+function assertExchangeInput(input: PortalExchangeInput): void {
+  if (!input.redirectUri?.trim() || !input.clientId?.trim() || !input.clientSecret?.trim()) {
+    throw new PortalError("invalid_request", 400);
+  }
 }
 
 type PortalErrorBody = {
@@ -209,8 +275,15 @@ export function createPortalClient(options: PortalClientOptions = {}): PortalCli
   }
 
   return {
-    async exchangeCode({ code }) {
-      return tokenCall({ grant_type: "authorization_code", code });
+    async exchangeCode(input) {
+      assertExchangeInput(input);
+      return tokenCall({
+        grant_type: "authorization_code",
+        code: input.code,
+        redirect_uri: input.redirectUri,
+        client_id: input.clientId,
+        client_secret: input.clientSecret,
+      });
     },
     async refresh({ refreshToken, deviceId }) {
       return tokenCall({
@@ -233,7 +306,8 @@ export function createPortalClient(options: PortalClientOptions = {}): PortalCli
 
 /** What a fake recorded, so a test can assert the call without asserting on the wire format. */
 export type FakePortalCall =
-  | { kind: "exchange"; code: string }
+  /** The client **secret** is deliberately absent: a recorded call is something a test may print. */
+  | { kind: "exchange"; code: string; redirectUri: string; clientId: string }
   | { kind: "refresh"; refreshToken: string; deviceId: string | null }
   | { kind: "logout"; allDevices: boolean };
 
@@ -267,8 +341,9 @@ export function createFakePortalClient(
   };
   return {
     calls,
-    async exchangeCode({ code }) {
-      calls.push({ kind: "exchange", code });
+    async exchangeCode(input) {
+      assertExchangeInput(input);
+      calls.push({ kind: "exchange", code: input.code, redirectUri: input.redirectUri, clientId: input.clientId });
       guard();
       return tokens;
     },

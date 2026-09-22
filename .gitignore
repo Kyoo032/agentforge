@@ -62,3 +62,22 @@ __pycache__/
 
 # isolated verification instance data (PORT=3100)
 .verify-*/
+
+# Webdev and review data directories. These hold `.master-key` and the desk SQLite file, so an
+# untracked one is a `git add -A` away from a committed wrap key. `.webdev-data*` also covers the
+# dated backups (`.webdev-data.bak-20260921/`). See docs/internal/security-register.md, SR-02.
+.webdev-data*/
+.dpsbuddy-review/
+
+# The `data/` list above is an allowlist of names, so every new file the product writes under it is
+# tracked by default. These three were: the portal session that AGENTS.md has said "never commit"
+# since Phase 1, the meeting recordings, and the unpacked native components. See SR-19.
+data/session.enc
+data/meetings/
+data/components/
+
+# Review-harness secrets and TLS material. `scripts/review-instance.ps1` writes review.env under
+# $HOME and `scripts/review-proxy.mjs` generates its key pair there, but `--cert-dir` takes any
+# path, so the repo refuses the file rather than trusting the flag.
+review.env
+*.pem

@@ -50,7 +50,12 @@ export function hasNativeFilePicker(capabilities: HostCapabilities): boolean {
   return isElectron() && capabilities.nativeFilePicker;
 }
 
-function capabilitiesFrom(payload: unknown): HostCapabilities {
+/**
+ * Ping payload → capabilities. Exported for `lib/session.tsx`, which reads the same payload rather
+ * than this context: a child provider's effect runs before its parent's, so from inside the tree
+ * "sessions: false" and "ping has not answered" are the same value here and different facts.
+ */
+export function capabilitiesFrom(payload: unknown): HostCapabilities {
   const record = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : {};
   // `apiFetch` over the desktop IPC transport answers `{ body: … }`; over HTTP it answers the body
   // itself. Same unwrapping `brandFromUnknown` does, and for the same reason.

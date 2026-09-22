@@ -22,6 +22,8 @@ import { foldEditMetrics } from "../edit/metrics";
 import { renderParityFrame } from "../edit/parity";
 import { probe } from "../edit/ffmpeg/recipes";
 import { importedClipDurationFrames, STILL_IMAGE_SECONDS } from "../edit/import-duration";
+import { unusableProbeReason } from "../edit/probe-usable";
+import { log } from "../log";
 import { localeForRun } from "../run-context";
 
 export const EDIT_UPLOAD_MAX = 500 * 1024 * 1024;
@@ -199,6 +201,31 @@ export const LOCAL_PATH_DISABLED_MESSAGE =
   "Importing by file path is not available on the hosted service, because the path would be a " +
   "path on the server rather than on your machine. Upload the file instead.";
 
+/**
+ * Undo an import that was charged for and then failed: the object, the counter and the row.
+ *
+ * Through `removeTenantObject` rather than the filesystem, because that is what moves the tenant's
+ * storage counter back — a `unlink` would leave the tenant paying for bytes that no longer exist.
+ * The `media` row goes too: `saveEditFile` inserts it before the asset is built, so a failure after
+ * that point leaves a row whose `storagePath` points at nothing and whose `GET /media/:id/file`
+ * would 404.
+ *
+ * Every step swallows its own failure. This runs on an error path and its job is to leave the
+ * tenant no worse off; throwing here would replace the real refusal with a cleanup error.
+ */
+async function discardImportedObject(tenantId: string, storagePath: string, mediaId: string): Promise<void> {
+  try {
+    await removeTenantObject(tenantId, storagePath);
+  } catch (error) {
+    log.warn("edit_import_object_not_refunded", { detail: error instanceof Error ? error.message : "unknown" });
+  }
+  try {
+    await db.delete(media).where(eq(media.id, mediaId));
+  } catch (error) {
+    log.warn("edit_import_row_not_removed", { detail: error instanceof Error ? error.message : "unknown" });
+  }
+}
+
 export async function handlePostEditImport(request: HostRequest): Promise<HostResult> {
   try {
     const tenant = await getTenant(request);
@@ -275,71 +302,84 @@ export async function handlePostEditImport(request: HostRequest): Promise<HostRe
       mime = file.mime;
       filename = file.filename;
     }
+    // THE CHARGE. `putTenantObject` inside `saveEditFile` moves the tenant's storage counter and
+    // writes the object; from this line on, every exit that is not a 201 owes a refund.
     const saved = await saveEditFile(tenant, bytes, mime, filename);
-    // ffprobe takes a path, so the object is materialized: under the file backend that is the
-    // object itself, under COS a cached copy in the tenant's own cache root.
-    const abs = await materializeTenantObject(tenant.tenantId, saved.storagePath);
-    let probed: Awaited<ReturnType<typeof probe>>;
     try {
-      probed = await probe(abs, { tenantId: tenant.tenantId, projectId });
-    } catch {
+      // ffprobe takes a path, so the object is materialized: under the file backend that is the
+      // object itself, under COS a cached copy in the tenant's own cache root.
+      const abs = await materializeTenantObject(tenant.tenantId, saved.storagePath);
+      let probed: Awaited<ReturnType<typeof probe>>;
       try {
-        // Through the store so the refund reaches the counter; the bytes are unreadable either way.
-        await removeTenantObject(tenant.tenantId, saved.storagePath);
+        probed = await probe(abs, { tenantId: tenant.tenantId, projectId });
       } catch {
-        // ignore
+        throw new ApiError("unsupported_media", modeMessage("editMediaUnreadable", localeForRun()), 400);
       }
-      return jsonOk(
-        { error: { code: "unsupported_media", message: modeMessage("editMediaUnreadable", localeForRun()) } },
-        400,
+      /*
+       * SR-27. ffprobe exits 0 on a file it could not really read — a broken PNG comes back as a
+       * video stream with `width: 0, height: 0` — and the zeros used to travel all the way to
+       * `assetSchema`, whose `positive()` refusal surfaced as `invalid_op` from `appendOps`, in the
+       * OUTER catch, outside this block. The tenant was charged for an import that could never
+       * succeed and the object was orphaned. An unusable probe is unsupported media, said here.
+       */
+      const unusable = unusableProbeReason(saved.kind, probed);
+      if (unusable) {
+        log.warn("edit_import_unusable_probe", { kind: saved.kind, reason: unusable });
+        throw new ApiError("unsupported_media", modeMessage("editMediaUnreadable", localeForRun()), 400);
+      }
+      const assetId = crypto.randomUUID();
+      const clipId = crypto.randomUUID();
+      const durationFrames = importedClipDurationFrames({
+        kind: saved.kind,
+        probedSeconds: probed.durationSeconds,
+        probedFps: probed.fps,
+        projectFps: doc.fps,
+      });
+      const trackId = saved.kind === "audio" ? "a1" : "v1";
+      const applied = await appendOps(
+        projectId,
+        [
+          {
+            type: "add_asset",
+            payload: {
+              asset: {
+                id: assetId,
+                mediaId: saved.id,
+                kind: saved.kind,
+                storagePath: saved.storagePath,
+                durationFrames,
+                width: probed.width,
+                height: probed.height,
+                fps: probed.fps,
+                hasAudio: probed.hasAudio,
+                probe: { codec: probed.codec, sampleRate: probed.sampleRate },
+              },
+            },
+          },
+          {
+            type: "add_clip",
+            payload: {
+              clip: {
+                id: clipId,
+                trackId,
+                timelineStartFrame: 0,
+                durationFrames,
+                source: { assetId, inFrame: 0 },
+                status: "ready",
+              },
+            },
+          },
+        ],
+        { actor: "owner", workspaceId: tenant.workspaceId },
       );
+      return jsonOk({ asset: applied.doc.assets[assetId], op: applied.applied[0], clipId }, 201);
+    } catch (error) {
+      // THE REFUND, for every failure after the charge and not only for the probe's. Whatever
+      // threw — a validation refusal, a database write, a bug — the tenant is not left paying for
+      // an object no project references.
+      await discardImportedObject(tenant.tenantId, saved.storagePath, saved.id);
+      throw error;
     }
-    const assetId = crypto.randomUUID();
-    const clipId = crypto.randomUUID();
-    const durationFrames = importedClipDurationFrames({
-      kind: saved.kind,
-      probedSeconds: probed.durationSeconds,
-      probedFps: probed.fps,
-      projectFps: doc.fps,
-    });
-    const trackId = saved.kind === "audio" ? "a1" : "v1";
-    const applied = await appendOps(
-      projectId,
-      [
-        {
-          type: "add_asset",
-          payload: {
-            asset: {
-              id: assetId,
-              mediaId: saved.id,
-              kind: saved.kind,
-              storagePath: saved.storagePath,
-              durationFrames,
-              width: probed.width,
-              height: probed.height,
-              fps: probed.fps,
-              hasAudio: probed.hasAudio,
-              probe: { codec: probed.codec, sampleRate: probed.sampleRate },
-            },
-          },
-        },
-        {
-          type: "add_clip",
-          payload: {
-            clip: {
-              id: clipId,
-              trackId,
-              timelineStartFrame: 0,
-              durationFrames,
-              source: { assetId, inFrame: 0 },
-              status: "ready",
-            },
-          },
-        },
-      ],
-      { actor: "owner", workspaceId: tenant.workspaceId },
-    );
-    return jsonOk({ asset: applied.doc.assets[assetId], op: applied.applied[0], clipId }, 201);
   } catch (error) {
     return jsonError(error);
   }

@@ -54,6 +54,7 @@ import {
 } from "./handlers/channels";
 import {
   handleGetBillingPlan,
+  handleGetBillingPlans,
   handlePostBillingTopUp,
   handlePostBillingWebhook,
 } from "./handlers/billing";
@@ -237,6 +238,10 @@ export function isByIdRoute(route: RouteRegistration): boolean {
 const routes: Route[] = [
   compile("GET", "/api/v1/ping", () => handlePing()),
   // Phase 2, hosted only: the browser session. Exempt from the session gate below, by definition.
+  // Phase 9 adds the first hop: `/auth/start` mints the login `state` and hands back the portal's
+  // authorize URL. It sits under the same prefix, so it is session-exempt and in the tight auth
+  // rate bucket (`rate-limit.ts` AUTH_PATH_PREFIX) without either of them naming it.
+  compile("GET", "/api/v1/auth/start", (req) => hostAuthRoutes().handleStart(req)),
   compile("POST", "/api/v1/auth/login", (req) => hostAuthRoutes().handleLogin(req)),
   compile("POST", "/api/v1/auth/logout", (req) => hostAuthRoutes().handleLogout(req)),
   compile("GET", "/api/v1/auth/session", (req) => hostAuthRoutes().handleSession(req)),
@@ -281,6 +286,10 @@ const routes: Route[] = [
   // pay, or the block is a dead end (decision doc §3(b)).
   compile("POST", "/api/v1/billing/webhook", handlePostBillingWebhook),
   compile("GET", "/api/v1/billing/plan", handleGetBillingPlan),
+  // Phase 9: the plan catalog plus this tenant's current tier. Session-gated in server mode like
+  // its neighbour, off the gateway gate for the same reason, and answered off server mode too so a
+  // desk can render the pricing page.
+  compile("GET", "/api/v1/billing/plans", handleGetBillingPlans),
   compile("POST", "/api/v1/billing/top-up", handlePostBillingTopUp),
   // Deliberately NOT behind `requireGatewayAllowed()`: a component installs during onboarding,
   // before a key exists, and never touches the gateway. See handlers/components.ts.

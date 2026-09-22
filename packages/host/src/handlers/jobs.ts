@@ -24,6 +24,7 @@ import {
   writeStudioLyrics,
 } from "../studio-generate";
 import { attachMediaPrices } from "../media-price";
+import { withRelayMusicModels } from "../selectable-models";
 import { cachedPricingCatalog } from "../account-usage";
 import { generateDocumentDraft, regenerateDocumentSection } from "../document-generate";
 import { parseDocumentDraftBody } from "../document-outline";
@@ -119,22 +120,29 @@ export async function handleGetMusic(request: HostRequest): Promise<HostResult> 
     const tenant = await getTenant(request);
     const items = await listStudioGallery(tenant, "audio");
     const settings = loadSettings(tenant);
-    // Music is billed a flat rate per job, so the "track" unit takes the gateway catalog's per-call
-    // figure. No vendor list price exists for Suno at all — it sells a consumer subscription, not an
-    // API — so a desk with no cached catalog honestly shows "no list price on file".
-    const models = attachMediaPrices(
-      listStudioMusicModels(),
-      "track",
-      cachedPricingCatalog(resolvedGatewayBaseUrl()),
-      resolvedGatewayBaseUrl(),
-    );
+    // `listStudioMusicModels` already merges the relay-only ids the gateway never lists (see
+    // `withRelayMusicModels`), so the picker is not empty on a desk whose /v1/models has no music.
+    const catalog = listStudioMusicModels();
     const sources = await agentService.listGenerateDefaultSources(tenant);
     const defaultModel = resolveStudioGenerateDefault({
       kind: "music",
       sources,
       settingsModel: settings.musicGenModel,
-      catalogPreferred: defaultStudioMusicModel(models),
+      catalogPreferred: defaultStudioMusicModel(catalog),
     });
+    // An agent or Settings pin can name a relay id this build does not know, and `generateStudioMusic`
+    // will happily use it. The picker has to be able to show what generate will send, so the resolved
+    // default joins the list rather than leaving the select on a value it has no option for.
+    //
+    // Music is billed a flat rate per job, so the "track" unit takes the gateway catalog's per-call
+    // figure. No vendor list price exists for Suno at all — it sells a consumer subscription, not an
+    // API — so a desk with no cached catalog honestly shows "no list price on file".
+    const models = attachMediaPrices(
+      withRelayMusicModels(catalog, [defaultModel]),
+      "track",
+      cachedPricingCatalog(resolvedGatewayBaseUrl()),
+      resolvedGatewayBaseUrl(),
+    );
     return jsonOk({
       items,
       models,

@@ -14,6 +14,7 @@ import enMarket from "../locales/en/market.json";
 import enMeeting from "../locales/en/meeting.json";
 import enMusic from "../locales/en/music.json";
 import enOnboarding from "../locales/en/onboarding.json";
+import enPlans from "../locales/en/plans.json";
 import enPresentation from "../locales/en/presentation.json";
 import enRail from "../locales/en/rail.json";
 import enResearch from "../locales/en/research.json";
@@ -36,6 +37,7 @@ import idMarket from "../locales/id/market.json";
 import idMeeting from "../locales/id/meeting.json";
 import idMusic from "../locales/id/music.json";
 import idOnboarding from "../locales/id/onboarding.json";
+import idPlans from "../locales/id/plans.json";
 import idPresentation from "../locales/id/presentation.json";
 import idRail from "../locales/id/rail.json";
 import idResearch from "../locales/id/research.json";
@@ -56,6 +58,7 @@ const NAMESPACES = [
   "videos",
   "music",
   "presentation",
+  "plans",
   "knowledge",
   "workspaces",
   "usage",
@@ -84,6 +87,7 @@ const catalogs: Record<AppLocale, Record<Namespace, MessageTree>> = {
     videos: enVideos,
     music: enMusic,
     presentation: enPresentation,
+    plans: enPlans,
     knowledge: enKnowledge,
     channels: enChannels,
     workspaces: enWorkspaces,
@@ -108,6 +112,7 @@ const catalogs: Record<AppLocale, Record<Namespace, MessageTree>> = {
     videos: idVideos,
     music: idMusic,
     presentation: idPresentation,
+    plans: idPlans,
     knowledge: idKnowledge,
     channels: idChannels,
     workspaces: idWorkspaces,

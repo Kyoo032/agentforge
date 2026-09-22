@@ -17,6 +17,37 @@ are disk bookkeeping. Prove them on a stub desk — no key needed, and no key sh
    `meeting-tab-transcript` shows it back.
 5. `meeting-delete-<id>` removes it. **Clean up every meeting you create.**
 
+## Recording in the browser (2026-09-21)
+
+The studio can record as well as accept a file. `meeting-recorder` is the panel beside `meeting-file`;
+the finished clip becomes a `File` named `recording-<iso>.webm` and goes through the **same**
+`POST /api/v1/meetings/:id/recording` the file input uses, so nothing below this point is new. Map:
+[`meeting-minutes.md`](../../../../docs/internal/maps/meeting-minutes.md) § Recording.
+
+Testids: `meeting-recorder`, `meeting-record-source`, `meeting-record-start`, `meeting-record-pause`,
+`meeting-record-resume`, `meeting-record-stop`, `meeting-record-timer`, `meeting-record-size`,
+`meeting-record-requesting`, `meeting-record-stopping`, `meeting-record-capped`,
+`meeting-record-tab-hint`, `meeting-record-error`, `meeting-record-dismiss`,
+`meeting-record-unsupported`. The studio also gained `meeting-uploading`.
+
+**What you can drive without a microphone.** Select a meeting. `meeting-recorder` is visible.
+`meeting-record-source` has two options — microphone, and microphone + tab audio — and switching to
+the second reveals `meeting-record-tab-hint`. Press `meeting-record-start` with the permission
+denied: `meeting-record-error` renders the mapped copy and `meeting-record-dismiss` clears it. On a
+browser with no `MediaRecorder`, `meeting-record-unsupported` replaces the controls. None of this
+needs a key or a gateway.
+
+**What needs a real Chrome.** A **granted** microphone. The Browser pane and most automation harnesses
+refuse `getUserMedia` outright (`NotAllowedError`, in about 19 ms), so a human at a real Chrome
+window, or Chrome launched with `--use-fake-device-for-media-stream`, is the only way to drive:
+start → `meeting-record-timer` advancing and `meeting-record-size` growing → pause → resume → stop →
+`meeting-uploading` → the meeting's status becomes `recorded` and `meeting-recording` names the file.
+Then run the transcription (`meeting-run`) to prove the produced webm is decodable by ffmpeg. **Until
+somebody does that, microphone capture is unverified** — say so rather than recording a pass.
+
+**Tab audio** needs a second real tab and the "share tab audio" tick in Chrome's picker. That tick is
+the whole point: it is what puts an online meeting's *remote* voices in the recording.
+
 ## What needs a live key
 
 `meeting-run` is the only button that reaches the gateway. On a stub desk it answers one
@@ -57,7 +88,21 @@ capability for Edit.
 ## Gotchas
 
 - **25 MB per recording**, because the HTTP adapter refuses a body over 26 MB. Over that is a 413,
-  not a truncated upload. A longer meeting is a pasted transcript.
+  not a truncated upload. A longer meeting is a pasted transcript. **The browser recorder cannot
+  produce one**: it records opus at 24 kbps (about 10.8 MB an hour) and auto-stops 512 KB short of
+  the cap, keeping everything captured so far and saying so in `meeting-record-capped`.
+- **Recording needs the hosted `Permissions-Policy` to allow two features.** `microphone=(self)` and
+  `display-capture=(self)` in **both** `packages/host/src/security-headers.ts` and
+  `webapp-deploy/Caddyfile`. Without them the browser refuses before any product code runs, so the
+  Record button does nothing and there is no error worth reading. Fixed in the tree, never sent to a
+  browser — [SR-14](../../../../docs/internal/security-register.md#sr-14). Webdev sends no such header,
+  so a green drive on `:3000` says nothing about the deploy.
+- **A `.webm` recording is stored as `recording/source.weba`.** `EXT_BY_MIME` maps `audio/webm` to
+  `weba`. Cosmetic: ffmpeg reads by content. Do not go looking for a `.webm` on disk.
+- **Replacing a recording now deletes the old file.** Re-uploading over an existing recording removes
+  every other `source.<ext>` in that meeting's `recording/` and drops the derived `audio/` chunks
+  ([SR-13](../../../../docs/internal/security-register.md#sr-13)). Never driven through the UI — if you
+  do it, record what you saw.
 - **A dropped attendee is the guard working, not a bug.** `meeting-unverified` says how many names
   the transcript never said were removed. Check the transcript before reporting it as data loss.
 - **Meetings are folders**, under `localDataDir()/meetings/<workspaceId>/<meetingId>/`. There is no

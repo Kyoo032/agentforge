@@ -56,6 +56,40 @@ export function isHostedBuild(scope: HostedScope = globalThis as HostedScope): b
   return isTrue(markerContent(scope)) || isTrue(scope.__AGENTFORGE_SERVER__);
 }
 
+/**
+ * `src="./x"` / `href="./x"` in one shell, and nothing else — not a data URI, not an absolute URL,
+ * not a path inside the page's text.
+ */
+const DOCUMENT_RELATIVE_ATTRIBUTE = /\b(src|href)="\.\/([^"]*)"/gi;
+
+/**
+ * The built shell's own asset URLs, made absolute. Hosted only, and the reason is the SPA fallback.
+ *
+ * `apps/web/vite.config.ts` sets `base: "./"` because the **packaged desktop** loads the bundle off
+ * disk, where there is no origin for an absolute path to mean anything. The hosted server answers
+ * every GET that is not under `/api/` with that same one shell, so a document-relative
+ * `./assets/index-<hash>.js` means whatever the address bar says it means:
+ *
+ *     GET /              -> ./assets/… -> /assets/…              the file. Fine.
+ *     GET /auth/callback -> ./assets/… -> /auth/assets/…         not a file, so the SPA fallback
+ *                                                                answers it with this shell again,
+ *                                                                as text/html, and the browser
+ *                                                                refuses the module.
+ *
+ * `/auth/callback` is not an edge case: it is where the portal drops a person by top-level
+ * navigation at the end of every sign-in, so with a relative base nothing renders there, the code
+ * is never posted, and the hosted deployment cannot be signed in to at all. `/pricing` and
+ * `/sign-in` survive only because they happen to be one segment deep.
+ *
+ * Done here rather than by changing `base`, because `base` is the desktop's and the desktop is
+ * frozen: this rewrite is hosted-only, so the packaged shell keeps the bytes it has always had.
+ */
+export function rootRelativeAssets(html: string): string {
+  return html.replace(DOCUMENT_RELATIVE_ATTRIBUTE, (_match, attribute: string, rest: string) => {
+    return `${attribute}="/${rest}"`;
+  });
+}
+
 const HEAD_CLOSE = /<\/head\s*>/i;
 
 /**

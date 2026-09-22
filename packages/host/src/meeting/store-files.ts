@@ -13,7 +13,17 @@
  */
 
 import { createHash, randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import {
+  type Dirent,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import { ApiError } from "@agentforge/core";
 import { assertPathSegment, tenantScopedRoot } from "../tenant-paths";
@@ -94,6 +104,107 @@ export function recordingFile(dir: string, relative: string): string {
 
 export function audioDir(dir: string): string {
   return path.join(dir, "audio");
+}
+
+/** The one directory a meeting's uploaded bytes ever live in. */
+export const RECORDING_DIR = "recording";
+
+/**
+ * A file this store itself wrote: `source.` plus an extension `extensionFor` can produce — a known
+ * one from `EXT_BY_MIME`, an `[a-z0-9]{1,5}` taken off the filename, or `bin`. Anything else in
+ * that directory belongs to somebody else and is left alone.
+ */
+const SOURCE_FILE = /^source\.[a-z0-9]{1,5}$/;
+
+/** ENOENT on a path that was there a moment ago is the outcome being asked for, not a failure. */
+function isMissing(error: unknown): boolean {
+  return (error as { code?: string } | null)?.code === "ENOENT";
+}
+
+/**
+ * Delete every `source.*` in this meeting's recording directory except `keepAbsolute` (SR-13).
+ *
+ * A meeting holds ONE recording, but the file is named after the mime type, so replacing an `.mp3`
+ * with a `.webm` used to write `source.weba` beside a `source.mp3` that nothing would ever remove
+ * again: a tenant's audio outside the record, outside quota accounting, and only reachable by
+ * deleting the whole meeting.
+ *
+ * What keeps this safe:
+ *
+ * - **Scope.** Only the `recording/` directory of the meeting it is handed, and every candidate is
+ *   put back through `recordingFile()` — the same containment check that guards a read — before it
+ *   is passed to `rmSync`.
+ * - **Name.** Only `source.<ext>`. A file the store did not write (`README.txt` in a test, an
+ *   operator's copy) is not this function's to delete.
+ * - **No symlinks.** `readdirSync(..., { withFileTypes: true })` reports the directory entry's own
+ *   type, so a symlink answers `isSymbolicLink()`, not `isFile()`, and is skipped. Nothing here can
+ *   unlink a target outside the meeting — or inside it.
+ * - **No directory recursion.** `isFile()` also excludes directories, so this cannot become a
+ *   recursive delete by way of a path that turns into one.
+ * - **ENOENT is success.** The directory or the file disappearing under a concurrent delete is the
+ *   result being asked for.
+ *
+ * Returns the names it removed, which is what a caller would log.
+ */
+export function removeStaleRecordings(dir: string, keepAbsolute: string): string[] {
+  const recordings = path.join(dir, RECORDING_DIR);
+  let entries: Dirent[];
+  try {
+    entries = readdirSync(recordings, { withFileTypes: true });
+  } catch (error) {
+    if (isMissing(error)) {
+      return [];
+    }
+    throw error;
+  }
+  const keep = path.resolve(keepAbsolute);
+  const removed: string[] = [];
+  for (const entry of entries) {
+    if (!entry.isFile() || !SOURCE_FILE.test(entry.name)) {
+      continue;
+    }
+    const absolute = recordingFile(dir, path.join(RECORDING_DIR, entry.name));
+    if (absolute === keep) {
+      continue;
+    }
+    try {
+      rmSync(absolute, { force: true });
+      removed.push(entry.name);
+    } catch (error) {
+      if (!isMissing(error)) {
+        throw error;
+      }
+    }
+  }
+  return removed;
+}
+
+/**
+ * Drop the extracted `audio/` chunks, because they are a cache of the recording that was just
+ * replaced (SR-13).
+ *
+ * `meeting/run.ts` removes this directory in a `finally` after every transcription, and
+ * `extractMeetingAudio` clears it again before it writes — so in the ordinary course it is empty.
+ * It is not empty after a process that died mid-run, and those chunks are the OLD recording's
+ * audio: same retention question as the source file, so they go at the same moment.
+ *
+ * `lstatSync` rather than `existsSync`: a symlink named `audio` is not a directory this function
+ * recurses into, it is something to leave alone and let a human look at.
+ */
+export function removeDerivedAudio(dir: string): boolean {
+  const audio = audioDir(dir);
+  try {
+    if (!lstatSync(audio).isDirectory()) {
+      return false;
+    }
+  } catch (error) {
+    if (isMissing(error)) {
+      return false;
+    }
+    throw error;
+  }
+  rmSync(audio, { recursive: true, force: true });
+  return true;
 }
 
 /** Directories under that tenant's `<rootDir>/<workspaceId>/` that carry a meeting.json. */

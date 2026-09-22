@@ -275,11 +275,11 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
         className={`flex h-12 shrink-0 ${collapsed ? "items-center justify-center px-1.5" : "items-center gap-2 px-3"}`}
       >
         {collapsed ? (
-          <WorkspaceSwitcher workspaceName={workspaceName} compact logoSrc={logoSrc} />
+          <WorkspaceSwitcher workspaceName={workspaceName} compact logoSrc={logoSrc} logoAlt={productName} />
         ) : (
           <>
             {logoSrc ? (
-              <img src={logoSrc} alt="" className="h-5 w-5 shrink-0 object-contain" data-testid="product-logo" />
+              <img src={logoSrc} alt={productName} className="h-5 w-5 shrink-0 object-contain" data-testid="product-logo" />
             ) : (
               <span
                 className="grid h-5 w-5 shrink-0 place-items-center text-xs font-medium text-[var(--text)]"

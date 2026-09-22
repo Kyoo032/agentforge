@@ -4,22 +4,22 @@
  * Two wires, because the gateway does not serve one shape for every recogniser
  * (docs/internal/gateway-model-selection.md §2.1):
  *
- *  - `chat_audio`            `POST /v1/chat/completions` with a base64 `input_audio` part. This is
- *                            how `mimo-v2.5-asr` — the catalog's only purpose-built ASR id — and
- *                            the `qwen*-omni*` models are driven.
+ *  - `chat_audio`            `POST /v1/chat/completions` with an `input_audio` part. This is how
+ *                            every id that works on this gateway is driven; the encoding of the
+ *                            bytes differs per model family (`./transcribe-request.ts`).
  *  - `audio_transcriptions`  multipart `POST /v1/audio/transcriptions`, the Whisper shape that
  *                            `edit/asr.ts` already speaks. Kept for a gateway that serves it.
  *
  * Nothing here invents a model id: when the live catalog lists no recogniser the caller is told so
- * and falls back to a pasted transcript.
+ * and falls back to a pasted transcript. What it does do is try more than one — a single dead
+ * model must not end a run that the tenant has already paid to encode.
  */
 
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import { ApiError, resolveProviderKeys } from "@agentforge/core";
 import {
   isTranscriptionModelId,
-  pickTranscriptionModel,
+  transcriptionCandidates,
+  transcriptionShapeFor,
   transcriptionWireFor,
   type TranscriptionWire,
 } from "@agentforge/core/meeting";
@@ -27,14 +27,20 @@ import type { MeetingTranscript, TranscriptSegment } from "@agentforge/core/meet
 import { loadModelCache } from "../model-cache";
 import { loadSettings, type SettingsScope } from "../settings-store";
 import { log } from "../log";
+import { transcribeChunkWith } from "./transcribe-request";
 
 export type MeetingAsrCapability = {
   available: boolean;
   model: string | null;
   wire: TranscriptionWire | null;
+  /** Best first. The run walks this when a model refuses, so one bad id is not the end of the job. */
+  candidates: string[];
   /** Why it is unavailable, for the UI to show instead of a silent empty transcript. */
   reason: "ok" | "no_model" | "no_key";
 };
+
+const NO_MODEL_MESSAGE = "This gateway key lists no speech-to-text model. Paste the transcript instead.";
+const NO_KEY_MESSAGE = "Save a gateway key in Settings before transcribing.";
 
 /** Every id the desk has seen from the gateway, across provider dialects. */
 export function cachedModelIds(): string[] {
@@ -48,22 +54,29 @@ export function cachedModelIds(): string[] {
 }
 
 /**
- * Which recogniser this desk can use. `AGENTFORGE_MEETING_ASR_MODEL` pins one by hand — the same
- * escape hatch Edit has as `AGENTFORGE_EDIT_ASR_MODEL`, for a gateway whose catalog is ahead of
- * the id lists in this repo.
+ * `AGENTFORGE_MEETING_ASR_MODEL` pins one id by hand — the same escape hatch Edit has as
+ * `AGENTFORGE_EDIT_ASR_MODEL`, for a gateway whose catalog is ahead of the id lists in this repo.
+ * A pin means exactly that: one model, no fallback, so a deliberate choice is never silently
+ * replaced by ours.
  */
+function candidateModels(): string[] {
+  const pinned = process.env.AGENTFORGE_MEETING_ASR_MODEL?.trim();
+  return pinned ? [pinned] : transcriptionCandidates(cachedModelIds());
+}
+
+/** Which recognisers this desk can use, best first. */
 export function resolveMeetingAsr(tenant?: SettingsScope): MeetingAsrCapability {
   const key = resolveProviderKeys(loadSettings(tenant)).openai;
-  const pinned = process.env.AGENTFORGE_MEETING_ASR_MODEL?.trim();
-  const model = pinned || pickTranscriptionModel(cachedModelIds()) || null;
+  const candidates = candidateModels();
+  const model = candidates[0] ?? null;
   if (!model) {
-    return { available: false, model: null, wire: null, reason: "no_model" };
+    return { available: false, model: null, wire: null, candidates: [], reason: "no_model" };
   }
   const wire = transcriptionWireFor(model);
   if (!key) {
-    return { available: false, model, wire, reason: "no_key" };
+    return { available: false, model, wire, candidates, reason: "no_key" };
   }
-  return { available: true, model, wire, reason: "ok" };
+  return { available: true, model, wire, candidates, reason: "ok" };
 }
 
 export type TranscribeOptions = {
@@ -81,157 +94,110 @@ export type TranscribeOptions = {
   signal?: AbortSignal;
 };
 
-const AUDIO_MIME = "audio/mpeg";
-const REQUEST_TIMEOUT_MS = 300_000;
+type ChunkAttempt = { text: string; model: string };
 
-function instruction(language?: string): string {
-  const target = language === "id" ? " The meeting is in Indonesian." : language === "en" ? " The meeting is in English." : "";
-  return (
-    `Transcribe this meeting audio verbatim.${target} Write only what was said, in the language it was` +
-    " spoken. Label a speaker only when the audio names them. Do not summarise, translate, or add" +
-    " commentary."
+/** Every model that was asked and what it said, in one sentence the owner can act on. */
+function chainFailure(failures: Array<{ model: string; error: unknown }>): ApiError {
+  const last = failures[failures.length - 1]?.error;
+  if (failures.length === 1 && last instanceof ApiError) {
+    return last;
+  }
+  const detail = failures
+    .map(({ model, error }) => `${model}: ${error instanceof Error ? error.message : String(error)}`)
+    .join(" | ");
+  return new ApiError(
+    "transcription_failed",
+    `No speech-to-text model on this gateway could read the recording. ${detail}`,
+    last instanceof ApiError ? last.status : 502,
   );
 }
 
-function authHeaders(key: string): Record<string, string> {
-  return { Authorization: `Bearer ${key}` };
-}
-
-/** Gateway errors carry a body worth logging, but never the key that was sent with it. */
-async function failureDetail(response: Response): Promise<string> {
-  try {
-    return (await response.text()).slice(0, 400);
-  } catch {
-    return "";
-  }
-}
-
-async function transcribeChunkViaChat(
+/**
+ * One chunk, walking the chain from whichever model last worked. A model that refuses, times out
+ * or answers with nothing is dropped for the rest of this chunk and the next one is asked; the
+ * first that answers becomes the preferred model for every chunk after it, so a healthy run still
+ * makes exactly one call per chunk.
+ */
+async function transcribeOneChunk(
   file: string,
-  model: string,
-  base: string,
-  key: string,
-  options: TranscribeOptions,
-  fetchImpl: typeof fetch,
-): Promise<string> {
-  const bytes = await readFile(file);
-  const format = path.extname(file).replace(/^\./, "").toLowerCase() || "mp3";
-  const response = await fetchImpl(`${base}/chat/completions`, {
-    method: "POST",
-    headers: { ...authHeaders(key), "Content-Type": "application/json" },
-    signal: options.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    body: JSON.stringify({
-      model,
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "input_audio", input_audio: { data: bytes.toString("base64"), format } },
-            { type: "text", text: instruction(options.language) },
-          ],
-        },
-      ],
-    }),
-  });
-  if (!response.ok) {
-    throw new ApiError(
-      "transcription_failed",
-      `The gateway refused the transcription (${response.status}). ${await failureDetail(response)}`.trim(),
-      response.status >= 500 ? 502 : 400,
-    );
+  models: string[],
+  context: { base: string; key: string; options: TranscribeOptions },
+): Promise<ChunkAttempt> {
+  const failures: Array<{ model: string; error: unknown }> = [];
+  for (const model of models) {
+    try {
+      const text = await transcribeChunkWith({
+        file,
+        model,
+        base: context.base,
+        key: context.key,
+        ...(context.options.language ? { language: context.options.language } : {}),
+        ...(context.options.signal ? { signal: context.options.signal } : {}),
+        fetchImpl: context.options.fetchImpl ?? fetch,
+      });
+      if (text) {
+        return { text, model };
+      }
+      // A 200 with no words is a refusal the gateway did not label as one. `gpt-audio` answers
+      // exactly like that, which is why it is not on the preference list at all.
+      failures.push({ model, error: new Error("answered with no text") });
+      log.warn("meeting_chunk_empty", { model });
+    } catch (error) {
+      if (context.options.signal?.aborted) {
+        throw error;
+      }
+      failures.push({ model, error });
+      log.warn("meeting_chunk_model_failed", {
+        model,
+        code: error instanceof ApiError ? error.code : "internal_error",
+      });
+    }
   }
-  const json = (await response.json()) as {
-    choices?: Array<{ message?: { content?: unknown } }>;
-  };
-  const content = json.choices?.[0]?.message?.content;
-  if (typeof content === "string") {
-    return content.trim();
-  }
-  // Some omni models answer with the same content-part array they were asked with.
-  if (Array.isArray(content)) {
-    return content
-      .map((part) => (part && typeof part === "object" && "text" in part ? String((part as { text: unknown }).text) : ""))
-      .join("")
-      .trim();
-  }
-  return "";
+  throw chainFailure(failures);
 }
 
-async function transcribeChunkViaMultipart(
-  file: string,
-  model: string,
-  base: string,
-  key: string,
-  options: TranscribeOptions,
-  fetchImpl: typeof fetch,
-): Promise<string> {
-  const bytes = await readFile(file);
-  const form = new FormData();
-  form.set("model", model);
-  form.set("file", new Blob([bytes], { type: AUDIO_MIME }), path.basename(file));
-  if (options.language) {
-    form.set("language", options.language);
-  }
-  const response = await fetchImpl(`${base}/audio/transcriptions`, {
-    method: "POST",
-    headers: authHeaders(key),
-    body: form,
-    signal: options.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  });
-  if (!response.ok) {
-    throw new ApiError(
-      "transcription_failed",
-      `The gateway refused the transcription (${response.status}). ${await failureDetail(response)}`.trim(),
-      response.status >= 500 ? 502 : 400,
-    );
-  }
-  const json = (await response.json()) as { text?: string };
-  return (json.text ?? "").trim();
+/** The chain reordered so the model that just worked is asked first next time. */
+function preferWorkingModel(models: string[], working: string): string[] {
+  return [working, ...models.filter((model) => model !== working)];
 }
 
 /**
- * Transcribe every chunk in order. A chunk that comes back empty is kept as an empty segment
- * rather than dropped, so a gap in the audio does not silently shorten the meeting — unlike
- * `edit/asr.ts`, which skips a failed chunk and returns whatever is left.
+ * Transcribe every chunk in order. An empty answer is a failure, not a gap: unlike
+ * `edit/asr.ts`, which skips a failed chunk and returns whatever is left, a meeting that lost a
+ * ten-minute stretch would produce minutes that are quietly wrong about what was decided.
  */
 export async function transcribeChunks(files: string[], options: TranscribeOptions = {}): Promise<MeetingTranscript> {
   const capability = resolveMeetingAsr(options.tenant);
-  if (!capability.available || !capability.model || !capability.wire) {
-    throw new ApiError(
-      "asr_unavailable",
-      capability.reason === "no_key"
-        ? "Save a gateway key in Settings before transcribing."
-        : "This gateway key lists no speech-to-text model. Paste the transcript instead.",
-      503,
-    );
+  if (!capability.available || capability.candidates.length === 0) {
+    throw new ApiError("asr_unavailable", capability.reason === "no_key" ? NO_KEY_MESSAGE : NO_MODEL_MESSAGE, 503);
   }
   const keys = resolveProviderKeys(loadSettings(options.tenant));
   const base = keys.openaiBaseUrl;
   const key = keys.openai;
   if (!base || !key) {
-    throw new ApiError("asr_unavailable", "Save a gateway key in Settings before transcribing.", 503);
+    throw new ApiError("asr_unavailable", NO_KEY_MESSAGE, 503);
   }
+  let models = capability.candidates;
   const segments: TranscriptSegment[] = [];
+  const used = new Set<string>();
   for (const [index, file] of files.entries()) {
     options.onChunk?.(index + 1, files.length);
-    const text =
-      capability.wire === "chat_audio"
-        ? await transcribeChunkViaChat(file, capability.model, base, key, options, options.fetchImpl ?? fetch)
-        : await transcribeChunkViaMultipart(file, capability.model, base, key, options, options.fetchImpl ?? fetch);
-    if (!text) {
-      log.warn("meeting_chunk_empty", { index, model: capability.model });
-      continue;
-    }
+    const attempt = await transcribeOneChunk(file, models, { base, key, options });
+    models = preferWorkingModel(models, attempt.model);
+    used.add(attempt.model);
     const startSeconds = options.offsets?.[index];
-    segments.push({ ...(startSeconds === undefined ? {} : { startSeconds }), speaker: "", text });
+    segments.push({ ...(startSeconds === undefined ? {} : { startSeconds }), speaker: "", text: attempt.text });
   }
   return {
-    text: segments.map((segment) => segment.text).join("\n\n").trim(),
+    text: segments
+      .map((segment) => segment.text)
+      .join("\n\n")
+      .trim(),
     segments,
     language: options.language ?? "",
     source: "gateway",
-    model: capability.model,
+    model: [...used].join(", "),
   };
 }
 
-export { isTranscriptionModelId };
+export { isTranscriptionModelId, transcriptionShapeFor };

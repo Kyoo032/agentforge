@@ -80,11 +80,78 @@ describe("the policy forbids the things it exists to forbid", () => {
     expect(CONTENT_SECURITY_POLICY).not.toContain("script-src 'self' data:");
   });
 
-  it("turns every powerful browser feature off", () => {
-    for (const feature of ["camera", "microphone", "geolocation", "payment", "usb", "display-capture"]) {
+  /**
+   * SR-14. The Meeting recorder asks for `getUserMedia` (microphone) and `getDisplayMedia`
+   * (tab audio), so those two features are allowed for the app's own origin and nothing else.
+   * The whole string is pinned rather than spot-checked: a third feature added by accident is a
+   * silent widening of the hosted attack surface, and the Caddyfile parity test below compares the
+   * same string at the proxy.
+   */
+  it("is exactly the policy the hosted deployment is meant to send", () => {
+    expect(PERMISSIONS_POLICY).toBe(
+      "accelerometer=(), autoplay=(), browsing-topics=(), camera=(), display-capture=(self), " +
+        "encrypted-media=(), geolocation=(), gyroscope=(), interest-cohort=(), magnetometer=(), " +
+        "microphone=(self), midi=(), payment=(), publickey-credentials-get=(), screen-wake-lock=(), " +
+        "serial=(), usb=(), xr-spatial-tracking=()",
+    );
+  });
+
+  it("allows the two recorder features for this origin only", () => {
+    for (const feature of ["microphone", "display-capture"]) {
+      expect(PERMISSIONS_POLICY, feature).toContain(`${feature}=(self)`);
+    }
+    // `(self)` is the whole allowance: no wildcard, no named origin, no `src`, and no bare `*`
+    // anywhere in the header. A cross-origin frame therefore inherits neither feature.
+    expect(PERMISSIONS_POLICY).not.toMatch(/=\(\s*\*/);
+    expect(PERMISSIONS_POLICY).not.toContain("*");
+    expect(PERMISSIONS_POLICY).not.toContain("https://");
+    expect(PERMISSIONS_POLICY).not.toContain("src");
+  });
+
+  it("still turns every other powerful feature off, one by one", () => {
+    const allowed = new Set(["microphone", "display-capture"]);
+    const entries = PERMISSIONS_POLICY.split(", ").map((entry) => {
+      const [feature = "", value = ""] = entry.split("=");
+      return { feature, value };
+    });
+    expect(entries.length).toBe(18);
+    for (const { feature, value } of entries) {
+      expect(value, feature).toBe(allowed.has(feature) ? "(self)" : "()");
+    }
+    // The ones this app must never ask for, named so a future edit has to argue with a test.
+    for (const feature of [
+      "accelerometer",
+      "autoplay",
+      "browsing-topics",
+      "camera",
+      "encrypted-media",
+      "geolocation",
+      "gyroscope",
+      "interest-cohort",
+      "magnetometer",
+      "midi",
+      "payment",
+      "publickey-credentials-get",
+      "screen-wake-lock",
+      "serial",
+      "usb",
+      "xr-spatial-tracking",
+    ]) {
       expect(PERMISSIONS_POLICY, feature).toContain(`${feature}=()`);
     }
-    expect(PERMISSIONS_POLICY).not.toMatch(/=\(\s*\*/);
+  });
+
+  /**
+   * The recorder records; it does not fetch. Pinned here so a later CSP edit cannot quietly remove
+   * what the recorder leans on, and so nobody widens the policy "for the recorder" when it needs
+   * nothing more: `MediaRecorder` and `AudioContext` are not fetches and have no CSP directive,
+   * and the upload is the same-origin `POST /api/v1/meetings/:id/recording`.
+   */
+  it("already carries what the meeting recorder needs, and needs nothing added for it", () => {
+    expect(CONTENT_SECURITY_POLICY).toContain("media-src 'self' blob:");
+    expect(CONTENT_SECURITY_POLICY).toContain("worker-src 'self' blob:");
+    expect(CONTENT_SECURITY_POLICY).toContain("connect-src 'self' https://api.tokotokenai.com");
+    expect(CONTENT_SECURITY_POLICY).toContain("default-src 'self'");
   });
 
   it("asks for a year of HSTS and does not ask to be preloaded", () => {
@@ -120,6 +187,19 @@ describe("the app's headers and webapp-deploy/Caddyfile do not drift apart", () 
       expect(fromProxy, `${name} is missing from the Caddyfile`).not.toBeNull();
       expect(fromProxy, name).toBe(SECURITY_HEADERS[name]);
     }
+  });
+
+  /**
+   * SR-14 named this file as the thing that catches "changed one, forgot the other". The parity
+   * test above compares the whole string, which already does that; this one says out loud which
+   * two features the proxy has to be carrying, so a reader of the Caddyfile alone can see it.
+   */
+  it("carries the recorder allowance at the proxy as well as at the app", () => {
+    const fromProxy = caddyHeader("Permissions-Policy") ?? "";
+    expect(fromProxy).toContain("microphone=(self)");
+    expect(fromProxy).toContain("display-capture=(self)");
+    expect(fromProxy).toContain("camera=()");
+    expect(fromProxy).not.toContain("*");
   });
 
   it("still has the proxy stripping the two identity headers", () => {
