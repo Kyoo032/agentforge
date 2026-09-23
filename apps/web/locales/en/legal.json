@@ -5,10 +5,9 @@
     "description": "Optional starter for memos, letters, sourced notes, and client update decks."
   },
   "studio": {
-    "kicker": "Workspace · Legal desk",
     "kickerTitle": "Workspace · Legal desk · {title}",
     "title": "Legal",
-    "lede": "Load a matter, confirm the client's position and select the work. Every number, quotation and cross-reference is checked in code before the draft is presented. Draft work product only; review before release.",
+    "lede": "You get an issues memorandum, a tracked-changes redline, a deviation report and a red-flags summary — with every number, quotation and cross-reference checked in code first.",
     "reopen": "Reopen matter…",
     "reopenAria": "Reopen matter",
     "newMatter": "New matter",
@@ -96,7 +95,7 @@
     "executive-summary": "Summary .docx"
   },
   "files": {
-    "drop": "Drop the matter documents or choose files",
+    "drop": "Drop .docx files or choose them. Up to 25 MB per file.",
     "docxOnly": ".docx only in this version · {count} {filesWord}",
     "file": "file",
     "files": "files",

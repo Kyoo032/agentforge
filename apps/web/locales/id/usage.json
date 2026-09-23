@@ -1,7 +1,6 @@
 {
   "title": "Pemakaian",
-  "kicker": "Akun",
-  "intro": "Dompet kunci ini dan belanja meja untuk rentang yang dipilih.",
+  "intro": "Yang sudah dibelanjakan meja ini dan kunci ini pada rentang yang dipilih.",
   "rangeAria": "Rentang pemakaian",
   "range": {
     "day": "Hari",

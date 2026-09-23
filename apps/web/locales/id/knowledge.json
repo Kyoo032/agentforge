@@ -1,7 +1,6 @@
 {
   "title": "Basis Pengetahuan",
-  "kicker": "{name} › Basis Pengetahuan",
-  "intro": "Jiwa, memori, dan sumber untuk meja {name}. Ruang kerja lain menyimpan pengetahuannya sendiri.",
+  "intro": "Yang diambil Chat dan setiap mode kerja di meja {name} — jiwa, memori tersemat, sumber terindeks, dan peta di antara semuanya.",
   "tabs": {
     "sources": "Sumber",
     "soul": "Jiwa",
@@ -32,7 +31,7 @@
     "pastePlaceholder": "Tempel catatan…",
     "indexPaste": "Indeks tempelan",
     "uploadFile": "Unggah berkas",
-    "uploadHint": "Yang bisa diindeks: {formats}",
+    "uploadHint": "Yang bisa diindeks: {formats}. Sampai 25 MB.",
     "pastedName": "Catatan tempelan",
     "chunks": "{count} potongan",
     "chunksOne": "{count} potongan",
@@ -74,7 +73,9 @@
   },
   "map": {
     "label": "Peta",
-    "intro": "Memori meja ini yang diambil Chat sekarang. Mode kerja akan memakai pengambilan yang sama nanti. Peta meninjau sumber dengan model embedding, otak, dan verifikator Anda.",
+    "intro": "Anda mendapat peta sumber yang sudah ditinjau — topik apa yang didukung, mana yang lemah, dan apa yang masih hilang.",
+    "howItWorks": "Cara kerjanya",
+    "howItWorksBody": "Chat mengambil dari memori meja ini sekarang, dan mode kerja akan memakai pengambilan yang sama nanti. Peta membaca sumber Anda dengan model embedding, otak, dan verifikator di atas.",
     "run": "Petakan pengetahuan",
     "running": "Memetakan…",
     "ready": "Siap",

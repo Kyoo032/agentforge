@@ -1,6 +1,6 @@
 {
   "title": "Rapat",
-  "subtitle": "Unggah rekaman, dapatkan transkrip, notulen, dan notulen yang sama dalam bahasa satunya.",
+  "subtitle": "Anda mendapat transkrip, notulen terstruktur, dan notulen yang sama dalam bahasa satunya — dari rekaman atau transkrip yang ditempel.",
   "newMeeting": "Rapat baru",
   "meetingTitle": "Rapat apa ini?",
   "meetingTitlePlaceholder": "Checkout mingguan",
@@ -12,7 +12,7 @@
   "chooseFile": "Pilih rekaman",
   "uploading": "Mengunggah…",
   "uploaded": "{name} · {size}",
-  "cap": "Audio atau video, maksimal 25 MB. Untuk rapat yang lebih panjang, tempel transkripnya saja.",
+  "cap": "Audio atau video, maksimal 25 MB.",
   "orPaste": "Atau tempel transkrip",
   "pastePlaceholder": "Rina: kita mulai ya. Error budget checkout di 2,1 persen…",
   "savePaste": "Pakai transkrip ini",

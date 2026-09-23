@@ -1,6 +1,6 @@
 {
   "title": "Images",
-  "subtitle": "Prompt-to-image studio. Results show in the gallery below.",
+  "expectedInputs": "You get: a generated image, saved to the gallery below.",
   "needsKey": "Add a {gateway} gateway key in {settings} to generate images.",
   "settingsLink": "Settings",
   "loadError": "Could not load image studio",
@@ -10,7 +10,7 @@
     "landscape": "Landscape",
     "portrait": "Portrait"
   },
-  "promptPlaceholder": "Describe an image…",
+  "promptPlaceholder": "A product photo of a ceramic cup on a teak desk, soft window light",
   "generate": "Generate",
   "generating": "Generating…",
   "loadingGallery": "Loading gallery…",

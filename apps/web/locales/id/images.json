@@ -1,6 +1,6 @@
 {
   "title": "Gambar",
-  "subtitle": "Studio prompt-ke-gambar. Hasil tampil di galeri di bawah.",
+  "expectedInputs": "Anda dapat: gambar yang dibuat, tersimpan di galeri di bawah.",
   "needsKey": "Tambahkan kunci gateway {gateway} di {settings} untuk membuat gambar.",
   "settingsLink": "Pengaturan",
   "loadError": "Studio gambar tidak dapat dimuat",
@@ -10,7 +10,7 @@
     "landscape": "Lanskap",
     "portrait": "Potret"
   },
-  "promptPlaceholder": "Deskripsikan gambar…",
+  "promptPlaceholder": "Foto produk cangkir keramik di meja jati, cahaya jendela yang lembut",
   "generate": "Buat",
   "generating": "Membuat…",
   "loadingGallery": "Memuat galeri…",

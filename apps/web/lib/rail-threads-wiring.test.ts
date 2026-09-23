@@ -69,15 +69,23 @@ describe("rail session block", () => {
 describe("app rail", () => {
   it("renders the sessions under Chat and above the job modes", () => {
     const chatItem = appRail.indexOf("mode-${chatMode.href.slice(1)}");
-    const sessions = appRail.indexOf("<RailRecentThreads />");
+    const sessions = appRail.indexOf("<RailRecentThreads");
     const jobModes = appRail.indexOf("rail.groupJobs");
     expect(chatItem).toBeGreaterThan(-1);
     expect(sessions).toBeGreaterThan(chatItem);
     expect(jobModes).toBeGreaterThan(sessions);
   });
 
-  it("renders no session rows while the rail is collapsed", () => {
-    expect(appRail).toContain("{collapsed ? null : <RailRecentThreads />}");
+  it("keeps New chat when the rail is collapsed and hides session rows there", () => {
+    expect(appRail).toContain("<RailRecentThreads collapsed={collapsed} />");
+    const railBlock = source("components/rail-recent-threads.tsx");
+    const collapsedAt = railBlock.indexOf("if (collapsed)");
+    const expandedAt = railBlock.indexOf('data-testid="rail-thread-list"');
+    expect(collapsedAt).toBeGreaterThan(-1);
+    expect(expandedAt).toBeGreaterThan(collapsedAt);
+    const collapsedBranch = railBlock.slice(collapsedAt, expandedAt);
+    expect(collapsedBranch).toContain('data-testid="new-chat-link"');
+    expect(collapsedBranch).not.toContain("thread-item");
   });
 });
 
@@ -110,8 +118,9 @@ describe("chat session", () => {
     // Render-time sync: a new (or absent) `?thread=` replaces the fallback.
     expect(chatSession).toContain("if (seenInitialThreadRef.current !== initialThreadId) {");
     expect(chatSession).toContain("pendingThreadRef.current = initialThreadId ?? null;");
-    // Two deliberate clears: header "+ New chat" (before `router.push` lands) and the reset branch.
-    expect(chatSession.split("pendingThreadRef.current = null;").length - 1).toBe(2);
+    // Header New chat is gone. The reset branch is the remaining clear.
+    expect(chatSession.split("pendingThreadRef.current = null;").length - 1).toBe(1);
+    expect(chatSession).not.toContain('data-testid="new-chat"');
     // A failed load must not leave a dead id as the send target.
     expect(chatSession).toContain("pendingThreadRef.current = threadIdRef.current;");
   });

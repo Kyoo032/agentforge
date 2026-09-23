@@ -1,6 +1,9 @@
 {
   "title": "Ruang kerja",
-  "intro": "Folder di mesin ini. Setiap meja punya kunci gateway, Pengaturan, dan Basis Pengetahuan sendiri — berpindah tidak membagikannya. Anda memiliki semuanya di sini — tidak ada yang perlu diikuti.",
+  "deskLabel": "Meja: {name}",
+  "currentSuffix": "saat ini",
+  "newWorkspace": "Ruang kerja baru",
+  "lede": "Meja di mesin ini, masing-masing dengan kunci, Pengaturan, dan Basis Pengetahuan sendiri — milik Anda, tidak ada yang perlu diikuti.",
   "createNew": "Buat ruang kerja baru",
   "create": "Buat",
   "cancel": "Batal",

@@ -5,10 +5,9 @@
     "description": "Templat opsional untuk memorandum, surat, catatan bersumber, dan dek pembaruan klien."
   },
   "studio": {
-    "kicker": "Ruang kerja · Meja Legal",
     "kickerTitle": "Ruang kerja · Meja Legal · {title}",
     "title": "Legal",
-    "lede": "Muat perkara, pastikan posisi klien, lalu pilih pekerjaan. Setiap angka, kutipan, dan rujukan silang diperiksa dalam kode sebelum draf disajikan. Hasil ini draf kerja semata; teliti sebelum diedarkan.",
+    "lede": "Anda mendapat memorandum isu, redline dengan jejak perubahan, laporan penyimpangan, dan ringkasan red-flag untuk perkara ini — dengan setiap angka, kutipan, dan rujukan silang diperiksa dalam kode lebih dulu.",
     "reopen": "Buka ulang perkara…",
     "reopenAria": "Buka ulang perkara",
     "newMatter": "Perkara baru",
@@ -96,7 +95,7 @@
     "executive-summary": "Ringkasan .docx"
   },
   "files": {
-    "drop": "Letakkan dokumen perkara atau pilih berkas",
+    "drop": "Lepas berkas .docx atau pilih berkas. Sampai 25 MB per berkas.",
     "docxOnly": "Hanya .docx pada versi ini · {count} {filesWord}",
     "file": "berkas",
     "files": "berkas",

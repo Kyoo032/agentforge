@@ -300,12 +300,11 @@ export function KnowledgePage() {
   }
 
   return (
-    <main className="px-6 py-8 text-[var(--text)]" data-testid="knowledge-page">
+    <main className="mx-auto w-full max-w-[var(--content-wide)] px-6 py-8 text-[var(--text)]" data-testid="knowledge-page">
       <div className="mb-5 flex flex-wrap items-end gap-4">
         <div>
-          <div className="kicker">{t("knowledge.kicker", { name: workspaceName })}</div>
-          <h3 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("knowledge.title")}</h3>
-          <p className="mt-1 text-[13px] text-[var(--text-2)]">{t("knowledge.intro", { name: workspaceName })}</p>
+          <h3 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("knowledge.title")}</h3>
+          <p className="mt-2 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="expected-inputs">{t("knowledge.intro", { name: workspaceName })}</p>
         </div>
         <div className="seg ml-auto" data-testid="knowledge-tabs">
           {(["sources", "soul", "memory", "map"] as const).map((id) => (
@@ -588,7 +587,16 @@ export function KnowledgePage() {
         <div className="flex flex-col gap-4" data-testid="knowledge-map-panel">
           <section className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
             <p className="panel-label">{t("knowledge.map.label")}</p>
-            <p className="mt-2 text-[13px] text-[var(--text-2)]">{t("knowledge.map.intro")}</p>
+            <p className="mt-2 max-w-[var(--content-narrow)] text-[13px] text-[var(--text-2)]">{t("knowledge.map.intro")}</p>
+            {/* The model walkthrough is method, not outcome; it sits one click away. */}
+            <details className="mt-2 rounded-lg border border-[var(--line)] px-3 py-2">
+              <summary className="cursor-pointer select-none text-xs font-medium text-[var(--text-2)]">
+                {t("knowledge.map.howItWorks")}
+              </summary>
+              <p className="mt-2 max-w-[var(--content-narrow)] text-xs text-[var(--text-3)]">
+                {t("knowledge.map.howItWorksBody")}
+              </p>
+            </details>
             <button
               type="button"
               className="btn btn-primary mt-3 w-fit"

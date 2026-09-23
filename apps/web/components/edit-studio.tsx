@@ -644,6 +644,9 @@ export function EditStudio() {
       {doctor ? <FfmpegSetupNotice doctor={doctor} onDoctor={setDoctor} /> : null}
       <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-[var(--line)] px-4 py-2">
         <h1 className="font-heading text-lg font-semibold">{project?.name ?? t("edit.title")}</h1>
+        {/* One outcome line (owner report 2026-09-23), replacing the old import-method
+            sentence. The Edit import stays `edit-import` on the tool rail. */}
+        <p className="mt-2 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="expected-inputs">{t("edit.expectedInputs")}</p>
         <select
           className="rounded-md border border-[var(--line)] bg-[var(--surface)] px-2 py-1 text-sm"
           value={tier}

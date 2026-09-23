@@ -1,8 +1,7 @@
 {
   "studio": {
-    "kicker": "Workspace",
     "title": "Market Watch",
-    "subtitle": "Type the stocks you follow. You get live prices and a chart for each one, and can ask for a written briefing. Analysis, not investment advice.",
+    "expectedInputs": "You get live prices and a chart per ticker, plus a written briefing — type up to 15 tickers, no file upload. Analysis, not investment advice.",
     "download": "Download DOCX",
     "building": "Building…",
     "writeBriefing": "Write a briefing",

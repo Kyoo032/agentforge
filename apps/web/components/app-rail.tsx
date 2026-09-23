@@ -188,6 +188,11 @@ function RailIcon({ name }: { name: IconName }) {
   );
 }
 
+/* Music and Meeting shipped 2026-09-21 and rode a self-expiring "New" badge until
+   2026-10-22. The owner took the badge off early (2026-09-23): it added noise to the
+   rail, and the rail is the navigation now. The whole mechanism is gone rather than
+   the constant re-dated — a badge nobody reads is worse than no badge. */
+
 function RailItem({
   href,
   label,
@@ -203,25 +208,35 @@ function RailItem({
   collapsed: boolean;
   testId: string;
 }) {
+  /*
+   * `shrink-0`: the nav is a column flex box, so without it a rail that runs past
+   * the viewport squashes these rows (32px down to 23px at 640) while a row
+   * wrapped in anything — the session block, Market's chevron row — keeps its
+   * height and reads as though it had extra space around it. The nav already
+   * scrolls; rows keep their rhythm instead.
+   *
+   * No left accent stripe (owner ruling 2026-09-23): the bar was decoration on top
+   * of the fill, which already marks the row as current. Current is fill + accent
+   * icon + `aria-current`, and the rail is dark chrome in both themes, so these
+   * rows read from the `--rail-*` tokens rather than the paper ones.
+   */
+  const rowTone = active
+    ? "select-row bg-[var(--rail-active)] text-[var(--rail-active-text)]"
+    : "wash text-[var(--rail-text-2)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-active-text)]";
+  const iconTone = active ? "text-[var(--rail-accent)]" : "text-[var(--rail-text-3)]";
+
   return (
     <Link
       href={href}
-      /* `shrink-0`: the nav is a column flex box, so without it a rail that runs
-         past the viewport squashes these rows (32px down to 23px at 640) while a
-         row wrapped in anything — the session block, Market's chevron row — keeps
-         its height and reads as though it had extra space around it. The nav
-         already scrolls; rows keep their rhythm instead. */
-      className={`flex h-8 shrink-0 items-center gap-2 rounded-lg px-2 text-sm tracking-[var(--track)] ${
-        active
-          ? "select-row bg-[var(--accent-soft)] text-[var(--accent)]"
-          : "wash text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
-      } ${collapsed ? "justify-center" : ""}`}
+      className={`flex h-8 shrink-0 items-center gap-2 rounded-lg px-2 text-sm tracking-[var(--track)] ${rowTone} ${
+        collapsed ? "justify-center" : ""
+      }`}
       aria-current={active ? "page" : undefined}
       aria-label={label}
       title={label}
       data-testid={testId}
     >
-      <span className={active ? "text-[var(--accent)]" : "text-[var(--text-3)]"}>
+      <span className={iconTone}>
         <RailIcon name={icon} />
       </span>
       {collapsed ? null : <span className="truncate font-medium">{label}</span>}
@@ -231,10 +246,10 @@ function RailItem({
 
 function RailGroupLabel({ children, collapsed, first }: { children: ReactNode; collapsed: boolean; first?: boolean }) {
   if (collapsed) {
-    return <div className={`${first ? "mt-1" : "mt-2"} mx-auto h-px w-6 shrink-0 bg-divider`} />;
+    return <div className={`${first ? "mt-1" : "mt-2"} mx-auto h-px w-6 shrink-0 bg-[var(--rail-line)]`} />;
   }
   return (
-    <p className="shrink-0 px-2 pt-4 pb-1.5 text-xs font-medium uppercase tracking-[0.06em] text-[var(--text-3)]">
+    <p className="shrink-0 px-2 pt-4 pb-1.5 text-xs font-medium tracking-normal text-[var(--rail-text-3)]">
       {children}
     </p>
   );
@@ -253,26 +268,36 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
   const financeTasks = useRailFinanceTasks();
 
   useEffect(() => {
-    setCollapsed(getRailCollapsed());
+    const query = window.matchMedia("(max-width: 720px)");
+    function apply() {
+      setCollapsed(query.matches ? true : getRailCollapsed());
+    }
+    apply();
+    query.addEventListener("change", apply);
+    return () => query.removeEventListener("change", apply);
   }, []);
 
   function toggleCollapsed() {
     setCollapsed((was) => {
       const next = !was;
-      setRailCollapsed(next);
+      if (!window.matchMedia("(max-width: 720px)").matches) {
+        setRailCollapsed(next);
+      }
       return next;
     });
   }
 
   return (
     <aside
-      className="relative flex h-full shrink-0 flex-col overflow-hidden border-r border-[var(--line)] bg-[var(--surface)]"
+      className="relative flex h-full shrink-0 flex-col overflow-hidden border-r border-[var(--rail-line)] bg-[var(--rail)]"
       style={{ width: collapsed ? RAIL_WIDTH.collapsed : railWidth }}
       aria-label={t("rail.aria")}
       data-rail={collapsed ? "min" : "full"}
     >
       <div
-        className={`flex h-12 shrink-0 ${collapsed ? "items-center justify-center px-1.5" : "items-center gap-2 px-3"}`}
+        /* Header is h-12 + this top padding, so the wordmark and the desk row get breathing
+           room from the window edge (owner report 2026-09-23) without moving the nav below it. */
+        className={`flex shrink-0 pt-3 ${collapsed ? "items-center justify-center px-1.5" : "items-center gap-2 px-3"}`}
       >
         {collapsed ? (
           <WorkspaceSwitcher workspaceName={workspaceName} compact logoSrc={logoSrc} logoAlt={productName} />
@@ -282,7 +307,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
               <img src={logoSrc} alt={productName} className="h-5 w-5 shrink-0 object-contain" data-testid="product-logo" />
             ) : (
               <span
-                className="grid h-5 w-5 shrink-0 place-items-center text-xs font-medium text-[var(--text)]"
+                className="grid h-5 w-5 shrink-0 place-items-center text-xs font-medium text-[var(--rail-text)]"
                 data-testid="product-logo"
               >
                 {productMonogram(productName)}
@@ -291,7 +316,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
             <div className="min-w-0 flex-1">
               <Link
                 href={homeHref}
-                className="block truncate text-sm font-medium tracking-[var(--track)] text-[var(--text)]"
+                className="block truncate text-sm font-medium tracking-[var(--track)] text-[var(--rail-text)]"
                 data-testid="product-brand"
               >
                 {productName}
@@ -321,8 +346,8 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
               collapsed={collapsed}
               testId={`mode-${chatMode.href.slice(1)}`}
             />
-            {/* Collapsed rail stays a pure icon column: no session rows, no new-chat row. */}
-            {collapsed ? null : <RailRecentThreads />}
+            {/* Collapsed rail keeps New chat (icon + label) and hides session rows. */}
+            <RailRecentThreads collapsed={collapsed} />
           </>
         ) : null}
 
@@ -426,7 +451,16 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
       </nav>
 
       <div
-        className={`flex shrink-0 items-center border-t border-[var(--line)] p-2 ${collapsed ? "flex-col gap-2" : "justify-between gap-2"}`}
+        /* Icon-only, one row, both states (owner ruling 2026-09-23). The footer
+           is chrome, not content: a theme label, an update label and a
+           "Collapse navigation" label cannot share 167px at the narrowest rail,
+           and wrapping them into three stacked rows was worse than the overlap
+           it replaced. Every control is a 32px square, the row is a single
+           `justify-between`, and the words survive in `aria-label`/`title`.
+           The update button is the one exception: it keeps its label while a
+           release is actually available (`expanded`), because that is the only
+           state where it has something to say. */
+        className={`flex shrink-0 items-center border-t border-[var(--rail-line)] p-2 ${collapsed ? "flex-col gap-2" : "justify-between gap-2"}`}
         data-testid="rail-footer"
       >
         <ThemeToggle />
@@ -434,7 +468,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
           <AppUpdatesButton collapsed={collapsed} />
           <button
             type="button"
-            className="btn btn-ghost btn-icon h-8 w-8 shrink-0 wash"
+            className="btn btn-ghost btn-icon h-8 w-8 shrink-0 wash text-[var(--rail-text-2)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-active-text)]"
             onClick={toggleCollapsed}
             data-testid={collapsed ? "rail-expand" : "rail-collapse"}
             aria-label={collapsed ? t("rail.expand") : t("rail.collapse")}

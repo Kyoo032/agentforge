@@ -276,12 +276,12 @@ export function MeetingStudio() {
 
   return (
     <main
-      className="mx-auto flex min-h-full max-w-5xl flex-col px-6 py-10 text-[var(--text)]"
+      className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]"
       data-testid="meeting-studio"
     >
       <div>
         <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("meeting.title")}</h1>
-        <p className="mt-2 max-w-2xl text-sm text-[var(--text-2)]">{t("meeting.subtitle")}</p>
+        <p className="mt-2 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="expected-inputs">{t("meeting.subtitle")}</p>
       </div>
 
       {shown ? (
@@ -332,12 +332,14 @@ export function MeetingStudio() {
             data-testid="meeting-title"
           />
         </label>
-        <label className="text-sm">
+        {/* Same stack as the title field beside it: the label holds a full-width control, so the
+            caption sits on its own line above it instead of butting straight against the select. */}
+        <label className="min-w-[10rem] text-sm">
           <span className="text-[var(--text-2)]">{t("meeting.language")}</span>
           <select
             value={locale}
             onChange={(event) => setLocale(event.target.value as AppLocale)}
-            className="mt-1 h-9 rounded-lg border border-[var(--line)] bg-transparent px-3"
+            className="mt-1 h-9 w-full rounded-lg border border-[var(--line)] bg-transparent px-3"
             data-testid="meeting-locale"
           >
             <option value="en">{t("meeting.languageEnglish")}</option>
@@ -476,18 +478,19 @@ export function MeetingStudio() {
 
               <p className="mt-2 text-xs text-[var(--text-3)]">{t("meeting.cap")}</p>
 
+              {/* A recording is the headline path; a transcript in hand is the alternative, folded. */}
               {!selected.transcript ? (
-                <div className="mt-5">
-                  <label className="text-sm text-[var(--text-2)]" htmlFor="meeting-paste">
+                <details className="mt-5 rounded-lg border border-[var(--line)] px-3 py-2" data-testid="meeting-how">
+                  <summary className="cursor-pointer select-none text-xs font-medium text-[var(--text-2)]">
                     {t("meeting.orPaste")}
-                  </label>
+                  </summary>
                   <textarea
                     id="meeting-paste"
                     value={paste}
                     onChange={(event) => setPaste(event.target.value)}
                     placeholder={t("meeting.pastePlaceholder")}
                     rows={5}
-                    className="mt-1 w-full rounded-lg border border-[var(--line)] bg-transparent px-3 py-2 text-sm"
+                    className="mt-2 w-full rounded-lg border border-[var(--line)] bg-transparent px-3 py-2 text-sm"
                     data-testid="meeting-paste"
                   />
                   <button
@@ -499,7 +502,7 @@ export function MeetingStudio() {
                   >
                     {t("meeting.savePaste")}
                   </button>
-                </div>
+                </details>
               ) : null}
 
               <JobProgressList progress={job.progress} busy={job.busy} testId="meeting-progress" />

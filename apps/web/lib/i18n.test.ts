@@ -16,8 +16,8 @@ describe("t()", () => {
     expect(t("settings.title")).toBe("Pengaturan");
     expect(t("rail.settings")).toBe("Pengaturan");
     expect(t("onboarding.welcome", { productName: "DPSBuddy" })).toBe("Selamat datang di DPSBuddy");
-    expect(t("chat.empty.headline")).toBe("Anda sudah masuk. Tanya apa saja.");
-    expect(t("chat.empty.documentsHint")).toBe("Memo dan laporan");
+    expect(t("chat.empty.headline")).toBe("Kerja dimulai di sini.");
+    expect(t("chat.empty.pickModel")).toBe("Pilih model di bawah, lalu tulis.");
     expect(t("documents.title")).toBe("Dokumen");
     expect(t("research.title")).toBe("Riset");
     expect(t("images.title")).toBe("Gambar");
@@ -37,7 +37,7 @@ describe("t()", () => {
     applyLocale("en");
     expect(getLocale()).toBe("en");
     expect(t("settings.title")).toBe("Settings");
-    expect(t("chat.empty.headline")).toBe("You're in. Ask anything.");
+    expect(t("chat.empty.headline")).toBe("Work starts here.");
   });
 
   it("fails closed on a missing key", () => {

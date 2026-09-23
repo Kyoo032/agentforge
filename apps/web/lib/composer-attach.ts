@@ -1,5 +1,15 @@
 export type AttachmentKind = "image" | "video" | "text" | "unsupported";
 
+/** Client caps. Images match `saveMedia`; video is the HTTP body cap (26 MB), not the 50 MB kind cap. */
+export const CHAT_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+export const CHAT_VIDEO_MAX_BYTES = 26 * 1024 * 1024;
+
+export function attachmentOverCap(kind: AttachmentKind, bytes: number): boolean {
+  if (kind === "image") return bytes > CHAT_IMAGE_MAX_BYTES;
+  if (kind === "video") return bytes > CHAT_VIDEO_MAX_BYTES;
+  return false;
+}
+
 export type FileLike = { name: string; type: string };
 
 export type RouteDecision =

@@ -1,6 +1,9 @@
 {
   "title": "Workspaces",
-  "intro": "Folders on this machine. Each desk has its own gateway key, Settings, and Knowledge Base — switching does not share them. You own all of them here — nothing to join.",
+  "deskLabel": "Desk: {name}",
+  "currentSuffix": "current",
+  "newWorkspace": "New workspace",
+  "lede": "Desks on this machine, each with its own key, Settings and Knowledge Base — yours, nothing to join.",
   "createNew": "Create new workspace",
   "create": "Create",
   "cancel": "Cancel",

@@ -1,6 +1,6 @@
 # Map — Shell, rail and workspaces
 
-Last verified: 2026-09-20 at c204e5e
+Last verified: 2026-09-23 at 0774681 + working tree (the 0.15.0 design pass). Changed here: the rail header is `pt-3` (no fixed `h-12`), the rail's `--rail-*` tokens are per-theme instead of dark in both, the footer is one aligned row of 32px icon buttons whose colour is forced from `globals.css` because unlayered `.btn` beats `@layer utilities`, and `.desk-canvas` is a raised panel (8px margin, 4px radius, blue `--shadow-float`) rather than a flat fill.
 
 ## Overview
 

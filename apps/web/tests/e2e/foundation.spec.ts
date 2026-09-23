@@ -20,7 +20,7 @@ test("chat and workspaces work without an account", async ({ page }) => {
   await expect(page.getByTestId("reasoning-effort").locator("option[value=max]")).toHaveText("Max");
   await expect(page.getByTestId("reasoning-effort").locator("option[value=ultra]")).toHaveText("Ultra");
   await expect(page.getByTestId("chat-wire")).toHaveCount(0);
-  await expect(page.getByTestId("chat-empty")).toContainText("Ask anything");
+  await expect(page.getByTestId("chat-empty")).toContainText("Work starts here");
   await expect(page.getByTestId("mode-chat")).toBeVisible();
   await expect(page.getByTestId("mode-documents")).toBeVisible();
   await expect(page.getByTestId("mode-research")).toBeVisible();
@@ -42,8 +42,8 @@ test("chat and workspaces work without an account", async ({ page }) => {
   await expect(page.getByTestId("composer-send")).toHaveText("Send", { timeout: 30_000 });
   await expect(page.getByTestId("rail-thread-list")).toContainText(promptOne);
 
-  await page.getByTestId("new-chat").click();
-  await expect(page.getByTestId("chat-empty")).toContainText("Ask anything", { timeout: 10_000 });
+  await page.getByTestId("new-chat-link").click();
+  await expect(page.getByTestId("chat-empty")).toContainText("Work starts here", { timeout: 10_000 });
   await page.getByTestId("composer-text").fill(promptTwo);
   await page.getByTestId("composer-send").click();
   await expect(page.getByTestId("message-list")).toContainText(promptTwo, { timeout: 20_000 });
@@ -57,7 +57,7 @@ test("chat and workspaces work without an account", async ({ page }) => {
   await expect(page.getByTestId("settings-form")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId("privacy-note")).toBeVisible();
   await expect(page.getByTestId("key-fingerprint")).toHaveCount(0);
-  await expect(page.getByTestId("runtime-status")).toContainText("Offline demo", { timeout: 15_000 });
+  await expect(page.getByTestId("runtime-status")).toContainText("No key", { timeout: 15_000 });
   await expect(page.getByTestId("usage-this-key")).toContainText("Paste a gateway key");
   await expect(page.getByTestId("usage-open")).toBeVisible();
   await expect(page.getByTestId("usage-by-model")).toHaveCount(0);

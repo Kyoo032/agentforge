@@ -174,9 +174,11 @@ export function VideosStudio() {
   }
 
   return (
-    <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-10 text-[var(--text)]" data-testid="videos-studio">
+    <main className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]" data-testid="videos-studio">
       <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("videos.title")}</h1>
-      <p className="mt-2 max-w-xl text-sm text-[var(--text-2)]">{t("videos.subtitle")}</p>
+      {/* One outcome line (owner report 2026-09-23). The `subtitle` paragraph below it
+          only repeated what the empty state says, so it was deleted with its key. */}
+      <p className="mt-2 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="expected-inputs">{t("videos.expectedInputs")}</p>
 
       {!ready && !loading ? (
         <div
@@ -233,19 +235,6 @@ export function VideosStudio() {
               </option>
             ))}
           </select>
-          <select
-            className="select-field disabled:opacity-50"
-            value={resolution}
-            onChange={(event) => setResolution(event.target.value as (typeof RESOLUTIONS)[number])}
-            disabled={generating || !caps.resolution}
-            data-testid="videos-studio-resolution"
-          >
-            {RESOLUTIONS.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
           <ModelSelect
             models={modelOptions}
             value={model}
@@ -271,19 +260,39 @@ export function VideosStudio() {
             ) : null}
           </div>
         )}
-        {imageToVideo ? (
-          <input
-            type="url"
-            className="text-field w-full outline-none placeholder:text-[var(--text-3)]"
-            placeholder={t("videos.stillPlaceholder")}
-            value={stillUrl}
-            onChange={(event) => setStillUrl(event.target.value)}
-            disabled={generating}
-            data-testid="videos-studio-still"
-          />
-        ) : model ? (
-          <p className="text-xs text-[var(--text-3)]">{t("videos.textToVideoOnly")}</p>
-        ) : null}
+        <details className="rounded-lg border border-[var(--line)] px-3 py-2" data-testid="videos-studio-advanced">
+          <summary className="cursor-pointer select-none text-xs font-medium text-[var(--text-2)]">
+            {t("videos.advanced")}
+          </summary>
+          <div className="mt-2 space-y-2">
+            <select
+              className="select-field disabled:opacity-50"
+              value={resolution}
+              onChange={(event) => setResolution(event.target.value as (typeof RESOLUTIONS)[number])}
+              disabled={generating || !caps.resolution}
+              data-testid="videos-studio-resolution"
+            >
+              {RESOLUTIONS.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+            {imageToVideo ? (
+              <input
+                type="url"
+                className="text-field w-full outline-none placeholder:text-[var(--text-3)]"
+                placeholder={t("videos.stillPlaceholder")}
+                value={stillUrl}
+                onChange={(event) => setStillUrl(event.target.value)}
+                disabled={generating}
+                data-testid="videos-studio-still"
+              />
+            ) : model ? (
+              <p className="text-xs text-[var(--text-3)]">{t("videos.textToVideoOnly")}</p>
+            ) : null}
+          </div>
+        </details>
         <div className="flex gap-2">
           <EnhancePromptButton text={prompt} surface="videos" model={model} disabled={generating} testId="videos-enhance" onApply={setPrompt} />
           <input

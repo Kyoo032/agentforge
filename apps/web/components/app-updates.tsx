@@ -37,7 +37,7 @@ function UpdateIcon({ busy }: { busy: boolean }) {
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
-      className={busy ? "animate-pulse" : undefined}
+      aria-busy={busy || undefined}
     >
       <circle cx="12" cy="12" r="9" />
       <path d="M12 7v8" />
@@ -136,7 +136,7 @@ export function AppUpdatesButton({ collapsed = false }: { collapsed?: boolean })
             ? "btn btn-primary inline-flex h-8 w-full min-w-0 items-center justify-center gap-1.5 px-2 text-xs font-medium"
             : cta
               ? "btn btn-primary btn-icon relative h-8 w-8"
-              : "btn btn-ghost btn-icon relative h-8 w-8"
+              : "btn btn-ghost btn-icon relative h-8 w-8 text-[var(--rail-text-2)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-active-text)]"
         }
         onClick={toggle}
         aria-label={title}

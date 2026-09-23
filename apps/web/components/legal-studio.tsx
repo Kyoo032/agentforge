@@ -253,7 +253,7 @@ export function LegalStudio() {
 
   return (
     <div data-testid="legal-shell">
-      <main className="px-6 pb-10 pt-8 text-[var(--text)]" data-testid="legal-studio" data-screen={screen}>
+      <main className="mx-auto w-full max-w-[var(--content-wide)] px-6 pb-10 pt-8 text-[var(--text)]" data-testid="legal-studio" data-screen={screen}>
         {error ? (
           <p className="mb-4 text-sm text-[var(--danger)]" role="alert" data-testid="legal-error">
             {error}
@@ -290,13 +290,12 @@ export function LegalStudio() {
 
         {screen === "new" ? (
           <>
-            <div className="kicker">{t("legal.studio.kicker")}</div>
             <div className="mb-5 flex flex-wrap items-end gap-4">
               <div>
-                <h3 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">
+                <h3 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">
                   {t("legal.studio.title")}
                 </h3>
-                <p className="mt-1.5 max-w-xl text-sm text-[var(--text-2)]">{t("legal.studio.lede")}</p>
+                <p className="mt-2 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="expected-inputs">{t("legal.studio.lede")}</p>
               </div>
               <div className="ml-auto flex items-center gap-2">
                 {matters.length > 0 ? (

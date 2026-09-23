@@ -4,7 +4,7 @@
 > The host-decides/renderer-displays rule below is unchanged; the Electron-only transport and wipe details are frozen desktop behaviour.
 > Decision record: [`web-pivot-2026-09-18.md`](../web-pivot-2026-09-18.md).
 
-Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c` (through e37b3a1)
+Last verified: 2026-09-23 at 0774681 + working tree (the 0.15.0 design pass). Changed here: `settings.kicker` is deleted, `settings.runtimeStub` and `settings.gateway.status.stub` no longer claim "Offline demo" (stub means *no key saved*, not a demo), and `settings.intro` was trimmed. The gate's derivation, `resolveGate`, the reset scopes and the endpoint-hiding rule are all untouched. **The sign-out → onboarding behaviour is verified in the packaged personal app, not on webdev**: `deriveGatewayGate` short-circuits `envRuntime === "stub"` to `allowed: true` before it looks at whether a key exists (`packages/host/src/gateway-gate.ts:293-296`), and both `.env` and `apps/web/.env.local` pin `stub` on a dev machine — `apps/desktop/main.cjs` never sets it, so a packaged app derives `needs_key` and sign-out does drop to onboarding.
 
 > The 2026-09-17 "hide the endpoint" change was verified in the working tree when this page was
 > first written; it is committed as of `b482611`. `apps/web/components/settings-page.tsx`,

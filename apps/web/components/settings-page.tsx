@@ -280,10 +280,9 @@ export function SettingsPage() {
   }
 
   return (
-    <main className="mx-auto max-w-xl px-6 py-8 text-[var(--text)]">
-      <div className="kicker">{t("settings.kicker", { workspaceName })}</div>
-      <h1 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("settings.title")}</h1>
-      <p className="mt-2 text-[13px] text-[var(--text-2)]">
+    <main className="mx-auto max-w-[var(--content-narrow)] px-6 py-8 text-[var(--text)]">
+      <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("settings.title")}</h1>
+      <p className="mt-2 max-w-[var(--content-narrow)] text-[13px] text-[var(--text-2)]">
         {t("settings.intro", {
           workspaceName,
           gatewayName,

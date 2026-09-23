@@ -61,7 +61,14 @@ export type RangeUsage = {
 };
 
 /** Token-safe series only: accent, ok, danger, text-2, text-3, text. */
-export const BAR_COLORS = ["#0f766e", "#2f6f4e", "#c4453c", "#5d5d5d", "#9e9e9e", "#292929"];
+export const BAR_COLORS = [
+  "var(--accent)",
+  "var(--teal)",
+  "var(--danger)",
+  "var(--text-2)",
+  "var(--text-3)",
+  "var(--mark)",
+];
 
 export function thisKeyLine(usage: { thisKey?: ThisKeyStatus } | null): string {
   const thisKey = usage?.thisKey;

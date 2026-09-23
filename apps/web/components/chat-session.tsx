@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "@/lib/nav";
 import { useRouter } from "@/lib/nav";
+import { ChatAccountChip } from "@/components/chat-account-chip";
 import { ChatComposer } from "@/components/chat-composer";
 import { ChatContextChip } from "@/components/chat-context-chip";
+import { ChatLauncher } from "@/components/chat-launcher";
 import { ChatUsageChip } from "@/components/chat-usage-chip";
 import { estimateContextParts, estimateConversationTokens, textFromMessageContent } from "@/lib/estimate-tokens";
 import type { ContextPart } from "@/components/chat-context-chip";
@@ -19,8 +20,6 @@ import {
   writeLastChatModel,
   writeThreadChatModel,
 } from "@/lib/chat-model-pref";
-import { BrandMark } from "@/components/brand-mark";
-import { useProductBrand } from "@/lib/product-brand";
 import { isReasoningEffort, type ReasoningEffort } from "@agentforge/core/reasoning-effort";
 import { t } from "@/lib/i18n";
 
@@ -31,6 +30,8 @@ type ModelProvider = "openai" | "anthropic" | "google" | "volcengine";
 type ChatModel = {
   id: string;
   label: string;
+  friendlyLabel?: string;
+  bestFor?: string;
   provider?: ModelProvider;
   inputModalities: string[];
   contextLength?: number;
@@ -41,46 +42,8 @@ type Props = {
   initialThreadId?: string;
 };
 
-function EmptyCardIcon({ name }: { name: "documents" | "research" | "finance" }) {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {name === "documents" ? (
-        <>
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-          <path d="M14 2v6h6" />
-          <path d="M16 13H8M16 17H8" />
-        </>
-      ) : null}
-      {name === "research" ? (
-        <>
-          <circle cx="11" cy="11" r="7" />
-          <path d="m21 21-4.3-4.3" />
-        </>
-      ) : null}
-      {name === "finance" ? (
-        <>
-          <path d="m3 17 6-6 4 4 8-8" />
-          <path d="M17 7h4v4" />
-          <path d="M3 21h18" />
-        </>
-      ) : null}
-    </svg>
-  );
-}
-
 export function ChatSession({ agentId, initialThreadId }: Props) {
   const router = useRouter();
-  const { gatewayName } = useProductBrand();
   const [agentName, setAgentName] = useState(() => t("chat.title"));
   const [isDefaultChat, setIsDefaultChat] = useState(!agentId);
   const [threadId, setThreadId] = useState<string | null>(null);
@@ -98,6 +61,8 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
   const [thinkingEnabled, setThinkingEnabled] = useState(true);
   const [reasoningEffort, setReasoningEffort] = useState<ReasoningEffort>("medium");
   const [knowledgeParts, setKnowledgeParts] = useState<ContextPart[]>([]);
+  /** A prompt picked from the empty screen's suggestions; handed down once, then cleared. */
+  const [composerDraft, setComposerDraft] = useState<string | null>(null);
   const toolsRef = useRef(tools);
   toolsRef.current = tools;
   const threadIdRef = useRef(threadId);
@@ -362,8 +327,11 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
   }, [messages]);
 
   return (
-    <main className="flex h-full min-h-0 flex-col bg-[var(--bg)]" data-testid="chat-home">
-      <div className="flex h-14 shrink-0 items-center justify-between gap-4 px-6" data-testid="chat-header">
+    <main className="flex h-full min-h-0 flex-col" data-testid="chat-home">
+      <div
+        className="mx-auto flex h-14 w-full shrink-0 items-center justify-between gap-4 px-6 max-w-[var(--content-max)]"
+        data-testid="chat-header"
+      >
         <h1 className={`${empty ? "text-sm" : "text-2xl"} font-medium tracking-[var(--track)] text-[var(--text)]`}>
           {isDefaultChat ? t("chat.title") : agentName}
         </h1>
@@ -374,89 +342,23 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
             parts={contextParts}
           />
           <ChatUsageChip />
-          {agentIdReady ? (
-            <button
-              type="button"
-              className="wash rounded-lg px-3 py-1.5 text-xs text-[var(--text)] hover:bg-[var(--accent-soft)]"
-              data-testid="new-chat"
-              onClick={() => {
-                // Clear the URL fallback here too: `router.push` lands a render later.
-                threadIdRef.current = null;
-                pendingThreadRef.current = null;
-                setThreadId(null);
-                setMessages([]);
-                resetLive();
-                setError(null);
-                router.push(chatPath());
-              }}
-            >
-              {t("chat.newChat")}
-            </button>
-          ) : null}
+          <ChatAccountChip />
         </div>
       </div>
 
       {error ? (
-        <p className="px-6 text-sm text-[var(--danger)]" data-testid="chat-error" role="alert">
+        <p className="mx-auto w-full px-6 text-sm text-[var(--danger)] max-w-[var(--content-max)]" data-testid="chat-error" role="alert">
           {error}
         </p>
       ) : null}
 
       <div
         key={threadId ?? "empty"}
-        className={`stage-fade min-h-0 flex-1 overflow-y-auto px-6 ${empty ? "" : "space-y-4 py-4"}`}
+        className={`mx-auto min-h-0 w-full flex-1 overflow-y-auto px-6 max-w-[var(--content-max)] ${empty ? "" : "space-y-4 py-4"}`}
         data-testid="message-list"
       >
         {empty && !error ? (
-          <div className="mx-auto w-full max-w-[520px] pt-8 text-center" data-testid="chat-empty">
-            <BrandMark size={28} className="mx-auto text-[var(--accent)]" />
-            <p className="mt-4 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">
-              {t("chat.empty.headline")}
-            </p>
-            <p className="mt-2 text-sm text-[var(--text-2)]">
-              {t("chat.empty.pasteKeyPrefix", { gatewayName })}{" "}
-              <Link href="/settings" className="text-[var(--accent)] no-underline hover:underline">
-                {t("chat.empty.settingsLink")}
-              </Link>{" "}
-              {t("chat.empty.pasteKeySuffix")}
-            </p>
-            <div className="mt-6 grid grid-cols-3 gap-3">
-              {(
-                [
-                  {
-                    href: "/documents",
-                    icon: "documents" as const,
-                    title: t("chat.empty.documentsTitle"),
-                    hint: t("chat.empty.documentsHint"),
-                  },
-                  {
-                    href: "/research",
-                    icon: "research" as const,
-                    title: t("chat.empty.researchTitle"),
-                    hint: t("chat.empty.researchHint"),
-                  },
-                  {
-                    href: "/finance",
-                    icon: "finance" as const,
-                    title: t("chat.empty.financeTitle"),
-                    hint: t("chat.empty.financeHint"),
-                  },
-                ] as const
-              ).map((card) => (
-                <Link
-                  key={card.href}
-                  href={card.href}
-                  className="wash rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-3 text-left hover:bg-[var(--accent-soft)]"
-                >
-                  <span className="text-[var(--text-3)]">
-                    <EmptyCardIcon name={card.icon} />
-                  </span>
-                  <p className="mt-2 text-sm font-medium tracking-[var(--track)] text-[var(--text)]">{card.title}</p>
-                  <p className="mt-1 text-xs text-[var(--text-3)]">{card.hint}</p>
-                </Link>
-              ))}
-            </div>
-          </div>
+          <ChatLauncher onSuggest={setComposerDraft} />
         ) : null}
         {messages
           .filter((message) => message.role === "user" || messageHasDisplayableContent(message.content))
@@ -480,6 +382,8 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           thinkingEnabled={thinkingEnabled}
           reasoningEffort={reasoningEffort}
           onReasoningEffortChange={setReasoningPref}
+          draft={composerDraft}
+          onDraftApplied={() => setComposerDraft(null)}
           onUserSend={(payload) => {
             setError(null);
             setRunning(true);

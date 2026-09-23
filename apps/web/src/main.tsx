@@ -9,13 +9,12 @@ import "../app/globals.css";
 
 const themeInit = () => {
   try {
-    if (localStorage.getItem("agentforge-theme") === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
+    const stored = localStorage.getItem("agentforge-theme");
+    const theme = stored === "light" || stored === "dark" ? stored : "light";
+    document.documentElement.classList.toggle("light", theme === "light");
+    document.documentElement.classList.toggle("dark", theme === "dark");
   } catch {
-    // private mode
+    // private mode: :root is already the light palette
   }
 };
 themeInit();

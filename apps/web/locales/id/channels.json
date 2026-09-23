@@ -1,7 +1,7 @@
 {
-  "kicker": "Akun",
   "title": "Kanal",
-  "intro": "Hubungkan bot Telegram ke meja ini, lalu kirim pesan ke grup atau kanal dan baca balasannya. Ringkasan pasar bisa dikirim ke sini pada tahap berikutnya.",
+  "intro": "Kirim pesan ke grup atau kanal Telegram dari meja ini, lalu baca balasannya.",
+  "privacyLabel": "Privasi",
   "privacy": "Semua yang dikirim atau diterima di sini melewati Telegram tanpa enkripsi tambahan. Jangan kirim hal yang tidak pantas ditaruh di obrolan grup.",
   "bot": {
     "label": "Bot Telegram",

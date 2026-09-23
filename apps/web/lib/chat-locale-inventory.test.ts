@@ -31,7 +31,7 @@ describe("chat locale inventory", () => {
       if (typeof enValue !== "string" || typeof idValue !== "string") {
         continue;
       }
-      if (enValue === idValue && !/^(Chat|Soul|Ultra|Normal|Video)$/.test(enValue) && !enValue.includes("Toko Token")) {
+      if (enValue === idValue && !/^(Chat|Soul|Ultra|Normal|Video|Model)$/.test(enValue) && !enValue.includes("Toko Token")) {
         leftover.push(`${key}: ${idValue}`);
       }
     }

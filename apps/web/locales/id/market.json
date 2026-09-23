@@ -1,8 +1,7 @@
 {
   "studio": {
-    "kicker": "Ruang kerja",
     "title": "Pantauan Pasar",
-    "subtitle": "Ketik saham yang Anda ikuti. Anda mendapat harga langsung dan grafik untuk masing-masing, lalu dapat meminta briefing tertulis. Analisis, bukan saran investasi.",
+    "expectedInputs": "Anda mendapat harga langsung dan grafik per ticker, plus briefing tertulis — ketik sampai 15 ticker, tanpa unggahan berkas. Analisis, bukan saran investasi.",
     "download": "Unduh DOCX",
     "building": "Menyusun…",
     "writeBriefing": "Tulis briefing",

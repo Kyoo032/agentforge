@@ -1,7 +1,6 @@
 {
   "title": "Usage",
-  "kicker": "Account",
-  "intro": "This-key wallet and desk spend for the selected range.",
+  "intro": "What this desk and this key have spent over the selected range.",
   "rangeAria": "Usage range",
   "range": {
     "day": "Day",

@@ -1,6 +1,6 @@
 {
   "title": "Presentasi",
-  "subtitle": "Uraikan topik. {product} menyusun kerangka, menampilkan pratinjau HTML, dan mengunduh PPTX.",
+  "expectedInputs": "Anda dapat: dek berjudul dengan judul slide berupa klaim, butir berupa kalimat utuh, dan catatan pembicara di setiap slide — dipratinjau di halaman dan dapat diunduh sebagai PPTX.",
   "download": "Unduh PPTX",
   "building": "Menyusun…",
   "generate": "Buat",
@@ -13,7 +13,7 @@
   "openSettings": "Buka Pengaturan",
   "emptyTitle": "Belum ada dek",
   "emptyBody": "Masukkan topik di bawah, atau muat contoh siap pakai lalu unduh PPTX tanpa memanggil model.",
-  "promptPlaceholder": "Uraikan presentasi…",
+  "promptPlaceholder": "Dek 8 slide tentang posisi kas kuartal ketiga",
   "promptAria": "Topik presentasi",
   "kicker": "Presentasi",
   "notes": "Catatan:",

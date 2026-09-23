@@ -203,9 +203,9 @@ export function WorkspacesPage() {
   }
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-8 text-[var(--text)]">
+    <main className="mx-auto max-w-[var(--content-narrow)] px-6 py-8 text-[var(--text)]">
       <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("workspaces.title")}</h1>
-      <p className="mt-2 text-[var(--text-2)]">{t("workspaces.intro")}</p>
+      <p className="mt-2 text-[var(--text-2)]">{t("workspaces.lede")}</p>
       {creating ? (
         <form
           onSubmit={(event) => void createWorkspace(event)}

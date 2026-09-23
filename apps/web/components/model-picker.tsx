@@ -362,7 +362,7 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
                     role="presentation"
                     data-testid={group.label === RECOMMENDED_GROUP ? "model-group-recommended" : undefined}
                   >
-                    <div className="px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wide text-[var(--text-3)]">
+                    <div className="px-3 pb-1 pt-2 text-xs font-medium tracking-normal text-[var(--text-3)]">
                       {groupLabel(group.label)}
                     </div>
                     <ul role="group" aria-label={groupLabel(group.label)}>
@@ -378,7 +378,7 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
       : null;
 
   return (
-    <div className="relative w-36 min-w-[7rem] shrink">
+    <div className="relative min-w-[9rem] max-w-[18rem] shrink">
       <button
         ref={triggerRef}
         type="button"
@@ -390,7 +390,9 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
         disabled={disabled || models.length === 0}
         onClick={() => (open ? closePalette(false) : openPalette())}
       >
-        <span className="min-w-0 truncate">{triggerLabel}</span>
+        <span className="min-w-0 truncate">
+          {t("chat.composer.modelPrefix")}: {triggerLabel}
+        </span>
       </button>
       {panel}
     </div>

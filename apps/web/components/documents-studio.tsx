@@ -14,7 +14,6 @@ import { documentStarters } from "@/lib/job-starters";
 import { t } from "@/lib/i18n";
 import { useJobModel } from "@/lib/use-job-model";
 import { apiFetch } from "@/lib/api-client";
-import { useProductBrand } from "@/lib/product-brand";
 
 function errorMessage(payload: unknown, fallback: string): string {
   if (payload && typeof payload === "object") {
@@ -31,7 +30,6 @@ function needsSettingsHint(message: string): string {
 }
 
 export function DocumentsStudio() {
-  const { productName } = useProductBrand();
   const { models, model, setModel } = useJobModel("documents");
   const [prompt, setPrompt] = useState("");
   const [sourceText, setSourceText] = useState("");
@@ -147,13 +145,14 @@ export function DocumentsStudio() {
   }
 
   return (
-    <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-10 text-[var(--text)]" data-testid="documents-studio">
+    <main className="mx-auto flex min-h-full w-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]" data-testid="documents-studio">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("documents.title")}</h1>
-          <p className="mt-2 max-w-xl text-sm text-[var(--text-2)]">
-            {t("documents.subtitle", { productName })}
-          </p>
+          {/* Title plus one outcome line (owner report 2026-09-23): what you get, not
+              how to make it. The old `subtitle` paragraph was deleted from the header
+              and its key from the catalog. */}
+          <p className="mt-2 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="expected-inputs">{t("documents.expectedInputs")}</p>
         </div>
         {draft ? (
           <button
@@ -203,7 +202,7 @@ export function DocumentsStudio() {
           <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10" data-testid="documents-studio-empty">
             <p className="text-center text-sm font-medium text-[var(--text)]">{t("documents.emptyTitle")}</p>
             <p className="mt-2 text-center text-sm text-[var(--text-2)]">{t("documents.emptyHint")}</p>
-            <div className="mx-auto mt-6 grid max-w-2xl gap-3 sm:grid-cols-2">
+            <div className="mx-auto mt-6 grid max-w-[var(--content-narrow)] gap-3 sm:grid-cols-2">
               {documentStarters().map((starter) => (
                 <button
                   key={starter.id}
@@ -258,7 +257,7 @@ export function DocumentsStudio() {
             type="text"
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
-            className="min-w-0 flex-1 rounded-lg bg-transparent px-3 py-2 text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-3)]"
+            className="text-field min-w-0 flex-1 outline-none placeholder:text-[var(--text-3)]"
             placeholder={t("documents.placeholder")}
             disabled={busy !== null}
             data-testid="documents-prompt"

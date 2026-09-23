@@ -1,11 +1,11 @@
 {
   "title": "Dokumen",
-  "subtitle": "Jelaskan memo, brief, atau laporan. {productName} menyusun bagian, menampilkan pratinjau, dan mengunduh DOCX.",
+  "expectedInputs": "Anda dapat: draf berjudul dengan bagian-bagian yang dapat dipratinjau dan diunduh sebagai DOCX.",
   "download": "Unduh DOCX",
   "building": "Menyusun…",
   "emptyTitle": "Belum ada dokumen",
   "emptyHint": "Masukkan topik di bawah, atau muat contoh jadi dan unduh DOCX tanpa pembuatan langsung.",
-  "placeholder": "Jelaskan dokumen…",
+  "placeholder": "Buat memo status satu halaman untuk pimpinan",
   "topicAria": "Topik dokumen",
   "generate": "Buat",
   "generating": "Membuat…",

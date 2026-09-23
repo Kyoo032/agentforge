@@ -1,6 +1,6 @@
 {
   "title": "Meeting",
-  "subtitle": "Upload a recording, get a transcript, minutes, and the same minutes in the other language.",
+  "subtitle": "You get a transcript, structured minutes, and the same minutes in the other language — from a recording or a pasted transcript.",
   "newMeeting": "New meeting",
   "meetingTitle": "What was this meeting?",
   "meetingTitlePlaceholder": "Checkout weekly",
@@ -12,7 +12,7 @@
   "chooseFile": "Choose a recording",
   "uploading": "Uploading…",
   "uploaded": "{name} · {size}",
-  "cap": "Audio or video, up to 25 MB. For a longer meeting, paste the transcript instead.",
+  "cap": "Audio or video, up to 25 MB.",
   "orPaste": "Or paste a transcript",
   "pastePlaceholder": "Rina: let's start. The checkout error budget is at 2.1 percent…",
   "savePaste": "Use this transcript",

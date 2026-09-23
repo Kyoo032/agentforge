@@ -120,6 +120,22 @@ describe("finance studio reads the rail's choice", () => {
     expect(source("components/finance-steps/finance-phase-strip.tsx")).toContain('data-testid="finance-phase-strip"');
   });
 
+  it("folds the phase strip, and says so for anything that drives it", () => {
+    // Owner ruling 2026-09-23: the pipeline was painted across the header, six to seven
+    // nodes of implementation. It moved into the `finance-how` disclosure. The strip still
+    // renders from load — a closed <details> keeps its children in the DOM, so the testid
+    // stays queryable — but it is NOT visible until the disclosure is opened. A drive that
+    // asserts `finance-phase-strip` is visible must open `finance-how` first; a count
+    // assertion still passes. This test pins that contract so the recipe and the DOM cannot
+    // drift apart silently.
+    expect(studio).toContain('data-testid="finance-how"');
+    const detailsAt = studio.indexOf('<details className="mb-5 rounded-lg border border-[var(--line)] px-3 py-2" data-testid="finance-how"');
+    const stripAt = studio.indexOf("<FinancePhaseStrip");
+    expect(detailsAt).toBeGreaterThan(-1);
+    // The strip renders inside that disclosure, after its opening tag.
+    expect(stripAt).toBeGreaterThan(detailsAt);
+  });
+
   it("keys the draft by workspace and task, and sends the task with every request", () => {
     expect(studio).toContain('const scopeKey = `${workspaceId ?? ""}|${task}`;');
     expect(studio).toContain("saveFinanceDraft(workspaceId, task, { prompt, figures });");

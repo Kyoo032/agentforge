@@ -14,7 +14,6 @@ import { t } from "@/lib/i18n";
 import { researchNotesToMarkdown, type ResearchNotes } from "@/lib/research-notes";
 import { useJobModel } from "@/lib/use-job-model";
 import { useJobStream } from "@/lib/use-job-stream";
-import { useProductBrand } from "@/lib/product-brand";
 
 type ResearchResult = ResearchNotes & {
   artifactId: string | null;
@@ -40,7 +39,6 @@ function tabClass(active: boolean): string {
 }
 
 export function ResearchStudio() {
-  const { productName } = useProductBrand();
   const { models, model, setModel } = useJobModel("research");
   const job = useJobStream<ResearchResult>();
   const [prompt, setPrompt] = useState("");
@@ -71,13 +69,13 @@ export function ResearchStudio() {
   const markdown = shown?.kind === "run" ? shown.dossierMarkdown : (shown?.markdown ?? "");
 
   return (
-    <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-10 text-[var(--text)]" data-testid="research-studio">
+    <main className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]" data-testid="research-studio">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("research.title")}</h1>
-          <p className="mt-2 max-w-xl text-sm text-[var(--text-2)]">
-            {t("research.subtitle", { product: productName })}
-          </p>
+          {/* One outcome line (owner report 2026-09-23). The `subtitle` paragraph below
+              it restated the same thing as a method, so it was deleted along with its key. */}
+          <p className="mt-2 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="expected-inputs">{t("research.expectedInputs")}</p>
         </div>
         <ArtifactPicker
           mode="research"
@@ -200,7 +198,7 @@ export function ResearchStudio() {
             type="text"
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
-            className="min-w-0 flex-1 rounded-lg bg-transparent px-3 py-2 text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-3)]"
+            className="text-field min-w-0 flex-1 outline-none placeholder:text-[var(--text-3)]"
             placeholder={t("research.promptPlaceholder")}
             disabled={job.busy}
             data-testid="research-prompt"

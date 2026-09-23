@@ -88,7 +88,6 @@ export function FinanceInputsPanel({
         >
           {parsing ? t("finance.parsing") : t("finance.parse")}
         </button>
-        <p className="mt-1 text-xs text-[var(--text-3)]">{t("finance.parseHint")}</p>
       </div>
       {/* An upload only fills the box above; the owner still parses it and confirms every row. */}
       <FinanceFileUpload
@@ -129,8 +128,16 @@ export function FinanceInputsPanel({
           <LineItemEditor items={items} onChange={onItems} disabled={locked} />
         </div>
       </div>
-      <div>
-        <p className="panel-label">{t("finance.parameters")}</p>
+      {/*
+        Parameters stay next to the rows, but folded: they are optional levers on the maths
+        (a discount rate, a price and a variable cost) and most runs want none of them. Open
+        by default, four number boxes read as "you must fill this in" when the answer is
+        "only if you want NPV or breakeven" (owner report 2026-09-23).
+      */}
+      <details className="rounded-lg border border-[var(--line)] px-3 py-2" data-testid="finance-parameters">
+        <summary className="cursor-pointer select-none text-xs font-medium text-[var(--text-2)]">
+          {t("finance.advanced")}
+        </summary>
         <div className="mt-2 grid grid-cols-2 gap-2">
           {FINANCE_PARAM_FIELDS.map((field) => (
             <label
@@ -151,7 +158,7 @@ export function FinanceInputsPanel({
             </label>
           ))}
         </div>
-      </div>
+      </details>
     </section>
   );
 }

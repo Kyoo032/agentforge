@@ -38,6 +38,16 @@ export function ChatTurn({ role, content, live }: Props) {
   const thinkingEnabled = live?.thinkingEnabled !== false;
   const showThinkingPlaceholder =
     Boolean(live?.running) && thinkingEnabled && !thinking && !live?.streaming && visibleTools.length === 0;
+  /*
+   * Thinking and the tool calls are one block now (owner ruling 2026-09-23): the tool rows used
+   * to sit above the answer as their own list, so a finished turn showed the machinery before the
+   * prose. They belong to the work, not to the result. The disclosure opens itself while the turn
+   * is live and collapses when it lands, which is the "curious user can still open it" shape.
+   *
+   * `hasActivity` also covers a tool with no thinking at all — a stub run with thinking off fires
+   * tools without emitting reasoning, and folding on `thinking` alone would have hidden them.
+   */
+  const hasActivity = Boolean(thinking) || visibleTools.length > 0;
 
   return (
     <article
@@ -48,7 +58,7 @@ export function ChatTurn({ role, content, live }: Props) {
         <MessageBody content={content} />
       ) : (
         <div className="space-y-2">
-          {(thinking && thinkingEnabled) || showThinkingPlaceholder ? (
+          {hasActivity || showThinkingPlaceholder ? (
             <details
               className="rounded-lg border border-mist bg-mist/40 px-3 py-2"
               data-testid="message-thinking"
@@ -56,33 +66,34 @@ export function ChatTurn({ role, content, live }: Props) {
             >
               <summary className="cursor-pointer text-xs font-medium text-ink/60">{t("chat.turn.thinking")}</summary>
               {thinking ? (
-                <pre
-                  className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap text-xs text-ink/70"
-                  data-testid="thinking-text"
-                >
-                  {thinking}
-                </pre>
+                /* Markdown, not a raw `<pre>`: reasoning arrives with lists, emphasis and fenced
+                   code, and the block should embed them the way a message does. */
+                <div className="mt-2 max-h-72 overflow-auto" data-testid="thinking-text">
+                  <FormattedText text={thinking} className="text-xs" />
+                </div>
               ) : (
                 <p className="mt-2 text-xs text-ink/70" data-testid="thinking-placeholder">
                   {t("chat.turn.thinkingPlaceholder")}
                 </p>
               )}
+              {visibleTools.length > 0 ? (
+                <ul className="mt-2 space-y-1" data-testid="message-tools">
+                  {visibleTools.map((tool, index) => (
+                    <li
+                      key={`${tool.key}-${index}`}
+                      /* `break-words` + `whitespace-pre-wrap`: a payload used to be cut at 80
+                         characters with an ellipsis. Wrapping it is what makes the call readable. */
+                      className="whitespace-pre-wrap break-words rounded-md border border-mist px-3 py-1.5 font-mono text-xs text-ink/70"
+                      data-testid="message-tool"
+                    >
+                      {tool.status === "started" && showsToolSpinner(tool.key)
+                        ? toolActivityLabel(tool.key)
+                        : toolCallSummary(tool.key, tool.input, tool.output)}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </details>
-          ) : null}
-          {visibleTools.length > 0 ? (
-            <ul className="space-y-1" data-testid="message-tools">
-              {visibleTools.map((tool, index) => (
-                <li
-                  key={`${tool.key}-${index}`}
-                  className="rounded-md border border-mist px-3 py-1.5 text-xs text-ink/70"
-                  data-testid="message-tool"
-                >
-                  {tool.status === "started" && showsToolSpinner(tool.key)
-                    ? toolActivityLabel(tool.key)
-                    : toolCallSummary(tool.key, tool.input, tool.output)}
-                </li>
-              ))}
-            </ul>
           ) : null}
           {live?.streaming ? (
             <FormattedText text={live.streaming} className="text-sm" testId="message-output" />

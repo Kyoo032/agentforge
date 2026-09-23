@@ -70,7 +70,14 @@ describe("model picker popover", () => {
 
   // Regression: the same single-row toolbar squeezed the trigger to 18px on narrow panes.
   it("keeps a readable minimum width on the picker trigger", () => {
-    expect(source).toContain("min-w-[7rem]");
+    // The floor was `min-w-[7rem]` and the trigger used to be a fixed `w-36`. Since 2026-09-23 it
+    // is `min-w-[9rem] max-w-[18rem]`, so it can grow into a long "Model: …" label but still never
+    // collapse below a readable width. The assertion is on the *floor*, not one literal, so a
+    // future tuning of the two bounds does not read as a regression.
+    const floor = /min-w-\[(\d+)rem\]/.exec(source);
+    expect(floor, "the trigger must keep a min-width floor").not.toBeNull();
+    expect(Number(floor![1])).toBeGreaterThanOrEqual(7);
+    expect(source).toContain("max-w-[18rem]");
     expect(source).not.toContain("relative min-w-0 max-w-[9rem] shrink");
   });
 

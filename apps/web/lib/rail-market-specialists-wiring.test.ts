@@ -71,7 +71,7 @@ describe("rail market specialists block", () => {
     const rows = source("components/rail-recent-threads.tsx");
     // Same row metrics as a session row; only the horizontal padding differs,
     // because the guide rail supplies the indent here.
-    for (const fragment of ["h-7", "text-xs", "tracking-[var(--track)]", "text-[var(--text-2)]", "min-w-0 flex-1"]) {
+    for (const fragment of ["h-7", "text-xs", "tracking-[var(--track)]", "text-[var(--rail-text-2)]", "min-w-0 flex-1"]) {
       expect(shared, fragment).toContain(fragment);
       expect(rows, fragment).toContain(fragment);
     }
@@ -83,30 +83,26 @@ describe("rail market specialists block", () => {
   });
 
   it("marks the open desk unmistakably inside the sub-list", () => {
-    expect(shared).toContain("`select-row ${ROW_BASE} bg-[var(--accent-soft)] font-medium text-[var(--accent)]`");
+    // The rail is dark chrome in both themes, so its rows read from `--rail-*`.
+    expect(shared).toContain("`select-row ${ROW_BASE} bg-[var(--rail-active)] font-medium text-[var(--rail-active-text)]`");
     expect(shared).toContain(
-      "`wash ${ROW_BASE} text-[var(--text-2)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]`",
+      "`wash ${ROW_BASE} text-[var(--rail-text-2)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-active-text)]`",
     );
   });
 
   it("nests the block on a guide rail so it does not blend into the next job mode", () => {
-    expect(shared).toContain('export const BRANCH = "ml-[22px] mt-1 mb-2 border-l border-[var(--line)] pl-2"');
+    expect(shared).toContain('export const BRANCH = "ml-[22px] mt-1 mb-2 border-l border-[var(--rail-line)] pl-2"');
     expect(shared).toContain("<div className={BRANCH} data-testid={branchTestId}>");
     expect(block).toContain('branchTestId="rail-market-specialists-branch"');
   });
 
-  it("fades the cut edges only while the rows actually overflow", () => {
-    expect(shared).toContain(
-      '"[mask-image:linear-gradient(to_bottom,transparent,black_10px,black_calc(100%-12px),transparent)]"',
-    );
+  it("scrolls overflow without a gradient mask", () => {
+    expect(shared).not.toContain("linear-gradient");
     expect(shared).toContain("const measure = () => setOverflowing(node.scrollHeight > node.clientHeight + 1);");
     expect(shared).toContain("const observer = new ResizeObserver(measure);");
     expect(shared).toContain("observer.observe(node);");
-    // `mr-1` keeps this block's own scrollbar inside the branch, clear of the
-    // nav's scrollbar and the rail's resize strip — see `rail-resize.test.ts`.
-    expect(shared).toContain(
-      'className={overflowing ? `mr-1 overflow-y-auto ${SCROLL_MASK}` : "mr-1 overflow-y-auto"}',
-    );
+    expect(shared).toContain('className="mr-1 overflow-y-auto"');
+    expect(shared).toContain("style={{ maxHeight: listMaxHeight(rows.length) }}");
   });
 
   it("is open exactly while the route is Market, with no closed frame first", () => {
@@ -190,7 +186,7 @@ describe("app rail market block", () => {
 
   it("keeps the job-mode order: Chat, its sessions, JOB MODES, then Market's agents", () => {
     const chatItem = appRail.indexOf("mode-${chatMode.href.slice(1)}");
-    const sessions = appRail.indexOf("<RailRecentThreads />");
+    const sessions = appRail.indexOf("<RailRecentThreads");
     const jobModes = appRail.indexOf("rail.groupJobs");
     const specialists = appRail.indexOf("<RailMarketSpecialists />");
     expect(chatItem).toBeGreaterThan(-1);
@@ -219,7 +215,9 @@ describe("app rail market block", () => {
     // The nav is a column flex box; without `shrink-0` a rail taller than the
     // viewport shrinks bare rows but not a wrapped one, so Market read as taller.
     expect(appRail).toContain("flex h-8 shrink-0 items-center gap-2 rounded-lg px-2 text-sm");
-    expect(appRail).toContain('<p className="shrink-0 px-2 pt-4 pb-1.5 text-xs font-medium uppercase');
+    expect(appRail).toContain(
+      '<p className="shrink-0 px-2 pt-4 pb-1.5 text-xs font-medium tracking-normal text-[var(--rail-text-3)]">',
+    );
   });
 });
 
