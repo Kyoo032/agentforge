@@ -276,6 +276,70 @@ describe("market analyst team", () => {
     expect(result.briefing.team).toBeUndefined();
     expect(phases().map((event) => event.phase)).not.toContain("analysts");
   });
+
+  // A cancelled team run used to read the abort as one more unavailable seat and carry on through
+  // the other analysts, the debate, the risk read and the synthesis: every one a paid gateway call.
+  it.each([
+    ["an analyst", "market-team-technical"],
+    ["the bull case", "market-team-bull"],
+    ["the risk read", "market-team-risk"],
+  ])("stops the whole team when the client leaves during %s: no model call after it", async (_stage, leaveAt) => {
+    const controller = new AbortController();
+    const answer = script();
+    const run = generateMarketBriefing(tenant, REQUEST, emit, controller.signal, {
+      ...deps(),
+      ask: async (options) => {
+        asked.push(options);
+        if (options.versionId === leaveAt) {
+          controller.abort();
+          // The call in flight when the client left never answers.
+          return new Promise<string>(() => {});
+        }
+        return answer(options);
+      },
+    });
+
+    await expect(run).rejects.toMatchObject({ code: "aborted", status: 499 });
+    const at = versions().indexOf(leaveAt);
+    expect(at).toBeGreaterThanOrEqual(0);
+    expect(versions().slice(at + 1)).toEqual([]);
+    expect(versions()).not.toContain("market-team-synthesis");
+  });
+
+  it("leaves nothing to reject unhandled when the abandoned call fails after the client left", async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => {
+      unhandled.push(reason);
+    };
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      const controller = new AbortController();
+      const answer = script();
+      const run = generateMarketBriefing(tenant, REQUEST, emit, controller.signal, {
+        ...deps(),
+        ask: (options) => {
+          asked.push(options);
+          if (controller.signal.aborted) {
+            // A call made after the client left fails the way a dropped socket does.
+            return Promise.reject(new Error("socket closed"));
+          }
+          if (options.versionId === "market-team-bull") {
+            controller.abort();
+            // The call in flight when the client left fails a moment later.
+            return new Promise<string>((_, reject) => setTimeout(() => reject(new Error("socket closed")), 5));
+          }
+          return Promise.resolve(answer(options));
+        },
+      });
+
+      await expect(run).rejects.toMatchObject({ code: "aborted", status: 499 });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(unhandled).toEqual([]);
+      expect(versions().at(-1)).toBe("market-team-bull");
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+  });
 });
 
 describe("guardTeamNotes", () => {

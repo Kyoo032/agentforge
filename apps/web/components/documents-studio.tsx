@@ -13,7 +13,8 @@ import type { DocumentDraft } from "@/lib/document-outline";
 import { documentStarters } from "@/lib/job-starters";
 import { t } from "@/lib/i18n";
 import { useJobModel } from "@/lib/use-job-model";
-import { apiFetch } from "@/lib/api-client";
+import { modelPickBody, regenModelPick, studioModelPick } from "@/lib/model-choice";
+import { apiFetch, isElectron } from "@/lib/api-client";
 
 function errorMessage(payload: unknown, fallback: string): string {
   if (payload && typeof payload === "object") {
@@ -30,7 +31,7 @@ function needsSettingsHint(message: string): string {
 }
 
 export function DocumentsStudio() {
-  const { models, model, setModel } = useJobModel("documents");
+  const { models, model, pinned: modelPinned, setModel } = useJobModel("documents");
   const [prompt, setPrompt] = useState("");
   const [sourceText, setSourceText] = useState("");
   const [sourceTitle, setSourceTitle] = useState<string | null>(null);
@@ -62,7 +63,12 @@ export function DocumentsStudio() {
       const res = await apiFetch("/api/v1/documents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: topic, model: model || undefined, sourceText: sourceText.trim() || undefined }),
+        body: JSON.stringify({
+          prompt: topic,
+          // Only a deliberate pick travels as pinned: a seeded default stays rescuable by the host's fallback.
+          ...modelPickBody(studioModelPick(model, modelPinned)),
+          sourceText: sourceText.trim() || undefined,
+        }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
@@ -93,7 +99,7 @@ export function DocumentsStudio() {
           sectionIndex: index,
           prompt,
           instruction: payload.instruction || undefined,
-          model: payload.model || model || undefined,
+          ...modelPickBody(regenModelPick(payload.model, model, modelPinned)),
           attachments: payload.attachments.length > 0 ? payload.attachments : undefined,
           sourceText: sourceText.trim() || undefined,
         }),
@@ -126,6 +132,11 @@ export function DocumentsStudio() {
       if (!res.ok) {
         const data = await res.json().catch(() => null);
         throw new Error(errorMessage(data, t("documents.errors.docx")));
+      }
+      if (isElectron()) {
+        // apiFetch already wrote the bytes through the native save dialog; a second, browser-style
+        // download here would open the save dialog twice.
+        return;
       }
       const blob = await res.blob();
       const disposition = res.headers.get("Content-Disposition") ?? "";

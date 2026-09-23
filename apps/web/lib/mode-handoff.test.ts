@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { applyLocale, resetLocaleForTests } from "./i18n";
 import {
   clearPendingHandoffs,
   handoffHref,
@@ -13,6 +14,7 @@ import {
 describe("mode handoff", () => {
   afterEach(() => {
     clearPendingHandoffs();
+    resetLocaleForTests();
   });
 
   it("queues one payload per target and clears it on take", () => {
@@ -45,5 +47,17 @@ describe("mode handoff", () => {
     expect(handoffHref("presentations")).toBe("/presentations");
     expect(isHandoffTarget("documents")).toBe(true);
     expect(isHandoffTarget("chat")).toBe(false);
+  });
+
+  it("hands off an Indonesian prompt when the owner's locale is id", () => {
+    applyLocale("id");
+    expect(suggestedHandoffPrompt("documents", "Lithium")).toBe(
+      'Tulis memo dari "Lithium". Gunakan hanya materi sumber dan kutip sumber-sumbernya.',
+    );
+    expect(suggestedHandoffPrompt("presentations", "  ")).toMatch(/^Ubah "materi sumber" menjadi presentasi/);
+  });
+
+  it("keeps a title with braces literal", () => {
+    expect(suggestedHandoffPrompt("documents", "Q3 {subject}")).toMatch(/memo from "Q3 \{subject\}"/);
   });
 });

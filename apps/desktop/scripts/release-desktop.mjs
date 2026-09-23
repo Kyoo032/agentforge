@@ -15,15 +15,29 @@
  * with `gh release upload`, then the release notes are refreshed from the public notes file.
  * No exe, blockmap or latest.yml is touched.
  *
+ * Notes come from docs/public/<version>-notes.md, or from `--notes <file>`. Either is refused when
+ * it sits under docs/internal (any letter case) or carries a mark from scripts/release-marks.mjs,
+ * the same list scripts/release-web.mjs applies to the Enterprise repo.
+ *
  *   node scripts/release-desktop.mjs [--dry-run] [--draft] [--allow-dirty] [--allow-stale]
  *                                    [--require-mac] [--attach-mac] [--dist <dir>] [--notes <file>]
  */
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { copyFileSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  statSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { forbiddenMarksIn, isInternalDocsPath } from "../../../scripts/release-marks.mjs";
 import { describeMacCoverage, selectMacArtifacts } from "./release-artifacts.mjs";
 
 const desktopRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -174,16 +188,32 @@ function checkLatest(files, version) {
   ok(`url + path ${expectedUrl}`);
 }
 
+const INTERNAL_NOTES = "refusing to publish docs/internal notes to the public repo";
+
+/**
+ * A notes file bound for the public repo, checked the way scripts/release-web.mjs checks its own:
+ * not under docs/internal in any letter case (Windows and the default macOS volume open
+ * `Docs\Internal` just the same), not through a link that lands there, and carrying none of the
+ * banned marks. Returns the absolute path, because gh runs with its cwd in apps/desktop and has to
+ * read the file that was checked, not whatever shares its relative name there.
+ */
+function checkedNotesFile(file) {
+  const absolute = resolve(file);
+  if (isInternalDocsPath(absolute)) fail(INTERNAL_NOTES);
+  if (!existsSync(absolute)) fail(`notes file not found: ${file}`);
+  if (isInternalDocsPath(realpathSync.native(absolute))) fail(INTERNAL_NOTES);
+  const marks = forbiddenMarksIn(readFileSync(absolute, "utf8"));
+  if (marks.length > 0) fail(`refusing ${absolute}: it contains ${marks.map((m) => `"${m}"`).join(", ")}`);
+  ok(`notes ${absolute} carry none of the banned marks`);
+  return absolute;
+}
+
 function notesArgs(version, flags) {
   // Public-repo notes only. docs/internal/ is never a default: those changelogs hold
   // operator and process detail that must not be published.
-  if (flags.notes) {
-    if (join(flags.notes).includes(join("docs", "internal"))) fail("refusing to publish docs/internal notes to the public repo");
-    if (!existsSync(flags.notes)) fail(`notes file not found: ${flags.notes}`);
-    return ["--notes-file", flags.notes];
-  }
+  if (flags.notes) return ["--notes-file", checkedNotesFile(flags.notes)];
   const publicNotes = join(repoRoot, "docs", "public", `${version}-notes.md`);
-  if (existsSync(publicNotes)) return ["--notes-file", publicNotes];
+  if (existsSync(publicNotes)) return ["--notes-file", checkedNotesFile(publicNotes)];
   return ["--notes", `DPSBuddy ${version}`];
 }
 
@@ -209,11 +239,11 @@ function stageUploads(files) {
   return { stageDir, uploads };
 }
 
-function ghArgs(target, uploads, flags) {
+function ghArgs(target, uploads, notes, flags) {
   const { version, owner, repo } = target;
   return [
     "release", "create", `v${version}`, "--repo", `${owner}/${repo}`, "--title", `v${version}`,
-    ...notesArgs(version, flags), ...(flags.draft ? ["--draft"] : []), ...uploads,
+    ...notes, ...(flags.draft ? ["--draft"] : []), ...uploads,
   ];
 }
 
@@ -242,6 +272,8 @@ function releaseAssetNames(target) {
 
 /** Attach mac dmg/zip from dist/ to the already-published Windows release and refresh its notes. */
 function attachMac(target, flags) {
+  // Checked first, before gh is asked anything, like the notes in main().
+  const notes = notesArgs(target.version, flags);
   const distDir = resolve(desktopRoot, flags.dist);
   if (!existsSync(distDir)) fail(`missing ${distDir}`);
   const selection = checkMacArtifacts(distDir, target.version, { ...flags, requireMac: true });
@@ -251,7 +283,6 @@ function attachMac(target, flags) {
   if (clashes.length > 0) fail(`already on the release: ${clashes.join(", ")} (delete them first to replace)`);
   const uploads = selection.uploads.map((name) => join(distDir, name));
   const uploadArgs = ["release", "upload", `v${target.version}`, "--repo", `${target.owner}/${target.repo}`, ...uploads];
-  const notes = notesArgs(target.version, flags);
   const editArgs = ["release", "edit", `v${target.version}`, "--repo", `${target.owner}/${target.repo}`, ...notes];
   console.log(`desktop-release: gh ${uploadArgs.join(" ")}`);
   console.log(`desktop-release: gh ${editArgs.join(" ")}`);
@@ -273,11 +304,14 @@ function main() {
   ok(`target ${target.owner}/${target.repo} v${target.version}`);
   checkGitClean(flags);
   if (flags.attachMac) return attachMac(target, flags);
+  // The notes are checked before the installer is hashed or staged: fail() exits the process, so a
+  // refusal inside the try below would skip its finally and leave the staged copies in the temp dir.
+  const notes = notesArgs(target.version, flags);
   const files = checkDist(resolve(desktopRoot, flags.dist), target.version, flags);
   checkLatest(files, target.version);
   const { stageDir, uploads } = stageUploads(files);
   try {
-    const args = ghArgs(target, uploads, flags);
+    const args = ghArgs(target, uploads, notes, flags);
     const shown = args.map((a) => (/\s|#/.test(a) ? `"${a}"` : a)).join(" ");
     console.log(`desktop-release: gh ${shown}`);
     if (flags.dryRun) return console.log("desktop-release: dry run, nothing uploaded");

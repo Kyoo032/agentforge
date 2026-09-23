@@ -234,7 +234,10 @@ describe("no host source passes a bare desk id to the settings store", () => {
       for (const match of text.matchAll(
         /\b(loadSettings|saveSettings|loadUserLocale|saveUserLocale)\(([^()]*)\)/g,
       )) {
-        if (/workspaceId/.test(match[2] ?? "")) {
+        // A scope object that names its tenant (`{ tenantId, workspaceId }`) is the contract; only a
+        // desk id with no tenant beside it is the bug.
+        const args = match[2] ?? "";
+        if (/workspaceId/.test(args) && !/\btenantId\b/.test(args)) {
           offenders.push(`${path.relative(SRC, file)}: ${match[0]}`);
         }
       }

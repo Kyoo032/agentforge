@@ -9,6 +9,13 @@
 
 const YEAR = /\b(19|20)\d{2}\b/;
 const QUARTER = /\bq([1-4])\b|\btw([1-4])\b|\btriwulan\s*([1-4])\b/i;
+/** A half year: "H1 2024", or the Indonesian "Semester 2 2024". */
+const HALF = /\bh[12]\b|\bsemester\s*[12]\b/i;
+/**
+ * A fiscal year: "FY2024", "FY24", "FY'24", "FY2024/25". `YEAR` cannot see the first of these —
+ * there is no word boundary between the Y and the 2 — so it is named on its own.
+ */
+const FISCAL_YEAR = /\bfy\s*'?(?:(?:19|20)\d{2}|\d{2})\b/i;
 const MONTHS: ReadonlyArray<readonly [RegExp, number]> = [
   [/\bjan/i, 1],
   [/\bfeb/i, 2],
@@ -78,7 +85,12 @@ export function fiscalYearGroups(periods: readonly string[]): FiscalYearGroup[] 
     .filter((group) => group.periods.length > 1);
 }
 
-/** How many months a period covers, for turning a per-period burn into a per-month one. */
+/**
+ * How many months a period covers, for turning a per-period burn into a per-month one.
+ *
+ * The finest unit the label names wins — a month, then a quarter, then a half, then a year — so
+ * "Q1 FY2024" is three months and "Mar FY24" one. A label naming none of them is one month.
+ */
 export function monthsInPeriod(period: string): number {
   const parts = parsePeriod(period);
   if (parts.month !== null) {
@@ -87,7 +99,10 @@ export function monthsInPeriod(period: string): number {
   if (parts.quarter !== null) {
     return 3;
   }
-  return parts.year === null ? 1 : 12;
+  if (HALF.test(period)) {
+    return 6;
+  }
+  return parts.year !== null || FISCAL_YEAR.test(period) ? 12 : 1;
 }
 
 /** How many months a whole fiscal-year group covers. */

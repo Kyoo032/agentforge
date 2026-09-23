@@ -1,6 +1,9 @@
 # Map — Finance tasks: the catalog and the generic runner
 
-Last verified: 2026-09-20 at 6984d84
+Last verified: 2026-09-23 at d4561b8 + uncommitted tree for § 5 (every `runner.ts` and `narrate.ts`
+citation, and what the guard now covers), the new § 9 (the arithmetic and workbook fixes of that day), and the
+two gotchas that cite `narrate.ts`. Not driven: host and core changes need a `:3000` restart, and no task was run
+on a key. Everything else was last verified 2026-09-20 at 6984d84.
 
 ## Overview
 
@@ -73,19 +76,19 @@ That is the practical consequence worth remembering: **`/finance/parse` is not u
 
 ### 5. The generic runner
 
-`generateFinanceBrief` hands anything that is not the brief to `runFinanceTask` (`packages/host/src/finance-generate.ts:152-158`). One pipeline, every task (`packages/host/src/finance-tasks/runner.ts:204-301`):
+`generateFinanceBrief` hands anything that is not the brief to `runFinanceTask` (`packages/host/src/finance-generate.ts:173-179`). One pipeline, every task (`packages/host/src/finance-tasks/runner.ts:206-303`):
 
-1. `readPrompt`, `requireLive`, `resolveModel` (`:209-211`).
-2. Source text redacted with `guardFinanceInput` on the same terms as the task's own rows (`:214-216`).
+1. `readPrompt`, `requireLive`, `resolveModel` (`:211-213`).
+2. Source text redacted with `guardFinanceInput` on the same terms as the task's own rows (`:216-218`).
 3. Locale from the request, `runnerLocale` (`:86-88`) — the same reader the brief uses, so the two can never disagree.
-4. One `job.phase` per math step the graph draws (`:224-226`).
+4. One `job.phase` per math step the graph draws (`:227`).
 5. `readInput` → `module.inputSchema.safeParse`, a 400 that says "parse the figures first and confirm them" (`:90-100`).
-6. `module.compute(input)` and `module.allowedNumbers(...)`, then a `job.step` with the figure count (`:228-230`).
-7. `narrate` (`:102-141`): `FINANCE_TASK_SYSTEM` (`packages/host/src/finance-tasks/narrate.ts:18-31`) plus the task's own bullet rules and the output-language rule, with a prompt of `promptFacts` + `sectionRequest` + source text + the question. Empty answer is 502 `generation_failed` (`runner.ts:137-139`).
-8. `parseNarration` (`narrate.ts:64`) keeps only the section ids the task asked for, in order; zero survivors is 502 `invalid_finance` (`:84-86`).
-9. `verifyNarration` (`runner.ts:161-194`): `guardNumbers` over every body against `allowedNumbers`, then **one** rewrite of each marked section through `repairTaskProse` (`packages/host/src/finance-tasks/repair.ts:78`), which is an adapter onto the brief's `repairUnverifiedSections` — the logic lives in one place (`repair.ts:1-11`).
+6. `module.compute(input)` and `module.allowedNumbers(...)`, then a `job.step` with the figure count.
+7. `narrate` (`:102-141`): `FINANCE_TASK_SYSTEM` (`packages/host/src/finance-tasks/narrate.ts:24-37`) plus the task's own bullet rules and the output-language rule, with a prompt of `promptFacts` + `sectionRequest` + source text + the question. The request's pin travels as `modelExplicit` through the one shared reader (`readModelPinned`, re-exported at `packages/host/src/finance-tasks/live.ts:45`), which reads a pin that names no model as no pin. Empty answer is 502 `generation_failed` (`runner.ts:138`).
+8. `parseNarration` (`narrate.ts:72-101`) keeps only the section ids the task asked for, in order; zero survivors is 502 `invalid_finance` (`:92-94`). The reader's own question is kept as `fallbackTitle`.
+9. `verifyNarration` (`runner.ts:161-196`) runs `guardNarration` (`narrate.ts:124`) over **everything the model wrote**, not only the bodies (2026-09-23). A title stating an untraced figure is replaced by the reader's own question, which is never counted against the model (`guardedTitle`, `:107-114`); a heading loses the figure and keeps its words; an assumption resting on one is dropped whole and counted as a removed sentence; a body keeps the marker for the repair. Then **one** rewrite of each marked section through `repairTaskProse` (`packages/host/src/finance-tasks/repair.ts:78`), which is an adapter onto the brief's `repairUnverifiedSections` — the logic lives in one place (`repair.ts:1-11`). The removed count is the guard's dropped assumptions plus the repair's removed sentences (`runner.ts:193`); it used to be the repair's alone, so a dropped assumption went unmentioned ([SR-76](../security-register.md#sr-76)).
 10. `module.buildReport(...)`, then `scrubReportMarkers` (`repair.ts:129`) sweeps the report's own notes and chart captions, because a builder may write prose too; `withRemovedFlag` (`:144`) tells the reader once.
-11. Markdown via `renderMd`, then `persistFinanceTaskReport` (`packages/host/src/finance-tasks/persist.ts:73`) with `financeTaskArtifactMeta` (`:53`) — the whole `FinanceReport` under `meta.report` (`:19`) behind the same 256 KB cap — and a Knowledge Base work card when an id came back (`runner.ts:276-288`).
+11. Markdown via `renderMd`, then `persistFinanceTaskReport` (`packages/host/src/finance-tasks/persist.ts:73`) with `financeTaskArtifactMeta` (`:53`) — the whole `FinanceReport` under `meta.report` (`:19`) behind the same 256 KB cap — and a Knowledge Base work card when an id came back (`runner.ts:278-290`).
 
 The result is `FinanceTaskRunResult` (`packages/host/src/finance-tasks/types.ts:22-38`): `task`, `report`, `artifactId`, `markdown`, `guard`, `pii`, and optionally `model`, `notice` and `warnings`. The brief answers with a `FinanceBrief` instead; the studio branches on which arrived (`apps/web/components/finance-steps/finance-result-panel.tsx:43-46`).
 
@@ -119,6 +122,50 @@ It is fenced to the machine it runs on: `LOOPBACK = new Set(["127.0.0.1","localh
 
 **It cannot reach a product build.** `@agentforge/host` is `"private": true` and its export map exposes only `./src/index.ts` and `./src/http-adapter.ts` (`packages/host/package.json:4-9`), so nothing outside can import `eval/`. The tree is `.mjs` outside `src`, and the desktop bundle is esbuilt from a single entry that re-exports `@agentforge/host` alone; electron-builder's `files` list is file-by-file under `apps/desktop/` (`apps/desktop/package.json:48-61`). Nothing in `packages/host/src` imports it. The tree is committed now (95 files under `packages/host/eval/`), so it is in git history — but only `results/` is gitignored (`packages/host/eval/finance/.gitignore:4`), and nothing outside `eval/` reaches in.
 
+### 9. The arithmetic behind the reports, and the workbook beside them (2026-09-23)
+
+Every figure is computed in core. These are the rules that changed on 2026-09-23, each a case where a report
+or its workbook stated a number the inputs did not support. Both products run them.
+
+- **Appraisal years.** `appraisalFlowsFromItems` fills every gap between the first and the last ordinal year
+  with a zero year (`withMissingYears`, `packages/core/src/finance/appraisal/flows.ts:136-148`, applied at
+  `:170`). Every discounting function reads a flow's position as its power, and the grid keeps no row for an
+  all-zero year, so a missing year pulled every later year one period closer to today. The filler copies its
+  neighbour's label form — "Tahun 1", "Tahun ke-2", "3rd year" (`periodLike`, `:123-127`).
+- **Appraisal grid.** A Markdown row's outer pipes are stripped before it is split, so `| Item | Year 0 |` no
+  longer opens with an empty label cell (`OUTER_PIPES`, `packages/core/src/finance/appraisal/grid.ts:53`).
+- **Months in a period.** `monthsInPeriod` (`packages/core/src/finance/fiscal-periods.ts:94`) takes the finest
+  unit a label names — month, quarter, half, year — and now knows halves (`H1`, `Semester 2`; `HALF`, `:13`)
+  and fiscal years (`FY2024`, `FY24`, `FY'24`; `FISCAL_YEAR`, `:18`). "FY2024" used to read as one month and
+  "H1 2024" as twelve.
+- **Implied burn and runway.** With no burn line on the sheet, the implied burn is the shortfall spread over
+  the **months** the periods cover, and runway divides by it (`impliedBurnMetrics`,
+  `packages/core/src/finance/trend-metrics.ts:203`). It used to be divided by the number of periods, so two
+  fiscal years short by 600 each read as a burn of 600 a month rather than 50. The metric is now named
+  "Implied average monthly net burn".
+- **Revenue CAGR** spans the first to the last period that states revenue (`:124-128`); a period with no
+  revenue at either end is not a step.
+- **Cash-flow workbook.** The Inputs sheet writes each row on the side the report summed and at the amount it
+  summed — a magnitude for cash in and out, the signed figure for financing and the opening balance
+  (`inputsRow`, `packages/core/src/finance/cashflow/report-tables.ts:70`). It used to write the raw category and
+  a bank export's negative outflow, so every `SUMIFS` on the Calc sheet added up a different book. The
+  opening-balance formula is used only when the opening rows add up to the balance the report used
+  (`openingFromRows`, `:133`).
+- **Ratios workbook.** A depreciation or principal typed in the panel is written as an Inputs row when no
+  confirmed row carries it, so the workbook's EBITDA and DSCR include it as the report does
+  (`typedSupportingRows`, `packages/core/src/finance/ratios/report-tables.ts:52`). A formula whose pile has no
+  row in the period is blank, as the report's figure is null, instead of 0 (`blankUnless`,
+  `packages/core/src/finance/ratios/formulas.ts:232`, used by `ratioMetricFormula`, `:242`).
+- **Typed ratio inputs keep their bucket's sign.** A repayment typed as -1,050 is a repayment of 1,050
+  (`typedAmount`, `packages/core/src/finance/ratios/compute.ts:138`).
+
+The workbook fixes are pinned by evaluating the Calc formulas in the test itself:
+`packages/core/src/finance/__fixtures__/calc-formulas.ts` is just enough Excel (`SUMIFS`, `COUNTIFS`, `ABS`,
+`IF`, `OR`, `IFERROR`) to hold each Calc cell to the report's own figure, used by
+`cashflow/report-tables.test.ts` and `ratios/report-tables.test.ts`. The rest: `appraisal/flows.test.ts`,
+`appraisal/grid.test.ts`, `fiscal-periods.test.ts`, `trend-metrics.test.ts`, `metrics.test.ts`,
+`ratios/compute.test.ts`, all under `packages/core/src/finance/`.
+
 ## Where things live
 
 | File | Role |
@@ -151,7 +198,7 @@ It is fenced to the machine it runs on: `LOOPBACK = new Set(["127.0.0.1","localh
 - **There is no coming-soon panel.** It was removed on 2026-09-17; every task is `available: true`, so the studio's one-line `finance-task-unavailable` fallback never renders and `finance_task_unavailable` is never thrown. `finance-task-coming-soon`, `finance-task-sample` and `finance-coming-soon-back` no longer exist. Do not write a recipe around any of them without first re-reading `tasks.ts`.
 - **The brief's prompt must stay byte-identical.** `task-rules.ts:22` gives `brief` no bullets on purpose, and `withFinanceTaskRules` returns the base string untouched when the list is empty (`packages/host/src/finance-task.ts:48`). Adding a "harmless" brief rule changes a shipping prompt.
 - **The runner announces fewer phases than the strip draws.** Everything up to the task's last shared step happened on the parse route; re-emitting it would tell the reader work is being redone (`packages/host/src/finance-tasks/runner.ts:38-48`). A `finance-phase-*` chip with no matching `job.phase` is correct.
-- **A section id is the task's, not the model's.** `parseNarration` drops a section the task did not ask for rather than renaming it (`narrate.ts:63`, `:83`), and the repair carries the id through even when the rewrite renames the heading (`repair.ts:74-76`).
+- **A section id is the task's, not the model's.** `parseNarration` drops a section the task did not ask for rather than renaming it (`narrate.ts:83`, `:91`), and the repair carries the id through even when the rewrite renames the heading (`repair.ts:74-76`).
 - **`[unverified figure]` must never reach a reader.** It is guarded, rewritten once, then the sentence is removed, and the finished report is swept again for notes and chart captions the builder wrote itself (`repair.ts:129`). Seeing the marker in an export is a bug, not the guard working.
 - **The budget pairing is the only stage that leaves the desk, and it sends labels.** No amount, period, scenario or filename (`budget-embed.ts:3-9`). A stub-runtime embedding is discarded rather than scored, and the screen says `budget-embedding-note`.
 - **A task exports through `report`, not `brief`.** There is no `FinanceBrief` behind a cash-flow or ratio run, so the studio posts the report itself and the host shapes and size-caps it (`packages/host/src/finance-tasks/report-schema.ts:73-81`).

@@ -1,6 +1,10 @@
 # Map — Knowledge Base page
 
-Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c`
+Last verified: 2026-09-23 at d4561b8 + uncommitted tree for § 7 Map (every `knowledge-map.ts` citation, and
+what a re-map that is running or has failed leaves on screen), the Map row of Failure modes, and how the page's
+writes answer (the new paragraph in § 3, and Memory in § 6). Not driven; the host half needs a `:3000` restart.
+Everything else was last verified 2026-09-20 at a053245 + the Phase 4 branch
+`feat/web-phase4-tenant-secrets-rcbu9c`.
 
 The page half of Knowledge. The ingest pipeline behind it — extract, guard, chunk, embed, work cards, tenant scoping — is [`knowledge-ingest-loop.md`](knowledge-ingest-loop.md); this page does not repeat it. Citations are anchored at `b482611`; `packages/host/src/knowledge.ts` and `apps/web/components/knowledge-page.tsx` are rewritten often, so grep the function or testid name if a number looks wrong.
 
@@ -38,7 +42,9 @@ Three entry points, all in the `knowledge-sources` block (`apps/web/components/k
 | Pasted text | `knowledge-paste` + `knowledge-add-paste` (`:409`, `:416`) | `POST /api/v1/knowledge/sources` JSON (`:253-271`) | `handlePostKnowledgeSource` (`packages/host/src/handlers/knowledge.ts:366`) → `addPastedSource` (`packages/host/src/knowledge.ts:579`) |
 | File | `knowledge-file` (`apps/web/components/knowledge-page.tsx:426`) | `POST /api/v1/knowledge/sources` multipart (`:427-447`) | same handler → `addFileSource` (`packages/host/src/knowledge.ts:499`) |
 
-All three are gated (`requireGatewayAllowedFor`, `packages/host/src/handlers/knowledge.ts:370`, `:403`) because all three may need an embedding call. All three end in `await reload()`, which is why a new row and the loop numbers land together.
+All three are gated (`requireGatewayAllowedFor`, `packages/host/src/handlers/knowledge.ts:370`, `:403`) because all three may need an embedding call. All three end in a reload, which is why a new row and the loop numbers land together.
+
+**How a write answers (2026-09-23).** Every write goes through `sendKnowledge` (`apps/web/components/knowledge-page.tsx:129`), in the order SR-45 set for the recording upload: `res.ok` before the body, an error body read with a `catch`, and a dead network reported as a sentence rather than thrown. A draft — the URL box, the paste box, the memory box — is cleared only when the host said yes, and only if the owner has not edited it since. Each action runs at most once at a time (`createSubmitGuard`, `:161`, used as `guard.run("url" | "paste" | "file" | "memory", …)` at `:328`, `:345`, `:362`, `:399`); the busy set is checked synchronously, so a double click cannot slip in before React re-renders the button as disabled. Before this, Add URL and Index paste could index the same source twice, and an html error page threw with no message.
 
 **The paste box cannot name its source.** `addPaste` sends `name: t("knowledge.sources.pastedName")` (`apps/web/components/knowledge-page.tsx:262`) — the localized constant "Pasted notes" / "Catatan tempelan" (`apps/web/locales/en/knowledge.json:36`, `id/knowledge.json:36`). The host takes any name (`addPastedSource`, `packages/host/src/knowledge.ts:579-590`); the page just never offers a field. Every pasted source on a desk therefore carries the same name, and so does its `[n] <name>` citation marker.
 
@@ -84,20 +90,22 @@ Four terminal states, one testid each: `knowledge-graph-loading` (`:162`), `know
 
 **The default Soul moved and changed on 2026-09-17** (`packages/host/src/knowledge-soul.ts`). `defaultSoul()` is **built per call, never a module constant** (`:52`), because a branded flavor sets `AGENTFORGE_PRODUCT_NAME` / `AGENTFORGE_GATEWAY_NAME` before the host loads and a default frozen at import time would hand every flavor the public name. It now names the product, the gateway and the eleven rail modes, so "what is this?" is answerable from the Soul block instead of guessed. A desk still holding the old `Forge` row byte for byte is migrated on read — `getSoul` returns `defaultSoul()` when `isLegacyDefaultSoul(stored)` (`knowledge.ts:150`), since a desk holding that row never chose it; anything the owner actually typed is left alone. The page's pre-load placeholder follows the brand too (`apps/web/components/knowledge-page.tsx:132`, `:138`), so `knowledge-soul-name` never flashes `Forge` any more.
 
-**Memory** (`:545-584`) is `knowledge-memory-input` (`:551`) + `knowledge-memory-add` (`:558`), which POSTs `{ text, pinned: true }` (`:293-297`); every memory the UI creates is pinned. Rows are `knowledge-memory-row` (`:568`) with an untestid'd Forget button that `DELETE`s `/memories/:id`. `listMemories` orders `pinned DESC, created_at DESC` (`packages/host/src/knowledge.ts:172-184`); `addMemory` rejects blank text with a 400 (`:186-197`). Both routes are ungated.
+**Memory** is `knowledge-memory-input` + `knowledge-memory-add` (`apps/web/components/knowledge-page.tsx:665`), which POSTs `{ text, pinned: true }` through `sendKnowledge` (`:399-412`); every memory the UI creates is pinned. A refused pin keeps its draft and shows the host's reason (`knowledge.errors.addMemory` when there is none); until 2026-09-23 the draft was cleared without reading the answer, so a refused pin looked saved. Rows are `knowledge-memory-row` (`:568`) with an untestid'd Forget button that `DELETE`s `/memories/:id`. `listMemories` orders `pinned DESC, created_at DESC` (`packages/host/src/knowledge.ts:172-184`); `addMemory` rejects blank text with a 400 (`:186-197`). Both routes are ungated.
 
 ### 7. Map
 
-`knowledge-map-run` (`apps/web/components/knowledge-page.tsx:597`) calls `runMap` (`:212-231`) → `POST /api/v1/knowledge/map` → `handlePostKnowledgeMap` (`packages/host/src/handlers/knowledge.ts:292-312`, gated at `:294`) → `mapKnowledge` (`packages/host/src/knowledge-map.ts:84-180`). The button is the page's only generate.
+`knowledge-map-run` (`apps/web/components/knowledge-page.tsx:713`) calls `runMap` (`:290-309`) → `POST /api/v1/knowledge/map` → `handlePostKnowledgeMap` (`packages/host/src/handlers/knowledge.ts:292-312`, gated at `:294`) → `mapKnowledge` (`packages/host/src/knowledge-map.ts:98-194`). The button is the page's only generate.
 
-`mapKnowledge` writes a `Mapping` placeholder row first (`:101`), then **re-embeds the whole workspace** under the current embedding model (`reembedWorkspaceChunks`, `:104`) — the one implicit side effect on this page, and the reason a Map click after switching the embedding model is slow. `resolveRuntimeMode` (`:107-110`) then picks:
+`mapKnowledge` marks the row `Mapping` first (`markMap`, `:115`), then **re-embeds the whole workspace** under the current embedding model (`reembedWorkspaceChunks`, `:118`) — the one implicit side effect on this page, and the reason a Map click after switching the embedding model is slow. `resolveRuntimeMode` (`:121`) then picks:
 
-- **stub** — `stubKnowledgeMap(sources, models, locale)` (`:116`). A valid result: `source: "stub"`, one topic per source, verdict `stub`.
-- **live** — two model calls: the Brain drafts from one chunk excerpt per source (`sourceExcerpts`, `:68-81`; `collectJobAssistantText` at `:119-133`), and the Verifier re-reads the draft (`:141-154`), falling back to the draft when its output will not parse (`:155`).
+- **stub** — `stubKnowledgeMap(sources, models, locale)` (`:130`). A valid result: `source: "stub"`, one topic per source, verdict `stub`.
+- **live** — two model calls: the Brain drafts from one chunk excerpt per source (`sourceExcerpts`, `:82-96`; `collectJobAssistantText` at `:133-147`), and the Verifier re-reads the draft (`:155-168`), falling back to the draft when its output will not parse (`:169`).
 
-On success the map is saved (`:158`) and `projectMapToGraph` (`:165`) writes one `topic` node per topic plus a `covers` edge to every source it names that still exists (`packages/host/src/knowledge-graph.ts:131-157`, edge push at `:152`). That projection is wrapped in its own try/catch (`packages/host/src/knowledge-map.ts:164-170`): a graph failure never fails the map.
+On success the map is saved (`saveMap`, `:172`, status `Mapped`) and `projectMapToGraph` (`:179`) writes one `topic` node per topic plus a `covers` edge to every source it names that still exists (`packages/host/src/knowledge-graph.ts:131-157`, edge push at `:152`). That projection is wrapped in its own try/catch (`packages/host/src/knowledge-map.ts:178-184`): a graph failure never fails the map. A failure anywhere before it marks the row `Failed` with the message (`:186-193`).
 
-The result renders as `knowledge-map` (`apps/web/components/knowledge-page.tsx:603`), present only once a map exists — a stored map from a previous run is seeded straight out of `reload()` (`:170-172`). A Ready / Not ready tag and a live / stub tag sit at the top (`:604-611`), overview and each topic summary go through `FormattedText` (`:612`, `:622`), and each topic carries a **verdict** tag — `supported` / `weak` / `unsupported` / `stub` (`:618-620`, `verdictTagClass` at `:118-129`) — not a Ready tag.
+**A re-map never wipes the last good map (2026-09-23).** `markMap` (`:70-80`) writes the status and the error only; the payload keeps the last map `saveMap` (`:52-67`) stored, and a workspace mapped for the first time holds `{}`. `getKnowledgeMap` (`:37-50`) returns that stored map whatever the status, and reads `{}` as no map (`isSavedMap`, `:29-31`). Before, `Mapping` and `Failed` both overwrote the payload with `{}` and `getKnowledgeMap` answered `null` unless the status was `Mapped`, so a re-map in flight, or one that failed, emptied the Map tab on the next reload.
+
+The result renders as `knowledge-map` (`apps/web/components/knowledge-page.tsx:719`), present only once a map exists — a stored map from a previous run is seeded straight out of `reload()` (`:248-250`). A Ready / Not ready tag and a live / stub tag sit at the top (`:604-611`), overview and each topic summary go through `FormattedText` (`:612`, `:622`), and each topic carries a **verdict** tag — `supported` / `weak` / `unsupported` / `stub` (`:618-620`, `verdictTagClass` at `:118-129`) — not a Ready tag.
 
 ### 8. What Chat does with all of it
 
@@ -124,7 +132,7 @@ After a **completed** run the host closes the loop: `recordRetrievals` writes on
 | Embedding call fails | `embedTextsWithModel` (`packages/host/src/knowledge-embed.ts:95-117`) | nothing visible: the row still reads `Indexed` because the FTS rows were committed first; the source is keyword-findable only |
 | Self-check fails | `runKnowledgeSelfCheck` (`packages/host/src/knowledge-verify.ts:129`) | `200`; `knowledge-loop-stage-Verified` reads `fail` with `data-state="fail"` |
 | Self-check re-clicked inside 10 s | `throttledSelfCheck` (`packages/host/src/handlers/knowledge.ts:243-254`) | the previous record, `throttled: true` — the stage does not move |
-| Map generate fails (live) | `mapKnowledge` (`packages/host/src/knowledge-map.ts:134-136`) | `generation_failed`, error line, previous map still shown |
+| Map generate fails (live) | `mapKnowledge` (`packages/host/src/knowledge-map.ts:186-193`) | `generation_failed`, error line, previous map still shown — and, since 2026-09-23, still shown after a reload, because the row keeps it (`markMap`, `:70-80`) |
 | Graph route missing (old host) | `KnowledgeGraphPanel` effect (`apps/web/components/knowledge-graph-panel.tsx:68-79`) | `knowledge-graph-error` + `knowledge-graph-retry`; the other four loop stages still count |
 | No graph yet | `full.nodes.length === 0` (`apps/web/components/knowledge-graph-panel.tsx:181`) | `knowledge-graph-empty` — "Build map to create topic links." |
 
@@ -185,7 +193,7 @@ DOM testids that prove it: `mode-knowledge` (`apps/web/components/app-rail.tsx:3
 
 Doctor proves the preconditions: `knowledge: true`, `knowledgeRetrievals`, `knowledgeGraph: { nodes, edges }`, `knowledgeVerified`, `knowledgeBackend.id = "builtin"`.
 
-Unit: `apps/web/lib/knowledge-loop.test.ts`, `apps/web/lib/knowledge-graph.test.ts`, `packages/host/src/knowledge.test.ts`, `knowledge-map.test.ts`, `knowledge-verify.test.ts`, `knowledge-graph.test.ts`, `knowledge-cites.test.ts`, `knowledge-forget.test.ts`, `knowledge-backend-routes.test.ts`, `knowledge/backend.contract.test.ts`.
+Unit: `apps/web/lib/knowledge-loop.test.ts`, `apps/web/lib/knowledge-graph.test.ts`, `apps/web/lib/knowledge-page.test.ts` (`sendKnowledge` and the one-at-a-time guard), `packages/host/src/knowledge.test.ts`, `knowledge-map.test.ts` (including the last good map surviving a re-map that is running or has failed), `knowledge-verify.test.ts`, `knowledge-graph.test.ts`, `knowledge-cites.test.ts`, `knowledge-forget.test.ts`, `knowledge-backend-routes.test.ts`, `knowledge/backend.contract.test.ts`.
 
 ## Why
 

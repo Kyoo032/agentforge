@@ -48,7 +48,15 @@ export function recorderSupported(deps: RecorderDeps): boolean {
   return deps.secureContext && Boolean(deps.getUserMedia) && pickRecorderMimeType(deps.isTypeSupported) !== null;
 }
 
-export function useMeetingRecorder(depsOverride?: RecorderDeps): MeetingRecorderView {
+/**
+ * `onDisposeClip` receives what an unmount kept — a recording still running, paused or finishing,
+ * or a finished clip nobody took. A desk switch remounts every work mode, and the studio uses this
+ * to hand the audio to the next one instead of letting it go with the component.
+ */
+export function useMeetingRecorder(
+  depsOverride?: RecorderDeps,
+  onDisposeClip?: (clip: RecordedClip) => void,
+): MeetingRecorderView {
   // Built once per mount. `browserRecorderDeps()` only reads globals, so it is safe in a lazy ref.
   const controllerRef = useRef<MeetingRecorderController | null>(null);
   const depsRef = useRef<RecorderDeps | null>(null);
@@ -75,7 +83,18 @@ export function useMeetingRecorder(depsOverride?: RecorderDeps): MeetingRecorder
     return () => clearInterval(id);
   }, [controller, state.status]);
 
-  useEffect(() => () => controller.dispose(), [controller]);
+  // Read at unmount rather than captured: the studio's handler is a new closure every render.
+  const onDisposeClipRef = useRef(onDisposeClip);
+  onDisposeClipRef.current = onDisposeClip;
+  useEffect(
+    () => () => {
+      const kept = controller.dispose();
+      if (kept) {
+        onDisposeClipRef.current?.(kept);
+      }
+    },
+    [controller],
+  );
 
   const [source, setSource] = useState<RecorderSource>("mic");
 

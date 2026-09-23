@@ -10,7 +10,9 @@ import {
   type TickerPacket,
   type WatchNewsItem,
 } from "@/lib/market-client";
+import { t } from "@/lib/i18n";
 import { safeLinkHref } from "@/lib/safe-link";
+import { labeled } from "@/lib/ui-copy";
 
 type Props = { ticker: TickerPacket; testIdPrefix: string };
 
@@ -18,37 +20,44 @@ type Fact = { label: string; value: string };
 
 const BANNER = "rounded-lg border border-[var(--line)] bg-[var(--accent-soft)] px-3 py-2 text-xs text-[var(--text)]";
 
+function ratingText(label: string): string {
+  return label ? labeled(`market.rating.${label.trim().toUpperCase()}`, humanRating(label)) : "";
+}
+
 function quoteFacts(ticker: TickerPacket): Fact[] {
   const q = ticker.quote;
   const tech = ticker.technical;
   const facts: Fact[] = [
-    { label: "Price", value: q ? `${formatNumber(q.price)} ${q.currency}`.trim() : "" },
-    { label: "Change", value: formatPercent(q?.changePercent) },
-    { label: "Prev close", value: formatNumber(q?.previousClose) },
+    { label: t("market.facts.price"), value: q ? `${formatNumber(q.price)} ${q.currency}`.trim() : "" },
+    { label: t("market.facts.change"), value: formatPercent(q?.changePercent) },
+    { label: t("market.facts.prevClose"), value: formatNumber(q?.previousClose) },
     {
-      label: "Pre-market",
+      label: t("market.facts.preMarket"),
       value: [formatNumber(q?.preMarketPrice), formatPercent(q?.preMarketChangePercent)].filter(Boolean).join(" · "),
     },
     {
-      label: "After hours",
+      label: t("market.facts.afterHours"),
       value: [formatNumber(q?.postMarketPrice), formatPercent(q?.postMarketChangePercent)].filter(Boolean).join(" · "),
     },
-    { label: "Volume", value: formatNumber(q?.volume, 0) },
-    { label: "Market cap", value: formatNumber(q?.marketCap, 0) },
-    { label: "State", value: q?.marketState ?? "" },
-    { label: "TradingView", value: humanRating(tech?.tradingview?.label ?? "") },
-    { label: "TV summary", value: formatNumber(tech?.tradingview?.summary) },
-    { label: "RSI14", value: formatNumber(tech?.rsi14, 1) },
-    { label: "SMA50", value: formatNumber(tech?.sma50) },
-    { label: "SMA200", value: formatNumber(tech?.sma200) },
-    { label: "vs SMA200", value: formatPercent(percentVsSma200(q, tech)) },
-    { label: "MACD", value: [formatNumber(tech?.macd), formatNumber(tech?.macdSignal)].filter(Boolean).join(" / ") },
+    { label: t("market.facts.volume"), value: formatNumber(q?.volume, 0) },
+    { label: t("market.facts.marketCap"), value: formatNumber(q?.marketCap, 0) },
+    { label: t("market.facts.state"), value: q?.marketState ?? "" },
+    { label: t("market.facts.tradingView"), value: ratingText(tech?.tradingview?.label ?? "") },
+    { label: t("market.facts.tvSummary"), value: formatNumber(tech?.tradingview?.summary) },
+    { label: t("market.facts.rsi14"), value: formatNumber(tech?.rsi14, 1) },
+    { label: t("market.facts.sma50"), value: formatNumber(tech?.sma50) },
+    { label: t("market.facts.sma200"), value: formatNumber(tech?.sma200) },
+    { label: t("market.facts.vsSma200"), value: formatPercent(percentVsSma200(q, tech)) },
     {
-      label: "5d / 1m",
+      label: t("market.facts.macd"),
+      value: [formatNumber(tech?.macd), formatNumber(tech?.macdSignal)].filter(Boolean).join(" / "),
+    },
+    {
+      label: t("market.facts.change5d1m"),
       value: [formatPercent(tech?.change5dPercent), formatPercent(tech?.change1mPercent)].filter(Boolean).join(" / "),
     },
     {
-      label: "52w range",
+      label: t("market.facts.range52w"),
       value: [formatNumber(tech?.low52w), formatNumber(tech?.high52w)].filter(Boolean).join(" – "),
     },
   ];
@@ -91,7 +100,9 @@ export function MarketTickerCard({ ticker, testIdPrefix }: Props) {
         <h4 className="font-mono text-base font-semibold text-[var(--text)]">{ticker.symbol.yahoo}</h4>
         {subtitle ? <span className="text-xs text-[var(--text-3)]">{subtitle}</span> : null}
         {ticker.symbol.input !== ticker.symbol.yahoo ? (
-          <span className="text-xs text-[var(--text-3)]">typed as {ticker.symbol.input}</span>
+          <span className="text-xs text-[var(--text-3)]">
+            {t("market.ticker.typedAs", { input: ticker.symbol.input })}
+          </span>
         ) : null}
       </header>
       <div className="mt-3 grid gap-4 lg:[grid-template-columns:minmax(0,3fr)_minmax(0,2fr)]">
@@ -118,7 +129,7 @@ export function MarketTickerCard({ ticker, testIdPrefix }: Props) {
             </tbody>
           </table>
         ) : (
-          <p className="text-sm text-[var(--text-3)]">No quote or technical data.</p>
+          <p className="text-sm text-[var(--text-3)]">{t("market.ticker.noData")}</p>
         )}
       </div>
       {news.length > 0 ? (
@@ -128,11 +139,11 @@ export function MarketTickerCard({ ticker, testIdPrefix }: Props) {
           ))}
         </ul>
       ) : (
-        <p className="mt-4 text-xs text-[var(--text-3)]">No headlines fetched.</p>
+        <p className="mt-4 text-xs text-[var(--text-3)]">{t("market.ticker.noHeadlines")}</p>
       )}
       {hidden > 0 ? (
         <p className="mt-1 text-xs text-[var(--text-2)]">
-          {hidden} headline{hidden === 1 ? "" : "s"} hidden because the text looked like an instruction, not news.
+          {t(hidden === 1 ? "market.ticker.hiddenOne" : "market.ticker.hiddenMany", { count: hidden })}
         </p>
       ) : null}
       {ticker.failures.length > 0 ? (

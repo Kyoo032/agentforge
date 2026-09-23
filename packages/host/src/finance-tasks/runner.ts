@@ -188,7 +188,9 @@ async function verifyNarration(
     guard: {
       flagged: [...guard.flagged, ...repair.guard.flagged],
       total: guard.total + repair.guard.total,
-      removed: repair.guard.removed ?? 0,
+      // An assumption the guard dropped whole is a removed sentence too, so the reader is told the
+      // same way as for a sentence the repair took out — and the brief path counts it the same way.
+      removed: (guard.removed ?? 0) + (repair.guard.removed ?? 0),
     },
   };
 }

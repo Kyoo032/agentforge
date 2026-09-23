@@ -109,6 +109,9 @@ describe("a pinned model is a choice, not a default", () => {
   it("sends modelPinned from the studio only when the person picked one", () => {
     expect(studio).toContain('const { models, model, pinned: modelPinned, setModel } = useJobModel("finance");');
     expect(studio).toContain("...(modelPinned ? { modelPinned: true } : {})");
-    expect(studio).toContain("modelPinned: Boolean(payload.model) || modelPinned,");
+    // The rewrite panel always sends its seeded model, so a rewrite is pinned only when the panel
+    // moved off the studio's model or the studio's own pick was pinned (`regenModelPick`).
+    expect(studio).toContain("...regenModelPick(payload.model, model, modelPinned),");
+    expect(studio).not.toContain("modelPinned: Boolean(payload.model) || modelPinned");
   });
 });

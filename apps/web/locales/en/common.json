@@ -6,8 +6,41 @@
   "restartApp": "Restart DPSBuddy",
   "restartHint": "Restart DPSBuddy to apply this language.",
   "loading": "Loading…",
+  "enhance": {
+    "failedShort": "Enhance failed",
+    "failed": "Could not enhance the prompt. Your text is unchanged.",
+    "failedReason": "Could not enhance the prompt: {reason}"
+  },
   "theme": {
     "light": "Light",
     "dark": "Dark"
+  },
+  "jobProgress": {
+    "starting": "Starting…",
+    "round": "Round {round} of {total} · {label}",
+    "source": {
+      "found": "found",
+      "read": "read",
+      "unreachable": "unreachable"
+    }
+  },
+  "artifactActions": {
+    "download": "Download Markdown",
+    "saving": "Saving…",
+    "sendToKb": "Send to Knowledge Base",
+    "adding": "Adding…",
+    "makeDocument": "Make a document",
+    "makePresentation": "Make a presentation",
+    "downloadFailed": "Could not download",
+    "kbIndexFailed": "Knowledge Base could not index this: {reason}",
+    "unknownReason": "unknown reason",
+    "kbAlready": "Already in the Knowledge Base.",
+    "kbAdded": "Added to the Knowledge Base.",
+    "kbFailed": "Could not add to the Knowledge Base"
+  },
+  "modeHandoff": {
+    "fallbackSubject": "the source material",
+    "presentation": "Turn \"{subject}\" into a presentation for a decision-maker. Use only the source material.",
+    "document": "Write a memo from \"{subject}\". Use only the source material and cite its sources."
   }
 }

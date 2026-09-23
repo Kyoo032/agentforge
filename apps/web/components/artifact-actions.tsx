@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "@/lib/nav";
 import { downloadArtifactFile, saveBlob, sendTextToKnowledgeBase } from "@/lib/artifacts-client";
+import { t } from "@/lib/i18n";
 import { requestModeHandoff, suggestedHandoffPrompt, type HandoffTarget } from "@/lib/mode-handoff";
 
 type Props = {
@@ -32,7 +33,7 @@ export function ArtifactActions({ title, markdown, artifactId, kbType, disabled 
         saveBlob(new Blob([markdown], { type: "text/markdown;charset=utf-8" }), `${slug(title)}.md`);
       }
     } catch (err) {
-      setNote(err instanceof Error ? err.message : "Could not download");
+      setNote(err instanceof Error ? err.message : t("common.artifactActions.downloadFailed"));
     } finally {
       setBusy(null);
     }
@@ -44,12 +45,16 @@ export function ArtifactActions({ title, markdown, artifactId, kbType, disabled 
     try {
       const result = await sendTextToKnowledgeBase({ name: title, text: markdown, type: kbType, artifactId });
       if (result.status === "Failed") {
-        setNote(`Knowledge Base could not index this: ${result.error ?? "unknown reason"}`);
+        setNote(
+          t("common.artifactActions.kbIndexFailed", {
+            reason: result.error ?? t("common.artifactActions.unknownReason"),
+          }),
+        );
       } else {
-        setNote(result.alreadyIndexed ? "Already in the Knowledge Base." : "Added to the Knowledge Base.");
+        setNote(t(result.alreadyIndexed ? "common.artifactActions.kbAlready" : "common.artifactActions.kbAdded"));
       }
     } catch (err) {
-      setNote(err instanceof Error ? err.message : "Could not add to the Knowledge Base");
+      setNote(err instanceof Error ? err.message : t("common.artifactActions.kbFailed"));
     } finally {
       setBusy(null);
     }
@@ -76,7 +81,7 @@ export function ArtifactActions({ title, markdown, artifactId, kbType, disabled 
         disabled={locked}
         data-testid={`${testIdPrefix}-download`}
       >
-        {busy === "download" ? "Saving…" : "Download Markdown"}
+        {t(busy === "download" ? "common.artifactActions.saving" : "common.artifactActions.download")}
       </button>
       <button
         type="button"
@@ -85,7 +90,7 @@ export function ArtifactActions({ title, markdown, artifactId, kbType, disabled 
         disabled={locked}
         data-testid={`${testIdPrefix}-send-kb`}
       >
-        {busy === "kb" ? "Adding…" : "Send to Knowledge Base"}
+        {t(busy === "kb" ? "common.artifactActions.adding" : "common.artifactActions.sendToKb")}
       </button>
       <button
         type="button"
@@ -94,7 +99,7 @@ export function ArtifactActions({ title, markdown, artifactId, kbType, disabled 
         disabled={locked}
         data-testid={`${testIdPrefix}-make-document`}
       >
-        Make a document
+        {t("common.artifactActions.makeDocument")}
       </button>
       <button
         type="button"
@@ -103,7 +108,7 @@ export function ArtifactActions({ title, markdown, artifactId, kbType, disabled 
         disabled={locked}
         data-testid={`${testIdPrefix}-make-presentation`}
       >
-        Make a presentation
+        {t("common.artifactActions.makePresentation")}
       </button>
       {note ? (
         <span className="text-xs text-[var(--text-2)]" data-testid={`${testIdPrefix}-actions-note`} role="status">

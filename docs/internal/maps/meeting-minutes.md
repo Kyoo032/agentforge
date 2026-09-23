@@ -1,8 +1,12 @@
 # Map — Meeting: recording → transcript → minutes → translation
 
-Last verified: 2026-09-21 at 4938747 — **driven end to end on webdev against the live gateway**: upload → transcript →
-minutes → translation, in both locale directions. Transcription runs on `gemini-3.5-flash` over the `chat_audio` wire;
-the minutes and the translation on `gpt-5.6-sol`. See [What was driven](#what-was-driven-2026-09-21).
+Last verified: 2026-09-23 at d4561b8 + uncommitted tree for every `packages/host/src/meeting/run.ts` and
+`meeting-studio.tsx` citation, steps 4, 6 and 7, and the Recording section (the recording's target meeting, a
+desk switch, a recorder error). Not driven: the `:3000` host needs a restart for the `run.ts` changes, and the
+renderer changes were not walked in a browser. Earlier: 2026-09-21 at 4938747 — **driven end to end on webdev
+against the live gateway**: upload → transcript → minutes → translation, in both locale directions. Transcription
+runs on `gemini-3.5-flash` over the `chat_audio` wire; the minutes and the translation on `gpt-5.6-sol`. See
+[What was driven](#what-was-driven-2026-09-21).
 
 ## Overview
 
@@ -10,11 +14,11 @@ Meeting is a **file job**, the same shape as Legal: a recording goes in, a trans
 
 Three things to hold onto.
 
-**1. Six of the nine routes never touch a model.** Meeting create, list, get, delete, recording upload and transcript paste are pure disk bookkeeping and work with no gateway key at all. Only the three `/stream` routes reach the gateway, and they are guarded twice — a 403 gate before the job starts (`packages/host/src/handlers/meetings.ts:139`, `:157`, `:176`) and a 503 `runtime_stub` check inside it (`packages/host/src/meeting/run.ts:57-66`). As with Legal, that 503 arrives as a single `job.error` frame inside a `200 text/event-stream`, not as an HTTP 503 (`packages/host/src/handlers/meetings.test.ts:196-206`).
+**1. Six of the nine routes never touch a model.** Meeting create, list, get, delete, recording upload and transcript paste are pure disk bookkeeping and work with no gateway key at all. Only the three `/stream` routes reach the gateway, and they are guarded twice — a 403 gate before the job starts (`packages/host/src/handlers/meetings.ts:139`, `:155`, `:174`) and a 503 `runtime_stub` check inside it (`packages/host/src/meeting/run.ts:59-68`). As with Legal, that 503 arrives as a single `job.error` frame inside a `200 text/event-stream`, not as an HTTP 503 (`packages/host/src/handlers/meetings.test.ts:196-206`).
 
 **2. The transcription wire is chat completions, not `/audio/transcriptions` — and its payload differs per model family.** The gateway's `supported_endpoint_types` never advertises an audio or transcription type; ASR, omni and TTS ids expose `openai` only and carry their vendor's schema behind it (`docs/internal/gateway-model-selection.md:174`). Driving it on 2026-09-21 showed the shape is not one shape: the OpenAI audio family (`gpt-audio-mini`, `gpt-audio-1.5`) takes **bare base64** in `input_audio.data` and answers `400 invalid_value` to a data URI, while the DashScope-backed family (`qwen*-omni*`, `*livetranslate*`) takes a **`data:` URI** and answers `400 InvalidParameter` — "The provided URL does not appear to be valid" — to bare base64. `transcriptionShapeFor` (`packages/core/src/meeting/asr-model.ts`) returns the wire, the encoding and whether to stream; `packages/host/src/meeting/transcribe-request.ts` builds the call from it and accumulates the SSE deltas when it streams. The multipart route is kept for a Whisper-style id on a gateway that does serve it; that is the wire `packages/host/src/edit/asr.ts` has always used.
 
-**3. Translation is a second pass over the finished JSON, not a second reading of the transcript.** `translateMinutes` (`packages/host/src/meeting/run.ts:321`, called at `:310`) hands the model the minutes object and asks for the same shape in the other language, so the two languages cannot disagree about what was decided. This is on top of the repo's usual `withOutputLanguage` surface rule, which only decides what language a single call writes in.
+**3. Translation is a second pass over the finished JSON, not a second reading of the transcript.** `translateMinutes` (`packages/host/src/meeting/run.ts:364`, called at `:355`) hands the model the minutes object and asks for the same shape in the other language, so the two languages cannot disagree about what was decided. This is on top of the repo's usual `withOutputLanguage` surface rule, which only decides what language a single call writes in.
 
 ## How it works
 
@@ -22,15 +26,15 @@ Three things to hold onto.
 
 `mode-meeting` on the left rail is built from the product mode's href (`packages/core/src/agents/product-modes.ts:12`, `href: "/meeting"`), so there is no literal `data-testid="mode-meeting"` to grep — the rail composes it (`apps/web/components/app-rail.tsx:339`). `/meeting` itself is `<Route path="/meeting" element={null} />` (`apps/web/src/App.tsx:165`); the studio mounts through `WorkModeKeepAlive` (`apps/web/components/work-mode-keep-alive.tsx:31`), not through the route element.
 
-`MeetingStudio` (`apps/web/components/meeting-studio.tsx:62`) renders `meeting-studio`. On mount it fires one GET, `/api/v1/meetings`, which returns both the list and a **capability** block (`packages/host/src/handlers/meetings.ts:37-41`) — whether this desk has a recogniser and whether ffmpeg is installed. That is what lets the studio say "paste the transcript instead" *before* the owner uploads 25 MB and finds out.
+`MeetingStudio` (`apps/web/components/meeting-studio.tsx:265`) renders `meeting-studio`. On mount it fires one GET, `/api/v1/meetings`, which returns both the list and a **capability** block (`packages/host/src/handlers/meetings.ts:37-41`) — whether this desk has a recogniser and whether ffmpeg is installed. That is what lets the studio say "paste the transcript instead" *before* the owner uploads 25 MB and finds out.
 
 ### 2. Intake — a meeting is created explicitly
 
-Unlike Legal, there is a create form: title plus the language spoken (`apps/web/components/meeting-studio.tsx:237-281`). `handlePostMeetings` (`packages/host/src/handlers/meetings.ts:47`) writes `meeting.json` through `meetingStore()`. The `locale` chosen here is the language the minutes are written in *first*; the translation is the other one (`otherLocale`, `packages/host/src/meeting/run.ts:53-55`).
+Unlike Legal, there is a create form: title plus the language spoken (`meeting-create`, `apps/web/components/meeting-studio.tsx:702`). It posts through `requestMeeting` (`:93`, called at `:466`), which the pasted-transcript save shares (`:545`): `res.ok` is read before the body, an error body is read with a `catch`, and a dead network is a message rather than a throw — the order SR-45 set for the recording upload. Both used to read `res.json()` first with no `catch`, so an html error page or an offline laptop threw and the owner saw nothing. `handlePostMeetings` (`packages/host/src/handlers/meetings.ts:47`) writes `meeting.json` through `meetingStore()`. The `locale` chosen here is the language the minutes are written in *first*; the translation is the other one (`otherLocale`, `packages/host/src/meeting/run.ts:55-57`).
 
 ### 3. Upload — audio or video, 25 MB, sniffed on mime
 
-`handlePostMeetingRecording` (`packages/host/src/handlers/meetings.ts:90`) takes the usual `request.files` field `"file"`. Caps in `assertRecordingCaps` (`packages/host/src/meeting/store-files.ts:270-280`):
+`handlePostMeetingRecording` (`packages/host/src/handlers/meetings.ts:91`) takes the usual `request.files` field `"file"`. Caps in `assertRecordingCaps` (`packages/host/src/meeting/store-files.ts:270-280`):
 
 - empty file → 400
 - over `MEETING_RECORDING_MAX_BYTES` (25 MB) → 413
@@ -46,35 +50,39 @@ Note this path deliberately does **not** reuse `saveMedia` (`packages/host/src/m
 
 ### 4. Transcribe — ffmpeg, then one gateway call per chunk
 
-`transcribeMeeting` (`packages/host/src/meeting/run.ts:146`):
+`transcribeMeeting` (`packages/host/src/meeting/run.ts:146-195`):
 
-1. `resolveMeetingAsr()` first, so a desk with no recogniser is refused before ffmpeg burns CPU (`run.ts:150-159`).
+1. `resolveMeetingAsr()` first, so a desk with no recogniser is refused before ffmpeg burns CPU (`run.ts:157-166`).
 2. `extractMeetingAudio` (`packages/host/src/meeting/audio.ts:57`) decodes to mono 16 kHz 64 kbps mp3 and **segments at `CHUNK_SECONDS` = 600**, about 4.8 MB a chunk, which every transcription route accepts in one request base64-inflated. `MAX_CHUNKS` = 36 caps a pathological file at six hours. This is its own recipe rather than Edit's `extractAudio` because that one resolves paths against Edit's project allowlist (`packages/host/src/edit/ffmpeg/paths.ts:44-46`) and cannot read the meeting store; the ffmpeg runner and the path guard are the shared ones.
-3. `transcribeChunks` (`packages/host/src/meeting/transcribe.ts:169`) posts each chunk in order, emitting a `job.step` per chunk.
-4. The chunks are deleted in a `finally` (`run.ts:180-184`) — they are a cache of a recording that is still on disk.
+3. `transcribeAndMeter` (`run.ts:202-238`) hands the chunks to `transcribeChunks` (`packages/host/src/meeting/transcribe.ts:169`), which posts each chunk in order, emitting a `job.step` per chunk, and meters the audio (see below).
+4. The chunks are deleted in a `finally` (`run.ts:190-194`) — they are a cache of a recording that is still on disk. Since 2026-09-23 the extraction itself sits inside that `try` (`:170-173`), so an ffmpeg that fails after writing some chunks, or a cancel that lands the moment it finishes, still leaves nothing behind.
 
-An empty chunk is logged and skipped, but an empty *transcript* is a hard `transcription_empty` (`run.ts:175-177`). That is deliberately unlike `edit/asr.ts:65-82`, which drops a failed chunk silently and returns whatever is left.
+An empty chunk is logged and skipped, but an empty *transcript* is a hard `transcription_empty` (`run.ts:186-188`). That is deliberately unlike `edit/asr.ts:65-82`, which drops a failed chunk silently and returns whatever is left.
+
+**What is metered.** A whole transcription records `audio.durationSeconds` before the transcript is judged, because the gateway has already charged for the audio (`run.ts:233-236`). A run that fails part-way records the seconds of the chunks that did answer — up to the offset of the first chunk that did not — and then rethrows (`:221-230`); before 2026-09-23 a chunk-3 failure recorded nothing for chunks 1 and 2, which the gateway had billed.
 
 ### 5. Minutes — strict JSON, then the name guard
 
-`generateMinutes` (`packages/host/src/meeting/run.ts:245`) calls `collectJobAssistantRun` with `jobMode: "meeting"`, so it inherits the repo's model-fallback and thinking-off knobs for free. The system prompt is `MEETING_MINUTES_SYSTEM` (`packages/core/src/meeting/prompts.ts:16`) wrapped in `withOutputLanguage(…, "meeting", locale)`.
+`generateMinutes` (`packages/host/src/meeting/run.ts:315-357`) calls `collectJobAssistantRun` with `jobMode: "meeting"`, so it inherits the repo's model-fallback and thinking-off knobs for free. The system prompt is `MEETING_MINUTES_SYSTEM` (`packages/core/src/meeting/prompts.ts:16`) wrapped in `withOutputLanguage(…, "meeting", locale)`.
 
 Then the guard. `guardMinutesNames` (`packages/core/src/meeting/guard.ts:49`) checks every name the minutes assert against the transcript:
 
 - an **attendee** the transcript never named is dropped outright — a minutes sheet listing someone who was not in the room is worse than a short list;
 - an **action-item owner** the transcript never named becomes `[needs owner]`, because the action itself was still stated.
 
-Matching is deliberately generous (any word token of the name, ≥3 chars, case-insensitive, honorifics excluded — `guard.ts:20-33`): the point is to catch a wholly invented attendee, not to police how a speaker was introduced. The count is logged as `meeting_minutes_names_guarded` and surfaced to the owner on the studio (`apps/web/components/meeting-studio.tsx:423-427`).
+Matching is deliberately generous (any word token of the name, ≥3 chars, case-insensitive, honorifics excluded — `guard.ts:20-33`): the point is to catch a wholly invented attendee, not to police how a speaker was introduced. The count is logged as `meeting_minutes_names_guarded` and surfaced to the owner on the studio (`apps/web/components/meeting-studio.tsx:889-891`).
 
 This is the same family as Finance's number guard and Market's advice guard: a code check over model prose, not a nicer prompt.
 
 ### 6. Translation
 
-`translateMinutes` (`run.ts:274`) runs `MEETING_TRANSLATE_SYSTEM` over the finished minutes JSON and **runs the guard again** on the result — a translator that hallucinates a name is exactly as wrong as a writer that does, and the transcript is still the only evidence either has.
+`translateMinutes` (`run.ts:364`) runs `MEETING_TRANSLATE_SYSTEM` over the finished minutes JSON and **runs the guard again** on the result — a translator that hallucinates a name is exactly as wrong as a writer that does, and the transcript is still the only evidence either has.
+
+**The minutes are saved before the translation starts.** `generateMinutes` writes `status: "minuted"` and the minutes onto the meeting, clearing any earlier translation, which described earlier minutes (`run.ts:343`); only then does it translate, and it writes the translation in a second update (`:355-356`). Before 2026-09-23 the one update came after the translation, so a translation that failed took the minutes with it: the owner paid for the minutes and saw nothing.
 
 ### 7. Artifacts and the Knowledge card
 
-Both the transcript and each set of minutes become `mode: "meeting"` artifacts (`kind: "transcript"` / `"minutes"`, `text/markdown`). `persist()` never fails the run (`run.ts:95-113`) — same precedent as `persistDraft` in `document-generate.ts:135-151`. The minutes also file a `Meeting` work card into the Knowledge Base (`run.ts:115-137`).
+Both the transcript and each set of minutes become `mode: "meeting"` artifacts (`kind: "transcript"` / `"minutes"`, `text/markdown`). `persist()` never fails the run (`run.ts:98-116`) — same precedent as `persistDraft` in `document-generate.ts`. The minutes also file a `Meeting` work card into the Knowledge Base (`fileWorkCard`, `run.ts:118-140`).
 
 ## Routes
 
@@ -99,7 +107,7 @@ All seven by-id routes resolve through `meetingStore()`, which filters on `tenan
 | Leg | How it is picked |
 |---|---|
 | Transcription | `AGENTFORGE_MEETING_ASR_MODEL` if pinned — one id, no fallback — else `transcriptionCandidates(cachedModelIds())` over `TRANSCRIPTION_PREF` (`packages/core/src/meeting/asr-model.ts`), head `gemini-3.5-flash`. That is a **chain**, not a pick: a model that refuses, times out or answers with nothing is dropped and the next is asked, and the first that answers is preferred for every remaining chunk. Empty when the catalog lists nothing that can hear — the caller falls back to a pasted transcript rather than inventing an id. |
-| Minutes and translation | `JOB_MODE_PREFERENCES.meeting` (`packages/core/src/models/mode-defaults.ts`), head `gpt-5.6-sol`; the owner's `documentGenModel` setting overrides, and the picker overrides that (`packages/host/src/meeting/run.ts:68-74`). |
+| Minutes and translation | `JOB_MODE_PREFERENCES.meeting` (`packages/core/src/models/mode-defaults.ts`), head `gpt-5.6-sol`; the owner's `documentGenModel` setting overrides, and the picker overrides that (`resolveMeetingModel`, `packages/host/src/meeting/run.ts:70-74`). |
 
 ## The ASR-probe fix that came with this
 
@@ -113,7 +121,8 @@ All seven by-id routes resolve through `meetingStore()`, which filters on `tenan
 ## Gotchas
 
 - **One meeting can leave three usage rows, in two units.** The transcription is metered in
-  seconds of audio (`recordTranscriptionUsage`, `packages/host/src/meeting/run.ts:188`), because
+  seconds of audio (`recordTranscriptionUsage`, `packages/host/src/meeting/run.ts:233-236`, and
+  `:224-227` for the answered part of a run that failed), because
   that is what a recogniser bills for — not the tokens of the transcript, and not the number of
   chunks `extractMeetingAudio` happened to split the recording into. The minutes and the
   translation are ordinary token runs, metered through their `meeting-minutes` and
@@ -172,23 +181,68 @@ Everything above starts from a file that already exists. This section is the oth
 browser records the meeting itself, and then joins the pipeline above at step 3 with nothing changed.
 
 **The one rule.** A recording is not a second intake path. `MeetingRecorderPanel` never calls the
-host; `MeetingStudio` turns the finished blob into a `File` and hands it to `onUpload` — the same
-function the file input calls, the same `POST /api/v1/meetings/:meetingId/recording`, the same
-`"file"` field, the same `merge()` that lights up Run. `meeting-recorder-wiring.test.ts` exists to
-keep it that way, because a recorder with its own `apiFetch` would pass every other test and quietly
-lose the caps, the tenancy scoping and the status transition.
+host. The finished clip goes to `MeetingUploadController` (`apps/web/lib/meeting-upload.ts:117`),
+which owns it until the host answers 2xx ([SR-45](../security-register.md#sr-45)), and the
+controller's sender is `sendClip` (`apps/web/components/meeting-studio.tsx:489-495`) — the same
+`sendTo` the file input uses, the same `POST /api/v1/meetings/:meetingId/recording`, the same
+`"file"` field. A recorder with its own `apiFetch` would pass every other test and quietly lose the
+caps, the tenancy scoping and the status transition.
 
-### The three files
+### The files
 
 | File | What it owns |
 |---|---|
 | `apps/web/lib/meeting-recorder.ts` | `MeetingRecorderController` — the state machine, mime pick, byte cap, error mapping, and every track/AudioContext release. Framework-free: every browser object arrives through `RecorderDeps`, so it is unit-tested in a node environment. |
-| `apps/web/lib/use-meeting-recorder.ts` | The React skin: subscribe (`useSyncExternalStore`), tick the elapsed clock at 250 ms while recording, dispose on unmount. |
-| `apps/web/components/meeting-recorder.tsx` | Presentation. Takes a finished view, exactly as `ComponentSetupPanel` does, so it renders in a test without a browser. |
+| `apps/web/lib/use-meeting-recorder.ts` | The React skin: subscribe (`useSyncExternalStore`), tick the elapsed clock at 250 ms while recording, and on unmount dispose and hand what the controller kept to `onDisposeClip`. |
+| `apps/web/components/meeting-recorder.tsx` | Presentation. Takes a finished view, exactly as `ComponentSetupPanel` does, so it renders in a test without a browser. Also `MeetingOtherDeskClips`, the held-for-another-desk list. |
+| `apps/web/lib/meeting-upload.ts`, `use-meeting-upload.ts` | The upload queue: holds a clip until a 2xx, queues while busy, keeps it with Retry and Save to device on a failure. |
 
 States: `idle → requesting-permission → recording ⇄ paused → stopping → idle`, with `error`
 reachable from any of them. The clip arrives through state rather than as a `stop()` return value,
 so the owner's Stop and the cap's own auto-stop take one identical path out.
+
+### Which meeting a recording belongs to (2026-09-23)
+
+The meeting is fixed when Record is pressed: `startRecording` stores `{ id, title, workspaceId }` in
+`recordingTargetRef` (`meeting-studio.tsx:293`, set in `startRecording`, `:430-436`), and a finished clip is offered to
+the upload queue with that target (`clipTargetRef`). `sendClip` posts to the target, never to
+whatever row is selected by then. It used to read the selection at send time, so switching rows
+mid-recording — or before pressing Retry — put the recording on another meeting and replaced that
+meeting's own. While a recording runs the list is locked: every row's select is disabled
+(`locked`, `:724`), and the meeting being recorded cannot be deleted (`deleteLocked`, `:725`). A
+failed upload names the meeting it was for (`meeting.record.uploadFailedFor`).
+
+### A desk or language switch keeps the audio (2026-09-23)
+
+`WorkModeKeepAlive` keys every work mode on the desk id, so a desk switch, or a language restart,
+unmounts the studio. That used to take a running recording with it. Now:
+
+- `dispose()` returns what the controller holds — a finished clip nobody took, or the chunks of a
+  recording still running, paused or finishing — instead of dropping it
+  (`apps/web/lib/meeting-recorder.ts:201`). The encoder's last partial chunk, at most one 1 s
+  timeslice, is still lost: `stop()` flushes it asynchronously and there is nobody left to take it.
+- The studio stashes it with its target in module scope (`stashRescuedClip`,
+  `meeting-studio.tsx:139`), along with any clip still in the upload queue, and the next studio to
+  mount takes them (`takeRescuedClips`, `:147`). This is memory, not storage: a page reload still
+  loses them.
+- A rescued clip for a meeting on this desk goes into the upload queue with the notice
+  `meeting-record-kept` ("interrupted") (`:409-428`). One for a meeting on another desk cannot be
+  uploaded from here — the host resolves `/meetings/:id` against the desk selected now and would
+  answer 404 (`onSameDesk`, `:158`) — so it is listed in `meeting-clip-other-desk`, one line per
+  recording with `meeting-clip-other-desk-save-<key>` to save it to the device.
+- The shell no longer changes desk on a failed read. `shellWorkspaceFrom`
+  (`apps/web/src/App.tsx:54`) changes the desk id only when `GET /api/v1/workspaces` answers and
+  names one; a 401 as a session lapsed, a 5xx or a proxy's error page used to read as "no desks",
+  and that alone remounted every pane mid-meeting.
+
+### A recorder error keeps the audio (2026-09-23)
+
+When the encoder fails mid-recording, what it had already handed over becomes a clip and is
+uploaded like any other, and only then is `recorder_failed` reported (`#onRecorderError`,
+`apps/web/lib/meeting-recorder.ts:342`). The studio shows `meeting-record-kept` ("salvaged") beside the
+error, and Dismiss on the error keeps the clip (`clearError`, `:183`). A failure before the first
+chunk has nothing to keep and reads as it always did. `meeting-record-kept-dismiss` clears the
+notice; the next Record clears it too.
 
 ### Audio only, and why the video track exists at all
 

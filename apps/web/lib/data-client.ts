@@ -85,12 +85,5 @@ export async function deleteDataset(id: string): Promise<void> {
   await readJson(res, "Could not delete that dataset");
 }
 
-export function formatBytes(bytes: number): string {
-  if (bytes < 1024) {
-    return `${bytes} B`;
-  }
-  if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(1)} KB`;
-  }
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
+/** Re-exported for `components/data-studio.tsx`; the one implementation lives in core. */
+export { formatBytes } from "@agentforge/core/format-bytes";

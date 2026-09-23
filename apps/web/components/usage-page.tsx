@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api-client";
 import {
   BAR_COLORS,
@@ -46,6 +46,50 @@ function parseUsage(payload: unknown, range: UsageRange): RangeUsage | null {
   };
 }
 
+/** What one range load came back with: the usage, or the sentence to show instead. */
+export type RangeUsageLoad = { usage: RangeUsage | null; error: string | null };
+
+function isAbort(error: unknown): boolean {
+  return error instanceof Error && error.name === "AbortError";
+}
+
+/**
+ * Load one range's usage. Answers `null` once `signal` is aborted, before or after the request
+ * settles, and the page drops a `null`: the range it was for is no longer the one on screen, and
+ * letting it land would put one range's numbers under another range's button.
+ */
+export async function fetchRangeUsage(
+  range: UsageRange,
+  signal: AbortSignal,
+  fetcher: (input: string, init: RequestInit) => Promise<Response> = apiFetch,
+): Promise<RangeUsageLoad | null> {
+  if (signal.aborted) {
+    return null;
+  }
+  try {
+    const res = await fetcher(`/api/v1/usage?range=${range}`, { signal });
+    if (signal.aborted) {
+      return null;
+    }
+    if (!res.ok) {
+      return {
+        usage: null,
+        error: res.status === 404 ? t("usage.errors.unavailable") : t("usage.errors.loadStatus", { status: res.status }),
+      };
+    }
+    const parsed = parseUsage(await res.json(), range);
+    if (signal.aborted) {
+      return null;
+    }
+    return parsed ? { usage: parsed, error: null } : { usage: null, error: t("usage.errors.incomplete") };
+  } catch (error) {
+    if (signal.aborted || isAbort(error)) {
+      return null;
+    }
+    return { usage: null, error: t("usage.errors.load") };
+  }
+}
+
 function chartMinKeep(range: UsageRange): number {
   if (range === "week") {
     return 4;
@@ -63,37 +107,22 @@ export function UsagePage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback((nextRange: UsageRange) => {
+  // One request per range. Switching ranges aborts the one in flight, so a slow answer for the
+  // previous range can never land after, and over, the range now on screen.
+  useEffect(() => {
+    const controller = new AbortController();
     setLoading(true);
     setLoadError(null);
-    void apiFetch(`/api/v1/usage?range=${nextRange}`)
-      .then(async (res) => {
-        if (!res.ok) {
-          setUsage(null);
-          setLoadError(res.status === 404 ? t("usage.errors.unavailable") : t("usage.errors.loadStatus", { status: res.status }));
-          return;
-        }
-        const payload: unknown = await res.json();
-        const parsed = parseUsage(payload, nextRange);
-        if (!parsed) {
-          setUsage(null);
-          setLoadError(t("usage.errors.incomplete"));
-          return;
-        }
-        setUsage(parsed);
-      })
-      .catch(() => {
-        setUsage(null);
-        setLoadError(t("usage.errors.load"));
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, []);
-
-  useEffect(() => {
-    load(range);
-  }, [load, range]);
+    void fetchRangeUsage(range, controller.signal).then((result) => {
+      if (!result) {
+        return;
+      }
+      setUsage(result.usage);
+      setLoadError(result.error);
+      setLoading(false);
+    });
+    return () => controller.abort();
+  }, [range]);
 
   const ready = usage != null;
   const desk = usage?.desk ?? emptyDesk();

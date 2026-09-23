@@ -27,6 +27,7 @@ import {
   stopTracks,
   type AudioContextLike,
   type MediaRecorderLike,
+  type RecordedClip,
   type RecorderDeps,
   type RecorderErrorCode,
   type RecorderSource,
@@ -178,22 +179,31 @@ export class MeetingRecorderController {
     this.#set({ ...this.#state, clip: null, bytes: 0 });
   }
 
-  /** Dismiss an error without starting again. */
+  /** Dismiss an error without starting again. A clip the failure kept stays until it is taken. */
   clearError(): void {
     if (this.#state.status !== "error") {
       return;
     }
-    this.#set({ ...IDLE_RECORDER_STATE, source: this.#state.source });
+    const { clip, source } = this.#state;
+    this.#set({ ...IDLE_RECORDER_STATE, source, clip, bytes: clip?.bytes ?? 0 });
   }
 
   /**
    * Unmount. Everything opened is closed and every in-flight step is orphaned. The controller
    * itself stays usable: StrictMode disposes and remounts the same instance on purpose.
+   *
+   * Returns what was recorded instead of dropping it: a clip the studio has not taken yet, or the
+   * chunks of a recording still running, paused or finishing. Every work mode is keyed on the desk
+   * id (`WorkModeKeepAlive`), so a desk switch unmounts the studio, and an hour of audio used to go
+   * with it. The encoder's last partial chunk — at most one timeslice — is still lost: `stop()`
+   * flushes it asynchronously, and there is nobody left to hand it to.
    */
-  dispose(): void {
+  dispose(): RecordedClip | null {
+    const kept = this.#state.clip ?? this.#captured(this.elapsedMs());
     this.#begin();
     this.#state = { ...IDLE_RECORDER_STATE, source: this.#state.source };
     this.#listeners.clear();
+    return kept;
   }
 
   // -------------------------------------------------------------------------- internals
@@ -292,7 +302,7 @@ export class MeetingRecorderController {
     this.#chunks = [];
     this.#capped = false;
     recorder.ondataavailable = (event) => this.#onChunk(generation, event.data);
-    recorder.onerror = () => this.#fail(generation, "recorder_failed");
+    recorder.onerror = () => this.#onRecorderError(generation);
     recorder.onstop = () => this.#onStopped(generation);
     recorder.start(RECORDING_TIMESLICE_MS);
   }
@@ -315,24 +325,56 @@ export class MeetingRecorderController {
     if (generation !== this.#generation) {
       return;
     }
-    const chunks = this.#chunks;
-    const bytes = chunks.reduce((total, chunk) => total + chunk.size, 0);
-    const durationMs = this.#accumulatedMs;
-    const capped = this.#capped;
-    const mimeType = this.#mimeType;
+    const clip = this.#captured(this.#accumulatedMs);
     this.#release();
-    if (bytes === 0) {
+    if (!clip) {
       this.#set({ ...IDLE_RECORDER_STATE, source: this.#state.source, status: "error", errorCode: "empty_recording" });
       return;
     }
-    const blob = new Blob(chunks, { type: baseMime(mimeType) });
+    this.#set({ ...IDLE_RECORDER_STATE, source: this.#state.source, status: "idle", bytes: clip.bytes, clip });
+  }
+
+  /**
+   * The encoder died mid-recording. What it had already handed over is the owner's meeting, so it
+   * becomes a clip — the studio uploads it like any other — and only then is the failure reported.
+   * A failure before the first chunk has nothing to keep and reads exactly as it always did.
+   */
+  #onRecorderError(generation: number): void {
+    if (generation !== this.#generation) {
+      return;
+    }
+    const clip = this.#captured(this.elapsedMs());
+    if (!clip) {
+      this.#fail(generation, "recorder_failed");
+      return;
+    }
+    this.#release();
     this.#set({
       ...IDLE_RECORDER_STATE,
       source: this.#state.source,
-      status: "idle",
-      bytes,
-      clip: { blob, mimeType, bytes, durationMs, filename: recordingFilename(new Date(), mimeType), capped },
+      status: "error",
+      errorCode: "recorder_failed",
+      bytes: clip.bytes,
+      clip,
     });
+  }
+
+  /** This recording's chunks as one clip, or null when none arrived. Reads; `#release` drops them. */
+  #captured(durationMs: number): RecordedClip | null {
+    const chunks = this.#chunks;
+    const bytes = chunks.reduce((total, chunk) => total + chunk.size, 0);
+    if (bytes === 0) {
+      return null;
+    }
+    const mimeType = this.#mimeType;
+    return {
+      blob: new Blob(chunks, { type: baseMime(mimeType) }),
+      mimeType,
+      bytes,
+      durationMs,
+      filename: recordingFilename(new Date(), mimeType),
+      capped: this.#capped,
+    };
   }
 
   #fail(generation: number, code: RecorderErrorCode): void {
@@ -344,8 +386,12 @@ export class MeetingRecorderController {
     this.#set({ ...IDLE_RECORDER_STATE, source: this.#state.source, status: "error", errorCode: code });
   }
 
-  /** Close everything this controller opened. Safe to call twice. */
+  /**
+   * Close everything this controller opened, and forget the chunks: once they have become a clip,
+   * or been given up on, nothing may turn them into a second one. Safe to call twice.
+   */
   #release(): void {
+    this.#chunks = [];
     const recorder = this.#recorder;
     this.#recorder = null;
     if (recorder) {

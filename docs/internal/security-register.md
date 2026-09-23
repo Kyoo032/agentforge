@@ -29,6 +29,15 @@ returned the server's own paths — which also closed [SR-27](#sr-27) and [SR-31
 `fixed-unverified`. Everything that pass touched is host, core, web, `webapp-deploy` and docs; the
 portal rows are fix pass X's.
 
+Extended on 2026-09-23 by the cleanup, security and bug-fix pass with SR-74 … SR-78, the rows
+that ship in the Personal app (and in the shared code the hosted app also runs), and moved
+[SR-19](#sr-19). The Enterprise rows of the same pass (SR-50 … SR-73, SR-79) land with the
+Enterprise branch. Every `file:line` in those rows was read in the working tree on `main` at
+`d4561b8` that day. Each row names its product: **Enterprise** (the hosted web app and its portal),
+**Personal** (the Mac/Windows app) or **both**. Its fixed rows use the status `fixed, not driven`,
+defined below: nothing in that pass was driven on `:3000` (the host and core changes need Rizky to
+restart it), nothing was packed, and nothing ran on a server.
+
 ## Summary
 
 | ID | Severity | Title | Status | Gate |
@@ -58,7 +67,10 @@ portal rows are fix pass X's.
 | [SR-10](#sr-10) | Medium | Manual OTP issuance hands a live sign-in code to whoever runs the CLI | Fixed-unverified, lane A | Blocks Tencent deploy |
 | [SR-16](#sr-16) | Medium | Four OWASP findings are still open, one of them the reason nothing is proved by CI | Open | Blocks Tencent deploy |
 | [SR-17](#sr-17) | Medium | A PR cut from this worktree with `git add -A` commits five lanes and an untracked logo | Open | Blocks PR merge |
-| [SR-19](#sr-19) | Medium | `data/` is an allowlist, so each new product file under it is tracked by default | Fixed in part | Blocks PR merge |
+| [SR-19](#sr-19) | Medium | `data/` is an allowlist, so each new product file under it is tracked by default | Fixed, 2026-09-23 (`/data/` ignored whole) | — |
+| [SR-75](#sr-75) | Medium | A cancelled Market run kept paying for model calls, and a failure after the cancel could stop the host | Fixed, not driven (2026-09-23) | Blocks Tencent deploy and the next Personal cut |
+| [SR-76](#sr-76) | Medium | Model-written finance figures reached the reader past the number guard three ways | Fixed, not driven (2026-09-23) | Blocks Tencent deploy and the next Personal cut |
+| [SR-77](#sr-77) | Medium | A "Start over" wipe that failed part-way deleted its own marker, so the rest never ran | Fixed, not driven (2026-09-23) | Blocks the next Personal cut |
 | [SR-01](#sr-01) | Low | `apps/portal/compose.yml` hardcodes `POSTGRES_PASSWORD: portal` | Accepted for dev only | Dev only |
 | [SR-07](#sr-07) | Low | The CSRF token is bound to the session id, so it stops verifying the moment a session changes | Open, lane C | Blocks PR merge |
 | [SR-09](#sr-09) | Low | The two billing variables were missing from `webapp-deploy/.env.example` | Fixed-unverified | Blocks Tencent deploy |
@@ -74,6 +86,8 @@ portal rows are fix pass X's.
 | [SR-41](#sr-41) | Low | A request body over the portal's 64 KB cap answered `500 internal_error` | Fixed-unverified, fix pass X | Dev only |
 | [SR-43](#sr-43) | Low | `auth_codes.state_hash` was stored and never verified, while code and docs called it a binding | Fixed-unverified, fix pass X | Blocks Tencent deploy |
 | [SR-44](#sr-44) | Low | `scripts/review-instance.ps1` seeded the literal Postgres password `portal` into `review.env` | Fixed-unverified, fix pass X | Dev only |
+| [SR-74](#sr-74) | Low | The Personal release published its notes without the banned-marks check | Fixed, not driven (2026-09-23) | Blocks the next Personal cut |
+| [SR-78](#sr-78) | Low | A failed "Start over" removal logged the absolute path of the file, the key file included | Fixed, not driven (2026-09-23) | Blocks the next Personal cut |
 | [SR-08](#sr-08) | Info | The portal token vault is process memory only | Accepted | Dev only |
 | [SR-15](#sr-15) | Info | Music relay: checked, not a key-exfiltration issue. It does send a spoofed browser `User-Agent` | Checked, not an issue | Dev only |
 | [SR-18](#sr-18) | Info | `X-Forwarded-Proto` and `X-Forwarded-For` trust: checked, sound as deployed today | Checked, not an issue | Blocks Tencent deploy on any topology change |
@@ -83,8 +97,9 @@ portal rows are fix pass X's.
 | [SR-38](#sr-38) | Info | Host and portal reason vocabularies differ in two places: checked, both deliberate | Checked, not an issue | Dev only |
 
 Status values: `open`, `fix in progress — lane X`, `fixed-unverified` (the code is in the tree and
-its test passes, nothing has been driven), `fixed`, `accepted for dev only`, `checked, not an
-issue`.
+its test passes, nothing has been driven), `fixed, not driven` (2026-09-23 rows: the code and its
+tests are in the tree, the row does not claim a test run, and nothing has been driven), `fixed`,
+`accepted for dev only`, `checked, not an issue`.
 
 ## High
 
@@ -953,7 +968,8 @@ Gate: blocks PR merge.
 
 ### SR-19 {#sr-19}
 
-**`data/` is an allowlist, so each new product file under it is tracked by default.** Fixed in part.
+**`data/` is an allowlist, so each new product file under it is tracked by default.** Fixed in part
+on 2026-09-21; fixed 2026-09-23.
 
 Evidence: `.gitignore:7-30` names individual paths under `data/`, not the directory. Probed with
 `git check-ignore`: `data/session.enc`, `data/meetings/m1/recording/source.webm` and
@@ -969,7 +985,15 @@ Required action: the three above are now ignored (`.gitignore:75-77`). The real 
 list, ignoring `data/` and un-ignoring whatever must be tracked, which is nothing today. That is a
 one-line change somebody should make deliberately rather than in a docs lane.
 
-Gate: blocks PR merge.
+**Fixed 2026-09-23.** The list is inverted. `.gitignore:14` is `/data/`, the whole directory, and
+both the per-name allowlist and the three lines added on 2026-09-21 are gone. The leading slash
+anchors it to the repo root, so a source folder named `data` anywhere else stays tracked; the comment
+above it (`:7-13`) says to switch to `/data/*` plus a `!/data/<name>` line if a file there ever has to
+be tracked. Checked on 2026-09-23 with `git check-ignore -v`: `data/session.enc`,
+`data/meetings/m1/recording/source.webm`, `data/components/x/y/f.node`, `data/agentforge.sqlite`,
+`data/.master-key` and an invented `data/something-new.json` all match `.gitignore:14`.
+
+Gate: none now. It blocked PR merge until this change.
 
 ### SR-42 {#sr-42}
 
@@ -1040,6 +1064,132 @@ reason classes and the timeout/cancel codes are pinned. Two cases in
 `ENOENT` and the stderr tail reached the caller) were rewritten to the new contract.
 
 Gate: **blocks Tencent deploy.** It is a hosted information disclosure reachable by any tenant.
+
+### SR-75 {#sr-75}
+
+**A cancelled Market run kept paying for model calls, and a call that failed after the cancel could
+stop the host.** Both products. Raised and fixed 2026-09-23.
+
+Evidence, as the flag was raised:
+
+- `withClientAbort` (`packages/host/src/market-generate.ts`) raced an already-started model call
+  against the client's abort and answered 499, but could not stop the call: the runtime took no
+  signal, so the gateway request ran to the end and was billed.
+- In a team run each seat's `catch` read that 499 as one more "unavailable" analyst, and the pipeline
+  went on through the other analysts, the debate, the risk read and the synthesis — every one a paid
+  call — for a client that had gone.
+- When the client had already left, `withClientAbort` threw before it ever observed the call it had
+  been handed, so that call's later failure was a rejection nothing handled. The hosted server
+  installs no `unhandledRejection` handler (none in `apps/web/server.ts` or `packages/host/src`), and
+  Node's default for one is to exit the process.
+
+What goes wrong if ignored: Cancel costs the tenant the full price of the run, and on the hosted
+server one cancelled team briefing whose socket then drops can stop the process for every tenant.
+
+**Fixed, not driven.**
+
+- The runtime takes the caller's signal (`packages/core/src/runtime/types.ts:66`). The live runtime
+  refuses to start a call once it has fired, forwards it into each call's own abort controller so the
+  request in flight is cancelled, starts no fallback or retry after it, and rejects with the signal's
+  reason instead of reporting `run.failed` (`linkCallerAbort`,
+  `packages/core/src/runtime/ai-sdk-runtime.ts:137-148`, used at `:632`; the checks at `:182`, `:457`,
+  `:465`). The stub runtime keeps the same contract (`packages/core/src/runtime/stub-runtime.ts:40`,
+  `:49`). A call the gateway had already finished still completes, so its usage is recorded.
+- The job runner passes the signal on and never starts the model fallback's stand-in after a cancel,
+  nor marks the model down for it (`packages/host/src/job-regen.ts:158`, `:202`, `:219`).
+- `withClientAbort` takes a function, so a run whose client has left never starts the paid call, and
+  it races the call so a late answer is dropped and a late failure is observed
+  (`market-generate.ts:219-237`). Market hands the run's signal to every call (`:388`, `:441`).
+- A team seat rethrows a cancel instead of degrading it, and the pipeline stops at the stage it lands
+  in (`isCancelled`, `packages/host/src/market-team.ts:123`; `:312-318`).
+
+Tests: `packages/host/src/market-generate.test.ts` "withClientAbort" (5, two of them with an
+`unhandledRejection` listener that must stay empty) and "hands the run's signal to the model call, so
+a cancel aborts the request in flight"; `packages/host/src/market-team.test.ts` "stops the whole team
+when the client leaves during %s" (three stages) and "leaves nothing to reject unhandled when the
+abandoned call fails after the client left"; `packages/core/src/runtime/ai-sdk-runtime.test.ts`,
+`packages/core/src/runtime/stub-runtime.test.ts`. Map: [`maps/market-watch.md`](maps/market-watch.md).
+
+Gate: **blocks Tencent deploy and the next Personal cut.**
+
+### SR-76 {#sr-76}
+
+**Model-written finance figures reached the reader past the number guard three ways.** Both
+products. Raised and fixed 2026-09-23.
+
+The rule this guard exists for: figures are computed in core, and the model names categories and
+writes the narrative but never produces an amount (AGENTS.md, Finance). Evidence, as the flag was
+raised:
+
+1. **Outside the section bodies.** `buildFinanceBrief` and the Finance tasks' `guardNarration` guarded
+   each section's body only. The title, every heading and every assumption are model prose too, read
+   first, and went out unguarded.
+2. **The regenerate.** `regenerateFinanceSection` guarded the rewritten section but skipped the repair
+   a generate runs, so the reader saw the literal `[unverified figure]` marker where the figure had
+   been.
+3. **The guard's own exemptions.** `isFreeNumber` passed any unit-less integer from 1900 to 2100 as a
+   year and any up to 12 as a count, judged on the parsed value. "$2,000", "2k" and "Rp 1.950" all
+   parse to integers in the year range, and "12.0" to a count, so an invented amount in any of those
+   shapes passed.
+
+What goes wrong if ignored: a finance deliverable states an amount no input or computation produced,
+in the places a reader trusts most — or shows them a marker instead of a figure.
+
+**Fixed, not driven.**
+
+- Only a bare one- or two-digit count up to 12, or a bare four-digit year, is free. A currency mark,
+  scale, sign, separator or decimal makes it an amount that must trace (`BARE_COUNT` / `BARE_YEAR`,
+  `packages/core/src/finance/number-guard.ts:23-24`; `isFreeNumber`, `:143`).
+- Titles, headings and assumptions are guarded in both paths. A title stating an untraced figure is
+  replaced whole, by the default or, for a task, by the reader's own question; a heading loses the
+  figure and keeps its words; an assumption resting on one is dropped and counted as a removed
+  sentence. The marker is never left in any of them (`guardLabel`, `guardTitle`, `guardAssumptions`,
+  `packages/host/src/finance-brief-build.ts:121`, `:140`, `:149`; `buildFinanceBrief`, `:191`;
+  `guardNarration`, `packages/host/src/finance-tasks/narrate.ts:124`; the removed count carried
+  through at `packages/host/src/finance-generate.ts:246` and `packages/host/src/finance-tasks/runner.ts:193`).
+- A section regenerate runs the same repair a generate does — one rewrite of what the guard blanked,
+  then the sentence goes — and keeps the section it was asked to replace when nothing traceable is
+  left (`packages/host/src/finance-generate.ts:367-378`).
+
+Tests: `packages/core/src/finance/number-guard.test.ts` "frees only a bare year or a bare small
+count, never a written amount"; `packages/host/src/finance-brief-build.test.ts` and
+`packages/host/src/finance-tasks/narrate.test.ts` "guards the title, every heading and every
+assumption, and never leaves the marker in them"; `packages/host/src/finance-generate.test.ts`
+"rewrites a blanked figure once, the same repair a generate runs, and ships no marker", "takes the
+sentence out when the rewrite invents again, and counts it", "keeps the section it was asked to
+replace when nothing traceable is left of the rewrite". Maps:
+[`maps/finance-parse-and-generate.md`](maps/finance-parse-and-generate.md),
+[`maps/finance-tasks.md`](maps/finance-tasks.md).
+
+Gate: **blocks Tencent deploy and the next Personal cut.**
+
+### SR-77 {#sr-77}
+
+**A "Start over" wipe that failed part-way deleted its own marker, so the rest of it never ran.**
+Personal (webdev runs the same boot step). Raised and fixed 2026-09-23.
+
+Evidence, as the flag was raised: `applyPendingDataReset` (`packages/db/src/reset.ts`) removed each
+entry, logged a removal that failed, and then always called `dropMarker` and reported
+`applied: true`. On Windows a file another process still holds open fails with `EBUSY` or `EPERM`,
+so a wipe the owner had confirmed could leave `.master-key`, `settings.enc` or the database behind,
+with nothing left to retry it and nothing on screen to say so.
+
+What goes wrong if ignored: "Start over" is the owner's erase. Leaving the key and the sealed
+settings behind after reporting success is the one outcome that button may not have.
+
+**Fixed, not driven.** A removal that fails keeps the marker, rewritten to name only what is still
+owed, and the next launch retries it (`keepForRetry`, `packages/db/src/reset.ts:276`;
+`applyPendingDataReset`, `:296`, the branch at `:332-337`). The database goes back on the list only
+when part of it is what failed: once it is gone the app opens a fresh one on the same boot, and a
+retry must not delete that (`database`, `:40`). `applied` is true only when everything went. The boot
+line says whether Start over is finished (`resetOutcomeSummary`, `:345`, logged from
+`packages/db/src/client.ts:38-46`).
+
+Tests: `packages/db/src/reset-retry.test.ts` (7). Map:
+[`maps/settings-and-gateway-gate.md`](maps/settings-and-gateway-gate.md).
+
+Gate: **blocks the next Personal cut.** A packaged Windows drive of Start over is already owed
+([`unreleased.md`](unreleased.md)).
 
 ## Low
 
@@ -1459,6 +1609,63 @@ probe is a plain docker call, outside Invoke-Compose", "Initialize-ReviewEnv fil
 missing".
 
 Gate: dev only.
+
+### SR-74 {#sr-74}
+
+**The Personal release published its notes without the banned-marks check, and its `docs/internal`
+guard was case-sensitive.** Personal. Raised and fixed 2026-09-23.
+
+Evidence, as the flag was raised: `apps/desktop/scripts/release-desktop.mjs` checked a `--notes` path
+with `join(flags.notes).includes(join("docs", "internal"))`. That is case-sensitive, so
+`Docs\Internal\x.md`, which opens the same file on Windows and on a default macOS volume, passed; and
+the default `docs/public/<version>-notes.md` was never read for AI or agent marks at all.
+`scripts/release-web.mjs` had that check for the Enterprise repo; the Personal repo had none.
+AGENTS.md ("Three repos") requires both public repos to carry no AI or agent marks and no
+`docs/internal` notes.
+
+What goes wrong if ignored: an internal changelog, or a line naming the tooling, is published on
+`Kyoo032/DPSBuddy`'s release page.
+
+**Fixed, not driven.** Both release scripts share one refusal list and matcher, `scripts/release-marks.mjs`
+(`FORBIDDEN_MARKS`, `:13`; `forbiddenMarksIn`, `:16`; `isInternalDocsPath`, `:28`, which resolves the
+path and compares it in any letter case and with either separator). `release-desktop.mjs` checks every
+notes file against it, `--notes` or the default, refuses one reached through a link that lands in
+`docs/internal`, and hands `gh` the absolute path of the file it checked (`checkedNotesFile`,
+`apps/desktop/scripts/release-desktop.mjs:200-209`). The check runs before anything is hashed or
+staged (`:276`, `:309`). `release-web.mjs` re-exports the shared list, so its API is unchanged
+(`scripts/release-web.mjs:47-51`).
+
+Tests: `scripts/release-web.test.mjs` "both release scripts share one refusal list", "a docs/internal
+path is caught in any letter case, with either separator, and through ..", "the desktop release
+refuses notes that carry a mark, and names the marks", "the desktop release refuses notes under
+docs/internal in any letter case", "the desktop release hands gh the checked notes file by its
+absolute path".
+
+Gate: **blocks the next Personal cut.** A `--dry-run` against the real notes file is the drive.
+
+### SR-78 {#sr-78}
+
+**A failed "Start over" removal logged the absolute path of the file, the key file included.**
+Personal (webdev runs the same boot step). Raised and fixed 2026-09-23.
+
+Evidence, as the flag was raised: `removeEntry` logged `error.message` for a removal that failed, and
+Node puts the absolute path in that message (`EBUSY: resource busy or locked, unlink '…'`). The
+entries include `.master-key` and `settings.enc`, and the path names the person's home folder.
+
+What goes wrong if ignored: a support log pasted into a ticket carries a user name and the location
+of the wrap key.
+
+**Fixed, not driven.** A failed entry is logged by its relative name and its error code only
+(`errorCode`, `packages/db/src/reset.ts:153`; the line at `:201`), and the boot summary is counts only
+(`resetOutcomeSummary`, `:345`, logged from `packages/db/src/client.ts:40-45`). **Still true:** the
+branch that removes a database kept outside the data dir logs `error.message`, so that database's
+absolute path, when inspecting or removing it fails (`:245-246`, `:260-261`). That path is a
+database file's, not a key file's.
+
+Tests: `packages/db/src/reset-retry.test.ts` "says which entry it could not remove, and why, without
+the path of the file"; "resetOutcomeSummary".
+
+Gate: **blocks the next Personal cut.**
 
 ## Info and checked-not-an-issue
 

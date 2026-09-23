@@ -45,8 +45,11 @@ import { log } from "./log";
 
 export type BriefingDraft = { title: string; sections: BriefingSection[] };
 
+/** The section index a flag carries when its figure sat in the title rather than in a section. */
+export const MARKET_GUARD_TITLE = -1;
+
 export type MarketGuardReport = {
-  /** Section index -> figures that did not trace back to the packet. */
+  /** Section index -> figures that did not trace back to the packet; the title's use `MARKET_GUARD_TITLE`. */
   flagged: Array<{ section: number; text: string }>;
   total: number;
   /** Sentences (and headings or titles) the advice guard replaced with the marker. */
@@ -121,9 +124,12 @@ export function parseBriefingSection(raw: string): BriefingSection {
  * Period labels the packet and the reader use. "1m" would otherwise parse as
  * one million. A currency sign or digit in front ("$1m", "26m") keeps it a figure.
  */
-/** Period labels and clock times (09:39 ET, 20:39 WIB) are not figures; blanked before the guard runs. */
+/**
+ * Period labels, clock times (09:39 ET, 20:39 WIB) and the time window a desk looks over ("Katalis
+ * 24-48 Jam", "the next 72 hours", "30 hari") are not figures; blanked before the guard runs.
+ */
 export const PERIOD_LABEL =
-  /(?<![$€£\d.,])\b(1d|5d|1w|1m|3m|6m|1y|52w|52[- ]?(?:week|wk|minggu)|\d{1,2}:\d{2}(?::\d{2})?)\b/gi;
+  /(?<![$€£\d.,])\b(1d|5d|1w|1m|3m|6m|1y|52w|52[- ]?(?:week|wk|minggu)|\d{1,2}:\d{2}(?::\d{2})?|\d{1,3}(?:\s?[-–]\s?\d{1,3})?\s?(?:jam|hours?|hrs?|hari|days?))\b/gi;
 /** Private-use character: carries no digits, so the guard never reads it. */
 const PERIOD_SENTINEL = "\uE000";
 const PERIOD_SENTINELS = /\uE000+/;
@@ -143,16 +149,20 @@ export function guardNumbersSkippingPeriods(body: string, allowed: readonly numb
   return { ...result, text: restored };
 }
 
-/** Number guard then advice guard over body; advice guard over the heading. Returns new objects. */
+/**
+ * Number guard then advice guard over body and heading alike: a price target in a heading is read
+ * before the body under it. Returns new objects.
+ */
 export function guardBriefingSection(section: BriefingSection, allowed: readonly number[]): GuardedSection {
   const numbers = guardNumbersSkippingPeriods(section.body, allowed);
   const body = guardAdviceInText(numbers.text);
+  const headingNumbers = guardNumbersSkippingPeriods(section.heading, allowed);
   const heading = ADVICE_PATTERN.test(section.heading)
     ? { text: ADVICE_MARKER, replaced: 1 }
-    : { text: section.heading, replaced: 0 };
+    : { text: headingNumbers.text, replaced: 0 };
   return {
     section: { heading: heading.text, body: body.text },
-    flagged: numbers.flagged.map((token) => token.text),
+    flagged: [...headingNumbers.flagged, ...numbers.flagged].map((token) => token.text),
     adviceReplaced: body.replaced + heading.replaced,
   };
 }
@@ -212,11 +222,23 @@ export function defaultBriefingTitle(packet: MarketWatchPacket): string {
   return `Market briefing: ${shown}${more}`.trim();
 }
 
-function guardedTitle(title: string, fallback: string): { text: string; replaced: number } {
+/**
+ * The model's title, or the symbol title in its place when it is empty, directive, or states a figure
+ * the packet does not carry — the same fallback for all three, so no guarded title ships a marker.
+ */
+function guardedTitle(
+  title: string,
+  fallback: string,
+  allowed: readonly number[],
+): { text: string; replaced: number; flagged: string[] } {
   if (!title) {
-    return { text: fallback, replaced: 0 };
+    return { text: fallback, replaced: 0, flagged: [] };
   }
-  return ADVICE_PATTERN.test(title) ? { text: fallback, replaced: 1 } : { text: title, replaced: 0 };
+  const flagged = guardNumbersSkippingPeriods(title, allowed).flagged.map((token) => token.text);
+  if (ADVICE_PATTERN.test(title)) {
+    return { text: fallback, replaced: 1, flagged };
+  }
+  return { text: flagged.length === 0 ? title : fallback, replaced: 0, flagged };
 }
 
 export type BuildBriefingInput = {
@@ -237,8 +259,11 @@ export function buildMarketBriefing(
 ): { briefing: MarketBriefing; guard: MarketGuardReport } {
   const allowed = allowedNumbers(packet);
   const guarded = draft.sections.map((section) => guardBriefingSection(section, allowed));
-  const title = guardedTitle(draft.title, defaultBriefingTitle(packet));
-  const flagged = guarded.flatMap((entry, index) => entry.flagged.map((token) => ({ section: index, text: token })));
+  const title = guardedTitle(draft.title, defaultBriefingTitle(packet), allowed);
+  const flagged = [
+    ...title.flagged.map((token) => ({ section: MARKET_GUARD_TITLE, text: token })),
+    ...guarded.flatMap((entry, index) => entry.flagged.map((token) => ({ section: index, text: token }))),
+  ];
   const adviceReplaced = guarded.reduce((sum, entry) => sum + entry.adviceReplaced, title.replaced);
   const briefing = marketBriefingSchema.parse({
     title: title.text,

@@ -16,6 +16,7 @@ import {
   parseGatewayBlocked,
   parseGatewayGate,
   type GatewayGatePayload,
+  type GatewayGateStatus,
 } from "@/lib/gateway-gate";
 import { applyLocale, getLocale, LOCALE_RESTART_EVENT, t } from "@/lib/i18n";
 import { isAppLocale, parseAppLocale, type AppLocale } from "@agentforge/core/locale";
@@ -39,6 +40,81 @@ const fieldClass =
 
 function runtimeStatusLabel(mode: "ai" | "stub"): string {
   return mode === "ai" ? t("settings.runtimeLive") : t("settings.runtimeStub");
+}
+
+/** What `/api/v1/settings` (and `apply-locale`) answer with. Every field is optional on the wire. */
+export type SettingsPayload = {
+  hasOpenai?: boolean;
+  hasGoogle?: boolean;
+  hasAnthropic?: boolean;
+  hasVolcengine?: boolean;
+  openaiKeyFingerprint?: string | null;
+  runtime?: string;
+  gateway?: unknown;
+  googleBaseUrl?: string;
+  anthropicBaseUrl?: string;
+  volcengineBaseUrl?: string;
+  probe?: Probe;
+  toolBackends?: Record<string, string>;
+  imageGenModel?: string;
+  videoGenModel?: string;
+  documentGenModel?: string;
+  researchGenModel?: string;
+  presentationGenModel?: string;
+  editTurnCapUsd?: number;
+  disabledTools?: string[];
+  injectionGuardBypass?: boolean;
+  defaults?: {
+    image?: string;
+    video?: string;
+    documents?: string;
+    research?: string;
+    presentations?: string;
+  };
+  usage?: AccountUsage;
+  locale?: string;
+  savedLocale?: string;
+  resetPending?: boolean;
+};
+
+/** One settings request's outcome: the payload, a closed gateway gate, or the sentence to show. */
+export type SettingsAnswer =
+  | { kind: "ok"; payload: SettingsPayload }
+  | { kind: "blocked"; status: GatewayGateStatus }
+  | { kind: "failed"; message: string };
+
+type SettingsFailureKey = "settings.loadFailed" | "settings.saveFailed" | "settings.localeFailed";
+
+function hostErrorMessage(body: unknown): string | null {
+  const error = body && typeof body === "object" ? (body as { error?: unknown }).error : undefined;
+  const message = error && typeof error === "object" ? (error as { message?: unknown }).message : undefined;
+  return typeof message === "string" && message.trim() ? message.trim() : null;
+}
+
+/**
+ * Send one settings request and read its answer. Never throws: a request that did not come back, a
+ * non-JSON error page and an error body all become `failed`, with the host's own message when it
+ * sent one and the catalog's `fallbackKey` otherwise. Only a settings object is ever `ok`.
+ */
+export async function readSettingsAnswer(
+  request: () => Promise<Response>,
+  fallbackKey: SettingsFailureKey,
+): Promise<SettingsAnswer> {
+  let res: Response;
+  try {
+    res = await request();
+  } catch {
+    return { kind: "failed", message: t(fallbackKey) };
+  }
+  const body: unknown = await res.json().catch(() => null);
+  const blocked = parseGatewayBlocked(body);
+  if (blocked) {
+    return { kind: "blocked", status: blocked.status };
+  }
+  if (!res.ok || !body || typeof body !== "object" || Array.isArray(body) || (body as { error?: unknown }).error) {
+    return { kind: "failed", message: hostErrorMessage(body) ?? t(fallbackKey) };
+  }
+  return { kind: "ok", payload: body as SettingsPayload };
 }
 
 export function SettingsPage() {
@@ -79,6 +155,9 @@ export function SettingsPage() {
   const [locale, setLocale] = useState<AppLocale>("en");
   const [savedLocale, setSavedLocale] = useState<AppLocale>("en");
   const [localeBusy, setLocaleBusy] = useState(false);
+  const [localeSaving, setLocaleSaving] = useState(false);
+  const [localeError, setLocaleError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   // A queued wipe the host will apply on the next launch; the reset card offers to call it off.
   const [resetPending, setResetPending] = useState(false);
 
@@ -88,39 +167,7 @@ export function SettingsPage() {
   const gatewayLastOkAt = formatGateTimestamp(gateway?.lastOkAt, getLocale());
   const gatewayReason = gatewayReasonKey(gateway?.status);
 
-  function applyPayload(payload: {
-    hasOpenai?: boolean;
-    hasGoogle?: boolean;
-    hasAnthropic?: boolean;
-    hasVolcengine?: boolean;
-    openaiKeyFingerprint?: string | null;
-    runtime?: string;
-    gateway?: unknown;
-    googleBaseUrl?: string;
-    anthropicBaseUrl?: string;
-    volcengineBaseUrl?: string;
-    probe?: Probe;
-    toolBackends?: Record<string, string>;
-    imageGenModel?: string;
-    videoGenModel?: string;
-    documentGenModel?: string;
-    researchGenModel?: string;
-    presentationGenModel?: string;
-    editTurnCapUsd?: number;
-    disabledTools?: string[];
-    injectionGuardBypass?: boolean;
-    defaults?: {
-      image?: string;
-      video?: string;
-      documents?: string;
-      research?: string;
-      presentations?: string;
-    };
-    usage?: AccountUsage;
-    locale?: string;
-    savedLocale?: string;
-    resetPending?: boolean;
-  }) {
+  function applyPayload(payload: SettingsPayload) {
     setHasOpenai(Boolean(payload.hasOpenai));
     setHasGoogle(Boolean(payload.hasGoogle));
     setHasAnthropic(Boolean(payload.hasAnthropic));
@@ -179,10 +226,30 @@ export function SettingsPage() {
     setResetPending(payload.resetPending === true);
   }
 
+  /** The sentence for an answer that did not land: a closed gate names its reason. */
+  function answerError(answer: Exclude<SettingsAnswer, { kind: "ok" }>): string {
+    return answer.kind === "blocked"
+      ? t(gatewayReasonKey(answer.status) ?? "onboarding.gate.error", { gatewayName })
+      : answer.message;
+  }
+
   useEffect(() => {
-    void apiFetch("/api/v1/settings")
-      .then((res) => res.json())
-      .then(applyPayload);
+    let cancelled = false;
+    // A failed first load used to leave the defaults on screen as if they were this desk's settings.
+    void readSettingsAnswer(() => apiFetch("/api/v1/settings"), "settings.loadFailed").then((answer) => {
+      if (cancelled) {
+        return;
+      }
+      if (answer.kind === "ok") {
+        setLoadError(null);
+        applyPayload(answer.payload);
+        return;
+      }
+      setLoadError(answer.kind === "failed" ? answer.message : t("settings.loadFailed"));
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function onSubmit(event: React.FormEvent) {
@@ -190,52 +257,67 @@ export function SettingsPage() {
     setError(null);
     setMessage(null);
     setBusy(true);
-    // The endpoint is pinned by the host; never send it back.
-    const saved = await apiFetch("/api/v1/settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        openaiApiKey,
-        editTurnCapUsd,
-      }),
-    }).then((res) => res.json());
-    setBusy(false);
-    const blocked = parseGatewayBlocked(saved);
-    if (blocked) {
-      setError(t(gatewayReasonKey(blocked.status) ?? "onboarding.gate.error", { gatewayName }));
-      return;
+    try {
+      // The endpoint is pinned by the host; never send it back.
+      const answer = await readSettingsAnswer(
+        () =>
+          apiFetch("/api/v1/settings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              openaiApiKey,
+              editTurnCapUsd,
+            }),
+          }),
+        "settings.saveFailed",
+      );
+      if (answer.kind !== "ok") {
+        setError(answerError(answer));
+        return;
+      }
+      setOpenaiApiKey("");
+      setGoogleApiKey("");
+      setAnthropicApiKey("");
+      setVolcengineApiKey("");
+      setTavilyKey("");
+      setBraveKey("");
+      setFalKey("");
+      applyPayload(answer.payload);
+      setLoadError(null);
+      setMessage(t("settings.saved"));
+    } finally {
+      setBusy(false);
     }
-    if (saved.error) {
-      setError(saved.error.message);
-      return;
-    }
-    setOpenaiApiKey("");
-    setGoogleApiKey("");
-    setAnthropicApiKey("");
-    setVolcengineApiKey("");
-    setTavilyKey("");
-    setBraveKey("");
-    setFalKey("");
-    applyPayload(saved);
-    setMessage(t("settings.saved"));
   }
 
   async function onLocaleChange(next: string) {
-    if (!isAppLocale(next)) {
+    if (!isAppLocale(next) || localeSaving) {
       return;
     }
+    // The select shows the choice while it saves, and goes back if the save does not land.
+    const previous = savedLocale;
     setSavedLocale(next);
-    setError(null);
-    const saved = await apiFetch("/api/v1/settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ locale: next }),
-    }).then((res) => res.json());
-    if (saved.error) {
-      setError(saved.error.message);
-      return;
+    setLocaleError(null);
+    setLocaleSaving(true);
+    try {
+      const answer = await readSettingsAnswer(
+        () =>
+          apiFetch("/api/v1/settings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ locale: next }),
+          }),
+        "settings.localeFailed",
+      );
+      if (answer.kind !== "ok") {
+        setSavedLocale(previous);
+        setLocaleError(answerError(answer));
+        return;
+      }
+      applyPayload(answer.payload);
+    } finally {
+      setLocaleSaving(false);
     }
-    applyPayload(saved);
   }
 
   async function onRecheckGateway() {
@@ -257,16 +339,19 @@ export function SettingsPage() {
   }
 
   async function onRestart() {
-    setError(null);
+    setLocaleError(null);
     setLocaleBusy(true);
     try {
-      const applied = await apiFetch("/api/v1/settings/apply-locale", { method: "POST" }).then((res) => res.json());
-      if (applied.error) {
-        setError(applied.error.message);
+      const answer = await readSettingsAnswer(
+        () => apiFetch("/api/v1/settings/apply-locale", { method: "POST" }),
+        "settings.localeFailed",
+      );
+      if (answer.kind !== "ok") {
+        setLocaleError(answerError(answer));
         return;
       }
-      applyPayload(applied);
-      applyLocale(applied.locale);
+      applyPayload(answer.payload);
+      applyLocale(answer.payload.locale);
       // A refused relaunch (installing an update, already quitting, webdev) must still reach the
       // in-app restart notice, or the language change would look like it did nothing.
       const relaunched = await relaunchDesktopApp();
@@ -289,6 +374,12 @@ export function SettingsPage() {
           gatewayHost: gatewayHostLabel(gatewayEndpoint),
         })}
       </p>
+
+      {loadError ? (
+        <p className="mt-3 text-sm text-[var(--danger)]" role="alert" data-testid="settings-load-error">
+          {loadError}
+        </p>
+      ) : null}
 
       <p className="mt-3 text-sm text-[var(--text-3)]" data-testid="runtime-status">
         {t("settings.status", {
@@ -313,6 +404,7 @@ export function SettingsPage() {
             className={fieldClass}
             value={savedLocale}
             onChange={(event) => void onLocaleChange(event.target.value)}
+            disabled={localeSaving}
             data-testid="settings-locale"
           >
             <option value="en">{t("common.english")}</option>
@@ -320,6 +412,11 @@ export function SettingsPage() {
           </select>
         </label>
         <p className="text-xs text-[var(--text-3)]">{t("settings.languageHelp")}</p>
+        {localeError ? (
+          <p className="text-sm text-[var(--danger)]" role="alert" data-testid="settings-locale-error">
+            {localeError}
+          </p>
+        ) : null}
         {savedLocale !== locale ? (
           <div className="space-y-2" data-testid="settings-locale-restart">
             <p className="text-sm text-[var(--text-2)]">{t("common.restartHint")}</p>
@@ -404,7 +501,11 @@ export function SettingsPage() {
               {t("settings.fingerprint", { fingerprint: openaiKeyFingerprint })}
             </p>
           ) : null}
-          {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
+          {error ? (
+            <p className="text-sm text-[var(--danger)]" role="alert" data-testid="settings-error">
+              {error}
+            </p>
+          ) : null}
           {message ? <p className="text-sm text-[var(--text-2)]">{message}</p> : null}
           <UsagePanel usage={usage} />
           <div className="flex flex-wrap gap-3">

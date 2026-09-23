@@ -38,7 +38,13 @@ import {
 } from "@agentforge/core/market";
 import { artifactStore, type ArtifactStore } from "./artifacts";
 import { artifactWorkCard } from "./work-cards";
-import { appendRegenInstruction, collectJobAssistantText, readOptionalInstruction } from "./job-regen";
+import {
+  appendRegenInstruction,
+  collectJobAssistantRun,
+  readModelPinned,
+  readOptionalInstruction,
+  type JobAssistantRun,
+} from "./job-regen";
 import { throwIfJobAborted } from "./job-stream";
 import {
   allowedNumbers,
@@ -119,8 +125,18 @@ export type MarketRegenerateResult = {
   guard: MarketGuardReport;
 };
 
-export type AskOptions = Parameters<typeof collectJobAssistantText>[0];
-export type AskFn = (options: AskOptions) => Promise<string>;
+export type AskOptions = Parameters<typeof collectJobAssistantRun>[0];
+/**
+ * One model call. The default answers with the run: the text and the model that wrote it, which is
+ * the stand-in after a fallback. A bare string (a test fake) reads as the requested model answering.
+ */
+export type AskFn = (options: AskOptions) => Promise<string | JobAssistantRun>;
+
+type Answer = Pick<JobAssistantRun, "text" | "model">;
+
+function answerOf(reply: string | JobAssistantRun, asked: string): Answer {
+  return typeof reply === "string" ? { text: reply, model: asked } : { text: reply.text, model: reply.model };
+}
 
 export type MarketGenerateDeps = {
   db?: () => Database.Database | Promise<Database.Database>;
@@ -141,7 +157,7 @@ const NO_EMIT: JobEmitter = () => {};
 
 const defaultAsk: AskFn = (options) => {
   ensureToolsRegistered();
-  return collectJobAssistantText(options);
+  return collectJobAssistantRun(options);
 };
 
 function resolveDeps(deps: MarketGenerateDeps): Resolved {
@@ -192,17 +208,32 @@ function resolveModel(requested: string | undefined, settings: ReturnType<typeof
   return resolveChatModel(wanted, settings.documentGenModel || defaults.market, listSelectableModels());
 }
 
-/** Reject with 499 the moment the client leaves; the gateway call itself cannot be cancelled from here. */
-export function withClientAbort<T>(work: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
-  if (!signal) {
-    return work;
-  }
+/**
+ * Start `work` only while the client is still there, and reject with 499 the moment it leaves.
+ *
+ * `work` is a thunk so a run whose client already left never starts the paid call. The model calls
+ * hand the same signal to the runtime (`signal` on the ask), which aborts the request in flight;
+ * this race is what answers 499 at once whatever `work` does with it, and `Promise.race` observes
+ * `work`, which drops a late answer and keeps a late failure from rejecting unhandled.
+ */
+export async function withClientAbort<T>(work: () => Promise<T>, signal: AbortSignal | undefined): Promise<T> {
   throwIfJobAborted(signal);
-  return new Promise<T>((resolve, reject) => {
-    const onAbort = () => reject(new ApiError("aborted", "Job cancelled", 499));
-    signal.addEventListener("abort", onAbort, { once: true });
-    work.then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
+  if (!signal) {
+    return work();
+  }
+  let onAbort = () => {};
+  const left = new Promise<never>((_, reject) => {
+    onAbort = () => reject(new ApiError("aborted", "Job cancelled", 499));
   });
+  // Observed here as well as by the race, in case `work()` throws before the race is reached.
+  left.catch(() => {});
+  // Listening before the call starts, so a client that leaves while it is being set up still wins.
+  signal.addEventListener("abort", onAbort, { once: true });
+  try {
+    return await Promise.race([work(), left]);
+  } finally {
+    signal.removeEventListener("abort", onAbort);
+  }
 }
 
 /**
@@ -272,6 +303,8 @@ type WatchRun = {
   tenant: TenantContext;
   request: MarketWatchRequest;
   model: string;
+  /** The person picked `model` (`modelPinned`): a failure is then the answer, never a stand-in. */
+  modelExplicit: boolean;
   resolved: Resolved;
   emit: JobEmitter;
   abortSignal: AbortSignal | undefined;
@@ -290,6 +323,9 @@ type VerifiedBriefing = { briefing: MarketBriefing; guard: MarketGuardReport };
 /** What the team stage produced, or nothing at all when the run was `quick`. */
 type TeamOutcome = { notes?: TeamNotes; failures: string[] };
 const NO_TEAM: TeamOutcome = { failures: [] };
+
+/** The draft and the model that wrote it: after a fallback that is the stand-in, and it is what gets recorded. */
+type Drafted = { raw: string; answeredBy: string };
 
 /**
  * Emit "Still drafting… <n>s" every `DRAFTING_HEARTBEAT_MS` until the returned
@@ -337,39 +373,43 @@ async function loadPacket(run: WatchRun): Promise<LoadedPacket> {
 }
 
 /** The model writes the briefing over the packet; a heartbeat step keeps the progress list alive meanwhile. */
-async function draftBriefing(run: WatchRun, packet: MarketWatchPacket): Promise<string> {
-  const { tenant, request, model, resolved, emit, abortSignal } = run;
+async function draftBriefing(run: WatchRun, packet: MarketWatchPacket): Promise<Drafted> {
+  const { tenant, request, model, modelExplicit, resolved, emit, abortSignal } = run;
   emit({ type: "job.phase", phase: "drafting", label: "Drafting the briefing" });
   const stopHeartbeat = startDraftingHeartbeat(emit);
-  let raw: string;
+  let answer: Answer;
   try {
-    raw = await withClientAbort(
-      resolved.ask({
-        tenant,
-        model,
-        systemPrompt: buildWatchSystemPrompt({
-          language: request.language,
-          maxChars: request.maxChars,
-          clockNote: packet.clock.note,
-          specialist: request.specialist,
+    const reply = await withClientAbort(
+      () =>
+        resolved.ask({
+          tenant,
+          model,
+          modelExplicit,
+          signal: abortSignal,
+          systemPrompt: buildWatchSystemPrompt({
+            language: request.language,
+            maxChars: request.maxChars,
+            clockNote: packet.clock.note,
+            specialist: request.specialist,
+          }),
+          runPrefix: "market",
+          agentId: "market",
+          jobMode: "market",
+          versionId: "market-briefing",
+          prompt: briefingPrompt(packet, request.prompt, request.specialist),
+          toolKeys: toolKeysFor(request.specialist, resolved.webReady()),
+          streamWatchdog: MARKET_STREAM_WATCHDOG,
         }),
-        runPrefix: "market",
-        agentId: "market",
-        jobMode: "market",
-        versionId: "market-briefing",
-        prompt: briefingPrompt(packet, request.prompt, request.specialist),
-        toolKeys: toolKeysFor(request.specialist, resolved.webReady()),
-        streamWatchdog: MARKET_STREAM_WATCHDOG,
-      }),
       abortSignal,
     );
+    answer = answerOf(reply, model);
   } finally {
     stopHeartbeat();
   }
-  if (!raw.trim()) {
+  if (!answer.text.trim()) {
     throw new ApiError("generation_failed", modeMessage("emptyMarketBriefing", localeForRun()), 502);
   }
-  return raw;
+  return { raw: answer.text, answeredBy: answer.model };
 }
 
 /**
@@ -380,30 +420,40 @@ async function draftBriefing(run: WatchRun, packet: MarketWatchPacket): Promise<
  * elliott-wave) cannot run a team, so the run falls back to the quick draft and
  * says so in `failures` rather than refusing the request.
  */
-async function draftWithTeam(run: WatchRun, packet: MarketWatchPacket): Promise<{ raw: string; team: TeamOutcome }> {
-  const { tenant, request, model, resolved, emit, abortSignal } = run;
+async function draftWithTeam(run: WatchRun, packet: MarketWatchPacket): Promise<Drafted & { team: TeamOutcome }> {
+  const { tenant, request, model, modelExplicit, resolved, emit, abortSignal } = run;
   if (!teamAvailable(request.specialist)) {
     return {
-      raw: await draftBriefing(run, packet),
+      ...(await draftBriefing(run, packet)),
       team: { failures: [`team: the ${request.specialist} desk has no analyst team; wrote a quick briefing instead`] },
     };
   }
-  const ask: TeamAsk = (call) =>
-    withClientAbort(
-      resolved.ask({
-        tenant,
-        model,
-        systemPrompt: call.systemPrompt,
-        runPrefix: "market-team",
-        agentId: "market",
-        jobMode: "market",
-        versionId: call.versionId,
-        prompt: call.prompt,
-        toolKeys: call.toolKeys,
-        streamWatchdog: MARKET_STREAM_WATCHDOG,
-      }),
+  // The pipeline's last call is the editor's synthesis, which is the briefing: the model that
+  // answered last is the one the artifact names.
+  let answeredBy = model;
+  const ask: TeamAsk = async (call) => {
+    const reply = await withClientAbort(
+      () =>
+        resolved.ask({
+          tenant,
+          model,
+          modelExplicit,
+          signal: abortSignal,
+          systemPrompt: call.systemPrompt,
+          runPrefix: "market-team",
+          agentId: "market",
+          jobMode: "market",
+          versionId: call.versionId,
+          prompt: call.prompt,
+          toolKeys: call.toolKeys,
+          streamWatchdog: MARKET_STREAM_WATCHDOG,
+        }),
       abortSignal,
     );
+    const answer = answerOf(reply, model);
+    answeredBy = answer.model;
+    return answer.text;
+  };
   const result = await runTeamPipeline({
     packet,
     specialist: request.specialist,
@@ -423,7 +473,7 @@ async function draftWithTeam(run: WatchRun, packet: MarketWatchPacket): Promise<
     throw new ApiError("generation_failed", modeMessage("emptyMarketBriefing", localeForRun()), 502);
   }
   emit({ type: "job.step", phase: "synthesis", label: `${result.calls}/${TEAM_MAX_CALLS} model calls` });
-  return { raw: result.raw, team: { notes: result.notes, failures: result.failures } };
+  return { raw: result.raw, answeredBy, team: { notes: result.notes, failures: result.failures } };
 }
 
 /** Parse the draft and run both guards (numbers, advice) on every section and on the stored team notes. */
@@ -459,8 +509,9 @@ async function saveBriefing(
   run: WatchRun,
   verified: VerifiedBriefing,
   loaded: LoadedPacket,
+  answeredBy: string,
 ): Promise<MarketWatchResult> {
-  const { tenant, request, model, resolved, emit } = run;
+  const { tenant, request, resolved, emit } = run;
   const { briefing, guard } = verified;
   const { packet, failures, tickerFailures } = loaded;
   emit({ type: "job.phase", phase: "saving", label: "Saving briefing" });
@@ -469,7 +520,8 @@ async function saveBriefing(
   const artifactId = persistBriefing(resolved.artifacts(), tenant, briefing, markdown, {
     tickers: packet.tickers.map((ticker) => ticker.symbol.yahoo),
     question: request.prompt,
-    model,
+    // The model that wrote the briefing. After a fallback the requested id is the one that did not.
+    model: answeredBy,
     language: request.language,
     specialist: request.specialist,
     depth: briefing.depth,
@@ -493,7 +545,7 @@ async function saveBriefing(
         title: briefing.title,
         prompt: request.prompt,
         markdown,
-        model,
+        model: answeredBy,
       }),
     );
   }
@@ -514,6 +566,7 @@ export async function generateMarketBriefing(
     tenant,
     request,
     model: resolveModel(request.model, settings),
+    modelExplicit: readModelPinned(request),
     resolved: resolveDeps(deps),
     emit,
     abortSignal,
@@ -525,14 +578,19 @@ export async function generateMarketBriefing(
   const drafted =
     request.depth === "team"
       ? await draftWithTeam(run, loaded.packet)
-      : { raw: await draftBriefing(run, loaded.packet), team: NO_TEAM };
+      : { ...(await draftBriefing(run, loaded.packet)), team: NO_TEAM };
   throwIfJobAborted(abortSignal);
   const verified = verifyBriefing(run, drafted.raw, loaded.packet, drafted.team);
   throwIfJobAborted(abortSignal);
-  return await saveBriefing(run, verified, {
-    ...loaded,
-    failures: [...loaded.failures, ...drafted.team.failures],
-  });
+  return await saveBriefing(
+    run,
+    verified,
+    {
+      ...loaded,
+      failures: [...loaded.failures, ...drafted.team.failures],
+    },
+    drafted.answeredBy,
+  );
 }
 
 function readSectionIndex(body: Record<string, unknown>, length: number): number {
@@ -579,9 +637,11 @@ export async function regenerateBriefingSection(
   const model = resolveModel(typeof record.model === "string" ? record.model : undefined, settings);
   const resolved = resolveDeps(deps);
 
-  const raw = await resolved.ask({
+  const reply = await resolved.ask({
     tenant,
     model,
+    // A rewrite model the person picked is never swapped by the fallback; a seeded one can be.
+    modelExplicit: readModelPinned(record),
     systemPrompt:
       briefing.depth === "team"
         ? teamSectionSystemPrompt(briefing)
@@ -600,6 +660,7 @@ export async function regenerateBriefingSection(
     toolKeys: toolKeysFor(briefing.specialist, resolved.webReady()),
     streamWatchdog: MARKET_STREAM_WATCHDOG,
   });
+  const raw = answerOf(reply, model).text;
   const rewritten = guardBriefingSection(parseBriefingSection(raw), allowedNumbers(briefing.packet));
   assertBriefingHasNoAdvice([rewritten.section]);
   return {

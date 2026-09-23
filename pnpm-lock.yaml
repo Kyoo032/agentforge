@@ -242,6 +242,9 @@ importers:
       '@firecrawl/anydoc':
         specifier: ^0.2.4
         version: 0.2.4
+      better-sqlite3:
+        specifier: ^13.0.3
+        version: 13.0.3
       docx:
         specifier: ^9.5.1
         version: 9.7.1
@@ -264,6 +267,9 @@ importers:
       '@types/node':
         specifier: ^24.2.0
         version: 24.13.3
+      jszip:
+        specifier: ^3.10.1
+        version: 3.10.1
       typescript:
         specifier: ^5.8.3
         version: 5.9.3

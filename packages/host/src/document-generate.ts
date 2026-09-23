@@ -20,9 +20,12 @@ import {
 } from "./document-outline";
 import {
   appendRegenInstruction,
+  collectJobAssistantRun,
   collectJobAssistantText,
   readJobRegenAttachments,
+  readModelPinned,
   readOptionalInstruction,
+  type JobAssistantRun,
 } from "./job-regen";
 import { readSourceText, withSourceMaterial, withSourceRule } from "./job-source";
 import { localeForRun } from "./run-context";
@@ -91,16 +94,20 @@ export function documentJobSystemPrompt(finance: boolean, locale: AppLocale = lo
   return withOutputLanguage(base, finance ? "finance" : "documents", locale);
 }
 
-async function collectAssistantText(
+/** One draft call. The run says which model answered, which is the one the artifact records. */
+async function collectAssistantRun(
   tenant: TenantContext,
   model: string,
   prompt: string,
   finance: boolean,
   sourceText: string,
-): Promise<string> {
-  return collectJobAssistantText({
+  modelExplicit: boolean,
+): Promise<JobAssistantRun> {
+  return collectJobAssistantRun({
     tenant,
     model,
+    // A model the person picked is never swapped by the fallback; a seeded default can be.
+    modelExplicit,
     systemPrompt: withSourceRule(documentJobSystemPrompt(finance), sourceText),
     runPrefix: finance ? "finance" : "document",
     agentId: finance ? "finance" : "document",
@@ -160,17 +167,23 @@ export async function generateDocumentDraft(tenant: TenantContext, body: unknown
   const settings = requireLiveDocumentRuntime(tenant);
   const sourceText = readSourceText(body, { injectionGuardBypass: settings.injectionGuardBypass === true });
   const model = resolveDocumentModel(body, settings);
-  const raw = await collectAssistantText(tenant, model, prompt, isFinanceJob(body), sourceText);
-  if (!raw.trim()) {
+  const run = await collectAssistantRun(tenant, model, prompt, isFinanceJob(body), sourceText, readModelPinned(body));
+  if (!run.text.trim()) {
     throw new ApiError("generation_failed", modeMessage("emptyDocumentDraft", localeForRun()), 502);
   }
-  const draft = parseDocumentDraft(raw);
+  const draft = parseDocumentDraft(run.text);
   const markdown = documentDraftMarkdown(draft);
-  const artifactId = persistDraft(tenant, draft, markdown, { question: prompt, model, finance: isFinanceJob(body) });
+  // Record the model that wrote the draft. After a fallback the requested id is the one model that did not.
+  const answeredBy = run.model;
+  const artifactId = persistDraft(tenant, draft, markdown, {
+    question: prompt,
+    model: answeredBy,
+    finance: isFinanceJob(body),
+  });
   if (artifactId) {
     await upsertWorkSource(
       tenant,
-      artifactWorkCard({ type: "Documents", artifactId, title: draft.title, prompt, markdown, model }),
+      artifactWorkCard({ type: "Documents", artifactId, title: draft.title, prompt, markdown, model: answeredBy }),
     );
   }
   return draft;
@@ -230,6 +243,7 @@ export async function regenerateDocumentSection(tenant: TenantContext, body: unk
   const raw = await collectJobAssistantText({
     tenant,
     model,
+    modelExplicit: readModelPinned(body),
     systemPrompt: withSourceRule(withOutputLanguage(SECTION_SYSTEM, "documents", localeForRun()), sourceText),
     runPrefix: "document-section",
     agentId: "document",

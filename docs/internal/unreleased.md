@@ -51,6 +51,7 @@ Nothing below is closed by 0.14.27. Carried forward as-is.
 
 ## Log
 
+- **2026-09-23** — Cleanup, security and bug-fix pass for the Personal app and the code both products share (SR-74 … SR-78): fixes in Finance, Market, Meeting, Knowledge, Music and the renderer, and a cleanup of dead files. Nothing driven or packed. The whole list is the "cleanup, security and bug-fix pass" section at the end of this file.
 - **2026-09-23** — 0.15.0 cut on `design/warm-desk-0.15` — the personal Mac/Windows app's look-and-feel release. Light is the default desk (white pages, `#0a0a0a` text), the rail follows the theme, a blue `--shadow-float` lifts a `.desk-canvas` panel, corners are 4px, and the type is DM Sans + Source Serif 4 bundled locally (both variable fonts, 4 files, no runtime font host). All 12 modes now lead with **title + one outcome line**; optional controls moved behind `Advanced` / `How this works` disclosures. Chat's empty state became four intent cards that fill the composer, tool calls folded into the Thinking disclosure, and `gist()` replaced raw JSON in the tool rows. Bugs fixed on the way: the rail footer was dark-on-dark because unlayered `.btn` beats `@layer utilities`; Market and Finance were losing their names to the submenu toggle's label; three modes had an invisible borderless prompt box; "Offline demo" was a lie in three places; the sign-out path was investigated and found **correct** (stub runtime on webdev was masking it). The `picker-panel.test.ts` red was reconciled. **Split from the enterprise lane**: the Phase 9 plans/pricing/portal files sitting in the same working tree are deliberately not in this cut. Verified with that work stashed — `tsc` exit 0, web suite 1218/1218, 118 files. Nothing packed, nothing published. [`0.15.0-changelog.md`](0.15.0-changelog.md), [`../public/0.15.0-notes.md`](../public/0.15.0-notes.md).
 - **2026-09-22** — Desk visual + UX overhaul on `apps/web` (design `grok-design-doc-04c7f940`). Dark `#0B0D12` is the default (`:root`); light is the `.light` class. Glow, shimmer, and pulse are gone. Empty Chat is a task launcher (heading, key status, checklist, three mode cards, labeled composer drop zone). One New chat, in the rail, including when collapsed. Usage pill is plan and seats only when plans are enforced, otherwise this-key USD. No token allowance. Outfit and Sora stay bundled. **Superseded on 2026-09-23 by the 0.15.0 pass above** — light became the default, the checklist and mode cards were cut, and Outfit/Sora were replaced by DM Sans/Source Serif 4.
 - **2026-09-22** — UI type is bundled Source Sans 3. Page paper is tinted green, secondary text is dark ink instead of gray-on-gray, and labels use a rust mark beside the teal actions. Superseded the same day by the dark desk above.
@@ -305,3 +306,163 @@ and was false from the moment it landed. Security register [SR-46](security-regi
   out of anything a browser bundles.
 - **[ ] None of it is driven on the hosted deployment**, which does not exist yet. The review
   instance was rebuilt and restarted on this code; what was checked there is in the worklog.
+
+## 2026-09-23 — cleanup, security and bug-fix pass (after `d4561b8`)
+
+One pass across the portal, the host, core and the renderer, sitting uncommitted in the main
+checkout. Each line names its product: **Personal** (the Mac/Windows app, next cut `0.15.1`),
+**Enterprise** (the hosted web app and its portal) or **both**. Because `apps/web` is the renderer
+for both products, a renderer fix is **both** unless it says otherwise. The security findings are
+[SR-74 … SR-78](security-register.md#sr-74) in the register, with SR-19 moved; they are listed here
+only by number. The Enterprise half of the pass (portal, host sign-in, Edit tenancy, deploy,
+SR-50 … SR-73 and SR-79) is on its own branch for the Enterprise launch.
+
+**Not proven.** Nothing below has been driven. The `:3000` webdev is served by `tsx server.ts` from
+this checkout and has no watcher, so every host and core change needs Rizky to restart it before it
+can be seen there; the renderer changes hot-reload but were not driven either. Nothing is packed,
+so no Personal fix is in an installer. No hosted item has run on a server. Unit tests were written
+with the changes; this entry does not claim a full run of any suite.
+
+### Security (register rows)
+
+- **Personal, release:** `release-desktop.mjs` now runs the banned-marks check the Enterprise
+  release has, from the shared `scripts/release-marks.mjs`, on `--notes` and on the default notes
+  file, and refuses a notes path under `docs/internal` in any letter case (SR-74). **Repo:**
+  `.gitignore` ignores `/data/` whole (SR-19).
+- **Both, Market:** Cancel now aborts the gateway request in flight and stops a team run at its
+  current stage; a failure after a cancel is always observed (SR-75).
+- **Both, Finance:** titles, headings and assumptions go through the number guard, a section
+  regenerate runs the repair, and "$2,000", "2k" and "Rp 1.950" are amounts, not years (SR-76).
+- **Personal, Start over:** a wipe that fails part-way keeps its marker and retries on the next
+  launch (SR-77); failures are logged without absolute paths (SR-78).
+
+### Finance
+
+- **Both — appraisal: a year whose cells were all zero vanished.** The grid keeps no row for a zero
+  cell, and every discounting function reads a flow's position as its power, so the missing year
+  pulled every later year one period closer to today. Gaps between ordinal years are filled with a
+  zero year (`withMissingYears`, `packages/core/src/finance/appraisal/flows.ts:136`, applied at
+  `:170`).
+- **Both — appraisal: a Markdown table opened with an empty label cell.** `| Item | Year 0 |` split
+  on its outer pipes; they are stripped first (`OUTER_PIPES`, `packages/core/src/finance/appraisal/grid.ts:53`).
+- **Both — implied runway was in the wrong unit.** With no burn line, the implied burn was divided by
+  the number of periods, not the months they cover, so two fiscal years short by 600 each read as a
+  burn of 600 a month instead of 50. It is now a monthly burn, named "Implied average monthly net
+  burn", and runway divides by it (`impliedBurnMetrics`, `packages/core/src/finance/trend-metrics.ts:203`).
+- **Both — revenue CAGR counted the wrong number of steps.** It compounded over every period on the
+  sheet; it now spans the first to the last period that states revenue (`:124-128`).
+- **Both — `monthsInPeriod` read "FY2024" as one month and "H1 2024" as twelve.** Fiscal years and
+  halves (`H1`, `Semester 2`) are named; the finest unit in a label wins
+  (`packages/core/src/finance/fiscal-periods.ts:13`, `:18`, `:94`).
+- **Both — the XLSX Calc sheet disagreed with the report.** Cash flow: the Inputs sheet wrote the raw
+  category and a bank export's negative outflow, so every `SUMIFS` added a different book; rows are
+  now written on the side the report summed, at the amount it summed (`inputsRow`,
+  `packages/core/src/finance/cashflow/report-tables.ts:70`), and the opening balance formula is used
+  only when the opening rows add up to the balance the report used (`openingFromRows`, `:133`).
+  Ratios: a depreciation or principal typed in the panel is now an Inputs row, so EBITDA and DSCR in
+  the workbook include it (`typedSupportingRows`, `packages/core/src/finance/ratios/report-tables.ts:52`),
+  and a formula whose pile has no row in the period is blank, as the report's figure is, instead of 0
+  (`blankUnless`, `packages/core/src/finance/ratios/formulas.ts:232`).
+- **Both — a negative typed depreciation or principal was used negative.** A repayment typed as
+  -1,050 is a repayment of 1,050, read under its bucket's sign policy (`typedAmount`,
+  `packages/core/src/finance/ratios/compute.ts:138`).
+- **Both — a brief whose repair emptied a section answered 500.** The section now keeps its heading
+  and says, in the reader's language and without a figure, that its text was removed
+  (`EMPTIED_SECTION_BODY`, `packages/host/src/finance-generate.ts:74`).
+- **Both — a pin with no model held a Finance job to the host default.** Finance now uses the one
+  `readModelPinned` every job shares, which is no pin without a model
+  (`packages/host/src/job-regen.ts:43`, re-exported at `packages/host/src/finance-tasks/live.ts:45`).
+
+### Market, Meeting, Knowledge, Music, locale
+
+- **Both — Market records the model that answered, and respects a pin.** After a fallback the
+  artifact and the work card used to name the requested model, the one that did not write the
+  briefing (`packages/host/src/market-generate.ts:524`, `:548`); a picked model is passed as
+  `modelExplicit`, so the fallback never swaps it (`:569`, `:644`).
+- **Both — Meeting keeps the minutes when the translation fails.** The minutes are saved on the
+  meeting before the translation starts, and a new run clears the previous translation
+  (`packages/host/src/meeting/run.ts:343`, `:356`).
+- **Both — Meeting meters a transcription that fails part-way.** The chunks before the failure were
+  answered, and billed, by the gateway; their seconds are now recorded before the error goes on
+  (`transcribeAndMeter`, `:202`).
+- **Both — Meeting's audio chunks never outlive the run.** Extraction moved inside the `try`, so a
+  failed ffmpeg or a cancel that lands right after it still clears the chunk directory (`:170-194`).
+- **Both — a failed Knowledge re-map no longer wipes the map.** The payload keeps the last good map
+  while a re-map runs and after one fails; only status and error change (`markMap`,
+  `packages/host/src/knowledge-map.ts:70`; `getKnowledgeMap`, `:37`).
+- **Both — Music sends the owner's own lyrics as written.** The output-language instruction was
+  appended to custom lyrics, which Suno sings; it now rides only a description
+  (`packages/host/src/studio-generate.ts:451-452`).
+- **Both — every studio sends `modelPinned` only for a deliberate pick, and every job records the
+  model that answered** (Documents, Presentations, Research, Data, Legal, Market, Finance;
+  `apps/web/lib/model-choice.ts`; `collectJobAssistantRun`, `packages/host/src/job-regen.ts:199`).
+
+### Renderer
+
+- **Meeting: a recording belongs to the meeting it was started for.** The upload read the selection
+  at send time, so switching rows mid-recording, or before Retry, replaced another meeting's
+  recording. The target is fixed when Record is pressed, and rows are locked while recording
+  (`recordingTargetRef`, `apps/web/components/meeting-studio.tsx:293`).
+- **Meeting: a desk or language switch no longer loses a recording.** Every work mode is keyed on the
+  desk id, so a switch unmounted the studio and the audio went with it. The recorder hands back what
+  it captured (`dispose`, `apps/web/lib/meeting-recorder.ts:201`), the studio passes it to the next
+  mount (`stashRescuedClip`, `meeting-studio.tsx:139`), and a clip for another desk waits with Save
+  to device (`meeting-clip-other-desk`). The shell also no longer changes desk on a failed
+  `GET /api/v1/workspaces` (`shellWorkspaceFrom`, `apps/web/src/App.tsx:54`).
+- **Meeting: a recorder error keeps what was recorded.** The chunks already captured become a clip
+  and are uploaded, and the notice `meeting-record-kept` says so (`#onRecorderError`,
+  `apps/web/lib/meeting-recorder.ts:342`).
+- **Chat: a run's stream no longer draws into another session.** Opening another session from the rail
+  mid-reply wrote the rest of the reply into it. A run now remembers the session it started in, keeps
+  streaming to the host so the reply is saved, and draws nothing once the pane has moved on
+  (`readRunStream`, `apps/web/components/chat-composer.tsx:107`; `sessionEpochRef`,
+  `apps/web/components/chat-session.tsx:87`). `onComplete` now receives `{ threadId, showing }`.
+- **Meeting and Knowledge: errors are shown, and a second press is dropped.** Both read `res.json()`
+  before `res.ok` with no `catch`, so an html error page or an offline laptop threw with no message;
+  a refused Knowledge pin cleared its draft as if saved; Add URL and Index paste could index the same
+  source twice (`requestMeeting`, `meeting-studio.tsx:93`; `sendKnowledge` and `createSubmitGuard`,
+  `apps/web/components/knowledge-page.tsx:129`, `:161`).
+- **Job streams: a superseded run no longer clears the new one.** The aborted run settled after the
+  new one started and reset its progress and its busy flag, so the new run's phases and its Cancel
+  button vanished (`createJobRunner`, `apps/web/lib/use-job-stream.ts:53`).
+- **Data: the paste box printed `data.pasteLabel`.** The key was missing from both catalogs, which
+  0.15.0 shipped; it exists now, and the new `apps/web/lib/i18n-literal-keys.test.ts` fails on any
+  `t("literal.key")` in the renderer that has no English or Indonesian entry.
+- **Personal — one save dialog per download.** On the desktop, Documents, Presentations and the Edit
+  export opened the native save dialog and then a second one for the browser download; each now
+  returns after the native save (`documents-studio.tsx:136`, `presentations-studio.tsx:132`,
+  `edit-studio.tsx:608`).
+- **Images, Videos, Music keep the picked model after a generate.** Each reloads its catalog after a
+  generate and reset the picker to the default (`keepModelChoice`, `apps/web/lib/model-choice.ts:19`).
+- **Settings: a failed load, save or language change says so.** A failed first load left the defaults
+  on screen as the desk's settings (`settings-load-error`); a save that never came back, or came back
+  as a non-JSON page, threw and left the form busy (the error line is now `settings-error`); a failed
+  language change left the select on the new language (`settings-locale-error`, the select reverts)
+  (`readSettingsAnswer`, `apps/web/components/settings-page.tsx:99`).
+- **Enhance says why it failed** instead of leaving the prompt as if nothing was pressed
+  (`<testId>-error`, `apps/web/components/enhance-prompt-button.tsx:19`).
+- **Ctrl+K no longer opens Chat's model picker over another mode.** Chat stays mounted in a hidden
+  pane (`isInHiddenPane`, `apps/web/lib/shortcut-target.ts:23`, used at
+  `apps/web/components/model-picker.tsx:199`).
+- **Edit's single-key shortcuts no longer fire on a focused button or select**
+  (`isEditShortcutIgnored`, `apps/web/lib/shortcut-target.ts:92`).
+- **Edit's timeline no longer posts a drag twice.** The move or trim was sent from inside a state
+  updater, which React runs twice under `<StrictMode>`; it is sent once on release (`finishDrag`,
+  `apps/web/components/edit-timeline.tsx:52`).
+- **Usage: switching ranges fast no longer shows one range's numbers under another's button.** The
+  request for the previous range is aborted (`fetchRangeUsage`, `apps/web/components/usage-page.tsx:61`).
+- **i18n sweep:** job progress, artifact actions, the mode hand-off prompt, Legal, Market, the Finance
+  brief view and the video examples lost their English literals, with keys in both catalogs.
+
+### Cleanup
+
+- Deleted, nothing imported them: `packages/host/src/knowledge/outbox.ts`,
+  `packages/host/src/knowledge/backend-store.ts`, `packages/host/src/seed-workspace.ts`,
+  `apps/desktop/scripts/check-symlink.mjs`, `docs/internal/mockups/shoot.mjs`,
+  `apps/web/ux-verify-keyless.mjs`, `apps/web/ux-verify-live.mjs`. The `drainKnowledgeOutbox` stub is
+  gone from `packages/host/src/knowledge/registry.ts`.
+- One `formatBytes`: `packages/core/src/storage/format-bytes.ts`, exported as
+  `@agentforge/core/format-bytes` (`packages/core/package.json`); `storage/quota.ts`,
+  `apps/web/lib/data-client.ts` and `apps/web/components/settings-storage-card.tsx` re-export it.
+- `packages/host/package.json` now declares what it imports: `better-sqlite3` as a dependency and
+  `jszip` as a dev dependency.

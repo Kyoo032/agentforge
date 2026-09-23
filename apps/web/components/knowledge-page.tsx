@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FormattedText } from "@/components/formatted-text";
 import { KnowledgeGraphPanel } from "@/components/knowledge-graph-panel";
 import { KnowledgeLoop } from "@/components/knowledge-loop";
@@ -115,6 +115,78 @@ function seedModel(models: PickerModel[], preferred: string, fallback: string): 
   return models[0]?.id ?? "";
 }
 
+/** The slice of `apiFetch` the page's writes use, so a test can hand it a stub. */
+export type KnowledgeFetch = (input: string, init?: RequestInit) => Promise<Response>;
+
+export type KnowledgeOutcome = { readonly ok: true; readonly data: unknown } | { readonly ok: false; readonly message: string };
+
+/**
+ * One Knowledge write, in the order SR-45 set for the recording upload: `res.ok` before the body,
+ * an error body read with a catch, and a dead network reported rather than thrown. Pin memory used
+ * to clear its draft without looking at the answer at all, so a refused pin read as a saved one;
+ * the callers now keep the draft unless this says `ok`.
+ */
+export async function sendKnowledge(
+  path: string,
+  init: RequestInit,
+  fallback: string,
+  fetcher: KnowledgeFetch = apiFetch,
+): Promise<KnowledgeOutcome> {
+  let res: Response;
+  try {
+    res = await fetcher(path, init);
+  } catch (error) {
+    return { ok: false, message: error instanceof Error && error.message ? error.message : fallback };
+  }
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    const message = (data as { error?: { message?: unknown } } | null)?.error?.message;
+    return { ok: false, message: typeof message === "string" && message.trim() ? message : fallback };
+  }
+  return { ok: true, data };
+}
+
+export type SubmitGuard<K extends string> = {
+  /** Run `task` unless `key` is already in flight. Resolves true when it ran, false when dropped. */
+  readonly run: (key: K, task: () => Promise<void>) => Promise<boolean>;
+  readonly isBusy: (key: K) => boolean;
+};
+
+/**
+ * At most one of each action in flight. A second press while the first is still out is dropped:
+ * Add URL and Index paste could be pressed twice and indexed the same source twice. The set is
+ * checked synchronously, so a double click cannot slip in before React re-renders the button as
+ * disabled; `onChange` hears every change so the buttons can show it.
+ */
+export function createSubmitGuard<K extends string>(onChange: (busy: ReadonlySet<K>) => void): SubmitGuard<K> {
+  let busy: ReadonlySet<K> = new Set();
+  const update = (next: ReadonlySet<K>) => {
+    busy = next;
+    onChange(next);
+  };
+  return {
+    isBusy: (key) => busy.has(key),
+    run: async (key, task) => {
+      if (busy.has(key)) {
+        return false;
+      }
+      update(new Set([...busy, key]));
+      try {
+        await task();
+        return true;
+      } finally {
+        update(new Set([...busy].filter((item) => item !== key)));
+      }
+    },
+  };
+}
+
+type KnowledgeAction = "url" | "paste" | "file" | "memory";
+
+function jsonPost(body: unknown): RequestInit {
+  return { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
+}
+
 function verdictTagClass(verdict: KnowledgeMapTopic["verdict"]): string {
   if (verdict === "supported") {
     return "tag tag-accent";
@@ -153,6 +225,12 @@ export function KnowledgePage() {
   const [retrievals, setRetrievals] = useState(0);
   const [graphCounts, setGraphCounts] = useState<GraphCounts | null>(null);
   const [verified, setVerified] = useState<VerifiedCheck | null>(null);
+  const [inFlight, setInFlight] = useState<ReadonlySet<KnowledgeAction>>(() => new Set());
+  const guardRef = useRef<SubmitGuard<KnowledgeAction> | null>(null);
+  if (!guardRef.current) {
+    guardRef.current = createSubmitGuard<KnowledgeAction>(setInFlight);
+  }
+  const guard = guardRef.current;
 
   async function reload() {
     const [knowledgeRes, modelsRes] = await Promise.all([apiFetch("/api/v1/knowledge"), apiFetch("/api/v1/models")]);
@@ -230,24 +308,33 @@ export function KnowledgePage() {
     }
   }
 
+  /** After a write landed: show it, or say the list could not be read back. */
+  async function reloadAfterWrite() {
+    try {
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("knowledge.errors.load"));
+    }
+  }
+
+  // Each write below keeps its draft unless the host said yes, and runs at most once at a time.
+  // A draft edited while its write was out is the owner's new text, so only an unchanged one clears.
+
   async function addUrl() {
     const url = urlDraft.trim();
     if (!url) {
       return;
     }
-    setError(null);
-    const res = await apiFetch("/api/v1/knowledge/sources/url", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url }),
+    await guard.run("url", async () => {
+      setError(null);
+      const outcome = await sendKnowledge("/api/v1/knowledge/sources/url", jsonPost({ url }), t("knowledge.errors.addUrl"));
+      if (!outcome.ok) {
+        setError(outcome.message);
+        return;
+      }
+      setUrlDraft((current) => (current.trim() === url ? "" : current));
+      await reloadAfterWrite();
     });
-    const data = await res.json().catch(() => null);
-    if (!res.ok) {
-      setError(data?.error?.message ?? t("knowledge.errors.addUrl"));
-      return;
-    }
-    setUrlDraft("");
-    await reload();
   }
 
   async function addPaste() {
@@ -255,19 +342,38 @@ export function KnowledgePage() {
     if (!text) {
       return;
     }
-    setError(null);
-    const res = await apiFetch("/api/v1/knowledge/sources", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: t("knowledge.sources.pastedName"), text }),
+    await guard.run("paste", async () => {
+      setError(null);
+      const outcome = await sendKnowledge(
+        "/api/v1/knowledge/sources",
+        jsonPost({ name: t("knowledge.sources.pastedName"), text }),
+        t("knowledge.errors.addNotes"),
+      );
+      if (!outcome.ok) {
+        setError(outcome.message);
+        return;
+      }
+      setPasteDraft((current) => (current.trim() === text ? "" : current));
+      await reloadAfterWrite();
     });
-    const data = await res.json().catch(() => null);
-    if (!res.ok) {
-      setError(data?.error?.message ?? t("knowledge.errors.addNotes"));
-      return;
-    }
-    setPasteDraft("");
-    await reload();
+  }
+
+  async function addFile(file: File) {
+    await guard.run("file", async () => {
+      setError(null);
+      const form = new FormData();
+      form.set("file", file);
+      const outcome = await sendKnowledge(
+        "/api/v1/knowledge/sources",
+        { method: "POST", body: form },
+        t("knowledge.errors.indexFile"),
+      );
+      if (!outcome.ok) {
+        setError(outcome.message);
+        return;
+      }
+      await reloadAfterWrite();
+    });
   }
 
   async function saveSoul() {
@@ -290,13 +396,21 @@ export function KnowledgePage() {
     if (!text) {
       return;
     }
-    await apiFetch("/api/v1/knowledge/memories", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, pinned: true }),
+    await guard.run("memory", async () => {
+      setError(null);
+      const outcome = await sendKnowledge(
+        "/api/v1/knowledge/memories",
+        jsonPost({ text, pinned: true }),
+        t("knowledge.errors.addMemory"),
+      );
+      if (!outcome.ok) {
+        // The draft stays: a refused pin used to vanish as if it had been saved.
+        setError(outcome.message);
+        return;
+      }
+      setMemoryDraft((current) => (current.trim() === text ? "" : current));
+      await reloadAfterWrite();
     });
-    setMemoryDraft("");
-    await reload();
   }
 
   return (
@@ -394,6 +508,7 @@ export function KnowledgePage() {
                 type="button"
                 className="btn btn-primary"
                 onClick={() => void addUrl()}
+                disabled={inFlight.has("url")}
                 data-testid="knowledge-add-url"
               >
                 {t("knowledge.sources.addUrl")}
@@ -412,35 +527,27 @@ export function KnowledgePage() {
                 type="button"
                 className="btn btn-secondary"
                 onClick={() => void addPaste()}
+                disabled={inFlight.has("paste")}
                 data-testid="knowledge-add-paste"
               >
                 {t("knowledge.sources.indexPaste")}
               </button>
-              <label className="btn btn-secondary cursor-pointer">
+              <label
+                className={`btn btn-secondary ${inFlight.has("file") ? "cursor-not-allowed opacity-45" : "cursor-pointer"}`}
+              >
                 {t("knowledge.sources.uploadFile")}
                 <input
                   className="sr-only"
                   type="file"
                   accept={KNOWLEDGE_UPLOAD_ACCEPT}
+                  disabled={inFlight.has("file")}
                   data-testid="knowledge-file"
                   onChange={(event) => {
                     const file = event.target.files?.[0];
                     event.target.value = "";
-                    if (!file) {
-                      return;
+                    if (file) {
+                      void addFile(file);
                     }
-                    void (async () => {
-                      setError(null);
-                      const form = new FormData();
-                      form.set("file", file);
-                      const res = await apiFetch("/api/v1/knowledge/sources", { method: "POST", body: form });
-                      const data = await res.json().catch(() => null);
-                      if (!res.ok) {
-                        setError(data?.error?.message ?? t("knowledge.errors.indexFile"));
-                        return;
-                      }
-                      await reload();
-                    })();
                   }}
                 />
               </label>
@@ -554,6 +661,7 @@ export function KnowledgePage() {
               type="button"
               className="btn btn-primary"
               onClick={() => void addMemory()}
+              disabled={inFlight.has("memory")}
               data-testid="knowledge-memory-add"
             >
               {t("knowledge.memory.pin")}

@@ -18,6 +18,7 @@ import {
 } from "@agentforge/core/market";
 import { ensureSchema } from "@agentforge/db/ensure-schema";
 import { createArtifactStore, type ArtifactStore } from "./artifacts";
+import { listSelectableModels } from "./selectable-models";
 import { WORK_CARD_BODY_MAX, renderWorkCard, type WorkCard } from "./work-cards";
 import { FIXTURE_NOW, packet as packetFixture, tickerMu } from "./market/__fixtures__/watch";
 import { SECTION_REWRITE_RULES } from "./market-briefing-build";
@@ -472,16 +473,208 @@ describe("generateMarketBriefing", () => {
     expect(during).toMatchObject({ code: "aborted", status: 499 });
     expect(built[0]?.signal).toBe(late.signal);
   });
+
+  it("hands the run's signal to the model call, so a cancel aborts the request in flight", async () => {
+    const controller = new AbortController();
+    await generateMarketBriefing(tenant, REQUEST, emit, controller.signal, deps());
+    expect(asked[0]?.signal).toBe(controller.signal);
+  });
+});
+
+/**
+ * The studio sends `modelPinned: true` only for a model the person picked. The host used to drop it
+ * (zod strips unknown keys), so a pick could be swapped by the fallback; and it recorded the model it
+ * asked for, which after a fallback is the one model that did not write the briefing.
+ */
+describe("the model a Market briefing uses and records", () => {
+  let db: Database.Database;
+  let artifacts: ArtifactStore;
+  let asked: AskOptions[];
+  let ingested: WorkCard[];
+  const PICK = listSelectableModels()[0]?.id as string;
+  const TEAM_DRAFTER = "team-editor-stand-in";
+
+  beforeEach(() => {
+    db = new Database(":memory:");
+    ensureSchema(db);
+    artifacts = createArtifactStore(db, () => KEY);
+    asked = [];
+    ingested = [];
+    vi.stubEnv("AGENTFORGE_RUNTIME", "ai");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    db.close();
+  });
+
+  /** `answeredBy` names the model that wrote each answer; by default the one that was asked. */
+  function deps(answeredBy: (options: AskOptions) => string = (options) => options.model): MarketGenerateDeps {
+    return {
+      db: () => db,
+      now,
+      artifacts: () => artifacts,
+      webReady: () => false,
+      ingest: async (_tenant, card) => {
+        ingested.push(card);
+        return { status: "skipped", reason: "test" };
+      },
+      buildPacket: async () => ({ packet: packetFixture(), failures: [] }),
+      ask: async (options) => {
+        asked.push(options);
+        return { text: JSON.stringify(DRAFT), model: answeredBy(options) };
+      },
+    };
+  }
+
+  it("has a model to pick in this catalog", () => {
+    expect(PICK).toEqual(expect.any(String));
+  });
+
+  it("hands a pinned pick to the model call as modelExplicit, so the fallback never swaps it", async () => {
+    await generateMarketBriefing(tenant, { ...REQUEST, model: PICK, modelPinned: true }, undefined, undefined, deps());
+    expect(asked[0]).toMatchObject({ model: PICK, modelExplicit: true });
+  });
+
+  it("leaves a model sent without the pin rescuable", async () => {
+    await generateMarketBriefing(tenant, { ...REQUEST, model: PICK }, undefined, undefined, deps());
+    expect(asked[0]).toMatchObject({ model: PICK, modelExplicit: false });
+  });
+
+  it("records the model that answered on the artifact and the work card, not the one it asked for", async () => {
+    const result = await generateMarketBriefing(
+      tenant,
+      { ...REQUEST, model: PICK },
+      undefined,
+      undefined,
+      deps(() => "stand-in-model"),
+    );
+    expect(asked[0]?.model).toBe(PICK);
+    expect(artifacts.get(tenant, result.artifactId as string)?.meta.model).toBe("stand-in-model");
+    expect(ingested[0]?.model).toBe("stand-in-model");
+  });
+
+  it("records the requested model when it answered itself", async () => {
+    const result = await generateMarketBriefing(tenant, { ...REQUEST, model: PICK }, undefined, undefined, deps());
+    expect(artifacts.get(tenant, result.artifactId as string)?.meta.model).toBe(PICK);
+    expect(ingested[0]?.model).toBe(PICK);
+  });
+
+  it("pins every call of a team run, hands each the run's signal, and records the editor's model", async () => {
+    const controller = new AbortController();
+    const result = await generateMarketBriefing(
+      tenant,
+      { ...REQUEST, depth: "team", model: PICK, modelPinned: true },
+      undefined,
+      controller.signal,
+      deps((options) => (options.versionId === "market-team-synthesis" ? TEAM_DRAFTER : options.model)),
+    );
+    expect(result.briefing.depth).toBe("team");
+    expect(asked.length).toBeGreaterThan(1);
+    for (const options of asked) {
+      expect(options).toMatchObject({ model: PICK, modelExplicit: true });
+      expect(options.signal).toBe(controller.signal);
+    }
+    // The editor's synthesis is the briefing; its model is the one the artifact names.
+    expect(artifacts.get(tenant, result.artifactId as string)?.meta.model).toBe(TEAM_DRAFTER);
+    expect(ingested[0]?.model).toBe(TEAM_DRAFTER);
+  });
+
+  it("hands a pinned section rewrite to the model call as modelExplicit", async () => {
+    const { briefing } = await generateMarketBriefing(tenant, REQUEST, undefined, undefined, deps());
+    asked = [];
+    const rewrite = {
+      ask: async (options: AskOptions) => {
+        asked.push(options);
+        return JSON.stringify({ heading: "Macro now", body: "ES 6612.25." });
+      },
+    };
+    await regenerateBriefingSection(
+      tenant,
+      { briefing, section: 1, model: PICK, modelPinned: true },
+      { ...deps(), ...rewrite },
+    );
+    await regenerateBriefingSection(tenant, { briefing, section: 1, model: PICK }, { ...deps(), ...rewrite });
+    expect(asked.map((options) => [options.model, options.modelExplicit])).toEqual([
+      [PICK, true],
+      [PICK, false],
+    ]);
+  });
 });
 
 describe("withClientAbort", () => {
   it("passes through without a signal, resolves normally, and rejects 499 on abort", async () => {
-    expect(await withClientAbort(Promise.resolve(1), undefined)).toBe(1);
+    expect(await withClientAbort(() => Promise.resolve(1), undefined)).toBe(1);
     const controller = new AbortController();
-    expect(await withClientAbort(Promise.resolve(2), controller.signal)).toBe(2);
-    const pending = withClientAbort(new Promise<number>(() => {}), controller.signal);
+    expect(await withClientAbort(() => Promise.resolve(2), controller.signal)).toBe(2);
+    const pending = withClientAbort(() => new Promise<number>(() => {}), controller.signal);
     controller.abort();
     await expect(pending).rejects.toMatchObject({ code: "aborted", status: 499 });
+  });
+
+  // The paid call used to be started by the caller and only then handed over, so a client that had
+  // already left still cost one gateway call, and that call's promise was left with no handler.
+  it("never starts the work once the client has left", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const work = vi.fn(async () => 1);
+    await expect(withClientAbort(work, controller.signal)).rejects.toMatchObject({ code: "aborted", status: 499 });
+    expect(work).not.toHaveBeenCalled();
+  });
+
+  it("wins against a call that is still being set up when the client leaves", async () => {
+    const controller = new AbortController();
+    const pending = withClientAbort(() => {
+      controller.abort();
+      return new Promise<number>(() => {});
+    }, controller.signal);
+    await expect(pending).rejects.toMatchObject({ code: "aborted", status: 499 });
+  });
+
+  it("observes a call that fails after the client left, so nothing rejects unhandled", async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => {
+      unhandled.push(reason);
+    };
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      const controller = new AbortController();
+      let fail: (error: Error) => void = () => {};
+      const pending = withClientAbort(
+        () =>
+          new Promise<number>((_, reject) => {
+            fail = reject;
+          }),
+        controller.signal,
+      );
+      controller.abort();
+      await expect(pending).rejects.toMatchObject({ code: "aborted", status: 499 });
+      fail(new Error("socket closed"));
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+  });
+
+  it("leaves nothing unhandled when the call throws on the spot as the client leaves", async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => {
+      unhandled.push(reason);
+    };
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      const controller = new AbortController();
+      const pending = withClientAbort(() => {
+        controller.abort();
+        throw new Error("could not start the call");
+      }, controller.signal);
+      await expect(pending).rejects.toThrow("could not start the call");
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
   });
 });
 

@@ -99,6 +99,16 @@ describe("guardBriefingSection", () => {
     );
   });
 
+  // Headings are guarded too, and a desk heads its catalyst section with the window it looks over.
+  it("does not read a time window (24-48 jam, 72 hours, 30 hari) as a figure, in a heading or a body", () => {
+    const guarded = guardBriefingSection(
+      { heading: "Katalis 24-48 Jam", body: "Watch the next 72 hours; the 30 hari view is flat. Volume 26m." },
+      [],
+    );
+    expect(guarded.section.heading).toBe("Katalis 24-48 Jam");
+    expect(guarded.flagged).toEqual(["26m"]);
+  });
+
   it("does not flag S&P 500, Nasdaq 100, 50-day, or 24/7 Wall St. as unverified figures", () => {
     const body =
       "S&P 500 futures held the 50-day average; 24/7 Wall St. and Nasdaq 100 were quiet. Fair value is 1234.5.";
@@ -188,6 +198,27 @@ describe("buildMarketBriefing", () => {
     expect(briefing.sources.length).toBeGreaterThan(0);
     expect(guard).toEqual({ flagged: [{ section: 1, text: "4.21%" }], total: 1, adviceReplaced: 1 });
     expect(allowedNumbers(data)).toEqual(expect.arrayContaining([1000.26, 1004.1, -1.22, 6612.25, 1100, 950]));
+  });
+
+  // The number guard read the bodies only; a target price in a title or a heading went out unchecked.
+  it("guards the figures in a heading and falls back to the symbol title when the title's cannot be traced", () => {
+    const data = packet();
+    const { briefing, guard } = buildMarketBriefing(
+      {
+        title: "MU to 1500 by Friday",
+        sections: [{ heading: "MU at 1000.26, target 1500", body: "MU trades at 1000.26." }],
+      },
+      data,
+      { language: "en", generatedAt: GENERATED_AT },
+    );
+    expect(briefing.title).toBe("Market briefing: MU, BBCA.JK");
+    expect(briefing.sections[0]?.heading).toBe(`MU at 1000.26, target ${UNVERIFIED_MARKER}`);
+    expect(guard.flagged).toEqual([
+      { section: -1, text: "1500" },
+      { section: 0, text: "1500" },
+    ]);
+    expect(guard.total).toBe(2);
+    expect(guard.adviceReplaced).toBe(0);
   });
 
   it("falls back to a symbol title when the model's is empty or directive", () => {

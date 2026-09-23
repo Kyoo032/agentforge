@@ -15,6 +15,13 @@ export const UNVERIFIED_MARKER = "[unverified figure]";
 const FREE_INTEGER_MAX = 12;
 const YEAR_MIN = 1900;
 const YEAR_MAX = 2100;
+/**
+ * The only shapes that are free: a count written as one or two bare digits, a year as four. The same
+ * value with a currency mark, a scale, a sign, a separator or a decimal ("$2,000", "2k", "Rp 1.950",
+ * "12.0") is an amount, and an amount has to trace like any other.
+ */
+const BARE_COUNT = /^\d{1,2}$/;
+const BARE_YEAR = /^\d{4}$/;
 
 const NUMBER_TOKEN =
   /(?<![\w.])[-+]?(?:\$|€|£|Rp\s?)?(\d{1,3}(?:[,.\s]\d{3})+|\d+)(?:[.,]\d+)?\s?(%|percent|persen|million|billion|trillion|thousand|miliar|milyar|triliun|ribu|juta|bio|bn|rb|jt|k|m|x)?(?![\w])/gi;
@@ -134,11 +141,14 @@ function tokenMatchesAllowed(token: NumberToken, allowed: readonly number[]): bo
 }
 
 export function isFreeNumber(token: NumberToken): boolean {
-  const integer = Number.isInteger(token.value);
-  if (token.unit === "" && integer && Math.abs(token.value) <= FREE_INTEGER_MAX) {
-    return true;
+  if (token.unit !== "") {
+    return false;
   }
-  return token.unit === "" && integer && token.value >= YEAR_MIN && token.value <= YEAR_MAX;
+  const written = token.text.trim();
+  if (BARE_COUNT.test(written)) {
+    return token.value <= FREE_INTEGER_MAX;
+  }
+  return BARE_YEAR.test(written) && token.value >= YEAR_MIN && token.value <= YEAR_MAX;
 }
 
 export function matchesAllowed(value: number, allowed: readonly number[]): boolean {

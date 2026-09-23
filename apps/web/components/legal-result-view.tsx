@@ -3,18 +3,13 @@
 import { useEffect, useState } from "react";
 import { getArtifact } from "@/lib/artifacts-client";
 import { downloadLegalArtifact, type LegalArtifactRef, type LegalRunSummary } from "@/lib/legal-client";
-import {
-  ARTIFACT_BUTTON_LABEL,
-  groupFindingsByTab,
-  resultHeadline,
-  RESULT_TABS,
-  type ResultTab,
-} from "@/lib/legal-view";
+import { groupFindingsByTab, RESULT_TABS, type ResultTab } from "@/lib/legal-view";
 import { ArtifactActions } from "@/components/artifact-actions";
 import { FormattedText } from "@/components/formatted-text";
 import { LegalAuditTrail, LegalRedlinePreview } from "@/components/legal-result-tabs";
 import { LegalFindingsTable } from "@/components/legal-findings-table";
-import { DIM, LegalPanel } from "@/components/legal-parts";
+import { artifactButtonText, DIM, LegalPanel, resultHeadlineText, resultTabText } from "@/components/legal-parts";
+import { t } from "@/lib/i18n";
 import { LegalVerifyReport } from "@/components/legal-verify-report";
 
 type Props = {
@@ -68,7 +63,7 @@ export function LegalResultView({ title, party, result, locked, onNextTurn, onNe
     try {
       await downloadLegalArtifact(artifact);
     } catch (err) {
-      onError(err instanceof Error ? err.message : `Could not download ${artifact.filename}`);
+      onError(err instanceof Error ? err.message : t("legal.errors.download", { filename: artifact.filename }));
     } finally {
       setDownloading(null);
     }
@@ -86,25 +81,27 @@ export function LegalResultView({ title, party, result, locked, onNextTurn, onNe
         disabled={busy}
         data-testid={`legal-download-${artifact.kind}`}
       >
-        {downloading === artifact.kind ? "Saving…" : ARTIFACT_BUTTON_LABEL[artifact.kind]}
+        {downloading === artifact.kind ? t("legal.studio.saving") : artifactButtonText(artifact.kind)}
       </button>
     );
   }
 
   return (
     <>
-      <div className="kicker">Workspace · Legal desk · {title}</div>
+      <div className="kicker">{t("legal.studio.kickerTitle", { title })}</div>
       <div className="mb-4 flex flex-wrap items-end gap-4">
         <div className="max-w-3xl">
           <h3
             className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]"
             data-testid="legal-result-headline"
           >
-            {resultHeadline(result.findings, result.verify)}
+            {resultHeadlineText(result.findings, result.verify)}
           </h3>
           <p className={`mt-1.5 text-sm ${DIM}`}>
-            Verified in {rounds} {rounds === 1 ? "round" : "rounds"}. Every quotation checked verbatim against its
-            source and every figure traced. Review the verification report before release.
+            {t("legal.result.verified", {
+              rounds,
+              roundWord: t(rounds === 1 ? "legal.result.roundOne" : "legal.result.roundMany"),
+            })}
           </p>
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -112,7 +109,7 @@ export function LegalResultView({ title, party, result, locked, onNextTurn, onNe
             <span key={artifact.kind}>{downloadButton(artifact)}</span>
           ))}
           <button type="button" className="btn" onClick={onNewMatter} disabled={busy} data-testid="legal-new-matter">
-            New matter
+            {t("legal.studio.newMatter")}
           </button>
           <button
             type="button"
@@ -121,7 +118,7 @@ export function LegalResultView({ title, party, result, locked, onNextTurn, onNe
             disabled={busy}
             data-testid="legal-next-turn"
           >
-            Next turn
+            {t("legal.result.nextTurn")}
           </button>
         </div>
       </div>
@@ -142,7 +139,7 @@ export function LegalResultView({ title, party, result, locked, onNextTurn, onNe
               onClick={() => setTab(item.id)}
               data-testid={`legal-tab-${item.id}`}
             >
-              {item.label}
+              {resultTabText(item.id, item.label)}
               {count !== null ? <span className="ml-1.5 text-xs">{count}</span> : null}
             </button>
           );
@@ -151,23 +148,23 @@ export function LegalResultView({ title, party, result, locked, onNextTurn, onNe
 
       {tab === "adverse" ? (
         <LegalFindingsTable
-          label={`Provisions adverse to ${party || "the client"}`}
+          label={t("legal.result.adverseLabel", { party: party || t("legal.result.theClient") })}
           findings={groups.adverse}
-          emptyText="No adverse provisions were found."
+          emptyText={t("legal.result.adverseEmpty")}
         />
       ) : null}
       {tab === "missing" ? (
         <LegalFindingsTable
-          label="Required provisions missing from the draft"
+          label={t("legal.result.missingLabel")}
           findings={groups.missing}
-          emptyText="Every required provision is present."
+          emptyText={t("legal.result.missingEmpty")}
         />
       ) : null}
       {tab === "unmarked" ? (
         <LegalFindingsTable
-          label="Changes made without markup"
+          label={t("legal.result.unmarkedLabel")}
           findings={groups.unmarked}
-          emptyText="No unmarked changes were found, or there was no prior turn to compare."
+          emptyText={t("legal.result.unmarkedEmpty")}
         />
       ) : null}
       {tab === "verification" ? <LegalVerifyReport verify={result.verify} /> : null}
@@ -175,7 +172,11 @@ export function LegalResultView({ title, party, result, locked, onNextTurn, onNe
         <LegalRedlinePreview findings={result.findings} action={downloadButton(redline, true)} />
       ) : null}
       {tab === "memo" ? (
-        <LegalPanel label="Issues memorandum" aside={memo?.filename ?? "not produced"} testId="legal-memo">
+        <LegalPanel
+          label={t("legal.deliverable.issues-memo")}
+          aside={memo?.filename ?? t("legal.result.memoAsideMissing")}
+          testId="legal-memo"
+        >
           <div className="mt-2 flex flex-wrap gap-2">
             {downloadButton(memo, true)}
             {downloadButton(redFlags)}
@@ -186,14 +187,14 @@ export function LegalResultView({ title, party, result, locked, onNextTurn, onNe
             </article>
           ) : (
             <p className={`mt-3 text-sm ${DIM}`}>
-              {redFlags ? "Loading the red-flags summary…" : "The memorandum is available as a .docx download."}
+              {redFlags ? t("legal.result.memoLoading") : t("legal.result.memoDownload")}
             </p>
           )}
         </LegalPanel>
       ) : null}
       {tab === "audit" ? <LegalAuditTrail manifest={result.manifest} runId={result.runId} /> : null}
 
-      <LegalPanel label="Hand off" testId="legal-handoff" className="mt-4">
+      <LegalPanel label={t("legal.result.handoff")} testId="legal-handoff" className="mt-4">
         <div className="mt-2">
           <ArtifactActions
             title={title}
@@ -204,10 +205,7 @@ export function LegalResultView({ title, party, result, locked, onNextTurn, onNe
             testIdPrefix="legal"
           />
         </div>
-        <p className={`mt-2 text-xs ${DIM}`}>
-          Draft work product prepared with automated assistance for review by a qualified lawyer. Files remain in this
-          workspace until exported.
-        </p>
+        <p className={`mt-2 text-xs ${DIM}`}>{t("legal.result.disclaimer")}</p>
       </LegalPanel>
     </>
   );

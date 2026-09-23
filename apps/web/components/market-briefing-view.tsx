@@ -10,11 +10,11 @@ import {
   collectFailures,
   formatObservedAt,
   isGuardedSection,
-  sessionLabel,
   type GuardReport,
   type MarketBriefing,
   type MarketClock,
 } from "@/lib/market-client";
+import { t } from "@/lib/i18n";
 import { safeLinkHref } from "@/lib/safe-link";
 import type { JobStudioModel } from "@/lib/use-job-model";
 
@@ -38,8 +38,8 @@ const SESSION_BADGE: Record<MarketClock["usSession"], string> = {
 const H3 = "text-sm font-semibold text-[var(--text)]";
 const BANNER = "rounded-lg border border-[var(--line)] bg-[var(--accent-soft)] px-3 py-2 text-xs text-[var(--text)]";
 
-function pluralize(count: number, noun: string): string {
-  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+function counted(count: number, one: string, many: string): string {
+  return t(count === 1 ? one : many, { count });
 }
 
 function ClockLine({ clock, testId }: { clock: MarketClock; testId: string }) {
@@ -49,9 +49,9 @@ function ClockLine({ clock, testId }: { clock: MarketClock; testId: string }) {
         className={`rounded-md border px-2 py-0.5 text-xs font-medium ${SESSION_BADGE[clock.usSession]}`}
         data-session={clock.usSession}
       >
-        US {sessionLabel(clock.usSession)}
+        {t("market.briefing.usSession", { session: t(`market.session.${clock.usSession}`) })}
       </span>
-      <span>Run {formatObservedAt(clock.runAt)}</span>
+      <span>{t("market.briefing.run", { when: formatObservedAt(clock.runAt) })}</span>
       {clock.note ? <span className="text-[var(--text-3)]">— {clock.note}</span> : null}
     </p>
   );
@@ -61,17 +61,18 @@ function GuardLine({ guard, testId }: { guard: GuardReport; testId: string }) {
   if (guard.total === 0 && guard.adviceReplaced === 0) {
     return (
       <p className="mt-3 text-xs text-[var(--text-3)]" data-testid={testId} data-clean="true">
-        Every figure in this briefing traces to the fetched packet or your own position notes, and no sentence gives a
-        directive.
+        {t("market.briefing.guardClean")}
       </p>
     );
   }
   return (
     <p className={`mt-3 ${BANNER}`} data-testid={testId} data-clean="false">
-      {pluralize(guard.total, "unverified figure")} replaced with “[unverified figure]”
-      {guard.flagged.length > 0 ? `: ${guard.flagged.map((item) => item.text).join(", ")}` : ""}.{" "}
-      {pluralize(guard.adviceReplaced, "sentence")} removed because {guard.adviceReplaced === 1 ? "it" : "they"} read as
-      a directive.
+      {t("market.briefing.guardDirty", {
+        figures: counted(guard.total, "market.briefing.unverifiedOne", "market.briefing.unverifiedMany"),
+        flagged: guard.flagged.length > 0 ? `: ${guard.flagged.map((item) => item.text).join(", ")}` : "",
+        sentences: counted(guard.adviceReplaced, "market.briefing.sentenceOne", "market.briefing.sentenceMany"),
+        pronoun: t(guard.adviceReplaced === 1 ? "market.briefing.pronounOne" : "market.briefing.pronounMany"),
+      })}
     </p>
   );
 }
@@ -79,9 +80,9 @@ function GuardLine({ guard, testId }: { guard: GuardReport; testId: string }) {
 function SourceList({ briefing, testId }: { briefing: MarketBriefing; testId: string }) {
   return (
     <section className="mt-10" data-testid={testId}>
-      <h3 className={H3}>Sources</h3>
+      <h3 className={H3}>{t("market.briefing.sources")}</h3>
       {briefing.sources.length === 0 ? (
-        <p className="mt-2 text-sm text-[var(--text-3)]">No sources recorded.</p>
+        <p className="mt-2 text-sm text-[var(--text-3)]">{t("market.briefing.noSources")}</p>
       ) : (
         <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-[var(--text-2)]">
           {briefing.sources.map((source) => {
@@ -100,7 +101,9 @@ function SourceList({ briefing, testId }: { briefing: MarketBriefing; testId: st
                 ) : (
                   <span>{source.label}</span>
                 )}{" "}
-                <span className="text-xs text-[var(--text-3)]">observed {formatObservedAt(source.observedAt)}</span>
+                <span className="text-xs text-[var(--text-3)]">
+                  {t("market.briefing.observed", { when: formatObservedAt(source.observedAt) })}
+                </span>
               </li>
             );
           })}
@@ -129,7 +132,9 @@ export function MarketBriefingView({
       data-testid={`${testIdPrefix}-preview`}
       lang={briefing.language}
     >
-      <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--text-3)]">Market Watch briefing</p>
+      <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--text-3)]">
+        {t("market.briefing.kicker")}
+      </p>
       <h2 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{briefing.title}</h2>
       <ClockLine clock={packet.clock} testId={`${testIdPrefix}-clock`} />
       <GuardLine guard={guard} testId={`${testIdPrefix}-guard`} />
@@ -153,13 +158,13 @@ export function MarketBriefingView({
                   disabled={regeneratingIndex !== null}
                   data-testid={`${testIdPrefix}-section-regen`}
                 >
-                  {regeneratingIndex === index ? "Rewriting…" : "Rewrite"}
+                  {t(regeneratingIndex === index ? "market.briefing.rewriting" : "market.briefing.rewrite")}
                 </button>
               ) : null}
             </div>
             {isGuardedSection(section) ? (
               <p className="mt-2 text-xs text-[var(--text-2)]" data-testid={`${testIdPrefix}-section-guarded`}>
-                The advice guard replaced part of this section.
+                {t("market.briefing.guardedSection")}
               </p>
             ) : null}
             <FormattedText text={section.body} className="mt-3 text-sm leading-relaxed text-[var(--text-2)]" />
@@ -191,7 +196,7 @@ export function MarketBriefingView({
         </div>
       ) : null}
       <section className="mt-10">
-        <h3 className={H3}>Watchlist</h3>
+        <h3 className={H3}>{t("market.briefing.watchlist")}</h3>
         <div className="mt-3">
           <WatchlistTable tickers={packet.tickers} testId={`${testIdPrefix}-watchlist`} />
         </div>
@@ -202,14 +207,14 @@ export function MarketBriefingView({
         ))}
       </section>
       <section className="mt-10">
-        <h3 className={H3}>Macro</h3>
+        <h3 className={H3}>{t("market.briefing.macro")}</h3>
         <div className="mt-3">
           <MacroTable macro={packet.macro} testId={`${testIdPrefix}-macro`} />
         </div>
       </section>
       {packet.positionContext ? (
         <section className="mt-10" data-testid={`${testIdPrefix}-position`}>
-          <h3 className={H3}>Your position notes</h3>
+          <h3 className={H3}>{t("market.briefing.positionNotes")}</h3>
           <pre className="mt-3 whitespace-pre-wrap rounded-md border border-[var(--line)] bg-[var(--accent-soft)] px-3 py-2 font-sans text-sm text-[var(--text-2)]">
             {packet.positionContext}
           </pre>

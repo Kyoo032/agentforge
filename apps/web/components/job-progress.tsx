@@ -1,6 +1,8 @@
 "use client";
 
 import type { JobProgress } from "@agentforge/core/jobs";
+import { t } from "@/lib/i18n";
+import { labeled } from "@/lib/ui-copy";
 
 type Props = {
   progress: JobProgress;
@@ -13,11 +15,10 @@ type Props = {
   labelFor?: (label: string) => string;
 };
 
-const SOURCE_STATUS_LABEL: Record<string, string> = {
-  found: "found",
-  read: "read",
-  unreachable: "unreachable",
-};
+/** Known source states get catalog copy; anything else the host sends is shown as-is. */
+function sourceStatusLabel(status: string): string {
+  return labeled(`common.jobProgress.source.${status}`, status);
+}
 
 /** Streamed phase list for job modes: planning → searching 3/5 → reading 7/10 → drafting. */
 export function JobProgressList({ progress, busy, testId = "job-progress", labelFor }: Props) {
@@ -30,10 +31,14 @@ export function JobProgressList({ progress, busy, testId = "job-progress", label
       data-testid={testId}
       aria-live="polite"
     >
-      {progress.phases.length === 0 ? <p className="text-[var(--text-2)]">Starting…</p> : null}
+      {progress.phases.length === 0 ? <p className="text-[var(--text-2)]">{t("common.jobProgress.starting")}</p> : null}
       {progress.round ? (
         <p className="mb-1 text-xs font-medium text-[var(--accent)]" data-testid={`${testId}-round`}>
-          Round {progress.round.round} of {progress.round.total} · {progress.round.label}
+          {t("common.jobProgress.round", {
+            round: progress.round.round,
+            total: progress.round.total,
+            label: progress.round.label,
+          })}
         </p>
       ) : null}
       <ol className="space-y-1">
@@ -61,7 +66,7 @@ export function JobProgressList({ progress, busy, testId = "job-progress", label
           {progress.sources.map((source) => (
             <li key={source.id} className="truncate">
               <span className="font-mono">{source.id}</span> {source.title || source.url}{" "}
-              <span className="text-[var(--text-3)]">({SOURCE_STATUS_LABEL[source.status] ?? source.status})</span>
+              <span className="text-[var(--text-3)]">({sourceStatusLabel(source.status)})</span>
             </li>
           ))}
         </ul>

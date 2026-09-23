@@ -19,6 +19,7 @@
     "map": "Could not map knowledge",
     "addUrl": "Could not add URL",
     "addNotes": "Could not add notes",
+    "addMemory": "Could not pin that memory",
     "saveSoul": "Could not save soul",
     "indexFile": "Could not index file",
     "selfCheck": "Could not run the self-check",

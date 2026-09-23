@@ -12,6 +12,7 @@ import { ModelSelect } from "@/components/model-select";
 import { SettingsLinkHint } from "@/components/settings-link-hint";
 import { t } from "@/lib/i18n";
 import { mediaPriceHints, videoEstimateView } from "@/lib/media-estimate";
+import { keepModelChoice } from "@/lib/model-choice";
 import { apiFetch, mediaSrc } from "@/lib/api-client";
 import { useProductBrand } from "@/lib/product-brand";
 
@@ -81,7 +82,9 @@ export function VideosStudio() {
       }
       setItems(data.items ?? []);
       setModels(data.models ?? []);
-      setModel(data.defaultModel || data.models?.[0]?.id || "");
+      // `load` runs again after every generate. Keeping the chosen model also keeps the clip length:
+      // `seconds` only re-snaps when the model changes.
+      setModel((current) => keepModelChoice(current, data.models ?? [], data.defaultModel));
       setReady(Boolean(data.ready));
     } catch (err) {
       setError(err instanceof Error ? err.message : t("videos.loadError"));

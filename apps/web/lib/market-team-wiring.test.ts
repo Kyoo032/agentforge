@@ -68,7 +68,7 @@ describe("market depth control wiring", () => {
 
   it("relabels the streamed team phases without touching the job stream's own state", () => {
     expect(studio).toContain("const teamProgress = localizeMarketProgress(job.progress, labeled);");
-    expect(studio).toContain('progress={teamProgress}');
+    expect(studio).toContain("progress={teamProgress}");
     expect(studio).toContain('testId="market-progress"');
     expect(client).toContain('export const MARKET_TEAM_PHASES = ["analysts", "debate", "risk", "synthesis"] as const;');
     // A copy, never an in-place relabel of the reducer's phases.
@@ -86,7 +86,9 @@ describe("market team panel wiring", () => {
     expect(view).toContain('import { MarketTeamPanel } from "@/components/market-team-panel"');
     // The panel sits between the narrative and the packet tables.
     expect(view.indexOf("{briefing.team ? (")).toBeGreaterThan(view.indexOf("briefing.sections.map"));
-    expect(view.indexOf("{briefing.team ? (")).toBeLessThan(view.indexOf("<h3 className={H3}>Watchlist</h3>"));
+    expect(view.indexOf("{briefing.team ? (")).toBeLessThan(
+      view.indexOf('<h3 className={H3}>{t("market.briefing.watchlist")}</h3>'),
+    );
   });
 
   it("carries the four analyst cards, both debate columns and the three risk lenses", () => {
@@ -127,7 +129,10 @@ describe("market team catalog", () => {
         expect(String(catalog.depth[key] ?? "").trim().length, `${locale}: market.depth.${key}`).toBeGreaterThan(0);
       }
       for (const phase of ["analysts", "debate", "risk", "synthesis"]) {
-        expect(String(catalog.progress[phase] ?? "").trim().length, `${locale}: market.progress.${phase}`).toBeGreaterThan(0);
+        expect(
+          String(catalog.progress[phase] ?? "").trim().length,
+          `${locale}: market.progress.${phase}`,
+        ).toBeGreaterThan(0);
       }
     }
   });

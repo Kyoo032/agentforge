@@ -8,6 +8,7 @@ import { ModelSelect } from "@/components/model-select";
 import { SettingsLinkHint } from "@/components/settings-link-hint";
 import { t } from "@/lib/i18n";
 import { imageEstimateView, mediaPriceHints } from "@/lib/media-estimate";
+import { keepModelChoice } from "@/lib/model-choice";
 import { apiFetch, mediaSrc } from "@/lib/api-client";
 import { useProductBrand } from "@/lib/product-brand";
 
@@ -67,7 +68,8 @@ export function ImagesStudio() {
       }
       setItems(data.items ?? []);
       setModels(data.models ?? []);
-      setModel(data.defaultModel || data.models?.[0]?.id || "");
+      // `load` runs again after every generate: keep the model the person chose while it is still listed.
+      setModel((current) => keepModelChoice(current, data.models ?? [], data.defaultModel));
       setReady(Boolean(data.ready));
     } catch (err) {
       setError(err instanceof Error ? err.message : t("images.loadError"));

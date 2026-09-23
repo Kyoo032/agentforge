@@ -29,6 +29,25 @@ export function readOptionalInstruction(body: unknown): string {
   return typeof instruction === "string" ? instruction.trim() : "";
 }
 
+/**
+ * Did the person pick this job's model, or is it the seeded default every studio sends?
+ *
+ * The studios send `model` on every request, so the id alone cannot tell a pick from a default, and a
+ * job that read every request as a pick could never be rescued onto a second model when the gateway
+ * cannot reach the first. The studio sends `modelPinned: true` only when its picker was changed
+ * (`apps/web/lib/model-choice.ts`); callers hand this answer to the job run as `modelExplicit`.
+ *
+ * A pin with no model names nothing to hold the host to, so it is not a pin: the host default the
+ * request would fall back on was nobody's choice.
+ */
+export function readModelPinned(body: unknown): boolean {
+  if (!body || typeof body !== "object") {
+    return false;
+  }
+  const record = body as { model?: unknown; modelPinned?: unknown };
+  return record.modelPinned === true && typeof record.model === "string" && record.model.trim() !== "";
+}
+
 export function appendRegenInstruction(prompt: string, instruction: string): string {
   return instruction ? `${prompt}\n\nUser instruction:\n${instruction}` : prompt;
 }
@@ -85,6 +104,8 @@ async function runJobAssistantOnce(options: {
   jobMode?: JobMode;
   /** App locale for runtime copy (timeouts, contact errors). Defaults to the run context. */
   locale?: AppLocale;
+  /** The job's cancel. The runtime aborts the request in flight when it fires; omitted, the call runs to the end. */
+  signal?: AbortSignal;
 }): Promise<string> {
   const settings = loadSettings(options.tenant);
   const runtime = createRuntime(settings);
@@ -134,6 +155,7 @@ async function runJobAssistantOnce(options: {
     locale: options.locale ?? localeForRun(),
     ...(options.streamWatchdog ? { streamWatchdog: options.streamWatchdog } : {}),
     ...(options.jobMode ? { jobMode: options.jobMode } : {}),
+    ...(options.signal ? { signal: options.signal } : {}),
     onEvent: (event) => {
       if (event.type === "assistant.delta") {
         assistantText += event.text;
@@ -176,6 +198,8 @@ export type JobAssistantOptions = Parameters<typeof runJobAssistantOnce>[0] & {
  */
 export async function collectJobAssistantRun(options: JobAssistantOptions): Promise<JobAssistantRun> {
   const run = await runWithJobModelFallback(options, async (model): Promise<JobModelOutcome<string>> => {
+    // A cancelled job starts no call: not the first, and not a stand-in after the first one failed.
+    options.signal?.throwIfAborted();
     let streamed = false;
     try {
       const text = await runJobAssistantOnce({
@@ -190,12 +214,21 @@ export async function collectJobAssistantRun(options: JobAssistantOptions): Prom
       });
       return { ok: true, value: text };
     } catch (error) {
+      // A cancel is the caller's answer, not the model's failure: thrown past the fallback, so no
+      // stand-in retries it and the circuit never marks the model down for it.
+      options.signal?.throwIfAborted();
       return { ok: false, error, streamed };
     }
   });
   return { text: run.value, model: run.model, ...(run.notice ? { notice: run.notice } : {}) };
 }
 
+/**
+ * The text only. This drops which model answered, so it is for callers that neither record nor show
+ * a model. A job that saves `model` into an artifact, a work card or a notice must use
+ * `collectJobAssistantRun` and record `run.model`: after a fallback the requested id is the one model
+ * that did not write the answer.
+ */
 export async function collectJobAssistantText(options: JobAssistantOptions): Promise<string> {
   return (await collectJobAssistantRun(options)).text;
 }

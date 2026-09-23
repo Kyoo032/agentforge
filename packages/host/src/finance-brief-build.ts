@@ -14,6 +14,15 @@ import { extractJsonObject } from "./presentation-outline";
 
 export const FINANCE_PARAM_KEYS = ["discountRatePercent", "pricePerUnit", "variableCostPerUnit", "fixedCosts"] as const;
 
+/** The title a brief takes when the model gave none, or gave one stating a figure nobody can trace. */
+export const DEFAULT_BRIEF_TITLE = "Finance brief";
+
+/** The section index a flag carries when its figure sat outside every section: a title or an assumption. */
+export const GUARD_OUTSIDE_SECTIONS = -1;
+
+/** What a heading becomes when the untraced figure was all it said. A heading may not be empty. */
+const EMPTIED_LABEL = "…";
+
 export type BriefDraft = {
   title: string;
   sections: Array<{ heading: string; body: string; metrics: string[] }>;
@@ -79,7 +88,11 @@ export function parseBriefDraft(raw: string): BriefDraft {
   if (sections.length === 0) {
     throw new ApiError("invalid_finance", "Model returned no sections", 502);
   }
-  return { title: text(parsed.title) || "Finance brief", sections, assumptions: stringList(parsed.assumptions, 30) };
+  return {
+    title: text(parsed.title) || DEFAULT_BRIEF_TITLE,
+    sections,
+    assumptions: stringList(parsed.assumptions, 30),
+  };
 }
 
 export function parseBriefSection(raw: string): BriefDraft["sections"][number] {
@@ -96,6 +109,59 @@ export function parseBriefSection(raw: string): BriefDraft["sections"][number] {
   return section;
 }
 
+export type GuardedLabel = { text: string; flagged: string[] };
+
+/**
+ * A heading with every figure the guard cannot trace cut out of it, and the words around it kept.
+ *
+ * A heading is not a sentence the repair rewrites or removes, and the marker may never reach a
+ * reader, so the figure is taken out where it stands. Only a heading that said nothing but the
+ * figure falls back.
+ */
+export function guardLabel(label: string, allowed: readonly number[], fallback = EMPTIED_LABEL): GuardedLabel {
+  const guarded = guardNumbers(label, allowed);
+  if (guarded.flagged.length === 0) {
+    return { text: label, flagged: [] };
+  }
+  const text = guarded.text
+    .split(UNVERIFIED_MARKER)
+    .join(" ")
+    .replace(/\(\s*\)/g, " ")
+    .replace(/\s+([,.;:!?)])/g, "$1")
+    .replace(/\s{2,}/g, " ")
+    .replace(/^[\s,.;:–—-]+|[\s,;:–—-]+$/g, "");
+  return { text: /\p{L}/u.test(text) ? text : fallback, flagged: guarded.flagged.map((token) => token.text) };
+}
+
+/**
+ * A title that states a figure nobody can trace is replaced whole: a headline with a hole cut in it
+ * reads worse than a plain one, and the title is the first thing the reader and the file name see.
+ */
+export function guardTitle(title: string, allowed: readonly number[], fallback: string): GuardedLabel {
+  const flagged = guardNumbers(title, allowed).flagged.map((token) => token.text);
+  return { text: flagged.length === 0 ? title : fallback, flagged };
+}
+
+/**
+ * The assumptions, less every one that rests on a figure nobody computed. An assumption is one claim
+ * the reader is asked to accept, so it goes whole, and the count says how many went.
+ */
+export function guardAssumptions(
+  assumptions: readonly string[],
+  allowed: readonly number[],
+): { assumptions: string[]; flagged: string[]; removed: number } {
+  const guarded = assumptions.map((assumption) => ({
+    assumption,
+    flagged: guardNumbers(assumption, allowed).flagged.map((token) => token.text),
+  }));
+  const kept = guarded.filter((entry) => entry.flagged.length === 0);
+  return {
+    assumptions: kept.map((entry) => entry.assumption),
+    flagged: guarded.flatMap((entry) => entry.flagged),
+    removed: guarded.length - kept.length,
+  };
+}
+
 /** Strip figures the engine cannot vouch for; the brief says "[unverified figure]" instead of inventing. */
 export function guardSection(
   section: BriefDraft["sections"][number],
@@ -105,34 +171,46 @@ export function guardSection(
   section: FinanceSection;
   flagged: string[];
 } {
+  const heading = guardLabel(section.heading, computed.allowed);
   const guarded = guardNumbers(section.body, computed.allowed);
   return {
     section: {
-      heading: section.heading,
+      heading: heading.text,
       body: guarded.text,
       tables: [],
       metrics: section.metrics.filter((key) => knownKeys.has(key)),
     },
-    flagged: guarded.flagged.map((token) => token.text),
+    flagged: [...heading.flagged, ...guarded.flagged.map((token) => token.text)],
   };
 }
 
+/**
+ * The draft with every figure the engine cannot vouch for dealt with — in the bodies, and in the
+ * title, the headings and the assumptions, which are model prose too and are read first.
+ */
 export function buildFinanceBrief(
   draft: BriefDraft,
   computed: ComputedFinance,
 ): { brief: FinanceBrief; guard: GuardReport } {
   const knownKeys = new Set(computed.metrics.map((entry) => entry.key));
+  const title = guardTitle(draft.title, computed.allowed, DEFAULT_BRIEF_TITLE);
   const guardedSections = draft.sections.map((section) => guardSection(section, computed, knownKeys));
-  const flagged = guardedSections.flatMap((entry, index) =>
-    entry.flagged.map((token) => ({ section: index, text: token })),
-  );
+  const assumptions = guardAssumptions(draft.assumptions, computed.allowed);
+  const flagged = [
+    ...title.flagged.map((token) => ({ section: GUARD_OUTSIDE_SECTIONS, text: token })),
+    ...guardedSections.flatMap((entry, index) => entry.flagged.map((token) => ({ section: index, text: token }))),
+    ...assumptions.flagged.map((token) => ({ section: GUARD_OUTSIDE_SECTIONS, text: token })),
+  ];
   const brief = financeBriefSchema.parse({
-    title: draft.title,
+    title: title.text,
     sections: guardedSections.map((entry) => entry.section),
-    assumptions: draft.assumptions,
+    assumptions: assumptions.assumptions,
     computed: { metrics: computed.metrics, tables: computed.tables },
   });
-  return { brief, guard: { flagged, total: flagged.length } };
+  return {
+    brief,
+    guard: { flagged, total: flagged.length, ...(assumptions.removed > 0 ? { removed: assumptions.removed } : {}) },
+  };
 }
 
 const WRITE_AS: Record<AppLocale, string> = {

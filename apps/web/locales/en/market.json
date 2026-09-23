@@ -243,5 +243,8 @@
     "NEUTRAL": "Neutral",
     "SELL": "Sell",
     "STRONG_SELL": "Strong sell"
+  },
+  "priceChart": {
+    "series": "{symbol} close"
   }
 }

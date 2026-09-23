@@ -65,6 +65,32 @@ describe("brief draft and guard", () => {
     expect(() => parseBriefDraft("nope")).toThrow(ApiError);
   });
 
+  // A title, a heading and an assumption are model prose as much as a body is, and they are read first.
+  it("guards the title, every heading and every assumption, and never leaves the marker in them", () => {
+    const raw = JSON.stringify({
+      title: "Sales jumped 48% in 2026",
+      sections: [
+        { heading: "Revenue grew 25% while churn hit 4.5%", body: "Gross margin was 75%.", metrics: [] },
+        { heading: "Payroll", body: "Payroll was $100,000.", metrics: [] },
+      ],
+      assumptions: ["USD throughout.", "Headcount holds at 140 staff.", "Hosting stays at $30,000."],
+    });
+    const { brief, guard } = buildFinanceBrief(parseBriefDraft(raw), computed);
+    expect(brief.title).toBe("Finance brief");
+    expect(brief.sections.map((section) => section.heading)).toEqual(["Revenue grew 25% while churn hit", "Payroll"]);
+    expect(brief.assumptions).toEqual(["USD throughout.", "Hosting stays at $30,000."]);
+    expect(JSON.stringify(brief)).not.toContain(UNVERIFIED_MARKER);
+    expect(guard).toEqual({
+      flagged: [
+        { section: -1, text: "48%" },
+        { section: 0, text: "4.5%" },
+        { section: -1, text: "140" },
+      ],
+      total: 3,
+      removed: 1,
+    });
+  });
+
   it("shows the model inputs and metrics as tables, never loose numbers", () => {
     const block = financePromptBlock(inputs, computed);
     expect(block).toContain("| Sales | 2025 | revenue | 120000 | USD | $120,000 |");

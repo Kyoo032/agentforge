@@ -44,7 +44,7 @@ import { listSelectableModels, modeCatalogPayload } from "../selectable-models";
 import { localeForRun } from "../run-context";
 import { log } from "../log";
 import { recordTranscriptionUsage } from "../usage-record";
-import { extractMeetingAudio } from "./audio";
+import { extractMeetingAudio, type ExtractedAudio } from "./audio";
 import { meetingStore, requireMeeting, type MeetingRecord } from "./store";
 import { resolveMeetingAsr, transcribeChunks } from "./transcribe";
 import type { MeetingMinutesRecord } from "./records";
@@ -167,27 +167,21 @@ export async function transcribeMeeting(
   throwIfJobAborted(options.abortSignal);
   emit({ type: "job.phase", phase: "extracting", label: "Reading the recording" });
   const workspace = meetingStore().audioWorkspace(tenant, meetingId);
-  const audio = await extractMeetingAudio(source, workspace.dir, workspace.allow);
-  throwIfJobAborted(options.abortSignal);
-  emit({
-    type: "job.phase",
-    phase: "transcribing",
-    label: `Transcribing with ${capability.model}`,
-  });
   try {
-    const transcript = await transcribeChunks(audio.files, {
-      language: options.language ?? meeting.locale,
-      tenant,
-      offsets: audio.offsets,
-      signal: options.abortSignal,
-      onChunk: (current, total) =>
-        emit({ type: "job.step", phase: "transcribing", label: "Audio", current, total }),
+    // Inside the `try`: ffmpeg can fail after writing some chunks, and a cancel can land the moment
+    // it finishes. Either way the chunks must not outlive the run.
+    const audio = await extractMeetingAudio(source, workspace.dir, workspace.allow);
+    throwIfJobAborted(options.abortSignal);
+    emit({
+      type: "job.phase",
+      phase: "transcribing",
+      label: `Transcribing with ${capability.model}`,
     });
-    // Recorded before the transcript is judged: the gateway has already charged for the audio,
-    // so a recogniser that answers with nothing is still a call the tenant pays for.
-    recordTranscriptionUsage(tenant, {
-      model: transcript.model || capability.model || "",
-      seconds: audio.durationSeconds,
+    const transcript = await transcribeAndMeter(tenant, audio, {
+      language: options.language ?? meeting.locale,
+      model: capability.model ?? "",
+      emit,
+      abortSignal: options.abortSignal,
     });
     if (!transcriptPlainText(transcript)) {
       throw new ApiError("transcription_empty", "The recogniser returned nothing for that recording", 502);
@@ -198,6 +192,49 @@ export async function transcribeMeeting(
     // every meeting's footprint for nothing.
     await rm(workspace.dir, { recursive: true, force: true }).catch(() => {});
   }
+}
+
+/**
+ * Every chunk through the recogniser, metered in seconds of audio. When a later chunk fails, the
+ * chunks before it were still answered, and billed, by the gateway, so their share is recorded
+ * before the error goes on.
+ */
+async function transcribeAndMeter(
+  tenant: TenantContext,
+  audio: ExtractedAudio,
+  options: { language: string; model: string; emit: JobEmitter; abortSignal?: AbortSignal },
+): Promise<MeetingTranscript> {
+  let answered = 0;
+  let transcript: MeetingTranscript;
+  try {
+    transcript = await transcribeChunks(audio.files, {
+      language: options.language,
+      tenant,
+      offsets: audio.offsets,
+      signal: options.abortSignal,
+      onChunk: (current, total) => {
+        // Announced before its chunk is sent, so every chunk before this one has answered.
+        answered = current - 1;
+        options.emit({ type: "job.step", phase: "transcribing", label: "Audio", current, total });
+      },
+    });
+  } catch (error) {
+    if (answered > 0) {
+      // The first chunk that did not answer starts where the billed audio ends.
+      recordTranscriptionUsage(tenant, {
+        model: options.model,
+        seconds: audio.offsets[answered] ?? audio.durationSeconds,
+      });
+    }
+    throw error;
+  }
+  // Recorded before the transcript is judged: the gateway has already charged for the audio,
+  // so a recogniser that answers with nothing is still a call the tenant pays for.
+  recordTranscriptionUsage(tenant, {
+    model: transcript.model || options.model,
+    seconds: audio.durationSeconds,
+  });
+  return transcript;
 }
 
 /** Store a transcript — gateway-produced or pasted — and save it as an artifact. */
@@ -301,16 +338,22 @@ export async function generateMinutes(
   const written = await writeMinutes(tenant, meeting, transcript, locale, model);
   emit({ type: "job.phase", phase: "saving", label: "Saving the minutes" });
   const minutes = await saveMinutesArtifact(tenant, meeting, written, "minutes");
-
-  let translation: MeetingMinutesRecord | null = null;
-  if (options.translate !== false) {
-    throwIfJobAborted(options.abortSignal);
-    const target = otherLocale(locale);
-    emit({ type: "job.phase", phase: "translating", label: `Translating to ${target === "id" ? "Indonesian" : "English"}` });
-    translation = await translateMinutes(tenant, meeting, minutes, target, model);
+  // On the meeting before the translation starts, so a translation that fails cannot take the
+  // minutes with it. An earlier translation described earlier minutes, so it is cleared here.
+  const minuted = meetingStore().update(tenant, meetingId, { status: "minuted", minutes, translation: null });
+  if (options.translate === false) {
+    return minuted;
   }
 
-  return meetingStore().update(tenant, meetingId, { status: "minuted", minutes, translation });
+  throwIfJobAborted(options.abortSignal);
+  const target = otherLocale(locale);
+  emit({
+    type: "job.phase",
+    phase: "translating",
+    label: `Translating to ${target === "id" ? "Indonesian" : "English"}`,
+  });
+  const translation = await translateMinutes(tenant, meeting, minutes, target, model);
+  return meetingStore().update(tenant, meetingId, { translation });
 }
 
 /**

@@ -37,7 +37,14 @@ type Props = {
   onTool?: (event: { phase: "started" | "completed"; toolKey: string; input?: unknown; output?: unknown }) => void;
   onFailed?: (message: string) => void;
   onProbing?: (info: { attempt: number; attempts: number; message: string }) => void;
-  onComplete: () => Promise<void> | void;
+  /** A run ended. `showing` is false when the pane had moved to another session by then. */
+  onComplete: (run: RunEnd) => Promise<void> | void;
+  /**
+   * The session the pane is showing; the pane changes it when the owner opens another. A run
+   * remembers the key it started under, and once the key moves on it draws nothing more — its
+   * stream still runs to the end, so the host keeps the reply — and it no longer holds Send.
+   */
+  sessionKey?: string | number;
   thinkingEnabled?: boolean;
   onThinkingChange?: (enabled: boolean) => void;
   reasoningEffort?: ReasoningEffort;
@@ -70,6 +77,77 @@ async function readTextFile(file: File): Promise<string> {
   return file.text();
 }
 
+/** Where a run's events are drawn. The pane's live callbacks, gated by `readRunStream`. */
+export type RunStreamHandlers = {
+  readonly onStarted?: () => void;
+  readonly onDelta: (text: string) => void;
+  readonly onThinking?: (text: string) => void;
+  readonly onTool?: (event: { phase: "started" | "completed"; toolKey: string; input?: unknown; output?: unknown }) => void;
+  readonly onFailed?: (message: string) => void;
+};
+
+/** How a run ended, for `onComplete`. */
+export type RunEnd = {
+  /** The thread the run posted to, or null when it failed before it had one. */
+  readonly threadId: string | null;
+  /** False when the pane had moved to another session by the time the run ended. */
+  readonly showing: boolean;
+};
+
+/**
+ * Read one run's event stream to the end.
+ *
+ * Events are drawn through `handlers` while `showing()` says the session the run started in is
+ * still on screen. Once it is not — the owner opened another session from the rail — the stream is
+ * still read to the end, never cancelled: the host aborts a run whose client goes away
+ * (`packages/host/src/http-adapter.ts`), and the reply the owner asked for would never be saved.
+ * The host keeps it; this only stops drawing it in a conversation it does not belong to.
+ * `onActivity` is fed either way, so the stall watchdog stays quiet for a run that is still answering.
+ */
+export async function readRunStream(
+  body: ReadableStream<Uint8Array>,
+  handlers: RunStreamHandlers,
+  options: { readonly onActivity?: () => void; readonly showing?: () => boolean } = {},
+): Promise<void> {
+  const showing = options.showing ?? (() => true);
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    buffer += decoder.decode(value, { stream: true });
+    const consumed = consumeSse(buffer);
+    buffer = consumed.rest;
+    for (const event of consumed.events) {
+      options.onActivity?.();
+      if (!showing()) {
+        continue;
+      }
+      if (event.type === "run.started" || event.type === "run.probing") {
+        handlers.onStarted?.();
+      }
+      if (event.type === "assistant.delta" && event.text) {
+        handlers.onDelta(event.text);
+      }
+      if (event.type === "assistant.thinking" && event.text) {
+        handlers.onThinking?.(event.text);
+      }
+      if (event.type === "tool.started" && event.toolKey) {
+        handlers.onTool?.({ phase: "started", toolKey: event.toolKey, input: event.input });
+      }
+      if (event.type === "tool.completed" && event.toolKey) {
+        handlers.onTool?.({ phase: "completed", toolKey: event.toolKey, output: event.output });
+      }
+      if (event.type === "run.failed" && event.message) {
+        handlers.onFailed?.(event.message);
+      }
+    }
+  }
+}
+
 export function ChatComposer({
   threadId,
   onEnsureThread,
@@ -91,6 +169,7 @@ export function ChatComposer({
   onReasoningEffortChange,
   draft,
   onDraftApplied,
+  sessionKey,
 }: Props) {
   const [text, setText] = useState("");
   const [files, setFiles] = useState<HeldFile[]>([]);
@@ -101,6 +180,16 @@ export function ChatComposer({
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const dragDepth = useRef(0);
+  /** The session on screen as of this render, read by a run to know whether it still is. */
+  const sessionRef = useRef(sessionKey);
+  sessionRef.current = sessionKey;
+  const [shownSession, setShownSession] = useState(sessionKey);
+  if (shownSession !== sessionKey) {
+    // Another session is on screen. Whatever run held Send, and its error, belonged to the last one.
+    setShownSession(sessionKey);
+    setBusy(false);
+    setError(null);
+  }
 
   const pickerModels = models ?? [];
   const showPicker = typeof onModelChange === "function";
@@ -124,57 +213,6 @@ export function ChatComposer({
     el.style.height = "44px";
     el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
   }, [text]);
-
-  async function readSse(response: Response, onActivity?: () => void) {
-    if (!response.body) {
-      throw new Error(t("chat.error.noStream"));
-    }
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    const types: string[] = [];
-    let deltaChars = 0;
-    let thinkingChars = 0;
-    let failedMessage = "";
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) {
-        break;
-      }
-      buffer += decoder.decode(value, { stream: true });
-      const consumed = consumeSse(buffer);
-      buffer = consumed.rest;
-      for (const event of consumed.events) {
-        onActivity?.();
-        types.push(event.type);
-        if (event.type === "run.started") {
-          onStarted?.();
-        }
-        if (event.type === "run.probing") {
-          onStarted?.();
-        }
-        if (event.type === "assistant.delta" && event.text) {
-          deltaChars += event.text.length;
-          onDelta(event.text);
-        }
-        if (event.type === "assistant.thinking" && event.text) {
-          thinkingChars += event.text.length;
-          onThinking?.(event.text);
-        }
-        if (event.type === "tool.started" && event.toolKey) {
-          onTool?.({ phase: "started", toolKey: event.toolKey, input: event.input });
-        }
-        if (event.type === "tool.completed" && event.toolKey) {
-          onTool?.({ phase: "completed", toolKey: event.toolKey, output: event.output });
-        }
-        if (event.type === "run.failed" && event.message) {
-          failedMessage = event.message;
-          onFailed?.(event.message);
-          setError(event.message);
-        }
-      }
-    }
-  }
 
   function addFiles(list: FileList | null) {
     if (!list || list.length === 0) {
@@ -213,6 +251,36 @@ export function ChatComposer({
   }
 
   async function send() {
+    // The run belongs to the session on screen now. If the owner opens another before the run
+    // reaches the host, nothing is sent and the draft stays in the box; if they open one after, the
+    // run streams on to the host — which saves the reply — but writes nothing more into this pane.
+    const startedIn = sessionRef.current;
+    const showing = () => sessionRef.current === startedIn;
+    const typed = text;
+    const attached = files;
+    let runThread: string | null = null;
+    const finish = () => onComplete({ threadId: runThread, showing: showing() });
+    const fail = (message: string) => {
+      if (showing()) {
+        setError(message);
+        onFailed?.(message);
+      }
+    };
+    /** Only the draft that was sent is cleared; anything typed or attached since is the owner's. */
+    const clearSent = () => {
+      setText((current) => (current === typed ? "" : current));
+      setFiles((current) => (current === attached ? [] : current));
+    };
+    const live: RunStreamHandlers = {
+      onStarted,
+      onDelta,
+      onThinking,
+      onTool,
+      onFailed: (message) => {
+        onFailed?.(message);
+        setError(message);
+      },
+    };
     setBusy(true);
     setError(null);
     try {
@@ -248,8 +316,9 @@ export function ChatComposer({
 
       const outgoing = composedText.trim();
       if (decision.route === "text" && !outgoing) {
-        setError(t("chat.error.emptySend"));
-        setBusy(false);
+        if (showing()) {
+          setError(t("chat.error.emptySend"));
+        }
         return;
       }
 
@@ -257,10 +326,17 @@ export function ChatComposer({
       const dog = armStreamWatchdog(model ?? "this model", abort, undefined, Date.now, getLocale());
       try {
         if (decision.route === "text") {
+          if (!showing()) {
+            return; // Moved on before the run reached the host: nothing was sent, the draft stays.
+          }
           const id = onEnsureThread ? await onEnsureThread() : threadId;
           if (!id) {
             throw new Error(t("chat.error.start"));
           }
+          if (!showing()) {
+            return; // Moved on before the run reached the host: nothing was sent, the draft stays.
+          }
+          runThread = id;
           onUserSend?.({
             text: outgoing,
             parts: outgoing ? [{ type: "text", text: outgoing }] : [],
@@ -277,17 +353,17 @@ export function ChatComposer({
             signal: abort.signal,
           });
           if (!response.ok) {
-            const payload = await response.json();
-            const message = payload.error?.message ?? t("chat.error.runFailed");
-            setError(message);
-            onFailed?.(message);
-            await onComplete();
+            const payload = await response.json().catch(() => null);
+            fail(payload?.error?.message ?? t("chat.error.runFailed"));
+            await finish();
             return;
           }
-          setText("");
-          setFiles([]);
-          await readSse(response, () => dog.touch());
-          await onComplete();
+          clearSent();
+          if (!response.body) {
+            throw new Error(t("chat.error.noStream"));
+          }
+          await readRunStream(response.body, live, { onActivity: () => dog.touch(), showing });
+          await finish();
           return;
         }
 
@@ -318,12 +394,19 @@ export function ChatComposer({
                 })),
               ];
 
+        if (!showing()) {
+          return; // Moved on before the run reached the host: nothing was sent, the draft stays.
+        }
         onUserSend?.({ text: caption, parts });
 
         const id = onEnsureThread ? await onEnsureThread() : threadId;
         if (!id) {
           throw new Error(t("chat.error.start"));
         }
+        if (!showing()) {
+          return; // Moved on before the run reached the host: nothing was sent, the draft stays.
+        }
+        runThread = id;
 
         const response = await apiFetch(`/api/v1/threads/${id}/runs/${decision.route}`, {
           method: "POST",
@@ -337,27 +420,27 @@ export function ChatComposer({
           signal: abort.signal,
         });
         if (!response.ok) {
-          const payload = await response.json();
-          const message = payload.error?.message ?? t("chat.error.runFailed");
-          setError(message);
-          onFailed?.(message);
-          await onComplete();
+          const payload = await response.json().catch(() => null);
+          fail(payload?.error?.message ?? t("chat.error.runFailed"));
+          await finish();
           return;
         }
-        setText("");
-        setFiles([]);
-        await readSse(response, () => dog.touch());
-        await onComplete();
+        clearSent();
+        if (!response.body) {
+          throw new Error(t("chat.error.noStream"));
+        }
+        await readRunStream(response.body, live, { onActivity: () => dog.touch(), showing });
+        await finish();
       } finally {
         dog.close();
       }
     } catch (err) {
-      const message = abortErrorMessage(err, getLocale());
-      setError(message);
-      onFailed?.(message);
-      await onComplete();
+      fail(abortErrorMessage(err, getLocale()));
+      await finish();
     } finally {
-      setBusy(false);
+      if (showing()) {
+        setBusy(false);
+      }
     }
   }
 

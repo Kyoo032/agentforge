@@ -17,7 +17,7 @@ import { upsertWorkSource } from "./knowledge-ingest";
 import { artifactWorkCard } from "./work-cards";
 import { materializeAnalysis, parseAnalysisDraft } from "./data-analysis-build";
 import { datasetStore, requireDataset, type DatasetSummary, type LoadedDataset } from "./datasets";
-import { collectJobAssistantText } from "./job-regen";
+import { collectJobAssistantRun, readModelPinned } from "./job-regen";
 import { throwIfJobAborted } from "./job-stream";
 import { readSourceText } from "./job-source";
 import { listSelectableModels, modeCatalogPayload } from "./selectable-models";
@@ -242,12 +242,16 @@ export async function analyzeDataset(
   };
   const release = dataset.runner.acquire();
   let analysis: DataAnalysis;
+  // The model that wrote the analysis. After a fallback it is not the one the request named.
+  let answeredBy = model;
   try {
     const query = (sqlText: string) => dataset.runner.query(sqlText);
-    const raw = await withActiveDataset({ id: dataset.id, query, steps, stepCap: SQL_STEP_CAP, onQuery }, () =>
-      collectJobAssistantText({
+    const run = await withActiveDataset({ id: dataset.id, query, steps, stepCap: SQL_STEP_CAP, onQuery }, () =>
+      collectJobAssistantRun({
         tenant,
         model,
+        // A model the person picked is never swapped by the fallback; a seeded default can be.
+        modelExplicit: readModelPinned(body),
         systemPrompt: withOutputLanguage(DATA_SYSTEM, "data", localeForRun()),
         runPrefix: "data",
         agentId: "data",
@@ -257,13 +261,14 @@ export async function analyzeDataset(
         toolKeys: ["run_sql", "calculator"],
       }),
     );
-    if (!raw.trim()) {
+    answeredBy = run.model;
+    if (!run.text.trim()) {
       throw new ApiError("generation_failed", modeMessage("emptyAnalysis", localeForRun()), 502);
     }
 
     throwIfJobAborted(abortSignal);
     emit({ type: "job.phase", phase: "verifying", label: "Re-running evidence queries" });
-    analysis = await materializeAnalysis(parseAnalysisDraft(raw), query);
+    analysis = await materializeAnalysis(parseAnalysisDraft(run.text), query);
   } finally {
     release();
   }
@@ -273,7 +278,7 @@ export async function analyzeDataset(
   const markdown = dataAnalysisToMarkdown(analysis);
   const artifactId = persistAnalysis(tenant, analysis, markdown, {
     question,
-    model,
+    model: answeredBy,
     datasetId: dataset.id,
     datasetName: dataset.name,
     queries: steps.used,
@@ -281,7 +286,7 @@ export async function analyzeDataset(
   if (artifactId) {
     await upsertWorkSource(
       tenant,
-      artifactWorkCard({ type: "Data", artifactId, title: analysis.title, prompt: question, markdown, model }),
+      artifactWorkCard({ type: "Data", artifactId, title: analysis.title, prompt: question, markdown, model: answeredBy }),
     );
   }
   return { analysis, artifactId, dataset: summaryOf(dataset), markdown };

@@ -49,8 +49,13 @@
     "dismiss": "Tutup",
     "queued": "Rekaman menunggu giliran untuk diunggah…",
     "uploadFailed": "Rekaman itu belum terunggah. Rekamannya masih ada, jadi coba lagi atau simpan ke perangkat Anda.",
+    "uploadFailedFor": "Rekaman untuk “{title}” belum terunggah. Rekamannya masih ada, jadi coba lagi atau simpan ke perangkat Anda.",
     "retryUpload": "Coba unggah lagi",
     "saveToDevice": "Simpan ke perangkat",
+    "switchLocked": "Hentikan rekaman sebelum berpindah rapat.",
+    "kept": "Semua yang terekam sebelum berhenti tetap disimpan.",
+    "interrupted": "Perekaman berhenti saat meja atau bahasa diganti. Semua yang terekam sampai saat itu tetap disimpan.",
+    "otherDesk": "“{title}” punya rekaman dari meja lain yang belum diunggah. Kembali ke meja itu lalu buka Rapat untuk mengunggahnya, atau simpan ke perangkat Anda.",
     "errors": {
       "insecure_context": "Merekam memerlukan halaman yang aman (https, atau localhost). Unggah berkas saja.",
       "unsupported_browser": "Peramban ini tidak bisa merekam audio. Pakai Chrome atau Edge, atau unggah berkas saja.",

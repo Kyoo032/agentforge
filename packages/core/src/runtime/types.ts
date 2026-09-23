@@ -57,6 +57,13 @@ export type AgentRuntime = {
      * this unset and keeps its own Thinking control.
      */
     jobMode?: JobMode;
+    /**
+     * The caller's cancel. Once it fires, the request in flight is aborted, no retry or further
+     * contact attempt starts, and `execute` rejects with the signal's reason; no `run.failed` is
+     * sent, because a cancel is not a model failure. A call the gateway had already finished may
+     * still complete (so its usage is recorded). Omitted, the run behaves exactly as before.
+     */
+    signal?: AbortSignal;
     onEvent: (event: RuntimeEvent) => Promise<void> | void;
   }): Promise<void>;
 };

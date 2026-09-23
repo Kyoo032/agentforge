@@ -1,6 +1,9 @@
-import { describe, expect, it } from "vitest";
-import { mergeOpenRouterZdr } from "./ai-sdk-runtime";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { AiSdkRuntime, mergeOpenRouterZdr } from "./ai-sdk-runtime";
 import { applyZeroRetention } from "../models/request-constraints";
+import type { AgentVersionRecord } from "../agents/service";
+import type { TenantContext } from "../tenancy/types";
+import type { RuntimeEvent } from "./types";
 
 describe("mergeOpenRouterZdr", () => {
   it("adds provider.zdr for openrouter.ai base URL", () => {
@@ -73,5 +76,98 @@ describe("zero retention + OpenRouter zdr (URL cases)", () => {
     const merged = mergeOpenRouterZdr(retained, "https://api.tokotokenai.com/v1");
     expect(merged).toEqual({ model: "gpt-5.6-luna", store: false });
     expect(JSON.stringify(merged)).not.toContain("zdr");
+  });
+});
+
+/**
+ * A cancelled job used to pay for the call in flight: `execute` took no signal, so the request ran
+ * on after the client left, and the contact retries read their own abort as a blip worth another try.
+ * `fetch` is replaced here, so nothing leaves the machine.
+ */
+describe("AiSdkRuntime and the caller's signal", () => {
+  const tenant: TenantContext = {
+    tenantId: "local-tenant",
+    organizationId: "org",
+    workspaceId: "ws",
+    userId: "user",
+    role: "owner",
+  };
+  const version: AgentVersionRecord = {
+    id: "v-cancel",
+    agentId: "market",
+    organizationId: "org",
+    version: 1,
+    systemPrompt: "You write briefings.",
+    model: "deepseek-v4-flash",
+    inputModalities: ["text"],
+    config: {},
+    createdAt: new Date(),
+  };
+
+  /** A gateway that never answers: each request settles only when its own signal aborts. */
+  function silentGateway(): AbortSignal[] {
+    const requests: AbortSignal[] = [];
+    vi.stubGlobal("fetch", (_url: unknown, init?: RequestInit) => {
+      const signal = init?.signal ?? new AbortController().signal;
+      requests.push(signal);
+      return new Promise<Response>((_, reject) => {
+        signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+      });
+    });
+    return requests;
+  }
+
+  function run(signal: AbortSignal, events: RuntimeEvent[]) {
+    return new AiSdkRuntime({ openai: "sk-test", openaiBaseUrl: "https://gateway.test/v1" }).execute({
+      tenant,
+      runId: "run-cancel",
+      modality: "text",
+      version,
+      bindings: [],
+      history: [{ role: "user", parts: [{ type: "text", text: "Brief me." }] }],
+      signal,
+      onEvent: (event) => {
+        events.push(event);
+      },
+    });
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("aborts the request in flight and rejects at once with the caller's reason, without another try", async () => {
+    const requests = silentGateway();
+    const controller = new AbortController();
+    const events: RuntimeEvent[] = [];
+    const pending = run(controller.signal, events);
+    await vi.waitFor(() => expect(requests).toHaveLength(1));
+
+    controller.abort(new Error("client left"));
+    const outcome = await Promise.race([
+      pending.then(
+        () => "resolved",
+        (error: unknown) => error,
+      ),
+      new Promise((resolve) => setTimeout(() => resolve("still running"), 1_000)),
+    ]);
+
+    expect(outcome).toBeInstanceOf(Error);
+    expect((outcome as Error).message).toBe("client left");
+    expect(requests[0]?.aborted).toBe(true);
+    // One request, one probe: the abort is not a contact failure to retry, and not a model failure.
+    expect(requests).toHaveLength(1);
+    expect(events.filter((event) => event.type === "run.probing")).toHaveLength(1);
+    expect(events.some((event) => event.type === "run.failed")).toBe(false);
+  });
+
+  it("sends no request at all when the caller has already left", async () => {
+    const requests = silentGateway();
+    const controller = new AbortController();
+    controller.abort(new Error("client left"));
+    const events: RuntimeEvent[] = [];
+    await expect(run(controller.signal, events)).rejects.toThrow("client left");
+    expect(requests).toEqual([]);
+    expect(events).toEqual([]);
   });
 });

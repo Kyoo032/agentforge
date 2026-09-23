@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { formatBytes } from "@agentforge/core/format-bytes";
 import { apiFetch } from "@/lib/api-client";
 import { useHostCapabilities } from "@/lib/host-capabilities";
 import { t } from "@/lib/i18n";
@@ -44,17 +45,8 @@ type MediaItem = {
   sizeBytes: number;
 };
 
-/** Human bytes. The host has its own copy for logs; this one is for a screen and is localised. */
-export function formatBytes(bytes: number): string {
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  let value = Math.max(0, bytes);
-  let unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
-    unit += 1;
-  }
-  return `${unit === 0 ? Math.round(value) : value.toFixed(1)} ${units[unit]}`;
-}
+/** Re-exported for `lib/host-capabilities.test.tsx`; the one implementation lives in core. */
+export { formatBytes };
 
 function usageFrom(payload: unknown): StorageUsage | null {
   if (!payload || typeof payload !== "object") {

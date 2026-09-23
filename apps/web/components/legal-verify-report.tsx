@@ -1,8 +1,10 @@
 "use client";
 
 import type { VerifyReport } from "@agentforge/core/legal";
-import { codeCheckLabel, verifyRows } from "@/lib/legal-view";
-import { DIM, LegalPanel, ToneTag } from "@/components/legal-parts";
+import { verifyRows } from "@/lib/legal-view";
+import { codeCheckText, DIM, LegalPanel, ToneTag, verifyRowText } from "@/components/legal-parts";
+import { t } from "@/lib/i18n";
+import { labeled } from "@/lib/ui-copy";
 
 type Props = { verify: VerifyReport | null };
 
@@ -19,8 +21,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export function LegalVerifyReport({ verify }: Props) {
   if (!verify) {
     return (
-      <LegalPanel label="Verification report" testId="legal-verify">
-        <p className={`mt-2 text-sm ${DIM}`}>No verification report was produced for this run.</p>
+      <LegalPanel label={t("legal.verify.title")} testId="legal-verify">
+        <p className={`mt-2 text-sm ${DIM}`}>{t("legal.verify.none")}</p>
       </LegalPanel>
     );
   }
@@ -30,27 +32,30 @@ export function LegalVerifyReport({ verify }: Props) {
 
   return (
     <LegalPanel
-      label="Verification report"
-      aside={`round ${verify.round} · ${verify.ok ? "passed" : "completed with failures"}`}
+      label={t("legal.verify.title")}
+      aside={t(verify.ok ? "legal.verify.asidePassed" : "legal.verify.asideFailed", { round: verify.round })}
       testId="legal-verify"
     >
       <div className="mt-2 grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1.5 text-sm">
-        {rows.map((row) => (
-          <div key={row.key} className="contents" data-testid={`legal-verify-${row.key}`}>
-            <span>{row.label}</span>
-            <ToneTag tone={row.tone}>{row.value}</ToneTag>
-          </div>
-        ))}
+        {rows.map((row) => {
+          const text = verifyRowText(row, verify);
+          return (
+            <div key={row.key} className="contents" data-testid={`legal-verify-${row.key}`}>
+              <span>{text.label}</span>
+              <ToneTag tone={row.tone}>{text.value}</ToneTag>
+            </div>
+          );
+        })}
       </div>
 
       {failures.length > 0 ? (
-        <Section title="Code check failures">
+        <Section title={t("legal.verify.codeFailures")}>
           <ul className="mt-1 space-y-1 text-xs">
             {failures.map((failure, index) => (
               <li key={`${failure.code}-${failure.target}-${index}`}>
-                <span className="font-medium">{codeCheckLabel(failure.code)}</span> · {failure.deliverable} ·{" "}
+                <span className="font-medium">{codeCheckText(failure.code)}</span> · {failure.deliverable} ·{" "}
                 <span className="font-mono text-xs">{failure.target}</span>: {failure.detail}
-                {failure.autoFixable ? <span className={` ${DIM}`}> (corrected in code)</span> : null}
+                {failure.autoFixable ? <span className={` ${DIM}`}> {t("legal.verify.corrected")}</span> : null}
               </li>
             ))}
           </ul>
@@ -58,7 +63,7 @@ export function LegalVerifyReport({ verify }: Props) {
       ) : null}
 
       {failedChecklist.length > 0 ? (
-        <Section title="Checklist items not satisfied">
+        <Section title={t("legal.verify.checklistFail")}>
           <ul className="mt-1 space-y-1 text-xs">
             {failedChecklist.map((item) => (
               <li key={`${item.itemId}-${item.deliverable}`}>
@@ -70,12 +75,14 @@ export function LegalVerifyReport({ verify }: Props) {
       ) : null}
 
       {verify.concessions.length > 0 ? (
-        <Section title="Concessions found by opposing counsel">
+        <Section title={t("legal.verify.concessions")}>
           <ul className="mt-1 space-y-1 text-xs">
             {verify.concessions.map((item, index) => (
               <li key={`${item.clause}-${index}`}>
                 <span className="font-medium">{item.clause}</span>: {item.detail}{" "}
-                <span className="tag tag-neutral">{item.disposition}</span>
+                <span className="tag tag-neutral">
+                  {labeled(`legal.verifyReport.disposition.${item.disposition}`, item.disposition)}
+                </span>
               </li>
             ))}
           </ul>
@@ -83,7 +90,7 @@ export function LegalVerifyReport({ verify }: Props) {
       ) : null}
 
       {verify.documentsSkipped.length > 0 ? (
-        <Section title="Documents skipped">
+        <Section title={t("legal.verify.docsSkipped")}>
           <ul className="mt-1 space-y-1 text-xs">
             {verify.documentsSkipped.map((item) => (
               <li key={item.doc}>
@@ -95,7 +102,7 @@ export function LegalVerifyReport({ verify }: Props) {
       ) : null}
 
       {verify.openForHuman.length > 0 ? (
-        <Section title="Requires partner decision">
+        <Section title={t("legal.verify.partnerSection")}>
           <ul className="mt-1 space-y-1 text-xs">
             {verify.openForHuman.map((item, index) => (
               <li key={`${item.clause}-${index}`}>

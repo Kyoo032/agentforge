@@ -6,8 +6,41 @@
   "restartApp": "Mulai ulang DPSBuddy",
   "restartHint": "Mulai ulang DPSBuddy untuk menerapkan bahasa ini.",
   "loading": "Memuat…",
+  "enhance": {
+    "failedShort": "Peningkatan gagal",
+    "failed": "Prompt tidak dapat ditingkatkan. Teks Anda tidak berubah.",
+    "failedReason": "Prompt tidak dapat ditingkatkan: {reason}"
+  },
   "theme": {
     "light": "Terang",
     "dark": "Gelap"
+  },
+  "jobProgress": {
+    "starting": "Memulai…",
+    "round": "Putaran {round} dari {total} · {label}",
+    "source": {
+      "found": "ditemukan",
+      "read": "dibaca",
+      "unreachable": "tidak terjangkau"
+    }
+  },
+  "artifactActions": {
+    "download": "Unduh Markdown",
+    "saving": "Menyimpan…",
+    "sendToKb": "Kirim ke Basis Pengetahuan",
+    "adding": "Menambahkan…",
+    "makeDocument": "Buat dokumen",
+    "makePresentation": "Buat presentasi",
+    "downloadFailed": "Tidak dapat mengunduh",
+    "kbIndexFailed": "Basis Pengetahuan tidak dapat mengindeks ini: {reason}",
+    "unknownReason": "alasan tidak diketahui",
+    "kbAlready": "Sudah ada di Basis Pengetahuan.",
+    "kbAdded": "Ditambahkan ke Basis Pengetahuan.",
+    "kbFailed": "Tidak dapat menambahkan ke Basis Pengetahuan"
+  },
+  "modeHandoff": {
+    "fallbackSubject": "materi sumber",
+    "presentation": "Ubah \"{subject}\" menjadi presentasi untuk pengambil keputusan. Gunakan hanya materi sumber.",
+    "document": "Tulis memo dari \"{subject}\". Gunakan hanya materi sumber dan kutip sumber-sumbernya."
   }
 }

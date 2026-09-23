@@ -251,6 +251,7 @@ export async function regenerateBriefingSection(input: {
   section: number;
   instruction?: string;
   model?: string;
+  modelPinned?: true;
 }): Promise<MarketRegenerateResult> {
   const res = await apiFetch("/api/v1/market/regenerate", {
     method: "POST",
@@ -260,6 +261,7 @@ export async function regenerateBriefingSection(input: {
       section: input.section,
       instruction: input.instruction || undefined,
       model: input.model || undefined,
+      modelPinned: input.modelPinned,
     }),
   });
   return readJson<MarketRegenerateResult>(res, "Could not rewrite that section");

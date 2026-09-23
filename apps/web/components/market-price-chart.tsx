@@ -10,6 +10,7 @@ import {
   type PriceHistory,
 } from "@agentforge/core/market";
 import { SvgChart } from "@/components/svg-chart";
+import { t } from "@/lib/i18n";
 
 type Props = {
   /** Daily bars; the chart is cut to the chosen range on the client. */
@@ -27,14 +28,14 @@ const RANGE_BUTTON =
 export function MarketPriceChart({ history, fallback = null, symbol, testId }: Props) {
   const [range, setRange] = useState<ChartRangeId>(CHART_RANGE_DEFAULT);
   const hasBars = history !== null && history.bars.length > 0;
-  const chart = hasBars ? buildRangeChart(history, range, `${symbol} close`) : fallback;
+  const chart = hasBars ? buildRangeChart(history, range, t("market.priceChart.series", { symbol })) : fallback;
   if (!chart) {
     return (
       <p
         className="rounded-xl border border-dashed border-[var(--line)] p-4 text-sm text-[var(--text-3)]"
         data-testid={testId}
       >
-        No price history to chart.
+        {t("market.chart.empty")}
       </p>
     );
   }
@@ -43,7 +44,7 @@ export function MarketPriceChart({ history, fallback = null, symbol, testId }: P
       {hasBars ? (
         <div
           role="group"
-          aria-label="Chart range"
+          aria-label={t("market.chart.range")}
           className="mb-2 flex flex-wrap gap-1"
           data-testid={testId ? `${testId}-ranges` : undefined}
         >

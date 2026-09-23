@@ -593,3 +593,200 @@ describe("MeetingRecorderController — dispose", () => {
     expect(recorders[0]?.stream).toBe(second);
   });
 });
+
+/**
+ * A recorder whose `stop()` behaves like a browser's: it flushes the last chunk and fires `onstop`
+ * later, not inside the call. The plain fake above fires it synchronously.
+ */
+class LateStopRecorder extends FakeRecorder {
+  override stop(): void {
+    this.state = "inactive";
+  }
+}
+
+describe("MeetingRecorderController — a recorder that fails mid-recording", () => {
+  it("keeps what it had captured as a clip, and still reports the failure", async () => {
+    const { deps, recorders, mic, clock } = harness();
+    const controller = new MeetingRecorderController(deps);
+    await controller.start("mic");
+    recorders[0]?.emit(4_000);
+    clock.value += 2_000;
+    recorders[0]?.emit(6_000);
+    recorders[0]?.onerror?.({ error: new Error("encoder died") });
+
+    const state = controller.getState();
+    expect(state.status).toBe("error");
+    expect(state.errorCode).toBe("recorder_failed");
+    expect(state.clip?.bytes).toBe(10_000);
+    expect(state.clip?.blob.size).toBe(10_000);
+    expect(state.clip?.durationMs).toBe(2_000);
+    expect(state.clip?.mimeType).toBe("audio/webm;codecs=opus");
+    expect(state.clip?.filename).toMatch(/^recording-.*\.webm$/);
+    expect(state.bytes).toBe(10_000);
+    expect(allTracksStopped(mic)).toBe(true);
+  });
+
+  it("has nothing to keep when it failed before the first chunk", async () => {
+    const { deps, recorders } = harness();
+    const controller = new MeetingRecorderController(deps);
+    await controller.start("mic");
+    recorders[0]?.onerror?.({ error: new Error("encoder died") });
+
+    expect(controller.getState().status).toBe("error");
+    expect(controller.getState().clip).toBeNull();
+  });
+
+  it("lets the studio take the kept clip while the failure stays on screen", async () => {
+    const { deps, recorders } = harness();
+    const controller = new MeetingRecorderController(deps);
+    await controller.start("mic");
+    recorders[0]?.emit(3_000);
+    recorders[0]?.onerror?.({ error: new Error("encoder died") });
+    controller.clearClip();
+
+    expect(controller.getState().clip).toBeNull();
+    expect(controller.getState().status).toBe("error");
+    expect(controller.getState().errorCode).toBe("recorder_failed");
+  });
+
+  it("does not drop a kept clip nobody has taken yet when the error is dismissed", async () => {
+    const { deps, recorders } = harness();
+    const controller = new MeetingRecorderController(deps);
+    await controller.start("mic");
+    recorders[0]?.emit(3_000);
+    recorders[0]?.onerror?.({ error: new Error("encoder died") });
+    controller.clearError();
+
+    expect(controller.getState().errorCode).toBeNull();
+    expect(controller.getState().clip?.bytes).toBe(3_000);
+  });
+
+  it("ignores an error from a recorder a newer recording has replaced", async () => {
+    const { deps, recorders } = harness();
+    const controller = new MeetingRecorderController(deps);
+    await controller.start("mic");
+    const stale = recorders[0];
+    const staleOnError = stale?.onerror;
+    controller.stop();
+    await controller.start("mic");
+    recorders[1]?.emit(1_000);
+    staleOnError?.({ error: new Error("late") });
+
+    expect(controller.getState().status).toBe("recording");
+    expect(controller.getState().bytes).toBe(1_000);
+  });
+});
+
+describe("MeetingRecorderController — dispose keeps what was recorded", () => {
+  it("hands back the audio captured so far when the studio unmounts mid-recording", async () => {
+    const { deps, recorders, mic, clock } = harness();
+    const controller = new MeetingRecorderController(deps);
+    await controller.start("mic");
+    recorders[0]?.emit(3_000);
+    clock.value += 1_500;
+    recorders[0]?.emit(2_000);
+
+    const kept = controller.dispose();
+
+    expect(kept?.bytes).toBe(5_000);
+    expect(kept?.blob.size).toBe(5_000);
+    expect(kept?.durationMs).toBe(1_500);
+    expect(kept?.mimeType).toBe("audio/webm;codecs=opus");
+    expect(kept?.filename).toMatch(/^recording-.*\.webm$/);
+    expect(kept?.capped).toBe(false);
+    // Kept, and still nothing left open.
+    expect(allTracksStopped(mic)).toBe(true);
+    expect(controller.getState().status).toBe("idle");
+  });
+
+  it("keeps a paused recording, without counting the pause", async () => {
+    const { deps, recorders, clock } = harness();
+    const controller = new MeetingRecorderController(deps);
+    await controller.start("mic");
+    recorders[0]?.emit(2_000);
+    clock.value += 4_000;
+    controller.pause();
+    clock.value += 60_000;
+
+    const kept = controller.dispose();
+
+    expect(kept?.bytes).toBe(2_000);
+    expect(kept?.durationMs).toBe(4_000);
+  });
+
+  it("keeps a recording that was still finishing when the studio went away", async () => {
+    const { deps, recorders } = harness({
+      createRecorder: (stream, options) => {
+        const recorder = new LateStopRecorder(stream, options);
+        recorders.push(recorder);
+        return recorder;
+      },
+    });
+    const controller = new MeetingRecorderController(deps);
+    await controller.start("mic");
+    recorders[0]?.emit(7_000);
+    controller.stop();
+    expect(controller.getState().status).toBe("stopping");
+
+    expect(controller.dispose()?.bytes).toBe(7_000);
+  });
+
+  it("hands back a finished clip the studio had not taken yet", async () => {
+    const { deps, recorders } = harness();
+    const controller = new MeetingRecorderController(deps);
+    await controller.start("mic");
+    recorders[0]?.emit(2_500);
+    controller.stop();
+    const finished = controller.getState().clip;
+
+    expect(controller.dispose()).toBe(finished);
+  });
+
+  it("does not hand back a clip the studio already took, so it is never uploaded twice", async () => {
+    const { deps, recorders } = harness();
+    const controller = new MeetingRecorderController(deps);
+    await controller.start("mic");
+    recorders[0]?.emit(2_500);
+    controller.stop();
+    controller.clearClip();
+
+    expect(controller.dispose()).toBeNull();
+  });
+
+  it("does not hand back the failed recording's clip once the studio took it", async () => {
+    const { deps, recorders } = harness();
+    const controller = new MeetingRecorderController(deps);
+    await controller.start("mic");
+    recorders[0]?.emit(2_500);
+    recorders[0]?.onerror?.({ error: new Error("encoder died") });
+    controller.clearClip();
+
+    expect(controller.dispose()).toBeNull();
+  });
+
+  it("carries the cap flag with what it keeps", async () => {
+    const { deps, recorders } = harness({
+      createRecorder: (stream, options) => {
+        const recorder = new LateStopRecorder(stream, options);
+        recorders.push(recorder);
+        return recorder;
+      },
+    });
+    const controller = new MeetingRecorderController(deps);
+    await controller.start("mic");
+    recorders[0]?.emit(RECORDING_MAX_BYTES - RECORDING_STOP_MARGIN_BYTES + 1);
+    expect(controller.getState().status).toBe("stopping");
+
+    expect(controller.dispose()?.capped).toBe(true);
+  });
+
+  it("has nothing to hand back when nothing was recorded", async () => {
+    const { deps } = harness();
+    const idle = new MeetingRecorderController(deps);
+    expect(idle.dispose()).toBeNull();
+
+    const silent = new MeetingRecorderController(deps);
+    await silent.start("mic");
+    expect(silent.dispose()).toBeNull();
+  });
+});

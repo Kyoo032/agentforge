@@ -177,6 +177,54 @@ describe("runFinanceTask", () => {
     ]);
   });
 
+  // The guard drops an assumption that rests on a figure nobody computed. That is a removed sentence
+  // too, and the reader is told the same way the brief tells them — with or without a repair.
+  it("flags an assumption the guard dropped as a removed sentence, even when nothing was repaired", async () => {
+    reset();
+    answers.push(
+      JSON.stringify({
+        title: "Runway to March",
+        sections: [{ id: "position", heading: "Where cash sits", body: "Cash was 900." }],
+        assumptions: ["Monthly figures.", "Headcount holds at 140 staff."],
+      }),
+    );
+    const { result } = await run();
+    expect(asked).toHaveLength(1);
+    expect(result.guard).toEqual({ flagged: [{ section: -1, text: "140" }], total: 1, removed: 1 });
+    expect(result.report.flags).toContainEqual({ level: "watch", text: REMOVED_SENTENCE_FLAG.en });
+    expect(result.warnings).toEqual([
+      "1 figure(s) did not trace to the computed facts and were taken out",
+      "1 sentence(s) were removed because their figure could not be traced",
+    ]);
+    const artifact = artifactStore().get(tenant, String(result.artifactId));
+    expect(artifact?.meta?.removed).toBe(1);
+  });
+
+  it("adds the dropped assumption to the sentences the repair took out, rather than replacing them", async () => {
+    reset();
+    answers.push(
+      JSON.stringify({
+        title: "Runway to March",
+        sections: [{ id: "position", heading: "Where cash sits", body: "Cash held steady. Burn was 1234 a month." }],
+        assumptions: ["Headcount holds at 140 staff."],
+      }),
+    );
+    answers.push(rewrite("Cash held steady. Burn was 4321 a month."));
+    const { result, events } = await run();
+    expect(steps(events)).toContain("1 sentence(s) removed after one rewrite");
+    expect(result.guard.removed).toBe(2);
+    expect(result.warnings).toContain("2 sentence(s) were removed because their figure could not be traced");
+    expect(JSON.stringify(result.report)).not.toContain(UNVERIFIED_MARKER);
+  });
+
+  it("hands the picker's pin to the job call only when the request names the model it pins", async () => {
+    reset();
+    answers.push(narration("Cash was 900."), narration("Cash was 900."));
+    await run({ modelPinned: true });
+    await run({ modelPinned: true, model: "gpt-5.6-sol" });
+    expect(asked.map((options) => options.modelExplicit)).toEqual([false, true]);
+  });
+
   it("saves the task, the model and the locale beside the report, so an export by id is full fidelity", async () => {
     reset();
     answers.push(narration("Cash was 900."));

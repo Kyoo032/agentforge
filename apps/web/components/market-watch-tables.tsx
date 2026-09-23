@@ -7,9 +7,10 @@ import {
   type MacroSnapshot,
   type TickerPacket,
 } from "@/lib/market-client";
+import { t } from "@/lib/i18n";
+import { labeled } from "@/lib/ui-copy";
 
-const HEAD =
-  "px-2 py-1.5 text-left text-xs font-medium uppercase tracking-wide text-[var(--text-2)]";
+const HEAD = "px-2 py-1.5 text-left text-xs font-medium uppercase tracking-wide text-[var(--text-2)]";
 const CELL = "px-2 py-1.5 text-[var(--text)]";
 const NUM = `${CELL} text-right tabular-nums`;
 
@@ -18,6 +19,11 @@ function signClass(value: number | null | undefined): string {
     return "";
   }
   return value < 0 ? " text-[var(--danger)]" : " text-[var(--ok)]";
+}
+
+/** Localized TradingView rating; an unknown label is shown as the host sent it. */
+function ratingText(label: string): string {
+  return label ? labeled(`market.rating.${label.trim().toUpperCase()}`, label) : "";
 }
 
 type WatchlistProps = { tickers: TickerPacket[]; testId: string };
@@ -29,15 +35,15 @@ export function WatchlistTable({ tickers, testId }: WatchlistProps) {
       <table className="w-full text-sm">
         <thead className="bg-[var(--bg)]">
           <tr>
-            <th className={HEAD}>Ticker</th>
-            <th className={`${HEAD} text-right`}>Price</th>
-            <th className={`${HEAD} text-right`}>Chg%</th>
-            <th className={`${HEAD} text-right`}>Pre-mkt</th>
-            <th className={`${HEAD} text-right`}>Pre%</th>
-            <th className={HEAD}>State</th>
-            <th className={HEAD}>TV rating</th>
-            <th className={`${HEAD} text-right`}>RSI14</th>
-            <th className={`${HEAD} text-right`}>vs SMA200</th>
+            <th className={HEAD}>{t("market.tables.ticker")}</th>
+            <th className={`${HEAD} text-right`}>{t("market.tables.price")}</th>
+            <th className={`${HEAD} text-right`}>{t("market.tables.chgPct")}</th>
+            <th className={`${HEAD} text-right`}>{t("market.tables.preMkt")}</th>
+            <th className={`${HEAD} text-right`}>{t("market.tables.prePct")}</th>
+            <th className={HEAD}>{t("market.tables.state")}</th>
+            <th className={HEAD}>{t("market.tables.tvRating")}</th>
+            <th className={`${HEAD} text-right`}>{t("market.tables.rsi14")}</th>
+            <th className={`${HEAD} text-right`}>{t("market.tables.vsSma200")}</th>
           </tr>
         </thead>
         <tbody>
@@ -57,7 +63,7 @@ export function WatchlistTable({ tickers, testId }: WatchlistProps) {
                   {formatPercent(q?.preMarketChangePercent)}
                 </td>
                 <td className={CELL}>{q?.marketState ?? ""}</td>
-                <td className={CELL}>{tech?.tradingview?.label ?? ""}</td>
+                <td className={CELL}>{ratingText(tech?.tradingview?.label ?? "")}</td>
                 <td className={NUM}>{formatNumber(tech?.rsi14, 1)}</td>
                 <td className={NUM + signClass(vsSma)}>{formatPercent(vsSma)}</td>
               </tr>
@@ -75,7 +81,7 @@ export function MacroTable({ macro, testId }: MacroProps) {
   if (macro.quotes.length === 0) {
     return (
       <p className="text-sm text-[var(--text-2)]" data-testid={testId}>
-        No macro quotes were fetched.
+        {t("market.briefing.noMacro")}
       </p>
     );
   }
@@ -84,11 +90,11 @@ export function MacroTable({ macro, testId }: MacroProps) {
       <table className="w-full text-sm">
         <thead className="bg-[var(--bg)]">
           <tr>
-            <th className={HEAD}>Macro</th>
-            <th className={HEAD}>Symbol</th>
-            <th className={`${HEAD} text-right`}>Level</th>
-            <th className={`${HEAD} text-right`}>Chg%</th>
-            <th className={HEAD}>State</th>
+            <th className={HEAD}>{t("market.tables.macro")}</th>
+            <th className={HEAD}>{t("market.tables.symbol")}</th>
+            <th className={`${HEAD} text-right`}>{t("market.tables.level")}</th>
+            <th className={`${HEAD} text-right`}>{t("market.tables.chgPct")}</th>
+            <th className={HEAD}>{t("market.tables.state")}</th>
           </tr>
         </thead>
         <tbody>

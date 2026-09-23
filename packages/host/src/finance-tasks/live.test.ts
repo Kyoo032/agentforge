@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { readModelPinned as sharedReadModelPinned } from "../job-regen";
 import { readModelPinned, readOptionalModel } from "./live";
 import { runnerLocale } from "./runner";
 
@@ -26,6 +27,19 @@ describe("readModelPinned", () => {
     // This is the whole point: the id alone cannot tell a pick from the studio's seeded default.
     expect(readOptionalModel({ model: "gpt-5.6-sol" })).toBe("gpt-5.6-sol");
     expect(readModelPinned({ model: "gpt-5.6-sol" })).toBe(false);
+  });
+
+  // A pin that names no model leaves the host default in charge, and that default was nobody's pick,
+  // so it must not stop the job from being rescued onto a second model.
+  it("is no pin without a model to hold the host to", () => {
+    expect(readModelPinned({ modelPinned: true })).toBe(false);
+    expect(readModelPinned({ model: "", modelPinned: true })).toBe(false);
+    expect(readModelPinned({ model: "   ", modelPinned: true })).toBe(false);
+    expect(readModelPinned({ model: 7, modelPinned: true })).toBe(false);
+  });
+
+  it("is the one reader every job shares, not a Finance copy of it", () => {
+    expect(readModelPinned).toBe(sharedReadModelPinned);
   });
 });
 

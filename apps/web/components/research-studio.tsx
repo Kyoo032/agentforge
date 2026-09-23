@@ -13,6 +13,7 @@ import { ResearchPreview } from "@/components/research-preview";
 import { t } from "@/lib/i18n";
 import { researchNotesToMarkdown, type ResearchNotes } from "@/lib/research-notes";
 import { useJobModel } from "@/lib/use-job-model";
+import { modelPickBody, studioModelPick } from "@/lib/model-choice";
 import { useJobStream } from "@/lib/use-job-stream";
 
 type ResearchResult = ResearchNotes & {
@@ -39,7 +40,7 @@ function tabClass(active: boolean): string {
 }
 
 export function ResearchStudio() {
-  const { models, model, setModel } = useJobModel("research");
+  const { models, model, pinned: modelPinned, setModel } = useJobModel("research");
   const job = useJobStream<ResearchResult>();
   const [prompt, setPrompt] = useState("");
   const [shown, setShown] = useState<Shown | null>(null);
@@ -52,7 +53,11 @@ export function ResearchStudio() {
     if (!topic || job.busy) {
       return;
     }
-    const result = await job.run("/api/v1/research/stream", { prompt: topic, model: model || undefined });
+    // Only a deliberate pick travels as pinned: a seeded default stays rescuable by the host's fallback.
+    const result = await job.run("/api/v1/research/stream", {
+      prompt: topic,
+      ...modelPickBody(studioModelPick(model, modelPinned)),
+    });
     if (result) {
       const { artifactId, dossierId, dossier, ...notes } = result;
       setShown({

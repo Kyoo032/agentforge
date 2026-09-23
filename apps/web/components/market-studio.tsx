@@ -44,6 +44,7 @@ import { specialistSourcesLine } from "@/lib/market-specialist";
 import { loadWatchlist, saveWatchlist } from "@/lib/market-watchlists";
 import { useWorkspaceScope } from "@/lib/workspace-scope";
 import { useJobModel } from "@/lib/use-job-model";
+import { modelPickBody, regenModelPick, studioModelPick } from "@/lib/model-choice";
 import { useJobStream } from "@/lib/use-job-stream";
 import { useMarketBoard } from "@/lib/use-market-board";
 import { t, getLocale } from "@/lib/i18n";
@@ -67,7 +68,7 @@ function clampMaxChars(value: number): number {
 
 export function MarketStudio() {
   const { productName } = useProductBrand();
-  const { models, model, setModel } = useJobModel("market");
+  const { models, model, pinned: modelPinned, setModel } = useJobModel("market");
   const job = useJobStream<MarketWatchResult>();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -182,7 +183,8 @@ export function MarketStudio() {
       specialist,
       depth: requestDepth,
       maxChars: clampMaxChars(maxChars),
-      model: model || undefined,
+      // Only a deliberate pick travels as pinned: a seeded default stays rescuable by the host's fallback.
+      ...modelPickBody(studioModelPick(model, modelPinned)),
     };
     const next = await job.run("/api/v1/market/stream", body);
     if (next) {
@@ -202,7 +204,7 @@ export function MarketStudio() {
         briefing: result.briefing,
         section: index,
         instruction: payload.instruction || undefined,
-        model: payload.model || model || undefined,
+        ...modelPickBody(regenModelPick(payload.model, model, modelPinned)),
       });
       setResult((current) => (current ? applyRegeneratedSection(current, index, rewritten) : current));
     } catch (err) {

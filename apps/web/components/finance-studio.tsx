@@ -36,6 +36,7 @@ import {
   type FinanceTask,
 } from "@/lib/finance-task";
 import { useJobModel } from "@/lib/use-job-model";
+import { regenModelPick } from "@/lib/model-choice";
 import { useJobStream } from "@/lib/use-job-stream";
 import { useProductBrand } from "@/lib/product-brand";
 import { useWorkspaceScope } from "@/lib/workspace-scope";
@@ -253,8 +254,7 @@ export function FinanceStudio() {
           sectionIndex: index,
           prompt,
           instruction: payload.instruction,
-          model: payload.model || model || undefined,
-          modelPinned: Boolean(payload.model) || modelPinned,
+          ...regenModelPick(payload.model, model, modelPinned),
           artifactId: result.artifactId ?? undefined,
           inputs: inputsBody(),
         }),

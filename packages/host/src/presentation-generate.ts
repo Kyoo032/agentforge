@@ -17,9 +17,12 @@ import {
 } from "./presentation-outline";
 import {
   appendRegenInstruction,
+  collectJobAssistantRun,
   collectJobAssistantText,
   readJobRegenAttachments,
+  readModelPinned,
   readOptionalInstruction,
+  type JobAssistantRun,
 } from "./job-regen";
 import { readSourceText, withSourceMaterial, withSourceRule } from "./job-source";
 import { artifactStore } from "./artifacts";
@@ -77,16 +80,20 @@ function slideSystem(locale: PresentationLocale): string {
   return `${SLIDE_SYSTEM}\n- ${presentationLanguageRule(locale)}`;
 }
 
-function collectAssistantText(
+/** One outline call. The run says which model answered, which is the one the artifact records. */
+function collectAssistantRun(
   tenant: TenantContext,
   model: string,
   prompt: string,
   sourceText: string,
   locale: PresentationLocale,
-): Promise<string> {
-  return collectJobAssistantText({
+  modelExplicit: boolean,
+): Promise<JobAssistantRun> {
+  return collectJobAssistantRun({
     tenant,
     model,
+    // A model the person picked is never swapped by the fallback; a seeded default can be.
+    modelExplicit,
     systemPrompt: withSourceRule(outlineSystem(locale), sourceText),
     runPrefix: "presentation",
     agentId: "presentation",
@@ -144,21 +151,23 @@ export async function generatePresentationOutline(tenant: TenantContext, body: u
   const locale = presentationLocale();
   const sourceText = readSourceText(body, { injectionGuardBypass: settings.injectionGuardBypass === true });
   const model = resolvePresentationModel(body, settings);
-  const raw = await collectAssistantText(tenant, model, prompt, sourceText, locale);
-  if (!raw.trim()) {
+  const run = await collectAssistantRun(tenant, model, prompt, sourceText, locale, readModelPinned(body));
+  if (!run.text.trim()) {
     throw new ApiError("generation_failed", modeMessage("emptyPresentationOutline", locale), 502);
   }
-  const outline = parsePresentationOutline(raw);
+  const outline = parsePresentationOutline(run.text);
   const markdown = presentationOutlineMarkdown(outline);
+  // Record the model that wrote the outline. After a fallback the requested id is the one model that did not.
+  const answeredBy = run.model;
   const artifactId = persistOutline(tenant, outline, markdown, {
     question: prompt,
-    model,
+    model: answeredBy,
     slides: outline.slides.length,
   });
   if (artifactId) {
     await upsertWorkSource(
       tenant,
-      artifactWorkCard({ type: "Presentation", artifactId, title: outline.title, prompt, markdown, model }),
+      artifactWorkCard({ type: "Presentation", artifactId, title: outline.title, prompt, markdown, model: answeredBy }),
     );
   }
   return outline;
@@ -221,6 +230,7 @@ export async function regeneratePresentationSlide(tenant: TenantContext, body: u
   const raw = await collectJobAssistantText({
     tenant,
     model,
+    modelExplicit: readModelPinned(body),
     systemPrompt: withSourceRule(slideSystem(locale), sourceText),
     runPrefix: "presentation-slide",
     agentId: "presentation",

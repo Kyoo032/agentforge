@@ -69,6 +69,21 @@ Other | 0 | 10`;
     expect(grid?.items).toHaveLength(3);
   });
 
+  // A document's tables arrive as Markdown, with a pipe on each end of every row.
+  it("reads a Markdown table whose rows open and close with a pipe", () => {
+    const text = `| Item | Year 0 | Year 1 | Year 2 |
+|---|---|---|---|
+| Capex | -1000 | 0 | 0 |
+| Revenue | 0 | 600 | 700 |`;
+    const grid = appraisalGridFromText(text);
+    expect(grid?.periods).toEqual(["Year 0", "Year 1", "Year 2"]);
+    expect(grid?.items.map((item) => [item.label, item.period, item.amount])).toEqual([
+      ["Capex", "Year 0", -1000],
+      ["Revenue", "Year 1", 600],
+      ["Revenue", "Year 2", 700],
+    ]);
+  });
+
   it("answers null for text that is not a year-column table", () => {
     expect(appraisalGridFromText("Outlay Rp 2.000.000.000. Tahun 1 Rp 600.000.000.")).toBeNull();
     expect(appraisalGridFromText("Label | 2024 | 2025\nRevenue | 10 | 20")).toBeNull();

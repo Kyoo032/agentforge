@@ -12,7 +12,13 @@ import {
   type FinanceTaskSection,
   type ReportLocale,
 } from "@agentforge/core/finance";
-import type { GuardReport } from "../finance-brief-build";
+import {
+  GUARD_OUTSIDE_SECTIONS,
+  guardAssumptions,
+  guardLabel,
+  guardTitle,
+  type GuardReport,
+} from "../finance-brief-build";
 import { extractJsonObject } from "../presentation-outline";
 
 export const FINANCE_TASK_SYSTEM = `You write the narrative for one DPSBuddy finance task. Every figure was computed in code and is listed for you; you add none.
@@ -39,6 +45,8 @@ export type NarrationDraft = {
   readonly title: string;
   readonly sections: readonly NarrationSection[];
   readonly assumptions: readonly string[];
+  /** The title to stand in when the model's cannot: none given, or one stating an untraced figure. */
+  readonly fallbackTitle?: string;
 };
 
 function text(value: unknown): string {
@@ -88,10 +96,31 @@ export function parseNarration(
     title: text(parsed.title) || fallbackTitle,
     sections: kept.map((section) => ({ ...section, id: section.id || section.heading })),
     assumptions: stringList(parsed.assumptions, ASSUMPTION_CAP),
+    fallbackTitle,
   };
 }
 
-/** Prose with every unverified figure replaced, and the tally the report shows as flags. */
+/**
+ * The model's title, guarded. The fallback is the reader's own question, so a figure in it is theirs
+ * to state; it is never counted against the model, whether it stands in or was there all along.
+ */
+function guardedTitle(draft: NarrationDraft, allowed: readonly number[]) {
+  if (!draft.fallbackTitle) {
+    return guardLabel(draft.title, allowed);
+  }
+  return draft.title === draft.fallbackTitle
+    ? { text: draft.title, flagged: [] }
+    : guardTitle(draft.title, allowed, draft.fallbackTitle);
+}
+
+/**
+ * Prose with every unverified figure dealt with, and the tally the report shows as flags.
+ *
+ * A body keeps the marker, because the repair after this rewrites that section once and then takes
+ * the sentence out. A title, a heading and an assumption are never rewritten, so their figure is
+ * dealt with here: a title is replaced by the fallback, a heading loses the figure, an assumption
+ * goes whole. The marker is never left in any of them.
+ */
 export function guardNarration(
   draft: NarrationDraft,
   allowed: readonly number[],
@@ -99,20 +128,30 @@ export function guardNarration(
   prose: FinanceTaskProse;
   guard: GuardReport;
 } {
-  const guarded = draft.sections.map((section) => guardNumbers(section.body, allowed));
-  const flagged = guarded.flatMap((result, index) =>
-    result.flagged.map((token) => ({ section: index, text: token.text })),
-  );
+  const title = guardedTitle(draft, allowed);
+  const guarded = draft.sections.map((section) => ({
+    heading: guardLabel(section.heading, allowed),
+    body: guardNumbers(section.body, allowed),
+  }));
+  const assumptions = guardAssumptions(draft.assumptions, allowed);
+  const flagged = [
+    ...title.flagged.map((text) => ({ section: GUARD_OUTSIDE_SECTIONS, text })),
+    ...guarded.flatMap((result, index) => [
+      ...result.heading.flagged.map((text) => ({ section: index, text })),
+      ...result.body.flagged.map((token) => ({ section: index, text: token.text })),
+    ]),
+    ...assumptions.flagged.map((text) => ({ section: GUARD_OUTSIDE_SECTIONS, text })),
+  ];
   return {
     prose: {
-      title: draft.title,
+      title: title.text,
       sections: draft.sections.map((section, index) => ({
         id: section.id,
-        heading: section.heading,
-        body: guarded[index]?.text ?? section.body,
+        heading: guarded[index]?.heading.text ?? section.heading,
+        body: guarded[index]?.body.text ?? section.body,
       })),
-      assumptions: [...draft.assumptions],
+      assumptions: assumptions.assumptions,
     },
-    guard: { flagged, total: flagged.length },
+    guard: { flagged, total: flagged.length, ...(assumptions.removed > 0 ? { removed: assumptions.removed } : {}) },
   };
 }

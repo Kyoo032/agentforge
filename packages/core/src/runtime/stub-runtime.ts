@@ -31,14 +31,22 @@ function datetimeResult(output: unknown): string | null {
   return `${record.iso} (${zone})`;
 }
 
-async function emitText(onEvent: (event: RuntimeEvent) => Promise<void> | void, text: string): Promise<void> {
+async function emitText(
+  onEvent: (event: RuntimeEvent) => Promise<void> | void,
+  text: string,
+  signal: AbortSignal | undefined,
+): Promise<void> {
   for (const chunk of text.match(/.{1,24}/g) ?? [text]) {
+    signal?.throwIfAborted();
     await onEvent({ type: "assistant.delta", text: chunk });
   }
 }
 
 export class StubRuntime implements AgentRuntime {
   async execute(input: Parameters<AgentRuntime["execute"]>[0]): Promise<void> {
+    // Same contract as the live runtime: once the caller leaves, nothing further is sent and the run
+    // rejects with the signal's reason.
+    input.signal?.throwIfAborted();
     const last = input.history[input.history.length - 1];
     const summary = last ? summarizeParts(last.parts) : "";
     const showThinking = resolveRequestReasoningEffort(input) !== "none";
@@ -86,7 +94,7 @@ export class StubRuntime implements AgentRuntime {
     }
 
     const body = answers.length > 0 ? answers.join("\n") : copy.needKey;
-    await emitText(input.onEvent, body);
+    await emitText(input.onEvent, body, input.signal);
     await input.onEvent({ type: "run.completed", runId: input.runId });
   }
 }

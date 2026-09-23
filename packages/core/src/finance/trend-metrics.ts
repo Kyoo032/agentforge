@@ -22,7 +22,7 @@ const LABELS = {
   operatingCashGrowth: { en: "Operating cash flow growth", id: "Pertumbuhan arus kas operasi" },
   revenueCagr: { en: "Revenue CAGR per period", id: "CAGR pendapatan per periode" },
   monthlyBurn: { en: "Average monthly net burn", id: "Rata-rata burn kas bulanan" },
-  impliedBurn: { en: "Net burn per period", id: "Burn kas per periode" },
+  impliedBurn: { en: "Implied average monthly net burn", id: "Rata-rata burn kas bulanan tersirat" },
   runway: { en: "Runway on the average monthly burn", id: "Runway atas burn bulanan rata-rata" },
   runwayLatest: { en: "Runway on the latest period's burn", id: "Runway atas burn periode terakhir" },
   breakevenPeriods: {
@@ -119,9 +119,13 @@ export function trendMetrics(options: TrendOptions): Metric[] {
   const revenue = seriesOf(options, (figures) => figures.revenue);
   const netProfit = seriesOf(options, (figures) => figures.netProfit);
   const operatingCash = seriesOf(options, (figures) => figures.operatingCashFlow);
-  const first = revenue.find((value) => value !== null) ?? null;
-  const last = [...revenue].reverse().find((value) => value !== null) ?? null;
-  const steps = revenue.length - 1;
+  // The compound rate spans the periods between the first and last revenue the sheet states. A
+  // period with no revenue at either end is not a step, and one figure alone compounds over nothing.
+  const firstAt = revenue.findIndex((value) => value !== null);
+  const lastAt = revenue.length - 1 - [...revenue].reverse().findIndex((value) => value !== null);
+  const first = firstAt < 0 ? null : (revenue[firstAt] ?? null);
+  const last = firstAt < 0 ? null : (revenue[lastAt] ?? null);
+  const steps = lastAt - firstAt;
   const cagr = first === null || last === null ? null : cagrPercent(first, last, steps);
   return [
     ...growthMetrics(options, LABELS.revenueGrowth, "revenue", revenue),
@@ -191,26 +195,44 @@ function totalOver(options: TrendOptions, read: (figures: PeriodFigures) => numb
 }
 
 /**
- * No burn line on the sheet: the shortfall between what the periods cost and what they earned, per
- * period. Coarser than a stated burn, and named so — it is the only answer the inputs support.
+ * No burn line on the sheet: the shortfall between what the periods cost and what they earned,
+ * spread over the months those periods cover. Runway is counted in months, so the burn it divides by
+ * has to be a monthly one — two fiscal years short by 600 each burn 50 a month, not 600. Coarser than
+ * a stated burn, and named so — it is the only answer the inputs support.
  */
 function impliedBurnMetrics(options: TrendOptions): Metric[] {
   const withOpex = options.periods.filter((period) => (options.figures.get(period)?.opex ?? null) !== null);
-  if (withOpex.length === 0) {
+  const months = withOpex.reduce((total, period) => total + monthsInPeriod(period), 0);
+  if (withOpex.length === 0 || months <= 0) {
     return [];
   }
   const burn =
-    (totalOver(options, (figures) => figures.opex) - totalOver(options, (figures) => figures.revenue)) /
-    withOpex.length;
+    (totalOver(options, (figures) => figures.opex) - totalOver(options, (figures) => figures.revenue)) / months;
   if (!(burn > 0)) {
     return [];
   }
   const runway = options.latestCash === null ? null : runwayMonths(options.latestCash, burn);
   return [
-    metric("burn", pick(LABELS.impliedBurn, options.locale), burn, options.currency, "", "(opex - revenue) / periods"),
+    metric(
+      "burn",
+      pick(LABELS.impliedBurn, options.locale),
+      burn,
+      options.currency,
+      "",
+      "(opex - revenue) / months covered",
+    ),
     ...(runway === null
       ? []
-      : [metric("runway", pick(LABELS.runway, options.locale), runway, "months", "", "cash / burn")]),
+      : [
+          metric(
+            "runway",
+            pick(LABELS.runway, options.locale),
+            runway,
+            "months",
+            "",
+            "cash / implied average monthly burn",
+          ),
+        ]),
   ];
 }
 

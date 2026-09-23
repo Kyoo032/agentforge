@@ -16,7 +16,7 @@ import { imageClipAt } from "@/lib/edit-preview-media";
 import { EditRecipesPanel } from "@/components/edit-recipes-panel";
 import { EditPreview } from "@/components/edit-preview";
 import { EditTimeline } from "@/components/edit-timeline";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, isElectron } from "@/lib/api-client";
 import { pickMedia } from "@/lib/desktop-bridge";
 import { hasNativeFilePicker, useHostCapabilities } from "@/lib/host-capabilities";
 import {
@@ -39,6 +39,7 @@ import {
   type UnplacedItem,
 } from "@/lib/edit-client";
 import { consumeSse } from "@/lib/sse-client";
+import { isEditShortcutIgnored, isInHiddenPane } from "@/lib/shortcut-target";
 import { useEmitLock } from "@/lib/use-emit-lock";
 import { useProductBrand } from "@/lib/product-brand";
 import { t } from "@/lib/i18n";
@@ -355,12 +356,12 @@ export function EditStudio() {
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      const studio = document.querySelector("[data-testid='edit-studio']");
-      if (!studio || studio.closest("[hidden]")) {
+      if (isInHiddenPane(document.querySelector<HTMLElement>("[data-testid='edit-studio']"))) {
         return;
       }
-      const target = event.target as HTMLElement | null;
-      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+      // A focused field, select, button or key-taking widget keeps its own keys (Space presses a
+      // button, arrows move a select), and a chord such as Ctrl/Cmd+S or +K is never split/play.
+      if (isEditShortcutIgnored(event)) {
         return;
       }
       const current = projectRef.current;
@@ -602,6 +603,11 @@ export function EditStudio() {
       const response = await apiFetch(`/api/v1/edit/projects/${project.id}/export/${exportJobId}/file`);
       if (!response.ok) {
         setError(errorMessage(await readJson(response), t("edit.errors.exportNotReady")));
+        return;
+      }
+      if (isElectron()) {
+        // apiFetch already wrote the bytes through the native save dialog; a second, browser-style
+        // download here would open the save dialog twice.
         return;
       }
       const blob = await response.blob();

@@ -36,6 +36,41 @@ import { SignInScreen } from "@/components/sign-in-screen";
 import { AuthCallbackPage } from "@/src/pages/auth-callback-page";
 import { bootView, SessionProvider, useSession, type BootView } from "@/lib/session";
 
+export type ShellWorkspace = {
+  readonly id: string;
+  readonly name: string;
+  readonly productModes: ProductMode[] | undefined;
+};
+
+/**
+ * The desk a `GET /api/v1/workspaces` answer names, or null to leave the shell where it is.
+ *
+ * Every work mode is keyed on this id (`WorkModeKeepAlive`), so a different id — `null` included —
+ * unmounts and remounts all of them: a live Meeting recording ends and every job pane loses its
+ * in-flight state. The shell asks again on every navigation, and it used to read the body without
+ * looking at the status, so a refusal (a 401 as a session lapsed, a 5xx, a proxy's error page) read
+ * as "no desks" and did exactly that. Only an answer that names a desk may change it.
+ */
+export function shellWorkspaceFrom(ok: boolean, payload: unknown): ShellWorkspace | null {
+  if (!ok || !payload || typeof payload !== "object") {
+    return null;
+  }
+  const body = payload as { currentWorkspaceId?: unknown; workspaces?: unknown };
+  const rows = (Array.isArray(body.workspaces) ? body.workspaces : []).filter(
+    (row): row is { id: string; name?: unknown; productModes?: ProductMode[] } =>
+      Boolean(row && typeof row === "object" && typeof (row as { id?: unknown }).id === "string"),
+  );
+  const current = rows.find((row) => row.id === body.currentWorkspaceId) ?? rows[0];
+  if (!current) {
+    return null;
+  }
+  return {
+    id: current.id,
+    name: typeof current.name === "string" && current.name ? current.name : HOME_WORKSPACE_NAME,
+    productModes: current.productModes,
+  };
+}
+
 function Shell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
@@ -44,18 +79,14 @@ function Shell({ children }: { children: ReactNode }) {
 
   const reload = useCallback(() => {
     void apiFetch("/api/v1/workspaces")
-      .then((res) => res.json())
-      .then((payload) => {
-        const currentId = payload.currentWorkspaceId as string | undefined;
-        const rows = (payload.workspaces ?? []) as Array<{
-          id: string;
-          name: string;
-          productModes?: ProductMode[];
-        }>;
-        const current = rows.find((row) => row.id === currentId) ?? rows[0];
-        setWorkspaceId(current?.id ?? null);
-        setWorkspaceName(current?.name ?? HOME_WORKSPACE_NAME);
-        setVisibleModes(resolveWorkspaceModes(current?.productModes));
+      .then(async (res) => shellWorkspaceFrom(res.ok, await res.json().catch(() => null)))
+      .then((desk) => {
+        if (!desk) {
+          return;
+        }
+        setWorkspaceId(desk.id);
+        setWorkspaceName(desk.name);
+        setVisibleModes(resolveWorkspaceModes(desk.productModes));
       })
       .catch(() => {
         // first boot before SQLite is ready

@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { outputLanguageRule } from "@agentforge/core";
 import type { HostRequest, HostResult } from "../types";
 
 // Isolation: point the data dir (database + media rows) at a temp folder BEFORE the router is imported.
@@ -61,11 +62,15 @@ const realFetch = globalThis.fetch;
  * with two takes. Both takes are data URLs, so `saveGeneratedAudio` mirrors them without a network
  * call and the whole host path — media row, meta sidecar, Knowledge card — runs for real.
  */
-function stubRelay(): { calls: string[] } {
+function stubRelay(): { calls: string[]; submitted: Array<Record<string, unknown>> } {
   const calls: string[] = [];
-  globalThis.fetch = (async (input: string | URL | Request) => {
+  const submitted: Array<Record<string, unknown>> = [];
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     calls.push(url);
+    if (url.includes("/suno/submit/") && typeof init?.body === "string") {
+      submitted.push(JSON.parse(init.body) as Record<string, unknown>);
+    }
     const body = url.includes("/suno/submit/")
       ? { code: "success", data: "task-1" }
       : {
@@ -80,7 +85,7 @@ function stubRelay(): { calls: string[] } {
         };
     return { ok: true, status: 200, json: async () => body } as unknown as Response;
   }) as typeof fetch;
-  return { calls };
+  return { calls, submitted };
 }
 
 describe("music handlers via the router", () => {
@@ -180,6 +185,38 @@ describe("music handlers via the router", () => {
     expect(newest.title).toMatch(/Rainy Window/);
     expect(newest.durationSeconds).toBeGreaterThan(0);
     expect(newest.prompt).toBe("a calm lo-fi loop");
+  });
+
+  /**
+   * Regression. "My lyrics" used to get the output-language instruction appended to the lyrics, and
+   * the relay sends custom-mode `prompt` to Suno as the words to sing: the instruction would have
+   * been sung as the last verse.
+   */
+  it("sends the owner's own lyrics to the relay exactly as written", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+    const relay = stubRelay();
+    const lyrics = "Rain on the window\nI keep the porch light on for you";
+    const response = await json("POST", "/api/v1/music", {
+      mode: "custom",
+      lyrics,
+      style: "lo-fi",
+      title: "Rainy Window",
+    });
+    expect(response.status).toBe(201);
+    expect(relay.submitted).toHaveLength(1);
+    expect(relay.submitted[0]).toMatchObject({ prompt: lyrics, tags: "lo-fi", title: "Rainy Window" });
+    expect(relay.submitted[0]).not.toHaveProperty("gpt_description_prompt");
+  });
+
+  it("keeps the output-language rule on a described song, where the model writes the words", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+    const relay = stubRelay();
+    const response = await json("POST", "/api/v1/music", { mode: "describe", prompt: "a calm lo-fi loop about rain" });
+    expect(response.status).toBe(201);
+    const brief = relay.submitted[0]?.gpt_description_prompt;
+    expect(typeof brief).toBe("string");
+    expect(brief as string).toMatch(/^a calm lo-fi loop about rain/);
+    expect(brief as string).toContain(outputLanguageRule("music", "en"));
   });
 
   it("serves a saved track back as audio bytes", async () => {
