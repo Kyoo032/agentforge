@@ -14,8 +14,8 @@ Three surfaces over one placeholder catalog: the public `/pricing` page, the pla
 
 ## How to get to it (user POV)
 
-- `/pricing` directly, on any build, signed in or not. There is no rail entry: the page is reached from a blocked screen's `plan-blocked-plans`, from `account-plan`'s "See plans", and from a link.
-- Rail → Settings, below the sign-in row, is `account-plan` — on a hosted deployment. On a desk the panel renders "Plans are not enforced on this installation." or nothing at all, and that is the pass.
+- `/pricing` directly, on any build, signed in or not. There is no rail entry: the page is reached from a blocked screen's `plan-blocked-plans`, from `account-plan`'s "See plans" (hosted only — the card does not render where `capabilities.plans` is false), and from a link.
+- Rail → Settings, below the sign-in row, is `account-plan` — on a hosted deployment. On a desk (`capabilities.plans: false` — the Personal app and webdev) the panel renders **nothing**: no `account-plan`, no "See plans", no `a[href="/pricing"]` (since 2026-09-23; the old one-line card linked to `/pricing`, which the packaged shell blocks — 0.15.0 changelog §7.4). "Plans are not enforced on this installation." now appears only on a hosted deployment whose host answers `{ enforced: false }`. Driven on `:3000` on 2026-09-23: `account-plan` count 0, `/pricing` links 0.
 - A blocked screen arrives on its own, replacing the app, when the host refuses a call with a plan code.
 
 ## Driving it with the DPSBuddy harness

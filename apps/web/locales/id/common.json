@@ -5,5 +5,9 @@
   "bahasa": "Bahasa Indonesia",
   "restartApp": "Mulai ulang DPSBuddy",
   "restartHint": "Mulai ulang DPSBuddy untuk menerapkan bahasa ini.",
-  "loading": "Memuat…"
+  "loading": "Memuat…",
+  "theme": {
+    "light": "Terang",
+    "dark": "Gelap"
+  }
 }

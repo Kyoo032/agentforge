@@ -102,11 +102,10 @@ export function UsagePage() {
   const maxPriced = Math.max(...priced.map((row) => row.usd), 0.0001);
 
   return (
-    <main className="px-6 py-8 text-[var(--text)]" data-testid="usage-page">
+    <main className="mx-auto w-full max-w-[var(--content-wide)] px-6 py-8 text-[var(--text)]" data-testid="usage-page">
       <div className="mb-5 flex flex-wrap items-end gap-4">
         <div>
-          <div className="kicker">{t("usage.kicker")}</div>
-          <h3 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("usage.title")}</h3>
+          <h3 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("usage.title")}</h3>
           <p className="mt-1 text-[13px] text-[var(--text-2)]">{t("usage.intro")}</p>
         </div>
         <div className="seg ml-auto" data-testid="usage-range" role="group" aria-label={t("usage.rangeAria")}>

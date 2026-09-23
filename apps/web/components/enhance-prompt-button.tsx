@@ -99,7 +99,7 @@ export function EnhancePromptButton({
   return (
     <button
       type="button"
-      className="wash inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--line)] bg-transparent text-[var(--text-2)] hover:bg-[var(--accent-soft)] disabled:opacity-45"
+      className="wash inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-[var(--line)] bg-transparent px-2 text-xs font-medium text-[var(--text)] hover:bg-[var(--surface-2)] disabled:opacity-45"
       data-tip={busy ? t("chat.enhance.busy") : enhanced ? t("chat.enhance.revert") : t("chat.enhance.idle")}
       aria-label={busy ? t("chat.enhance.busy") : enhanced ? t("chat.enhance.revert") : t("chat.enhance.idle")}
       aria-pressed={enhanced}
@@ -119,6 +119,7 @@ export function EnhancePromptButton({
         <path d="M12 3.5 13.7 8l4.5 1.7-4.5 1.7L12 15.9l-1.7-4.5L5.8 9.7 10.3 8 12 3.5Z" />
         <path d="M18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7.7-1.8Z" />
       </svg>
+      <span>{busy ? t("chat.enhance.busy") : enhanced ? t("chat.enhance.revert") : t("chat.enhance.idle")}</span>
     </button>
   );
 }

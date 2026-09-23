@@ -224,14 +224,17 @@ export function ChannelsPage() {
   }, []);
 
   return (
-    <main className="px-6 py-8 text-[var(--text)]" data-testid="channels-page">
+    <main className="mx-auto w-full max-w-[var(--content-wide)] px-6 py-8 text-[var(--text)]" data-testid="channels-page">
       <div className="mb-5">
-        <div className="kicker">{t("channels.kicker")}</div>
-        <h3 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("channels.title")}</h3>
-        <p className="mt-1 max-w-2xl text-[13px] text-[var(--text-2)]">{t("channels.intro")}</p>
-        <p className="mt-1 max-w-2xl text-[12px] text-[var(--text-2)]" data-testid="channels-privacy">
-          {t("channels.privacy")}
-        </p>
+        <h3 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("channels.title")}</h3>
+        <p className="mt-1 max-w-[var(--content-narrow)] text-[13px] text-[var(--text-2)]">{t("channels.intro")}</p>
+        {/* A standing warning, not a step: one click away, out of the reading path. */}
+        <details className="mt-2 max-w-[var(--content-narrow)] rounded-lg border border-[var(--line)] px-3 py-2" data-testid="channels-privacy">
+          <summary className="cursor-pointer select-none text-xs font-medium text-[var(--text-2)]">
+            {t("channels.privacyLabel")}
+          </summary>
+          <p className="mt-2 text-[12px] text-[var(--text-2)]">{t("channels.privacy")}</p>
+        </details>
       </div>
 
       {error ? (

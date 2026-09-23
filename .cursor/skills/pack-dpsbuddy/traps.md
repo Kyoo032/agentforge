@@ -63,7 +63,9 @@ Python 3.12 is **Windows native rebuild** only. The Linux container does not use
 | Env | Allowed proof | Not proof |
 |---|---|---|
 | Windows worktree pack | `latest.yml` sha512, `host.cjs` grep, `doctor --desktop` on unpacked/installed exe | Docker verify-bundle, `:3000` |
-| Docker mac pack | container `verify-bundle.py` (app + dmg + zip), `mac-<v>.sha256` | `doctor --desktop` on this PC, claiming the app launched |
+| Docker mac pack | container `verify-bundle.py` (app + dmg + zip), `mac-<v>.sha256` | `doctor --desktop` on this PC, claiming the app launched, Cua Fleet, Lume, Docker Desktop GUI |
+| Mac hardware (someone else's Mac) | Gatekeeper, Keychain, Cmd+V, Dock, Cmd+Q, `doctor --desktop` on that machine | a green Docker log from this PC |
+| WSL + `webapp-deploy` compose | hosted Linux image health | desktop pack, Jakarta CVM |
 | webdev `:3000` | product UI while developing | packaged / shipped |
 
 Never run `electron-builder --mac` on this host. Cloud Linux runs neither path.

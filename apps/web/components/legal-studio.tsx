@@ -6,6 +6,9 @@ import {
   deleteLegalFile,
   getLegalMatter,
   getLegalRun,
+  isDocxFile,
+  LEGAL_FILE_MAX_BYTES,
+  LegalRequestError,
   legalRunStreamPath,
   listLegalMatters,
   listLegalPlaybooks,
@@ -18,8 +21,10 @@ import {
 } from "@/lib/legal-client";
 import {
   canRun,
+  canUpload,
   DEFAULT_LEGAL_DRAFT,
   draftFromMatter,
+  legalValidationKey,
   nextDocRole,
   type LegalDraft,
   type PendingUpload,
@@ -47,7 +52,23 @@ function needsSettingsHint(message: string, code?: string, status?: number): boo
 }
 
 function message(err: unknown, fallback: string): string {
+  if (err instanceof LegalRequestError) {
+    const key = legalValidationKey(err.code, err.message);
+    if (key) {
+      return t(key);
+    }
+  }
   return err instanceof Error && err.message ? err.message : fallback;
+}
+
+/** Refuse what the host would refuse before the first upload creates a matter for it. */
+function refusedUpload(files: readonly File[]): string | null {
+  const notDocx = files.find((file) => !isDocxFile(file));
+  if (notDocx) {
+    return t("legal.errors.docxOnly");
+  }
+  const tooLarge = files.find((file) => file.size > LEGAL_FILE_MAX_BYTES);
+  return tooLarge ? t("legal.errors.tooLarge", { name: tooLarge.name }) : null;
 }
 
 export function LegalStudio() {
@@ -68,6 +89,7 @@ export function LegalStudio() {
   const docs = matter?.docs ?? [];
   const playbookTitle = playbooks.find((item) => item.id === draft.playbookId)?.title ?? null;
   const ready = canRun(draft, docs.length, busy === "upload");
+  const uploadReady = canUpload(draft);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,6 +121,15 @@ export function LegalStudio() {
 
   async function onFiles(files: File[]) {
     if (locked) {
+      return;
+    }
+    if (!uploadReady) {
+      setLocalError(t("legal.files.needParties"));
+      return;
+    }
+    const refused = refusedUpload(files);
+    if (refused) {
+      setLocalError(refused);
       return;
     }
     setBusy("upload");
@@ -253,7 +284,7 @@ export function LegalStudio() {
 
   return (
     <div data-testid="legal-shell">
-      <main className="px-6 pb-10 pt-8 text-[var(--text)]" data-testid="legal-studio" data-screen={screen}>
+      <main className="mx-auto w-full max-w-[var(--content-wide)] px-6 pb-10 pt-8 text-[var(--text)]" data-testid="legal-studio" data-screen={screen}>
         {error ? (
           <p className="mb-4 text-sm text-[var(--danger)]" role="alert" data-testid="legal-error">
             {error}
@@ -290,13 +321,12 @@ export function LegalStudio() {
 
         {screen === "new" ? (
           <>
-            <div className="kicker">{t("legal.studio.kicker")}</div>
             <div className="mb-5 flex flex-wrap items-end gap-4">
               <div>
-                <h3 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">
+                <h3 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">
                   {t("legal.studio.title")}
                 </h3>
-                <p className="mt-1.5 max-w-xl text-sm text-[var(--text-2)]">{t("legal.studio.lede")}</p>
+                <p className="mt-2 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="expected-inputs">{t("legal.studio.lede")}</p>
               </div>
               <div className="ml-auto flex items-center gap-2">
                 {matters.length > 0 ? (
@@ -341,6 +371,7 @@ export function LegalStudio() {
                 pending={pending}
                 playbooks={playbooks}
                 locked={locked}
+                uploadReady={uploadReady}
                 onFiles={(files) => void onFiles(files)}
                 onCycleRole={(docId) => void onCycleRole(docId)}
                 onRemoveFile={(docId) => void onRemoveFile(docId)}

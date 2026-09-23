@@ -1,7 +1,7 @@
 {
-  "kicker": "Account",
   "title": "Channels",
-  "intro": "Connect a Telegram bot to this desk, then post to a group or a channel and read what comes back. Market briefings can be sent here in a later pass.",
+  "intro": "Post to a Telegram group or channel from this desk, and read what comes back.",
+  "privacyLabel": "Privacy",
   "privacy": "Everything sent or received here travels through Telegram in the clear. Do not post anything you would not put in a group chat.",
   "bot": {
     "label": "Telegram bot",

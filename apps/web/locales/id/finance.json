@@ -1,7 +1,11 @@
 {
   "title": "Keuangan",
+  "expectedInputs": "Lepas spreadsheet atau PDF (sampai 25 MB), lalu konfirmasi barisnya.",
   "kicker": "Ruang kerja",
   "subtitle": "Berikan angka Anda kepada {productName} sebagai pos. Margin, pertumbuhan, runway, titik impas, dan NPV dihitung di kode; model hanya menulis narasi, dan setiap angka yang tidak dapat dilacak akan dihapus.",
+  "howItWorks": "Cara kerjanya",
+  "howItWorksBody": "Langkah-langkah di balik satu proses. Yang ditandai sebagai perhitungan dikerjakan di kode dari baris yang Anda konfirmasi — {productName} tidak pernah mengarang angka, dan angka yang tidak dapat dilacak akan dihapus dari narasi.",
+  "advanced": "Lanjutan",
   "pasteFigures": "Tempel angka",
   "figuresPlaceholder": "Pendapatan 2025: $120.000. Hosting $30.000. Gaji $100.000. Kas $90.000…",
   "parse": "Uraikan menjadi pos",
@@ -9,7 +13,7 @@
   "parseHint": "Tidak ada yang dihitung sebelum Anda mengonfirmasi baris di bawah.",
   "upload": {
     "label": "Atau unggah berkas spreadsheet atau dokumen",
-    "dropHint": "Letakkan berkas .csv, .xlsx, .xls, .pdf, .docx, atau .pptx di sini, atau",
+    "dropHint": "Letakkan berkas .csv, .xlsx, .xls, .pdf, .docx, atau .pptx di sini, atau pilih berkas. Sampai 25 MB.",
     "choose": "Pilih berkas",
     "reading": "Membaca…",
     "replace": "Ganti",
@@ -51,7 +55,8 @@
   "fromDataset": " — dari dataset",
   "parameters": "Parameter (opsional)",
   "emptyReady": "Jelaskan brief yang Anda butuhkan.",
-  "emptyWait": "Tambahkan angka, konfirmasikan pos, lalu jelaskan brief-nya.",
+  "emptyWait": "Tambahkan angka dan konfirmasi barisnya untuk mulai.",
+  "emptyOutcome": "Yang Anda dapat",
   "promptPlaceholder": "Jelaskan brief keuangan… (rencana kas, titik impas, eksposur)",
   "cancel": "Batal",
   "generate": "Buat",
@@ -436,23 +441,23 @@
   "tasks": {
     "brief": {
       "label": "Brief Keuangan",
-      "hint": "Angka ditempel, baris dikonfirmasi, lalu satu brief naratif dengan semua metrik inti."
+      "hint": "Anda dapat: brief tertulis dengan semua metrik inti — margin, burn, runway, titik impas, NPV — dihitung di kode dan dilacak."
     },
     "cashflow": {
       "label": "Arus Kas & Runway",
-      "hint": "Kas masuk dan keluar tiap bulan atas saldo awal: burn, runway, titik impas, dan satu skenario what-if."
+      "hint": "Anda dapat: burn, runway, titik impas per periode, dan satu skenario what-if — dari saldo awal plus arus masuk dan keluar bulanan."
     },
     "budget": {
       "label": "Anggaran vs Realisasi",
-      "hint": "Dua set angka dipasangkan baris per baris: selisih nominal dan persen, lalu hanya yang lewat batas dijelaskan."
+      "hint": "Anda dapat: selisih nominal dan persen per baris, dengan tanda hanya pada baris yang lewat batas Anda."
     },
     "appraisal": {
       "label": "Kelayakan Investasi",
-      "hint": "Modal awal dan arus kas tahunan pada satu tingkat diskonto: NPV, IRR, payback, dan grid sensitivitas."
+      "hint": "Anda dapat: NPV, IRR, payback, dan grid sensitivitas untuk satu modal awal dan arus kas tahunannya."
     },
     "ratios": {
       "label": "Cek Kesehatan Rasio",
-      "hint": "Neraca dan laba rugi dikelompokkan ke pos-posnya: likuiditas, utang, dan DSCR, lalu dibandingkan dengan ambangnya."
+      "hint": "Anda dapat: rasio likuiditas, utang, dan DSCR yang dibandingkan dengan ambangnya, dari neraca dan laba rugi."
     }
   },
   "phases": {

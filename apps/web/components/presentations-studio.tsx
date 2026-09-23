@@ -14,7 +14,6 @@ import type { PresentationOutline } from "@/lib/presentation-outline";
 import { presentationStarters } from "@/lib/job-starters";
 import { useJobModel } from "@/lib/use-job-model";
 import { apiFetch } from "@/lib/api-client";
-import { useProductBrand } from "@/lib/product-brand";
 
 function errorMessage(payload: unknown, fallback: string): string {
   if (payload && typeof payload === "object") {
@@ -27,7 +26,6 @@ function errorMessage(payload: unknown, fallback: string): string {
 }
 
 export function PresentationsStudio() {
-  const { productName } = useProductBrand();
   const { models, model, setModel } = useJobModel("presentations");
   const [prompt, setPrompt] = useState("");
   const [sourceText, setSourceText] = useState("");
@@ -143,13 +141,13 @@ export function PresentationsStudio() {
   }
 
   return (
-    <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-10 text-[var(--text)]" data-testid="presentations-studio">
+    <main className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]" data-testid="presentations-studio">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("presentation.title")}</h1>
-          <p className="mt-2 max-w-xl text-sm text-[var(--text-2)]">
-            {t("presentation.subtitle", { product: productName })}
-          </p>
+          {/* One outcome line (owner report 2026-09-23). The `subtitle` paragraph below it
+              restated the flow as a method, so it was deleted along with its key. */}
+          <p className="mt-2 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="expected-inputs">{t("presentation.expectedInputs")}</p>
         </div>
         {outline ? (
           <button
@@ -198,7 +196,7 @@ export function PresentationsStudio() {
           <div className="rounded-lg border border-[var(--line)] bg-[var(--surface)] px-4 py-10" data-testid="presentations-studio-empty">
             <p className="text-center text-sm font-medium text-[var(--text)]">{t("presentation.emptyTitle")}</p>
             <p className="mt-2 text-center text-sm text-[var(--text-2)]">{t("presentation.emptyBody")}</p>
-            <div className="mx-auto mt-6 grid max-w-2xl gap-3 sm:grid-cols-2">
+            <div className="mx-auto mt-6 grid max-w-[var(--content-narrow)] gap-3 sm:grid-cols-2">
               {presentationStarters(getLocale()).map((starter) => (
                 <button
                   key={starter.id}
@@ -253,7 +251,7 @@ export function PresentationsStudio() {
             type="text"
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
-            className="min-w-0 flex-1 rounded-lg bg-transparent px-3 py-2 text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-3)]"
+            className="text-field min-w-0 flex-1 outline-none placeholder:text-[var(--text-3)]"
             placeholder={t("presentation.promptPlaceholder")}
             disabled={busy !== null}
             data-testid="presentations-prompt"

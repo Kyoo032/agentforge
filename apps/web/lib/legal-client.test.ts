@@ -11,6 +11,7 @@ vi.mock("./artifacts-client", () => ({ saveBlob }));
 
 import {
   LEGAL_DOCX_ONLY_MESSAGE,
+  LegalRequestError,
   createLegalMatter,
   deleteLegalFile,
   deleteLegalMatter,
@@ -157,6 +158,30 @@ describe("matters", () => {
   it("surfaces the host error message on failure", async () => {
     apiFetch.mockResolvedValue(json({ error: { code: "not_found", message: "No such matter." } }, 404));
     await expect(getLegalMatter("nope")).rejects.toThrow("No such matter.");
+  });
+
+  it("keeps the host's error code on a refused request so the studio can map it to copy", async () => {
+    apiFetch.mockResolvedValue(
+      json({ error: { code: "invalid_request", message: "side.counterparty is required" } }, 400),
+    );
+    const refused = await createLegalMatter({
+      title: "M",
+      side: { role: "borrower", party: "Meridian", counterparty: "" },
+      workType: "review",
+      deliverables: ["issues-memo"],
+      instructions: "",
+      playbookId: null,
+      author: "",
+      addressee: "",
+      firm: "",
+    }).catch((err: unknown) => err);
+    expect(refused).toBeInstanceOf(LegalRequestError);
+    expect(refused).toMatchObject({ code: "invalid_request", status: 400, message: "side.counterparty is required" });
+  });
+
+  it("reads the flat gateway_blocked shape as a code too", async () => {
+    apiFetch.mockResolvedValue(json({ error: "gateway_blocked", status: "needs_key", message: "x" }, 403));
+    await expect(getLegalMatter("m1")).rejects.toMatchObject({ code: "gateway_blocked", status: 403 });
   });
 
   it("lists matters and drops rows that do not parse", async () => {

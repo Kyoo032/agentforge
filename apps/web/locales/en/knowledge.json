@@ -1,7 +1,6 @@
 {
   "title": "Knowledge Base",
-  "kicker": "{name} › Knowledge Base",
-  "intro": "Soul, memory, and sources for the {name} desk. Other workspaces keep their own knowledge.",
+  "intro": "What Chat and every job mode retrieve from on the {name} desk — soul, pinned memory, indexed sources, and the map between them.",
   "tabs": {
     "sources": "Sources",
     "soul": "Soul",
@@ -32,7 +31,7 @@
     "pastePlaceholder": "Paste notes…",
     "indexPaste": "Index paste",
     "uploadFile": "Upload file",
-    "uploadHint": "Indexed here: {formats}",
+    "uploadHint": "Indexed here: {formats}. Up to 25 MB.",
     "pastedName": "Pasted notes",
     "chunks": "{count} chunks",
     "chunksOne": "{count} chunk",
@@ -74,7 +73,9 @@
   },
   "map": {
     "label": "Map",
-    "intro": "This desk memory is what Chat retrieves now. Job modes will call the same retrieve later. Map reviews sources with your embedding, brain, and verifier models.",
+    "intro": "You get a reviewed map of your sources — which topics they support, where they are weak, and what is still missing.",
+    "howItWorks": "How this works",
+    "howItWorksBody": "Chat retrieves from this desk memory now, and job modes will use the same retrieval later. Map reads your sources with the embedding, brain, and verifier models above.",
     "run": "Map knowledge",
     "running": "Mapping…",
     "ready": "Ready",

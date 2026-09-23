@@ -25,11 +25,12 @@ import { fetchAccountPlan, formatPeriodEnd, type AccountPlan } from "@/lib/plans
  * Until 2026-09-21 the host labelled the fail-open default instead, and this panel told every
  * tenant who had never bought anything that they were on Personal, Active.
  *
- * **On a machine where nothing is billed it prints one line.** `capabilities.plans` is false on the
- * desktop and on webdev, so there is no plan to report and no request worth making. It does not go
- * silent, though, as `SettingsStorageCard` does: it says plans are not enforced here and links to
- * `/pricing`. There is no rail entry for the price list, so on a local build — which is the build
- * the owner reviews this work on — that link is the only way to reach it.
+ * **On a machine where nothing is billed it renders nothing**, as `SettingsStorageCard` does.
+ * `capabilities.plans` is false on the Personal desktop app and on webdev, so there is no plan to
+ * report and no request worth making. It used to print "Plans are not enforced" with a `/pricing`
+ * link, but the packaged app loads the renderer from `file://` under a `HashRouter`, so that link
+ * resolved to a `file:` URL the shell's `will-navigate` guard blocks — a dead link on every desktop
+ * (0.15.0 changelog §7.4). The price list is a hosted surface; the card lives only where plans do.
  */
 
 function tierName(plan: AccountPlan): string | null {
@@ -129,8 +130,8 @@ export function AccountPlanView({ plan, loaded }: AccountPlanViewProps) {
 }
 
 /**
- * The one line a machine with no billing gets, and the only door to the price list on a local
- * build — the rail has no entry for `/pricing`, so without this link the owner cannot reach it.
+ * The one line a hosted deployment gets when it reports the plans capability but the host answers
+ * `{ enforced: false }`. Only reached where `capabilities.plans` is true, so `/pricing` resolves.
  */
 function NotEnforcedCard() {
   return (
@@ -145,7 +146,7 @@ function NotEnforcedCard() {
   );
 }
 
-/** The Settings entry point: reads the plan where there is one, and says so where there is not. */
+/** The Settings entry point: reads the plan where the host has plans, and renders nothing where it has none. */
 export function AccountPlanPanel() {
   const capabilities = useHostCapabilities();
   const [plan, setPlan] = useState<AccountPlan | null>(null);
@@ -167,9 +168,14 @@ export function AccountPlanPanel() {
     };
   }, [capabilities.plans]);
 
+  // No plans on this host (the Personal app, webdev, or a host that has not answered the ping yet):
+  // no card and no `/pricing` link, which the packaged shell could not follow anyway.
+  if (!capabilities.plans) {
+    return null;
+  }
   // A host that answers `{ enforced: false }` while reporting the plans capability is a deployment
   // mid-change; the honest card is the one that says there is nothing to enforce.
-  if (!capabilities.plans || (plan && !plan.enforced)) {
+  if (plan && !plan.enforced) {
     return <NotEnforcedCard />;
   }
 

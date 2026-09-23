@@ -8,19 +8,48 @@
   "deleteAria": "Delete {title}",
   "removeAttachment": "Remove {name}",
   "empty": {
-    "headline": "You're in. Ask anything.",
-    "pasteKeyPrefix": "Paste a {gatewayName} gateway key in",
+    "headline": "Work starts here.",
     "settingsLink": "Settings",
-    "pasteKeySuffix": "to talk to live models.",
-    "documentsTitle": "Documents",
-    "documentsHint": "Memos and reports",
-    "researchTitle": "Research",
-    "researchHint": "Dossiers from the web",
-    "financeTitle": "Finance",
-    "financeHint": "Models and briefs"
+    "statusConnected": "Model key connected",
+    "statusSignedIn": "Signed in",
+    "statusReady": "Ready to work",
+    "statusNeedsKey": "Connect a key to go live",
+    "statusGrace": "Model key connected (offline, last checked {date})",
+    "whatsThis": "What is this?",
+    "whatsThisBody": "A gateway key connects this desk to the models on your account. Paste it once in Settings. It stays on this desk and is never shown back.",
+    "pickModel": "Pick a model below, then type.",
+    "ideas": {
+      "title": "Start with an idea",
+      "plan": {
+        "label": "Shape a plan",
+        "hint": "Turn rough notes into a first draft of the steps.",
+        "prompt": "Turn these notes into a step-by-step plan:\n\n"
+      },
+      "summarise": {
+        "label": "Summarise something",
+        "hint": "Paste a document, thread, or transcript and get the points that matter.",
+        "prompt": "Summarise the main points and decisions from this:\n\n"
+      },
+      "rewrite": {
+        "label": "Rewrite for a reader",
+        "hint": "Give it your draft and who it is for; it sharpens the language.",
+        "prompt": "Rewrite this for a specific reader — keep the meaning, sharpen the wording:\n\n"
+      },
+      "decide": {
+        "label": "Think a decision through",
+        "hint": "Put the options on the table and argue both sides.",
+        "prompt": "Help me decide between these options. Lay out the trade-offs, then recommend one:\n\n"
+      }
+    },
+    "recheck": "Check again"
+  },
+  "account": {
+    "label": "Account"
   },
   "composer": {
-    "placeholder": "Message",
+    "placeholder": "Ask anything, or drop a screenshot, clip, or text file",
+    "modelPrefix": "Model",
+    "thinkingPrefix": "Thinking",
     "attach": "Attach",
     "send": "Send",
     "sending": "Sending…",
@@ -42,6 +71,8 @@
     "thinkingPlaceholder": "Thinking…"
   },
   "context": {
+    "meter": "Context: {used} of {window}",
+    "usedMeter": "Context: {used} used",
     "left": "{n} left",
     "used": "{n} used",
     "window": "Context window",
@@ -62,6 +93,9 @@
     "estimate": "Estimated at about four characters per token."
   },
   "usage": {
+    "connectKey": "Usage · connect a key",
+    "planSeats": "{plan} · {used} of {cap} seats",
+    "planName": "Plan: {plan}",
     "placeholder": "Usage · —",
     "unlimited": "Usage · Unlimited",
     "remaining": "Usage · {left}",
@@ -102,6 +136,7 @@
     "noImageInput": "This agent or model does not accept image input",
     "noVideoInput": "This agent or model does not accept video input",
     "emptySend": "Type a message or attach a file",
+    "fileTooLarge": "That file is over the size limit",
     "unsupportedFile": "Unsupported file type",
     "mixedMedia": "Send image and video attachments separately",
     "couldNotReach": "Could not reach {model} after {tries} tries"

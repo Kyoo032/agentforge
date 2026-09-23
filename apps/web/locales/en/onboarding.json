@@ -10,6 +10,10 @@
   "gate.invalidKey": "The gateway rejected this API key. Check the key at {gatewayName} and try again.",
   "gate.unreachable": "Could not reach {gatewayName}. Check your connection and try again.",
   "gate.error": "The gateway returned an unexpected error. Try again in a moment.",
+  "desks": {
+    "title": "Or open another desk",
+    "failed": "Could not open that desk. Try again."
+  },
   "components": {
     "title": "Setting up {productName}",
     "description": "Adding the local reader for PDF, Word, PowerPoint, Excel and e-book files. Every document is read on this machine; nothing is uploaded.",

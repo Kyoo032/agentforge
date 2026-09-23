@@ -5,7 +5,7 @@ Data is a table analyst job: upload or paste a table → it is parsed, profiled 
 ## Sub-features
 
 - `data-rail` reaches `/data` from `mode-data` on Default (and any workspace that includes Data).
-- `data-shell` shows `data-studio`: a `data-source` panel (`data-upload`, `apps/web/components/data-studio.tsx:210`, fires the hidden `data-file-input` at `:203`; `data-csv` + `data-use-pasted`; and `data-saved` once a dataset exists), a `data-starters` list, and the `data-studio-prompt-bar` (`data-enhance`, `data-studio-model`, `data-prompt`, `data-generate`).
+- `data-shell` shows `data-studio`: the header is the title plus one outcome line, `expected-inputs` = "You get: a saved analysis — findings, evidence, and the SQL behind every number."; a closed `data-how` disclosure ("How this works", `apps/web/components/data-studio.tsx:182`); a `data-source` panel (`data-upload`, which fires the hidden `data-file-input`; the closed `data-paste` disclosure "Or paste a table" at `:241` holding `data-csv` + `data-use-pasted`; and `data-saved` once a dataset exists), a `data-starters` list, and the `data-studio-prompt-bar` (`data-enhance`, `data-studio-model`, `data-prompt`, `data-generate`). Since 0.15.0 `data-csv` is **not visible** until `data-paste` is opened.
 - `data-upload` posts the file to `POST /api/v1/datasets` (multipart, field `file`); `data-use-pasted` posts `{name, text}` to the same route. Both return a dataset with a profile and a 100-row preview.
 - `data-dataset` shows the adopted table: `data-dataset-name`, a row/col/size line, `data-profile` (per-column type, nulls, distinct, min/max/mean, top values) and `data-preview-toggle` → `data-preview`. All of this works with no gateway key.
 - `data-saved` reopens a stored dataset via `GET /api/v1/datasets/:id`.
@@ -30,10 +30,10 @@ Preconditions:
 - `mode-data` is visible on Default. If count is 0, switch to Default or add the tab in Workspaces.
 - Stub proof: upload (or paste) a table, confirm `data-profile`, press a starter, generate. Expect `data-error` carrying the gateway hint on an HTTP 200 from `/api/v1/data/stream` (G2). Live generate only if the operator asked and doctor reports `runtime: "ai"` and `hasOpenai: true`.
 
-- **Open Data.** Click `mode-data`. URL matches `/data`. `data-studio` and `data-csv` are visible.
+- **Open Data.** Click `mode-data`. URL matches `/data`. `data-studio`, `data-upload` and `expected-inputs` are visible; `data-how` and `data-paste` are closed `<details>` and `data-csv` is hidden until `data-paste` is opened.
 - **Upload.** Set `data-file-input` to a small CSV. `data-dataset`, `data-dataset-name` and `data-profile` appear; `POST /api/v1/datasets` is 201. No key needed.
 - **Preview.** Click `data-preview-toggle`. `data-preview` lists the first rows; empty cells render as an em dash.
-- **Paste.** Type a table into `data-csv`, click `data-use-pasted`. A second dataset is adopted and `data-csv` clears. `data-saved` now lists both.
+- **Paste.** Click the `data-paste` summary ("Or paste a table") first, then type a table into `data-csv` and click `data-use-pasted`. Driven 2026-09-23: 3-row CSV → `POST /api/v1/datasets` 201, `data-dataset-name` "Pasted table", empty cell shown as a blank in `data-preview`; cleaned up with `DELETE /api/v1/datasets/:id` → 200. `GET /api/v1/datasets` answers `{"items":[…]}`. A second dataset is adopted and `data-csv` clears. `data-saved` now lists both.
 - **Unparseable paste.** Put a single line with no data row in `data-csv`, click `data-use-pasted`. `POST /api/v1/datasets` is 400 and `data-error` reads "Could not find a header row plus at least one data row" (English on every desk — see Gotchas).
 - **No table.** With no dataset adopted, fill `data-prompt` and click `data-generate`. `data-error` is the local "upload or paste first" string and **no** API call is made.
 - **Starter.** Click a `data-starter`. `data-prompt` fills.

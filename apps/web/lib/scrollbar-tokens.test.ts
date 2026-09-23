@@ -17,10 +17,12 @@ const tokens = ["--scroll-thumb", "--scroll-thumb-hover", "--scroll-thumb-active
 
 describe("scrollbar styling", () => {
   it("defines every thumb token in both themes", () => {
-    const light = block(":root");
+    const root = block(":root");
+    const light = block(".light");
     const dark = block(".dark");
     for (const token of tokens) {
-      expect(light, `${token} missing from :root`).toContain(`${token}: color-mix(`);
+      expect(root, `${token} missing from :root`).toContain(`${token}: color-mix(`);
+      expect(light, `${token} missing from .light`).toContain(`${token}: color-mix(`);
       expect(dark, `${token} missing from .dark`).toContain(`${token}: color-mix(`);
     }
   });

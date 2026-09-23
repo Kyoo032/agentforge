@@ -1,6 +1,6 @@
 # Workspaces
 
-Workspaces is the owner's local desk switcher: dropdown under the brand on the rail, a list of desks on disk, and create/edit from a template or mode checkboxes. The left-rail Workspaces control must be reachable from both collapsed and expanded rail states via `workspaces-link`. `workspaces-switcher` lists desks and opens one. Each desk keeps its own gateway key, Settings, and Knowledge Base. Creating no longer seeds a starter agent. Open/Create navigates to Chat.
+Workspaces is the owner's local desk switcher: dropdown under the brand on the rail, a list of desks on disk, and create/edit from a template or mode checkboxes. The left-rail Workspaces control must be reachable from both collapsed and expanded rail states via `workspaces-link`. `workspaces-switcher` lists desks and opens one. Each desk keeps its own gateway key, Settings, and Knowledge Base; a new desk starts with a copy of the key of the desk it was created from. Creating no longer seeds a starter agent. Open/Create navigates to Chat.
 
 ## Sub-features
 
@@ -12,6 +12,7 @@ Workspaces is the owner's local desk switcher: dropdown under the brand on the r
 - `workspaces-list` shows desks on `workspace-list` with the pack label and mode summary.
 - `workspaces-switch` opens a desk via `open-workspace` (selects it, then navigates to `/chat`).
 - `workspaces-edit` opens with `edit-workspace-modes` (label Edit): rename on `workspace-edit-name`, chips on `workspace-edit-modes` (each chip is `workspace-edit-mode-<id>`; Chat is `disabled`), persist with `save-workspace-modes` — which stays disabled until the name or the mode set actually changes — or back out with `cancel-workspace-modes`.
+- `workspaces-onboarding-desks` is the way off the key screen: when the selected desk has no key of its own the app renders only `onboarding-form`, and below it `onboarding-desks` lists every other desk as an `onboarding-open-desk` button (`data-workspace-id` = the desk id). Pressing one selects that desk and re-reads its gate; an open gate brings back the rail and switcher. A one-desk install renders no `onboarding-desks`.
 - `workspaces-delete` is `delete-workspace` on non-Default desks. Default (`slug` home) has no delete control and `DELETE` returns 403. Clicking Delete opens `delete-workspace-confirm`; type the desk name on `delete-workspace-confirm-name`, then `delete-workspace-confirm-submit` — it is `disabled` while the field is empty **and** while it holds anything but the exact name — or back out with `delete-workspace-cancel`. The host also requires `confirmName` in the DELETE body (400 `confirm_required` without it).
 
 ## How to get to it (user POV)
@@ -39,7 +40,7 @@ Preconditions:
 
 ## Gotchas
 
-- Create does not just add a desk — `handlePostWorkspaces` calls `writeSelectedWorkspaceId` before returning 201 (`packages/host/src/handlers/workspaces.ts:75`), so the new desk becomes current. There is no "create without switching".
+- Create does not just add a desk — `handlePostWorkspaces` calls `writeSelectedWorkspaceId` before returning 201 (`packages/host/src/handlers/workspaces.ts:100`), so the new desk becomes current. There is no "create without switching". Just before that it copies the current desk's gateway key into the new desk (`inheritGatewayKey`, `:33-39`, called at `:99`), so on a keyed install the new desk opens under the same verdict.
 - The current desk is a **process-global file**, `data/workspace-id.txt` (`packages/host/src/workspace.ts:35-41`), not a per-browser session. Switching desks in an automated drive switches them in the operator's open window too. Switch back to Default before you finish.
 - Deleting a desk cascades its threads, messages and runs (`packages/db/src/schema.ts:392-394`), hand-wipes six `knowledge_*` tables (`packages/db/src/ensure-local-owner.ts:199-212`) and drops the desk's `settings.enc` entry. It is not recoverable locally.
 - Both collapsed and expanded `AppRail` branches must carry `data-testid="workspaces-link"` and `workspaces-switcher`. A single branch only is a harness bug.
@@ -48,4 +49,6 @@ Preconditions:
 - Kernel forbids `student` / `course` nouns in core schema. The Students chip is a pack id (`students`), not a kernel table.
 - Do not create throwaway desks on the operator's Windows SQLite without asking.
 - Default with null `productModes` after migrate is all work modes — not Chat-only.
-- Isolation: Settings keys and extras are per desk. Knowledge soul/memory/sources were already per `workspaceId`. A new desk starts with no gateway key. The pre-isolation machine-wide key is claimed onto Default only.
+- **A keyless desk shows the key screen, with the other desks under it.** Fixed 2026-09-23 (finding 1 of the 0.15.0 verify pass): creating a desk used to leave the new desk keyless, and since the selected desk is process-global the whole app, the operator's window included, rendered only `onboarding-form` with no rail and no switcher. Now a new desk inherits the key (host, needs a `:3000` restart to be live), and any desk that still has no key — one made before the fix, or one whose own key was cleared — shows `onboarding-desks` under the form. **Drive on a keyed install:** create `verify-desk` → `/chat` with `mode-chat` visible and `onboarding-form` count 0; `GET /api/v1/settings` reports `hasOpenai: true`, `gateway.allowed: true`; delete the desk. **Drive the guard:** on a desk with no key, reload any route → `onboarding-open-desk` for Default → click it → `onboarding-form` count 0, `mode-chat` count 1. Driven 2026-09-23 on `:3000` against the pre-restart host (evidence `workspaces/2026-09-23-keyless-desk-guard`). API-only recovery still works: `POST /api/v1/workspaces/<defaultId>/select` (Origin `http://127.0.0.1:3000`).
+- **Delete.** On `/workspaces` click the desk row's `delete-workspace`; `delete-workspace-confirm` opens with `delete-workspace-confirm-submit` disabled; type the exact desk name into `delete-workspace-confirm-name` (it enables); click submit. The API refuses a bare `DELETE /api/v1/workspaces/:id` with `400 confirm_required`. Default is `protected` and has no delete.
+- Isolation: Settings keys and extras are per desk. Knowledge soul/memory/sources were already per `workspaceId`. A new desk starts with a copy of the creating desk's gateway key and nothing else — extras (Tavily, Brave, FAL, native provider keys) stay empty; saving a different key on it changes that desk only, and Start over `scope: "key"` still clears every desk. The pre-isolation machine-wide key is claimed onto Default only.

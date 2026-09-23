@@ -268,21 +268,22 @@ export function FinanceStudio() {
   }
 
   return (
-    <main className="px-6 pb-10 pt-8 text-[var(--text)]" data-testid="finance-studio">
-      <div className="kicker">{t("finance.kicker")}</div>
-      <div className="mb-3 flex flex-wrap items-end gap-4">
+    <main className="mx-auto w-full max-w-[var(--content-wide)] px-6 pb-10 pt-8 text-[var(--text)]" data-testid="finance-studio">
+      <div className="mb-4 flex flex-wrap items-end gap-4">
         <div>
-          <h3 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("finance.title")}</h3>
-          {/* The task is picked in the rail; this only names the one that is open. */}
+          <h3 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("finance.title")}</h3>
+          <p className="mt-2 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="expected-inputs">
+            {t("finance.expectedInputs")}
+          </p>
+          {/* The task is picked in the rail; this names the one that is open, and leads with what it produces. */}
           <div className="mt-1.5 flex flex-col gap-0.5" role="group" aria-label={t("finance.taskAria")}>
             <span className="text-sm font-medium text-[var(--text)]" title={taskTip} data-testid="finance-task-current">
               {taskName}
             </span>
-            <span className="max-w-xl text-xs text-[var(--text-3)]" data-testid="finance-task-hint">
+            <span className="max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="finance-task-hint">
               {taskTip}
             </span>
           </div>
-          <p className="mt-1.5 max-w-xl text-sm text-[var(--text-2)]">{t("finance.subtitle", { productName })}</p>
         </div>
         {/* Excel by default, the deck and the document behind the chevron. The brief on screen is what is sent. */}
         {result && available ? (
@@ -298,9 +299,12 @@ export function FinanceStudio() {
           </div>
         ) : null}
       </div>
-      <div className="mb-5">
+      {/* The pipeline strip walked the implementation on screen; it lives here now. */}
+      <details className="mb-5 rounded-lg border border-[var(--line)] px-3 py-2" data-testid="finance-how">
+        <summary className="cursor-pointer select-none text-xs font-medium text-[var(--text-2)]">{t("finance.howItWorks")}</summary>
+        <p className="mt-2 mb-3 max-w-[var(--content-narrow)] text-xs text-[var(--text-3)]">{t("finance.howItWorksBody", { productName })}</p>
         <FinancePhaseStrip phases={financeTaskPhases(task)} />
-      </div>
+      </details>
       {error ? (
         <p className="mb-4 text-sm text-[var(--danger)]" role="alert" data-testid="finance-error">
           {error}
@@ -356,7 +360,8 @@ export function FinanceStudio() {
                 className="wash rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-8 text-center text-[var(--text-2)]"
                 data-testid="finance-studio-empty"
               >
-                <p>{ready ? t("finance.emptyReady") : t("finance.emptyWait")}</p>
+                <p className="font-medium text-[var(--text)]">{t("finance.emptyOutcome")}</p>
+                <p className="mt-1.5 text-sm text-[var(--text-3)]">{ready ? t("finance.emptyReady") : t("finance.emptyWait")}</p>
               </div>
             )}
           </div>

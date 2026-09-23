@@ -14,6 +14,7 @@ export function resolveTheme(stored: Theme | null): Theme {
 }
 
 export function applyTheme(theme: Theme) {
+  document.documentElement.classList.toggle("light", theme === "light");
   document.documentElement.classList.toggle("dark", theme === "dark");
 }
 

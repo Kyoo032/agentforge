@@ -100,7 +100,7 @@ describe("rail scrollbars stay clear of the handle", () => {
 
   it("parks the specialist sub-list's scrollbar inside the branch", () => {
     expect(specialists).toContain("mr-1 overflow-y-auto");
-    expect(specialists).toContain(`mr-1 overflow-y-auto \${SCROLL_MASK}`);
+    expect(specialists).not.toContain("linear-gradient");
   });
 
   it("leaves the collapsed rail and its toggles alone", () => {

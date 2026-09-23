@@ -75,7 +75,7 @@ describe("select-field", () => {
 
   it("never combines a fixed h-8 height with py-2 on a select", () => {
     // 32px tall minus 1px borders minus 8px+8px padding leaves a 14px content box.
-    // A 14px Inter line box is ~17px and Chromium clips a <select> instead of
+    // A 14px line box is ~17px and Chromium clips a <select> instead of
     // letting it overflow, so the baseline and descenders get cut off.
     const clipped = tags.filter((tag) => hasClass(tag.className, "h-8") && hasClass(tag.className, "py-2"));
     expect(

@@ -1,6 +1,8 @@
 # Map — Chat send
 
-Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c` (through e37b3a1)
+Last verified: 2026-09-23 at 0774681 + working tree (the 0.15.0 design pass). Changed here: `chat-turn.tsx` renders thinking and tool calls as **one** `message-thinking` disclosure (the tool rows left their own `message-tools` block above the answer), thinking renders through `FormattedText` instead of a raw `<pre>`, and `apps/web/lib/tool-labels.ts` summarises a tool payload by shape (`gist()`) rather than `JSON.stringify`-ing it. The send path, the SSE read and the watchdog are untouched. **Note the visibility contract**: `message-tools` is inside a closed `<details>` once a turn lands, so a *count* assertion passes but a *visibility* one fails — `features/chat.md` carries the same note.
+
+The composer chrome described here on 2026-09-22 was itself changed by this pass: the dashed drop zone and its two hint paragraphs are gone (one placeholder line remains), `composer-send-hint` no longer renders, Thinking is a single unlabeled `<select>` showing only the level rather than a bordered label plus a select, and Attach is a 32px toolbar icon instead of a button in the drop zone.
 
 Supersedes the `## how — Chat send (pstack) — 2026-09-06` block in [`../0.14-changelog.md`](../0.14-changelog.md), which described the 0.14 shape. Several details in it are no longer true; see Gotchas.
 

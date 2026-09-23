@@ -192,9 +192,11 @@ export function MusicStudio() {
   }
 
   return (
-    <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-10 text-[var(--text)]" data-testid="music-studio">
+    <main className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]" data-testid="music-studio">
       <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("music.title")}</h1>
-      <p className="mt-2 max-w-xl text-sm text-[var(--text-2)]">{t("music.subtitle")}</p>
+      {/* One outcome line (owner report 2026-09-23). The `subtitle` paragraph below it
+          only repeated what the empty state says, so it was deleted with its key. */}
+      <p className="mt-2 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="expected-inputs">{t("music.expectedInputs")}</p>
 
       {!ready && !loading ? (
         <div
@@ -293,47 +295,57 @@ export function MusicStudio() {
           />
         ) : null}
 
-        {caps.style || caps.title ? (
-          <div className="flex flex-wrap gap-2">
-            {caps.style ? (
-              <input
-                type="text"
-                className="text-field min-w-0 flex-1 outline-none placeholder:text-[var(--text-3)]"
-                placeholder={t("music.stylePlaceholder")}
-                maxLength={MUSIC_STYLE_MAX}
-                value={style}
-                onChange={(event) => setStyle(event.target.value)}
-                disabled={busy}
-                data-testid="music-studio-style"
-              />
-            ) : null}
-            {caps.title ? (
-              <input
-                type="text"
-                className="text-field min-w-0 flex-1 outline-none placeholder:text-[var(--text-3)]"
-                placeholder={t("music.titlePlaceholder")}
-                maxLength={MUSIC_TITLE_MAX}
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                disabled={busy}
-                data-testid="music-studio-title"
-              />
-            ) : null}
-          </div>
-        ) : null}
-
-        {caps.instrumental ? (
-          <label className="flex items-center gap-2 text-xs text-[var(--text-2)]">
-            <input
-              type="checkbox"
-              checked={instrumental}
-              onChange={(event) => setInstrumental(event.target.checked)}
-              disabled={busy}
-              data-testid="music-studio-instrumental"
-            />
-            {t("music.instrumental")}
-            <span className="text-[var(--text-3)]">{t("music.instrumentalHint")}</span>
-          </label>
+        {caps.style || caps.title || caps.instrumental ? (
+          /* Style, title and the instrumental toggle are optional on the Suno relay;
+             the description and the mode choice already describe the run. */
+          <details className="rounded-lg border border-[var(--line)] px-3 py-2" data-testid="music-studio-advanced">
+            <summary className="cursor-pointer select-none text-xs font-medium text-[var(--text-2)]">
+              {t("music.advanced")}
+            </summary>
+            <div className="mt-2 space-y-2">
+              {caps.style || caps.title ? (
+                <div className="flex flex-wrap gap-2">
+                  {caps.style ? (
+                    <input
+                      type="text"
+                      className="text-field min-w-0 flex-1 outline-none placeholder:text-[var(--text-3)]"
+                      placeholder={t("music.stylePlaceholder")}
+                      maxLength={MUSIC_STYLE_MAX}
+                      value={style}
+                      onChange={(event) => setStyle(event.target.value)}
+                      disabled={busy}
+                      data-testid="music-studio-style"
+                    />
+                  ) : null}
+                  {caps.title ? (
+                    <input
+                      type="text"
+                      className="text-field min-w-0 flex-1 outline-none placeholder:text-[var(--text-3)]"
+                      placeholder={t("music.titlePlaceholder")}
+                      maxLength={MUSIC_TITLE_MAX}
+                      value={title}
+                      onChange={(event) => setTitle(event.target.value)}
+                      disabled={busy}
+                      data-testid="music-studio-title"
+                    />
+                  ) : null}
+                </div>
+              ) : null}
+              {caps.instrumental ? (
+                <label className="flex items-center gap-2 text-xs text-[var(--text-2)]">
+                  <input
+                    type="checkbox"
+                    checked={instrumental}
+                    onChange={(event) => setInstrumental(event.target.checked)}
+                    disabled={busy}
+                    data-testid="music-studio-instrumental"
+                  />
+                  {t("music.instrumental")}
+                  <span className="text-[var(--text-3)]">{t("music.instrumentalHint")}</span>
+                </label>
+              ) : null}
+            </div>
+          </details>
         ) : null}
 
         <div className="flex gap-2">
@@ -379,7 +391,7 @@ export function MusicStudio() {
       {speechUnavailable ? (
         <section className="mt-6" data-testid="music-studio-voice">
           <h2 className="text-sm font-medium tracking-[var(--track)] text-[var(--text)]">{t("music.voiceHeading")}</h2>
-          <p className="mt-1 max-w-xl text-xs text-[var(--text-3)]" data-testid="music-studio-voice-unavailable">
+          <p className="mt-1 max-w-[var(--content-narrow)] text-xs text-[var(--text-3)]" data-testid="music-studio-voice-unavailable">
             {speechUnavailable === "realtime_only"
               ? t("music.voiceUnavailable.realtimeOnly")
               : t("music.voiceUnavailable.noAudioModels")}

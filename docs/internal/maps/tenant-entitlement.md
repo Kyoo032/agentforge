@@ -159,7 +159,7 @@ one of exactly three real things and never a dead fourth — an operator checkou
 statement for the tier the tenant is already on, or a control that says who to ask.
 
 **The plan panel** (`apps/web/components/account-plan-panel.tsx`) sits on Settings, gated on
-`capabilities.plans`, and renders nothing of substance on a desk. Testids: `account-plan`,
+`capabilities.plans`, and renders nothing at all on a desk (`return null`, `apps/web/components/account-plan-panel.tsx:174`, since 2026-09-23 — the old "not enforced" line carried a `/pricing` link the packaged shell blocks). Testids: `account-plan`,
 `account-plan-tier`, `account-plan-status`, `account-plan-seats`, `account-plan-period`,
 `account-plan-warnings`.
 

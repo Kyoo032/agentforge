@@ -5,16 +5,15 @@
     "description": "Templat opsional untuk memorandum, surat, catatan bersumber, dan dek pembaruan klien."
   },
   "studio": {
-    "kicker": "Ruang kerja · Meja Legal",
     "kickerTitle": "Ruang kerja · Meja Legal · {title}",
     "title": "Legal",
-    "lede": "Muat perkara, pastikan posisi klien, lalu pilih pekerjaan. Setiap angka, kutipan, dan rujukan silang diperiksa dalam kode sebelum draf disajikan. Hasil ini draf kerja semata; teliti sebelum diedarkan.",
+    "lede": "Anda mendapat memorandum isu, redline dengan jejak perubahan, laporan penyimpangan, dan ringkasan red-flag untuk perkara ini — dengan setiap angka, kutipan, dan rujukan silang diperiksa dalam kode lebih dulu.",
     "reopen": "Buka ulang perkara…",
     "reopenAria": "Buka ulang perkara",
     "newMatter": "Perkara baru",
     "run": "Jalankan perkara",
     "saving": "Menyimpan…",
-    "runHint": "Unggah sekurang-kurangnya satu berkas .docx dan isi nama klien",
+    "runHint": "Unggah sekurang-kurangnya satu berkas .docx dan isi nama klien serta pihak lawan",
     "untitled": "Perkara tanpa judul",
     "nextTurnTitle": "{title} · giliran berikutnya",
     "openSettings": "Buka {settings}."
@@ -30,7 +29,16 @@
     "nextTurn": "Giliran berikutnya tidak dapat dimulai",
     "download": "{filename} tidak dapat diunduh",
     "docxOnly": "Hanya berkas .docx yang diterima pada v1. Ubah PDF atau format lain ke .docx terlebih dahulu.",
-    "stub": "Legal memerlukan gerbang yang aktif. Tempel kunci API Toko Token di Pengaturan, lalu coba lagi."
+    "stub": "Legal memerlukan gerbang yang aktif. Tempel kunci API Toko Token di Pengaturan, lalu coba lagi.",
+    "partyRequired": "Isi nama klien terlebih dahulu.",
+    "counterpartyRequired": "Isi pihak lawan terlebih dahulu.",
+    "positionRequired": "Isi kedudukan Anda, misalnya pembeli.",
+    "nameTooLong": "Setiap nama paling banyak 200 karakter.",
+    "titleInvalid": "Judul perkara paling banyak 200 karakter.",
+    "deliverablesRequired": "Pilih sekurang-kurangnya satu hasil kerja.",
+    "instructionsTooLong": "Instruksi terlalu panjang. Persingkat, lalu coba lagi.",
+    "invalidField": "Salah satu rincian perkara tidak diterima. Periksa formulir, lalu coba lagi.",
+    "tooLarge": "{name} melebihi batas 25 MB per berkas."
   },
   "matter": {
     "panel": "Perkara",
@@ -96,7 +104,7 @@
     "executive-summary": "Ringkasan .docx"
   },
   "files": {
-    "drop": "Letakkan dokumen perkara atau pilih berkas",
+    "drop": "Lepas berkas .docx atau pilih berkas. Sampai 25 MB per berkas.",
     "docxOnly": "Hanya .docx pada versi ini · {count} {filesWord}",
     "file": "berkas",
     "files": "berkas",
@@ -106,7 +114,8 @@
     "failed": "gagal",
     "changeRole": "Klik untuk mengubah peran",
     "removeAria": "Hapus {name}",
-    "rolesHint": "Peran dikonfirmasi saat dijalankan · klik tag untuk mengubahnya sekarang"
+    "rolesHint": "Peran dikonfirmasi saat dijalankan · klik tag untuk mengubahnya sekarang",
+    "needParties": "Isi nama klien dan pihak lawan sebelum mengunggah."
   },
   "role": {
     "counterparty-draft": "draf pihak lawan",

@@ -10,12 +10,12 @@ const CHAT_PATH = "/chat";
 
 /** Indent and type scale line up with `RailItem` so JOB MODES still reads as the next group. */
 const ROW_BASE = "flex h-7 min-w-0 flex-1 items-center rounded-lg px-2 text-xs tracking-[var(--track)]";
-const MUTED_ROW = `wash ${ROW_BASE} text-[var(--text-3)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]`;
+const MUTED_ROW = `wash ${ROW_BASE} text-[var(--rail-text-3)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-active-text)]`;
 
 function rowClass(active: boolean) {
   return active
-    ? `select-row ${ROW_BASE} bg-[var(--accent-soft)] text-[var(--accent)]`
-    : `wash ${ROW_BASE} text-[var(--text-2)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]`;
+    ? `select-row ${ROW_BASE} bg-[var(--rail-active)] text-[var(--rail-active-text)]`
+    : `wash ${ROW_BASE} text-[var(--rail-text-2)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-active-text)]`;
 }
 
 /**
@@ -23,7 +23,7 @@ function rowClass(active: boolean) {
  * only session list in the product: the second column is gone, so the toggle expands in place
  * from the few most recent to everything the host returned (it caps the list at 40).
  */
-export function RailRecentThreads() {
+export function RailRecentThreads({ collapsed = false }: { collapsed?: boolean }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -34,6 +34,22 @@ export function RailRecentThreads() {
   const openThread = searchParams.get("thread");
   const activeThread = onChat ? openThread : null;
   const shown = expanded ? threads : takeRecentThreads(threads, RAIL_RECENT_THREADS);
+
+  if (collapsed) {
+    return (
+      <Link
+        href={CHAT_PATH}
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--rail-text-2)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-active-text)]"
+        data-testid="new-chat-link"
+        aria-label={t("rail.newChat")}
+        title={t("rail.newChat")}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+      </Link>
+    );
+  }
 
   async function onDelete(thread: ChatThread) {
     const removed = await removeThread(thread);
@@ -47,7 +63,7 @@ export function RailRecentThreads() {
     <div className="mt-0.5" role="group" aria-label={t("rail.recentSessionsAria")} data-testid="rail-thread-list">
       <Link
         href={CHAT_PATH}
-        className={`wash ${ROW_BASE} font-medium text-[var(--text-2)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]`}
+        className={`wash ${ROW_BASE} font-medium text-[var(--rail-text-2)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-active-text)]`}
         data-testid="new-chat-link"
       >
         <span className="truncate">{t("rail.newChat")}</span>

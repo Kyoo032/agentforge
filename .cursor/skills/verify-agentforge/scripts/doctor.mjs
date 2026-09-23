@@ -99,6 +99,17 @@ async function doctorDesktop() {
   if (!Number.isInteger(pid) || pid <= 0) {
     fail(`host-status.json pid is missing at ${file}`);
   }
+  // host-status.json outlives the app: a closed or crashed DPSBuddy leaves ready:true behind.
+  // Signal 0 checks existence only; EPERM means the process exists under another account.
+  try {
+    process.kill(pid, 0);
+  } catch (error) {
+    if (error?.code !== "EPERM") {
+      fail(
+        `host-status.json pid ${pid} is not running (stale status file at ${file}). Launch the installed DPSBuddy and doctor again; do not drive a closed app.`,
+      );
+    }
+  }
   const dataDir = typeof status.dataDir === "string" ? status.dataDir.trim() : "";
   if (!dataDir) {
     fail(`host-status.json dataDir is missing at ${file}`);

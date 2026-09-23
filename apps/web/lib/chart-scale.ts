@@ -16,7 +16,14 @@ export const DEFAULT_CHART_LAYOUT: ChartLayout = {
  * Quiet-tool categorical palette (CVD order): accent, ok, danger, text-2, text-3, text.
  * Assign by series index; never re-sort.
  */
-export const CHART_PALETTE = ["#0f766e", "#2f6f4e", "#c4453c", "#5d5d5d", "#9e9e9e", "#292929"] as const;
+export const CHART_PALETTE = [
+  "var(--accent)",
+  "var(--teal)",
+  "var(--danger)",
+  "var(--text-2)",
+  "var(--text-3)",
+  "var(--mark)",
+] as const;
 
 export const DEFAULT_TICK_COUNT = 5;
 export const MAX_LABEL_CHARS = 14;

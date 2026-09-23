@@ -1,6 +1,6 @@
 {
   "title": "Presentation",
-  "subtitle": "Describe a topic. {product} drafts an outline, shows an HTML preview, and downloads a PPTX.",
+  "expectedInputs": "You get: a titled deck with a claim heading, complete-sentence bullets, and speaker notes on every slide — previewed on the page and downloadable as PPTX.",
   "download": "Download PPTX",
   "building": "Building…",
   "generate": "Generate",
@@ -13,7 +13,7 @@
   "openSettings": "Open Settings",
   "emptyTitle": "No deck yet",
   "emptyBody": "Enter a topic below, or load a starter and download a PPTX without a live generate.",
-  "promptPlaceholder": "Describe a presentation…",
+  "promptPlaceholder": "An 8-slide deck on the Q3 cash position",
   "promptAria": "Presentation topic",
   "kicker": "Presentation",
   "notes": "Notes:",

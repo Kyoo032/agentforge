@@ -118,9 +118,11 @@ export function ImagesStudio() {
   }
 
   return (
-    <main className="mx-auto flex min-h-full max-w-4xl flex-col px-6 py-10 text-[var(--text)]" data-testid="images-studio">
+    <main className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]" data-testid="images-studio">
       <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("images.title")}</h1>
-      <p className="mt-2 max-w-xl text-sm text-[var(--text-2)]">{t("images.subtitle")}</p>
+      {/* One outcome line (owner report 2026-09-23). The `subtitle` paragraph below it
+          only repeated what the empty state says, so it was deleted with its key. */}
+      <p className="mt-2 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="expected-inputs">{t("images.expectedInputs")}</p>
 
       {!ready && !loading ? (
         <div

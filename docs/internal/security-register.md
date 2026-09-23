@@ -51,7 +51,7 @@ portal rows are fix pass X's.
 | [SR-25](#sr-25) | Medium | SQLite is opened, migrated and reset before either hosted boot guard runs | Open | Blocks Tencent deploy |
 | [SR-26](#sr-26) | Medium | `AGENTFORGE_PORTAL_URL` may be a plain-http loopback URL in production and still pass the boot check | Open — owner decision | Blocks Tencent deploy |
 | [SR-27](#sr-27) | Medium | An Edit import that fails *after* the probe charges the tenant and leaves an orphan object | Fixed-unverified, fix pass Y | Blocks Tencent deploy |
-| [SR-22](#sr-22) | Medium | Personal advertises "One seat" while `seatCap: null` admits everybody | Open — owner decision | Blocks PR merge |
+| [SR-22](#sr-22) | Medium | Personal advertised "One seat" while `seatCap: null` admits everybody | Fixed by copy, 2026-09-22 | — |
 | [SR-23](#sr-23) | Medium | One `devices` row per `(user, oauth client)`, so two browsers cannot be revoked apart | Accepted, recorded | Blocks Tencent deploy |
 | [SR-24](#sr-24) | Medium | `jwks_keys` is never read or written, so signing-key rotation is a hard cutover | Open | Blocks Tencent deploy |
 | [SR-03](#sr-03) | Medium | The billing webhook authenticates on a shared-secret header, not a provider signature | Open | Blocks Tencent deploy |
@@ -785,31 +785,21 @@ was restated.
 
 ### SR-22 {#sr-22}
 
-**Personal advertises "One seat" while `seatCap: null` admits everybody.**
+**Personal advertised "One seat" while `seatCap: null` admits everybody. Fixed by copy, 2026-09-22.**
 
-Evidence: the Personal tier sets `seatCap: null` (`packages/core/src/plans/catalog.ts:100`), with the
-comment that a seat cap is meaningless there and "never 1 — a defaulted 1 is a lockout waiting to
-happen". The file header states the consequence plainly at `:27-29`: `seatAdmission` reads `null` as
-"no cap configured", which admits everybody. The pricing page then renders that same `null` as
-`plans.seats.uncapped` (`apps/web/components/pricing-page.tsx:43`), and the English catalog defines
-that key as **"One seat"** (`apps/web/locales/en/plans.json`, `seats.uncapped`).
+History: the Personal tier sets `seatCap: null` (`packages/core/src/plans/catalog.ts`, the personal
+row), and `seatAdmission` reads `null` as "no cap configured", which admits everybody. The pricing
+page used to render that null as `plans.seats.uncapped`, and the English catalog defined that key as
+**"One seat"**. The page told a buyer Personal was one seat, and the entitlement admitted as many
+users as the org had.
 
-So the page tells a buyer Personal is one seat, and the entitlement admits as many users as the org
-has. Both halves are deliberate and they contradict each other.
+What changed: the pricing page omits the seats line when `seatCap` is null
+(`apps/web/components/pricing-page.tsx`, `seatsLine`), and `apps/web/locales/en/plans.json` no longer
+contains "One seat". Personal is described as the Mac and Windows app. `seatCap` stays `null`.
+Admission is unchanged. The written one-seat claim is gone, so the copy-vs-enforcement gap is closed
+without inventing a seat cap.
 
-What goes wrong if ignored: a customer on Personal shares the account with a team and the product
-never objects. It is a revenue hole rather than a breach — which is why it is Medium and not High —
-but it is also a written statement to a customer that the software does not honour, and that is the
-part that does not age well.
-
-Required action: **an owner decision**, not a code fix taken on a hunch. Either the copy changes to
-match an uncapped tier, or Personal gets a real `seatCap` and `matchTier` is re-checked (it matches on
-kind *and* an exact seat cap, and `defaultPlanRecord` is `personal` / `seatCap: null`, so changing the
-number changes which stored rows get a tier label). Do not let the two stay in disagreement past the
-point where anyone can buy.
-
-Gate: blocks PR merge for the plans lane — or an explicit "ship it as is" from the owner, recorded
-here.
+Gate: no longer blocks PR merge.
 
 ### SR-23 {#sr-23}
 
@@ -1679,3 +1669,61 @@ URL, not a reason to write a follow-up.
   reasoning is in that row. Not driven on a deployment.
 - [ ] The portal runs as exactly one process, or its rate-limit windows are shared.
   ([SR-29](#sr-29))
+
+### SR-49 {#sr-49}
+
+**The hosted image carries the whole source tree, and a build from a working checkout also carries
+whatever untracked state sits in it.** Raised 2026-09-23 while turning `Kyoo032/DPSBuddy-Ent` into
+the Enterprise deploy-bundle repo.
+
+Evidence, two halves:
+
+1. **Source in the runtime image, by design.** The build stage runs `COPY . .`
+   (`webapp-deploy/Dockerfile:53`) and the runtime stage copies that tree wholesale,
+   `COPY --from=build --chown=node:node /app /app` (`:103`), because every `@agentforge/*` package
+   exports TypeScript and the entrypoint is `tsx server.ts` (`:8-12`, `:100-102`, `:153`). So the
+   final image holds every `.ts` file in `apps/` and `packages/`, `apps/portal`, the desktop shell
+   sources, `scripts/`, `packages/host/eval/`, the root `AGENTS.md` and `README.md`, and dev
+   dependencies. `docs/` is excluded (`webapp-deploy/Dockerfile.dockerignore:44`), so
+   `docs/internal/` does not ship.
+2. **Untracked local state in the build context.** The ignore file's `.env`, `.env.local` and `data`
+   (`Dockerfile.dockerignore:23-25`) match at the context root only. On this desk on 2026-09-23 a
+   `docker build -f webapp-deploy/Dockerfile .` from the main checkout would have copied
+   `.webdev-data-design/` (holding `.master-key`, `settings.enc` and `agentforge.sqlite`),
+   `apps/web/.env.local` (holding values for `OPENAI_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY` and
+   `BETTER_AUTH_SECRET`; checked by name only), and `packages/host/eval/finance/results/` into the
+   image. All three are git-ignored (`.gitignore:69`, `.gitignore:6`), which is why nobody sees them
+   in `git status`.
+
+What goes wrong if ignored: half 2 puts a wrap key and live provider keys into an image layer that is
+then pushed to a registry. Anyone who can pull the image can read them with `docker save`. Half 1
+means that a public image publishes the source that `Kyoo032/DPSBuddy-Ent` is meant never to hold.
+
+Status: **mitigated for the release path, open for the Dockerfile.**
+- Half 2 closed on 2026-09-23 in `webapp-deploy/Dockerfile.dockerignore:22-33`: the secret
+  patterns are now `**/.env`, `**/.env.*` (keeping `.env.example`), `**/data`, `.webdev-data*`,
+  `**/*.enc`, `**/.master-key`, `**/*.sqlite*`. The "byte-for-byte twin" the header used to name
+  never existed; there is no root `.dockerignore`. The archive-from-sha path below is still the
+  primary guard.
+- `scripts/release-web.mjs` never builds from the working tree. It runs `git archive <sha>` into a
+  temp dir under `%TEMP%`, runs `docker build` there, and deletes the dir, so only tracked files at
+  the released sha can enter the context. `scripts/release-web.test.mjs` pins that the archive is of
+  `<sha>` and that docker runs in the extracted context and never in the repo root.
+- `webapp-deploy/scripts/deploy.sh` still builds on the server from a `git pull` checkout
+  (`deploy.sh:84-95`). That checkout has no webdev data, so the exposure there is lower, but the rule
+  is the same.
+- The image `ghcr.io/kyoo032/dpsbuddy-ent` must stay **private** on ghcr until half 1 is fixed. The
+  server pulls it with a token that can only read packages.
+
+Fix, not done here (the Dockerfile was deliberately left alone in this pass):
+- Anchor the ignore patterns everywhere: `**/.env`, `**/.env.*` with `!**/.env.example`,
+  `.webdev-data*`, `**/data/`, `packages/host/eval/**/results`. Edit `.dockerignore` and
+  `Dockerfile.dockerignore` together; they must stay byte-identical.
+- Make the runtime stage copy only `apps/web/dist`, a built host bundle, `packages/db/drizzle`, and
+  the production `node_modules` its native modules need (`better-sqlite3`, `@firecrawl/anydoc`),
+  the way `apps/desktop/scripts/stage-renderer.mjs:23-31` already esbuilds `host.cjs` for the
+  desktop. That drops the TypeScript source, `tsx` and the dev dependencies together, and closes the
+  migration-plan item behind "Dev dependencies ship in the image" in `webapp-deploy/README.md`.
+
+Gate: half 2 **blocks building any image from a developer checkout**. Half 1 **blocks making the
+ghcr image public**. Neither blocks a private-image deploy through `release-web.mjs`.

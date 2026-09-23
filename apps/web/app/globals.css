@@ -1,35 +1,52 @@
-/* Inter Regular/Medium, bundled (latin + latin-ext, OFL). The app must render with no internet,
-   so nothing is fetched from Google Fonts at runtime. Regenerate with the manifest in ./fonts/. */
+/* DM Sans for UI, Source Serif 4 for display. Bundled latin + latin-ext (OFL). No runtime font
+   host: the app has to render with no internet. Both families are variable fonts, so one file per
+   subset covers every weight the UI asks for — the manifest lists the same file for 400/500/600/700. */
 @font-face {
-  font-family: Inter;
+  font-family: "DM Sans";
   font-style: normal;
-  font-weight: 400;
+  font-weight: 400 700;
   font-display: swap;
-  src: url("./fonts/inter-400-latin.woff2") format("woff2");
+  src: url("./fonts/dm-sans-400-latin.woff2") format("woff2");
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
-  font-family: Inter;
+  font-family: "DM Sans";
   font-style: normal;
-  font-weight: 400;
+  font-weight: 400 700;
   font-display: swap;
-  src: url("./fonts/inter-400-latin-ext.woff2") format("woff2");
+  src: url("./fonts/dm-sans-400-latin-ext.woff2") format("woff2");
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 @font-face {
-  font-family: Inter;
+  font-family: "Source Serif 4";
   font-style: normal;
-  font-weight: 500;
+  font-weight: 400 600;
   font-display: swap;
-  src: url("./fonts/inter-500-latin.woff2") format("woff2");
+  src: url("./fonts/source-serif-400-latin.woff2") format("woff2");
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
-  font-family: Inter;
+  font-family: "Source Serif 4";
   font-style: normal;
-  font-weight: 500;
+  font-weight: 400 600;
   font-display: swap;
-  src: url("./fonts/inter-500-latin-ext.woff2") format("woff2");
+  src: url("./fonts/source-serif-400-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Source Serif 4";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./fonts/source-serif-400-italic-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Source Serif 4";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./fonts/source-serif-400-italic-latin-ext.woff2") format("woff2");
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
@@ -37,35 +54,40 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Quiet-tool tokens — source: dpsbuddy-ui-direction.md. No extra palette. */
+/* Light is the default desk: warm paper, blue accent, tight corners. `.dark` is the authored
+   variant, applied by `applyTheme`; `:root` carries the light values so a boot with no stored
+   preference paints light before React runs. */
 :root {
   color-scheme: light;
-  --bg: #f7f7f6;
+  --bg: #ffffff;
   --surface: #ffffff;
-  --line: #ecece8;
-  --text: #292929;
-  --text-2: #5d5d5d;
-  --text-3: #9e9e9e;
-  --accent: #0f766e;
-  --accent-soft: #e7f3f1;
-  --surface-2: var(--line);
-  --danger: #c4453c;
-  --ok: #2f6f4e;
+  --surface-2: #f4f1eb;
+  --line: #e2ddd3;
+  --text: #0a0a0a;
+  --text-2: #2e2c29;
+  --text-3: #5c574f;
+  --accent: #3846a5;
+  --accent-soft: #eef0ff;
+  --mark: #3846a5;
+  --teal: #2f7957;
+  --danger: #b42318;
+  --ok: var(--teal);
 
-  --font: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --fs-12: 12px;
-  --fs-13: 13px;
-  --fs-14: 14px;
-  --fs-24: 24px;
-  --lh-tight: 1.25;
-  --lh-body: 1.45;
-  --track: -0.015em;
+  --font: "DM Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-heading: "Source Serif 4", "DM Sans", Georgia, serif;
+  --fs-12: 13px;
+  --fs-13: 15px;
+  --fs-14: 16px;
+  --fs-24: 28px;
+  --lh-tight: 1.2;
+  --lh-body: 1.6;
+  --track: -0.011em;
 
   --icon-nav: 14px;
   --icon-card: 20px;
-  --r-nav: 8px;
-  --r-card: 16px;
-  --r-pill: 999px;
+  --r-nav: 4px;
+  --r-card: 4px;
+  --r-pill: 4px;
 
   --space-1: 4px;
   --space-2: 8px;
@@ -75,13 +97,58 @@
   --space-6: 32px;
 
   --sidebar: 232px;
-  --composer-max: 720px;
 
-  --motion-hover: 120ms ease;
-  --motion-select: 180ms ease;
-  --motion-focus: 120ms ease;
-  --motion-fade: 120ms ease;
-  --shadow-raise: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px rgb(0 0 0 / 0.06);
+  /* Content widths. Three lanes, because one number cannot serve prose, a form and a
+     data table at once: prose needs a readable measure, a form wants a narrow column,
+     and a studio wants the desk. They grow with the viewport (see the media queries
+     after `.dark`) so a 2560px monitor is used rather than letterboxed, and they stop
+     well short of edge-to-edge so inner cards and tables keep their proportions. */
+  --content-narrow: 640px;
+  --content-max: 720px;
+  --content-wide: 1120px;
+  /* The composer shares the chat column's measure so the two line up. */
+  --composer-max: var(--content-max);
+
+  /* The rail follows the theme like everything else (owner ruling 2026-09-23). It used to be
+     dark chrome in both themes to match the workbench mockup, which meant switching to light
+     left the entire left edge behind — the rail, its submenus and its footer. Light is a warm
+     rail a shade deeper than the desk; dark is the reverse. */
+  --rail: #f7f4ee;
+  --rail-text: #0a0a0a;
+  --rail-text-2: #2e2c29;
+  --rail-text-3: #5c574f;
+  --rail-line: #e2ddd3;
+  --rail-hover: #ece7dd;
+  --rail-active: #e4e7fb;
+  --rail-active-text: #0a0a0a;
+  --rail-accent: #3846a5;
+
+  /* One motion scale. Four durations and two curves; nothing in the app writes a raw ms value
+     or its own cubic-bezier, so the desk moves at one tempo (`lib/motion-tokens.test.ts`).
+     1: a colour or opacity swap (hover, press, focus).
+     2: a small thing changing state (selection, a tab underline).
+     3: something arriving in place (a message, a toast, a row).
+     4: a whole stage or a modal. */
+  --motion-1: 120ms;
+  --motion-2: 180ms;
+  --motion-3: 240ms;
+  --motion-4: 320ms;
+  /* Standard curve: decelerates into place and never overshoots. */
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  /* Entrance curve: the same feel with a few percent of overshoot, for anything that appears. */
+  --ease-entrance: cubic-bezier(0.22, 1, 0.3, 1.02);
+
+  /* The compound aliases the rules below read. All four stay on step 1, the 120ms the warm desk
+     shipped with; only the curve moved from `ease` to the scale's `--ease-out`. */
+  --motion-hover: var(--motion-1) var(--ease-out);
+  --motion-select: var(--motion-1) var(--ease-out);
+  --motion-focus: var(--motion-1) var(--ease-out);
+  --motion-fade: var(--motion-1) var(--ease-out);
+  --shadow-raise: var(--shadow-float);
+  /* A blue float is the product's only shadow (owner ruling 2026-09-23): the light desk reads
+     flat without one, and the accent hue ties the lift back to the brand instead of to grey.
+     Each theme sets its own strength just below. */
+  --shadow-float: 0 10px 30px -12px color-mix(in srgb, var(--accent) 38%, transparent);
 
   --color-bg: var(--bg);
   --color-surface: var(--surface);
@@ -91,7 +158,6 @@
   --color-paper: var(--bg);
   --color-ink: var(--text);
   --color-mist: var(--surface);
-  --font-heading: var(--font);
   --font-body: var(--font);
 
   --color-neutral-100: var(--bg);
@@ -124,31 +190,81 @@
   --shadow-md: none;
   --shadow-lg: none;
   --shadow-card: none;
-  --shadow-float: none;
+  /* `--shadow-float` is deliberately NOT flattened here. This block is the legacy compat
+     layer that zeroes every shadow; it used to zero the float too, which silently cancelled
+     the blue desk lift (owner report 2026-09-23). It is defined once above and re-stated per
+     theme, so both desks carry it. */
 
   /* Scrollbars ride on --text so they stay in the palette in both themes. */
-  --scroll-thumb: color-mix(in srgb, var(--text) 18%, transparent);
-  --scroll-thumb-hover: color-mix(in srgb, var(--text) 32%, transparent);
-  --scroll-thumb-active: color-mix(in srgb, var(--text) 45%, transparent);
-}
-
-.dark {
-  color-scheme: dark;
-  --bg: color-mix(in srgb, #292929 92%, #ffffff);
-  --surface: color-mix(in srgb, #292929 86%, #ffffff);
-  --line: color-mix(in srgb, #ecece8 22%, #292929);
-  --text: #f7f7f6;
-  --text-2: color-mix(in srgb, #f7f7f6 70%, #9e9e9e);
-  --text-3: #9e9e9e;
-  --accent: #0f766e;
-  --accent-soft: color-mix(in srgb, #0f766e 22%, #292929);
-  --danger: #c4453c;
-  --ok: #2f6f4e;
-
-  /* Light ink on a dark ground reads fainter, so nudge each step up. */
   --scroll-thumb: color-mix(in srgb, var(--text) 22%, transparent);
   --scroll-thumb-hover: color-mix(in srgb, var(--text) 38%, transparent);
   --scroll-thumb-active: color-mix(in srgb, var(--text) 52%, transparent);
+}
+
+/* Same warm paper as `:root`, kept as a real selector because `applyTheme` toggles `.light`. */
+.light {
+  color-scheme: light;
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f4f1eb;
+  --line: #e2ddd3;
+  --text: #0a0a0a;
+  --text-2: #2e2c29;
+  --text-3: #5c574f;
+  --accent: #3846a5;
+  --accent-soft: #eef0ff;
+  --mark: #3846a5;
+  --teal: #2f7957;
+  --danger: #b42318;
+  --ok: var(--teal);
+  --shadow-raise: var(--shadow-float);
+  --scroll-thumb: color-mix(in srgb, var(--text) 20%, transparent);
+  --scroll-thumb-hover: color-mix(in srgb, var(--text) 34%, transparent);
+  --scroll-thumb-active: color-mix(in srgb, var(--text) 48%, transparent);
+  --rail: #f7f4ee;
+  --rail-text: #0a0a0a;
+  --rail-text-2: #2e2c29;
+  --rail-text-3: #5c574f;
+  --rail-line: #e2ddd3;
+  --rail-hover: #ece7dd;
+  --rail-active: #e4e7fb;
+  --rail-active-text: #0a0a0a;
+  --rail-accent: #3846a5;
+}
+
+/* The dark desk, matched to the light one's warmth rather than the old blue-black. */
+.dark {
+  color-scheme: dark;
+  --bg: #1a1917;
+  --surface: #232220;
+  --surface-2: #2e2c29;
+  --line: #3a3833;
+  --text: #f4f1ea;
+  --text-2: #cdc8bf;
+  /* #948e84 fell to 4.09:1 on --accent-soft and 4.28:1 on --surface-2; +8 per channel is the
+     smallest lift that clears 4.5:1 on both (`lib/contrast-tokens.test.ts`). */
+  --text-3: #9c968c;
+  --accent: #9da5df;
+  --accent-soft: #2b2e45;
+  --mark: #b9c0ff;
+  --teal: #7fc7a1;
+  --danger: #f87171;
+  --ok: var(--teal);
+  --shadow-raise: var(--shadow-float);
+  /* Softer on the dark desk: the same lift at 38% reads heavy against near-black. */
+  --shadow-float: 0 10px 30px -12px color-mix(in srgb, var(--accent) 26%, transparent);
+  --scroll-thumb: color-mix(in srgb, var(--text) 22%, transparent);
+  --scroll-thumb-hover: color-mix(in srgb, var(--text) 38%, transparent);
+  --scroll-thumb-active: color-mix(in srgb, var(--text) 52%, transparent);
+  --rail: #151412;
+  --rail-text: #f4f1ea;
+  --rail-text-2: #cdc8bf;
+  --rail-text-3: #9c968c;
+  --rail-line: #3a3833;
+  --rail-hover: #2e2c29;
+  --rail-active: #2b2e45;
+  --rail-active-text: #ffffff;
+  --rail-accent: #b9c0ff;
 }
 
 /* Firefox has no ::-webkit-scrollbar; Chromium drops the pseudo-elements as soon as
@@ -192,6 +308,28 @@
   background: transparent;
 }
 
+/* Content lanes grow with the desk. The owner's report (2026-09-23) was that a wide
+   window left a dead margin either side; these steps use the room instead of capping
+   at one laptop number, without letting the inner cards and tables stretch out of
+   proportion. Phones sit below the first step and simply take the full width. */
+@media (min-width: 1600px) {
+  :root,
+  .light,
+  .dark {
+    --content-max: 880px;
+    --content-wide: 1280px;
+  }
+}
+
+@media (min-width: 2200px) {
+  :root,
+  .light,
+  .dark {
+    --content-max: 1000px;
+    --content-wide: 1440px;
+  }
+}
+
 html,
 body {
   margin: 0;
@@ -203,11 +341,11 @@ body {
 body {
   @apply bg-app text-inkbase antialiased;
   font-family: var(--font);
-  background: var(--bg);
+  background-color: var(--bg);
   color: var(--text);
   font-size: var(--fs-14);
   line-height: var(--lh-body);
-  letter-spacing: var(--track);
+  letter-spacing: 0;
 }
 
 h1,
@@ -216,10 +354,10 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: var(--font);
-  font-weight: 500;
-  line-height: var(--lh-tight);
-  letter-spacing: var(--track);
+  font-family: var(--font-heading);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.035em;
 }
 
 ::selection {
@@ -234,20 +372,20 @@ h6 {
 
 .kicker {
   font-family: var(--font);
-  font-size: var(--fs-12);
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-3);
+  font-size: var(--fs-13);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--mark);
 }
 
 .panel-label {
   font-family: var(--font);
-  font-size: var(--fs-12);
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-3);
+  font-size: var(--fs-13);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--mark);
 }
 
 .btn {
@@ -277,19 +415,17 @@ h6 {
   cursor: not-allowed;
 }
 
+/* The on-accent colour is `--surface`, as on every `bg-[var(--accent)]` button in the studios.
+   A literal white was the same in light but read 2.36:1 on the dark desk's lighter accent. */
 .btn-primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #ffffff;
-}
-
-.dark .btn-primary {
-  color: #ffffff;
+  color: var(--surface);
 }
 
 .btn-primary:hover {
-  background: color-mix(in srgb, var(--accent) 88%, var(--text));
-  border-color: color-mix(in srgb, var(--accent) 88%, var(--text));
+  background: color-mix(in srgb, var(--accent) 88%, #ffffff);
+  border-color: color-mix(in srgb, var(--accent) 88%, #ffffff);
 }
 
 .btn-secondary {
@@ -304,6 +440,21 @@ h6 {
   padding: 0;
   width: 32px;
   height: 32px;
+}
+
+/* The rail is dark chrome in both themes, and the `.btn` rules above are unlayered —
+   unlayered CSS beats `@layer utilities`, so `.btn`'s `color` would win over a
+   `text-[var(--rail-*)]` utility and the footer icons came out dark-on-dark.
+   Scoped to the footer rather than `.btn` at large: every other ghost button in the
+   product wants the paper palette, and only these sit on the rail. */
+[data-testid="rail-footer"] .btn-ghost {
+  color: var(--rail-text-2);
+}
+
+[data-testid="rail-footer"] .btn-ghost:hover {
+  background: var(--rail-hover);
+  border-color: transparent;
+  color: var(--rail-active-text);
 }
 
 .tag {
@@ -385,7 +536,7 @@ h6 {
   /* Stay in @layer components so Tailwind position/bg utilities win. */
 
   /* A 32px-tall control that does not clip its own text.
-     `h-8` + `py-2` leaves a 14px content box, but a 14px Inter line box is ~17px,
+     `h-8` + `py-2` leaves a 14px content box, but a 14px line box is ~17px,
      and Chromium clips a <select> (overflow-y: clip) instead of letting it overflow,
      so descenders and the baseline get cut. Drop the padding and let `leading-8`
      centre the text in the full 30px content box instead. */
@@ -487,26 +638,50 @@ h6 {
 
 .composer-shell {
   box-shadow: var(--shadow-raise);
-  outline: 2px solid transparent;
-  outline-offset: 2px;
-  transition: outline-color var(--motion-focus);
+  transition: border-color var(--motion-focus);
 }
 
+/* Tailwind's transition utilities default to 150ms and their own curve. Every one the renderer
+   uses is put back on the scale here; this rule sits after `@tailwind utilities`, so it wins at
+   equal specificity. `lib/motion-tokens.test.ts` fails if a component reaches for one that is
+   not listed, or for a `duration-*` / `ease-*` / `delay-*` / `animate-*` literal. */
+.transition,
+.transition-colors,
+.transition-shadow {
+  transition-duration: var(--motion-1);
+  transition-timing-function: var(--ease-out);
+}
+
+/* Focus warms the composer's own border rather than drawing a ring (owner report
+   2026-09-23: "why there has to be blue line when the box is selected??"). The 2px
+   outline at a 2px offset read as a second box floating around the composer, not as
+   focus. The border is the affordance now; the textarea still suppresses its own
+   outline, so this is the only focus cue for the box. */
 .composer-shell:focus-within {
-  outline-color: var(--accent);
+  border-color: var(--accent);
 }
 
-@keyframes stage-fade {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+/* The desk is a raised panel over the app backdrop, carrying the blue float (owner ruling
+   2026-09-23). Without a lift the whole light UI read as one flat white sheet: the rail and the
+   desk were the same plane. `overflow-hidden` clips the panel's own children, so the radius has
+   to be set here rather than on an inner wrapper. */
+.desk-canvas {
+  background-color: var(--surface);
+  box-shadow: var(--shadow-float);
+  border-radius: var(--r-card);
+  margin: 8px;
 }
 
-.stage-fade {
-  animation: stage-fade var(--motion-fade);
+[data-testid="product-brand"] {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+aside nav > p {
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-3);
 }
 
 .formatted-md > :first-child {
@@ -634,26 +809,26 @@ h6 {
   text-align: left;
 }
 
-@keyframes af-sweep {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(300%);
-  }
-}
-
-@keyframes af-shimmer {
-  0%,
-  100% {
-    opacity: 0.55;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
 .edit-placeholder-shimmer {
-  background: var(--accent-soft);
-  animation: af-shimmer 1.4s ease-in-out infinite;
+  background: var(--surface-2);
+}
+
+/* ===========================================================================
+   Reduced motion. One block, and it is the last word on every rule above.
+   Anyone who asked their OS to stop animations gets the end state at once:
+   no transition, no animation, no smooth scroll. A new looping animation or
+   a rule that rests on a transform must be reset here by name as well;
+   `lib/motion-tokens.test.ts` fails if one escapes.
+   =========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
 }

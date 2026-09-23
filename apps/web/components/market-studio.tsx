@@ -320,14 +320,14 @@ export function MarketStudio() {
   );
 
   return (
-    <main className="px-6 pb-10 pt-8 text-[var(--text)]" data-testid="market-studio">
-      <div className="kicker">{t("market.studio.kicker")}</div>
+    <main className="mx-auto w-full max-w-[var(--content-wide)] px-6 pb-10 pt-8 text-[var(--text)]" data-testid="market-studio">
       <div className="mb-5 flex flex-wrap items-end gap-4">
         <div>
-          <h3 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">
+          <h3 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">
             {t("market.studio.title")}
           </h3>
-          <p className="mt-1.5 max-w-xl text-sm text-[var(--text-2)]">{t("market.studio.subtitle")}</p>
+          {/* Outcome first, in one line: the kicker and the second lede were cut. */}
+          <p className="mt-2 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="expected-inputs">{t("market.studio.expectedInputs")}</p>
         </div>
         {result ? (
           <button

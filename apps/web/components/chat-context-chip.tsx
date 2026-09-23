@@ -5,8 +5,6 @@ import { createPortal } from "react-dom";
 import { formatContextLength } from "@agentforge/core/preferred";
 import { t } from "@/lib/i18n";
 
-const RING_RADIUS = 7;
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 const MUTED = "text-[var(--text-3)]";
 const PANEL_WIDTH = 320;
 const GUTTER = 8;
@@ -61,7 +59,9 @@ export function ChatContextChip({ usedTokens, contextLength, parts }: Props) {
   const left = window_ != null ? Math.max(0, window_ - used) : undefined;
   const fraction = window_ ? Math.min(1, used / window_) : 0;
   const ringLabel =
-    left != null ? t("chat.context.left", { n: formatContextLength(left) }) : t("chat.context.used", { n: formatContextLength(used) });
+    window_ != null
+      ? t("chat.context.meter", { used: formatContextLength(used), window: formatContextLength(window_) })
+      : t("chat.context.usedMeter", { used: formatContextLength(used) });
   const title = window_
     ? t("chat.context.titleWithWindow", { used: used.toLocaleString(), window: window_.toLocaleString() })
     : t("chat.context.title", { used: used.toLocaleString() });
@@ -184,26 +184,7 @@ export function ChatContextChip({ usedTokens, contextLength, parts }: Props) {
           setOpen(true);
         }}
       >
-        <svg width="20" height="20" viewBox="0 0 20 20" className="flex-none -rotate-90" aria-hidden="true">
-          <circle
-            cx="10"
-            cy="10"
-            r={RING_RADIUS}
-            fill="none"
-            stroke="color-mix(in srgb, var(--color-text) 14%, transparent)"
-            strokeWidth="6"
-          />
-          <circle
-            cx="10"
-            cy="10"
-            r={RING_RADIUS}
-            fill="none"
-            stroke="var(--color-accent)"
-            strokeWidth="6"
-            strokeDasharray={`${(fraction * RING_CIRCUMFERENCE).toFixed(2)} ${RING_CIRCUMFERENCE.toFixed(2)}`}
-          />
-        </svg>
-        <span className="text-xs text-[var(--text-3)]">{ringLabel}</span>
+        <span className="text-xs text-[var(--text)]">{ringLabel}</span>
       </button>
       {panel}
     </div>

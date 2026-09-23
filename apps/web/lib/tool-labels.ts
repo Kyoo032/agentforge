@@ -39,51 +39,65 @@ export function toolDoneLabel(toolKey: string): string {
   return key ? t(key) : toolKey.replace(/_/g, " ");
 }
 
-function previewValue(value: unknown): string {
+/**
+ * A readable one-line gist for the tool row. This is the *summary* — the row is 12px and must
+ * stay a single line — so the shape matters more than the content: a past-sessions call whose
+ * output is `{"success":true,"sessions":[]}` should read as "no sessions", not as raw JSON.
+ * Anything we do not recognise is dropped to a capped, unquoted string rather than dumped.
+ */
+function gist(value: unknown): string {
   if (value == null) {
     return "";
-  }
-  if (typeof value === "string") {
-    return value.length > 80 ? `${value.slice(0, 79).trimEnd()}…` : value;
   }
   if (typeof value === "number" || typeof value === "boolean") {
     return String(value);
   }
+  if (typeof value === "string") {
+    const text = value.trim();
+    return text.length > 60 ? `${text.slice(0, 59).trimEnd()}…` : text;
+  }
   if (typeof value === "object") {
     const record = value as Record<string, unknown>;
-    if ("result" in record) {
-      return previewValue(record.result);
+    // A list result: say how many, not what they are.
+    for (const key of ["sessions", "results", "items", "matches", "rows"]) {
+      const list = record[key];
+      if (Array.isArray(list)) {
+        return list.length === 0 ? "none" : `${list.length} found`;
+      }
     }
-    if ("expression" in record) {
-      return previewValue(record.expression);
+    for (const key of ["result", "expression", "query", "iso", "text", "message", "answer"]) {
+      if (key in record) {
+        return gist(record[key]);
+      }
     }
-    if ("iso" in record) {
-      return previewValue(record.iso);
+    if ("success" in record && record.success === true) {
+      return "ok";
     }
-    if ("query" in record) {
-      return previewValue(record.query);
+    // A single named argument (`{"action":"list"}`) is the argument's value, not "1 field".
+    const keys = Object.keys(record);
+    if (keys.length === 1) {
+      const only = record[keys[0]!];
+      if (typeof only === "string" || typeof only === "number" || typeof only === "boolean") {
+        return gist(only);
+      }
     }
-    try {
-      const raw = JSON.stringify(value);
-      return raw.length > 80 ? `${raw.slice(0, 79)}…` : raw;
-    } catch {
-      return "";
-    }
+    return keys.length === 0 ? "empty" : `${keys.length} field${keys.length === 1 ? "" : "s"}`;
   }
   return "";
 }
 
 export function toolCallSummary(toolKey: string, input?: unknown, output?: unknown): string {
-  const out = previewValue(output);
-  const inn = previewValue(input);
+  const label = toolDoneLabel(toolKey);
+  const out = gist(output);
+  const inn = gist(input);
   if (out && inn) {
-    return `${toolDoneLabel(toolKey)} · ${inn} → ${out}`;
+    return `${label} · ${inn} → ${out}`;
   }
   if (out) {
-    return `${toolDoneLabel(toolKey)} · ${out}`;
+    return `${label} · ${out}`;
   }
   if (inn) {
-    return `${toolDoneLabel(toolKey)} · ${inn}`;
+    return `${label} · ${inn}`;
   }
-  return toolDoneLabel(toolKey);
+  return label;
 }

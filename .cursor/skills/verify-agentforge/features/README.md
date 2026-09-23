@@ -13,7 +13,7 @@ Documents, Research, Finance, Data, Market, Legal, Images, Videos, Music, Meetin
 - SQLite is `data/agentforge.sqlite` (webdev) or Electron userData (packaged: `%APPDATA%\DPSBuddy`, `$XDG_CONFIG_HOME/DPSBuddy` or `~/.config/DPSBuddy`, `~/Library/Application Support/DPSBuddy`).
 - **No product login on webdev or the desktop.** A gateway key is optional; stub Chat works without one. The hosted deployment is different: since Phase 9 it has a sign-in, and it is the portal door — an e-mail and a six-digit code, never a password field, and never an e-mail domain used to pick a tenant. Drive it with [login.md](./login.md) on the review instance, never on `:3000`.
 - The **gateway gate** decides whether a desk opens at all: `allowed: false` puts the whole app on onboarding and answers `403 gateway_blocked` on every gateway-calling route. See [gateway-gate.md](./gateway-gate.md).
-- Windows: drive webdev with the IDE browser where you have one. A Claude Code session has no IDE browser — it drives its own isolated instance with a short Playwright script (see SKILL.md **Drive**) and still never runs `pnpm test:e2e` against the operator's desk.
+- Windows: drive webdev with the IDE browser where you have one. A Claude Code session has no IDE browser — it drives `:3000` (the isolated webdev) with a short scratch Playwright script (see SKILL.md **Drive**) and never runs `pnpm test:e2e`. `:3000` may hold a real, billed key: read doctor's `runtime` first and keep model calls to what the owner asked for.
 - Cloud / GHA: `AGENTFORGE_RUNTIME=stub` and Playwright `foundation.spec.ts` against **webdev** :3000.
 - Never drive an instance this run did not doctor. Never start a second process on :3000. Never treat :3000 as the installed app.
 
@@ -42,13 +42,13 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 
 ## Features
 
-- [Chat](./chat.md) — composer send, new thread, switch sessions, stub reply. Default rail shows every work mode.
+- [Chat](./chat.md) — empty state with four intent cards that fill the composer, composer send, Thinking disclosure holding the tool rows, new thread, switch sessions in the rail. Default rail shows every work mode.
 - [Settings](./settings.md) — gateway key, privacy note, stub/live runtime, gateway status row, language row, compact this-key + Open Usage. No Advanced tab.
 - [Gateway gate](./gateway-gate.md) — the host's open/closed decision: onboarding reasons, `settings-gateway-status` + re-check, 7-day grace, `403 gateway_blocked`, Start over. Advisory, fails open, never an entitlement check.
-- [Login](./login.md) — **hosted only.** The one door: `auth-signin` → the portal's e-mail and six-digit-code forms → `/auth/callback` → signed in. Needs the review instance, a seeded tenant and a **real browser**; on webdev and the desktop every testid has count 0. No password, ever.
-- [Plans](./plans.md) — `/pricing` and its `pricing-*` cards, `account-plan` on Settings, and the blocked screens. Every number is a placeholder. `?preview=` reaches the blocked screens on a local build only.
+- [Login](./login.md) — **Enterprise lane (hosted only).** The one door: `auth-signin` → the portal's e-mail and six-digit-code forms → `/auth/callback` → signed in. Needs the review instance, a seeded tenant and a **real browser**; on webdev and the desktop every testid has count 0. No password, ever.
+- [Plans](./plans.md) — **Enterprise lane (hosted only)**; owned by the Phase 9 pull request, not the 0.15.0 Personal cut. `/pricing` and its `pricing-*` cards, `account-plan` on Settings, and the blocked screens. Every number is a placeholder. `?preview=` reaches the blocked screens on a local build only.
 - [Locale](./locale.md) — the Settings language select, the restart banner, and an `id` walk of the rail, Chat and one job mode. Testids do not move.
-- [Rail](./rail.md) — the left column: four groups, collapse/expand, resize and width prefs, theme toggle, and the `productModes` → visible-tabs → hidden-mode-redirect chain.
+- [Rail](./rail.md) — the left column: four groups, thirteen modes on Default, arrow-only Finance / Market submenu chevrons, no `New` badge, collapse/expand, resize and width prefs, light-by-default theme toggle, and the `productModes` → visible-tabs → hidden-mode-redirect chain.
 - [Channels](./channels.md) — account-rail `/channels`: connect a Telegram bot to the desk, add a group or channel, send, and poll for replies. Not a product mode; drive it against `scripts/telegram-sandbox.ts` rather than a real bot.
 - [Usage](./usage.md) — bottom-rail `/usage` Day/Week/Month stacked spend, this-key strip, desk by-model. Not a product mode.
 - [Workspaces](./workspaces.md) — rail switcher + `/workspaces` create/edit, presets and mode checkboxes, open → Chat.

@@ -63,6 +63,93 @@ function mentionsSettings(message: string): boolean {
   return /gateway|api key|settings|runtime_stub|live gateway/i.test(message);
 }
 
+export type MeetingListRowProps = {
+  meeting: Pick<Meeting, "id" | "title" | "status">;
+  selected: boolean;
+  /** The first press armed delete on this row; the confirm panel is showing. */
+  confirming: boolean;
+  deleting: boolean;
+  onSelect: () => void;
+  onAskDelete: () => void;
+  onConfirmDelete: () => void;
+  onCancelDelete: () => void;
+};
+
+/**
+ * One meeting in the list, with a two-step delete.
+ *
+ * Deleting removes the meeting folder and its recording, so the × only arms the row; the meeting
+ * goes when the owner presses Delete in the panel that opens. Same shape as Settings' sign-out
+ * confirm (`settings-reset-card.tsx`): a danger panel, a danger button, and a plain Cancel.
+ */
+export function MeetingListRow({
+  meeting,
+  selected,
+  confirming,
+  deleting,
+  onSelect,
+  onAskDelete,
+  onConfirmDelete,
+  onCancelDelete,
+}: MeetingListRowProps) {
+  return (
+    <div>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={onSelect}
+          className={`flex-1 rounded-lg px-3 py-2 text-left text-sm ${
+            selected ? "bg-[var(--surface-2)] text-[var(--text)]" : "text-[var(--text-2)]"
+          }`}
+          data-testid={`meeting-item-${meeting.id}`}
+        >
+          {meeting.title}
+          <span className="block text-xs text-[var(--text-3)]">{meeting.status}</span>
+        </button>
+        <button
+          type="button"
+          onClick={onAskDelete}
+          disabled={confirming}
+          className="rounded-lg px-2 py-2 text-xs text-[var(--text-3)] disabled:opacity-45"
+          aria-label={t("meeting.delete")}
+          aria-expanded={confirming}
+          data-testid={`meeting-delete-${meeting.id}`}
+        >
+          ×
+        </button>
+      </div>
+      {confirming ? (
+        <div
+          className="mt-1 space-y-2 rounded-md border border-[var(--danger)]/30 bg-[var(--danger)]/5 p-3"
+          data-testid="meeting-delete-panel"
+        >
+          <p className="text-sm text-[var(--text)]">{t("meeting.deleteConfirm", { title: meeting.title })}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="rounded-pill bg-[var(--danger)] px-3 py-1.5 text-sm text-[var(--surface)] disabled:opacity-50"
+              disabled={deleting}
+              onClick={onConfirmDelete}
+              data-testid="meeting-delete-confirm"
+            >
+              {t("meeting.deleteConfirmSubmit")}
+            </button>
+            <button
+              type="button"
+              className="rounded-md px-3 py-2 text-sm text-[var(--text-2)] underline disabled:opacity-50"
+              disabled={deleting}
+              onClick={onCancelDelete}
+              data-testid="meeting-delete-cancel"
+            >
+              {t("meeting.cancel")}
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function MeetingStudio() {
   const { models, model, setModel } = useJobModel("meeting");
   const [meetings, setMeetings] = useState<Meeting[]>([]);
@@ -74,6 +161,8 @@ export function MeetingStudio() {
   const [tab, setTab] = useState<Tab>("minutes");
   const [busy, setBusy] = useState<"create" | "upload" | "paste" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
   const fileInput = useRef<HTMLInputElement | null>(null);
   const job = useJobStream<Meeting>();
   const recorder = useMeetingRecorder();
@@ -261,11 +350,29 @@ export function MeetingStudio() {
     }
   }
 
+  /** Second press of the two-step delete: the row's confirm panel calls this, never the × itself. */
   async function onDelete(id: string) {
-    await apiFetch(`/api/v1/meetings/${id}`, { method: "DELETE" });
-    setMeetings((current) => current.filter((meeting) => meeting.id !== id));
-    if (selectedId === id) {
-      setSelectedId(null);
+    if (deleteBusy) {
+      return;
+    }
+    setDeleteBusy(true);
+    setError(null);
+    try {
+      const res = await apiFetch(`/api/v1/meetings/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as unknown;
+        setError(errorMessage(data, t("meeting.errors.delete")));
+        return;
+      }
+      setMeetings((current) => current.filter((meeting) => meeting.id !== id));
+      if (selectedId === id) {
+        setSelectedId(null);
+      }
+      setDeletingId(null);
+    } catch {
+      setError(t("meeting.errors.delete"));
+    } finally {
+      setDeleteBusy(false);
     }
   }
 
@@ -276,12 +383,12 @@ export function MeetingStudio() {
 
   return (
     <main
-      className="mx-auto flex min-h-full max-w-5xl flex-col px-6 py-10 text-[var(--text)]"
+      className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]"
       data-testid="meeting-studio"
     >
       <div>
         <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("meeting.title")}</h1>
-        <p className="mt-2 max-w-2xl text-sm text-[var(--text-2)]">{t("meeting.subtitle")}</p>
+        <p className="mt-2 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="expected-inputs">{t("meeting.subtitle")}</p>
       </div>
 
       {shown ? (
@@ -332,12 +439,14 @@ export function MeetingStudio() {
             data-testid="meeting-title"
           />
         </label>
-        <label className="text-sm">
+        {/* Same stack as the title field beside it: the label holds a full-width control, so the
+            caption sits on its own line above it instead of butting straight against the select. */}
+        <label className="min-w-[10rem] text-sm">
           <span className="text-[var(--text-2)]">{t("meeting.language")}</span>
           <select
             value={locale}
             onChange={(event) => setLocale(event.target.value as AppLocale)}
-            className="mt-1 h-9 rounded-lg border border-[var(--line)] bg-transparent px-3"
+            className="mt-1 h-9 w-full rounded-lg border border-[var(--line)] bg-transparent px-3"
             data-testid="meeting-locale"
           >
             <option value="en">{t("meeting.languageEnglish")}</option>
@@ -363,28 +472,17 @@ export function MeetingStudio() {
             </p>
           ) : null}
           {meetings.map((meeting) => (
-            <div key={meeting.id} className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setSelectedId(meeting.id)}
-                className={`flex-1 rounded-lg px-3 py-2 text-left text-sm ${
-                  meeting.id === selectedId ? "bg-[var(--surface-2)] text-[var(--text)]" : "text-[var(--text-2)]"
-                }`}
-                data-testid={`meeting-item-${meeting.id}`}
-              >
-                {meeting.title}
-                <span className="block text-xs text-[var(--text-3)]">{meeting.status}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => void onDelete(meeting.id)}
-                className="rounded-lg px-2 py-2 text-xs text-[var(--text-3)]"
-                aria-label={t("meeting.delete")}
-                data-testid={`meeting-delete-${meeting.id}`}
-              >
-                ×
-              </button>
-            </div>
+            <MeetingListRow
+              key={meeting.id}
+              meeting={meeting}
+              selected={meeting.id === selectedId}
+              confirming={meeting.id === deletingId}
+              deleting={deleteBusy}
+              onSelect={() => setSelectedId(meeting.id)}
+              onAskDelete={() => setDeletingId(meeting.id)}
+              onConfirmDelete={() => void onDelete(meeting.id)}
+              onCancelDelete={() => setDeletingId(null)}
+            />
           ))}
         </aside>
 
@@ -476,18 +574,19 @@ export function MeetingStudio() {
 
               <p className="mt-2 text-xs text-[var(--text-3)]">{t("meeting.cap")}</p>
 
+              {/* A recording is the headline path; a transcript in hand is the alternative, folded. */}
               {!selected.transcript ? (
-                <div className="mt-5">
-                  <label className="text-sm text-[var(--text-2)]" htmlFor="meeting-paste">
+                <details className="mt-5 rounded-lg border border-[var(--line)] px-3 py-2" data-testid="meeting-how">
+                  <summary className="cursor-pointer select-none text-xs font-medium text-[var(--text-2)]">
                     {t("meeting.orPaste")}
-                  </label>
+                  </summary>
                   <textarea
                     id="meeting-paste"
                     value={paste}
                     onChange={(event) => setPaste(event.target.value)}
                     placeholder={t("meeting.pastePlaceholder")}
                     rows={5}
-                    className="mt-1 w-full rounded-lg border border-[var(--line)] bg-transparent px-3 py-2 text-sm"
+                    className="mt-2 w-full rounded-lg border border-[var(--line)] bg-transparent px-3 py-2 text-sm"
                     data-testid="meeting-paste"
                   />
                   <button
@@ -499,7 +598,7 @@ export function MeetingStudio() {
                   >
                     {t("meeting.savePaste")}
                   </button>
-                </div>
+                </details>
               ) : null}
 
               <JobProgressList progress={job.progress} busy={job.busy} testId="meeting-progress" />

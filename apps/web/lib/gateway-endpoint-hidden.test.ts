@@ -14,6 +14,7 @@ const componentsDir = join(dirname(fileURLToPath(import.meta.url)), "..", "compo
 
 const SETTINGS_PAGE = "settings-page.tsx";
 const ONBOARDING_SCREEN = "onboarding-screen.tsx";
+const KEY_STATUS = "chat-key-status.tsx";
 
 function read(file: string): string {
   return readFileSync(join(componentsDir, file), "utf8");
@@ -34,8 +35,9 @@ describe("pinned gateway endpoint stays out of the UI", () => {
   });
 
   it("neither surface hardcodes the gateway URL", () => {
-    for (const file of [SETTINGS_PAGE, ONBOARDING_SCREEN]) {
+    for (const file of [SETTINGS_PAGE, ONBOARDING_SCREEN, KEY_STATUS]) {
       expect(stripComments(read(file))).not.toMatch(/tokotokenai/);
+      expect(stripComments(read(file))).not.toMatch(/gate\.endpoint/);
     }
   });
 

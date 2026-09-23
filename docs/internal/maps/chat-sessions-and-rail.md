@@ -1,12 +1,12 @@
 # Map — Chat sessions and the rail
 
-Last verified: 2026-09-20 at c204e5e
+Last verified: 2026-09-23 at 0774681 + working tree (the 0.15.0 design pass). Changed here: the rail row reads from `--rail-*` tokens and follows the theme instead of being dark in both; the `New` badge mechanism (`NEW_BADGE_UNTIL`, `newBadgeOn`, the `badge` prop, `rail.badgeNew`) is deleted; `RailSubmenuToggle` is arrow-only and the selected row's left accent stripe is gone. The session list, its store and the events are untouched. Supersedes the 2026-09-22 "dark desk overhaul" note, whose dark default this pass reversed.
 
 The sibling page [`chat-send.md`](chat-send.md) owns one turn inside a session. This page owns the sessions themselves: where the list comes from, how a row opens a thread, and how the pane, the list and the desk stay in step. The rail block (`rail-recent-threads.tsx`, `use-chat-threads.ts`, `thread-groups.ts`, `threads-events.ts`) landed in 0.14.27 ([`../0.14.27-changelog.md`](../0.14.27-changelog.md), PR #52); every citation below is re-anchored to the committed tree at `b482611`.
 
 ## Overview
 
-Since 2026-09-17 every Chat session lives in the **left rail**, directly under the Chat entry: a `+ New chat` row, the four newest threads, and an `All sessions` toggle that expands the list in place. The second column (`chat-thread-list.tsx`) is deleted, so `/chat` is the chat pane and nothing else.
+Since 2026-09-17 every Chat session lives in the **left rail**, directly under the Chat entry: a `New chat` row (`new-chat-link`), the four newest threads, and an `All sessions` toggle that expands the list in place. The second column (`chat-thread-list.tsx`) is deleted, so `/chat` is the chat pane and nothing else. As of 2026-09-22 the header `new-chat` button is gone. Collapsing the rail hides the session rows and keeps `new-chat-link` as an icon with `aria-label`. A viewport at 720px or narrower starts collapsed and does not write that into `rail-prefs`.
 
 The list is not a route and it is not owned by the Chat page. It is a rail component with its own hook, its own `GET /api/v1/threads` call and its own cache, refreshed by a window event. That is what lets a thread created inside the composer, a delete pressed in the rail, and a desk switch in the workspace menu all land in the same list without any of them knowing about the others.
 
@@ -19,11 +19,11 @@ It is **not** a global thread rail: only the `quick-chat` agent's threads, only 
 `AppRail` (`apps/web/components/app-rail.tsx`) draws the Converse group, the `mode-chat` item, and then the sessions:
 
 ```tsx
-{/* Collapsed rail stays a pure icon column: no session rows, no new-chat row. */}
-{collapsed ? null : <RailRecentThreads />}
+{/* Collapsed rail keeps New chat (icon + label) and hides session rows. */}
+<RailRecentThreads collapsed={collapsed} />
 ```
 
-(`apps/web/components/app-rail.tsx:324-325`.) The JOB MODES label follows at `:306`, so the sessions are wedged between Chat and the job modes by ordering alone — there is no container to reorder. Collapse is the `rail-collapse` / `rail-expand` button at `:408`, whose state comes from `apps/web/lib/rail-prefs.ts`; collapsing unmounts the whole block, so `rail-thread-list`, `thread-item` and `new-chat-link` all drop to count 0 (driven; `evidence/chat/2026-09-17-cc-map/08-rail-collapsed-no-sessions.png`).
+The JOB MODES label follows the sessions, so they sit between Chat and the job modes by ordering alone. Collapse is the `rail-collapse` / `rail-expand` button. Its wide-window state comes from `apps/web/lib/rail-prefs.ts`. Collapsing hides `rail-thread-list` rows and keeps `new-chat-link`. The 2026-09-17 evidence shot that showed zero `new-chat-link` when collapsed is stale.
 
 ### 2. `RailRecentThreads` — one list, one local boolean
 
@@ -42,7 +42,7 @@ The three fixed parts of the block:
 | Element | testid | Source |
 |---|---|---|
 | Group wrapper, `role="group"`, `aria-label` from `rail.recentSessionsAria` | `rail-thread-list` | `:47` |
-| `+ New chat` link to `/chat` | `new-chat-link` | `:48-54` |
+| `New chat` link to `/chat` | `new-chat-link` | rail-recent-threads, expanded row and collapsed icon |
 | Load / delete error line | `rail-thread-error` | `:56-60` |
 
 Then one row per shown thread (`:62-91`): a `Link` to `/chat?thread=<encodeURIComponent(id)>` carrying `data-testid="thread-item"` and `aria-current={active ? "true" : undefined}` (`:68-71`), plus a sibling `<button data-testid="thread-delete">` that is `opacity-0` until the row is hovered or focused (`:76-88`). `active` is `searchParams.get("thread")` matched against the row id, and only while the pathname is `/chat` (`:33-35`) — an open thread does not stay highlighted after you navigate to Documents.
@@ -162,7 +162,7 @@ resetLive();
 
 (`apps/web/components/chat-session.tsx:106`, `:215-216`, `:287-295`.) Driven: with one stub turn on screen, `new-chat-link` took the URL back to `/chat`, `message-output` to 0, and `aria-current` rows to 0, while the thread itself kept its turn when reopened (`11-new-chat-link-pane-reset.png`, `13-rail-click-reopen.png`).
 
-The header button `new-chat` (`:378-394`) does the same thing imperatively — null the ref, clear messages and live state, `router.push("/chat")` — and does not rely on the latch at all. Two buttons, two mechanisms, one outcome.
+There is one New chat control, `new-chat-link`. The header button `data-testid="new-chat"` was removed on 2026-09-22. The pane still clears through the `leftThread` latch when that link drops `?thread`.
 
 ### 8. Creating and naming a session
 

@@ -1,112 +1,47 @@
-# Meeting — where to press
+# Meeting
 
-Rail tab `mode-meeting` (Default desk has it). Route `/meeting`. Studio testid `meeting-studio`.
+Meeting turns a recording or a pasted transcript into a transcript, structured minutes, and the same minutes in the other language. Rail tab `mode-meeting` (Default has it; the row reads `Meeting` with no `New` badge since 0.15.0), route `/meeting`, studio `meeting-studio`. The header is the title plus one outcome line, `expected-inputs` = "You get a transcript, structured minutes, and the same minutes in the other language — from a recording or a pasted transcript." Create, upload, paste and the recorder's controls need no key; only `meeting-run` reaches the gateway. Full mechanism map: [`docs/internal/maps/meeting-minutes.md`](../../../../docs/internal/maps/meeting-minutes.md).
 
-Full mechanism map: [`docs/internal/maps/meeting-minutes.md`](../../../../docs/internal/maps/meeting-minutes.md).
+## Sub-features
 
-## What works without a gateway key
+- `meeting-create` — `meeting-new`, `meeting-title`, `meeting-locale` (a full-width `<select>`: English / Indonesian — the 0.15.0 layout fix stacks the caption above it), `meeting-create`. The meeting appears in `meeting-list` as `meeting-item-<id>` with `meeting-delete-<id>` (the ×, first press only); pressing it opens `meeting-delete-panel` with `meeting-delete-confirm` (deletes) and `meeting-delete-cancel` (backs out). `meeting-empty` shows while the list is empty, and there is no delete control at all then.
+- `meeting-source` — once a meeting is selected: `meeting-model`, `meeting-file` (mp3 / m4a / mp4 upload), `meeting-recording` (name and size once a recording exists), `meeting-uploading`, `meeting-run`, `meeting-cancel`, `meeting-progress`, `meeting-error`.
+- `meeting-paste-path` — the "Or paste a transcript" path is the closed `meeting-how` disclosure since 0.15.0 (`apps/web/components/meeting-studio.tsx:483`), rendered only while the meeting has no transcript. `meeting-paste` and `meeting-save-paste` are inside it and not visible until it is opened.
+- `meeting-recorder` (2026-09-21) — the panel beside `meeting-file`: `meeting-record-source` with `meeting-record-source-mic` ("Microphone") and `meeting-record-source-tab` ("Microphone + tab audio"), `meeting-record-start`, `meeting-record-pause`, `meeting-record-resume`, `meeting-record-stop`, `meeting-record-timer`, `meeting-record-size`, `meeting-record-requesting`, `meeting-record-stopping`, `meeting-record-capped` (+ `-dismiss`), `meeting-record-tab-hint`, `meeting-record-error`, `meeting-record-dismiss`, `meeting-record-unsupported`, and after a failed upload `meeting-clip-queued` / `meeting-clip-failed` / `meeting-clip-detail` / `meeting-clip-retry` / `meeting-clip-save`. The finished clip becomes a `File` named `recording-<iso>.webm` and goes through the **same** `POST /api/v1/meetings/:id/recording` the file input uses. Map: [`meeting-minutes.md`](../../../../docs/internal/maps/meeting-minutes.md) § Recording.
+- `meeting-results` — `meeting-tabs` with `meeting-tab-transcript`, `meeting-tab-minutes`, `meeting-tab-translation`; bodies `meeting-transcript`, `meeting-minutes`, `meeting-translation`; `meeting-unverified` counts attendee names the transcript never said.
+- `meeting-capability` — `GET /api/v1/meetings` returns `{ items, capability: { available, model, wire, candidates, reason, ffmpeg } }`. `reason` `ok` shows nothing; `no_model` (the catalog lists no speech-to-text id) and `no_key` (a model is pinned but no key is saved) show `meeting-no-asr`; `ffmpeg: false` shows `meeting-no-ffmpeg`. `meeting-no-asr` is **not a fail** — the paste path still produces minutes. `AGENTFORGE_MEETING_ASR_MODEL` pins a model id by hand (Edit's twin is `AGENTFORGE_EDIT_ASR_MODEL`; both in `turbo.json` `globalPassThroughEnv`).
 
-Create, list, select and delete a meeting; upload a recording; paste a transcript. All six of those
-are disk bookkeeping. Prove them on a stub desk — no key needed, and no key should be typed.
+## How to get to it (user POV)
 
-1. `meeting-title` → type a name, `meeting-locale` → pick the language spoken, `meeting-create`.
-2. The meeting appears in `meeting-list` as `meeting-item-<id>` with status `new`.
-3. `meeting-file` → attach an mp3/m4a/mp4. Status becomes `recorded` and `meeting-recording` shows
-   the name and size.
-4. `meeting-paste` → paste a few lines, `meeting-save-paste`. Status becomes `transcribed` and
-   `meeting-tab-transcript` shows it back.
-5. `meeting-delete-<id>` removes it. **Clean up every meeting you create.**
+- Rail → `mode-meeting`, or open `http://127.0.0.1:3000/meeting`.
+- Type a title, pick the language spoken, press Create; then record, upload a file, or open "Or paste a transcript".
+- A desk that hides Meeting redirects `/meeting` to its first visible mode — assert the rail testid, not the studio (SKILL.md G3).
 
-## Recording in the browser (2026-09-21)
+## Driving it with the DPSBuddy harness
 
-The studio can record as well as accept a file. `meeting-recorder` is the panel beside `meeting-file`;
-the finished clip becomes a `File` named `recording-<iso>.webm` and goes through the **same**
-`POST /api/v1/meetings/:id/recording` the file input uses, so nothing below this point is new. Map:
-[`meeting-minutes.md`](../../../../docs/internal/maps/meeting-minutes.md) § Recording.
+Preconditions: doctor exits 0; `mode-meeting` is visible. Create, list, select, delete, upload and paste are disk bookkeeping — prove them with no key typed.
 
-Testids: `meeting-recorder`, `meeting-record-source`, `meeting-record-start`, `meeting-record-pause`,
-`meeting-record-resume`, `meeting-record-stop`, `meeting-record-timer`, `meeting-record-size`,
-`meeting-record-requesting`, `meeting-record-stopping`, `meeting-record-capped`,
-`meeting-record-tab-hint`, `meeting-record-error`, `meeting-record-dismiss`,
-`meeting-record-unsupported`. The studio also gained `meeting-uploading`.
+1. `meeting-title` → type a name, `meeting-locale` → pick the language spoken, `meeting-create` (`POST /api/v1/meetings` 201). The meeting appears as `meeting-item-<id>` with status `new`, and the source panel above (`meeting-model`, `meeting-file`, `meeting-run`, `meeting-recorder`, `meeting-how`, `meeting-tabs`) mounts.
+2. `meeting-file` → attach an mp3/m4a/mp4. Status becomes `recorded` and `meeting-recording` shows the name and size.
+3. Open the `meeting-how` summary ("Or paste a transcript"); `meeting-paste` → paste a few lines, `meeting-save-paste`. Status becomes `transcribed` and `meeting-tab-transcript` shows it back.
+4. `meeting-delete-<id>` only arms the row: `meeting-delete-panel` opens naming the meeting ("Delete “<title>”? Its recording, transcript and minutes go with it…") and `GET /api/v1/meetings` still lists it. `meeting-delete-cancel` closes the panel and keeps the meeting. Press `meeting-delete-<id>` again, then `meeting-delete-confirm` (`DELETE /api/v1/meetings/<id>`): the row goes and `items` is back to its starting length. A failed DELETE keeps the row and shows `meeting.errors.delete` in the page banner. Clean up every meeting you create. Driven 2026-09-23 on `:3000` with a throwaway meeting `verify-delete-throwaway`: arm → server count 1, cancel → panel gone and count 1, arm → confirm → count 0 and `meeting-empty` back. Unit proof: `apps/web/lib/meeting-studio-render.test.tsx`.
 
-**What you can drive without a microphone.** Select a meeting. `meeting-recorder` is visible.
-`meeting-record-source` has two options — microphone, and microphone + tab audio — and switching to
-the second reveals `meeting-record-tab-hint`. Press `meeting-record-start` with the permission
-denied: `meeting-record-error` renders the mapped copy and `meeting-record-dismiss` clears it. On a
-browser with no `MediaRecorder`, `meeting-record-unsupported` replaces the controls. None of this
-needs a key or a gateway.
+Driven 2026-09-23 on `:3000` (live key): steps 1, the `meeting-how` open, the recorder controls below, and 4. `meeting-run`, `meeting-record-start`, the file upload and the paste save were not pressed.
 
-**What needs a real Chrome.** A **granted** microphone. The Browser pane and most automation harnesses
-refuse `getUserMedia` outright (`NotAllowedError`, in about 19 ms), so a human at a real Chrome
-window, or Chrome launched with `--use-fake-device-for-media-stream`, is the only way to drive:
-start → `meeting-record-timer` advancing and `meeting-record-size` growing → pause → resume → stop →
-`meeting-uploading` → the meeting's status becomes `recorded` and `meeting-recording` names the file.
-Then run the transcription (`meeting-run`) to prove the produced webm is decodable by ffmpeg. **Until
-somebody does that, microphone capture is unverified** — say so rather than recording a pass.
+**Recorder without a microphone.** Select a meeting. `meeting-recorder` is visible, `meeting-record-start` enabled, and `meeting-record-source` offers `meeting-record-source-mic` and `meeting-record-source-tab`; switching to the second reveals `meeting-record-tab-hint`. Press `meeting-record-start` with the permission denied: `meeting-record-error` renders the mapped copy and `meeting-record-dismiss` clears it. On a browser with no `MediaRecorder`, `meeting-record-unsupported` replaces the controls. None of this needs a key.
 
-**Tab audio** needs a second real tab and the "share tab audio" tick in Chrome's picker. That tick is
-the whole point: it is what puts an online meeting's *remote* voices in the recording.
+**Recorder with a real Chrome.** A **granted** microphone needs a human at a real Chrome window, or Chrome launched with `--use-fake-device-for-media-stream` — the Browser pane and most automation harnesses refuse `getUserMedia` (`NotAllowedError`, about 19 ms). Start → `meeting-record-timer` advancing and `meeting-record-size` growing → pause → resume → stop → `meeting-uploading` → status `recorded` and `meeting-recording` names the file. Then `meeting-run` proves the webm decodes. **Until somebody does that, microphone capture is unverified** — say so rather than recording a pass. Tab audio needs a second real tab and the "share tab audio" tick in Chrome's picker; that tick is what puts an online meeting's remote voices in the recording. On the packaged Personal app Microphone + tab audio is expected to fail (no `setDisplayMediaRequestHandler` in `apps/desktop/main.cjs`; 0.15.0 changelog §7.2).
 
-## What needs a live key
-
-`meeting-run` is the only button that reaches the gateway. On a stub desk it answers one
-`job.error` frame with code `runtime_stub` **inside a 200 event-stream** — it is not an HTTP 503,
-so do not look for one. `meeting-error` renders the message with a Settings link.
-
-On a live desk the run streams phases into `meeting-progress`: `extracting` → `transcribing`
-(with an n/m step per ten-minute chunk) → `minuting` → `saving` → `translating`. Then
-`meeting-tab-minutes` and `meeting-tab-translation` both carry content, in opposite languages.
-
-## Capability — read this before blaming the studio
-
-`GET /api/v1/meetings` returns a `capability` block: `{ available, model, reason, ffmpeg }`.
-
-| reason | What it means | What the studio shows |
-|---|---|---|
-| `ok` | a recogniser is live and a key pays for it | nothing |
-| `no_model` | the key's catalog lists no speech-to-text id | `meeting-no-asr` |
-| `no_key` | a model is pinned but no key is saved | `meeting-no-asr` |
-| — | `ffmpeg: false` | `meeting-no-ffmpeg` |
-
-`meeting-no-asr` is **not a fail**. It is the honest state of a desk whose gateway serves no
-recogniser, and the paste path still produces minutes. Doctor's `edit.asr` block reports the same
-capability for Edit.
-
-`AGENTFORGE_MEETING_ASR_MODEL` pins a model id by hand, the same escape hatch Edit has as
-`AGENTFORGE_EDIT_ASR_MODEL`. Both are in `turbo.json` `globalPassThroughEnv`.
-
-## Testids
-
-`meeting-studio`, `meeting-new`, `meeting-title`, `meeting-locale`, `meeting-create`,
-`meeting-list`, `meeting-empty`, `meeting-item-<id>`, `meeting-delete-<id>`, `meeting-recording`,
-`meeting-file`, `meeting-run`, `meeting-cancel`, `meeting-progress`, `meeting-paste`,
-`meeting-save-paste`, `meeting-error`, `meeting-no-asr`, `meeting-no-ffmpeg`, `meeting-model`,
-`meeting-tabs`, `meeting-tab-transcript`, `meeting-tab-minutes`, `meeting-tab-translation`,
-`meeting-transcript`, `meeting-minutes`, `meeting-translation`, `meeting-unverified`.
+**Live run.** `meeting-run` is the only button that reaches the gateway. On a stub desk it answers one `job.error` frame with code `runtime_stub` **inside a 200 event-stream** (SKILL.md G2) and `meeting-error` renders the message with a Settings link. On a live desk the run streams `extracting` → `transcribing` (n/m per ten-minute chunk) → `minuting` → `saving` → `translating` into `meeting-progress`, then `meeting-tab-minutes` and `meeting-tab-translation` carry content in opposite languages. Paid — only when the operator asked.
 
 ## Gotchas
 
-- **25 MB per recording**, because the HTTP adapter refuses a body over 26 MB. Over that is a 413,
-  not a truncated upload. A longer meeting is a pasted transcript. **The browser recorder cannot
-  produce one**: it records opus at 24 kbps (about 10.8 MB an hour) and auto-stops 512 KB short of
-  the cap, keeping everything captured so far and saying so in `meeting-record-capped`.
-- **Recording needs the hosted `Permissions-Policy` to allow two features.** `microphone=(self)` and
-  `display-capture=(self)` in **both** `packages/host/src/security-headers.ts` and
-  `webapp-deploy/Caddyfile`. Without them the browser refuses before any product code runs, so the
-  Record button does nothing and there is no error worth reading. Fixed in the tree, never sent to a
-  browser — [SR-14](../../../../docs/internal/security-register.md#sr-14). Webdev sends no such header,
-  so a green drive on `:3000` says nothing about the deploy.
-- **A `.webm` recording is stored as `recording/source.weba`.** `EXT_BY_MIME` maps `audio/webm` to
-  `weba`. Cosmetic: ffmpeg reads by content. Do not go looking for a `.webm` on disk.
-- **Replacing a recording now deletes the old file.** Re-uploading over an existing recording removes
-  every other `source.<ext>` in that meeting's `recording/` and drops the derived `audio/` chunks
-  ([SR-13](../../../../docs/internal/security-register.md#sr-13)). Never driven through the UI — if you
-  do it, record what you saw.
-- **A dropped attendee is the guard working, not a bug.** `meeting-unverified` says how many names
-  the transcript never said were removed. Check the transcript before reporting it as data loss.
-- **Meetings are folders**, under `localDataDir()/meetings/<workspaceId>/<meetingId>/`. There is no
-  table and no migration. Deleting a workspace's directory is how you reset the mode.
-- **The transcription wire is `/chat/completions` with base64 `input_audio`**, not
-  `/audio/transcriptions`, for every id except a Whisper-style one. If you see a request to
-  `/audio/transcriptions` from Meeting, the model id is Whisper-shaped — that is by design.
+- **The paste box is behind a disclosure.** `meeting-paste` has count 1 but is not visible until `meeting-how` is opened; a recipe that fills it directly fails on visibility, not on the product.
+- **25 MB per recording**, because the HTTP adapter refuses a body over 26 MB. Over that is a 413, not a truncated upload. A longer meeting is a pasted transcript. **The browser recorder cannot produce one**: it records opus at 24 kbps (about 10.8 MB an hour) and auto-stops 512 KB short of the cap, keeping everything captured so far and saying so in `meeting-record-capped`.
+- **Recording needs the hosted `Permissions-Policy` to allow two features.** `microphone=(self)` and `display-capture=(self)` in **both** `packages/host/src/security-headers.ts` and `webapp-deploy/Caddyfile`. Without them the browser refuses before any product code runs, so the Record button does nothing and there is no error worth reading. Fixed in the tree, never sent to a browser — [SR-14](../../../../docs/internal/security-register.md#sr-14). Webdev sends no such header, so a green drive on `:3000` says nothing about the deploy.
+- **A `.webm` recording is stored as `recording/source.weba`.** `EXT_BY_MIME` maps `audio/webm` to `weba`. Cosmetic: ffmpeg reads by content. Do not go looking for a `.webm` on disk.
+- **Replacing a recording now deletes the old file.** Re-uploading over an existing recording removes every other `source.<ext>` in that meeting's `recording/` and drops the derived `audio/` chunks ([SR-13](../../../../docs/internal/security-register.md#sr-13)). Never driven through the UI — if you do it, record what you saw.
+- **A dropped attendee is the guard working, not a bug.** `meeting-unverified` says how many names the transcript never said were removed. Check the transcript before reporting it as data loss.
+- **Meetings are folders**, under `localDataDir()/meetings/<workspaceId>/<meetingId>/`. There is no table and no migration. Deleting a workspace's directory is how you reset the mode.
+- **The transcription wire is `/chat/completions` with base64 `input_audio`**, not `/audio/transcriptions`, for every id except a Whisper-style one. If you see a request to `/audio/transcriptions` from Meeting, the model id is Whisper-shaped — that is by design.
+- **Delete is two steps since 2026-09-23** (0.15.0 verify finding 7). `meeting-delete-<id>` opens the confirm; only `meeting-delete-confirm` removes the meeting and its folder, recording included. `meeting-delete-confirm` and `meeting-delete-cancel` carry no id — only one row is armed at a time. Do not confirm on a meeting you did not create.

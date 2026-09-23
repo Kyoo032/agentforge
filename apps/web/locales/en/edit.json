@@ -1,5 +1,6 @@
 {
   "title": "Edit",
+  "expectedInputs": "You get: a video you cut on a timeline, with an agent that proposes every change as a card you Keep, Undo, or Tweak.",
   "defaultProjectName": "Loop 1",
   "untitled": "Untitled",
   "projects": "Projects",

@@ -1,26 +1,27 @@
 # DPSBuddy
 
-**Closed beta.** One hosted app, many work harnesses, on the [Toko Token](https://api.tokotokenai.com) OpenAI-compatible gateway.
+**Closed beta.** One app, many work harnesses, on the [Toko Token](https://api.tokotokenai.com) OpenAI-compatible gateway.
 
-The goal is multi-harness inside one app. You sign in once. Each kind of work is its own harness in that same app: its own screen, its own checks, and a file you can take with you. Chat, documents, research, finance, data, market, legal, meetings, images, video, music, edit, and presentations all live here. A new kind of work is another harness in this app. Custom-agent building stays parked. Hermes stays the separate tinkering surface.
-
-You open it in a browser. Chats, files, and media stay in your tenant on the server.
+The goal is multi-harness inside one app. Each kind of work is its own harness: its own screen, its own checks, and a file you can take with you. Chat, documents, research, finance, data, market, legal, meetings, images, video, music, edit, and presentations all live here. A new kind of work is another harness in this app. Custom-agent building stays parked. Hermes stays the separate tinkering surface.
 
 > Do not confuse **Toko Token** (`api.tokotokenai.com`) with TokenKu.
 
-## Access
+## Two ways to run it
 
-DPSBuddy runs as a hosted web app. There is nothing to download and nothing to install.
+DPSBuddy ships as two products from this one repository. They share the same app and the same harnesses; they differ in where your work lives.
 
-1. Ask the operator for an invite
-2. Open the hosted URL in your browser
-3. Sign in through the portal with a one-time code
+| | **Personal** | **Enterprise** |
+|---|---|---|
+| What it is | The Mac/Windows app | The hosted web app |
+| Where your work lives | On your own computer | In your organisation's tenant on the server |
+| How you get in | Install it and paste a gateway key | Ask for an invite, then sign in with a one-time code |
+| Ships as | `DPSBuddy-Setup-0.15.0.exe` and the macOS `.dmg` | A hosted URL |
 
-The hosted URL is handed out with the invite. Node and pnpm are not required, and you do not need a clone of this repo.
+**Personal — the Mac/Windows app (current cut 0.15.0).** Download and install it, then paste your Toko Token gateway key in Settings. Your chats, files and generated media stay on your machine. No account is needed and nothing is uploaded anywhere except the model calls themselves.
 
-A Toko Token gateway key can still be pasted in Settings. That key is what runs the models. The portal sign-in is the account.
+**Enterprise — the hosted web app.** Ask the operator for an invite, open the hosted URL, and sign in through the portal with a one-time code. Your work stays in your tenant on the server. A pasted gateway key still works here as the floor for model calls; the portal sign-in is the account.
 
-Windows and macOS installers still exist as a frozen **0.14.27** desktop build on the [DPSBuddy releases page](https://github.com/Kyoo032/DPSBuddy/releases). That build is maintenance-only. The product continues in the browser.
+Both run every harness below. Node and pnpm are not required to use either one.
 
 ## Harnesses
 
@@ -40,18 +41,18 @@ Windows and macOS installers still exist as a frozen **0.14.27** desktop build o
 | **Edit** | A timeline cut you export |
 | **Presentation** | An outline, an HTML preview, and a PPTX |
 
-The same account also has Knowledge Base, Channels, Workspaces, Usage, and Settings. Those belong to the desk. Workspaces are optional extra desks (Legal, Marketing, Students, or your own set of harnesses). The default desk already includes every harness.
+Both products also have Knowledge Base, Channels, Workspaces, Usage, and Settings. Those belong to the desk. Workspaces are optional extra desks (Legal, Marketing, Students, or your own set of harnesses). The default desk already includes every harness.
 
-On a desk with no gateway key and no portal session, Chat stays in demo mode.
+With no gateway key and no portal session, Chat stays in demo mode.
 
 Invited testers: [`docs/closed-beta.md`](docs/closed-beta.md). There is no mobile app — [`docs/mobile.md`](docs/mobile.md).
 
 ## Privacy (closed beta)
 
-- Gateway key → encrypted at rest on the server (AES-256-GCM envelope)
-- Wrap key → the server's secret manager, never a file in this repo
-- Message bodies and tool I/O encrypted at rest on the server
-- Browser traffic is HTTPS only; remote inference URLs must be HTTPS
+- **Personal:** the gateway key and your work are encrypted at rest on your own machine. The wrap key lives in your OS keychain.
+- **Enterprise:** the gateway key and your work are encrypted at rest on the server. The wrap key is the server's secret manager, never a file in this repo.
+- Message bodies and tool I/O are encrypted at rest either way.
+- Browser traffic is HTTPS only; remote inference URLs must be HTTPS.
 
 Never share your gateway key, and never paste it anywhere but Settings.
 
@@ -61,16 +62,22 @@ Closed beta. Sharp edges, APIs that may change, invite-only access. Feedback fro
 
 ## Develop
 
-Repo and agent rules: [`AGENTS.md`](AGENTS.md). The goal for anyone changing the code is the same one above: a new kind of work is a new harness in this app.
+Repo and agent rules: [`AGENTS.md`](AGENTS.md). That file opens with the Personal/Enterprise split — read it first, because a change to packaging, identity or the deploy path lands on only one of the two products.
 
 ```
 pnpm install
-pnpm dev          # http://127.0.0.1:3000
+pnpm dev          # http://127.0.0.1:3000 — the shared renderer
 pnpm test         # Vitest
 pnpm lint         # Biome
 ```
 
-Desktop (frozen at 0.14.27): the `pnpm desktop:*` commands still build the Electron app for maintenance cuts only; `desktop:build:mac` and `desktop:mac` need a Mac. There is no mobile app.
+**Personal (Mac/Windows):** `pnpm desktop:build` produces the Windows installer; `desktop:build:mac` and `desktop:mac` need a Mac. `apps/desktop` compiles `apps/web` into the installer, so most UI work lands in both products at once.
+
+**Enterprise (hosted):** `pnpm --filter web build`, then run the host behind the reverse proxy. Deploys are tracked by commit sha.
+
+**Releases:** this repo holds the source for both products. Personal installers are published on [`Kyoo032/DPSBuddy`](https://github.com/Kyoo032/DPSBuddy). The Enterprise deploy bundle (a `compose.yml` pinned to a private `ghcr.io/kyoo032/dpsbuddy-ent` image, `.env.example`, `DEPLOY.md`, `Caddyfile`) and its release notes are published on [`Kyoo032/DPSBuddy-Ent`](https://github.com/Kyoo032/DPSBuddy-Ent) by `node scripts/release-web.mjs`. This is the only local checkout; the two release repos are written only by their release scripts.
+
+There is no mobile app.
 
 ## License
 

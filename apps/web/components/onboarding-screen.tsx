@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { apiFetch, checkGateway, isElectron } from "@/lib/api-client";
 import { ComponentSetupPanel } from "@/components/component-setup";
 import { FfmpegSetupNotice } from "@/components/ffmpeg-setup-notice";
+import { OnboardingDesks } from "@/components/onboarding-desks";
 import { useComponentSetup } from "@/lib/use-component-setup";
 import { fetchEditDoctor, type EditDoctor } from "@/lib/edit-client";
 import {
@@ -11,6 +12,7 @@ import {
   resolveGate,
   type GatewayGatePayload,
 } from "@/lib/gateway-gate";
+import { fetchOtherDesks, openDesk, type OnboardingDesk } from "@/lib/onboarding-desks";
 import { gatewayHostLabel, useProductBrand } from "@/lib/product-brand";
 import { t } from "@/lib/i18n";
 
@@ -30,6 +32,8 @@ export function OnboardingScreen({ onDone, gateway }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [gate, setGate] = useState<GatewayGatePayload | null>(gateway ?? null);
   const [doctor, setDoctor] = useState<EditDoctor | null>(null);
+  // The other desks on this install, so a desk with no key of its own is never a dead end.
+  const [desks, setDesks] = useState<OnboardingDesk[]>([]);
   // Optional native components install themselves here; the panel shows nothing when there is
   // nothing to install, and neither it nor ffmpeg ever gates the key form below.
   const componentSetup = useComponentSetup();
@@ -38,6 +42,10 @@ export function OnboardingScreen({ onDone, gateway }: Props) {
   // Pinned by the host and never editable here: only its host label is shown, never the full URL.
   const endpoint = gate?.endpoint ?? gateway?.endpoint ?? gatewayBaseUrl;
   const reasonKey = gatewayReasonKey(gate?.status);
+
+  useEffect(() => {
+    void fetchOtherDesks().then(setDesks);
+  }, []);
 
   useEffect(() => {
     void fetchEditDoctor().then((report) => {
@@ -98,6 +106,21 @@ export function OnboardingScreen({ onDone, gateway }: Props) {
       applyGate(await checkGateway());
     } catch {
       setError(t("onboarding.gate.unreachable", { gatewayName }));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onOpenDesk(id: string) {
+    setError(null);
+    setBusy(true);
+    try {
+      if (!applyGate(await openDesk(id))) {
+        // That desk is closed too; the host has already switched to it, so list the rest again.
+        setDesks(await fetchOtherDesks());
+      }
+    } catch {
+      setError(t("onboarding.desks.failed"));
     } finally {
       setBusy(false);
     }
@@ -170,6 +193,7 @@ export function OnboardingScreen({ onDone, gateway }: Props) {
           ) : null}
         </div>
       </form>
+      <OnboardingDesks desks={desks} busy={busy} onOpen={(id) => void onOpenDesk(id)} />
     </main>
   );
 }

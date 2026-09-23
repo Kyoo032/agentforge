@@ -169,14 +169,22 @@ export function DataStudio() {
   }
 
   return (
-    <main className="px-6 pb-10 pt-8 text-[var(--text)]" data-testid="data-studio">
-      <div className="kicker">{t("workspaces.title")}</div>
+    <main className="mx-auto w-full max-w-[var(--content-wide)] px-6 pb-10 pt-8 text-[var(--text)]" data-testid="data-studio">
       <div className="mb-5 flex flex-wrap items-end gap-4">
         <div>
           <h3 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("data.title")}</h3>
-          <p className="mt-1.5 max-w-xl text-sm text-[var(--text-2)]">{t("data.lede", { productName })}</p>
+          {/* Title plus one outcome line (owner report 2026-09-23). The `lede` paragraph
+              moved into the disclosure below and the "workspace" kicker was deleted. */}
+          <p className="mt-2 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="expected-inputs">{t("data.expectedInputs")}</p>
         </div>
       </div>
+      {/* Where the profile and the SQL trace come from. Not needed to get started. */}
+      <details className="mb-5 rounded-lg border border-[var(--line)] px-3 py-2" data-testid="data-how">
+        <summary className="cursor-pointer select-none text-xs font-medium text-[var(--text-2)]">
+          {t("data.howItWorks")}
+        </summary>
+        <p className="mt-2 max-w-[var(--content-narrow)] text-xs text-[var(--text-3)]">{t("data.howItWorksBody", { productName })}</p>
+      </details>
       {error ? (
         <p className="mb-4 text-sm text-[var(--danger)]" role="alert" data-testid="data-error">
           {error}
@@ -229,30 +237,36 @@ export function DataStudio() {
               </select>
             ) : null}
           </div>
-          <div>
-            <label htmlFor="data-csv" className="panel-label">
-              {t("data.pasteLabel")}
-            </label>
-            <textarea
-              id="data-csv"
-              rows={6}
-              value={pasted}
-              onChange={(event) => setPasted(event.target.value)}
-              className="input mt-2 font-mono text-xs"
-              placeholder={"vendor,spend\nAcme,12000\nBeta,4100"}
-              disabled={busy}
-              data-testid="data-csv"
-            />
-            <button
-              type="button"
-              className="btn mt-2"
-              onClick={() => void onUsePasted()}
-              disabled={busy || !pasted.trim()}
-              data-testid="data-use-pasted"
-            >
-              {loading === "paste" ? t("data.reading") : t("data.usePasted")}
-            </button>
-          </div>
+          {/* The optional second way in. The primary input — the upload above — stays open. */}
+          <details className="rounded-lg border border-[var(--line)] px-3 py-2" data-testid="data-paste">
+            <summary className="cursor-pointer select-none text-xs font-medium text-[var(--text-2)]">
+              {t("data.pasteOptional")}
+            </summary>
+            <div className="mt-2">
+              <label htmlFor="data-csv" className="panel-label">
+                {t("data.pasteLabel")}
+              </label>
+              <textarea
+                id="data-csv"
+                rows={6}
+                value={pasted}
+                onChange={(event) => setPasted(event.target.value)}
+                className="input mt-2 font-mono text-xs"
+                placeholder={"vendor,spend\nAcme,12000\nBeta,4100"}
+                disabled={busy}
+                data-testid="data-csv"
+              />
+              <button
+                type="button"
+                className="btn mt-2"
+                onClick={() => void onUsePasted()}
+                disabled={busy || !pasted.trim()}
+                data-testid="data-use-pasted"
+              >
+                {loading === "paste" ? t("data.reading") : t("data.usePasted")}
+              </button>
+            </div>
+          </details>
           {dataset ? (
             <div className="space-y-2" data-testid="data-dataset">
               <p className="text-sm font-medium text-[var(--text)]" data-testid="data-dataset-name">

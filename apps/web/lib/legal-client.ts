@@ -214,6 +214,19 @@ export type MatterPatch = Partial<Omit<CreateMatterInput, "priorMatterId">> & {
 // Transport helpers
 // ---------------------------------------------------------------------------
 
+/** A refused legal route; keeps the host's `error.code` so the studio can map it to catalog copy. */
+export class LegalRequestError extends Error {
+  readonly code: string | undefined;
+  readonly status: number;
+
+  constructor(message: string, code: string | undefined, status: number) {
+    super(message);
+    this.name = "LegalRequestError";
+    this.code = code;
+    this.status = status;
+  }
+}
+
 function errorMessage(payload: unknown, fallback: string): string {
   if (payload && typeof payload === "object") {
     const error = (payload as { error?: { message?: unknown } }).error;
@@ -224,10 +237,24 @@ function errorMessage(payload: unknown, fallback: string): string {
   return fallback;
 }
 
+function errorCode(payload: unknown): string | undefined {
+  if (payload && typeof payload === "object") {
+    const error = (payload as { error?: unknown }).error;
+    if (typeof error === "string") {
+      return error;
+    }
+    if (error && typeof error === "object") {
+      const code = (error as { code?: unknown }).code;
+      return typeof code === "string" ? code : undefined;
+    }
+  }
+  return undefined;
+}
+
 async function readJson(res: Response, fallback: string): Promise<unknown> {
   const data = await res.json().catch(() => null);
   if (!res.ok) {
-    throw new Error(errorMessage(data, fallback));
+    throw new LegalRequestError(errorMessage(data, fallback), errorCode(data), res.status);
   }
   return data;
 }

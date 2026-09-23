@@ -3,11 +3,14 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_LEGAL_DRAFT,
   canRun,
+  canUpload,
   draftFromMatter,
   groupFindingsByTab,
+  legalValidationKey,
   matterMapRows,
   nextDocRole,
   parseStreamedFinding,
+  partiesReady,
   partnerDecisionCount,
   rankLabel,
   resultHeadline,
@@ -74,13 +77,72 @@ const VERIFY: VerifyReport = {
   ok: false,
 };
 
+function withSide(party: string, counterparty: string) {
+  return { ...DEFAULT_LEGAL_DRAFT, side: { ...DEFAULT_LEGAL_DRAFT.side, party, counterparty } };
+}
+
 describe("canRun", () => {
-  it("needs a file and a client name and no upload in flight", () => {
-    const draft = { ...DEFAULT_LEGAL_DRAFT, side: { ...DEFAULT_LEGAL_DRAFT.side, party: "Meridian" } };
+  it("needs a file, both names and no upload in flight", () => {
+    const draft = withSide("Meridian", "the Lenders");
     expect(canRun(draft, 1, false)).toBe(true);
     expect(canRun(draft, 0, false)).toBe(false);
     expect(canRun(draft, 1, true)).toBe(false);
     expect(canRun(DEFAULT_LEGAL_DRAFT, 1, false)).toBe(false);
+  });
+
+  it("refuses a run the host would refuse: the counterparty is required too (0.15.0 finding 2)", () => {
+    expect(canRun(withSide("Meridian", ""), 1, false)).toBe(false);
+    expect(canRun(withSide("", "the Lenders"), 1, false)).toBe(false);
+    expect(canRun(withSide("Meridian", "   "), 1, false)).toBe(false);
+  });
+});
+
+describe("partiesReady / canUpload", () => {
+  it("asks for both names before the first upload creates the matter", () => {
+    expect(canUpload(DEFAULT_LEGAL_DRAFT)).toBe(false);
+    expect(canUpload(withSide("Meridian", ""))).toBe(false);
+    expect(canUpload(withSide("", "the Lenders"))).toBe(false);
+    expect(canUpload(withSide(" ", " "))).toBe(false);
+    expect(canUpload(withSide("Meridian", "the Lenders"))).toBe(true);
+    expect(partiesReady(withSide("Meridian", "the Lenders"))).toBe(true);
+  });
+});
+
+describe("legalValidationKey", () => {
+  it("maps the host's side refusals to catalog copy instead of the raw field path", () => {
+    expect(legalValidationKey("invalid_request", "side.party is required")).toBe("legal.errors.partyRequired");
+    expect(legalValidationKey("invalid_request", "side.counterparty is required")).toBe(
+      "legal.errors.counterpartyRequired",
+    );
+    expect(legalValidationKey("invalid_request", "side.role is required")).toBe("legal.errors.positionRequired");
+    expect(legalValidationKey("invalid_request", "side.party must be 200 characters or fewer")).toBe(
+      "legal.errors.nameTooLong",
+    );
+  });
+
+  it("maps the other matter fields the host validates", () => {
+    expect(legalValidationKey("invalid_request", "title must be 200 characters or fewer")).toBe(
+      "legal.errors.titleInvalid",
+    );
+    expect(legalValidationKey("invalid_request", "deliverables must list at least one deliverable")).toBe(
+      "legal.errors.deliverablesRequired",
+    );
+    expect(legalValidationKey("invalid_request", "instructions must be 20,000 characters or fewer")).toBe(
+      "legal.errors.instructionsTooLong",
+    );
+  });
+
+  it("falls back to generic copy for any other field in the validator's shape", () => {
+    expect(legalValidationKey("invalid_request", "workType is invalid")).toBe("legal.errors.invalidField");
+    expect(legalValidationKey("invalid_request", "roles.0.id is not a document id")).toBe("legal.errors.invalidField");
+    expect(legalValidationKey("invalid_request", "body nothing to update")).toBe("legal.errors.invalidField");
+  });
+
+  it("leaves sentences and other codes alone", () => {
+    expect(legalValidationKey("invalid_request", 'Unknown playbook "x"')).toBeNull();
+    expect(legalValidationKey("invalid_request", "Upload at least one .docx before running")).toBeNull();
+    expect(legalValidationKey("unsupported_content_type", "side.party is required")).toBeNull();
+    expect(legalValidationKey(undefined, "side.party is required")).toBeNull();
   });
 });
 

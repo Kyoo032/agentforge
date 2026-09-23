@@ -1,6 +1,6 @@
 # Map — Legal matter run
 
-Last verified: 2026-09-20 at 6984d84
+Last verified: 2026-09-23 at 775d16f (Legal intake sections §2, §5 and the Gotchas refreshed for the 0.15.0 finding-2 fix; the rest as of 6984d84)
 
 ## Overview
 
@@ -24,7 +24,7 @@ On mount the studio fires two unauthenticated-looking GETs — `listLegalMatters
 
 There is no "create matter" button. `ensureMatter()` (`apps/web/components/legal-studio.tsx:91-98`) is called from `onFiles()` (`:100`) and POSTs `/api/v1/legal/matters` the first time a file is dropped. The title is `draft.title.trim() || untitled()` (`:95`), so an untitled matter is stored as `legal.studio.untitled`.
 
-The order inside `onFiles` matters: `ensureMatter()` runs **before** `uploadLegalFiles()` (`:108-109`). The client's `.docx` pre-check lives in `uploadLegalFile` (`apps/web/lib/legal-client.ts:309-311`), i.e. *after* the matter exists — so a refused `.txt` still leaves a real, empty matter on disk. See Gotchas.
+Since the 0.15.0 finding-2 fix, `onFiles` refuses before anything reaches the host: no upload until both the client party and the counterparty are filled (`canUpload`, `apps/web/lib/legal-view.ts:109`; the drop zone and file input are disabled and `legal-upload-hint` says why, `apps/web/components/legal-file-list.tsx:27`, `:78`), and a non-`.docx` or over-25 MB file is refused with catalog copy by `refusedUpload` (`apps/web/components/legal-studio.tsx:65`, called at `:130`) **before** `ensureMatter()`. So a refused `.txt` no longer leaves an empty matter behind. A host refusal that does get through keeps its code (`LegalRequestError`, `apps/web/lib/legal-client.ts:218`), and `legalValidationKey` (`apps/web/lib/legal-view.ts:140`) maps the validator's `"<field> <reason>"` text to `legal.errors.*` copy, so `side.party is required` never renders.
 
 `handlePostLegalMatters` (`packages/host/src/handlers/legal.ts:44-52`) validates against `createMatterBodySchema` (`packages/host/src/legal/input.ts`) and writes `matter.json` through `legalStore()`.
 
@@ -49,7 +49,7 @@ Roles are not cosmetic: `DOC_ROLE_PRIORITY` (`packages/core/src/legal/types.ts:2
 
 ### 5. Starting a run
 
-`legal-run` is enabled by `canRun(draft, docs.length, uploading)` (`apps/web/lib/legal-view.ts:101-103`) — **at least one document AND a non-empty client party AND no upload in flight**. `onRun` (`apps/web/components/legal-studio.tsx:164-193`) first PATCHes the whole draft back to the matter (`:172`), then calls `job.run(legalRunStreamPath(saved.id), { model, verifierModel })`.
+`legal-run` is enabled by `canRun(draft, docs.length, uploading)` (`apps/web/lib/legal-view.ts:114-116`) — **at least one document AND a non-empty client party AND a non-empty counterparty AND no upload in flight**, which is what `sideSchema` requires (`packages/host/src/legal/input.ts:26`). `onRun` (`apps/web/components/legal-studio.tsx:164-193`) first PATCHes the whole draft back to the matter (`:172`), then calls `job.run(legalRunStreamPath(saved.id), { model, verifierModel })`.
 
 Transport is a POST that streams SSE, not `EventSource` and not polling: `runJobStream` (`apps/web/lib/job-stream.ts:47-56`) does `fetch(..., { method: "POST", signal })` and hand-reads `res.body.getReader()` through `consumeSse`; `useJobStream` (`apps/web/lib/use-job-stream.ts:23-77`) folds each `JobEvent` into `JobProgress`. **Cancel is a client-side `AbortController.abort()`** (`use-job-stream.ts:29-32`) wired to `legal-cancel` (`apps/web/components/legal-run-view.tsx:50`) — there is no cancel route.
 
@@ -146,7 +146,7 @@ Exhausting all three rounds is **not an error**: the run returns normally and `m
 | `apps/web/components/legal-run-view.tsx` | Screen 2 — `legal-progress`, round tag, cancel, documents read, streamed findings |
 | `apps/web/components/legal-result-view.tsx`, `legal-result-tabs.tsx`, `legal-findings-table.tsx`, `legal-verify-report.tsx` | Screen 3 — downloads, seven tabs, findings rows, verification report |
 | `apps/web/lib/legal-client.ts` | Every `/api/v1/legal/*` call, the response zod schemas, the `.docx` pre-check, artifact download |
-| `apps/web/lib/legal-view.ts` | `canRun`, `nextDocRole`, `DELIVERABLE_OPTIONS`, `RESULT_TABS`, plan steps, streamed-findings extraction |
+| `apps/web/lib/legal-view.ts` | `partiesReady` / `canUpload` / `canRun`, `legalValidationKey`, `nextDocRole`, `DELIVERABLE_OPTIONS`, `RESULT_TABS`, plan steps, streamed-findings extraction |
 | `apps/web/lib/job-stream.ts`, `apps/web/lib/use-job-stream.ts` | POST-based SSE reader and the progress reducer shared by every job mode |
 | `packages/host/src/router.ts:348-357` | The ten legal route registrations |
 | `packages/host/src/handlers/legal.ts` | Route handlers; the gateway gate at `:115` |
@@ -167,7 +167,7 @@ Exhausting all three rounds is **not an error**: the run returns normally and `m
 
 - **The run's "503" is an HTTP 200.** `POST .../run/stream` answers `200 text/event-stream`; `runtime_stub` arrives as the single `job.error` frame, because `streamJob` turns a rejected `run()` into an event rather than a status (`packages/host/src/job-stream.ts:8-13`, `:58-60`). The unit test asserts exactly one chunk matching `^event: job\.error` with `status: 503` in the payload (`packages/host/src/handlers/legal.test.ts:188-199`). Observed on the owner's `:3000` on 2026-09-17: `POST /api/v1/legal/matters/<id>/run/stream -> 200`, `legal-error` populated, `legal-progress` count 0, `data-screen` still `"new"`.
 - **The Settings hint never renders on a stub run.** `legal-studio.tsx:260` appends `SettingsLinkHint` only when `needsSettingsHint(...) && !/settings/i.test(error)` — but the `runtime_stub` copy already contains the word "Settings" in both catalogs (`packages/core/src/legal/output-copy.ts:65` and the id copy at `:159`), so the test is always false and `legal.studio.openSettings` is dead on this path. The hint the user sees is the sentence, not a link.
-- **A refused upload still creates the matter.** `onFiles` calls `ensureMatter()` before `uploadLegalFiles()` (`apps/web/components/legal-studio.tsx:108-109`), and the `.docx` pre-check is inside `uploadLegalFile` (`apps/web/lib/legal-client.ts:309-311`). Dropping a single `.txt` therefore POSTs `/api/v1/legal/matters` (201), shows the refusal, and leaves an empty matter on disk. Verified on the drive: one `POST /matters -> 201` fired during the `.txt` attempt, none during the `.docx` attempt that followed.
+- **A refused upload no longer creates the matter (fixed 2026-09-23).** Until then `onFiles` called `ensureMatter()` before the `.docx` check, so a `.txt` drop POSTed `/api/v1/legal/matters` (201) and left an empty matter. Now `refusedUpload` runs first (`apps/web/components/legal-studio.tsx:130`). Driven on `:3000` on 2026-09-23 with both parties filled: a `notes.txt` showed `legal.errors.docxOnly` in `legal-error` and `GET /api/v1/legal/matters` stayed at 0.
 - **The docx-only refusal is hardcoded English.** `LEGAL_DOCX_ONLY_MESSAGE` (`apps/web/lib/legal-client.ts:17-18`) is a module constant, not a `t()` call, even though `legal.errors.docxOnly` is translated in both catalogs (`apps/web/locales/id/legal.json:32` = "Hanya berkas .docx yang diterima pada v1…"). On an `id` desk the whole studio is Indonesian and this one sentence is English. The id key has no reader — grep `errors.docxOnly` in `apps/web` returns only the JSON files.
 - **There is no delete-matter control.** `deleteLegalMatter` exists (`apps/web/lib/legal-client.ts:295-298`) and `DELETE /api/v1/legal/matters/:matterId` works (`packages/host/src/router.ts:325`, `handlers/legal.ts:78-85`, returns `{ ok: true }`), but no component calls it and no testid exists — the only references are in `apps/web/lib/legal-client.test.ts:16`, `:181`. Individual *files* can be removed (`legal-file-remove-<docId>`, `legal-file-list.tsx:96`); matters cannot.
 - **Delete removes the matter folder, not the workspace folder.** `store.remove()` is `rmSync(dirFor(tenant, id), { recursive: true, force: true })` (`packages/host/src/legal/store.ts:170`), so `<dataDir>/legal/<workspaceId>/` survives as an empty directory after the last matter goes. Verified on the drive: after the DELETE, `data/legal/<workspaceId>/` existed with zero files.

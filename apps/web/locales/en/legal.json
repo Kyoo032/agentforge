@@ -5,16 +5,15 @@
     "description": "Optional starter for memos, letters, sourced notes, and client update decks."
   },
   "studio": {
-    "kicker": "Workspace · Legal desk",
     "kickerTitle": "Workspace · Legal desk · {title}",
     "title": "Legal",
-    "lede": "Load a matter, confirm the client's position and select the work. Every number, quotation and cross-reference is checked in code before the draft is presented. Draft work product only; review before release.",
+    "lede": "You get an issues memorandum, a tracked-changes redline, a deviation report and a red-flags summary — with every number, quotation and cross-reference checked in code first.",
     "reopen": "Reopen matter…",
     "reopenAria": "Reopen matter",
     "newMatter": "New matter",
     "run": "Run matter",
     "saving": "Saving…",
-    "runHint": "Upload at least one .docx and enter the client name",
+    "runHint": "Upload at least one .docx and enter the client and the counterparty",
     "untitled": "Untitled matter",
     "nextTurnTitle": "{title} · next turn",
     "openSettings": "Open {settings}."
@@ -30,7 +29,16 @@
     "nextTurn": "Could not start the next turn",
     "download": "Could not download {filename}",
     "docxOnly": "Only .docx files are accepted in v1. Convert PDF or other formats to .docx first.",
-    "stub": "Legal needs a live gateway. Paste a Toko Token API key in Settings, then try again."
+    "stub": "Legal needs a live gateway. Paste a Toko Token API key in Settings, then try again.",
+    "partyRequired": "Enter the client name first.",
+    "counterpartyRequired": "Enter the counterparty first.",
+    "positionRequired": "Enter the position you act in, e.g. buyer.",
+    "nameTooLong": "Keep each name to 200 characters or fewer.",
+    "titleInvalid": "Keep the matter title to 200 characters or fewer.",
+    "deliverablesRequired": "Choose at least one deliverable.",
+    "instructionsTooLong": "The instructions are too long. Shorten them and try again.",
+    "invalidField": "One of the matter details was not accepted. Check the form and try again.",
+    "tooLarge": "{name} is over the 25 MB per-file cap."
   },
   "matter": {
     "panel": "Matter",
@@ -96,7 +104,7 @@
     "executive-summary": "Summary .docx"
   },
   "files": {
-    "drop": "Drop the matter documents or choose files",
+    "drop": "Drop .docx files or choose them. Up to 25 MB per file.",
     "docxOnly": ".docx only in this version · {count} {filesWord}",
     "file": "file",
     "files": "files",
@@ -106,7 +114,8 @@
     "failed": "failed",
     "changeRole": "Click to change the role",
     "removeAria": "Remove {name}",
-    "rolesHint": "Roles are confirmed on run · click a tag to change it now"
+    "rolesHint": "Roles are confirmed on run · click a tag to change it now",
+    "needParties": "Enter the client name and the counterparty before you upload."
   },
   "role": {
     "counterparty-draft": "counterparty draft",

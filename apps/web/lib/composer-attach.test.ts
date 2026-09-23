@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { classifyAttachment, isRenderableImageUrl, isRenderableVideoUrl, routeDecision } from "./composer-attach";
+import {
+  CHAT_IMAGE_MAX_BYTES,
+  CHAT_VIDEO_MAX_BYTES,
+  attachmentOverCap,
+  classifyAttachment,
+  isRenderableImageUrl,
+  isRenderableVideoUrl,
+  routeDecision,
+} from "./composer-attach";
 
 describe("classifyAttachment", () => {
   it("classifies image MIME types", () => {
@@ -27,6 +35,17 @@ describe("classifyAttachment", () => {
   it("marks unknown types unsupported", () => {
     expect(classifyAttachment({ name: "a.pdf", type: "application/pdf" })).toBe("unsupported");
     expect(classifyAttachment({ name: "a.bin", type: "application/octet-stream" })).toBe("unsupported");
+  });
+
+  it("refuses images over 10 MB and video over the 26 MB body cap", () => {
+    expect(CHAT_IMAGE_MAX_BYTES).toBe(10 * 1024 * 1024);
+    expect(CHAT_VIDEO_MAX_BYTES).toBe(26 * 1024 * 1024);
+    expect(attachmentOverCap("image", CHAT_IMAGE_MAX_BYTES)).toBe(false);
+    expect(attachmentOverCap("image", CHAT_IMAGE_MAX_BYTES + 1)).toBe(true);
+    expect(attachmentOverCap("video", CHAT_VIDEO_MAX_BYTES)).toBe(false);
+    expect(attachmentOverCap("video", 40 * 1024 * 1024)).toBe(true);
+    expect(attachmentOverCap("text", 80 * 1024 * 1024)).toBe(false);
+    expect(attachmentOverCap("unsupported", 1)).toBe(false);
   });
 });
 

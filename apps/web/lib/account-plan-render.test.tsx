@@ -8,11 +8,10 @@
  * seats and plan standing and nothing else, so the assertion below is blunt: no figure the host
  * sends about money or usage may appear in the text, whatever it sends.
  *
- * The second thing is the local branch. `capabilities.plans` is false on a desk and on webdev, and
- * a panel about billing on a machine where nothing is billed would be noise. It is not silent
- * either: it prints one quiet line and a link to `/pricing`, because with no rail entry for the
- * price list that link is the only way to reach it on a local build — which is exactly the build
- * the owner reviews this work on.
+ * The second thing is the local branch. `capabilities.plans` is false on the Personal desktop app
+ * and on webdev, and a panel about billing on a machine where nothing is billed is noise. It used to
+ * print one line and a `/pricing` link, which the packaged shell blocks (0.15.0 changelog §7.4), so
+ * it now renders nothing there — no card, no link. Where the host has plans, the link stays.
  */
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -157,23 +156,34 @@ describe("the hosted panel", () => {
 });
 
 describe("the panel on a machine where nothing is billed", () => {
-  it("says so in one line and offers the price list, without asking the host anything", () => {
+  it("renders nothing at all — no card, no plans line, no /pricing link", () => {
     const markup = panel(DESK);
-    expect(markup).toContain('data-testid="account-plan"');
-    expect(text(markup)).toContain(t("plans.account.notEnforced"));
-    expect(markup).toContain('href="/pricing"');
-    // No status, no seats, no period: there is no plan to report.
-    expect(markup).not.toContain('data-testid="account-plan-status"');
-    expect(markup).not.toContain('data-testid="account-plan-seats"');
+    expect(markup).toBe("");
+    expect(markup).not.toContain('href="/pricing"');
+    expect(markup).not.toContain(t("plans.account.notEnforced"));
+    expect(markup).not.toContain(t("plans.account.seePlans"));
   });
 
   it("behaves the same before the host has answered at all", () => {
-    expect(text(panel(EVERYTHING_OFF))).toContain(t("plans.account.notEnforced"));
+    expect(panel(EVERYTHING_OFF)).toBe("");
   });
 
   it("asks the host for a plan only where the host says there are plans", () => {
     // The mocked `apiFetch` throws; reaching it at all on a desk would fail this render.
     expect(() => panel(DESK)).not.toThrow();
     expect(() => panel(HOSTED)).not.toThrow();
+  });
+});
+
+describe("the panel where the host has plans", () => {
+  it("renders the card while the first read is in flight", () => {
+    const markup = panel(HOSTED);
+    expect(markup).toContain('data-testid="account-plan"');
+    expect(text(markup)).toContain(t("plans.account.loading"));
+  });
+
+  it("keeps the /pricing link on a hosted card", () => {
+    expect(view(ENTERPRISE)).toContain('href="/pricing"');
+    expect(view({ ...ENTERPRISE, tierId: null })).toContain('href="/pricing"');
   });
 });

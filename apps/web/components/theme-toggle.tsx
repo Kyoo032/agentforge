@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { t } from "@/lib/i18n";
 import { applyTheme, getStoredTheme, resolveTheme, setStoredTheme, type Theme } from "@/lib/theme";
 
 function ThemeIcon({ theme }: { theme: Theme }) {
@@ -39,6 +40,9 @@ function ThemeIcon({ theme }: { theme: Theme }) {
   );
 }
 
+/* The label is `aria-label`/`title` only (owner ruling 2026-09-23): the footer is
+   an icon row, so the word never renders. It stays here because it is also the
+   accessible name. One 32px square in both rail states, so the row stays aligned. */
 export function ThemeToggle({ className }: { className?: string }) {
   const [theme, setTheme] = useState<Theme>(() => resolveTheme(getStoredTheme()));
 
@@ -54,13 +58,13 @@ export function ThemeToggle({ className }: { className?: string }) {
     setStoredTheme(next);
   }
 
-  const label = theme === "dark" ? "Light mode" : "Dark mode";
+  const label = theme === "dark" ? t("common.theme.light") : t("common.theme.dark");
 
   return (
     <button
       type="button"
       onClick={toggle}
-      className={className ?? "btn btn-ghost btn-icon h-8 w-8 shrink-0 wash"}
+      className={className ?? "btn btn-ghost btn-icon h-8 w-8 shrink-0 wash text-[var(--rail-text-2)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-active-text)]"}
       aria-label={label}
       title={label}
       data-testid="theme-toggle"

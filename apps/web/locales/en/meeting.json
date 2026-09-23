@@ -1,6 +1,6 @@
 {
   "title": "Meeting",
-  "subtitle": "Upload a recording, get a transcript, minutes, and the same minutes in the other language.",
+  "subtitle": "You get a transcript, structured minutes, and the same minutes in the other language — from a recording or a pasted transcript.",
   "newMeeting": "New meeting",
   "meetingTitle": "What was this meeting?",
   "meetingTitlePlaceholder": "Checkout weekly",
@@ -12,7 +12,7 @@
   "chooseFile": "Choose a recording",
   "uploading": "Uploading…",
   "uploaded": "{name} · {size}",
-  "cap": "Audio or video, up to 25 MB. For a longer meeting, paste the transcript instead.",
+  "cap": "Audio or video, up to 25 MB.",
   "orPaste": "Or paste a transcript",
   "pastePlaceholder": "Rina: let's start. The checkout error budget is at 2.1 percent…",
   "savePaste": "Use this transcript",
@@ -32,6 +32,8 @@
   "settings": "Settings",
   "model": "Model",
   "delete": "Delete",
+  "deleteConfirm": "Delete “{title}”? Its recording, transcript and minutes go with it, and this cannot be undone.",
+  "deleteConfirmSubmit": "Delete meeting",
   "record": {
     "start": "Record",
     "stop": "Stop",
@@ -78,6 +80,7 @@
     "transcript": "Could not save that transcript.",
     "run": "Could not produce the minutes.",
     "load": "Could not load meetings.",
-    "noMeeting": "Choose a meeting first, then this recording can be uploaded."
+    "noMeeting": "Choose a meeting first, then this recording can be uploaded.",
+    "delete": "Could not delete that meeting."
   }
 }

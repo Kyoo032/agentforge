@@ -7,6 +7,7 @@ import { useRouter } from "@/lib/nav";
 import { apiFetch } from "@/lib/api-client";
 import { notifyThreadsChanged } from "@/lib/threads-events";
 import { BrandMark } from "@/components/brand-mark";
+import { t } from "@/lib/i18n";
 
 type Workspace = { id: string; name: string; slug: string };
 
@@ -89,9 +90,14 @@ export function WorkspaceSwitcher({ workspaceName, compact = false, logoSrc = ""
     router.refresh();
   }
 
+  /*
+   * The trigger sits on the rail, which is dark chrome in both themes, so it reads from
+   * `--rail-*`. The dropdown itself is portalled to `document.body` — it floats over the
+   * paper desk, not the rail, so its own colours stay on the paper tokens.
+   */
   const triggerClass = compact
-    ? "wash flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium text-[var(--text)] hover:bg-[var(--accent-soft)]"
-    : "wash flex w-full items-center gap-1 truncate rounded-lg py-0 text-left text-xs text-[var(--text-3)] hover:text-[var(--text)]";
+    ? "wash flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium text-[var(--rail-text)] hover:bg-[var(--rail-hover)]"
+    : "wash flex w-full items-center gap-1 truncate rounded-lg py-0 text-left text-xs text-[var(--rail-text-3)] hover:text-[var(--rail-text)]";
 
   const menu =
     open && menuPos
@@ -113,7 +119,7 @@ export function WorkspaceSwitcher({ workspaceName, compact = false, logoSrc = ""
                 data-testid="open-workspace"
               >
                 {workspace.name}
-                {workspace.id === currentId ? " · current" : ""}
+                {workspace.id === currentId ? ` · ${t("workspaces.currentSuffix")}` : ""}
               </button>
             ))}
             <Link
@@ -122,7 +128,7 @@ export function WorkspaceSwitcher({ workspaceName, compact = false, logoSrc = ""
               data-testid="workspace-new-link"
               onClick={() => setOpen(false)}
             >
-              New workspace…
+              {t("workspaces.newWorkspace")}
             </Link>
           </div>,
           document.body,
@@ -138,7 +144,7 @@ export function WorkspaceSwitcher({ workspaceName, compact = false, logoSrc = ""
         aria-expanded={open}
         aria-haspopup="listbox"
         title={workspaceName}
-        aria-label={`Workspace: ${workspaceName}`}
+        aria-label={t("workspaces.deskLabel", { name: workspaceName })}
         onClick={() => {
           if (open) {
             setOpen(false);
@@ -160,10 +166,10 @@ export function WorkspaceSwitcher({ workspaceName, compact = false, logoSrc = ""
           logoSrc ? (
             <img src={logoSrc} alt={logoAlt} className="h-5 w-5 object-contain" data-testid="product-logo" />
           ) : (
-            <BrandMark size={20} className="text-[var(--accent)]" testId="product-logo" />
+            <BrandMark size={20} className="text-[var(--rail-accent)]" testId="product-logo" />
           )
         ) : (
-          <span className="min-w-0 flex-1 truncate">{workspaceName}</span>
+          <span className="min-w-0 flex-1 truncate">{t("workspaces.deskLabel", { name: workspaceName })}</span>
         )}
         {compact ? null : (
           <svg
@@ -172,7 +178,7 @@ export function WorkspaceSwitcher({ workspaceName, compact = false, logoSrc = ""
             viewBox="0 0 12 12"
             fill="none"
             aria-hidden="true"
-            className="shrink-0 text-[var(--accent)]"
+            className="shrink-0 text-[var(--rail-accent)]"
           >
             <path
               d="M3 4.5 6 8l3-3.5"

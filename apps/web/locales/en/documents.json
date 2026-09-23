@@ -1,11 +1,11 @@
 {
   "title": "Documents",
-  "subtitle": "Describe a memo, brief, or report. {productName} drafts sections, shows a preview, and downloads a DOCX.",
+  "expectedInputs": "You get: a titled, sectioned draft you can preview and download as a DOCX.",
   "download": "Download DOCX",
   "building": "Building…",
   "emptyTitle": "No document yet",
   "emptyHint": "Enter a topic below, or load a starter and download a DOCX without a live generate.",
-  "placeholder": "Describe a document…",
+  "placeholder": "Draft a one-page status memo for leadership",
   "topicAria": "Document topic",
   "generate": "Generate",
   "generating": "Generating…",

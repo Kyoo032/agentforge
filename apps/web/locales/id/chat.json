@@ -8,19 +8,48 @@
   "deleteAria": "Hapus {title}",
   "removeAttachment": "Hapus {name}",
   "empty": {
-    "headline": "Anda sudah masuk. Tanya apa saja.",
-    "pasteKeyPrefix": "Tempel kunci gateway {gatewayName} di",
+    "headline": "Kerja dimulai di sini.",
     "settingsLink": "Pengaturan",
-    "pasteKeySuffix": "untuk berbicara dengan model live.",
-    "documentsTitle": "Dokumen",
-    "documentsHint": "Memo dan laporan",
-    "researchTitle": "Riset",
-    "researchHint": "Dossier dari web",
-    "financeTitle": "Keuangan",
-    "financeHint": "Model dan brief"
+    "statusConnected": "Kunci model terhubung",
+    "statusSignedIn": "Sudah masuk",
+    "statusReady": "Siap bekerja",
+    "statusNeedsKey": "Hubungkan kunci untuk mulai langsung",
+    "statusGrace": "Kunci model terhubung (luring, terakhir dicek {date})",
+    "whatsThis": "Apa ini?",
+    "whatsThisBody": "Kunci gateway menghubungkan meja ini ke model di akun Anda. Tempel sekali di Pengaturan. Kunci tetap di meja ini dan tidak ditampilkan lagi.",
+    "pickModel": "Pilih model di bawah, lalu tulis.",
+    "ideas": {
+      "title": "Mulai dari satu ide",
+      "plan": {
+        "label": "Susun rencana",
+        "hint": "Ubah catatan kasar jadi draf langkah pertama.",
+        "prompt": "Ubah catatan ini jadi rencana langkah demi langkah:\n\n"
+      },
+      "summarise": {
+        "label": "Ringkas sesuatu",
+        "hint": "Tempel dokumen, utas, atau transkrip dan ambil poin yang penting.",
+        "prompt": "Ringkas poin dan keputusan utama dari ini:\n\n"
+      },
+      "rewrite": {
+        "label": "Tulis ulang untuk pembaca",
+        "hint": "Beri draf Anda dan untuk siapa; bahasanya akan dipertajam.",
+        "prompt": "Tulis ulang ini untuk pembaca tertentu — pertahankan maknanya, pertajam kalimatnya:\n\n"
+      },
+      "decide": {
+        "label": "Pikirkan satu keputusan",
+        "hint": "Taruh opsi di meja dan bahas kedua sisinya.",
+        "prompt": "Bantu saya memilih di antara opsi ini. Jabarkan trade-off-nya, lalu rekomendasikan satu:\n\n"
+      }
+    },
+    "recheck": "Periksa lagi"
+  },
+  "account": {
+    "label": "Akun"
   },
   "composer": {
-    "placeholder": "Pesan",
+    "placeholder": "Tanyakan apa saja, atau lepas tangkapan layar, klip, atau berkas teks",
+    "modelPrefix": "Model",
+    "thinkingPrefix": "Berpikir",
     "attach": "Lampirkan",
     "send": "Kirim",
     "sending": "Mengirim…",
@@ -42,6 +71,8 @@
     "thinkingPlaceholder": "Berpikir…"
   },
   "context": {
+    "meter": "Konteks: {used} dari {window}",
+    "usedMeter": "Konteks: {used} terpakai",
     "left": "{n} tersisa",
     "used": "{n} terpakai",
     "window": "Jendela konteks",
@@ -62,6 +93,9 @@
     "estimate": "Perkiraan sekitar empat karakter per token."
   },
   "usage": {
+    "connectKey": "Pemakaian · hubungkan kunci",
+    "planSeats": "{plan} · {used} dari {cap} kursi",
+    "planName": "Paket: {plan}",
     "placeholder": "Pemakaian · —",
     "unlimited": "Pemakaian · Tanpa batas",
     "remaining": "Pemakaian · {left}",
@@ -102,6 +136,7 @@
     "noImageInput": "Agen atau model ini tidak menerima masukan gambar",
     "noVideoInput": "Agen atau model ini tidak menerima masukan video",
     "emptySend": "Ketik pesan atau lampirkan berkas",
+    "fileTooLarge": "Berkas itu melebihi batas ukuran",
     "unsupportedFile": "Jenis berkas tidak didukung",
     "mixedMedia": "Kirim lampiran gambar dan video secara terpisah",
     "couldNotReach": "Tidak dapat menghubungi {model} setelah {tries} percobaan"

@@ -22,8 +22,8 @@ export const ROW_BASE = "flex h-7 min-w-0 flex-1 items-center rounded-lg px-1.5 
 
 export function rowClass(active: boolean) {
   return active
-    ? `select-row ${ROW_BASE} bg-[var(--accent-soft)] font-medium text-[var(--accent)]`
-    : `wash ${ROW_BASE} text-[var(--text-2)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]`;
+    ? `select-row ${ROW_BASE} bg-[var(--rail-active)] font-medium text-[var(--rail-active-text)]`
+    : `wash ${ROW_BASE} text-[var(--rail-text-2)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-active-text)]`;
 }
 
 /**
@@ -31,14 +31,7 @@ export function rowClass(active: boolean) {
  * rows read as a branch off that mode instead of blending into the job mode
  * that follows them. `mb-2` is what keeps the next mode clearly apart underneath.
  */
-export const BRANCH = "ml-[22px] mt-1 mb-2 border-l border-[var(--line)] pl-2";
-
-/**
- * Top and bottom fade, applied only while the block actually overflows, so a cut
- * row reads as "there is more" rather than as a hard edge.
- */
-export const SCROLL_MASK =
-  "[mask-image:linear-gradient(to_bottom,transparent,black_10px,black_calc(100%-12px),transparent)]";
+export const BRANCH = "ml-[22px] mt-1 mb-2 border-l border-[var(--rail-line)] pl-2";
 
 /** One row is `h-7`. */
 export const ROW_PX = 28;
@@ -118,7 +111,13 @@ export function RailSubmenuToggle({
   return (
     <button
       type="button"
-      className="wash grid h-6 w-6 shrink-0 place-items-center rounded-lg text-[var(--text-3)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] disabled:opacity-40 disabled:hover:bg-transparent"
+      /* Arrow only (owner ruling 2026-09-23): "Show specialists" and "Show tasks"
+         rode beside the mode name, so at a 232px rail Finance truncated to "F."
+         and Market lost its label outright — the secondary control was eating the
+         primary one. The mode keeps its name and the chevron is a 32px square
+         that lines up with the `h-8` row. The words survive in `aria-label` and
+         `title`, so nothing is lost to a screen reader or a hover. */
+      className="wash flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--rail-text-2)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-active-text)] disabled:opacity-40 disabled:hover:bg-transparent"
       onClick={onToggle}
       disabled={!enabled}
       aria-expanded={open}
@@ -220,7 +219,7 @@ export function RailSubmenu({
            in the same lane as the nav's and the rail's resize strip. The margin
            parks it inside the branch — padding cannot, a scrollbar sits outside
            the padding box. */
-        className={overflowing ? `mr-1 overflow-y-auto ${SCROLL_MASK}` : "mr-1 overflow-y-auto"}
+        className="mr-1 overflow-y-auto"
         style={{ maxHeight: listMaxHeight(rows.length) }}
         role="group"
         aria-label={ariaLabel}
