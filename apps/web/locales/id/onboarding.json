@@ -10,6 +10,10 @@
   "gate.invalidKey": "Gateway menolak API key ini. Periksa key di {gatewayName} lalu coba lagi.",
   "gate.unreachable": "Tidak dapat menghubungi {gatewayName}. Periksa koneksi Anda lalu coba lagi.",
   "gate.error": "Gateway mengembalikan kesalahan tak terduga. Coba lagi sebentar lagi.",
+  "desks": {
+    "title": "Atau buka meja lain",
+    "failed": "Tidak dapat membuka meja itu. Coba lagi."
+  },
   "components": {
     "title": "Menyiapkan {productName}",
     "description": "Menambahkan pembaca lokal untuk berkas PDF, Word, PowerPoint, Excel, dan e-book. Setiap dokumen dibaca di mesin ini; tidak ada yang diunggah.",

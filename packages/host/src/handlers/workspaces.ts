@@ -4,6 +4,7 @@ import {
   requireProductModes,
   resolveWorkspaceModes,
   HOME_WORKSPACE_SLUG,
+  type TenantContext,
 } from "@agentforge/core";
 import {
   createLocalWorkspace,
@@ -14,10 +15,28 @@ import {
 } from "@agentforge/db";
 import type { HostRequest, HostResult } from "../types";
 import { jsonError, jsonOk } from "../errors";
-import { dropWorkspaceSettings } from "../settings-store";
+import { dropWorkspaceSettings, loadSettings, saveSettings } from "../settings-store";
 import { channelStore } from "../channels/store";
 import { getTenant } from "../tenant";
 import { writeSelectedWorkspaceId, workspaceCookie } from "../workspace";
+
+/**
+ * A new desk starts with the gateway key of the desk it was created from.
+ *
+ * Creating a desk selects it (below), and the gate is derived from the selected desk's key. A new
+ * desk with an empty slice therefore closed the gate on an install that had a working key, and the
+ * renderer then showed only the key form: no rail, no desk switcher, no way back to Default. The
+ * key is the same tenant's and the gate verdict is keyed by its fingerprint, so the copy opens
+ * under the verdict the key already has. Only the gateway key is carried; the desk can still save a
+ * different key of its own, and "forget my key" still clears every desk.
+ */
+function inheritGatewayKey(tenant: Pick<TenantContext, "tenantId" | "workspaceId">, workspaceId: string): void {
+  const key = loadSettings(tenant).openaiApiKey?.trim();
+  if (!key) {
+    return;
+  }
+  saveSettings({ openaiApiKey: key }, { tenantId: tenant.tenantId, workspaceId });
+}
 
 function serializeWorkspace(row: {
   id: string;
@@ -77,6 +96,7 @@ export async function handlePostWorkspaces(request: HostRequest): Promise<HostRe
       productModes,
       tenant.userId,
     );
+    inheritGatewayKey(tenant, workspace.id);
     writeSelectedWorkspaceId(workspace.id);
     return jsonOk(
       { workspace: serializeWorkspace(workspace), seeded: false },
