@@ -25,10 +25,11 @@ import { useSession, type SessionStatus } from "@/lib/session";
  * page carries a strip that says so while `tier.placeholder` is true. Nothing here may be quoted
  * to a customer until the owner replaces the figures and clears that flag.
  *
- * **There is no payment provider yet** (plan D4, open). So a call to action is one of three real
- * things and never a fourth, dead one: a link to the operator's checkout when the deployment has
- * configured one, a plain statement when the tenant is already on that tier, or a control that
- * says who to ask. A greyed-out "Buy" that does nothing would be the worst of the three.
+ * **There is no self-serve purchase on this page.** Personal is the Mac and Windows app and does
+ * not start a seat subscription. Enterprise stays a contact with DPS even when the deployment has
+ * a billing top-up URL — that URL is for the blocked screen's payment update, not for buying
+ * Enterprise here. A call to action is either a plain statement when the tenant is already on that
+ * tier, or a control that asks. A greyed-out "Buy" that does nothing would be worse than either.
  */
 
 /** `?preview=<code>` renders a blocked screen — only where plans are demonstrably not enforced. */
@@ -40,8 +41,25 @@ function previewCode(search: URLSearchParams, local: boolean): PlanBlockCode | n
   return isPlanBlockCode(value) ? value : null;
 }
 
-function seatsLine(tier: PlanTier): string {
-  return tier.seatCap === null ? t("plans.seats.uncapped") : t("plans.seats.capped", { count: tier.seatCap });
+/** A null cap is not a seat count. Personal is the desktop app, so it has no seats line. */
+function seatsLine(tier: PlanTier): string | null {
+  return tier.seatCap === null ? null : t("plans.seats.capped", { count: tier.seatCap });
+}
+
+/**
+ * Neither published offer checks out from this page.
+ * Personal does not start a seat subscription. Enterprise stays contact-DPS even when `checkout`
+ * carries a top-up URL. Any other kind would still use that URL; these two never do.
+ */
+function checkoutHrefForTier(tier: PlanTier, checkout: CheckoutOffer | undefined): string | null {
+  if (tier.kind === "personal" || tier.kind === "enterprise") {
+    return null;
+  }
+  return checkout?.available === true && checkout.checkoutUrl ? checkout.checkoutUrl : null;
+}
+
+function askLabel(tier: PlanTier): string {
+  return tier.kind === "enterprise" ? t("plans.cta.contact") : t("plans.cta.personalApp");
 }
 
 const CARD_BASE = "flex flex-col gap-4 rounded-xl border bg-[var(--surface)] p-5 text-[var(--text)] transition-shadow";
@@ -58,7 +76,8 @@ function TierCard({
   onAsk: () => void;
 }) {
   const highlighted = tier.highlighted === true;
-  const buyable = checkout?.available === true && checkout.checkoutUrl !== null;
+  const checkoutHref = checkoutHrefForTier(tier, checkout);
+  const seats = seatsLine(tier);
 
   return (
     <section
@@ -84,9 +103,11 @@ function TierCard({
         <span className="text-[13px] text-[var(--text-3)]">{t("plans.period.month")}</span>
       </p>
 
-      <p className="text-[13px] text-[var(--text-2)]" data-testid={`pricing-seats-${tier.id}`}>
-        {seatsLine(tier)}
-      </p>
+      {seats ? (
+        <p className="text-[13px] text-[var(--text-2)]" data-testid={`pricing-seats-${tier.id}`}>
+          {seats}
+        </p>
+      ) : null}
 
       <div className="border-t border-[var(--line)] pt-4">
         <p className="panel-label">{t("plans.featuresLabel")}</p>
@@ -106,14 +127,14 @@ function TierCard({
           >
             {t("plans.cta.current")}
           </p>
-        ) : buyable && checkout?.checkoutUrl ? (
+        ) : checkoutHref ? (
           <a
             className={highlighted ? "btn btn-primary" : "btn btn-secondary"}
             data-testid={`pricing-cta-${tier.id}`}
-            href={checkout.checkoutUrl}
+            href={checkoutHref}
             rel="noreferrer noopener"
           >
-            {t("plans.cta.choose", { plan: t(tier.nameKey) })}
+            {askLabel(tier)}
           </a>
         ) : (
           <button
@@ -122,7 +143,7 @@ function TierCard({
             data-testid={`pricing-cta-${tier.id}`}
             onClick={onAsk}
           >
-            {t("plans.cta.contact")}
+            {askLabel(tier)}
           </button>
         )}
       </div>
@@ -149,10 +170,10 @@ export function PricingView({ currentTierId, checkout }: PricingViewProps) {
   const placeholder = PLAN_TIERS.some((tier) => tier.placeholder);
 
   return (
-    <main className="mx-auto max-w-4xl px-6 py-10 text-[var(--text)]" data-testid="pricing-page">
+    <main className="mx-auto max-w-[var(--content-wide)] px-6 py-10 text-[var(--text)]" data-testid="pricing-page">
       <div className="kicker">{t("plans.kicker")}</div>
       <h1 className="mt-2 text-2xl font-medium tracking-[var(--track)]">{t("plans.title")}</h1>
-      <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-[var(--text-2)]">{t("plans.intro")}</p>
+      <p className="mt-2 max-w-[var(--content-narrow)] text-[13px] leading-relaxed text-[var(--text-2)]">{t("plans.intro")}</p>
 
       {placeholder ? (
         <p
@@ -177,15 +198,13 @@ export function PricingView({ currentTierId, checkout }: PricingViewProps) {
         ))}
       </div>
 
-      {checkout?.available === true ? null : (
-        <p
-          className="mt-5 text-[13px] text-[var(--text-2)]"
-          data-testid="pricing-contact-help"
-          role={asked ? "status" : undefined}
-        >
-          {t("plans.cta.contactHelp")}
-        </p>
-      )}
+      <p
+        className="mt-5 text-[13px] text-[var(--text-2)]"
+        data-testid="pricing-contact-help"
+        role={asked ? "status" : undefined}
+      >
+        {t("plans.cta.contactHelp")}
+      </p>
     </main>
   );
 }

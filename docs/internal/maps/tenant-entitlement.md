@@ -1,8 +1,7 @@
 # Map — Tenant entitlement: the allowance, the seat cap and the billing webhook
 
-Last verified: 2026-09-21 at 4938747 + working tree. Eight citations had drifted since 2026-09-20
-and were re-anchored by hand; the tier-label and plan-refusal sections were rewritten again after
-the fix pass of the same day.
+Last verified: 2026-09-22 at 0774681 + working tree. The pricing offers were rewritten in place:
+Personal is the Mac and Windows app, Enterprise stays contact-DPS, and the one-seat line is gone.
 
 ## Overview
 
@@ -153,10 +152,15 @@ Until this round the entitlement backend had **no reader**. A past-due tenant's 
 `@agentforge/core/plans`, so it needs no session, no key and no network. It is one of the three
 public routes in `apps/web/src/App.tsx`, which is why a `seat_cap_reached` refusal can send somebody
 there while they are signed out by definition. Testids: `pricing-page`, `pricing-placeholder`, and
-per tier `pricing-tier-<id>`, `pricing-price-<id>`, `pricing-seats-<id>`, `pricing-features-<id>`,
-`pricing-cta-<id>`, plus `pricing-contact-help` when no checkout is configured. The call to action is
-one of exactly three real things and never a dead fourth — an operator checkout link, a plain
-statement for the tier the tenant is already on, or a control that says who to ask.
+per tier `pricing-tier-<id>`, `pricing-price-<id>`, `pricing-features-<id>`,
+`pricing-cta-<id>`, plus `pricing-seats-<id>` only when the tier has a seat cap, and
+`pricing-contact-help` even when a top-up URL is set. Personal is the Mac and Windows app, a
+complement when the customer is buying a lot of tokens, and it does not start a seat subscription.
+Enterprise is the web product: its control stays contact-DPS and does not become a checkout link
+when a billing top-up URL is set. The Enterprise card states unified knowledge-base storage, user
+traffic to the agents, implementation and maintenance from DPS, and that seats and tokens are
+charged separately. A current tier is a plain statement. The blocked screen's `plan-blocked-checkout`
+is a payment update, not this page's activation.
 
 **The plan panel** (`apps/web/components/account-plan-panel.tsx`) sits on Settings, gated on
 `capabilities.plans`, and renders nothing at all on a desk (`return null`, `apps/web/components/account-plan-panel.tsx:174`, since 2026-09-23 — the old "not enforced" line carried a `/pricing` link the packaged shell blocks). Testids: `account-plan`,
@@ -190,14 +194,14 @@ parser and its own screen, and a paywall in front of it would be a door that can
 `session_required` belongs to `session-signal.ts` and raises nothing here.
 
 **A local-only preview door.** `?preview=<code>` on `/pricing` renders a blocked screen, and
-`previewCode` (`apps/web/components/pricing-page.tsx:34-40`) refuses unless the ping says plans are
+`previewCode` (`apps/web/components/pricing-page.tsx:36-42`) refuses unless the ping says plans are
 not enforced and there is a single owner — so an unanswered ping refuses it rather than opening it
 ([SR-35](../security-register.md#sr-35)).
 
-**One disagreement, unresolved on purpose.** Personal's `seatCap` is `null`, which `seatAdmission`
-reads as "no cap configured" and admits everybody, while `pricing-seats-personal` renders
-`plans.seats.uncapped` — **"One seat"**. Copy and behaviour contradict each other and it is an open
-owner decision: [SR-22](../security-register.md#sr-22).
+**Personal does not advertise a seat count.** Personal's `seatCap` is `null`, which `seatAdmission`
+reads as "no cap configured" and admits everybody. The pricing page omits `pricing-seats-personal`
+rather than rendering a seat count, so the old "One seat" claim is gone
+([SR-22](../security-register.md#sr-22)). Admission is unchanged.
 
 Where to press: [`features/plans.md`](../../../.cursor/skills/verify-agentforge/features/plans.md).
 

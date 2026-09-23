@@ -1,13 +1,12 @@
 {
   "kicker": "Paket",
   "title": "Pilih paket",
-  "intro": "Kedua paket membuka semua mode kerja. Yang berbeda hanya berapa orang yang memakai satu akun.",
+  "intro": "Personal adalah aplikasi DPSBuddy untuk Mac dan Windows, pelengkap dari DPS ketika Anda membeli banyak token. Enterprise adalah DPSBuddy berbasis web.",
   "placeholderNotice": "Harga indikatif — belum final.",
   "period": {
     "month": "/ bulan"
   },
   "seats": {
-    "uncapped": "Satu kursi",
     "capped": "Hingga {count} kursi"
   },
   "currentBadge": "Paket Anda",
@@ -15,27 +14,28 @@
   "tier": {
     "personal": {
       "name": "Personal",
-      "description": "Satu orang, semua mode kerja, ruang kerja yang tidak bisa dibuka siapa pun selain Anda."
+      "description": "Aplikasi DPSBuddy untuk Mac dan Windows. Pelengkap dari DPS ketika Anda membeli banyak token."
     },
     "enterprise": {
       "name": "Enterprise",
-      "description": "Satu tim dalam satu akun, dengan ruang kerja bersama dan kursi yang Anda atur sendiri."
+      "description": "DPSBuddy berbasis web. Berlangganan per pengguna dengan menghubungi DPS. Tidak ada pembelian mandiri."
     }
   },
   "feature": {
-    "allWorkModes": "Semua mode kerja, dari Chat sampai Finance",
-    "privateWorkspaces": "Ruang kerja pribadi yang hanya bisa Anda buka",
-    "emailSupport": "Dukungan lewat email",
-    "sharedWorkspaces": "Ruang kerja bersama untuk satu tim",
-    "seatManagement": "Tambah dan cabut kursi sendiri",
-    "usageReports": "Laporan pemakaian per orang dan per model",
-    "prioritySupport": "Dukungan prioritas"
+    "macWindowsApp": "DPSBuddy untuk Mac dan Windows",
+    "tokenComplement": "Pelengkap dari DPS ketika Anda membeli banyak token",
+    "webProduct": "DPSBuddy berbasis web",
+    "contactDps": "Hubungi DPS untuk mengaktifkan. Tidak ada pembelian mandiri.",
+    "knowledgeStorage": "Kursi mencakup penyimpanan untuk basis pengetahuan terpadu",
+    "agentTraffic": "Kursi mencakup lalu lintas pengguna untuk memakai agen",
+    "implementationMaintenance": "Kursi mencakup implementasi dan pemeliharaan dari DPS",
+    "seatsAndTokensSeparate": "Kursi dan token ditagih secara terpisah"
   },
   "cta": {
-    "choose": "Pilih {plan}",
     "current": "Ini paket Anda",
-    "contact": "Hubungi kami untuk mengaktifkan",
-    "contactHelp": "Belum ada proses pembayaran. Hubungi pengelola instalasi ini dan akun Anda akan diaktifkan.",
+    "contact": "Hubungi DPS",
+    "personalApp": "Aplikasi Mac dan Windows",
+    "contactHelp": "Tidak ada pembelian mandiri untuk Enterprise. Hubungi DPS untuk berlangganan per pengguna.",
     "checkoutFailed": "Tautan itu tidak bisa dibuka. Hubungi pengelola instalasi ini."
   },
   "blocked": {

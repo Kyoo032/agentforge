@@ -25,7 +25,8 @@
  *   and cannot price an image or a second of video at all.
  * - **A seat cap is meaningless on Personal** (§D2: "must be nullable, not defaulted to 1"), so
  *   Personal's `seatCap` is `null`, and `seatAdmission` reads that as "no cap configured", which
- *   admits everybody. Enterprise carries a placeholder number.
+ *   admits everybody. Enterprise carries a placeholder number. The pricing copy does not call
+ *   that null a seat count: Personal is the Mac and Windows app, Enterprise is the web offer.
  *
  * Pure, browser-safe and frozen: the renderer imports it through `@agentforge/core/plans` and
  * renders the catalog in every mode without asking the host anything (phase 9 open decision 9).
@@ -85,8 +86,9 @@ export type PlanTier = {
 /**
  * PLACEHOLDER tiers, in ascending price order — which is also the order the pricing page renders.
  *
- * No `tokenAllowance`, and no allowance of any kind: see the file header. What distinguishes them
- * is the kind and the seat cap, and both of those are entitlement columns the host already has.
+ * No `tokenAllowance`, and no allowance of any kind: see the file header. The offers differ by
+ * product — Personal is the Mac and Windows app, Enterprise is the web offer a customer activates
+ * by contacting DPS — while the entitlement columns stay the kind and the seat cap.
  */
 const TIERS: readonly PlanTier[] = [
   {
@@ -99,7 +101,7 @@ const TIERS: readonly PlanTier[] = [
     period: "month",
     // §D2: a seat cap is meaningless here. Never 1 — a defaulted 1 is a lockout waiting to happen.
     seatCap: null,
-    featureKeys: ["plans.feature.allWorkModes", "plans.feature.privateWorkspaces", "plans.feature.emailSupport"],
+    featureKeys: ["plans.feature.macWindowsApp", "plans.feature.tokenComplement"],
     placeholder: true,
   },
   {
@@ -113,11 +115,12 @@ const TIERS: readonly PlanTier[] = [
     // Placeholder. 20 is the draft seat number in AGENTS.md, and the owner has not confirmed it.
     seatCap: 20,
     featureKeys: [
-      "plans.feature.allWorkModes",
-      "plans.feature.sharedWorkspaces",
-      "plans.feature.seatManagement",
-      "plans.feature.usageReports",
-      "plans.feature.prioritySupport",
+      "plans.feature.webProduct",
+      "plans.feature.contactDps",
+      "plans.feature.knowledgeStorage",
+      "plans.feature.agentTraffic",
+      "plans.feature.implementationMaintenance",
+      "plans.feature.seatsAndTokensSeparate",
     ],
     highlighted: true,
     placeholder: true,
