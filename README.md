@@ -75,6 +75,8 @@ pnpm lint         # Biome
 
 **Enterprise (hosted):** `pnpm --filter web build`, then run the host behind the reverse proxy. Deploys are tracked by commit sha.
 
+**Releases:** this repo holds the source for both products. Personal installers are published on [`Kyoo032/DPSBuddy`](https://github.com/Kyoo032/DPSBuddy). The Enterprise deploy bundle (a `compose.yml` pinned to a private `ghcr.io/kyoo032/dpsbuddy-ent` image, `.env.example`, `DEPLOY.md`, `Caddyfile`) and its release notes are published on [`Kyoo032/DPSBuddy-Ent`](https://github.com/Kyoo032/DPSBuddy-Ent) by `node scripts/release-web.mjs`. This is the only local checkout; the two release repos are written only by their release scripts.
+
 There is no mobile app.
 
 ## License

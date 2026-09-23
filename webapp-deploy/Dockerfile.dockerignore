@@ -3,8 +3,7 @@
 # IMPORTANT: BuildKit looks for `<dockerfile-path>.dockerignore` first and only then for
 # `<context>/.dockerignore`. Because the Dockerfile lives in webapp-deploy/ while the
 # context is the repo root, the file Docker actually reads is
-# webapp-deploy/Dockerfile.dockerignore. That file is a byte-for-byte copy of this one;
-# edit both together.
+# webapp-deploy/Dockerfile.dockerignore. There is no root .dockerignore; this is the only one.
 
 .git
 .github
@@ -19,10 +18,19 @@
 **/test-results
 **/*.tsbuildinfo
 
-# Local state and secrets - never in an image
-.env
-.env.local
-data
+# Local state and secrets - never in an image. Patterns without `**/` match only at
+# the repo root; apps/web/.env.local and .webdev-data-*/.master-key were both
+# missed before 2026-09-23 (SR-49). The archive-from-sha release path is the
+# real guard; this list is the second one.
+**/.env
+**/.env.*
+!**/.env.example
+**/data
+.webdev-data*
+**/*.enc
+**/.master-key
+**/*.sqlite
+**/*.sqlite-*
 .verify-*
 .cursor-artifacts
 .claude
