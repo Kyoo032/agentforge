@@ -66,6 +66,22 @@ flowchart TB
 | Command | `npx pnpm@9.15.9 desktop:build` | `npx pnpm@9.15.9 desktop:build:mac:docker --arch all` |
 | Forbidden | `desktop:build:mac`, `electron-builder --mac` | `desktop:build` in this cwd, `doctor --desktop` as mac proof |
 
+## What this Windows PC can prove
+
+This desk is Windows 11 Home + Docker Desktop (Linux engine via WSL Ubuntu). That is enough to **pack** both desktop installers and to **rehearse** the hosted Linux image. It is not enough to **launch** macOS.
+
+| Surface | Route | This PC proves | Still needs someone else's Mac |
+|---|---|---|---|
+| Hosted Linux web | not pack — `webapp-deploy/compose.yml` from WSL | image builds, healthcheck, Linux natives in the container | Jakarta CVM (SSM, COS, TLS, security group). Not a pack artifact. |
+| Windows desktop | worktree `desktop:build` | launch `win-unpacked\DPSBuddy.exe`, `doctor --desktop`, Ctrl+V **and** right-click paste | nothing for launch. Windows Sandbox would need Pro; Home does not have it. |
+| macOS desktop | `desktop:build:mac:docker --arch all` | `verify-bundle.py` on `.app` **and** dmg/zip (arch, no ELF/PE, darwin natives, ad-hoc sign, symlinks, execute bits), `mac-<v>.sha256` | **yes — every launch.** Gatekeeper Open Anyway, Keychain Always Allow, Cmd+V / right-click, Dock reopen, Cmd+Q, `doctor --desktop` under `~/Library/Application Support/DPSBuddy`. |
+
+There is no Mac-out on this box. Docker Desktop builds a dmg; it does not boot macOS. Cua Cloud Fleet has no macOS image. Cua Lume needs Apple Silicon. Hyper-V / Windows Sandbox are not on Home and would not run a `.app` anyway.
+
+A Docker exit 0 is **pack proof**, not **Mac proof**. Until a human on a Mac drives [macos/AGENTS.md](../../../apps/desktop/platform/macos/AGENTS.md) smoke steps 1–11, the cut stays labelled **preview**. 0.14.26 had owner hardware smoke; 0.14.27 still owes it. A repack of the same version does not remove that debt — the new dmg still has to be opened on a Mac.
+
+Send the person: the two `DPSBuddy-<v>-mac-{arm64,x64}.dmg` files (Apple silicon vs Intel), the public notes (Gatekeeper + Keychain), and the smoke list. They run `scripts/macos-app.mjs` or drag the dmg to Applications. They do not need the Windows checkout.
+
 ## How — one shell, two control planes
 
 The renderer never reads `process.platform`. Menus, quit, and shortcuts live in the shell. The 0.14.2 paste bug is the reference: `Menu.setApplicationMenu(null)` looked fine on Windows and killed **Cmd+V** on Mac (and right-click paste everywhere). A menu row is a two-platform change.
@@ -126,6 +142,7 @@ Windows smoke after a shell change: [windows/AGENTS.md](../../../apps/desktop/pl
 - [ ] macOS Docker pack + verify-bundle in that log
 - [ ] copy Windows artifacts into main dist; dry-run --require-mac
 - [ ] desktop:release --require-mac (only when Kyo asked to ship)
+- [ ] Mac hardware smoke on someone else's Mac (Gatekeeper, Keychain, Cmd+V, Dock, Cmd+Q, doctor --desktop). Not this PC. Until then Mac = preview.
 - [ ] record in docs/internal; push
 ```
 
@@ -198,4 +215,5 @@ Never upload `latest-mac.yml`. Do not `git push` source to DPSBuddy.
 - `Menu.setApplicationMenu(null)`
 - Copy Windows `taskkill` quit onto darwin
 - Claim mac launched because Docker exited 0
+- Treat Cua Fleet, Lume, or Docker Desktop as a Mac launch path on this PC
 - Doctor `:3000` as the installer

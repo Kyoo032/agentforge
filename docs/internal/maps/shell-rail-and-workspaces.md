@@ -2,6 +2,8 @@
 
 Last verified: 2026-09-23 at 0774681 + working tree (the 0.15.0 design pass). Changed here: the rail header is `pt-3` (no fixed `h-12`), the rail's `--rail-*` tokens are per-theme instead of dark in both, the footer is one aligned row of 32px icon buttons whose colour is forced from `globals.css` because unlayered `.btn` beats `@layer utilities`, and `.desk-canvas` is a raised panel (8px margin, 4px radius, blue `--shadow-float`) rather than a flat fill.
 
+This supersedes every rail-chrome detail recorded on 2026-09-22, and the 2026-09-20 structure below still holds (`productModes` is the rail, React Router owns the URL, collapse and theme stay in `localStorage`). What this pass changed of that 09-22 list: the 4px accent edge on an active row is **gone**; the Finance and Market toggles are **arrow-only**, no "Show tasks" / "Show specialists"; the teal "New" label and its whole mechanism are **deleted**, not merely re-dated; the desk switcher and the theme/collapse buttons are icon-only, their words moved to `aria-label` / `title`; the collapsed-at-720px rule is unchanged; and light, not dark, is now the default theme (`:root`).
+
 ## Overview
 
 The shell is everything around a mode page: the left rail, the desk switcher, the `/workspaces` page that creates and deletes desks, and the `/usage` page that prices what a desk spent. One fact drives all of it — **the current workspace's `productModes` is the rail**. There is no per-user navigation config, no feature flag, and no entitlement check here; a desk row in SQLite decides which tabs exist, and anything not in that list is redirected away from.

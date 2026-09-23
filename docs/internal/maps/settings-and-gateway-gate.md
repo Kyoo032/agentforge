@@ -1,10 +1,14 @@
 # Map — Settings, the gateway gate, and Start over
 
-> **Desktop is frozen at 0.14.27 — maintenance only.** The product continues as a hosted, multi-user web app.
-> The host-decides/renderer-displays rule below is unchanged; the Electron-only transport and wipe details are frozen desktop behaviour.
+> **Two products, one repo.** **Personal** is the Mac/Windows DPSBuddy app (current cut `0.15.0`); **Enterprise** is the hosted web app.
+> The host-decides/renderer-displays rule below is unchanged and applies to both; the Electron-only transport and wipe details are the Personal app's.
 > Decision record: [`web-pivot-2026-09-18.md`](../web-pivot-2026-09-18.md).
 
 Last verified: 2026-09-23 at 0774681 + working tree (the 0.15.0 design pass). Changed here: `settings.kicker` is deleted, `settings.runtimeStub` and `settings.gateway.status.stub` no longer claim "Offline demo" (stub means *no key saved*, not a demo), and `settings.intro` was trimmed. The gate's derivation, `resolveGate`, the reset scopes and the endpoint-hiding rule are all untouched. **The sign-out → onboarding behaviour is verified in the packaged personal app, not on webdev**: `deriveGatewayGate` short-circuits `envRuntime === "stub"` to `allowed: true` before it looks at whether a key exists (`packages/host/src/gateway-gate.ts:293-296`), and both `.env` and `apps/web/.env.local` pin `stub` on a dev machine — `apps/desktop/main.cjs` never sets it, so a packaged app derives `needs_key` and sign-out does drop to onboarding.
+
+Supersedes the 2026-09-22 note, which recorded the opposite `stub` copy: `chat-key-status` used to read "Model key connected (offline demo)" on a keyless desk. That string is gone from both catalogs; `stub` now reads as a missing key.
+
+Last verified before that projection: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c` (through e37b3a1)
 
 > The 2026-09-17 "hide the endpoint" change was verified in the working tree when this page was
 > first written; it is committed as of `b482611`. `apps/web/components/settings-page.tsx`,
