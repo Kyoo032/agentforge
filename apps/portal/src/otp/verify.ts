@@ -10,6 +10,10 @@
  * no tenant, to more than one, or to a tenant other than the one the caller requires, is refused
  * with `no_code` -- the answer a real address with no live code gets -- so verifying is not an
  * enumeration oracle either.
+ *
+ * The daily total (20 guesses per address per 24 h) is the store's too. When it refuses, the audit
+ * row is `otp.locked` rather than `otp.failed`: nothing was compared, and an operator reading the
+ * log needs to see that the address is locked, not one more wrong guess.
  */
 import { normaliseEmail } from "../crypto";
 import type { Logger } from "../log";
@@ -33,7 +37,7 @@ export type VerifyLoginOtpOutcome =
   | { readonly ok: true; readonly tenantId: string; readonly user: User }
   | {
       readonly ok: false;
-      readonly reason: "no_code" | "expired" | "too_many_attempts" | "invalid_code";
+      readonly reason: "no_code" | "expired" | "too_many_attempts" | "invalid_code" | "locked";
       readonly attemptsRemaining: number;
     };
 
@@ -58,7 +62,7 @@ export async function verifyLoginOtp(
         orgId: user?.orgId ?? null,
         actorKind: "user",
         actorUserId: user?.id ?? null,
-        action: "otp.failed",
+        action: result.reason === "locked" ? "otp.locked" : "otp.failed",
         targetKind: "login_otp",
         reasonCode: result.reason,
         ip: input.ip ?? null,

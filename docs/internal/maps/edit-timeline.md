@@ -1,6 +1,11 @@
 # Map — Edit timeline and agent
 
-Last verified: 2026-09-20 at 6984d84
+Last verified: 2026-09-23 at d4561b8 + uncommitted tree for § 2 (doctor), § 4 (the `appendOps` steps, desk and job
+scope), § 6 (keyboard guard, drag release), § 10 (review gate, and `render` refused on `/jobs`), § 11 (generate,
+the worker's tenant, the still check), § 12 (export, the desktop save dialog) and the gateway-gate failure row —
+two passes that day, the Edit security fixes and the docs pass that reconciled them. Not driven. Everything else
+was last verified 2026-09-20 at 6984d84, and its `handlers/edit.ts` and `edit-studio.tsx` line citations have
+drifted since.
 
 ## Overview
 
@@ -46,12 +51,17 @@ with `ffmpeg-install-command` and a `ffmpeg-recheck` button that re-probes via
 
 ### 2. Doctor — ffmpeg and ASR
 
-`handleGetEditDoctor` (`packages/host/src/handlers/edit.ts:99-102`) → `getEditDoctor`
-(`packages/host/src/edit/doctor.ts:38-54`). It returns `{ ffmpeg, asr, fonts }`. `recheck=1` drops the
+`handleGetEditDoctor` (`packages/host/src/handlers/edit.ts:110-115`) → `getEditDoctor`
+(`packages/host/src/edit/doctor.ts:55-72`). It returns `{ ffmpeg, asr, fonts }`. `recheck=1` drops the
 cached probe (`resetFfmpegBinaryCache`) but is throttled to one forced re-probe every
-`RECHECK_MIN_INTERVAL_MS = 2_000` (`doctor.ts:30, :39-42`), because each probe shells out to ffmpeg
+`RECHECK_MIN_INTERVAL_MS = 2_000` (`doctor.ts:47, :56-59`), because each probe shells out to ffmpeg
 and the caller is a local web page. When ffmpeg is missing the report also carries a per-OS
-`setup` hint (`ffmpegSetupHint`, `doctor.ts:50`).
+`setup` hint (`ffmpegSetupHint`, `doctor.ts:67`).
+
+On the hosted server the handler answers `withoutBinaryPath(report)` instead (`handlers/edit.ts:114`,
+`doctor.ts:36-39`): `ffmpeg.path`, the absolute path of the server's own binary, is dropped, and
+`found`, `version`, `reason` and `setup` stay. Nothing in `apps/web` reads the path; the desk still
+gets it.
 
 `.cursor/skills/verify-agentforge/scripts/doctor.mjs` folds this endpoint into its own JSON as `edit`. A missing endpoint is a note,
 not a doctor failure.
@@ -83,34 +93,40 @@ English-only; the `edit.starters.*` locale keys exist and are unreferenced.
 Everything that changes a project goes through `appendOps` (`packages/host/src/edit/ops.ts`):
 
 1. Per input op: compute the inverse (`computeInverse`), bump `seq` and `clock`, build an `EditOp`
-   with `actor`, optional `cardId` / `undoOf` (`ops.ts:180-202`).
-2. `assertAgentOpHasCard(op)` — an `agent:` op without a card is rejected (`:203`).
-3. `applyOp(doc, applyable)` folds it into the in-memory doc (`:204`). **If the op is invalid the
+   with `actor`, optional `cardId` / `undoOf` (`ops.ts:284-309`).
+2. `assertAgentOpHasCard(op)` — an `agent:` op without a card is rejected (`:310`).
+3. `applyOp(doc, applyable)` folds it into the in-memory doc (`:311`). **If the op is invalid the
    whole append throws**; `applyOp` is where `clip id already exists` / `asset id already exists` /
    `split atFrame must be strictly inside the clip` come from (`packages/core/src/edit/ops.ts:342-551`).
-4. If `actor.startsWith("agent:")`, `doc.review.lastAgentSeq = seq` (`ops.ts:206-208`) — **this is the
+4. If `actor.startsWith("agent:")`, `doc.review.lastAgentSeq = seq` (`ops.ts:313-315`) — **this is the
    entire review gate**.
-5. Insert the `edit_ops` row; snapshot every `SNAPSHOT_EVERY` ops (`:226-233`).
-6. Update `edit_projects` (`seq`, `reviewJson`, name, fps, size) (`:236-247`).
-7. `editEvents.emitEvent({type: "ops.appended", projectId, ops: applied, seq})` (`:249`).
+5. Insert the `edit_ops` row; snapshot every `SNAPSHOT_EVERY` ops (`:317-340`).
+6. Update `edit_projects` (`seq`, `reviewJson`, name, fps, size) (`:343-354`).
+7. `editEvents.emitEvent({type: "ops.appended", projectId, ops: applied, seq})` (`:356`).
 
 `foldProject(projectId, workspaceId)` is also the **tenant check**: every handler calls it first, so a
 project id from another desk 404s before anything else runs (see the comments at
-`packages/host/src/handlers/edit.ts:171`, `:333`).
+`packages/host/src/handlers/edit.ts:184`, `:419`, `:460`).
 
 Since Phase 3 lane A that is enforced rather than assumed. `workspaceId` is a **required** argument on
-`loadProjectRow` (`ops.ts:75`), `foldProject` (`:129`) and `appendOps` (via `AppendOpsOptions`, `:29`),
+`loadProjectRow` (`ops.ts:76`), `foldProject` (`:208`) and `appendOps` (via `AppendOpsOptions`, `:31`),
 and the desk is part of the `WHERE` clause instead of a follow-up comparison — a handler that forgets
 the scope no longer compiles. The same rule runs down the child tables, which carry only a
-`project_id`: `getEditJob` / `cancelEditJob` (`jobs.ts:121`, `:442`) pin a job to its project,
+`project_id`: `getEditJob` / `cancelEditJob` (`jobs.ts:180`, `:527`) pin a job to its project,
 `undoCard` / `keepCard` (`undo.ts:41`, `:83`) pin a card to its project, and the unplaced routes pin
-the item to the `:projectId` in their own path (`handlers/edit.ts:447`, `:494`). A wrong desk and a
+the item to the `:projectId` in their own path (`handlePostEditUnplacedPlace` / `handlePostEditUnplacedDiscard`, `handlers/edit.ts:558`, `:605`). A wrong desk and a
 missing row both answer the same 404, so the error leaks nothing about what exists elsewhere.
 
-The job runner is the one caller with no request to scope by, so it has two named unscoped reads —
-`workerWorkspaceId` (`ops.ts:97`) and `workerJob` (`jobs.ts:141`) — which turn a job row the handler
-already checked back into a scope the rest of the store enforces. They are deliberate and auditable;
-`edit-scope.test.ts` fails if a handler ever imports one.
+The job runner is the one caller with no request to scope by, so it has named unscoped reads that
+turn a job row the handler already checked back into a scope the rest of the store enforces:
+`workerWorkspaceId` (`ops.ts:98`), `workerTenantId` (`:119`, backed by `workerProjectScope`, `:135`),
+`workerTenant` (`:174`) and `workerJob` (`jobs.ts:200`). `workerTenant` is how a generate job gets the
+whole `TenantContext` it spends under — see §11. The metrics writer uses `workerProjectScope` to file
+each line under the project's own tenant and organization (`packages/host/src/edit/metrics.ts:70`),
+and `GET /api/v1/edit/metrics` reads back only the caller's pair (`metrics.ts:105-110`,
+`handlers/edit.ts:645-655`); a line from before that stamp is served on a desk and never on the
+hosted server. These reads attribute work, they never authorize a caller. They are deliberate and
+auditable; `edit-scope.test.ts` fails if a handler ever imports one.
 
 ### 5. The renderer's copy, and the echo
 
@@ -136,27 +152,38 @@ stream. Whether that is harmless depends entirely on *how* the second copy is ap
 
 ### 6. Owner edits — keyboard, drag, `commitOps`
 
-The keyboard handler is a window listener guarded by "is the studio mounted and is the target not an
-input" (`apps/web/components/edit-studio.tsx:344-397`):
+The keyboard handler is a window listener (`apps/web/components/edit-studio.tsx:357-410`) that asks two
+things before it acts, since 2026-09-23 through `apps/web/lib/shortcut-target.ts`. **Is the studio on
+screen?** Every visited work mode stays mounted behind a `hidden` pane, so a window listener outlives its
+page being shown; `isInHiddenPane` (`shortcut-target.ts:23`, checked at `edit-studio.tsx:359`) answers no
+for a hidden or detached studio. **Does the focused element use this key itself?** `isEditShortcutIgnored`
+(`shortcut-target.ts:92`, checked at `edit-studio.tsx:364`) passes the key to any input, textarea, select or
+button, to any ARIA widget that takes keys (combobox, listbox, slider, tab and the rest), and ignores any
+chord with Ctrl, Cmd or Alt. The guard used to skip only text inputs, so Space on a focused button both
+pressed it and toggled play, and `S` or `Delete` on a focused select split or deleted the selected clip.
 
 | Key | Action |
 |---|---|
 | `Space` / `K` | toggle play |
-| `S` | `split_clip` at the playhead, only when the playhead is **strictly inside** the selected clip (`:361-368`) |
+| `S` | `split_clip` at the playhead, only when the playhead is **strictly inside** the selected clip (`:374-384`, the check at `:378`) |
 | `Delete` / `Backspace` | `delete_clip` on the selection |
 | `J` / `L` | step the playhead by `fps/4`, pausing playback |
 
 There is **no `Ctrl+Z`**. Undo exists only as `edit-card-undo` on an agent card.
 
-Dragging is in `EditTimeline` (`apps/web/components/edit-timeline.tsx:61-138`): mousedown on a clip
-body starts a `move`, on either 1.5 px edge handle a `trim-in` / `trim-out`. The draft lives in local
-state and only commits on mouseup, so a plain click never posts an op. A locked clip (emit lock)
-refuses to start a drag at all (`:64-66`).
+Dragging is in `EditTimeline` (`apps/web/components/edit-timeline.tsx:74`; `beginDrag`, `:107-167`):
+mousedown on a clip body starts a `move`, on either 1.5 px edge handle a `trim-in` / `trim-out`. A locked
+clip (emit lock) refuses to start a drag at all (`:110-112`). Each mouse move stores the clip's draft
+both in the drag ref and in the `drafts` state that draws it (`:152-153`); mouseup hands the ref to
+`finishDrag` (`:52-72`, called at `:163`), which drops the draft and sends the edit. A press with no move
+has no draft and sends nothing. **The ops are sent outside the state updater** (2026-09-23): they used to
+be posted from inside `setDrafts`, and React runs an updater twice under `<StrictMode>`
+(`apps/web/src/main.tsx`), so on webdev every drag posted its move or trim twice.
 
-All of them funnel into `commitOps` (`edit-studio.tsx:235-259`) → `postEditOps`
+All of them funnel into `commitOps` (`edit-studio.tsx:238-262`) → `postEditOps`
 (`apps/web/lib/edit-client.ts:238-293`), which posts `{ops, parent, clock}`, folds the server's
 `applied` into the project and bumps `opsPosted`. `opsPosted` is the number backing `edit-ops-count`
-(`edit-studio.tsx:836-838`) — it is a **session counter, not the ops log**, so it resets to `ops 0` on
+(`edit-studio.tsx:857`) — it is a **session counter, not the ops log**, so it resets to `ops 0` on
 every reload.
 
 `postEditOps` also auto-keeps any card whose clips the owner just touched
@@ -164,8 +191,11 @@ every reload.
 an agent's clip by hand is treated as accepting that card.
 
 The playhead is moved by clicking the timeline's **shared scroll container**, not a track
-(`edit-timeline.tsx:163`, `onTrackClick` at `:54-59`), so a click on any empty pixel — including an
+(`edit-timeline.tsx:192`, `onTrackClick` at `:100-105`), so a click on any empty pixel — including an
 empty track row — seeks. A click on a clip calls `stopPropagation` and only selects.
+
+Tests: `apps/web/lib/edit-timeline-drag.test.ts` (`finishDrag`, including "sends a move once, however many
+times React runs the drafts updater") and `apps/web/lib/shortcut-target.test.ts`.
 
 ### 7. Import
 
@@ -257,14 +287,20 @@ Two integers on the project (`review: {lastAgentSeq, ackSeq}`) and one compariso
 (`apps/web/lib/edit-client.ts:78-83`) both say `ackSeq >= lastAgentSeq`.
 
 - `lastAgentSeq` only moves inside `appendOps` when the op's actor starts with `agent:`
-  (`packages/host/src/edit/ops.ts:234-236`).
+  (`packages/host/src/edit/ops.ts:313-315`).
 - `ackSeq` only moves via a `review_ack` op, which the renderer posts from two places:
-  `edit-review-ok` → `onReviewOk` (`edit-studio.tsx:531-536`), and `onScrubBucket` (`:410-424`) once
+  `edit-review-ok` → `onReviewOk` (`edit-studio.tsx:544-549`), and `onScrubBucket` (`:423-437`) once
   every integer-second bucket of the timeline has been visited.
 - Closed gate → `EditCards` renders `edit-review-card` + `edit-review-ok`, and `edit-export` is
-  disabled (`edit-studio.tsx:659`).
+  disabled (`edit-studio.tsx:680`).
 - The host enforces it independently: `handlePostEditExport` answers `400 review_required` when
-  `reviewGateOpen` is false (`packages/host/src/handlers/edit.ts:443-447`).
+  `reviewGateOpen` is false (`packages/host/src/handlers/edit.ts:519-521`).
+- **The export has one door** (2026-09-23). `render` is the export's job kind, and `POST …/jobs` used to
+  queue any kind it was sent, so a caller could queue a `render` there and skip both the review check
+  and `/export`'s two presets. It now refuses `render` with a pointer to `/export`
+  (`RENDER_JOBS_ROUTE_MESSAGE`, `handlers/edit.ts:454-455`, checked at `:473`)
+  ([SR-68](../security-register.md#sr-68)). The renderer and the agent's export tool never queued it
+  there.
 
 ### 11. Generate
 
@@ -286,7 +322,27 @@ clears the selection (`changePrompt`, `:119-122`), which hides `edit-prompt-temp
 
 Submit posts `POST …/generate`; the handler gates on the gateway first, validates the model/still
 combination, and hands off to `startGenerateJob`
-(`packages/host/src/handlers/edit.ts:539-590` → `packages/host/src/edit/start-generate.ts:156`).
+(`packages/host/src/handlers/edit.ts:657-710` → `packages/host/src/edit/start-generate.ts:167`). A local
+still must be media of the caller's own organization (`assertStillAvailable`, `start-generate.ts:88-101`):
+another organization's media id is answered exactly like an unknown one, where it used to pass the check
+and so reveal that it existed ([SR-71](../security-register.md#sr-71)).
+
+The job row says who asked and carries no tenant. `startGenerateJob` records `requestedBy` from the
+verified tenant (`start-generate.ts:252`), and `enqueueEditJob` drops any `tenant` or `requestedBy` a
+request carries, writing `requestedBy` only from its own argument
+(`packages/host/src/edit/jobs.ts:503-525`). The worker runs as the project's tenant, not the row's:
+`workerTenant` takes tenant, organization and desk from the project and accepts the requester only
+while they are still a member of that organization, through `resolvePortalTenant`
+(`packages/host/src/edit/ops.ts:174-188`). The worker then re-checks the gateway gate for that tenant,
+reads the still through it and hands it to the submit seam as an argument
+(`jobs.ts:221-230`; the seam refuses a job handed no complete tenant, `packages/host/src/edit/wire-generate.ts:20-28`).
+A job with no recorded requester, or one the organization no longer has, fails without calling the
+gateway. Before 2026-09-23 the tenant came from the job's own stored request, which `POST …/jobs` wrote
+from a request body ([SR-67](../security-register.md#sr-67)). The agent's generate tools queue through
+the same seam, with the run's own user as the requester (`packages/host/src/edit/backend.ts:161-175`).
+`POST …/jobs` (`handlers/edit.ts:457-492`) validates the kind against the five the queue knows
+(`parseEditJobKind`, `jobs.ts:44`), refuses both generate kinds with a 400 that names `/generate` and
+`render` with one that names `/export` (`handlers/edit.ts:467`, `:473`), and gates `asr` (`:478-480`).
 A finished generate either lands a clip at `placeAt` or drops into the unplaced tray
 (`edit-tray` / `edit-tray-place` / `edit-tray-discard`, `edit-cards.tsx:124-156`), which is the only
 thing that populates the tray.
@@ -297,14 +353,17 @@ from `GET /api/v1/videos`) (`edit-studio.tsx:129-163`), and it disables `edit-ge
 
 ### 12. Export
 
-`edit-export` → `onExport` (`edit-studio.tsx:558-582`) posts `{preset: "h264-1080p"}`.
-`handlePostEditExport` checks the review gate, then enqueues a `render` job and answers **202** with
-the job row. The renderer stores the job id and watches the job list that arrives over the event
-stream; `edit-export-progress` shows while it is live and `edit-export-download` appears on
-`succeeded`, which then pulls `GET …/export/:jobId/file` and triggers a browser download
-(`onDownloadExport`, `:584-608`).
+`edit-export` → `onExport` (`edit-studio.tsx:571-595`) posts `{preset: "h264-1080p"}`.
+`handlePostEditExport` (`packages/host/src/handlers/edit.ts:515-533`) checks the review gate, then enqueues
+a `render` job and answers **202** with the job row. The renderer stores the job id and watches the job
+list that arrives over the event stream; `edit-export-progress` shows while it is live and
+`edit-export-download` appears on `succeeded`, which then pulls `GET …/export/:jobId/file` and triggers a
+browser download (`onDownloadExport`, `edit-studio.tsx:597-626`). On the packaged app `apiFetch` has
+already written the bytes through the native save dialog, so `onDownloadExport` returns there
+(`:608`) instead of opening a second dialog for the browser download (2026-09-23; Documents and
+Presentations had the same double dialog and the same fix).
 
-The job itself runs in `packages/host/src/edit/jobs.ts:165-170` → `render`
+The job itself runs in `packages/host/src/edit/jobs.ts:232-238` → `render`
 (`packages/host/src/edit/ffmpeg/recipes.ts:221-261`): write an `.ass` document for titles and
 captions, compile the concat/scale/pad filter graph (`compileFilterGraph`, `:170-195`), and run ffmpeg
 into `data/edit/<projectId>/export-<uuid>.mp4` — or, for a tenant other than `local-tenant`,
@@ -313,7 +372,8 @@ Every input and output path is checked against the allow-list for that tenant an
 (`editAllowlist({ tenantId, projectId })` = that tenant's media root + that project's scratch dir, plus the
 `denied` list that keeps the local tenant out of `tenants/`, `packages/host/src/edit/ffmpeg/paths.ts:63-69`).
 The job runner has no request to read a tenant from, so it reads one by project id through `workerTenantId`
-(`packages/host/src/edit/ops.ts:97-109`), the twin of lane A's `workerWorkspaceId`.
+(`packages/host/src/edit/ops.ts:119-121`, backed by `workerProjectScope`, `:135-151`), the twin of lane
+A's `workerWorkspaceId`.
 
 ### Failure modes
 
@@ -321,7 +381,7 @@ The job runner has no request to read a tenant from, so it reads one by project 
 |---|---|---|
 | ffmpeg missing | `resolveFfmpeg` via `getEditDoctor` | `edit-needs-ffmpeg` banner with an install command and `ffmpeg-recheck`; probe/cut/captions/export refuse |
 | No gateway key | `hasOpenai` false | `edit-needs-key` in the Generate tab, `edit-generate-submit` disabled; everything else still works |
-| Gateway gate closed | `requireGatewayAllowed` (`handlers/edit.ts:326`, `:546`) | flat `403 gateway_blocked`, no stream; the composer surfaces `edit.errors.agentFailed` |
+| Gateway gate closed | `requireGatewayAllowedFor` on `/agent`, `/generate` and `asr` on `/jobs` (`handlers/edit.ts:401`, `:661`, `:479`); again in the generate worker (`packages/host/src/edit/jobs.ts:226`) | flat `403 gateway_blocked`, no stream; the composer surfaces `edit.errors.agentFailed`. A generate job that meets a closed gate in the worker fails with the gate's message and calls nothing |
 | Unsupported / oversized upload | `assertEditUpload` (`handlers/edit.ts:600-607`) | `400 invalid_request` / `unsupported_content_type` |
 | ffmpeg cannot read the upload | probe catch (`handlers/edit.ts:257-270`) | `400 unsupported_media`, the saved file is unlinked |
 | `sourcePath` over HTTP | `handlers/edit.ts:214-217` | `400` — IPC only |
@@ -348,6 +408,8 @@ The job runner has no request to read a tenant from, so it reads one by project 
 | `apps/web/components/edit-recipes-panel.tsx` | `edit-recipe-<id>` buttons (no wrapper testid) |
 | `apps/web/components/ffmpeg-setup-notice.tsx` | `edit-needs-ffmpeg` banner and its re-probe |
 | `apps/web/lib/edit-client.ts` | `postEditOps`, `foldApplied`, `isReviewOpen`, `turnSpendUsd`, the API wrappers |
+| `apps/web/lib/shortcut-target.ts` | `isInHiddenPane`, `isEditShortcutIgnored`: whether a window-level shortcut belongs to the page on screen and to the focused element |
+| `packages/host/src/edit/metrics.ts` | Per-tenant Edit metrics: `appendEditMetric` stamps tenant and organization off the project, `foldEditMetrics` reads back only the caller's |
 | `apps/web/lib/edit-badges.ts` | Which cards an owner touch auto-keeps |
 | `apps/web/lib/use-emit-lock.ts` | The 5 s agent-writing lock and the clip ids it dims |
 | `packages/host/src/router.ts:212-231` | The 20 `/api/v1/edit/*` routes |
@@ -451,16 +513,16 @@ The job runner has no request to read a tenant from, so it reads one by project 
 `edit-cut`, `edit-cards`, `edit-review-gate`, `edit-titles`, `edit-generate`, `edit-keep-scenarios`,
 `edit-prompt-templates`, `edit-starter-media`.
 
-DOM testids that prove it: `edit-studio` (`apps/web/components/edit-studio.tsx:630`),
+DOM testids that prove it (the `edit-studio.tsx`, `edit-timeline.tsx` and `settings-page.tsx` lines re-read 2026-09-23; the other files' lines are from 2026-09-20): `edit-studio` (`apps/web/components/edit-studio.tsx:648`),
 `edit-project-list` / `edit-starter` / `edit-starter-description` / `edit-project-name` /
-`edit-new-project` (`:689`, `:696`, `:704`, `:712`, `:717`), `edit-tier` / `edit-jobs` /
-`edit-parity-check` / `edit-export` (`:639`, `:645`, `:652`, `:658`),
-`edit-export-progress` / `edit-export-download` (`:667`, `:675`), `edit-ops-count` (`:836`),
-`edit-import` / `edit-generate-tab` (`:767-769`),
+`edit-new-project` (`:710`, `:717`, `:725`, `:733`, `:738`), `edit-tier` / `edit-jobs` /
+`edit-parity-check` / `edit-export` (`:660`, `:666`, `:673`, `:679`),
+`edit-export-progress` / `edit-export-download` (`:688`, `:696`), `edit-ops-count` (`:857`),
+`edit-import` / `edit-generate-tab` (`:789`),
 `edit-preview` / `edit-preview-video` / `edit-play` / `edit-time`
 (`apps/web/components/edit-preview.tsx:189`, `:216`, `:246`, `:257`),
 `edit-timeline` / `edit-zoom` / `edit-playhead` / `edit-track-<id>` / `edit-clip` / `edit-placeholder`
-(`apps/web/components/edit-timeline.tsx:147`, `:158`, `:168`, `:174`, `:198`),
+(`apps/web/components/edit-timeline.tsx:176`, `:187`, `:197`, `:203`, `:227`),
 `edit-agent-panel` / `edit-spend-meter` / `edit-emit-lock` / `edit-composer` / `edit-composer-send`
 (`apps/web/components/edit-agent-panel.tsx:63`, `:66`, `:71`, `:96`, `:98`),
 `edit-review-card` / `edit-review-ok` / `edit-plan-card` / `edit-plan-go` / `edit-card` /
@@ -480,7 +542,9 @@ DOM testids that prove it: `edit-studio` (`apps/web/components/edit-studio.tsx:6
 `edit-recipe-<id>` (`apps/web/components/edit-recipes-panel.tsx:19`),
 `edit-needs-ffmpeg` / `ffmpeg-install-command` / `ffmpeg-recheck` / `ffmpeg-setup-steps`
 (`apps/web/components/ffmpeg-setup-notice.tsx:65`, `:74`, `:86`, `:98`),
-`settings-edit-turn-cap` (`apps/web/components/settings-page.tsx:396`).
+`settings-edit-turn-cap` (`apps/web/components/settings-page.tsx:496`).
+
+Unit proof for the 2026-09-23 fixes: `packages/host/src/edit/jobs-route.test.ts` (the kinds `POST …/jobs` accepts, refuses and gates), `generate-tenant.test.ts` and `wire-generate.test.ts` (the worker's tenant), `metrics-scope.test.ts` (per-tenant metrics), `still-scope.test.ts`, `doctor-hosted.test.ts`, and on the renderer `apps/web/lib/edit-timeline-drag.test.ts`, `shortcut-target.test.ts` and `desktop-download-wiring.test.ts`.
 
 Doctor proof: `node .cursor/skills/verify-agentforge/scripts/doctor.mjs` with
 `edit.ffmpeg.found: true`. Packaged proof needs `doctor.mjs --desktop`, not `:3000`.

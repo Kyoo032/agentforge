@@ -6,6 +6,11 @@
  * short version is: back the data directory up, rehearse with `--dry-run`, run it, then restart the
  * app with the new key in its environment.
  *
+ * On a hosted deployment it also re-seals the portal refresh token each signed-in session keeps on
+ * `auth_sessions`, so nobody is signed out by the new key. A session the RUNNING app rotates between
+ * this run and the restart is sealed under the old key again and ends at its first check afterwards
+ * (that person signs in once more); stop the app before the real run to avoid even that.
+ *
  * Usage, from the repository root:
  *
  *   AGENTFORGE_DATA_DIR=/srv/agentforge/data \
@@ -110,6 +115,15 @@ async function main(): Promise<void> {
     }
     if (result.skipped.length > 0) {
       console.log(`  no stored settings: ${result.skipped.join(", ")}`);
+    }
+    if (result.sessionTokens > 0) {
+      console.log(`  ${verb} ${result.sessionTokens} signed-in session token(s).`);
+    }
+    if (result.sessionTokensChanged > 0) {
+      console.log(
+        `  ${result.sessionTokensChanged} session token(s) changed while this ran and were left alone; ` +
+          "each of those people signs in again after the restart.",
+      );
     }
     if (result.dryRun) {
       console.log("Dry run: nothing was written. Re-run without --dry-run to rotate.");

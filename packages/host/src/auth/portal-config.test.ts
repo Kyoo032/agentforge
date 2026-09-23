@@ -13,6 +13,7 @@ import {
   PORTAL_CLIENT_ID_ENV,
   PORTAL_CLIENT_SECRET_ENV,
   PUBLIC_URL_ENV,
+  configuredClientCredentials,
   portalClientCredentials,
   portalLoginConfig,
   publicBaseUrl,
@@ -141,5 +142,26 @@ describe("portalLoginConfig", () => {
     );
     expect(error.code).toBe(LOGIN_CONFIG_ERROR);
     expect(error.status).toBe(503);
+  });
+});
+
+/**
+ * The same two values for the refresh, read without the refusal: the code exchange cannot proceed
+ * without a client and says so, but a refresh can — it is counted against the address instead —
+ * and a desk or webdev, which has no portal client at all, must not throw on every portal check.
+ */
+describe("configuredClientCredentials", () => {
+  it("is exactly what portalClientCredentials reads, when both are set", () => {
+    const env = { [PORTAL_CLIENT_ID_ENV]: " cli_abc ", [PORTAL_CLIENT_SECRET_ENV]: " sec_xyz " };
+    expect(configuredClientCredentials(env)).toEqual(portalClientCredentials(env));
+  });
+
+  it.each([
+    ["no id", { [PORTAL_CLIENT_SECRET_ENV]: "sec_xyz" }],
+    ["no secret", { [PORTAL_CLIENT_ID_ENV]: "cli_abc" }],
+    ["a blank secret", { [PORTAL_CLIENT_ID_ENV]: "cli_abc", [PORTAL_CLIENT_SECRET_ENV]: "  " }],
+    ["neither", {}],
+  ])("is null, not a refusal, with %s", (_name, env) => {
+    expect(configuredClientCredentials(env)).toBeNull();
   });
 });

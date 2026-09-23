@@ -1832,3 +1832,102 @@ describe("handleNodeRequest liveness on the loopback port", () => {
     expect(captured.status()).toBe(429);
   });
 });
+
+/**
+ * A malformed `Host` header or a request target that will not parse used to throw straight out of
+ * `handleNodeRequest`: the path was parsed as `new URL(req.url, "http://" + Host)`, so `Host: a b`,
+ * `Host: [`, an empty `Host:` or a target such as `//[` raised `ERR_INVALID_URL` before any rule
+ * ran. `apps/web/server.ts` happened to catch the rejection and hand it to Express; the adapter now
+ * answers 400 itself, in both modes, and never lets the exception out.
+ */
+describe("handleNodeRequest malformed Host header or request target", () => {
+  async function send(input: Parameters<typeof fakeRequest>[0]) {
+    const captured = fakeResponse();
+    const handled = await handleNodeRequest(fakeRequest(input), captured.res);
+    return { captured, handled };
+  }
+
+  const MALFORMED_HOSTS = ["a b", "[", "exa%mple.com", "host:99999", "[::1", "user@evil.example", "evil.example/x", ""];
+
+  it.each(MALFORMED_HOSTS)("answers 400 invalid_host for Host %j on an /api read, off server mode", async (host) => {
+    const { captured, handled } = await send({ method: "GET", url: "/api/v1/ping", headers: { host } });
+    expect(handled).toBe(true);
+    expect(captured.status()).toBe(400);
+    expect(captured.json().error?.code).toBe("invalid_host");
+    expect(dispatched).toHaveLength(0);
+  });
+
+  it("answers 400 for a malformed Host on a mutating /api call, before the loopback rule", async () => {
+    const { captured } = await send({
+      method: "POST",
+      url: "/api/v1/settings/gateway/check",
+      headers: { host: "a b", ...TRANSPORT },
+    });
+    expect(captured.status()).toBe(400);
+    expect(captured.json().error?.code).toBe("invalid_host");
+    expect(dispatched).toHaveLength(0);
+  });
+
+  it("answers 400 for a malformed Host on a page request too, rather than throwing", async () => {
+    const { captured, handled } = await send({ method: "GET", url: "/chat", headers: { host: "[" } });
+    expect(handled).toBe(true);
+    expect(captured.status()).toBe(400);
+  });
+
+  it("answers 400 invalid_host in server mode, after the TLS rule, and logs it without the value", async () => {
+    useServerMode();
+    const { captured } = await send({ method: "GET", url: "/api/v1/settings", headers: { host: "exa%mple.com" } });
+    expect(captured.status()).toBe(400);
+    expect(captured.json().error?.code).toBe("invalid_host");
+    const line = logged.find((entry) => entry.event === "request_filtered");
+    expect(line?.fields).toMatchObject({ code: "invalid_host", status: 400 });
+    expect(JSON.stringify(line?.fields)).not.toContain("exa%mple");
+    expect(dispatched).toHaveLength(0);
+  });
+
+  it("still answers https_required first on a plaintext hop, whatever the Host says", async () => {
+    useServerMode();
+    const { captured } = await send({
+      method: "GET",
+      url: "/api/v1/settings",
+      headers: { host: "a b" },
+      forwardedProto: null,
+    });
+    expect(captured.status()).toBe(403);
+    expect(captured.json().error?.code).toBe("https_required");
+  });
+
+  it.each(["//[", "http://[/api/v1/ping", "//[::1/api/v1/ping"])(
+    "answers 400 invalid_path for the unparseable target %j, off server mode",
+    async (url) => {
+      const { captured, handled } = await send({ method: "GET", url, headers: { host: LOOPBACK_HOST } });
+      expect(handled).toBe(true);
+      expect(captured.status()).toBe(400);
+      expect(captured.json().error?.code).toBe("invalid_path");
+      expect(dispatched).toHaveLength(0);
+    },
+  );
+
+  it("answers 400 invalid_path for an unparseable target in server mode", async () => {
+    useServerMode();
+    const { captured } = await send({ method: "GET", url: "//[", headers: { host: WEB_HOST } });
+    expect(captured.status()).toBe(400);
+    expect(captured.json().error?.code).toBe("invalid_path");
+    expect(dispatched).toHaveLength(0);
+  });
+
+  it("parses the path without the Host, so a well-formed but unusual Host still reaches the router", async () => {
+    for (const host of ["my_service:3000", "Example.COM:443", "[::1]:3000", "app.example.com."]) {
+      dispatched.length = 0;
+      const { captured } = await send({ method: "GET", url: "/api/v1/ping?x=1", headers: { host } });
+      expect(captured.status(), host).toBe(200);
+      expect(dispatched[0]).toMatchObject({ path: "/api/v1/ping", query: { x: "1" } });
+    }
+  });
+
+  it("still treats an absent Host as absent, not malformed", async () => {
+    const { captured } = await send({ method: "GET", url: "/api/v1/ping" });
+    expect(captured.status()).toBe(200);
+    expect(dispatched).toHaveLength(1);
+  });
+});

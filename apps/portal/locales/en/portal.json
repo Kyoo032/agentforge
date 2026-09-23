@@ -17,6 +17,7 @@
     "invalid": "That code is not right. {attempts} attempts left.",
     "expired": "That code has expired. Start again.",
     "exhausted": "Too many attempts on that code. Start again.",
+    "locked": "Too many sign-in attempts for this address. Try again in 24 hours.",
     "missing": "Enter the six digits from the e-mail."
   },
   "approve": {

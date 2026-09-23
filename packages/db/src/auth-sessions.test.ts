@@ -23,6 +23,8 @@ describe("auth_sessions", () => {
       "expires_at",
       "absolute_expires_at",
       "revoked_at",
+      "portal_checked_at",
+      "refresh_sealed",
     ]);
     sqlite.close();
   });
@@ -40,6 +42,8 @@ describe("auth_sessions", () => {
       "expires_at",
       "absolute_expires_at",
       "revoked_at",
+      "portal_checked_at",
+      "refresh_sealed",
     ]);
     expect(config.indexes.map((index) => index.config.name).sort()).toEqual([
       "auth_sessions_expires_idx",

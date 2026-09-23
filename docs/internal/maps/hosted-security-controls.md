@@ -1,10 +1,11 @@
 # Map — Hosted security controls
 
-Last verified: 2026-09-21 at 4938747 + working tree. The boot guards and the response headers were
-re-verified against that tree ([SR-14](../security-register.md#sr-14),
-[SR-04](../security-register.md#sr-04)); the boot-guard path, the ffmpeg failure detail and the
-top-up link were re-checked again after the fix pass of the same day. Anything not named in those
-sections was last walked on 2026-09-20 at `a053245`, on the Phase 4 branch.
+Last verified: 2026-09-23 at d4561b8 + working tree for sections 1-4 and every
+`http-adapter.ts` citation on this page (the auth pass: the production https rule for the portal
+URL, the malformed Host / request-target 400, the gate's portal re-check, digest session ids). The
+response headers, the ffmpeg failure detail and the top-up link keep their 2026-09-21 reading at
+4938747 ([SR-14](../security-register.md#sr-14), [SR-04](../security-register.md#sr-04)); anything
+else was last walked on 2026-09-20 at `a053245`, on the Phase 4 branch.
 
 ## Overview
 
@@ -66,7 +67,13 @@ portal client credentials pass `portalClientCredentials`, an explicitly set `AGE
 passes `publicBaseUrl`, and — on `NODE_ENV=production` only — `AGENTFORGE_BILLING_WEBHOOK_SECRET`
 is set. Off production a missing billing secret is a startup warning instead. **It borrows every
 rule from the code that will later enforce it and restates none**, which is the point: a second
-copy of "what a good wrap key looks like" is how two answers to the same question appear. The
+copy of "what a good wrap key looks like" is how two answers to the same question appear. One rule
+is added on top, and it is only ever stricter than the one it sits on: since 2026-09-23
+([SR-26](../security-register.md#sr-26), owner decision) `AGENTFORGE_PORTAL_URL` must be https on
+`NODE_ENV=production` even on loopback (`portalUrlProblem`, `packages/host/src/hosted-env.ts:128`),
+while `tls.ts` keeps the loopback exemption for the desk and the review instance. A review instance
+started with `-Production` and the default `http://127.0.0.1:<port>` portal URL now refuses to boot
+until it is given an https portal origin. The
 message names every broken variable at once and never prints a value. It lives in the host package
 rather than in `apps/web` because those rules sit in three packages and `apps/web` can see only
 two; `apps/web/server/hosted-mode-guard.ts:28` re-exports it so `server.ts` reaches both guards
@@ -82,24 +89,36 @@ load-bearing; if that mount ever moves, the controls move with it.
 
 | # | Line | Control | Applies to |
 |---|---|---|---|
-| 1 | `:424` | `applySecurityHeaders(res, serverMode)` | every request, before any handler writes a header |
-| 2 | `:435-437` | `mintRequestId()` → `X-Request-Id` | every request (header in server mode only) |
-| 3 | `:455` | `transportRejection` — TLS, method allowlist, path filter, header cap, per-IP and per-session buckets | **every** request, not only `/api` |
-| 4 | `:461` | non-`/api` paths return `false`; Express serves the page | — |
-| 5 | `:470` | `mutatingRejection` — Origin/Host allowlist, double-submit CSRF, `x-agentforge-transport` | non-safe methods on `/api` |
-| 6 | `packages/host/src/router.ts:455-461` | `requireSessionFor` — the session gate, before the route table | `/api` minus the exempt paths |
-| 7 | `:533` | `logAuthFailure` | a 401 coming back out |
-| 8 | `:384` | `maskServerError` | any 5xx, in server mode |
+| 1 | `:572` | `applySecurityHeaders(res, serverMode)` | every request, before any handler writes a header |
+| 2 | `:584` | `mintRequestId()` → `X-Request-Id` | every request (header in server mode only) |
+| 3 | `:612` | `transportRejection` — TLS, method allowlist, path filter, header cap, per-IP and per-session buckets | **every** request, not only `/api` |
+| 4 | `:617` | a request target that will not parse → 400 `invalid_path`; a `Host` that is not `host[:port]` → 400 `invalid_host` | **every** request, in both modes (decided at `:556`, before the page / API split at `:562`) |
+| 5 | `:624` | non-`/api` paths return `false`; Express serves the page | — |
+| 6 | `:633` | `mutatingRejection` — Origin/Host allowlist, double-submit CSRF, `x-agentforge-transport` | non-safe methods on `/api` |
+| 7 | `packages/host/src/router.ts:456` | `gate` → `requireSessionFor` — the session row, then the portal re-check on a due session, before the route table | `/api` minus the exempt paths |
+| 8 | `:706` | `logAuthFailure` | a 401 coming back out |
+| 9 | `:495` | `maskServerError` | any 5xx, in server mode |
 
 Step 3 covering non-`/api` traffic is the part people get wrong: the TLS rule, the method
 allowlist and the per-IP bucket would otherwise be off for the bulk of the traffic. Only the
 Origin / CSRF / session rules are API-only, because those are about a call the renderer makes
 rather than about the hop it arrived on.
 
+Step 4 is new on 2026-09-23. The path used to be parsed as `new URL(req.url, "http://" + Host)`,
+so a malformed `Host` (`a b`, `[`, an empty value) or a target such as `//[` threw
+`ERR_INVALID_URL` straight out of the adapter before any rule ran, and only `apps/web/server.ts`'s
+`.then(…, next)` kept it from being an unhandled rejection. The target is now parsed against a
+fixed base (`TARGET_PARSE_BASE`, `:150`; `requestTargetOf`, `:167`), so the `Host` never reaches the
+URL parser, and `isMalformedHostHeader` (`:203`) judges the header on its own: empty, whitespace,
+`/ \ ? # @`, or anything the URL parser refuses as an authority. An absent `Host` is not malformed
+here — the mutating rules already refuse a write without one. In server mode the 400 comes after
+the TLS rule and the buckets, so a malformed request is still counted and a plaintext one still gets
+`https_required` first.
+
 ### 3. Origin, Host and CSRF
 
-`mutatingRejection` (`packages/host/src/http-adapter.ts:682-711`) chooses between two rules — the
-hosted branch at `:612-620` and the desk branch at `:621-623`:
+`mutatingRejection` (`packages/host/src/http-adapter.ts:768`) chooses between two rules — the
+hosted branch at `:780-788` and the desk branch at `:789`:
 
 - **Off server mode**, unchanged from the desk: a missing `Origin` means same-machine, and `Host`
   must be loopback.
@@ -107,22 +126,30 @@ hosted branch at `:612-620` and the desk branch at `:621-623`:
   be one of those origins' hosts; and the double-submit CSRF token must match — cookie
   `__Host-agentforge_csrf` against header `x-agentforge-csrf` (`packages/host/src/csrf.ts`).
 
-HTTPS is required via `X-Forwarded-Proto` (`:52-54`, `HTTPS_REQUIRED` at `:90`); a direct hit on
+HTTPS is required via `X-Forwarded-Proto` (`:62-64`, `HTTPS_REQUIRED` at `:100`); a direct hit on
 the app's own loopback port with no such header is refused in server mode.
 
 ### 4. Sessions
 
-`packages/host/src/auth/session.ts`. Opaque 32-byte ids (`SESSION_ID_BYTES` at `:16`,
-`mintSessionId` at `:99`) stored server-side in `auth_sessions` — no JWT, nothing signed, nothing
-the client can forge or read. Cookie is `__Host-agentforge_session` in server mode (`:30`),
-`agentforge_session` off it (`:29`, chosen by `sessionCookieName` at `:36`).
+`packages/host/src/auth/session.ts`. Opaque 32-byte ids (`SESSION_ID_BYTES` at `:16`) — no JWT,
+nothing signed, nothing the client can forge or read. Since 2026-09-23 `auth_sessions` stores the
+SHA-256 of the id, never the id (`hashSessionId`, `:125`; migration 0021), so a copy of the table
+replays no session. Cookie is `__Host-agentforge_session` in server mode, `agentforge_session` off
+it (chosen by `sessionCookieName`).
 
-`verifySession` (`:122`) enforces 12 hours idle (`IDLE_TIMEOUT_MS`, `:40`) and 30 days absolute
-(`ABSOLUTE_LIFETIME_MS`, `:41`), sliding at most every 5 minutes (`SLIDE_INTERVAL_MS`, `:43`) so a
-busy tab does not write a row per request.
+`verifySession` (`:155`) enforces 12 hours idle (`IDLE_TIMEOUT_MS`) and 30 days absolute
+(`ABSOLUTE_LIFETIME_MS`), sliding at most every 5 minutes (`SLIDE_INTERVAL_MS`) so a busy tab does
+not write a row per request. On top of the row, the gate re-checks a session with the portal once
+its last portal check is ten minutes old (`packages/host/src/auth/portal-check.ts`): a session the
+portal has revoked, a disabled user or an organisation past due is refused with the portal's reason;
+an unreachable or rate-limiting portal refuses nobody, and neither does the portal rejecting this
+deployment's own client id or secret. The portal refresh token behind each session is kept on its
+row sealed under a key derived from the wrap key (HKDF, info `auth-session-refresh-v1`), so a
+restart signs nobody out; the access token is never stored, and the wrap-key drill re-seals the
+stored tokens. Details in [`portal-session-auth.md`](portal-session-auth.md).
 
-The gate runs in `packages/host/src/router.ts:434-442`, **before the route table is consulted** — an
-unauthenticated caller learns nothing about which paths exist.
+The gate runs in `gate`, `packages/host/src/router.ts:456`, **before the route table is consulted**
+— an unauthenticated caller learns nothing about which paths exist.
 
 ### 5. Rate limits
 
@@ -156,8 +183,8 @@ limiter cannot itself become the memory exhaustion.
   than a header nobody sends.
 - **Identity headers stripped.** `X-Powered-By` and `Server` are removed in the adapter
   (`IDENTITY_HEADERS`, `packages/host/src/http-adapter.ts:53`) and again at the proxy.
-- **Errors masked.** `maskServerError` (`:384`) replaces any 5xx message with a fixed string and
-  keeps only a code matching `/^[a-z0-9_]+$/` (`:49`), so a SQLite error naming a column or a path
+- **Errors masked.** `maskServerError` (`:495`) replaces any 5xx message with a fixed string and
+  keeps only a code matching `/^[a-z0-9_]+$/` (`:59`), so a SQLite error naming a column or a path
   never reaches the client. Off server mode it is a no-op and webdev's error path is untouched.
 - **4xx is NOT masked, which is where the leaks live.** `maskServerError` only touches 5xx, and a
   deliberately malformed upload is answered `400`. The one that got through was ffmpeg: a failed
@@ -181,7 +208,7 @@ limiter cannot itself become the memory exhaustion.
   a control at the sink are the two ends of one string, not a duplicate.
 - **Downloads.** `packages/host/src/content-disposition.ts` builds every attachment header —
   quoted ASCII `filename` plus an RFC 5987 `filename*` when the name is not Latin-1. Applied in
-  the adapter (`:273`) so a new download route cannot forget it.
+  the adapter (`:347`) so a new download route cannot forget it.
 
 ### 7. Outbound — the SSRF guard
 
@@ -266,13 +293,13 @@ Automated, and these are what actually prove this page:
 
 | Suite | Proves |
 |---|---|
-| `packages/host/src/http-adapter.test.ts` (98) | admission order, Origin/Host/CSRF, rate limits, masking, request id, `auth_failed` |
+| `packages/host/src/http-adapter.test.ts` (131, run 2026-09-23) | admission order, Origin/Host/CSRF, rate limits, masking, request id, `auth_failed`, and a malformed `Host` or unparseable target answered 400 in both modes rather than thrown |
 | `packages/host/src/security-headers.test.ts` (14) | the header set, the exact `Permissions-Policy` string, and Caddyfile parity |
 | `packages/core/src/security/ip-range.test.ts` (14) | CIDR membership, the v4-in-v6 forms |
 | `packages/core/src/security/safe-fetch.test.ts` (19) | scheme, credentials, per-hop redirects, DNS resolution |
 | `packages/db/src/vault-key.test.ts` (26) | length and randomness floors, `.master-key` corruption |
 | `apps/web/server/hosted-mode-guard.test.ts` (13) | the production-build refusal, that compose still pins the flag, and that both boot guards run before `server.listen` |
-| `packages/host/src/hosted-env.test.ts` (32) | one row per hosted variable, the aggregated message, that no value is printed, and that local mode is untouched |
+| `packages/host/src/hosted-env.test.ts` (48, run 2026-09-23) | one row per hosted variable, the aggregated message, that no value is printed, that local mode is untouched, and SR-26: a loopback http portal URL refused on `NODE_ENV=production` and kept everywhere else |
 | `scripts/ci-local.mjs` (`pnpm ci:local`) | runs all of the above, one package at a time. Since 2026-09-24 it is the only CI: `.github/workflows/` is deleted, and nothing runs these unless someone runs it (`../security-register.md`, SR-80) |
 
 **There is no `verify-agentforge` feature file for this page, and that is a gap rather than a

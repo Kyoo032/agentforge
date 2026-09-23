@@ -8,7 +8,7 @@ import { clearCookie, cookieNames, cookiesAreSecure, parseCookies, serialiseCook
 import { clientIp, rateLimitKey } from "./client-ip";
 import { csrfMatches, mintCsrfToken } from "./csrf";
 import { formActionSource, htmlResponse, redirectResponse } from "./headers";
-import { createRateLimiter } from "./rate-limit";
+import { createPortalLimiters, createRateLimiter } from "./rate-limit";
 import { mintWebSession, readWebSession, webSessionSecret, WEB_SESSION_TTL_MS } from "./web-session";
 
 const KEY = resolveKeyring({ production: false, signingKey: Buffer.alloc(32, 4) }).current;
@@ -210,14 +210,109 @@ describe("rate limiting", () => {
     expect(limiter.peek("a").ok).toBe(false);
   });
 
-  it("stops growing at maxKeys instead of becoming the exhaustion", () => {
+  /**
+   * The map is capped so the limiter cannot become the memory exhaustion it defends against. It
+   * used to REFUSE every new key once the cap was full of live windows, so a flood of distinct keys
+   * (one IPv6 /64 holds more than enough addresses) locked every new caller out for a whole window.
+   * It evicts the oldest window instead. Evicting lets a flooder reset a window, but a flooder with
+   * that many addresses could already start fresh windows by rotating addresses, so the cap still
+   * bounds memory and no longer locks anybody out.
+   */
+  it("stops growing at maxKeys by evicting the oldest window, not by refusing the next caller", () => {
     const clock = fixedClock(new Date(NOW));
     const limiter = createRateLimiter({ clock, windowMs: 60_000, max: 5, maxKeys: 4 });
     for (let i = 0; i < 4; i += 1) {
       expect(limiter.check(`k${i}`).ok).toBe(true);
     }
-    expect(limiter.check("k4").ok).toBe(false);
+
+    expect(limiter.check("k4").ok).toBe(true);
     expect(limiter.size).toBe(4);
+  });
+
+  it("keeps a flood of new keys from locking a new caller out", () => {
+    const clock = fixedClock(new Date(NOW));
+    const limiter = createRateLimiter({ clock, windowMs: 60_000, max: 1, maxKeys: 3 });
+    limiter.check("k0");
+    limiter.check("k1");
+    limiter.check("k2");
+    expect(limiter.check("k1").ok).toBe(false);
+
+    for (let i = 0; i < 1_000; i += 1) {
+      clock.advance(1);
+      expect(limiter.check(`flood-${i}`).ok).toBe(true);
+    }
+    expect(limiter.size).toBe(3);
+    // The honest caller who arrives after the flood gets a window of their own.
+    expect(limiter.check("honest").ok).toBe(true);
+  });
+
+  /**
+   * `Map#set` on a key that is already there keeps the key's ORIGINAL position, so a key whose
+   * window rolled over and restarted would still sit at the front and be taken for the oldest.
+   */
+  it("evicts the window that started first, even when an older key restarted its window later", () => {
+    const clock = fixedClock(new Date(NOW));
+    const limiter = createRateLimiter({ clock, windowMs: 60_000, max: 1, maxKeys: 3 });
+    limiter.check("a");
+    clock.advance(60_001);
+    limiter.check("b");
+    clock.advance(1);
+    // `a`'s first window has rolled, so this starts a new one, which is younger than `b`'s.
+    expect(limiter.check("a").ok).toBe(true);
+    limiter.check("c");
+
+    // Full, nothing expired: the oldest live window is `b`'s, and that is the one that goes.
+    expect(limiter.check("d").ok).toBe(true);
+    expect(limiter.check("a").ok).toBe(false);
+    expect(limiter.check("b").ok).toBe(true);
+  });
+
+  /**
+   * The host refreshes every hosted session through the portal every ~10 minutes, all from one
+   * address, so 300 per address per 10 minutes capped the hosted app at ~300 active sessions. A
+   * refresh from an authenticated confidential client is counted against the CLIENT instead.
+   */
+  it("gives a confidential client 20,000 refreshes per 10 minutes, keyed on its client_id", () => {
+    const limiters = createPortalLimiters(fixedClock(new Date(NOW)));
+    let allowed = 0;
+    while (limiters.tokenClient.check("agentforge-web").ok) {
+      allowed += 1;
+    }
+    expect(allowed).toBe(20_000);
+    expect(limiters.tokenClient.check("another-client").ok).toBe(true);
+    // The public, per-address bucket is untouched by any of that.
+    expect(limiters.tokenIp.peek("198.51.100.1").ok).toBe(true);
+  });
+
+  it("bounds failed client authentications on a refresh at 20 per 10 minutes per address", () => {
+    const limiters = createPortalLimiters(fixedClock(new Date(NOW)));
+    let allowed = 0;
+    while (limiters.tokenClientAuthFailIp.check("203.0.113.5").ok) {
+      allowed += 1;
+    }
+    expect(allowed).toBe(20);
+  });
+
+  it("treats a cap below one as one, rather than looping on an empty map", () => {
+    const clock = fixedClock(new Date(NOW));
+    const limiter = createRateLimiter({ clock, windowMs: 60_000, max: 1, maxKeys: 0 });
+    expect(limiter.check("a").ok).toBe(true);
+    expect(limiter.check("b").ok).toBe(true);
+    expect(limiter.size).toBe(1);
+  });
+
+  it("sweeps expired windows before it evicts a live one", () => {
+    const clock = fixedClock(new Date(NOW));
+    const limiter = createRateLimiter({ clock, windowMs: 60_000, max: 1, maxKeys: 3 });
+    limiter.check("old-1");
+    limiter.check("old-2");
+    clock.advance(30_000);
+    limiter.check("live");
+    clock.advance(30_001);
+
+    expect(limiter.check("new").ok).toBe(true);
+    expect(limiter.size).toBe(2);
+    expect(limiter.check("live").ok).toBe(false);
   });
 });
 
@@ -228,8 +323,47 @@ describe("client address", () => {
     expect(clientIp({ headers, socketIp: "127.0.0.1", trustProxy: false })).toBe("127.0.0.1");
   });
 
-  it("takes the left-most forwarded address when the flag is set", () => {
-    expect(clientIp({ headers, socketIp: "127.0.0.1", trustProxy: true })).toBe("203.0.113.9");
+  /**
+   * The proxy in front (Caddy, `webapp-deploy/Caddyfile`) APPENDS the peer it saw, or replaces the
+   * header outright; either way the right-most entry is the only one it wrote. Everything to the
+   * left came from the client. Reading the left-most let any caller pick its own rate-limit bucket
+   * per request, and pick somebody else's to exhaust.
+   */
+  it("takes the right-most forwarded address, the one the proxy in front wrote", () => {
+    expect(clientIp({ headers, socketIp: "127.0.0.1", trustProxy: true })).toBe("10.0.0.1");
+  });
+
+  it("cannot be steered by a forged prefix: rotating it leaves the same address", () => {
+    const seen = new Set(
+      ["6.6.6.6", "7.7.7.7, 8.8.8.8", "not-an-ip", "", "203.0.113.200"].map((forged) =>
+        clientIp({
+          headers: { "x-forwarded-for": `${forged}, 198.51.100.7` },
+          socketIp: "127.0.0.1",
+          trustProxy: true,
+        }),
+      ),
+    );
+    expect([...seen]).toEqual(["198.51.100.7"]);
+  });
+
+  it("falls back to the socket, never to a client-written entry, when the last hop is not an address", () => {
+    for (const header of ["203.0.113.9, not-an-ip", "203.0.113.9, 198.51.100.7:4711", "203.0.113.9,", "203.0.113.9, "]) {
+      expect(clientIp({ headers: { "x-forwarded-for": header }, socketIp: "10.0.0.2", trustProxy: true }), header).toBe(
+        "10.0.0.2",
+      );
+    }
+  });
+
+  it("reads the last hop across repeated header lines, and normalises it", () => {
+    expect(
+      clientIp({ headers: { "x-forwarded-for": ["6.6.6.6", "198.51.100.7"] }, socketIp: null, trustProxy: true }),
+    ).toBe("198.51.100.7");
+    expect(
+      clientIp({ headers: { "x-forwarded-for": " 6.6.6.6 ,  ::ffff:198.51.100.7 " }, socketIp: null, trustProxy: true }),
+    ).toBe("198.51.100.7");
+    expect(
+      clientIp({ headers: { "x-forwarded-for": "6.6.6.6, [2001:db8::7]" }, socketIp: null, trustProxy: true }),
+    ).toBe("2001:db8::7");
   });
 
   it("falls back to the socket when the header is not an address", () => {

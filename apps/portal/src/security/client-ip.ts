@@ -10,6 +10,17 @@
  * runtime (SR-33). This module reads no environment of its own: a typo in the variable used to
  * mean "off", silently, and now it is a boot error.
  *
+ * **One trusted hop: the RIGHT-most entry, and only that one.** The header is a chain, and the
+ * client writes its start. The proxy in front (Caddy, `webapp-deploy/Caddyfile`) either replaces
+ * the header with the peer it saw, or appends that peer to whatever the client sent. Either way,
+ * the last entry is the only one this deployment's own proxy wrote. Reading the left-most entry, as
+ * this used to, let a caller pick a fresh rate-limit bucket per request by rotating a forged
+ * prefix, or pick somebody else's bucket to exhaust. When the last entry is not an address
+ * (a proxy that writes `ip:port`, say), the answer is the socket peer, **never** an entry further
+ * left: those are the client's. The host keys its own limiter the same way
+ * (`packages/host/src/rate-limit.ts`, `clientIp`). A second appending proxy in front of the first
+ * moves the client one hop left, so this rule changes whenever the proxy chain does.
+ *
  * The value also reaches `audit_log.ip` and `device_codes.created_ip`, which are `inet` columns, so
  * anything that is not an address becomes `null` rather than a failed INSERT.
  */
@@ -44,10 +55,11 @@ export interface ClientIpInput {
 export function clientIp(input: ClientIpInput): string | null {
   if (input.trustProxy) {
     const header = input.headers["x-forwarded-for"];
-    const raw = Array.isArray(header) ? header[0] : header;
-    // Left-most is the original client; the rest are proxies that appended themselves.
-    const first = raw?.split(",")[0];
-    const forwarded = first ? normalise(first) : null;
+    // Repeated header lines are one chain in order; node joins them with ", " itself.
+    const raw = Array.isArray(header) ? header.join(",") : header;
+    // The last entry is the one the proxy in front wrote. Nothing to its left is trusted.
+    const lastHop = raw?.split(",").at(-1);
+    const forwarded = lastHop ? normalise(lastHop) : null;
     if (forwarded) {
       return forwarded;
     }

@@ -737,7 +737,14 @@ function Get-PortalEnvironment {
     return @{
         'PORTAL_PORT'             = "$PortalPort"
         'PORTAL_DATA_DIR'         = $PortalData
-        'PORTAL_DATABASE_URL'     = "postgres://$($PostgresUser):$($Secrets['PORTAL_POSTGRES_PASSWORD'])@127.0.0.1:$PostgresPort/$PostgresDb"
+        # Two roles. The compose superuser owns the schema and runs the migrations, and nothing else.
+        # The server runs as portal_app_login (apps/portal/migrations/0010), a plain member of
+        # portal_app that every tenant policy applies to. Outside production the portal sets that
+        # role's password from this DSN on each migrate (apps/portal/src/boot.ts). This harness
+        # reuses the compose password for it: review.env holds one database secret, and the portal
+        # process holds both DSNs anyway, because it migrates at boot.
+        'PORTAL_MIGRATE_DATABASE_URL' = "postgres://$($PostgresUser):$($Secrets['PORTAL_POSTGRES_PASSWORD'])@127.0.0.1:$PostgresPort/$PostgresDb"
+        'PORTAL_DATABASE_URL'     = "postgres://portal_app_login:$($Secrets['PORTAL_POSTGRES_PASSWORD'])@127.0.0.1:$PostgresPort/$PostgresDb"
         'PORTAL_SIGNING_KEY'      = $Secrets['PORTAL_SIGNING_KEY']
         # The access token's `iss` and the device flow's verification_uri. A token minted with the
         # wrong issuer verifies nowhere, so this follows the name the browser actually used.
@@ -856,7 +863,8 @@ Write-Host "--- 1. portal  ($PortalUrl) ---" -ForegroundColor Cyan
 foreach ($name in ($portalEnv.Keys | Sort-Object)) {
     $value = $portalEnv[$name]
     if ($name -eq 'PORTAL_SIGNING_KEY') { $value = Format-Masked $value }
-    if ($name -eq 'PORTAL_DATABASE_URL') { $value = "postgres://$($PostgresUser):********@127.0.0.1:$PostgresPort/$PostgresDb" }
+    if ($name -eq 'PORTAL_MIGRATE_DATABASE_URL') { $value = "postgres://$($PostgresUser):********@127.0.0.1:$PostgresPort/$PostgresDb" }
+    if ($name -eq 'PORTAL_DATABASE_URL') { $value = "postgres://portal_app_login:********@127.0.0.1:$PostgresPort/$PostgresDb" }
     Write-Host ("  {0,-24} {1}" -f $name, $value)
 }
 Write-Host "  $PortalRun dev"

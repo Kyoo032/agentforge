@@ -139,6 +139,12 @@ export function asAppRole(databaseUrl: string): string {
   return url.toString();
 }
 
+/** `asAppRole`, once the role is known to exist: for a suite that opens its own stores. */
+export async function appRoleUrl(database: TestDatabase): Promise<string> {
+  await ensureAppRole(inject("portalTestDb").adminUrl);
+  return asAppRole(database.url);
+}
+
 export interface TestStore {
   readonly store: PortalStore;
   readonly database: TestDatabase;

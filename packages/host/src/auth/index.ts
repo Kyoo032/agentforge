@@ -1,14 +1,19 @@
 /**
  * The auth module's public surface, and the one place the hosted server's real dependencies are
- * wired together (store → SQLite, vault → process memory, portal → `AGENTFORGE_PORTAL_URL`).
+ * wired together (store → SQLite, the refresh token → sealed on the session row under the wrap key,
+ * vault → process memory, portal → `AGENTFORGE_PORTAL_URL`).
  *
  * Everything is lazy on purpose. The desktop and webdev import the router and never sign in, so
  * nothing here may open the database or read the portal URL at import time — `portalBaseUrl` throws
  * when the variable is absent, which is correct on a server and wrong everywhere else.
  */
 import { isServerMode } from "@agentforge/core";
+import { getLocalVaultKey } from "@agentforge/db/vault-key";
 import { log } from "../log";
+import { createPortalSessionCheck, type PortalSessionCheck } from "./portal-check";
 import { createPortalClient, type PortalClient, type PortalClientOptions } from "./portal-client";
+import { configuredClientCredentials } from "./portal-config";
+import { createSessionSecrets, type SessionSecrets } from "./session-secrets";
 import { createHostSessionStore, createMemoryTokenVault, type SessionStore, type TokenVault } from "./session-store";
 import { createAuthRoutes, type AuthRoutes } from "./routes";
 
@@ -19,10 +24,13 @@ export {
   SESSION_COOKIE,
   SESSION_COOKIE_SECURE,
   SESSION_ID_BYTES,
+  PORTAL_CHECK_INTERVAL_MS,
   SLIDE_INTERVAL_MS,
   createSession,
+  hashSessionId,
   isAuthReason,
   mintSessionId,
+  portalCheckDue,
   readSessionCookie,
   revokedSession,
   sessionCookieMaxAge,
@@ -40,6 +48,28 @@ export {
 } from "./session-store";
 export type { PortalTokenSet, SessionStore, TokenVault } from "./session-store";
 export {
+  REFRESH_SEALING_INFO,
+  createSessionSecrets,
+  openRefresh,
+  refreshSealingKey,
+  sealRefresh,
+} from "./session-secrets";
+export type { SessionSecrets, StoredRefresh } from "./session-secrets";
+export {
+  PORTAL_CHECK_RETRY_MS,
+  PORTAL_CHECK_WAIT_MS,
+  TERMINAL_PORTAL_REASONS,
+  createPortalSessionCheck,
+  isTerminalPortalReason,
+} from "./portal-check";
+export type {
+  PortalCheckContext,
+  PortalGateVerdict,
+  PortalRefreshOutcome,
+  PortalSessionCheck,
+  PortalSessionCheckOptions,
+} from "./portal-check";
+export {
   PORTAL_AUTHORIZE_PATH,
   PORTAL_TIMEOUT_MS,
   PORTAL_URL_ENV,
@@ -55,6 +85,7 @@ export type {
   PortalClient,
   PortalClientOptions,
   PortalExchangeInput,
+  PortalRefreshInput,
   PortalTokens,
 } from "./portal-client";
 export {
@@ -73,6 +104,7 @@ export {
   PORTAL_CLIENT_ID_ENV,
   PORTAL_CLIENT_SECRET_ENV,
   PUBLIC_URL_ENV,
+  configuredClientCredentials,
   portalClientCredentials,
   portalLoginConfig,
   publicBaseUrl,
@@ -135,6 +167,9 @@ export function startSessionPurge(
 
 let store: SessionStore | null = null;
 let vault: TokenVault | null = null;
+let portal: PortalClient | null = null;
+let portalCheck: PortalSessionCheck | null = null;
+let secrets: SessionSecrets | null = null;
 let routes: AuthRoutes | null = null;
 let stopPurge: (() => void) | null = null;
 
@@ -147,17 +182,55 @@ export function hostSessionStore(): SessionStore {
   return store;
 }
 
-/** The server's portal tokens: process memory only, until Phase 4 gives the server an envelope. */
+/**
+ * This process's working copy of the portal tokens. The access token lives only here; the refresh
+ * token is also sealed on the session row (`hostSessionSecrets`), which is what a restart reads.
+ */
 export function hostTokenVault(): TokenVault {
   vault ??= createMemoryTokenVault();
   return vault;
+}
+
+/**
+ * Seals and opens the refresh token kept on each session row (`./session-secrets.ts`), under
+ * `AGENTFORGE_SECRETS_KEY` as it stands at each call. One per process, shared by the gate's check
+ * and the auth routes, so sign-in seals with exactly what a restart will open with.
+ */
+export function hostSessionSecrets(): SessionSecrets {
+  secrets ??= createSessionSecrets(() => getLocalVaultKey());
+  return secrets;
+}
+
+/** One portal client per process, resolved on its first call (`AGENTFORGE_PORTAL_URL`). */
+export function hostPortalClient(): PortalClient {
+  portal ??= createLazyPortalClient();
+  return portal;
+}
+
+/**
+ * The one refresh-at-a-time-per-session path to the portal, shared by the router's gate and the
+ * auth routes. Two instances would each think they were the only refresh in flight, and the portal
+ * answers a token presented twice by ending the whole session (./portal-check.ts). Builds no
+ * connection and reads no environment until a due session with tokens actually asks.
+ */
+export function hostPortalCheck(): PortalSessionCheck {
+  portalCheck ??= createPortalSessionCheck({
+    vault: hostTokenVault(),
+    portal: hostPortalClient(),
+    secrets: hostSessionSecrets(),
+    // Read per refresh, like the portal URL: the same environment the code exchange reads.
+    clientCredentials: () => configuredClientCredentials(),
+  });
+  return portalCheck;
 }
 
 export function hostAuthRoutes(): AuthRoutes {
   routes ??= createAuthRoutes({
     store: hostSessionStore(),
     vault: hostTokenVault(),
-    portal: createLazyPortalClient(),
+    portal: hostPortalClient(),
+    portalCheck: hostPortalCheck(),
+    secrets: hostSessionSecrets(),
     serverMode: isServerMode(),
     // Lane C: first sign-in writes the tenant, org, user, membership and home desk. The import is
     // dynamic for the same reason `createHostSessionStore` makes its one dynamic: the desktop and
@@ -193,5 +266,8 @@ export function resetHostAuthForTests(): void {
   stopPurge = null;
   store = null;
   vault = null;
+  portal = null;
+  portalCheck = null;
+  secrets = null;
   routes = null;
 }

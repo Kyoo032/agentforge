@@ -1,6 +1,8 @@
 # Map — Hosted surfaces, per-tenant reset and health
 
-Last verified: 2026-09-21 at 1b73999 plus this branch (Phase 8); re-stamp with the merge sha
+Last verified: 2026-09-21 at 1b73999 plus this branch (Phase 8); re-stamp with the merge sha. Re-checked
+2026-09-23 at d4561b8 + uncommitted tree: the Storage card row's citation, and the note on the refresh
+tokens a reset now keeps (§ 2).
 
 ## Overview
 
@@ -74,7 +76,7 @@ hosted server alike, and webdev has "Start over" while the hosted server must no
 | Import by path | `localPaths` | `POST /api/v1/edit/projects/:projectId/import` with `sourcePath` | `LOCAL_PATH_DISABLED_CODE` 403 (`packages/host/src/handlers/edit.ts:197`, refused in `handlePostEditImport` at `:227`) | `packages/host/src/edit/local-path-refusal.test.ts` |
 | Component install | `componentInstall` | `POST /api/v1/components/install` | `install_disabled` 403 (Phase 7) | `packages/host/src/components/server.test.ts` |
 | Relaunch / updater | `relaunch`, `updater` | — (IPC only; there is no hosted transport for them) | `apps/web/components/settings-reset-card.tsx` | `apps/web/lib/host-capabilities.test.tsx` |
-| Storage card | `storageQuota` | `GET /api/v1/storage/usage` answers a desk with `limitBytes: null` | the `storageQuota` guard, `apps/web/components/settings-storage-card.tsx:154` | `apps/web/lib/host-capabilities.test.tsx` |
+| Storage card | `storageQuota` | `GET /api/v1/storage/usage` answers a desk with `limitBytes: null` | the `storageQuota` guard, `apps/web/components/settings-storage-card.tsx:146` | `apps/web/lib/host-capabilities.test.tsx` |
 
 Nothing is deleted from the desktop build; every rule above is a branch on one flag, and with the
 flag off the code takes the path it took before.
@@ -118,7 +120,10 @@ take the rest, then the tenant-scoped tables — all inside one `sql.transaction
 
 Kept on purpose: `tenants`, `tenant_plan`, `tenant_seat`, `tenant_usage`, `billing_events`,
 `tenant_reset_audit`, and `auth_sessions` — a reset empties an account, it does not sign its people
-out.
+out (`KEPT_TENANT_TABLES`, `packages/db/src/tenant-purge.ts:124`). Since 2026-09-23 each of those rows
+also holds the session's portal refresh token, sealed (`refresh_sealed`, migration 0021), so the sessions an
+erase keeps now survive a restart as well. Whether Erase account should end them is an open owner
+decision, [SR-65](../security-register.md#sr-65).
 
 Keeping `auth_sessions` is not on its own enough to keep them signed in: `organization_members` is
 cascaded, and a session whose membership row is gone resolves to `user_inactive`. So `resetTenant`

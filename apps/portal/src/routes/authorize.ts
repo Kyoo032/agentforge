@@ -32,6 +32,7 @@ import type { WebSession } from "../security/web-session";
 import type { PortalRequest, PortalResponse, PortalRoute } from "../server";
 import { enterCodePage, signInPage } from "../views/pages";
 import {
+  codeErrorMessage,
   csrfOk,
   ensureCsrf,
   htmlError,
@@ -222,24 +223,11 @@ async function postVerify(runtime: PortalRuntime, request: PortalRequest): Promi
     },
   );
   if (!verified.ok) {
-    return retryCode(runtime, context, params, email, codeErrorFor(context, verified));
+    return retryCode(runtime, context, params, email, codeErrorMessage(context, verified));
   }
 
   const done = await completeSignIn(runtime, context, params, client.tenantId, verified.user.id);
   return done ?? htmlError(context, "error.generic", { status: 500 });
-}
-
-function codeErrorFor(
-  context: RequestContext,
-  verified: { readonly reason: string; readonly attemptsRemaining: number },
-): string {
-  if (verified.reason === "too_many_attempts") {
-    return context.t("code.exhausted");
-  }
-  if (verified.reason === "expired" || verified.reason === "no_code") {
-    return context.t("code.expired");
-  }
-  return context.t("code.invalid", { attempts: verified.attemptsRemaining });
 }
 
 function retryCode(

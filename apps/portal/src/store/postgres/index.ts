@@ -14,10 +14,21 @@
  * only way in, and there is deliberately no "just run this one query" escape hatch.
  */
 import pg from "pg";
-import type { Clock, MigrationResult, PortalOps, PortalStore, PollDeviceCodeResult, RotateRefreshTokenInput, RotateRefreshTokenResult } from "../types";
+import type {
+  Clock,
+  ConnectionRole,
+  MigrateOptions,
+  MigrationResult,
+  PortalOps,
+  PortalStore,
+  PollDeviceCodeResult,
+  RotateRefreshTokenInput,
+  RotateRefreshTokenResult,
+} from "../types";
 import { runMigrations } from "./migrate";
 import { createOps } from "./ops";
 import { createResolvers } from "./resolvers";
+import { readConnectionRole, setAppLoginPassword } from "./roles";
 
 const { Pool, types } = pg;
 
@@ -75,10 +86,24 @@ export function openPostgresStore(options: OpenPostgresStoreOptions): PortalStor
     tx,
     resolve,
 
-    async migrate(): Promise<MigrationResult> {
+    async migrate(options: MigrateOptions = {}): Promise<MigrationResult> {
       const client = await pool.connect();
       try {
-        return await runMigrations(client);
+        const result = await runMigrations(client);
+        if (options.appLoginPassword !== undefined) {
+          // After the migrations, because 0010 is what creates the role this sets.
+          await setAppLoginPassword(client, options.appLoginPassword);
+        }
+        return result;
+      } finally {
+        client.release();
+      }
+    },
+
+    async connectionRole(): Promise<ConnectionRole> {
+      const client = await pool.connect();
+      try {
+        return await readConnectionRole(client);
       } finally {
         client.release();
       }

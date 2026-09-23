@@ -62,6 +62,7 @@ export function testConfig(overrides: Partial<PortalConfig> = {}): PortalConfig 
     port: 0,
     dataDir: "/tmp/portal-test",
     databaseUrl: "postgres://unused",
+    migrateDatabaseUrl: "postgres://unused",
     signingKey: Buffer.alloc(32, 42),
     devOutbox: false,
     allowManualOtp: false,

@@ -53,6 +53,7 @@ Nothing below is closed by 0.14.27. Carried forward as-is.
 
 - **2026-09-24** — *Harness, never ships.* CI is local. Rizky dropped GitHub Actions: `.github/workflows/ci.yml`, `e2e.yml` and `desktop-mac.yml` are deleted (none had ever started a job: the account is locked for Actions). `scripts/ci-local.mjs` (`pnpm ci:local`, test `scripts/ci-local.test.mjs`) runs lint, `tsc --noEmit` per workspace, `vitest run` per package with its own data dir, the node tests, the deployed-closure audit gate and the advisory checks, and writes `.ci-local/<timestamp>/` logs plus a `summary.md` for the PR. The mac build is `pnpm desktop:build:mac:docker`. Recorded as [SR-80](security-register.md#sr-80); OWASP A06-1 moved to the local gate, A08-1 closed by removal.
 - **2026-09-23** — Cleanup, security and bug-fix pass for the Personal app and the code both products share (SR-74 … SR-78): fixes in Finance, Market, Meeting, Knowledge, Music and the renderer, and a cleanup of dead files. Nothing driven or packed. The whole list is the "cleanup, security and bug-fix pass" section at the end of this file.
+- **2026-09-23** — Enterprise half of that pass: portal, hosted sign-in, Edit tenancy and deploy (SR-50 … SR-73, SR-79, SR-26, SR-49, SR-11). Held off the Personal pull request. Nothing driven or deployed. The list is the "cleanup, security and bug-fix pass" section at the end of this file.
 - **2026-09-23** — 0.15.0 cut on `design/warm-desk-0.15` — the personal Mac/Windows app's look-and-feel release. Light is the default desk (white pages, `#0a0a0a` text), the rail follows the theme, a blue `--shadow-float` lifts a `.desk-canvas` panel, corners are 4px, and the type is DM Sans + Source Serif 4 bundled locally (both variable fonts, 4 files, no runtime font host). All 12 modes now lead with **title + one outcome line**; optional controls moved behind `Advanced` / `How this works` disclosures. Chat's empty state became four intent cards that fill the composer, tool calls folded into the Thinking disclosure, and `gist()` replaced raw JSON in the tool rows. Bugs fixed on the way: the rail footer was dark-on-dark because unlayered `.btn` beats `@layer utilities`; Market and Finance were losing their names to the submenu toggle's label; three modes had an invisible borderless prompt box; "Offline demo" was a lie in three places; the sign-out path was investigated and found **correct** (stub runtime on webdev was masking it). The `picker-panel.test.ts` red was reconciled. **Split from the enterprise lane**: the Phase 9 plans/pricing/portal files sitting in the same working tree are deliberately not in this cut. Verified with that work stashed — `tsc` exit 0, web suite 1218/1218, 118 files. Nothing packed, nothing published. [`0.15.0-changelog.md`](0.15.0-changelog.md), [`../public/0.15.0-notes.md`](../public/0.15.0-notes.md).
 - **2026-09-22** — Desk visual + UX overhaul on `apps/web` (design `grok-design-doc-04c7f940`). Dark `#0B0D12` is the default (`:root`); light is the `.light` class. Glow, shimmer, and pulse are gone. Empty Chat is a task launcher (heading, key status, checklist, three mode cards, labeled composer drop zone). One New chat, in the rail, including when collapsed. Usage pill is plan and seats only when plans are enforced, otherwise this-key USD. No token allowance. Outfit and Sora stay bundled. **Superseded on 2026-09-23 by the 0.15.0 pass above** — light became the default, the checklist and mode cards were cut, and Outfit/Sora were replaced by DM Sans/Source Serif 4.
 - **2026-09-22** — UI type is bundled Source Sans 3. Page paper is tinted green, secondary text is dark ink instead of gray-on-gray, and labels use a rust mark beside the teal actions. Superseded the same day by the dark desk above.
@@ -308,15 +309,9 @@ and was false from the moment it landed. Security register [SR-46](security-regi
 - **[ ] None of it is driven on the hosted deployment**, which does not exist yet. The review
   instance was rebuilt and restarted on this code; what was checked there is in the worklog.
 
-## 2026-09-23 — cleanup, security and bug-fix pass (after `d4561b8`)
+## 2026-09-23 — cleanup, security and bug-fix pass
 
-One pass across the portal, the host, core and the renderer, sitting uncommitted in the main
-checkout. Each line names its product: **Personal** (the Mac/Windows app, next cut `0.15.1`),
-**Enterprise** (the hosted web app and its portal) or **both**. Because `apps/web` is the renderer
-for both products, a renderer fix is **both** unless it says otherwise. The security findings are
-[SR-74 … SR-78](security-register.md#sr-74) in the register, with SR-19 moved; they are listed here
-only by number. The Enterprise half of the pass (portal, host sign-in, Edit tenancy, deploy,
-SR-50 … SR-73 and SR-79) is on its own branch for the Enterprise launch.
+The Personal half (SR-74 … SR-78, and the shared Finance, Market, Meeting, Knowledge, Music and renderer fixes) is on `main` as pull request #100. This branch is the Enterprise half: portal, hosted sign-in, Edit tenancy and deploy. Each line names its product: **Personal** (the Mac/Windows app, next cut `0.15.1`), **Enterprise** (the hosted web app and its portal) or **both**. Because `apps/web` is the renderer for both products, a renderer fix is **both** unless it says otherwise. The security findings are [SR-50 … SR-79](security-register.md#sr-50) in the register, with SR-08, SR-11, SR-19, SR-26 and SR-49 moved; they are listed here only by number.
 
 **Not proven.** Nothing below has been driven. The `:3000` webdev is served by `tsx server.ts` from
 this checkout and has no watcher, so every host and core change needs Rizky to restart it before it
@@ -326,16 +321,43 @@ with the changes; this entry does not claim a full run of any suite.
 
 ### Security (register rows)
 
-- **Personal, release:** `release-desktop.mjs` now runs the banned-marks check the Enterprise
-  release has, from the shared `scripts/release-marks.mjs`, on `--notes` and on the default notes
-  file, and refuses a notes path under `docs/internal` in any letter case (SR-74). **Repo:**
-  `.gitignore` ignores `/data/` whole (SR-19).
+- **Enterprise, portal:** a malformed `Host` or request target no longer stops the process (SR-50);
+  per-IP limits read the right-most `X-Forwarded-For` hop (SR-51); a full limiter evicts instead of
+  locking everyone out (SR-52); 20 code guesses per address per 24 hours, audited `otp.locked`
+  (SR-53); a per-IP limit on the device poll (SR-54); a refresh must carry a uuid `device_id`
+  (SR-55); the server connects as `portal_app_login`, never a superuser, with a new
+  `PORTAL_MIGRATE_DATABASE_URL` for migrations (SR-56 — **the deploy must provision both DSNs and the
+  role's password first**); confidential-client refreshes count per client, not per address (SR-57).
+- **Enterprise, host auth:** the gate re-checks a session with the portal every ten minutes and ends
+  it on a terminal answer (SR-58); sign-out refreshes first so the portal session really ends
+  (SR-59); `auth_sessions` stores `sha256(id)`, not the cookie (SR-60, **migration 0021 signs every
+  hosted user out once**); a proxy 4xx or a rejected client no longer ends sessions (SR-61); a slide
+  can no longer undo a sign-out (SR-62); a malformed `Host` is a `400` in the adapter (SR-63); the
+  portal refresh token is kept sealed on the session row so a restart signs nobody out, and the
+  wrap-key rotation re-seals it (SR-64); `AGENTFORGE_PORTAL_URL` must be https in production
+  (SR-26).
+- **Enterprise, Edit:** a generate job runs as the project's tenant and its recorded requester,
+  never a tenant from the stored request (SR-67); `POST …/jobs` validates the kind and refuses
+  generate and render, and gates asr (SR-68); Edit metrics are per tenant and organization (SR-69);
+  the hosted doctor hides ffmpeg's path (SR-70); the still check is org-scoped (SR-71).
+- **Enterprise, deploy:** the Caddy access log drops `code` and `state` from `uri` and `Referer`
+  (SR-72); the proxy container gets `DPSBUDDY_DOMAIN` and nothing else (SR-73); eval results are out
+  of the image context (SR-49). **Personal, release:** `release-desktop.mjs` now runs the banned-marks
+  check the Enterprise release has, from the shared `scripts/release-marks.mjs`, on `--notes` and on
+  the default notes file, and refuses a notes path under `docs/internal` in any letter case (SR-74). **Harness:** `scripts/review-proxy.mjs` refuses a non-loopback `--upstream` (SR-11).
+  **Repo:** `.gitignore` ignores `/data/` whole (SR-19).
 - **Both, Market:** Cancel now aborts the gateway request in flight and stops a team run at its
   current stage; a failure after a cancel is always observed (SR-75).
 - **Both, Finance:** titles, headings and assumptions go through the number guard, a section
   regenerate runs the repair, and "$2,000", "2k" and "Rp 1.950" are amounts, not years (SR-76).
 - **Personal, Start over:** a wipe that fails part-way keeps its marker and retries on the next
   launch (SR-77); failures are logged without absolute paths (SR-78).
+- **Open, not fixed:** Caddy's default (error) logger is unfiltered (SR-72); `webapp-deploy/.dockerignore`
+  is stale and still claims to be a copy of `Dockerfile.dockerignore` (SR-49); the per-address OTP
+  lock is also a lockout anyone can trigger (SR-53); IPv6 clients are not grouped by /64 (SR-79);
+  Erase account keeps sessions and their stored refresh tokens, owner to decide (SR-65); one refresh
+  at a time holds per host process only (SR-66); the old machine-wide `<dataDir>/edit/metrics.jsonl`
+  on any hosted box is the operator's to delete (SR-69).
 
 ### Finance
 
@@ -394,6 +416,11 @@ with the changes; this entry does not claim a full run of any suite.
 - **Both — Music sends the owner's own lyrics as written.** The output-language instruction was
   appended to custom lyrics, which Suno sings; it now rides only a description
   (`packages/host/src/studio-generate.ts:451-452`).
+- **Enterprise — every mode answers in the signed-in person's language.** Only Chat carried it; now
+  `dispatch` sets the request's locale from the session's tenant and user, and `localeForRun()` reads
+  it (`packages/host/src/router.ts:535`; `withRequestLocale`, `packages/host/src/run-context.ts:42`;
+  `sessionLocale`, `packages/host/src/locale-boot.ts:64`). Desktop and webdev keep the frozen boot
+  locale.
 - **Both — every studio sends `modelPinned` only for a deliberate pick, and every job records the
   model that answered** (Documents, Presentations, Research, Data, Legal, Market, Finance;
   `apps/web/lib/model-choice.ts`; `collectJobAssistantRun`, `packages/host/src/job-regen.ts:199`).

@@ -77,6 +77,14 @@ http://{$DPSBUDDY_DOMAIN} {
 	# L2: one JSON object per request on stdout - IP, path, status, latency. The log
 	# collector ships it to CLS with 30-day retention. L1: Cookie and Authorization are
 	# dropped before the line is written; Caddy never sees request bodies.
+	#
+	# The two query filters keep sign-in out of that log. The portal sends the browser to
+	# /auth/callback?code=...&state=..., so without them the one-time code and its login
+	# state sit in `uri` for 30 days. Referer needs the same filter: /auth/callback is the
+	# SPA shell, and every asset it requests before its script strips the query carries
+	# the full callback URL as Referer (Referrer-Policy same-origin sends the whole URL to
+	# this origin). A header is filtered value by value from Caddy 2.8 on; on 2.7 the
+	# Referer line is a silent no-op and only `uri` is cleaned.
 	log {
 		output stdout
 		format filter {
@@ -85,6 +93,14 @@ http://{$DPSBUDDY_DOMAIN} {
 				request>headers>Cookie delete
 				request>headers>Authorization delete
 				request>headers>Set-Cookie delete
+				request>uri query {
+					delete code
+					delete state
+				}
+				request>headers>Referer query {
+					delete code
+					delete state
+				}
 			}
 		}
 	}

@@ -25,12 +25,15 @@ before changing anything here.
 # Postgres 16 on 127.0.0.1:5433 and Mailpit on 127.0.0.1:1025 (UI: http://127.0.0.1:8025).
 # The password has no default in compose.yml, so it has to be in the environment first.
 export PORTAL_POSTGRES_PASSWORD="$(node -e "console.log(require('crypto').randomBytes(18).toString('base64url'))")"
+export PORTAL_APP_DB_PASSWORD="$(node -e "console.log(require('crypto').randomBytes(18).toString('base64url'))")"
 docker compose -f apps/portal/compose.yml up -d
 
 export PORTAL_DATA_DIR=/tmp/portal
-export PORTAL_DATABASE_URL="postgres://portal:$PORTAL_POSTGRES_PASSWORD@127.0.0.1:5433/tokotoken_portal"
+# Two roles: the schema owner migrates, the server serves (see "Database roles" below).
+export PORTAL_MIGRATE_DATABASE_URL="postgres://portal:$PORTAL_POSTGRES_PASSWORD@127.0.0.1:5433/tokotoken_portal"
+export PORTAL_DATABASE_URL="postgres://portal_app_login:$PORTAL_APP_DB_PASSWORD@127.0.0.1:5433/tokotoken_portal"
 
-pnpm portal:dev                                   # migrates, then listens on 127.0.0.1:4000
+pnpm portal:dev                                   # migrates as the owner, then listens on 127.0.0.1:4000
 pnpm portal:seed -- --email you@example.com       # first tenant, org, user, OAuth client
 ```
 
@@ -65,7 +68,8 @@ in the audit log. It is refused in production. Codes that are *sent* land in Mai
 
 | Variable | Required | Default | Notes |
 |---|---|---|---|
-| `PORTAL_DATABASE_URL` | yes | — | Must be `postgres://`. **Never** `DATABASE_URL` — that is the product's SQLite desk. |
+| `PORTAL_DATABASE_URL` | yes | — | The **server's** connection. Must be `postgres://`, and must be a plain member of `portal_app` — `portal_app_login`. Production refuses to boot on a superuser, a `BYPASSRLS` role or a member of `portal_admin`. **Never** `DATABASE_URL` — that is the product's SQLite desk. |
+| `PORTAL_MIGRATE_DATABASE_URL` | **in production** | `PORTAL_DATABASE_URL` | The schema owner's connection, for migrations and nothing else. It is opened, used and closed before the server listens. Outside production an unset value falls back to `PORTAL_DATABASE_URL`, the old one-DSN setup, which then boots with a `portal_db_role_bypasses_rls` warning. |
 | `PORTAL_DATA_DIR` | yes | — | Absolute path the portal may write to. |
 | `PORTAL_PORT` | no | `4000` | |
 | `PORTAL_HOST` | no | `127.0.0.1` | Loopback by default; the portal sits behind the reverse proxy. |
@@ -80,6 +84,33 @@ in the audit log. It is refused in production. Codes that are *sent* land in Mai
 
 Every problem is reported at once, with the variable named and the accepted shape spelled out; the
 process does not start half-configured.
+
+### Database roles
+
+Every tenant policy in `0004_rls.sql` is skipped for a superuser, for a `BYPASSRLS` role, and in
+practice for a member of `portal_admin`, whose policy on every table is `USING (true)`. The portal
+used to migrate and serve on one DSN, and the compose file handed that DSN the cluster superuser.
+The policies therefore held in the test suite and nowhere else. There are two roles now:
+
+| Role | DSN | What it may do |
+|---|---|---|
+| the schema owner (compose: `portal`) | `PORTAL_MIGRATE_DATABASE_URL` | run the migrations, once per boot, on a connection that is closed before anything listens |
+| `portal_app_login` | `PORTAL_DATABASE_URL` | serve: a `LOGIN` member of `portal_app` and nothing else, created by `migrations/0010_app_login_role.sql` |
+
+`src/boot.ts` reads `pg_roles` for the server's own role before the server listens. In production
+it **refuses to boot** if that role is a superuser, has `BYPASSRLS`, is a member of `portal_admin`,
+can `SET ROLE` to any role that is, or is not a member of `portal_app`. Outside production the same
+findings are a warning.
+
+**Where the password comes from.** `0001_extensions_and_roles.sql:53-55` keeps login-role passwords
+out of migration files, so 0010 creates `portal_app_login` without one.
+
+- **Production:** provision it out of band from the secret manager, once, as the owner:
+  `psql "$PORTAL_MIGRATE_DATABASE_URL" -c '\password portal_app_login'` (`\password` sends a SCRAM
+  verifier, so the plaintext never reaches the server's statement log). The portal never sets it.
+- **Development only:** every migrate (`pnpm portal:dev`, `portal:migrate`, `portal:seed`) sets it
+  from the password in `PORTAL_DATABASE_URL`. It does that for that role name only, and only when
+  the owner's DSN names a different role, so no DSN can be used to reset any other role's password.
 
 ### Mail is never sent in the clear
 
@@ -104,6 +135,8 @@ start. This is [SR-39](../../docs/internal/security-register.md#sr-39): the tran
 migrations/          0006+ — what the browser login needs and 0001-0005 do not have yet
 locales/{en,id}/     every user-facing string, including the reason-code table
 src/config.ts        validated environment, fail fast
+src/boot.ts          migrate as the owner, then serve as portal_app_login; refuses a privileged role
+src/process-guards.ts  an unhandled rejection or exception is logged, then the process exits 1
 src/log.ts           one JSON line per call; drops credential-named fields, scrubs token-shaped values
 src/crypto.ts        sha256, constant-time compare, token / user_code / OTP minting
 src/server.ts        node:http + a route table; createPortalServer({config, store, clock})
@@ -148,6 +181,8 @@ tenant resolvers that `schema.md` and `device-code-login.md` both flag as missin
 portal's own 30-day browser cookie revocable, and corrects 0006's claim that an authorization code
 is bound to `sha256(state)` — it is bound to the client and the `redirect_uri`, and the `state`
 binding is the host's own `__Host-` cookie check.
+`0010_app_login_role.sql` creates `portal_app_login`, the server's role that 0001 describes and
+nobody had created. It has no password, and an existing role is left alone (see "Database roles").
 
 ## Tests
 
@@ -161,7 +196,8 @@ with every migration applied; each test file takes a private database from it.
 
 **The store connects as `portal_app_test`, a non-superuser member of `portal_app`** — not as the
 cluster superuser, which bypasses row-level security and would make every isolation assertion pass
-with the policies dropped. `src/security/rls.test.ts` proves the policies from that connection.
+with the policies dropped. `src/security/rls.test.ts` proves the policies from that connection, and
+`src/boot.test.ts` proves a production boot refuses the roles that would bypass them.
 Two suites (`src/routes/{browser,api}.test.ts`) drive a real server on an ephemeral port with a
 captured mail transport and an array log sink, which is what lets them assert that no OTP, code or
 token ever reached a log line.

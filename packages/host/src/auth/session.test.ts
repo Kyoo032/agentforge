@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
   ABSOLUTE_LIFETIME_MS,
@@ -6,8 +7,11 @@ import {
   SESSION_COOKIE,
   SESSION_COOKIE_SECURE,
   SLIDE_INTERVAL_MS,
+  PORTAL_CHECK_INTERVAL_MS,
   createSession,
+  hashSessionId,
   mintSessionId,
+  portalCheckDue,
   readSessionCookie,
   revokedSession,
   sessionCookieMaxAge,
@@ -46,6 +50,8 @@ describe("createSession", () => {
     expect(session.expiresAt).toBe(T0 + IDLE_TIMEOUT_MS);
     expect(session.absoluteExpiresAt).toBe(T0 + ABSOLUTE_LIFETIME_MS);
     expect(session.revokedAt).toBeNull();
+    // The portal vouched for this person a moment ago: that is what signing in was.
+    expect(session.portalCheckedAt).toBe(T0);
   });
 
   it("uses the spec's 12 hour idle and 30 day absolute windows", () => {
@@ -123,6 +129,45 @@ describe("verifySession", () => {
       return;
     }
     expect(verdict.session.expiresAt).toBe(session.absoluteExpiresAt);
+  });
+});
+
+describe("hashSessionId", () => {
+  it("is SHA-256 in lowercase hex, which is what auth_sessions.id holds", () => {
+    const id = mintSessionId();
+    const digest = hashSessionId(id);
+    expect(digest).toMatch(/^[0-9a-f]{64}$/);
+    expect(digest).toBe(createHash("sha256").update(id, "utf8").digest("hex"));
+  });
+
+  it("is never the id itself, and never the same for two ids", () => {
+    const a = mintSessionId();
+    const b = mintSessionId();
+    expect(hashSessionId(a)).not.toBe(a);
+    expect(hashSessionId(a)).not.toBe(hashSessionId(b));
+    expect(hashSessionId(a)).toBe(hashSessionId(a));
+  });
+});
+
+describe("portalCheckDue", () => {
+  it("is ten minutes", () => {
+    expect(PORTAL_CHECK_INTERVAL_MS).toBe(10 * 60 * 1000);
+  });
+
+  it("is not due for a session the portal just vouched for", () => {
+    const session = createSession({ ...WHO, now: T0 });
+    expect(portalCheckDue(session, T0)).toBe(false);
+    expect(portalCheckDue(session, T0 + PORTAL_CHECK_INTERVAL_MS - 1)).toBe(false);
+  });
+
+  it("is due once the interval has passed", () => {
+    const session = createSession({ ...WHO, now: T0 });
+    expect(portalCheckDue(session, T0 + PORTAL_CHECK_INTERVAL_MS)).toBe(true);
+  });
+
+  it("is due at once for a session that was never checked", () => {
+    const session = { ...createSession({ ...WHO, now: T0 }), portalCheckedAt: null };
+    expect(portalCheckDue(session, T0)).toBe(true);
   });
 });
 

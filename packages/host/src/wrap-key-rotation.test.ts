@@ -22,7 +22,8 @@ const dataDir = mkdtempSync(path.join(tmpdir(), "agentforge-rotate-"));
 process.env.AGENTFORGE_DATA_DIR = dataDir;
 delete process.env.AGENTFORGE_SERVER;
 
-const { rotateWrapKey, WrapKeyRotationError } = await import("./wrap-key-rotation");
+const { rotateWrapKey, sqlSessionTokens, WrapKeyRotationError } = await import("./wrap-key-rotation");
+const { openRefresh, sealRefresh } = await import("./auth/session-secrets");
 const stateStore = await import("./tenant-state-store");
 const { TENANTS_DIR } = await import("./tenant-paths");
 
@@ -264,5 +265,174 @@ describe("rotating the hosted row store", () => {
       .prepare("SELECT value FROM tenant_state WHERE tenant_id = ? AND key = 'gateway_gate'")
       .get(A) as { value: string };
     expect(JSON.parse(verdict.value)).toMatchObject({ version: 1, status: "ok" });
+  });
+});
+
+/**
+ * The portal refresh tokens sealed on `auth_sessions` (owner decision 2026-09-23) are sealed under a
+ * key derived from the same wrap key, so the drill has to carry them across too — or every hosted
+ * session ends at its first check after the restart with the new key. Same rules as the settings:
+ * open everything first, write nothing if anything will not open, read everything back.
+ */
+describe("rotating the session refresh tokens sealed on auth_sessions", () => {
+  let sqlite: Database.Database;
+
+  function wrap(secret: string): Buffer {
+    return wrappingKeyFromSecret(secret);
+  }
+
+  function putSession(idHash: string, refreshToken: string, secret: string, revoked = false): void {
+    sqlite
+      .prepare(
+        `INSERT INTO auth_sessions (id, tenant_id, user_id, org_id, created_at, last_seen_at, expires_at,
+           absolute_expires_at, revoked_at, portal_checked_at, refresh_sealed)
+         VALUES (?, 't', 'u', 'o', 1, 1, 9999999999999, 9999999999999, ?, 1, ?)`,
+      )
+      .run(idHash, revoked ? 5 : null, sealRefresh(idHash, { refreshToken, deviceId: "dev_1" }, wrap(secret)));
+  }
+
+  function storedFor(idHash: string): string | null {
+    return (
+      sqlite.prepare("SELECT refresh_sealed FROM auth_sessions WHERE id = ?").get(idHash) as {
+        refresh_sealed: string | null;
+      }
+    ).refresh_sealed;
+  }
+
+  const S1 = "1".repeat(64);
+  const S2 = "2".repeat(64);
+
+  beforeEach(() => {
+    sqlite = new Database(":memory:");
+    ensureSchema(sqlite);
+    stateStore.registerTenantStateSql(sqlite as unknown as Parameters<typeof stateStore.registerTenantStateSql>[0]);
+  });
+
+  function tokensFrom(): ReturnType<typeof sqlSessionTokens> {
+    return sqlSessionTokens(sqlite as unknown as Parameters<typeof sqlSessionTokens>[0]);
+  }
+
+  it("re-seals every stored session token under the new key, and loses none", () => {
+    putSession(S1, "refresh-one", OLD_KEY);
+    putSession(S2, "refresh-two", OLD_KEY);
+
+    const result = rotateWrapKey({
+      from: OLD_KEY,
+      to: NEW_KEY,
+      backend: stateStore.dbTenantStateBackend,
+      sessionTokens: tokensFrom(),
+    });
+
+    expect(result.sessionTokens).toBe(2);
+    expect(openRefresh(S1, storedFor(S1) as string, wrap(NEW_KEY))).toEqual({
+      refreshToken: "refresh-one",
+      deviceId: "dev_1",
+    });
+    expect(openRefresh(S2, storedFor(S2) as string, wrap(NEW_KEY))).toEqual({
+      refreshToken: "refresh-two",
+      deviceId: "dev_1",
+    });
+    expect(openRefresh(S1, storedFor(S1) as string, wrap(OLD_KEY))).toBeNull();
+  });
+
+  it("rehearses with --dry-run and re-seals none", () => {
+    putSession(S1, "refresh-one", OLD_KEY);
+    const before = storedFor(S1);
+    const result = rotateWrapKey({
+      from: OLD_KEY,
+      to: NEW_KEY,
+      dryRun: true,
+      backend: stateStore.dbTenantStateBackend,
+      sessionTokens: tokensFrom(),
+    });
+    expect(result.sessionTokens).toBe(1);
+    expect(storedFor(S1)).toBe(before);
+  });
+
+  it("writes NOTHING — no session and no tenant — when one session token will not open with the current key", () => {
+    const goodSettings = sealed(payloadFor("desk-a", "sk-alpha-key-0000"), OLD_KEY);
+    sqlite
+      .prepare("INSERT OR IGNORE INTO tenants (id, slug, name, status, created_at) VALUES (?, ?, ?, ?, ?)")
+      .run(A, A, A, "active", Date.now());
+    sqlite
+      .prepare("INSERT INTO tenant_state (tenant_id, key, value, updated_at) VALUES (?, 'settings', ?, ?)")
+      .run(A, goodSettings, Date.now());
+    putSession(S1, "refresh-one", OLD_KEY);
+    putSession(S2, "refresh-two", NEW_KEY);
+    const before1 = storedFor(S1);
+
+    expect(() =>
+      rotateWrapKey({
+        from: OLD_KEY,
+        to: NEW_KEY,
+        backend: stateStore.dbTenantStateBackend,
+        sessionTokens: tokensFrom(),
+      }),
+    ).toThrow(WrapKeyRotationError);
+    expect(storedFor(S1)).toBe(before1);
+    const settings = sqlite
+      .prepare("SELECT value FROM tenant_state WHERE tenant_id = ? AND key = 'settings'")
+      .get(A) as {
+      value: string;
+    };
+    expect(settings.value).toBe(goodSettings);
+  });
+
+  it("names the session by the first characters of its digest, and says nothing about any key or token", () => {
+    putSession(S1, "refresh-one", NEW_KEY);
+    try {
+      rotateWrapKey({
+        from: OLD_KEY,
+        to: NEW_KEY,
+        backend: stateStore.dbTenantStateBackend,
+        sessionTokens: tokensFrom(),
+      });
+      throw new Error("expected a refusal");
+    } catch (error) {
+      const message = (error as Error).message;
+      expect(message).toContain(S1.slice(0, 8));
+      expect(message).not.toContain(S1);
+      expect(message).not.toContain(OLD_KEY);
+      expect(message).not.toContain("refresh-one");
+    }
+  });
+
+  it("leaves a revoked session alone: it holds no token worth carrying", () => {
+    sqlite
+      .prepare(
+        `INSERT INTO auth_sessions (id, tenant_id, user_id, org_id, created_at, last_seen_at, expires_at,
+           absolute_expires_at, revoked_at, portal_checked_at, refresh_sealed)
+         VALUES (?, 't', 'u', 'o', 1, 1, 2, 3, 5, 1, NULL)`,
+      )
+      .run(S1);
+    const result = rotateWrapKey({
+      from: OLD_KEY,
+      to: NEW_KEY,
+      backend: stateStore.dbTenantStateBackend,
+      sessionTokens: tokensFrom(),
+    });
+    expect(result.sessionTokens).toBe(0);
+  });
+
+  it("only replaces a token that is still the one it read, so a live rotation is never clobbered", () => {
+    putSession(S1, "refresh-one", OLD_KEY);
+    const store = tokensFrom();
+    expect(store.replace(S1, "not-what-is-stored", "next")).toBe(false);
+    expect(storedFor(S1)).not.toBe("next");
+    const current = storedFor(S1) as string;
+    expect(store.replace(S1, current, "next")).toBe(true);
+    expect(storedFor(S1)).toBe("next");
+  });
+
+  it("finds the session tokens itself in server mode, as the script runs it", () => {
+    process.env.AGENTFORGE_SERVER = "1";
+    try {
+      putSession(S1, "refresh-one", OLD_KEY);
+      const result = rotateWrapKey({ from: OLD_KEY, to: NEW_KEY });
+      expect(result.sessionTokens).toBe(1);
+      expect(openRefresh(S1, storedFor(S1) as string, wrap(NEW_KEY))).not.toBeNull();
+    } finally {
+      delete process.env.AGENTFORGE_SERVER;
+    }
   });
 });

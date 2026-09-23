@@ -369,7 +369,7 @@ async function runStub(
   const completed: RuntimeEvent = { type: "run.completed", runId };
   rememberJobUsage(completed, { tenant: input.tenant, mode: "edit", runId });
   queue.push(encodeSse(completed));
-  appendEditMetric({ projectId: input.projectId, runId, event: "agent.turn" });
+  await appendEditMetric({ projectId: input.projectId, runId, event: "agent.turn" });
 }
 
 export { undoCard };

@@ -117,9 +117,11 @@ function parseAddress(raw, flag, { portOnly }) {
 /**
  * Validated, immutable arguments. Exported so the tests can drive every refusal without a process.
  *
- * The listen address is checked against loopback here and nowhere else: this harness stamps
+ * Both addresses are checked against loopback here and nowhere else: this harness stamps
  * `X-Forwarded-Proto: https` on every request it forwards, which is the app's proof that a request
- * arrived over TLS. Bound to anything reachable, it would hand that proof to the network.
+ * arrived over TLS. Bound to anything reachable, it would hand that proof to the network. Pointed at
+ * a remote upstream, it would make the same claim about a hop that is plain http on the wire, with
+ * the reviewer's session cookie in it (security register SR-11).
  */
 export function parseArgs(argv) {
   let listen = null;
@@ -159,6 +161,13 @@ export function parseArgs(argv) {
     return fail(
       `--listen must be a loopback address (127.0.0.1, localhost, ::1), not ${JSON.stringify(listen.host)}. ` +
         "This harness tells the app every request arrived over TLS; off loopback that is a claim it cannot make.",
+    );
+  }
+  if (!isLoopbackHost(upstream.host)) {
+    return fail(
+      `--upstream must be a loopback address (127.0.0.1, localhost, ::1), not ${JSON.stringify(upstream.host)}. ` +
+        "The hop to the upstream is plain http, and this harness stamps X-Forwarded-Proto: https on it; " +
+        "off loopback that hop would cross the network in the clear.",
     );
   }
   return Object.freeze({ listen: Object.freeze(listen), upstream: Object.freeze(upstream), certDir });

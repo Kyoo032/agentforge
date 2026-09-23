@@ -78,12 +78,29 @@ export type PortalTokens = {
   readonly tenantId: string;
 };
 
+/**
+ * A refresh. With both client credentials it authenticates as the confidential client, exactly as
+ * the code exchange does, and the portal counts it against the client (20,000 / 10 min) rather than
+ * the caller's address (300 / 10 min) — which matters because the host refreshes every hosted
+ * session from one address. Both halves or neither: one without the other is never sent.
+ */
+export type PortalRefreshInput = {
+  readonly refreshToken: string;
+  readonly deviceId?: string | null;
+  readonly clientId?: string | null;
+  readonly clientSecret?: string | null;
+};
+
 export interface PortalClient {
   /** Browser login: redeem the one-time code the portal handed the browser (contract step 2). */
   exchangeCode(input: PortalExchangeInput): Promise<PortalTokens>;
   /** `grant_type=refresh_token`; rotation and reuse detection are the portal's job. */
-  refresh(input: { refreshToken: string; deviceId?: string | null }): Promise<PortalTokens>;
-  /** Idempotent by contract: a portal failure never blocks the local sign-out. */
+  refresh(input: PortalRefreshInput): Promise<PortalTokens>;
+  /**
+   * Idempotent at the portal. Rejects with a `PortalError` when the portal did not sign the session
+   * out (a stale access token, an unreachable portal), so the caller can see it happened; keeping
+   * the local sign-out going regardless is the caller's rule (`./routes.ts` `handleLogout`).
+   */
   logout(input: { accessToken: string; allDevices?: boolean }): Promise<void>;
 }
 
@@ -95,11 +112,21 @@ export class PortalError extends Error {
   readonly messageEn: string | null;
   readonly messageId: string | null;
   readonly retryAfter: number | null;
+  /**
+   * The RFC 6749 `error` the portal sent (`invalid_grant`, `invalid_client`, …), for a log line. The
+   * `reason` is what callers branch on; this only says which family the refusal came from.
+   */
+  readonly rfcError: string | null;
 
   constructor(
     reason: AuthReason,
     status: number,
-    copy: { messageEn?: string | null; messageId?: string | null; retryAfter?: number | null } = {},
+    copy: {
+      messageEn?: string | null;
+      messageId?: string | null;
+      retryAfter?: number | null;
+      rfcError?: string | null;
+    } = {},
   ) {
     // The message carries the reason only. Never a token, never the portal's raw body.
     super(`Portal refused the request: ${reason}`);
@@ -110,6 +137,7 @@ export class PortalError extends Error {
     this.messageEn = copy.messageEn ?? null;
     this.messageId = copy.messageId ?? null;
     this.retryAfter = copy.retryAfter ?? null;
+    this.rfcError = copy.rfcError ?? null;
   }
 }
 
@@ -174,9 +202,23 @@ function asNumber(value: unknown): number | null {
 }
 
 /**
+ * The portal's refusals always carry an RFC 6749 `error`, a `reason`, or both (doc :85-94). A 4xx
+ * without either did not come from the portal's error path: a proxy's 404 page, a WAF block, a
+ * misrouted base path.
+ */
+function speaksPortalErrors(record: PortalErrorBody): boolean {
+  return typeof record.error === "string" || typeof record.reason === "string";
+}
+
+/**
  * Portal failure → one reason code. `reason` wins; otherwise the RFC 6749 family the doc lists
- * (`invalid_request` / `invalid_grant` are the two this vocabulary carries); a 5xx or an
- * unreadable body is `portal_unavailable`, the only code here the portal itself cannot send.
+ * (`invalid_request` / `invalid_grant` are the two this vocabulary carries); a 5xx, an unreadable
+ * body, or a 4xx that is not in the portal's error shape is `portal_unavailable`, the only code here
+ * the portal itself cannot send.
+ *
+ * That last case matters since the session gate asks the portal on its own (`./portal-check.ts`):
+ * read as `invalid_grant` it is a terminal refusal, and one misrouted URL would end every session
+ * the gate checked.
  */
 export function mapPortalError(status: number, body: unknown): PortalError {
   const record = (body ?? {}) as PortalErrorBody;
@@ -184,11 +226,18 @@ export function mapPortalError(status: number, body: unknown): PortalError {
     messageEn: asString(record.message_en),
     messageId: asString(record.message_id),
     retryAfter: asNumber(record.retry_after),
+    rfcError: asString(record.error),
   };
+  // Before `reason`: the portal narrows `invalid_client` to `reason: invalid_grant` for the host,
+  // which would read as a terminal refusal. A wrong client secret says nothing about any session;
+  // it is this deployment failing to use the portal.
+  if (record.error === "invalid_client") {
+    return new PortalError("portal_unavailable", 502, copy);
+  }
   if (isAuthReason(record.reason)) {
     return new PortalError(record.reason, status, copy);
   }
-  if (status >= 500 || status === 0) {
+  if (status >= 500 || status === 0 || !speaksPortalErrors(record)) {
     return new PortalError("portal_unavailable", 502, copy);
   }
   if (record.error === "invalid_request") {
@@ -285,20 +334,24 @@ export function createPortalClient(options: PortalClientOptions = {}): PortalCli
         client_secret: input.clientSecret,
       });
     },
-    async refresh({ refreshToken, deviceId }) {
+    async refresh({ refreshToken, deviceId, clientId, clientSecret }) {
+      const client =
+        clientId?.trim() && clientSecret?.trim() ? { client_id: clientId, client_secret: clientSecret } : {};
       return tokenCall({
         grant_type: "refresh_token",
         refresh_token: refreshToken,
         ...(deviceId ? { device_id: deviceId } : {}),
+        ...client,
       });
     },
     async logout({ accessToken, allDevices = false }) {
-      // Doc :230 — "Idempotent, always 204". A revoked or expired token still signs the browser out
-      // locally, so a refusal here is swallowed on purpose; an unreachable portal is not fatal either.
-      try {
-        await call("/auth/logout", { body: { all_devices: allDevices }, accessToken });
-      } catch {
-        return;
+      // Doc :230 — "Idempotent, always 204" for a token the portal accepts. Anything else is
+      // reported rather than swallowed: it used to resolve on a 401 as well, so signing out with
+      // an access token that had aged past its hour looked exactly like a portal sign-out that had
+      // happened. The route refreshes first and keeps its local sign-out going either way.
+      const response = await call("/auth/logout", { body: { all_devices: allDevices }, accessToken });
+      if (!response.ok) {
+        throw mapPortalError(response.status, await readJson(response));
       }
     },
   };
@@ -308,7 +361,7 @@ export function createPortalClient(options: PortalClientOptions = {}): PortalCli
 export type FakePortalCall =
   /** The client **secret** is deliberately absent: a recorded call is something a test may print. */
   | { kind: "exchange"; code: string; redirectUri: string; clientId: string }
-  | { kind: "refresh"; refreshToken: string; deviceId: string | null }
+  | { kind: "refresh"; refreshToken: string; deviceId: string | null; clientId?: string }
   | { kind: "logout"; allDevices: boolean };
 
 export type FakePortalClient = PortalClient & { readonly calls: FakePortalCall[] };
@@ -347,8 +400,9 @@ export function createFakePortalClient(
       guard();
       return tokens;
     },
-    async refresh({ refreshToken, deviceId }) {
-      calls.push({ kind: "refresh", refreshToken, deviceId: deviceId ?? null });
+    async refresh({ refreshToken, deviceId, clientId, clientSecret }) {
+      const authenticated = clientId?.trim() && clientSecret?.trim() ? { clientId } : {};
+      calls.push({ kind: "refresh", refreshToken, deviceId: deviceId ?? null, ...authenticated });
       guard();
       return tokens;
     },

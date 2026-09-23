@@ -2,6 +2,7 @@
  * The migration runner against a genuinely empty database: the five files the backend team owns,
  * then ours, then the same run again.
  */
+import { readFile } from "node:fs/promises";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createTestDatabase, type TestDatabase } from "../../testing/pg";
@@ -115,6 +116,42 @@ describe("runMigrations", () => {
       ],
     );
     expect(rows).toHaveLength(8);
+  });
+
+  /**
+   * `0001_extensions_and_roles.sql:53-55` describes the role the portal should log in as and
+   * leaves creating it to someone else: `CREATE ROLE portal_app_login LOGIN ... IN ROLE portal_app`.
+   * Nobody did, so the portal connected as the migration role, which in compose is the cluster
+   * superuser. 0010 creates it, with nothing but `portal_app` membership. Roles are cluster-wide,
+   * so this reads attributes, never the password another suite may have set meanwhile.
+   */
+  it("creates portal_app_login as 0001 describes it: a LOGIN member of portal_app and nothing more", async () => {
+    const { rows } = await pool.query<{
+      login: boolean;
+      superuser: boolean;
+      bypass: boolean;
+      createrole: boolean;
+      createdb: boolean;
+      app: boolean;
+      admin: boolean;
+    }>(
+      `SELECT r.rolcanlogin AS login, r.rolsuper AS superuser, r.rolbypassrls AS bypass,
+              r.rolcreaterole AS createrole, r.rolcreatedb AS createdb,
+              pg_has_role(r.oid, 'portal_app', 'MEMBER') AS app,
+              pg_has_role(r.oid, 'portal_admin', 'MEMBER') AS admin
+         FROM pg_roles r WHERE r.rolname = 'portal_app_login'`,
+    );
+    expect(rows).toEqual([
+      { login: true, superuser: false, bypass: false, createrole: false, createdb: false, app: true, admin: false },
+    ]);
+  });
+
+  it("puts no password in a migration file, as 0001 requires of login roles", async () => {
+    for (const file of (await listMigrations()).filter((candidate) => candidate.source === "portal")) {
+      const sql = await readFile(file.path, "utf8");
+      expect(sql, file.id).not.toMatch(/PASSWORD\s+'/i);
+      expect(sql, file.id).not.toMatch(/PASSWORD\s+\$/i);
+    }
   });
 
   it("re-applies cleanly when the tracking rows are lost but the schema is not", async () => {

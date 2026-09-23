@@ -99,6 +99,7 @@ describe("loadConfig", () => {
   it("accepts a complete production environment", () => {
     const config = loadConfig({
       ...BASE,
+      PORTAL_MIGRATE_DATABASE_URL: "postgres://portal_owner:owner@db.internal:5432/tokotoken_portal",
       NODE_ENV: "production",
       PORTAL_SIGNING_KEY: Buffer.alloc(32, 1).toString("base64url"),
       PORTAL_PUBLIC_URL: "https://portal.example.com",
@@ -113,6 +114,8 @@ describe("loadConfig", () => {
     expect(config.smtp.host).toBe("smtp.example.com");
     expect(config.smtp.port).toBe(587);
     expect(config.allowManualOtp).toBe(false);
+    expect(config.databaseUrl).toBe(BASE.PORTAL_DATABASE_URL);
+    expect(config.migrateDatabaseUrl).toBe("postgres://portal_owner:owner@db.internal:5432/tokotoken_portal");
   });
 
   it("defaults SMTP to Mailpit outside production", () => {
@@ -134,6 +137,51 @@ describe("loadConfig", () => {
   it("collects every problem in one error rather than failing on the first", () => {
     const problems = problemsOf({ PORTAL_PORT: "99999", PORTAL_DATABASE_URL: "sqlite:x" });
     expect(problems.length).toBeGreaterThanOrEqual(3);
+  });
+});
+
+/**
+ * The portal used to run its migrations and serve its requests on ONE connection. Migrations need
+ * the schema owner, and in the compose file that is the cluster superuser, so every request ran as
+ * a role that bypasses row-level security. There are two DSNs now: migrations on the owner's, and
+ * the server on a plain member of `portal_app`.
+ */
+describe("PORTAL_MIGRATE_DATABASE_URL", () => {
+  const OWNER = "postgres://portal:owner-password@127.0.0.1:5433/tokotoken_portal";
+
+  it("falls back to PORTAL_DATABASE_URL outside production", () => {
+    expect(loadConfig({ ...BASE }).migrateDatabaseUrl).toBe(BASE.PORTAL_DATABASE_URL);
+  });
+
+  it("is used for migrations when it is set, and the server keeps its own DSN", () => {
+    const config = loadConfig({ ...BASE, PORTAL_MIGRATE_DATABASE_URL: OWNER });
+    expect(config.migrateDatabaseUrl).toBe(OWNER);
+    expect(config.databaseUrl).toBe(BASE.PORTAL_DATABASE_URL);
+  });
+
+  it("is validated exactly like PORTAL_DATABASE_URL, and named in its own problems", () => {
+    expect(problemsOf({ ...BASE, PORTAL_MIGRATE_DATABASE_URL: "sqlite:./portal.db" }).join()).toContain(
+      "PORTAL_MIGRATE_DATABASE_URL must be postgres://",
+    );
+    expect(problemsOf({ ...BASE, PORTAL_MIGRATE_DATABASE_URL: "mysql://x/y" }).join()).toContain(
+      "PORTAL_MIGRATE_DATABASE_URL must start with postgres://",
+    );
+    expect(problemsOf({ ...BASE, PORTAL_MIGRATE_DATABASE_URL: "postgres://u@h:5432/" }).join()).toContain(
+      "PORTAL_MIGRATE_DATABASE_URL must name a database",
+    );
+  });
+
+  it("is required in production, where the server must not be the schema owner", () => {
+    const problems = problemsOf({
+      ...BASE,
+      NODE_ENV: "production",
+      PORTAL_SIGNING_KEY: Buffer.alloc(32, 1).toString("base64url"),
+      PORTAL_PUBLIC_URL: "https://portal.example.com",
+      PORTAL_SMTP_HOST: "smtp.example.com",
+    });
+    expect(problems.some((p) => p.startsWith("PORTAL_MIGRATE_DATABASE_URL is required in production"))).toBe(
+      true,
+    );
   });
 });
 

@@ -31,6 +31,10 @@
 **/.master-key
 **/*.sqlite
 **/*.sqlite-*
+# Eval harness output: model answers to synthetic cases, git-ignored, never part of a build.
+# packages/host/eval is the only eval harness today (finance/results); a harness anywhere
+# else needs its own line here.
+packages/host/eval/**/results
 .verify-*
 .cursor-artifacts
 .claude

@@ -220,9 +220,52 @@ export async function mintSession(
   };
 }
 
+export interface ClientCredentials {
+  readonly clientId: string;
+  readonly clientSecret: string;
+  readonly ip?: string | null;
+}
+
+/**
+ * A confidential client proving it is one, before a refresh. The refresh token is still the
+ * credential for the refresh itself; what this decides is whose rate-limit bucket the refresh is
+ * counted in (`routes/tokens.ts`). A wrong secret is audited exactly as the code grant audits it,
+ * against the client's own tenant. An unknown client has no tenant, and `audit_log.tenant_id` is
+ * NOT NULL, so it is not audited.
+ */
+export async function authenticateClient(
+  runtime: PortalRuntime,
+  credentials: ClientCredentials,
+): Promise<{ readonly ok: boolean }> {
+  const tenantId = await runtime.store.resolve.byClientId(credentials.clientId);
+  if (!tenantId) {
+    return { ok: false };
+  }
+  return runtime.store.tx(tenantId, async (ops) => {
+    if (await ops.oauthClients.verifySecret(credentials.clientId, credentials.clientSecret)) {
+      return { ok: true };
+    }
+    await ops.audit.append({
+      tenantId,
+      actorKind: "system",
+      action: "token.client_auth_failed",
+      targetKind: "oauth_client",
+      after: { client_id: credentials.clientId, grant_type: "refresh_token" },
+      reasonCode: "invalid_client",
+      ip: credentials.ip ?? null,
+    });
+    return { ok: false };
+  });
+}
+
 export interface RefreshGrant {
   readonly refreshToken: string;
-  readonly deviceId?: string | null;
+  /**
+   * `devices.id`, required. `rotate_refresh_token` skips the device binding when this is NULL, so an
+   * optional field here would be an optional binding (`routes/tokens.ts` refuses a refresh without
+   * one).
+   */
+  readonly deviceId: string;
   readonly ip?: string | null;
   readonly userAgent?: string | null;
 }
@@ -236,7 +279,7 @@ export async function exchangeRefreshToken(
   const rotated = await runtime.store.rotateRefreshToken({
     presentedToken: grant.refreshToken,
     newToken: successor,
-    deviceId: grant.deviceId ?? null,
+    deviceId: grant.deviceId,
     ip: grant.ip ?? null,
     userAgent: grant.userAgent ?? null,
   });

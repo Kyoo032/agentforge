@@ -86,6 +86,25 @@ const INTERNAL: PortalResponse = { status: 500, json: { error: "internal_error" 
  * body was too big.
  */
 const TOO_LARGE: PortalResponse = { status: 413, json: errorBody("invalid_request") };
+/** A request target the URL parser refuses: the caller's mistake, in the same shape as the 413. */
+const BAD_TARGET: PortalResponse = { status: 400, json: errorBody("invalid_request") };
+
+/**
+ * What every request target is resolved against. It is fixed, and it never comes from the Host
+ * header: only the path and the query are read from the result, and both come from the request
+ * line alone. Building the base from `Host` meant `Host: a b` produced an invalid base URL. The
+ * parse also used to run outside the handler's try, so that TypeError killed the process.
+ */
+const REQUEST_BASE = "http://portal.local";
+
+/** `null` for a target the parser refuses, e.g. `//x:99999/healthz` (a port out of range). */
+function parseTarget(target: string | undefined): URL | null {
+  try {
+    return new URL(target ?? "/", REQUEST_BASE);
+  } catch {
+    return null;
+  }
+}
 
 /** Distinguishable from a handler's own failure, which is what keeps the 413 out of the 500. */
 class BodyTooLargeError extends Error {
@@ -123,6 +142,29 @@ async function readBody(request: IncomingMessage): Promise<string> {
   return Buffer.concat(chunks).toString("utf8");
 }
 
+/**
+ * For the case where the error path failed as well: a logger that throws (stderr gone, EPIPE), or a
+ * response that cannot be written. Nothing here may throw, because the caller is the last `.catch`
+ * on the request. An unhandled rejection is fatal to the process (`process-guards.ts`), so if a
+ * request could reach one, any client could stop the portal.
+ */
+function abandon(response: ServerResponse, logger: Logger, method: string, error: unknown): void {
+  try {
+    logger.error("request_abandoned", { method, reason: error instanceof Error ? error.message : "unknown" });
+  } catch {
+    // The logger is what failed; there is nowhere left to say so.
+  }
+  try {
+    if (response.headersSent) {
+      response.destroy();
+    } else {
+      send(response, INTERNAL);
+    }
+  } catch {
+    response.destroy();
+  }
+}
+
 function send(response: ServerResponse, result: PortalResponse): void {
   const body: Buffer | string =
     result.bytes ?? (result.json !== undefined ? JSON.stringify(result.json) : (result.body ?? ""));
@@ -151,53 +193,62 @@ export function createPortalServer(options: CreatePortalServerOptions): PortalSe
 
   const routes: PortalRoute[] = [healthRoute(), ...(options.routes ?? [])];
 
-  const server = createServer((incoming, response) => {
-    void (async () => {
-      const url = new URL(incoming.url ?? "/", `http://${incoming.headers.host ?? "portal.local"}`);
-      const path = url.pathname;
-      const method = (incoming.method ?? "GET").toUpperCase();
-
-      try {
-        const matches = routes.filter((route) => route.path === path);
-        if (matches.length === 0) {
-          send(response, NOT_FOUND);
-          return;
-        }
-        const route = matches.find((candidate) => candidate.method === method)
-          // HEAD is answered by the GET handler with an empty body, as every HTTP client expects.
-          ?? (method === "HEAD" ? matches.find((candidate) => candidate.method === "GET") : undefined);
-        if (!route) {
-          send(response, METHOD_NOT_ALLOWED);
-          return;
-        }
-
-        const body = method === "GET" || method === "HEAD" ? "" : await readBody(incoming);
-        const request: PortalRequest = Object.freeze({
-          method,
-          path,
-          query: url.searchParams,
-          headers: incoming.headers,
-          body,
-          ip: incoming.socket.remoteAddress ?? null,
-        });
-
-        const result = await route.handle(request, context);
-        send(
-          response,
-          // `bytes` is cleared alongside `json` and `body`: a HEAD that still carried the PNG would
-          // send the image under a method whose whole contract is headers only.
-          method === "HEAD" ? { ...result, json: undefined, body: "", bytes: undefined } : result,
-        );
-      } catch (error) {
-        if (error instanceof BodyTooLargeError) {
-          send(response, TOO_LARGE);
-          return;
-        }
-        // The event name and the reason, never the path or the payload.
-        logger.error("request_failed", { method, reason: error instanceof Error ? error.message : "unknown" });
-        send(response, INTERNAL);
+  const answer = async (incoming: IncomingMessage, response: ServerResponse, method: string): Promise<void> => {
+    try {
+      // Inside the try, against a fixed base: the request line is the client's to write, and a
+      // target the parser refuses is a 400 for that client, not a crash for everybody.
+      const url = parseTarget(incoming.url);
+      if (!url) {
+        send(response, BAD_TARGET);
+        return;
       }
-    })();
+      const path = url.pathname;
+      const matches = routes.filter((route) => route.path === path);
+      if (matches.length === 0) {
+        send(response, NOT_FOUND);
+        return;
+      }
+      const route = matches.find((candidate) => candidate.method === method)
+        // HEAD is answered by the GET handler with an empty body, as every HTTP client expects.
+        ?? (method === "HEAD" ? matches.find((candidate) => candidate.method === "GET") : undefined);
+      if (!route) {
+        send(response, METHOD_NOT_ALLOWED);
+        return;
+      }
+
+      const body = method === "GET" || method === "HEAD" ? "" : await readBody(incoming);
+      const request: PortalRequest = Object.freeze({
+        method,
+        path,
+        query: url.searchParams,
+        headers: incoming.headers,
+        body,
+        ip: incoming.socket.remoteAddress ?? null,
+      });
+
+      const result = await route.handle(request, context);
+      send(
+        response,
+        // `bytes` is cleared alongside `json` and `body`: a HEAD that still carried the PNG would
+        // send the image under a method whose whole contract is headers only.
+        method === "HEAD" ? { ...result, json: undefined, body: "", bytes: undefined } : result,
+      );
+    } catch (error) {
+      if (error instanceof BodyTooLargeError) {
+        send(response, TOO_LARGE);
+        return;
+      }
+      // The event name and the reason, never the path or the payload.
+      logger.error("request_failed", { method, reason: error instanceof Error ? error.message : "unknown" });
+      send(response, INTERNAL);
+    }
+  };
+
+  const server = createServer((incoming, response) => {
+    const method = (incoming.method ?? "GET").toUpperCase();
+    // Every request promise ends in this `.catch`. It used to be a `void`ed async function, which
+    // meant a throw from the catch block above was an unhandled rejection.
+    answer(incoming, response, method).catch((error: unknown) => abandon(response, logger, method, error));
   });
 
   return Object.freeze({

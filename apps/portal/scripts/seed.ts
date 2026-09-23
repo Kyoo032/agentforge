@@ -3,10 +3,13 @@
  * `pnpm portal:seed -- --email <address> [--tenant dpsbuddy] [--org Kyo] [--seat-cap N]
  *                      [--redirect <uri> ...] [--rotate-secret]`
  *
- * A thin shell around `runSeed`: parse, open, migrate, seed, print, close. Everything worth
- * testing is in `src/seed/`.
+ * A thin shell around `runSeed`: parse, migrate as the owner, open the server's connection, seed,
+ * print, close. Everything worth testing is in `src/seed/`. The seed writes through the same role
+ * the server uses (`portal_app` holds every grant it needs), so what it writes is exactly what the
+ * server's tenant policies let it write.
  */
 import { mkdir } from "node:fs/promises";
+import { migrateAsOwner } from "../src/boot";
 import { loadConfig, PortalConfigError } from "../src/config";
 import { formatSeedReport, runSeed } from "../src/seed/seed";
 import { parseSeedArgs, SeedArgsError } from "../src/seed/args";
@@ -17,9 +20,9 @@ async function main(): Promise<void> {
   const config = loadConfig();
   await mkdir(config.dataDir, { recursive: true });
 
+  await migrateAsOwner(config);
   const store = openStore(config);
   try {
-    await store.migrate();
     const result = await runSeed(store, args);
     process.stdout.write(`${formatSeedReport(result)}\n`);
   } finally {

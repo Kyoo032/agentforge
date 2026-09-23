@@ -394,8 +394,13 @@ function ensureDatasetTables(sqlite: Database.Database): void {
 
 /** Kernel-neutral job outputs. Mirrors drizzle/0006_artifacts.sql for DBs stamped before it existed. */
 /**
- * Hosted browser sessions. Mirrors drizzle/0014_auth_sessions.sql for DBs stamped before it existed.
+ * Hosted browser sessions. Mirrors drizzle/0014_auth_sessions.sql and the column
+ * drizzle/0021_auth_session_hardening.sql adds, for DBs stamped before either existed.
  * Desktop and webdev never write it; the table is created anyway so one schema serves both targets.
+ *
+ * Only ever adds. 0021 also drops every row keyed by a raw cookie id (it rebuilds the table), once,
+ * as a migration; a healer runs on every boot and must never do that, or every signed-in browser
+ * would sign out on each restart.
  */
 function ensureAuthSessionTables(sqlite: Database.Database): void {
   sqlite.exec(`
@@ -408,11 +413,23 @@ function ensureAuthSessionTables(sqlite: Database.Database): void {
       last_seen_at integer NOT NULL,
       expires_at integer NOT NULL,
       absolute_expires_at integer NOT NULL,
-      revoked_at integer
+      revoked_at integer,
+      portal_checked_at integer,
+      refresh_sealed text
     );
     CREATE INDEX IF NOT EXISTS auth_sessions_user_seen_idx ON auth_sessions (user_id, last_seen_at);
     CREATE INDEX IF NOT EXISTS auth_sessions_expires_idx ON auth_sessions (expires_at);
   `);
+  // `CREATE TABLE IF NOT EXISTS` is a no-op for a table 0014 made, so the 0021 columns are added
+  // explicitly — the same shape `ensureTenantUsageTable` uses for 0017's late column. It also covers
+  // a database that ran an earlier draft of 0021 without `refresh_sealed`.
+  const have = new Set(tableColumns(sqlite, "auth_sessions"));
+  if (!have.has("portal_checked_at")) {
+    sqlite.exec("ALTER TABLE `auth_sessions` ADD `portal_checked_at` integer");
+  }
+  if (!have.has("refresh_sealed")) {
+    sqlite.exec("ALTER TABLE `auth_sessions` ADD `refresh_sealed` text");
+  }
 }
 
 /**

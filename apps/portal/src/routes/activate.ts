@@ -25,6 +25,7 @@ import type { PortalRequest, PortalResponse, PortalRoute } from "../server";
 import type { DeviceCode } from "../store/types";
 import { approvePage, enterCodePage, outcomePage, signInPage, userCodePage } from "../views/pages";
 import {
+  codeErrorMessage,
   csrfOk,
   ensureCsrf,
   htmlError,
@@ -237,13 +238,7 @@ async function postVerify(runtime: PortalRuntime, request: PortalRequest): Promi
     { email, code, requiredTenantId: pending?.tenantId ?? null, purpose: "activate", ip: context.ip },
   );
   if (!verified.ok) {
-    if (verified.reason === "too_many_attempts") {
-      return retry(context.t("code.exhausted"));
-    }
-    if (verified.reason === "expired" || verified.reason === "no_code") {
-      return retry(context.t("code.expired"));
-    }
-    return retry(context.t("code.invalid", { attempts: verified.attemptsRemaining }));
+    return retry(codeErrorMessage(context, verified));
   }
 
   // The session cookie is the response's one Set-Cookie, so the CSRF token already in the

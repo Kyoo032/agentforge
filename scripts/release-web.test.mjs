@@ -4,17 +4,24 @@
  * Node's own runner, like scripts/review-proxy.test.mjs: repo tooling outside every workspace
  * package, so no vitest config collects it. `node --test "scripts/*.test.mjs"` runs it.
  *
- * Nothing here calls gh, git, docker or the network. Every case drives `main` against a temp repo
- * root, a fake git (which "clones" by making a directory), and recording docker / tar / gh stubs.
+ * Nothing here calls gh, docker or the network. Every release-web case drives `main` against a temp
+ * repo root, a fake git (which "clones" by making a directory), and recording docker / tar / gh stubs.
+ * The desktop cases at the end run apps/desktop/scripts/release-desktop.mjs --dry-run in a child
+ * process against a temp dist/; the only real command that reaches is `git status` on this repo.
  */
 
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { after, test } from "node:test";
+import { fileURLToPath } from "node:url";
+import * as sharedMarks from "./release-marks.mjs";
 import {
   BUNDLE_FILES,
+  caddyfileFrom,
   FORBIDDEN_MARKS,
   forbiddenMarksIn,
   forbiddenMarksInPublished,
@@ -403,4 +410,147 @@ test("a file in the release repo that carries a banned mark stops the push", () 
   );
   assert.equal(d.commits.length, 0);
   assert.ok(!d.gitCalls.some((call) => call.sub === "push"));
+});
+
+// ---------- what the bundle ships: the real Caddyfile and both compose files ----------
+
+const REPO_ROOT = fileURLToPath(new URL("..", import.meta.url));
+const SOURCE_CADDYFILE = readFileSync(join(REPO_ROOT, "webapp-deploy", "Caddyfile"), "utf8");
+const SOURCE_COMPOSE = readFileSync(join(REPO_ROOT, "webapp-deploy", "compose.yml"), "utf8");
+
+/** One service of a compose file: the lines under its key, up to the next line at its depth or less. */
+function serviceBlock(compose, name) {
+  const lines = compose.replace(/\r\n/g, "\n").split("\n");
+  const start = lines.indexOf(`  ${name}:`);
+  assert.ok(start >= 0, `no ${name} service`);
+  const rest = lines.slice(start + 1);
+  const end = rest.findIndex((line) => line.trim() !== "" && !line.startsWith("   "));
+  return rest.slice(0, end < 0 ? rest.length : end).join("\n");
+}
+
+/** The names under a service's `environment:` map. */
+function environmentNames(block) {
+  const match = /^ {4}environment:\n((?: {6}.*\n?)*)/m.exec(block);
+  return match ? [...match[1].matchAll(/^ {6}([A-Za-z_]\w*):/gm)].map((m) => m[1]).sort() : [];
+}
+
+/** Every env var a Caddyfile reads, `{$NAME}` at adapt time or `{env.NAME}` at run time; comments excluded. */
+function caddyEnvNames(source) {
+  const names = [...caddyfileFrom(source, TAG).matchAll(/\{(?:\$|env\.)([A-Za-z_]\w*)/g)].map((m) => m[1]);
+  return [...new Set(names)].sort();
+}
+
+test("the shipped Caddyfile keeps the sign-in code and state out of the access log", () => {
+  const shipped = renderBundle(TAG, SOURCE_CADDYFILE).Caddyfile;
+  for (const field of ["request>uri", "request>headers>Referer"]) {
+    const filter = new RegExp(`^\\s*${field} query \\{\\n\\s*delete code\\n\\s*delete state\\n\\s*\\}$`, "m");
+    assert.match(shipped, filter, `${field} is not filtered in the bundle's Caddyfile`);
+  }
+  const count = (char) => shipped.split(char).length - 1;
+  assert.equal(count("{"), count("}"), "unbalanced braces in the shipped Caddyfile");
+});
+
+test("the proxy gets exactly what the Caddyfile reads, never the whole .env, in both compose files", () => {
+  const read = caddyEnvNames(SOURCE_CADDYFILE);
+  assert.deepEqual(read, ["DPSBUDDY_DOMAIN"]);
+  const bundle = renderBundle(TAG, SOURCE_CADDYFILE)["compose.yml"];
+  for (const [name, compose] of [
+    ["the bundle", bundle],
+    ["webapp-deploy/compose.yml", SOURCE_COMPOSE],
+  ]) {
+    const proxy = serviceBlock(compose, "proxy");
+    assert.doesNotMatch(proxy, /^\s*env_file:/m, `${name}: the proxy must not load .env`);
+    assert.deepEqual(environmentNames(proxy), read, `${name}: the proxy's environment`);
+    assert.match(serviceBlock(compose, "app"), /^\s*env_file:/m, `${name}: the app still loads .env`);
+  }
+  assert.match(serviceBlock(bundle, "proxy"), /DPSBUDDY_DOMAIN: \$\{DPSBUDDY_DOMAIN:\?/, "the bundle needs a domain");
+});
+
+// ---------- the same refusal list on the Personal release ----------
+
+const DESKTOP_RELEASE = join(REPO_ROOT, "apps", "desktop", "scripts", "release-desktop.mjs");
+
+function tempDir(prefix) {
+  const dir = mkdtempSync(join(tmpdir(), prefix));
+  roots.push(dir);
+  return dir;
+}
+
+function notesAt(relativePath, text) {
+  const file = join(tempDir("release-desktop-notes-"), relativePath);
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, text, "utf8");
+  return file;
+}
+
+/** A dist/ that release-desktop.mjs accepts: one Setup exe, its blockmap, and a latest.yml that matches. */
+function fakeDesktopDist() {
+  const { version } = JSON.parse(readFileSync(join(REPO_ROOT, "apps", "desktop", "package.json"), "utf8"));
+  const dist = tempDir("release-desktop-dist-");
+  const exeName = `DPSBuddy Setup ${version}.exe`;
+  const exe = Buffer.from("not an installer");
+  writeFileSync(join(dist, exeName), exe);
+  writeFileSync(join(dist, `${exeName}.blockmap`), "blockmap");
+  const sha512 = createHash("sha512").update(exe).digest("base64");
+  const url = exeName.replace(/ /g, "-");
+  const latest = [
+    `version: ${version}`,
+    "files:",
+    `  - url: ${url}`,
+    `    sha512: ${sha512}`,
+    `    size: ${exe.length}`,
+    `path: ${url}`,
+    `sha512: ${sha512}`,
+  ];
+  writeFileSync(join(dist, "latest.yml"), `${latest.join("\n")}\n`, "utf8");
+  return dist;
+}
+
+/** release-desktop.mjs exits the process on refusal, so it is run, not imported. --dry-run: gh never runs. */
+function desktopDryRun(notesFile, cwd = process.cwd()) {
+  const args = [DESKTOP_RELEASE, "--dry-run", "--allow-dirty", "--dist", fakeDesktopDist(), "--notes", notesFile];
+  return spawnSync(process.execPath, args, { cwd, encoding: "utf8" });
+}
+
+test("both release scripts share one refusal list", () => {
+  assert.equal(forbiddenMarksIn, sharedMarks.forbiddenMarksIn);
+  assert.equal(FORBIDDEN_MARKS, sharedMarks.FORBIDDEN_MARKS);
+  assert.ok(Object.isFrozen(FORBIDDEN_MARKS));
+});
+
+test("a docs/internal path is caught in any letter case, with either separator, and through ..", () => {
+  for (const path of [
+    "docs/internal/0.15.0-changelog.md",
+    "DOCS/Internal/notes.md",
+    "Docs\\Internal\\notes.md",
+    "docs/public/../internal/notes.md",
+    join(tmpdir(), "x", "docs", "INTERNAL", "notes.md"),
+  ]) {
+    assert.equal(sharedMarks.isInternalDocsPath(path), true, path);
+  }
+  for (const path of ["docs/public/0.15.0-notes.md", join(tmpdir(), "notes.md")]) {
+    assert.equal(sharedMarks.isInternalDocsPath(path), false, path);
+  }
+});
+
+test("the desktop release refuses notes that carry a mark, and names the marks", () => {
+  const run = desktopDryRun(notesAt("notes.md", "# DPSBuddy\n\nCo-Authored-By: Claude <noreply@anthropic.com>\n"));
+  assert.equal(run.status, 1, run.stdout + run.stderr);
+  assert.match(run.stderr, /refusing .*notes\.md: it contains "Claude", "Anthropic", "Co-Authored"/);
+  assert.doesNotMatch(run.stdout, /dry run/);
+});
+
+test("the desktop release refuses notes under docs/internal in any letter case", () => {
+  const run = desktopDryRun(notesAt(join("DOCS", "Internal", "notes.md"), CLEAN_NOTES));
+  assert.equal(run.status, 1, run.stdout + run.stderr);
+  assert.match(run.stderr, /refusing to publish docs\/internal notes/);
+});
+
+test("the desktop release hands gh the checked notes file by its absolute path", () => {
+  // Relative, from another cwd: gh runs in apps/desktop and would resolve a relative name there.
+  const notes = notesAt("notes.md", CLEAN_NOTES);
+  const run = desktopDryRun("notes.md", dirname(notes));
+  assert.equal(run.status, 0, run.stdout + run.stderr);
+  assert.ok(run.stdout.includes(`--notes-file ${notes}`) || run.stdout.includes(`--notes-file "${notes}"`), run.stdout);
+  assert.match(run.stdout, /dry run, nothing uploaded/);
 });

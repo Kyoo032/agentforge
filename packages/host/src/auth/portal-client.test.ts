@@ -193,6 +193,19 @@ describe("exchangeCode", () => {
     });
   });
 
+  it("maps a 4xx that does not speak the portal's error shape to portal_unavailable, not a refusal", async () => {
+    // A proxy's 404 page, a WAF block or a misrouted base path: something answered, but it was not
+    // the portal refusing this grant. Read as `invalid_grant` it would end every session it touched.
+    for (const response of [
+      () => new Response("<html>Not Found</html>", { status: 404 }),
+      () => json({ message: "Forbidden" }, 403),
+      () => new Response("", { status: 405 }),
+    ]) {
+      const client = createPortalClient({ baseUrl, fetchImpl: recordingFetch(response).impl });
+      await expect(client.refresh({ refreshToken: "r" })).rejects.toMatchObject({ reason: "portal_unavailable" });
+    }
+  });
+
   it("maps a transport failure to portal_unavailable", async () => {
     const impl = (async () => {
       throw new TypeError("fetch failed");
@@ -253,12 +266,34 @@ describe("logout", () => {
     expect(JSON.parse(String(calls[0].init.body))).toEqual({ all_devices: false });
   });
 
-  it("is idempotent: a portal 401 does not stop the local sign-out", async () => {
+  it("reports a refusal as the portal's reason, so the caller can see the portal sign-out did not happen", async () => {
     const client = createPortalClient({
       baseUrl,
       fetchImpl: recordingFetch(() => json({ error: "invalid_grant", reason: "session_revoked" }, 401)).impl,
     });
-    await expect(client.logout({ accessToken: "acc" })).resolves.toBeUndefined();
+    // It used to resolve here, so a stale access token looked exactly like a successful sign-out.
+    // Keeping the local sign-out going whatever happens is the route's job (routes.ts handleLogout).
+    await expect(client.logout({ accessToken: "acc" })).rejects.toMatchObject({ reason: "session_revoked" });
+  });
+
+  it("reports an unreachable portal as portal_unavailable", async () => {
+    const impl = (async () => {
+      throw new TypeError("fetch failed");
+    }) as typeof fetch;
+    await expect(createPortalClient({ baseUrl, fetchImpl: impl }).logout({ accessToken: "acc" })).rejects.toMatchObject(
+      {
+        reason: "portal_unavailable",
+      },
+    );
+  });
+
+  it("keeps the access token out of a refusal", async () => {
+    const client = createPortalClient({
+      baseUrl,
+      fetchImpl: recordingFetch(() => json({ error: "invalid_grant", reason: "session_revoked" }, 401)).impl,
+    });
+    const error = (await client.logout({ accessToken: "acc-secret" }).catch((caught: unknown) => caught)) as Error;
+    expect(error.message).not.toContain("acc-secret");
   });
 });
 
@@ -358,5 +393,101 @@ describe("createFakePortalClient", () => {
   it("throws the seeded PortalError", async () => {
     const fake = createFakePortalClient({ failWith: new PortalError("org_past_due", 403) });
     await expect(fake.exchangeCode({ code: "abc", ...EXCHANGE })).rejects.toMatchObject({ reason: "org_past_due" });
+  });
+});
+
+/**
+ * The portal counts a refresh against the confidential client when `client_id` and `client_secret`
+ * verify (20,000 / 10 min), and against the caller's address otherwise (300 / 10 min). The host
+ * refreshes every hosted session it holds from one address, so an unauthenticated refresh puts the
+ * whole deployment behind one IP's budget. Refresh therefore authenticates exactly as the code
+ * exchange does, with the same two values.
+ */
+describe("refresh as the confidential client", () => {
+  it("sends client_id and client_secret alongside the refresh grant", async () => {
+    const { calls, impl } = recordingFetch(() => json(TOKEN_BODY));
+    await createPortalClient({ baseUrl, fetchImpl: impl }).refresh({
+      refreshToken: "ref-secret",
+      deviceId: "dev_1",
+      clientId: "cli_abc",
+      clientSecret: "sec_xyz",
+    });
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({
+      grant_type: "refresh_token",
+      refresh_token: "ref-secret",
+      device_id: "dev_1",
+      client_id: "cli_abc",
+      client_secret: "sec_xyz",
+    });
+  });
+
+  it.each([
+    ["only an id", { clientId: "cli_abc" }],
+    ["only a secret", { clientSecret: "sec_xyz" }],
+    ["a blank secret", { clientId: "cli_abc", clientSecret: "" }],
+  ])("sends neither half when it has %s: never one without the other", async (_name, client) => {
+    const { calls, impl } = recordingFetch(() => json(TOKEN_BODY));
+    await createPortalClient({ baseUrl, fetchImpl: impl }).refresh({ refreshToken: "r", deviceId: "dev_1", ...client });
+    const sent = JSON.parse(String(calls[0].init.body)) as Record<string, unknown>;
+    expect(sent).not.toHaveProperty("client_id");
+    expect(sent).not.toHaveProperty("client_secret");
+  });
+
+  it("keeps the client secret out of the console and out of a refusal", async () => {
+    const spies = (["log", "info", "warn", "error", "debug"] as const).map((level) =>
+      vi.spyOn(console, level).mockImplementation(() => {}),
+    );
+    const client = createPortalClient({
+      baseUrl,
+      fetchImpl: recordingFetch(() => json({ error: "invalid_grant", reason: "refresh_expired" }, 401)).impl,
+    });
+    const error = (await client
+      .refresh({ refreshToken: "r", deviceId: "dev_1", clientId: "cli_abc", clientSecret: "sec_xyz" })
+      .catch((caught: unknown) => caught)) as Error;
+    expect(error.message).not.toContain("sec_xyz");
+    expect(JSON.stringify(error)).not.toContain("sec_xyz");
+    for (const spy of spies) {
+      expect(spy).not.toHaveBeenCalled();
+    }
+  });
+
+  /**
+   * A wrong secret is `invalid_client`, which the portal narrows to `reason: invalid_grant` for the
+   * host. Read that way it is a terminal answer, and the session gate would end every session it
+   * checked because of one line in an `.env`. It says nothing about any session, so it is the
+   * deployment failing to use the portal: `portal_unavailable`, with the RFC error kept for the log.
+   */
+  it("maps invalid_client to portal_unavailable, never to a refusal that ends a session", async () => {
+    const client = createPortalClient({
+      baseUrl,
+      fetchImpl: recordingFetch(() =>
+        json({ error: "invalid_client", reason: "invalid_grant", message_en: "Client authentication failed." }, 401),
+      ).impl,
+    });
+    await expect(
+      client.refresh({ refreshToken: "r", deviceId: "dev_1", clientId: "cli_abc", clientSecret: "wrong" }),
+    ).rejects.toMatchObject({ reason: "portal_unavailable", rfcError: "invalid_client" });
+  });
+
+  it("keeps the RFC error on every other refusal too, so a log line can name it", async () => {
+    const client = createPortalClient({
+      baseUrl,
+      fetchImpl: recordingFetch(() => json({ error: "invalid_grant", reason: "refresh_reused" }, 401)).impl,
+    });
+    await expect(client.refresh({ refreshToken: "r", deviceId: "dev_1" })).rejects.toMatchObject({
+      reason: "refresh_reused",
+      rfcError: "invalid_grant",
+    });
+  });
+
+  it("is recorded by the fake as the client id only, never the secret", async () => {
+    const fake = createFakePortalClient();
+    await fake.refresh({ refreshToken: "r", deviceId: "dev_1", clientId: "cli_abc", clientSecret: "sec_xyz" });
+    await fake.refresh({ refreshToken: "r2", deviceId: "dev_1" });
+    expect(fake.calls).toEqual([
+      { kind: "refresh", refreshToken: "r", deviceId: "dev_1", clientId: "cli_abc" },
+      { kind: "refresh", refreshToken: "r2", deviceId: "dev_1" },
+    ]);
+    expect(JSON.stringify(fake.calls)).not.toContain("sec_xyz");
   });
 });

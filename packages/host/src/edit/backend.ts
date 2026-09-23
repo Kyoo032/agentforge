@@ -162,10 +162,13 @@ export const hostEditBackend: EditToolBackend = {
     const ctx = requireEditToolContext();
     const row = await enqueueEditJob(ctx.projectId, {
       kind: job.kind,
+      // Tools put `tenant` in their requests; `enqueueEditJob` drops it. The requester is the run's
+      // own user, from the context the host set from the verified request.
       request: job.request,
       targetClipIds: job.targetClipIds ?? [],
       cardId: job.cardId,
       tier: job.tier,
+      requestedBy: ctx.tenant.userId,
     });
     void tenant;
     return { job: row };

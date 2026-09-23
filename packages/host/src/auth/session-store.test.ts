@@ -9,7 +9,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createSession, revokedSession, slidSession, type SessionRecord } from "./session";
+import { createSession, hashSessionId, revokedSession, slidSession, type SessionRecord } from "./session";
+import { openRefresh, sealRefresh } from "./session-secrets";
 import {
   createDrizzleSessionStore,
   createMemorySessionStore,
@@ -110,6 +111,177 @@ describe.each(implementations)("SessionStore (%s)", (_name, make) => {
     const b = sessionFor();
     await store.create(b);
     expect(await store.find(a.id)).toEqual(a);
+  });
+  it("finds a session only by the cookie's id, never by the digest it stores", async () => {
+    const store = make();
+    const session = sessionFor();
+    await store.create(session);
+    expect((await store.find(session.id))?.id).toBe(session.id);
+    // What a copy of the table would hand an attacker is not a cookie.
+    expect(await store.find(hashSessionId(session.id))).toBeNull();
+  });
+
+  it("never un-revokes: a slide saved after a revocation keeps the revocation", async () => {
+    const store = make();
+    const session = sessionFor();
+    await store.create(session);
+    // Two requests on one session: one revokes it, the other slides the copy it read before that.
+    await store.save(revokedSession(session, T0 + 10));
+    await store.save(slidSession(session, T0 + 6 * 60 * 1000));
+    const found = await store.find(session.id);
+    expect(found?.revokedAt).toBe(T0 + 10);
+    expect(found?.lastSeenAt).toBe(T0 + 6 * 60 * 1000);
+  });
+
+  it("keeps the first revocation time when revoked twice", async () => {
+    const store = make();
+    const session = sessionFor();
+    await store.create(session);
+    await store.save(revokedSession(session, T0 + 10));
+    await store.save(revokedSession(session, T0 + 99));
+    expect((await store.find(session.id))?.revokedAt).toBe(T0 + 10);
+  });
+
+  it("round-trips when the portal last vouched, and only ever moves it forward", async () => {
+    const store = make();
+    const session = sessionFor();
+    await store.create(session);
+    expect((await store.find(session.id))?.portalCheckedAt).toBe(T0);
+    await store.recordRotation(session.id, T0 + 20 * 60 * 1000, "sealed-2");
+    expect((await store.find(session.id))?.portalCheckedAt).toBe(T0 + 20 * 60 * 1000);
+    // A check that finished late must not rewind one that finished after it.
+    await store.recordRotation(session.id, T0 + 11 * 60 * 1000, "sealed-3");
+    expect((await store.find(session.id))?.portalCheckedAt).toBe(T0 + 20 * 60 * 1000);
+  });
+
+  it("does not let a slide rewind the portal check", async () => {
+    const store = make();
+    const session = sessionFor();
+    await store.create(session);
+    await store.recordRotation(session.id, T0 + 20 * 60 * 1000, "sealed-2");
+    await store.save(slidSession(session, T0 + 21 * 60 * 1000));
+    expect((await store.find(session.id))?.portalCheckedAt).toBe(T0 + 20 * 60 * 1000);
+  });
+
+  it("keeps the sealed refresh token with the row it was created with, and never hands it out in the record", async () => {
+    const store = make();
+    const session = sessionFor();
+    await store.create(session, "sealed-at-sign-in");
+    expect(await store.readRefreshSealed(session.id)).toBe("sealed-at-sign-in");
+    const found = (await store.find(session.id)) as Record<string, unknown>;
+    expect(Object.values(found)).not.toContain("sealed-at-sign-in");
+    expect(Object.keys(found)).not.toContain("refreshSealed");
+  });
+
+  it("holds no sealed token for a session created without one", async () => {
+    const store = make();
+    const session = sessionFor();
+    await store.create(session);
+    expect(await store.readRefreshSealed(session.id)).toBeNull();
+  });
+
+  it("replaces the sealed token and the check stamp in one rotation write", async () => {
+    const store = make();
+    const session = sessionFor();
+    await store.create(session, "sealed-1");
+    await store.recordRotation(session.id, T0 + 10 * 60 * 1000, "sealed-2");
+    expect(await store.readRefreshSealed(session.id)).toBe("sealed-2");
+    expect((await store.find(session.id))?.portalCheckedAt).toBe(T0 + 10 * 60 * 1000);
+  });
+
+  it("clears the sealed token when a rotation has nothing to store", async () => {
+    const store = make();
+    const session = sessionFor();
+    await store.create(session, "sealed-1");
+    await store.recordRotation(session.id, T0 + 10 * 60 * 1000, null);
+    // The portal has spent sealed-1: keeping it would turn the next restart into a replay.
+    expect(await store.readRefreshSealed(session.id)).toBeNull();
+  });
+
+  it("wipes the sealed token when the session is revoked, and a stale slide never brings it back", async () => {
+    const store = make();
+    const session = sessionFor();
+    await store.create(session, "sealed-1");
+    await store.save(revokedSession(session, T0 + 10));
+    expect(await store.readRefreshSealed(session.id)).toBeNull();
+    await store.save(slidSession(session, T0 + 6 * 60 * 1000));
+    expect(await store.readRefreshSealed(session.id)).toBeNull();
+  });
+
+  it("never stores a rotated token on a row that was revoked while the rotation was in flight", async () => {
+    const store = make();
+    const session = sessionFor();
+    await store.create(session, "sealed-1");
+    await store.save(revokedSession(session, T0 + 10));
+    await store.recordRotation(session.id, T0 + 20, "sealed-late");
+    expect(await store.readRefreshSealed(session.id)).toBeNull();
+    expect((await store.find(session.id))?.revokedAt).toBe(T0 + 10);
+  });
+
+  it("wipes the sealed token of a session that idled out, and deletes the rows past their absolute expiry", async () => {
+    const store = make();
+    const live = sessionFor();
+    const idle = sessionFor({ expiresAt: T0 - 1 });
+    const dead = sessionFor({ absoluteExpiresAt: T0 - 1, expiresAt: T0 - 2 });
+    await store.create(live, "sealed-live");
+    await store.create(idle, "sealed-idle");
+    await store.create(dead, "sealed-dead");
+    expect(await store.purgeExpired(T0)).toBe(1);
+    expect(await store.readRefreshSealed(live.id)).toBe("sealed-live");
+    expect(await store.readRefreshSealed(idle.id)).toBeNull();
+    expect(await store.find(idle.id)).not.toBeNull();
+    expect(await store.find(dead.id)).toBeNull();
+  });
+
+  it("records nothing for a session it does not hold", async () => {
+    const store = make();
+    await store.recordRotation("no-such-session", T0, "sealed");
+    expect(await store.readRefreshSealed("no-such-session")).toBeNull();
+    expect(await store.find("no-such-session")).toBeNull();
+  });
+});
+
+describe("the SQLite store at rest", () => {
+  it("writes the SHA-256 of the id, and never the id itself", async () => {
+    const { sql } = await import("@agentforge/db");
+    const session = sessionFor({ userId: "usr_at_rest" });
+    await drizzleStore.create(session);
+    const rows = sql.prepare("SELECT id FROM auth_sessions WHERE user_id = ?").all("usr_at_rest") as Array<{
+      id: string;
+    }>;
+    expect(rows).toEqual([{ id: hashSessionId(session.id) }]);
+    expect(JSON.stringify(rows)).not.toContain(session.id);
+  });
+
+  it("keeps only the sealed envelope in refresh_sealed, never the token itself", async () => {
+    const { sql } = await import("@agentforge/db");
+    const wrap = Buffer.alloc(32, 7);
+    const session = sessionFor({ userId: "usr_sealed_at_rest" });
+    const sealedToken = sealRefresh(
+      hashSessionId(session.id),
+      { refreshToken: "raw-refresh-at-rest", deviceId: "dev_9" },
+      wrap,
+    );
+    await drizzleStore.create(session, sealedToken);
+    const row = sql.prepare("SELECT refresh_sealed FROM auth_sessions WHERE user_id = ?").get("usr_sealed_at_rest") as {
+      refresh_sealed: string;
+    };
+    expect(row.refresh_sealed).not.toContain("raw-refresh-at-rest");
+    expect(openRefresh(hashSessionId(session.id), row.refresh_sealed, wrap)).toEqual({
+      refreshToken: "raw-refresh-at-rest",
+      deviceId: "dev_9",
+    });
+  });
+
+  it("never finds a row written before 0021, whose id is the raw cookie value", async () => {
+    const { sql } = await import("@agentforge/db");
+    const raw = "a-raw-cookie-id-from-before-the-digest-migration";
+    sql
+      .prepare(
+        "INSERT INTO auth_sessions (id, tenant_id, user_id, org_id, created_at, last_seen_at, expires_at, absolute_expires_at) VALUES (?, 'tnt_1', 'usr_old', 'org_1', ?, ?, ?, ?)",
+      )
+      .run(raw, T0, T0, T0 + 60_000, T0 + 120_000);
+    expect(await drizzleStore.find(raw)).toBeNull();
   });
 });
 

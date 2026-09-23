@@ -1,6 +1,10 @@
 # Map — App locale: boot freeze and the run harness
 
-Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c`
+Last verified: 2026-09-23 at d4561b8 + uncommitted tree for the run harness (`localeForRun`, the new per-request
+locale on the hosted server, the Channel 2 line), the Failure modes row it adds, the gotchas that changed with it,
+and the `common` parity gotcha. Not driven: host change, needs a `:3000` restart, and only the hosted server feels it.
+Everything else was last verified 2026-09-20 at a053245 + the Phase 4 branch
+`feat/web-phase4-tenant-secrets-rcbu9c`.
 
 ## Overview
 
@@ -22,7 +26,8 @@ On a desk nothing changed by construction: `saveUserLocale`
 mode it does not write the install's locale — one tenant's user must not set the language every other
 tenant's process boots in — and nothing is frozen per user, so a change applies on the next request and the
 Restart banner never appears (`localePayload`, `packages/host/src/locale-boot.ts:55-61`;
-`applySavedLocaleAsBoot` is a no-op there, `:34-40`).
+`applySavedLocaleAsBoot` is a no-op there, `:34-40`). Since 2026-09-23 the hosted server also **runs** every
+mode in that person's language, not only Chat: each request carries it (see "The run harness" below).
 
 ## How it works
 
@@ -103,17 +108,26 @@ copying English" check with a brand allow-list), and one each for `documents`, `
 
 ### The run harness — how `id` reaches the model
 
-`localeForRun()` (`packages/host/src/run-context.ts:21-23`) is one line:
+`localeForRun()` (`packages/host/src/run-context.ts:63-65`) reads three places, most specific first:
 
 ```ts
-return getRunContext()?.locale ?? getBootLocale();
+return getRunContext()?.locale ?? requestLocale.getStore()?.() ?? getBootLocale();
 ```
 
-`RunContext` is an `AsyncLocalStorage` store, and **only Chat ever populates it** —
-`withRunContext({ threadId, agentId, locale }, …)` at `packages/host/src/runs.ts:285` is the sole product call
-site (the only other is `packages/host/src/job-regen.test.ts:75`). So for every job mode, `localeForRun()`
-resolves straight to the frozen boot locale. That is correct today, because no job route accepts a per-run
-locale — but it means the `RunContext` branch is Chat-only in practice.
+1. **A Chat run's own context.** `RunContext` is an `AsyncLocalStorage` store that only Chat populates —
+   `withRunContext({ threadId, agentId, locale }, …)` in `packages/host/src/runs.ts`.
+2. **The request's person — hosted only (2026-09-23).** `dispatch` wraps every request that passed the session
+   gate in `withRequestLocale(() => sessionLocale({ tenantId, userId }), …)` (`packages/host/src/router.ts:535-538`),
+   beside the session and the log context. `sessionLocale` (`packages/host/src/locale-boot.ts:64-70`) is
+   `loadUserLocale` for the verified session's tenant and user, with the settings fallback desk named rather
+   than the client's workspace cookie, because a person's language is per tenant and per user, never per desk.
+   The store holds a reader, not a value (`requestLocale`, `run-context.ts:34`): the settings payload is read
+   only when a handler asks, at most once per request (`withRequestLocale`, `:42-51`), and a reader that throws
+   answers English and logs `request_locale_unreadable` rather than failing a request that only wanted copy
+   (`readOrDefault`, `:53-60`). Before this, every job mode on the hosted server wrote in the process's boot
+   locale — the install's, which belongs to nobody in particular.
+3. **The frozen boot locale.** Off server mode nothing sets level 2, so the desktop and webdev behave exactly as
+   before: every job mode resolves to the boot locale.
 
 There are **two independent locale channels per job call**, and getting one right does not fix the other:
 
@@ -123,13 +137,14 @@ There are **two independent locale channels per job call**, and getting one righ
 
 | Surface | Call site |
 |---|---|
-| documents / finance | `packages/host/src/document-generate.ts:91`, section regen `:228` |
-| data | `packages/host/src/data-generate.ts:251` |
-| finance | `packages/host/src/finance-generate.ts:188`, section regen `:335` |
-| research | `packages/host/src/research-generate.ts:139` |
-| knowledge | `packages/host/src/knowledge-map.ts:121-125` (brain), `:143-147` (verifier) |
-| edit | `packages/host/src/edit/agent-run.ts:169` |
+| documents / finance | `packages/host/src/document-generate.ts:94`, section regen `:247` |
+| data | `packages/host/src/data-generate.ts:255` |
+| finance | `packages/host/src/finance-generate.ts:209`, the repair `:237`, section regen `:358` and its repair `:373` |
+| research | `packages/host/src/research-generate.ts:146` |
+| knowledge | `packages/host/src/knowledge-map.ts:136` (brain), `:158` (verifier) |
+| edit | `packages/host/src/edit/agent-run.ts:172` |
 | videos | `packages/host/src/studio-generate.ts:344` |
+| music | a description only, `packages/host/src/studio-generate.ts:452`, and the lyrics draft `:523` — never custom lyrics, which are sung word for word (since 2026-09-23) |
 
 Five surfaces keep their own mechanism instead, and the shared table says so at
 `packages/core/src/output-language.ts:105-108`: **Chat** → `withChatOutputLanguage`
@@ -140,9 +155,9 @@ the outline and slide templates (`packages/host/src/presentation-generate.ts:72-
 `packages/core/src/legal/prompts.ts:7` and used at `:44`); **Market** → a `Write in ${language}` line in
 `buildWatchSystemPrompt` (`packages/core/src/market/briefing-prompt.ts:115`).
 
-**Channel 2 — the infra copy the model never sees.** `collectJobAssistantText`
-(`packages/host/src/job-regen.ts:134`) sets `locale: options.locale ?? localeForRun()` on the `runtime.execute`
-input regardless of the prompt. That `locale` field (`packages/core/src/runtime/types.ts:53`) drives
+**Channel 2 — the infra copy the model never sees.** Every job call (`collectJobAssistantRun`, and
+`collectJobAssistantText`, which wraps it) sets `locale: options.locale ?? localeForRun()` on the
+`runtime.execute` input regardless of the prompt (`packages/host/src/job-regen.ts:155`). That `locale` field (`packages/core/src/runtime/types.ts:53`) drives
 contact-error text, watchdog and abort copy (`packages/core/src/runtime/stream-watchdog.ts`, `retry.ts`) and stub
 replies — localized, but generated by the host, not by the model.
 
@@ -166,6 +181,7 @@ while the screen reads "The gateway rejected this API key. Check the key at Toko
 |---|---|
 | Unknown locale value posted | 400 `invalid_request` from `isAppLocale` (`packages/host/src/handlers/settings.ts:215-218`) |
 | Hosted user has never chosen a language | `loadUserLocale` falls through to the tenant's own stored locale, then to `en` — never to another tenant's payload (`packages/host/src/settings-store.ts:582-588`) |
+| Hosted person's locale cannot be read (an unreadable payload, a wrap-key fault) | the request's locale is English and `request_locale_unreadable` is logged; the request itself still runs (`readOrDefault`, `packages/host/src/run-context.ts:53-60`) |
 | Unknown locale reaching `parseAppLocale` | silently `en` |
 | Missing catalog key | `id` → `en` → the raw key string; never a crash, never blank |
 | Locale saved but not restarted | UI chrome unchanged, model output unchanged, banner shown; `getBootLocale()` still the old value |
@@ -177,8 +193,8 @@ while the screen reads "The gateway rejected this API key. Check the key at Toko
 | File | Role |
 |---|---|
 | `packages/core/src/locale.ts` | `AppLocale`, `parseAppLocale`, `isAppLocale` |
-| `packages/host/src/locale-boot.ts` | The host freeze: `getBootLocale`, `getSavedLocale`, `applySavedLocaleAsBoot`, `localePayload` |
-| `packages/host/src/run-context.ts` | `RunContext`, `withRunContext`, `localeForRun` |
+| `packages/host/src/locale-boot.ts` | The host freeze: `getBootLocale`, `getSavedLocale`, `applySavedLocaleAsBoot`, `localePayload`; `sessionLocale`, a hosted request's person |
+| `packages/host/src/run-context.ts` | `RunContext`, `withRunContext`, `withRequestLocale`, `localeForRun` |
 | `packages/host/src/settings-store.ts:564-572` | `loadOwnerLocale` / `saveOwnerLocale` — the install's locale, still what the desk freezes |
 | `packages/host/src/settings-store.ts:582-613` | `loadUserLocale` / `saveUserLocale` — Phase 4, the person's own locale |
 | `packages/host/src/handlers/settings.ts` | Save, and `handleApplyLocale` behind `POST /api/v1/settings/apply-locale` (`:206`) |
@@ -189,7 +205,8 @@ while the screen reads "The gateway rejected this API key. Check the key at Toko
 | `packages/core/src/mode-messages.ts` | `modeMessage` — empty-result and failure fallbacks |
 | `packages/core/src/agents/chat-locale.ts` | Chat's own rule and stub copy |
 | `packages/host/src/presentation-locale.ts`, `image-output-locale.ts`, `packages/core/src/legal/locale.ts` | The three surfaces that keep their own tables |
-| `packages/host/src/job-regen.ts:134` | Where `locale` joins `runtime.execute` for every job |
+| `packages/host/src/job-regen.ts:155` | Where `locale` joins `runtime.execute` for every job |
+| `packages/host/src/router.ts:535-538` | Where a hosted request's locale is set, beside its session |
 
 ## Gotchas
 
@@ -204,18 +221,21 @@ while the screen reads "The gateway rejected this API key. Check the key at Toko
   `apps/web/components/settings-page.tsx:266-267` says the fallback exists so "the language change would not look
   like it did nothing" — but the host-side boot locale only moved if `apply-locale` had already succeeded.
   **Worth a finding.**
-- **`localeForRun()` never consults a run context for jobs.** Only `packages/host/src/runs.ts:285` populates the
-  store. If someone adds a per-run locale to a job body later, the plumbing is there but unused today.
+- **On a desk, `localeForRun()` never consults a run context for jobs.** Only Chat's `withRunContext` in
+  `packages/host/src/runs.ts` populates that store, and the per-request layer exists only in server mode. On the
+  hosted server a job answers in the signed-in person's language through the request layer (since 2026-09-23;
+  `packages/host/src/router-locale.test.ts`, `run-context.test.ts`).
 - **Market is the only surface with a client-selectable output language.** `request.language`
   (`packages/core/src/market/watch-schemas.ts:333`, default `"id"`) comes from a dropdown seeded from
   `getLocale()` but overridable per run. Market's *errors* still go through `localeForRun()`. Every other job
   surface is server-side only.
 - **Getting the runtime `locale` right does not make the model answer in Indonesian.** Channel 1 and Channel 2
   are separate, and a harness can pass one and fail the other in either direction.
-- **The `common` namespace has no parity test.** Every other namespace has one; `common` — which holds
-  `restartApp`, `restartHint`, `language`, `english`, `bahasa`, the strings on this very surface — is only
-  spot-checked in `apps/web/lib/i18n.test.ts:13`. Re-verified by grep on 2026-09-17: no test file references the
-  `common` catalog for parity. **Finding.**
+- ~~**The `common` namespace has no parity test.**~~ **Fixed 2026-09-23.** `apps/web/lib/common-locale.test.ts`
+  keeps the `en` and `id` key trees of `common` aligned and checks the shared job chrome is translated. The same
+  pass added `apps/web/lib/i18n-literal-keys.test.ts`, which scans the renderer for every `t("literal.key")` and
+  fails when English or Indonesian has no entry — `t()` returns the raw key for a missing one, which is how
+  0.15.0 shipped `data.pasteLabel` printed on the Data paste box. Dynamic keys are out of its reach.
 - **No harness-level test asserts the Indonesian rule reaches a built system prompt.** Coverage leans on
   `packages/core/src/output-language.test.ts`'s catalog-parity check plus
   `packages/host/src/job-regen.test.ts:74-81`'s runtime-locale check; a grep of the per-harness

@@ -17,6 +17,7 @@
     "invalid": "Kode itu tidak cocok. Sisa {attempts} percobaan.",
     "expired": "Kode itu sudah kedaluwarsa. Mulai lagi.",
     "exhausted": "Terlalu banyak percobaan untuk kode itu. Mulai lagi.",
+    "locked": "Terlalu banyak percobaan masuk untuk alamat ini. Coba lagi dalam 24 jam.",
     "missing": "Masukkan enam digit dari e-mail."
   },
   "approve": {

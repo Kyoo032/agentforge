@@ -34,7 +34,16 @@ import {
   readLoginStateCookie,
   statesMatch,
 } from "./login-state";
-import { portalClientCredentials, portalLoginConfig, publicRedirectUri } from "./portal-config";
+import { getLocalVaultKey } from "@agentforge/db/vault-key";
+import { log } from "../log";
+import { createPortalSessionCheck, faultOf, type PortalSessionCheck } from "./portal-check";
+import { createSessionSecrets, type SessionSecrets } from "./session-secrets";
+import {
+  configuredClientCredentials,
+  portalClientCredentials,
+  portalLoginConfig,
+  publicRedirectUri,
+} from "./portal-config";
 import type { SessionStore, TokenVault } from "./session-store";
 import {
   sessionCookieMaxAge,
@@ -104,6 +113,19 @@ export type AuthRouteDeps = {
    */
   readonly env?: EnvLike;
   readonly now?: () => number;
+  /**
+   * The one refresh-at-a-time-per-session path to the portal (`./portal-check.ts`). The hosted
+   * server passes the process-wide instance the router's gate uses too, so a refresh and a sign-out
+   * can never rotate one token twice. Absent — a test harness — it is built from `vault` and
+   * `portal` above.
+   */
+  readonly portalCheck?: PortalSessionCheck;
+  /**
+   * Seals the refresh token onto the session row at sign-in (`./session-secrets.ts`), so a restart
+   * signs nobody out. Defaults to the wrap key this process runs under; the hosted server passes
+   * the same instance the portal check uses.
+   */
+  readonly secrets?: SessionSecrets;
 };
 
 /** The doc's own English copy per reason, used when the portal sends none (:409-423). */
@@ -198,13 +220,36 @@ export async function loadSession(
   return { id, verdict };
 }
 
-/** The gate: a verified session, or an `ApiError` the router turns into the 401/403 envelope. */
-export async function requireSessionFor(request: HostRequest, deps: CookieDeps): Promise<SessionRecord> {
+/** A verified session from this request's cookie, or the 401 its verdict names. Never asks the portal. */
+async function verifiedSession(request: HostRequest, deps: CookieDeps): Promise<SessionRecord> {
   const { verdict } = await loadSession(request, deps);
   if (!verdict.ok) {
     throw authError(verdict.reason, 401);
   }
   return verdict.session;
+}
+
+/**
+ * The gate: a verified session the portal still vouches for, or an `ApiError` the router turns into
+ * the 401 envelope.
+ *
+ * With `portalCheck`, a session whose last portal check is older than ten minutes is checked again
+ * (`./portal-check.ts`): a terminal answer is a 401 carrying the portal's own reason and copy, which
+ * the renderer already reads as "this session is over"; no answer lets the request through. The
+ * router always passes one in server mode; without one this is the row check alone.
+ */
+export async function requireSessionFor(
+  request: HostRequest,
+  deps: CookieDeps & { readonly portalCheck?: PortalSessionCheck },
+): Promise<SessionRecord> {
+  const session = await verifiedSession(request, deps);
+  if (deps.portalCheck) {
+    const checked = await deps.portalCheck.gate(session, { store: deps.store, now: deps.now });
+    if (!checked.ok) {
+      throw authError(checked.reason, 401, checked.message);
+    }
+  }
+  return session;
 }
 
 /**
@@ -320,10 +365,69 @@ export type AuthRoutes = {
 export function createAuthRoutes(deps: AuthRouteDeps): AuthRoutes {
   const clock = () => (deps.now ?? Date.now)();
   const env = (): EnvLike => deps.env ?? process.env;
+  const secrets = deps.secrets ?? createSessionSecrets(() => getLocalVaultKey());
+  const check =
+    deps.portalCheck ??
+    createPortalSessionCheck({
+      vault: deps.vault,
+      portal: deps.portal,
+      secrets,
+      // The same client the code exchange authenticates as, from the same environment.
+      clientCredentials: () => configuredClientCredentials(env()),
+    });
+  const checkContext = { store: deps.store, now: deps.now };
+
+  /**
+   * The refresh token sealed for the new row, or null. A sign-in whose token cannot be sealed still
+   * signs in — the session works as sessions did before the token was kept at rest, and signs out
+   * at the first restart — and says so, rather than failing a person for a deployment fault.
+   */
+  function sealForSignIn(session: SessionRecord, tokens: PortalTokens): string | null {
+    try {
+      return secrets.seal(session.id, { refreshToken: tokens.refreshToken, deviceId: tokens.deviceId });
+    } catch (error) {
+      log.error("session_refresh_not_sealed", { tenantId: session.tenantId, fault: faultOf(error) });
+      return null;
+    }
+  }
 
   async function endSession(session: SessionRecord, at: number): Promise<void> {
     await deps.store.save(revokedSession(session, at));
     await deps.vault.delete(session.id);
+  }
+
+  /**
+   * End the PORTAL's session behind this one, best effort, never throwing.
+   *
+   * The access token the vault holds is the one from the last rotation, and it lives an hour: a
+   * sign-out after an idle afternoon used to present an expired one, the portal answered 401, and
+   * the refusal was swallowed, so the portal session — and its refresh token — outlived the
+   * sign-out. So refresh first, through the same single-flight path the gate uses, and sign out with
+   * the live token that comes back. A terminal answer or an empty vault means there is no portal
+   * session left to end; no answer at all still tries the token held, which may be inside its hour.
+   */
+  async function endPortalSession(session: SessionRecord): Promise<void> {
+    // Read before the refresh, and only for its access token: after a restart the vault is empty
+    // while the row still holds a sealed refresh token, which `check.refresh` opens itself.
+    const held = await deps.vault.get(session.id);
+    const outcome = await check.refresh(session, checkContext);
+    const accessToken =
+      outcome.kind === "rotated"
+        ? outcome.tokens.accessToken
+        : outcome.kind === "unanswered"
+          ? (held?.accessToken ?? null)
+          : null;
+    if (accessToken === null) {
+      return;
+    }
+    try {
+      await deps.portal.logout({ accessToken });
+    } catch (error) {
+      log.warn("portal_logout_failed", {
+        code: error instanceof PortalError ? error.reason : "unknown",
+        tenantId: session.tenantId,
+      });
+    }
   }
 
   /**
@@ -394,7 +498,8 @@ export function createAuthRoutes(deps: AuthRouteDeps): AuthRoutes {
       orgId: tokens.orgId,
       now,
     });
-    await deps.store.create(session);
+    // The row and its sealed refresh token in one insert; the access token only in process memory.
+    await deps.store.create(session, sealForSignIn(session, tokens));
     await deps.vault.put(session.id, {
       refreshToken: tokens.refreshToken,
       accessToken: tokens.accessToken,
@@ -454,12 +559,12 @@ export function createAuthRoutes(deps: AuthRouteDeps): AuthRoutes {
       // the portal hop, because the portal cookie can outlive this one.
       return jsonOk(signedOutBody(), 200, clearedCookie(deps));
     }
-    const tokens = await deps.vault.get(session.id);
-    if (tokens) {
-      // Contractually idempotent portal-side (doc :230); a refusal must not block the local wipe.
-      await deps.portal.logout({ accessToken: tokens.accessToken }).catch(() => undefined);
+    try {
+      await endPortalSession(session);
+    } finally {
+      // Whatever the portal said, or failed to say, this deployment's session ends here.
+      await endSession(session, clock());
     }
-    await endSession(session, clock());
     return jsonOk(signedOutBody(), 200, clearedCookie(deps));
   });
 
@@ -472,36 +577,30 @@ export function createAuthRoutes(deps: AuthRouteDeps): AuthRoutes {
     return jsonOk(id === null ? { signedIn: false } : { signedIn: false, reason: verdict.reason });
   });
 
+  /**
+   * Through the same single-flight path as the gate (`./portal-check.ts`), which also applies the
+   * answer: the rotated pair to the vault, or the session ended here. This handler only says so.
+   */
   const handleRefresh = guarded(async (request: HostRequest) => {
-    const session = await requireSessionFor(request, deps);
-    const now = clock();
-    const tokens = await deps.vault.get(session.id);
-    if (!tokens) {
-      // Nothing to present to the portal — the host restarted since this browser signed in.
-      await endSession(session, now);
-      throw authError("refresh_expired", 401);
-    }
-    let rotated: PortalTokens;
-    try {
-      rotated = await deps.portal.refresh({ refreshToken: tokens.refreshToken, deviceId: tokens.deviceId });
-    } catch (error) {
-      const api = fromPortal(error);
-      if (api.code === "portal_unavailable") {
-        // Offline, not refused: the session survives (doc §Offline, the 7-day grace).
-        throw api;
+    // Not `requireSessionFor`: its portal check would rotate once, and this route again.
+    const session = await verifiedSession(request, deps);
+    const outcome = await check.refresh(session, checkContext);
+    switch (outcome.kind) {
+      case "no_tokens":
+        // Nothing to present to the portal — the host restarted since this browser signed in.
+        throw authError("refresh_expired", 401);
+      case "ended":
+        // Terminal: the portal says this session is over, so it is.
+        return withCookies(jsonError(fromPortal(outcome.error)) as HostJsonResult, clearedCookie(deps));
+      case "unanswered":
+        // Offline, rate-limited or misrouted, not refused: the session survives.
+        throw fromPortal(outcome.error);
+      case "rotated": {
+        const extended = slidSession(session, clock());
+        await deps.store.save(extended);
+        return jsonOk(sessionSummary(extended), 200, cookieFor(deps, extended));
       }
-      // Every other reason is terminal: the portal says this session is over, so it is.
-      await endSession(session, now);
-      return withCookies(jsonError(api) as HostJsonResult, clearedCookie(deps));
     }
-    await deps.vault.put(session.id, {
-      refreshToken: rotated.refreshToken,
-      accessToken: rotated.accessToken,
-      deviceId: rotated.deviceId,
-    });
-    const extended = slidSession(session, now);
-    await deps.store.save(extended);
-    return jsonOk(sessionSummary(extended), 200, cookieFor(deps, extended));
   });
 
   return { handleStart, handleLogin, handleLogout, handleSession, handleRefresh };

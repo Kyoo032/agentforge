@@ -8,6 +8,11 @@
  * Note the variable names: the portal owns `PORTAL_DATABASE_URL` and never reads `DATABASE_URL`.
  * The product's SQLite desk and the portal's control plane are different databases belonging to
  * different teams, and one env var that means both is how they end up pointed at each other.
+ *
+ * It also owns TWO Postgres DSNs, for two roles. `PORTAL_MIGRATE_DATABASE_URL` is the schema
+ * owner's, for migrations only. `PORTAL_DATABASE_URL` is the server's, and it has to be a plain
+ * member of `portal_app` (`portal_app_login`, `migrations/0010_app_login_role.sql`). Anything more
+ * privileged sees past the tenant policies in `0004_rls.sql`. `src/boot.ts` checks that at boot.
  */
 import { isAbsolute, resolve } from "node:path";
 import { isLoopbackHost } from "./security/cookies";
@@ -47,7 +52,18 @@ export interface PortalConfig {
   readonly host: string;
   readonly port: number;
   readonly dataDir: string;
+  /**
+   * The SERVER's connection: a plain member of `portal_app`, so every tenant policy in
+   * `0004_rls.sql` applies to it. A production boot refuses a superuser, a `BYPASSRLS` role or a
+   * member of `portal_admin` here (`src/boot.ts`).
+   */
   readonly databaseUrl: string;
+  /**
+   * The schema owner's connection, for migrations and nothing else. It is opened, used and closed
+   * before anything listens. Required in production. Outside production it falls back to
+   * `databaseUrl`, which is the one-DSN setup local development used before the split.
+   */
+  readonly migrateDatabaseUrl: string;
   /** The Ed25519 seed that signs access tokens. Required in production; lane B mints the JWTs. */
   readonly signingKey: Buffer | null;
   /** Dev convenience switch. Refused in production, where a real mail provider is the only path. */
@@ -114,47 +130,74 @@ function readPort(env: Env, name: string, fallback: number, problems: string[]):
   return value;
 }
 
+type DsnVariable = "PORTAL_DATABASE_URL" | "PORTAL_MIGRATE_DATABASE_URL";
+
 /**
  * The only accepted shape is a Postgres DSN. A sqlite path or a bare file name used to be a
  * tempting shortcut here; it is refused with the reason rather than silently treated as a host,
  * which is how you end up with a service that starts and then fails on its first query.
+ *
+ * `""` when `raw` is not usable; the reason is in `problems`, under the variable's own name.
  */
-function readDatabaseUrl(env: Env, problems: string[]): string {
-  const raw = env.PORTAL_DATABASE_URL?.trim();
-  if (!raw) {
-    problems.push(
-      "PORTAL_DATABASE_URL is required and must be a Postgres DSN, " +
-        "e.g. postgres://portal:portal@127.0.0.1:5433/tokotoken_portal " +
-        "(apps/portal/compose.yml starts one). The portal never reads DATABASE_URL.",
-    );
-    return "";
-  }
+function checkPostgresDsn(name: DsnVariable, raw: string, problems: string[]): string {
   let parsed: URL;
   try {
     parsed = new URL(raw);
   } catch {
-    problems.push(`PORTAL_DATABASE_URL is not a URL (got ${JSON.stringify(raw)})`);
+    problems.push(`${name} is not a URL (got ${JSON.stringify(raw)})`);
     return "";
   }
   if (parsed.protocol === "sqlite:" || parsed.protocol === "file:") {
     problems.push(
-      "PORTAL_DATABASE_URL must be postgres://; SQLite is not supported. " +
+      `${name} must be postgres://; SQLite is not supported. ` +
         "The portal runs docs/internal/portal/migrations/0001-0005 unchanged, and those files are " +
         "PostgreSQL 16 (RLS policies, plpgsql functions, partitioned usage).",
     );
     return "";
   }
   if (parsed.protocol !== "postgres:" && parsed.protocol !== "postgresql:") {
-    problems.push(
-      `PORTAL_DATABASE_URL must start with postgres:// or postgresql:// (got ${parsed.protocol}//…)`,
-    );
+    problems.push(`${name} must start with postgres:// or postgresql:// (got ${parsed.protocol}//…)`);
     return "";
   }
   if (!parsed.pathname || parsed.pathname === "/") {
-    problems.push("PORTAL_DATABASE_URL must name a database, e.g. …:5433/tokotoken_portal");
+    problems.push(`${name} must name a database, e.g. …:5433/tokotoken_portal`);
     return "";
   }
   return raw;
+}
+
+function readDatabaseUrl(env: Env, problems: string[]): string {
+  const raw = env.PORTAL_DATABASE_URL?.trim();
+  if (!raw) {
+    problems.push(
+      "PORTAL_DATABASE_URL is required and must be a Postgres DSN for the server's role, " +
+        "e.g. postgres://portal_app_login:<password>@127.0.0.1:5433/tokotoken_portal " +
+        "(apps/portal/compose.yml starts one). The portal never reads DATABASE_URL.",
+    );
+    return "";
+  }
+  return checkPostgresDsn("PORTAL_DATABASE_URL", raw, problems);
+}
+
+/**
+ * The owner's DSN, for migrations. Outside production an unset value falls back to the server's
+ * DSN, which keeps a one-DSN development setup booting (with a warning from `src/boot.ts` if that
+ * DSN is privileged). In production there is no fallback. Migrations need the schema owner, and
+ * the server connection must not be it.
+ */
+function readMigrateDatabaseUrl(env: Env, production: boolean, databaseUrl: string, problems: string[]): string {
+  const raw = env.PORTAL_MIGRATE_DATABASE_URL?.trim();
+  if (!raw) {
+    if (production) {
+      problems.push(
+        "PORTAL_MIGRATE_DATABASE_URL is required in production: migrations run as the schema " +
+          "owner, and PORTAL_DATABASE_URL must be a plain member of portal_app (portal_app_login), " +
+          "never the owner. Only outside production does it fall back to PORTAL_DATABASE_URL.",
+      );
+    }
+    return databaseUrl;
+  }
+  return checkPostgresDsn("PORTAL_MIGRATE_DATABASE_URL", raw, problems);
 }
 
 /** base64url, base64 or hex, decoding to exactly 32 bytes — an Ed25519 seed. */
@@ -288,13 +331,15 @@ function readPublicUrl(env: Env, production: boolean, problems: string[]): strin
 export function loadConfig(env: Env = process.env): PortalConfig {
   const problems: string[] = [];
   const production = env.NODE_ENV?.trim() === "production";
+  const databaseUrl = readDatabaseUrl(env, problems);
 
   const config: PortalConfig = {
     production,
     host: env.PORTAL_HOST?.trim() || DEFAULT_HOST,
     port: readPort(env, "PORTAL_PORT", DEFAULT_PORT, problems),
     dataDir: readDataDir(env, problems),
-    databaseUrl: readDatabaseUrl(env, problems),
+    databaseUrl,
+    migrateDatabaseUrl: readMigrateDatabaseUrl(env, production, databaseUrl, problems),
     signingKey: readSigningKey(env, production, problems),
     devOutbox: readFlag(env, "PORTAL_DEV_OUTBOX", problems),
     allowManualOtp: readFlag(env, "PORTAL_ALLOW_MANUAL_OTP", problems),

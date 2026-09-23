@@ -17,7 +17,9 @@
  *    `portalClientCredentials`, the origin list by `trustedOrigins`, the billing secret by the one
  *    constant `verifyBillingRequest` reads. If one of those rules changes, this check changes with
  *    it, because it is the same code. A second copy of "what a good key looks like" is how two
- *    answers to the same question appear.
+ *    answers to the same question appear. One rule is added on top rather than borrowed, and it is
+ *    only ever stricter than the validator it sits on: in production the portal URL must be https
+ *    even on loopback (SR-26, `portalUrlProblem`).
  * 2. **Names, never values.** Every problem carries the variable's NAME and the refusal the real
  *    validator produced. No branch here reads a value into a message, and `hosted-env.test.ts`
  *    pins that a secret placed in the environment does not appear in the text.
@@ -108,14 +110,33 @@ function trustedOriginsProblem(env: EnvLike): HostedEnvProblem | null {
   };
 }
 
-/** `AGENTFORGE_PORTAL_URL`, judged by `portalBaseUrl` → `assertAllowedEndpointUrl`. */
+/**
+ * What an operator is told when production points at the portal in cleartext. Fixed text: the URL
+ * itself is never read into it (rule 2 above).
+ */
+export const PORTAL_URL_HTTPS_REQUIRED_DETAIL =
+  "must be an https URL when NODE_ENV=production. Plain http is accepted only on loopback outside " +
+  "production (a desk, webdev, the review instance): the access token, the refresh token and the " +
+  "client secret must not depend on the portal sharing a network namespace with this app.";
+
+/**
+ * `AGENTFORGE_PORTAL_URL`, judged by `portalBaseUrl` → `assertAllowedEndpointUrl`, plus one rule
+ * of this file's own (SR-26, owner decision 2026-09-23): on `NODE_ENV=production` the loopback
+ * exemption that function grants does not apply. It stays in `tls.ts` for every other caller — a
+ * desk's Ollama, the review instance — which is why the rule is here and not there.
+ */
 function portalUrlProblem(env: EnvLike): HostedEnvProblem | null {
+  let base: string;
   try {
-    portalBaseUrl(env);
-    return null;
+    base = portalBaseUrl(env);
   } catch (error) {
     return { variable: PORTAL_URL_ENV, detail: detailOf(error) };
   }
+  // `portalBaseUrl` has already parsed it, so this cannot throw.
+  if (isProduction(env) && new URL(base).protocol !== "https:") {
+    return { variable: PORTAL_URL_ENV, detail: PORTAL_URL_HTTPS_REQUIRED_DETAIL };
+  }
+  return null;
 }
 
 const CLIENT_CREDENTIAL_ENVS = [PORTAL_CLIENT_ID_ENV, PORTAL_CLIENT_SECRET_ENV] as const;
