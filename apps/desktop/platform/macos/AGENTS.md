@@ -1,7 +1,7 @@
 # macOS — shell rules
 
-> **Desktop is frozen at 0.14.27 — maintenance only.** The product continues as a hosted, multi-user web app.
-> The mac port stays where it is: the rules below hold for maintenance work, and it gets no new features.
+> **Two products, one repo.** **Personal** is the Mac/Windows DPSBuddy app — current cut `0.15.0`, under active development again.
+> The mac port is still **preview**: the rules below hold, and every launch step is owed on real hardware.
 > Decision record: [`web-pivot-2026-09-18.md`](../../../../docs/internal/web-pivot-2026-09-18.md).
 
 Status: **port in progress**. Code for the shell rows landed on 2026-09-08 (merged to main in PR #24, targets 0.14.22). The dmg + zip are **built on the Windows box through Docker** (see "Building without a Mac"); **nothing has been launched on a real Mac yet**. `scripts/macos-app.mjs` launches a built `.app` on a Mac. Read [`../README.md`](../README.md) first for the cross-platform matrix; this file adds what is macOS-specific.

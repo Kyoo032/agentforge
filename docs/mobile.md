@@ -10,4 +10,4 @@ DPSBuddy is now a hosted web app, so a phone or tablet browser can in principle 
 
 The Expo client under [`apps/mobile`](../apps/mobile/AGENTS.md) (Android first, iOS after) is paused; its rules live in that folder's `AGENTS.md`, and the plan is [`docs/internal/mobile-android-plan.md`](internal/mobile-android-plan.md). This Windows checkout cannot run Apple's Simulator.
 
-Why this page changed: [`docs/internal/web-pivot-2026-09-18.md`](internal/web-pivot-2026-09-18.md). The desktop shell, frozen at 0.14.27: [`apps/desktop/README.md`](../apps/desktop/README.md). Verification map: [`.cursor/skills/verify-agentforge/features/mobile.md`](../.cursor/skills/verify-agentforge/features/mobile.md).
+Why this page changed: [`docs/internal/web-pivot-2026-09-18.md`](internal/web-pivot-2026-09-18.md). The desktop shell — the **Personal** product, now at `0.15.0`: [`apps/desktop/README.md`](../apps/desktop/README.md). Verification map: [`.cursor/skills/verify-agentforge/features/mobile.md`](../.cursor/skills/verify-agentforge/features/mobile.md).

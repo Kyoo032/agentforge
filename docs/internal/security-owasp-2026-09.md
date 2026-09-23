@@ -424,7 +424,7 @@ same tags as the two existing workflows so that one pass can pin all three toget
 
 ### A08-2 — Updater and installer
 
-The desktop updater is out of scope (frozen at 0.14.27). The component installer's hash check was
+The desktop updater is out of scope of this hosted review (Personal app). The component installer's hash check was
 read and is sound; A01-5 turns the route off in server mode regardless.
 
 ## A09 — Logging and monitoring failures

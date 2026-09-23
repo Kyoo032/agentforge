@@ -10,7 +10,7 @@ sibling folder **`webapp-deploy/`**. This plan references that path and never cr
 
 The move is **additive**. Nothing is deleted to make room for the server.
 
-- **The desktop keeps building.** Electron is frozen at 0.14.27 and stays buildable from this tree.
+- **The desktop keeps building.** Electron is the **Personal** product (current cut `0.15.0`) and stays buildable from this tree.
   `pnpm desktop:build` and `pnpm desktop:release` must pass unchanged at the end of every phase.
 - **Every phase leaves webdev `:3000` green.** The isolated webdev instance is where each phase is
   driven. Hot reload does the work; never start a second port, never ask for a restart.

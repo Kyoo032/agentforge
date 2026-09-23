@@ -1,7 +1,7 @@
 # Map — Desktop pack routes
 
-> **Desktop is frozen at 0.14.27 — maintenance only.** The product continues as a hosted, multi-user web app.
-> Everything below stays true and keeps working; it just gets no new features, and no new cut unless Kyo asks.
+> **Two products, one repo.** **Personal** is the Mac/Windows DPSBuddy app — current cut `0.15.0`, under active development again.
+> **Enterprise** is the hosted multi-user web app.
 > Decision record: [`web-pivot-2026-09-18.md`](../web-pivot-2026-09-18.md).
 
 Last verified: 2026-09-20 at c204e5e

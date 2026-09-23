@@ -4,7 +4,7 @@
 
 The sibling half of the map is **where to press**: `.cursor/skills/verify-agentforge/features/<feature>.md`, user POV, owned by the verify skill. A feature file links its map page; a map page names the feature file that verifies it. Neither file is allowed to invent the other's job.
 
-[`desktop-pack-routes.md`](desktop-pack-routes.md) documents a **frozen** route: the desktop app is maintenance-only at 0.14.27 ([`../web-pivot-2026-09-18.md`](../web-pivot-2026-09-18.md)), so that page stays accurate for maintenance cuts and is not expected to grow.
+[`desktop-pack-routes.md`](desktop-pack-routes.md) documents the **Personal** app's pack route: the Mac/Windows DPSBuddy app, current cut `0.15.0` ([`../web-pivot-2026-09-18.md`](../web-pivot-2026-09-18.md)). It was called frozen while the desktop was maintenance-only (2026-09-18 → 2026-09-23); it is under active development again and the page is expected to grow.
 
 > **A map that disagrees with the code is fixed the same day or deleted.** A stale map is worse than none (`AGENTS.md`, Harness). If you touch a subsystem, re-run the relevant part of `how` and refresh its page in the same PR.
 

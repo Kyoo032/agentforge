@@ -1,7 +1,7 @@
 # Windows — shell rules
 
-> **Desktop is frozen at 0.14.27 — maintenance only.** The product continues as a hosted, multi-user web app.
-> The facts below still describe the shipped Windows build and still have to stay true; no new features land here.
+> **Two products, one repo.** **Personal** is the Mac/Windows DPSBuddy app — current cut `0.15.0`, under active development again.
+> The facts below describe the shipped Windows build and have to stay true.
 > Decision record: [`web-pivot-2026-09-18.md`](../../../../docs/internal/web-pivot-2026-09-18.md).
 
 Windows is the shipping closed-beta product (NSIS x64). Read [`../README.md`](../README.md) first for the cross-platform matrix; this file only adds what is Windows-specific.

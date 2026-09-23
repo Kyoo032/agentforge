@@ -1,8 +1,8 @@
 # Device-code login: DPSBuddy client ↔ Toko Token AI portal
 
-> **Read the client-integration sections as the frozen Electron path.** Desktop is frozen at 0.14.27 and the product
-> continues as a hosted, multi-user web app, which needs a browser-session variant of this flow instead of
-> `device.json` / `session.enc` in a local data dir. That is open decision 2 in
+> **Read the client-integration sections as the Electron path.** The **Personal** app (current cut `0.15.0`) uses this flow through
+> `device.json` / `session.enc` in a local data dir. **Enterprise**, the hosted web app, needs a browser-session variant of it
+> instead. That is open decision 2 in
 > [`web-pivot-2026-09-18.md`](../web-pivot-2026-09-18.md). The portal-side flow below is unchanged.
 
 Status: design, not implemented. Backend team implements the portal side; client team wires the app side.

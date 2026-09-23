@@ -104,7 +104,7 @@ Plaintext on purpose: `threads.title` (`packages/db/src/schema.ts:399`, written 
 1. `AGENTFORGE_SECRETS_KEY` if set (`:124-126`).
 2. Otherwise `readOrCreateMasterKeyFile()` (`:107-114`): `<localDataDir>/.master-key`, created on first use as `randomBytes(32).toString("hex")` with mode `0o600`. `localDataDir()` (`:6-19`) resolves `AGENTFORGE_SETTINGS_PATH` → `AGENTFORGE_DATA_DIR` → repo `data/`. The file is gitignored at `.gitignore:12`.
 
-`AGENTFORGE_SECRETS_KEY` is the **server** path: on the hosted web app the wrap key comes from the environment or a secret manager, never from a file in the repo and never from keytar — `getLocalVaultKey()` already reads the env first (`packages/db/src/vault-key.ts:123-135`). keytar / the OS keychain is the **frozen desktop** path, not the source of record.
+`AGENTFORGE_SECRETS_KEY` is the **server** path: on the hosted web app the wrap key comes from the environment or a secret manager, never from a file in the repo and never from keytar — `getLocalVaultKey()` already reads the env first (`packages/db/src/vault-key.ts:123-135`). keytar / the OS keychain is the **Personal desktop** path, not the source of record.
 
 In the **packaged app (desktop, frozen)** the env var is what is set, from the OS keychain: service = product name (`apps/desktop/main.cjs:65`), account `wrap-key` (`:66`), read/minted in `wrapKey()` (`:282-298`) with a legacy-service fallback for upgraded installs (`readLegacyWrapKey`, `:271-280`), then injected at `:620-625` inside `bootstrapPackaged()` — which only runs when `app.isPackaged` (`:815-816`). Webdev therefore never touches keytar.
 

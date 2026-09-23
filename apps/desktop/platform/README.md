@@ -1,7 +1,7 @@
 # Desktop shell — platform rules
 
-> **Desktop is frozen at 0.14.27 — maintenance only.** The product continues as a hosted, multi-user web app.
-> Every rule in this matrix still holds for the shipped shell; it just gets no new features.
+> **Two products, one repo.** **Personal** is the Mac/Windows DPSBuddy app — current cut `0.15.0`, under active development again.
+> Every rule in this matrix holds for the shipped shell on both products.
 > Decision record: [`web-pivot-2026-09-18.md`](../../../docs/internal/web-pivot-2026-09-18.md).
 
 One Electron shell (`apps/desktop/main.cjs`, `preload.cjs`, `edit-menu.cjs`, `auto-update.cjs`) ships to Windows, macOS, and Linux. Anything that differs per OS is listed here and owned by a platform folder:

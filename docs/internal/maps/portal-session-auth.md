@@ -433,7 +433,7 @@ entirely** unless `view === "app"`. That guard is the fix for
 [SR-06](../security-register.md#sr-06): in server mode that call answers `401 session_required` for a
 visitor with no session, the old `.catch` read any failure as `"onboarding"`, and the first screen of
 the public deployment therefore asked a stranger to paste a gateway API key. Off a hosted build
-`view` is `"app"` as soon as ping answers, so webdev and the frozen desktop reach settings exactly as
+`view` is `"app"` as soon as ping answers, so webdev and the packaged Personal app reach settings exactly as
 they always did.
 
 **`capabilitiesFrom` is exported for this.** `apps/web/lib/host-capabilities.tsx` had it private; the

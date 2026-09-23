@@ -6,7 +6,7 @@ Engineering and research notes. Not part of the closed-beta tester surface.
 
 | Path | Purpose |
 |------|---------|
-| [`web-pivot-2026-09-18.md`](web-pivot-2026-09-18.md) | **Direction change (2026-09-18):** DPSBuddy becomes a hosted multi-user web app; desktop frozen at 0.14.27. Decision, rule changes, open decisions, deploy log |
+| [`web-pivot-2026-09-18.md`](web-pivot-2026-09-18.md) | **Direction change (2026-09-18):** DPSBuddy becomes a hosted multi-user web app. Re-scoped 2026-09-23 into two products (Personal desktop `0.15.0` + Enterprise web). Decision, rule changes, open decisions, deploy log |
 | [`web-migration-plan.md`](web-migration-plan.md) | How to get there: the inventory of local-based assumptions and Phases 0-8 |
 | [`web-security-spec.md`](web-security-spec.md) | Security requirements for the hosted app, with the before-traffic acceptance list |
 | [`security-register.md`](security-register.md) | **Living register:** every security flag raised in a session, with evidence, severity, status and the gate it blocks. Ends with the must-be-true checklist for the Tencent deploy |

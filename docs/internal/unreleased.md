@@ -6,23 +6,25 @@
 
 Convention unchanged: at the next bump everything listed here folds into `<version>-changelog.md` and this file starts over. Nothing counts as shipped until it is staged, packed, installed, and driven on the packaged app.
 
-Append-only. When 0.14.28 is published, record the artifact table below, fold any later items into the next changelog, and start this file over.
+Append-only. The 0.15.0 cut is now **published**, so its artifact table is filled below. When 0.15.1 is published, fold any later items into that changelog and start this file over.
 
 ## Where each published artifact came from
 
-To be filled when 0.14.27 is packed and published — the pack lanes write their shas, sizes and sha256 into the `## Pack + publish` block of [`0.14.27-changelog.md`](0.14.27-changelog.md) first, and the published rows are copied here.
+To be filled when 0.14.27 is packed and published — the pack lanes write their shas, sizes and sha256 into the `## Pack + publish` block of [`0.14.27-changelog.md`](0.14.27-changelog.md) first, and the published rows are copied here. 0.14.27 has since been **superseded**: the current published release is 0.15.0, below.
 
 | Artifact | Source | Uploaded (UTC) |
 |---|---|---|
 | `DPSBuddy-Setup-0.14.27.exe` + `.blockmap` + `latest.yml` | `05e97a5`, worktree `agentforge-pack-0.14.27-05e97a5`, sha256 `D2FCD444…1A45D6`, 102 243 076 bytes, `latest.yml` sha512 `yHNJBKzW…nG9mw==` | 2026-09-18 01:47 |
 | `DPSBuddy-0.14.27-mac-arm64.dmg` / `.zip`, `-x64.dmg` / `.zip` | `6da52d7` (Docker Linux, `--arch all`, third pack — the first two shipped Linux anydoc binaries), `mac-0.14.27.sha256`, arm64 dmg `c2434f49…6b83d` / zip `70e4eab7…68d51`, x64 dmg `edda5e18…29aa1` / zip `16dff901…88d4fa` | 2026-09-18 01:47 |
 
-To be filled when **0.15.0** is packed and published — the pack lanes write their shas, sizes and sha256 into the `## Pack + publish` block of [`0.15.0-changelog.md`](0.15.0-changelog.md) first.
+Published 2026-09-23 11:25 UTC from `88bb803`, 7 assets on [`Kyoo032/DPSBuddy`](https://github.com/Kyoo032/DPSBuddy/releases/tag/v0.15.0). Full route table with every sha256: [`0.15.0-changelog.md`](0.15.0-changelog.md) § Pack + publish.
 
 | Artifact | Source | Uploaded (UTC) |
 |---|---|---|
-| *(owed)* `DPSBuddy-Setup-0.15.0.exe` + `.blockmap` + `latest.yml` | — | — |
-| *(owed)* `DPSBuddy-0.15.0-mac-*.dmg` / `.zip` | — | — |
+| `DPSBuddy-Setup-0.15.0.exe` + `.blockmap` + `latest.yml` | `88bb803`, worktree `agentforge-pack-0.15.0`, exe sha256 `d4bd79bc…dc872a`, 102 554 305 bytes | 2026-09-23 11:25 |
+| `DPSBuddy-0.15.0-mac-arm64.dmg` / `.zip`, `-x64.dmg` / `.zip` | `88bb803` (Docker Linux, `--arch all`), arm64 dmg `78db45bc…d96d9` / zip `ae802931…d3d81`, x64 dmg `53ddf4e8…b28c` / zip `89f22c91…bead` | 2026-09-23 11:25 |
+
+mac is **preview**: the dmg has never been opened on Mac hardware.
 
 Earlier releases: 0.14.26 (`e93c617`, published 2026-09-15 09:18 UTC, 7 assets) and everything before it are recorded in their own changelogs and in this file's history at `e2e477e`.
 
@@ -59,7 +61,7 @@ Nothing below is closed by 0.14.27. Carried forward as-is.
 ## 2026-09-18 — direction change: hosted web app
 
 - **What changed.** Kyo decided the product continues as a hosted, multi-user web app (SaaS) served from `apps/web/server.ts` behind a reverse proxy, with per-tenant data on the server, portal browser login, and the seat paywall and entitlement gate server-side. The gateway stays the model backend.
-- **Desktop is frozen at 0.14.27.** Maintenance-only: no new features, no new cuts unless Kyo asks. The `Kyoo032/DPSBuddy` releases repo and `desktop:release` are desktop-maintenance-only. The published 0.14.27 artifacts and every open item above stand as recorded.
+- **Desktop is frozen at 0.14.27.** Maintenance-only: no new features, no new cuts unless Kyo asks. The `Kyoo032/DPSBuddy` releases repo and `desktop:release` are desktop-maintenance-only. The published 0.14.27 artifacts and every open item above stand as recorded. **Superseded 2026-09-23:** the desktop is the **Personal** product, cut `0.15.0`, under active development again — recorded here as the history of the 2026-09-18 pivot.
 - **Record:** [`web-pivot-2026-09-18.md`](web-pivot-2026-09-18.md) — rule changes, the seven open decisions, verified architecture facts, and the deploy log.
 
 This file’s “nothing counts as shipped until packed and installed” convention now applies to **desktop maintenance only**. Hosted deploys are not tracked here: every one appends a row to the deploy log in the decision record.
