@@ -123,10 +123,27 @@
   --rail-active-text: #0a0a0a;
   --rail-accent: #3846a5;
 
-  --motion-hover: 120ms ease;
-  --motion-select: 120ms ease;
-  --motion-focus: 120ms ease;
-  --motion-fade: 120ms ease;
+  /* One motion scale. Four durations and two curves; nothing in the app writes a raw ms value
+     or its own cubic-bezier, so the desk moves at one tempo (`lib/motion-tokens.test.ts`).
+     1: a colour or opacity swap (hover, press, focus).
+     2: a small thing changing state (selection, a tab underline).
+     3: something arriving in place (a message, a toast, a row).
+     4: a whole stage or a modal. */
+  --motion-1: 120ms;
+  --motion-2: 180ms;
+  --motion-3: 240ms;
+  --motion-4: 320ms;
+  /* Standard curve: decelerates into place and never overshoots. */
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  /* Entrance curve: the same feel with a few percent of overshoot, for anything that appears. */
+  --ease-entrance: cubic-bezier(0.22, 1, 0.3, 1.02);
+
+  /* The compound aliases the rules below read. All four stay on step 1, the 120ms the warm desk
+     shipped with; only the curve moved from `ease` to the scale's `--ease-out`. */
+  --motion-hover: var(--motion-1) var(--ease-out);
+  --motion-select: var(--motion-1) var(--ease-out);
+  --motion-focus: var(--motion-1) var(--ease-out);
+  --motion-fade: var(--motion-1) var(--ease-out);
   --shadow-raise: var(--shadow-float);
   /* A blue float is the product's only shadow (owner ruling 2026-09-23): the light desk reads
      flat without one, and the accent hue ties the lift back to the brand instead of to grey.
@@ -224,7 +241,9 @@
   --line: #3a3833;
   --text: #f4f1ea;
   --text-2: #cdc8bf;
-  --text-3: #948e84;
+  /* #948e84 fell to 4.09:1 on --accent-soft and 4.28:1 on --surface-2; +8 per channel is the
+     smallest lift that clears 4.5:1 on both (`lib/contrast-tokens.test.ts`). */
+  --text-3: #9c968c;
   --accent: #9da5df;
   --accent-soft: #2b2e45;
   --mark: #b9c0ff;
@@ -240,7 +259,7 @@
   --rail: #151412;
   --rail-text: #f4f1ea;
   --rail-text-2: #cdc8bf;
-  --rail-text-3: #948e84;
+  --rail-text-3: #9c968c;
   --rail-line: #3a3833;
   --rail-hover: #2e2c29;
   --rail-active: #2b2e45;
@@ -396,10 +415,12 @@ h6 {
   cursor: not-allowed;
 }
 
+/* The on-accent colour is `--surface`, as on every `bg-[var(--accent)]` button in the studios.
+   A literal white was the same in light but read 2.36:1 on the dark desk's lighter accent. */
 .btn-primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #ffffff;
+  color: var(--surface);
 }
 
 .btn-primary:hover {
@@ -620,6 +641,17 @@ h6 {
   transition: border-color var(--motion-focus);
 }
 
+/* Tailwind's transition utilities default to 150ms and their own curve. Every one the renderer
+   uses is put back on the scale here; this rule sits after `@tailwind utilities`, so it wins at
+   equal specificity. `lib/motion-tokens.test.ts` fails if a component reaches for one that is
+   not listed, or for a `duration-*` / `ease-*` / `delay-*` / `animate-*` literal. */
+.transition,
+.transition-colors,
+.transition-shadow {
+  transition-duration: var(--motion-1);
+  transition-timing-function: var(--ease-out);
+}
+
 /* Focus warms the composer's own border rather than drawing a ring (owner report
    2026-09-23: "why there has to be blue line when the box is selected??"). The 2px
    outline at a 2px offset read as a second box floating around the composer, not as
@@ -779,4 +811,24 @@ aside nav > p {
 
 .edit-placeholder-shimmer {
   background: var(--surface-2);
+}
+
+/* ===========================================================================
+   Reduced motion. One block, and it is the last word on every rule above.
+   Anyone who asked their OS to stop animations gets the end state at once:
+   no transition, no animation, no smooth scroll. A new looping animation or
+   a rule that rests on a transform must be reset here by name as well;
+   `lib/motion-tokens.test.ts` fails if one escapes.
+   =========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
 }
