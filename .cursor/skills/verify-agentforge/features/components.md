@@ -23,7 +23,7 @@ Install the app and open it. On the first screen, under the key form, **Setting 
 5. Proof that it matters: upload a `.pptx` on `/knowledge` (`knowledge-file`) — it indexes with the component, and is refused as unsupported without it.
 6. Source check when no such host is at hand: `packages/host/src/components/*.test.ts`, `apps/web/lib/components-client.test.ts`, and one real install into a temp data dir (see the map's Gotchas).
 
-## Driving the hosted half (operator POV)
+### The hosted half (operator POV)
 
 Only on a server (`AGENTFORGE_SERVER=1`); on a desk every step below is inapplicable, not failing.
 

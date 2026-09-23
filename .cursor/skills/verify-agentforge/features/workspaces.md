@@ -39,7 +39,7 @@ Preconditions:
 
 ## Gotchas
 
-- Create does not just add a desk — `handlePostWorkspaces` calls `writeSelectedWorkspaceId` before returning 201 (`packages/host/src/handlers/workspaces.ts:75`), so the new desk becomes current. There is no "create without switching".
+- Create does not just add a desk — `handlePostWorkspaces` calls `writeSelectedWorkspaceId` before returning 201 (`packages/host/src/handlers/workspaces.ts:80`), so the new desk becomes current. There is no "create without switching".
 - The current desk is a **process-global file**, `data/workspace-id.txt` (`packages/host/src/workspace.ts:35-41`), not a per-browser session. Switching desks in an automated drive switches them in the operator's open window too. Switch back to Default before you finish.
 - Deleting a desk cascades its threads, messages and runs (`packages/db/src/schema.ts:392-394`), hand-wipes six `knowledge_*` tables (`packages/db/src/ensure-local-owner.ts:199-212`) and drops the desk's `settings.enc` entry. It is not recoverable locally.
 - Both collapsed and expanded `AppRail` branches must carry `data-testid="workspaces-link"` and `workspaces-switcher`. A single branch only is a harness bug.
@@ -48,4 +48,6 @@ Preconditions:
 - Kernel forbids `student` / `course` nouns in core schema. The Students chip is a pack id (`students`), not a kernel table.
 - Do not create throwaway desks on the operator's Windows SQLite without asking.
 - Default with null `productModes` after migrate is all work modes — not Chat-only.
+- **Creating a desk on a live install strands the whole app on onboarding.** The new desk has no key, the host selects it, and with the gate not pinned to `stub` it derives `needs_key` / `allowed: false`, so every route — `/workspaces` and `/settings` included — renders only `onboarding-form`, `onboarding-gateway-host`, `onboarding-key`, `onboarding-continue`. There is no switcher, no rail and no way back to Default from the UI without pasting a key into the new desk. Driven 2026-09-23 on `:3000` (evidence `workspaces/…-keyless-desk`); recorded as a product finding. Because the selected desk is process-global, the operator's own window is stranded too. **Recovery for a drive:** `POST /api/v1/workspaces/<defaultId>/select` (Origin `http://127.0.0.1:3000`), then delete the throwaway desk through the UI below. Prefer a desk whose modes you can inspect on the create form without pressing `create-workspace` when the instance holds a real key.
+- **Delete.** On `/workspaces` click the desk row's `delete-workspace`; `delete-workspace-confirm` opens with `delete-workspace-confirm-submit` disabled; type the exact desk name into `delete-workspace-confirm-name` (it enables); click submit. The API refuses a bare `DELETE /api/v1/workspaces/:id` with `400 confirm_required`. Default is `protected` and has no delete.
 - Isolation: Settings keys and extras are per desk. Knowledge soul/memory/sources were already per `workspaceId`. A new desk starts with no gateway key. The pre-isolation machine-wide key is claimed onto Default only.

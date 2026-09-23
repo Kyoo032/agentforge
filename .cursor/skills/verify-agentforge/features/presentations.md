@@ -4,6 +4,7 @@ Presentation is a job: prompt or starter → slide preview → PPTX download. It
 
 ## Sub-features
 
+- `presentations-header` (0.15.0) — title plus one outcome line in `expected-inputs`: "You get: a titled deck with a claim heading, complete-sentence bullets, and speaker notes on every slide — previewed on the page and downloadable as PPTX." `presentations-prompt` is a bordered `text-field` input. Driven 2026-09-23: `presentations-starter` → one `presentations-slide-title` + six `presentations-slide`; `presentations-download` → `POST /api/v1/presentations/pptx` 200, no model call.
 - `presentations-rail` reaches `/presentations` from `mode-presentations` on Default.
 - `presentations-shell` shows `presentations-studio` with `presentations-studio-empty` copy, starter cards, the templates gallery, and the sticky `presentations-studio-prompt-bar`.
 - `presentations-gallery` is the shared example gallery (`example-gallery`, six `example-card`s, `example-result`). A click only fills `presentations-prompt` — it never generates.

@@ -4,6 +4,7 @@ Documents is a job: prompt or starter → section preview → DOCX download. It 
 
 ## Sub-features
 
+- `documents-header` (0.15.0) — title plus one outcome line in `expected-inputs`: "You get: a titled, sectioned draft you can preview and download as a DOCX." No kicker and no second subtitle. `documents-prompt` is a bordered `text-field` input (it was transparent and borderless before 0.15.0). Driven 2026-09-23: `documents-starter` → five `documents-section`; `documents-download` → `POST /api/v1/documents/docx` 200 with the wordprocessingml type, no model call.
 - `documents-rail` reaches `/documents` from `mode-documents` on Default (and any workspace that includes Documents).
 - `documents-shell` shows `documents-studio` with empty copy and starter cards.
 - `documents-prompt` + `documents-generate` are the generate bar (`documents-studio-prompt-bar`). Without a key, generate is HTTP 503 into `documents-error` — and the failure also clears any starter draft on screen.

@@ -4,6 +4,7 @@ Research is a job: question → planned sub-queries → web search → fetched p
 
 ## Sub-features
 
+- `research-header` (0.15.0) — title plus one outcome line in `expected-inputs`: "You get: a cited dossier — Question, Findings, Sources — you can reopen, download, or send to Documents, Presentation, or the Knowledge Base." `research-prompt` is a bordered `text-field` input. Driven 2026-09-23: an `example-card` fills `research-prompt` and shows `example-result` with no request.
 - `research-rail` reaches `/research` from `mode-research` on Default (and any workspace that includes Research).
 - `research-shell` shows `research-studio-empty` inside `research-studio`, plus `example-gallery` (6 `example-card`, see [templates.md](./templates.md)). There is no Documents-style starter: a card only prefills `research-prompt`, it never produces an offline draft.
 - `research-studio-model` is the generate-bar chat-catalog dropdown.

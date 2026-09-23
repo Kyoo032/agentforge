@@ -8,7 +8,7 @@ Electron is the installed local app. Packaged builds have **no HTTP server**. Th
   - Windows: `%APPDATA%\DPSBuddy\host-status.json`
   - Linux: `$XDG_CONFIG_HOME/DPSBuddy/host-status.json` or `~/.config/DPSBuddy/host-status.json`
   - macOS: `~/Library/Application Support/DPSBuddy/host-status.json`
-- `desktop-onboarding` (packaged, no saved key): endpoint URL shown read-only (Toko Token; editable later in Settings), API key field accepts Ctrl+V **and** right-click → Paste (0.14.21 fix: Electron Edit menu + context menu in `edit-menu.cjs`), optional “Use offline demo”. Skipped once a key exists. Webdev/Playwright is **not** gated.
+- `desktop-onboarding` (packaged, no saved key): a muted `onboarding-gateway-host` line ("Gateway: api.tokotokenai.com" — the endpoint is pinned and hidden, not a field, since 2026-09-17) and the API key field, which accepts Ctrl+V **and** right-click → Paste (0.14.21 fix: Electron Edit menu + context menu in `edit-menu.cjs`). There is no "Use offline demo" option and no "Offline demo" copy anywhere since 0.15.0. Skipped once a key exists. Webdev/Playwright is **not** gated. Full gate states: [gateway-gate.md](./gateway-gate.md).
 - `desktop-splash` shows the splash page until the host is ready, then loads the renderer (`loadFile`, not a loopback URL).
 - `desktop-chat` loads Chat in the window (not in Chrome on :3000).
 - `desktop-dev` (`pnpm desktop:dev`) is the **local webdev in a window**. It waits for `GET /api/v1/ping` on :3000 and does **not** attach preload. That is not packaged proof.

@@ -4,6 +4,7 @@ Images is a generate studio (prompt → gallery), not a canvas editor. It lists 
 
 ## Sub-features
 
+- `images-header` (0.15.0) — title plus one outcome line in `expected-inputs`: "You get: a generated image, saved to the gallery below." No disclosure on this studio; the rail row reads `Images`. Driven 2026-09-23 on a live desk: `images-studio-needs-key` count 0, `images-studio-estimate` starts with `≈ $`, submit not pressed.
 - `images-rail` reaches `/images` from `mode-images` on Default.
 - `images-shell` shows `images-studio` (heading Images, prompt bar, gallery).
 - `images-needs-key` shows `images-studio-needs-key` when no gateway key is ready.
