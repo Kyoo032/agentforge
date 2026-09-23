@@ -97,9 +97,59 @@ export function deliverableLabel(kind: DeliverableKind): string {
   return DELIVERABLE_OPTIONS.find((option) => option.kind === kind)?.label ?? kind;
 }
 
-/** Run needs at least one uploaded document, a client name, and no upload in flight. */
+/**
+ * The host refuses a matter without both names (`sideSchema`, `packages/host/src/legal/input.ts`),
+ * so the studio asks for both before the first upload creates the matter and before a run.
+ */
+export function partiesReady(draft: LegalDraft): boolean {
+  return draft.side.party.trim().length > 0 && draft.side.counterparty.trim().length > 0;
+}
+
+/** Upload needs both names, because the first upload creates the matter on the host. */
+export function canUpload(draft: LegalDraft): boolean {
+  return partiesReady(draft);
+}
+
+/** Run needs at least one uploaded document, both names, and no upload in flight. */
 export function canRun(draft: LegalDraft, docCount: number, uploading: boolean): boolean {
-  return docCount > 0 && draft.side.party.trim().length > 0 && !uploading;
+  return docCount > 0 && partiesReady(draft) && !uploading;
+}
+
+/**
+ * The host answers a refused matter body with `400 invalid_request` and the message
+ * `"<field path> <reason>"` (`parseBody`, `packages/host/src/legal/input.ts`). That text is for
+ * developers; these are the `legal.errors.*` keys the studio shows instead.
+ */
+const VALIDATION_FIELD_KEYS: Readonly<Record<string, string>> = {
+  "side.party": "legal.errors.partyRequired",
+  "side.counterparty": "legal.errors.counterpartyRequired",
+  "side.role": "legal.errors.positionRequired",
+  title: "legal.errors.titleInvalid",
+  deliverables: "legal.errors.deliverablesRequired",
+  instructions: "legal.errors.instructionsTooLong",
+};
+
+const VALIDATION_MESSAGE =
+  /^([A-Za-z][\w.]*) (is required|is malformed|is invalid|is not a document id|must .+|nothing to update)$/;
+
+/**
+ * Catalog key for a host validation refusal, or `null` when the message is not one.
+ * Any other `invalid_request` in the validator's shape falls back to a generic key, so a raw
+ * field path never reaches the screen.
+ */
+export function legalValidationKey(code: string | undefined, message: string): string | null {
+  if (code !== "invalid_request") {
+    return null;
+  }
+  const match = VALIDATION_MESSAGE.exec(message.trim());
+  if (!match) {
+    return null;
+  }
+  const [, field, reason] = match;
+  if (field.startsWith("side.") && reason.startsWith("must be")) {
+    return "legal.errors.nameTooLong";
+  }
+  return VALIDATION_FIELD_KEYS[field] ?? "legal.errors.invalidField";
 }
 
 export function nextDocRole(role: DocRole): DocRole {

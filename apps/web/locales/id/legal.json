@@ -13,7 +13,7 @@
     "newMatter": "Perkara baru",
     "run": "Jalankan perkara",
     "saving": "Menyimpan…",
-    "runHint": "Unggah sekurang-kurangnya satu berkas .docx dan isi nama klien",
+    "runHint": "Unggah sekurang-kurangnya satu berkas .docx dan isi nama klien serta pihak lawan",
     "untitled": "Perkara tanpa judul",
     "nextTurnTitle": "{title} · giliran berikutnya",
     "openSettings": "Buka {settings}."
@@ -29,7 +29,16 @@
     "nextTurn": "Giliran berikutnya tidak dapat dimulai",
     "download": "{filename} tidak dapat diunduh",
     "docxOnly": "Hanya berkas .docx yang diterima pada v1. Ubah PDF atau format lain ke .docx terlebih dahulu.",
-    "stub": "Legal memerlukan gerbang yang aktif. Tempel kunci API Toko Token di Pengaturan, lalu coba lagi."
+    "stub": "Legal memerlukan gerbang yang aktif. Tempel kunci API Toko Token di Pengaturan, lalu coba lagi.",
+    "partyRequired": "Isi nama klien terlebih dahulu.",
+    "counterpartyRequired": "Isi pihak lawan terlebih dahulu.",
+    "positionRequired": "Isi kedudukan Anda, misalnya pembeli.",
+    "nameTooLong": "Setiap nama paling banyak 200 karakter.",
+    "titleInvalid": "Judul perkara paling banyak 200 karakter.",
+    "deliverablesRequired": "Pilih sekurang-kurangnya satu hasil kerja.",
+    "instructionsTooLong": "Instruksi terlalu panjang. Persingkat, lalu coba lagi.",
+    "invalidField": "Salah satu rincian perkara tidak diterima. Periksa formulir, lalu coba lagi.",
+    "tooLarge": "{name} melebihi batas 25 MB per berkas."
   },
   "matter": {
     "panel": "Perkara",
@@ -105,7 +114,8 @@
     "failed": "gagal",
     "changeRole": "Klik untuk mengubah peran",
     "removeAria": "Hapus {name}",
-    "rolesHint": "Peran dikonfirmasi saat dijalankan · klik tag untuk mengubahnya sekarang"
+    "rolesHint": "Peran dikonfirmasi saat dijalankan · klik tag untuk mengubahnya sekarang",
+    "needParties": "Isi nama klien dan pihak lawan sebelum mengunggah."
   },
   "role": {
     "counterparty-draft": "draf pihak lawan",

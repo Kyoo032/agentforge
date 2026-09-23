@@ -14,10 +14,9 @@
     "statusSignedIn": "Signed in",
     "statusReady": "Ready to work",
     "statusNeedsKey": "Connect a key to go live",
-    "statusDemo": "Model key connected (offline demo)",
     "statusGrace": "Model key connected (offline, last checked {date})",
     "whatsThis": "What is this?",
-    "whatsThisBody": "A model key lets this desk call the models on your account. Paste it once in Settings. It stays on this desk and is never shown back. You can also sign in with a one-time code.",
+    "whatsThisBody": "A gateway key connects this desk to the models on your account. Paste it once in Settings. It stays on this desk and is never shown back.",
     "pickModel": "Pick a model below, then type.",
     "ideas": {
       "title": "Start with an idea",

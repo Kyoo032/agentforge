@@ -22,6 +22,7 @@ type Props = {
   pending: readonly PendingUpload[];
   playbooks: readonly LegalPlaybookSummary[];
   locked: boolean;
+  uploadReady: boolean;
   onFiles: (files: File[]) => void;
   onCycleRole: (docId: string) => void;
   onRemoveFile: (docId: string) => void;
@@ -39,6 +40,7 @@ export function LegalMatterPanel({
   pending,
   playbooks,
   locked,
+  uploadReady,
   onFiles,
   onCycleRole,
   onRemoveFile,
@@ -61,6 +63,7 @@ export function LegalMatterPanel({
         docs={docs}
         pending={pending}
         locked={locked}
+        uploadReady={uploadReady}
         onFiles={onFiles}
         onCycleRole={onCycleRole}
         onRemove={onRemoveFile}

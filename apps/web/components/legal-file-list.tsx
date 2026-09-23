@@ -12,6 +12,8 @@ type Props = {
   docs: readonly MatterDocCard[];
   pending: readonly PendingUpload[];
   locked: boolean;
+  /** False until both party names are filled; the first upload creates the matter. */
+  uploadReady: boolean;
   onFiles: (files: File[]) => void;
   onCycleRole: (docId: string) => void;
   onRemove: (docId: string) => void;
@@ -20,12 +22,13 @@ type Props = {
 const ACCENT_ROLES = new Set(["counterparty-draft", "our-draft", "executed"]);
 
 /** Drop zone plus the per-document list with clickable role tags. */
-export function LegalFileList({ docs, pending, locked, onFiles, onCycleRole, onRemove }: Props) {
+export function LegalFileList({ docs, pending, locked, uploadReady, onFiles, onCycleRole, onRemove }: Props) {
   const input = useRef<HTMLInputElement | null>(null);
+  const uploadLocked = locked || !uploadReady;
 
   function onDrop(event: DragEvent<HTMLButtonElement>) {
     event.preventDefault();
-    if (locked) {
+    if (uploadLocked) {
       return;
     }
     const files = Array.from(event.dataTransfer.files ?? []);
@@ -42,7 +45,7 @@ export function LegalFileList({ docs, pending, locked, onFiles, onCycleRole, onR
         multiple
         accept={LEGAL_ACCEPT}
         className="hidden"
-        disabled={locked}
+        disabled={uploadLocked}
         onChange={(event) => {
           const files = Array.from(event.target.files ?? []);
           event.target.value = "";
@@ -58,7 +61,8 @@ export function LegalFileList({ docs, pending, locked, onFiles, onCycleRole, onR
         onClick={() => input.current?.click()}
         onDragOver={(event) => event.preventDefault()}
         onDrop={onDrop}
-        disabled={locked}
+        disabled={uploadLocked}
+        aria-describedby={uploadReady ? undefined : "legal-upload-hint"}
         data-testid="legal-drop-zone"
       >
         {t("legal.files.drop")}
@@ -70,6 +74,11 @@ export function LegalFileList({ docs, pending, locked, onFiles, onCycleRole, onR
           })}
         </span>
       </button>
+      {uploadReady ? null : (
+        <p id="legal-upload-hint" className={`mt-1 text-xs ${DIM}`} data-testid="legal-upload-hint">
+          {t("legal.files.needParties")}
+        </p>
+      )}
       <ul className="mt-2 divide-y divide-divider text-[13px]" data-testid="legal-file-list">
         {docs.map((doc) => (
           <li key={doc.id} className="flex items-center gap-2 py-1.5" data-testid="legal-file-row">

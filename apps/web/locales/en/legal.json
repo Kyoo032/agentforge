@@ -13,7 +13,7 @@
     "newMatter": "New matter",
     "run": "Run matter",
     "saving": "Saving…",
-    "runHint": "Upload at least one .docx and enter the client name",
+    "runHint": "Upload at least one .docx and enter the client and the counterparty",
     "untitled": "Untitled matter",
     "nextTurnTitle": "{title} · next turn",
     "openSettings": "Open {settings}."
@@ -29,7 +29,16 @@
     "nextTurn": "Could not start the next turn",
     "download": "Could not download {filename}",
     "docxOnly": "Only .docx files are accepted in v1. Convert PDF or other formats to .docx first.",
-    "stub": "Legal needs a live gateway. Paste a Toko Token API key in Settings, then try again."
+    "stub": "Legal needs a live gateway. Paste a Toko Token API key in Settings, then try again.",
+    "partyRequired": "Enter the client name first.",
+    "counterpartyRequired": "Enter the counterparty first.",
+    "positionRequired": "Enter the position you act in, e.g. buyer.",
+    "nameTooLong": "Keep each name to 200 characters or fewer.",
+    "titleInvalid": "Keep the matter title to 200 characters or fewer.",
+    "deliverablesRequired": "Choose at least one deliverable.",
+    "instructionsTooLong": "The instructions are too long. Shorten them and try again.",
+    "invalidField": "One of the matter details was not accepted. Check the form and try again.",
+    "tooLarge": "{name} is over the 25 MB per-file cap."
   },
   "matter": {
     "panel": "Matter",
@@ -105,7 +114,8 @@
     "failed": "failed",
     "changeRole": "Click to change the role",
     "removeAria": "Remove {name}",
-    "rolesHint": "Roles are confirmed on run · click a tag to change it now"
+    "rolesHint": "Roles are confirmed on run · click a tag to change it now",
+    "needParties": "Enter the client name and the counterparty before you upload."
   },
   "role": {
     "counterparty-draft": "counterparty draft",

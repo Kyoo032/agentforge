@@ -6,6 +6,9 @@ import {
   deleteLegalFile,
   getLegalMatter,
   getLegalRun,
+  isDocxFile,
+  LEGAL_FILE_MAX_BYTES,
+  LegalRequestError,
   legalRunStreamPath,
   listLegalMatters,
   listLegalPlaybooks,
@@ -18,8 +21,10 @@ import {
 } from "@/lib/legal-client";
 import {
   canRun,
+  canUpload,
   DEFAULT_LEGAL_DRAFT,
   draftFromMatter,
+  legalValidationKey,
   nextDocRole,
   type LegalDraft,
   type PendingUpload,
@@ -47,7 +52,23 @@ function needsSettingsHint(message: string, code?: string, status?: number): boo
 }
 
 function message(err: unknown, fallback: string): string {
+  if (err instanceof LegalRequestError) {
+    const key = legalValidationKey(err.code, err.message);
+    if (key) {
+      return t(key);
+    }
+  }
   return err instanceof Error && err.message ? err.message : fallback;
+}
+
+/** Refuse what the host would refuse before the first upload creates a matter for it. */
+function refusedUpload(files: readonly File[]): string | null {
+  const notDocx = files.find((file) => !isDocxFile(file));
+  if (notDocx) {
+    return t("legal.errors.docxOnly");
+  }
+  const tooLarge = files.find((file) => file.size > LEGAL_FILE_MAX_BYTES);
+  return tooLarge ? t("legal.errors.tooLarge", { name: tooLarge.name }) : null;
 }
 
 export function LegalStudio() {
@@ -68,6 +89,7 @@ export function LegalStudio() {
   const docs = matter?.docs ?? [];
   const playbookTitle = playbooks.find((item) => item.id === draft.playbookId)?.title ?? null;
   const ready = canRun(draft, docs.length, busy === "upload");
+  const uploadReady = canUpload(draft);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,6 +121,15 @@ export function LegalStudio() {
 
   async function onFiles(files: File[]) {
     if (locked) {
+      return;
+    }
+    if (!uploadReady) {
+      setLocalError(t("legal.files.needParties"));
+      return;
+    }
+    const refused = refusedUpload(files);
+    if (refused) {
+      setLocalError(refused);
       return;
     }
     setBusy("upload");
@@ -340,6 +371,7 @@ export function LegalStudio() {
                 pending={pending}
                 playbooks={playbooks}
                 locked={locked}
+                uploadReady={uploadReady}
                 onFiles={(files) => void onFiles(files)}
                 onCycleRole={(docId) => void onCycleRole(docId)}
                 onRemoveFile={(docId) => void onRemoveFile(docId)}

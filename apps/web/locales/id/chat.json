@@ -14,10 +14,9 @@
     "statusSignedIn": "Sudah masuk",
     "statusReady": "Siap bekerja",
     "statusNeedsKey": "Hubungkan kunci untuk mulai langsung",
-    "statusDemo": "Kunci model terhubung (demo luring)",
     "statusGrace": "Kunci model terhubung (luring, terakhir dicek {date})",
     "whatsThis": "Apa ini?",
-    "whatsThisBody": "Kunci model memakai model di akun Anda. Tempel sekali di Pengaturan. Kunci tetap di meja ini dan tidak ditampilkan lagi. Anda juga bisa masuk dengan kode sekali pakai.",
+    "whatsThisBody": "Kunci gateway menghubungkan meja ini ke model di akun Anda. Tempel sekali di Pengaturan. Kunci tetap di meja ini dan tidak ditampilkan lagi.",
     "pickModel": "Pilih model di bawah, lalu tulis.",
     "ideas": {
       "title": "Mulai dari satu ide",
