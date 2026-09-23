@@ -71,6 +71,40 @@ function displayName(model: ChatModel): string {
   return model.friendlyLabel ?? model.label;
 }
 
+/** How the palette was opened. Escape hands focus back to the same place. */
+export type PickerOpener = "trigger" | "shortcut";
+
+export type PickerCloseReason = "escape" | "select" | "outside" | "toggle";
+
+export type PickerFocusTarget = "trigger" | "composer" | null;
+
+/**
+ * Where focus goes when the palette closes.
+ *
+ * Escape returns to whatever opened it: the trigger after a click (or Enter/Space on the trigger),
+ * the composer after Cmd/Ctrl+K. Picking a model always goes to the composer, because the next thing
+ * the owner does is type. A click outside leaves focus where the click put it, and a second click on
+ * the trigger already has focus on the trigger.
+ */
+export function focusAfterClose(reason: PickerCloseReason, opener: PickerOpener): PickerFocusTarget {
+  if (reason === "outside" || reason === "toggle") {
+    return null;
+  }
+  if (reason === "select") {
+    return "composer";
+  }
+  return opener === "trigger" ? "trigger" : "composer";
+}
+
+/**
+ * The panel is portalled and only mounts once it has a position, one commit after `open` turns
+ * true. Focus has to wait for that commit: a focus call made when `open` is set lands on a search
+ * box that does not exist yet, so focus stays on the trigger and Escape never reaches the panel.
+ */
+export function isPanelMounted(open: boolean, pos: PickerPanelPos | null): boolean {
+  return open && pos !== null;
+}
+
 function matchesQuery(model: ChatModel, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
@@ -91,6 +125,8 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
   const panelRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [pos, setPos] = useState<PickerPanelPos | null>(null);
+  const openerRef = useRef<PickerOpener>("trigger");
+  const panelMounted = isPanelMounted(open, pos);
 
   const selected = models.find((m) => m.id === value) ?? models[0];
   const selectedId = selected?.id ?? "";
@@ -120,32 +156,35 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
   const active = flat[highlight];
   const activeDescendant = open && active ? active.optionId : undefined;
 
-  function closePalette(returnFocus: boolean) {
+  function focusTarget(target: PickerFocusTarget) {
+    if (!target) return;
+    // The composer is optional; without one, the trigger is the only sane place to land.
+    const element = target === "composer" ? (returnFocusRef?.current ?? triggerRef.current) : triggerRef.current;
+    queueMicrotask(() => element?.focus());
+  }
+
+  function closePalette(reason: PickerCloseReason) {
     setOpen(false);
     setPos(null);
     setQuery("");
     setHighlight(0);
-    if (returnFocus) {
-      queueMicrotask(() => {
-        returnFocusRef?.current?.focus();
-      });
-    }
+    focusTarget(focusAfterClose(reason, openerRef.current));
   }
 
   function openPalette() {
     if (disabled || models.length === 0) return;
+    openerRef.current = "trigger";
     setOpen(true);
     const idx = Math.max(
       0,
       flat.findIndex((entry) => entry.model.id === selectedId),
     );
     setHighlight(idx >= 0 ? idx : 0);
-    queueMicrotask(() => searchRef.current?.focus());
   }
 
   function selectModel(id: string) {
     onChange(id);
-    closePalette(true);
+    closePalette("select");
   }
 
   // Cmd/Ctrl+K while this picker (composer) is mounted
@@ -158,6 +197,8 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
         return;
       }
       event.preventDefault();
+      // Only read when this press opens the palette; a closing press focuses the composer itself.
+      openerRef.current = "shortcut";
       setOpen((wasOpen) => {
         if (wasOpen) {
           setQuery("");
@@ -166,7 +207,6 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
           return false;
         }
         setQuery("");
-        queueMicrotask(() => searchRef.current?.focus());
         return true;
       });
     }
@@ -190,7 +230,7 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
       if (panelRef.current?.contains(target) || triggerRef.current?.contains(target)) {
         return;
       }
-      closePalette(false);
+      closePalette("outside");
     }
     document.addEventListener("mousedown", onPointerDown);
     return () => document.removeEventListener("mousedown", onPointerDown);
@@ -220,12 +260,12 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
     };
   }, [open]);
 
-  // Autofocus search when opened
+  // Focus the search box once the portalled panel exists (see `isPanelMounted`)
   useEffect(() => {
-    if (open) {
+    if (panelMounted) {
       searchRef.current?.focus();
     }
-  }, [open]);
+  }, [panelMounted]);
 
   function onSearchKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
     if (event.key === "ArrowDown") {
@@ -248,7 +288,16 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
     }
     if (event.key === "Escape") {
       event.preventDefault();
-      closePalette(true);
+      closePalette("escape");
+    }
+  }
+
+  // Belt and braces: if focus is still on the trigger (a click that landed before the panel
+  // mounted, or focus moved back by hand), Escape on the trigger closes the open palette too.
+  function onTriggerKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>) {
+    if (open && event.key === "Escape") {
+      event.preventDefault();
+      closePalette("escape");
     }
   }
 
@@ -388,7 +437,8 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
         aria-expanded={open}
         aria-controls={open ? listId : undefined}
         disabled={disabled || models.length === 0}
-        onClick={() => (open ? closePalette(false) : openPalette())}
+        onClick={() => (open ? closePalette("toggle") : openPalette())}
+        onKeyDown={onTriggerKeyDown}
       >
         <span className="min-w-0 truncate">
           {t("chat.composer.modelPrefix")}: {triggerLabel}

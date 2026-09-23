@@ -32,6 +32,8 @@
   "settings": "Settings",
   "model": "Model",
   "delete": "Delete",
+  "deleteConfirm": "Delete “{title}”? Its recording, transcript and minutes go with it, and this cannot be undone.",
+  "deleteConfirmSubmit": "Delete meeting",
   "record": {
     "start": "Record",
     "stop": "Stop",
@@ -78,6 +80,7 @@
     "transcript": "Could not save that transcript.",
     "run": "Could not produce the minutes.",
     "load": "Could not load meetings.",
-    "noMeeting": "Choose a meeting first, then this recording can be uploaded."
+    "noMeeting": "Choose a meeting first, then this recording can be uploaded.",
+    "delete": "Could not delete that meeting."
   }
 }

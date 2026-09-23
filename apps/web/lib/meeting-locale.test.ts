@@ -35,7 +35,7 @@ describe("meeting locale JSON", () => {
     const placeholders = (value: string) => (value.match(/\{[a-zA-Z]+\}/g) ?? []).sort();
     const en = load("en") as Record<string, string>;
     const id = load("id") as Record<string, string>;
-    for (const key of ["uploaded", "unverified"]) {
+    for (const key of ["uploaded", "unverified", "deleteConfirm"]) {
       expect(placeholders(id[key] ?? ""), key).toEqual(placeholders(en[key] ?? ""));
     }
   });

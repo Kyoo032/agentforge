@@ -32,6 +32,8 @@
   "settings": "Settings",
   "model": "Model",
   "delete": "Hapus",
+  "deleteConfirm": "Hapus “{title}”? Rekaman, transkrip, dan notulennya ikut terhapus, dan ini tidak dapat dibatalkan.",
+  "deleteConfirmSubmit": "Hapus rapat",
   "record": {
     "start": "Rekam",
     "stop": "Berhenti",
@@ -78,6 +80,7 @@
     "transcript": "Transkrip itu tidak dapat disimpan.",
     "run": "Notulen tidak dapat dibuat.",
     "load": "Daftar rapat tidak dapat dimuat.",
-    "noMeeting": "Pilih rapat dulu, baru rekaman ini bisa diunggah."
+    "noMeeting": "Pilih rapat dulu, baru rekaman ini bisa diunggah.",
+    "delete": "Rapat itu tidak dapat dihapus."
   }
 }
