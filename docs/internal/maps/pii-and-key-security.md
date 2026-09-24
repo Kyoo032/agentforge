@@ -1,6 +1,8 @@
 # Map — PII masking and key security
 
-Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c` (through e37b3a1)
+Last verified: 2026-09-23 at d4561b8 + uncommitted tree for the new rows of § 5 (the sealed portal refresh token
+and the hashed session id). Everything else was last verified 2026-09-20 at a053245 + the Phase 4 branch
+`feat/web-phase4-tenant-secrets-rcbu9c` (through e37b3a1).
 
 ## Overview
 
@@ -94,6 +96,20 @@ Sealed today:
 | `tool_invocations.input` / `output` | `packages/host/src/threads.ts:351-352` | same `openJson` |
 | `agent_versions.system_prompt` | `packages/db/src/repos/drizzle-agent-repository.ts:87` (`sealText`, `:16-18`) | `:57` (`openText`, `:20-33`) |
 | `settings.enc` (whole file) | `packages/host/src/settings-store.ts:221-227` | `:237-252` |
+| `auth_sessions.refresh_sealed` — the portal refresh token behind each hosted session (hosted only, since 2026-09-23, migration 0021) | `sealRefresh`, `packages/host/src/auth/session-secrets.ts:57-65` | `openRefresh`, `:82-102` |
+
+The refresh token is the one sealed value that does **not** use the wrap key directly: its key is
+HKDF-SHA256 over the wrap key with info `auth-session-refresh-v1` (`refreshSealingKey`,
+`packages/host/src/auth/session-secrets.ts:52-54`), so no other purpose's key opens it, and the sealed payload
+names the id digest of its own row, so a blob copied onto another session's row opens as nothing (`:98`). The
+access token is never written anywhere. The wrap-key rotation drill re-seals these tokens along with
+`settings.enc` (`packages/host/src/wrap-key-rotation.ts:224-238`, `:262-273`). What this adds to the threat
+model: the database **and** the wrap key together now refresh every hosted session at the portal
+([SR-64](../security-register.md#sr-64)).
+
+Hashed, not sealed: `auth_sessions.id` is `sha256(cookie id)` in lowercase hex since 0021 (`hashSessionId`,
+`packages/host/src/auth/session.ts:125`), so a copy of the table replays no session
+([SR-60](../security-register.md#sr-60)).
 
 Plaintext on purpose: `threads.title` (`packages/db/src/schema.ts:399`, written unsealed at `packages/host/src/threads.ts:43` and `:252-255`), `agent_versions.model` (`packages/db/src/schema.ts:345`), `runs.usage` / `runs.error` (`packages/db/src/schema.ts:437-438`, written unsealed at `packages/host/src/threads.ts:322-325`), and the key fingerprints themselves.
 

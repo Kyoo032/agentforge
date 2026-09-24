@@ -10,10 +10,17 @@
  * reaches this module. The desktop (IPC) and webdev never mint a session at all — the caller decides
  * that from `isServerMode()`.
  */
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 
 /** 32 random bytes, per T1 ("cookie carries an opaque id"). */
 export const SESSION_ID_BYTES = 32;
+
+/**
+ * How long the portal's last word on a session stands before the gate asks again (a refresh-token
+ * rotation, `./portal-check.ts`). Ten minutes bounds how long a session the portal has ended keeps
+ * working here; the portal's access token lives an hour, so this is well inside it.
+ */
+export const PORTAL_CHECK_INTERVAL_MS = 10 * 60 * 1000;
 
 /**
  * Two names for one cookie, the same split the CSRF cookie already makes (`../csrf.ts`).
@@ -71,7 +78,13 @@ export function isAuthReason(value: unknown): value is AuthReason {
   return typeof value === "string" && (AUTH_REASONS as readonly string[]).includes(value);
 }
 
-/** The server-side row behind the cookie. Epoch milliseconds throughout, like every other host table. */
+/**
+ * The server-side row behind the cookie. Epoch milliseconds throughout, like every other host table.
+ *
+ * `id` is the cookie's own value while the record is in memory. The store never writes it: it keys
+ * the row by `hashSessionId(id)` and hands the presented id back on the way out
+ * (`./session-store.ts`).
+ */
 export type SessionRecord = {
   readonly id: string;
   readonly tenantId: string;
@@ -82,6 +95,8 @@ export type SessionRecord = {
   readonly expiresAt: number;
   readonly absoluteExpiresAt: number;
   readonly revokedAt: number | null;
+  /** When the portal last vouched for this session; null for never, which is due at once. */
+  readonly portalCheckedAt: number | null;
 };
 
 export type SessionVerdict =
@@ -100,6 +115,17 @@ export function mintSessionId(): string {
   return randomBytes(SESSION_ID_BYTES).toString("base64url");
 }
 
+/**
+ * What `auth_sessions.id` holds: SHA-256 of the cookie's id, lowercase hex (migration 0021).
+ *
+ * The id is 32 random bytes, so a plain digest is enough: there is nothing to guess and nothing a
+ * salt would add. What it buys is that a copy of the table — a backup, a copied data directory —
+ * replays no session, because the store only ever looks up the digest of what the browser sent.
+ */
+export function hashSessionId(id: string): string {
+  return createHash("sha256").update(id, "utf8").digest("hex");
+}
+
 export function createSession(input: { tenantId: string; userId: string; orgId: string; now?: number }): SessionRecord {
   const now = input.now ?? Date.now();
   return {
@@ -112,7 +138,14 @@ export function createSession(input: { tenantId: string; userId: string; orgId: 
     expiresAt: now + IDLE_TIMEOUT_MS,
     absoluteExpiresAt: now + ABSOLUTE_LIFETIME_MS,
     revokedAt: null,
+    // Signing in is the portal vouching for this person, so the first check is due an interval later.
+    portalCheckedAt: now,
   };
+}
+
+/** True when the gate should ask the portal again before trusting this session (`./portal-check.ts`). */
+export function portalCheckDue(session: SessionRecord, now: number): boolean {
+  return session.portalCheckedAt === null || now - session.portalCheckedAt >= PORTAL_CHECK_INTERVAL_MS;
 }
 
 /**

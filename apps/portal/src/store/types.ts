@@ -230,6 +230,30 @@ export interface MigrationResult {
   readonly skipped: readonly string[];
 }
 
+export interface MigrateOptions {
+  /**
+   * Development only (`src/boot.ts` decides): after migrating, set `portal_app_login`'s password to
+   * this. Production provisions login roles out of band (`0001_extensions_and_roles.sql:53-55`).
+   */
+  readonly appLoginPassword?: string;
+}
+
+/**
+ * Who the store's connection really is, from `pg_roles`: what `src/boot.ts` checks before the
+ * server listens. Every field is a way to see past the tenant policies in `0004_rls.sql`, except
+ * `portalApp`, which is the membership every grant in that file is made to.
+ */
+export interface ConnectionRole {
+  readonly name: string;
+  readonly superuser: boolean;
+  readonly bypassRls: boolean;
+  /** A member of `portal_admin`, whose policy on every table is `USING (true)`. */
+  readonly portalAdmin: boolean;
+  readonly portalApp: boolean;
+  /** Other roles it may `SET ROLE` to that are superuser or `BYPASSRLS`, by name. */
+  readonly privilegedRoles: readonly string[];
+}
+
 export interface PortalStore {
   readonly clock: Clock;
   /**
@@ -238,8 +262,13 @@ export interface PortalStore {
    */
   tx<T>(tenantId: string | null, fn: (ops: PortalOps) => Promise<T>): Promise<T>;
   readonly resolve: TenantResolvers;
-  /** Applies 0001-0005 (theirs, unchanged) then 0006+ (ours), idempotently. */
-  migrate(): Promise<MigrationResult>;
+  /**
+   * Applies 0001-0005 (theirs, unchanged) then 0006+ (ours), idempotently. Only on the schema
+   * owner's connection (`openMigrationStore`): the server's role cannot, and must not be able to.
+   */
+  migrate(options?: MigrateOptions): Promise<MigrationResult>;
+  /** The connection's role as `pg_roles` has it. A catalog read, outside any tenant scope. */
+  connectionRole(): Promise<ConnectionRole>;
   close(): Promise<void>;
 
   /**

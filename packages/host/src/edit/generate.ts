@@ -1,4 +1,4 @@
-import { ApiError, maskPii } from "@agentforge/core";
+import { ApiError, maskPii, type TenantContext } from "@agentforge/core";
 import { generateFailureMessage } from "./generate-failure";
 
 export type GenerateSubmitResult = {
@@ -9,7 +9,13 @@ export type GenerateSubmitResult = {
 
 export type GenerateSubmitFn = (input: {
   kind: "generate_image" | "generate_video";
+  /** What to make: prompt, aspect, model, still. It carries no identity, and none is read from it. */
   request: unknown;
+  /**
+   * Whose key pays, whose ledger is charged and whose desk the output lands on. Resolved by the job
+   * runner from the project (`workerTenant`), never from the job's stored request.
+   */
+  tenant: TenantContext;
   signal: AbortSignal;
 }) => Promise<GenerateSubmitResult>;
 
@@ -44,12 +50,13 @@ export async function runGenerateJob(
   kind: "generate_image" | "generate_video",
   request: unknown,
   signal: AbortSignal,
+  tenant: TenantContext,
 ): Promise<{ outputAssetIds: string[] }> {
   const masked = maskGeneratePrompt(request);
   if (!submitImpl) {
     throw new ApiError("not_enabled_in_phase_1", "Generation is not enabled in phase 1", 400);
   }
-  const attempt = async () => submitImpl!({ kind, request: masked, signal });
+  const attempt = async () => submitImpl!({ kind, request: masked, tenant, signal });
   let result: GenerateSubmitResult;
   try {
     result = await attempt();

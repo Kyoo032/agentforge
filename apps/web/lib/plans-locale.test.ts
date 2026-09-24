@@ -53,6 +53,42 @@ describe("the plans namespace", () => {
     }
   });
 
+  it("carries the Personal and Enterprise claims in both languages", () => {
+    const text = (locale: "en" | "id") => JSON.stringify(load(locale));
+    const english = text("en");
+    for (const phrase of [
+      "Mac and Windows",
+      "complement from DPS",
+      "buying a lot of tokens",
+      "web-based",
+      "Contact DPS",
+      "no checkout",
+      "unified knowledge base",
+      "traffic",
+      "implementation and maintenance",
+      "Seats and tokens are charged separately",
+    ]) {
+      expect(english, phrase).toContain(phrase);
+    }
+    expect(english).not.toContain("One seat");
+    const indonesian = text("id");
+    for (const phrase of [
+      "Mac dan Windows",
+      "pelengkap dari DPS",
+      "banyak token",
+      "berbasis web",
+      "Hubungi DPS",
+      "pembelian mandiri",
+      "basis pengetahuan terpadu",
+      "lalu lintas",
+      "implementasi dan pemeliharaan",
+      "Kursi dan token ditagih secara terpisah",
+    ]) {
+      expect(indonesian, phrase).toContain(phrase);
+    }
+    expect(indonesian).not.toContain("Satu kursi");
+  });
+
   it("is registered with the translator, so a tier renders as a sentence rather than a key", () => {
     for (const locale of ["en", "id"] as const) {
       resetLocaleForTests();

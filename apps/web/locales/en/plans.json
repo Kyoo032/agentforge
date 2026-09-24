@@ -1,13 +1,12 @@
 {
   "kicker": "Plans",
   "title": "Choose a plan",
-  "intro": "Both plans open every work mode. What differs is how many people share the account.",
+  "intro": "Personal is the Mac and Windows DPSBuddy app, a complement from DPS when you are buying a lot of tokens. Enterprise is the web-based DPSBuddy.",
   "placeholderNotice": "Indicative pricing — not final.",
   "period": {
     "month": "/ month"
   },
   "seats": {
-    "uncapped": "One seat",
     "capped": "Up to {count} seats"
   },
   "currentBadge": "Your plan",
@@ -15,27 +14,28 @@
   "tier": {
     "personal": {
       "name": "Personal",
-      "description": "One person, every work mode, workspaces nobody else can open."
+      "description": "The Mac and Windows DPSBuddy app. A complement from DPS when you are buying a lot of tokens."
     },
     "enterprise": {
       "name": "Enterprise",
-      "description": "A team on one account, with shared workspaces and seats you manage yourself."
+      "description": "The web-based DPSBuddy. Subscribe per user by contacting DPS. There is no checkout."
     }
   },
   "feature": {
-    "allWorkModes": "Every work mode, from Chat to Finance",
-    "privateWorkspaces": "Private workspaces only you can open",
-    "emailSupport": "Support by email",
-    "sharedWorkspaces": "Shared workspaces for the whole team",
-    "seatManagement": "Add and remove seats yourself",
-    "usageReports": "Usage reports per person and per model",
-    "prioritySupport": "Priority support"
+    "macWindowsApp": "DPSBuddy for Mac and Windows",
+    "tokenComplement": "A complement from DPS when you are buying a lot of tokens",
+    "webProduct": "DPSBuddy on the web",
+    "contactDps": "Contact DPS to activate. There is no checkout.",
+    "knowledgeStorage": "A seat covers storage for the unified knowledge base",
+    "agentTraffic": "A seat covers the traffic of their users to use the agents",
+    "implementationMaintenance": "A seat covers implementation and maintenance from DPS",
+    "seatsAndTokensSeparate": "Seats and tokens are charged separately"
   },
   "cta": {
-    "choose": "Choose {plan}",
     "current": "This is your plan",
-    "contact": "Contact us to activate",
-    "contactHelp": "There is no checkout yet. Ask whoever runs this deployment and they will switch the account on.",
+    "contact": "Contact DPS",
+    "personalApp": "Mac and Windows app",
+    "contactHelp": "There is no checkout for Enterprise. Contact DPS to subscribe per user.",
     "checkoutFailed": "That link could not be opened. Contact whoever runs this deployment."
   },
   "blocked": {

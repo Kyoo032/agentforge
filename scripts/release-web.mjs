@@ -44,13 +44,16 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { forbiddenMarksIn } from "./release-marks.mjs";
+
+// The refusal list and its matcher live in ./release-marks.mjs, shared with the Personal release
+// (apps/desktop/scripts/release-desktop.mjs). Re-exported so this module's API does not change.
+export { FORBIDDEN_MARKS, forbiddenMarksIn } from "./release-marks.mjs";
 
 export const RELEASE_REPO = "Kyoo032/DPSBuddy-Ent";
 export const RELEASE_REPO_URL = `https://github.com/${RELEASE_REPO}.git`;
 export const SOURCE_REPO_NAME = "agentforge";
 export const IMAGE_REPO = "ghcr.io/kyoo032/dpsbuddy-ent";
-/** Words that must never reach the public repo. Matched case-insensitively as substrings. */
-export const FORBIDDEN_MARKS = ["Claude", "Anthropic", "agent", "Co-Authored", "docs/internal"];
 /**
  * What the hosted app refuses to boot without (packages/host/src/hosted-env.ts, hostedEnvProblems,
  * with NODE_ENV=production), plus DPSBUDDY_DOMAIN, which the Caddyfile serves.
@@ -93,16 +96,11 @@ export function tagProblem(tag) {
   return null;
 }
 
-/** The forbidden marks present in the notes text, in FORBIDDEN_MARKS order. */
-export function forbiddenMarksIn(text) {
-  const lower = text.toLowerCase();
-  return FORBIDDEN_MARKS.filter((mark) => lower.includes(mark.toLowerCase()));
-}
-
 /**
- * The same check for a generated file. The one exception is the source repo's own name, which the
- * app's env names (AGENTFORGE_*), the image's /opt/agentforge path and the `Source:` line cannot
- * avoid. Every other "agent" is still refused, so "Agents" or "agent-written" fails.
+ * The notes check (forbiddenMarksIn, ./release-marks.mjs) for a generated file. The one exception
+ * is the source repo's own name, which the app's env names (AGENTFORGE_*), the image's
+ * /opt/agentforge path and the `Source:` line cannot avoid. Every other "agent" is still refused,
+ * so "Agents" or "agent-written" fails.
  */
 export function forbiddenMarksInPublished(text) {
   return forbiddenMarksIn(text.replace(/agentforge/gi, ""));
@@ -175,9 +173,9 @@ services:
     network_mode: "service:app"
     depends_on:
       - app
-    env_file:
-      - path: .env
-        required: true
+    # The Caddyfile reads DPSBUDDY_DOMAIN and nothing else, so the secrets in .env stay with the app.
+    environment:
+      DPSBUDDY_DOMAIN: \${DPSBUDDY_DOMAIN:?set it in .env}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data

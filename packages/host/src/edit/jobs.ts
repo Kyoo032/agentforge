@@ -1,11 +1,12 @@
 import { and, eq } from "drizzle-orm";
-import { ApiError, secondsToFrames, type Asset, type EditJobKind, type TenantContext } from "@agentforge/core";
+import { ApiError, secondsToFrames, type Asset, type EditJobKind } from "@agentforge/core";
 import { db, editCards, editJobs, editUnplaced } from "@agentforge/db";
+import { requireGatewayAllowedFor } from "../gateway-gate";
 import { readMediaDataUrl } from "../media";
 import { mediaRelativePath } from "../media-root";
 import { materializeTenantObject } from "../tenant-storage";
 import { withInlinedStill } from "./still-source";
-import { appendOps, foldProject, workerTenantId, workerWorkspaceId } from "./ops";
+import { appendOps, foldProject, workerTenant, workerTenantId, workerWorkspaceId } from "./ops";
 import { editEvents } from "./events";
 import { appendEditMetric } from "./metrics";
 import { mapJob } from "./projects";
@@ -16,6 +17,57 @@ import type { EditScope } from "./ffmpeg/paths";
 import { transcribeAudioChunks } from "./asr";
 import { log } from "../log";
 
+/** Every kind the queue runs — the runtime twin of `EditJobKind`, which is a type only. */
+export const EDIT_JOB_KINDS = [
+  "generate_image",
+  "generate_video",
+  "ffmpeg_op",
+  "render",
+  "asr",
+] as const satisfies readonly EditJobKind[];
+
+/** Fails to compile if `EditJobKind` in core gains a kind this list does not name. */
+const EVERY_KIND_LISTED: Exclude<EditJobKind, (typeof EDIT_JOB_KINDS)[number]> extends never ? true : false = true;
+void EVERY_KIND_LISTED;
+
+export type GenerateJobKind = Extract<EditJobKind, "generate_image" | "generate_video">;
+
+export function isEditJobKind(value: unknown): value is EditJobKind {
+  return typeof value === "string" && (EDIT_JOB_KINDS as readonly string[]).includes(value);
+}
+
+export function isGenerateJobKind(value: unknown): value is GenerateJobKind {
+  return value === "generate_image" || value === "generate_video";
+}
+
+/** A kind from a request body, or a 400. The column is plain text, so nothing below it would refuse. */
+export function parseEditJobKind(value: unknown): EditJobKind {
+  if (!isEditJobKind(value)) {
+    throw new ApiError("invalid_request", `kind must be one of ${EDIT_JOB_KINDS.join(", ")}`, 400);
+  }
+  return value;
+}
+
+/**
+ * Keys of a job request that name a person or a tenant. Only `enqueueEditJob` writes
+ * `requestedBy`, from its own argument; neither key is ever taken from the request it is handed.
+ */
+const IDENTITY_KEYS = new Set(["tenant", "requestedBy"]);
+
+/** A job request with every identity key removed. Anything that is not a plain object reads as `{}`. */
+function withoutIdentity(request: unknown): Record<string, unknown> {
+  if (!request || typeof request !== "object" || Array.isArray(request)) {
+    return {};
+  }
+  return Object.fromEntries(Object.entries(request).filter(([key]) => !IDENTITY_KEYS.has(key)));
+}
+
+/** Who queued the job, as `enqueueEditJob` recorded it. */
+function requesterOf(requestJson: unknown): string | undefined {
+  const value = (requestJson as { requestedBy?: unknown } | null)?.requestedBy;
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
 export type EnqueueJobInput = {
   kind: EditJobKind;
   request: unknown;
@@ -24,6 +76,13 @@ export type EnqueueJobInput = {
   model?: string;
   tier?: string;
   estimateUsd?: number | null;
+  /**
+   * The user who asked, taken from a `TenantContext` the caller has already verified — a handler's
+   * `getTenant(request)`, or the agent run's own context. Recorded on the job as `requestedBy`. The
+   * generate worker runs as this user inside the project's own tenant (`workerTenant`), so a job
+   * with none recorded does not generate anything.
+   */
+  requestedBy?: string;
 };
 
 type JobRow = typeof editJobs.$inferSelect;
@@ -158,12 +217,17 @@ async function defaultRunner(
   // request to read one from. Same reasoning as `workerWorkspaceId` one line up.
   const tenantId = await workerTenantId(job.projectId);
   const scope = { tenantId, projectId: job.projectId };
-  if (job.kind === "generate_image" || job.kind === "generate_video") {
-    const request = await withInlinedStill(job.requestJson as Record<string, unknown>, (mediaId) => {
-      const tenant = (job.requestJson as { tenant?: TenantContext }).tenant;
-      return tenant ? readMediaDataUrl(tenant, mediaId) : Promise.resolve(null);
-    });
-    return runGenerateJob(job.kind, request, signal);
+  const kind = job.kind;
+  if (isGenerateJobKind(kind)) {
+    // Whose key, ledger, desk and media: the project's tenant and the recorded requester, never a
+    // `tenant` in the stored request (`workerTenant`). The gate is applied to that tenant here as
+    // well as on the route, so no way of queueing a job reaches the gateway past a closed gate.
+    const tenant = await workerTenant(job.projectId, requesterOf(job.requestJson));
+    requireGatewayAllowedFor(tenant);
+    const request = await withInlinedStill(withoutIdentity(job.requestJson), (mediaId) =>
+      readMediaDataUrl(tenant, mediaId),
+    );
+    return runGenerateJob(kind, request, signal, tenant);
   }
   if (job.kind === "render") {
     const doc = await foldProject(job.projectId, workspaceId);
@@ -310,7 +374,7 @@ async function completeSucceeded(job: JobRow, outputAssetIds: string[]): Promise
       })
       .returning();
     editEvents.emitEvent({ type: "unplaced.landed", projectId: job.projectId, item });
-    appendEditMetric({ projectId: job.projectId, jobId: job.id, event: "unplaced.landed" });
+    await appendEditMetric({ projectId: job.projectId, jobId: job.id, event: "unplaced.landed" });
     if (job.cardId) {
       await db
         .update(editCards)
@@ -429,18 +493,27 @@ async function processJob(jobId: string): Promise<void> {
   }
 }
 
+/**
+ * Queue a job on a project the caller has already scoped to its desk.
+ *
+ * The stored request never carries identity. Whatever `tenant` or `requestedBy` the caller's request
+ * held — from a body on `POST …/jobs`, or put there by an agent tool — is dropped, and `requestedBy`
+ * is written from `input.requestedBy` alone, which the caller took from a verified tenant.
+ */
 export async function enqueueEditJob(projectId: string, input: EnqueueJobInput): Promise<JobRow> {
   ensureGenerateSubmitWired();
+  const kind = parseEditJobKind(input.kind);
+  const request = withoutIdentity(input.request);
   const [row] = await db
     .insert(editJobs)
     .values({
       id: crypto.randomUUID(),
       projectId,
-      kind: input.kind,
+      kind,
       status: "queued",
       targetClipIdsJson: input.targetClipIds,
       cardId: input.cardId,
-      requestJson: input.request,
+      requestJson: input.requestedBy ? { ...request, requestedBy: input.requestedBy } : request,
       model: input.model,
       tier: input.tier,
       estimateUsd: input.estimateUsd ?? null,
@@ -459,7 +532,7 @@ export async function cancelEditJob(jobId: string, projectId: string, reason = "
   const handle = active.get(jobId);
   handle?.controller.abort();
   const finished = await failJob(job, "cancelled", reason);
-  appendEditMetric({ projectId: job.projectId, jobId, event: "job.cancelled", data: { reason } });
+  await appendEditMetric({ projectId: job.projectId, jobId, event: "job.cancelled", data: { reason } });
   editEvents.emitEvent({ type: "job.cancelled", projectId: job.projectId, jobId, reason });
   return finished;
 }

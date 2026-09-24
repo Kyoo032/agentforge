@@ -142,14 +142,78 @@ function decodeCookieValue(value: string): string | null {
   }
 }
 
-function pathnameOf(req: IncomingMessage): { path: string; query: Record<string, string> } {
-  const host = header(req, "host") ?? "127.0.0.1";
-  const url = new URL(req.url ?? "/", `http://${host}`);
+/**
+ * The base the request target is resolved against. Any fixed origin does: only the path and the
+ * query are read back, never a host. It used to be `http://<Host header>`, which let a malformed
+ * Host (`a b`, `[`, an empty value) throw `ERR_INVALID_URL` out of this adapter before any rule ran.
+ */
+const TARGET_PARSE_BASE = "http://localhost";
+
+/** The request target would not parse at all, so it cannot even be classified as a page or an API call. */
+const INVALID_TARGET: HttpRejection = {
+  status: 400,
+  code: "invalid_path",
+  message: "The request path is not acceptable.",
+};
+
+/** RFC 9112 §3.2: a Host that is not `host[:port]` is a bad request, whatever path it names. */
+const INVALID_HOST: HttpRejection = {
+  status: 400,
+  code: "invalid_host",
+  message: "The Host header is not a valid host.",
+};
+
+/** The path and query of the request target, or null when it will not parse. Never reads Host, never throws. */
+function requestTargetOf(req: IncomingMessage): { path: string; query: Record<string, string> } | null {
+  let url: URL;
+  try {
+    url = new URL(req.url ?? "/", TARGET_PARSE_BASE);
+  } catch {
+    return null;
+  }
   const query: Record<string, string> = {};
   url.searchParams.forEach((value, key) => {
     query[key] = value;
   });
   return { path: url.pathname, query };
+}
+
+/** Characters that end an authority: a path, a query, a fragment, or userinfo before the `@`. */
+const NON_AUTHORITY_CHARACTERS = new Set(["/", "\\", "?", "#", "@"]);
+
+function hasNonAuthorityCharacter(value: string): boolean {
+  for (const character of value) {
+    const code = character.charCodeAt(0);
+    if (code <= 0x20 || code === 0x7f || NON_AUTHORITY_CHARACTERS.has(character)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * True when a Host header is present and is not `host[:port]`.
+ *
+ * Absent is a different question and is not answered here: HTTP/1.0 may omit it, and the mutating
+ * rules below already refuse a write that carries none. Present and empty, present with a space, a
+ * slash, userinfo, an unclosed `[` or a port past 65535 is malformed. The character set is left to
+ * the URL parser rather than a hand-written grammar, so a Docker service name such as `my_service`
+ * still passes.
+ */
+export function isMalformedHostHeader(value: string | undefined): boolean {
+  if (value === undefined) {
+    return false;
+  }
+  const trimmed = value.trim();
+  if (trimmed.length === 0 || hasNonAuthorityCharacter(trimmed)) {
+    return true;
+  }
+  try {
+    new URL(`http://${trimmed}`);
+    return false;
+  } catch {
+    return true;
+  }
 }
 
 /**
@@ -449,11 +513,15 @@ function reasonCodeOf(body: unknown): string {
 let editBooted = false;
 
 export async function handleNodeRequest(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
-  const { path: rawPath, query } = pathnameOf(req);
+  // Null when the target will not parse. Nothing below may throw on a request's own bytes: the
+  // answer to a malformed request is a 400 from here, not an exception for the web server to catch.
+  const target = requestTargetOf(req);
+  const rawPath = target?.path ?? null;
+  const query = target?.query ?? {};
   // The "is this ours to answer" test stays on the raw path: normalising only removes slashes, so it
   // can never turn a non-/api path into an /api one, and the set of requests this adapter DISPATCHES
   // is unchanged. The transport rules below are deliberately not gated on it.
-  const isApiPath = rawPath.startsWith(API_PREFIX);
+  const isApiPath = rawPath?.startsWith(API_PREFIX) ?? false;
   // One switch decides which rule this process runs: the hosted web rule or the local loopback rule.
   const serverMode = isServerMode();
   /*
@@ -478,12 +546,20 @@ export async function handleNodeRequest(req: IncomingMessage, res: ServerRespons
   // agree on the verb.
   const method = (req.method ?? "GET").toUpperCase();
   const isLiveness =
-    (method === "GET" || method === "HEAD") && (rawPath.replace(/\/+$/, "") || "/") === LIVENESS_PATH;
-  // Off server mode nothing here applies to a page or an asset, so the desktop shell and webdev see
-  // exactly the early return they always saw: no parsing, no bucket, no log line. The probe is the
-  // one addition, and it answers in both modes so a developer can point the same healthcheck at
-  // webdev as at the container.
-  if (!serverMode && !isApiPath) {
+    rawPath !== null &&
+    (method === "GET" || method === "HEAD") &&
+    (rawPath.replace(/\/+$/, "") || "/") === LIVENESS_PATH;
+  // Decided before the page / API split and in both modes: a target that will not parse cannot be
+  // told apart as either, and a Host that is not `host[:port]` is a bad request whatever it names.
+  // Both used to throw out of this function (see `TARGET_PARSE_BASE`); they are answered below, in
+  // server mode only after the TLS rule and the buckets, so neither is an unmetered socket.
+  const malformed =
+    rawPath === null ? INVALID_TARGET : isMalformedHostHeader(header(req, "host")) ? INVALID_HOST : null;
+  // Off server mode nothing here applies to a well-formed page or asset request, so the desktop
+  // shell and webdev see exactly the early return they always saw: no bucket, no log line. The probe
+  // is the one addition, and it answers in both modes so a developer can point the same healthcheck
+  // at webdev as at the container.
+  if (!serverMode && !isApiPath && !malformed) {
     return isLiveness ? respondLiveness(res, method) : false;
   }
   for (const name of IDENTITY_HEADERS) {
@@ -494,7 +570,8 @@ export async function handleNodeRequest(req: IncomingMessage, res: ServerRespons
   // route that needs something stricter still wins: a handler's own headers are applied after
   // these (see `writeHostResult`). Off server mode this is a no-op. See ./security-headers.
   applySecurityHeaders(res, serverMode);
-  const path = normaliseApiPath(rawPath);
+  // An unparseable target has no path; the empty one keeps it out of every path-keyed rule below.
+  const path = rawPath === null ? "" : normaliseApiPath(rawPath);
   const cookies = parseCookies(req);
   const csrfMode = { secure: serverMode };
   const ip = clientIp({
@@ -510,7 +587,13 @@ export async function handleNodeRequest(req: IncomingMessage, res: ServerRespons
   // enough to bind a CSRF token to: a bogus id gets a token nobody else holds, and the request is
   // 401'd a frame later anyway.
   const presentedSessionId = cookies[sessionCookieName({ secure: serverMode })] ?? null;
-  const context: RequestContext = { method, pathLength: path.length, ip, serverMode, requestId };
+  const context: RequestContext = {
+    method,
+    pathLength: rawPath === null ? (req.url ?? "").length : path.length,
+    ip,
+    serverMode,
+    requestId,
+  };
   /*
    * Transport filtering runs first, for EVERY request this adapter is handed and not just the /api
    * ones: the page, the built bundles and every 404 probe arrive through the same socket, and a
@@ -530,6 +613,9 @@ export async function handleNodeRequest(req: IncomingMessage, res: ServerRespons
     if (rejection) {
       return respondRejection(res, rejection, context);
     }
+  }
+  if (malformed) {
+    return respondRejection(res, malformed, context);
   }
   if (isLiveness) {
     return respondLiveness(res, method);

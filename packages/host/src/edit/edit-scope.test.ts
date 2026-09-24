@@ -267,11 +267,15 @@ describe("edit store scoping (Phase 3 lane A)", () => {
     // workerWorkspaceId, workerTenantId and workerJob deliberately read by id alone. They exist for
     // the job runner, which holds no session; a handler reaching for one would be reintroducing the
     // hole lane A closed. `workerTenantId` was added by lane D for the per-tenant scratch dir and
-    // ffmpeg allowlist, and is covered by the same rule.
+    // ffmpeg allowlist, and is covered by the same rule. So are `workerProjectScope` and
+    // `workerTenant`, which the generate worker uses to run as the project's tenant rather than as
+    // the one a job row names: a handler holds a verified tenant and must pass that instead.
     const handlers = path.join(__dirname, "..", "handlers");
     const files = readFileSync(path.join(handlers, "edit.ts"), "utf8");
     expect(files).not.toContain("workerWorkspaceId");
     expect(files).not.toContain("workerTenantId");
     expect(files).not.toContain("workerJob");
+    expect(files).not.toContain("workerProjectScope");
+    expect(files).not.toContain("workerTenant");
   });
 });

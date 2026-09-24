@@ -117,9 +117,15 @@ services:
     network_mode: "service:app"
     depends_on:
       - app
-    env_file:
-      - path: .env
-        required: false
+    # The Caddyfile reads one variable, {$DPSBUDDY_DOMAIN}, so that is the only one this container
+    # gets. No env_file: .env also holds the wrap key, the portal client secret and the billing
+    # webhook secret, and a proxy has no use for any of them. Compose still fills the value in from
+    # the .env next to this file. `:-` rather than `:?` because .env is optional above, so that
+    # `docker compose config` and scripts/build.sh keep working on a fresh checkout; with an empty
+    # value Caddy refuses to start instead of serving anything. Keep this block in step with
+    # composeFile() in scripts/release-web.mjs.
+    environment:
+      DPSBUDDY_DOMAIN: ${DPSBUDDY_DOMAIN:-}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data # ACME account + issued certificates (separate container from app's /data)

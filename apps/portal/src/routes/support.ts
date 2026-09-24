@@ -8,6 +8,7 @@
  */
 import type { PortalRuntime } from "../flows/context";
 import { errorBody, statusFor, tokenErrorBody, type PortalReason } from "../flows/reasons";
+import type { VerifyLoginOtpOutcome } from "../otp/verify";
 import { parseFormBody, parseJsonBody, type BodyResult } from "../security/body";
 import { clientIp, rateLimitKey } from "../security/client-ip";
 import { parseCookies, serialiseCookie } from "../security/cookies";
@@ -81,6 +82,34 @@ export function tokenError(reason: PortalReason, retryAfter?: number): PortalRes
     body,
     retryAfter === undefined ? {} : { "retry-after": String(retryAfter) },
   );
+}
+
+/**
+ * The sentence the code form shows after a refused verify, for `/authorize/verify` and
+ * `/activate/verify` alike. They used to carry a copy each, and a reason added to one would have
+ * been missing from the other. The switch is exhaustive over the outcome type, so a new reason is a
+ * compile error here rather than a silent "wrong code" on the page.
+ */
+export function codeErrorMessage(
+  context: RequestContext,
+  refused: Extract<VerifyLoginOtpOutcome, { readonly ok: false }>,
+): string {
+  switch (refused.reason) {
+    case "locked":
+      // The address, not the code: a fresh code is refused too, so "start again" would be wrong.
+      return context.t("code.locked");
+    case "too_many_attempts":
+      return context.t("code.exhausted");
+    case "expired":
+    case "no_code":
+      return context.t("code.expired");
+    case "invalid_code":
+      return context.t("code.invalid", { attempts: refused.attemptsRemaining });
+    default: {
+      const unhandled: never = refused.reason;
+      return unhandled;
+    }
+  }
 }
 
 export function htmlError(

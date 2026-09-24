@@ -47,7 +47,7 @@ export async function undoCard(projectId: string, cardId: string, workspaceId: s
   }
   if (card.jobId) {
     await cancelEditJob(card.jobId, projectId, "undo");
-    appendEditMetric({ projectId, cardId, jobId: card.jobId, event: "card_undo_cancels_job" });
+    await appendEditMetric({ projectId, cardId, jobId: card.jobId, event: "card_undo_cancels_job" });
   }
   const opRows = await db.select().from(editOps).where(eq(editOps.projectId, projectId));
   const allOps = opRows.map(rowToEditOp).sort((a, b) => a.seq - b.seq);
@@ -75,7 +75,7 @@ export async function undoCard(projectId: string, cardId: string, workspaceId: s
     .where(cardScope)
     .returning();
   editEvents.emitEvent({ type: "card.updated", projectId, card: mapCard(updated) });
-  appendEditMetric({ projectId, cardId, event: "card.decided", data: { status: "undone" } });
+  await appendEditMetric({ projectId, cardId, event: "card.decided", data: { status: "undone" } });
   return { applied: applied.applied, card: mapCard(updated), seq: applied.seq };
 }
 
@@ -95,6 +95,6 @@ export async function keepCard(projectId: string, cardId: string, workspaceId: s
     .where(cardScope)
     .returning();
   editEvents.emitEvent({ type: "card.updated", projectId, card: mapCard(updated) });
-  appendEditMetric({ projectId, cardId, event: "card.decided", data: { status: "kept" } });
+  await appendEditMetric({ projectId, cardId, event: "card.decided", data: { status: "kept" } });
   return mapCard(updated);
 }

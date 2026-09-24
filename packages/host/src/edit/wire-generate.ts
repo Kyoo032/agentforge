@@ -8,16 +8,22 @@ import { setGenerateSubmit } from "./generate";
 
 let wired = false;
 
+function isCompleteTenant(tenant: TenantContext | undefined): tenant is TenantContext {
+  return Boolean(tenant?.tenantId && tenant.organizationId && tenant.workspaceId && tenant.userId);
+}
+
 export function ensureGenerateSubmitWired(): void {
   if (wired) {
     return;
   }
   wired = true;
-  setGenerateSubmit(async ({ kind, request, signal }) => {
+  setGenerateSubmit(async ({ kind, request, tenant, signal }) => {
     void signal;
     const body = (request ?? {}) as Record<string, unknown>;
-    const tenant = body.tenant as TenantContext | undefined;
-    if (!tenant?.organizationId || !tenant.workspaceId || !tenant.userId) {
+    // The tenant is the job runner's, resolved from the project. `body.tenant` — which a job row
+    // written before that change may still carry — is never read: it was how a queued job could name
+    // somebody else's key, ledger and desk.
+    if (!isCompleteTenant(tenant)) {
       return { status: 400, body: { error: "tenant_required" } };
     }
     try {

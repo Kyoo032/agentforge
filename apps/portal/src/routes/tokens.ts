@@ -18,13 +18,23 @@ import {
   readTenantConfig,
   revokeSession,
 } from "../flows/session";
-import { exchangeAuthorizationCode, exchangeRefreshToken } from "../flows/token";
+import { authenticateClient, exchangeAuthorizationCode, exchangeRefreshToken } from "../flows/token";
 import { boundedField, stringField } from "../security/body";
 import type { PortalRequest, PortalResponse, PortalRoute } from "../server";
-import { jsonError, jsonResponse, limit, readJson, requestContext, tokenError } from "./support";
+import {
+  jsonError,
+  jsonResponse,
+  limit,
+  readJson,
+  requestContext,
+  tokenError,
+  type RequestContext,
+} from "./support";
 
 const MAX_TOKEN_FIELD = 1024;
 const MAX_SLUG = 64;
+/** `devices.id` as the portal hands it out in every token body: a canonical uuid. */
+const DEVICE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function tokenRoutes(runtime: PortalRuntime): readonly PortalRoute[] {
   return [
@@ -44,18 +54,24 @@ async function postToken(runtime: PortalRuntime, request: PortalRequest): Promis
   if (!body.ok) {
     return tokenError("invalid_request");
   }
+
+  const grantType = stringField(body.fields, "grant_type");
+  const clientId = boundedField(body.fields, "client_id", MAX_TOKEN_FIELD);
+  const clientSecret = boundedField(body.fields, "client_secret", MAX_TOKEN_FIELD);
+
+  // A refresh from a confidential client is counted against the client. Every other request here
+  // is counted against the address, before anything is looked up.
+  if (grantType === "refresh_token" && clientId && clientSecret) {
+    return postConfidentialRefresh(runtime, context, body.fields, { clientId, clientSecret });
+  }
   const refusal = limit([runtime.limiters.tokenIp, context.ipKey]);
   if (!refusal.ok) {
     return tokenError("rate_limited", refusal.retryAfter);
   }
 
-  const grantType = stringField(body.fields, "grant_type");
-
   if (grantType === "authorization_code") {
     const code = boundedField(body.fields, "code", MAX_TOKEN_FIELD);
     const redirectUri = boundedField(body.fields, "redirect_uri", MAX_TOKEN_FIELD);
-    const clientId = boundedField(body.fields, "client_id", MAX_TOKEN_FIELD);
-    const clientSecret = boundedField(body.fields, "client_secret", MAX_TOKEN_FIELD);
     if (!code || !redirectUri || !clientId || !clientSecret) {
       return tokenError("invalid_request");
     }
@@ -71,20 +87,65 @@ async function postToken(runtime: PortalRuntime, request: PortalRequest): Promis
   }
 
   if (grantType === "refresh_token") {
-    const refreshToken = boundedField(body.fields, "refresh_token", MAX_TOKEN_FIELD);
-    if (!refreshToken) {
-      return tokenError("invalid_request");
-    }
-    const result = await exchangeRefreshToken(runtime, {
-      refreshToken,
-      deviceId: boundedField(body.fields, "device_id", MAX_TOKEN_FIELD),
-      ip: context.ip,
-      userAgent: context.userAgent,
-    });
-    return result.ok ? jsonResponse(200, result.body) : tokenError(result.reason);
+    return refresh(runtime, context, body.fields);
   }
 
   return tokenError("invalid_request");
+}
+
+/**
+ * A refresh that authenticates as a confidential client, which is how the hosted app's host
+ * refreshes every session it holds, all from one address. It is counted against the CLIENT
+ * (`tokenClient`, 20,000 / 10 min) and never against the address.
+ *
+ * Failed authentications have a per-address budget of their own (`tokenClientAuthFailIp`). It is
+ * peeked BEFORE the lookup and counted only on a failure, so a spray is refused without a query and
+ * an honest host never touches it. A wrong secret is `invalid_client`, as the code grant answers it.
+ */
+async function postConfidentialRefresh(
+  runtime: PortalRuntime,
+  context: RequestContext,
+  fields: Readonly<Record<string, unknown>>,
+  credentials: { readonly clientId: string; readonly clientSecret: string },
+): Promise<PortalResponse> {
+  const failures = runtime.limiters.tokenClientAuthFailIp.peek(context.ipKey);
+  if (!failures.ok) {
+    return tokenError("rate_limited", failures.retryAfter);
+  }
+  const client = await authenticateClient(runtime, { ...credentials, ip: context.ip });
+  if (!client.ok) {
+    runtime.limiters.tokenClientAuthFailIp.check(context.ipKey);
+    return tokenError("invalid_client");
+  }
+  const refusal = limit([runtime.limiters.tokenClient, credentials.clientId]);
+  if (!refusal.ok) {
+    return tokenError("rate_limited", refusal.retryAfter);
+  }
+  return refresh(runtime, context, fields);
+}
+
+/** The refresh itself, once the caller's rate-limit bucket has been decided. */
+async function refresh(
+  runtime: PortalRuntime,
+  context: RequestContext,
+  fields: Readonly<Record<string, unknown>>,
+): Promise<PortalResponse> {
+  const refreshToken = boundedField(fields, "refresh_token", MAX_TOKEN_FIELD);
+  // Required, and shaped like a `devices.id`. `rotate_refresh_token` compares it with the
+  // session's device only when one is passed, so a refresh without it was a refresh from
+  // anywhere. Anything that is not a uuid also used to reach the `::uuid` cast and come back as
+  // a 500. The host always sends the `device_id` its token body carried.
+  const deviceId = boundedField(fields, "device_id", MAX_TOKEN_FIELD);
+  if (!refreshToken || !deviceId || !DEVICE_ID.test(deviceId)) {
+    return tokenError("invalid_request");
+  }
+  const result = await exchangeRefreshToken(runtime, {
+    refreshToken,
+    deviceId,
+    ip: context.ip,
+    userAgent: context.userAgent,
+  });
+  return result.ok ? jsonResponse(200, result.body) : tokenError(result.reason);
 }
 
 async function postDeviceCode(runtime: PortalRuntime, request: PortalRequest): Promise<PortalResponse> {
@@ -120,6 +181,11 @@ async function postDeviceToken(runtime: PortalRuntime, request: PortalRequest): 
   const body = readJson(request);
   if (!body.ok) {
     return jsonError("invalid_request");
+  }
+  // Per IP, before any lookup: this is unauthenticated and every poll costs the database twice.
+  const refusal = limit([runtime.limiters.deviceTokenIp, context.ipKey]);
+  if (!refusal.ok) {
+    return jsonError("rate_limited", refusal.retryAfter);
   }
   const deviceCode = boundedField(body.fields, "device_code", MAX_TOKEN_FIELD);
   const installId = boundedField(body.fields, "install_id", 128);

@@ -1,21 +1,26 @@
-/** `pnpm portal:dev` — config, store, migrations, server, and a clean shutdown. */
+/** `pnpm portal:dev` — config, migrations, store, server, and a clean shutdown. */
 import { mkdir } from "node:fs/promises";
+import { prepareStore } from "./boot";
 import { loadConfig, PortalConfigError } from "./config";
 import { createRuntime } from "./flows/context";
 import { resolveKeyring } from "./jwt/keys";
 import { log } from "./log";
 import { createMailer } from "./mail";
+import { installProcessGuards } from "./process-guards";
 import { registerPortalRoutes } from "./routes";
 import { createPortalServer } from "./server";
-import { openStore } from "./store";
+
+// First, before anything can fail: a rejection or exception that nothing handled is written
+// through the portal's logger, and then the process exits 1 for the supervisor to restart it.
+installProcessGuards({ target: process, log, exit: (code) => process.exit(code) });
 
 async function main(): Promise<void> {
   const config = loadConfig();
   await mkdir(config.dataDir, { recursive: true });
 
-  const store = openStore(config);
-  const migration = await store.migrate();
-  log.info("portal_migrated", { applied: migration.applied.length, skipped: migration.skipped.length });
+  // Migrations on the owner's connection, which is closed again before anything listens; then the
+  // server's own connection, refused in production if it can see past a tenant policy (boot.ts).
+  const store = await prepareStore(config, log);
 
   // The keyring is resolved before anything listens: in production a missing PORTAL_SIGNING_KEY
   // must stop the process, not surface as a 500 on the first sign-in.

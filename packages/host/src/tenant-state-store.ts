@@ -243,6 +243,15 @@ export function registerTenantStateSql(sql: TenantStateSql): void {
   connection = sql;
 }
 
+/**
+ * The connection `registerTenantStateSql` installed, for the one other caller that needs it outside
+ * a request: the wrap-key rotation, which re-seals the session refresh tokens on `auth_sessions`
+ * through the same connection it re-seals `tenant_state` through. Fails closed like every read here.
+ */
+export function registeredTenantStateSql(): TenantStateSql {
+  return requireSql();
+}
+
 /** Test seam: go back to "nothing registered", which is what a fresh process looks like. */
 export function resetTenantStateSqlForTests(): void {
   connection = null;

@@ -76,6 +76,12 @@ test("parseArgs refuses a listen address that is not loopback", () => {
   }
 });
 
+test("parseArgs refuses an upstream that is not loopback", () => {
+  for (const value of ["10.0.0.5:3100", "example.test:3100", "localhost.evil.test:3100", "[::]:3100"]) {
+    assert.throws(() => parseArgs(["--listen", "3443", "--upstream", value]), /--upstream must be a loopback/, value);
+  }
+});
+
 test("parseArgs refuses a missing or malformed value", () => {
   assert.throws(() => parseArgs(["--upstream", "127.0.0.1:3100"]), /--listen/);
   assert.throws(() => parseArgs(["--listen", "3443"]), /--upstream/);

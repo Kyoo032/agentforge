@@ -119,6 +119,21 @@ export function portalClientCredentials(env: EnvLike = process.env): PortalClien
 }
 
 /**
+ * The same two values for a refresh, or null where they are not both configured.
+ *
+ * The code exchange cannot go ahead without a client and refuses (`portalClientCredentials`). A
+ * refresh can: the portal counts it against the caller's address instead of the client
+ * (`./portal-check.ts`). And a desk or webdev, which has no portal client at all, must not throw on
+ * every portal check. The hosted boot check (`../hosted-env.ts`) already refuses to start without
+ * both, so on a server this is never null.
+ */
+export function configuredClientCredentials(env: EnvLike = process.env): PortalClientCredentials | null {
+  const clientId = trimmed(env, PORTAL_CLIENT_ID_ENV);
+  const clientSecret = trimmed(env, PORTAL_CLIENT_SECRET_ENV);
+  return clientId && clientSecret ? { clientId, clientSecret } : null;
+}
+
+/**
  * Everything `/auth/start` needs. `portalBaseUrl` throws a plain `Error` when the variable is
  * absent — correct for the client, which must never be constructed off a server — so it is caught
  * here and reported as the same configuration refusal rather than reaching a browser as a 500.

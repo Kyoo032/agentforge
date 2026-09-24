@@ -46,6 +46,20 @@ describe("plan catalog shape", () => {
     }
   });
 
+  it("points Personal at the desktop app and Enterprise at the web contact offer", () => {
+    const personal = findTier("personal") as PlanTier;
+    const enterprise = findTier("enterprise") as PlanTier;
+    expect(personal.featureKeys).toEqual(["plans.feature.macWindowsApp", "plans.feature.tokenComplement"]);
+    expect(enterprise.featureKeys).toEqual([
+      "plans.feature.webProduct",
+      "plans.feature.contactDps",
+      "plans.feature.knowledgeStorage",
+      "plans.feature.agentTraffic",
+      "plans.feature.implementationMaintenance",
+      "plans.feature.seatsAndTokensSeparate",
+    ]);
+  });
+
   it("leaves the seat cap null on Personal, where D2 says it is meaningless", () => {
     const personal = findTier("personal") as PlanTier;
     expect(personal.seatCap).toBeNull();

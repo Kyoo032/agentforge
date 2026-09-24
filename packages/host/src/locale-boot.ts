@@ -1,5 +1,5 @@
 import { isServerMode, type AppLocale } from "@agentforge/core";
-import { loadOwnerLocale, loadUserLocale, type UserScope } from "./settings-store";
+import { FALLBACK_SETTINGS_WORKSPACE, loadOwnerLocale, loadUserLocale, type UserScope } from "./settings-store";
 
 let frozen: AppLocale | null = null;
 
@@ -52,6 +52,23 @@ export function resetBootLocaleForTests(): void {
  * frozen per user, so the two agree and the Restart prompt never appears. Without a `user` — the
  * pre-auth ping — it is the install's pair, which is what it always was.
  */
+/**
+ * The locale a hosted request runs in: the signed-in person's own (Phase 4). `dispatch` hands this
+ * to `withRequestLocale` (`./run-context.ts`) for every request that passed the session gate, so
+ * `localeForRun()` answers in that person's language in every mode, not only Chat.
+ *
+ * Only the verified session's tenant and user go in. A person's language is per tenant and per
+ * user, never per desk (`loadUserLocale` reads no desk slice), so the settings fallback desk is
+ * named rather than the client's workspace cookie, which nothing has verified at this point.
+ */
+export function sessionLocale(session: { readonly tenantId: string; readonly userId: string }): AppLocale {
+  return loadUserLocale({
+    tenantId: session.tenantId,
+    userId: session.userId,
+    workspaceId: FALLBACK_SETTINGS_WORKSPACE,
+  });
+}
+
 export function localePayload(user?: UserScope): { locale: AppLocale; savedLocale: AppLocale } {
   if (!user) {
     return { locale: getBootLocale(), savedLocale: getSavedLocale() };

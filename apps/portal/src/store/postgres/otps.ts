@@ -1,9 +1,11 @@
 /**
- * login_otps: 6 digits, 10-minute TTL, 5 attempts, single use, 3 sends per 15 minutes per address.
+ * login_otps: 6 digits, 10-minute TTL, 5 attempts per code, single use, 3 sends per 15 minutes per
+ * address, and 20 guesses per address per 24 hours.
  *
- * The send limit is counted from the rows themselves over `ix_login_otps_tenant_email`, exactly as
- * `schema.md` describes — no counter column, nothing to reconcile, and `prune_login_otps()` keeps
- * 24 h precisely so the window stays countable.
+ * Both limits per address are counted from the rows themselves over `ix_login_otps_tenant_email`,
+ * exactly as `schema.md` describes: no counter column, nothing to reconcile. `prune_login_otps()`
+ * keeps 24 h of rows, which is what keeps the 15-minute send window and the 24-hour guess window
+ * countable. A prune that kept less would quietly shrink the daily limit's memory.
  */
 import type { PoolClient } from "pg";
 import { hashEquals, normaliseEmail, sha256 } from "../../crypto";
@@ -15,6 +17,14 @@ const SEND_WINDOW_MS = 15 * 60 * 1000;
 const MAX_SENDS_PER_WINDOW = 3;
 /** login_otps_attempts_chk caps the column at 5; a sixth verify can never succeed. */
 const MAX_ATTEMPTS = 5;
+/**
+ * Guesses per address per 24 hours, across every code and both purposes. Without it, five a code
+ * and three codes per 15 minutes is about 1,440 guesses a day at one address, which is roughly a
+ * 0.14% chance a day of guessing a six-digit code, repeatable every day. Twenty is 0.002% a day,
+ * and still leaves an honest person with fat fingers four codes' worth of mistakes.
+ */
+const MAX_GUESSES_PER_DAY = 20;
+const GUESS_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export function loginOtpsOps(client: PoolClient, clock: Clock): PortalOps["loginOtps"] {
   return {
@@ -55,6 +65,24 @@ export function loginOtpsOps(client: PoolClient, clock: Clock): PortalOps["login
 
     async verify(input): Promise<VerifyLoginOtpResult> {
       const email = normaliseEmail(input.email);
+
+      // The address's daily total comes first, so it refuses even the right code on a fresh code.
+      // Every row of the last 24 h is locked in a fixed order: two verifies for one address, for
+      // either purpose, then take turns, and each sees the other's guess. The total is exact, not
+      // "twenty, plus however many guesses arrived at once".
+      const dayStart = new Date(clock.now().getTime() - GUESS_WINDOW_MS);
+      const today = await client.query<{ attempts: number }>(
+        `SELECT attempts FROM login_otps
+          WHERE tenant_id = $1 AND email = $2 AND created_at > $3
+          ORDER BY created_at, id
+          FOR UPDATE`,
+        [input.tenantId, email, dayStart.toISOString()],
+      );
+      const guessed = today.rows.reduce((sum, row) => sum + Number(row.attempts), 0);
+      if (guessed >= MAX_GUESSES_PER_DAY) {
+        return { ok: false, reason: "locked", attemptsRemaining: 0 };
+      }
+
       // The newest *unconsumed* code for the address: requesting a second code retires the first,
       // which is what stops a user typing a stale one and burning attempts on it.
       const { rows } = await client.query<Row & { otp_hash: Buffer }>(

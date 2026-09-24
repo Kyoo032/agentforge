@@ -15,10 +15,12 @@ import "./tenant-storage-db";
 // Phase 8: installs the connection the readiness route reads. Same seam, same reason; without it
 // the database check reports "did not answer" rather than a silent ok.
 import "./health-db";
-import { hostAuthRoutes, hostSessionStore, isSessionExemptPath, requireSessionFor } from "./auth";
-import type { SessionStore } from "./auth";
+import { hostAuthRoutes, hostPortalCheck, hostSessionStore, isSessionExemptPath, requireSessionFor } from "./auth";
+import type { PortalSessionCheck, SessionStore } from "./auth";
 import { jsonError, jsonOk } from "./errors";
+import { sessionLocale } from "./locale-boot";
 import { withLogContext } from "./log";
+import { withRequestLocale } from "./run-context";
 import { withRequestSession } from "./tenant-scope";
 import { clearedWorkspaceCookie } from "./workspace";
 import {
@@ -431,6 +433,8 @@ export type DispatchOptions = {
   serverMode?: boolean;
   sessionStore?: SessionStore;
   now?: () => number;
+  /** The portal re-check the gate runs on a due session (./auth/portal-check.ts). */
+  portalCheck?: PortalSessionCheck;
 };
 
 type GateVerdict =
@@ -441,6 +445,10 @@ type GateVerdict =
  * The hosted session gate: **every** `/api` call needs a verified session, whatever the method.
  * A read is not safe here — a GET returns settings, threads, artifact bytes and event streams — so
  * only `isSessionExemptPath` decides, never the method on its own.
+ *
+ * Verified means the host's own row AND the portal's word on it no older than ten minutes: a due
+ * session is checked with the portal first, and a session the portal has ended is refused with the
+ * portal's reason (./auth/portal-check.ts). An unanswered portal never refuses anybody.
  *
  * Off server mode this is never reached, so the desktop IPC path and webdev behave exactly as they
  * did before Phase 2: neither of them has a session to present.
@@ -458,6 +466,7 @@ async function gate(
     const session = await requireSessionFor(request, {
       store: options.sessionStore ?? hostSessionStore(),
       now: options.now,
+      portalCheck: options.portalCheck ?? hostPortalCheck(),
     });
     return {
       ok: true,
@@ -516,8 +525,18 @@ export async function dispatch(request: HostRequest, options: DispatchOptions = 
     //
     // Phase 3 lane E, security spec row L1: the same scope stamps the tenant id on every log line
     // written under this handler. The id is the *session's*, never the client's workspace cookie.
-    const result = await withLogContext({ tenantId: session.tenantId, route: route.path }, () =>
-      withRequestSession(session, () => route.handler(scoped)),
+    //
+    // And the same scope carries the person's own language (Phase 4), so `localeForRun()` answers
+    // in it in every mode rather than only in Chat. Read lazily, from the session's tenant and user
+    // only; off server mode nothing is set and the boot locale stands (./run-context.ts).
+    const { tenantId, userId } = session;
+    const result = await withLogContext({ tenantId, route: route.path }, () =>
+      withRequestSession(session, () =>
+        withRequestLocale(
+          () => sessionLocale({ tenantId, userId }),
+          () => route.handler(scoped),
+        ),
+      ),
     );
     return clearStaleWorkspaceCookie(result);
   }

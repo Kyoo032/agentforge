@@ -9,6 +9,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { randomToken } from "../crypto";
 import { addUser, seedFixture, type Fixture } from "../testing/fixtures";
+import { fixedClock } from "../testing/pg";
 import {
   createAgent,
   hiddenValue,
@@ -404,6 +405,98 @@ describe("the code form", () => {
     const fourth = await signIn(agent, "state-15-3", email);
     expect(portal.mailer.sent).toHaveLength(3);
     expect(fourth.page).toContain("Check your e-mail");
+  });
+});
+
+/**
+ * Twenty guesses per address per 24 hours, over the wire. Before this, five guesses a code and three
+ * codes per 15 minutes allowed about 1,440 guesses a day at one address, and nothing capped that.
+ * Its own portal, because the fourth send has to wait out the send window, and only a clock the
+ * test moves can do that in a test's time.
+ */
+describe("the daily guess budget", () => {
+  const clock = fixedClock();
+  let dayPortal: PortalHarness;
+  let dayFixture: Fixture;
+
+  beforeAll(async () => {
+    dayPortal = await startTestPortal({ clock });
+    dayFixture = await seedFixture(dayPortal.store.store, { slug: "guessday", email: "owner@guessday.test" });
+    await dayPortal.store.store.tx(dayFixture.tenant.id, (ops) =>
+      ops.oauthClients.create({
+        clientId: CLIENT_ID,
+        tenantId: dayFixture.tenant.id,
+        name: "DPSBuddy",
+        secret: randomToken(),
+        redirectUris: [REDIRECT],
+      }),
+    );
+  }, 180_000);
+
+  afterAll(async () => {
+    await dayPortal?.close();
+  });
+
+  async function sendCode(agent: Agent, state: string, email: string) {
+    const start = await agent.get(authorizeUrl(state));
+    const sent = await agent.postForm("/authorize/email", {
+      csrf_token: hiddenValue(start.text, "csrf_token") as string,
+      response_type: "code",
+      client_id: CLIENT_ID,
+      redirect_uri: REDIRECT,
+      state,
+      email,
+    });
+    return { page: sent.text, code: dayPortal.mailer.newest()?.code ?? "" };
+  }
+
+  function guess(agent: Agent, page: string, state: string, email: string, code: string, path = "/authorize/verify") {
+    return agent.postForm(path, {
+      csrf_token: hiddenValue(page, "csrf_token") as string,
+      response_type: "code",
+      client_id: CLIENT_ID,
+      redirect_uri: REDIRECT,
+      state,
+      email,
+      code,
+    });
+  }
+
+  it("refuses even the right code once twenty guesses were spent today, says why in both languages, and audits otp.locked", async () => {
+    const email = "spent@guessday.test";
+    await addUser(dayPortal.store.store, dayFixture, email);
+    const agent = createAgent(dayPortal.origin);
+
+    // Four codes, five wrong guesses each: no code's own limit is what stops anything below.
+    for (let n = 0; n < 4; n += 1) {
+      if (n === 3) {
+        // Three sends per 15 minutes; the fourth waits the window out.
+        clock.set(new Date(Date.now() + 16 * 60 * 1000));
+      }
+      const { page, code } = await sendCode(agent, `state-day-${n}`, email);
+      const wrong = code === "999999" ? "000000" : "999999";
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        expect((await guess(agent, page, `state-day-${n}`, email, wrong)).status).toBe(400);
+      }
+    }
+
+    const { page, code } = await sendCode(agent, "state-day-4", email);
+    expect(code).toMatch(/^\d{6}$/);
+
+    const refused = await guess(agent, page, "state-day-4", email, code);
+    expect(refused.status).toBe(400);
+    expect(refused.location).toBeNull();
+    expect(refused.text).toContain("Try again in 24 hours");
+
+    const refusedId = await guess(agent, refused.text, "state-day-4", email, code, "/authorize/verify?lang=id");
+    expect(refusedId.status).toBe(400);
+    expect(refusedId.text).toContain("Coba lagi dalam 24 jam");
+
+    const audit = await dayPortal.store.store.tx(dayFixture.tenant.id, (ops) =>
+      ops.audit.list({ tenantId: dayFixture.tenant.id, action: "otp.locked" }),
+    );
+    expect(audit).toHaveLength(2);
+    expect(audit.every((row) => row.reasonCode === "locked")).toBe(true);
   });
 });
 

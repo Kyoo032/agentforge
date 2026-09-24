@@ -1,6 +1,11 @@
 # Map — Database and migrations
 
-Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c` (through e37b3a1)
+Last verified: 2026-09-23 at d4561b8 + uncommitted tree for the migrations table and the numbering note (now
+through `0021`), the `auth_sessions` row of the schema families, "Start over, applied at next boot" (every
+`reset.ts` citation, and the partial-failure retry) and the drizzle row of Where things live. Not driven:
+`0021` has run only in its own test suite. Everything else was last verified 2026-09-20 at a053245 + the
+Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c` (through e37b3a1); `schema.ts` has grown from 706 to
+942 lines since, so the other schema line citations have drifted.
 
 ## Overview
 
@@ -14,7 +19,7 @@ It is not a database abstraction. Postgres is refused out loud, not fallen back 
 boot path. The tenant dimension landed with Phase 3 lane B and is deliberately narrow: one `tenants`
 table (`packages/db/src/schema.ts:32-39`) and exactly one `tenant_id` foreign key, on `organizations`
 (`:45-47`), because every content table already reaches an organization directly or through
-`workspaces.organization_id`. `auth_sessions` carries a `tenant_id` as well (`:692`), but as a plain
+`workspaces.organization_id`. `auth_sessions` carries a `tenant_id` as well (`:926`), but as a plain
 string copied off the session rather than a reference. The data model itself is mapped on its own
 page: [tenancy-schema.md](tenancy-schema.md).
 
@@ -82,15 +87,16 @@ In order:
 
 1. Four `dotenv` loads — `../../.env`, `../../.env.local`, `./.env`, `./.env.local` (`:11-14`).
 2. `sqliteFilePath()` and `mkdirSync(dirname(file))` (`:16-17`).
-3. **The pending-reset hook** (`:35-37`): when `AGENTFORGE_APPLY_PENDING_RESET === "1"` *and* no
+3. **The pending-reset hook** (`:38-46`): when `AGENTFORGE_APPLY_PENDING_RESET === "1"` *and* no
    connection is cached, `applyPendingDataReset(localDataDir())` runs here — the last moment before
-   SQLite takes a handle on the files. It is deliberately gated rather than unconditional (`:23-34`):
-   importing this module must never delete data as a side effect of a test or a tool that only wanted
-   `db`.
+   SQLite takes a handle on the files — and logs one line of counts from `resetOutcomeSummary`, a
+   warning when something is left for the next launch. It is deliberately gated rather than
+   unconditional (`:23-37`): importing this module must never delete data as a side effect of a test or
+   a tool that only wanted `db`.
 4. The connection, cached on `globalThis` outside production so hot reload does not open a second
-   handle (`:19-21`, `:39-42`).
-5. Two pragmas: `journal_mode = WAL` and `foreign_keys = ON` (`:44-45`).
-6. `ensureSchema(sql)` (`:46`), then `drizzle(sql, { schema })` (`:48`).
+   handle (`:19-21`, `:48-51`).
+5. Pragmas: `journal_mode = WAL` and `foreign_keys = ON` (`:53-54`), and `busy_timeout = 5000` (`:59`).
+6. `ensureSchema(sql)` (`:60`), then `drizzle(sql, { schema })` (`:62`).
 
 The two processes allowed to set `AGENTFORGE_APPLY_PENDING_RESET=1` are the webdev server
 (`apps/web/server-env.ts:14`, imported first precisely because ESM hoists imports — `:9-13`) and the
@@ -116,7 +122,7 @@ The families:
 | Edit | `edit_projects` (`:496`), `edit_ops` (`:520`), `edit_snapshots` (`:541`), `edit_jobs` (`:555`), `edit_cards` (`:582`), `edit_unplaced` (`:605`) | only `edit_projects` carries `organization_id` + `workspace_id` (`:500`, `:503`); the other five hang off `project_id` |
 | Job outputs | `artifacts` (`:623`), `datasets` (`:642`) | `workspace_id` only (`:627`, `:646`) |
 | Market | `market_cache` (`:666`) | **neither** — keyed `(ticker, kind)`, shared across the install (`:659-664`) |
-| Hosted sessions | `auth_sessions` (`:688`) | `tenant_id`, `user_id`, `org_id` as plain strings (`:692-694`); desktop and webdev never write it (`:686`) |
+| Hosted sessions | `auth_sessions` (`:922`) | `tenant_id`, `user_id`, `org_id` as plain strings; desktop and webdev never write it. Since `0021` the `id` is `sha256(cookie id)`, never the cookie itself, and two columns carry the portal re-check: `portal_checked_at` and `refresh_sealed`, the portal refresh token sealed under a key derived from the wrap key (`:934-935`) |
 
 Two tables exist only in SQL and have no Drizzle declaration, because they are FTS5 virtual tables:
 `knowledge_chunks` (`packages/db/drizzle/0003_knowledge.sql`) and `market_news_fts`
@@ -125,7 +131,7 @@ Two tables exist only in SQL and have no Drizzle declaration, because they are F
 ### Migrations
 
 `ensureSchema(sqlite)` (`packages/db/src/ensure-schema.ts:201-251`) runs on **every boot**, from
-`client.ts:51`. There is no separate migrate step in the app's start path.
+`client.ts:60`. There is no separate migrate step in the app's start path.
 
 `migrationsFolder()` (`:64-79`) resolves the committed folder: `AGENTFORGE_MIGRATIONS_DIR` when set
 *and existing* (`:66-72`), else `../../packages/db/drizzle` relative to `process.cwd()` (`:73-77`),
@@ -174,14 +180,23 @@ The committed migrations, in journal order (`packages/db/drizzle/meta/_journal.j
 | `0015_tenants.sql` | `tenants` + `tenants_slug_unique`, the `local-tenant` row, `organizations.tenant_id` backfilled to it, and the move of organization slug uniqueness from `organizations_slug_unique` to `organizations_tenant_slug` (`0015_tenants.sql:42-46`). Additive and one-way: the runner has no `down` and SQLite before 3.35 cannot drop a column (`0015_tenants.sql:12-13`) |
 | `0016_tenant_usage.sql` | `tenant_usage` — one row per gateway call, priced in USD micros. See [`tenant-usage-ledger.md`](tenant-usage-ledger.md) |
 | `0018_tenant_state.sql` | `tenant_state` + `tenant_state_key_idx` — a tenant's sealed settings and gateway verdict as rows on the hosted server, keyed `(tenant_id, key)` and cascading on tenant delete. See [`tenant-secrets-backend.md`](tenant-secrets-backend.md) |
+| `0017_tenant_plan.sql` | `tenant_plan` (one row per tenant), `tenant_seat` + `tenant_seat_live_idx`, `billing_events` + `billing_events_tenant_idx`, and `tenant_usage.billing_period_start` with `tenant_usage_period_idx`. It re-declares `tenant_usage` before its `ALTER` so a database baseline-stamped past `0016` without the table does not abort the transaction (`0017_tenant_plan.sql:111-114`, `ALTER` at `:144`). See [`tenant-entitlement.md`](tenant-entitlement.md) |
+| `0019_tenant_storage.sql` | `tenant_storage` — the byte counter a quota is enforced against, maintained on every write and delete instead of summed on demand (`0019_tenant_storage.sql:8-13`). See [`tenant-object-storage.md`](tenant-object-storage.md) |
+| `0020_tenant_reset_audit.sql` | `tenant_reset_audit` + `tenant_reset_audit_tenant_idx` — who erased a tenant and when, written before the erase and again after it. See [`hosted-surfaces-and-reset.md`](hosted-surfaces-and-reset.md) |
+| `0021_auth_session_hardening.sql` | Rebuilds `auth_sessions` (2026-09-23): `id` becomes `sha256(cookie id)` in lowercase hex, and it adds `portal_checked_at` and `refresh_sealed`. **Every existing row is dropped**, so every browser signed in to a hosted deployment signs in once more; those rows were keyed by raw cookie ids that no digest lookup can match again. Rebuilt rather than altered because an `ALTER TABLE … ADD` cannot be replayed on a database whose journal was rewound past it. The desktop and webdev never write the table ([SR-60](../security-register.md#sr-60), [SR-64](../security-register.md#sr-64)) |
 
-**There is no `0017`, and the gap is deliberate.** Phase 5 lane B reserved that number while Phase 4 was in
-flight, so the journal jumps from `idx: 16` (`when: 1788820000008`) to `idx: 18` (`when: 1788820000010`).
-This matters because the runner is forward-only on `when`, not on `idx`: it applies an entry when
-`lastAppliedCreatedAt < entry.when` (`applyPendingMigrations`, `packages/db/src/ensure-schema.ts:163-199`). A `0017` added later with
-a `when` **below** `1788820000010` would be silently skipped on every database that has already run `0018`.
-Lane B's migration must carry a `when` above it. `packages/db/src/migrate-0018.test.ts` asserts the journal
-stays in ascending `when` order and that no `0017` tag has appeared without one.
+**The journal is not in number order, on purpose.** The array runs `0016` → `0018` → `0017` → `0019` →
+`0020` → `0021`. Phase 5 lane B reserved `0017` while Phase 4 took `0018`, and the runner is forward-only on
+`when`, not on `idx`: it applies an entry only when `lastAppliedCreatedAt < entry.when`
+(`applyPendingMigrations`, `packages/db/src/ensure-schema.ts`). So `0017` carries `when: 1788820000011`, above
+`0018`'s `1788820000010`, and sits after it in the array; a `when` below it would have been skipped on every
+database that had already run `0018` (`0017_tenant_plan.sql:9-17`). `0019`, `0020` and `0021` follow at
+`…012`, `…013` and `…014`. `packages/db/src/migrate-0018.test.ts` asserts ascending `when` order, and
+`migrate-0017.test.ts` … `migrate-0021.test.ts` each assert their own file's place.
+
+`ensureAuthSessionTables` (`packages/db/src/ensure-schema.ts:405`) mirrors `0021`'s shape for a database
+stamped past it without the columns, and **only ever adds**: it never drops a row, because it runs on every
+boot and dropping there would sign every hosted browser out on each restart.
 
 From `0010` onward each file re-declares its tables with `CREATE TABLE IF NOT EXISTS`, on the stated
 reasoning that a baseline-stamped database has the journal row but not necessarily the table
@@ -227,29 +242,41 @@ then calls `ensureLocalOwner(db)` (`:32`) and exits.
 `packages/db/src/reset.ts` implements a wipe that is **queued while the app runs and applied on the
 next boot**, because the database is open and ffmpeg may still be writing.
 
-- `requestDataReset(dir, entries)` (`:91-105`) validates every entry first (`rejectReason`, `:43-61`:
+- `requestDataReset(dir, entries)` (`:103-110`) validates every entry first (`rejectReason`, `:55`:
   must be a non-empty relative string, no drive letter, no leading separator, no `..`) and throws
   before writing anything if one fails. It then writes `reset-pending.json` (`:26`) as a temp file and
-  renames it (`:99-104`) — a half-written marker would be read as malformed on the next boot and
-  silently cancel the wipe. The caller is the Settings handler:
-  `requestDataReset(localDataDir(), [...HOST_RESET_ENTRIES])`
-  (`packages/host/src/handlers/settings.ts:352`, list at `:274-293`).
-- `applyPendingDataReset(dir)` (`:248-283`) is safe on every boot. No marker → no-op (`:252-256`). A
-  marker that is unreadable or not a valid v1 object is **deleted and the data kept** (`:257-268`) —
-  a wipe is never inferred. Otherwise it removes each listed entry plus the SQLite trio
-  (`SQLITE_ENTRIES`, `:29`), deletes the marker, and returns what went (`:270-282`).
-- `removeEntry` (`:152-183`) never throws. Beyond the name check it resolves the parent's real path
-  (`realTarget`, `:140-149`) and re-checks containment (`:168-171`) before `rmSync`, then deletes the
-  **resolved** path rather than the spelling (`:174`), so a junction swap between check and delete
-  cannot redirect it.
-- `removeDatabaseElsewhere` (`:193-242`) covers a `DATABASE_URL` pointing outside the data dir, which
+  renames it (`writeMarker`, `:112-120`) — a half-written marker would be read as malformed on the next
+  boot and silently cancel the wipe. The caller is the Settings handler:
+  `requestDataReset(localDataDir(), [...HOST_RESET_ENTRIES])` (`packages/host/src/handlers/settings.ts`).
+- `applyPendingDataReset(dir)` (`:296-338`) is safe on every boot. No marker → no-op (`:302-304`). A
+  marker that is unreadable or not a valid v1 object is **deleted and the data kept** (`:305-316`) —
+  a wipe is never inferred. Otherwise it removes each listed entry plus, unless the marker says the
+  database is already gone, the SQLite trio (`SQLITE_ENTRIES`, `:29`; `withDatabase`, `:318-319`).
+- **A wipe that fails part-way is retried, not dropped (2026-09-23).** Each removal reports `removed`,
+  `absent`, `skipped` or `failed`, and only `failed` keeps the wipe pending. When everything went the
+  marker is deleted and the outcome says `applied: true` (`:332-334`); otherwise `keepForRetry`
+  (`:276-289`) rewrites the marker to name only what is still owed, and the next launch finishes it.
+  The database goes back on that list only when part of it is what failed (`database: false` on the
+  marker, `:40`): once it is gone the app opens a fresh one on the same boot, and a retry must not
+  delete that. A marker that cannot be rewritten leaves the original in place, so the next boot retries
+  the whole wipe (`:285-288`). Before, the marker was dropped whatever happened and the outcome always
+  said applied — a locked `.master-key` simply stayed behind ([SR-77](../security-register.md#sr-77)).
+- `removeEntry` (`:175-206`) never throws. Beyond the name check it resolves the parent's real path
+  (`realTarget`, `:163`) and re-checks containment (`:191-194`) before `rmSync`, then deletes the
+  **resolved** path rather than the spelling (`:197`), so a junction swap between check and delete
+  cannot redirect it. A failure is logged by the entry's name and its error code, never its path
+  (`:198-203`), because the entry can be the key file ([SR-78](../security-register.md#sr-78)).
+- `removeDatabaseElsewhere` (`:216-269`) covers a `DATABASE_URL` pointing outside the data dir, which
   the relative entries would otherwise miss entirely. It only runs when the directory being wiped
-  *is* this install's data dir (`:196-198`), skips a refused (Postgres) URL (`:200-204`), and uses
-  `lstat` so a symlink parked at the database path is reported and left alone (`:212-229`).
+  *is* this install's data dir (`:220-222`), skips a refused (Postgres) URL (`:224-229`), and uses
+  `lstat` so a symlink parked at the database path is reported and left alone. It returns what it
+  could not remove, which keeps the wipe pending like any other failure.
+- `resetOutcomeSummary` (`:345`) is the boot log line — counts only, because `removed` and `failed` hold
+  names such as the key file's and, for a database outside the data dir, an absolute path.
 - The directory itself is never removed, because in the packaged app it is also Electron's userData /
   Chromium profile dir (`:8-10`).
 
-`hasPendingDataReset` (`:291-293`) and `pendingResetPath` (`:286-288`) are what Settings uses to show
+`hasPendingDataReset` (`:361-363`) and `pendingResetPath` (`:356-358`) are what Settings uses to show
 and cancel a queued wipe.
 
 ### The repository layer
@@ -289,7 +316,7 @@ a package script only, not exposed at the root (`packages/db/package.json:12`).
 | `packages/db/src/client.ts` | Opens better-sqlite3, sets pragmas, runs the reset hook and `ensureSchema`, exports `db` / `sql` / `Database`. |
 | `packages/db/src/schema.ts` | Every Drizzle table. No queries. |
 | `packages/db/src/ensure-schema.ts` | `migrationsFolder()`, `ensureSchema()`, baseline stamping, the `ensure*` healers, `assertKernelTables`. |
-| `packages/db/drizzle/` | The 18 committed `.sql` migrations (numbered `0000`-`0018` with `0017` reserved) plus `meta/_journal.json`. |
+| `packages/db/drizzle/` | The 22 committed `.sql` migrations, `0000`-`0021`, plus `meta/_journal.json`, whose array runs `0018` before `0017` (see the numbering note). |
 | `packages/db/src/ensure-local-owner.ts` | The single owner, org, home workspace, and workspace CRUD. |
 | `packages/core/src/local-owner.ts` | The id/slug/name constants and `pickWorkspaceId`. |
 | `packages/db/src/seed.ts` | `db:seed` entry point. |
@@ -402,8 +429,10 @@ The real coverage is the unit suite, `pnpm --filter @agentforge/db test`
 | `packages/db/src/vault-key.test.ts` | The Postgres refusal and `file:` handling (`:40-50`), every entropy case including the documented passphrase limit (`:52-121`), server mode's two refusals and what it accepts (`:123-178`), and that a desk still creates and reuses `.master-key` and still accepts a short env key (`:180-193`). |
 | `packages/db/src/ensure-schema.test.ts` | Fresh create, idempotence, baseline stamping, each healer, and `drizzle-kit check` as an anti-drift gate (`:447-475`) — which **skips itself with a warning when `drizzle-kit` is not installed** (`:459-462`), so a green run in a workspace without dependencies proves less than it looks. |
 | `packages/db/src/reset.test.ts` | Marker atomicity, escape rejection, the malformed-marker keep-data path, the `DATABASE_URL`-elsewhere trio, and the symlink defenses. |
+| `packages/db/src/reset-retry.test.ts` | (2026-09-23) A removal that fails keeps the marker naming only what is left and is not reported as applied; the retry never deletes the database the app opened since, and retries all of it when part of it is what failed; a database outside the data dir that could not be removed keeps the marker too; the log names the entry and the error code, never the path; `resetOutcomeSummary` is counts only |
 | `packages/db/src/ensure-local-owner.test.ts` | `Default`/`home` naming, the `Home` → `Default` rename, and that the home desk cannot be deleted. |
 | `packages/db/src/auth-sessions.test.ts` | `auth_sessions` is created by the migration, matches the Drizzle table, survives a second `ensureSchema`, and is healed on a baseline-stamped database. |
+| `packages/db/src/migrate-0021.test.ts` | (2026-09-23) `0021` on a fresh database and on one upgraded from `0020` — the two columns, every raw-id row deleted and nothing else, its own journal row so the delete never runs twice — its place in the journal, that it rebuilds rather than alters and can be replayed, and that the healer adds the columns to a database stamped past it without them |
 | `packages/db/src/repos/drizzle-agent-repository.test.ts` | `systemPrompt` is written as a `sealPayload` envelope and reopens, and a legacy plaintext prompt still opens. |
 
 ## Why

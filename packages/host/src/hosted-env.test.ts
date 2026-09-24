@@ -59,8 +59,55 @@ describe("a complete hosted environment boots", () => {
     expect(names(completeEnv({ AGENTFORGE_SECRETS_KEY: base64 }))).toEqual([]);
   });
 
-  it("accepts a loopback portal, which is what a review instance runs", () => {
-    expect(names(completeEnv({ AGENTFORGE_PORTAL_URL: "http://127.0.0.1:4000" }))).toEqual([]);
+  it("accepts a loopback portal off production, which is what a review instance in dev mode runs", () => {
+    expect(names(completeEnv({ NODE_ENV: "development", AGENTFORGE_PORTAL_URL: "http://127.0.0.1:4000" }))).toEqual([]);
+  });
+
+  it("accepts an https portal in production", () => {
+    expect(names(completeEnv({ AGENTFORGE_PORTAL_URL: "https://127.0.0.1:4443" }))).toEqual([]);
+  });
+});
+
+/**
+ * SR-26, owner decision 2026-09-23: in production the portal is reached over TLS, full stop.
+ *
+ * `assertAllowedEndpointUrl` lets plain http through for a loopback host, which is right for a desk
+ * and for the review instance. On `NODE_ENV=production` the tokens and the client secret must not
+ * depend on the portal happening to share a network namespace with the app, so the boot check
+ * refuses cleartext there even on loopback. The rule lives here, not in `tls.ts`, so every other
+ * caller of that function keeps the exemption.
+ */
+describe("the portal URL is https in production, loopback included (SR-26)", () => {
+  it.each(["http://127.0.0.1:4000", "http://localhost:4000/api", "http://[::1]:4000"])(
+    "refuses %s when NODE_ENV=production",
+    (url) => {
+      expect(names(completeEnv({ AGENTFORGE_PORTAL_URL: url }))).toEqual(["AGENTFORGE_PORTAL_URL"]);
+      expect(() => assertHostedEnvComplete(completeEnv({ AGENTFORGE_PORTAL_URL: url }), () => {})).toThrow(
+        HOSTED_ENV_INCOMPLETE,
+      );
+    },
+  );
+
+  it("says why, by name, and never prints the URL", () => {
+    const message = messageFor(completeEnv({ AGENTFORGE_PORTAL_URL: "http://127.0.0.1:4000" }));
+    expect(message).toContain("AGENTFORGE_PORTAL_URL");
+    expect(message).toMatch(/https/);
+    expect(message).toMatch(/production/);
+    expect(message).not.toContain("127.0.0.1:4000");
+  });
+
+  it.each(["development", "staging", "test"])("keeps the loopback exemption when NODE_ENV=%s", (nodeEnv) => {
+    expect(names(completeEnv({ NODE_ENV: nodeEnv, AGENTFORGE_PORTAL_URL: "http://127.0.0.1:4000" }))).toEqual([]);
+  });
+
+  it("keeps it when NODE_ENV is unset, which is how webdev and a bare review instance start", () => {
+    expect(names(completeEnv({ NODE_ENV: undefined, AGENTFORGE_PORTAL_URL: "http://localhost:4000" }))).toEqual([]);
+  });
+
+  it("still refuses cleartext off loopback everywhere, through the shared rule", () => {
+    expect(names(completeEnv({ NODE_ENV: "development", AGENTFORGE_PORTAL_URL: "http://portal.example.com" }))).toEqual(
+      ["AGENTFORGE_PORTAL_URL"],
+    );
   });
 });
 

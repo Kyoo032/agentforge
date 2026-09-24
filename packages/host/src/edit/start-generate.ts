@@ -12,13 +12,12 @@ import {
   type EditStartGenerateJobResult,
   type TenantContext,
 } from "@agentforge/core";
-import { db, editCards } from "@agentforge/db";
+import { db, editCards, media } from "@agentforge/db";
 import { listImageModels, listVideoModels } from "../selectable-models";
 import { appendOps, foldProject, writeSnapshot } from "./ops";
 import { enqueueEditJob } from "./jobs";
 import { mapCard, mapJob } from "./projects";
 import { editEvents } from "./events";
-import { loadMediaRow } from "./wire-generate";
 import { resolveStillSource, type StillSource } from "./still-source";
 
 function imageAspectForEdit(aspect: "16:9" | "9:16" | "1:1"): "square" | "landscape" | "portrait" {
@@ -81,9 +80,21 @@ const STILL_NOT_FOUND = new ApiError(
 /**
  * Local media is inlined as a data URL at submit time (see `withInlinedStill`) because a
  * remote gateway cannot fetch this machine; here we only confirm the media row exists.
+ *
+ * Only inside the caller's organization, which is where the worker reads the still from
+ * (`readMediaDataUrl`). Looked up by id alone, another tenant's media id passed this check while an
+ * unknown id was refused, so the answer told a caller whether an id existed anywhere.
  */
-async function assertStillAvailable(still: StillSource): Promise<void> {
-  if (still.kind === "local" && !(await loadMediaRow(still.mediaId))) {
+async function assertStillAvailable(tenant: TenantContext, still: StillSource): Promise<void> {
+  if (still.kind !== "local") {
+    return;
+  }
+  const rows = await db
+    .select({ id: media.id })
+    .from(media)
+    .where(and(eq(media.organizationId, tenant.organizationId), eq(media.id, still.mediaId)))
+    .limit(1);
+  if (!rows[0]) {
     throw STILL_NOT_FOUND;
   }
 }
@@ -170,7 +181,7 @@ export async function startGenerateJob(
     throw new ApiError("video_still_unsupported", "This model does not accept a still image", 400);
   }
   if (still) {
-    await assertStillAvailable(still);
+    await assertStillAvailable(tenant, still);
   }
   const imageUrl = still?.kind === "remote" ? still.url : undefined;
   const stillMediaId = still?.kind === "local" ? still.mediaId : undefined;
@@ -221,8 +232,8 @@ export async function startGenerateJob(
     toolKey === "regenerate_clip" && parent ? [parent.id] : clips.map((clip) => clip.id);
   const job = await enqueueEditJob(projectId, {
     kind: input.kind,
+    // No tenant in the request: the worker resolves it from the project and `requestedBy`.
     request: {
-      tenant,
       prompt: input.prompt,
       aspect: input.kind === "generate_image" ? imageAspectForEdit(aspect as "16:9" | "9:16" | "1:1") : aspect,
       model,
@@ -238,6 +249,7 @@ export async function startGenerateJob(
     model,
     tier: input.tier,
     estimateUsd,
+    requestedBy: tenant.userId,
   });
   const [updated] = await db
     .update(editCards)

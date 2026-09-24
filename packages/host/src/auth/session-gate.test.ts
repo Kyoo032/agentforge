@@ -10,8 +10,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { dispatch } from "../router";
 import type { HostJsonResult, HostRequest } from "../types";
-import { SESSION_COOKIE, createSession } from "./session";
-import { createMemorySessionStore } from "./session-store";
+import { resetHostAuthForTests } from "./index";
+import { createPortalSessionCheck } from "./portal-check";
+import { createSessionSecrets } from "./session-secrets";
+import { PortalError, createFakePortalClient, type FakePortalClient } from "./portal-client";
+import { PORTAL_CHECK_INTERVAL_MS, SESSION_COOKIE, createSession } from "./session";
+import { createMemorySessionStore, createMemoryTokenVault } from "./session-store";
 
 const T0 = Date.UTC(2026, 8, 18, 9, 0, 0);
 
@@ -316,5 +320,150 @@ describe("the verified session reaches the handler", () => {
     await dispatch(original, { serverMode: true, sessionStore: store, now });
     expect(original.session).toBeUndefined();
     expect(seen()).not.toBe(original);
+  });
+});
+
+/**
+ * The gate asks the portal (./portal-check.ts). Before this, a session the portal had revoked kept
+ * working here for as long as the host's own row did: 12 h idle, 30 days absolute.
+ */
+describe("the gate checks the session with the portal once its last word is ten minutes old", () => {
+  const DUE_AT = T0;
+  const SIGNED_IN_AT = T0 - PORTAL_CHECK_INTERVAL_MS;
+
+  async function due(portal: FakePortalClient, options: { withTokens?: boolean } = {}) {
+    const store = createMemorySessionStore();
+    const vault = createMemoryTokenVault();
+    const session = createSession({ tenantId: "tnt", userId: "usr", orgId: "org", now: SIGNED_IN_AT });
+    await store.create(session);
+    if (options.withTokens ?? true) {
+      await vault.put(session.id, { refreshToken: "r1", accessToken: "a1", deviceId: "dev_1" });
+    }
+    const portalCheck = createPortalSessionCheck({ vault, portal });
+    const dispatchOptions = { serverMode: true, sessionStore: store, now: () => DUE_AT, portalCheck };
+    const call = () =>
+      dispatch(
+        request({ method: "GET", path: "/api/v1/tools", headers: { cookie: `${SESSION_COOKIE}=${session.id}` } }),
+        dispatchOptions,
+      ) as Promise<HostJsonResult>;
+    return { store, vault, session, call };
+  }
+
+  it("refuses with the portal's own reason when the portal has ended the session, before any handler runs", async () => {
+    const portal = createFakePortalClient({ failWith: new PortalError("device_revoked", 403) });
+    const { store, session, call } = await due(portal);
+    const result = await call();
+    expect(result.status).toBe(401);
+    expect(result.body).toEqual({ error: { code: "device_revoked", message: expect.any(String) } });
+    expect(dispatched).toHaveLength(0);
+    expect((await store.find(session.id))?.revokedAt).toBe(DUE_AT);
+  });
+
+  it.each(["session_revoked", "user_inactive", "org_past_due", "tenant_inactive", "refresh_reused"] as const)(
+    "ends the session for %s, and the next request is refused without asking again",
+    async (reason) => {
+      const portal = createFakePortalClient({ failWith: new PortalError(reason, 401) });
+      const { call } = await due(portal);
+      expect((await call()).body).toMatchObject({ error: { code: reason } });
+      const again = await call();
+      expect(again.status).toBe(401);
+      expect(again.body).toMatchObject({ error: { code: "session_revoked" } });
+      expect(portal.calls.filter((entry) => entry.kind === "refresh")).toHaveLength(1);
+    },
+  );
+
+  it("lets the request through when the portal rotates the tokens, and keeps the new pair", async () => {
+    const portal = createFakePortalClient();
+    const { store, vault, session, call } = await due(portal);
+    const result = await call();
+    expect(result.status).toBe(200);
+    expect(dispatched).toHaveLength(1);
+    expect(portal.calls).toEqual([{ kind: "refresh", refreshToken: "r1", deviceId: "dev_1" }]);
+    expect(await vault.get(session.id)).toEqual({
+      refreshToken: "fake-refresh",
+      accessToken: "fake-access",
+      deviceId: "dev_fake",
+    });
+    expect((await store.find(session.id))?.portalCheckedAt).toBe(DUE_AT);
+  });
+
+  it("lets the request through when the portal is unreachable: an outage never signs anybody out", async () => {
+    const portal = createFakePortalClient({ failWith: new PortalError("portal_unavailable", 503) });
+    const { store, session, call } = await due(portal);
+    const result = await call();
+    expect(result.status).toBe(200);
+    expect((await store.find(session.id))?.revokedAt).toBeNull();
+  });
+
+  it("ends a due session the host holds no tokens for, which is what a restart leaves", async () => {
+    const portal = createFakePortalClient();
+    const { call } = await due(portal, { withTokens: false });
+    const result = await call();
+    expect(result.status).toBe(401);
+    expect(result.body).toMatchObject({ error: { code: "refresh_expired" } });
+    expect(portal.calls).toEqual([]);
+  });
+
+  it("does not ask the portal inside the interval", async () => {
+    const portal = createFakePortalClient({ failWith: new PortalError("device_revoked", 403) });
+    const { store, session, now } = await live();
+    const portalCheck = createPortalSessionCheck({ vault: createMemoryTokenVault(), portal });
+    const result = (await dispatch(
+      request({ method: "GET", path: "/api/v1/tools", headers: { cookie: `${SESSION_COOKIE}=${session.id}` } }),
+      { serverMode: true, sessionStore: store, now, portalCheck },
+    )) as HostJsonResult;
+    expect(result.status).toBe(200);
+    expect(portal.calls).toEqual([]);
+  });
+
+  it("never asks off server mode, where there is no session to check", async () => {
+    const portal = createFakePortalClient({ failWith: new PortalError("device_revoked", 403) });
+    const portalCheck = createPortalSessionCheck({ vault: createMemoryTokenVault(), portal });
+    const result = (await dispatch(request({ method: "GET", path: "/api/v1/tools" }), {
+      serverMode: false,
+      portalCheck,
+    })) as HostJsonResult;
+    expect(result.status).toBe(200);
+    expect(portal.calls).toEqual([]);
+  });
+
+  it("falls back to the process-wide check, whose vault holds nothing for a session it never signed in", async () => {
+    const store = createMemorySessionStore();
+    const session = createSession({ tenantId: "tnt", userId: "usr", orgId: "org", now: SIGNED_IN_AT });
+    await store.create(session);
+    const result = (await dispatch(
+      request({ method: "GET", path: "/api/v1/tools", headers: { cookie: `${SESSION_COOKIE}=${session.id}` } }),
+      { serverMode: true, sessionStore: store, now: () => DUE_AT },
+    )) as HostJsonResult;
+    resetHostAuthForTests();
+    expect(result.status).toBe(401);
+    expect(result.body).toMatchObject({ error: { code: "refresh_expired" } });
+  });
+});
+
+/**
+ * Owner decision, 2026-09-23: a restart or a deploy signs nobody out. After one, the process's
+ * vault is empty and the gate's first check on a due session opens the refresh token sealed on the
+ * row instead of ending the session.
+ */
+describe("the gate after a restart", () => {
+  it("lets a due session through on the refresh token sealed on its row", async () => {
+    const secrets = createSessionSecrets(() => Buffer.alloc(32, 3));
+    const store = createMemorySessionStore();
+    const session = createSession({ tenantId: "tnt", userId: "usr", orgId: "org", now: T0 - PORTAL_CHECK_INTERVAL_MS });
+    await store.create(session, secrets.seal(session.id, { refreshToken: "sealed-r1", deviceId: "dev_1" }));
+    const portal = createFakePortalClient();
+    // A fresh process: nothing in memory.
+    const portalCheck = createPortalSessionCheck({ vault: createMemoryTokenVault(), portal, secrets });
+    const result = (await dispatch(
+      request({ method: "GET", path: "/api/v1/tools", headers: { cookie: `${SESSION_COOKIE}=${session.id}` } }),
+      { serverMode: true, sessionStore: store, now: () => T0, portalCheck },
+    )) as HostJsonResult;
+    expect(result.status).toBe(200);
+    expect(portal.calls).toEqual([{ kind: "refresh", refreshToken: "sealed-r1", deviceId: "dev_1" }]);
+    expect(secrets.open(session.id, (await store.readRefreshSealed(session.id)) as string)).toEqual({
+      refreshToken: "fake-refresh",
+      deviceId: "dev_fake",
+    });
   });
 });

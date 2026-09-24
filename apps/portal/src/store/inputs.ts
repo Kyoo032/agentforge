@@ -218,7 +218,12 @@ export type VerifyLoginOtpResult =
   | { readonly ok: true; readonly otp: LoginOtp }
   | {
       readonly ok: false;
-      readonly reason: "no_code" | "expired" | "too_many_attempts" | "invalid_code";
+      /**
+       * `too_many_attempts`: this code has taken its five guesses. `locked`: the ADDRESS has taken
+       * twenty guesses in the last 24 hours, across every code and both purposes, so even the
+       * right code on a fresh code is refused until they age out.
+       */
+      readonly reason: "no_code" | "expired" | "too_many_attempts" | "invalid_code" | "locked";
       readonly attemptsRemaining: number;
     };
 

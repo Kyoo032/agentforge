@@ -7,6 +7,7 @@
  * is pinned here. "The portal answered 200 and the app still could not sign in" is the failure
  * that pin prevents, and no amount of flow-level testing catches it.
  */
+import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { randomToken } from "../crypto";
 import { HOST_AUTH_REASONS } from "../flows/reasons";
@@ -258,9 +259,68 @@ describe("POST /auth/token, grant_type=refresh_token", () => {
     const reply = await createAgent(portal.origin).postJson("/auth/token", {
       grant_type: "refresh_token",
       refresh_token: randomToken(),
+      device_id: randomUUID(),
     });
     expect(reply.status).toBe(401);
     expect(reply.json<{ reason: string }>().reason).toBe("refresh_expired");
+  });
+
+  /**
+   * `rotate_refresh_token` compares `p_device_id` against the session's device only when it is not
+   * NULL (`0005_functions.sql`), so a refresh with no `device_id` skipped the device binding
+   * entirely: a token lifted off one machine refreshed anywhere. The host always sends it
+   * (`packages/host/src/auth/portal-client.ts`, `refresh`, from the `device_id` of the portal's
+   * own token body), so requiring it costs an honest caller nothing.
+   */
+  it("refuses a refresh with no device_id, in the invalid_request shape, without spending the token", async () => {
+    const first = (await exchange(await authorizationCode())).json<{
+      refresh_token: string;
+      device_id: string;
+      session_id: string;
+    }>();
+
+    const bare = await createAgent(portal.origin).postJson("/auth/token", {
+      grant_type: "refresh_token",
+      refresh_token: first.refresh_token,
+    });
+    expect(bare.status).toBe(400);
+    expect(bare.json<Record<string, unknown>>()).toMatchObject({
+      error: "invalid_request",
+      reason: "invalid_request",
+    });
+
+    // Nothing was rotated: the same token, presented with its device, still refreshes.
+    const proper = await createAgent(portal.origin).postJson("/auth/token", {
+      grant_type: "refresh_token",
+      refresh_token: first.refresh_token,
+      device_id: first.device_id,
+    });
+    expect(proper.status).toBe(200);
+    expect(proper.json<{ session_id: string }>().session_id).toBe(first.session_id);
+  });
+
+  it("refuses a device_id that is not a devices.id, rather than failing inside the database", async () => {
+    const first = (await exchange(await authorizationCode())).json<{
+      refresh_token: string;
+      device_id: string;
+    }>();
+
+    for (const deviceId of ["not-a-uuid", "install-0123456789", `${first.device_id}x`, ""]) {
+      const reply = await createAgent(portal.origin).postJson("/auth/token", {
+        grant_type: "refresh_token",
+        refresh_token: first.refresh_token,
+        device_id: deviceId,
+      });
+      expect(reply.status, deviceId).toBe(400);
+      expect(reply.json<{ reason: string }>().reason, deviceId).toBe("invalid_request");
+    }
+
+    const proper = await createAgent(portal.origin).postJson("/auth/token", {
+      grant_type: "refresh_token",
+      refresh_token: first.refresh_token,
+      device_id: first.device_id,
+    });
+    expect(proper.status).toBe(200);
   });
 });
 
@@ -419,6 +479,7 @@ describe("the Bearer endpoints", () => {
       refresh_token: string;
       session_id: string;
       user_id: string;
+      device_id: string;
     }>();
     return body;
   }
@@ -478,6 +539,7 @@ describe("the Bearer endpoints", () => {
     const refresh = await createAgent(portal.origin).postJson("/auth/token", {
       grant_type: "refresh_token",
       refresh_token: session.refresh_token,
+      device_id: session.device_id,
     });
     expect(refresh.status).toBe(401);
     // `refresh_reused`, not `session_revoked`, and that is `rotate_refresh_token` in
@@ -605,6 +667,176 @@ describe("the Bearer endpoints", () => {
     );
     expect(second.status).toBe(304);
     expect(second.text).toBe("");
+  });
+});
+
+/**
+ * Behind the proxy (`PORTAL_TRUST_PROXY=1`), every per-IP bucket keys on `X-Forwarded-For`. The
+ * proxy appends the address it saw, so the client controls everything to the left of it. When the
+ * left-most entry was the key, a caller could rotate a forged prefix and get a fresh bucket on
+ * every request. Driven here against the 30 / 10 min per-IP limit on POST /auth/device/code.
+ */
+describe("the per-IP limit behind a proxy", () => {
+  let proxied: PortalHarness;
+  let proxiedFixture: Fixture;
+
+  beforeAll(async () => {
+    proxied = await startTestPortal({ trustProxy: true });
+    proxiedFixture = await seedFixture(proxied.store.store, { slug: "proxytenant", email: "o@proxytenant.test" });
+  }, 180_000);
+
+  /** A confidential client of the proxied tenant, and the secret it was registered with. */
+  async function confidentialClient(clientId: string): Promise<string> {
+    const secret = randomToken();
+    await proxied.store.store.tx(proxiedFixture.tenant.id, (ops) =>
+      ops.oauthClients.create({
+        clientId,
+        tenantId: proxiedFixture.tenant.id,
+        name: clientId,
+        secret,
+        redirectUris: [REDIRECT],
+      }),
+    );
+    return secret;
+  }
+
+  /** A refresh from `address`, with an unknown token: it spends a limiter and then 401s. */
+  function refreshFrom(address: string, extra: Record<string, string> = {}) {
+    return createAgent(proxied.origin).postJson(
+      "/auth/token",
+      { grant_type: "refresh_token", refresh_token: randomToken(), device_id: randomUUID(), ...extra },
+      { headers: { "x-forwarded-for": address } },
+    );
+  }
+
+  afterAll(async () => {
+    await proxied?.close();
+  });
+
+  it("keys on the address the proxy appended, so a rotated forged prefix does not buy a fresh bucket", async () => {
+    const realClient = "198.51.100.23";
+    const replies: number[] = [];
+    for (let i = 0; i < 31; i += 1) {
+      const reply = await createAgent(proxied.origin).postJson(
+        "/auth/device/code",
+        {
+          // A new install_id each time, so only the per-IP bucket is in play.
+          install_id: `install-rotate-${String(i).padStart(4, "0")}`,
+          tenant_hint: proxiedFixture.tenant.slug,
+          platform: "win32",
+        },
+        { headers: { "x-forwarded-for": `10.9.${i}.1, ${realClient}` } },
+      );
+      replies.push(reply.status);
+    }
+
+    expect(replies.slice(0, 30).every((status) => status === 200)).toBe(true);
+    expect(replies[30]).toBe(429);
+  });
+
+  /**
+   * POST /auth/device/token had no limiter at all: an unauthenticated endpoint that costs two
+   * database round trips a call. One honest device polls every 5 s for the code's 10 minutes, which
+   * is 120 polls, so the limit must never be below that. It is 600, enough for five devices signing
+   * in at once behind one office address.
+   */
+  it("limits POST /auth/device/token per IP, at 600 per 10 minutes, and never trips one polling device", async () => {
+    const realClient = "198.51.100.77";
+    const poll = () =>
+      createAgent(proxied.origin).postJson(
+        "/auth/device/token",
+        { device_code: randomToken(), install_id: "install-poller-0001" },
+        { headers: { "x-forwarded-for": realClient } },
+      );
+
+    const statuses: number[] = [];
+    for (let i = 0; i < 600; i += 1) {
+      statuses.push((await poll()).status);
+    }
+    // Unknown codes: every one answered on its merits (400 invalid_grant), none of them throttled.
+    expect(statuses.filter((status) => status === 429)).toHaveLength(0);
+
+    const over = await poll();
+    expect(over.status).toBe(429);
+    expect(over.json<{ error: string; reason: string; retry_after: number }>()).toMatchObject({
+      error: "invalid_request",
+      reason: "rate_limited",
+    });
+    expect(Number(over.headers.get("retry-after"))).toBeGreaterThan(0);
+  });
+
+  /**
+   * The host refreshes every hosted session through the portal every ~10 minutes, and every one of
+   * those comes from the host's one address. At 300 per address per 10 minutes, that capped hosted
+   * use at ~300 active sessions. A refresh that authenticates as a confidential client is counted
+   * against the client instead. A public refresh keeps the per-address limit.
+   */
+  it("counts an authenticated client's refreshes against the client, never the address, and keeps 300 for public ones", async () => {
+    const clientId = "proxy-host-a";
+    const secret = await confidentialClient(clientId);
+    const hostAddress = "198.51.100.200";
+
+    const authenticated: number[] = [];
+    for (let i = 0; i < 301; i += 1) {
+      authenticated.push((await refreshFrom(hostAddress, { client_id: clientId, client_secret: secret })).status);
+    }
+    // Unknown tokens, so each one is refused on its merits (401 refresh_expired), and none throttled.
+    expect([...new Set(authenticated)]).toEqual([401]);
+
+    // None of that spent the address's public budget: 300 public refreshes fit, the 301st does not.
+    const publicReplies: number[] = [];
+    for (let i = 0; i < 301; i += 1) {
+      publicReplies.push((await refreshFrom(hostAddress)).status);
+    }
+    expect(publicReplies.slice(0, 300).filter((status) => status === 429)).toHaveLength(0);
+    expect(publicReplies[300]).toBe(429);
+  });
+
+  it("keys the confidential bucket on client_id, whichever address the refresh comes from", async () => {
+    const clientId = "proxy-host-b";
+    const secret = await confidentialClient(clientId);
+    const before = proxied.runtime.limiters.tokenClient.size;
+
+    await refreshFrom("198.51.100.201", { client_id: clientId, client_secret: secret });
+    await refreshFrom("198.51.100.202", { client_id: clientId, client_secret: secret });
+
+    expect(proxied.runtime.limiters.tokenClient.size).toBe(before + 1);
+  });
+
+  it("answers 429 once a client has spent its 20,000 refreshes in the window", async () => {
+    const clientId = "proxy-host-c";
+    const secret = await confidentialClient(clientId);
+    // The window filled in memory: 20,000 round trips would prove nothing more.
+    for (let i = 0; i < 20_000; i += 1) {
+      proxied.runtime.limiters.tokenClient.check(clientId);
+    }
+
+    const over = await refreshFrom("198.51.100.203", { client_id: clientId, client_secret: secret });
+    expect(over.status).toBe(429);
+    expect(over.json<{ reason: string }>().reason).toBe("invalid_request");
+    expect(Number(over.headers.get("retry-after"))).toBeGreaterThan(0);
+  });
+
+  it("refuses a wrong client_secret as invalid_client, audits it, and stops looking after 20 from one address", async () => {
+    const clientId = "proxy-host-d";
+    await confidentialClient(clientId);
+    const address = "198.51.100.204";
+    const audited = async () =>
+      (
+        await proxied.store.store.tx(proxiedFixture.tenant.id, (ops) =>
+          ops.audit.list({ tenantId: proxiedFixture.tenant.id, action: "token.client_auth_failed", limit: 100 }),
+        )
+      ).filter((row) => (row.after as Record<string, unknown> | null)?.client_id === clientId).length;
+
+    for (let i = 0; i < 20; i += 1) {
+      const wrong = await refreshFrom(address, { client_id: clientId, client_secret: randomToken() });
+      expect(wrong.status).toBe(401);
+      expect(wrong.json<{ error: string }>().error).toBe("invalid_client");
+    }
+    const stopped = await refreshFrom(address, { client_id: clientId, client_secret: randomToken() });
+    expect(stopped.status).toBe(429);
+    // Twenty looked up and audited; the twenty-first was refused before any lookup.
+    expect(await audited()).toBe(20);
   });
 });
 

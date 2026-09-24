@@ -22,8 +22,10 @@ before working here. It is the plan of record and it names the lanes.
    goes in a new numbered file under [`migrations/`](migrations/) — today `0006_browser_login.sql`
    (oauth_clients, auth_codes, device_codes.platform and the poll-window counters),
    `0007_tenant_resolvers.sql` (the `SECURITY DEFINER` tenant resolvers `schema.md` says are
-   missing) and `0008_oauth_client_scope.sql` (closing the pre-authentication window 0006 opened
-   on `oauth_clients`, which nothing needed). Same style: one transaction per file,
+   missing), `0008_oauth_client_scope.sql` (closing the pre-authentication window 0006 opened
+   on `oauth_clients`, which nothing needed), `0009_web_session_revocation.sql` (the portal's own
+   browser session counter) and `0010_app_login_role.sql` (the server's login role, which 0001
+   describes and nobody had created). Same style: one transaction per file,
    `IF NOT EXISTS`, `DROP POLICY` before `CREATE POLICY`, and every new table placed explicitly
    into one of the three RLS shapes `0004_rls.sql` defines.
 
@@ -34,6 +36,13 @@ should not be one: the interesting parts of this schema are RLS policies, plpgsq
 partitioned table, and a second driver would mean a second definition of reuse detection and a
 second definition of a seat. `PORTAL_DATABASE_URL` is also never `DATABASE_URL` — that one is the
 product's SQLite desk and the two must not be able to point at each other.
+
+**Two roles, never one.** `PORTAL_MIGRATE_DATABASE_URL` is the schema owner's DSN, and it only ever
+runs migrations, on a connection `src/boot.ts` closes before anything listens. `PORTAL_DATABASE_URL`
+is the server's, and it is `portal_app_login`, a plain member of `portal_app`. A superuser, a
+`BYPASSRLS` role or a member of `portal_admin` skips every tenant policy, so production refuses to
+boot on one. Do not "fix" a boot refusal by giving the server role more, just as you would not for a
+failing isolation test.
 
 `docker compose -f compose.yml up -d` gives you Postgres 16 on `127.0.0.1:5433` and Mailpit on
 `127.0.0.1:1025` (UI at `http://127.0.0.1:8025`). Both are loopback-only.
@@ -72,7 +81,7 @@ This directory is split between two lanes of the Phase 9 plan.
 
 | Owned by | Files |
 |---|---|
-| Lane A (done) | `package.json`, `src/{config,log,crypto,server,main,index,manual-otp}.ts`, `src/store/**`, `src/mail/**`, `src/seed/**`, `scripts/**`, `test/**` |
+| Lane A (done) | `package.json`, `src/{config,log,crypto,server,main,index,manual-otp,boot,process-guards}.ts`, `src/store/**`, `src/mail/**`, `src/seed/**`, `scripts/**`, `test/**` |
 | Lane B (done) | `src/{routes,flows,views,otp,security,jwt}/**`, `locales/**`, `migrations/0008+`, `src/testing/**`, `compose.yml`, these two files |
 
 Lane B extended the server through `createPortalServer(...).register(route)` — the route table is

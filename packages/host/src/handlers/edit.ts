@@ -8,11 +8,18 @@ import { getTenant } from "../tenant";
 import { mediaRelativePath } from "../media-root";
 import { materializeTenantObject, putTenantObject, removeTenantObject } from "../tenant-storage";
 import type { HostRequest, HostResult } from "../types";
-import { getEditDoctor } from "../edit/doctor";
+import { getEditDoctor, withoutBinaryPath } from "../edit/doctor";
 import { createEditProject, getEditProjectBundle, listEditProjects, mapJob, mapUnplaced } from "../edit/projects";
 import { appendOps, foldProject } from "../edit/ops";
 import { keepCard, undoCard } from "../edit/undo";
-import { cancelEditJob, enqueueEditJob, getEditJob, interruptRunningJobsOnBoot } from "../edit/jobs";
+import {
+  cancelEditJob,
+  enqueueEditJob,
+  getEditJob,
+  interruptRunningJobsOnBoot,
+  isGenerateJobKind,
+  parseEditJobKind,
+} from "../edit/jobs";
 import { ensureGenerateSubmitWired } from "../edit/wire-generate";
 import { startGenerateJob } from "../edit/start-generate";
 import { runEditAgent } from "../edit/agent-run";
@@ -102,7 +109,9 @@ async function saveEditFile(
 
 export async function handleGetEditDoctor(request?: HostRequest): Promise<HostResult> {
   const recheck = request?.query.recheck === "1" || request?.query.recheck === "true";
-  return jsonOk(getEditDoctor({ recheck }));
+  const report = getEditDoctor({ recheck });
+  // Hosted: the binary's absolute path is the operator's filesystem, not the tenant's business.
+  return jsonOk(isServerMode() ? withoutBinaryPath(report) : report);
 }
 
 export async function handleGetEditProjects(request: HostRequest): Promise<HostResult> {
@@ -440,16 +449,41 @@ export async function handleGetEditEvents(request: HostRequest): Promise<HostRes
   return { type: "stream", status: 200, events };
 }
 
+export const GENERATE_JOBS_ROUTE_MESSAGE =
+  "Generate jobs are started with POST /api/v1/edit/projects/:projectId/generate, not queued by hand.";
+export const RENDER_JOBS_ROUTE_MESSAGE =
+  "Exports are started with POST /api/v1/edit/projects/:projectId/export, which checks the review first.";
+
 export async function handlePostEditJobs(request: HostRequest): Promise<HostResult> {
   try {
     const tenant = await getTenant(request);
+    // Desk check first: another desk's project id is a 404 whatever the body says.
     await foldProject(request.params.projectId, tenant.workspaceId);
     const body = asRecord(request.body);
+    const kind = parseEditJobKind(body.kind);
+    // A generate job goes through `/generate`, which gates it, routes the model, prices it and
+    // draws its placeholder clips. Queued raw here it did none of that and ran as whatever tenant
+    // its body named.
+    if (isGenerateJobKind(kind)) {
+      return jsonOk({ error: { code: "invalid_request", message: GENERATE_JOBS_ROUTE_MESSAGE } }, 400);
+    }
+    // `render` is the export. `/export` refuses it while an agent's edits are unreviewed and allows
+    // only its two presets; queued raw here it skipped both. The renderer and the agent's export
+    // tool never queue it here, so the export keeps one door.
+    if (kind === "render") {
+      return jsonOk({ error: { code: "invalid_request", message: RENDER_JOBS_ROUTE_MESSAGE } }, 400);
+    }
+    // `asr` is the one kind left that reaches the gateway (the transcription call), so it is gated
+    // here exactly as `/agent`, which queues it for the transcribe tool, is.
+    if (kind === "asr") {
+      requireGatewayAllowedFor(tenant);
+    }
     const job = await enqueueEditJob(request.params.projectId, {
-      kind: body.kind as "ffmpeg_op",
+      kind,
       request: body.request,
       targetClipIds: Array.isArray(body.targetClipIds) ? body.targetClipIds.map(String) : [],
       cardId: typeof body.cardId === "string" ? body.cardId : undefined,
+      requestedBy: tenant.userId,
     });
     return jsonOk(mapJob(job), 201);
   } catch (error) {
@@ -609,8 +643,15 @@ export async function handlePostEditParity(request: HostRequest): Promise<HostRe
 }
 
 export async function handleGetEditMetrics(request: HostRequest): Promise<HostResult> {
-  const range = request.query.range === "day" || request.query.range === "month" ? request.query.range : "week";
-  return jsonOk(foldEditMetrics(range));
+  try {
+    // Every line carries project, run, card and job ids, so a caller reads back only its own
+    // tenant's and organization's (`foldEditMetrics`), never the whole install's.
+    const tenant = await getTenant(request);
+    const range = request.query.range === "day" || request.query.range === "month" ? request.query.range : "week";
+    return jsonOk(foldEditMetrics(tenant, range));
+  } catch (error) {
+    return jsonError(error);
+  }
 }
 
 export async function handlePostEditGenerate(request: HostRequest): Promise<HostResult> {

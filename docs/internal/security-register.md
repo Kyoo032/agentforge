@@ -29,14 +29,14 @@ returned the server's own paths — which also closed [SR-27](#sr-27) and [SR-31
 `fixed-unverified`. Everything that pass touched is host, core, web, `webapp-deploy` and docs; the
 portal rows are fix pass X's.
 
-Extended on 2026-09-23 by the cleanup, security and bug-fix pass with SR-74 … SR-78, the rows
-that ship in the Personal app (and in the shared code the hosted app also runs), and moved
-[SR-19](#sr-19). The Enterprise rows of the same pass (SR-50 … SR-73, SR-79) land with the
-Enterprise branch. Every `file:line` in those rows was read in the working tree on `main` at
-`d4561b8` that day. Each row names its product: **Enterprise** (the hosted web app and its portal),
-**Personal** (the Mac/Windows app) or **both**. Its fixed rows use the status `fixed, not driven`,
-defined below: nothing in that pass was driven on `:3000` (the host and core changes need Rizky to
-restart it), nothing was packed, and nothing ran on a server.
+Extended on 2026-09-23 by the cleanup, security and bug-fix pass with SR-50 … SR-79, written from
+the uncommitted working tree on `main` at `d4561b8`. Every `file:line` in those rows was read in
+that tree on that day, and most of them are uncommitted lines. The same pass moved
+[SR-08](#sr-08), [SR-11](#sr-11), [SR-19](#sr-19), [SR-26](#sr-26) and [SR-49](#sr-49), and added
+SR-49 to the summary, which it was missing from. Each row names its product: **Enterprise** (the
+hosted web app and its portal), **Personal** (the Mac/Windows app) or **both**. Its fixed rows use
+the status `fixed, not driven`, defined below: nothing in that pass was driven on `:3000` (the host
+and core changes need Rizky to restart it), nothing was packed, and nothing ran on a server.
 
 Extended on 2026-09-24 with [SR-80](#sr-80): Rizky dropped GitHub Actions, the three workflows are
 deleted, and the CI and audit gate moved to `pnpm ci:local` (`scripts/ci-local.mjs`). That moves
@@ -58,11 +58,16 @@ OWASP A06-1 and closes A08-1 by removal; both are updated in [SR-16](#sr-16).
 | [SR-45](#sr-45) | High | A finished Meeting recording was destroyed before the upload that was meant to save it | Fixed-unverified, fix pass Y | Blocks Tencent deploy |
 | [SR-46](#sr-46) | High | `.env.example` said the portal login variables could be left empty; the hosted server now refuses to start without them | Fixed-unverified, fix pass Y | Blocks Tencent deploy |
 | [SR-47](#sr-47) | High | A tenant nobody had sold anything to was labelled a paying Personal subscriber | Fixed-unverified, fix pass Y | Blocks Tencent deploy |
+| [SR-49](#sr-49) | High | The hosted image carries the source tree, and a build from a working checkout also took untracked secrets into it | Mitigated for the release path; open for the Dockerfile and a stale `webapp-deploy/.dockerignore` | Blocks building from a checkout; blocks a public image |
+| [SR-50](#sr-50) | High | One request with a malformed `Host` header or request target stopped the portal | Fixed, not driven (2026-09-23) | Blocks Tencent deploy |
+| [SR-56](#sr-56) | High | The portal served every request as a Postgres superuser, so no row-level security applied | Fixed, not driven (2026-09-23); the deploy must provision two DSNs and a login role | Blocks Tencent deploy until provisioned |
+| [SR-58](#sr-58) | High | A session the portal had ended kept working on the hosted app for up to 30 days | Fixed, not driven (2026-09-23) | Blocks Tencent deploy |
+| [SR-67](#sr-67) | High | An Edit generate job ran as whatever tenant its stored request named | Fixed, not driven (2026-09-23) | Blocks Tencent deploy |
 | [SR-21](#sr-21) | Medium | The portal's 30-day browser session cannot be ended: signing out of the app leaves it, and the next sign-in skips the OTP entirely | Fixed-unverified, fix pass X | Blocks Tencent deploy |
 | [SR-48](#sr-48) | Medium | A failed ffmpeg run returned the full argv and raw stderr — absolute paths inside the data dir — to the client | Fixed-unverified, fix pass Y | Blocks Tencent deploy |
 | [SR-42](#sr-42) | Medium | `GET /tenant/config` had no rate limiter and told an anonymous caller which tenant slugs exist | Fixed-unverified, fix pass X | Blocks Tencent deploy |
 | [SR-25](#sr-25) | Medium | SQLite is opened, migrated and reset before either hosted boot guard runs | Open | Blocks Tencent deploy |
-| [SR-26](#sr-26) | Medium | `AGENTFORGE_PORTAL_URL` may be a plain-http loopback URL in production and still pass the boot check | Open — owner decision | Blocks Tencent deploy |
+| [SR-26](#sr-26) | Medium | `AGENTFORGE_PORTAL_URL` may be a plain-http loopback URL in production and still pass the boot check | Fixed, not driven — owner decided https in production, 2026-09-23 | Blocks Tencent deploy |
 | [SR-27](#sr-27) | Medium | An Edit import that fails *after* the probe charges the tenant and leaves an orphan object | Fixed-unverified, fix pass Y | Blocks Tencent deploy |
 | [SR-22](#sr-22) | Medium | Personal advertised "One seat" while `seatCap: null` admits everybody | Fixed by copy, 2026-09-22 | — |
 | [SR-23](#sr-23) | Medium | One `devices` row per `(user, oauth client)`, so two browsers cannot be revoked apart | Accepted, recorded | Blocks Tencent deploy |
@@ -72,15 +77,32 @@ OWASP A06-1 and closes A08-1 by removal; both are updated in [SR-16](#sr-16).
 | [SR-16](#sr-16) | Medium | Four OWASP findings are still open, one of them the reason nothing is proved by CI | Open | Blocks Tencent deploy |
 | [SR-17](#sr-17) | Medium | A PR cut from this worktree with `git add -A` commits five lanes and an untracked logo | Open | Blocks PR merge |
 | [SR-19](#sr-19) | Medium | `data/` is an allowlist, so each new product file under it is tracked by default | Fixed, 2026-09-23 (`/data/` ignored whole) | — |
+| [SR-51](#sr-51) | Medium | Behind a proxy the portal keyed every per-IP limit on the client-written end of `X-Forwarded-For` | Fixed, not driven (2026-09-23) | Blocks Tencent deploy |
+| [SR-52](#sr-52) | Medium | A portal rate limiter whose key map was full refused every new caller for a whole window | Fixed, not driven (2026-09-23) | Blocks Tencent deploy |
+| [SR-53](#sr-53) | Medium | No daily cap on sign-in code guesses per address | Fixed, not driven (2026-09-23); the lockout it enables is open for the owner | Blocks Tencent deploy |
+| [SR-54](#sr-54) | Medium | The device-flow poll, `POST /auth/device/token`, had no per-IP limit | Fixed, not driven (2026-09-23) | Blocks Tencent deploy |
+| [SR-55](#sr-55) | Medium | A portal refresh without `device_id` skipped the refresh token's device binding | Fixed, not driven (2026-09-23) | Blocks Tencent deploy |
+| [SR-57](#sr-57) | Medium | Every hosted refresh shared one per-IP bucket, capping the app near 300 sessions and then blocking sign-in | Fixed, not driven (2026-09-23) | Blocks Tencent deploy |
+| [SR-59](#sr-59) | Medium | Signing out of the hosted app left the portal session and its refresh token alive | Fixed, not driven (2026-09-23) | Blocks Tencent deploy |
+| [SR-60](#sr-60) | Medium | `auth_sessions` stored each session cookie in the clear, as its primary key | Fixed, not driven (2026-09-23); forces one re-sign-in | Blocks Tencent deploy |
+| [SR-61](#sr-61) | Medium | Any 4xx from the portal URL, and a rejection of the host's own client, read as the end of the session | Fixed, not driven (2026-09-23) | Blocks Tencent deploy |
+| [SR-62](#sr-62) | Medium | A session write racing a sign-out could undo the revocation | Fixed, not driven (2026-09-23) | Blocks Tencent deploy |
+| [SR-64](#sr-64) | Medium | The portal refresh token behind each hosted session is now stored at rest, sealed (owner decision) | Fixed, not driven (2026-09-23) | Blocks Tencent deploy |
+| [SR-66](#sr-66) | Medium | "One portal refresh at a time per session" holds only inside one host process | Open | Blocks running more than one host process |
+| [SR-68](#sr-68) | Medium | `POST …/edit/projects/:projectId/jobs` queued any kind, and render and asr skipped their own routes' checks | Fixed, not driven (2026-09-23) | Blocks Tencent deploy |
+| [SR-69](#sr-69) | Medium | `GET /api/v1/edit/metrics` returned every tenant's Edit activity to every caller | Fixed, not driven (2026-09-23); the old machine-wide file is the operator's to delete | Blocks Tencent deploy |
+| [SR-72](#sr-72) | Medium | The proxy's logs kept each sign-in's one-time code and state for 30 days | Fixed in part: access log fixed, not driven; error log open | Blocks Tencent deploy |
+| [SR-73](#sr-73) | Medium | The proxy container was handed the app's whole `.env`, wrap key included | Fixed, not driven (2026-09-23) | Blocks Tencent deploy |
 | [SR-75](#sr-75) | Medium | A cancelled Market run kept paying for model calls, and a failure after the cancel could stop the host | Fixed, not driven (2026-09-23) | Blocks Tencent deploy and the next Personal cut |
 | [SR-76](#sr-76) | Medium | Model-written finance figures reached the reader past the number guard three ways | Fixed, not driven (2026-09-23) | Blocks Tencent deploy and the next Personal cut |
 | [SR-77](#sr-77) | Medium | A "Start over" wipe that failed part-way deleted its own marker, so the rest never ran | Fixed, not driven (2026-09-23) | Blocks the next Personal cut |
+| [SR-79](#sr-79) | Medium | Per-IP limits key on the full IPv6 address, so one IPv6 client has a bucket per request | Open | Blocks Tencent deploy if it is reachable over IPv6 |
 | [SR-80](#sr-80) | Medium | CI and the dependency-audit gate run only when someone runs `pnpm ci:local`; nothing checks a push on its own | Open — accepted by design (2026-09-24) | Blocks PR merge without a pasted `ci:local` summary |
 | [SR-01](#sr-01) | Low | `apps/portal/compose.yml` hardcodes `POSTGRES_PASSWORD: portal` | Accepted for dev only | Dev only |
 | [SR-07](#sr-07) | Low | The CSRF token is bound to the session id, so it stops verifying the moment a session changes | Open, lane C | Blocks PR merge |
 | [SR-09](#sr-09) | Low | The two billing variables were missing from `webapp-deploy/.env.example` | Fixed-unverified | Blocks Tencent deploy |
 | [SR-13](#sr-13) | Low | Meeting mode: a replaced recording leaves the old file on disk | Fixed-unverified, lane E | Dev only |
-| [SR-11](#sr-11) | Low | The review harness writes secrets and a TLS key pair outside the repo | Accepted for dev only | Dev only |
+| [SR-11](#sr-11) | Low | The review harness writes secrets and a TLS key pair outside the repo | Accepted for dev only; the `--upstream` gap closed 2026-09-23 | Dev only |
 | [SR-29](#sr-29) | Low | Portal rate limits are per-process and in memory, so a second instance doubles every ceiling | Open | Blocks Tencent deploy on a second instance |
 | [SR-30](#sr-30) | Low | The OTP send's enumeration defence is a timing **floor**, not a constant time | Accepted, recorded | Blocks Tencent deploy |
 | [SR-31](#sr-31) | Low | `AGENTFORGE_BILLING_TOPUP_URL` is handed to the browser unvalidated | Fixed-unverified, fix pass Y | Blocks Tencent deploy |
@@ -91,9 +113,13 @@ OWASP A06-1 and closes A08-1 by removal; both are updated in [SR-16](#sr-16).
 | [SR-41](#sr-41) | Low | A request body over the portal's 64 KB cap answered `500 internal_error` | Fixed-unverified, fix pass X | Dev only |
 | [SR-43](#sr-43) | Low | `auth_codes.state_hash` was stored and never verified, while code and docs called it a binding | Fixed-unverified, fix pass X | Blocks Tencent deploy |
 | [SR-44](#sr-44) | Low | `scripts/review-instance.ps1` seeded the literal Postgres password `portal` into `review.env` | Fixed-unverified, fix pass X | Dev only |
+| [SR-63](#sr-63) | Low | A malformed `Host` or request target threw out of the host's HTTP adapter before any rule ran | Fixed, not driven (2026-09-23) | Blocks Tencent deploy |
+| [SR-65](#sr-65) | Low | Erase account keeps the tenant's sessions, and now their stored refresh tokens | Open — owner decision | Blocks Tencent deploy until decided |
+| [SR-70](#sr-70) | Low | The hosted Edit doctor returned the absolute path of the server's ffmpeg | Fixed, not driven (2026-09-23) | Blocks Tencent deploy |
+| [SR-71](#sr-71) | Low | An Edit generate's still check told a caller whether a media id existed in any organization | Fixed, not driven (2026-09-23) | Blocks Tencent deploy |
 | [SR-74](#sr-74) | Low | The Personal release published its notes without the banned-marks check | Fixed, not driven (2026-09-23) | Blocks the next Personal cut |
 | [SR-78](#sr-78) | Low | A failed "Start over" removal logged the absolute path of the file, the key file included | Fixed, not driven (2026-09-23) | Blocks the next Personal cut |
-| [SR-08](#sr-08) | Info | The portal token vault is process memory only | Accepted | Dev only |
+| [SR-08](#sr-08) | Info | The portal token vault is process memory only | Superseded by [SR-64](#sr-64), 2026-09-23 | Dev only |
 | [SR-15](#sr-15) | Info | Music relay: checked, not a key-exfiltration issue. It does send a spoofed browser `User-Agent` | Checked, not an issue | Dev only |
 | [SR-18](#sr-18) | Info | `X-Forwarded-Proto` and `X-Forwarded-For` trust: checked, sound as deployed today | Checked, not an issue | Blocks Tencent deploy on any topology change |
 | [SR-35](#sr-35) | Info | `?preview=<code>` renders a blocked screen on `/pricing` | Checked, not an issue | Dev only |
@@ -614,6 +640,184 @@ card, and that a `null` tier renders no status pill.
 
 Gate: **blocks Tencent deploy.** It is wrong about money, on the page that asks for it.
 
+### SR-50 {#sr-50}
+
+**One request with a malformed `Host` header or request target stopped the portal.** Enterprise.
+Raised and fixed 2026-09-23 by the portal defect pass.
+
+Evidence, as the flag was raised: `createPortalServer` built each request's URL as
+`new URL(incoming.url, "http://" + <Host header>)`, inside a `void`ed async function and *before*
+that function's `try`. `Host: a b`, or the target `//x:99999/healthz`, made the constructor throw;
+the promise rejected with nothing listening; and nothing in `apps/portal` handled
+`unhandledRejection`, so Node's default applied and the process exited. One packet, from anybody
+who could reach the port.
+
+What goes wrong if ignored: the portal is the one public, unauthenticated service every sign-in goes
+through. A crash any client can repeat at will is an outage any client can cause.
+
+**Fixed, not driven.** The target is parsed against a fixed base that never reads `Host`
+(`REQUEST_BASE` / `parseTarget`, `apps/portal/src/server.ts:98-107`), inside the handler's `try`,
+and a target the parser refuses is `400 invalid_request` in the standard error body (`BAD_TARGET`,
+`:90`, sent at `:202`). Every request promise now ends in a `.catch` that cannot itself throw: it
+answers `500` or destroys the socket (`abandon`, `:151`, wired at `:251`). As a last resort,
+`installProcessGuards` (`apps/portal/src/process-guards.ts:42`), installed first thing in
+`apps/portal/src/main.ts:15`, writes an unhandled rejection or uncaught exception through the
+portal's redacting logger and then exits 1 for the supervisor to restart. It deliberately does not
+keep a process running in a state nobody can describe.
+
+Tests: `apps/portal/src/server.test.ts` "a request whose target or Host header is not a URL" (raw
+socket against the whole portal, including `Host: a b` and three unparseable targets) and "contains a
+failure inside its own error handling, so a request never becomes an unhandled rejection";
+`apps/portal/src/process-guards.test.ts` (6). Map: [`maps/portal-service.md`](maps/portal-service.md) § 6.
+
+Gate: **blocks Tencent deploy.**
+
+### SR-56 {#sr-56}
+
+**The portal served every request as a Postgres superuser, so none of its row-level security
+applied.** Enterprise. Raised and fixed 2026-09-23 by the portal defect pass.
+
+Evidence, as the flag was raised: the portal migrated and served on one DSN, `PORTAL_DATABASE_URL`,
+and `apps/portal/compose.yml` handed it `portal`, the superuser `initdb` creates. A superuser skips
+every policy in `0004_rls.sql`. The role those policies were written for, `portal_app_login` — "a
+LOGIN member of portal_app" whose password comes from the secret manager — is described in
+`docs/internal/portal/migrations/0001_extensions_and_roles.sql:53-55` and was never created. Tenant
+isolation held in the test suite, which connects as `portal_app_test`, and in no deployment.
+
+What goes wrong if ignored: one injected statement, or one query missing its tenant filter, reads and
+writes every tenant's users, sessions, devices and audit log. Row-level security exists for exactly
+that case, and the connection string switched it off.
+
+**Fixed, not driven.** Two DSNs that never overlap:
+
+- `PORTAL_MIGRATE_DATABASE_URL` is the schema owner's. It is opened, migrated and closed before
+  anything listens (`migrateAsOwner`, `apps/portal/src/boot.ts:111`). Production requires it;
+  outside production it falls back to `PORTAL_DATABASE_URL` (`readMigrateDatabaseUrl`,
+  `apps/portal/src/config.ts:188`).
+- `PORTAL_DATABASE_URL` is the server's, as `portal_app_login`, which
+  `apps/portal/migrations/0010_app_login_role.sql:36-38` creates `LOGIN NOSUPERUSER NOBYPASSRLS
+  NOCREATEDB NOCREATEROLE NOREPLICATION INHERIT IN ROLE portal_app` and **with no password**.
+- Before the server listens, `pg_roles` is asked who that connection really is (`readConnectionRole`,
+  `apps/portal/src/store/postgres/roles.ts:43`). A production boot refuses a superuser, a `BYPASSRLS`
+  role, a member of `portal_admin`, a role that can `SET ROLE` to a privileged one, or one outside
+  `portal_app` (`serverRoleProblems` / `checkServerRole`, `boot.ts:34`, `:126`). Outside production
+  the same finding is a `portal_db_role_bypasses_rls` warning, so the old one-DSN desk still boots.
+- Outside production only, each migrate sets `portal_app_login`'s password from
+  `PORTAL_DATABASE_URL`, for that role name only and only when the owner DSN names a different role
+  (`appLoginToProvision`, `boot.ts:98`). The compose database and the review instance need nothing
+  but the two DSNs; the review harness reuses the compose password for both
+  (`scripts/review-instance.ps1`, `Get-PortalEnvironment`, harness only).
+
+**Hosted deploy steps.** A production portal does not start until they are done:
+
+1. Set `PORTAL_MIGRATE_DATABASE_URL` to the schema owner's DSN and `PORTAL_DATABASE_URL` to
+   `postgres://portal_app_login:<password>@…`, the password from the secret manager.
+2. Migrate once, in the portal's own environment: `pnpm --filter @agentforge/portal migrate`
+   (`apps/portal/scripts/migrate.ts`). `0010` creates the role without a password, and a role with no
+   password cannot log in over TCP.
+3. Once, as the owner: `psql "$PORTAL_MIGRATE_DATABASE_URL" -c '\password portal_app_login'`.
+   `\password` sends a SCRAM verifier, so the plaintext stays out of the server's statement log. In
+   production the portal never sets this password itself.
+4. If the owner account may not create roles (a managed instance), `0010` skips the `CREATE` with a
+   NOTICE (`:39-41`). Whoever can then creates it out of band with the same attributes —
+   `CREATE ROLE portal_app_login LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE NOREPLICATION
+   INHERIT IN ROLE portal_app;` — and does step 3. The `GRANT CONNECT` to `portal_app` falls back the
+   same way (`:52-59`).
+5. Start the portal. A refusal naming the role is the check working. Do not answer it by giving the
+   server role more.
+
+Tests: `apps/portal/src/boot.test.ts` (17); `apps/portal/src/config.test.ts`
+"PORTAL_MIGRATE_DATABASE_URL" (4); `apps/portal/src/store/postgres/migrate.test.ts` "creates
+portal_app_login as 0001 describes it: a LOGIN member of portal_app and nothing more", "puts no
+password in a migration file, as 0001 requires of login roles". Map:
+[`maps/portal-service.md`](maps/portal-service.md) § 7.
+
+Gate: **blocks Tencent deploy until the two DSNs and the role's password are provisioned.**
+
+### SR-58 {#sr-58}
+
+**A session the portal had ended kept working on the hosted app for up to 30 days.** Enterprise.
+Raised and fixed 2026-09-23 by the host auth pass.
+
+Evidence, as the flag was raised: the session gate trusted the host's own `auth_sessions` row — 12
+hours idle, 30 days absolute — and nothing asked the portal again after sign-in. The renderer never
+called `POST /api/v1/auth/refresh` (at `HEAD`, the only references are the route itself and its
+registration). A session the portal revoked, a user it disabled, a device an admin signed out, or an
+organisation that fell past due all kept working until the host's row idled out.
+
+What goes wrong if ignored: every control the portal owns — revocation, disabling a person, seats,
+past due — is advisory on the hosted app for as long as a tab stays open.
+
+**Fixed, not driven.** Once the portal's last word on a session is ten minutes old
+(`PORTAL_CHECK_INTERVAL_MS` and `portalCheckDue`, `packages/host/src/auth/session.ts:23`, `:147`),
+the gate rotates the refresh token before the request runs (`gate`,
+`packages/host/src/auth/portal-check.ts:376`, wired at `packages/host/src/router.ts:469`) and reads
+the answer one of three ways:
+
+- **rotated**: the new pair is kept and the check is stamped;
+- **a terminal reason** (`TERMINAL_PORTAL_REASONS`, `portal-check.ts:77-88`: tenant, organisation or
+  user inactive, past due, seat cap, device or session revoked, refresh reused or expired,
+  `invalid_grant`): the session is revoked on the host, its tokens are dropped, and the request is
+  `401` with the portal's own reason and copy;
+- **no answer** (unreachable, timed out, rate-limited, or the portal refusing this deployment's own
+  client, [SR-61](#sr-61)): the session stands, the request goes ahead, and that session is not
+  asked again for a minute, or for the portal's own `retry_after` up to fifteen minutes
+  (`PORTAL_CHECK_RETRY_MS`, `:62`).
+
+A request waits at most two seconds on a due check (`PORTAL_CHECK_WAIT_MS`, `:60`); an answer that
+arrives later is still applied. One refresh runs at a time per session, shared by the gate,
+`POST /auth/refresh` and sign-out (`refresh`, `:355`), because the portal treats a spent token
+presented twice as theft and ends the whole chain. That guarantee is per process: [SR-66](#sr-66).
+
+Tests: `packages/host/src/auth/portal-check.test.ts` (inside and past the interval, every terminal
+reason, an unanswering portal and its back-off, one refresh at a time, the host's own storage
+failing, a slow portal); `packages/host/src/auth/session-gate.test.ts` "the gate checks the session
+with the portal once its last word is ten minutes old" (4). Map:
+[`maps/portal-session-auth.md`](maps/portal-session-auth.md).
+
+Gate: **blocks Tencent deploy.**
+
+### SR-67 {#sr-67}
+
+**An Edit generate job ran as whatever tenant its stored request named.** Enterprise. Raised and
+fixed 2026-09-23.
+
+Evidence, as the flag was raised: the job runner read the tenant of a `generate_image` /
+`generate_video` job out of the job's own `requestJson`
+(`(job.requestJson as { tenant?: TenantContext }).tenant`), and
+`POST /api/v1/edit/projects/:projectId/jobs` stored `requestJson` straight from the request body.
+The route checked that the *project* was on the caller's desk and nothing else. So a caller could
+queue a generate job on their own project with another tenant's `TenantContext` in the body — the
+ids are not secrets, only unguessed — and that tenant decided whose gateway key paid, whose usage
+ledger was charged, which desk the output and its work card landed on, and which organization's
+media a still was read from.
+
+What goes wrong if ignored: one tenant spends another tenant's gateway key and writes into another
+tenant's desk with a single POST.
+
+**Fixed, not driven.** Identity never comes from a stored request:
+
+- `enqueueEditJob` drops any `tenant` or `requestedBy` from the request it is handed and records
+  `requestedBy` only from its caller's verified tenant (`withoutIdentity`,
+  `packages/host/src/edit/jobs.ts:55-63`; `:503-516`).
+- The runner resolves the tenant from the project row and that recorded user through
+  `resolvePortalTenant`, the read-only resolver a hosted session uses — tenant active, organization
+  the tenant's, user still a member, desk the organization's — and fails closed when nobody is
+  recorded or the user has left (`workerTenant`, `packages/host/src/edit/ops.ts:174`, called at
+  `jobs.ts:225`). The gateway gate is applied to that tenant in the runner as well as on the route
+  (`jobs.ts:226`).
+- The wired submit uses the tenant it is handed and never `body.tenant`, which a job row written
+  before this change may still carry (`isCompleteTenant`, `packages/host/src/edit/wire-generate.ts:11`).
+- `POST …/jobs` no longer queues a generate kind at all ([SR-68](#sr-68)).
+
+Tests: `packages/host/src/edit/generate-tenant.test.ts` (9, including "is the project's, whatever
+tenant the stored request names" and "refuses a requester who is not a member of the project's
+organization"); `packages/host/src/edit/wire-generate.test.ts` (3);
+`packages/host/src/edit/jobs-route.test.ts` "POST …/jobs and identity in the body". Map:
+[`maps/edit-timeline.md`](maps/edit-timeline.md).
+
+Gate: **blocks Tencent deploy.**
+
 ## Medium
 
 ### SR-21 {#sr-21}
@@ -692,7 +896,8 @@ first two statements of `main()` (`:52`, `:56`). ESM hoists every `import` above
 `@agentforge/db` — is **fully evaluated before `main()` is called at all**. And
 `packages/db/src/client.ts` does real work at module scope: `mkdirSync(dirname(file))` at `:17`,
 `applyPendingDataReset(localDataDir())` at `:35`, `new SqliteDatabase(file)` at `:38`, three
-`pragma` calls, and `ensureSchema(sql)` at `:50`.
+`pragma` calls, and `ensureSchema(sql)` at `:50`. (Still true on 2026-09-23; the lines are now `:17`,
+`:39`, `:48` and `:60`, because the reset hook gained its outcome log — [SR-77](#sr-77).)
 
 So a hosted process with a missing wrap key creates its data directory, opens SQLite, applies any
 queued "Start over" wipe and runs every migration, **and only then** prints the six-variable refusal
@@ -740,6 +945,17 @@ instance keep the loopback exemption), or record that same-host loopback is the 
 topology and say so in `webapp-deploy/.env.example` beside the variable. Do not leave it unstated.
 
 Gate: **blocks Tencent deploy** until the decision is recorded either way.
+
+**Decided and fixed 2026-09-23 (fixed, not driven).** The owner chose https in production.
+`portalUrlProblem` (`packages/host/src/hosted-env.ts:128-140`) keeps `portalBaseUrl` as the judge and
+adds one rule of its own on top, only ever stricter: on `NODE_ENV=production` the URL must be
+`https:`, loopback included, answered with a fixed sentence that never echoes the value
+(`PORTAL_URL_HTTPS_REQUIRED_DETAIL`, `:117`). `tls.ts` keeps its loopback exemption for every other
+caller — a desk's Ollama, and the review instance off production. One consequence for the harness: a
+review instance started with `-Production` and the default loopback portal URL now refuses to boot
+unless `-PortalPublicUrl` names an https origin (`scripts/review-instance.ps1:214`, `:791`). Tests:
+`packages/host/src/hosted-env.test.ts` "the portal URL is https in production, loopback included
+(SR-26)". It reads `fixed` when a hosted container has been seen to refuse a plain-http portal URL.
 
 ### SR-27 {#sr-27}
 
@@ -1074,6 +1290,513 @@ reason classes and the timeout/cancel codes are pinned. Two cases in
 
 Gate: **blocks Tencent deploy.** It is a hosted information disclosure reachable by any tenant.
 
+### SR-51 {#sr-51}
+
+**Behind `PORTAL_TRUST_PROXY=1` the portal keyed every per-IP limit on the left-most
+`X-Forwarded-For` entry, the one a client writes.** Enterprise. Raised and fixed 2026-09-23 by the
+portal defect pass.
+
+Evidence, as the flag was raised: `clientIp` took the first header line and then
+`split(",")[0]`. When the proxy in front appends the peer it saw to whatever the client sent, the
+front of that chain is the client's own text, so every per-IP bucket was keyed on a string the
+caller chose: rotate a forged prefix for a fresh bucket per request, or name somebody else's address
+and spend theirs. Whether a given deployment was exposed depended on whether its proxy replaced the
+header or appended to it. The host has always read the last hop ([SR-18](#sr-18),
+`packages/host/src/rate-limit.ts:136-144`); the portal did not.
+
+What goes wrong if ignored: OTP send, authorize, token, device code and `/tenant/config`
+([SR-42](#sr-42)) are all limited per IP. With the key in the caller's hands none of those limits
+binds, and an honest address can be locked out by a stranger.
+
+**Fixed, not driven.** Only the right-most entry is read, the one the proxy in front wrote; repeated
+header lines are joined into one chain; and a last hop that is not an address falls back to the
+socket peer, never to an entry further left (`apps/portal/src/security/client-ip.ts:55-68`, the rule
+stated at `:13-22`). A second appending proxy in front of the first moves the client one hop left,
+so this rule changes whenever the proxy chain does.
+
+Tests: `apps/portal/src/security/security.test.ts` "client address" (four new cases, including
+"cannot be steered by a forged prefix: rotating it leaves the same address");
+`apps/portal/src/routes/api.test.ts` "keys on the address the proxy appended, so a rotated forged
+prefix does not buy a fresh bucket".
+
+Gate: **blocks Tencent deploy.** Re-read it with [SR-18](#sr-18) the day anything is put in front of
+Caddy.
+
+### SR-52 {#sr-52}
+
+**A portal rate limiter whose key map was full refused every new caller for a whole window.**
+Enterprise. Raised and fixed 2026-09-23 by the portal defect pass.
+
+Evidence, as the flag was raised: `createRateLimiter` capped its map at `maxKeys` (20,000) and, when
+sweeping expired windows freed nothing, answered `{ ok: false }` to any key it had not seen — "refuse
+rather than grow". A flood of distinct keys fills the map quickly (one IPv6 /64 is far more than
+20,000 addresses, [SR-79](#sr-79)), and from then until those windows expired every caller who was
+not already counted was refused.
+
+What goes wrong if ignored: the guard against memory exhaustion becomes the denial of service. It
+needs no credentials and reaches every portal limiter, the sign-in ones included.
+
+**Fixed, not driven.** A full map evicts its oldest live windows, 1% of the cap at a time, and never
+refuses the caller (`makeRoom`, `apps/portal/src/security/rate-limit.ts:66-80`, called at `:101`;
+`EVICTION_BATCH_SHARE`, `:45`). The map is kept in window-start order, so the first live entry is
+the oldest. The trade is stated in the code: a flood can now reset somebody's window early, but it
+can no longer lock anybody out. A cap below 1 is read as 1.
+
+Tests: `apps/portal/src/security/security.test.ts` — "stops growing at maxKeys by evicting the oldest
+window, not by refusing the next caller", "keeps a flood of new keys from locking a new caller out",
+"evicts the window that started first, even when an older key restarted its window later", "sweeps
+expired windows before it evicts a live one", "treats a cap below one as one, rather than looping on
+an empty map".
+
+Gate: **blocks Tencent deploy.**
+
+### SR-53 {#sr-53}
+
+**The portal had no daily limit on sign-in code guesses per address.** Enterprise. Raised and fixed
+2026-09-23 by the portal defect pass; one half left open for the owner.
+
+Evidence, as the flag was raised: a code allowed five guesses and an address three sends per fifteen
+minutes (`apps/portal/src/store/postgres/otps.ts`, header). Nothing counted across codes, so one
+address could take about 1,440 guesses a day — the constant's own comment puts that at roughly a
+0.14% chance a day of hitting a six-digit code (`:20-25`), which compounds to about 40% over a year.
+
+What goes wrong if ignored: an unattended script that guesses at one known address eventually signs
+in as that person, with no access to their mail.
+
+**Fixed, not driven.** `store.loginOtps.verify` sums `attempts` over every row for the address from
+the last 24 hours, across both purposes, before it compares anything. At 20 it answers `locked`,
+even for the right digits on a fresh code (`MAX_GUESSES_PER_DAY` / `GUESS_WINDOW_MS`, `otps.ts:26-27`;
+the check at `:73-84`). The rows are read `FOR UPDATE` in a fixed order, so concurrent guesses cannot
+all see nineteen. The flow audits a lock as `otp.locked` rather than `otp.failed`
+(`apps/portal/src/otp/verify.ts:65`), and both code forms say to try again in 24 hours, in both
+languages (`code.locked`, `apps/portal/locales/en/portal.json:20`, through
+`apps/portal/src/routes/support.ts:98-100`). `prune_login_otps()` keeps 24 hours of rows, which is
+what keeps the window countable.
+
+**Open, for the owner: the cap is per address, so it is also a lockout.** Anyone who can type an
+address can spend its twenty guesses — four codes' worth at three sends a quarter hour — and keep
+that person out of sign-in for a day, as often as they like. That is the cost of a per-address cap,
+which is the only one a guesser rotating addresses ([SR-79](#sr-79)) cannot step around. If it
+bites: count per address and source, or lift the lock on a successful e-mail round trip. Recorded,
+not decided.
+
+Tests: `apps/portal/src/store/postgres/otps.test.ts` "the daily guess budget" (including an
+uncommitted twentieth guess racing a code of the other purpose); `apps/portal/src/routes/browser.test.ts`
+"refuses even the right code once twenty guesses were spent today, says why in both languages, and
+audits otp.locked".
+
+Gate: **blocks Tencent deploy**, for the fix and for the owner's answer on the lockout.
+
+### SR-54 {#sr-54}
+
+**`POST /auth/device/token`, the device-flow poll, had no per-IP limit.** Enterprise. Raised and fixed
+2026-09-23 by the portal defect pass.
+
+Evidence, as the flag was raised: the route checked its body and went straight to the store. The
+only brakes were per code — `slow_down` on the third poll in one interval and a 200-poll ceiling
+(`apps/portal/src/store/postgres/device-codes.ts`). The endpoint is unauthenticated, every call
+costs two database round trips, and the design's own threat table asks for "Rate limits per IP and
+per install_id" against polling abuse (`docs/internal/portal/device-code-login.md:496`).
+
+What goes wrong if ignored: an unmetered, unauthenticated path from the internet to the portal's
+database.
+
+**Fixed, not driven.** `deviceTokenIp`, 600 per 10 minutes per IP
+(`apps/portal/src/security/rate-limit.ts:178`, `:202`), counted before any lookup
+(`apps/portal/src/routes/tokens.ts:185-189`). 600 is sized from the honest case: one device polls
+every 5 seconds for a code's 10 minutes, 120 polls, so five devices signing in at once behind one
+office address never meet it.
+
+Tests: `apps/portal/src/routes/api.test.ts` "limits POST /auth/device/token per IP, at 600 per 10
+minutes, and never trips one polling device".
+
+Gate: **blocks Tencent deploy.**
+
+### SR-55 {#sr-55}
+
+**A portal refresh without `device_id` skipped the refresh token's device binding.** Enterprise.
+Raised and fixed 2026-09-23 by the portal defect pass.
+
+Evidence, as the flag was raised: `postToken` read `device_id` as optional and passed
+`grant.deviceId ?? null` on, and `rotate_refresh_token` compares the presented device with the
+session's only when one is passed — `p_device_id uuid DEFAULT NULL`, then
+`IF p_device_id IS NOT NULL AND p_device_id <> r_sess.device_id`
+(`docs/internal/portal/migrations/0005_functions.sql:221`, `:298`). A refresh that left the field
+out was a refresh from any device, and a value that was not a uuid reached the `::uuid` cast and came
+back `500`.
+
+What goes wrong if ignored: the device binding is what refuses a stolen refresh token presented
+from the wrong machine. Optional, it bound nothing.
+
+**Fixed, not driven.** A refresh must carry `device_id`, and it must be a canonical uuid
+(`DEVICE_ID`, `apps/portal/src/routes/tokens.ts:37`, checked at `:139`); anything else is
+`400 invalid_request` before any lookup, so the token is not spent. `RefreshGrant.deviceId` is no
+longer optional (`apps/portal/src/flows/token.ts:268`), so nothing further down can drop it. The
+host has always sent the `device_id` its token body carried
+(`packages/host/src/auth/portal-check.ts:303`).
+
+Tests: `apps/portal/src/routes/api.test.ts` "refuses a refresh with no device_id, in the
+invalid_request shape, without spending the token", "refuses a device_id that is not a devices.id,
+rather than failing inside the database".
+
+Gate: **blocks Tencent deploy.**
+
+### SR-57 {#sr-57}
+
+**Every hosted refresh counted against one per-IP bucket, which capped the hosted app near 300
+active sessions and then blocked sign-in.** Enterprise. Raised and fixed 2026-09-23, portal and host.
+
+Evidence, as the flag was raised: `POST /auth/token` counted every call in `tokenIp`, 300 per 10
+minutes per IP. With the host's ten-minute re-check ([SR-58](#sr-58)) every hosted session refreshes
+about every ten minutes, all from the host's one address. Past roughly 300 active sessions the
+bucket is spent on refreshes alone, and the next browser sign-in — the authorization-code exchange,
+same route, same bucket — is refused `rate_limited`.
+
+What goes wrong if ignored: the hosted app stops accepting sign-ins at a few hundred users, and the
+only trace is `rate_limited` in the portal's log.
+
+**Fixed, not driven, at both ends.**
+
+- **Portal.** A refresh that authenticates as a confidential client counts against the client —
+  `tokenClient`, 20,000 per 10 minutes, keyed on `client_id` — and never against the address
+  (`postConfidentialRefresh`, `apps/portal/src/routes/tokens.ts:105-125`; `authenticateClient`,
+  `apps/portal/src/flows/token.ts:236`; the limits at `apps/portal/src/security/rate-limit.ts:200-201`).
+  A wrong secret is `invalid_client`, audited as `token.client_auth_failed`, and counted in a
+  per-address budget of 20 failures per 10 minutes that is checked before any lookup, so a secret
+  sprayer is refused without a query. The code grant and any refresh without client credentials keep
+  `tokenIp`.
+- **Host.** Every refresh presents `AGENTFORGE_PORTAL_CLIENT_ID` and `AGENTFORGE_PORTAL_CLIENT_SECRET`
+  when both are set (`configuredClientCredentials`, `packages/host/src/auth/portal-config.ts:130`;
+  sent at `packages/host/src/auth/portal-check.ts:300-305`, and on the wire at
+  `packages/host/src/auth/portal-client.ts:337-345`). The hosted boot check already refuses to start
+  without both, so on a server they are always there.
+
+The refresh token stays the credential for the refresh; the client credentials only choose the
+bucket.
+
+Tests: `apps/portal/src/routes/api.test.ts` "counts an authenticated client's refreshes against the
+client, never the address, and keeps 300 for public ones", "keys the confidential bucket on client_id,
+whichever address the refresh comes from", "answers 429 once a client has spent its 20,000 refreshes
+in the window", "refuses a wrong client_secret as invalid_client, audits it, and stops looking after
+20 from one address"; `packages/host/src/auth/portal-check.test.ts` "the check refreshes as the
+confidential client"; `packages/host/src/auth/portal-client.test.ts` "refresh as the confidential
+client"; `packages/host/src/auth/routes.test.ts` "the routes' refreshes authenticate as the
+confidential client".
+
+Gate: **blocks Tencent deploy.** Like every limit here, the new buckets are per process
+([SR-29](#sr-29)).
+
+### SR-59 {#sr-59}
+
+**Signing out of the hosted app left the portal session and its refresh token alive.** Enterprise.
+Raised and fixed 2026-09-23 by the host auth pass.
+
+Evidence, as the flag was raised: `handleLogout` sent the vault's access token to the portal's
+`/auth/logout` and swallowed any refusal, and `portalClient.logout` itself resolved on every answer,
+`401` included. That access token is the one from the last rotation and lives an hour. A sign-out
+after an idle hour presented an expired token, the portal refused it, and nothing noticed: the
+host's session ended, the portal's session and its refresh chain did not.
+
+What goes wrong if ignored: the person believes "Sign out" ended the account's session, and a live
+refresh token outlives it with nothing left on the host to revoke it.
+
+**Fixed, not driven.** Sign-out refreshes first, through the same one-at-a-time path as the gate,
+and signs out at the portal with the live access token that comes back (`endPortalSession`,
+`packages/host/src/auth/routes.ts:409-431`). A terminal answer or an empty vault means there is no
+portal session left to end; no answer at all still tries the token the host holds. The local
+sign-out runs in a `finally`, whatever the portal said (`:562-567`). `logout` now rejects on any
+non-2xx with the portal's reason (`packages/host/src/auth/portal-client.ts:347-356`), which the
+route logs as `portal_logout_failed`, without a token.
+
+Tests: `packages/host/src/auth/routes.test.ts` "POST /api/v1/auth/logout ends the portal session with
+a live token" (6); `packages/host/src/auth/portal-client.test.ts` "logout" (4).
+
+Gate: **blocks Tencent deploy.**
+
+### SR-60 {#sr-60}
+
+**`auth_sessions` stored each browser's session cookie in the clear, as its primary key.**
+Enterprise. Raised and fixed 2026-09-23 by the host auth pass.
+
+Evidence, as the flag was raised: `auth_sessions.id` was the cookie value itself, so the table was a
+list of live sessions. A backup, a copied data directory or one read-only SQL path replayed every
+unexpired row as a cookie.
+
+What goes wrong if ignored: any read of the hosted database is a session takeover for everyone
+signed in.
+
+**Fixed, not driven.** The table holds `sha256(id)` in lowercase hex, and the store only ever looks
+up the digest of what the browser presented (`hashSessionId`, `packages/host/src/auth/session.ts:125`;
+`atRest`, `packages/host/src/auth/session-store.ts:55`; the SQLite lookups at `:205`, `:235`,
+`:242`). The cookie still carries the raw value. `packages/db/drizzle/0021_auth_session_hardening.sql`
+rebuilds the table rather than altering it, so **every existing row is dropped and everybody signed
+in to a hosted deployment signs in once more** when it lands. Those rows were dead anyway, since no
+digest lookup can match a raw id; dropping them takes the last replayable ids off disk. The desktop
+and webdev never write this table.
+
+Tests: `packages/host/src/auth/session-store.test.ts` "finds a session only by the cookie's id, never
+by the digest it stores", "writes the SHA-256 of the id, and never the id itself", "never finds a row
+written before 0021, whose id is the raw cookie value"; `packages/db/src/migrate-0021.test.ts` (0021
+on a fresh and on an upgraded database, its place in the journal, and the healer). Map:
+[`maps/database-and-migrations.md`](maps/database-and-migrations.md).
+
+Gate: **blocks Tencent deploy.** The forced re-sign-in belongs in the deploy note.
+
+### SR-61 {#sr-61}
+
+**The host read any 4xx from the portal URL as the end of the session, including a proxy's 404 and
+the portal rejecting the host's own client.** Enterprise. Raised and fixed 2026-09-23 by the host auth
+pass.
+
+Evidence, as the flag was raised: `mapPortalError` turned any 4xx without a known `reason` into
+`invalid_grant`, and the portal narrows `invalid_client` to `reason: invalid_grant` for the host.
+Once the gate asks the portal on its own ([SR-58](#sr-58)), `invalid_grant` ends the session — so a
+misrouted base path, a WAF page or a rotated client secret would sign out every hosted user whose
+session came due.
+
+What goes wrong if ignored: a configuration fault between the host and the portal becomes a mass
+sign-out, logged as though the portal had ended every session.
+
+**Fixed, not driven.** A 4xx carrying neither an RFC 6749 `error` nor a `reason` did not come from the
+portal's error path and is `portal_unavailable` (`speaksPortalErrors`,
+`packages/host/src/auth/portal-client.ts:209`, applied at `:240`), and `error: invalid_client` is
+`portal_unavailable` before `reason` is read (`:234`). Neither is terminal, so the session stands. The
+gate logs a rejected client as `portal_client_rejected`, naming the RFC error and never the secret
+(`packages/host/src/auth/portal-check.ts:321-328`).
+
+Tests: `packages/host/src/auth/portal-client.test.ts` "maps a 4xx that does not speak the portal's
+error shape to portal_unavailable, not a refusal", "maps invalid_client to portal_unavailable, never
+to a refusal that ends a session"; `packages/host/src/auth/portal-check.test.ts` "keeps every session
+when the portal rejects the deployment's own client, and says so without the secret".
+
+Gate: **blocks Tencent deploy.**
+
+### SR-62 {#sr-62}
+
+**A session write racing a sign-out could undo the revocation.** Enterprise. Raised and fixed
+2026-09-23 by the host auth pass.
+
+Evidence, as the flag was raised: two requests on one session each write what they read, and `save`
+wrote the whole row, `revoked_at` included. A slide read before a sign-out and written after it set
+`revoked_at` back to `NULL`, and the revoked session worked again.
+
+What goes wrong if ignored: a sign-out, a forced sign-out after [SR-58](#sr-58) or an admin's revoke
+loses a race with the person's own open tab.
+
+**Fixed, not driven.** `save` never clears a revocation and keeps the first revocation time
+(`coalesce(revoked_at, …)`, `packages/host/src/auth/session-store.ts:220`; the memory store's
+`stickyRevocation`, `:60`), and a row that is revoked once the write lands keeps no sealed refresh
+token (`:223`). The portal check has its own writer, `recordRotation` (`:227`), which only moves the
+check stamp forward and never stores a token on a row revoked in the meantime.
+
+Tests: `packages/host/src/auth/session-store.test.ts` "never un-revokes: a slide saved after a
+revocation keeps the revocation", "keeps the first revocation time when revoked twice", "never stores
+a rotated token on a row that was revoked while the rotation was in flight".
+
+Gate: **blocks Tencent deploy.**
+
+### SR-64 {#sr-64}
+
+**The portal refresh token behind each hosted session is now stored at rest, sealed on its
+`auth_sessions` row.** Enterprise. Owner decision, 2026-09-23; built by the host auth pass. Recorded
+because it adds a stored secret and replaces [SR-08](#sr-08).
+
+What changed, and why: until this pass the token lived in process memory only, so a restart, a
+deploy or a crash emptied the vault and every hosted session ended at its next portal check. The
+owner decided that a restart signs nobody out. The refresh token now also lives on the row it
+belongs to, in `auth_sessions.refresh_sealed`, added by
+`packages/db/drizzle/0021_auth_session_hardening.sql`. The access token is still never written
+anywhere; after a restart the first check opens the sealed refresh token and rotates it
+(`heldTokens`, `packages/host/src/auth/portal-check.ts:254`).
+
+The controls, each read in code:
+
+- **The key.** AES-256-GCM through the repo's one envelope format, under a key derived from the wrap
+  key with HKDF-SHA256, empty salt, info `auth-session-refresh-v1` (`REFRESH_SEALING_INFO`,
+  `packages/host/src/auth/session-secrets.ts:32`; `refreshSealingKey`, `:52`). Not the wrap key itself,
+  and a label no other purpose uses.
+- **The binding.** The sealed payload names the id digest of its own row, and `openRefresh` answers
+  `null` for a blob sealed for any other row (`:82`, the check at `:98`), so a token moved between
+  rows opens nowhere.
+- **Its lifetime.** A revocation wipes it in the same write ([SR-62](#sr-62)); the purge wipes it once
+  a session idles out and deletes the row at its absolute expiry; a rotation replaces it in the one
+  write that stamps the check (`recordRotation`, `packages/host/src/auth/session-store.ts:227`). It is
+  never part of a `SessionRecord`, and `find` names its columns so it cannot ride out on one.
+- **Failure.** A blob that does not open under the current key — a wrap key changed without the
+  rotation drill — ends that session cleanly as `refresh_expired`. A wrap key that cannot be read at
+  all is a fault of the deployment, and ends nobody (`portal-check.ts:286-297`, and the `catch` at
+  `:361-368`).
+- **Rotation.** `rotateWrapKey` re-seals every live session's token along with the tenant settings,
+  in the same two phases: every token is opened with the old key before anything is written, and one
+  that will not open refuses the whole run; a token the running app replaced meanwhile is left alone
+  rather than overwritten (`packages/host/src/wrap-key-rotation.ts:224-238`, `:262-273`;
+  `scripts/rotate-wrap-key.ts` prints both counts).
+- **The same change** has every refresh present the deployment's confidential client ([SR-57](#sr-57))
+  and stops a rejected client from reading as a refusal ([SR-61](#sr-61)).
+
+What this row asks the next reader to hold: the SQLite file is now a store of sealed, live
+credentials. Anyone with the database **and** `AGENTFORGE_SECRETS_KEY` can refresh every hosted
+session at the portal. The wrap key already opened every tenant's stored gateway key; it now also
+opens their sign-ins. [SR-73](#sr-73) is one reason that matters.
+
+**Fixed, not driven.** No host has been restarted with a signed-in session on it, and the rotation
+drill has not run against a database holding sealed tokens. Two consequences are open rows of their
+own: [SR-65](#sr-65) (Erase account keeps the tokens) and [SR-66](#sr-66) (one refresh at a time
+holds per process only).
+
+Tests: `packages/host/src/auth/session-secrets.test.ts` (14); `packages/host/src/auth/portal-check.test.ts`
+"a restart signs nobody out" (9); `packages/host/src/auth/session-store.test.ts` (the sealed-token
+cases, and "keeps only the sealed envelope in refresh_sealed, never the token itself");
+`packages/host/src/auth/routes.test.ts` "the refresh token at rest";
+`packages/host/src/wrap-key-rotation.test.ts` "rotating the session refresh tokens sealed on
+auth_sessions" (7). Map: [`maps/portal-session-auth.md`](maps/portal-session-auth.md) § The refresh
+token at rest.
+
+Gate: **blocks Tencent deploy** until a restart with a signed-in session has been driven and the
+rotation drill has carried sealed tokens across.
+
+### SR-66 {#sr-66}
+
+**The host's "one portal refresh at a time per session" holds only inside one process.**
+Enterprise. Open.
+
+Evidence: the one-at-a-time map is process memory (`inFlight`,
+`packages/host/src/auth/portal-check.ts:209`), as the vault beside it is. The portal rotates the
+refresh token on every use and answers a spent token presented again by revoking the whole chain and
+the session (`docs/internal/portal/device-code-login.md:498`). Two host processes that check the same
+session at the same moment present one token twice.
+
+What goes wrong if ignored: on a deployment with more than one host process, sessions are signed out
+at random, and each of those sign-outs is recorded at the portal as refresh-token reuse — the event a
+theft investigation starts from.
+
+Required action: run exactly one host process, or move the refresh behind a lock the processes share
+(a row lock on `auth_sessions`, for one) before adding a second. The same shape as [SR-29](#sr-29)
+for the portal's own limits.
+
+Gate: **blocks running more than one host process.**
+
+### SR-68 {#sr-68}
+
+**`POST /api/v1/edit/projects/:projectId/jobs` queued any kind it was sent, and two kinds skipped
+the checks of the route that normally starts them.** Enterprise. Raised and fixed 2026-09-23.
+
+Evidence, as the flag was raised: the handler cast `body.kind` to `"ffmpeg_op"` and stored it, and
+the column is plain text, so an unknown kind was queued as well. Of the known kinds, a generate job
+skipped everything `/generate` does ([SR-67](#sr-67)); a `render` — the export — skipped `/export`'s
+refusal of a timeline with unreviewed agent edits and its two allowed presets; and `asr`, the one
+other kind that calls the gateway, skipped the gateway gate `/agent` applies when it queues the same
+job.
+
+What goes wrong if ignored: the review gate on agent edits and the gateway gate are only as strong as
+the one route that forgets them.
+
+**Fixed, not driven.** The kind is validated against `EDIT_JOB_KINDS`, which fails to compile if
+core adds a kind the list does not name (`packages/host/src/edit/jobs.ts:21-31`; `parseEditJobKind`,
+`:44`); anything else is `400`. Generate kinds and `render` are refused with a pointer to
+`/generate` and `/export` (`packages/host/src/handlers/edit.ts:452-455`, checked at `:467` and
+`:473`), and `asr` is gated (`:478-480`). The desk check still runs first, so another desk's project
+id is a 404 whatever the body says.
+
+Tests: `packages/host/src/edit/jobs-route.test.ts` (the kind, the generate kinds, render with and
+without a review, identity in the body, and the gateway gate).
+
+Gate: **blocks Tencent deploy.**
+
+### SR-69 {#sr-69}
+
+**`GET /api/v1/edit/metrics` returned every tenant's Edit activity to every caller.** Enterprise.
+Raised and fixed 2026-09-23; one operator step open.
+
+Evidence, as the flag was raised: `appendEditMetric` wrote every Edit event of the whole install to
+one machine-wide file, `<dataDir>/edit/metrics.jsonl`, and `foldEditMetrics` read that file back to
+whoever asked, with no scope. Every line carries project, run, card and job ids and the event's data.
+
+What goes wrong if ignored: any signed-in person reads which projects other tenants' organizations
+work on, when, and what their agents did.
+
+**Fixed, not driven.** One file per tenant, in that tenant's own data directory, which the per-tenant
+purge removes with the rest of the tenant (`metricsFile`, `packages/host/src/edit/metrics.ts:56`).
+Every line is stamped with the tenant and organization read off the project row, never taken from
+the caller (`appendEditMetric`, `:70`; `workerProjectScope`, `packages/host/src/edit/ops.ts:135`). A
+read returns only lines of the caller's own tenant **and** organization, because a tenant's
+organizations are separate customers (`belongsTo`, `metrics.ts:105`; `foldEditMetrics`, `:126`; the
+handler at `packages/host/src/handlers/edit.ts:645-655`). A desk keeps its history: the local
+tenant's file is the path every desk always had, and an unstamped old line in it is still the
+owner's. On the hosted server an unstamped line is nobody's to read. A metric that cannot be
+written is logged, and never fails the undo, keep or cancel it describes.
+
+**Open, operator:** a hosted box that ran Edit before this change still holds the old
+`<dataDir>/edit/metrics.jsonl`, with every tenant's lines in it. No hosted session resolves to the
+local tenant, so nothing reads it any more; nothing deletes it either. Delete it on each such box.
+
+Tests: `packages/host/src/edit/metrics-scope.test.ts` (writing, folding, and the hosted route: "shows
+each session its own organization's activity and nobody else's", "serves none of the old
+machine-wide lines to a hosted session").
+
+Gate: **blocks Tencent deploy.**
+
+### SR-72 {#sr-72}
+
+**The proxy's logs kept each sign-in's one-time code and login state for 30 days.** Enterprise.
+Raised 2026-09-23; the access log is fixed, the error log is open.
+
+Evidence, as the flag was raised: the portal sends the browser to `/auth/callback?code=…&state=…`.
+Caddy's access log is one JSON object per request with the full `uri`, shipped with 30-day retention
+(the comment on the `log` block, `webapp-deploy/Caddyfile:77-87`), and the filter dropped only
+`Cookie`, `Authorization` and `Set-Cookie`. `Referer` carried the same URL again: `/auth/callback`
+serves the SPA shell, and every asset it loads before its script strips the query sends the whole
+callback URL as `Referer`.
+
+What goes wrong if ignored: the code is single-use and expires in 60 seconds, which limits what a
+log reader can do with it — but a log is the wrong place for any credential, `state` is the value the
+login-CSRF check compares, and the store's readers are not the people signing in.
+
+**Access log: fixed, not driven.** Two query filters delete `code` and `state` from `request>uri` and
+from `request>headers>Referer` (`webapp-deploy/Caddyfile:96-103`). The header filter needs Caddy 2.8
+or later; on 2.7 it is a silent no-op and only `uri` is cleaned (`:86-87`). `compose.yml` pins
+`caddy:2-alpine` (`webapp-deploy/compose.yml:116`), a moving tag, so the version is whatever was
+pulled.
+
+**Error log: open.** The filter lives in the site's `log` directive, which is that site's access
+log. The global options block has no `log` of its own (`webapp-deploy/Caddyfile:10-14`), so Caddy's
+default logger — where its error lines go — is unfiltered, and the pass reports that a failed
+upstream request is logged there with the request's full URI. Not yet observed on a running Caddy.
+Required: a global `log default { format filter { … } }` with the same rules, then a real Caddy run
+that forces an upstream error on `/auth/callback?code=x&state=y` and a search of both streams for the
+values.
+
+Tests: `scripts/release-web.test.mjs` "the shipped Caddyfile keeps the sign-in code and state out of
+the access log" (it reads the file; nothing runs Caddy).
+
+Gate: **blocks Tencent deploy**, both halves.
+
+### SR-73 {#sr-73}
+
+**The proxy container was handed the app's whole `.env`, wrap key included.** Enterprise. Raised and
+fixed 2026-09-23.
+
+Evidence, as the flag was raised: the `proxy` service loaded `env_file: .env` in the source stack
+(`webapp-deploy/compose.yml`) and in the compose file `scripts/release-web.mjs` writes into the
+release bundle, there with `required: true`. That `.env` is the app's: the portal client secret, the
+billing webhook secret and, in the release bundle whose `.env.example` lists it
+(`REQUIRED_ENV`, `scripts/release-web.mjs:61-69`), `AGENTFORGE_SECRETS_KEY`. The Caddyfile reads
+one variable, `{$DPSBUDDY_DOMAIN}`.
+
+What goes wrong if ignored: the internet-facing container holds, for no reason, the key to every
+tenant's stored secrets and sign-ins ([SR-64](#sr-64)). A compromise of the proxy, or anybody who can
+`docker inspect` it, has the wrap key.
+
+**Fixed, not driven.** Both compose files give the proxy exactly `DPSBUDDY_DOMAIN`
+(`webapp-deploy/compose.yml:120-128`; `scripts/release-web.mjs:176-178`). The bundle uses `:?`, so
+compose refuses an unset domain; the source stack uses `:-` because its `.env` is optional, and Caddy
+then refuses to start. Compose still fills the value in from the `.env` beside the file.
+
+Tests: `scripts/release-web.test.mjs` "the proxy gets exactly what the Caddyfile reads, never the
+whole .env, in both compose files".
+
+Gate: **blocks Tencent deploy.**
+
 ### SR-75 {#sr-75}
 
 **A cancelled Market run kept paying for model calls, and a call that failed after the cancel could
@@ -1199,6 +1922,27 @@ Tests: `packages/db/src/reset-retry.test.ts` (7). Map:
 
 Gate: **blocks the next Personal cut.** A packaged Windows drive of Start over is already owed
 ([`unreleased.md`](unreleased.md)).
+
+### SR-79 {#sr-79}
+
+**Every per-IP limit, on the portal and on the host, keys on the full IPv6 address, so one IPv6
+client gets a fresh bucket per request.** Enterprise. Open, raised 2026-09-23.
+
+Evidence: the portal's bucket key is the normalised address as it stands (`rateLimitKey`,
+`apps/portal/src/security/client-ip.ts:71-73`; `normalise` keeps an IPv6 address whole, `:31-47`), and
+the host's is the last `X-Forwarded-For` hop as it stands (`clientIp`,
+`packages/host/src/rate-limit.ts:136-144`). A subscriber on IPv6 is commonly routed a whole /64, so a
+caller there can change the low bits on every request.
+
+What goes wrong if ignored: the per-IP limits bind IPv4 callers only. The per-address OTP limits
+still hold, but the per-IP ones on OTP send, authorize, token, device code, the device poll
+([SR-54](#sr-54)) and `/tenant/config` ([SR-42](#sr-42)) do not. Since [SR-52](#sr-52) such a flood
+cannot lock anybody out, but it can push the oldest windows out of a full map, which resets them.
+
+Required action: key an IPv6 address by its /64 in both `rateLimitKey` and the host's `clientIp`,
+or keep the deployment IPv4-only and say so in the runbook.
+
+Gate: **blocks Tencent deploy if the deployment is reachable over IPv6.**
 
 ### SR-80 {#sr-80}
 
@@ -1362,6 +2106,12 @@ Required action: add the same `isLoopbackHost` check to `--upstream`. Neither sc
 into `webapp-deploy/`; `webapp-deploy/Caddyfile` stays the only proxy the product ships behind.
 `review.env` and `*.pem` are now ignored anyway (`.gitignore:82-83`), as a floor under a `--cert-dir`
 pointed somewhere careless.
+
+**The `--upstream` gap closed 2026-09-23 (fixed, not driven).** `parseArgs` refuses a non-loopback
+`--upstream` the way it refuses `--listen`, naming the reason: the hop to the upstream is plain http
+and the harness stamps `X-Forwarded-Proto: https` on it (`scripts/review-proxy.mjs:166-172`). No test
+pins the new refusal; `scripts/review-proxy.test.mjs` exercises the `--listen` one only. Since the
+same day's `.gitignore` rewrite ([SR-19](#sr-19)), `review.env` and `*.pem` are at `.gitignore:59-60`.
 
 Gate: dev only.
 
@@ -1647,6 +2397,90 @@ missing".
 
 Gate: dev only.
 
+### SR-63 {#sr-63}
+
+**A malformed `Host` header or request target threw out of the host's HTTP adapter before any rule
+ran.** Enterprise: the adapter serves webdev and the hosted server, and the packaged desktop has no
+HTTP port. Raised and fixed 2026-09-23 by the host auth pass.
+
+Evidence, as the flag was raised: the adapter parsed each request as
+`new URL(req.url, "http://" + <Host>)`, so `Host: a b`, `[` or an empty value, or a target such as
+`//[`, threw `ERR_INVALID_URL` out of `handleNodeRequest` before the TLS rule, the method allowlist
+or the per-IP bucket. `apps/web/server.ts:67-71` passes a rejection to Express's `next`, so it
+became Express's error answer rather than an unhandled rejection — but an unmetered one.
+
+What goes wrong if ignored: a request shape that skips the rate limiter and every transport check,
+and a server error in the log for what is a client's mistake.
+
+**Fixed, not driven.** The target is parsed against a fixed base (`TARGET_PARSE_BASE`,
+`packages/host/src/http-adapter.ts:150`; `requestTargetOf`, `:167`), so `Host` never reaches the URL
+parser, and `isMalformedHostHeader` (`:203`) judges the header on its own. Both are `400`
+(`invalid_path`, `:153`; `invalid_host`, `:160`), decided in both modes at `:556` and answered at
+`:617` — in server mode after the TLS rule and the buckets, so a malformed request is still counted.
+An absent `Host` is not malformed here; the mutating rules already refuse a write without one.
+
+Tests: `packages/host/src/http-adapter.test.ts` "handleNodeRequest malformed Host header or request
+target". Map: [`maps/hosted-security-controls.md`](maps/hosted-security-controls.md) § 2.
+
+Gate: **blocks Tencent deploy.**
+
+### SR-65 {#sr-65}
+
+**Erase account keeps the tenant's sessions, and now their stored portal refresh tokens.**
+Enterprise. Open — owner decision pending, raised 2026-09-23.
+
+Evidence: a tenant reset deliberately keeps `auth_sessions` — "a reset empties an account, it does
+not sign its people out" (`KEPT_TENANT_TABLES`, `packages/db/src/tenant-purge.ts:124`) — and its
+step 6 re-provisions the organization under the same id, so those sessions keep resolving
+(`packages/host/src/tenant-reset.ts:28-34`, the code at `:317`). Before [SR-64](#sr-64) that kept a
+row and a cookie. Now it also keeps each session's sealed refresh token, which survives a restart.
+
+What goes wrong if ignored: an owner who erases an account because they believe it was compromised
+expects access to end with it. Every browser signed in to that tenant, an unwelcome one included,
+stays signed in and keeps refreshing at the portal. The portal can still end those sessions, and the
+host now honours that within ten minutes ([SR-58](#sr-58)); the erase itself does not.
+
+Required action: an owner decision. Keep the sessions and say so on the Erase account screen, clear
+`refresh_sealed` for the tenant, or revoke every session of the tenant as part of the reset.
+
+Gate: **blocks Tencent deploy** until the decision is recorded.
+
+### SR-70 {#sr-70}
+
+**The hosted Edit doctor returned the absolute path of the server's ffmpeg.** Enterprise. Raised and
+fixed 2026-09-23.
+
+Evidence, as the flag was raised: `GET /api/v1/edit/doctor` sent `ffmpeg.path`, the binary's
+absolute path, to every caller. On a desk that is the owner's own machine and helps them fix an
+install; on the hosted server it is the operator's filesystem, and nothing a tenant can act on.
+
+**Fixed, not driven.** In server mode the handler drops `path` and keeps the rest of the report
+(`withoutBinaryPath`, `packages/host/src/edit/doctor.ts:36`; `packages/host/src/handlers/edit.ts:110-115`);
+the banner reads `found`, `reason` and `setup`, never the path. A desk keeps it. Same class as
+[SR-48](#sr-48).
+
+Tests: `packages/host/src/edit/doctor-hosted.test.ts` (2).
+
+Gate: **blocks Tencent deploy.**
+
+### SR-71 {#sr-71}
+
+**An Edit generate told the caller whether a media id existed in any organization.** Enterprise.
+Raised and fixed 2026-09-23.
+
+Evidence, as the flag was raised: `assertStillAvailable` looked a still's media id up by id alone.
+Another organization's id passed and an unknown one was refused `STILL_NOT_FOUND`, so the answer was
+an existence oracle across tenants. The bytes were not exposed — the worker read the still through
+the caller's own tenant — but the refusal was.
+
+**Fixed, not driven.** The lookup is scoped to the caller's organization, which is where the worker
+reads the still from, so another organization's id is answered exactly like an unknown one
+(`assertStillAvailable`, `packages/host/src/edit/start-generate.ts:88-101`, the `WHERE` at `:95`).
+
+Tests: `packages/host/src/edit/still-scope.test.ts` (2).
+
+Gate: **blocks Tencent deploy.**
+
 ### SR-74 {#sr-74}
 
 **The Personal release published its notes without the banned-marks check, and its `docs/internal`
@@ -1721,6 +2555,13 @@ rather than losing anything.
 
 Required action: none. Revisit when the hosted app gets a second process, because two processes
 cannot share a memory vault and the first fix somebody reaches for will be writing tokens to disk.
+
+**Superseded 2026-09-23 by [SR-64](#sr-64).** The first half of the trade no longer holds: by owner
+decision the refresh token is now also kept at rest, sealed on its `auth_sessions` row, so a restart
+signs nobody out. The access token is still process memory only; `hostTokenVault`
+(`packages/host/src/auth/index.ts:189`) is now this process's working copy, and the line numbers
+above describe the file before that change. The second-process warning still stands, and is now
+[SR-66](#sr-66).
 
 ### SR-15 {#sr-15}
 
@@ -1891,8 +2732,9 @@ URL, not a reason to write a follow-up.
   on loopback. ([SR-28](#sr-28))
 - [ ] The hosted process refuses a bad environment **before** it opens SQLite, creates the data dir
   or applies a queued reset. ([SR-25](#sr-25))
-- [ ] `AGENTFORGE_PORTAL_URL` is https, or the owner has recorded that same-host loopback is the
-  intended production topology. ([SR-26](#sr-26))
+- [x] `AGENTFORGE_PORTAL_URL` is https, or the owner has recorded that same-host loopback is the
+  intended production topology. ([SR-26](#sr-26)) — 2026-09-23: the owner chose https, and a
+  production boot now refuses plain http, loopback included. Not driven on a container.
 - [x] An Edit import that fails after the probe refunds the bytes and leaves no orphan object.
   ([SR-27](#sr-27)) — fixed 2026-09-21, tested, **not driven on a deployment**.
 - [ ] A recording that fails to upload is still on the owner's screen, with Retry and Save to
@@ -1913,6 +2755,36 @@ URL, not a reason to write a follow-up.
   reasoning is in that row. Not driven on a deployment.
 - [ ] The portal runs as exactly one process, or its rate-limit windows are shared.
   ([SR-29](#sr-29))
+
+Added 2026-09-23:
+
+- [ ] The portal migrates on `PORTAL_MIGRATE_DATABASE_URL`, serves as `portal_app_login` with a
+  password provisioned out of band, and boots in production without refusing its own role.
+  ([SR-56](#sr-56))
+- [ ] A request with `Host: a b`, and one with the target `//x:99999/healthz`, leave the portal and
+  the app both up. The app answers each `400`; the portal answers the target `400` and never reads
+  `Host`. ([SR-50](#sr-50), [SR-63](#sr-63))
+- [ ] A session the portal revokes is refused by the app within ten minutes, and a portal outage signs
+  nobody out. ([SR-58](#sr-58))
+- [ ] Signing out ends the portal session too, even after the access token has aged past its hour.
+  ([SR-59](#sr-59))
+- [ ] The deploy note says every hosted user signs in once more when migration 0021 lands.
+  ([SR-60](#sr-60))
+- [ ] A host restart with a signed-in session keeps that person signed in, and the wrap-key rotation
+  drill carries the sealed refresh tokens across. ([SR-64](#sr-64))
+- [ ] The owner has decided whether Erase account ends the tenant's sessions and stored refresh
+  tokens. ([SR-65](#sr-65))
+- [ ] The app runs as exactly one host process, or the portal refresh is one-at-a-time across
+  processes. ([SR-66](#sr-66))
+- [ ] Caddy's default logger carries no `code` or `state`: a global `log default` filter, checked on a
+  real Caddy with a forced upstream error. ([SR-72](#sr-72))
+- [ ] `docker compose exec proxy env` shows `DPSBUDDY_DOMAIN` and none of the app's secrets.
+  ([SR-73](#sr-73))
+- [ ] The old machine-wide `<dataDir>/edit/metrics.jsonl` is gone from every box that ran hosted Edit
+  before 2026-09-23. ([SR-69](#sr-69))
+- [ ] Per-IP limits group IPv6 by /64, or the deployment is IPv4-only and the runbook says so.
+  ([SR-79](#sr-79))
+- [ ] The owner has answered the per-address OTP lockout trade-off. ([SR-53](#sr-53))
 
 ### SR-49 {#sr-49}
 
@@ -1958,6 +2830,16 @@ Status: **mitigated for the release path, open for the Dockerfile.**
   is the same.
 - The image `ghcr.io/kyoo032/dpsbuddy-ent` must stay **private** on ghcr until half 1 is fixed. The
   server pulls it with a token that can only read packages.
+- 2026-09-23, later the same day: eval output is excluded from the build context as well,
+  `packages/host/eval/**/results` (`webapp-deploy/Dockerfile.dockerignore:34-37`).
+- **Open, 2026-09-23: `webapp-deploy/.dockerignore` is stale.** Its header still calls
+  `Dockerfile.dockerignore` "a byte-for-byte copy of this one" (`webapp-deploy/.dockerignore:6-7`),
+  and it has none of this row's patterns: `.env`, `.env.local` and `data` still match at the context
+  root only (`:22-25`), and there is no eval line. The documented build
+  (`-f webapp-deploy/Dockerfile` from the repo root) reads `Dockerfile.dockerignore`, so today the
+  stale file is dead; but `webapp-deploy/README.md:28-29` and `:46-49` still tell the next editor the
+  two are identical and must be edited together, and so does the "Fix" list below. Delete it, or make
+  it the copy it claims to be.
 
 Fix, not done here (the Dockerfile was deliberately left alone in this pass):
 - Anchor the ignore patterns everywhere: `**/.env`, `**/.env.*` with `!**/.env.example`,

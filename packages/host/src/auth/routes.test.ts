@@ -1,14 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
+import { describe, expect, it, vi } from "vitest";
 import {
   SESSION_COOKIE,
   SESSION_COOKIE_SECURE,
   IDLE_TIMEOUT_MS,
+  PORTAL_CHECK_INTERVAL_MS,
   createSession,
   revokedSession,
   type SessionRecord,
 } from "./session";
 import { createMemorySessionStore, createMemoryTokenVault, type SessionStore, type TokenVault } from "./session-store";
-import { PortalError, createFakePortalClient, type FakePortalClient } from "./portal-client";
+import { log } from "../log";
+import { createPortalSessionCheck } from "./portal-check";
+import { createSessionSecrets, type SessionSecrets } from "./session-secrets";
+import { PortalError, createFakePortalClient, type FakePortalClient, type PortalClient } from "./portal-client";
 import { createAuthRoutes, isSessionExemptPath, reasonMessage, requireSessionFor, type AuthRouteDeps } from "./routes";
 import {
   LOGIN_STATE_COOKIE,
@@ -25,6 +30,10 @@ import type { HostCookie, HostJsonResult, HostRequest } from "../types";
 const T0 = Date.UTC(2026, 8, 18, 9, 0, 0);
 
 /** A fully configured hosted deployment. Every case passes its own; none touches `process.env`. */
+/** The wrap key every harness seals under, so a case can open what a route stored. */
+const TEST_WRAP = createHash("sha256").update("routes-test-wrap-key", "utf8").digest();
+const SECRETS = createSessionSecrets(() => TEST_WRAP);
+
 const PORTAL_ENV: EnvLike = {
   AGENTFORGE_PORTAL_URL: "https://portal.example.test/api",
   AGENTFORGE_PORTAL_CLIENT_ID: "cli_abc",
@@ -57,6 +66,7 @@ function harness(
     env?: EnvLike;
     provision?: (identity: PortalIdentity) => Promise<unknown>;
     claimSeat?: (identity: PortalIdentity) => Promise<{ readonly ok: boolean }>;
+    secrets?: SessionSecrets;
   } = {},
 ): Harness {
   const store = options.store ?? createMemorySessionStore();
@@ -86,6 +96,7 @@ function harness(
     serverMode: options.serverMode ?? true,
     env: options.env ?? PORTAL_ENV,
     now: () => T0,
+    secrets: options.secrets ?? SECRETS,
   };
   return { routes: createAuthRoutes(deps), store, vault, portal, deps, provisioned, seated };
 }
@@ -561,7 +572,8 @@ describe("POST /api/v1/auth/refresh", () => {
     const h = harness({ store, vault });
     const result = await json(h.routes.handleRefresh(withSession(old.id)));
     expect(result.status).toBe(200);
-    expect(h.portal.calls).toEqual([{ kind: "refresh", refreshToken: "r1", deviceId: "dev_1" }]);
+    // Authenticated as the deployment's confidential client, from the harness environment.
+    expect(h.portal.calls).toEqual([{ kind: "refresh", refreshToken: "r1", deviceId: "dev_1", clientId: "cli_abc" }]);
     expect(await vault.get(old.id)).toMatchObject({ refreshToken: "fake-refresh", accessToken: "fake-access" });
     expect((await store.find(old.id))?.expiresAt).toBe(T0 + IDLE_TIMEOUT_MS);
     expect(body(result)).toMatchObject({ signedIn: true, expiresAt: T0 + IDLE_TIMEOUT_MS });
@@ -767,5 +779,372 @@ describe("reasonMessage", () => {
     expect(reasonMessage("seat_cap_reached")).toBe("No seats left in your organisation.");
     expect(reasonMessage("org_past_due")).toBe("Your organisation's payment is overdue.");
     expect(reasonMessage("refresh_reused")).toBe("Signed out for security. Please sign in again.");
+  });
+});
+
+/**
+ * Item 2 of the 2026-09-23 auth pass. Sign-out used to present the access token the vault held,
+ * which is the one from sign-in or the last rotation and lives an hour: after an idle afternoon the
+ * portal answered 401, the client swallowed it, and the portal session (and its refresh token)
+ * outlived the sign-out. Now: refresh first, through the gate's own single-flight path, and sign
+ * out at the portal with the live token that comes back. The local sign-out happens whatever the
+ * portal says.
+ */
+describe("POST /api/v1/auth/logout ends the portal session with a live token", () => {
+  type Call = { kind: "refresh"; token: string } | { kind: "logout"; token: string };
+
+  function tokenBody(accessToken: string, refreshToken: string) {
+    return {
+      accessToken,
+      refreshToken,
+      expiresIn: 3600,
+      refreshExpiresIn: 2592000,
+      sessionId: "ses_portal",
+      deviceId: "dev_1",
+      userId: "u",
+      orgId: "o",
+      tenantId: "t",
+    };
+  }
+
+  /** A portal that rotates on refresh and only accepts the newest access token at logout. */
+  function strictPortal(options: { refresh?: () => void; logout?: () => void } = {}) {
+    const calls: Call[] = [];
+    let generation = 1;
+    let live = "a1";
+    const client: PortalClient = {
+      async exchangeCode() {
+        throw new Error("not used here");
+      },
+      async refresh({ refreshToken }) {
+        calls.push({ kind: "refresh", token: refreshToken });
+        options.refresh?.();
+        generation += 1;
+        live = `a${generation}`;
+        return tokenBody(live, `r${generation}`);
+      },
+      async logout({ accessToken }) {
+        calls.push({ kind: "logout", token: accessToken });
+        options.logout?.();
+        if (accessToken !== live) {
+          throw new PortalError("session_revoked", 401);
+        }
+      },
+    };
+    return { client, calls };
+  }
+
+  function routesFor(store: SessionStore, vault: TokenVault, portal: PortalClient, extra: Partial<AuthRouteDeps> = {}) {
+    return createAuthRoutes({
+      store,
+      vault,
+      portal,
+      provision: async () => undefined,
+      claimSeat: async () => ({ ok: true }),
+      serverMode: true,
+      env: PORTAL_ENV,
+      now: () => T0,
+      secrets: SECRETS,
+      ...extra,
+    });
+  }
+
+  async function signedInWith(portal: PortalClient) {
+    const store = createMemorySessionStore();
+    // Signed in hours ago: the access token the vault holds has aged past its hour.
+    const session = createSession({ tenantId: "t", userId: "u", orgId: "o", now: T0 - 4 * 60 * 60 * 1000 });
+    await store.create(session);
+    const vault = createMemoryTokenVault();
+    await vault.put(session.id, { refreshToken: "r1", accessToken: "a1-stale", deviceId: "dev_1" });
+    return { store, vault, session, routes: routesFor(store, vault, portal) };
+  }
+
+  it("refreshes first, then signs out at the portal with the token that came back", async () => {
+    const portal = strictPortal();
+    const { store, vault, session, routes } = await signedInWith(portal.client);
+    const result = await json(routes.handleLogout(withSession(session.id)));
+    expect(result.status).toBe(200);
+    expect(portal.calls).toEqual([
+      { kind: "refresh", token: "r1" },
+      { kind: "logout", token: "a2" },
+    ]);
+    expect((await store.find(session.id))?.revokedAt).toBe(T0);
+    expect(await vault.get(session.id)).toBeNull();
+    expect(result.cookies?.[0]).toMatchObject({ name: SESSION_COOKIE_SECURE, value: "", maxAge: 0 });
+  });
+
+  it("does not call the portal logout when the refresh says the session is already over", async () => {
+    const portal = strictPortal({
+      refresh: () => {
+        throw new PortalError("session_revoked", 401);
+      },
+    });
+    const { store, session, routes } = await signedInWith(portal.client);
+    const result = await json(routes.handleLogout(withSession(session.id)));
+    expect(result.status).toBe(200);
+    expect(portal.calls).toEqual([{ kind: "refresh", token: "r1" }]);
+    expect((await store.find(session.id))?.revokedAt).toBe(T0);
+  });
+
+  it("tries the token it holds when the portal does not answer the refresh, and signs out locally anyway", async () => {
+    const portal = strictPortal({
+      refresh: () => {
+        throw new PortalError("portal_unavailable", 503);
+      },
+    });
+    const { store, vault, session, routes } = await signedInWith(portal.client);
+    const result = await json(routes.handleLogout(withSession(session.id)));
+    expect(result.status).toBe(200);
+    expect(portal.calls).toEqual([
+      { kind: "refresh", token: "r1" },
+      { kind: "logout", token: "a1-stale" },
+    ]);
+    expect((await store.find(session.id))?.revokedAt).toBe(T0);
+    expect(await vault.get(session.id)).toBeNull();
+  });
+
+  it("signs out locally when the portal refuses the logout itself, and logs the reason but never a token", async () => {
+    const warn = vi.spyOn(log, "warn");
+    const portal = strictPortal({
+      logout: () => {
+        throw new PortalError("device_revoked", 403);
+      },
+    });
+    const { store, session, routes } = await signedInWith(portal.client);
+    const result = await json(routes.handleLogout(withSession(session.id)));
+    expect(result.status).toBe(200);
+    expect((await store.find(session.id))?.revokedAt).toBe(T0);
+    const line = warn.mock.calls.find(([event]) => event === "portal_logout_failed");
+    expect(line?.[1]).toMatchObject({ code: "device_revoked" });
+    expect(JSON.stringify(warn.mock.calls)).not.toMatch(/a1-stale|"a2"|"r1"|"r2"/);
+    warn.mockRestore();
+  });
+
+  it("signs out locally even when the portal logout throws something that is not a PortalError", async () => {
+    const portal = strictPortal({
+      logout: () => {
+        throw new TypeError("socket hang up");
+      },
+    });
+    const { store, session, routes } = await signedInWith(portal.client);
+    const result = await json(routes.handleLogout(withSession(session.id)));
+    expect(result.status).toBe(200);
+    expect((await store.find(session.id))?.revokedAt).toBe(T0);
+  });
+
+  it("calls nothing at the portal when the host holds no tokens for the session", async () => {
+    const portal = strictPortal();
+    const { vault, session, routes } = await signedInWith(portal.client);
+    await vault.delete(session.id);
+    const result = await json(routes.handleLogout(withSession(session.id)));
+    expect(result.status).toBe(200);
+    expect(portal.calls).toEqual([]);
+  });
+
+  it("shares one rotation with a gate check already in flight for the same session", async () => {
+    let release!: () => void;
+    const gateOpen = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const calls: Call[] = [];
+    const client: PortalClient = {
+      async exchangeCode() {
+        throw new Error("not used here");
+      },
+      async refresh({ refreshToken }) {
+        calls.push({ kind: "refresh", token: refreshToken });
+        await gateOpen;
+        return tokenBody("a2", "r2");
+      },
+      async logout({ accessToken }) {
+        calls.push({ kind: "logout", token: accessToken });
+      },
+    };
+    const store = createMemorySessionStore();
+    const session = createSession({ tenantId: "t", userId: "u", orgId: "o", now: T0 - PORTAL_CHECK_INTERVAL_MS });
+    await store.create(session);
+    const vault = createMemoryTokenVault();
+    await vault.put(session.id, { refreshToken: "r1", accessToken: "a1", deviceId: null });
+    const portalCheck = createPortalSessionCheck({ vault, portal: client, waitMs: 5 });
+    const routes = routesFor(store, vault, client, { portalCheck });
+    // The gate starts a rotation and stops waiting for it; the sign-out arrives while it is in flight.
+    await requireSessionFor(withSession(session.id), { store, now: () => T0, portalCheck, serverMode: true });
+    const signOut = routes.handleLogout(withSession(session.id));
+    release();
+    expect((await json(signOut)).status).toBe(200);
+    // One refresh with r1, never a second presentation of it, which the portal would read as theft.
+    expect(calls).toEqual([
+      { kind: "refresh", token: "r1" },
+      { kind: "logout", token: "a2" },
+    ]);
+  });
+});
+
+/**
+ * `POST /api/v1/auth/refresh` goes through the same single-flight path now, and learns the same
+ * difference between a refusal and a portal that did not answer.
+ */
+describe("POST /api/v1/auth/refresh through the shared portal check", () => {
+  it("keeps the session when the portal is rate-limiting the host (429 invalid_request)", async () => {
+    const store = createMemorySessionStore();
+    const session = createSession({ tenantId: "t", userId: "u", orgId: "o", now: T0 });
+    await store.create(session);
+    const vault = createMemoryTokenVault();
+    await vault.put(session.id, { refreshToken: "r1", accessToken: "a1", deviceId: null });
+    const h = harness({
+      store,
+      vault,
+      portal: createFakePortalClient({ failWith: new PortalError("invalid_request", 429, { retryAfter: 30 }) }),
+    });
+    const result = await json(h.routes.handleRefresh(withSession(session.id)));
+    expect(result.status).toBe(429);
+    expect((await store.find(session.id))?.revokedAt).toBeNull();
+    expect(await vault.get(session.id)).not.toBeNull();
+  });
+
+  it("stamps the portal check when the rotation succeeds", async () => {
+    const store = createMemorySessionStore();
+    const session = createSession({ tenantId: "t", userId: "u", orgId: "o", now: T0 - 60 * 60 * 1000 });
+    await store.create(session);
+    const vault = createMemoryTokenVault();
+    await vault.put(session.id, { refreshToken: "r1", accessToken: "a1", deviceId: null });
+    const h = harness({ store, vault });
+    await h.routes.handleRefresh(withSession(session.id));
+    expect((await store.find(session.id))?.portalCheckedAt).toBe(T0);
+  });
+
+  it("stamps a fresh sign-in as checked, so the first re-check is ten minutes out", async () => {
+    const h = harness();
+    const { id } = await signIn(h);
+    expect((await h.store.find(id))?.portalCheckedAt).toBe(T0);
+  });
+});
+
+/**
+ * Owner decision, 2026-09-23: the refresh token is stored sealed on the session row, so a restart
+ * signs nobody out. Sign-in writes it, sign-out removes it, and a route that needs it after a
+ * restart finds it there. The access token is never stored.
+ */
+describe("the refresh token at rest", () => {
+  it("is sealed onto the row at sign-in, and the access token is not", async () => {
+    const h = harness();
+    const { id } = await signIn(h);
+    const stored = (await h.store.readRefreshSealed(id)) as string;
+    expect(stored).not.toContain("fake-refresh");
+    expect(stored).not.toContain("fake-access");
+    expect(SECRETS.open(id, stored)).toEqual({ refreshToken: "fake-refresh", deviceId: "dev_fake" });
+  });
+
+  it("still signs in when the token cannot be sealed, and stores nothing rather than something unreadable", async () => {
+    const warn = vi.spyOn(log, "error");
+    const h = harness({
+      secrets: {
+        open: () => null,
+        seal: () => {
+          throw new Error("AGENTFORGE_SECRETS_KEY is required in server mode");
+        },
+      },
+    });
+    const { id, result } = await signIn(h);
+    expect(result.status).toBe(200);
+    expect(await h.store.readRefreshSealed(id)).toBeNull();
+    expect(warn.mock.calls.some(([event]) => event === "session_refresh_not_sealed")).toBe(true);
+    warn.mockRestore();
+  });
+
+  it("is removed by sign-out", async () => {
+    const h = harness();
+    const { id } = await signIn(h);
+    await h.routes.handleLogout(withSession(id));
+    expect(await h.store.readRefreshSealed(id)).toBeNull();
+  });
+
+  it("lets POST /auth/refresh work after a restart, from the stored token alone", async () => {
+    const h = harness();
+    const { id } = await signIn(h);
+    // A new process: same database, empty vault.
+    const restarted = harness({ store: h.store, vault: createMemoryTokenVault(), portal: h.portal });
+    const result = await json(restarted.routes.handleRefresh(withSession(id)));
+    expect(result.status).toBe(200);
+    expect(h.portal.calls.at(-1)).toMatchObject({
+      kind: "refresh",
+      refreshToken: "fake-refresh",
+      deviceId: "dev_fake",
+    });
+  });
+
+  it("lets sign-out end the portal session after a restart, with the access token the refresh returns", async () => {
+    const calls: Array<{ kind: string; token: string }> = [];
+    const client: PortalClient = {
+      async exchangeCode() {
+        throw new Error("not used here");
+      },
+      async refresh({ refreshToken }) {
+        calls.push({ kind: "refresh", token: refreshToken });
+        return {
+          accessToken: "access-after-restart",
+          refreshToken: "refresh-after-restart",
+          expiresIn: 3600,
+          refreshExpiresIn: 2592000,
+          sessionId: "ses_portal",
+          deviceId: "dev_1",
+          userId: "u",
+          orgId: "o",
+          tenantId: "t",
+        };
+      },
+      async logout({ accessToken }) {
+        calls.push({ kind: "logout", token: accessToken });
+      },
+    };
+    const store = createMemorySessionStore();
+    const session = createSession({ tenantId: "t", userId: "u", orgId: "o", now: T0 });
+    await store.create(session, SECRETS.seal(session.id, { refreshToken: "stored-refresh", deviceId: "dev_1" }));
+    const h = harness({ store, vault: createMemoryTokenVault(), portal: createFakePortalClient() });
+    const routes = createAuthRoutes({ ...h.deps, portal: client, portalCheck: undefined });
+    const result = await json(routes.handleLogout(withSession(session.id)));
+    expect(result.status).toBe(200);
+    expect(calls).toEqual([
+      { kind: "refresh", token: "stored-refresh" },
+      { kind: "logout", token: "access-after-restart" },
+    ]);
+    expect(await store.readRefreshSealed(session.id)).toBeNull();
+    expect((await store.find(session.id))?.revokedAt).toBe(T0);
+  });
+});
+
+/**
+ * `/auth/refresh` and a sign-out's refresh go through the same check as the gate, and present the
+ * same confidential client the code exchange does, from the same environment.
+ */
+describe("the routes' refreshes authenticate as the confidential client", () => {
+  it("presents the client on POST /auth/refresh", async () => {
+    const store = createMemorySessionStore();
+    const session = createSession({ tenantId: "t", userId: "u", orgId: "o", now: T0 });
+    await store.create(session);
+    const vault = createMemoryTokenVault();
+    await vault.put(session.id, { refreshToken: "r1", accessToken: "a1", deviceId: "dev_1" });
+    const h = harness({ store, vault });
+    await h.routes.handleRefresh(withSession(session.id));
+    expect(h.portal.calls).toEqual([{ kind: "refresh", refreshToken: "r1", deviceId: "dev_1", clientId: "cli_abc" }]);
+  });
+
+  it("presents it on a sign-out's refresh", async () => {
+    const h = harness();
+    const { id } = await signIn(h);
+    await h.routes.handleLogout(withSession(id));
+    expect(h.portal.calls.find((call) => call.kind === "refresh")).toMatchObject({ clientId: "cli_abc" });
+  });
+
+  it("refreshes without it where no client is configured, rather than failing", async () => {
+    const store = createMemorySessionStore();
+    const session = createSession({ tenantId: "t", userId: "u", orgId: "o", now: T0 });
+    await store.create(session);
+    const vault = createMemoryTokenVault();
+    await vault.put(session.id, { refreshToken: "r1", accessToken: "a1", deviceId: "dev_1" });
+    const h = harness({ store, vault, env: { ...PORTAL_ENV, AGENTFORGE_PORTAL_CLIENT_SECRET: "" } });
+    const result = await json(h.routes.handleRefresh(withSession(session.id)));
+    expect(result.status).toBe(200);
+    expect(h.portal.calls).toEqual([{ kind: "refresh", refreshToken: "r1", deviceId: "dev_1" }]);
   });
 });

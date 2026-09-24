@@ -1,6 +1,9 @@
 # Map — Per-tenant storage and state
 
-Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c`
+Last verified: 2026-09-23 at d4561b8 + uncommitted tree for "Requests, and work that outlives them" (the
+`ops.ts` citations, `workerTenant` and the per-tenant Edit metrics file) and the metrics row of the layout table.
+Everything else was last verified 2026-09-20 at a053245 + the Phase 4 branch
+`feat/web-phase4-tenant-secrets-rcbu9c`.
 
 ## Overview
 
@@ -39,6 +42,7 @@ migration `0015` stamps onto the single organization every pre-Phase-3 database 
 | Legal matter | `<dataDir>/legal/<deskId>/<matterId>/` | `<dataDir>/tenants/<id>/legal/<deskId>/<matterId>/` |
 | Meeting | `<dataDir>/meetings/<deskId>/<meetingId>/` | `<dataDir>/meetings/tenants/<id>/<deskId>/<meetingId>/` |
 | ffmpeg scratch | `<dataDir>/edit/<projectId>/` | `<dataDir>/tenants/<id>/edit/<projectId>/` |
+| Edit metrics (since 2026-09-23; `metricsFile`, `packages/host/src/edit/metrics.ts:56`) | `<dataDir>/edit/metrics.jsonl` | `<dataDir>/tenants/<id>/edit/metrics.jsonl` |
 | `media.storage_path` | `<orgId>/<uuid>.<ext>` | `tenants/<id>/<orgId>/<uuid>.<ext>` |
 | `datasets.storage_path` | `<deskId>/<uuid>.<ext>` | `tenants/<id>/<deskId>/<uuid>.<ext>` |
 | Knowledge upload | `<mediaRoot>/knowledge/<orgId>/…` | `<mediaRoot>/tenants/<id>/knowledge/<orgId>/…` |
@@ -94,8 +98,22 @@ local tenant's file.
 
 Background work has no request. Lane C's note ([`../web-phase3-lane-c.md`](../web-phase3-lane-c.md)) is
 that it must carry the tenant rather than resolve one; the edit job runner does that with
-`workerTenantId(projectId)` (`packages/host/src/edit/ops.ts:110-130`), the twin of lane A's
-`workerWorkspaceId`, and `edit/edit-scope.test.ts` fails if a handler imports either.
+`workerTenantId(projectId)` (`packages/host/src/edit/ops.ts:119-121`), the twin of lane A's
+`workerWorkspaceId`, now backed by `workerProjectScope` (`:135-151`), which reads the project's tenant,
+organization and desk off its row. `edit/edit-scope.test.ts` fails if a handler imports any of them.
+
+**A generate job needs a whole tenant, not a directory (2026-09-23).** It spends a gateway key, writes a
+ledger row, lands media and a work card on a desk and may read a still, and each of those is decided by the
+`TenantContext` it runs under. That context used to come out of the job's own stored request, which
+`POST …/edit/projects/:projectId/jobs` wrote from a request body, so a caller could name another tenant's
+([`SR-67`](../security-register.md#sr-67)). `workerTenant(projectId, requestedBy)`
+(`packages/host/src/edit/ops.ts:174-188`) now assembles it: tenant, organization and desk from the project,
+the user from `requestedBy` — which only server code writes, from a tenant it had already verified — and the
+whole thing through `resolvePortalTenant`, the same read-only resolver a hosted session uses, so a requester
+who has left the organization does not run. With no recorded requester the job fails closed. The Edit metrics
+writer uses `workerProjectScope` the same way, filing each line under the project's own tenant and
+organization in that tenant's data directory (`<dataDir>/tenants/<id>/edit/metrics.jsonl`; the local tenant
+keeps `<dataDir>/edit/metrics.jsonl`) — see [`edit-timeline.md`](edit-timeline.md) § 4.
 
 ## Where things live
 

@@ -906,10 +906,16 @@ export const marketCache = sqliteTable(
 
 /**
  * Browser sessions for the hosted deployment (docs/internal/web-migration-plan.md, Phase 2;
- * docs/internal/web-security-spec.md row T1). The cookie carries `id` and nothing else; every
- * attribute lives here. Idle timeout 12 h (`expires_at`, slid at most once per 5 min) and absolute
- * 30 days (`absolute_expires_at`); sign-out sets `revoked_at` rather than deleting the row, so a
- * revoked session reports itself instead of looking like a stranger.
+ * docs/internal/web-security-spec.md row T1). The cookie carries an opaque id and nothing else;
+ * every attribute lives here. Idle timeout 12 h (`expires_at`, slid at most once per 5 min) and
+ * absolute 30 days (`absolute_expires_at`); sign-out sets `revoked_at` rather than deleting the
+ * row, so a revoked session reports itself instead of looking like a stranger.
+ *
+ * Since 0021 `id` is `sha256(cookie id)` in lowercase hex, never the cookie value itself, so a
+ * copy of this table replays no session; `portal_checked_at` is when the portal last vouched for
+ * the session (a refresh-token rotation), NULL for never; and `refresh_sealed` is the portal refresh
+ * token sealed under a key derived from the wrap key (packages/host/src/auth/session-secrets.ts), so
+ * a restart signs nobody out. NULL once the session is revoked or idles out. Never the access token.
  *
  * Desktop and webdev never write this table: they have no session at all.
  */
@@ -925,6 +931,8 @@ export const authSessions = sqliteTable(
     expiresAt: integer("expires_at").notNull(),
     absoluteExpiresAt: integer("absolute_expires_at").notNull(),
     revokedAt: integer("revoked_at"),
+    portalCheckedAt: integer("portal_checked_at"),
+    refreshSealed: text("refresh_sealed"),
   },
   (table) => [
     // The Phase 5 seat counter reads "members with a live session in the last 30 days" off this.

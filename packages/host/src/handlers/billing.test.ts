@@ -479,7 +479,9 @@ describe("GET /api/v1/billing/plans", () => {
 
   it("is exactly the two owner-approved tiers, and no token allowance", () => {
     expect(PLAN_TIERS.map((tier) => tier.id)).toEqual(["personal", "enterprise"]);
-    expect(JSON.stringify(PLAN_TIERS).toLowerCase()).not.toContain("token");
+    for (const tier of PLAN_TIERS) {
+      expect(Object.keys(tier)).not.toContain("tokenAllowance");
+    }
   });
 
   it("follows the tenant's plan when the webhook moves it", async () => {

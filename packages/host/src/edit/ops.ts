@@ -11,8 +11,9 @@ import {
   type EditOp,
   type EditProject,
   type OpType,
+  type TenantContext,
 } from "@agentforge/core";
-import { db, editOps, editProjects, editSnapshots, organizations } from "@agentforge/db";
+import { db, editOps, editProjects, editSnapshots, organizations, resolvePortalTenant } from "@agentforge/db";
 import { editEvents } from "./events";
 
 export const SNAPSHOT_EVERY = 200;
@@ -116,8 +117,28 @@ export async function workerWorkspaceId(projectId: string): Promise<string> {
  * `edit-scope.test.ts` asserts no handler imports it.
  */
 export async function workerTenantId(projectId: string): Promise<string> {
+  return (await workerProjectScope(projectId)).tenantId;
+}
+
+/** Who owns a project: its tenant, its organization and its desk, read off the project row. */
+export type ProjectScope = Pick<TenantContext, "tenantId" | "organizationId" | "workspaceId">;
+
+/**
+ * The tenant, organization and desk a project belongs to, by project id alone.
+ *
+ * Same rule as `workerTenantId`, which it backs: it is for work that has no request of its own —
+ * the job runner, and the metrics writer, which files a line under the project it is about. It
+ * *attributes* work to the project's owner; it never decides whether a caller may reach a project.
+ * That is `foldProject(projectId, tenant.workspaceId)`, and request handlers must use it instead.
+ * `edit-scope.test.ts` asserts no handler imports this.
+ */
+export async function workerProjectScope(projectId: string): Promise<ProjectScope> {
   const rows = await db
-    .select({ tenantId: organizations.tenantId })
+    .select({
+      tenantId: organizations.tenantId,
+      organizationId: editProjects.organizationId,
+      workspaceId: editProjects.workspaceId,
+    })
     .from(editProjects)
     .innerJoin(organizations, eq(organizations.id, editProjects.organizationId))
     .where(eq(editProjects.id, projectId))
@@ -126,7 +147,44 @@ export async function workerTenantId(projectId: string): Promise<string> {
   if (!row) {
     throw new ApiError("not_found", "Edit project not found", 404);
   }
-  return row.tenantId;
+  return row;
+}
+
+/**
+ * The whole tenant a generate job runs as — for the job runner only.
+ *
+ * A generate job spends a key, writes a ledger row, lands media and a work card on a desk and may
+ * read a still, and every one of those is decided by the `TenantContext` it runs under. That context
+ * used to be read out of the job's own `requestJson`, which `POST …/jobs` wrote from a request body,
+ * so a caller could name another tenant's. Now none of it comes from the row but the user:
+ *
+ *   - tenant, organization and desk are the project's own (`workerProjectScope`);
+ *   - the user is `requestedBy`, which only server code writes, from a tenant it had already
+ *     verified (`enqueueEditJob`), and which is honoured only while that user is still a member of
+ *     the project's organization.
+ *
+ * The assembly is `resolvePortalTenant`, the read-only resolver `getTenant` uses for a hosted
+ * session: it checks the tenant is active, the organization is the tenant's, the user belongs to it
+ * and the desk is one of its desks, and it reads the role off the membership row. The desktop's
+ * local owner resolves through it too, because `ensureLocalOwner` wrote the same rows.
+ *
+ * Fails closed: no recorded requester, or one the organization no longer has, and the job does not
+ * run. `edit-scope.test.ts` asserts no handler imports this.
+ */
+export async function workerTenant(projectId: string, requestedBy: string | undefined): Promise<TenantContext> {
+  const scope = await workerProjectScope(projectId);
+  if (!requestedBy) {
+    throw new ApiError("job_requester_unknown", "This job does not record who queued it, so it cannot run.", 403);
+  }
+  const resolution = await resolvePortalTenant(
+    db,
+    { tenantId: scope.tenantId, orgId: scope.organizationId, userId: requestedBy },
+    scope.workspaceId,
+  );
+  if (!resolution.ok) {
+    throw new ApiError(resolution.code, "The account that queued this job can no longer run it.", 403);
+  }
+  return resolution.tenant;
 }
 
 function seedDocFromRow(row: typeof editProjects.$inferSelect): EditProject {

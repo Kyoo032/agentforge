@@ -1,11 +1,25 @@
 # Local portal dependencies. Loopback only — nothing here is reachable from the network.
 #
 #   export PORTAL_POSTGRES_PASSWORD="$(node -e "console.log(require('crypto').randomBytes(18).toString('base64url'))")"
+#   export PORTAL_APP_DB_PASSWORD="$(node -e "console.log(require('crypto').randomBytes(18).toString('base64url'))")"
 #   docker compose -f apps/portal/compose.yml up -d
-#   PORTAL_DATABASE_URL=postgres://portal:$PORTAL_POSTGRES_PASSWORD@127.0.0.1:5433/tokotoken_portal pnpm portal:dev
+#   export PORTAL_MIGRATE_DATABASE_URL=postgres://portal:$PORTAL_POSTGRES_PASSWORD@127.0.0.1:5433/tokotoken_portal
+#   export PORTAL_DATABASE_URL=postgres://portal_app_login:$PORTAL_APP_DB_PASSWORD@127.0.0.1:5433/tokotoken_portal
+#   pnpm portal:dev
 #
-# `scripts/review-instance.ps1` exports `PORTAL_POSTGRES_PASSWORD` around its `docker compose up`,
-# so the review route needs nothing extra.
+# **Two roles, two DSNs.** `portal` below is the cluster superuser that `initdb` creates, so it owns
+# the schema and runs the migrations (`PORTAL_MIGRATE_DATABASE_URL`) and does nothing else. A
+# superuser bypasses every row-level security policy, which is why the server never uses it. The
+# server connects as `portal_app_login` (`PORTAL_DATABASE_URL`), a plain member of `portal_app`
+# created by `apps/portal/migrations/0010_app_login_role.sql`. Outside production the portal sets
+# that role's password from `PORTAL_DATABASE_URL` every time it migrates (`src/boot.ts`), so nothing
+# else has to be run here. In production the password is provisioned out of band, and the portal
+# refuses to boot if its server role is a superuser, has BYPASSRLS, or belongs to portal_admin.
+# Leaving `PORTAL_MIGRATE_DATABASE_URL` unset outside production still boots on the old single
+# superuser DSN, with a `portal_db_role_bypasses_rls` warning.
+#
+# `scripts/review-instance.ps1` exports `PORTAL_POSTGRES_PASSWORD` around its `docker compose up`
+# and hands the portal both DSNs, so the review route needs nothing extra.
 #
 # **The password has no default on purpose.** `${VAR:?message}` makes `docker compose` refuse to
 # start rather than fall back to a literal in a file that is in git — a password in a checked-in
@@ -34,6 +48,9 @@ services:
     ports:
       - "127.0.0.1:5433:5432"
     environment:
+      # The superuser initdb creates: the schema owner, for PORTAL_MIGRATE_DATABASE_URL only. The
+      # server's DSN is portal_app_login (see the header). Not renamed, because an existing volume
+      # keeps the role it was initialised with.
       POSTGRES_USER: portal
       POSTGRES_PASSWORD: ${PORTAL_POSTGRES_PASSWORD:?set PORTAL_POSTGRES_PASSWORD before docker compose up}
       POSTGRES_DB: tokotoken_portal

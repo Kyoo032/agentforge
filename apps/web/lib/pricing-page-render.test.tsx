@@ -103,11 +103,40 @@ describe("the price list", () => {
     }
   });
 
-  it("says a seat cap where there is one and names one seat where there is not", () => {
+  it("names two different products, and a seat cap only where the catalog has one", () => {
     const markup = view();
-    // Enterprise's placeholder cap is a number a buyer would act on, so it is on the card.
+    expect(markup).toContain("Mac and Windows");
+    expect(markup).toContain("complement from DPS");
+    expect(markup).toContain("buying a lot of tokens");
+    expect(markup).toContain("web-based");
+    expect(markup).toContain("Contact DPS");
+    expect(markup).toContain("no checkout");
+    expect(markup).toContain("unified knowledge base");
+    expect(markup).toContain("traffic");
+    expect(markup).toContain("implementation and maintenance");
+    expect(markup).toContain("Seats and tokens are charged separately");
     expect(markup).toContain("Up to 20 seats");
-    expect(markup).toContain("One seat");
+    expect(markup).not.toContain("One seat");
+    expect(markup).not.toContain("Both plans open every work mode");
+    expect(tag(markup, "pricing-seats-personal")).toBe("");
+    expect(tag(markup, "pricing-seats-enterprise")).not.toBe("");
+  });
+
+  it("says the same offer in Indonesian", () => {
+    resetLocaleForTests();
+    applyLocale("id");
+    const markup = view();
+    expect(markup).toContain("Mac dan Windows");
+    expect(markup).toContain("pelengkap dari DPS");
+    expect(markup).toContain("banyak token");
+    expect(markup).toContain("berbasis web");
+    expect(markup).toContain("Hubungi DPS");
+    expect(markup).toContain("pembelian mandiri");
+    expect(markup).toContain("basis pengetahuan terpadu");
+    expect(markup).toContain("lalu lintas");
+    expect(markup).toContain("implementasi dan pemeliharaan");
+    expect(markup).toContain("Kursi dan token ditagih secara terpisah");
+    expect(markup).not.toContain("Satu kursi");
   });
 
   it("lists every feature the catalog gives a tier", () => {
@@ -146,10 +175,14 @@ describe("the price list", () => {
 });
 
 describe("the call to action", () => {
-  it("sends a buyer to the operator's checkout when the deployment has one", () => {
+  it("does not turn either offer into a checkout link when a billing top-up URL is set", () => {
     const markup = view({ checkout: { available: true, checkoutUrl: "https://pay.example.com/x" } });
+    expect(markup).not.toContain("pay.example.com");
+    expect(tag(markup, "pricing-contact-help")).not.toBe("");
     for (const tier of PLAN_TIERS) {
-      expect(tag(markup, `pricing-cta-${tier.id}`), tier.id).toContain('href="https://pay.example.com/x"');
+      const cta = tag(markup, `pricing-cta-${tier.id}`);
+      expect(cta, tier.id).toContain("<button");
+      expect(cta, tier.id).not.toContain("href=");
     }
   });
 
@@ -173,7 +206,9 @@ describe("the call to action", () => {
     });
     expect(tag(markup, "pricing-cta-personal")).not.toContain("href=");
     expect(markup).toContain(t("plans.cta.current"));
-    expect(tag(markup, "pricing-cta-enterprise")).toContain('href="https://pay.example.com/x"');
+    expect(tag(markup, "pricing-cta-enterprise")).toContain("<button");
+    expect(tag(markup, "pricing-cta-enterprise")).not.toContain("href=");
+    expect(markup).not.toContain("pay.example.com");
   });
 });
 
