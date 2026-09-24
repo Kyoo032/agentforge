@@ -14,6 +14,7 @@
 import { ratioSet } from "../engine";
 import type { ReportLocale } from "../report";
 import { DEFAULT_RATIO_BANDS, type RatioBandRule } from "./bands";
+import { bucketAmount, type RatioBucket } from "./buckets";
 import type { ClassifiedRatioRow } from "./classify";
 import { RATIO_METRICS } from "./keys";
 import { ratioMismatches, repairRatioRows, type RatioMismatch, type RatioRepair } from "./reconcile";
@@ -129,6 +130,15 @@ type Result = {
   readonly debtService?: number;
 };
 
+/**
+ * A figure typed into the panel, read under the sign policy of the bucket a row of it would sit in.
+ * The schema lets it be negative, and a repayment typed as -1,050 is a repayment of 1,050 — exactly
+ * what a row in `principal-repayment` sums to, and what the workbook's `ABS` over that bucket reads.
+ */
+function typedAmount(bucket: RatioBucket, value: number | undefined): number | undefined {
+  return value === undefined ? undefined : bucketAmount(bucket, value);
+}
+
 function resultOf(totals: RatioAggregateTotals, params: RatioParams, period: string): Result {
   const typed = params.supporting?.[period];
   const revenue = present(totals, "revenue");
@@ -138,14 +148,15 @@ function resultOf(totals: RatioAggregateTotals, params: RatioParams, period: str
   const ebit = grossProfit === undefined ? undefined : grossProfit - (opex ?? 0);
   // The supporting block under LABA BERSIH is what carries these; a typed parameter stands in only
   // when no row does, so a confirmed row always beats a number typed into the panel.
-  const depreciation = present(totals, "depreciation") ?? typed?.depreciation ?? params.depreciation;
+  const depreciation =
+    present(totals, "depreciation") ?? typedAmount("depreciation", typed?.depreciation ?? params.depreciation);
   const interestExpense = present(totals, "interest");
   const tax = present(totals, "tax");
   const otherIncome = present(totals, "otherIncome");
   const principalRepayment =
-    present(totals, "principalRepayment") ?? typed?.principalRepayment ?? params.principalRepayment;
-  const profitBeforeTax =
-    ebit === undefined ? undefined : ebit - (interestExpense ?? 0) + (otherIncome ?? 0);
+    present(totals, "principalRepayment") ??
+    typedAmount("principal-repayment", typed?.principalRepayment ?? params.principalRepayment);
+  const profitBeforeTax = ebit === undefined ? undefined : ebit - (interestExpense ?? 0) + (otherIncome ?? 0);
   return {
     revenue,
     cogs,

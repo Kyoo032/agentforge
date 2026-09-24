@@ -445,9 +445,10 @@ export async function generateStudioMusic(
   const output = await runWithToolSecrets(scope, () =>
     musicGenerateTool.execute(
       {
-        // The language rule rides the words the model actually writes from, never the style tags.
+        // The owner's own lyrics are sung word for word, so they go as written. The language rule
+        // rides only a description, the one text the model writes the words from; never the style tags.
         ...(mode === "custom"
-          ? { lyrics: withOutputLanguage(maskPii(prompt), "music", locale) }
+          ? { lyrics: maskPii(prompt) }
           : { prompt: withOutputLanguage(maskPii(prompt), "music", locale) }),
         style,
         title,

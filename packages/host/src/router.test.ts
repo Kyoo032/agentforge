@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { ROUTER_IMPORT_BUDGET_MS } from "./__fixtures__/test-budgets";
 import type { HostRequest, HostResult } from "./types";
 
 // Isolation: several routes resolve a tenant, which opens the kernel SQLite and records the desk in
@@ -18,7 +19,7 @@ let dispatch: (request: HostRequest) => Promise<HostResult>;
 describe("host router", () => {
   beforeAll(async () => {
     ({ dispatch } = await import("./router"));
-  }, 60_000);
+  }, ROUTER_IMPORT_BUDGET_MS);
 
   afterAll(async () => {
     // The kernel SQLite lives in dataDir; close it so Windows releases the file before cleanup.

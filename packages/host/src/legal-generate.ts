@@ -19,7 +19,7 @@ import {
   type VerifyReport,
 } from "@agentforge/core/legal";
 import { artifactStore } from "./artifacts";
-import { collectJobAssistantText } from "./job-regen";
+import { collectJobAssistantRun, readModelPinned } from "./job-regen";
 import { throwIfJobAborted } from "./job-stream";
 import { upsertWorkSource } from "./knowledge-ingest";
 import type { LegalRunBody } from "./legal/input";
@@ -84,7 +84,37 @@ function readRunBody(body: unknown): LegalRunBody {
   };
 }
 
-function resolveModels(body: LegalRunBody): { drafting: string; verifier: string } {
+type LegalModels = { drafting: string; verifier: string };
+
+/**
+ * The models of this run the person picked. The job fallback never swaps a picked model; the
+ * drafting default and a verifier nobody chose stay rescuable. The studio sends `modelPinned` for the
+ * drafting picker and `verifierModelPinned` when a verifier was chosen.
+ */
+export function pinnedLegalModels(body: unknown, models: LegalModels): ReadonlySet<string> {
+  const record = (body && typeof body === "object" ? body : {}) as {
+    verifierModel?: unknown;
+    verifierModelPinned?: unknown;
+  };
+  const verifierPicked =
+    record.verifierModelPinned === true &&
+    typeof record.verifierModel === "string" &&
+    record.verifierModel.trim() !== "";
+  return new Set([...(readModelPinned(body) ? [models.drafting] : []), ...(verifierPicked ? [models.verifier] : [])]);
+}
+
+/**
+ * The model that answered for each role. `answeredFor` maps a requested id to the model that last
+ * answered a call made with it; after a fallback that is the stand-in, which is what gets recorded.
+ */
+export function answeredLegalModels(models: LegalModels, answeredFor: Readonly<Record<string, string>>): LegalModels {
+  return {
+    drafting: answeredFor[models.drafting] ?? models.drafting,
+    verifier: answeredFor[models.verifier] ?? models.verifier,
+  };
+}
+
+function resolveModels(body: LegalRunBody): LegalModels {
   const catalog = listSelectableModels();
   const { defaults } = modeCatalogPayload();
   return {
@@ -212,6 +242,8 @@ export async function generateLegalRun(
   const matter = requireLegalMatter(tenant, matterId);
   const runBody = readRunBody(body);
   const models = resolveModels(runBody);
+  const pinned = pinnedLegalModels(body, models);
+  let answeredFor: Readonly<Record<string, string>> = {};
   const { docs, bytes } = await loadDocMaps(tenant, matter);
   const runId = crypto.randomUUID();
   const startedAt = Date.now();
@@ -230,24 +262,30 @@ export async function generateLegalRun(
       locale: localeForRun(),
     },
     {
-      ask: ({ model, system, prompt }) =>
-        collectJobAssistantText({
+      ask: async ({ model, system, prompt }) => {
+        const run = await collectJobAssistantRun({
           tenant,
           model,
+          modelExplicit: pinned.has(model),
           systemPrompt: system,
           runPrefix: "legal",
           agentId: "legal",
           jobMode: "legal",
           versionId: runId,
           prompt,
-        }),
+        });
+        answeredFor = { ...answeredFor, [model]: run.model };
+        return run.text;
+      },
       emit,
       abortSignal,
     },
   );
 
   throwIfJobAborted(abortSignal);
-  const meta = { model: models.drafting, models: [models.drafting, models.verifier], matterId: matter.id, runId };
+  // Record who wrote the deliverables: after a fallback the requested ids are the ones that did not.
+  const used = answeredLegalModels(models, answeredFor);
+  const meta = { model: used.drafting, models: [used.drafting, used.verifier], matterId: matter.id, runId };
   const artifacts = result.deliverables
     .map((item) => persistDeliverable(tenant, matter, item, meta))
     .filter((item): item is LegalRunArtifact => item !== null);
@@ -267,7 +305,7 @@ export async function generateLegalRun(
   legalStore().saveRun(tenant, matter.id, record);
 
   throwIfJobAborted(abortSignal);
-  const card = knowledgeCard(matter, artifacts, result.deliverables, models.drafting);
+  const card = knowledgeCard(matter, artifacts, result.deliverables, used.drafting);
   if (card) {
     await upsertWorkSource(tenant, artifactWorkCard(card));
   }

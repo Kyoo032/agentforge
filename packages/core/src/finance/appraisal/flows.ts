@@ -105,24 +105,69 @@ function componentOf(item: LineItem): AppraisalComponent {
   return { label: componentLabel(item.label), amount: item.amount, category: item.category };
 }
 
+const ENGLISH_ORDINAL_SUFFIX = /(\d+)(?:st|nd|rd|th)\b/i;
+
+function englishSuffix(ordinal: number): string {
+  const lastTwo = ordinal % 100;
+  if (lastTwo >= 11 && lastTwo <= 13) {
+    return "th";
+  }
+  return ["th", "st", "nd", "rd"][ordinal % 10] ?? "th";
+}
+
+/**
+ * A missing year's label, written the way the sheet writes its neighbour: "Tahun 1" beside "Tahun 0",
+ * "Tahun ke-2" beside "Tahun ke-1", "3rd year" beside "2nd year". The ordinal is the only digit run
+ * an ordinal label carries, so it is the only thing replaced.
+ */
+function periodLike(neighbour: string, ordinal: number): string {
+  return ENGLISH_ORDINAL_SUFFIX.test(neighbour)
+    ? neighbour.replace(ENGLISH_ORDINAL_SUFFIX, `${ordinal}${englishSuffix(ordinal)}`)
+    : neighbour.replace(/\d+/, String(ordinal));
+}
+
+/**
+ * The ordinal years with every gap between the first and the last filled by a year of nothing.
+ *
+ * Every discounting function reads a flow's position in the array as its power, so the array has to
+ * hold every year: the grid keeps no row for a zero cell, and a year whose cells were all zero would
+ * otherwise vanish and pull every later year one power closer to today.
+ */
+function withMissingYears(flows: readonly AppraisalYearFlow[]): AppraisalYearFlow[] {
+  const filled: AppraisalYearFlow[] = [];
+  for (const flow of flows) {
+    const previous = filled.at(-1);
+    if (previous) {
+      for (let year = previous.year + 1; year < flow.year; year += 1) {
+        filled.push({ period: periodLike(previous.period, year), year, net: 0, components: [] });
+      }
+    }
+    filled.push(flow);
+  }
+  return filled;
+}
+
 /**
  * One net flow per period, ordered by the ordinal its label carries.
  *
  * A period whose rows are all zero still gets a year: an appraisal with a hole in the middle is a
- * different plan from one that ends early, and the cumulative line has to show it.
+ * different plan from one that ends early, and the cumulative line has to show it. When every label
+ * carries an ordinal, a year with no rows at all is put back at zero for the same reason.
  */
 export function appraisalFlowsFromItems(items: readonly LineItem[]): AppraisalYearFlow[] {
   const rows = dropSubtotalRows(items).filter((item) => Number.isFinite(item.amount));
   const buckets = bucketByPeriod(rows);
-  const ordered = allPeriodsOrdinal(buckets.map((bucket) => bucket.period))
+  const ordinal = allPeriodsOrdinal(buckets.map((bucket) => bucket.period));
+  const ordered = ordinal
     ? [...buckets].sort((left, right) => (periodOrdinal(left.period) ?? 0) - (periodOrdinal(right.period) ?? 0))
     : buckets;
-  return ordered.map((bucket, index) => ({
+  const flows = ordered.map((bucket, index) => ({
     period: bucket.period,
     year: periodOrdinal(bucket.period) ?? index,
     net: sumOf(bucket.items),
     components: bucket.items.map(componentOf),
   }));
+  return ordinal ? withMissingYears(flows) : flows;
 }
 
 /** The net flows alone, in timeline order — what every discounting function takes. */

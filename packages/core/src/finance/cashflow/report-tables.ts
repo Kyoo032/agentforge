@@ -7,11 +7,20 @@
  * net move with it. The only literals in a formula are our own side names; a period the reader typed
  * is referenced as the Calc row's own Period cell and never inlined.
  */
-import { CALC_TABLE_ID, INPUTS_TABLE_ID, REPORT_TABLE_FIRST_DATA_ROW, type ReportLocale, type ReportTable } from "../report";
+import {
+  CALC_TABLE_ID,
+  INPUTS_TABLE_ID,
+  REPORT_TABLE_FIRST_DATA_ROW,
+  type ReportCell,
+  type ReportLocale,
+  type ReportTable,
+} from "../report";
 import { CALC_COLUMNS, CALC_VALUE_COLUMN } from "../report-formulas";
 import type { CashflowComputed } from "./compute";
 import { cashflowFigures, type CashflowFigure } from "./figures";
 import { formatCashflowValue } from "./format";
+import { cashflowRowKind } from "./periods";
+import type { CashflowItem } from "./types";
 
 type Text = Readonly<Record<ReportLocale, string>>;
 
@@ -52,13 +61,25 @@ function say(text: Text, locale: ReportLocale): string {
   return text[locale] ?? text.en;
 }
 
+/**
+ * One confirmed row as the report read it: on the side `cashflowRowKind` put it, at the amount that
+ * side summed — a magnitude for cash in and cash out, the signed figure for financing and the
+ * opening balance — under the period the book grouped it by. Writing the raw category or a bank
+ * export's negative outflow here would make every SUMIFS below add up a different book.
+ */
+function inputsRow(row: CashflowItem): ReportCell[] {
+  const side = cashflowRowKind(row) ?? null;
+  const amount = side === "inflow" || side === "outflow" ? Math.abs(row.amount) : row.amount;
+  return [row.label, row.period.trim(), side, amount, row.currency];
+}
+
 /** The five-column Inputs sheet the Calc formulas address. Column names stay English by contract. */
 export function inputsTable(computed: CashflowComputed, locale: ReportLocale): ReportTable {
   return {
     id: INPUTS_TABLE_ID,
     title: say(TITLES.inputs, locale),
     columns: ["Label", "Period", "Category", "Amount", "Currency"],
-    rows: computed.rows.map((row) => [row.label, row.period, row.kind ?? row.category, row.amount, row.currency]),
+    rows: computed.rows.map(inputsRow),
   };
 }
 
@@ -104,10 +125,20 @@ export function cashflowFormula(figure: CashflowFigure, rowIndex: number, hasOpe
   return figure.key === "openingCash" && hasOpeningRow ? sideSum("opening", rowIndex, false) : null;
 }
 
+/**
+ * True when the opening rows on Inputs add up to the balance the book opened on. A typed opening
+ * balance beats the sheet's own row, and only the first opening row is read, so otherwise a SUMIFS
+ * over those rows would show a figure the report never used.
+ */
+function openingFromRows(computed: CashflowComputed): boolean {
+  const opening = computed.rows.filter((row) => cashflowRowKind(row) === "opening");
+  return opening.length > 0 && opening.reduce((total, row) => total + row.amount, 0) === computed.openingCash;
+}
+
 /** The Calc sheet: one row per computed figure, with a live formula wherever one exists. */
 export function calcTable(computed: CashflowComputed, locale: ReportLocale): ReportTable {
   const figures = cashflowFigures(computed, locale);
-  const hasOpeningRow = computed.rows.some((row) => row.kind === "opening");
+  const hasOpeningRow = openingFromRows(computed);
   return {
     id: CALC_TABLE_ID,
     title: say(TITLES.calc, locale),

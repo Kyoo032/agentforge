@@ -13,6 +13,7 @@
  * renderers and the eval harness both read the numbers, and the reader reads the strings.
  */
 import { INPUTS_TABLE_ID, CALC_TABLE_ID, type ReportCell, type ReportLocale, type ReportTable } from "../report";
+import type { RatioBucket } from "./buckets";
 import type { ComputedRatios } from "./compute";
 import { ratioFigures } from "./compute";
 import { formatRatioValue, ratioUnitToken } from "./format";
@@ -27,19 +28,54 @@ function columns(locale: ReportLocale, keys: readonly (keyof typeof COLUMN)[]): 
   return keys.map((key) => say(COLUMN[key], locale));
 }
 
+/**
+ * The two supporting figures a reader may type instead of confirming a row, each with the bucket
+ * the Calc formulas sum it from. EBITDA adds the first and debt service the second.
+ */
+const TYPED_SUPPORTING = [
+  { key: "depreciation", bucket: "depreciation" },
+  { key: "principalRepayment", bucket: "principal-repayment" },
+] as const satisfies readonly { key: "depreciation" | "principalRepayment"; bucket: RatioBucket }[];
+
+const TYPED_NOTE = { id: "diisi di panel", en: "typed in the panel" };
+
+function typedLabel(key: (typeof TYPED_SUPPORTING)[number]["key"], locale: ReportLocale): string {
+  const meta = RATIO_METRICS.find((entry) => entry.key === key);
+  return `${meta ? say(meta.label, locale) : key} (${say(TYPED_NOTE, locale)})`;
+}
+
+/**
+ * The typed supporting figures the report used, one row per period, where no confirmed row carries
+ * them. The report falls back to a typed figure (`resultOf` in `compute.ts`); the workbook can only
+ * sum rows, so without these its EBITDA and DSCR would leave the figure out.
+ */
+function typedSupportingRows(computed: ComputedRatios, locale: ReportLocale): ReportCell[][] {
+  return computed.byPeriod.flatMap((figures) =>
+    TYPED_SUPPORTING.flatMap(({ key, bucket }) => {
+      const value = figures.values[key] ?? null;
+      return figures.aggregates[key].count > 0 || value === null
+        ? []
+        : [[typedLabel(key, locale), figures.period, bucket, value, computed.currency]];
+    }),
+  );
+}
+
 /** The confirmed rows, in the five columns the Calc formulas address by position. */
 export function ratioInputsTable(computed: ComputedRatios, locale: ReportLocale): ReportTable {
   return {
     id: INPUTS_TABLE_ID,
     title: say(RATIO_TEXT.inputsTitle, locale),
     columns: columns(locale, ["label", "period", "bucket", "amount", "currency"]),
-    rows: computed.rows.map((row) => [
-      row.label,
-      row.period ?? "",
-      row.bucket,
-      row.amount,
-      row.currency ?? computed.currency,
-    ]),
+    rows: [
+      ...computed.rows.map((row) => [
+        row.label,
+        row.period ?? "",
+        row.bucket,
+        row.amount,
+        row.currency ?? computed.currency,
+      ]),
+      ...typedSupportingRows(computed, locale),
+    ],
   };
 }
 

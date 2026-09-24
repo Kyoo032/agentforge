@@ -9,9 +9,15 @@
  * The environment is node, so this is markup, not a browser: clicks, the microphone and the live
  * timer are not covered here.
  */
+import { isValidElement, type ReactElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { MeetingRecorderPanel, formatElapsed, formatRecordedSize } from "@/components/meeting-recorder";
+import {
+  MeetingOtherDeskClips,
+  MeetingRecorderPanel,
+  formatElapsed,
+  formatRecordedSize,
+} from "@/components/meeting-recorder";
 import type { MeetingClipView } from "@/components/meeting-recorder";
 import { applyLocale, resetLocaleForTests } from "./i18n";
 import type { RecorderErrorCode, RecorderStatus } from "./meeting-recorder";
@@ -64,6 +70,22 @@ function clipView(overrides: Partial<MeetingClipView> = {}): MeetingClipView {
 
 function render(overrides: Partial<MeetingRecorderView> = {}, disabled = false, clip?: MeetingClipView): string {
   return renderToStaticMarkup(<MeetingRecorderPanel view={view(overrides)} disabled={disabled} clip={clip} />);
+}
+
+type ButtonProps = { "data-testid"?: string; onClick?: () => void; children?: ReactNode };
+
+/** Walk a tree the panel returned as a plain function call, to press a button without a DOM. */
+function findByTestId(node: ReactNode, testId: string): ReactElement<ButtonProps> | null {
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      const hit = findByTestId(child, testId);
+      if (hit) return hit;
+    }
+    return null;
+  }
+  if (!isValidElement<ButtonProps>(node)) return null;
+  if (node.props["data-testid"] === testId) return node;
+  return findByTestId(node.props.children, testId);
 }
 
 /** A dotted key that reached the DOM is `t()` saying the catalog has no copy for it. */
@@ -215,6 +237,110 @@ describe("MeetingRecorderPanel", () => {
       expect(rawKeys(render({}, false, clipView({ capped: true }))), locale).toEqual([]);
       expect(rawKeys(render({}, true, clipView({ status: "queued" }))), locale).toEqual([]);
       expect(rawKeys(render({}, false, clipView({ status: "failed" }))), locale).toEqual([]);
+    } finally {
+      resetLocaleForTests();
+    }
+  });
+});
+
+/**
+ * The clip names its own meeting. After Stop the owner may open another meeting while the upload
+ * runs, so a failure notice that said only "that recording" could be read as being about the row on
+ * screen. It says which meeting the recording belongs to — the one Retry will post to.
+ */
+describe("MeetingRecorderPanel — whose recording", () => {
+  it("names the meeting the failed recording belongs to", () => {
+    const markup = render({}, false, clipView({ status: "failed", meetingTitle: "Checkout weekly" }));
+    expect(markup).toContain('data-testid="meeting-clip-failed"');
+    expect(markup).toContain("Checkout weekly");
+    expect(rawKeys(markup)).toEqual([]);
+  });
+
+  it("falls back to the plain notice when it does not know the meeting", () => {
+    const markup = render({}, false, clipView({ status: "failed", meetingTitle: null }));
+    expect(markup).toContain("That recording was not uploaded.");
+  });
+});
+
+/**
+ * Two ways a recording now ends early without losing anything: the encoder fails, or the studio is
+ * unmounted (a desk or language change). Both keep what was captured; the owner is told so, once,
+ * until they dismiss it or record again — otherwise "Try again" invites a second recording that
+ * would replace the one that was kept.
+ */
+describe("MeetingRecorderPanel — a recording that stopped early", () => {
+  it("says the captured audio was kept after a recorder failure", () => {
+    const markup = render({ status: "error", errorCode: "recorder_failed" }, false, clipView({ kept: "salvaged" }));
+    expect(markup).toContain('data-testid="meeting-record-error"');
+    expect(markup).toContain('data-testid="meeting-record-kept"');
+    expect(markup).toContain("Everything recorded before it stopped was kept.");
+    expect(rawKeys(markup)).toEqual([]);
+  });
+
+  it("says why it stopped when the page changed under it", () => {
+    const markup = render({}, false, clipView({ kept: "interrupted" }));
+    expect(markup).toContain('data-testid="meeting-record-kept"');
+    expect(markup).toContain("The recording stopped when the desk or the language changed.");
+    expect(markup).toContain('data-testid="meeting-record-kept-dismiss"');
+  });
+
+  it("says nothing about it otherwise", () => {
+    expect(render({}, false, clipView())).not.toContain('data-testid="meeting-record-kept"');
+  });
+
+  it("dismisses through the studio", () => {
+    let dismissed = 0;
+    const tree = MeetingRecorderPanel({
+      view: view(),
+      clip: clipView({ kept: "interrupted", dismissKept: () => (dismissed += 1) }),
+    });
+    const button = findByTestId(tree, "meeting-record-kept-dismiss");
+    button?.props.onClick?.();
+    expect(dismissed).toBe(1);
+  });
+});
+
+/**
+ * A recording rescued from another desk's studio. It cannot be uploaded here — the host resolves a
+ * meeting against the desk that is selected now — so it is shown with the one way out that works
+ * anywhere, and waits for its own desk.
+ */
+describe("MeetingOtherDeskClips", () => {
+  it("lists each held recording by meeting, with Save to device", () => {
+    const saved: string[] = [];
+    const items = [
+      { key: "a", title: "Checkout weekly" },
+      { key: "b", title: "Board prep" },
+    ];
+    const markup = renderToStaticMarkup(<MeetingOtherDeskClips items={items} onSave={(key) => saved.push(key)} />);
+    expect(markup).toContain('data-testid="meeting-clip-other-desk"');
+    expect(markup).toContain("Checkout weekly");
+    expect(markup).toContain("Board prep");
+    expect(rawKeys(markup)).toEqual([]);
+
+    const tree = MeetingOtherDeskClips({ items, onSave: (key) => saved.push(key) });
+    findByTestId(tree, "meeting-clip-other-desk-save-b")?.props.onClick?.();
+    expect(saved).toEqual(["b"]);
+  });
+
+  it("renders nothing when nothing is held", () => {
+    expect(renderToStaticMarkup(<MeetingOtherDeskClips items={[]} onSave={() => {}} />)).toBe("");
+  });
+});
+
+describe.each(["en", "id"])("the new clip notices in %s", (locale) => {
+  it("have copy for every branch", () => {
+    resetLocaleForTests();
+    applyLocale(locale);
+    try {
+      expect(rawKeys(render({}, false, clipView({ status: "failed", meetingTitle: "X" })))).toEqual([]);
+      expect(rawKeys(render({ status: "error", errorCode: "recorder_failed" }, false, clipView({ kept: "salvaged" })))).toEqual(
+        [],
+      );
+      expect(rawKeys(render({}, false, clipView({ kept: "interrupted" })))).toEqual([]);
+      expect(
+        rawKeys(renderToStaticMarkup(<MeetingOtherDeskClips items={[{ key: "a", title: "X" }]} onSave={() => {}} />)),
+      ).toEqual([]);
     } finally {
       resetLocaleForTests();
     }

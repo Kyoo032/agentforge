@@ -130,6 +130,23 @@ async function fetchWithHeaderTimeout(url: string | URL | Request, init: Request
   }
 }
 
+/**
+ * Forward the caller's cancel into one call's own controller, which the SDK request and the stream
+ * reader already listen to. Returns the unlink; a caller with no signal links nothing.
+ */
+function linkCallerAbort(abort: AbortController, signal: AbortSignal | undefined): () => void {
+  if (!signal) {
+    return () => {};
+  }
+  const forward = () => abort.abort(signal.reason);
+  if (signal.aborted) {
+    forward();
+    return () => {};
+  }
+  signal.addEventListener("abort", forward, { once: true });
+  return () => signal.removeEventListener("abort", forward);
+}
+
 function settleWithin<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error("usage did not settle")), ms);
@@ -161,6 +178,8 @@ export class AiSdkRuntime implements AgentRuntime {
   ) {}
 
   async execute(input: Parameters<AgentRuntime["execute"]>[0]): Promise<void> {
+    // A caller that already left never starts the paid call.
+    input.signal?.throwIfAborted();
     // Phase 4 — `this.keys` is the tenant's own, already resolved by `resolveProviderKeys`. The env
     // fallback behind it is the operator's, so on a hosted box it is empty; see `providerEnv`.
     const env = providerEnv();
@@ -422,7 +441,7 @@ export class AiSdkRuntime implements AgentRuntime {
         officialOpenAI,
       });
     const wantThinking = snappedEffort !== "none";
-    const consumeOnce = (
+    const consumeOnce = async (
       nextModel: Parameters<typeof streamText>[0]["model"],
       nextTools: Record<string, any> | undefined,
       options: {
@@ -432,11 +451,21 @@ export class AiSdkRuntime implements AgentRuntime {
         forceReasoningNone?: boolean;
         reasoningEffort?: ReasoningEffort;
       } = {},
-    ) =>
-      this.consumeSafe(nextModel, input, messages, nextTools, {
+    ) => {
+      // Every call below goes through here: the first, the wire fallback, the tool-less retry and
+      // the contact retries. A cancel starts none of them.
+      input.signal?.throwIfAborted();
+      const outcome = await this.consumeSafe(nextModel, input, messages, nextTools, {
         ...options,
         reasoningEffort: options.reasoningEffort ?? snappedEffort,
       });
+      if (outcome.failed) {
+        // The call the cancel cut short is not a failure to retry or report: its abort message would
+        // read as a network blip. A call that finished first is still completed, and metered, below.
+        input.signal?.throwIfAborted();
+      }
+      return outcome;
+    };
 
     const probe = async (attempt: number) => {
       await input.onEvent({
@@ -599,6 +628,8 @@ export class AiSdkRuntime implements AgentRuntime {
         ? undefined
         : openaiCompatProviderOptions({ ...options, officialOpenAI });
     const abort = new AbortController();
+    // The caller's cancel aborts this request and wakes the stream reader, like a watchdog timeout.
+    const unlinkCallerAbort = linkCallerAbort(abort, input.signal);
     const locale = parseAppLocale(input.locale);
     const watchdog = armStreamWatchdog(input.version.model, abort, input.streamWatchdog, Date.now, locale);
     const result = streamText({
@@ -675,6 +706,7 @@ export class AiSdkRuntime implements AgentRuntime {
       return { text, thinking, tooled, toolCompleted, failed, usage };
     } finally {
       watchdog.close();
+      unlinkCallerAbort();
     }
   }
 }

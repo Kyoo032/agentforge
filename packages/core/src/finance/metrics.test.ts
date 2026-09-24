@@ -41,8 +41,9 @@ describe("computeFinance", () => {
   it("reports burn and runway when costs exceed revenue and skips ratios without balance items", () => {
     const loss = items.map((item) => (item.category === "opex" ? { ...item, amount: 200_000 } : item));
     const byKey = new Map(computeFinance(loss).metrics.map((entry) => [entry.key, entry]));
-    expect(byKey.get("burn")?.value).toBeCloseTo((400_000 - 270_000) / 2, 6);
-    expect(byKey.get("runway")?.value).toBeCloseTo(90_000 / 65_000, 6);
+    // Two annual periods cover 24 months; runway is in months, so the burn it divides by is monthly.
+    expect(byKey.get("burn")?.value).toBeCloseTo((400_000 - 270_000) / 24, 6);
+    expect(byKey.get("runway")?.value).toBeCloseTo(90_000 / ((400_000 - 270_000) / 24), 6);
     expect(byKey.get("current_ratio")).toBeUndefined();
   });
 

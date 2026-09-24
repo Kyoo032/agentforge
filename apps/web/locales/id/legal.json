@@ -306,5 +306,12 @@
   "pipeline": {
     "languageEn": "Write all user-facing artifact text (finding titles, why, proposed language, memorandum paragraphs and headings you compose) in English. Keep defined terms, party names, clause numbers, document ids, JSON keys, and verbatim quotations in the source language of the documents.",
     "languageId": "Write all user-facing artifact text (finding titles, why, proposed language, memorandum paragraphs and headings you compose) in professional Bahasa Indonesia, polite Anda / infinitive. Keep defined terms, party names, clause numbers, document ids, JSON keys, and verbatim quotations in the source language of the documents."
+  },
+  "verifyReport": {
+    "disposition": {
+      "fix": "perbaiki",
+      "market": "lazim di pasar",
+      "reserved": "ditahan"
+    }
   }
 }

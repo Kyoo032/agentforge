@@ -49,8 +49,13 @@
     "dismiss": "Dismiss",
     "queued": "The recording is waiting to be uploaded…",
     "uploadFailed": "That recording was not uploaded. It is still here, so try again or save it to your device.",
+    "uploadFailedFor": "The recording for “{title}” was not uploaded. It is still here, so try again or save it to your device.",
     "retryUpload": "Retry upload",
     "saveToDevice": "Save to device",
+    "switchLocked": "Stop the recording before switching meetings.",
+    "kept": "Everything recorded before it stopped was kept.",
+    "interrupted": "The recording stopped when the desk or the language changed. Everything recorded until then was kept.",
+    "otherDesk": "“{title}” has a recording from another desk that was not uploaded. Switch back to that desk and open Meeting to upload it, or save it to your device.",
     "errors": {
       "insecure_context": "Recording needs a secure page (https, or localhost). Upload a file instead.",
       "unsupported_browser": "This browser cannot record audio. Use Chrome or Edge, or upload a file instead.",

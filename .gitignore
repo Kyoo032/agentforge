@@ -4,30 +4,14 @@ dist
 .turbo
 .env
 .env.local
-data/media
-data/generated
-data/settings.json
-data/settings.enc
-data/settings.enc.unreadable
-data/.master-key
-data/models-cache.json
-data/models-dev-cache.json
-data/desk-usage.json
-data/workspace-id.txt
-data/gateway-gate.json
-data/reset-pending.json
-data/legacy-migrated.json
-data/*.db
-data/*.sqlite
-data/*.sqlite-shm
-data/*.sqlite-wal
-data/*.db-shm
-data/*.db-wal
-data/datasets/
-data/legal/
-data/edit/
-data/*.tmp
-data/host-status.json
+# The product's default data dir (localDataDir(): <package>/../../data, i.e. this folder). It holds
+# .master-key, settings.enc, session.enc (the portal refresh token), the SQLite desk, media, meeting
+# recordings and unpacked native components. Ignored as a whole, not as a list of names, so a file
+# the product starts writing tomorrow is never one `git add` away from a commit. The leading slash
+# anchors it here: a source folder called `data` anywhere else stays tracked. Nothing under data/
+# is tracked; if a file ever has to be, ignore `/data/*` instead and add a `!/data/<name>` line.
+# See docs/internal/security-register.md, SR-19.
+/data/
 .cursor-artifacts/
 apps/desktop/dist
 apps/desktop/dist-*
@@ -69,15 +53,11 @@ __pycache__/
 .webdev-data*/
 .dpsbuddy-review/
 
-# The `data/` list above is an allowlist of names, so every new file the product writes under it is
-# tracked by default. These three were: the portal session that AGENTS.md has said "never commit"
-# since Phase 1, the meeting recordings, and the unpacked native components. See SR-19.
-data/session.enc
-data/meetings/
-data/components/
-
 # Review-harness secrets and TLS material. `scripts/review-instance.ps1` writes review.env under
 # $HOME and `scripts/review-proxy.mjs` generates its key pair there, but `--cert-dir` takes any
 # path, so the repo refuses the file rather than trusting the flag.
 review.env
 *.pem
+
+# Local CI logs (scripts/ci-local.mjs). Per-run step logs and summary.md; never committed.
+.ci-local/

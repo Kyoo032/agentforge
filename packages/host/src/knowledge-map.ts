@@ -25,44 +25,58 @@ function workspaceId(tenant: TenantContext): string {
   return tenant.workspaceId;
 }
 
+/** A map that was saved, as opposed to the `{}` a row holds until its first map is ready. */
+function isSavedMap(value: unknown): value is KnowledgeMap {
+  return Boolean(value) && typeof value === "object" && Array.isArray((value as { topics?: unknown }).topics);
+}
+
+/**
+ * The last map that finished. A row that is `Mapping` or `Failed` still carries it (see `markMap`),
+ * so the desk keeps its map while a re-map runs and after one fails.
+ */
 export function getKnowledgeMap(tenant: TenantContext): KnowledgeMap | null {
-  const row = sql
-    .prepare("SELECT payload, status FROM knowledge_maps WHERE workspace_id = ?")
-    .get(workspaceId(tenant)) as { payload: string; status: string } | undefined;
-  if (!row || row.status !== "Mapped") {
+  const row = sql.prepare("SELECT payload FROM knowledge_maps WHERE workspace_id = ?").get(workspaceId(tenant)) as
+    | { payload: string }
+    | undefined;
+  if (!row) {
     return null;
   }
   try {
-    const parsed = JSON.parse(row.payload) as KnowledgeMap;
-    return parsed && typeof parsed === "object" ? parsed : null;
+    const parsed: unknown = JSON.parse(row.payload);
+    return isSavedMap(parsed) ? parsed : null;
   } catch {
     return null;
   }
 }
 
-function saveMap(
-  tenant: TenantContext,
-  status: "Mapped" | "Mapping" | "Failed",
-  payload: KnowledgeMap | null,
-  error: string | null,
-): void {
+function saveMap(tenant: TenantContext, map: KnowledgeMap): void {
   sql
     .prepare(
       `INSERT INTO knowledge_maps (workspace_id, payload, status, error, created_at)
-       VALUES (?, ?, ?, ?, ?)
+       VALUES (?, ?, 'Mapped', NULL, ?)
        ON CONFLICT(workspace_id) DO UPDATE SET
          payload = excluded.payload,
          status = excluded.status,
          error = excluded.error,
          created_at = excluded.created_at`,
     )
-    .run(
-      workspaceId(tenant),
-      JSON.stringify(payload ?? {}),
-      status,
-      error,
-      Date.now(),
-    );
+    .run(workspaceId(tenant), JSON.stringify(map), Date.now());
+}
+
+/**
+ * Status and error only: the payload keeps the last good map until `saveMap` replaces it. A
+ * workspace mapped for the first time gets `{}`, which `getKnowledgeMap` reads as no map.
+ */
+function markMap(tenant: TenantContext, status: "Mapping" | "Failed", error: string | null): void {
+  sql
+    .prepare(
+      `INSERT INTO knowledge_maps (workspace_id, payload, status, error, created_at)
+       VALUES (?, '{}', ?, ?, ?)
+       ON CONFLICT(workspace_id) DO UPDATE SET
+         status = excluded.status,
+         error = excluded.error`,
+    )
+    .run(workspaceId(tenant), status, error, Date.now());
 }
 
 function sourceExcerpts(tenant: TenantContext): Array<{ id: string; name: string; excerpt: string }> {
@@ -98,7 +112,7 @@ export async function mapKnowledge(
     });
   }
 
-  saveMap(tenant, "Mapping", null, null);
+  markMap(tenant, "Mapping", null);
 
   try {
     await reembedWorkspaceChunks(tenant, models.embeddingModel);
@@ -155,7 +169,7 @@ export async function mapKnowledge(
       map = parseKnowledgeMap(verifierRaw, models, "live") ?? draft;
     }
 
-    saveMap(tenant, "Mapped", map, null);
+    saveMap(tenant, map);
     // Graph stage of the loop: the map already *is* topic → source edges, so project it. Recomputed
     // from the blob that was just saved, so it is idempotent; a graph failure never fails the map.
     // NOTE(phase 2): sources indexed before the overlapping chunker are not re-chunked here. A
@@ -171,7 +185,7 @@ export async function mapKnowledge(
     return map;
   } catch (error) {
     const message = error instanceof Error ? error.message : modeMessage("knowledgeMapFailed", localeForRun());
-    saveMap(tenant, "Failed", null, message);
+    markMap(tenant, "Failed", message);
     if (error instanceof ApiError) {
       throw error;
     }

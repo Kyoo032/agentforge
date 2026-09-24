@@ -37,16 +37,12 @@ export function readOptionalModel(body: unknown): string | undefined {
 }
 
 /**
- * Did the person pick this model, or is it the seeded default the studio always sends?
- *
- * The desk sends `model` on every request, so the id alone cannot tell the two apart — and a job
- * that reads every request as a deliberate pick can never be rescued onto a second model when the
- * first one's gateway is down. `modelPinned` is sent only when the picker was changed, and it maps
+ * Did the person pick this model, or is it the seeded default the studio always sends? Every job
+ * reads the pin the same way, so Finance takes the one reader rather than keeping a copy of its own:
+ * a Finance copy is how a pin that names no model came to hold a job to the host default. It maps
  * straight onto `modelExplicit` in the job fallback options.
  */
-export function readModelPinned(body: unknown): boolean {
-  return typeof body === "object" && body !== null && (body as { modelPinned?: unknown }).modelPinned === true;
-}
+export { readModelPinned } from "../job-regen";
 
 export function requireLive(tenant: TenantContext): FinanceSettings {
   const settings = loadSettings(tenant);

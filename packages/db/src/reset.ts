@@ -32,12 +32,24 @@ export type ResetMarker = {
   version: 1;
   requestedAt: string;
   entries: string[];
+  /**
+   * Whether the wipe still owes the database: this package's SQLite trio, wherever it lives. A fresh
+   * request leaves it out, which means yes. A marker kept after a partial wipe says `false` once the
+   * database is gone, so the retry never deletes the fresh one the app opens in between.
+   */
+  database?: boolean;
 };
 
 export type ResetOutcome = {
+  /** True only when every removal went through and the marker is gone. */
   applied: boolean;
   removed: string[];
+  /** What could not be removed. The marker stays, naming only these, so the next boot retries them. */
+  failed: string[];
 };
+
+/** What happened to one entry. Only `failed` keeps a wipe pending: a skipped entry never will go. */
+type Removal = "removed" | "absent" | "skipped" | "failed";
 
 /** Why `entry` may not be wiped, or null when it is a safe relative name inside the data dir. */
 function rejectReason(entry: unknown): string | null {
@@ -90,11 +102,14 @@ function isInside(root: string, target: string): boolean {
  */
 export function requestDataReset(dir: string, entries: readonly string[]): void {
   const safe = assertResetEntries(entries);
-  const marker: ResetMarker = {
+  writeMarker(dir, {
     version: 1,
     requestedAt: new Date().toISOString(),
     entries: safe,
-  };
+  });
+}
+
+function writeMarker(dir: string, marker: ResetMarker): void {
   mkdirSync(dir, { recursive: true });
   // Temp file then rename: a crash mid-write must not leave half a marker, which the next boot
   // would read as malformed and delete — silently cancelling the wipe the owner asked for.
@@ -110,7 +125,7 @@ function readMarker(dir: string): ResetMarker | null {
   if (!parsed || typeof parsed !== "object") {
     return null;
   }
-  const record = parsed as { version?: unknown; entries?: unknown };
+  const record = parsed as { version?: unknown; entries?: unknown; database?: unknown };
   if (record.version !== 1 || !Array.isArray(record.entries)) {
     return null;
   }
@@ -118,6 +133,7 @@ function readMarker(dir: string): ResetMarker | null {
     version: 1,
     requestedAt: typeof (parsed as ResetMarker).requestedAt === "string" ? (parsed as ResetMarker).requestedAt : "",
     entries: record.entries.filter((entry): entry is string => typeof entry === "string"),
+    ...(record.database === false ? { database: false } : {}),
   };
 }
 
@@ -131,6 +147,13 @@ function dropMarker(dir: string): void {
 
 function isMissingFile(error: unknown): boolean {
   return Boolean(error && typeof error === "object" && "code" in error && error.code === "ENOENT");
+}
+
+/** `EBUSY`, `EPERM`, … Logged instead of the message, because Node puts the absolute path in that. */
+function errorCode(error: unknown): string {
+  return error && typeof error === "object" && "code" in error && typeof error.code === "string"
+    ? error.code
+    : "unknown error";
 }
 
 /**
@@ -148,17 +171,17 @@ function realTarget(target: string): string {
   }
 }
 
-/** Removes `entry` under `dir` and reports whether something was there. Never throws. */
-function removeEntry(root: string, entry: string): boolean {
+/** Removes `entry` under `dir` and reports what happened. Never throws. */
+function removeEntry(root: string, entry: string): Removal {
   const reason = rejectReason(entry);
   if (reason) {
     console.warn(`[agentforge] Skipped reset entry ${JSON.stringify(entry)}: it ${reason}.`);
-    return false;
+    return "skipped";
   }
   const target = resolve(root, entry.trim());
   if (!isInside(root, target)) {
     console.warn(`[agentforge] Skipped reset entry ${JSON.stringify(entry)}: it resolves outside the data dir.`);
-    return false;
+    return "skipped";
   }
   const existed = existsSync(target);
   try {
@@ -167,19 +190,19 @@ function removeEntry(root: string, entry: string): boolean {
     const real = realTarget(target);
     if (!isInside(root, real)) {
       console.warn(`[agentforge] Skipped reset entry ${JSON.stringify(entry)}: it links outside the data dir.`);
-      return false;
+      return "skipped";
     }
     // Delete the path the check just validated, never the spelling it was derived from: between the
     // two a junction swap could point `target` somewhere `real` never was.
     rmSync(real, { recursive: true, force: true });
   } catch (error) {
+    // The entry's name and the code, never the path: this entry can be the key file.
     console.warn(
-      `[agentforge] Could not remove ${entry} during reset.`,
-      error instanceof Error ? error.message : error,
+      `[agentforge] Could not remove ${entry} during reset (${errorCode(error)}); it will be retried on the next launch.`,
     );
-    return false;
+    return "failed";
   }
-  return existed;
+  return existed ? "removed" : "absent";
 }
 
 /**
@@ -190,23 +213,25 @@ function removeEntry(root: string, entry: string): boolean {
  * comes from the environment, not from the marker, so it is trusted and skips the `isInside` check.
  * Removed by absolute path, and reported by absolute path, so the outcome says what actually went.
  */
-function removeDatabaseElsewhere(root: string): string[] {
+function removeDatabaseElsewhere(root: string): { removed: string[]; failed: string[] } {
+  const none = { removed: [], failed: [] };
   // Only ever for a wipe of *this desk's* data dir. `applyPendingDataReset` takes a directory and
   // the tests point it at a scratch folder; the configured database is not that folder's to delete.
   if (resolve(localDataDir()) !== root) {
-    return [];
+    return none;
   }
   let base: string;
   try {
     base = resolve(sqliteFilePath());
   } catch {
     // A DATABASE_URL this package refuses (Postgres): there is no SQLite file to remove.
-    return [];
+    return none;
   }
   if (isInside(root, base)) {
-    return [];
+    return none;
   }
   const removed: string[] = [];
+  const failed: string[] = [];
   for (const path of [base, `${base}-wal`, `${base}-shm`]) {
     // `lstat`, not `stat`: a symlink parked at the database path must be reported, not followed and
     // certainly not deleted along with whatever it points at. Only a plain file is ever removed, so
@@ -220,6 +245,7 @@ function removeDatabaseElsewhere(root: string): string[] {
           `[agentforge] Could not inspect ${path} during reset.`,
           error instanceof Error ? error.message : error,
         );
+        failed.push(path);
       }
       continue;
     }
@@ -234,16 +260,38 @@ function removeDatabaseElsewhere(root: string): string[] {
         `[agentforge] Could not remove ${path} during reset.`,
         error instanceof Error ? error.message : error,
       );
+      failed.push(path);
       continue;
     }
     removed.push(path);
   }
-  return removed;
+  return { removed, failed };
+}
+
+/**
+ * Leave the marker for the next boot, naming only what is still owed. The database goes back on
+ * the list only when part of it is what failed: once it is gone the app opens a fresh one on this
+ * boot, and a retry must not delete that.
+ */
+function keepForRetry(root: string, marker: ResetMarker, failed: readonly string[], databaseFailed: boolean): void {
+  const sqlite = new Set<string>(SQLITE_ENTRIES);
+  try {
+    writeMarker(root, {
+      version: 1,
+      requestedAt: marker.requestedAt,
+      entries: failed.filter((entry) => !sqlite.has(entry.trim())),
+      database: databaseFailed || failed.some((entry) => sqlite.has(entry.trim())),
+    });
+  } catch (error) {
+    // The original marker is still in place, so the next boot retries the whole wipe instead.
+    console.warn(`[agentforge] Could not rewrite ${RESET_MARKER_FILE} after a partial reset (${errorCode(error)}).`);
+  }
 }
 
 /**
  * Run a pending wipe, if any. Safe to call on every boot: without a marker it does nothing.
  * A malformed marker is deleted rather than guessed at — a wipe is never inferred.
+ * A removal that fails keeps the marker, rewritten to what is left, so the next boot finishes it.
  */
 export function applyPendingDataReset(dir: string): ResetOutcome {
   const root = resolve(dir);
@@ -252,34 +300,56 @@ export function applyPendingDataReset(dir: string): ResetOutcome {
     marker = readMarker(root);
   } catch (error) {
     if (isMissingFile(error)) {
-      return { applied: false, removed: [] };
+      return { applied: false, removed: [], failed: [] };
     }
     console.warn(
       "[agentforge] reset-pending.json could not be read; deleting it and keeping your data.",
       error instanceof Error ? error.message : error,
     );
     dropMarker(root);
-    return { applied: false, removed: [] };
+    return { applied: false, removed: [], failed: [] };
   }
   if (!marker) {
     console.warn("[agentforge] reset-pending.json was not a valid v1 marker; deleting it and keeping your data.");
     dropMarker(root);
-    return { applied: false, removed: [] };
+    return { applied: false, removed: [], failed: [] };
   }
 
-  const wanted = [...marker.entries, ...SQLITE_ENTRIES];
+  const withDatabase = marker.database !== false;
+  const wanted = new Set([...marker.entries, ...(withDatabase ? SQLITE_ENTRIES : [])]);
   const removed: string[] = [];
+  const failed: string[] = [];
   for (const entry of wanted) {
-    if (removed.includes(entry)) {
-      continue;
-    }
-    if (removeEntry(root, entry)) {
+    const removal = removeEntry(root, entry);
+    if (removal === "removed") {
       removed.push(entry);
+    } else if (removal === "failed") {
+      failed.push(entry);
     }
   }
-  removed.push(...removeDatabaseElsewhere(root));
-  dropMarker(root);
-  return { applied: true, removed };
+  const elsewhere = withDatabase ? removeDatabaseElsewhere(root) : { removed: [], failed: [] };
+  removed.push(...elsewhere.removed);
+  if (failed.length === 0 && elsewhere.failed.length === 0) {
+    dropMarker(root);
+    return { applied: true, removed, failed: [] };
+  }
+  keepForRetry(root, marker, failed, elsewhere.failed.length > 0);
+  return { applied: false, removed, failed: [...failed, ...elsewhere.failed] };
+}
+
+/**
+ * One line for the boot log saying what a pending wipe did, or null when none was pending. Counts
+ * only: `removed` and `failed` hold names such as the key file's and, for a database kept outside
+ * the data dir, its absolute path.
+ */
+export function resetOutcomeSummary(outcome: ResetOutcome): string | null {
+  if (outcome.failed.length > 0) {
+    return `[agentforge] Start over is not finished: ${outcome.removed.length} item(s) removed, ${outcome.failed.length} could not be removed and will be retried on the next launch.`;
+  }
+  if (outcome.applied) {
+    return `[agentforge] Start over applied: ${outcome.removed.length} item(s) removed.`;
+  }
+  return null;
 }
 
 /** The marker's own path, for callers that want to show or clear a pending reset. */

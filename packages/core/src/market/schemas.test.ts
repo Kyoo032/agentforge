@@ -97,6 +97,19 @@ describe("v2 array bounds at the API boundary", () => {
   });
 });
 
+describe("marketWatchRequestSchema modelPinned", () => {
+  const base = { prompt: "p", tickers: ["MU"], model: "gpt-5.6-sol" };
+
+  it("keeps the studio's pin instead of stripping it, so the host can hold the model it names", () => {
+    expect(watch.marketWatchRequestSchema.parse({ ...base, modelPinned: true }).modelPinned).toBe(true);
+    expect(watch.marketWatchRequestSchema.parse(base).modelPinned).toBeUndefined();
+  });
+
+  it("refuses a pin that is not a boolean", () => {
+    expect(watch.marketWatchRequestSchema.safeParse({ ...base, modelPinned: "true" }).success).toBe(false);
+  });
+});
+
 describe("marketWatchRequestSchema specialist", () => {
   const base = { prompt: "p", tickers: ["MU"] };
 

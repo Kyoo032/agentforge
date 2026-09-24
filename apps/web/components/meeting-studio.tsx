@@ -6,15 +6,22 @@ import type { MeetingMinutes, MeetingTranscript } from "@agentforge/core/meeting
 import { Link } from "@/lib/nav";
 import { JobProgressList } from "@/components/job-progress";
 import { MeetingMinutesView } from "@/components/meeting-minutes-view";
-import { MeetingRecorderPanel } from "@/components/meeting-recorder";
+import { MeetingOtherDeskClips, MeetingRecorderPanel } from "@/components/meeting-recorder";
 import { ModelSelect } from "@/components/model-select";
 import { apiFetch } from "@/lib/api-client";
 import { t } from "@/lib/i18n";
-import { postMeetingRecording, saveClipToDevice, type UploadOutcome } from "@/lib/meeting-upload";
+import type { RecordedClip } from "@/lib/meeting-recorder";
+import {
+  postMeetingRecording,
+  saveClipToDevice,
+  type MeetingApiFetch,
+  type UploadOutcome,
+} from "@/lib/meeting-upload";
 import { useJobModel } from "@/lib/use-job-model";
 import { useJobStream } from "@/lib/use-job-stream";
 import { useMeetingRecorder } from "@/lib/use-meeting-recorder";
 import { useMeetingUpload } from "@/lib/use-meeting-upload";
+import { useWorkspaceScope } from "@/lib/workspace-scope";
 
 type MinutesRecord = {
   locale: AppLocale;
@@ -63,12 +70,113 @@ function mentionsSettings(message: string): boolean {
   return /gateway|api key|settings|runtime_stub|live gateway/i.test(message);
 }
 
+/** A body that is a meeting, or null when the host answered 2xx with something else. */
+function asMeeting(value: unknown): Meeting | null {
+  return value && typeof value === "object" && typeof (value as { id?: unknown }).id === "string"
+    ? (value as Meeting)
+    : null;
+}
+
+export type MeetingRequestOutcome =
+  | { readonly ok: true; readonly meeting: Meeting | null }
+  | { readonly ok: false; readonly message: string };
+
+/**
+ * Create a meeting or save a pasted transcript: one JSON POST, answered with the meeting.
+ *
+ * The order `postMeetingRecording` uses since SR-45: `res.ok` before the body, the error body read
+ * with a catch, and a dead network reported rather than thrown. Both callers used to read
+ * `res.json()` first with no `catch`, so an html error page or an offline laptop threw a rejection
+ * nothing handled and the owner saw no message at all. A 2xx whose body is not a meeting still
+ * counts as done; the caller reloads the list to show it.
+ */
+export async function requestMeeting(
+  path: string,
+  body: unknown,
+  fallback: string,
+  fetcher: MeetingApiFetch = apiFetch,
+): Promise<MeetingRequestOutcome> {
+  let res: Response;
+  try {
+    res = await fetcher(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch (error) {
+    return { ok: false, message: error instanceof Error && error.message ? error.message : fallback };
+  }
+  if (!res.ok) {
+    const payload = await res.json().catch(() => null);
+    return { ok: false, message: errorMessage(payload, fallback) };
+  }
+  const payload = await res.json().catch(() => null);
+  return { ok: true, meeting: asMeeting(payload) };
+}
+
+/** The meeting a recording belongs to — fixed when Record is pressed, never re-read from the list. */
+export type ClipTarget = {
+  readonly id: string;
+  readonly title: string;
+  /** The desk it was made on; null when the shell had not named one yet. */
+  readonly workspaceId: string | null;
+};
+
+/** A recording whose studio went away before the host had it. */
+export type RescuedClip = { readonly clip: RecordedClip; readonly target: ClipTarget };
+
+let rescuedClips: readonly RescuedClip[] = [];
+
+/**
+ * Keep a recording that outlived its studio.
+ *
+ * `WorkModeKeepAlive` keys every work mode on the desk id, so a desk switch — or a language
+ * restart — unmounts this studio. The recorder hands back what it had captured, and the upload
+ * queue still holds whatever had not reached the host; both used to go with the component. They
+ * wait here, in module scope, which outlives the pane, until the next studio mounts and takes
+ * them. This is memory, not storage: a page reload still loses them.
+ */
+export function stashRescuedClip(entry: RescuedClip): void {
+  if (rescuedClips.some((held) => held.clip === entry.clip)) {
+    return;
+  }
+  rescuedClips = [...rescuedClips, entry];
+}
+
+/** Everything held, oldest first. The slot is empty afterwards. */
+export function takeRescuedClips(): readonly RescuedClip[] {
+  const taken = rescuedClips;
+  rescuedClips = [];
+  return taken;
+}
+
+/**
+ * Whether a recording can be uploaded from this desk. The host resolves `/meetings/:id` against the
+ * desk selected now, so a meeting on another desk answers 404. An unknown desk gets the benefit of
+ * the doubt: if it is wrong, the upload fails and the clip is kept with Retry and Save to device.
+ */
+export function onSameDesk(target: ClipTarget, workspaceId: string | null): boolean {
+  return target.workspaceId === null || workspaceId === null || target.workspaceId === workspaceId;
+}
+
+/** A stable key for a held recording, for the list and for Save. */
+function rescuedKey(entry: RescuedClip): string {
+  return `${entry.target.id}:${entry.clip.filename}:${entry.clip.bytes}`;
+}
+
 export type MeetingListRowProps = {
   meeting: Pick<Meeting, "id" | "title" | "status">;
   selected: boolean;
   /** The first press armed delete on this row; the confirm panel is showing. */
   confirming: boolean;
   deleting: boolean;
+  /**
+   * A recording is running. It belongs to the meeting selected when Record was pressed, so the
+   * owner cannot switch rows until they stop it.
+   */
+  locked?: boolean;
+  /** This row is the meeting being recorded: deleting it would pull the meeting out from under it. */
+  deleteLocked?: boolean;
   onSelect: () => void;
   onAskDelete: () => void;
   onConfirmDelete: () => void;
@@ -87,6 +195,8 @@ export function MeetingListRow({
   selected,
   confirming,
   deleting,
+  locked = false,
+  deleteLocked = false,
   onSelect,
   onAskDelete,
   onConfirmDelete,
@@ -98,8 +208,10 @@ export function MeetingListRow({
         <button
           type="button"
           onClick={onSelect}
-          className={`flex-1 rounded-lg px-3 py-2 text-left text-sm ${
-            selected ? "bg-[var(--surface-2)] text-[var(--text)]" : "text-[var(--text-2)]"
+          disabled={locked}
+          title={locked ? t("meeting.record.switchLocked") : undefined}
+          className={`flex-1 rounded-lg px-3 py-2 text-left text-sm disabled:cursor-not-allowed ${
+            selected ? "bg-[var(--surface-2)] text-[var(--text)]" : "text-[var(--text-2)] disabled:opacity-45"
           }`}
           data-testid={`meeting-item-${meeting.id}`}
         >
@@ -109,7 +221,7 @@ export function MeetingListRow({
         <button
           type="button"
           onClick={onAskDelete}
-          disabled={confirming}
+          disabled={confirming || deleteLocked}
           className="rounded-lg px-2 py-2 text-xs text-[var(--text-3)] disabled:opacity-45"
           aria-label={t("meeting.delete")}
           aria-expanded={confirming}
@@ -163,20 +275,47 @@ export function MeetingStudio() {
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  /** The meeting of the clip in the upload queue, for the notice that names it. */
+  const [clipTarget, setClipTarget] = useState<ClipTarget | null>(null);
+  /** The last recording ended early and what it captured was kept, and why. */
+  const [kept, setKept] = useState<"salvaged" | "interrupted" | null>(null);
+  /** Recordings rescued from an unmounted studio that have not been queued: see `stashRescuedClip`. */
+  const [held, setHeld] = useState<readonly RescuedClip[]>([]);
   const fileInput = useRef<HTMLInputElement | null>(null);
+  const { id: workspaceId } = useWorkspaceScope();
   const job = useJobStream<Meeting>();
-  const recorder = useMeetingRecorder();
+
+  /**
+   * Set when Record is pressed, to the meeting selected then. A recording belongs to that meeting
+   * whatever row is selected by the time it stops: the upload used to read the selection at send
+   * time, so switching rows mid-recording — or before Retry — replaced another meeting's recording.
+   */
+  const recordingTargetRef = useRef<ClipTarget | null>(null);
+  /** The meeting of the clip the upload queue holds: what `sendClip`, and so Retry, posts to. */
+  const clipTargetRef = useRef<ClipTarget | null>(null);
+  /** `held` as of now rather than as of the last render, for the stash on unmount. */
+  const heldRef = useRef<readonly RescuedClip[]>([]);
+
+  // Unmounted mid-recording (a desk or language change): what was captured goes to the next studio.
+  const recorder = useMeetingRecorder(undefined, (clip) => {
+    const target = recordingTargetRef.current;
+    if (target) {
+      stashRescuedClip({ clip, target });
+    } else {
+      // Unreachable, since Record sets the target first; but a recording is never simply dropped.
+      saveClipToDevice(clip);
+    }
+  });
 
   const selected = meetings.find((meeting) => meeting.id === selectedId) ?? null;
-  // Read by `sendRecording`, which the upload controller may call a render after it was built.
-  const selectedRef = useRef<Meeting | null>(selected);
-  selectedRef.current = selected;
+  const selectedIdRef = useRef(selectedId);
+  selectedIdRef.current = selectedId;
 
   const load = useCallback(async () => {
     try {
       const res = await apiFetch("/api/v1/meetings");
-      const data = (await res.json()) as { items?: Meeting[]; capability?: Capability };
-      if (!res.ok) {
+      const data = (await res.json().catch(() => null)) as { items?: Meeting[]; capability?: Capability } | null;
+      if (!res.ok || !data) {
         setError(errorMessage(data, t("meeting.errors.load")));
         return;
       }
@@ -200,92 +339,180 @@ export function MeetingStudio() {
    * it is busy. Clearing the recorder before the POST, which is what this used to do, destroyed the
    * only copy of an hour of audio whenever that POST failed — see `@/lib/meeting-upload`.
    */
-  const upload = useMeetingUpload(sendRecording);
+  const upload = useMeetingUpload(sendClip);
 
   const { clip: recordedClip, clearClip, status: recorderStatus } = recorder;
-  const { offer: offerClip, setBlocked, recordingStarted } = upload;
+  const { offer: offerClip, setBlocked, recordingStarted, pending: pendingClip } = upload;
+  const pendingClipRef = useRef(pendingClip);
+  pendingClipRef.current = pendingClip;
+
+  /** True while the microphone is open: choosing a file mid-recording would fight it for the slot. */
+  const recording = recorderStatus !== "idle" && recorderStatus !== "error";
 
   useEffect(() => {
     if (!recordedClip) {
       return;
     }
-    // Ownership moves first; only then is the recorder's copy dropped.
-    offerClip(recordedClip);
+    // Ownership moves first; only then is the recorder's copy dropped. The clip goes to the meeting
+    // Record was pressed for, and a failed recorder hands over what it had captured the same way.
+    const target = recordingTargetRef.current;
+    if (target) {
+      clipTargetRef.current = target;
+      setClipTarget(target);
+      offerClip(recordedClip);
+    } else {
+      saveClipToDevice(recordedClip);
+    }
+    if (recorderStatus === "error") {
+      setKept("salvaged");
+    }
     clearClip();
-  }, [recordedClip, clearClip, offerClip]);
+  }, [recordedClip, recorderStatus, clearClip, offerClip]);
 
   // Busy is a queue, not a bin: a clip offered mid-upload waits here instead of being dropped.
+  // The clip carries its own meeting, so what is selected now does not decide whether it can go.
   useEffect(() => {
-    setBlocked(busy !== null || !selected);
-  }, [setBlocked, busy, selected]);
+    setBlocked(busy !== null);
+  }, [setBlocked, busy]);
 
-  // A new recording replaces the last one's size-cap notice; nothing else clears it but Dismiss.
+  // A new recording replaces the last one's notices; nothing else clears them but Dismiss.
   useEffect(() => {
     if (recorderStatus === "requesting-permission" || recorderStatus === "recording") {
       recordingStarted();
+      setKept(null);
     }
   }, [recorderStatus, recordingStarted]);
 
-  /** True while the microphone is open: choosing a file mid-recording would fight it for the slot. */
-  const recording = recorderStatus !== "idle" && recorderStatus !== "error";
+  // A previous studio was unmounted with a recording in hand. Take it: see `stashRescuedClip`.
+  useEffect(() => {
+    const rescued = takeRescuedClips().filter(
+      (entry) => !heldRef.current.some((existing) => existing.clip === entry.clip),
+    );
+    if (rescued.length > 0) {
+      heldRef.current = [...heldRef.current, ...rescued];
+      setHeld(heldRef.current);
+    }
+    return () => {
+      // Unmounting in turn: whatever has not reached the host moves on to the next studio.
+      const pending = pendingClipRef.current;
+      const target = clipTargetRef.current;
+      if (pending && target) {
+        stashRescuedClip({ clip: pending, target });
+      }
+      for (const entry of heldRef.current) {
+        stashRescuedClip(entry);
+      }
+      heldRef.current = [];
+    };
+  }, []);
 
-  /** Replace one meeting in place so the list does not jump while a job is running. */
-  function merge(meeting: Meeting) {
+  // One rescued recording at a time goes into the upload queue, once it is free and on its desk.
+  // A recording from another desk stays held: the host would answer its meeting with 404 here.
+  useEffect(() => {
+    if (pendingClip || recording) {
+      return;
+    }
+    const next = held.find((entry) => onSameDesk(entry.target, workspaceId));
+    if (!next) {
+      return;
+    }
+    heldRef.current = heldRef.current.filter((entry) => entry !== next);
+    setHeld(heldRef.current);
+    clipTargetRef.current = next.target;
+    setClipTarget(next.target);
+    setKept("interrupted");
+    if (selectedIdRef.current === null) {
+      setSelectedId(next.target.id);
+    }
+    offerClip(next.clip);
+  }, [held, pendingClip, recording, workspaceId, offerClip]);
+
+  /** Record, fixing the meeting it is for. The list stays locked until it stops. */
+  function startRecording() {
+    if (!selected) {
+      return;
+    }
+    recordingTargetRef.current = { id: selected.id, title: selected.title, workspaceId };
+    recorder.start();
+  }
+
+  /**
+   * Replace one meeting in place so the list does not jump while a job is running. `select: false`
+   * is a recording that finished uploading after the owner had moved on: it updates its row without
+   * taking the selection back, unless nothing else is selected.
+   */
+  function merge(meeting: Meeting, select = true) {
     setMeetings((current) => {
       const next = current.some((item) => item.id === meeting.id)
         ? current.map((item) => (item.id === meeting.id ? meeting : item))
         : [meeting, ...current];
       return next;
     });
-    setSelectedId(meeting.id);
+    if (select || selectedIdRef.current === null) {
+      setSelectedId(meeting.id);
+    }
   }
 
   async function onCreate(event: FormEvent) {
     event.preventDefault();
     const name = title.trim();
-    if (!name || busy) {
+    // Creating selects the new meeting, which would move the owner off the one being recorded.
+    if (!name || busy || recording) {
       return;
     }
     setBusy("create");
     setError(null);
     try {
-      const res = await apiFetch("/api/v1/meetings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: name, locale }),
-      });
-      const data = (await res.json()) as Meeting;
-      if (!res.ok) {
-        setError(errorMessage(data, t("meeting.errors.create")));
+      const outcome = await requestMeeting("/api/v1/meetings", { title: name, locale }, t("meeting.errors.create"));
+      if (!outcome.ok) {
+        // The title stays in the field for another try.
+        setError(outcome.message);
         return;
       }
-      merge(data);
       setTitle("");
       setTab("transcript");
+      if (outcome.meeting) {
+        merge(outcome.meeting);
+      } else {
+        await load();
+      }
     } finally {
       setBusy(null);
     }
   }
 
   /**
-   * The one sender, for a chosen file and for a recording alike.
+   * The upload queue's sender. It posts to the clip's own meeting, fixed when Record was pressed,
+   * so a clip that waited in the queue — and Retry — goes where the recording was made rather than
+   * to whichever row is selected by then.
+   */
+  function sendClip(file: File): Promise<UploadOutcome> {
+    const target = clipTargetRef.current;
+    if (!target) {
+      return Promise.resolve({ ok: false, message: t("meeting.errors.noMeeting") });
+    }
+    return sendTo(target.id, file, false);
+  }
+
+  /**
+   * The one POST, for a chosen file and for a recording alike.
    *
    * It reports rather than decides: the outcome goes back to whoever asked, so the file input can
    * put a message in the page banner and the upload controller can keep the clip and offer Retry.
-   * `selectedRef` rather than `selected` because the controller may call this from a queue, one
-   * render after the closure was made.
    */
-  async function sendRecording(file: File): Promise<UploadOutcome> {
-    const target = selectedRef.current;
-    if (!target) {
-      return { ok: false, message: t("meeting.errors.noMeeting") };
-    }
+  async function sendTo(meetingId: string, file: File, select: boolean): Promise<UploadOutcome> {
     setBusy("upload");
     setError(null);
     try {
-      const outcome = await postMeetingRecording(target.id, file);
+      const outcome = await postMeetingRecording(meetingId, file);
       if (outcome.ok) {
-        merge(outcome.meeting as Meeting);
+        // A 2xx the host could not serialise is still stored; reloading shows it.
+        const meeting = asMeeting(outcome.meeting);
+        if (meeting) {
+          merge(meeting, select);
+        } else {
+          void load();
+        }
       }
       return outcome;
     } finally {
@@ -298,7 +525,7 @@ export function MeetingStudio() {
     if (!selected || busy) {
       return;
     }
-    const outcome = await sendRecording(file);
+    const outcome = await sendTo(selected.id, file, true);
     if (!outcome.ok) {
       setError(outcome.message);
     }
@@ -315,19 +542,23 @@ export function MeetingStudio() {
     setBusy("paste");
     setError(null);
     try {
-      const res = await apiFetch(`/api/v1/meetings/${selected.id}/transcript`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
-      });
-      const data = (await res.json()) as Meeting;
-      if (!res.ok) {
-        setError(errorMessage(data, t("meeting.errors.transcript")));
+      const outcome = await requestMeeting(
+        `/api/v1/meetings/${selected.id}/transcript`,
+        { text },
+        t("meeting.errors.transcript"),
+      );
+      if (!outcome.ok) {
+        // The pasted transcript stays in the box for another try.
+        setError(outcome.message);
         return;
       }
-      merge(data);
       setPaste("");
       setTab("transcript");
+      if (outcome.meeting) {
+        merge(outcome.meeting);
+      } else {
+        await load();
+      }
     } finally {
       setBusy(null);
     }
@@ -380,6 +611,7 @@ export function MeetingStudio() {
   const noFfmpeg = capability && !capability.ffmpeg;
   const jobError = job.error ? job.error.message : null;
   const shown = error ?? jobError;
+  const otherDeskClips = held.filter((entry) => !onSameDesk(entry.target, workspaceId));
 
   return (
     <main
@@ -428,6 +660,16 @@ export function MeetingStudio() {
         </p>
       ) : null}
 
+      <MeetingOtherDeskClips
+        items={otherDeskClips.map((entry) => ({ key: rescuedKey(entry), title: entry.target.title }))}
+        onSave={(key) => {
+          const entry = otherDeskClips.find((candidate) => rescuedKey(candidate) === key);
+          if (entry) {
+            saveClipToDevice(entry.clip);
+          }
+        }}
+      />
+
       <form className="mt-8 flex flex-wrap items-end gap-3" onSubmit={onCreate} data-testid="meeting-new">
         <label className="flex-1 min-w-[16rem] text-sm">
           <span className="text-[var(--text-2)]">{t("meeting.meetingTitle")}</span>
@@ -455,7 +697,7 @@ export function MeetingStudio() {
         </label>
         <button
           type="submit"
-          disabled={busy !== null || !title.trim()}
+          disabled={busy !== null || recording || !title.trim()}
           className="wash inline-flex h-9 items-center rounded-pill bg-[var(--accent)] px-4 text-sm font-medium text-[var(--surface)] disabled:opacity-45"
           data-testid="meeting-create"
         >
@@ -478,7 +720,14 @@ export function MeetingStudio() {
               selected={meeting.id === selectedId}
               confirming={meeting.id === deletingId}
               deleting={deleteBusy}
-              onSelect={() => setSelectedId(meeting.id)}
+              // The list is locked while recording, so the row being recorded is the selected one.
+              locked={recording}
+              deleteLocked={recording && meeting.id === selectedId}
+              onSelect={() => {
+                if (!recording) {
+                  setSelectedId(meeting.id);
+                }
+              }}
               onAskDelete={() => setDeletingId(meeting.id)}
               onConfirmDelete={() => void onDelete(meeting.id)}
               onCancelDelete={() => setDeletingId(null)}
@@ -556,7 +805,7 @@ export function MeetingStudio() {
                   // A clip still in hand is a reason not to start another one: this controller
                   // holds exactly one recording, and a second would replace bytes nothing else has.
                   disabled={busy !== null || job.busy || upload.pending !== null}
-                  view={recorder}
+                  view={{ ...recorder, start: startRecording }}
                   clip={{
                     capped: upload.capped,
                     status: upload.status,
@@ -568,6 +817,9 @@ export function MeetingStudio() {
                         saveClipToDevice(upload.pending);
                       }
                     },
+                    meetingTitle: upload.pending ? (clipTarget?.title ?? null) : null,
+                    kept,
+                    dismissKept: () => setKept(null),
                   }}
                 />
               </div>

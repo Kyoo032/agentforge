@@ -9,6 +9,7 @@
   "savedPlaceholder": "Saved datasets…",
   "savedOption": "{name} ({rows} rows)",
   "pasteOptional": "Or paste a table",
+  "pasteLabel": "Rows with the header first: CSV, or cells copied from a spreadsheet",
   "pastePlaceholder": "vendor,spend\nAcme,12000\nBeta,4100",
   "usePasted": "Use pasted table",
   "datasetMeta": "{rows} rows × {cols} cols · {size}",

@@ -74,7 +74,7 @@ Afterwards, on a *completed* run only: `recordRetrievals` (`packages/host/src/kn
 Two different things share the word "reindex":
 
 - **`reindexSource` / `reindexWorkspace`** (`packages/host/src/knowledge-reindex.ts:270-308`, `:313`) — explicit, re-reads the source body, **re-chunks** (so it picks up chunker changes), rewrites FTS and vectors. Routes `POST /knowledge/sources/:id/reindex` and `POST /knowledge/reindex`.
-- **`reembedWorkspaceChunks`** (`packages/host/src/knowledge-embed.ts:212`) — implicit, runs at the start of **every** "Map knowledge" click (`packages/host/src/knowledge-map.ts:104`). Re-embeds the existing chunk rows under the current embedding model and deliberately does **not** re-chunk (`packages/host/src/knowledge-reindex.ts:16-18`).
+- **`reembedWorkspaceChunks`** (`packages/host/src/knowledge-embed.ts:212`) — implicit, runs at the start of **every** "Map knowledge" click (`packages/host/src/knowledge-map.ts:118`). Re-embeds the existing chunk rows under the current embedding model and deliberately does **not** re-chunk (`packages/host/src/knowledge-reindex.ts:16-18`).
 
 `runKnowledgeSelfCheck` (`packages/host/src/knowledge-verify.ts:129`) plants a token source, retrieves it, deletes it, and records one row per workspace. Throttled to once per 10 s.
 

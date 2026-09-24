@@ -2,7 +2,7 @@
  * `scripts/components.ts` — the per-server component installer, driven for real.
  *
  * Node's own runner, like `scripts/deploy-scripts.test.mjs`: this script lives outside every
- * workspace package, so no vitest config collects it, and `.github/workflows/ci.yml` runs
+ * workspace package, so no vitest config collects it, and `pnpm ci:local` (scripts/ci-local.mjs) runs
  * `node --test "scripts/*.test.mjs"`.
  *
  * Nothing here reaches the network. The cases are the ones that decide whether an operator gets a
@@ -15,13 +15,18 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { after, test } from "node:test";
 
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
-const tsx = join(repoRoot, "apps/web/node_modules/.bin/tsx");
+/**
+ * apps/web's tsx, by its JS entry, run with this Node. Not `apps/web/node_modules/.bin/tsx`: that is
+ * an extensionless POSIX shell shim, which Windows cannot execute, so every case got a null status.
+ */
+const tsxCli = createRequire(join(repoRoot, "apps/web/package.json")).resolve("tsx/cli");
 const script = join(repoRoot, "scripts/components.ts");
 const dataDir = mkdtempSync(join(tmpdir(), "agentforge-components-cli-"));
 
@@ -31,7 +36,7 @@ after(() => {
 
 /** The CLI in a clean environment: only what a case sets, plus a data dir it may not write to. */
 function run(args, env = {}) {
-  const result = spawnSync(tsx, [script, ...args], {
+  const result = spawnSync(process.execPath, [tsxCli, script, ...args], {
     cwd: repoRoot,
     encoding: "utf8",
     env: {

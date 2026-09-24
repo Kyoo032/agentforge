@@ -24,6 +24,19 @@ describe("extractNumbers", () => {
     expect(isFreeNumber({ text: "250", value: 250, unit: "", index: 0 })).toBe(false);
   });
 
+  // A year and a small count are free only as they are written bare. A currency mark, a scale or a
+  // separator makes the same value a money figure, and a money figure has to trace.
+  it("frees only a bare year or a bare small count, never a written amount", () => {
+    for (const text of ["$2,000", "2k", "Rp 1.950", "2,024", "Rp 5", "$12", "12.0", "-3", "1.5 million"]) {
+      const flagged = guardNumbers(`The figure was ${text} in total.`, []).flagged.map((token) => token.text);
+      expect(flagged, text).toEqual([text]);
+    }
+    for (const text of ["2024", "1950", "3", "12", "07"]) {
+      expect(guardNumbers(`Seen in ${text} places.`, []).flagged, text).toEqual([]);
+    }
+    expect(guardNumbers("From 2023-2024 across 3 outlets and 12 months.", []).flagged).toEqual([]);
+  });
+
   it("skips index names, 24/7 publisher clocks, and day-count labels", () => {
     expect(
       extractNumbers("S&P 500 futures and Nasdaq 100 held the 50-day average; 24/7 Wall St. and SMA 200.").map(

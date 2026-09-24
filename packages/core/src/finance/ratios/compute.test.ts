@@ -119,6 +119,22 @@ describe("computeRatios", () => {
     expect(ratioValue(fromRows, "principalRepayment", "2024")).toBe(1_050_000_000);
   });
 
+  // The task schema accepts a negative typed figure. A row in the same bucket is read as a size, so a
+  // repayment typed as -1.05bn is a repayment of 1.05bn — not a debt service 1.05bn smaller.
+  it("reads a typed depreciation or repayment written negative as the size it is, as a row would be", () => {
+    const supporting = new Set(["Beban Penyusutan dan Amortisasi", "Pembayaran Pokok Pinjaman"]);
+    const rows = classifyRatioRows(manufakturRows().filter((row) => !supporting.has(row.label)));
+    const negative = computeRatios(rows, { depreciation: -750_000_000, principalRepayment: -1_050_000_000 });
+    const positive = computeRatios(rows, { depreciation: 750_000_000, principalRepayment: 1_050_000_000 });
+    expect(negative.byPeriod.map((entry) => entry.values)).toEqual(positive.byPeriod.map((entry) => entry.values));
+    expect(ratioValue(negative, "depreciation", "2024")).toBe(750_000_000);
+    expect(ratioValue(negative, "ebitda", "2024")).toBe(4_590_000_000);
+    expect(ratioValue(negative, "debtService", "2024")).toBe(1_866_000_000);
+    const perPeriod = computeRatios(rows, { supporting: { "2024": { principalRepayment: -1_050_000_000 } } });
+    expect(ratioValue(perPeriod, "principalRepayment", "2024")).toBe(1_050_000_000);
+    expect(ratioValue(perPeriod, "principalRepayment", "2023")).toBeNull();
+  });
+
   it("converts turnover into days at the days-per-year in force", () => {
     expect(ratioValue(computed(), "inventoryDays", "2024") ?? Number.NaN).toBeCloseTo(71.98, 1);
     expect(ratioValue(computed(), "receivableDays", "2024") ?? Number.NaN).toBeCloseTo(56.02, 1);

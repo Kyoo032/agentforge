@@ -10,9 +10,18 @@
  * The gate is closed the way `handlers/settings.test.ts` closes it: by dropping the stub runtime
  * inside the test, since `test/setup.ts` puts it back before every module.
  */
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { ROUTER_IMPORT_BUDGET_MS } from "../__fixtures__/test-budgets";
 import { writeWorkbook } from "@agentforge/core/tabular";
 import type { HostFile, HostRequest, HostResult } from "../types";
+
+// Isolation: "is really closed" needs a desk that has never held a gateway key, so this file brings
+// its own data dir, set before the router is imported, instead of sharing whatever else ran here.
+const dataDir = mkdtempSync(join(tmpdir(), "agentforge-finance-gate-"));
+process.env.AGENTFORGE_DATA_DIR = dataDir;
 
 type Dispatch = (request: HostRequest) => Promise<HostResult>;
 let dispatch: Dispatch;
@@ -57,10 +66,18 @@ const BRIEF = {
 
 beforeAll(async () => {
   ({ dispatch } = await import("../router"));
-}, 60_000);
+}, ROUTER_IMPORT_BUDGET_MS);
 
 afterEach(() => {
   process.env.AGENTFORGE_RUNTIME = STUB ?? "stub";
+});
+
+afterAll(async () => {
+  // The router opened the kernel SQLite inside dataDir. Windows will not delete a file something
+  // still holds, so that handle is closed before the dir goes.
+  const { sql } = await import("@agentforge/db");
+  sql.close();
+  rmSync(dataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 });
 
 describe("the gateway gate and the Finance file routes", () => {

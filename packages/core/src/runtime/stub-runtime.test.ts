@@ -129,3 +129,46 @@ describe("StubRuntime answers", () => {
     expect(thought).toMatch(/Meja ini/);
   });
 });
+
+describe("StubRuntime and the caller's signal", () => {
+  function cancellable(signal: AbortSignal, onEvent: (event: RuntimeEvent) => void) {
+    return new StubRuntime().execute({
+      tenant,
+      runId: "run-cancel",
+      modality: "text",
+      version,
+      bindings: [],
+      history: [{ role: "user", parts: [{ type: "text", text: "Write a haiku about rain." }] }],
+      signal,
+      onEvent,
+    });
+  }
+
+  it("starts nothing when the caller has already left", async () => {
+    const controller = new AbortController();
+    controller.abort(new Error("client left"));
+    const events: RuntimeEvent[] = [];
+    await expect(cancellable(controller.signal, (event) => events.push(event))).rejects.toThrow("client left");
+    expect(events).toEqual([]);
+  });
+
+  it("stops mid-answer with the signal's reason and never reports the run completed", async () => {
+    const controller = new AbortController();
+    const events: RuntimeEvent[] = [];
+    const pending = cancellable(controller.signal, (event) => {
+      events.push(event);
+      if (event.type === "assistant.delta") {
+        controller.abort(new Error("client left"));
+      }
+    });
+    await expect(pending).rejects.toThrow("client left");
+    expect(events.filter((event) => event.type === "assistant.delta")).toHaveLength(1);
+    expect(events.some((event) => event.type === "run.completed")).toBe(false);
+  });
+
+  it("runs to the end exactly as before when the signal never fires", async () => {
+    const events: RuntimeEvent[] = [];
+    await cancellable(new AbortController().signal, (event) => events.push(event));
+    expect(events.at(-1)).toEqual({ type: "run.completed", runId: "run-cancel" });
+  });
+});

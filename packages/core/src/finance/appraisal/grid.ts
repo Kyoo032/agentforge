@@ -49,8 +49,11 @@ export type AppraisalGrid = {
 
 type RawRow = { readonly label: string; readonly cells: readonly string[] };
 
+/** A Markdown row's outer pipes: `| Item | Year 0 |` would otherwise open with an empty label cell. */
+const OUTER_PIPES = /^\s*\|\s*|\s*\|\s*$/g;
+
 function splitCells(line: string): string[] {
-  const parts = line.includes("|") ? line.split("|") : line.split(WIDE_GAP);
+  const parts = line.includes("|") ? line.replace(OUTER_PIPES, "").split("|") : line.split(WIDE_GAP);
   return parts.map((cell) => cell.trim());
 }
 

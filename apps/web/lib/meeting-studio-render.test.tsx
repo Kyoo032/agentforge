@@ -107,3 +107,35 @@ describe("meeting delete, second step", () => {
     expect(html).toContain("Hapus “Checkout weekly”?");
   });
 });
+
+/**
+ * A recording belongs to the meeting that was selected when Record was pressed. Switching rows
+ * mid-recording used to re-point the upload at whichever meeting was selected when it finished —
+ * and the host replaced that meeting's recording with it. The list is locked while the microphone
+ * is open, and the meeting being recorded cannot be deleted out from under it.
+ */
+describe("meeting list while a recording runs", () => {
+  it("cannot be switched to another meeting, and says why", () => {
+    const tree = MeetingListRow(props({ locked: true }));
+    const row = findByTestId(tree, "meeting-item-m1");
+    expect(row?.props.disabled).toBe(true);
+    const html = renderToStaticMarkup(<MeetingListRow {...props({ locked: true })} />);
+    expect(html).toContain("Stop the recording before switching meetings.");
+  });
+
+  it("stays selectable when nothing is recording", () => {
+    const tree = MeetingListRow(props());
+    expect(findByTestId(tree, "meeting-item-m1")?.props.disabled).toBeFalsy();
+  });
+
+  it("will not arm a delete of the meeting being recorded", () => {
+    const tree = MeetingListRow(props({ deleteLocked: true }));
+    expect(findByTestId(tree, "meeting-delete-m1")?.props.disabled).toBe(true);
+  });
+
+  it("explains the lock in Indonesian too", () => {
+    applyLocale("id");
+    const html = renderToStaticMarkup(<MeetingListRow {...props({ locked: true })} />);
+    expect(html).toContain("Hentikan rekaman sebelum berpindah rapat.");
+  });
+});

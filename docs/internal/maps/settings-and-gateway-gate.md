@@ -4,7 +4,12 @@
 > The host-decides/renderer-displays rule below is unchanged and applies to both; the Electron-only transport and wipe details are the Personal app's.
 > Decision record: [`web-pivot-2026-09-18.md`](../web-pivot-2026-09-18.md).
 
-Last verified: 2026-09-23 at 775d16f + working tree (finding 1 of the 0.15.0 verify pass). Changed here: a new desk starts with a copy of the creating desk's gateway key (`inheritGatewayKey`, `packages/host/src/handlers/workspaces.ts:33-39`), and the onboarding screen lists the other desks (`onboarding-desks`) so a keyless desk is never a dead end — see "Settings per desk" below. The gate's derivation is untouched.
+Last verified: 2026-09-23 at d4561b8 + uncommitted tree for Start over (a wipe that fails part-way is now
+retried, and the boot log line), the Settings page's load / save / language failures, and every
+`settings-page.tsx` line cited on this page. Not driven: the reset change is in `@agentforge/db`, which only a
+restart of `:3000` or a packed app picks up.
+
+Before that: 2026-09-23 at 775d16f + working tree (finding 1 of the 0.15.0 verify pass). Changed here: a new desk starts with a copy of the creating desk's gateway key (`inheritGatewayKey`, `packages/host/src/handlers/workspaces.ts:33-39`), and the onboarding screen lists the other desks (`onboarding-desks`) so a keyless desk is never a dead end — see "Settings per desk" below. The gate's derivation is untouched.
 
 Before that: 2026-09-23 at 0774681 + working tree (the 0.15.0 design pass). Changed there: `settings.kicker` is deleted, `settings.runtimeStub` and `settings.gateway.status.stub` no longer claim "Offline demo" (stub means *no key saved*, not a demo), and `settings.intro` was trimmed. The gate's derivation, `resolveGate`, the reset scopes and the endpoint-hiding rule are all untouched. **The sign-out → onboarding behaviour is verified in the packaged personal app, not on webdev**: `deriveGatewayGate` short-circuits `envRuntime === "stub"` to `allowed: true` before it looks at whether a key exists (`packages/host/src/gateway-gate.ts:293-296`), and both `.env` and `apps/web/.env.local` pin `stub` on a dev machine — `apps/desktop/main.cjs` never sets it, so a packaged app derives `needs_key` and sign-out does drop to onboarding.
 
@@ -88,11 +93,20 @@ fingerprints (`sha256:` + the first 12 hex chars of SHA-256 over the trimmed sec
 `resolvedGatewayBaseUrl()`, never a stored value (`packages/core/src/secrets.ts:263-264`).
 
 **What the owner can actually change on this page.** Two fields, and the POST body says so: the settings form
-submits exactly `{ openaiApiKey, editTurnCapUsd }` (`apps/web/components/settings-page.tsx:189-197`, with the
+submits exactly `{ openaiApiKey, editTurnCapUsd }` (`apps/web/components/settings-page.tsx:261-273`, with the
 comment "The endpoint is pinned by the host; never send it back"). The language `<select>` is a separate POST
-of `{ locale }` (`:219-229`) — see [`locale-boot-and-run-harness.md`](locale-boot-and-run-harness.md). The Edit
-turn cap (`settings-edit-turn-cap`, `:396`) is a number input clamped to 0.5–50 on the way in and again on the
-way out (`:162-166`, `:388-395`), default 2.
+of `{ locale }` (`:302-312`) — see [`locale-boot-and-run-harness.md`](locale-boot-and-run-harness.md). The Edit
+turn cap (`settings-edit-turn-cap`, `:496`) is a number input clamped to 0.5–50 on the way in and again on the
+way out (`:214-215`, `:494`), default 2.
+
+**Every settings request says when it did not land (2026-09-23).** All four — the first load, Save, the
+language select and the Restart apply — go through `readSettingsAnswer` (`settings-page.tsx:99`), which never
+throws: a request that did not come back, a non-JSON error page and an error body all become a sentence (the
+host's own message when it sent one, the catalog's otherwise), and a closed gate becomes its reason. A failed
+first load used to leave the page's defaults on screen as though they were this desk's settings; it now shows
+`settings-load-error` (`:379`). A failed Save shows `settings-error` (`:505`). A failed language change used to
+leave the select on the new language as if it had been saved; it now reverts the select and shows
+`settings-locale-error` (`:416`), and the select is disabled while the change is in flight.
 
 **Key resolution.** `resolveProviderKeys(settings, env)` (`packages/core/src/secrets.ts:307-319` for the signature, the body through `:345`), today — where `env` is not the process environment directly but `providerEnv(env)` (`packages/core/src/server-mode.ts:43-45`, with the rule written out at `:22-42`), which is `env` unchanged on a desk and a **frozen empty object** in server mode. That is Phase 4's change, and it is shared: the same helper backs the tool secret scope (`packages/core/src/tools/credentials.ts:308-312`), the runtime's per-provider fallback (`packages/core/src/runtime/ai-sdk-runtime.ts:163-174`), the tool scope a run executes in (`getSecret`, `packages/core/src/tools/secret-scope.ts:36-44` — the fallback every platform tool uses when its scope lacks a key, and the one a named sweep cannot see because its index is a variable) and, indirectly, Edit's off-request transcription (`packages/host/src/edit/asr.ts:79-87`, which asks `resolveProviderKeys` rather than the environment). `packages/core/src/provider-env-sweep.test.ts` fails the build if any other shipped source reads one of these variables off `process.env`, indexes it dynamically without an allowlisted exception, or destructures a credential out of it:
 
@@ -126,9 +140,9 @@ from the renderer, together with the `settings.endpointLabel` / `settings.endpoi
 - Onboarding renders one muted line, `onboarding-gateway-host` → `onboarding.gatewayHost` = `"Gateway: {host}"`
   (`apps/web/components/onboarding-screen.tsx:130-132`), so the screen now has exactly one input — the key.
 - Settings names the host in two places, both prose: the intro sentence
-  (`settings.intro` … "Paste your {gatewayName} API key from {gatewayHost}", `settings-page.tsx:283-287`) and
+  (`settings.intro` … "Paste your {gatewayName} API key from {gatewayHost}", `settings-page.tsx:371-375`) and
   the privacy note (`settings.privacy` … "Prompts leave this machine only over HTTPS to {gatewayHost}",
-  `:419-421`). The privacy string used to say "to the saved endpoint"; today it names
+  `:523-525`). The privacy string used to say "to the saved endpoint"; today it names
   `api.tokotokenai.com` out loud.
 - Both call `gatewayHostLabel(gatewayEndpoint)` (`apps/web/lib/product-brand.tsx:25-31`) — `new URL(url).host`,
   falling back to the raw string — so the path and scheme never reach the screen.
@@ -272,7 +286,7 @@ maps through `REASON_KEYS` (`apps/web/lib/gateway-gate.ts:123-127`) to
 ### Start over
 
 Card `settings-reset` (`apps/web/components/settings-reset-card.tsx:159`), mounted at
-`apps/web/components/settings-page.tsx:427`, fed by `resetPending` on the settings payload.
+`apps/web/components/settings-page.tsx:535`, fed by `resetPending` on the settings payload.
 
 **Sign out (`scope: "key"`)** — no typed confirmation, fully synchronous. `resetGatewayKey`
 (`packages/host/src/handlers/settings.ts:400-415`) calls `clearGatewayKeyEverywhere(tenant)`
@@ -315,19 +329,33 @@ models-cache.json  models-dev-cache.json  components  logs
 ```
 
 plus, always, `SQLITE_ENTRIES` — `agentforge.sqlite`, `-wal`, `-shm` (`packages/db/src/reset.ts:29`), which
-`applyPendingDataReset` unions onto the marker's own list at `packages/db/src/reset.ts:270` ("the SQLite trio is
+`applyPendingDataReset` unions onto the marker's own list at `packages/db/src/reset.ts:318-319` ("the SQLite trio is
 added by `applyPendingDataReset`, because `@agentforge/db` owns it",
 `packages/host/src/handlers/settings.ts:351-352`), and, when `DATABASE_URL` points out of tree, that trio by
-absolute path (`packages/db/src/reset.ts:188-242`). Pinned exactly by
+absolute path (`removeDatabaseElsewhere`, `packages/db/src/reset.ts:216-269`). Pinned exactly by
 `packages/host/src/handlers/settings.test.ts:450-471`, which also asserts `host-status.json` and anything
 containing "storage" never appear (`:473-474`), and again — against `TENANT_STATE_FILENAMES` rather than a
 literal — by `packages/host/src/tenant-state.test.ts`, so a payload that gains a file can never be left off
 the list. Preserved: `host-status.json`, `Local Storage/`, every other
 Chromium artifact, and `legacy-migrated.json`.
 
-**Applied at boot, before SQLite opens.** `packages/db/src/client.ts:35-37` — when
+**Applied at boot, before SQLite opens.** `packages/db/src/client.ts:38-46` — when
 `AGENTFORGE_APPLY_PENDING_RESET === "1"` and no connection exists, `applyPendingDataReset(localDataDir())` runs
-at module top level, two lines before `new SqliteDatabase(file)`. That env flag is set in exactly two places:
+at module top level, just before `new SqliteDatabase(file)`, and logs one line of counts from
+`resetOutcomeSummary` (`packages/db/src/reset.ts:345`) — "Start over applied: N item(s) removed", or, as a
+warning, "Start over is not finished: …". Counts only: the entries include the key file, and a database kept
+outside the data dir is reported by its absolute path.
+
+**A wipe that fails part-way is retried, not dropped (2026-09-23).** Each removal reports `removed`, `absent`,
+`skipped` or `failed`; only `failed` keeps the wipe pending. When anything failed — on Windows, a file another
+process still holds, with `EBUSY` or `EPERM` — `keepForRetry` rewrites the marker to name only what is still owed
+and leaves it for the next launch (`packages/db/src/reset.ts:276-289`, called at `:336`), and the outcome says
+`applied: false`. The SQLite trio goes back on the list only when part of it is what failed: once it is gone the
+app opens a fresh database on this same boot, and a retry must not delete that one (the marker's
+`database: false`, `:40`). A failed entry is logged by its name and error code, never by path (`:201`). Before
+this change the marker was dropped whatever happened, so a locked `.master-key` or `settings.enc` simply stayed
+behind after the owner had confirmed the erase ([SR-77](../security-register.md#sr-77),
+[SR-78](../security-register.md#sr-78)). That env flag is set in exactly two places:
 `apps/web/server-env.ts:14` (webdev) and `apps/desktop/main.cjs:631` inside `bootstrapPackaged()`, before
 `require("./host.cjs")` — so a test or script that imports `@agentforge/db` can never trigger a wipe as a side
 effect.
@@ -353,7 +381,8 @@ installing an update or already exiting), races `clearRendererState()` — `clea
 | Sealed settings that will not open with the current wrap key | server mode refuses the request (`settings_unreadable`, 500) and leaves the payload untouched; a desk quarantines and starts fresh, exactly as before (`onUndecryptableSettings`, `packages/host/src/settings-store.ts:373-385`) |
 | Reset queued, app killed before reboot | `reset-pending.json` persists; the wipe applies on the next boot regardless of how the process died |
 | Reset while runs are in flight | only *tracked* ffmpeg/ffprobe children are signalled (`packages/host/src/child-processes.ts:42-55`); an in-flight chat turn or embed job is simply cut off at exit. No coverage |
-| Partial removal | per-entry errors are warned and skipped, and `dropMarker()` still runs (`packages/db/src/reset.ts:281`) — no retry, and the result still says applied |
+| Partial removal | since 2026-09-23 the marker is kept, rewritten to what is left, and the next launch retries it; the outcome says `applied: false` and the boot line warns (`keepForRetry`, `packages/db/src/reset.ts:276-289`). Before, `dropMarker()` ran anyway and the result said applied |
+| The marker cannot be rewritten after a partial wipe | the original marker is still in place, so the next boot retries the whole wipe (`:285-288`) |
 | Reset on webdev | `relaunchDesktopApp` returns `{ok:false, reason:"unavailable"}`; the card shows `settings-reset-restart-needed`; the wipe lands when the dev server next restarts |
 
 ## Where things live
@@ -393,7 +422,8 @@ installing an update or already exiting), races `clearRendererState()` — `clea
   verdict both derive as `ok` + `grace:true`; only `message: "Not checked yet."` and `checkedAt === null` reveal
   there is no real verdict. Do not read `status` alone as "we asked and it worked".
 - **A stub desk's status row carries no timestamp.** `settings-gateway-status` renders the status word, then
-  `Last checked` **only when `checkedAt` is non-null** (`apps/web/components/settings-page.tsx:344-362`). On
+  `Last checked` **only when `checkedAt` is non-null** (`apps/web/components/settings-page.tsx:442-457`, the
+  condition at `:447`). On
   `stub`, `needs_key` and never-checked desks the row is just the word and the Re-check link — driven on the
   owner's desk on 2026-09-17, where it read "Demo luring · Periksa ulang".
 - **`invalid_key` is the only status with zero grace**, however recently the key worked. A rejection is an
@@ -440,11 +470,11 @@ clicking either reset submit on a desk you do not own — drive the closed gate 
 with a throwaway `AGENTFORGE_DATA_DIR`.
 
 Testids and their lines (`apps/web/components/settings-page.tsx` unless noted):
-`runtime-status` `:290`, `settings-locale` `:313`, `settings-locale-restart` `:321`,
-`settings-locale-restart-button` `:326`, `settings-form` `:336`, `settings-gateway-status` `:344`,
-`settings-gateway-recheck` `:353`, `settings-gateway-grace` `:359`, `settings-gateway-reason` `:364`,
-`openai-key` `:377`, `settings-edit-turn-cap` `:396`, `key-fingerprint` `:400`, `save-settings` `:411`,
-`privacy-note` `:419`; the whole `settings-reset-*` family in
+`settings-load-error` `:379`, `runtime-status` `:384`, `settings-locale` `:408`, `settings-locale-error` `:416`,
+`settings-locale-restart` `:421`, `settings-locale-restart-button` `:426`, `settings-form` `:436`,
+`settings-gateway-status` `:444`, `settings-gateway-recheck` `:453`, `settings-gateway-grace` `:459`,
+`settings-gateway-reason` `:464`, `openai-key` `:477`, `settings-edit-turn-cap` `:496`, `key-fingerprint` `:500`,
+`settings-error` `:505`, `save-settings` `:515`, `privacy-note` `:523`; the whole `settings-reset-*` family in
 `apps/web/components/settings-reset-card.tsx:159-303`, notably `settings-reset-key-submit` `:215`,
 `settings-reset-all-confirm-name` `:258`, `settings-reset-all-submit` `:265`, `settings-reset-pending` `:167`,
 `settings-reset-restart-needed` `:296`; onboarding in `apps/web/components/onboarding-screen.tsx`:
@@ -457,7 +487,9 @@ Unit tests that pin it: `packages/host/src/gateway-gate.test.ts` (every derivati
 key never leaked, endpoint pinned against an attacker-supplied `openaiBaseUrl`, throttle and TTL);
 `packages/host/src/handlers/settings.test.ts` (403 shape, ungated routes, the exact reset entry list);
 `packages/db/src/reset.test.ts` (marker validation, symlink/junction defences, `Local Storage/` preserved,
-atomic write); `packages/host/src/gateway-pin.test.ts`; `apps/web/lib/gateway-endpoint-hidden.test.ts`;
+atomic write); `packages/db/src/reset-retry.test.ts` (a failed removal keeps the marker naming only what is left,
+the retry never deletes the fresh database, and no path reaches the log); `apps/web/lib/settings-save.test.ts`
+(`readSettingsAnswer`); `packages/host/src/gateway-pin.test.ts`; `apps/web/lib/gateway-endpoint-hidden.test.ts`;
 `packages/host/src/settings-desk-scope.test.ts`; `packages/host/src/tenant.test.ts`;
 `apps/web/lib/reset-app.test.ts`; `apps/web/lib/gateway-gate.test.ts`.
 

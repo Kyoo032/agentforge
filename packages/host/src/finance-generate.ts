@@ -64,6 +64,27 @@ const SECTION_SYSTEM = `You rewrite one section of an DPSBuddy finance brief.
 Return ONLY valid JSON: { "heading": string, "body": string, "metrics": [string] }
 Rules: same as the brief. Every number is copied from a "Write as" cell; metrics lists the keys used. Stay on the same topic as the rest of the brief.`;
 
+/**
+ * What a section says when the repair took every sentence out of it. A section may not be empty
+ * (`financeBriefSchema`), and dropping it would take away the slot the owner regenerates it from —
+ * the same reason a regenerate keeps the section it was asked to replace. So the heading stays and
+ * the body says why the section is short, in the voice of the removed-sentence flag and with no
+ * figure in it for a guard to find.
+ */
+export const EMPTIED_SECTION_BODY: Readonly<Record<AppLocale, string>> = Object.freeze({
+  en: "The text of this section was removed because its figures could not be traced.",
+  id: "Teks bagian ini dihapus karena angkanya tidak bisa ditelusuri.",
+});
+
+/** The repaired brief with no section left empty: an emptied body says why instead. */
+function withEmptiedSectionsNoted(brief: FinanceBrief, locale: AppLocale): FinanceBrief {
+  const note = EMPTIED_SECTION_BODY[locale] ?? EMPTIED_SECTION_BODY.en;
+  return {
+    ...brief,
+    sections: brief.sections.map((section) => (section.body.trim() ? section : { ...section, body: note })),
+  };
+}
+
 export type FinanceResult = {
   brief: FinanceBrief;
   artifactId: string | null;
@@ -217,11 +238,12 @@ export async function generateFinanceBrief(
     factsBlock,
     locale,
   });
-  const brief = financeBriefSchema.parse(repaired.brief);
+  const brief = financeBriefSchema.parse(withEmptiedSectionsNoted(repaired.brief, locale));
   const guard: GuardReport = {
     flagged: [...built.guard.flagged, ...repaired.guard.flagged],
     total: built.guard.total + repaired.guard.total,
-    removed: repaired.guard.removed ?? 0,
+    // An assumption the guard dropped is a removed sentence too, and the reader is told the same way.
+    removed: (built.guard.removed ?? 0) + (repaired.guard.removed ?? 0),
   };
   emit({
     type: "job.step",
@@ -311,11 +333,12 @@ export async function regenerateFinanceSection(tenant: TenantContext, body: unkn
   const guarded = guardFinanceInput({ lineItems: supplied.items });
   const inputs: FinanceInputs = { items: guarded.lineItems, params: supplied.params };
   const computed = computeFinance(inputs.items, inputs.params, { locale });
+  const factsBlock = financePromptBlock(inputs, computed, locale);
   const topic =
     typeof (body as { prompt?: unknown }).prompt === "string" ? (body as { prompt: string }).prompt.trim() : "";
   const prompt = appendRegenInstruction(
     [
-      financePromptBlock(inputs, computed, locale),
+      factsBlock,
       topic ? `Original brief request: ${topic}` : null,
       `Brief title: ${brief.title}`,
       `Other sections:\n${brief.sections
@@ -341,14 +364,28 @@ export async function regenerateFinanceSection(tenant: TenantContext, body: unkn
   });
   const knownKeys = new Set(computed.metrics.map((entry) => entry.key));
   const rewritten = guardSection(parseBriefSection(run.text), computed, knownKeys);
+  // The same repair a generate runs: one rewrite for whatever the guard blanked, then the sentence
+  // goes. The marker never ships. A section may not be empty, so a rewrite with nothing traceable
+  // left keeps the section it was asked to replace, and the guard says why.
+  const repaired = await repairUnverifiedSections({ ...brief, sections: [rewritten.section] }, computed, {
+    tenant,
+    model: run.model,
+    systemPrompt: withOutputLanguage(SECTION_SYSTEM, "finance", locale),
+    factsBlock,
+    locale,
+  });
+  const candidate = repaired.brief.sections[0];
+  const replacement = candidate?.body ? candidate : current;
   const next = financeBriefSchema.parse({
     ...brief,
-    sections: brief.sections.map((section, at) => (at === index ? rewritten.section : section)),
+    sections: brief.sections.map((section, at) => (at === index ? replacement : section)),
     computed: { metrics: computed.metrics, tables: computed.tables },
   });
+  const flagged = [...rewritten.flagged, ...repaired.guard.flagged.map((entry) => entry.text)];
   const guard: GuardReport = {
-    flagged: rewritten.flagged.map((text) => ({ section: index, text })),
-    total: rewritten.flagged.length,
+    flagged: flagged.map((text) => ({ section: index, text })),
+    total: flagged.length,
+    removed: repaired.guard.removed ?? 0,
   };
   const markdown = financeBriefToMarkdown(next);
   // Same origin as the generate that created the artifact, so the loop rewrites that one card

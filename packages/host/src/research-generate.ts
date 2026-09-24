@@ -24,7 +24,7 @@ import { ensureToolsRegistered } from "./register-tools";
 import { artifactStore } from "./artifacts";
 import { upsertWorkSource } from "./knowledge-ingest";
 import { artifactWorkCard } from "./work-cards";
-import { collectJobAssistantText } from "./job-regen";
+import { collectJobAssistantRun, readModelPinned } from "./job-regen";
 import { throwIfJobAborted } from "./job-stream";
 import { RESEARCH_CAPS, runResearchDossier, type SearchHit } from "./research-dossier";
 import { localeForRun } from "./run-context";
@@ -123,26 +123,37 @@ export async function generateResearchNotes(
   const catalog = listSelectableModels();
   const { defaults } = modeCatalogPayload();
   const model = resolveChatModel(readOptionalModel(body), settings.researchGenModel || defaults.research, catalog);
+  // A model the person picked is never swapped by the fallback; a seeded default can be.
+  const modelExplicit = readModelPinned(body);
   const scope = buildToolSecretScope(settings);
   const guardBypass = settings.injectionGuardBypass === true;
+  // Every model that answered one of this run's calls, in the order it first did, and the last one
+  // to answer (the one that wrote the dossier). After a fallback neither is the requested id alone.
+  let answered: string[] = [];
+  let writtenBy = model;
 
-  const { dossier, notes } = await runResearchDossier(
+  const { dossier: planned, notes } = await runResearchDossier(
     { question, models: [model] },
     {
       emit,
       abortSignal,
       caps: RESEARCH_CAPS,
-      ask: (system, prompt) =>
-        collectJobAssistantText({
+      ask: async (system, prompt) => {
+        const run = await collectJobAssistantRun({
           tenant,
           model,
+          modelExplicit,
           systemPrompt: withOutputLanguage(system, "research", localeForRun()),
           runPrefix: "research",
           agentId: "research",
           jobMode: "research",
           versionId: "research-dossier",
           prompt,
-        }),
+        });
+        answered = answered.includes(run.model) ? answered : [...answered, run.model];
+        writtenBy = run.model;
+        return run.text;
+      },
       search: async (query) =>
         hitsFromSearch(await runWithToolSecrets(scope, () => webSearchTool.execute({ query: maskPii(query) }, tenant))),
       readPage: async (url) => {
@@ -159,12 +170,20 @@ export async function generateResearchNotes(
   // A cancelled run is not saved: the user asked for it to stop.
   throwIfJobAborted(abortSignal);
   emit({ type: "job.phase", phase: "saving", label: "Saving dossier" });
+  const dossier: Dossier = answered.length > 0 ? { ...planned, models: answered } : planned;
   const markdown = dossierToMarkdown(dossier);
-  const dossierId = persistDossier(tenant, dossier, markdown, model);
+  const dossierId = persistDossier(tenant, dossier, markdown, writtenBy);
   if (dossierId) {
     await upsertWorkSource(
       tenant,
-      artifactWorkCard({ type: "Research", artifactId: dossierId, title: dossier.title, prompt: question, markdown, model }),
+      artifactWorkCard({
+        type: "Research",
+        artifactId: dossierId,
+        title: dossier.title,
+        prompt: question,
+        markdown,
+        model: writtenBy,
+      }),
     );
   }
   return { ...notes, artifactId: dossierId, dossierId, dossier: { title: dossier.title, markdown } };

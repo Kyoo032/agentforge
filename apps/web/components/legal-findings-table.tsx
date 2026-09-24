@@ -1,8 +1,9 @@
 "use client";
 
 import type { Finding } from "@agentforge/core/legal";
-import { basisLabel, severityLabel, severityTone, type StreamedFinding } from "@/lib/legal-view";
-import { DIM, LegalPanel, TD, TH, ToneTag } from "@/components/legal-parts";
+import { basisLabel, severityTone, type StreamedFinding } from "@/lib/legal-view";
+import { DIM, LegalPanel, severityText, TD, TH, ToneTag } from "@/components/legal-parts";
+import { t } from "@/lib/i18n";
 
 type Props = {
   label: string;
@@ -15,19 +16,19 @@ const QUOTE = `${TD} italic ${DIM}`;
 /** Screen 3: Clause · Provision · Why it is adverse · Severity · Proposed language · Basis. */
 export function LegalFindingsTable({ label, findings, emptyText }: Props) {
   return (
-    <LegalPanel label={label} aside="sorted by severity" testId="legal-findings">
+    <LegalPanel label={label} aside={t("legal.findings.sorted")} testId="legal-findings">
       {findings.length === 0 ? (
         <p className={`mt-2 text-sm ${DIM}`}>{emptyText}</p>
       ) : (
         <table className="mt-2 w-full border-collapse">
           <thead>
             <tr>
-              <th className={`${TH} w-[96px]`}>Clause</th>
-              <th className={`${TH} w-[210px]`}>Provision</th>
-              <th className={TH}>Why it is adverse</th>
-              <th className={`${TH} w-[70px]`}>Severity</th>
-              <th className={`${TH} w-[230px]`}>Proposed language</th>
-              <th className={`${TH} w-[110px]`}>Basis</th>
+              <th className={`${TH} w-[96px]`}>{t("legal.findings.clause")}</th>
+              <th className={`${TH} w-[210px]`}>{t("legal.findings.provision")}</th>
+              <th className={TH}>{t("legal.findings.why")}</th>
+              <th className={`${TH} w-[70px]`}>{t("legal.findings.severity")}</th>
+              <th className={`${TH} w-[230px]`}>{t("legal.findings.proposed")}</th>
+              <th className={`${TH} w-[110px]`}>{t("legal.findings.basis")}</th>
             </tr>
           </thead>
           <tbody>
@@ -41,13 +42,13 @@ export function LegalFindingsTable({ label, findings, emptyText }: Props) {
                 <td className={QUOTE}>{finding.quote ? `“${finding.quote}”` : "—"}</td>
                 <td className={TD}>{finding.why}</td>
                 <td className={TD}>
-                  <ToneTag tone={severityTone(finding)}>{severityLabel(finding)}</ToneTag>
+                  <ToneTag tone={severityTone(finding)}>{severityText(finding)}</ToneTag>
                 </td>
                 <td className={finding.proposedText ? QUOTE : `${TD} ${DIM}`}>
                   {finding.proposedText
                     ? `“${finding.proposedText}”`
                     : finding.reservedFor
-                      ? `[Reserved for ${finding.reservedFor}]`
+                      ? t("legal.findings.reserved", { who: finding.reservedFor })
                       : "—"}
                 </td>
                 <td className={`${TD} font-mono text-xs`}>{basisLabel(finding.basis) || "—"}</td>
@@ -64,20 +65,20 @@ export function LegalFindingsTable({ label, findings, emptyText }: Props) {
 export function LegalStreamedFindings({ findings }: { findings: readonly StreamedFinding[] }) {
   return (
     <LegalPanel
-      label="Findings so far"
-      aside="streaming · final list after verification"
+      label={t("legal.findings.streamTitle")}
+      aside={t("legal.findings.streamAside")}
       testId="legal-findings-stream"
     >
       {findings.length === 0 ? (
-        <p className={`mt-2 text-sm ${DIM}`}>Findings appear here as each provision is reviewed.</p>
+        <p className={`mt-2 text-sm ${DIM}`}>{t("legal.findings.streamEmpty")}</p>
       ) : (
         <table className="mt-2 w-full border-collapse">
           <thead>
             <tr>
-              <th className={TH}>Clause</th>
-              <th className={TH}>Finding</th>
-              <th className={TH}>Severity</th>
-              <th className={TH}>Source</th>
+              <th className={TH}>{t("legal.findings.clause")}</th>
+              <th className={TH}>{t("legal.findings.finding")}</th>
+              <th className={TH}>{t("legal.findings.severity")}</th>
+              <th className={TH}>{t("legal.findings.source")}</th>
             </tr>
           </thead>
           <tbody>
@@ -86,7 +87,7 @@ export function LegalStreamedFindings({ findings }: { findings: readonly Streame
                 <td className={TD}>{finding.clause}</td>
                 <td className={TD}>{finding.title}</td>
                 <td className={TD}>
-                  <ToneTag tone={severityTone(finding)}>{severityLabel(finding)}</ToneTag>
+                  <ToneTag tone={severityTone(finding)}>{severityText(finding)}</ToneTag>
                 </td>
                 <td className={`${TD} font-mono text-xs`}>{finding.basis || "—"}</td>
               </tr>

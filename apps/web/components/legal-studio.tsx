@@ -30,6 +30,7 @@ import {
   type PendingUpload,
 } from "@/lib/legal-view";
 import { useJobModel } from "@/lib/use-job-model";
+import { modelPickBody, studioModelPick } from "@/lib/model-choice";
 import { useJobStream } from "@/lib/use-job-stream";
 import { t } from "@/lib/i18n";
 import { SettingsLinkHint } from "@/components/settings-link-hint";
@@ -72,7 +73,7 @@ function refusedUpload(files: readonly File[]): string | null {
 }
 
 export function LegalStudio() {
-  const { models, model, setModel } = useJobModel("legal");
+  const { models, model, pinned: modelPinned, setModel } = useJobModel("legal");
   const [verifierModel, setVerifierModel] = useState("");
   const job = useJobStream<unknown>();
   const [draft, setDraft] = useState<LegalDraft>(DEFAULT_LEGAL_DRAFT);
@@ -208,9 +209,11 @@ export function LegalStudio() {
       return;
     }
     setBusy(null);
+    // Only a deliberate pick travels as pinned: a seeded default stays rescuable by the host's fallback.
+    // The verifier has no seeded default here (empty until the person picks one), so a value is a pick.
     const raw = await job.run(legalRunStreamPath(saved.id), {
-      model: model || undefined,
-      verifierModel: verifierModel || undefined,
+      ...modelPickBody(studioModelPick(model, modelPinned)),
+      ...(verifierModel ? { verifierModel, verifierModelPinned: true } : {}),
     });
     if (raw === null) {
       return;

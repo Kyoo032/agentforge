@@ -1,7 +1,22 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TenantContext } from "../../tenancy/types";
 import { invokeTool, type ToolDefinition } from "../define-tool";
 import { fetchPageText, webFetchTool } from "./web-fetch";
+
+/**
+ * The SSRF guard resolves every hop's hostname before it fetches (`assertResolvesPublic` in
+ * `security/safe-fetch.ts`). The tool gives a caller no way to hand it a resolver, so the system one
+ * is replaced here: left real, `example.test` takes about 11 s to come back ENOTFOUND on Windows, and
+ * every case that names a host timed out. The stand-in answers with a public address unless a case
+ * says otherwise.
+ */
+const { lookup } = vi.hoisted(() => ({ lookup: vi.fn() }));
+vi.mock("node:dns/promises", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("node:dns/promises")>()),
+  lookup,
+}));
+
+const PUBLIC_ANSWER = [{ address: "93.184.216.34", family: 4 }];
 
 const tenant: TenantContext = { tenantId: "local-tenant", organizationId: "org-1", workspaceId: "ws-1", userId: "user-1", role: "member" };
 const tool = webFetchTool as unknown as ToolDefinition;
@@ -18,6 +33,11 @@ function stubFetch(body: string, init: { status?: number; contentType?: string }
 }
 
 describe("webFetchTool", () => {
+  beforeEach(() => {
+    lookup.mockReset();
+    lookup.mockResolvedValue(PUBLIC_ANSWER);
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });
@@ -40,6 +60,8 @@ describe("webFetchTool", () => {
     });
     const [, init] = mock.mock.calls[0] as [string, RequestInit];
     expect(init.redirect).toBe("manual");
+    // Every address the name answers with is judged, not only the first one.
+    expect(lookup).toHaveBeenCalledWith("example.test", { all: true });
   });
 
   it("refuses non-https, private hosts, and never calls fetch for them", async () => {
@@ -48,6 +70,14 @@ describe("webFetchTool", () => {
       const result = await invokeTool(tool, { url }, tenant);
       expect(result).toMatchObject({ success: false });
     }
+    expect(mock).not.toHaveBeenCalled();
+  });
+
+  it("refuses a public-looking name that resolves to a private address, and never fetches it", async () => {
+    const mock = stubFetch("<p>metadata</p>");
+    lookup.mockResolvedValue([PUBLIC_ANSWER[0], { address: "169.254.169.254", family: 4 }]);
+    const result = await invokeTool(tool, { url: "https://metadata.example.test/latest" }, tenant);
+    expect(result).toEqual({ success: false, error: "URL must point at a public host" });
     expect(mock).not.toHaveBeenCalled();
   });
 

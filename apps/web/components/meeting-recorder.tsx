@@ -37,7 +37,58 @@ export type MeetingClipView = {
   readonly retry: () => void;
   /** Write the held blob to the owner's downloads. The recording survives the deployment failing. */
   readonly save: () => void;
+  /**
+   * The meeting the clip belongs to — fixed when Record was pressed, and where Retry posts. The
+   * owner may have opened another meeting since, so the failure notice names it.
+   */
+  readonly meetingTitle?: string | null;
+  /**
+   * The last recording ended early and what it captured was kept: the recorder failed
+   * (`salvaged`), or the studio was unmounted under it by a desk or language change (`interrupted`).
+   */
+  readonly kept?: "salvaged" | "interrupted" | null;
+  readonly dismissKept?: () => void;
 };
+
+/** A recording held for a meeting on another desk: shown by title, saved by key. */
+export type OtherDeskClip = { readonly key: string; readonly title: string };
+
+/**
+ * Recordings rescued from a studio on another desk. The host resolves a meeting against the desk
+ * that is selected now, so they cannot be uploaded from here; they wait for their own desk, and
+ * Save to device is the way out that works anywhere.
+ */
+export function MeetingOtherDeskClips({
+  items,
+  onSave,
+}: {
+  items: readonly OtherDeskClip[];
+  onSave: (key: string) => void;
+}): React.JSX.Element | null {
+  if (items.length === 0) {
+    return null;
+  }
+  return (
+    <div className="mt-4 space-y-2" role="status" data-testid="meeting-clip-other-desk">
+      {items.map((item) => (
+        <p
+          key={item.key}
+          className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--line)] px-4 py-3 text-sm text-[var(--text-2)]"
+        >
+          <span>{t("meeting.record.otherDesk", { title: item.title })}</span>
+          <button
+            type="button"
+            onClick={() => onSave(item.key)}
+            className="inline-flex h-7 items-center rounded-pill border border-[var(--line)] px-3 text-xs"
+            data-testid={`meeting-clip-other-desk-save-${item.key}`}
+          >
+            {t("meeting.record.saveToDevice")}
+          </button>
+        </p>
+      ))}
+    </div>
+  );
+}
 
 /** `12:34`, or `1:02:03` once a meeting runs past the hour. */
 export function formatElapsed(ms: number): string {
@@ -200,7 +251,11 @@ export function MeetingRecorderPanel({
 
       {clip?.status === "failed" ? (
         <div className="flex flex-wrap items-center gap-2 text-xs" role="alert" data-testid="meeting-clip-failed">
-          <span className="text-[var(--danger)]">{t("meeting.record.uploadFailed")}</span>
+          <span className="text-[var(--danger)]">
+            {clip.meetingTitle
+              ? t("meeting.record.uploadFailedFor", { title: clip.meetingTitle })
+              : t("meeting.record.uploadFailed")}
+          </span>
           {clip.errorMessage ? (
             <span className="text-[var(--text-3)]" data-testid="meeting-clip-detail">
               {clip.errorMessage}
@@ -229,6 +284,20 @@ export function MeetingRecorderPanel({
         <p className="text-xs text-[var(--danger)]" role="alert" data-testid="meeting-record-error">
           {t(`meeting.record.errors.${view.errorCode}`)}{" "}
           <button type="button" onClick={view.clearError} className="underline" data-testid="meeting-record-dismiss">
+            {t("meeting.record.dismiss")}
+          </button>
+        </p>
+      ) : null}
+
+      {clip?.kept ? (
+        <p className="text-xs text-[var(--text-2)]" role="status" data-testid="meeting-record-kept">
+          {clip.kept === "salvaged" ? t("meeting.record.kept") : t("meeting.record.interrupted")}{" "}
+          <button
+            type="button"
+            onClick={clip.dismissKept}
+            className="underline"
+            data-testid="meeting-record-kept-dismiss"
+          >
             {t("meeting.record.dismiss")}
           </button>
         </p>

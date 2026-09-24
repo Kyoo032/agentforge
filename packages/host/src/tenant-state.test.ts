@@ -10,6 +10,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ApiError, LOCAL_TENANT_ID } from "@agentforge/core";
+import { ROUTER_IMPORT_BUDGET_MS } from "./__fixtures__/test-budgets";
 
 const dataDir = mkdtempSync(path.join(tmpdir(), "agentforge-tenant-state-"));
 process.env.AGENTFORGE_DATA_DIR = dataDir;
@@ -36,8 +37,13 @@ afterEach(() => {
   settingsStore.resetSettingsCacheForTests();
 });
 
-afterAll(() => {
-  rmSync(dataDir, { recursive: true, force: true });
+afterAll(async () => {
+  // `./handlers/settings`, imported by a case below, pulls in @agentforge/db, which opened the kernel
+  // SQLite inside dataDir. Windows will not delete a file something still holds, so that handle is
+  // closed before the dir goes.
+  const { sql } = await import("@agentforge/db");
+  sql.close();
+  rmSync(dataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 });
 
 describe("settings.enc is per tenant", () => {
@@ -234,7 +240,10 @@ describe("no host source passes a bare desk id to the settings store", () => {
       for (const match of text.matchAll(
         /\b(loadSettings|saveSettings|loadUserLocale|saveUserLocale)\(([^()]*)\)/g,
       )) {
-        if (/workspaceId/.test(match[2] ?? "")) {
+        // A scope object that names its tenant (`{ tenantId, workspaceId }`) is the contract; only a
+        // desk id with no tenant beside it is the bug.
+        const args = match[2] ?? "";
+        if (/workspaceId/.test(args) && !/\btenantId\b/.test(args)) {
           offenders.push(`${path.relative(SRC, file)}: ${match[0]}`);
         }
       }
@@ -265,13 +274,19 @@ describe("no host source passes a bare desk id to the settings store", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("keeps the Start over list and the backend's filenames in step", async () => {
-    const { HOST_RESET_ENTRIES } = await import("./handlers/settings");
-    const { TENANT_STATE_FILENAMES } = await import("./tenant-state-store");
-    for (const filename of Object.values(TENANT_STATE_FILENAMES)) {
-      expect(HOST_RESET_ENTRIES).toContain(filename);
-    }
-  });
+  it(
+    "keeps the Start over list and the backend's filenames in step",
+    async () => {
+      const { HOST_RESET_ENTRIES } = await import("./handlers/settings");
+      const { TENANT_STATE_FILENAMES } = await import("./tenant-state-store");
+      for (const filename of Object.values(TENANT_STATE_FILENAMES)) {
+        expect(HOST_RESET_ENTRIES).toContain(filename);
+      }
+    },
+    // `./handlers/settings` loads about 355 modules cold, about 7 s on its own; the budget is for
+    // that import, not for the comparison.
+    ROUTER_IMPORT_BUDGET_MS,
+  );
 
   it("never calls the gateway gate without a tenant", () => {
     const offenders: string[] = [];

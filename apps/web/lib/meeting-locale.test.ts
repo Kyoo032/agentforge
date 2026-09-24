@@ -40,6 +40,16 @@ describe("meeting locale JSON", () => {
     }
   });
 
+  it("names the meeting in both languages on the notices that are about one", () => {
+    const placeholders = (value: string) => (value.match(/\{[a-zA-Z]+\}/g) ?? []).sort();
+    const en = (load("en") as { record: Record<string, string> }).record;
+    const id = (load("id") as { record: Record<string, string> }).record;
+    for (const key of ["uploadFailedFor", "otherDesk"]) {
+      expect(placeholders(en[key] ?? ""), key).toEqual(["{title}"]);
+      expect(placeholders(id[key] ?? ""), key).toEqual(["{title}"]);
+    }
+  });
+
   it("keeps brand names untranslated in id", () => {
     const raw = readFileSync(resolve(localesDir, "id", "meeting.json"), "utf8");
     expect(raw).not.toMatch(/TokenKu/);

@@ -77,11 +77,21 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
    * initial load fails, so "+ New chat" and a dead id still fall through to a real create.
    */
   const pendingThreadRef = useRef<string | null>(initialThreadId ?? null);
+  /**
+   * Which session the pane is showing, bumped the moment the owner opens another — a rail row or
+   * "+ New chat" — in the same render that sees the new `?thread`. The composer tags every run with
+   * it: a run whose session is no longer on screen keeps streaming to the host, which saves the
+   * reply, but draws nothing here. `ensureThread`'s own `router.replace` is not a switch; it moves
+   * `seenInitialThreadRef` first.
+   */
+  const sessionEpochRef = useRef(0);
   const seenInitialThreadRef = useRef(initialThreadId);
   if (seenInitialThreadRef.current !== initialThreadId) {
     seenInitialThreadRef.current = initialThreadId;
     pendingThreadRef.current = initialThreadId ?? null;
+    sessionEpochRef.current += 1;
   }
+  const sessionKey = sessionEpochRef.current;
 
   useEffect(() => {
     try {
@@ -157,6 +167,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
     if (!agentIdReady) {
       throw new Error(t("chat.error.loading"));
     }
+    const startedIn = sessionEpochRef.current;
     const created = await apiFetch("/api/v1/threads", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -166,13 +177,19 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
       throw new Error(created.error.message ?? t("chat.error.start"));
     }
     const id = created.thread.id as string;
+    rememberModel(modelId, id);
+    notifyThreadsChanged();
+    if (sessionEpochRef.current !== startedIn) {
+      // The owner opened another session while this thread was being created. Leave the pane
+      // where they went instead of pulling it back with the `?thread=` below; the composer sees
+      // the same switch and sends nothing into the thread.
+      return id;
+    }
     threadIdRef.current = id;
     pendingThreadRef.current = id;
     seenInitialThreadRef.current = id;
     setThreadId(id);
-    rememberModel(modelId, id);
     router.replace(`${chatPath()}?thread=${id}`);
-    notifyThreadsChanged();
     return id;
   }
 
@@ -287,9 +304,13 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
     );
   }, [models, catalogDefault, initialThreadId, threadId]);
 
+  /** Reload a thread's messages — unless the pane has moved to another session while they loaded. */
   async function refreshMessages(id: string) {
+    const key = sessionEpochRef.current;
     const payload = await apiFetch(`/api/v1/threads/${id}`).then((res) => res.json());
-    setMessages(payload.messages ?? []);
+    if (sessionEpochRef.current === key && threadIdRef.current === id) {
+      setMessages(payload.messages ?? []);
+    }
   }
 
   const empty = messages.length === 0 && !streaming && !thinking && !running && tools.length === 0;
@@ -374,6 +395,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
       {agentIdReady ? (
         <ChatComposer
           threadId={threadId}
+          sessionKey={sessionKey}
           onEnsureThread={ensureThread}
           modalities={modalities.length > 0 ? modalities : ["text"]}
           model={modelId}
@@ -428,14 +450,27 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
             setError(message);
             setRunning(false);
           }}
-          onComplete={async () => {
+          onComplete={async (run) => {
             notifyThreadsChanged();
+            if (!run.showing) {
+              // The owner opened another session while this run streamed, and the host saved the
+              // reply. Show it only if the pane has come back to that thread since.
+              if (run.threadId && run.threadId === threadIdRef.current) {
+                await refreshMessages(run.threadId).catch(() => undefined);
+              }
+              return;
+            }
+            const key = sessionEpochRef.current;
             const liveMedia = toolsRef.current.flatMap((tool) => collectToolMediaParts(tool.output));
             setStreaming("");
             setThinking("");
             setRunning(false);
             if (threadIdRef.current) {
               await refreshMessages(threadIdRef.current);
+            }
+            if (sessionEpochRef.current !== key) {
+              // The owner moved on while the messages reloaded; this run's media is not theirs now.
+              return;
             }
             setTools([]);
             if (liveMedia.length > 0) {

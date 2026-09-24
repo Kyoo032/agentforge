@@ -9,6 +9,7 @@
   "savedPlaceholder": "Dataset tersimpan…",
   "savedOption": "{name} ({rows} baris)",
   "pasteOptional": "Atau tempel tabel",
+  "pasteLabel": "Baris dengan judul kolom di atas: CSV, atau sel yang disalin dari spreadsheet",
   "pastePlaceholder": "vendor,spend\nAcme,12000\nBeta,4100",
   "usePasted": "Gunakan tabel yang ditempel",
   "datasetMeta": "{rows} baris × {cols} kolom · {size}",

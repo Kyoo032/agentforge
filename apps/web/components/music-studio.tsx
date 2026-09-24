@@ -13,6 +13,7 @@ import { ModelSelect } from "@/components/model-select";
 import { SettingsLinkHint } from "@/components/settings-link-hint";
 import { t } from "@/lib/i18n";
 import { mediaPriceHints, musicEstimateView } from "@/lib/media-estimate";
+import { keepModelChoice } from "@/lib/model-choice";
 import { musicPickerEmpty, readApiErrorMessage } from "@/lib/music-models";
 import { apiFetch, mediaSrc } from "@/lib/api-client";
 import { useProductBrand } from "@/lib/product-brand";
@@ -90,7 +91,8 @@ export function MusicStudio() {
       }
       setItems(data.items ?? []);
       setModels(data.models ?? []);
-      setModel(data.defaultModel || data.models?.[0]?.id || "");
+      // `load` runs again after every generate: keep the model the person chose while it is still listed.
+      setModel((current) => keepModelChoice(current, data.models ?? [], data.defaultModel));
       setReady(Boolean(data.ready));
       setSpeechUnavailable(data.speechUnavailable ?? null);
     } catch (err) {

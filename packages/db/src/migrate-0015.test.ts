@@ -162,10 +162,14 @@ function count(sqlite: Database.Database, table: string): number {
 }
 
 afterEach(() => {
-  for (const dir of tempDirs) {
-    rmSync(dir, { recursive: true, force: true });
-  }
+  // Taken off the list before removal: a directory that will not go must fail the test that made
+  // it, not every test after it too.
+  const dirs = tempDirs;
   tempDirs = [];
+  for (const dir of dirs) {
+    // Retries ride out a scanner's brief hold on a just-closed file; an open handle still fails.
+    rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  }
 });
 
 describe("0015_tenants on a fresh database", () => {
@@ -430,12 +434,17 @@ describe("the SQLite busy_timeout", () => {
     const previousUrl = process.env.DATABASE_URL;
     process.env.AGENTFORGE_DATA_DIR = dataDir;
     delete process.env.DATABASE_URL;
+    let opened: Database.Database | undefined;
     try {
       const { sql } = await import("./client");
+      opened = sql;
       expect(sql.pragma("busy_timeout", { simple: true })).toBe(5000);
       expect(sql.pragma("journal_mode", { simple: true })).toBe("wal");
       expect(sql.pragma("foreign_keys", { simple: true })).toBe(1);
     } finally {
+      // The client opened agentforge.sqlite (and its -wal/-shm) inside dataDir. Windows will not
+      // delete a file something still holds, so the handle goes before afterEach removes the dir.
+      opened?.close();
       if (previousDataDir === undefined) {
         delete process.env.AGENTFORGE_DATA_DIR;
       } else {

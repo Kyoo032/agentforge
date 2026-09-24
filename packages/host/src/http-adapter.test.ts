@@ -231,8 +231,13 @@ afterEach(() => {
   }
 });
 
-afterAll(() => {
-  rmSync(dataDir, { recursive: true, force: true });
+afterAll(async () => {
+  // `./handlers/health` (imported by the adapter for the liveness route) pulls in @agentforge/db,
+  // which opened the kernel SQLite inside dataDir. Windows will not delete a file something still
+  // holds, so that handle is closed before the dir goes.
+  const { sql } = await import("@agentforge/db");
+  sql.close();
+  rmSync(dataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 });
 
 describe("handleNodeRequest reset-route transport guard", () => {

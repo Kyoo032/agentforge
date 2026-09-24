@@ -341,6 +341,11 @@ export const marketWatchRequestSchema = z.object({
    */
   depth: z.enum(MARKET_DEPTHS).default(DEFAULT_MARKET_DEPTH),
   model: z.string().optional(),
+  /**
+   * True only when the person picked `model` in the studio (`apps/web/lib/model-choice.ts`). The host
+   * then never swaps it for a stand-in. Declared here because an undeclared key is stripped.
+   */
+  modelPinned: z.boolean().optional(),
 });
 export type MarketWatchRequest = z.infer<typeof marketWatchRequestSchema>;
 

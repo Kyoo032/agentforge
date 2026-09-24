@@ -3,6 +3,8 @@
 import { promptTemplateById, type PromptTemplate } from "@agentforge/core/edit";
 import { useEffect, useState } from "react";
 import { apiFetch, mediaSrc } from "@/lib/api-client";
+import { t } from "@/lib/i18n";
+import { labeled } from "@/lib/ui-copy";
 
 export type VideoExampleItem = {
   file: string;
@@ -23,11 +25,18 @@ type Props = {
   selectedId: string | null;
 };
 
-const LOAD_FAILED = "Could not load example clips";
+function loadFailed(): string {
+  return t("videos.clipsLoadError");
+}
 
 function formatSeconds(item: VideoExampleItem): string {
   const seconds = item.durationSeconds ?? item.seconds;
-  return `${Number.isInteger(seconds) ? seconds : seconds.toFixed(1)}s`;
+  return t("videos.seconds", { n: Number.isInteger(seconds) ? seconds : seconds.toFixed(1) });
+}
+
+/** The bundled manifest carries an English title; the catalog has one per template id. */
+function exampleTitle(item: VideoExampleItem): string {
+  return labeled(`videos.exampleClips.${item.templateId}.title`, item.title);
 }
 
 /**
@@ -48,14 +57,14 @@ export function VideoExamples({ onPick, selectedId }: Props) {
           error?: { message?: string };
         };
         if (!response.ok) {
-          throw new Error(data.error?.message ?? LOAD_FAILED);
+          throw new Error(data.error?.message ?? loadFailed());
         }
         if (!cancelled) {
           setItems(data.examples ?? []);
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : LOAD_FAILED);
+          setError(err instanceof Error ? err.message : loadFailed());
         }
       }
     }
@@ -79,10 +88,8 @@ export function VideoExamples({ onPick, selectedId }: Props) {
 
   return (
     <section className="mt-6" data-testid="videos-examples">
-      <h2 className="text-sm font-medium text-[var(--text)]">Example clips</h2>
-      <p className="mt-1 text-xs text-[var(--text-3)]">
-        Generated from the prompt templates below and bundled with the app. Click one to load its prompt.
-      </p>
+      <h2 className="text-sm font-medium text-[var(--text)]">{t("videos.clipsHeading")}</h2>
+      <p className="mt-1 text-xs text-[var(--text-3)]">{t("videos.clipsHint")}</p>
       <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((item) => {
           const isSelected = item.templateId === selectedId;
@@ -107,8 +114,8 @@ export function VideoExamples({ onPick, selectedId }: Props) {
                 data-testid="videos-example-video"
               />
               <div className="px-3 py-2">
-                <p className="truncate text-sm text-[var(--text)]" title={item.title}>
-                  {item.title}
+                <p className="truncate text-sm text-[var(--text)]" title={exampleTitle(item)}>
+                  {exampleTitle(item)}
                 </p>
                 <p className="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-[var(--text-3)]">
                   <span className="rounded border border-[var(--line)] px-1 leading-4">{item.aspect}</span>
@@ -130,7 +137,7 @@ export function VideoExamples({ onPick, selectedId }: Props) {
                     }
                   }}
                 >
-                  Use this prompt
+                  {t("videos.usePrompt")}
                 </button>
               </div>
             </li>

@@ -178,14 +178,4 @@ export function storageAdmission(input: {
 export const STORAGE_BLOCK_MESSAGE =
   "This account has used all of its storage. Delete something, or ask for more space, to store new files.";
 
-/** Human bytes for a log line or an error detail. Never used for arithmetic. */
-export function formatBytes(bytes: number): string {
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  let value = Math.max(0, bytes);
-  let unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
-    unit += 1;
-  }
-  return `${unit === 0 ? Math.round(value) : value.toFixed(1)} ${units[unit]}`;
-}
+export { formatBytes } from "./format-bytes";

@@ -14,6 +14,7 @@ import { formatContextLength, pickerGroups } from "@agentforge/core/preferred";
 import { isThinkingModel } from "@agentforge/core/curation";
 import { t } from "@/lib/i18n";
 import { placePickerPanel, viewportBounds, type PickerPanelPos } from "@/lib/picker-panel";
+import { isInHiddenPane } from "@/lib/shortcut-target";
 
 export type ChatModel = {
   id: string;
@@ -191,6 +192,11 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "k") {
+        return;
+      }
+      // Chat stays mounted in a hidden pane while another mode is on screen. Its panel is portalled
+      // to <body>, so answering the shortcut from there would open Chat's picker over that mode.
+      if (isInHiddenPane(triggerRef.current)) {
         return;
       }
       if (disabled || models.length === 0) {

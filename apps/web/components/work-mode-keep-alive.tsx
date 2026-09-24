@@ -44,6 +44,11 @@ const WORK_MODE_PATHS = Object.keys(WORK_MODE_COMPONENTS);
  */
 export function WorkModeKeepAlive() {
   const { id } = useWorkspaceScope();
+  // A desk switch remounts every pane on purpose: what each one lists belongs to the desk. Two
+  // things keep that from costing work that cannot be redone. The shell changes this id only when
+  // the host names a desk, never on a failed read (`shellWorkspaceFrom`, `src/App.tsx`). And
+  // Meeting hands a recording it still holds to its next mount (`stashRescuedClip`,
+  // `meeting-studio.tsx`) instead of losing it with the pane.
   return <WorkModePanes key={id ?? "boot"} />;
 }
 

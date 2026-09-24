@@ -4,7 +4,7 @@ import { dirname, resolve } from "node:path";
 import SqliteDatabase, { type Database as SqliteConnection } from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { ensureSchema } from "./ensure-schema";
-import { applyPendingDataReset } from "./reset";
+import { applyPendingDataReset, resetOutcomeSummary } from "./reset";
 import * as schema from "./schema";
 import { localDataDir, sqliteFilePath } from "./vault-key";
 
@@ -31,9 +31,18 @@ const globalForDb = globalThis as unknown as {
  * `apps/web/server-env.ts` (webdev) and `bootstrapPackaged()` in the Electron shell.
  *
  * Skipped when a connection is already cached, because that process already booted past this point.
+ *
+ * The outcome is logged as counts only (see `resetOutcomeSummary`): the entries include the key
+ * file, and a database kept outside the data dir is reported by its absolute path.
  */
 if (process.env.AGENTFORGE_APPLY_PENDING_RESET === "1" && !globalForDb.sqlite) {
-  applyPendingDataReset(localDataDir());
+  const outcome = applyPendingDataReset(localDataDir());
+  const summary = resetOutcomeSummary(outcome);
+  if (summary && outcome.failed.length > 0) {
+    console.warn(summary);
+  } else if (summary) {
+    console.info(summary);
+  }
 }
 
 export const sql: SqliteConnection = globalForDb.sqlite ?? new SqliteDatabase(file);

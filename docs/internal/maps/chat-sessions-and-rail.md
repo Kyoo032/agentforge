@@ -1,6 +1,10 @@
 # Map — Chat sessions and the rail
 
-Last verified: 2026-09-23 at 0774681 + working tree (the 0.15.0 design pass). Changed here: the rail row reads from `--rail-*` tokens and follows the theme instead of being dark in both; the `New` badge mechanism (`NEW_BADGE_UNTIL`, `newBadgeOn`, the `badge` prop, `rail.badgeNew`) is deleted; `RailSubmenuToggle` is arrow-only and the selected row's left accent stripe is gone. The session list, its store and the events are untouched. Supersedes the 2026-09-22 "dark desk overhaul" note, whose dark default this pass reversed.
+Last verified: 2026-09-23 at d4561b8 + uncommitted tree for every `chat-session.tsx` and `chat-composer.tsx`
+citation and the new § 11 (a run belongs to the session it started in; `onComplete` now receives
+`{ threadId, showing }`). Not walked in a browser.
+
+Before that: 2026-09-23 at 0774681 + working tree (the 0.15.0 design pass). Changed there: the rail row reads from `--rail-*` tokens and follows the theme instead of being dark in both; the `New` badge mechanism (`NEW_BADGE_UNTIL`, `newBadgeOn`, the `badge` prop, `rail.badgeNew`) is deleted; `RailSubmenuToggle` is arrow-only and the selected row's left accent stripe is gone. The session list, its store and the events are untouched. Supersedes the 2026-09-22 "dark desk overhaul" note, whose dark default this pass reversed.
 
 The sibling page [`chat-send.md`](chat-send.md) owns one turn inside a session. This page owns the sessions themselves: where the list comes from, how a row opens a thread, and how the pane, the list and the desk stay in step. The rail block (`rail-recent-threads.tsx`, `use-chat-threads.ts`, `thread-groups.ts`, `threads-events.ts`) landed in 0.14.27 ([`../0.14.27-changelog.md`](../0.14.27-changelog.md), PR #52); every citation below is re-anchored to the committed tree at `b482611`.
 
@@ -97,8 +101,8 @@ Publishers, all of them:
 
 | Publisher | When | Source |
 |---|---|---|
-| `ChatSession.ensureThread` | a composer send created the thread | `apps/web/components/chat-session.tsx:210` |
-| `ChatComposer` `onComplete` | a run finished, so the title may have changed | `apps/web/components/chat-session.tsx:528` |
+| `ChatSession.ensureThread` | a composer send created the thread | `apps/web/components/chat-session.tsx:181` |
+| `ChatComposer` `onComplete` | a run finished, so the title may have changed — whether or not the pane is still showing it | `apps/web/components/chat-session.tsx:454` |
 | `useChatThreads.removeThread` | a delete succeeded | `apps/web/lib/use-chat-threads.ts:151` |
 | `WorkspaceSwitcher` | after `POST /api/v1/workspaces/:id/select` | `apps/web/components/workspace-switcher.tsx:84` |
 
@@ -135,9 +139,9 @@ const thread = params.get("thread") ?? undefined;
 <ChatSession initialThreadId={thread} />
 ```
 
-`ChatSession`'s load effect (`apps/web/components/chat-session.tsx:214-307`, deps `[agentId, initialThreadId, router]`) resolves the agent, then:
+`ChatSession`'s load effect (`apps/web/components/chat-session.tsx:196-289`, deps `[agentId, initialThreadId, router]`) resolves the agent, then:
 
-- **with `initialThreadId`** — early-return if it already equals `threadIdRef.current`, else `GET /api/v1/threads/:id`, adopt the id into both the ref and the state, `setMessages(payload.messages ?? [])`, `resetLive()` (`:263-284`). If the thread belongs to a non-default agent it redirects to `/agents/<id>?thread=<id>` instead (`:274-277`).
+- **with `initialThreadId`** — early-return if it already equals `threadIdRef.current`, else `GET /api/v1/threads/:id`, adopt the id into both the ref and the state, `setMessages(payload.messages ?? [])`, `resetLive()` (`:245-267`). If the thread belongs to a non-default agent it redirects to `/agents/<id>?thread=<id>` instead (`:257-260`).
 - **without it** — blank the pane, but only if this is a real departure.
 
 ### 7. `+ New chat` with a thread open — the `leftThread` latch
@@ -160,13 +164,13 @@ setMessages([]);
 resetLive();
 ```
 
-(`apps/web/components/chat-session.tsx:106`, `:215-216`, `:287-295`.) Driven: with one stub turn on screen, `new-chat-link` took the URL back to `/chat`, `message-output` to 0, and `aria-current` rows to 0, while the thread itself kept its turn when reopened (`11-new-chat-link-pane-reset.png`, `13-rail-click-reopen.png`).
+(`apps/web/components/chat-session.tsx:71`, `:198-199`, `:269-277`.) Driven: with one stub turn on screen, `new-chat-link` took the URL back to `/chat`, `message-output` to 0, and `aria-current` rows to 0, while the thread itself kept its turn when reopened (`11-new-chat-link-pane-reset.png`, `13-rail-click-reopen.png`).
 
 There is one New chat control, `new-chat-link`. The header button `data-testid="new-chat"` was removed on 2026-09-22. The pane still clears through the `leftThread` latch when that link drops `?thread`.
 
 ### 8. Creating and naming a session
 
-`ensureThread` (`apps/web/components/chat-session.tsx:186-212`) returns `threadIdRef.current` when it has one; otherwise it `POST`s `/api/v1/threads` with just `{ agentId }`, adopts the id, `router.replace("/chat?thread=<id>")`, and fires `notifyThreadsChanged()`.
+`ensureThread` (`apps/web/components/chat-session.tsx:161-194`) returns `threadIdRef.current` when it has one; otherwise it `POST`s `/api/v1/threads` with just `{ agentId }`, fires `notifyThreadsChanged()`, and — only if the owner is still on the session the send started in — adopts the id and `router.replace("/chat?thread=<id>")`s (`:182-193`). A thread created while the owner opened another session is left where it is, so the pane is not pulled back to it (§ 11).
 
 `handlePostThreads` (`packages/host/src/handlers/threads.ts:44-64`) validates that `agentId` and `title` are strings when present, 404s on an unknown agent, trims a supplied title to `THREAD_TITLE_MAX = 200` (`thread-title.ts:25`), and calls `createThread`, which defaults the title to `defaultThreadTitle(localeForRun())` (`packages/host/src/threads.ts:35-47`). That default is exactly the string the list filter throws away, so a thread created this way is **invisible in the rail until the first user message renames it**.
 
@@ -188,7 +192,19 @@ removeGraphForThread(tenant, threadId);
 
 ### 10. Keep-alive
 
-`WorkModeKeepAlive` (`apps/web/components/work-mode-keep-alive.tsx:45-81`) keeps every visited work-mode page mounted and merely `hidden`, so leaving Chat for Documents does not unmount `ChatSession`, and drafts plus in-flight SSE survive. It is keyed on the workspace id (`:43`), so a desk switch **does** blow all panes away — which is the correct pairing with the rail's workspace-scoped list.
+`WorkModeKeepAlive` (`apps/web/components/work-mode-keep-alive.tsx`) keeps every visited work-mode page mounted and merely `hidden`, so leaving Chat for Documents does not unmount `ChatSession`, and drafts plus in-flight SSE survive. It is keyed on the workspace id, so a desk switch **does** blow all panes away — which is the correct pairing with the rail's workspace-scoped list. Since 2026-09-23 the shell changes that id only when `GET /api/v1/workspaces` answers and names a desk (`shellWorkspaceFrom`, `apps/web/src/App.tsx:54`): a lapsed session, a 5xx or a proxy page used to read as "no desks" and remount every pane.
+
+### 11. A run belongs to the session it started in (2026-09-23)
+
+Opening another session from the rail while a reply streams used to write the rest of that reply into the session now on screen, and the new session's Send stayed disabled by the old run. Now:
+
+- `ChatSession` keeps `sessionEpochRef` (`apps/web/components/chat-session.tsx:87`), bumped in the same render that sees a new `?thread` (`:92`), and passes it to the composer as `sessionKey` (`:398`). `ensureThread`'s own `router.replace` is not a switch: it moves `seenInitialThreadRef` first.
+- `ChatComposer.send` records the key it started under (`apps/web/components/chat-composer.tsx:258`, `showing()`). If the owner moves on **before** the run reaches the host, nothing is sent and the draft stays in the box. If they move on **after**, the run's stream is still read to the end — the host aborts a run whose client goes away (`packages/host/src/http-adapter.ts:664-665`), and the reply the owner asked for would never be saved — but `readRunStream` (`chat-composer.tsx:107`) draws nothing once `showing()` is false, and the composer no longer holds Send or its error for the old session (`:187-192`).
+- `onComplete` receives `{ threadId, showing }` (`RunEnd`, `chat-composer.tsx:90`; called at `:262`). `ChatSession` always fires `notifyThreadsChanged()`, and when `showing` is false it reloads that thread's messages only if the pane has come back to it (`chat-session.tsx:453-462`).
+- `refreshMessages` drops an answer that lands after the pane moved to another session (`:308-314`).
+- Only the draft that was sent is cleared; anything typed or attached since stays.
+
+Pinned by `apps/web/lib/chat-run-stream.test.ts` (`readRunStream`) and `apps/web/lib/chat-run-scope-wiring.test.ts` (the wiring, read from source). Not driven in a browser.
 
 ### Failure modes
 
@@ -200,7 +216,7 @@ removeGraphForThread(tenant, threadId);
 | `DELETE` non-OK (404 / not yours) | `removeThread`, `:153-157` | `window.alert` with the host message plus the `rail-thread-error` line; the row stays |
 | A second delete while one is in flight | `:140-142` | ignored; the busy row keeps `opacity-100` via `deletingId` |
 | Deleted thread was the open one | `rail-recent-threads.tsx:41-43` | `router.push("/chat")`, pane blanks |
-| `?thread=` points at a missing / foreign thread | `chat-session.tsx:267-269` | `chat-error` with `chat.error.threadMissing`; the rail row is already gone |
+| `?thread=` points at a missing / foreign thread | `chat-session.tsx:250-252` | `chat-error` with `chat.error.threadMissing`; the rail row is already gone |
 | More than 40 chat threads on the desk | `packages/host/src/threads.ts:90`, `:116` | `All sessions` shows the newest 40 and stops; nothing tells the user the list was cut |
 | Thread created but never messaged | `handlers/threads.ts:29` + `thread-title.ts:20-22` | never appears in the rail |
 | Rail collapsed | `app-rail.tsx:302` | no session rows at all; `mode-chat` icon only |

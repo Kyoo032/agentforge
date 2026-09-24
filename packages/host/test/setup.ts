@@ -9,14 +9,22 @@
  * `localDataDir()` / `mediaRoot()`, so pointing the env at a throwaway directory here
  * is enough — nothing caches the path at import time.
  */
-import { mkdirSync } from "node:fs";
+import { mkdirSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const HOST_TEST_ROOT = process.env.AGENTFORGE_HOST_TEST_ROOT?.trim() || join(tmpdir(), "agentforge-host-vitest");
 
-/** One desk per worker: workers run test files in parallel and must not share a sqlite file. */
-const dataDir = join(HOST_TEST_ROOT, `worker-${process.pid}`);
+/**
+ * One desk per worker: workers run test files in parallel and must not share a sqlite file.
+ *
+ * mkdtemp, not the pid alone. Every test file gets a fresh worker process, and Windows hands a
+ * finished process's pid to a new one: 13 of 226 short-lived children reused a pid on this desk. A
+ * `worker-<pid>` name would give that file the earlier file's desk — its database, its saved gateway
+ * key — which is exactly what a case like "the gate is really closed" must not start from.
+ */
+mkdirSync(HOST_TEST_ROOT, { recursive: true });
+const dataDir = mkdtempSync(join(HOST_TEST_ROOT, `worker-${process.pid}-`));
 const mediaDir = join(dataDir, "media");
 
 mkdirSync(mediaDir, { recursive: true });

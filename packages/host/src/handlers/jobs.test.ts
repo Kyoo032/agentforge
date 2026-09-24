@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { ROUTER_IMPORT_BUDGET_MS } from "../__fixtures__/test-budgets";
 import type { ChatModel, MediaPrice, PricingCatalog } from "@agentforge/core";
 import { attachMediaPrices, gatewayFlatPrice } from "../media-price";
 import type { HostRequest, HostResult } from "../types";
@@ -102,7 +103,7 @@ function model(id: string): ChatModel {
 describe("studio job handlers via the router", () => {
   beforeAll(async () => {
     ({ dispatch } = await import("../router"));
-  }, 60_000);
+  }, ROUTER_IMPORT_BUDGET_MS);
 
   afterAll(async () => {
     const { sql } = await import("@agentforge/db");

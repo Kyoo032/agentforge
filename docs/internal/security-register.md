@@ -29,6 +29,19 @@ returned the server's own paths — which also closed [SR-27](#sr-27) and [SR-31
 `fixed-unverified`. Everything that pass touched is host, core, web, `webapp-deploy` and docs; the
 portal rows are fix pass X's.
 
+Extended on 2026-09-23 by the cleanup, security and bug-fix pass with SR-74 … SR-78, the rows
+that ship in the Personal app (and in the shared code the hosted app also runs), and moved
+[SR-19](#sr-19). The Enterprise rows of the same pass (SR-50 … SR-73, SR-79) land with the
+Enterprise branch. Every `file:line` in those rows was read in the working tree on `main` at
+`d4561b8` that day. Each row names its product: **Enterprise** (the hosted web app and its portal),
+**Personal** (the Mac/Windows app) or **both**. Its fixed rows use the status `fixed, not driven`,
+defined below: nothing in that pass was driven on `:3000` (the host and core changes need Rizky to
+restart it), nothing was packed, and nothing ran on a server.
+
+Extended on 2026-09-24 with [SR-80](#sr-80): Rizky dropped GitHub Actions, the three workflows are
+deleted, and the CI and audit gate moved to `pnpm ci:local` (`scripts/ci-local.mjs`). That moves
+OWASP A06-1 and closes A08-1 by removal; both are updated in [SR-16](#sr-16).
+
 ## Summary
 
 | ID | Severity | Title | Status | Gate |
@@ -38,7 +51,7 @@ portal rows are fix pass X's.
 | [SR-14](#sr-14) | High | `Permissions-Policy` denies `microphone` and `display-capture`, so Meeting recording cannot work on the deploy | Fixed-unverified, lane E | Blocks Tencent deploy |
 | [SR-04](#sr-04) | High | Hosted env is not validated at boot: a deployment with no wrap key starts healthy | Fixed-unverified, lane E | Blocks Tencent deploy |
 | [SR-06](#sr-06) | High | A signed-out hosted visitor lands on the paste-your-key onboarding screen | Open, lane C | Blocks Tencent deploy |
-| [SR-12](#sr-12) | High | Twelve security tests do not run on this machine, and CI cannot start a runner | Open | Blocks Tencent deploy |
+| [SR-12](#sr-12) | High | Twelve security tests do not run on this machine, and CI cannot start a runner | Fixed, 2026-09-24 — every one runs and passes in `pnpm ci:local` on this desk | — |
 | [SR-02](#sr-02) | High | `.webdev-data/` held `.master-key` and was not git-ignored | Fixed | Blocks PR merge |
 | [SR-05](#sr-05) | High | `POST /api/v1/auth/login` had no `state` binding | Fixed-unverified, lane F | Blocks PR merge |
 | [SR-39](#sr-39) | High | The portal's SMTP transport suppressed STARTTLS, so a real provider got OTPs and SMTP AUTH in cleartext | Fixed-unverified, fix pass X | Blocks Tencent deploy |
@@ -58,7 +71,11 @@ portal rows are fix pass X's.
 | [SR-10](#sr-10) | Medium | Manual OTP issuance hands a live sign-in code to whoever runs the CLI | Fixed-unverified, lane A | Blocks Tencent deploy |
 | [SR-16](#sr-16) | Medium | Four OWASP findings are still open, one of them the reason nothing is proved by CI | Open | Blocks Tencent deploy |
 | [SR-17](#sr-17) | Medium | A PR cut from this worktree with `git add -A` commits five lanes and an untracked logo | Open | Blocks PR merge |
-| [SR-19](#sr-19) | Medium | `data/` is an allowlist, so each new product file under it is tracked by default | Fixed in part | Blocks PR merge |
+| [SR-19](#sr-19) | Medium | `data/` is an allowlist, so each new product file under it is tracked by default | Fixed, 2026-09-23 (`/data/` ignored whole) | — |
+| [SR-75](#sr-75) | Medium | A cancelled Market run kept paying for model calls, and a failure after the cancel could stop the host | Fixed, not driven (2026-09-23) | Blocks Tencent deploy and the next Personal cut |
+| [SR-76](#sr-76) | Medium | Model-written finance figures reached the reader past the number guard three ways | Fixed, not driven (2026-09-23) | Blocks Tencent deploy and the next Personal cut |
+| [SR-77](#sr-77) | Medium | A "Start over" wipe that failed part-way deleted its own marker, so the rest never ran | Fixed, not driven (2026-09-23) | Blocks the next Personal cut |
+| [SR-80](#sr-80) | Medium | CI and the dependency-audit gate run only when someone runs `pnpm ci:local`; nothing checks a push on its own | Open — accepted by design (2026-09-24) | Blocks PR merge without a pasted `ci:local` summary |
 | [SR-01](#sr-01) | Low | `apps/portal/compose.yml` hardcodes `POSTGRES_PASSWORD: portal` | Accepted for dev only | Dev only |
 | [SR-07](#sr-07) | Low | The CSRF token is bound to the session id, so it stops verifying the moment a session changes | Open, lane C | Blocks PR merge |
 | [SR-09](#sr-09) | Low | The two billing variables were missing from `webapp-deploy/.env.example` | Fixed-unverified | Blocks Tencent deploy |
@@ -74,6 +91,8 @@ portal rows are fix pass X's.
 | [SR-41](#sr-41) | Low | A request body over the portal's 64 KB cap answered `500 internal_error` | Fixed-unverified, fix pass X | Dev only |
 | [SR-43](#sr-43) | Low | `auth_codes.state_hash` was stored and never verified, while code and docs called it a binding | Fixed-unverified, fix pass X | Blocks Tencent deploy |
 | [SR-44](#sr-44) | Low | `scripts/review-instance.ps1` seeded the literal Postgres password `portal` into `review.env` | Fixed-unverified, fix pass X | Dev only |
+| [SR-74](#sr-74) | Low | The Personal release published its notes without the banned-marks check | Fixed, not driven (2026-09-23) | Blocks the next Personal cut |
+| [SR-78](#sr-78) | Low | A failed "Start over" removal logged the absolute path of the file, the key file included | Fixed, not driven (2026-09-23) | Blocks the next Personal cut |
 | [SR-08](#sr-08) | Info | The portal token vault is process memory only | Accepted | Dev only |
 | [SR-15](#sr-15) | Info | Music relay: checked, not a key-exfiltration issue. It does send a spoofed browser `User-Agent` | Checked, not an issue | Dev only |
 | [SR-18](#sr-18) | Info | `X-Forwarded-Proto` and `X-Forwarded-For` trust: checked, sound as deployed today | Checked, not an issue | Blocks Tencent deploy on any topology change |
@@ -83,8 +102,9 @@ portal rows are fix pass X's.
 | [SR-38](#sr-38) | Info | Host and portal reason vocabularies differ in two places: checked, both deliberate | Checked, not an issue | Dev only |
 
 Status values: `open`, `fix in progress — lane X`, `fixed-unverified` (the code is in the tree and
-its test passes, nothing has been driven), `fixed`, `accepted for dev only`, `checked, not an
-issue`.
+its test passes, nothing has been driven), `fixed, not driven` (2026-09-23 rows: the code and its
+tests are in the tree, the row does not claim a test run, and nothing has been driven), `fixed`,
+`accepted for dev only`, `checked, not an issue`.
 
 ## High
 
@@ -391,7 +411,8 @@ Run on 2026-09-21 in this worktree. Counts are from those runs, not from memory.
 
 Nowhere else runs them. `gh run list` on 2026-09-21 returns `ci` and `e2e` failing in two to four
 seconds on `main` and on every pull request, which is the Actions billing lock recorded as OWASP
-A06-1.
+A06-1. **2026-09-24:** the workflows are deleted and CI is `pnpm ci:local` on this desk
+([SR-80](#sr-80)), so these suites now have to pass *here* — there is no other machine to run them.
 
 What goes wrong if ignored: the SSRF guard is the control that stops a caller-supplied URL reaching
 the cloud metadata service, and on this desk nothing confirms it. Specifically unverified locally:
@@ -405,11 +426,14 @@ Required action: three separate fixes, none large. Give the two DNS-bound suites
 `testTimeout` or a stubbed `lookupImpl`. Spawn `process.execPath` with the tsx loader, or resolve
 `tsx.CMD` on Windows, in the two suites that shell out. Read
 `tenant-storage-writers.test.ts:237` — **done, 2026-09-21; the answer is both, and it is
-[SR-27](#sr-27)**. Clearing the Actions billing lock closes the rest.
+[SR-27](#sr-27)**. Clearing the Actions billing lock is no longer the way out: since 2026-09-24 the
+only CI is `pnpm ci:local` on Windows ([SR-80](#sr-80)), so the Windows reds themselves must be fixed.
 
 Gate: **blocks Tencent deploy.** A deploy whose SSRF guard has never been exercised anywhere is a
 deploy on trust.
 
+
+**Update 2026-09-24 — fixed.** All twelve now run and pass on this Windows desk under `pnpm ci:local`: the SSRF cases mock `node:dns/promises` and still assert the loopback, private-host and metadata-address refusals (a new case each for 169.254.169.254), and the wrap-key and components-CLI cases spawn `process.execPath` with tsx's JS entry instead of the `.bin` shim, so the wrong-current-key and components-root-inside-the-data-dir refusals are proven here. No product code changed. The residual "only when someone runs it" risk is [SR-80](#sr-80).
 ### SR-02 {#sr-02}
 
 **`.webdev-data/` held `.master-key` and was not git-ignored.** Fixed in this change.
@@ -923,14 +947,14 @@ fixed, two were fixed on `main` afterwards, and four remain. All six re-read her
 |---|---|---|
 | A01-1, cross-tenant discard of an Edit item | Fixed, confirmed | `packages/host/src/handlers/edit.ts:493` scopes on `projectId` as well as `id` |
 | A01-2, by-id routes not systematically scoped | Fixed, confirmed | `packages/host/src/tenancy-harness.test.ts` exists and drives the by-id routes as a second tenant |
-| A06-1, nothing runs the tests | **Open** | `.github/workflows/ci.yml` is written; `gh run list` shows `ci` failing in 2 to 4 seconds on every push and pull request. See [SR-12](#sr-12) |
+| A06-1, nothing runs the tests | **Moved to the local gate, 2026-09-24** | `.github/workflows/` is deleted. `scripts/ci-local.mjs` (`pnpm ci:local`) runs lint, tsc, every unit suite and `node scripts/audit-deployed.mjs --level high`. It runs only when someone runs it: [SR-80](#sr-80). See [SR-12](#sr-12) |
 | A06-2, the image ships devDependencies | **Open** | `webapp-deploy/Dockerfile:102-103` copies the whole `/app` tree with no `pnpm prune --prod`, because `tsx` is the production entrypoint |
-| A08-1, actions pinned to mutable tags | **Open** | All 15 `uses:` lines across the three workflows are `@v4` |
+| A08-1, actions pinned to mutable tags | **Closed by removal, 2026-09-24** | The three workflows and their 15 `@v4` `uses:` lines are deleted; the repo has no `.github/workflows/`. [SR-80](#sr-80) |
 | A10-6, DNS rebinding | **Open by nature** | `packages/core/src/security/safe-fetch.ts:102` states it: closing it needs a custom undici dispatcher with a pinned `lookup` |
 
 Required action: A06-1 is the one that matters, because it is why every other row in this register
-is proved by hand. A08-1 is cheap once someone can read the tags' SHAs. A06-2 is a migration item.
-A10-6 stays recorded.
+is proved by hand. Since 2026-09-24 its answer is the local gate, and what remains of it is
+[SR-80](#sr-80). A08-1 went with the workflows. A06-2 is a migration item. A10-6 stays recorded.
 
 Gate: **blocks Tencent deploy** for A06-1. The other three are recorded and accepted.
 
@@ -953,7 +977,8 @@ Gate: blocks PR merge.
 
 ### SR-19 {#sr-19}
 
-**`data/` is an allowlist, so each new product file under it is tracked by default.** Fixed in part.
+**`data/` is an allowlist, so each new product file under it is tracked by default.** Fixed in part
+on 2026-09-21; fixed 2026-09-23.
 
 Evidence: `.gitignore:7-30` names individual paths under `data/`, not the directory. Probed with
 `git check-ignore`: `data/session.enc`, `data/meetings/m1/recording/source.webm` and
@@ -969,7 +994,15 @@ Required action: the three above are now ignored (`.gitignore:75-77`). The real 
 list, ignoring `data/` and un-ignoring whatever must be tracked, which is nothing today. That is a
 one-line change somebody should make deliberately rather than in a docs lane.
 
-Gate: blocks PR merge.
+**Fixed 2026-09-23.** The list is inverted. `.gitignore:14` is `/data/`, the whole directory, and
+both the per-name allowlist and the three lines added on 2026-09-21 are gone. The leading slash
+anchors it to the repo root, so a source folder named `data` anywhere else stays tracked; the comment
+above it (`:7-13`) says to switch to `/data/*` plus a `!/data/<name>` line if a file there ever has to
+be tracked. Checked on 2026-09-23 with `git check-ignore -v`: `data/session.enc`,
+`data/meetings/m1/recording/source.webm`, `data/components/x/y/f.node`, `data/agentforge.sqlite`,
+`data/.master-key` and an invented `data/something-new.json` all match `.gitignore:14`.
+
+Gate: none now. It blocked PR merge until this change.
 
 ### SR-42 {#sr-42}
 
@@ -1040,6 +1073,160 @@ reason classes and the timeout/cancel codes are pinned. Two cases in
 `ENOENT` and the stderr tail reached the caller) were rewritten to the new contract.
 
 Gate: **blocks Tencent deploy.** It is a hosted information disclosure reachable by any tenant.
+
+### SR-75 {#sr-75}
+
+**A cancelled Market run kept paying for model calls, and a call that failed after the cancel could
+stop the host.** Both products. Raised and fixed 2026-09-23.
+
+Evidence, as the flag was raised:
+
+- `withClientAbort` (`packages/host/src/market-generate.ts`) raced an already-started model call
+  against the client's abort and answered 499, but could not stop the call: the runtime took no
+  signal, so the gateway request ran to the end and was billed.
+- In a team run each seat's `catch` read that 499 as one more "unavailable" analyst, and the pipeline
+  went on through the other analysts, the debate, the risk read and the synthesis — every one a paid
+  call — for a client that had gone.
+- When the client had already left, `withClientAbort` threw before it ever observed the call it had
+  been handed, so that call's later failure was a rejection nothing handled. The hosted server
+  installs no `unhandledRejection` handler (none in `apps/web/server.ts` or `packages/host/src`), and
+  Node's default for one is to exit the process.
+
+What goes wrong if ignored: Cancel costs the tenant the full price of the run, and on the hosted
+server one cancelled team briefing whose socket then drops can stop the process for every tenant.
+
+**Fixed, not driven.**
+
+- The runtime takes the caller's signal (`packages/core/src/runtime/types.ts:66`). The live runtime
+  refuses to start a call once it has fired, forwards it into each call's own abort controller so the
+  request in flight is cancelled, starts no fallback or retry after it, and rejects with the signal's
+  reason instead of reporting `run.failed` (`linkCallerAbort`,
+  `packages/core/src/runtime/ai-sdk-runtime.ts:137-148`, used at `:632`; the checks at `:182`, `:457`,
+  `:465`). The stub runtime keeps the same contract (`packages/core/src/runtime/stub-runtime.ts:40`,
+  `:49`). A call the gateway had already finished still completes, so its usage is recorded.
+- The job runner passes the signal on and never starts the model fallback's stand-in after a cancel,
+  nor marks the model down for it (`packages/host/src/job-regen.ts:158`, `:202`, `:219`).
+- `withClientAbort` takes a function, so a run whose client has left never starts the paid call, and
+  it races the call so a late answer is dropped and a late failure is observed
+  (`market-generate.ts:219-237`). Market hands the run's signal to every call (`:388`, `:441`).
+- A team seat rethrows a cancel instead of degrading it, and the pipeline stops at the stage it lands
+  in (`isCancelled`, `packages/host/src/market-team.ts:123`; `:312-318`).
+
+Tests: `packages/host/src/market-generate.test.ts` "withClientAbort" (5, two of them with an
+`unhandledRejection` listener that must stay empty) and "hands the run's signal to the model call, so
+a cancel aborts the request in flight"; `packages/host/src/market-team.test.ts` "stops the whole team
+when the client leaves during %s" (three stages) and "leaves nothing to reject unhandled when the
+abandoned call fails after the client left"; `packages/core/src/runtime/ai-sdk-runtime.test.ts`,
+`packages/core/src/runtime/stub-runtime.test.ts`. Map: [`maps/market-watch.md`](maps/market-watch.md).
+
+Gate: **blocks Tencent deploy and the next Personal cut.**
+
+### SR-76 {#sr-76}
+
+**Model-written finance figures reached the reader past the number guard three ways.** Both
+products. Raised and fixed 2026-09-23.
+
+The rule this guard exists for: figures are computed in core, and the model names categories and
+writes the narrative but never produces an amount (AGENTS.md, Finance). Evidence, as the flag was
+raised:
+
+1. **Outside the section bodies.** `buildFinanceBrief` and the Finance tasks' `guardNarration` guarded
+   each section's body only. The title, every heading and every assumption are model prose too, read
+   first, and went out unguarded.
+2. **The regenerate.** `regenerateFinanceSection` guarded the rewritten section but skipped the repair
+   a generate runs, so the reader saw the literal `[unverified figure]` marker where the figure had
+   been.
+3. **The guard's own exemptions.** `isFreeNumber` passed any unit-less integer from 1900 to 2100 as a
+   year and any up to 12 as a count, judged on the parsed value. "$2,000", "2k" and "Rp 1.950" all
+   parse to integers in the year range, and "12.0" to a count, so an invented amount in any of those
+   shapes passed.
+
+What goes wrong if ignored: a finance deliverable states an amount no input or computation produced,
+in the places a reader trusts most — or shows them a marker instead of a figure.
+
+**Fixed, not driven.**
+
+- Only a bare one- or two-digit count up to 12, or a bare four-digit year, is free. A currency mark,
+  scale, sign, separator or decimal makes it an amount that must trace (`BARE_COUNT` / `BARE_YEAR`,
+  `packages/core/src/finance/number-guard.ts:23-24`; `isFreeNumber`, `:143`).
+- Titles, headings and assumptions are guarded in both paths. A title stating an untraced figure is
+  replaced whole, by the default or, for a task, by the reader's own question; a heading loses the
+  figure and keeps its words; an assumption resting on one is dropped and counted as a removed
+  sentence. The marker is never left in any of them (`guardLabel`, `guardTitle`, `guardAssumptions`,
+  `packages/host/src/finance-brief-build.ts:121`, `:140`, `:149`; `buildFinanceBrief`, `:191`;
+  `guardNarration`, `packages/host/src/finance-tasks/narrate.ts:124`; the removed count carried
+  through at `packages/host/src/finance-generate.ts:246` and `packages/host/src/finance-tasks/runner.ts:193`).
+- A section regenerate runs the same repair a generate does — one rewrite of what the guard blanked,
+  then the sentence goes — and keeps the section it was asked to replace when nothing traceable is
+  left (`packages/host/src/finance-generate.ts:367-378`).
+
+Tests: `packages/core/src/finance/number-guard.test.ts` "frees only a bare year or a bare small
+count, never a written amount"; `packages/host/src/finance-brief-build.test.ts` and
+`packages/host/src/finance-tasks/narrate.test.ts` "guards the title, every heading and every
+assumption, and never leaves the marker in them"; `packages/host/src/finance-generate.test.ts`
+"rewrites a blanked figure once, the same repair a generate runs, and ships no marker", "takes the
+sentence out when the rewrite invents again, and counts it", "keeps the section it was asked to
+replace when nothing traceable is left of the rewrite". Maps:
+[`maps/finance-parse-and-generate.md`](maps/finance-parse-and-generate.md),
+[`maps/finance-tasks.md`](maps/finance-tasks.md).
+
+Gate: **blocks Tencent deploy and the next Personal cut.**
+
+### SR-77 {#sr-77}
+
+**A "Start over" wipe that failed part-way deleted its own marker, so the rest of it never ran.**
+Personal (webdev runs the same boot step). Raised and fixed 2026-09-23.
+
+Evidence, as the flag was raised: `applyPendingDataReset` (`packages/db/src/reset.ts`) removed each
+entry, logged a removal that failed, and then always called `dropMarker` and reported
+`applied: true`. On Windows a file another process still holds open fails with `EBUSY` or `EPERM`,
+so a wipe the owner had confirmed could leave `.master-key`, `settings.enc` or the database behind,
+with nothing left to retry it and nothing on screen to say so.
+
+What goes wrong if ignored: "Start over" is the owner's erase. Leaving the key and the sealed
+settings behind after reporting success is the one outcome that button may not have.
+
+**Fixed, not driven.** A removal that fails keeps the marker, rewritten to name only what is still
+owed, and the next launch retries it (`keepForRetry`, `packages/db/src/reset.ts:276`;
+`applyPendingDataReset`, `:296`, the branch at `:332-337`). The database goes back on the list only
+when part of it is what failed: once it is gone the app opens a fresh one on the same boot, and a
+retry must not delete that (`database`, `:40`). `applied` is true only when everything went. The boot
+line says whether Start over is finished (`resetOutcomeSummary`, `:345`, logged from
+`packages/db/src/client.ts:38-46`).
+
+Tests: `packages/db/src/reset-retry.test.ts` (7). Map:
+[`maps/settings-and-gateway-gate.md`](maps/settings-and-gateway-gate.md).
+
+Gate: **blocks the next Personal cut.** A packaged Windows drive of Start over is already owed
+([`unreleased.md`](unreleased.md)).
+
+### SR-80 {#sr-80}
+
+**CI and the dependency-audit gate run only when someone runs `pnpm ci:local`.** Both products.
+Raised and recorded 2026-09-24.
+
+Evidence: Rizky decided on 2026-09-24 not to rely on GitHub Actions at all. Every Actions run on the
+account had ended in `startup_failure` since the repo was created ([SR-12](#sr-12);
+`docs/internal/0.14.22-changelog.md:118`), so `.github/workflows/ci.yml`,
+`e2e.yml` and `desktop-mac.yml` never ran a job; all three are deleted. Their checks moved to
+`scripts/ci-local.mjs`, run as `pnpm ci:local`: Biome lint, `tsc --noEmit` per workspace, `vitest run`
+per package (sequential, fresh `AGENTFORGE_DATA_DIR` each), `node --test scripts/*.test.mjs`, the
+`apps/desktop` node tests, the deployed-closure audit gate `node scripts/audit-deployed.mjs --level
+high` (required; pnpm's `list` and `audit --json` are captured to the run's log dir and passed in with
+`--closure` / `--audit`), and `pnpm audit --audit-level moderate` (advisory, as before). Playwright
+runs only with `--e2e`. Logs: `.ci-local/<timestamp>/`, gitignored.
+
+What goes wrong if ignored: the gate that closed OWASP A06-1 (a new high advisory in the hosted
+image's closure, a failing unit suite) now fails only on a machine where someone ran it. A push
+straight to `main`, a PR opened without a run, or a run on a stale `node_modules` all land
+unchecked. `pnpm audit` also needs the registry; offline, the gate step fails rather than passes.
+
+Required action: `pnpm ci:local` before every PR, merge and pack, and the `summary.md` table from
+that run pasted into the PR (AGENTS.md, **Tests → Local CI**). A PR or a pack without it has not
+been through CI. The Windows reds in [SR-12](#sr-12) and AGENTS.md's known-reds list now count
+against this gate, because there is no second machine to run those suites.
+
+Gate: **blocks PR merge** without a pasted `ci:local` summary.
 
 ## Low
 
@@ -1459,6 +1646,63 @@ probe is a plain docker call, outside Invoke-Compose", "Initialize-ReviewEnv fil
 missing".
 
 Gate: dev only.
+
+### SR-74 {#sr-74}
+
+**The Personal release published its notes without the banned-marks check, and its `docs/internal`
+guard was case-sensitive.** Personal. Raised and fixed 2026-09-23.
+
+Evidence, as the flag was raised: `apps/desktop/scripts/release-desktop.mjs` checked a `--notes` path
+with `join(flags.notes).includes(join("docs", "internal"))`. That is case-sensitive, so
+`Docs\Internal\x.md`, which opens the same file on Windows and on a default macOS volume, passed; and
+the default `docs/public/<version>-notes.md` was never read for AI or agent marks at all.
+`scripts/release-web.mjs` had that check for the Enterprise repo; the Personal repo had none.
+AGENTS.md ("Three repos") requires both public repos to carry no AI or agent marks and no
+`docs/internal` notes.
+
+What goes wrong if ignored: an internal changelog, or a line naming the tooling, is published on
+`Kyoo032/DPSBuddy`'s release page.
+
+**Fixed, not driven.** Both release scripts share one refusal list and matcher, `scripts/release-marks.mjs`
+(`FORBIDDEN_MARKS`, `:13`; `forbiddenMarksIn`, `:16`; `isInternalDocsPath`, `:28`, which resolves the
+path and compares it in any letter case and with either separator). `release-desktop.mjs` checks every
+notes file against it, `--notes` or the default, refuses one reached through a link that lands in
+`docs/internal`, and hands `gh` the absolute path of the file it checked (`checkedNotesFile`,
+`apps/desktop/scripts/release-desktop.mjs:200-209`). The check runs before anything is hashed or
+staged (`:276`, `:309`). `release-web.mjs` re-exports the shared list, so its API is unchanged
+(`scripts/release-web.mjs:47-51`).
+
+Tests: `scripts/release-web.test.mjs` "both release scripts share one refusal list", "a docs/internal
+path is caught in any letter case, with either separator, and through ..", "the desktop release
+refuses notes that carry a mark, and names the marks", "the desktop release refuses notes under
+docs/internal in any letter case", "the desktop release hands gh the checked notes file by its
+absolute path".
+
+Gate: **blocks the next Personal cut.** A `--dry-run` against the real notes file is the drive.
+
+### SR-78 {#sr-78}
+
+**A failed "Start over" removal logged the absolute path of the file, the key file included.**
+Personal (webdev runs the same boot step). Raised and fixed 2026-09-23.
+
+Evidence, as the flag was raised: `removeEntry` logged `error.message` for a removal that failed, and
+Node puts the absolute path in that message (`EBUSY: resource busy or locked, unlink '…'`). The
+entries include `.master-key` and `settings.enc`, and the path names the person's home folder.
+
+What goes wrong if ignored: a support log pasted into a ticket carries a user name and the location
+of the wrap key.
+
+**Fixed, not driven.** A failed entry is logged by its relative name and its error code only
+(`errorCode`, `packages/db/src/reset.ts:153`; the line at `:201`), and the boot summary is counts only
+(`resetOutcomeSummary`, `:345`, logged from `packages/db/src/client.ts:40-45`). **Still true:** the
+branch that removes a database kept outside the data dir logs `error.message`, so that database's
+absolute path, when inspecting or removing it fails (`:245-246`, `:260-261`). That path is a
+database file's, not a key file's.
+
+Tests: `packages/db/src/reset-retry.test.ts` "says which entry it could not remove, and why, without
+the path of the file"; "resetOutcomeSummary".
+
+Gate: **blocks the next Personal cut.**
 
 ## Info and checked-not-an-issue
 

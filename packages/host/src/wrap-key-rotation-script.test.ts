@@ -13,6 +13,7 @@
  */
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
@@ -22,7 +23,13 @@ import { ensureSchema } from "@agentforge/db/ensure-schema";
 
 const REPO = path.resolve(__dirname, "..", "..", "..");
 const SCRIPT = path.join(REPO, "scripts", "rotate-wrap-key.ts");
-const TSX = path.join(REPO, "node_modules", ".bin", "tsx");
+/**
+ * tsx's own JS entry, run by this Node — the same tsx the repo root installs. Not
+ * `node_modules/.bin/tsx`: that is an extensionless POSIX shell shim Windows cannot execute, so every
+ * run came back with no status and no output, and the "prints neither key" case passed on two empty
+ * strings.
+ */
+const TSX_CLI = createRequire(path.join(REPO, "package.json")).resolve("tsx/cli");
 
 const OLD_KEY = "11aa22bb33cc44dd55ee66ff7788990011aa22bb33cc44dd55ee66ff77889900";
 const NEW_KEY = "f0e1d2c3b4a5968778695a4b3c2d1e0ff0e1d2c3b4a5968778695a4b3c2d1e0f";
@@ -69,7 +76,7 @@ function storedValue(): string {
 
 function run(args: string[]): { status: number; out: string } {
   try {
-    const out = execFileSync(TSX, [SCRIPT, ...args], {
+    const out = execFileSync(process.execPath, [TSX_CLI, SCRIPT, ...args], {
       cwd: REPO,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
@@ -96,6 +103,11 @@ afterAll(() => {
   rmSync(dataDir, { recursive: true, force: true });
 });
 
+/**
+ * Every `run` starts a real Node process that compiles the script and opens a real database: about
+ * 3 s each on a quiet Windows desk. The call is synchronous, so vitest's 5 s default failed a case
+ * after the fact; the budgets below are 60 s per process a case starts.
+ */
 describe("scripts/rotate-wrap-key.ts against the hosted store", () => {
   it("rehearses the rotation without writing, and says so", () => {
     const before = storedValue();
@@ -106,7 +118,7 @@ describe("scripts/rotate-wrap-key.ts against the hosted store", () => {
     expect(result.status).toBe(0);
     expect(result.out).toContain("db store: would re-seal 1 tenant(s).");
     expect(storedValue()).toBe(before);
-  });
+  }, 60_000);
 
   it("re-seals the tenant's row under the new key", () => {
     const result = run(["--from", OLD_KEY, "--to", NEW_KEY]);
@@ -117,7 +129,7 @@ describe("scripts/rotate-wrap-key.ts against the hosted store", () => {
     const after = JSON.parse(storedValue());
     expect(decryptJson<unknown>(after, wrappingKeyFromSecret(NEW_KEY))).toEqual(PAYLOAD);
     expect(() => decryptJson<unknown>(after, wrappingKeyFromSecret(OLD_KEY))).toThrow();
-  });
+  }, 60_000);
 
   it("refuses a wrong current key and leaves the row exactly as it was", () => {
     const before = storedValue();
@@ -127,15 +139,19 @@ describe("scripts/rotate-wrap-key.ts against the hosted store", () => {
     expect(result.status).toBe(1);
     expect(result.out).toContain("Refused");
     expect(storedValue()).toBe(before);
-  });
+  }, 60_000);
 
   it("prints neither key, whatever happens", () => {
     const rotated = run(["--from", OLD_KEY, "--to", NEW_KEY]);
     const refused = run(["--from", OLD_KEY, "--to", NEW_KEY]);
 
+    // Both paths really ran — a rotation and then a refusal — so the checks below read real output.
+    expect(rotated.out).toContain("db store: re-sealed 1 tenant(s).");
+    expect(refused.status).toBe(1);
+    expect(refused.out).toContain("Refused");
     for (const output of [rotated.out, refused.out]) {
       expect(output).not.toContain(OLD_KEY);
       expect(output).not.toContain(NEW_KEY);
     }
-  });
+  }, 120_000);
 });

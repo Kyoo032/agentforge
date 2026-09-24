@@ -6,7 +6,9 @@
  * Every call is its own JSON contract. A call that fails, times out or returns
  * something that does not parse degrades to an "unavailable" note and a failure
  * string; the pipeline never throws out of a stage, because a briefing with
- * three analysts and an honest gap is worth more than no briefing at all. The
+ * three analysts and an honest gap is worth more than no briefing at all. A
+ * cancel is the exception: the client has left, so the run stops where it is
+ * instead of paying for every stage after it. The
  * synthesis is the only stage whose output the reader sees directly, and it
  * goes back through the same `{title, sections[]}` contract a quick run uses,
  * so the number guard, the advice guard and the artifact downstream never learn
@@ -20,6 +22,7 @@
  * runs the number guard and the advice guard over every free-text field, so the
  * stored notes are exactly as clean as the rendered sections.
  */
+import { ApiError } from "@agentforge/core";
 import {
   ANALYST_UNAVAILABLE,
   MARKET_ANALYSTS,
@@ -114,6 +117,11 @@ function parseJson(raw: string): unknown {
 
 function reason(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/** The client left (`withClientAbort`'s 499). Not a seat that failed: the stage rethrows it and the run stops. */
+function isCancelled(error: unknown): boolean {
+  return error instanceof ApiError && error.code === "aborted";
 }
 
 /** A debate side that could not be written. Reported, never hidden. */
@@ -223,6 +231,9 @@ async function runAnalyst(
     const parsed = analystNoteSchema.parse({ ...(parseJson(raw) as object), analyst });
     return { note: parsed, failure: null };
   } catch (error) {
+    if (isCancelled(error)) {
+      throw error;
+    }
     return { note: unavailableAnalystNote(analyst), failure: `team: ${analyst} analyst unavailable (${reason(error)})` };
   }
 }
@@ -241,6 +252,9 @@ async function runSide(
     const raw = await input.ask({ systemPrompt, prompt, versionId: `market-team-${stance}`, toolKeys: [] });
     return { side: debateSideSchema.parse({ ...(parseJson(raw) as object), stance }), failure: null };
   } catch (error) {
+    if (isCancelled(error)) {
+      throw error;
+    }
     return { side: unavailableSide(stance), failure: `team: ${stance} case unavailable (${reason(error)})` };
   }
 }
@@ -262,6 +276,9 @@ async function runRisk(
     });
     return { risk: riskReadSchema.parse(parseJson(raw)), failure: null };
   } catch (error) {
+    if (isCancelled(error)) {
+      throw error;
+    }
     return { risk: unavailableRisk(), failure: `team: risk read unavailable (${reason(error)})` };
   }
 }
@@ -271,6 +288,7 @@ async function runRisk(
  *
  * Only the synthesis may fail the run: it is the briefing. Every earlier stage
  * degrades to an "unavailable" note so the editor can say a seat was empty.
+ * A cancel stops the run at whichever stage it lands in.
  */
 export async function runTeamPipeline(input: TeamRunInput): Promise<TeamRunResult> {
   const budget = new CallBudget();
@@ -291,6 +309,13 @@ export async function runTeamPipeline(input: TeamRunInput): Promise<TeamRunResul
     });
     return result;
   });
+  // The seats still queued when the client left were refused before their calls started; stop here.
+  const cancelled = settled.find(
+    (result): result is PromiseRejectedResult => result.status === "rejected" && isCancelled(result.reason),
+  );
+  if (cancelled) {
+    throw cancelled.reason;
+  }
   const analysts: AnalystNote[] = [];
   settled.forEach((result, index) => {
     const analyst = wanted[index] as MarketAnalyst;
@@ -300,7 +325,8 @@ export async function runTeamPipeline(input: TeamRunInput): Promise<TeamRunResul
         failures.push(result.value.failure);
       }
     } else {
-      // mapLimit only rejects if runAnalyst itself threw, which it does not; kept so a future change cannot lose a seat.
+      // mapLimit only rejects if runAnalyst itself threw, which it does only on a cancel (thrown
+      // above); kept so a future change cannot lose a seat.
       analysts.push(unavailableAnalystNote(analyst));
       failures.push(`team: ${analyst} analyst unavailable (${reason(result.reason)})`);
     }

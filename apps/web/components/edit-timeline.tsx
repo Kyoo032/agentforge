@@ -17,6 +17,60 @@ type Props = {
 
 const MIN_PX = 4;
 
+/** One drag in progress: where it started, and the clip as the last pointer move left it. */
+export type TimelineDrag = {
+  clipId: string;
+  mode: "move" | "trim-in" | "trim-out";
+  startX: number;
+  startFrame: number;
+  inFrame: number;
+  duration: number;
+  trackId: string;
+  /** Absent until the pointer actually moves; a press with no move edits nothing. */
+  draft?: Partial<Clip>;
+};
+
+/** Clips being dragged, drawn from their draft instead of the project until the drag is released. */
+export type TimelineDrafts = Record<string, Partial<Clip>>;
+
+type DragRelease = {
+  setDrafts: (update: (prev: TimelineDrafts) => TimelineDrafts) => void;
+  onMove: Props["onMove"];
+  onTrim: Props["onTrim"];
+};
+
+function withoutDraft(drafts: TimelineDrafts, clipId: string): TimelineDrafts {
+  const { [clipId]: _released, ...rest } = drafts;
+  return rest;
+}
+
+/**
+ * Release a drag: drop its draft and send the edit it made. The ops are sent here and never from
+ * inside the `setDrafts` updater: React may run an updater twice (StrictMode does), and every run
+ * would post the move or trim again.
+ */
+export function finishDrag(drag: TimelineDrag, { setDrafts, onMove, onTrim }: DragRelease): void {
+  setDrafts((prev) => withoutDraft(prev, drag.clipId));
+  const draft = drag.draft;
+  if (!draft) {
+    return;
+  }
+  if (drag.mode === "move") {
+    if (typeof draft.timelineStartFrame === "number") {
+      onMove(drag.clipId, drag.trackId, draft.timelineStartFrame);
+    }
+    return;
+  }
+  if (drag.mode === "trim-in") {
+    onMove(drag.clipId, drag.trackId, draft.timelineStartFrame ?? drag.startFrame);
+    onTrim(drag.clipId, draft.source?.inFrame, draft.durationFrames ?? drag.duration);
+    return;
+  }
+  if (typeof draft.durationFrames === "number") {
+    onTrim(drag.clipId, undefined, draft.durationFrames);
+  }
+}
+
 export function EditTimeline({
   project,
   playhead,
@@ -34,16 +88,8 @@ export function EditTimeline({
   const end = project ? timelineEndFrame(project) : fps * 10;
   const width = Math.max(640, end * px);
   const locked = new Set(lockedClipIds);
-  const [drafts, setDrafts] = useState<Record<string, Partial<Clip>>>({});
-  const drag = useRef<{
-    clipId: string;
-    mode: "move" | "trim-in" | "trim-out";
-    startX: number;
-    startFrame: number;
-    inFrame: number;
-    duration: number;
-    trackId: string;
-  } | null>(null);
+  const [drafts, setDrafts] = useState<TimelineDrafts>({});
+  const drag = useRef<TimelineDrag | null>(null);
 
   function frameFromClientX(clientX: number, target: HTMLElement): number {
     const rect = target.getBoundingClientRect();
@@ -74,39 +120,37 @@ export function EditTimeline({
       duration: clip.durationFrames,
       trackId: clip.trackId,
     };
-    const onMoveMove = (moveEvent: globalThis.MouseEvent) => {
-      const current = drag.current;
-      if (!current) {
-        return;
-      }
-      const delta = Math.round((moveEvent.clientX - current.startX) / px);
+    const draftAt = (current: TimelineDrag, clientX: number): Partial<Clip> | null => {
+      const delta = Math.round((clientX - current.startX) / px);
       if (current.mode === "move") {
-        setDrafts((prev) => ({
-          ...prev,
-          [current.clipId]: { timelineStartFrame: Math.max(0, current.startFrame + delta) },
-        }));
-        return;
+        return { timelineStartFrame: Math.max(0, current.startFrame + delta) };
       }
       if (current.mode === "trim-in") {
         const shift = Math.min(current.duration - 1, Math.max(-current.inFrame, delta));
         const nextDuration = current.duration - shift;
         if (nextDuration < 1) {
-          return;
+          return null;
         }
-        setDrafts((prev) => ({
-          ...prev,
-          [current.clipId]: {
-            timelineStartFrame: Math.max(0, current.startFrame + shift),
-            durationFrames: nextDuration,
-            source: { assetId: clip.source?.assetId ?? "", inFrame: current.inFrame + shift },
-          },
-        }));
+        return {
+          timelineStartFrame: Math.max(0, current.startFrame + shift),
+          durationFrames: nextDuration,
+          source: { assetId: clip.source?.assetId ?? "", inFrame: current.inFrame + shift },
+        };
+      }
+      return { durationFrames: Math.max(1, current.duration + delta) };
+    };
+    const onMoveMove = (moveEvent: globalThis.MouseEvent) => {
+      const current = drag.current;
+      if (!current) {
         return;
       }
-      setDrafts((prev) => ({
-        ...prev,
-        [current.clipId]: { durationFrames: Math.max(1, current.duration + delta) },
-      }));
+      const draft = draftAt(current, moveEvent.clientX);
+      if (!draft) {
+        return;
+      }
+      // The drag keeps its own latest draft, so the release reads it here rather than out of state.
+      drag.current = { ...current, draft };
+      setDrafts((prev) => ({ ...prev, [current.clipId]: draft }));
     };
     const onUp = () => {
       const current = drag.current;
@@ -116,22 +160,7 @@ export function EditTimeline({
       if (!current) {
         return;
       }
-      setDrafts((prev) => {
-        const draft = prev[current.clipId];
-        if (draft) {
-          if (current.mode === "move" && typeof draft.timelineStartFrame === "number") {
-            onMove(current.clipId, current.trackId, draft.timelineStartFrame);
-          } else if (current.mode === "trim-in") {
-            onMove(current.clipId, current.trackId, draft.timelineStartFrame ?? current.startFrame);
-            onTrim(current.clipId, draft.source?.inFrame, draft.durationFrames ?? current.duration);
-          } else if (typeof draft.durationFrames === "number") {
-            onTrim(current.clipId, undefined, draft.durationFrames);
-          }
-        }
-        const next = { ...prev };
-        delete next[current.clipId];
-        return next;
-      });
+      finishDrag(current, { setDrafts, onMove, onTrim });
     };
     window.addEventListener("mousemove", onMoveMove);
     window.addEventListener("mouseup", onUp);

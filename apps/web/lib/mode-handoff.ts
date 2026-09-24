@@ -4,6 +4,8 @@
  * window event is enough: no router state, no storage.
  */
 
+import { t } from "./i18n";
+
 export const MODE_HANDOFF_EVENT = "agentforge-mode-handoff";
 
 export const HANDOFF_TARGETS = ["documents", "presentations"] as const;
@@ -30,13 +32,13 @@ export function handoffHref(target: HandoffTarget): string {
 
 const TITLE_MAX = 80;
 
-/** Default prompt for a handoff, phrased for the target mode. */
+/**
+ * Default prompt for a handoff, phrased for the target mode in the owner's locale
+ * (`t` reads the frozen locale), so an `id` desk hands off an Indonesian prompt.
+ */
 export function suggestedHandoffPrompt(target: HandoffTarget, title: string): string {
-  const subject = title.trim().slice(0, TITLE_MAX) || "the source material";
-  if (target === "presentations") {
-    return `Turn "${subject}" into a presentation for a decision-maker. Use only the source material.`;
-  }
-  return `Write a memo from "${subject}". Use only the source material and cite its sources.`;
+  const subject = title.trim().slice(0, TITLE_MAX) || t("common.modeHandoff.fallbackSubject");
+  return t(target === "presentations" ? "common.modeHandoff.presentation" : "common.modeHandoff.document", { subject });
 }
 
 let pending: Partial<Record<HandoffTarget, ModeHandoff>> = {};

@@ -13,7 +13,8 @@ import { getLocale, t } from "@/lib/i18n";
 import type { PresentationOutline } from "@/lib/presentation-outline";
 import { presentationStarters } from "@/lib/job-starters";
 import { useJobModel } from "@/lib/use-job-model";
-import { apiFetch } from "@/lib/api-client";
+import { modelPickBody, regenModelPick, studioModelPick } from "@/lib/model-choice";
+import { apiFetch, isElectron } from "@/lib/api-client";
 
 function errorMessage(payload: unknown, fallback: string): string {
   if (payload && typeof payload === "object") {
@@ -26,7 +27,7 @@ function errorMessage(payload: unknown, fallback: string): string {
 }
 
 export function PresentationsStudio() {
-  const { models, model, setModel } = useJobModel("presentations");
+  const { models, model, pinned: modelPinned, setModel } = useJobModel("presentations");
   const [prompt, setPrompt] = useState("");
   const [sourceText, setSourceText] = useState("");
   const [sourceTitle, setSourceTitle] = useState<string | null>(null);
@@ -58,7 +59,12 @@ export function PresentationsStudio() {
       const res = await apiFetch("/api/v1/presentations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: topic, model: model || undefined, sourceText: sourceText.trim() || undefined }),
+        body: JSON.stringify({
+          prompt: topic,
+          // Only a deliberate pick travels as pinned: a seeded default stays rescuable by the host's fallback.
+          ...modelPickBody(studioModelPick(model, modelPinned)),
+          sourceText: sourceText.trim() || undefined,
+        }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
@@ -89,7 +95,7 @@ export function PresentationsStudio() {
           slideIndex: index,
           prompt,
           instruction: payload.instruction || undefined,
-          model: payload.model || model || undefined,
+          ...modelPickBody(regenModelPick(payload.model, model, modelPinned)),
           attachments: payload.attachments.length > 0 ? payload.attachments : undefined,
           sourceText: sourceText.trim() || undefined,
         }),
@@ -122,6 +128,11 @@ export function PresentationsStudio() {
       if (!res.ok) {
         const data = await res.json().catch(() => null);
         throw new Error(errorMessage(data, t("presentation.downloadError")));
+      }
+      if (isElectron()) {
+        // apiFetch already wrote the bytes through the native save dialog; a second, browser-style
+        // download here would open the save dialog twice.
+        return;
       }
       const blob = await res.blob();
       const disposition = res.headers.get("Content-Disposition") ?? "";

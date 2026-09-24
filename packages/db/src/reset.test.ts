@@ -68,7 +68,7 @@ describe("applyPendingDataReset", () => {
   it("is a no-op when no marker is pending", () => {
     touch("agentforge.sqlite");
     const result = applyPendingDataReset(dir);
-    expect(result).toEqual({ applied: false, removed: [] });
+    expect(result).toEqual({ applied: false, removed: [], failed: [] });
     expect(existsSync(join(dir, "agentforge.sqlite"))).toBe(true);
   });
 
@@ -120,7 +120,7 @@ describe("applyPendingDataReset", () => {
 
     const result = applyPendingDataReset(dir);
 
-    expect(result).toEqual({ applied: false, removed: [] });
+    expect(result).toEqual({ applied: false, removed: [], failed: [] });
     expect(existsSync(join(dir, RESET_MARKER_FILE))).toBe(false);
     expect(existsSync(join(dir, "settings.enc"))).toBe(true);
     expect(existsSync(join(dir, "agentforge.sqlite"))).toBe(true);

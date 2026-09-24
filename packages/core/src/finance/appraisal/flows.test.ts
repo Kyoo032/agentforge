@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { LineItem } from "../types";
+import { computeAppraisal } from "./compute";
 import { appraisalFlowsFromItems, dropSubtotalRows, negativeYearsOf, netFlowsOf, outlayOf } from "./flows";
+import { appraisalGridFromText } from "./grid";
 import { allPeriodsOrdinal, periodOrdinal } from "./periods";
 import { MACHINE_ITEMS, MACHINE_NETS, SOLAR_ITEMS, SOLAR_NETS } from "./__fixtures__/plans";
 
@@ -83,7 +85,10 @@ describe("appraisal flows", () => {
   // "Year 10" sorts before "Year 2" as text; the ordinal is what the discounting needs.
   it("orders by the ordinal, not by the order the rows arrived in", () => {
     const shuffled = [row("A", "Year 10", 5), row("B", "Year 0", -100), row("C", "Year 2", 7)];
-    expect(appraisalFlowsFromItems(shuffled).map((flow) => flow.year)).toEqual([0, 2, 10]);
+    const flows = appraisalFlowsFromItems(shuffled);
+    expect(flows.filter((flow) => flow.components.length > 0).map((flow) => flow.year)).toEqual([0, 2, 10]);
+    // The years between are there at zero: position in the timeline is the discounting power.
+    expect(flows.map((flow) => flow.year)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   });
 
   it("falls back to first appearance when no period carries an ordinal", () => {
@@ -96,5 +101,37 @@ describe("appraisal flows", () => {
   it("answers with nothing rather than a guess when there are no rows", () => {
     expect(appraisalFlowsFromItems([])).toEqual([]);
     expect(outlayOf([])).toBeNull();
+  });
+
+  // The grid keeps no row for a zero cell, so a year of nothing arrives as no rows at all. Closing the
+  // gap would discount every later year one power too little.
+  it("keeps a year whose rows were all zero, so later years are discounted by their own ordinal", () => {
+    const flows = appraisalFlowsFromItems([
+      row("Capex", "Year 0", -1000),
+      row("Revenue", "Year 2", 600),
+      row("Revenue", "Year 3", 700),
+    ]);
+    expect(flows.map((flow) => [flow.period, flow.year, flow.net])).toEqual([
+      ["Year 0", 0, -1000],
+      ["Year 1", 1, 0],
+      ["Year 2", 2, 600],
+      ["Year 3", 3, 700],
+    ]);
+    expect(flows[1]?.components).toEqual([]);
+  });
+
+  it("appraises a sheet with an all-zero year at the right powers", () => {
+    const grid = appraisalGridFromText("Item|Year 0|Year 1|Year 2|Year 3\nCapex|-1000|0|0|0\nRevenue|0|0|600|700");
+    const computed = computeAppraisal(grid?.items ?? [], { discountRatePercent: 10 });
+    expect(computed.periods.map((period) => period.period)).toEqual(["Year 0", "Year 1", "Year 2", "Year 3"]);
+    // −1000 + 0/1.1 + 600/1.1² + 700/1.1³
+    expect(computed.npv).toBeCloseTo(21.788129226, 6);
+    expect(computed.paybackYears).toBeCloseTo(2 + 400 / 700, 10);
+  });
+
+  it("fills a gap in the wording the sheet already uses", () => {
+    const flows = appraisalFlowsFromItems([row("Investasi", "Tahun ke-0", -500), row("Hemat", "Tahun ke-3", 900)]);
+    expect(flows.map((flow) => flow.period)).toEqual(["Tahun ke-0", "Tahun ke-1", "Tahun ke-2", "Tahun ke-3"]);
+    expect(flows.map((flow) => periodOrdinal(flow.period))).toEqual([0, 1, 2, 3]);
   });
 });

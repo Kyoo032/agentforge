@@ -72,8 +72,3 @@ export async function deleteThroughBackend(
 ): Promise<void> {
   await builtinBackend().deleteSource(tenant, sourceId);
 }
-
-/** Sidecar outbox is gone; callers may still await this after retrieve. */
-export function drainKnowledgeOutbox(_tenant: TenantContext): Promise<number> {
-  return Promise.resolve(0);
-}

@@ -20,6 +20,7 @@ import {
   type DatasetSummary,
 } from "@/lib/data-client";
 import { useJobModel } from "@/lib/use-job-model";
+import { modelPickBody, studioModelPick } from "@/lib/model-choice";
 import { useJobStream } from "@/lib/use-job-stream";
 import { useProductBrand } from "@/lib/product-brand";
 import { t } from "@/lib/i18n";
@@ -57,7 +58,7 @@ function needsSettingsHint(message: string): boolean {
 
 export function DataStudio() {
   const { productName } = useProductBrand();
-  const { models, model, setModel } = useJobModel("data");
+  const { models, model, pinned: modelPinned, setModel } = useJobModel("data");
   const job = useJobStream<DataAnalysisResult>();
   const fileInput = useRef<HTMLInputElement | null>(null);
   const [prompt, setPrompt] = useState("");
@@ -158,7 +159,8 @@ export function DataStudio() {
     const result = await job.run("/api/v1/data/stream", {
       datasetId: dataset.id,
       prompt: question,
-      model: model || undefined,
+      // Only a deliberate pick travels as pinned: a seeded default stays rescuable by the host's fallback.
+      ...modelPickBody(studioModelPick(model, modelPinned)),
       history,
     });
     if (result) {
@@ -252,7 +254,7 @@ export function DataStudio() {
                 value={pasted}
                 onChange={(event) => setPasted(event.target.value)}
                 className="input mt-2 font-mono text-xs"
-                placeholder={"vendor,spend\nAcme,12000\nBeta,4100"}
+                placeholder={t("data.pastePlaceholder")}
                 disabled={busy}
                 data-testid="data-csv"
               />

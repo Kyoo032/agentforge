@@ -1,6 +1,9 @@
 # Map — Music mode
 
-Last verified: 2026-09-21 at 4938747
+Last verified: 2026-09-23 at d4561b8 + uncommitted tree for § 5 (what reaches the relay in custom mode), the
+`studio-generate.ts` citations, the studio keeping its picked model after a generate, and the test table.
+Everything else was last verified 2026-09-21 at 4938747. The lyrics change is host-side and needs a `:3000`
+restart before it can be seen; it has not been driven.
 
 ## Overview
 
@@ -34,11 +37,16 @@ What this page is *not*: transcription (nothing here reads audio) and text-to-sp
 
 Like the Images and Videos GETs it is **ungated** — no `requireGatewayAllowed` — so the page renders fully on a keyless desk.
 
-- `items` ← `listStudioGallery(tenant, "audio")` (`packages/host/src/studio-generate.ts:542-566`). Same function the other two studios use; `StudioKind` was widened to `"image" | "video" | "audio"` (`:53`) and the item now also carries `title`, `style`, `instrumental` and `durationSeconds` from the sidecar.
+- `items` ← `listStudioGallery(tenant, "audio")` (`packages/host/src/studio-generate.ts:543-567`). Same function the other two studios use; `StudioKind` was widened to `"image" | "video" | "audio"` (`:54`) and the item now also carries `title`, `style`, `instrumental` and `durationSeconds` from the sidecar.
 - `defaultModel` ← `resolveStudioGenerateDefault({ kind: "music", ... })` — the agent pin, then the Settings pin (`settings.musicGenModel`), then `defaultStudioMusicModel()` (`packages/host/src/studio-generate.ts:157-159`). **Resolved before `models`, on purpose** — see below.
 - `models` ← `withRelayMusicModels(listStudioMusicModels(), [defaultModel])` then `attachMediaPrices(..., "track", ...)`. `"track"` is a new `MediaPriceUnit` (`packages/core/src/models/media-pricing.ts:27`): a flat charge for one finished job, which is how the gateway bills the relay.
 - `ready` ← `studioRouteReady("music_gen", workspaceId)` (`:258-264`).
 - `speechUnavailable` ← `studioSpeechUnavailable()` (`:167-169`), the reason code the voice-over section renders.
+
+The studio runs this load again after every generate, to show the new takes. Until 2026-09-23 that
+reset the picker to `defaultModel` each time; it now keeps the person's pick while the list still
+offers it (`keepModelChoice`, `apps/web/lib/model-choice.ts:19`, used at
+`apps/web/components/music-studio.tsx:95`). Images and Videos had the same reset and the same fix.
 
 ### 2a. Why the picker is not just the live catalog — the relay merge
 
@@ -86,11 +94,11 @@ The studio re-derives both on every render and shows only the controls the curre
 - `mode: "custom"` with no lyrics → `400`, `musicLyricsRequired`
 - `mode: "describe"` with no prompt → `400`, `musicPromptRequired`
 
-`generateStudioMusic` (`:408-489`) is the spine:
+`generateStudioMusic` (`:424-509`) is the spine:
 
 1. `studioRouteReady("music_gen", …)` → `400` with the Settings hint if no key.
 2. Pick the model (body → Settings pin → catalog default), then snap `mode`, `style`, `title` and `instrumental` through `musicCapabilities`.
-3. `withOutputLanguage(maskPii(prompt), "music", locale)` — the language rule rides the words the model writes *from*, so in custom mode it is attached to the lyrics and in describe mode to the brief, never to the style tags.
+3. The text goes through `maskPii` either way, and **the output-language rule rides only a description** (`:451-452`). In describe mode `withOutputLanguage(maskPii(prompt), "music", locale)` is the brief the model writes the words from. In custom mode the owner's lyrics go as written: the relay sends custom-mode `prompt` to Suno as the words to sing, so until 2026-09-23 the appended instruction would have been sung as the last verse. Never on the style tags.
 4. `runWithToolSecrets(scope, () => musicGenerateTool.execute(...))` — the normal tool-secret envelope, so the key is read at call time and never held.
 5. Zero tracks back → `tool_failed` carrying the gateway's own message.
 6. **For each track returned**: `saveGeneratedAudio` → `persistMeta({ kind: "audio", … })` → `upsertWorkSource(musicWorkCard(...))` (`packages/host/src/work-cards.ts:138`). Two takes means two media rows, two sidecar entries, two Knowledge cards.
@@ -116,7 +124,7 @@ Teaching the store about audio required widening `saveMedia`, and that is where 
 
 ### 8. Lyrics helper — `POST /api/v1/music/lyrics`
 
-`writeStudioLyrics` (`packages/host/src/studio-generate.ts:511-540`) runs `lyricsWriteTool` against `suno_lyrics` through the same relay with `action: "lyrics"`, and hands the text straight back. **Nothing is stored**: it exists so the desk can fill the lyrics box and then edit it before spending a music charge.
+`writeStudioLyrics` (`packages/host/src/studio-generate.ts:512-541`) runs `lyricsWriteTool` against `suno_lyrics` through the same relay with `action: "lyrics"`, and hands the text straight back. **Nothing is stored**: it exists so the desk can fill the lyrics box and then edit it before spending a music charge.
 
 ### 9. Voice-over, and why it is off
 
@@ -149,8 +157,8 @@ So instead of rendering a dead control, the host answers with a machine-readable
 ## Gotchas
 
 - **A music job leaves one usage row, not two.** `recordMusicUsage`
-  (`packages/host/src/studio-generate.ts:471`) records unit `jobs`, quantity 1, however many
-  takes come back — that is how the gateway bills it. A lyrics draft (`:534`) is its own
+  (`packages/host/src/studio-generate.ts:472`) records unit `jobs`, quantity 1, however many
+  takes come back — that is how the gateway bills it. A lyrics draft (`:535`) is its own
   flat-rate call and gets its own row. See [`tenant-usage-ledger.md`](tenant-usage-ledger.md).
 
 - **The relay is on the origin, not under `/v1`.** `https://api.tokotokenai.com/suno/submit/music`, not `…/v1/suno/…`. Every other generate wire in this repo is a `/v1` route, so this is the first thing to get wrong.
@@ -179,7 +187,8 @@ Automated checks that prove this page:
 |---|---|
 | `packages/core/src/models/audio-capabilities.test.ts` | `audioRole` on the real catalog ids, `realtime` before `speech`, the reason codes, capability snapping |
 | `packages/core/src/tools/platform/gateway-audio.test.ts` | Payload shapes never blend, the origin-mounted relay path, task-id shapes, both takes extracted, fail-reason precedence, poll timeout, `RELAY_MISSING` |
-| `packages/host/src/handlers/music.test.ts` | The whole host path against a stubbed relay: submit → poll → two media rows → gallery listing → bytes served back, plus the G-27 guard, plus that `models` carries `suno_music` **and** `defaultModel` on a desk with no catalog |
+| `packages/host/src/handlers/music.test.ts` | The whole host path against a stubbed relay: submit → poll → two media rows → gallery listing → bytes served back, plus the G-27 guard, plus that `models` carries `suno_music` **and** `defaultModel` on a desk with no catalog, plus (2026-09-23) "sends the owner's own lyrics to the relay exactly as written" and "keeps the output-language rule on a described song, where the model writes the words" |
+| `apps/web/lib/studio-model-wiring.test.ts` | (2026-09-23) Images, Videos and Music re-seed the picker from the reloaded list with `keepModelChoice`, so a generate no longer resets the model the person picked |
 | `packages/host/src/selectable-models.test.ts` | `withRelayMusicModels` (adds, dedupes case-insensitively, never mutates) and that `modes.music` always contains `defaults.music` |
 | `apps/web/lib/music-models.test.ts` | The empty-picker rule, and that both host error shapes reach the banner |
 | `packages/host/src/edit/import.test.ts` | That the chat media route is still narrow |
