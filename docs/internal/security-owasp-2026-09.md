@@ -48,9 +48,9 @@ now rather than a reason not to.
 | A05-1 | **Critical** | A production build with `AGENTFORGE_SERVER` unset boots with every control off | `apps/web/lib/hosted-mode-guard.ts` | Fixed |
 | A05-2 | **Critical** | `webapp-deploy/compose.yml` took `AGENTFORGE_SERVER` from an optional `.env` | `webapp-deploy/compose.yml:44` | Fixed |
 | A05-3 | Medium | Security headers existed only in the Caddyfile, not in the app | `packages/host/src/security-headers.ts` | Fixed |
-| A06-1 | Medium | No CI ran lint, unit tests or a dependency audit | `.github/workflows/ci.yml` | Written, **cannot run** — Actions billing lock |
+| A06-1 | Medium | No CI ran lint, unit tests or a dependency audit | `scripts/ci-local.mjs` (`pnpm ci:local`) | **Local gate since 2026-09-24**; runs only when someone runs it ([SR-80](security-register.md#sr-80)) |
 | A06-2 | Low | The hosted image ships devDependencies | `webapp-deploy/Dockerfile:100-103` | **Recorded** — open |
-| A08-1 | Low | Workflows pin actions to mutable tags (`@v4`) | `.github/workflows/*.yml` | **Recorded** — open |
+| A08-1 | Low | Workflows pinned actions to mutable tags (`@v4`) | `.github/workflows/*.yml` (deleted) | **Closed by removal**, 2026-09-24 |
 | A09-1 | Medium | No request id: nothing correlated a user report to a log line | `packages/host/src/http-adapter.ts:95,435-437` | Fixed |
 | A09-2 | Medium | Authentication failures were not logged at all | `packages/host/src/http-adapter.ts:582-593` | Fixed |
 | A10-1 | **High** | The private-range check missed most of IPv4 and nearly all of IPv6 | `packages/core/src/security/ip-range.ts` | Fixed |
@@ -354,6 +354,16 @@ is the part that keeps this honest a year from now.
 
 ### A06-1 — Nothing ran the tests
 
+> **Update, 2026-09-24: the gate is local now.** Rizky dropped GitHub Actions; `.github/workflows/`
+> (`ci.yml`, `e2e.yml`, `desktop-mac.yml`) is deleted. Everything `ci.yml` checked — install,
+> `pnpm lint`, the unit suites, `node --test scripts/*.test.mjs`, `node scripts/audit-deployed.mjs
+> --level high` as the gate and `pnpm audit --audit-level moderate` as advisory — runs in
+> `scripts/ci-local.mjs` (`pnpm ci:local`), plus `tsc --noEmit` per workspace and the
+> `apps/desktop` node tests; Playwright with `--e2e`. **Residual risk:** it runs only when someone
+> runs it. A push or a PR that skips it is unchecked, which is why AGENTS.md makes the pasted
+> `summary.md` table a condition of every PR, merge and pack. Recorded as
+> [SR-80](security-register.md#sr-80). The history below is kept as written.
+
 The only workflows were `.github/workflows/e2e.yml` (Playwright) and `.github/workflows/desktop-mac.yml` (a release build). Nothing
 ran `pnpm lint`, nothing ran the unit suites, and nothing looked at advisories.
 
@@ -411,7 +421,11 @@ script measures the full closure deliberately, so the number does not lie in the
 
 ## A08 — Software and data integrity failures
 
-### A08-1 — Actions pinned to mutable tags *(recorded, open)*
+### A08-1 — Actions pinned to mutable tags *(closed by removal, 2026-09-24)*
+
+> **Update, 2026-09-24:** the three workflows are deleted, so no `uses:` line is left to pin. If a
+> hosted workflow ever comes back, pin every action to a commit SHA in the same change. What the
+> workflows used to check now runs locally ([SR-80](security-register.md#sr-80)).
 
 Every workflow uses `actions/checkout@v4`, `pnpm/action-setup@v4`, `actions/setup-node@v4`. A tag
 is mutable: whoever controls it controls what runs in CI with the repository checked out.

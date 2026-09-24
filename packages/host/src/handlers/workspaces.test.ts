@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { ROUTER_IMPORT_BUDGET_MS } from "../__fixtures__/test-budgets";
 import type { GatewayGatePayload } from "@agentforge/core";
 import type { HostRequest, HostResult } from "../types";
 
@@ -81,7 +82,7 @@ async function currentSettings(): Promise<{
 
 beforeAll(async () => {
   ({ dispatch } = await import("../router"));
-}, 60_000);
+}, ROUTER_IMPORT_BUDGET_MS);
 
 beforeEach(async () => {
   // Outside stub runtime, which is what a Personal install runs: the gate is derived from the key.

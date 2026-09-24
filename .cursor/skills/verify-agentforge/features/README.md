@@ -14,7 +14,7 @@ Documents, Research, Finance, Data, Market, Legal, Images, Videos, Music, Meetin
 - **No product login on webdev or the desktop.** A gateway key is optional; stub Chat works without one. The hosted deployment is different: since Phase 9 it has a sign-in, and it is the portal door — an e-mail and a six-digit code, never a password field, and never an e-mail domain used to pick a tenant. Drive it with [login.md](./login.md) on the review instance, never on `:3000`.
 - The **gateway gate** decides whether a desk opens at all: `allowed: false` puts the whole app on onboarding and answers `403 gateway_blocked` on every gateway-calling route. See [gateway-gate.md](./gateway-gate.md).
 - Windows: drive webdev with the IDE browser where you have one. A Claude Code session has no IDE browser — it drives `:3000` (the isolated webdev) with a short scratch Playwright script (see SKILL.md **Drive**) and never runs `pnpm test:e2e`. `:3000` may hold a real, billed key: read doctor's `runtime` first and keep model calls to what the owner asked for.
-- Cloud / GHA: `AGENTFORGE_RUNTIME=stub` and Playwright `foundation.spec.ts` against **webdev** :3000.
+- Cloud (and `pnpm ci:local --e2e`): `AGENTFORGE_RUNTIME=stub` and Playwright `foundation.spec.ts` against **webdev** :3000.
 - Never drive an instance this run did not doctor. Never start a second process on :3000. Never treat :3000 as the installed app.
 
 ## Driving conventions

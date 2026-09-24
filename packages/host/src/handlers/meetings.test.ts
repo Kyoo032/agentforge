@@ -11,6 +11,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { ROUTER_IMPORT_BUDGET_MS } from "../__fixtures__/test-budgets";
 import type { HostFile, HostRequest, HostResult } from "../types";
 
 const dataDir = mkdtempSync(join(tmpdir(), "agentforge-meetings-handlers-"));
@@ -60,7 +61,7 @@ async function newMeeting(title = "Checkout weekly"): Promise<string> {
 
 beforeAll(async () => {
   ({ dispatch } = await import("../router"));
-}, 60_000);
+}, ROUTER_IMPORT_BUDGET_MS);
 
 afterAll(async () => {
   // The kernel SQLite lives in dataDir; close it so Windows releases the file before cleanup.

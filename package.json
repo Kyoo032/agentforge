@@ -10,6 +10,7 @@
     "lint": "biome check --formatter-enabled=false --assist-enabled=false .",
     "lint:fix": "biome check --write .",
     "test:e2e": "pnpm --filter @agentforge/web test:e2e",
+    "ci:local": "node scripts/ci-local.mjs",
     "db:push": "pnpm --filter @agentforge/db push",
     "db:seed": "pnpm --filter @agentforge/db seed",
     "db:studio": "pnpm --filter @agentforge/db studio",

@@ -2,6 +2,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { ROUTER_IMPORT_BUDGET_MS } from "../__fixtures__/test-budgets";
 import type { HostRequest, HostResult } from "../types";
 
 // Isolation: database, settings.enc, the gate verdict and workspace-id.txt all live in the data dir.
@@ -76,7 +77,7 @@ describe("a key saved in onboarding reaches the job generators", () => {
     // Onboarding: the owner pastes the gateway key. This saves it under the tenant's Default desk.
     const saved = await json("POST", "/api/v1/settings", { openaiApiKey: KEY });
     expect(saved.status).toBe(200);
-  }, 60_000);
+  }, ROUTER_IMPORT_BUDGET_MS);
 
   afterEach(() => {
     stubGateway();

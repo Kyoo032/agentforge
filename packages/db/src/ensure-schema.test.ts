@@ -485,5 +485,8 @@ describe("ensureSchema", () => {
       const detail = [err.stdout, err.stderr, err.message].filter(Boolean).join("\n");
       throw new Error(`drizzle-kit check failed (schema drift):\n${detail}`);
     }
-  });
+    // A child process that loads drizzle.config.ts and the whole schema through drizzle-kit's own
+    // TS loader: about 4 s on a quiet Windows desk, 8 s and more under a full parallel run. The call
+    // is synchronous, so the default 5 s failed it after the fact even when the check came back clean.
+  }, 60_000);
 });

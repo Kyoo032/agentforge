@@ -58,3 +58,6 @@ __pycache__/
 # path, so the repo refuses the file rather than trusting the flag.
 review.env
 *.pem
+
+# Local CI logs (scripts/ci-local.mjs). Per-run step logs and summary.md; never committed.
+.ci-local/

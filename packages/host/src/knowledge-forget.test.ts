@@ -1,6 +1,22 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TenantContext } from "@agentforge/core";
 import type { KnowledgeBackend } from "./knowledge/backend";
+
+// Isolation: the knowledge rows land in the kernel SQLite under this dir, set before any case
+// imports the store, so the file never shares a database with another one.
+const dataDir = mkdtempSync(join(tmpdir(), "agentforge-knowledge-forget-"));
+process.env.AGENTFORGE_DATA_DIR = dataDir;
+
+afterAll(async () => {
+  // The knowledge store opened the kernel SQLite inside dataDir. Windows will not delete a file
+  // something still holds, so that handle is closed before the dir goes.
+  const { sql } = await import("@agentforge/db");
+  sql.close();
+  rmSync(dataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+});
 
 /**
  * `forgetInBackend` is fire-and-forget: the SQLite rows are already gone, so a backend that cannot

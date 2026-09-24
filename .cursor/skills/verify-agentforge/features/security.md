@@ -13,7 +13,7 @@ Settings can confirm which gateway key is saved without ever showing the raw sec
 
 - Open Settings (`settings-link` or `/settings`).
 - After a gateway key is saved, the line under the key field names the fingerprint. The password field stays empty / replace-placeholder.
-- With no key (Cloud, GHA, fresh desk), that line is absent. The privacy note is still on Simple.
+- With no key (Cloud, fresh desk), that line is absent. The privacy note is still on Simple.
 
 ## Driving it with the DPSBuddy harness
 
@@ -21,7 +21,7 @@ Preconditions:
 
 - Doctor exits 0.
 - Do **not** paste or save a gateway key unless the operator asked.
-- Cloud / GHA force stub and have no key.
+- Cloud force stub and have no key.
 
 - **Open Settings.** Click `settings-link` or go to `/settings`. `settings-form` is visible. Stay on this page.
 - **With a saved key** (`doctor.hasOpenai === true`). `key-fingerprint` is visible (10s). Its text **contains** `sha256:` followed by 12 hex chars; the surrounding sentence is locale copy (`settings.fingerprint` — `apps/web/locales/en/settings.json:20`, `apps/web/locales/id/settings.json:20`), so match `/sha256:[0-9a-f]{12}/`, not the English words. `openai-key` does not contain the fingerprint or the raw secret.
@@ -32,7 +32,7 @@ Preconditions:
 
 ## Gotchas
 
-- Cloud and GHA have no gateway key. Treat missing `key-fingerprint` as the empty-state pass, not a product fail. Still assert the field is absent (count 0), not leaked into `openai-key` or the settings JSON body as a raw secret.
+- Cloud has no gateway key. Treat missing `key-fingerprint` as the empty-state pass, not a product fail. Still assert the field is absent (count 0), not leaked into `openai-key` or the settings JSON body as a raw secret.
 - The fingerprint is a 12-hex prefix (`sha256:` + 12 chars), not the full digest and not the key. Do not ask the owner to paste the secret to “verify” the prefix.
 - Hashing is server-side (`maskSecrets` → `openaiKeyFingerprint`). The Settings client must not import `keyFingerprint` or hash in the browser.
 - `privacy-note` already covers TLS. A fingerprint change does not add or rewrite the at-rest envelope.

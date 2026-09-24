@@ -107,8 +107,12 @@ afterEach(() => {
   db.close();
 });
 
-afterAll(() => {
-  rmSync(dataDir, { recursive: true, force: true });
+afterAll(async () => {
+  // `./tenant-usage` imports @agentforge/db, which opened the kernel SQLite inside dataDir. Windows
+  // will not delete a file something still holds, so that handle is closed before the dir goes.
+  const { sql } = await import("@agentforge/db");
+  sql.close();
+  rmSync(dataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 });
 
 describe("a tenant with no plan row", () => {

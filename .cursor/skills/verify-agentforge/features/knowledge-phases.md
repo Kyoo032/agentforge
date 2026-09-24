@@ -13,7 +13,7 @@ Builtin-only Knowledge Base. WeKnora sidecar was stripped 2026-09-12 (binary nev
 
 ## How to get to it (user POV)
 
-- Cloud / GHA: this repo after clone. Stub runtime. No sidecar to start.
+- Cloud: this repo after clone. Stub runtime. No sidecar to start.
 - Webdev: `pnpm dev` → `http://127.0.0.1:3000/knowledge` (`mode-knowledge`). Doctor with no args; skip the Knowledge drive if `knowledge` is false.
 - Packaged desktop is Windows-only proof (`doctor --desktop`). Cloud cannot pack or drive the installed app.
 

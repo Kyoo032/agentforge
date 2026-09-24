@@ -53,8 +53,15 @@ function withoutComments(text: string): string {
   return text.replace(BLOCK_COMMENT, " ").replace(LINE_COMMENT, "$1");
 }
 
+/**
+ * Every file read and stripped once, beside the walk. Both cases search the same text, and reading
+ * some 1,600 files twice, once per case, was nearly all they cost: over a second each on a quiet
+ * desk, against a 5 s budget, before any load.
+ */
+const SCANNED = FILES.map((file) => ({ file, text: withoutComments(readFileSync(file, "utf8")) }));
+
 function offenders(predicate: (text: string) => boolean): string[] {
-  return FILES.filter((file) => predicate(withoutComments(readFileSync(file, "utf8")))).map((file) =>
+  return SCANNED.filter(({ text }) => predicate(text)).map(({ file }) =>
     relative(REPO_ROOT, file).split(sep).join("/"),
   );
 }

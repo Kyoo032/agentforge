@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { ROUTER_IMPORT_BUDGET_MS } from "../__fixtures__/test-budgets";
 import type { HostRequest, HostResult } from "../types";
 
 // Isolation: point the data dir (database + legal store) at a temp folder BEFORE the router is imported.
@@ -58,7 +59,7 @@ async function readStream(result: HostResult): Promise<string[]> {
 describe("legal handlers via the router", () => {
   beforeAll(async () => {
     ({ dispatch } = await import("../router"));
-  }, 60_000);
+  }, ROUTER_IMPORT_BUDGET_MS);
 
   afterAll(async () => {
     // The kernel SQLite lives in dataDir; close it so Windows releases the file before cleanup.

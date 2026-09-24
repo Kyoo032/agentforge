@@ -273,7 +273,7 @@ Automated, and these are what actually prove this page:
 | `packages/db/src/vault-key.test.ts` (26) | length and randomness floors, `.master-key` corruption |
 | `apps/web/server/hosted-mode-guard.test.ts` (13) | the production-build refusal, that compose still pins the flag, and that both boot guards run before `server.listen` |
 | `packages/host/src/hosted-env.test.ts` (32) | one row per hosted variable, the aggregated message, that no value is printed, and that local mode is untouched |
-| `.github/workflows/ci.yml` | would run all of the above on every push and pull request — but Actions cannot start a runner on this account (`../security-owasp-2026-09.md`, A06-1), so today these are run by hand |
+| `scripts/ci-local.mjs` (`pnpm ci:local`) | runs all of the above, one package at a time. Since 2026-09-24 it is the only CI: `.github/workflows/` is deleted, and nothing runs these unless someone runs it (`../security-register.md`, SR-80) |
 
 **There is no `verify-agentforge` feature file for this page, and that is a gap rather than a
 choice.** The existing `features/security.md` covers the key-fingerprint UI and

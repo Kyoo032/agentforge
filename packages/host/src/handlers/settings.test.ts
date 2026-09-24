@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:f
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { ROUTER_IMPORT_BUDGET_MS } from "../__fixtures__/test-budgets";
 import type { GatewayGatePayload } from "@agentforge/core";
 import type { HostRequest, HostResult } from "../types";
 
@@ -54,7 +55,7 @@ function gatewayOf(body: unknown): GatewayGatePayload {
 beforeAll(async () => {
   ({ dispatch } = await import("../router"));
   store = await import("../settings-store");
-}, 60_000);
+}, ROUTER_IMPORT_BUDGET_MS);
 
 beforeEach(() => {
   process.env.AGENTFORGE_RUNTIME = "stub";

@@ -38,6 +38,10 @@ Enterprise branch. Every `file:line` in those rows was read in the working tree 
 defined below: nothing in that pass was driven on `:3000` (the host and core changes need Rizky to
 restart it), nothing was packed, and nothing ran on a server.
 
+Extended on 2026-09-24 with [SR-80](#sr-80): Rizky dropped GitHub Actions, the three workflows are
+deleted, and the CI and audit gate moved to `pnpm ci:local` (`scripts/ci-local.mjs`). That moves
+OWASP A06-1 and closes A08-1 by removal; both are updated in [SR-16](#sr-16).
+
 ## Summary
 
 | ID | Severity | Title | Status | Gate |
@@ -47,7 +51,7 @@ restart it), nothing was packed, and nothing ran on a server.
 | [SR-14](#sr-14) | High | `Permissions-Policy` denies `microphone` and `display-capture`, so Meeting recording cannot work on the deploy | Fixed-unverified, lane E | Blocks Tencent deploy |
 | [SR-04](#sr-04) | High | Hosted env is not validated at boot: a deployment with no wrap key starts healthy | Fixed-unverified, lane E | Blocks Tencent deploy |
 | [SR-06](#sr-06) | High | A signed-out hosted visitor lands on the paste-your-key onboarding screen | Open, lane C | Blocks Tencent deploy |
-| [SR-12](#sr-12) | High | Twelve security tests do not run on this machine, and CI cannot start a runner | Open | Blocks Tencent deploy |
+| [SR-12](#sr-12) | High | Twelve security tests do not run on this machine, and CI cannot start a runner | Fixed, 2026-09-24 — every one runs and passes in `pnpm ci:local` on this desk | — |
 | [SR-02](#sr-02) | High | `.webdev-data/` held `.master-key` and was not git-ignored | Fixed | Blocks PR merge |
 | [SR-05](#sr-05) | High | `POST /api/v1/auth/login` had no `state` binding | Fixed-unverified, lane F | Blocks PR merge |
 | [SR-39](#sr-39) | High | The portal's SMTP transport suppressed STARTTLS, so a real provider got OTPs and SMTP AUTH in cleartext | Fixed-unverified, fix pass X | Blocks Tencent deploy |
@@ -71,6 +75,7 @@ restart it), nothing was packed, and nothing ran on a server.
 | [SR-75](#sr-75) | Medium | A cancelled Market run kept paying for model calls, and a failure after the cancel could stop the host | Fixed, not driven (2026-09-23) | Blocks Tencent deploy and the next Personal cut |
 | [SR-76](#sr-76) | Medium | Model-written finance figures reached the reader past the number guard three ways | Fixed, not driven (2026-09-23) | Blocks Tencent deploy and the next Personal cut |
 | [SR-77](#sr-77) | Medium | A "Start over" wipe that failed part-way deleted its own marker, so the rest never ran | Fixed, not driven (2026-09-23) | Blocks the next Personal cut |
+| [SR-80](#sr-80) | Medium | CI and the dependency-audit gate run only when someone runs `pnpm ci:local`; nothing checks a push on its own | Open — accepted by design (2026-09-24) | Blocks PR merge without a pasted `ci:local` summary |
 | [SR-01](#sr-01) | Low | `apps/portal/compose.yml` hardcodes `POSTGRES_PASSWORD: portal` | Accepted for dev only | Dev only |
 | [SR-07](#sr-07) | Low | The CSRF token is bound to the session id, so it stops verifying the moment a session changes | Open, lane C | Blocks PR merge |
 | [SR-09](#sr-09) | Low | The two billing variables were missing from `webapp-deploy/.env.example` | Fixed-unverified | Blocks Tencent deploy |
@@ -406,7 +411,8 @@ Run on 2026-09-21 in this worktree. Counts are from those runs, not from memory.
 
 Nowhere else runs them. `gh run list` on 2026-09-21 returns `ci` and `e2e` failing in two to four
 seconds on `main` and on every pull request, which is the Actions billing lock recorded as OWASP
-A06-1.
+A06-1. **2026-09-24:** the workflows are deleted and CI is `pnpm ci:local` on this desk
+([SR-80](#sr-80)), so these suites now have to pass *here* — there is no other machine to run them.
 
 What goes wrong if ignored: the SSRF guard is the control that stops a caller-supplied URL reaching
 the cloud metadata service, and on this desk nothing confirms it. Specifically unverified locally:
@@ -420,11 +426,14 @@ Required action: three separate fixes, none large. Give the two DNS-bound suites
 `testTimeout` or a stubbed `lookupImpl`. Spawn `process.execPath` with the tsx loader, or resolve
 `tsx.CMD` on Windows, in the two suites that shell out. Read
 `tenant-storage-writers.test.ts:237` — **done, 2026-09-21; the answer is both, and it is
-[SR-27](#sr-27)**. Clearing the Actions billing lock closes the rest.
+[SR-27](#sr-27)**. Clearing the Actions billing lock is no longer the way out: since 2026-09-24 the
+only CI is `pnpm ci:local` on Windows ([SR-80](#sr-80)), so the Windows reds themselves must be fixed.
 
 Gate: **blocks Tencent deploy.** A deploy whose SSRF guard has never been exercised anywhere is a
 deploy on trust.
 
+
+**Update 2026-09-24 — fixed.** All twelve now run and pass on this Windows desk under `pnpm ci:local`: the SSRF cases mock `node:dns/promises` and still assert the loopback, private-host and metadata-address refusals (a new case each for 169.254.169.254), and the wrap-key and components-CLI cases spawn `process.execPath` with tsx's JS entry instead of the `.bin` shim, so the wrong-current-key and components-root-inside-the-data-dir refusals are proven here. No product code changed. The residual "only when someone runs it" risk is [SR-80](#sr-80).
 ### SR-02 {#sr-02}
 
 **`.webdev-data/` held `.master-key` and was not git-ignored.** Fixed in this change.
@@ -938,14 +947,14 @@ fixed, two were fixed on `main` afterwards, and four remain. All six re-read her
 |---|---|---|
 | A01-1, cross-tenant discard of an Edit item | Fixed, confirmed | `packages/host/src/handlers/edit.ts:493` scopes on `projectId` as well as `id` |
 | A01-2, by-id routes not systematically scoped | Fixed, confirmed | `packages/host/src/tenancy-harness.test.ts` exists and drives the by-id routes as a second tenant |
-| A06-1, nothing runs the tests | **Open** | `.github/workflows/ci.yml` is written; `gh run list` shows `ci` failing in 2 to 4 seconds on every push and pull request. See [SR-12](#sr-12) |
+| A06-1, nothing runs the tests | **Moved to the local gate, 2026-09-24** | `.github/workflows/` is deleted. `scripts/ci-local.mjs` (`pnpm ci:local`) runs lint, tsc, every unit suite and `node scripts/audit-deployed.mjs --level high`. It runs only when someone runs it: [SR-80](#sr-80). See [SR-12](#sr-12) |
 | A06-2, the image ships devDependencies | **Open** | `webapp-deploy/Dockerfile:102-103` copies the whole `/app` tree with no `pnpm prune --prod`, because `tsx` is the production entrypoint |
-| A08-1, actions pinned to mutable tags | **Open** | All 15 `uses:` lines across the three workflows are `@v4` |
+| A08-1, actions pinned to mutable tags | **Closed by removal, 2026-09-24** | The three workflows and their 15 `@v4` `uses:` lines are deleted; the repo has no `.github/workflows/`. [SR-80](#sr-80) |
 | A10-6, DNS rebinding | **Open by nature** | `packages/core/src/security/safe-fetch.ts:102` states it: closing it needs a custom undici dispatcher with a pinned `lookup` |
 
 Required action: A06-1 is the one that matters, because it is why every other row in this register
-is proved by hand. A08-1 is cheap once someone can read the tags' SHAs. A06-2 is a migration item.
-A10-6 stays recorded.
+is proved by hand. Since 2026-09-24 its answer is the local gate, and what remains of it is
+[SR-80](#sr-80). A08-1 went with the workflows. A06-2 is a migration item. A10-6 stays recorded.
 
 Gate: **blocks Tencent deploy** for A06-1. The other three are recorded and accepted.
 
@@ -1190,6 +1199,34 @@ Tests: `packages/db/src/reset-retry.test.ts` (7). Map:
 
 Gate: **blocks the next Personal cut.** A packaged Windows drive of Start over is already owed
 ([`unreleased.md`](unreleased.md)).
+
+### SR-80 {#sr-80}
+
+**CI and the dependency-audit gate run only when someone runs `pnpm ci:local`.** Both products.
+Raised and recorded 2026-09-24.
+
+Evidence: Rizky decided on 2026-09-24 not to rely on GitHub Actions at all. Every Actions run on the
+account had ended in `startup_failure` since the repo was created ([SR-12](#sr-12);
+`docs/internal/0.14.22-changelog.md:118`), so `.github/workflows/ci.yml`,
+`e2e.yml` and `desktop-mac.yml` never ran a job; all three are deleted. Their checks moved to
+`scripts/ci-local.mjs`, run as `pnpm ci:local`: Biome lint, `tsc --noEmit` per workspace, `vitest run`
+per package (sequential, fresh `AGENTFORGE_DATA_DIR` each), `node --test scripts/*.test.mjs`, the
+`apps/desktop` node tests, the deployed-closure audit gate `node scripts/audit-deployed.mjs --level
+high` (required; pnpm's `list` and `audit --json` are captured to the run's log dir and passed in with
+`--closure` / `--audit`), and `pnpm audit --audit-level moderate` (advisory, as before). Playwright
+runs only with `--e2e`. Logs: `.ci-local/<timestamp>/`, gitignored.
+
+What goes wrong if ignored: the gate that closed OWASP A06-1 (a new high advisory in the hosted
+image's closure, a failing unit suite) now fails only on a machine where someone ran it. A push
+straight to `main`, a PR opened without a run, or a run on a stale `node_modules` all land
+unchecked. `pnpm audit` also needs the registry; offline, the gate step fails rather than passes.
+
+Required action: `pnpm ci:local` before every PR, merge and pack, and the `summary.md` table from
+that run pasted into the PR (AGENTS.md, **Tests → Local CI**). A PR or a pack without it has not
+been through CI. The Windows reds in [SR-12](#sr-12) and AGENTS.md's known-reds list now count
+against this gate, because there is no second machine to run those suites.
+
+Gate: **blocks PR merge** without a pasted `ci:local` summary.
 
 ## Low
 

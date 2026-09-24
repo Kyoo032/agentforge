@@ -10,6 +10,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { ROUTER_IMPORT_BUDGET_MS } from "../__fixtures__/test-budgets";
 import type { HostRequest, HostResult } from "../types";
 import { SANDBOX_TOKEN, createBotApiSandbox } from "../channels/__fixtures__/bot-api";
 
@@ -33,7 +34,7 @@ const realFetch = globalThis.fetch;
 
 beforeAll(async () => {
   ({ dispatch } = await import("../router"));
-});
+}, ROUTER_IMPORT_BUDGET_MS);
 
 beforeEach(async () => {
   sandbox = createBotApiSandbox({ chats: [CHAT] });
@@ -44,9 +45,13 @@ beforeEach(async () => {
   sandbox.sent.length = 0;
 });
 
-afterAll(() => {
+afterAll(async () => {
   globalThis.fetch = realFetch;
-  rmSync(dataDir, { force: true, recursive: true });
+  // The router opened the kernel SQLite inside dataDir. Windows will not delete a file something
+  // still holds, so that handle is closed before the dir goes.
+  const { sql } = await import("@agentforge/db");
+  sql.close();
+  rmSync(dataDir, { force: true, recursive: true, maxRetries: 10, retryDelay: 100 });
 });
 
 async function json(method: string, path: string, body?: unknown): Promise<JsonResponse> {

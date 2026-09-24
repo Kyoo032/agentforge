@@ -148,7 +148,7 @@ Presentation is a **handoff target**, never a source. `HANDOFF_TARGETS = ["docum
 
 DOM testids that prove it: `mode-presentations` (rail, `mode-${href.slice(1)}`), `presentations-studio` (`apps/web/components/presentations-studio.tsx:146`), `presentations-studio-empty` (`:198`), `presentations-studio-prompt-bar` (`:225`), `presentations-starter` (`:211`), `presentations-prompt` (`:259`), `presentations-generate` (`:266`), `presentations-enhance` (`:249`), `presentations-studio-model` (`:240`), `presentations-download` (`:160`), `presentations-error` (`:171`), `presentations-source` / `-source-toggle` / `-source-picker` / `-source-clear` / `-source-text` (`apps/web/components/source-material-field.tsx:28`, `:36`, `:48`, `:65`, `:84`), `example-gallery` / `example-card` / `example-result` (`apps/web/components/example-gallery.tsx:19`, `:29`, `:49`), `presentations-preview` / `presentations-slide-title` / `presentations-slide` / `presentations-regen` (`apps/web/components/presentation-preview.tsx:116`, `:119`, `:37`, `:151`), `presentations-regen-panel` / `-prompt` / `-model` / `-file` / `-attach` / `-submit` (`apps/web/components/job-regen-panel.tsx:120`, `:137`, `:145`, `:155`, `:185`, `:201`).
 
-Cloud/GHA coverage is `apps/web/tests/e2e/foundation.spec.ts:89-103` (rail → studio → 2 starters → preview → regen panel → 503). Packaged proof needs `doctor.mjs --desktop`, not `:3000`.
+Cloud coverage (and `pnpm ci:local --e2e`) is `apps/web/tests/e2e/foundation.spec.ts:89-103` (rail → studio → 2 starters → preview → regen panel → 503). Packaged proof needs `doctor.mjs --desktop`, not `:3000`.
 
 ## Why
 

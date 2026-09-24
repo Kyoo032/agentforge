@@ -292,16 +292,18 @@ Do not use Hermes tools or Hermes dashboard tokens to process DPSBuddy keys.
 
 ## Tests
 
+**Local CI (Rizky, 2026-09-24).** CI is local. There is no GitHub Actions workflow in this repo and none is coming back: every Actions run on this account has ended in `startup_failure` since the repo was created (billing lock, `docs/internal/0.14.22-changelog.md:118`), and Rizky decided not to rely on them at all. `.github/workflows/` (`ci.yml`, `e2e.yml`, `desktop-mac.yml`) is deleted.
+
+- Run `npx pnpm@9.15.9 ci:local` (`node scripts/ci-local.mjs`) before any PR, merge or pack. It runs Biome lint, `tsc --noEmit` per workspace with a tsconfig, `vitest run` per package one at a time with a fresh `AGENTFORGE_DATA_DIR`, `node --test scripts/*.test.mjs`, the `apps/desktop` node tests, the deployed-closure audit gate (`scripts/audit-deployed.mjs --level high`), and as advisory steps the workspace-wide `pnpm audit --audit-level moderate`, `maps:check`, `edit:starters:check` and `videos:examples:check`. `--install` adds the `--frozen-lockfile` check; `--e2e` adds Playwright (off by default, per the rule below). `--only <step|group>` and `--skip <step|group>` narrow it; `--help` lists the steps.
+- Every step runs even after a failure. Exit 1 means a required step failed. Logs land in `.ci-local/<timestamp>/<step>.log` (gitignored), and `summary.md` beside them is the table to paste into the PR. A PR without that table has not been through CI.
+- It only runs when someone runs it. Nothing checks a push on its own; that is the residual risk, recorded as SR-80 in [`docs/internal/security-register.md`](docs/internal/security-register.md).
+
 - Unit: Vitest in `packages/core`, `packages/host`, `packages/db`, `packages/legal`, `packages/marketing`, `packages/university`, `apps/web` (`pnpm test` runs all through Turbo). `apps/desktop` has plain Node tests (`pnpm --filter @agentforge/desktop test`). Local coding agents run these. Run host tests with `AGENTFORGE_DATA_DIR` pointed at a temp dir so stub media rows do not land in the dev desk.
 - Locale parity tests live in `apps/web/lib/*locale*.test.ts`; the gate contract test is `apps/web/lib/gateway-gate.test.ts`. Both must stay green on every UI change.
 - Do **not** run Playwright locally — `foundation.spec.ts` is a long serial pass (Vite dev server + stub chat + workspaces).
 - E2E: Playwright `apps/web/tests/e2e/foundation.spec.ts` (Chat → Settings → job modes → Legal workspace smoke). Owned by **Cursor Cloud Agents**, not the local Windows session. See **Cursor Cloud specific instructions** below.
 - Verify UI in the IDE browser when changing layout. Do not block on `pnpm test:e2e` on this machine.
-- **Known local reds, not regressions — and what they leave unverified (2026-09-21).** Five suites fail on this Windows desk for reasons that have nothing to do with the code under test, and GitHub Actions cannot start a runner, so nothing else runs them either. `packages/core/src/tools/platform/web-fetch.test.ts` (3 of 4) and `packages/host/src/media-download.test.ts` (6 of 6) time out at vitest's 5 s default because the SSRF guard does a real DNS lookup. `packages/host/src/wrap-key-rotation-script.test.ts` (3 of 3) and `scripts/components-cli.test.mjs` spawn the extensionless `node_modules/.bin/tsx` shim, which Windows cannot exec, so the child returns a null status. `packages/host/src/tenant-state.test.ts` passes every case but one 5 s timeout, and its teardown then fails — see the next paragraph. `tenant-storage-writers.test.ts` is green again since 2026-09-21: the real assertion it used to fail (`expected 'invalid_op' to be 'unsupported_media'`) was SR-27, an Edit import that charged the tenant and orphaned the object when ffprobe exited 0 on a file it could not measure.
-
-**Three more Windows-only reds, all in teardown, added 2026-09-21.** `packages/host/src/entitlement.test.ts`, `packages/host/src/handlers/channels.test.ts`, `packages/host/src/http-adapter.test.ts` and `packages/host/src/tenant-state.test.ts` each fail as a FILE with `Error: EPERM, Permission denied: \\?\C:\Users\…\Temp\agentforge-<name>-<random>` — `rmSync` on the suite's own temp dir in `afterAll`, with a handle (SQLite's, usually) still open on Windows. **Every test inside them passes**; the suite is reported failed because the hook threw. Nothing about the code under test is wrong, and the same files pass on Linux. Do not "fix" them by deleting the cleanup.
-
-**Run the host package with one shared `AGENTFORGE_DATA_DIR` and about nine more files go red** — `router.test.ts`, `handlers/{finance,finance-gate,jobs,legal,music,settings,meetings}.test.ts`, `knowledge-forget.test.ts` — with 5 s/30 s timeouts and `SQLITE_BUSY`. That is the trap in **Known traps** below (parallel workers racing one data dir), not a regression: all nine pass when re-run on their own. Re-run a file alone before calling it red, every time. What that leaves unproven on this machine: the SSRF guard's refusal of a redirect to loopback or a private host, the page-fetch caps, the wrap-key rotation's refusal of a wrong current key, and the component CLI's refusal of a components root inside the data dir. Details and the fix for each are [`docs/internal/security-register.md`](docs/internal/security-register.md), SR-12.
+- **No known local reds (2026-09-24).** Every suite is green on this Windows desk, and a red is now a regression. The old reds were test-harness problems, fixed without touching product code: the SSRF tests mock `node:dns/promises` (a real lookup of `example.test` took 11 s to fail) and still assert the loopback / private / metadata refusals; `wrap-key-rotation-script.test.ts` and `scripts/components-cli.test.mjs` spawn `process.execPath` with tsx's JS entry (`createRequire(...).resolve("tsx/cli")`), never the `.bin` shim; suites that import `@agentforge/db` close `sql` before `rmSync(..., { maxRetries: 10, retryDelay: 100 })`, so no more `EPERM` in `afterAll`; router-importing setups share the 180 s budget in `packages/host/src/__fixtures__/test-budgets.ts`; and `packages/host/test/setup.ts` gives every test file a unique `mkdtemp` data dir (it used the pid, which Windows reuses, so files silently shared a database). Keep cleanup hooks, never raise the global vitest timeout, and never skip a test to get `ci:local` green.
 - Feature verification recipes: [`.cursor/skills/verify-agentforge/features/`](.cursor/skills/verify-agentforge/features/README.md). `locale.md`, `gateway-gate.md`, `rail.md`, `login.md`, and `plans.md` exist. A feature without a recipe is not verified.
 
 ## Cursor Cloud specific instructions
@@ -329,7 +331,7 @@ AGENTFORGE_RUNTIME=stub npx playwright test
 - **Knowledge Base (builtin only).** Prove Phases 0–4 with [`.cursor/skills/verify-agentforge/features/knowledge-phases.md`](.cursor/skills/verify-agentforge/features/knowledge-phases.md). No WeKnora sidecar, no `AGENTFORGE_WEKNORA_BIN`, no `:3100`. Stub Chat injects chunks but cannot write `cites`; skip live cites on this VM.
 - **Gate and login in stub mode.** The host gate reports `status: "stub", allowed: true`; the portal is unreachable, so login tests use a mocked portal (`msw` or an in-process fake) and never a real `api.tokotokenai.com` call.
 - Browser / computer-use against the local **webdev** app when those tools are available. Bind is `127.0.0.1:3000`. Packaged desktop is not on this VM.
-- Read GitHub with `gh` (PRs, Actions logs). Do not use `gh` to create PRs — use the Cursor PR tool.
+- Read GitHub with `gh` (PRs). Do not use `gh` to create PRs — use the Cursor PR tool.
 
 ### What a Cloud Agent on this VM cannot do
 
@@ -339,7 +341,7 @@ AGENTFORGE_RUNTIME=stub npx playwright test
 - See the operator’s unpushed Windows working tree.
 - Merge PRs or enable auto-merge unless Rizky asks.
 
-GitHub Actions (`.github/workflows/e2e.yml`) runs the same stub Playwright suite on push/PR to `main`. No gateway key. Cloud Agents also own that suite on this VM. Do not park the GHA job.
+There is no GitHub Actions CI any more (see **Local CI** under **Tests**). Cloud Agents still own the stub Playwright suite on this VM; locally it runs only through `pnpm ci:local --e2e`.
 
 ## Known traps
 
