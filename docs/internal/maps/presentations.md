@@ -1,6 +1,6 @@
 # Map — Presentation
 
-Last verified: 2026-09-25 at pending-editor-sha
+Last verified: 2026-09-25 at a5e2fc3
 
 ## Overview
 
