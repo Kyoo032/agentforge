@@ -14,6 +14,8 @@ The owner split DPSBuddy into two products on 2026-09-23. They share a codebase 
 | Version | Semver — **0.15.0** is the current cut | No version number |
 | Entry point | the installer | the hosted URL |
 
+**Public name: Nultron (Rizky, 2026-09-25).** Both products are called Nultron in public copy only (release READMEs and notes, `docs/public/`). The source repo, packages and `AGENTFORGE_*` names stay agentforge. `productName`, installer names, data dirs, the keychain item, the image and the release repo names stay DPSBuddy until Rizky's logo and the in-app rename land — do not rename them in passing.
+
 **Both share `apps/web` as the renderer.** `apps/desktop` compiles it into the installer (`stage-renderer.mjs`, `extraResources: resources/renderer`), so a UI change usually lands on both. A change to packaging, identity, the key storage location, or the deploy path lands on exactly one — say which in the PR.
 
 **The working tree may hold both lanes at once.** If you commit, check which product each file belongs to; the 0.15.0 cut had to be split by hand for exactly this reason. The enterprise Phase 9 plans/pricing/portal material is **not** part of the 0.15.0 personal-app cut.
