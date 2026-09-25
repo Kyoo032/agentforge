@@ -1,6 +1,6 @@
 # Map — Education
 
-Last verified: 2026-09-25 at b4e8110
+Last verified: 2026-09-25 at pending-editor-sha
 
 Verified by [`features/education.md`](../../../.cursor/skills/verify-agentforge/features/education.md).
 
@@ -14,11 +14,11 @@ None of the four routes call the gateway (`packages/host/src/router.ts:349`).
 
 ### Lesson deck
 
-`POST /api/v1/education/lesson` (`packages/host/src/handlers/education.ts:24`) calls `draftLesson` with `localeForRun()`. The studio parses the outline and mounts `PresentationPreview` (`apps/web/components/education-studio.tsx:272`), so text edits and rectangle, ellipse, and text marks are the same controls as Presentation. `education-save-deck` posts that outline to the presentation deck store.
+`POST /api/v1/education/lesson` (`packages/host/src/handlers/education.ts:24`) calls `draftLesson` with `localeForRun()`. The studio parses the outline and mounts `PresentationPreview` (`apps/web/components/education-studio.tsx:357`), so the lesson uses the same stage, filmstrip, properties panel, and nine shapes as Presentation. `education-save-deck` posts that outline to the presentation deck store.
 
 ### Exam
 
-`POST /api/v1/education/exam` (`packages/host/src/handlers/education.ts:34`) calls `retrieveChunks` (`:41`) and `draftExam`. A failure or an empty base still returns one readable item. The page lists `education-exam-item`.
+`POST /api/v1/education/exam` (`packages/host/src/handlers/education.ts:34`) calls `retrieveChunks` (`:41`) and `draftExam`. A failure or an empty base still returns one readable item. The page draws `education-exam-sheet` (`apps/web/components/education-studio.tsx:394`): numbered `education-exam-item` (`:402`), lettered `education-exam-choice` (`:411`), and `education-exam-answer` (`:421`).
 
 ### Book
 
@@ -26,4 +26,4 @@ None of the four routes call the gateway (`packages/host/src/router.ts:349`).
 
 ### Presenter
 
-`POST /api/v1/education/presenter` (`packages/host/src/handlers/education.ts:67`) calls `draftPresenter`. The response carries avatar placements, subtitle cues, and `dubScript`, with `rendered` false. The page shows `education-presenter-avatar`, `education-presenter-cue`, and `education-presenter-dub`. No video file is written.
+`POST /api/v1/education/presenter` (`packages/host/src/handlers/education.ts:67`) calls `draftPresenter`. The response carries avatar placements, subtitle cues, and `dubScript`, with `rendered` false. `PresenterStage` (`apps/web/components/education-studio.tsx:51`) draws `education-presenter-stage` (`:74`) with the avatar absolutely positioned (`education-presenter-avatar`, `:83`), the current subtitle (`education-presenter-cue`, `:101`), and the dub paragraphs (`education-presenter-dub`, `:124`). No video file is written.

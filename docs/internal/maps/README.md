@@ -112,7 +112,7 @@ sha and a settled tree reports zero.
 | [`documents.md`](documents.md) | Documents job: brief + `sourceText` → JSON draft → HTML preview → `.docx` | `features/documents.md`, `features/templates.md` |
 | [`research-dossier.md`](research-dossier.md) | Research: plan → search → read → extract → synthesize, streamed as `job.*` | `features/research.md` |
 | [`data-analysis.md`](data-analysis.md) | Data: the dataset store, the `run_sql` tool, and host-materialized evidence | `features/data.md` |
-| [`presentations.md`](presentations.md) | Presentation: topic → outline → text edit and placed shapes → slide cards → `.pptx` | `features/presentations.md` |
+| [`presentations.md`](presentations.md) | Presentation: topic → outline → stage, filmstrip, nine shapes → `.pptx` | `features/presentations.md` |
 | [`education.md`](education.md) | Education: lesson deck, exam from knowledge, local page reading, presenter plan | `features/education.md` |
 | [`meeting-minutes.md`](meeting-minutes.md) | Meeting: recording intake, ffmpeg chunking, gateway transcription, minutes, the name guard, EN/ID translation | `features/meeting.md` |
 | [`legal-matter-run.md`](legal-matter-run.md) | Legal matter: `.docx` intake, role classification, the nine-stage run, deliverables | `features/legal.md` |

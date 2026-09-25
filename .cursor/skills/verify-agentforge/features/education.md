@@ -5,10 +5,10 @@ Education is a work mode on the Default rail. A topic becomes a lesson deck the 
 ## Sub-features
 
 - `education-rail` reaches `/education` from `mode-education`.
-- `education-lesson` drafts a deck (`education-lesson-topic`, `education-lesson-draft`) and mounts the same slide editor as Presentation (`presentations-edit-heading`, `presentations-add-rectangle`, `presentations-add-ellipse`, `presentations-add-text`). `education-save-deck` stores it with the presentation decks.
-- `education-exam` (`education-exam-topic`, `education-exam-generate`) lists `education-exam-item`. An empty knowledge base still returns a readable item.
+- `education-lesson` drafts a deck (`education-lesson-topic`, `education-lesson-draft`) and mounts the same stage as Presentation (`presentations-editor`, `presentations-edit-heading`, `presentations-add-rectangle`). `education-save-deck` stores it with the presentation decks.
+- `education-exam` (`education-exam-topic`, `education-exam-generate`) draws `education-exam-sheet`: numbered `education-exam-item`, lettered `education-exam-choice`, and `education-exam-answer`. An empty knowledge base still returns a readable item.
 - `education-book` (`education-book-file`, `education-book-read`, `education-book-text`) reads a PNG page or a PDF on this machine. A scan is not sent away.
-- `education-presenter` (`education-presenter-build`, `education-presenter-avatar`, `education-presenter-cue`, `education-presenter-dub`) emits placement, subtitle cues, and a dub script. It does not render a video file.
+- `education-presenter` (`education-presenter-build`) draws `education-presenter-stage`: the avatar at its recorded position (`education-presenter-avatar`), the current subtitle (`education-presenter-cue`), and the dub script (`education-presenter-dub`) in the boot locale. It does not render a video file.
 
 ## How to get to it (user POV)
 
@@ -24,10 +24,10 @@ Preconditions:
 - Stub runtime. Do not generate a Presentation or a Document as a stand-in.
 
 - **Open Education.** Click `mode-education`. URL matches `/education`. `education-studio` and `education-tab-lesson` are visible.
-- **Lesson.** Type a topic in `education-lesson-topic` and click `education-lesson-draft`. `presentations-preview` appears. Change `presentations-edit-heading` and click `presentations-add-ellipse`. Click `education-save-deck`.
-- **Exam.** Click `education-tab-exam`, then `education-exam-generate`. At least one `education-exam-item` is visible, including when the desk has no indexed source.
+- **Lesson.** Type a topic in `education-lesson-topic` and click `education-lesson-draft`. `presentations-editor` appears. Open a content slide from the filmstrip, change `presentations-edit-heading`, and click `presentations-add-ellipse`. Click `education-save-deck`.
+- **Exam.** Click `education-tab-exam`, then `education-exam-generate`. `education-exam-sheet` shows at least one `education-exam-item` with choices, including when the desk has no indexed source.
 - **Book.** Click `education-tab-book`. Set `education-book-file` to a PNG page drawn by the local face (the letters `LOCAL PAGE SCAN`) and click `education-book-read`. `education-book-text` contains those letters. A `.txt` file stays on the page with a local message and no outbound reader.
-- **Presenter.** Return to the lesson tab if the deck is gone, draft again, then click `education-presenter-build`. `education-presenter-avatar`, at least one `education-presenter-cue`, and `education-presenter-dub` are visible. There is no video file.
+- **Presenter.** Return to the lesson tab if the deck is gone, draft again, then click `education-presenter-build`. `education-presenter-stage` shows the avatar, one subtitle line, and `education-presenter-dub`. There is no video file.
 - **Locale (id).** With the desk on `id`, the rail reads `Pendidikan` and the lesson title uses `Pelajaran`. Testids do not move.
 
 ## Gotchas

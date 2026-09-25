@@ -48,6 +48,89 @@ function errorMessage(payload: unknown, fallback: string): string {
   return fallback;
 }
 
+function PresenterStage({
+  presenter,
+  cueIndex,
+  onCue,
+  heading,
+}: {
+  presenter: PresenterPlan;
+  cueIndex: number;
+  onCue: (index: number) => void;
+  heading?: string;
+}) {
+  const cue = presenter.cues[cueIndex] ?? presenter.cues[0];
+  const placement =
+    presenter.avatar.placements.find((item) => item.slideIndex === (cue?.slideIndex ?? 0)) ??
+    presenter.avatar.placements[0];
+  return (
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]" data-testid="education-presenter-layout">
+      <div>
+        <p className="mb-2 text-xs font-medium uppercase tracking-[0.16em] text-[var(--text-3)]">
+          {t("education.presenterStage")}
+        </p>
+        <div
+          className="relative aspect-video overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--bg)]"
+          data-testid="education-presenter-stage"
+        >
+          <div className="absolute inset-y-0 left-0 w-1.5 bg-[var(--accent)]" />
+          <div className="px-8 py-8">
+            <h2 className="max-w-xl text-2xl font-medium">{heading || presenter.avatar.label}</h2>
+          </div>
+          {placement ? (
+            <div
+              className="absolute flex flex-col items-center justify-end rounded-t-full bg-[var(--accent)] px-1 pb-1 text-center text-[10px] font-medium leading-tight text-[var(--surface)]"
+              data-testid="education-presenter-avatar"
+              data-motion={placement.motion}
+              style={{
+                left: `${placement.x}%`,
+                top: `${placement.y}%`,
+                width: `${placement.w}%`,
+                height: `${placement.h}%`,
+              }}
+            >
+              <span>{presenter.avatar.label}</span>
+              <span>
+                {placement.motion} {placement.x},{placement.y}
+              </span>
+            </div>
+          ) : null}
+          {cue ? (
+            <p
+              className="absolute bottom-4 left-6 right-6 rounded-lg bg-[var(--text)] px-3 py-2 text-sm text-[var(--surface)]"
+              data-testid="education-presenter-cue"
+            >
+              <span className="mr-2 text-xs uppercase opacity-70">{t("education.subtitleLabel")}</span>
+              {cue.text}
+            </p>
+          ) : null}
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {presenter.cues.map((item, index) => (
+            <button
+              key={`${item.slideIndex}-${item.startMs}`}
+              type="button"
+              className="wash inline-flex h-8 items-center rounded-lg border border-[var(--line)] px-2 text-xs"
+              aria-pressed={index === cueIndex}
+              onClick={() => onCue(index)}
+            >
+              {item.startMs} ms
+            </button>
+          ))}
+        </div>
+      </div>
+      <aside className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
+        <h3 className="text-sm font-medium">{t("education.dubHeading")}</h3>
+        <div className="mt-3 space-y-3 text-sm leading-relaxed" data-testid="education-presenter-dub">
+          {presenter.dubScript.split("\n").map((line, index) => (
+            <p key={`${index}-${line.slice(0, 48)}`}>{line}</p>
+          ))}
+        </div>
+      </aside>
+    </div>
+  );
+}
+
 export function EducationStudio() {
   const [tab, setTab] = useState<Tab>("lesson");
   const [topic, setTopic] = useState("");
@@ -56,6 +139,7 @@ export function EducationStudio() {
   const [book, setBook] = useState<BookRead | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [presenter, setPresenter] = useState<PresenterPlan | null>(null);
+  const [cueIndex, setCueIndex] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -151,6 +235,7 @@ export function EducationStudio() {
         throw new Error(errorMessage(data, t("education.presenterError")));
       }
       setPresenter(data as PresenterPlan);
+      setCueIndex(0);
       setTab("presenter");
     } catch (err) {
       setError(err instanceof Error ? err.message : t("education.presenterError"));
@@ -304,27 +389,43 @@ export function EducationStudio() {
             </button>
           </div>
           {exam ? (
-            <div className="mt-6 space-y-4">
-              <h2 className="text-lg font-medium">{exam.title}</h2>
-              {exam.items.map((item) => (
-                <article
-                  key={item.prompt}
-                  className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-4"
-                  data-testid="education-exam-item"
-                >
-                  <p className="text-sm">{item.prompt}</p>
-                  <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-[var(--text-2)]">
-                    {item.choices.map((choice) => (
-                      <li key={choice}>{choice}</li>
-                    ))}
-                  </ul>
-                  <p className="mt-2 text-sm">
-                    {t("education.answer")}: {item.answer}
-                  </p>
-                  {item.citation ? <p className="mt-1 text-xs text-[var(--text-3)]">{item.citation}</p> : null}
-                </article>
-              ))}
-            </div>
+            <section
+              className="mx-auto mt-8 max-w-3xl rounded-xl border border-[var(--line)] bg-[var(--surface)] px-8 py-8"
+              data-testid="education-exam-sheet"
+            >
+              <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--text-3)]">
+                {t("education.examKicker")}
+              </p>
+              <h2 className="mt-2 text-2xl font-medium">{exam.title}</h2>
+              <ol className="mt-8 space-y-8">
+                {exam.items.map((item, index) => (
+                  <li key={item.prompt} data-testid="education-exam-item">
+                    <p className="text-base font-medium">
+                      {index + 1}. {item.prompt}
+                    </p>
+                    <ul className="mt-3 space-y-2">
+                      {item.choices.map((choice, choiceIndex) => (
+                        <li
+                          key={choice}
+                          className="flex items-start gap-3 rounded-lg border border-[var(--line)] px-3 py-2 text-sm"
+                          data-testid="education-exam-choice"
+                          data-correct={choice === item.answer ? "true" : "false"}
+                        >
+                          <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[var(--line)] text-xs">
+                            {String.fromCharCode(65 + choiceIndex)}
+                          </span>
+                          <span>{choice}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="mt-3 text-sm" data-testid="education-exam-answer">
+                      {t("education.answer")}: {item.answer}
+                    </p>
+                    {item.citation ? <p className="mt-1 text-xs text-[var(--text-3)]">{item.citation}</p> : null}
+                  </li>
+                ))}
+              </ol>
+            </section>
           ) : null}
         </form>
       ) : null}
@@ -370,24 +471,12 @@ export function EducationStudio() {
           </button>
           {!outline ? <p className="text-sm text-[var(--text-2)]">{t("education.presenterNeedsDeck")}</p> : null}
           {presenter ? (
-            <div className="space-y-3 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-4">
-              <p data-testid="education-presenter-avatar">
-                {presenter.avatar.label} ·{" "}
-                {presenter.avatar.placements[0]
-                  ? `${presenter.avatar.placements[0].motion} ${presenter.avatar.placements[0].x},${presenter.avatar.placements[0].y}`
-                  : ""}
-              </p>
-              <ul className="space-y-1 text-sm">
-                {presenter.cues.map((cue) => (
-                  <li key={`${cue.slideIndex}-${cue.startMs}`} data-testid="education-presenter-cue">
-                    {cue.startMs} ms — {cue.text}
-                  </li>
-                ))}
-              </ul>
-              <pre className="whitespace-pre-wrap text-sm" data-testid="education-presenter-dub">
-                {presenter.dubScript}
-              </pre>
-            </div>
+            <PresenterStage
+              presenter={presenter}
+              cueIndex={cueIndex}
+              onCue={setCueIndex}
+              heading={outline?.slides[presenter.cues[cueIndex]?.slideIndex ?? 0]?.heading}
+            />
           ) : null}
         </div>
       ) : null}

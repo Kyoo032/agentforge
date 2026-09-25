@@ -70,6 +70,8 @@ describe("buildPresentationPptx", () => {
             shapes: [
               { id: "s1", kind: "text", x: 10, y: 10, w: 30, h: 12, text: "Owner mark survives" },
               { id: "s2", kind: "ellipse", x: 50, y: 40, w: 16, h: 20, text: "" },
+              { id: "s3", kind: "star", x: 70, y: 12, w: 14, h: 14, text: "", fill: "C4512C", stroke: "1C1917" },
+              { id: "s4", kind: "rounded", x: 8, y: 60, w: 20, h: 12, text: "" },
             ],
           },
         ],
@@ -82,5 +84,8 @@ describe("buildPresentationPptx", () => {
     );
     expect(xml).toContain("Owner mark survives");
     expect(xml).toContain('prst="ellipse"');
+    expect(xml).toContain('prst="star5"');
+    expect(xml).toContain('prst="roundRect"');
+    expect(xml.toLowerCase()).toContain("c4512c");
   });
 });

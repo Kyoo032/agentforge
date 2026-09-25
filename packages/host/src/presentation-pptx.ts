@@ -24,9 +24,13 @@ const FONT = "Calibri";
 const SLIDE_W = 13.333;
 const SLIDE_H = 7.5;
 
+function hexColor(value: string, fallback: string): string {
+  return /^[0-9A-Fa-f]{6}$/.test(value) ? value.toUpperCase() : fallback;
+}
+
 /**
- * Owner shapes are a few placed marks (rectangle, ellipse, text), written into the same PPTX.
- * They are not a freeform canvas: no drag surface, no tables, no charts, no master template.
+ * Stage shapes, written as basic Office shapes in the same boxes.
+ * Not a master, a table, or a chart.
  */
 function addOwnerShapes(pptx: PptxGenJS, slide: PptxSlide, shapes: PresentationSlide["shapes"]): void {
   for (const shape of shapes) {
@@ -37,24 +41,25 @@ function addOwnerShapes(pptx: PptxGenJS, slide: PptxSlide, shapes: PresentationS
     if (w <= 0 || h <= 0) {
       continue;
     }
-    if (shape.kind === "ellipse") {
-      slide.addShape(pptx.ShapeType.ellipse, {
-        x,
-        y,
-        w,
-        h,
-        fill: { color: COLORS.bg },
-        line: { color: COLORS.accent, width: 1.5 },
-      });
-    } else if (shape.kind === "rectangle") {
-      slide.addShape(pptx.ShapeType.rect, {
-        x,
-        y,
-        w,
-        h,
-        fill: { color: COLORS.bg },
-        line: { color: COLORS.accent, width: 1.5 },
-      });
+    const fill = hexColor(shape.fill, COLORS.bg);
+    const stroke = hexColor(shape.stroke, COLORS.accent);
+    const box = { x, y, w, h, fill: { color: fill }, line: { color: stroke, width: 1.5 } };
+    if (shape.kind === "rectangle") {
+      slide.addShape(pptx.ShapeType.rect, box);
+    } else if (shape.kind === "rounded") {
+      slide.addShape(pptx.ShapeType.roundRect, box);
+    } else if (shape.kind === "ellipse") {
+      slide.addShape(pptx.ShapeType.ellipse, box);
+    } else if (shape.kind === "triangle") {
+      slide.addShape(pptx.ShapeType.triangle, box);
+    } else if (shape.kind === "line") {
+      slide.addShape(pptx.ShapeType.line, { x, y, w, h, line: { color: stroke, width: 1.75 } });
+    } else if (shape.kind === "arrow") {
+      slide.addShape(pptx.ShapeType.rightArrow, box);
+    } else if (shape.kind === "star") {
+      slide.addShape(pptx.ShapeType.star5, box);
+    } else if (shape.kind === "callout") {
+      slide.addShape(pptx.ShapeType.wedgeRoundRectCallout, box);
     }
     if (shape.kind === "text" || shape.text.trim()) {
       slide.addText(shape.text, {
@@ -64,7 +69,7 @@ function addOwnerShapes(pptx: PptxGenJS, slide: PptxSlide, shapes: PresentationS
         h,
         fontSize: 14,
         fontFace: FONT,
-        color: COLORS.text,
+        color: shape.kind === "text" ? stroke : COLORS.text,
         valign: "middle",
         align: "center",
       });

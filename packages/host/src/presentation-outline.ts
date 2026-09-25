@@ -3,9 +3,24 @@ import { ApiError } from "@agentforge/core";
 
 export const presentationSlideKindSchema = z.enum(["section", "bullets", "split", "close"]);
 
-export const presentationShapeKindSchema = z.enum(["rectangle", "ellipse", "text"]);
+export const presentationShapeKindSchema = z.enum([
+  "rectangle",
+  "rounded",
+  "ellipse",
+  "triangle",
+  "line",
+  "arrow",
+  "star",
+  "callout",
+  "text",
+]);
 
-/** Owner-placed marks. Percent of the slide, not a freeform canvas. */
+const shapeColor = z
+  .string()
+  .regex(/^[0-9A-Fa-f]{6}$/)
+  .catch("0F766E");
+
+/** Percent of the slide. The stage moves these; the PPTX writes the same boxes. */
 export const presentationShapeSchema = z.object({
   id: z.string().min(1).max(40),
   kind: presentationShapeKindSchema,
@@ -14,6 +29,8 @@ export const presentationShapeSchema = z.object({
   w: z.number().finite().min(1).max(100),
   h: z.number().finite().min(1).max(100),
   text: z.string().max(200).default(""),
+  fill: shapeColor.default("F7F7F6"),
+  stroke: shapeColor.default("0F766E"),
 });
 
 export const presentationSlideSchema = z.object({
