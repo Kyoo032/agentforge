@@ -32,6 +32,8 @@ type Drag =
     };
 
 const KINDS: ShapeKind[] = ["rectangle", "rounded", "ellipse", "triangle", "line", "arrow", "star", "callout", "text"];
+const NUDGE_STEP = 1;
+const NUDGE_STEP_LARGE = 5;
 
 const KIND_LABEL: Record<ShapeKind, string> = {
   rectangle: "presentation.addRectangle",
@@ -233,6 +235,32 @@ export function PresentationPreview({
     });
   }
 
+  function removeSelected() {
+    if (!slide || !selected || contentIndex < 0) {
+      return;
+    }
+    replaceSlide(contentIndex, {
+      ...slide,
+      shapes: slide.shapes.filter((shape) => shape.id !== selected.id),
+    });
+    setSelectedId(null);
+  }
+
+  function duplicateSelected() {
+    if (!slide || !selected || contentIndex < 0 || slide.shapes.length >= 24) {
+      return;
+    }
+    const id = nextShapeId();
+    const copy: PresentationShape = {
+      ...selected,
+      id,
+      x: clamp(round1(selected.x + 3), 0, 100 - selected.w),
+      y: clamp(round1(selected.y + 3), 0, 100 - selected.h),
+    };
+    replaceSlide(contentIndex, { ...slide, shapes: [...slide.shapes, copy] });
+    setSelectedId(id);
+  }
+
   function addKind(kind: ShapeKind) {
     const index = contentIndex < 0 ? 0 : contentIndex;
     const current = outline.slides[index];
@@ -289,6 +317,67 @@ export function PresentationPreview({
       window.removeEventListener("pointerup", up);
     };
   }, [outline, contentIndex, onOutlineChange]);
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (!editable || !selected || !onOutlineChange || contentIndex < 0) {
+        return;
+      }
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable || target.closest("input, textarea, select, [contenteditable='true']"))
+      ) {
+        return;
+      }
+      const current = outline.slides[contentIndex];
+      if (!current) {
+        return;
+      }
+      if (event.key === "Delete" || event.key === "Backspace") {
+        event.preventDefault();
+        onOutlineChange({
+          ...outline,
+          slides: outline.slides.map((item, index) =>
+            index === contentIndex
+              ? { ...item, shapes: item.shapes.filter((shape) => shape.id !== selected.id) }
+              : item,
+          ),
+        });
+        setSelectedId(null);
+        return;
+      }
+      const direction: Record<string, [number, number]> = {
+        ArrowLeft: [-1, 0],
+        ArrowRight: [1, 0],
+        ArrowUp: [0, -1],
+        ArrowDown: [0, 1],
+      };
+      const vector = direction[event.key];
+      if (!vector) {
+        return;
+      }
+      event.preventDefault();
+      const step = event.shiftKey ? NUDGE_STEP_LARGE : NUDGE_STEP;
+      const patch = {
+        x: clamp(round1(selected.x + vector[0] * step), 0, 100 - selected.w),
+        y: clamp(round1(selected.y + vector[1] * step), 0, 100 - selected.h),
+      };
+      onOutlineChange({
+        ...outline,
+        slides: outline.slides.map((item, index) =>
+          index === contentIndex
+            ? {
+                ...item,
+                shapes: item.shapes.map((shape) => (shape.id === selected.id ? { ...shape, ...patch } : shape)),
+              }
+            : item,
+        ),
+      });
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [editable, selected, contentIndex, outline, onOutlineChange]);
 
   function beginDrag(event: ReactPointerEvent, shape: PresentationShape, mode: Drag["mode"]) {
     if (!editable) {
@@ -537,20 +626,25 @@ export function PresentationPreview({
                   onChange={(event) => updateShape(selected.id, { text: event.target.value.slice(0, 200) })}
                 />
               </label>
-              <button
-                type="button"
-                className="wash inline-flex h-8 items-center rounded-lg border border-[var(--line)] px-3 text-xs"
-                data-testid="presentations-shape-remove"
-                onClick={() => {
-                  replaceSlide(contentIndex, {
-                    ...slide,
-                    shapes: slide.shapes.filter((shape) => shape.id !== selected.id),
-                  });
-                  setSelectedId(null);
-                }}
-              >
-                {t("presentation.removeShape")}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="wash inline-flex h-8 items-center rounded-lg border border-[var(--line)] px-3 text-xs"
+                  data-testid="presentations-shape-duplicate"
+                  disabled={slide.shapes.length >= 24}
+                  onClick={duplicateSelected}
+                >
+                  {t("presentation.duplicateShape")}
+                </button>
+                <button
+                  type="button"
+                  className="wash inline-flex h-8 items-center rounded-lg border border-[var(--line)] px-3 text-xs"
+                  data-testid="presentations-shape-remove"
+                  onClick={removeSelected}
+                >
+                  {t("presentation.removeShape")}
+                </button>
+              </div>
             </div>
           ) : (
             <p className="mt-3 text-xs text-[var(--text-3)]">{t("presentation.noShape")}</p>

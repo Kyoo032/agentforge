@@ -26,6 +26,7 @@
   "addText": "Teks",
   "shapeText": "Teks bentuk",
   "removeShape": "Hapus",
+  "duplicateShape": "Duplikat",
   "resizeShape": "Ubah ukuran bentuk",
   "fill": "Isi",
   "stroke": "Garis tepi",

@@ -26,6 +26,7 @@
   "addText": "Text",
   "shapeText": "Shape text",
   "removeShape": "Delete",
+  "duplicateShape": "Duplicate",
   "resizeShape": "Resize shape",
   "fill": "Fill",
   "stroke": "Stroke",

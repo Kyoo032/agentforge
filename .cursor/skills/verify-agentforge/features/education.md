@@ -5,7 +5,7 @@ Education is a work mode on the Default rail. A topic becomes a lesson deck the 
 ## Sub-features
 
 - `education-rail` reaches `/education` from `mode-education`.
-- `education-lesson` drafts a deck (`education-lesson-topic`, `education-lesson-draft`) and mounts the same stage as Presentation (`presentations-editor`, `presentations-edit-heading`, `presentations-add-rectangle`). `education-save-deck` stores it with the presentation decks.
+- `education-lesson` drafts a deck (`education-lesson-topic`, `education-lesson-draft`) and mounts the same stage as Presentation (`presentations-editor`, `presentations-edit-heading`, `presentations-add-rectangle`), including nudge, Delete, and `presentations-shape-duplicate`. `education-save-deck` stores it with the presentation decks.
 - `education-exam` (`education-exam-topic`, `education-exam-generate`) draws `education-exam-sheet`: numbered `education-exam-item`, lettered `education-exam-choice`, and `education-exam-answer`. An empty knowledge base still returns a readable item.
 - `education-book` (`education-book-file`, `education-book-read`, `education-book-text`) reads a PNG page or a PDF on this machine. A scan is not sent away.
 - `education-presenter` (`education-presenter-build`) draws `education-presenter-stage`: the avatar at its recorded position (`education-presenter-avatar`), the current subtitle (`education-presenter-cue`), and the dub script (`education-presenter-dub`) in the boot locale. It does not render a video file.
