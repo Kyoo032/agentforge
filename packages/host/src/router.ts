@@ -122,6 +122,14 @@ import {
   handlePostMusicLyrics,
   handlePostVideos,
 } from "./handlers/jobs";
+import { handlePostDocumentsCheck } from "./handlers/documents-check";
+import { handleGetPresentationDecks, handlePostPresentationDeck } from "./handlers/presentation-decks";
+import {
+  handlePostEducationBook,
+  handlePostEducationExam,
+  handlePostEducationLesson,
+  handlePostEducationPresenter,
+} from "./handlers/education";
 import {
   handleDeleteKnowledgeMemory,
   handleDeleteKnowledgeSource,
@@ -332,9 +340,16 @@ const routes: Route[] = [
   compile("POST", "/api/v1/documents", handlePostDocuments),
   compile("POST", "/api/v1/documents/regenerate", handlePostDocumentsRegen),
   compile("POST", "/api/v1/documents/docx", handlePostDocumentsDocx),
+  compile("POST", "/api/v1/documents/check", handlePostDocumentsCheck),
   compile("POST", "/api/v1/presentations", handlePostPresentations),
   compile("POST", "/api/v1/presentations/regenerate", handlePostPresentationsRegen),
   compile("POST", "/api/v1/presentations/pptx", handlePostPresentationsPptx),
+  compile("GET", "/api/v1/presentations/decks", handleGetPresentationDecks),
+  compile("POST", "/api/v1/presentations/decks", handlePostPresentationDeck),
+  compile("POST", "/api/v1/education/lesson", handlePostEducationLesson),
+  compile("POST", "/api/v1/education/exam", handlePostEducationExam),
+  compile("POST", "/api/v1/education/book", handlePostEducationBook),
+  compile("POST", "/api/v1/education/presenter", handlePostEducationPresenter),
   compile("POST", "/api/v1/research", handlePostResearch),
   compile("POST", "/api/v1/research/stream", handlePostResearchStream),
   compile("POST", "/api/v1/finance", handlePostFinance),

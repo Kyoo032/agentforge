@@ -15,6 +15,7 @@ export const PRODUCT_MODES = [
   { id: "music", label: "Music", href: "/music" },
   { id: "edit", label: "Edit", href: "/edit" },
   { id: "presentations", label: "Presentation", href: "/presentations" },
+  { id: "education", label: "Education", href: "/education" },
 ] as const;
 
 export type ProductMode = (typeof PRODUCT_MODES)[number]["id"];
@@ -25,12 +26,7 @@ export const PRODUCT_MODE_IDS: ProductMode[] = PRODUCT_MODES.map((mode) => mode.
 export const WORK_PRODUCT_MODES: ProductMode[] = [...PRODUCT_MODE_IDS];
 
 /** Original v1 rail minus Agents — used for legacy agents that never stored productModes. */
-export const LEGACY_PRODUCT_MODES: ProductMode[] = [
-  "chat",
-  "images",
-  "videos",
-  "presentations",
-];
+export const LEGACY_PRODUCT_MODES: ProductMode[] = ["chat", "images", "videos", "presentations"];
 
 /** First-run / empty / missing workspace list: all work modes. */
 export const FALLBACK_PRODUCT_MODES: ProductMode[] = [...WORK_PRODUCT_MODES];

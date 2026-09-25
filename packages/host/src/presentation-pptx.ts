@@ -1,6 +1,10 @@
 import PptxGenJS from "pptxgenjs";
 import { resolvedProductName } from "@agentforge/core";
-import { resolvePresentationSlideLayout, type PresentationOutline } from "./presentation-outline";
+import {
+  resolvePresentationSlideLayout,
+  type PresentationOutline,
+  type PresentationSlide,
+} from "./presentation-outline";
 import { presentationKicker, presentationLocale, type PresentationLocale } from "./presentation-locale";
 
 type PptxSlide = ReturnType<PptxGenJS["addSlide"]>;
@@ -17,6 +21,56 @@ const COLORS = {
 } as const;
 
 const FONT = "Calibri";
+const SLIDE_W = 13.333;
+const SLIDE_H = 7.5;
+
+/**
+ * Owner shapes are a few placed marks (rectangle, ellipse, text), written into the same PPTX.
+ * They are not a freeform canvas: no drag surface, no tables, no charts, no master template.
+ */
+function addOwnerShapes(pptx: PptxGenJS, slide: PptxSlide, shapes: PresentationSlide["shapes"]): void {
+  for (const shape of shapes) {
+    const x = (shape.x / 100) * SLIDE_W;
+    const y = (shape.y / 100) * SLIDE_H;
+    const w = Math.min((shape.w / 100) * SLIDE_W, SLIDE_W - x);
+    const h = Math.min((shape.h / 100) * SLIDE_H, SLIDE_H - y);
+    if (w <= 0 || h <= 0) {
+      continue;
+    }
+    if (shape.kind === "ellipse") {
+      slide.addShape(pptx.ShapeType.ellipse, {
+        x,
+        y,
+        w,
+        h,
+        fill: { color: COLORS.bg },
+        line: { color: COLORS.accent, width: 1.5 },
+      });
+    } else if (shape.kind === "rectangle") {
+      slide.addShape(pptx.ShapeType.rect, {
+        x,
+        y,
+        w,
+        h,
+        fill: { color: COLORS.bg },
+        line: { color: COLORS.accent, width: 1.5 },
+      });
+    }
+    if (shape.kind === "text" || shape.text.trim()) {
+      slide.addText(shape.text, {
+        x,
+        y,
+        w,
+        h,
+        fontSize: 14,
+        fontFace: FONT,
+        color: COLORS.text,
+        valign: "middle",
+        align: "center",
+      });
+    }
+  }
+}
 
 function safeFilename(title: string): string {
   const base = title
@@ -163,6 +217,7 @@ function addContentSlide(
         color: COLORS.text2,
       });
     }
+    addOwnerShapes(pptx, slide, item.shapes);
     return;
   }
 
@@ -220,10 +275,12 @@ function addContentSlide(
       color: COLORS.text,
       valign: "middle",
     });
+    addOwnerShapes(pptx, slide, item.shapes);
     return;
   }
 
   addBulletBlock(slide, item.bullets, { x: 0.75, y: bodyY, w: 11.7, h: 5.2 });
+  addOwnerShapes(pptx, slide, item.shapes);
 }
 
 /** Build a PPTX ArrayBuffer from a validated outline. */

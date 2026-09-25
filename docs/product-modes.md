@@ -19,7 +19,8 @@ Gateway identity stays **Toko Token** (`api.tokotokenai.com/v1`). Do not merge T
 | Images        | `images`       | `/images`          | Prompt → generate images → gallery |
 | Videos        | `videos`       | `/videos`          | Prompt → generate videos → gallery |
 | Music         | `music`        | `/music`           | Description or lyrics → generate music → gallery (two takes per job) |
-| Presentation  | `presentations`| `/presentations`   | Prompt → outline → HTML preview + PPTX |
+| Presentation  | `presentations`| `/presentations`   | Prompt → outline → edit text and placed shapes → HTML preview + PPTX |
+| Education     | `education`    | `/education`       | Lesson deck, exam from the desk's knowledge, local page reading, presenter plan |
 | Knowledge Base | —             | `/knowledge`       | Account-rail Soul / Memory / Sources / Map + models (not a product mode) |
 | Channels      | —              | `/channels`        | Account-rail Telegram bot + desk channels: send and receive (not a product mode) |
 | Settings      | —              | `/settings`        | Gateway key, privacy (not a surface) |
@@ -123,9 +124,13 @@ Text-to-speech is built but **off**: the gateway's only TTS id is realtime (WebS
 
 ### Presentation
 
-Prompt → outline → HTML preview → PPTX. Same optional **Source material** field and handoff as Documents (`sourceText` on `/api/v1/presentations` and `/regenerate`).
+Prompt → outline → HTML preview → PPTX. The owner can change a title, heading, bullet, or speaker note, and can place a rectangle, ellipse, or text mark. Those marks are written into the same PPTX. Saving stores the outline as JSON on the desk; a reload starts empty until that deck is opened again. This is not a freeform slide canvas. Same optional **Source material** field and handoff as Documents (`sourceText` on `/api/v1/presentations` and `/regenerate`).
 
-Kimi Slides **job** (topic → deck file), not Kimi Slides **product**. Prompt → JSON outline → HTML preview in-app → Download PPTX. No in-browser slide editor. Uses the chat catalog with a cheap GLM default (`glm-5.2-fast-preview` / `glm-5.2` when live; Kimi K3 is the quality pick in the picker).
+Kimi Slides **job** (topic → deck file), not Kimi Slides **product**. Prompt → JSON outline → HTML preview in-app → Download PPTX. Uses the chat catalog with a cheap GLM default (`glm-5.2-fast-preview` / `glm-5.2` when live; Kimi K3 is the quality pick in the picker).
+
+### Education
+
+A lesson topic becomes a deck on the same editor. An exam is built from retrieved knowledge passages and stays readable when none are indexed. A PNG page or a PDF is read on the machine. A presenter plan records avatar placement, subtitle cues, and a dub script in English or Bahasa Indonesia. No video file is rendered. The mode id is `education`. Teaching nouns stay in `packages/university`.
 
 ### Settings
 
@@ -137,7 +142,7 @@ Not a product mode. Bottom-rail page at `/usage`: this-key wallet, desk estimate
 
 ## Later (not this pass)
 
-- In-browser slide or document editors
+- In-browser freeform slide canvas, or a document editor
 - Kimi Adaptive / Visual modes, Nano Banana-on-every-slide, template clone, Google Slides export
 - Lumina Home hub, Audio, Avatar
 - Kimi Sheets / Websites / Design

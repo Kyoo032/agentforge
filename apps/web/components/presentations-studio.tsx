@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type CSSProperties, type FormEvent } from "react";
 import { Link } from "@/lib/nav";
 import { SourceMaterialField } from "@/components/source-material-field";
 import { subscribeModeHandoff } from "@/lib/mode-handoff";
@@ -16,6 +16,7 @@ import type { JobRegenSubmit } from "@/components/job-regen-panel";
 import { PresentationPreview } from "@/components/presentation-preview";
 import { getLocale, t } from "@/lib/i18n";
 import type { PresentationOutline } from "@/lib/presentation-outline";
+import { parsePresentationOutlineBody } from "@/lib/presentation-outline";
 import { presentationStarters } from "@/lib/job-starters";
 import { useJobModel } from "@/lib/use-job-model";
 import { modelPickBody, regenModelPick, studioModelPick } from "@/lib/model-choice";
@@ -37,18 +38,77 @@ export function PresentationsStudio() {
   const [sourceText, setSourceText] = useState("");
   const [sourceTitle, setSourceTitle] = useState<string | null>(null);
   const [outline, setOutline] = useState<PresentationOutline | null>(null);
-  const [busy, setBusy] = useState<"generate" | "download" | "regen" | null>(null);
+  const [deckId, setDeckId] = useState<string | null>(null);
+  const [decks, setDecks] = useState<Array<{ id: string; title: string }>>([]);
+  const [savedNote, setSavedNote] = useState(false);
+  const [busy, setBusy] = useState<"generate" | "download" | "regen" | "save" | null>(null);
   const [regenIndex, setRegenIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [landed, setLanded] = useState(0);
 
   function showStarter(next: PresentationOutline) {
-    setOutline(next);
+    setOutline(parsePresentationOutlineBody(next));
+    setDeckId(null);
+    setSavedNote(false);
   }
 
   function landOutline(next: PresentationOutline) {
     setOutline(next);
+    setDeckId(null);
+    setSavedNote(false);
     setLanded((count) => count + 1);
+  }
+
+  const loadDecks = useCallback(async () => {
+    const res = await apiFetch("/api/v1/presentations/decks");
+    const data = (await res.json().catch(() => null)) as { decks?: Array<{ id: string; title: string }> } | null;
+    if (res.ok && data?.decks) {
+      setDecks(data.decks);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadDecks();
+  }, [loadDecks]);
+
+  async function openDeck(id: string) {
+    const res = await apiFetch(`/api/v1/presentations/decks?id=${encodeURIComponent(id)}`);
+    const data = (await res.json().catch(() => null)) as { deck?: { id: string; outline: PresentationOutline } } | null;
+    if (!res.ok || !data?.deck) {
+      setError(errorMessage(data, t("presentation.saveError")));
+      return;
+    }
+    setOutline(parsePresentationOutlineBody(data.deck.outline));
+    setDeckId(data.deck.id);
+    setSavedNote(false);
+    setError(null);
+  }
+
+  async function onSave() {
+    if (!outline || busy) {
+      return;
+    }
+    setBusy("save");
+    setError(null);
+    setSavedNote(false);
+    try {
+      const res = await apiFetch("/api/v1/presentations/decks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: deckId ?? undefined, outline }),
+      });
+      const data = (await res.json().catch(() => null)) as { deck?: { id: string } } | null;
+      if (!res.ok || !data?.deck) {
+        throw new Error(errorMessage(data, t("presentation.saveError")));
+      }
+      setDeckId(data.deck.id);
+      setSavedNote(true);
+      await loadDecks();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("presentation.saveError"));
+    } finally {
+      setBusy(null);
+    }
   }
 
   useEffect(
@@ -85,7 +145,7 @@ export function PresentationsStudio() {
       if (!res.ok) {
         throw new Error(errorMessage(data, t("presentation.generateError")));
       }
-      landOutline(data as PresentationOutline);
+      landOutline(parsePresentationOutlineBody(data));
     } catch (err) {
       setOutline(null);
       setError(err instanceof Error ? err.message : t("presentation.generateError"));
@@ -119,7 +179,7 @@ export function PresentationsStudio() {
       if (!res.ok) {
         throw new Error(errorMessage(data, t("presentation.regenError")));
       }
-      setOutline(data as PresentationOutline);
+      setOutline(parsePresentationOutlineBody(data));
     } catch (err) {
       setError(err instanceof Error ? err.message : t("presentation.regenError"));
     } finally {
@@ -178,15 +238,26 @@ export function PresentationsStudio() {
         outcome={t("presentation.expectedInputs")}
         actions={
           outline ? (
-            <button
-              type="button"
-              onClick={() => void onDownload()}
-              disabled={busy !== null}
-              className="btn btn-primary rounded-pill px-4"
-              data-testid="presentations-download"
-            >
-              {busy === "download" ? <WorkingStatus label={t("presentation.building")} /> : t("presentation.download")}
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => void onSave()}
+                disabled={busy !== null}
+                className="btn btn-ghost rounded-pill px-4"
+                data-testid="presentations-save-deck"
+              >
+                {busy === "save" ? t("presentation.savingDeck") : t("presentation.saveDeck")}
+              </button>
+              <button
+                type="button"
+                onClick={() => void onDownload()}
+                disabled={busy !== null}
+                className="btn btn-primary rounded-pill px-4"
+                data-testid="presentations-download"
+              >
+                {busy === "download" ? <WorkingStatus label={t("presentation.building")} /> : t("presentation.download")}
+              </button>
+            </>
           ) : null
         }
       />
@@ -212,6 +283,25 @@ export function PresentationsStudio() {
 
       <ExampleGallery mode="presentations" onSelect={(entry) => setPrompt(entry.prompt)} />
 
+      {decks.length > 0 ? (
+        <div className="mt-6" data-testid="presentations-deck-list">
+          <p className="text-xs font-medium text-[var(--text-2)]">{t("presentation.savedDecks")}</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {decks.map((deck) => (
+              <button
+                key={deck.id}
+                type="button"
+                className="wash inline-flex h-8 items-center rounded-lg border border-[var(--line)] px-3 text-xs"
+                data-testid="presentations-deck-open"
+                onClick={() => void openDeck(deck.id)}
+              >
+                {deck.title}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       <div className="mt-8 flex-1">
         {outline ? (
           <div className="enter-rise relative">
@@ -222,7 +312,19 @@ export function PresentationsStudio() {
               defaultModel={model}
               regeneratingIndex={regenIndex}
               onRegenerate={(index, payload) => void onRegenerate(index, payload)}
+              onOutlineChange={(next) => {
+                setOutline(next);
+                setSavedNote(false);
+              }}
             />
+            <p className="mt-3 text-xs text-[var(--text-3)]" data-testid="presentations-download-note">
+              {t("presentation.downloadNote")}
+            </p>
+            {savedNote ? (
+              <p className="mt-2 text-sm text-[var(--text-2)]" data-testid="presentations-deck-saved">
+                {t("presentation.deckSaved")}
+              </p>
+            ) : null}
           </div>
         ) : (
           <div

@@ -4,7 +4,7 @@ Agent-facing map (where to press). Not product. Pair with pstack `how` for how a
 
 This directory is the maintained source for verifying user-facing DPSBuddy behavior. Read this index before driving, then use the matching feature file as the recipe.
 
-Documents, Research, Finance, Data, Market, Legal, Images, Videos, Music, Meeting, Presentation, and Edit are product modes. **Default already unlocks all of them.** A Legal (or other) workspace can hide some tabs. Knowledge is Account-rail, not a mode checkbox. Custom agents do not unlock the rail. Edit shipped in 0.14.22 and `mode-edit` is a real rail tab on Default; the parts of the Edit studio still owed are named in [edit.md](./edit.md), not here.
+Documents, Research, Finance, Data, Market, Legal, Images, Videos, Music, Meeting, Presentation, Edit, and Education are product modes. **Default already unlocks all of them.** A Legal (or other) workspace can hide some tabs. Knowledge is Account-rail, not a mode checkbox. Custom agents do not unlock the rail. Edit shipped in 0.14.22 and `mode-edit` is a real rail tab on Default; the parts of the Edit studio still owed are named in [edit.md](./edit.md), not here. Education is the teaching desk: a lesson deck, an exam, a local page reader, and a presenter plan.
 
 ## Baseline preconditions
 
@@ -50,8 +50,8 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 - [Login](./login.md) — **Enterprise lane (hosted only).** The one door: `auth-signin` → the portal's e-mail and six-digit-code forms → `/auth/callback` → signed in. Needs the review instance, a seeded tenant and a **real browser**; on webdev and the desktop every testid has count 0. No password, ever.
 - [Plans](./plans.md) — **Enterprise lane (hosted only)**; owned by the Phase 9 pull request, not the 0.15.0 Personal cut. `/pricing` and its `pricing-*` cards, `account-plan` on Settings, and the blocked screens. Every number is a placeholder. `?preview=` reaches the blocked screens on a local build only.
 - [Locale](./locale.md) — the Settings language select, the restart banner, and an `id` walk of the rail, Chat and one job mode. Testids do not move.
-- [Rail](./rail.md) — the left column: header, Converse, Make (`Buat` in `id`), Account, and a footer. Thirteen modes on Default. Finance / Market submenu chevrons show a short word and stay closed until pressed. Row labels stay down to 480px; at 480px or narrower the rail starts collapsed. Webdev and the hosted web hide the updates icon. No `New` badge. Collapse/expand, resize, light-by-default theme, and the `productModes` → visible-tabs → hidden-mode-redirect chain.
-- [Shell scroll](./shell-scroll.md) — one scroller per desk pane, Chat and Edit scroll inside the pane, scroll position survives a rail click, Chat follows a stream, wide lanes at 1920 / 2560 / 3440. The 480px rail collapse stays in [rail.md](./rail.md).
+- [Rail](./rail.md) — the left column: header, Converse, Make (`Buat` in `id`), Account, and a footer. Fourteen modes on Default, including Education. Finance / Market submenu chevrons show a short word and stay closed until pressed. Row labels stay down to 480px; at 480px or narrower the rail starts collapsed. Webdev and the hosted web hide the updates icon. No `New` badge. Collapse/expand, resize, light-by-default theme, and the `productModes` → visible-tabs → hidden-mode-redirect chain.
+- [Shell scroll](./shell-scroll.md) — one scroller per desk pane, Chat and Edit scroll inside the pane, scroll position survives a rail click, Chat follows a stream, wide lanes at 1920 / 2560 / 3440. The 480px rail collapse stays in [rail.md](./rail.md). Presentation preview is two columns from 1600px.
 - [Channels](./channels.md) — account-rail `/channels`: connect a Telegram bot to the desk, add a group or channel, send, and poll for replies. Not a product mode; drive it against `scripts/telegram-sandbox.ts` rather than a real bot.
 - [Usage](./usage.md) — bottom-rail `/usage` Day/Week/Month stacked spend, this-key strip, desk by-model. Not a product mode.
 - [Workspaces](./workspaces.md) — rail switcher + `/workspaces` create/edit, presets and mode checkboxes, open → Chat.
@@ -75,7 +75,8 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 - [Meeting](./meeting.md) — recording → transcript → minutes → EN/ID translation (`mode-meeting`). Create, upload, paste and the in-browser recorder's controls work without a key; only the run reaches the gateway. A **granted microphone** needs a real Chrome window and is still unverified.
 - [Music](./music.md) — studio shell and `music-studio-needs-key` without a key; describe-or-lyrics brief, two takes per charge, voice-over reported unavailable rather than offered.
 - [Edit](./edit.md) — CapCut-style timeline + agent panel (`mode-edit`), shipped in 0.14.22. Storyboard generate is still a Phase 3 placeholder and `animate_storyboard` is backend-only.
-- [Presentation](./presentations.md) — starters, preview, slide regen (503 without a key), PPTX download from a starter.
+- [Presentation](./presentations.md) — starters, text edit, rectangle/ellipse/text marks, save and reopen a deck, slide regen (503 without a key), PPTX download from a starter.
+- [Education](./education.md) — lesson deck on the same editor, exam from the knowledge base, local page reading, presenter plan. No gateway key.
 - [Desktop](./desktop.md) — Electron one-window launch, splash → Chat, IPC host (no loopback HTTP). Windows NSIS exists; mac/linux are builder targets.
 - [Desktop brands](./desktop-brands.md) — packaged Kemenkeu AI / AIHub Metranet vs public DPSBuddy. Rail `product-brand` + `product-logo` must match the installed flavor, not leftover DPSBuddy copy.
 - [Mobile](./mobile.md) — docs only. No iOS/Android build, no stores, no Capacitor. A phone on LAN `:3000` is not a product surface.

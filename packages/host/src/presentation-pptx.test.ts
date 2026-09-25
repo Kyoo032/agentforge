@@ -1,3 +1,4 @@
+import JSZip from "jszip";
 import { describe, expect, it } from "vitest";
 import { buildPresentationPptx } from "./presentation-pptx";
 import { parsePresentationOutlineBody } from "./presentation-outline";
@@ -55,5 +56,31 @@ describe("buildPresentationPptx", () => {
       { locale: "id" },
     );
     expect(buffer.byteLength).toBeGreaterThan(1000);
+  });
+
+  it("writes an owner text shape into the slide XML", async () => {
+    const { buffer } = await buildPresentationPptx(
+      parsePresentationOutlineBody({
+        title: "Marks",
+        slides: [
+          {
+            heading: "One",
+            bullets: ["Line"],
+            notes: "",
+            shapes: [
+              { id: "s1", kind: "text", x: 10, y: 10, w: 30, h: 12, text: "Owner mark survives" },
+              { id: "s2", kind: "ellipse", x: 50, y: 40, w: 16, h: 20, text: "" },
+            ],
+          },
+        ],
+      }),
+    );
+    const zip = await JSZip.loadAsync(buffer);
+    const slides = Object.keys(zip.files).filter((name) => /^ppt\/slides\/slide\d+\.xml$/.test(name));
+    const xml = (await Promise.all(slides.map((name) => zip.file(name)?.async("string") ?? Promise.resolve("")))).join(
+      "",
+    );
+    expect(xml).toContain("Owner mark survives");
+    expect(xml).toContain('prst="ellipse"');
   });
 });

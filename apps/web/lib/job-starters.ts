@@ -1,6 +1,6 @@
 import type { DocumentDraft } from "./document-outline";
 import { t } from "./i18n";
-import type { PresentationOutline } from "./presentation-outline";
+import type { PresentationOutlineInput } from "./presentation-outline";
 
 export type DocumentStarter = {
   id: string;
@@ -13,7 +13,7 @@ export type PresentationStarter = {
   id: string;
   label: string;
   description: string;
-  outline: PresentationOutline;
+  outline: PresentationOutlineInput;
 };
 
 export const DOCUMENT_STARTERS: DocumentStarter[] = [

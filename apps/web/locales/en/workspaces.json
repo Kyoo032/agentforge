@@ -40,7 +40,8 @@
     "edit": "Edit",
     "meeting": "Meeting",
     "music": "Music",
-    "presentations": "Presentation"
+    "presentations": "Presentation",
+    "education": "Education"
   },
   "template": {
     "general": "General",
@@ -55,7 +56,7 @@
   "templateDescription": {
     "general": "Every work tab: chat, documents, research, images, videos, and presentation.",
     "organisation": "Cross-team workspace with every work tab.",
-    "students": "Study desk: chat, documents, research, images, and presentation.",
+    "students": "Study desk: chat, documents, research, images, presentation, and education.",
     "office": "Everyday ops: chat, documents, and presentation.",
     "legal": "Matter review, memos, and redlines: chat, documents, research, legal, and presentation.",
     "sales": "Outreach and deal-room: chat, documents, images, and presentation.",

@@ -12,7 +12,7 @@ const studentsTemplate: AgentTemplate = {
     "You are a student assistant. Explain clearly, do not complete graded work for the user, and use catalog or campus tools only when they help answer the question.",
   model: "gpt-5.6-sol",
   inputModalities: ["text", "image"],
-  productModes: ["chat", "documents", "research", "images", "presentations"],
+  productModes: ["chat", "documents", "research", "images", "presentations", "education"],
   toolKeys: ["calculator", "datetime", "course_catalog.search", "campus_faq.lookup"],
 };
 

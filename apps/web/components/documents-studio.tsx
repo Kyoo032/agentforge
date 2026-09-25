@@ -43,17 +43,24 @@ export function DocumentsStudio() {
   const [sourceText, setSourceText] = useState("");
   const [sourceTitle, setSourceTitle] = useState<string | null>(null);
   const [draft, setDraft] = useState<DocumentDraft | null>(null);
-  const [busy, setBusy] = useState<"generate" | "download" | "regen" | null>(null);
+  const [busy, setBusy] = useState<"generate" | "download" | "regen" | "check" | null>(null);
   const [regenIndex, setRegenIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [landed, setLanded] = useState(0);
+  const [sourceCheck, setSourceCheck] = useState<{
+    checked: boolean;
+    reason?: string;
+    items: Array<{ sentence: string; supported: boolean }>;
+  } | null>(null);
 
   function showStarter(next: DocumentDraft) {
     setDraft(next);
+    setSourceCheck(null);
   }
 
   function landDraft(next: DocumentDraft) {
     setDraft(next);
+    setSourceCheck(null);
     setLanded((count) => count + 1);
   }
 
@@ -172,6 +179,33 @@ export function DocumentsStudio() {
     }
   }
 
+  async function onCheck() {
+    if (!draft || busy) {
+      return;
+    }
+    setBusy("check");
+    setError(null);
+    setSourceCheck(null);
+    try {
+      const res = await apiFetch("/api/v1/documents/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ draft, sourceText }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(errorMessage(data, t("documents.checkError")));
+      }
+      setSourceCheck(
+        data as { checked: boolean; reason?: string; items: Array<{ sentence: string; supported: boolean }> },
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("documents.checkError"));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   return (
     <main
       data-mode="documents"
@@ -184,15 +218,26 @@ export function DocumentsStudio() {
         outcome={t("documents.expectedInputs")}
         actions={
           draft ? (
-            <button
-              type="button"
-              onClick={() => void onDownload()}
-              disabled={busy !== null}
-              className="btn btn-primary rounded-pill px-4"
-              data-testid="documents-download"
-            >
-              {busy === "download" ? <WorkingStatus label={t("documents.building")} /> : t("documents.download")}
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => void onCheck()}
+                disabled={busy !== null}
+                className="btn btn-ghost rounded-pill px-4"
+                data-testid="documents-check"
+              >
+                {busy === "check" ? t("documents.checking") : t("documents.check")}
+              </button>
+              <button
+                type="button"
+                onClick={() => void onDownload()}
+                disabled={busy !== null}
+                className="btn btn-primary rounded-pill px-4"
+                data-testid="documents-download"
+              >
+                {busy === "download" ? <WorkingStatus label={t("documents.building")} /> : t("documents.download")}
+              </button>
+            </>
           ) : null
         }
       />
@@ -214,6 +259,34 @@ export function DocumentsStudio() {
               .
             </>
           ) : null}
+        </div>
+      ) : null}
+
+      {sourceCheck ? (
+        <div
+          className="mt-6 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-4 py-3"
+          data-testid="documents-source-check"
+        >
+          {sourceCheck.checked ? (
+            <ul className="space-y-2 text-sm">
+              {sourceCheck.items.map((item) => (
+                <li
+                  key={item.sentence}
+                  data-testid={item.supported ? "documents-source-supported" : "documents-source-unsupported"}
+                >
+                  <span className="font-medium">
+                    {item.supported ? t("documents.sourceCheck.supported") : t("documents.sourceCheck.unsupported")}
+                  </span>
+                  {": "}
+                  {item.sentence}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-[var(--text-2)]" data-testid="documents-source-check-empty">
+              {t("documents.sourceCheck.empty")}
+            </p>
+          )}
         </div>
       ) : null}
 
