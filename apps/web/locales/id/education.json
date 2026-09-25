@@ -1,6 +1,6 @@
 {
   "title": "Pendidikan",
-  "expectedInputs": "Anda mendapat: dek pelajaran yang dapat diubah, ujian yang dapat dibaca, halaman yang dibaca di mesin ini, serta rencana penyaji dengan posisi, subtitle, dan naskah sulih suara.",
+  "expectedInputs": "Anda mendapat: dek pelajaran yang dapat diubah, ujian yang dapat dibaca, halaman yang dibaca di mesin ini, serta rencana penyaji dengan posisi, subjudul, dan naskah sulih suara.",
   "tabLesson": "Pelajaran",
   "tabExam": "Ujian",
   "tabBook": "Buku",
@@ -19,7 +19,7 @@
   "answer": "Jawaban",
   "examKicker": "Ujian",
   "dubHeading": "Naskah sulih suara",
-  "subtitleLabel": "Subtitle",
+  "subtitleLabel": "Subjudul",
   "presenterStage": "Panggung penyaji",
   "readBook": "Baca halaman",
   "reading": "Membaca…",
