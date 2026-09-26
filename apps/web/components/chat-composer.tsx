@@ -456,7 +456,7 @@ export function ChatComposer({
 
   return (
     <form
-      className="composer-shell mx-auto mb-6 mt-6 w-full max-w-[var(--composer-max)] rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-3 pb-3 pt-2 !shadow-elev-2"
+      className="composer-shell mx-auto mb-6 mt-6 w-full max-w-[var(--composer-max)] shrink-0 rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-3 pb-3 pt-2 !shadow-elev-2"
       data-testid="composer"
       onSubmit={(event) => {
         event.preventDefault();

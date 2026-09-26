@@ -80,7 +80,10 @@ function RailItem({
       data-testid={testId}
       data-mode={icon}
     >
-      <span data-tile className={`transition-colors inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${tileTone}`}>
+      <span
+        data-tile
+        className={`transition-colors inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${tileTone}`}
+      >
         <ModeIcon name={icon} strokeWidth={2} />
       </span>
       {collapsed ? null : <span className="truncate font-medium">{label}</span>}
@@ -99,13 +102,7 @@ function RailGroupLabel({ children, collapsed, first }: { children: ReactNode; c
   );
 }
 
-function BrandTile({
-  logoSrc,
-  productName,
-}: {
-  logoSrc: string;
-  productName: string;
-}) {
+function BrandTile({ logoSrc, productName }: { logoSrc: string; productName: string }) {
   return (
     <span
       className="icon-orb icon-orb-solid enter-pop"
@@ -191,7 +188,10 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
           the scrolling box 8px off the aside's right edge clears the lane the
           `rail-resize` strip occupies, so the handle is never stacked on top of
           this nav's scrollbar (owner report 2026-09-17). */}
-      <nav className="mr-2 flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-2" aria-label={t("rail.modesAria")}>
+      <nav
+        className="mr-2 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain px-2 pb-2"
+        aria-label={t("rail.modesAria")}
+      >
         {chatMode ? (
           <>
             <RailGroupLabel collapsed={collapsed} first>

@@ -108,7 +108,10 @@ function BoardCard({ ticker, testIdPrefix }: { ticker: TickerPacket; testIdPrefi
 
 function LoadingCards({ tickers, testIdPrefix }: { tickers: ReadonlyArray<string>; testIdPrefix: string }) {
   return (
-    <div className="grid gap-4 md:grid-cols-2" data-testid={`${testIdPrefix}-board-loading`}>
+    <div
+      className="grid gap-4 md:grid-cols-2 min-[1600px]:grid-cols-3 min-[2400px]:grid-cols-4"
+      data-testid={`${testIdPrefix}-board-loading`}
+    >
       {tickers.map((ticker) => (
         <section key={ticker} className={CARD} aria-busy="true">
           <h4 className="font-mono text-base font-semibold text-[var(--text)]">{ticker}</h4>
@@ -159,7 +162,7 @@ export function MarketBoard({ board, loading, error, tickers, onRefresh, testIdP
         </p>
       ) : null}
       {board ? (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2 min-[1600px]:grid-cols-3 min-[2400px]:grid-cols-4">
           {board.tickers.map((ticker) => (
             <BoardCard key={ticker.symbol.yahoo} ticker={ticker} testIdPrefix={testIdPrefix} />
           ))}

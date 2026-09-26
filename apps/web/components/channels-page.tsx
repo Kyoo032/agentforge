@@ -204,32 +204,40 @@ export function ChannelsPage() {
   }, [selectedId]);
 
   /** Every mutating press goes through here: one busy flag, one error line, one refresh. */
-  const run = useCallback(
-    async (action: () => Promise<void>, fallback: string) => {
-      setBusy(true);
-      setError(null);
-      setNotice(null);
-      try {
-        await action();
-      } catch (caught) {
-        setError(errorText(caught, fallback));
-      } finally {
-        setBusy(false);
-      }
-    },
-    [],
-  );
+  const run = useCallback(async (action: () => Promise<void>, fallback: string) => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await action();
+    } catch (caught) {
+      setError(errorText(caught, fallback));
+    } finally {
+      setBusy(false);
+    }
+  }, []);
 
   const reloadMessages = useCallback(async (channelId: string) => {
     setMessages(await loadChannelMessages(channelId));
   }, []);
 
   return (
-    <main className="mx-auto w-full max-w-[var(--content-wide)] px-6 py-8 text-[var(--text)]" data-testid="channels-page">
+    <main
+      className="mx-auto w-full max-w-[var(--content-stage)] px-6 py-8 text-[var(--text)]"
+      data-testid="channels-page"
+    >
       <div className="mb-6">
-        <ModeHeader icon="channels" title={t("channels.title")} outcomeTestId="channels-intro" outcome={t("channels.intro")}>
+        <ModeHeader
+          icon="channels"
+          title={t("channels.title")}
+          outcomeTestId="channels-intro"
+          outcome={t("channels.intro")}
+        >
           {/* A standing warning, not a step: one click away, out of the reading path. */}
-          <details className="mt-3 max-w-[var(--content-narrow)] rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2" data-testid="channels-privacy">
+          <details
+            className="mt-3 max-w-[var(--content-narrow)] rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2"
+            data-testid="channels-privacy"
+          >
             <summary className="cursor-pointer select-none text-xs font-medium text-[var(--text-2)]">
               {t("channels.privacyLabel")}
             </summary>

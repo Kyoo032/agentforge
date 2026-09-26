@@ -168,7 +168,7 @@ export function PresentationsStudio() {
   return (
     <main
       data-mode="presentations"
-      className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]"
+      className="mx-auto flex min-h-full max-w-[var(--content-stage)] flex-col px-6 py-10 text-[var(--text)]"
       data-testid="presentations-studio"
     >
       <ModeHeader

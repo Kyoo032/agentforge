@@ -52,9 +52,7 @@ function SlideBody({ slide }: { slide: PresentationSlide }) {
         <h3 className="max-w-4xl text-3xl font-medium leading-tight tracking-[var(--track)] text-[var(--text)]">
           {slide.heading}
         </h3>
-        {slide.subhead.trim() ? (
-          <p className="mt-4 max-w-3xl text-base text-[var(--text-2)]">{slide.subhead}</p>
-        ) : null}
+        {slide.subhead.trim() ? <p className="mt-4 max-w-3xl text-base text-[var(--text-2)]">{slide.subhead}</p> : null}
         {slide.bullets.length > 0 ? (
           <ul className="mt-6 max-w-3xl list-disc space-y-2 pl-5 text-sm text-[var(--text-2)]">
             {slide.bullets.map((bullet) => (
@@ -113,7 +111,10 @@ export function PresentationPreview({
   const total = outline.slides.length + 1;
 
   return (
-    <div className="flex flex-col gap-4" data-testid="presentations-preview">
+    <div
+      className="flex flex-col gap-4 min-[1600px]:grid min-[1600px]:grid-cols-2 min-[1600px]:items-start"
+      data-testid="presentations-preview"
+    >
       <article
         className="relative aspect-video w-full overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--bg)]"
         data-testid="presentations-slide-title"
@@ -127,9 +128,7 @@ export function PresentationPreview({
             {outline.title}
           </h2>
           <p className="absolute bottom-4 left-8 text-xs font-medium text-[var(--text-3)] sm:left-12">{productName}</p>
-          <p className="absolute bottom-4 right-8 text-xs font-medium text-[var(--text-3)] sm:right-12">
-            1 / {total}
-          </p>
+          <p className="absolute bottom-4 right-8 text-xs font-medium text-[var(--text-3)] sm:right-12">1 / {total}</p>
         </div>
       </article>
 

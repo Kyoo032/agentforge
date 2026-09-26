@@ -90,7 +90,7 @@ export function VideoExamples({ onPick, selectedId }: Props) {
     <section className="mt-6" data-testid="videos-examples">
       <h2 className="text-sm font-medium text-[var(--text)]">{t("videos.clipsHeading")}</h2>
       <p className="mt-1 text-xs text-[var(--text-3)]">{t("videos.clipsHint")}</p>
-      <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 min-[1600px]:grid-cols-4 min-[2400px]:grid-cols-5">
         {items.map((item, index) => {
           const isSelected = item.templateId === selectedId;
           return (

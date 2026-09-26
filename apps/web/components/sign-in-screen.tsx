@@ -99,28 +99,30 @@ export function SignInScreen() {
   }
 
   return (
-    <main
-      className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6 py-8 text-[var(--text)]"
-      data-testid="auth-signin"
-    >
-      {logoSrc ? <img src={logoSrc} alt={productName} className="mb-6 h-8 w-8" /> : null}
-      <h1 className="text-2xl font-medium tracking-[var(--track)]">{t("auth.signIn.title", { productName })}</h1>
-      <p className="mt-2 text-[var(--text-2)]">{t("auth.signIn.intro")}</p>
-      {reason ? (
-        <p className="mt-6 rounded-lg border border-[var(--line)] px-3 py-2 text-sm text-[var(--danger)]" data-testid="auth-reason">
-          {authReasonMessage(reason)}
-        </p>
-      ) : null}
-      <button
-        type="button"
-        className="btn btn-primary mt-6 disabled:opacity-50"
-        onClick={() => void onStart()}
-        disabled={busy}
-        data-testid="auth-signin-start"
-      >
-        {busy ? t("auth.signIn.working") : t("auth.signIn.action")}
-      </button>
-      <p className="mt-4 text-xs text-[var(--text-3)]">{t("auth.signIn.noPassword")}</p>
+    <main className="h-full overflow-y-auto text-[var(--text)]" data-testid="auth-signin">
+      <div className="mx-auto flex min-h-full max-w-sm flex-col justify-center px-6 py-8">
+        {logoSrc ? <img src={logoSrc} alt={productName} className="mb-6 h-8 w-8" /> : null}
+        <h1 className="text-2xl font-medium tracking-[var(--track)]">{t("auth.signIn.title", { productName })}</h1>
+        <p className="mt-2 text-[var(--text-2)]">{t("auth.signIn.intro")}</p>
+        {reason ? (
+          <p
+            className="mt-6 rounded-lg border border-[var(--line)] px-3 py-2 text-sm text-[var(--danger)]"
+            data-testid="auth-reason"
+          >
+            {authReasonMessage(reason)}
+          </p>
+        ) : null}
+        <button
+          type="button"
+          className="btn btn-primary mt-6 disabled:opacity-50"
+          onClick={() => void onStart()}
+          disabled={busy}
+          data-testid="auth-signin-start"
+        >
+          {busy ? t("auth.signIn.working") : t("auth.signIn.action")}
+        </button>
+        <p className="mt-4 text-xs text-[var(--text-3)]">{t("auth.signIn.noPassword")}</p>
+      </div>
     </main>
   );
 }

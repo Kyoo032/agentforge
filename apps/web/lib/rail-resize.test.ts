@@ -30,9 +30,15 @@ const handle = source("components/panel-resize-handle.tsx");
 /* The sub-list chrome is shared by Market's desks and Finance's tasks. */
 const specialists = source("components/rail-submenu.tsx");
 
+/** Index of the rail `<nav>`, whether its attributes sit on the same line or the next. */
+function navOpenIndex(): number {
+  const match = /<nav[\s>]/.exec(appRail);
+  return match?.index ?? -1;
+}
+
 /** The `<nav>` element's own markup, opening tag through `</nav>`. */
 function navMarkup(): string {
-  const open = appRail.indexOf("<nav ");
+  const open = navOpenIndex();
   const close = appRail.indexOf("</nav>");
   expect(open).toBeGreaterThan(-1);
   expect(close).toBeGreaterThan(open);
@@ -50,7 +56,7 @@ describe("rail resize handle placement", () => {
   });
 
   it("pins the aside as the positioning context for it", () => {
-    const aside = appRail.slice(appRail.indexOf("<aside"), appRail.indexOf("<nav "));
+    const aside = appRail.slice(appRail.indexOf("<aside"), navOpenIndex());
     expect(aside).toContain("relative");
   });
 
