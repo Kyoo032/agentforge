@@ -86,7 +86,7 @@ function truth(value: Value, expression: string): boolean | CalcError {
 
 /**
  * A recursive-descent read of numbers, parentheses, unary signs, `+ - * /`, `=`, `""`, `ABS(…)`,
- * `IF(…,…,…)`, `OR(…)` and `IFERROR(…,…)`. Anything else throws.
+ * `IF(…,…,…)`, `AND(…)`, `OR(…)` and `IFERROR(…,…)`. Anything else throws.
  */
 function evaluate(expression: string): Value {
   let at = 0;
@@ -127,6 +127,11 @@ function evaluate(expression: string): Value {
       const [test, yes, no] = call();
       const decided = truth(test as Value, expression);
       return decided instanceof CalcError ? decided : ((decided ? yes : no) as Value);
+    }
+    if (take("AND(")) {
+      const tests = call().map((test) => truth(test, expression));
+      const error = tests.find((test) => test instanceof CalcError);
+      return error ?? tests.every((test) => test === true);
     }
     if (take("OR(")) {
       const tests = call().map((test) => truth(test, expression));

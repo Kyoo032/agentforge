@@ -279,6 +279,7 @@ function TaskPath(props: Omit<FinanceStudioViewProps, "showChooser"> & { step: "
               <JobProgressList
                 progress={progress}
                 busy={running}
+                mode="finance"
                 testId="finance-progress"
                 labelFor={financePhaseLabel}
               />
