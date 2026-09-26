@@ -43,6 +43,7 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 ## Features
 
 - [Chat](./chat.md) — empty state with four intent cards that fill the composer, composer send, Thinking disclosure holding the tool rows, new thread, switch sessions in the rail. Default rail shows every work mode.
+- [Mascot](./mascot.md) — placeholder character on every job desk: home pose per mode, empty vs beside a running job, phase mapping, wave then sleep, reduced motion.
 - [Settings](./settings.md) — gateway key, privacy note, stub/live runtime, gateway status row, language row, compact this-key + Open Usage. Sign out and delete sit behind `settings-reset-danger`. No Advanced tab. On a closed gate (`allowed: false`) the Chat empty state makes Settings the primary action; a stub desk (`allowed: true`) keeps Send enabled and that link is a plain button.
 - [Gateway gate](./gateway-gate.md) — the host's open/closed decision: onboarding reasons, `settings-gateway-status` + re-check, 7-day grace, `403 gateway_blocked`, Start over. Advisory, fails open, never an entitlement check.
 - [Onboarding](./onboarding.md) — first-run hello, key paste, then four examples only after the host reports `allowed`. `component-setup` sits on the key step, above the form.
