@@ -1,6 +1,6 @@
 # Map — Presentation
 
-Last verified: 2026-09-25 at a4b23a5
+Last verified: 2026-09-26 at c3606e5
 
 ## Overview
 
