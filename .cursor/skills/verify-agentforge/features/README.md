@@ -43,12 +43,12 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 ## Features
 
 - [Chat](./chat.md) — empty state with four intent cards that fill the composer, composer send, Thinking disclosure holding the tool rows, new thread, switch sessions in the rail. Default rail shows every work mode.
-- [Settings](./settings.md) — gateway key, privacy note, stub/live runtime, gateway status row, language row, compact this-key + Open Usage. No Advanced tab.
+- [Settings](./settings.md) — gateway key, privacy note, stub/live runtime, gateway status row, language row, compact this-key + Open Usage. Sign out and delete sit behind `settings-reset-danger`. No Advanced tab. On a closed gate (`allowed: false`) the Chat empty state makes Settings the primary action; a stub desk (`allowed: true`) keeps Send enabled and that link is a plain button.
 - [Gateway gate](./gateway-gate.md) — the host's open/closed decision: onboarding reasons, `settings-gateway-status` + re-check, 7-day grace, `403 gateway_blocked`, Start over. Advisory, fails open, never an entitlement check.
 - [Login](./login.md) — **Enterprise lane (hosted only).** The one door: `auth-signin` → the portal's e-mail and six-digit-code forms → `/auth/callback` → signed in. Needs the review instance, a seeded tenant and a **real browser**; on webdev and the desktop every testid has count 0. No password, ever.
 - [Plans](./plans.md) — **Enterprise lane (hosted only)**; owned by the Phase 9 pull request, not the 0.15.0 Personal cut. `/pricing` and its `pricing-*` cards, `account-plan` on Settings, and the blocked screens. Every number is a placeholder. `?preview=` reaches the blocked screens on a local build only.
 - [Locale](./locale.md) — the Settings language select, the restart banner, and an `id` walk of the rail, Chat and one job mode. Testids do not move.
-- [Rail](./rail.md) — the left column: four groups, thirteen modes on Default, Finance / Market submenu chevrons with a short visible word, closed until pressed, no `New` badge, collapse/expand, resize and width prefs, light-by-default theme toggle, and the `productModes` → visible-tabs → hidden-mode-redirect chain.
+- [Rail](./rail.md) — the left column: header, Converse, Make (`Buat` in `id`), Account, and a footer. Thirteen modes on Default. Finance / Market submenu chevrons show a short word and stay closed until pressed. Row labels stay down to 480px; at 480px or narrower the rail starts collapsed. Webdev and the hosted web hide the updates icon. No `New` badge. Collapse/expand, resize, light-by-default theme, and the `productModes` → visible-tabs → hidden-mode-redirect chain.
 - [Channels](./channels.md) — account-rail `/channels`: connect a Telegram bot to the desk, add a group or channel, send, and poll for replies. Not a product mode; drive it against `scripts/telegram-sandbox.ts` rather than a real bot.
 - [Usage](./usage.md) — bottom-rail `/usage` Day/Week/Month stacked spend, this-key strip, desk by-model. Not a product mode.
 - [Workspaces](./workspaces.md) — rail switcher + `/workspaces` create/edit, presets and mode checkboxes, open → Chat.
@@ -67,8 +67,8 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 - [Knowledge phases](./knowledge-phases.md) — **Cloud testing path** for builtin Phases 0–4 (Vitest + stub webdev). No WeKnora sidecar. Live `[n]` cites are Windows-only.
 - [Knowledge ingest loop](./knowledge-ingest.md) — every finished Chat turn / job writes a text work card (pointer, not bytes); `knowledge-loop` chart on Sources; Chat skips its own card; example clips never ingest.
 - [Knowledge graph](./knowledge-graph.md) — Phase 4 builtin: completed Chat replies with `[n]` markers add `cites` edges; one-hop `covers` expansion is behind `knowledge.graphExpand` (off in Chat); panel is the existing Phase 2 base. Drive on webdev :3000.
-- [Images](./images.md) — studio shell on Default; needs-key without a gateway key.
-- [Videos](./videos.md) — studio shell and `videos-studio-needs-key` without a key.
+- [Images](./images.md) — studio shell on Default. The needs-key note follows the image route's `ready` flag. Generate stays enabled while `gateway.allowed` is true, including a stub desk.
+- [Videos](./videos.md) — studio shell. `videos-studio-needs-key` and a quiet Generate follow the video route's `ready` flag, including on a stub desk with no key.
 - [Meeting](./meeting.md) — recording → transcript → minutes → EN/ID translation (`mode-meeting`). Create, upload, paste and the in-browser recorder's controls work without a key; only the run reaches the gateway. A **granted microphone** needs a real Chrome window and is still unverified.
 - [Music](./music.md) — studio shell and `music-studio-needs-key` without a key; describe-or-lyrics brief, two takes per charge, voice-over reported unavailable rather than offered.
 - [Edit](./edit.md) — CapCut-style timeline + agent panel (`mode-edit`), shipped in 0.14.22. Storyboard generate is still a Phase 3 placeholder and `animate_storyboard` is backend-only.

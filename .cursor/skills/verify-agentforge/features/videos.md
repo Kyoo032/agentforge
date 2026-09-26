@@ -1,6 +1,6 @@
 # Videos
 
-Videos is a generate studio (prompt, aspect, duration, optional resolution, optional still, gallery). Without a gateway key the expected state is `videos-studio-needs-key`. Cloud must not paste a gateway key into the shared webdev Settings desk. Live Toko Token proof is the isolated matrix (gitignored `evidence/videos/live-matrix/`), not a generate from the stub studio.
+Videos is a generate studio (prompt, aspect, duration, optional resolution, optional still, gallery). Without a gateway key the expected state is `videos-studio-needs-key` and a quiet Generate. Videos stays on the host route `ready` flag: a stub desk with `allowed: true` still quiets Generate. Chat, Documents and Images do not. Cloud must not paste a gateway key into the shared webdev Settings desk. Live Toko Token proof is the isolated matrix (gitignored `evidence/videos/live-matrix/`), not a generate from the stub studio.
 
 ## Sub-features
 

@@ -15,7 +15,7 @@ Chat (and other model runs) keep the prompt the owner typed. Before that text be
 
 - Open Chat (`/chat` or `mode-chat`).
 - Type a prompt that includes an email (or phone). Send as usual.
-- Your bubble still has the email. The model only sees `[email]` (stub reply includes that token).
+- Your bubble still has the email. The model only sees `[email]`. The stub assistant line does not show that token: with no calculator or clock in the prompt it is the need-key sentence ("I need a Toko Token gateway key in Settings to answer that."), which never quotes the prompt.
 
 ## Driving it with the DPSBuddy harness
 
@@ -26,9 +26,9 @@ Preconditions:
 
 - **Open Chat.** Go to `/chat`. `composer-text` and `composer-send` are visible. `pii-warning` count is 0.
 - **Send original.** Fill `composer-text` with `VERIFY pii <run-id> contact me at verify@example.com`. Click `composer-send`. `message-list` contains that exact email (20s). `composer-send` returns to `Send`.
-- **Outbound mask.** The stub assistant line contains `[email]` and does not repeat `verify@example.com`.
+- **Outbound mask.** The user bubble in `message-list` still contains `verify@example.com`. The newest `message-output` is the stub need-key sentence and contains neither `[email]` nor `verify@example.com`. Do not treat a missing `[email]` in that line as a failed mask — `createRuntime()` runs `maskOutboundRunInput` before execute (`packages/core/src/runtime/create-runtime.ts`), and `StubRuntime` answers with `stubChatCopy().needKey` instead of echoing history (`packages/core/src/runtime/stub-runtime.ts`). The mask itself is the unit proof in `packages/core/src/security/pii.test.ts`.
 - **Non-trigger.** `hello @ world` sends with no mask token and no banner.
-- **IDE proof.** Screenshot under `evidence/pii/<run-id>/` with the original email in the user bubble and `[email]` in the stub reply.
+- **IDE proof.** Screenshot under `evidence/pii/<run-id>/` with the original email in the user bubble and the need-key sentence in the stub reply.
 - **Cloud.** Foundation sends have no email — they must still pass. Do not add a banner assert.
 
 ## Gotchas

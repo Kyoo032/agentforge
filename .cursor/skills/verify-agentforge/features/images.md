@@ -7,7 +7,7 @@ Images is a generate studio (prompt → gallery), not a canvas editor. It lists 
 - `images-header` (0.15.0) — title plus one outcome line in `expected-inputs`: "You get: a generated image, saved to the gallery below." No disclosure on this studio; the rail row reads `Images`. Driven 2026-09-23 on a live desk: `images-studio-needs-key` count 0, `images-studio-estimate` starts with `≈ $`, submit not pressed.
 - `images-rail` reaches `/images` from `mode-images` on Default.
 - `images-shell` shows `images-studio` (heading Images, prompt bar, gallery).
-- `images-needs-key` shows `images-studio-needs-key` when no gateway key is ready.
+- `images-needs-key` shows `images-studio-needs-key` when `GET /api/v1/images` reports `ready: false` (no image route key). That note is not the gate. `images-studio-submit` is disabled only when `gateway.allowed` is false (`useDeskNeedsKey`). On stub the note can show while Generate stays enabled.
 - `images-empty` shows `images-studio-empty` ("Nothing here yet") when the gallery has no items.
 - `images-estimate` shows the pre-generate cost line `images-studio-estimate` under the controls row (provider list price per image, source + checked date, a cheap/mid/premium word) with `images-studio-estimate-compare` beneath it; an id with no transcribed price shows `images-studio-estimate-unknown` instead. Each `images-studio-model` option ends with its own `$x.xx/img` tag. Table: [`docs/internal/research/media-pricing.md`](../../../../docs/internal/research/media-pricing.md). Maps: [`generate-studios.md`](../../../../docs/internal/maps/generate-studios.md) (prompt bar → picker → generate helper → gallery), [`media-cost-estimate.md`](../../../../docs/internal/maps/media-cost-estimate.md) (the price line), [`renderer-media.md`](../../../../docs/internal/maps/renderer-media.md) (why the gallery `src` is always host-served).
 
@@ -22,7 +22,7 @@ Preconditions:
 
 - Doctor exits 0.
 - `mode-images` is visible on Default. If count is 0, you are on a desk that hid Images (e.g. Legal) — not a missing agent.
-- Stub / no-key proof stops at the shell. Do not click `images-studio-submit` unless the operator asked for a live generate and doctor reports `ai`. **The button does not protect you**: unlike `videos-studio-submit`, it is enabled the moment the prompt is non-empty, with or without a key (`apps/web/components/images-studio.tsx:204`). A keyless click is a real POST that returns a 400 from the tool's own backend check — harmless, but it is not a no-op, and on a live desk it bills.
+- Stub / no-key proof stops at the shell. Do not click `images-studio-submit` unless the operator asked for a live generate and doctor reports `ai`. **While `allowed` is true the button does not protect you**: unlike `videos-studio-submit`, it enables the moment the prompt is non-empty, key or no key (`apps/web/components/images-studio.tsx`). A keyless click is a real POST. On a closed gate (`allowed: false`) the same button is quiet and the click does not POST. A live click bills.
 
 - **Open Images.** Click `mode-images`. URL matches `/images` (15s). `images-studio` is visible (15s).
 - **No-key state.** If doctor `hasOpenai` is false, `images-studio-needs-key` is visible and contains exactly one `<a href="/settings">` (rendered by `SettingsLinkHint`) — assert the anchor, not the word "Settings". Driven 2026-09-17 on the `id` desk: `Tambahkan kunci gateway Toko Token di Pengaturan untuk membuat gambar.`
