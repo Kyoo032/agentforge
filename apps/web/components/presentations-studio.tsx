@@ -8,6 +8,7 @@ import { Confetti } from "@/components/confetti";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { ExampleGallery } from "@/components/example-gallery";
 import { ModeHeader } from "@/components/mode-header";
+import { MascotSlot } from "@/components/mascot-slot";
 import { ModeIllustration } from "@/components/mode-illustration";
 import { ModelSelect } from "@/components/model-select";
 import { WorkingStatus } from "@/components/working-status";
@@ -293,6 +294,7 @@ export function PresentationsStudio() {
             data-testid="presentations-prompt"
             aria-label={t("presentation.promptAria")}
           />
+          {busy === "generate" ? <MascotSlot mode="presentations" placement="beside" busy /> : null}
           <button
             type="submit"
             className="btn btn-primary h-8 shrink-0 rounded-pill px-4"

@@ -38,6 +38,25 @@
     "kbAdded": "Ditambahkan ke Basis Pengetahuan.",
     "kbFailed": "Tidak dapat menambahkan ke Basis Pengetahuan"
   },
+  "mascot": {
+    "wave": "Melambaikan tangan",
+    "idle": "Siap bila Anda siap",
+    "sleep": "Beristirahat sejenak",
+    "thinking": "Sedang memikirkan ini",
+    "writing": "Sedang menulis",
+    "answering": "Sedang menulis jawaban",
+    "searching": "Sedang mencari",
+    "calculating": "Sedang menghitung",
+    "charting": "Sedang melihat grafik",
+    "reviewing": "Sedang meninjau berkas",
+    "listening": "Sedang mendengarkan",
+    "painting": "Sedang melukis",
+    "filming": "Sedang merekam",
+    "editing": "Sedang menyunting",
+    "presenting": "Sedang mempresentasikan",
+    "celebrating": "Selesai",
+    "error": "Ada yang perlu dilihat"
+  },
   "modeHandoff": {
     "fallbackSubject": "materi sumber",
     "presentation": "Ubah \"{subject}\" menjadi presentasi untuk pengambil keputusan. Gunakan hanya materi sumber.",

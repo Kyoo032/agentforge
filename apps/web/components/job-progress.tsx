@@ -1,12 +1,16 @@
 "use client";
 
 import type { JobProgress } from "@agentforge/core/jobs";
+import { MascotSlot } from "@/components/mascot-slot";
 import { t } from "@/lib/i18n";
+import type { MascotMode } from "@/lib/mascot-states";
 import { labeled } from "@/lib/ui-copy";
 
 type Props = {
   progress: JobProgress;
   busy: boolean;
+  /** Which desk this job belongs to, so the mascot beside it matches the work. */
+  mode: MascotMode;
   testId?: string;
   /**
    * The reader's name for a phase label. Finance streams the phase *id* ("narrate-guard-export")
@@ -21,17 +25,27 @@ function sourceStatusLabel(status: string): string {
 }
 
 /** Streamed phase list for job modes: planning → searching 3/5 → reading 7/10 → drafting. */
-export function JobProgressList({ progress, busy, testId = "job-progress", labelFor }: Props) {
+export function JobProgressList({ progress, busy, mode, testId = "job-progress", labelFor }: Props) {
   if (progress.phases.length === 0 && !busy) {
     return null;
   }
+  const active = progress.phases.find((phase) => phase.status === "active");
   return (
     <div
-      className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm"
+      className="flex items-start gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm"
       data-testid={testId}
       aria-live="polite"
     >
-      {progress.phases.length === 0 ? <p className="text-[var(--text-2)]">{t("common.jobProgress.starting")}</p> : null}
+      <MascotSlot
+        mode={mode}
+        placement="beside"
+        phase={active?.phase}
+        busy={busy}
+        failed={Boolean(progress.error)}
+        done={progress.done && !progress.error}
+      />
+      <div className="min-w-0 flex-1">
+        {progress.phases.length === 0 ? <p className="text-[var(--text-2)]">{t("common.jobProgress.starting")}</p> : null}
       {progress.round ? (
         <p className="mb-1 text-xs font-medium text-[var(--accent)]" data-testid={`${testId}-round`}>
           {t("common.jobProgress.round", {
@@ -71,6 +85,7 @@ export function JobProgressList({ progress, busy, testId = "job-progress", label
           ))}
         </ul>
       ) : null}
+      </div>
     </div>
   );
 }

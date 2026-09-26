@@ -1502,27 +1502,7 @@ aside nav > p {
 
 /* Placeholder mascot. Art is a stand-in in components/placeholder-mascot.tsx.
    Colour comes from the desk: the mode accent, the soft gradient, and the card lip.
-   Loops are named again under prefers-reduced-motion. */
-@keyframes chat-mascot-idle {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.72;
-  }
-}
-
-@keyframes chat-mascot-answer {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.55;
-  }
-}
-
+   Every loop below is named again under prefers-reduced-motion. */
 @keyframes chat-mascot-blink {
   0%,
   42%,
@@ -1531,7 +1511,171 @@ aside nav > p {
     opacity: 1;
   }
   50% {
+    opacity: 0.15;
+  }
+}
+
+@keyframes chat-mascot-look {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  35% {
+    transform: translateX(-0.8px);
+  }
+  70% {
+    transform: translateX(0.8px);
+  }
+}
+
+@keyframes chat-mascot-wave {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(-18deg);
+  }
+}
+
+@keyframes chat-mascot-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-1.5px);
+  }
+}
+
+@keyframes chat-mascot-tap {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(1.5px);
+  }
+}
+
+@keyframes chat-mascot-sweep {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(1.5px, -1.5px);
+  }
+}
+
+@keyframes chat-mascot-tick {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@keyframes chat-mascot-bars {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(0.7);
+  }
+}
+
+@keyframes chat-mascot-stamp {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(0.86);
+  }
+}
+
+@keyframes chat-mascot-nod {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(8deg);
+  }
+}
+
+@keyframes chat-mascot-brush {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(-14deg);
+  }
+}
+
+@keyframes chat-mascot-clap {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  45% {
+    transform: rotate(-16deg);
+  }
+}
+
+@keyframes chat-mascot-snip {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(16deg);
+  }
+}
+
+@keyframes chat-mascot-point {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-1.5px);
+  }
+}
+
+@keyframes chat-mascot-cheer {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-2px) scale(1.06);
+  }
+}
+
+@keyframes chat-mascot-droop {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(4deg);
+  }
+}
+
+@keyframes chat-mascot-zs {
+  0% {
     opacity: 0.2;
+    transform: translate(0, 1px);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(1px, -2px);
   }
 }
 
@@ -1563,7 +1707,18 @@ aside nav > p {
   height: 28px;
 }
 
-.chat-mascot svg rect {
+.chat-mascot[data-placement="beside"] {
+  width: 32px;
+  height: 32px;
+  border-radius: 12px;
+}
+
+.chat-mascot[data-placement="beside"] svg {
+  width: 24px;
+  height: 24px;
+}
+
+.chat-mascot-body {
   fill: var(--accent-soft);
 }
 
@@ -1572,16 +1727,135 @@ aside nav > p {
   border-color: color-mix(in srgb, var(--danger) 40%, var(--line));
 }
 
-.chat-mascot[data-state="idle"] {
-  animation: chat-mascot-idle calc(var(--motion-4) * 8) var(--ease-out) infinite;
+.chat-mascot-mouth,
+.chat-mascot-shut,
+.chat-mascot-arm,
+.chat-mascot-prop {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-.chat-mascot[data-state="answering"] {
-  animation: chat-mascot-answer calc(var(--motion-4) * 3) var(--ease-out) infinite;
+.chat-mascot-mouth,
+.chat-mascot-shut,
+.chat-mascot-arm,
+.chat-mascot-prop {
+  opacity: 0;
+}
+
+.chat-mascot[data-mouth="idle"] .chat-mascot-mouth-idle,
+.chat-mascot[data-mouth="talk"] .chat-mascot-mouth-talk,
+.chat-mascot[data-mouth="smile"] .chat-mascot-mouth-smile,
+.chat-mascot[data-mouth="sad"] .chat-mascot-mouth-sad,
+.chat-mascot[data-mouth="sleep"] .chat-mascot-mouth-sleep,
+.chat-mascot[data-pose="sleep"] .chat-mascot-shut,
+.chat-mascot[data-pose="wave"] .chat-mascot-arm,
+.chat-mascot[data-pose="writing"] .chat-mascot-arm,
+.chat-mascot[data-pose="writing"] .chat-mascot-prop-writing,
+.chat-mascot[data-pose="searching"] .chat-mascot-prop-searching,
+.chat-mascot[data-pose="calculating"] .chat-mascot-prop-calculating,
+.chat-mascot[data-pose="charting"] .chat-mascot-prop-charting,
+.chat-mascot[data-pose="reviewing"] .chat-mascot-prop-reviewing,
+.chat-mascot[data-pose="listening"] .chat-mascot-prop-listening,
+.chat-mascot[data-pose="painting"] .chat-mascot-prop-painting,
+.chat-mascot[data-pose="filming"] .chat-mascot-prop-filming,
+.chat-mascot[data-pose="editing"] .chat-mascot-prop-editing,
+.chat-mascot[data-pose="presenting"] .chat-mascot-prop-presenting,
+.chat-mascot[data-pose="sleep"] .chat-mascot-prop-sleep {
+  opacity: 1;
+}
+
+.chat-mascot[data-pose="sleep"] .chat-mascot-eyes {
+  opacity: 0;
+}
+
+.chat-mascot-prop rect {
+  fill: color-mix(in srgb, currentColor 16%, transparent);
+}
+
+.chat-mascot[data-state="wave"] .chat-mascot-arm {
+  transform-origin: 22px 14px;
+  animation: chat-mascot-wave calc(var(--motion-4) * 2) var(--ease-out) infinite;
+}
+
+.chat-mascot[data-state="idle"] .chat-mascot-eyes {
+  animation: chat-mascot-blink calc(var(--motion-4) * 4) var(--ease-out) infinite;
+}
+
+.chat-mascot[data-state="idle"] .chat-mascot-look {
+  animation: chat-mascot-look calc(var(--motion-4) * 8) var(--ease-out) infinite;
 }
 
 .chat-mascot[data-state="thinking"] .chat-mascot-eyes {
-  animation: chat-mascot-blink calc(var(--motion-4) * 4) var(--ease-out) infinite;
+  animation: chat-mascot-blink calc(var(--motion-4) * 3) var(--ease-out) infinite;
+}
+
+.chat-mascot[data-state="thinking"] .chat-mascot-face {
+  animation: chat-mascot-bob calc(var(--motion-4) * 3) var(--ease-out) infinite;
+}
+
+.chat-mascot[data-state="writing"] .chat-mascot-arm,
+.chat-mascot[data-state="answering"] .chat-mascot-arm {
+  transform-origin: 22px 16px;
+  animation: chat-mascot-tap calc(var(--motion-4) * 2) var(--ease-out) infinite;
+}
+
+.chat-mascot[data-state="searching"] .chat-mascot-prop-searching {
+  animation: chat-mascot-sweep calc(var(--motion-4) * 3) var(--ease-out) infinite;
+}
+
+.chat-mascot[data-state="calculating"] .chat-mascot-prop-calculating {
+  animation: chat-mascot-tick calc(var(--motion-4) * 2) var(--ease-out) infinite;
+}
+
+.chat-mascot[data-state="charting"] .chat-mascot-prop-charting {
+  transform-origin: center bottom;
+  animation: chat-mascot-bars calc(var(--motion-4) * 3) var(--ease-out) infinite;
+}
+
+.chat-mascot[data-state="reviewing"] .chat-mascot-prop-reviewing {
+  transform-origin: 26px 18px;
+  animation: chat-mascot-stamp calc(var(--motion-4) * 3) var(--ease-out) infinite;
+}
+
+.chat-mascot[data-state="listening"] .chat-mascot-prop-listening {
+  transform-origin: 25px 14px;
+  animation: chat-mascot-nod calc(var(--motion-4) * 4) var(--ease-out) infinite;
+}
+
+.chat-mascot[data-state="painting"] .chat-mascot-prop-painting {
+  transform-origin: 24px 20px;
+  animation: chat-mascot-brush calc(var(--motion-4) * 3) var(--ease-out) infinite;
+}
+
+.chat-mascot[data-state="filming"] .chat-mascot-prop-filming {
+  transform-origin: 25px 16px;
+  animation: chat-mascot-clap calc(var(--motion-4) * 2) var(--ease-out) infinite;
+}
+
+.chat-mascot[data-state="editing"] .chat-mascot-prop-editing {
+  transform-origin: 25px 18px;
+  animation: chat-mascot-snip calc(var(--motion-4) * 2) var(--ease-out) infinite;
+}
+
+.chat-mascot[data-state="presenting"] .chat-mascot-prop-presenting {
+  animation: chat-mascot-point calc(var(--motion-4) * 3) var(--ease-out) infinite;
+}
+
+.chat-mascot[data-state="celebrating"] .chat-mascot-face {
+  transform-origin: 15px 14px;
+  animation: chat-mascot-cheer calc(var(--motion-4) * 2) var(--ease-out) infinite;
+}
+
+.chat-mascot[data-state="error"] .chat-mascot-face {
+  transform-origin: 15px 14px;
+  animation: chat-mascot-droop calc(var(--motion-4) * 4) var(--ease-out) infinite;
+}
+
+.chat-mascot[data-state="sleep"] .chat-mascot-prop-sleep {
+  animation: chat-mascot-zs calc(var(--motion-4) * 4) var(--ease-out) infinite;
 }
 
 .icon-orb-solid .chat-mascot {
@@ -1594,23 +1868,13 @@ aside nav > p {
   border-radius: 0;
 }
 
-.icon-orb-solid .chat-mascot svg rect {
+.icon-orb-solid .chat-mascot-body {
   fill: color-mix(in srgb, currentColor 18%, transparent);
 }
 
-.chat-mascot-mouth {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.5px;
-  stroke-linecap: round;
-  opacity: 0;
-}
-
-.chat-mascot[data-state="idle"] .chat-mascot-mouth-idle,
-.chat-mascot[data-state="thinking"] .chat-mascot-mouth-think,
-.chat-mascot[data-state="answering"] .chat-mascot-mouth-answer,
-.chat-mascot[data-state="error"] .chat-mascot-mouth-error {
-  opacity: 1;
+.icon-orb-solid .chat-mascot-prop,
+.icon-orb-solid .chat-mascot-arm {
+  display: none;
 }
 
 .composer-sending [data-testid="composer-send"] {
@@ -1649,9 +1913,25 @@ aside nav > p {
   .float-shape-spin,
   .tile-bounce,
   .page-enter,
-  .chat-mascot[data-state="idle"],
-  .chat-mascot[data-state="answering"],
-  .chat-mascot[data-state="thinking"] .chat-mascot-eyes {
+  .chat-mascot[data-state="wave"] .chat-mascot-arm,
+  .chat-mascot[data-state="idle"] .chat-mascot-eyes,
+  .chat-mascot[data-state="idle"] .chat-mascot-look,
+  .chat-mascot[data-state="thinking"] .chat-mascot-eyes,
+  .chat-mascot[data-state="thinking"] .chat-mascot-face,
+  .chat-mascot[data-state="writing"] .chat-mascot-arm,
+  .chat-mascot[data-state="answering"] .chat-mascot-arm,
+  .chat-mascot[data-state="searching"] .chat-mascot-prop-searching,
+  .chat-mascot[data-state="calculating"] .chat-mascot-prop-calculating,
+  .chat-mascot[data-state="charting"] .chat-mascot-prop-charting,
+  .chat-mascot[data-state="reviewing"] .chat-mascot-prop-reviewing,
+  .chat-mascot[data-state="listening"] .chat-mascot-prop-listening,
+  .chat-mascot[data-state="painting"] .chat-mascot-prop-painting,
+  .chat-mascot[data-state="filming"] .chat-mascot-prop-filming,
+  .chat-mascot[data-state="editing"] .chat-mascot-prop-editing,
+  .chat-mascot[data-state="presenting"] .chat-mascot-prop-presenting,
+  .chat-mascot[data-state="celebrating"] .chat-mascot-face,
+  .chat-mascot[data-state="error"] .chat-mascot-face,
+  .chat-mascot[data-state="sleep"] .chat-mascot-prop-sleep {
     animation: none !important;
   }
 

@@ -853,7 +853,7 @@ export function MeetingStudio() {
                 </details>
               ) : null}
 
-              <JobProgressList progress={job.progress} busy={job.busy} testId="meeting-progress" />
+              <JobProgressList progress={job.progress} busy={job.busy} mode="meeting" testId="meeting-progress" />
 
               <nav className="mt-6 flex gap-2 text-sm" data-testid="meeting-tabs">
                 {(["transcript", "minutes", "translation"] as Tab[]).map((name) => (

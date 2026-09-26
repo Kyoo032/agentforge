@@ -13,6 +13,7 @@ import { EditAgentPanel } from "@/components/edit-agent-panel";
 import { EditGenerateTab } from "@/components/edit-generate-tab";
 import { FfmpegSetupNotice } from "@/components/ffmpeg-setup-notice";
 import { ModeHeader } from "@/components/mode-header";
+import { MascotSlot } from "@/components/mascot-slot";
 import { ModeIllustration } from "@/components/mode-illustration";
 import { WorkingStatus } from "@/components/working-status";
 import { imageClipAt } from "@/lib/edit-preview-media";
@@ -690,7 +691,8 @@ export function EditStudio() {
         />
       </div>
       {exporting || exportBusy ? (
-        <p className="px-4" data-testid="edit-export-progress">
+        <p className="flex items-center gap-2 px-4" data-testid="edit-export-progress">
+          <MascotSlot mode="edit" placement="beside" busy />
           <WorkingStatus label={t("edit.exporting")} />
         </p>
       ) : null}

@@ -563,7 +563,7 @@ export function MarketStudio() {
 
       <div className="mt-5 space-y-4">
         {job.busy || (job.progress.phases.length > 0 && !result) ? (
-          <JobProgressList progress={teamProgress} busy={job.busy} testId="market-progress" />
+          <JobProgressList progress={teamProgress} busy={job.busy} mode="market" testId="market-progress" />
         ) : null}
         {result ? (
           <div className="enter-rise relative space-y-4">
