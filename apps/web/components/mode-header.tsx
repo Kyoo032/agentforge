@@ -23,13 +23,13 @@ export function ModeHeader({
   outcomeTestId?: string;
 }) {
   return (
-    <header className="hero-glow flex flex-wrap items-end justify-between gap-4" data-testid="mode-header">
+    <header className="flex flex-wrap items-end justify-between gap-4" data-testid="mode-header" data-mode={icon}>
       <div className="enter-rise flex min-w-0 items-start gap-4">
         <span className="icon-orb icon-orb-lg icon-orb-solid enter-pop">
           <ModeIcon name={icon} size={24} strokeWidth={1.75} />
         </span>
         <div className="min-w-0">
-          <h1 className="font-heading text-[length:var(--fs-24)] font-semibold leading-[var(--lh-tight)] tracking-[var(--track)] text-[var(--text)]">
+          <h1 className="font-heading text-[length:var(--fs-24)] font-bold leading-[var(--lh-tight)] tracking-[var(--track)] text-[var(--text)]">
             {title}
           </h1>
           {outcome ? (

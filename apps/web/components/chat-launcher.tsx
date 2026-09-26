@@ -25,6 +25,14 @@ import { t } from "@/lib/i18n";
  */
 const IDEAS = ["plan", "summarise", "rewrite", "decide"] as const;
 
+/** A colour per intent, borrowed from the mode palette so the cards read as distinct. */
+const IDEA_MODE: Record<(typeof IDEAS)[number], string> = {
+  plan: "research",
+  summarise: "documents",
+  rewrite: "edit",
+  decide: "finance",
+};
+
 /** One glyph per intent. Decorative — the label carries the meaning. */
 function IdeaIcon({ id }: { id: (typeof IDEAS)[number] }) {
   const shared = {
@@ -82,12 +90,12 @@ export function ChatLauncher({ onSuggest }: { onSuggest?: (text: string) => void
       className="mx-auto flex min-h-full w-full max-w-[var(--content-max)] flex-col justify-center py-10"
       data-testid="chat-empty"
     >
-      <div className="hero-aurora enter-rise flex flex-col items-center px-6 py-10 text-center">
+      <div className="hero-aurora enter-rise flex flex-col items-center px-6 py-10 text-center" data-mode="chat">
         <span className="icon-orb icon-orb-lg icon-orb-solid enter-pop" style={{ "--i": 1 } as CSSProperties}>
-          <ModeIcon name="chat" size={24} strokeWidth={1.75} />
+          <ModeIcon name="chat" size={26} strokeWidth={2} />
         </span>
         <h2
-          className="enter-rise mt-4 font-heading text-[32px] font-semibold leading-[var(--lh-tight)] tracking-[var(--track)] text-[var(--text)]"
+          className="enter-rise mt-4 font-heading text-[34px] font-bold leading-[var(--lh-tight)] tracking-[var(--track)] text-[var(--text)]"
           style={{ "--i": 2 } as CSSProperties}
         >
           <span className="text-gradient">{t("chat.empty.headline")}</span>
@@ -110,12 +118,13 @@ export function ChatLauncher({ onSuggest }: { onSuggest?: (text: string) => void
             onClick={() => onSuggest?.(t(`chat.empty.ideas.${id}.prompt`))}
             data-testid="chat-suggestion"
             data-idea={id}
+            data-mode={IDEA_MODE[id]}
           >
-            <span className="icon-orb">
+            <span className="icon-orb icon-orb-solid">
               <IdeaIcon id={id} />
             </span>
             <span className="min-w-0">
-              <span className="block text-sm font-medium text-[var(--text)]">
+              <span className="block text-sm font-semibold text-[var(--text)]">
                 {t(`chat.empty.ideas.${id}.label`)}
               </span>
               <span className="mt-0.5 block text-xs text-[var(--text-3)]">

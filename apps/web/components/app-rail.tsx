@@ -57,13 +57,15 @@ function RailItem({
    * height and reads as though it had extra space around it. The nav already
    * scrolls; rows keep their rhythm instead.
    *
-   * Active is soft gradient + accent icon + elev (lively desk 2026-09-26), not a
-   * left stripe. Current is fill + accent icon + `aria-current`.
+   * Every mode carries its own colour on a small icon tile; the active row is a
+   * raised white card and its tile goes solid. Current is also `aria-current`.
    */
   const rowTone = active
-    ? "select-row shadow-elev-1 text-[var(--rail-active-text)]"
+    ? "select-row bg-[var(--rail-active)] font-semibold text-[var(--rail-active-text)] shadow-[var(--lip)]"
     : "wash text-[var(--rail-text-2)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-active-text)]";
-  const iconTone = active ? "text-[var(--rail-accent)]" : "text-[var(--rail-text-3)]";
+  const tileTone = active
+    ? "bg-[var(--mode)] text-white"
+    : "bg-[color-mix(in_srgb,var(--mode)_14%,transparent)] text-[var(--mode)]";
 
   return (
     <Link
@@ -71,19 +73,15 @@ function RailItem({
       className={`enter-slide flex h-8 shrink-0 items-center gap-2 rounded-md px-2 text-sm tracking-[var(--track)] ${rowTone} ${
         collapsed ? "justify-center" : ""
       }`}
-      style={
-        {
-          "--i": index,
-          ...(active ? { backgroundImage: "var(--grad-soft)" } : null),
-        } as CSSProperties
-      }
+      style={{ "--i": index } as CSSProperties}
       aria-current={active ? "page" : undefined}
       aria-label={label}
       title={label}
       data-testid={testId}
+      data-mode={icon}
     >
-      <span className={iconTone}>
-        <ModeIcon name={icon} />
+      <span className={`transition-colors inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${tileTone}`}>
+        <ModeIcon name={icon} strokeWidth={2} />
       </span>
       {collapsed ? null : <span className="truncate font-medium">{label}</span>}
     </Link>
