@@ -10,6 +10,7 @@ import { ExampleGallery } from "@/components/example-gallery";
 import { VideoExamples } from "@/components/video-examples";
 import { Confetti } from "@/components/confetti";
 import { ModeHeader } from "@/components/mode-header";
+import { MascotSlot } from "@/components/mascot-slot";
 import { ModeIllustration } from "@/components/mode-illustration";
 import { ModelSelect } from "@/components/model-select";
 import { WorkingStatus } from "@/components/working-status";
@@ -308,6 +309,7 @@ export function VideosStudio() {
             disabled={generating}
             data-testid="videos-studio-prompt"
           />
+          {generating ? <MascotSlot mode="videos" placement="beside" busy /> : null}
           <button
             type="submit"
             className={

@@ -10,6 +10,7 @@ import {
   MUSIC_TITLE_MAX,
 } from "@agentforge/core/audio-capabilities";
 import { ModeHeader } from "@/components/mode-header";
+import { MascotSlot } from "@/components/mascot-slot";
 import { ModeIllustration } from "@/components/mode-illustration";
 import { ModelSelect } from "@/components/model-select";
 import { WorkingStatus } from "@/components/working-status";
@@ -204,7 +205,6 @@ export function MusicStudio() {
     >
       <ModeHeader icon="music" title={t("music.title")} outcome={t("music.expectedInputs")} />
 
-
       {error ? (
         <div
           className="mt-4 rounded-xl border border-[var(--line)] px-4 py-3 text-sm text-[var(--danger)]"
@@ -361,6 +361,7 @@ export function MusicStudio() {
             disabled={busy}
             data-testid="music-studio-prompt"
           />
+          {generating ? <MascotSlot mode="music" placement="beside" busy /> : null}
           <button
             type="submit"
             className={

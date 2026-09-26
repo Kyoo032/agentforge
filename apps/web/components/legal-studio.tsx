@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { MascotSlot } from "@/components/mascot-slot";
 import {
   createLegalMatter,
   deleteLegalFile,
@@ -288,7 +289,8 @@ export function LegalStudio() {
 
   return (
     <div data-testid="legal-shell">
-      <main data-mode="legal"
+      <main
+        data-mode="legal"
         className="mx-auto w-full max-w-[var(--content-wide)] px-6 pb-10 pt-8 text-[var(--text)]"
         data-testid="legal-studio"
         data-screen={screen}
@@ -387,6 +389,9 @@ export function LegalStudio() {
 
         {screen === "new" ? (
           <div className="grid items-start gap-5 lg:[grid-template-columns:minmax(0,1fr)_minmax(0,1fr)]">
+            <div className="lg:col-span-2">
+              <MascotSlot mode="legal" placement="empty" />
+            </div>
             <LegalMatterPanel
               draft={draft}
               onDraft={setDraft}

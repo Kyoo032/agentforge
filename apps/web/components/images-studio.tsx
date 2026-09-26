@@ -6,6 +6,7 @@ import { Confetti } from "@/components/confetti";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { ExampleGallery } from "@/components/example-gallery";
 import { ModeHeader } from "@/components/mode-header";
+import { MascotSlot } from "@/components/mascot-slot";
 import { ModeIllustration } from "@/components/mode-illustration";
 import { ModelSelect } from "@/components/model-select";
 import { WorkingStatus } from "@/components/working-status";
@@ -205,6 +206,7 @@ export function ImagesStudio() {
             disabled={generating}
             data-testid="images-studio-prompt"
           />
+          {generating ? <MascotSlot mode="images" placement="beside" busy /> : null}
           <button
             type="submit"
             className={

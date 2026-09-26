@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { FormattedText } from "@/components/formatted-text";
+import { MascotSlot } from "@/components/mascot-slot";
 import { KnowledgeGraphPanel } from "@/components/knowledge-graph-panel";
 import { KnowledgeLoop } from "@/components/knowledge-loop";
 import { ModeHeader } from "@/components/mode-header";
@@ -421,7 +422,8 @@ export function KnowledgePage() {
   }
 
   return (
-    <main data-mode="knowledge"
+    <main
+      data-mode="knowledge"
       className="mx-auto w-full max-w-[var(--content-wide)] px-6 py-8 text-[var(--text)]"
       data-testid="knowledge-page"
     >
@@ -495,6 +497,12 @@ export function KnowledgePage() {
 
       {tab === "sources" ? (
         <div className="flex flex-col gap-4" data-testid="knowledge-sources">
+          <MascotSlot
+            mode="knowledge"
+            placement={sources.some((row) => row.status === "Indexing") ? "beside" : "empty"}
+            busy={sources.some((row) => row.status === "Indexing")}
+            phase={sources.some((row) => row.status === "Indexing") ? "indexing" : undefined}
+          />
           <KnowledgeLoop
             sources={sources}
             retrievals={retrievals}

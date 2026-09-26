@@ -67,7 +67,7 @@ export function LegalRunView({ draft, playbookTitle, progress, busy, onCancel }:
       <div className="grid items-start gap-5 lg:[grid-template-columns:480px_minmax(0,1fr)]">
         <LegalPanel label={t("legal.run.progress")}>
           <div className="mt-2">
-            <JobProgressList progress={progress} busy={busy} testId="legal-progress" />
+            <JobProgressList progress={progress} busy={busy} mode="legal" testId="legal-progress" />
           </div>
         </LegalPanel>
         <div className="space-y-4">

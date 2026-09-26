@@ -311,7 +311,7 @@ export function DataStudio() {
         </section>
         <div className="space-y-4">
           {job.busy || (job.progress.phases.length > 0 && !shown) ? (
-            <JobProgressList progress={job.progress} busy={job.busy} testId="data-progress" />
+            <JobProgressList progress={job.progress} busy={job.busy} mode="data" testId="data-progress" />
           ) : null}
           {shown ? (
             <div className="enter-rise relative space-y-4">

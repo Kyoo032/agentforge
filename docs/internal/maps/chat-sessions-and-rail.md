@@ -1,8 +1,6 @@
 # Map — Chat sessions and the rail
 
-Last verified: 2026-09-26 (rail collapse is 480px; context and usage chips wait for an assistant reply). Before that: 2026-09-23 at d4561b8 + uncommitted tree for every `chat-session.tsx` and `chat-composer.tsx`
-citation and the new § 11 (a run belongs to the session it started in; `onComplete` now receives
-`{ threadId, showing }`). Not walked in a browser.
+Last verified: 2026-09-26. Rail collapse is 480px, and context and usage chips wait for an assistant reply. § 11 cites `awaitingUrlThreadRef` and `urlAtEnsureRef` in `chat-session.tsx`: a new thread's own URL update does not bump the session epoch, so a live reply draws and Send returns. Earlier: 2026-09-23 at d4561b8 for the rest of this page. Not a full re-walk.
 
 Before that: 2026-09-23 at 0774681 + working tree (the 0.15.0 design pass). Changed there: the rail row reads from `--rail-*` tokens and follows the theme instead of being dark in both; the `New` badge mechanism (`NEW_BADGE_UNTIL`, `newBadgeOn`, the `badge` prop, `rail.badgeNew`) is deleted; `RailSubmenuToggle` shows a short word beside the chevron (the full phrase stays in `aria-label`) and the selected row's left accent stripe is gone. The session list, its store and the events are untouched. Supersedes the 2026-09-22 "dark desk overhaul" note, whose dark default this pass reversed.
 
@@ -198,10 +196,10 @@ removeGraphForThread(tenant, threadId);
 
 Opening another session from the rail while a reply streams used to write the rest of that reply into the session now on screen, and the new session's Send stayed disabled by the old run. Now:
 
-- `ChatSession` keeps `sessionEpochRef` (`apps/web/components/chat-session.tsx:87`), bumped in the same render that sees a new `?thread` (`:92`), and passes it to the composer as `sessionKey` (`:398`). `ensureThread`'s own `router.replace` is not a switch: it moves `seenInitialThreadRef` first.
-- `ChatComposer.send` records the key it started under (`apps/web/components/chat-composer.tsx:258`, `showing()`). If the owner moves on **before** the run reaches the host, nothing is sent and the draft stays in the box. If they move on **after**, the run's stream is still read to the end — the host aborts a run whose client goes away (`packages/host/src/http-adapter.ts:664-665`), and the reply the owner asked for would never be saved — but `readRunStream` (`chat-composer.tsx:107`) draws nothing once `showing()` is false, and the composer no longer holds Send or its error for the old session (`:187-192`).
-- `onComplete` receives `{ threadId, showing }` (`RunEnd`, `chat-composer.tsx:90`; called at `:262`). `ChatSession` always fires `notifyThreadsChanged()`, and when `showing` is false it reloads that thread's messages only if the pane has come back to it (`chat-session.tsx:453-462`).
-- `refreshMessages` drops an answer that lands after the pane moved to another session (`:308-314`).
+- `ChatSession` keeps `sessionEpochRef` (`apps/web/components/chat-session.tsx:90`), bumped in the same render that sees a new `?thread` (`:100-114`), and passes it to the composer as `sessionKey` (`:115`, `:429`). `ensureThread`'s own `router.replace` is not a switch: it records the id on `awaitingUrlThreadRef` and the URL it left on `urlAtEnsureRef` (`:98-99`, set at `:211-213`) so the render before `?thread` lands does not bump the epoch. Creating the thread used to set `seenInitialThreadRef` early, and the `setThreadId` render (URL still on `/chat`) was counted as leaving that session, so the live reply never drew and Send stayed busy.
+- `ChatComposer.send` records the key it started under (`apps/web/components/chat-composer.tsx:268`, `showing()`). If the owner moves on **before** the run reaches the host, nothing is sent and the draft stays in the box. If they move on **after**, the run's stream is still read to the end — the host aborts a run whose client goes away (`packages/host/src/http-adapter.ts:662-665`), and the reply the owner asked for would never be saved — but `readRunStream` (`chat-composer.tsx:113`) draws nothing once `showing()` is false, and the composer no longer holds Send or its error for the old session (`:193-198`).
+- `onComplete` receives `{ threadId, showing }` (`RunEnd`, `chat-composer.tsx:96`; called at `:272`). `ChatSession` always fires `notifyThreadsChanged()`, and when `showing` is false it reloads that thread's messages only if the pane has come back to it (`chat-session.tsx:487-492`).
+- `refreshMessages` drops an answer that lands after the pane moved to another session (`:332-335`).
 - Only the draft that was sent is cleared; anything typed or attached since stays.
 
 Pinned by `apps/web/lib/chat-run-stream.test.ts` (`readRunStream`) and `apps/web/lib/chat-run-scope-wiring.test.ts` (the wiring, read from source). Not driven in a browser.

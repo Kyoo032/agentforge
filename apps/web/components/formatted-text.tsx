@@ -1,5 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { mediaSrc } from "@/lib/api-client";
+import { MessageEmbed } from "@/components/message-embed";
+import { presentStandaloneLink } from "@/lib/message-embeds";
 import { parseInline, parseMarkdown, type MdBlock, type MdInline, type MdTableAlign } from "@/lib/parse-markdown";
 import { safeLinkHref } from "@/lib/safe-link";
 
@@ -29,8 +31,43 @@ export function FormattedText({ text, className, testId, inline = false }: Props
   );
 }
 
+function inlinePlainText(nodes: MdInline[]): string {
+  return nodes
+    .map((node) => {
+      if (node.type === "text" || node.type === "code") {
+        return node.value;
+      }
+      if (node.type === "image") {
+        return node.alt;
+      }
+      if (node.type === "link" || node.type === "strong" || node.type === "em") {
+        return inlinePlainText(node.children);
+      }
+      return "";
+    })
+    .join("");
+}
+
 function BlockView({ block }: { block: MdBlock }) {
   if (block.type === "p") {
+    const only = block.children.length === 1 ? block.children[0] : undefined;
+    if (only?.type === "link" && only.fromImage) {
+      const href = safeLinkHref(only.href);
+      if (href) {
+        // A markdown image the renderer must not fetch still reads as an image card.
+        // The picture stays behind the link; nothing is requested until the reader opens it.
+        return <MessageEmbed kind="image" title={inlinePlainText(only.children)} href={href} />;
+      }
+    }
+    if (only?.type === "link") {
+      const card = presentStandaloneLink(only.href, inlinePlainText(only.children));
+      if (card) {
+        return <MessageEmbed kind={card.kind} title={card.title} detail={card.detail} href={card.href} />;
+      }
+    }
+    if (only?.type === "image") {
+      return <MessageEmbed kind="image" title={only.alt} src={mediaSrc(only.src)} alt={only.alt} />;
+    }
     return <p>{renderInline(block.children)}</p>;
   }
   if (block.type === "h") {

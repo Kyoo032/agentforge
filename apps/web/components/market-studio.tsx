@@ -11,6 +11,7 @@ import { MarketBoard } from "@/components/market-board";
 import { MarketBriefingView } from "@/components/market-briefing-view";
 import { MarketWatchlistInput } from "@/components/market-watchlist-input";
 import { ModeHeader } from "@/components/mode-header";
+import { MascotSlot } from "@/components/mascot-slot";
 import { ModeIllustration } from "@/components/mode-illustration";
 import { ModelSelect } from "@/components/model-select";
 import { WorkingStatus } from "@/components/working-status";
@@ -550,6 +551,11 @@ export function MarketStudio() {
           </div>
         ) : null}
 
+        {tickers.length > 0 && !(job.busy || (job.progress.phases.length > 0 && !result)) ? (
+          <div className="mb-3 flex">
+            <MascotSlot mode="market" placement="empty" />
+          </div>
+        ) : null}
         {tickers.length > 0 ? (
           <MarketBoard
             board={board.board}
@@ -563,7 +569,7 @@ export function MarketStudio() {
 
       <div className="mt-5 space-y-4">
         {job.busy || (job.progress.phases.length > 0 && !result) ? (
-          <JobProgressList progress={teamProgress} busy={job.busy} testId="market-progress" />
+          <JobProgressList progress={teamProgress} busy={job.busy} mode="market" testId="market-progress" />
         ) : null}
         {result ? (
           <div className="enter-rise relative space-y-4">

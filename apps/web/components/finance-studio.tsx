@@ -333,6 +333,7 @@ export function FinanceStudio() {
               <JobProgressList
                 progress={job.progress}
                 busy={job.busy}
+                mode="finance"
                 testId="finance-progress"
                 labelFor={financePhaseLabel}
               />

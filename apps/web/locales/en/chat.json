@@ -72,6 +72,21 @@
     "thinking": "Thinking",
     "thinkingPlaceholder": "Thinking…"
   },
+  "mascot": {
+    "idle": "Ready when you are",
+    "thinking": "Thinking it through",
+    "answering": "Writing a reply",
+    "error": "Something needs a look"
+  },
+  "embed": {
+    "link": "Link",
+    "file": "File",
+    "image": "Image",
+    "video": "Video",
+    "job": "Result",
+    "open": "Open",
+    "preview": "Show the file"
+  },
   "context": {
     "meter": "Context: {used} of {window}",
     "usedMeter": "Context: {used} used",

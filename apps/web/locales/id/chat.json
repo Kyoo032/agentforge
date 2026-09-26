@@ -72,6 +72,21 @@
     "thinking": "Berpikir",
     "thinkingPlaceholder": "Berpikir…"
   },
+  "mascot": {
+    "idle": "Siap bila Anda siap",
+    "thinking": "Sedang memikirkan ini",
+    "answering": "Sedang menulis jawaban",
+    "error": "Ada yang perlu dilihat"
+  },
+  "embed": {
+    "link": "Tautan",
+    "file": "Berkas",
+    "image": "Gambar",
+    "video": "Video",
+    "job": "Hasil",
+    "open": "Buka",
+    "preview": "Lihat isi berkas"
+  },
   "context": {
     "meter": "Konteks: {used} dari {window}",
     "usedMeter": "Konteks: {used} terpakai",

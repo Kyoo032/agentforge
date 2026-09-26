@@ -1,5 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
+import { MascotSlot } from "@/components/mascot-slot";
 import type { ModeIconName } from "@/components/mode-icons";
+import { isMascotMode } from "@/lib/mascot-states";
 
 const MODE = "var(--mode)";
 const A2 = "var(--accent-2)";
@@ -379,8 +381,16 @@ const SCENES: Record<ModeIconName, ReactNode> = {
 /** A small flat scene for an empty studio. Colours come from the mode and the desk tokens. */
 export function ModeIllustration({ mode }: { mode: ModeIconName }) {
   return (
-    <div className="mx-auto w-40" aria-hidden="true" data-mode={mode}>
-      <svg width="160" height="110" viewBox="0 0 160 110" className="illustration-float block" fill="none">
+    <div className="mx-auto flex w-40 flex-col items-center gap-2" data-mode={mode}>
+      {isMascotMode(mode) ? <MascotSlot mode={mode} placement="empty" /> : null}
+      <svg
+        width="160"
+        height="110"
+        viewBox="0 0 160 110"
+        className="illustration-float block"
+        fill="none"
+        aria-hidden="true"
+      >
         {SCENES[mode]}
       </svg>
     </div>

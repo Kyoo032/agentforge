@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "@/lib/nav";
 import { Confetti } from "@/components/confetti";
 import { DocumentPreview } from "@/components/document-preview";
+import { MascotSlot } from "@/components/mascot-slot";
 import { ModeIllustration } from "@/components/mode-illustration";
 import { SourceMaterialField } from "@/components/source-material-field";
 import { WorkingStatus } from "@/components/working-status";
@@ -299,6 +300,7 @@ export function DocumentsStudio() {
             data-testid="documents-prompt"
             aria-label={t("documents.topicAria")}
           />
+          {busy === "generate" ? <MascotSlot mode="documents" placement="beside" busy phase="drafting" /> : null}
           <button
             type="submit"
             className={

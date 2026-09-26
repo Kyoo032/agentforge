@@ -49,6 +49,35 @@ const LITERAL_DURATION = /(^|[\s,(])\d*\.?\d+m?s\b/;
 const LITERAL_EASING = /\b(ease|ease-in|ease-out|ease-in-out|linear|step-start|step-end)\b|cubic-bezier\(|steps\(/;
 const withoutVars = (value: string) => value.replace(/var\(\s*--[\w-]+\s*\)/g, "");
 
+/** Drop `@keyframes` blocks so a stop like `50% { transform }` is not read as a rest rule. */
+function withoutAtKeyframes(source: string): string {
+  let out = "";
+  let i = 0;
+  while (i < source.length) {
+    const at = source.indexOf("@keyframes", i);
+    if (at < 0) {
+      out += source.slice(i);
+      break;
+    }
+    out += source.slice(i, at);
+    const open = source.indexOf("{", at);
+    let depth = 0;
+    let j = open;
+    for (; j < source.length; j += 1) {
+      if (source[j] === "{") depth += 1;
+      else if (source[j] === "}") {
+        depth -= 1;
+        if (depth === 0) {
+          j += 1;
+          break;
+        }
+      }
+    }
+    i = j;
+  }
+  return out;
+}
+
 /** Every `selector { body }` pair with no nested braces, outside the reduced block. */
 function flatRules(source: string): { selectors: string[]; body: string }[] {
   return [...source.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({
@@ -199,8 +228,9 @@ describe("prefers-reduced-motion", () => {
 
   it("leaves no element parked in a transformed pose", () => {
     // A rule whose rest state is a transform (an indicator, a pressed button) must be reset
-    // inside the block, or reduced-motion users see it mid-move. None exist on the warm desk.
-    const escaped = flatRules(outsideReduced)
+    // inside the block, or reduced-motion users see it mid-move. Keyframe stops are not a
+    // rest state; the keyframe test above already limits them to transform and opacity.
+    const escaped = flatRules(withoutAtKeyframes(outsideReduced))
       .filter(({ body }) => /(^|[\s;])transform\s*:\s*(?!none)/.test(body))
       .flatMap(({ selectors }) => selectors)
       .filter((selector) => !reducedBlock.includes(selector));
