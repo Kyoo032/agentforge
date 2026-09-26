@@ -1,15 +1,49 @@
 {
   "welcome": "Selamat datang di {productName}",
-  "intro": "Tempel kunci API {gatewayName} Anda. Chat dan mode kerja berjalan di mesin ini.",
-  "setupCheck": "Pemeriksaan penyiapan",
-  "ffmpegLater": "Anda dapat lanjut sekarang dan memasang ffmpeg nanti; studio Edit menampilkan panduan yang sama sampai ffmpeg ditemukan.",
-  "keyLabel": "Kunci API",
-  "keyPlaceholder": "Dari dasbor gateway Anda",
-  "continue": "Lanjut ke Chat",
-  "gatewayHost": "Gateway: {host}",
-  "gate.invalidKey": "Gateway menolak API key ini. Periksa key di {gatewayName} lalu coba lagi.",
-  "gate.unreachable": "Tidak dapat menghubungi {gatewayName}. Periksa koneksi Anda lalu coba lagi.",
-  "gate.error": "Gateway mengembalikan kesalahan tak terduga. Coba lagi sebentar lagi.",
+  "intro": "Ajukan pertanyaan, tulis dokumen, lihat angka, atau buat gambar.",
+  "next": "Lanjut",
+  "back": "Kembali",
+  "stepsLabel": "Langkah penyiapan",
+  "steps": {
+    "welcome": "Halo",
+    "key": "Kunci Anda",
+    "try": "Coba"
+  },
+  "setupCheck": "Menyiapkan pembaca dokumen",
+  "ffmpegLater": "Anda dapat lanjut sekarang dan memasang ffmpeg nanti. Layar Edit menampilkan panduan yang sama sampai ffmpeg ditemukan.",
+  "keyTitle": "Tempel kunci {gatewayName} Anda",
+  "keyHelp": "Buka {gatewayName}, salin kunci, lalu tempel di sini. Kunci tetap di komputer ini.",
+  "keyLabel": "Kunci Anda",
+  "keyPlaceholder": "Tempel di sini",
+  "continue": "Periksa kunci ini",
+  "recheck": "Periksa lagi",
+  "keySuccess": "Kunci ini berhasil.",
+  "tryTitle": "Coba salah satu",
+  "tryIntro": "Mulai di Chat. Yang lain tetap di menu.",
+  "tryStart": "Mulai di Chat",
+  "examples": {
+    "chat": {
+      "title": "Tanyakan sesuatu",
+      "hint": "Rencana, pertanyaan, atau balasan yang perlu Anda kirim."
+    },
+    "document": {
+      "title": "Tulis dokumen",
+      "hint": "Ubah catatan jadi halaman yang bisa Anda simpan."
+    },
+    "finance": {
+      "title": "Lihat angka",
+      "hint": "Anggaran, arus kas, atau uraian singkat."
+    },
+    "images": {
+      "title": "Buat gambar",
+      "hint": "Jelaskan apa yang ingin Anda lihat."
+    }
+  },
+  "gate": {
+    "invalidKey": "Kunci itu tidak diterima. Periksa di {gatewayName}, lalu tempel lagi.",
+    "unreachable": "Kami tidak dapat menghubungi {gatewayName}. Periksa koneksi internet Anda, lalu coba lagi.",
+    "error": "Ada yang salah. Tunggu sebentar, lalu coba lagi."
+  },
   "desks": {
     "title": "Atau buka meja lain",
     "failed": "Tidak dapat membuka meja itu. Coba lagi."
