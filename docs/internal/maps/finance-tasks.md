@@ -1,6 +1,6 @@
 # Map — Finance tasks: the catalog and the generic runner
 
-Last verified: 2026-09-26 at 5cd8549. § 7 testids were re-read against the guided path (the read button moved to the footer; upload is first; task levers sit in `finance-task-advanced`) and driven on stub webdev. Host and core citations are unchanged from 2026-09-23 at d4561b8.
+Last verified: 2026-09-26 at 4477d27. § 7 testids were re-read against the guided path (the read button moved to the footer; upload is first; task levers sit in `finance-task-advanced`) and driven on stub webdev. Host and core citations are unchanged from 2026-09-23 at d4561b8.
 
 ## Overview
 
