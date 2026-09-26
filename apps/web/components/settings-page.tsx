@@ -19,6 +19,7 @@ import {
   type GatewayGateStatus,
 } from "@/lib/gateway-gate";
 import { applyLocale, getLocale, LOCALE_RESTART_EVENT, t } from "@/lib/i18n";
+import { ModeHeader } from "@/components/mode-header";
 import { isAppLocale, parseAppLocale, type AppLocale } from "@agentforge/core/locale";
 import { gatewayHostLabel, useProductBrand } from "@/lib/product-brand";
 import { useWorkspaceScope } from "@/lib/workspace-scope";
@@ -366,14 +367,16 @@ export function SettingsPage() {
 
   return (
     <main className="mx-auto max-w-[var(--content-narrow)] px-6 py-8 text-[var(--text)]">
-      <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("settings.title")}</h1>
-      <p className="mt-2 max-w-[var(--content-narrow)] text-[13px] text-[var(--text-2)]">
-        {t("settings.intro", {
+      <ModeHeader
+        icon="settings"
+        title={t("settings.title")}
+        outcomeTestId="settings-intro"
+        outcome={t("settings.intro", {
           workspaceName,
           gatewayName,
           gatewayHost: gatewayHostLabel(gatewayEndpoint),
         })}
-      </p>
+      />
 
       {loadError ? (
         <p className="mt-3 text-sm text-[var(--danger)]" role="alert" data-testid="settings-load-error">

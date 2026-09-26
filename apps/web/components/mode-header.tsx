@@ -12,12 +12,15 @@ export function ModeHeader({
   outcome,
   actions,
   children,
+  outcomeTestId = "expected-inputs",
 }: {
   icon: ModeIconName;
   title: ReactNode;
   outcome?: ReactNode;
   actions?: ReactNode;
   children?: ReactNode;
+  /** Account pages have an intro rather than a mode's outcome line. */
+  outcomeTestId?: string;
 }) {
   return (
     <header className="hero-glow flex flex-wrap items-end justify-between gap-4" data-testid="mode-header">
@@ -30,7 +33,7 @@ export function ModeHeader({
             {title}
           </h1>
           {outcome ? (
-            <p className="mt-1.5 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="expected-inputs">
+            <p className="mt-1.5 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid={outcomeTestId}>
               {outcome}
             </p>
           ) : null}

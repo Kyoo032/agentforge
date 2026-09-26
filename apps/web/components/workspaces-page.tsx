@@ -6,6 +6,7 @@ import { PRODUCT_MODES, type ProductMode } from "@agentforge/core/product-modes"
 import { WORKSPACE_TEMPLATES } from "@agentforge/core/templates";
 import { apiFetch } from "@/lib/api-client";
 import { t } from "@/lib/i18n";
+import { ModeHeader } from "@/components/mode-header";
 import { labeled } from "@/lib/ui-copy";
 
 type Workspace = {
@@ -204,8 +205,7 @@ export function WorkspacesPage() {
 
   return (
     <main className="mx-auto max-w-[var(--content-narrow)] px-6 py-8 text-[var(--text)]">
-      <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("workspaces.title")}</h1>
-      <p className="mt-2 text-[var(--text-2)]">{t("workspaces.lede")}</p>
+      <ModeHeader icon="workspaces" title={t("workspaces.title")} outcomeTestId="workspaces-lede" outcome={t("workspaces.lede")} />
       {creating ? (
         <form
           onSubmit={(event) => void createWorkspace(event)}
