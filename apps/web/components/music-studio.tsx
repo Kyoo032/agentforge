@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
 import type { MediaPrice } from "@agentforge/core/media-pricing";
 import {
   musicCapabilities,
@@ -9,7 +9,10 @@ import {
   MUSIC_STYLE_MAX,
   MUSIC_TITLE_MAX,
 } from "@agentforge/core/audio-capabilities";
+import { ModeHeader } from "@/components/mode-header";
+import { ModeIllustration } from "@/components/mode-illustration";
 import { ModelSelect } from "@/components/model-select";
+import { WorkingStatus } from "@/components/working-status";
 import { SettingsLinkHint } from "@/components/settings-link-hint";
 import { t } from "@/lib/i18n";
 import { mediaPriceHints, musicEstimateView } from "@/lib/media-estimate";
@@ -159,7 +162,7 @@ export function MusicStudio() {
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!brief.trim() || busy) {
+    if (!brief.trim() || busy || !ready) {
       return;
     }
     setGenerating(true);
@@ -194,20 +197,13 @@ export function MusicStudio() {
   }
 
   return (
-    <main className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]" data-testid="music-studio">
-      <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("music.title")}</h1>
-      {/* One outcome line (owner report 2026-09-23). The `subtitle` paragraph below it
-          only repeated what the empty state says, so it was deleted with its key. */}
-      <p className="mt-2 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="expected-inputs">{t("music.expectedInputs")}</p>
+    <main
+      data-mode="music"
+      className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]"
+      data-testid="music-studio"
+    >
+      <ModeHeader icon="music" title={t("music.title")} outcome={t("music.expectedInputs")} />
 
-      {!ready && !loading ? (
-        <div
-          className="mt-6 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--text-2)]"
-          data-testid="music-studio-needs-key"
-        >
-          <SettingsLinkHint i18nKey="music.needsKey" vars={{ gateway: gatewayName }} />
-        </div>
-      ) : null}
 
       {error ? (
         <div
@@ -252,10 +248,7 @@ export function MusicStudio() {
         </div>
 
         {noModels ? (
-          <div
-            className="rounded-lg border border-[var(--line)] px-3 py-2"
-            data-testid="music-studio-no-models"
-          >
+          <div className="rounded-lg border border-[var(--line)] px-3 py-2" data-testid="music-studio-no-models">
             <p className="text-sm font-medium text-[var(--text)]">{t("music.noModels.title")}</p>
             <p className="mt-1 text-xs text-[var(--text-2)]">{t("music.noModels.body", { gateway: gatewayName })}</p>
           </div>
@@ -265,11 +258,7 @@ export function MusicStudio() {
           {t(MODES.find((item) => item.id === mode)?.hintKey ?? "music.describeHint")}
         </p>
 
-        {!model ? null : estimate.unknown ? (
-          <p className="text-xs text-[var(--text-3)]" data-testid="music-studio-estimate-unknown">
-            {estimate.line}
-          </p>
-        ) : (
+        {!model || estimate.unknown ? null : (
           <div className="space-y-0.5">
             <p className="text-xs text-[var(--text-2)]" data-testid="music-studio-estimate">
               {estimate.line}
@@ -350,7 +339,7 @@ export function MusicStudio() {
           </details>
         ) : null}
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {caps.lyrics ? (
             <button
               type="button"
@@ -359,7 +348,7 @@ export function MusicStudio() {
               disabled={busy || !ready || noModels || !prompt.trim()}
               data-testid="music-studio-draft-lyrics"
             >
-              {drafting ? t("music.writingLyrics") : t("music.writeLyrics")}
+              {drafting ? <WorkingStatus label={t("music.writingLyrics")} /> : t("music.writeLyrics")}
             </button>
           ) : null}
           <input
@@ -374,12 +363,22 @@ export function MusicStudio() {
           />
           <button
             type="submit"
-            className="shrink-0 wash inline-flex h-8 items-center rounded-pill bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--surface)] disabled:opacity-45"
+            className={
+              ready
+                ? "btn btn-primary h-8 shrink-0 rounded-pill px-4"
+                : "inline-flex h-8 shrink-0 items-center rounded-pill bg-[var(--line)] px-4 text-sm text-[var(--text-3)]"
+            }
             disabled={busy || !ready || noModels || !brief.trim()}
+            title={ready ? undefined : t("music.needsKey", { gateway: gatewayName, settings: t("rail.settings") })}
             data-testid="music-studio-submit"
           >
-            {generating ? t("music.generating") : t("music.generate")}
+            {generating ? <WorkingStatus label={t("music.generating")} /> : t("music.generate")}
           </button>
+          {!ready && !loading ? (
+            <p className="basis-full text-xs text-[var(--text-3)]" data-testid="music-studio-needs-key">
+              <SettingsLinkHint i18nKey="music.needsKey" vars={{ gateway: gatewayName }} />
+            </p>
+          ) : null}
         </div>
         {generating ? (
           <p className="text-xs text-[var(--text-3)]" data-testid="music-studio-generating-hint">
@@ -393,7 +392,10 @@ export function MusicStudio() {
       {speechUnavailable ? (
         <section className="mt-6" data-testid="music-studio-voice">
           <h2 className="text-sm font-medium tracking-[var(--track)] text-[var(--text)]">{t("music.voiceHeading")}</h2>
-          <p className="mt-1 max-w-[var(--content-narrow)] text-xs text-[var(--text-3)]" data-testid="music-studio-voice-unavailable">
+          <p
+            className="mt-1 max-w-[var(--content-narrow)] text-xs text-[var(--text-3)]"
+            data-testid="music-studio-voice-unavailable"
+          >
             {speechUnavailable === "realtime_only"
               ? t("music.voiceUnavailable.realtimeOnly")
               : t("music.voiceUnavailable.noAudioModels")}
@@ -406,18 +408,20 @@ export function MusicStudio() {
           <p className="text-sm text-[var(--text-3)]">{t("music.loadingLibrary")}</p>
         ) : items.length === 0 ? (
           <div
-            className="rounded-lg border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center"
+            className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center"
             data-testid="music-studio-empty"
           >
-            <p className="text-sm font-medium text-[var(--text)]">{t("music.emptyTitle")}</p>
+            <ModeIllustration mode="music" />
+            <p className="mt-4 text-sm font-medium text-[var(--text)]">{t("music.emptyTitle")}</p>
             <p className="mt-2 text-sm text-[var(--text-2)]">{t("music.emptyBody")}</p>
           </div>
         ) : (
           <ul className="space-y-3">
-            {items.map((item) => (
+            {items.map((item, index) => (
               <li
                 key={item.id}
-                className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-3"
+                className="card-live enter-rise px-3 py-3"
+                style={{ "--i": index } as CSSProperties}
                 data-testid="music-studio-track"
               >
                 <div className="flex items-baseline justify-between gap-2">
@@ -435,7 +439,10 @@ export function MusicStudio() {
                 </div>
                 {item.style || item.durationSeconds ? (
                   <p className="mt-0.5 truncate text-xs text-[var(--text-3)]">
-                    {[item.style, item.durationSeconds ? t("music.duration", { n: Math.round(item.durationSeconds) }) : ""]
+                    {[
+                      item.style,
+                      item.durationSeconds ? t("music.duration", { n: Math.round(item.durationSeconds) }) : "",
+                    ]
                       .filter(Boolean)
                       .join(" · ")}
                   </p>

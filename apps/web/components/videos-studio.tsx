@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
 import type { MediaPrice } from "@agentforge/core/media-pricing";
 import { allowedVideoSeconds, snapVideoSeconds, videoCapabilities } from "@agentforge/core/video-capabilities";
 import type { PromptTemplate } from "@agentforge/core/edit";
@@ -8,7 +8,11 @@ import { EditPromptTemplates } from "@/components/edit-prompt-templates";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { ExampleGallery } from "@/components/example-gallery";
 import { VideoExamples } from "@/components/video-examples";
+import { Confetti } from "@/components/confetti";
+import { ModeHeader } from "@/components/mode-header";
+import { ModeIllustration } from "@/components/mode-illustration";
 import { ModelSelect } from "@/components/model-select";
+import { WorkingStatus } from "@/components/working-status";
 import { SettingsLinkHint } from "@/components/settings-link-hint";
 import { t } from "@/lib/i18n";
 import { mediaPriceHints, videoEstimateView } from "@/lib/media-estimate";
@@ -65,6 +69,7 @@ export function VideosStudio() {
   const [ready, setReady] = useState(true);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [landed, setLanded] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -141,7 +146,7 @@ export function VideosStudio() {
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!prompt.trim() || generating) {
+    if (!prompt.trim() || generating || !ready) {
       return;
     }
     setGenerating(true);
@@ -166,6 +171,7 @@ export function VideosStudio() {
         setError(data.error?.message ?? t("videos.generateError"));
         return;
       }
+      setLanded((count) => count + 1);
       setPrompt("");
       setStillUrl("");
       await load();
@@ -177,20 +183,13 @@ export function VideosStudio() {
   }
 
   return (
-    <main className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]" data-testid="videos-studio">
-      <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("videos.title")}</h1>
-      {/* One outcome line (owner report 2026-09-23). The `subtitle` paragraph below it
-          only repeated what the empty state says, so it was deleted with its key. */}
-      <p className="mt-2 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="expected-inputs">{t("videos.expectedInputs")}</p>
+    <main
+      data-mode="videos"
+      className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]"
+      data-testid="videos-studio"
+    >
+      <ModeHeader icon="videos" title={t("videos.title")} outcome={t("videos.expectedInputs")} />
 
-      {!ready && !loading ? (
-        <div
-          className="mt-6 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--text-2)]"
-          data-testid="videos-studio-needs-key"
-        >
-          <SettingsLinkHint i18nKey="videos.needsKey" vars={{ gateway: gatewayName }} />
-        </div>
-      ) : null}
 
       {error ? (
         <div
@@ -247,11 +246,7 @@ export function VideosStudio() {
             className="select-field min-w-[12rem] flex-1"
           />
         </div>
-        {!model ? null : estimate.unknown ? (
-          <p className="text-xs text-[var(--text-3)]" data-testid="videos-studio-estimate-unknown">
-            {estimate.line}
-          </p>
-        ) : (
+        {!model || estimate.unknown ? null : (
           <div className="space-y-0.5">
             <p className="text-xs text-[var(--text-2)]" data-testid="videos-studio-estimate">
               {estimate.line}
@@ -296,8 +291,15 @@ export function VideosStudio() {
             ) : null}
           </div>
         </details>
-        <div className="flex gap-2">
-          <EnhancePromptButton text={prompt} surface="videos" model={model} disabled={generating} testId="videos-enhance" onApply={setPrompt} />
+        <div className="flex flex-wrap gap-2">
+          <EnhancePromptButton
+            text={prompt}
+            surface="videos"
+            model={model}
+            disabled={generating}
+            testId="videos-enhance"
+            onApply={setPrompt}
+          />
           <input
             type="text"
             className="text-field min-w-0 flex-1 outline-none placeholder:text-[var(--text-3)]"
@@ -309,34 +311,54 @@ export function VideosStudio() {
           />
           <button
             type="submit"
-            className="shrink-0 wash inline-flex h-8 items-center rounded-pill bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--surface)] disabled:opacity-45"
+            className={
+              ready
+                ? "btn btn-primary h-8 shrink-0 rounded-pill px-4"
+                : "inline-flex h-8 shrink-0 items-center rounded-pill bg-[var(--line)] px-4 text-sm text-[var(--text-3)]"
+            }
             disabled={generating || !ready || !prompt.trim()}
+            title={ready ? undefined : t("videos.needsKey", { gateway: gatewayName, settings: t("rail.settings") })}
             data-testid="videos-studio-submit"
           >
-            {generating ? t("videos.generating") : t("videos.generate")}
+            {generating ? <WorkingStatus label={t("videos.generating")} /> : t("videos.generate")}
           </button>
+          {!ready && !loading ? (
+            <p className="basis-full text-xs text-[var(--text-3)]" data-testid="videos-studio-needs-key">
+              <SettingsLinkHint i18nKey="videos.needsKey" vars={{ gateway: gatewayName }} />
+            </p>
+          ) : null}
         </div>
         <EditPromptTemplates onPick={pickTemplate} selectedId={templateId} />
       </form>
 
-      <section className="mt-8" data-testid="videos-studio-gallery">
+      <section className="relative mt-8" data-testid="videos-studio-gallery">
+        {landed > 0 ? <Confetti key={landed} /> : null}
         {loading ? (
           <p className="text-sm text-[var(--text-3)]">{t("videos.loadingGallery")}</p>
         ) : items.length === 0 ? (
           <div
-            className="rounded-lg border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center"
+            className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center"
             data-testid="videos-studio-empty"
           >
-            <p className="text-sm font-medium text-[var(--text)]">{t("videos.emptyTitle")}</p>
+            <ModeIllustration mode="videos" />
+            <p className="mt-4 text-sm font-medium text-[var(--text)]">{t("videos.emptyTitle")}</p>
             <p className="mt-2 text-sm text-[var(--text-2)]">{t("videos.emptyBody")}</p>
           </div>
         ) : (
           <ul className="grid gap-4 sm:grid-cols-2">
-            {items.map((item) => (
-              <li key={item.id} className="overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface)]">
+            {items.map((item, index) => (
+              <li
+                key={item.id}
+                className="card-live enter-rise overflow-hidden"
+                style={{ "--i": index } as CSSProperties}
+              >
                 <video src={mediaSrc(item.url)} controls className="aspect-video w-full bg-black object-contain" />
                 <div className="flex items-center justify-between gap-2 px-3 py-2">
-                  {item.prompt ? <p className="min-w-0 truncate text-xs text-[var(--text-2)]">{item.prompt}</p> : <span />}
+                  {item.prompt ? (
+                    <p className="min-w-0 truncate text-xs text-[var(--text-2)]">{item.prompt}</p>
+                  ) : (
+                    <span />
+                  )}
                   <a
                     href={mediaSrc(item.url)}
                     download={`agentforge-video-${item.id}.mp4`}

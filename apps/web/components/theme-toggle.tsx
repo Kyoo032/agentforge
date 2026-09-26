@@ -64,7 +64,7 @@ export function ThemeToggle({ className }: { className?: string }) {
     <button
       type="button"
       onClick={toggle}
-      className={className ?? "btn btn-ghost btn-icon h-8 w-8 shrink-0 wash text-[var(--rail-text-2)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-active-text)]"}
+      className={className ?? "btn btn-ghost btn-icon h-8 w-8 shrink-0 rounded-md wash text-[var(--rail-text-2)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-active-text)]"}
       aria-label={label}
       title={label}
       data-testid="theme-toggle"

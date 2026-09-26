@@ -241,6 +241,10 @@ export function SettingsResetCard({ resetPending = false }: SettingsResetCardPro
         </div>
       ) : null}
 
+      <details className="space-y-3" data-testid="settings-reset-danger">
+        <summary className="cursor-pointer text-sm font-medium text-[var(--text)]">
+          {t("settings.reset.dangerSummary")}
+        </summary>
       <div className="space-y-1">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm text-[var(--text)]">{t("settings.reset.signOut")}</p>
@@ -386,6 +390,7 @@ export function SettingsResetCard({ resetPending = false }: SettingsResetCardPro
           ) : null}
         </div>
       ) : null}
+      </details>
 
       {error ? (
         <p className="text-sm text-[var(--danger)]" data-testid="settings-reset-error">

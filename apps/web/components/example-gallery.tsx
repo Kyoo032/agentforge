@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import type { LibraryEntry, LibraryMode } from "@agentforge/core/templates";
 import { galleryChrome, localizedLibrary } from "@/lib/ui-copy";
 
@@ -20,20 +20,21 @@ export function ExampleGallery({ mode, onSelect }: ExampleGalleryProps) {
       <h2 className="text-sm font-medium text-[var(--text)]">{chrome.title}</h2>
       <p className="mt-1 text-xs text-[var(--text-3)]">{chrome.hint}</p>
       <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        {entries.map((entry) => {
+        {entries.map((entry, index) => {
           const isSelected = selectedId === entry.exampleId;
           return (
-            <li key={entry.exampleId}>
+            <li key={entry.exampleId} className="enter-rise" style={{ "--i": index } as CSSProperties}>
               <button
                 type="button"
                 data-testid="example-card"
                 data-example-id={entry.exampleId}
                 aria-pressed={isSelected}
-                className={`w-full rounded-xl border px-3 py-2.5 text-left text-sm ${
+                className="card-live w-full px-3 py-2.5 text-left text-sm text-[var(--text)]"
+                style={
                   isSelected
-                    ? "select-row border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--text)]"
-                    : "wash border-[var(--line)] bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--accent-soft)]"
-                }`}
+                    ? ({ borderColor: "var(--accent)", background: "var(--accent-soft)" } as CSSProperties)
+                    : undefined
+                }
                 onClick={() => {
                   setSelectedId(entry.exampleId);
                   onSelect(entry);

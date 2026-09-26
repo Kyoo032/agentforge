@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
+import { BrandMark } from "@/components/brand-mark";
 import { apiFetch, checkGateway, isElectron } from "@/lib/api-client";
 import { ComponentSetupPanel } from "@/components/component-setup";
 import { FfmpegSetupNotice } from "@/components/ffmpeg-setup-notice";
@@ -128,10 +129,20 @@ export function OnboardingScreen({ onDone, gateway }: Props) {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-lg flex-col justify-center px-6 py-8 text-[var(--text)]">
-      <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">
-        {t("onboarding.welcome", { productName })}
-      </h1>
-      <p className="mt-2 text-[var(--text-2)]">{t("onboarding.intro", { gatewayName })}</p>
+      <div className="hero-aurora enter-rise flex flex-col items-center px-6 py-8 text-center">
+        <span className="enter-pop" style={{ "--i": 1 } as CSSProperties}>
+          <BrandMark orb size={52} />
+        </span>
+        <h1
+          className="enter-rise mt-4 font-heading text-[30px] font-semibold leading-[var(--lh-tight)] tracking-[var(--track)] text-[var(--text)]"
+          style={{ "--i": 2 } as CSSProperties}
+        >
+          <span className="text-gradient">{t("onboarding.welcome", { productName })}</span>
+        </h1>
+        <p className="enter-fade mt-2 text-[var(--text-2)]" style={{ "--i": 3 } as CSSProperties}>
+          {t("onboarding.intro", { gatewayName })}
+        </p>
+      </div>
       {needsFfmpeg || componentSetup.visible ? (
         <section
           className="mt-6 overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface)]"
@@ -149,7 +160,12 @@ export function OnboardingScreen({ onDone, gateway }: Props) {
           <ComponentSetupPanel view={componentSetup} />
         </section>
       ) : null}
-      <form onSubmit={(event) => void onSubmit(event)} className="mt-8 space-y-4" data-testid="onboarding-form">
+      <form
+        onSubmit={(event) => void onSubmit(event)}
+        className="enter-rise mt-6 space-y-4 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 shadow-elev-2"
+        style={{ "--i": 4 } as CSSProperties}
+        data-testid="onboarding-form"
+      >
         <p className="text-xs text-[var(--text-3)]" data-testid="onboarding-gateway-host">
           {t("onboarding.gatewayHost", { host: gatewayHostLabel(endpoint) })}
         </p>
@@ -183,7 +199,7 @@ export function OnboardingScreen({ onDone, gateway }: Props) {
           {reasonKey ? (
             <button
               type="button"
-              className="rounded-md border border-[var(--line)] px-4 py-2 text-[var(--text)] disabled:opacity-50"
+              className="btn disabled:opacity-50"
               onClick={() => void onRecheck()}
               disabled={busy}
               data-testid="onboarding-recheck"

@@ -36,6 +36,7 @@ export function RailFinanceTasksToggle({
       onToggle={onToggle}
       enabled={enabled}
       label={open ? t("rail.financeTasksHide") : t("rail.financeTasksToggle")}
+      word={t("rail.financeTasksWord")}
       testId="finance-tasks-toggle"
     />
   );

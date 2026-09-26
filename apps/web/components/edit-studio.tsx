@@ -12,6 +12,9 @@ import { formatUsd } from "@agentforge/core/gateway";
 import { EditAgentPanel } from "@/components/edit-agent-panel";
 import { EditGenerateTab } from "@/components/edit-generate-tab";
 import { FfmpegSetupNotice } from "@/components/ffmpeg-setup-notice";
+import { ModeHeader } from "@/components/mode-header";
+import { ModeIllustration } from "@/components/mode-illustration";
+import { WorkingStatus } from "@/components/working-status";
 import { imageClipAt } from "@/lib/edit-preview-media";
 import { EditRecipesPanel } from "@/components/edit-recipes-panel";
 import { EditPreview } from "@/components/edit-preview";
@@ -44,7 +47,7 @@ import { useEmitLock } from "@/lib/use-emit-lock";
 import { useProductBrand } from "@/lib/product-brand";
 import { t } from "@/lib/i18n";
 import { Link } from "@/lib/nav";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 
 type ToolId = "upload" | "generate" | "ingredients" | "titles" | "captions" | "recipes" | "history";
 
@@ -644,49 +647,51 @@ export function EditStudio() {
 
   return (
     <main
+      data-mode="edit"
       className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-app text-[var(--text)]"
       data-testid="edit-studio"
     >
       {doctor ? <FfmpegSetupNotice doctor={doctor} onDoctor={setDoctor} /> : null}
-      <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-[var(--line)] px-4 py-2">
-        <h1 className="font-heading text-lg font-semibold">{project?.name ?? t("edit.title")}</h1>
-        {/* One outcome line (owner report 2026-09-23), replacing the old import-method
-            sentence. The Edit import stays `edit-import` on the tool rail. */}
-        <p className="mt-2 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="expected-inputs">{t("edit.expectedInputs")}</p>
-        <select
-          className="rounded-md border border-[var(--line)] bg-[var(--surface)] px-2 py-1 text-sm"
-          value={tier}
-          onChange={(event) => setTier(event.target.value)}
-          data-testid="edit-tier"
-        >
-          <option value="draft">{t("edit.tier.draft")}</option>
-          <option value="standard">{t("edit.tier.standard")}</option>
-          <option value="cinematic">{t("edit.tier.cinematic")}</option>
-        </select>
-        <span className="text-xs text-[var(--text-2)]" data-testid="edit-jobs">
-          {t("edit.jobs", { count: jobsLive.length > 0 ? `~${jobsLive.length}` : "0" })}
-        </span>
-        <span className="text-xs text-[var(--text-2)]">
-          {t("edit.turnMeter", { spent: formatUsd(spent), cap: formatUsd(spendCap) })}
-        </span>
-        <span className="ml-auto flex items-center gap-2">
-          <button type="button" className="btn btn-ghost px-2 py-1 text-xs" data-testid="edit-parity-check">
-            {t("edit.parity")}
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary px-3 py-1.5 text-sm"
-            data-testid="edit-export"
-            disabled={!project || !reviewOpen || exporting}
-            onClick={() => void onExport()}
-          >
-            {t("edit.export")}
-          </button>
-        </span>
-      </header>
+      <div className="shrink-0 border-b border-[var(--line)] px-4 py-3">
+        <ModeHeader
+          icon="edit"
+          title={project?.name ?? t("edit.title")}
+          outcome={t("edit.expectedInputs")}
+          actions={
+            <>
+              <select
+                className="select-field"
+                value={tier}
+                onChange={(event) => setTier(event.target.value)}
+                data-testid="edit-tier"
+              >
+                <option value="draft">{t("edit.tier.draft")}</option>
+                <option value="standard">{t("edit.tier.standard")}</option>
+                <option value="cinematic">{t("edit.tier.cinematic")}</option>
+              </select>
+              <span className="chip" data-testid="edit-jobs">
+                {t("edit.jobs", { count: jobsLive.length > 0 ? `~${jobsLive.length}` : "0" })}
+              </span>
+              <span className="chip">{t("edit.turnMeter", { spent: formatUsd(spent), cap: formatUsd(spendCap) })}</span>
+              <button type="button" className="btn btn-ghost px-2 py-1 text-xs" data-testid="edit-parity-check">
+                {t("edit.parity")}
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary rounded-pill px-4"
+                data-testid="edit-export"
+                disabled={!project || !reviewOpen || exporting}
+                onClick={() => void onExport()}
+              >
+                {exporting ? <WorkingStatus label={t("edit.export")} /> : t("edit.export")}
+              </button>
+            </>
+          }
+        />
+      </div>
       {exporting || exportBusy ? (
-        <p className="px-4 text-xs text-[var(--text-3)]" data-testid="edit-export-progress">
-          {t("edit.exporting")}
+        <p className="px-4" data-testid="edit-export-progress">
+          <WorkingStatus label={t("edit.exporting")} />
         </p>
       ) : null}
       {exportReady ? (
@@ -742,10 +747,14 @@ export function EditStudio() {
                 </button>
               </div>
             </div>
-            <ul className="mt-4 space-y-1">
-              {items.map((item) => (
-                <li key={item.id}>
-                  <button type="button" className="text-sm underline" onClick={() => void reloadProject(item.id)}>
+            <ul className="mt-4 space-y-2">
+              {items.map((item, index) => (
+                <li key={item.id} className="enter-rise" style={{ "--i": index } as CSSProperties}>
+                  <button
+                    type="button"
+                    className="card-live w-full px-3 py-2 text-left text-sm"
+                    onClick={() => void reloadProject(item.id)}
+                  >
                     {item.name}
                   </button>
                 </li>
@@ -757,7 +766,10 @@ export function EditStudio() {
             <div className="h-24 border-t border-[var(--line)]" data-testid="edit-timeline" />
           </div>
           <aside className="w-[280px] border-l border-[var(--line)]" data-testid="edit-agent-panel">
-            <p className="p-3 text-xs text-[var(--text-3)]">{t("edit.openProjectHint")}</p>
+            <div className="flex flex-col items-center px-4 py-8 text-center">
+              <ModeIllustration mode="edit" />
+              <p className="mt-4 text-xs text-[var(--text-3)]">{t("edit.openProjectHint")}</p>
+            </div>
           </aside>
         </div>
       ) : (

@@ -46,6 +46,7 @@ export function RailMarketSpecialistsToggle({
       onToggle={onToggle}
       enabled={enabled}
       label={open ? t("rail.marketSpecialistsHide") : t("rail.marketSpecialistsToggle")}
+      word={t("rail.marketSpecialistsWord")}
       testId="rail-market-specialists-toggle"
     />
   );

@@ -16,6 +16,7 @@ import { abortErrorMessage, armStreamWatchdog } from "@agentforge/core/stream-wa
 import { REASONING_EFFORTS, type ReasoningEffort } from "@agentforge/core/reasoning-effort";
 import { submitOnEnter } from "@/lib/composer-enter";
 import { getLocale, t } from "@/lib/i18n";
+import { useDeskNeedsKey } from "@/lib/use-desk-needs-key";
 
 export type ComposerUserSendPayload = {
   text: string;
@@ -82,7 +83,12 @@ export type RunStreamHandlers = {
   readonly onStarted?: () => void;
   readonly onDelta: (text: string) => void;
   readonly onThinking?: (text: string) => void;
-  readonly onTool?: (event: { phase: "started" | "completed"; toolKey: string; input?: unknown; output?: unknown }) => void;
+  readonly onTool?: (event: {
+    phase: "started" | "completed";
+    toolKey: string;
+    input?: unknown;
+    output?: unknown;
+  }) => void;
   readonly onFailed?: (message: string) => void;
 };
 
@@ -191,10 +197,11 @@ export function ChatComposer({
     setError(null);
   }
 
+  const needsKey = useDeskNeedsKey();
   const pickerModels = models ?? [];
   const showPicker = typeof onModelChange === "function";
   const sendEmpty = !text.trim() && files.length === 0;
-  const sendDisabled = busy || enhancing || sendEmpty;
+  const sendDisabled = busy || enhancing || sendEmpty || needsKey;
 
   useEffect(() => {
     if (draft == null) {
@@ -251,6 +258,9 @@ export function ChatComposer({
   }
 
   async function send() {
+    if (needsKey) {
+      return;
+    }
     // The run belongs to the session on screen now. If the owner opens another before the run
     // reaches the host, nothing is sent and the draft stays in the box; if they open one after, the
     // run streams on to the host — which saves the reply — but writes nothing more into this pane.
@@ -446,7 +456,7 @@ export function ChatComposer({
 
   return (
     <form
-      className="composer-shell mx-auto mb-6 mt-6 w-full max-w-[var(--composer-max)] rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 pb-3 pt-2"
+      className="composer-shell mx-auto mb-6 mt-6 w-full max-w-[var(--composer-max)] rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-3 pb-3 pt-2 !shadow-elev-2"
       data-testid="composer"
       onSubmit={(event) => {
         event.preventDefault();
@@ -454,7 +464,7 @@ export function ChatComposer({
       }}
     >
       <div
-        className={`rounded-lg border border-dashed px-2 py-1 ${
+        className={`rounded-xl border border-dashed px-2 py-1 ${
           dragOver ? "border-[var(--accent)] bg-[var(--accent-soft)]" : "border-[var(--line)]"
         }`}
         data-testid="composer-dropzone"
@@ -520,7 +530,7 @@ export function ChatComposer({
           {files.map((item) => (
             <li
               key={item.id}
-              className="flex items-center gap-2 rounded-lg border border-[var(--line)] px-3 py-1 text-sm text-[var(--text)]"
+              className="flex items-center gap-2 rounded-pill border border-[var(--line)] px-3 py-1 text-sm text-[var(--text)]"
               data-testid="composer-attachment"
             >
               <span className="max-w-[12rem] truncate">{item.file.name}</span>
@@ -544,7 +554,7 @@ export function ChatComposer({
       <div className="mt-2 flex flex-wrap items-end gap-2" data-testid="composer-toolbar">
         <button
           type="button"
-          className="btn btn-ghost btn-icon h-8 w-8 shrink-0 wash"
+          className="btn btn-ghost btn-icon h-8 w-8 shrink-0 !rounded-pill wash"
           data-testid="composer-attach"
           onClick={() => fileInputRef.current?.click()}
           disabled={busy}
@@ -582,44 +592,56 @@ export function ChatComposer({
             tuned. It is a single select now, showing just the level ("Normal").
           */}
           {onReasoningEffortChange || onThinkingChange ? (
-            <select
-              className="h-8 shrink-0 cursor-pointer rounded-lg border border-[var(--line)] bg-transparent pl-2 pr-1 text-xs text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-45"
-              data-testid="reasoning-effort"
-              aria-label={t("chat.composer.thinkingPrefix")}
-              value={reasoningEffort}
-              disabled={busy}
-              onChange={(event) => {
-                const next = event.target.value as ReasoningEffort;
-                onReasoningEffortChange?.(next);
-                onThinkingChange?.(next !== "none");
-              }}
-            >
-              {REASONING_EFFORTS.map((effort) => (
-                <option key={effort} value={effort}>
-                  {t(`chat.thinking.${effort}`)}
-                </option>
-              ))}
-            </select>
+            <label className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-pill border border-[var(--line)] bg-transparent pl-3 pr-1 text-xs text-[var(--text)]">
+              <span data-testid="reasoning-effort-label">{t("chat.composer.thinkingPrefix")}</span>
+              <select
+                className="h-7 cursor-pointer border-0 bg-transparent pr-1 text-xs text-[var(--text)] outline-none disabled:cursor-not-allowed disabled:opacity-45"
+                data-testid="reasoning-effort"
+                aria-label={t("chat.composer.thinkingPrefix")}
+                value={reasoningEffort}
+                disabled={busy}
+                onChange={(event) => {
+                  const next = event.target.value as ReasoningEffort;
+                  onReasoningEffortChange?.(next);
+                  onThinkingChange?.(next !== "none");
+                }}
+              >
+                {REASONING_EFFORTS.map((effort) => (
+                  <option key={effort} value={effort}>
+                    {t(`chat.thinking.${effort}`)}
+                  </option>
+                ))}
+              </select>
+            </label>
           ) : null}
           <EnhancePromptButton
             text={text}
             surface="chat"
             model={model}
             disabled={busy}
+            pill
             onApply={setText}
             onBusyChange={setEnhancing}
           />
         </div>
         <button
           type="submit"
-          className={`wash ml-auto inline-flex h-8 shrink-0 items-center rounded-pill px-4 text-sm ${
-            sendDisabled ? "bg-[var(--line)] text-[var(--text-3)]" : "bg-[var(--accent)] text-[var(--bg)]"
-          }`}
+          className={
+            sendDisabled
+              ? "ml-auto inline-flex h-8 shrink-0 items-center rounded-pill bg-[var(--line)] px-4 text-sm text-[var(--text-3)]"
+              : "btn btn-primary ml-auto h-8 shrink-0 !rounded-pill px-4 text-sm"
+          }
           disabled={sendDisabled}
+          title={needsKey ? t("chat.composer.needsKey") : undefined}
           data-testid="composer-send"
         >
           {busy ? t("chat.composer.sending") : t("chat.composer.send")}
         </button>
+        {needsKey ? (
+          <p className="basis-full text-xs text-[var(--text-3)]" data-testid="composer-needs-key">
+            {t("chat.composer.needsKey")}
+          </p>
+        ) : null}
       </div>
     </form>
   );

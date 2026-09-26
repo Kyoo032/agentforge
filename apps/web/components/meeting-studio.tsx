@@ -1,22 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import type { AppLocale } from "@agentforge/core/locale";
 import type { MeetingMinutes, MeetingTranscript } from "@agentforge/core/meeting";
 import { Link } from "@/lib/nav";
 import { JobProgressList } from "@/components/job-progress";
 import { MeetingMinutesView } from "@/components/meeting-minutes-view";
 import { MeetingOtherDeskClips, MeetingRecorderPanel } from "@/components/meeting-recorder";
+import { ModeHeader } from "@/components/mode-header";
+import { ModeIllustration } from "@/components/mode-illustration";
 import { ModelSelect } from "@/components/model-select";
+import { WorkingStatus } from "@/components/working-status";
 import { apiFetch } from "@/lib/api-client";
 import { t } from "@/lib/i18n";
 import type { RecordedClip } from "@/lib/meeting-recorder";
-import {
-  postMeetingRecording,
-  saveClipToDevice,
-  type MeetingApiFetch,
-  type UploadOutcome,
-} from "@/lib/meeting-upload";
+import { postMeetingRecording, saveClipToDevice, type MeetingApiFetch, type UploadOutcome } from "@/lib/meeting-upload";
 import { useJobModel } from "@/lib/use-job-model";
 import { useJobStream } from "@/lib/use-job-stream";
 import { useMeetingRecorder } from "@/lib/use-meeting-recorder";
@@ -210,8 +208,10 @@ export function MeetingListRow({
           onClick={onSelect}
           disabled={locked}
           title={locked ? t("meeting.record.switchLocked") : undefined}
-          className={`flex-1 rounded-lg px-3 py-2 text-left text-sm disabled:cursor-not-allowed ${
-            selected ? "bg-[var(--surface-2)] text-[var(--text)]" : "text-[var(--text-2)] disabled:opacity-45"
+          className={`flex-1 px-3 py-2 text-left text-sm disabled:cursor-not-allowed ${
+            selected
+              ? "rounded-lg bg-[var(--surface-2)] text-[var(--text)]"
+              : "card-live text-[var(--text-2)] disabled:opacity-45"
           }`}
           data-testid={`meeting-item-${meeting.id}`}
         >
@@ -615,13 +615,11 @@ export function MeetingStudio() {
 
   return (
     <main
+      data-mode="meeting"
       className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]"
       data-testid="meeting-studio"
     >
-      <div>
-        <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("meeting.title")}</h1>
-        <p className="mt-2 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="expected-inputs">{t("meeting.subtitle")}</p>
-      </div>
+      <ModeHeader icon="meeting" title={t("meeting.title")} outcome={t("meeting.subtitle")} />
 
       {shown ? (
         <div
@@ -698,7 +696,7 @@ export function MeetingStudio() {
         <button
           type="submit"
           disabled={busy !== null || recording || !title.trim()}
-          className="wash inline-flex h-9 items-center rounded-pill bg-[var(--accent)] px-4 text-sm font-medium text-[var(--surface)] disabled:opacity-45"
+          className="btn btn-primary rounded-pill px-4"
           data-testid="meeting-create"
         >
           {t("meeting.create")}
@@ -708,30 +706,34 @@ export function MeetingStudio() {
       <div className="mt-8 grid flex-1 gap-6 md:grid-cols-[16rem_1fr]">
         <aside className="space-y-1" data-testid="meeting-list">
           {meetings.length === 0 ? (
-            <p className="text-sm text-[var(--text-2)]" data-testid="meeting-empty">
-              {t("meeting.empty")}
-              <span className="block text-[var(--text-3)]">{t("meeting.emptyDetail")}</span>
-            </p>
+            <div className="px-2 py-6 text-center">
+              <ModeIllustration mode="meeting" />
+              <p className="mt-4 text-sm text-[var(--text-2)]" data-testid="meeting-empty">
+                {t("meeting.empty")}
+                <span className="block text-[var(--text-3)]">{t("meeting.emptyDetail")}</span>
+              </p>
+            </div>
           ) : null}
-          {meetings.map((meeting) => (
-            <MeetingListRow
-              key={meeting.id}
-              meeting={meeting}
-              selected={meeting.id === selectedId}
-              confirming={meeting.id === deletingId}
-              deleting={deleteBusy}
-              // The list is locked while recording, so the row being recorded is the selected one.
-              locked={recording}
-              deleteLocked={recording && meeting.id === selectedId}
-              onSelect={() => {
-                if (!recording) {
-                  setSelectedId(meeting.id);
-                }
-              }}
-              onAskDelete={() => setDeletingId(meeting.id)}
-              onConfirmDelete={() => void onDelete(meeting.id)}
-              onCancelDelete={() => setDeletingId(null)}
-            />
+          {meetings.map((meeting, index) => (
+            <div key={meeting.id} className="enter-rise" style={{ "--i": index } as CSSProperties}>
+              <MeetingListRow
+                meeting={meeting}
+                selected={meeting.id === selectedId}
+                confirming={meeting.id === deletingId}
+                deleting={deleteBusy}
+                // The list is locked while recording, so the row being recorded is the selected one.
+                locked={recording}
+                deleteLocked={recording && meeting.id === selectedId}
+                onSelect={() => {
+                  if (!recording) {
+                    setSelectedId(meeting.id);
+                  }
+                }}
+                onAskDelete={() => setDeletingId(meeting.id)}
+                onConfirmDelete={() => void onDelete(meeting.id)}
+                onCancelDelete={() => setDeletingId(null)}
+              />
+            </div>
           ))}
         </aside>
 
@@ -770,23 +772,21 @@ export function MeetingStudio() {
                   className="text-sm text-[var(--text-2)]"
                   data-testid="meeting-file"
                 />
-                {busy === "upload" ? (
-                  <span className="text-xs text-[var(--text-3)]" data-testid="meeting-uploading">
-                    {t("meeting.uploading")}
-                  </span>
-                ) : null}
+                {busy === "upload" ? <WorkingStatus label={t("meeting.uploading")} testId="meeting-uploading" /> : null}
                 <button
                   type="button"
                   onClick={() => void onRun()}
                   disabled={job.busy || busy !== null || (!selected.recording && !selected.transcript)}
-                  className="wash inline-flex h-9 items-center rounded-pill bg-[var(--accent)] px-4 text-sm font-medium text-[var(--surface)] disabled:opacity-45"
+                  className="btn btn-primary rounded-pill px-4"
                   data-testid="meeting-run"
                 >
-                  {job.busy
-                    ? t("meeting.running")
-                    : selected.transcript
-                      ? t("meeting.runFromTranscript")
-                      : t("meeting.run")}
+                  {job.busy ? (
+                    <WorkingStatus label={t("meeting.running")} />
+                  ) : selected.transcript ? (
+                    t("meeting.runFromTranscript")
+                  ) : (
+                    t("meeting.run")
+                  )}
                 </button>
                 {job.busy ? (
                   <button
@@ -885,22 +885,27 @@ export function MeetingStudio() {
                   </pre>
                 ) : null}
                 {tab === "minutes" && selected.minutes ? (
-                  <>
+                  <div className="enter-rise">
                     {selected.minutes.unverifiedNames.length > 0 ? (
                       <p className="mb-3 text-xs text-[var(--text-3)]" data-testid="meeting-unverified">
                         {t("meeting.unverified", { count: String(selected.minutes.unverifiedNames.length) })}
                       </p>
                     ) : null}
                     <MeetingMinutesView minutes={selected.minutes.minutes} testId="meeting-minutes" />
-                  </>
+                  </div>
                 ) : null}
                 {tab === "translation" && selected.translation ? (
-                  <MeetingMinutesView minutes={selected.translation.minutes} testId="meeting-translation" />
+                  <div className="enter-rise">
+                    <MeetingMinutesView minutes={selected.translation.minutes} testId="meeting-translation" />
+                  </div>
                 ) : null}
               </div>
             </>
           ) : (
-            <p className="text-sm text-[var(--text-2)]">{t("meeting.emptyDetail")}</p>
+            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center">
+              <ModeIllustration mode="meeting" />
+              <p className="mt-4 text-sm text-[var(--text-2)]">{t("meeting.emptyDetail")}</p>
+            </div>
           )}
         </section>
       </div>

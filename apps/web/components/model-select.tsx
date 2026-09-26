@@ -1,6 +1,6 @@
 "use client";
 
-import { formatContextLength, pickerGroups } from "@agentforge/core/preferred";
+import { pickerGroups } from "@agentforge/core/preferred";
 
 type ChatModel = {
   id: string;
@@ -31,11 +31,9 @@ type Props = {
 function optionLabel(model: ChatModel, showModalities: boolean): string {
   const name = model.friendlyLabel ?? model.label;
   const withHint = model.bestFor ? `${name} — ${model.bestFor}` : name;
-  const base = showModalities
-    ? `${withHint} (${model.inputModalities.join(" + ")})`
-    : model.contextLength
-      ? `${withHint} · ${formatContextLength(model.contextLength)}`
-      : withHint;
+  // Context length ("1.05M") is a model-window figure. It stays off the option
+  // until a chat has a real reply — the meter there is the place it belongs.
+  const base = showModalities ? `${withHint} (${model.inputModalities.join(" + ")})` : withHint;
   return model.hint ? `${base} · ${model.hint}` : base;
 }
 
@@ -46,14 +44,12 @@ export function ModelSelect({
   disabled,
   testId = "model-picker",
   showModalities = false,
-  className = "h-8 rounded-lg border border-[var(--line)] bg-transparent px-2 text-xs text-[var(--text-2)] wash",
+  className = "select-field",
   flat = false,
 }: Props) {
   const selected = models.some((model) => model.id === value) ? value : (models[0]?.id ?? "");
 
-  const groups = flat
-    ? [{ label: "Embeddings", models }]
-    : pickerGroups(models);
+  const groups = flat ? [{ label: "Embeddings", models }] : pickerGroups(models);
 
   return (
     <select

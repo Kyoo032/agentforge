@@ -86,7 +86,25 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
    */
   const sessionEpochRef = useRef(0);
   const seenInitialThreadRef = useRef(initialThreadId);
-  if (seenInitialThreadRef.current !== initialThreadId) {
+  /**
+   * `ensureThread` writes the new id into `seenInitialThreadRef` and then `setThreadId`, which
+   * re-renders while `?thread` is still the old value. That render must not count as the owner
+   * leaving — it used to bump the session, `onComplete` saw `showing: false`, and `running` stayed
+   * true, so a second Thinking row never left the list.
+   */
+  const awaitingUrlThreadRef = useRef<string | null>(null);
+  const urlAtEnsureRef = useRef<string | undefined>(initialThreadId);
+  if (awaitingUrlThreadRef.current) {
+    if (initialThreadId === awaitingUrlThreadRef.current) {
+      awaitingUrlThreadRef.current = null;
+      seenInitialThreadRef.current = initialThreadId;
+    } else if (initialThreadId !== urlAtEnsureRef.current) {
+      awaitingUrlThreadRef.current = null;
+      seenInitialThreadRef.current = initialThreadId;
+      pendingThreadRef.current = initialThreadId ?? null;
+      sessionEpochRef.current += 1;
+    }
+  } else if (seenInitialThreadRef.current !== initialThreadId) {
     seenInitialThreadRef.current = initialThreadId;
     pendingThreadRef.current = initialThreadId ?? null;
     sessionEpochRef.current += 1;
@@ -187,6 +205,8 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
     }
     threadIdRef.current = id;
     pendingThreadRef.current = id;
+    urlAtEnsureRef.current = initialThreadId;
+    awaitingUrlThreadRef.current = id;
     seenInitialThreadRef.current = id;
     setThreadId(id);
     router.replace(`${chatPath()}?thread=${id}`);
@@ -314,6 +334,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
   }
 
   const empty = messages.length === 0 && !streaming && !thinking && !running && tools.length === 0;
+  const hasReply = messages.some((message) => message.role === "assistant");
   const conversationTokens = estimateConversationTokens(messages, [thinking, streaming]);
   const knowledgeTokens = knowledgeParts.reduce((sum, part) => sum + part.tokens, 0);
   const contextTokens = conversationTokens + knowledgeTokens;
@@ -357,18 +378,24 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           {isDefaultChat ? t("chat.title") : agentName}
         </h1>
         <div className="flex min-w-0 flex-wrap items-center justify-end gap-3 text-xs">
-          <ChatContextChip
-            usedTokens={contextTokens}
-            contextLength={selectedModel?.contextLength}
-            parts={contextParts}
-          />
-          <ChatUsageChip />
+          {hasReply ? (
+            <ChatContextChip
+              usedTokens={contextTokens}
+              contextLength={selectedModel?.contextLength}
+              parts={contextParts}
+            />
+          ) : null}
+          {hasReply ? <ChatUsageChip /> : null}
           <ChatAccountChip />
         </div>
       </div>
 
       {error ? (
-        <p className="mx-auto w-full px-6 text-sm text-[var(--danger)] max-w-[var(--content-max)]" data-testid="chat-error" role="alert">
+        <p
+          className="mx-auto w-full px-6 text-sm text-[var(--danger)] max-w-[var(--content-max)]"
+          data-testid="chat-error"
+          role="alert"
+        >
           {error}
         </p>
       ) : null}
@@ -378,9 +405,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
         className={`mx-auto min-h-0 w-full flex-1 overflow-y-auto px-6 max-w-[var(--content-max)] ${empty ? "" : "space-y-4 py-4"}`}
         data-testid="message-list"
       >
-        {empty && !error ? (
-          <ChatLauncher onSuggest={setComposerDraft} />
-        ) : null}
+        {empty && !error ? <ChatLauncher onSuggest={setComposerDraft} /> : null}
         {messages
           .filter((message) => message.role === "user" || messageHasDisplayableContent(message.content))
           .map((message) => (

@@ -121,12 +121,7 @@ export function ChatUsageChip() {
   }, [plans]);
 
   return (
-    <Link
-      href={href}
-      className="wash inline-flex h-8 items-center rounded-lg border border-[var(--line)] bg-[var(--surface)] px-2.5 text-xs text-[var(--text)] hover:bg-[var(--surface-2)]"
-      data-testid="chat-usage"
-      title={title}
-    >
+    <Link href={href} className="chip wash whitespace-nowrap" data-testid="chat-usage" title={title}>
       {label}
     </Link>
   );

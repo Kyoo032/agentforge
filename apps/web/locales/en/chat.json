@@ -20,6 +20,7 @@
     "pickModel": "Pick a model below, then type.",
     "ideas": {
       "title": "Start with an idea",
+      "fillsComposer": "Puts a starting prompt in the box.",
       "plan": {
         "label": "Shape a plan",
         "hint": "Turn rough notes into a first draft of the steps.",
@@ -52,6 +53,7 @@
     "thinkingPrefix": "Thinking",
     "attach": "Attach",
     "send": "Send",
+    "needsKey": "Paste a key in Settings before this can run.",
     "sending": "Sending…",
     "thinking": "Thinking",
     "imageCaption": "What is in this image?",

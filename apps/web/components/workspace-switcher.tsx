@@ -96,15 +96,15 @@ export function WorkspaceSwitcher({ workspaceName, compact = false, logoSrc = ""
    * paper desk, not the rail, so its own colours stay on the paper tokens.
    */
   const triggerClass = compact
-    ? "wash flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium text-[var(--rail-text)] hover:bg-[var(--rail-hover)]"
-    : "wash flex w-full items-center gap-1 truncate rounded-lg py-0 text-left text-xs text-[var(--rail-text-3)] hover:text-[var(--rail-text)]";
+    ? "wash flex h-8 w-8 items-center justify-center rounded-md text-sm font-medium text-[var(--rail-text)] hover:bg-[var(--rail-hover)]"
+    : "wash flex w-full items-center gap-1 truncate rounded-md py-0 text-left text-xs text-[var(--rail-text-3)] hover:text-[var(--rail-text)]";
 
   const menu =
     open && menuPos
       ? createPortal(
           <div
             ref={menuRef}
-            className="raise fixed z-[80] rounded-xl border border-[var(--line)] bg-[var(--surface)] p-1"
+            className="raise fixed z-[80] rounded-xl border border-[var(--line)] bg-[var(--surface)] p-1 shadow-elev-2"
             role="listbox"
             style={{ top: menuPos.top, left: menuPos.left, width: menuPos.width }}
           >
@@ -114,7 +114,7 @@ export function WorkspaceSwitcher({ workspaceName, compact = false, logoSrc = ""
                 type="button"
                 role="option"
                 aria-selected={workspace.id === currentId}
-                className="wash block w-full truncate rounded-lg px-2 py-1.5 text-left text-sm text-[var(--text)] hover:bg-[var(--accent-soft)]"
+                className="wash block w-full truncate rounded-md px-2 py-1.5 text-left text-sm text-[var(--text)] hover:bg-[var(--accent-soft)]"
                 onClick={() => void openWorkspace(workspace.id)}
                 data-testid="open-workspace"
               >
@@ -124,7 +124,7 @@ export function WorkspaceSwitcher({ workspaceName, compact = false, logoSrc = ""
             ))}
             <Link
               href="/workspaces"
-              className="wash mt-1 block rounded-lg px-2 py-1.5 text-sm text-[var(--accent)] hover:bg-[var(--accent-soft)]"
+              className="wash mt-1 block rounded-md px-2 py-1.5 text-sm text-[var(--accent)] hover:bg-[var(--accent-soft)]"
               data-testid="workspace-new-link"
               onClick={() => setOpen(false)}
             >

@@ -61,20 +61,20 @@
   color-scheme: light;
   --bg: #ffffff;
   --surface: #ffffff;
-  --surface-2: #f4f1eb;
-  --line: #e2ddd3;
-  --text: #0a0a0a;
-  --text-2: #2e2c29;
-  --text-3: #5c574f;
-  --accent: #3846a5;
-  --accent-soft: #eef0ff;
-  --mark: #3846a5;
+  --surface-2: #f3f5fa;
+  --line: #e4e7ef;
+  --text: #0b1020;
+  --text-2: #2c3244;
+  --text-3: #5a6072;
+  --accent: #0e58f0;
+  --accent-soft: #e8f0ff;
+  --mark: #0e58f0;
   --teal: #2f7957;
   --danger: #b42318;
   --ok: var(--teal);
 
   --font: "DM Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-heading: "Source Serif 4", "DM Sans", Georgia, serif;
+  --font-heading: var(--font);
   --fs-12: 13px;
   --fs-13: 15px;
   --fs-14: 16px;
@@ -85,9 +85,48 @@
 
   --icon-nav: 14px;
   --icon-card: 20px;
-  --r-nav: 4px;
-  --r-card: 4px;
-  --r-pill: 4px;
+  --r-nav: 10px;
+  --r-card: 18px;
+  --r-hero: 22px;
+  --r-pill: 999px;
+
+  /* Playful desk (2026-09-26). Companion hues appear only in gradients and icon tiles; body
+     text and controls read --accent. Each mode owns one saturated colour, set as `--mode` by
+     `[data-mode]` below, for its icon tile, rail icon and header. */
+  --accent-2: #00b8d9;
+  --accent-3: #8b5cf6;
+  --accent-4: #ff5c8a;
+  --accent-edge: color-mix(in srgb, var(--accent) 72%, #000000);
+  --grad-accent: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+  --grad-text: linear-gradient(100deg, var(--accent) 0%, var(--accent-3) 55%, var(--accent-4) 100%);
+  --grad-soft: linear-gradient(135deg, color-mix(in srgb, var(--accent) 9%, var(--surface)) 0%, color-mix(in srgb, var(--accent-2) 9%, var(--surface)) 100%);
+  --backdrop: var(--rail);
+  --elev-1: 0 1px 2px color-mix(in srgb, var(--text) 6%, transparent);
+  --elev-2: 0 10px 24px -12px color-mix(in srgb, var(--text) 22%, transparent);
+  --elev-3: 0 24px 48px -20px color-mix(in srgb, var(--text) 28%, transparent);
+  /* The pressable edge: a solid lip under chunky cards and buttons. */
+  --lip: 0 3px 0 var(--line);
+  --lip-hover: 0 5px 0 var(--line);
+  --lip-press: 0 1px 0 var(--line);
+
+  --mode-chat: #0e58f0;
+  --mode-documents: #0ea5e9;
+  --mode-research: #7c3aed;
+  --mode-finance: #16a34a;
+  --mode-data: #0891b2;
+  --mode-market: #ea580c;
+  --mode-legal: #4f46e5;
+  --mode-meeting: #db2777;
+  --mode-images: #e11d48;
+  --mode-videos: #dc2626;
+  --mode-music: #c026d3;
+  --mode-edit: #d97706;
+  --mode-presentations: #ca8a04;
+  --mode-knowledge: #0d9488;
+  --mode-channels: #2563eb;
+  --mode-workspaces: #6366f1;
+  --mode-usage: #059669;
+  --mode-settings: #64748b;
 
   --space-1: 4px;
   --space-2: 8px;
@@ -113,15 +152,15 @@
      dark chrome in both themes to match the workbench mockup, which meant switching to light
      left the entire left edge behind — the rail, its submenus and its footer. Light is a warm
      rail a shade deeper than the desk; dark is the reverse. */
-  --rail: #f7f4ee;
-  --rail-text: #0a0a0a;
-  --rail-text-2: #2e2c29;
-  --rail-text-3: #5c574f;
-  --rail-line: #e2ddd3;
-  --rail-hover: #ece7dd;
-  --rail-active: #e4e7fb;
-  --rail-active-text: #0a0a0a;
-  --rail-accent: #3846a5;
+  --rail: #f6f8fc;
+  --rail-text: #0b1020;
+  --rail-text-2: #2c3244;
+  --rail-text-3: #5a6072;
+  --rail-line: #e4e7ef;
+  --rail-hover: #eaeef7;
+  --rail-active: #ffffff;
+  --rail-active-text: #0b1020;
+  --rail-accent: #0e58f0;
 
   /* One motion scale. Four durations and two curves; nothing in the app writes a raw ms value
      or its own cubic-bezier, so the desk moves at one tempo (`lib/motion-tokens.test.ts`).
@@ -137,6 +176,21 @@
   --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
   /* Entrance curve: the same feel with a few percent of overshoot, for anything that appears. */
   --ease-entrance: cubic-bezier(0.22, 1, 0.3, 1.02);
+  /* Symmetric curve for ambient loops, which have no "arrival". */
+  --ease-wave: cubic-bezier(0.45, 0, 0.55, 1);
+  /* Gap between siblings in a staggered entrance; an element sets `--i` to its index. */
+  --motion-stagger: 55ms;
+  /* Ambient loops: the hero glow drifts, the thinking dots breathe. */
+  --motion-ambient: 18s;
+  --motion-pulse: 1400ms;
+  /* Playful desk: a longer spring entrance, the float loop, the dot-grid drift and the wiggle. */
+  --motion-5: 560ms;
+  --motion-bob: 4200ms;
+  --motion-drift: 16s;
+  --motion-wiggle: 560ms;
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-linear: linear;
+  --motion-confetti: 1100ms;
 
   /* The compound aliases the rules below read. All four stay on step 1, the 120ms the warm desk
      shipped with; only the curve moved from `ease` to the scale's `--ease-out`. */
@@ -183,7 +237,7 @@
   --r: var(--r-nav);
   --radius-sm: var(--r-nav);
   --radius-md: var(--r-nav);
-  --radius-lg: var(--r-nav);
+  --radius-lg: var(--r-card);
   --radius-xl: var(--r-card);
   --radius: var(--r-nav);
   --shadow-sm: none;
@@ -206,14 +260,17 @@
   color-scheme: light;
   --bg: #ffffff;
   --surface: #ffffff;
-  --surface-2: #f4f1eb;
-  --line: #e2ddd3;
-  --text: #0a0a0a;
-  --text-2: #2e2c29;
-  --text-3: #5c574f;
-  --accent: #3846a5;
-  --accent-soft: #eef0ff;
-  --mark: #3846a5;
+  --surface-2: #f3f5fa;
+  --line: #e4e7ef;
+  --text: #0b1020;
+  --text-2: #2c3244;
+  --text-3: #5a6072;
+  --accent: #0e58f0;
+  --accent-soft: #e8f0ff;
+  --accent-2: #00b8d9;
+  --accent-3: #8b5cf6;
+  --accent-4: #ff5c8a;
+  --mark: #0e58f0;
   --teal: #2f7957;
   --danger: #b42318;
   --ok: var(--teal);
@@ -221,32 +278,35 @@
   --scroll-thumb: color-mix(in srgb, var(--text) 20%, transparent);
   --scroll-thumb-hover: color-mix(in srgb, var(--text) 34%, transparent);
   --scroll-thumb-active: color-mix(in srgb, var(--text) 48%, transparent);
-  --rail: #f7f4ee;
-  --rail-text: #0a0a0a;
-  --rail-text-2: #2e2c29;
-  --rail-text-3: #5c574f;
-  --rail-line: #e2ddd3;
-  --rail-hover: #ece7dd;
-  --rail-active: #e4e7fb;
-  --rail-active-text: #0a0a0a;
-  --rail-accent: #3846a5;
+  --rail: #f6f8fc;
+  --rail-text: #0b1020;
+  --rail-text-2: #2c3244;
+  --rail-text-3: #5a6072;
+  --rail-line: #e4e7ef;
+  --rail-hover: #eaeef7;
+  --rail-active: #ffffff;
+  --rail-active-text: #0b1020;
+  --rail-accent: #0e58f0;
 }
 
 /* The dark desk, matched to the light one's warmth rather than the old blue-black. */
 .dark {
   color-scheme: dark;
-  --bg: #1a1917;
-  --surface: #232220;
-  --surface-2: #2e2c29;
-  --line: #3a3833;
-  --text: #f4f1ea;
-  --text-2: #cdc8bf;
+  --bg: #12141b;
+  --surface: #1a1d26;
+  --surface-2: #232734;
+  --line: #313646;
+  --text: #f2f4fa;
+  --text-2: #c9cedc;
   /* #948e84 fell to 4.09:1 on --accent-soft and 4.28:1 on --surface-2; +8 per channel is the
      smallest lift that clears 4.5:1 on both (`lib/contrast-tokens.test.ts`). */
-  --text-3: #9c968c;
-  --accent: #9da5df;
-  --accent-soft: #2b2e45;
-  --mark: #b9c0ff;
+  --text-3: #9aa1b4;
+  --accent: #6ea4ff;
+  --accent-soft: #1d2a47;
+  --accent-2: #4fd8f0;
+  --accent-3: #b69cff;
+  --accent-4: #ff8fb0;
+  --mark: #8cb6ff;
   --teal: #7fc7a1;
   --danger: #f87171;
   --ok: var(--teal);
@@ -256,15 +316,15 @@
   --scroll-thumb: color-mix(in srgb, var(--text) 22%, transparent);
   --scroll-thumb-hover: color-mix(in srgb, var(--text) 38%, transparent);
   --scroll-thumb-active: color-mix(in srgb, var(--text) 52%, transparent);
-  --rail: #151412;
-  --rail-text: #f4f1ea;
-  --rail-text-2: #cdc8bf;
-  --rail-text-3: #9c968c;
-  --rail-line: #3a3833;
-  --rail-hover: #2e2c29;
-  --rail-active: #2b2e45;
+  --rail: #2a3144;
+  --rail-text: #f2f4fa;
+  --rail-text-2: #c9cedc;
+  --rail-text-3: #9aa1b4;
+  --rail-line: #262a36;
+  --rail-hover: #1d2130;
+  --rail-active: #232734;
   --rail-active-text: #ffffff;
-  --rail-accent: #b9c0ff;
+  --rail-accent: #8cb6ff;
 }
 
 /* Firefox has no ::-webkit-scrollbar; Chromium drops the pseudo-elements as soon as
@@ -341,7 +401,8 @@ body {
 body {
   @apply bg-app text-inkbase antialiased;
   font-family: var(--font);
-  background-color: var(--bg);
+  background: var(--backdrop);
+  background-attachment: fixed;
   color: var(--text);
   font-size: var(--fs-14);
   line-height: var(--lh-body);
@@ -421,11 +482,23 @@ h6 {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--surface);
+  font-weight: 600;
+  box-shadow: 0 3px 0 var(--accent-edge);
+  transition:
+    translate var(--motion-1) var(--ease-out),
+    box-shadow var(--motion-1) var(--ease-out),
+    filter var(--motion-1) var(--ease-out);
 }
 
 .btn-primary:hover {
-  background: color-mix(in srgb, var(--accent) 88%, #ffffff);
-  border-color: color-mix(in srgb, var(--accent) 88%, #ffffff);
+  background: var(--accent);
+  border-color: var(--accent);
+  filter: brightness(1.08);
+}
+
+.btn-primary:active:not(:disabled) {
+  translate: 0 2px;
+  box-shadow: 0 1px 0 var(--accent-edge);
 }
 
 .btn-secondary {
@@ -666,10 +739,62 @@ h6 {
    desk were the same plane. `overflow-hidden` clips the panel's own children, so the radius has
    to be set here rather than on an inner wrapper. */
 .desk-canvas {
+  position: relative;
+  isolation: isolate;
   background-color: var(--surface);
   box-shadow: var(--shadow-float);
   border-radius: var(--r-card);
   margin: 8px;
+}
+
+/* The desk's backdrop takes the colour of the mode on screen: a wash at the top and a dot grid
+   that fades out down the page and drifts one tile at a time. Both sit behind the content. */
+.desk-canvas:has(main[data-mode="chat"]) { --page-mode: var(--mode-chat); }
+.desk-canvas:has(main[data-mode="documents"]) { --page-mode: var(--mode-documents); }
+.desk-canvas:has(main[data-mode="research"]) { --page-mode: var(--mode-research); }
+.desk-canvas:has(main[data-mode="finance"]) { --page-mode: var(--mode-finance); }
+.desk-canvas:has(main[data-mode="data"]) { --page-mode: var(--mode-data); }
+.desk-canvas:has(main[data-mode="market"]) { --page-mode: var(--mode-market); }
+.desk-canvas:has(main[data-mode="legal"]) { --page-mode: var(--mode-legal); }
+.desk-canvas:has(main[data-mode="meeting"]) { --page-mode: var(--mode-meeting); }
+.desk-canvas:has(main[data-mode="images"]) { --page-mode: var(--mode-images); }
+.desk-canvas:has(main[data-mode="videos"]) { --page-mode: var(--mode-videos); }
+.desk-canvas:has(main[data-mode="music"]) { --page-mode: var(--mode-music); }
+.desk-canvas:has(main[data-mode="edit"]) { --page-mode: var(--mode-edit); }
+.desk-canvas:has(main[data-mode="presentations"]) { --page-mode: var(--mode-presentations); }
+.desk-canvas:has(main[data-mode="knowledge"]) { --page-mode: var(--mode-knowledge); }
+.desk-canvas:has(main[data-mode="channels"]) { --page-mode: var(--mode-channels); }
+.desk-canvas:has(main[data-mode="workspaces"]) { --page-mode: var(--mode-workspaces); }
+.desk-canvas:has(main[data-mode="usage"]) { --page-mode: var(--mode-usage); }
+.desk-canvas:has(main[data-mode="settings"]) { --page-mode: var(--mode-settings); }
+
+.desk-canvas::before,
+.desk-canvas::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.desk-canvas::after {
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--page-mode, var(--accent)) 11%, var(--surface)) 0, var(--surface) 360px);
+}
+
+.desk-canvas::before {
+  z-index: 0;
+  inset: -24px 0 0;
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--page-mode, var(--accent)) 30%, transparent) 1.3px, transparent 1.8px);
+  background-size: 24px 24px;
+  -webkit-mask-image: linear-gradient(180deg, #000 0, transparent 460px);
+  mask-image: linear-gradient(180deg, #000 0, transparent 460px);
+  animation: nx-dots var(--motion-drift) var(--ease-linear) infinite;
+}
+
+.desk-canvas > * {
+  position: relative;
+  z-index: 1;
 }
 
 [data-testid="product-brand"] {
@@ -814,6 +939,509 @@ aside nav > p {
 }
 
 /* ===========================================================================
+   Lively desk (2026-09-26). Components never write `animate-*` utilities
+   (`lib/motion-tokens.test.ts`), so every movement is a named class here.
+   Keyframes move with the individual `translate` / `scale` properties and
+   `opacity`, all compositor-only.
+   =========================================================================== */
+@keyframes nx-rise {
+  0% {
+    opacity: 0;
+    translate: 0 22px;
+  }
+  100% {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes nx-fade {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes nx-pop {
+  0% {
+    opacity: 0;
+    scale: 0.6;
+  }
+  100% {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes nx-slide-in {
+  0% {
+    opacity: 0;
+    translate: -10px 0;
+  }
+  100% {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes nx-drift {
+  0% {
+    translate: 0 0;
+    scale: 1;
+  }
+  50% {
+    translate: 6% -5%;
+    scale: 1.12;
+  }
+  100% {
+    translate: 0 0;
+    scale: 1;
+  }
+}
+
+@keyframes nx-pulse {
+  0% {
+    translate: 0 0;
+  }
+  30% {
+    translate: 0 -5px;
+  }
+  60% {
+    translate: 0 0;
+  }
+  100% {
+    translate: 0 0;
+  }
+}
+
+@keyframes nx-dots {
+  0% {
+    translate: 0 0;
+  }
+  100% {
+    translate: 0 24px;
+  }
+}
+
+@keyframes nx-bob {
+  0% {
+    translate: 0 0;
+    rotate: 0deg;
+  }
+  50% {
+    translate: 0 -16px;
+    rotate: 14deg;
+  }
+  100% {
+    translate: 0 0;
+    rotate: 0deg;
+  }
+}
+
+@keyframes nx-spin {
+  0% {
+    rotate: 0deg;
+  }
+  100% {
+    rotate: 360deg;
+  }
+}
+
+@keyframes nx-wiggle {
+  0% {
+    rotate: 0deg;
+    scale: 1;
+  }
+  25% {
+    rotate: -14deg;
+    scale: 1.2;
+  }
+  50% {
+    rotate: 10deg;
+    scale: 1.2;
+  }
+  75% {
+    rotate: -4deg;
+    scale: 1.05;
+  }
+  100% {
+    rotate: 0deg;
+    scale: 1;
+  }
+}
+
+@keyframes nx-bounce-in {
+  0% {
+    opacity: 0;
+    scale: 0.3;
+    rotate: -20deg;
+  }
+  55% {
+    opacity: 1;
+    scale: 1.15;
+    rotate: 6deg;
+  }
+  75% {
+    scale: 0.94;
+    rotate: -2deg;
+  }
+  100% {
+    opacity: 1;
+    scale: 1;
+    rotate: 0deg;
+  }
+}
+
+@keyframes nx-page {
+  0% {
+    opacity: 0;
+    translate: 0 32px;
+    scale: 0.97;
+  }
+  100% {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+}
+
+/* Every route arrives: `AppShell` keys its scroller on the pathname. */
+.page-enter {
+  animation: nx-page var(--motion-5) var(--ease-spring) both;
+}
+
+/* Empty chat centers when it fits. `safe` keeps the hero inside the pane when
+   the block is taller than a 900px window — plain center pushes the top negative. */
+.chat-empty-fit {
+  justify-content: safe center;
+}
+
+@media (max-height: 900px) {
+  .chat-empty-fit {
+    justify-content: flex-start;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .chat-empty-fit .hero-aurora {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
+}
+
+/* The header tile bounces in once, then wiggles whenever its header or card is hovered. */
+.tile-bounce {
+  animation: nx-bounce-in var(--motion-5) var(--ease-spring) both;
+}
+
+.card-live:hover .icon-orb,
+.hover-wiggle:hover .icon-orb,
+.hover-wiggle:hover [data-tile],
+[data-testid="mode-header"]:hover .icon-orb {
+  animation: nx-wiggle var(--motion-wiggle) var(--ease-out);
+}
+
+/* A rail tile pops the moment its row becomes the current page. */
+[aria-current="page"] [data-tile] {
+  animation: nx-bounce-in var(--motion-5) var(--ease-spring);
+}
+
+/* Empty-state tiles float so an empty page still breathes. */
+.icon-float {
+  animation: nx-bob var(--motion-bob) var(--ease-wave) infinite;
+}
+
+/* Decorative shapes around heroes and headers (`FloatingShapes`). */
+.float-shapes {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.float-shape {
+  --i: 0;
+  position: absolute;
+  animation:
+    nx-pop var(--motion-5) var(--ease-spring) both,
+    nx-bob var(--motion-bob) var(--ease-wave) infinite;
+  animation-delay: calc(var(--i) * var(--motion-stagger) + var(--motion-3)), calc(var(--i) * var(--motion-stagger) * -9);
+}
+
+.float-shape-spin {
+  animation:
+    nx-pop var(--motion-5) var(--ease-spring) both,
+    nx-spin var(--motion-ambient) var(--ease-linear) infinite;
+}
+
+/* A light sweep across primary buttons on hover. */
+.btn-primary {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.btn-primary::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(110deg, transparent 30%, color-mix(in srgb, #ffffff 38%, transparent) 50%, transparent 70%);
+  translate: -120% 0;
+  transition: translate var(--motion-5) var(--ease-out);
+}
+
+.btn-primary:hover:not(:disabled)::after {
+  translate: 120% 0;
+}
+
+@keyframes nx-confetti {
+  0% {
+    opacity: 1;
+    translate: 0 0;
+    rotate: 0deg;
+    scale: 0.4;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    translate: var(--x) var(--y);
+    rotate: var(--r);
+    scale: 1;
+  }
+}
+
+/* A one-shot burst when a result lands (`Confetti`). Each piece sets `--x`, `--y`, `--r`. */
+.confetti {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.confetti > i {
+  position: absolute;
+  width: 8px;
+  height: 12px;
+  border-radius: 2px;
+  animation: nx-confetti var(--motion-confetti) var(--ease-out) both;
+  animation-delay: calc(var(--i) * var(--motion-stagger) / 4);
+}
+
+@keyframes nx-illustration-bob {
+  0% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -6px;
+  }
+  100% {
+    translate: 0 0;
+  }
+}
+
+/* The empty-state scenes are wider than a tile, so they float without tilting. */
+.illustration-float {
+  animation: nx-illustration-bob var(--motion-bob) var(--ease-wave) infinite;
+}
+
+/* A working pill inside a button takes the button's colours instead of drawing a second pill. */
+.btn .chip {
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: inherit;
+}
+
+.btn-primary .pulse-dots > span:nth-child(n) {
+  background: currentColor;
+}
+
+/* Entrances. Set `style={{ "--i": n }}` on a sibling to stagger it; `--i` defaults to 0. */
+.enter-rise,
+.enter-fade,
+.enter-pop,
+.enter-slide {
+  --i: 0;
+  animation-delay: calc(var(--i) * var(--motion-stagger));
+  animation-fill-mode: both;
+}
+
+.enter-rise {
+  animation-name: nx-rise;
+  animation-duration: var(--motion-5);
+  animation-timing-function: var(--ease-spring);
+}
+
+.enter-fade {
+  animation-name: nx-fade;
+  animation-duration: var(--motion-3);
+  animation-timing-function: var(--ease-out);
+}
+
+.enter-pop {
+  animation-name: nx-pop;
+  animation-duration: var(--motion-5);
+  animation-timing-function: var(--ease-spring);
+}
+
+.enter-slide {
+  animation-name: nx-slide-in;
+  animation-duration: var(--motion-3);
+  animation-timing-function: var(--ease-out);
+}
+
+/* Mode colour. Any element with `data-mode="<id>"` (or an inline `--mode`) paints its icon
+   tiles, rail icon and accents in that mode's colour. */
+[data-mode="chat"] { --mode: var(--mode-chat); }
+[data-mode="documents"] { --mode: var(--mode-documents); }
+[data-mode="research"] { --mode: var(--mode-research); }
+[data-mode="finance"] { --mode: var(--mode-finance); }
+[data-mode="data"] { --mode: var(--mode-data); }
+[data-mode="market"] { --mode: var(--mode-market); }
+[data-mode="legal"] { --mode: var(--mode-legal); }
+[data-mode="meeting"] { --mode: var(--mode-meeting); }
+[data-mode="images"] { --mode: var(--mode-images); }
+[data-mode="videos"] { --mode: var(--mode-videos); }
+[data-mode="music"] { --mode: var(--mode-music); }
+[data-mode="edit"] { --mode: var(--mode-edit); }
+[data-mode="presentations"] { --mode: var(--mode-presentations); }
+[data-mode="knowledge"] { --mode: var(--mode-knowledge); }
+[data-mode="channels"] { --mode: var(--mode-channels); }
+[data-mode="workspaces"] { --mode: var(--mode-workspaces); }
+[data-mode="usage"] { --mode: var(--mode-usage); }
+[data-mode="settings"] { --mode: var(--mode-settings); }
+
+.mode-tint {
+  color: var(--mode, var(--accent));
+}
+
+/* The chunky card: thick border, solid lip underneath, lifts on hover and presses on click. */
+.card-live {
+  position: relative;
+  border: 2px solid var(--line);
+  background: var(--surface);
+  border-radius: var(--r-card);
+  box-shadow: var(--lip);
+  transition:
+    translate var(--motion-1) var(--ease-out),
+    box-shadow var(--motion-1) var(--ease-out),
+    border-color var(--motion-1) var(--ease-out),
+    background-color var(--motion-1) var(--ease-out);
+}
+
+.card-live:hover,
+.card-live:focus-visible {
+  translate: 0 -4px;
+  box-shadow: 0 7px 0 color-mix(in srgb, var(--mode, var(--accent)) 40%, var(--line));
+  border-color: color-mix(in srgb, var(--mode, var(--accent)) 45%, var(--line));
+}
+
+.card-live:active {
+  translate: 0 2px;
+  box-shadow: var(--lip-press);
+}
+
+/* A solid icon tile in the mode's colour; `-soft` is the tinted variant for dense lists. */
+.icon-orb {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--mode, var(--accent)) 14%, var(--surface));
+  color: var(--mode, var(--accent));
+}
+
+.icon-orb-lg {
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+}
+
+.icon-orb-solid {
+  background: var(--mode, var(--accent));
+  color: #ffffff;
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--mode, var(--accent)) 70%, #000000);
+}
+
+.text-gradient {
+  background: var(--grad-text);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* A hero panel: a flat tint in the mode's colour with a thick edge. No moving glow. */
+.hero-aurora {
+  position: relative;
+  border-radius: var(--r-hero);
+  background: color-mix(in srgb, var(--mode, var(--accent)) 7%, var(--surface));
+  border: 2px solid color-mix(in srgb, var(--mode, var(--accent)) 18%, var(--line));
+}
+
+.hero-glow {
+  position: relative;
+}
+
+/* Three bouncing dots for "working on it". */
+.pulse-dots {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.pulse-dots > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--mode, var(--accent));
+  animation: nx-pulse var(--motion-pulse) var(--ease-wave) infinite;
+}
+
+.pulse-dots > span:nth-child(2) {
+  background: var(--accent-3);
+  animation-delay: calc(var(--motion-pulse) / 6);
+}
+
+.pulse-dots > span:nth-child(3) {
+  background: var(--accent-4);
+  animation-delay: calc(var(--motion-pulse) / 3);
+}
+
+/* A pill chip: status, counts, tags that want colour. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.chip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ok);
+}
+
+/* ===========================================================================
    Reduced motion. One block, and it is the last word on every rule above.
    Anyone who asked their OS to stop animations gets the end state at once:
    no transition, no animation, no smooth scroll. A new looping animation or
@@ -830,5 +1458,31 @@ aside nav > p {
     transition-duration: 0.01ms !important;
     transition-delay: 0ms !important;
     scroll-behavior: auto !important;
+  }
+
+  .pulse-dots > span,
+  .desk-canvas::before,
+  .icon-float,
+  .illustration-float,
+  .float-shape,
+  .float-shape-spin,
+  .tile-bounce,
+  .page-enter {
+    animation: none !important;
+  }
+
+  .confetti {
+    display: none;
+  }
+
+  .btn-primary::after {
+    display: none;
+  }
+
+  .card-live:hover,
+  .card-live:focus-visible,
+  .card-live:active,
+  .btn-primary:active:not(:disabled) {
+    translate: none !important;
   }
 }

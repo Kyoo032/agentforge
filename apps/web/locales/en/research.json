@@ -6,7 +6,7 @@
   "tabNotes": "Notes",
   "tabDossier": "Dossier",
   "emptyTitle": "No dossier yet",
-  "emptyBody": "Enter a question below. Search uses your Tavily or Brave key from Settings; pages are read over HTTPS.",
+  "emptyBody": "Enter a question below. Pages are read over HTTPS.",
   "promptPlaceholder": "What changed in IDX listing rules this year?",
   "promptAria": "Research question",
   "cancel": "Cancel",

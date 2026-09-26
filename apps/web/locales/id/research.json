@@ -6,7 +6,7 @@
   "tabNotes": "Catatan",
   "tabDossier": "Dosir",
   "emptyTitle": "Belum ada dosir",
-  "emptyBody": "Masukkan pertanyaan di bawah. Pencarian memakai kunci Tavily atau Brave dari Pengaturan; halaman dibaca lewat HTTPS.",
+  "emptyBody": "Masukkan pertanyaan di bawah. Halaman dibaca lewat HTTPS.",
   "promptPlaceholder": "Apa yang berubah pada aturan pencatatan IDX tahun ini?",
   "promptAria": "Pertanyaan riset",
   "cancel": "Batal",

@@ -1,13 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties, type FormEvent } from "react";
 import { ArtifactActions } from "@/components/artifact-actions";
+import { Confetti } from "@/components/confetti";
 import { DataAnalysisView } from "@/components/data-analysis-view";
 import { DataGrid } from "@/components/data-grid";
 import { DatasetProfile } from "@/components/dataset-profile";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { JobProgressList } from "@/components/job-progress";
+import { ModeHeader } from "@/components/mode-header";
+import { ModeIllustration } from "@/components/mode-illustration";
 import { ModelSelect } from "@/components/model-select";
+import { WorkingStatus } from "@/components/working-status";
 import {
   DATASET_ACCEPT,
   createPastedDataset,
@@ -67,6 +71,7 @@ export function DataStudio() {
   const [saved, setSaved] = useState<DatasetSummary[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [shown, setShown] = useState<Shown | null>(null);
+  const [landed, setLanded] = useState(0);
   const [loading, setLoading] = useState<"upload" | "paste" | "open" | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
@@ -165,27 +170,29 @@ export function DataStudio() {
     });
     if (result) {
       setShown({ result });
+      setLanded((count) => count + 1);
       setHistory((items) => [...items, { question, summary: result.analysis.summary }].slice(-HISTORY_MAX));
       setPrompt("");
     }
   }
 
   return (
-    <main className="mx-auto w-full max-w-[var(--content-wide)] px-6 pb-10 pt-8 text-[var(--text)]" data-testid="data-studio">
-      <div className="mb-5 flex flex-wrap items-end gap-4">
-        <div>
-          <h3 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("data.title")}</h3>
-          {/* Title plus one outcome line (owner report 2026-09-23). The `lede` paragraph
-              moved into the disclosure below and the "workspace" kicker was deleted. */}
-          <p className="mt-2 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="expected-inputs">{t("data.expectedInputs")}</p>
-        </div>
+    <main
+      data-mode="data"
+      className="mx-auto w-full max-w-[var(--content-wide)] px-6 pb-10 pt-8 text-[var(--text)]"
+      data-testid="data-studio"
+    >
+      <div className="mb-5">
+        <ModeHeader icon="data" title={t("data.title")} outcome={t("data.expectedInputs")} />
       </div>
       {/* Where the profile and the SQL trace come from. Not needed to get started. */}
       <details className="mb-5 rounded-lg border border-[var(--line)] px-3 py-2" data-testid="data-how">
         <summary className="cursor-pointer select-none text-xs font-medium text-[var(--text-2)]">
           {t("data.howItWorks")}
         </summary>
-        <p className="mt-2 max-w-[var(--content-narrow)] text-xs text-[var(--text-3)]">{t("data.howItWorksBody", { productName })}</p>
+        <p className="mt-2 max-w-[var(--content-narrow)] text-xs text-[var(--text-3)]">
+          {t("data.howItWorksBody", { productName })}
+        </p>
       </details>
       {error ? (
         <p className="mb-4 text-sm text-[var(--danger)]" role="alert" data-testid="data-error">
@@ -219,7 +226,7 @@ export function DataStudio() {
               disabled={busy}
               data-testid="data-upload"
             >
-              {loading === "upload" ? t("data.reading") : t("data.upload")}
+              {loading === "upload" ? <WorkingStatus label={t("data.reading")} /> : t("data.upload")}
             </button>
             {saved.length > 0 ? (
               <select
@@ -307,7 +314,8 @@ export function DataStudio() {
             <JobProgressList progress={job.progress} busy={job.busy} testId="data-progress" />
           ) : null}
           {shown ? (
-            <>
+            <div className="enter-rise relative space-y-4">
+              {landed > 0 ? <Confetti key={landed} /> : null}
               <ArtifactActions
                 title={shown.result.analysis.title}
                 markdown={shown.result.markdown}
@@ -317,21 +325,23 @@ export function DataStudio() {
                 testIdPrefix="data"
               />
               <DataAnalysisView analysis={shown.result.analysis} testIdPrefix="data" />
-            </>
+            </div>
           ) : job.busy ? null : (
             <div
-              className="wash rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-8 text-center text-[var(--text-2)]"
+              className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center text-[var(--text-2)]"
               data-testid="data-studio-empty"
             >
-              <p>{dataset ? t("data.emptyAsk") : t("data.emptyUpload")}</p>
+              <ModeIllustration mode="data" />
+              <p className="mt-4">{dataset ? t("data.emptyAsk") : t("data.emptyUpload")}</p>
             </div>
           )}
           <div className="flex flex-col gap-2" data-testid="data-starters">
-            {DATA_STARTERS.map((starter) => (
+            {DATA_STARTERS.map((starter, index) => (
               <button
                 key={starter.id}
                 type="button"
-                className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3 text-left text-[var(--text)]"
+                className="card-live enter-rise p-3 text-left text-[var(--text)]"
+                style={{ "--i": index } as CSSProperties}
                 data-testid="data-starter"
                 onClick={() => setPrompt(labeled(`data.starters.${starter.id}.prompt`, starter.prompt))}
                 disabled={busy}
@@ -383,7 +393,7 @@ export function DataStudio() {
             disabled={busy || !prompt.trim()}
             data-testid="data-generate"
           >
-            {job.busy ? t("data.working") : t("data.analyze")}
+            {job.busy ? <WorkingStatus label={t("data.working")} /> : t("data.analyze")}
           </button>
         </div>
       </form>

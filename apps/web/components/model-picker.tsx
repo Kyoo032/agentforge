@@ -437,7 +437,7 @@ export function ModelPicker({ models, value, onChange, disabled, returnFocusRef 
       <button
         ref={triggerRef}
         type="button"
-        className="wash inline-flex h-8 w-full min-w-0 items-center overflow-hidden rounded-lg border border-[var(--line)] bg-transparent px-2 text-left text-xs font-medium text-[var(--text)] hover:bg-[var(--accent-soft)] disabled:opacity-45"
+        className="wash inline-flex h-8 w-full min-w-0 items-center overflow-hidden rounded-pill border border-[var(--line)] bg-transparent px-3 text-left text-xs font-medium text-[var(--text)] hover:bg-[var(--accent-soft)] disabled:opacity-45"
         data-testid="model-picker"
         aria-haspopup="listbox"
         aria-expanded={open}

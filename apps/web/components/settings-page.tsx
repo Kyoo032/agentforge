@@ -19,6 +19,7 @@ import {
   type GatewayGateStatus,
 } from "@/lib/gateway-gate";
 import { applyLocale, getLocale, LOCALE_RESTART_EVENT, t } from "@/lib/i18n";
+import { ModeHeader } from "@/components/mode-header";
 import { isAppLocale, parseAppLocale, type AppLocale } from "@agentforge/core/locale";
 import { gatewayHostLabel, useProductBrand } from "@/lib/product-brand";
 import { useWorkspaceScope } from "@/lib/workspace-scope";
@@ -366,14 +367,20 @@ export function SettingsPage() {
 
   return (
     <main className="mx-auto max-w-[var(--content-narrow)] px-6 py-8 text-[var(--text)]">
-      <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("settings.title")}</h1>
-      <p className="mt-2 max-w-[var(--content-narrow)] text-[13px] text-[var(--text-2)]">
-        {t("settings.intro", {
-          workspaceName,
-          gatewayName,
-          gatewayHost: gatewayHostLabel(gatewayEndpoint),
-        })}
-      </p>
+      <ModeHeader
+        icon="settings"
+        title={t("settings.title")}
+        outcomeTestId="settings-intro"
+        outcome={
+          hasOpenai
+            ? t("settings.intro", {
+                workspaceName,
+                gatewayName,
+                gatewayHost: gatewayHostLabel(gatewayEndpoint),
+              })
+            : t("settings.introNeedsKey", { gatewayName })
+        }
+      />
 
       {loadError ? (
         <p className="mt-3 text-sm text-[var(--danger)]" role="alert" data-testid="settings-load-error">
@@ -477,25 +484,27 @@ export function SettingsPage() {
               data-testid="openai-key"
             />
           </label>
-          <label className="block text-sm text-[var(--text)]">
-            {t("settings.editCapLabel")}
-            <input
-              className={fieldClass}
-              type="number"
-              min={0.5}
-              max={50}
-              step={0.5}
-              value={editTurnCapUsd}
-              onChange={(event) => {
-                const next = Number(event.target.value);
-                if (!Number.isFinite(next)) {
-                  return;
-                }
-                setEditTurnCapUsd(Math.min(50, Math.max(0.5, next)));
-              }}
-              data-testid="settings-edit-turn-cap"
-            />
-          </label>
+          {hasOpenai ? (
+            <label className="block text-sm text-[var(--text)]">
+              {t("settings.editCapLabel")}
+              <input
+                className={fieldClass}
+                type="number"
+                min={0.5}
+                max={50}
+                step={0.5}
+                value={editTurnCapUsd}
+                onChange={(event) => {
+                  const next = Number(event.target.value);
+                  if (!Number.isFinite(next)) {
+                    return;
+                  }
+                  setEditTurnCapUsd(Math.min(50, Math.max(0.5, next)));
+                }}
+                data-testid="settings-edit-turn-cap"
+              />
+            </label>
+          ) : null}
           {hasOpenai && openaiKeyFingerprint ? (
             <p className="mt-1 text-xs text-[var(--text-3)]" data-testid="key-fingerprint">
               {t("settings.fingerprint", { fingerprint: openaiKeyFingerprint })}

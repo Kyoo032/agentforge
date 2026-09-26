@@ -7,6 +7,7 @@ import { t } from "@/lib/i18n";
 import { parseGatewayGate, type GatewayGatePayload } from "@/lib/gateway-gate";
 import { useProductBrand } from "@/lib/product-brand";
 import { useSession } from "@/lib/session";
+import { hostWithholdsLiveModel } from "@/lib/use-desk-needs-key";
 
 function formatChecked(iso: string | null): string {
   if (!iso) return "";
@@ -106,7 +107,11 @@ export function ChatKeyStatus() {
       </p>
       <div className="flex flex-wrap items-center justify-center gap-2">
         {settings ? (
-          <Link href="/settings" className="btn">
+          <Link
+            href="/settings"
+            className={hostWithholdsLiveModel(gate) ? "btn btn-primary" : "btn"}
+            data-testid="chat-empty-settings"
+          >
             {t("chat.empty.settingsLink")}
           </Link>
         ) : null}

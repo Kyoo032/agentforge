@@ -38,7 +38,9 @@ function errorState(current: UpdateState, error: unknown, fallback: string): Upd
 
 /** Desktop updater state + actions, shared by whichever surface renders the Updates control. */
 export function useAppUpdates(productName: string): AppUpdatesController {
-  const visible = productName === PUBLIC_PRODUCT_NAME;
+  // The web desk has no installer to update. The icon and the "installed app /
+  // GitHub releases" sentence belong on the packaged shell only.
+  const visible = productName === PUBLIC_PRODUCT_NAME && isElectron();
   const [state, setState] = useState<UpdateState>(initialUpdateState);
   const [busy, setBusy] = useState(false);
   const supported = visible && state.supported;

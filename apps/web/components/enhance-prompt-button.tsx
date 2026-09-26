@@ -13,6 +13,8 @@ type Props = {
   testId?: string;
   onApply: (next: string) => void;
   onBusyChange?: (busy: boolean) => void;
+  /** Chat's toolbar is a row of pills. Other desks keep the tighter control. */
+  pill?: boolean;
 };
 
 /** The sentence for a failed enhance: the host's reason when it gave one, otherwise the catalog's. */
@@ -32,6 +34,7 @@ export function EnhancePromptButton({
   testId = "composer-enhance",
   onApply,
   onBusyChange,
+  pill = false,
 }: Props) {
   const [busy, setBusy] = useState(false);
   const [enhanced, setEnhanced] = useState(false);
@@ -119,7 +122,7 @@ export function EnhancePromptButton({
     <>
       <button
         type="button"
-        className={`wash inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border bg-transparent px-2 text-xs font-medium hover:bg-[var(--surface-2)] disabled:opacity-45 ${
+        className={`wash inline-flex h-8 shrink-0 items-center gap-1.5 border bg-transparent px-3 text-xs font-medium hover:bg-[var(--surface-2)] disabled:opacity-45 ${pill ? "rounded-pill" : "rounded-lg"} ${
           failed ? "border-[var(--danger)] text-[var(--danger)]" : "border-[var(--line)] text-[var(--text)]"
         }`}
         data-tip={failed ? error : actionLabel}

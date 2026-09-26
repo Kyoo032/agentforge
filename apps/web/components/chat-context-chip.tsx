@@ -116,7 +116,7 @@ export function ChatContextChip({ usedTokens, contextLength, parts }: Props) {
       ? createPortal(
           <div
             ref={panelRef}
-            className="raise fixed z-[80] overflow-y-auto rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4"
+            className="fixed z-[80] overflow-y-auto rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4 shadow-elev-2"
             data-testid="chat-context-breakdown"
             role="dialog"
             aria-label={t("chat.context.window")}
@@ -141,7 +141,9 @@ export function ChatContextChip({ usedTokens, contextLength, parts }: Props) {
                     <span className="block text-[var(--text)]">{row.label}</span>
                     {row.detail ? <span className={`block ${MUTED}`}>{row.detail}</span> : null}
                   </span>
-                  <span className="w-[52px] shrink-0 pt-px text-right tabular-nums">{formatContextLength(row.tokens)}</span>
+                  <span className="w-[52px] shrink-0 pt-px text-right tabular-nums">
+                    {formatContextLength(row.tokens)}
+                  </span>
                 </div>
               ))}
               <div className={`flex items-start gap-2 py-1.5 text-xs ${MUTED}`}>
@@ -167,7 +169,7 @@ export function ChatContextChip({ usedTokens, contextLength, parts }: Props) {
       <button
         ref={triggerRef}
         type="button"
-        className="wash flex items-center gap-2 whitespace-nowrap rounded-lg border border-[var(--line)] bg-[var(--surface)] py-1 pl-1.5 pr-2.5 text-xs text-[var(--text-3)] hover:bg-[var(--accent-soft)]"
+        className="chip wash whitespace-nowrap"
         data-testid="chat-context"
         title={title}
         aria-expanded={open}

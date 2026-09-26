@@ -29,7 +29,8 @@ Camera: 50mm equivalent, eye-level, shallow depth of field (subject sharp, stone
 Grade: muted, high-end catalog. Cool stone, warm metal hinge. 4:5 crop, generous negative space.
 
 Must not: logos, readable UI, hands, watermarks, extra products, neon, busy backgrounds.`,
-    resultSummary: "Catalog hero with a real lighting setup and a reserved type column — not a floating gadget on grey.",
+    resultSummary:
+      "Catalog hero with a real lighting setup and a reserved type column — not a floating gadget on grey.",
   },
   {
     mode: "images",
@@ -224,15 +225,15 @@ Must not: faces, text, slow-mo syrup, latte art logos.`,
     title: "Decision memo",
     prompt: `Write a decision memo a director can approve in one sitting. This is a finished memo, not a skeleton.
 
-Role: chief of staff to the operator.
+Role: operations lead.
 Audience: the person who will pick one option today.
 Deliverable: 5–7 sections, 700–1000 words. Short paragraphs. No executive-summary fluff.
 
 Sample context (replace bracketed fields, keep the shape):
-- Decision: whether [Northline] [keeps building checkout on the current gateway] or [moves the next quarter of volume to a second provider].
-- Why now: [renewal in 6 weeks], [error budget at 2.1%], [one enterprise deal blocked on uptime].
-- Options: stay; dual-run for 90 days; hard cutover in 30 days.
-- Constraint: [one engineer-week] and [no new vendor legal review this month] unless we pick the hard cutover.
+- Decision: whether [Harbour Street] [keeps Saturday pickup on the current card reader] or [moves next quarter's Saturday volume to a second reader].
+- Why now: [the reader contract renews in 6 weeks], [Saturday wait is 8 minutes against a 5-minute target], [one wholesale account is waiting on a reliable Saturday slot].
+- Options: stay; run both readers for 90 days; switch fully in 30 days.
+- Constraint: [one week of Maya's time] and [no new supplier contract this month] unless we pick the full switch.
 
 Required sections:
 1. Decision in one sentence (name the pick).
@@ -244,7 +245,8 @@ Required sections:
 
 Quality bar: specific numbers from the sample or clearly tagged [sample]. No “we should consider exploring.” No “in today’s landscape.”
 Do not invent statutes, customers, or quotes.`,
-    resultSummary: "A one-sitting decision memo with a named pick, tradeoffs, and a 30-day measure — not empty headings.",
+    resultSummary:
+      "A one-sitting decision memo with a named pick, tradeoffs, and a 30-day measure — not empty headings.",
   },
   {
     mode: "documents",
@@ -256,10 +258,10 @@ Audience: the people who will do the work and the person funding it.
 Deliverable: 6 sections, ~600–800 words.
 
 Sample context (replace bracketed fields):
-- Project: ship [Fieldnote] [export-to-DOCX] so [owners] can leave the studio with a file.
+- Project: set up [Saturday pickup] [named bags and a spare card reader] so [customers] can leave with their order.
 - Window: [three weeks].
-- Success: [first 20 exports] complete without a support thread; [p95 under 8s].
-- Out of scope: [collaborative editing], [cloud sync].
+- Success: [the first 20 Saturday orders] leave without a counter argument; [wait under 8 minutes].
+- Out of scope: [a second shop], [home delivery].
 
 Required sections:
 1. Outcome (one paragraph, measurable).
@@ -269,7 +271,7 @@ Required sections:
 5. Sequence (week 1 / 2 / 3) with a named owner per week.
 6. Ask (decision or resource).
 
-Quality bar: a stranger can tell what “done” looks like. No mission statements. No classroom jargon.
+Quality bar: a stranger can tell what “done” looks like. No mission statements. No wording that only makes sense in our own notes.
 Do not invent budget line items that are not in the sample.`,
     resultSummary: "An executable one-pager with scope, a three-week sequence, and a clear ask.",
   },
@@ -283,16 +285,16 @@ Audience: two reviewers who will stamp or block.
 Deliverable: 7–8 sections, 900–1300 words.
 
 Sample context (replace bracketed fields):
-- Change: store [workspace product modes] on the [workspace row] instead of inferring them from [custom agents].
-- Problem: [Home only showed Chat + Agents] until someone built an agent; job studios stayed locked.
-- Constraint: do not delete [agent tables]; Chat still uses the hidden [quick-chat] agent.
+- Change: store [the Saturday pickup window] on [the order] instead of inferring it from [the menu name].
+- Problem: [the counter only showed walk-in] until someone wrote a note; [pre-orders stayed in a side book].
+- Constraint: do not throw away [the old order book]; the till still uses [the walk-in ticket].
 
 Required sections:
 1. Summary (what changes, what does not).
 2. Problem and who feels it.
 3. Proposal (data, read path, write path).
 4. Alternatives considered (at least two, with why they lose).
-5. Rollout and migrate (null means all work modes).
+5. Rollout and migrate (a blank window means every Saturday).
 6. Risks and how we will notice them.
 7. Open questions (real ones, not “TBD”).
 
@@ -310,10 +312,10 @@ Audience: attendees plus two people who were not there.
 Deliverable: 4 sections. Tight lists. Every action has an owner and a date.
 
 Sample notes (replace with yours, keep this density):
-- [Northline] checkout: error budget [2.1%], [Sam] wants dual-run, [Leah] says legal will not review a second vendor this month.
-- [Fieldnote] export: [week 2], [Jin] owns DOCX; blocked on [filename collisions].
-- Parking: [usage dashboard colors], [rename the product].
-- Decision (provisional): stay on the current gateway through [renewal]; write the dual-run design this week.
+- [Harbour Street] Saturday: wait [8 minutes], [Maya] wants both readers, [Priya] says accounts will not sign a second supplier this month.
+- [Bag labels]: [week 2], [Alex] owns the printer; blocked when [two orders share a name].
+- Parking: [flyer colours], [rename the Saturday slot].
+- Decision (provisional): stay on the current reader through [renewal]; write the two-reader plan this week.
 
 Required sections:
 1. Decisions (what was actually decided — if provisional, say so).
@@ -335,8 +337,8 @@ Audience: a mixed room (ops + one decision-maker).
 Deliverable: timed blocks with a desired outcome per block, plus a one-paragraph purpose at the top.
 
 Sample context (replace bracketed fields):
-- Kickoff for [Fieldnote export].
-- Room: [Jin] (build), [Leah] (legal), [Sam] (ops), [you].
+- Kickoff for [Saturday pickup].
+- Room: [Alex] (counter), [Priya] (accounts), [Maya] (floor), [you].
 - Must leave with: [scope locked], [week-1 owner], [the one risk we will watch].
 
 Required blocks (keep the times, rewrite the prompts):
@@ -360,11 +362,11 @@ Audience: the person picking this up cold.
 Deliverable: 6 sections, checkbox lists where they help, short paragraphs where they do not.
 
 Sample context (replace bracketed fields):
-- Handing [Fieldnote export] from [Jin] to [Rafi].
-- Done: [outline JSON], [DOCX download from a starter].
-- In progress: [section regen with attachments].
-- Known break: [filenames collide when two exports share a title].
-- Where it lives: [apps/web/lib/document-generate.ts], [packages/core templates].
+- Handing [Saturday pickup] from [Alex] to [Priya].
+- Done: [printed bag labels], [a spare reader on the counter].
+- In progress: [timing the Saturday queue].
+- Known break: [two orders with the same name land in one bag].
+- Where it lives: [the counter binder], [the Saturday checklist on the wall].
 
 Required sections:
 1. What this is (one paragraph).
@@ -374,7 +376,7 @@ Required sections:
 5. Known risks and the first place to look.
 6. Paths, credentials (none in-repo), and how to verify.
 
-Quality bar: the new owner should not need Slack. Mark secrets as “in Settings / keychain,” never paste keys.
+Quality bar: the new owner should not need a call. Mark card numbers as “in the locked drawer,” never write them in the pack.
 No “happy to hop on a call if needed” as a substitute for the pack.`,
     resultSummary: "A Monday-ready handoff with paths, risks, and proof of done — not a farewell paragraph.",
   },
@@ -383,7 +385,7 @@ No “happy to hop on a call if needed” as a substitute for the pack.`,
     title: "Competitive landscape",
     prompt: `Produce a landscape note a product lead can use in a Monday review. This is research, not a listicle.
 
-Question: How do local-first AI workspaces differ from hosted “paste a key and chat” clients, and what actually matters to a single-operator buyer?
+Question: How do neighbourhood bakeries differ from chain cafes on Saturday pickup, and what actually matters to a person buying one loaf?
 
 Method:
 - Search for current product pages, recent reviews, and pricing pages (last 12 months).
@@ -398,14 +400,15 @@ Deliverable (6 notes + a summary):
 
 Quality bar: every claim has a source URL from the hits. Mark confidence (high/med/low). No “the market is rapidly evolving.”
 Do not invent funding rounds or user counts.`,
-    resultSummary: "A sourced landscape with a buyer job, three real products, and dated change — not three adjectives.",
+    resultSummary:
+      "A sourced landscape with a buyer job, three real products, and dated change — not three adjectives.",
   },
   {
     mode: "research",
     title: "Source synthesis",
     prompt: `Synthesize the search hits (and any attached files) into a brief a skeptic would trust.
 
-Topic: [replace] whether a personal AI client should keep custom-agent builders in the default UI or park them.
+Topic: [replace] whether a Saturday market stall should keep a custom order form on the counter or park it and take orders by phone.
 
 Method:
 - Cluster hits into themes. Quote or paraphrase with URLs.
@@ -418,7 +421,7 @@ Deliverable:
 - A final note: “What would change this recommendation.”
 
 Quality bar: if hits are thin, the summary says so and does not pad. No invented papers.
-Do not use classroom framing unless the hits are about that.`,
+Do not use school framing unless the hits are about that.`,
     resultSummary: "A theme map with disagreements and a kill-criterion — not a stacked summary of the same take.",
   },
   {
@@ -426,7 +429,7 @@ Do not use classroom framing unless the hits are about that.`,
     title: "Question backlog",
     prompt: `Build a research backlog a team can work in order. Questions only — no fake answers.
 
-Topic: [replace] what a one-person Toko Token client must prove in the first 30 days after install (key paste → first useful artifact).
+Topic: [replace] what a one-person bakery must prove in the first 30 days after opening Saturday pickup (first order → first happy return).
 
 Deliverable:
 - Title + 6-line framing of the decision these questions serve.
@@ -442,7 +445,7 @@ If search hits suggest a question is already settled, say so and demote it.`,
     title: "Claim check",
     prompt: `Stress-test one claim. Do not write a general explainer.
 
-Claim (replace): “Operators will not miss a custom-agent builder if Chat and the job studios work on Home.”
+Claim (replace): “Regulars will not miss a custom order form if the counter and the phone line work on Saturday.”
 
 Method:
 - Search for contrary product decisions, reviews that mention builders, and any data on feature discovery.
@@ -465,8 +468,8 @@ Do not invent surveys.`,
     title: "Options matrix",
     prompt: `Build a comparison a decision-maker can scan in two minutes, then read.
 
-Decision (replace): how a local AI client should expose models after the owner pastes one gateway key.
-Options: (A) one curated picker, (B) raw provider catalog, (C) curated + an Advanced disclosure.
+Decision (replace): how a neighbourhood bakery should show bread after the owner posts one Saturday menu.
+Options: (A) one short list on the door, (B) the full recipe book, (C) the short list plus a longer menu behind the counter.
 
 Rows you must fill (mark unknown, do not guess): cost to the owner, time to first success, risk of a bad default, lock-in, reversibility, support burden.
 
@@ -485,12 +488,12 @@ Sources on any factual claim.`,
     title: "Vendor diligence",
     prompt: `Write a diligence note for a single inference vendor. Skeptical. Sourced.
 
-Vendor under review (replace): the OpenAI-compatible gateway at api.tokotokenai.com (Toko Token). Do not confuse it with other similarly named products.
+Vendor under review (replace): the card-reader company named on the Saturday contract. Do not confuse it with a similarly named bank.
 
-Look for: auth model, rate limits, image/video endpoints, retention language, status page, pricing page, and what breaks if the key is wrong.
+Look for: how a charge is taken, daily limits, receipt wording, what they keep, a status page, a price page, and what breaks if the reader is declined.
 
 Deliverable:
-- Summary: fit for a single-operator local client (yes / yes-with-gaps / no), plus confidence.
+- Summary: fit for a one-counter Saturday shop (yes / yes-with-gaps / no), plus confidence.
 - Notes: product surface, pricing shape, data handling as they state it, operational risk, open questions.
 - Every factual sentence needs a hit URL. If the site is silent, write “not published” — do not infer.
 
@@ -508,19 +511,19 @@ Audience: they already use model APIs; they do not want another “agent platfor
 Deliverable: 9 slides. Each slide: a claim heading (not a topic), 3–5 complete-sentence bullets, and speaker notes that say what you argue if they push back.
 
 Sample story (replace bracketed fields, keep the arc):
-- [Kiln] is a local client for [Toko Token]. You install it, paste a key, and work in Chat plus job studios. Custom-agent Build is parked on purpose.
-- Pain: buying a gateway key leaves “where do I use this?”
-- Insight: the buyer is one person on one machine, not an org admin.
-- Ask: [design partners for the installer] this month — not a priced round unless you change it.
+- [Harbour Street] is a Saturday pickup counter. You walk in, pay, and leave with a named bag. A custom order form is parked on purpose.
+- Pain: paying for bread still leaves “where do I collect it?”
+- Insight: the buyer is one person collecting one order, not a purchasing office.
+- Ask: [three regulars to try Saturday pickup] this month — not a priced round unless you change it.
 
 Slide arc (keep this order):
 1. Title — the job, not the category.
-2. The moment after they buy a key.
-3. Why hosted suites and tinkerer shells both miss.
-4. The product: Home has every work mode; a workspace can shrink the rail.
-5. How a job (Documents or Images) actually finishes.
-6. Why Build is parked.
-7. Proof or plan (installer exists; be honest about what is not proven).
+2. The moment after they pay.
+3. Why a chain cafe and a blank order form both miss.
+4. The counter: every Saturday order has a name; a quiet week can shrink the menu.
+5. How an order (a bag or a receipt) actually finishes.
+6. Why the custom form is parked.
+7. Proof or plan (the counter is open; be honest about what is not proven).
 8. The ask.
 9. Next seven days.
 
@@ -538,10 +541,10 @@ Audience: two peers and one decision-maker. They have not read the tracker.
 Deliverable: 7 slides. Headings are facts or asks. Bullets are complete. Notes say the one number you will defend.
 
 Sample week (replace):
-- Shipped: [workspace-owned rail], [Settings is key-only].
-- Slipped: [packaged installer not rebuilt], so the installed app is still last month’s UI.
-- Risk: [prompt templates were one-liners], so live jobs look cheap.
-- Ask: [approve rebuilding the NSIS] or [keep using desktop:dev].
+- Shipped: [named bags], [the spare reader is on the counter].
+- Slipped: [the door menu was not reprinted], so the door still shows last month’s hours.
+- Risk: [the handover notes were one line], so Saturday looked thin.
+- Ask: [approve reprinting the menu] or [keep the whiteboard].
 
 Slide list:
 1. Title + the week ending date.
@@ -566,9 +569,9 @@ Audience: six people who did not read the pre-read.
 Deliverable: 6 slides. Working agreements and outcomes are specific enough to point at later.
 
 Sample session (replace):
-- Purpose: lock [Fieldnote export] scope for three weeks.
+- Purpose: lock [Saturday pickup] scope for three weeks.
 - Outcome: a written in/out list and a week-1 owner before lunch.
-- Agreement: phones down for the first 40 minutes; park product-rename talk.
+- Agreement: phones down for the first 40 minutes; park menu-rename talk.
 
 Slides:
 1. Why this room, today.
@@ -592,17 +595,17 @@ Audience: support + one exec + the people who will click it.
 Deliverable: 8 slides. Include limits and a support path — a launch without those is a demo.
 
 Sample ship (replace):
-- What shipped: [GTM workspace-first rail] on webdev.
-- Who it is for: [the operator of this machine].
-- How to try: [open /chat, confirm six work tabs, paste-key Settings].
-- Known limit: [installed Electron is last build until NSIS is rebuilt].
-- Support: [this repo’s Settings + doctor.mjs], not a ticket queue.
+- What shipped: [Saturday pickup] on the counter.
+- Who it is for: [people who ordered ahead].
+- How to try: [come at 10, give your name, pay, take the bag].
+- Known limit: [the printed menu is still last month until we reprint].
+- Support: [the counter binder], not a ticket queue.
 
 Slides:
 1. What is in their hands today.
 2. Who it is for (and not for).
-3. The path: install or webdev → key → first job.
-4. What they should see on Home.
+3. The path: door → name → bag.
+4. What they should see on the counter.
 5. What we parked and why.
 6. Known limits (honest).
 7. If it breaks, do this.
@@ -622,10 +625,10 @@ Audience: the people who did the work.
 Deliverable: 6 slides. Bullets under eight words only if they still make a claim. Notes hold the story.
 
 Sample cycle (replace):
-- Tried: [agent-union rail], then [workspace-owned modes].
-- Worked: [Home unlocks all job studios].
-- Stalled: [example prompts were one-liners], so generate looked cheap.
-- Change: [rewrite the template library as briefs] and [stop calling cards “examples”].
+- Tried: [a shared order book], then [a named bag per order].
+- Worked: [the counter can see every Saturday order].
+- Stalled: [the notes were one line], so the handoff looked thin.
+- Change: [rewrite the Saturday checklist as full steps] and [stop calling the cards “ideas”].
 
 Slides:
 1. The cycle we are judging (dates).
@@ -649,11 +652,11 @@ Audience: mixed — some will only remember one slide.
 Deliverable: 7 slides. One metric. One story. One ask. Friendly, not cute.
 
 Sample recap (replace):
-- Win: [Chat is ready without Build].
-- Miss: [packaged app still on the August installer].
-- Metric: [first useful artifact time] — say if we did not measure it.
-- Story: [someone pasted a key and could not find Documents until this week].
-- Ask: [rebuild desktop] or [keep using the webdev window].
+- Win: [the counter is ready without a custom form].
+- Miss: [the door menu is still the August sheet].
+- Metric: [minutes from arrival to bag] — say if we did not measure it.
+- Story: [someone paid and could not find their bag until this week].
+- Ask: [reprint the menu] or [keep the whiteboard].
 
 Slides:
 1. Two-week title.

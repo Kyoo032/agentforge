@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { Link } from "@/lib/nav";
 import { usePathname } from "@/lib/nav";
 import { PRODUCT_MODES, firstVisibleHref, productModeMatches, type ProductMode } from "@agentforge/core/product-modes";
@@ -18,6 +18,7 @@ import {
   RailMarketSpecialistsToggle,
   useRailMarketSpecialists,
 } from "@/components/rail-market-specialists";
+import { ModeIcon, isModeIconName, type ModeIconName } from "@/components/mode-icons";
 import { useProductBrand } from "@/lib/product-brand";
 import { t } from "@/lib/i18n";
 import { productMonogram } from "@/components/app-shell";
@@ -26,167 +27,6 @@ type Props = {
   workspaceName: string;
   visibleModes: ProductMode[];
 };
-
-type IconName =
-  | "chat"
-  | "documents"
-  | "research"
-  | "finance"
-  | "data"
-  | "market"
-  | "legal"
-  | "meeting"
-  | "images"
-  | "videos"
-  | "music"
-  | "edit"
-  | "presentations"
-  | "knowledge"
-  | "channels"
-  | "workspaces"
-  | "usage"
-  | "settings";
-
-const RAIL_ICON_PATHS: Record<IconName, ReactNode> = {
-  chat: <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />,
-  documents: (
-    <>
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <path d="M14 2v6h6" />
-      <path d="M16 13H8M16 17H8" />
-    </>
-  ),
-  research: (
-    <>
-      <circle cx="11" cy="11" r="7" />
-      <path d="m21 21-4.3-4.3" />
-    </>
-  ),
-  finance: (
-    <>
-      <path d="m3 17 6-6 4 4 8-8" />
-      <path d="M17 7h4v4" />
-      <path d="M3 21h18" />
-    </>
-  ),
-  data: (
-    <>
-      <ellipse cx="12" cy="5" rx="8" ry="3" />
-      <path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5" />
-      <path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" />
-    </>
-  ),
-  market: (
-    <>
-      <rect x="4" y="9" width="4" height="7" />
-      <path d="M6 5v4M6 16v3" />
-      <rect x="14" y="6" width="4" height="8" />
-      <path d="M16 3v3M16 14v5" />
-      <path d="M3 21h18" />
-    </>
-  ),
-  legal: (
-    <>
-      <path d="M12 3v18" />
-      <path d="M5 7h14" />
-      <path d="m5 7-3 7a3 3 0 0 0 6 0z" />
-      <path d="m19 7-3 7a3 3 0 0 0 6 0z" />
-      <path d="M8 21h8" />
-    </>
-  ),
-  meeting: (
-    <>
-      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
-      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-      <path d="M12 19v3" />
-    </>
-  ),
-  images: (
-    <>
-      <rect x="3" y="3" width="18" height="18" />
-      <circle cx="8.5" cy="8.5" r="1.5" />
-      <path d="m21 15-5-5L5 21" />
-    </>
-  ),
-  videos: (
-    <>
-      <path d="m22 8-6 4 6 4V8Z" />
-      <rect x="2" y="6" width="14" height="12" />
-    </>
-  ),
-  music: (
-    <>
-      <path d="M9 18V5l12-2v13" />
-      <circle cx="6" cy="18" r="3" />
-      <circle cx="18" cy="16" r="3" />
-    </>
-  ),
-  edit: (
-    <>
-      <circle cx="6" cy="6" r="3" />
-      <circle cx="6" cy="18" r="3" />
-      <path d="m8.5 7.5 12 9" />
-      <path d="m8.5 16.5 12-9" />
-    </>
-  ),
-  presentations: (
-    <>
-      <path d="M2 3h20" />
-      <path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3" />
-      <path d="m7 21 5-5 5 5" />
-    </>
-  ),
-  knowledge: (
-    <>
-      <path d="M4 19.5V5a2 2 0 0 1 2-2h13v18H6.2A2.2 2.2 0 0 1 4 18.8Z" />
-      <path d="M8 7h7M8 11h7" />
-    </>
-  ),
-  channels: (
-    <>
-      <path d="M21 4 3 11l6 2.5L21 4Z" />
-      <path d="m21 4-9 16-2.5-6.5" />
-    </>
-  ),
-  workspaces: (
-    <>
-      <rect x="3" y="3" width="7" height="7" />
-      <rect x="14" y="3" width="7" height="7" />
-      <rect x="3" y="14" width="7" height="7" />
-      <rect x="14" y="14" width="7" height="7" />
-    </>
-  ),
-  usage: (
-    <>
-      <path d="M3.34 19a10 10 0 1 1 17.32 0" />
-      <path d="m12 14 4-4" />
-    </>
-  ),
-  settings: (
-    <>
-      <circle cx="12" cy="12" r="3" />
-      <path d="M19.1 14.6a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3h.1a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8v.1a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z" />
-    </>
-  ),
-};
-
-function RailIcon({ name }: { name: IconName }) {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {RAIL_ICON_PATHS[name]}
-    </svg>
-  );
-}
 
 /* Music and Meeting shipped 2026-09-21 and rode a self-expiring "New" badge until
    2026-10-22. The owner took the badge off early (2026-09-23): it added noise to the
@@ -200,13 +40,15 @@ function RailItem({
   active,
   collapsed,
   testId,
+  index,
 }: {
   href: string;
   label: string;
-  icon: IconName;
+  icon: ModeIconName;
   active: boolean;
   collapsed: boolean;
   testId: string;
+  index: number;
 }) {
   /*
    * `shrink-0`: the nav is a column flex box, so without it a rail that runs past
@@ -215,29 +57,31 @@ function RailItem({
    * height and reads as though it had extra space around it. The nav already
    * scrolls; rows keep their rhythm instead.
    *
-   * No left accent stripe (owner ruling 2026-09-23): the bar was decoration on top
-   * of the fill, which already marks the row as current. Current is fill + accent
-   * icon + `aria-current`, and the rail is dark chrome in both themes, so these
-   * rows read from the `--rail-*` tokens rather than the paper ones.
+   * Every mode carries its own colour on a small icon tile; the active row is a
+   * raised white card and its tile goes solid. Current is also `aria-current`.
    */
   const rowTone = active
-    ? "select-row bg-[var(--rail-active)] text-[var(--rail-active-text)]"
+    ? "select-row bg-[var(--rail-active)] font-semibold text-[var(--rail-active-text)] shadow-[var(--lip)]"
     : "wash text-[var(--rail-text-2)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-active-text)]";
-  const iconTone = active ? "text-[var(--rail-accent)]" : "text-[var(--rail-text-3)]";
+  const tileTone = active
+    ? "bg-[var(--mode)] text-white"
+    : "bg-[color-mix(in_srgb,var(--mode)_14%,transparent)] text-[var(--mode)]";
 
   return (
     <Link
       href={href}
-      className={`flex h-8 shrink-0 items-center gap-2 rounded-lg px-2 text-sm tracking-[var(--track)] ${rowTone} ${
+      className={`enter-slide hover-wiggle flex h-8 shrink-0 items-center gap-2 rounded-md px-2 text-sm tracking-[var(--track)] ${rowTone} ${
         collapsed ? "justify-center" : ""
       }`}
+      style={{ "--i": index } as CSSProperties}
       aria-current={active ? "page" : undefined}
       aria-label={label}
       title={label}
       data-testid={testId}
+      data-mode={icon}
     >
-      <span className={iconTone}>
-        <RailIcon name={icon} />
+      <span data-tile className={`transition-colors inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${tileTone}`}>
+        <ModeIcon name={icon} strokeWidth={2} />
       </span>
       {collapsed ? null : <span className="truncate font-medium">{label}</span>}
     </Link>
@@ -255,6 +99,28 @@ function RailGroupLabel({ children, collapsed, first }: { children: ReactNode; c
   );
 }
 
+function BrandTile({
+  logoSrc,
+  productName,
+}: {
+  logoSrc: string;
+  productName: string;
+}) {
+  return (
+    <span
+      className="icon-orb icon-orb-solid enter-pop"
+      style={{ width: 28, height: 28, borderRadius: 10 } as CSSProperties}
+      data-testid="product-logo"
+    >
+      {logoSrc ? (
+        <img src={logoSrc} alt={productName} className="h-4 w-4 object-contain" />
+      ) : (
+        <span className="text-xs font-medium">{productMonogram(productName)}</span>
+      )}
+    </span>
+  );
+}
+
 export function AppRail({ workspaceName, visibleModes }: Props) {
   const pathname = usePathname();
   const { productName, logoSrc } = useProductBrand();
@@ -268,7 +134,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
   const financeTasks = useRailFinanceTasks();
 
   useEffect(() => {
-    const query = window.matchMedia("(max-width: 720px)");
+    const query = window.matchMedia("(max-width: 480px)");
     function apply() {
       setCollapsed(query.matches ? true : getRailCollapsed());
     }
@@ -280,12 +146,14 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
   function toggleCollapsed() {
     setCollapsed((was) => {
       const next = !was;
-      if (!window.matchMedia("(max-width: 720px)").matches) {
+      if (!window.matchMedia("(max-width: 480px)").matches) {
         setRailCollapsed(next);
       }
       return next;
     });
   }
+
+  let itemIndex = 0;
 
   return (
     <aside
@@ -303,16 +171,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
           <WorkspaceSwitcher workspaceName={workspaceName} compact logoSrc={logoSrc} logoAlt={productName} />
         ) : (
           <>
-            {logoSrc ? (
-              <img src={logoSrc} alt={productName} className="h-5 w-5 shrink-0 object-contain" data-testid="product-logo" />
-            ) : (
-              <span
-                className="grid h-5 w-5 shrink-0 place-items-center text-xs font-medium text-[var(--rail-text)]"
-                data-testid="product-logo"
-              >
-                {productMonogram(productName)}
-              </span>
-            )}
+            <BrandTile logoSrc={logoSrc} productName={productName} />
             <div className="min-w-0 flex-1">
               <Link
                 href={homeHref}
@@ -345,6 +204,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
               active={productModeMatches(chatMode.id, pathname)}
               collapsed={collapsed}
               testId={`mode-${chatMode.href.slice(1)}`}
+              index={itemIndex++}
             />
             {/* Collapsed rail keeps New chat (icon + label) and hides session rows. */}
             <RailRecentThreads collapsed={collapsed} />
@@ -353,15 +213,18 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
 
         {jobModes.length > 0 ? <RailGroupLabel collapsed={collapsed}>{t("rail.groupJobs")}</RailGroupLabel> : null}
         {jobModes.map((mode) => {
+          const icon: ModeIconName = isModeIconName(mode.id) ? mode.id : "documents";
+          const index = itemIndex++;
           const item = (
             <RailItem
               key={mode.href}
               href={mode.href}
               label={t(`rail.${mode.id}`)}
-              icon={(mode.id in RAIL_ICON_PATHS ? mode.id : "documents") as IconName}
+              icon={icon}
               active={productModeMatches(mode.id, pathname)}
               collapsed={collapsed}
               testId={`mode-${mode.href.slice(1)}`}
+              index={index}
             />
           );
           /*
@@ -415,6 +278,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
           active={pathname.startsWith("/knowledge")}
           collapsed={collapsed}
           testId="mode-knowledge"
+          index={itemIndex++}
         />
         <RailItem
           href="/channels"
@@ -423,6 +287,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
           active={pathname.startsWith("/channels")}
           collapsed={collapsed}
           testId="channels-link"
+          index={itemIndex++}
         />
         <RailItem
           href="/workspaces"
@@ -431,6 +296,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
           active={pathname.startsWith("/workspaces")}
           collapsed={collapsed}
           testId="workspaces-link"
+          index={itemIndex++}
         />
         <RailItem
           href="/usage"
@@ -439,6 +305,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
           active={pathname.startsWith("/usage")}
           collapsed={collapsed}
           testId="usage-link"
+          index={itemIndex++}
         />
         <RailItem
           href="/settings"
@@ -447,6 +314,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
           active={pathname.startsWith("/settings")}
           collapsed={collapsed}
           testId="settings-link"
+          index={itemIndex++}
         />
       </nav>
 
@@ -468,7 +336,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
           <AppUpdatesButton collapsed={collapsed} />
           <button
             type="button"
-            className="btn btn-ghost btn-icon h-8 w-8 shrink-0 wash text-[var(--rail-text-2)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-active-text)]"
+            className="btn btn-ghost btn-icon h-8 w-8 shrink-0 rounded-md wash text-[var(--rail-text-2)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-active-text)]"
             onClick={toggleCollapsed}
             data-testid={collapsed ? "rail-expand" : "rail-collapse"}
             aria-label={collapsed ? t("rail.expand") : t("rail.collapse")}

@@ -1,16 +1,16 @@
 # Map — Chat sessions and the rail
 
-Last verified: 2026-09-23 at d4561b8 + uncommitted tree for every `chat-session.tsx` and `chat-composer.tsx`
+Last verified: 2026-09-26 (rail collapse is 480px; context and usage chips wait for an assistant reply). Before that: 2026-09-23 at d4561b8 + uncommitted tree for every `chat-session.tsx` and `chat-composer.tsx`
 citation and the new § 11 (a run belongs to the session it started in; `onComplete` now receives
 `{ threadId, showing }`). Not walked in a browser.
 
-Before that: 2026-09-23 at 0774681 + working tree (the 0.15.0 design pass). Changed there: the rail row reads from `--rail-*` tokens and follows the theme instead of being dark in both; the `New` badge mechanism (`NEW_BADGE_UNTIL`, `newBadgeOn`, the `badge` prop, `rail.badgeNew`) is deleted; `RailSubmenuToggle` is arrow-only and the selected row's left accent stripe is gone. The session list, its store and the events are untouched. Supersedes the 2026-09-22 "dark desk overhaul" note, whose dark default this pass reversed.
+Before that: 2026-09-23 at 0774681 + working tree (the 0.15.0 design pass). Changed there: the rail row reads from `--rail-*` tokens and follows the theme instead of being dark in both; the `New` badge mechanism (`NEW_BADGE_UNTIL`, `newBadgeOn`, the `badge` prop, `rail.badgeNew`) is deleted; `RailSubmenuToggle` shows a short word beside the chevron (the full phrase stays in `aria-label`) and the selected row's left accent stripe is gone. The session list, its store and the events are untouched. Supersedes the 2026-09-22 "dark desk overhaul" note, whose dark default this pass reversed.
 
 The sibling page [`chat-send.md`](chat-send.md) owns one turn inside a session. This page owns the sessions themselves: where the list comes from, how a row opens a thread, and how the pane, the list and the desk stay in step. The rail block (`rail-recent-threads.tsx`, `use-chat-threads.ts`, `thread-groups.ts`, `threads-events.ts`) landed in 0.14.27 ([`../0.14.27-changelog.md`](../0.14.27-changelog.md), PR #52); every citation below is re-anchored to the committed tree at `b482611`.
 
 ## Overview
 
-Since 2026-09-17 every Chat session lives in the **left rail**, directly under the Chat entry: a `New chat` row (`new-chat-link`), the four newest threads, and an `All sessions` toggle that expands the list in place. The second column (`chat-thread-list.tsx`) is deleted, so `/chat` is the chat pane and nothing else. As of 2026-09-22 the header `new-chat` button is gone. Collapsing the rail hides the session rows and keeps `new-chat-link` as an icon with `aria-label`. A viewport at 720px or narrower starts collapsed and does not write that into `rail-prefs`.
+Since 2026-09-17 every Chat session lives in the **left rail**, directly under the Chat entry: a `New chat` row (`new-chat-link`), the four newest threads, and an `All sessions` toggle that expands the list in place. The second column (`chat-thread-list.tsx`) is deleted, so `/chat` is the chat pane and nothing else. As of 2026-09-22 the header `new-chat` button is gone. Collapsing the rail hides the session rows and keeps `new-chat-link` as an icon with `aria-label`. A viewport at 480px or narrower starts collapsed and does not write that into `rail-prefs`. A 700px window keeps the labels.
 
 The list is not a route and it is not owned by the Chat page. It is a rail component with its own hook, its own `GET /api/v1/threads` call and its own cache, refreshed by a window event. That is what lets a thread created inside the composer, a delete pressed in the rail, and a desk switch in the workspace menu all land in the same list without any of them knowing about the others.
 

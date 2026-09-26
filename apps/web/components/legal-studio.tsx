@@ -33,6 +33,7 @@ import { useJobModel } from "@/lib/use-job-model";
 import { modelPickBody, studioModelPick } from "@/lib/model-choice";
 import { useJobStream } from "@/lib/use-job-stream";
 import { t } from "@/lib/i18n";
+import { ModeHeader } from "@/components/mode-header";
 import { SettingsLinkHint } from "@/components/settings-link-hint";
 import { LegalMatterMap } from "@/components/legal-matter-map";
 import { LegalMatterPanel } from "@/components/legal-matter-panel";
@@ -287,7 +288,67 @@ export function LegalStudio() {
 
   return (
     <div data-testid="legal-shell">
-      <main className="mx-auto w-full max-w-[var(--content-wide)] px-6 pb-10 pt-8 text-[var(--text)]" data-testid="legal-studio" data-screen={screen}>
+      <main data-mode="legal"
+        className="mx-auto w-full max-w-[var(--content-wide)] px-6 pb-10 pt-8 text-[var(--text)]"
+        data-testid="legal-studio"
+        data-screen={screen}
+      >
+        <div className="mb-5">
+          <ModeHeader
+            icon="legal"
+            title={t("legal.studio.title")}
+            outcome={t("legal.studio.lede")}
+            actions={
+              screen === "new" ? (
+                <>
+                  {matters.length > 0 ? (
+                    <select
+                      className="input w-auto"
+                      value=""
+                      onChange={(event) => event.target.value && void onOpen(event.target.value)}
+                      disabled={locked}
+                      aria-label={t("legal.studio.reopenAria")}
+                      data-testid="legal-reopen"
+                    >
+                      <option value="">{t("legal.studio.reopen")}</option>
+                      {matters.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.title}
+                        </option>
+                      ))}
+                    </select>
+                  ) : null}
+                  {matter ? (
+                    <button type="button" className="btn" onClick={onNewMatter} disabled={locked}>
+                      {t("legal.studio.newMatter")}
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => void onRun()}
+                    disabled={!ready || locked}
+                    title={ready ? undefined : t("legal.studio.runHint")}
+                    data-testid="legal-run"
+                  >
+                    {busy === "save" ? (
+                      <>
+                        {t("legal.studio.saving")}
+                        <span className="pulse-dots" aria-hidden="true">
+                          <span />
+                          <span />
+                          <span />
+                        </span>
+                      </>
+                    ) : (
+                      t("legal.studio.run")
+                    )}
+                  </button>
+                </>
+              ) : null
+            }
+          />
+        </div>
         {error ? (
           <p className="mb-4 text-sm text-[var(--danger)]" role="alert" data-testid="legal-error">
             {error}
@@ -311,90 +372,48 @@ export function LegalStudio() {
         ) : null}
 
         {screen === "result" && result && matter ? (
-          <LegalResultView
-            title={matter.title}
-            party={draft.side.party}
-            result={result}
-            locked={locked}
-            onNextTurn={() => void onNextTurn()}
-            onNewMatter={onNewMatter}
-            onError={setLocalError}
-          />
+          <div className="enter-rise">
+            <LegalResultView
+              title={matter.title}
+              party={draft.side.party}
+              result={result}
+              locked={locked}
+              onNextTurn={() => void onNextTurn()}
+              onNewMatter={onNewMatter}
+              onError={setLocalError}
+            />
+          </div>
         ) : null}
 
         {screen === "new" ? (
-          <>
-            <div className="mb-5 flex flex-wrap items-end gap-4">
-              <div>
-                <h3 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">
-                  {t("legal.studio.title")}
-                </h3>
-                <p className="mt-2 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="expected-inputs">{t("legal.studio.lede")}</p>
-              </div>
-              <div className="ml-auto flex items-center gap-2">
-                {matters.length > 0 ? (
-                  <select
-                    className="input w-auto"
-                    value=""
-                    onChange={(event) => event.target.value && void onOpen(event.target.value)}
-                    disabled={locked}
-                    aria-label={t("legal.studio.reopenAria")}
-                    data-testid="legal-reopen"
-                  >
-                    <option value="">{t("legal.studio.reopen")}</option>
-                    {matters.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.title}
-                      </option>
-                    ))}
-                  </select>
-                ) : null}
-                {matter ? (
-                  <button type="button" className="btn" onClick={onNewMatter} disabled={locked}>
-                    {t("legal.studio.newMatter")}
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={() => void onRun()}
-                  disabled={!ready || locked}
-                  title={ready ? undefined : t("legal.studio.runHint")}
-                  data-testid="legal-run"
-                >
-                  {busy === "save" ? t("legal.studio.saving") : t("legal.studio.run")}
-                </button>
-              </div>
-            </div>
-            <div className="grid items-start gap-5 lg:[grid-template-columns:minmax(0,1fr)_minmax(0,1fr)]">
-              <LegalMatterPanel
-                draft={draft}
-                onDraft={setDraft}
-                docs={docs}
-                pending={pending}
-                playbooks={playbooks}
-                locked={locked}
-                uploadReady={uploadReady}
-                onFiles={(files) => void onFiles(files)}
-                onCycleRole={(docId) => void onCycleRole(docId)}
-                onRemoveFile={(docId) => void onRemoveFile(docId)}
-              />
-              <LegalMatterMap
-                draft={draft}
-                docs={docs}
-                playbookTitle={playbookTitle}
-                matters={matters}
-                currentMatterId={matter?.id ?? null}
-                models={models}
-                model={model}
-                verifierModel={verifierModel}
-                locked={locked}
-                onModel={setModel}
-                onVerifierModel={setVerifierModel}
-                onOpen={(id) => void onOpen(id)}
-              />
-            </div>
-          </>
+          <div className="grid items-start gap-5 lg:[grid-template-columns:minmax(0,1fr)_minmax(0,1fr)]">
+            <LegalMatterPanel
+              draft={draft}
+              onDraft={setDraft}
+              docs={docs}
+              pending={pending}
+              playbooks={playbooks}
+              locked={locked}
+              uploadReady={uploadReady}
+              onFiles={(files) => void onFiles(files)}
+              onCycleRole={(docId) => void onCycleRole(docId)}
+              onRemoveFile={(docId) => void onRemoveFile(docId)}
+            />
+            <LegalMatterMap
+              draft={draft}
+              docs={docs}
+              playbookTitle={playbookTitle}
+              matters={matters}
+              currentMatterId={matter?.id ?? null}
+              models={models}
+              model={model}
+              verifierModel={verifierModel}
+              locked={locked}
+              onModel={setModel}
+              onVerifierModel={setVerifierModel}
+              onOpen={(id) => void onOpen(id)}
+            />
+          </div>
         ) : null}
       </main>
     </div>

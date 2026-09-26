@@ -1,6 +1,7 @@
 {
   "title": "Settings",
   "intro": "Paste your {gatewayName} gateway API key from {gatewayHost} to run chat and job modes on the {workspaceName} desk. Chat, keys and threads stay on this desk.",
+  "introNeedsKey": "Paste the key from your {gatewayName} account.",
   "status": "Status: {details}",
   "runtimeLive": "Live",
   "runtimeStub": "No key — paste one below",
@@ -35,6 +36,7 @@
   "gateway.recheck": "Re-check",
   "gateway.lastChecked": "Last checked {date}",
   "gateway.checkFailed": "Could not re-check the gateway right now. Try again in a moment.",
+  "reset.dangerSummary": "Sign out and delete",
   "reset.heading": "Start over",
   "reset.help": "Forget the gateway key on this machine, or delete everything and get the fresh-install experience back.",
   "reset.signOut": "Sign out of the gateway",

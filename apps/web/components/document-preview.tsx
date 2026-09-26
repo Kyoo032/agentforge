@@ -25,8 +25,13 @@ export function DocumentPreview({
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
-    <article className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-8 py-10" data-testid="documents-preview">
-      <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--text-3)]">{t("documents.previewKicker")}</p>
+    <article
+      className="enter-rise rounded-xl border border-[var(--line)] bg-[var(--surface)] px-8 py-10"
+      data-testid="documents-preview"
+    >
+      <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--text-3)]">
+        {t("documents.previewKicker")}
+      </p>
       <h2 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{draft.title}</h2>
       <div className="mt-8 space-y-8">
         {draft.sections.map((section, index) => (

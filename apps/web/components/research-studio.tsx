@@ -4,11 +4,15 @@ import { useState, type FormEvent } from "react";
 import { Link } from "@/lib/nav";
 import { ArtifactActions } from "@/components/artifact-actions";
 import { ArtifactPicker } from "@/components/artifact-picker";
+import { Confetti } from "@/components/confetti";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { ExampleGallery } from "@/components/example-gallery";
 import { FormattedText } from "@/components/formatted-text";
 import { JobProgressList } from "@/components/job-progress";
+import { ModeHeader } from "@/components/mode-header";
+import { ModeIllustration } from "@/components/mode-illustration";
 import { ModelSelect } from "@/components/model-select";
+import { WorkingStatus } from "@/components/working-status";
 import { ResearchPreview } from "@/components/research-preview";
 import { t } from "@/lib/i18n";
 import { researchNotesToMarkdown, type ResearchNotes } from "@/lib/research-notes";
@@ -45,6 +49,7 @@ export function ResearchStudio() {
   const [prompt, setPrompt] = useState("");
   const [shown, setShown] = useState<Shown | null>(null);
   const [tab, setTab] = useState<Tab>("notes");
+  const [landed, setLanded] = useState(0);
   const error = job.error?.message ?? null;
 
   async function onGenerate(event: FormEvent) {
@@ -66,6 +71,7 @@ export function ResearchStudio() {
         dossierMarkdown: dossier?.markdown ?? researchNotesToMarkdown(notes),
         artifactId: dossierId ?? artifactId,
       });
+      setLanded((count) => count + 1);
       setTab("notes");
     }
   }
@@ -74,25 +80,28 @@ export function ResearchStudio() {
   const markdown = shown?.kind === "run" ? shown.dossierMarkdown : (shown?.markdown ?? "");
 
   return (
-    <main className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]" data-testid="research-studio">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("research.title")}</h1>
-          {/* One outcome line (owner report 2026-09-23). The `subtitle` paragraph below
-              it restated the same thing as a method, so it was deleted along with its key. */}
-          <p className="mt-2 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="expected-inputs">{t("research.expectedInputs")}</p>
-        </div>
-        <ArtifactPicker
-          mode="research"
-          label={t("research.reopenSaved")}
-          disabled={job.busy}
-          testId="research-saved"
-          onPick={(artifact) => {
-            setShown({ kind: "saved", title: artifact.title, markdown: artifact.body, artifactId: artifact.id });
-            setTab("dossier");
-          }}
-        />
-      </div>
+    <main
+      data-mode="research"
+      className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]"
+      data-testid="research-studio"
+    >
+      <ModeHeader
+        icon="research"
+        title={t("research.title")}
+        outcome={t("research.expectedInputs")}
+        actions={
+          <ArtifactPicker
+            mode="research"
+            label={t("research.reopenSaved")}
+            disabled={job.busy}
+            testId="research-saved"
+            onPick={(artifact) => {
+              setShown({ kind: "saved", title: artifact.title, markdown: artifact.body, artifactId: artifact.id });
+              setTab("dossier");
+            }}
+          />
+        }
+      />
 
       {error ? (
         <div
@@ -122,7 +131,8 @@ export function ResearchStudio() {
 
       <div className="mt-8 flex-1">
         {shown ? (
-          <div className="space-y-4">
+          <div className="enter-rise relative space-y-4">
+            {landed > 0 ? <Confetti key={landed} /> : null}
             <ArtifactActions
               title={title}
               markdown={markdown}
@@ -171,7 +181,8 @@ export function ResearchStudio() {
             className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center"
             data-testid="research-studio-empty"
           >
-            <p className="text-sm font-medium text-[var(--text)]">{t("research.emptyTitle")}</p>
+            <ModeIllustration mode="research" />
+            <p className="mt-4 text-sm font-medium text-[var(--text)]">{t("research.emptyTitle")}</p>
             <p className="mt-2 text-sm text-[var(--text-2)]">{t("research.emptyBody")}</p>
           </div>
         )}
@@ -221,11 +232,11 @@ export function ResearchStudio() {
           ) : null}
           <button
             type="submit"
-            className="wash inline-flex h-8 shrink-0 items-center rounded-pill bg-[var(--accent)] px-4 text-sm font-medium text-[var(--surface)] disabled:opacity-45"
+            className="btn btn-primary h-8 shrink-0 rounded-pill px-4"
             disabled={job.busy || !prompt.trim()}
             data-testid="research-generate"
           >
-            {job.busy ? t("research.working") : t("research.generate")}
+            {job.busy ? <WorkingStatus label={t("research.working")} /> : t("research.generate")}
           </button>
         </div>
       </form>

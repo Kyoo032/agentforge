@@ -27,14 +27,22 @@ type Props = {
   };
 };
 
+function PulseDots() {
+  return (
+    <span className="pulse-dots" aria-hidden="true">
+      <span />
+      <span />
+      <span />
+    </span>
+  );
+}
+
 export function ChatTurn({ role, content, live }: Props) {
   const isUser = role === "user";
   const thinking = live ? live.thinking : thinkingFromContent(content);
   const tools = live ? live.tools : toolsFromContent(content);
   const visibleTools = tools.filter((tool) => tool.status === "started" || tool.status === "completed");
-  const liveMedia = live
-    ? live.tools.flatMap((tool) => collectToolMediaParts(tool.output))
-    : [];
+  const liveMedia = live ? live.tools.flatMap((tool) => collectToolMediaParts(tool.output)) : [];
   const thinkingEnabled = live?.thinkingEnabled !== false;
   const showThinkingPlaceholder =
     Boolean(live?.running) && thinkingEnabled && !thinking && !live?.streaming && visibleTools.length === 0;
@@ -48,23 +56,31 @@ export function ChatTurn({ role, content, live }: Props) {
    * tools without emitting reasoning, and folding on `thinking` alone would have hidden them.
    */
   const hasActivity = Boolean(thinking) || visibleTools.length > 0;
+  const showDisclosure = hasActivity || showThinkingPlaceholder;
 
   return (
     <article
-      className={isUser ? "ml-10 rounded-lg rounded-br-md bg-mist px-4 py-3" : "mr-10 rounded-lg px-1 py-1"}
+      className={
+        isUser
+          ? "enter-rise ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-md border-2 border-[color-mix(in_srgb,var(--accent)_24%,var(--line))] bg-[var(--accent-soft)] px-4 py-3 text-[var(--text)] shadow-[0_3px_0_color-mix(in_srgb,var(--accent)_24%,var(--line))]"
+          : "enter-rise mr-10 px-1 py-1"
+      }
       data-testid="message"
     >
       {isUser ? (
         <MessageBody content={content} />
       ) : (
         <div className="space-y-2">
-          {hasActivity || showThinkingPlaceholder ? (
+          {showDisclosure ? (
             <details
-              className="rounded-lg border border-mist bg-mist/40 px-3 py-2"
+              className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2 shadow-elev-1"
               data-testid="message-thinking"
               open={Boolean(live)}
             >
-              <summary className="cursor-pointer text-xs font-medium text-ink/60">{t("chat.turn.thinking")}</summary>
+              <summary className="flex cursor-pointer items-center gap-2 text-xs font-medium text-[var(--text-3)]">
+                {t("chat.turn.thinking")}
+                {live?.running && thinking ? <PulseDots /> : null}
+              </summary>
               {thinking ? (
                 /* Markdown, not a raw `<pre>`: reasoning arrives with lists, emphasis and fenced
                    code, and the block should embed them the way a message does. */
@@ -72,7 +88,11 @@ export function ChatTurn({ role, content, live }: Props) {
                   <FormattedText text={thinking} className="text-xs" />
                 </div>
               ) : (
-                <p className="mt-2 text-xs text-ink/70" data-testid="thinking-placeholder">
+                <p
+                  className="mt-2 flex items-center gap-2 text-xs text-[var(--text-2)]"
+                  data-testid="thinking-placeholder"
+                >
+                  {live?.running ? <PulseDots /> : null}
                   {t("chat.turn.thinkingPlaceholder")}
                 </p>
               )}
@@ -83,7 +103,7 @@ export function ChatTurn({ role, content, live }: Props) {
                       key={`${tool.key}-${index}`}
                       /* `break-words` + `whitespace-pre-wrap`: a payload used to be cut at 80
                          characters with an ellipsis. Wrapping it is what makes the call readable. */
-                      className="whitespace-pre-wrap break-words rounded-md border border-mist px-3 py-1.5 font-mono text-xs text-ink/70"
+                      className="whitespace-pre-wrap break-words rounded-xl border border-[var(--line)] px-3 py-1.5 font-mono text-xs text-[var(--text-2)]"
                       data-testid="message-tool"
                     >
                       {tool.status === "started" && showsToolSpinner(tool.key)
@@ -96,9 +116,15 @@ export function ChatTurn({ role, content, live }: Props) {
             </details>
           ) : null}
           {live?.streaming ? (
-            <FormattedText text={live.streaming} className="text-sm" testId="message-output" />
+            <div className="space-y-2">
+              <FormattedText text={live.streaming} className="text-sm" testId="message-output" />
+              {live.running && !showDisclosure ? <PulseDots /> : null}
+            </div>
           ) : (
-            <MessageBody content={content} outputOnly />
+            <>
+              <MessageBody content={content} outputOnly />
+              {live?.running && !showDisclosure ? <PulseDots /> : null}
+            </>
           )}
           {liveMedia.length > 0 ? <MediaParts parts={liveMedia} /> : null}
         </div>
@@ -148,7 +174,9 @@ function toolsFromContent(content: unknown): LiveTool[] {
     return [];
   }
   return content
-    .filter((part): part is ToolCallPart => Boolean(part && typeof part === "object" && (part as { type?: unknown }).type === "tool_call"))
+    .filter((part): part is ToolCallPart =>
+      Boolean(part && typeof part === "object" && (part as { type?: unknown }).type === "tool_call"),
+    )
     .map((part) => ({
       key: part.toolKey,
       status: part.status,
@@ -189,13 +217,7 @@ function MessageBody({ content, outputOnly = false }: { content?: unknown; outpu
         const imageUrl = partImageUrl(part);
         if (imageUrl) {
           return (
-            <img
-              key={index}
-              src={imageUrl}
-              alt=""
-              className="mt-2 max-w-full rounded-lg"
-              data-testid="message-image"
-            />
+            <img key={index} src={imageUrl} alt="" className="mt-2 max-w-full rounded-xl" data-testid="message-image" />
           );
         }
         const videoUrl = partVideoUrl(part);
@@ -205,7 +227,7 @@ function MessageBody({ content, outputOnly = false }: { content?: unknown; outpu
               key={index}
               src={videoUrl}
               controls
-              className="mt-2 max-w-full rounded-lg"
+              className="mt-2 max-w-full rounded-xl"
               data-testid="message-video"
             />
           );
@@ -233,12 +255,14 @@ function MediaParts({ parts }: { parts: ContentPart[] }) {
       {parts.map((part, index) => {
         const imageUrl = partImageUrl(part);
         if (imageUrl) {
-          return <img key={index} src={imageUrl} alt="" className="max-w-full rounded-lg" data-testid="message-image" />;
+          return (
+            <img key={index} src={imageUrl} alt="" className="max-w-full rounded-xl" data-testid="message-image" />
+          );
         }
         const videoUrl = partVideoUrl(part);
         if (videoUrl) {
           return (
-            <video key={index} src={videoUrl} controls className="max-w-full rounded-lg" data-testid="message-video" />
+            <video key={index} src={videoUrl} controls className="max-w-full rounded-xl" data-testid="message-video" />
           );
         }
         return null;

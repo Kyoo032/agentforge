@@ -16,6 +16,7 @@ import {
   type ChannelBotStatus,
 } from "@/lib/channels-client";
 import { t } from "@/lib/i18n";
+import { ModeHeader } from "@/components/mode-header";
 
 const NO_BOT: ChannelBotStatus = {
   connected: false,
@@ -225,16 +226,16 @@ export function ChannelsPage() {
 
   return (
     <main className="mx-auto w-full max-w-[var(--content-wide)] px-6 py-8 text-[var(--text)]" data-testid="channels-page">
-      <div className="mb-5">
-        <h3 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("channels.title")}</h3>
-        <p className="mt-1 max-w-[var(--content-narrow)] text-[13px] text-[var(--text-2)]">{t("channels.intro")}</p>
-        {/* A standing warning, not a step: one click away, out of the reading path. */}
-        <details className="mt-2 max-w-[var(--content-narrow)] rounded-lg border border-[var(--line)] px-3 py-2" data-testid="channels-privacy">
-          <summary className="cursor-pointer select-none text-xs font-medium text-[var(--text-2)]">
-            {t("channels.privacyLabel")}
-          </summary>
-          <p className="mt-2 text-[12px] text-[var(--text-2)]">{t("channels.privacy")}</p>
-        </details>
+      <div className="mb-6">
+        <ModeHeader icon="channels" title={t("channels.title")} outcomeTestId="channels-intro" outcome={t("channels.intro")}>
+          {/* A standing warning, not a step: one click away, out of the reading path. */}
+          <details className="mt-3 max-w-[var(--content-narrow)] rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2" data-testid="channels-privacy">
+            <summary className="cursor-pointer select-none text-xs font-medium text-[var(--text-2)]">
+              {t("channels.privacyLabel")}
+            </summary>
+            <p className="mt-2 text-[12px] text-[var(--text-2)]">{t("channels.privacy")}</p>
+          </details>
+        </ModeHeader>
       </div>
 
       {error ? (

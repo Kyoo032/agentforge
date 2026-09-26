@@ -1,15 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { usePathname, useSearchParams } from "@/lib/nav";
 import { ArtifactActions } from "@/components/artifact-actions";
+import { Confetti } from "@/components/confetti";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { JobProgressList } from "@/components/job-progress";
 import type { JobRegenSubmit } from "@/components/job-regen-panel";
 import { MarketBoard } from "@/components/market-board";
 import { MarketBriefingView } from "@/components/market-briefing-view";
 import { MarketWatchlistInput } from "@/components/market-watchlist-input";
+import { ModeHeader } from "@/components/mode-header";
+import { ModeIllustration } from "@/components/mode-illustration";
 import { ModelSelect } from "@/components/model-select";
+import { WorkingStatus } from "@/components/working-status";
 import {
   DEFAULT_MAX_CHARS,
   DEFAULT_MARKET_DEPTH,
@@ -82,9 +86,7 @@ export function MarketStudio() {
    */
   const onMarket = pathname === MARKET_PATH;
   const rawSpecialist = searchParams.get("specialist");
-  const urlSpecialist: MarketSpecialist = isMarketSpecialist(rawSpecialist)
-    ? rawSpecialist
-    : DEFAULT_MARKET_SPECIALIST;
+  const urlSpecialist: MarketSpecialist = isMarketSpecialist(rawSpecialist) ? rawSpecialist : DEFAULT_MARKET_SPECIALIST;
   const lastSpecialistRef = useRef<MarketSpecialist>(urlSpecialist);
   const specialist = onMarket ? urlSpecialist : lastSpecialistRef.current;
 
@@ -96,6 +98,7 @@ export function MarketStudio() {
   const [maxChars, setMaxChars] = useState<number>(DEFAULT_MAX_CHARS);
   const [showOptions, setShowOptions] = useState(false);
   const [result, setResult] = useState<MarketWatchResult | null>(null);
+  const [landed, setLanded] = useState(0);
   const [busy, setBusy] = useState<"download" | "regen" | null>(null);
   const [regenIndex, setRegenIndex] = useState<number | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -189,6 +192,7 @@ export function MarketStudio() {
     const next = await job.run("/api/v1/market/stream", body);
     if (next) {
       setResult(next);
+      setLanded((count) => count + 1);
     }
   }
 
@@ -322,26 +326,34 @@ export function MarketStudio() {
   );
 
   return (
-    <main className="mx-auto w-full max-w-[var(--content-wide)] px-6 pb-10 pt-8 text-[var(--text)]" data-testid="market-studio">
-      <div className="mb-5 flex flex-wrap items-end gap-4">
-        <div>
-          <h3 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">
-            {t("market.studio.title")}
-          </h3>
-          {/* Outcome first, in one line: the kicker and the second lede were cut. */}
-          <p className="mt-2 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="expected-inputs">{t("market.studio.expectedInputs")}</p>
-        </div>
-        {result ? (
-          <button
-            type="button"
-            onClick={() => void onDownload()}
-            disabled={locked}
-            className="btn btn-primary ml-auto"
-            data-testid="market-download"
-          >
-            {busy === "download" ? t("market.studio.building") : t("market.studio.download")}
-          </button>
-        ) : null}
+    <main
+      data-mode="market"
+      className="mx-auto w-full max-w-[var(--content-wide)] px-6 pb-10 pt-8 text-[var(--text)]"
+      data-testid="market-studio"
+    >
+      <div className="mb-5">
+        <ModeHeader
+          icon="market"
+          title={t("market.studio.title")}
+          outcome={t("market.studio.expectedInputs")}
+          actions={
+            result ? (
+              <button
+                type="button"
+                onClick={() => void onDownload()}
+                disabled={locked}
+                className="btn btn-primary"
+                data-testid="market-download"
+              >
+                {busy === "download" ? (
+                  <WorkingStatus label={t("market.studio.building")} />
+                ) : (
+                  t("market.studio.download")
+                )}
+              </button>
+            ) : null
+          }
+        />
       </div>
 
       {error && tickers.length === 0 ? (
@@ -369,7 +381,8 @@ export function MarketStudio() {
               <div className="mt-2 flex flex-wrap gap-2">
                 <button
                   type="button"
-                  className="rounded-md border border-[var(--line)] px-3 py-1.5 text-left text-xs text-[var(--text)] hover:bg-[var(--accent-soft)]"
+                  className="card-live enter-rise px-3 py-1.5 text-left text-xs text-[var(--text)]"
+                  style={{ "--i": 0 } as CSSProperties}
                   data-testid="market-specialist-starter"
                   title={specialistStarterTickers(specialist).join(", ")}
                   onClick={() => changeTickers(specialistStarterTickers(specialist))}
@@ -379,11 +392,12 @@ export function MarketStudio() {
                     {t("market.studio.specialistStarter", { label: specialistName(specialist) })}
                   </span>
                 </button>
-                {MARKET_STARTERS.map((starter) => (
+                {MARKET_STARTERS.map((starter, index) => (
                   <button
                     key={starter.id}
                     type="button"
-                    className="rounded-md border border-[var(--line)] px-3 py-1.5 text-left text-xs text-[var(--text)] hover:bg-[var(--accent-soft)]"
+                    className="card-live enter-rise px-3 py-1.5 text-left text-xs text-[var(--text)]"
+                    style={{ "--i": index + 1 } as CSSProperties}
                     data-testid="market-starter"
                     title={starter.tickers.join(", ")}
                     onClick={() => applyStarter(starter)}
@@ -420,7 +434,7 @@ export function MarketStudio() {
                 disabled={locked || !ready}
                 data-testid="market-generate"
               >
-                {job.busy ? t("market.studio.writing") : t("market.studio.writeBriefing")}
+                {job.busy ? <WorkingStatus label={t("market.studio.writing")} /> : t("market.studio.writeBriefing")}
               </button>
               {job.busy ? (
                 <button type="button" className="btn" onClick={job.cancel} data-testid="market-cancel">
@@ -552,14 +566,15 @@ export function MarketStudio() {
           <JobProgressList progress={teamProgress} busy={job.busy} testId="market-progress" />
         ) : null}
         {result ? (
-          <>
+          <div className="enter-rise relative space-y-4">
+            {landed > 0 ? <Confetti key={landed} /> : null}
             <div className="flex flex-wrap items-baseline gap-2">
               <h4 className="text-base font-medium text-[var(--text)]">{result.briefing.title}</h4>
-              <span
-                className="rounded-full border border-[var(--line)] px-2 py-0.5 text-xs text-[var(--text-2)]"
-                data-testid="market-briefing-specialist"
-              >
-                {specialistName(isMarketSpecialist(result.briefing.specialist) ? result.briefing.specialist : specialist)}
+              <span className="chip" data-testid="market-briefing-specialist">
+                <span className="chip-dot" aria-hidden="true" />
+                {specialistName(
+                  isMarketSpecialist(result.briefing.specialist) ? result.briefing.specialist : specialist,
+                )}
               </span>
             </div>
             <ArtifactActions
@@ -578,14 +593,15 @@ export function MarketStudio() {
               regeneratingIndex={regenIndex}
               onRegenerate={(index, payload) => void onRegenerate(index, payload)}
             />
-          </>
+          </div>
         ) : null}
         {tickers.length === 0 && !job.busy ? (
           <div
-            className="wash rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-8 text-center text-[var(--text-2)]"
+            className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center text-[var(--text-2)]"
             data-testid="market-studio-empty"
           >
-            <p>{t("market.studio.empty")}</p>
+            <ModeIllustration mode="market" />
+            <p className="mt-4">{t("market.studio.empty")}</p>
           </div>
         ) : null}
       </div>

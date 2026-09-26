@@ -1,6 +1,6 @@
 # Map — Media cost estimate
 
-Last verified: 2026-09-20 at c204e5e
+Last verified: 2026-09-26 (an unknown price is omitted; the `*-estimate-unknown` row is not rendered). Before that: 2026-09-20 at c204e5e.
 
 ## Overview
 
@@ -24,7 +24,7 @@ Nothing on this path touches the network. The price table is compiled into the a
 
 | Case | What happens |
 |---|---|
-| Model has no curated entry and no cached catalog row | `price: null` → `unknownView()` (`apps/web/lib/media-estimate.ts:160-162`) → the `*-estimate-unknown` testid, "No list price on file for this model" |
+| Model has no curated entry and no cached catalog row | `price: null` → the studio renders nothing for the price line (no `*-estimate-unknown` row) |
 | Priced model, missing tier (e.g. `seedance-2.5` at 1080p) | `resolveTier` (`packages/core/src/models/media-pricing.ts:514-541`) falls to the nearest lower published tier, else higher, sets `approx: true`; the UI leads with `~` instead of `≈` (`apps/web/lib/media-estimate.ts:173`) |
 | Low-confidence row (`omni-fast`, empty vendor) | `~`, no vendor name, explicit "(unverified)" suffix (`apps/web/lib/media-estimate.ts:184-185`) |
 | Catalog cache gone stale | Treated as no catalog: the gateway-fallback price disappears rather than going wrong |
@@ -60,6 +60,6 @@ Nothing on this path touches the network. The price table is compiled into the a
 
 `.cursor/skills/verify-agentforge/features/images.md` and `features/videos.md`.
 
-Testids that prove it: `images-studio-estimate` (`apps/web/components/images-studio.tsx:180`), `images-studio-estimate-compare` (`:184`), `images-studio-estimate-unknown` (`:175`); `videos-studio-estimate` (`apps/web/components/videos-studio.tsx:264`), `videos-studio-estimate-compare` (`:268`), `videos-studio-estimate-unknown` (`:259`). Switching `images-studio-aspect` or `videos-studio-seconds` must move the number without any network call.
+Testids that prove a priced model: `images-studio-estimate` and `images-studio-estimate-compare`; `videos-studio-estimate` and `videos-studio-estimate-compare`. An unpriced id leaves those nodes out. Switching `images-studio-aspect` or `videos-studio-seconds` must move the number without any network call.
 
 Unit tests: `packages/core/src/models/media-pricing.test.ts` (table invariants, alias resolution, both cost functions, tier fallback → `approx`, clamps), `packages/host/src/handlers/jobs.test.ts:57-96` (curated beats catalog; flat-row-only fallback; `null` with no catalog; input array untouched), `apps/web/lib/media-estimate.test.ts` (line assembly, comparison sentences, aspect scaling, currency formatting).

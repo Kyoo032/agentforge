@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { FormattedText } from "@/components/formatted-text";
 import { KnowledgeGraphPanel } from "@/components/knowledge-graph-panel";
 import { KnowledgeLoop } from "@/components/knowledge-loop";
+import { ModeHeader } from "@/components/mode-header";
 import { ModelSelect } from "@/components/model-select";
 import { t } from "@/lib/i18n";
 import { labeled } from "@/lib/ui-copy";
@@ -118,7 +119,9 @@ function seedModel(models: PickerModel[], preferred: string, fallback: string): 
 /** The slice of `apiFetch` the page's writes use, so a test can hand it a stub. */
 export type KnowledgeFetch = (input: string, init?: RequestInit) => Promise<Response>;
 
-export type KnowledgeOutcome = { readonly ok: true; readonly data: unknown } | { readonly ok: false; readonly message: string };
+export type KnowledgeOutcome =
+  | { readonly ok: true; readonly data: unknown }
+  | { readonly ok: false; readonly message: string };
 
 /**
  * One Knowledge write, in the order SR-45 set for the recording upload: `res.ok` before the body,
@@ -327,7 +330,11 @@ export function KnowledgePage() {
     }
     await guard.run("url", async () => {
       setError(null);
-      const outcome = await sendKnowledge("/api/v1/knowledge/sources/url", jsonPost({ url }), t("knowledge.errors.addUrl"));
+      const outcome = await sendKnowledge(
+        "/api/v1/knowledge/sources/url",
+        jsonPost({ url }),
+        t("knowledge.errors.addUrl"),
+      );
       if (!outcome.ok) {
         setError(outcome.message);
         return;
@@ -414,30 +421,39 @@ export function KnowledgePage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-[var(--content-wide)] px-6 py-8 text-[var(--text)]" data-testid="knowledge-page">
-      <div className="mb-5 flex flex-wrap items-end gap-4">
-        <div>
-          <h3 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("knowledge.title")}</h3>
-          <p className="mt-2 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="expected-inputs">{t("knowledge.intro", { name: workspaceName })}</p>
-        </div>
-        <div className="seg ml-auto" data-testid="knowledge-tabs">
-          {(["sources", "soul", "memory", "map"] as const).map((id) => (
-            <button
-              key={id}
-              type="button"
-              className="seg-opt"
-              data-on={tab === id ? "true" : "false"}
-              data-testid={`knowledge-tab-${id}`}
-              onClick={() => setTab(id)}
-            >
-              {t(`knowledge.tabs.${id}`)}
-            </button>
-          ))}
-        </div>
+    <main data-mode="knowledge"
+      className="mx-auto w-full max-w-[var(--content-wide)] px-6 py-8 text-[var(--text)]"
+      data-testid="knowledge-page"
+    >
+      <div className="mb-5">
+        <ModeHeader
+          icon="knowledge"
+          title={t("knowledge.title")}
+          outcome={t("knowledge.intro", { name: workspaceName })}
+          actions={
+            <div className="seg" data-testid="knowledge-tabs">
+              {(["sources", "soul", "memory", "map"] as const).map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  className="seg-opt"
+                  data-on={tab === id ? "true" : "false"}
+                  data-testid={`knowledge-tab-${id}`}
+                  onClick={() => setTab(id)}
+                >
+                  {t(`knowledge.tabs.${id}`)}
+                </button>
+              ))}
+            </div>
+          }
+        />
       </div>
       {error ? <p className="mb-4 text-sm text-red-700">{error}</p> : null}
 
-      <section className="mb-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4" data-testid="knowledge-models">
+      <section
+        className="mb-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4"
+        data-testid="knowledge-models"
+      >
         <p className="panel-label">{t("knowledge.models.label")}</p>
         <div className="mt-3 flex flex-wrap gap-3">
           <label className="flex min-w-[180px] flex-1 flex-col gap-1">
@@ -564,7 +580,9 @@ export function KnowledgePage() {
                   {labeled(`knowledge.sourceType.${row.type}`, row.type)}
                 </span>
                 <span className="text-xs">
-                  {t(row.chunks === 1 ? "knowledge.sources.chunksOne" : "knowledge.sources.chunks", { count: row.chunks })}
+                  {t(row.chunks === 1 ? "knowledge.sources.chunksOne" : "knowledge.sources.chunks", {
+                    count: row.chunks,
+                  })}
                 </span>
                 <span
                   className={row.status === "Indexed" ? "tag tag-accent" : "tag tag-outline"}
@@ -695,7 +713,9 @@ export function KnowledgePage() {
         <div className="flex flex-col gap-4" data-testid="knowledge-map-panel">
           <section className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
             <p className="panel-label">{t("knowledge.map.label")}</p>
-            <p className="mt-2 max-w-[var(--content-narrow)] text-[13px] text-[var(--text-2)]">{t("knowledge.map.intro")}</p>
+            <p className="mt-2 max-w-[var(--content-narrow)] text-[13px] text-[var(--text-2)]">
+              {t("knowledge.map.intro")}
+            </p>
             {/* The model walkthrough is method, not outcome; it sits one click away. */}
             <details className="mt-2 rounded-lg border border-[var(--line)] px-3 py-2">
               <summary className="cursor-pointer select-none text-xs font-medium text-[var(--text-2)]">
@@ -712,11 +732,25 @@ export function KnowledgePage() {
               onClick={() => void runMap()}
               data-testid="knowledge-map-run"
             >
-              {mapping ? t("knowledge.map.running") : t("knowledge.map.run")}
+              {mapping ? (
+                <>
+                  {t("knowledge.map.running")}
+                  <span className="pulse-dots" aria-hidden="true">
+                    <span />
+                    <span />
+                    <span />
+                  </span>
+                </>
+              ) : (
+                t("knowledge.map.run")
+              )}
             </button>
           </section>
           {knowledgeMap ? (
-            <section className="flex flex-col gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4" data-testid="knowledge-map">
+            <section
+              className="enter-rise flex flex-col gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4"
+              data-testid="knowledge-map"
+            >
               <div className="flex flex-wrap items-center gap-2">
                 <span className={knowledgeMap.ready ? "tag tag-accent" : "tag tag-outline"}>
                   {knowledgeMap.ready ? t("knowledge.map.ready") : t("knowledge.map.notReady")}
@@ -727,23 +761,21 @@ export function KnowledgePage() {
               </div>
               <FormattedText text={knowledgeMap.overview} className="text-[14px]" />
               <ul className="flex flex-col gap-3">
-                {knowledgeMap.topics.map((topic) => (
-                  <li key={`${topic.title}-${topic.verdict}`} className="border-t border-[var(--line)] pt-3">
+                {knowledgeMap.topics.map((topic, index) => (
+                  <li
+                    key={`${topic.title}-${topic.verdict}`}
+                    className="card-live enter-rise px-4 py-3"
+                    style={{ "--i": index } as CSSProperties}
+                  >
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{topic.title}</span>
                       <span className={verdictTagClass(topic.verdict)}>
                         {labeled(`knowledge.verdict.${topic.verdict}`, topic.verdict)}
                       </span>
                     </div>
-                    <FormattedText
-                      text={topic.summary}
-                      className="mt-1 text-[13px] text-[var(--text)]"
-                    />
+                    <FormattedText text={topic.summary} className="mt-1 text-[13px] text-[var(--text)]" />
                     {topic.note ? (
-                      <FormattedText
-                        text={topic.note}
-                        className="mt-1 text-xs text-[var(--text-2)]"
-                      />
+                      <FormattedText text={topic.note} className="mt-1 text-xs text-[var(--text-2)]" />
                     ) : null}
                   </li>
                 ))}

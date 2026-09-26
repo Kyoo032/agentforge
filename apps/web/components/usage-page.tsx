@@ -12,6 +12,7 @@ import {
 } from "./usage-panel";
 import { UsageRangeChart } from "./usage-range-chart";
 import { t } from "@/lib/i18n";
+import { ModeHeader } from "@/components/mode-header";
 import { useProductBrand } from "@/lib/product-brand";
 
 function rangeLabel(id: UsageRange): string {
@@ -132,12 +133,14 @@ export function UsagePage() {
 
   return (
     <main className="mx-auto w-full max-w-[var(--content-wide)] px-6 py-8 text-[var(--text)]" data-testid="usage-page">
-      <div className="mb-5 flex flex-wrap items-end gap-4">
-        <div>
-          <h3 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("usage.title")}</h3>
-          <p className="mt-1 text-[13px] text-[var(--text-2)]">{t("usage.intro")}</p>
-        </div>
-        <div className="seg ml-auto" data-testid="usage-range" role="group" aria-label={t("usage.rangeAria")}>
+      <div className="mb-6">
+        <ModeHeader
+          icon="usage"
+          title={t("usage.title")}
+          outcomeTestId="usage-intro"
+          outcome={t("usage.intro")}
+          actions={
+        <div className="seg" data-testid="usage-range" role="group" aria-label={t("usage.rangeAria")}>
           {(["day", "week", "month"] as const).map((id) => {
             const active = range === id;
             return (
@@ -155,6 +158,8 @@ export function UsagePage() {
             );
           })}
         </div>
+          }
+        />
       </div>
 
       {loadError ? <p className="mb-4 text-sm text-red-700">{loadError}</p> : null}
