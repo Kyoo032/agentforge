@@ -523,6 +523,7 @@ Not packed. Webdev and unit tests only. Personal and Enterprise share the render
 - **Wired now:** Documents check-against-source (`POST /api/v1/documents/check`), a Presentation stage (filmstrip, properties, direct text, nine draggable shapes written into the PPTX), and the five Education skills (lesson on that same stage, an exam sheet, local page reading, a presenter stage).
 - **Still not a canvas:** no pen, tables, charts, masters, grouping, rotation, or multi-select. Lesson, exam, and presenter do not call a model. The presenter writes no video and no audio.
 - **Shape keys:** on the shared stage, Delete removes the selected shape, arrow keys nudge it (Shift moves farther), and Duplicate copies it. The copy is saved with the deck and exported in the PPTX.
+- **Desk fit:** Education opens with the mode header and the education illustration. The slide stage accent follows the mode colour. Presentation starters stay the Saturday-pickup sample.
 - **Decks** save as JSON under the data dir (`presentation-decks/`). Reload does not auto-open one.
 - **Local page reading** is a bitmap face in `packages/university`. A scan is not sent to a hosted reader. Knowledge’s `needs_ocr` refusal is unchanged.
 - **en and id** catalogs cover the new chrome. Lesson, exam, and presenter copy follow the boot locale.

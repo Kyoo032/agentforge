@@ -275,6 +275,26 @@ const SCENES: Record<ModeIconName, ReactNode> = {
       </Pop>
     </>
   ),
+  education: (
+    <>
+      <Sheet x={14} y={18} w={70} h={76} />
+      <rect x="26" y="32" width="34" height="6" rx="2" fill={MODE} />
+      <Lines x={26} y={46} widths={[46, 38, 42]} />
+      <Pop i={1}>
+        <g>
+          <rect x="92" y="34" width="52" height="34" rx="4" fill={SURFACE} stroke={MODE} strokeWidth="3" />
+          <circle cx="108" cy="51" r="8" fill={A3} />
+          <rect x="122" y="46" width="14" height="10" rx="2" fill={A2} />
+        </g>
+      </Pop>
+      <Pop i={2}>
+        <path d="M108 18 L120 12 L132 18 L120 24 Z" fill={A4} />
+      </Pop>
+      <Pop i={0}>
+        <Spark x={140} y={82} fill={MODE} s={0.7} />
+      </Pop>
+    </>
+  ),
   images: (
     <>
       <rect x="16" y="14" width="128" height="84" rx="8" fill={SURFACE} stroke={LINE} strokeWidth="3" />

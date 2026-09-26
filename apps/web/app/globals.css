@@ -122,6 +122,7 @@
   --mode-music: #c026d3;
   --mode-edit: #d97706;
   --mode-presentations: #ca8a04;
+  --mode-education: #0f766e;
   --mode-knowledge: #0d9488;
   --mode-channels: #2563eb;
   --mode-workspaces: #6366f1;
@@ -796,6 +797,7 @@ h6 {
 .desk-canvas:has(main[data-mode="music"]) { --page-mode: var(--mode-music); }
 .desk-canvas:has(main[data-mode="edit"]) { --page-mode: var(--mode-edit); }
 .desk-canvas:has(main[data-mode="presentations"]) { --page-mode: var(--mode-presentations); }
+.desk-canvas:has(main[data-mode="education"]) { --page-mode: var(--mode-education); }
 .desk-canvas:has(main[data-mode="knowledge"]) { --page-mode: var(--mode-knowledge); }
 .desk-canvas:has(main[data-mode="channels"]) { --page-mode: var(--mode-channels); }
 .desk-canvas:has(main[data-mode="workspaces"]) { --page-mode: var(--mode-workspaces); }
@@ -1372,6 +1374,7 @@ aside nav > p {
 [data-mode="music"] { --mode: var(--mode-music); }
 [data-mode="edit"] { --mode: var(--mode-edit); }
 [data-mode="presentations"] { --mode: var(--mode-presentations); }
+[data-mode="education"] { --mode: var(--mode-education); }
 [data-mode="knowledge"] { --mode: var(--mode-knowledge); }
 [data-mode="channels"] { --mode: var(--mode-channels); }
 [data-mode="workspaces"] { --mode: var(--mode-workspaces); }

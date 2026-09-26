@@ -426,7 +426,7 @@ export function PresentationPreview({
             <button
               key={kind}
               type="button"
-              className="wash inline-flex h-8 items-center rounded-lg border border-[var(--line)] px-2.5 text-xs"
+              className="btn btn-ghost h-8 rounded-lg px-2.5 text-xs"
               data-testid={`presentations-add-${kind === "rounded" ? "rounded" : kind}`}
               disabled={!editable}
               onClick={() => addKind(kind)}
@@ -439,7 +439,7 @@ export function PresentationPreview({
         <div className="flex gap-2 overflow-x-auto lg:flex-col lg:overflow-visible" data-testid="presentations-filmstrip">
           <button
             type="button"
-            className={`wash min-w-28 rounded-lg border px-2 py-2 text-left text-xs ${slideIndex === 0 ? "border-[var(--accent)]" : "border-[var(--line)]"}`}
+            className={`min-w-28 rounded-lg border bg-[var(--surface)] px-2 py-2 text-left text-xs ${slideIndex === 0 ? "border-[var(--mode)]" : "border-[var(--line)]"}`}
             data-testid="presentations-filmstrip-slide"
             aria-pressed={slideIndex === 0}
             onClick={() => {
@@ -454,7 +454,7 @@ export function PresentationPreview({
             <button
               key={item.heading + String(index)}
               type="button"
-              className={`wash min-w-28 rounded-lg border px-2 py-2 text-left text-xs ${slideIndex === index + 1 ? "border-[var(--accent)]" : "border-[var(--line)]"}`}
+              className={`min-w-28 rounded-lg border bg-[var(--surface)] px-2 py-2 text-left text-xs ${slideIndex === index + 1 ? "border-[var(--mode)]" : "border-[var(--line)]"}`}
               data-testid="presentations-filmstrip-slide"
               aria-pressed={slideIndex === index + 1}
               onClick={() => {
@@ -484,7 +484,7 @@ export function PresentationPreview({
             }
           }}
         >
-          <div className="absolute inset-y-0 left-0 w-1.5 bg-[var(--accent)]" />
+          <div className="absolute inset-y-0 left-0 w-1.5 bg-[var(--mode)]" />
           {slide ? (
             <div className="relative flex h-full flex-col px-8 py-7 sm:px-12">
               <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--text-3)]">
@@ -566,7 +566,7 @@ export function PresentationPreview({
                 top: `${shape.y}%`,
                 width: `${shape.w}%`,
                 height: `${shape.h}%`,
-                outline: shape.id === selectedId ? "2px solid var(--accent)" : undefined,
+                outline: shape.id === selectedId ? "2px solid var(--mode)" : undefined,
                 zIndex: shape.id === selectedId ? 3 : 2,
               }}
               onPointerDown={(event) => beginDrag(event, shape, "move")}
@@ -582,7 +582,7 @@ export function PresentationPreview({
                   type="button"
                   aria-label={t("presentation.resizeShape")}
                   data-testid="presentations-shape-resize"
-                  className="absolute -bottom-1.5 -right-1.5 h-3.5 w-3.5 cursor-nwse-resize rounded-sm bg-[var(--accent)]"
+                  className="absolute -bottom-1.5 -right-1.5 h-3.5 w-3.5 cursor-nwse-resize rounded-sm bg-[var(--mode)]"
                   onPointerDown={(event) => beginDrag(event, shape, "resize")}
                 />
               ) : null}
@@ -629,7 +629,7 @@ export function PresentationPreview({
               <div className="flex gap-2">
                 <button
                   type="button"
-                  className="wash inline-flex h-8 items-center rounded-lg border border-[var(--line)] px-3 text-xs"
+                  className="btn btn-ghost h-8 rounded-lg px-3 text-xs"
                   data-testid="presentations-shape-duplicate"
                   disabled={slide.shapes.length >= 24}
                   onClick={duplicateSelected}
@@ -638,7 +638,7 @@ export function PresentationPreview({
                 </button>
                 <button
                   type="button"
-                  className="wash inline-flex h-8 items-center rounded-lg border border-[var(--line)] px-3 text-xs"
+                  className="btn btn-ghost h-8 rounded-lg px-3 text-xs"
                   data-testid="presentations-shape-remove"
                   onClick={removeSelected}
                 >
@@ -664,7 +664,7 @@ export function PresentationPreview({
             <div className="mt-3">
               <button
                 type="button"
-                className="wash inline-flex h-8 items-center rounded-lg border border-[var(--line)] px-3 text-xs"
+                className="btn btn-ghost h-8 rounded-lg px-3 text-xs"
                 data-testid="presentations-regen"
                 aria-expanded={regenOpen}
                 onClick={() => setRegenOpen((open) => !open)}

@@ -15,7 +15,7 @@ import { WorkingStatus } from "@/components/working-status";
 import type { JobRegenSubmit } from "@/components/job-regen-panel";
 import { PresentationPreview } from "@/components/presentation-preview";
 import { getLocale, t } from "@/lib/i18n";
-import type { PresentationOutline } from "@/lib/presentation-outline";
+import type { PresentationOutline, PresentationOutlineInput } from "@/lib/presentation-outline";
 import { parsePresentationOutlineBody } from "@/lib/presentation-outline";
 import { presentationStarters } from "@/lib/job-starters";
 import { useJobModel } from "@/lib/use-job-model";
@@ -46,7 +46,7 @@ export function PresentationsStudio() {
   const [error, setError] = useState<string | null>(null);
   const [landed, setLanded] = useState(0);
 
-  function showStarter(next: PresentationOutline) {
+  function showStarter(next: PresentationOutlineInput) {
     setOutline(parsePresentationOutlineBody(next));
     setDeckId(null);
     setSavedNote(false);
@@ -291,7 +291,7 @@ export function PresentationsStudio() {
               <button
                 key={deck.id}
                 type="button"
-                className="wash inline-flex h-8 items-center rounded-lg border border-[var(--line)] px-3 text-xs"
+                className="btn btn-ghost h-8 rounded-lg px-3 text-xs"
                 data-testid="presentations-deck-open"
                 onClick={() => void openDeck(deck.id)}
               >

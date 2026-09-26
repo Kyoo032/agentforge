@@ -32,7 +32,7 @@ Preconditions:
 
 ## Gotchas
 
-- The lesson editor is `PresentationPreview`. Its testids stay `presentations-*` on this page.
+- The lesson editor is `PresentationPreview`. Its testids stay `presentations-*` on this page. The page opens with `mode-header` and `data-mode="education"`; an empty lesson shows the education illustration.
 - `education-presenter-build` is on the lesson tab and again on the presenter tab. Only the active tab is mounted.
 - The book reader does not use the document converter's scan refusal as the owner-facing result. A scan comes back as a local empty reading.
 - Exam questions are assembled from retrieved passages, or from a fixed empty-base item. They are not graded and they are not a model paper.

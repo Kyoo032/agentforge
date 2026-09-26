@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { ModeHeader } from "@/components/mode-header";
+import { ModeIllustration } from "@/components/mode-illustration";
 import { PresentationPreview } from "@/components/presentation-preview";
 import { apiFetch } from "@/lib/api-client";
 import { t } from "@/lib/i18n";
@@ -73,13 +75,13 @@ function PresenterStage({
           className="relative aspect-video overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--bg)]"
           data-testid="education-presenter-stage"
         >
-          <div className="absolute inset-y-0 left-0 w-1.5 bg-[var(--accent)]" />
+          <div className="absolute inset-y-0 left-0 w-1.5 bg-[var(--mode)]" />
           <div className="px-8 py-8">
             <h2 className="max-w-xl text-2xl font-medium">{heading || presenter.avatar.label}</h2>
           </div>
           {placement ? (
             <div
-              className="absolute flex flex-col items-center justify-end rounded-t-full bg-[var(--accent)] px-1 pb-1 text-center text-[10px] font-medium leading-tight text-[var(--surface)]"
+              className="absolute flex flex-col items-center justify-end rounded-t-full bg-[var(--mode)] px-1 pb-1 text-center text-[10px] font-medium leading-tight text-[var(--surface)]"
               data-testid="education-presenter-avatar"
               data-motion={placement.motion}
               style={{
@@ -110,7 +112,7 @@ function PresenterStage({
             <button
               key={`${item.slideIndex}-${item.startMs}`}
               type="button"
-              className="wash inline-flex h-8 items-center rounded-lg border border-[var(--line)] px-2 text-xs"
+              className="btn btn-ghost h-8 rounded-lg px-2 text-xs"
               aria-pressed={index === cueIndex}
               onClick={() => onCue(index)}
             >
@@ -278,20 +280,46 @@ export function EducationStudio() {
 
   return (
     <main
+      data-mode="education"
       className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]"
       data-testid="education-studio"
     >
-      <h1 className="text-2xl font-medium tracking-[var(--track)]">{t("education.title")}</h1>
-      <p className="mt-2 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="expected-inputs">
-        {t("education.expectedInputs")}
-      </p>
+      <ModeHeader
+        icon="education"
+        title={t("education.title")}
+        outcome={t("education.expectedInputs")}
+        actions={
+          tab === "lesson" && outline ? (
+            <>
+              <button
+                type="button"
+                className="btn btn-ghost rounded-pill px-4"
+                data-testid="education-save-deck"
+                disabled={busy !== null}
+                onClick={() => void onSave()}
+              >
+                {t("education.saveDeck")}
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost rounded-pill px-4"
+                data-testid="education-presenter-build"
+                disabled={busy !== null}
+                onClick={() => void onPresenter()}
+              >
+                {t("education.buildPresenter")}
+              </button>
+            </>
+          ) : null
+        }
+      />
 
       <div className="mt-6 flex flex-wrap gap-2">
         {tabs.map((item) => (
           <button
             key={item.id}
             type="button"
-            className="wash inline-flex h-8 items-center rounded-pill border border-[var(--line)] px-4 text-sm"
+            className={`btn rounded-pill px-4 ${tab === item.id ? "btn-primary" : "btn-ghost"}`}
             data-testid={item.testId}
             aria-pressed={tab === item.id}
             onClick={() => setTab(item.id)}
@@ -324,7 +352,7 @@ export function EducationStudio() {
             />
             <button
               type="submit"
-              className="wash inline-flex h-8 items-center rounded-pill bg-[var(--accent)] px-4 text-sm font-medium text-[var(--surface)] disabled:opacity-45"
+              className="btn btn-primary h-8 shrink-0 rounded-pill px-4"
               disabled={busy !== null}
               data-testid="education-lesson-draft"
             >
@@ -333,27 +361,11 @@ export function EducationStudio() {
           </form>
           {outline ? (
             <div className="mt-6">
-              <div className="mb-4 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  className="wash inline-flex h-8 items-center rounded-pill border border-[var(--line)] px-4 text-sm"
-                  data-testid="education-save-deck"
-                  disabled={busy !== null}
-                  onClick={() => void onSave()}
-                >
-                  {t("education.saveDeck")}
-                </button>
-                <button
-                  type="button"
-                  className="wash inline-flex h-8 items-center rounded-pill border border-[var(--line)] px-4 text-sm"
-                  data-testid="education-presenter-build"
-                  disabled={busy !== null}
-                  onClick={() => void onPresenter()}
-                >
-                  {t("education.buildPresenter")}
-                </button>
-              </div>
-              {saved ? <p className="mb-3 text-sm text-[var(--text-2)]">{t("education.deckSaved")}</p> : null}
+              {saved ? (
+                <p className="mb-3 text-sm text-[var(--text-2)]" data-testid="education-deck-saved">
+                  {t("education.deckSaved")}
+                </p>
+              ) : null}
               <PresentationPreview
                 outline={outline}
                 onOutlineChange={(next) => {
@@ -363,7 +375,10 @@ export function EducationStudio() {
               />
             </div>
           ) : (
-            <p className="mt-8 text-sm text-[var(--text-2)]">{t("education.lessonEmpty")}</p>
+            <div className="mt-8 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10">
+              <ModeIllustration mode="education" />
+              <p className="mt-4 text-center text-sm text-[var(--text-2)]">{t("education.lessonEmpty")}</p>
+            </div>
           )}
         </div>
       ) : null}
@@ -381,7 +396,7 @@ export function EducationStudio() {
             />
             <button
               type="submit"
-              className="wash inline-flex h-8 items-center rounded-pill bg-[var(--accent)] px-4 text-sm font-medium text-[var(--surface)] disabled:opacity-45"
+              className="btn btn-primary h-8 shrink-0 rounded-pill px-4"
               disabled={busy !== null}
               data-testid="education-exam-generate"
             >
@@ -440,7 +455,7 @@ export function EducationStudio() {
           />
           <button
             type="submit"
-            className="wash inline-flex h-8 items-center rounded-pill bg-[var(--accent)] px-4 text-sm font-medium text-[var(--surface)] disabled:opacity-45"
+            className="btn btn-primary h-8 rounded-pill px-4"
             disabled={busy !== null || !file}
             data-testid="education-book-read"
           >
@@ -462,7 +477,7 @@ export function EducationStudio() {
         <div className="mt-8 space-y-4">
           <button
             type="button"
-            className="wash inline-flex h-8 items-center rounded-pill bg-[var(--accent)] px-4 text-sm font-medium text-[var(--surface)] disabled:opacity-45"
+            className="btn btn-primary h-8 rounded-pill px-4"
             disabled={busy !== null || !outline}
             data-testid="education-presenter-build"
             onClick={() => void onPresenter()}
