@@ -39,7 +39,8 @@
         "label": "Pikirkan satu keputusan",
         "hint": "Taruh opsi di meja dan bahas kedua sisinya.",
         "prompt": "Bantu saya memilih di antara opsi ini. Jabarkan trade-off-nya, lalu rekomendasikan satu:\n\n"
-      }
+      },
+      "fillsComposer": "Mengisi kotak dengan prompt awal."
     },
     "recheck": "Periksa lagi"
   },
@@ -55,7 +56,8 @@
     "sending": "Mengirim…",
     "thinking": "Berpikir",
     "imageCaption": "Apa yang ada di gambar ini?",
-    "videoCaption": "Ringkas video ini."
+    "videoCaption": "Ringkas video ini.",
+    "needsKey": "Tempel kunci di Pengaturan sebelum ini bisa jalan."
   },
   "thinking": {
     "none": "Mati",

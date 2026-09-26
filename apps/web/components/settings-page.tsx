@@ -371,11 +371,15 @@ export function SettingsPage() {
         icon="settings"
         title={t("settings.title")}
         outcomeTestId="settings-intro"
-        outcome={t("settings.intro", {
-          workspaceName,
-          gatewayName,
-          gatewayHost: gatewayHostLabel(gatewayEndpoint),
-        })}
+        outcome={
+          hasOpenai
+            ? t("settings.intro", {
+                workspaceName,
+                gatewayName,
+                gatewayHost: gatewayHostLabel(gatewayEndpoint),
+              })
+            : t("settings.introNeedsKey", { gatewayName })
+        }
       />
 
       {loadError ? (
@@ -480,25 +484,27 @@ export function SettingsPage() {
               data-testid="openai-key"
             />
           </label>
-          <label className="block text-sm text-[var(--text)]">
-            {t("settings.editCapLabel")}
-            <input
-              className={fieldClass}
-              type="number"
-              min={0.5}
-              max={50}
-              step={0.5}
-              value={editTurnCapUsd}
-              onChange={(event) => {
-                const next = Number(event.target.value);
-                if (!Number.isFinite(next)) {
-                  return;
-                }
-                setEditTurnCapUsd(Math.min(50, Math.max(0.5, next)));
-              }}
-              data-testid="settings-edit-turn-cap"
-            />
-          </label>
+          {hasOpenai ? (
+            <label className="block text-sm text-[var(--text)]">
+              {t("settings.editCapLabel")}
+              <input
+                className={fieldClass}
+                type="number"
+                min={0.5}
+                max={50}
+                step={0.5}
+                value={editTurnCapUsd}
+                onChange={(event) => {
+                  const next = Number(event.target.value);
+                  if (!Number.isFinite(next)) {
+                    return;
+                  }
+                  setEditTurnCapUsd(Math.min(50, Math.max(0.5, next)));
+                }}
+                data-testid="settings-edit-turn-cap"
+              />
+            </label>
+          ) : null}
           {hasOpenai && openaiKeyFingerprint ? (
             <p className="mt-1 text-xs text-[var(--text-3)]" data-testid="key-fingerprint">
               {t("settings.fingerprint", { fingerprint: openaiKeyFingerprint })}

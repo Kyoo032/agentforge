@@ -16,6 +16,7 @@ import { abortErrorMessage, armStreamWatchdog } from "@agentforge/core/stream-wa
 import { REASONING_EFFORTS, type ReasoningEffort } from "@agentforge/core/reasoning-effort";
 import { submitOnEnter } from "@/lib/composer-enter";
 import { getLocale, t } from "@/lib/i18n";
+import { useDeskNeedsKey } from "@/lib/use-desk-needs-key";
 
 export type ComposerUserSendPayload = {
   text: string;
@@ -196,10 +197,11 @@ export function ChatComposer({
     setError(null);
   }
 
+  const needsKey = useDeskNeedsKey();
   const pickerModels = models ?? [];
   const showPicker = typeof onModelChange === "function";
   const sendEmpty = !text.trim() && files.length === 0;
-  const sendDisabled = busy || enhancing || sendEmpty;
+  const sendDisabled = busy || enhancing || sendEmpty || needsKey;
 
   useEffect(() => {
     if (draft == null) {
@@ -256,6 +258,9 @@ export function ChatComposer({
   }
 
   async function send() {
+    if (needsKey) {
+      return;
+    }
     // The run belongs to the session on screen now. If the owner opens another before the run
     // reaches the host, nothing is sent and the draft stays in the box; if they open one after, the
     // run streams on to the host — which saves the reply — but writes nothing more into this pane.
@@ -587,24 +592,27 @@ export function ChatComposer({
             tuned. It is a single select now, showing just the level ("Normal").
           */}
           {onReasoningEffortChange || onThinkingChange ? (
-            <select
-              className="h-8 shrink-0 cursor-pointer rounded-pill border border-[var(--line)] bg-transparent pl-3 pr-2 text-xs text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-45"
-              data-testid="reasoning-effort"
-              aria-label={t("chat.composer.thinkingPrefix")}
-              value={reasoningEffort}
-              disabled={busy}
-              onChange={(event) => {
-                const next = event.target.value as ReasoningEffort;
-                onReasoningEffortChange?.(next);
-                onThinkingChange?.(next !== "none");
-              }}
-            >
-              {REASONING_EFFORTS.map((effort) => (
-                <option key={effort} value={effort}>
-                  {t(`chat.thinking.${effort}`)}
-                </option>
-              ))}
-            </select>
+            <label className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-pill border border-[var(--line)] bg-transparent pl-3 pr-1 text-xs text-[var(--text)]">
+              <span data-testid="reasoning-effort-label">{t("chat.composer.thinkingPrefix")}</span>
+              <select
+                className="h-7 cursor-pointer border-0 bg-transparent pr-1 text-xs text-[var(--text)] outline-none disabled:cursor-not-allowed disabled:opacity-45"
+                data-testid="reasoning-effort"
+                aria-label={t("chat.composer.thinkingPrefix")}
+                value={reasoningEffort}
+                disabled={busy}
+                onChange={(event) => {
+                  const next = event.target.value as ReasoningEffort;
+                  onReasoningEffortChange?.(next);
+                  onThinkingChange?.(next !== "none");
+                }}
+              >
+                {REASONING_EFFORTS.map((effort) => (
+                  <option key={effort} value={effort}>
+                    {t(`chat.thinking.${effort}`)}
+                  </option>
+                ))}
+              </select>
+            </label>
           ) : null}
           <EnhancePromptButton
             text={text}
@@ -624,10 +632,16 @@ export function ChatComposer({
               : "btn btn-primary ml-auto h-8 shrink-0 !rounded-pill px-4 text-sm"
           }
           disabled={sendDisabled}
+          title={needsKey ? t("chat.composer.needsKey") : undefined}
           data-testid="composer-send"
         >
           {busy ? t("chat.composer.sending") : t("chat.composer.send")}
         </button>
+        {needsKey ? (
+          <p className="basis-full text-xs text-[var(--text-3)]" data-testid="composer-needs-key">
+            {t("chat.composer.needsKey")}
+          </p>
+        ) : null}
       </div>
     </form>
   );

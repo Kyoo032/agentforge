@@ -146,7 +146,7 @@ export function VideosStudio() {
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!prompt.trim() || generating) {
+    if (!prompt.trim() || generating || !ready) {
       return;
     }
     setGenerating(true);
@@ -190,14 +190,6 @@ export function VideosStudio() {
     >
       <ModeHeader icon="videos" title={t("videos.title")} outcome={t("videos.expectedInputs")} />
 
-      {!ready && !loading ? (
-        <div
-          className="mt-6 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--text-2)]"
-          data-testid="videos-studio-needs-key"
-        >
-          <SettingsLinkHint i18nKey="videos.needsKey" vars={{ gateway: gatewayName }} />
-        </div>
-      ) : null}
 
       {error ? (
         <div
@@ -254,11 +246,7 @@ export function VideosStudio() {
             className="select-field min-w-[12rem] flex-1"
           />
         </div>
-        {!model ? null : estimate.unknown ? (
-          <p className="text-xs text-[var(--text-3)]" data-testid="videos-studio-estimate-unknown">
-            {estimate.line}
-          </p>
-        ) : (
+        {!model || estimate.unknown ? null : (
           <div className="space-y-0.5">
             <p className="text-xs text-[var(--text-2)]" data-testid="videos-studio-estimate">
               {estimate.line}
@@ -303,7 +291,7 @@ export function VideosStudio() {
             ) : null}
           </div>
         </details>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <EnhancePromptButton
             text={prompt}
             surface="videos"
@@ -323,12 +311,22 @@ export function VideosStudio() {
           />
           <button
             type="submit"
-            className="btn btn-primary h-8 shrink-0 rounded-pill px-4"
+            className={
+              ready
+                ? "btn btn-primary h-8 shrink-0 rounded-pill px-4"
+                : "inline-flex h-8 shrink-0 items-center rounded-pill bg-[var(--line)] px-4 text-sm text-[var(--text-3)]"
+            }
             disabled={generating || !ready || !prompt.trim()}
+            title={ready ? undefined : t("videos.needsKey", { gateway: gatewayName, settings: t("rail.settings") })}
             data-testid="videos-studio-submit"
           >
             {generating ? <WorkingStatus label={t("videos.generating")} /> : t("videos.generate")}
           </button>
+          {!ready && !loading ? (
+            <p className="basis-full text-xs text-[var(--text-3)]" data-testid="videos-studio-needs-key">
+              <SettingsLinkHint i18nKey="videos.needsKey" vars={{ gateway: gatewayName }} />
+            </p>
+          ) : null}
         </div>
         <EditPromptTemplates onPick={pickTemplate} selectedId={templateId} />
       </form>

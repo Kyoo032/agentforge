@@ -71,5 +71,7 @@
   "storage.biggest": "Berkas terbesar",
   "storage.empty": "Belum ada apa pun yang tersimpan di akun ini.",
   "storage.delete": "Hapus",
-  "storage.deleteFailed": "Tidak bisa menghapus berkas itu."
+  "storage.deleteFailed": "Tidak bisa menghapus berkas itu.",
+  "introNeedsKey": "Tempel kunci dari akun {gatewayName} Anda.",
+  "reset.dangerSummary": "Keluar dan hapus"
 }

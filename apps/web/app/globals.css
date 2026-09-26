@@ -316,7 +316,7 @@
   --scroll-thumb: color-mix(in srgb, var(--text) 22%, transparent);
   --scroll-thumb-hover: color-mix(in srgb, var(--text) 38%, transparent);
   --scroll-thumb-active: color-mix(in srgb, var(--text) 52%, transparent);
-  --rail: #0e1016;
+  --rail: #2a3144;
   --rail-text: #f2f4fa;
   --rail-text-2: #c9cedc;
   --rail-text-3: #9aa1b4;
@@ -1110,6 +1110,25 @@ aside nav > p {
 /* Every route arrives: `AppShell` keys its scroller on the pathname. */
 .page-enter {
   animation: nx-page var(--motion-5) var(--ease-spring) both;
+}
+
+/* Empty chat centers when it fits. `safe` keeps the hero inside the pane when
+   the block is taller than a 900px window — plain center pushes the top negative. */
+.chat-empty-fit {
+  justify-content: safe center;
+}
+
+@media (max-height: 900px) {
+  .chat-empty-fit {
+    justify-content: flex-start;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .chat-empty-fit .hero-aurora {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
 }
 
 /* The header tile bounces in once, then wiggles whenever its header or card is hovered. */

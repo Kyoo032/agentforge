@@ -5,6 +5,7 @@ import { ChatKeyStatus } from "@/components/chat-key-status";
 import { FloatingShapes } from "@/components/floating-shapes";
 import { ModeIcon } from "@/components/mode-icons";
 import { t } from "@/lib/i18n";
+import { useDeskNeedsKey } from "@/lib/use-desk-needs-key";
 
 /**
  * The empty Chat surface.
@@ -83,15 +84,17 @@ function IdeaIcon({ id }: { id: (typeof IDEAS)[number] }) {
 }
 
 export function ChatLauncher({ onSuggest }: { onSuggest?: (text: string) => void }) {
+  const needsKey = useDeskNeedsKey();
   return (
-    /* `min-h-full` + `justify-center`: the ideas sit in the middle of the desk rather
-       than stranded at the top of a mostly-empty box. It still scrolls on a short
-       window, because the min-height is a floor, not a fixed height. */
+    /* `min-h-full` + safe center: short desks sit in the middle. A short window
+       (900px) must not push the hero above the pane — `safe center` falls back
+       to the start when the block is taller than the scroller. */
     <div
-      className="mx-auto flex min-h-full w-full max-w-[var(--content-max)] flex-col justify-center py-10"
+      className="chat-empty-fit mx-auto flex min-h-full w-full max-w-[var(--content-max)] flex-col py-6"
       data-testid="chat-empty"
+      data-needs-key={needsKey ? "true" : "false"}
     >
-      <div className="hero-aurora enter-rise relative flex flex-col items-center px-6 py-12 text-center" data-mode="chat">
+      <div className="hero-aurora enter-rise relative flex flex-col items-center px-6 py-8 text-center" data-mode="chat">
         <FloatingShapes layout="hero" />
         <span className="icon-orb icon-orb-lg icon-orb-solid tile-bounce relative" style={{ "--i": 1 } as CSSProperties}>
           <ModeIcon name="chat" size={26} strokeWidth={2} />
@@ -107,8 +110,11 @@ export function ChatLauncher({ onSuggest }: { onSuggest?: (text: string) => void
         </div>
       </div>
 
-      <p className="mt-8 text-center text-xs font-medium uppercase tracking-[0.12em] text-[var(--text-3)]">
+      <p className="mt-6 text-center text-xs font-medium uppercase tracking-[0.12em] text-[var(--text-3)]">
         {t("chat.empty.ideas.title")}
+      </p>
+      <p className="mt-1 text-center text-xs text-[var(--text-3)]" data-testid="chat-ideas-hint">
+        {t("chat.empty.ideas.fillsComposer")}
       </p>
       <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2" data-testid="chat-suggestions">
         {IDEAS.map((id, index) => (
@@ -137,9 +143,11 @@ export function ChatLauncher({ onSuggest }: { onSuggest?: (text: string) => void
         ))}
       </div>
 
-      <p className="enter-fade mt-6 text-center text-sm text-[var(--text-2)]" style={{ "--i": 9 } as CSSProperties}>
-        {t("chat.empty.pickModel")}
-      </p>
+      {needsKey ? null : (
+        <p className="enter-fade mt-6 text-center text-sm text-[var(--text-2)]" style={{ "--i": 9 } as CSSProperties}>
+          {t("chat.empty.pickModel")}
+        </p>
+      )}
     </div>
   );
 }

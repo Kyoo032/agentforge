@@ -41,6 +41,10 @@ export function PresentationsStudio() {
   const [error, setError] = useState<string | null>(null);
   const [landed, setLanded] = useState(0);
 
+  function showStarter(next: PresentationOutline) {
+    setOutline(next);
+  }
+
   function landOutline(next: PresentationOutline) {
     setOutline(next);
     setLanded((count) => count + 1);
@@ -235,7 +239,7 @@ export function PresentationsStudio() {
                   className="card-live enter-rise px-4 py-3 text-left"
                   style={{ "--i": index } as CSSProperties}
                   onClick={() => {
-                    landOutline(starter.outline);
+                    showStarter(starter.outline);
                     setError(null);
                   }}
                   data-testid="presentations-starter"

@@ -59,33 +59,27 @@ export function listMaxHeight(rows: number): string {
 }
 
 /**
- * Open/closed for a mode's sub-list (owner rule 2026-09-17): the list is open
- * exactly while the user is on that mode. Selecting any other rail item —
- * another job mode, Chat, an account page — minimises it, and coming back opens
- * it again. The chevron can still close it while the user is on the mode, but
- * that close is forgotten the moment they leave, so nothing is persisted:
- * `open` is derived from the route, not remembered.
- *
- * Deriving it this way is also what keeps the first paint on the mode's own
- * route already expanded — there is no stored value to read in an effect, so no
- * closed frame.
+ * Open/closed for a mode's sub-list (cold-desk pass 2026-09-26): the list stays
+ * closed until the chevron opens it, including the first paint on the mode's
+ * own route. Leaving the mode forgets that open, so the next visit starts
+ * closed again. Nothing is persisted. Off the mode the chevron stays disabled.
  */
 export function useRailSubmenu(path: string): { open: boolean; toggle: () => void; enabled: boolean } {
   const pathname = usePathname();
   const onMode = pathname === path;
-  /** The chevron's close. Only meaningful on the mode, and dropped on leaving. */
-  const [closedOnMode, setClosedOnMode] = useState(false);
+  /** Closed until the chevron opens it. Leaving the mode forgets that open. */
+  const [openedOnMode, setOpenedOnMode] = useState(false);
 
   useEffect(() => {
     if (!onMode) {
-      setClosedOnMode(false);
+      setOpenedOnMode(false);
     }
   }, [onMode]);
 
   return {
-    open: onMode && !closedOnMode,
+    open: onMode && openedOnMode,
     enabled: onMode,
-    toggle: () => setClosedOnMode((was) => !was),
+    toggle: () => setOpenedOnMode((was) => !was),
   };
 }
 
@@ -100,24 +94,21 @@ export function RailSubmenuToggle({
   onToggle,
   enabled = true,
   label,
+  word,
   testId,
 }: {
   open: boolean;
   onToggle: () => void;
   enabled?: boolean;
   label: string;
+  /** Short visible word ("tasks", "specialists"). The full phrase stays on aria-label. */
+  word: string;
   testId: string;
 }) {
   return (
     <button
       type="button"
-      /* Arrow only (owner ruling 2026-09-23): "Show specialists" and "Show tasks"
-         rode beside the mode name, so at a 232px rail Finance truncated to "F."
-         and Market lost its label outright — the secondary control was eating the
-         primary one. The mode keeps its name and the chevron is a 32px square
-         that lines up with the `h-8` row. The words survive in `aria-label` and
-         `title`, so nothing is lost to a screen reader or a hover. */
-      className="wash flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--rail-text-2)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-active-text)] disabled:opacity-40 disabled:hover:bg-transparent"
+      className="wash flex h-8 shrink-0 items-center gap-0.5 rounded-md px-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--rail-text-2)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-active-text)] disabled:opacity-40 disabled:hover:bg-transparent"
       onClick={onToggle}
       disabled={!enabled}
       aria-expanded={open}
@@ -125,6 +116,7 @@ export function RailSubmenuToggle({
       title={label}
       data-testid={testId}
     >
+      <span>{word}</span>
       <svg
         width="12"
         height="12"

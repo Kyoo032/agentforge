@@ -2,7 +2,7 @@
   "aria": "Mode produk",
   "modesAria": "Mode",
   "groupConverse": "Percakapan",
-  "groupJobs": "Mode kerja",
+  "groupJobs": "Buat",
   "groupAccount": "Akun",
   "chat": "Chat",
   "newChat": "Chat baru",
@@ -56,5 +56,7 @@
   },
   "financeTasksAria": "Tugas keuangan",
   "financeTasksToggle": "Tampilkan tugas",
-  "financeTasksHide": "Sembunyikan tugas"
+  "financeTasksHide": "Sembunyikan tugas",
+  "financeTasksWord": "tugas",
+  "marketSpecialistsWord": "spesialis"
 }

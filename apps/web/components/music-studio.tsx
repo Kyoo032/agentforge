@@ -162,7 +162,7 @@ export function MusicStudio() {
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!brief.trim() || busy) {
+    if (!brief.trim() || busy || !ready) {
       return;
     }
     setGenerating(true);
@@ -204,14 +204,6 @@ export function MusicStudio() {
     >
       <ModeHeader icon="music" title={t("music.title")} outcome={t("music.expectedInputs")} />
 
-      {!ready && !loading ? (
-        <div
-          className="mt-6 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--text-2)]"
-          data-testid="music-studio-needs-key"
-        >
-          <SettingsLinkHint i18nKey="music.needsKey" vars={{ gateway: gatewayName }} />
-        </div>
-      ) : null}
 
       {error ? (
         <div
@@ -266,11 +258,7 @@ export function MusicStudio() {
           {t(MODES.find((item) => item.id === mode)?.hintKey ?? "music.describeHint")}
         </p>
 
-        {!model ? null : estimate.unknown ? (
-          <p className="text-xs text-[var(--text-3)]" data-testid="music-studio-estimate-unknown">
-            {estimate.line}
-          </p>
-        ) : (
+        {!model || estimate.unknown ? null : (
           <div className="space-y-0.5">
             <p className="text-xs text-[var(--text-2)]" data-testid="music-studio-estimate">
               {estimate.line}
@@ -351,7 +339,7 @@ export function MusicStudio() {
           </details>
         ) : null}
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {caps.lyrics ? (
             <button
               type="button"
@@ -375,12 +363,22 @@ export function MusicStudio() {
           />
           <button
             type="submit"
-            className="btn btn-primary h-8 shrink-0 rounded-pill px-4"
+            className={
+              ready
+                ? "btn btn-primary h-8 shrink-0 rounded-pill px-4"
+                : "inline-flex h-8 shrink-0 items-center rounded-pill bg-[var(--line)] px-4 text-sm text-[var(--text-3)]"
+            }
             disabled={busy || !ready || noModels || !brief.trim()}
+            title={ready ? undefined : t("music.needsKey", { gateway: gatewayName, settings: t("rail.settings") })}
             data-testid="music-studio-submit"
           >
             {generating ? <WorkingStatus label={t("music.generating")} /> : t("music.generate")}
           </button>
+          {!ready && !loading ? (
+            <p className="basis-full text-xs text-[var(--text-3)]" data-testid="music-studio-needs-key">
+              <SettingsLinkHint i18nKey="music.needsKey" vars={{ gateway: gatewayName }} />
+            </p>
+          ) : null}
         </div>
         {generating ? (
           <p className="text-xs text-[var(--text-3)]" data-testid="music-studio-generating-hint">

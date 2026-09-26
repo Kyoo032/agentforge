@@ -334,6 +334,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
   }
 
   const empty = messages.length === 0 && !streaming && !thinking && !running && tools.length === 0;
+  const hasReply = messages.some((message) => message.role === "assistant");
   const conversationTokens = estimateConversationTokens(messages, [thinking, streaming]);
   const knowledgeTokens = knowledgeParts.reduce((sum, part) => sum + part.tokens, 0);
   const contextTokens = conversationTokens + knowledgeTokens;
@@ -377,12 +378,14 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           {isDefaultChat ? t("chat.title") : agentName}
         </h1>
         <div className="flex min-w-0 flex-wrap items-center justify-end gap-3 text-xs">
-          <ChatContextChip
-            usedTokens={contextTokens}
-            contextLength={selectedModel?.contextLength}
-            parts={contextParts}
-          />
-          <ChatUsageChip />
+          {hasReply ? (
+            <ChatContextChip
+              usedTokens={contextTokens}
+              contextLength={selectedModel?.contextLength}
+              parts={contextParts}
+            />
+          ) : null}
+          {hasReply ? <ChatUsageChip /> : null}
           <ChatAccountChip />
         </div>
       </div>

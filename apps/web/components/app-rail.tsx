@@ -134,7 +134,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
   const financeTasks = useRailFinanceTasks();
 
   useEffect(() => {
-    const query = window.matchMedia("(max-width: 720px)");
+    const query = window.matchMedia("(max-width: 480px)");
     function apply() {
       setCollapsed(query.matches ? true : getRailCollapsed());
     }
@@ -146,7 +146,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
   function toggleCollapsed() {
     setCollapsed((was) => {
       const next = !was;
-      if (!window.matchMedia("(max-width: 720px)").matches) {
+      if (!window.matchMedia("(max-width: 480px)").matches) {
         setRailCollapsed(next);
       }
       return next;

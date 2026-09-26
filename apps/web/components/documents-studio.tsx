@@ -19,6 +19,7 @@ import { t } from "@/lib/i18n";
 import { useJobModel } from "@/lib/use-job-model";
 import { modelPickBody, regenModelPick, studioModelPick } from "@/lib/model-choice";
 import { apiFetch, isElectron } from "@/lib/api-client";
+import { useDeskNeedsKey } from "@/lib/use-desk-needs-key";
 
 function errorMessage(payload: unknown, fallback: string): string {
   if (payload && typeof payload === "object") {
@@ -35,6 +36,7 @@ function needsSettingsHint(message: string): string {
 }
 
 export function DocumentsStudio() {
+  const needsKey = useDeskNeedsKey();
   const { models, model, pinned: modelPinned, setModel } = useJobModel("documents");
   const [prompt, setPrompt] = useState("");
   const [sourceText, setSourceText] = useState("");
@@ -44,6 +46,10 @@ export function DocumentsStudio() {
   const [regenIndex, setRegenIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [landed, setLanded] = useState(0);
+
+  function showStarter(next: DocumentDraft) {
+    setDraft(next);
+  }
 
   function landDraft(next: DocumentDraft) {
     setDraft(next);
@@ -64,7 +70,7 @@ export function DocumentsStudio() {
   async function onGenerate(event: FormEvent) {
     event.preventDefault();
     const topic = prompt.trim();
-    if (!topic || busy) {
+    if (!topic || busy || needsKey) {
       return;
     }
     setBusy("generate");
@@ -239,7 +245,7 @@ export function DocumentsStudio() {
                   type="button"
                   className="wash rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-left hover:bg-[var(--accent-soft)]"
                   onClick={() => {
-                    landDraft(starter.draft);
+                    showStarter(starter.draft);
                     setError(null);
                   }}
                   data-testid="documents-starter"
@@ -274,7 +280,7 @@ export function DocumentsStudio() {
           testId="documents-studio-model"
           className="h-8 w-full rounded-lg border border-[var(--line)] bg-transparent px-2 text-xs text-[var(--text-2)] wash"
         />
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <EnhancePromptButton
             text={prompt}
             surface="documents"
@@ -295,12 +301,22 @@ export function DocumentsStudio() {
           />
           <button
             type="submit"
-            className="wash inline-flex h-8 shrink-0 items-center rounded-pill bg-[var(--accent)] px-4 text-sm font-medium text-[var(--surface)] disabled:opacity-45"
-            disabled={busy !== null || !prompt.trim()}
+            className={
+              needsKey
+                ? "inline-flex h-8 shrink-0 items-center rounded-pill bg-[var(--line)] px-4 text-sm text-[var(--text-3)]"
+                : "wash inline-flex h-8 shrink-0 items-center rounded-pill bg-[var(--accent)] px-4 text-sm font-medium text-[var(--surface)] disabled:opacity-45"
+            }
+            disabled={busy !== null || !prompt.trim() || needsKey}
+            title={needsKey ? t("documents.needsKeyQuiet") : undefined}
             data-testid="documents-generate"
           >
             {busy === "generate" ? <WorkingStatus label={t("documents.generating")} /> : t("documents.generate")}
           </button>
+          {needsKey ? (
+            <p className="basis-full text-xs text-[var(--text-3)]" data-testid="documents-needs-key">
+              {t("documents.needsKeyQuiet")}
+            </p>
+          ) : null}
         </div>
       </form>
     </main>

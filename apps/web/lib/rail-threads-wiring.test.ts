@@ -125,9 +125,12 @@ describe("chat session", () => {
     expect(chatSession).toContain("pendingThreadRef.current = threadIdRef.current;");
   });
 
-  it("keeps the send button ungated so the fallback is what carries the early send", () => {
+  it("keeps send quiet only while busy, enhancing, empty, or the host withholds a live model", () => {
+    // needsKey is the host gate (stub, or allowed false). It is not a key-shape check.
+    // A desk the host has opened still sends, and the thread fallback still carries that send.
     const composer = source("components/chat-composer.tsx");
-    expect(composer).toContain("const sendDisabled = busy || enhancing || sendEmpty;");
+    expect(composer).toContain("const sendDisabled = busy || enhancing || sendEmpty || needsKey;");
+    expect(composer).toContain("if (needsKey) {");
   });
 });
 
