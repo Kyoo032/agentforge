@@ -1217,6 +1217,35 @@ aside nav > p {
   animation-delay: calc(var(--i) * var(--motion-stagger) / 4);
 }
 
+@keyframes nx-illustration-bob {
+  0% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -6px;
+  }
+  100% {
+    translate: 0 0;
+  }
+}
+
+/* The empty-state scenes are wider than a tile, so they float without tilting. */
+.illustration-float {
+  animation: nx-illustration-bob var(--motion-bob) var(--ease-wave) infinite;
+}
+
+/* A working pill inside a button takes the button's colours instead of drawing a second pill. */
+.btn .chip {
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: inherit;
+}
+
+.btn-primary .pulse-dots > span:nth-child(n) {
+  background: currentColor;
+}
+
 /* Entrances. Set `style={{ "--i": n }}` on a sibling to stagger it; `--i` defaults to 0. */
 .enter-rise,
 .enter-fade,
@@ -1415,6 +1444,7 @@ aside nav > p {
   .pulse-dots > span,
   .desk-canvas::before,
   .icon-float,
+  .illustration-float,
   .float-shape,
   .float-shape-spin,
   .tile-bounce,

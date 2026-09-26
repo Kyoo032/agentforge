@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import type { MediaPrice } from "@agentforge/core/media-pricing";
+import { Confetti } from "@/components/confetti";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { ExampleGallery } from "@/components/example-gallery";
 import { ModeHeader } from "@/components/mode-header";
-import { ModeIcon } from "@/components/mode-icons";
+import { ModeIllustration } from "@/components/mode-illustration";
 import { ModelSelect } from "@/components/model-select";
+import { WorkingStatus } from "@/components/working-status";
 import { SettingsLinkHint } from "@/components/settings-link-hint";
 import { t } from "@/lib/i18n";
 import { imageEstimateView, mediaPriceHints } from "@/lib/media-estimate";
@@ -53,6 +55,7 @@ export function ImagesStudio() {
   const [ready, setReady] = useState(true);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [landed, setLanded] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -112,6 +115,7 @@ export function ImagesStudio() {
         setError(data.error?.message ?? t("images.generateError"));
         return;
       }
+      setLanded((count) => count + 1);
       setPrompt("");
       await load();
     } catch (err) {
@@ -122,7 +126,11 @@ export function ImagesStudio() {
   }
 
   return (
-    <main data-mode="images" className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]" data-testid="images-studio">
+    <main
+      data-mode="images"
+      className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]"
+      data-testid="images-studio"
+    >
       <ModeHeader icon="images" title={t("images.title")} outcome={t("images.expectedInputs")} />
 
       {!ready && !loading ? (
@@ -191,7 +199,14 @@ export function ImagesStudio() {
           </div>
         )}
         <div className="flex gap-2">
-          <EnhancePromptButton text={prompt} surface="images" model={model} disabled={generating} testId="images-enhance" onApply={setPrompt} />
+          <EnhancePromptButton
+            text={prompt}
+            surface="images"
+            model={model}
+            disabled={generating}
+            testId="images-enhance"
+            onApply={setPrompt}
+          />
           <input
             type="text"
             className="text-field min-w-0 flex-1 outline-none placeholder:text-[var(--text-3)]"
@@ -207,23 +222,13 @@ export function ImagesStudio() {
             disabled={generating || !prompt.trim()}
             data-testid="images-studio-submit"
           >
-            {generating ? (
-              <>
-                {t("images.generating")}
-                <span className="pulse-dots" aria-hidden="true">
-                  <span />
-                  <span />
-                  <span />
-                </span>
-              </>
-            ) : (
-              t("images.generate")
-            )}
+            {generating ? <WorkingStatus label={t("images.generating")} /> : t("images.generate")}
           </button>
         </div>
       </form>
 
-      <section className="mt-8" data-testid="images-studio-gallery">
+      <section className="relative mt-8" data-testid="images-studio-gallery">
+        {landed > 0 ? <Confetti key={landed} /> : null}
         {loading ? (
           <p className="text-sm text-[var(--text-3)]">{t("images.loadingGallery")}</p>
         ) : items.length === 0 ? (
@@ -231,7 +236,8 @@ export function ImagesStudio() {
             className="rounded-lg border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center"
             data-testid="images-studio-empty"
           >
-            <p className="text-sm font-medium text-[var(--text)]">{t("images.emptyTitle")}</p>
+            <ModeIllustration mode="images" />
+            <p className="mt-4 text-sm font-medium text-[var(--text)]">{t("images.emptyTitle")}</p>
             <p className="mt-2 text-sm text-[var(--text-2)]">{t("images.emptyBody")}</p>
           </div>
         ) : (
@@ -239,7 +245,11 @@ export function ImagesStudio() {
             {items.map((item) => (
               <li key={item.id} className="overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface)]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={mediaSrc(item.url)} alt={item.prompt || t("images.generatedAlt")} className="aspect-square w-full object-cover" />
+                <img
+                  src={mediaSrc(item.url)}
+                  alt={item.prompt || t("images.generatedAlt")}
+                  className="aspect-square w-full object-cover"
+                />
                 {item.prompt ? <p className="truncate px-3 py-2 text-xs text-[var(--text-2)]">{item.prompt}</p> : null}
               </li>
             ))}

@@ -8,8 +8,9 @@ import { JobProgressList } from "@/components/job-progress";
 import { MeetingMinutesView } from "@/components/meeting-minutes-view";
 import { MeetingOtherDeskClips, MeetingRecorderPanel } from "@/components/meeting-recorder";
 import { ModeHeader } from "@/components/mode-header";
-import { ModeIcon } from "@/components/mode-icons";
+import { ModeIllustration } from "@/components/mode-illustration";
 import { ModelSelect } from "@/components/model-select";
+import { WorkingStatus } from "@/components/working-status";
 import { apiFetch } from "@/lib/api-client";
 import { t } from "@/lib/i18n";
 import type { RecordedClip } from "@/lib/meeting-recorder";
@@ -613,7 +614,8 @@ export function MeetingStudio() {
   const otherDeskClips = held.filter((entry) => !onSameDesk(entry.target, workspaceId));
 
   return (
-    <main data-mode="meeting"
+    <main
+      data-mode="meeting"
       className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]"
       data-testid="meeting-studio"
     >
@@ -705,9 +707,7 @@ export function MeetingStudio() {
         <aside className="space-y-1" data-testid="meeting-list">
           {meetings.length === 0 ? (
             <div className="px-2 py-6 text-center">
-              <span className="icon-orb icon-orb-lg icon-float mx-auto">
-                <ModeIcon name="meeting" size={24} strokeWidth={1.75} />
-              </span>
+              <ModeIllustration mode="meeting" />
               <p className="mt-4 text-sm text-[var(--text-2)]" data-testid="meeting-empty">
                 {t("meeting.empty")}
                 <span className="block text-[var(--text-3)]">{t("meeting.emptyDetail")}</span>
@@ -772,11 +772,7 @@ export function MeetingStudio() {
                   className="text-sm text-[var(--text-2)]"
                   data-testid="meeting-file"
                 />
-                {busy === "upload" ? (
-                  <span className="text-xs text-[var(--text-3)]" data-testid="meeting-uploading">
-                    {t("meeting.uploading")}
-                  </span>
-                ) : null}
+                {busy === "upload" ? <WorkingStatus label={t("meeting.uploading")} testId="meeting-uploading" /> : null}
                 <button
                   type="button"
                   onClick={() => void onRun()}
@@ -785,14 +781,7 @@ export function MeetingStudio() {
                   data-testid="meeting-run"
                 >
                   {job.busy ? (
-                    <>
-                      {t("meeting.running")}
-                      <span className="pulse-dots" aria-hidden="true">
-                        <span />
-                        <span />
-                        <span />
-                      </span>
-                    </>
+                    <WorkingStatus label={t("meeting.running")} />
                   ) : selected.transcript ? (
                     t("meeting.runFromTranscript")
                   ) : (
@@ -914,9 +903,7 @@ export function MeetingStudio() {
             </>
           ) : (
             <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center">
-              <span className="icon-orb icon-orb-lg icon-float mx-auto">
-                <ModeIcon name="meeting" size={24} strokeWidth={1.75} />
-              </span>
+              <ModeIllustration mode="meeting" />
               <p className="mt-4 text-sm text-[var(--text-2)]">{t("meeting.emptyDetail")}</p>
             </div>
           )}

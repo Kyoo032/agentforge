@@ -11,10 +11,11 @@ import { FinanceResultNotices } from "@/components/finance-steps/finance-result-
 import { FinanceResultPanel } from "@/components/finance-steps/finance-result-panel";
 import { financeStepsFor } from "@/components/finance-steps/registry";
 import type { FinanceStepDraft, FinanceStepPayload } from "@/components/finance-steps/types";
+import { Confetti } from "@/components/confetti";
 import { JobProgressList } from "@/components/job-progress";
 import type { JobRegenSubmit } from "@/components/job-regen-panel";
 import { ModeHeader } from "@/components/mode-header";
-import { ModeIcon } from "@/components/mode-icons";
+import { ModeIllustration } from "@/components/mode-illustration";
 import { listDatasets, type DatasetSummary } from "@/lib/data-client";
 import { briefLooksLikeFigures, parseFailureMessage } from "@/lib/finance-brief";
 import {
@@ -45,10 +46,6 @@ import { useWorkspaceScope } from "@/lib/workspace-scope";
 import { getLocale, t } from "@/lib/i18n";
 import { labeled } from "@/lib/ui-copy";
 import { SettingsLinkHint } from "@/components/settings-link-hint";
-
-function needsSettingsHint(message: string): boolean {
-  return /gateway|api key|settings|runtime_stub|live gateway/i.test(message);
-}
 
 export function FinanceStudio() {
   const { productName } = useProductBrand();
@@ -84,6 +81,7 @@ export function FinanceStudio() {
   const [regenIndex, setRegenIndex] = useState<number | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [landed, setLanded] = useState(0);
 
   const error = localError ?? job.error?.message ?? null;
   const locked = job.busy || busy !== null;
@@ -223,6 +221,7 @@ export function FinanceStudio() {
     const next = await job.run("/api/v1/finance/stream", { prompt: brief, ...pick, ...inputsBody() });
     if (next) {
       setResult(next);
+      setLanded((count) => count + 1);
       if (source.kind === "dataset") {
         setItems(next.items);
       }
@@ -257,7 +256,8 @@ export function FinanceStudio() {
   }
 
   return (
-    <main data-mode="finance"
+    <main
+      data-mode="finance"
       className="mx-auto w-full max-w-[var(--content-wide)] px-6 pb-10 pt-8 text-[var(--text)]"
       data-testid="finance-studio"
     >
@@ -304,7 +304,7 @@ export function FinanceStudio() {
       {error ? (
         <p className="mb-4 text-sm text-[var(--danger)]" role="alert" data-testid="finance-error">
           {error}
-          {needsSettingsHint(error) && !/settings/i.test(error) ? (
+          {/gateway|api key|settings|runtime_stub|live gateway/i.test(error) && !/settings/i.test(error) ? (
             <>
               {" "}
               <SettingsLinkHint i18nKey="finance.openSettings" />
@@ -338,7 +338,8 @@ export function FinanceStudio() {
               />
             ) : null}
             {result ? (
-              <div className="enter-rise space-y-4">
+              <div className="enter-rise relative space-y-4">
+                {landed > 0 ? <Confetti key={landed} /> : null}
                 <FinanceResultNotices result={result} />
                 <StepResult
                   result={result}
@@ -356,9 +357,7 @@ export function FinanceStudio() {
                 className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center text-[var(--text-2)]"
                 data-testid="finance-studio-empty"
               >
-                <span className="icon-orb icon-orb-lg icon-float mx-auto">
-                  <ModeIcon name="finance" size={24} strokeWidth={1.75} />
-                </span>
+                <ModeIllustration mode="finance" />
                 <p className="mt-4 font-medium text-[var(--text)]">{t("finance.emptyOutcome")}</p>
                 <p className="mt-1.5 text-sm text-[var(--text-3)]">
                   {ready ? t("finance.emptyReady") : t("finance.emptyWait")}
@@ -387,6 +386,7 @@ export function FinanceStudio() {
           onModel={setModel}
           locked={locked}
           running={job.busy}
+          working={job.busy || busy === "autoParse"}
           submitLabel={generateLabel}
         />
       ) : null}

@@ -3,6 +3,7 @@
 import type { ComponentProps, FormEvent } from "react";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { ModelSelect } from "@/components/model-select";
+import { WorkingStatus } from "@/components/working-status";
 import { t } from "@/lib/i18n";
 
 /**
@@ -20,6 +21,7 @@ export function FinancePromptBar({
   onModel,
   locked,
   running,
+  working,
   submitLabel,
 }: {
   prompt: string;
@@ -31,8 +33,11 @@ export function FinancePromptBar({
   onModel: (value: string) => void;
   locked: boolean;
   running: boolean;
+  /** Reading figures is in flight too, and that path is not the stream's `running` flag. */
+  working?: boolean;
   submitLabel: string;
 }) {
+  const inFlight = working ?? running;
   return (
     <form
       className="mt-5 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4"
@@ -70,14 +75,7 @@ export function FinancePromptBar({
           disabled={locked || !prompt.trim()}
           data-testid="finance-generate"
         >
-          {submitLabel}
-          {running ? (
-            <span className="pulse-dots" aria-hidden="true">
-              <span />
-              <span />
-              <span />
-            </span>
-          ) : null}
+          {inFlight ? <WorkingStatus label={submitLabel} /> : submitLabel}
         </button>
       </div>
     </form>

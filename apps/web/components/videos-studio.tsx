@@ -8,9 +8,11 @@ import { EditPromptTemplates } from "@/components/edit-prompt-templates";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { ExampleGallery } from "@/components/example-gallery";
 import { VideoExamples } from "@/components/video-examples";
+import { Confetti } from "@/components/confetti";
 import { ModeHeader } from "@/components/mode-header";
-import { ModeIcon } from "@/components/mode-icons";
+import { ModeIllustration } from "@/components/mode-illustration";
 import { ModelSelect } from "@/components/model-select";
+import { WorkingStatus } from "@/components/working-status";
 import { SettingsLinkHint } from "@/components/settings-link-hint";
 import { t } from "@/lib/i18n";
 import { mediaPriceHints, videoEstimateView } from "@/lib/media-estimate";
@@ -67,6 +69,7 @@ export function VideosStudio() {
   const [ready, setReady] = useState(true);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [landed, setLanded] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -168,6 +171,7 @@ export function VideosStudio() {
         setError(data.error?.message ?? t("videos.generateError"));
         return;
       }
+      setLanded((count) => count + 1);
       setPrompt("");
       setStillUrl("");
       await load();
@@ -179,7 +183,8 @@ export function VideosStudio() {
   }
 
   return (
-    <main data-mode="videos"
+    <main
+      data-mode="videos"
       className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]"
       data-testid="videos-studio"
     >
@@ -322,24 +327,14 @@ export function VideosStudio() {
             disabled={generating || !ready || !prompt.trim()}
             data-testid="videos-studio-submit"
           >
-            {generating ? (
-              <>
-                {t("videos.generating")}
-                <span className="pulse-dots" aria-hidden="true">
-                  <span />
-                  <span />
-                  <span />
-                </span>
-              </>
-            ) : (
-              t("videos.generate")
-            )}
+            {generating ? <WorkingStatus label={t("videos.generating")} /> : t("videos.generate")}
           </button>
         </div>
         <EditPromptTemplates onPick={pickTemplate} selectedId={templateId} />
       </form>
 
-      <section className="mt-8" data-testid="videos-studio-gallery">
+      <section className="relative mt-8" data-testid="videos-studio-gallery">
+        {landed > 0 ? <Confetti key={landed} /> : null}
         {loading ? (
           <p className="text-sm text-[var(--text-3)]">{t("videos.loadingGallery")}</p>
         ) : items.length === 0 ? (
@@ -347,9 +342,7 @@ export function VideosStudio() {
             className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center"
             data-testid="videos-studio-empty"
           >
-            <span className="icon-orb icon-orb-lg icon-float mx-auto">
-              <ModeIcon name="videos" size={24} strokeWidth={1.75} />
-            </span>
+            <ModeIllustration mode="videos" />
             <p className="mt-4 text-sm font-medium text-[var(--text)]">{t("videos.emptyTitle")}</p>
             <p className="mt-2 text-sm text-[var(--text-2)]">{t("videos.emptyBody")}</p>
           </div>

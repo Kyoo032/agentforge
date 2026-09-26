@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { usePathname, useSearchParams } from "@/lib/nav";
 import { ArtifactActions } from "@/components/artifact-actions";
+import { Confetti } from "@/components/confetti";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { JobProgressList } from "@/components/job-progress";
 import type { JobRegenSubmit } from "@/components/job-regen-panel";
@@ -10,8 +11,9 @@ import { MarketBoard } from "@/components/market-board";
 import { MarketBriefingView } from "@/components/market-briefing-view";
 import { MarketWatchlistInput } from "@/components/market-watchlist-input";
 import { ModeHeader } from "@/components/mode-header";
-import { ModeIcon } from "@/components/mode-icons";
+import { ModeIllustration } from "@/components/mode-illustration";
 import { ModelSelect } from "@/components/model-select";
+import { WorkingStatus } from "@/components/working-status";
 import {
   DEFAULT_MAX_CHARS,
   DEFAULT_MARKET_DEPTH,
@@ -96,6 +98,7 @@ export function MarketStudio() {
   const [maxChars, setMaxChars] = useState<number>(DEFAULT_MAX_CHARS);
   const [showOptions, setShowOptions] = useState(false);
   const [result, setResult] = useState<MarketWatchResult | null>(null);
+  const [landed, setLanded] = useState(0);
   const [busy, setBusy] = useState<"download" | "regen" | null>(null);
   const [regenIndex, setRegenIndex] = useState<number | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -189,6 +192,7 @@ export function MarketStudio() {
     const next = await job.run("/api/v1/market/stream", body);
     if (next) {
       setResult(next);
+      setLanded((count) => count + 1);
     }
   }
 
@@ -322,7 +326,8 @@ export function MarketStudio() {
   );
 
   return (
-    <main data-mode="market"
+    <main
+      data-mode="market"
       className="mx-auto w-full max-w-[var(--content-wide)] px-6 pb-10 pt-8 text-[var(--text)]"
       data-testid="market-studio"
     >
@@ -341,14 +346,7 @@ export function MarketStudio() {
                 data-testid="market-download"
               >
                 {busy === "download" ? (
-                  <>
-                    {t("market.studio.building")}
-                    <span className="pulse-dots" aria-hidden="true">
-                      <span />
-                      <span />
-                      <span />
-                    </span>
-                  </>
+                  <WorkingStatus label={t("market.studio.building")} />
                 ) : (
                   t("market.studio.download")
                 )}
@@ -436,18 +434,7 @@ export function MarketStudio() {
                 disabled={locked || !ready}
                 data-testid="market-generate"
               >
-                {job.busy ? (
-                  <>
-                    {t("market.studio.writing")}
-                    <span className="pulse-dots" aria-hidden="true">
-                      <span />
-                      <span />
-                      <span />
-                    </span>
-                  </>
-                ) : (
-                  t("market.studio.writeBriefing")
-                )}
+                {job.busy ? <WorkingStatus label={t("market.studio.writing")} /> : t("market.studio.writeBriefing")}
               </button>
               {job.busy ? (
                 <button type="button" className="btn" onClick={job.cancel} data-testid="market-cancel">
@@ -579,7 +566,8 @@ export function MarketStudio() {
           <JobProgressList progress={teamProgress} busy={job.busy} testId="market-progress" />
         ) : null}
         {result ? (
-          <div className="enter-rise space-y-4">
+          <div className="enter-rise relative space-y-4">
+            {landed > 0 ? <Confetti key={landed} /> : null}
             <div className="flex flex-wrap items-baseline gap-2">
               <h4 className="text-base font-medium text-[var(--text)]">{result.briefing.title}</h4>
               <span className="chip" data-testid="market-briefing-specialist">
@@ -612,9 +600,7 @@ export function MarketStudio() {
             className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center text-[var(--text-2)]"
             data-testid="market-studio-empty"
           >
-            <span className="icon-orb icon-orb-lg icon-float mx-auto">
-              <ModeIcon name="market" size={24} strokeWidth={1.75} />
-            </span>
+            <ModeIllustration mode="market" />
             <p className="mt-4">{t("market.studio.empty")}</p>
           </div>
         ) : null}

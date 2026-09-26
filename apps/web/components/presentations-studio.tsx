@@ -4,11 +4,13 @@ import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
 import { Link } from "@/lib/nav";
 import { SourceMaterialField } from "@/components/source-material-field";
 import { subscribeModeHandoff } from "@/lib/mode-handoff";
+import { Confetti } from "@/components/confetti";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { ExampleGallery } from "@/components/example-gallery";
 import { ModeHeader } from "@/components/mode-header";
-import { ModeIcon } from "@/components/mode-icons";
+import { ModeIllustration } from "@/components/mode-illustration";
 import { ModelSelect } from "@/components/model-select";
+import { WorkingStatus } from "@/components/working-status";
 import type { JobRegenSubmit } from "@/components/job-regen-panel";
 import { PresentationPreview } from "@/components/presentation-preview";
 import { getLocale, t } from "@/lib/i18n";
@@ -37,6 +39,12 @@ export function PresentationsStudio() {
   const [busy, setBusy] = useState<"generate" | "download" | "regen" | null>(null);
   const [regenIndex, setRegenIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [landed, setLanded] = useState(0);
+
+  function landOutline(next: PresentationOutline) {
+    setOutline(next);
+    setLanded((count) => count + 1);
+  }
 
   useEffect(
     () =>
@@ -72,7 +80,7 @@ export function PresentationsStudio() {
       if (!res.ok) {
         throw new Error(errorMessage(data, t("presentation.generateError")));
       }
-      setOutline(data as PresentationOutline);
+      landOutline(data as PresentationOutline);
     } catch (err) {
       setOutline(null);
       setError(err instanceof Error ? err.message : t("presentation.generateError"));
@@ -154,7 +162,8 @@ export function PresentationsStudio() {
   }
 
   return (
-    <main data-mode="presentations"
+    <main
+      data-mode="presentations"
       className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]"
       data-testid="presentations-studio"
     >
@@ -171,18 +180,7 @@ export function PresentationsStudio() {
               className="btn btn-primary rounded-pill px-4"
               data-testid="presentations-download"
             >
-              {busy === "download" ? (
-                <>
-                  {t("presentation.building")}
-                  <span className="pulse-dots" aria-hidden="true">
-                    <span />
-                    <span />
-                    <span />
-                  </span>
-                </>
-              ) : (
-                t("presentation.download")
-              )}
+              {busy === "download" ? <WorkingStatus label={t("presentation.building")} /> : t("presentation.download")}
             </button>
           ) : null
         }
@@ -211,7 +209,8 @@ export function PresentationsStudio() {
 
       <div className="mt-8 flex-1">
         {outline ? (
-          <div className="enter-rise">
+          <div className="enter-rise relative">
+            {landed > 0 ? <Confetti key={landed} /> : null}
             <PresentationPreview
               outline={outline}
               models={models}
@@ -225,9 +224,7 @@ export function PresentationsStudio() {
             className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10"
             data-testid="presentations-studio-empty"
           >
-            <span className="icon-orb icon-orb-lg icon-float mx-auto">
-              <ModeIcon name="presentations" size={24} strokeWidth={1.75} />
-            </span>
+            <ModeIllustration mode="presentations" />
             <p className="mt-4 text-center text-sm font-medium text-[var(--text)]">{t("presentation.emptyTitle")}</p>
             <p className="mt-2 text-center text-sm text-[var(--text-2)]">{t("presentation.emptyBody")}</p>
             <div className="mx-auto mt-6 grid max-w-[var(--content-narrow)] gap-3 sm:grid-cols-2">
@@ -238,7 +235,7 @@ export function PresentationsStudio() {
                   className="card-live enter-rise px-4 py-3 text-left"
                   style={{ "--i": index } as CSSProperties}
                   onClick={() => {
-                    setOutline(starter.outline);
+                    landOutline(starter.outline);
                     setError(null);
                   }}
                   data-testid="presentations-starter"
@@ -298,18 +295,7 @@ export function PresentationsStudio() {
             disabled={busy !== null || !prompt.trim()}
             data-testid="presentations-generate"
           >
-            {busy === "generate" ? (
-              <>
-                {t("presentation.generating")}
-                <span className="pulse-dots" aria-hidden="true">
-                  <span />
-                  <span />
-                  <span />
-                </span>
-              </>
-            ) : (
-              t("presentation.generate")
-            )}
+            {busy === "generate" ? <WorkingStatus label={t("presentation.generating")} /> : t("presentation.generate")}
           </button>
         </div>
       </form>

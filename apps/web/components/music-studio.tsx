@@ -10,8 +10,9 @@ import {
   MUSIC_TITLE_MAX,
 } from "@agentforge/core/audio-capabilities";
 import { ModeHeader } from "@/components/mode-header";
-import { ModeIcon } from "@/components/mode-icons";
+import { ModeIllustration } from "@/components/mode-illustration";
 import { ModelSelect } from "@/components/model-select";
+import { WorkingStatus } from "@/components/working-status";
 import { SettingsLinkHint } from "@/components/settings-link-hint";
 import { t } from "@/lib/i18n";
 import { mediaPriceHints, musicEstimateView } from "@/lib/media-estimate";
@@ -196,7 +197,8 @@ export function MusicStudio() {
   }
 
   return (
-    <main data-mode="music"
+    <main
+      data-mode="music"
       className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]"
       data-testid="music-studio"
     >
@@ -358,7 +360,7 @@ export function MusicStudio() {
               disabled={busy || !ready || noModels || !prompt.trim()}
               data-testid="music-studio-draft-lyrics"
             >
-              {drafting ? t("music.writingLyrics") : t("music.writeLyrics")}
+              {drafting ? <WorkingStatus label={t("music.writingLyrics")} /> : t("music.writeLyrics")}
             </button>
           ) : null}
           <input
@@ -377,18 +379,7 @@ export function MusicStudio() {
             disabled={busy || !ready || noModels || !brief.trim()}
             data-testid="music-studio-submit"
           >
-            {generating ? (
-              <>
-                {t("music.generating")}
-                <span className="pulse-dots" aria-hidden="true">
-                  <span />
-                  <span />
-                  <span />
-                </span>
-              </>
-            ) : (
-              t("music.generate")
-            )}
+            {generating ? <WorkingStatus label={t("music.generating")} /> : t("music.generate")}
           </button>
         </div>
         {generating ? (
@@ -422,9 +413,7 @@ export function MusicStudio() {
             className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center"
             data-testid="music-studio-empty"
           >
-            <span className="icon-orb icon-orb-lg icon-float mx-auto">
-              <ModeIcon name="music" size={24} strokeWidth={1.75} />
-            </span>
+            <ModeIllustration mode="music" />
             <p className="mt-4 text-sm font-medium text-[var(--text)]">{t("music.emptyTitle")}</p>
             <p className="mt-2 text-sm text-[var(--text-2)]">{t("music.emptyBody")}</p>
           </div>

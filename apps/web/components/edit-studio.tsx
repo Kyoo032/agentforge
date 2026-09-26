@@ -13,7 +13,8 @@ import { EditAgentPanel } from "@/components/edit-agent-panel";
 import { EditGenerateTab } from "@/components/edit-generate-tab";
 import { FfmpegSetupNotice } from "@/components/ffmpeg-setup-notice";
 import { ModeHeader } from "@/components/mode-header";
-import { ModeIcon } from "@/components/mode-icons";
+import { ModeIllustration } from "@/components/mode-illustration";
+import { WorkingStatus } from "@/components/working-status";
 import { imageClipAt } from "@/lib/edit-preview-media";
 import { EditRecipesPanel } from "@/components/edit-recipes-panel";
 import { EditPreview } from "@/components/edit-preview";
@@ -645,7 +646,8 @@ export function EditStudio() {
   }, [exportJob?.status, exportJobId]);
 
   return (
-    <main data-mode="edit"
+    <main
+      data-mode="edit"
       className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-app text-[var(--text)]"
       data-testid="edit-studio"
     >
@@ -681,26 +683,15 @@ export function EditStudio() {
                 disabled={!project || !reviewOpen || exporting}
                 onClick={() => void onExport()}
               >
-                {exporting ? (
-                  <>
-                    {t("edit.export")}
-                    <span className="pulse-dots" aria-hidden="true">
-                      <span />
-                      <span />
-                      <span />
-                    </span>
-                  </>
-                ) : (
-                  t("edit.export")
-                )}
+                {exporting ? <WorkingStatus label={t("edit.export")} /> : t("edit.export")}
               </button>
             </>
           }
         />
       </div>
       {exporting || exportBusy ? (
-        <p className="px-4 text-xs text-[var(--text-3)]" data-testid="edit-export-progress">
-          {t("edit.exporting")}
+        <p className="px-4" data-testid="edit-export-progress">
+          <WorkingStatus label={t("edit.exporting")} />
         </p>
       ) : null}
       {exportReady ? (
@@ -776,9 +767,7 @@ export function EditStudio() {
           </div>
           <aside className="w-[280px] border-l border-[var(--line)]" data-testid="edit-agent-panel">
             <div className="flex flex-col items-center px-4 py-8 text-center">
-              <span className="icon-orb icon-orb-lg icon-float">
-                <ModeIcon name="edit" size={24} strokeWidth={1.75} />
-              </span>
+              <ModeIllustration mode="edit" />
               <p className="mt-4 text-xs text-[var(--text-3)]">{t("edit.openProjectHint")}</p>
             </div>
           </aside>

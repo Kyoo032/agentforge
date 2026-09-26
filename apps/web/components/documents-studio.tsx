@@ -2,8 +2,11 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "@/lib/nav";
+import { Confetti } from "@/components/confetti";
 import { DocumentPreview } from "@/components/document-preview";
+import { ModeIllustration } from "@/components/mode-illustration";
 import { SourceMaterialField } from "@/components/source-material-field";
+import { WorkingStatus } from "@/components/working-status";
 import { subscribeModeHandoff } from "@/lib/mode-handoff";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { ExampleGallery } from "@/components/example-gallery";
@@ -40,6 +43,12 @@ export function DocumentsStudio() {
   const [busy, setBusy] = useState<"generate" | "download" | "regen" | null>(null);
   const [regenIndex, setRegenIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [landed, setLanded] = useState(0);
+
+  function landDraft(next: DocumentDraft) {
+    setDraft(next);
+    setLanded((count) => count + 1);
+  }
 
   useEffect(
     () =>
@@ -75,7 +84,7 @@ export function DocumentsStudio() {
       if (!res.ok) {
         throw new Error(errorMessage(data, t("documents.errors.generate")));
       }
-      setDraft(data as DocumentDraft);
+      landDraft(data as DocumentDraft);
     } catch (err) {
       setDraft(null);
       setError(err instanceof Error ? err.message : t("documents.errors.generate"));
@@ -157,7 +166,11 @@ export function DocumentsStudio() {
   }
 
   return (
-    <main data-mode="documents" className="mx-auto flex min-h-full w-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]" data-testid="documents-studio">
+    <main
+      data-mode="documents"
+      className="mx-auto flex min-h-full w-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]"
+      data-testid="documents-studio"
+    >
       <ModeHeader
         icon="documents"
         title={t("documents.title")}
@@ -171,7 +184,7 @@ export function DocumentsStudio() {
               className="btn btn-primary rounded-pill px-4"
               data-testid="documents-download"
             >
-              {busy === "download" ? t("documents.building") : t("documents.download")}
+              {busy === "download" ? <WorkingStatus label={t("documents.building")} /> : t("documents.download")}
             </button>
           ) : null
         }
@@ -201,16 +214,23 @@ export function DocumentsStudio() {
 
       <div className="mt-8 flex-1">
         {draft ? (
-          <DocumentPreview
-            draft={draft}
-            models={models}
-            defaultModel={model}
-            regeneratingIndex={regenIndex}
-            onRegenerate={(index, payload) => void onRegenerate(index, payload)}
-          />
+          <div className="relative">
+            {landed > 0 ? <Confetti key={landed} /> : null}
+            <DocumentPreview
+              draft={draft}
+              models={models}
+              defaultModel={model}
+              regeneratingIndex={regenIndex}
+              onRegenerate={(index, payload) => void onRegenerate(index, payload)}
+            />
+          </div>
         ) : (
-          <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10" data-testid="documents-studio-empty">
-            <p className="text-center text-sm font-medium text-[var(--text)]">{t("documents.emptyTitle")}</p>
+          <div
+            className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10"
+            data-testid="documents-studio-empty"
+          >
+            <ModeIllustration mode="documents" />
+            <p className="mt-4 text-center text-sm font-medium text-[var(--text)]">{t("documents.emptyTitle")}</p>
             <p className="mt-2 text-center text-sm text-[var(--text-2)]">{t("documents.emptyHint")}</p>
             <div className="mx-auto mt-6 grid max-w-[var(--content-narrow)] gap-3 sm:grid-cols-2">
               {documentStarters().map((starter) => (
@@ -219,7 +239,7 @@ export function DocumentsStudio() {
                   type="button"
                   className="wash rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-left hover:bg-[var(--accent-soft)]"
                   onClick={() => {
-                    setDraft(starter.draft);
+                    landDraft(starter.draft);
                     setError(null);
                   }}
                   data-testid="documents-starter"
@@ -279,7 +299,7 @@ export function DocumentsStudio() {
             disabled={busy !== null || !prompt.trim()}
             data-testid="documents-generate"
           >
-            {busy === "generate" ? t("documents.generating") : t("documents.generate")}
+            {busy === "generate" ? <WorkingStatus label={t("documents.generating")} /> : t("documents.generate")}
           </button>
         </div>
       </form>
