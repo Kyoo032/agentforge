@@ -91,12 +91,16 @@ export async function handleGetVideos(request: HostRequest): Promise<HostResult>
       resolvedGatewayBaseUrl(),
     );
     const sources = await agentService.listGenerateDefaultSources(tenant);
-    const defaultModel = resolveStudioGenerateDefault({
+    const preferred = defaultStudioVideoModel(models);
+    const pinned = resolveStudioGenerateDefault({
       kind: "video",
       sources,
       settingsModel: settings.videoGenModel,
-      catalogPreferred: defaultStudioVideoModel(models),
+      catalogPreferred: preferred,
     });
+    // A Settings or agent pin the refresh did not list is not offered and not priced.
+    const defaultModel =
+      models.find((model) => model.id.toLowerCase() === pinned.trim().toLowerCase())?.id ?? preferred;
     return jsonOk({ items, models, defaultModel, ready: studioRouteReady("video_gen", tenant) });
   } catch (error) {
     return jsonError(error);

@@ -5,6 +5,8 @@
   "settingsLink": "Settings",
   "loadError": "Could not load video studio",
   "generateError": "Video generation failed",
+  "modelNotOnKey": "{model} is not available on this key. Try {suggestion}.",
+  "modelNotOnKeyNoAlt": "{model} is not available on this key. Refresh models in Settings and pick one this key lists.",
   "stillUnsupported": "This model does not accept a still image",
   "hostNeedsKey": "Add a Toko Token gateway key in Settings to generate videos.",
   "textToVideoOnly": "This model is text-to-video only",

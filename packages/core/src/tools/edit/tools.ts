@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ApiError } from "../../errors";
-import { ASPECT_SIZE, titleStyleSchema, type Clip } from "../../edit/document";
+import { ASPECT_SIZE, DEFAULT_TITLE_STYLE, titleStyleSchema, type Clip } from "../../edit/document";
 import { RECIPES } from "../../edit/recipes";
 import { imageToVideoForModel } from "../../models/video-capabilities";
 import type { TenantContext } from "../../tenancy/types";
@@ -122,11 +122,13 @@ export const transcribeTool = defineTool({
       return editToolRefusal("asr_unavailable", "Auto captions unavailable on this key");
     }
     const project = await backend.getProject(tenant);
-    return backend.startJob(tenant, {
-      kind: "asr",
-      request: args,
-      targetClipIds: [],
-    }).then((result) => ({ success: true, ...result, projectId: project.id }));
+    return backend
+      .startJob(tenant, {
+        kind: "asr",
+        request: args,
+        targetClipIds: [],
+      })
+      .then((result) => ({ success: true, ...result, projectId: project.id }));
   },
 });
 
@@ -224,7 +226,7 @@ export const removeSilenceTool = defineTool({
     const clip = project.clips.find((item) => item.id === clipId);
     const pad = paddingFrames ?? 0;
     const ops = [];
-    let currentId = clipId;
+    const currentId = clipId;
     const sorted = [...ranges].sort((a, b) => b.startFrame - a.startFrame);
     for (const range of sorted) {
       const start = range.startFrame + pad;
@@ -265,13 +267,14 @@ export const splitAtScenesTool = defineTool({
 export const addTitleTool = defineTool({
   key: "add_title",
   name: "Add title",
-  description: "Style must be within the ASS subset.",
+  description:
+    "Add a title card now. text is the words on screen. style, startFrame and durationFrames are optional; omit them for a 3 second title at the start. Style, when sent, must stay inside the ASS subset.",
   schema: z
     .object({
       text: z.string().min(1).max(120),
-      style: titleStyleSchema,
-      startFrame: z.number().int().nonnegative(),
-      durationFrames: z.number().int().min(1),
+      style: titleStyleSchema.optional(),
+      startFrame: z.number().int().nonnegative().optional(),
+      durationFrames: z.number().int().min(1).optional(),
       trackId: z.string().min(1).optional(),
     })
     .strict(),
@@ -279,10 +282,10 @@ export const addTitleTool = defineTool({
     const clip: Clip = {
       id: newId(),
       trackId: trackId ?? "v1",
-      timelineStartFrame: startFrame,
-      durationFrames,
+      timelineStartFrame: startFrame ?? 0,
+      durationFrames: durationFrames ?? 90,
       status: "ready",
-      title: { text, style },
+      title: { text, style: style ?? DEFAULT_TITLE_STYLE },
     };
     return requireEditToolBackend().applyAgentOps(tenant, [{ type: "add_clip", payload: { clip } }]);
   },

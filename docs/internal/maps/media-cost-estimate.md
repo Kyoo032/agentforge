@@ -1,6 +1,6 @@
 # Map — Media cost estimate
 
-Last verified: 2026-09-26 (an unknown price is omitted; the `*-estimate-unknown` row is not rendered). Before that: 2026-09-20 at c204e5e.
+Last verified: 2026-09-26 (an unknown price is omitted; the `*-estimate-unknown` row is not rendered; a video model is priced only when the refresh listed it). Before that: 2026-09-20 at c204e5e.
 
 ## Overview
 
@@ -12,7 +12,7 @@ Nothing on this path touches the network. The price table is compiled into the a
 
 **User opens the Images studio.** `ImagesStudio` fetches `GET /api/v1/images` on mount (`apps/web/components/images-studio.tsx:59`, effect at `:80`). Videos does the same against `/api/v1/videos`.
 
-**Host enriches the model list.** `handleGetImages` (`packages/host/src/handlers/jobs.ts:39`) wraps `listStudioImageModels()` in `attachMediaPrices(..., "image", cachedPricingCatalog(resolvedGatewayBaseUrl()), ...)` at `packages/host/src/handlers/jobs.ts:48-53`; videos at `:79-84` with unit `"second"`. `attachMediaPrices` (`packages/host/src/media-price.ts:72-83`) returns a new array — it never mutates the model list — where each row gains `price: MediaPrice | null`.
+**Host enriches the model list.** `handleGetImages` (`packages/host/src/handlers/jobs.ts:40`) wraps `listStudioImageModels()` in `attachMediaPrices(..., "image", cachedPricingCatalog(resolvedGatewayBaseUrl()), ...)` at `packages/host/src/handlers/jobs.ts:49-54`; videos at `:87-92` with unit `"second"`. The video rows are the probed list only (`listStudioVideoModels`, `packages/host/src/studio-generate.ts:144`), so a static catalog id the key's refresh never returned is not quoted. `attachMediaPrices` (`packages/host/src/media-price.ts:72-83`) returns a new array — it never mutates the model list — where each row gains `price: MediaPrice | null`.
 
 **Price lookup, curated first.** `findMediaListPrice(model.id)` (`packages/core/src/models/media-pricing.ts:497-508`) tries an exact lowercased id against `EXACT_INDEX`, then walks the ordered regex `pattern`s; narrower patterns (`-fast`, `-mini`, `-1.5-preview`) sit above their family so they win. 23 curated entries, `CHECKED = "2026-09-15"` (`packages/core/src/models/media-pricing.ts:98`). Miss → the gateway fallback below → else `null`. Nothing is ever fabricated.
 

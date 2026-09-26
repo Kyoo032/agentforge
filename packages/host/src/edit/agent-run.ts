@@ -1,6 +1,8 @@
 import {
   ApiError,
+  DEFAULT_CHAT_MODEL,
   createRuntime,
+  editAgentBindings,
   editStubAssistantCopy,
   encodeSse,
   getTool,
@@ -17,6 +19,7 @@ import {
   type TenantContext,
 } from "@agentforge/core";
 import { rememberJobUsage } from "../job-usage";
+import { defaultSelectableModel } from "../selectable-models";
 import { loadSettings } from "../settings-store";
 import { localeForRun } from "../run-context";
 import { ensureToolsRegistered } from "../register-tools";
@@ -119,8 +122,48 @@ function compactPrompt(doc: Awaited<ReturnType<typeof foldProject>>, budgetUsd: 
     `Clips: ${doc.clips.map((clip) => `${clip.id}@${clip.trackId}:${clip.timelineStartFrame}+${clip.durationFrames}`).join("; ") || "(none)"}`,
     `Ingredients: ${doc.ingredients.map((item) => item.name).join(", ") || "(none)"}`,
     `Turn cap USD: ${budgetUsd}. ${ffmpegPromptLine()}`,
+    "A direct edit is a tool call in this turn. A title card calls add_title with the words the owner asked for; style and timing may be omitted.",
+    "propose_plan is only for paid generation over the turn cap.",
     "clear_timeline requires an explicit user ask AND confirm:true.",
   ].join("\n");
+}
+
+/** The refreshed chat default. "edit" is not a gateway model id. */
+export function editAgentModelId(preferred = defaultSelectableModel()): string {
+  const picked = preferred.trim();
+  if (picked && picked.toLowerCase() !== "edit") {
+    return picked;
+  }
+  return DEFAULT_CHAT_MODEL;
+}
+
+export function editToolFrames(output: unknown): Array<{ type: string; [key: string]: unknown }> {
+  if (!output || typeof output !== "object") {
+    return [];
+  }
+  const record = output as Record<string, unknown>;
+  const frames: Array<{ type: string; [key: string]: unknown }> = [];
+  if ("ops" in record) {
+    frames.push({ type: "edit.ops", ops: record.ops });
+  }
+  if ("card" in record) {
+    frames.push({ type: "edit.card", card: record.card });
+  }
+  if ("job" in record) {
+    frames.push({ type: "edit.job", job: record.job });
+  }
+  if (Array.isArray(record.jobs)) {
+    for (const job of record.jobs) {
+      frames.push({ type: "edit.job", job });
+    }
+  }
+  return frames;
+}
+
+function pushToolFrames(queue: StringQueue, output: unknown): void {
+  for (const frame of editToolFrames(output)) {
+    queue.push(encodeEditSse(frame));
+  }
 }
 
 function firstClipId(doc: Awaited<ReturnType<typeof foldProject>>): string | undefined {
@@ -170,15 +213,18 @@ export async function runEditAgent(input: {
               organizationId: input.tenant.organizationId,
               version: 1,
               systemPrompt: withOutputLanguage(compactPrompt(doc, budget.turnBudget), "edit", localeForRun()),
-              model: "edit",
+              model: editAgentModelId(),
               inputModalities: ["text"],
               config: {},
               createdAt: new Date(),
             },
-            bindings: [],
+            bindings: editAgentBindings(input.tenant.organizationId),
             history: [{ role: "user", parts: [{ type: "text", text: input.text }] }],
             onEvent: async (event: RuntimeEvent) => {
               queue.push(encodeSse(event));
+              if (event.type === "tool.completed") {
+                pushToolFrames(queue, event.output);
+              }
               if (event.type === "run.completed") {
                 // Edit-agent spend is metered against the tenant now, not appended to one global
                 // untenanted file (Phase 5 lane A).
@@ -350,20 +396,7 @@ async function runStub(
   const tool = getTool(scenario.toolKey);
   const output = tool ? await invokeToolGuarded(tool, args, input.tenant) : { error: "missing_tool" };
   queue.push(encodeSse({ type: "tool.completed", toolKey: scenario.toolKey, output }));
-  if (output && typeof output === "object" && "ops" in output) {
-    queue.push(encodeEditSse({ type: "edit.ops", ops: (output as { ops: unknown }).ops }));
-  }
-  if (output && typeof output === "object" && "card" in output) {
-    queue.push(encodeEditSse({ type: "edit.card", card: (output as { card: unknown }).card }));
-  }
-  if (output && typeof output === "object" && "job" in output) {
-    queue.push(encodeEditSse({ type: "edit.job", job: (output as { job: unknown }).job }));
-  }
-  if (output && typeof output === "object" && "jobs" in output && Array.isArray((output as { jobs: unknown }).jobs)) {
-    for (const job of (output as { jobs: unknown[] }).jobs) {
-      queue.push(encodeEditSse({ type: "edit.job", job }));
-    }
-  }
+  pushToolFrames(queue, output);
   const card = stubEditCardCopy(scenario, localeForRun());
   queue.push(encodeSse({ type: "assistant.delta", text: `${card.verb} · ${card.object}` }));
   const completed: RuntimeEvent = { type: "run.completed", runId };

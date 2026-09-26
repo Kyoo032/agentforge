@@ -28,6 +28,11 @@ describe("STUB_EDIT_SCENARIOS", () => {
     expect(matchStubEditScenario("Add a title 'Summer Sale' top centre, white with black outline")?.args).toEqual({
       text: "Summer Sale",
     });
+    expect(matchStubEditScenario("Add a title card that says Hello")).toMatchObject({
+      id: "S11",
+      toolKey: "add_title",
+      args: { text: "Hello" },
+    });
     expect(matchStubEditScenario("Trim the first 3 seconds")?.args).toEqual({ inFrame: 90 });
     expect(matchStubEditScenario("Move the second clip to the start")?.args).toEqual({ timelineStartFrame: 0 });
     expect(matchStubEditScenario("Undo the last change")?.id).toBe("S10");

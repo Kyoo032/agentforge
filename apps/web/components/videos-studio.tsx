@@ -166,10 +166,24 @@ export function VideosStudio() {
         }),
       });
       const data = (await response.json().catch(() => ({}))) as GalleryItem & {
-        error?: { message?: string };
+        error?: { message?: string; code?: string; suggestModel?: string };
       };
       if (!response.ok) {
-        setError(data.error?.message ?? t("videos.generateError"));
+        const rejected = model;
+        const suggestion = data.error?.suggestModel;
+        if (data.error?.code === "model_not_on_key") {
+          setModels((current) => current.filter((item) => item.id !== rejected));
+          if (suggestion && suggestion !== rejected) {
+            setModel(suggestion);
+          }
+        }
+        const message =
+          data.error?.code === "model_not_on_key"
+            ? suggestion
+              ? t("videos.modelNotOnKey", { model: rejected, suggestion })
+              : t("videos.modelNotOnKeyNoAlt", { model: rejected })
+            : (data.error?.message ?? t("videos.generateError"));
+        setError(message);
         return;
       }
       setLanded((count) => count + 1);

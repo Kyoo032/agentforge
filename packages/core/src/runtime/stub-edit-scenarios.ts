@@ -1,7 +1,7 @@
 import { parseAppLocale, type AppLocale } from "../locale";
 
 export type StubEditScenario = {
-  id: "S1" | "S2" | "S3" | "S4" | "S5" | "S6" | "S7" | "S8" | "S9" | "S10";
+  id: "S1" | "S2" | "S3" | "S4" | "S5" | "S6" | "S7" | "S8" | "S9" | "S10" | "S11";
   match: RegExp;
   toolKey: string;
   args: Record<string, unknown>;
@@ -121,13 +121,41 @@ export const STUB_EDIT_SCENARIOS: StubEditScenario[] = [
   },
 ];
 
+/** Words after "says" / "that reads" when the request is for a title card. */
+export function extractTitleCardText(text: string): string | null {
+  if (!/\btitle\b/i.test(text)) {
+    return null;
+  }
+  const says = text.match(/\b(?:says|saying|that reads|berbunyi|bertuliskan)\s+["“']?([^"'”\n.!?]+)/i);
+  const fromSays = says?.[1]?.trim();
+  if (fromSays) {
+    return fromSays.slice(0, 120);
+  }
+  const quoted = text.match(/\btitle(?:\s+card)?\s+["“']([^"”']+)["”']/i);
+  const fromQuoted = quoted?.[1]?.trim();
+  return fromQuoted ? fromQuoted.slice(0, 120) : null;
+}
+
 export function matchStubEditScenario(text: string): StubEditScenario | null {
   for (const scenario of STUB_EDIT_SCENARIOS) {
     if (scenario.match.test(text)) {
       return scenario;
     }
   }
-  return null;
+  const title = extractTitleCardText(text);
+  if (!title) {
+    return null;
+  }
+  return {
+    id: "S11",
+    match: /$^/,
+    toolKey: "add_title",
+    args: { text: title },
+    cardVerb: "Add title",
+    cardObject: title,
+    cardVerbId: "Tambahkan judul",
+    cardObjectId: title,
+  };
 }
 
 type StubCardSource = {

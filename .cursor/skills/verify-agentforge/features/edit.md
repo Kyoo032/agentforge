@@ -67,7 +67,8 @@ Fill scenarios F1–F5 (owner runs; Result filled in Loop 3):
 
 ## Gotchas
 
-- Stub agent replies are scripted per prompt; a live reply needs the operator's key on Windows only.
+- Stub agent replies are scripted per prompt; a live reply needs the operator's key on Windows only. "Add a title card that says Hello" is the stub title path (`S11`): it calls `add_title` and the timeline gains a clip whose title text is Hello. S6 "Summer Sale" is unchanged.
+- A live turn binds every edit tool and sends the refreshed chat model. The literal model id `edit` is not a gateway model, and an empty binding list leaves the timeline empty because the runtime never calls `add_title`.
 - ASR unavailable is a note, not a fail.
 - The recipes panel has **no** wrapping testid. Assert a per-item `edit-recipe-<id>` (e.g. `edit-recipe-podcast-clean-up`); `edit-recipes` does not exist.
 - Storyboard is Phase 3 work. The sub-tab **button** is `edit-generate-storyboard` (`apps/web/components/edit-generate-tab.tsx:190`) and it does exist; what it opens is the literal copy `Storyboard lands in Phase 3.` with no `edit-generate-prompt`, no `edit-generate-submit` and no `edit-generate-tier`. F1 and F2 stay not drivable, and `animate_storyboard` lives only in the host agent tools. Neither `edit-storyboard-generate` nor `edit-storyboard-animate-all` exists — do not invent them.
