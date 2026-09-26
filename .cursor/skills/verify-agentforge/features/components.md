@@ -6,13 +6,13 @@ Native dependencies the app installs by itself: today only `anydoc`, the local d
 
 - `components-status` `GET /api/v1/components` → one row per component: `state` (`ready | missing | installing | failed | unsupported`), `source` (`bundled | downloaded | null`), `auto`, `managed`, `bytes`.
 - `components-install` `POST /api/v1/components/install/stream` with `{ "id": "anydoc" }` → `job.phase` per stage (`check, download, verify, unpack, probe, marker`), `job.step` download bytes, `job.done` / `job.error`.
-- `components-onboarding` the panel `component-setup` inside `onboarding-setup-check`, started without a click.
+- `components-onboarding` the panel `component-setup` inside `onboarding-setup-check`, on the key step, above the key form, started without a click. It is not on the hello. The step walk is [onboarding.md](./onboarding.md).
 - `components-silent` the same run with no UI on a desk that is already past onboarding.
 - `components-server` the hosted deployment, where none of the above is a user action: `managed: true`, `auto: false`, no panel anywhere, the install route `403 install_disabled`, and the operator drives `webapp-deploy/scripts/components.sh` instead.
 
 ## How to get to it (user POV)
 
-Install the app and open it. On the first screen, under the key form, **Setting up DPSBuddy** lists six steps with a progress bar, finishes with a ready line and folds away. The owner presses nothing. If the machine is offline the panel says so, offers **Try again**, and says the app works without it; the key form stays usable throughout. On a machine where the reader shipped inside the app, the panel never appears.
+Install the app and open it. On the key step, above the key form, **Setting up DPSBuddy** lists six steps with a progress bar, finishes with a ready line and folds away. The owner presses nothing. If the machine is offline the panel says so, offers **Try again**, and says the app works without it; the key form stays usable throughout. On a machine where the reader shipped inside the app, the panel never appears.
 
 ## Driving it with the DPSBuddy harness
 
