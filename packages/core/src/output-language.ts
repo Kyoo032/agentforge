@@ -142,17 +142,7 @@ const GATEWAY_REQUIRED: Record<GatewayRequiredSurface, Record<AppLocale, string>
   },
 };
 
-const SEARCH_KEY_REQUIRED: Record<AppLocale, string> = {
-  en: "Research needs a Tavily or Brave Search API key. Add it in Settings, then try again.",
-  id: "Research memerlukan kunci API Tavily atau Brave Search. Tambahkan di Settings, lalu coba lagi.",
-};
-
 /** Stub-runtime refusal shown when the owner has not pasted a gateway key yet. */
 export function gatewayRequiredMessage(surface: GatewayRequiredSurface, locale: AppLocale): string {
   return GATEWAY_REQUIRED[surface][parseAppLocale(locale)];
-}
-
-/** Research also needs a web-search route; the gateway key alone is not enough. */
-export function searchKeyRequiredMessage(locale: AppLocale): string {
-  return SEARCH_KEY_REQUIRED[parseAppLocale(locale)];
 }

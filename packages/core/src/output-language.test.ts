@@ -7,7 +7,6 @@ import {
   GATEWAY_REQUIRED_SURFACES,
   gatewayRequiredMessage,
   outputLanguageRule,
-  searchKeyRequiredMessage,
   withOutputLanguage,
 } from "./output-language";
 
@@ -87,13 +86,5 @@ describe("gateway required copy", () => {
     expect(gatewayRequiredMessage("data", "id")).toContain("gerbang yang aktif");
     expect(gatewayRequiredMessage("videos", "id")).toContain("membuat video");
     expect(gatewayRequiredMessage("finance", "de" as never)).toBe(gatewayRequiredMessage("finance", "en"));
-  });
-
-  it("localizes the Research search-key message", () => {
-    expect(searchKeyRequiredMessage("en")).toBe(
-      "Research needs a Tavily or Brave Search API key. Add it in Settings, then try again.",
-    );
-    expect(searchKeyRequiredMessage("id")).toContain("Tavily atau Brave Search");
-    expect(searchKeyRequiredMessage("de" as never)).toBe(searchKeyRequiredMessage("en"));
   });
 });

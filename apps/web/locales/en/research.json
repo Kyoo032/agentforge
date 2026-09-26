@@ -42,7 +42,7 @@
     }
   },
   "errorGateway": "Research needs a live gateway. Paste a Toko Token API key in Settings, then try again.",
-  "errorSearch": "Research needs a Tavily or Brave Search API key. Add it in Settings, then try again.",
+  "errorSearch": "Web search did not return results. Try again in a moment.",
   "errorNoHttps": "Search returned no readable HTTPS results for this question",
   "phasePlanning": "Planning sub-queries",
   "phaseSearching": "Searching the web",
@@ -71,11 +71,11 @@
   "statusLabel": "Status",
   "languageRule": "Write every user-facing string (title, summary, finding headings and bodies, contradictions, openQuestions, and source notes) in English. Keep JSON keys, source ids such as [S1], URLs, and verbatim passages unchanged.",
   "stubTitle": "Stub dossier: {question}",
-  "stubSummary": "Offline demo. No web search ran. Confidence: low. Thin evidence: this stand-in exists so Research still produces a dossier when the runtime is stub. Save a Toko Token API key and a Tavily or Brave Search key in Settings to research the question from HTTPS pages.",
+  "stubSummary": "Offline demo. No web search ran. Confidence: low. Thin evidence: this stand-in exists so Research still produces a dossier when the runtime is stub. Save a Toko Token API key in Settings to research the question from HTTPS pages.",
   "stubFindingHeading": "This is a stub, not a web finding",
-  "stubFindingBody": "DPSBuddy returned this dossier because the runtime is stub. It does not cite live pages for: {question}. Paste a Toko Token key and a Tavily or Brave key in Settings, then generate again.",
+  "stubFindingBody": "DPSBuddy returned this dossier because the runtime is stub. It does not cite live pages for: {question}. Paste a Toko Token key in Settings, then generate again.",
   "stubSourceTitle": "DPSBuddy stub",
   "stubSourceNotes": "Synthetic source for the offline demo. Not a page that was read.",
   "stubContradiction": "No source disagreement — search did not run.",
-  "stubOpenQuestion": "What changes after a gateway key and a search key are saved?"
+  "stubOpenQuestion": "What changes after a gateway key is saved?"
 }

@@ -1,12 +1,20 @@
-import { registerPlatformTools, registerTool, registerEditTools, setEditToolBackend } from "@agentforge/core";
+import {
+  registerPlatformTools,
+  registerTool,
+  registerEditTools,
+  setEditToolBackend,
+  bindKeylessSearchLocale,
+} from "@agentforge/core";
 import { registerUniversityTools } from "@agentforge/university";
 import { marketTools } from "./market/tools";
 import { pastSessionsTool } from "./session-tools";
+import { localeForRun } from "./run-context";
 import { runSqlTool } from "./sql-tool";
 
 let registered = false;
 
 export function ensureToolsRegistered(): void {
+  bindKeylessSearchLocale(localeForRun);
   if (registered) {
     return;
   }
