@@ -6,7 +6,7 @@ at d4561b8 + uncommitted tree for the run harness (`localeForRun`, the new per-r
 server, the Channel 2 line), the Failure modes row it adds, the gotchas that changed with it, and the `common`
 parity gotcha. Not driven: host change, needs a `:3000` restart, and only the hosted server feels it.
 Everything else was last verified 2026-09-20 at a053245 + the Phase 4 branch
-`feat/web-phase4-tenant-secrets-rcbu9c`.
+`feat/web-phase4-tenant-secrets-rcbu9c`. Keyless search binds its Wikipedia host to `localeForRun` at tool registration; that binding was checked 2026-09-26 at 73e6dfe.
 
 ## Overview
 

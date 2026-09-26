@@ -1,6 +1,6 @@
 # Map — Research dossier
 
-Last verified: 2026-09-26 (keyless search; sha recorded with this change)
+Last verified: 2026-09-26 at 73e6dfe
 
 ## Overview
 
