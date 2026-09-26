@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
 import type { MediaPrice } from "@agentforge/core/media-pricing";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { ExampleGallery } from "@/components/example-gallery";
+import { ModeHeader } from "@/components/mode-header";
+import { ModeIcon } from "@/components/mode-icons";
 import { ModelSelect } from "@/components/model-select";
 import { SettingsLinkHint } from "@/components/settings-link-hint";
 import { t } from "@/lib/i18n";
@@ -121,10 +123,7 @@ export function ImagesStudio() {
 
   return (
     <main className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]" data-testid="images-studio">
-      <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("images.title")}</h1>
-      {/* One outcome line (owner report 2026-09-23). The `subtitle` paragraph below it
-          only repeated what the empty state says, so it was deleted with its key. */}
-      <p className="mt-2 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="expected-inputs">{t("images.expectedInputs")}</p>
+      <ModeHeader icon="images" title={t("images.title")} outcome={t("images.expectedInputs")} />
 
       {!ready && !loading ? (
         <div
@@ -204,11 +203,22 @@ export function ImagesStudio() {
           />
           <button
             type="submit"
-            className="shrink-0 wash inline-flex h-8 items-center rounded-pill bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--surface)] disabled:opacity-45"
+            className="btn btn-primary h-8 shrink-0 rounded-pill px-4"
             disabled={generating || !prompt.trim()}
             data-testid="images-studio-submit"
           >
-            {generating ? t("images.generating") : t("images.generate")}
+            {generating ? (
+              <>
+                {t("images.generating")}
+                <span className="pulse-dots" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </span>
+              </>
+            ) : (
+              t("images.generate")
+            )}
           </button>
         </div>
       </form>

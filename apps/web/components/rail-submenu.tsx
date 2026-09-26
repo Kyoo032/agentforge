@@ -18,11 +18,11 @@ import { Link, usePathname } from "@/lib/nav";
  * indent here, so the text sits just right of the hairline rather than carrying
  * the full `px-2`.
  */
-export const ROW_BASE = "flex h-7 min-w-0 flex-1 items-center rounded-lg px-1.5 text-xs tracking-[var(--track)]";
+export const ROW_BASE = "flex h-7 min-w-0 flex-1 items-center rounded-md px-1.5 text-xs tracking-[var(--track)]";
 
 export function rowClass(active: boolean) {
   return active
-    ? `select-row ${ROW_BASE} bg-[var(--rail-active)] font-medium text-[var(--rail-active-text)]`
+    ? `select-row ${ROW_BASE} shadow-elev-1 font-medium text-[var(--rail-active-text)] [background-image:var(--grad-soft)]`
     : `wash ${ROW_BASE} text-[var(--rail-text-2)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-active-text)]`;
 }
 
@@ -117,7 +117,7 @@ export function RailSubmenuToggle({
          primary one. The mode keeps its name and the chevron is a 32px square
          that lines up with the `h-8` row. The words survive in `aria-label` and
          `title`, so nothing is lost to a screen reader or a hover. */
-      className="wash flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--rail-text-2)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-active-text)] disabled:opacity-40 disabled:hover:bg-transparent"
+      className="wash flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--rail-text-2)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-active-text)] disabled:opacity-40 disabled:hover:bg-transparent"
       onClick={onToggle}
       disabled={!enabled}
       aria-expanded={open}

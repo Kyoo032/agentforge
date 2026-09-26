@@ -1,6 +1,8 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { ChatKeyStatus } from "@/components/chat-key-status";
+import { ModeIcon } from "@/components/mode-icons";
 import { t } from "@/lib/i18n";
 
 /**
@@ -80,27 +82,36 @@ export function ChatLauncher({ onSuggest }: { onSuggest?: (text: string) => void
       className="mx-auto flex min-h-full w-full max-w-[var(--content-max)] flex-col justify-center py-10"
       data-testid="chat-empty"
     >
-      <div className="flex flex-col items-center text-center">
-        <h2 className="font-heading text-[var(--fs-24)] font-semibold leading-[var(--lh-tight)] tracking-[var(--track)] text-[var(--text)]">
-          {t("chat.empty.headline")}
+      <div className="hero-aurora enter-rise flex flex-col items-center px-6 py-10 text-center">
+        <span className="icon-orb icon-orb-lg icon-orb-solid enter-pop" style={{ "--i": 1 } as CSSProperties}>
+          <ModeIcon name="chat" size={24} strokeWidth={1.75} />
+        </span>
+        <h2
+          className="enter-rise mt-4 font-heading text-[32px] font-semibold leading-[var(--lh-tight)] tracking-[var(--track)] text-[var(--text)]"
+          style={{ "--i": 2 } as CSSProperties}
+        >
+          <span className="text-gradient">{t("chat.empty.headline")}</span>
         </h2>
-        <ChatKeyStatus />
+        <div className="enter-fade" style={{ "--i": 3 } as CSSProperties}>
+          <ChatKeyStatus />
+        </div>
       </div>
 
-      <p className="mt-10 text-center text-xs font-medium uppercase tracking-[0.12em] text-[var(--text-3)]">
+      <p className="mt-8 text-center text-xs font-medium uppercase tracking-[0.12em] text-[var(--text-3)]">
         {t("chat.empty.ideas.title")}
       </p>
-      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2" data-testid="chat-suggestions">
-        {IDEAS.map((id) => (
+      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2" data-testid="chat-suggestions">
+        {IDEAS.map((id, index) => (
           <button
             key={id}
             type="button"
-            className="wash group flex items-start gap-3 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 py-3 text-left hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]"
+            className="card-live enter-rise group flex items-start gap-3 px-4 py-4 text-left"
+            style={{ "--i": index + 4 } as CSSProperties}
             onClick={() => onSuggest?.(t(`chat.empty.ideas.${id}.prompt`))}
             data-testid="chat-suggestion"
             data-idea={id}
           >
-            <span className="mt-0.5 shrink-0 text-[var(--accent)]">
+            <span className="icon-orb">
               <IdeaIcon id={id} />
             </span>
             <span className="min-w-0">
@@ -115,7 +126,9 @@ export function ChatLauncher({ onSuggest }: { onSuggest?: (text: string) => void
         ))}
       </div>
 
-      <p className="mt-6 text-center text-sm text-[var(--text-2)]">{t("chat.empty.pickModel")}</p>
+      <p className="enter-fade mt-6 text-center text-sm text-[var(--text-2)]" style={{ "--i": 9 } as CSSProperties}>
+        {t("chat.empty.pickModel")}
+      </p>
     </div>
   );
 }

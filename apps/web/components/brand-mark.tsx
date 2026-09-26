@@ -2,19 +2,21 @@ type Props = {
   size?: number;
   className?: string;
   testId?: string;
+  /** When true, the mark sits in a solid gradient tile (rail collapsed header). */
+  orb?: boolean;
 };
 
 /** Flat double-chevron mark. Accent color comes from `currentColor`. */
-export function BrandMark({ size = 28, className, testId }: Props) {
-  return (
+export function BrandMark({ size = 28, className, testId, orb = false }: Props) {
+  const mark = (
     <svg
-      width={size}
-      height={size}
+      width={orb ? Math.round(size * 0.55) : size}
+      height={orb ? Math.round(size * 0.55) : size}
       viewBox="0 0 24 24"
       fill="none"
       aria-hidden="true"
-      className={className}
-      data-testid={testId}
+      className={orb ? undefined : className}
+      data-testid={orb ? undefined : testId}
     >
       <path
         d="M9 5.25 16.75 12 9 18.75"

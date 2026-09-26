@@ -9,12 +9,12 @@ import { useChatThreads, type ChatThread } from "@/lib/use-chat-threads";
 const CHAT_PATH = "/chat";
 
 /** Indent and type scale line up with `RailItem` so JOB MODES still reads as the next group. */
-const ROW_BASE = "flex h-7 min-w-0 flex-1 items-center rounded-lg px-2 text-xs tracking-[var(--track)]";
+const ROW_BASE = "flex h-7 min-w-0 flex-1 items-center rounded-md px-2 text-xs tracking-[var(--track)]";
 const MUTED_ROW = `wash ${ROW_BASE} text-[var(--rail-text-3)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-active-text)]`;
 
 function rowClass(active: boolean) {
   return active
-    ? `select-row ${ROW_BASE} bg-[var(--rail-active)] text-[var(--rail-active-text)]`
+    ? `select-row ${ROW_BASE} shadow-elev-1 text-[var(--rail-active-text)] [background-image:var(--grad-soft)]`
     : `wash ${ROW_BASE} text-[var(--rail-text-2)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-active-text)]`;
 }
 
@@ -39,7 +39,7 @@ export function RailRecentThreads({ collapsed = false }: { collapsed?: boolean }
     return (
       <Link
         href={CHAT_PATH}
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--rail-text-2)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-active-text)]"
+        className="wash flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--rail-text-2)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-active-text)]"
         data-testid="new-chat-link"
         aria-label={t("rail.newChat")}
         title={t("rail.newChat")}
@@ -91,7 +91,7 @@ export function RailRecentThreads({ collapsed = false }: { collapsed?: boolean }
             </Link>
             <button
               type="button"
-              className={`wash shrink-0 rounded-lg px-1 py-0.5 text-xs text-[var(--text-3)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:text-[var(--danger)] ${
+              className={`wash shrink-0 rounded-md px-1 py-0.5 text-xs text-[var(--text-3)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:text-[var(--danger)] ${
                 deleting ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
               }`}
               onClick={() => void onDelete(thread)}

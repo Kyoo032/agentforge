@@ -8,6 +8,7 @@ import { subscribeModeHandoff } from "@/lib/mode-handoff";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { ExampleGallery } from "@/components/example-gallery";
 import { ModelSelect } from "@/components/model-select";
+import { ModeHeader } from "@/components/mode-header";
 import type { JobRegenSubmit } from "@/components/job-regen-panel";
 import type { DocumentDraft } from "@/lib/document-outline";
 import { documentStarters } from "@/lib/job-starters";
@@ -157,26 +158,24 @@ export function DocumentsStudio() {
 
   return (
     <main className="mx-auto flex min-h-full w-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]" data-testid="documents-studio">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("documents.title")}</h1>
-          {/* Title plus one outcome line (owner report 2026-09-23): what you get, not
-              how to make it. The old `subtitle` paragraph was deleted from the header
-              and its key from the catalog. */}
-          <p className="mt-2 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="expected-inputs">{t("documents.expectedInputs")}</p>
-        </div>
-        {draft ? (
-          <button
-            type="button"
-            onClick={() => void onDownload()}
-            disabled={busy !== null}
-            className="wash inline-flex h-8 items-center rounded-pill bg-[var(--accent)] px-4 text-sm font-medium text-[var(--surface)] disabled:opacity-45"
-            data-testid="documents-download"
-          >
-            {busy === "download" ? t("documents.building") : t("documents.download")}
-          </button>
-        ) : null}
-      </div>
+      <ModeHeader
+        icon="documents"
+        title={t("documents.title")}
+        outcome={t("documents.expectedInputs")}
+        actions={
+          draft ? (
+            <button
+              type="button"
+              onClick={() => void onDownload()}
+              disabled={busy !== null}
+              className="btn btn-primary rounded-pill px-4"
+              data-testid="documents-download"
+            >
+              {busy === "download" ? t("documents.building") : t("documents.download")}
+            </button>
+          ) : null
+        }
+      />
 
       {error ? (
         <div

@@ -85,9 +85,36 @@
 
   --icon-nav: 14px;
   --icon-card: 20px;
-  --r-nav: 4px;
-  --r-card: 4px;
-  --r-pill: 4px;
+  --r-nav: 8px;
+  --r-card: 14px;
+  --r-hero: 22px;
+  --r-pill: 999px;
+
+  /* Lively desk (2026-09-26). Three companion hues that only ever appear inside gradients,
+     glows and icon tiles; body text and controls still read --accent. */
+  --accent-2: #7a4fd6;
+  --accent-3: #e0714f;
+  --accent-4: #2f8f84;
+  --grad-accent: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+  --grad-text: linear-gradient(115deg, var(--accent) 0%, var(--accent-2) 55%, var(--accent-3) 100%);
+  --grad-soft: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--accent) 12%, var(--surface)) 0%,
+    color-mix(in srgb, var(--accent-2) 10%, var(--surface)) 60%,
+    color-mix(in srgb, var(--accent-3) 10%, var(--surface)) 100%
+  );
+  --glow-a: color-mix(in srgb, var(--accent) 22%, transparent);
+  --glow-b: color-mix(in srgb, var(--accent-2) 20%, transparent);
+  --glow-c: color-mix(in srgb, var(--accent-3) 16%, transparent);
+  --backdrop:
+    radial-gradient(900px 520px at 0% 0%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 65%),
+    radial-gradient(800px 480px at 100% 100%, color-mix(in srgb, var(--accent-2) 8%, transparent), transparent 65%),
+    var(--rail);
+  --elev-1: 0 1px 2px color-mix(in srgb, var(--text) 6%, transparent);
+  --elev-2:
+    0 14px 30px -14px color-mix(in srgb, var(--accent) 42%, transparent),
+    0 2px 6px -2px color-mix(in srgb, var(--text) 8%, transparent);
+  --elev-3: 0 28px 60px -24px color-mix(in srgb, var(--accent-2) 48%, transparent);
 
   --space-1: 4px;
   --space-2: 8px;
@@ -137,6 +164,13 @@
   --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
   /* Entrance curve: the same feel with a few percent of overshoot, for anything that appears. */
   --ease-entrance: cubic-bezier(0.22, 1, 0.3, 1.02);
+  /* Symmetric curve for ambient loops, which have no "arrival". */
+  --ease-wave: cubic-bezier(0.45, 0, 0.55, 1);
+  /* Gap between siblings in a staggered entrance; an element sets `--i` to its index. */
+  --motion-stagger: 55ms;
+  /* Ambient loops: the hero glow drifts, the thinking dots breathe. */
+  --motion-ambient: 18s;
+  --motion-pulse: 1400ms;
 
   /* The compound aliases the rules below read. All four stay on step 1, the 120ms the warm desk
      shipped with; only the curve moved from `ease` to the scale's `--ease-out`. */
@@ -183,7 +217,7 @@
   --r: var(--r-nav);
   --radius-sm: var(--r-nav);
   --radius-md: var(--r-nav);
-  --radius-lg: var(--r-nav);
+  --radius-lg: var(--r-card);
   --radius-xl: var(--r-card);
   --radius: var(--r-nav);
   --shadow-sm: none;
@@ -213,6 +247,9 @@
   --text-3: #5c574f;
   --accent: #3846a5;
   --accent-soft: #eef0ff;
+  --accent-2: #7a4fd6;
+  --accent-3: #e0714f;
+  --accent-4: #2f8f84;
   --mark: #3846a5;
   --teal: #2f7957;
   --danger: #b42318;
@@ -246,6 +283,9 @@
   --text-3: #9c968c;
   --accent: #9da5df;
   --accent-soft: #2b2e45;
+  --accent-2: #b79cff;
+  --accent-3: #ff9f80;
+  --accent-4: #6fd1c4;
   --mark: #b9c0ff;
   --teal: #7fc7a1;
   --danger: #f87171;
@@ -341,7 +381,8 @@ body {
 body {
   @apply bg-app text-inkbase antialiased;
   font-family: var(--font);
-  background-color: var(--bg);
+  background: var(--backdrop);
+  background-attachment: fixed;
   color: var(--text);
   font-size: var(--fs-14);
   line-height: var(--lh-body);
@@ -417,15 +458,23 @@ h6 {
 
 /* The on-accent colour is `--surface`, as on every `bg-[var(--accent)]` button in the studios.
    A literal white was the same in light but read 2.36:1 on the dark desk's lighter accent. */
+/* `background` is the gradient's lower-contrast end, so `lib/contrast-tokens.test.ts` measures
+   the worst stop; the gradient paints over it. */
 .btn-primary {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--accent-2);
+  background-image: var(--grad-accent);
+  border-color: transparent;
   color: var(--surface);
+  box-shadow: var(--elev-1);
+  transition: box-shadow var(--motion-2) var(--ease-out), filter var(--motion-1) var(--ease-out);
 }
 
 .btn-primary:hover {
-  background: color-mix(in srgb, var(--accent) 88%, #ffffff);
-  border-color: color-mix(in srgb, var(--accent) 88%, #ffffff);
+  background: var(--accent-2);
+  background-image: var(--grad-accent);
+  border-color: transparent;
+  box-shadow: var(--elev-2);
+  filter: saturate(1.15) brightness(1.05);
 }
 
 .btn-secondary {
@@ -814,6 +863,277 @@ aside nav > p {
 }
 
 /* ===========================================================================
+   Lively desk (2026-09-26). Components never write `animate-*` utilities
+   (`lib/motion-tokens.test.ts`), so every movement is a named class here.
+   Keyframes move with the individual `translate` / `scale` properties and
+   `opacity`, all compositor-only.
+   =========================================================================== */
+@keyframes nx-rise {
+  0% {
+    opacity: 0;
+    translate: 0 12px;
+  }
+  100% {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes nx-fade {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes nx-pop {
+  0% {
+    opacity: 0;
+    scale: 0.94;
+  }
+  100% {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes nx-slide-in {
+  0% {
+    opacity: 0;
+    translate: -10px 0;
+  }
+  100% {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes nx-drift {
+  0% {
+    translate: 0 0;
+    scale: 1;
+  }
+  50% {
+    translate: 6% -5%;
+    scale: 1.12;
+  }
+  100% {
+    translate: 0 0;
+    scale: 1;
+  }
+}
+
+@keyframes nx-pulse {
+  0% {
+    opacity: 0.3;
+    scale: 0.8;
+  }
+  50% {
+    opacity: 1;
+    scale: 1;
+  }
+  100% {
+    opacity: 0.3;
+    scale: 0.8;
+  }
+}
+
+/* Entrances. Set `style={{ "--i": n }}` on a sibling to stagger it; `--i` defaults to 0. */
+.enter-rise,
+.enter-fade,
+.enter-pop,
+.enter-slide {
+  --i: 0;
+  animation-delay: calc(var(--i) * var(--motion-stagger));
+  animation-fill-mode: both;
+}
+
+.enter-rise {
+  animation-name: nx-rise;
+  animation-duration: var(--motion-4);
+  animation-timing-function: var(--ease-entrance);
+}
+
+.enter-fade {
+  animation-name: nx-fade;
+  animation-duration: var(--motion-3);
+  animation-timing-function: var(--ease-out);
+}
+
+.enter-pop {
+  animation-name: nx-pop;
+  animation-duration: var(--motion-3);
+  animation-timing-function: var(--ease-entrance);
+}
+
+.enter-slide {
+  animation-name: nx-slide-in;
+  animation-duration: var(--motion-3);
+  animation-timing-function: var(--ease-out);
+}
+
+/* The interactive card: rounded, lifted on hover, accent edge. */
+.card-live {
+  position: relative;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: var(--r-card);
+  box-shadow: var(--elev-1);
+  transition:
+    translate var(--motion-2) var(--ease-out),
+    box-shadow var(--motion-2) var(--ease-out),
+    border-color var(--motion-1) var(--ease-out),
+    background-color var(--motion-1) var(--ease-out);
+}
+
+.card-live:hover,
+.card-live:focus-visible {
+  translate: 0 -3px;
+  box-shadow: var(--elev-2);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+}
+
+.card-live:active {
+  translate: 0 -1px;
+}
+
+/* A gradient icon tile for cards, headers and empty states. */
+.icon-orb {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: var(--grad-soft);
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.icon-orb-lg {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+}
+
+.icon-orb-solid {
+  background: var(--grad-accent);
+  color: var(--surface);
+  box-shadow: var(--elev-2);
+}
+
+.text-gradient {
+  background: var(--grad-text);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* A hero band with two slow glows drifting behind its content. */
+.hero-aurora {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: var(--r-hero);
+  background: var(--grad-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--line));
+}
+
+.hero-aurora::before,
+.hero-aurora::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  width: 60%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  filter: blur(48px);
+  pointer-events: none;
+  animation: nx-drift var(--motion-ambient) var(--ease-wave) infinite;
+}
+
+.hero-aurora::before {
+  top: -35%;
+  left: -15%;
+  background: radial-gradient(circle, var(--glow-a), transparent 70%);
+}
+
+.hero-aurora::after {
+  right: -20%;
+  bottom: -45%;
+  background: radial-gradient(circle, var(--glow-b), transparent 70%);
+  animation-direction: reverse;
+}
+
+/* A glow without the band: for pages whose header sits straight on the desk. */
+.hero-glow {
+  position: relative;
+  isolation: isolate;
+}
+
+.hero-glow::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -40px -10% auto;
+  height: 220px;
+  background:
+    radial-gradient(40% 70% at 20% 30%, var(--glow-a), transparent 70%),
+    radial-gradient(35% 60% at 80% 20%, var(--glow-c), transparent 70%);
+  filter: blur(24px);
+  pointer-events: none;
+  animation: nx-drift var(--motion-ambient) var(--ease-wave) infinite;
+}
+
+/* Three breathing dots for "working on it". */
+.pulse-dots {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.pulse-dots > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--grad-accent);
+  animation: nx-pulse var(--motion-pulse) var(--ease-wave) infinite;
+}
+
+.pulse-dots > span:nth-child(2) {
+  animation-delay: calc(var(--motion-pulse) / 6);
+}
+
+.pulse-dots > span:nth-child(3) {
+  animation-delay: calc(var(--motion-pulse) / 3);
+}
+
+/* A pill chip: status, counts, tags that want colour. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line));
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+  color: var(--text-2);
+  font-size: var(--fs-12);
+  line-height: 1.4;
+}
+
+.chip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ok);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 22%, transparent);
+}
+
+/* ===========================================================================
    Reduced motion. One block, and it is the last word on every rule above.
    Anyone who asked their OS to stop animations gets the end state at once:
    no transition, no animation, no smooth scroll. A new looping animation or
@@ -830,5 +1150,18 @@ aside nav > p {
     transition-duration: 0.01ms !important;
     transition-delay: 0ms !important;
     scroll-behavior: auto !important;
+  }
+
+  .hero-aurora::before,
+  .hero-aurora::after,
+  .hero-glow::before,
+  .pulse-dots > span {
+    animation: none !important;
+  }
+
+  .card-live:hover,
+  .card-live:focus-visible,
+  .card-live:active {
+    translate: none !important;
   }
 }
