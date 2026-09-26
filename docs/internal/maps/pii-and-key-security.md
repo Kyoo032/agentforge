@@ -2,7 +2,8 @@
 
 Last verified: 2026-09-23 at d4561b8 + uncommitted tree for the new rows of § 5 (the sealed portal refresh token
 and the hashed session id). Everything else was last verified 2026-09-20 at a053245 + the Phase 4 branch
-`feat/web-phase4-tenant-secrets-rcbu9c` (through e37b3a1).
+`feat/web-phase4-tenant-secrets-rcbu9c` (through e37b3a1). The four finance parsers' `guardFinanceInput`
+lines were re-read 2026-09-26 at 083f925.
 
 ## Overview
 

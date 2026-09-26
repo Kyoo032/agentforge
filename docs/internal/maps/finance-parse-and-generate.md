@@ -1,6 +1,6 @@
 # Map — Finance: parse and generate
 
-Last verified: 2026-09-26 at 4477d27. The renderer surface in § 2 and the paste door in § 4 were re-read against the guided path and driven on stub webdev. Host and core citations are unchanged from 2026-09-23 at d4561b8.
+Last verified: 2026-09-26 at 083f925. A catalog sentence is rewritten by `labeledAmountLines` before the model path. The renderer surface in § 2 and the paste door in § 4 were re-read against the guided path on 2026-09-26 at 4477d27 and driven on stub webdev.
 
 ## Overview
 
