@@ -75,8 +75,8 @@ describe("rail market specialists block", () => {
       expect(shared, fragment).toContain(fragment);
       expect(rows, fragment).toContain(fragment);
     }
-    expect(shared).toContain("items-center rounded-lg px-1.5 text-xs");
-    expect(shared).not.toContain("items-center rounded-lg px-2 text-xs");
+    expect(shared).toContain("items-center rounded-md px-1.5 text-xs");
+    expect(shared).not.toContain("items-center rounded-md px-2 text-xs");
     // No icons on a sub-row; the icon column belongs to the job modes.
     expect(shared).not.toContain("RailIcon");
     expect(block).not.toContain("RailIcon");
@@ -84,7 +84,7 @@ describe("rail market specialists block", () => {
 
   it("marks the open desk unmistakably inside the sub-list", () => {
     // The rail is dark chrome in both themes, so its rows read from `--rail-*`.
-    expect(shared).toContain("`select-row ${ROW_BASE} bg-[var(--rail-active)] font-medium text-[var(--rail-active-text)]`");
+    expect(shared).toContain("`select-row ${ROW_BASE} shadow-elev-1 font-medium text-[var(--rail-active-text)] [background-image:var(--grad-soft)]`");
     expect(shared).toContain(
       "`wash ${ROW_BASE} text-[var(--rail-text-2)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-active-text)]`",
     );
@@ -214,7 +214,7 @@ describe("app rail market block", () => {
   it("stops the nav squashing rows, which is what made Market look spaced out", () => {
     // The nav is a column flex box; without `shrink-0` a rail taller than the
     // viewport shrinks bare rows but not a wrapped one, so Market read as taller.
-    expect(appRail).toContain("flex h-8 shrink-0 items-center gap-2 rounded-lg px-2 text-sm");
+    expect(appRail).toContain("flex h-8 shrink-0 items-center gap-2 rounded-md px-2 text-sm");
     expect(appRail).toContain(
       '<p className="shrink-0 px-2 pt-4 pb-1.5 text-xs font-medium tracking-normal text-[var(--rail-text-3)]">',
     );

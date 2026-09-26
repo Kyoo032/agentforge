@@ -34,4 +34,14 @@ export function BrandMark({ size = 28, className, testId, orb = false }: Props) 
       />
     </svg>
   );
+  if (!orb) return mark;
+  return (
+    <span
+      className={`icon-orb icon-orb-solid ${className ?? ""}`}
+      style={{ width: size, height: size }}
+      data-testid={testId}
+    >
+      {mark}
+    </span>
+  );
 }
