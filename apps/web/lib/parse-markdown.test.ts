@@ -50,6 +50,7 @@ describe("parseMarkdown", () => {
     expect(blocks[0].children[0]).toMatchObject({
       type: "link",
       href: "https://cdn.example/cat.png",
+      fromImage: true,
       children: [{ type: "text", value: "cat" }],
     });
     expect(blocks[0].children.some((node) => node.type === "image")).toBe(false);

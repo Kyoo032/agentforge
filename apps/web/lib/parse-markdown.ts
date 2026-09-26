@@ -5,7 +5,7 @@ export type MdInline =
   | { type: "strong"; children: MdInline[] }
   | { type: "em"; children: MdInline[] }
   | { type: "code"; value: string }
-  | { type: "link"; href: string; children: MdInline[] }
+  | { type: "link"; href: string; children: MdInline[]; fromImage?: boolean }
   | { type: "image"; src: string; alt: string };
 
 export type MdTableAlign = "left" | "center" | "right" | null;
@@ -162,9 +162,9 @@ export function parseInline(input: string): MdInline[] {
 
 /**
  * An `![alt](src)` becomes an image only for a src the renderer may auto-load.
- * A src it may not — a remote http(s) URL from a model — degrades to a link the
- * reader has to click, so nothing is fetched on render. Anything else is null and
- * the source text is kept verbatim.
+ * A src it may not — a remote http(s) URL from a model — stays an image card the
+ * reader has to open, marked `fromImage`, so nothing is fetched on render.
+ * Anything else is null and the source text is kept verbatim.
  */
 function imageNode(parsed: { label: string; href: string }): MdInline | null {
   const src = safeImageSrc(parsed.href);
@@ -175,7 +175,7 @@ function imageNode(parsed: { label: string; href: string }): MdInline | null {
   if (!href) {
     return null;
   }
-  return { type: "link", href, children: [{ type: "text", value: parsed.label || href }] };
+  return { type: "link", href, fromImage: true, children: [{ type: "text", value: parsed.label || href }] };
 }
 
 function takeLinkLike(input: string, start: number): { label: string; href: string; end: number } | null {

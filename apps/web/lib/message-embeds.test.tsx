@@ -43,6 +43,18 @@ describe("standalone link cards", () => {
     expect(remote).not.toContain("<img");
     expect(remote).toContain('href="https://cdn.evil.example/beacon.gif"');
   });
+
+  it("renders a markdown image as an image card, not a file card", () => {
+    const image = renderToStaticMarkup(<FormattedText text="![lantern](https://cdn.example/lantern.png)" />);
+    expect(image).toContain('data-testid="message-embed"');
+    expect(image).toContain('data-kind="image"');
+    expect(image).not.toContain('data-kind="file"');
+    expect(image).not.toContain("<img");
+    expect(image).toContain('href="https://cdn.example/lantern.png"');
+    expect(image).toContain("lantern");
+    const file = renderToStaticMarkup(<FormattedText text="[shot.png](https://cdn.example/shot.png)" />);
+    expect(file).toContain('data-kind="file"');
+  });
 });
 
 describe("file blocks and job results", () => {

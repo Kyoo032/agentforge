@@ -51,6 +51,14 @@ function inlinePlainText(nodes: MdInline[]): string {
 function BlockView({ block }: { block: MdBlock }) {
   if (block.type === "p") {
     const only = block.children.length === 1 ? block.children[0] : undefined;
+    if (only?.type === "link" && only.fromImage) {
+      const href = safeLinkHref(only.href);
+      if (href) {
+        // A markdown image the renderer must not fetch still reads as an image card.
+        // The picture stays behind the link; nothing is requested until the reader opens it.
+        return <MessageEmbed kind="image" title={inlinePlainText(only.children)} href={href} />;
+      }
+    }
     if (only?.type === "link") {
       const card = presentStandaloneLink(only.href, inlinePlainText(only.children));
       if (card) {

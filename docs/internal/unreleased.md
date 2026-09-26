@@ -511,3 +511,5 @@ Renderer only, both products. The host still decides the gate; the desk only dis
 
 Renderer only, both products. One placeholder character, states as data in `apps/web/lib/mascot-states.ts`. `MascotSlot` is the placement: `empty` on an unused desk, `beside` a running job. `job.phase` / `job.step` ids the host already emits pick the pose; an unknown id uses that desk's home pose. A finished job celebrates; a failed one looks unsure. An empty desk waves, then settles, and sleeps after a long idle. Motion is transform and opacity only, and `prefers-reduced-motion` holds a still pose. Labels are in `common.mascot` for `en` and `id`. Education has no desk of its own; it shares the presenting pose (`?mascotMode=education`).
 
+A markdown image in a Chat reply (`![alt](url)`) is an image card. A remote source is not fetched; the card is the link the reader opens. A normal link to a `.png` stays a file card.
+
