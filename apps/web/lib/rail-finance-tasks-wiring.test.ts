@@ -25,6 +25,7 @@ const block = source("components/rail-finance-tasks.tsx");
 const market = source("components/rail-market-specialists.tsx");
 const appRail = source("components/app-rail.tsx");
 const studio = source("components/finance-studio.tsx");
+const view = source("components/finance-studio-view.tsx");
 const prefs = source("lib/rail-prefs.ts");
 
 describe("rail finance tasks block", () => {
@@ -103,36 +104,43 @@ describe("app rail finance block", () => {
 
 describe("finance studio reads the rail's choice", () => {
   it("takes the task from the URL and falls back to the brief", () => {
-    expect(studio).toContain('const urlTask = taskFromParam(searchParams.get("task"));');
+    expect(studio).toContain('const taskQuery = searchParams.get("task");');
+    expect(studio).toContain("const urlTask = taskFromParam(taskQuery);");
     expect(studio).toContain("const onFinance = pathname === FINANCE_PATH;");
     expect(studio).toContain("const task = onFinance ? urlTask : lastTaskRef.current;");
+    // An empty query is the chooser. Any value, including one the catalog does not know, is a task
+    // page, and taskFromParam still resolves the unknown value to the brief.
+    expect(studio).toContain('const showChooser = onFinance && (taskQuery == null || taskQuery.trim() === "");');
   });
 
   it("names the open task and its hint, and offers no second picker", () => {
-    expect(studio).toContain('data-testid="finance-task-current"');
-    expect(studio).toContain('data-testid="finance-task-hint"');
+    expect(view).toContain('data-testid="finance-task-current"');
+    expect(view).toContain('data-testid="finance-task-hint"');
+    expect(source("components/finance-steps/finance-guide.tsx")).toContain('data-testid="finance-guide-choices"');
     expect(studio).not.toContain("<select");
+    expect(view).not.toContain("<select");
     expect(studio).not.toContain("setTask(");
+    expect(view).not.toContain("setTask(");
   });
 
   it("renders the phase strip from the task's own phases", () => {
-    expect(studio).toContain("<FinancePhaseStrip phases={financeTaskPhases(task)} />");
+    expect(studio).toContain("phases={financeTaskPhases(task)}");
+    expect(view).toContain("<FinancePhaseStrip phases={phases} />");
     expect(source("components/finance-steps/finance-phase-strip.tsx")).toContain('data-testid="finance-phase-strip"');
   });
 
   it("folds the phase strip, and says so for anything that drives it", () => {
-    // Owner ruling 2026-09-23: the pipeline was painted across the header, six to seven
-    // nodes of implementation. It moved into the `finance-how` disclosure. The strip still
-    // renders from load — a closed <details> keeps its children in the DOM, so the testid
-    // stays queryable — but it is NOT visible until the disclosure is opened. A drive that
-    // asserts `finance-phase-strip` is visible must open `finance-how` first; a count
-    // assertion still passes. This test pins that contract so the recipe and the DOM cannot
-    // drift apart silently.
-    expect(studio).toContain('data-testid="finance-how"');
-    const detailsAt = studio.indexOf('<details className="mb-5 rounded-lg border border-[var(--line)] px-3 py-2" data-testid="finance-how"');
-    const stripAt = studio.indexOf("<FinancePhaseStrip");
-    expect(detailsAt).toBeGreaterThan(-1);
-    // The strip renders inside that disclosure, after its opening tag.
+    // The pipeline stays behind How this works, and that disclosure now sits inside More options.
+    // A closed <details> keeps its children in the DOM. Open finance-advanced, then finance-how,
+    // before asserting the strip is visible. A count assertion still passes from load.
+    expect(view).toContain('data-testid="finance-advanced"');
+    expect(view).toContain('data-testid="finance-how"');
+    const advancedAt = view.indexOf('data-testid="finance-advanced"');
+    const detailsAt = view.indexOf(
+      '<details className="mb-5 rounded-lg border border-[var(--line)] px-3 py-2" data-testid="finance-how"',
+    );
+    const stripAt = view.indexOf("<FinancePhaseStrip");
+    expect(detailsAt).toBeGreaterThan(advancedAt);
     expect(stripAt).toBeGreaterThan(detailsAt);
   });
 
@@ -147,8 +155,8 @@ describe("finance studio reads the rail's choice", () => {
   // `available: false` row arrives through, and the host refuses such a task at the boundary too.
   it("answers with one line instead of the brief inputs for a task that is not built", () => {
     expect(studio).toContain("const available = financeTaskAvailable(task);");
-    expect(studio).toContain('data-testid="finance-task-unavailable"');
-    expect(studio).toContain('t("finance.taskUnavailable"');
+    expect(view).toContain('data-testid="finance-task-unavailable"');
+    expect(view).toContain('t("finance.taskUnavailable"');
   });
 
   it("stays a shell: the studio file is well under the 400 line ceiling", () => {

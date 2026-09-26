@@ -1,21 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { usePathname, useSearchParams } from "@/lib/nav";
-import { FinanceExportMenu } from "@/components/finance-export-menu";
+import { FinanceStudioView } from "@/components/finance-studio-view";
 import { applyBriefDraft, briefDraftOf, briefInputsBody } from "@/components/finance-steps/brief";
 import type { FinanceSource } from "@/components/finance-steps/finance-inputs-panel";
-import { FinancePhaseStrip } from "@/components/finance-steps/finance-phase-strip";
-import { FinancePromptBar } from "@/components/finance-steps/finance-prompt-bar";
-import { FinanceResultNotices } from "@/components/finance-steps/finance-result-notices";
+import { FinanceReadProvider, type FinanceReadRegistration } from "@/components/finance-steps/finance-read";
 import { FinanceResultPanel } from "@/components/finance-steps/finance-result-panel";
 import { financeStepsFor } from "@/components/finance-steps/registry";
 import type { FinanceStepDraft, FinanceStepPayload } from "@/components/finance-steps/types";
-import { Confetti } from "@/components/confetti";
-import { JobProgressList } from "@/components/job-progress";
 import type { JobRegenSubmit } from "@/components/job-regen-panel";
-import { ModeHeader } from "@/components/mode-header";
-import { ModeIllustration } from "@/components/mode-illustration";
 import { listDatasets, type DatasetSummary } from "@/lib/data-client";
 import { briefLooksLikeFigures, parseFailureMessage } from "@/lib/finance-brief";
 import {
@@ -28,9 +22,9 @@ import {
   type StatedFact,
 } from "@/lib/finance-client";
 import { loadFinanceDraft, saveFinanceDraft } from "@/lib/finance-drafts";
-import { financePhaseLabel } from "@/lib/finance-phase-label";
 import {
   FINANCE_PATH,
+  defaultFinancePrompt,
   financeTaskAvailable,
   financeTaskHint,
   financeTaskLabel,
@@ -45,7 +39,10 @@ import { useProductBrand } from "@/lib/product-brand";
 import { useWorkspaceScope } from "@/lib/workspace-scope";
 import { getLocale, t } from "@/lib/i18n";
 import { labeled } from "@/lib/ui-copy";
-import { SettingsLinkHint } from "@/components/settings-link-hint";
+
+function needsSettingsHint(message: string): boolean {
+  return /gateway|api key|settings|runtime_stub|live gateway/i.test(message);
+}
 
 export function FinanceStudio() {
   const { productName } = useProductBrand();
@@ -58,7 +55,9 @@ export function FinanceStudio() {
 
   // The rail owns the task via the URL. Off /finance, keep the last task rather than the default.
   const onFinance = pathname === FINANCE_PATH;
-  const urlTask = taskFromParam(searchParams.get("task"));
+  const taskQuery = searchParams.get("task");
+  const showChooser = onFinance && (taskQuery == null || taskQuery.trim() === "");
+  const urlTask = taskFromParam(taskQuery);
   const lastTaskRef = useRef<FinanceTask>(urlTask);
   const task = onFinance ? urlTask : lastTaskRef.current;
 
@@ -82,6 +81,10 @@ export function FinanceStudio() {
   const [localError, setLocalError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [landed, setLanded] = useState(0);
+  const [customRead, setCustomRead] = useState<FinanceReadRegistration | null>(null);
+  const registerRead = useCallback((next: FinanceReadRegistration | null) => {
+    setCustomRead(next);
+  }, []);
 
   const error = localError ?? job.error?.message ?? null;
   const locked = job.busy || busy !== null;
@@ -199,15 +202,31 @@ export function FinanceStudio() {
     }
   }
 
+  function onRead() {
+    if (locked) {
+      return;
+    }
+    if (customRead) {
+      customRead.run();
+      return;
+    }
+    if (!figures.trim() && briefLooksLikeFigures(prompt)) {
+      void autoParseBrief(prompt);
+      return;
+    }
+    void onParse();
+  }
+
   async function onGenerate(event: FormEvent) {
     event.preventDefault();
-    const brief = prompt.trim();
+    const language = uiLocale === "id" ? "id" : "en";
+    const brief = prompt.trim() || defaultFinancePrompt(task, language);
     if (!brief || locked) {
       return;
     }
     if (!ready) {
-      if (briefLooksLikeFigures(brief)) {
-        await autoParseBrief(brief);
+      if (briefLooksLikeFigures(prompt)) {
+        await autoParseBrief(prompt);
         return;
       }
       setNotice(null);
@@ -255,142 +274,57 @@ export function FinanceStudio() {
     }
   }
 
+  const language = uiLocale === "id" ? "id" : "en";
+  const reading = busy === "parse" || busy === "autoParse" || customRead?.busy === true;
+  const canRead = figures.trim().length > 0 || (!customRead && briefLooksLikeFigures(prompt));
+
   return (
-    <main
-      data-mode="finance"
-      className="mx-auto w-full max-w-[var(--content-stage)] px-6 pb-10 pt-8 text-[var(--text)]"
-      data-testid="finance-studio"
-    >
-      <div className="mb-4">
-        <ModeHeader
-          icon="finance"
-          title={t("finance.title")}
-          outcome={t("finance.expectedInputs")}
-          actions={
-            result && available ? (
-              <FinanceExportMenu
-                result={result}
-                task={task}
-                report={result.report}
-                artifactId={result.artifactId}
-                workspaceId={workspaceId}
-                disabled={locked}
-              />
-            ) : null
-          }
-        >
-          <div className="mt-1.5 flex flex-col gap-0.5" role="group" aria-label={t("finance.taskAria")}>
-            <span className="text-sm font-medium text-[var(--text)]" title={taskTip} data-testid="finance-task-current">
-              {taskName}
-            </span>
-            <span
-              className="max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]"
-              data-testid="finance-task-hint"
-            >
-              {taskTip}
-            </span>
-          </div>
-        </ModeHeader>
-      </div>
-      <details className="mb-5 rounded-lg border border-[var(--line)] px-3 py-2" data-testid="finance-how">
-        <summary className="cursor-pointer select-none text-xs font-medium text-[var(--text-2)]">
-          {t("finance.howItWorks")}
-        </summary>
-        <p className="mt-2 mb-3 max-w-[var(--content-narrow)] text-xs text-[var(--text-3)]">
-          {t("finance.howItWorksBody", { productName })}
-        </p>
-        <FinancePhaseStrip phases={financeTaskPhases(task)} />
-      </details>
-      {error ? (
-        <p className="mb-4 text-sm text-[var(--danger)]" role="alert" data-testid="finance-error">
-          {error}
-          {/gateway|api key|settings|runtime_stub|live gateway/i.test(error) && !/settings/i.test(error) ? (
-            <>
-              {" "}
-              <SettingsLinkHint i18nKey="finance.openSettings" />
-            </>
-          ) : null}
-        </p>
-      ) : null}
-      {notice ? (
-        <p className="mb-4 text-sm text-[var(--text-2)]" role="status" data-testid="finance-auto-parsed">
-          {notice}
-        </p>
-      ) : null}
-      {available ? (
-        <div className="grid items-start gap-5 lg:[grid-template-columns:minmax(280px,420px)_minmax(0,1fr)]">
-          <StepInputs
-            task={task}
-            workspaceId={workspaceId}
-            locked={locked}
-            model={model}
-            onGenerate={onStepAction}
-            draft={briefDraft}
-            setDraft={onStepDraft}
-          />
-          <div className="space-y-4">
-            {job.busy || (job.progress.phases.length > 0 && !result) ? (
-              <JobProgressList
-                progress={job.progress}
-                busy={job.busy}
-                mode="finance"
-                testId="finance-progress"
-                labelFor={financePhaseLabel}
-              />
-            ) : null}
-            {result ? (
-              <div className="enter-rise relative space-y-4">
-                {landed > 0 ? <Confetti key={landed} /> : null}
-                <FinanceResultNotices result={result} />
-                <StepResult
-                  result={result}
-                  task={task}
-                  locale={uiLocale}
-                  models={models}
-                  defaultModel={model}
-                  regeneratingIndex={regenIndex}
-                  onRegenerate={(index, payload) => void onRegenerate(index, payload)}
-                  disabled={locked}
-                />
-              </div>
-            ) : job.busy ? null : (
-              <div
-                className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center text-[var(--text-2)]"
-                data-testid="finance-studio-empty"
-              >
-                <ModeIllustration mode="finance" />
-                <p className="mt-4 font-medium text-[var(--text)]">{t("finance.emptyOutcome")}</p>
-                <p className="mt-1.5 text-sm text-[var(--text-3)]">
-                  {ready ? t("finance.emptyReady") : t("finance.emptyWait")}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      ) : (
-        <p
-          className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-8 text-center text-[var(--text-2)]"
-          role="status"
-          data-testid="finance-task-unavailable"
-        >
-          {t("finance.taskUnavailable", { task: financeTaskLabel(task, uiLocale) })}
-        </p>
-      )}
-      {available ? (
-        <FinancePromptBar
-          prompt={prompt}
-          onPrompt={setPrompt}
-          onSubmit={(event) => void onGenerate(event)}
-          onCancel={job.cancel}
-          models={models}
-          model={model}
-          onModel={setModel}
-          locked={locked}
-          running={job.busy}
-          working={job.busy || busy === "autoParse"}
-          submitLabel={generateLabel}
-        />
-      ) : null}
-    </main>
+    <FinanceReadProvider register={registerRead}>
+      <FinanceStudioView
+        showChooser={showChooser}
+        task={task}
+        taskName={taskName}
+        taskTip={taskTip}
+        locale={language}
+        available={available}
+        productName={productName}
+        error={error}
+        notice={notice}
+        needsHint={error ? needsSettingsHint(error) : false}
+        ready={ready}
+        canRead={canRead}
+        reading={reading}
+        result={result}
+        landed={landed}
+        locked={locked}
+        running={job.busy}
+        generateLabel={generateLabel}
+        phases={financeTaskPhases(task)}
+        prompt={prompt}
+        onPrompt={setPrompt}
+        models={models}
+        model={model}
+        onModel={setModel}
+        onSubmit={(event) => void onGenerate(event)}
+        onCancel={job.cancel}
+        onRead={onRead}
+        workspaceId={workspaceId}
+        regeneratingIndex={regenIndex}
+        onRegenerate={(index, payload) => void onRegenerate(index, payload)}
+        showProgress={job.busy || (job.progress.phases.length > 0 && !result)}
+        progress={job.progress}
+        StepInputs={StepInputs}
+        StepResult={StepResult}
+        stepProps={{
+          task,
+          workspaceId,
+          locked,
+          model,
+          onGenerate: onStepAction,
+          draft: briefDraft,
+          setDraft: onStepDraft,
+        }}
+      />
+    </FinanceReadProvider>
   );
 }

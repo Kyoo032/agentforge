@@ -1,19 +1,19 @@
 {
   "title": "Finance",
-  "expectedInputs": "Drop a spreadsheet or PDF (up to 25 MB), then confirm the rows.",
+  "expectedInputs": "Add your file or type your numbers.",
   "kicker": "Workspace",
   "subtitle": "Give {productName} your figures as line items. Margins, growth, runway, breakeven, and NPV are computed in code; the model only writes the narrative, and any figure it cannot trace is removed.",
   "howItWorks": "How this works",
   "howItWorksBody": "The steps behind a run. Anything marked as a computation is done in code from your confirmed rows — {productName} never invents a figure, and one it cannot trace back is removed from the narrative.",
-  "advanced": "Advanced",
-  "pasteFigures": "Paste figures",
+  "advanced": "Optional numbers",
+  "pasteFigures": "Or type your numbers",
   "figuresPlaceholder": "Revenue 2025: $120,000. Hosting $30,000. Payroll $100,000. Cash $90,000…",
-  "parse": "Parse into line items",
+  "parse": "Read my numbers",
   "parsing": "Reading…",
-  "parseHint": "Nothing is computed until you confirm the rows below.",
+  "parseHint": "We turn this into rows you can check. Nothing is calculated until you say they look right.",
   "upload": {
-    "label": "Or upload a spreadsheet or document",
-    "dropHint": "Drop a .csv, .xlsx, .xls, .pdf, .docx or .pptx file here, or choose a file. Up to 25 MB.",
+    "label": "Add your file",
+    "dropHint": "A spreadsheet, PDF, Word, or PowerPoint file. Up to 25 MB.",
     "choose": "Choose a file",
     "reading": "Reading…",
     "replace": "Replace",
@@ -23,8 +23,8 @@
     "sheetAria": "Sheet to read",
     "sheetOption": "{name} ({rows} rows)",
     "previewLabel": "First {count} rows",
-    "use": "Use these figures",
-    "useHint": "The figures go into the box above. Nothing is computed until you parse them and confirm the rows.",
+    "use": "Use this file",
+    "useHint": "The numbers go into the box. Nothing is calculated until you read them and check the rows.",
     "warningsTitle": "Some of this file was not imported",
     "warnings": {
       "droppedColumns": "{n} columns were not imported",
@@ -50,16 +50,16 @@
   "orDataset": "Or use a saved dataset",
   "lineItemsBelow": "Line items below",
   "datasetOption": "{name} ({rows} rows)",
-  "lineItems": "Line items",
-  "lineItemsCount": "Line items ({count})",
+  "lineItems": "Numbers to check",
+  "lineItemsCount": "Numbers to check ({count})",
   "fromDataset": " — from the dataset",
   "parameters": "Parameters (optional)",
-  "emptyReady": "Describe the brief you need.",
-  "emptyWait": "Add figures and confirm the rows to start.",
-  "emptyOutcome": "What you get",
-  "promptPlaceholder": "Describe a finance brief… (cash plan, breakeven, exposure)",
+  "emptyReady": "Check the numbers, then write it up.",
+  "emptyWait": "Add your file or type your numbers.",
+  "emptyOutcome": "Next",
+  "promptPlaceholder": "Anything else we should know? (optional)",
   "cancel": "Cancel",
-  "generate": "Generate",
+  "generate": "Write it up",
   "generating": "Working…",
   "autoParsing": "Reading figures…",
   "autoParsed": "Read {n} figures from your brief. Check the rows, then generate again.",
@@ -205,14 +205,14 @@
     }
   },
   "cashflow": {
-    "figures": "Cash in and out, period by period",
+    "figures": "Or type money in and money out",
     "figuresPlaceholder": "Opening cash 90,000. Jan in 20,000, out 26,000. Feb in 21,000, out 25,500.",
     "read": "Read the periods",
     "reading": "Reading the periods…",
     "readHint": "The periods, the two sides and the opening balance are read in code. You confirm them before anything is computed.",
-    "openingCash": "Opening cash",
-    "openingCashHint": "Prefilled from the book's own opening line when it has one.",
-    "periods": "Periods",
+    "openingCash": "Cash you have now",
+    "openingCashHint": "Filled in from the file when it already says so.",
+    "periods": "Months to check",
     "noPeriods": "No periods yet. Paste or upload a cash book, then read it.",
     "period": "Period",
     "cashIn": "Cash in",
@@ -255,12 +255,12 @@
     }
   },
   "budget": {
-    "figures": "Budget and actuals",
-    "figuresPlaceholder": "Paste both sets, or import the budget sheet and the actuals sheet above.",
+    "figures": "Or type the plan and what happened",
+    "figuresPlaceholder": "Budget: Marketing $10,000, Payroll $50,000. Actual: Marketing $14,000, Payroll $49,000.",
     "read": "Read both sets",
     "reading": "Reading…",
     "readHint": "Rows, periods and subtotal rows are read in code. The pairing below is only a proposal.",
-    "thresholds": "Flag a line when",
+    "thresholds": "When should a line be marked?",
     "flagPct": "Percent limit",
     "flagPctHint": "A line is flagged when its variance is at least this share of its own budget.",
     "flagAbs": "Amount limit",
@@ -313,7 +313,7 @@
     }
   },
   "appraisal": {
-    "figures": "Outlay and yearly flows",
+    "figures": "Or type what you spend and what comes back",
     "figuresPlaceholder": "Outlay 820,000 at Year 0. Year 1 138,000, Year 2 142,000, Year 5 -65,000… Or upload the appraisal sheet.",
     "read": "Read the flows",
     "reading": "Reading the flows…",
@@ -324,8 +324,8 @@
     "addYear": "Add a year",
     "removeYearAria": "Remove {period}",
     "yearAria": "Net cash flow for {period}",
-    "discountRate": "Discount rate %",
-    "discountRateHint": "The hurdle every NPV below is quoted at.",
+    "discountRate": "Yearly return you want (%)",
+    "discountRateHint": "We use this percent to say what the project is worth today.",
     "rateScenarios": "Grid discount rates %",
     "cashFlowShifts": "Grid cash-flow shifts %",
     "axesHint": "Comma separated. A shift scales the years after Year 0 only; the outlay never moves.",
@@ -345,7 +345,7 @@
     "noReport": "The appraisal came back without a report, so there is nothing to show. Run it again."
   },
   "ratios": {
-    "paste": "Balance sheet and profit & loss",
+    "paste": "Or type what the business owns, owes, and earned",
     "pastePlaceholder": "Cash 2024: 2,340,000,000. Inventory 2024: 4,725,000,000. Trade payables 2024: 3,960,000,000…",
     "parse": "Read the statement",
     "parsing": "Reading…",
@@ -399,6 +399,7 @@
       "tax": "Tax expense",
       "principal-repayment": "Principal repayment",
       "other-income": "Other income (expense)",
+      "ebitda": "EBITDA",
       "excluded": "Not in any ratio"
     },
     "evidence": {
@@ -438,26 +439,46 @@
       "empty": "No ratio could be computed from these rows."
     }
   },
+  "guide": {
+    "lead": "What do you want to do?",
+    "change": "Choose something else",
+    "numbersLead": "Add your file or type your numbers.",
+    "resultLead": "Here is the result. Download it, or open More options to write it again.",
+    "yourNumbers": "Your numbers",
+    "more": "More options",
+    "steps": {
+      "choose": "What do you want to do?",
+      "numbers": "Add your numbers",
+      "result": "Your result"
+    },
+    "terms": {
+      "brief": "This is a financial brief. Margins and runway are worked out for you.",
+      "cashflow": "Cash flow. Burn is how fast the cash falls. Runway is how many months are left.",
+      "budget": "Budget versus actual. A line is marked when it goes past the limit you set.",
+      "appraisal": "An investment check. NPV is what the project is worth today. Payback is how soon the money comes back.",
+      "ratios": "A health check. Ratios compare what the business owns, owes, and earns."
+    }
+  },
   "tasks": {
     "brief": {
-      "label": "Financial brief",
-      "hint": "You get: a written brief with every core metric — margins, burn, runway, breakeven, NPV — computed in code and traced."
+      "label": "Explain my numbers",
+      "hint": "A short written summary of how the business is doing."
     },
     "cashflow": {
-      "label": "Cash flow & runway",
-      "hint": "You get: burn, runway, breakeven per period, and one what-if — from an opening balance plus monthly in and out."
+      "label": "How long will the cash last?",
+      "hint": "Money in and money out, month by month."
     },
     "budget": {
-      "label": "Budget vs actual",
-      "hint": "You get: variance in amount and percent per line, flagging only the lines over your limit."
+      "label": "Plan versus what happened",
+      "hint": "Which lines went past the plan."
     },
     "appraisal": {
-      "label": "Investment appraisal",
-      "hint": "You get: NPV, IRR, payback and a sensitivity grid for one outlay and its yearly flows."
+      "label": "Is this project worth it?",
+      "hint": "The money you spend, then the money that comes back each year."
     },
     "ratios": {
-      "label": "Ratio health check",
-      "hint": "You get: liquidity, debt and DSCR ratios banded against thresholds, from a balance sheet and P&L."
+      "label": "Is the business healthy?",
+      "hint": "From a balance sheet and a profit statement."
     }
   },
   "phases": {
@@ -493,7 +514,7 @@
     "scorecard-guard-export": "Scorecard + guard + export"
   },
   "export": {
-    "button": "Export",
+    "button": "Download",
     "choose": "Choose an export format",
     "working": "Building…",
     "failed": "Could not build the export file",

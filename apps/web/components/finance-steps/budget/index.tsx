@@ -30,6 +30,8 @@ import {
 import { parseBudgetFigures } from "@/lib/finance-budget-client";
 import type { LineItem } from "@/lib/finance-client";
 import { getLocale, t } from "@/lib/i18n";
+import { FinanceFold } from "../finance-guide";
+import { useFinanceRead } from "../finance-read";
 import type { FinanceStepDraft, FinanceStepEntry, FinanceStepProps } from "../types";
 import { BudgetPairingTable } from "./pairing-table";
 import { BudgetResult } from "./result";
@@ -150,11 +152,16 @@ export function BudgetInputs({ locked, model, draft, setDraft }: FinanceStepProp
     }
   }
 
+  useFinanceRead(() => {
+    void onRead();
+  }, reading);
+
   return (
     <section
       className="space-y-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4"
       data-testid="finance-inputs"
     >
+      <FinanceFileUpload onFigures={(text) => setDraft({ figures: mergeFigures(figures, text) })} disabled={busy} />
       <div>
         <label htmlFor="budget-figures" className="panel-label">
           {t("finance.budget.figures")}
@@ -169,59 +176,50 @@ export function BudgetInputs({ locked, model, draft, setDraft }: FinanceStepProp
           disabled={busy}
           data-testid="finance-figures-input"
         />
-        <button
-          type="button"
-          className="btn mt-2"
-          onClick={() => void onRead()}
-          disabled={busy || !figures.trim()}
-          data-testid="finance-parse"
-        >
-          {reading ? t("finance.budget.reading") : t("finance.budget.read")}
-        </button>
         <p className="mt-1 text-xs text-[var(--text-3)]">{t("finance.budget.readHint")}</p>
       </div>
-      {/* An upload only fills the box above; the owner still reads it and confirms every pair. */}
-      <FinanceFileUpload onFigures={(text) => setDraft({ figures: mergeFigures(figures, text) })} disabled={busy} />
       {error ? (
         <p className="text-xs text-[var(--danger)]" role="alert" data-testid="budget-error">
           {error}
         </p>
       ) : null}
-      <div>
-        <p className="panel-label">{t("finance.budget.thresholds")}</p>
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          <ThresholdField
-            id="budget-flag-pct"
-            label={t("finance.budget.flagPct")}
-            hint={t("finance.budget.flagPctHint")}
-            value={String(params.flagPct ?? DEFAULT_BUDGET_FLAG_PCT)}
-            locked={busy}
-            onValue={(raw) => patchParams(withBudgetThreshold(params, "flagPct", raw))}
-          />
-          <ThresholdField
-            id="budget-flag-abs"
-            label={t("finance.budget.flagAbs")}
-            hint={t("finance.budget.flagAbsHint")}
-            value={String(params.flagAbs ?? DEFAULT_BUDGET_FLAG_ABS)}
-            locked={busy}
-            onValue={(raw) => patchParams(withBudgetThreshold(params, "flagAbs", raw))}
-          />
+      <FinanceFold>
+        <div>
+          <p className="panel-label">{t("finance.budget.thresholds")}</p>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <ThresholdField
+              id="budget-flag-pct"
+              label={t("finance.budget.flagPct")}
+              hint={t("finance.budget.flagPctHint")}
+              value={String(params.flagPct ?? DEFAULT_BUDGET_FLAG_PCT)}
+              locked={busy}
+              onValue={(raw) => patchParams(withBudgetThreshold(params, "flagPct", raw))}
+            />
+            <ThresholdField
+              id="budget-flag-abs"
+              label={t("finance.budget.flagAbs")}
+              hint={t("finance.budget.flagAbsHint")}
+              value={String(params.flagAbs ?? DEFAULT_BUDGET_FLAG_ABS)}
+              locked={busy}
+              onValue={(raw) => patchParams(withBudgetThreshold(params, "flagAbs", raw))}
+            />
+          </div>
+          <label htmlFor="budget-flag-mode" className="mt-2 block text-xs text-[var(--text-2)]">
+            {t("finance.budget.flagMode")}
+            <select
+              id="budget-flag-mode"
+              className="input mt-1 px-2 py-1 text-xs"
+              value={params.flagMode ?? "and"}
+              onChange={(event) => patchParams({ ...params, flagMode: event.target.value === "or" ? "or" : "and" })}
+              disabled={busy}
+              data-testid="budget-flag-mode"
+            >
+              <option value="and">{t("finance.budget.flagModeAnd")}</option>
+              <option value="or">{t("finance.budget.flagModeOr")}</option>
+            </select>
+          </label>
         </div>
-        <label htmlFor="budget-flag-mode" className="mt-2 block text-xs text-[var(--text-2)]">
-          {t("finance.budget.flagMode")}
-          <select
-            id="budget-flag-mode"
-            className="input mt-1 px-2 py-1 text-xs"
-            value={params.flagMode ?? "and"}
-            onChange={(event) => patchParams({ ...params, flagMode: event.target.value === "or" ? "or" : "and" })}
-            disabled={busy}
-            data-testid="budget-flag-mode"
-          >
-            <option value="and">{t("finance.budget.flagModeAnd")}</option>
-            <option value="or">{t("finance.budget.flagModeOr")}</option>
-          </select>
-        </label>
-      </div>
+      </FinanceFold>
       <div>
         <p className="panel-label">{t("finance.budget.pairing.heading")}</p>
         <p className="mt-1 text-xs text-[var(--text-3)]">{t("finance.budget.pairing.hint")}</p>

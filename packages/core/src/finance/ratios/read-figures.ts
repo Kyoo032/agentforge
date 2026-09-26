@@ -13,6 +13,7 @@
  * the caller can drop totals rather than silently adding a company's assets to itself.
  */
 import { DERIVED_TAG, financePeriodHeaders, isPeriodLabel } from "../import-table";
+import { labeledAmountLines } from "../plain-sentences";
 import { readImportedLabel, type RatioRowInput } from "./classify";
 
 /** Cells on one line of the wide figures text are joined by this, exactly as the importer writes it. */
@@ -75,7 +76,10 @@ function readHeader(cells: readonly string[]): Header | null {
     return null;
   }
   const labelAt = cells.findIndex((_cell, index) => !periods.some((period) => period.index === index));
-  return { labelAt: Math.max(labelAt, 0), columns: periods.map((period) => ({ index: period.index, period: period.period })) };
+  return {
+    labelAt: Math.max(labelAt, 0),
+    columns: periods.map((period) => ({ index: period.index, period: period.period })),
+  };
 }
 
 function wideRows(cells: readonly string[], header: Header, currency: string): RatioRowInput[] {
@@ -125,7 +129,7 @@ export function readRatioCurrency(text: string): string {
  * Multiple sheets in one paste are handled by the header line resetting per sheet — a balance sheet
  * and a P&L pasted one after the other keep their own period columns.
  */
-export function readRatioRows(figuresText: string): ReadRatioRows {
+function readRatioBody(figuresText: string): ReadRatioRows {
   const currency = readRatioCurrency(figuresText);
   const found: RatioRowInput[] = [];
   let header: Header | null = null;
@@ -157,6 +161,19 @@ export function readRatioRows(figuresText: string): ReadRatioRows {
     periods: [...new Set(rows.map((row) => row.period ?? ""))],
     currency,
   };
+}
+
+/**
+ * The sheet reader, then a comma-separated sentence ("Current assets $150,000, debt $200,000")
+ * rewritten as one `Label: amount` line each. A statement that already had rows is left as it was.
+ */
+export function readRatioRows(figuresText: string): ReadRatioRows {
+  const read = readRatioBody(figuresText);
+  if (read.rows.length > 0) {
+    return read;
+  }
+  const lines = labeledAmountLines(figuresText);
+  return lines ? readRatioBody(lines) : read;
 }
 
 /** Re-exported so a caller can spell the importer's own tag without reaching past this module. */

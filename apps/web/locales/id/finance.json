@@ -1,19 +1,19 @@
 {
   "title": "Keuangan",
-  "expectedInputs": "Lepas spreadsheet atau PDF (sampai 25 MB), lalu konfirmasi barisnya.",
+  "expectedInputs": "Tambahkan berkas atau ketik angkanya.",
   "kicker": "Ruang kerja",
   "subtitle": "Berikan angka Anda kepada {productName} sebagai pos. Margin, pertumbuhan, runway, titik impas, dan NPV dihitung di kode; model hanya menulis narasi, dan setiap angka yang tidak dapat dilacak akan dihapus.",
   "howItWorks": "Cara kerjanya",
   "howItWorksBody": "Langkah-langkah di balik satu proses. Yang ditandai sebagai perhitungan dikerjakan di kode dari baris yang Anda konfirmasi — {productName} tidak pernah mengarang angka, dan angka yang tidak dapat dilacak akan dihapus dari narasi.",
-  "advanced": "Lanjutan",
-  "pasteFigures": "Tempel angka",
+  "advanced": "Angka tambahan",
+  "pasteFigures": "Atau ketik angkanya",
   "figuresPlaceholder": "Pendapatan 2025: $120.000. Hosting $30.000. Gaji $100.000. Kas $90.000…",
-  "parse": "Uraikan menjadi pos",
+  "parse": "Baca angka saya",
   "parsing": "Membaca…",
-  "parseHint": "Tidak ada yang dihitung sebelum Anda mengonfirmasi baris di bawah.",
+  "parseHint": "Angka ini menjadi baris yang bisa Anda periksa. Belum ada yang dihitung sebelum Anda menyatakan barisnya benar.",
   "upload": {
-    "label": "Atau unggah berkas spreadsheet atau dokumen",
-    "dropHint": "Letakkan berkas .csv, .xlsx, .xls, .pdf, .docx, atau .pptx di sini, atau pilih berkas. Sampai 25 MB.",
+    "label": "Tambahkan berkas",
+    "dropHint": "Spreadsheet, PDF, Word, atau PowerPoint. Sampai 25 MB.",
     "choose": "Pilih berkas",
     "reading": "Membaca…",
     "replace": "Ganti",
@@ -23,8 +23,8 @@
     "sheetAria": "Lembar yang dibaca",
     "sheetOption": "{name} ({rows} baris)",
     "previewLabel": "{count} baris pertama",
-    "use": "Pakai angka ini",
-    "useHint": "Angkanya masuk ke kotak di atas. Tidak ada yang dihitung sebelum Anda menguraikannya dan mengonfirmasi barisnya.",
+    "use": "Pakai berkas ini",
+    "useHint": "Angkanya masuk ke kotak. Belum ada yang dihitung sebelum Anda membacanya dan memeriksa barisnya.",
     "warningsTitle": "Sebagian isi berkas ini tidak ikut diimpor",
     "warnings": {
       "droppedColumns": "{n} kolom tidak ikut diimpor",
@@ -50,16 +50,16 @@
   "orDataset": "Atau gunakan dataset tersimpan",
   "lineItemsBelow": "Pos di bawah",
   "datasetOption": "{name} ({rows} baris)",
-  "lineItems": "Pos",
-  "lineItemsCount": "Pos ({count})",
+  "lineItems": "Angka yang diperiksa",
+  "lineItemsCount": "Angka yang diperiksa ({count})",
   "fromDataset": " — dari dataset",
   "parameters": "Parameter (opsional)",
-  "emptyReady": "Jelaskan brief yang Anda butuhkan.",
-  "emptyWait": "Tambahkan angka dan konfirmasi barisnya untuk mulai.",
-  "emptyOutcome": "Yang Anda dapat",
-  "promptPlaceholder": "Jelaskan brief keuangan… (rencana kas, titik impas, eksposur)",
+  "emptyReady": "Periksa angkanya, lalu tulis hasilnya.",
+  "emptyWait": "Tambahkan berkas atau ketik angkanya.",
+  "emptyOutcome": "Berikutnya",
+  "promptPlaceholder": "Ada hal lain yang perlu kami tahu? (opsional)",
   "cancel": "Batal",
-  "generate": "Buat",
+  "generate": "Tulis hasilnya",
   "generating": "Memproses…",
   "autoParsing": "Membaca angka…",
   "autoParsed": "Membaca {n} angka dari brief Anda. Periksa barisnya, lalu generate lagi.",
@@ -205,14 +205,14 @@
     }
   },
   "cashflow": {
-    "figures": "Kas masuk dan keluar, per periode",
+    "figures": "Atau ketik uang masuk dan keluar",
     "figuresPlaceholder": "Saldo awal 900.000.000. Jan masuk 200.000.000, keluar 260.000.000. Feb masuk 210.000.000, keluar 255.000.000.",
     "read": "Baca periodenya",
     "reading": "Membaca periode…",
     "readHint": "Periode, kedua sisi, dan saldo awal dibaca oleh kode. Kamu yang mengonfirmasi sebelum ada satu pun angka dihitung.",
-    "openingCash": "Saldo awal",
-    "openingCashHint": "Terisi otomatis dari baris saldo awal di bukunya, kalau ada.",
-    "periods": "Periode",
+    "openingCash": "Kas yang Anda punya sekarang",
+    "openingCashHint": "Terisi dari berkas bila angkanya sudah tertulis di sana.",
+    "periods": "Bulan yang diperiksa",
     "noPeriods": "Belum ada periode. Tempel atau unggah buku kas dulu, lalu baca.",
     "period": "Periode",
     "cashIn": "Kas masuk",
@@ -255,12 +255,12 @@
     }
   },
   "budget": {
-    "figures": "Anggaran dan realisasi",
-    "figuresPlaceholder": "Tempel kedua set, atau impor sheet anggaran dan sheet realisasi di atas.",
+    "figures": "Atau ketik rencana dan yang terjadi",
+    "figuresPlaceholder": "Anggaran: Pemasaran Rp 100.000.000, Gaji Rp 500.000.000. Realisasi: Pemasaran Rp 140.000.000, Gaji Rp 490.000.000.",
     "read": "Baca kedua set",
     "reading": "Membaca…",
     "readHint": "Baris, periode, dan baris subtotal dibaca di kode. Pasangan di bawah masih berupa usulan.",
-    "thresholds": "Tandai baris bila",
+    "thresholds": "Kapan sebuah baris ditandai?",
     "flagPct": "Batas persen",
     "flagPctHint": "Baris ditandai bila selisihnya minimal sebesar porsi ini dari anggarannya sendiri.",
     "flagAbs": "Batas nominal",
@@ -313,7 +313,7 @@
     }
   },
   "appraisal": {
-    "figures": "Modal awal dan arus kas tahunan",
+    "figures": "Atau ketik yang dikeluarkan dan yang kembali",
     "figuresPlaceholder": "Modal awal Rp 1.450.000.000 di Tahun 0. Tahun 1 Rp 285.000.000, Tahun 2 Rp 340.000.000… Atau unggah lembar kelayakannya.",
     "read": "Baca arus kasnya",
     "reading": "Sedang membaca arus kas…",
@@ -324,8 +324,8 @@
     "addYear": "Tambah tahun",
     "removeYearAria": "Hapus {period}",
     "yearAria": "Arus kas bersih untuk {period}",
-    "discountRate": "Tingkat diskonto %",
-    "discountRateHint": "Ambang yang dipakai untuk semua NPV di bawah ini.",
+    "discountRate": "Imbal hasil per tahun yang Anda inginkan (%)",
+    "discountRateHint": "Persen ini dipakai untuk menilai proyek hari ini.",
     "rateScenarios": "Tingkat diskonto untuk grid %",
     "cashFlowShifts": "Pergeseran arus kas untuk grid %",
     "axesHint": "Pisahkan dengan koma. Pergeseran hanya mengubah tahun setelah Tahun 0; modal awal tidak pernah ikut bergeser.",
@@ -345,7 +345,7 @@
     "noReport": "Kelayakan ini kembali tanpa laporan, jadi tidak ada yang bisa ditampilkan. Jalankan lagi."
   },
   "ratios": {
-    "paste": "Neraca dan laba rugi",
+    "paste": "Atau ketik yang dimiliki, yang terutang, dan yang dihasilkan",
     "pastePlaceholder": "Kas 2024: 2.340.000.000. Persediaan 2024: 4.725.000.000. Utang usaha 2024: 3.960.000.000…",
     "parse": "Baca laporan",
     "parsing": "Membaca…",
@@ -399,6 +399,7 @@
       "tax": "Beban pajak",
       "principal-repayment": "Pembayaran pokok pinjaman",
       "other-income": "Pendapatan (beban) lain-lain",
+      "ebitda": "EBITDA",
       "excluded": "Tidak masuk rasio mana pun"
     },
     "evidence": {
@@ -438,26 +439,46 @@
       "empty": "Tidak ada rasio yang dapat dihitung dari baris ini."
     }
   },
+  "guide": {
+    "lead": "Apa yang ingin Anda lakukan?",
+    "change": "Pilih yang lain",
+    "numbersLead": "Tambahkan berkas atau ketik angkanya.",
+    "resultLead": "Ini hasilnya. Unduh berkasnya, atau buka Opsi lain untuk menulis ulang.",
+    "yourNumbers": "Angka Anda",
+    "more": "Opsi lain",
+    "steps": {
+      "choose": "Apa yang ingin Anda lakukan?",
+      "numbers": "Tambahkan angka",
+      "result": "Hasil"
+    },
+    "terms": {
+      "brief": "Ini ringkasan keuangan. Margin dan sisa kas dihitung untuk Anda.",
+      "cashflow": "Arus kas. Burn adalah seberapa cepat kas berkurang. Runway adalah berapa bulan kas masih cukup.",
+      "budget": "Anggaran dibanding realisasi. Baris ditandai bila selisihnya melewati batas.",
+      "appraisal": "Uji kelayakan. NPV adalah nilai proyek hari ini. Payback adalah kapan uang kembali.",
+      "ratios": "Cek kesehatan. Rasio membandingkan yang dimiliki, yang terutang, dan yang dihasilkan."
+    }
+  },
   "tasks": {
     "brief": {
-      "label": "Brief Keuangan",
-      "hint": "Anda dapat: brief tertulis dengan semua metrik inti — margin, burn, runway, titik impas, NPV — dihitung di kode dan dilacak."
+      "label": "Jelaskan angka saya",
+      "hint": "Ringkasan tertulis singkat tentang kondisi usaha."
     },
     "cashflow": {
-      "label": "Arus Kas & Runway",
-      "hint": "Anda dapat: burn, runway, titik impas per periode, dan satu skenario what-if — dari saldo awal plus arus masuk dan keluar bulanan."
+      "label": "Berapa lama kas bertahan?",
+      "hint": "Uang masuk dan keluar, bulan per bulan."
     },
     "budget": {
-      "label": "Anggaran vs Realisasi",
-      "hint": "Anda dapat: selisih nominal dan persen per baris, dengan tanda hanya pada baris yang lewat batas Anda."
+      "label": "Rencana dibanding yang terjadi",
+      "hint": "Baris mana yang melewati rencana."
     },
     "appraisal": {
-      "label": "Kelayakan Investasi",
-      "hint": "Anda dapat: NPV, IRR, payback, dan grid sensitivitas untuk satu modal awal dan arus kas tahunannya."
+      "label": "Apakah proyek ini layak?",
+      "hint": "Uang yang dikeluarkan, lalu uang yang kembali tiap tahun."
     },
     "ratios": {
-      "label": "Cek Kesehatan Rasio",
-      "hint": "Anda dapat: rasio likuiditas, utang, dan DSCR yang dibandingkan dengan ambangnya, dari neraca dan laba rugi."
+      "label": "Apakah usaha ini sehat?",
+      "hint": "Dari neraca dan laporan laba rugi."
     }
   },
   "phases": {
@@ -493,7 +514,7 @@
     "scorecard-guard-export": "Kartu skor + penjaga + ekspor"
   },
   "export": {
-    "button": "Ekspor",
+    "button": "Unduh",
     "choose": "Pilih format ekspor",
     "working": "Menyiapkan…",
     "failed": "Tidak bisa membuat berkas ekspor",

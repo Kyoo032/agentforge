@@ -1,9 +1,6 @@
 # Map — Finance: parse and generate
 
-Last verified: 2026-09-23 at d4561b8 + uncommitted tree for § 6 (every `finance-generate.ts` citation), § 7
-(the number guard: which numbers are free, and titles, headings and assumptions), § 10 (the regenerate repair),
-the `finance-generate.ts` rows of Failure modes, and the `modelPinned` gotcha. Not driven: host and core changes
-need a `:3000` restart. Everything else was last verified 2026-09-20 at 6984d84.
+Last verified: 2026-09-26 at 083f925. A catalog sentence is rewritten by `labeledAmountLines` before the model path. The renderer surface in § 2 and the paste door in § 4 were re-read against the guided path on 2026-09-26 at 4477d27 and driven on stub webdev.
 
 ## Overview
 
@@ -25,16 +22,18 @@ On the host, `readFinanceTask` does the same fallback (`packages/host/src/financ
 
 ### 2. The surface
 
-`FinanceStudio` (`apps/web/components/finance-studio.tsx:50`) is a shell that owns state and the job; the steps belong to the task. It renders, on every task:
+`/finance` with a blank or missing `task` query shows the chooser (`showChooser`, `apps/web/components/finance-studio.tsx:64`). Any non-empty query, including an unknown one, uses `taskFromParam` and opens that task. The chooser is `FinanceChooser` (`apps/web/components/finance-steps/finance-guide.tsx:11`): `finance-guide-choices` and one `finance-guide-<id>` card per task, linking `financeTaskHref(id)`. The question itself is the mode header’s outcome, `finance-guide-lead` (`apps/web/components/finance-studio-view.tsx:117`).
 
-- `finance-studio` (`:271`), `finance-task-current` (`:278`), `finance-task-hint` (`:281`);
-- `FinancePhaseStrip` over `financeTaskPhases(task)` (`:302`) — `finance-phase-strip` (`apps/web/components/finance-steps/finance-phase-strip.tsx:28`) with one `finance-phase-<id>` (`:34`);
-- the task's own inputs, from the step registry: `financeStepsFor(task)` (`apps/web/components/finance-steps/registry.tsx:29-31`), `StepInputs` at `finance-studio.tsx:322`;
-- `finance-studio-empty` (`:357`) until a result exists, then `FinanceResultNotices` (`:342`) plus the task's `StepResult` (`:343`, default `FinanceResultPanel`, `:153`);
-- `FinancePromptBar` (`:378`) — `finance-studio-prompt-bar` (`apps/web/components/finance-steps/finance-prompt-bar.tsx:40`), `finance-enhance` (`:48`), `finance-studio-model` (`:51`), `finance-prompt` (`:60`, an `<input>`), `finance-cancel` (`:63`, only while running), `finance-generate` (`:71`, `type="submit"` in the form at `:37`);
-- `finance-export` / `finance-export-toggle` (`apps/web/components/finance-export-menu.tsx:104`, `:116`) — but only when `result && available` (`finance-studio.tsx:290`).
+`FinanceStudio` (`finance-studio.tsx:47`) still owns state and the job. The layout is `FinanceStudioView` (`apps/web/components/finance-studio-view.tsx:59`). On a task it renders:
 
-`finance-generate` is disabled on `locked || !prompt.trim()` (`finance-prompt-bar.tsx:70`) — **pasted figures never enable it**, only the brief does.
+- `finance-studio` (`:99`), `finance-guide-steps`, `finance-task-current` (`:190`), `finance-task-hint` (`:195`), `finance-task-term` (`:201`), `finance-guide-change` (`:206`, back to `/finance`);
+- the task's inputs from `financeStepsFor(task)` (`apps/web/components/finance-steps/registry.tsx:29-31`), then one primary in `finance-primary` (`finance-studio-view.tsx:412`): `finance-parse` or, on ratios, `finance-ratios-parse` (`:405`) until rows are confirmed, then `finance-generate` (`:394`). On a result the primary is `finance-export` and a second `finance-generate` sits inside More options (`:334`);
+- `finance-studio-empty` (`:288`) until a result exists, then `FinanceResultNotices` plus the task's `StepResult` (default `FinanceResultPanel`);
+- `finance-advanced` (`:311`, “More options”) holding `FinancePromptFields` — `finance-enhance`, `finance-studio-model`, `finance-prompt` (`apps/web/components/finance-steps/finance-prompt-bar.tsx:12-46`, an `<input>`) — and `finance-how` (`finance-studio-view.tsx:324`) with `FinancePhaseStrip` (`finance-phase-strip.tsx:28`);
+- `finance-cancel` (`:415`) only while a job runs;
+- `finance-export` / `finance-export-toggle` (`apps/web/components/finance-export-menu.tsx:114`, `:126`) only once a result exists. `emphasis="primary"` uses `btn btn-primary` on the download button.
+
+The form is `finance-studio-prompt-bar` (`finance-studio-view.tsx:227`). An empty instruction on generate uses `defaultFinancePrompt(task, language)` (`finance-studio.tsx:235`), so confirmed rows enable Write it up with More options left closed. Auto-parse still looks at the owner's own prompt (`briefLooksLikeFigures(prompt)` at `:240`), not the default.
 
 Drafts are per desk **and per task**: key `agentforge-finance-draft:<scope>:<task>` (`apps/web/lib/finance-drafts.ts:18`, `:40`), capped at `FINANCE_DRAFT_MAX_CHARS = 12_000` (`:24`), `localStorage` with an in-memory fallback. Switching task swaps the whole draft and clears items, prose, facts, params, source and result (`finance-studio.tsx:119-136`).
 
@@ -56,13 +55,13 @@ Seven routes, all `POST` (`packages/host/src/router.ts:289-295`):
 
 **Then liveness.** `requireLive` (`packages/host/src/finance-tasks/live.ts:47-57`) resolves the runtime from the saved key and `AGENTFORGE_RUNTIME` and throws `ApiError("runtime_stub", gatewayRequiredMessage("finance", localeForRun()), 503)` on `stub`. Finance has no stub path.
 
-The refusal reaches the client in two shapes, because `/finance/stream` has already sent its headers: `/parse`, `/finance` and `/regenerate` answer a real HTTP **503**; `/finance/stream` answers HTTP **200**, `text/event-stream`, with one `event: job.error` frame carrying `status: 503`. `streamJob` (`packages/host/src/job-stream.ts:30`) builds it through `jobErrorFromUnknown` (`:8-14`, `:85` returns `status: 200`); `useJobStream` puts it in `job.error` and the studio renders `error = localError ?? job.error?.message ?? null` (`finance-studio.tsx:90`) in `finance-error` (`:305`). **The status on the wire is not the status the user sees.**
+The refusal reaches the client in two shapes, because `/finance/stream` has already sent its headers: `/parse`, `/finance` and `/regenerate` answer a real HTTP **503**; `/finance/stream` answers HTTP **200**, `text/event-stream`, with one `event: job.error` frame carrying `status: 503`. `streamJob` (`packages/host/src/job-stream.ts:30`) builds it through `jobErrorFromUnknown` (`:8-14`, `:85` returns `status: 200`); `useJobStream` puts it in `job.error` and the studio renders `error = localError ?? job.error?.message ?? null` (`finance-studio.tsx:93`) in `finance-error` (`apps/web/components/finance-studio-view.tsx:211`). **The status on the wire is not the status the user sees.**
 
 ### 4. Getting figures in — three doors
 
-**Paste.** `finance-figures-input` (`apps/web/components/finance-steps/finance-inputs-panel.tsx:80`) plus `finance-parse` (`:87`), which calls `onParse()` (`finance-studio.tsx:171`) → `parseFinanceFigures` (`apps/web/lib/finance-client.ts:143`) → `POST /api/v1/finance/parse`.
+**Paste.** `finance-figures-input` (`apps/web/components/finance-steps/finance-inputs-panel.tsx:78`). The read button is the footer primary, `finance-parse` (`apps/web/components/finance-studio-view.tsx:405`; `finance-ratios-parse` on ratios). It calls `onRead()` (`finance-studio.tsx:217`), which runs a task-local reader when one is registered and otherwise `onParse()` (`:174`) → `parseFinanceFigures` (`apps/web/lib/finance-client.ts:143`) → `POST /api/v1/finance/parse`.
 
-**Upload.** `FinanceFileUpload` sits between the parse button and the dataset picker (`finance-inputs-panel.tsx:94-97`) on every task: `finance-upload` (`apps/web/components/finance-file-upload.tsx:164`), `-input` (`:174`), `-drop` (`:183`), `-error` (`:192`), `-sheet` (`:210`, only for a multi-sheet file), `-preview` (`:44`), `-warnings` (`:91`), `-pii` (`:101`), `-use` (`:231`), `-remove` (`:235`). `finance-upload-use` writes text into `finance-figures-input` through `mergeFigures` (`finance-inputs-panel.tsx:95`) — it **appends on a new line** and never becomes a line item on its own.
+**Upload.** `FinanceFileUpload` is the first control in the inputs panel, above the figures box (`finance-inputs-panel.tsx:65`): `finance-upload` (`apps/web/components/finance-file-upload.tsx:164`), `-input` (`:174`), `-drop` (`:183`), `-error` (`:192`), `-sheet` (`:210`, only for a multi-sheet file), `-preview` (`:44`), `-warnings` (`:91`), `-pii` (`:101`), `-use` (`:231`), `-remove` (`:235`). `finance-upload-use` writes text into `finance-figures-input` through `mergeFigures` (`finance-inputs-panel.tsx:65`) — it **appends on a new line** and never becomes a line item on its own.
 
 **Saved dataset.** `finance-dataset` (`finance-inputs-panel.tsx:112`), rendered only when `listDatasets()` returned rows (`:99`). Brief only.
 
@@ -207,7 +206,9 @@ The registry renders it (`packages/host/src/renderers/registry.ts:22-28`): `xlsx
 | `packages/core/src/finance/metrics.ts`, `engine.ts` | `computeFinance`, `allowed`, `checks`; the pure math |
 | `packages/core/src/finance/number-guard.ts` | `guardNumbers`, `extractNumbers`, the marker |
 | `packages/core/src/finance/report.ts`, `report-brief.ts`, `report-formulas.ts` | `FinanceReport` and the brief's builders |
-| `apps/web/components/finance-studio.tsx` | The shell: task, phase strip, export menu, steps |
+| `apps/web/components/finance-studio.tsx` | State shell: task from the URL, drafts, parse and generate |
+| `apps/web/components/finance-studio-view.tsx` | The guided layout: chooser, one primary, More options |
+| `apps/web/components/finance-steps/finance-guide.tsx` | Task cards, the step trail, and the task-level fold |
 | `apps/web/components/finance-steps/` | `registry.tsx`, the shared panels, and one folder per task |
 | `apps/web/components/finance-file-upload.tsx` | The upload that fills the paste box |
 | `apps/web/components/finance-export-menu.tsx`, `apps/web/lib/finance-export.ts` | The format picker and the per-desk memory |
@@ -217,27 +218,27 @@ The registry renders it (`packages/host/src/renderers/registry.ts:22-28`): `xlsx
 ## Gotchas
 
 - **The generate route answers 200, not 503.** Only `/finance/parse`, `/finance` and `/finance/regenerate` are HTTP 503 keyless. A harness that asserts on the HTTP status of a generate reads a refusal as success.
-- **`finance-inputs` is not universal.** Four tasks mount a panel with `data-testid="finance-inputs"`, but the ratios task mounts `finance-ratios-inputs` with `finance-ratios-figures` / `finance-ratios-parse` instead (`apps/web/components/finance-steps/ratios/ratios-inputs.tsx:99`, `:113`, `:120`). A recipe that asserts `finance-inputs` on every task fails on ratios.
+- **`finance-inputs` is not universal.** Four tasks mount a panel with `data-testid="finance-inputs"`, but the ratios task mounts `finance-ratios-inputs` with `finance-ratios-figures` (`apps/web/components/finance-steps/ratios/ratios-inputs.tsx:103`, `:121`). `finance-ratios-parse` is the same footer button the other tasks call `finance-parse` (`apps/web/components/finance-studio-view.tsx:405`). A recipe that asserts `finance-inputs` on every task fails on ratios. The chooser (`/finance` with no task query) mounts none of them.
 - **There is no coming-soon panel.** It was removed on 2026-09-17 with its three testids (`finance-task-coming-soon`, `finance-task-sample`, `finance-coming-soon-back`) and its `finance.comingSoon` locale block. All five tasks are `available: true` (`packages/core/src/finance/tasks.ts:72, 98, 125, 151, 177`), so the `finance_task_unavailable` 400 and the studio's one-line `finance-task-unavailable` fallback are both unreachable; the flag itself stays, because the core registry pins it to the module map.
 - **Section regen no longer returns `artifactId: null`.** It carries the posted id back (`packages/host/src/finance-generate.ts:301-304`, `:393`) so the Knowledge Base card is rewritten rather than duplicated. A map or script that still expects `null` is stale.
-- **The parse route barely uses the model.** For a readable table it asks one labels-only question and never sees an amount (`packages/host/src/finance-parse-figures.ts:62-69`, `:221-239`). Only text with no table falls through to `PARSE_SYSTEM`. Do not describe Finance parsing as "the model reads the figures" any more.
+- **The parse route barely uses the model.** For a readable table it asks one labels-only question and never sees an amount (`packages/host/src/finance-parse-figures.ts:62-69`, `:221-239`). Only text with no table falls through to `PARSE_SYSTEM`. A catalog sentence is not that text: `labeledAmountLines` in `packages/core/src/finance/plain-sentences.ts` rewrites it into `Label: amount` lines first, and `cellValue` reads the amounts. Do not describe Finance parsing as "the model reads the figures" any more.
 - **A stated fact is a quotation, not an input.** `withStatedFacts` adds a table and widens `allowed` but never touches `metrics` (`packages/host/src/finance-stated.ts:84-87`). It will never appear in a sum.
 - **`looksScaled` needs the raw text, not the expanded text** (`packages/core/src/finance/magnitude.ts:125`, called with `text` at `finance-parse-figures.ts:252`) — the suffixes are the evidence.
 - **`M` is locale-dependent** and margins hide scale bugs, because ratios are scale-invariant. Verify a stored **amount**.
 - **Counts vanish on purpose.** `dropCountRows` removes a currency-free whole number under 1000 sitting next to a countable noun (`packages/core/src/finance/count-rows.ts:87`, `:98`). "12 outlets" is gone; "units sold 12000 IDR" stays.
 - **An export by `artifactId` alone is only as good as that artifact's meta.** Stored report, then stored brief, then markdown (`packages/host/src/handlers/finance-export.ts:75-86`). A brief over the 256 KB cap, or one saved before the meta landed, exports as prose. A sparse workbook from an old id is not a renderer bug.
 - **Export formats are one route, not three.** `format` selects the renderer; `pdf` is registered and answers 501 on purpose. Assert the content type, not the route.
-- **`finance-prompt` is an `<input>` now, not a textarea** (`apps/web/components/finance-steps/finance-prompt-bar.tsx:54-61`), and `finance-generate` is a real form submit (`:67-71`) — a click before hydration reloads `/finance` and silently loses the prompt.
+- **`finance-prompt` is an `<input>` now, not a textarea** (`apps/web/components/finance-steps/finance-prompt-bar.tsx:40-47`), inside the closed `finance-advanced` disclosure. `finance-generate` is a real form submit (`apps/web/components/finance-studio-view.tsx:394`) — a click before hydration reloads the page and silently loses the prompt. Confirmed rows enable it even when the instruction is empty; the host still receives `defaultFinancePrompt`.
 - **Three things pick the model, and the dropdown is only the first.** `resolveModel` (`packages/host/src/finance-tasks/live.ts:59-66`) takes the request's `model`, else `settings.documentGenModel`, else `modeCatalogPayload().defaults.finance` — `pickPreferredJobModel("finance", …)` over `JOB_MODE_PREFERENCES.finance = ["hy3","hy-3","hunyuan-3","deepseek-v4-flash"]` (`packages/core/src/models/mode-defaults.ts:68`). None of the `hy3` ids are on this gateway, so the fourth entry wins.
 - **`EFFECTIVE_JOB_MODEL` is documentation, not a code path** (`packages/core/src/models/mode-defaults.ts:47`). The preference list is what delivers `deepseek-v4-flash`.
-- **`modelPinned` matters.** Only a deliberate pick travels (`apps/web/components/finance-studio.tsx:233`; `readModelPinned`, re-exported at `packages/host/src/finance-tasks/live.ts:45` from the one reader every job shares, `packages/host/src/job-regen.ts:43`, which since 2026-09-23 reads a pin that names no model as no pin); a seeded default stays rescuable by the job fallback, which is why a run can answer on a different model with a `finance-result-model-fallback` notice.
+- **`modelPinned` matters.** Only a deliberate pick travels (`apps/web/components/finance-studio.tsx:251`; `readModelPinned`, re-exported at `packages/host/src/finance-tasks/live.ts:45` from the one reader every job shares, `packages/host/src/job-regen.ts:43`, which since 2026-09-23 reads a pin that names no model as no pin); a seeded default stays rescuable by the job fallback, which is why a run can answer on a different model with a `finance-result-model-fallback` notice.
 - **There is still no stub Finance brief.** `apps/web/locales/{en,id}/finance.json` carries a `finance.stub.*` block describing one; nothing references it. See `docs/internal/unreleased.md`.
 
 ## Verify
 
 `.cursor/skills/verify-agentforge/features/finance.md`, and [`finance-tasks.md`](finance-tasks.md) for the per-task recipes.
 
-The load-time testids on the brief: `finance-studio`, `finance-task-current`, `finance-task-hint`, `finance-phase-strip` + `finance-phase-<id>`, `finance-inputs`, `finance-figures-input`, `finance-parse`, `finance-upload` / `-input` / `-drop`, `finance-items` / `-row` / `-label` / `-amount` / `-add`, `finance-param-<key>` (four), `finance-dataset` (only with a saved dataset), `finance-studio-empty`, `finance-studio-prompt-bar`, `finance-enhance`, `finance-studio-model`, `finance-prompt`, `finance-generate`. After a result: `finance-export`, `finance-export-toggle`, `finance-result-pii`, `finance-result-model-fallback`, `finance-actions` / `-download` / `-send-kb` / `-make-document` / `-make-presentation` / `-actions-note`, `finance-charts` (or `finance-charts-empty`) with `finance-chart-<id>`, `finance-preview`, `finance-guard`, `finance-section`, `finance-section-regen`, `finance-metrics`, `finance-table`, `finance-assumptions`.
+`/finance` with no query loads the chooser: `finance-guide-lead`, `finance-guide-choices`, `finance-guide-<id>`. A task URL loads `finance-studio`, `finance-guide-steps`, `finance-task-current`, `finance-task-hint`, `finance-task-term`, `finance-guide-change`, `finance-studio-prompt-bar`, `expected-inputs`, `finance-primary` (`finance-parse`, or `finance-ratios-parse` on ratios), `finance-studio-empty`, and `finance-advanced`. `finance-phase-strip` + `finance-phase-<id>`, `finance-enhance`, `finance-studio-model` and `finance-prompt` are in the DOM inside the closed `finance-advanced` → `finance-how` path; open those disclosures before a visibility assertion. On the brief, also `finance-inputs`, `finance-upload` / `-input` / `-drop`, `finance-figures-input`, `finance-items` / `-row` / `-label` / `-amount` / `-add`, four `finance-param-<key>` inside closed `finance-parameters`, and `finance-dataset` only with a saved dataset. `finance-generate` appears once rows are confirmed. After a result: `finance-export`, `finance-export-toggle`, `finance-result-pii`, `finance-result-model-fallback`, `finance-actions` / `-download` / `-send-kb` / `-make-document` / `-make-presentation` / `-actions-note`, `finance-charts` (or `finance-charts-empty`) with `finance-chart-<id>`, `finance-preview`, `finance-guard`, `finance-section`, `finance-section-regen`, `finance-metrics`, `finance-table`, `finance-assumptions`.
 
 Keyless proof stops at the shell plus the refusals — `/finance/parse` 503, `/finance/stream` 200-with-`job.error`, `finance.errors.addItems` with no request at all. `finance-upload` **is** reachable keyless: `/finance/import` reads the file host-side and needs no model.
 

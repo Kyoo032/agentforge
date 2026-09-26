@@ -16,6 +16,7 @@
  * both, each with its own periods.
  */
 import { cellValue, isPeriodHeader, isPeriodLabel, sheetNumberStyle, type NumberStyle } from "./import-table";
+import { labeledAmountLines } from "./plain-sentences";
 import type { RegisterCell } from "./types";
 
 /** The tag the importer puts on a row that is a total of the rows above it. */
@@ -248,7 +249,7 @@ function styleOf(text: string): NumberStyle {
 }
 
 /** Every row, fact and note the figures text holds, with nothing renamed and no amount re-read. */
-export function readFiguresText(text: string): FiguresTextRead {
+function readFiguresBody(text: string): FiguresTextRead {
   const style = styleOf(text);
   const rows: FigureRow[] = [];
   const facts: StatedFigure[] = [];
@@ -311,4 +312,21 @@ export function readFiguresText(text: string): FiguresTextRead {
     }
   }
   return { rows, facts, notes, unread, deterministic: rows.length > 0 && unread.length === 0 };
+}
+
+/**
+ * The sheet reader, and — only when that reader found nothing — a typed sentence rewritten as
+ * `Label: amount` lines. A table that already produced rows is never rewritten.
+ */
+export function readFiguresText(text: string): FiguresTextRead {
+  const read = readFiguresBody(text);
+  if (read.rows.length > 0) {
+    return read;
+  }
+  const lines = labeledAmountLines(text);
+  if (!lines) {
+    return read;
+  }
+  const again = readFiguresBody(lines);
+  return again.rows.length > 0 ? again : read;
 }

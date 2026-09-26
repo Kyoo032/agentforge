@@ -19,6 +19,7 @@
  */
 import { ApiError } from "@agentforge/core";
 import {
+  budgetSheetsFromSentence,
   isBudgetDerivedLabel,
   proposeBudgetPairs,
   readBudgetSides,
@@ -93,11 +94,18 @@ function itemFrom(row: FigureRow, sheet: string): LineItem {
 
 type ReadRows = { readonly items: LineItem[]; readonly derived: LineItem[] };
 
-/** Every row the figures text holds, with the totals kept beside the items rather than inside them. */
-export function budgetRowsFromFiguresText(text: string): ReadRows {
-  const read = sheetBlocks(text).flatMap((block) =>
+function rowsIn(text: string): Array<{ row: FigureRow; sheet: string }> {
+  return sheetBlocks(text).flatMap((block) =>
     readFiguresText(block.text).rows.map((row) => ({ row, sheet: block.name })),
   );
+}
+
+/** Every row the figures text holds, with the totals kept beside the items rather than inside them. */
+export function budgetRowsFromFiguresText(text: string): ReadRows {
+  const direct = rowsIn(text);
+  // "Budget: Marketing $10,000. Actual: Marketing $14,000" is the catalog sentence. It becomes two
+  // sheets the same reader already pairs, and only when the text was not a sheet to begin with.
+  const read = direct.length > 0 ? direct : rowsIn(budgetSheetsFromSentence(text) ?? "");
   const split = read.map((entry) => ({
     item: itemFrom(entry.row, entry.sheet),
     derived: entry.row.derived || isBudgetDerivedLabel(entry.row.label),

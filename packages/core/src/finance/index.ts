@@ -65,6 +65,12 @@ export {
 } from "./format-number";
 export type { FormattableMetric } from "./format-number";
 export { SUBTOTAL_TAG, readFiguresText } from "./figures-text";
+export {
+  appraisalItemsFromSentence,
+  budgetSheetsFromSentence,
+  cashflowLedgerFromSentence,
+  labeledAmountLines,
+} from "./plain-sentences";
 export { factSentences, statedFactValues, statedFactsFromProse, withFactLabels } from "./stated-facts";
 export type { StatedFact, StatedFactUnit } from "./stated-facts";
 export type { FigureRow, FiguresTextRead, StatedFigure } from "./figures-text";

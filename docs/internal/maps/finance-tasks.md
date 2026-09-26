@@ -1,9 +1,6 @@
 # Map — Finance tasks: the catalog and the generic runner
 
-Last verified: 2026-09-23 at d4561b8 + uncommitted tree for § 5 (every `runner.ts` and `narrate.ts`
-citation, and what the guard now covers), the new § 9 (the arithmetic and workbook fixes of that day), and the
-two gotchas that cite `narrate.ts`. Not driven: host and core changes need a `:3000` restart, and no task was run
-on a key. Everything else was last verified 2026-09-20 at 6984d84.
+Last verified: 2026-09-26 at 083f925. Catalog sentences for every task are read in core (`plain-sentences.ts`) and covered by `sample-sentences.test.ts`. § 7 testids were re-read against the guided path on 2026-09-26 at 4477d27 (the read button moved to the footer; upload is first; task levers sit in `finance-task-advanced`) and driven on stub webdev.
 
 ## Overview
 
@@ -67,12 +64,12 @@ The authoring contract is `packages/core/src/finance/tasks/README.md`: seven fil
 `handlePostFinanceParse` dispatches through `financeTaskParser(task)` (`packages/host/src/handlers/finance.ts:55`). Each hook turns free text — or an imported sheet's figures text — into the confirmed input its schema accepts, and every one of them redacts what it answers with:
 
 - **brief** — `parse-brief.ts`, the line-item read unchanged (`:2-5`). Table first, model only for categories; prose falls through to `PARSE_SYSTEM`. Calls `requireLive`.
-- **cashflow** — `parse-cashflow.ts`, fully deterministic (`:4-7`): which columns are months, which rows are totals, what the opening balance was are all already in the importer's text, so `cellValue` transcribes every amount. It answers one cash-in and one cash-out per period, the financing, the opening balance and each category's cost behaviour, for the owner to confirm (`:9-12`).
+- **cashflow** — `parse-cashflow.ts`, fully deterministic (`:4-7`): which columns are months, which rows are totals, what the opening balance was are all already in the importer's text, so `cellValue` transcribes every amount. It answers one cash-in and one cash-out per period, the financing, the opening balance and each category's cost behaviour, for the owner to confirm (`:9-12`). A typed sentence ("Opening cash $90,000. Jan in $20,000, out $26,000.") is rewritten by `cashflowLedgerFromSentence` in `packages/core/src/finance/plain-sentences.ts` into that same ledger before the read; the amount tokens are not recomputed. Budget (`budgetSheetsFromSentence`), ratios (`labeledAmountLines` inside `readRatioRows`) and appraisal (`appraisalItemsFromSentence`) do the same for their own catalog sentences. The brief's `readFiguresText` uses `labeledAmountLines` only when the sheet reader found no rows.
 - **budget** — `parse-budget.ts`, deterministic rows and a **proposed** pairing (`:4-8`). Local stages first — exact label, then an acronym/synonym dictionary, then character trigrams — and only when both sides still hold an unmatched line is a cosine asked for over the two **labels** (`budget-embed.ts`). The stage travels back as `matching.embedding` so the screen can say when the pairing was local-only.
-- **appraisal** — `parse-appraisal.ts`: an appraisal sheet is a label column and year columns, so `appraisalGridFromText` reads it outright and the model is never asked to transcribe an amount (`:4-7`). Only text that is not such a table falls through to the brief's read (`:93-94`).
-- **ratios** — `parse-ratios.ts`: rows, periods, signs and buckets are read in code; only a *label the dictionary has never met* is handed to the model, alone, with no amount beside it, and comes back at half the confidence of a rule, tagged `model`, so the owner sees exactly which rows were guessed at (`:4-9`). With nothing left over — the normal case for a real balance sheet — **the endpoint makes no gateway call at all** (`:11-12`); `requireLive` sits inside the assist branch (`:156`).
+- **appraisal** — `parse-appraisal.ts`: an appraisal sheet is a label column and year columns, so `appraisalGridFromText` reads it outright and the model is never asked to transcribe an amount (`:4-7`). A catalog sentence ("Outlay $200,000. Year 1 $60,000…") is read by `appraisalItemsFromSentence` the same way, still with no model. Only text that is neither a grid nor that sentence falls through to the brief's read.
+- **ratios** — `parse-ratios.ts`: rows, periods, signs and buckets are read in code; only a *label the dictionary has never met* is handed to the model, alone, with no amount beside it, and comes back at half the confidence of a rule, tagged `model`, so the owner sees exactly which rows were guessed at (`:4-9`). With nothing left over — the normal case for a real balance sheet — **the endpoint makes no gateway call at all** (`:11-12`); `requireLive` sits inside the assist branch (`:157`).
 
-That is the practical consequence worth remembering: **`/finance/parse` is not uniformly keyless-refusing.** The brief's parse is 503 without a key; cashflow, budget and the appraisal's grid path never call `requireLive`, and ratios only does when it has an unknown label to place.
+That is the practical consequence worth remembering: **`/finance/parse` is not uniformly keyless-refusing.** The brief's parse is 503 without a key; cashflow, budget, and the appraisal's grid and sentence reads never call `requireLive`, and ratios only does when it has an unknown label to place.
 
 ### 5. The generic runner
 
@@ -102,13 +99,15 @@ No rule ever asks the model to compute. They constrain what it may say: cash-flo
 
 The studio hands every task the same opaque draft bag and one `setDraft` patch channel (`apps/web/components/finance-steps/types.ts:36-44`), so five flows are built without two workers touching one file. Each folder exports `{ Inputs, Result? }`.
 
-| Task | Inputs testids (at load) | Result root |
+The read button is shared. Until rows are confirmed it is `finance-parse` (`apps/web/components/finance-studio-view.tsx:405`), or `finance-ratios-parse` on the ratios task, inside `finance-primary` (`:412`). It is not inside the task panel.
+
+| Task | Inputs testids (at load, once the task is open) | Result root |
 |---|---|---|
-| brief | `finance-inputs` (`finance-inputs-panel.tsx:66`), `finance-figures-input` (`:80`), `finance-parse` (`:87`), `finance-items*`, four `finance-param-*` (`:149`), `finance-dataset` (`:112`); `finance-stated-facts` / `-fact` / `-fact-label` / `-fact-value` / `-fact-remove` / `-fact-sentence` after a parse returns prose facts (`brief/stated-facts-list.tsx:47`, `:55`, `:66`, `:68`, `:77`, `:82`) | the shared `FinanceResultPanel` |
-| cashflow | `finance-inputs` (`cashflow/index.tsx:142`), `finance-figures-input` (`:156`), `finance-parse` (`:163`), `cashflow-opening-cash` (`:192`), `cashflow-no-periods` / `cashflow-periods` (`periods-table.tsx:71`, `:77`), `cashflow-what-if` (`what-if-panel.tsx:52`) with `cashflow-lever-<key>` (`:74`) | `cashflow-result` (`result.tsx:67`) |
-| budget | `finance-inputs` (`budget/index.tsx:156`), `finance-figures-input` (`:170`), `finance-parse` (`:177`), `budget-flag-mode` (`:218`), `budget-error` (`:186`), `budget-pairing` (`pairing-table.tsx:173`) | `budget-result` / `budget-no-report` (`result.tsx:148`, `:142`) |
-| appraisal | `finance-inputs` (`appraisal/index.tsx:238`), `finance-figures-input` (`:252`), `finance-parse` (`:259`), `appraisal-flows` (`:66`), `appraisal-add-year` (`:120`), `appraisal-preview` (`:181`) | `appraisal-result` / `appraisal-no-report` (`result.tsx:84`, `:78`) |
-| ratios | **`finance-ratios-inputs`** (`ratios/ratios-inputs.tsx:99`), **`finance-ratios-figures`** (`:113`), **`finance-ratios-parse`** (`:120`), `finance-ratios-bands` (`bands-editor.tsx:32`), `finance-ratios-buckets` (`bucket-table.tsx:93`) | `finance-ratios-result` / `finance-ratios-no-report` (`ratios-result.tsx:89`, `:83`) |
+| brief | `finance-inputs` (`finance-inputs-panel.tsx:62`), upload first (`:65`), `finance-figures-input` (`:78`), `finance-items*` (`line-item-editor.tsx:17`), four `finance-param-*` inside closed `finance-parameters` (`:122`, `:141`), `finance-dataset` (`:96`); `finance-stated-facts` / `-fact` / `-fact-label` / `-fact-value` / `-fact-remove` / `-fact-sentence` after a parse returns prose facts (`brief/stated-facts-list.tsx:47`, `:55`, `:66`, `:68`, `:77`, `:82`) | the shared `FinanceResultPanel` |
+| cashflow | `finance-inputs` (`cashflow/index.tsx:143`), upload first, `finance-figures-input` (`:161`), `cashflow-opening-cash` (`:183`), `cashflow-no-periods` / `cashflow-periods` (`periods-table.tsx:71`, `:77`); `cashflow-what-if` (`what-if-panel.tsx:52`) with `cashflow-lever-<key>` (`:74`) inside closed `finance-task-advanced` | `cashflow-result` (`result.tsx:67`) |
+| budget | `finance-inputs` (`budget/index.tsx:162`), upload first, `finance-figures-input` (`:177`), `budget-error` (`:182`), `budget-pairing` (`pairing-table.tsx:173`); `budget-flag-mode` (`:215`) inside closed `finance-task-advanced` | `budget-result` / `budget-no-report` (`result.tsx:148`, `:142`) |
+| appraisal | `finance-inputs` (`appraisal/index.tsx:238`), upload first, `finance-figures-input` (`:253`), `appraisal-flows` (`:62`), `appraisal-add-year` (`:118`), `appraisal-preview` (`:179`); discount rate and the grid axes inside closed `finance-task-advanced` | `appraisal-result` / `appraisal-no-report` (`result.tsx:84`, `:78`) |
+| ratios | **`finance-ratios-inputs`** (`ratios/ratios-inputs.tsx:103`), upload first, **`finance-ratios-figures`** (`:121`), **`finance-ratios-parse`** on the footer (`finance-studio-view.tsx:405`); `finance-ratios-bands` (`bands-editor.tsx:32`) and the supporting fields inside closed `finance-task-advanced`; `finance-ratios-buckets` (`bucket-table.tsx:93`) | `finance-ratios-result` / `finance-ratios-no-report` (`ratios-result.tsx:89`, `:83`) |
 
 All five render `ArtifactActions` with `testIdPrefix="finance"`, so the `finance-actions` / `finance-download` / `finance-send-kb` bar is the same everywhere. All but budget render `FinanceReportCharts`; budget draws `budget-variance-bars` (`budget/variance-bars.tsx:35`) instead.
 
@@ -155,7 +154,7 @@ or its workbook stated a number the inputs did not support. Both products run th
   confirmed row carries it, so the workbook's EBITDA and DSCR include it as the report does
   (`typedSupportingRows`, `packages/core/src/finance/ratios/report-tables.ts:52`). A formula whose pile has no
   row in the period is blank, as the report's figure is null, instead of 0 (`blankUnless`,
-  `packages/core/src/finance/ratios/formulas.ts:232`, used by `ratioMetricFormula`, `:242`).
+  `packages/core/src/finance/ratios/formulas.ts:237`, used by `ratioMetricFormula`, `:247`).
 - **Typed ratio inputs keep their bucket's sign.** A repayment typed as -1,050 is a repayment of 1,050
   (`typedAmount`, `packages/core/src/finance/ratios/compute.ts:138`).
 
@@ -192,9 +191,9 @@ The workbook fixes are pinned by evaluating the Calc formulas in the test itself
 ## Gotchas
 
 - **The model that answers may not be the one the picker shows.** Every Finance model call goes through `collectJobAssistantRun` in `packages/host/src/job-regen.ts`, which wraps `runWithJobModelFallback` (`packages/host/src/job-model-fallback.ts`): one retry on the next live model of the mode's ranked list, transport-class failures only, never on a pinned model, five-minute breaker. The result carries `notice: { code: "model_fallback", from, to }` and the studio renders `finance-result-model-fallback`. Details and the verify steps are in `.cursor/skills/verify-agentforge/features/models.md` (`models-job-fallback`).
-- **A task id is never an error.** An absent or unknown `?task=` resolves to `brief` on both sides (`apps/web/lib/finance-task.ts:50-52`, `packages/host/src/finance-task.ts:23-29`). `?task=nope` opens the brief silently.
-- **`finance-inputs` is not on every task.** Ratios uses `finance-ratios-inputs` / `finance-ratios-figures` / `finance-ratios-parse`. A recipe that asserts the shared ids across all five fails there and only there.
-- **Parse is keyless for most tasks.** Cashflow, budget and the appraisal's grid path never call `requireLive`; ratios only does when a label needs placing (`packages/host/src/finance-tasks/parse-ratios.ts:156`). Only the brief's parse refuses a keyless desk outright. Generate still needs a key on every task.
+- **A task id is never an error.** An absent or unknown `?task=` resolves to `brief` on both sides (`apps/web/lib/finance-task.ts:50-52`, `packages/host/src/finance-task.ts:23-29`). A blank or missing query shows the chooser instead of opening the brief (`finance-studio.tsx:64`). `?task=nope` opens the brief silently, with no chooser and no error.
+- **`finance-inputs` is not on every task.** Ratios uses `finance-ratios-inputs` / `finance-ratios-figures`, and its read button is `finance-ratios-parse` on the shared footer. A recipe that asserts the shared ids across all five fails there and only there. The chooser mounts neither panel.
+- **Parse is keyless for most tasks.** Cashflow, budget, and the appraisal's grid and sentence reads never call `requireLive`; ratios only does when a label needs placing (`packages/host/src/finance-tasks/parse-ratios.ts:157`). Only the brief's parse refuses a keyless desk outright. Generate still needs a key on every task.
 - **There is no coming-soon panel.** It was removed on 2026-09-17; every task is `available: true`, so the studio's one-line `finance-task-unavailable` fallback never renders and `finance_task_unavailable` is never thrown. `finance-task-coming-soon`, `finance-task-sample` and `finance-coming-soon-back` no longer exist. Do not write a recipe around any of them without first re-reading `tasks.ts`.
 - **The brief's prompt must stay byte-identical.** `task-rules.ts:22` gives `brief` no bullets on purpose, and `withFinanceTaskRules` returns the base string untouched when the list is empty (`packages/host/src/finance-task.ts:48`). Adding a "harmless" brief rule changes a shipping prompt.
 - **The runner announces fewer phases than the strip draws.** Everything up to the task's last shared step happened on the parse route; re-emitting it would tell the reader work is being redone (`packages/host/src/finance-tasks/runner.ts:38-48`). A `finance-phase-*` chip with no matching `job.phase` is correct.

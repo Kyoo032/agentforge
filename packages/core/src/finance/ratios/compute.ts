@@ -139,7 +139,12 @@ function typedAmount(bucket: RatioBucket, value: number | undefined): number | u
   return value === undefined ? undefined : bucketAmount(bucket, value);
 }
 
-function resultOf(totals: RatioAggregateTotals, params: RatioParams, period: string): Result {
+function resultOf(
+  totals: RatioAggregateTotals,
+  params: RatioParams,
+  period: string,
+  buckets: RatioBucketTotals,
+): Result {
   const typed = params.supporting?.[period];
   const revenue = present(totals, "revenue");
   const cogs = present(totals, "cogs");
@@ -164,7 +169,10 @@ function resultOf(totals: RatioAggregateTotals, params: RatioParams, period: str
     opex,
     ebit,
     depreciation,
-    ebitda: ebit === undefined ? undefined : ebit + (depreciation ?? 0),
+    // A P&L still builds EBITDA from EBIT. A sentence that only states EBITDA ("EBITDA $80,000")
+    // has no EBIT, so that stated row is the figure.
+    ebitda:
+      ebit === undefined ? (buckets.ebitda.count === 0 ? undefined : buckets.ebitda.value) : ebit + (depreciation ?? 0),
     interestExpense,
     tax,
     otherIncome,
@@ -242,7 +250,7 @@ function figuresFor(rows: readonly ClassifiedRatioRow[], period: string, params:
   const buckets = bucketTotalsFor(rows, period);
   const aggregates = aggregateTotalsFrom(buckets);
   const piles = pilesOf(buckets, aggregates);
-  const result = resultOf(aggregates, params, period);
+  const result = resultOf(aggregates, params, period, buckets);
   const values: Record<string, number | null> = {
     cash: piles.cash ?? null,
     receivables: piles.receivables ?? null,

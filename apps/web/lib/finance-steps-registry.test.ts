@@ -22,6 +22,7 @@ function source(relative: string): string {
 const registry = source("components/finance-steps/registry.tsx");
 const contract = source("components/finance-steps/types.ts");
 const studio = source("components/finance-studio.tsx");
+const view = source("components/finance-studio-view.tsx");
 
 describe("finance step registry", () => {
   it("has one folder and one row per task, so no two workers share a file", () => {
@@ -57,13 +58,15 @@ describe("finance step registry", () => {
 
   it("makes the studio render through the registry", () => {
     expect(studio).toContain("const steps = financeStepsFor(task);");
-    expect(studio).toContain("<StepInputs");
+    expect(studio).toContain("StepInputs={StepInputs}");
     expect(studio).toContain("const StepResult = steps.Result ?? FinanceResultPanel;");
+    expect(view).toContain("<StepInputs");
     expect(studio).not.toContain("<FinanceInputsPanel");
+    expect(view).not.toContain("<FinanceInputsPanel");
   });
 
   it("sends the task and its report to the one export control", () => {
-    expect(studio).toContain("report={result.report}");
+    expect(view).toContain("report={result.report}");
     expect(source("components/finance-steps/finance-result-panel.tsx")).toContain("result.report ??");
     expect(source("lib/finance-export.ts")).toContain("...(request.report ? { report: request.report } : {}),");
   });
