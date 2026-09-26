@@ -76,7 +76,7 @@ export function ResearchStudio() {
   const markdown = shown?.kind === "run" ? shown.dossierMarkdown : (shown?.markdown ?? "");
 
   return (
-    <main className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]" data-testid="research-studio">
+    <main data-mode="research" className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]" data-testid="research-studio">
       <ModeHeader
         icon="research"
         title={t("research.title")}

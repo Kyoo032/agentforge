@@ -71,6 +71,13 @@ export function FinancePromptBar({
           data-testid="finance-generate"
         >
           {submitLabel}
+          {running ? (
+            <span className="pulse-dots" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </span>
+          ) : null}
         </button>
       </div>
     </form>

@@ -33,9 +33,7 @@ type Props = {
 async function uploadMedia(file: File): Promise<string> {
   const form = new FormData();
   form.set("file", file);
-  const uploaded = await apiFetch("/api/v1/media", { method: "POST", body: form }).then((response) =>
-    response.json(),
-  );
+  const uploaded = await apiFetch("/api/v1/media", { method: "POST", body: form }).then((response) => response.json());
   if (uploaded.error) {
     throw new Error(uploaded.error.message ?? t("documents.regen.uploadFailed"));
   }
@@ -143,7 +141,7 @@ export function JobRegenPanel({
         onChange={setModel}
         disabled={busy || models.length === 0}
         testId={`${testIdPrefix}-regen-model`}
-        className="h-8 w-full rounded-lg border border-[var(--line)] bg-transparent px-2 text-xs text-[var(--text-2)] wash"
+        className="select-field w-full"
       />
       <input
         ref={fileInputRef}
@@ -196,21 +194,30 @@ export function JobRegenPanel({
         </button>
         <button
           type="submit"
-          className="wash inline-flex h-8 items-center rounded-pill bg-[var(--accent)] px-4 text-xs font-medium text-[var(--surface)] disabled:opacity-45"
+          className="btn btn-primary rounded-pill px-4"
           disabled={busy}
           data-testid={`${testIdPrefix}-regen-submit`}
         >
-          {submitting || uploading
-            ? testIdPrefix === "finance" || testIdPrefix === "market"
-              ? t("finance.preview.rewriting")
-              : testIdPrefix === "presentations"
-                ? t("presentation.regenerating")
-                : t("documents.regen.busy")
-            : testIdPrefix === "finance" || testIdPrefix === "market"
-              ? t("finance.preview.rewrite")
-              : testIdPrefix === "presentations"
-                ? t("presentation.regenerate")
-                : t("documents.regen.submit")}
+          {submitting || uploading ? (
+            <>
+              {testIdPrefix === "finance" || testIdPrefix === "market"
+                ? t("finance.preview.rewriting")
+                : testIdPrefix === "presentations"
+                  ? t("presentation.regenerating")
+                  : t("documents.regen.busy")}
+              <span className="pulse-dots" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </span>
+            </>
+          ) : testIdPrefix === "finance" || testIdPrefix === "market" ? (
+            t("finance.preview.rewrite")
+          ) : testIdPrefix === "presentations" ? (
+            t("presentation.regenerate")
+          ) : (
+            t("documents.regen.submit")
+          )}
         </button>
       </div>
     </form>

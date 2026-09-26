@@ -119,8 +119,7 @@ export function ArtifactActions({ title, markdown, artifactId, kbType, disabled 
   );
 }
 
-const PRIMARY =
-  "wash inline-flex h-8 items-center rounded-pill bg-[var(--accent)] px-4 text-sm font-medium text-[var(--surface)] disabled:opacity-45";
+const PRIMARY = "btn btn-primary rounded-pill px-4";
 const SECONDARY =
   "wash inline-flex h-8 items-center rounded-lg border border-[var(--line)] bg-transparent px-3 text-sm font-medium text-[var(--text)] hover:bg-[var(--accent-soft)] disabled:opacity-45";
 

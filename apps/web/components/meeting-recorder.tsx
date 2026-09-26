@@ -186,7 +186,7 @@ export function MeetingRecorderPanel({
             <button
               type="button"
               onClick={view.stop}
-              className="wash inline-flex h-9 items-center rounded-pill bg-[var(--accent)] px-4 text-sm font-medium text-[var(--surface)]"
+              className="btn btn-primary rounded-pill px-4"
               data-testid="meeting-record-stop"
             >
               {t("meeting.record.stop")}

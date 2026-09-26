@@ -46,14 +46,12 @@ export function ModelSelect({
   disabled,
   testId = "model-picker",
   showModalities = false,
-  className = "h-8 rounded-lg border border-[var(--line)] bg-transparent px-2 text-xs text-[var(--text-2)] wash",
+  className = "select-field",
   flat = false,
 }: Props) {
   const selected = models.some((model) => model.id === value) ? value : (models[0]?.id ?? "");
 
-  const groups = flat
-    ? [{ label: "Embeddings", models }]
-    : pickerGroups(models);
+  const groups = flat ? [{ label: "Embeddings", models }] : pickerGroups(models);
 
   return (
     <select

@@ -122,7 +122,7 @@ export function ImagesStudio() {
   }
 
   return (
-    <main className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]" data-testid="images-studio">
+    <main data-mode="images" className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]" data-testid="images-studio">
       <ModeHeader icon="images" title={t("images.title")} outcome={t("images.expectedInputs")} />
 
       {!ready && !loading ? (

@@ -157,7 +157,7 @@ export function DocumentsStudio() {
   }
 
   return (
-    <main className="mx-auto flex min-h-full w-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]" data-testid="documents-studio">
+    <main data-mode="documents" className="mx-auto flex min-h-full w-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]" data-testid="documents-studio">
       <ModeHeader
         icon="documents"
         title={t("documents.title")}

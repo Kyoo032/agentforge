@@ -1,7 +1,7 @@
 "use client";
 
 import { promptTemplateById, type PromptTemplate } from "@agentforge/core/edit";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { apiFetch, mediaSrc } from "@/lib/api-client";
 import { t } from "@/lib/i18n";
 import { labeled } from "@/lib/ui-copy";
@@ -91,16 +91,18 @@ export function VideoExamples({ onPick, selectedId }: Props) {
       <h2 className="text-sm font-medium text-[var(--text)]">{t("videos.clipsHeading")}</h2>
       <p className="mt-1 text-xs text-[var(--text-3)]">{t("videos.clipsHint")}</p>
       <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {items.map((item) => {
+        {items.map((item, index) => {
           const isSelected = item.templateId === selectedId;
           return (
             <li
               key={item.file}
-              className={`overflow-hidden rounded-xl border bg-[var(--surface)] ${
-                isSelected
-                  ? "select-row border-[var(--accent)] bg-[var(--accent-soft)]"
-                  : "wash border-[var(--line)] hover:bg-[var(--accent-soft)]"
-              }`}
+              className="card-live enter-rise overflow-hidden"
+              style={
+                {
+                  "--i": index,
+                  ...(isSelected ? { borderColor: "var(--accent)", background: "var(--accent-soft)" } : {}),
+                } as CSSProperties
+              }
               data-testid="videos-example-card"
               data-template-id={item.templateId}
             >

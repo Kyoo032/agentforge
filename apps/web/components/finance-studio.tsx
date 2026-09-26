@@ -13,6 +13,8 @@ import { financeStepsFor } from "@/components/finance-steps/registry";
 import type { FinanceStepDraft, FinanceStepPayload } from "@/components/finance-steps/types";
 import { JobProgressList } from "@/components/job-progress";
 import type { JobRegenSubmit } from "@/components/job-regen-panel";
+import { ModeHeader } from "@/components/mode-header";
+import { ModeIcon } from "@/components/mode-icons";
 import { listDatasets, type DatasetSummary } from "@/lib/data-client";
 import { briefLooksLikeFigures, parseFailureMessage } from "@/lib/finance-brief";
 import {
@@ -57,12 +59,7 @@ export function FinanceStudio() {
   const { id: workspaceId } = useWorkspaceScope();
   const uiLocale = getLocale();
 
-  /*
-   * The task is chosen in the rail, so the URL owns it. This pane is kept
-   * mounted behind the other work modes, and off `/finance` the query string
-   * belongs to whatever page is showing — so the last task seen on `/finance`
-   * is what stays active rather than the default silently taking over.
-   */
+  // The rail owns the task via the URL. Off /finance, keep the last task rather than the default.
   const onFinance = pathname === FINANCE_PATH;
   const urlTask = taskFromParam(searchParams.get("task"));
   const lastTaskRef = useRef<FinanceTask>(urlTask);
@@ -112,11 +109,7 @@ export function FinanceStudio() {
     };
   }, []);
 
-  /*
-   * Each task asks for its own inputs, so a task switch swaps the whole draft
-   * rather than carrying half a cash-flow paste into the brief. The scope is
-   * the desk and the task together: two desks never share one draft either.
-   */
+  // A task switch swaps the whole draft. Scope is desk plus task, so two desks never share one.
   useEffect(() => {
     if (lastScopeRef.current === scopeKey) {
       return;
@@ -144,11 +137,7 @@ export function FinanceStudio() {
     saveFinanceDraft(workspaceId, task, { prompt, figures });
   }, [scopeKey, workspaceId, task, prompt, figures]);
 
-  /*
-   * The studio is a shell: it owns the state, the task owns the steps. One bag of this task's draft
-   * goes down, one partial patch comes back — so four task flows can be built in parallel without
-   * any of them reaching into this file.
-   */
+  // The studio owns state; the task owns the steps. One draft bag down, one patch back.
   const steps = financeStepsFor(task);
   const StepInputs = steps.Inputs;
   const StepResult = steps.Result ?? FinanceResultPanel;
@@ -268,41 +257,48 @@ export function FinanceStudio() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-[var(--content-wide)] px-6 pb-10 pt-8 text-[var(--text)]" data-testid="finance-studio">
-      <div className="mb-4 flex flex-wrap items-end gap-4">
-        <div>
-          <h3 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("finance.title")}</h3>
-          <p className="mt-2 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="expected-inputs">
-            {t("finance.expectedInputs")}
-          </p>
-          {/* The task is picked in the rail; this names the one that is open, and leads with what it produces. */}
+    <main data-mode="finance"
+      className="mx-auto w-full max-w-[var(--content-wide)] px-6 pb-10 pt-8 text-[var(--text)]"
+      data-testid="finance-studio"
+    >
+      <div className="mb-4">
+        <ModeHeader
+          icon="finance"
+          title={t("finance.title")}
+          outcome={t("finance.expectedInputs")}
+          actions={
+            result && available ? (
+              <FinanceExportMenu
+                result={result}
+                task={task}
+                report={result.report}
+                artifactId={result.artifactId}
+                workspaceId={workspaceId}
+                disabled={locked}
+              />
+            ) : null
+          }
+        >
           <div className="mt-1.5 flex flex-col gap-0.5" role="group" aria-label={t("finance.taskAria")}>
             <span className="text-sm font-medium text-[var(--text)]" title={taskTip} data-testid="finance-task-current">
               {taskName}
             </span>
-            <span className="max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="finance-task-hint">
+            <span
+              className="max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]"
+              data-testid="finance-task-hint"
+            >
               {taskTip}
             </span>
           </div>
-        </div>
-        {/* Excel by default, the deck and the document behind the chevron. The brief on screen is what is sent. */}
-        {result && available ? (
-          <div className="ml-auto">
-            <FinanceExportMenu
-              result={result}
-              task={task}
-              report={result.report}
-              artifactId={result.artifactId}
-              workspaceId={workspaceId}
-              disabled={locked}
-            />
-          </div>
-        ) : null}
+        </ModeHeader>
       </div>
-      {/* The pipeline strip walked the implementation on screen; it lives here now. */}
       <details className="mb-5 rounded-lg border border-[var(--line)] px-3 py-2" data-testid="finance-how">
-        <summary className="cursor-pointer select-none text-xs font-medium text-[var(--text-2)]">{t("finance.howItWorks")}</summary>
-        <p className="mt-2 mb-3 max-w-[var(--content-narrow)] text-xs text-[var(--text-3)]">{t("finance.howItWorksBody", { productName })}</p>
+        <summary className="cursor-pointer select-none text-xs font-medium text-[var(--text-2)]">
+          {t("finance.howItWorks")}
+        </summary>
+        <p className="mt-2 mb-3 max-w-[var(--content-narrow)] text-xs text-[var(--text-3)]">
+          {t("finance.howItWorksBody", { productName })}
+        </p>
         <FinancePhaseStrip phases={financeTaskPhases(task)} />
       </details>
       {error ? (
@@ -342,7 +338,7 @@ export function FinanceStudio() {
               />
             ) : null}
             {result ? (
-              <>
+              <div className="enter-rise space-y-4">
                 <FinanceResultNotices result={result} />
                 <StepResult
                   result={result}
@@ -354,23 +350,24 @@ export function FinanceStudio() {
                   onRegenerate={(index, payload) => void onRegenerate(index, payload)}
                   disabled={locked}
                 />
-              </>
+              </div>
             ) : job.busy ? null : (
               <div
-                className="wash rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-8 text-center text-[var(--text-2)]"
+                className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center text-[var(--text-2)]"
                 data-testid="finance-studio-empty"
               >
-                <p className="font-medium text-[var(--text)]">{t("finance.emptyOutcome")}</p>
-                <p className="mt-1.5 text-sm text-[var(--text-3)]">{ready ? t("finance.emptyReady") : t("finance.emptyWait")}</p>
+                <span className="icon-orb icon-orb-lg mx-auto">
+                  <ModeIcon name="finance" size={24} strokeWidth={1.75} />
+                </span>
+                <p className="mt-4 font-medium text-[var(--text)]">{t("finance.emptyOutcome")}</p>
+                <p className="mt-1.5 text-sm text-[var(--text-3)]">
+                  {ready ? t("finance.emptyReady") : t("finance.emptyWait")}
+                </p>
               </div>
             )}
           </div>
         </div>
       ) : (
-        // The `available` flag is still the seam a task is added through: the core registry keeps
-        // it in step with the module map, and the host refuses a task without one. All five ship
-        // today, so this line is the fallback for the next task added to the catalog, not a screen
-        // anyone reaches — which is why it is one sentence rather than its own panel.
         <p
           className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-8 text-center text-[var(--text-2)]"
           role="status"

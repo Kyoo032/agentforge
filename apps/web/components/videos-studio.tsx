@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
 import type { MediaPrice } from "@agentforge/core/media-pricing";
 import { allowedVideoSeconds, snapVideoSeconds, videoCapabilities } from "@agentforge/core/video-capabilities";
 import type { PromptTemplate } from "@agentforge/core/edit";
@@ -8,6 +8,8 @@ import { EditPromptTemplates } from "@/components/edit-prompt-templates";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { ExampleGallery } from "@/components/example-gallery";
 import { VideoExamples } from "@/components/video-examples";
+import { ModeHeader } from "@/components/mode-header";
+import { ModeIcon } from "@/components/mode-icons";
 import { ModelSelect } from "@/components/model-select";
 import { SettingsLinkHint } from "@/components/settings-link-hint";
 import { t } from "@/lib/i18n";
@@ -177,11 +179,11 @@ export function VideosStudio() {
   }
 
   return (
-    <main className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]" data-testid="videos-studio">
-      <h1 className="text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("videos.title")}</h1>
-      {/* One outcome line (owner report 2026-09-23). The `subtitle` paragraph below it
-          only repeated what the empty state says, so it was deleted with its key. */}
-      <p className="mt-2 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="expected-inputs">{t("videos.expectedInputs")}</p>
+    <main data-mode="videos"
+      className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]"
+      data-testid="videos-studio"
+    >
+      <ModeHeader icon="videos" title={t("videos.title")} outcome={t("videos.expectedInputs")} />
 
       {!ready && !loading ? (
         <div
@@ -297,7 +299,14 @@ export function VideosStudio() {
           </div>
         </details>
         <div className="flex gap-2">
-          <EnhancePromptButton text={prompt} surface="videos" model={model} disabled={generating} testId="videos-enhance" onApply={setPrompt} />
+          <EnhancePromptButton
+            text={prompt}
+            surface="videos"
+            model={model}
+            disabled={generating}
+            testId="videos-enhance"
+            onApply={setPrompt}
+          />
           <input
             type="text"
             className="text-field min-w-0 flex-1 outline-none placeholder:text-[var(--text-3)]"
@@ -309,11 +318,22 @@ export function VideosStudio() {
           />
           <button
             type="submit"
-            className="shrink-0 wash inline-flex h-8 items-center rounded-pill bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--surface)] disabled:opacity-45"
+            className="btn btn-primary h-8 shrink-0 rounded-pill px-4"
             disabled={generating || !ready || !prompt.trim()}
             data-testid="videos-studio-submit"
           >
-            {generating ? t("videos.generating") : t("videos.generate")}
+            {generating ? (
+              <>
+                {t("videos.generating")}
+                <span className="pulse-dots" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </span>
+              </>
+            ) : (
+              t("videos.generate")
+            )}
           </button>
         </div>
         <EditPromptTemplates onPick={pickTemplate} selectedId={templateId} />
@@ -324,19 +344,30 @@ export function VideosStudio() {
           <p className="text-sm text-[var(--text-3)]">{t("videos.loadingGallery")}</p>
         ) : items.length === 0 ? (
           <div
-            className="rounded-lg border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center"
+            className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center"
             data-testid="videos-studio-empty"
           >
-            <p className="text-sm font-medium text-[var(--text)]">{t("videos.emptyTitle")}</p>
+            <span className="icon-orb icon-orb-lg mx-auto">
+              <ModeIcon name="videos" size={24} strokeWidth={1.75} />
+            </span>
+            <p className="mt-4 text-sm font-medium text-[var(--text)]">{t("videos.emptyTitle")}</p>
             <p className="mt-2 text-sm text-[var(--text-2)]">{t("videos.emptyBody")}</p>
           </div>
         ) : (
           <ul className="grid gap-4 sm:grid-cols-2">
-            {items.map((item) => (
-              <li key={item.id} className="overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface)]">
+            {items.map((item, index) => (
+              <li
+                key={item.id}
+                className="card-live enter-rise overflow-hidden"
+                style={{ "--i": index } as CSSProperties}
+              >
                 <video src={mediaSrc(item.url)} controls className="aspect-video w-full bg-black object-contain" />
                 <div className="flex items-center justify-between gap-2 px-3 py-2">
-                  {item.prompt ? <p className="min-w-0 truncate text-xs text-[var(--text-2)]">{item.prompt}</p> : <span />}
+                  {item.prompt ? (
+                    <p className="min-w-0 truncate text-xs text-[var(--text-2)]">{item.prompt}</p>
+                  ) : (
+                    <span />
+                  )}
                   <a
                     href={mediaSrc(item.url)}
                     download={`agentforge-video-${item.id}.mp4`}

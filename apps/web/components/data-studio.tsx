@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties, type FormEvent } from "react";
 import { ArtifactActions } from "@/components/artifact-actions";
 import { DataAnalysisView } from "@/components/data-analysis-view";
 import { DataGrid } from "@/components/data-grid";
 import { DatasetProfile } from "@/components/dataset-profile";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { JobProgressList } from "@/components/job-progress";
+import { ModeHeader } from "@/components/mode-header";
+import { ModeIcon } from "@/components/mode-icons";
 import { ModelSelect } from "@/components/model-select";
 import {
   DATASET_ACCEPT,
@@ -171,21 +173,21 @@ export function DataStudio() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-[var(--content-wide)] px-6 pb-10 pt-8 text-[var(--text)]" data-testid="data-studio">
-      <div className="mb-5 flex flex-wrap items-end gap-4">
-        <div>
-          <h3 className="mt-2 text-2xl font-medium tracking-[var(--track)] text-[var(--text)]">{t("data.title")}</h3>
-          {/* Title plus one outcome line (owner report 2026-09-23). The `lede` paragraph
-              moved into the disclosure below and the "workspace" kicker was deleted. */}
-          <p className="mt-2 max-w-[var(--content-narrow)] text-sm text-[var(--text-2)]" data-testid="expected-inputs">{t("data.expectedInputs")}</p>
-        </div>
+    <main data-mode="data"
+      className="mx-auto w-full max-w-[var(--content-wide)] px-6 pb-10 pt-8 text-[var(--text)]"
+      data-testid="data-studio"
+    >
+      <div className="mb-5">
+        <ModeHeader icon="data" title={t("data.title")} outcome={t("data.expectedInputs")} />
       </div>
       {/* Where the profile and the SQL trace come from. Not needed to get started. */}
       <details className="mb-5 rounded-lg border border-[var(--line)] px-3 py-2" data-testid="data-how">
         <summary className="cursor-pointer select-none text-xs font-medium text-[var(--text-2)]">
           {t("data.howItWorks")}
         </summary>
-        <p className="mt-2 max-w-[var(--content-narrow)] text-xs text-[var(--text-3)]">{t("data.howItWorksBody", { productName })}</p>
+        <p className="mt-2 max-w-[var(--content-narrow)] text-xs text-[var(--text-3)]">
+          {t("data.howItWorksBody", { productName })}
+        </p>
       </details>
       {error ? (
         <p className="mb-4 text-sm text-[var(--danger)]" role="alert" data-testid="data-error">
@@ -219,7 +221,18 @@ export function DataStudio() {
               disabled={busy}
               data-testid="data-upload"
             >
-              {loading === "upload" ? t("data.reading") : t("data.upload")}
+              {loading === "upload" ? (
+                <>
+                  {t("data.reading")}
+                  <span className="pulse-dots" aria-hidden="true">
+                    <span />
+                    <span />
+                    <span />
+                  </span>
+                </>
+              ) : (
+                t("data.upload")
+              )}
             </button>
             {saved.length > 0 ? (
               <select
@@ -307,7 +320,7 @@ export function DataStudio() {
             <JobProgressList progress={job.progress} busy={job.busy} testId="data-progress" />
           ) : null}
           {shown ? (
-            <>
+            <div className="enter-rise space-y-4">
               <ArtifactActions
                 title={shown.result.analysis.title}
                 markdown={shown.result.markdown}
@@ -317,21 +330,25 @@ export function DataStudio() {
                 testIdPrefix="data"
               />
               <DataAnalysisView analysis={shown.result.analysis} testIdPrefix="data" />
-            </>
+            </div>
           ) : job.busy ? null : (
             <div
-              className="wash rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-8 text-center text-[var(--text-2)]"
+              className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center text-[var(--text-2)]"
               data-testid="data-studio-empty"
             >
-              <p>{dataset ? t("data.emptyAsk") : t("data.emptyUpload")}</p>
+              <span className="icon-orb icon-orb-lg mx-auto">
+                <ModeIcon name="data" size={24} strokeWidth={1.75} />
+              </span>
+              <p className="mt-4">{dataset ? t("data.emptyAsk") : t("data.emptyUpload")}</p>
             </div>
           )}
           <div className="flex flex-col gap-2" data-testid="data-starters">
-            {DATA_STARTERS.map((starter) => (
+            {DATA_STARTERS.map((starter, index) => (
               <button
                 key={starter.id}
                 type="button"
-                className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3 text-left text-[var(--text)]"
+                className="card-live enter-rise p-3 text-left text-[var(--text)]"
+                style={{ "--i": index } as CSSProperties}
                 data-testid="data-starter"
                 onClick={() => setPrompt(labeled(`data.starters.${starter.id}.prompt`, starter.prompt))}
                 disabled={busy}
@@ -383,7 +400,18 @@ export function DataStudio() {
             disabled={busy || !prompt.trim()}
             data-testid="data-generate"
           >
-            {job.busy ? t("data.working") : t("data.analyze")}
+            {job.busy ? (
+              <>
+                {t("data.working")}
+                <span className="pulse-dots" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </span>
+              </>
+            ) : (
+              t("data.analyze")
+            )}
           </button>
         </div>
       </form>
