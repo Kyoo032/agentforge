@@ -497,14 +497,12 @@ export function KnowledgePage() {
 
       {tab === "sources" ? (
         <div className="flex flex-col gap-4" data-testid="knowledge-sources">
-          {sources.length === 0 || sources.some((row) => row.status === "Indexing") ? (
-            <MascotSlot
-              mode="knowledge"
-              placement={sources.some((row) => row.status === "Indexing") ? "beside" : "empty"}
-              busy={sources.some((row) => row.status === "Indexing")}
-              phase={sources.some((row) => row.status === "Indexing") ? "indexing" : undefined}
-            />
-          ) : null}
+          <MascotSlot
+            mode="knowledge"
+            placement={sources.some((row) => row.status === "Indexing") ? "beside" : "empty"}
+            busy={sources.some((row) => row.status === "Indexing")}
+            phase={sources.some((row) => row.status === "Indexing") ? "indexing" : undefined}
+          />
           <KnowledgeLoop
             sources={sources}
             retrievals={retrievals}
