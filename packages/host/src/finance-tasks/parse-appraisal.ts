@@ -13,6 +13,7 @@ import { ApiError } from "@agentforge/core";
 import {
   appraisalFlowsFromItems,
   appraisalGridFromText,
+  appraisalItemsFromSentence,
   discountRateFromText,
   netFlowsOf,
   outlayOf,
@@ -101,6 +102,13 @@ export const parseAppraisalInput: FinanceTaskParser = async (tenant, body) => {
   if (grid) {
     const rows = guardFinanceInput({ lineItems: grid.items });
     return answer(rows.lineItems, guarded.pii, rate, grid.subtotals);
+  }
+  // "Outlay $200,000. Year 1 $60,000, year 2 $75,000" is the catalog sentence. The rows are read
+  // here, so a keyless desk still confirms them; the model is only asked when this shape is absent.
+  const sentence = appraisalItemsFromSentence(guarded.figuresText);
+  if (sentence) {
+    const rows = guardFinanceInput({ lineItems: sentence });
+    return answer(rows.lineItems, guarded.pii, rate, []);
   }
   const parsed = await parseFinanceFigures(tenant, body);
   const rows = guardFinanceInput({ lineItems: parsed.items });

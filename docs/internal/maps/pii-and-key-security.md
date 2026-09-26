@@ -350,8 +350,8 @@ Hosted document conversion is guarded separately and repository-wide by
 
 - ~~The four non-brief tasks do not get the column-aware pseudonymisation.~~ **Closed later the same day.**
   `guardFinanceInput` is now wired into `packages/host/src/finance-tasks/runner.ts:214` and into all four
-  parsers — `parse-cashflow.ts:204`, `:220`, `:243`; `parse-budget.ts:145`, `:154`, `:168`;
-  `parse-appraisal.ts:98`, `:102`, `:106`; `parse-ratios.ts:199`, `:208` — and
+  parsers — `parse-cashflow.ts:210`, `:226`, `:260`; `parse-budget.ts:153`, `:162`, `:176`;
+  `parse-appraisal.ts:99`, `:103`, `:110`, `:114`; `parse-ratios.ts:200`, `:209` — and
   `finance-tasks/budget-embed.ts:7` names it as the caller's contract. `cashflow`, `budget`, `appraisal`
   and `ratios` get the same redaction the brief routes get.
 - A name written into free text with no column header above it is not detected, on purpose (see above).

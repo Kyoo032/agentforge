@@ -39,6 +39,8 @@ export const RATIO_BUCKETS = [
   "tax",
   "principal-repayment",
   "other-income",
+  // A sentence that states EBITDA outright ("EBITDA $80,000"), rather than the P&L it is built from.
+  "ebitda",
   "excluded",
 ] as const;
 
@@ -102,6 +104,7 @@ const SIGN: Readonly<Record<RatioBucket, RatioSign>> = Object.freeze({
   "principal-repayment": "magnitude",
   // A net other-income line is a gain when positive and a charge when negative; both are real.
   "other-income": "signed",
+  ebitda: "signed",
   excluded: "signed",
 });
 
@@ -130,6 +133,8 @@ const MEMBERSHIP: Readonly<Record<RatioBucket, readonly RatioAggregate[]>> = Obj
   tax: Object.freeze(["tax"] as const),
   "principal-repayment": Object.freeze(["principalRepayment"] as const),
   "other-income": Object.freeze(["otherIncome"] as const),
+  // Not a pile. The EBITDA metric reads this bucket only when no P&L row produced one.
+  ebitda: NONE,
   excluded: NONE,
 });
 
@@ -160,6 +165,7 @@ const STATEMENT: Readonly<Record<RatioBucket, RatioStatement>> = Object.freeze({
   // Neither statement: these two only ever feed EBITDA and the debt-service denominator.
   depreciation: "supporting",
   "principal-repayment": "supporting",
+  ebitda: "supporting",
   excluded: "none",
 });
 

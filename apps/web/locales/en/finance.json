@@ -256,7 +256,7 @@
   },
   "budget": {
     "figures": "Or type the plan and what happened",
-    "figuresPlaceholder": "Paste both sets, or import the budget sheet and the actuals sheet above.",
+    "figuresPlaceholder": "Budget: Marketing $10,000, Payroll $50,000. Actual: Marketing $14,000, Payroll $49,000.",
     "read": "Read both sets",
     "reading": "Reading…",
     "readHint": "Rows, periods and subtotal rows are read in code. The pairing below is only a proposal.",
@@ -399,6 +399,7 @@
       "tax": "Tax expense",
       "principal-repayment": "Principal repayment",
       "other-income": "Other income (expense)",
+      "ebitda": "EBITDA",
       "excluded": "Not in any ratio"
     },
     "evidence": {

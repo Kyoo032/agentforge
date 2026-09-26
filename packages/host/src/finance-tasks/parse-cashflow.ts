@@ -27,6 +27,7 @@ import {
   classifyCashflowLabel,
   foldCategories,
   foldPeriodOrder,
+  cashflowLedgerFromSentence,
   isPeriodLabel,
   isSignedBook,
   type CashflowCategory,
@@ -61,7 +62,12 @@ const CURRENCY_MARK: ReadonlyArray<readonly [RegExp, string]> = Object.freeze([
 ]);
 
 type Cell = { readonly period: string; readonly amount: number };
-type SourceRow = { readonly label: string; readonly section: string; readonly derived: boolean; readonly cells: Cell[] };
+type SourceRow = {
+  readonly label: string;
+  readonly section: string;
+  readonly derived: boolean;
+  readonly cells: Cell[];
+};
 
 export type CashflowParseResult = {
   readonly items: CashflowItem[];
@@ -224,6 +230,17 @@ function redactCategories(categories: readonly CashflowCategory[]): {
   };
 }
 
+function sourceRows(text: string): SourceRow[] {
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line !== "");
+  const style = numberStyle(text);
+  const headerAt = wideHeaderAt(lines);
+  const above = headerAt >= 0 ? lines.slice(0, headerAt) : lines;
+  return mergeRows([...(headerAt >= 0 ? wideRows(lines, headerAt, style) : []), ...narrowRows(above, style)]);
+}
+
 function readFigures(body: unknown): string {
   const figures = (body as { figures?: unknown } | null)?.figures;
   if (typeof figures !== "string" || !figures.trim()) {
@@ -241,24 +258,22 @@ const UNCONFIRMED_WARNING =
  */
 export const parseCashflowInput: FinanceTaskParser = async (_tenant: TenantContext, body: unknown) => {
   const source = guardFinanceInput({ figuresText: readFigures(body) });
-  const text = source.figuresText;
-  const lines = text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line !== "");
-  const style = numberStyle(text);
-  const headerAt = wideHeaderAt(lines);
-  const above = headerAt >= 0 ? lines.slice(0, headerAt) : lines;
-  const rows = mergeRows([
-    ...(headerAt >= 0 ? wideRows(lines, headerAt, style) : []),
-    ...narrowRows(above, style),
-  ]);
-  const opening = openingCashOf(rows);
-  const categoryRows = rows.filter((row) => !row.derived && !OPENING_LABEL.test(row.label));
+  const typed = source.figuresText;
+  // A sentence such as "Jan in $20,000, out $26,000" is the catalog sample. It becomes the same
+  // narrow ledger a sheet already produces, and `cellValue` still reads every amount.
+  const ledger = cashflowLedgerFromSentence(typed);
+  const rows = sourceRows(typed);
+  const sentenceRows =
+    ledger && rows.filter((row) => !row.derived && !OPENING_LABEL.test(row.label)).length === 0
+      ? sourceRows(ledger)
+      : null;
+  const readRows = sentenceRows ?? rows;
+  const opening = openingCashOf(readRows);
+  const categoryRows = readRows.filter((row) => !row.derived && !OPENING_LABEL.test(row.label));
   if (categoryRows.length === 0) {
     throw new ApiError("invalid_finance", "No cash-flow rows could be read from those figures", 422);
   }
-  const language: "id" | "en" = INDONESIAN.test(text) ? "id" : "en";
+  const language: "id" | "en" = INDONESIAN.test(typed) ? "id" : "en";
   // Each category keeps its own figure per period, so the studio can move it between variable, fixed
   // and one-off later and have every derived number fold again from the same place.
   const categories: CashflowCategory[] = categoryRows.map((row) => ({
@@ -267,7 +282,7 @@ export const parseCashflowInput: FinanceTaskParser = async (_tenant: TenantConte
   }));
   const folds = foldCategories(categories, isSignedBook(categories));
   const order = foldPeriodOrder(categories);
-  const currency = currencyOf(text, language);
+  const currency = currencyOf(typed, language);
   const redactedItems = redactItems(
     cashflowRowsFromFolds({ order, folds, names: CASHFLOW_ROW_NAMES[language], currency, opening }),
   );

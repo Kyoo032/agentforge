@@ -72,6 +72,7 @@ const CATEGORY_OF: Readonly<Record<RatioBucket, LineItemCategory>> = Object.free
   tax: "other",
   "principal-repayment": "other",
   "other-income": "other",
+  ebitda: "other",
   excluded: "other",
 });
 

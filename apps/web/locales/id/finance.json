@@ -256,7 +256,7 @@
   },
   "budget": {
     "figures": "Atau ketik rencana dan yang terjadi",
-    "figuresPlaceholder": "Tempel kedua set, atau impor sheet anggaran dan sheet realisasi di atas.",
+    "figuresPlaceholder": "Anggaran: Pemasaran Rp 100.000.000, Gaji Rp 500.000.000. Realisasi: Pemasaran Rp 140.000.000, Gaji Rp 490.000.000.",
     "read": "Baca kedua set",
     "reading": "Membaca…",
     "readHint": "Baris, periode, dan baris subtotal dibaca di kode. Pasangan di bawah masih berupa usulan.",
@@ -399,6 +399,7 @@
       "tax": "Beban pajak",
       "principal-repayment": "Pembayaran pokok pinjaman",
       "other-income": "Pendapatan (beban) lain-lain",
+      "ebitda": "EBITDA",
       "excluded": "Tidak masuk rasio mana pun"
     },
     "evidence": {

@@ -127,6 +127,32 @@ export const RATIO_LABEL_RULES: readonly RatioLabelRule[] = Object.freeze([
     pattern:
       /imbalan (pasca ?)?kerja|liabilitas imbalan|employee benefit|pajak tangguhan|deferred tax liabilit|provisi jangka panjang|liabilitas jangka panjang lain/,
   },
+  // Whole-label totals a person types in one sentence. They sit above the generic "utang" rule so
+  // a bare "utang" is the debt they named, while "utang usaha" stays a payable.
+  {
+    id: "stated-current-assets",
+    bucket: "other-current-asset",
+    confidence: 0.91,
+    pattern: /^(?:jumlah |total )?(?:current assets|aset lancar)$/,
+  },
+  {
+    id: "stated-current-liabilities",
+    bucket: "current-liability",
+    confidence: 0.91,
+    pattern: /^(?:jumlah |total )?(?:current liabilities|liabilitas lancar|kewajiban lancar)$/,
+  },
+  {
+    id: "stated-debt",
+    bucket: "long-term-debt",
+    confidence: 0.9,
+    pattern: /^(?:jumlah |total )?(?:debt|utang|hutang|pinjaman|borrowings)$/,
+  },
+  {
+    id: "stated-ebitda",
+    bucket: "ebitda",
+    confidence: 0.92,
+    pattern: /^ebitda$/,
+  },
   {
     id: "payables",
     bucket: "current-liability",
@@ -151,8 +177,7 @@ export const RATIO_LABEL_RULES: readonly RatioLabelRule[] = Object.freeze([
     id: "other-noncurrent-asset",
     bucket: "other-noncurrent-asset",
     confidence: 0.88,
-    pattern:
-      /tak berwujud|intangible|goodwill|deferred tax asset|investasi jangka panjang|aset (tidak lancar|lain)/,
+    pattern: /tak berwujud|intangible|goodwill|deferred tax asset|investasi jangka panjang|aset (tidak lancar|lain)/,
   },
   {
     id: "operating-expense",

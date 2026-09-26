@@ -188,7 +188,12 @@ const METRICS: Readonly<Record<string, Metric>> = Object.freeze({
   opex: metric([PILE.opex], (row) => parts(row).opex),
   ebit: metric([PILE.revenue], (row) => parts(row).ebit),
   depreciation: metric([PILE.depreciation], (row) => parts(row).depreciation),
-  ebitda: metric([PILE.revenue], (row) => parts(row).ebitda),
+  // The P&L ladder when a revenue row exists; otherwise the stated EBITDA bucket. Blank when neither does.
+  ebitda: metric([], (row) => {
+    const noRevenue = `${pileCount(PILE.revenue, row)}=0`;
+    const noStated = `${pileCount(["ebitda"], row)}=0`;
+    return `IF(AND(${noRevenue},${noStated}),"",IF(${noRevenue},${bucketSum("ebitda", row)},${parts(row).ebitda}))`;
+  }),
   interestExpense: metric([PILE.interest], (row) => parts(row).interest),
   tax: metric([PILE.tax], (row) => parts(row).tax),
   otherIncome: metric([PILE.otherIncome], (row) => parts(row).otherIncome),
