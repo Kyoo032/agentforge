@@ -10,12 +10,15 @@ import {
   lyricsWriteTool,
   maskPii,
   mediaKind,
+  modelNotOnKeyMessage,
   modeMessage,
   musicCapabilities,
   musicGenerateTool,
+  availableVideoDefault,
   pickPreferredImageModel,
   pickPreferredMusicModel,
-  pickPreferredVideoModel,
+  resolveVideoModelForKey,
+  rewriteModelNotOnKey,
   resolveMusicMode,
   runWithToolSecrets,
   speechUnavailableReason,
@@ -35,7 +38,7 @@ import {
   type TenantContext,
 } from "@agentforge/core";
 import { loadSettings } from "./settings-store";
-import { listImageModels, listMusicModels, listSpeechModels, listVideoModels } from "./selectable-models";
+import { listImageModels, listMusicModels, listProbedVideoModels, listSpeechModels } from "./selectable-models";
 import { mediaIdFromUrl } from "./media-id";
 import { getStudioMediaMeta, saveStudioMediaMeta, type StudioMediaMeta } from "./studio-media-meta";
 import { upsertWorkSource } from "./knowledge-ingest";
@@ -138,7 +141,7 @@ export function listStudioImageModels(models: ChatModel[] = listImageModels()): 
   return models.filter((model) => mediaKind(model.id) === "image");
 }
 
-export function listStudioVideoModels(models: ChatModel[] = listVideoModels()): ChatModel[] {
+export function listStudioVideoModels(models: ChatModel[] = listProbedVideoModels()): ChatModel[] {
   return models.filter((model) => mediaKind(model.id) === "video");
 }
 
@@ -147,7 +150,7 @@ export function defaultStudioImageModel(models: ChatModel[] = listStudioImageMod
 }
 
 export function defaultStudioVideoModel(models: ChatModel[] = listStudioVideoModels()): string {
-  return pickPreferredVideoModel(models.map((model) => model.id));
+  return availableVideoDefault(models.map((model) => model.id));
 }
 
 export function listStudioMusicModels(models: ChatModel[] = listMusicModels()): ChatModel[] {
@@ -331,7 +334,19 @@ export async function generateStudioVideo(
   }
   const settings = loadSettings(tenant);
   const scope = buildToolSecretScope(settings);
-  const model = body.model || settings.videoGenModel || defaultStudioVideoModel();
+  const locale = localeForRun();
+  const availableIds = listStudioVideoModels().map((item) => item.id);
+  const requested = (body.model || settings.videoGenModel || "").trim();
+  const choice = resolveVideoModelForKey({ requested, availableIds });
+  if (!choice.ok) {
+    throw new ApiError(
+      "model_not_on_key",
+      modelNotOnKeyMessage(locale, choice.rejected, choice.suggestion),
+      400,
+      choice.suggestion,
+    );
+  }
+  const model = choice.model;
   if (body.imageUrl && !videoCapabilities(model).imageToVideo) {
     throw new ApiError("video_still_unsupported", modeMessage("videoStillUnsupported", localeForRun()), 400);
   }
@@ -353,8 +368,12 @@ export async function generateStudioVideo(
   );
   const url = toolSuccessUrl(output, "video");
   if (!url) {
-    const message = toolFailureMessage(output, modeMessage("videoGenerateFailed", localeForRun()));
-    throw new ApiError("tool_failed", message, studioVideoFailureStatus(message));
+    const raw = toolFailureMessage(output, modeMessage("videoGenerateFailed", locale));
+    const rewritten = rewriteModelNotOnKey(raw, locale, model, availableIds);
+    if (rewritten) {
+      throw new ApiError("model_not_on_key", rewritten.message, 400, rewritten.suggestModel);
+    }
+    throw new ApiError("tool_failed", raw, studioVideoFailureStatus(raw));
   }
   // Same rule as images: the gateway has been paid, so the row is written before the file is
   // stored. Videos are metered in seconds because every list price in `media-pricing.ts` is
@@ -421,10 +440,7 @@ function toolTracks(output: unknown): GatewayTrack[] {
  * would throw away something already paid for. Each take becomes its own media row and its own
  * Knowledge card, because each is a separate file the desk may keep or delete on its own.
  */
-export async function generateStudioMusic(
-  tenant: TenantContext,
-  body: MusicGenerateBody,
-): Promise<StudioMusicResult> {
+export async function generateStudioMusic(tenant: TenantContext, body: MusicGenerateBody): Promise<StudioMusicResult> {
   if (!studioRouteReady("music_gen", tenant)) {
     throw new ApiError("invalid_request", gatewayRequiredMessage("music", localeForRun()), 400);
   }
@@ -540,10 +556,7 @@ export async function writeStudioLyrics(
   };
 }
 
-export async function listStudioGallery(
-  tenant: TenantContext,
-  kind: StudioKind,
-): Promise<StudioGalleryItem[]> {
+export async function listStudioGallery(tenant: TenantContext, kind: StudioKind): Promise<StudioGalleryItem[]> {
   const { listMediaByKind } = await import("./media");
   const rows = await listMediaByKind(tenant, kind);
   const items: StudioGalleryItem[] = [];

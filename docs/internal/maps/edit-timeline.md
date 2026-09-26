@@ -1,6 +1,6 @@
 # Map — Edit timeline and agent
 
-Last verified: 2026-09-23 at d4561b8 + uncommitted tree for § 2 (doctor), § 4 (the `appendOps` steps, desk and job
+Last verified: 2026-09-26 for § 8 (live bindings, chat model, tool-result frames, title defaults, stub "says Hello"). Before that: 2026-09-23 at d4561b8 + uncommitted tree for § 2 (doctor), § 4 (the `appendOps` steps, desk and job
 scope), § 6 (keyboard guard, drag release), § 10 (review gate, and `render` refused on `/jobs`), § 11 (generate,
 the worker's tenant, the still check), § 12 (export, the desktop save dialog) and the gateway-gate failure row —
 two passes that day, the Edit security fixes and the docs pass that reconciled them. Not driven. Everything else
@@ -229,18 +229,25 @@ Host side (`packages/host/src/handlers/edit.ts:194-309`):
 (`packages/host/src/handlers/edit.ts:348-365`) calls `requireGatewayAllowed` **first** — a closed gate
 is a flat `403 gateway_blocked` with no stream, exactly like Chat.
 
-`runEditAgent` (`packages/host/src/edit/agent-run.ts:135-197`) builds a per-turn budget from
-`settings.editTurnCapUsd` (`:145`) and picks a path:
+`runEditAgent` (`packages/host/src/edit/agent-run.ts`) builds a per-turn budget from
+`settings.editTurnCapUsd` and picks a path:
 
 - **Live** (a key is saved): `createRuntime(settings).execute(...)` with a compact project prompt
-  (`compactPrompt`, `:114-124`) that includes the ffmpeg state (`ffmpegPromptLine`, `:101-112`) and
-  the turn cap.
-- **Stub** (no key — the state on this desk): `runStub` (`:197-361`) matches the text against
-  `STUB_EDIT_SCENARIOS` (`packages/core/src/runtime/stub-edit-scenarios.ts:15-122`), then the Fill and
-  Generate scenario tables, and drives the **real tools** with canned arguments. It is scripted input,
-  not a scripted result.
+  (`compactPrompt`, `packages/host/src/edit/agent-run.ts:116-128`) that tells the model a title card
+  is an `add_title` call in this turn. The version model is `editAgentModelId()` (`:132-138`), the
+  refreshed chat default — never the literal `"edit"`. `bindings` is `editAgentBindings`
+  (`packages/core/src/tools/edit/bindings.ts:5-13`), every `EDIT_TOOLS` key enabled. An empty binding
+  list is what left the timeline blank: the runtime only exposes tools from bindings
+  (`packages/core/src/runtime/ai-sdk-runtime.ts:413-427`), so a model with `bindings: []` can only
+  talk. `onEvent` forwards `tool.completed` output that carries `ops` / `card` / `job` as
+  `edit.ops` / `edit.card` / `edit.job` (`pushToolFrames`, `agent-run.ts:163-167`, called at `:226`).
+- **Stub** (no key — the state on this desk): `runStub` matches the text against
+  `STUB_EDIT_SCENARIOS` (`packages/core/src/runtime/stub-edit-scenarios.ts`), then a title-card
+  fallback (`extractTitleCardText`, same file) so "Add a title card that says Hello" is `add_title`
+  with `{ text: "Hello" }`, then the Fill and Generate scenario tables, and drives the **real tools**
+  with canned arguments. It is scripted input, not a scripted result.
 
-`runStub`'s shape, in order (`agent-run.ts:204-360`):
+`runStub`'s shape, in order (`agent-run.ts:248`):
 
 1. No match → `assistant.delta` with the scripted help copy, `run.completed`. No card.
 2. `__undo__` (S10) → scripted undo copy only. **No card, no ops** — the owner still has to press
@@ -248,8 +255,10 @@ is a flat `403 gateway_blocked` with no stream, exactly like Chat.
 3. `run_recipe` (F3) → `edit.plan` frame carrying a plan card.
 4. S9 `clear_timeline` → invokes the tool, which refuses without `confirm: true`. No card either way.
 5. A generation tool → estimate, `chargeTurnBudget`; over cap → a refusal plus an `edit.plan` card.
-6. Otherwise: fill in missing ids from the doc (`:285-335`), emit `tool.started`, invoke the tool, and
-   forward whatever it returned as `edit.ops` / `edit.card` / `edit.job` frames (`:337-354`).
+6. Otherwise: fill in missing ids from the doc, emit `tool.started`, invoke the tool, and
+   forward whatever it returned as `edit.ops` / `edit.card` / `edit.job` frames (`pushToolFrames`,
+   `packages/host/src/edit/agent-run.ts:399`). `add_title` no longer requires a full ASS style:
+   `{ text }` lands a clip on `v1` at frame 0 for 90 frames (`packages/core/src/tools/edit/tools.ts:265-288`).
 
 The tool's writes go through `hostEditBackend.applyAgentOps`
 (`packages/host/src/edit/backend.ts:112-145`): insert the `edit_cards` row **first**, then `appendOps`
@@ -258,7 +267,7 @@ and write a snapshot, then emit `card.updated`. The card's `verb` is mechanical 
 (`backend.ts:51-57`) is just `ops[0].type.replaceAll("_", " ")` with the first touched clip id as the
 object. That is why an S1 "Remove the silences" turn shows a card reading **`split clip · <clip id>`**
 and not "Remove 3 silences": `stubEditCardCopy` is only used for the `assistant.delta` line
-(`agent-run.ts:355-356`), never for the card.
+(`agent-run.ts:400-401`), never for the card.
 
 ### 9. Cards — Keep, Undo, Tweak, plan
 

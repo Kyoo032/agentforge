@@ -528,3 +528,10 @@ Not packed. Webdev and unit tests only. Personal and Enterprise share the render
 - **Local page reading** is a bitmap face in `packages/university`. A scan is not sent to a hosted reader. Knowledge’s `needs_ocr` refusal is unchanged.
 - **en and id** catalogs cover the new chrome. Lesson, exam, and presenter copy follow the boot locale.
 
+## Videos picker and Edit timeline, 2026-09-26 (not packed)
+
+Host and renderer, both products. Nothing packed.
+
+- **Videos offers and prices only models the refresh listed.** `GET /api/v1/videos` reads `listProbedVideoModels` (the dialect arrays in `models-cache.json`) and does not fill an empty probe from static `CHAT_MODELS`. `doubao-seedance-2-0-260128` is not quoted at about $0.75 unless that id came back from `GET /v1/models`. The default is empty when the refresh listed no video model, and a Settings or agent pin outside that list is not selected. A job the gateway still refuses with "not available for this key" returns `model_not_on_key` in English and Indonesian and names another listed model; the studio drops the refused id so it is no longer priced.
+- **Edit writes the agent's title onto the timeline.** A live turn binds every edit tool and calls the refreshed chat model, not the literal id `edit`. `add_title` accepts `{ text }` and lands a clip on `v1`. The stub path "Add a title card that says Hello" does the same. Tool results that carry ops are forwarded as `edit.ops` / `edit.card` frames.
+- **Images needs-key note matches the button.** `images-studio-needs-key` follows `needsKey` (`allowed === false`), the same flag that disables `images-studio-submit`. A stub desk (`allowed: true`) hides the note and can still generate.

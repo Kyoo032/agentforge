@@ -1,6 +1,6 @@
 # Map — Generate studios (Images and Videos)
 
-Last verified: 2026-09-20 at 6984d84; citations re-anchored at e37b3a1
+Last verified: 2026-09-26 for the Videos picker (probed models only, empty default, not-on-key copy in both locales) and the Images needs-key note (same `allowed` flag as submit). Before that: 2026-09-20 at 6984d84; citations re-anchored at e37b3a1.
 
 ## Overview
 
@@ -29,8 +29,8 @@ The second thing: **whatever the gateway returns is mirrored before the user see
 On the host, `handleGetImages` (`packages/host/src/handlers/jobs.ts:39-65`) and `handleGetVideos` (`:72-96`) assemble it. Neither calls `requireGatewayAllowed` — **both GETs are ungated on purpose**, which is why the page renders fully with no key.
 
 - `items` ← `listStudioGallery(tenant, "image"|"video")` (`packages/host/src/studio-generate.ts:542-566`): `media` rows for this organization, newest first (`listMediaByKind`, `packages/host/src/media.ts:36-42`), each joined against a sidecar `studio-meta.json` next to the media store (`packages/host/src/studio-media-meta.ts:22-24`) for prompt / aspect / model. The sidecar is best-effort; a missing entry just means a caption-less tile.
-- `models` ← `listStudioImageModels()` / `listStudioVideoModels()` then `attachMediaPrices(...)` (`packages/host/src/handlers/jobs.ts:48-53`, `:79-84`). The price half is [`media-cost-estimate.md`](media-cost-estimate.md).
-- `defaultModel` ← `resolveStudioGenerateDefault` (`packages/core/src/agents/generate-defaults.ts:96-119`): the oldest custom agent that unlocks this surface and carries an `imageGenModel` / `videoGenModel` pin, else the Settings pin, else the catalog preference.
+- `models` ← `listStudioImageModels()` / `listStudioVideoModels()` then `attachMediaPrices(...)` (`packages/host/src/handlers/jobs.ts:48-53`, `:87-91`). The price half is [`media-cost-estimate.md`](media-cost-estimate.md). Images still come from the merged catalog. Videos come only from `listProbedVideoModels` (`packages/host/src/selectable-models.ts:103-105`): the four dialect arrays in `models-cache.json`, `mediaKind === "video"`, with no static `CHAT_MODELS` fill-in. A Seedance id the refresh did not return is not in the list and is not priced.
+- `defaultModel` ← `resolveStudioGenerateDefault` (`packages/core/src/agents/generate-defaults.ts:96-119`): the oldest custom agent that unlocks this surface and carries an `imageGenModel` / `videoGenModel` pin, else the Settings pin, else the catalog preference. On Videos the pin is kept only when that id is in the probed list (`packages/host/src/handlers/jobs.ts:94-102`); otherwise the default is `availableVideoDefault` (`packages/core/src/models/key-models.ts`), which is `""` when the refresh listed no video model. It does not invent `grok-imagine-video`.
 - `ready` ← `studioRouteReady("image_gen"|"video_gen", workspaceId)` (`packages/host/src/studio-generate.ts:259-262`).
 
 ### 3. Where the model list comes from — `/v1/models`, cached, then bucketed
@@ -40,24 +40,30 @@ The picker is **not** fed by the app's own `/api/v1/models`. It is fed by the st
 1. **Probe.** `refreshModelCache` (`packages/host/src/selectable-models.ts:223-314`) calls `detectCompatibleApi` against the pinned gateway, which is a `GET /v1/models` with the saved key. A desk with no key and no custom gateway **never calls out** (`:207-225`) — and on the way through it also clears any stale `openaiError` so a keyless desk does not keep showing "unreachable".
 2. **Persist.** The result lands in `models-cache.json` under the desk's data dir (`packages/host/src/model-cache.ts:22-30`). **This file outlives the key.** Removing the key does not empty the picker — the owner's `:3000` desk is keyless and still lists 40 image ids and 22 video ids, from the last live probe.
 3. **Merge.** `listCatalogModels()` (`packages/host/src/selectable-models.ts:57-74`) merges the four dialect caches and stamps context lengths from the models.dev registry, memoized on the two cache files' mtime+size.
-4. **Bucket.** `routeModelsByKind` (`packages/core/src/models/media-kind.ts:116-128`) puts every id in exactly one of `chat / image / video / audio / other` by running `mediaKind(id)` (`:27-52`). The order is load-bearing: `OTHER` first, then `AUDIO`, then `VIDEO`, then `IMAGE`, then two lowercase substring fallbacks. `listImageModels()` / `listVideoModels()` are just `routed.image` / `routed.video` (`packages/host/src/selectable-models.ts:89-95`), and `listStudioImageModels` filters once more with the same predicate (`packages/host/src/studio-generate.ts:137-143`).
-5. **Prefer.** `pickPreferredImageModel` / `pickPreferredVideoModel` (`packages/core/src/models/media-kind.ts:142-150`) walk a hard-coded preference list — `IMAGE_PREF` at `:14`, `VIDEO_PREF` at `:17` — after dropping every `mj_*` id, falling back to the first usable id and finally to `DEFAULT_GATEWAY_IMAGE_MODEL` / `DEFAULT_GATEWAY_VIDEO_MODEL` (`:7-8`).
+4. **Bucket.** `routeModelsByKind` (`packages/core/src/models/media-kind.ts`) puts every id in exactly one of `chat / image / video / audio / other` by running `mediaKind(id)`. `listImageModels()` / `listVideoModels()` are `routed.image` / `routed.video` (`packages/host/src/selectable-models.ts:90-96`). Images studio uses that merged list. Videos studio does not: `listStudioVideoModels` defaults to `listProbedVideoModels` (`packages/host/src/studio-generate.ts:144-146`), the probed rows only.
+5. **Prefer.** `pickPreferredImageModel` / `pickPreferredVideoModel` (`packages/core/src/models/media-kind.ts`) walk `IMAGE_PREF` / `VIDEO_PREF` and, when nothing matches, fall back to `DEFAULT_GATEWAY_IMAGE_MODEL` / `DEFAULT_GATEWAY_VIDEO_MODEL`. The Videos studio default does not take that last step: `defaultStudioVideoModel` (`packages/host/src/studio-generate.ts:152-154`) calls `availableVideoDefault`, which returns `""` unless the chosen id is in the probed list.
 
 `ModelSelect` (`apps/web/components/model-select.tsx:42-76`) renders it as a plain `<select>` with `<optgroup>`s from `pickerGroups` (`packages/core/src/models/preferred.ts:326-351`), which also applies the chat hide-list and drops dated snapshots. Each option label ends with the price hint the studio attached (`apps/web/components/model-select.tsx:31-40`), e.g. `gpt-image-2 · 272K · $0.03/gbr`.
 
 ### 4. The needs-key state
 
-`ready: false` renders one box and nothing else changes:
+Videos still renders its note from route `ready`:
 
 ```tsx
-{!ready && !loading ? (<div data-testid="images-studio-needs-key"><SettingsLinkHint i18nKey="images.needsKey" vars={{ gateway: gatewayName }} /></div>) : null}
+{!ready && !loading ? (<p data-testid="videos-studio-needs-key">…</p>) : null}
 ```
 
-(`apps/web/components/images-studio.tsx:125-132`; videos at `:181-188`.) `SettingsLinkHint` (`apps/web/components/settings-link-hint.tsx:7-31`) splits the catalog string on a sentinel and drops a real `<a href="/settings">` in the gap, so the banner is always a working link and never hard-codes English.
+Images renders the same testid from the host gate, the same flag that disables submit:
 
-`ready` walks back to `listToolRoutes` (`packages/core/src/tools/credentials.ts:362-372`) resolving the `image_gen` / `video_gen` capability. Both declare backends `gateway` → `fal` → (`openai` / `volcengine`) with an autodetect order of `["gateway", "fal"]` (`:83-107`, `:108-132`), and a backend is ready when its env var is populated from `secretMapFromSettings` (`:267-309`). No `OPENAI_API_KEY` and no `FAL_KEY` means no ready backend means `ready: false`.
+```tsx
+{needsKey && !loading ? (<p data-testid="images-studio-needs-key">…</p>) : null}
+```
 
-**The two studios then disagree about what to do with that.** `videos-studio-submit` is disabled while `!ready` (`apps/web/components/videos-studio.tsx:301`); `images-studio-submit` is not (`apps/web/components/images-studio.tsx:204`). So on a keyless desk the Videos button is inert and the Images button is live and will produce a 400. This asymmetry is in the code, not in any changelog.
+`needsKey` is `useDeskNeedsKey()` → `hostWithholdsLiveModel`, true only when `allowed === false`. A stub desk (`status: "stub"`, `allowed: true`) hides the Images note and leaves Generate enabled. A closed gate shows the note and disables the button.
+
+`SettingsLinkHint` (`apps/web/components/settings-link-hint.tsx:7-31`) splits the catalog string on a sentinel and drops a real `<a href="/settings">` in the gap, so the banner is always a working link and never hard-codes English.
+
+`ready` walks back to `listToolRoutes` (`packages/core/src/tools/credentials.ts:362-372`) resolving the `image_gen` / `video_gen` capability. Both declare backends `gateway` → `fal` → (`openai` / `volcengine`) with an autodetect order of `["gateway", "fal"]` (`:83-107`, `:108-132`), and a backend is ready when its env var is populated from `secretMapFromSettings` (`:267-309`). No `OPENAI_API_KEY` and no `FAL_KEY` means no ready backend means `ready: false`. Videos disables `videos-studio-submit` while `!ready`. Images does not: submit follows `allowed`, so a keyless stub desk can still generate.
 
 ### 5. Knob snapping — the model decides which controls exist
 
@@ -127,7 +133,7 @@ Both tools resolve their backend first and return a **structured failure rather 
 
 | Failure | Where | What the client gets |
 |---|---|---|
-| No key / no backend ready | `resolveToolBackend` inside the tool (`image-generate.ts:62-72`, `video-generate.ts:120-134`) | `{ success: false, error }` → `tool_failed` **400**, "add a Toko Token gateway key in Settings". Images can reach this from the UI; Videos cannot (button disabled). |
+| No key / no backend ready | `resolveToolBackend` inside the tool (`image-generate.ts:62-72`, `video-generate.ts:120-134`) | `{ success: false, error }` → `tool_failed` **400**, "add a Toko Token gateway key in Settings". A stub Images desk (`allowed: true`) can still post; Videos cannot (button disabled on `!ready`). A closed gate disables Images before the post. |
 | Gate closed | `requireGatewayAllowed`, `packages/host/src/handlers/jobs.ts:71` (and the video twin at `:102`) | HTTP 403, flat `{error:"gateway_blocked", status, message}`. Both studios show it through `*-studio-error`, since they read `data.error?.message` and the flat body has none — the generic "generate failed" copy wins. |
 | Empty prompt / bad aspect / out-of-range seconds | zod in `parseImageGenerateBody` / `parseVideoGenerateBody` | HTTP 400, `{error:{code:"invalid_content_part", message}}` |
 | Still on a text-only model | `studio-generate.ts:103-105` (body model) and `:218-220` (resolved model) | HTTP 400, `video_still_unsupported` |
@@ -172,12 +178,12 @@ Both tools resolve their backend first and return a **structured failure rather 
   because the gateway has already charged by then. Images are metered in images, videos in the
   *snapped* seconds. See [`tenant-usage-ledger.md`](tenant-usage-ledger.md).
 
-- **The picker outlives the key.** `models-cache.json` (`packages/host/src/model-cache.ts:22-30`) is written by the last successful probe and read unconditionally. A desk with `hasOpenai: false` still shows a full catalog — driven on `:3000`, 40 image ids and 22 video ids with no key. A genuinely fresh desk shows an empty picker instead, which is a different failure with the same banner.
+- **The picker outlives the key.** `models-cache.json` (`packages/host/src/model-cache.ts:22-30`) is written by the last successful probe and read unconditionally. A desk with `hasOpenai: false` still shows whatever that probe returned. Images also fill an empty provider from static `CHAT_MODELS`. Videos do not: an empty probe is an empty `videos-studio-model`, and a static Seedance row is not priced. A model the video route then refuses with "not available for this key" is dropped from the picker (`apps/web/components/videos-studio.tsx:173-184`) and the error names another probed id (`rewriteModelNotOnKey`, `packages/host/src/studio-generate.ts:370-375`).
 - **"Seedance-class" includes Veo, Kling and Sora.** `usesSeedanceVideoWire` (`packages/core/src/models/video-capabilities.ts:32-34`). Reading the name instead of the regex leads you to expect `videos-studio-resolution` to be disabled on the default model; it is enabled.
 - **`videos-studio-seconds` is not a fixed set.** Veo ids get `[4, 6, 8]` (`:65`, `:68-73`), everything else `[5, 8, 10]`. Since `veo_3_1-fast` is the first `VIDEO_PREF` entry (`packages/core/src/models/media-kind.ts:25`), `4 / 6 / 8` is what a driver sees first.
 - **Three places snap the clip length**: the UI effect (`apps/web/components/videos-studio.tsx:101-103`), the host helper (`packages/host/src/studio-generate.ts:340`), and the payload builder (`packages/core/src/tools/platform/gateway-media.ts:171`). Only the last one clamps to the 2–12 window; the first two snap to an allowed option.
 - **`still` and `imageToVideo` are two different flags and the legacy one lies.** Both `SEEDANCE_ALL` and `OPENAI_LIKE` set `still: true` (`video-capabilities.ts:17-29`); only `imageToVideoForModel` (`:40-54`) is honest, and only it drives the field (`apps/web/components/videos-studio.tsx:274`). Driven: `videos-studio-still` count 0 on `mj_video` and `omni-fast-v2v`, 1 on `grok-imagine-video`.
-- **The two submit buttons disagree about `ready`.** `apps/web/components/videos-studio.tsx:301` includes `!ready`; `apps/web/components/images-studio.tsx:204` does not. On a keyless desk you can press Generate in Images and get a 400 back; you cannot press it in Videos at all.
+- **Images note and submit share `allowed`.** `images-studio-needs-key` renders when `needsKey && !loading`; `images-studio-submit` is `disabled` on `needsKey`. Stub `allowed: true` hides the note and can generate. Videos still disables submit and shows its note while `!ready`.
 - **`generateStudioVideo` re-checks readiness and `generateStudioImage` does not** (`packages/host/src/studio-generate.ts:329-331`). The image path relies entirely on the tool's own backend check, which is why its keyless failure is a `tool_failed` 400 rather than an `invalid_request` 400. Same status, different code, different message.
 - **Every gateway image request carries OpenAI pixel sizes**, whatever the vendor (`packages/core/src/tools/platform/gateway-media.ts:145-153`, used unconditionally at `:309`). `quality: "medium"` is added only for `gpt-image` ids (`:311-313`) — which is also why the estimate line says "at medium quality" for exactly those models.
 - **`gateway_blocked` is swallowed here too.** The host answers a flat body whose `error` is a string (`packages/host/src/errors.ts:20-25`), and both studios read `data.error?.message` (`apps/web/components/images-studio.tsx:108`, `apps/web/components/videos-studio.tsx:163`). `.message` on a string is `undefined`, so a closed gate shows the generic "generate failed" copy. The same finding is recorded for Chat in [`chat-send.md`](chat-send.md).
@@ -214,9 +220,9 @@ DOM testids that prove it:
 | `example-gallery`, `example-card`, `example-result` | `apps/web/components/example-gallery.tsx:19`, `:29`, `:49` (shared by both studios) |
 | estimate testids | see [`media-cost-estimate.md`](media-cost-estimate.md) |
 
-The checks that prove it, none of which need a key: `mode-images` → `/images` → `images-studio` visible, `images-studio-needs-key` visible with an `<a href="/settings">`, `images-studio-empty` visible on an empty gallery; switching `videos-studio-model` to a `veo_` id while `videos-studio-seconds` reads 10 must leave it on 8; `videos-studio-resolution` must be `disabled` on `grok-imagine-video` and enabled on `veo_3_1-fast`; `videos-studio-still` must have count 0 on `mj_video`. A gallery `<img>` / `<video>` `src` must begin `/api/v1/media/` (or `agentforge://media/` packaged).
+The checks that prove it, none of which need a key: `mode-images` → `/images` → `images-studio` visible; on a stub desk (`allowed: true`) `images-studio-needs-key` is absent and `images-studio-submit` enables with a prompt; when `allowed` is false the note is visible with an `<a href="/settings">` and the button is disabled; `images-studio-empty` visible on an empty gallery; switching `videos-studio-model` to a `veo_` id while `videos-studio-seconds` reads 10 must leave it on 8; `videos-studio-resolution` must be `disabled` on `grok-imagine-video` and enabled on `veo_3_1-fast`; `videos-studio-still` must have count 0 on `mj_video`. A gallery `<img>` / `<video>` `src` must begin `/api/v1/media/` (or `agentforge://media/` packaged).
 
-Unit tests: `packages/core/src/models/video-capabilities.test.ts`, `packages/host/src/studio-generate.test.ts`, `packages/host/src/handlers/jobs.test.ts`, `packages/core/src/tools/platform/image-generate.test.ts`, `packages/core/src/tools/platform/video-generate.test.ts`, `apps/web/lib/images-locale.test.ts`, `apps/web/lib/videos-locale.test.ts`. Cloud: `apps/web/tests/e2e/foundation.spec.ts` asserts `images-studio`, and `videos-studio` + `videos-studio-needs-key`; it never generates.
+Unit tests: `packages/core/src/models/video-capabilities.test.ts`, `packages/host/src/studio-generate.test.ts`, `packages/host/src/handlers/jobs.test.ts`, `packages/core/src/tools/platform/image-generate.test.ts`, `packages/core/src/tools/platform/video-generate.test.ts`, `apps/web/lib/images-locale.test.ts`, `apps/web/lib/videos-locale.test.ts`, `apps/web/lib/images-studio-gate.test.ts`. Cloud: `apps/web/tests/e2e/foundation.spec.ts` asserts `images-studio`, and `videos-studio` + `videos-studio-needs-key`; it never generates.
 
 ## Why
 

@@ -28,7 +28,13 @@ export function jsonError(error: unknown): HostJsonResult {
     return {
       type: "json",
       status: error.status,
-      body: { error: { code: error.code, message: redactSecrets(error.message) } },
+      body: {
+        error: {
+          code: error.code,
+          message: redactSecrets(error.message),
+          ...(error.suggestModel ? { suggestModel: error.suggestModel } : {}),
+        },
+      },
     };
   }
   const message = asMessage(error);

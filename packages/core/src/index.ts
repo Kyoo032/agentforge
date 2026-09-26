@@ -291,8 +291,25 @@ export {
   OP_TYPES,
   ASPECT_SIZE,
 } from "./edit";
-export type { EditProject, Asset, Clip, Ingredient, ApplyableOp, EditOp, AspectRatio, OpType, TitleLayout } from "./edit";
-export { registerEditTools, setEditToolBackend, getEditToolBackend, editToolRefusal } from "./tools/edit";
+export type {
+  EditProject,
+  Asset,
+  Clip,
+  Ingredient,
+  ApplyableOp,
+  EditOp,
+  AspectRatio,
+  OpType,
+  TitleLayout,
+} from "./edit";
+export {
+  registerEditTools,
+  setEditToolBackend,
+  getEditToolBackend,
+  editToolRefusal,
+  EDIT_TOOLS,
+  editAgentBindings,
+} from "./tools/edit";
 export type {
   EditToolBackend,
   EditToolRefusal,
@@ -409,6 +426,15 @@ export {
   RELAY_ONLY_MUSIC_MODEL_IDS,
 } from "./models/media-kind";
 export type { AudioRole, MediaKind, RoutedModels } from "./models/media-kind";
+export {
+  availableVideoDefault,
+  isModelNotOnKey,
+  modelNotOnKeyMessage,
+  resolveVideoModelForKey,
+  rewriteModelNotOnKey,
+  suggestAvailableVideoModel,
+} from "./models/key-models";
+export type { VideoModelChoice } from "./models/key-models";
 export {
   cosineSimilarity,
   stubEmbed,

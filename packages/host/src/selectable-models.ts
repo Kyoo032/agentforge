@@ -95,6 +95,15 @@ export function listVideoModels(): ChatModel[] {
   return listRoutedModels().video;
 }
 
+/** Models the last refresh actually returned. No static catalog fill-in. */
+export function listProbedModels(cache: ModelCache = loadModelCache()): ChatModel[] {
+  return [...(cache.openai ?? []), ...(cache.anthropic ?? []), ...(cache.google ?? []), ...(cache.volcengine ?? [])];
+}
+
+export function listProbedVideoModels(cache?: ModelCache): ChatModel[] {
+  return listProbedModels(cache).filter((model) => mediaKind(model.id) === "video");
+}
+
 /**
  * The audio catalog, split by what each id can actually do. `routeModelsByKind` lumps music, lyrics,
  * TTS and ASR into one `audio` bucket, which is the right shape for the picker but the wrong shape
@@ -299,9 +308,7 @@ export async function refreshModelCache(
         now,
       );
     } catch (error) {
-      next.anthropicError = redactSecrets(
-        error instanceof Error ? error.message : "Could not list Anthropic models",
-      );
+      next.anthropicError = redactSecrets(error instanceof Error ? error.message : "Could not list Anthropic models");
     }
   }
 
@@ -317,9 +324,7 @@ export async function refreshModelCache(
         now,
       );
     } catch (error) {
-      next.googleError = redactSecrets(
-        error instanceof Error ? error.message : "Could not list Gemini models",
-      );
+      next.googleError = redactSecrets(error instanceof Error ? error.message : "Could not list Gemini models");
     }
   }
 
@@ -335,9 +340,7 @@ export async function refreshModelCache(
         now,
       );
     } catch (error) {
-      next.volcengineError = redactSecrets(
-        error instanceof Error ? error.message : "Could not list Volcengine models",
-      );
+      next.volcengineError = redactSecrets(error instanceof Error ? error.message : "Could not list Volcengine models");
     }
   }
 

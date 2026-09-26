@@ -4,6 +4,7 @@ import { getTool, resetToolRegistry } from "../registry";
 import type { TenantContext } from "../../tenancy/types";
 import { DEFAULT_TITLE_STYLE, emptyProject, type EditProject } from "../../edit/document";
 import type { ApplyableOp } from "../../edit/ops";
+import { editAgentBindings } from "./bindings";
 import { setEditToolBackend, type EditToolBackend } from "./backend";
 import { editToolRefusal } from "./refusals";
 import { registerEditTools } from "./register";
@@ -23,7 +24,7 @@ function fakeBackend(overrides: Partial<EditToolBackend> = {}): {
 } {
   const applied: ApplyableOp[][] = [];
   const jobs: unknown[] = [];
-  let project: EditProject = emptyProject({ id: "p1", workspaceId: "ws-1", name: "Demo", aspect: "16:9" });
+  const project: EditProject = emptyProject({ id: "p1", workspaceId: "ws-1", name: "Demo", aspect: "16:9" });
   const backend: EditToolBackend = {
     getProject: async () => project,
     listClips: async (_tenant, trackId) =>
@@ -71,17 +72,19 @@ describe("edit tools", () => {
   it("registers Prep tools", () => {
     expect(getTool("get_project")?.key).toBe("get_project");
     expect(getTool("export")?.key).toBe("export");
-    expect(getTool("delete_clips")?.description).toContain("More than 3 clips requires `confirm: true` after the user agreed.");
-    expect(getTool("clear_timeline")?.description).toContain("Only when the user explicitly asked to clear everything.");
+    expect(getTool("delete_clips")?.description).toContain(
+      "More than 3 clips requires `confirm: true` after the user agreed.",
+    );
+    expect(getTool("clear_timeline")?.description).toContain(
+      "Only when the user explicitly asked to clear everything.",
+    );
     expect(getTool("detect_silence")?.description).toContain("Read-only. Call `remove_silence` to act.");
   });
 
   it("refuses bulk delete and clear without confirm (G-03)", async () => {
     const { backend, applied } = fakeBackend();
     setEditToolBackend(backend);
-    await expect(
-      invokeTool(tool("delete_clips"), { clipIds: ["a", "b", "c", "d"] }, tenant),
-    ).resolves.toEqual({
+    await expect(invokeTool(tool("delete_clips"), { clipIds: ["a", "b", "c", "d"] }, tenant)).resolves.toEqual({
       success: false,
       refused: "confirm_required",
       message: "More than 3 clips requires confirm: true",
@@ -129,6 +132,17 @@ describe("edit tools", () => {
     });
   });
 
+  it("lands a title card from text alone", async () => {
+    const { backend, applied } = fakeBackend();
+    setEditToolBackend(backend);
+    await invokeTool(tool("add_title"), { text: "Hello" }, tenant);
+    expect(applied).toHaveLength(1);
+    expect(applied[0]?.[0]).toMatchObject({
+      type: "add_clip",
+      payload: { clip: { title: { text: "Hello" }, trackId: "v1", timelineStartFrame: 0, durationFrames: 90 } },
+    });
+  });
+
   it("rejects title styles outside the ASS subset (G-11)", async () => {
     const { backend } = fakeBackend();
     setEditToolBackend(backend);
@@ -149,6 +163,13 @@ describe("edit tools", () => {
   it("uses a structured refusal shape including still_unsupported", () => {
     expect(editToolRefusal("still_unsupported")).toEqual({ success: false, refused: "still_unsupported" });
     expect(editToolRefusal("confirm_required", "need confirm").success).toBe(false);
+  });
+
+  it("binds every edit tool, including add_title, for a live turn", () => {
+    const bindings = editAgentBindings("org-1");
+    expect(bindings.length).toBeGreaterThan(0);
+    expect(bindings.every((binding) => binding.enabled)).toBe(true);
+    expect(bindings.some((binding) => binding.toolKey === "add_title")).toBe(true);
   });
 
   it("registers generate tools", () => {

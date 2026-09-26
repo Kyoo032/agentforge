@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ApiError, studioVideoFailureStatus } from "@agentforge/core";
 import {
   defaultStudioMusicModel,
+  defaultStudioVideoModel,
   listStudioImageModels,
   listStudioMusicModels,
   listStudioVideoModels,
@@ -136,6 +137,11 @@ describe("studio model filters", () => {
   it("keeps video models and skips chat", () => {
     expect(listStudioVideoModels(catalog).map((m) => m.id)).toEqual(["grok-imagine-video"]);
   });
+
+  it("defaults to a listed video id and invents nothing when the list is empty", () => {
+    expect(defaultStudioVideoModel(listStudioVideoModels(catalog))).toBe("grok-imagine-video");
+    expect(defaultStudioVideoModel([])).toBe("");
+  });
 });
 
 describe("mediaIdFromUrl", () => {
@@ -149,9 +155,9 @@ describe("mediaIdFromUrl", () => {
 
 describe("studioVideoFailureStatus", () => {
   it("keeps 503 for missing video channels", () => {
-    expect(studioVideoFailureStatus("No available channel. This video model has no live gateway channel (HTTP 503).")).toBe(
-      503,
-    );
+    expect(
+      studioVideoFailureStatus("No available channel. This video model has no live gateway channel (HTTP 503)."),
+    ).toBe(503);
   });
 
   it("uses 400 when no gateway key is saved", () => {

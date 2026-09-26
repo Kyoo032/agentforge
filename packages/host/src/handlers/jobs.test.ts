@@ -128,18 +128,39 @@ describe("studio job handlers via the router", () => {
     }
   });
 
-  it("carries a defaultModel and a per-second price field on every video model", async () => {
-    const response = await json("GET", "/api/v1/videos");
-    expect(response.status).toBe(200);
-    const body = response.body as StudioListBody;
-    expect(typeof body.defaultModel).toBe("string");
-    expect(body.defaultModel.length).toBeGreaterThan(0);
-    for (const row of body.models) {
-      expect(row).toHaveProperty("price");
-      if (row.price) {
-        expect(row.price.unit).toBe("second");
-        expect(row.price.origin).toBe("list");
-      }
-    }
+  it("prices only video models the refresh listed", async () => {
+    const empty = await json("GET", "/api/v1/videos");
+    expect(empty.status).toBe(200);
+    const emptyBody = empty.body as StudioListBody;
+    expect(emptyBody.models).toEqual([]);
+    expect(emptyBody.defaultModel).toBe("");
+
+    const { saveModelCache } = await import("../model-cache");
+    const { resetCatalogMemo } = await import("../selectable-models");
+    saveModelCache({
+      openai: [
+        {
+          id: "grok-imagine-video",
+          label: "Grok Imagine Video",
+          provider: "openai",
+          inputModalities: ["text"],
+        },
+        { id: "gpt-4o-mini", label: "GPT-4o mini", provider: "openai", inputModalities: ["text"] },
+      ],
+    });
+    resetCatalogMemo();
+    const listed = await json("GET", "/api/v1/videos");
+    expect(listed.status).toBe(200);
+    const body = listed.body as StudioListBody;
+    const ids = body.models.map((row) => row.id);
+    expect(ids).toContain("grok-imagine-video");
+    expect(ids).not.toContain("doubao-seedance-2-0-260128");
+    expect(ids).not.toContain("doubao-seedance-2-0-fast-260128");
+    expect(ids).not.toContain("gpt-4o-mini");
+    expect(body.defaultModel).toBe("grok-imagine-video");
+    const row = body.models.find((item) => item.id === "grok-imagine-video");
+    expect(row?.price?.unit).toBe("second");
+    expect(row?.price?.origin).toBe("list");
+    expect(row?.price?.tiers["720p"]).toBeCloseTo(0.07);
   });
 });

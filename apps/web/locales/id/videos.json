@@ -5,6 +5,8 @@
   "settingsLink": "Pengaturan",
   "loadError": "Studio video tidak dapat dimuat",
   "generateError": "Pembuatan video gagal",
+  "modelNotOnKey": "{model} tidak tersedia pada kunci ini. Coba {suggestion}.",
+  "modelNotOnKeyNoAlt": "{model} tidak tersedia pada kunci ini. Segarkan model di Pengaturan dan pilih salah satu yang tercantum pada kunci ini.",
   "stillUnsupported": "Model ini tidak menerima gambar diam",
   "hostNeedsKey": "Tambahkan kunci gateway Toko Token di Pengaturan untuk membuat video.",
   "textToVideoOnly": "Model ini hanya mendukung teks-ke-video",
