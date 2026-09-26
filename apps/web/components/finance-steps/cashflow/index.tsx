@@ -24,6 +24,7 @@ import {
 } from "@/lib/finance-cashflow";
 import { formatCashflowValue, type CashflowItem, type CostBehaviour } from "@agentforge/core/finance";
 import { getLocale, t } from "@/lib/i18n";
+import { FinanceFold } from "../finance-guide";
 import { CashflowPeriodsTable } from "./periods-table";
 import { CashflowResult } from "./result";
 import { CashflowWhatIf } from "./what-if-panel";
@@ -118,7 +119,7 @@ function Classification({
   );
 }
 
-export function CashflowInputs({ locked, draft, setDraft, onGenerate }: FinanceStepProps) {
+export function CashflowInputs({ locked, draft, setDraft }: FinanceStepProps) {
   // The registry holds five tasks whose drafts have nothing in common, so each narrows its own once.
   const cashflow = draft as unknown as CashflowStepDraft;
   const items = cashflowItemsOf(cashflow.items);
@@ -141,6 +142,10 @@ export function CashflowInputs({ locked, draft, setDraft, onGenerate }: FinanceS
       className="space-y-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4"
       data-testid="finance-inputs"
     >
+      <FinanceFileUpload
+        onFigures={(text) => setDraft({ figures: mergeFigures(cashflow.figures, text) })}
+        disabled={locked}
+      />
       <div>
         <label htmlFor="cashflow-figures" className="panel-label">
           {t("finance.cashflow.figures")}
@@ -155,22 +160,8 @@ export function CashflowInputs({ locked, draft, setDraft, onGenerate }: FinanceS
           disabled={locked}
           data-testid="finance-figures-input"
         />
-        <button
-          type="button"
-          className="btn mt-2"
-          onClick={() => onGenerate({ kind: "parse" })}
-          disabled={locked || !cashflow.figures.trim()}
-          data-testid="finance-parse"
-        >
-          {cashflow.parsing ? t("finance.cashflow.reading") : t("finance.cashflow.read")}
-        </button>
         <p className="mt-1 text-xs text-[var(--text-3)]">{t("finance.cashflow.readHint")}</p>
       </div>
-      {/* An upload only fills the box above; the owner still reads it and confirms every period. */}
-      <FinanceFileUpload
-        onFigures={(text) => setDraft({ figures: mergeFigures(cashflow.figures, text) })}
-        disabled={locked}
-      />
       <div>
         <label htmlFor="cashflow-opening" className="panel-label">
           {t("finance.cashflow.openingCash")}
@@ -201,12 +192,14 @@ export function CashflowInputs({ locked, draft, setDraft, onGenerate }: FinanceS
       </div>
       <Classification items={items} onItems={setItems} disabled={locked} />
       <Summary items={items} params={cashflow.params} />
-      <CashflowWhatIf
-        params={cashflow.params}
-        onParams={(next) => setDraft({ params: next })}
-        preview={preview}
-        disabled={locked}
-      />
+      <FinanceFold>
+        <CashflowWhatIf
+          params={cashflow.params}
+          onParams={(next) => setDraft({ params: next })}
+          preview={preview}
+          disabled={locked}
+        />
+      </FinanceFold>
     </section>
   );
 }

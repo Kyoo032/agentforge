@@ -16,8 +16,6 @@ export type FinanceInputsPanelProps = {
   figures: string;
   /** The second argument is a document's prose, when the upload had one to hand over. */
   onFigures: (value: string, proseText?: string) => void;
-  onParse: () => void;
-  parsing: boolean;
   locked: boolean;
   datasets: readonly DatasetSummary[];
   source: FinanceSource;
@@ -46,8 +44,6 @@ function nextParams(params: FinanceParams, key: keyof FinanceParams, raw: string
 export function FinanceInputsPanel({
   figures,
   onFigures,
-  onParse,
-  parsing,
   locked,
   datasets,
   source,
@@ -65,6 +61,8 @@ export function FinanceInputsPanel({
       className="space-y-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4"
       data-testid="finance-inputs"
     >
+      {/* The file is the first action. Using it fills the box below; the footer reads the numbers. */}
+      <FinanceFileUpload onFigures={(text, prose) => onFigures(mergeFigures(figures, text), prose)} disabled={locked} />
       <div>
         <label htmlFor="finance-figures-input" className="panel-label">
           {t("finance.pasteFigures")}
@@ -79,21 +77,8 @@ export function FinanceInputsPanel({
           disabled={locked}
           data-testid="finance-figures-input"
         />
-        <button
-          type="button"
-          className="btn mt-2"
-          onClick={onParse}
-          disabled={locked || !figures.trim()}
-          data-testid="finance-parse"
-        >
-          {parsing ? t("finance.parsing") : t("finance.parse")}
-        </button>
+        <p className="mt-1 text-xs text-[var(--text-3)]">{t("finance.parseHint")}</p>
       </div>
-      {/* An upload only fills the box above; the owner still parses it and confirms every row. */}
-      <FinanceFileUpload
-        onFigures={(text, prose) => onFigures(mergeFigures(figures, text), prose)}
-        disabled={locked}
-      />
       {onStatedFacts ? <StatedFactsList facts={statedFacts} onChange={onStatedFacts} disabled={locked} /> : null}
       {datasets.length > 0 ? (
         <div>

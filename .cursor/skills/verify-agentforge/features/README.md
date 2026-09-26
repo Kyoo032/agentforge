@@ -62,7 +62,7 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 - [Components](./components.md) — first-run installer for native dependencies (anydoc): status route, staged install stream, onboarding panel that starts itself. No key needed; renders nothing when the reader shipped inside the app.
 - [Research](./research.md) — studio shell on Default; live generate needs a key (and search backends).
 - [Documents](./documents.md) — starters, preview, section regen (503 without a key), DOCX download from a starter. Default has the tab.
-- [Finance](./finance.md) — five tasks under the rail entry (brief, ratios, budget, cash flow, appraisal), file import (`.xlsx` / `.csv` / documents, read locally), deterministic figures with a model-written narrative, export menu (xlsx / pptx / docx). No starter path; generate needs a working key. Default has the tab.
+- [Finance](./finance.md) — `/finance` asks what to do, then one file-or-numbers step and a result. Five tasks (brief, ratios, budget, cash flow, appraisal), file import (`.xlsx` / `.csv` / documents, read locally), deterministic figures with a model-written narrative, export menu (xlsx / pptx / docx). No starter path; generate needs a working key. Default has the tab.
 - [Data](./data.md) — pasted CSV + table notes, no web search, generate 503 without a key. Default has the tab.
 - [Market](./market.md) — watchlist ≤15 tickers → briefing → guarded brief + DOCX, disclaimer always, generate 503 without a key. Default has the tab.
 - [Legal](./legal.md) — .docx matter review with a verify/edit loop; uploads and roles without a key, run 503 without one. Default and the Legal preset have the tab.

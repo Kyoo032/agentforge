@@ -25,6 +25,8 @@ import {
   type RatiosClassifiedRow,
 } from "@/lib/finance-ratios-draft";
 import { t } from "@/lib/i18n";
+import { FinanceFold } from "../finance-guide";
+import { useFinanceRead } from "../finance-read";
 import type { FinanceStepProps } from "../types";
 import { RatiosBalanceBanner } from "./balance-banner";
 import { RatiosBandsEditor } from "./bands-editor";
@@ -44,9 +46,7 @@ function assistNotice(parsed: RatiosParsed | null): string | null {
     return null;
   }
   const { asked, placed, error } = parsed.modelAssist;
-  return error
-    ? t("finance.ratios.modelAssistFailed", { asked })
-    : t("finance.ratios.modelAssist", { asked, placed });
+  return error ? t("finance.ratios.modelAssistFailed", { asked }) : t("finance.ratios.modelAssist", { asked, placed });
 }
 
 export function RatiosInputs({ locked, model, draft, setDraft }: FinanceStepProps) {
@@ -93,11 +93,19 @@ export function RatiosInputs({ locked, model, draft, setDraft }: FinanceStepProp
     }
   }
 
+  useFinanceRead(() => {
+    void onRead();
+  }, reading);
+
   return (
     <section
       className="space-y-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4"
       data-testid="finance-ratios-inputs"
     >
+      <FinanceFileUpload
+        onFigures={(text) => setDraft({ figures: mergeFigures(ratios.figures, text) })}
+        disabled={busy}
+      />
       <div>
         <label htmlFor="finance-ratios-figures" className="panel-label">
           {t("finance.ratios.paste")}
@@ -112,21 +120,8 @@ export function RatiosInputs({ locked, model, draft, setDraft }: FinanceStepProp
           disabled={busy}
           data-testid="finance-ratios-figures"
         />
-        <button
-          type="button"
-          className="btn mt-2"
-          onClick={() => void onRead()}
-          disabled={busy || !ratios.figures.trim()}
-          data-testid="finance-ratios-parse"
-        >
-          {reading ? t("finance.ratios.parsing") : t("finance.ratios.parse")}
-        </button>
         <p className="mt-1 text-xs text-[var(--text-3)]">{t("finance.ratios.parseHint")}</p>
       </div>
-      <FinanceFileUpload
-        onFigures={(text) => setDraft({ figures: mergeFigures(ratios.figures, text) })}
-        disabled={busy}
-      />
       {error ? (
         <p className="text-sm text-[var(--danger)]" role="alert" data-testid="finance-ratios-error">
           {error}
@@ -135,7 +130,9 @@ export function RatiosInputs({ locked, model, draft, setDraft }: FinanceStepProp
       {parsed ? (
         <p className="text-xs text-[var(--text-2)]" data-testid="finance-ratios-read">
           {t("finance.ratios.readCount", { rows: parsed.items.length, periods: parsed.periods.length })}
-          {parsed.subtotalsIgnored > 0 ? ` ${t("finance.ratios.subtotalsIgnored", { count: parsed.subtotalsIgnored })}` : ""}
+          {parsed.subtotalsIgnored > 0
+            ? ` ${t("finance.ratios.subtotalsIgnored", { count: parsed.subtotalsIgnored })}`
+            : ""}
         </p>
       ) : null}
       {assistNotice(parsed) ? (
@@ -178,41 +175,33 @@ export function RatiosInputs({ locked, model, draft, setDraft }: FinanceStepProp
             </p>
           ) : null}
           <div className="mt-2">
-            <RatiosBucketTable
-              rows={rows}
-              changes={changes}
-              onBucket={onBucket}
-              disabled={busy}
-              currency={currency}
-            />
+            <RatiosBucketTable rows={rows} changes={changes} onBucket={onBucket} disabled={busy} currency={currency} />
           </div>
         </div>
       ) : null}
-      <div>
-        <p className="panel-label">{t("finance.ratios.supporting.heading")}</p>
-        <p className="mt-1 text-xs text-[var(--text-3)]">{t("finance.ratios.supporting.hint")}</p>
-        <div className="mt-2 grid grid-cols-3 gap-2">
-          {SUPPORTING_FIELDS.map((field) => (
-            <label key={field} className="text-xs text-[var(--text-2)]">
-              {t(`finance.ratios.supporting.${field}`)}
-              <input
-                type="number"
-                step="any"
-                className="input mt-1 px-2 py-1 text-xs"
-                value={(ratios.params as Record<string, unknown>)[field] as number | undefined ?? ""}
-                onChange={(event) => setDraft({ params: withRatiosNumber(ratios.params, field, event.target.value) })}
-                disabled={busy}
-                data-testid={`finance-ratios-${field}`}
-              />
-            </label>
-          ))}
+      <FinanceFold>
+        <div>
+          <p className="panel-label">{t("finance.ratios.supporting.heading")}</p>
+          <p className="mt-1 text-xs text-[var(--text-3)]">{t("finance.ratios.supporting.hint")}</p>
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            {SUPPORTING_FIELDS.map((field) => (
+              <label key={field} className="text-xs text-[var(--text-2)]">
+                {t(`finance.ratios.supporting.${field}`)}
+                <input
+                  type="number"
+                  step="any"
+                  className="input mt-1 px-2 py-1 text-xs"
+                  value={((ratios.params as Record<string, unknown>)[field] as number | undefined) ?? ""}
+                  onChange={(event) => setDraft({ params: withRatiosNumber(ratios.params, field, event.target.value) })}
+                  disabled={busy}
+                  data-testid={`finance-ratios-${field}`}
+                />
+              </label>
+            ))}
+          </div>
         </div>
-      </div>
-      <RatiosBandsEditor
-        params={ratios.params}
-        onParams={(next) => setDraft({ params: next })}
-        disabled={busy}
-      />
+        <RatiosBandsEditor params={ratios.params} onParams={(next) => setDraft({ params: next })} disabled={busy} />
+      </FinanceFold>
     </section>
   );
 }

@@ -9,12 +9,7 @@
  * model is later asked to write over it — and none of it costs a token.
  */
 import { useMemo } from "react";
-import {
-  appraisalAmount,
-  appraisalPercent,
-  appraisalRatio,
-  appraisalYears,
-} from "@agentforge/core/finance";
+import { appraisalAmount, appraisalPercent, appraisalRatio, appraisalYears } from "@agentforge/core/finance";
 import { FinanceFileUpload } from "@/components/finance-file-upload";
 import type { DatasetSummary } from "@/lib/data-client";
 import { mergeFigures } from "@/lib/finance-brief";
@@ -34,6 +29,7 @@ import {
 import { getLocale, t } from "@/lib/i18n";
 import type { FinanceSource } from "../finance-inputs-panel";
 import { AppraisalResult } from "./result";
+import { FinanceFold } from "../finance-guide";
 import type { FinanceStepDraft, FinanceStepEntry, FinanceStepProps } from "../types";
 
 /** The appraisal's own view of the studio's draft bag. The studio owns the state; this names it. */
@@ -79,7 +75,9 @@ function YearTable({
               {row.components.length > 1 ? (
                 <span className="mt-0.5 block text-[10px] text-[var(--text-3)]">
                   {t("finance.appraisal.components")}:{" "}
-                  {row.components.map((part) => `${part.label} ${appraisalAmount(part.amount, locale, "")}`).join(" · ")}
+                  {row.components
+                    .map((part) => `${part.label} ${appraisalAmount(part.amount, locale, "")}`)
+                    .join(" · ")}
                 </span>
               ) : null}
             </td>
@@ -185,7 +183,9 @@ function Preview({ items, params, figures }: { items: LineItem[]; params: Apprai
       />
       <PreviewLine
         label={t("finance.appraisal.irr")}
-        value={computed.irr.unique ? appraisalPercent(computed.irr.irrPercent, locale) : t("finance.appraisal.notAvailable")}
+        value={
+          computed.irr.unique ? appraisalPercent(computed.irr.irrPercent, locale) : t("finance.appraisal.notAvailable")
+        }
       />
       <PreviewLine
         label={t("finance.appraisal.payback")}
@@ -220,7 +220,7 @@ function Preview({ items, params, figures }: { items: LineItem[]; params: Apprai
   );
 }
 
-export function AppraisalInputs({ locked, draft, setDraft, onGenerate }: FinanceStepProps) {
+export function AppraisalInputs({ locked, draft, setDraft }: FinanceStepProps) {
   // The registry holds five tasks whose drafts have nothing in common, so each narrows its own once.
   const appraisal = draft as unknown as AppraisalStepDraft;
   const { figures, items, params } = appraisal;
@@ -237,6 +237,7 @@ export function AppraisalInputs({ locked, draft, setDraft, onGenerate }: Finance
       className="space-y-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4"
       data-testid="finance-inputs"
     >
+      <FinanceFileUpload onFigures={(text) => setDraft({ figures: mergeFigures(figures, text) })} disabled={locked} />
       <div>
         <label htmlFor="appraisal-figures" className="panel-label">
           {t("finance.appraisal.figures")}
@@ -251,47 +252,36 @@ export function AppraisalInputs({ locked, draft, setDraft, onGenerate }: Finance
           disabled={locked}
           data-testid="finance-figures-input"
         />
-        <button
-          type="button"
-          className="btn mt-2"
-          onClick={() => onGenerate({ kind: "parse" })}
-          disabled={locked || !figures.trim()}
-          data-testid="finance-parse"
-        >
-          {appraisal.parsing ? t("finance.appraisal.reading") : t("finance.appraisal.read")}
-        </button>
+        <p className="mt-1 text-xs text-[var(--text-3)]">{t("finance.appraisal.flowsHint")}</p>
       </div>
-      {/* An upload only fills the box above; the owner still reads it and confirms every year. */}
-      <FinanceFileUpload
-        onFigures={(text) => setDraft({ figures: mergeFigures(figures, text) })}
-        disabled={locked}
-      />
-      <div className="grid grid-cols-2 gap-2">
-        <NumberField
-          id="appraisal-discount-rate"
-          label={t("finance.appraisal.discountRate")}
-          hint={t("finance.appraisal.discountRateHint")}
-          value={params.discountRatePercent === undefined ? "" : String(params.discountRatePercent)}
-          locked={locked}
-          onValue={(raw) => patchParams({ discountRatePercent: raw === "" ? undefined : Number(raw) })}
-        />
-        <NumberField
-          id="appraisal-rate-scenarios"
-          label={t("finance.appraisal.rateScenarios")}
-          hint={t("finance.appraisal.axesHint")}
-          value={formatNumberList(axes.ratePercents)}
-          locked={locked}
-          onValue={(raw) => patchParams({ rateScenarios: parseNumberList(raw) })}
-        />
-        <NumberField
-          id="appraisal-cash-flow-shifts"
-          label={t("finance.appraisal.cashFlowShifts")}
-          hint={t("finance.appraisal.axesHint")}
-          value={formatNumberList(axes.shiftPercents)}
-          locked={locked}
-          onValue={(raw) => patchParams({ cashFlowShifts: parseNumberList(raw) })}
-        />
-      </div>
+      <FinanceFold>
+        <div className="grid grid-cols-2 gap-2">
+          <NumberField
+            id="appraisal-discount-rate"
+            label={t("finance.appraisal.discountRate")}
+            hint={t("finance.appraisal.discountRateHint")}
+            value={params.discountRatePercent === undefined ? "" : String(params.discountRatePercent)}
+            locked={locked}
+            onValue={(raw) => patchParams({ discountRatePercent: raw === "" ? undefined : Number(raw) })}
+          />
+          <NumberField
+            id="appraisal-rate-scenarios"
+            label={t("finance.appraisal.rateScenarios")}
+            hint={t("finance.appraisal.axesHint")}
+            value={formatNumberList(axes.ratePercents)}
+            locked={locked}
+            onValue={(raw) => patchParams({ rateScenarios: parseNumberList(raw) })}
+          />
+          <NumberField
+            id="appraisal-cash-flow-shifts"
+            label={t("finance.appraisal.cashFlowShifts")}
+            hint={t("finance.appraisal.axesHint")}
+            value={formatNumberList(axes.shiftPercents)}
+            locked={locked}
+            onValue={(raw) => patchParams({ cashFlowShifts: parseNumberList(raw) })}
+          />
+        </div>
+      </FinanceFold>
       <div>
         <p className="panel-label">
           {t("finance.appraisal.flows")}

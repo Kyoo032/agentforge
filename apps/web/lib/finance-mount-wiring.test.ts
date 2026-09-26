@@ -16,6 +16,7 @@ function read(relative: string): string {
 }
 
 const studio = read("../components/finance-studio.tsx");
+const view = read("../components/finance-studio-view.tsx");
 const inputs = read("../components/finance-steps/finance-inputs-panel.tsx");
 const resultPanel = read("../components/finance-steps/finance-result-panel.tsx");
 const fileUpload = read("../components/finance-file-upload.tsx");
@@ -23,11 +24,16 @@ const resultNotices = read("../components/finance-steps/finance-result-notices.t
 const useJobModel = read("./use-job-model.ts");
 
 describe("finance inputs panel", () => {
-  it("mounts the upload between the paste box and the dataset picker", () => {
+  it("puts the file first, then the box you can type into", () => {
     expect(inputs).toContain('import { FinanceFileUpload } from "@/components/finance-file-upload"');
     const uploadAt = inputs.indexOf("<FinanceFileUpload");
-    expect(uploadAt).toBeGreaterThan(inputs.indexOf('data-testid="finance-parse"'));
-    expect(uploadAt).toBeLessThan(inputs.indexOf('data-testid="finance-dataset"'));
+    expect(uploadAt).toBeGreaterThan(-1);
+    expect(uploadAt).toBeLessThan(inputs.indexOf('data-testid="finance-figures-input"'));
+    expect(inputs.indexOf('data-testid="finance-figures-input"')).toBeLessThan(
+      inputs.indexOf('data-testid="finance-dataset"'),
+    );
+    // The read button is the page's one primary action, not a second button in this panel.
+    expect(inputs).not.toContain('data-testid="finance-parse"');
   });
 
   it("feeds the paste box instead of bypassing parse and confirm", () => {
@@ -41,9 +47,10 @@ describe("finance inputs panel", () => {
 
 describe("finance studio result area", () => {
   it("exports through the format menu, with the desk's remembered choice", () => {
-    expect(studio).toContain('import { FinanceExportMenu } from "@/components/finance-export-menu"');
-    expect(studio).toContain("<FinanceExportMenu");
-    expect(studio).toContain("workspaceId={workspaceId}");
+    expect(view).toContain('import { FinanceExportMenu } from "@/components/finance-export-menu"');
+    expect(view).toContain("<FinanceExportMenu");
+    expect(view).toContain("workspaceId={workspaceId}");
+    expect(view).toContain('data-testid="finance-primary"');
   });
 
   it("dropped the DOCX button: one export control, not two", () => {
@@ -67,10 +74,8 @@ describe("finance studio result area", () => {
 
 describe("what the desk says about a finished run", () => {
   it("shows the hidden-identifier count and the stand-in model, both from locale strings", () => {
-    expect(studio).toContain(
-      'import { FinanceResultNotices } from "@/components/finance-steps/finance-result-notices"',
-    );
-    expect(studio).toContain("<FinanceResultNotices result={result} />");
+    expect(view).toContain('import { FinanceResultNotices } from "@/components/finance-steps/finance-result-notices"');
+    expect(view).toContain("<FinanceResultNotices result={result} />");
     expect(resultNotices).toContain('data-testid="finance-result-pii"');
     expect(resultNotices).toContain('t("finance.notice.pii", { n: pii })');
     expect(resultNotices).toContain('data-testid="finance-result-model-fallback"');
@@ -80,8 +85,8 @@ describe("what the desk says about a finished run", () => {
   });
 
   it("names each streamed phase instead of printing its id", () => {
-    expect(studio).toContain('import { financePhaseLabel } from "@/lib/finance-phase-label"');
-    expect(studio).toContain("labelFor={financePhaseLabel}");
+    expect(view).toContain('import { financePhaseLabel } from "@/lib/finance-phase-label"');
+    expect(view).toContain("labelFor={financePhaseLabel}");
   });
 });
 

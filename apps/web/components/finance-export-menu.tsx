@@ -21,6 +21,8 @@ type Props = {
   report?: FinanceReport;
   workspaceId: string | null;
   disabled?: boolean;
+  /** The result step's one next action. Same button, the primary style. */
+  emphasis?: "primary";
 };
 
 const BUTTON = "rounded-md border border-[var(--line)] px-3 py-1.5 text-xs font-medium text-[var(--text)]";
@@ -59,7 +61,15 @@ function FormatMenu({
 }
 
 /** Export in the format this desk used last, or open the menu and pick another. */
-export function FinanceExportMenu({ artifactId, result, task, report, workspaceId, disabled = false }: Props) {
+export function FinanceExportMenu({
+  artifactId,
+  result,
+  task,
+  report,
+  workspaceId,
+  disabled = false,
+  emphasis,
+}: Props) {
   const [format, setFormat] = useState<FinanceExportFormat>(() => loadFinanceExportFormat(workspaceId));
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -98,7 +108,7 @@ export function FinanceExportMenu({ artifactId, result, task, report, workspaceI
       <div className="inline-flex items-center gap-1">
         <button
           type="button"
-          className={`${BUTTON} disabled:opacity-50`}
+          className={emphasis === "primary" ? "btn btn-primary disabled:opacity-50" : `${BUTTON} disabled:opacity-50`}
           onClick={() => void run(format)}
           disabled={disabled || busy}
           data-testid="finance-export"

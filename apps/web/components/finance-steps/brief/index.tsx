@@ -35,7 +35,7 @@ export type BriefStepDraft = {
   readonly statedFacts: StatedFact[];
 };
 
-export function BriefInputs({ locked, draft, setDraft, onGenerate }: FinanceStepProps) {
+export function BriefInputs({ locked, draft, setDraft }: FinanceStepProps) {
   // The registry holds five tasks whose drafts have nothing in common, so each narrows its own once.
   const brief = draft as BriefStepDraft;
   return (
@@ -50,8 +50,6 @@ export function BriefInputs({ locked, draft, setDraft, onGenerate }: FinanceStep
             : { figures: value, proseText: mergeFigures(brief.proseText, prose) },
         )
       }
-      onParse={() => onGenerate({ kind: "parse" })}
-      parsing={brief.parsing}
       locked={locked}
       datasets={brief.datasets}
       source={brief.source}
