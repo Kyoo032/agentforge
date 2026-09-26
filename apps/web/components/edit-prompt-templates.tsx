@@ -98,7 +98,7 @@ export function EditPromptTemplates({ onPick, selectedId }: Props) {
       {templates.length === 0 ? (
         <p className="text-xs text-[var(--text-3)]">No templates in this category.</p>
       ) : (
-        <ul className="max-h-40 space-y-1 overflow-y-auto" data-testid="edit-prompt-template-list">
+        <ul className="space-y-1" data-testid="edit-prompt-template-list">
           {templates.map((template) => {
             const isSelected = template.id === selectedId;
             return (

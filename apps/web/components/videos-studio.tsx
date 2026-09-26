@@ -185,11 +185,10 @@ export function VideosStudio() {
   return (
     <main
       data-mode="videos"
-      className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]"
+      className="mx-auto flex min-h-full max-w-[var(--content-stage)] flex-col px-6 py-10 text-[var(--text)]"
       data-testid="videos-studio"
     >
       <ModeHeader icon="videos" title={t("videos.title")} outcome={t("videos.expectedInputs")} />
-
 
       {error ? (
         <div
@@ -345,7 +344,7 @@ export function VideosStudio() {
             <p className="mt-2 text-sm text-[var(--text-2)]">{t("videos.emptyBody")}</p>
           </div>
         ) : (
-          <ul className="grid gap-4 sm:grid-cols-2">
+          <ul className="grid gap-4 sm:grid-cols-2 min-[1600px]:grid-cols-3 min-[2400px]:grid-cols-4">
             {items.map((item, index) => (
               <li
                 key={item.id}

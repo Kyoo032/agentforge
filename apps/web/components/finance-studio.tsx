@@ -258,7 +258,7 @@ export function FinanceStudio() {
   return (
     <main
       data-mode="finance"
-      className="mx-auto w-full max-w-[var(--content-wide)] px-6 pb-10 pt-8 text-[var(--text)]"
+      className="mx-auto w-full max-w-[var(--content-stage)] px-6 pb-10 pt-8 text-[var(--text)]"
       data-testid="finance-studio"
     >
       <div className="mb-4">
@@ -318,7 +318,7 @@ export function FinanceStudio() {
         </p>
       ) : null}
       {available ? (
-        <div className="grid items-start gap-5 lg:[grid-template-columns:420px_minmax(0,1fr)]">
+        <div className="grid items-start gap-5 lg:[grid-template-columns:minmax(280px,420px)_minmax(0,1fr)]">
           <StepInputs
             task={task}
             workspaceId={workspaceId}

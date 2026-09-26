@@ -712,7 +712,7 @@ export function EditStudio() {
 
       {!project ? (
         <div className="flex min-h-0 flex-1">
-          <div className="flex min-h-0 flex-1 flex-col p-6" data-testid="edit-project-list">
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6" data-testid="edit-project-list">
             <h2 className="font-heading text-xl">{t("edit.projects")}</h2>
             <div className="mt-4 flex flex-col gap-2">
               <select
@@ -812,7 +812,7 @@ export function EditStudio() {
             ))}
           </nav>
           {tool !== "upload" ? (
-            <aside className="flex min-h-0 w-[260px] min-w-[180px] max-w-[280px] shrink flex-col overflow-hidden border-r border-[var(--line)] bg-[var(--surface)]">
+            <aside className="flex min-h-0 w-[260px] min-w-[180px] shrink flex-col overflow-hidden border-r border-[var(--line)] bg-[var(--surface)] min-[1600px]:w-[300px] min-[2400px]:w-[340px]">
               {tool === "generate" ? (
                 <EditGenerateTab
                   project={project}

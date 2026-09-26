@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "@/lib/nav";
 import { ChatAccountChip } from "@/components/chat-account-chip";
 import { ChatComposer } from "@/components/chat-composer";
@@ -22,6 +22,7 @@ import {
 } from "@/lib/chat-model-pref";
 import { isReasoningEffort, type ReasoningEffort } from "@agentforge/core/reasoning-effort";
 import { t } from "@/lib/i18n";
+import { isPinnedToEnd } from "@/lib/stick-to-bottom";
 
 type Message = { id: string; role: string; content: unknown };
 
@@ -94,6 +95,26 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
    */
   const awaitingUrlThreadRef = useRef<string | null>(null);
   const urlAtEnsureRef = useRef<string | undefined>(initialThreadId);
+  const listRef = useRef<HTMLDivElement>(null);
+  /** Follow new text only while the reader is already at the end of the thread. */
+  const pinRef = useRef(true);
+
+  useLayoutEffect(() => {
+    pinRef.current = true;
+    // A new chat has nothing to follow; keep the headline at the top of the pane.
+    if (!threadId && listRef.current) {
+      listRef.current.scrollTop = 0;
+    }
+  }, [threadId]);
+
+  useLayoutEffect(() => {
+    const el = listRef.current;
+    const live = messages.length > 0 || Boolean(streaming) || Boolean(thinking) || running || tools.length > 0;
+    if (!el || !pinRef.current || !live) {
+      return;
+    }
+    el.scrollTop = el.scrollHeight;
+  }, [messages, streaming, thinking, running, tools]);
   if (awaitingUrlThreadRef.current) {
     if (initialThreadId === awaitingUrlThreadRef.current) {
       awaitingUrlThreadRef.current = null;
@@ -402,7 +423,15 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
 
       <div
         key={threadId ?? "empty"}
-        className={`mx-auto min-h-0 w-full flex-1 overflow-y-auto px-6 max-w-[var(--content-max)] ${empty ? "" : "space-y-4 py-4"}`}
+        ref={listRef}
+        onScroll={() => {
+          const el = listRef.current;
+          if (!el) {
+            return;
+          }
+          pinRef.current = isPinnedToEnd(el.scrollTop, el.scrollHeight, el.clientHeight);
+        }}
+        className={`mx-auto min-h-0 w-full flex-1 overflow-y-auto overscroll-y-contain px-6 max-w-[var(--content-max)] ${empty ? "" : "space-y-4 py-4"}`}
         data-testid="message-list"
       >
         {empty && !error ? <ChatLauncher onSuggest={setComposerDraft} /> : null}
@@ -432,6 +461,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           draft={composerDraft}
           onDraftApplied={() => setComposerDraft(null)}
           onUserSend={(payload) => {
+            pinRef.current = true;
             setError(null);
             setRunning(true);
             rememberModel(modelId);

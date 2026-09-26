@@ -130,7 +130,7 @@ export function ImagesStudio() {
   return (
     <main
       data-mode="images"
-      className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]"
+      className="mx-auto flex min-h-full max-w-[var(--content-stage)] flex-col px-6 py-10 text-[var(--text)]"
       data-testid="images-studio"
     >
       <ModeHeader icon="images" title={t("images.title")} outcome={t("images.expectedInputs")} />
@@ -240,7 +240,7 @@ export function ImagesStudio() {
             <p className="mt-2 text-sm text-[var(--text-2)]">{t("images.emptyBody")}</p>
           </div>
         ) : (
-          <ul className="grid gap-4 sm:grid-cols-2">
+          <ul className="grid gap-4 sm:grid-cols-2 min-[1600px]:grid-cols-3 min-[2400px]:grid-cols-4">
             {items.map((item) => (
               <li key={item.id} className="overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface)]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}

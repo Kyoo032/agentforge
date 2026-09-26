@@ -60,7 +60,10 @@ export function EditAgentPanel({
   }
 
   return (
-    <aside className="flex h-full min-h-0 w-[240px] min-w-[200px] max-w-[280px] shrink flex-col overflow-hidden border-l border-[var(--line)] bg-[var(--surface)]" data-testid="edit-agent-panel">
+    <aside
+      className="flex h-full min-h-0 w-[240px] min-w-[200px] shrink flex-col overflow-hidden border-l border-[var(--line)] bg-[var(--surface)] min-[1600px]:w-[300px] min-[2400px]:w-[340px]"
+      data-testid="edit-agent-panel"
+    >
       <div className="flex items-center justify-between border-b border-[var(--line)] px-3 py-2">
         <span className="text-xs font-heading uppercase tracking-[.12em] text-[var(--text-3)]">Agent</span>
         <span className="text-xs text-[var(--text-2)]" data-testid="edit-spend-meter">
@@ -68,7 +71,10 @@ export function EditAgentPanel({
         </span>
       </div>
       {emitLockActive ? (
-        <p className="border-b border-[var(--line)] px-3 py-1 text-xs text-[var(--accent)]" data-testid="edit-emit-lock">
+        <p
+          className="border-b border-[var(--line)] px-3 py-1 text-xs text-[var(--accent)]"
+          data-testid="edit-emit-lock"
+        >
           Agent writing…
         </p>
       ) : null}

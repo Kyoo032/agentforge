@@ -14,6 +14,7 @@ import { PresentationsStudio } from "@/components/presentations-studio";
 import { LegalStudio } from "@/components/legal-studio";
 import { MeetingStudio } from "@/components/meeting-studio";
 import { useWorkspaceScope } from "@/lib/workspace-scope";
+import { deskPaneClass, deskPaneInnerClass, FILL_DESK_PATHS } from "@/components/desk-pane";
 
 const WORK_MODE_COMPONENTS: Record<string, ComponentType> = {
   "/chat": ChatPage,
@@ -37,10 +38,11 @@ const WORK_MODE_PATHS = Object.keys(WORK_MODE_COMPONENTS);
  * Keep visited work-mode pages mounted (hidden when inactive) so in-flight
  * UI/SSE state survives rail switches. No product session cap.
  *
- * The active pane is `absolute inset-0` so Chat/Edit can `h-full` and scroll
- * internally. It must be `overflow-y-auto`, not `overflow-hidden`: Research,
- * Finance, Data, Documents, Images, Videos, and Presentation grow past the
- * pane and have no inner scroller — Music included.
+ * The active pane is one scrollport (`DeskPane`). Chat and Edit fill it and
+ * scroll inside themselves, so the composer and the timeline stay put.
+ * Every other mode scrolls the pane: those pages grow, they do not add a
+ * second bar. The pane is not remounted on a rail switch, so its scroll
+ * position survives.
  */
 export function WorkModeKeepAlive() {
   const { id } = useWorkspaceScope();
@@ -70,14 +72,12 @@ function WorkModePanes() {
           return null;
         }
         const active = pathname === path;
+        const fill = FILL_DESK_PATHS.has(path);
         return (
-          <div
-            key={path}
-            hidden={!active}
-            className={active ? "absolute inset-0 min-h-0 overflow-y-auto" : "hidden"}
-            aria-hidden={!active}
-          >
-            <Page />
+          <div key={path} hidden={!active} className={active ? deskPaneClass(fill) : "hidden"} aria-hidden={!active}>
+            <div className={deskPaneInnerClass(fill)}>
+              <Page />
+            </div>
           </div>
         );
       })}

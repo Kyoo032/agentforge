@@ -170,10 +170,15 @@ export function PricingView({ currentTierId, checkout }: PricingViewProps) {
   const placeholder = PLAN_TIERS.some((tier) => tier.placeholder);
 
   return (
-    <main className="mx-auto max-w-[var(--content-wide)] px-6 py-10 text-[var(--text)]" data-testid="pricing-page">
+    <main
+      className="mx-auto h-full max-w-[var(--content-wide)] overflow-y-auto px-6 py-10 text-[var(--text)]"
+      data-testid="pricing-page"
+    >
       <div className="kicker">{t("plans.kicker")}</div>
       <h1 className="mt-2 text-2xl font-medium tracking-[var(--track)]">{t("plans.title")}</h1>
-      <p className="mt-2 max-w-[var(--content-narrow)] text-[13px] leading-relaxed text-[var(--text-2)]">{t("plans.intro")}</p>
+      <p className="mt-2 max-w-[var(--content-narrow)] text-[13px] leading-relaxed text-[var(--text-2)]">
+        {t("plans.intro")}
+      </p>
 
       {placeholder ? (
         <p

@@ -16,6 +16,7 @@ import { UsagePage } from "@/components/usage-page";
 import { WorkspacesPage } from "@/components/workspaces-page";
 import { KnowledgePage } from "@/components/knowledge-page";
 import { ChannelsPage } from "@/components/channels-page";
+import { DeskPane } from "@/components/desk-pane";
 import { WorkModeKeepAlive } from "@/components/work-mode-keep-alive";
 import { OnboardingScreen } from "@/components/onboarding-screen";
 import { isElectron } from "@/lib/api-client";
@@ -131,7 +132,7 @@ function normalisePath(pathname: string): string {
 function BootScreen() {
   const { productName } = useProductBrand();
   return (
-    <main className="flex min-h-screen items-center justify-center bg-app text-inkbase">
+    <main className="flex h-full min-h-0 items-center justify-center overflow-y-auto bg-app text-inkbase">
       <div className="flex w-[280px] flex-col items-center gap-4">
         <p className="text-sm font-medium tracking-[var(--track)] text-[var(--text)]">
           {t("common.starting", { productName })}
@@ -299,7 +300,7 @@ export function AppRoutes() {
      */
     <PlanBlockBoundary>
       <Shell key={localeEpoch}>
-        <div className="relative h-full min-h-0 overflow-y-auto">
+        <div className="relative h-full min-h-0 overflow-hidden">
           {/* An owner who onboarded long ago never sees the setup panel; this runs it with no UI. */}
           <ComponentSetupSilent />
           <WorkModeKeepAlive />
@@ -319,11 +320,46 @@ export function AppRoutes() {
             <Route path="/presentations" element={null} />
             <Route path="/legal" element={null} />
             <Route path="/meeting" element={null} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/usage" element={<UsagePage />} />
-            <Route path="/workspaces" element={<WorkspacesPage />} />
-            <Route path="/knowledge" element={<KnowledgePage />} />
-            <Route path="/channels" element={<ChannelsPage />} />
+            <Route
+              path="/settings"
+              element={
+                <DeskPane>
+                  <SettingsPage />
+                </DeskPane>
+              }
+            />
+            <Route
+              path="/usage"
+              element={
+                <DeskPane>
+                  <UsagePage />
+                </DeskPane>
+              }
+            />
+            <Route
+              path="/workspaces"
+              element={
+                <DeskPane>
+                  <WorkspacesPage />
+                </DeskPane>
+              }
+            />
+            <Route
+              path="/knowledge"
+              element={
+                <DeskPane>
+                  <KnowledgePage />
+                </DeskPane>
+              }
+            />
+            <Route
+              path="/channels"
+              element={
+                <DeskPane>
+                  <ChannelsPage />
+                </DeskPane>
+              }
+            />
             <Route path="/studio/*" element={<Navigate to="/chat" replace />} />
             <Route path="/agents/*" element={<Navigate to="/chat" replace />} />
             <Route path="/workspace" element={<Navigate to="/chat" replace />} />

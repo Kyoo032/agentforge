@@ -79,9 +79,7 @@ export function readCallbackParams(search: string): CallbackParams {
 }
 
 export function nextLocation(outcome: CallbackOutcome): string {
-  return outcome.kind === "signed-in"
-    ? SIGNED_IN_PATH
-    : `${SIGN_IN_PATH}?reason=${encodeURIComponent(outcome.reason)}`;
+  return outcome.kind === "signed-in" ? SIGNED_IN_PATH : `${SIGN_IN_PATH}?reason=${encodeURIComponent(outcome.reason)}`;
 }
 
 /**
@@ -162,7 +160,7 @@ export function AuthCallbackPage() {
 
   return (
     <main
-      className="flex min-h-screen items-center justify-center bg-app text-inkbase"
+      className="flex h-full min-h-0 items-center justify-center overflow-y-auto bg-app text-inkbase"
       data-testid="auth-callback"
     >
       <p className="text-sm font-medium tracking-[var(--track)] text-[var(--text)]">{t("auth.callback.working")}</p>

@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import type { ProductMode } from "@agentforge/core/product-modes";
 import { AppRail } from "@/components/app-rail";
 import { ModeRedirect } from "@/components/mode-redirect";
-import { usePathname } from "@/lib/nav";
 
 type Props = {
   workspaceName: string;
@@ -23,17 +22,15 @@ export function productMonogram(name: string): string {
 }
 
 export function AppShell({ workspaceName, visibleModes, children }: Props) {
-  const pathname = usePathname();
   return (
-    <div className="flex h-screen bg-app text-inkbase">
+    <div className="flex h-full min-h-0 overflow-hidden bg-app text-inkbase">
       <ModeRedirect visibleModes={visibleModes} />
       <AppRail workspaceName={workspaceName} visibleModes={visibleModes} />
       <div className="desk-canvas flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden" data-testid="app-main-panel">
-        {/* Keyed on the route so each page plays its entrance; query changes (a chat thread, a
-            finance task) keep the same key and do not remount. */}
-        <div key={pathname} className="page-enter min-h-0 flex-1 overflow-y-auto">
-          {children}
-        </div>
+        {/* Not a scroller, and not keyed on the route. Each desk page owns one
+            scrollport (`DeskPane`). Keying this slot remounted every page on
+            navigation, which dropped scroll position and the kept-alive modes. */}
+        <div className="relative min-h-0 flex-1 overflow-hidden">{children}</div>
       </div>
     </div>
   );

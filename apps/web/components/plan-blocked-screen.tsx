@@ -62,7 +62,7 @@ export function PlanBlockedScreen({ code, checkout, onRetry }: PlanBlockedScreen
 
   return (
     <main
-      className="flex min-h-screen items-center justify-center bg-app px-6 py-12 text-[var(--text)]"
+      className="flex h-full min-h-0 items-center justify-center overflow-y-auto bg-app px-6 py-12 text-[var(--text)]"
       data-testid="plan-blocked"
       data-plan-block={code}
     >

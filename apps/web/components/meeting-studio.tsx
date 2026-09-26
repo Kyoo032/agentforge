@@ -616,7 +616,7 @@ export function MeetingStudio() {
   return (
     <main
       data-mode="meeting"
-      className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]"
+      className="mx-auto flex min-h-full max-w-[var(--content-stage)] flex-col px-6 py-10 text-[var(--text)]"
       data-testid="meeting-studio"
     >
       <ModeHeader icon="meeting" title={t("meeting.title")} outcome={t("meeting.subtitle")} />

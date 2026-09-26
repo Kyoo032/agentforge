@@ -137,14 +137,15 @@
 
   --sidebar: 232px;
 
-  /* Content widths. Three lanes, because one number cannot serve prose, a form and a
-     data table at once: prose needs a readable measure, a form wants a narrow column,
-     and a studio wants the desk. They grow with the viewport (see the media queries
-     after `.dark`) so a 2560px monitor is used rather than letterboxed, and they stop
-     well short of edge-to-edge so inner cards and tables keep their proportions. */
+  /* Content widths. Reading columns stay a measure you can read. Studios and
+     side-panel stages grow with the viewport (see the media queries after
+     `.dark`) and stop short of the desk edge. */
   --content-narrow: 640px;
   --content-max: 720px;
   --content-wide: 1120px;
+  /* Side-panel studios (Finance, Presentation, Meeting). Same as the wide
+     lane on a laptop; the media queries below let the stage open up. */
+  --content-stage: 1184px;
   /* The composer shares the chat column's measure so the two line up. */
   --composer-max: var(--content-max);
 
@@ -368,37 +369,70 @@
   background: transparent;
 }
 
-/* Content lanes grow with the desk. The owner's report (2026-09-23) was that a wide
-   window left a dead margin either side; these steps use the room instead of capping
-   at one laptop number, without letting the inner cards and tables stretch out of
-   proportion. Phones sit below the first step and simply take the full width. */
+/* Content lanes. Reading columns stay a readable measure and stay centred.
+   Studios grow with the desk. `--content-stage` is the wider lane for a page
+   that already has a side panel (Finance, Presentation, Meeting, Channels):
+   the panel keeps its width and the stage takes the rest, stopping short of
+   the desk edge. Phones sit below the first step and take the full width. */
 @media (min-width: 1600px) {
   :root,
   .light,
   .dark {
-    --content-max: 880px;
+    --content-narrow: 672px;
+    --content-max: 736px;
     --content-wide: 1280px;
+    --content-stage: 1472px;
   }
 }
 
-@media (min-width: 2200px) {
+@media (min-width: 1920px) {
   :root,
   .light,
   .dark {
-    --content-max: 1000px;
-    --content-wide: 1440px;
+    --content-wide: 1408px;
+    --content-stage: 1600px;
   }
+}
+
+@media (min-width: 2400px) {
+  :root,
+  .light,
+  .dark {
+    --content-narrow: 704px;
+    --content-max: 768px;
+    --content-wide: 1536px;
+    --content-stage: 1792px;
+  }
+}
+
+@media (min-width: 3000px) {
+  :root,
+  .light,
+  .dark {
+    --content-wide: 1664px;
+    --content-stage: 1984px;
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
 }
 
 html,
 body {
   margin: 0;
   padding: 0;
-  min-height: 100%;
   background: var(--bg);
 }
 
+/* The desk is the viewport. A document scrollbar here was a second bar beside
+   the pane, and `100vh` plus the canvas margin let the page move instead of
+   the rail or the thread. Full-page screens (onboarding, sign-in) scroll
+   themselves. */
 body {
+  overflow: hidden;
   @apply bg-app text-inkbase antialiased;
   font-family: var(--font);
   background: var(--backdrop);
@@ -1107,9 +1141,11 @@ aside nav > p {
   }
 }
 
-/* Every route arrives: `AppShell` keys its scroller on the pathname. */
+/* First visit of a pane. No fill-mode: `both` left translate/scale on the
+   element, which made it the containing block for fixed menus and a second
+   scrollport. The motion plays, then the pane is a plain box again. */
 .page-enter {
-  animation: nx-page var(--motion-5) var(--ease-spring) both;
+  animation: nx-page var(--motion-5) var(--ease-spring);
 }
 
 /* Empty chat centers when it fits. `safe` keeps the hero inside the pane when
@@ -1128,6 +1164,28 @@ aside nav > p {
   .chat-empty-fit .hero-aurora {
     padding-top: 1rem;
     padding-bottom: 1rem;
+  }
+}
+
+/* 800px-tall windows were opening an empty Chat already 60px past the pane,
+   so the headline sat under a scrollbar before anyone had typed. */
+@media (max-height: 860px) {
+  .chat-empty-fit {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .chat-empty-fit .hero-aurora {
+    padding-top: 0.25rem;
+    padding-bottom: 0;
+  }
+
+  .chat-empty-fit h2 {
+    margin-top: 0.25rem;
+  }
+
+  .chat-empty-fit > p {
+    margin-top: 0.75rem;
   }
 }
 
