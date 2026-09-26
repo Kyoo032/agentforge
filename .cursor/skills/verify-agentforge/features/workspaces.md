@@ -40,7 +40,7 @@ Preconditions:
 
 ## Gotchas
 
-- Create does not just add a desk — `handlePostWorkspaces` calls `writeSelectedWorkspaceId` before returning 201 (`packages/host/src/handlers/workspaces.ts:100`), so the new desk becomes current. There is no "create without switching". Just before that it copies the current desk's gateway key into the new desk (`inheritGatewayKey`, `:33-39`, called at `:99`), so on a keyed install the new desk opens under the same verdict.
+- Create does not just add a desk — `handlePostWorkspaces` calls `writeSelectedWorkspaceId` before returning 201 (`packages/host/src/handlers/workspaces.ts:100`), so the new desk becomes current. There is no "create without switching". A chat-only desk hides the Make group, so a later recipe that looks for `Buat` / `mode-market` fails until you select Default. Just before create it copies the current desk's gateway key into the new desk (`inheritGatewayKey`, `:33-39`, called at `:99`), so on a keyed install the new desk opens under the same verdict.
 - The current desk is a **process-global file**, `data/workspace-id.txt` (`packages/host/src/workspace.ts:35-41`), not a per-browser session. Switching desks in an automated drive switches them in the operator's open window too. Switch back to Default before you finish.
 - Deleting a desk cascades its threads, messages and runs (`packages/db/src/schema.ts:392-394`), hand-wipes six `knowledge_*` tables (`packages/db/src/ensure-local-owner.ts:199-212`) and drops the desk's `settings.enc` entry. It is not recoverable locally.
 - Both collapsed and expanded `AppRail` branches must carry `data-testid="workspaces-link"` and `workspaces-switcher`. A single branch only is a harness bug.
