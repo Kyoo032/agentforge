@@ -93,8 +93,11 @@ test("chat and workspaces work without an account", async ({ page }) => {
   await expect(page.getByTestId("presentations-starter")).toHaveCount(2);
   await page.getByTestId("presentations-starter").first().click();
   await expect(page.getByTestId("presentations-preview")).toBeVisible();
-  await expect(page.getByTestId("presentations-regen").first()).toBeVisible();
-  await page.getByTestId("presentations-regen").first().click();
+  await expect(page.getByTestId("presentations-editor")).toBeVisible();
+  await page.getByTestId("presentations-filmstrip-slide").nth(1).click();
+  await expect(page.getByTestId("presentations-slide")).toBeVisible();
+  await expect(page.getByTestId("presentations-regen")).toBeVisible();
+  await page.getByTestId("presentations-regen").click();
   await expect(page.getByTestId("presentations-regen-panel")).toBeVisible();
   await expect(page.getByTestId("presentations-regen-prompt")).toBeVisible();
   await expect(page.getByTestId("presentations-regen-model")).toBeVisible();
