@@ -1,8 +1,6 @@
 # Map — Chat sessions and the rail
 
-Last verified: 2026-09-26 (rail collapse is 480px; context and usage chips wait for an assistant reply). Before that: 2026-09-23 at d4561b8 + uncommitted tree for every `chat-session.tsx` and `chat-composer.tsx`
-citation and the new § 11 (a run belongs to the session it started in; `onComplete` now receives
-`{ threadId, showing }`). Not walked in a browser.
+Last verified: 2026-09-26. Rail collapse is 480px, and context and usage chips wait for an assistant reply. § 11 cites `awaitingUrlThreadRef` and `urlAtEnsureRef` in `chat-session.tsx`: a new thread's own URL update does not bump the session epoch, so a live reply draws and Send returns. Earlier: 2026-09-23 at d4561b8 for the rest of this page. Not a full re-walk.
 
 Before that: 2026-09-23 at 0774681 + working tree (the 0.15.0 design pass). Changed there: the rail row reads from `--rail-*` tokens and follows the theme instead of being dark in both; the `New` badge mechanism (`NEW_BADGE_UNTIL`, `newBadgeOn`, the `badge` prop, `rail.badgeNew`) is deleted; `RailSubmenuToggle` shows a short word beside the chevron (the full phrase stays in `aria-label`) and the selected row's left accent stripe is gone. The session list, its store and the events are untouched. Supersedes the 2026-09-22 "dark desk overhaul" note, whose dark default this pass reversed.
 
