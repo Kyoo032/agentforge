@@ -1,8 +1,10 @@
 # Map — App locale: boot freeze and the run harness
 
-Last verified: 2026-09-23 at d4561b8 + uncommitted tree for the run harness (`localeForRun`, the new per-request
-locale on the hosted server, the Channel 2 line), the Failure modes row it adds, the gotchas that changed with it,
-and the `common` parity gotcha. Not driven: host change, needs a `:3000` restart, and only the hosted server feels it.
+Last verified: 2026-09-26 for the onboarding reason sentence (`onboarding.gate.invalidKey` now reads "That key
+didn't work. Check it at Toko Token and paste it again."). The rest of this page was last verified 2026-09-23
+at d4561b8 + uncommitted tree for the run harness (`localeForRun`, the new per-request locale on the hosted
+server, the Channel 2 line), the Failure modes row it adds, the gotchas that changed with it, and the `common`
+parity gotcha. Not driven: host change, needs a `:3000` restart, and only the hosted server feels it.
 Everything else was last verified 2026-09-20 at a053245 + the Phase 4 branch
 `feat/web-phase4-tenant-secrets-rcbu9c`.
 
@@ -173,7 +175,7 @@ support ticket says which rule closed the gate" — and `jsonError` emits it fla
 `gatewayReasonKey` / `gatewayStatusKey` (`apps/web/lib/gateway-gate.ts:123-137`) to
 `onboarding.gate.invalidKey|unreachable|error` and `settings.gateway.status.<status>`, resolved from the
 catalogs. Driven 2026-09-17: a desk whose key the gateway rejected carries `message: "HTTP 401"` in the payload
-while the screen reads "The gateway rejected this API key. Check the key at Toko Token and try again."
+while the screen reads "That key didn't work. Check it at Toko Token and paste it again." (`onboarding.gate.invalidKey`).
 
 ### Failure modes
 

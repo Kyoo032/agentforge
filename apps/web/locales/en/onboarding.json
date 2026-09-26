@@ -1,15 +1,49 @@
 {
   "welcome": "Welcome to {productName}",
-  "intro": "Paste your {gatewayName} API key. Chat and job modes run on this machine.",
-  "setupCheck": "Setup check",
-  "ffmpegLater": "You can continue now and install ffmpeg later; the Edit studio shows the same guide until it is found.",
-  "keyLabel": "API key",
-  "keyPlaceholder": "From your gateway dashboard",
-  "continue": "Continue to Chat",
-  "gatewayHost": "Gateway: {host}",
-  "gate.invalidKey": "The gateway rejected this API key. Check the key at {gatewayName} and try again.",
-  "gate.unreachable": "Could not reach {gatewayName}. Check your connection and try again.",
-  "gate.error": "The gateway returned an unexpected error. Try again in a moment.",
+  "intro": "Ask a question, write a document, look at numbers, or make a picture.",
+  "next": "Continue",
+  "back": "Back",
+  "stepsLabel": "Setup steps",
+  "steps": {
+    "welcome": "Hello",
+    "key": "Your key",
+    "try": "Try it"
+  },
+  "setupCheck": "Getting a document reader ready",
+  "ffmpegLater": "You can continue now and install ffmpeg later. The Edit screen shows the same guide until it is found.",
+  "keyTitle": "Paste your {gatewayName} key",
+  "keyHelp": "Open {gatewayName}, copy a key, and paste it here. It stays on this computer.",
+  "keyLabel": "Your key",
+  "keyPlaceholder": "Paste it here",
+  "continue": "Check this key",
+  "recheck": "Check again",
+  "keySuccess": "That key works.",
+  "tryTitle": "Try one of these",
+  "tryIntro": "Start in Chat. The others stay in the menu.",
+  "tryStart": "Start in Chat",
+  "examples": {
+    "chat": {
+      "title": "Ask something",
+      "hint": "A plan, a question, or a reply you need to send."
+    },
+    "document": {
+      "title": "Write a document",
+      "hint": "Turn notes into a page you can keep."
+    },
+    "finance": {
+      "title": "Look at numbers",
+      "hint": "A budget, cash flow, or a short brief."
+    },
+    "images": {
+      "title": "Make a picture",
+      "hint": "Describe what you want to see."
+    }
+  },
+  "gate": {
+    "invalidKey": "That key didn't work. Check it at {gatewayName} and paste it again.",
+    "unreachable": "We couldn't reach {gatewayName}. Check your internet connection and try again.",
+    "error": "Something went wrong. Wait a moment and try again."
+  },
   "desks": {
     "title": "Or open another desk",
     "failed": "Could not open that desk. Try again."

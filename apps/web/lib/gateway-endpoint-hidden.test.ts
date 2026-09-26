@@ -4,10 +4,10 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * The gateway endpoint is pinned by the host (`packages/core/src/gateway/pinned.ts`) and, since
- * 2026-09-17, hidden from the UI entirely: neither Settings nor onboarding renders it, and no field
- * may look editable. This is a grep rather than a render test because the renderer has no DOM test
- * setup — what matters is that a future edit cannot quietly put the URL back on screen.
+ * The gateway endpoint is pinned by the host (`packages/core/src/gateway/pinned.ts`) and hidden from
+ * the UI. Settings names the host only in two prose strings. Onboarding does not show the address
+ * at all. This is a grep rather than a render test — what matters is that a future edit cannot
+ * quietly put the URL back on screen.
  */
 
 const componentsDir = join(dirname(fileURLToPath(import.meta.url)), "..", "components");
@@ -47,22 +47,26 @@ describe("pinned gateway endpoint stays out of the UI", () => {
     }
   });
 
-  it("onboarding shows the host as a muted line, never as an input value", () => {
-    const source = read(ONBOARDING_SCREEN);
-    expect(source).toMatch(/onboarding\.gatewayHost/);
+  it("onboarding does not render the gateway address", () => {
+    const source = stripComments(read(ONBOARDING_SCREEN));
+    expect(source).not.toMatch(/onboarding-gateway-host/);
+    expect(source).not.toMatch(/onboarding\.gatewayHost/);
+    expect(source).not.toMatch(/gatewayHostLabel/);
     expect(source).not.toMatch(/value=\{endpoint\}/);
+    expect(source).not.toMatch(/tokotokenai/);
   });
 
-  it("ships the onboarding host line in both locales", () => {
+  it("ships no gateway address in the onboarding catalogs", () => {
     const localesDir = join(dirname(fileURLToPath(import.meta.url)), "..", "locales");
     for (const locale of ["en", "id"] as const) {
       const catalog = JSON.parse(readFileSync(join(localesDir, locale, "onboarding.json"), "utf8")) as Record<
         string,
-        string
+        unknown
       >;
-      expect(catalog.gatewayHost).toContain("{host}");
+      expect(catalog.gatewayHost).toBeUndefined();
       expect(catalog.endpointLabel).toBeUndefined();
       expect(catalog.endpointLocked).toBeUndefined();
+      expect(JSON.stringify(catalog)).not.toMatch(/tokotokenai|https?:\/\//);
     }
   });
 });

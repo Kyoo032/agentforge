@@ -1,6 +1,6 @@
 # Component installer (first run)
 
-Last verified: 2026-09-21 at 2d44f0f + the Phase 7 branch `claude/web-phase7-component-installer-7f5d5l`
+Last verified: 2026-09-26 for the onboarding mount (`onboarding-setup-check` on the key step, `apps/web/components/onboarding-screen.tsx:230-245`). The installer itself was last verified 2026-09-21 at 2d44f0f + the Phase 7 branch `claude/web-phase7-component-installer-7f5d5l`.
 
 ## Overview
 
@@ -12,7 +12,7 @@ The only way DPSBuddy installs a native dependency. The owner never runs a comma
 
 1. **Status.** `GET /api/v1/components` (`packages/host/src/router.ts:279` → `handleGetComponents`, `packages/host/src/handlers/components.ts:30`) answers `{ components: [{ id, version, auto, managed, state, source, bytes, error? }] }`. `componentStatus` (`packages/host/src/components/status.ts:71`) asks the probe: `resolveAnydoc` tries the bundled module, then the downloaded one, which only counts when the marker exists (`packages/host/src/file-extract/anydoc.ts`, `loadBundledAnydoc` / `loadDownloadedAnydoc`). A platform with no package in the manifest is `unsupported`, not an error (`manifest.ts:109`).
 2. **Auto.** `auto` is false when `AGENTFORGE_RUNTIME=stub` is set, under test, or in server mode (`status.ts:57`), so Cloud, Playwright and every hosted tenant never download. `managed` is true in server mode and only there (`status.ts:75`). The renderer only starts on its own when `state === "missing" && auto && !managed` (`apps/web/lib/components-client.ts:155`), and shows nothing at all for a managed row (`:165`).
-3. **Trigger.** Onboarding mounts `ComponentSetupPanel` inside `onboarding-setup-check` (`apps/web/components/onboarding-screen.tsx:3`, `:112-128`); an already-onboarded desk mounts `ComponentSetupSilent` from `apps/web/src/App.tsx:11`, rendered at `:148`. Both use `useComponentSetup` (`apps/web/lib/use-component-setup.ts:42`): fetch, auto-install once, abort on unmount, `retry()`.
+3. **Trigger.** Onboarding mounts `ComponentSetupPanel` inside `onboarding-setup-check` on the key step (`apps/web/components/onboarding-screen.tsx:4`, `:230-245`). The panel does not gate the key form, and it stays quiet: a short heading, the same progress the hook already had. An already-onboarded desk mounts `ComponentSetupSilent` from `apps/web/src/App.tsx:11`, rendered at `:304`. Both use `useComponentSetup` (`apps/web/lib/use-component-setup.ts:42`): fetch, auto-install once, abort on unmount, `retry()`.
 4. **Install.** `POST /api/v1/components/install/stream` with `{ id }` (`router.ts:280`, `handlers/components.ts:50`; unknown id → 400, server mode → 403 before the body is read, `:66-67`) streams `job.*` through `streamJob`, so it works over webdev SSE and Electron IPC alike. `installComponent` (`packages/host/src/components/install.ts:199`) holds one run per component (`busy` otherwise) and walks the stages:
    - `check` — already loads → every stage `skipped`; else clear stale staging dirs (`unpack.ts:64`).
    - `download` — `downloadPackage` (`download.ts:89`) via `fetchPublicHttps`: HTTPS only, private hosts blocked on every hop, 16 MB cap, 60 s, 3 attempts. Progress is `job.step { phase: "download", detail, current, total }`.

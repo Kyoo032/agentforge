@@ -4,7 +4,13 @@
 > The host-decides/renderer-displays rule below is unchanged and applies to both; the Electron-only transport and wipe details are the Personal app's.
 > Decision record: [`web-pivot-2026-09-18.md`](../web-pivot-2026-09-18.md).
 
-Last verified: 2026-09-23 at d4561b8 + uncommitted tree for Start over (a wipe that fails part-way is now
+Last verified: 2026-09-26 for the onboarding screen, restyled onto the current desk (gradient hello,
+`hero-aurora`, `card-live` example tiles). A fresh desk is a short hello, then the key, then four
+examples that open Chat. The screen does not show the gateway address. The host still decides:
+`allowed` is the only branch, and the examples render only after `resolveGate` says `"app"`. In-app name
+stays `{productName}` (DPSBuddy). Gate derivation, reset, and Settings are untouched.
+
+Before that: 2026-09-23 at d4561b8 + uncommitted tree for Start over (a wipe that fails part-way is now
 retried, and the boot log line), the Settings page's load / save / language failures, and every
 `settings-page.tsx` line cited on this page. Not driven: the reset change is in `@agentforge/db`, which only a
 restart of `:3000` or a packed app picks up.
@@ -70,7 +76,7 @@ tenant, desk **and** user — and read or write `users[userId].locale` inside th
 `loadOwnerLocale` / `saveOwnerLocale` (`:564-566`, `:568-572`) remain the *install's* locale, which is what
 `getBootLocale()` freezes. See [`locale-boot-and-run-harness.md`](locale-boot-and-run-harness.md).
 
-**A new desk inherits the gateway key.** Keys stay per desk, but `handlePostWorkspaces` copies the creating desk's `openaiApiKey` into the new desk's slice before it selects the new desk (`packages/host/src/handlers/workspaces.ts:33-39`, `:99-100`). Without it, creating a desk on a keyed install selected an empty slice, the gate derived `needs_key` / `allowed: false`, and `App` replaced the shell with the key form everywhere (finding 1 of the 0.15.0 verify pass). No verdict is copied because none needs to be: the verdict is the tenant's and keyed by fingerprint. Only the gateway key moves — extras stay empty — and `clearGatewayKeyEverywhere` still clears the copy. Pinned by `packages/host/src/handlers/workspaces.test.ts`. The renderer's guard for desks that are still keyless: `OnboardingDesks` under the key form (`apps/web/components/onboarding-screen.tsx:196`), which selects another desk on the host and applies the gate the host reports for it (`apps/web/lib/onboarding-desks.ts:60-68`). The host still decides; the renderer only offers the desks.
+**A new desk inherits the gateway key.** Keys stay per desk, but `handlePostWorkspaces` copies the creating desk's `openaiApiKey` into the new desk's slice before it selects the new desk (`packages/host/src/handlers/workspaces.ts:33-39`, `:99-100`). Without it, creating a desk on a keyed install selected an empty slice, the gate derived `needs_key` / `allowed: false`, and `App` replaced the shell with the key form everywhere (finding 1 of the 0.15.0 verify pass). No verdict is copied because none needs to be: the verdict is the tenant's and keyed by fingerprint. Only the gateway key moves — extras stay empty — and `clearGatewayKeyEverywhere` still clears the copy. Pinned by `packages/host/src/handlers/workspaces.test.ts`. The renderer's guard for desks that are still keyless: `OnboardingDesks` under the key form (`apps/web/components/onboarding-screen.tsx:297`), which selects another desk on the host and applies the gate the host reports for it (`apps/web/lib/onboarding-desks.ts:60-68`). The host still decides; the renderer only offers the desks. When that gate is allowed, the screen shows the examples step instead of opening the desk immediately.
 
 **`workspace-id.txt`** (`<localDataDir()>/workspace-id.txt`, `packages/host/src/workspace.ts:19-41`) is the
 stamp that stops a request from landing in the fallback slice. `getTenant(preferredWorkspaceId)`
@@ -137,19 +143,20 @@ eight-line read-only block) and the onboarding field (`onboarding-endpoint`, a `
 from the renderer, together with the `settings.endpointLabel` / `settings.endpointLocked` /
 `onboarding.endpointLabel` / `onboarding.endpointLocked` copy keys in both locales. What replaced them:
 
-- Onboarding renders one muted line, `onboarding-gateway-host` → `onboarding.gatewayHost` = `"Gateway: {host}"`
-  (`apps/web/components/onboarding-screen.tsx:130-132`), so the screen now has exactly one input — the key.
-- Settings names the host in two places, both prose: the intro sentence
+- Onboarding does not show the address at all (2026-09-26). There is no `onboarding-gateway-host` and no
+  `onboarding.gatewayHost` key. The key step says where to get a key in words (`onboarding.keyHelp`, naming
+  `{gatewayName}`) and has exactly one input, the key (`apps/web/components/onboarding-screen.tsx:260-270`).
+- Settings still names the host in two places, both prose: the intro sentence
   (`settings.intro` … "Paste your {gatewayName} API key from {gatewayHost}", `settings-page.tsx:371-375`) and
   the privacy note (`settings.privacy` … "Prompts leave this machine only over HTTPS to {gatewayHost}",
   `:523-525`). The privacy string used to say "to the saved endpoint"; today it names
-  `api.tokotokenai.com` out loud.
-- Both call `gatewayHostLabel(gatewayEndpoint)` (`apps/web/lib/product-brand.tsx:25-31`) — `new URL(url).host`,
-  falling back to the raw string — so the path and scheme never reach the screen.
-- Guard: `apps/web/lib/gateway-endpoint-hidden.test.ts`, six cases — no `settings-endpoint`, no
-  `onboarding-endpoint`, neither component hardcodes `tokotokenai` outside comments, neither references the
-  retired copy keys, onboarding uses `onboarding.gatewayHost` and never `value={endpoint}`, and both locale
-  catalogs carry `gatewayHost` with a `{host}` placeholder and no `endpointLabel`/`endpointLocked`.
+  `api.tokotokenai.com` out loud. Settings calls `gatewayHostLabel(gatewayEndpoint)`
+  (`apps/web/lib/product-brand.tsx:37-43`) — `new URL(url).host`, falling back to the raw string — so the
+  path and scheme never reach that screen.
+- Guard: `apps/web/lib/gateway-endpoint-hidden.test.ts` — no `settings-endpoint`, no `onboarding-endpoint`,
+  neither component hardcodes `tokotokenai` outside comments, neither references the retired copy keys,
+  onboarding does not reference `onboarding.gatewayHost` or `gatewayHostLabel`, and both onboarding catalogs
+  omit `gatewayHost` / `endpointLabel` / `endpointLocked` and contain no URL.
 
 Host and core logic are unchanged. This is a fourth, presentation-only layer on top of the three real pins.
 
@@ -264,8 +271,11 @@ has blocked can still read why and pay.
 
 - `GET /api/v1/settings` → `gateway: { status: "needs_key", allowed: false, grace: false, checkedAt: null }`.
 - **Every** route of the SPA renders the onboarding screen, not just `/chat`: `/settings` answers with
-  `onboarding-form` present and `settings-form` count 0. The only ways back are a key that validates, a re-check
-  that succeeds, or deleting `gateway-gate.json` by hand.
+  `settings-form` count 0. A fresh `needs_key` desk shows `onboarding-welcome` first; `onboarding-form` is the
+  next step. A desk closed with `invalid_key`, `unreachable`, or `error` opens on that form, with
+  `onboarding-gate-reason`. The ways back are a key the host allows, a re-check the host allows, or opening
+  another desk the host allows — each of those shows `onboarding-try`, and `onboarding-start` opens Chat — or
+  deleting `gateway-gate.json` by hand.
 - `POST /api/v1/finance/parse` → `403 {"error":"gateway_blocked","status":"needs_key","message":"No gateway key is saved on this machine."}`.
 - After saving a deliberately invalid key: `status: "invalid_key"`, `allowed: false`, payload `message: "HTTP 401"`,
   and the same route answers `403 {… "status":"invalid_key","message":"The gateway rejected the saved key. HTTP 401"}`.
@@ -478,10 +488,11 @@ Testids and their lines (`apps/web/components/settings-page.tsx` unless noted):
 `apps/web/components/settings-reset-card.tsx:159-303`, notably `settings-reset-key-submit` `:215`,
 `settings-reset-all-confirm-name` `:258`, `settings-reset-all-submit` `:265`, `settings-reset-pending` `:167`,
 `settings-reset-restart-needed` `:296`; onboarding in `apps/web/components/onboarding-screen.tsx`:
-`onboarding-setup-check` `:115`, `onboarding-form` `:129`, `onboarding-gateway-host` `:130`,
-`onboarding-gate-reason` `:134`, `onboarding-key` `:147`, `onboarding-continue` `:156`, `onboarding-recheck`
-`:166`. **`settings-endpoint`, `settings-endpoint-reset`, `openai-base-url` and `onboarding-endpoint` must all
-have count 0**; finding any of them is a regression.
+`onboarding-welcome` `:204`, `onboarding-next` `:215`, `onboarding-setup-check` `:233`, `onboarding-form`
+`:250`, `onboarding-gate-reason` `:255`, `onboarding-key` `:269`, `onboarding-continue` `:280`,
+`onboarding-recheck` `:290`, `onboarding-try` `:302`, `onboarding-start` `:334`. There is no
+`onboarding-gateway-host`. **`settings-endpoint`, `settings-endpoint-reset`, `openai-base-url` and
+`onboarding-endpoint` must all have count 0**; finding any of them is a regression.
 
 Unit tests that pin it: `packages/host/src/gateway-gate.test.ts` (every derivation branch, the 7-day boundary,
 key never leaked, endpoint pinned against an attacker-supplied `openaiBaseUrl`, throttle and TTL);
