@@ -1,6 +1,6 @@
 # Map — Finance: parse and generate
 
-Last verified: 2026-09-26. The renderer surface in § 2 and the paste door in § 4 were re-read against the guided path and driven on stub webdev. Host and core citations are unchanged from 2026-09-23 at d4561b8.
+Last verified: 2026-09-26 at 5cd8549. The renderer surface in § 2 and the paste door in § 4 were re-read against the guided path and driven on stub webdev. Host and core citations are unchanged from 2026-09-23 at d4561b8.
 
 ## Overview
 
