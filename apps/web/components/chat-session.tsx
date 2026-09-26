@@ -60,6 +60,8 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
   const [tools, setTools] = useState<LiveTool[]>([]);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** A refused send. The sentence lives on `composer-error`; this only holds the error mascot. */
+  const [sendFailed, setSendFailed] = useState(false);
   const [thinkingEnabled, setThinkingEnabled] = useState(true);
   const [reasoningEffort, setReasoningEffort] = useState<ReasoningEffort>("medium");
   const [knowledgeParts, setKnowledgeParts] = useState<ContextPart[]>([]);
@@ -196,6 +198,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
     setThinking("");
     setTools([]);
     setRunning(false);
+    setSendFailed(false);
   }
 
   async function ensureThread() {
@@ -440,11 +443,11 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           .map((message) => (
             <ChatTurn key={message.id} role={message.role} content={message.content} />
           ))}
-        {running || thinking || tools.length > 0 || streaming ? (
+        {running || thinking || tools.length > 0 || streaming || sendFailed ? (
           <div data-testid="assistant-live">
             <ChatTurn
               role="assistant"
-              live={{ thinking, tools, streaming, running, thinkingEnabled, failed: Boolean(error) }}
+              live={{ thinking, tools, streaming, running, thinkingEnabled, failed: sendFailed }}
             />
           </div>
         ) : null}
@@ -466,6 +469,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           onUserSend={(payload) => {
             pinRef.current = true;
             setError(null);
+            setSendFailed(false);
             setRunning(true);
             rememberModel(modelId);
             setThinking("");
@@ -504,8 +508,8 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
               return [...next, completed];
             });
           }}
-          onFailed={(message) => {
-            setError(message);
+          onFailed={() => {
+            setSendFailed(true);
             setRunning(false);
           }}
           onComplete={async (run) => {
