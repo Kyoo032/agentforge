@@ -66,7 +66,8 @@ export const TOOL_CAPABILITIES: ToolCapabilitySpec[] = [
   {
     id: "web",
     label: "Web search",
-    description: "web_search. Uses Tavily or Brave. Chat model keys are not reused.",
+    description:
+      "web_search. A saved Tavily or Brave key is used when one is present. Otherwise Wikipedia, OpenAlex, arXiv, and Crossref. Chat model keys are not reused.",
     backends: [
       {
         id: "tavily",
@@ -236,7 +237,10 @@ function readValue(name: string, secrets?: Record<string, string>): string | und
   return getSecret(name);
 }
 
-function backendReady(backend: ToolBackendSpec, secrets?: Record<string, string>): { envVar?: string; baseUrl?: string; ready: boolean } {
+function backendReady(
+  backend: ToolBackendSpec,
+  secrets?: Record<string, string>,
+): { envVar?: string; baseUrl?: string; ready: boolean } {
   const envVar = backend.envVars.find((name) => readValue(name, secrets));
   const urlVar = backend.urlVars?.find((name) => readValue(name, secrets));
   const needsKey = backend.envVars.length > 0;
@@ -257,8 +261,7 @@ export function resolveToolBackend(
     return { capability: capabilityId, backend: "", source: "autodetect", ready: false };
   }
 
-  const stored =
-    input.selection === undefined ? getToolSelection(capabilityId) : input.selection?.trim() || undefined;
+  const stored = input.selection === undefined ? getToolSelection(capabilityId) : input.selection?.trim() || undefined;
 
   if (stored) {
     const spec = capability.backends.find((item) => item.id === stored);
@@ -359,7 +362,10 @@ export function buildToolSecretScope(settings: ToolSecretStore, env: NodeJS.Proc
   };
 }
 
-export function listToolRoutes(settings: ToolSecretStore, env: NodeJS.ProcessEnv = process.env): Record<string, ToolRoute> {
+export function listToolRoutes(
+  settings: ToolSecretStore,
+  env: NodeJS.ProcessEnv = process.env,
+): Record<string, ToolRoute> {
   const secrets = secretMapFromSettings(settings, env);
   const routes: Record<string, ToolRoute> = {};
   for (const capability of TOOL_CAPABILITIES) {

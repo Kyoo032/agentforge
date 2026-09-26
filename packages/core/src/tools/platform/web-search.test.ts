@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TenantContext } from "../../tenancy/types";
 import { invokeTool } from "../define-tool";
 import { runWithToolSecrets } from "../secret-scope";
+import { resetKeylessSearchState } from "./keyless-search";
 import { webSearchTool } from "./web-search";
 
 const tenant: TenantContext = {
@@ -12,17 +13,51 @@ const tenant: TenantContext = {
   role: "member",
 };
 
+function jsonResponse(body: unknown, status = 200): Response {
+  return {
+    status,
+    headers: { get: () => null },
+    text: async () => JSON.stringify(body),
+  } as unknown as Response;
+}
+
 describe("webSearchTool", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    resetKeylessSearchState();
   });
 
-  it("asks for a tool key instead of using the chat model key", async () => {
+  it("uses keyless search instead of the chat model key", async () => {
+    const fetchMock = vi.fn(async (input: string | URL) => {
+      const url = String(input);
+      if (url.includes("wikipedia.org")) {
+        return jsonResponse({ pages: [{ key: "Hermes", title: "Hermes", description: "messenger" }] });
+      }
+      return jsonResponse({ results: [] });
+    });
+    vi.stubGlobal("fetch", fetchMock);
     const result = await runWithToolSecrets({ secrets: { OPENAI_API_KEY: "sk-model" }, backends: {} }, () =>
       invokeTool(webSearchTool, { query: "hermes agent" }, tenant),
     );
+    expect(result).toMatchObject({
+      success: true,
+      backend: "keyless",
+      data: { web: [{ title: "Hermes", url: "https://en.wikipedia.org/wiki/Hermes" }] },
+    });
+    expect(JSON.stringify(result)).not.toMatch(/Tavily|Brave/i);
+    expect(fetchMock.mock.calls.some((call) => String(call[0]).includes("api.tavily.com"))).toBe(false);
+  });
+
+  it("does not fall back to keyless when the selected backend key is missing", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await runWithToolSecrets(
+      { secrets: { BRAVE_SEARCH_API_KEY: "bsa-test" }, backends: { web: "tavily" } },
+      () => invokeTool(webSearchTool, { query: "nous" }, tenant),
+    );
     expect(result).toMatchObject({ success: false });
-    expect(String((result as { error: string }).error)).toMatch(/Tavily or Brave/i);
+    expect(String((result as { error: string }).error)).toMatch(/set to tavily/i);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("calls Tavily with the tool key from the secret scope", async () => {
@@ -31,9 +66,8 @@ describe("webSearchTool", () => {
       json: async () => ({ results: [{ title: "Hermes", url: "https://example.com", content: "agent" }] }),
     });
     vi.stubGlobal("fetch", fetchMock);
-    const result = await runWithToolSecrets(
-      { secrets: { TAVILY_API_KEY: "tvly-test" }, backends: {} },
-      () => invokeTool(webSearchTool, { query: "hermes agent" }, tenant),
+    const result = await runWithToolSecrets({ secrets: { TAVILY_API_KEY: "tvly-test" }, backends: {} }, () =>
+      invokeTool(webSearchTool, { query: "hermes agent" }, tenant),
     );
     expect(fetchMock).toHaveBeenCalled();
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
@@ -49,7 +83,9 @@ describe("webSearchTool", () => {
   it("honors a sticky Brave selection even if Tavily is also set", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ web: { results: [{ title: "Brave hit", url: "https://brave.example", description: "ok" }] } }),
+      json: async () => ({
+        web: { results: [{ title: "Brave hit", url: "https://brave.example", description: "ok" }] },
+      }),
     });
     vi.stubGlobal("fetch", fetchMock);
     await runWithToolSecrets(

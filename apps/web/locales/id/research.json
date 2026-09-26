@@ -42,7 +42,7 @@
     }
   },
   "errorGateway": "Riset memerlukan gateway aktif. Tempel kunci API Toko Token di Settings, lalu coba lagi.",
-  "errorSearch": "Riset memerlukan kunci API Tavily atau Brave Search. Tambahkan di Settings, lalu coba lagi.",
+  "errorSearch": "Pencarian web tidak mengembalikan hasil. Coba lagi sebentar lagi.",
   "errorNoHttps": "Pencarian tidak mengembalikan hasil HTTPS yang dapat dibaca untuk pertanyaan ini",
   "phasePlanning": "Merencanakan sub-kueri",
   "phaseSearching": "Mencari di web",
@@ -71,11 +71,11 @@
   "statusLabel": "Status",
   "languageRule": "Tulis setiap string yang dilihat pengguna (title, summary, judul dan isi temuan, contradictions, openQuestions, dan catatan sumber) dalam Bahasa Indonesia profesional (Anda / infinitif). Pertahankan kunci JSON, id sumber seperti [S1], URL, dan kutipan verbatim. Jangan mencampur heading bahasa Inggris ke dalam temuan.",
   "stubTitle": "Dosir stub: {question}",
-  "stubSummary": "Demo luring. Pencarian web tidak dijalankan. Keyakinan: rendah. Bukti tipis: dosir ini hanya pengganti agar Riset tetap menghasilkan keluaran saat runtime stub. Simpan kunci API Toko Token serta kunci Tavily atau Brave Search di Settings untuk meneliti pertanyaan dari halaman HTTPS.",
+  "stubSummary": "Demo luring. Pencarian web tidak dijalankan. Keyakinan: rendah. Bukti tipis: dosir ini hanya pengganti agar Riset tetap menghasilkan keluaran saat runtime stub. Simpan kunci API Toko Token di Settings untuk meneliti pertanyaan dari halaman HTTPS.",
   "stubFindingHeading": "Ini output stub, bukan temuan dari web",
-  "stubFindingBody": "DPSBuddy mengembalikan dosir ini karena runtime sedang stub. Dosir ini tidak mengutip halaman hidup untuk: {question}. Tempel kunci Toko Token dan kunci Tavily atau Brave di Settings, lalu hasilkan lagi.",
+  "stubFindingBody": "DPSBuddy mengembalikan dosir ini karena runtime sedang stub. Dosir ini tidak mengutip halaman hidup untuk: {question}. Tempel kunci Toko Token di Settings, lalu hasilkan lagi.",
   "stubSourceTitle": "Stub DPSBuddy",
   "stubSourceNotes": "Sumber sintetis untuk demo luring. Bukan halaman yang dibaca.",
   "stubContradiction": "Tidak ada ketidaksepakatan sumber — pencarian tidak dijalankan.",
-  "stubOpenQuestion": "Apa yang berubah setelah kunci gateway dan kunci pencarian disimpan?"
+  "stubOpenQuestion": "Apa yang berubah setelah kunci gateway disimpan?"
 }

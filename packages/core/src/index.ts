@@ -535,6 +535,7 @@ export { registerPlatformTools } from "./tools/platform/register";
 export { calculatorTool } from "./tools/platform/calculator";
 export { datetimeTool } from "./tools/platform/datetime";
 export { webSearchTool } from "./tools/platform/web-search";
+export { bindKeylessSearchLocale, searchKeyless } from "./tools/platform/keyless-search";
 export { webFetchTool, fetchPageText, WEB_FETCH_MAX_CHARS_CAP } from "./tools/platform/web-fetch";
 export type { WebFetchPage, WebFetchOutput } from "./tools/platform/web-fetch";
 export { imageGenerateTool } from "./tools/platform/image-generate";
@@ -668,7 +669,6 @@ export {
   editStubAssistantCopy,
   GATEWAY_REQUIRED_SURFACES,
   gatewayRequiredMessage,
-  searchKeyRequiredMessage,
 } from "./output-language";
 export type { OutputLanguageSurface, GatewayRequiredSurface } from "./output-language";
 export { MODE_MESSAGE_KEYS, modeMessage } from "./mode-messages";

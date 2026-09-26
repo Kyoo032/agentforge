@@ -1,12 +1,19 @@
 import { z } from "zod";
 import { ApiError } from "../../errors";
+import { modeMessage } from "../../mode-messages";
 import { defineTool } from "../define-tool";
 import { resolveToolBackend } from "../credentials";
 import { getSecret } from "../secret-scope";
+import { currentKeylessLocale, searchKeyless } from "./keyless-search";
 
 type SearchHit = { title: string; url: string; description: string; position: number };
 
-async function searchTavily(query: string, apiKey: string, baseUrl: string, fetchImpl: typeof fetch): Promise<SearchHit[]> {
+async function searchTavily(
+  query: string,
+  apiKey: string,
+  baseUrl: string,
+  fetchImpl: typeof fetch,
+): Promise<SearchHit[]> {
   const response = await fetchImpl(`${baseUrl.replace(/\/+$/, "")}/search`, {
     method: "POST",
     headers: {
@@ -42,7 +49,7 @@ async function searchBrave(query: string, apiKey: string, fetchImpl: typeof fetc
     },
   });
   const body = (await response.json().catch(() => ({}))) as {
-    web?: { results?: Array<{ title?: string; url?: string; description?: string }>; };
+    web?: { results?: Array<{ title?: string; url?: string; description?: string }> };
     message?: string;
   };
   if (!response.ok) {
@@ -66,28 +73,41 @@ export const webSearchTool = defineTool({
   }),
   execute: async ({ query }) => {
     const route = resolveToolBackend("web");
-    if (!route.ready || !route.envVar) {
+    // A chosen backend with no key stays an error. No choice and no key uses the keyless APIs.
+    if (route.source === "selection" && !route.ready) {
       return {
         success: false,
-        error:
-          route.source === "selection"
-            ? `Web search is set to ${route.backend} but that API key is missing. Add it in Settings.`
-            : "Add a Tavily or Brave Search API key in Settings to use web search.",
+        error: `Web search is set to ${route.backend} but that API key is missing. Add it in Settings.`,
       };
     }
-    const apiKey = getSecret(route.envVar);
-    if (!apiKey) {
-      return { success: false, error: `${route.envVar} is not set.` };
-    }
     const fetchImpl = globalThis.fetch;
+    if (route.ready && route.envVar) {
+      const apiKey = getSecret(route.envVar);
+      if (!apiKey) {
+        return { success: false, error: `${route.envVar} is not set.` };
+      }
+      try {
+        const hits =
+          route.backend === "brave-free"
+            ? await searchBrave(query, apiKey, fetchImpl)
+            : await searchTavily(query, apiKey, route.baseUrl || "https://api.tavily.com", fetchImpl);
+        return { success: true, backend: route.backend, data: { web: hits } };
+      } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : "Web search failed" };
+      }
+    }
     try {
-      const hits =
-        route.backend === "brave-free"
-          ? await searchBrave(query, apiKey, fetchImpl)
-          : await searchTavily(query, apiKey, route.baseUrl || "https://api.tavily.com", fetchImpl);
-      return { success: true, backend: route.backend, data: { web: hits } };
+      const locale = currentKeylessLocale();
+      const result = await searchKeyless(query, { fetchImpl, locale });
+      if (result.outage) {
+        return { success: false, error: modeMessage("webSearchFailed", locale) };
+      }
+      return { success: true, backend: "keyless", data: { web: result.hits } };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : "Web search failed" };
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : modeMessage("webSearchFailed", currentKeylessLocale()),
+      };
     }
   },
 });

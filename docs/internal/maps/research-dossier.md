@@ -1,12 +1,12 @@
 # Map — Research dossier
 
-Last verified: 2026-09-20 at 6984d84; citations re-anchored at e37b3a1
+Last verified: 2026-09-26 at cec1f72
 
 ## Overview
 
 One Research turn: a question in the studio prompt bar, and a cited dossier on screen that can be downloaded, pushed into the Knowledge Base, or handed to Documents or Presentation. Between those two points the host runs a five-phase pipeline — plan sub-queries, web-search each one, fetch the pages behind the hits, extract verbatim passages, synthesize findings — and streams its progress as `job.*` server-sent events.
 
-Two things to hold onto. **Research is the only mode that needs two secrets**: a gateway key for the model *and* a Tavily or Brave key for search; either one missing is the same 503 (`packages/host/src/research-generate.ts:76-87`). And **the streaming route never returns a non-2xx**: `POST /api/v1/research/stream` answers HTTP 200 and puts the failure in a `job.error` frame, so the studio's error banner is an SSE payload, not an HTTP status. It is not a citation manager and not a live-search chat: the caps in `RESEARCH_CAPS` are fixed and "fully detailed" never means unbounded.
+Two things to hold onto. **Research needs a gateway key for the model, and it does not need a search key.** A saved Tavily or Brave key is used when one is present; otherwise search is the keyless composite in `packages/core/src/tools/platform/keyless-search.ts` (Wikipedia and OpenAlex in parallel, encyclopedia hits first unless the query looks scholarly, then arXiv and Crossref when that pair is thin or the query looks scholarly). A missing search key is not a 503, and the studio does not ask for one. And **the streaming route never returns a non-2xx**: `POST /api/v1/research/stream` answers HTTP 200 and puts the failure in a `job.error` frame, so the studio's error banner is an SSE payload, not an HTTP status. It is not a citation manager and not a live-search chat: the caps in `RESEARCH_CAPS` are fixed and "fully detailed" never means unbounded.
 
 ## How it works
 
@@ -39,12 +39,13 @@ Everything after that runs inside `streamJob` (`packages/host/src/job-stream.ts:
 
 ### 4. The refusal that stub desks actually see
 
-`generateResearchNotes` (`packages/host/src/research-generate.ts:113-171`) starts with `requireLiveResearch` (`:76-87`):
+`generateResearchNotes` (`packages/host/src/research-generate.ts`) starts with `requireLiveResearch` (`:74-82`):
 
 1. `resolveRuntimeMode({ settingsHasKey: hasLiveProvider(settings), envRuntime: AGENTFORGE_RUNTIME })` — `stub` throws `ApiError("runtime_stub", gatewayRequiredMessage("research", locale), 503)`.
-2. `listToolRoutes(settings).web?.ready` (`packages/core/src/tools/credentials.ts:362-372`) — no Tavily/Brave route throws `ApiError("tool_failed", searchKeyRequiredMessage(locale), 503)`.
 
-Both messages come from `packages/core/src/output-language.ts:114-117` and `:124-127`, **not** from `apps/web/locales/*/research.json` (see Gotchas). Nothing is written before this point: no artifact, no work card, no search call.
+Search is not part of that check. `webSearchTool` (`packages/core/src/tools/platform/web-search.ts:77-105`) uses Tavily or Brave when that route is ready, and `searchKeyless` otherwise. A backend the user explicitly selected, with that key missing, still returns an error and does not change vendor (`:77-80`). That is not the first-run path.
+
+The gateway refusal comes from `packages/core/src/output-language.ts`, **not** from `apps/web/locales/*/research.json` (see Gotchas). Nothing is written before this point: no artifact, no work card, no search call.
 
 ### 5. The pipeline — plan → search → read → extract → synthesize
 
@@ -80,7 +81,9 @@ Back in `generateResearchNotes`: `throwIfJobAborted` again (`:160`) — **a canc
 |---|---|---|
 | Gate closed | `requireGatewayAllowed`, `packages/host/src/handlers/jobs.ts:266` | real **HTTP 403** `gateway_blocked` on both routes (thrown before `streamJob`) |
 | Stub runtime (no gateway key) | `requireLiveResearch`, `packages/host/src/research-generate.ts:81-83` | stream: **HTTP 200** + `job.error {code:"runtime_stub", status:503}`. Non-stream: HTTP 503 |
-| No Tavily / Brave route | `requireLiveResearch`, `:84-86` | same shape, `code:"tool_failed"` |
+| No Tavily / Brave key | not a refusal | keyless search runs; the desk is not asked for a second key |
+| Every keyless source failed | `searchKeyless` outage, then `hitsFromSearch` | `job.error {code:"tool_failed", status:503}`, message `webSearchFailed` (en / id) |
+| Selected search backend, key missing | `web-search.ts:77-80` | `job.error {code:"tool_failed", status:503}` naming that backend |
 | Missing / empty `prompt` | `readPrompt`, `:42-51` | `job.error {code:"invalid_request", status:400}` (HTTP 200 on the stream route) |
 | Search backend returned `success:false` | `hitsFromSearch`, `:61-74` | `job.error {code:"tool_failed", status:503}` |
 | No HTTPS candidates at all | `packages/host/src/research-dossier.ts:334-336` | `job.error {code:"tool_failed", status:502}` |
@@ -115,8 +118,11 @@ Back in `generateResearchNotes`: `throwIfJobAborted` again (`:160`) — **a canc
 | `packages/core/src/artifacts/research-notes.ts` | `ResearchNotes` schema + `researchNotesToMarkdown` fallback |
 | `packages/core/src/jobs/job-events.ts` | The `job.*` union and `reduceJobProgress` |
 | `packages/core/src/tools/platform/web-fetch.ts` | `fetchPageText` — the HTTPS page reader |
-| `packages/core/src/tools/credentials.ts` | `listToolRoutes` — whether a search backend is ready |
-| `packages/core/src/output-language.ts` | The two refusal messages Research actually shows |
+| `packages/core/src/tools/platform/keyless-search.ts` | Pinned Wikipedia / OpenAlex / arXiv / Crossref search, cache, timeouts, same-origin redirects |
+| `packages/core/src/tools/platform/web-search.ts` | Tavily or Brave when a key is saved; otherwise `searchKeyless` |
+| `packages/core/src/tools/credentials.ts` | `listToolRoutes` — whether a Tavily or Brave key is saved. Market still consults this. Research does not |
+| `packages/core/src/output-language.ts` | The gateway refusal Research shows. There is no search-key refusal |
+| `packages/host/src/register-tools.ts` | Binds the keyless Wikipedia host to `localeForRun` (`en` or `id`) |
 
 ## Gotchas
 
@@ -133,7 +139,7 @@ Back in `generateResearchNotes`: `throwIfJobAborted` again (`:160`) — **a canc
 - **Paraphrases are dropped silently.** `parseExtraction` (`:169-177`) requires each passage to occur verbatim in the page after `squash` normalisation. A source whose every passage was paraphrased ends up with `passages: []` and no visible explanation.
 - **Hallucinated citations are dropped, not flagged.** `parseSynthesis` intersects the model's cited ids with the known source ids (`:198-201`), so `[S99]` disappears from `sources` — but the literal `[S99]` text stays inside the finding body, which still renders.
 - **A failed save is a silent success.** `persistDossier` swallows every error (`packages/host/src/research-generate.ts:105-110`). The user gets a dossier they can read and download (as a client-side blob), but `research-send-kb` has no `artifactId`, no Knowledge work card was filed, and `research-saved` will not list it later.
-- **Research needs two keys.** A gateway key alone is not enough; `listToolRoutes(settings).web?.ready` must also be true (`packages/host/src/research-generate.ts:84-86`). Doctor's `runtime: "ai"` says nothing about the search backend.
+- **Research does not need a second key.** `requireLiveResearch` only checks the gateway runtime (`packages/host/src/research-generate.ts:74-82`). A saved Tavily or Brave key replaces the keyless search; without one, Wikipedia (`en` or `id`), OpenAlex, arXiv, and Crossref run. Doctor `runtime: "ai"` is enough for Research to try. Keyless results are encyclopedia pages and papers, not a general web index. The origins are pinned, redirects stay on that origin, and the query is PII-masked before it leaves.
 - **Notes tab vs Dossier tab are different documents.** The Notes tab renders `notesFromDossier` output (findings only); the Dossier tab renders the full `dossierToMarkdown` with frontmatter, queries and source blocks. Reopening a saved artifact shows **only** the Dossier tab — `research-tabs` is not rendered for `{kind:"saved"}` (`apps/web/components/research-studio.tsx:131`).
 
 ## Verify
@@ -144,7 +150,7 @@ DOM testids that prove it: `mode-research` (rail, `mode-${href.slice(1)}`); `res
 
 Unit coverage: `packages/host/src/research-dossier.test.ts` (plan fallback, round-robin dedupe + HTTPS filter + caps, verbatim-only passages, id resolution, cancel between phases). Cloud `apps/web/tests/e2e/foundation.spec.ts:26`, `:133` only asserts the rail tab is visible — there is no end-to-end Research generate anywhere.
 
-Stub-desk ceiling: everything from `research-preview` onward (tabs, dossier, download, KB, handoffs, `research-progress`, `research-cancel`) needs a gateway key **and** a Tavily/Brave key, or a previously saved `mode=research` artifact to reopen through `research-saved`.
+Stub-desk ceiling: everything from `research-preview` onward (tabs, dossier, download, KB, handoffs, `research-progress`, `research-cancel`) needs a gateway key so the model can write the dossier, or a previously saved `mode=research` artifact to reopen through `research-saved`. It does not need a Tavily or Brave key.
 
 ## Why
 

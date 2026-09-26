@@ -4,8 +4,8 @@ import type { Dossier } from "@agentforge/core/artifacts";
 import type { WorkCard } from "./work-cards";
 
 /**
- * A Research job makes several model calls through one `ask`. The dossier loop, the web-search
- * readiness check, the gateway call, the artifact store and the Knowledge Base write are mocked at
+ * A Research job makes several model calls through one `ask`. The dossier loop, the gateway
+ * call, the artifact store and the Knowledge Base write are mocked at
  * the module boundary; the pin and what gets recorded are the real code.
  */
 type Asked = Record<string, unknown>;

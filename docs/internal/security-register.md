@@ -42,6 +42,9 @@ Extended on 2026-09-24 with [SR-80](#sr-80): Rizky dropped GitHub Actions, the t
 deleted, and the CI and audit gate moved to `pnpm ci:local` (`scripts/ci-local.mjs`). That moves
 OWASP A06-1 and closes A08-1 by removal; both are updated in [SR-16](#sr-16).
 
+Extended on 2026-09-26 with [SR-81](#sr-81): Research's keyless search calls four pinned public
+APIs. Checked, not an issue.
+
 ## Summary
 
 | ID | Severity | Title | Status | Gate |
@@ -98,6 +101,7 @@ OWASP A06-1 and closes A08-1 by removal; both are updated in [SR-16](#sr-16).
 | [SR-77](#sr-77) | Medium | A "Start over" wipe that failed part-way deleted its own marker, so the rest never ran | Fixed, not driven (2026-09-23) | Blocks the next Personal cut |
 | [SR-79](#sr-79) | Medium | Per-IP limits key on the full IPv6 address, so one IPv6 client has a bucket per request | Open | Blocks Tencent deploy if it is reachable over IPv6 |
 | [SR-80](#sr-80) | Medium | CI and the dependency-audit gate run only when someone runs `pnpm ci:local`; nothing checks a push on its own | Open — accepted by design (2026-09-24) | Blocks PR merge without a pasted `ci:local` summary |
+| [SR-81](#sr-81) | Low | Keyless Research search sends the masked query to four pinned public APIs | Checked, not an issue (2026-09-26) | — |
 | [SR-01](#sr-01) | Low | `apps/portal/compose.yml` hardcodes `POSTGRES_PASSWORD: portal` | Accepted for dev only | Dev only |
 | [SR-07](#sr-07) | Low | The CSRF token is bound to the session id, so it stops verifying the moment a session changes | Open, lane C | Blocks PR merge |
 | [SR-09](#sr-09) | Low | The two billing variables were missing from `webapp-deploy/.env.example` | Fixed-unverified | Blocks Tencent deploy |
@@ -1971,6 +1975,28 @@ been through CI. The Windows reds in [SR-12](#sr-12) and AGENTS.md's known-reds 
 against this gate, because there is no second machine to run those suites.
 
 Gate: **blocks PR merge** without a pasted `ci:local` summary.
+
+### SR-81 {#sr-81}
+
+**Keyless Research search sends the masked query to four pinned public APIs.** Both products.
+Raised and checked 2026-09-26. Not an issue.
+
+Evidence: `packages/core/src/tools/platform/keyless-search.ts` pins `https://en.wikipedia.org`,
+`https://id.wikipedia.org`, `https://api.openalex.org`, `https://export.arxiv.org`, and
+`https://api.crossref.org`. Each request is HTTPS, passes `assertAllowedEndpointUrl`, sends no
+`Authorization` and no cookies (`credentials: "omit"`), and follows a redirect only when `Location`
+stays on that origin (`redirect: "manual"`). `maskPii` runs on the query before it is sent. A saved
+Tavily or Brave key still takes that path instead (`packages/core/src/tools/platform/web-search.ts`).
+DuckDuckGo HTML, Mojeek's site, public SearXNG, the Marginalia `public` key, and Jina Reader were
+considered and not called: the first three are scraping or an uninvited backend, Marginalia's public
+key is CC BY-NC-SA, and Jina would receive the page URL and body.
+
+What goes wrong if ignored: a later edit that follows an off-origin redirect, or that scrapes a
+search page, would send a tenant's question somewhere this row does not allow.
+
+Required action: keep the origin list and the manual redirect. A new search host is a new row.
+
+Gate: none. Accepted. AGENTS.md already allows a keyless public search source a mode calls by design.
 
 ## Low
 

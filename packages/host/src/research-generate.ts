@@ -4,14 +4,12 @@ import {
   fetchPageText,
   gatewayRequiredMessage,
   hasLiveProvider,
-  listToolRoutes,
   maskPii,
   modeMessage,
   resolveChatModel,
   resolveRuntimeMode,
   runWithToolSecrets,
   scanInjection,
-  searchKeyRequiredMessage,
   webSearchTool,
   withOutputLanguage,
   type TenantContext,
@@ -80,9 +78,6 @@ function requireLiveResearch(settings: ReturnType<typeof loadSettings>): void {
   });
   if (mode === "stub") {
     throw new ApiError("runtime_stub", gatewayRequiredMessage("research", localeForRun()), 503);
-  }
-  if (!listToolRoutes(settings).web?.ready) {
-    throw new ApiError("tool_failed", searchKeyRequiredMessage(localeForRun()), 503);
   }
 }
 
