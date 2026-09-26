@@ -10,6 +10,7 @@ import { ChatUsageChip } from "@/components/chat-usage-chip";
 import { estimateContextParts, estimateConversationTokens, textFromMessageContent } from "@/lib/estimate-tokens";
 import type { ContextPart } from "@/components/chat-context-chip";
 import { ChatTurn, messageHasDisplayableContent, type LiveTool } from "@/components/chat-turn";
+import { PlaceholderMascot } from "@/components/placeholder-mascot";
 import { collectToolMediaParts } from "@/lib/tool-media";
 import { notifyThreadsChanged } from "@/lib/threads-events";
 import { apiFetch } from "@/lib/api-client";
@@ -412,13 +413,12 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
       </div>
 
       {error ? (
-        <p
-          className="mx-auto w-full px-6 text-sm text-[var(--danger)] max-w-[var(--content-max)]"
-          data-testid="chat-error"
-          role="alert"
-        >
-          {error}
-        </p>
+        <div className="mx-auto flex w-full items-start gap-3 px-6 max-w-[var(--content-max)]">
+          {running || thinking || tools.length > 0 || streaming ? null : <PlaceholderMascot state="error" />}
+          <p className="text-sm text-[var(--danger)]" data-testid="chat-error" role="alert">
+            {error}
+          </p>
+        </div>
       ) : null}
 
       <div
@@ -442,7 +442,10 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           ))}
         {running || thinking || tools.length > 0 || streaming ? (
           <div data-testid="assistant-live">
-            <ChatTurn role="assistant" live={{ thinking, tools, streaming, running, thinkingEnabled }} />
+            <ChatTurn
+              role="assistant"
+              live={{ thinking, tools, streaming, running, thinkingEnabled, failed: Boolean(error) }}
+            />
           </div>
         ) : null}
       </div>

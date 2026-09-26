@@ -3,6 +3,9 @@
 import { isRenderableImageUrl, isRenderableVideoUrl } from "@/lib/composer-attach";
 import { mediaSrc } from "@/lib/api-client";
 import { FormattedText } from "@/components/formatted-text";
+import { MessageEmbed } from "@/components/message-embed";
+import { PlaceholderMascot, type PlaceholderMascotState } from "@/components/placeholder-mascot";
+import { jobEmbedsFromTools, splitUserFileBlocks } from "@/lib/message-embeds";
 import { collectToolMediaParts } from "@/lib/tool-media";
 import { showsToolSpinner, toolActivityLabel, toolCallSummary } from "@/lib/tool-labels";
 import type { ContentPart, ToolCallPart } from "@agentforge/core/content";
@@ -24,6 +27,7 @@ type Props = {
     streaming: string;
     running: boolean;
     thinkingEnabled?: boolean;
+    failed?: boolean;
   };
 };
 
@@ -35,6 +39,16 @@ function PulseDots() {
       <span />
     </span>
   );
+}
+
+function mascotState(live: NonNullable<Props["live"]>): PlaceholderMascotState {
+  if (live.failed) {
+    return "error";
+  }
+  if (live.streaming) {
+    return "answering";
+  }
+  return "thinking";
 }
 
 export function ChatTurn({ role, content, live }: Props) {
@@ -57,6 +71,7 @@ export function ChatTurn({ role, content, live }: Props) {
    */
   const hasActivity = Boolean(thinking) || visibleTools.length > 0;
   const showDisclosure = hasActivity || showThinkingPlaceholder;
+  const jobs = jobEmbedsFromTools(visibleTools);
 
   return (
     <article
@@ -70,7 +85,9 @@ export function ChatTurn({ role, content, live }: Props) {
       {isUser ? (
         <MessageBody content={content} />
       ) : (
-        <div className="space-y-2">
+        <div className={live ? "flex items-start gap-3" : "space-y-2"}>
+          {live ? <PlaceholderMascot state={mascotState(live)} /> : null}
+          <div className="min-w-0 flex-1 space-y-2">
           {showDisclosure ? (
             <details
               className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2 shadow-elev-1"
@@ -101,8 +118,6 @@ export function ChatTurn({ role, content, live }: Props) {
                   {visibleTools.map((tool, index) => (
                     <li
                       key={`${tool.key}-${index}`}
-                      /* `break-words` + `whitespace-pre-wrap`: a payload used to be cut at 80
-                         characters with an ellipsis. Wrapping it is what makes the call readable. */
                       className="whitespace-pre-wrap break-words rounded-xl border border-[var(--line)] px-3 py-1.5 font-mono text-xs text-[var(--text-2)]"
                       data-testid="message-tool"
                     >
@@ -127,6 +142,16 @@ export function ChatTurn({ role, content, live }: Props) {
             </>
           )}
           {liveMedia.length > 0 ? <MediaParts parts={liveMedia} /> : null}
+          {jobs.map((job, index) => (
+            <MessageEmbed
+              key={`${job.title}-${index}`}
+              kind="job"
+              title={job.title}
+              detail={job.detail}
+              href={job.href}
+            />
+          ))}
+          </div>
         </div>
       )}
     </article>
@@ -193,7 +218,7 @@ function MessageBody({ content, outputOnly = false }: { content?: unknown; outpu
     return outputOnly ? (
       <FormattedText text={content} className="text-sm" testId="message-output" />
     ) : (
-      <p className="whitespace-pre-wrap text-sm">{content}</p>
+      <UserPlain text={content} />
     );
   }
   if (!Array.isArray(content)) {
@@ -216,21 +241,11 @@ function MessageBody({ content, outputOnly = false }: { content?: unknown; outpu
       {parts.map((part, index) => {
         const imageUrl = partImageUrl(part);
         if (imageUrl) {
-          return (
-            <img key={index} src={imageUrl} alt="" className="mt-2 max-w-full rounded-xl" data-testid="message-image" />
-          );
+          return <MessageEmbed key={index} kind="image" title="" src={imageUrl} alt="" />;
         }
         const videoUrl = partVideoUrl(part);
         if (videoUrl) {
-          return (
-            <video
-              key={index}
-              src={videoUrl}
-              controls
-              className="mt-2 max-w-full rounded-xl"
-              data-testid="message-video"
-            />
-          );
+          return <MessageEmbed key={index} kind="video" title="" src={videoUrl} />;
         }
         if (part && typeof part === "object" && (part as { type?: unknown }).type === "text" && "text" in part) {
           const text = String((part as { text: string }).text);
@@ -238,9 +253,7 @@ function MessageBody({ content, outputOnly = false }: { content?: unknown; outpu
           return outputOnly ? (
             <FormattedText key={index} text={text} className="text-sm" testId="message-output" />
           ) : (
-            <p key={index} className="whitespace-pre-wrap text-sm">
-              {text}
-            </p>
+            <UserPlain key={index} text={text} />
           );
         }
         return null;
@@ -255,18 +268,34 @@ function MediaParts({ parts }: { parts: ContentPart[] }) {
       {parts.map((part, index) => {
         const imageUrl = partImageUrl(part);
         if (imageUrl) {
-          return (
-            <img key={index} src={imageUrl} alt="" className="max-w-full rounded-xl" data-testid="message-image" />
-          );
+          return <MessageEmbed key={index} kind="image" title="" src={imageUrl} alt="" />;
         }
         const videoUrl = partVideoUrl(part);
         if (videoUrl) {
-          return (
-            <video key={index} src={videoUrl} controls className="max-w-full rounded-xl" data-testid="message-video" />
-          );
+          return <MessageEmbed key={index} kind="video" title="" src={videoUrl} />;
         }
         return null;
       })}
+    </div>
+  );
+}
+
+function UserPlain({ text }: { text: string }) {
+  const segments = splitUserFileBlocks(text);
+  if (segments.length === 1 && segments[0]?.type === "text") {
+    return <p className="whitespace-pre-wrap text-sm">{segments[0].text}</p>;
+  }
+  return (
+    <div className="space-y-2">
+      {segments.map((segment, index) =>
+        segment.type === "text" ? (
+          <p key={index} className="whitespace-pre-wrap text-sm">
+            {segment.text}
+          </p>
+        ) : (
+          <MessageEmbed key={index} kind="file" title={segment.name} body={segment.body} />
+        ),
+      )}
     </div>
   );
 }

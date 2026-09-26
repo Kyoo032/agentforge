@@ -3,7 +3,7 @@
 import type { CSSProperties } from "react";
 import { ChatKeyStatus } from "@/components/chat-key-status";
 import { FloatingShapes } from "@/components/floating-shapes";
-import { ModeIcon } from "@/components/mode-icons";
+import { PlaceholderMascot } from "@/components/placeholder-mascot";
 import { t } from "@/lib/i18n";
 import { useDeskNeedsKey } from "@/lib/use-desk-needs-key";
 
@@ -97,7 +97,7 @@ export function ChatLauncher({ onSuggest }: { onSuggest?: (text: string) => void
       <div className="hero-aurora enter-rise relative flex flex-col items-center px-6 py-8 text-center" data-mode="chat">
         <FloatingShapes layout="hero" />
         <span className="icon-orb icon-orb-lg icon-orb-solid tile-bounce relative" style={{ "--i": 1 } as CSSProperties}>
-          <ModeIcon name="chat" size={26} strokeWidth={2} />
+          <PlaceholderMascot state="idle" />
         </span>
         <h2
           className="enter-rise relative mt-4 font-heading text-[34px] font-bold leading-[var(--lh-tight)] tracking-[var(--track)] text-[var(--text)]"

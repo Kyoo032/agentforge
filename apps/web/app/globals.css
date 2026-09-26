@@ -1499,6 +1499,129 @@ aside nav > p {
   background: var(--ok);
 }
 
+
+/* Placeholder mascot. Art is a stand-in in components/placeholder-mascot.tsx.
+   Colour comes from the desk: the mode accent, the soft gradient, and the card lip.
+   Loops are named again under prefers-reduced-motion. */
+@keyframes chat-mascot-idle {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.72;
+  }
+}
+
+@keyframes chat-mascot-answer {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes chat-mascot-blink {
+  0%,
+  42%,
+  58%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.2;
+  }
+}
+
+@keyframes composer-send-ack {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.chat-mascot {
+  display: inline-flex;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  color: var(--mode, var(--accent));
+  background: var(--grad-soft);
+  border: 2px solid color-mix(in srgb, var(--mode, var(--accent)) 28%, var(--line));
+  border-radius: 14px;
+  box-shadow: var(--lip);
+}
+
+.chat-mascot svg {
+  width: 28px;
+  height: 28px;
+}
+
+.chat-mascot svg rect {
+  fill: var(--accent-soft);
+}
+
+.chat-mascot[data-state="error"] {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--line));
+}
+
+.chat-mascot[data-state="idle"] {
+  animation: chat-mascot-idle calc(var(--motion-4) * 8) var(--ease-out) infinite;
+}
+
+.chat-mascot[data-state="answering"] {
+  animation: chat-mascot-answer calc(var(--motion-4) * 3) var(--ease-out) infinite;
+}
+
+.chat-mascot[data-state="thinking"] .chat-mascot-eyes {
+  animation: chat-mascot-blink calc(var(--motion-4) * 4) var(--ease-out) infinite;
+}
+
+.icon-orb-solid .chat-mascot {
+  width: 32px;
+  height: 32px;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+.icon-orb-solid .chat-mascot svg rect {
+  fill: color-mix(in srgb, currentColor 18%, transparent);
+}
+
+.chat-mascot-mouth {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5px;
+  stroke-linecap: round;
+  opacity: 0;
+}
+
+.chat-mascot[data-state="idle"] .chat-mascot-mouth-idle,
+.chat-mascot[data-state="thinking"] .chat-mascot-mouth-think,
+.chat-mascot[data-state="answering"] .chat-mascot-mouth-answer,
+.chat-mascot[data-state="error"] .chat-mascot-mouth-error {
+  opacity: 1;
+}
+
+.composer-sending [data-testid="composer-send"] {
+  animation: composer-send-ack var(--motion-2) var(--ease-out);
+}
+
+.formatted-md a.chat-embed {
+  color: inherit;
+  text-decoration: none;
+}
+
 /* ===========================================================================
    Reduced motion. One block, and it is the last word on every rule above.
    Anyone who asked their OS to stop animations gets the end state at once:
@@ -1525,7 +1648,10 @@ aside nav > p {
   .float-shape,
   .float-shape-spin,
   .tile-bounce,
-  .page-enter {
+  .page-enter,
+  .chat-mascot[data-state="idle"],
+  .chat-mascot[data-state="answering"],
+  .chat-mascot[data-state="thinking"] .chat-mascot-eyes {
     animation: none !important;
   }
 
