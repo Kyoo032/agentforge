@@ -19,13 +19,21 @@ export function ChatAccountChip() {
     <div className="relative">
       <button
         type="button"
-        className="wash inline-flex h-8 items-center gap-1.5 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-2.5 text-xs font-medium text-[var(--text)] hover:bg-[var(--surface-2)]"
+        className="chip wash whitespace-nowrap font-medium"
         data-testid="chat-account"
         aria-expanded={open}
         aria-haspopup="dialog"
         onClick={() => setOpen((was) => !was)}
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          aria-hidden="true"
+        >
           <circle cx="12" cy="8" r="3.5" />
           <path d="M5 19.5c1.4-3 3.8-4.5 7-4.5s5.6 1.5 7 4.5" />
         </svg>
@@ -33,7 +41,7 @@ export function ChatAccountChip() {
       </button>
       {open ? (
         <div
-          className="absolute right-0 z-20 mt-1 min-w-40 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-2"
+          className="absolute right-0 z-20 mt-1 min-w-40 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-2 shadow-elev-2"
           role="dialog"
           aria-label={t("chat.account.label")}
         >
