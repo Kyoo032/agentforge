@@ -11,15 +11,13 @@ import {
 
 describe("extractJsonObject", () => {
   it("pulls the outer object from prose", () => {
-    expect(extractJsonObject('Here you go:\n{"title":"A","slides":[]}\n')).toBe(
-      '{"title":"A","slides":[]}',
-    );
+    expect(extractJsonObject('Here you go:\n{"title":"A","slides":[]}\n')).toBe('{"title":"A","slides":[]}');
   });
 
   it("strips markdown fences", () => {
-    expect(extractJsonObject('```json\n{"title":"B","slides":[{"heading":"H","bullets":[],"notes":""}]}\n```')).toContain(
-      '"title":"B"',
-    );
+    expect(
+      extractJsonObject('```json\n{"title":"B","slides":[{"heading":"H","bullets":[],"notes":""}]}\n```'),
+    ).toContain('"title":"B"');
   });
 
   it("fails when no object is present", () => {
@@ -47,8 +45,9 @@ describe("parsePresentationOutline", () => {
           bullets: ["Ship v1", "Measure adoption"],
           aside: "",
           notes: "Keep short",
+          shapes: [],
         },
-        { kind: "bullets", heading: "Next steps", subhead: "", bullets: ["Pilot"], aside: "", notes: "" },
+        { kind: "bullets", heading: "Next steps", subhead: "", bullets: ["Pilot"], aside: "", notes: "", shapes: [] },
       ],
     });
   });
@@ -60,7 +59,9 @@ describe("parsePresentationOutline", () => {
     });
     expect(parsePresentationOutline(raw)).toEqual({
       title: "Deck",
-      slides: [{ kind: "bullets", heading: "Only heading", subhead: "", bullets: [], aside: "", notes: "" }],
+      slides: [
+        { kind: "bullets", heading: "Only heading", subhead: "", bullets: [], aside: "", notes: "", shapes: [] },
+      ],
     });
   });
 
@@ -87,9 +88,9 @@ describe("parsePresentationOutlineBody", () => {
   });
 
   it("rejects missing title", () => {
-    expect(() =>
-      parsePresentationOutlineBody({ slides: [{ heading: "H", bullets: [], notes: "" }] }),
-    ).toThrow(ApiError);
+    expect(() => parsePresentationOutlineBody({ slides: [{ heading: "H", bullets: [], notes: "" }] })).toThrow(
+      ApiError,
+    );
   });
 });
 

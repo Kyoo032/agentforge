@@ -150,5 +150,13 @@
       "matter": "Matter"
     }
   },
-  "needsKeyQuiet": "Paste a key in Settings before this can run."
+  "needsKeyQuiet": "Paste a key in Settings before this can run.",
+  "check": "Check against source",
+  "checking": "Checking…",
+  "checkError": "Could not check the draft",
+  "sourceCheck": {
+    "empty": "Add source material first. There is nothing to check against.",
+    "supported": "Supported",
+    "unsupported": "Not in the source"
+  }
 }

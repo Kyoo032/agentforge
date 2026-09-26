@@ -318,6 +318,7 @@ export function AppRoutes() {
             <Route path="/music" element={null} />
             <Route path="/edit" element={null} />
             <Route path="/presentations" element={null} />
+            <Route path="/education" element={null} />
             <Route path="/legal" element={null} />
             <Route path="/meeting" element={null} />
             <Route

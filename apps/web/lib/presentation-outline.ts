@@ -3,6 +3,36 @@ import { ApiError } from "@agentforge/core/errors";
 
 export const presentationSlideKindSchema = z.enum(["section", "bullets", "split", "close"]);
 
+export const presentationShapeKindSchema = z.enum([
+  "rectangle",
+  "rounded",
+  "ellipse",
+  "triangle",
+  "line",
+  "arrow",
+  "star",
+  "callout",
+  "text",
+]);
+
+const shapeColor = z
+  .string()
+  .regex(/^[0-9A-Fa-f]{6}$/)
+  .catch("0F766E");
+
+/** Percent of the slide. The stage moves these; the PPTX writes the same boxes. */
+export const presentationShapeSchema = z.object({
+  id: z.string().min(1).max(40),
+  kind: presentationShapeKindSchema,
+  x: z.number().finite().min(0).max(100),
+  y: z.number().finite().min(0).max(100),
+  w: z.number().finite().min(1).max(100),
+  h: z.number().finite().min(1).max(100),
+  text: z.string().max(200).default(""),
+  fill: shapeColor.default("F7F7F6"),
+  stroke: shapeColor.default("0F766E"),
+});
+
 export const presentationSlideSchema = z.object({
   kind: presentationSlideKindSchema.catch("bullets").default("bullets"),
   heading: z.string().min(1),
@@ -10,7 +40,10 @@ export const presentationSlideSchema = z.object({
   bullets: z.array(z.string()).default([]),
   aside: z.string().default(""),
   notes: z.string().default(""),
+  shapes: z.array(presentationShapeSchema).max(24).default([]),
 });
+
+export type PresentationShape = z.infer<typeof presentationShapeSchema>;
 
 export const presentationOutlineSchema = z.object({
   title: z.string().min(1),
@@ -20,6 +53,8 @@ export const presentationOutlineSchema = z.object({
 export type PresentationSlideKind = z.infer<typeof presentationSlideKindSchema>;
 export type PresentationSlide = z.infer<typeof presentationSlideSchema>;
 export type PresentationOutline = z.infer<typeof presentationOutlineSchema>;
+/** What a starter may omit. `parsePresentationOutlineBody` fills the defaults. */
+export type PresentationOutlineInput = z.input<typeof presentationOutlineSchema>;
 
 function takeAside(slide: PresentationSlide): { bullets: string[]; aside: string } {
   if (slide.aside.trim()) {
@@ -35,13 +70,10 @@ function takeAside(slide: PresentationSlide): { bullets: string[]; aside: string
 }
 
 /** Layout even when the model only returned heading + bullets. */
-export function resolvePresentationSlideLayout(
-  slides: PresentationSlide[],
-  index: number,
-): PresentationSlide {
+export function resolvePresentationSlideLayout(slides: PresentationSlide[], index: number): PresentationSlide {
   const slide = slides[index];
   if (!slide) {
-    return { kind: "bullets", heading: "", subhead: "", bullets: [], aside: "", notes: "" };
+    return { kind: "bullets", heading: "", subhead: "", bullets: [], aside: "", notes: "", shapes: [] };
   }
   const mixed = slides.some((item) => item.kind !== "bullets");
   let kind: PresentationSlideKind = slide.kind;

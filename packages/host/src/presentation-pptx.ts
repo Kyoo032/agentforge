@@ -1,6 +1,10 @@
 import PptxGenJS from "pptxgenjs";
 import { resolvedProductName } from "@agentforge/core";
-import { resolvePresentationSlideLayout, type PresentationOutline } from "./presentation-outline";
+import {
+  resolvePresentationSlideLayout,
+  type PresentationOutline,
+  type PresentationSlide,
+} from "./presentation-outline";
 import { presentationKicker, presentationLocale, type PresentationLocale } from "./presentation-locale";
 
 type PptxSlide = ReturnType<PptxGenJS["addSlide"]>;
@@ -17,6 +21,61 @@ const COLORS = {
 } as const;
 
 const FONT = "Calibri";
+const SLIDE_W = 13.333;
+const SLIDE_H = 7.5;
+
+function hexColor(value: string, fallback: string): string {
+  return /^[0-9A-Fa-f]{6}$/.test(value) ? value.toUpperCase() : fallback;
+}
+
+/**
+ * Stage shapes, written as basic Office shapes in the same boxes.
+ * Not a master, a table, or a chart.
+ */
+function addOwnerShapes(pptx: PptxGenJS, slide: PptxSlide, shapes: PresentationSlide["shapes"]): void {
+  for (const shape of shapes) {
+    const x = (shape.x / 100) * SLIDE_W;
+    const y = (shape.y / 100) * SLIDE_H;
+    const w = Math.min((shape.w / 100) * SLIDE_W, SLIDE_W - x);
+    const h = Math.min((shape.h / 100) * SLIDE_H, SLIDE_H - y);
+    if (w <= 0 || h <= 0) {
+      continue;
+    }
+    const fill = hexColor(shape.fill, COLORS.bg);
+    const stroke = hexColor(shape.stroke, COLORS.accent);
+    const box = { x, y, w, h, fill: { color: fill }, line: { color: stroke, width: 1.5 } };
+    if (shape.kind === "rectangle") {
+      slide.addShape(pptx.ShapeType.rect, box);
+    } else if (shape.kind === "rounded") {
+      slide.addShape(pptx.ShapeType.roundRect, box);
+    } else if (shape.kind === "ellipse") {
+      slide.addShape(pptx.ShapeType.ellipse, box);
+    } else if (shape.kind === "triangle") {
+      slide.addShape(pptx.ShapeType.triangle, box);
+    } else if (shape.kind === "line") {
+      slide.addShape(pptx.ShapeType.line, { x, y, w, h, line: { color: stroke, width: 1.75 } });
+    } else if (shape.kind === "arrow") {
+      slide.addShape(pptx.ShapeType.rightArrow, box);
+    } else if (shape.kind === "star") {
+      slide.addShape(pptx.ShapeType.star5, box);
+    } else if (shape.kind === "callout") {
+      slide.addShape(pptx.ShapeType.wedgeRoundRectCallout, box);
+    }
+    if (shape.kind === "text" || shape.text.trim()) {
+      slide.addText(shape.text, {
+        x,
+        y,
+        w,
+        h,
+        fontSize: 14,
+        fontFace: FONT,
+        color: shape.kind === "text" ? stroke : COLORS.text,
+        valign: "middle",
+        align: "center",
+      });
+    }
+  }
+}
 
 function safeFilename(title: string): string {
   const base = title
@@ -163,6 +222,7 @@ function addContentSlide(
         color: COLORS.text2,
       });
     }
+    addOwnerShapes(pptx, slide, item.shapes);
     return;
   }
 
@@ -220,10 +280,12 @@ function addContentSlide(
       color: COLORS.text,
       valign: "middle",
     });
+    addOwnerShapes(pptx, slide, item.shapes);
     return;
   }
 
   addBulletBlock(slide, item.bullets, { x: 0.75, y: bodyY, w: 11.7, h: 5.2 });
+  addOwnerShapes(pptx, slide, item.shapes);
 }
 
 /** Build a PPTX ArrayBuffer from a validated outline. */

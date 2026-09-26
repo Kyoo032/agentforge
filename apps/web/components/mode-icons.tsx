@@ -14,6 +14,7 @@ export type ModeIconName =
   | "music"
   | "edit"
   | "presentations"
+  | "education"
   | "knowledge"
   | "channels"
   | "workspaces"
@@ -107,6 +108,12 @@ const PATHS: Record<ModeIconName, ReactNode> = {
       <path d="M2 3h20" />
       <path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3" />
       <path d="m7 21 5-5 5 5" />
+    </>
+  ),
+  education: (
+    <>
+      <path d="M22 10 12 5 2 10l10 5z" />
+      <path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5" />
     </>
   ),
   knowledge: (

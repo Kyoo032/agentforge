@@ -631,6 +631,10 @@ export {
 export type { StoredSecrets, SecretPatch, MaskedSecrets, KnowledgeBackendSetting } from "./secrets";
 export { APP_LOCALES, DEFAULT_APP_LOCALE, isAppLocale, parseAppLocale } from "./locale";
 export type { AppLocale } from "./locale";
+export { MODE_HARNESSES, harnessFor, wiredSkillIds } from "./harness/mode-skills";
+export type { HarnessSkill, HarnessSkillStatus, ModeHarness } from "./harness/mode-skills";
+export { checkDraftAgainstSource } from "./documents/source-check";
+export type { CheckableDraft, SourceCheck, SourceCheckItem } from "./documents/source-check";
 export {
   OUTPUT_LANGUAGE_SURFACES,
   outputLanguageRule,

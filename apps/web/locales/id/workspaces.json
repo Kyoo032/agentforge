@@ -40,7 +40,8 @@
     "edit": "Sunting",
     "meeting": "Rapat",
     "music": "Musik",
-    "presentations": "Presentasi"
+    "presentations": "Presentasi",
+    "education": "Pendidikan"
   },
   "template": {
     "general": "Umum",
@@ -55,7 +56,7 @@
   "templateDescription": {
     "general": "Semua tab kerja: chat, dokumen, riset, gambar, video, dan presentasi.",
     "organisation": "Ruang kerja lintas tim dengan setiap tab kerja.",
-    "students": "Meja belajar: chat, dokumen, riset, gambar, dan presentasi.",
+    "students": "Meja belajar: chat, dokumen, riset, gambar, presentasi, dan pendidikan.",
     "office": "Operasi harian: chat, dokumen, dan presentasi.",
     "legal": "Tinjauan perkara, memo, dan redline: chat, dokumen, riset, hukum, dan presentasi.",
     "sales": "Penjangkauan dan ruang transaksi: chat, dokumen, gambar, dan presentasi.",

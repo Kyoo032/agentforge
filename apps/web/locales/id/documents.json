@@ -150,5 +150,13 @@
       "matter": "Perkara"
     }
   },
-  "needsKeyQuiet": "Tempel kunci di Pengaturan sebelum ini bisa jalan."
+  "needsKeyQuiet": "Tempel kunci di Pengaturan sebelum ini bisa jalan.",
+  "check": "Periksa terhadap sumber",
+  "checking": "Memeriksa…",
+  "checkError": "Draf tidak dapat diperiksa",
+  "sourceCheck": {
+    "empty": "Tambahkan materi sumber dulu. Tidak ada yang dapat diperiksa.",
+    "supported": "Didukung",
+    "unsupported": "Tidak ada di sumber"
+  }
 }

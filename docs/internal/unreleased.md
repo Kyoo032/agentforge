@@ -511,7 +511,20 @@ Renderer only, both products. The host still decides the gate; the desk only dis
 
 ## Placeholder mascot on every job desk, 2026-09-26 (PR #106, not packed)
 
-Renderer only, both products. One placeholder character, states as data in `apps/web/lib/mascot-states.ts`. `MascotSlot` is the placement: `empty` on an unused desk, `beside` a running job. `job.phase` / `job.step` ids the host already emits pick the pose; an unknown id uses that desk's home pose. A finished job celebrates; a failed one looks unsure. An empty desk waves, then settles, and sleeps after a long idle. Motion is transform and opacity only, and `prefers-reduced-motion` holds a still pose. Labels are in `common.mascot` for `en` and `id`. Education has no desk of its own; it shares the presenting pose (`?mascotMode=education`).
+Renderer only, both products. One placeholder character, states as data in `apps/web/lib/mascot-states.ts`. `MascotSlot` is the placement: `empty` on an unused desk, `beside` a running job. `job.phase` / `job.step` ids the host already emits pick the pose; an unknown id uses that desk's home pose. A finished job celebrates; a failed one looks unsure. An empty desk waves, then settles, and sleeps after a long idle. Motion is transform and opacity only, and `prefers-reduced-motion` holds a still pose. Labels are in `common.mascot` for `en` and `id`. Education uses the presenting pose (`?mascotMode=education`).
 
 A markdown image in a Chat reply (`![alt](url)`) is an image card. A remote source is not fetched; the card is the link the reader opens. A normal link to a `.png` stays a file card.
+
+## After 0.15.0 — mode harnesses, presentation edit, education
+
+Not packed. Webdev and unit tests only. Personal and Enterprise share the renderer, so the new Education tab and the presentation editor land on both. Packaging, the installer version, and the hosted image are unchanged.
+
+- **One harness per mode** is registered in `packages/core/src/harness/mode-skills.ts`. Skills the pipelines already had stay `has`. Music “speak the text” stays `off`. Nothing in those pipelines was rebuilt.
+- **Wired now:** Documents check-against-source (`POST /api/v1/documents/check`), a Presentation stage (filmstrip, properties, direct text, nine draggable shapes written into the PPTX), and the five Education skills (lesson on that same stage, an exam sheet, local page reading, a presenter stage).
+- **Still not a canvas:** no pen, tables, charts, masters, grouping, rotation, or multi-select. Lesson, exam, and presenter do not call a model. The presenter writes no video and no audio.
+- **Shape keys:** on the shared stage, Delete removes the selected shape, arrow keys nudge it (Shift moves farther), and Duplicate copies it. The copy is saved with the deck and exported in the PPTX.
+- **Desk fit:** Education opens with the mode header and the education illustration. The slide stage accent follows the mode colour. Presentation starters stay the Saturday-pickup sample.
+- **Decks** save as JSON under the data dir (`presentation-decks/`). Reload does not auto-open one.
+- **Local page reading** is a bitmap face in `packages/university`. A scan is not sent to a hosted reader. Knowledge’s `needs_ocr` refusal is unchanged.
+- **en and id** catalogs cover the new chrome. Lesson, exam, and presenter copy follow the boot locale.
 

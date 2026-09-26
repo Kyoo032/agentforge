@@ -10,6 +10,7 @@ export const OUTPUT_LANGUAGE_SURFACES = [
   "edit",
   "knowledge",
   "meeting",
+  "education",
 ] as const;
 
 export type OutputLanguageSurface = (typeof OUTPUT_LANGUAGE_SURFACES)[number];
@@ -55,6 +56,10 @@ const RULE: Record<OutputLanguageSurface, Record<AppLocale, string>> = {
     en: "Write overview, topic titles, topic summaries, gap notes, and verifier notes in English. Keep JSON keys, source ids, and verbatim excerpts unchanged.",
     id: "Tulis overview, judul topik, ringkasan, catatan celah, dan catatan verifier dalam Bahasa Indonesia profesional. Pertahankan kunci JSON, id sumber, dan kutipan verbatim.",
   },
+  education: {
+    en: "Write every lesson title, slide heading, exam prompt, citation label, subtitle cue, and dub line in English. Keep JSON keys in English.",
+    id: "Tulis setiap judul pelajaran, heading slide, prompt ujian, label kutipan, teks subtitle, dan baris sulih suara dalam Bahasa Indonesia profesional (sapaan Anda). Kunci JSON tetap bahasa Inggris.",
+  },
 };
 
 const EDIT_STUB: Record<AppLocale, { help: string; undo: string }> = {
@@ -73,11 +78,7 @@ export function outputLanguageRule(surface: OutputLanguageSurface, locale: AppLo
 }
 
 /** Append the surface language rule once. Does not rewrite the stored user prompt. */
-export function withOutputLanguage(
-  prompt: string,
-  surface: OutputLanguageSurface,
-  locale: AppLocale,
-): string {
+export function withOutputLanguage(prompt: string, surface: OutputLanguageSurface, locale: AppLocale): string {
   const rule = outputLanguageRule(surface, locale);
   if (prompt.includes(rule)) {
     return prompt;

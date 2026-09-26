@@ -13,6 +13,7 @@ describe("agent packs", () => {
       "research",
       "images",
       "presentations",
+      "education",
     ]);
     expect(universityTemplates[0]?.productModes).not.toContain("videos");
     expect(universityTemplates[0]?.productModes).not.toContain("agents");
