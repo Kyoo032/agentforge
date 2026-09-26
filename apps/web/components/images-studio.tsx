@@ -42,7 +42,6 @@ type GalleryResponse = {
   items: GalleryItem[];
   models: StudioModel[];
   defaultModel: string;
-  ready: boolean;
 };
 
 const ASPECTS = ["square", "landscape", "portrait"] as const;
@@ -54,7 +53,6 @@ export function ImagesStudio() {
   const [model, setModel] = useState("");
   const [aspect, setAspect] = useState<(typeof ASPECTS)[number]>("square");
   const [prompt, setPrompt] = useState("");
-  const [ready, setReady] = useState(true);
   const needsKey = useDeskNeedsKey();
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -71,17 +69,14 @@ export function ImagesStudio() {
       };
       if (!response.ok) {
         setError(data.error?.message ?? t("images.loadError"));
-        setReady(false);
         return;
       }
       setItems(data.items ?? []);
       setModels(data.models ?? []);
       // `load` runs again after every generate: keep the model the person chose while it is still listed.
       setModel((current) => keepModelChoice(current, data.models ?? [], data.defaultModel));
-      setReady(Boolean(data.ready));
     } catch (err) {
       setError(err instanceof Error ? err.message : t("images.loadError"));
-      setReady(false);
     } finally {
       setLoading(false);
     }
@@ -220,7 +215,7 @@ export function ImagesStudio() {
           >
             {generating ? <WorkingStatus label={t("images.generating")} /> : t("images.generate")}
           </button>
-          {!ready && !loading ? (
+          {needsKey && !loading ? (
             <p className="basis-full text-xs text-[var(--text-3)]" data-testid="images-studio-needs-key">
               <SettingsLinkHint i18nKey="images.needsKey" vars={{ gateway: gatewayName }} />
             </p>
