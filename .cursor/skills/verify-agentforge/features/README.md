@@ -75,8 +75,8 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 - [Meeting](./meeting.md) — recording → transcript → minutes → EN/ID translation (`mode-meeting`). Create, upload, paste and the in-browser recorder's controls work without a key; only the run reaches the gateway. A **granted microphone** needs a real Chrome window and is still unverified.
 - [Music](./music.md) — studio shell and `music-studio-needs-key` without a key; describe-or-lyrics brief, two takes per charge, voice-over reported unavailable rather than offered.
 - [Edit](./edit.md) — CapCut-style timeline + agent panel (`mode-edit`), shipped in 0.14.22. Storyboard generate is still a Phase 3 placeholder and `animate_storyboard` is backend-only.
-- [Presentation](./presentations.md) — starters, text edit, rectangle/ellipse/text marks, save and reopen a deck, slide regen (503 without a key), PPTX download from a starter.
-- [Education](./education.md) — lesson deck on the same editor, exam from the knowledge base, local page reading, presenter plan. No gateway key.
+- [Presentation](./presentations.md) — slide stage: filmstrip, nine shapes, nudge / duplicate / delete, title / heading / bullets on the slide, PPTX from a starter. Regen is 503 without a key.
+- [Education](./education.md) — lesson on that stage, an exam sheet, and a presenter stage. Local page reading. No gateway key.
 - [Desktop](./desktop.md) — Electron one-window launch, splash → Chat, IPC host (no loopback HTTP). Windows NSIS exists; mac/linux are builder targets.
 - [Desktop brands](./desktop-brands.md) — packaged Kemenkeu AI / AIHub Metranet vs public DPSBuddy. Rail `product-brand` + `product-logo` must match the installed flavor, not leftover DPSBuddy copy.
 - [Mobile](./mobile.md) — docs only. No iOS/Android build, no stores, no Capacitor. A phone on LAN `:3000` is not a product surface.

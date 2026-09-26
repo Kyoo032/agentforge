@@ -24,10 +24,10 @@ Preconditions:
 - Stub runtime. Do not generate a Presentation or a Document as a stand-in.
 
 - **Open Education.** Click `mode-education`. URL matches `/education`. `education-studio` and `education-tab-lesson` are visible.
-- **Lesson.** Type a topic in `education-lesson-topic` and click `education-lesson-draft`. `presentations-editor` appears. Open a content slide from the filmstrip, change `presentations-edit-heading`, and click `presentations-add-ellipse`. Click `education-save-deck`.
-- **Exam.** Click `education-tab-exam`, then `education-exam-generate`. `education-exam-sheet` shows at least one `education-exam-item` with choices, including when the desk has no indexed source.
+- **Lesson.** Type a topic in `education-lesson-topic` and click `education-lesson-draft`. `presentations-editor` and `presentations-filmstrip` appear. Open a content slide, change `presentations-edit-heading`, and click `presentations-add-ellipse`. ArrowRight nudges it. `presentations-shape-duplicate` copies it. Delete removes the copy. Click `education-save-deck`.
+- **Exam.** Click `education-tab-exam`, then `education-exam-generate`. `education-exam-sheet` shows at least one numbered `education-exam-item`, lettered `education-exam-choice` rows, and `education-exam-answer`, including when the desk has no indexed source.
 - **Book.** Click `education-tab-book`. Set `education-book-file` to a PNG page drawn by the local face (the letters `LOCAL PAGE SCAN`) and click `education-book-read`. `education-book-text` contains those letters. A `.txt` file stays on the page with a local message and no outbound reader.
-- **Presenter.** Return to the lesson tab if the deck is gone, draft again, then click `education-presenter-build`. `education-presenter-stage` shows the avatar, one subtitle line, and `education-presenter-dub`. There is no video file.
+- **Presenter.** With the lesson deck still open, click `education-tab-presenter`, then `education-presenter-build`. `education-presenter-stage` shows `education-presenter-avatar` at its recorded position, one `education-presenter-cue`, and `education-presenter-dub`. There is no video file.
 - **Locale (id).** With the desk on `id`, the rail reads `Pendidikan` and the lesson title uses `Pelajaran`. Testids do not move.
 
 ## Gotchas
