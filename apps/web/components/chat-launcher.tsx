@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { ChatKeyStatus } from "@/components/chat-key-status";
+import { FloatingShapes } from "@/components/floating-shapes";
 import { ModeIcon } from "@/components/mode-icons";
 import { t } from "@/lib/i18n";
 
@@ -90,17 +91,18 @@ export function ChatLauncher({ onSuggest }: { onSuggest?: (text: string) => void
       className="mx-auto flex min-h-full w-full max-w-[var(--content-max)] flex-col justify-center py-10"
       data-testid="chat-empty"
     >
-      <div className="hero-aurora enter-rise flex flex-col items-center px-6 py-10 text-center" data-mode="chat">
-        <span className="icon-orb icon-orb-lg icon-orb-solid enter-pop" style={{ "--i": 1 } as CSSProperties}>
+      <div className="hero-aurora enter-rise relative flex flex-col items-center px-6 py-12 text-center" data-mode="chat">
+        <FloatingShapes layout="hero" />
+        <span className="icon-orb icon-orb-lg icon-orb-solid tile-bounce relative" style={{ "--i": 1 } as CSSProperties}>
           <ModeIcon name="chat" size={26} strokeWidth={2} />
         </span>
         <h2
-          className="enter-rise mt-4 font-heading text-[34px] font-bold leading-[var(--lh-tight)] tracking-[var(--track)] text-[var(--text)]"
+          className="enter-rise relative mt-4 font-heading text-[34px] font-bold leading-[var(--lh-tight)] tracking-[var(--track)] text-[var(--text)]"
           style={{ "--i": 2 } as CSSProperties}
         >
           <span className="text-gradient">{t("chat.empty.headline")}</span>
         </h2>
-        <div className="enter-fade" style={{ "--i": 3 } as CSSProperties}>
+        <div className="enter-fade relative" style={{ "--i": 3 } as CSSProperties}>
           <ChatKeyStatus />
         </div>
       </div>

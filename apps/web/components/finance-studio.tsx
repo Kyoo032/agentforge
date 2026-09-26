@@ -356,7 +356,7 @@ export function FinanceStudio() {
                 className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center text-[var(--text-2)]"
                 data-testid="finance-studio-empty"
               >
-                <span className="icon-orb icon-orb-lg mx-auto">
+                <span className="icon-orb icon-orb-lg icon-float mx-auto">
                   <ModeIcon name="finance" size={24} strokeWidth={1.75} />
                 </span>
                 <p className="mt-4 font-medium text-[var(--text)]">{t("finance.emptyOutcome")}</p>

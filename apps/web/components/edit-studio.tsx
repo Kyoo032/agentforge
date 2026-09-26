@@ -776,7 +776,7 @@ export function EditStudio() {
           </div>
           <aside className="w-[280px] border-l border-[var(--line)]" data-testid="edit-agent-panel">
             <div className="flex flex-col items-center px-4 py-8 text-center">
-              <span className="icon-orb icon-orb-lg">
+              <span className="icon-orb icon-orb-lg icon-float">
                 <ModeIcon name="edit" size={24} strokeWidth={1.75} />
               </span>
               <p className="mt-4 text-xs text-[var(--text-3)]">{t("edit.openProjectHint")}</p>

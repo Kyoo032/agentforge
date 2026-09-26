@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
+import { FloatingShapes } from "@/components/floating-shapes";
 import { ModeIcon, type ModeIconName } from "@/components/mode-icons";
 
 /**
@@ -23,10 +24,15 @@ export function ModeHeader({
   outcomeTestId?: string;
 }) {
   return (
-    <header className="flex flex-wrap items-end justify-between gap-4" data-testid="mode-header" data-mode={icon}>
-      <div className="enter-rise flex min-w-0 items-start gap-4">
-        <span className="icon-orb icon-orb-lg icon-orb-solid enter-pop">
-          <ModeIcon name={icon} size={24} strokeWidth={1.75} />
+    <header
+      className="relative flex flex-wrap items-end justify-between gap-4 pb-2"
+      data-testid="mode-header"
+      data-mode={icon}
+    >
+      <FloatingShapes layout="header" className="hidden lg:block" style={{ left: "auto", width: "min(30%, 320px)" }} />
+      <div className="enter-rise relative flex min-w-0 items-start gap-4">
+        <span className="icon-orb icon-orb-lg icon-orb-solid tile-bounce">
+          <ModeIcon name={icon} size={26} strokeWidth={2} />
         </span>
         <div className="min-w-0">
           <h1 className="font-heading text-[length:var(--fs-24)] font-bold leading-[var(--lh-tight)] tracking-[var(--track)] text-[var(--text)]">
@@ -41,7 +47,7 @@ export function ModeHeader({
         </div>
       </div>
       {actions ? (
-        <div className="enter-fade flex flex-wrap items-center gap-2" style={{ "--i": 2 } as CSSProperties}>
+        <div className="enter-fade relative flex flex-wrap items-center gap-2" style={{ "--i": 2 } as CSSProperties}>
           {actions}
         </div>
       ) : null}

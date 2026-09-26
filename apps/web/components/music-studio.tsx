@@ -422,7 +422,7 @@ export function MusicStudio() {
             className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center"
             data-testid="music-studio-empty"
           >
-            <span className="icon-orb icon-orb-lg mx-auto">
+            <span className="icon-orb icon-orb-lg icon-float mx-auto">
               <ModeIcon name="music" size={24} strokeWidth={1.75} />
             </span>
             <p className="mt-4 text-sm font-medium text-[var(--text)]">{t("music.emptyTitle")}</p>

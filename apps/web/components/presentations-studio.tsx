@@ -225,7 +225,7 @@ export function PresentationsStudio() {
             className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10"
             data-testid="presentations-studio-empty"
           >
-            <span className="icon-orb icon-orb-lg mx-auto">
+            <span className="icon-orb icon-orb-lg icon-float mx-auto">
               <ModeIcon name="presentations" size={24} strokeWidth={1.75} />
             </span>
             <p className="mt-4 text-center text-sm font-medium text-[var(--text)]">{t("presentation.emptyTitle")}</p>

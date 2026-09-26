@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { ProductMode } from "@agentforge/core/product-modes";
 import { AppRail } from "@/components/app-rail";
 import { ModeRedirect } from "@/components/mode-redirect";
+import { usePathname } from "@/lib/nav";
 
 type Props = {
   workspaceName: string;
@@ -22,12 +23,17 @@ export function productMonogram(name: string): string {
 }
 
 export function AppShell({ workspaceName, visibleModes, children }: Props) {
+  const pathname = usePathname();
   return (
     <div className="flex h-screen bg-app text-inkbase">
       <ModeRedirect visibleModes={visibleModes} />
       <AppRail workspaceName={workspaceName} visibleModes={visibleModes} />
       <div className="desk-canvas flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden" data-testid="app-main-panel">
-        <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+        {/* Keyed on the route so each page plays its entrance; query changes (a chat thread, a
+            finance task) keep the same key and do not remount. */}
+        <div key={pathname} className="page-enter min-h-0 flex-1 overflow-y-auto">
+          {children}
+        </div>
       </div>
     </div>
   );

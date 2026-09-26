@@ -183,6 +183,13 @@
   /* Ambient loops: the hero glow drifts, the thinking dots breathe. */
   --motion-ambient: 18s;
   --motion-pulse: 1400ms;
+  /* Playful desk: a longer spring entrance, the float loop, the dot-grid drift and the wiggle. */
+  --motion-5: 560ms;
+  --motion-bob: 4200ms;
+  --motion-drift: 16s;
+  --motion-wiggle: 560ms;
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-linear: linear;
 
   /* The compound aliases the rules below read. All four stay on step 1, the 120ms the warm desk
      shipped with; only the curve moved from `ease` to the scale's `--ease-out`. */
@@ -731,10 +738,62 @@ h6 {
    desk were the same plane. `overflow-hidden` clips the panel's own children, so the radius has
    to be set here rather than on an inner wrapper. */
 .desk-canvas {
+  position: relative;
+  isolation: isolate;
   background-color: var(--surface);
   box-shadow: var(--shadow-float);
   border-radius: var(--r-card);
   margin: 8px;
+}
+
+/* The desk's backdrop takes the colour of the mode on screen: a wash at the top and a dot grid
+   that fades out down the page and drifts one tile at a time. Both sit behind the content. */
+.desk-canvas:has(main[data-mode="chat"]) { --page-mode: var(--mode-chat); }
+.desk-canvas:has(main[data-mode="documents"]) { --page-mode: var(--mode-documents); }
+.desk-canvas:has(main[data-mode="research"]) { --page-mode: var(--mode-research); }
+.desk-canvas:has(main[data-mode="finance"]) { --page-mode: var(--mode-finance); }
+.desk-canvas:has(main[data-mode="data"]) { --page-mode: var(--mode-data); }
+.desk-canvas:has(main[data-mode="market"]) { --page-mode: var(--mode-market); }
+.desk-canvas:has(main[data-mode="legal"]) { --page-mode: var(--mode-legal); }
+.desk-canvas:has(main[data-mode="meeting"]) { --page-mode: var(--mode-meeting); }
+.desk-canvas:has(main[data-mode="images"]) { --page-mode: var(--mode-images); }
+.desk-canvas:has(main[data-mode="videos"]) { --page-mode: var(--mode-videos); }
+.desk-canvas:has(main[data-mode="music"]) { --page-mode: var(--mode-music); }
+.desk-canvas:has(main[data-mode="edit"]) { --page-mode: var(--mode-edit); }
+.desk-canvas:has(main[data-mode="presentations"]) { --page-mode: var(--mode-presentations); }
+.desk-canvas:has(main[data-mode="knowledge"]) { --page-mode: var(--mode-knowledge); }
+.desk-canvas:has(main[data-mode="channels"]) { --page-mode: var(--mode-channels); }
+.desk-canvas:has(main[data-mode="workspaces"]) { --page-mode: var(--mode-workspaces); }
+.desk-canvas:has(main[data-mode="usage"]) { --page-mode: var(--mode-usage); }
+.desk-canvas:has(main[data-mode="settings"]) { --page-mode: var(--mode-settings); }
+
+.desk-canvas::before,
+.desk-canvas::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.desk-canvas::after {
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--page-mode, var(--accent)) 11%, var(--surface)) 0, var(--surface) 360px);
+}
+
+.desk-canvas::before {
+  z-index: 0;
+  inset: -24px 0 0;
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--page-mode, var(--accent)) 30%, transparent) 1.3px, transparent 1.8px);
+  background-size: 24px 24px;
+  -webkit-mask-image: linear-gradient(180deg, #000 0, transparent 460px);
+  mask-image: linear-gradient(180deg, #000 0, transparent 460px);
+  animation: nx-dots var(--motion-drift) var(--ease-linear) infinite;
+}
+
+.desk-canvas > * {
+  position: relative;
+  z-index: 1;
 }
 
 [data-testid="product-brand"] {
@@ -887,7 +946,7 @@ aside nav > p {
 @keyframes nx-rise {
   0% {
     opacity: 0;
-    translate: 0 12px;
+    translate: 0 22px;
   }
   100% {
     opacity: 1;
@@ -907,7 +966,7 @@ aside nav > p {
 @keyframes nx-pop {
   0% {
     opacity: 0;
-    scale: 0.94;
+    scale: 0.6;
   }
   100% {
     opacity: 1;
@@ -956,6 +1015,169 @@ aside nav > p {
   }
 }
 
+@keyframes nx-dots {
+  0% {
+    translate: 0 0;
+  }
+  100% {
+    translate: 0 24px;
+  }
+}
+
+@keyframes nx-bob {
+  0% {
+    translate: 0 0;
+    rotate: 0deg;
+  }
+  50% {
+    translate: 0 -16px;
+    rotate: 14deg;
+  }
+  100% {
+    translate: 0 0;
+    rotate: 0deg;
+  }
+}
+
+@keyframes nx-spin {
+  0% {
+    rotate: 0deg;
+  }
+  100% {
+    rotate: 360deg;
+  }
+}
+
+@keyframes nx-wiggle {
+  0% {
+    rotate: 0deg;
+    scale: 1;
+  }
+  25% {
+    rotate: -14deg;
+    scale: 1.2;
+  }
+  50% {
+    rotate: 10deg;
+    scale: 1.2;
+  }
+  75% {
+    rotate: -4deg;
+    scale: 1.05;
+  }
+  100% {
+    rotate: 0deg;
+    scale: 1;
+  }
+}
+
+@keyframes nx-bounce-in {
+  0% {
+    opacity: 0;
+    scale: 0.3;
+    rotate: -20deg;
+  }
+  55% {
+    opacity: 1;
+    scale: 1.15;
+    rotate: 6deg;
+  }
+  75% {
+    scale: 0.94;
+    rotate: -2deg;
+  }
+  100% {
+    opacity: 1;
+    scale: 1;
+    rotate: 0deg;
+  }
+}
+
+@keyframes nx-page {
+  0% {
+    opacity: 0;
+    translate: 0 32px;
+    scale: 0.97;
+  }
+  100% {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+}
+
+/* Every route arrives: `AppShell` keys its scroller on the pathname. */
+.page-enter {
+  animation: nx-page var(--motion-5) var(--ease-spring) both;
+}
+
+/* The header tile bounces in once, then wiggles whenever its header or card is hovered. */
+.tile-bounce {
+  animation: nx-bounce-in var(--motion-5) var(--ease-spring) both;
+}
+
+.card-live:hover .icon-orb,
+.hover-wiggle:hover .icon-orb,
+.hover-wiggle:hover [data-tile],
+[data-testid="mode-header"]:hover .icon-orb {
+  animation: nx-wiggle var(--motion-wiggle) var(--ease-out);
+}
+
+/* A rail tile pops the moment its row becomes the current page. */
+[aria-current="page"] [data-tile] {
+  animation: nx-bounce-in var(--motion-5) var(--ease-spring);
+}
+
+/* Empty-state tiles float so an empty page still breathes. */
+.icon-float {
+  animation: nx-bob var(--motion-bob) var(--ease-wave) infinite;
+}
+
+/* Decorative shapes around heroes and headers (`FloatingShapes`). */
+.float-shapes {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.float-shape {
+  --i: 0;
+  position: absolute;
+  animation:
+    nx-pop var(--motion-5) var(--ease-spring) both,
+    nx-bob var(--motion-bob) var(--ease-wave) infinite;
+  animation-delay: calc(var(--i) * var(--motion-stagger) + var(--motion-3)), calc(var(--i) * var(--motion-stagger) * -9);
+}
+
+.float-shape-spin {
+  animation:
+    nx-pop var(--motion-5) var(--ease-spring) both,
+    nx-spin var(--motion-ambient) var(--ease-linear) infinite;
+}
+
+/* A light sweep across primary buttons on hover. */
+.btn-primary {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.btn-primary::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(110deg, transparent 30%, color-mix(in srgb, #ffffff 38%, transparent) 50%, transparent 70%);
+  translate: -120% 0;
+  transition: translate var(--motion-5) var(--ease-out);
+}
+
+.btn-primary:hover:not(:disabled)::after {
+  translate: 120% 0;
+}
+
 /* Entrances. Set `style={{ "--i": n }}` on a sibling to stagger it; `--i` defaults to 0. */
 .enter-rise,
 .enter-fade,
@@ -968,8 +1190,8 @@ aside nav > p {
 
 .enter-rise {
   animation-name: nx-rise;
-  animation-duration: var(--motion-4);
-  animation-timing-function: var(--ease-entrance);
+  animation-duration: var(--motion-5);
+  animation-timing-function: var(--ease-spring);
 }
 
 .enter-fade {
@@ -980,8 +1202,8 @@ aside nav > p {
 
 .enter-pop {
   animation-name: nx-pop;
-  animation-duration: var(--motion-3);
-  animation-timing-function: var(--ease-entrance);
+  animation-duration: var(--motion-5);
+  animation-timing-function: var(--ease-spring);
 }
 
 .enter-slide {
@@ -1031,8 +1253,8 @@ aside nav > p {
 
 .card-live:hover,
 .card-live:focus-visible {
-  translate: 0 -2px;
-  box-shadow: 0 5px 0 color-mix(in srgb, var(--mode, var(--accent)) 35%, var(--line));
+  translate: 0 -4px;
+  box-shadow: 0 7px 0 color-mix(in srgb, var(--mode, var(--accent)) 40%, var(--line));
   border-color: color-mix(in srgb, var(--mode, var(--accent)) 45%, var(--line));
 }
 
@@ -1151,8 +1373,18 @@ aside nav > p {
     scroll-behavior: auto !important;
   }
 
-  .pulse-dots > span {
+  .pulse-dots > span,
+  .desk-canvas::before,
+  .icon-float,
+  .float-shape,
+  .float-shape-spin,
+  .tile-bounce,
+  .page-enter {
     animation: none !important;
+  }
+
+  .btn-primary::after {
+    display: none;
   }
 
   .card-live:hover,

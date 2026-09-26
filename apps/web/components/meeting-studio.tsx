@@ -705,7 +705,7 @@ export function MeetingStudio() {
         <aside className="space-y-1" data-testid="meeting-list">
           {meetings.length === 0 ? (
             <div className="px-2 py-6 text-center">
-              <span className="icon-orb icon-orb-lg mx-auto">
+              <span className="icon-orb icon-orb-lg icon-float mx-auto">
                 <ModeIcon name="meeting" size={24} strokeWidth={1.75} />
               </span>
               <p className="mt-4 text-sm text-[var(--text-2)]" data-testid="meeting-empty">
@@ -914,7 +914,7 @@ export function MeetingStudio() {
             </>
           ) : (
             <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center">
-              <span className="icon-orb icon-orb-lg mx-auto">
+              <span className="icon-orb icon-orb-lg icon-float mx-auto">
                 <ModeIcon name="meeting" size={24} strokeWidth={1.75} />
               </span>
               <p className="mt-4 text-sm text-[var(--text-2)]">{t("meeting.emptyDetail")}</p>

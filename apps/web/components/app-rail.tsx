@@ -70,7 +70,7 @@ function RailItem({
   return (
     <Link
       href={href}
-      className={`enter-slide flex h-8 shrink-0 items-center gap-2 rounded-md px-2 text-sm tracking-[var(--track)] ${rowTone} ${
+      className={`enter-slide hover-wiggle flex h-8 shrink-0 items-center gap-2 rounded-md px-2 text-sm tracking-[var(--track)] ${rowTone} ${
         collapsed ? "justify-center" : ""
       }`}
       style={{ "--i": index } as CSSProperties}
@@ -80,7 +80,7 @@ function RailItem({
       data-testid={testId}
       data-mode={icon}
     >
-      <span className={`transition-colors inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${tileTone}`}>
+      <span data-tile className={`transition-colors inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${tileTone}`}>
         <ModeIcon name={icon} strokeWidth={2} />
       </span>
       {collapsed ? null : <span className="truncate font-medium">{label}</span>}

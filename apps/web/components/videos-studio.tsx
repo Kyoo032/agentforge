@@ -347,7 +347,7 @@ export function VideosStudio() {
             className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center"
             data-testid="videos-studio-empty"
           >
-            <span className="icon-orb icon-orb-lg mx-auto">
+            <span className="icon-orb icon-orb-lg icon-float mx-auto">
               <ModeIcon name="videos" size={24} strokeWidth={1.75} />
             </span>
             <p className="mt-4 text-sm font-medium text-[var(--text)]">{t("videos.emptyTitle")}</p>
