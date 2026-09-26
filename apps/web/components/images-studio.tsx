@@ -15,6 +15,7 @@ import { imageEstimateView, mediaPriceHints } from "@/lib/media-estimate";
 import { keepModelChoice } from "@/lib/model-choice";
 import { apiFetch, mediaSrc } from "@/lib/api-client";
 import { useProductBrand } from "@/lib/product-brand";
+import { useDeskNeedsKey } from "@/lib/use-desk-needs-key";
 
 type StudioModel = {
   id: string;
@@ -53,6 +54,7 @@ export function ImagesStudio() {
   const [aspect, setAspect] = useState<(typeof ASPECTS)[number]>("square");
   const [prompt, setPrompt] = useState("");
   const [ready, setReady] = useState(true);
+  const needsKey = useDeskNeedsKey();
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [landed, setLanded] = useState(0);
@@ -97,7 +99,7 @@ export function ImagesStudio() {
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!prompt.trim() || generating || !ready) {
+    if (!prompt.trim() || generating || needsKey) {
       return;
     }
     setGenerating(true);
@@ -206,12 +208,12 @@ export function ImagesStudio() {
           <button
             type="submit"
             className={
-              ready
-                ? "btn btn-primary h-8 shrink-0 rounded-pill px-4"
-                : "inline-flex h-8 shrink-0 items-center rounded-pill bg-[var(--line)] px-4 text-sm text-[var(--text-3)]"
+              needsKey
+                ? "inline-flex h-8 shrink-0 items-center rounded-pill bg-[var(--line)] px-4 text-sm text-[var(--text-3)]"
+                : "btn btn-primary h-8 shrink-0 rounded-pill px-4"
             }
-            disabled={generating || !prompt.trim() || !ready}
-            title={ready ? undefined : t("images.needsKey", { gateway: gatewayName, settings: t("rail.settings") })}
+            disabled={generating || !prompt.trim() || needsKey}
+            title={needsKey ? t("images.needsKey", { gateway: gatewayName, settings: t("rail.settings") }) : undefined}
             data-testid="images-studio-submit"
           >
             {generating ? <WorkingStatus label={t("images.generating")} /> : t("images.generate")}

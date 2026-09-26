@@ -5,14 +5,12 @@ import { apiFetch } from "@/lib/api-client";
 import { parseGatewayGate, type GatewayGatePayload } from "@/lib/gateway-gate";
 
 /**
- * The host already decided. Stub stays `allowed` so the desk opens, and it is
- * also the no-key runtime: a send from here cannot get a live answer. A closed
- * gate (`allowed: false`) is the same for the controls. This does not look at
- * key shape.
+ * The host already decided. Quiet Send and Generate only when `allowed` is
+ * false. Stub reports `allowed: true` so Cloud and Playwright still send.
+ * This does not look at status or key shape.
  */
 export function hostWithholdsLiveModel(gate: GatewayGatePayload | null | undefined): boolean {
   if (!gate) return false;
-  if (gate.status === "stub") return true;
   return gate.allowed === false;
 }
 

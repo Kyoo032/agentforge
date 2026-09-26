@@ -126,7 +126,7 @@ describe("chat session", () => {
   });
 
   it("keeps send quiet only while busy, enhancing, empty, or the host withholds a live model", () => {
-    // needsKey is the host gate (stub, or allowed false). It is not a key-shape check.
+    // needsKey is the host gate (`allowed` false). Stub stays allowed, so it still sends.
     // A desk the host has opened still sends, and the thread fallback still carries that send.
     const composer = source("components/chat-composer.tsx");
     expect(composer).toContain("const sendDisabled = busy || enhancing || sendEmpty || needsKey;");
