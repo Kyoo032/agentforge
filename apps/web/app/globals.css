@@ -190,6 +190,7 @@
   --motion-wiggle: 560ms;
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-linear: linear;
+  --motion-confetti: 1100ms;
 
   /* The compound aliases the rules below read. All four stay on step 1, the 120ms the warm desk
      shipped with; only the curve moved from `ease` to the scale's `--ease-out`. */
@@ -1178,6 +1179,44 @@ aside nav > p {
   translate: 120% 0;
 }
 
+@keyframes nx-confetti {
+  0% {
+    opacity: 1;
+    translate: 0 0;
+    rotate: 0deg;
+    scale: 0.4;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    translate: var(--x) var(--y);
+    rotate: var(--r);
+    scale: 1;
+  }
+}
+
+/* A one-shot burst when a result lands (`Confetti`). Each piece sets `--x`, `--y`, `--r`. */
+.confetti {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.confetti > i {
+  position: absolute;
+  width: 8px;
+  height: 12px;
+  border-radius: 2px;
+  animation: nx-confetti var(--motion-confetti) var(--ease-out) both;
+  animation-delay: calc(var(--i) * var(--motion-stagger) / 4);
+}
+
 /* Entrances. Set `style={{ "--i": n }}` on a sibling to stagger it; `--i` defaults to 0. */
 .enter-rise,
 .enter-fade,
@@ -1381,6 +1420,10 @@ aside nav > p {
   .tile-bounce,
   .page-enter {
     animation: none !important;
+  }
+
+  .confetti {
+    display: none;
   }
 
   .btn-primary::after {
