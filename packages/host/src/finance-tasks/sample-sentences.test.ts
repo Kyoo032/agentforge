@@ -4,7 +4,7 @@ import { financeTaskMeta, readFiguresText, type FinanceTask } from "@agentforge/
 import { parseAppraisalInput, type ParsedAppraisal } from "./parse-appraisal";
 import { parseBudgetInput, type BudgetParseResult } from "./parse-budget";
 import { parseCashflowInput, type CashflowParseResult } from "./parse-cashflow";
-import { parseRatiosInput } from "./parse-ratios";
+import { parseRatiosInput, type ParsedRatios } from "./parse-ratios";
 
 /** Keyless on purpose: a catalog sentence must become rows without a gateway. */
 const TENANT = {} as TenantContext;
@@ -115,7 +115,7 @@ describe("finance catalog samples", () => {
   });
 
   it("reads the ratio sample into classified rows", async () => {
-    const english = await parseRatiosInput(TENANT, { figures: sample("ratios", "en") });
+    const english = (await parseRatiosInput(TENANT, { figures: sample("ratios", "en") })) as ParsedRatios;
     expect(english.modelAssist).toBeNull();
     expect(english.buckets.map((row) => [row.label, row.bucket, row.amount])).toEqual([
       ["Current assets", "other-current-asset", 150_000],
@@ -125,7 +125,7 @@ describe("finance catalog samples", () => {
       ["EBITDA", "ebitda", 80_000],
     ]);
 
-    const indonesian = await parseRatiosInput(TENANT, { figures: sample("ratios", "id") });
+    const indonesian = (await parseRatiosInput(TENANT, { figures: sample("ratios", "id") })) as ParsedRatios;
     expect(indonesian.modelAssist).toBeNull();
     expect(indonesian.buckets.map((row) => [row.label, row.bucket, row.amount])).toEqual([
       ["Aset lancar", "other-current-asset", 1_500_000_000],
