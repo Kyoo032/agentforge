@@ -1,6 +1,6 @@
 # Documents
 
-Documents is a job: prompt or starter → section preview → DOCX download. It is not a Word editor. Live generate needs a gateway key. Starters load a canned draft without one. An optional **Source material** box (`sourceText`, 120k chars) takes pasted text, a saved artifact, or a Research handoff, and becomes the only facts the model may use.
+Documents is a job: prompt or starter → section preview → DOCX download. It is not a Word editor. Live generate needs a gateway key. Starters load a canned draft without one. An optional **Source material** box (`sourceText`, 120k chars) takes pasted text, a saved artifact, or a Research handoff, and becomes the only facts the model may use. Map: [`docs/internal/maps/documents.md`](../../../../docs/internal/maps/documents.md).
 
 ## Sub-features
 

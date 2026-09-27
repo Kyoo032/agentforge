@@ -5,7 +5,7 @@ import { Link, usePathname } from "@/lib/nav";
 
 /**
  * The sub-list a job mode can hang off its rail row — Market's desks, Finance's
- * tasks — extracted from `rail-market-specialists` so both read and behave as
+ * tasks, Education's tasks — extracted from `rail-market-specialists` so they read and behave as
  * one thing. Every rule below was Market's first and still is: the row metrics,
  * the guide rail, the fade, the scroll clamp, the route-derived open state, the
  * chevron that only shows and hides. A mode supplies its rows, its labels and

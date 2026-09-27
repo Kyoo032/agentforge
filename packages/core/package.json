@@ -42,7 +42,8 @@
     "./channels": "./src/channels/index.ts",
     "./channels/pinned": "./src/channels/pinned.ts",
     "./harness": "./src/harness/mode-skills.ts",
-    "./documents": "./src/documents/source-check.ts"
+    "./documents": "./src/documents/source-check.ts",
+    "./open-slide": "./src/open-slide/index.ts"
   },
   "scripts": {
     "test": "vitest run",

@@ -1,6 +1,6 @@
 # Workspaces
 
-Workspaces is the owner's local desk switcher: dropdown under the brand on the rail, a list of desks on disk, and create/edit from a template or mode checkboxes. The left-rail Workspaces control must be reachable from both collapsed and expanded rail states via `workspaces-link`. `workspaces-switcher` lists desks and opens one. Each desk keeps its own gateway key, Settings, and Knowledge Base; a new desk starts with a copy of the key of the desk it was created from. Creating no longer seeds a starter agent. Open/Create navigates to Chat.
+Workspaces is the owner's local desk switcher: dropdown under the brand on the rail, a list of desks on disk, and create/edit from a template or mode checkboxes. The left-rail Workspaces control must be reachable from both collapsed and expanded rail states via `workspaces-link`. `workspaces-switcher` lists desks and opens one. Each desk keeps its own gateway key, Settings, and Knowledge Base; a new desk starts with a copy of the key of the desk it was created from. Creating no longer seeds a starter agent. Open/Create navigates to Chat. Map: [`docs/internal/maps/shell-rail-and-workspaces.md`](../../../../docs/internal/maps/shell-rail-and-workspaces.md).
 
 ## Sub-features
 

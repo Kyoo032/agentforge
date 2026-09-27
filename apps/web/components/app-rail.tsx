@@ -12,6 +12,7 @@ import { RAIL_WIDTH, RAIL_WIDTH_KEY } from "@/lib/panel-width";
 import { usePanelWidth } from "@/lib/use-panel-width";
 import { PanelResizeHandle } from "@/components/panel-resize-handle";
 import { RailRecentThreads } from "@/components/rail-recent-threads";
+import { RailEducationTasks, RailEducationTasksToggle, useRailEducationTasks } from "@/components/rail-education-tasks";
 import { RailFinanceTasks, RailFinanceTasksToggle, useRailFinanceTasks } from "@/components/rail-finance-tasks";
 import {
   RailMarketSpecialists,
@@ -129,6 +130,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
   const jobModes = modes.filter((mode) => mode.id !== "chat");
   const marketSpecialists = useRailMarketSpecialists();
   const financeTasks = useRailFinanceTasks();
+  const educationTasks = useRailEducationTasks();
 
   useEffect(() => {
     const query = window.matchMedia("(max-width: 480px)");
@@ -233,7 +235,7 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
            * one its own harness and its own watchlist. The collapsed rail stays
            * a pure icon column, so neither the chevron nor the rows appear there.
            */
-          if (collapsed || (mode.id !== "market" && mode.id !== "finance")) {
+          if (collapsed || (mode.id !== "market" && mode.id !== "finance" && mode.id !== "education")) {
             return item;
           }
           if (mode.id === "finance") {
@@ -250,6 +252,23 @@ export function AppRail({ workspaceName, visibleModes }: Props) {
                   />
                 </div>
                 {financeTasks.open ? <RailFinanceTasks /> : null}
+              </div>
+            );
+          }
+          if (mode.id === "education") {
+            /* Education carries its tasks on exactly the Finance rules: same row,
+               same chevron, same one `h-8`, same nothing-below-when-closed. */
+            return (
+              <div key={mode.href} className="shrink-0" data-testid="rail-education-mode">
+                <div className="flex h-8 items-center gap-0.5">
+                  <div className="min-w-0 flex-1">{item}</div>
+                  <RailEducationTasksToggle
+                    open={educationTasks.open}
+                    onToggle={educationTasks.toggle}
+                    enabled={educationTasks.enabled}
+                  />
+                </div>
+                {educationTasks.open ? <RailEducationTasks /> : null}
               </div>
             );
           }

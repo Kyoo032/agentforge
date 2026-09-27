@@ -102,6 +102,7 @@ APIs. Checked, not an issue.
 | [SR-79](#sr-79) | Medium | Per-IP limits key on the full IPv6 address, so one IPv6 client has a bucket per request | Open | Blocks Tencent deploy if it is reachable over IPv6 |
 | [SR-80](#sr-80) | Medium | CI and the dependency-audit gate run only when someone runs `pnpm ci:local`; nothing checks a push on its own | Open — accepted by design (2026-09-24) | Blocks PR merge without a pasted `ci:local` summary |
 | [SR-81](#sr-81) | Low | Keyless Research search sends the masked query to four pinned public APIs | Checked, not an issue (2026-09-26) | — |
+| [SR-82](#sr-82) | Low | Open Slide port must not grow a new outbound host | Checked, not an issue (2026-09-27) | — |
 | [SR-01](#sr-01) | Low | `apps/portal/compose.yml` hardcodes `POSTGRES_PASSWORD: portal` | Accepted for dev only | Dev only |
 | [SR-07](#sr-07) | Low | The CSRF token is bound to the session id, so it stops verifying the moment a session changes | Open, lane C | Blocks PR merge |
 | [SR-09](#sr-09) | Low | The two billing variables were missing from `webapp-deploy/.env.example` | Fixed-unverified | Blocks Tencent deploy |
@@ -1997,6 +1998,18 @@ search page, would send a tenant's question somewhere this row does not allow.
 Required action: keep the origin list and the manual redirect. A new search host is a new row.
 
 Gate: none. Accepted. AGENTS.md already allows a keyless public search source a mode calls by design.
+
+### SR-82 {#sr-82}
+
+**The Open Slide port must not call svgl.app or a font host.** Both products. Raised and checked 2026-09-27. Not an issue.
+
+Evidence: open-slide (MIT, copyright 2026 Yiwei Ho) searches logos at svgl.app and can load remote webfonts. This cut does not vendor that runtime. `packages/core/src/open-slide/harness.ts` is the model instruction and contains no URL. `fontStack` in `packages/core/src/open-slide/deck.ts` replaces a font value that contains `url(`, `http:`, `https:`, or `@import` with `system-ui, sans-serif`. The stub drafter returns a deck without calling `fetch`. PPTX is built in-process by `packages/host/src/open-slide-pptx.ts`. The MIT notice is `packages/core/src/open-slide/THIRD-PARTY-NOTICES.md`.
+
+What goes wrong if ignored: a later edit that "finishes" assets by calling svgl.app, or that loads a webfont stylesheet, sends a tenant's deck topic to a host this row does not allow.
+
+Required action: keep asset and font work on the machine. A new host is a new row.
+
+Gate: none. Accepted. No new outbound host in this cut.
 
 ## Low
 

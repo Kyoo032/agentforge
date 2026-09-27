@@ -1,6 +1,6 @@
 # Legal
 
-Legal is a matter job: .docx files in, position-aware review, verified deliverables out (issues memorandum, tracked-changes redline, deviation report, red-flags Markdown). v1 accepts .docx only. Live runs need a gateway key; matter intake, uploads, and role editing work without one.
+Legal is a matter job: .docx files in, position-aware review, verified deliverables out (issues memorandum, tracked-changes redline, deviation report, red-flags Markdown). v1 accepts .docx only. Live runs need a gateway key; matter intake, uploads, and role editing work without one. Map: [`docs/internal/maps/legal-matter-run.md`](../../../../docs/internal/maps/legal-matter-run.md).
 
 ## Sub-features
 

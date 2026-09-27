@@ -75,6 +75,16 @@ function route(url: string): MockResponse {
   return { status: 500, body: "" };
 }
 
+/** `fetch` also accepts `Request`. Tests only read the URL the caller built. */
+function requestUrl(input: string | URL | Request): string {
+  if (typeof input === "string") return input;
+  return input instanceof URL ? input.toString() : input.url;
+}
+
+function mockFetch(handle: (url: string, init?: RequestInit) => Promise<Response>) {
+  return vi.fn(async (input: string | URL | Request, init?: RequestInit) => handle(requestUrl(input), init));
+}
+
 describe("searchKeyless", () => {
   afterEach(() => {
     resetKeylessSearchState();
@@ -83,8 +93,7 @@ describe("searchKeyless", () => {
 
   it("merges Wikipedia and OpenAlex, drops non-HTTPS landing pages, and strips excerpt HTML", async () => {
     const seen: string[] = [];
-    const fetchMock = vi.fn(async (input: string | URL, init?: RequestInit) => {
-      const url = String(input);
+    const fetchMock = mockFetch(async (url, init) => {
       seen.push(url);
       const headers = init?.headers as Record<string, string> | undefined;
       expect(init?.redirect).toBe("manual");
@@ -112,15 +121,14 @@ describe("searchKeyless", () => {
   });
 
   it("uses the Indonesian Wikipedia host for an id desk", async () => {
-    const fetchMock = vi.fn(async (input: string | URL) => responseFor(route(String(input))));
+    const fetchMock = mockFetch(async (url) => responseFor(route(url)));
     await searchKeyless("fotosintesis", { fetchImpl: fetchMock, locale: "id", now: () => 1_000 });
     expect(fetchMock.mock.calls.some((call) => String(call[0]).startsWith(KEYLESS_ORIGINS.wikipediaId))).toBe(true);
     expect(fetchMock.mock.calls.some((call) => String(call[0]).startsWith(KEYLESS_ORIGINS.wikipediaEn))).toBe(false);
   });
 
   it("does not follow a redirect off the pinned origin", async () => {
-    const fetchMock = vi.fn(async (input: string | URL) => {
-      const url = String(input);
+    const fetchMock = mockFetch(async (url) => {
       if (url.startsWith(KEYLESS_ORIGINS.wikipediaEn)) {
         return responseFor({ status: 302, body: "", location: "https://evil.example/steal" });
       }
@@ -135,8 +143,7 @@ describe("searchKeyless", () => {
   });
 
   it("follows a same-origin redirect and then reads the body", async () => {
-    const fetchMock = vi.fn(async (input: string | URL) => {
-      const url = String(input);
+    const fetchMock = mockFetch(async (url) => {
       if (url.includes("/search/page") && !url.includes("redirected=1")) {
         return responseFor({
           status: 302,
@@ -151,8 +158,7 @@ describe("searchKeyless", () => {
   });
 
   it("calls arXiv and then Crossref when the first pair is thin", async () => {
-    const fetchMock = vi.fn(async (input: string | URL) => {
-      const url = String(input);
+    const fetchMock = mockFetch(async (url) => {
       if (url.startsWith(KEYLESS_ORIGINS.wikipediaEn) || url.startsWith(KEYLESS_ORIGINS.openAlex)) {
         return responseFor({ status: 200, body: url.includes("openalex") ? '{"results":[]}' : '{"pages":[]}' });
       }
@@ -175,8 +181,7 @@ describe("searchKeyless", () => {
   });
 
   it("spaces a second arXiv request by three seconds", async () => {
-    const fetchMock = vi.fn(async (input: string | URL) => {
-      const url = String(input);
+    const fetchMock = mockFetch(async (url) => {
       if (url.startsWith(KEYLESS_ORIGINS.arxiv)) {
         return responseFor(route(url));
       }
@@ -197,7 +202,7 @@ describe("searchKeyless", () => {
   });
 
   it("asks arXiv even when Wikipedia is full, if the query is scholarly", async () => {
-    const fetchMock = vi.fn(async (input: string | URL) => responseFor(route(String(input))));
+    const fetchMock = mockFetch(async (url) => responseFor(route(url)));
     const result = await searchKeyless("battery preprint study", {
       fetchImpl: fetchMock,
       locale: "en",
@@ -209,7 +214,7 @@ describe("searchKeyless", () => {
   });
 
   it("caches a completed search and skips the network", async () => {
-    const fetchMock = vi.fn(async (input: string | URL) => responseFor(route(String(input))));
+    const fetchMock = mockFetch(async (url) => responseFor(route(url)));
     const options = { fetchImpl: fetchMock, locale: "en" as const, now: () => 1_000 };
     await searchKeyless("plants", options);
     const calls = fetchMock.mock.calls.length;
@@ -234,7 +239,7 @@ describe("searchKeyless", () => {
   });
 
   it("masks an email before the query leaves", async () => {
-    const fetchMock = vi.fn(async (input: string | URL) => responseFor(route(String(input))));
+    const fetchMock = mockFetch(async (url) => responseFor(route(url)));
     await searchKeyless("notes for ada@example.com", { fetchImpl: fetchMock, locale: "en", now: () => 1_000 });
     for (const call of fetchMock.mock.calls) {
       expect(String(call[0])).not.toContain("ada@example.com");

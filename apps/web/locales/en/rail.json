@@ -59,5 +59,9 @@
   "financeTasksAria": "Finance tasks",
   "financeTasksWord": "tasks",
   "financeTasksToggle": "Show tasks",
-  "financeTasksHide": "Hide tasks"
+  "financeTasksHide": "Hide tasks",
+  "educationTasksAria": "Education tasks",
+  "educationTasksWord": "tasks",
+  "educationTasksToggle": "Show tasks",
+  "educationTasksHide": "Hide tasks"
 }

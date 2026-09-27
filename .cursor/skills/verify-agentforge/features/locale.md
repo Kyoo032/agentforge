@@ -1,6 +1,6 @@
 # Locale
 
-DPSBuddy ships English and Bahasa Indonesia. Settings has one language select; picking a language saves it immediately but **does not retranslate the screen** — a restart banner appears, and only its button applies the new locale to the renderer and re-freezes the host's boot locale. Both the renderer (`apps/web/lib/i18n.ts`) and the host (`packages/host/src/locale-boot.ts`) hold the locale in a module-level frozen variable, which is why a page reload alone is not enough. Testids never change with locale, so every recipe in this map stays valid on an `id` desk — only the visible strings move.
+DPSBuddy ships English and Bahasa Indonesia. Settings has one language select; picking a language saves it immediately but **does not retranslate the screen** — a restart banner appears, and only its button applies the new locale to the renderer and re-freezes the host's boot locale. Both the renderer (`apps/web/lib/i18n.ts`) and the host (`packages/host/src/locale-boot.ts`) hold the locale in a module-level frozen variable, which is why a page reload alone is not enough. Testids never change with locale, so every recipe in this map stays valid on an `id` desk — only the visible strings move. Map: [`docs/internal/maps/locale-boot-and-run-harness.md`](../../../../docs/internal/maps/locale-boot-and-run-harness.md).
 
 ## Sub-features
 

@@ -12,10 +12,10 @@ The placeholder Nultron character is one component, `PlaceholderMascot` (`chat-m
 
 ## How to get to it (user POV)
 
-- Open a job mode on Default (`/documents`, `/research`, `/finance`, `/data`, `/market`, `/legal`, `/meeting`, `/images`, `/videos`, `/music`, `/edit`, `/presentations`, `/knowledge`).
+- Open a job mode on Default (`/documents`, `/research`, `/finance`, `/data`, `/market`, `/legal`, `/meeting`, `/images`, `/videos`, `/music`, `/edit`, `/presentations`, `/education`, `/knowledge`). `/finance` with no `task` is the guide chooser and shows the finance character before the chooser. `/finance?task=brief` is the unused brief, inside `finance-studio-empty`.
 - An unused desk shows the character in the empty state, in that mode's home pose after the wave.
 - A running job shows the same character beside the phase list or the busy generate control.
-- Education has no route. `/presentations?mascotMode=education` is the stand-in (`data-mode="education"`, presenting pose).
+- Education is `/education` (`mode-education`). An unused desk shows the presenting pose. `/presentations?mascotMode=education` still forces `data-mode="education"`.
 
 ## Driving it with the DPSBuddy harness
 
@@ -24,7 +24,7 @@ Preconditions:
 - Doctor exits 0 against `http://127.0.0.1:3000`.
 - `runtime: "stub"`. Do not start a job that spends a key.
 
-- **Home pose.** Open `/documents`. `chat-mascot` is visible with `data-placeholder="nultron-mascot"`, `data-placement="empty"`, `data-mode="documents"`. Right after load `data-state` is `wave`; after ~1.4s it is `writing` and `data-pose` is `writing`. Repeat per mode and expect that mode's home pose (Market with tickers: the slot above the board, `charting`; Knowledge: the slot on sources, `searching`). Finance: open `/finance` with no `task` query so the chooser is showing, wait past the wave, and expect `calculating`. Do not treat `/finance?task=brief` as that check.
+- **Home pose.** Open `/documents`. Scope to the visible `[data-testid="chat-mascot"][data-mode="documents"]` (a visited Chat keeps a hidden hero first in the DOM). It has `data-placeholder="nultron-mascot"` and `data-placement="empty"`. Right after load `data-state` is `wave`; after ~1.4s it is `writing` and `data-pose` is `writing`. Repeat per mode and expect that mode's home pose (Market with tickers: the slot above the board, `charting`; Knowledge: the slot on sources, `searching`). Finance: open `/finance` with no `task` query so the chooser is showing, wait past the wave, and expect `calculating`. Do not treat `/finance?task=brief` as that check.
 - **Forced pose.** Open `/documents?mascot=sleep`. `data-state` is `sleep` immediately — no wave, and it does not change after 45s. Any `MASCOT_STATES` value works the same way. Cycle them to prove every pose without waiting out the sleep timer.
 - **Beside a job.** On a mode that renders `JobProgressList`, a running job shows a second look at the same testid with `data-placement="beside"`. `data-state` follows the active phase id in the map above. A failed job is `error`. A finished job with no error is `celebrating`.
 - **Reduced motion.** Emulate `prefers-reduced-motion: reduce`, reload `/documents?mascot=writing`. `data-state` is still `writing` and the writing prop is in the SVG. Do not assert an animation.
@@ -36,6 +36,7 @@ Preconditions:
 - Chat's empty hero uses `PlaceholderMascot` directly at `idle`. It does not wave and it does not sleep. Drive job desks for those two.
 - `?mascot=` is a drive hook. It is not a user control.
 - Do not wait 45s for `sleep` on a normal drive. Use `?mascot=sleep`.
-- Education is not a product route in this tree. A missing `/education` is not a fail.
+- Education is a product route. Open `/education` for the presenting pose. A missing `mode-education` on Default is a fail.
 - The art is a placeholder. Swap the `<svg>` later; keep the testid, `data-placeholder`, and `data-state`.
 - Assert attributes. A green paint of the SVG with the wrong `data-state` is a fail.
+- Visited modes stay mounted (SKILL.md **G3**). After Chat, `getByTestId("chat-mascot").first()` is the hidden hero and never becomes visible. Scope to the visible `[data-testid="chat-mascot"][data-mode="<mode>"]`. `document.querySelector("[data-testid='chat-mascot']")` has the same problem: it returns the hidden node first.

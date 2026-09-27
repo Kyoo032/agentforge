@@ -1,6 +1,6 @@
 # Data
 
-Data is a table analyst job: upload or paste a table → it is parsed, profiled and loaded into a private SQLite → ask a question → the model answers only through a capped read-only `run_sql` tool, and the host re-runs its SQL in code to build the evidence tables and charts. It is not Research and does not call `web_search`. Parsing, profiling and previewing work without a key; analysis needs one.
+Data is a table analyst job: upload or paste a table → it is parsed, profiled and loaded into a private SQLite → ask a question → the model answers only through a capped read-only `run_sql` tool, and the host re-runs its SQL in code to build the evidence tables and charts. It is not Research and does not call `web_search`. Parsing, profiling and previewing work without a key; analysis needs one. Map: [`docs/internal/maps/data-analysis.md`](../../../../docs/internal/maps/data-analysis.md).
 
 ## Sub-features
 

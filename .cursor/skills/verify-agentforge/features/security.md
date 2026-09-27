@@ -1,6 +1,6 @@
 # Security
 
-Settings can confirm which gateway key is saved without ever showing the raw secret. The host hashes the trimmed key (SHA-256) and returns a short `sha256:` prefix. TLS and at-rest seal are already in product; this file maps those surfaces, it does not claim a new envelope.
+Settings can confirm which gateway key is saved without ever showing the raw secret. The host hashes the trimmed key (SHA-256) and returns a short `sha256:` prefix. TLS and at-rest seal are already in product; this file maps those surfaces, it does not claim a new envelope. Map: [`docs/internal/maps/pii-and-key-security.md`](../../../../docs/internal/maps/pii-and-key-security.md).
 
 ## Sub-features
 

@@ -60,7 +60,7 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 - [PII](./pii.md) — host masks outbound prompts (`[email]` / `[phone]` / …); the transcript keeps the typed text.
 - [Security](./security.md) — saved-key fingerprint on Settings (`key-fingerprint`); TLS note on `privacy-note`; at-rest envelope is existing work.
 - [Components](./components.md) — first-run installer for native dependencies (anydoc): status route, staged install stream, onboarding panel that starts itself. No key needed; renders nothing when the reader shipped inside the app.
-- [Research](./research.md) — studio shell on Default; live generate needs a key (and search backends).
+- [Research](./research.md) — studio shell on Default. Live generate needs a gateway key. Search is keyless (Wikipedia, OpenAlex, arXiv, Crossref) unless the desk already saved a Tavily or Brave key.
 - [Documents](./documents.md) — starters, preview, section regen (503 without a key), DOCX download from a starter. Default has the tab.
 - [Finance](./finance.md) — `/finance` asks what to do, then one file-or-numbers step and a result. Five tasks (brief, ratios, budget, cash flow, appraisal), file import (`.xlsx` / `.csv` / documents, read locally), deterministic figures with a model-written narrative, export menu (xlsx / pptx / docx). No starter path; generate needs a working key. Default has the tab.
 - [Data](./data.md) — pasted CSV + table notes, no web search, generate 503 without a key. Default has the tab.
@@ -70,7 +70,7 @@ Each file: H1 + one paragraph, then exactly four H2s — `Sub-features`, `How to
 - [Knowledge phases](./knowledge-phases.md) — **Cloud testing path** for builtin Phases 0–4 (Vitest + stub webdev). No WeKnora sidecar. Live `[n]` cites are Windows-only.
 - [Knowledge ingest loop](./knowledge-ingest.md) — every finished Chat turn / job writes a text work card (pointer, not bytes); `knowledge-loop` chart on Sources; Chat skips its own card; example clips never ingest.
 - [Knowledge graph](./knowledge-graph.md) — Phase 4 builtin: completed Chat replies with `[n]` markers add `cites` edges; one-hop `covers` expansion is behind `knowledge.graphExpand` (off in Chat); panel is the existing Phase 2 base. Drive on webdev :3000.
-- [Images](./images.md) — studio shell on Default. The needs-key note follows the image route's `ready` flag. Generate stays enabled while `gateway.allowed` is true, including a stub desk.
+- [Images](./images.md) — studio shell on Default. The needs-key note and Generate both follow the host gate. A stub desk (`allowed: true`) hides the note and leaves Generate enabled.
 - [Videos](./videos.md) — studio shell. `videos-studio-needs-key` and a quiet Generate follow the video route's `ready` flag, including on a stub desk with no key.
 - [Meeting](./meeting.md) — recording → transcript → minutes → EN/ID translation (`mode-meeting`). Create, upload, paste and the in-browser recorder's controls work without a key; only the run reaches the gateway. A **granted microphone** needs a real Chrome window and is still unverified.
 - [Music](./music.md) — studio shell and `music-studio-needs-key` without a key; describe-or-lyrics brief, two takes per charge, voice-over reported unavailable rather than offered.

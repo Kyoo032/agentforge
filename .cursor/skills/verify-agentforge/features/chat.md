@@ -1,6 +1,6 @@
 # Chat
 
-Chat is the default assistant: model picker, composer, thinking toggle, usage chip, and its own sessions at `/chat`. Since 2026-09-17 the sessions live **in the left rail** under `mode-chat` (`rail-thread-list`: `new-chat-link`, 4 rows, and a `threads-see-all` toggle that expands the list in place). There is no session column any more — `/chat` is just the chat pane. Stub replies without a gateway key; a saved key uses the live Toko Token gateway. A turn is three layers: **Thinking** (collapsible), **tools** (one row per call), **output** (the answer only — never a copy of the prompt, never a `Stub reply` prefix).
+Chat is the default assistant: model picker, composer, thinking toggle, usage chip, and its own sessions at `/chat`. Since 2026-09-17 the sessions live **in the left rail** under `mode-chat` (`rail-thread-list`: `new-chat-link`, 4 rows, and a `threads-see-all` toggle that expands the list in place). There is no session column any more — `/chat` is just the chat pane. Stub replies without a gateway key; a saved key uses the live Toko Token gateway. A turn is three layers: **Thinking** (collapsible), **tools** (one row per call), **output** (the answer only — never a copy of the prompt, never a `Stub reply` prefix). Maps: [`chat-send.md`](../../../../docs/internal/maps/chat-send.md) and [`chat-sessions-and-rail.md`](../../../../docs/internal/maps/chat-sessions-and-rail.md).
 
 ## Sub-features
 

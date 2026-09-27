@@ -14,7 +14,7 @@ Research is a job: question → planned sub-queries → web search → fetched p
 - `research-actions` is the shared artifact bar: `research-download`, `research-send-kb`, `research-make-document`, `research-make-presentation`. The last two are renderer-only handoffs — they navigate to `/documents` / `/presentations` with the dossier Markdown as source material (`apps/web/lib/mode-handoff.ts:45-51`).
 - `research-preview` / `research-note` appear after a generate. Note bodies render markdown via `FormattedText` (same as Chat `message-output` and Documents preview).
 - Live generate POSTs `/api/v1/research/stream` (SSE `job.*`: phase → step → source → done). `POST /api/v1/research` is the non-streaming twin the studio never calls.
-- Stub / no search key shows `research-error`. On `/api/v1/research/stream` the refusal is HTTP **200** carrying `job.error {status: 503}` — assert the testid, never the status; see SKILL.md “Harness-wide gotchas” G2. Only the uncalled `POST /api/v1/research` answers a real 503.
+- Stub / no gateway key shows `research-error`. A missing Tavily or Brave key does not. On `/api/v1/research/stream` the refusal is HTTP **200** carrying `job.error {status: 503}` — assert the testid, never the status; see SKILL.md “Harness-wide gotchas” G2. Only the uncalled `POST /api/v1/research` answers a real 503.
 
 ## How to get to it (user POV)
 
