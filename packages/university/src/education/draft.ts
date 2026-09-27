@@ -98,7 +98,7 @@ export type ExamDraft = {
 
 const EXAM = {
   en: {
-    title: (topic: string) => (topic.trim() ? `Exam: ${topic.trim()}` : "Exam"),
+    title: (topic: string) => (topic.trim() ? `Quiz: ${topic.trim()}` : "Quiz"),
     emptyPrompt: "No indexed passage was available. Add a source, then generate this exam again.",
     emptyChoice: "Add a source",
     emptyOther: "Invent a fact that was not saved",
@@ -109,7 +109,7 @@ const EXAM = {
     answer: "The sentence in the citation",
   },
   id: {
-    title: (topic: string) => (topic.trim() ? `Ujian: ${topic.trim()}` : "Ujian"),
+    title: (topic: string) => (topic.trim() ? `Kuis: ${topic.trim()}` : "Kuis"),
     emptyPrompt: "Tidak ada kutipan terindeks. Tambahkan sumber, lalu buat ujian ini lagi.",
     emptyChoice: "Tambahkan sumber",
     emptyOther: "Mengarang fakta yang tidak tersimpan",

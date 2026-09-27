@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { JobRegenPanel, type JobRegenSubmit } from "@/components/job-regen-panel";
 import type { PresentationOutline, PresentationShape, PresentationSlide } from "@/lib/presentation-outline";
 import { useProductBrand } from "@/lib/product-brand";
@@ -16,6 +17,10 @@ type Props = {
   regeneratingIndex?: number | null;
   onRegenerate?: (index: number, payload: JobRegenSubmit) => void;
   onOutlineChange?: (outline: PresentationOutline) => void;
+  /** Education keeps the full stage. Presentation hides the tool rows until More or a selection. */
+  variant?: "full" | "simple";
+  /** Where simple mode parks shape, notes, and rewrite controls. */
+  toolsHost?: HTMLElement | null;
 };
 
 type Drag =
@@ -175,7 +180,10 @@ function ShapeGlyph({ shape }: { shape: PresentationShape }) {
   }
   if (shape.kind === "text") {
     return (
-      <div className="flex h-full w-full items-center justify-center px-1 text-center text-sm" style={{ color: stroke }}>
+      <div
+        className="flex h-full w-full items-center justify-center px-1 text-center text-sm"
+        style={{ color: stroke }}
+      >
         {shape.text}
       </div>
     );
@@ -195,6 +203,8 @@ export function PresentationPreview({
   regeneratingIndex = null,
   onRegenerate,
   onOutlineChange,
+  variant = "full",
+  toolsHost = null,
 }: Props) {
   const { productName } = useProductBrand();
   const stageRef = useRef<HTMLDivElement>(null);
@@ -411,35 +421,98 @@ export function PresentationPreview({
   }
 
   const bullets = slide && slide.bullets.length > 0 ? slide.bullets : [""];
+  const simple = variant === "simple";
+
+  const shapeAdds = (
+    <div className="flex flex-wrap gap-1" data-testid="presentations-shape-toolbar">
+      {KINDS.map((kind) => (
+        <button
+          key={kind}
+          type="button"
+          className="btn btn-ghost h-8 rounded-lg px-2.5 text-xs"
+          data-testid={`presentations-add-${kind === "rounded" ? "rounded" : kind}`}
+          disabled={!editable}
+          onClick={() => addKind(kind)}
+        >
+          {t(KIND_LABEL[kind])}
+        </button>
+      ))}
+    </div>
+  );
+
+  const slideExtras: ReactNode = (
+    <>
+      {slide && editable ? (
+        <label className="grid gap-1 text-xs text-[var(--text-2)]">
+          {t("presentation.editNotes")}
+          <textarea
+            className="text-field min-h-20"
+            data-testid="presentations-edit-notes"
+            value={slide.notes}
+            onChange={(event) => replaceSlide(contentIndex, { ...slide, notes: event.target.value })}
+          />
+        </label>
+      ) : null}
+      {slide && onRegenerate ? (
+        <div>
+          <button
+            type="button"
+            className="btn btn-ghost h-8 rounded-lg px-3 text-xs"
+            data-testid="presentations-regen"
+            aria-expanded={regenOpen}
+            onClick={() => setRegenOpen((open) => !open)}
+          >
+            {regeneratingIndex === contentIndex ? t("presentation.regenerating") : t("presentation.regenerate")}
+          </button>
+          {regenOpen ? (
+            <JobRegenPanel
+              testIdPrefix="presentations"
+              models={models}
+              defaultModel={defaultModel}
+              submitting={regeneratingIndex === contentIndex}
+              disabled={regeneratingIndex !== null && regeneratingIndex !== contentIndex}
+              onCancel={() => setRegenOpen(false)}
+              onSubmit={(payload) => onRegenerate(contentIndex, payload)}
+            />
+          ) : null}
+        </div>
+      ) : null}
+    </>
+  );
 
   return (
     <div className="flex flex-col gap-3" data-testid="presentations-preview">
-      <p className="text-sm text-[var(--text-2)]" data-testid="presentations-edit-note">
-        {t("presentation.editNote")}
-      </p>
+      {simple ? null : (
+        <p className="text-sm text-[var(--text-2)]" data-testid="presentations-edit-note">
+          {t("presentation.editNote")}
+        </p>
+      )}
+      {simple && toolsHost
+        ? createPortal(
+            <div className="mt-3 space-y-3">
+              {shapeAdds}
+              {slideExtras}
+            </div>,
+            toolsHost,
+          )
+        : null}
       <div
-        className="grid grid-cols-1 gap-3 lg:grid-cols-[9.5rem_minmax(0,1fr)_15rem]"
+        className={
+          simple ? "grid grid-cols-1 gap-2" : "grid grid-cols-1 gap-3 lg:grid-cols-[9.5rem_minmax(0,1fr)_15rem]"
+        }
         data-testid="presentations-editor"
       >
-        <div className="flex flex-wrap gap-1 lg:col-span-3" data-testid="presentations-shape-toolbar">
-          {KINDS.map((kind) => (
-            <button
-              key={kind}
-              type="button"
-              className="btn btn-ghost h-8 rounded-lg px-2.5 text-xs"
-              data-testid={`presentations-add-${kind === "rounded" ? "rounded" : kind}`}
-              disabled={!editable}
-              onClick={() => addKind(kind)}
-            >
-              {t(KIND_LABEL[kind])}
-            </button>
-          ))}
-        </div>
+        {simple ? null : shapeAdds}
 
-        <div className="flex gap-2 overflow-x-auto lg:flex-col lg:overflow-visible" data-testid="presentations-filmstrip">
+        <div
+          className={
+            simple ? "flex gap-1 overflow-x-auto" : "flex gap-2 overflow-x-auto lg:flex-col lg:overflow-visible"
+          }
+          data-testid="presentations-filmstrip"
+        >
           <button
             type="button"
-            className={`min-w-28 rounded-lg border bg-[var(--surface)] px-2 py-2 text-left text-xs ${slideIndex === 0 ? "border-[var(--mode)]" : "border-[var(--line)]"}`}
+            className={`${simple ? "max-w-36 shrink-0 py-1" : "min-w-28 py-2"} rounded-lg border bg-[var(--surface)] px-2 text-left text-xs ${slideIndex === 0 ? "border-[var(--mode)]" : "border-[var(--line)]"}`}
             data-testid="presentations-filmstrip-slide"
             aria-pressed={slideIndex === 0}
             onClick={() => {
@@ -454,7 +527,7 @@ export function PresentationPreview({
             <button
               key={item.heading + String(index)}
               type="button"
-              className={`min-w-28 rounded-lg border bg-[var(--surface)] px-2 py-2 text-left text-xs ${slideIndex === index + 1 ? "border-[var(--mode)]" : "border-[var(--line)]"}`}
+              className={`${simple ? "max-w-36 shrink-0 py-1" : "min-w-28 py-2"} rounded-lg border bg-[var(--surface)] px-2 text-left text-xs ${slideIndex === index + 1 ? "border-[var(--mode)]" : "border-[var(--line)]"}`}
               data-testid="presentations-filmstrip-slide"
               aria-pressed={slideIndex === index + 1}
               onClick={() => {
@@ -485,6 +558,55 @@ export function PresentationPreview({
           }}
         >
           <div className="absolute inset-y-0 left-0 w-1.5 bg-[var(--mode)]" />
+          {simple && selected && slide ? (
+            <div
+              className="absolute left-3 top-3 z-20 flex flex-wrap items-center gap-1 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-1"
+              data-testid="presentations-selection-toolbar"
+            >
+              <label className="flex items-center gap-1 text-xs text-[var(--text-2)]">
+                {t("presentation.fill")}
+                <input
+                  type="color"
+                  data-testid="presentations-fill"
+                  value={`#${selected.fill}`}
+                  onChange={(event) => updateShape(selected.id, { fill: event.target.value.slice(1).toUpperCase() })}
+                />
+              </label>
+              <label className="flex items-center gap-1 text-xs text-[var(--text-2)]">
+                {t("presentation.stroke")}
+                <input
+                  type="color"
+                  data-testid="presentations-stroke"
+                  value={`#${selected.stroke}`}
+                  onChange={(event) => updateShape(selected.id, { stroke: event.target.value.slice(1).toUpperCase() })}
+                />
+              </label>
+              <input
+                className="text-field h-8 w-28"
+                data-testid="presentations-shape-text"
+                aria-label={t("presentation.shapeText")}
+                value={selected.text}
+                onChange={(event) => updateShape(selected.id, { text: event.target.value.slice(0, 200) })}
+              />
+              <button
+                type="button"
+                className="btn btn-ghost h-8 rounded-lg px-2 text-xs"
+                data-testid="presentations-shape-duplicate"
+                disabled={slide.shapes.length >= 24}
+                onClick={duplicateSelected}
+              >
+                {t("presentation.duplicateShape")}
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost h-8 rounded-lg px-2 text-xs"
+                data-testid="presentations-shape-remove"
+                onClick={removeSelected}
+              >
+                {t("presentation.removeShape")}
+              </button>
+            </div>
+          ) : null}
           {slide ? (
             <div className="relative flex h-full flex-col px-8 py-7 sm:px-12">
               <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--text-3)]">
@@ -503,7 +625,10 @@ export function PresentationPreview({
                   {slide.heading}
                 </h2>
               )}
-              <ul className="mt-4 max-w-3xl list-disc space-y-1.5 pl-5 text-sm" data-testid="presentations-edit-bullets">
+              <ul
+                className="mt-4 max-w-3xl list-disc space-y-1.5 pl-5 text-sm"
+                data-testid="presentations-edit-bullets"
+              >
                 {bullets.map((bullet, index) => (
                   <li key={`${index}-${bullet.slice(0, 24)}`}>
                     {editable ? (
@@ -528,7 +653,9 @@ export function PresentationPreview({
                 ))}
               </ul>
               {slide.aside.trim() ? (
-                <p className="mt-auto max-w-sm self-end rounded-lg bg-[var(--surface)] px-3 py-2 text-sm">{slide.aside}</p>
+                <p className="mt-auto max-w-sm self-end rounded-lg bg-[var(--surface)] px-3 py-2 text-sm">
+                  {slide.aside}
+                </p>
               ) : null}
             </div>
           ) : (
@@ -588,103 +715,112 @@ export function PresentationPreview({
               ) : null}
             </div>
           ))}
-          <p className="pointer-events-none absolute bottom-3 left-8 text-xs text-[var(--text-3)] sm:left-12">{productName}</p>
+          <p className="pointer-events-none absolute bottom-3 left-8 text-xs text-[var(--text-3)] sm:left-12">
+            {productName}
+          </p>
           <p className="pointer-events-none absolute bottom-3 right-4 text-xs text-[var(--text-3)]">
             {slideIndex + 1} / {total}
           </p>
         </div>
 
-        <aside className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3" data-testid="presentations-properties">
-          <p className="text-xs font-medium text-[var(--text-2)]">{t("presentation.properties")}</p>
-          {selected && slide ? (
-            <div className="mt-3 space-y-3">
-              <p className="text-sm">{t(KIND_LABEL[selected.kind])}</p>
-              <label className="flex items-center justify-between gap-2 text-xs text-[var(--text-2)]">
-                {t("presentation.fill")}
-                <input
-                  type="color"
-                  data-testid="presentations-fill"
-                  value={`#${selected.fill}`}
-                  onChange={(event) => updateShape(selected.id, { fill: event.target.value.slice(1).toUpperCase() })}
-                />
-              </label>
-              <label className="flex items-center justify-between gap-2 text-xs text-[var(--text-2)]">
-                {t("presentation.stroke")}
-                <input
-                  type="color"
-                  data-testid="presentations-stroke"
-                  value={`#${selected.stroke}`}
-                  onChange={(event) => updateShape(selected.id, { stroke: event.target.value.slice(1).toUpperCase() })}
-                />
-              </label>
-              <label className="grid gap-1 text-xs text-[var(--text-2)]">
-                {t("presentation.shapeText")}
-                <input
-                  className="text-field"
-                  data-testid="presentations-shape-text"
-                  value={selected.text}
-                  onChange={(event) => updateShape(selected.id, { text: event.target.value.slice(0, 200) })}
-                />
-              </label>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  className="btn btn-ghost h-8 rounded-lg px-3 text-xs"
-                  data-testid="presentations-shape-duplicate"
-                  disabled={slide.shapes.length >= 24}
-                  onClick={duplicateSelected}
-                >
-                  {t("presentation.duplicateShape")}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-ghost h-8 rounded-lg px-3 text-xs"
-                  data-testid="presentations-shape-remove"
-                  onClick={removeSelected}
-                >
-                  {t("presentation.removeShape")}
-                </button>
+        {simple ? null : (
+          <aside
+            className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3"
+            data-testid="presentations-properties"
+          >
+            <p className="text-xs font-medium text-[var(--text-2)]">{t("presentation.properties")}</p>
+            {selected && slide ? (
+              <div className="mt-3 space-y-3">
+                <p className="text-sm">{t(KIND_LABEL[selected.kind])}</p>
+                <label className="flex items-center justify-between gap-2 text-xs text-[var(--text-2)]">
+                  {t("presentation.fill")}
+                  <input
+                    type="color"
+                    data-testid="presentations-fill"
+                    value={`#${selected.fill}`}
+                    onChange={(event) => updateShape(selected.id, { fill: event.target.value.slice(1).toUpperCase() })}
+                  />
+                </label>
+                <label className="flex items-center justify-between gap-2 text-xs text-[var(--text-2)]">
+                  {t("presentation.stroke")}
+                  <input
+                    type="color"
+                    data-testid="presentations-stroke"
+                    value={`#${selected.stroke}`}
+                    onChange={(event) =>
+                      updateShape(selected.id, { stroke: event.target.value.slice(1).toUpperCase() })
+                    }
+                  />
+                </label>
+                <label className="grid gap-1 text-xs text-[var(--text-2)]">
+                  {t("presentation.shapeText")}
+                  <input
+                    className="text-field"
+                    data-testid="presentations-shape-text"
+                    value={selected.text}
+                    onChange={(event) => updateShape(selected.id, { text: event.target.value.slice(0, 200) })}
+                  />
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-ghost h-8 rounded-lg px-3 text-xs"
+                    data-testid="presentations-shape-duplicate"
+                    disabled={slide.shapes.length >= 24}
+                    onClick={duplicateSelected}
+                  >
+                    {t("presentation.duplicateShape")}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost h-8 rounded-lg px-3 text-xs"
+                    data-testid="presentations-shape-remove"
+                    onClick={removeSelected}
+                  >
+                    {t("presentation.removeShape")}
+                  </button>
+                </div>
               </div>
-            </div>
-          ) : (
-            <p className="mt-3 text-xs text-[var(--text-3)]">{t("presentation.noShape")}</p>
-          )}
-          {slide && editable ? (
-            <label className="mt-4 grid gap-1 text-xs text-[var(--text-2)]">
-              {t("presentation.editNotes")}
-              <textarea
-                className="text-field min-h-20"
-                data-testid="presentations-edit-notes"
-                value={slide.notes}
-                onChange={(event) => replaceSlide(contentIndex, { ...slide, notes: event.target.value })}
-              />
-            </label>
-          ) : null}
-          {slide && onRegenerate ? (
-            <div className="mt-3">
-              <button
-                type="button"
-                className="btn btn-ghost h-8 rounded-lg px-3 text-xs"
-                data-testid="presentations-regen"
-                aria-expanded={regenOpen}
-                onClick={() => setRegenOpen((open) => !open)}
-              >
-                {regeneratingIndex === contentIndex ? t("presentation.regenerating") : t("presentation.regenerate")}
-              </button>
-              {regenOpen ? (
-                <JobRegenPanel
-                  testIdPrefix="presentations"
-                  models={models}
-                  defaultModel={defaultModel}
-                  submitting={regeneratingIndex === contentIndex}
-                  disabled={regeneratingIndex !== null && regeneratingIndex !== contentIndex}
-                  onCancel={() => setRegenOpen(false)}
-                  onSubmit={(payload) => onRegenerate(contentIndex, payload)}
+            ) : (
+              <p className="mt-3 text-xs text-[var(--text-3)]">{t("presentation.noShape")}</p>
+            )}
+            {slide && editable ? (
+              <label className="mt-4 grid gap-1 text-xs text-[var(--text-2)]">
+                {t("presentation.editNotes")}
+                <textarea
+                  className="text-field min-h-20"
+                  data-testid="presentations-edit-notes"
+                  value={slide.notes}
+                  onChange={(event) => replaceSlide(contentIndex, { ...slide, notes: event.target.value })}
                 />
-              ) : null}
-            </div>
-          ) : null}
-        </aside>
+              </label>
+            ) : null}
+            {slide && onRegenerate ? (
+              <div className="mt-3">
+                <button
+                  type="button"
+                  className="btn btn-ghost h-8 rounded-lg px-3 text-xs"
+                  data-testid="presentations-regen"
+                  aria-expanded={regenOpen}
+                  onClick={() => setRegenOpen((open) => !open)}
+                >
+                  {regeneratingIndex === contentIndex ? t("presentation.regenerating") : t("presentation.regenerate")}
+                </button>
+                {regenOpen ? (
+                  <JobRegenPanel
+                    testIdPrefix="presentations"
+                    models={models}
+                    defaultModel={defaultModel}
+                    submitting={regeneratingIndex === contentIndex}
+                    disabled={regeneratingIndex !== null && regeneratingIndex !== contentIndex}
+                    onCancel={() => setRegenOpen(false)}
+                    onSubmit={(payload) => onRegenerate(contentIndex, payload)}
+                  />
+                ) : null}
+              </div>
+            ) : null}
+          </aside>
+        )}
       </div>
     </div>
   );

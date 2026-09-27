@@ -93,7 +93,9 @@ describe("app rail finance block", () => {
   });
 
   it("renders nothing extra while the rail is collapsed", () => {
-    expect(appRail).toContain('if (collapsed || (mode.id !== "market" && mode.id !== "finance")) {');
+    expect(appRail).toContain(
+      'if (collapsed || (mode.id !== "market" && mode.id !== "finance" && mode.id !== "education")) {',
+    );
     expect(appRail).toContain("      return item;");
   });
 

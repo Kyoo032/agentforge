@@ -125,6 +125,12 @@ import {
 import { handlePostDocumentsCheck } from "./handlers/documents-check";
 import { handleGetPresentationDecks, handlePostPresentationDeck } from "./handlers/presentation-decks";
 import {
+  handleGetOpenSlideDecks,
+  handlePostOpenSlide,
+  handlePostOpenSlideDeck,
+  handlePostOpenSlidePptx,
+} from "./handlers/open-slide";
+import {
   handlePostEducationBook,
   handlePostEducationExam,
   handlePostEducationLesson,
@@ -344,6 +350,10 @@ const routes: Route[] = [
   compile("POST", "/api/v1/presentations", handlePostPresentations),
   compile("POST", "/api/v1/presentations/regenerate", handlePostPresentationsRegen),
   compile("POST", "/api/v1/presentations/pptx", handlePostPresentationsPptx),
+  compile("POST", "/api/v1/presentations/open-slide", handlePostOpenSlide),
+  compile("POST", "/api/v1/presentations/open-slide/pptx", handlePostOpenSlidePptx),
+  compile("GET", "/api/v1/presentations/open-slide/decks", handleGetOpenSlideDecks),
+  compile("POST", "/api/v1/presentations/open-slide/decks", handlePostOpenSlideDeck),
   compile("GET", "/api/v1/presentations/decks", handleGetPresentationDecks),
   compile("POST", "/api/v1/presentations/decks", handlePostPresentationDeck),
   compile("POST", "/api/v1/education/lesson", handlePostEducationLesson),

@@ -181,7 +181,9 @@ describe("rail market specialists block", () => {
 
 describe("app rail market block", () => {
   it("hangs the agents off the Market row, above the next group", () => {
-    const marketBranch = appRail.indexOf('if (collapsed || (mode.id !== "market" && mode.id !== "finance"))');
+    const marketBranch = appRail.indexOf(
+      'if (collapsed || (mode.id !== "market" && mode.id !== "finance" && mode.id !== "education"))',
+    );
     const toggle = appRail.indexOf("<RailMarketSpecialistsToggle");
     const rows = appRail.indexOf("<RailMarketSpecialists />");
     const account = appRail.indexOf("rail.groupAccount");
@@ -203,7 +205,9 @@ describe("app rail market block", () => {
   });
 
   it("renders nothing extra while the rail is collapsed", () => {
-    expect(appRail).toContain('if (collapsed || (mode.id !== "market" && mode.id !== "finance")) {');
+    expect(appRail).toContain(
+      'if (collapsed || (mode.id !== "market" && mode.id !== "finance" && mode.id !== "education")) {',
+    );
     expect(appRail).toContain("      return item;");
     expect(appRail).toContain("{marketSpecialists.open ? <RailMarketSpecialists /> : null}");
   });
