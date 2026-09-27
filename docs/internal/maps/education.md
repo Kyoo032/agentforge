@@ -1,6 +1,6 @@
 # Map — Education
 
-Last verified: 2026-09-26 at c3606e5
+Last verified: 2026-09-27 at 1365aa2
 
 Verified by [`features/education.md`](../../../.cursor/skills/verify-agentforge/features/education.md).
 
