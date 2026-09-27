@@ -53,12 +53,10 @@ function errorMessage(payload: unknown, fallback: string): string {
 function PresenterStage({
   presenter,
   cueIndex,
-  onCue,
   heading,
 }: {
   presenter: PresenterPlan;
   cueIndex: number;
-  onCue: (index: number) => void;
   heading?: string;
 }) {
   const cue = presenter.cues[cueIndex] ?? presenter.cues[0];
@@ -66,69 +64,39 @@ function PresenterStage({
     presenter.avatar.placements.find((item) => item.slideIndex === (cue?.slideIndex ?? 0)) ??
     presenter.avatar.placements[0];
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]" data-testid="education-presenter-layout">
-      <div>
-        <p className="mb-2 text-xs font-medium uppercase tracking-[0.16em] text-[var(--text-3)]">
-          {t("education.presenterStage")}
-        </p>
-        <div
-          className="relative aspect-video overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--bg)]"
-          data-testid="education-presenter-stage"
-        >
-          <div className="absolute inset-y-0 left-0 w-1.5 bg-[var(--mode)]" />
-          <div className="px-8 py-8">
-            <h2 className="max-w-xl text-2xl font-medium">{heading || presenter.avatar.label}</h2>
+    <div data-testid="education-presenter-layout">
+      <div
+        className="relative aspect-video overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--bg)]"
+        data-testid="education-presenter-stage"
+      >
+        <div className="absolute inset-y-0 left-0 w-1.5 bg-[var(--mode)]" />
+        <div className="px-8 py-8">
+          <h2 className="max-w-xl text-2xl font-medium">{heading || presenter.avatar.label}</h2>
+        </div>
+        {placement ? (
+          <div
+            className="absolute flex items-end justify-center rounded-t-full bg-[var(--mode)] px-1 pb-1 text-center text-[10px] font-medium leading-tight text-[var(--surface)]"
+            data-testid="education-presenter-avatar"
+            data-motion={placement.motion}
+            style={{
+              left: `${placement.x}%`,
+              top: `${placement.y}%`,
+              width: `${placement.w}%`,
+              height: `${placement.h}%`,
+            }}
+          >
+            <span>{presenter.avatar.label}</span>
           </div>
-          {placement ? (
-            <div
-              className="absolute flex flex-col items-center justify-end rounded-t-full bg-[var(--mode)] px-1 pb-1 text-center text-[10px] font-medium leading-tight text-[var(--surface)]"
-              data-testid="education-presenter-avatar"
-              data-motion={placement.motion}
-              style={{
-                left: `${placement.x}%`,
-                top: `${placement.y}%`,
-                width: `${placement.w}%`,
-                height: `${placement.h}%`,
-              }}
-            >
-              <span>{presenter.avatar.label}</span>
-              <span>
-                {placement.motion} {placement.x},{placement.y}
-              </span>
-            </div>
-          ) : null}
-          {cue ? (
-            <p
-              className="absolute bottom-4 left-6 right-6 rounded-lg bg-[var(--text)] px-3 py-2 text-sm text-[var(--surface)]"
-              data-testid="education-presenter-cue"
-            >
-              <span className="mr-2 text-xs uppercase opacity-70">{t("education.subtitleLabel")}</span>
-              {cue.text}
-            </p>
-          ) : null}
-        </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {presenter.cues.map((item, index) => (
-            <button
-              key={`${item.slideIndex}-${item.startMs}`}
-              type="button"
-              className="btn btn-ghost h-8 rounded-lg px-2 text-xs"
-              aria-pressed={index === cueIndex}
-              onClick={() => onCue(index)}
-            >
-              {item.startMs} ms
-            </button>
-          ))}
-        </div>
+        ) : null}
+        {cue ? (
+          <p
+            className="absolute bottom-4 left-6 right-6 rounded-lg bg-[var(--text)] px-3 py-2 text-sm text-[var(--surface)]"
+            data-testid="education-presenter-cue"
+          >
+            {cue.text}
+          </p>
+        ) : null}
       </div>
-      <aside className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-        <h3 className="text-sm font-medium">{t("education.dubHeading")}</h3>
-        <div className="mt-3 space-y-3 text-sm leading-relaxed" data-testid="education-presenter-dub">
-          {presenter.dubScript.split("\n").map((line, index) => (
-            <p key={`${index}-${line.slice(0, 48)}`}>{line}</p>
-          ))}
-        </div>
-      </aside>
     </div>
   );
 }
@@ -145,6 +113,7 @@ export function EducationStudio() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [toolsHost, setToolsHost] = useState<HTMLDivElement | null>(null);
 
   async function onLesson(event: FormEvent) {
     event.preventDefault();
@@ -165,6 +134,7 @@ export function EducationStudio() {
         throw new Error(errorMessage(data, t("education.lessonError")));
       }
       setOutline(parsePresentationOutlineBody(data.outline));
+      setTab("lesson");
     } catch (err) {
       setError(err instanceof Error ? err.message : t("education.lessonError"));
     } finally {
@@ -190,6 +160,7 @@ export function EducationStudio() {
         throw new Error(errorMessage(data, t("education.examError")));
       }
       setExam(data as ExamDraft);
+      setTab("exam");
     } catch (err) {
       setError(err instanceof Error ? err.message : t("education.examError"));
     } finally {
@@ -278,56 +249,61 @@ export function EducationStudio() {
     { id: "presenter", label: t("education.tabPresenter"), testId: "education-tab-presenter" },
   ];
 
+  const lessonFields = (
+    <form className="flex flex-wrap items-end gap-2" onSubmit={(event) => void onLesson(event)}>
+      <label className="block min-w-64 flex-1 text-base font-medium text-[var(--text)]">
+        {t("education.ask")}
+        <input
+          className="text-field mt-2 w-full font-normal"
+          value={topic}
+          onChange={(event) => setTopic(event.target.value)}
+          placeholder={t("education.topicPlaceholder")}
+          aria-label={t("education.topicLabel")}
+          data-testid="education-lesson-topic"
+        />
+      </label>
+      <button
+        type="submit"
+        className="btn btn-primary h-10 shrink-0 rounded-pill px-5"
+        disabled={busy !== null || !topic.trim()}
+        data-testid="education-lesson-draft"
+      >
+        {busy === "lesson" ? t("education.drafting") : t("education.draftLesson")}
+      </button>
+    </form>
+  );
+
+  const examFields = (
+    <form className="flex flex-wrap items-end gap-2" onSubmit={(event) => void onExam(event)}>
+      <label className="block min-w-64 flex-1 text-base font-medium text-[var(--text)]">
+        {t("education.examAsk")}
+        <input
+          className="text-field mt-2 w-full font-normal"
+          value={topic}
+          onChange={(event) => setTopic(event.target.value)}
+          placeholder={t("education.topicPlaceholder")}
+          aria-label={t("education.examAsk")}
+          data-testid="education-exam-topic"
+        />
+      </label>
+      <button
+        type="submit"
+        className="btn btn-primary h-10 shrink-0 rounded-pill px-5"
+        disabled={busy !== null || !topic.trim()}
+        data-testid="education-exam-generate"
+      >
+        {busy === "exam" ? t("education.drafting") : t("education.generateExam")}
+      </button>
+    </form>
+  );
+
   return (
     <main
       data-mode="education"
       className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]"
       data-testid="education-studio"
     >
-      <ModeHeader
-        icon="education"
-        title={t("education.title")}
-        outcome={t("education.expectedInputs")}
-        actions={
-          tab === "lesson" && outline ? (
-            <>
-              <button
-                type="button"
-                className="btn btn-ghost rounded-pill px-4"
-                data-testid="education-save-deck"
-                disabled={busy !== null}
-                onClick={() => void onSave()}
-              >
-                {t("education.saveDeck")}
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost rounded-pill px-4"
-                data-testid="education-presenter-build"
-                disabled={busy !== null}
-                onClick={() => void onPresenter()}
-              >
-                {t("education.buildPresenter")}
-              </button>
-            </>
-          ) : null
-        }
-      />
-
-      <div className="mt-6 flex flex-wrap gap-2">
-        {tabs.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className={`btn rounded-pill px-4 ${tab === item.id ? "btn-primary" : "btn-ghost"}`}
-            data-testid={item.testId}
-            aria-pressed={tab === item.id}
-            onClick={() => setTab(item.id)}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
+      <ModeHeader icon="education" title={t("education.title")} outcome={t("education.expectedInputs")} />
 
       {error ? (
         <div
@@ -339,28 +315,10 @@ export function EducationStudio() {
         </div>
       ) : null}
 
-      {tab === "lesson" ? (
-        <div className="mt-8">
-          <form className="flex flex-wrap gap-2" onSubmit={(event) => void onLesson(event)}>
-            <input
-              className="text-field min-w-64 flex-1"
-              value={topic}
-              onChange={(event) => setTopic(event.target.value)}
-              placeholder={t("education.topicPlaceholder")}
-              aria-label={t("education.topicLabel")}
-              data-testid="education-lesson-topic"
-            />
-            <button
-              type="submit"
-              className="btn btn-primary h-8 shrink-0 rounded-pill px-4"
-              disabled={busy !== null}
-              data-testid="education-lesson-draft"
-            >
-              {busy === "lesson" ? t("education.drafting") : t("education.draftLesson")}
-            </button>
-          </form>
-          {outline ? (
-            <div className="mt-6">
+      <div className="mt-8 flex-1">
+        {tab === "lesson" ? (
+          outline ? (
+            <div>
               {saved ? (
                 <p className="mb-3 text-sm text-[var(--text-2)]" data-testid="education-deck-saved">
                   {t("education.deckSaved")}
@@ -371,47 +329,29 @@ export function EducationStudio() {
                 onOutlineChange={(next) => {
                   setOutline(next);
                   setSaved(false);
+                  setPresenter(null);
                 }}
+                variant="simple"
+                toolsHost={toolsHost}
               />
             </div>
           ) : (
-            <div className="mt-8 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10">
+            <div className="px-4 py-6" data-testid="education-lesson-empty">
               <ModeIllustration mode="education" />
-              <p className="mt-4 text-center text-sm text-[var(--text-2)]">{t("education.lessonEmpty")}</p>
+              <p className="mt-4 text-center text-sm text-[var(--text-2)]" data-testid="education-hint">
+                {t("education.hint")}
+              </p>
             </div>
-          )}
-        </div>
-      ) : null}
+          )
+        ) : null}
 
-      {tab === "exam" ? (
-        <form className="mt-8" onSubmit={(event) => void onExam(event)}>
-          <div className="flex flex-wrap gap-2">
-            <input
-              className="text-field min-w-64 flex-1"
-              value={topic}
-              onChange={(event) => setTopic(event.target.value)}
-              placeholder={t("education.topicPlaceholder")}
-              aria-label={t("education.topicLabel")}
-              data-testid="education-exam-topic"
-            />
-            <button
-              type="submit"
-              className="btn btn-primary h-8 shrink-0 rounded-pill px-4"
-              disabled={busy !== null}
-              data-testid="education-exam-generate"
-            >
-              {busy === "exam" ? t("education.drafting") : t("education.generateExam")}
-            </button>
-          </div>
-          {exam ? (
+        {tab === "exam" ? (
+          exam ? (
             <section
-              className="mx-auto mt-8 max-w-3xl rounded-xl border border-[var(--line)] bg-[var(--surface)] px-8 py-8"
+              className="mx-auto max-w-3xl rounded-xl border border-[var(--line)] bg-[var(--surface)] px-8 py-8"
               data-testid="education-exam-sheet"
             >
-              <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--text-3)]">
-                {t("education.examKicker")}
-              </p>
-              <h2 className="mt-2 text-2xl font-medium">{exam.title}</h2>
+              <h2 className="text-2xl font-medium">{exam.title}</h2>
               <ol className="mt-8 space-y-8">
                 {exam.items.map((item, index) => (
                   <li key={item.prompt} data-testid="education-exam-item">
@@ -441,60 +381,160 @@ export function EducationStudio() {
                 ))}
               </ol>
             </section>
-          ) : null}
-        </form>
-      ) : null}
-
-      {tab === "book" ? (
-        <form className="mt-8 space-y-3" onSubmit={(event) => void onBook(event)}>
-          <input
-            type="file"
-            accept="image/png,application/pdf,.png,.pdf"
-            data-testid="education-book-file"
-            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-          />
-          <button
-            type="submit"
-            className="btn btn-primary h-8 rounded-pill px-4"
-            disabled={busy !== null || !file}
-            data-testid="education-book-read"
-          >
-            {busy === "book" ? t("education.reading") : t("education.readBook")}
-          </button>
-          {book ? (
-            <div
-              className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-4"
-              data-testid="education-book-text"
-            >
-              <p className="text-sm text-[var(--text-2)]">{book.message}</p>
-              {book.text ? <pre className="mt-3 whitespace-pre-wrap text-sm">{book.text}</pre> : null}
+          ) : (
+            <div className="px-4 py-6" data-testid="education-exam-empty">
+              <ModeIllustration mode="education" />
+              <p className="mt-4 text-center text-sm text-[var(--text-2)]">{t("education.examHint")}</p>
             </div>
-          ) : null}
-        </form>
-      ) : null}
+          )
+        ) : null}
 
-      {tab === "presenter" ? (
-        <div className="mt-8 space-y-4">
+        {tab === "book" ? (
+          <div className="px-4 py-6">
+            {book ? null : <ModeIllustration mode="education" />}
+            <p className="mt-4 text-center text-sm text-[var(--text-2)]">{t("education.bookHint")}</p>
+            {book ? (
+              <div
+                className="mx-auto mt-6 max-w-3xl rounded-lg border border-[var(--line)] bg-[var(--surface)] p-4"
+                data-testid="education-book-text"
+              >
+                <p className="text-sm text-[var(--text-2)]">{book.message}</p>
+                {book.text ? <pre className="mt-3 whitespace-pre-wrap text-sm">{book.text}</pre> : null}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {tab === "presenter" ? (
+          presenter ? (
+            <PresenterStage
+              presenter={presenter}
+              cueIndex={cueIndex}
+              heading={outline?.slides[presenter.cues[cueIndex]?.slideIndex ?? 0]?.heading}
+            />
+          ) : (
+            <div className="px-4 py-6" data-testid="education-presenter-empty">
+              <ModeIllustration mode="education" />
+              <p className="mt-4 text-center text-sm text-[var(--text-2)]">{t("education.presenterHint")}</p>
+            </div>
+          )
+        ) : null}
+      </div>
+
+      <div
+        className={
+          (tab === "lesson" && outline) || (tab === "exam" && exam) || (tab === "presenter" && presenter)
+            ? "mt-4"
+            : "raise sticky bottom-4 mt-8 space-y-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3"
+        }
+      >
+        {tab === "lesson" && !outline ? lessonFields : null}
+        {tab === "exam" && !exam ? examFields : null}
+        {tab === "book" ? (
+          <form className="flex flex-wrap items-center gap-2" onSubmit={(event) => void onBook(event)}>
+            <input
+              type="file"
+              accept="image/png,application/pdf,.png,.pdf"
+              data-testid="education-book-file"
+              aria-label={t("education.bookHint")}
+              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+            />
+            <button
+              type="submit"
+              className="btn btn-primary h-10 shrink-0 rounded-pill px-5"
+              disabled={busy !== null || !file}
+              data-testid="education-book-read"
+            >
+              {busy === "book" ? t("education.reading") : t("education.readBook")}
+            </button>
+          </form>
+        ) : null}
+        {tab === "presenter" && outline && !presenter ? (
           <button
             type="button"
-            className="btn btn-primary h-8 rounded-pill px-4"
-            disabled={busy !== null || !outline}
+            className="btn btn-primary h-10 rounded-pill px-5"
+            disabled={busy !== null}
             data-testid="education-presenter-build"
             onClick={() => void onPresenter()}
           >
             {busy === "presenter" ? t("education.drafting") : t("education.buildPresenter")}
           </button>
-          {!outline ? <p className="text-sm text-[var(--text-2)]">{t("education.presenterNeedsDeck")}</p> : null}
-          {presenter ? (
-            <PresenterStage
-              presenter={presenter}
-              cueIndex={cueIndex}
-              onCue={setCueIndex}
-              heading={outline?.slides[presenter.cues[cueIndex]?.slideIndex ?? 0]?.heading}
-            />
-          ) : null}
-        </div>
-      ) : null}
+        ) : null}
+
+        <details className="min-w-0" data-testid="education-more-details">
+          <summary className="cursor-pointer text-sm text-[var(--text-3)]" data-testid="education-more">
+            {t("education.more")}
+          </summary>
+          <div className="mt-3 space-y-3">
+            <div className="flex flex-wrap gap-2">
+              {tabs.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`btn h-8 rounded-lg px-3 text-xs ${tab === item.id ? "btn-primary" : "btn-ghost"}`}
+                  data-testid={item.testId}
+                  aria-pressed={tab === item.id}
+                  onClick={() => setTab(item.id)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            {tab === "lesson" && outline ? lessonFields : null}
+            {tab === "exam" && exam ? examFields : null}
+            {outline ? (
+              <button
+                type="button"
+                className="btn btn-ghost h-8 rounded-lg px-3 text-xs"
+                data-testid="education-save-deck"
+                disabled={busy !== null}
+                onClick={() => void onSave()}
+              >
+                {t("education.saveDeck")}
+              </button>
+            ) : null}
+            {saved ? <p className="text-sm text-[var(--text-2)]">{t("education.deckSaved")}</p> : null}
+            {outline && tab === "presenter" && presenter ? (
+              <button
+                type="button"
+                className="btn btn-ghost h-8 rounded-lg px-3 text-xs"
+                disabled={busy !== null}
+                data-testid="education-presenter-build"
+                onClick={() => void onPresenter()}
+              >
+                {busy === "presenter" ? t("education.drafting") : t("education.buildPresenter")}
+              </button>
+            ) : null}
+            {presenter && tab === "presenter" ? (
+              <>
+                <div className="flex flex-wrap gap-2">
+                  {presenter.cues.map((item, index) => (
+                    <button
+                      key={`${item.slideIndex}-${item.startMs}`}
+                      type="button"
+                      className="btn btn-ghost h-8 rounded-lg px-2 text-xs"
+                      aria-pressed={index === cueIndex}
+                      data-testid="education-presenter-cue-pick"
+                      onClick={() => setCueIndex(index)}
+                    >
+                      {index + 1}
+                    </button>
+                  ))}
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium">{t("education.dubHeading")}</h3>
+                  <div className="mt-3 space-y-3 text-sm leading-relaxed" data-testid="education-presenter-dub">
+                    {presenter.dubScript.split("\n").map((line, index) => (
+                      <p key={`${index}-${line.slice(0, 48)}`}>{line}</p>
+                    ))}
+                  </div>
+                </div>
+              </>
+            ) : null}
+            <div ref={setToolsHost} />
+          </div>
+        </details>
+      </div>
     </main>
   );
 }
