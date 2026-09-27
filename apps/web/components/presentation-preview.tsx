@@ -552,7 +552,11 @@ export function PresentationPreview({
           onPointerCancel={endDrag}
           onPointerDown={(event) => {
             const target = event.target as HTMLElement;
-            if (!target.closest("[data-testid='presentations-shape']")) {
+            // The toolbar sits on the stage. A pointerdown there is the click
+            // that duplicates, paints, or removes — clearing first unmounts it.
+            if (
+              !target.closest("[data-testid='presentations-shape'], [data-testid='presentations-selection-toolbar']")
+            ) {
               setSelectedId(null);
             }
           }}

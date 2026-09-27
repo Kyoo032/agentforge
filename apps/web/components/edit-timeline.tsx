@@ -2,6 +2,7 @@ import type { Clip, EditProject } from "@agentforge/core/edit";
 import type { EditJob } from "@/lib/edit-client";
 import { jobForClip, timelineEndFrame } from "@/lib/edit-client";
 import { useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { t } from "@/lib/i18n";
 
 type Props = {
   project: EditProject | null;
@@ -176,7 +177,7 @@ export function EditTimeline({
     <section className="shrink-0 border-t border-[var(--line)] bg-[var(--surface)]" data-testid="edit-timeline">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-[var(--line)] px-3 py-1.5 text-xs text-[var(--text-2)]">
         <label className="flex shrink-0 items-center gap-2">
-          Zoom
+          {t("edit.timeline.zoom")}
           <input
             type="range"
             min={1}
@@ -187,7 +188,7 @@ export function EditTimeline({
             data-testid="edit-zoom"
           />
         </label>
-        <span className="whitespace-nowrap">snap: frame · S split · Del delete</span>
+        <span className="whitespace-nowrap">{t("edit.timeline.hints")}</span>
       </div>
       <div className="relative overflow-x-auto" onClick={onTrackClick}>
         <div className="relative min-h-[132px]" style={{ width }}>
@@ -234,7 +235,7 @@ export function EditTimeline({
                       <button
                         type="button"
                         className="absolute inset-y-0 left-0 w-1.5 cursor-ew-resize"
-                        aria-label="Trim start"
+                        aria-label={t("edit.timeline.trimStart")}
                         onMouseDown={(event) => beginDrag(event, clip, "trim-in")}
                       />
                       <span className="block truncate px-2 py-1">
@@ -244,7 +245,7 @@ export function EditTimeline({
                       <button
                         type="button"
                         className="absolute inset-y-0 right-0 w-1.5 cursor-ew-resize"
-                        aria-label="Trim end"
+                        aria-label={t("edit.timeline.trimEnd")}
                         onMouseDown={(event) => beginDrag(event, clip, "trim-out")}
                       />
                     </div>
