@@ -6,7 +6,7 @@ Research is a job: question → planned sub-queries → web search → fetched p
 
 - `research-header` (0.15.0) — title plus one outcome line in `expected-inputs`: "You get: a cited dossier — Question, Findings, Sources — you can reopen, download, or send to Documents, Presentation, or the Knowledge Base." `research-prompt` is a bordered `text-field` input. Driven 2026-09-23: an `example-card` fills `research-prompt` and shows `example-result` with no request.
 - `research-rail` reaches `/research` from `mode-research` on Default (and any workspace that includes Research).
-- `research-shell` shows `research-studio-empty` inside `research-studio`, plus `example-gallery` (6 `example-card`, see [templates.md](./templates.md)). There is no Documents-style starter: a card only prefills `research-prompt`, it never produces an offline draft.
+- `research-shell` shows `example-gallery` (6 `example-card`, see [templates.md](./templates.md)) under the title, then `research-studio-prompt-bar`. `research-studio-empty` is absent until a dossier exists. There is no Documents-style starter: a card only prefills `research-prompt`, it never produces an offline draft.
 - `research-studio-model` is the generate-bar chat-catalog dropdown.
 - `research-saved` ("Reopen saved research…") lists `GET /api/v1/artifacts?mode=research`: `research-saved-toggle` → `research-saved-panel` → `research-saved-item`. A reopened dossier shows Markdown only.
 - `research-progress` is the streamed phase list (planning → searching n/5 → reading n/10 → drafting → saving) with `research-progress-sources` under it. `research-cancel` replaces nothing but appears beside `research-generate` while the job is busy.
@@ -32,7 +32,7 @@ Preconditions:
 - `research-saved` is the one way to reach the artifact bar without a live run — but only on a desk that already has a saved `mode=research` dossier. The owner's :3000 had none on 2026-09-17.
 
 - **Open Research.** Click `mode-research`. URL matches `/research`. `research-studio` and `research-studio-model` are visible.
-- **Shell.** `research-studio-empty`, `research-studio-prompt-bar`, `research-prompt`, `research-generate`, `research-enhance` and `research-saved` are visible. `research-preview`, `research-note`, `research-tabs` and `research-actions` count 0.
+- **Shell.** The template list (`example-gallery`) comes first; `research-studio-prompt-bar` sits under it. `research-prompt`, `research-generate`, `research-enhance` and `research-saved` are visible. `research-studio-empty`, `research-preview`, `research-note`, `research-tabs` and `research-actions` count 0.
 - **Template prefill.** `example-card` count is 6; click one and `research-prompt` fills with a multi-paragraph brief, `example-result` appears. See [templates.md](./templates.md).
 - **Refused generate (stub desk).** Type a question in `research-prompt`, click `research-generate`. `research-error` appears and names the gateway. It does not ask for a Tavily or Brave key. The wire is `POST /api/v1/research/stream` → HTTP 200 with one `job.error` frame; do not assert an HTTP 503 here. Nothing is persisted: `research-saved-item` count is unchanged.
 - **Saved dossiers (read-only).** Click `research-saved-toggle`; `research-saved-panel` opens and lists `research-saved-item`. Do not pick, create or delete an artifact on a desk you do not own.

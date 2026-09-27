@@ -11,7 +11,6 @@ import { VideoExamples } from "@/components/video-examples";
 import { Confetti } from "@/components/confetti";
 import { ModeHeader } from "@/components/mode-header";
 import { MascotSlot } from "@/components/mascot-slot";
-import { ModeIllustration } from "@/components/mode-illustration";
 import { ModelSelect } from "@/components/model-select";
 import { WorkingStatus } from "@/components/working-status";
 import { SettingsLinkHint } from "@/components/settings-link-hint";
@@ -200,7 +199,7 @@ export function VideosStudio() {
   return (
     <main
       data-mode="videos"
-      className="mx-auto flex min-h-full max-w-[var(--content-stage)] flex-col px-6 py-10 text-[var(--text)]"
+      className="flex min-h-full w-full flex-col px-6 py-4 text-[var(--text)]"
       data-testid="videos-studio"
     >
       <ModeHeader icon="videos" title={t("videos.title")} outcome={t("videos.expectedInputs")} />
@@ -220,7 +219,7 @@ export function VideosStudio() {
       <VideoExamples onPick={pickTemplate} selectedId={templateId} />
 
       <form
-        className="raise mt-8 space-y-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3"
+        className="mt-6 space-y-3 rounded-xl border border-[var(--line)] bg-transparent p-3"
         onSubmit={onSubmit}
         data-testid="videos-studio-prompt-bar"
       >
@@ -350,16 +349,7 @@ export function VideosStudio() {
         {landed > 0 ? <Confetti key={landed} /> : null}
         {loading ? (
           <p className="text-sm text-[var(--text-3)]">{t("videos.loadingGallery")}</p>
-        ) : items.length === 0 ? (
-          <div
-            className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center"
-            data-testid="videos-studio-empty"
-          >
-            <ModeIllustration mode="videos" />
-            <p className="mt-4 text-sm font-medium text-[var(--text)]">{t("videos.emptyTitle")}</p>
-            <p className="mt-2 text-sm text-[var(--text-2)]">{t("videos.emptyBody")}</p>
-          </div>
-        ) : (
+        ) : items.length === 0 ? null : (
           <ul className="grid gap-4 sm:grid-cols-2 min-[1600px]:grid-cols-3 min-[2400px]:grid-cols-4">
             {items.map((item, index) => (
               <li

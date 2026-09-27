@@ -471,7 +471,7 @@ export function ChatComposer({
 
   return (
     <form
-      className={`composer-shell mx-auto mb-6 mt-6 w-full max-w-[var(--composer-max)] shrink-0 rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-3 pb-3 pt-2 !shadow-elev-2${busy ? " composer-sending" : ""}`}
+      className={`composer-shell mx-6 mb-6 mt-6 shrink-0 rounded-2xl border border-[var(--line)] bg-transparent px-3 pb-3 pt-2${busy ? " composer-sending" : ""}`}
       data-testid="composer"
       onSubmit={(event) => {
         event.preventDefault();

@@ -5,7 +5,6 @@ import { Link } from "@/lib/nav";
 import { Confetti } from "@/components/confetti";
 import { DocumentPreview } from "@/components/document-preview";
 import { MascotSlot } from "@/components/mascot-slot";
-import { ModeIllustration } from "@/components/mode-illustration";
 import { SourceMaterialField } from "@/components/source-material-field";
 import { WorkingStatus } from "@/components/working-status";
 import { subscribeModeHandoff } from "@/lib/mode-handoff";
@@ -209,7 +208,7 @@ export function DocumentsStudio() {
   return (
     <main
       data-mode="documents"
-      className="mx-auto flex min-h-full w-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]"
+      className="flex min-h-full w-full flex-col px-6 py-4 text-[var(--text)]"
       data-testid="documents-studio"
     >
       <ModeHeader
@@ -292,49 +291,28 @@ export function DocumentsStudio() {
 
       <ExampleGallery mode="documents" onSelect={(entry) => setPrompt(entry.prompt)} />
 
-      <div className="mt-8 flex-1">
-        {draft ? (
-          <div className="relative">
-            {landed > 0 ? <Confetti key={landed} /> : null}
-            <DocumentPreview
-              draft={draft}
-              models={models}
-              defaultModel={model}
-              regeneratingIndex={regenIndex}
-              onRegenerate={(index, payload) => void onRegenerate(index, payload)}
-            />
-          </div>
-        ) : (
-          <div
-            className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10"
-            data-testid="documents-studio-empty"
-          >
-            <ModeIllustration mode="documents" />
-            <p className="mt-4 text-center text-sm font-medium text-[var(--text)]">{t("documents.emptyTitle")}</p>
-            <p className="mt-2 text-center text-sm text-[var(--text-2)]">{t("documents.emptyHint")}</p>
-            <div className="mx-auto mt-6 grid max-w-[var(--content-narrow)] gap-3 sm:grid-cols-2">
-              {documentStarters().map((starter) => (
-                <button
-                  key={starter.id}
-                  type="button"
-                  className="wash rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-left hover:bg-[var(--accent-soft)]"
-                  onClick={() => {
-                    showStarter(starter.draft);
-                    setError(null);
-                  }}
-                  data-testid="documents-starter"
-                >
-                  <p className="text-sm font-medium text-[var(--text)]">{starter.label}</p>
-                  <p className="mt-1 text-xs text-[var(--text-2)]">{starter.description}</p>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+      {draft ? null : (
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {documentStarters().map((starter) => (
+            <button
+              key={starter.id}
+              type="button"
+              className="wash rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-left hover:bg-[var(--accent-soft)]"
+              onClick={() => {
+                showStarter(starter.draft);
+                setError(null);
+              }}
+              data-testid="documents-starter"
+            >
+              <p className="text-sm font-medium text-[var(--text)]">{starter.label}</p>
+              <p className="mt-1 text-xs text-[var(--text-2)]">{starter.description}</p>
+            </button>
+          ))}
+        </div>
+      )}
 
       <form
-        className="raise sticky bottom-4 mt-8 space-y-2 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3"
+        className="mt-6 space-y-2 rounded-xl border border-[var(--line)] bg-transparent p-3"
         onSubmit={(event) => void onGenerate(event)}
         data-testid="documents-studio-prompt-bar"
       >
@@ -394,6 +372,19 @@ export function DocumentsStudio() {
           ) : null}
         </div>
       </form>
+
+      {draft ? (
+          <div className="relative mt-8">
+            {landed > 0 ? <Confetti key={landed} /> : null}
+            <DocumentPreview
+              draft={draft}
+              models={models}
+              defaultModel={model}
+              regeneratingIndex={regenIndex}
+              onRegenerate={(index, payload) => void onRegenerate(index, payload)}
+            />
+          </div>
+      ) : null}
     </main>
   );
 }

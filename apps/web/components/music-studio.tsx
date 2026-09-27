@@ -11,7 +11,6 @@ import {
 } from "@agentforge/core/audio-capabilities";
 import { ModeHeader } from "@/components/mode-header";
 import { MascotSlot } from "@/components/mascot-slot";
-import { ModeIllustration } from "@/components/mode-illustration";
 import { ModelSelect } from "@/components/model-select";
 import { WorkingStatus } from "@/components/working-status";
 import { SettingsLinkHint } from "@/components/settings-link-hint";
@@ -200,7 +199,7 @@ export function MusicStudio() {
   return (
     <main
       data-mode="music"
-      className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]"
+      className="flex min-h-full w-full flex-col px-6 py-4 text-[var(--text)]"
       data-testid="music-studio"
     >
       <ModeHeader icon="music" title={t("music.title")} outcome={t("music.expectedInputs")} />
@@ -216,7 +215,7 @@ export function MusicStudio() {
       ) : null}
 
       <form
-        className="raise mt-8 space-y-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3"
+        className="mt-6 space-y-3 rounded-xl border border-[var(--line)] bg-transparent p-3"
         onSubmit={onSubmit}
         data-testid="music-studio-prompt-bar"
       >
@@ -407,16 +406,7 @@ export function MusicStudio() {
       <section className="mt-8" data-testid="music-studio-library">
         {loading ? (
           <p className="text-sm text-[var(--text-3)]">{t("music.loadingLibrary")}</p>
-        ) : items.length === 0 ? (
-          <div
-            className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center"
-            data-testid="music-studio-empty"
-          >
-            <ModeIllustration mode="music" />
-            <p className="mt-4 text-sm font-medium text-[var(--text)]">{t("music.emptyTitle")}</p>
-            <p className="mt-2 text-sm text-[var(--text-2)]">{t("music.emptyBody")}</p>
-          </div>
-        ) : (
+        ) : items.length === 0 ? null : (
           <ul className="space-y-3">
             {items.map((item, index) => (
               <li
