@@ -11,6 +11,7 @@ export const OUTPUT_LANGUAGE_SURFACES = [
   "knowledge",
   "meeting",
   "education",
+  "presentations",
 ] as const;
 
 export type OutputLanguageSurface = (typeof OUTPUT_LANGUAGE_SURFACES)[number];
@@ -59,6 +60,10 @@ const RULE: Record<OutputLanguageSurface, Record<AppLocale, string>> = {
   education: {
     en: "Write every lesson title, slide heading, exam prompt, citation label, subtitle cue, and dub line in English. Keep JSON keys in English.",
     id: "Tulis setiap judul pelajaran, heading slide, prompt ujian, label kutipan, teks subtitle, dan baris sulih suara dalam Bahasa Indonesia profesional (sapaan Anda). Kunci JSON tetap bahasa Inggris.",
+  },
+  presentations: {
+    en: "Write every user-facing string (deck title, block text, and speaker notes) in English. Keep JSON keys, page role names, and the engine name in English.",
+    id: "Tulis setiap string yang dilihat pengguna (judul dek, teks blok, dan catatan pembicara) dalam Bahasa Indonesia profesional (sapaan Anda). Kunci JSON, nama peran halaman, dan nama engine tetap bahasa Inggris. Jangan mencampur bahasa kecuali prompt pengguna sendiri mencampur.",
   },
 };
 

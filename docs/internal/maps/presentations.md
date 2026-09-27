@@ -1,12 +1,14 @@
 # Map — Presentation
 
-Last verified: 2026-09-26 at c3606e5
+Last verified: 2026-09-27 at 1fa8ddf
 
 ## Overview
 
 Presentation is a job. A topic goes in the prompt bar, the model returns one JSON outline, and the renderer paints the current slide large, with a filmstrip and a properties panel. A second route turns the same outline into a `.pptx`. The owner edits the title, heading, and bullets on the slide, and inserts rectangle, rounded rectangle, ellipse, triangle, line, arrow, star, callout, and text. Those boxes are dragged and resized, then written into the PPTX by `addOwnerShapes` (`packages/host/src/presentation-pptx.ts:35`). There is no pen, table, chart, or slide master.
 
-The outline still starts in React state (`apps/web/components/presentations-studio.tsx:39`). Save writes it to `presentation-decks/<workspaceId>/deck_*.json` (`packages/host/src/presentation-decks.ts:37`, `POST /api/v1/presentations/decks` at `packages/host/src/router.ts:348`). Reload clears the open deck until `presentations-deck-open` reads it back. A starter still produces a PPTX with no gateway key.
+The outline still starts in React state (`apps/web/components/presentations-studio.tsx:48`). Save writes it to `presentation-decks/<workspaceId>/deck_*.json` (`packages/host/src/presentation-decks.ts:37`, `POST /api/v1/presentations/decks` at `packages/host/src/router.ts:358`). Reload clears the open deck until `presentations-deck-open` reads it back. A starter still produces a PPTX with no gateway key.
+
+An engine select (`presentations-engine`, `apps/web/components/presentations-studio.tsx:528`) chooses **Nultron** (the stage above) or **Open Slide**. Open Slide is a port of the MIT open-slide authoring rules (`packages/core/src/open-slide/THIRD-PARTY-NOTICES.md`): a 1920×1080 JSON deck, not React source. Education does not show the select. Its lesson still mounts the Nultron stage (`apps/web/components/education-studio.tsx:369`).
 
 ## How it works
 
@@ -18,7 +20,7 @@ The pane is `absolute inset-0 … overflow-y-auto` (`apps/web/components/work-mo
 
 ### 2. The shell — four input surfaces, one of which needs no key
 
-`PresentationsStudio` (`apps/web/components/presentations-studio.tsx:29`) renders, top to bottom:
+`PresentationsStudio` (`apps/web/components/presentations-studio.tsx:43`) renders, top to bottom:
 
 | Surface | testid | Works on a stub desk? |
 |---|---|---|
@@ -27,13 +29,13 @@ The pane is `absolute inset-0 … overflow-y-auto` (`apps/web/components/work-mo
 | Source material box + saved-artifact picker | `presentations-source*` (`apps/web/components/source-material-field.tsx:28`, `:36`, `:48`, `:65`, `:84`) | Yes (the picker lists saved artifacts) |
 | Prompt bar: enhance, model select, prompt, Generate | `presentations-enhance` (`:370`), `presentations-studio-model` (`:361`), `presentations-prompt` (`:380`), `presentations-generate` (`:387`) | Enhance **yes** (stub short-circuit); Generate **no** (503) |
 
-The gallery entries come from core (`packages/core/src/templates/library.ts:502-643`, six `mode: "presentations"` rows) and are localized by slug through `localizedLibrary` (`apps/web/lib/ui-copy.ts:34-52`) against the `presentation.templates.*` keys. Clicking a card only calls `setPrompt(entry.prompt)` (`apps/web/components/presentations-studio.tsx:269`) — it never generates.
+The gallery entries come from core (`packages/core/src/templates/library.ts:502-643`, six `mode: "presentations"` rows) and are localized by slug through `localizedLibrary` (`apps/web/lib/ui-copy.ts:34-52`) against the `presentation.templates.*` keys. Clicking a card only calls `setPrompt(entry.prompt)` (`apps/web/components/presentations-studio.tsx:390`) — it never generates.
 
 The model dropdown is the **chat catalog**, not a presentation-specific list: `useJobModel("presentations")` (`apps/web/lib/use-job-model.ts:64`) fetches `/api/v1/models` + `/api/v1/settings` in parallel and seeds from `modes.presentations` / `defaults.presentations` / `settings.presentationGenModel` (`:84-99`). Host side, `modeCatalogPayload` hands presentations `curated.chat` verbatim (`packages/host/src/selectable-models.ts:169`) and `resolveModeDefaults` picks the first live id out of `JOB_MODE_PREFERENCES.presentations` = `glm-5.3-flash`, `glm-5.3-flash-preview`, `glm-5.2-fast-preview`, `glm-5.2`, `glm-5.3`, `kimi-k3` (`packages/core/src/models/mode-defaults.ts:60-67`). On this desk that resolved to `glm-5.3-flash` out of 110 catalog ids, rendered as 101 `<option>`s because `ModelSelect` runs them through `pickerGroups` (`apps/web/components/model-select.tsx:56`).
 
 ### 3. Generate — prompt bar → `POST /api/v1/presentations` → one JSON outline
 
-`onGenerate` (`apps/web/components/presentations-studio.tsx:106`) POSTs `{ prompt, model?, sourceText? }` through `apiFetch`, so webdev and the packaged app share one call. Route table: `packages/host/src/router.ts:344`.
+`onGenerate` (`apps/web/components/presentations-studio.tsx:195`) POSTs `{ prompt, model?, sourceText? }` through `apiFetch`, so webdev and the packaged app share one call. Route table: `packages/host/src/router.ts:350`.
 
 `handlePostPresentations` (`packages/host/src/handlers/jobs.ts:211-220`) resolves the tenant and calls `requireGatewayAllowedFor(tenant)` **before** anything else — a closed gate is a flat `403 gateway_blocked` here, never a failed model call.
 
@@ -64,13 +66,13 @@ Layout is not taken at face value. `resolvePresentationSlideLayout` (`apps/web/l
 
 `presentations-regen` toggles `regenOpen` (`apps/web/components/presentation-preview.tsx:575`) and mounts the shared `JobRegenPanel` (`:581`), which is where `presentations-regen-panel` / `-prompt` / `-model` / `-file` / `-attach` / `-submit` come from (`apps/web/components/job-regen-panel.tsx:120`, `:137`, `:145`, `:155`, `:185`, `:201`). Opening the panel makes **no** request. The button is in the properties panel of the current content slide, not on every card.
 
-Submit uploads any held image through `POST /api/v1/media`, inlines any held `.txt` into the instruction (`:96-107`), then `onRegenerate` POSTs the **whole outline** plus `slideIndex` to `/api/v1/presentations/regenerate` (`apps/web/components/presentations-studio.tsx:140`; route `packages/host/src/router.ts:345`).
+Submit uploads any held image through `POST /api/v1/media`, inlines any held `.txt` into the instruction (`:96-107`), then `onRegenerate` POSTs the **whole outline** plus `slideIndex` to `/api/v1/presentations/regenerate` (`apps/web/components/presentations-studio.tsx:252`; route `packages/host/src/router.ts:351`).
 
 `regeneratePresentationSlide` (`packages/host/src/presentation-generate.ts:189-236`) re-validates the posted outline with `parsePresentationOutlineBody` (400 if malformed), range-checks `slideIndex` (400), gates on live runtime (503), builds a prompt carrying the deck title, the other slides' headings, and the current slide's full body, appends the user instruction (`appendRegenInstruction`, `job-regen.ts:31-33`), runs `SLIDE_SYSTEM` (`:167-176`), parses one slide (`parsePresentationSlide`, `presentation-outline.ts:138`) and returns `mergePresentationSlide(outline, index, slide)` (`:160`) — a new outline object, immutably replaced in renderer state.
 
 ### 6. Download — the same outline, server-rendered to PPTX
 
-`onDownload` (`apps/web/components/presentations-studio.tsx:174`) POSTs the raw outline to `/api/v1/presentations/pptx`, reads the blob, pulls the filename out of `Content-Disposition`, and clicks a synthetic `<a download>`.
+`onDownload` (`apps/web/components/presentations-studio.tsx:286`) POSTs the raw outline to `/api/v1/presentations/pptx`, reads the blob, pulls the filename out of `Content-Disposition`, and clicks a synthetic `<a download>`.
 
 `handlePostPresentationsPptx` (`packages/host/src/handlers/jobs.ts:233-247`) is the odd one out: **no `getTenant`, no `requireGatewayAllowed`, no runtime check.** It validates the body and builds bytes. That is deliberate in effect — nothing here reaches the gateway — but it means a desk with a closed gate can still export a deck it is holding.
 
@@ -82,7 +84,19 @@ There is no language control in the studio. `presentationLocale()` = `localeForR
 
 ### 8. Handoff in — Research / Finance / Data / Market / Legal → Presentation
 
-Presentation is a **handoff target**, never a source. `HANDOFF_TARGETS = ["documents", "presentations"]` (`apps/web/lib/mode-handoff.ts:9`). The five studios that render `ArtifactActions` (research, finance, data, market, legal) expose a `<prefix>-make-presentation` button (`apps/web/components/artifact-actions.tsx:99-107`) which calls `requestModeHandoff` with the artifact Markdown as `sourceText` and a canned prompt (`mode-handoff.ts:34-40`, `:45-51`) and pushes `/presentations`. The studio picks it up in `subscribeModeHandoff("presentations", …)` (`apps/web/components/presentations-studio.tsx:95`), which fills the source box, the source title, and the prompt. Because modes stay mounted, this needs no router state and no storage (`mode-handoff.ts:1-5`). The Presentation studio itself has no `ArtifactActions` row — no Download-Markdown, no Send-to-Knowledge-Base, no Make-a-document.
+Presentation is a **handoff target**, never a source. `HANDOFF_TARGETS = ["documents", "presentations"]` (`apps/web/lib/mode-handoff.ts:9`). The five studios that render `ArtifactActions` (research, finance, data, market, legal) expose a `<prefix>-make-presentation` button (`apps/web/components/artifact-actions.tsx:99-107`) which calls `requestModeHandoff` with the artifact Markdown as `sourceText` and a canned prompt (`mode-handoff.ts:34-40`, `:45-51`) and pushes `/presentations`. The studio picks it up in `subscribeModeHandoff("presentations", …)` (`apps/web/components/presentations-studio.tsx:186`), which fills the source box, the source title, and the prompt. Because modes stay mounted, this needs no router state and no storage (`mode-handoff.ts:1-5`). The Presentation studio itself has no `ArtifactActions` row — no Download-Markdown, no Send-to-Knowledge-Base, no Make-a-document.
+
+### 9. Open Slide — harness, stage, PPTX
+
+`presentations-engine` defaults to `nultron`. Choosing `open-slide` reveals `presentations-open-slide-choices`: length (`short` / `standard` / `deep`), density, and motion (`apps/web/components/presentations-studio.tsx:536`). Those three are the product form of open-slide's scoping questions. The aesthetic is chosen by the harness and shown on `presentations-open-slide-brief` after generate.
+
+Generate posts `{ prompt, brief, model?, sourceText? }` to `POST /api/v1/presentations/open-slide` (`packages/host/src/router.ts:353`). `generateOpenSlideDeck` (`packages/host/src/open-slide-generate.ts:147`) gates through the same handler as Nultron (`requireGatewayAllowedFor` in `packages/host/src/handlers/open-slide.ts:26`). When the runtime is stub it returns `draftOpenSlideDeck` (`packages/host/src/open-slide-generate.ts:157`, `packages/core/src/open-slide/draft.ts:333`) and does not open a socket. A live runtime sends `OPEN_SLIDE_SYSTEM` (`packages/core/src/open-slide/harness.ts:6`) through `withOutputLanguage(..., "presentations", locale)` (`packages/host/src/open-slide-generate.ts:97`, rule at `packages/core/src/output-language.ts:64`) and `collectJobAssistantRun` with `jobMode: "presentations"`. The language is `localeForRun()`.
+
+The stage is `OpenSlideStage` (`apps/web/components/open-slide-stage.tsx:105`). Pages are `presentations-open-slide-page`. Blocks are `presentations-open-slide-block` with pixel `data-x` / `data-y` on a 1920×1080 canvas (`presentations-open-slide-stage`, `:133`). Arrow keys call `nudgeOpenSlideBlock` (`packages/core/src/open-slide/deck.ts:244`), 8px, or 40px with Shift. Text, notes, accent, duplicate, and add-text write the same JSON. Motion is stored on the brief and not played.
+
+Download posts that JSON to `POST /api/v1/presentations/open-slide/pptx` (`packages/host/src/router.ts:354`). `buildOpenSlidePptx` (`packages/host/src/open-slide-pptx.ts:73`) maps each page to one Office slide and writes speaker notes (`:87`). Like the Nultron PPTX route, this handler does not call the gateway. Save uses `open-slide-decks/` via `POST /api/v1/presentations/open-slide/decks` (`packages/host/src/router.ts:356`), a different folder from Nultron outlines so a Nultron parser never reads an Open Slide file.
+
+Not in this cut: Babel source edits, present mode, stepped motion, PDF, static HTML, remote fonts, and `svgl.app`. The harness text names no URL. A font value that contains a URL is replaced with `system-ui`.
 
 ### Failure modes
 
@@ -90,7 +104,7 @@ Presentation is a **handoff target**, never a source. `HANDOFF_TARGETS = ["docum
 |---|---|---|
 | Gate closed | `requireGatewayAllowed`, `packages/host/src/handlers/jobs.ts:215`, `:163` | HTTP 403, **flat** `{error:"gateway_blocked", status, message}` (`packages/host/src/errors.ts:20-25`) → the studio's `errorMessage()` cannot read it and shows the generic fallback (see Gotchas) |
 | No gateway key / `AGENTFORGE_RUNTIME=stub` | `requireLivePresentationRuntime`, `presentation-generate.ts:99-109` | HTTP 503 `runtime_stub`; `presentations-error` shows the gateway copy + an `Open Settings` link |
-| Empty / missing `prompt` | `readPrompt`, `:53-62` | HTTP 400 `invalid_request` (the Generate button is disabled on an empty prompt, `presentations-studio.tsx:265`, so this needs a direct POST) |
+| Empty / missing `prompt` | `readPrompt`, `:53-62` | HTTP 400 `invalid_request` (the Generate button is disabled on an empty prompt, `presentations-studio.tsx:617`, so this needs a direct POST) |
 | `sourceText` not a string / injection hit | `job-source.ts:38-52`, `:23-35` | HTTP 400 `invalid_request` / `injection_blocked` |
 | `slideIndex` out of range | `readSlideIndex`, `:178-187` and `mergePresentationSlide`, `presentation-outline.ts:160` | HTTP 400 `invalid_request` |
 | Posted outline malformed (regen or PPTX) | `parsePresentationOutlineBody`, `presentation-outline.ts:172` | HTTP 400 `invalid_request` |
@@ -116,7 +130,7 @@ Presentation is a **handoff target**, never a source. `HANDOFF_TARGETS = ["docum
 | `apps/web/lib/mode-handoff.ts`, `apps/web/components/artifact-actions.tsx` | "Make a presentation" handoff into the mode |
 | `apps/web/components/work-mode-keep-alive.tsx`, `apps/web/src/App.tsx` | Why `/presentations` renders `null` in the router and stays mounted |
 | `apps/web/locales/{en,id}/presentation.json` | Renderer chrome, gallery copy, six template briefs |
-| `packages/host/src/router.ts:344-348` | Generate, regenerate, PPTX, and the deck store |
+| `packages/host/src/router.ts:350-358` | Nultron generate, regenerate, PPTX, and deck store, plus the Open Slide routes |
 | `packages/host/src/handlers/jobs.ts:211-247` | Gate + tenant for generate/regen; **neither** for pptx |
 | `packages/host/src/presentation-generate.ts` | `OUTLINE_SYSTEM`, `SLIDE_SYSTEM`, runtime gate, model resolve, artifact + KB persist |
 | `packages/host/src/presentation-outline.ts` | Host copy of the schema, JSON extraction, merge, layout resolve |
@@ -132,9 +146,9 @@ Presentation is a **handoff target**, never a source. `HANDOFF_TARGETS = ["docum
 - **`presentation-outline.ts` exists twice, byte-identical.** `apps/web/lib/presentation-outline.ts` and `packages/host/src/presentation-outline.ts` differ only in the `ApiError` import specifier (`@agentforge/core/errors` vs `@agentforge/core`); their test files are duplicated the same way. `resolvePresentationSlideLayout` is what makes the HTML preview and the PPTX agree, so a one-sided edit silently desynchronizes what the user saw from what they downloaded.
 - **`/api/v1/presentations/pptx` is ungated.** `packages/host/src/handlers/jobs.ts:233-247` calls neither `getTenant` nor `requireGatewayAllowed`, unlike its two siblings at `:148` and `:159`. Nothing leaks (the body is the outline the caller already holds and nothing reaches the gateway), but it is the one presentations route a closed gate does not stop.
 - **The model dropdown is empty and disabled for the first few hundred ms.** `useJobModel` starts at `models: []` (`apps/web/lib/use-job-model.ts:70-71`) and `ModelSelect` disables itself while the list is empty (`apps/web/components/model-select.tsx:63`). A drive that asserts `presentations-studio-model` *visible* passes instantly; one that reads its options must wait for them. Measured on the desk: 0 options at first paint, 101 after `/api/v1/models` resolved.
-- **The "Open Settings" link is suppressed on an English desk, on purpose.** The condition at `apps/web/components/presentations-studio.tsx:257` is `matches gateway|api key|settings|runtime_stub|live gateway` **and** `does not match settings` — and the English 503 copy already says "…in Settings" (`packages/host/src/presentation-locale.ts:26`). The Indonesian copy says "Pengaturan", so the link *does* render there. Same banner, different anatomy per locale.
+- **The "Open Settings" link is suppressed on an English desk, on purpose.** The condition at `apps/web/components/presentations-studio.tsx:378` is `matches gateway|api key|settings|runtime_stub|live gateway` **and** `does not match settings` — and the English 503 copy already says "…in Settings" (`packages/host/src/presentation-locale.ts:26`). The Indonesian copy says "Pengaturan", so the link *does* render there. Same banner, different anatomy per locale.
 - **Two error vocabularies for the same wall.** The host 503 string lives in `presentation-locale.ts:22-26`; the renderer also ships `presentation.gatewayError` with the identical sentence in both catalogs — with **zero references** anywhere in `apps/` or `packages/`. Same for `presentation.kicker` (the kicker is produced host-side by `presentationKicker`). Dead keys that look authoritative.
-- **Regen posts the entire deck, every time.** `apps/web/components/presentations-studio.tsx:89-97` sends the whole `outline` object plus `slideIndex`; the host re-validates it (`parsePresentationOutlineBody`) and returns a whole new outline. There is no per-slide id and no server-side deck state — the client is the source of truth between calls.
+- **Regen posts the entire deck, every time.** `apps/web/components/presentations-studio.tsx:260-270` sends the whole `outline` object plus `slideIndex`; the host re-validates it (`parsePresentationOutlineBody`) and returns a whole new outline. There is no per-slide id and no server-side deck state — the client is the source of truth between calls.
 - **The regen panel survives its own failure.** After a 503 the panel stays open, the preview stays rendered, and `presentations-error` appears at the top of the studio, not inside the panel. Verified on the desk.
 - **The starter path writes nothing.** Starters are constants in `apps/web/lib/job-starters.ts`; loading one creates no artifact, no thread, no KB card. Only a *successful live generate* persists (`presentation-generate.ts:153-163`). A harness run on a stub desk therefore leaves the owner's data untouched even after a PPTX download.
 - **The deck dies on reload, not on navigation.** `WorkModeKeepAlive` keeps the component mounted across rail switches, so the outline survives Chat → Presentation round trips; `F5` clears it because nothing is persisted client-side either.
@@ -147,7 +161,7 @@ Presentation is a **handoff target**, never a source. `HANDOFF_TARGETS = ["docum
 
 `.cursor/skills/verify-agentforge/features/presentations.md` — sub-features `presentations-rail`, `presentations-shell`, `presentations-starter`, `presentations-studio-model`, `presentations-regen`, `presentations-download` (recipe names, not DOM testids).
 
-DOM testids that prove it: `mode-presentations` (rail, `mode-${href.slice(1)}`), `presentations-studio` (`apps/web/components/presentations-studio.tsx:232`), `presentations-studio-empty` (`:331`), `presentations-studio-prompt-bar` (`:361`), `presentations-starter` (`:347`), `presentations-prompt` (`:395`), `presentations-generate` (`:402`), `presentations-enhance` (`:385`), `presentations-studio-model` (`:376`), `presentations-save-deck` (`:246`), `presentations-download` (`:255`), `presentations-error` (`:268`), `presentations-editor` / `presentations-shape-toolbar` / `presentations-filmstrip` / `presentations-edit-heading` / `presentations-add-rectangle` / `presentations-shape` / `presentations-shape-resize` / `presentations-fill` (`apps/web/components/presentation-preview.tsx:422`, `:424`, `:439`, `:496`, `:430`, `:557`, `:584`, `:606`), `presentations-source` / `-source-toggle` / `-source-picker` / `-source-clear` / `-source-text` (`apps/web/components/source-material-field.tsx:28`, `:36`, `:48`, `:65`, `:84`), `example-gallery` / `example-card` / `example-result` (`apps/web/components/example-gallery.tsx:19`, `:29`, `:49`), `presentations-preview` / `presentations-slide-title` / `presentations-slide` / `presentations-regen` (`apps/web/components/presentation-preview.tsx:416`, `:477`, `:477`, `:668`).
+DOM testids that prove it: `mode-presentations` (rail, `mode-${href.slice(1)}`), `presentations-studio` (`apps/web/components/presentations-studio.tsx:335`), `presentations-studio-empty` (`:476`), `presentations-studio-prompt-bar` (`:512`), `presentations-starter` (`:497`), `presentations-prompt` (`:610`), `presentations-generate` (`:618`), `presentations-enhance` (`:600`), `presentations-studio-model` (`:591`), `presentations-save-deck` (`:349`), `presentations-download` (`:358`), `presentations-error` (`:375`), `presentations-engine` (`:528`), `presentations-editor` / `presentations-shape-toolbar` / `presentations-filmstrip` / `presentations-edit-heading` / `presentations-add-rectangle` / `presentations-shape` / `presentations-shape-resize` / `presentations-fill` (`apps/web/components/presentation-preview.tsx:422`, `:424`, `:439`, `:496`, `:430`, `:557`, `:584`, `:606`), `presentations-source` / `-source-toggle` / `-source-picker` / `-source-clear` / `-source-text` (`apps/web/components/source-material-field.tsx:28`, `:36`, `:48`, `:65`, `:84`), `example-gallery` / `example-card` / `example-result` (`apps/web/components/example-gallery.tsx:19`, `:29`, `:49`), `presentations-preview` / `presentations-slide-title` / `presentations-slide` / `presentations-regen` (`apps/web/components/presentation-preview.tsx:416`, `:477`, `:477`, `:668`).
 
 Cloud coverage (and `pnpm ci:local --e2e`) is `apps/web/tests/e2e/foundation.spec.ts:89-103` (rail → studio → 2 starters → preview → regen panel → 503). Packaged proof needs `doctor.mjs --desktop`, not `:3000`.
 
