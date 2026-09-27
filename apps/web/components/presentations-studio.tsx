@@ -9,7 +9,6 @@ import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { ExampleGallery } from "@/components/example-gallery";
 import { ModeHeader } from "@/components/mode-header";
 import { MascotSlot } from "@/components/mascot-slot";
-import { ModeIllustration } from "@/components/mode-illustration";
 import { ModelSelect } from "@/components/model-select";
 import { WorkingStatus } from "@/components/working-status";
 import type { JobRegenSubmit } from "@/components/job-regen-panel";
@@ -410,7 +409,7 @@ export function PresentationsStudio() {
   return (
     <main
       data-mode="presentations"
-      className="mx-auto flex min-h-full max-w-[var(--content-stage)] flex-col px-6 py-10 text-[var(--text)]"
+      className="flex min-h-full w-full flex-col px-6 py-4 text-[var(--text)]"
       data-testid="presentations-studio"
     >
       <ModeHeader
@@ -451,51 +450,13 @@ export function PresentationsStudio() {
         </div>
       ) : null}
 
-      <div className="mt-8 flex-1">
-        {showingOpenSlide && openDeck ? (
-          <div className="enter-rise relative">
-            {landed > 0 ? <Confetti key={landed} /> : null}
-            <OpenSlideStage
-              key={`${openDeck.id}:${openDeck.meta.createdAt}`}
-              deck={openDeck}
-              onChange={(next) => {
-                setOpenDeck(next);
-                setSavedNote(false);
-              }}
-            />
-          </div>
-        ) : outline && !showingOpenSlide ? (
-          <div className="enter-rise relative">
-            {landed > 0 ? <Confetti key={landed} /> : null}
-            <PresentationPreview
-              outline={outline}
-              models={models}
-              defaultModel={model}
-              regeneratingIndex={regenIndex}
-              onRegenerate={(index, payload) => void onRegenerate(index, payload)}
-              onOutlineChange={(next) => {
-                setOutline(next);
-                setSavedNote(false);
-              }}
-              variant="simple"
-              toolsHost={toolsHost}
-            />
-          </div>
-        ) : (
-          <div className="px-4 py-6" data-testid="presentations-studio-empty">
-            <ModeIllustration mode="presentations" />
-            <p className="mt-4 text-center text-sm text-[var(--text-2)]" data-testid="presentations-hint">
-              {t("presentation.hint")}
-            </p>
-          </div>
-        )}
-      </div>
+      <ExampleGallery mode="presentations" onSelect={(entry) => setPrompt(entry.prompt)} />
 
       <form
         className={
           hasDeck
             ? "mt-4"
-            : "raise sticky bottom-4 mt-8 space-y-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3"
+            : "mt-6 space-y-3 rounded-xl border border-[var(--line)] bg-transparent p-3"
         }
         onSubmit={(event) => void onGenerate(event)}
         data-testid="presentations-studio-prompt-bar"
@@ -597,7 +558,6 @@ export function PresentationsStudio() {
                   </button>
                 ))}
               </div>
-              <ExampleGallery mode="presentations" onSelect={(entry) => setPrompt(entry.prompt)} />
               {decks.length > 0 ? (
                 <div data-testid="presentations-deck-list">
                   <p className="text-xs font-medium text-[var(--text-2)]">{t("presentation.savedDecks")}</p>
@@ -682,6 +642,39 @@ export function PresentationsStudio() {
         </div>
         {busy === "generate" ? <MascotSlot mode="presentations" placement="beside" busy /> : null}
       </form>
+
+      <div className="mt-8">
+        {showingOpenSlide && openDeck ? (
+          <div className="enter-rise relative">
+            {landed > 0 ? <Confetti key={landed} /> : null}
+            <OpenSlideStage
+              key={`${openDeck.id}:${openDeck.meta.createdAt}`}
+              deck={openDeck}
+              onChange={(next) => {
+                setOpenDeck(next);
+                setSavedNote(false);
+              }}
+            />
+          </div>
+        ) : outline && !showingOpenSlide ? (
+          <div className="enter-rise relative">
+            {landed > 0 ? <Confetti key={landed} /> : null}
+            <PresentationPreview
+              outline={outline}
+              models={models}
+              defaultModel={model}
+              regeneratingIndex={regenIndex}
+              onRegenerate={(index, payload) => void onRegenerate(index, payload)}
+              onOutlineChange={(next) => {
+                setOutline(next);
+                setSavedNote(false);
+              }}
+              variant="simple"
+              toolsHost={toolsHost}
+            />
+          </div>
+        ) : null}
+      </div>
     </main>
   );
 }

@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, usePathname, useSearchParams } from "@/lib/nav";
-import { MascotSlot } from "@/components/mascot-slot";
 import { ModeHeader } from "@/components/mode-header";
 import { ModeIllustration } from "@/components/mode-illustration";
 import { PresentationPreview } from "@/components/presentation-preview";
@@ -104,15 +103,6 @@ function PresenterStage({
           </p>
         ) : null}
       </div>
-    </div>
-  );
-}
-
-/** Quiz reviews. A page reads. Lesson, Show, and the chooser stay on the education home pose. */
-function TaskMascot({ phase }: { phase?: string }) {
-  return (
-    <div className="mx-auto flex w-40 flex-col items-center" data-mode="education">
-      <MascotSlot mode="education" placement="empty" phase={phase} />
     </div>
   );
 }
@@ -327,7 +317,7 @@ export function EducationStudio() {
   return (
     <main
       data-mode="education"
-      className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]"
+      className="flex min-h-full w-full flex-col px-6 py-4 text-[var(--text)]"
       data-testid="education-studio"
     >
       <ModeHeader
@@ -383,7 +373,7 @@ export function EducationStudio() {
             </Link>
           </div>
 
-          <div className="mt-4 flex-1">
+          <div className="order-1 mt-4">
             {task === "lesson" ? (
               outline ? (
                 <div>
@@ -403,14 +393,7 @@ export function EducationStudio() {
                     toolsHost={toolsHost}
                   />
                 </div>
-              ) : (
-                <div className="px-4 py-6" data-testid="education-lesson-empty">
-                  <ModeIllustration mode="education" />
-                  <p className="mt-4 text-center text-sm text-[var(--text-2)]" data-testid="education-hint">
-                    {t("education.hint")}
-                  </p>
-                </div>
-              )
+              ) : null
             ) : null}
 
             {task === "quiz" ? (
@@ -449,18 +432,11 @@ export function EducationStudio() {
                     ))}
                   </ol>
                 </section>
-              ) : (
-                <div className="px-4 py-6" data-testid="education-exam-empty">
-                  <TaskMascot phase="verifying" />
-                  <p className="mt-4 text-center text-sm text-[var(--text-2)]">{t("education.examHint")}</p>
-                </div>
-              )
+              ) : null
             ) : null}
 
-            {task === "page" ? (
+            {task === "page" && book ? (
               <div className="px-4 py-6">
-                {book ? null : <TaskMascot phase="reading" />}
-                <p className="mt-4 text-center text-sm text-[var(--text-2)]">{t("education.bookHint")}</p>
                 {book ? (
                   <div
                     className="mx-auto mt-6 max-w-3xl rounded-lg border border-[var(--line)] bg-[var(--surface)] p-4"
@@ -480,12 +456,7 @@ export function EducationStudio() {
                   cueIndex={cueIndex}
                   heading={outline?.slides[presenter.cues[cueIndex]?.slideIndex ?? 0]?.heading}
                 />
-              ) : (
-                <div className="px-4 py-6" data-testid="education-presenter-empty">
-                  <TaskMascot />
-                  <p className="mt-4 text-center text-sm text-[var(--text-2)]">{t("education.presenterHint")}</p>
-                </div>
-              )
+              ) : null
             ) : null}
           </div>
 
@@ -493,7 +464,7 @@ export function EducationStudio() {
             className={
               settled
                 ? "mt-4"
-                : "raise sticky bottom-4 mt-8 space-y-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3"
+                : "sticky top-0 z-20 -mx-6 mt-4 space-y-3 border-b border-[var(--line)] bg-[var(--bg)] px-6 py-3"
             }
           >
             {task === "lesson" && !outline ? lessonFields : null}

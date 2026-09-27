@@ -7,7 +7,6 @@ import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { ExampleGallery } from "@/components/example-gallery";
 import { ModeHeader } from "@/components/mode-header";
 import { MascotSlot } from "@/components/mascot-slot";
-import { ModeIllustration } from "@/components/mode-illustration";
 import { ModelSelect } from "@/components/model-select";
 import { WorkingStatus } from "@/components/working-status";
 import { SettingsLinkHint } from "@/components/settings-link-hint";
@@ -126,7 +125,7 @@ export function ImagesStudio() {
   return (
     <main
       data-mode="images"
-      className="mx-auto flex min-h-full max-w-[var(--content-stage)] flex-col px-6 py-10 text-[var(--text)]"
+      className="flex min-h-full w-full flex-col px-6 py-4 text-[var(--text)]"
       data-testid="images-studio"
     >
       <ModeHeader icon="images" title={t("images.title")} outcome={t("images.expectedInputs")} />
@@ -144,7 +143,7 @@ export function ImagesStudio() {
       <ExampleGallery mode="images" onSelect={(entry) => setPrompt(entry.prompt)} />
 
       <form
-        className="raise mt-8 space-y-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3"
+        className="mt-6 space-y-3 rounded-xl border border-[var(--line)] bg-transparent p-3"
         onSubmit={onSubmit}
         data-testid="images-studio-prompt-bar"
       >
@@ -227,16 +226,7 @@ export function ImagesStudio() {
         {landed > 0 ? <Confetti key={landed} /> : null}
         {loading ? (
           <p className="text-sm text-[var(--text-3)]">{t("images.loadingGallery")}</p>
-        ) : items.length === 0 ? (
-          <div
-            className="rounded-lg border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center"
-            data-testid="images-studio-empty"
-          >
-            <ModeIllustration mode="images" />
-            <p className="mt-4 text-sm font-medium text-[var(--text)]">{t("images.emptyTitle")}</p>
-            <p className="mt-2 text-sm text-[var(--text-2)]">{t("images.emptyBody")}</p>
-          </div>
-        ) : (
+        ) : items.length === 0 ? null : (
           <ul className="grid gap-4 sm:grid-cols-2 min-[1600px]:grid-cols-3 min-[2400px]:grid-cols-4">
             {items.map((item) => (
               <li key={item.id} className="overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface)]">

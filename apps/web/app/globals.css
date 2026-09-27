@@ -745,7 +745,6 @@ h6 {
 }
 
 .composer-shell {
-  box-shadow: var(--shadow-raise);
   transition: border-color var(--motion-focus);
 }
 

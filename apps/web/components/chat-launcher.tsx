@@ -90,7 +90,7 @@ export function ChatLauncher({ onSuggest }: { onSuggest?: (text: string) => void
        (900px) must not push the hero above the pane — `safe center` falls back
        to the start when the block is taller than the scroller. */
     <div
-      className="chat-empty-fit mx-auto flex min-h-full w-full max-w-[var(--content-max)] flex-col py-6"
+      className="chat-empty-fit flex min-h-full w-full flex-col py-6"
       data-testid="chat-empty"
       data-needs-key={needsKey ? "true" : "false"}
     >
@@ -116,7 +116,7 @@ export function ChatLauncher({ onSuggest }: { onSuggest?: (text: string) => void
       <p className="mt-1 text-center text-xs text-[var(--text-3)]" data-testid="chat-ideas-hint">
         {t("chat.empty.ideas.fillsComposer")}
       </p>
-      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2" data-testid="chat-suggestions">
+      <div className="mx-auto mt-3 grid w-full max-w-3xl grid-cols-1 gap-3 sm:grid-cols-2" data-testid="chat-suggestions">
         {IDEAS.map((id, index) => (
           <button
             key={id}
