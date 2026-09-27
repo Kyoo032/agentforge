@@ -16,6 +16,7 @@ import { tenantMediaRoot } from "./media-root";
 import { tenantDataDir } from "./tenant-paths";
 import { fetchPublicHttps } from "./safe-fetch";
 import { KNOWLEDGE_TEXT_MAX_CHARS, SOURCE_NAME_MAX, chunkKnowledgeText, sanitizeSourceName } from "./knowledge-text";
+import { EMBED_LOCAL_ERROR } from "./knowledge-embed";
 import { deleteThroughBackend, indexThroughBackend, retrieveThroughBackend } from "./knowledge/registry";
 import type { KnowledgeBackendId, RetrievedChunk, RetrieveResult } from "./knowledge/backend";
 import { expandRetrievedChunks } from "./knowledge-expand";
@@ -382,8 +383,23 @@ export async function indexKnowledgeSource(tenant: TenantContext, raw: IndexSour
   const models = getKnowledgeModels(tenant);
   // FTS rows are already committed above, for every backend: the dual write is what keeps a card
   // findable when the selected engine is down. Only the vector / hybrid half is delegated.
-  await indexThroughBackend(tenant, { id: input.id, name: input.name, createdAt }, chunks, models.embeddingModel);
-  return { ...base, status: "Indexed", chunks: chunks.length };
+  const indexed = await indexThroughBackend(
+    tenant,
+    { id: input.id, name: input.name, createdAt },
+    chunks,
+    models.embeddingModel,
+  );
+  if (indexed.degraded) {
+    sql
+      .prepare(`UPDATE knowledge_sources SET error = ? WHERE workspace_id = ? AND id = ? AND status = 'Indexed'`)
+      .run(EMBED_LOCAL_ERROR, workspaceId(tenant), input.id);
+  }
+  return {
+    ...base,
+    status: "Indexed",
+    chunks: chunks.length,
+    error: indexed.degraded ? EMBED_LOCAL_ERROR : null,
+  };
 }
 
 /** Record a source that could not be indexed. The work that produced it still succeeded. */

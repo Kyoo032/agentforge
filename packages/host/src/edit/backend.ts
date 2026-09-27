@@ -147,13 +147,14 @@ export const hostEditBackend: EditToolBackend = {
         workspaceId: ctx.tenant.workspaceId,
       },
     );
+    const opIds = applied.applied.map((op) => op.id);
     await db
       .update(editCards)
-      .set({ opIdsJson: applied.applied.map((op) => op.id) })
+      .set({ opIdsJson: opIds, status: "applied" })
       .where(and(eq(editCards.id, cardId), eq(editCards.projectId, ctx.projectId)));
     const badged = stampBadges(applied.doc, cardId, touchingClipIds(ops));
     await writeSnapshot(ctx.projectId, applied.seq, badged);
-    const card = mapCard({ ...cardRow, opIdsJson: applied.applied.map((op) => op.id) });
+    const card = mapCard({ ...cardRow, opIdsJson: opIds, status: "applied" });
     editEvents.emitEvent({ type: "card.updated", projectId: ctx.projectId, card });
     void tenant;
     return { ops: applied.applied, card };

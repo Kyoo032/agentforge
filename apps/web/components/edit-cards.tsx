@@ -1,7 +1,9 @@
 import { formatUsd } from "@agentforge/core/gateway";
 import type { EditJob, OpCard, UnplacedItem } from "@/lib/edit-client";
 import { isReviewOpen } from "@/lib/edit-client";
+import { editCardOffersKeep, editCardOffersRevert } from "@/lib/edit-card-actions";
 import type { EditProject } from "@agentforge/core/edit";
+import { t } from "@/lib/i18n";
 
 type Props = {
   cards: OpCard[];
@@ -26,26 +28,24 @@ function isPlanCard(card: OpCard): boolean {
   return card.toolKey === "propose_plan" || card.status === "plan" || Array.isArray(card.steps);
 }
 
-export function EditCards({
-  cards,
-  jobs,
-  project,
-  onKeep,
-  onUndo,
-  onTweak,
-  onCancel,
-  onPlanGo,
-  onReviewOk,
-}: Props) {
+export function EditCards({ cards, jobs, project, onKeep, onUndo, onTweak, onCancel, onPlanGo, onReviewOk }: Props) {
   const reviewNeeded = project ? !isReviewOpen(project) : false;
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2">
       {reviewNeeded ? (
-        <article className="rounded-md border border-[var(--line)] bg-[var(--line)]/30 p-3 text-sm" data-testid="edit-review-card">
-          <p className="font-medium">Review before export</p>
-          <p className="mt-1 text-xs text-[var(--text-2)]">Scrub the full timeline or confirm it looks good.</p>
-          <button type="button" className="btn btn-primary mt-2 px-3 py-1 text-xs" data-testid="edit-review-ok" onClick={onReviewOk}>
-            Looks good
+        <article
+          className="rounded-md border border-[var(--line)] bg-[var(--line)]/30 p-3 text-sm"
+          data-testid="edit-review-card"
+        >
+          <p className="font-medium">{t("edit.cards.reviewTitle")}</p>
+          <p className="mt-1 text-xs text-[var(--text-2)]">{t("edit.cards.reviewBody")}</p>
+          <button
+            type="button"
+            className="btn btn-primary mt-2 px-3 py-1 text-xs"
+            data-testid="edit-review-ok"
+            onClick={onReviewOk}
+          >
+            {t("edit.cards.looksGood")}
           </button>
         </article>
       ) : null}
@@ -54,14 +54,20 @@ export function EditCards({
         const pendingJob = job && (job.status === "queued" || job.status === "running");
         if (isPlanCard(card)) {
           return (
-            <article key={card.id} className="rounded-md border border-[var(--line)] bg-[var(--surface)] p-3 text-sm" data-testid="edit-plan-card">
+            <article
+              key={card.id}
+              className="rounded-md border border-[var(--line)] bg-[var(--surface)] p-3 text-sm"
+              data-testid="edit-plan-card"
+            >
               <p className="font-medium">
                 {card.verb} {card.object}
               </p>
               {typeof card.estimateUsd === "number" ? (
-                <p className="mt-1 text-xs text-[var(--text-2)]">est {formatUsd(card.estimateUsd)}</p>
+                <p className="mt-1 text-xs text-[var(--text-2)]">
+                  {t("edit.cards.estimate", { usd: formatUsd(card.estimateUsd) })}
+                </p>
               ) : (
-                <p className="mt-1 text-xs text-[var(--text-2)]">price unknown</p>
+                <p className="mt-1 text-xs text-[var(--text-2)]">{t("edit.cards.priceUnknown")}</p>
               )}
               <button
                 type="button"
@@ -69,17 +75,23 @@ export function EditCards({
                 data-testid="edit-plan-go"
                 onClick={() => onPlanGo(card)}
               >
-                Go
+                {t("edit.cards.go")}
               </button>
             </article>
           );
         }
         return (
-          <article key={card.id} className="rounded-md border border-[var(--line)] bg-[var(--surface)] p-3 text-sm" data-testid="edit-card">
+          <article
+            key={card.id}
+            className="rounded-md border border-[var(--line)] bg-[var(--surface)] p-3 text-sm"
+            data-testid="edit-card"
+          >
             <p className="font-medium">
               {card.verb} · {card.object}
             </p>
-            <p className="mt-0.5 text-xs text-[var(--text-3)]">{card.status}</p>
+            <p className="mt-0.5 text-xs text-[var(--text-3)]" data-testid="edit-card-status">
+              {t(`edit.status.${card.status}`)}
+            </p>
             {card.thumbs && card.thumbs.length > 0 ? (
               <div className="mt-2 flex gap-1">
                 {card.thumbs.slice(0, 6).map((thumb) => (
@@ -98,22 +110,39 @@ export function EditCards({
                   data-testid="edit-card-cancel"
                   onClick={() => job.id && onCancel(job.id)}
                 >
-                  Cancel
+                  {t("edit.cards.cancel")}
                 </button>
               </div>
-            ) : (
+            ) : editCardOffersRevert(card.status) ? (
               <div className="mt-2 flex flex-wrap gap-1">
-                <button type="button" className="btn btn-secondary px-2 py-1 text-xs" data-testid="edit-card-keep" onClick={() => onKeep(card.id)}>
-                  Keep
+                {editCardOffersKeep(card.status) ? (
+                  <button
+                    type="button"
+                    className="btn btn-secondary px-2 py-1 text-xs"
+                    data-testid="edit-card-keep"
+                    onClick={() => onKeep(card.id)}
+                  >
+                    {t("edit.cards.keep")}
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="btn btn-secondary px-2 py-1 text-xs"
+                  data-testid="edit-card-undo"
+                  onClick={() => onUndo(card.id)}
+                >
+                  {t("edit.cards.undo")}
                 </button>
-                <button type="button" className="btn btn-secondary px-2 py-1 text-xs" data-testid="edit-card-undo" onClick={() => onUndo(card.id)}>
-                  Undo
-                </button>
-                <button type="button" className="btn btn-ghost px-2 py-1 text-xs" data-testid="edit-card-tweak" onClick={() => onTweak(card)}>
-                  Tweak
+                <button
+                  type="button"
+                  className="btn btn-ghost px-2 py-1 text-xs"
+                  data-testid="edit-card-tweak"
+                  onClick={() => onTweak(card)}
+                >
+                  {t("edit.cards.tweak")}
                 </button>
               </div>
-            )}
+            ) : null}
           </article>
         );
       })}
@@ -141,10 +170,20 @@ export function EditTray({
           <div key={item.id} className="flex items-center justify-between gap-2 text-xs" data-testid="edit-tray-item">
             <span className="truncate">{item.prompt ?? item.assetId}</span>
             <span className="flex shrink-0 gap-1">
-              <button type="button" className="btn btn-secondary px-2 py-0.5" data-testid="edit-tray-place" onClick={() => onPlace(item.id)}>
+              <button
+                type="button"
+                className="btn btn-secondary px-2 py-0.5"
+                data-testid="edit-tray-place"
+                onClick={() => onPlace(item.id)}
+              >
                 Place
               </button>
-              <button type="button" className="btn btn-ghost px-2 py-0.5" data-testid="edit-tray-discard" onClick={() => onDiscard(item.id)}>
+              <button
+                type="button"
+                className="btn btn-ghost px-2 py-0.5"
+                data-testid="edit-tray-discard"
+                onClick={() => onDiscard(item.id)}
+              >
                 Discard
               </button>
             </span>

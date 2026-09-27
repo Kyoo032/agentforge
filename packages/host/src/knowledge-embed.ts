@@ -24,7 +24,10 @@ const EMBED_BATCH = 16;
 export const STUB_EMBED_MODEL = "stub-fnv-32";
 
 /** Vectors plus the model id they must be stored (and later queried) under. */
-export type EmbeddedTexts = { vectors: number[][]; model: string };
+export type EmbeddedTexts = { vectors: number[][]; model: string; degraded?: boolean };
+
+/** Stable source-row code when a live embed fell back to local vectors. The row stays Indexed. */
+export const EMBED_LOCAL_ERROR = "embed_local";
 /**
  * Embeddings sit on the hot path of every chat message and every KB write. Offline, a black-holed
  * endpoint must cost one short wait, not one per call: after a failure the endpoint is treated as
@@ -33,10 +36,38 @@ export type EmbeddedTexts = { vectors: number[][]; model: string };
 const EMBED_TIMEOUT_MS = 4_000;
 const EMBED_DOWN_MS = 5 * 60 * 1000;
 let embedDownUntil = 0;
+/** One live attempt at a time. A second caller waits, then stubs if the first opened the circuit. */
+let liveTail: Promise<void> = Promise.resolve();
 
 /** Test hook. */
 export function resetEmbedCircuit(): void {
   embedDownUntil = 0;
+  liveTail = Promise.resolve();
+}
+
+function enqueueLive<T>(run: () => Promise<T>): Promise<T> {
+  const turn = liveTail.then(run, run);
+  liveTail = turn.then(
+    () => undefined,
+    () => undefined,
+  );
+  return turn;
+}
+
+function isRetryableEmbedError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  if (error.name === "TimeoutError" || error.name === "AbortError") {
+    return true;
+  }
+  if (/embeddings 4\d\d/.test(error.message) || /length mismatch/.test(error.message)) {
+    return false;
+  }
+  if (/embeddings \d{3}/.test(error.message) || error.name === "TypeError") {
+    return true;
+  }
+  return /aborted due to timeout|network|fetch failed/i.test(error.message);
 }
 
 function workspaceId(tenant: TenantContext): string {
@@ -84,8 +115,38 @@ async function liveEmbedBatch(texts: string[], model: string, scope?: SettingsSc
   return parsed;
 }
 
-function allStubbed(texts: string[]): EmbeddedTexts {
-  return { vectors: texts.map((text) => stubEmbed(text)), model: STUB_EMBED_MODEL };
+function allStubbed(texts: string[], degraded: boolean): EmbeddedTexts {
+  return { vectors: texts.map((text) => stubEmbed(text)), model: STUB_EMBED_MODEL, degraded };
+}
+
+async function embedLive(texts: string[], model: string, scope?: SettingsScope): Promise<EmbeddedTexts> {
+  if (Date.now() < embedDownUntil) {
+    return allStubbed(texts, true);
+  }
+  const out: number[][] = [];
+  for (let i = 0; i < texts.length; i += EMBED_BATCH) {
+    const batch = texts.slice(i, i + EMBED_BATCH);
+    try {
+      out.push(...(await liveEmbedBatch(batch, model, scope)));
+    } catch (error) {
+      let failure: unknown = error;
+      if (isRetryableEmbedError(error)) {
+        try {
+          out.push(...(await liveEmbedBatch(batch, model, scope)));
+          continue;
+        } catch (retryError) {
+          failure = retryError;
+        }
+      }
+      embedDownUntil = Date.now() + EMBED_DOWN_MS;
+      log.warn("knowledge_embed_unavailable", {
+        localVectorMinutes: EMBED_DOWN_MS / 60_000,
+        detail: failure instanceof Error ? failure.message.slice(0, 80) : "error",
+      });
+      return allStubbed(texts, true);
+    }
+  }
+  return { vectors: out, model, degraded: false };
 }
 
 /**
@@ -101,26 +162,15 @@ export async function embedTextsWithModel(
   scope?: SettingsScope,
 ): Promise<EmbeddedTexts> {
   if (texts.length === 0) {
-    return { vectors: [], model };
+    return { vectors: [], model, degraded: false };
   }
-  if (isStubEmbedding(scope) || Date.now() < embedDownUntil) {
-    return allStubbed(texts);
+  if (isStubEmbedding(scope)) {
+    return allStubbed(texts, false);
   }
-  const out: number[][] = [];
-  for (let i = 0; i < texts.length; i += EMBED_BATCH) {
-    const batch = texts.slice(i, i + EMBED_BATCH);
-    try {
-      out.push(...(await liveEmbedBatch(batch, model, scope)));
-    } catch (error) {
-      embedDownUntil = Date.now() + EMBED_DOWN_MS;
-      log.warn("knowledge_embed_unavailable", {
-        localVectorMinutes: EMBED_DOWN_MS / 60_000,
-        detail: error instanceof Error ? error.message.slice(0, 80) : "error",
-      });
-      return allStubbed(texts);
-    }
+  if (Date.now() < embedDownUntil) {
+    return allStubbed(texts, true);
   }
-  return { vectors: out, model };
+  return enqueueLive(() => embedLive(texts, model, scope));
 }
 
 export async function embedTexts(texts: string[], model: string, scope?: SettingsScope): Promise<number[][]> {
@@ -160,14 +210,17 @@ export async function indexSourceVectors(
   model: string,
   /** When given, vectors are written only if the source row still exists with this created_at. */
   expectSourceCreatedAt?: number,
-): Promise<void> {
+): Promise<{ degraded: boolean }> {
   if (chunks.length === 0) {
-    return;
+    return { degraded: false };
   }
+  let degraded = false;
   try {
     // The id the vectors are *stored* under is the one the embedder actually used, which is
     // `stub-fnv-32` whenever the live endpoint was unavailable — never the configured model.
-    const { vectors: embeddings, model: storedModel } = await embedTextsWithModel(chunks, model, tenant);
+    const embedded = await embedTextsWithModel(chunks, model, tenant);
+    degraded = embedded.degraded === true;
+    const { vectors: embeddings, model: storedModel } = embedded;
     const insert = sql.prepare(
       `INSERT INTO knowledge_vectors (id, workspace_id, source_id, chunk_index, body, embedding, model, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -205,6 +258,7 @@ export async function indexSourceVectors(
       detail: error instanceof Error ? error.message.slice(0, 120) : "error",
     });
   }
+  return { degraded };
 }
 
 export async function reembedWorkspaceChunks(tenant: TenantContext, model: string): Promise<void> {

@@ -1,6 +1,6 @@
 # Map — Market watch
 
-Last verified: 2026-09-23 at d4561b8 + uncommitted tree, for every `market-generate.ts` and
+Last verified: 2026-09-27 for the starter chips: `market-starters` renders on a seeded watchlist, not only when `tickers.length === 0`. The specialist picker and depth control stay in that empty block. Earlier: 2026-09-23 at d4561b8 + uncommitted tree, for every `market-generate.ts` and
 `market-team.ts` citation, the Generate / analyst team / regenerate steps (6, 7, 10), the model
 and cancel notes, and the failure table. Everything else — the rail, the watchlist, the board, the
 packet, the harness table and the renderer testids outside those steps — was last walked on
@@ -41,7 +41,7 @@ The cap is `WATCHLIST_MAX = 15` (`packages/core/src/market/watch-schemas.ts:30`)
 
 The studio wires that up on `scopeKey = ${workspaceId}|${specialist}` (`market-studio.tsx:104`): when the rail moves the URL to another desk it swaps in that desk's watchlist, stales the old error, and — only while the instruction box still holds one of our defaults — swaps in that desk's default instruction (`:136-151`, `nextPrompt` at `:147`). The same effect clamps the depth control back to quick on a desk with no analysts (`:149`). `changeTickers` saves on every edit (`:153-159`). The board refetches off `tickers`, so nothing else has to be told about the move.
 
-Starters: `market-specialist-starter` fills the box with the current desk's own starter list (`:368-379`), beside the three fixed `market-starter` presets (`:380-395`).
+Starters: `data-testid="market-starters"` always renders under the watchlist. `market-specialist-starter` fills the box with the current desk's own starter list, beside the three fixed `market-starter` presets. The specialist picker and the depth control render only while `tickers.length === 0`. A seeded desk still shows the chips.
 
 ### 3. The keyless board
 

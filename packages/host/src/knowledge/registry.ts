@@ -61,8 +61,8 @@ export async function indexThroughBackend(
   source: BackendSource,
   chunks: string[],
   model: string,
-): Promise<void> {
-  await builtinBackend().indexSource(tenant, source, chunks, model);
+): Promise<{ degraded: boolean }> {
+  return builtinBackend().indexSource(tenant, source, chunks, model);
 }
 
 export async function deleteThroughBackend(

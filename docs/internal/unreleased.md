@@ -536,3 +536,14 @@ Host and renderer, both products. Nothing packed.
 - **Videos offers and prices only models the refresh listed.** `GET /api/v1/videos` reads `listProbedVideoModels` (the dialect arrays in `models-cache.json`) and does not fill an empty probe from static `CHAT_MODELS`. `doubao-seedance-2-0-260128` is not quoted at about $0.75 unless that id came back from `GET /v1/models`. The default is empty when the refresh listed no video model, and a Settings or agent pin outside that list is not selected. A job the gateway still refuses with "not available for this key" returns `model_not_on_key` in English and Indonesian and names another listed model; the studio drops the refused id so it is no longer priced.
 - **Edit writes the agent's title onto the timeline.** A live turn binds every edit tool and calls the refreshed chat model, not the literal id `edit`. `add_title` accepts `{ text }` and lands a clip on `v1`. The stub path "Add a title card that says Hello" does the same. Tool results that carry ops are forwarded as `edit.ops` / `edit.card` frames.
 - **Images needs-key note matches the button.** `images-studio-needs-key` follows `needsKey` (`allowed === false`), the same flag that disables `images-studio-submit`. A stub desk (`allowed: true`) hides the note and can still generate.
+
+## Live-test findings, 2026-09-27 (not packed)
+
+Host and renderer, both products. Nothing packed.
+
+- **An unsent Chat attachment survives the desk id arriving.** `WorkModeKeepAlive` remounts when the shell id moves from boot to the real workspace. The composer draft (text and files) is stashed in `apps/web/lib/composer-draft.ts` outside that key, adopted onto the resolved desk, and cleared on a real desk switch. New chat on a stable desk id does not drop the chip.
+- **Market starter chips show on a seeded watchlist.** `market-starters` is not gated on `tickers.length === 0`. The specialist picker and depth control still are.
+- **The Finance chooser at `/finance` (no task) sets the calculating pose.** `showChooser` mounts `ModeIllustration mode="finance"` before the task list. `/finance?task=brief` is a different screen.
+- **An Edit card that already changed the timeline reads applied.** `applyAgentOps` sets `status: "applied"` after the ops land. Keep is only offered while the card is still `proposed`. A new project's name field starts at `Untitled edit` / `Suntingan baru`.
+- **A knowledge embed timeout is visible.** One retry, then one in-flight attempt. The source stays Indexed, `error` is `embed_local`, and the Sources row shows `knowledge-embed-local`. Stub runtime does not show it.
+- **Restart waits for the language save.** The banner can show while `POST /api/v1/settings` is in flight. The Restart button stays disabled until that save resolves, and the click applies the locale that landed on disk. A failed save does not call `apply-locale`.

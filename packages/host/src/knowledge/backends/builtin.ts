@@ -235,10 +235,10 @@ export class SqliteBuiltinBackend implements KnowledgeBackend {
     source: BackendSource,
     chunks: string[],
     model: string,
-  ): Promise<void> {
+  ): Promise<{ degraded: boolean }> {
     // `createdAt` ties the vectors to this exact row version: a delete or re-index that lands while
     // the (possibly remote) embed is in flight makes the vector write a no-op instead of an orphan.
-    await indexSourceVectors(tenant, source.id, chunks, model, source.createdAt);
+    return indexSourceVectors(tenant, source.id, chunks, model, source.createdAt);
   }
 
   // `async`, not `return Promise.resolve(...)`: the SQLite delete is synchronous, so a non-async

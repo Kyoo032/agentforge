@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DEFAULT_GATEWAY_IMAGE_MODEL, DEFAULT_GATEWAY_VIDEO_MODEL } from "@agentforge/core/media-kind";
 import { AccountPlanPanel } from "./account-plan-panel";
 import { AccountSessionRow } from "./account-session-row";
@@ -158,6 +158,8 @@ export function SettingsPage() {
   const [localeBusy, setLocaleBusy] = useState(false);
   const [localeSaving, setLocaleSaving] = useState(false);
   const [localeError, setLocaleError] = useState<string | null>(null);
+  // The in-flight POST /settings. Restart waits for it so apply-locale reads the language just saved.
+  const localeSaveRef = useRef<Promise<boolean> | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   // A queued wipe the host will apply on the next launch; the reset card offers to call it off.
   const [resetPending, setResetPending] = useState(false);
@@ -291,33 +293,44 @@ export function SettingsPage() {
     }
   }
 
-  async function onLocaleChange(next: string) {
+  async function onLocaleChange(next: string): Promise<boolean> {
     if (!isAppLocale(next) || localeSaving) {
-      return;
+      return false;
     }
     // The select shows the choice while it saves, and goes back if the save does not land.
     const previous = savedLocale;
     setSavedLocale(next);
     setLocaleError(null);
     setLocaleSaving(true);
-    try {
-      const answer = await readSettingsAnswer(
-        () =>
-          apiFetch("/api/v1/settings", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ locale: next }),
-          }),
-        "settings.localeFailed",
-      );
-      if (answer.kind !== "ok") {
-        setSavedLocale(previous);
-        setLocaleError(answerError(answer));
-        return;
+    const saving = (async (): Promise<boolean> => {
+      try {
+        const answer = await readSettingsAnswer(
+          () =>
+            apiFetch("/api/v1/settings", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ locale: next }),
+            }),
+          "settings.localeFailed",
+        );
+        if (answer.kind !== "ok") {
+          setSavedLocale(previous);
+          setLocaleError(answerError(answer));
+          return false;
+        }
+        applyPayload(answer.payload);
+        return true;
+      } finally {
+        setLocaleSaving(false);
       }
-      applyPayload(answer.payload);
+    })();
+    localeSaveRef.current = saving;
+    try {
+      return await saving;
     } finally {
-      setLocaleSaving(false);
+      if (localeSaveRef.current === saving) {
+        localeSaveRef.current = null;
+      }
     }
   }
 
@@ -340,6 +353,13 @@ export function SettingsPage() {
   }
 
   async function onRestart() {
+    const pending = localeSaveRef.current;
+    if (pending) {
+      const saved = await pending;
+      if (!saved) {
+        return;
+      }
+    }
     setLocaleError(null);
     setLocaleBusy(true);
     try {
@@ -432,7 +452,7 @@ export function SettingsPage() {
               className="btn btn-primary"
               data-testid="settings-locale-restart-button"
               onClick={() => void onRestart()}
-              disabled={localeBusy}
+              disabled={localeBusy || localeSaving}
             >
               {t("common.restartApp")}
             </button>

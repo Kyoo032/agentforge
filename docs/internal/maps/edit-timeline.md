@@ -1,6 +1,6 @@
 # Map — Edit timeline and agent
 
-Last verified: 2026-09-26 for § 8 (live bindings, chat model, tool-result frames, title defaults, stub "says Hello"). Before that: 2026-09-23 at d4561b8 + uncommitted tree for § 2 (doctor), § 4 (the `appendOps` steps, desk and job
+Last verified: 2026-09-27 for agent cards: `applyAgentOps` sets `status: "applied"` after `appendOps` succeeds, and the card offers Keep only while `proposed`. A new project name comes from `edit.defaultProjectName` (`Untitled edit` / `Suntingan baru`). Before that: 2026-09-26 for § 8 (live bindings, chat model, tool-result frames, title defaults, stub "says Hello"). Before that: 2026-09-23 at d4561b8 + uncommitted tree for § 2 (doctor), § 4 (the `appendOps` steps, desk and job
 scope), § 6 (keyboard guard, drag release), § 10 (review gate, and `render` refused on `/jobs`), § 11 (generate,
 the worker's tenant, the still check), § 12 (export, the desktop save dialog) and the gateway-gate failure row —
 two passes that day, the Edit security fixes and the docs pass that reconciled them. Not driven. Everything else
@@ -475,10 +475,11 @@ A's `workerWorkspaceId`.
   (`packages/host/src/edit/backend.ts:51-57`) prints `ops[0].type.replaceAll("_", " ")`, so S1 shows
   `split clip · <clip id>`. The friendly `stubEditCardCopy` string only reaches the `assistant.delta`
   line (`agent-run.ts:355-356`), which the Edit UI does not render at all.
-- **A card can exist with zero ops.** `applyAgentOps` inserts the card row before `appendOps`
-  (`backend.ts:110-127`) and never reconciles. A stub scenario whose canned frames fall outside the
-  clip (S1's 300–1395 on a short clip, S2's 450/900 on already-split clips) produces a `proposed` card
-  with `opIds: []`, and `lastAgentSeq` never moves, so the review gate stays open.
+- **A card can exist with zero ops.** `applyAgentOps` inserts the card as `proposed` before `appendOps`.
+  When the ops land, the same row is updated to `applied` and the emitted card uses that status, so
+  Keep is hidden. A stub scenario whose canned frames fall outside the clip (S1's 300–1395 on a short
+  clip, S2's 450/900 on already-split clips) can still leave a card with `opIds: []` if `appendOps`
+  applies nothing; `lastAgentSeq` does not move, so the review gate stays open.
 - **Undo does not reopen the review gate.** `undoCard` appends inverses as `actor: "owner"`
   (`packages/host/src/edit/undo.ts:65-69`), and only `agent:` ops move `lastAgentSeq`.
 - **Keep writes no ops at all** — it strips the badge, re-snapshots and flips a status
