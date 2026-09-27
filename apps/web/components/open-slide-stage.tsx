@@ -1,6 +1,11 @@
 "use client";
 
-import { useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import {
   addOpenSlideTextBlock,
   duplicateOpenSlideBlock,
@@ -23,6 +28,8 @@ import { t } from "@/lib/i18n";
 export function OpenSlideStage({ deck, onChange }: { deck: OpenSlideDeck; onChange: (next: OpenSlideDeck) => void }) {
   const [pageId, setPageId] = useState(deck.pages[0]?.id ?? "");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const deckRef = useRef(deck);
+  deckRef.current = deck;
   const page = deck.pages.find((item) => item.id === pageId) ?? deck.pages[0];
   const selected = page?.blocks.find((block) => block.id === selectedId) ?? null;
 
@@ -80,18 +87,20 @@ export function OpenSlideStage({ deck, onChange }: { deck: OpenSlideDeck; onChan
     const originY = event.clientY;
     const startX = block.x;
     const startY = block.y;
-    const snapshot = deck;
     const currentPageId = page.id;
+    let dragging = false;
     function move(ev: PointerEvent) {
-      onChange(
-        moveOpenSlideBlock(
-          snapshot,
-          currentPageId,
-          block.id,
-          startX + (ev.clientX - originX) / scale,
-          startY + (ev.clientY - originY) / scale,
-        ),
-      );
+      const dx = ev.clientX - originX;
+      const dy = ev.clientY - originY;
+      // A click jitters by a pixel. Ignore that, and read the latest deck so the
+      // move does not put back text from the pointer-down render.
+      if (!dragging) {
+        if (Math.hypot(dx, dy) < 4) {
+          return;
+        }
+        dragging = true;
+      }
+      onChange(moveOpenSlideBlock(deckRef.current, currentPageId, block.id, startX + dx / scale, startY + dy / scale));
     }
     function up() {
       window.removeEventListener("pointermove", move);
