@@ -1,6 +1,6 @@
 # Edit
 
-Edit is the CapCut-style timeline with an agent panel (`/edit`, rail `mode-edit`). Human and agent share one ops log; every agent change is a card with Keep / Undo / Tweak. Without ffmpeg the studio shows `edit-needs-ffmpeg`. Without a gateway key the agent panel is stub (scripted scenarios) and generation is `edit-needs-key`.
+Edit is the CapCut-style timeline with an agent panel (`/edit`, rail `mode-edit`). Human and agent share one ops log; every agent change is a card with Keep / Undo / Tweak. Without ffmpeg the studio shows `edit-needs-ffmpeg`. Without a gateway key the agent panel is stub (scripted scenarios) and generation is `edit-needs-key`. Map: [`docs/internal/maps/edit-timeline.md`](../../../../docs/internal/maps/edit-timeline.md).
 
 ## Sub-features
 

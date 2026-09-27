@@ -1,6 +1,6 @@
 # Onboarding
 
-The first-run screen, in three steps. A fresh desk says hello, then asks for a key, then offers four examples. The examples render only after the host reports `allowed`. The renderer displays that decision and does not decide it. The in-app name is `{productName}` (DPSBuddy). There is no password and no sign-in form, and the gateway address is not on the screen. How the gate is derived is [gateway-gate.md](./gateway-gate.md); the document-reader panel is [components.md](./components.md).
+The first-run screen, in three steps. A fresh desk says hello, then asks for a key, then offers four examples. The examples render only after the host reports `allowed`. The renderer displays that decision and does not decide it. The in-app name is `{productName}` (DPSBuddy). There is no password and no sign-in form, and the gateway address is not on the screen. How the gate is derived is [gateway-gate.md](./gateway-gate.md); the document-reader panel is [components.md](./components.md). The gate map is [`docs/internal/maps/settings-and-gateway-gate.md`](../../../../docs/internal/maps/settings-and-gateway-gate.md).
 
 ## Sub-features
 

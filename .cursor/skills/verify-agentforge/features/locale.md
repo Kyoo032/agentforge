@@ -1,6 +1,6 @@
 # Locale
 
-DPSBuddy ships English and Bahasa Indonesia. Settings has one language select; picking a language saves it immediately but **does not retranslate the screen** — a restart banner appears, and only its button applies the new locale to the renderer and re-freezes the host's boot locale. Both the renderer (`apps/web/lib/i18n.ts`) and the host (`packages/host/src/locale-boot.ts`) hold the locale in a module-level frozen variable, which is why a page reload alone is not enough. Testids never change with locale, so every recipe in this map stays valid on an `id` desk — only the visible strings move.
+DPSBuddy ships English and Bahasa Indonesia. Settings has one language select; picking a language saves it immediately but **does not retranslate the screen** — a restart banner appears, and only its button applies the new locale to the renderer and re-freezes the host's boot locale. Both the renderer (`apps/web/lib/i18n.ts`) and the host (`packages/host/src/locale-boot.ts`) hold the locale in a module-level frozen variable, which is why a page reload alone is not enough. Testids never change with locale, so every recipe in this map stays valid on an `id` desk — only the visible strings move. Map: [`docs/internal/maps/locale-boot-and-run-harness.md`](../../../../docs/internal/maps/locale-boot-and-run-harness.md).
 
 ## Sub-features
 
@@ -39,6 +39,7 @@ Preconditions:
 ## Gotchas
 
 - **Selecting a language retranslates nothing.** Only `settings-locale-restart-button` calls `applyLocale()`. A recipe that changes the select and immediately asserts Indonesian anywhere else fails, and the failure is the recipe's, not the app's.
+- **Wait for the settings POST before Restart.** `onLocaleChange` shows the banner as soon as it sets `savedLocale`, then posts `{locale}` (`apps/web/components/settings-page.tsx`). `localeSaving` disables the select only; `settings-locale-restart-button` stays enabled. `onRestart` applies the locale already on disk. A click that lands before that POST returns freezes the previous language. Wait for `POST /api/v1/settings` (the body is `{locale}`, not `apply-locale`) to finish, then click.
 - **`locale` and `savedLocale` are two different fields.** `savedLocale` is the pending pick and drives the select and the banner; `locale` is the applied, frozen one. The banner is visible exactly while they differ, so asserting the banner is really asserting the mismatch.
 - **A page reload does not restart the host.** The Node host freezes its boot locale once (`locale-boot.ts`) and only `apply-locale` re-freezes it, so job output can stay in the old language even after the chrome flips if the apply call did not actually run.
 - **Testids are locale-invariant.** `settings-locale`, `settings-locale-restart`, `settings-locale-restart-button` and every `mode-*` id read the same in both languages. Never match a control by its visible text in a locale drive.

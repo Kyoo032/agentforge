@@ -1,6 +1,6 @@
 # Templates
 
-Example galleries on Images, Videos, Documents, Research, and Presentation load a full brief into the mode composer. Clicking a card does not generate.
+Example galleries on Images, Videos, Documents, Research, and Presentation load a full brief into the mode composer. Clicking a card does not generate. Map: [`docs/internal/maps/documents.md`](../../../../docs/internal/maps/documents.md).
 
 ## Sub-features
 

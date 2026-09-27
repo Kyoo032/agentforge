@@ -1,6 +1,6 @@
 # Settings
 
-Settings is where the owner pastes a Toko Token gateway key from api.tokotokenai.com. There is no login. The page shows the key field, Save, a compact this-key usage strip with Open Usage, privacy note, and runtime status. There is no Advanced tab, no Extras, no Build/Agents links, and no injection-guard bypass in the UI. Below the privacy note sits the **Start over** card: sign out of the gateway, or reset the machine to a fresh install.
+Settings is where the owner pastes a Toko Token gateway key from api.tokotokenai.com. There is no login. The page shows the key field, Save, a compact this-key usage strip with Open Usage, privacy note, and runtime status. There is no Advanced tab, no Extras, no Build/Agents links, and no injection-guard bypass in the UI. Below the privacy note sits the **Start over** card: sign out of the gateway, or reset the machine to a fresh install. Map: [`docs/internal/maps/settings-and-gateway-gate.md`](../../../../docs/internal/maps/settings-and-gateway-gate.md).
 
 ## Sub-features
 
