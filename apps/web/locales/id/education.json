@@ -33,5 +33,27 @@
   "examAsk": "Kuis ini tentang apa?",
   "examHint": "Tulis topiknya, lalu tekan Buat.",
   "bookHint": "Pilih gambar atau PDF, lalu tekan Baca.",
-  "presenterHint": "Buat pelajaran dulu. Setelah itu Anda bisa menampilkannya."
+  "presenterHint": "Buat pelajaran dulu. Setelah itu Anda bisa menampilkannya.",
+  "guide": {
+    "lead": "Anda ingin melakukan apa?",
+    "change": "Pilih yang lain"
+  },
+  "tasks": {
+    "lesson": {
+      "label": "Pelajaran",
+      "hint": "Beberapa slide yang bisa diubah."
+    },
+    "quiz": {
+      "label": "Kuis",
+      "hint": "Pertanyaan yang bisa dibaca."
+    },
+    "page": {
+      "label": "Halaman",
+      "hint": "Baca gambar atau PDF di komputer ini."
+    },
+    "show": {
+      "label": "Tampilkan",
+      "hint": "Tampilkan pelajaran dengan suara."
+    }
+  }
 }

@@ -531,6 +531,7 @@ Not packed. Webdev and unit tests only. Personal and Enterprise share the render
 - **Decks** save as JSON under the data dir (`presentation-decks/`). Reload does not auto-open one.
 - **Local page reading** is a bitmap face in `packages/university`. A scan is not sent to a hosted reader. Knowledge’s `needs_ocr` refusal is unchanged.
 - **en and id** catalogs cover the new chrome. Lesson, exam, and presenter copy follow the boot locale.
+- **Education tasks (2026-09-27, not packed).** Lesson, Quiz, A page, and Show leave More. Education uses the Finance rail: a `tasks` / `tugas` chevron that starts closed, `?task=` on `/education`, and a four-card chooser when the query is empty. An unknown task is the lesson. More still holds save, shape tools, and the show script. The chooser and Show use the presenting mascot; Quiz reviews; A page searches.
 
 ## Videos picker and Edit timeline, 2026-09-26 (not packed)
 

@@ -1,14 +1,21 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Link, usePathname, useSearchParams } from "@/lib/nav";
+import { MascotSlot } from "@/components/mascot-slot";
 import { ModeHeader } from "@/components/mode-header";
 import { ModeIllustration } from "@/components/mode-illustration";
 import { PresentationPreview } from "@/components/presentation-preview";
 import { apiFetch } from "@/lib/api-client";
+import {
+  EDUCATION_PATH,
+  EDUCATION_TASKS,
+  educationTaskHref,
+  taskFromParam,
+  type EducationTask,
+} from "@/lib/education-task";
 import { t } from "@/lib/i18n";
 import { parsePresentationOutlineBody, type PresentationOutline } from "@/lib/presentation-outline";
-
-type Tab = "lesson" | "exam" | "book" | "presenter";
 
 type ExamItem = {
   prompt: string;
@@ -101,8 +108,25 @@ function PresenterStage({
   );
 }
 
+/** Quiz reviews. A page reads. Lesson, Show, and the chooser stay on the education home pose. */
+function TaskMascot({ phase }: { phase?: string }) {
+  return (
+    <div className="mx-auto flex w-40 flex-col items-center" data-mode="education">
+      <MascotSlot mode="education" placement="empty" phase={phase} />
+    </div>
+  );
+}
+
 export function EducationStudio() {
-  const [tab, setTab] = useState<Tab>("lesson");
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const onEducation = pathname === EDUCATION_PATH;
+  const taskQuery = searchParams.get("task");
+  const showChooser = onEducation && (taskQuery == null || taskQuery.trim() === "");
+  const urlTask = taskFromParam(taskQuery);
+  const lastTaskRef = useRef<EducationTask>(urlTask);
+  const task = onEducation ? urlTask : lastTaskRef.current;
+
   const [topic, setTopic] = useState("");
   const [outline, setOutline] = useState<PresentationOutline | null>(null);
   const [exam, setExam] = useState<ExamDraft | null>(null);
@@ -114,6 +138,12 @@ export function EducationStudio() {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [toolsHost, setToolsHost] = useState<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (onEducation) {
+      lastTaskRef.current = urlTask;
+    }
+  }, [onEducation, urlTask]);
 
   async function onLesson(event: FormEvent) {
     event.preventDefault();
@@ -134,7 +164,6 @@ export function EducationStudio() {
         throw new Error(errorMessage(data, t("education.lessonError")));
       }
       setOutline(parsePresentationOutlineBody(data.outline));
-      setTab("lesson");
     } catch (err) {
       setError(err instanceof Error ? err.message : t("education.lessonError"));
     } finally {
@@ -160,7 +189,6 @@ export function EducationStudio() {
         throw new Error(errorMessage(data, t("education.examError")));
       }
       setExam(data as ExamDraft);
-      setTab("exam");
     } catch (err) {
       setError(err instanceof Error ? err.message : t("education.examError"));
     } finally {
@@ -209,7 +237,6 @@ export function EducationStudio() {
       }
       setPresenter(data as PresenterPlan);
       setCueIndex(0);
-      setTab("presenter");
     } catch (err) {
       setError(err instanceof Error ? err.message : t("education.presenterError"));
     } finally {
@@ -241,13 +268,6 @@ export function EducationStudio() {
       setBusy(null);
     }
   }
-
-  const tabs: Array<{ id: Tab; label: string; testId: string }> = [
-    { id: "lesson", label: t("education.tabLesson"), testId: "education-tab-lesson" },
-    { id: "exam", label: t("education.tabExam"), testId: "education-tab-exam" },
-    { id: "book", label: t("education.tabBook"), testId: "education-tab-book" },
-    { id: "presenter", label: t("education.tabPresenter"), testId: "education-tab-presenter" },
-  ];
 
   const lessonFields = (
     <form className="flex flex-wrap items-end gap-2" onSubmit={(event) => void onLesson(event)}>
@@ -297,13 +317,25 @@ export function EducationStudio() {
     </form>
   );
 
+  const outcome = showChooser
+    ? t("education.guide.lead")
+    : task === "lesson"
+      ? t("education.expectedInputs")
+      : t(`education.tasks.${task}.hint`);
+  const settled = (task === "lesson" && outline) || (task === "quiz" && exam) || (task === "show" && presenter);
+
   return (
     <main
       data-mode="education"
       className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]"
       data-testid="education-studio"
     >
-      <ModeHeader icon="education" title={t("education.title")} outcome={t("education.expectedInputs")} />
+      <ModeHeader
+        icon="education"
+        title={t("education.title")}
+        outcome={outcome}
+        outcomeTestId={showChooser ? "education-guide-lead" : "expected-inputs"}
+      />
 
       {error ? (
         <div
@@ -315,189 +347,180 @@ export function EducationStudio() {
         </div>
       ) : null}
 
-      <div className="mt-8 flex-1">
-        {tab === "lesson" ? (
-          outline ? (
-            <div>
-              {saved ? (
-                <p className="mb-3 text-sm text-[var(--text-2)]" data-testid="education-deck-saved">
-                  {t("education.deckSaved")}
-                </p>
-              ) : null}
-              <PresentationPreview
-                outline={outline}
-                onOutlineChange={(next) => {
-                  setOutline(next);
-                  setSaved(false);
-                  setPresenter(null);
-                }}
-                variant="simple"
-                toolsHost={toolsHost}
-              />
-            </div>
-          ) : (
-            <div className="px-4 py-6" data-testid="education-lesson-empty">
-              <ModeIllustration mode="education" />
-              <p className="mt-4 text-center text-sm text-[var(--text-2)]" data-testid="education-hint">
-                {t("education.hint")}
-              </p>
-            </div>
-          )
-        ) : null}
-
-        {tab === "exam" ? (
-          exam ? (
-            <section
-              className="mx-auto max-w-3xl rounded-xl border border-[var(--line)] bg-[var(--surface)] px-8 py-8"
-              data-testid="education-exam-sheet"
-            >
-              <h2 className="text-2xl font-medium">{exam.title}</h2>
-              <ol className="mt-8 space-y-8">
-                {exam.items.map((item, index) => (
-                  <li key={item.prompt} data-testid="education-exam-item">
-                    <p className="text-base font-medium">
-                      {index + 1}. {item.prompt}
-                    </p>
-                    <ul className="mt-3 space-y-2">
-                      {item.choices.map((choice, choiceIndex) => (
-                        <li
-                          key={choice}
-                          className="flex items-start gap-3 rounded-lg border border-[var(--line)] px-3 py-2 text-sm"
-                          data-testid="education-exam-choice"
-                          data-correct={choice === item.answer ? "true" : "false"}
-                        >
-                          <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[var(--line)] text-xs">
-                            {String.fromCharCode(65 + choiceIndex)}
-                          </span>
-                          <span>{choice}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    <p className="mt-3 text-sm" data-testid="education-exam-answer">
-                      {t("education.answer")}: {item.answer}
-                    </p>
-                    {item.citation ? <p className="mt-1 text-xs text-[var(--text-3)]">{item.citation}</p> : null}
-                  </li>
-                ))}
-              </ol>
-            </section>
-          ) : (
-            <div className="px-4 py-6" data-testid="education-exam-empty">
-              <ModeIllustration mode="education" />
-              <p className="mt-4 text-center text-sm text-[var(--text-2)]">{t("education.examHint")}</p>
-            </div>
-          )
-        ) : null}
-
-        {tab === "book" ? (
-          <div className="px-4 py-6">
-            {book ? null : <ModeIllustration mode="education" />}
-            <p className="mt-4 text-center text-sm text-[var(--text-2)]">{t("education.bookHint")}</p>
-            {book ? (
-              <div
-                className="mx-auto mt-6 max-w-3xl rounded-lg border border-[var(--line)] bg-[var(--surface)] p-4"
-                data-testid="education-book-text"
+      {showChooser ? (
+        <div className="mt-8">
+          <ModeIllustration mode="education" />
+          <div
+            className="mx-auto mt-6 grid w-full max-w-[var(--content-max)] grid-cols-1 gap-3 sm:grid-cols-2"
+            data-testid="education-guide-choices"
+          >
+            {EDUCATION_TASKS.map((id) => (
+              <Link
+                key={id}
+                href={educationTaskHref(id)}
+                className="card-live enter-rise flex items-start px-4 py-4 text-left"
+                data-testid={`education-guide-${id}`}
               >
-                <p className="text-sm text-[var(--text-2)]">{book.message}</p>
-                {book.text ? <pre className="mt-3 whitespace-pre-wrap text-sm">{book.text}</pre> : null}
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium text-[var(--text)]">
+                    {t(`education.tasks.${id}.label`)}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-[var(--text-3)]">{t(`education.tasks.${id}.hint`)}</span>
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="mt-4 flex justify-end">
+            <Link
+              href={EDUCATION_PATH}
+              className="text-xs font-medium text-[var(--accent)]"
+              data-testid="education-guide-change"
+            >
+              {t("education.guide.change")}
+            </Link>
+          </div>
+
+          <div className="mt-4 flex-1">
+            {task === "lesson" ? (
+              outline ? (
+                <div>
+                  {saved ? (
+                    <p className="mb-3 text-sm text-[var(--text-2)]" data-testid="education-deck-saved">
+                      {t("education.deckSaved")}
+                    </p>
+                  ) : null}
+                  <PresentationPreview
+                    outline={outline}
+                    onOutlineChange={(next) => {
+                      setOutline(next);
+                      setSaved(false);
+                      setPresenter(null);
+                    }}
+                    variant="simple"
+                    toolsHost={toolsHost}
+                  />
+                </div>
+              ) : (
+                <div className="px-4 py-6" data-testid="education-lesson-empty">
+                  <ModeIllustration mode="education" />
+                  <p className="mt-4 text-center text-sm text-[var(--text-2)]" data-testid="education-hint">
+                    {t("education.hint")}
+                  </p>
+                </div>
+              )
+            ) : null}
+
+            {task === "quiz" ? (
+              exam ? (
+                <section
+                  className="mx-auto max-w-3xl rounded-xl border border-[var(--line)] bg-[var(--surface)] px-8 py-8"
+                  data-testid="education-exam-sheet"
+                >
+                  <h2 className="text-2xl font-medium">{exam.title}</h2>
+                  <ol className="mt-8 space-y-8">
+                    {exam.items.map((item, index) => (
+                      <li key={item.prompt} data-testid="education-exam-item">
+                        <p className="text-base font-medium">
+                          {index + 1}. {item.prompt}
+                        </p>
+                        <ul className="mt-3 space-y-2">
+                          {item.choices.map((choice, choiceIndex) => (
+                            <li
+                              key={choice}
+                              className="flex items-start gap-3 rounded-lg border border-[var(--line)] px-3 py-2 text-sm"
+                              data-testid="education-exam-choice"
+                              data-correct={choice === item.answer ? "true" : "false"}
+                            >
+                              <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[var(--line)] text-xs">
+                                {String.fromCharCode(65 + choiceIndex)}
+                              </span>
+                              <span>{choice}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        <p className="mt-3 text-sm" data-testid="education-exam-answer">
+                          {t("education.answer")}: {item.answer}
+                        </p>
+                        {item.citation ? <p className="mt-1 text-xs text-[var(--text-3)]">{item.citation}</p> : null}
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+              ) : (
+                <div className="px-4 py-6" data-testid="education-exam-empty">
+                  <TaskMascot phase="verifying" />
+                  <p className="mt-4 text-center text-sm text-[var(--text-2)]">{t("education.examHint")}</p>
+                </div>
+              )
+            ) : null}
+
+            {task === "page" ? (
+              <div className="px-4 py-6">
+                {book ? null : <TaskMascot phase="reading" />}
+                <p className="mt-4 text-center text-sm text-[var(--text-2)]">{t("education.bookHint")}</p>
+                {book ? (
+                  <div
+                    className="mx-auto mt-6 max-w-3xl rounded-lg border border-[var(--line)] bg-[var(--surface)] p-4"
+                    data-testid="education-book-text"
+                  >
+                    <p className="text-sm text-[var(--text-2)]">{book.message}</p>
+                    {book.text ? <pre className="mt-3 whitespace-pre-wrap text-sm">{book.text}</pre> : null}
+                  </div>
+                ) : null}
               </div>
             ) : null}
-          </div>
-        ) : null}
 
-        {tab === "presenter" ? (
-          presenter ? (
-            <PresenterStage
-              presenter={presenter}
-              cueIndex={cueIndex}
-              heading={outline?.slides[presenter.cues[cueIndex]?.slideIndex ?? 0]?.heading}
-            />
-          ) : (
-            <div className="px-4 py-6" data-testid="education-presenter-empty">
-              <ModeIllustration mode="education" />
-              <p className="mt-4 text-center text-sm text-[var(--text-2)]">{t("education.presenterHint")}</p>
-            </div>
-          )
-        ) : null}
-      </div>
-
-      <div
-        className={
-          (tab === "lesson" && outline) || (tab === "exam" && exam) || (tab === "presenter" && presenter)
-            ? "mt-4"
-            : "raise sticky bottom-4 mt-8 space-y-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3"
-        }
-      >
-        {tab === "lesson" && !outline ? lessonFields : null}
-        {tab === "exam" && !exam ? examFields : null}
-        {tab === "book" ? (
-          <form className="flex flex-wrap items-center gap-2" onSubmit={(event) => void onBook(event)}>
-            <input
-              type="file"
-              accept="image/png,application/pdf,.png,.pdf"
-              data-testid="education-book-file"
-              aria-label={t("education.bookHint")}
-              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-            />
-            <button
-              type="submit"
-              className="btn btn-primary h-10 shrink-0 rounded-pill px-5"
-              disabled={busy !== null || !file}
-              data-testid="education-book-read"
-            >
-              {busy === "book" ? t("education.reading") : t("education.readBook")}
-            </button>
-          </form>
-        ) : null}
-        {tab === "presenter" && outline && !presenter ? (
-          <button
-            type="button"
-            className="btn btn-primary h-10 rounded-pill px-5"
-            disabled={busy !== null}
-            data-testid="education-presenter-build"
-            onClick={() => void onPresenter()}
-          >
-            {busy === "presenter" ? t("education.drafting") : t("education.buildPresenter")}
-          </button>
-        ) : null}
-
-        <details className="min-w-0" data-testid="education-more-details">
-          <summary className="cursor-pointer text-sm text-[var(--text-3)]" data-testid="education-more">
-            {t("education.more")}
-          </summary>
-          <div className="mt-3 space-y-3">
-            <div className="flex flex-wrap gap-2">
-              {tabs.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={`btn h-8 rounded-lg px-3 text-xs ${tab === item.id ? "btn-primary" : "btn-ghost"}`}
-                  data-testid={item.testId}
-                  aria-pressed={tab === item.id}
-                  onClick={() => setTab(item.id)}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-            {tab === "lesson" && outline ? lessonFields : null}
-            {tab === "exam" && exam ? examFields : null}
-            {outline ? (
-              <button
-                type="button"
-                className="btn btn-ghost h-8 rounded-lg px-3 text-xs"
-                data-testid="education-save-deck"
-                disabled={busy !== null}
-                onClick={() => void onSave()}
-              >
-                {t("education.saveDeck")}
-              </button>
+            {task === "show" ? (
+              presenter ? (
+                <PresenterStage
+                  presenter={presenter}
+                  cueIndex={cueIndex}
+                  heading={outline?.slides[presenter.cues[cueIndex]?.slideIndex ?? 0]?.heading}
+                />
+              ) : (
+                <div className="px-4 py-6" data-testid="education-presenter-empty">
+                  <TaskMascot />
+                  <p className="mt-4 text-center text-sm text-[var(--text-2)]">{t("education.presenterHint")}</p>
+                </div>
+              )
             ) : null}
-            {saved ? <p className="text-sm text-[var(--text-2)]">{t("education.deckSaved")}</p> : null}
-            {outline && tab === "presenter" && presenter ? (
+          </div>
+
+          <div
+            className={
+              settled
+                ? "mt-4"
+                : "raise sticky bottom-4 mt-8 space-y-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3"
+            }
+          >
+            {task === "lesson" && !outline ? lessonFields : null}
+            {task === "quiz" && !exam ? examFields : null}
+            {task === "page" ? (
+              <form className="flex flex-wrap items-center gap-2" onSubmit={(event) => void onBook(event)}>
+                <input
+                  type="file"
+                  accept="image/png,application/pdf,.png,.pdf"
+                  data-testid="education-book-file"
+                  aria-label={t("education.bookHint")}
+                  onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+                />
+                <button
+                  type="submit"
+                  className="btn btn-primary h-10 shrink-0 rounded-pill px-5"
+                  disabled={busy !== null || !file}
+                  data-testid="education-book-read"
+                >
+                  {busy === "book" ? t("education.reading") : t("education.readBook")}
+                </button>
+              </form>
+            ) : null}
+            {task === "show" && outline && !presenter ? (
               <button
                 type="button"
-                className="btn btn-ghost h-8 rounded-lg px-3 text-xs"
+                className="btn btn-primary h-10 rounded-pill px-5"
                 disabled={busy !== null}
                 data-testid="education-presenter-build"
                 onClick={() => void onPresenter()}
@@ -505,36 +528,69 @@ export function EducationStudio() {
                 {busy === "presenter" ? t("education.drafting") : t("education.buildPresenter")}
               </button>
             ) : null}
-            {presenter && tab === "presenter" ? (
-              <>
-                <div className="flex flex-wrap gap-2">
-                  {presenter.cues.map((item, index) => (
-                    <button
-                      key={`${item.slideIndex}-${item.startMs}`}
-                      type="button"
-                      className="btn btn-ghost h-8 rounded-lg px-2 text-xs"
-                      aria-pressed={index === cueIndex}
-                      data-testid="education-presenter-cue-pick"
-                      onClick={() => setCueIndex(index)}
-                    >
-                      {index + 1}
-                    </button>
-                  ))}
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium">{t("education.dubHeading")}</h3>
-                  <div className="mt-3 space-y-3 text-sm leading-relaxed" data-testid="education-presenter-dub">
-                    {presenter.dubScript.split("\n").map((line, index) => (
-                      <p key={`${index}-${line.slice(0, 48)}`}>{line}</p>
-                    ))}
-                  </div>
-                </div>
-              </>
-            ) : null}
-            <div ref={setToolsHost} />
+
+            <details className="min-w-0" data-testid="education-more-details">
+              <summary className="cursor-pointer text-sm text-[var(--text-3)]" data-testid="education-more">
+                {t("education.more")}
+              </summary>
+              <div className="mt-3 space-y-3">
+                {task === "lesson" && outline ? lessonFields : null}
+                {task === "quiz" && exam ? examFields : null}
+                {outline ? (
+                  <button
+                    type="button"
+                    className="btn btn-ghost h-8 rounded-lg px-3 text-xs"
+                    data-testid="education-save-deck"
+                    disabled={busy !== null}
+                    onClick={() => void onSave()}
+                  >
+                    {t("education.saveDeck")}
+                  </button>
+                ) : null}
+                {saved ? <p className="text-sm text-[var(--text-2)]">{t("education.deckSaved")}</p> : null}
+                {outline && task === "show" && presenter ? (
+                  <button
+                    type="button"
+                    className="btn btn-ghost h-8 rounded-lg px-3 text-xs"
+                    disabled={busy !== null}
+                    data-testid="education-presenter-build"
+                    onClick={() => void onPresenter()}
+                  >
+                    {busy === "presenter" ? t("education.drafting") : t("education.buildPresenter")}
+                  </button>
+                ) : null}
+                {presenter && task === "show" ? (
+                  <>
+                    <div className="flex flex-wrap gap-2">
+                      {presenter.cues.map((item, index) => (
+                        <button
+                          key={`${item.slideIndex}-${item.startMs}`}
+                          type="button"
+                          className="btn btn-ghost h-8 rounded-lg px-2 text-xs"
+                          aria-pressed={index === cueIndex}
+                          data-testid="education-presenter-cue-pick"
+                          onClick={() => setCueIndex(index)}
+                        >
+                          {index + 1}
+                        </button>
+                      ))}
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium">{t("education.dubHeading")}</h3>
+                      <div className="mt-3 space-y-3 text-sm leading-relaxed" data-testid="education-presenter-dub">
+                        {presenter.dubScript.split("\n").map((line, index) => (
+                          <p key={`${index}-${line.slice(0, 48)}`}>{line}</p>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                ) : null}
+                <div ref={setToolsHost} />
+              </div>
+            </details>
           </div>
-        </details>
-      </div>
+        </>
+      )}
     </main>
   );
 }

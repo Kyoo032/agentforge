@@ -33,5 +33,27 @@
   "examAsk": "What should the quiz be about?",
   "examHint": "Type a topic, then press Create.",
   "bookHint": "Choose a picture or a PDF, then press Read.",
-  "presenterHint": "Create a lesson first. Then you can show it."
+  "presenterHint": "Create a lesson first. Then you can show it.",
+  "guide": {
+    "lead": "What do you want to do?",
+    "change": "Choose something else"
+  },
+  "tasks": {
+    "lesson": {
+      "label": "Lesson",
+      "hint": "A few slides you can change."
+    },
+    "quiz": {
+      "label": "Quiz",
+      "hint": "Questions you can read."
+    },
+    "page": {
+      "label": "A page",
+      "hint": "Read a picture or a PDF on this computer."
+    },
+    "show": {
+      "label": "Show",
+      "hint": "Show the lesson with a voice."
+    }
+  }
 }
