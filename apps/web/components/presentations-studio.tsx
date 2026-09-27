@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type CSSProperties, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link } from "@/lib/nav";
 import { SourceMaterialField } from "@/components/source-material-field";
 import { subscribeModeHandoff } from "@/lib/mode-handoff";
@@ -14,6 +14,14 @@ import { ModelSelect } from "@/components/model-select";
 import { WorkingStatus } from "@/components/working-status";
 import type { JobRegenSubmit } from "@/components/job-regen-panel";
 import { PresentationPreview } from "@/components/presentation-preview";
+import { OpenSlideStage } from "@/components/open-slide-stage";
+import {
+  parseOpenSlideDeck,
+  type OpenSlideDeck,
+  type OpenSlideDensity,
+  type OpenSlideMotion,
+  type OpenSlidePageCount,
+} from "@agentforge/core/open-slide";
 import { getLocale, t } from "@/lib/i18n";
 import type { PresentationOutline, PresentationOutlineInput } from "@/lib/presentation-outline";
 import { parsePresentationOutlineBody } from "@/lib/presentation-outline";
@@ -39,6 +47,14 @@ export function PresentationsStudio() {
   const [sourceTitle, setSourceTitle] = useState<string | null>(null);
   const [outline, setOutline] = useState<PresentationOutline | null>(null);
   const [deckId, setDeckId] = useState<string | null>(null);
+  const [engine, setEngine] = useState<"nultron" | "open-slide">("open-slide");
+  const [toolsHost, setToolsHost] = useState<HTMLDivElement | null>(null);
+  const [openDeck, setOpenDeck] = useState<OpenSlideDeck | null>(null);
+  const [openDeckId, setOpenDeckId] = useState<string | null>(null);
+  const [openDecks, setOpenDecks] = useState<Array<{ id: string; title: string }>>([]);
+  const [pageCount, setPageCount] = useState<OpenSlidePageCount>("standard");
+  const [density, setDensity] = useState<OpenSlideDensity>("light");
+  const [motion, setMotion] = useState<OpenSlideMotion>("static");
   const [decks, setDecks] = useState<Array<{ id: string; title: string }>>([]);
   const [savedNote, setSavedNote] = useState(false);
   const [busy, setBusy] = useState<"generate" | "download" | "regen" | "save" | null>(null);
@@ -47,6 +63,7 @@ export function PresentationsStudio() {
   const [landed, setLanded] = useState(0);
 
   function showStarter(next: PresentationOutlineInput) {
+    setEngine("nultron");
     setOutline(parsePresentationOutlineBody(next));
     setDeckId(null);
     setSavedNote(false);
@@ -67,25 +84,79 @@ export function PresentationsStudio() {
     }
   }, []);
 
+  const loadOpenDecks = useCallback(async () => {
+    const res = await apiFetch("/api/v1/presentations/open-slide/decks");
+    const data = (await res.json().catch(() => null)) as { decks?: Array<{ id: string; title: string }> } | null;
+    if (res.ok && data?.decks) {
+      setOpenDecks(data.decks);
+    }
+  }, []);
+
   useEffect(() => {
     void loadDecks();
-  }, [loadDecks]);
+    void loadOpenDecks();
+  }, [loadDecks, loadOpenDecks]);
 
-  async function openDeck(id: string) {
+  async function openSavedOutline(id: string) {
     const res = await apiFetch(`/api/v1/presentations/decks?id=${encodeURIComponent(id)}`);
     const data = (await res.json().catch(() => null)) as { deck?: { id: string; outline: PresentationOutline } } | null;
     if (!res.ok || !data?.deck) {
       setError(errorMessage(data, t("presentation.saveError")));
       return;
     }
+    setEngine("nultron");
     setOutline(parsePresentationOutlineBody(data.deck.outline));
     setDeckId(data.deck.id);
     setSavedNote(false);
     setError(null);
   }
 
+  async function openSavedOpenSlide(id: string) {
+    const res = await apiFetch(`/api/v1/presentations/open-slide/decks?id=${encodeURIComponent(id)}`);
+    const data = (await res.json().catch(() => null)) as { deck?: { id: string; deck: OpenSlideDeck } } | null;
+    if (!res.ok || !data?.deck) {
+      setError(errorMessage(data, t("presentation.saveError")));
+      return;
+    }
+    setEngine("open-slide");
+    setOpenDeck(parseOpenSlideDeck(data.deck.deck));
+    setOpenDeckId(data.deck.id);
+    setSavedNote(false);
+    setError(null);
+  }
+
   async function onSave() {
-    if (!outline || busy) {
+    if (busy) {
+      return;
+    }
+    if (engine === "open-slide") {
+      if (!openDeck) {
+        return;
+      }
+      setBusy("save");
+      setError(null);
+      setSavedNote(false);
+      try {
+        const res = await apiFetch("/api/v1/presentations/open-slide/decks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: openDeckId ?? undefined, deck: openDeck }),
+        });
+        const data = (await res.json().catch(() => null)) as { deck?: { id: string } } | null;
+        if (!res.ok || !data?.deck) {
+          throw new Error(errorMessage(data, t("presentation.saveError")));
+        }
+        setOpenDeckId(data.deck.id);
+        setSavedNote(true);
+        await loadOpenDecks();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : t("presentation.saveError"));
+      } finally {
+        setBusy(null);
+      }
+      return;
+    }
+    if (!outline) {
       return;
     }
     setBusy("save");
@@ -131,11 +202,47 @@ export function PresentationsStudio() {
     setBusy("generate");
     setError(null);
     try {
+      if (engine === "open-slide") {
+        const res = await apiFetch("/api/v1/presentations/open-slide", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt: topic,
+            brief: { pageCount, density, motion },
+            ...modelPickBody(studioModelPick(model, modelPinned)),
+            sourceText: sourceText.trim() || undefined,
+          }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          throw new Error(errorMessage(data, t("presentation.generateError")));
+        }
+        setOpenDeck(parseOpenSlideDeck(data));
+        setOpenDeckId(null);
+        setSavedNote(false);
+        setLanded((count) => count + 1);
+        return;
+      }
       const res = await apiFetch("/api/v1/presentations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: topic,
+          prompt: `${topic}\n\n${t("presentation.shapeNote", {
+            length: t(
+              pageCount === "short"
+                ? "presentation.openSlidePagesShort"
+                : pageCount === "deep"
+                  ? "presentation.openSlidePagesDeep"
+                  : "presentation.openSlidePagesStandard",
+            ),
+            style: t(
+              density === "minimal"
+                ? "presentation.openSlideDensityMinimal"
+                : density === "standard" || density === "dense"
+                  ? "presentation.openSlideDensityStandard"
+                  : "presentation.openSlideDensityLight",
+            ),
+          })}`,
           // Only a deliberate pick travels as pinned: a seeded default stays rescuable by the host's fallback.
           ...modelPickBody(studioModelPick(model, modelPinned)),
           sourceText: sourceText.trim() || undefined,
@@ -147,7 +254,11 @@ export function PresentationsStudio() {
       }
       landOutline(parsePresentationOutlineBody(data));
     } catch (err) {
-      setOutline(null);
+      if (engine === "open-slide") {
+        setOpenDeck(null);
+      } else {
+        setOutline(null);
+      }
       setError(err instanceof Error ? err.message : t("presentation.generateError"));
     } finally {
       setBusy(null);
@@ -189,17 +300,21 @@ export function PresentationsStudio() {
   }
 
   async function onDownload() {
-    if (!outline || busy) {
+    const payload = engine === "open-slide" ? openDeck : outline;
+    if (!payload || busy) {
       return;
     }
     setBusy("download");
     setError(null);
     try {
-      const res = await apiFetch("/api/v1/presentations/pptx", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(outline),
-      });
+      const res = await apiFetch(
+        engine === "open-slide" ? "/api/v1/presentations/open-slide/pptx" : "/api/v1/presentations/pptx",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
       if (!res.ok) {
         const data = await res.json().catch(() => null);
         throw new Error(errorMessage(data, t("presentation.downloadError")));
@@ -226,6 +341,72 @@ export function PresentationsStudio() {
     }
   }
 
+  const showingOpenSlide = engine === "open-slide";
+  const hasDeck = showingOpenSlide ? openDeck !== null : outline !== null;
+
+  const lengthChips = (
+    <div className="flex flex-wrap items-center gap-1" data-testid="presentations-open-slide-pages">
+      <span className="mr-1 text-xs text-[var(--text-3)]">{t("presentation.openSlidePages")}</span>
+      {(
+        [
+          ["short", "presentation.openSlidePagesShort"],
+          ["standard", "presentation.openSlidePagesStandard"],
+          ["deep", "presentation.openSlidePagesDeep"],
+        ] as const
+      ).map(([value, key]) => (
+        <button
+          key={value}
+          type="button"
+          disabled={busy !== null}
+          aria-pressed={pageCount === value}
+          data-testid={`presentations-length-${value}`}
+          className={`btn h-8 rounded-full px-3 text-xs ${pageCount === value ? "btn-primary" : "btn-ghost"}`}
+          onClick={() => setPageCount(value)}
+        >
+          {t(key)}
+        </button>
+      ))}
+    </div>
+  );
+
+  const styleChips = (
+    <div className="flex flex-wrap items-center gap-1" data-testid="presentations-open-slide-density">
+      <span className="mr-1 text-xs text-[var(--text-3)]">{t("presentation.openSlideDensity")}</span>
+      {(
+        [
+          ["minimal", "presentation.openSlideDensityMinimal"],
+          ["light", "presentation.openSlideDensityLight"],
+          ["standard", "presentation.openSlideDensityStandard"],
+        ] as const
+      ).map(([value, key]) => (
+        <button
+          key={value}
+          type="button"
+          disabled={busy !== null}
+          aria-pressed={density === value}
+          data-testid={`presentations-style-${value}`}
+          className={`btn h-8 rounded-full px-3 text-xs ${density === value ? "btn-primary" : "btn-ghost"}`}
+          onClick={() => setDensity(value)}
+        >
+          {t(key)}
+        </button>
+      ))}
+    </div>
+  );
+
+  const topicField = (
+    <textarea
+      value={prompt}
+      onChange={(event) => setPrompt(event.target.value)}
+      rows={hasDeck ? 2 : 3}
+      className="text-field min-h-24 w-full resize-none text-base outline-none placeholder:text-[var(--text-3)]"
+      placeholder={t("presentation.promptPlaceholder")}
+      disabled={busy !== null}
+      data-testid="presentations-prompt"
+      aria-label={t("presentation.ask")}
+    />
+  );
+
   return (
     <main
       data-mode="presentations"
@@ -237,27 +418,16 @@ export function PresentationsStudio() {
         title={t("presentation.title")}
         outcome={t("presentation.expectedInputs")}
         actions={
-          outline ? (
-            <>
-              <button
-                type="button"
-                onClick={() => void onSave()}
-                disabled={busy !== null}
-                className="btn btn-ghost rounded-pill px-4"
-                data-testid="presentations-save-deck"
-              >
-                {busy === "save" ? t("presentation.savingDeck") : t("presentation.saveDeck")}
-              </button>
-              <button
-                type="button"
-                onClick={() => void onDownload()}
-                disabled={busy !== null}
-                className="btn btn-primary rounded-pill px-4"
-                data-testid="presentations-download"
-              >
-                {busy === "download" ? <WorkingStatus label={t("presentation.building")} /> : t("presentation.download")}
-              </button>
-            </>
+          hasDeck ? (
+            <button
+              type="button"
+              onClick={() => void onDownload()}
+              disabled={busy !== null}
+              className="btn btn-primary rounded-pill px-4"
+              data-testid="presentations-download"
+            >
+              {busy === "download" ? <WorkingStatus label={t("presentation.building")} /> : t("presentation.download")}
+            </button>
           ) : null
         }
       />
@@ -281,29 +451,20 @@ export function PresentationsStudio() {
         </div>
       ) : null}
 
-      <ExampleGallery mode="presentations" onSelect={(entry) => setPrompt(entry.prompt)} />
-
-      {decks.length > 0 ? (
-        <div className="mt-6" data-testid="presentations-deck-list">
-          <p className="text-xs font-medium text-[var(--text-2)]">{t("presentation.savedDecks")}</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {decks.map((deck) => (
-              <button
-                key={deck.id}
-                type="button"
-                className="btn btn-ghost h-8 rounded-lg px-3 text-xs"
-                data-testid="presentations-deck-open"
-                onClick={() => void openDeck(deck.id)}
-              >
-                {deck.title}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
       <div className="mt-8 flex-1">
-        {outline ? (
+        {showingOpenSlide && openDeck ? (
+          <div className="enter-rise relative">
+            {landed > 0 ? <Confetti key={landed} /> : null}
+            <OpenSlideStage
+              key={`${openDeck.id}:${openDeck.meta.createdAt}`}
+              deck={openDeck}
+              onChange={(next) => {
+                setOpenDeck(next);
+                setSavedNote(false);
+              }}
+            />
+          </div>
+        ) : outline && !showingOpenSlide ? (
           <div className="enter-rise relative">
             {landed > 0 ? <Confetti key={landed} /> : null}
             <PresentationPreview
@@ -316,96 +477,210 @@ export function PresentationsStudio() {
                 setOutline(next);
                 setSavedNote(false);
               }}
+              variant="simple"
+              toolsHost={toolsHost}
             />
-            <p className="mt-3 text-xs text-[var(--text-3)]" data-testid="presentations-download-note">
-              {t("presentation.downloadNote")}
-            </p>
-            {savedNote ? (
-              <p className="mt-2 text-sm text-[var(--text-2)]" data-testid="presentations-deck-saved">
-                {t("presentation.deckSaved")}
-              </p>
-            ) : null}
           </div>
         ) : (
-          <div
-            className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10"
-            data-testid="presentations-studio-empty"
-          >
+          <div className="px-4 py-6" data-testid="presentations-studio-empty">
             <ModeIllustration mode="presentations" />
-            <p className="mt-4 text-center text-sm font-medium text-[var(--text)]">{t("presentation.emptyTitle")}</p>
-            <p className="mt-2 text-center text-sm text-[var(--text-2)]">{t("presentation.emptyBody")}</p>
-            <div className="mx-auto mt-6 grid max-w-[var(--content-narrow)] gap-3 sm:grid-cols-2">
-              {presentationStarters(getLocale()).map((starter, index) => (
-                <button
-                  key={starter.id}
-                  type="button"
-                  className="card-live enter-rise px-4 py-3 text-left"
-                  style={{ "--i": index } as CSSProperties}
-                  onClick={() => {
-                    showStarter(starter.outline);
-                    setError(null);
-                  }}
-                  data-testid="presentations-starter"
-                >
-                  <p className="text-sm font-medium text-[var(--text)]">{starter.label}</p>
-                  <p className="mt-1 text-xs text-[var(--text-2)]">{starter.description}</p>
-                </button>
-              ))}
-            </div>
+            <p className="mt-4 text-center text-sm text-[var(--text-2)]" data-testid="presentations-hint">
+              {t("presentation.hint")}
+            </p>
           </div>
         )}
       </div>
 
       <form
-        className="raise sticky bottom-4 mt-8 space-y-2 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3"
+        className={
+          hasDeck
+            ? "mt-4"
+            : "raise sticky bottom-4 mt-8 space-y-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3"
+        }
         onSubmit={(event) => void onGenerate(event)}
         data-testid="presentations-studio-prompt-bar"
       >
-        <SourceMaterialField
-          value={sourceText}
-          onChange={setSourceText}
-          title={sourceTitle}
-          onTitle={setSourceTitle}
-          disabled={busy !== null}
-          testIdPrefix="presentations"
-        />
-        <ModelSelect
-          models={models}
-          value={model}
-          onChange={setModel}
-          disabled={busy !== null || models.length === 0}
-          testId="presentations-studio-model"
-          className="select-field w-full"
-        />
-        <div className="flex gap-2">
-          <EnhancePromptButton
-            text={prompt}
-            surface="presentations"
-            model={model}
-            disabled={busy !== null}
-            testId="presentations-enhance"
-            onApply={setPrompt}
-          />
-          <input
-            type="text"
-            value={prompt}
-            onChange={(event) => setPrompt(event.target.value)}
-            className="text-field min-w-0 flex-1 outline-none placeholder:text-[var(--text-3)]"
-            placeholder={t("presentation.promptPlaceholder")}
-            disabled={busy !== null}
-            data-testid="presentations-prompt"
-            aria-label={t("presentation.promptAria")}
-          />
-          {busy === "generate" ? <MascotSlot mode="presentations" placement="beside" busy /> : null}
-          <button
-            type="submit"
-            className="btn btn-primary h-8 shrink-0 rounded-pill px-4"
-            disabled={busy !== null || !prompt.trim()}
-            data-testid="presentations-generate"
-          >
-            {busy === "generate" ? <WorkingStatus label={t("presentation.generating")} /> : t("presentation.generate")}
-          </button>
+        {hasDeck ? null : (
+          <div className="space-y-3" data-testid="presentations-open-slide-choices">
+            <label className="block text-base font-medium text-[var(--text)]">
+              {t("presentation.ask")}
+              <span className="mt-2 block font-normal">{topicField}</span>
+            </label>
+            {lengthChips}
+            {styleChips}
+          </div>
+        )}
+        <div className="flex items-start justify-between gap-3">
+          <details className="min-w-0 flex-1" data-testid="presentations-more-details">
+            <summary className="cursor-pointer text-sm text-[var(--text-3)]" data-testid="presentations-more">
+              {t("presentation.more")}
+            </summary>
+            <div className="mt-3 space-y-3">
+              {hasDeck ? (
+                <label className="block text-sm text-[var(--text-2)]">
+                  {t("presentation.ask")}
+                  <span className="mt-1 block">{topicField}</span>
+                </label>
+              ) : null}
+              {hasDeck ? (
+                <div className="space-y-2" data-testid="presentations-open-slide-choices">
+                  {lengthChips}
+                  {styleChips}
+                </div>
+              ) : null}
+              <label className="flex flex-col gap-1 text-xs text-[var(--text-2)]">
+                {t("presentation.engineLabel")}
+                <select
+                  className="select-field w-full"
+                  value={engine}
+                  disabled={busy !== null}
+                  data-testid="presentations-engine"
+                  aria-label={t("presentation.engineLabel")}
+                  onChange={(event) => setEngine(event.target.value === "open-slide" ? "open-slide" : "nultron")}
+                >
+                  <option value="nultron">{t("presentation.engineNultron")}</option>
+                  <option value="open-slide">{t("presentation.engineOpenSlide")}</option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-xs text-[var(--text-2)]">
+                {t("presentation.openSlideMotion")}
+                <select
+                  className="select-field w-full"
+                  value={motion}
+                  disabled={busy !== null}
+                  data-testid="presentations-open-slide-motion"
+                  aria-label={t("presentation.openSlideMotion")}
+                  onChange={(event) => setMotion(event.target.value as OpenSlideMotion)}
+                >
+                  <option value="static">{t("presentation.openSlideMotionStatic")}</option>
+                  <option value="subtle">{t("presentation.openSlideMotionSubtle")}</option>
+                  <option value="rich">{t("presentation.openSlideMotionRich")}</option>
+                </select>
+              </label>
+              <ModelSelect
+                models={models}
+                value={model}
+                onChange={setModel}
+                disabled={busy !== null || models.length === 0}
+                testId="presentations-studio-model"
+                className="select-field w-full"
+              />
+              <EnhancePromptButton
+                text={prompt}
+                surface="presentations"
+                model={model}
+                disabled={busy !== null}
+                testId="presentations-enhance"
+                onApply={setPrompt}
+              />
+              <SourceMaterialField
+                value={sourceText}
+                onChange={setSourceText}
+                title={sourceTitle}
+                onTitle={setSourceTitle}
+                disabled={busy !== null}
+                testIdPrefix="presentations"
+              />
+              <div className="flex flex-wrap gap-2">
+                {presentationStarters(getLocale()).map((starter) => (
+                  <button
+                    key={starter.id}
+                    type="button"
+                    className="btn btn-ghost h-8 rounded-lg px-3 text-xs"
+                    onClick={() => {
+                      showStarter(starter.outline);
+                      setError(null);
+                    }}
+                    data-testid="presentations-starter"
+                  >
+                    {starter.label}
+                  </button>
+                ))}
+              </div>
+              <ExampleGallery mode="presentations" onSelect={(entry) => setPrompt(entry.prompt)} />
+              {decks.length > 0 ? (
+                <div data-testid="presentations-deck-list">
+                  <p className="text-xs font-medium text-[var(--text-2)]">{t("presentation.savedDecks")}</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {decks.map((deck) => (
+                      <button
+                        key={deck.id}
+                        type="button"
+                        className="btn btn-ghost h-8 rounded-lg px-3 text-xs"
+                        data-testid="presentations-deck-open"
+                        onClick={() => void openSavedOutline(deck.id)}
+                      >
+                        {deck.title}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {openDecks.length > 0 ? (
+                <div data-testid="presentations-open-slide-deck-list">
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {openDecks.map((deck) => (
+                      <button
+                        key={deck.id}
+                        type="button"
+                        className="btn btn-ghost h-8 rounded-lg px-3 text-xs"
+                        data-testid="presentations-open-slide-deck-open"
+                        onClick={() => void openSavedOpenSlide(deck.id)}
+                      >
+                        {deck.title}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {hasDeck ? (
+                <button
+                  type="button"
+                  onClick={() => void onSave()}
+                  disabled={busy !== null}
+                  className="btn btn-ghost h-8 rounded-lg px-3 text-xs"
+                  data-testid="presentations-save-deck"
+                >
+                  {busy === "save" ? t("presentation.savingDeck") : t("presentation.saveDeck")}
+                </button>
+              ) : null}
+              {savedNote ? (
+                <p className="text-sm text-[var(--text-2)]" data-testid="presentations-deck-saved">
+                  {t("presentation.deckSaved")}
+                </p>
+              ) : null}
+              <p className="text-xs text-[var(--text-3)]" data-testid="presentations-download-note">
+                {showingOpenSlide ? t("presentation.openSlideDownloadNote") : t("presentation.downloadNote")}
+              </p>
+              {hasDeck ? (
+                <button
+                  type="submit"
+                  className="btn btn-ghost h-8 rounded-lg px-3 text-xs"
+                  disabled={busy !== null || !prompt.trim()}
+                  data-testid="presentations-generate"
+                >
+                  {busy === "generate" ? t("presentation.generating") : t("presentation.generate")}
+                </button>
+              ) : null}
+              <div ref={setToolsHost} />
+            </div>
+          </details>
+          {hasDeck ? null : (
+            <button
+              type="submit"
+              className="btn btn-primary h-10 shrink-0 rounded-pill px-5"
+              disabled={busy !== null || !prompt.trim()}
+              data-testid="presentations-generate"
+            >
+              {busy === "generate" ? (
+                <WorkingStatus label={t("presentation.generating")} />
+              ) : (
+                t("presentation.generate")
+              )}
+            </button>
+          )}
         </div>
+        {busy === "generate" ? <MascotSlot mode="presentations" placement="beside" busy /> : null}
       </form>
     </main>
   );

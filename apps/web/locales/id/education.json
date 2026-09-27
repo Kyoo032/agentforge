@@ -1,30 +1,59 @@
 {
   "title": "Pendidikan",
-  "expectedInputs": "Anda mendapat: dek pelajaran yang dapat diubah, ujian yang dapat dibaca, halaman yang dibaca di mesin ini, serta rencana penyaji dengan posisi, subjudul, dan naskah sulih suara.",
+  "expectedInputs": "Pelajaran yang bisa diubah.",
   "tabLesson": "Pelajaran",
-  "tabExam": "Ujian",
-  "tabBook": "Buku",
-  "tabPresenter": "Penyaji",
-  "topicLabel": "Topik",
-  "topicPlaceholder": "Apa yang harus dapat diulang oleh ruangan",
-  "draftLesson": "Buat pelajaran",
+  "tabExam": "Kuis",
+  "tabBook": "Halaman",
+  "tabPresenter": "Tampilkan",
+  "topicLabel": "Topik pelajaran",
+  "topicPlaceholder": "Pecahan",
+  "draftLesson": "Buat",
   "drafting": "Menyusun…",
-  "lessonEmpty": "Sebutkan topik, lalu buat pelajarannya. Kunci gateway tidak diperlukan.",
+  "lessonEmpty": "Tulis topiknya, lalu tekan Buat.",
   "lessonError": "Pelajaran tidak dapat disusun",
-  "saveDeck": "Simpan dek",
+  "saveDeck": "Simpan",
   "deckSaved": "Dek pelajaran tersimpan di meja ini.",
   "saveError": "Dek pelajaran tidak dapat disimpan",
-  "generateExam": "Tulis ujian",
+  "generateExam": "Buat",
   "examError": "Ujian tidak dapat ditulis",
   "answer": "Jawaban",
   "examKicker": "Ujian",
-  "dubHeading": "Naskah sulih suara",
-  "subtitleLabel": "Subjudul",
-  "presenterStage": "Panggung penyaji",
-  "readBook": "Baca halaman",
+  "dubHeading": "Yang diucapkan",
+  "subtitleLabel": "Ucapan",
+  "presenterStage": "Tampilkan",
+  "readBook": "Baca",
   "reading": "Membaca…",
   "bookError": "Halaman itu tidak dapat dibaca",
-  "buildPresenter": "Buat rencana penyaji",
+  "buildPresenter": "Tampilkan",
   "presenterError": "Rencana penyaji tidak dapat dibuat",
-  "presenterNeedsDeck": "Buat pelajaran dulu. Rencana penyaji memakai dek itu."
+  "presenterNeedsDeck": "Buat pelajaran dulu.",
+  "ask": "Pelajaran ini tentang apa?",
+  "hint": "Tulis topiknya, lalu tekan Buat. Klik kata di slide untuk mengubahnya.",
+  "more": "Lainnya",
+  "examAsk": "Kuis ini tentang apa?",
+  "examHint": "Tulis topiknya, lalu tekan Buat.",
+  "bookHint": "Pilih gambar atau PDF, lalu tekan Baca.",
+  "presenterHint": "Buat pelajaran dulu. Setelah itu Anda bisa menampilkannya.",
+  "guide": {
+    "lead": "Anda ingin melakukan apa?",
+    "change": "Pilih yang lain"
+  },
+  "tasks": {
+    "lesson": {
+      "label": "Pelajaran",
+      "hint": "Beberapa slide yang bisa diubah."
+    },
+    "quiz": {
+      "label": "Kuis",
+      "hint": "Pertanyaan yang bisa dibaca."
+    },
+    "page": {
+      "label": "Halaman",
+      "hint": "Baca gambar atau PDF di komputer ini."
+    },
+    "show": {
+      "label": "Tampilkan",
+      "hint": "Tampilkan pelajaran dengan suara."
+    }
+  }
 }

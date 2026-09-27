@@ -89,6 +89,7 @@ test("chat and workspaces work without an account", async ({ page }) => {
   await page.getByTestId("mode-presentations").click();
   await expect(page).toHaveURL(/\/presentations/, { timeout: 15_000 });
   await expect(page.getByTestId("presentations-studio")).toBeVisible({ timeout: 15_000 });
+  await page.getByTestId("presentations-more").click();
   await expect(page.getByTestId("presentations-studio-model")).toBeVisible();
   await expect(page.getByTestId("presentations-starter")).toHaveCount(2);
   await page.getByTestId("presentations-starter").first().click();
