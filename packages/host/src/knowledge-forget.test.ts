@@ -26,7 +26,7 @@ afterAll(async () => {
 
 const failing: KnowledgeBackend = {
   id: "builtin",
-  indexSource: () => Promise.resolve(),
+  indexSource: () => Promise.resolve({ degraded: false }),
   // Deliberately a sync throw from a declared-Promise method: the shape a non-async SQLite call has.
   deleteSource: (() => {
     throw new Error("backend index unreachable");
@@ -41,7 +41,7 @@ const failing: KnowledgeBackend = {
 vi.mock("./knowledge/registry", () => ({
   getKnowledgeBackend: () => failing,
   deleteThroughBackend: (tenant: TenantContext, sourceId: string) => failing.deleteSource(tenant, sourceId),
-  indexThroughBackend: () => Promise.resolve(),
+  indexThroughBackend: () => Promise.resolve({ degraded: false }),
   retrieveThroughBackend: () =>
     Promise.resolve({ chunks: [], mode: "none" as const, backend: "builtin" as const, vectorModel: null }),
 }));

@@ -10,7 +10,8 @@ describe("applyAgentOps", () => {
     const result = await withEditToolContext({ tenant, projectId: project.id, runId: "run-apply" }, () =>
       createHostEditBackend().applyAgentOps(tenant, [{ type: "set_volume", payload: { clipId, volume: 0.2 } }]),
     );
-    expect(result.card.status).toBe("applied");
-    expect(result.ops.length).toBe(1);
+    // The tool seam types the card as `unknown` so core does not depend on the host row shape.
+    expect(result.card).toMatchObject({ status: "applied" });
+    expect(result.ops).toHaveLength(1);
   });
 });
