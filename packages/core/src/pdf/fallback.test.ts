@@ -53,7 +53,8 @@ describe("extractPdfText without an on-disk pdfjs entry", () => {
   });
 
   it("still times out with the timeout code", async () => {
-    const error = await extractPdfText(buildTextPdf(["tiny"]), { timeoutMs: 1 }).catch((caught: unknown) => caught);
+    // Zero is already spent, so the fallback rejects before parsing. A 1ms budget can lose to a warm pdfjs.
+    const error = await extractPdfText(buildTextPdf(["tiny"]), { timeoutMs: 0 }).catch((caught: unknown) => caught);
     expect((error as PdfExtractError).code).toBe("timeout");
   });
 });

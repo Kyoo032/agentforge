@@ -81,6 +81,10 @@ function stopped(reason: string): PdfExtractError {
  */
 export function runWorkerTask(options: WorkerTaskOptions): Promise<unknown> {
   const { source, workerData, timeoutMs, transferList } = options;
+  // A non-positive budget is already spent. Starting the worker and waiting at least 1ms races a tiny file.
+  if (!(timeoutMs > 0)) {
+    return Promise.reject(new PdfExtractError("timeout", "PDF parsing timed out"));
+  }
   return new Promise<unknown>((resolve, reject) => {
     let worker: Worker;
     try {
@@ -122,11 +126,8 @@ export function runWorkerTask(options: WorkerTaskOptions): Promise<unknown> {
     worker.on("exit", () => {
       finish(() => reject(stopped("worker stopped before answering")));
     });
-    timer = setTimeout(
-      () => {
-        finish(() => reject(new PdfExtractError("timeout", "PDF parsing timed out")));
-      },
-      Math.max(1, timeoutMs),
-    );
+    timer = setTimeout(() => {
+      finish(() => reject(new PdfExtractError("timeout", "PDF parsing timed out")));
+    }, timeoutMs);
   });
 }

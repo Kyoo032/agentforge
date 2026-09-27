@@ -92,7 +92,7 @@ describe("extractPdfText", () => {
   });
 
   it("gives up with a timeout error when the deadline is already spent", async () => {
-    const error = await extractPdfText(threePagePdf(), { timeoutMs: 1 }).catch((caught: unknown) => caught);
+    const error = await extractPdfText(threePagePdf(), { timeoutMs: 0 }).catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(PdfExtractError);
     expect((error as PdfExtractError).code).toBe("timeout");
   });

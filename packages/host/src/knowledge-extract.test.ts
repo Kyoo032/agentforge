@@ -57,7 +57,7 @@ describe("extractText", () => {
 
   it("reads html as prose, by mime or by extension, and drops script and style bodies", async () => {
     const page =
-      '<!doctype html><html><head><title>Probe</title><style>.x{color:red}</style>' +
+      "<!doctype html><html><head><title>Probe</title><style>.x{color:red}</style>" +
       `<script>var token="${PLANTED}";</script></head><body><h1>Probe</h1>` +
       "<p>The Alder Point beacon flashes 77 times per minute.</p></body></html>";
     for (const [name, mime] of [
@@ -142,7 +142,7 @@ describe("extractText", () => {
   });
 
   it("maps a spent pdf deadline to pdf_timeout", async () => {
-    const code = await codeOf(extractText("slow.pdf", "application/pdf", pdfBytes(), { pdf: { timeoutMs: 1 } }));
+    const code = await codeOf(extractText("slow.pdf", "application/pdf", pdfBytes(), { pdf: { timeoutMs: 0 } }));
     expect(code).toBe("pdf_timeout");
   });
 
@@ -177,7 +177,7 @@ describe("extractText", () => {
 
   it("maps a spent docx deadline to docx_timeout", async () => {
     const bytes = await docxBytes(["Only clause."]);
-    const code = await codeOf(extractText("slow.docx", DOCX_MIME, bytes, { docx: { timeoutMs: 1 } }));
+    const code = await codeOf(extractText("slow.docx", DOCX_MIME, bytes, { docx: { timeoutMs: 0 } }));
     expect(code).toBe("docx_timeout");
   });
 
