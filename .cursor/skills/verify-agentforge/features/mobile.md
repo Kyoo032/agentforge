@@ -21,7 +21,7 @@ Preconditions:
 - A driver marks mobile `verified-unreachable (no mobile app)` and moves on.
 - Doctor with no args is webdev. Doctor `--desktop` is packaged desktop. There is no `--mobile`.
 
-- **Confirm docs only.** This file, [`docs/mobile.md`](../../../docs/mobile.md) and `apps/mobile/AGENTS.md` exist; `apps/mobile` holds no app code (`git ls-files apps/mobile` → `AGENTS.md`, `CLAUDE.md`). `apps/desktop/package.json:108-156` has `build.win` / `build.mac` / `build.linux` and no ios/android/capacitor target.
+- **Confirm docs only.** This file, [`docs/mobile.md`](../../../../docs/mobile.md) and `apps/mobile/AGENTS.md` exist; `apps/mobile` holds no app code (`git ls-files apps/mobile` → `AGENTS.md`, `CLAUDE.md`). `apps/desktop/package.json:108-156` has `build.win` / `build.mac` / `build.linux` and no ios/android/capacitor target.
 - **Do not** point a phone at `http://<lan-ip>:3000`. Drive `127.0.0.1` only.
 - **Record.** Mark `mobile-none` and `mobile-lan-not-product` `verified-unreachable (no mobile app)`, not a Cloud or Windows fail.
 

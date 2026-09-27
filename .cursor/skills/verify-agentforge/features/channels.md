@@ -1,6 +1,6 @@
 # Channels (Telegram)
 
-Account-rail page at `/channels`: connect a Telegram bot to the desk, add a group or channel the bot is in, post to it, and read what comes back. Not a product mode and not on the mode catalog — `mode-channels` must have count 0. How it works: [`maps/channels.md`](../../../docs/internal/maps/channels.md). Design and the phases after this one: [`telegram-channels-plan.md`](../../../docs/internal/telegram-channels-plan.md).
+Account-rail page at `/channels`: connect a Telegram bot to the desk, add a group or channel the bot is in, post to it, and read what comes back. Not a product mode and not on the mode catalog — `mode-channels` must have count 0. How it works: [`maps/channels.md`](../../../../docs/internal/maps/channels.md). Design and the phases after this one: [`telegram-channels-plan.md`](../../../../docs/internal/telegram-channels-plan.md).
 
 ## Sub-features
 

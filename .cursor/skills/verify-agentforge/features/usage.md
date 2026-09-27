@@ -1,6 +1,6 @@
 # Usage
 
-Usage is the desk spend and this-key wallet page at `/usage`. It is a bottom-rail link next to Workspaces and Settings — not a product mode. Day / Week / Month stacked bars and spend-by-model live here; Settings keeps a compact this-key strip and Open Usage.
+Usage is the desk spend and this-key wallet page at `/usage`. It is a bottom-rail link next to Workspaces and Settings — not a product mode. Day / Week / Month stacked bars and spend-by-model live here; Settings keeps a compact this-key strip and Open Usage. Map: [`docs/internal/maps/shell-rail-and-workspaces.md`](../../../../docs/internal/maps/shell-rail-and-workspaces.md).
 
 ## Sub-features
 
