@@ -36,7 +36,8 @@
     "pastedName": "Catatan tempelan",
     "chunks": "{count} potongan",
     "chunksOne": "{count} potongan",
-    "remove": "Hapus"
+    "remove": "Hapus",
+    "embedLocal": "Tersimpan. Embedding langsung kehabisan waktu, jadi sumber ini memakai indeks lokal sampai gateway menjawab."
   },
   "status": {
     "Indexed": "Terindeks",

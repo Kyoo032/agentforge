@@ -1,7 +1,7 @@
 {
   "title": "Edit",
   "expectedInputs": "You get: a video you cut on a timeline, with an agent that proposes every change as a card you Keep, Undo, or Tweak.",
-  "defaultProjectName": "Loop 1",
+  "defaultProjectName": "Untitled edit",
   "untitled": "Untitled",
   "projects": "Projects",
   "newProject": "New project",
@@ -64,6 +64,7 @@
   },
   "status": {
     "proposed": "proposed",
+    "applied": "applied",
     "pending": "pending",
     "kept": "kept",
     "undone": "undone",

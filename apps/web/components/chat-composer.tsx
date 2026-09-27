@@ -16,6 +16,8 @@ import { abortErrorMessage, armStreamWatchdog } from "@agentforge/core/stream-wa
 import { REASONING_EFFORTS, type ReasoningEffort } from "@agentforge/core/reasoning-effort";
 import { submitOnEnter } from "@/lib/composer-enter";
 import { getLocale, t } from "@/lib/i18n";
+import { readComposerDraft, writeComposerDraft } from "@/lib/composer-draft";
+import { useWorkspaceScope } from "@/lib/workspace-scope";
 import { useDeskNeedsKey } from "@/lib/use-desk-needs-key";
 
 export type ComposerUserSendPayload = {
@@ -177,8 +179,16 @@ export function ChatComposer({
   onDraftApplied,
   sessionKey,
 }: Props) {
-  const [text, setText] = useState("");
-  const [files, setFiles] = useState<HeldFile[]>([]);
+  const { id: workspaceId } = useWorkspaceScope();
+  // Restored from outside the keep-alive key so a desk-id remount (boot → real id) and a
+  // thread being created do not throw away a file that has not been sent.
+  const restored = readComposerDraft(workspaceId);
+  const [text, setText] = useState(restored.text);
+  const [files, setFiles] = useState<HeldFile[]>(
+    restored.files.filter(
+      (item): item is HeldFile => item.kind === "text" || item.kind === "image" || item.kind === "video",
+    ),
+  );
   const [busy, setBusy] = useState(false);
   const [enhancing, setEnhancing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -192,10 +202,15 @@ export function ChatComposer({
   const [shownSession, setShownSession] = useState(sessionKey);
   if (shownSession !== sessionKey) {
     // Another session is on screen. Whatever run held Send, and its error, belonged to the last one.
+    // The unsent text and files stay: New chat and creating a thread are not a reason to drop them.
     setShownSession(sessionKey);
     setBusy(false);
     setError(null);
   }
+
+  useEffect(() => {
+    writeComposerDraft(workspaceId, { text, files });
+  }, [workspaceId, text, files]);
 
   const needsKey = useDeskNeedsKey();
   const pickerModels = models ?? [];

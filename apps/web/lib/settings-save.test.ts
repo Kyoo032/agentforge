@@ -128,6 +128,19 @@ describe("the Settings page wiring", () => {
     expect(change).toContain("setLocaleError(");
   });
 
+  it("holds Restart until the language save resolves, then applies that saved locale", () => {
+    const change = body("async function onLocaleChange(");
+    expect(change).toContain("localeSaveRef.current = saving");
+    const restart = body("async function onRestart(");
+    const wait = restart.indexOf("localeSaveRef.current");
+    const apply = restart.indexOf("/api/v1/settings/apply-locale");
+    expect(wait).toBeGreaterThan(-1);
+    expect(apply).toBeGreaterThan(wait);
+    expect(restart).toContain("if (!saved)");
+    const button = page.indexOf('data-testid="settings-locale-restart-button"');
+    expect(page.slice(button, button + 280)).toContain("disabled={localeBusy || localeSaving}");
+  });
+
   it("reports a failed first load instead of showing an empty form as if it were real", () => {
     expect(page).toContain('readSettingsAnswer(() => apiFetch("/api/v1/settings"), "settings.loadFailed")');
     expect(page).toContain('data-testid="settings-load-error"');

@@ -64,7 +64,12 @@ export type KnowledgeBackendId = "builtin" | "weknora";
 export type KnowledgeBackend = {
   readonly id: KnowledgeBackendId;
   /** Index (or re-index) every chunk of one source. Must be idempotent for the same source id. */
-  indexSource(tenant: TenantContext, source: BackendSource, chunks: string[], model: string): Promise<void>;
+  indexSource(
+    tenant: TenantContext,
+    source: BackendSource,
+    chunks: string[],
+    model: string,
+  ): Promise<{ degraded: boolean }>;
   /**
    * Forget everything the backend holds for this source. Must not throw when it holds nothing.
    *

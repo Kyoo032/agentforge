@@ -1,7 +1,7 @@
 {
   "title": "Edit",
   "expectedInputs": "Anda dapat: video yang Anda potong di linimasa, dengan agen yang mengusulkan setiap perubahan sebagai kartu yang bisa Anda Simpan, Urungkan, atau Sesuaikan.",
-  "defaultProjectName": "Loop 1",
+  "defaultProjectName": "Suntingan baru",
   "untitled": "Tanpa judul",
   "projects": "Proyek",
   "newProject": "Proyek baru",
@@ -64,6 +64,7 @@
   },
   "status": {
     "proposed": "diusulkan",
+    "applied": "diterapkan",
     "pending": "menunggu",
     "kept": "disimpan",
     "undone": "diurungkan",

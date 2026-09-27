@@ -174,9 +174,12 @@ async function pdfText(bytes: Buffer, opts: PdfExtractOptions | undefined): Prom
 
 /** Rejects once the deadline passes. `readDocx` keeps running in the background; nothing consumes it. */
 function withTimeout<T>(work: Promise<T>, timeoutMs: number): Promise<T> {
+  if (!(timeoutMs > 0)) {
+    return Promise.reject(docxFailure("timeout"));
+  }
   let timer: NodeJS.Timeout | undefined;
   const deadline = new Promise<never>((_resolve, reject) => {
-    timer = setTimeout(() => reject(docxFailure("timeout")), Math.max(1, timeoutMs));
+    timer = setTimeout(() => reject(docxFailure("timeout")), timeoutMs);
   });
   return Promise.race([work, deadline]).finally(() => clearTimeout(timer)) as Promise<T>;
 }

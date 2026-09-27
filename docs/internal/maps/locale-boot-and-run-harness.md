@@ -1,6 +1,6 @@
 # Map — App locale: boot freeze and the run harness
 
-Last verified: 2026-09-26 for the onboarding reason sentence (`onboarding.gate.invalidKey` now reads "That key
+Last verified: 2026-09-27 for the restart race: the banner can show while `POST /api/v1/settings` is in flight, and Restart stays disabled until that save resolves, then `onRestart` applies the locale that landed on disk. The onboarding reason sentence was last verified 2026-09-26 (`onboarding.gate.invalidKey` reads "That key
 didn't work. Check it at Toko Token and paste it again."). The rest of this page was last verified 2026-09-23
 at d4561b8 + uncommitted tree for the run harness (`localeForRun`, the new per-request locale on the hosted
 server, the Channel 2 line), the Failure modes row it adds, the gotchas that changed with it, and the `common`
@@ -53,12 +53,13 @@ not read on the boot path (`packages/host/src/locale-boot.ts:8-9`), asserted at
 3. Every settings response carries `...localePayload(tenant)` (`packages/host/src/locale-boot.ts:55-61`):
    `{ locale: getBootLocale(), savedLocale: getSavedLocale() }`. `getBootLocale` is cached from the first read;
    `getSavedLocale` always re-reads disk. Those two values differing is the entire signal.
-4. The restart banner renders only while `savedLocale !== locale` (`settings-locale-restart`,
-   `apps/web/components/settings-page.tsx:321-333`).
-5. The button (`settings-locale-restart-button`, `:326`) does three things in order (`:255-276`): POST
-   `/api/v1/settings/apply-locale` → `applySavedLocaleAsBoot()` re-reads disk and re-freezes the host
-   (`packages/host/src/locale-boot.ts:34-40`); `applyLocale(applied.locale)` re-freezes the renderer and sets
-   `document.documentElement.lang`; then `relaunchDesktopApp()` to actually restart the process.
+4. The restart banner renders only while `savedLocale !== locale` (`settings-locale-restart`). The select
+   sets `savedLocale` before the POST returns, so the banner can show while the save is still in flight.
+   `settings-locale-restart-button` is `disabled` while `localeSaving` or `localeBusy`.
+5. The button waits on `localeSaveRef` (the in-flight `POST /api/v1/settings`). If that save returns false,
+   it stops. Otherwise it POSTs `/api/v1/settings/apply-locale` → `applySavedLocaleAsBoot()` re-reads disk
+   and re-freezes the host (`packages/host/src/locale-boot.ts:34-40`); `applyLocale(applied.locale)`
+   re-freezes the renderer and sets `document.documentElement.lang`; then `relaunchDesktopApp()`.
 6. If the relaunch is refused — webdev has no bridge, or Electron is installing an update / already exiting /
    the sender is untrusted — the code dispatches `LOCALE_RESTART_EVENT` as a fallback so the UI still reflects
    the change (`apps/web/components/settings-page.tsx:264-272`). `App.tsx:80-84` listens, bumps `localeEpoch`, re-fetches settings and calls

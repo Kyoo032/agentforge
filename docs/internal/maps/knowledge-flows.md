@@ -1,6 +1,6 @@
 # Map — Knowledge flows
 
-Last verified: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c` (through e37b3a1)
+Last verified: 2026-09-27 for a live embed timeout: one retry, one in-flight attempt, then `stub-fnv-32` with `degraded: true`. The source stays `Indexed` and `error` becomes `embed_local`, which the Sources row shows as `knowledge-embed-local`. Stub runtime does not set that flag. Earlier: 2026-09-20 at a053245 + the Phase 4 branch `feat/web-phase4-tenant-secrets-rcbu9c` (through e37b3a1)
 
 > **The knowledge path moves often.** This page was first written against an uncommitted tree on 2026-09-17; every line number below was re-read at `b482611`. `knowledge.ts`, `knowledge-ingest.ts`, `handlers/knowledge.ts`, `market-generate.ts` and `finance-generate.ts` are rewritten frequently, so every citation into them names the **function** as well as the line — grep the function name if a number looks wrong. Gotchas says which findings have since been fixed and which are still open.
 
@@ -111,7 +111,7 @@ Two things on this page are **organization**-scoped instead: the raw bytes a fil
 | A `document` upload the converter refuses | `documentText` → `documentFailure` (`knowledge-extract.ts:137-141`) | `document_<code>` for the ten codes at `file-extract/errors.ts:12-32` — `413` for `too_large`, `400` for `unsupported`, `format_mismatch`, `needs_ocr`, `malformed`, `encrypted`, `resource_limit`, `missing_part`, `timeout`, `empty`. A non-`FileExtractError` throw is logged and becomes `document_malformed` (`knowledge-extract.ts:152-153`) so converter internals never reach the screen |
 | Scanned PDF sent through the converter | `extractFile` → `needs_ocr` (`file-extract/errors.ts:51-54`) | 400 `document_needs_ocr`, "OCR is not available locally yet, and nothing was sent anywhere." No upload, no hosted OCR, no row |
 | Artifact could not be saved | the `if (artifactId)` guard in every job harness | no card at all, silently — the studio still shows its result |
-| Embedding call fails mid-batch | `knowledge-embed.ts` | the whole source degrades to `stub-fnv-32` vectors and a five-minute breaker opens workspace-wide; the FTS rows are already committed so the row still reads `Indexed` |
+| Embedding call fails mid-batch | `knowledge-embed.ts` | one retry on a timeout, abort, 5xx, or transport error (not a 4xx). A second caller waits on the same flight. After the retry fails, the source degrades to `stub-fnv-32` with `degraded: true` and a five-minute breaker opens. The row stays `Indexed` and `error` is `embed_local`, shown on the Sources row (`knowledge-embed-local`) |
 | Job cancelled (`throwIfJobAborted`) | before the persist step | no artifact, no card |
 | A section / slide rewrite | `regenerateDocumentSection` (`document-generate.ts:193`), `regeneratePresentationSlide` (`presentation-generate.ts:189`) | returns a merged draft and persists **nothing** — the artifact and the card keep the first generate's text |
 

@@ -87,7 +87,7 @@ export function EditStudio() {
   const [playing, setPlaying] = useState(false);
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const [tool, setTool] = useState<ToolId>("upload");
-  const [projectName, setProjectName] = useState("Loop 1");
+  const [projectName, setProjectName] = useState(() => t("edit.defaultProjectName"));
   const [starterId, setStarterId] = useState(STARTER_PROJECTS[0]?.id ?? "blank-16x9");
   const [tier, setTier] = useState("standard");
   const [hasKey, setHasKey] = useState(true);
@@ -266,7 +266,7 @@ export function EditStudio() {
   }
 
   async function onNewProject() {
-    const name = projectName.trim() || "Untitled";
+    const name = projectName.trim() || t("edit.defaultProjectName");
     const created = await createEditProject(name, projectAspectFromStarter(starterId), starterId);
     if (created.error || !created.project) {
       if (created.status === 404) {

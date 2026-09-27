@@ -372,47 +372,47 @@ export function MarketStudio() {
       <form className="space-y-4" onSubmit={(event) => void onGenerate(event)} data-testid="market-inputs">
         <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
           <MarketWatchlistInput tickers={tickers} onChange={changeTickers} disabled={locked} />
-          {tickers.length === 0 ? (
-            <div className="mt-3" data-testid="market-starters">
+          <div className="mt-3" data-testid="market-starters">
+            {tickers.length === 0 ? (
               <div className="mb-3 flex flex-wrap items-end gap-4">
                 {specialistPicker}
                 {depthControl}
               </div>
-              <p className="text-xs text-[var(--text-3)]">{t("market.studio.startersLead")}</p>
-              <div className="mt-2 flex flex-wrap gap-2">
+            ) : null}
+            <p className="text-xs text-[var(--text-3)]">{t("market.studio.startersLead")}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="card-live enter-rise px-3 py-1.5 text-left text-xs text-[var(--text)]"
+                style={{ "--i": 0 } as CSSProperties}
+                data-testid="market-specialist-starter"
+                title={specialistStarterTickers(specialist).join(", ")}
+                onClick={() => changeTickers(specialistStarterTickers(specialist))}
+                disabled={locked}
+              >
+                <span className="font-medium">
+                  {t("market.studio.specialistStarter", { label: specialistName(specialist) })}
+                </span>
+              </button>
+              {MARKET_STARTERS.map((starter, index) => (
                 <button
+                  key={starter.id}
                   type="button"
                   className="card-live enter-rise px-3 py-1.5 text-left text-xs text-[var(--text)]"
-                  style={{ "--i": 0 } as CSSProperties}
-                  data-testid="market-specialist-starter"
-                  title={specialistStarterTickers(specialist).join(", ")}
-                  onClick={() => changeTickers(specialistStarterTickers(specialist))}
+                  style={{ "--i": index + 1 } as CSSProperties}
+                  data-testid="market-starter"
+                  title={starter.tickers.join(", ")}
+                  onClick={() => applyStarter(starter)}
                   disabled={locked}
                 >
-                  <span className="font-medium">
-                    {t("market.studio.specialistStarter", { label: specialistName(specialist) })}
+                  <span className="font-medium">{labeled(`market.starters.${starter.id}.label`, starter.label)}</span>
+                  <span className="ml-2 text-[var(--text-3)]">
+                    {labeled(`market.starters.${starter.id}.hint`, starter.hint)}
                   </span>
                 </button>
-                {MARKET_STARTERS.map((starter, index) => (
-                  <button
-                    key={starter.id}
-                    type="button"
-                    className="card-live enter-rise px-3 py-1.5 text-left text-xs text-[var(--text)]"
-                    style={{ "--i": index + 1 } as CSSProperties}
-                    data-testid="market-starter"
-                    title={starter.tickers.join(", ")}
-                    onClick={() => applyStarter(starter)}
-                    disabled={locked}
-                  >
-                    <span className="font-medium">{labeled(`market.starters.${starter.id}.label`, starter.label)}</span>
-                    <span className="ml-2 text-[var(--text-3)]">
-                      {labeled(`market.starters.${starter.id}.hint`, starter.hint)}
-                    </span>
-                  </button>
-                ))}
-              </div>
+              ))}
             </div>
-          ) : null}
+          </div>
         </div>
 
         {tickers.length > 0 ? (

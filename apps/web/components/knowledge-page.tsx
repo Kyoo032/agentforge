@@ -592,6 +592,11 @@ export function KnowledgePage() {
                     count: row.chunks,
                   })}
                 </span>
+                {row.status === "Indexed" && row.error === "embed_local" ? (
+                  <span className="text-xs text-[var(--text-3)]" data-testid="knowledge-embed-local">
+                    {t("knowledge.sources.embedLocal")}
+                  </span>
+                ) : null}
                 <span
                   className={row.status === "Indexed" ? "tag tag-accent" : "tag tag-outline"}
                   title={row.status === "Failed" && row.error ? row.error : undefined}

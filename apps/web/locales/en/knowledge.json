@@ -36,7 +36,8 @@
     "pastedName": "Pasted notes",
     "chunks": "{count} chunks",
     "chunksOne": "{count} chunk",
-    "remove": "Remove"
+    "remove": "Remove",
+    "embedLocal": "Saved. Live embeddings timed out, so this source is on a local index until the gateway answers."
   },
   "status": {
     "Indexed": "Indexed",

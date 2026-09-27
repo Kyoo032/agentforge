@@ -60,7 +60,12 @@ function ensureTime(deadline: number): void {
 
 /** Rejects with a timeout error once the deadline passes, and lets the caller release the parser. */
 function withDeadline<T>(work: Promise<T>, deadline: number, abort: () => void): Promise<T> {
-  const remaining = Math.max(1, deadline - Date.now());
+  const remaining = deadline - Date.now();
+  // A spent deadline must lose to nothing. Flooring the wait at 1ms let a warm parse finish first.
+  if (remaining <= 0) {
+    abort();
+    return Promise.reject(new PdfExtractError("timeout", "PDF parsing timed out"));
+  }
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {
       abort();
@@ -165,6 +170,8 @@ export async function extractPdfText(bytes: Uint8Array, opts: PdfExtractOptions 
  * be preempted from this thread.
  */
 async function readOnThisThread(data: Uint8Array, maxPages: number, deadline: number): Promise<PdfExtractResult> {
+  // Check before pdfjs starts. A zero budget is already spent; waiting out a timer races a tiny file.
+  ensureTime(deadline);
   const task = getDocument({
     data,
     // No fetch for worker/CMap data, no font data URL: nothing here may touch the network.
@@ -205,9 +212,5 @@ function hasNoTextLayer(pages: readonly PdfPageText[], text: string): boolean {
     return true;
   }
   const body = pages.map((page) => page.text).join("");
-  return (
-    pages.length >= 2 &&
-    body.trim().length < PDF_MIN_TEXT_CHARS &&
-    pages.every((page) => page.items === 0)
-  );
+  return pages.length >= 2 && body.trim().length < PDF_MIN_TEXT_CHARS && pages.every((page) => page.items === 0);
 }

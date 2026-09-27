@@ -118,7 +118,10 @@ export function FinanceStudioView({
       />
       {showChooser ? (
         <div className="mt-6">
-          <FinanceChooser />
+          <ModeIllustration mode="finance" />
+          <div className="mt-6">
+            <FinanceChooser />
+          </div>
         </div>
       ) : (
         <TaskPath
