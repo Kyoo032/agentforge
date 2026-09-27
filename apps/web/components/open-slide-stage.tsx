@@ -28,6 +28,7 @@ import { t } from "@/lib/i18n";
 export function OpenSlideStage({ deck, onChange }: { deck: OpenSlideDeck; onChange: (next: OpenSlideDeck) => void }) {
   const [pageId, setPageId] = useState(deck.pages[0]?.id ?? "");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [notesOpen, setNotesOpen] = useState(false);
   const deckRef = useRef(deck);
   deckRef.current = deck;
   const page = deck.pages.find((item) => item.id === pageId) ?? deck.pages[0];
@@ -73,8 +74,11 @@ export function OpenSlideStage({ deck, onChange }: { deck: OpenSlideDeck; onChan
     onChange(nudgeOpenSlideBlock(deck, page.id, selected.id, delta[0], delta[1]));
   }
 
-  function onPointerDown(event: ReactPointerEvent<HTMLButtonElement>, block: OpenSlideBlock) {
+  function onPointerDown(event: ReactPointerEvent<HTMLDivElement>, block: OpenSlideBlock) {
     if (event.button !== 0) {
+      return;
+    }
+    if (event.target instanceof HTMLElement && event.target.closest("textarea, input")) {
       return;
     }
     setSelectedId(block.id);
@@ -111,22 +115,21 @@ export function OpenSlideStage({ deck, onChange }: { deck: OpenSlideDeck; onChan
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[16rem_minmax(0,1fr)_16rem]" data-testid="presentations-open-slide">
-      <div className="flex flex-col gap-2" data-testid="presentations-open-slide-filmstrip">
+    <div className="flex flex-col gap-2" data-testid="presentations-open-slide">
+      <div className="flex gap-1 overflow-x-auto" data-testid="presentations-open-slide-filmstrip">
         {deck.pages.map((item, index) => {
           const label = item.blocks.find((block) => block.kind === "text" && block.text.trim())?.text ?? item.role;
           return (
             <button
               key={item.id}
               type="button"
-              className="rounded-lg border border-[var(--line)] px-3 py-2 text-left"
+              className="h-8 max-w-36 shrink-0 truncate rounded-lg border border-[var(--line)] px-2 text-left text-xs"
               data-testid="presentations-open-slide-page"
               data-role={item.role}
               aria-current={item.id === page.id ? "true" : undefined}
               onClick={() => selectPage(item.id)}
             >
-              <span className="text-xs text-[var(--text-3)]">{index + 1}</span>
-              <span className="mt-1 block truncate text-sm text-[var(--text)]">{label}</span>
+              {index + 1}. {label}
             </button>
           );
         })}
@@ -143,111 +146,116 @@ export function OpenSlideStage({ deck, onChange }: { deck: OpenSlideDeck; onChan
         data-page={page.role}
         onKeyDown={onKeyDown}
       >
-        {page.blocks.map((block) => (
-          <button
-            key={block.id}
-            type="button"
-            className="absolute overflow-hidden text-left"
-            style={{
-              left: `${(block.x / OPEN_SLIDE_CANVAS_WIDTH) * 100}%`,
-              top: `${(block.y / OPEN_SLIDE_CANVAS_HEIGHT) * 100}%`,
-              width: `${(block.w / OPEN_SLIDE_CANVAS_WIDTH) * 100}%`,
-              height: `${(block.h / OPEN_SLIDE_CANVAS_HEIGHT) * 100}%`,
-              color: toneColor(deck.design, block.tone),
-              background: block.kind === "shape" ? toneColor(deck.design, block.tone) : "transparent",
-              fontSize: `${(block.fontSize / OPEN_SLIDE_CANVAS_WIDTH) * 100}cqw`,
-              fontWeight: block.weight,
-              textAlign: block.align,
-              lineHeight: 1.2,
-              border: selected?.id === block.id ? "2px solid #0f766e" : "2px solid transparent",
-              padding: 0,
-            }}
-            data-testid="presentations-open-slide-block"
-            data-kind={block.kind}
-            data-x={block.x}
-            data-y={block.y}
-            data-selected={selected?.id === block.id ? "true" : "false"}
-            onPointerDown={(event) => onPointerDown(event, block)}
+        {selected ? (
+          <div
+            className="absolute left-3 top-3 z-20 flex flex-wrap items-center gap-1 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-1"
+            data-testid="presentations-open-slide-toolbar"
           >
-            {block.kind === "text" ? block.text : null}
-          </button>
-        ))}
-      </div>
-      <div className="flex flex-col gap-3" data-testid="presentations-open-slide-properties">
-        <p className="text-xs text-[var(--text-2)]" data-testid="presentations-open-slide-brief">
-          {deck.brief.aesthetic}
-        </p>
-        <label className="flex flex-col gap-1 text-xs text-[var(--text-2)]">
-          {t("presentation.openSlideAccent")}
-          <input
-            type="color"
-            value={deck.design.palette.accent}
-            aria-label={t("presentation.openSlideAccent")}
-            data-testid="presentations-open-slide-accent"
-            onChange={(event) => onChange(setOpenSlideAccent(deck, event.target.value))}
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-[var(--text-2)]">
-          {t("presentation.openSlideText")}
-          <textarea
-            className="text-field min-h-24"
-            value={selected?.text ?? ""}
-            disabled={selected?.kind !== "text"}
-            aria-label={t("presentation.openSlideText")}
-            data-testid="presentations-open-slide-text"
-            onChange={(event) => {
-              if (selected) {
-                onChange(setOpenSlideBlockText(deck, page.id, selected.id, event.target.value));
-              }
-            }}
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-[var(--text-2)]">
-          {t("presentation.openSlideNotes")}
-          <textarea
-            className="text-field min-h-24"
-            value={page.notes}
-            aria-label={t("presentation.openSlideNotes")}
-            data-testid="presentations-open-slide-notes"
-            onChange={(event) => onChange(setOpenSlidePageNotes(deck, page.id, event.target.value))}
-          />
-        </label>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            className="btn btn-ghost h-8 rounded-lg px-3 text-xs"
-            data-testid="presentations-open-slide-add-text"
-            onClick={() => {
-              const next = addOpenSlideTextBlock(deck, page.id);
-              onChange(next);
-              const added = next.pages.find((item) => item.id === page.id)?.blocks.at(-1);
-              if (added) {
-                setSelectedId(added.id);
-              }
-            }}
-          >
-            {t("presentation.openSlideAddText")}
-          </button>
-          <button
-            type="button"
-            className="btn btn-ghost h-8 rounded-lg px-3 text-xs"
-            disabled={!selected}
-            data-testid="presentations-open-slide-duplicate"
-            onClick={() => {
-              if (!selected) {
-                return;
-              }
-              const next = duplicateOpenSlideBlock(deck, page.id, selected.id);
-              onChange(next);
-              const copy = next.pages.find((item) => item.id === page.id)?.blocks.at(-1);
-              if (copy && copy.id !== selected.id) {
-                setSelectedId(copy.id);
-              }
-            }}
-          >
-            {t("presentation.openSlideDuplicate")}
-          </button>
-        </div>
+            <label className="flex items-center gap-1 text-xs text-[var(--text-2)]">
+              {t("presentation.openSlideAccent")}
+              <input
+                type="color"
+                value={deck.design.palette.accent}
+                aria-label={t("presentation.openSlideAccent")}
+                data-testid="presentations-open-slide-accent"
+                onChange={(event) => onChange(setOpenSlideAccent(deck, event.target.value))}
+              />
+            </label>
+            <button
+              type="button"
+              className="btn btn-ghost h-8 rounded-lg px-2 text-xs"
+              data-testid="presentations-open-slide-add-text"
+              onClick={() => {
+                const next = addOpenSlideTextBlock(deck, page.id);
+                onChange(next);
+                const added = next.pages.find((item) => item.id === page.id)?.blocks.at(-1);
+                if (added) {
+                  setSelectedId(added.id);
+                }
+              }}
+            >
+              {t("presentation.openSlideAddText")}
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost h-8 rounded-lg px-2 text-xs"
+              disabled={!selected}
+              data-testid="presentations-open-slide-duplicate"
+              onClick={() => {
+                const next = duplicateOpenSlideBlock(deck, page.id, selected.id);
+                onChange(next);
+                const copy = next.pages.find((item) => item.id === page.id)?.blocks.at(-1);
+                if (copy && copy.id !== selected.id) {
+                  setSelectedId(copy.id);
+                }
+              }}
+            >
+              {t("presentation.openSlideDuplicate")}
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost h-8 rounded-lg px-2 text-xs"
+              aria-expanded={notesOpen}
+              onClick={() => setNotesOpen((open) => !open)}
+            >
+              {t("presentation.openSlideNotes")}
+            </button>
+          </div>
+        ) : null}
+        {selected && notesOpen ? (
+          <label className="absolute right-3 top-14 z-20 w-56 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-2 text-xs text-[var(--text-2)]">
+            {t("presentation.openSlideNotes")}
+            <textarea
+              className="text-field mt-1 min-h-20"
+              value={page.notes}
+              aria-label={t("presentation.openSlideNotes")}
+              data-testid="presentations-open-slide-notes"
+              onChange={(event) => onChange(setOpenSlidePageNotes(deck, page.id, event.target.value))}
+            />
+          </label>
+        ) : null}
+        {page.blocks.map((block) => {
+          const active = selected?.id === block.id;
+          return (
+            <div
+              key={block.id}
+              className="absolute overflow-hidden text-left"
+              style={{
+                left: `${(block.x / OPEN_SLIDE_CANVAS_WIDTH) * 100}%`,
+                top: `${(block.y / OPEN_SLIDE_CANVAS_HEIGHT) * 100}%`,
+                width: `${(block.w / OPEN_SLIDE_CANVAS_WIDTH) * 100}%`,
+                height: `${(block.h / OPEN_SLIDE_CANVAS_HEIGHT) * 100}%`,
+                color: toneColor(deck.design, block.tone),
+                background: block.kind === "shape" ? toneColor(deck.design, block.tone) : "transparent",
+                fontSize: `${(block.fontSize / OPEN_SLIDE_CANVAS_WIDTH) * 100}cqw`,
+                fontWeight: block.weight,
+                textAlign: block.align,
+                lineHeight: 1.2,
+                border: active ? "2px solid #0f766e" : "2px solid transparent",
+                padding: 0,
+              }}
+              data-testid="presentations-open-slide-block"
+              data-kind={block.kind}
+              data-x={block.x}
+              data-y={block.y}
+              data-selected={active ? "true" : "false"}
+              onPointerDown={(event) => onPointerDown(event, block)}
+            >
+              {active && block.kind === "text" ? (
+                <textarea
+                  className="h-full w-full resize-none bg-transparent outline-none"
+                  style={{ color: "inherit", font: "inherit", textAlign: "inherit" }}
+                  value={block.text}
+                  aria-label={t("presentation.openSlideText")}
+                  data-testid="presentations-open-slide-text"
+                  onChange={(event) => onChange(setOpenSlideBlockText(deck, page.id, block.id, event.target.value))}
+                />
+              ) : block.kind === "text" ? (
+                block.text
+              ) : null}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
