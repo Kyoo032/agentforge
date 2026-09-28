@@ -9,7 +9,6 @@ import { DatasetProfile } from "@/components/dataset-profile";
 import { EnhancePromptButton } from "@/components/enhance-prompt-button";
 import { JobProgressList } from "@/components/job-progress";
 import { ModeHeader } from "@/components/mode-header";
-import { ModeIllustration } from "@/components/mode-illustration";
 import { ModelSelect } from "@/components/model-select";
 import { WorkingStatus } from "@/components/working-status";
 import {
@@ -179,7 +178,7 @@ export function DataStudio() {
   return (
     <main
       data-mode="data"
-      className="mx-auto w-full max-w-[var(--content-wide)] px-6 pb-10 pt-8 text-[var(--text)]"
+      className="w-full px-6 pb-10 pt-4 text-[var(--text)]"
       data-testid="data-studio"
     >
       <div className="mb-5">
@@ -326,15 +325,7 @@ export function DataStudio() {
               />
               <DataAnalysisView analysis={shown.result.analysis} testIdPrefix="data" />
             </div>
-          ) : job.busy ? null : (
-            <div
-              className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center text-[var(--text-2)]"
-              data-testid="data-studio-empty"
-            >
-              <ModeIllustration mode="data" />
-              <p className="mt-4">{dataset ? t("data.emptyAsk") : t("data.emptyUpload")}</p>
-            </div>
-          )}
+          ) : null}
           <div className="flex flex-col gap-2" data-testid="data-starters">
             {DATA_STARTERS.map((starter, index) => (
               <button
@@ -353,7 +344,7 @@ export function DataStudio() {
         </div>
       </div>
       <form
-        className="mt-5 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4"
+        className="mt-5 rounded-xl border border-[var(--line)] bg-transparent p-4"
         onSubmit={(event) => void onGenerate(event)}
         data-testid="data-studio-prompt-bar"
       >
@@ -387,12 +378,7 @@ export function DataStudio() {
               {t("data.cancel")}
             </button>
           ) : null}
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={busy || !prompt.trim()}
-            data-testid="data-generate"
-          >
+          <button type="submit" className="btn btn-primary" disabled={busy || !prompt.trim()} data-testid="data-generate">
             {job.busy ? <WorkingStatus label={t("data.working")} /> : t("data.analyze")}
           </button>
         </div>

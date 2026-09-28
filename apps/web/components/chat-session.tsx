@@ -396,7 +396,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
   return (
     <main className="flex h-full min-h-0 flex-col" data-testid="chat-home">
       <div
-        className="mx-auto flex h-14 w-full shrink-0 items-center justify-between gap-4 px-6 max-w-[var(--content-max)]"
+        className="flex h-14 w-full shrink-0 items-center justify-between gap-4 px-6"
         data-testid="chat-header"
       >
         <h1 className={`${empty ? "text-sm" : "text-2xl"} font-medium tracking-[var(--track)] text-[var(--text)]`}>
@@ -416,7 +416,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
       </div>
 
       {error ? (
-        <div className="mx-auto flex w-full items-start gap-3 px-6 max-w-[var(--content-max)]">
+        <div className="flex w-full items-start gap-3 px-6">
           {running || thinking || tools.length > 0 || streaming ? null : <PlaceholderMascot state="error" />}
           <p className="text-sm text-[var(--danger)]" data-testid="chat-error" role="alert">
             {error}
@@ -434,7 +434,7 @@ export function ChatSession({ agentId, initialThreadId }: Props) {
           }
           pinRef.current = isPinnedToEnd(el.scrollTop, el.scrollHeight, el.clientHeight);
         }}
-        className={`mx-auto min-h-0 w-full flex-1 overflow-y-auto overscroll-y-contain px-6 max-w-[var(--content-max)] ${empty ? "" : "space-y-4 py-4"}`}
+        className={`min-h-0 w-full flex-1 overflow-y-auto overscroll-y-contain px-6 ${empty ? "" : "space-y-4 py-4"}`}
         data-testid="message-list"
       >
         {empty && !error ? <ChatLauncher onSuggest={setComposerDraft} /> : null}

@@ -30,14 +30,14 @@ Preconditions:
 - `mode-documents` is visible on Default. If count is 0, you are on a desk that hid Documents — switch to Default or add the tab in Workspaces.
 - Stub proof stops at starters + regen 503. Live generate only if the operator asked and doctor reports `ai`.
 
-- **Open Documents.** Click `mode-documents`. URL matches `/documents`. `documents-studio`, `documents-studio-empty`, and `documents-studio-model` are visible.
+- **Open Documents.** Click `mode-documents`. URL matches `/documents`. The template list (`example-gallery`, then `documents-starter`) comes first under the title; `documents-studio-prompt-bar` (with `documents-studio-model`) sits under it. `documents-studio-empty` is absent. A document preview appears only after Generate or a starter.
 - **Starter.** `documents-starter` count is 2. Click the first (“Memo status”) — `documents-section` and `documents-regen` are 5. The second (“Brief satu halaman”) is 6. `documents-preview` is visible. Section bodies show formatted markdown (no extra preview testid).
 - **Source material (no key needed).** Click `documents-source-toggle`; `documents-source-text` appears. Type anything and press `documents-generate`: the request body carries `sourceText` alongside `prompt` and `model` before the 503. Click `documents-source-picker-toggle` to open `documents-source-picker-panel` — on a desk with no artifacts it shows the empty-dossier copy; this is the only place a saved Research/Finance/Legal artifact enters Documents.
 - **Generate on stub.** `documents-needs-key` has count 0 and `documents-generate` is enabled once the prompt is non-empty. Fill `documents-prompt`, click `documents-generate`. `POST /api/v1/documents` is HTTP 503 and `documents-error` carries the gateway/Settings copy. That also clears any starter draft — `documents-preview` disappears. On a closed gate (`allowed: false`) the button is quiet, `documents-needs-key` is visible, and the click does not POST.
 - **Regen without a key.** Click `documents-regen`. `documents-regen-panel`, `documents-regen-prompt`, `documents-regen-model`, and `documents-regen-attach` are visible. Click `documents-regen-submit`. `documents-error` mentions gateway / Settings / API key.
 - **Download.** Click `documents-download` to get a DOCX from the starter (no live model).
 - **Check against source.** With a starter loaded, paste one of its sentences (six or more words) into `documents-source-text` and add a sentence the source does not contain. Click `documents-check`. `documents-source-check` lists `documents-source-supported` and `documents-source-unsupported`. With the source box empty, the same button shows `documents-source-check-empty`. No gateway key and no model call (`POST /api/v1/documents/check`).
-- **Locale (id).** With the desk on `id` (see [locale.md](./locale.md)), this view reads `Dokumen`, `Belum ada dokumen` and `Mulai dari templat`. Testids are locale-invariant.
+- **Locale (id).** With the desk on `id` (see [locale.md](./locale.md)), this view reads `Dokumen` and `Mulai dari templat`. `Belum ada dokumen` is not on the page until a document exists, and the empty card is not the landing. Testids are locale-invariant.
 - **Cloud.** `foundation.spec.ts` covers starter + regen 503 on Default (no Studio unlock).
 
 ## Gotchas

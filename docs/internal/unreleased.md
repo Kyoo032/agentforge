@@ -542,6 +542,12 @@ Host and renderer, both products. Nothing packed.
 - **Edit writes the agent's title onto the timeline.** A live turn binds every edit tool and calls the refreshed chat model, not the literal id `edit`. `add_title` accepts `{ text }` and lands a clip on `v1`. The stub path "Add a title card that says Hello" does the same. Tool results that carry ops are forwarded as `edit.ops` / `edit.card` frames.
 - **Images needs-key note matches the button.** `images-studio-needs-key` follows `needsKey` (`allowed === false`), the same flag that disables `images-studio-submit`. A stub desk (`allowed: true`) hides the note and can still generate.
 
+## Studio prompt on top, 2026-09-27 (not packed)
+
+Renderer only. Nothing packed.
+
+- **Documents, Research, Presentation, Education, Data, Images, Videos, and Music** use one landing. The prompt is a dock under the title and spans the desk. The "nothing yet" card is gone. A result appears only after Generate, or after a Documents starter. Three sketches were compared on Documents at 1680px. A centered column still left a side gap. A split bench reserved a blank document stage. The dock is the one that stayed.
+
 ## Live-test findings, 2026-09-27 (not packed)
 
 Host and renderer, both products. Nothing packed.

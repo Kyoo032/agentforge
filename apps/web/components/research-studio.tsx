@@ -10,7 +10,6 @@ import { ExampleGallery } from "@/components/example-gallery";
 import { FormattedText } from "@/components/formatted-text";
 import { JobProgressList } from "@/components/job-progress";
 import { ModeHeader } from "@/components/mode-header";
-import { ModeIllustration } from "@/components/mode-illustration";
 import { ModelSelect } from "@/components/model-select";
 import { WorkingStatus } from "@/components/working-status";
 import { ResearchPreview } from "@/components/research-preview";
@@ -82,7 +81,7 @@ export function ResearchStudio() {
   return (
     <main
       data-mode="research"
-      className="mx-auto flex min-h-full max-w-[var(--content-wide)] flex-col px-6 py-10 text-[var(--text)]"
+      className="flex min-h-full w-full flex-col px-6 py-4 text-[var(--text)]"
       data-testid="research-studio"
     >
       <ModeHeader
@@ -123,73 +122,8 @@ export function ResearchStudio() {
 
       <ExampleGallery mode="research" onSelect={(entry) => setPrompt(entry.prompt)} />
 
-      {job.busy || (job.progress.phases.length > 0 && !shown) ? (
-        <div className="mt-6">
-          <JobProgressList progress={job.progress} busy={job.busy} mode="research" testId="research-progress" />
-        </div>
-      ) : null}
-
-      <div className="mt-8 flex-1">
-        {shown ? (
-          <div className="enter-rise relative space-y-4">
-            {landed > 0 ? <Confetti key={landed} /> : null}
-            <ArtifactActions
-              title={title}
-              markdown={markdown}
-              artifactId={shown.artifactId}
-              kbType="Dossier"
-              disabled={job.busy}
-              testIdPrefix="research"
-            />
-            {shown.kind === "run" ? (
-              <div className="flex gap-2" role="tablist" data-testid="research-tabs">
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={tab === "notes"}
-                  className={tabClass(tab === "notes")}
-                  onClick={() => setTab("notes")}
-                  data-testid="research-tab-notes"
-                >
-                  {t("research.tabNotes")}
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={tab === "dossier"}
-                  className={tabClass(tab === "dossier")}
-                  onClick={() => setTab("dossier")}
-                  data-testid="research-tab-dossier"
-                >
-                  {t("research.tabDossier")}
-                </button>
-              </div>
-            ) : null}
-            {shown.kind === "run" && tab === "notes" ? (
-              <ResearchPreview notes={shown.notes} />
-            ) : (
-              <article
-                className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-8 py-10"
-                data-testid="research-dossier-preview"
-              >
-                <FormattedText text={markdown} className="text-sm leading-relaxed text-[var(--text-2)]" />
-              </article>
-            )}
-          </div>
-        ) : job.busy ? null : (
-          <div
-            className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center"
-            data-testid="research-studio-empty"
-          >
-            <ModeIllustration mode="research" />
-            <p className="mt-4 text-sm font-medium text-[var(--text)]">{t("research.emptyTitle")}</p>
-            <p className="mt-2 text-sm text-[var(--text-2)]">{t("research.emptyBody")}</p>
-          </div>
-        )}
-      </div>
-
       <form
-        className="raise sticky bottom-4 mt-8 space-y-2 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3"
+        className="mt-6 space-y-2 rounded-xl border border-[var(--line)] bg-transparent p-3"
         onSubmit={(event) => void onGenerate(event)}
         data-testid="research-studio-prompt-bar"
       >
@@ -240,6 +174,62 @@ export function ResearchStudio() {
           </button>
         </div>
       </form>
+
+      {job.busy || (job.progress.phases.length > 0 && !shown) ? (
+        <div className="mt-6">
+          <JobProgressList progress={job.progress} busy={job.busy} mode="research" testId="research-progress" />
+        </div>
+      ) : null}
+
+      {shown ? (
+        <div className="mt-8">
+          <div className="enter-rise relative space-y-4">
+            {landed > 0 ? <Confetti key={landed} /> : null}
+            <ArtifactActions
+              title={title}
+              markdown={markdown}
+              artifactId={shown.artifactId}
+              kbType="Dossier"
+              disabled={job.busy}
+              testIdPrefix="research"
+            />
+            {shown.kind === "run" ? (
+              <div className="flex gap-2" role="tablist" data-testid="research-tabs">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === "notes"}
+                  className={tabClass(tab === "notes")}
+                  onClick={() => setTab("notes")}
+                  data-testid="research-tab-notes"
+                >
+                  {t("research.tabNotes")}
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === "dossier"}
+                  className={tabClass(tab === "dossier")}
+                  onClick={() => setTab("dossier")}
+                  data-testid="research-tab-dossier"
+                >
+                  {t("research.tabDossier")}
+                </button>
+              </div>
+            ) : null}
+            {shown.kind === "run" && tab === "notes" ? (
+              <ResearchPreview notes={shown.notes} />
+            ) : (
+              <article
+                className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-8 py-10"
+                data-testid="research-dossier-preview"
+              >
+                <FormattedText text={markdown} className="text-sm leading-relaxed text-[var(--text-2)]" />
+              </article>
+            )}
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
