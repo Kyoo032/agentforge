@@ -231,6 +231,20 @@ export async function handlePostPresentations(request: HostRequest): Promise<Hos
   }
 }
 
+/** Same outline as POST /api/v1/presentations, with job.phase progress. */
+export async function handlePostPresentationsStream(request: HostRequest): Promise<HostResult> {
+  try {
+    const tenant = await getTenant(request);
+    requireGatewayAllowedFor(tenant);
+    return streamJob(
+      (emit, abortSignal) => generatePresentationOutline(tenant, request.body ?? null, emit, abortSignal),
+      { abortSignal: request.abortSignal },
+    );
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
 export async function handlePostPresentationsRegen(request: HostRequest): Promise<HostResult> {
   try {
     const tenant = await getTenant(request);

@@ -25,3 +25,25 @@ export function presentationGatewayMessage(locale: PresentationLocale): string {
   }
   return "Presentation generation needs a live gateway. Paste a Toko Token API key in Settings, then try again.";
 }
+
+/** Progress labels for the design pass. The host emits these on `job.phase`. */
+export function presentationDesignLabel(phase: "designing" | "repairing", locale: PresentationLocale): string {
+  if (locale === "id") {
+    return phase === "designing" ? "Menyusun tata letak" : "Menulis ulang halaman yang sesak";
+  }
+  return phase === "designing" ? "Assigning a layout" : "Rewriting the crowded pages";
+}
+
+/** Lines the harness writes onto a deck. Same sentences as `presentation.notesFallback` and `presentation.noFigure`. */
+export function presentationSkillCopy(locale: PresentationLocale): { note: string; noFigure: string } {
+  if (locale === "id") {
+    return {
+      note: "Ucapkan halaman ini sekali, lalu berhenti. Jangan menambah angka yang tidak diberikan.",
+      noFigure: "Tidak ada angka",
+    };
+  }
+  return {
+    note: "Say this page once, then stop. Do not add a number you were not given.",
+    noFigure: "No figure supplied",
+  };
+}

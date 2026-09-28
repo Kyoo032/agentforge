@@ -22,8 +22,25 @@ import {
   toneColor,
   type OpenSlideBlock,
   type OpenSlideDeck,
+  type OpenSlidePage,
 } from "@agentforge/core/open-slide";
+import { assignSlideLayout } from "@agentforge/core";
 import { t } from "@/lib/i18n";
+
+function pageLayout(page: OpenSlidePage, index: number): string {
+  if (page.layout) {
+    return page.layout;
+  }
+  const texts = page.blocks.filter((block) => block.kind === "text" && block.text.trim());
+  const title = texts.reduce<OpenSlideBlock | undefined>(
+    (best, block) => (!best || block.fontSize > best.fontSize ? block : best),
+    undefined,
+  );
+  return assignSlideLayout(
+    { role: page.role, lines: texts.filter((block) => block !== title).map((block) => block.text) },
+    index,
+  );
+}
 
 export function OpenSlideStage({ deck, onChange }: { deck: OpenSlideDeck; onChange: (next: OpenSlideDeck) => void }) {
   const [pageId, setPageId] = useState(deck.pages[0]?.id ?? "");
@@ -126,6 +143,7 @@ export function OpenSlideStage({ deck, onChange }: { deck: OpenSlideDeck; onChan
               className="h-8 max-w-36 shrink-0 truncate rounded-lg border border-[var(--line)] px-2 text-left text-xs"
               data-testid="presentations-open-slide-page"
               data-role={item.role}
+              data-layout={pageLayout(item, index)}
               aria-current={item.id === page.id ? "true" : undefined}
               onClick={() => selectPage(item.id)}
             >
@@ -144,6 +162,17 @@ export function OpenSlideStage({ deck, onChange }: { deck: OpenSlideDeck; onChan
         tabIndex={0}
         data-testid="presentations-open-slide-stage"
         data-page={page.role}
+        data-layout={
+          page
+            ? pageLayout(
+                page,
+                Math.max(
+                  0,
+                  deck.pages.findIndex((item) => item.id === page.id),
+                ),
+              )
+            : "title"
+        }
         onKeyDown={onKeyDown}
       >
         {selected ? (

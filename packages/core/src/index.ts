@@ -663,6 +663,20 @@ export type { HarnessSkill, HarnessSkillStatus, ModeHarness } from "./harness/mo
 export { checkDraftAgainstSource } from "./documents/source-check";
 export type { CheckableDraft, SourceCheck, SourceCheckItem } from "./documents/source-check";
 export {
+  SLIDE_CROWD_REASONS,
+  SLIDE_DESIGN_LIMITS,
+  SLIDE_LAYOUTS,
+  assignSlideLayout,
+  fitDesignPage,
+  fitSlideText,
+  inspectSlideDesign,
+  isSlideLayout,
+  slideCrowdReasons,
+  supportingLineCap,
+  textKeepsDigitRuns,
+} from "./presentation/slide-design";
+export type { DesignText, SlideCrowdReason, SlideDesignFailure, SlideLayout } from "./presentation/slide-design";
+export {
   OUTPUT_LANGUAGE_SURFACES,
   outputLanguageRule,
   withOutputLanguage,

@@ -6,6 +6,7 @@ import {
   resolveRuntimeMode,
   type TenantContext,
 } from "@agentforge/core";
+import type { JobEmitter } from "@agentforge/core/jobs";
 import { loadSettings } from "./settings-store";
 import { listSelectableModels, modeCatalogPayload } from "./selectable-models";
 import {
@@ -29,9 +30,18 @@ import { artifactStore } from "./artifacts";
 import { upsertWorkSource } from "./knowledge-ingest";
 import { artifactWorkCard, presentationOutlineMarkdown } from "./work-cards";
 import {
+  inspectNultronDesign,
+  mergeNultronDesignRetry,
+  repairNultronDesign,
+  repairNultronOutline,
+} from "./presentation-harness";
+import { throwIfJobAborted } from "./job-stream";
+import {
+  presentationDesignLabel,
   presentationGatewayMessage,
   presentationLanguageRule,
   presentationLocale,
+  presentationSkillCopy,
   type PresentationLocale,
 } from "./presentation-locale";
 import { log } from "./log";
@@ -88,6 +98,8 @@ function collectAssistantRun(
   sourceText: string,
   locale: PresentationLocale,
   modelExplicit: boolean,
+  promptOverride?: string,
+  signal?: AbortSignal,
 ): Promise<JobAssistantRun> {
   return collectJobAssistantRun({
     tenant,
@@ -98,8 +110,9 @@ function collectAssistantRun(
     runPrefix: "presentation",
     agentId: "presentation",
     jobMode: "presentations",
-    versionId: "presentation-outline",
-    prompt: withSourceMaterial(prompt, sourceText),
+    versionId: promptOverride ? "presentation-design" : "presentation-outline",
+    signal,
+    prompt: withSourceMaterial(promptOverride ?? prompt, sourceText),
   });
 }
 
@@ -144,18 +157,86 @@ function persistOutline(
   }
 }
 
+function designRetryPrompt(
+  prompt: string,
+  outline: PresentationOutline,
+  failures: ReturnType<typeof inspectNultronDesign>,
+): string {
+  const indexes = new Set(failures.map((failure) => failure.index));
+  const slides = outline.slides.flatMap((slide, index) =>
+    indexes.has(index + 1) ? [{ index: index + 1, ...slide }] : [],
+  );
+  const notes = failures
+    .map((failure) => `${failure.id}: ${failure.reasons.join(", ")} — layout ${failure.layout}`)
+    .join("\n");
+  return [
+    prompt,
+    presentationLanguageRule(presentationLocale()),
+    'Rewrite only these pages. Return JSON {"title"?: string, "slides":[{"index": number, ...slide}]}.',
+    "Do not add a slide. Do not remove a slide. Do not add a digit that is not already on the page or in the topic.",
+    "title is one short line. section holds at most two lines. split holds at most five. quote is one sentence. figure is one supplied figure.",
+    notes,
+    JSON.stringify({ title: indexes.has(0) ? outline.title : undefined, slides }),
+  ].join("\n");
+}
+
 /** Generate a validated presentation outline via the same runtime path as chat. */
-export async function generatePresentationOutline(tenant: TenantContext, body: unknown): Promise<PresentationOutline> {
+export async function generatePresentationOutline(
+  tenant: TenantContext,
+  body: unknown,
+  emit?: JobEmitter,
+  abortSignal?: AbortSignal,
+): Promise<PresentationOutline> {
   const prompt = readPrompt(body);
   const settings = requireLivePresentationRuntime(tenant);
   const locale = presentationLocale();
   const sourceText = readSourceText(body, { injectionGuardBypass: settings.injectionGuardBypass === true });
   const model = resolvePresentationModel(body, settings);
-  const run = await collectAssistantRun(tenant, model, prompt, sourceText, locale, readModelPinned(body));
+  const pinned = readModelPinned(body);
+  throwIfJobAborted(abortSignal);
+  const run = await collectAssistantRun(tenant, model, prompt, sourceText, locale, pinned, undefined, abortSignal);
   if (!run.text.trim()) {
     throw new ApiError("generation_failed", modeMessage("emptyPresentationOutline", locale), 502);
   }
-  const outline = parsePresentationOutline(run.text);
+  const copy = presentationSkillCopy(locale);
+  let outline = repairNultronOutline(parsePresentationOutline(run.text), {
+    prompt,
+    sourceText,
+    note: copy.note,
+    noFigure: copy.noFigure,
+  });
+  emit?.({ type: "job.phase", phase: "designing", label: presentationDesignLabel("designing", locale) });
+  const failures = inspectNultronDesign(outline);
+  if (failures.length > 0) {
+    emit?.({ type: "job.phase", phase: "repairing", label: presentationDesignLabel("repairing", locale) });
+    throwIfJobAborted(abortSignal);
+    try {
+      const retry = await collectAssistantRun(
+        tenant,
+        model,
+        prompt,
+        sourceText,
+        locale,
+        pinned,
+        designRetryPrompt(prompt, outline, failures),
+        abortSignal,
+      );
+      if (retry.text.trim()) {
+        outline = repairNultronOutline(
+          mergeNultronDesignRetry(
+            outline,
+            retry.text,
+            new Set(failures.map((failure) => failure.index)),
+            `${prompt}\n${sourceText}`,
+          ),
+          { prompt, sourceText, note: copy.note, noFigure: copy.noFigure },
+        );
+      }
+    } catch {
+      // One ask for the failing pages. A crowded page is still repaired in code.
+    }
+  }
+  outline = repairNultronDesign(outline);
   const markdown = presentationOutlineMarkdown(outline);
   // Record the model that wrote the outline. After a fallback the requested id is the one model that did not.
   const answeredBy = run.model;
@@ -242,5 +323,22 @@ export async function regeneratePresentationSlide(tenant: TenantContext, body: u
   if (!raw.trim()) {
     throw new ApiError("generation_failed", modeMessage("emptySlide", locale), 502);
   }
-  return mergePresentationSlide(outline, index, parsePresentationSlide(raw));
+  const copy = presentationSkillCopy(locale);
+  const repaired = repairNultronOutline(
+    mergePresentationSlide(outline, index, parsePresentationSlide(raw)),
+    {
+      prompt: topic,
+      sourceText,
+      note: copy.note,
+      noFigure: copy.noFigure,
+    },
+    index,
+  );
+  const designed = repairNultronDesign(repaired);
+  return {
+    ...repaired,
+    slides: repaired.slides.map((slide, slideIndex) =>
+      slideIndex === index ? (designed.slides[slideIndex] ?? slide) : slide,
+    ),
+  };
 }

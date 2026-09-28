@@ -71,6 +71,8 @@
   "notes": "Catatan:",
   "noBullets": "Slide ini tidak punya butir.",
   "gatewayError": "Pembuatan presentasi membutuhkan gateway yang aktif. Tempel kunci API Toko Token di Pengaturan, lalu coba lagi.",
+  "notesFallback": "Ucapkan halaman ini sekali, lalu berhenti. Jangan menambah angka yang tidak diberikan.",
+  "noFigure": "Tidak ada angka",
   "galleryTitle": "Mulai dari templat",
   "galleryHint": "Klik kartu untuk memuat brief lengkap. Ganti detail sampel, lalu buat.",
   "templates": {

@@ -125,6 +125,8 @@ const PHASE_STATE: Record<string, MascotState> = {
   indexing: "searching",
   resolving: "searching",
   drafting: "writing",
+  designing: "presenting",
+  repairing: "writing",
   minuting: "writing",
   saving: "writing",
   translating: "writing",

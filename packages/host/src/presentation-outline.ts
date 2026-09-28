@@ -33,8 +33,17 @@ export const presentationShapeSchema = z.object({
   stroke: shapeColor.default("0F766E"),
 });
 
+const slideLayoutSchema = z.preprocess(
+  (value) =>
+    value === "title" || value === "section" || value === "split" || value === "quote" || value === "figure"
+      ? value
+      : undefined,
+  z.enum(["title", "section", "split", "quote", "figure"]).optional(),
+);
+
 export const presentationSlideSchema = z.object({
   kind: presentationSlideKindSchema.catch("bullets").default("bullets"),
+  layout: slideLayoutSchema,
   heading: z.string().min(1),
   subhead: z.string().default(""),
   bullets: z.array(z.string()).default([]),
