@@ -1,9 +1,10 @@
 /**
- * Meeting mode — the run: recording → transcript → minutes → the other language.
+ * Meeting mode — the run: recording → transcript → minutes sheet → the same sheet in the other language.
  *
- * Every phase is resumable on its own, because they fail for different reasons and for different
- * lengths of time. Transcription costs a gateway call per ten minutes of audio and is the step
- * worth not repeating, so it is persisted before the minutes are written. A desk with no
+ * The sheet is tried once more only when the first answer is not minutes. Names, dates, and figures
+ * the transcript does not support are stripped in code, with no further model call. The translation
+ * is tried once more only when it is not that same sheet. Transcription is still persisted before
+ * the minutes are written, and the minutes are saved before translation starts. A desk with no
  * recogniser on its key skips straight to the minutes over a pasted transcript.
  */
 
@@ -22,17 +23,19 @@ import {
 import {
   MEETING_MINUTES_SYSTEM,
   MEETING_TRANSLATE_SYSTEM,
-  guardMinutesNames,
-  meetingMinutesSchema,
+  MeetingSheetError,
+  MeetingTranslationError,
+  emptyMinutesMessage,
+  invalidMinutesMessage,
   meetingMinutesToMarkdown,
+  meetingPhaseLabel,
   meetingTranscriptToMarkdown,
-  minutesPrompt,
   transcriptPlainText,
-  translatePrompt,
-  type MeetingMinutes,
+  translateMeetingSheet,
+  translationDisagreedMessage,
+  writeMeetingSheet,
   type MeetingTranscript,
 } from "@agentforge/core/meeting";
-import { extractJsonObject } from "../presentation-outline";
 import { artifactStore } from "../artifacts";
 import { collectJobAssistantRun } from "../job-regen";
 import type { JobEmitter } from "@agentforge/core/jobs";
@@ -73,25 +76,17 @@ export function resolveMeetingModel(explicit: string | undefined, tenant: Settin
   return resolveChatModel(explicit, settings.documentGenModel || defaults.meeting, listSelectableModels());
 }
 
-function parseMinutes(raw: string): MeetingMinutes {
-  if (!raw.trim()) {
-    throw new ApiError("generation_failed", "The model returned no minutes", 502);
+/** Desk-locale copy for a sheet or translation failure. The model never sees these strings. */
+function meetingFailure(error: unknown): never {
+  if (error instanceof MeetingTranslationError) {
+    throw new ApiError("translation_disagreed", translationDisagreedMessage(localeForRun()), 502);
   }
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(extractJsonObject(raw));
-  } catch {
-    throw new ApiError("invalid_minutes", "The model returned invalid JSON for the minutes", 502);
+  if (error instanceof MeetingSheetError) {
+    const message =
+      error.code === "generation_failed" ? emptyMinutesMessage(localeForRun()) : invalidMinutesMessage(localeForRun());
+    throw new ApiError(error.code, message, 502);
   }
-  const result = meetingMinutesSchema.safeParse(parsed);
-  if (!result.success) {
-    throw new ApiError(
-      "invalid_minutes",
-      `Minutes failed validation: ${result.error.issues.map((issue) => issue.message).join("; ")}`,
-      502,
-    );
-  }
-  return result.data;
+  throw error;
 }
 
 /** Saving an artifact never fails the run; the minutes are still returned to the caller. */
@@ -238,11 +233,7 @@ async function transcribeAndMeter(
 }
 
 /** Store a transcript — gateway-produced or pasted — and save it as an artifact. */
-export function saveTranscript(
-  tenant: TenantContext,
-  meetingId: string,
-  transcript: MeetingTranscript,
-): MeetingRecord {
+export function saveTranscript(tenant: TenantContext, meetingId: string, transcript: MeetingTranscript): MeetingRecord {
   const meeting = requireMeeting(tenant, meetingId);
   const markdown = meetingTranscriptToMarkdown(transcript, `${meeting.title} — transcript`);
   const artifactId = persist(tenant, {
@@ -264,28 +255,58 @@ async function writeMinutes(
   transcript: string,
   locale: AppLocale,
   model: string,
+  emit: JobEmitter,
 ): Promise<MeetingMinutesRecord> {
-  const run = await collectJobAssistantRun({
-    tenant,
-    model,
-    systemPrompt: withOutputLanguage(MEETING_MINUTES_SYSTEM, "meeting", locale),
-    runPrefix: "meeting-minutes",
-    agentId: "meeting",
-    jobMode: "meeting",
-    versionId: "meeting-minutes",
-    prompt: minutesPrompt(transcript, { title: meeting.title }),
+  let answered = model;
+  const settled = await writeMeetingSheet({
+    transcript,
+    title: meeting.title,
     locale,
-  });
-  const guarded = guardMinutesNames(parseMinutes(run.text), transcript);
-  if (guarded.replaced > 0) {
-    log.warn("meeting_minutes_names_guarded", { replaced: guarded.replaced });
-  }
+    ask: async (prompt) => {
+      const run = await collectJobAssistantRun({
+        tenant,
+        model,
+        systemPrompt: withOutputLanguage(MEETING_MINUTES_SYSTEM, "meeting", locale),
+        runPrefix: "meeting-minutes",
+        agentId: "meeting",
+        jobMode: "meeting",
+        versionId: "meeting-minutes",
+        prompt,
+        locale,
+      });
+      answered = run.model;
+      return run.text;
+    },
+    onAttempt: (attempt) => {
+      emit({
+        type: "job.phase",
+        phase: "minuting",
+        label: meetingPhaseLabel(attempt === 1 ? "writing" : "writing-again", localeForRun()),
+      });
+    },
+    onGrounded: (grounded) => {
+      if (grounded.replacedNames > 0) {
+        log.warn("meeting_minutes_names_guarded", { replaced: grounded.replacedNames });
+      }
+      if (grounded.clearedDates > 0 || grounded.replacedFigures > 0) {
+        log.warn("meeting_minutes_grounded", {
+          clearedDates: grounded.clearedDates,
+          replacedFigures: grounded.replacedFigures,
+        });
+      }
+      emit({
+        type: "job.phase",
+        phase: "grounding",
+        label: meetingPhaseLabel("grounding", localeForRun()),
+      });
+    },
+  }).catch(meetingFailure);
   return {
     locale,
-    minutes: guarded.minutes,
+    minutes: settled.minutes,
     artifactId: "",
-    model: run.model,
-    unverifiedNames: guarded.unverified,
+    model: answered,
+    unverifiedNames: settled.unverifiedNames,
   };
 }
 
@@ -310,7 +331,8 @@ async function saveMinutesArtifact(
 /**
  * Transcript → minutes in the meeting's own language, then the same minutes in the other one.
  * Translation is a second model call over the finished JSON rather than a second reading of the
- * transcript, so the two languages cannot disagree about what was decided.
+ * transcript. A translation that changes the sheet is asked once more; if it still disagrees, the
+ * minutes stay and the translation is not saved.
  */
 export async function generateMinutes(
   tenant: TenantContext,
@@ -334,9 +356,8 @@ export async function generateMinutes(
   const locale = parseAppLocale(meeting.locale);
 
   throwIfJobAborted(options.abortSignal);
-  emit({ type: "job.phase", phase: "minuting", label: "Writing the minutes" });
-  const written = await writeMinutes(tenant, meeting, transcript, locale, model);
-  emit({ type: "job.phase", phase: "saving", label: "Saving the minutes" });
+  const written = await writeMinutes(tenant, meeting, transcript, locale, model, emit);
+  emit({ type: "job.phase", phase: "saving", label: meetingPhaseLabel("saving", localeForRun()) });
   const minutes = await saveMinutesArtifact(tenant, meeting, written, "minutes");
   // On the meeting before the translation starts, so a translation that fails cannot take the
   // minutes with it. An earlier translation described earlier minutes, so it is cleared here.
@@ -347,12 +368,13 @@ export async function generateMinutes(
 
   throwIfJobAborted(options.abortSignal);
   const target = otherLocale(locale);
-  emit({
-    type: "job.phase",
-    phase: "translating",
-    label: `Translating to ${target === "id" ? "Indonesian" : "English"}`,
+  const translation = await translateMinutes(tenant, meeting, minutes, target, model, (attempt) => {
+    emit({
+      type: "job.phase",
+      phase: "translating",
+      label: meetingPhaseLabel(attempt === 1 ? "translating" : "translating-again", localeForRun()),
+    });
   });
-  const translation = await translateMinutes(tenant, meeting, minutes, target, model);
   return meetingStore().update(tenant, meetingId, { translation });
 }
 
@@ -367,29 +389,40 @@ export async function translateMinutes(
   source: MeetingMinutesRecord,
   target: AppLocale,
   model: string,
+  onAttempt?: (attempt: 1 | 2) => void,
 ): Promise<MeetingMinutesRecord> {
-  const run = await collectJobAssistantRun({
-    tenant,
-    model,
-    systemPrompt: withOutputLanguage(MEETING_TRANSLATE_SYSTEM, "meeting", target),
-    runPrefix: "meeting-translate",
-    agentId: "meeting",
-    jobMode: "meeting",
-    versionId: "meeting-translate",
-    prompt: translatePrompt(source.minutes, target),
-    locale: target,
-  });
   const transcript = meeting.transcript ? transcriptPlainText(meeting.transcript) : "";
-  const guarded = guardMinutesNames(parseMinutes(run.text), transcript);
+  let answered = model;
+  const settled = await translateMeetingSheet({
+    transcript,
+    source: source.minutes,
+    locale: target,
+    ask: async (prompt) => {
+      const run = await collectJobAssistantRun({
+        tenant,
+        model,
+        systemPrompt: withOutputLanguage(MEETING_TRANSLATE_SYSTEM, "meeting", target),
+        runPrefix: "meeting-translate",
+        agentId: "meeting",
+        jobMode: "meeting",
+        versionId: "meeting-translate",
+        prompt,
+        locale: target,
+      });
+      answered = run.model;
+      return run.text;
+    },
+    onAttempt,
+  }).catch(meetingFailure);
   return saveMinutesArtifact(
     tenant,
     meeting,
     {
       locale: target,
-      minutes: guarded.minutes,
+      minutes: settled.minutes,
       artifactId: "",
-      model: run.model,
-      unverifiedNames: guarded.unverified,
+      model: answered,
+      unverifiedNames: settled.unverifiedNames,
     },
     target === "id" ? "notulen" : "minutes (English)",
   );
