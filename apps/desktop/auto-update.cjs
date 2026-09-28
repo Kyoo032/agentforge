@@ -126,7 +126,47 @@ function describeUpdateError(error) {
   if (/checksum mismatch|sha512/i.test(message)) {
     return VERIFY_FAILED_MESSAGE;
   }
+  // electron-updater reports a lost GitHub redirect as an abort or a net:: error, not a code we mapped above.
+  if (/aborted by the server|net::ERR_|socket hang up/i.test(message)) {
+    return NETWORK_MESSAGES.ECONNRESET;
+  }
   return firstLine(message) || GENERIC_MESSAGE;
+}
+
+const RETRYABLE_CODES = new Set([
+  "ENOTFOUND",
+  "EAI_AGAIN",
+  "ECONNREFUSED",
+  "ECONNRESET",
+  "ETIMEDOUT",
+  "EPIPE",
+  "ENETUNREACH",
+  "EHOSTUNREACH",
+]);
+
+/**
+ * True for a dropped connection, a redirect abort, or a GitHub 429/5xx.
+ * A missing feed, a bad installer, and any other updater error are permanent.
+ */
+function isRetryableUpdateError(error) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  const status = httpStatus(error);
+  if (status === 429 || (status >= 500 && status <= 599)) {
+    return true;
+  }
+  if (status) {
+    return false;
+  }
+  const code = errorCode(error);
+  if (RETRYABLE_CODES.has(code)) {
+    return true;
+  }
+  if (code.startsWith("ERR_UPDATER_") || code === "ERR_CHECKSUM_MISMATCH") {
+    return false;
+  }
+  return /aborted by the server|net::ERR_|socket hang up/i.test(errorMessage(error));
 }
 
 /** Raw detail for the log file; the UI only ever sees describeUpdateError(). */
@@ -197,6 +237,8 @@ function registerAutoUpdate({
   autoUpdaterOverride,
   getMainWindow,
   platform = process.platform,
+  retryDelayMs = 400,
+  updateAttempts = 3,
 }) {
   const currentVersion = app.getVersion();
   const supported = updatesEnabled(productName, app.isPackaged, platform);
@@ -287,7 +329,47 @@ function registerAutoUpdate({
   autoUpdater.on("update-downloaded", (info) => {
     setState({ status: "ready", version: info?.version, percent: 100, message: undefined });
   });
+  /**
+   * electron-updater aborts the in-flight request when GitHub redirects, then starts another.
+   * The abort rejects the same promise the new request would resolve, so a check fails when the
+   * abort wins. The old release name 301s, and latest.yml 302s to the download host. Retry those.
+   * While a retry is still coming, keep that failure in the log and leave the panel on "checking".
+   */
+  let swallowUpdateError = false;
+
+  function wait(attempt) {
+    const ms = retryDelayMs * attempt;
+    if (ms <= 0) {
+      return Promise.resolve();
+    }
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  async function withUpdateRetry(task) {
+    for (let attempt = 1; attempt <= updateAttempts; attempt += 1) {
+      swallowUpdateError = attempt < updateAttempts;
+      try {
+        const result = await task();
+        swallowUpdateError = false;
+        return result;
+      } catch (error) {
+        const retry = swallowUpdateError && isRetryableUpdateError(error);
+        if (!retry) {
+          swallowUpdateError = false;
+          throw error;
+        }
+        logger.warn(`retrying after ${rawErrorDetail(error)} (attempt ${attempt} of ${updateAttempts})`);
+        await wait(attempt);
+      }
+    }
+    return undefined;
+  }
+
   autoUpdater.on("error", (error) => {
+    if (swallowUpdateError && isRetryableUpdateError(error)) {
+      logger.warn(`update attempt failed: ${rawErrorDetail(error)}`);
+      return;
+    }
     failState("updater error", error);
   });
 
@@ -296,7 +378,7 @@ function registerAutoUpdate({
       return REFUSED_STATE;
     }
     return guarded("check failed", async () => {
-      const result = await autoUpdater.checkForUpdates();
+      const result = await withUpdateRetry(() => autoUpdater.checkForUpdates());
       // electron-updater's semver compare: an older published release (e.g. right after a fresh
       // install that is ahead of the public feed) is "current", never a downgrade offer.
       const version = result?.updateInfo?.version;
@@ -312,7 +394,7 @@ function registerAutoUpdate({
       return REFUSED_STATE;
     }
     return guarded("download failed", async () => {
-      await autoUpdater.downloadUpdate();
+      await withUpdateRetry(() => autoUpdater.downloadUpdate());
       return state.status === "ready" ? state : setState({ status: "ready" });
     });
   });
@@ -338,7 +420,7 @@ function registerAutoUpdate({
     // No network: the manual Check button still works later; nothing to log as an error.
     logger.info("startup check skipped: offline");
   } else {
-    void autoUpdater.checkForUpdates().catch((error) => {
+    void withUpdateRetry(() => autoUpdater.checkForUpdates()).catch((error) => {
       // First launch / no latest.yml yet is not a product fail; keep the detail on disk only.
       logger.warn(`startup check skipped: ${rawErrorDetail(error)}`);
     });
@@ -351,6 +433,7 @@ module.exports = {
   updatesEnabled,
   unsupportedMessage,
   describeUpdateError,
+  isRetryableUpdateError,
   createUpdateLogger,
   resolveUpdateLogPath,
   registerAutoUpdate,

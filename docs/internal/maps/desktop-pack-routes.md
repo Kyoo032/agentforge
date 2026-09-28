@@ -4,7 +4,7 @@
 > **Enterprise** is the hosted multi-user web app.
 > Decision record: [`web-pivot-2026-09-18.md`](../web-pivot-2026-09-18.md).
 
-Last verified: 2026-09-20 at c204e5e
+Last verified: 2026-09-28 at 385a2d1
 
 ## Overview
 
@@ -91,16 +91,16 @@ Gates in `apps/desktop/scripts/release-desktop.mjs`, in order:
 | 5 | `latest.yml` version matches; exe size matches; exe sha512 matches in both the file entry and top level; `url` and `path` equal the hyphenated exe name | `:159-175` |
 | 6 | Refuses to publish `docs/internal/` notes to the public repo | `:177-188` |
 | 7 | Stages hyphenated copies (electron-updater's GitHub provider expects hyphens, not spaces) | `:190-210` |
-| 8 | `gh release create v<version> --repo Kyoo032/DPSBuddy` must succeed | `:280-288` |
+| 8 | `gh release create` uses `brand.json` `updates.repo` (`Nultron` as of 0.15.1) | `:280-288` |
 | 9 | Post-upload, re-reads the release and fails unless the asset-name set matches exactly | `:220-241`, `:287` |
 
 `--attach-mac` adds mac artifacts to an already-published Windows release without touching the exe, blockmap or `latest.yml` (`:243-268`), refusing to silently replace an asset that already exists.
 
 ### Updater posture
 
-`publish` is GitHub, owner `Kyoo032`, repo `DPSBuddy`, `releaseType: "release"` (`apps/desktop/package.json:157-162`). There is **no channel concept**.
+`publish` is GitHub, owner `Kyoo032`, repo `Nultron`, `releaseType: "release"` (`apps/desktop/package.json:157-162`). There is **no channel concept**. A check or download that loses the connection is tried three times (`auto-update.cjs` `withUpdateRetry`). A 404 and a checksum failure are not retried.
 
-**Windows: on.** `updatesEnabled(productName, isPackaged, platform)` (`apps/desktop/auto-update.cjs:53-55`) requires packaged, the public product name, and a platform not in `UNSIGNED_PLATFORMS`. `autoDownload` and `autoInstallOnAppQuit` are both **false** (`:266-269`) — "This app exits via `app.exit()` … so Electron's 'quit' event never fires and install-on-quit would be dead code; installs go through `updates:install` -> `quitAndInstall` only." A startup check runs unless offline (`:337-345`), and `updates:check` never offers a downgrade (`:294-308`).
+**Windows: on.** `updatesEnabled(productName, isPackaged, platform)` (`apps/desktop/auto-update.cjs:53-55`) requires packaged, the public product name, and a platform not in `UNSIGNED_PLATFORMS`. `autoDownload` and `autoInstallOnAppQuit` are both **false** (`:308-311`) — "This app exits via `app.exit()` … so Electron's 'quit' event never fires and install-on-quit would be dead code; installs go through `updates:install` -> `quitAndInstall` only." A startup check runs unless offline (`:419-426`), and `updates:check` never offers a downgrade.
 
 **macOS: off by construction.** `UNSIGNED_PLATFORMS = new Set(["darwin"])` (`apps/desktop/auto-update.cjs:39`), because "electron-updater refuses to install on macOS unless the app is code-signed, and the mac build ships with `identity: null`. Offering a download there would end in an install that cannot run" (`:35-38`). The user sees `MAC_MANUAL_MESSAGE` (`:40`). `latest-mac.yml` is therefore **never uploaded** — stated in three independent places (`apps/desktop/scripts/release-artifacts.mjs:7-8`, `release-desktop.mjs:10-11`, `apps/desktop/platform/macos/AGENTS.md:52`): "a feed it cannot consume must not exist on the release".
 

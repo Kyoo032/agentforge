@@ -1,5 +1,7 @@
 # Unreleased changes (after public v0.15.0)
 
+The 0.15.1 cut is in progress. Its ship list is [`0.15.1-changelog.md`](0.15.1-changelog.md). This file still holds the log from after 0.15.0. Fold it and start over when 0.15.1 is published.
+
 **Purpose:** what is on `main` or on the cut branch but not inside an installer. **0.15.0 is cut, not published** — the installers in the wild are still **v0.14.27** (published 2026-09-18 01:47 UTC, Windows `05e97a5`, mac `6da52d7`). Everything this file used to list before the 0.15.0 cut is folded into [`0.15.0-changelog.md`](0.15.0-changelog.md); the pre-0.14.27 material is in [`0.14.27-changelog.md`](0.14.27-changelog.md) and the long findings lists are readable from git at `e2e477e`.
 
 **0.15.0 is the personal Mac/Windows app, not the hosted web offer** (owner split, 2026-09-23: Personal is the app, Enterprise is the hosted web app). The version rule changes with it: the `0.14.2x` scheme was scoped to desktop *maintenance* cuts, and 0.15.0 is a product release, so it takes the next minor. The next desktop maintenance cut would be `0.15.1`.

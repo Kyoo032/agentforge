@@ -10,7 +10,7 @@ description: >-
 
 # Pack DPSBuddy (this Windows PC)
 
-> **Two products, one repo.** **Personal** is the Mac/Windows DPSBuddy app — current cut `0.15.0` (published 2026-09-23), under active development again.
+> **Two products, one repo.** **Personal** is the Mac/Windows DPSBuddy app — current cut `0.15.1`, under active development again. `0.15.0` was published 2026-09-23.
 > These pack and release routes serve the Personal app only; the Enterprise web app ships through the deploy route.
 > Decision record: [`web-pivot-2026-09-18.md`](../../../docs/internal/web-pivot-2026-09-18.md).
 
