@@ -1,4 +1,4 @@
-import { ApiError } from "@agentforge/core";
+import { ApiError, parseAppLocale, type AppLocale } from "@agentforge/core";
 import {
   citedSourceIds,
   dossierSchema,
@@ -19,6 +19,29 @@ export type ResearchCaps = {
   pageChars: number;
   readConcurrency: number;
   maxPassagesPerSource: number;
+};
+
+/** Same floor `parseExtraction` uses. A shorter string is not a passage a finding may cite. */
+const PASSAGE_MIN = 20;
+
+/**
+ * Host copy for the citation check. Mirrors `phaseChecking`, `errorNoPassage`, and `citeGap`
+ * in `apps/web/locales/{en,id}/research.json`. The host does not import those catalogs.
+ */
+const RESEARCH_HOST_COPY: Record<
+  AppLocale,
+  { checking: string; noPassage: string; citeGap: (heading: string) => string }
+> = {
+  en: {
+    checking: "Checking citations",
+    noPassage: "No page kept a sentence that can be cited.",
+    citeGap: (heading) => `Could not cite a kept passage: ${heading}`,
+  },
+  id: {
+    checking: "Memeriksa kutipan",
+    noPassage: "Tidak ada halaman yang menyimpan kalimat yang dapat dikutip.",
+    citeGap: (heading) => `Tidak ada kutipan yang tersimpan untuk: ${heading}`,
+  },
 };
 
 export const RESEARCH_CAPS: ResearchCaps = {
@@ -42,6 +65,8 @@ export type DossierDeps = {
   abortSignal?: AbortSignal;
   now?: () => Date;
   caps?: Partial<ResearchCaps>;
+  /** Desk locale for the citation-check labels. Model prose still goes through `withOutputLanguage`. */
+  locale?: AppLocale;
 };
 
 export type DossierRunInput = { question: string; models: string[] };
@@ -73,6 +98,14 @@ Rules:
 - contradictions: where sources disagree, naming both ids. openQuestions: what the sources do not settle and the next measurement to take.
 - Never invent numbers, quotes, cases, or sources. If a fact is not in the passages, say "not in sources".
 - No campus / student / course nouns unless the question itself requires them.`;
+
+export const CITE_REPAIR_SYSTEM = `You repair research findings so every citation points at a source that still has a verbatim passage. Return ONLY JSON:
+{"findings": [{ "heading": string, "body": string, "sources": string[] }]}
+Rules:
+- Use only the passage-backed sources in the prompt. Every [S#] in a body must be one of those ids, and the same ids go in sources.
+- Do not cite a source that is missing, unreachable, or listed with no passage. Do not invent passages, numbers, or sources.
+- Drop a finding you cannot support from those passages. If none of the draft can be supported, return {"findings": []}.
+- At most 8 findings. Keep a finding that already cites only passage-backed sources.`;
 
 function parseJson(raw: string, what: string): unknown {
   try {
@@ -170,7 +203,7 @@ export function parseExtraction(raw: string, pageText: string, cap = RESEARCH_CA
   const parsed = parseJson(raw, "source extraction") as { passages?: unknown; notes?: unknown };
   const haystack = squash(pageText);
   const passages = cleanList(parsed.passages, cap * 2)
-    .filter((passage) => passage.length >= 20 && haystack.includes(squash(passage)))
+    .filter((passage) => passage.length >= PASSAGE_MIN && haystack.includes(squash(passage)))
     .slice(0, cap);
   const notes = typeof parsed.notes === "string" ? parsed.notes.trim() : "";
   return { passages, notes };
@@ -213,6 +246,95 @@ export function parseSynthesis(raw: string, sourceIds: readonly string[]): Synth
     contradictions: cleanList(parsed.contradictions, 20),
     openQuestions: cleanList(parsed.openQuestions, 20),
   };
+}
+
+/** A source backs a citation only when the page was read and a verbatim passage was kept. */
+export function passageBackedIds(
+  sources: readonly { id: string; status: string; passages: readonly string[] }[],
+): Set<string> {
+  const ids = new Set<string>();
+  for (const source of sources) {
+    if (source.status !== "read") {
+      continue;
+    }
+    if (source.passages.some((passage) => passage.trim().length >= PASSAGE_MIN)) {
+      ids.add(source.id);
+    }
+  }
+  return ids;
+}
+
+/** True when every listed and in-body id names a passage-backed source, and there is at least one. */
+export function findingCitesResolve(finding: DossierFinding, backed: ReadonlySet<string>): boolean {
+  const ids = [...new Set([...finding.sources, ...citedSourceIds(finding.body)])];
+  return ids.length > 0 && ids.every((id) => backed.has(id));
+}
+
+/** Drop `[S#]` tokens that do not name a passage-backed source. Other words stay. */
+export function stripUnresolvedCites(text: string, backed: ReadonlySet<string>): string {
+  return text
+    .replace(/\[(S\d+)\]/g, (match, id: string) => (backed.has(id) ? match : ""))
+    .replace(/\s+([.,;:])/g, "$1")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
+/**
+ * Keep findings whose cites all name a kept passage. A finding that loses every cite is omitted;
+ * the caller records that heading as an open question.
+ */
+export function groundFindings(findings: readonly DossierFinding[], backed: ReadonlySet<string>): DossierFinding[] {
+  const kept: DossierFinding[] = [];
+  for (const finding of findings) {
+    const body = stripUnresolvedCites(finding.body, backed);
+    const sources = [...new Set([...finding.sources, ...citedSourceIds(body)])].filter((id) => backed.has(id));
+    if (!finding.heading.trim() || !body || sources.length === 0) {
+      continue;
+    }
+    kept.push({ heading: finding.heading.trim(), body, sources });
+  }
+  return kept;
+}
+
+/** Repair JSON. `null` means the model did not return findings we can read; an empty list is a real answer. */
+export function parseRepairFindings(raw: string): DossierFinding[] | null {
+  try {
+    const parsed = parseJson(raw, "citation repair") as { findings?: unknown };
+    return (Array.isArray(parsed.findings) ? parsed.findings : [])
+      .map((item): DossierFinding | null => {
+        const record = (item ?? {}) as { heading?: unknown; body?: unknown; sources?: unknown };
+        const heading = typeof record.heading === "string" ? record.heading.trim() : "";
+        const body = typeof record.body === "string" ? record.body.trim() : "";
+        if (!heading || !body) {
+          return null;
+        }
+        const sources = cleanList(record.sources, 20)
+          .map((id) => id.toUpperCase())
+          .filter((id) => /^S\d+$/.test(id));
+        return { heading, body, sources };
+      })
+      .filter((item): item is DossierFinding => item !== null);
+  } catch {
+    return null;
+  }
+}
+
+function researchHostCopy(locale: AppLocale | undefined) {
+  return RESEARCH_HOST_COPY[parseAppLocale(locale ?? "en")];
+}
+
+function repairPrompt(
+  question: string,
+  sources: readonly DossierSource[],
+  backed: ReadonlySet<string>,
+  findings: readonly DossierFinding[],
+): string {
+  const blocks = sources
+    .filter((source) => backed.has(source.id))
+    .map((source) => sourcePromptBlock(source))
+    .join("\n\n");
+  const draft = findings.map((finding) => `- ${finding.heading}: ${finding.body}`).join("\n");
+  return `Question:\n${question}\n\nPassage-backed sources:\n${blocks}\n\nDraft findings to repair:\n${draft}`;
 }
 
 /** The existing notes shape, derived deterministically so every citation resolves to a real source. */
@@ -357,12 +479,41 @@ export async function runResearchDossier(input: DossierRunInput, deps: DossierDe
   });
 
   throwIfJobAborted(deps.abortSignal);
+  const copy = researchHostCopy(deps.locale);
+  const backed = passageBackedIds(sources);
+  if (backed.size === 0) {
+    throw new ApiError("invalid_research", copy.noPassage, 502);
+  }
+
   emit({ type: "job.phase", phase: "drafting", label: "Drafting findings" });
   const synthesisPrompt = `Question:\n${question}\n\nSources:\n${sources.map(sourcePromptBlock).join("\n\n")}`;
-  const synthesis = parseSynthesis(
+  let synthesis = parseSynthesis(
     await deps.ask(SYNTHESIS_SYSTEM, synthesisPrompt),
     sources.map((source) => source.id),
   );
+
+  if (!synthesis.findings.every((finding) => findingCitesResolve(finding, backed))) {
+    throwIfJobAborted(deps.abortSignal);
+    emit({ type: "job.phase", phase: "checking", label: copy.checking });
+    try {
+      const repaired = parseRepairFindings(
+        await deps.ask(CITE_REPAIR_SYSTEM, repairPrompt(question, sources, backed, synthesis.findings)),
+      );
+      if (repaired && repaired.length > 0) {
+        synthesis = { ...synthesis, findings: repaired };
+      }
+    } catch (error) {
+      if (error instanceof ApiError && error.code === "aborted") {
+        throw error;
+      }
+    }
+  }
+
+  const findings = groundFindings(synthesis.findings, backed);
+  if (findings.length === 0) {
+    throw new ApiError("invalid_research", "Model returned no findings", 502);
+  }
+  const dropped = synthesis.findings.filter((finding) => !findings.some((kept) => kept.heading === finding.heading));
 
   const dossier = dossierSchema.parse({
     title: synthesis.title,
@@ -371,9 +522,15 @@ export async function runResearchDossier(input: DossierRunInput, deps: DossierDe
     models: input.models,
     queries,
     sources,
-    findings: synthesis.findings,
-    contradictions: synthesis.contradictions,
-    openQuestions: synthesis.openQuestions,
+    findings,
+    contradictions: cleanList(
+      synthesis.contradictions.map((item) => stripUnresolvedCites(item, backed)).filter((item) => item.length > 0),
+      20,
+    ),
+    openQuestions: cleanList(
+      [...synthesis.openQuestions, ...dropped.map((finding) => copy.citeGap(finding.heading))],
+      20,
+    ),
   });
   return { dossier, notes: notesFromDossier(dossier, synthesis.summary) };
 }

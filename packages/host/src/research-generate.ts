@@ -133,6 +133,7 @@ export async function generateResearchNotes(
       emit,
       abortSignal,
       caps: RESEARCH_CAPS,
+      locale: localeForRun(),
       ask: async (system, prompt) => {
         const run = await collectJobAssistantRun({
           tenant,

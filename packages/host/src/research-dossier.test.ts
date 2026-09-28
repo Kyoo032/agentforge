@@ -3,13 +3,18 @@ import { ApiError } from "@agentforge/core";
 import { DOSSIER_HEADINGS, dossierToMarkdown } from "@agentforge/core/artifacts";
 import type { JobEvent } from "@agentforge/core/jobs";
 import {
+  CITE_REPAIR_SYSTEM,
   EXTRACT_SYSTEM,
   PLAN_SYSTEM,
   SYNTHESIS_SYSTEM,
   dedupeCandidates,
+  findingCitesResolve,
+  groundFindings,
   parseExtraction,
   parsePlan,
+  parseRepairFindings,
   parseSynthesis,
+  passageBackedIds,
   runResearchDossier,
   type DossierDeps,
 } from "./research-dossier";
@@ -129,8 +134,8 @@ function fakeDeps(overrides: Partial<DossierDeps> = {}): DossierDeps & { asked: 
             { heading: "Margins are thin", body: "About 12% [S1].", sources: ["S1"] },
             {
               heading: "Failures are rising",
-              body: "Two bankruptcies [S2]; S3 could not be read.",
-              sources: ["S2", "S3"],
+              body: "Two bankruptcies [S2].",
+              sources: ["S2"],
             },
           ],
           contradictions: [],
@@ -174,7 +179,7 @@ describe("runResearchDossier", () => {
     expect(dossier.sources[2]?.passages).toEqual(["snippet dead"]);
     expect(dossier.sources[2]?.notes).toMatch(/HTTP 404/);
     expect(dossier.sources[0]?.retrievedAt).toBe("2026-09-07T10:00:00.000Z");
-    expect(dossier.findings[1]?.sources).toEqual(["S2", "S3"]);
+    expect(dossier.findings[1]?.sources).toEqual(["S2"]);
     expect(dossier.openQuestions).toEqual(["What happens to black mass prices?"]);
 
     expect(notes.title).toBe("Lithium recycling economics");
@@ -236,5 +241,89 @@ describe("runResearchDossier", () => {
       code: "aborted",
     });
     expect(deps.asked).not.toContain(SYNTHESIS_SYSTEM);
+  });
+
+  it("cites a kept passage: rewrites once, then drops a cite that still does not resolve", async () => {
+    let repairs = 0;
+    const deps = fakeDeps({
+      locale: "id",
+      ask: async (system, prompt) => {
+        if (system === CITE_REPAIR_SYSTEM) {
+          repairs += 1;
+          return JSON.stringify({
+            findings: [
+              { heading: "Margins are thin", body: "About 12% [S1].", sources: ["S1"] },
+              { heading: "Ghost", body: "Still only [S9].", sources: ["S9"] },
+            ],
+          });
+        }
+        if (system === SYNTHESIS_SYSTEM) {
+          return JSON.stringify({
+            title: "T",
+            summary: "S",
+            findings: [
+              { heading: "Margins are thin", body: "About 12% [S1] and a ghost [S9].", sources: ["S1", "S9"] },
+              { heading: "Unread", body: "Snippet only [S3].", sources: ["S3"] },
+            ],
+            contradictions: ["[S9] disagrees with [S1]"],
+            openQuestions: ["What happens to black mass prices?"],
+          });
+        }
+        return fakeDeps().ask(system, prompt);
+      },
+    });
+    const { dossier } = await runResearchDossier({ question: QUESTION, models: ["m1"] }, deps);
+    expect(repairs).toBe(1);
+    expect(dossier.findings).toEqual([{ heading: "Margins are thin", body: "About 12% [S1].", sources: ["S1"] }]);
+    expect(dossier.findings.some((finding) => finding.body.includes("[S9]") || finding.sources.includes("S3"))).toBe(
+      false,
+    );
+    expect(dossier.contradictions).toEqual(["disagrees with [S1]"]);
+    expect(dossier.openQuestions).toContain("Tidak ada kutipan yang tersimpan untuk: Ghost");
+    const phases = deps.events.filter((event) => event.type === "job.phase");
+    expect(phases.map((event) => (event as { phase: string }).phase)).toEqual([
+      "planning",
+      "searching",
+      "reading",
+      "drafting",
+      "checking",
+    ]);
+    expect(phases.at(-1)).toMatchObject({ label: "Memeriksa kutipan" });
+  });
+
+  it("does not draft when no page kept a passage", async () => {
+    const deps = fakeDeps({
+      readPage: async () => {
+        throw new Error("HTTP 404");
+      },
+    });
+    await expect(runResearchDossier({ question: QUESTION, models: [] }, deps)).rejects.toThrow(
+      /No page kept a sentence/,
+    );
+    expect(deps.asked).not.toContain(SYNTHESIS_SYSTEM);
+    expect(deps.asked).not.toContain(CITE_REPAIR_SYSTEM);
+  });
+});
+
+describe("cite a kept passage", () => {
+  const backed = new Set(["S1"]);
+
+  it("backs only a read source that kept a verbatim passage", () => {
+    expect(
+      passageBackedIds([
+        { id: "S1", status: "read", passages: ["Margins reached 12% in 2025."] },
+        { id: "S2", status: "read", passages: [] },
+        { id: "S3", status: "unreachable", passages: ["A long search snippet that is not a page passage."] },
+      ]),
+    ).toEqual(new Set(["S1"]));
+    expect(findingCitesResolve({ heading: "H", body: "About 12% [S1].", sources: ["S1"] }, backed)).toBe(true);
+    expect(findingCitesResolve({ heading: "H", body: "Ghost [S9].", sources: ["S9"] }, backed)).toBe(false);
+  });
+
+  it("strips a cite the repair pass still cannot resolve", () => {
+    expect(parseRepairFindings("not json")).toBeNull();
+    expect(groundFindings([{ heading: "H", body: "Kept [S1] and [S9].", sources: ["S1", "S9"] }], backed)).toEqual([
+      { heading: "H", body: "Kept [S1] and.", sources: ["S1"] },
+    ]);
   });
 });
