@@ -41,6 +41,21 @@ describe("generateOpenSlideDeck", () => {
     expect(deck.pages[0]?.notes).toMatch(/Bacakan judulnya/);
   });
 
+  it("runs the length, source, and notes skills on a stub deck", async () => {
+    const source = "The counter opens at seven on Saturday for named bags.";
+    const deck = await generateOpenSlideDeck(await tenant(), {
+      prompt: "Saturday pickup",
+      brief: { pageCount: "short", density: "light", motion: "static" },
+      sourceText: source,
+    });
+    const text = deck.pages.flatMap((page) => page.blocks.map((block) => block.text)).join("\n");
+    expect(deck.pages.length).toBeGreaterThanOrEqual(3);
+    expect(deck.pages.length).toBeLessThanOrEqual(5);
+    expect(text).toContain(source);
+    expect(text).not.toMatch(/\d/);
+    expect(deck.pages.every((page) => page.notes.trim().length > 0)).toBe(true);
+  });
+
   it("refuses a blank prompt and a hostile source", async () => {
     await expect(generateOpenSlideDeck(await tenant(), { prompt: "  " })).rejects.toMatchObject({
       code: "invalid_request",

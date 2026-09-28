@@ -102,6 +102,7 @@ describe("the model a Presentations job uses and records", () => {
       model: "deepseek-v4-flash",
     });
     expect(outline.title).toBe("Vendor switch");
+    expect(outline.slides[0]?.notes).toMatch(/Say this page once/);
     expect(created[0]?.meta?.model).toBe("gpt-5.6-luna");
     expect(ingested[0]?.model).toBe("gpt-5.6-luna");
   });

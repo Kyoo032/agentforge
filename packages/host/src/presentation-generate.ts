@@ -28,10 +28,12 @@ import { readSourceText, withSourceMaterial, withSourceRule } from "./job-source
 import { artifactStore } from "./artifacts";
 import { upsertWorkSource } from "./knowledge-ingest";
 import { artifactWorkCard, presentationOutlineMarkdown } from "./work-cards";
+import { repairNultronOutline } from "./presentation-harness";
 import {
   presentationGatewayMessage,
   presentationLanguageRule,
   presentationLocale,
+  presentationSkillCopy,
   type PresentationLocale,
 } from "./presentation-locale";
 import { log } from "./log";
@@ -155,7 +157,13 @@ export async function generatePresentationOutline(tenant: TenantContext, body: u
   if (!run.text.trim()) {
     throw new ApiError("generation_failed", modeMessage("emptyPresentationOutline", locale), 502);
   }
-  const outline = parsePresentationOutline(run.text);
+  const copy = presentationSkillCopy(locale);
+  const outline = repairNultronOutline(parsePresentationOutline(run.text), {
+    prompt,
+    sourceText,
+    note: copy.note,
+    noFigure: copy.noFigure,
+  });
   const markdown = presentationOutlineMarkdown(outline);
   // Record the model that wrote the outline. After a fallback the requested id is the one model that did not.
   const answeredBy = run.model;
@@ -242,5 +250,15 @@ export async function regeneratePresentationSlide(tenant: TenantContext, body: u
   if (!raw.trim()) {
     throw new ApiError("generation_failed", modeMessage("emptySlide", locale), 502);
   }
-  return mergePresentationSlide(outline, index, parsePresentationSlide(raw));
+  const copy = presentationSkillCopy(locale);
+  return repairNultronOutline(
+    mergePresentationSlide(outline, index, parsePresentationSlide(raw)),
+    {
+      prompt: topic,
+      sourceText,
+      note: copy.note,
+      noFigure: copy.noFigure,
+    },
+    index,
+  );
 }

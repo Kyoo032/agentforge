@@ -1,6 +1,6 @@
 # Map — Presentation
 
-Last verified: 2026-09-27 at c48cff7
+Last verified: 2026-09-28 at pending
 
 ## Overview
 
@@ -90,6 +90,8 @@ Create defaults to Open Slide. Length and style are chips on the empty screen (`
 
 Generate posts `{ prompt, brief, model?, sourceText? }` to `POST /api/v1/presentations/open-slide` (`packages/host/src/router.ts:353`). `generateOpenSlideDeck` (`packages/host/src/open-slide-generate.ts:147`) gates through the same handler as Nultron (`requireGatewayAllowedFor` in `packages/host/src/handlers/open-slide.ts:26`). When the runtime is stub it returns `draftOpenSlideDeck` (`packages/host/src/open-slide-generate.ts:158`, `packages/core/src/open-slide/draft.ts:333`) and does not open a socket. A live runtime sends `OPEN_SLIDE_SYSTEM` (`packages/core/src/open-slide/harness.ts:6`) through `withOutputLanguage(..., "presentations", locale)` (`packages/host/src/open-slide-generate.ts:97`, rule at `packages/core/src/output-language.ts:64`) and `collectJobAssistantRun` with `jobMode: "presentations"`. The language is `localeForRun()`.
 
+After the draft, `applyOpenSlideSkills` (`packages/core/src/open-slide/skills.ts`) runs before the deck is returned. It trims pages that sit above the length bracket (short 3–5, medium 6–10, long 11–12), caps content bullets for the style, fills an empty speaker note from `presentationSkillCopy` (`packages/host/src/presentation-locale.ts`), and, when source text is set, replaces a line the source does not support. A digit is cleared when neither the topic nor the source contains one. A live deck that is still under the bracket minimum is asked once more (`open-slide-generate.ts`); a second short deck is returned as-is. The stub path never opens a socket. Nultron runs the notes and source repairs in `repairNultronOutline` (`packages/host/src/presentation-harness.ts`) after parse. It has no page-count bracket on the request, so it does not retry for length. The first screen is unchanged.
+
 The stage is `OpenSlideStage` (`apps/web/components/open-slide-stage.tsx:28`). A slim filmstrip (`presentations-open-slide-filmstrip`, `:119`) sits above the canvas (`presentations-open-slide-stage`, `:145`). Pages are `presentations-open-slide-page` (`:127`). Blocks are `presentations-open-slide-block` (`:237`) with pixel `data-x` / `data-y` on a 1920×1080 canvas. Clicking a text block edits it in place (`presentations-open-slide-text`, `:250`). Arrow keys call `nudgeOpenSlideBlock` (`packages/core/src/open-slide/deck.ts:244`), 8px, or 40px with Shift, when focus is not in the text. Color, duplicate, add text, and notes appear on `presentations-open-slide-toolbar` (`:152`) only while a block is selected. Movement is stored on the brief and not played.
 
 Download posts that JSON to `POST /api/v1/presentations/open-slide/pptx` (`packages/host/src/router.ts:354`). `buildOpenSlidePptx` (`packages/host/src/open-slide-pptx.ts:73`) maps each page to one Office slide and writes speaker notes (`:87`). Like the Nultron PPTX route, this handler does not call the gateway. Save uses `open-slide-decks/` via `POST /api/v1/presentations/open-slide/decks` (`packages/host/src/router.ts:356`), a different folder from Nultron outlines so a Nultron parser never reads an Open Slide file.
@@ -108,6 +110,7 @@ Not in this cut: Babel source edits, present mode, stepped motion, PDF, static H
 | Posted outline malformed (regen or PPTX) | `parsePresentationOutlineBody`, `presentation-outline.ts:172` | HTTP 400 `invalid_request` |
 | Model returned nothing | `presentation-generate.ts:148-150`, `:232-234` | HTTP 502 `generation_failed` |
 | Model returned non-JSON / wrong shape | `extractJsonObject` + zod, `presentation-outline.ts:101-142` | HTTP 502 `invalid_outline` |
+| Open Slide deck shorter than the length chip | `generateOpenSlideDeck` retry, `open-slide-generate.ts` | One more model call, then the short deck is shown |
 | Run failed mid-stream | `collectJobAssistantText`, `job-regen.ts:142-144` | HTTP 502 `generation_failed` carrying the runtime's own message |
 | Regen attachment not an image_url | `readJobRegenAttachments`, `job-regen.ts:35-66` | HTTP 400 `invalid_request` |
 | Regen attachment on a text-only model | `assertModelSupportsModality`, `job-regen.ts:92` | HTTP 4xx from core before any gateway call |
@@ -133,7 +136,9 @@ Not in this cut: Babel source edits, present mode, stepped motion, PDF, static H
 | `packages/host/src/presentation-generate.ts` | `OUTLINE_SYSTEM`, `SLIDE_SYSTEM`, runtime gate, model resolve, artifact + KB persist |
 | `packages/host/src/presentation-outline.ts` | Host copy of the schema, JSON extraction, merge, layout resolve |
 | `packages/host/src/presentation-pptx.ts` | pptxgenjs deck: layout, chrome, four slide kinds, notes, filename |
-| `packages/host/src/presentation-locale.ts` | `presentationLocale` / `presentationLanguageRule` / `presentationKicker` / `presentationGatewayMessage` |
+| `packages/host/src/presentation-locale.ts` | `presentationLocale` / `presentationLanguageRule` / `presentationKicker` / `presentationGatewayMessage` / `presentationSkillCopy` |
+| `packages/core/src/open-slide/skills.ts` | Length, source, and notes repair for an Open Slide deck |
+| `packages/host/src/presentation-harness.ts` | Notes and source repair for a Nultron outline |
 | `packages/host/src/job-regen.ts`, `packages/host/src/job-source.ts` | Shared job runtime call and the `sourceText` contract |
 | `packages/host/src/work-cards.ts:217` | `presentationOutlineMarkdown` — the artifact body and the KB card body |
 | `packages/core/src/models/mode-defaults.ts:60-67` | Ranked model preference for the mode |
@@ -145,7 +150,7 @@ Not in this cut: Babel source edits, present mode, stepped motion, PDF, static H
 - **`/api/v1/presentations/pptx` is ungated.** `packages/host/src/handlers/jobs.ts:233-247` calls neither `getTenant` nor `requireGatewayAllowed`, unlike its two siblings at `:148` and `:159`. Nothing leaks (the body is the outline the caller already holds and nothing reaches the gateway), but it is the one presentations route a closed gate does not stop.
 - **The model dropdown is empty and disabled for the first few hundred ms.** `useJobModel` starts at `models: []` (`apps/web/lib/use-job-model.ts:70-71`) and `ModelSelect` disables itself while the list is empty (`apps/web/components/model-select.tsx:63`). A drive that asserts `presentations-studio-model` *visible* passes instantly; one that reads its options must wait for them. Measured on the desk: 0 options at first paint, 101 after `/api/v1/models` resolved.
 - **The "Open Settings" link is suppressed on an English desk, on purpose.** The condition at `apps/web/components/presentations-studio.tsx:442` is `matches gateway|api key|settings|runtime_stub|live gateway` **and** `does not match settings` — and the English 503 copy already says "…in Settings" (`packages/host/src/presentation-locale.ts:26`). The Indonesian copy says "Pengaturan", so the link *does* render there. Same banner, different anatomy per locale.
-- **Two error vocabularies for the same wall.** The host 503 string lives in `presentation-locale.ts:22-26`; the renderer also ships `presentation.gatewayError` with the identical sentence in both catalogs — with **zero references** anywhere in `apps/` or `packages/`. Same for `presentation.kicker` (the kicker is produced host-side by `presentationKicker`). Dead keys that look authoritative.
+- **Two error vocabularies for the same wall.** The host 503 string lives in `presentation-locale.ts`; the renderer also ships `presentation.gatewayError` with the identical sentence in both catalogs — with **zero references** anywhere in `apps/` or `packages/`. Same for `presentation.kicker` (the kicker is produced host-side by `presentationKicker`). `presentation.notesFallback` and `presentation.noFigure` match `presentationSkillCopy` and are also unused by the renderer; the deck shows the host line. Dead keys that look authoritative.
 - **Regen posts the entire deck, every time.** `apps/web/components/presentations-studio.tsx:276-287` sends the whole `outline` object plus `slideIndex`; the host re-validates it (`parsePresentationOutlineBody`) and returns a whole new outline. There is no per-slide id and no server-side deck state — the client is the source of truth between calls.
 - **The regen panel survives its own failure.** After a 503 the panel stays open, the preview stays rendered, and `presentations-error` appears at the top of the studio, not inside the panel. Verified on the desk.
 - **The starter path writes nothing.** Starters are constants in `apps/web/lib/job-starters.ts`; loading one creates no artifact, no thread, no KB card. Only a *successful live generate* persists (`presentation-generate.ts:153-163`). A harness run on a stub desk therefore leaves the owner's data untouched even after a PPTX download.
@@ -153,7 +158,7 @@ Not in this cut: Babel source edits, present mode, stepped motion, PDF, static H
 - **A "6-slide" starter has 7 filmstrip entries.** `total = outline.slides.length + 1` (`apps/web/components/presentation-preview.tsx`). The stage shows one testid at a time: `presentations-slide-title` or `presentations-slide`. Shapes exist only on content slides.
 - **Presentation sends `jobMode`, Chat does not.** `presentation-generate.ts:93` and `:227` pass `jobMode: "presentations"`, which turns on the always-thinking-off knob for quiet families (`packages/core/src/models/job-thinking.ts`). Chat deliberately leaves it unset — do not "fix" one to match the other.
 - **`sourceText` is guarded like a Chat attachment.** Pasted or handed-off material runs through `scanInjection` (`packages/host/src/job-source.ts:23-35`) unless the owner turned the guard off, so a hostile dossier pasted into the source box is a 400, not a prompt.
-- **Nothing tests the generate path.** There is no `presentation-generate.test.ts`; `presentation-locale.test.ts`, `presentation-outline.test.ts` (×2) and `presentation-pptx.test.ts` cover the pieces, not the assembled system prompt. This is blocker P13's Presentation half (`docs/internal/blockers-2026-09-15.md:21`).
+- **The harness skills are tested on the stub path.** `open-slide-generate.test.ts` drafts with source text and checks length and notes. `packages/core/src/open-slide/skills.test.ts` trims a long deck, fills a blank note, and clears an invented figure. `presentation-harness.test.ts` does the notes and source repairs on a Nultron outline. `open-slide-harness.test.ts` mocks the model call and asserts the one length retry. `presentation-generate.test.ts` still covers which model is recorded, and now also sees the filled note.
 
 ## Verify
 

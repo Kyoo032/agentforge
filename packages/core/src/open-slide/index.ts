@@ -40,3 +40,5 @@ export type {
 } from "./deck";
 export { draftOpenSlideDeck } from "./draft";
 export { OPEN_SLIDE_SYSTEM } from "./harness";
+export { applyOpenSlideSkills, openSlidePageBracket } from "./skills";
+export type { OpenSlideLength, OpenSlideSkillCopy, OpenSlideSkillReport } from "./skills";

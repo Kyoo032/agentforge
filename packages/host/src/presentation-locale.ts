@@ -25,3 +25,17 @@ export function presentationGatewayMessage(locale: PresentationLocale): string {
   }
   return "Presentation generation needs a live gateway. Paste a Toko Token API key in Settings, then try again.";
 }
+
+/** Lines the harness writes onto a deck. Same sentences as `presentation.notesFallback` and `presentation.noFigure`. */
+export function presentationSkillCopy(locale: PresentationLocale): { note: string; noFigure: string } {
+  if (locale === "id") {
+    return {
+      note: "Ucapkan halaman ini sekali, lalu berhenti. Jangan menambah angka yang tidak diberikan.",
+      noFigure: "Tidak ada angka",
+    };
+  }
+  return {
+    note: "Say this page once, then stop. Do not add a number you were not given.",
+    noFigure: "No figure supplied",
+  };
+}

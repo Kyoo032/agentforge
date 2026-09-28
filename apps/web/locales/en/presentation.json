@@ -71,6 +71,8 @@
   "notes": "Notes:",
   "noBullets": "No bullets on this slide.",
   "gatewayError": "Presentation generation needs a live gateway. Paste a Toko Token API key in Settings, then try again.",
+  "notesFallback": "Say this page once, then stop. Do not add a number you were not given.",
+  "noFigure": "No figure supplied",
   "galleryTitle": "Start from a template",
   "galleryHint": "Click a card to load a full brief. Replace the sample details, then generate.",
   "templates": {

@@ -8,6 +8,7 @@ import {
   presentationKicker,
   presentationLanguageRule,
   presentationLocale,
+  presentationSkillCopy,
 } from "./presentation-locale";
 import { saveOwnerLocale } from "./settings-store";
 
@@ -60,11 +61,15 @@ describe("presentation language copy", () => {
     expect(presentationKicker("id")).toBe("PRESENTASI");
     expect(presentationGatewayMessage("id")).toMatch(/Pengaturan/);
     expect(presentationGatewayMessage("id")).toMatch(/Toko Token/);
+    expect(presentationSkillCopy("id").note).toMatch(/Jangan menambah angka/);
+    expect(presentationSkillCopy("id").noFigure).toBe("Tidak ada angka");
   });
 
   it("keeps English slide copy for en", () => {
     expect(presentationLanguageRule("en")).toMatch(/English/);
     expect(presentationKicker("en")).toBe("PRESENTATION");
     expect(presentationGatewayMessage("en")).toMatch(/Settings/);
+    expect(presentationSkillCopy("en").note).toMatch(/Do not add a number/);
+    expect(presentationSkillCopy("en").noFigure).toBe("No figure supplied");
   });
 });

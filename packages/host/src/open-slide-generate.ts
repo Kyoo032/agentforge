@@ -7,8 +7,10 @@ import {
   type TenantContext,
 } from "@agentforge/core";
 import {
+  applyOpenSlideSkills,
   draftOpenSlideDeck,
   OPEN_SLIDE_SYSTEM,
+  openSlidePageBracket,
   parseOpenSlideModelText,
   readOpenSlideChoices,
   type OpenSlideDeck,
@@ -20,7 +22,7 @@ import { upsertWorkSource } from "./knowledge-ingest";
 import { log } from "./log";
 import { listSelectableModels, modeCatalogPayload } from "./selectable-models";
 import { loadSettings } from "./settings-store";
-import { presentationLocale } from "./presentation-locale";
+import { presentationLocale, presentationSkillCopy } from "./presentation-locale";
 import { artifactWorkCard } from "./work-cards";
 
 function readPrompt(body: unknown): string {
@@ -42,14 +44,25 @@ function readOptionalModel(body: unknown): string | undefined {
   return typeof model === "string" && model.trim() ? model.trim() : undefined;
 }
 
-function userPrompt(prompt: string, choices: ReturnType<typeof readOpenSlideChoices>): string {
-  return [
+function userPrompt(
+  prompt: string,
+  choices: ReturnType<typeof readOpenSlideChoices>,
+  retry?: { pages: number },
+): string {
+  const bracket = openSlidePageBracket(choices.pageCount);
+  const lines = [
     `Topic: ${prompt}`,
     `Page count bracket: ${choices.pageCount}.`,
     `Text density: ${choices.density}.`,
     `Motion: ${choices.motion}. Record it on brief.motion. Pages stay static boxes.`,
     "Pick one aesthetic that fits the topic and write it on brief.aesthetic.",
-  ].join("\n");
+  ];
+  if (retry) {
+    lines.push(
+      `The deck has ${retry.pages} pages. This bracket needs at least ${bracket.min} and at most ${bracket.max}. Return the full JSON deck with enough pages. Do not invent a figure.`,
+    );
+  }
+  return lines.join("\n");
 }
 
 function emptyDeckMessage(locale: ReturnType<typeof presentationLocale>): string {
@@ -92,6 +105,7 @@ async function collectDeck(
   sourceText: string,
   choices: ReturnType<typeof readOpenSlideChoices>,
   modelExplicit: boolean,
+  retry?: { pages: number },
 ): Promise<JobAssistantRun> {
   const locale = presentationLocale();
   const system = withOutputLanguage(OPEN_SLIDE_SYSTEM, "presentations", locale);
@@ -104,7 +118,15 @@ async function collectDeck(
     agentId: "presentation",
     jobMode: "presentations",
     versionId: "open-slide-deck",
-    prompt: withSourceMaterial(userPrompt(prompt, choices), sourceText),
+    prompt: withSourceMaterial(userPrompt(prompt, choices, retry), sourceText),
+  });
+}
+
+function finishDeck(deck: OpenSlideDeck, prompt: string, sourceText: string) {
+  return applyOpenSlideSkills(deck, {
+    prompt,
+    sourceText,
+    copy: presentationSkillCopy(presentationLocale()),
   });
 }
 
@@ -155,16 +177,11 @@ export async function generateOpenSlideDeck(tenant: TenantContext, body: unknown
     envRuntime: process.env.AGENTFORGE_RUNTIME,
   });
   if (mode === "stub") {
-    return draftOpenSlideDeck({ prompt, ...choices, locale });
+    return finishDeck(draftOpenSlideDeck({ prompt, ...choices, locale }), prompt, sourceText).deck;
   }
-  const run = await collectDeck(
-    tenant,
-    resolveModel(body, settings),
-    prompt,
-    sourceText,
-    choices,
-    readModelPinned(body),
-  );
+  const model = resolveModel(body, settings);
+  const pinned = readModelPinned(body);
+  const run = await collectDeck(tenant, model, prompt, sourceText, choices, pinned);
   if (!run.text.trim()) {
     throw new ApiError("generation_failed", emptyDeckMessage(locale), 502);
   }
@@ -174,6 +191,20 @@ export async function generateOpenSlideDeck(tenant: TenantContext, body: unknown
   } catch {
     throw new ApiError("invalid_outline", invalidDeckMessage(locale), 502);
   }
+  let finished = finishDeck(deck, prompt, sourceText);
+  if (finished.report.length === "short") {
+    try {
+      const retry = await collectDeck(tenant, model, prompt, sourceText, choices, pinned, {
+        pages: finished.deck.pages.length,
+      });
+      if (retry.text.trim()) {
+        finished = finishDeck(parseOpenSlideModelText(retry.text), prompt, sourceText);
+      }
+    } catch {
+      // One retry. A short deck is still returned.
+    }
+  }
+  deck = finished.deck;
   const markdown = openSlideMarkdown(deck);
   await persistDeck(tenant, deck, markdown, {
     question: prompt,
