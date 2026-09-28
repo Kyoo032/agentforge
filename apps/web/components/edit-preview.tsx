@@ -1,8 +1,16 @@
-import { DEFAULT_CAPTION_STYLE, formatTimecode, layoutTitle, type Clip, type EditProject, type TitleStyle } from "@agentforge/core/edit";
+import {
+  DEFAULT_CAPTION_STYLE,
+  formatTimecode,
+  layoutTitle,
+  type Clip,
+  type EditProject,
+  type TitleStyle,
+} from "@agentforge/core/edit";
 import { mediaSrc } from "@/lib/api-client";
 import { timelineEndFrame } from "@/lib/edit-client";
 import { previewMediaForClip, videoClipAt, type PreviewMedia } from "@/lib/edit-preview-media";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { t } from "@/lib/i18n";
 
 type Props = {
   project: EditProject | null;
@@ -46,7 +54,8 @@ function overlayStyle(style: TitleStyle, canvas: { width: number; height: number
     color: hex8ToCss(style.primaryColor),
     WebkitTextStroke: style.outlinePx > 0 ? `${style.outlinePx * scale}px ${hex8ToCss(style.outlineColor)}` : undefined,
     paintOrder: "stroke fill",
-    textShadow: style.shadowPx > 0 ? `${style.shadowPx * scale}px ${style.shadowPx * scale}px 0 rgba(0,0,0,0.6)` : undefined,
+    textShadow:
+      style.shadowPx > 0 ? `${style.shadowPx * scale}px ${style.shadowPx * scale}px 0 rgba(0,0,0,0.6)` : undefined,
     background: style.box ? hex8ToCss(style.box.color) : undefined,
     padding: style.box ? 4 * scale : undefined,
     textAlign: layout.textAlign,
@@ -186,57 +195,60 @@ export function EditPreview({ project, playhead, playing, onPlayhead, onPlaying,
   }
 
   return (
-    <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[color-mix(in_srgb,var(--text)_4%,transparent)]" data-testid="edit-preview">
+    <section
+      className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[color-mix(in_srgb,var(--text)_4%,transparent)]"
+      data-testid="edit-preview"
+    >
       <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden p-3">
         <div ref={frameRef} className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden">
-        <div
-          className="relative shrink-0 overflow-hidden bg-black"
-          style={{
-            width: fit.w > 0 ? fit.w : "100%",
-            maxWidth: "100%",
-            maxHeight: "100%",
-            aspectRatio: `${width} / ${height}`,
-          }}
-        >
-          {imageUrl ? (
-            <img
-              className="absolute inset-0 h-full w-full object-contain"
-              src={imageUrl}
-              alt=""
-              draggable={false}
-              data-testid="edit-preview-image"
+          <div
+            className="relative shrink-0 overflow-hidden bg-black"
+            style={{
+              width: fit.w > 0 ? fit.w : "100%",
+              maxWidth: "100%",
+              maxHeight: "100%",
+              aspectRatio: `${width} / ${height}`,
+            }}
+          >
+            {imageUrl ? (
+              <img
+                className="absolute inset-0 h-full w-full object-contain"
+                src={imageUrl}
+                alt=""
+                draggable={false}
+                data-testid="edit-preview-image"
+              />
+            ) : null}
+            <video
+              ref={primaryRef}
+              className={`absolute inset-0 h-full w-full object-contain${videoUrl ? "" : " hidden"}`}
+              src={videoUrl ?? undefined}
+              muted
+              playsInline
+              data-testid="edit-preview-video"
             />
-          ) : null}
-          <video
-            ref={primaryRef}
-            className={`absolute inset-0 h-full w-full object-contain${videoUrl ? "" : " hidden"}`}
-            src={videoUrl ?? undefined}
-            muted
-            playsInline
-            data-testid="edit-preview-video"
-          />
-          <video
-            ref={bufferRef}
-            className="pointer-events-none absolute inset-0 h-full w-full object-contain opacity-0"
-            src={nextVideoUrl ?? undefined}
-            muted
-            playsInline
-            aria-hidden="true"
-          />
-          {titleOnVideo && project ? (
-            <div data-testid="edit-title-overlay" style={overlayStyle(titleOnVideo.style, { width, height }, scale)}>
-              {titleOnVideo.text}
-            </div>
-          ) : null}
-          {captionClip?.caption && project ? (
-            <div
-              data-testid="edit-caption-overlay"
-              style={overlayStyle(DEFAULT_CAPTION_STYLE, { width, height }, scale)}
-            >
-              {captionClip.caption.text}
-            </div>
-          ) : null}
-        </div>
+            <video
+              ref={bufferRef}
+              className="pointer-events-none absolute inset-0 h-full w-full object-contain opacity-0"
+              src={nextVideoUrl ?? undefined}
+              muted
+              playsInline
+              aria-hidden="true"
+            />
+            {titleOnVideo && project ? (
+              <div data-testid="edit-title-overlay" style={overlayStyle(titleOnVideo.style, { width, height }, scale)}>
+                {titleOnVideo.text}
+              </div>
+            ) : null}
+            {captionClip?.caption && project ? (
+              <div
+                data-testid="edit-caption-overlay"
+                style={overlayStyle(DEFAULT_CAPTION_STYLE, { width, height }, scale)}
+              >
+                {captionClip.caption.text}
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-[var(--line)] px-3 py-2">
@@ -246,12 +258,22 @@ export function EditPreview({ project, playhead, playing, onPlayhead, onPlaying,
           data-testid="edit-play"
           onClick={() => onPlaying(!playing)}
         >
-          {playing ? "Pause" : "Play"}
+          {playing ? t("edit.preview.pause") : t("edit.preview.play")}
         </button>
-        <button type="button" className="btn btn-ghost shrink-0 px-2 py-1 text-xs" onClick={() => step(-1)} aria-label="Previous frame">
+        <button
+          type="button"
+          className="btn btn-ghost shrink-0 px-2 py-1 text-xs"
+          onClick={() => step(-1)}
+          aria-label={t("edit.preview.previousFrame")}
+        >
           {"<"}
         </button>
-        <button type="button" className="btn btn-ghost shrink-0 px-2 py-1 text-xs" onClick={() => step(1)} aria-label="Next frame">
+        <button
+          type="button"
+          className="btn btn-ghost shrink-0 px-2 py-1 text-xs"
+          onClick={() => step(1)}
+          aria-label={t("edit.preview.nextFrame")}
+        >
           {">"}
         </button>
         <span className="shrink-0 font-mono text-xs text-[var(--text-2)]" data-testid="edit-time">
@@ -264,7 +286,7 @@ export function EditPreview({ project, playhead, playing, onPlayhead, onPlaying,
           max={end}
           value={playhead}
           onChange={(event) => onScrub(Number(event.target.value))}
-          aria-label="Scrub"
+          aria-label={t("edit.preview.scrub")}
         />
       </div>
     </section>
