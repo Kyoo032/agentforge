@@ -311,4 +311,107 @@ describe("generateMinutes", () => {
     expect(returned.translation).toBeNull();
     expect(seams.ask).toHaveBeenCalledTimes(1);
   });
+
+  it("asks for the minutes once more when the first answer is not the sheet", async () => {
+    const id = transcribedMeeting();
+    let minutesCalls = 0;
+    seams.ask.mockImplementation(async (options: { versionId: string; systemPrompt: string }) => {
+      if (options.versionId === "meeting-translate") {
+        return { text: JSON.stringify(minutes("Rapat mingguan checkout")), model: "minutes-model" };
+      }
+      minutesCalls += 1;
+      if (minutesCalls === 1) {
+        return { text: "not the sheet", model: "minutes-model" };
+      }
+      expect(options.systemPrompt).toContain("Write the minutes");
+      return { text: JSON.stringify(minutes("Checkout weekly")), model: "minutes-model" };
+    });
+
+    const returned = await run.generateMinutes(tenant, id, { translate: false });
+
+    expect(minutesCalls).toBe(2);
+    expect(returned.minutes?.minutes.title).toBe("Checkout weekly");
+  });
+
+  it("strips a date and a figure the transcript never said before saving", async () => {
+    const id = transcribedMeeting();
+    const phases: string[] = [];
+    seams.ask.mockImplementation(async (options: { versionId: string }) => {
+      if (options.versionId === "meeting-translate") {
+        return {
+          text: JSON.stringify({
+            ...minutes("Rapat"),
+            heldOn: "Monday",
+            summary: "Latensi 99 ms.",
+          }),
+          model: "minutes-model",
+        };
+      }
+      return {
+        text: JSON.stringify({
+          ...minutes("Checkout weekly"),
+          heldOn: "Monday",
+          summary: "Latency hit 99 ms.",
+        }),
+        model: "minutes-model",
+      };
+    });
+
+    const returned = await run.generateMinutes(tenant, id, {
+      emit: (event) => {
+        if (event.type === "job.phase") {
+          phases.push(event.phase);
+        }
+      },
+    });
+
+    expect(returned.minutes?.minutes.heldOn).toBe("");
+    expect(returned.minutes?.minutes.summary).toContain("[figure not said]");
+    expect(returned.minutes?.minutes.summary).not.toContain("99");
+    expect(returned.translation?.minutes.summary).not.toContain("99");
+    expect(phases).toEqual(["minuting", "grounding", "saving", "translating"]);
+  });
+
+  it("asks for the translation once more, then keeps the minutes when it still disagrees", async () => {
+    const id = transcribedMeeting();
+    let translateCalls = 0;
+    seams.ask.mockImplementation(async (options: { versionId: string }) => {
+      if (options.versionId === "meeting-translate") {
+        translateCalls += 1;
+        return {
+          text: JSON.stringify({
+            ...minutes("Rapat"),
+            decisions: [{ statement: "Buy a second vendor", provisional: false, context: "" }],
+          }),
+          model: "minutes-model",
+        };
+      }
+      return { text: JSON.stringify(minutes("Checkout weekly")), model: "minutes-model" };
+    });
+
+    await expect(run.generateMinutes(tenant, id)).rejects.toMatchObject({ code: "translation_disagreed" });
+
+    const record = store.meetingStore().get(tenant, id);
+    expect(translateCalls).toBe(2);
+    expect(record?.status).toBe("minuted");
+    expect(record?.minutes?.minutes.title).toBe("Checkout weekly");
+    expect(record?.translation).toBeNull();
+  });
+
+  it("writes an Indonesian meeting with the Indonesian output rule", async () => {
+    const created = store.meetingStore().create(tenant, { title: "Rapat", locale: "id" });
+    store.meetingStore().update(tenant, created.id, { status: "transcribed", transcript: TRANSCRIPT });
+    seams.ask.mockImplementation(async (options: { versionId: string; systemPrompt: string }) => {
+      expect(options.systemPrompt).toContain("Bahasa Indonesia");
+      if (options.versionId === "meeting-translate") {
+        return { text: JSON.stringify(minutes("Checkout weekly")), model: "minutes-model" };
+      }
+      return { text: JSON.stringify(minutes("Rapat mingguan")), model: "minutes-model" };
+    });
+
+    const returned = await run.generateMinutes(tenant, created.id, { translate: false });
+
+    expect(returned.minutes?.locale).toBe("id");
+    expect(seams.ask).toHaveBeenCalledTimes(1);
+  });
 });

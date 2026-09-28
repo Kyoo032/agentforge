@@ -560,3 +560,9 @@ Host and renderer, both products. Nothing packed.
 - **Restart waits for the language save.** The banner can show while `POST /api/v1/settings` is in flight. The Restart button stays disabled until that save resolves, and the click applies the locale that landed on disk. A failed save does not call `apply-locale`.
 - **Shape toolbar clicks keep the selection.** On the simple Presentation stage (starter and Education lesson), a pointerdown on Duplicate, Fill, Stroke, the shape text, or Remove used to clear the selection because the toolbar is drawn inside the stage. The stage now ignores that toolbar, so the click runs. Open Slide is unchanged.
 - **Edit transport and the timeline hint follow the desk language.** `edit-play` and the timeline zoom, hint, and trim names read the `edit` catalog (`Putar` / `snap: bingkai…` on `id`). The rest of the Edit chrome below the header is still literal English.
+
+## Meeting harness, 2026-09-28 (not packed)
+
+Both products share the pipeline. Nothing packed. No new control on the Meeting screen.
+
+- **Meeting asks once more for a minutes sheet when the first answer is not one, drops a date or a figure the transcript never said, and asks once more for a translation that is still that sheet.** Names stay a code guard. A translation that still disagrees is not saved; the minutes are. Stub runtime still refuses the run before any of that.

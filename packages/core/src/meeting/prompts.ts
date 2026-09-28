@@ -1,4 +1,5 @@
 import type { AppLocale } from "../locale";
+import { FIGURE_NOT_SAID } from "./ground";
 import { NEEDS_OWNER, type MeetingMinutes } from "./minutes";
 
 const SHAPE = `{
@@ -33,6 +34,7 @@ Rules:
 - Translate every human-readable value. Keep the JSON keys in English, and keep the boolean as a boolean.
 - Keep people's names, company names, product names, figures, currencies, dates, and identifiers exactly as they are. Do not localise a name.
 - Keep "${NEEDS_OWNER}" exactly as it is — it is a marker, not a person.
+- Keep "${FIGURE_NOT_SAID}" exactly as it is — it is a marker, not a number.
 - Keep the same number of items in every list, in the same order. Do not merge, drop, add, or re-order.
 - Translate meaning, not word by word. The result must read as though it was written in the target language by the person who ran the meeting.`;
 

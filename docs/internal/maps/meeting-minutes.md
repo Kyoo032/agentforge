@@ -1,9 +1,10 @@
 # Map — Meeting: recording → transcript → minutes → translation
 
-Last verified: 2026-09-23 at d4561b8 + uncommitted tree for every `packages/host/src/meeting/run.ts` and
-`meeting-studio.tsx` citation, steps 4, 6 and 7, and the Recording section (the recording's target meeting, a
-desk switch, a recorder error). Not driven: the `:3000` host needs a restart for the `run.ts` changes, and the
-renderer changes were not walked in a browser. Earlier: 2026-09-21 at 4938747 — **driven end to end on webdev
+Last verified: 2026-09-28. The minutes sheet, the date/figure check, and the translation check are the
+lines in `packages/host/src/meeting/run.ts` and `packages/core/src/meeting/sheet.ts` below. Stub unit tests
+cover each new skill. A stub webdev drive of the page is recorded in
+[`.cursor/skills/verify-agentforge/features/meeting.md`](../../../.cursor/skills/verify-agentforge/features/meeting.md).
+Earlier: 2026-09-21 at 4938747 — **driven end to end on webdev
 against the live gateway**: upload → transcript → minutes → translation, in both locale directions. Transcription
 runs on `gemini-3.5-flash` over the `chat_audio` wire; the minutes and the translation on `gpt-5.6-sol`. See
 [What was driven](#what-was-driven-2026-09-21).
@@ -14,11 +15,11 @@ Meeting is a **file job**, the same shape as Legal: a recording goes in, a trans
 
 Three things to hold onto.
 
-**1. Six of the nine routes never touch a model.** Meeting create, list, get, delete, recording upload and transcript paste are pure disk bookkeeping and work with no gateway key at all. Only the three `/stream` routes reach the gateway, and they are guarded twice — a 403 gate before the job starts (`packages/host/src/handlers/meetings.ts:139`, `:155`, `:174`) and a 503 `runtime_stub` check inside it (`packages/host/src/meeting/run.ts:59-68`). As with Legal, that 503 arrives as a single `job.error` frame inside a `200 text/event-stream`, not as an HTTP 503 (`packages/host/src/handlers/meetings.test.ts:196-206`).
+**1. Six of the nine routes never touch a model.** Meeting create, list, get, delete, recording upload and transcript paste are pure disk bookkeeping and work with no gateway key at all. Only the three `/stream` routes reach the gateway, and they are guarded twice — a 403 gate before the job starts (`packages/host/src/handlers/meetings.ts:139`, `:155`, `:174`) and a 503 `runtime_stub` check inside it (`packages/host/src/meeting/run.ts:62-70`). As with Legal, that 503 arrives as a single `job.error` frame inside a `200 text/event-stream`, not as an HTTP 503 (`packages/host/src/handlers/meetings.test.ts:196-206`).
 
 **2. The transcription wire is chat completions, not `/audio/transcriptions` — and its payload differs per model family.** The gateway's `supported_endpoint_types` never advertises an audio or transcription type; ASR, omni and TTS ids expose `openai` only and carry their vendor's schema behind it (`docs/internal/gateway-model-selection.md:174`). Driving it on 2026-09-21 showed the shape is not one shape: the OpenAI audio family (`gpt-audio-mini`, `gpt-audio-1.5`) takes **bare base64** in `input_audio.data` and answers `400 invalid_value` to a data URI, while the DashScope-backed family (`qwen*-omni*`, `*livetranslate*`) takes a **`data:` URI** and answers `400 InvalidParameter` — "The provided URL does not appear to be valid" — to bare base64. `transcriptionShapeFor` (`packages/core/src/meeting/asr-model.ts`) returns the wire, the encoding and whether to stream; `packages/host/src/meeting/transcribe-request.ts` builds the call from it and accumulates the SSE deltas when it streams. The multipart route is kept for a Whisper-style id on a gateway that does serve it; that is the wire `packages/host/src/edit/asr.ts` has always used.
 
-**3. Translation is a second pass over the finished JSON, not a second reading of the transcript.** `translateMinutes` (`packages/host/src/meeting/run.ts:364`, called at `:355`) hands the model the minutes object and asks for the same shape in the other language, so the two languages cannot disagree about what was decided. This is on top of the repo's usual `withOutputLanguage` surface rule, which only decides what language a single call writes in.
+**3. Translation is a second pass over the finished JSON, not a second reading of the transcript.** `translateMinutes` (`packages/host/src/meeting/run.ts:386`, called at `:371`) hands the model the minutes object and asks for the same shape in the other language. `minutesAgree` (`packages/core/src/meeting/agree.ts:27`) then checks that the lists, owners, dates, provisional marks, and figures still line up. A miss is asked once more. A second miss is not saved. This is on top of `withOutputLanguage`, which only decides what language a single call writes in. The minutes language is the meeting's locale; progress labels and the disagreement message follow `localeForRun`.
 
 ## How it works
 
@@ -50,39 +51,41 @@ Note this path deliberately does **not** reuse `saveMedia` (`packages/host/src/m
 
 ### 4. Transcribe — ffmpeg, then one gateway call per chunk
 
-`transcribeMeeting` (`packages/host/src/meeting/run.ts:146-195`):
+`transcribeMeeting` (`packages/host/src/meeting/run.ts:141-190`):
 
-1. `resolveMeetingAsr()` first, so a desk with no recogniser is refused before ffmpeg burns CPU (`run.ts:157-166`).
+1. `resolveMeetingAsr()` first, so a desk with no recogniser is refused before ffmpeg burns CPU (`run.ts:152-161`).
 2. `extractMeetingAudio` (`packages/host/src/meeting/audio.ts:57`) decodes to mono 16 kHz 64 kbps mp3 and **segments at `CHUNK_SECONDS` = 600**, about 4.8 MB a chunk, which every transcription route accepts in one request base64-inflated. `MAX_CHUNKS` = 36 caps a pathological file at six hours. This is its own recipe rather than Edit's `extractAudio` because that one resolves paths against Edit's project allowlist (`packages/host/src/edit/ffmpeg/paths.ts:44-46`) and cannot read the meeting store; the ffmpeg runner and the path guard are the shared ones.
-3. `transcribeAndMeter` (`run.ts:202-238`) hands the chunks to `transcribeChunks` (`packages/host/src/meeting/transcribe.ts:169`), which posts each chunk in order, emitting a `job.step` per chunk, and meters the audio (see below).
-4. The chunks are deleted in a `finally` (`run.ts:190-194`) — they are a cache of a recording that is still on disk. Since 2026-09-23 the extraction itself sits inside that `try` (`:170-173`), so an ffmpeg that fails after writing some chunks, or a cancel that lands the moment it finishes, still leaves nothing behind.
+3. `transcribeAndMeter` (`run.ts:197-233`) hands the chunks to `transcribeChunks` (`packages/host/src/meeting/transcribe.ts:169`), which posts each chunk in order, emitting a `job.step` per chunk, and meters the audio (see below).
+4. The chunks are deleted in a `finally` (`run.ts:185-189`) — they are a cache of a recording that is still on disk. Since 2026-09-23 the extraction itself sits inside that `try` (`:165-168`), so an ffmpeg that fails after writing some chunks, or a cancel that lands the moment it finishes, still leaves nothing behind.
 
-An empty chunk is logged and skipped, but an empty *transcript* is a hard `transcription_empty` (`run.ts:186-188`). That is deliberately unlike `edit/asr.ts:65-82`, which drops a failed chunk silently and returns whatever is left.
+An empty chunk is logged and skipped, but an empty *transcript* is a hard `transcription_empty` (`run.ts:181-183`). That is deliberately unlike `edit/asr.ts:65-82`, which drops a failed chunk silently and returns whatever is left.
 
-**What is metered.** A whole transcription records `audio.durationSeconds` before the transcript is judged, because the gateway has already charged for the audio (`run.ts:233-236`). A run that fails part-way records the seconds of the chunks that did answer — up to the offset of the first chunk that did not — and then rethrows (`:221-230`); before 2026-09-23 a chunk-3 failure recorded nothing for chunks 1 and 2, which the gateway had billed.
+**What is metered.** A whole transcription records `audio.durationSeconds` before the transcript is judged, because the gateway has already charged for the audio (`run.ts:226-231`). A run that fails part-way records the seconds of the chunks that did answer — up to the offset of the first chunk that did not — and then rethrows (`:217-224`); before 2026-09-23 a chunk-3 failure recorded nothing for chunks 1 and 2, which the gateway had billed.
 
-### 5. Minutes — strict JSON, then the name guard
+### 5. Minutes — one sheet, then code checks
 
-`generateMinutes` (`packages/host/src/meeting/run.ts:315-357`) calls `collectJobAssistantRun` with `jobMode: "meeting"`, so it inherits the repo's model-fallback and thinking-off knobs for free. The system prompt is `MEETING_MINUTES_SYSTEM` (`packages/core/src/meeting/prompts.ts:16`) wrapped in `withOutputLanguage(…, "meeting", locale)`.
+`generateMinutes` (`packages/host/src/meeting/run.ts:337-379`) calls `writeMeetingSheet` (`packages/core/src/meeting/sheet.ts:114`). That asks `collectJobAssistantRun` with `jobMode: "meeting"`, so it inherits model-fallback and thinking-off. The system prompt is `MEETING_MINUTES_SYSTEM` (`packages/core/src/meeting/prompts.ts:16`) wrapped in `withOutputLanguage(…, "meeting", locale)`, where `locale` is the meeting's language.
 
-Then the guard. `guardMinutesNames` (`packages/core/src/meeting/guard.ts:49`) checks every name the minutes assert against the transcript:
+A prose answer, or JSON that is not the sheet, is asked once more with a one-line note in that same language (`minutesShapeRetryNote`). A second miss fails the run. A gateway error is not retried.
 
-- an **attendee** the transcript never named is dropped outright — a minutes sheet listing someone who was not in the room is worse than a short list;
-- an **action-item owner** the transcript never named becomes `[needs owner]`, because the action itself was still stated.
+The answer that parses is settled in code, in this order, with no further model call:
 
-Matching is deliberately generous (any word token of the name, ≥3 chars, case-insensitive, honorifics excluded — `guard.ts:20-33`): the point is to catch a wholly invented attendee, not to police how a speaker was introduced. The count is logged as `meeting_minutes_names_guarded` and surfaced to the owner on the studio (`apps/web/components/meeting-studio.tsx:889-891`).
+1. `guardMinutesNames` (`packages/core/src/meeting/guard.ts:42`). An attendee the transcript never named is dropped. An action-item owner the transcript never named becomes `[needs owner]`. Matching stays generous (any word token of the name, ≥3 chars, case-insensitive, honorifics excluded — `guard.ts:14-34`).
+2. `guardMinutesGrounding` (`packages/core/src/meeting/ground.ts:76`). A `heldOn` or a `due` is cleared unless that whole phrase is in the transcript. A number the transcript does not contain as its own number (`12` is not found inside `120`; `2.1` and `2,1` are the same figure) is replaced with `[figure not said]`.
 
-This is the same family as Finance's number guard and Market's advice guard: a code check over model prose, not a nicer prompt.
+The name count is logged as `meeting_minutes_names_guarded`. Cleared dates and replaced figures are logged as `meeting_minutes_grounded`. The studio still shows `meeting-unverified` for names (`apps/web/components/meeting-studio.tsx:889-891`). The figure marker is text in the minutes, the same way `[needs owner]` is.
+
+Progress labels follow `localeForRun`: writing, writing again, checking names/dates/figures, saving. They are not new controls.
 
 ### 6. Translation
 
-`translateMinutes` (`run.ts:364`) runs `MEETING_TRANSLATE_SYSTEM` over the finished minutes JSON and **runs the guard again** on the result — a translator that hallucinates a name is exactly as wrong as a writer that does, and the transcript is still the only evidence either has.
+`translateMinutes` (`run.ts:386`) runs `MEETING_TRANSLATE_SYSTEM` over the finished JSON. The name guard and the date/figure guard run again. `minutesAgree` then requires the same list lengths, the same owners, the same dates, the same provisional marks, and the same figures (a comma decimal matches a dot decimal). Wording may change. A miss, including JSON that is not the sheet, is asked once more (`translationRetryNote`). A second miss throws `translation_disagreed`. The desk message is `translationDisagreedMessage(localeForRun())`.
 
-**The minutes are saved before the translation starts.** `generateMinutes` writes `status: "minuted"` and the minutes onto the meeting, clearing any earlier translation, which described earlier minutes (`run.ts:343`); only then does it translate, and it writes the translation in a second update (`:355-356`). Before 2026-09-23 the one update came after the translation, so a translation that failed took the minutes with it: the owner paid for the minutes and saw nothing.
+**The minutes are saved before the translation starts.** `generateMinutes` writes `status: "minuted"` and the minutes onto the meeting, clearing any earlier translation, which described earlier minutes (`run.ts:364`); only then does it translate, and it writes the translation in a second update (`:378`). A translation that fails or still disagrees leaves those minutes in place.
 
 ### 7. Artifacts and the Knowledge card
 
-Both the transcript and each set of minutes become `mode: "meeting"` artifacts (`kind: "transcript"` / `"minutes"`, `text/markdown`). `persist()` never fails the run (`run.ts:98-116`) — same precedent as `persistDraft` in `document-generate.ts`. The minutes also file a `Meeting` work card into the Knowledge Base (`fileWorkCard`, `run.ts:118-140`).
+Both the transcript and each set of minutes become `mode: "meeting"` artifacts (`kind: "transcript"` / `"minutes"`, `text/markdown`). `persist()` never fails the run (`run.ts:93-111`) — same precedent as `persistDraft` in `document-generate.ts`. The minutes also file a `Meeting` work card into the Knowledge Base (`fileWorkCard`, `run.ts:113-135`).
 
 ## Routes
 
@@ -107,7 +110,7 @@ All seven by-id routes resolve through `meetingStore()`, which filters on `tenan
 | Leg | How it is picked |
 |---|---|
 | Transcription | `AGENTFORGE_MEETING_ASR_MODEL` if pinned — one id, no fallback — else `transcriptionCandidates(cachedModelIds())` over `TRANSCRIPTION_PREF` (`packages/core/src/meeting/asr-model.ts`), head `gemini-3.5-flash`. That is a **chain**, not a pick: a model that refuses, times out or answers with nothing is dropped and the next is asked, and the first that answers is preferred for every remaining chunk. Empty when the catalog lists nothing that can hear — the caller falls back to a pasted transcript rather than inventing an id. |
-| Minutes and translation | `JOB_MODE_PREFERENCES.meeting` (`packages/core/src/models/mode-defaults.ts`), head `gpt-5.6-sol`; the owner's `documentGenModel` setting overrides, and the picker overrides that (`resolveMeetingModel`, `packages/host/src/meeting/run.ts:70-74`). |
+| Minutes and translation | `JOB_MODE_PREFERENCES.meeting` (`packages/core/src/models/mode-defaults.ts`), head `gpt-5.6-sol`; the owner's `documentGenModel` setting overrides, and the picker overrides that (`resolveMeetingModel`, `packages/host/src/meeting/run.ts:73-77`). A sheet that is not JSON is asked once more on the same model path. A translation that is not the same sheet is asked once more. Neither retry is a second model family. |
 
 ## The ASR-probe fix that came with this
 

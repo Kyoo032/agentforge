@@ -1,10 +1,5 @@
-import {
-  meetingMinutesSchema,
-  minutesNames,
-  NEEDS_OWNER,
-  UNVERIFIED_NAME,
-  type MeetingMinutes,
-} from "./minutes";
+import { FIGURE_NOT_SAID } from "./ground";
+import { meetingMinutesSchema, minutesNames, NEEDS_OWNER, UNVERIFIED_NAME, type MeetingMinutes } from "./minutes";
 
 export type MinutesGuardResult = {
   minutes: MeetingMinutes;
@@ -14,15 +9,13 @@ export type MinutesGuardResult = {
 };
 
 /** Markers the writer is allowed to emit; the guard must not second-guess its own stamps. */
-const EXEMPT = new Set<string>([NEEDS_OWNER, UNVERIFIED_NAME]);
+const EXEMPT = new Set<string>([NEEDS_OWNER, UNVERIFIED_NAME, FIGURE_NOT_SAID]);
 
 /** Tokens too short or too common to prove a person was named. */
 const SKIP_TOKEN = /^(?:the|and|dan|yang|pak|bu|ibu|bapak|mr|mrs|ms|dr|team|tim)$/i;
 
 function tokens(name: string): string[] {
-  return name
-    .split(/[^\p{L}\p{N}]+/u)
-    .filter((token) => token.length >= 3 && !SKIP_TOKEN.test(token));
+  return name.split(/[^\p{L}\p{N}]+/u).filter((token) => token.length >= 3 && !SKIP_TOKEN.test(token));
 }
 
 /**
