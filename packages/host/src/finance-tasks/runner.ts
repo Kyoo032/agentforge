@@ -1,9 +1,11 @@
 /**
  * One pipeline, every Finance task.
  *
- * validate → compute → facts → narrate → guard → report → save. The task module supplies the four
- * pieces that differ (schema, maths, facts, allowed figures) and nothing else; a task worker writes
- * no pipeline, so a task cannot quietly skip the guard or narrate a number it never computed.
+ * validate → compute → facts → narrate → guard → direction → report → save. The task module supplies
+ * the pieces that differ (schema, maths, facts, allowed figures, direction claims) and nothing else;
+ * a task worker writes no pipeline, so a task cannot quietly skip the guard or narrate a number it
+ * never computed. A reading that is not the sections is asked for once more. A sentence that quotes
+ * a computed figure and says the opposite of its direction is rewritten once, then dropped.
  *
  * The brief keeps the path it has always run (`finance-generate.ts`) — this runner is what the four
  * task flows land on.
@@ -30,8 +32,16 @@ import { renderMd } from "../renderers/md";
 import { upsertWorkSource } from "../knowledge-ingest";
 import { artifactWorkCard } from "../work-cards";
 import { readModelPinned, readPrompt, requireLive, resolveModel } from "./live";
+import { holdReadingDirection } from "./direction";
 import { FINANCE_TASK_SYSTEM, guardNarration, parseNarration, sectionRequest, type NarrationDraft } from "./narrate";
-import { FINANCE_TASK_REPAIR_SYSTEM, repairTaskProse, scrubReportMarkers, withRemovedFlag } from "./repair";
+import { askForReading } from "./reading";
+import {
+  FINANCE_TASK_REPAIR_SYSTEM,
+  repairTaskProse,
+  scrubReportMarkers,
+  withDirectionFlag,
+  withRemovedFlag,
+} from "./repair";
 import { financeTaskArtifactMeta, financeTaskProvenance, persistFinanceTaskReport } from "./persist";
 import type { FinanceTaskRunContext, FinanceTaskRunResult } from "./types";
 
@@ -233,30 +243,54 @@ export async function runFinanceTask<I, C>(
 
   throwIfJobAborted(abortSignal);
   emit({ type: "job.phase", phase: phases.finish, label: phases.finish });
-  const run = await narrate(module, computed, {
-    tenant,
-    model,
-    modelExplicit: readModelPinned(body),
-    locale,
-    question,
-    extra,
-  });
+  const answered = await askForReading(
+    async () => {
+      const run = await narrate(module, computed, {
+        tenant,
+        model,
+        modelExplicit: readModelPinned(body),
+        locale,
+        question,
+        extra,
+      });
+      return { run, draft: parseNarration(run.text, module.sections, question) };
+    },
+    () => {
+      emit({ type: "job.step", phase: phases.finish, label: "Asked once more for the reading" });
+    },
+  );
 
   throwIfJobAborted(abortSignal);
-  const { prose, guard } = await verifyNarration(parseNarration(run.text, module.sections, question), allowed, {
+  const verified = await verifyNarration(answered.draft, allowed, {
     tenant,
-    model: run.model,
+    model: answered.run.model,
     locale,
     factsBlock: module.promptFacts(computed, locale),
     emit,
     phase: phases.finish,
   });
+  const held = await holdReadingDirection(verified.prose.sections, module.directionClaims?.(computed) ?? [], {
+    tenant,
+    model: answered.run.model,
+    locale,
+    factsBlock: module.promptFacts(computed, locale),
+    allowed,
+    emit,
+    phase: phases.finish,
+  });
+  const prose = { ...verified.prose, sections: held.sections };
+  const guard = {
+    ...verified.guard,
+    removed: (verified.guard.removed ?? 0) + held.amountRemoved,
+    ...(held.directionRemoved > 0 ? { directionRemoved: held.directionRemoved } : {}),
+  };
 
   // Swept once more after the builder has had the prose: a note or a caption it wrote itself is
   // held to the same rule, so no export can carry the marker.
   const swept = scrubReportMarkers(module.buildReport(computed, prose, { locale, guard }));
   const removed = (guard.removed ?? 0) + swept.removed;
-  const report = withRemovedFlag(swept.report, removed, locale);
+  const report = withDirectionFlag(withRemovedFlag(swept.report, removed, locale), held.directionRemoved, locale);
+  const run = answered.run;
   const markdown = Buffer.from((await renderMd(report)).bytes).toString("utf8");
   const artifactId = persistFinanceTaskReport(
     tenant,

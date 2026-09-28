@@ -1,6 +1,6 @@
 # Map — Finance tasks: the catalog and the generic runner
 
-Last verified: 2026-09-27 for the chooser mascot: `/finance` with no `task` query (`showChooser`) mounts `ModeIllustration mode="finance"` before `FinanceChooser`. After the wave, the home pose is `calculating`. `/finance?task=brief` is the brief path, which already had its own empty-state slot. Earlier: 2026-09-26 at 083f925. Catalog sentences for every task are read in core (`plain-sentences.ts`) and covered by `sample-sentences.test.ts`. § 7 testids were re-read against the guided path on 2026-09-26 at 4477d27 (the read button moved to the footer; upload is first; task levers sit in `finance-task-advanced`) and driven on stub webdev.
+Last verified: 2026-09-28. A reading that is not the sections is asked for once more (`askForReading`, `packages/host/src/finance-tasks/reading.ts`), and a sentence that quotes a computed figure while saying the opposite of its direction is rewritten once then dropped (`holdReadingDirection`, `packages/host/src/finance-tasks/direction.ts`). Claims come from each task (`directionClaims` on `FinanceTaskModule`, `packages/core/src/finance/tasks/types.ts:62`). The guided three-step screen is unchanged. Earlier: 2026-09-27 for the chooser mascot. Catalog sentences for every task are read in core (`plain-sentences.ts`) and covered by `sample-sentences.test.ts`. § 7 testids were re-read against the guided path on 2026-09-26 at 4477d27.
 
 ## Overview
 
@@ -42,11 +42,11 @@ Each task declares exactly the steps its own graph draws, in order (`tasks.ts:63
 
 The strip renders them as `finance-phase-<id>` (`apps/web/components/finance-steps/finance-phase-strip.tsx:34`), labelled from `finance.phases.*` in the locale catalog.
 
-A run does **not** announce the whole graph. `runnerMathPhases` (`packages/host/src/finance-tasks/runner.ts:49-63`) emits only the `math` steps after the task's last shared step — everything before that already happened on the parse route — with a documented fallback so a run is never silent. `runnerPhases` (`:69-78`) then names the two the runner ends on: its last math step and its last step.
+A run does **not** announce the whole graph. `runnerMathPhases` (`packages/host/src/finance-tasks/runner.ts:59-73`) emits only the `math` steps after the task's last shared step — everything before that already happened on the parse route — with a documented fallback so a run is never silent. `runnerPhases` (`:69-78`) then names the two the runner ends on: its last math step and its last step.
 
 ### 3. What one task module is
 
-`FinanceTaskModule<Input, Computed>` (`packages/core/src/finance/tasks/types.ts:40-57`) is five things and nothing else:
+`FinanceTaskModule<Input, Computed>` (`packages/core/src/finance/tasks/types.ts:41-63`) is five things and nothing else:
 
 - `inputSchema` — the **confirmed** input, validated at the host boundary (`:46`);
 - `compute(input)` — plain arithmetic, no I/O, no model, no formatting (`:48`);
@@ -55,7 +55,7 @@ A run does **not** announce the whole graph. `runnerMathPhases` (`packages/host/
 - `allowedNumbers(input, computed)` — the only figures the guard will accept back (`:54`);
 - plus `sections`, the section ids the narration is asked for, in order (`:56`).
 
-The invariant is stated at `:9-12`: `compute` is the only place a number is produced, `promptFacts` the only thing the model sees, `allowedNumbers` the only thing the guard accepts. A task that narrates a figure it never declared has that figure stripped, by construction. `cashflow.ts` is the shape to copy — 47 lines of wiring over `../cashflow/**` (`packages/core/src/finance/tasks/cashflow.ts:27-47`).
+The invariant is stated at `:9-12`: `compute` is the only place a number is produced, `promptFacts` the only thing the model sees, `allowedNumbers` the only thing the guard accepts. `directionClaims` (`types.ts:62`) lists figures whose direction the code already decided; it produces no amount. A task that narrates a figure it never declared has that figure stripped, by construction. `cashflow.ts` is the shape to copy — wiring over `../cashflow/**` (`packages/core/src/finance/tasks/cashflow.ts`).
 
 The authoring contract is `packages/core/src/finance/tasks/README.md`: seven files per task, an explicit do-not-touch list (the registries, the runner, `parsers.ts`, the step registry), and the hard privacy requirement that a parse hook redacts its own rows with `guardFinanceInput({ lineItems })` before answering.
 
@@ -73,7 +73,7 @@ That is the practical consequence worth remembering: **`/finance/parse` is not u
 
 ### 5. The generic runner
 
-`generateFinanceBrief` hands anything that is not the brief to `runFinanceTask` (`packages/host/src/finance-generate.ts:173-179`). One pipeline, every task (`packages/host/src/finance-tasks/runner.ts:206-303`):
+`generateFinanceBrief` hands anything that is not the brief to `runFinanceTask` (`packages/host/src/finance-generate.ts`). One pipeline, every task (`packages/host/src/finance-tasks/runner.ts`):
 
 1. `readPrompt`, `requireLive`, `resolveModel` (`:211-213`).
 2. Source text redacted with `guardFinanceInput` on the same terms as the task's own rows (`:216-218`).
@@ -83,9 +83,11 @@ That is the practical consequence worth remembering: **`/finance/parse` is not u
 6. `module.compute(input)` and `module.allowedNumbers(...)`, then a `job.step` with the figure count.
 7. `narrate` (`:102-141`): `FINANCE_TASK_SYSTEM` (`packages/host/src/finance-tasks/narrate.ts:24-37`) plus the task's own bullet rules and the output-language rule, with a prompt of `promptFacts` + `sectionRequest` + source text + the question. The request's pin travels as `modelExplicit` through the one shared reader (`readModelPinned`, re-exported at `packages/host/src/finance-tasks/live.ts:45`), which reads a pin that names no model as no pin. Empty answer is 502 `generation_failed` (`runner.ts:138`).
 8. `parseNarration` (`narrate.ts:72-101`) keeps only the section ids the task asked for, in order; zero survivors is 502 `invalid_finance` (`:92-94`). The reader's own question is kept as `fallbackTitle`.
-9. `verifyNarration` (`runner.ts:161-196`) runs `guardNarration` (`narrate.ts:124`) over **everything the model wrote**, not only the bodies (2026-09-23). A title stating an untraced figure is replaced by the reader's own question, which is never counted against the model (`guardedTitle`, `:107-114`); a heading loses the figure and keeps its words; an assumption resting on one is dropped whole and counted as a removed sentence; a body keeps the marker for the repair. Then **one** rewrite of each marked section through `repairTaskProse` (`packages/host/src/finance-tasks/repair.ts:78`), which is an adapter onto the brief's `repairUnverifiedSections` — the logic lives in one place (`repair.ts:1-11`). The removed count is the guard's dropped assumptions plus the repair's removed sentences (`runner.ts:193`); it used to be the repair's alone, so a dropped assumption went unmentioned ([SR-76](../security-register.md#sr-76)).
-10. `module.buildReport(...)`, then `scrubReportMarkers` (`repair.ts:129`) sweeps the report's own notes and chart captions, because a builder may write prose too; `withRemovedFlag` (`:144`) tells the reader once.
-11. Markdown via `renderMd`, then `persistFinanceTaskReport` (`packages/host/src/finance-tasks/persist.ts:73`) with `financeTaskArtifactMeta` (`:53`) — the whole `FinanceReport` under `meta.report` (`:19`) behind the same 256 KB cap — and a Knowledge Base work card when an id came back (`runner.ts:278-290`).
+9. `askForReading` (`reading.ts`) wraps the narration and `parseNarration`. An empty answer or a body that is not the sections (`502` `generation_failed` or `invalid_finance`) is asked for once more, with the step "Asked once more for the reading". A second failure is the same error.
+10. `verifyNarration` runs `guardNarration` (`narrate.ts`) over **everything the model wrote**, not only the bodies (2026-09-23). A title stating an untraced figure is replaced by the reader's own question, which is never counted against the model; a heading loses the figure and keeps its words; an assumption resting on one is dropped whole and counted as a removed sentence; a body keeps the marker for the repair. Then **one** rewrite of each marked section through `repairTaskProse` (`packages/host/src/finance-tasks/repair.ts`), which is an adapter onto the brief's `repairUnverifiedSections`. The removed count is the guard's dropped assumptions plus the repair's removed sentences; it used to be the repair's alone, so a dropped assumption went unmentioned ([SR-76](../security-register.md#sr-76)).
+11. `holdReadingDirection` (`direction.ts`) rewrites once any section that quotes a `directionClaims` figure and says the opposite (`claim-direction.ts`). The heading stays. A sentence that still contradicts is dropped and counted on `guard.directionRemoved`, not on `guard.removed`. The flag is `DIRECTION_SENTENCE_FLAG` via `withDirectionFlag`. No claim, or no contradicting sentence, asks nothing. The step labels are "Reading contradicted a computed direction" and, only when a sentence is dropped, "N sentence(s) removed because they contradicted a computed direction".
+12. `module.buildReport(...)`, then `scrubReportMarkers` (`repair.ts`) sweeps the report's own notes and chart captions, because a builder may write prose too; `withRemovedFlag` tells the reader once about an untraced figure.
+13. Markdown via `renderMd`, then `persistFinanceTaskReport` (`packages/host/src/finance-tasks/persist.ts:73`) with `financeTaskArtifactMeta` (`:53`) — the whole `FinanceReport` under `meta.report` (`:19`) behind the same 256 KB cap — and a Knowledge Base work card when an id came back (`runner.ts`).
 
 The result is `FinanceTaskRunResult` (`packages/host/src/finance-tasks/types.ts:22-38`): `task`, `report`, `artifactId`, `markdown`, `guard`, `pii`, and optionally `model`, `notice` and `warnings`. The brief answers with a `FinanceBrief` instead; the studio branches on which arrived (`apps/web/components/finance-steps/finance-result-panel.tsx:43-46`).
 
@@ -111,7 +113,7 @@ The read button is shared. Until rows are confirmed it is `finance-parse` (`apps
 
 All five render `ArtifactActions` with `testIdPrefix="finance"`, so the `finance-actions` / `finance-download` / `finance-send-kb` bar is the same everywhere. All but budget render `FinanceReportCharts`; budget draws `budget-variance-bars` (`budget/variance-bars.tsx:35`) instead.
 
-Chart ids, which become `finance-chart-<id>` (`apps/web/components/finance-charts/chart-frame.tsx:47`): brief `margin-growth` (`packages/core/src/finance/report-brief.ts:209`), cashflow `cash-balance` / `net-cash` (`cashflow/report-charts.ts:64`, `:88`), budget `variance-bars` / `variance-by-period` (`budget/report.ts:98`, `:114`), appraisal `cumulative-cash-flow` / `sensitivity` (`appraisal/report.ts:132`, `:148`), ratios `gauge-<key>` (`ratios/report.ts:86`).
+Chart ids, which become `finance-chart-<id>` (`apps/web/components/finance-charts/chart-frame.tsx:47`): brief `margin-growth` (`packages/core/src/finance/report-brief.ts:216`), cashflow `cash-balance` / `net-cash` (`cashflow/report-charts.ts:64`, `:88`), budget `variance-bars` / `variance-by-period` (`budget/report.ts:98`, `:114`), appraisal `cumulative-cash-flow` / `sensitivity` (`appraisal/report.ts:132`, `:148`), ratios `gauge-<key>` (`ratios/report.ts:86`).
 
 ### 8. The eval harness (dev-only, never ships)
 
@@ -177,7 +179,9 @@ The workbook fixes are pinned by evaluating the Calc formulas in the test itself
 | `packages/core/src/finance/tasks/README.md` | The task-authoring contract: seven files, the do-not-touch list, the privacy rule |
 | `packages/core/src/finance/tasks/{brief,cashflow,budget,appraisal,ratios}.ts` | One task module each, wiring only |
 | `packages/core/src/finance/{cashflow,budget,appraisal,ratios}/` | The arithmetic, one module per question, plus `facts.ts` and `report*.ts` |
-| `packages/host/src/finance-tasks/runner.ts` | The one pipeline: validate → compute → narrate → guard → report → save |
+| `packages/host/src/finance-tasks/runner.ts` | The one pipeline: validate → compute → narrate → guard → direction → report → save |
+| `packages/host/src/finance-tasks/reading.ts`, `direction.ts` | Ask once more for a reading; rewrite once a sentence that contradicts a computed direction |
+| `packages/core/src/finance/claim-direction.ts` | The sentence check. It compares words. It never produces an amount |
 | `packages/host/src/finance-tasks/parsers.ts`, `parse-<task>.ts` | Which parse hook the route runs, and the five hooks |
 | `packages/host/src/finance-tasks/narrate.ts`, `repair.ts` | The narration prompt and the guard/repair adapter |
 | `packages/host/src/finance-tasks/persist.ts`, `report-schema.ts` | The stored report and its boundary schema |
@@ -196,7 +200,7 @@ The workbook fixes are pinned by evaluating the Calc formulas in the test itself
 - **Parse is keyless for most tasks.** Cashflow, budget, and the appraisal's grid and sentence reads never call `requireLive`; ratios only does when a label needs placing (`packages/host/src/finance-tasks/parse-ratios.ts:157`). Only the brief's parse refuses a keyless desk outright. Generate still needs a key on every task.
 - **There is no coming-soon panel.** It was removed on 2026-09-17; every task is `available: true`, so the studio's one-line `finance-task-unavailable` fallback never renders and `finance_task_unavailable` is never thrown. `finance-task-coming-soon`, `finance-task-sample` and `finance-coming-soon-back` no longer exist. Do not write a recipe around any of them without first re-reading `tasks.ts`.
 - **The brief's prompt must stay byte-identical.** `task-rules.ts:22` gives `brief` no bullets on purpose, and `withFinanceTaskRules` returns the base string untouched when the list is empty (`packages/host/src/finance-task.ts:48`). Adding a "harmless" brief rule changes a shipping prompt.
-- **The runner announces fewer phases than the strip draws.** Everything up to the task's last shared step happened on the parse route; re-emitting it would tell the reader work is being redone (`packages/host/src/finance-tasks/runner.ts:38-48`). A `finance-phase-*` chip with no matching `job.phase` is correct.
+- **The runner announces fewer phases than the strip draws.** Everything up to the task's last shared step happened on the parse route; re-emitting it would tell the reader work is being redone (`packages/host/src/finance-tasks/runner.ts:48-58`). A `finance-phase-*` chip with no matching `job.phase` is correct.
 - **A section id is the task's, not the model's.** `parseNarration` drops a section the task did not ask for rather than renaming it (`narrate.ts:83`, `:91`), and the repair carries the id through even when the rewrite renames the heading (`repair.ts:74-76`).
 - **`[unverified figure]` must never reach a reader.** It is guarded, rewritten once, then the sentence is removed, and the finished report is swept again for notes and chart captions the builder wrote itself (`repair.ts:129`). Seeing the marker in an export is a bug, not the guard working.
 - **The budget pairing is the only stage that leaves the desk, and it sends labels.** No amount, period, scenario or filename (`budget-embed.ts:3-9`). A stub-runtime embedding is discarded rather than scored, and the screen says `budget-embedding-note`.
@@ -215,7 +219,7 @@ Tests: `packages/core/src/finance/tasks.test.ts`, `tasks/registry.test.ts`, `tas
 
 **Why a registry of modules rather than a switch.** `[Direct]` `packages/core/src/finance/tasks/registry.ts:3-8`: "One import per task file and nothing else: a worker building a task replaces exactly one file and flips one `available` flag, and never edits a switch this file would otherwise grow." `[Direct]` the same reasoning is repeated at the three other seams — `parsers.ts:3-6`, `apps/web/components/finance-steps/registry.tsx:5-8`, and the do-not-touch list in `tasks/README.md`. `[Inferred]` the shape is chosen for four workers building four tasks in parallel, which is what the README says it is for. **Confidence: high** — the intent is written at every seam it applies to.
 
-**Why the brief keeps its own code path.** `[Direct]` `packages/host/src/finance-tasks/runner.ts:9-10`: "The brief keeps the path it has always run (`finance-generate.ts`) — this runner is what the four task flows land on", and `packages/core/src/finance/task-rules.ts:6-10` gives the same reason for the empty rule set: the brief ships today and the catalog must not move it. **Confidence: high.**
+**Why the brief keeps its own code path.** `[Direct]` `packages/host/src/finance-tasks/runner.ts:11-12`: "The brief keeps the path it has always run (`finance-generate.ts`) — this runner is what the four task flows land on", and `packages/core/src/finance/task-rules.ts:6-10` gives the same reason for the empty rule set: the brief ships today and the catalog must not move it. **Confidence: high.**
 
 **Why the guard runs last for every task, without the task's help.** `[Direct]` `packages/core/src/finance/tasks/types.ts:9-12` names the invariant, and `runFinanceTask` is the only caller of `guardNarration` and `repairTaskProse`, so a task module has no way to skip it (`runner.ts:244-251`). `[Supported]` `tasks/README.md` tells authors that a figure shown by `promptFacts` but absent from `allowedNumbers` is stripped and that this is the author's bug, not the guard's. **Confidence: high.**
 

@@ -5,6 +5,7 @@
  * `[unverified figure]`, and that would be a bug in this file rather than in the guard — so the
  * list is built once and read twice, and a test holds the two readings against each other.
  */
+import type { DirectionClaim } from "../claim-direction";
 import type { ReportLocale } from "../report";
 import type { LineItem } from "../types";
 import type { AppraisalComputed } from "./compute";
@@ -222,4 +223,28 @@ export function appraisalAllowedNumbers(
   const inputs = items.flatMap((item) => magnitudeReadings(item.amount));
   const axes = [...computed.ratePercents, ...computed.shiftPercents, computed.periods.length];
   return [...new Set([...inputs, ...values, ...axes].filter((value) => Number.isFinite(value)))];
+}
+
+const NPV_POSITIVE: DirectionClaim["agree"] = [
+  { en: "positive npv", id: "npv positif" },
+  { en: "npv is positive", id: "npv bernilai positif" },
+];
+const NPV_NEGATIVE: DirectionClaim["agree"] = [
+  { en: "negative npv", id: "npv negatif" },
+  { en: "npv is negative", id: "npv bernilai negatif" },
+];
+
+/** The sign of NPV. A sentence has to quote that figure and name the sign. */
+export function appraisalDirectionClaims(computed: AppraisalComputed): readonly DirectionClaim[] {
+  if (computed.npv === null || !Number.isFinite(computed.npv) || computed.npv === 0) {
+    return [];
+  }
+  const negative = computed.npv < 0;
+  return [
+    {
+      amount: computed.npv,
+      agree: negative ? NPV_NEGATIVE : NPV_POSITIVE,
+      contradict: negative ? NPV_POSITIVE : NPV_NEGATIVE,
+    },
+  ];
 }

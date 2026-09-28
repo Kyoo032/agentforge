@@ -142,7 +142,7 @@ There are **two independent locale channels per job call**, and getting one righ
 |---|---|
 | documents / finance | `packages/host/src/document-generate.ts:94`, section regen `:247` |
 | data | `packages/host/src/data-generate.ts:255` |
-| finance | `packages/host/src/finance-generate.ts:209`, the repair `:237`, section regen `:358` and its repair `:373` |
+| finance | `packages/host/src/finance-generate.ts:212`, the repair `:237`, section regen `:358` and its repair `:373` |
 | research | `packages/host/src/research-generate.ts:146` |
 | knowledge | `packages/host/src/knowledge-map.ts:136` (brain), `:158` (verifier) |
 | edit | `packages/host/src/edit/agent-run.ts:172` |

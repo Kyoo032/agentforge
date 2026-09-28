@@ -28,6 +28,13 @@ export {
   isFreeNumber,
   matchesAllowed,
 } from "./number-guard";
+export {
+  contradictingSentences,
+  sentenceContradictsClaim,
+  sentenceContradictsDirection,
+  withoutContradictingSentences,
+} from "./claim-direction";
+export type { DirectionClaim, DirectionWord } from "./claim-direction";
 export type { GuardResult, NumberToken } from "./number-guard";
 export { computeFinance, formatMetricForPrompt } from "./metrics";
 export type { ComputedFinance, FinanceComputeOptions, FinanceParams, StatedCheck } from "./metrics";
@@ -146,6 +153,7 @@ export type {
 } from "./report";
 export {
   ASSUMPTIONS_HEADING,
+  DIRECTION_SENTENCE_FLAG,
   KPI_MAX,
   REMOVED_SENTENCE_FLAG,
   financeReportFromBrief,

@@ -53,6 +53,7 @@ Nothing below is closed by 0.14.27. Carried forward as-is.
 
 ## Log
 
+- **2026-09-28** — Finance asks once more when a reading is not the sections, and rewrites once a sentence that quotes a computed figure while saying the opposite of its direction. Figures stay computed in core. The guided three-step screen is unchanged. Not packed. Maps: [`maps/finance-tasks.md`](maps/finance-tasks.md), [`maps/finance-parse-and-generate.md`](maps/finance-parse-and-generate.md).
 - **2026-09-27** — A PDF or Word extract budget of zero fails before the parse can win. The fallback path, the PDF worker, and the docx deadline used to wait at least 1ms, so a warm parse of a tiny file could finish first. Not packed.
 - **2026-09-27** — Education’s first screen is a lesson topic and Create. Quiz, a page, show, save, and shape tools sit in More (`education-more`). The lesson uses the same simple slide stage as Presentation: no permanent shape bar, and a toolbar only while a shape is selected. The quiz and the show view each have one primary action. The presenting mascot stays on the empty lesson. Not packed. Map: [`maps/education.md`](maps/education.md).
 - **2026-09-27** — Presentation’s first screen is a topic, length and style chips, and Create. Download is the only primary button once the slides are up. Builder, model, starters, templates, source, movement, save, notes, and shape tools sit in More (`presentations-more`). A selected shape or Open Slide block gets a small toolbar on the slide. The default builder is Open Slide, so a stub desk can Create without a key. Education still uses the full Nultron stage. Not packed.
@@ -403,7 +404,7 @@ with the changes; this entry does not claim a full run of any suite.
   `packages/core/src/finance/ratios/compute.ts:138`).
 - **Both — a brief whose repair emptied a section answered 500.** The section now keeps its heading
   and says, in the reader's language and without a figure, that its text was removed
-  (`EMPTIED_SECTION_BODY`, `packages/host/src/finance-generate.ts:74`).
+  (`EMPTIED_SECTION_BODY`, `packages/host/src/finance-generate.ts:77`).
 - **Both — a pin with no model held a Finance job to the host default.** Finance now uses the one
   `readModelPinned` every job shares, which is no pin without a model
   (`packages/host/src/job-regen.ts:43`, re-exported at `packages/host/src/finance-tasks/live.ts:45`).

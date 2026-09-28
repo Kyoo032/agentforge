@@ -12,7 +12,7 @@
  */
 import { z } from "zod";
 import { computeAppraisal, type AppraisalComputed, type AppraisalParams } from "../appraisal/compute";
-import { appraisalAllowedNumbers, appraisalPromptFacts } from "../appraisal/facts";
+import { appraisalAllowedNumbers, appraisalDirectionClaims, appraisalPromptFacts } from "../appraisal/facts";
 import { APPRAISAL_SECTIONS } from "../appraisal/labels";
 import { appraisalReport } from "../appraisal/report";
 import type { FinanceReport, ReportLocale } from "../report";
@@ -86,4 +86,5 @@ export const appraisalTaskModule: FinanceTaskModule<AppraisalTaskInput, Appraisa
     return appraisalAllowedNumbers(input.items, computed);
   },
   sections: APPRAISAL_SECTIONS,
+  directionClaims: appraisalDirectionClaims,
 };

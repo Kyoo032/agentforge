@@ -8,6 +8,7 @@
  */
 import {
   budgetAllowedNumbers,
+  budgetDirectionClaims,
   budgetInputSchema,
   budgetPromptFacts,
   budgetReport,
@@ -48,4 +49,5 @@ export const budgetTaskModule: FinanceTaskModule<BudgetTaskInput, BudgetComputed
     return budgetAllowedNumbers(input, computed);
   },
   sections: SECTIONS,
+  directionClaims: budgetDirectionClaims,
 };

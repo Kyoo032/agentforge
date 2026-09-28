@@ -545,6 +545,7 @@
     "derivedBadge": "Total",
     "statedFactsTitle": "Tertulis di dokumen",
     "statedFactsHint": "Angka yang disebut berkas ini di dalam kalimat, bukan di dalam tabel.",
-    "removedSentence": "Satu kalimat dihapus karena angkanya tidak bisa ditelusuri."
+    "removedSentence": "Satu kalimat dihapus karena angkanya tidak bisa ditelusuri.",
+    "directionSentence": "Satu kalimat dihapus karena isinya berlawanan dengan angka yang sudah dihitung."
   }
 }

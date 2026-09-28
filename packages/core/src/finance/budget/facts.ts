@@ -9,8 +9,15 @@
  * facts actually print — the guard compares what the model wrote, and the model writes what it was
  * shown. A figure in one list and not the other is a bug here, not in the guard.
  */
+import type { DirectionClaim } from "../claim-direction";
 import type { ReportLocale } from "../report";
-import { budgetAggregate, budgetCurrency, flaggedBudgetLines, type BudgetComputed, type BudgetTaskInput } from "./compute";
+import {
+  budgetAggregate,
+  budgetCurrency,
+  flaggedBudgetLines,
+  type BudgetComputed,
+  type BudgetTaskInput,
+} from "./compute";
 import { BUDGET_PERCENT_DECIMALS, formatBudgetAmount, formatBudgetPercent } from "./format";
 import { budgetAggregateName, budgetDirectionWord, budgetThresholdSentence, budgetWord } from "./text";
 import type { BudgetVarianceCell, BudgetVarianceLine } from "./variance";
@@ -77,17 +84,17 @@ function flaggedBlock(computed: BudgetComputed, locale: ReportLocale, currency: 
 
 /** The trap this task exists to catch: four bad quarters that net to nothing over the year. */
 function periodOnlyBlock(computed: BudgetComputed, locale: ReportLocale, currency: string): string[] {
-  const lines = computed.lines.filter(
-    (line) => !line.total.flagged && line.periods.some((cell) => cell.flagged),
-  );
+  const lines = computed.lines.filter((line) => !line.total.flagged && line.periods.some((cell) => cell.flagged));
   return lines.length === 0
     ? []
     : [
         heading("periodOnly", locale),
-        ...lines.slice(0, BUDGET_FACT_LINE_MAX).flatMap((line) => [
-          lineFact(line, locale, currency),
-          ...periodFacts(line, locale, currency).filter((_text, at) => line.periods[at]?.flagged === true),
-        ]),
+        ...lines
+          .slice(0, BUDGET_FACT_LINE_MAX)
+          .flatMap((line) => [
+            lineFact(line, locale, currency),
+            ...periodFacts(line, locale, currency).filter((_text, at) => line.periods[at]?.flagged === true),
+          ]),
       ];
 }
 
@@ -109,9 +116,7 @@ function unmatchedBlock(computed: BudgetComputed, locale: ReportLocale): string[
 
 function countsBlock(computed: BudgetComputed, locale: ReportLocale): string[] {
   const perPeriod =
-    computed.periods.length < 2
-      ? []
-      : computed.flagCounts.byPeriod.map((entry) => `- ${entry.period}: ${entry.count}`);
+    computed.periods.length < 2 ? [] : computed.flagCounts.byPeriod.map((entry) => `- ${entry.period}: ${entry.count}`);
   return [
     heading("counts", locale),
     `- ${budgetWord("linesCount", locale)}: ${computed.lines.length}`,
@@ -192,4 +197,22 @@ export function budgetAllowedNumbers(input: BudgetTaskInput, computed: BudgetCom
       ),
     ),
   ];
+}
+
+const FAVOURABLE: DirectionClaim["agree"] = [{ en: "favourable", id: "menguntungkan" }];
+const UNFAVOURABLE: DirectionClaim["agree"] = [{ en: "unfavourable", id: "tidak menguntungkan" }];
+
+/** One claim per non-neutral line, on the actual and on the variance — never on the budget itself. */
+export function budgetDirectionClaims(computed: BudgetComputed): readonly DirectionClaim[] {
+  return computed.lines.flatMap((line) => {
+    const direction = line.total.direction;
+    if (direction === "neutral") {
+      return [];
+    }
+    const agree = direction === "favourable" ? FAVOURABLE : UNFAVOURABLE;
+    const contradict = direction === "favourable" ? UNFAVOURABLE : FAVOURABLE;
+    return [line.total.actual, line.total.variance]
+      .filter((amount) => Number.isFinite(amount))
+      .map((amount) => ({ amount, agree, contradict }));
+  });
 }

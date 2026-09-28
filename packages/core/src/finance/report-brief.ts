@@ -68,6 +68,8 @@ export type GuardFlags = {
   readonly total: number;
   /** Sentences taken out because their figure could not be traced even after one rewrite. */
   readonly removed?: number;
+  /** Sentences taken out because they quoted a computed figure and said the opposite direction. */
+  readonly directionRemoved?: number;
 };
 
 /**
@@ -78,6 +80,11 @@ export type GuardFlags = {
 export const REMOVED_SENTENCE_FLAG: Record<ReportLocale, string> = {
   en: "One sentence was removed because its figure could not be traced.",
   id: "Satu kalimat dihapus karena angkanya tidak bisa ditelusuri.",
+};
+
+export const DIRECTION_SENTENCE_FLAG: Record<ReportLocale, string> = {
+  en: "One sentence was removed because it said the opposite of a computed figure.",
+  id: "Satu kalimat dihapus karena isinya berlawanan dengan angka yang sudah dihitung.",
 };
 
 export type FinanceReportOptions = {
@@ -232,10 +239,14 @@ function flagsOf(summary: readonly ReportKpi[], guard?: GuardFlags, locale: Repo
     (guard?.removed ?? 0) > 0
       ? [{ level: "watch" as const, text: REMOVED_SENTENCE_FLAG[locale] ?? REMOVED_SENTENCE_FLAG.en }]
       : [];
+  const direction =
+    (guard?.directionRemoved ?? 0) > 0
+      ? [{ level: "watch" as const, text: DIRECTION_SENTENCE_FLAG[locale] ?? DIRECTION_SENTENCE_FLAG.en }]
+      : [];
   const banded = summary
     .filter((kpi) => kpi.flag === "risk" || kpi.flag === "watch")
     .map((kpi) => ({ level: kpi.flag as ReportFlagLevel, text: kpiText(kpi) }));
-  return [...stripped, ...removed, ...banded];
+  return [...stripped, ...removed, ...direction, ...banded];
 }
 
 /** Today's computed brief, seen as the format-neutral report every renderer reads. */

@@ -13,13 +13,14 @@
  * language the request asked for rather than the one the process happened to boot in.
  */
 import { z } from "zod";
+import type { DirectionClaim } from "../claim-direction";
 import type { FinanceReport, ReportLocale } from "../report";
 import { lineItemsSchema } from "../types";
 import { ratioBandOverrideSchema, ratioBandTable } from "../ratios/bands";
 import { classifyRatioRows, ratioBucketOverrideSchema, type RatioRowInput } from "../ratios/classify";
 import { computeRatios, type ComputedRatios, type RatioParams, type RatioSupporting } from "../ratios/compute";
 import { ratioStatedRowSchema } from "../ratios/stated";
-import { ratioAllowedNumbers, ratioPromptFacts } from "../ratios/facts";
+import { ratioAllowedNumbers, ratioDirectionClaims, ratioPromptFacts } from "../ratios/facts";
 import { ratioReport } from "../ratios/report";
 import type { FinanceTaskModule, FinanceTaskProse, FinanceTaskReportOptions, FinanceTaskSection } from "./types";
 
@@ -150,4 +151,7 @@ export const ratiosTaskModule: FinanceTaskModule<RatiosTaskInput, RatiosComputed
     return [...new Set([...input.items.map((item) => item.amount), ...ratioAllowedNumbers(computed.ratios)])];
   },
   sections: SECTIONS,
+  directionClaims(computed: RatiosComputed): readonly DirectionClaim[] {
+    return ratioDirectionClaims(computed.ratios);
+  },
 };

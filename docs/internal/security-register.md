@@ -1881,12 +1881,12 @@ in the places a reader trusts most — or shows them a marker instead of a figur
   replaced whole, by the default or, for a task, by the reader's own question; a heading loses the
   figure and keeps its words; an assumption resting on one is dropped and counted as a removed
   sentence. The marker is never left in any of them (`guardLabel`, `guardTitle`, `guardAssumptions`,
-  `packages/host/src/finance-brief-build.ts:121`, `:140`, `:149`; `buildFinanceBrief`, `:191`;
+  `packages/host/src/finance-brief-build.ts:123`, `:142`, `:151`; `buildFinanceBrief`, `:193`;
   `guardNarration`, `packages/host/src/finance-tasks/narrate.ts:124`; the removed count carried
-  through at `packages/host/src/finance-generate.ts:246` and `packages/host/src/finance-tasks/runner.ts:193`).
+  through at `packages/host/src/finance-generate.ts:269` and `packages/host/src/finance-tasks/runner.ts:203`).
 - A section regenerate runs the same repair a generate does — one rewrite of what the guard blanked,
   then the sentence goes — and keeps the section it was asked to replace when nothing traceable is
-  left (`packages/host/src/finance-generate.ts:367-378`).
+  left (`packages/host/src/finance-generate.ts:391-402`).
 
 Tests: `packages/core/src/finance/number-guard.test.ts` "frees only a bare year or a bare small
 count, never a written amount"; `packages/host/src/finance-brief-build.test.ts` and

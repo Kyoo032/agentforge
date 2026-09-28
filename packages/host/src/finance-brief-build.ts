@@ -35,6 +35,8 @@ export type GuardReport = {
   total: number;
   /** Sentences taken out because their figure could not be traced even after one rewrite. */
   removed?: number;
+  /** Sentences taken out because they quoted a computed figure and said the opposite direction. */
+  directionRemoved?: number;
 };
 
 export type FinanceInputs = { items: LineItem[]; params: FinanceParams };
