@@ -445,6 +445,7 @@ export {
   knowledgeVerifierPrompt,
 } from "./knowledge/rag";
 export type { KnowledgeMap, KnowledgeMapTopic, KnowledgeModels } from "./knowledge/rag";
+export { dropSourceIds, groundKnowledgeMap, knowledgeMissBlock } from "./knowledge/harness";
 export {
   pickPreferredJobModel,
   resolveModeDefaults,

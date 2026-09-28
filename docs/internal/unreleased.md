@@ -560,3 +560,10 @@ Host and renderer, both products. Nothing packed.
 - **Restart waits for the language save.** The banner can show while `POST /api/v1/settings` is in flight. The Restart button stays disabled until that save resolves, and the click applies the locale that landed on disk. A failed save does not call `apply-locale`.
 - **Shape toolbar clicks keep the selection.** On the simple Presentation stage (starter and Education lesson), a pointerdown on Duplicate, Fill, Stroke, the shape text, or Remove used to clear the selection because the toolbar is drawn inside the stage. The stage now ignores that toolbar, so the click runs. Open Slide is unchanged.
 - **Edit transport and the timeline hint follow the desk language.** `edit-play` and the timeline zoom, hint, and trim names read the `edit` catalog (`Putar` / `snap: bingkai…` on `id`). The rest of the Edit chrome below the header is still literal English.
+
+## Knowledge harness, 2026-09-28 (not packed)
+
+Host and core, both products. Nothing packed. No new control on `/knowledge`.
+
+- **A question the saved notes do not cover says so.** `knowledgeInjection` still retrieves. When the question is non-empty and no chunk comes back, `## Retrieved sources` is the desk-language miss line (`withOutputLanguage`, surface `knowledge`) instead of an empty omission. A scan stays `needs_ocr` / `pdf_no_text_layer`.
+- **A deleted source leaves the saved map.** Removing a source, including an orphan sweep, strips that id from the map. A topic that cited only that id is dropped, and `ready` follows what remains. A live map drops unknown ids the same way, and a map whose text is not JSON is asked once more.
