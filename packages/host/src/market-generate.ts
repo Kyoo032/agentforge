@@ -1,6 +1,7 @@
 /**
  * Market Watch job: resolving -> quotes -> technicals -> charts -> news ->
- * macro -> drafting -> verifying -> saving.
+ * macro -> (one retry when a source stayed quiet) -> drafting -> verifying ->
+ * (one rewrite when a figure is not in the packet) -> saving.
  *
  * The host builds the packet (any tickers, several at once, through the
  * cache), the model writes the briefing over the packet plus the user's
@@ -25,10 +26,14 @@ import {
   DEFAULT_MARKET_SPECIALIST,
   TEAM_MAX_CALLS,
   analystsFor,
+  buildFigureRepairPrompt,
   buildWatchSystemPrompt,
+  chooseRetriedPacket,
   harnessFor,
   marketWatchRequestSchema,
+  needsSourceRetry,
   packetToPromptBlock,
+  quietSourceGapCount,
   teamAvailable,
   type MarketSpecialist,
   type MarketToolKey as HarnessToolKey,
@@ -110,6 +115,32 @@ const PHASE_LABELS: Readonly<Record<PacketPhase, string>> = {
   news: "Reading headlines",
   macro: "Reading macro levels",
 };
+
+/** Labels for the two skills the packet phases do not already cover, in the briefing language. */
+const SKILL_PHASE_LABELS = {
+  retrying: {
+    en: "Trying that reading once more",
+    id: "Mencoba pembacaan itu sekali lagi",
+  },
+  repairing: {
+    en: "Rewriting a figure the packet does not have",
+    id: "Menulis ulang angka yang tidak ada di data",
+  },
+} as const;
+
+function skillPhaseLabel(phase: keyof typeof SKILL_PHASE_LABELS, language: MarketWatchRequest["language"]): string {
+  return SKILL_PHASE_LABELS[phase][language];
+}
+
+function retryStepLabel(language: MarketWatchRequest["language"], filled: boolean): string {
+  if (language === "en") {
+    return filled ? "The second reading filled a hole" : "That source was still quiet";
+  }
+  return filled ? "Pembacaan kedua mengisi bagian yang kosong" : "Sumber itu masih diam";
+}
+
+/** A rewrite that did not come back as a briefing. The guarded draft is kept. */
+const FIGURE_REPAIR_FAILURE = "figure repair: the rewrite was not a briefing";
 
 export type MarketWatchResult = {
   briefing: MarketBriefing;
@@ -342,8 +373,8 @@ export function startDraftingHeartbeat(emit: JobEmitter, intervalMs: number = DR
   return () => clearInterval(timer);
 }
 
-/** resolving -> quotes -> technicals -> charts -> news -> macro, then the "no ticker" gate and a failures step. */
-async function loadPacket(run: WatchRun): Promise<LoadedPacket> {
+/** One gather: resolving -> quotes -> technicals -> charts -> news -> macro. No gate yet. */
+async function gatherPacket(run: WatchRun): Promise<{ packet: MarketWatchPacket; failures: string[] }> {
   const { resolved, request, emit, abortSignal } = run;
   const db = await resolved.db();
   const { packet, failures } = await resolved.buildPacket(db, request, {
@@ -357,19 +388,43 @@ async function loadPacket(run: WatchRun): Promise<LoadedPacket> {
       }
     },
   });
-  requireTickers(packet, failures);
-  const tickerFailures = packet.tickers.flatMap((ticker) =>
+  return { packet, failures };
+}
+
+function withTickerFailures(loaded: { packet: MarketWatchPacket; failures: string[] }): LoadedPacket {
+  const tickerFailures = loaded.packet.tickers.flatMap((ticker) =>
     ticker.failures.map((entry) => `${ticker.symbol.yahoo}: ${entry}`),
   );
-  if (failures.length > 0 || tickerFailures.length > 0) {
+  return { ...loaded, tickerFailures };
+}
+
+/**
+ * Gather the packet. When a source stayed quiet (not an unknown symbol), gather
+ * once more and keep the attempt with fewer holes. Then the "no ticker" gate.
+ */
+async function loadPacket(run: WatchRun): Promise<LoadedPacket> {
+  const { request, emit, abortSignal } = run;
+  let loaded = await gatherPacket(run);
+  if (needsSourceRetry(loaded)) {
+    emit({ type: "job.phase", phase: "retrying", label: skillPhaseLabel("retrying", request.language) });
+    throwIfJobAborted(abortSignal);
+    const second = await gatherPacket(run);
+    const chosen = chooseRetriedPacket(loaded, second);
+    const filled = quietSourceGapCount(chosen) < quietSourceGapCount(loaded);
+    loaded = chosen;
+    emit({ type: "job.step", phase: "retrying", label: retryStepLabel(request.language, filled) });
+  }
+  const full = withTickerFailures(loaded);
+  requireTickers(full.packet, full.failures);
+  if (full.failures.length > 0 || full.tickerFailures.length > 0) {
     emit({
       type: "job.step",
       phase: "macro",
       label: "Some sources were unavailable",
-      detail: [...failures, ...tickerFailures].join("; "),
+      detail: [...full.failures, ...full.tickerFailures].join("; "),
     });
   }
-  return { packet, failures, tickerFailures };
+  return full;
 }
 
 /** The model writes the briefing over the packet; a heartbeat step keeps the progress list alive meanwhile. */
@@ -498,6 +553,69 @@ function verifyBriefing(
 }
 
 /**
+ * One rewrite when the draft stated a figure the packet does not carry.
+ * No tools: the packet in the prompt is the only source of numbers. A rewrite
+ * that does not parse is discarded and the guarded draft is what gets saved.
+ * Directive language is not sent back to the model; the advice guard already
+ * replaced it.
+ */
+async function repairFlaggedFigures(
+  run: WatchRun,
+  drafted: Drafted,
+  verified: VerifiedBriefing,
+  packet: MarketWatchPacket,
+  team: TeamOutcome,
+): Promise<{ drafted: Drafted; verified: VerifiedBriefing; failure: string | null }> {
+  if (verified.guard.total === 0) {
+    return { drafted, verified, failure: null };
+  }
+  const { tenant, request, model, modelExplicit, resolved, emit, abortSignal } = run;
+  emit({ type: "job.phase", phase: "repairing", label: skillPhaseLabel("repairing", request.language) });
+  try {
+    const reply = await withClientAbort(
+      () =>
+        resolved.ask({
+          tenant,
+          model,
+          modelExplicit,
+          signal: abortSignal,
+          systemPrompt: buildWatchSystemPrompt({
+            language: request.language,
+            maxChars: request.maxChars,
+            clockNote: packet.clock.note,
+            specialist: request.specialist,
+          }),
+          runPrefix: "market",
+          agentId: "market",
+          jobMode: "market",
+          versionId: "market-figure-repair",
+          prompt: buildFigureRepairPrompt({
+            language: request.language,
+            packetBlock: packetToPromptBlock(packet, request.specialist),
+            draft: drafted.raw,
+            flagged: verified.guard.flagged.map((hit) => hit.text),
+          }),
+          toolKeys: [],
+          streamWatchdog: MARKET_STREAM_WATCHDOG,
+        }),
+      abortSignal,
+    );
+    const answer = answerOf(reply, model);
+    parseBriefingDraft(answer.text);
+    return {
+      drafted: { raw: answer.text, answeredBy: answer.model },
+      verified: verifyBriefing(run, answer.text, packet, team),
+      failure: null,
+    };
+  } catch (error) {
+    if (error instanceof ApiError && error.code === "aborted") {
+      throw error;
+    }
+    return { drafted, verified, failure: FIGURE_REPAIR_FAILURE };
+  }
+}
+
+/**
  * Final advice gate, markdown, the `market` / `briefing` artifact, and the automatic work card.
  *
  * The card is the same auto-ingest every other analyst desk writes at this point (Finance, Data,
@@ -582,14 +700,16 @@ export async function generateMarketBriefing(
   throwIfJobAborted(abortSignal);
   const verified = verifyBriefing(run, drafted.raw, loaded.packet, drafted.team);
   throwIfJobAborted(abortSignal);
+  const repaired = await repairFlaggedFigures(run, drafted, verified, loaded.packet, drafted.team);
+  throwIfJobAborted(abortSignal);
   return await saveBriefing(
     run,
-    verified,
+    repaired.verified,
     {
       ...loaded,
-      failures: [...loaded.failures, ...drafted.team.failures],
+      failures: [...loaded.failures, ...drafted.team.failures, ...(repaired.failure ? [repaired.failure] : [])],
     },
-    drafted.answeredBy,
+    repaired.drafted.answeredBy,
   );
 }
 

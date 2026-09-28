@@ -164,11 +164,19 @@ export {
   DEFAULT_WATCH_PROMPT_ID,
   POSITION_CONTEXT_HEADING,
   PROMPT_HEADLINES_MAX,
+  buildFigureRepairPrompt,
   buildWatchSystemPrompt,
   packetNumbers,
   packetToPromptBlock,
 } from "./briefing-prompt";
-export type { WatchSystemPromptInput } from "./briefing-prompt";
+export type { FigureRepairPromptInput, WatchSystemPromptInput } from "./briefing-prompt";
+export {
+  chooseRetriedPacket,
+  isQuietSourceFailure,
+  needsSourceRetry,
+  quietSourceGapCount,
+} from "./packet-retry";
+export type { PacketAttempt } from "./packet-retry";
 export {
   DEFAULT_MARKET_SPECIALIST,
   MARKET_SPECIALISTS,
