@@ -1,6 +1,6 @@
 # Product modes
 
-DPSBuddy’s left nav is **mode-first**. Tabs come from a kernel catalog. **Which tabs appear** is the current workspace’s `productModes`. Default stores every work mode. Creating another desk (Legal, Marketing, Students, or custom checkboxes) can shrink or grow that rail. Packs are workspace presets. Custom agents do not drive the rail.
+Nultron’s left nav is **mode-first**. Tabs come from a kernel catalog. **Which tabs appear** is the current workspace’s `productModes`. Default stores every work mode. Creating another desk (Legal, Marketing, Students, or custom checkboxes) can shrink or grow that rail. Packs are workspace presets. Custom agents do not drive the rail.
 
 Gateway identity stays **Toko Token** (`api.tokotokenai.com/v1`). Do not merge Toko Token with TokenKu in copy or catalogs. Kernel stays industry-neutral: no `student` / `course` / campus nouns outside `packages/university`.
 

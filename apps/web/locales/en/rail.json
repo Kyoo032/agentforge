@@ -46,13 +46,13 @@
     "tooltip": "Updates: {line}",
     "status": {
       "checking": "Checking GitHub Releases…",
-      "latest": "You are on the latest DPSBuddy.",
+      "latest": "You are on the latest Nultron.",
       "ready": "Version {version} is ready to download.",
       "downloading": "Downloading {percent}%",
       "downloadingUnknown": "Downloading…",
       "downloaded": "Version {version} is downloaded. Restart to finish.",
-      "unsupported": "Available in the installed DPSBuddy app. New GitHub releases download and restart the app.",
-      "idle": "New GitHub releases download here, then DPSBuddy restarts.",
+      "unsupported": "Available in the installed Nultron app. New GitHub releases download and restart the app.",
+      "idle": "New GitHub releases download here, then Nultron restarts.",
       "checkFailed": "Update check failed."
     }
   },

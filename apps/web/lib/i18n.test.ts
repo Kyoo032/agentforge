@@ -10,7 +10,7 @@ describe("t()", () => {
     expect(getLocale()).toBe("en");
     expect(t("settings.title")).toBe("Settings");
     expect(t("rail.settings")).toBe("Settings");
-    expect(t("common.restartApp")).toBe("Restart DPSBuddy");
+    expect(t("common.restartApp")).toBe("Restart Nultron");
     freezeLocale("id");
     expect(getLocale()).toBe("id");
     expect(t("settings.title")).toBe("Pengaturan");

@@ -14,7 +14,7 @@ const SMTP = {
   ignoreTls: true,
   user: null,
   pass: null,
-  from: "DPSBuddy <no-reply@portal.localhost>",
+  from: "Nultron <no-reply@portal.localhost>",
 } as const;
 
 describe("otpMessage", () => {
@@ -55,7 +55,7 @@ describe("otpMessage", () => {
    * so there is one name and not two. `views/brand.test.ts` is the guard on what that name is.
    */
   it("falls back to the same product name the pages print, in both locales", () => {
-    expect(translator("en")("product")).toBe("DPSBuddy");
+    expect(translator("en")("product")).toBe("Nultron");
 
     for (const locale of ["en", "id"] as const) {
       const message = otpMessage({

@@ -73,8 +73,8 @@
   "stubTitle": "Dosir stub: {question}",
   "stubSummary": "Demo luring. Pencarian web tidak dijalankan. Keyakinan: rendah. Bukti tipis: dosir ini hanya pengganti agar Riset tetap menghasilkan keluaran saat runtime stub. Simpan kunci API Toko Token di Settings untuk meneliti pertanyaan dari halaman HTTPS.",
   "stubFindingHeading": "Ini output stub, bukan temuan dari web",
-  "stubFindingBody": "DPSBuddy mengembalikan dosir ini karena runtime sedang stub. Dosir ini tidak mengutip halaman hidup untuk: {question}. Tempel kunci Toko Token di Settings, lalu hasilkan lagi.",
-  "stubSourceTitle": "Stub DPSBuddy",
+  "stubFindingBody": "Nultron mengembalikan dosir ini karena runtime sedang stub. Dosir ini tidak mengutip halaman hidup untuk: {question}. Tempel kunci Toko Token di Settings, lalu hasilkan lagi.",
+  "stubSourceTitle": "Stub Nultron",
   "stubSourceNotes": "Sumber sintetis untuk demo luring. Bukan halaman yang dibaca.",
   "stubContradiction": "Tidak ada ketidaksepakatan sumber — pencarian tidak dijalankan.",
   "stubOpenQuestion": "Apa yang berubah setelah kunci gateway disimpan?"

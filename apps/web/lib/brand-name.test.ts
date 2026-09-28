@@ -1,9 +1,9 @@
 /**
- * The product is called DPSBuddy, everywhere, and there is exactly one place that says so.
+ * The product is called Nultron, everywhere a person reads it, and there is exactly one place that says so.
  *
- * Owner ruling, 2026-09-21: the product NAME in text is DPSBuddy everywhere, and the LOGO IMAGE
- * stays the chevron lockup at `public/brand/logo.png`. The names in `FORBIDDEN_PRODUCT_NAMES` below
- * are the ones that ruling retired, and this file is the only place they may appear.
+ * The NAME in text is Nultron. The LOGO IMAGE stays the chevron lockup at `public/brand/logo.png`.
+ * The names in `FORBIDDEN_PRODUCT_NAMES` below are retired from anything shipped to a browser.
+ * The desktop installer `productName` stays DPSBuddy and is outside this scan.
  *
  * The web used to carry a `WEB_PRODUCT_NAME` of its own, which is how the two drifted:
  * the shell said one thing, `/api/v1/ping` said another, and `mergePingBrand` spent a branch
@@ -29,9 +29,9 @@ const appDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 const localesDir = join(appDir, "locales");
 
 /** Every name the product has ever been called that is not its name. Matched case-insensitively. */
-const FORBIDDEN_PRODUCT_NAMES = Object.freeze(["DPS Cloud", "DPSCloud", "Toko Token AI"]);
+const FORBIDDEN_PRODUCT_NAMES = Object.freeze(["DPSBuddy", "DPS Cloud", "DPSCloud", "Toko Token AI"]);
 
-const PRODUCT_NAME = "DPSBuddy";
+const PRODUCT_NAME = "Nultron";
 
 function shippedFiles(): Array<{ path: string; text: string }> {
   const files = [{ path: "index.html", text: readFileSync(join(appDir, "index.html"), "utf8") }];
@@ -47,7 +47,7 @@ function shippedFiles(): Array<{ path: string; text: string }> {
 }
 
 describe("the product name", () => {
-  it("is DPSBuddy, and comes from the one constant the host also answers with", () => {
+  it("is Nultron, and comes from the one constant the host also answers with", () => {
     expect(DEFAULT_PRODUCT_NAME).toBe(PRODUCT_NAME);
     expect(DEFAULT_PRODUCT_BRAND.productName).toBe(DEFAULT_PRODUCT_NAME);
   });

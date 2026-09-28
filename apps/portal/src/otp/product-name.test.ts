@@ -46,7 +46,7 @@ describe("tenantProductName", () => {
 
   it("never returns a name of its own, and the fallback is what the pages print", () => {
     expect(tenantProductName(TENANT, null)).toBeNull();
-    expect(translator("en")("product")).toBe("DPSBuddy");
-    expect(translator("id")("product")).toBe("DPSBuddy");
+    expect(translator("en")("product")).toBe("Nultron");
+    expect(translator("id")("product")).toBe("Nultron");
   });
 });

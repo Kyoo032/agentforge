@@ -109,7 +109,7 @@ http://{$DPSBUDDY_DOMAIN} {
 	# proxy` to take the site read-only in about a second; comment them back out to
 	# restore writes. The README has the rest of the runbook.
 	# @mutating not method GET HEAD OPTIONS
-	# respond @mutating "DPSBuddy is temporarily read-only." 503
+	# respond @mutating "Nultron is temporarily read-only." 503
 
 	# X-FORWARDED-FOR AND WHO IS ALLOWED TO SET IT.
 	#

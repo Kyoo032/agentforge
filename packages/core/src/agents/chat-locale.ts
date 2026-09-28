@@ -1,7 +1,7 @@
 import { parseAppLocale, type AppLocale } from "../locale";
 
 const CHAT_ID_OUTPUT_RULE =
-  "Write every user-facing reply in Bahasa Indonesia. Use professional, polite Anda and infinitive forms. Keep brand names DPSBuddy, Toko Token, and TokenKu unchanged. Do not switch to English unless quoting the user.";
+  "Write every user-facing reply in Bahasa Indonesia. Use professional, polite Anda and infinitive forms. Keep brand names Nultron, Toko Token, and TokenKu unchanged. Do not switch to English unless quoting the user.";
 
 export type StubChatCopy = {
   thinkCalc: string;

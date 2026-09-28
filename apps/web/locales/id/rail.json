@@ -45,13 +45,13 @@
     "tooltip": "Pembaruan: {line}",
     "status": {
       "checking": "Memeriksa GitHub Releases…",
-      "latest": "Kamu sudah memakai DPSBuddy versi terbaru.",
+      "latest": "Kamu sudah memakai Nultron versi terbaru.",
       "ready": "Versi {version} siap diunduh.",
       "downloading": "Mengunduh {percent}%",
       "downloadingUnknown": "Mengunduh…",
       "downloaded": "Versi {version} sudah diunduh. Mulai ulang untuk menyelesaikan.",
-      "unsupported": "Tersedia di aplikasi DPSBuddy yang terpasang. Rilis GitHub baru diunduh lalu aplikasi dimulai ulang.",
-      "idle": "Rilis GitHub baru diunduh di sini, lalu DPSBuddy dimulai ulang.",
+      "unsupported": "Tersedia di aplikasi Nultron yang terpasang. Rilis GitHub baru diunduh lalu aplikasi dimulai ulang.",
+      "idle": "Rilis GitHub baru diunduh di sini, lalu Nultron dimulai ulang.",
       "checkFailed": "Pemeriksaan pembaruan gagal."
     }
   },

@@ -7,6 +7,6 @@ Every notes file here is published verbatim to a public release repo. None of th
 - `releases-readme.md` is the README of the Nultron repo (Personal). It is already on that repo (`620689f`).
 - `ent-readme.md` is the README of the NultronEnt repo (Enterprise). It is already on that repo (`54da47a`).
 
-The public name of both products is **Nultron** (Rizky, 2026-09-25). The source repo stays `agentforge`. The public repos were renamed the same day from `Kyoo032/DPSBuddy` and `Kyoo032/DPSBuddy-Ent`; GitHub redirects the old URLs. The app, installers, data folders and the image stay DPSBuddy until the in-app rename lands with the new logo. Public text may not contain the substring "agent" (see `scripts/release-marks.mjs`).
+The public name of both products is **Nultron** (Rizky, 2026-09-25). The source repo stays `agentforge`. The public repos were renamed the same day from `Kyoo032/DPSBuddy` and `Kyoo032/DPSBuddy-Ent`; GitHub redirects the old URLs. The web app's in-app name is Nultron. Installer file names, the desktop `productName`, data folders, and the image `ghcr.io/kyoo032/dpsbuddy-ent` stay DPSBuddy so the existing updater keeps working. Public text may not contain the substring "agent" (see `scripts/release-marks.mjs`).
 
 Neither release repo is ever cloned by hand. The only local checkout is the source repo, and each release repo is written only by its release script.

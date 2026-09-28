@@ -244,7 +244,7 @@ describe("the sign-in hops", () => {
     await signIn(createAgent(portal.origin), "state-mail", email);
 
     const subject = portal.mailer.newest()?.subject ?? "";
-    expect(subject).toContain("DPSBuddy");
+    expect(subject).toContain("Nultron");
     // The fixture tenant's name is its slug (`testing/fixtures.ts`), which is the seed's
     // placeholder, not a display name -- so the slug must not reach the subject either.
     expect(subject).not.toContain(fixture.tenant.slug);

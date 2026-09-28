@@ -1,12 +1,12 @@
-# DPSBuddy
+# Nultron
 
 **Two products, one repo — read this before touching anything.**
 
-The owner split DPSBuddy into two products on 2026-09-23. They share a codebase and a renderer, and they diverge on packaging, deployment, identity and versioning. Work on one is not work on the other.
+The owner split Nultron into two products on 2026-09-23. They share a codebase and a renderer, and they diverge on packaging, deployment, identity and versioning. Work on one is not work on the other.
 
 | | **Personal** | **Enterprise** |
 |---|---|---|
-| What it is | The Mac/Windows DPSBuddy app | The hosted multi-user web app |
+| What it is | The Mac/Windows Nultron app | The hosted multi-user web app |
 | Shell | Electron (`apps/desktop`), packaged IPC, **no HTTP port** | Express (`apps/web/server.ts`) behind a reverse proxy |
 | Data | On the user's machine, SQLite in the user data dir | Per-tenant, on Rizky's server |
 | Account | A pasted gateway key is the floor | Portal sign-in (one-time code); the pasted key stays the floor for model calls |
@@ -14,7 +14,7 @@ The owner split DPSBuddy into two products on 2026-09-23. They share a codebase 
 | Version | Semver — **0.15.1** is the current cut | No version number |
 | Entry point | the installer | the hosted URL |
 
-**Public name: Nultron (Rizky, 2026-09-25).** Both products are called Nultron in public copy (release READMEs and notes, `docs/public/`). The source repo, packages and `AGENTFORGE_*` names stay agentforge. The same day Rizky renamed the public release repos: Personal is [`Kyoo032/Nultron`](https://github.com/Kyoo032/Nultron) (was `Kyoo032/DPSBuddy`) and Enterprise is [`Kyoo032/NultronEnt`](https://github.com/Kyoo032/NultronEnt) (was `Kyoo032/DPSBuddy-Ent`). GitHub redirects the old URLs. Their READMEs already say Nultron (`620689f`, `54da47a`). `productName`, installer names, data dirs, the keychain item, and the image `ghcr.io/kyoo032/dpsbuddy-ent` stay DPSBuddy until the logo and the in-app rename — do not rename those in passing. `apps/desktop/branding/agentforge/brand.json` `updates.repo` is `Nultron` as of 0.15.1, so a new install checks the renamed release repo without the extra redirect. Installs from 0.15.0 and earlier still request `DPSBuddy`, and GitHub redirects that name. `scripts/release-web.mjs` `RELEASE_REPO` is still `Kyoo032/DPSBuddy-Ent`. Leave that string until an Enterprise release is cut on purpose. Older sentences in this file that name `Kyoo032/DPSBuddy` are history from before the rename.
+**Public name: Nultron (Rizky, 2026-09-25).** Both products are called Nultron in public copy (release READMEs and notes, `docs/public/`). The source repo, packages and `AGENTFORGE_*` names stay agentforge. The same day Rizky renamed the public release repos: Personal is [`Kyoo032/Nultron`](https://github.com/Kyoo032/Nultron) (was `Kyoo032/DPSBuddy`) and Enterprise is [`Kyoo032/NultronEnt`](https://github.com/Kyoo032/NultronEnt) (was `Kyoo032/DPSBuddy-Ent`). GitHub redirects the old URLs. Their READMEs already say Nultron (`620689f`, `54da47a`). The in-app name (titles, onboarding, settings, catalogs) is Nultron. `productName`, installer names, data dirs, the keychain item, and the image `ghcr.io/kyoo032/dpsbuddy-ent` stay DPSBuddy so the existing updater keeps working — do not rename those in passing. `apps/desktop/branding/agentforge/brand.json` `updates.repo` is `Nultron` as of 0.15.1, so a new install checks the renamed release repo without the extra redirect. Installs from 0.15.0 and earlier still request `DPSBuddy`, and GitHub redirects that name. `scripts/release-web.mjs` `RELEASE_REPO` is still `Kyoo032/DPSBuddy-Ent`. Leave that string until an Enterprise release is cut on purpose. Older sentences in this file that name `Kyoo032/DPSBuddy` are history from before the rename.
 
 **Both share `apps/web` as the renderer.** `apps/desktop` compiles it into the installer (`stage-renderer.mjs`, `extraResources: resources/renderer`), so a UI change usually lands on both. A change to packaging, identity, the key storage location, or the deploy path lands on exactly one — say which in the PR.
 
@@ -61,7 +61,7 @@ pstack `how` and `why` print to the chat and write nothing to disk. The map for 
 
 ### 3. Repack skill — `pack-dpsbuddy` becomes the Windows + macOS repack route
 
-**The pack skill serves the Personal app.** It still works exactly as written, and it applies to the Mac/Windows DPSBuddy app — currently `0.15.0`. It never packs the hosted web app. That app ships as a container image and a deploy bundle through `scripts/release-web.mjs` (see **Web release (hosted)**).
+**The pack skill serves the Personal app.** It still works exactly as written, and it applies to the Mac/Windows Nultron app — currently `0.15.0`. The installer file stays DPSBuddy. It never packs the hosted web app. That app ships as a container image and a deploy bundle through `scripts/release-web.mjs` (see **Web release (hosted)**).
 
 Today’s skill packs once from HEAD. A repack (same version, after a fix) must be a documented route in that skill, not improvisation:
 
@@ -139,7 +139,7 @@ Everything here is proven by unit tests and webdev only; none of it is packed. T
 
 ## Product (locked 2026-09-02 GTM; closed beta)
 
-- **Gateway-first.** DPSBuddy exists because buying a key at `api.tokotokenai.com` leaves the question “where do I use this?” Open the hosted app, sign in, work. A pasted gateway key still runs the models. Native Anthropic / Google / Ark stay in the settings store, unexposed. The endpoint is pinned to `https://api.tokotokenai.com/v1` since 0.14.26 (`8831bc4`) — the 0.14.21 owner override is gone — and hidden from Settings and onboarding: since 2026-09-26 onboarding does not show the gateway address at all, and Settings still names the host in its intro sentence. `AGENTFORGE_GATEWAY_URL` is a dev/test-only hook, ignored when packaged or when `NODE_ENV=production`.
+- **Gateway-first.** Nultron exists because buying a key at `api.tokotokenai.com` leaves the question “where do I use this?” Open the hosted app, sign in, work. A pasted gateway key still runs the models. Native Anthropic / Google / Ark stay in the settings store, unexposed. The endpoint is pinned to `https://api.tokotokenai.com/v1` since 0.14.26 (`8831bc4`) — the 0.14.21 owner override is gone — and hidden from Settings and onboarding: since 2026-09-26 onboarding does not show the gateway address at all, and Settings still names the host in its intro sentence. `AGENTFORGE_GATEWAY_URL` is a dev/test-only hook, ignored when packaged or when `NODE_ENV=production`.
 - **Two doors, no password.** Portal sign-in (browser one-time code and device code) is the account. A pasted gateway key stays the floor for model calls. No password, no Better Auth, and no account stack inside `apps/web` or `packages/host`. Mail and portal sessions live in the portal, reached over HTTP. `apps/portal` is the in-repo stand-in for that portal; the product never imports it.
 - **One server, many tenants.** Every row belongs to a tenant; the host enforces tenancy, the renderer displays. Data lives in the server's data dir, not on a user's machine.
 - **First-run needs:** a gateway API key or a portal sign-in (and later optional local models such as Ollama). The wrap key comes from `AGENTFORGE_SECRETS_KEY` (env / secret manager) on the server; keys never reach the renderer, never go in git, never in `NEXT_PUBLIC_*`. The OS keychain is the desktop path only.
@@ -281,13 +281,13 @@ Webdev has no account: workspaces belong to the local owner and the gateway key 
 
 The user pastes their gateway key into settings. The host process holds it. Runs use it. The UI never gets the raw key back after save (`hasOpenai` only). Optional extras: native Google / Anthropic / Ark, plus dedicated tool keys (Tavily/Brave/FAL) in Settings Extras.
 
-Do not use Hermes tools or Hermes dashboard tokens to process DPSBuddy keys.
+Do not use Hermes tools or Hermes dashboard tokens to process Nultron keys.
 
 - **Gateway key** → `settings.enc` (AES-256-GCM), per workspace.
 - **Portal session (Phase 1)** → `session.enc` next to it, machine-scoped, encrypted under a key derived from the same wrap key (`HKDF(wrapKey, "session-v1")`). Refresh token on disk only there; access token in host memory only.
 - **Wrap key** → `AGENTFORGE_SECRETS_KEY` from the environment / a secret manager on the server: [`packages/db/src/vault-key.ts:37-51`](packages/db/src/vault-key.ts) reads the env first and only falls back to `data/.master-key` in the local data dir. That env path is the hosted product's; never a file in the repo. Electron keytar `DPSBuddy` / `wrap-key` (injected as the same env var by `apps/desktop/main.cjs`) is the **desktop** path. Never in the renderer, never in git, never in `NEXT_PUBLIC_*`. Login adds no keychain slot.
 - Remote inference and portal URLs must be HTTPS. `http://` is only for loopback (Ollama).
-- DPSBuddy does not log prompts. Message bodies, system prompts, and tool I/O are encrypted at rest. Gateway retention is Toko Token’s policy, not ours.
+- Nultron does not log prompts. Message bodies, system prompts, and tool I/O are encrypted at rest. Gateway retention is Toko Token’s policy, not ours.
 - OpenRouter’s `provider.zdr: true` is sent only when the saved URL is OpenRouter. Do not send that field to Toko Token.
 - Wallet / usage / key-admin on the gateway stay parked until this privacy pass is solid; the portal’s wallet is server-side and the client only displays balances it is told.
 - Never commit `.env`, `data/settings.enc`, `data/session.enc`, `data/.master-key`, or API keys. `.gitignore` enforces those four and `.webdev-data*/`; it did not until 2026-09-21, so check `git check-ignore -v <path>` before trusting it for a path not on that list.
@@ -350,7 +350,7 @@ There is no GitHub Actions CI any more (see **Local CI** under **Tests**). Cloud
 
 - Cursor’s browser can inject `data-cursor-ref` and block clicks. Use Chrome or Playwright.
 - Playwright `/studio/**` redirects to Chat (Build is parked).
-- Dev server binds `127.0.0.1:3000` (webdev only: Vite + Express + `@agentforge/host`). Playwright and the IDE browser must use `http://127.0.0.1:3000` (not a LAN IP). (desktop) Packaged DPSBuddy has no HTTP port; `doctor.mjs --desktop` reads Electron userData `host-status.json` (Windows `%APPDATA%\DPSBuddy`, Linux `$XDG_CONFIG_HOME/DPSBuddy` or `~/.config/DPSBuddy`, macOS `~/Library/Application Support/DPSBuddy`). A phone on a LAN `:3000` is not a product surface — see [`docs/mobile.md`](docs/mobile.md).
+- Dev server binds `127.0.0.1:3000` (webdev only: Vite + Express + `@agentforge/host`). Playwright and the IDE browser must use `http://127.0.0.1:3000` (not a LAN IP). (desktop) The packaged app has no HTTP port; `doctor.mjs --desktop` reads Electron userData `host-status.json` (Windows `%APPDATA%\DPSBuddy`, Linux `$XDG_CONFIG_HOME/DPSBuddy` or `~/.config/DPSBuddy`, macOS `~/Library/Application Support/DPSBuddy`). A phone on a LAN `:3000` is not a product surface — see [`docs/mobile.md`](docs/mobile.md).
 - **Start over is destructive.** `settings-reset-all-submit` erases the desk it runs on and relaunches; `settings-reset-key-submit` forgets the key on every desk. Never press either on the operator’s shared Windows instance unless asked. Drive them on a throwaway `AGENTFORGE_DATA_DIR`.
 - Host tests read the operator’s `data/` unless the test file sets its own `AGENTFORGE_DATA_DIR` (`enhance-prompt.test.ts` fails when the desk locale is `id`). Do not fix that with one shared temp dir for the whole run: parallel workers then race `ensureSchema` (`table agent_tool_bindings already exists`). Isolation is a per-file `mkdtempSync`.
 - `pnpm -r test` stops at the first failing package and the db `drizzle-kit check` drift test is timing-sensitive under a full parallel run; re-run a package alone before calling it red.
