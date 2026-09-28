@@ -1,7 +1,13 @@
-import { ApiError, outputLanguageRule } from "@agentforge/core";
-import { draftExam, draftLesson, draftPresenter } from "@agentforge/university";
+import { ApiError } from "@agentforge/core";
+import type { DeckSlide, ExamPassage } from "@agentforge/university";
 import { jsonError, jsonOk } from "../errors";
-import { readBookFile } from "../education/read-book";
+import {
+  passagesFromKnowledge,
+  runBookRead,
+  runExamFromKnowledge,
+  runPresenter,
+  runTeachingDeck,
+} from "../education/harness";
 import { retrieveChunks } from "../knowledge";
 import { localeForRun } from "../run-context";
 import { getTenant } from "../tenant";
@@ -15,17 +21,13 @@ function topicFrom(body: unknown): string {
   return typeof topic === "string" ? topic.slice(0, 200) : "";
 }
 
-function languageFields() {
-  const locale = localeForRun();
-  return { locale, languageRule: outputLanguageRule("education", locale) };
-}
-
-/** Lesson, exam, book, and presenter. None of these call the gateway. */
+/** Lesson, quiz, page, and show. None of these call the gateway. */
 export async function handlePostEducationLesson(request: HostRequest): Promise<HostResult> {
   try {
     const topic = topicFrom(request.body);
-    const lang = languageFields();
-    return jsonOk({ outline: draftLesson(lang.locale, topic), locale: lang.locale, languageRule: lang.languageRule });
+    const locale = localeForRun();
+    const run = runTeachingDeck(locale, topic);
+    return jsonOk({ outline: run.outline, locale, ...run.language, harness: run.trace });
   } catch (error) {
     return jsonError(error);
   }
@@ -35,16 +37,22 @@ export async function handlePostEducationExam(request: HostRequest): Promise<Hos
   try {
     const tenant = await getTenant(request);
     const topic = topicFrom(request.body);
-    const lang = languageFields();
-    let passages: Array<{ name: string; text: string }> = [];
+    const locale = localeForRun();
+    let passages: ExamPassage[] = [];
     try {
       const found = await retrieveChunks(tenant, topic || "lesson", 6);
-      passages = found.chunks.map((chunk) => ({ name: chunk.sourceName || chunk.sourceId, text: chunk.body }));
+      passages = passagesFromKnowledge(
+        found.chunks.map((chunk) => ({
+          sourceId: chunk.sourceId,
+          sourceName: chunk.sourceName,
+          body: chunk.body,
+        })),
+      );
     } catch {
       passages = [];
     }
-    const exam = draftExam(lang.locale, topic, passages);
-    return jsonOk({ ...exam, languageRule: lang.languageRule });
+    const run = runExamFromKnowledge(locale, topic, passages);
+    return jsonOk({ ...run.exam, locale, ...run.language, harness: run.trace });
   } catch (error) {
     return jsonError(error);
   }
@@ -57,8 +65,8 @@ export async function handlePostEducationBook(request: HostRequest): Promise<Hos
       throw new ApiError("missing_file", "Choose a PNG page or a PDF", 400);
     }
     const locale = localeForRun();
-    const read = await readBookFile(locale, { filename: file.filename || "page.bin", bytes: file.bytes });
-    return jsonOk({ ...read, locale, languageRule: outputLanguageRule("education", locale) });
+    const run = await runBookRead(locale, { filename: file.filename || "page.bin", bytes: file.bytes });
+    return jsonOk({ ...run.read, locale, ...run.language, harness: run.trace });
   } catch (error) {
     return jsonError(error);
   }
@@ -69,12 +77,20 @@ export async function handlePostEducationPresenter(request: HostRequest): Promis
     const body = request.body && typeof request.body === "object" ? (request.body as { outline?: unknown }) : {};
     const outline =
       body.outline && typeof body.outline === "object" ? (body.outline as { title?: string; slides?: unknown }) : {};
+    const slides: DeckSlide[] = Array.isArray(outline.slides)
+      ? outline.slides.map((slide) => {
+          const row = slide && typeof slide === "object" ? (slide as { heading?: unknown; bullets?: unknown }) : {};
+          return {
+            heading: typeof row.heading === "string" ? row.heading : "",
+            bullets: Array.isArray(row.bullets)
+              ? row.bullets.filter((bullet): bullet is string => typeof bullet === "string")
+              : [],
+          };
+        })
+      : [];
     const locale = localeForRun();
-    const plan = draftPresenter(locale, {
-      title: typeof outline.title === "string" ? outline.title : "",
-      slides: Array.isArray(outline.slides) ? (outline.slides as Array<{ heading?: string; bullets?: string[] }>) : [],
-    });
-    return jsonOk({ ...plan, languageRule: outputLanguageRule("education", locale) });
+    const run = runPresenter(locale, { title: typeof outline.title === "string" ? outline.title : "", slides });
+    return jsonOk({ ...run.plan, locale, ...run.language, harness: run.trace });
   } catch (error) {
     return jsonError(error);
   }

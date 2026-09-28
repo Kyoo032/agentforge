@@ -39,6 +39,18 @@ const LESSON = {
   },
 } as const;
 
+export type LessonShape = {
+  id: string;
+  kind: "rectangle" | "rounded" | "ellipse" | "triangle" | "line" | "arrow" | "star" | "callout" | "text";
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  text: string;
+  fill: string;
+  stroke: string;
+};
+
 export type LessonSlide = {
   kind: "section" | "bullets" | "close";
   heading: string;
@@ -46,7 +58,7 @@ export type LessonSlide = {
   bullets: string[];
   aside: string;
   notes: string;
-  shapes: [];
+  shapes: LessonShape[];
 };
 
 export type LessonOutline = {
@@ -77,6 +89,8 @@ export function draftLesson(locale: unknown, topic: string): LessonOutline {
 }
 
 export type ExamPassage = {
+  /** Knowledge source id. A passage with no id is not cited. */
+  sourceId: string;
   name: string;
   text: string;
 };
@@ -85,7 +99,10 @@ export type ExamItem = {
   prompt: string;
   choices: string[];
   answer: string;
+  /** Display line. Includes the Knowledge source id when one was retrieved. */
   citation: string;
+  /** Knowledge source id. Empty when the desk had no indexed passage. */
+  sourceId: string;
 };
 
 export type ExamDraft = {
@@ -121,7 +138,8 @@ const EXAM = {
   },
 } as const;
 
-function excerpt(text: string): string {
+/** First sentence, capped, so a citation can be checked against the source text. */
+export function passageExcerpt(text: string): string {
   const sentence = text.replace(/\s+/g, " ").trim();
   const cut = sentence.split(/(?<=[.!?])\s/)[0] ?? sentence;
   return cut.slice(0, 180);
@@ -130,7 +148,9 @@ function excerpt(text: string): string {
 export function draftExam(locale: unknown, topic: string, passages: ExamPassage[]): ExamDraft {
   const lang = educationLocale(locale);
   const copy = EXAM[lang];
-  const usable = passages.filter((passage) => passage.text.trim() && passage.name.trim()).slice(0, 5);
+  const usable = passages
+    .filter((passage) => passage.sourceId.trim() && passage.text.trim() && passage.name.trim())
+    .slice(0, 5);
   if (usable.length === 0) {
     return {
       locale: lang,
@@ -142,6 +162,7 @@ export function draftExam(locale: unknown, topic: string, passages: ExamPassage[
           choices: [copy.emptyChoice, copy.emptyOther],
           answer: copy.emptyAnswer,
           citation: "",
+          sourceId: "",
         },
       ],
     };
@@ -151,12 +172,13 @@ export function draftExam(locale: unknown, topic: string, passages: ExamPassage[
     title: copy.title(topic),
     emptyBase: false,
     items: usable.map((passage) => {
-      const quote = excerpt(passage.text);
+      const quote = passageExcerpt(passage.text);
       return {
         prompt: copy.prompt(passage.name, quote),
         choices: [copy.supported, copy.unsupported],
         answer: copy.answer,
-        citation: `${passage.name}: ${quote}`,
+        citation: `${passage.sourceId} · ${passage.name}: ${quote}`,
+        sourceId: passage.sourceId,
       };
     }),
   };
@@ -207,7 +229,25 @@ const PRESENTER = {
 
 const MOTION: AvatarMotion[] = ["enter-from-left", "hold", "exit-to-right"];
 
-type DeckSlide = { heading?: string; bullets?: string[] };
+export type DeckSlide = { heading?: string; bullets?: string[] };
+
+/** Lines the show may speak: the slide heading, then each bullet. Nothing else. */
+export function presenterSpokenLines(
+  locale: unknown,
+  slides: DeckSlide[],
+): Array<{ slideIndex: number; text: string }> {
+  const copy = PRESENTER[educationLocale(locale)];
+  const lines: Array<{ slideIndex: number; text: string }> = [];
+  slides.forEach((slide, index) => {
+    const heading = (slide.heading ?? "").trim() || copy.slide(index, "");
+    const bullets = (slide.bullets ?? []).map((bullet) => bullet.trim()).filter(Boolean);
+    const spoken = [copy.slide(index, heading), ...bullets.map((bullet) => copy.line(bullet))];
+    for (const text of spoken) {
+      lines.push({ slideIndex: index, text });
+    }
+  });
+  return lines;
+}
 
 export function draftPresenter(locale: unknown, outline: { title?: string; slides?: DeckSlide[] }): PresenterPlan {
   const lang = educationLocale(locale);
@@ -221,24 +261,18 @@ export function draftPresenter(locale: unknown, outline: { title?: string; slide
     h: 28,
     motion: MOTION[index % MOTION.length] ?? "hold",
   }));
-  const cues: PresenterCue[] = [];
-  const spoken: string[] = [];
-  slides.forEach((slide, index) => {
-    const heading = (slide.heading ?? "").trim() || copy.slide(index, "");
-    const bullets = (slide.bullets ?? []).map((bullet) => bullet.trim()).filter(Boolean);
-    const lines = [copy.slide(index, heading), ...bullets.map((bullet) => copy.line(bullet))];
-    lines.forEach((text, lineIndex) => {
-      const startMs = index * 8000 + lineIndex * 2000;
-      cues.push({ slideIndex: index, startMs, endMs: startMs + 2000, text });
-      spoken.push(text);
-    });
+  const spoken = presenterSpokenLines(lang, slides);
+  const cues: PresenterCue[] = spoken.map((line, lineIndex) => {
+    const prior = spoken.slice(0, lineIndex).filter((item) => item.slideIndex === line.slideIndex).length;
+    const startMs = line.slideIndex * 8000 + prior * 2000;
+    return { slideIndex: line.slideIndex, startMs, endMs: startMs + 2000, text: line.text };
   });
   return {
     locale: lang,
     rendered: false,
     avatar: { id: "desk-presenter", label: copy.label, placements },
     cues,
-    dubScript: spoken.join("\n"),
+    dubScript: spoken.map((line) => line.text).join("\n"),
   };
 }
 
