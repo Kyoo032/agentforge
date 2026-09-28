@@ -1,6 +1,6 @@
 # Unreleased changes (after public v0.15.0)
 
-The 0.15.1 cut is in progress. Its ship list is [`0.15.1-changelog.md`](0.15.1-changelog.md). This file still holds the log from after 0.15.0. Fold it and start over when 0.15.1 is published.
+**0.15.1 is published** (2026-09-28 04:54 UTC, packed sha `43c1de3`, seven assets on `Kyoo032/Nultron`). The ship list and the pack table are [`0.15.1-changelog.md`](0.15.1-changelog.md). The log below is the history from after 0.15.0. The next cut starts a new file.
 
 **Purpose:** what is on `main` or on the cut branch but not inside an installer. **0.15.0 is cut, not published** — the installers in the wild are still **v0.14.27** (published 2026-09-18 01:47 UTC, Windows `05e97a5`, mac `6da52d7`). Everything this file used to list before the 0.15.0 cut is folded into [`0.15.0-changelog.md`](0.15.0-changelog.md); the pre-0.14.27 material is in [`0.14.27-changelog.md`](0.14.27-changelog.md) and the long findings lists are readable from git at `e2e477e`.
 
