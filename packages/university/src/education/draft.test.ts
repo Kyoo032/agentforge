@@ -19,12 +19,17 @@ describe("education drafts", () => {
     expect(empty.items[0]?.prompt).toMatch(/No indexed passage/);
     expect(empty.items[0]?.answer).toBe("Add a source");
 
-    const filled = draftExam("id", "sungai", [{ name: "Catatan", text: "Sungai membawa endapan ke muara." }]);
+    const filled = draftExam("id", "sungai", [
+      { sourceId: "src-catatan", name: "Catatan", text: "Sungai membawa endapan ke muara." },
+    ]);
     expect(filled.emptyBase).toBe(false);
     expect(filled.locale).toBe("id");
+    expect(filled.items[0]?.sourceId).toBe("src-catatan");
+    expect(filled.items[0]?.citation).toContain("src-catatan");
     expect(filled.items[0]?.citation).toContain("Catatan");
     expect(filled.items[0]?.citation).toContain("Sungai membawa endapan");
     expect(filled.items[0]?.prompt).toMatch(/didukung/);
+    expect(draftExam("en", "rivers", [{ sourceId: "", name: "Notes", text: "A river." }]).emptyBase).toBe(true);
   });
 
   it("emits avatar placement, subtitle cues, and a dub script without rendering video", () => {
