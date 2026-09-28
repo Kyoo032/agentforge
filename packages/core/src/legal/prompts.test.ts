@@ -171,6 +171,11 @@ describe("buildStageCard", () => {
       fields: ["compounds", "clause", "why", "severity", "quote"],
     },
     {
+      input: { stage: "review-quote", clauseId: "§7.2(b)" },
+      stage: 4,
+      fields: ["quote", "§7.2(b)"],
+    },
+    {
       input: { stage: "draft", deliverable: "issues-memo", manual: "MANUAL-BODY" },
       stage: 5,
       fields: [

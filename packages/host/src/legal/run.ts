@@ -2,6 +2,7 @@ import {
   applyRedline,
   diffDocuments,
   documentText,
+  findQuote,
   splitClauses,
   validateDocx,
   type DocxClause,
@@ -21,9 +22,14 @@ import {
   createLedger,
   findingEditResponseSchema,
   interactionResponseSchema,
+  assumeSingleCounterpartyDraft,
+  definedTermsForClause,
+  instructionPassagesForClause,
   mapChecklistToClauses,
   memoOutlineSchema,
   missingConfirmSchema,
+  quoteRetrySchema,
+  resolveLegalPlaybook,
   opposingCounselResponseSchema,
   parseModelJson,
   reviewResponseSchema,
@@ -111,6 +117,7 @@ type RunCtx = {
   deps: LegalRunDeps;
   system: string;
   cards: MatterDocCard[];
+  playbook: Playbook | null;
   concurrency: number;
   maxRounds: number;
 };
@@ -147,6 +154,49 @@ function emitPhaseLoc(ctx: RunCtx, phase: string): void {
 
 function abort(ctx: RunCtx): void {
   throwIfJobAborted(ctx.deps.abortSignal);
+}
+
+function instructionSources(ctx: RunCtx): { source: string; text: string }[] {
+  return [
+    { source: "instructions", text: ctx.input.matter.instructions },
+    ...ctx.cards
+      .filter((card) => card.role === "instruction")
+      .map((card) => {
+        const doc = ctx.input.docs.get(card.id);
+        return { source: card.id, text: doc ? documentText(doc) : card.preview };
+      }),
+  ];
+}
+
+/** One ask for the clause's own words. A quote that is still not verbatim is emptied. */
+async function settleQuote(
+  ctx: RunCtx,
+  phase: string,
+  clauseId: string,
+  clauseText: string,
+  quote: string,
+  doc: DocxDocument | null,
+): Promise<string> {
+  const trimmed = quote.trim();
+  if (trimmed === "" || !doc) {
+    return "";
+  }
+  if (findQuote(doc, trimmed)) {
+    return trimmed;
+  }
+  const parsed = await askJson(
+    ctx,
+    ctx.input.models.drafting,
+    { stage: "review-quote", clauseId },
+    { clauseId, text: clauseText, rejected: trimmed },
+    quoteRetrySchema,
+  );
+  const next = parsed?.quote.trim() ?? "";
+  if (next !== "" && findQuote(doc, next)) {
+    return next;
+  }
+  emitStep(ctx.deps.emit, phase, copyOf(ctx).droppedQuote, { detail: clauseId });
+  return "";
 }
 
 async function askJson<S extends z.ZodTypeAny>(
@@ -247,7 +297,7 @@ async function reviewStage(
     emitStep(ctx.deps.emit, "review", copyOf(ctx).noClauses);
     return [];
   }
-  const playbook = ctx.input.playbook;
+  const playbook = ctx.playbook;
   const drafts = await mapWithConcurrency(clauses, ctx.concurrency, async (clause, index) => {
     abort(ctx);
     const items: ChecklistItem[] =
@@ -265,15 +315,31 @@ async function reviewStage(
         clauseId: clause.id,
         text: clause.text,
         heading: clause.heading,
+        definedTerms: definedTermsForClause(draft, clause.text),
+        instructions: instructionPassagesForClause(instructionSources(ctx), `${clause.heading}\n${clause.text}`),
         checklistItems: items,
         unmarked: clauseUnmarked,
       },
       reviewResponseSchema,
     );
     emitStep(ctx.deps.emit, "review", clause.id, { current: index + 1, total: clauses.length });
-    return parsed ? draftsFromReview(parsed as ReviewParsed) : [];
+    const found = parsed ? draftsFromReview(parsed as ReviewParsed) : [];
+    return found.map((draftFinding) => ({ draftFinding, clauseText: clause.text }));
   });
-  return drafts.flat().map((draftFinding) => findingFromDraft(draftFinding, ids.next(), 1, draft));
+  const settled: Finding[] = [];
+  for (const item of drafts.flat()) {
+    abort(ctx);
+    const quote = await settleQuote(
+      ctx,
+      "review",
+      item.draftFinding.clause,
+      item.clauseText,
+      item.draftFinding.quote,
+      draft,
+    );
+    settled.push(findingFromDraft({ ...item.draftFinding, quote }, ids.next(), 1, draft));
+  }
+  return settled;
 }
 
 async function missingStage(
@@ -283,7 +349,7 @@ async function missingStage(
 ): Promise<Finding[]> {
   emitPhaseLoc(ctx, "missing");
   abort(ctx);
-  const playbook = ctx.input.playbook;
+  const playbook = ctx.playbook;
   if (!playbook || !mapping || mapping.unmapped.length === 0) {
     emitStep(ctx.deps.emit, "missing", playbook ? copyOf(ctx).allMapped : copyOf(ctx).noPlaybook);
     return [];
@@ -342,11 +408,19 @@ async function interactionStage(
     if (!parsed?.compounds) {
       continue;
     }
+    const quote = await settleQuote(
+      ctx,
+      "interactions",
+      parsed.clause || related.id,
+      related.text,
+      parsed.quote,
+      draft,
+    );
     const draftFinding = findingFromDraft(
       {
         kind: "interaction",
         clause: parsed.clause || related.id,
-        quote: parsed.quote,
+        quote,
         title: `Interaction with ${finding.title}`,
         why: parsed.why,
         severity: parsed.severity,
@@ -576,7 +650,7 @@ async function verifyStage(
       detail: fillCopy(copyOf(ctx).passedFailed, { passed: check.passed, failed: check.failed }),
     });
   }
-  const model = await modelVerify(ctx, packed, ctx.input.playbook);
+  const model = await modelVerify(ctx, packed, ctx.playbook);
   const openForHuman = [
     ...findings
       .filter((finding) => finding.reservedFor !== null)
@@ -716,7 +790,7 @@ function preambleArgs(ctx: RunCtx) {
     addressee: ctx.input.matter.addressee,
     firm: ctx.input.matter.firm,
     docs: ctx.cards,
-    playbook: ctx.input.playbook,
+    playbook: ctx.playbook,
     priorityNote: "",
     locale: localeOf(ctx),
   };
@@ -735,7 +809,7 @@ function toManifest(
     side: ctx.input.matter.side,
     workType: ctx.input.matter.workType,
     deliverables: ctx.input.matter.deliverables,
-    playbookId: ctx.input.playbook?.id ?? ctx.input.matter.playbookId,
+    playbookId: ctx.playbook?.id ?? ctx.input.matter.playbookId,
     docs: ctx.cards,
     models: ctx.input.models,
     rounds,
@@ -752,6 +826,7 @@ export async function runLegalMatter(input: LegalRunInput, deps: LegalRunDeps): 
     deps,
     system: "",
     cards: input.matter.docs.map((card) => ({ ...card })),
+    playbook: input.playbook,
     concurrency: deps.concurrency ?? LEGAL_CAPS.reviewConcurrency,
     maxRounds,
   };
@@ -759,17 +834,30 @@ export async function runLegalMatter(input: LegalRunInput, deps: LegalRunDeps): 
   ctx.system = buildPreamble(preambleArgs(ctx));
   const ids = createIdAllocator();
   ctx.cards = await classify(ctx);
+  const assumed = assumeSingleCounterpartyDraft(ctx.cards);
+  ctx.cards = assumed.cards;
+  if (assumed.assumed) {
+    emitStep(ctx.deps.emit, "classify", fillCopy(copyOf(ctx).assumedDraft, { name: assumed.assumed.name }));
+  }
+  const position = resolveLegalPlaybook({
+    chosen: ctx.playbook,
+    sideRole: input.matter.side.role,
+    docs: ctx.cards,
+  });
+  ctx.playbook = position.playbook;
   ctx.system = buildPreamble(preambleArgs(ctx));
+  emitPhaseLoc(ctx, "position");
+  emitStep(ctx.deps.emit, "position", fillCopy(copyOf(ctx).usingPlaybook, { title: position.playbook.title }));
   const findings: Finding[] = [];
   const unmarked = await diffStage(ctx, ids, findings);
   const draftCard = cardByRole(ctx.cards, "counterparty-draft");
   const draft = draftCard ? (input.docs.get(draftCard.id) ?? null) : null;
   const clauses = draft ? splitClauses(draft) : [];
-  const mapping = input.playbook ? mapChecklistToClauses(input.playbook, clauses) : null;
+  const mapping = ctx.playbook ? mapChecklistToClauses(ctx.playbook, clauses) : null;
   findings.push(...(await reviewStage(ctx, clauses, mapping, unmarked, draft, ids)));
   findings.push(...(await missingStage(ctx, mapping, ids)));
   findings.push(...(await interactionStage(ctx, findings, clauses, draft, ids)));
-  const instructionSources = [
+  const reservedSources = [
     { text: input.matter.instructions, by: input.matter.author || copyOf(ctx).instructingAuthor },
     ...ctx.cards
       .filter((card) => card.role === "instruction")
@@ -778,7 +866,7 @@ export async function runLegalMatter(input: LegalRunInput, deps: LegalRunDeps): 
         return { text: doc ? documentText(doc) : card.preview, by: input.matter.author || card.name };
       }),
   ];
-  const reserved = scanReserved(instructionSources);
+  const reserved = scanReserved(reservedSources);
   let working = applyReserved(findings, reserved);
   const dateIso = input.now().toISOString().slice(0, 10);
   let packed = await draftStage(ctx, input.matter.deliverables, working, draft, clauses, dateIso, null, true);

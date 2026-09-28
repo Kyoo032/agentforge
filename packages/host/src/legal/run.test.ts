@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { ApiError } from "@agentforge/core";
-import { readDocx } from "@agentforge/core/docx";
+import { findQuote, readDocx, splitClauses } from "@agentforge/core/docx";
 import type { JobEvent } from "@agentforge/core/jobs";
 import type { MatterDocCard, Playbook } from "@agentforge/core/legal";
 import { DOCX_MIME } from "./store-files";
@@ -178,6 +178,7 @@ describe("runLegalMatter", () => {
     });
     expect(phasesOf(events)).toEqual([
       "classify",
+      "position",
       "diff",
       "review",
       "missing",
@@ -222,6 +223,7 @@ describe("runLegalMatter", () => {
     expect(rounds.every((event) => event.total === 2)).toBe(true);
     expect(phasesOf(events)).toEqual([
       "classify",
+      "position",
       "diff",
       "review",
       "missing",
@@ -236,6 +238,109 @@ describe("runLegalMatter", () => {
     expect(result.rounds).toHaveLength(2);
     expect(result.verify.round).toBe(2);
     expect(result.manifest.status).toBe("complete-with-failures");
+  });
+
+  it("sorts one untagged file, stands in a position, and keeps a verbatim quote after one retry", async () => {
+    const { input } = await setup();
+    const doc = input.docs.get("S1");
+    if (!doc) {
+      throw new Error("fixture missing");
+    }
+    const paragraph = doc.paragraphs.find((item) => item.text.includes("Agreement") && item.text.length >= 24);
+    if (!paragraph) {
+      throw new Error("fixture paragraph missing");
+    }
+    const verbatim = paragraph.text.slice(0, 40).trim();
+    const clause = splitClauses(doc).find((item) => item.text.includes(verbatim));
+    if (!clause) {
+      throw new Error("fixture clause missing");
+    }
+    expect(findQuote(doc, verbatim)).not.toBeNull();
+    const prompts: string[] = [];
+    let quoteAsks = 0;
+    const events: JobEvent[] = [];
+    const result = await runLegalMatter(
+      {
+        ...input,
+        playbook: null,
+        matter: matter({
+          side: { role: "buyer", party: "Aurora Holdings", counterparty: "the Lenders" },
+          playbookId: null,
+          instructions: "The Agreement must stay mutual between the parties as written.",
+          docs: [card({ id: "S1", name: "services.docx", role: "context", preview: "Services agreement" })],
+        }),
+      },
+      {
+        ask: async ({ prompt }) => {
+          prompts.push(prompt);
+          if (prompt.includes("REVIEW (quote)")) {
+            quoteAsks += 1;
+            return json({ quote: verbatim });
+          }
+          if (prompt.includes(`REVIEW, clause ${clause.id} of the`)) {
+            return json({
+              kind: "adverse",
+              clause: clause.id,
+              quote: BAD_QUOTE,
+              title: "One-sided",
+              why: "The clause favours the other side.",
+              severity: "low",
+              negotiability: "fallback",
+              proposedText: null,
+              basis: [{ doc: "S1", ref: "¶0" }],
+              reservedFor: null,
+              checklist: [],
+            });
+          }
+          if (prompt.includes("REVIEW, clause")) {
+            return json({ kind: "ok" });
+          }
+          return cannedAsk()({ prompt, model: "draft-model", system: "" });
+        },
+        emit: (event) => events.push(event),
+        concurrency: 3,
+      },
+    );
+    expect(phasesOf(events)).toContain("position");
+    expect(phasesOf(events).indexOf("position")).toBeLessThan(phasesOf(events).indexOf("diff"));
+    expect(events.some((event) => event.type === "job.step" && event.label.includes("services.docx"))).toBe(true);
+    expect(events.some((event) => event.type === "job.step" && event.label.includes("Commercial agreement"))).toBe(
+      true,
+    );
+    expect(result.manifest.playbookId).toBe("generic-contract");
+    expect(result.manifest.docs[0]?.role).toBe("counterparty-draft");
+    const reviewPrompt = prompts.find((prompt) => prompt.includes(`REVIEW, clause ${clause.id}`));
+    expect(reviewPrompt).toContain('"term":"Agreement"');
+    expect(reviewPrompt).toContain("must stay mutual");
+    expect(quoteAsks).toBe(1);
+    const kept = result.findings.find((finding) => finding.title === "One-sided");
+    expect(kept?.quote).toBe(verbatim);
+    expect(phasesOf(events)).toContain("verify");
+    expect(phasesOf(events)).toContain("package");
+  });
+
+  it("drops a quote that is still not verbatim after the one retry", async () => {
+    const { input } = await setup();
+    const result = await runLegalMatter(input, {
+      ask: async (args) => {
+        if (args.prompt.includes("REVIEW (quote)")) {
+          return json({ quote: BAD_QUOTE });
+        }
+        return cannedAsk()(args);
+      },
+      emit: () => {},
+      concurrency: 3,
+    });
+    const reserved = result.findings.find((finding) => finding.clause === "§1.01");
+    expect(reserved?.quote).toBe("");
+  });
+
+  it("labels the position phase from the legal locale helper", async () => {
+    const { input } = await setup();
+    const events: JobEvent[] = [];
+    await runLegalMatter({ ...input, locale: "id" }, { ask: cannedAsk(), emit: (event) => events.push(event) });
+    const position = events.find((event) => event.type === "job.phase" && event.phase === "position");
+    expect(position && position.type === "job.phase" ? position.label : "").toBe("Memilih kedudukan");
   });
 
   it("throws aborted when the job signal is aborted", async () => {
