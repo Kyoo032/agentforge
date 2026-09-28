@@ -13,6 +13,9 @@ describe("mode harnesses", () => {
   it("wires only the skills the list marked new", () => {
     expect(wiredSkillIds()).toEqual([
       "documents:check-against-source",
+      "music:shape-lyric",
+      "music:name-song",
+      "music:both-takes",
       "presentations:edit-text",
       "presentations:add-shapes",
       "education:teaching-deck",
@@ -21,7 +24,14 @@ describe("mode harnesses", () => {
       "education:book-reader",
       "education:video-presenter",
     ]);
-    expect(harnessFor("music")?.skills.find((skill) => skill.id === "speak-text")?.status).toBe("off");
+    expect(harnessFor("music")?.skills.map((skill) => skill.id)).toEqual([
+      "hear-sentence",
+      "desk-language",
+      "shape-lyric",
+      "name-song",
+      "both-takes",
+    ]);
+    expect(harnessFor("music")?.skills.some((skill) => skill.id === "speak-text")).toBe(false);
     expect(harnessFor("chat")?.skills.every((skill) => skill.status === "has")).toBe(true);
   });
 

@@ -567,6 +567,19 @@ export {
 } from "./models/audio-capabilities";
 export type { MusicCapabilities, MusicMode, SpeechUnavailableReason } from "./models/audio-capabilities";
 export {
+  MUSIC_HARNESS_ATTEMPTS,
+  MUSIC_HARNESS_SKILLS,
+  lyricsAreSingable,
+  preferLyricDraft,
+  resolveSongTitle,
+  shouldRetryLyrics,
+  shouldRetryMusicJob,
+  singableLines,
+  songTitleFromBrief,
+  stripMusicLanguageRule,
+} from "./music/harness";
+export type { MusicHarnessSkillId } from "./music/harness";
+export {
   formatVideoGatewayFailure,
   httpStatusForGatewayFailure,
   studioVideoFailureStatus,
