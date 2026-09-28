@@ -20,11 +20,21 @@ export type CheckableDraft = {
   sections: Array<{ heading: string; body: string }>;
 };
 
+function numberTokens(text: string): string[] {
+  return text.match(/\d+(?:[.,]\d+)*/g) ?? [];
+}
+
+/** A number counts only as itself: "8" is not inside "18". */
+function sourceHasNumber(source: string, token: string): boolean {
+  const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?<![\\d])${escaped}(?![\\d])`).test(source);
+}
+
 function sentences(text: string): string[] {
   return text
     .split(/\n+|(?<=[.!?])\s+/)
     .map((part) => part.trim())
-    .filter((part) => part.split(/\s+/).length >= 6);
+    .filter((part) => part.split(/\s+/).length >= 6 || numberTokens(part).length > 0);
 }
 
 function words(text: string): string[] {
@@ -36,6 +46,10 @@ function words(text: string): string[] {
 }
 
 function sentenceSupported(sentence: string, sourceNorm: string, sourceWords: Set<string>): boolean {
+  const nums = numberTokens(sentence);
+  if (nums.some((token) => !sourceHasNumber(sourceNorm, token))) {
+    return false;
+  }
   const norm = sentence.toLowerCase().replace(/\s+/g, " ").trim();
   if (norm.length >= 12 && sourceNorm.includes(norm)) {
     return true;
