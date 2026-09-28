@@ -1,6 +1,6 @@
 # Map — Edit timeline and agent
 
-Last verified: 2026-09-27 for the preview transport and the timeline hint, which read `edit.preview.*` and `edit.timeline.*`. Before that, 2026-09-27 for agent cards: `applyAgentOps` sets `status: "applied"` after `appendOps` succeeds, and the card offers Keep only while `proposed`. A new project name comes from `edit.defaultProjectName` (`Untitled edit` / `Suntingan baru`). Before that: 2026-09-26 for § 8 (live bindings, chat model, tool-result frames, title defaults, stub "says Hello"). Before that: 2026-09-23 at d4561b8 + uncommitted tree for § 2 (doctor), § 4 (the `appendOps` steps, desk and job
+Last verified: 2026-09-28 for the five method-free skills in § 8 (`packages/core/src/edit/harness.ts`, `packages/host/src/edit/harness-run.ts`). Before that, 2026-09-27 for the preview transport and the timeline hint, which read `edit.preview.*` and `edit.timeline.*`. Before that, 2026-09-27 for agent cards: `applyAgentOps` sets `status: "applied"` after `appendOps` succeeds, and the card offers Keep only while `proposed`. A new project name comes from `edit.defaultProjectName` (`Untitled edit` / `Suntingan baru`). Before that: 2026-09-26 for § 8 (live bindings, chat model, tool-result frames, title defaults, stub "says Hello"). Before that: 2026-09-23 at d4561b8 + uncommitted tree for § 2 (doctor), § 4 (the `appendOps` steps, desk and job
 scope), § 6 (keyboard guard, drag release), § 10 (review gate, and `render` refused on `/jobs`), § 11 (generate,
 the worker's tenant, the still check), § 12 (export, the desktop save dialog) and the gateway-gate failure row —
 two passes that day, the Edit security fixes and the docs pass that reconciled them. Not driven. Everything else
@@ -240,14 +240,15 @@ is a flat `403 gateway_blocked` with no stream, exactly like Chat.
   list is what left the timeline blank: the runtime only exposes tools from bindings
   (`packages/core/src/runtime/ai-sdk-runtime.ts:413-427`), so a model with `bindings: []` can only
   talk. `onEvent` forwards `tool.completed` output that carries `ops` / `card` / `job` as
-  `edit.ops` / `edit.card` / `edit.job` (`pushToolFrames`, `agent-run.ts:163-167`, called at `:226`).
+  `edit.ops` / `edit.card` / `edit.job` (`pushToolFrames`, `agent-run.ts:163-167`, called at `:250`).
+- **Harness** (a method-free sentence, live or stub): before either of those paths, `matchEditHarnessSkill` (`packages/core/src/edit/harness.ts`) picks one of five skills when the sentence is not already S1–S11, F1–F5, or a `generate image` / `generate video` line. `runEditHarness` (`packages/host/src/edit/harness-run.ts`, called from `agent-run.ts`) runs only the phases that skill needs. Silence and scene probes call local ffmpeg when the clip has an asset and the runtime is live; the stub uses clip duration instead, and retries the probe once when the first pass is empty. Words are checked on the fold and retried once if they did not land. A made shot is charged against the turn cap (over cap proposes a plan and does not retry) and the prompt goes through `withOutputLanguage` on the `edit` surface. Handing back the file checks the review gate (closed stops, no retry) and queues `export` at `h264-1080p`, retrying the start once. Every mutation is still an append to the ops log. No new control on the Edit screen.
 - **Stub** (no key — the state on this desk): `runStub` matches the text against
   `STUB_EDIT_SCENARIOS` (`packages/core/src/runtime/stub-edit-scenarios.ts`), then a title-card
   fallback (`extractTitleCardText`, same file) so "Add a title card that says Hello" is `add_title`
   with `{ text: "Hello" }`, then the Fill and Generate scenario tables, and drives the **real tools**
   with canned arguments. It is scripted input, not a scripted result.
 
-`runStub`'s shape, in order (`agent-run.ts:248`):
+`runStub`'s shape, in order (`agent-run.ts:272`):
 
 1. No match → `assistant.delta` with the scripted help copy, `run.completed`. No card.
 2. `__undo__` (S10) → scripted undo copy only. **No card, no ops** — the owner still has to press
@@ -512,7 +513,7 @@ A's `workerWorkspaceId`.
 - **`edit-generate-storyboard` exists** (the sub-tab button). `edit-storyboard-generate` and
   `edit-storyboard-animate-all` do not. `animate_storyboard` is backend-only
   (`packages/core/src/tools/edit/tools.ts`).
-- **`mutatingCount > 3` in the stub is dead code** (`packages/host/src/edit/agent-run.ts:244-256`):
+- **`mutatingCount > 3` in the stub is dead code** (`packages/host/src/edit/agent-run.ts:322-330`):
   the counter is incremented at most once per turn.
 - **The turn cap is per request, not cumulative.** `createTurnBudget` is rebuilt on every
   `POST …/agent` (`agent-run.ts:145`), clamped to `[0.5, 50]`

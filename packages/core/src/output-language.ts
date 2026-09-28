@@ -95,6 +95,75 @@ export function editStubAssistantCopy(locale: AppLocale): { help: string; undo: 
   return EDIT_STUB[parseAppLocale(locale)];
 }
 
+export type EditHarnessLineKey =
+  | "liftDeadAirRan"
+  | "liftDeadAirEmpty"
+  | "cutOnShotsRan"
+  | "cutOnShotsEmpty"
+  | "wordsOnPictureRan"
+  | "wordsOnPictureEmpty"
+  | "placeMadeShotRan"
+  | "placeMadeShotEmpty"
+  | "placeMadeShotBlocked"
+  | "handBackFileRan"
+  | "handBackFileBlocked"
+  | "handBackFileFailed";
+
+const EDIT_HARNESS_LINES: Record<EditHarnessLineKey, Record<AppLocale, string>> = {
+  liftDeadAirRan: {
+    en: "Lifted the dead air.",
+    id: "Jeda sunyi diangkat.",
+  },
+  liftDeadAirEmpty: {
+    en: "No dead air to lift on this timeline.",
+    id: "Tidak ada jeda sunyi untuk diangkat pada linimasa ini.",
+  },
+  cutOnShotsRan: {
+    en: "Cut where the picture changes.",
+    id: "Dipotong di tempat gambar berubah.",
+  },
+  cutOnShotsEmpty: {
+    en: "No shot change to cut on.",
+    id: "Tidak ada pergantian gambar untuk dipotong.",
+  },
+  wordsOnPictureRan: {
+    en: "Put the words on the picture.",
+    id: "Kata-kata diletakkan pada gambar.",
+  },
+  wordsOnPictureEmpty: {
+    en: "Say the words to put on the picture.",
+    id: "Sebutkan kata yang ingin diletakkan pada gambar.",
+  },
+  placeMadeShotRan: {
+    en: "Placed a made shot on the timeline.",
+    id: "Gambar atau klip buatan diletakkan pada linimasa.",
+  },
+  placeMadeShotEmpty: {
+    en: "Say what still or clip to make.",
+    id: "Sebutkan gambar diam atau klip yang ingin dibuat.",
+  },
+  placeMadeShotBlocked: {
+    en: "This shot waits on a plan. Nothing was generated.",
+    id: "Gambar ini menunggu rencana. Tidak ada yang dibuat.",
+  },
+  handBackFileRan: {
+    en: "Handing back the file.",
+    id: "Berkas sedang disiapkan.",
+  },
+  handBackFileBlocked: {
+    en: "Confirm the timeline before the file can be handed back.",
+    id: "Konfirmasi linimasa sebelum berkas dapat diserahkan.",
+  },
+  handBackFileFailed: {
+    en: "The file could not be started.",
+    id: "Berkas tidak dapat dimulai.",
+  },
+};
+
+export function editHarnessLine(key: EditHarnessLineKey, locale: AppLocale): string {
+  return EDIT_HARNESS_LINES[key][parseAppLocale(locale)];
+}
+
 export const GATEWAY_REQUIRED_SURFACES = [
   "documents",
   "research",

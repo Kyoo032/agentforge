@@ -202,7 +202,21 @@
   "pipeline": {
     "languageInstruction": "Tulis teks Edit yang dilihat pengguna (kata kerja kartu, judul, teks overlay, balasan asisten, dan kata pada gambar atau video) dalam bahasa Indonesia. Pertahankan nama alat dan kunci JSON dalam bahasa Inggris.",
     "stubHelp": "Saya dapat membantu memangkas, memotong, menambahkan teks overlay, dan memberi judul pada linimasa ini.",
-    "stubUndo": "Urungkan tersedia pada kartu terakhir."
+    "stubUndo": "Urungkan tersedia pada kartu terakhir.",
+    "harness": {
+      "liftDeadAirRan": "Jeda sunyi diangkat.",
+      "liftDeadAirEmpty": "Tidak ada jeda sunyi untuk diangkat pada linimasa ini.",
+      "cutOnShotsRan": "Dipotong di tempat gambar berubah.",
+      "cutOnShotsEmpty": "Tidak ada pergantian gambar untuk dipotong.",
+      "wordsOnPictureRan": "Kata-kata diletakkan pada gambar.",
+      "wordsOnPictureEmpty": "Sebutkan kata yang ingin diletakkan pada gambar.",
+      "placeMadeShotRan": "Gambar atau klip buatan diletakkan pada linimasa.",
+      "placeMadeShotEmpty": "Sebutkan gambar diam atau klip yang ingin dibuat.",
+      "placeMadeShotBlocked": "Gambar ini menunggu rencana. Tidak ada yang dibuat.",
+      "handBackFileRan": "Berkas sedang disiapkan.",
+      "handBackFileBlocked": "Konfirmasi linimasa sebelum berkas dapat diserahkan.",
+      "handBackFileFailed": "Berkas tidak dapat dimulai."
+    }
   },
   "stubCards": {
     "S1": { "verb": "Hapus 3 jeda sunyi", "object": "v1" },
