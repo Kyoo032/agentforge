@@ -1,7 +1,7 @@
 # Map — Music mode
 
-Last verified: 2026-09-28 for the harness in § 5 and § 8 (brief, words, name, takes). Earlier sections were last
-verified 2026-09-23 at d4561b8, and the rest 2026-09-21 at 4938747. Speech stays off.
+Last verified: 2026-09-28 at b89abd5 for the harness in § 5 and § 8 (brief, words, name, takes). Earlier sections
+were last verified 2026-09-23 at d4561b8, and the rest 2026-09-21 at 4938747. Speech stays off.
 
 ## Overview
 
