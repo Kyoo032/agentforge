@@ -1,3 +1,5 @@
+import { MUSIC_HARNESS_SKILLS } from "../music/harness";
+
 /**
  * One harness per mode, packed from the 2026-09-25 skill list.
  *
@@ -136,13 +138,7 @@ export const MODE_HARNESSES: readonly ModeHarness[] = [
   {
     id: "music",
     route: "/music",
-    skills: [
-      { id: "describe-song", name: "Describe a song", status: "has" },
-      { id: "desk-lyrics", name: "Use the desk's lyrics", status: "has" },
-      { id: "draft-lyrics", name: "Draft lyrics first", status: "has" },
-      { id: "keep-both-takes", name: "Keep both takes", status: "has" },
-      { id: "speak-text", name: "Speak the text", status: "off" },
-    ],
+    skills: MUSIC_HARNESS_SKILLS,
   },
   {
     id: "edit",

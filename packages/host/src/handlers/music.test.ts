@@ -235,6 +235,99 @@ describe("music handlers via the router", () => {
     }
   });
 
+  it("runs shape-lyric: a one-line draft is tried once more, and the two-line draft is the one returned", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+    const drafts = ["Rain", "Rain on the window\nI keep the porch light on"];
+    let submit = 0;
+    globalThis.fetch = (async (input: string | URL | Request) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url.includes("/suno/submit/lyrics")) {
+        submit += 1;
+        return { ok: true, status: 200, json: async () => ({ code: "success", data: `lyrics-${submit}` }) } as Response;
+      }
+      const text = drafts[submit - 1] ?? drafts[0];
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ code: "success", data: { status: "SUCCESS", data: { text } } }),
+      } as Response;
+    }) as typeof fetch;
+    const response = await json("POST", "/api/v1/music/lyrics", { prompt: "a song about rain on the window" });
+    expect(response.status).toBe(200);
+    const body = response.body as { text: string; title?: string };
+    expect(submit).toBe(2);
+    expect(body.text).toBe("Rain on the window\nI keep the porch light on");
+    expect(body.title).toBe("a song about rain on the window");
+  });
+
+  it("runs name-song: a blank title comes from the sentence, and describe mode sends no title", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+    const relay = stubRelay();
+    globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      relay.calls.push(url);
+      if (url.includes("/suno/submit/") && typeof init?.body === "string") {
+        relay.submitted.push(JSON.parse(init.body) as Record<string, unknown>);
+      }
+      const body = url.includes("/suno/submit/")
+        ? { code: "success", data: "task-named" }
+        : {
+            code: "success",
+            data: {
+              status: "SUCCESS",
+              data: [
+                { audio_url: TRACK_DATA_URL, metadata: { duration: 90 } },
+                { audio_url: TRACK_DATA_URL, metadata: { duration: 91 } },
+              ],
+            },
+          };
+      return { ok: true, status: 200, json: async () => body } as Response;
+    }) as typeof fetch;
+    const response = await json("POST", "/api/v1/music", { mode: "describe", prompt: "Rain on the glass" });
+    expect(response.status).toBe(201);
+    const posted = response.body as MusicPostBody;
+    expect(posted.tracks).toHaveLength(2);
+    expect(posted.tracks.every((track) => track.title === "Rain on the glass")).toBe(true);
+    expect(relay.submitted[0]).not.toHaveProperty("title");
+    expect(relay.submitted[0]).toHaveProperty("gpt_description_prompt");
+
+    const custom = stubRelay();
+    const lyrics = "Rain on the window\nI keep the porch light on";
+    const customResponse = await json("POST", "/api/v1/music", { mode: "custom", lyrics });
+    expect(customResponse.status).toBe(201);
+    expect(custom.submitted[0]).toMatchObject({ prompt: lyrics, title: "Rain on the window" });
+  });
+
+  it("runs both-takes: a blank job is submitted once more, and both takes from the second try are saved", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+    let submit = 0;
+    globalThis.fetch = (async (input: string | URL | Request) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url.includes("/suno/submit/music")) {
+        submit += 1;
+        return { ok: true, status: 200, json: async () => ({ code: "success", data: `task-${submit}` }) } as Response;
+      }
+      const body = url.endsWith("/task-1")
+        ? { code: "success", data: { status: "FAILURE", fail_reason: "blank" } }
+        : {
+            code: "success",
+            data: {
+              status: "SUCCESS",
+              data: [
+                { title: "First take", audio_url: TRACK_DATA_URL },
+                { title: "Second take", audio_url: TRACK_DATA_URL },
+              ],
+            },
+          };
+      return { ok: true, status: 200, json: async () => body } as Response;
+    }) as typeof fetch;
+    const response = await json("POST", "/api/v1/music", { prompt: "try again" });
+    expect(response.status).toBe(201);
+    expect(submit).toBe(2);
+    const posted = response.body as MusicPostBody;
+    expect(posted.tracks.map((track) => track.title)).toEqual(["First take", "Second take"]);
+  });
+
   it("does not let an audio upload in through the chat media route", async () => {
     // Edit owns the wide import path; /api/v1/media stays image and video only (G-27).
     const result = await dispatch({
