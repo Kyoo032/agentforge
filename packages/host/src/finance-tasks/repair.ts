@@ -26,7 +26,7 @@ import { repairUnverifiedSections, stripMarkedSentences, type RepairPrompt } fro
  * The rewrite is asked for in the brief's section shape because `parseBriefSection` reads the answer:
  * one module, one contract. The task's own facts are the only figures on offer.
  */
-export const FINANCE_TASK_REPAIR_SYSTEM = `You rewrite one section of a DPSBuddy finance report.
+export const FINANCE_TASK_REPAIR_SYSTEM = `You rewrite one section of a Nultron finance report.
 Return ONLY valid JSON (no markdown fences) with this exact shape: { "heading": string, "body": string, "metrics": [] }
 Rules:
 - Every number in the body must be one of the facts listed above, written with the same value. Add none.

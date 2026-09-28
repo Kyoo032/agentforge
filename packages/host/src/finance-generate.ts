@@ -45,7 +45,7 @@ import { log } from "./log";
 export { FIGURES_TEXT_MAX } from "./finance-parse-figures";
 export type { ParsedFigures } from "./finance-parse-figures";
 
-const BRIEF_SYSTEM = `You write a finished finance brief for DPSBuddy from line items and metrics that were computed in code.
+const BRIEF_SYSTEM = `You write a finished finance brief for Nultron from line items and metrics that were computed in code.
 Return ONLY valid JSON (no markdown fences) with this exact shape:
 {
   "title": string,
@@ -60,7 +60,7 @@ Rules:
 - assumptions: what the reader must accept for the brief to hold (periods, currency, what is excluded).
 - No campus / student / course nouns unless the topic itself requires them.`;
 
-const SECTION_SYSTEM = `You rewrite one section of an DPSBuddy finance brief.
+const SECTION_SYSTEM = `You rewrite one section of a Nultron finance brief.
 Return ONLY valid JSON: { "heading": string, "body": string, "metrics": [string] }
 Rules: same as the brief. Every number is copied from a "Write as" cell; metrics lists the keys used. Stay on the same topic as the rest of the brief.`;
 
