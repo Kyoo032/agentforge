@@ -1,6 +1,6 @@
 # Map — Generate studios (Images and Videos)
 
-Last verified: 2026-09-28 for the Videos harness (shot, one retry when the render dies before a video file, keep only that file at the snapped length). The picker and the Images needs-key note are unchanged from 2026-09-26. Before that: 2026-09-20 at 6984d84; citations re-anchored at e37b3a1.
+Last verified: 2026-09-28 at 076e7a6 for the Videos harness (shot, one retry when the render dies before a video file, keep only that file at the snapped length). Stub webdev drive the same day: `/videos` showed `videos-studio` and `videos-studio-needs-key`, Generate stayed disabled, and the screen had no new button. The picker and the Images needs-key note are unchanged from 2026-09-26. Before that: 2026-09-20 at 6984d84; citations re-anchored at e37b3a1.
 
 ## Overview
 
