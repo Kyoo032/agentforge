@@ -1,6 +1,6 @@
 # Map — Market watch
 
-Last verified: 2026-09-28 for the quiet-source retry and the one figure rewrite in `market-generate.ts` (steps 6, 7 and 10, the failure table, and the advice-guard call sites). The specialist harness is unchanged. Earlier: 2026-09-27 for the starter chips: `market-starters` renders on a seeded watchlist, not only when `tickers.length === 0`. The specialist picker and depth control stay in that empty block. The rail, the watchlist, the board, the packet and the harness table were last walked on 2026-09-20 at `6984d84`.
+Last verified: 2026-09-28 at `e5bc184` for the quiet-source retry and the one figure rewrite in `market-generate.ts` (steps 6, 7 and 10, the failure table, and the advice-guard call sites). The specialist harness is unchanged. Earlier: 2026-09-27 for the starter chips: `market-starters` renders on a seeded watchlist, not only when `tickers.length === 0`. The specialist picker and depth control stay in that empty block. The rail, the watchlist, the board, the packet and the harness table were last walked on 2026-09-20 at `6984d84`.
 
 > The rail block was extracted into a shared `rail-submenu.tsx` by a parallel Finance change; `rail-market-specialists.tsx` is now the 82-line adapter that names it.
 
