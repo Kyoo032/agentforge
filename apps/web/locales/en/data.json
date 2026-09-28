@@ -2,7 +2,7 @@
   "title": "Data",
   "expectedInputs": "You get: a saved analysis — findings, evidence, and the SQL behind every number.",
   "howItWorks": "How this works",
-  "howItWorksBody": "Upload a CSV or XLSX, or paste a table. {productName} profiles it, queries it with SQL, and shows every number's query. Nothing leaves this machine except the question and the profile.",
+  "howItWorksBody": "Upload a CSV or XLSX, or paste a table. {productName} profiles it, chooses the comparisons the columns allow, queries those with SQL, and shows every number's query. Nothing leaves this machine except the question and the profile.",
   "upload": "Upload CSV / XLSX",
   "reading": "Reading…",
   "savedAria": "Saved datasets",
@@ -94,5 +94,22 @@
   "markdownTables": "Tables",
   "markdownCharts": "Charts",
   "markdownChartFallback": "{type} chart",
-  "pastedTable": "Pasted table"
+  "pastedTable": "Pasted table",
+  "harness": {
+    "cutting": "Choosing the cuts",
+    "analyzing": "Querying with SQL",
+    "repairing": "Rewriting a sentence the query does not support",
+    "verifying": "Checking sentences against the queries",
+    "cannotForecast": "This sheet cannot forecast. The figures are the cuts the columns support.",
+    "cannotOtherTable": "This sheet is one table. The figures are the cuts its columns support.",
+    "fallbackTitle": "What this sheet shows",
+    "fallbackSummary": "Every figure below is a query result.",
+    "blanks": "Blank cells",
+    "rowsTitle": "Rows in this sheet",
+    "noRows": "The query returned no rows.",
+    "cutsFailed": "The sheet could not be queried.",
+    "repair": "Rewrite the JSON. The previous draft used a number or a query the results do not support. Copy figures only from the cut results. Do not forecast and do not use another table.",
+    "invalidJson": "The previous draft was not valid JSON.",
+    "noFindings": "The previous draft had no findings."
+  }
 }

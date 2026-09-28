@@ -1,14 +1,14 @@
 # Map — Data analysis
 
-Last verified: 2026-09-20 at 6984d84; citations re-anchored at e37b3a1
+Last verified: 2026-09-28 at 84646b1
 
 ## Overview
 
-Data mode turns a table the user owns into an analysis in which **every number came from a SQL query the host ran itself**. It has two halves that meet only at a dataset id: a **dataset store** (upload or paste → parse → profile → one in-memory SQLite per dataset, owned by a worker thread) and an **analysis job** (the model writes SQL through a `run_sql` tool, answers in JSON with the SQL behind each claim, and the host re-runs that SQL in code to build the evidence tables and the charts).
+Data mode turns a table the user owns into an analysis in which **every number came from a SQL query the host ran itself**. It has two halves that meet only at a dataset id: a **dataset store** (upload or paste → parse → profile → one in-memory SQLite per dataset, owned by a worker thread) and an **analysis job**. The job profiles the sheet, chooses up to three cuts the columns can support (`planDataCuts` in `packages/core/src/data/cuts.ts`), runs those SELECTs before the model speaks, then asks the model to name what those results say. A sentence that states a number the queries did not return is rewritten once and then dropped. The host still re-runs any SQL the model attaches, and builds charts from the cut results.
 
-The thing to hold onto: **the model never sees the table.** It sees a column list, a numeric profile and 20 sample rows, and one tool. Prose in the answer is the model's; every cell in every table and every point on every chart is a query result the host produced after the model finished.
+The thing to hold onto: **the model never sees the table.** It sees a column list, a numeric profile, 20 sample rows, the cut results, and one tool. Prose in the answer is the model's; every cell in every table and every point on every chart is a query result the host produced. A follow-up reuses the same dataset and the host picks the cuts again from the new question.
 
-It is not Research. `analyzeDataset` passes `toolKeys: ["run_sql", "calculator"]` (`packages/host/src/data-generate.ts:257`) and nothing else — no Tavily, no Brave, no `web_search`.
+It is not Research. `analyzeDataset` passes `toolKeys: ["run_sql", "calculator"]` (`packages/host/src/data-generate.ts:261`) and nothing else — no Tavily, no Brave, no `web_search`.
 
 ## How it works
 
@@ -71,24 +71,24 @@ Both are `:memory:`, both set `hard_heap_limit = 128 MB` and `query_only = 1` (`
 
 `streamJob` (`packages/host/src/job-stream.ts:30-86`) is the shape that matters for verification: it **always returns `{ type: "stream", status: 200 }`** (`:85`) and pushes the job's rejection onto the stream as a `job.error` event carrying the original code and status (`:57-59`, `jobErrorFromUnknown` at `:8-14`). On the client `settleJobEvents` (`apps/web/lib/job-stream.ts:34-46`) turns that event into a thrown `JobStreamError`, `useJobStream` stores it (`apps/web/lib/use-job-stream.ts:60-65`), and `DataStudio` renders `job.error.message` in `data-error` (`:73`, `:180-190`). So **the 503 is in the SSE payload, not on the wire** — the HTTP response to `POST /api/v1/data/stream` is 200 even when the desk has no key. The non-streaming twin `POST /api/v1/data` (`packages/host/src/handlers/jobs.ts:275-284`) does answer a real 503, but no UI calls it.
 
-`analyzeDataset` (`packages/host/src/data-generate.ts:199-288`) then runs four emitted phases: `profiling` → `analyzing` → `verifying` → `saving`. `requireLive` (`:110-120`) is checked **before** the dataset is resolved, so a keyless generate never builds a worker: `resolveRuntimeMode` returning `stub` throws `ApiError("runtime_stub", gatewayRequiredMessage("data", localeForRun()), 503)`.
+`analyzeDataset` (`packages/host/src/data-generate.ts:198-299`) then runs `profiling`, and `runDataHarness` (`packages/host/src/data-harness.ts:265`) adds `cutting` → `analyzing` → `verifying`, with one retry of the wording still inside `analyzing` / `verifying`, then `saving`. `requireLive` (`packages/host/src/data-generate.ts:109-119`) is checked **before** the dataset is resolved, so a keyless generate never builds a worker and never runs a cut: `resolveRuntimeMode` returning `stub` throws `ApiError("runtime_stub", gatewayRequiredMessage("data", localeForRun()), 503)`.
 
 ### 6. The brief the model sees, and the injection guard
 
-`datasetBrief` (`packages/host/src/data-generate.ts:138-170`) is the whole of the model's knowledge of the table:
+`datasetBrief` (`packages/host/src/data-generate.ts:137-169`) is the column list, the profile, and 20 sample rows. The cut results are added later, in the harness prompt:
 
 - a head line: name, `rows x columns`, and the literal table name `data`;
-- one line per column — SQL identifier, inferred type, and the original header when it differs (`columnLines`, `:124-131`);
+- one line per column — SQL identifier, inferred type, and the original header when it differs (`columnLines`, `:123-129`);
 - the full profile as a markdown table (`profileToMarkdown`);
 - the **first 20 rows** (`SAMPLE_ROWS`, `:31`) as a markdown table with the original headers (`tableSample`, `packages/core/src/tabular/index.ts:73-81`).
 
-Cell text is third-party content, so the assembled brief goes through `scanInjection` unless `settings.injectionGuardBypass` is set. On a hit the brief is **rebuilt numerically**: top-K values are emptied, the sample rows are dropped entirely, and the model is told the rule that fired and instructed to query instead of guessing (`:155-169`). The job emits a `job.step` naming the rule (`:217-223`) so the user can see why the sample vanished.
+Cell text is third-party content, so the assembled brief goes through `scanInjection` unless `settings.injectionGuardBypass` is set. On a hit the brief is **rebuilt numerically**: top-K values are emptied, the sample rows are dropped entirely, and the model is told the rule that fired and instructed to query instead of guessing (`:155-169`). The job emits a `job.step` naming the rule (`:217-221`) so the user can see why the sample vanished.
 
-The final prompt is brief + up to `DATA_HISTORY_MAX = 5` earlier question/summary pairs (`readHistory`, `:80-95`) + optional pasted extra context + the question (`:224-232`). The system prompt `DATA_SYSTEM` (`:33-51`) fixes the output contract: JSON only, `findings[].sql` must be a single SELECT the model already ran because **it is re-run in code**, 0–3 charts, 3–6 findings, and no invented campus/student nouns.
+The final prompt is built in `buildDataPrompt` (`packages/host/src/data-harness.ts:89`): the brief, the cut results, a note when the question asks for a forecast or a second table, up to `DATA_HISTORY_MAX = 5` earlier question/summary pairs (`readHistory`, `packages/host/src/data-generate.ts:79-94`), optional pasted extra context, and the question. The system prompt `DATA_SYSTEM` (`packages/host/src/data-generate.ts:32-50`) is wrapped with `withOutputLanguage(..., "data", localeForRun())` (`:255`). It fixes the output contract: JSON only, one finding per cut plus at most one tighter finding, `findings[].sql` re-run in code, 0–3 charts, and no invented campus/student nouns. Every number in the wording has to be copied from a cut result or from `run_sql`.
 
 ### 7. `run_sql` — the only road to a number
 
-The tool is defined once (`packages/host/src/sql-tool.ts:94-121`) and finds its dataset through an `AsyncLocalStorage` (`:25-33`): `analyzeDataset` wraps the model call in `withActiveDataset({ id, query, steps, stepCap, onQuery })` (`packages/host/src/data-generate.ts:247-259`), so the tool has no dataset argument and cannot be pointed at someone else's table. Outside that scope it returns `{ success: false, error: "No dataset is attached to this run." }`.
+The tool is defined once (`packages/host/src/sql-tool.ts:94-121`) and finds its dataset through an `AsyncLocalStorage` (`:25-33`): `analyzeDataset` wraps the model call in `withActiveDataset({ id, query, steps, stepCap, onQuery })` (`packages/host/src/data-generate.ts:249-263`), so the tool has no dataset argument and cannot be pointed at someone else's table. Outside that scope it returns `{ success: false, error: "No dataset is attached to this run." }`. The cut queries do not go through this tool and do not spend the 8-step cap; they call `dataset.runner.query` directly (`packages/host/src/data-harness.ts:290`).
 
 Three caps stack:
 
@@ -96,25 +96,26 @@ Three caps stack:
 2. **Grammar.** `assertReadOnlySql` (`packages/host/src/sql-guard.ts:125-149`) strips string literals first, then rejects: a second statement (`;`), any comment (`--`, `/*`), anything not starting `SELECT` or `WITH`, and a long forbidden-keyword list (`:7-8`) covering writes, DDL, `PRAGMA`, `ATTACH`, `load_extension`, `readfile`/`writefile`, `sqlite_master`/`sqlite_schema` and `RECURSIVE`. A self-join of `data` with no `ON`/`WHERE`/`USING` predicate is refused too (`:144-147`) — that is the cross-join blow-up guard. It runs twice: once on the runner's front door (`packages/host/src/sql-runner.ts:273`) and once in the sync helper (`packages/host/src/sql-tool.ts:61`).
 3. **Runtime.** The worker serializes queries on a promise chain (`sql-runner.ts:276-281`); each gets `SQL_TIME_CAP_MS = 2000` and on expiry the pending promise rejects 408 **and the worker is terminated** (`:222-226`), to be respawned lazily on the next query. Results are capped at `SQL_ROW_CAP = 500` rows and each cell at `SQL_CELL_MAX_CHARS = 400` chars, with blobs replaced by `[blob N bytes]` (`sql-worker-source.ts:13-20`).
 
-Every call fires `onQuery`, which the job turns into a `job.step` carrying the SQL text, the row count or the failure, and `current`/`total` against the step cap (`packages/host/src/data-generate.ts:237-241`) — that is what `JobProgressList` shows under `data-progress`.
+Every model call fires `onQuery`, which the job turns into a `job.step` carrying the SQL text, the row count or the failure, and `current`/`total` against the step cap (`packages/host/src/data-generate.ts:225-229`) — that is what `JobProgressList` shows under `data-progress`. Cut queries emit their own `job.step` on phase `cutting` (`packages/host/src/data-harness.ts:292-300`).
 
-While the job runs it holds `dataset.runner.acquire()` (`:243`, released in a `finally` at `:268`), which bumps `inUse()`; `remove` refuses with 409 while that is non-zero.
+While the job runs it holds `dataset.runner.acquire()` (`:231`, released in a `finally` at `:270`), which bumps `inUse()`; `remove` refuses with 409 while that is non-zero.
 
 ### 8. Materializing — prose is the model's, numbers are not
 
 `parseAnalysisDraft` (`packages/host/src/data-analysis-build.ts:34-72`) pulls the JSON out of whatever the model wrapped it in (`extractJsonObject`), drops findings missing a heading or body, **throws 502 `invalid_analysis` when nothing survives**, and drops charts whose type is not `bar`/`line`/`scatter` or that lack `sql`, `x` or a series.
 
-`materializeAnalysis` (`:146-159`) then re-runs the SQL **in code, through the same guarded worker**:
+`materializeWithFailures` (`packages/host/src/data-analysis-build.ts:162`) then re-runs the SQL **in code, through the same guarded worker**:
 
-- `materializeFinding` (`:78-93`) attaches `evidence: { sql, table }` capped at `EVIDENCE_ROW_CAP = 50` rows. A failed evidence query does not fail the analysis — the finding keeps its prose with `(Evidence query failed: …)` appended (`:91`).
-- `chartFromResult` (`:110-135`) matches `x` and each series **by column name in the real result**; rows where any plotted series is missing or non-numeric are **left out, never zero-filled** (`:121`), capped at `CHART_POINT_CAP = 50` points, and the chart is dropped entirely when the named columns are absent or no row is fully numeric.
-- The result is validated by `dataAnalysisSchema.parse` (`packages/core/src/artifacts/data-analysis.ts:45-51`), so a malformed shape is a throw, not a half-rendered card. `tables` is always `[]` on this path — the schema supports named tables but nothing populates them.
+- A finding with SQL attaches `evidence: { sql, table }` capped at `EVIDENCE_ROW_CAP = 50` rows. A failed evidence query **drops that finding** (`EvidenceFailure`); the sentence is not kept.
+- `chartFromResult` (`:123`) matches `x` and each series **by column name in the real result**; rows where any plotted series is missing or non-numeric are **left out, never zero-filled**, capped at `CHART_POINT_CAP = 50` points, and the chart is dropped entirely when the named columns are absent or no row is fully numeric.
+- `holdSentences` (`packages/host/src/data-harness.ts:239`) then requires every number in the title, summary, heading, and body to appear in a cut result or an evidence cell (`packages/core/src/data/ground.ts`). One retry rewrites the JSON. A second failure keeps only the sentences that pass, and if none do the analysis is built from the cut rows in code (`analysisFromCuts`, `packages/host/src/data-harness.ts:224`). A forecast or a second table is named in the summary and is not computed.
+- The result is validated by `dataAnalysisSchema.parse` (`packages/core/src/artifacts/data-analysis.ts:45-51`), so a malformed shape is a throw, not a half-rendered card. `tables` is always `[]` on this path — the schema supports named tables but nothing populates them. Cut charts (bar for a comparison or a count, line for a date) are attached when the model did not already return that shape, up to 3.
 
 ### 9. Artifact, markdown, knowledge card
 
 `dataAnalysisToMarkdown` (`packages/core/src/artifacts/data-analysis.ts:79-91`) flattens the analysis: `# title`, summary, then per finding `## heading`, body, a ```sql fence, and the evidence table as markdown; charts become markdown tables under `## Charts`.
 
-That markdown is saved as an artifact with `mode: "data"`, `kind: "analysis"`, `mime: "text/markdown"` and meta `{ question, model, datasetId, datasetName, queries }` (`packages/host/src/data-generate.ts:274-280`). `persistAnalysis` (`:177-197`) **swallows a save failure** — it warns and returns `null`, and the analysis is still returned to the user, just without a download-by-id or a KB card. When it does save, `upsertWorkSource` writes a Data work card into the knowledge ingest loop (`:281-286`).
+That markdown is saved as an artifact with `mode: "data"`, `kind: "analysis"`, `mime: "text/markdown"` and meta `{ question, model, datasetId, datasetName, queries, skills }` (`packages/host/src/data-generate.ts:277-284`). `persistAnalysis` (`packages/host/src/data-generate.ts:176-196`) **swallows a save failure** — it warns and returns `null`, and the analysis is still returned to the user, just without a download-by-id or a KB card. When it does save, `upsertWorkSource` writes a Data work card into the knowledge ingest loop (`:286-290`).
 
 The studio renders the result through `ArtifactActions` (`apps/web/components/data-studio.tsx:295-302`, testids `data-actions` / `data-download` / `data-send-kb` / `data-make-document` / `data-make-presentation`) and `DataAnalysisView` (`:303`, testids `data-analysis` / `data-summary` / `data-finding` / `data-evidence` / `data-evidence-sql` / `data-evidence-table` / `data-charts` / `data-chart`). The summary is added to `history` so the next question is a follow-up (`:166`), shown as `data-history`.
 
@@ -129,7 +130,7 @@ The studio renders the result through `ArtifactActions` (`apps/web/components/da
 | Failure | Where | What the user gets |
 |---|---|---|
 | Gate closed | `requireGatewayAllowed`, `packages/host/src/handlers/jobs.ts:291` | HTTP 403 flat `gateway_blocked`; `runJobStream` sees a JSON body and throws (`apps/web/lib/job-stream.ts:61-62`) → `data-error` |
-| No key / stub runtime | `requireLive`, `packages/host/src/data-generate.ts:110-120` | HTTP **200** stream, `job.error` `runtime_stub` status 503 → `data-error` with the Toko Token / Settings hint |
+| No key / stub runtime | `requireLive`, `packages/host/src/data-generate.ts:109-119` | HTTP **200** stream, `job.error` `runtime_stub` status 503 → `data-error` with the Toko Token / Settings hint |
 | No dataset adopted | client, `apps/web/components/data-studio.tsx:153-155` | `data-error` from `data.errors.needTable`, **no network call at all** |
 | Empty prompt | client `:150` then `readPrompt` `:64-73` | button disabled (`:367`); a direct post is 400 `prompt is required` |
 | No `datasetId` and no `csv` | `resolveDataset`, `:98-108` | 400 `datasetId (or a pasted csv) is required` |
@@ -143,11 +144,12 @@ The studio renders the result through `ArtifactActions` (`apps/web/components/da
 | Model wrote a write/DDL/`PRAGMA` query | `assertReadOnlySql`, `sql-guard.ts:140-143` | tool returns `{success:false}`; the model retries within its 8 steps |
 | Query over 2 s | `sql-runner.ts:222-226` | 408, worker terminated and respawned; tool reports the failure |
 | Step cap hit | `sql-tool.ts:107-110` | tool tells the model to answer with what it has |
-| Model returned no JSON object / no findings | `parseAnalysisDraft`, `data-analysis-build.ts:38-49` | 502 `invalid_analysis` → `data-error` |
-| Model returned nothing | `data-generate.ts:260-262` | 502 `generation_failed` |
-| Evidence query fails at materialize time | `materializeFinding`, `data-analysis-build.ts:89-92` | finding kept, prose gains "(Evidence query failed: …)" |
+| Model returned no JSON object / no findings | `parseAnalysisDraft`, then one retry in `runDataHarness` (`data-harness.ts:367-376`) | second failure delivers the cut rows in code, not a 502 |
+| Model returned nothing | `data-harness.ts:326` | treated as invalid JSON: one retry, then the cut rows |
+| Evidence query fails at materialize time | `materializeWithFailures`, `data-analysis-build.ts:162-176` | that finding is dropped; if none remain after the retry, the cut rows are the analysis |
+| Every cut query fails | `data-harness.ts:304-306` | 502, `dataCopy(locale).cutsFailed` |
 | Chart columns not in the result | `chartFromResult`, `:113` | chart silently dropped |
-| Artifact save fails | `persistAnalysis`, `data-generate.ts:192-196` | analysis still shown, `artifactId: null`, console warn only |
+| Artifact save fails | `persistAnalysis`, `data-generate.ts:191-195` | analysis still shown, `artifactId: null`, console warn only |
 | Delete during a run | `store.remove`, `datasets.ts:290-292` | 409 "Dataset is being analyzed right now" |
 | User cancels | `data-cancel` → `job.cancel` (`data-studio.tsx:360`) | progress reset, **no error shown** (`use-job-stream.ts:55-59`) |
 
@@ -166,8 +168,13 @@ The studio renders the result through `ArtifactActions` (`apps/web/components/da
 | `packages/host/src/handlers/datasets.ts` | Upload / paste / list / get / delete; `datasetPayload` (profile + 100-row preview) |
 | `packages/host/src/handlers/jobs.ts:275-298` | `POST /api/v1/data` (real 503) and `/data/stream` (always 200 + SSE) |
 | `packages/host/src/datasets.ts` | The store: caps, parse, profile, file layout, cache, both SQLites, delete |
-| `packages/host/src/data-generate.ts` | `analyzeDataset`: system prompt, brief + injection guard, phases, artifact, KB card |
-| `packages/host/src/data-analysis-build.ts` | Draft JSON → re-run SQL → evidence tables and charts |
+| `packages/host/src/data-generate.ts` | `analyzeDataset`: system prompt, brief + injection guard, calls the harness, artifact, KB card |
+| `packages/host/src/data-harness.ts` | Cuts, one wording retry, sentence check, code fallback from the query rows |
+| `packages/host/src/data-cut-sql.ts` | The SELECT for each cut |
+| `packages/host/src/data-copy.ts` | en/id strings for the harness, mirrored in `apps/web/locales/{en,id}/data.json` `harness` |
+| `packages/core/src/data/cuts.ts` | Which cuts the column types allow, and the forecast / second-table limit |
+| `packages/core/src/data/ground.ts` | Which prose numbers appear in a query result |
+| `packages/host/src/data-analysis-build.ts` | Draft JSON → re-run SQL → evidence tables and charts; a failed query drops the finding |
 | `packages/host/src/sql-guard.ts` | `assertReadOnlySql`, `toSqlIdentifier`, `DATASET_TABLE = "data"` |
 | `packages/host/src/sql-tool.ts` | The `run_sql` tool, its `AsyncLocalStorage` scope, the step cap |
 | `packages/host/src/sql-runner.ts` | Worker-backed runner: spawn, serialize, time cap, kill, `inUse` |
@@ -183,10 +190,10 @@ The studio renders the result through `ArtifactActions` (`apps/web/components/da
 - **Host error strings are English on every desk.** Everything the store and the parser throw is a hardcoded English `ApiError` message (`packages/host/src/datasets.ts:128`, `:134`, `:137`, `:140`, `:278`, `:291`, `:329`; `packages/host/src/handlers/datasets.ts:13`). `apps/web/locales/id/data.json` carries `errors.noHeader`, `errors.parse`, `errors.rowCap`, `errors.notFound`, `errors.inUse`, `errors.datasetCap`, `errors.fileOrText`, `errors.missingFile`, `errors.stubNeedsKey`, `errors.emptyAnalysis`, `errors.invalidJson`, `errors.noFindings`, `errors.promptRequired`, `errors.datasetRequired`, `errors.list`, `errors.delete`, `errors.fileCap`, `errors.readFile` — and **none of them has a caller**; only `errors.upload`, `errors.paste`, `errors.open` and `errors.needTable` are used, and the first three only as fallbacks when the thrown error has no message. Driven proof: on an `id` desk a bad paste shows "Could not find a header row plus at least one data row".
 - **There are two SQLite copies per dataset and only one of them is the model's.** `buildDatasetDb` (`packages/host/src/datasets.ts:100-114`) is built eagerly on every `create`/`get` but is only read by `runReadOnlySql`, which the analysis path never calls. Reading the same-thread `db` to reason about what the model can do is reading the wrong object — the caps, the kill switch and the serialization all live in `createQueryRunner`.
 - **The table is always called `data`.** `DATASET_TABLE = "data"` (`packages/host/src/sql-guard.ts:5`), which is also in the `RESERVED` identifier set (`:41`), so a column literally named "data" becomes `c_data`. The `DATA_REFERENCE` self-join guard (`:10`) is a regex over `FROM data` / `JOIN data` / `, data`, not a parser.
-- **`tables` is dead weight in the artifact.** `dataAnalysisSchema` has a `tables: NamedTable[]` field and `dataAnalysisToMarkdown` renders a `## Tables` section for it, but `materializeAnalysis` always passes `tables: []` (`packages/host/src/data-analysis-build.ts:158`) and nothing else builds a `DataAnalysis`. `data-tables` / `data-table` can therefore never appear on this path.
+- **`tables` is dead weight in the artifact.** `dataAnalysisSchema` has a `tables: NamedTable[]` field and `dataAnalysisToMarkdown` renders a `## Tables` section for it, but `materializeWithFailures` and `analysisFromCuts` both pass `tables: []` (`packages/host/src/data-analysis-build.ts:184`, `packages/host/src/data-harness.ts:233`). `data-tables` / `data-table` can therefore never appear on this path.
 - **There is no way to delete a dataset from the UI.** The route and the client function exist; no component calls `deleteDataset`. Uploaded tables accumulate in the `data-saved` picker forever, and the raw files accumulate under `localDataDir()/datasets/<workspaceId>/`.
 - **Uploaded datasets are named by filename, not by the user.** `handlePostDatasets` notes that multipart fields never reach the handler (`packages/host/src/handlers/datasets.ts:35`), so `name` and `filename` are both the uploaded file's name. A pasted one gets the localized `data.pastedTable` label from the client, which means two pastes are indistinguishable in the picker.
-- **`requireLive` runs before `resolveDataset`.** On a keyless desk (`packages/host/src/data-generate.ts:206` before `:215`) the 503 fires without touching the store — so a *keyless* generate driven with `{csv: …}` instead of `{datasetId: …}` never creates the on-the-fly dataset that `resolveDataset` (`:103-105`) would otherwise persist. On a live desk it does, silently, with no UI trace.
+- **`requireLive` runs before `resolveDataset`.** On a keyless desk (`packages/host/src/data-generate.ts:205` before `:214`) the 503 fires without touching the store — so a *keyless* generate driven with `{csv: …}` instead of `{datasetId: …}` never creates the on-the-fly dataset that `resolveDataset` (`:97-107`) would otherwise persist. On a live desk it does, silently, with no UI trace.
 - **`data-preview` only shows the first 100 rows** and only after `data-preview-toggle` is pressed; `PREVIEW_ROWS = 100` is fixed in the handler (`packages/host/src/handlers/datasets.ts:7`), and the grid's own `maxRows` is passed as 100 too (`apps/web/components/data-studio.tsx:281`).
 - **The studio never unmounts.** `/data` is `element={null}` and `WorkModeKeepAlive` owns the instance, so the adopted dataset, the follow-up history and a shown analysis all survive switching to Chat and back. There is no route-level reset.
 - **Cancelling shows nothing.** `useJobStream` treats an aborted run as a quiet reset (`apps/web/lib/use-job-stream.ts:55-59`), so `data-cancel` leaves the studio looking as if the user never pressed Analyze.
@@ -201,10 +208,10 @@ Keyless proof is the whole shell plus both ingest doors plus a `data-error` on g
 
 ## Why
 
-**Why the model's SQL is re-run in code instead of trusted from the transcript.** `[Direct]` the contract in the system prompt: "findings.sql is the exact query whose result supports the finding. It is re-run in code and shown as evidence" (`packages/host/src/data-generate.ts:47`), and the function comment on `materializeAnalysis`: "Every table and chart comes from re-running the model's SQL in code; prose is the model's, numbers are not" (`packages/host/src/data-analysis-build.ts:145`). **Confidence: high.**
+**Why the model's SQL is re-run in code instead of trusted from the transcript.** `[Direct]` the contract in the system prompt: "findings.sql is the exact query whose result supports the finding. It is re-run in code and shown as evidence" (`packages/host/src/data-generate.ts:42`), and the function comment on `materializeAnalysis`: "Every table and chart comes from re-running the model's SQL in code; prose is the model's, numbers are not" (`packages/host/src/data-analysis-build.ts:188`). The sentence check in `holdSentences` is the same rule applied to prose numbers (`packages/host/src/data-harness.ts:239`). **Confidence: high.**
 
 **Why the model's queries run in a worker thread and not on the host's own connection.** `[Direct]` the comment on `createQueryRunner`: "One worker per dataset, spawned lazily and respawned after a kill. Queries are serialized; a query past its time cap terminates the worker so a runaway aggregate or join can never block the host process" (`packages/host/src/sql-runner.ts:175-184`). `[Supported]` the same file's `sqliteModulePath` comment (`:118-123`) shows the cost that was accepted for it — the packaged app has to unpack the native binding so a worker can load it from the real filesystem. **Confidence: high.**
 
-**Why the dataset brief passes the injection guard.** `[Direct]` the doc comment at `packages/host/src/data-generate.ts:133-137`: "Cell text (top values, sample rows, headers) is untrusted third-party content, so it passes the same injection guard as pasted source material; on a hit the numeric profile stays and the text parts are withheld." **Confidence: high.**
+**Why the dataset brief passes the injection guard.** `[Direct]` the doc comment at `packages/host/src/data-generate.ts:132-136`: "Cell text (top values, sample rows, headers) is untrusted third-party content, so it passes the same injection guard as pasted source material; on a hit the numeric profile stays and the text parts are withheld." **Confidence: high.**
 
 **Why a failed insert unlinks the uploaded file.** `[Direct]` the inline comment at `packages/host/src/datasets.ts:246`: "No row means no dataset: do not leave an orphaned file behind." **Confidence: high.**

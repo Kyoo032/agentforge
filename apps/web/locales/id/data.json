@@ -2,7 +2,7 @@
   "title": "Data",
   "expectedInputs": "Anda dapat: analisis tersimpan — temuan, bukti, dan SQL di balik setiap angka.",
   "howItWorks": "Cara kerjanya",
-  "howItWorksBody": "Unggah CSV atau XLSX, atau tempel tabel. {productName} memprofilkannya, menanyainya dengan SQL, dan menampilkan kueri untuk setiap angka. Tidak ada yang keluar dari mesin ini kecuali pertanyaan dan profil.",
+  "howItWorksBody": "Unggah CSV atau XLSX, atau tempel tabel. {productName} memprofilkannya, memilih perbandingan yang kolomnya mendukung, menanyainya dengan SQL, dan menampilkan kueri untuk setiap angka. Tidak ada yang keluar dari mesin ini kecuali pertanyaan dan profil.",
   "upload": "Unggah CSV / XLSX",
   "reading": "Membaca…",
   "savedAria": "Dataset tersimpan",
@@ -94,5 +94,22 @@
   "markdownTables": "Tabel",
   "markdownCharts": "Grafik",
   "markdownChartFallback": "grafik {type}",
-  "pastedTable": "Tabel ditempel"
+  "pastedTable": "Tabel ditempel",
+  "harness": {
+    "cutting": "Memilih potongan",
+    "analyzing": "Mengueri dengan SQL",
+    "repairing": "Menulis ulang kalimat yang kuerinya tidak mendukung",
+    "verifying": "Mencocokkan kalimat dengan kueri",
+    "cannotForecast": "Lembar ini tidak bisa meramalkan. Angka di bawah adalah potongan yang kolomnya mendukung.",
+    "cannotOtherTable": "Lembar ini satu tabel. Angka di bawah adalah potongan yang kolomnya mendukung.",
+    "fallbackTitle": "Isi lembar ini",
+    "fallbackSummary": "Setiap angka di bawah adalah hasil kueri.",
+    "blanks": "Sel kosong",
+    "rowsTitle": "Baris pada lembar ini",
+    "noRows": "Kueri tidak mengembalikan baris.",
+    "cutsFailed": "Lembar ini tidak bisa dikueri.",
+    "repair": "Tulis ulang JSON. Draf sebelumnya memakai angka atau kueri yang hasilnya tidak mendukung. Salin angka hanya dari hasil potongan. Jangan meramalkan dan jangan memakai tabel lain.",
+    "invalidJson": "Draf sebelumnya bukan JSON yang valid.",
+    "noFindings": "Draf sebelumnya tidak punya temuan."
+  }
 }
