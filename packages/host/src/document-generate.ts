@@ -2,6 +2,7 @@ import {
   ApiError,
   gatewayRequiredMessage,
   hasLiveProvider,
+  holdDraftToSource,
   modeMessage,
   resolveChatModel,
   resolveRuntimeMode,
@@ -117,6 +118,19 @@ async function collectAssistantRun(
   });
 }
 
+/** Mirrors `harness.sourceGap` in `apps/web/locales/{en,id}/documents.json`. The model does not write this line. */
+export function documentSourceGap(locale: AppLocale = localeForRun()): string {
+  return locale === "id" ? "Tidak ada di sumber." : "Not in the source.";
+}
+
+/** Skill: check the draft against the source. Code deletes. No second model call. */
+export function holdDocumentSource(draft: DocumentDraft, sourceText: string, onlySection?: number): DocumentDraft {
+  if (!sourceText.trim()) {
+    return draft;
+  }
+  return holdDraftToSource(draft, sourceText, documentSourceGap(), onlySection);
+}
+
 function requireLiveDocumentRuntime(tenant: TenantContext): ReturnType<typeof loadSettings> {
   const settings = loadSettings(tenant);
   const mode = resolveRuntimeMode({
@@ -167,18 +181,21 @@ export async function generateDocumentDraft(tenant: TenantContext, body: unknown
   const settings = requireLiveDocumentRuntime(tenant);
   const sourceText = readSourceText(body, { injectionGuardBypass: settings.injectionGuardBypass === true });
   const model = resolveDocumentModel(body, settings);
-  const run = await collectAssistantRun(tenant, model, prompt, isFinanceJob(body), sourceText, readModelPinned(body));
+  const finance = isFinanceJob(body);
+  const run = await collectAssistantRun(tenant, model, prompt, finance, sourceText, readModelPinned(body));
   if (!run.text.trim()) {
     throw new ApiError("generation_failed", modeMessage("emptyDocumentDraft", localeForRun()), 502);
   }
-  const draft = parseDocumentDraft(run.text);
+  const parsed = parseDocumentDraft(run.text);
+  // Finance on this route keeps its own number guard. Documents holds source facts here.
+  const draft = finance ? parsed : holdDocumentSource(parsed, sourceText);
   const markdown = documentDraftMarkdown(draft);
   // Record the model that wrote the draft. After a fallback the requested id is the one model that did not.
   const answeredBy = run.model;
   const artifactId = persistDraft(tenant, draft, markdown, {
     question: prompt,
     model: answeredBy,
-    finance: isFinanceJob(body),
+    finance,
   });
   if (artifactId) {
     await upsertWorkSource(
@@ -255,5 +272,5 @@ export async function regenerateDocumentSection(tenant: TenantContext, body: unk
   if (!raw.trim()) {
     throw new ApiError("generation_failed", modeMessage("emptyDocumentSection", localeForRun()), 502);
   }
-  return mergeDocumentSection(draft, index, parseDocumentSection(raw));
+  return holdDocumentSource(mergeDocumentSection(draft, index, parseDocumentSection(raw)), sourceText, index);
 }

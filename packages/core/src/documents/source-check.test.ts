@@ -24,4 +24,18 @@ describe("checkDraftAgainstSource", () => {
     expect(supported.some((sentence) => sentence.includes("every work mode"))).toBe(true);
     expect(unsupported.some((sentence) => sentence.includes("August"))).toBe(true);
   });
+
+  it("marks a sentence that states a number the source never stated", () => {
+    const numbered = {
+      title: "Field note",
+      sections: [
+        {
+          heading: "What shipped",
+          body: "The rail on this desk already shows 14 work modes.",
+        },
+      ],
+    };
+    const result = checkDraftAgainstSource(numbered, "The rail on this desk already shows every work mode.");
+    expect(result.items.some((item) => item.sentence.includes("14") && !item.supported)).toBe(true);
+  });
 });

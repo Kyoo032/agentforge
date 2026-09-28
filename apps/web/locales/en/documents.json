@@ -158,5 +158,8 @@
     "empty": "Add source material first. There is nothing to check against.",
     "supported": "Supported",
     "unsupported": "Not in the source"
+  },
+  "harness": {
+    "sourceGap": "Not in the source."
   }
 }

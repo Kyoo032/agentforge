@@ -662,6 +662,7 @@ export { MODE_HARNESSES, harnessFor, wiredSkillIds } from "./harness/mode-skills
 export type { HarnessSkill, HarnessSkillStatus, ModeHarness } from "./harness/mode-skills";
 export { checkDraftAgainstSource } from "./documents/source-check";
 export type { CheckableDraft, SourceCheck, SourceCheckItem } from "./documents/source-check";
+export { holdDraftToSource } from "./documents/source-hold";
 export {
   OUTPUT_LANGUAGE_SURFACES,
   outputLanguageRule,

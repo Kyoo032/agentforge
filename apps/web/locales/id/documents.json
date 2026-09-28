@@ -158,5 +158,8 @@
     "empty": "Tambahkan materi sumber dulu. Tidak ada yang dapat diperiksa.",
     "supported": "Didukung",
     "unsupported": "Tidak ada di sumber"
+  },
+  "harness": {
+    "sourceGap": "Tidak ada di sumber."
   }
 }
