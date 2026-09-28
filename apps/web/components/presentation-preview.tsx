@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { JobRegenPanel, type JobRegenSubmit } from "@/components/job-regen-panel";
+import { assignSlideLayout } from "@agentforge/core";
 import type { PresentationOutline, PresentationShape, PresentationSlide } from "@/lib/presentation-outline";
 import { useProductBrand } from "@/lib/product-brand";
 import type { JobStudioModel } from "@/lib/use-job-model";
@@ -514,6 +515,7 @@ export function PresentationPreview({
             type="button"
             className={`${simple ? "max-w-36 shrink-0 py-1" : "min-w-28 py-2"} rounded-lg border bg-[var(--surface)] px-2 text-left text-xs ${slideIndex === 0 ? "border-[var(--mode)]" : "border-[var(--line)]"}`}
             data-testid="presentations-filmstrip-slide"
+            data-layout="title"
             aria-pressed={slideIndex === 0}
             onClick={() => {
               setSlideIndex(0);
@@ -529,6 +531,16 @@ export function PresentationPreview({
               type="button"
               className={`${simple ? "max-w-36 shrink-0 py-1" : "min-w-28 py-2"} rounded-lg border bg-[var(--surface)] px-2 text-left text-xs ${slideIndex === index + 1 ? "border-[var(--mode)]" : "border-[var(--line)]"}`}
               data-testid="presentations-filmstrip-slide"
+              data-layout={
+                item.layout ??
+                assignSlideLayout(
+                  {
+                    role: item.kind,
+                    lines: [item.subhead, item.aside, ...item.bullets].map((line) => line.trim()).filter(Boolean),
+                  },
+                  index + 1,
+                )
+              }
               aria-pressed={slideIndex === index + 1}
               onClick={() => {
                 setSlideIndex(index + 1);
@@ -548,6 +560,18 @@ export function PresentationPreview({
           ref={stageRef}
           className="relative aspect-video w-full overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--bg)]"
           data-testid={slide ? "presentations-slide" : "presentations-slide-title"}
+          data-layout={
+            slide
+              ? (slide.layout ??
+                assignSlideLayout(
+                  {
+                    role: slide.kind,
+                    lines: [slide.subhead, slide.aside, ...slide.bullets].map((line) => line.trim()).filter(Boolean),
+                  },
+                  slideIndex,
+                ))
+              : "title"
+          }
           onPointerUp={endDrag}
           onPointerCancel={endDrag}
           onPointerDown={(event) => {

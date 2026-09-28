@@ -115,6 +115,7 @@ import {
   handlePostImages,
   handlePostPresentations,
   handlePostPresentationsPptx,
+  handlePostPresentationsStream,
   handlePostPresentationsRegen,
   handlePostResearch,
   handlePostResearchStream,
@@ -128,6 +129,7 @@ import {
   handleGetOpenSlideDecks,
   handlePostOpenSlide,
   handlePostOpenSlideDeck,
+  handlePostOpenSlideStream,
   handlePostOpenSlidePptx,
 } from "./handlers/open-slide";
 import {
@@ -348,9 +350,11 @@ const routes: Route[] = [
   compile("POST", "/api/v1/documents/docx", handlePostDocumentsDocx),
   compile("POST", "/api/v1/documents/check", handlePostDocumentsCheck),
   compile("POST", "/api/v1/presentations", handlePostPresentations),
+  compile("POST", "/api/v1/presentations/stream", handlePostPresentationsStream),
   compile("POST", "/api/v1/presentations/regenerate", handlePostPresentationsRegen),
   compile("POST", "/api/v1/presentations/pptx", handlePostPresentationsPptx),
   compile("POST", "/api/v1/presentations/open-slide", handlePostOpenSlide),
+  compile("POST", "/api/v1/presentations/open-slide/stream", handlePostOpenSlideStream),
   compile("POST", "/api/v1/presentations/open-slide/pptx", handlePostOpenSlidePptx),
   compile("GET", "/api/v1/presentations/open-slide/decks", handleGetOpenSlideDecks),
   compile("POST", "/api/v1/presentations/open-slide/decks", handlePostOpenSlideDeck),

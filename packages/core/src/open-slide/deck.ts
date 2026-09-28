@@ -48,6 +48,8 @@ export type OpenSlideBlock = {
 export type OpenSlidePage = {
   id: string;
   role: OpenSlideRole;
+  /** Assigned after the draft. One of title, section, split, quote, figure. */
+  layout?: "title" | "section" | "split" | "quote" | "figure";
   notes: string;
   blocks: OpenSlideBlock[];
 };
@@ -117,9 +119,18 @@ const blockSchema = z.object({
   tone: z.enum(["text", "accent", "muted", "bg"]).catch("text"),
 });
 
+const slideLayoutSchema = z.preprocess(
+  (value) =>
+    value === "title" || value === "section" || value === "split" || value === "quote" || value === "figure"
+      ? value
+      : undefined,
+  z.enum(["title", "section", "split", "quote", "figure"]).optional(),
+);
+
 const pageSchema = z.object({
   id: z.string().trim().min(1).max(40),
   role: z.enum(OPEN_SLIDE_ROLES).catch("content"),
+  layout: slideLayoutSchema,
   notes: z.string().max(2000).catch(""),
   blocks: z.array(blockSchema).max(16),
 });

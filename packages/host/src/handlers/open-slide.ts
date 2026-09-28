@@ -2,6 +2,7 @@ import { ApiError } from "@agentforge/core";
 import { parseOpenSlideDeck, type OpenSlideDeck } from "@agentforge/core/open-slide";
 import { ZodError } from "zod";
 import { jsonError, jsonOk } from "../errors";
+import { streamJob } from "../job-stream";
 import { requireGatewayAllowedFor } from "../gateway-gate";
 import { listOpenSlideDecks, readOpenSlideDeck, saveOpenSlideDeck } from "../open-slide-decks";
 import { generateOpenSlideDeck } from "../open-slide-generate";
@@ -25,6 +26,19 @@ export async function handlePostOpenSlide(request: HostRequest): Promise<HostRes
     const tenant = await getTenant(request);
     requireGatewayAllowedFor(tenant);
     return jsonOk(await generateOpenSlideDeck(tenant, request.body ?? null));
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+/** Same deck as POST /api/v1/presentations/open-slide, with job.phase progress. */
+export async function handlePostOpenSlideStream(request: HostRequest): Promise<HostResult> {
+  try {
+    const tenant = await getTenant(request);
+    requireGatewayAllowedFor(tenant);
+    return streamJob((emit, abortSignal) => generateOpenSlideDeck(tenant, request.body ?? null, emit, abortSignal), {
+      abortSignal: request.abortSignal,
+    });
   } catch (error) {
     return jsonError(error);
   }

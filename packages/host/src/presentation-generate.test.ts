@@ -121,6 +121,40 @@ describe("the model a Presentations job uses and records", () => {
     expect(asked[0]?.modelExplicit).toBe(false);
   });
 
+  it("asks once for a crowded slide and still returns the slide that fit", async () => {
+    const crowded = {
+      title: "Saturday pickup",
+      slides: [
+        {
+          kind: "bullets",
+          heading: "Named bags",
+          subhead: "",
+          bullets: ["One", "Two", "Three", "Four", "Five", "Six"],
+          aside: "",
+          notes: "Already noted.",
+        },
+        {
+          kind: "close",
+          heading: "Keep this close",
+          subhead: "",
+          bullets: [],
+          aside: "",
+          notes: "Stay.",
+        },
+      ],
+    };
+    answer = { text: JSON.stringify(crowded), model: "deepseek-v4-flash" };
+    const outline = await generatePresentationOutline(tenant, { prompt: "Saturday pickup" });
+    expect(asked).toHaveLength(2);
+    expect(String(asked[1]?.prompt)).toContain("too_many_bullets");
+    expect(String(asked[1]?.prompt)).not.toContain("Keep this close");
+    expect(outline.slides[0]?.bullets.length).toBeLessThanOrEqual(5);
+    expect(outline.slides[0]?.layout).toBe("split");
+    expect(outline.slides[1]?.heading).toBe("Keep this close");
+    expect(outline.slides[1]?.layout).toBe("section");
+    expect(outline.title).toBe("Saturday pickup");
+  });
+
   it("passes the pin on a slide rewrite too", async () => {
     answer = { text: JSON.stringify(OUTLINE.slides[0]), model: "gpt-5.6-sol" };
     await regeneratePresentationSlide(tenant, {

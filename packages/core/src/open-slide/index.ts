@@ -38,6 +38,7 @@ export type {
   OpenSlideTone,
   OpenSlideWeight,
 } from "./deck";
+export { inspectOpenSlideDesign, mergeOpenSlideDesignRetry, repairOpenSlideDesign } from "./design";
 export { draftOpenSlideDeck } from "./draft";
 export { OPEN_SLIDE_SYSTEM } from "./harness";
 export { applyOpenSlideSkills, openSlidePageBracket } from "./skills";

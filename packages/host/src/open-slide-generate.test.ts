@@ -1,4 +1,5 @@
 import { ApiError } from "@agentforge/core";
+import type { JobEvent } from "@agentforge/core/jobs";
 import { beforeAll, describe, expect, it } from "vitest";
 import { withRequestLocale } from "./run-context";
 import type { TenantContext } from "@agentforge/core";
@@ -54,6 +55,31 @@ describe("generateOpenSlideDeck", () => {
     expect(text).toContain(source);
     expect(text).not.toMatch(/\d/);
     expect(deck.pages.every((page) => page.notes.trim().length > 0)).toBe(true);
+    const layouts = new Set(["title", "section", "split", "quote", "figure"]);
+    expect(deck.pages.every((page) => page.layout && layouts.has(page.layout))).toBe(true);
+  });
+
+  it("emits a design phase and repairs a title that does not fit", async () => {
+    const events: JobEvent[] = [];
+    const deck = await generateOpenSlideDeck(
+      await tenant(),
+      {
+        prompt: "Saturday pickup for every named bag waiting on the counter",
+        brief: { pageCount: "short", density: "light", motion: "static" },
+      },
+      (event) => events.push(event),
+    );
+    expect(events.map((event) => (event.type === "job.phase" ? event.phase : event.type))).toEqual([
+      "designing",
+      "repairing",
+    ]);
+    expect(events[0]).toMatchObject({ type: "job.phase", label: "Assigning a layout" });
+    const title = deck.pages[0]?.blocks.reduce((best, block) =>
+      block.kind === "text" && block.fontSize > (best?.fontSize ?? 0) ? block : best,
+    );
+    expect(title?.text.length ?? 0).toBeLessThanOrEqual(43);
+    expect(deck.pages).toHaveLength(4);
+    expect(deck.pages[0]?.layout).toBe("title");
   });
 
   it("refuses a blank prompt and a hostile source", async () => {

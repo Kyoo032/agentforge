@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { resetBootLocaleForTests } from "./locale-boot";
 import {
+  presentationDesignLabel,
   presentationGatewayMessage,
   presentationKicker,
   presentationLanguageRule,
@@ -63,6 +64,8 @@ describe("presentation language copy", () => {
     expect(presentationGatewayMessage("id")).toMatch(/Toko Token/);
     expect(presentationSkillCopy("id").note).toMatch(/Jangan menambah angka/);
     expect(presentationSkillCopy("id").noFigure).toBe("Tidak ada angka");
+    expect(presentationDesignLabel("designing", "id")).toBe("Menyusun tata letak");
+    expect(presentationDesignLabel("repairing", "id")).toBe("Menulis ulang halaman yang sesak");
   });
 
   it("keeps English slide copy for en", () => {
@@ -71,5 +74,7 @@ describe("presentation language copy", () => {
     expect(presentationGatewayMessage("en")).toMatch(/Settings/);
     expect(presentationSkillCopy("en").note).toMatch(/Do not add a number/);
     expect(presentationSkillCopy("en").noFigure).toBe("No figure supplied");
+    expect(presentationDesignLabel("designing", "en")).toBe("Assigning a layout");
+    expect(presentationDesignLabel("repairing", "en")).toBe("Rewriting the crowded pages");
   });
 });
