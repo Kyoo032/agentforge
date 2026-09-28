@@ -7,6 +7,7 @@ import {
   assertAllowedEndpointUrl,
   htmlToText,
   isHtmlContent,
+  knowledgeMissBlock,
   plainToText,
   scanInjection,
   type KnowledgeModels,
@@ -21,6 +22,8 @@ import { deleteThroughBackend, indexThroughBackend, retrieveThroughBackend } fro
 import type { KnowledgeBackendId, RetrievedChunk, RetrieveResult } from "./knowledge/backend";
 import { expandRetrievedChunks } from "./knowledge-expand";
 import { removeGraphForSource, sweepOrphanGraph } from "./knowledge-graph-prune";
+import { forgetSourcesOnMap } from "./knowledge-map-honesty";
+import { localeForRun } from "./run-context";
 import { defaultSoul, isLegacyDefaultSoul, type KnowledgeSoul } from "./knowledge-soul";
 import { modeCatalogPayload } from "./selectable-models";
 import { loadSettings } from "./settings-store";
@@ -675,6 +678,8 @@ export function deleteSource(tenant: TenantContext, id: string): boolean {
     forgetInBackend(tenant, id, externalId);
     // And the raw upload, if this source was a file. Nothing else ever reads it once the row is gone.
     removeStoredUpload(tenant, id);
+    // The saved map is a coverage claim. The id has to leave it in the same delete.
+    forgetSourcesOnMap(tenant, [id]);
   }
   return removed;
 }
@@ -744,6 +749,10 @@ export function sweepOrphanSources(tenant: TenantContext): number {
     forgetInBackend(tenant, row.id, row.external_id);
     removeStoredUpload(tenant, row.id);
   }
+  forgetSourcesOnMap(
+    tenant,
+    removed.map((row) => row.id),
+  );
   // Rows written before the cascade existed have no source row left to sweep — only a node, an edge
   // or a retrieval. The owner's desk carried 18 graph nodes against one live source; this is the
   // repair pass that makes the loop chart describe the knowledge base that actually exists.
@@ -893,7 +902,8 @@ export async function knowledgeInjection(
 ): Promise<KnowledgeInjection> {
   const soul = getSoul(tenant);
   const memories = listMemories(tenant).filter((item) => item.pinned);
-  const retrieved: RetrieveResult = query
+  const asked = query.trim().length > 0;
+  const retrieved: RetrieveResult = asked
     ? await retrieveChunks(tenant, query, 4, { excludeSourceIds: excludedSourceIds(tenant, options) })
     : { chunks: [], mode: "none", backend: "builtin", vectorModel: null };
   const soulBlock = [
@@ -908,9 +918,16 @@ export async function knowledgeInjection(
   // `[n] <sourceName>` on its own line: the default Soul rule asks for a citation, so the marker has
   // to name the source, not just number it. Names are already normalized at index time; sanitizing
   // again here keeps rows written by older builds (or by a future backend) from forging a line.
-  const retrievedBlock = retrieved.chunks
-    .map((chunk, index) => `[${index + 1}] ${sanitizeSourceName(chunk.sourceName) || chunk.sourceId}\n${chunk.body}`)
-    .join("\n\n");
+  const retrievedBlock = retrieved.chunks.length
+    ? retrieved.chunks
+        .map(
+          (chunk, index) =>
+            `[${index + 1}] ${sanitizeSourceName(chunk.sourceName) || chunk.sourceId}\n${chunk.body}`,
+        )
+        .join("\n\n")
+    : asked
+      ? knowledgeMissBlock(localeForRun())
+      : "";
   const sections = [
     soulBlock ? `## Soul\n${soulBlock}` : "",
     memoryBlock ? `## Pinned memories\n${memoryBlock}` : "",

@@ -1,6 +1,6 @@
 # Map — Knowledge ingest loop
 
-Last verified: 2026-09-20 at 6984d84; citations re-anchored at e37b3a1
+Last verified: 2026-09-28 for the retrieve miss and the map-id check. A non-empty question with no chunk still writes `## Retrieved sources` (the miss line). A live map that is not JSON is asked once more, then grounded to indexed ids (`takeKnowledgeMapText`, `groundKnowledgeMap`). Earlier: 2026-09-20 at 6984d84; citations re-anchored at e37b3a1.
 
 > **`knowledge.ts` and `knowledge-extract.ts` move often.** Every line number below was re-read at `b482611`, but these two files are rewritten frequently; if a number looks wrong, grep the function name rather than trusting it.
 
@@ -65,7 +65,7 @@ Vectors go to `knowledge_vectors` with the embedding stored as a **JSON-stringif
 
 `retrieveChunks` (`packages/host/src/knowledge.ts:783-797`) → `SqliteBuiltinBackend.retrieve` (`packages/host/src/knowledge/backends/builtin.ts:250-273`) runs FTS5 bm25 and a cosine scan in parallel and fuses them with Reciprocal Rank Fusion (`fuseRrf`, `:155-176`, `RRF_K = 60`). Default `limit` is 4 (`packages/host/src/knowledge.ts:786`), vector floor `MIN_COSINE = 0.12` (`packages/host/src/knowledge-embed.ts:260`).
 
-`knowledgeInjection` (`packages/host/src/knowledge.ts:835-877`) renders the hits as `[n] <name>\n<body>` inside a `## Retrieved sources` block. It is called from exactly one product path: `startModalityRun` (`packages/host/src/runs.ts:153`), appended to the agent's system prompt at `:158`. The Knowledge context popover route is the only other caller.
+`knowledgeInjection` (`packages/host/src/knowledge.ts`) renders hits as `[n] <name>\n<body>` inside a `## Retrieved sources` block. When the question is non-empty and no chunk comes back, that block is the miss line instead of being omitted. It is called from exactly one product path: `startModalityRun` (`packages/host/src/runs.ts`), appended to the agent's system prompt. The Knowledge context popover route is the only other caller. `mapKnowledge` asks once more when the model text is not a map (`takeKnowledgeMapText`) and drops source ids that are not indexed (`groundKnowledgeMap`) before it saves.
 
 Afterwards, on a *completed* run only: `recordRetrievals` (`packages/host/src/knowledge-retrievals.ts:39-72`) writes one row per served chunk and projects a `retrieved` graph edge, and `recordCites` parses `[n]` markers out of the reply (`packages/host/src/knowledge-cites.ts`, fenced code excluded) and bumps `cites` edge weights.
 

@@ -1,5 +1,6 @@
 import {
   ApiError,
+  groundKnowledgeMap,
   hasLiveProvider,
   knowledgeBrainPrompt,
   knowledgeVerifierPrompt,
@@ -79,6 +80,25 @@ function markMap(tenant: TenantContext, status: "Mapping" | "Failed", error: str
     .run(workspaceId(tenant), status, error, Date.now());
 }
 
+/**
+ * One model read, then one more only when the text is not a map.
+ * A parsed map is returned as-is. A throw from `ask` is not a bad map, so it is not retried.
+ */
+export async function takeKnowledgeMapText(
+  ask: () => Promise<string>,
+  accept: (raw: string) => KnowledgeMap | null,
+): Promise<KnowledgeMap | null> {
+  const first = accept(await ask());
+  if (first) {
+    return first;
+  }
+  return accept(await ask());
+}
+
+function knownSourceIds(tenant: TenantContext): Set<string> {
+  return new Set(listSources(tenant).map((source) => source.id));
+}
+
 function sourceExcerpts(tenant: TenantContext): Array<{ id: string; name: string; excerpt: string }> {
   const sources = listSources(tenant);
   return sources.map((source) => {
@@ -126,49 +146,67 @@ export async function mapKnowledge(
     const sources = listSources(tenant).map((source) => ({ id: source.id, name: source.name }));
     let map: KnowledgeMap | null;
 
+    const accept = (raw: string): KnowledgeMap | null => {
+      const parsed = parseKnowledgeMap(raw, models, "live");
+      return parsed ? groundKnowledgeMap(parsed, knownSourceIds(tenant)) : null;
+    };
+
     if (mode === "stub") {
-      map = stubKnowledgeMap(sources, models, localeForRun());
+      map = groundKnowledgeMap(stubKnowledgeMap(sources, models, localeForRun()), knownSourceIds(tenant));
     } else {
       const excerpts = sourceExcerpts(tenant);
-      const brainRaw = await collectJobAssistantText({
-        tenant,
-        model: models.brainModel,
-        systemPrompt: withOutputLanguage(
-          "You organize a local knowledge base. Return JSON only.",
-          "knowledge",
-          localeForRun(),
-        ),
-        runPrefix: "knowledge-brain",
-        agentId: "knowledge-brain",
-        // Nearest studio for the thinking knob; the map is JSON over excerpts, like Research.
-        jobMode: "research",
-        versionId: "knowledge-brain",
-        prompt: knowledgeBrainPrompt(excerpts),
-      });
-      const draft = parseKnowledgeMap(brainRaw, models, "live");
+      const locale = localeForRun();
+      const draft = await takeKnowledgeMapText(
+        () =>
+          collectJobAssistantText({
+            tenant,
+            model: models.brainModel,
+            systemPrompt: withOutputLanguage(
+              "You organize a local knowledge base. Return JSON only.",
+              "knowledge",
+              locale,
+            ),
+            runPrefix: "knowledge-brain",
+            agentId: "knowledge-brain",
+            // Nearest studio for the thinking knob; the map is JSON over excerpts, like Research.
+            jobMode: "research",
+            versionId: "knowledge-brain",
+            prompt: knowledgeBrainPrompt(excerpts),
+          }),
+        accept,
+      );
       if (!draft) {
-        throw new ApiError("generation_failed", modeMessage("invalidKnowledgeMap", localeForRun()), 502);
+        throw new ApiError("generation_failed", modeMessage("invalidKnowledgeMap", locale), 502);
       }
       const evidence = excerpts
         .map((item) => `[${item.id}] ${item.name}\n${item.excerpt}`)
         .join("\n\n");
-      const verifierRaw = await collectJobAssistantText({
-        tenant,
-        model: models.verifierModel,
-        systemPrompt: withOutputLanguage(
-          "You verify a knowledge map against source evidence. Return JSON only.",
-          "knowledge",
-          localeForRun(),
-        ),
-        runPrefix: "knowledge-verifier",
-        agentId: "knowledge-verifier",
-        jobMode: "research",
-        versionId: "knowledge-verifier",
-        prompt: knowledgeVerifierPrompt(JSON.stringify(draft), evidence),
-      });
-      map = parseKnowledgeMap(verifierRaw, models, "live") ?? draft;
+      const verified = await takeKnowledgeMapText(
+        () =>
+          collectJobAssistantText({
+            tenant,
+            model: models.verifierModel,
+            systemPrompt: withOutputLanguage(
+              "You verify a knowledge map against source evidence. Return JSON only.",
+              "knowledge",
+              locale,
+            ),
+            runPrefix: "knowledge-verifier",
+            agentId: "knowledge-verifier",
+            jobMode: "research",
+            versionId: "knowledge-verifier",
+            prompt: knowledgeVerifierPrompt(JSON.stringify(draft), evidence),
+          }),
+        accept,
+      );
+      map = verified ?? draft;
     }
 
+    if (!map) {
+      throw new ApiError("generation_failed", modeMessage("invalidKnowledgeMap", localeForRun()), 502);
+    }
+    // Indexed ids at save time, so a source deleted while the model was writing does not stay in the claim.
+    map = groundKnowledgeMap(map, knownSourceIds(tenant));
     saveMap(tenant, map);
     // Graph stage of the loop: the map already *is* topic → source edges, so project it. Recomputed
     // from the blob that was just saved, so it is idempotent; a graph failure never fails the map.
