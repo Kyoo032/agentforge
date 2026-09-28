@@ -4,7 +4,7 @@
 > **Enterprise** is the hosted multi-user web app.
 > Decision record: [`web-pivot-2026-09-18.md`](../web-pivot-2026-09-18.md).
 
-Last verified: 2026-09-28 at 385a2d1
+Last verified: 2026-09-28 at 7a281ad
 
 ## Overview
 
