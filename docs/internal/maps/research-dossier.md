@@ -1,6 +1,6 @@
 # Map — Research dossier
 
-Last verified: 2026-09-28 at pending
+Last verified: 2026-09-28 at 2baaa92
 
 ## Overview
 
