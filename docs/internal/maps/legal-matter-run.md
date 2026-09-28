@@ -1,6 +1,6 @@
 # Map — Legal matter run
 
-Last verified: 2026-09-28 (Legal harness: one untagged file, a built-in position, one verbatim-quote retry. Intake sections remain as of 775d16f.)
+Last verified: 2026-09-28 at f20a90b (Legal harness: one untagged file, a built-in position, one verbatim-quote retry. Intake sections remain as of 775d16f.)
 
 ## Overview
 
