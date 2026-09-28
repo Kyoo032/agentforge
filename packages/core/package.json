@@ -29,6 +29,7 @@
     "./stream-watchdog": "./src/runtime/stream-watchdog.ts",
     "./retry": "./src/runtime/retry.ts",
     "./tabular": "./src/tabular/index.ts",
+    "./data": "./src/data/index.ts",
     "./artifacts": "./src/artifacts/index.ts",
     "./jobs": "./src/jobs/index.ts",
     "./finance": "./src/finance/index.ts",

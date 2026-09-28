@@ -2,7 +2,6 @@ import {
   ApiError,
   gatewayRequiredMessage,
   hasLiveProvider,
-  modeMessage,
   resolveChatModel,
   resolveRuntimeMode,
   scanInjection,
@@ -15,7 +14,7 @@ import { profileToMarkdown, tableSample } from "@agentforge/core/tabular";
 import { artifactStore } from "./artifacts";
 import { upsertWorkSource } from "./knowledge-ingest";
 import { artifactWorkCard } from "./work-cards";
-import { materializeAnalysis, parseAnalysisDraft } from "./data-analysis-build";
+import { runDataHarness } from "./data-harness";
 import { datasetStore, requireDataset, type DatasetSummary, type LoadedDataset } from "./datasets";
 import { collectJobAssistantRun, readModelPinned } from "./job-regen";
 import { throwIfJobAborted } from "./job-stream";
@@ -30,8 +29,8 @@ import { log } from "./log";
 export const DATA_HISTORY_MAX = 5;
 const SAMPLE_ROWS = 20;
 
-const DATA_SYSTEM = `You are a data analyst. One table is attached as SQLite table \`${DATASET_TABLE}\`; use the run_sql tool for every number you report. Never estimate from the sample.
-Work: look at the profile, run a few targeted queries (max ${SQL_STEP_CAP}), then answer.
+const DATA_SYSTEM = `You are a data analyst. One table is attached as SQLite table \`${DATASET_TABLE}\`. The host already ran the cuts this sheet can support; those results are in the prompt. Use run_sql only for a tighter filter the question asks and the cuts do not already answer (max ${SQL_STEP_CAP}).
+Every number you write must be copied from a cut result or from a query you ran. Never estimate from the sample, and never forecast or refer to a second table.
 Return ONLY valid JSON (no markdown fences) with this shape:
 {
   "title": string,
@@ -44,10 +43,10 @@ Return ONLY valid JSON (no markdown fences) with this shape:
   ]
 }
 Rules:
-- findings.sql is the exact query whose result supports the finding. It is re-run in code and shown as evidence, so it must be a single SELECT you already ran. Use null for a purely qualitative point.
+- One finding per cut you use, plus at most one tighter finding. findings.sql is the exact query whose result supports the finding. It is re-run in code and shown as evidence, so it must be a single SELECT, preferably one of the cut queries. Use null only for a qualitative point that states no number.
 - charts: 0 to 3. sql returns the plotted rows; x names the category / x column of that result; series names one or more numeric columns of that result.
 - Use column identifiers exactly as listed. Quote nothing you did not query. If a column is inferred, say so.
-- Headings are claims, not labels. 3 to 6 findings.
+- Headings are claims, not labels.
 - No campus / student / course nouns unless the table itself requires them.`;
 
 export type DataAnalysisResult = {
@@ -221,18 +220,7 @@ export async function analyzeDataset(
       label: `Sample rows withheld by the injection guard (${brief.withheld})`,
     });
   }
-  const previous = history.map((item) => `Q: ${item.question}\nA (summary): ${item.summary}`).join("\n\n");
-  const prompt = [
-    brief.text,
-    previous ? `Earlier questions on this dataset:\n${previous}` : null,
-    extra ? `Extra context from the user:\n${extra}` : null,
-    `Question:\n${question}`,
-  ]
-    .filter(Boolean)
-    .join("\n\n");
-
-  throwIfJobAborted(abortSignal);
-  emit({ type: "job.phase", phase: "analyzing", label: "Querying with SQL" });
+  const locale = localeForRun();
   const steps = { used: 0 };
   const onQuery = (sqlText: string, output: SqlToolOutput) => {
     const detail = output.success
@@ -244,31 +232,41 @@ export async function analyzeDataset(
   let analysis: DataAnalysis;
   // The model that wrote the analysis. After a fallback it is not the one the request named.
   let answeredBy = model;
+  let harnessSkills: string[] = [];
   try {
     const query = (sqlText: string) => dataset.runner.query(sqlText);
-    const run = await withActiveDataset({ id: dataset.id, query, steps, stepCap: SQL_STEP_CAP, onQuery }, () =>
-      collectJobAssistantRun({
-        tenant,
-        model,
-        // A model the person picked is never swapped by the fallback; a seeded default can be.
-        modelExplicit: readModelPinned(body),
-        systemPrompt: withOutputLanguage(DATA_SYSTEM, "data", localeForRun()),
-        runPrefix: "data",
-        agentId: "data",
-        jobMode: "data",
-        versionId: "data-analysis",
-        prompt,
-        toolKeys: ["run_sql", "calculator"],
-      }),
-    );
-    answeredBy = run.model;
-    if (!run.text.trim()) {
-      throw new ApiError("generation_failed", modeMessage("emptyAnalysis", localeForRun()), 502);
-    }
-
-    throwIfJobAborted(abortSignal);
-    emit({ type: "job.phase", phase: "verifying", label: "Re-running evidence queries" });
-    analysis = await materializeAnalysis(parseAnalysisDraft(run.text), query);
+    const harness = await runDataHarness({
+      dataset,
+      question,
+      history,
+      extra: extra || null,
+      brief: brief.text,
+      locale,
+      emit,
+      abortSignal,
+      query,
+      answer: async (prompt) => {
+        const run = await withActiveDataset({ id: dataset.id, query, steps, stepCap: SQL_STEP_CAP, onQuery }, () =>
+          collectJobAssistantRun({
+            tenant,
+            model,
+            // A model the person picked is never swapped by the fallback; a seeded default can be.
+            modelExplicit: readModelPinned(body),
+            systemPrompt: withOutputLanguage(DATA_SYSTEM, "data", locale),
+            runPrefix: "data",
+            agentId: "data",
+            jobMode: "data",
+            versionId: "data-analysis",
+            prompt,
+            toolKeys: ["run_sql", "calculator"],
+          }),
+        );
+        return { text: run.text, model: run.model };
+      },
+    });
+    analysis = harness.analysis;
+    answeredBy = harness.model;
+    harnessSkills = harness.skills;
   } finally {
     release();
   }
@@ -282,11 +280,19 @@ export async function analyzeDataset(
     datasetId: dataset.id,
     datasetName: dataset.name,
     queries: steps.used,
+    skills: harnessSkills,
   });
   if (artifactId) {
     await upsertWorkSource(
       tenant,
-      artifactWorkCard({ type: "Data", artifactId, title: analysis.title, prompt: question, markdown, model: answeredBy }),
+      artifactWorkCard({
+        type: "Data",
+        artifactId,
+        title: analysis.title,
+        prompt: question,
+        markdown,
+        model: answeredBy,
+      }),
     );
   }
   return { analysis, artifactId, dataset: summaryOf(dataset), markdown };

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { ApiError } from "@agentforge/core";
-import { chartFromResult, materializeAnalysis, parseAnalysisDraft } from "./data-analysis-build";
+import {
+  chartFromResult,
+  materializeAnalysis,
+  materializeWithFailures,
+  parseAnalysisDraft,
+} from "./data-analysis-build";
 import type { SqlResult } from "./sql-tool";
 
 const RAW = `Here you go:
@@ -45,7 +50,7 @@ describe("parseAnalysisDraft", () => {
 });
 
 describe("materializeAnalysis", () => {
-  it("fills evidence tables and charts from real query results and notes failed queries", async () => {
+  it("fills evidence tables and charts from real query results and drops a finding whose query failed", async () => {
     const draft = parseAnalysisDraft(RAW);
     const analysis = await materializeAnalysis(draft, async (sql) => {
       if (sql.includes("GROUP BY 1")) {
@@ -81,12 +86,12 @@ describe("materializeAnalysis", () => {
       },
     ]);
 
-    const failing = await materializeAnalysis(draft, async () => {
+    const failing = await materializeWithFailures(draft, async () => {
       throw new Error("boom");
     });
-    expect(failing.findings[0]?.evidence).toBeUndefined();
-    expect(failing.findings[0]?.body).toContain("(Evidence query failed: boom)");
-    expect(failing.charts).toEqual([]);
+    expect(failing.failures).toEqual([{ heading: "Acme dominates", reason: "boom" }]);
+    expect(failing.analysis?.findings.map((finding) => finding.heading)).toEqual(["No sql"]);
+    expect(failing.analysis?.charts).toEqual([]);
   });
 
   it("drops charts whose columns are missing or non-numeric and never zero-fills gaps", () => {

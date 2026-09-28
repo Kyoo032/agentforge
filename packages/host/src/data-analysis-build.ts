@@ -75,20 +75,33 @@ function evidenceTable(result: SqlResult): EvidenceTable {
   return { columns: result.columns, rows: result.rows.slice(0, EVIDENCE_ROW_CAP) };
 }
 
-async function materializeFinding(finding: AnalysisDraft["findings"][number], runSql: RunSql): Promise<DataFinding> {
+export type EvidenceFailure = { heading: string; reason: string };
+
+export type MaterializeOutcome = {
+  /** Null when every finding was dropped because its evidence query failed. */
+  analysis: DataAnalysis | null;
+  failures: EvidenceFailure[];
+};
+
+async function materializeFinding(
+  finding: AnalysisDraft["findings"][number],
+  runSql: RunSql,
+): Promise<{ finding: DataFinding } | { failure: EvidenceFailure }> {
   if (!finding.sql) {
-    return { heading: finding.heading, body: finding.body };
+    return { finding: { heading: finding.heading, body: finding.body } };
   }
   try {
     const result = await runSql(finding.sql);
     return {
-      heading: finding.heading,
-      body: finding.body,
-      evidence: { sql: finding.sql, table: evidenceTable(result) },
+      finding: {
+        heading: finding.heading,
+        body: finding.body,
+        evidence: { sql: finding.sql, table: evidenceTable(result) },
+      },
     };
   } catch (error) {
     const reason = error instanceof Error ? error.message : "query failed";
-    return { heading: finding.heading, body: `${finding.body}\n\n(Evidence query failed: ${reason})` };
+    return { failure: { heading: finding.heading, reason } };
   }
 }
 
@@ -142,11 +155,20 @@ async function materializeChart(draft: AnalysisDraft["charts"][number], runSql: 
   }
 }
 
-/** Every table and chart comes from re-running the model's SQL in code; prose is the model's, numbers are not. */
-export async function materializeAnalysis(draft: AnalysisDraft, runSql: RunSql): Promise<DataAnalysis> {
+/**
+ * Re-run each finding's SQL. A query that fails drops that finding — the sentence is not kept.
+ * Charts still come only from query results.
+ */
+export async function materializeWithFailures(draft: AnalysisDraft, runSql: RunSql): Promise<MaterializeOutcome> {
   const findings: DataFinding[] = [];
+  const failures: EvidenceFailure[] = [];
   for (const finding of draft.findings) {
-    findings.push(await materializeFinding(finding, runSql));
+    const built = await materializeFinding(finding, runSql);
+    if ("failure" in built) {
+      failures.push(built.failure);
+    } else {
+      findings.push(built.finding);
+    }
   }
   const charts: DataChart[] = [];
   for (const chart of draft.charts) {
@@ -155,5 +177,20 @@ export async function materializeAnalysis(draft: AnalysisDraft, runSql: RunSql):
       charts.push(built);
     }
   }
-  return dataAnalysisSchema.parse({ title: draft.title, summary: draft.summary, findings, tables: [], charts });
+  if (findings.length === 0) {
+    return { analysis: null, failures };
+  }
+  return {
+    analysis: dataAnalysisSchema.parse({ title: draft.title, summary: draft.summary, findings, tables: [], charts }),
+    failures,
+  };
+}
+
+/** Every table and chart comes from re-running the model's SQL in code; prose is the model's, numbers are not. */
+export async function materializeAnalysis(draft: AnalysisDraft, runSql: RunSql): Promise<DataAnalysis> {
+  const outcome = await materializeWithFailures(draft, runSql);
+  if (!outcome.analysis) {
+    throw new ApiError("invalid_analysis", "Model returned no findings", 502);
+  }
+  return outcome.analysis;
 }
